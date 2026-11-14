@@ -16,7 +16,9 @@ tudo  O mesmo que v4.
 
 Critérios (docs/fidelidade.md; mudar só com justificativa registrada lá):
 - pixel diferente: |Δ| > 48 em tons de cinza (0–255), imagens a 150 dpi;
-- V2: folha aprovada com ≤ 0,5 % de pixels diferentes e texto idêntico;
+- V2: texto idêntico (porta principal) e ≤ 1,0 % de pixels diferentes com 1 px de tolerância de posição (um pixel só
+  conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a |Δ| ≤ 48); o estrito (sem tolerância, limite
+  inicial 0,5 %) fica só informativo: mede a diferença entre os rasterizadores (Chromium na tela × MuPDF no PDF);
 - V3: mesmo número de páginas, texto idêntico em cada página e ≤ 2 % de pixels diferentes por página.
 - Texto: só o visível do PDF (há tinta na caixa do caractere), sem espaços em branco, sem o texto gerado por CSS
   (`content: "…"` do relatorio.css). V2: mesmos caracteres e cada trecho do PDF presente na folha (a ordem de pintura do
@@ -53,7 +55,8 @@ EDGES = [Path(r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'), 
 
 DPI = 150
 LIMIAR_PIXEL = 48          # |Δ| em tons de cinza acima do qual o pixel conta como diferente
-MAX_V2 = 0.5               # % de pixels diferentes por folha (tela × PDF do editor)
+MAX_V2 = 1.0               # % de pixels diferentes por folha (tela × PDF do editor), COM 1 px de tolerância (decisão do
+                           # controlador, 14/11/2026: o estrito compara dois rasterizadores; ver docs/fidelidade.md)
 MAX_V3 = 2.0               # % de pixels diferentes por página (editor × kit)
 MM = 72 / 25.4             # pt por mm
 # Faixas da página (mm, pelo centro de cada palavra): cabeçalho acima de 24 mm (a imagem termina em ~22 mm; a área útil
@@ -354,8 +357,8 @@ def diferenca_visual(a, b) -> tuple[float | None, str | None]:
 
 
 def diferenca_tolerante(a, b) -> float | None:
-    """SÓ INFORMATIVA (não aprova nem reprova): % de pixels de `a` sem nenhum pixel de `b` a até 1 px (vizinhança 3 × 3)
-    com |Δ| ≤ LIMIAR_PIXEL. Separa a diferença de rasterização do texto (Chromium na tela × MuPDF no PDF: bordas dos
+    """Critério visual da V2: % de pixels de `a` sem nenhum pixel de `b` a até 1 px (vizinhança 3 × 3) com
+    |Δ| ≤ LIMIAR_PIXEL. Separa a diferença de rasterização do texto (Chromium na tela × MuPDF no PDF: bordas dos
     glifos) de diferença de composição (algo fora do lugar, que continua aparecendo aqui)."""
     import numpy as np
     (ha, la), (hb, lb) = a.shape, b.shape
@@ -390,7 +393,7 @@ def caso_v2(ex: Execucao, c: dict) -> dict:
     nome = c['nome']
     res = {'caso': nome, 'aprovado': False, 'folhas': None, 'paginas_pdf': None, 'recusado': None,
            'texto_divergente': [], 'visual_max_pct': None, 'visual_pct': [], 'visual_reprovadas': [],
-           'visual_tolerante_1px_max_pct': None}
+           'visual_estrito_max_pct': None, 'visual_estrito_pct': []}
     pdf, codigo = ex.pdf_editor(c)
     if nome == CASO_RECUSA:
         res['recusado'] = codigo == 3 and not (ex.pasta(c) / 'editor.pdf').exists()
@@ -422,28 +425,28 @@ def caso_v2(ex: Execucao, c: dict) -> dict:
         if motivo:
             res['texto_divergente'].append(i)
             print(f'  V2 [{nome}] folha {i}: texto difere (tela × PDF): {motivo}')
-    tolerantes = []
     for i, (png, pg) in enumerate(zip(pngs, rast), start=1):
         cap = ler_png_cinza(png)
+        estrito, motivo = diferenca_visual(cap, pg)
         tol = diferenca_tolerante(cap, pg)
-        if tol is not None:
-            tolerantes.append(tol)
-        pct, motivo = diferenca_visual(cap, pg)
-        if pct is None:
+        if tol is None:
             print(f'  V2 [{nome}] folha {i}: {motivo}')
             res['visual_reprovadas'].append(i)
             res['visual_pct'].append(None)
+            res['visual_estrito_pct'].append(None)
             continue
-        res['visual_pct'].append(round(pct, 4))
-        if pct > MAX_V2:
+        res['visual_pct'].append(round(tol, 4))
+        res['visual_estrito_pct'].append(round(estrito, 4))
+        if tol > MAX_V2:
             res['visual_reprovadas'].append(i)
     vals = [v for v in res['visual_pct'] if v is not None]
     res['visual_max_pct'] = max(vals) if vals else None
-    res['visual_tolerante_1px_max_pct'] = round(max(tolerantes), 4) if tolerantes else None
+    estritos = [v for v in res['visual_estrito_pct'] if v is not None]
+    res['visual_estrito_max_pct'] = max(estritos) if estritos else None
     res['aprovado'] = ok and not res['texto_divergente'] and not res['visual_reprovadas']
     print(f'  V2 [{nome}] {"OK" if res["aprovado"] else "FALHOU"}: {res["folhas"]} folhas; texto divergente em {res["texto_divergente"] or "nenhuma"};'
-          f' visual máx {res["visual_max_pct"]} % (limite {MAX_V2} %), acima em {res["visual_reprovadas"] or "nenhuma"};'
-          f' informativo, com 1 px de tolerância: máx {res["visual_tolerante_1px_max_pct"]} %')
+          f' visual (1 px de tolerância) máx {res["visual_max_pct"]} % (limite {MAX_V2} %), acima em {res["visual_reprovadas"] or "nenhuma"};'
+          f' informativo, estrito: máx {res["visual_estrito_max_pct"]} %')
     return res
 
 
@@ -540,7 +543,7 @@ def executar(quais: list[str], filtro: list[str] | None, consolidado: bool, mant
         gravar('v4.json', {
             'gerado_em': datetime.datetime.now().isoformat(timespec='seconds'),
             'versoes': {'webview2_editor': ex.webview2, 'edge_kit': ex.edge},
-            'criterios': {'dpi': DPI, 'limiar_pixel': LIMIAR_PIXEL, 'v2_max_pct': MAX_V2, 'v3_max_pct': MAX_V3},
+            'criterios': {'dpi': DPI, 'limiar_pixel': LIMIAR_PIXEL, 'v2_max_pct_tolerancia_1px': MAX_V2, 'v3_max_pct': MAX_V3},
             'casos': [{'caso': c['nome'], **{v: aprovado(v, next(r for r in resultados[v] if r['caso'] == c['nome'])) for v in quais}}
                       for c in lista],
             'aprovado': ok,

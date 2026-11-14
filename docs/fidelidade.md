@@ -13,11 +13,11 @@ tela, escala 1).
 
 ## Critérios
 
-| | Critério (do brief; nenhum foi afrouxado) |
+| | Critério (do brief, salvo a V2 visual, mudada por decisão registrada abaixo) |
 |---|---|
 | Pixel diferente | \|Δ\| > 48 em tons de cinza (0–255), imagens a 150 dpi |
 | V1 | HTML do editor = HTML do kit, byte a byte |
-| V2 (tela × PDF do editor) | cada folha capturada a 150 dpi × página do PDF rasterizada pelo PyMuPDF a 150 dpi: ≤ 0,5 % de pixels diferentes; texto por folha idêntico |
+| V2 (tela × PDF do editor) | **texto por folha idêntico (porta principal)**; cada folha capturada a 150 dpi × página do PDF rasterizada pelo PyMuPDF a 150 dpi: **≤ 1,0 % de pixels diferentes com 1 px de tolerância de posição** (um pixel só conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a \|Δ\| ≤ 48). O estrito (sem tolerância; limite inicial 0,5 %) é medido e registrado só como informação |
 | V3 (PDF do editor × PDF do kit) | mesmo número de páginas; mesmo texto em cada página (cabeçalho, área útil, rodapé); ≤ 2 % de pixels diferentes por página |
 | V4 | V1–V3 em todos os casos; `estouro` só verifica a recusa da exportação |
 
@@ -95,27 +95,37 @@ com texto na área de cada folha da tela têm texto na página do PDF). Sem a co
 Plano fixado: `PlanoGoldenTestes` (`tests/Pmvni.Web.Testes/golden/plano-{longo,extremos}.json`: inícios, `forcada` e
 escala). Nenhuma mudança desta tarefa alterou os planos.
 
+## Decisão sobre a V2 visual (controlador, 14/11/2026)
+
+Critério inicial: ≤ 0,5 % de pixels com |Δ| > 48, sem tolerância. Resultado: reprovado em todos os casos (1,1 % a 6,5 %),
+com a composição igual (texto idêntico em todas as folhas; o melhor alinhamento entre tela e PDF é o deslocamento 0).
+Causa: a comparação põe frente a frente dois rasterizadores de texto — a captura da tela é do Chromium (DirectWrite,
+antisserrilhado em tons de cinza, sem franjas de cor) e a página do PDF é rasterizada pelo MuPDF —, e as bordas dos
+glifos diferem em mais de 48 níveis em ~1–6 % dos pixels de uma página de texto denso a 150 dpi. O critério estrito
+mede o antisserrilhado dos renderizadores, não a composição.
+
+**Decisão:** V2 visual = métrica com 1 px de tolerância de posição (um pixel conta como diferente só se nenhum pixel da
+vizinhança 3 × 3 da outra imagem estiver a |Δ| ≤ 48), limite **≤ 1,0 % por folha**. A métrica estrita continua medida e
+registrada (`visual_estrito_pct` em `v2.json`), só informativa. A identidade do texto por folha continua sendo a porta
+principal da V2. Nada de trocar o rasterizador nem instalar nada. O que essa métrica ainda pega: qualquer coisa fora do
+lugar por mais de 1 px, conteúdo a mais ou a menos, cor ou imagem diferente.
+
+**Diferenças conhecidas do próprio kit, aceitas** (decisão do controlador; contadas à parte na V3 e listadas na tabela):
+o kit corta a etiqueta `INFORMAÇÕES DIVERGENTES` que passa da borda direita da área (`fora_da_area`) e deixa ~1 px do
+acento do 1º glifo da página seguinte na margem de baixo (`sangria_rodape`).
+
 ## Resultados (`tudo`, 14/11/2026; WebView2 do editor 157.0.4341.46; Edge do kit 158.0.4370.21)
 
-| caso | folhas | páginas do kit | V1 | V2 texto | V2 visual máx (tolerância 1 px, informativo) | V3 | V3 visual máx | diferenças conhecidas (V3) |
-|---|---|---|---|---|---|---|---|---|
-| curto | 2 | 2 | igual | igual | **1,792 %** (0,123 %) | OK | 0,160 % | — |
-| longo | 21 | 21 | igual | igual | **4,069 %** (0,404 %) | OK | 1,663 % | p. 1 sangria 1; p. 14 fora 3 |
-| extremos | 8 | 8 | igual | igual | **6,463 %** (0,805 %) | OK | 1,349 % | p. 4/5/6/7 fora 3/12/9/6 |
-| sem_opcionais | 1 | 1 | igual | igual | **1,132 %** (0,116 %) | OK | 0,167 % | — |
-| estouro | recusada | 7 | igual | recusa OK | — | recusa OK | — | — |
-| dados_modelo (--instrucoes) | 7 | 7 | igual | igual | **2,629 %** (0,326 %) | OK | 1,086 % | p. 2 sangria 1; p. 4 fora 3, sangria 1 |
-| 17098 (local) | 11 | 11 | igual | igual | **3,712 %** (0,315 %) | OK | 1,620 % | p. 5 fora 3; p. 10 sangria 1 |
+| caso | folhas | páginas do kit | V1 | V2 texto | V2 visual máx, 1 px de tolerância (critério ≤ 1,0 %) | V2 estrito máx (informativo) | V3 | V3 visual máx | diferenças conhecidas (V3) |
+|---|---|---|---|---|---|---|---|---|---|
+| curto | 2 | 2 | igual | igual | 0,123 % | 1,792 % | OK | 0,160 % | — |
+| longo | 21 | 21 | igual | igual | 0,404 % | 4,069 % | OK | 1,663 % | p. 1 sangria 1; p. 14 fora 3 |
+| extremos | 8 | 8 | igual | igual | 0,805 % | 6,463 % | OK | 1,349 % | p. 4/5/6/7 fora 3/12/9/6 |
+| sem_opcionais | 1 | 1 | igual | igual | 0,116 % | 1,132 % | OK | 0,167 % | — |
+| estouro | recusada | 7 | igual | recusa OK | — | — | recusa OK | — | — |
+| dados_modelo (--instrucoes) | 7 | 7 | igual | igual | 0,326 % | 2,629 % | OK | 1,086 % | p. 2 sangria 1; p. 4 fora 3, sangria 1 |
+| 17098 (local) | 11 | 11 | igual | igual | 0,315 % | 3,712 % | OK | 1,620 % | p. 5 fora 3; p. 10 sangria 1 |
 
-**V1 e V3 aprovados em todos os casos** (mesmas páginas e mesmo texto por página: as mesmas quebras do kit).
-**V2: texto idêntico em todas as folhas; o critério visual (≤ 0,5 %) NÃO é atingido em nenhum caso.** As folhas da tela e
-as páginas do PDF têm a mesma composição (sobreposição exata: o melhor alinhamento é o deslocamento 0; texto igual), mas
-a tela é rasterizada pelo Chromium (DirectWrite, tons de cinza) e o PDF pelo MuPDF: as bordas dos glifos diferem em mais
-de 48 níveis em ~1–6 % dos pixels de uma página de texto denso a 150 dpi. Com 1 px de tolerância de posição (métrica só
-informativa, `visual_tolerante_1px_max_pct` em `v2.json`) fica em 0,04–0,8 % (a página de texto corrido de `extremos`,
-folha 3, é a única acima de 0,5 %). O critério não foi mudado: fica para decisão (ver Pendência).
-
-### Pendência
-A V2 visual, como escrita, mede a diferença entre dois rasterizadores de texto, não entre tela e PDF. Opções a decidir
-(nenhuma aplicada): comparar a tela com o PDF rasterizado pelo próprio Chromium; ou adotar a métrica com tolerância de
-posição com um limite próprio, justificado aqui.
+**V1, V2 e V3 aprovados em todos os casos; `tudo` sai com 0.** V3: mesmas páginas e mesmo texto por página (as
+mesmas quebras do kit). V2: texto idêntico em todas as folhas e, com 1 px de tolerância, no máximo 0,805 % (`extremos`,
+folha 3, texto corrido); o estrito fica em 1,1–6,5 % pela diferença entre os rasterizadores (ver a decisão acima).
