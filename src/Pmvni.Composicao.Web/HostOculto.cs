@@ -9,18 +9,27 @@ namespace Pmvni.Composicao.Web;
 /// WebView2 sem interface: uma thread STA própria, com uma janela Win32 oculta (CreateWindowEx) que
 /// hospeda um CoreWebView2Controller. Todo acesso ao CoreWebView2 passa por <see cref="ExecutarAsync{T}"/>,
 /// que roda a ação na thread STA (as continuações dos awaits voltam para ela).
+/// Nenhuma operação fica pendurada: cada uma tem tempo-limite, e todas as pendentes falham quando o
+/// host é descartado, quando um processo do WebView2 cai ou quando a thread STA registra um erro interno.
 /// </summary>
 public sealed class HostOculto : IDisposable
 {
     const int LarguraPx = 1024, AlturaPx = 1400;
+    public static readonly TimeSpan TempoLimitePadrao = TimeSpan.FromSeconds(60);
+    public static readonly TimeSpan TempoLimiteNavegacaoPadrao = TimeSpan.FromSeconds(30);
 
     readonly Thread thread;
     readonly TaskCompletionSource prontoJanela = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    readonly ConcurrentDictionary<object, Action<Exception>> pendentes = new();
     ContextoSta? contexto;
     IntPtr hwnd;
     WndProc? wndProc; // mantém o delegate vivo enquanto a janela existir
     CoreWebView2Controller? controller;
-    bool descartado;
+    volatile bool descartado;
+    volatile Exception? falha;
+
+    /// <summary>Último erro lançado por um trabalho da fila STA fora de uma operação (nunca cruza o WndProc).</summary>
+    public Exception? UltimoErroInterno { get; private set; }
 
     HostOculto()
     {
@@ -29,7 +38,7 @@ public sealed class HostOculto : IDisposable
     }
 
     /// <summary>Cria a thread STA, a janela oculta, o ambiente e o controller do WebView2.</summary>
-    public static async Task<HostOculto> IniciarAsync(string pastaDadosUsuario)
+    public static async Task<HostOculto> IniciarAsync(string pastaDadosUsuario, TimeSpan? tempoLimite = null)
     {
         var host = new HostOculto();
         host.thread.Start();
@@ -41,11 +50,14 @@ public sealed class HostOculto : IDisposable
                 var opcoes = new CoreWebView2EnvironmentOptions();
                 var ambiente = await CoreWebView2Environment.CreateWithOptionsAsync(string.Empty, pastaDadosUsuario, opcoes);
                 var referencia = CoreWebView2ControllerWindowReference.CreateFromWindowHandle((ulong)host.hwnd);
-                host.controller = await ambiente.CreateCoreWebView2ControllerAsync(referencia);
-                host.controller.Bounds = new Rect(0, 0, LarguraPx, AlturaPx);
-                host.controller.IsVisible = true;
+                var novo = await ambiente.CreateCoreWebView2ControllerAsync(referencia);
+                if (host.descartado) { novo.Close(); throw new ObjectDisposedException(nameof(HostOculto)); }
+                host.controller = novo;
+                novo.Bounds = new Rect(0, 0, LarguraPx, AlturaPx);
+                novo.IsVisible = true;
+                novo.CoreWebView2.ProcessFailed += host.ProcessoFalhou;
                 return true;
-            }).ConfigureAwait(false);
+            }, tempoLimite ?? TempoLimitePadrao).ConfigureAwait(false);
         }
         catch
         {
@@ -55,52 +67,111 @@ public sealed class HostOculto : IDisposable
         return host;
     }
 
-    /// <summary>Executa <paramref name="acao"/> na thread STA com o CoreWebView2 deste host.</summary>
-    public Task<T> ExecutarAsync<T>(Func<CoreWebView2, Task<T>> acao)
+    /// <summary>Executa <paramref name="acao"/> na thread STA com o CoreWebView2 deste host. Falha com
+    /// <see cref="TimeoutException"/> após <paramref name="tempoLimite"/> (padrão <see cref="TempoLimitePadrao"/>),
+    /// com <see cref="ObjectDisposedException"/> se o host for descartado e com <see cref="InvalidOperationException"/>
+    /// se um processo do WebView2 cair.</summary>
+    public Task<T> ExecutarAsync<T>(Func<CoreWebView2, Task<T>> acao, TimeSpan? tempoLimite = null)
     {
         ObjectDisposedException.ThrowIf(descartado, this);
-        return ExecutarNaStaAsync(() => acao(controller!.CoreWebView2));
+        if (falha is { } f) return Task.FromException<T>(new InvalidOperationException(f.Message, f));
+        return ExecutarNaStaAsync(() => acao(controller!.CoreWebView2), tempoLimite ?? TempoLimitePadrao);
     }
 
-    Task<T> ExecutarNaStaAsync<T>(Func<Task<T>> acao)
+    Task<T> ExecutarNaStaAsync<T>(Func<Task<T>> acao, TimeSpan tempoLimite)
     {
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        pendentes[tcs] = e => tcs.TrySetException(e);
+        var cts = new CancellationTokenSource(tempoLimite);
+        var registro = cts.Token.Register(() => tcs.TrySetException(
+            new TimeoutException($"Operação do HostOculto excedeu o tempo-limite de {tempoLimite.TotalSeconds:0.#} s.")));
+        tcs.Task.ContinueWith(concluida =>
+        {
+            registro.Dispose();
+            cts.Dispose();
+            pendentes.TryRemove(tcs, out _);
+        }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+
+        // Descartado entre a verificação e o registro: falha já, sem depender da fila.
+        if (descartado) { tcs.TrySetException(new ObjectDisposedException(nameof(HostOculto))); return tcs.Task; }
+
         contexto!.Post(async _ =>
         {
-            try { tcs.SetResult(await acao()); }
-            catch (Exception e) { tcs.SetException(e); }
+            try { tcs.TrySetResult(await acao()); }
+            catch (Exception e) { tcs.TrySetException(e); }
         }, null);
         return tcs.Task;
     }
 
-    /// <summary>Navega para um HTML e espera NavigationCompleted (lança se falhar).</summary>
-    public static Task NavegarParaHtmlAsync(CoreWebView2 webView, string html)
+    /// <summary>Navega para um HTML e espera o NavigationCompleted <b>desta</b> navegação (pelo NavigationId).
+    /// Lança se a navegação falhar ou não terminar em <paramref name="tempoLimite"/>. Chamar na thread STA
+    /// (dentro de <see cref="ExecutarAsync{T}"/>).</summary>
+    public static async Task NavegarParaHtmlAsync(CoreWebView2 webView, string html, TimeSpan? tempoLimite = null)
     {
+        var limite = tempoLimite ?? TempoLimiteNavegacaoPadrao;
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        ulong? id = null;
+        void Iniciada(CoreWebView2 s, CoreWebView2NavigationStartingEventArgs e) => id ??= e.NavigationId;
         void Concluida(CoreWebView2 s, CoreWebView2NavigationCompletedEventArgs e)
         {
-            webView.NavigationCompleted -= Concluida;
+            if (id != e.NavigationId) return; // conclusão atrasada de uma navegação anterior
             if (e.IsSuccess) tcs.TrySetResult();
             else tcs.TrySetException(new InvalidOperationException("Navegação falhou: " + e.WebErrorStatus));
         }
+        webView.NavigationStarting += Iniciada;
         webView.NavigationCompleted += Concluida;
-        webView.NavigateToString(html);
-        return tcs.Task;
+        using var cts = new CancellationTokenSource(limite);
+        using var registro = cts.Token.Register(() => tcs.TrySetException(
+            new TimeoutException($"Navegação não terminou em {limite.TotalSeconds:0.#} s.")));
+        try
+        {
+            webView.NavigateToString(html);
+            await tcs.Task;
+        }
+        finally
+        {
+            webView.NavigationStarting -= Iniciada;
+            webView.NavigationCompleted -= Concluida;
+        }
+    }
+
+    void ProcessoFalhou(CoreWebView2 sender, CoreWebView2ProcessFailedEventArgs e)
+    {
+        // Só as quedas que inutilizam a página; GPU/utilitários o próprio WebView2 recria.
+        if (e.ProcessFailedKind is not (CoreWebView2ProcessFailedKind.BrowserProcessExited
+            or CoreWebView2ProcessFailedKind.RenderProcessExited
+            or CoreWebView2ProcessFailedKind.RenderProcessUnresponsive)) return;
+        var erro = new InvalidOperationException($"Processo do WebView2 falhou: {e.ProcessFailedKind}.");
+        falha = erro;
+        FalharPendentes(erro);
+    }
+
+    void ErroInterno(Exception e)
+    {
+        UltimoErroInterno = e;
+        FalharPendentes(new InvalidOperationException("Erro inesperado na thread STA do HostOculto.", e));
+    }
+
+    void FalharPendentes(Exception erro)
+    {
+        foreach (var falhar in pendentes.Values) falhar(erro);
     }
 
     public void Dispose()
     {
         if (descartado) return;
         descartado = true;
+        FalharPendentes(new ObjectDisposedException(nameof(HostOculto)));
         if (contexto is null || hwnd == IntPtr.Zero) return;
         contexto.Post(_ =>
         {
             try { controller?.Close(); } catch { }
             controller = null;
+            contexto.Fechar();
             DestroyWindow(hwnd);
             PostQuitMessage(0);
         }, null);
-        thread.Join(TimeSpan.FromSeconds(10));
+        if (Thread.CurrentThread != thread) thread.Join(TimeSpan.FromSeconds(10));
     }
 
     void LoopSta()
@@ -142,7 +213,7 @@ public sealed class HostOculto : IDisposable
     {
         if (mensagem == WM_APP_EXECUTAR)
         {
-            contexto?.Drenar();
+            contexto?.Drenar(ErroInterno);
             return IntPtr.Zero;
         }
         return DefWindowProc(janela, mensagem, wParam, lParam);
@@ -152,9 +223,13 @@ public sealed class HostOculto : IDisposable
     sealed class ContextoSta(IntPtr janela) : SynchronizationContext
     {
         readonly ConcurrentQueue<(SendOrPostCallback, object?)> fila = new();
+        volatile bool fechado;
 
+        // Depois de fechado, trabalhos novos são descartados: as operações a que pertenceriam já falharam
+        // com ObjectDisposedException em Dispose.
         public override void Post(SendOrPostCallback d, object? state)
         {
+            if (fechado) return;
             fila.Enqueue((d, state));
             PostMessage(janela, WM_APP_EXECUTAR, IntPtr.Zero, IntPtr.Zero);
         }
@@ -164,9 +239,20 @@ public sealed class HostOculto : IDisposable
 
         public override SynchronizationContext CreateCopy() => this;
 
-        internal void Drenar()
+        internal void Fechar()
         {
-            while (fila.TryDequeue(out var item)) item.Item1(item.Item2);
+            fechado = true;
+            fila.Clear();
+        }
+
+        // Cada item é protegido: nenhuma exceção atravessa o WndProc (fronteira nativa).
+        internal void Drenar(Action<Exception> aoFalhar)
+        {
+            while (!fechado && fila.TryDequeue(out var item))
+            {
+                try { item.Item1(item.Item2); }
+                catch (Exception e) { aoFalhar(e); }
+            }
         }
     }
 

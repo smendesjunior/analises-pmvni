@@ -25,8 +25,12 @@ O que foi necessário para o WinUI 3 rodar em arquivo único:
   `Editor de Relatorios PMVNI.exe`, o `MainWindow.xaml` não era encontrado (`XamlParseException: XAML parsing
   failed` em `MainWindow.InitializeComponent`).
 - Extrações de builds anteriores ficam em `%TEMP%\.net\Editor de Relatorios PMVNI\<outro id>` (uma por build,
-  ~200 MB cada). O `tests\saida\autoteste.ps1` (rodado fora do pacote) apaga essa pasta antes de medir a
-  primeira abertura.
+  ~200 MB cada; o .NET não as apaga). O `tools\build-release.ps1` abre `tools\limpar-extracoes.cmd` com
+  `explorer.exe` (fora do pacote do Claude); o script lê o id do bundle no cabeçalho do próprio .exe
+  (assinatura do bundle .NET no apphost -> deslocamento do cabeçalho -> `bundleId`), mantém só a pasta desse id e
+  grava o resultado em `tests\saida\limpeza.json`, que o build confere. Se o id não puder ser lido, apaga todas.
+- Verificação reproduzível: `explorer.exe tools\autoteste.cmd` (apaga a extração para medir a abertura fria,
+  roda o .exe 2x com `--autoteste`, grava `tests\saida\autoteste*.json` e `autoteste-log.txt`).
 
 Pasta de dados: `%LOCALAPPDATA%\EditorRelatoriosPMVNI` (ou a variável `PMVNI_DADOS_DIR`); perfil do WebView2
 em `<raiz>\WebView2`, igual no app e no `HostOculto`.
@@ -39,6 +43,16 @@ em `<raiz>\WebView2`, igual no app e no `HostOculto`.
 projeção WinRT do WebView2 que vem com o Windows App SDK (a mesma do controle XAML), também a partir do
 console `Pmvni.Verificador`. As continuações voltam à thread STA por um `SynchronizationContext` que usa
 `PostMessage` para a janela oculta.
+
+Robustez (nenhuma operação fica pendurada):
+- `ExecutarAsync(acao, tempoLimite)` (padrão 60 s) e `NavegarParaHtmlAsync(webView, html, tempoLimite)` (padrão
+  30 s) falham com `TimeoutException`; a navegação só aceita o `NavigationCompleted` do seu `NavigationId`.
+- `Dispose` falha todas as operações pendentes com `ObjectDisposedException`; chamadas depois dele também.
+- `ProcessFailed` (navegador, renderização encerrada ou sem resposta) falha as pendentes e as seguintes com
+  `InvalidOperationException`.
+- Cada trabalho da fila STA roda protegido: exceção não atravessa o WndProc; fica em `UltimoErroInterno` e
+  falha as operações pendentes.
+- Prova: `dotnet run --project src/Pmvni.Verificador -- autoteste-falhas`.
 
 `Pmvni.Verificador autoteste-pdf <saida.pdf>` imprime `<p>ok</p>` via CDP `Page.printToPDF`: 1 página,
 210,23 × 297,01 mm (o Chromium arredonda o papel), texto "ok".

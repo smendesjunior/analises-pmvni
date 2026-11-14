@@ -8,7 +8,8 @@ internal static class Program
     static async Task<int> Main(string[] args)
     {
         if (args.Length == 2 && args[0] == "autoteste-pdf") return await AutotestePdfAsync(args[1]);
-        Console.Error.WriteLine("Uso: Pmvni.Verificador autoteste-pdf <saida.pdf>");
+        if (args.Length == 1 && args[0] == "autoteste-falhas") return await AutotesteFalhas.ExecutarAsync();
+        Console.Error.WriteLine("Uso: Pmvni.Verificador autoteste-pdf <saida.pdf> | autoteste-falhas");
         return 2;
     }
 
