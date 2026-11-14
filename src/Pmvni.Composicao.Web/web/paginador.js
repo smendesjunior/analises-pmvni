@@ -146,12 +146,12 @@ var Paginador = (() => {
     }
     return { escala: Math.min(pedida, ENCOLHIMENTO_MAXIMO), pedida, largos, area: q.width, esquerda: q.left };
   }
-  async function folhasProntas(folhas, limiteMs = LIMITE_ESTABILIDADE_MS) {
+  async function folhasProntas(folhas2, limiteMs = LIMITE_ESTABILIDADE_MS) {
     const fim = performance.now() + limiteMs;
     if (await comLimite(document.fonts.ready, limiteMs) === ESGOTADO || document.fonts.status !== "loaded") {
       throw new ErroComposicao("instavel", `As fontes não carregaram em ${limiteMs} ms.`);
     }
-    for (const f of folhas) await imagensProntas(f, Math.max(1, fim - performance.now()));
+    for (const f of folhas2) await imagensProntas(f, Math.max(1, fim - performance.now()));
   }
   var LIMITE_ESTABILIDADE_MS = 3e4;
   function quadro() {
@@ -171,17 +171,17 @@ var Paginador = (() => {
   function comLimite(p, ms) {
     return Promise.race([p, new Promise((ok) => setTimeout(() => ok(ESGOTADO), Math.max(0, ms)))]);
   }
-  async function esperarEstabilidade(raiz, limiteMs = LIMITE_ESTABILIDADE_MS) {
+  async function esperarEstabilidade(raiz2, limiteMs = LIMITE_ESTABILIDADE_MS) {
     const fim = performance.now() + limiteMs;
     const resta = () => fim - performance.now();
     for (; ; ) {
       await comLimite(document.fonts.ready, resta());
       const imagens = Array.from(document.images);
       await comLimite(Promise.all(imagens.map((i) => i.decode().catch(() => void 0))), resta());
-      const antes = raiz.getBoundingClientRect().height;
+      const antes = raiz2.getBoundingClientRect().height;
       await quadro();
       await quadro();
-      const depois = raiz.getBoundingClientRect().height;
+      const depois = raiz2.getBoundingClientRect().height;
       const pendentes = imagens.filter((i) => !i.complete).length;
       const novas = document.images.length !== imagens.length;
       const fontes = document.fonts.status !== "loaded";
@@ -197,8 +197,8 @@ var Paginador = (() => {
       }
     }
   }
-  async function imagensProntas(raiz, limiteMs = LIMITE_ESTABILIDADE_MS) {
-    const pendentes = Array.from(raiz.querySelectorAll("img")).filter((i) => !i.complete);
+  async function imagensProntas(raiz2, limiteMs = LIMITE_ESTABILIDADE_MS) {
+    const pendentes = Array.from(raiz2.querySelectorAll("img")).filter((i) => !i.complete);
     if (!pendentes.length) return;
     const r = await comLimite(Promise.all(pendentes.map((i) => i.decode().catch(() => void 0))), limiteMs);
     if (r === ESGOTADO) {
@@ -803,8 +803,8 @@ var Paginador = (() => {
       d.textContent = cfg.rodapeDireitaModelo.replaceAll("{n}", String(i + 1)).replaceAll("{t}", String(direitas.length));
     });
   }
-  function refsDasFolhas(folhas) {
-    return folhas.map((f) => {
+  function refsDasFolhas(folhas2) {
+    return folhas2.map((f) => {
       const ids = [];
       for (const e of Array.from(f.querySelectorAll(".area [data-ref]"))) {
         const id = e.getAttribute("data-ref");
@@ -863,15 +863,15 @@ var Paginador = (() => {
     for (const f of Array.from(document.querySelectorAll("section.folha"))) f.remove();
     medida.removeAttribute("data-pmvni-guardado");
     aplicarRefs(fluxo, pedido.refs);
-    const raiz = document.documentElement;
-    raiz.style.setProperty("--pmvni-k", "1");
+    const raiz2 = document.documentElement;
+    raiz2.style.setProperty("--pmvni-k", "1");
     await esperarEstabilidade(fluxo, limite);
     const largura = medirLargura(fluxo);
     for (const e of Array.from(fluxo.querySelectorAll(`[${ATR_LARGO}]`))) e.removeAttribute(ATR_LARGO);
     largura.largos.forEach((l, i) => l.el.setAttribute(ATR_LARGO, String(i)));
     const escala = largura.escala;
     if (escala !== 1) {
-      raiz.style.setProperty("--pmvni-k", String(escala));
+      raiz2.style.setProperty("--pmvni-k", String(escala));
       await esperarEstabilidade(fluxo, limite);
     }
     const sonda = criarFolha(pedido.config);
@@ -934,13 +934,13 @@ var Paginador = (() => {
     estouros.push(...deLargura);
     estouros.sort((a, b) => a.folha - b.folha);
     medida.setAttribute("data-pmvni-guardado", "");
-    const folhas = Array.from(document.querySelectorAll("section.folha"));
+    const folhas2 = Array.from(document.querySelectorAll("section.folha"));
     numerarRodapes(direitas, pedido.config);
     await imagensProntas(document.body, limite);
-    const refsPorFolha = refsDasFolhas(folhas);
+    const refsPorFolha = refsDasFolhas(folhas2);
     return {
       plano: { versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros, sha256Html: pedido.sha256Html, escala, avisosLargura },
-      folhas: folhas.length,
+      folhas: folhas2.length,
       refsPorFolha
     };
   }
@@ -982,6 +982,159 @@ var Paginador = (() => {
     return Array.from(document.querySelectorAll("section.folha")).map((f) => {
       const area = f.querySelector(":scope > .area");
       return area ? normalizar(area.innerText) : "";
+    });
+  }
+
+  // src/tela.ts
+  var ID_CSS2 = "pmvni-tela-css";
+  var ATR_TRANSBORDA = "data-pmvni-transborda";
+  var PX_POR_MM2 = 96 / 25.4;
+  var LARGURA_FOLHA_PX = 210 * PX_POR_MM2;
+  var ALTURA_FOLHA_PX = 297 * PX_POR_MM2;
+  var MARGEM_AJUSTE_PX = 16;
+  var ZOOM_MIN = 0.5;
+  var ZOOM_MAX = 3;
+  var ESPERA_FOLHA_VISIVEL_MS = 120;
+  var CSS_TELA = `
+@media screen {
+  :root { --pmvni-zoom: 1; --pmvni-tela-x: 0px; --pmvni-tela-fundo: #e4e4e4; --pmvni-tela-sombra: rgba(0, 0, 0, .30); }
+  html { background: var(--pmvni-tela-fundo) !important; height: var(--pmvni-tela-altura, auto); overflow-y: scroll; }
+  body {
+    background: transparent !important; margin: 0 !important; padding: 8mm 0 !important; width: 210mm !important;
+    box-sizing: content-box !important; transform-origin: 0 0; transform: translateX(var(--pmvni-tela-x)) scale(var(--pmvni-zoom));
+  }
+  section.folha { margin: 0 0 8mm 0 !important; box-shadow: 0 1px 4px var(--pmvni-tela-sombra), 0 0 0 1px rgba(0, 0, 0, .08); }
+  section.folha:last-of-type { margin-bottom: 0 !important; }
+  /* Folha que transborda: faixa vermelha fina na margem cinza, fora da folha. */
+  section.folha[${ATR_TRANSBORDA}] { box-shadow: -5px 0 0 0 #c42b1c, 0 1px 4px var(--pmvni-tela-sombra), 0 0 0 1px rgba(0, 0, 0, .08); }
+}
+@media screen and (prefers-color-scheme: dark) {
+  :root { --pmvni-tela-fundo: #1f1f1f; --pmvni-tela-sombra: rgba(0, 0, 0, .75); }
+}
+`;
+  var zoom = 1;
+  var ativa = false;
+  var observador = null;
+  var temporizador;
+  var ultimaFolha = 0;
+  var folhas = () => Array.from(document.querySelectorAll("section.folha"));
+  var raiz = document.documentElement;
+  function ativar(enviar2) {
+    if (ativa) return;
+    ativa = true;
+    const css = document.createElement("style");
+    css.id = ID_CSS2;
+    css.textContent = CSS_TELA;
+    document.head.appendChild(css);
+    window.addEventListener("resize", () => {
+      centralizar();
+      agendarFolhaVisivel(enviar2);
+    });
+  }
+  function folhaAtual() {
+    const lista = folhas();
+    if (lista.length === 0) return 0;
+    const meio = raiz.clientHeight / 2;
+    let melhor = 0;
+    let distancia = Infinity;
+    lista.forEach((f, i) => {
+      const r = f.getBoundingClientRect();
+      const d = meio < r.top ? r.top - meio : meio > r.bottom ? meio - r.bottom : 0;
+      if (d < distancia) {
+        distancia = d;
+        melhor = i;
+      }
+    });
+    return melhor + 1;
+  }
+  function centralizar() {
+    const larguraNaTela = LARGURA_FOLHA_PX * zoom;
+    const x = Math.max(0, (raiz.clientWidth - larguraNaTela) / 2);
+    raiz.style.setProperty("--pmvni-tela-x", `${x}px`);
+  }
+  function aplicarZoom(novo) {
+    const antes = zoom;
+    const centroDoc = (window.scrollY + raiz.clientHeight / 2) / antes;
+    zoom = novo;
+    raiz.style.setProperty("--pmvni-zoom", String(zoom));
+    centralizar();
+    raiz.style.setProperty("--pmvni-tela-altura", `${document.body.offsetHeight * zoom}px`);
+    if (antes !== zoom) window.scrollTo({ top: Math.max(0, centroDoc * zoom - raiz.clientHeight / 2), behavior: "instant" });
+  }
+  function limitar(z) {
+    return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+  }
+  function observar(enviar2) {
+    observador?.disconnect();
+    observador = new IntersectionObserver(() => agendarFolhaVisivel(enviar2), { threshold: [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] });
+    for (const f of folhas()) observador.observe(f);
+    ultimaFolha = 0;
+    agendarFolhaVisivel(enviar2);
+  }
+  function agendarFolhaVisivel(enviar2) {
+    window.clearTimeout(temporizador);
+    temporizador = window.setTimeout(() => {
+      const folha = folhaAtual();
+      if (folha === 0 || folha === ultimaFolha) return;
+      ultimaFolha = folha;
+      enviar2("folhaVisivel", "folhaVisivel", estado());
+    }, ESPERA_FOLHA_VISIVEL_MS);
+  }
+  function estado() {
+    return { zoom, folha: folhaAtual(), total: folhas().length, rolagemY: Math.round(window.scrollY) };
+  }
+  function numeroOpcional(valor, nome) {
+    if (valor === void 0 || valor === null) return void 0;
+    if (typeof valor !== "number" || !Number.isFinite(valor)) throw new ErroComposicao("zoom_invalido", `"${nome}" não é um número finito.`);
+    return valor;
+  }
+  function registrarTela(registrar2, enviar2) {
+    registrar2("definirZoom", (dados) => {
+      const pedido = numeroOpcional(dados.zoom, "zoom");
+      const ajustar = dados.ajustar;
+      if (ajustar !== void 0 && ajustar !== "largura" && ajustar !== "pagina") {
+        throw new ErroComposicao("zoom_invalido", 'ajustar deve ser "largura" ou "pagina".');
+      }
+      const transbordam = dados.transbordam;
+      if (transbordam !== void 0 && (!Array.isArray(transbordam) || transbordam.some((n) => !Number.isInteger(n)))) {
+        throw new ErroComposicao("zoom_invalido", "transbordam deve ser uma lista de números de folha.");
+      }
+      ativar(enviar2);
+      const lista = folhas();
+      if (transbordam) {
+        lista.forEach((f, i) => f.toggleAttribute(ATR_TRANSBORDA, transbordam.includes(i + 1)));
+      }
+      let alvo = zoom;
+      if (ajustar === "largura") alvo = (raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX;
+      else if (ajustar === "pagina") {
+        alvo = Math.min((raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
+      } else if (pedido !== void 0) alvo = pedido;
+      aplicarZoom(limitar(alvo));
+      observar(enviar2);
+      return { tipo: "folhaVisivel", dados: estado() };
+    });
+    registrar2("rolarPara", (dados) => {
+      const lista = folhas();
+      const margem = 8 * PX_POR_MM2 * zoom;
+      let destino;
+      let ajuste = 0;
+      if (typeof dados.ref === "string") {
+        const alvo = lista.map((f) => f.querySelector(`.area [data-ref="${CSS.escape(dados.ref)}"]`)).find((e) => e !== null && e !== void 0);
+        if (!alvo) throw new ErroComposicao("ref_inexistente", `Nenhuma folha mostra o bloco "${dados.ref}".`);
+        const folha = alvo.closest("section.folha");
+        const naFolha = alvo.getBoundingClientRect().top - folha.getBoundingClientRect().top;
+        destino = naFolha < 40 * PX_POR_MM2 * zoom ? folha : alvo;
+        ajuste = destino === folha ? margem : 16;
+      } else if (typeof dados.folha === "number" && Number.isInteger(dados.folha)) {
+        const f = lista[dados.folha - 1];
+        if (!f) throw new ErroComposicao("folha_inexistente", `O documento não tem a folha ${dados.folha}.`);
+        destino = f;
+        ajuste = margem;
+      } else {
+        throw new ErroComposicao("rolagem_invalida", 'rolarPara pede "folha" (inteiro) ou "ref" (texto).');
+      }
+      window.scrollTo({ top: Math.max(0, window.scrollY + destino.getBoundingClientRect().top - ajuste), behavior: "instant" });
+      return { tipo: "folhaVisivel", dados: estado() };
     });
   }
 
@@ -1046,6 +1199,7 @@ var Paginador = (() => {
   registrar("compor", async (dados) => ({ tipo: "composto", dados: { ...await compor(lerPedido(dados)) } }));
   registrar("aplicarPlano", async (dados) => ({ tipo: "planoAplicado", dados: { ...await aplicarPlano(lerPedidoAplicar(dados)) } }));
   registrar("textoPorFolha", () => ({ tipo: "textoPorFolha", dados: { folhas: textoPorFolha() } }));
+  registrarTela(registrar, enviar);
   if (webview) {
     webview.addEventListener("message", (e) => void aoReceber(e.data));
     enviar("pronto", "pronto", { versao: VERSAO });

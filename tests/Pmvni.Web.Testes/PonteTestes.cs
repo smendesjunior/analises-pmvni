@@ -115,15 +115,15 @@ public sealed class PonteTestes : IClassFixture<PonteFixture>
     [Fact]
     public async Task resposta_erro_vira_excecao_tipada()
     {
-        // 'rolarPara' não tem manipulador ainda: o JS responde 'erro', que vira exceção tipada.
-        var ex = await Assert.ThrowsAsync<ErroWebException>(() => host.Documento.ChamarAsync("rolarPara", new { folha = 1 }, TimeSpan.FromSeconds(10)));
-        Assert.Equal("sem_manipulador", ex.Codigo);
+        // 'rolarPara' sem pedido válido: o JS responde 'erro', que vira exceção tipada.
+        var ex = await Assert.ThrowsAsync<ErroWebException>(() => host.Documento.ChamarAsync("rolarPara", new { }, TimeSpan.FromSeconds(10)));
+        Assert.Equal("rolagem_invalida", ex.Codigo);
     }
 
     [Fact]
     public async Task chamar_sem_resposta_estoura_o_limite()
     {
-        // 'definirZoom' sem manipulador responde erro; para provar o limite, registra-se um manipulador que nunca responde.
+        // Para provar o limite, registra-se um manipulador que nunca responde.
         await host.CdpAsync("Runtime.evaluate", JsonSerializer.Serialize(new { expression = "Paginador.registrar('aplicarPlano', () => new Promise(() => {})); 1" }));
         await Assert.ThrowsAsync<TimeoutException>(() => host.Documento.ChamarAsync("aplicarPlano", new { }, TimeSpan.FromMilliseconds(500)));
     }

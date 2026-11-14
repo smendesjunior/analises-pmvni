@@ -2,6 +2,7 @@
 import { aplicarPlano, compor, lerPedido, lerPedidoAplicar } from './folhas';
 import { ErroComposicao } from './plano';
 import { textoPorFolha } from './texto';
+import { registrarTela } from './tela';
 
 // Expostos no global Paginador para os testes: montagem de uma folha pelo plano e avisos/estouros de largura.
 export { larguraNoPlano, montarFolhaDoPlano } from './folhas';
@@ -63,6 +64,9 @@ registrar('compor', async (dados) => ({ tipo: 'composto', dados: { ...(await com
 // Tarefa 8: aplica um plano ja calculado (sem medir para decidir) e devolve o texto visivel de cada folha.
 registrar('aplicarPlano', async (dados) => ({ tipo: 'planoAplicado', dados: { ...(await aplicarPlano(lerPedidoAplicar(dados))) } }));
 registrar('textoPorFolha', () => ({ tipo: 'textoPorFolha', dados: { folhas: textoPorFolha() } }));
+
+// Tarefa 10: tela (zoom, rolagem, indicador de folha); aparência só de tela, fora das folhas.
+registrarTela(registrar, enviar);
 
 if (webview) {
   webview.addEventListener('message', (e) => void aoReceber(e.data));
