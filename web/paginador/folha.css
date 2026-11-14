@@ -1,0 +1,49 @@
+/* Folhas A4 do paginador (embutido no paginador.js). As regras @page do kit saem do documento e entram estas.
+   CONSTANTES DE POSIÇÃO: só aqui. Elas reproduzem as caixas de margem do kit (@page margin 28/14/15/14 mm,
+   @top-center com padding-bottom 5 mm, @bottom-left/right com padding-top 2,5 mm) e são calibradas na Tarefa 9
+   contra o PDF do próprio kit. O paginador lê a área útil daqui (largura e altura de .area), nunca de constantes no JS. */
+@page { size: 210mm 297mm; margin: 0; }
+
+/* Escala de impressão k (>= 1), definida pelo paginador: quando o conteúdo é mais largo que a página, o Chromium
+   diagrama a página k vezes maior (até 1,5) e a imprime reduzida (shrink-to-fit). A área reproduz isso: é diagramada com
+   182k × 254k mm e pintada em escala 1/k, ocupando os mesmos 182 × 254 mm da folha. */
+:root { --pmvni-k: 1; }
+
+.folha {
+  position: relative; display: block; box-sizing: border-box;
+  width: 210mm; height: 297mm; margin: 0; padding: 0; border: 0;
+  overflow: visible; background: #fff; break-after: page; break-inside: avoid;
+}
+section.folha:last-of-type { break-after: auto; }
+
+/* Área útil: 182 × 254 mm (na folha) a partir de (14 mm, 28 mm). Nunca overflow: hidden (estouro fica visível). */
+.folha > .area {
+  position: absolute; left: 14mm; top: 28mm; width: calc(182mm * var(--pmvni-k)); height: calc(254mm * var(--pmvni-k));
+  display: flow-root; margin: 0; padding: 0; border: 0; box-sizing: border-box; overflow: visible;
+  transform: scale(calc(1 / var(--pmvni-k))); transform-origin: 0 0;
+}
+
+/* Cabeçalho: imagem do kit com 182 mm de largura, base a 23 mm do topo (28 mm − 5 mm). */
+section.folha > .folha-cabecalho {
+  position: absolute; left: 14mm; top: 0; width: 182mm; height: 23mm;
+  display: flex; align-items: flex-end; justify-content: center; margin: 0; padding: 0;
+}
+section.folha > .folha-cabecalho > img { display: block; width: 182mm; height: auto; }
+
+/* Rodapé: duas caixas a partir de 282 mm (297 − 15), como @bottom-left e @bottom-right do kit. */
+section.folha > .folha-rodape {
+  position: absolute; left: 14mm; top: 282mm; width: 182mm; height: 15mm;
+  display: flex; align-items: flex-start; margin: 0; padding: 0;
+}
+section.folha > .folha-rodape > div {
+  flex: 1 1 auto; white-space: nowrap; box-sizing: border-box;
+  border-top: .6pt solid #DDE4EB; padding-top: 2.5mm; font: 6.2pt Verdana; line-height: normal;
+}
+section.folha > .folha-rodape > .folha-rodape-esq { color: #637083; text-align: left; }
+section.folha > .folha-rodape > .folha-rodape-dir { color: #1D3D5E; font-weight: bold; text-align: right; }
+
+/* Fluxo de medida (div.folha.pmvni-medida > .area): o conteúdo original, com a mesma largura da área e altura livre,
+   fora da vista. As folhas de verdade são section.folha. */
+div.folha.pmvni-medida { position: absolute; left: 0; top: 0; height: auto; visibility: hidden; pointer-events: none; }
+div.folha.pmvni-medida > .area { position: relative; left: 0; top: 0; height: auto; }
+div.folha.pmvni-medida[data-pmvni-guardado] { display: none; }

@@ -1,7 +1,15 @@
 # Paginador (TypeScript)
 
-Ponte tipada host <-> web e, nas proximas tarefas, o paginador A4. O resultado e um unico `paginador.js`
-(IIFE, `chrome120`) embutido em `Pmvni.Composicao.Web`.
+Ponte tipada host <-> web e paginador A4. O resultado e um unico `paginador.js` (IIFE, `chrome120`, com `folha.css`
+embutido como texto) embutido em `Pmvni.Composicao.Web`.
+
+## Modulos
+
+- `src/plano.ts`: tipos do plano de quebras (espelho de `src/Pmvni.Composicao.Web/PlanoQuebras.cs`).
+- `src/medida.ts`: px a 96 dpi, tolerancia `EPS_PX`, espera de estabilidade, linhas de texto, escala de impressao.
+- `src/fragmentar.ts`: pontos de quebra (lidos do estilo computado) e recorte do fluxo entre duas posicoes.
+- `src/folhas.ts`: prepara o documento, monta as folhas e escolhe as quebras (`compor`).
+- `folha.css`: geometria da folha A4, da area util, do cabecalho e do rodape (as constantes ficam so aqui).
 
 ## Gerar o JS
 

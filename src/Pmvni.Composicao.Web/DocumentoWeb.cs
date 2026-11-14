@@ -140,6 +140,51 @@ public sealed class DocumentoWeb : IDisposable
         finally { chamadas.TryRemove(id, out _); }
     }
 
+    /// <summary>Tempo-limite padrão de <see cref="ComporAsync"/> (relatórios longos com muitas figuras).</summary>
+    public static readonly TimeSpan LimiteComporPadrao = TimeSpan.FromSeconds(120);
+
+    /// <summary>Compõe o documento carregado em folhas A4 e devolve o plano de quebras. Ver <see cref="ComporDetalhadoAsync"/>.</summary>
+    public async Task<PlanoQuebras> ComporAsync(TimeSpan? limite = null) => (await ComporDetalhadoAsync(limite)).Plano;
+
+    /// <summary>Compõe o documento carregado: antes, fixa no core deste documento a escala 1 e a mídia de impressão
+    /// (CDP <c>Emulation.setDeviceMetricsOverride</c> e <c>Emulation.setEmulatedMedia</c>), por isso deve rodar no
+    /// <see cref="HostOculto"/>, nunca no WebView da tela. Depois manda <c>compor</c> ao paginador, com o sha256 do HTML,
+    /// os refs e o cabeçalho/rodapé, e devolve o plano, o número de folhas e os refs de cada folha.</summary>
+    public async Task<ResultadoComposicao> ComporDetalhadoAsync(TimeSpan? limite = null)
+    {
+        var json = await ComporJsonAsync(limite);
+        var plano = PlanoQuebras.DeJson(json.GetProperty("plano"));
+        var refs = json.GetProperty("refsPorFolha").Deserialize<List<List<string>>>(Mensagens.Opcoes)
+            ?? throw new InvalidDataException("refsPorFolha ausente.");
+        var composicao = new ResultadoComposicao(plano, json.GetProperty("folhas").GetInt32(), refs.Select(r => (IReadOnlyList<string>)r).ToList());
+        if (plano.Versao != PlanoQuebras.VersaoAtual) throw new InvalidDataException("Versão de plano não suportada: " + plano.Versao);
+        if (plano.Sha256Html != PlanoQuebras.Sha256De(Render!.Html)) throw new InvalidDataException("O plano devolvido é de outro documento.");
+        if (plano.InicioDasFolhas.Count != composicao.Folhas || refs.Count != composicao.Folhas)
+            throw new InvalidDataException("Plano incoerente: " + plano.InicioDasFolhas.Count + " inícios para " + composicao.Folhas + " folhas.");
+        return composicao;
+    }
+
+    /// <summary>Resposta bruta (<c>composto</c>) do paginador, para os testes de ida e volta do JSON.</summary>
+    internal async Task<JsonElement> ComporJsonAsync(TimeSpan? limite = null)
+    {
+        var r = Render ?? throw new InvalidOperationException("Nenhum documento carregado: chame CarregarAsync antes de compor.");
+        var cfg = Config!;
+        await naThread(async () =>
+        {
+            ObjectDisposedException.ThrowIf(desanexado != 0, this);
+            await core.CallDevToolsProtocolMethodAsync("Emulation.setDeviceMetricsOverride",
+                """{"width":0,"height":0,"deviceScaleFactor":1,"mobile":false}""");
+            await core.CallDevToolsProtocolMethodAsync("Emulation.setEmulatedMedia", """{"media":"print"}""");
+        });
+        var dados = new
+        {
+            sha256Html = PlanoQuebras.Sha256De(r.Html),
+            refs = r.Refs.Select(x => new { seletor = x.Seletor, indice = x.Indice, id = x.Id }).ToArray(),
+            config = new { cabecalhoUri = cfg.CabecalhoUri, rodapeEsquerda = cfg.RodapeEsquerda, rodapeDireitaModelo = cfg.RodapeDireitaModelo },
+        };
+        return await ChamarAsync("compor", dados, limite ?? LimiteComporPadrao);
+    }
+
     internal Task EnviarBrutoAsync(string json) => naThread(() =>
     {
         ObjectDisposedException.ThrowIf(desanexado != 0, this);

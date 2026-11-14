@@ -71,3 +71,35 @@ Robustez (nenhuma operação fica pendurada):
 - `HostOculto.CriarAsync(l, a)`, `.Documento`, `.CdpAsync(metodo, json)`; `DisposeAsync` apaga a pasta da sessão.
 - Os testes (`tests/Pmvni.Web.Testes`) definem `PMVNI_DADOS_DIR=tests\saida\dados`: o shell do Claude roda dentro do MSIX e
   virtualizaria o AppData. O `paginador.js` é gerado por `web/paginador` (`npm run build`) e fica commitado.
+
+## Paginador A4 (Tarefa 7)
+
+`DocumentoWeb.ComporAsync()` fixa no core (host oculto) `Emulation.setDeviceMetricsOverride {deviceScaleFactor:1}` e
+`Emulation.setEmulatedMedia {media:"print"}` e manda `compor` (sha256 do HTML, refs, cabeçalho/rodapé). O paginador tira as
+regras `@page` do kit, insere `folha.css` (geometria só ali), move o `<body>` para um fluxo de medida com a largura da área
+(`div.folha.pmvni-medida > .area`), espera estabilidade (fontes, `decode()` das imagens, dois quadros sem mudar de altura) e
+monta `section.folha` com `.area` (182 × 254 mm), cabeçalho e rodapé.
+
+Escolha das quebras (modelo do LayoutNG): pontos entre irmãos em fluxo, entre linhas de tabela e entre linhas de texto, com
+apelo 3 (perfeito), 2 (viola orphans/widows) ou 1 (viola `break-*: avoid`, inclusive de ancestral com `break-inside: avoid`
+e propagado pela cadeia de último/primeiro filho). A folha termina no ponto que cabe com o maior apelo e, entre iguais, o
+mais tardio; cada folha é montada e conferida no DOM (com as imagens dela carregadas) e, se não couber, tenta-se o próximo.
+"Cabe" = altura ≤ área + 0,05 px (`EPS_PX`, absorve o arredondamento em LayoutUnit de 1/64 px).
+
+Comportamentos do Chromium 157 conferidos imprimindo os mesmos HTML (`Page.printToPDF` com o `@page` do kit) e comparando o
+texto de cada página com o de cada folha (casos de `tests/Pmvni.Web.Testes/casos` e corpus; tudo igual, exceto `estouro`):
+- **shrink-to-fit**: se o conteúdo é mais largo que a página, o Chromium diagrama a página k vezes maior (k = largura do
+  documento / largura da área, até 1,5) e a imprime reduzida. No kit isso acontece de verdade: a etiqueta "INFORMAÇÕES
+  DIVERGENTES" (`white-space: nowrap`) transborda a coluna da tabela em ~50 px nos casos `longo` e `extremos` (k = 1,0723).
+  O paginador mede k com k = 1 e diagrama a área em 182k × 254k mm com `transform: scale(1/k)` (`--pmvni-k`); k vai no plano
+  (`Escala`), para quem aplica o plano não medir de novo.
+- itens de flex em linha (o `.sec`) e de grade não se dividem por dentro; flex em coluna, sim.
+- bloco com altura fixa e conteúdo que não é monolítico é fatiado pelo Chromium entre páginas (o kit não gera esse caso);
+  o paginador o trata como indivisível.
+- margem de cima truncada depois de quebra não forçada; orphans/widows 2; `.refs` (slice) e `.card` (clone) como no PDF.
+- divergência aceita: linha de tabela (ou bloco indivisível) maior que a área — o Chromium fatia; o paginador registra
+  `Estouro` e a exportação é recusada (spec, seção 5.3).
+- `WebResourceRequested` e o `Fetch` do CDP não veem as requisições do host virtual mapeado; o teste da imagem lenta usa um
+  host de teste não mapeado com `Page.setBypassCSP` e `loading="lazy"` (imagem comum segura o `load`, e `CarregarAsync`
+  espera o `NavigationCompleted`).
+- o papel do PDF sai com 209,89 × 297,01 mm (o Chromium arredonda o tamanho A4): a calibrar na Tarefa 9.

@@ -15,5 +15,6 @@ await build({
   target: 'chrome120',
   legalComments: 'none',
   charset: 'utf8',
+  loader: { '.css': 'text' }, // folha.css entra no bundle como texto
   logLevel: 'info',
 });
