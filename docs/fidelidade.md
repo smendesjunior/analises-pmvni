@@ -17,7 +17,7 @@ tela, escala 1).
 |---|---|
 | Pixel diferente | \|Δ\| > 48 em tons de cinza (0–255), imagens a 150 dpi |
 | V1 | HTML do editor = HTML do kit, byte a byte |
-| V2 (tela × PDF do editor) | **texto por folha idêntico (porta principal)**; cada folha capturada a 150 dpi × página do PDF rasterizada pelo PyMuPDF a 150 dpi: **≤ 1,0 % de pixels diferentes com 1 px de tolerância de posição** (um pixel só conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a \|Δ\| ≤ 48; medido nos dois sentidos — tela contra PDF e PDF contra tela — e vale o maior). O estrito (sem tolerância; limite inicial 0,5 %) é medido e registrado só como informação |
+| V2 (tela × PDF do editor) | **texto por folha idêntico (porta principal)**; cada folha capturada a 150 dpi × página do PDF rasterizada pelo PyMuPDF a 150 dpi: **≤ 2,0 % de pixels diferentes com 1 px de tolerância de posição** (limite inicial desta métrica: 1,0 %; ver as decisões abaixo) (um pixel só conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a \|Δ\| ≤ 48; medido nos dois sentidos — tela contra PDF e PDF contra tela — e vale o maior). O estrito (sem tolerância; limite inicial 0,5 %) é medido e registrado só como informação |
 | V3 (PDF do editor × PDF do kit) | mesmo número de páginas; mesmo texto em cada página (cabeçalho, área útil, rodapé); ≤ 2 % de pixels diferentes por página |
 | V4 | V1–V3 em todos os casos; `estouro` só verifica a recusa da exportação |
 
@@ -124,14 +124,39 @@ lugar por mais de 1 px, conteúdo a mais ou a menos, cor ou imagem diferente.
 o kit corta a etiqueta `INFORMAÇÕES DIVERGENTES` que passa da borda direita da área (`fora_da_area`) e deixa ~1 px do
 acento do 1º glifo da página seguinte na margem de baixo (`sangria_rodape`).
 
-## Resultados após a revisão (métrica simétrica e diferenças fixadas) — V2 REPROVADA em `extremos`, folha 3
+## 2ª decisão sobre a V2 visual (controlador, 14/11/2026): limite 2,0 %
+
+Com a métrica simétrica, `extremos` folha 3 (a página de texto corrido mais densa) ficou em 1,423 %, acima do limite de
+1,0 %. O resíduo é ruído de glifo entre os renderizadores (MuPDF × Chromium), concentrado na página de texto mais densa;
+a identidade da composição já é provada pela conferência de texto por folha. **Decisão: limite da V2 visual = 2,0 % por
+folha na métrica simétrica com 1 px de tolerância** (o mesmo teto da V3, que também compara renderizadores/versões
+diferentes).
+
+Papel de cada parte da V2: **a identidade do texto por folha é a porta da composição**; a V2 visual é uma **guarda
+grosseira para o que não é texto** (imagens, caixas, linhas, posições). **Custo da decisão:** um desvio de conteúdo não
+textual menor que 2 % da página (ex.: uma imagem pequena ou uma caixa fora do lugar) pode passar sem ser notado.
+
+Valores por caso (máximo por folha; simétrica com 1 px de tolerância / estrita, informativa):
+
+| caso | simétrica, 1 px (critério ≤ 2,0 %) | estrita (informativa) |
+|---|---|---|
+| curto | 0,459 % | 1,792 % |
+| longo | 0,570 % | 4,069 % |
+| extremos | **1,423 %** (folha 3; folhas: 0,297 / 0,115 / 1,423 / 0,553 / 0,410 / 0,406 / 0,364 / 0,099) | 6,463 % |
+| sem_opcionais | 0,389 % | 1,132 % |
+| dados_modelo | 0,404 % | 2,629 % |
+| 17098 | 0,544 % | 3,712 % |
+| estouro | — (exportação recusada) | — |
+
+## Resultados após a revisão (métrica simétrica e diferenças fixadas), antes da 2ª decisão
 
 `tudo` sai com 1. V1 7/7 e V3 7/7 (as diferenças conhecidas ficaram dentro do fixado em todas as páginas); V2 6/7:
 `extremos` folha 3 (página de texto corrido denso, a mesma que já era o pior caso) com **1,423 %** na métrica simétrica,
 acima de 1,0 %; no sentido tela → PDF eram 0,805 %, logo o excesso vem de tinta do PDF (MuPDF) sem par a 1 px na
 captura do Chromium. Texto idêntico em todas as folhas. Máximos por caso (simétrica / estrita, informativa):
 curto 0,459 / 1,792; longo 0,570 / 4,069; extremos **1,423** / 6,463 (folhas: 0,297; 0,115; 1,423; 0,553; 0,410;
-0,406; 0,364; 0,099); sem_opcionais 0,389 / 1,132; dados_modelo 0,404 / 2,629; 17098 0,544 / 3,712. Aguardando decisão.
+0,406; 0,364; 0,099); sem_opcionais 0,389 / 1,132; dados_modelo 0,404 / 2,629; 17098 0,544 / 3,712. Resolvido pela
+2ª decisão (limite 2,0 %): com ela, `tudo` sai com 0.
 A tabela abaixo é da rodada anterior (métrica de um sentido).
 
 ## Resultados (`tudo`, 14/11/2026; WebView2 do editor 157.0.4341.46; Edge do kit 158.0.4370.21)

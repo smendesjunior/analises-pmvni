@@ -16,7 +16,7 @@ tudo  O mesmo que v4.
 
 Critérios (docs/fidelidade.md; mudar só com justificativa registrada lá):
 - pixel diferente: |Δ| > 48 em tons de cinza (0–255), imagens a 150 dpi;
-- V2: texto idêntico (porta principal) e ≤ 1,0 % de pixels diferentes com 1 px de tolerância de posição (um pixel só
+- V2: texto idêntico (porta principal) e ≤ 2,0 % de pixels diferentes com 1 px de tolerância de posição (um pixel só
   conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a |Δ| ≤ 48; nos dois sentidos, vale o maior); o estrito (sem tolerância, limite
   inicial 0,5 %) fica só informativo: mede a diferença entre os rasterizadores (Chromium na tela × MuPDF no PDF);
 - V3: mesmo número de páginas, texto idêntico em cada página e ≤ 2 % de pixels diferentes por página.
@@ -55,8 +55,9 @@ EDGES = [Path(r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'), 
 
 DPI = 150
 LIMIAR_PIXEL = 48          # |Δ| em tons de cinza acima do qual o pixel conta como diferente
-MAX_V2 = 1.0               # % de pixels diferentes por folha (tela × PDF do editor), COM 1 px de tolerância (decisão do
-                           # controlador, 14/11/2026: o estrito compara dois rasterizadores; ver docs/fidelidade.md)
+MAX_V2 = 2.0               # % de pixels diferentes por folha (tela × PDF do editor), COM 1 px de tolerância, nos dois
+                           # sentidos (decisões do controlador, 14/11/2026; ver docs/fidelidade.md): guarda grosseira
+                           # para o que não é texto; a composição é provada pela identidade do texto por folha
 MAX_V3 = 2.0               # % de pixels diferentes por página (editor × kit)
 MM = 72 / 25.4             # pt por mm
 # Faixas da página (mm, pelo centro de cada palavra): cabeçalho acima de 24 mm (a imagem termina em ~22 mm; a área útil
