@@ -7,3 +7,5 @@ tests/local.json
 tests/saida/
 Aplicativo/*.pdb
 Aplicativo/*.exe
+
+desktop.ini
