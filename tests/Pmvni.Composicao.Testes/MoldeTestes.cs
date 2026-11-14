@@ -214,7 +214,7 @@ d = json.loads(sys.stdin.buffer.read().decode('utf-8'))
 saida = [html.escape(t) for t in d['textos']] + [str(n) for n in d['nums']]
 print(json.dumps(saida))";
         var esperado = RodarPython(codigo, json);
-        if (esperado is null) return;
+        Assert.NotNull(esperado);
         var doc = JsonDocument.Parse(json).RootElement;
         var obtido = textos.Select(PythonTexto.Escape)
             .Concat(doc.GetProperty("nums").EnumerateArray().Select(n => PythonTexto.Str(Plano(n)))).ToArray();
@@ -224,10 +224,7 @@ print(json.dumps(saida))";
     [Fact]
     public void paridade_render_com_python_do_kit()
     {
-        var kit = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            "OneDrive", "PMVNI", "SIDNEY JUNIOR", "KIT DE TREINAMENTO DE IA (PMVNI)", "02 - MODELOS DE DOCUMENTOS",
-            "RELATORIO", "MODELO HTML (USADO PELOS PLUGINS)", "gerar_relatorio.py");
-        if (!File.Exists(kit)) return;
+        var kit = Ambiente.ExigirKit();
         var casos = new[]
         {
             "{{ a }}|{{ b }}|{{ c }}|{{ d }}|{{ e }}|{{ f }}",
@@ -253,24 +250,28 @@ for c in d['casos']:
 print(json.dumps(out))";
         // o caminho do kit vai como argumento: usa o mesmo helper, com argumento extra
         var esperado = RodarPythonComArg(codigo, json, kit);
-        if (esperado is null) return;
+        Assert.NotNull(esperado);
+        Assert.Equal(casos.Length, esperado.Length);
         var ctx = (Dictionary<string, object?>)Plano(JsonDocument.Parse(ctxJson).RootElement)!;
         var obtido = casos.Select(c =>
         {
             try { return Molde.Compilar(c).Renderizar(ctx, Molde.FiltrosBasicos); }
             catch (Exception e) { return "ERR:" + e.Message; }
         }).ToArray();
+        var comparadosSemErro = 0;
         for (var i = 0; i < casos.Length; i++)
         {
+            if (!esperado[i].StartsWith("ERR:")) comparadosSemErro++;
             if (esperado[i].StartsWith("ERR:") && obtido[i].StartsWith("ERR:") && casos[i] == "{{ a|n2 }}") continue; // texto do int() difere
             Assert.True(esperado[i] == obtido[i], $"caso {i} ({casos[i]}): python=[{esperado[i]}] c#=[{obtido[i]}]");
         }
+        Assert.True(comparadosSemErro >= 1, "nenhum caso sem erro foi comparado");
     }
 
     private static string[]? RodarPythonComArg(string codigo, string entradaJson, string arg)
     {
         var py = Python();
-        if (py is null) return null;
+        if (py is null) { Assert.Fail("Python ou kit ausente: python não encontrado no PATH"); return null; }
         var psi = new ProcessStartInfo(py)
         {
             RedirectStandardInput = true,
