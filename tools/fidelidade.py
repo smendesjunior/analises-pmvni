@@ -17,14 +17,14 @@ tudo  O mesmo que v4.
 Critérios (docs/fidelidade.md; mudar só com justificativa registrada lá):
 - pixel diferente: |Δ| > 48 em tons de cinza (0–255), imagens a 150 dpi;
 - V2: texto idêntico (porta principal) e ≤ 1,0 % de pixels diferentes com 1 px de tolerância de posição (um pixel só
-  conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a |Δ| ≤ 48); o estrito (sem tolerância, limite
+  conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a |Δ| ≤ 48; nos dois sentidos, vale o maior); o estrito (sem tolerância, limite
   inicial 0,5 %) fica só informativo: mede a diferença entre os rasterizadores (Chromium na tela × MuPDF no PDF);
 - V3: mesmo número de páginas, texto idêntico em cada página e ≤ 2 % de pixels diferentes por página.
 - Texto: só o visível do PDF (há tinta na caixa do caractere), sem espaços em branco, sem o texto gerado por CSS
   (`content: "…"` do relatorio.css). V2: mesmos caracteres e cada trecho do PDF presente na folha (a ordem de pintura do
   PDF não é a do DOM). V3: igualdade exata por faixa (cabeçalho, área, rodapé); diferenças conhecidas contadas à parte
-  e gravadas: caracteres além da borda direita da área (o kit corta, o editor não) e sangria na margem de baixo (o kit
-  deixa ~1 px de um acento da página seguinte). Detalhes e medidas em docs/fidelidade.md.
+  e FIXADAS (outra diferença reprova): além da borda direita da área, só a etiqueta conhecida que o kit corta e o
+  editor não (ROTULOS_CORTADOS_PELO_KIT); sangria na margem de baixo, no máximo 1 caractere no kit e 0 no editor. Detalhes e medidas em docs/fidelidade.md.
 
 Regras:
 - O gerador do kit é só LIDO (nada é gravado na pasta do kit; sem bytecode: python -I + dont_write_bytecode). Ele roda
@@ -65,6 +65,13 @@ FIM_CABECALHO_MM, INICIO_RODAPE_MM = 24.0, 283.5
 FIM_AREA_X_MM = 196.1      # borda direita da área útil (14 + 182 mm; o recorte do kit termina em 196,0 mm)
 TINTA = 230                # pixel com tinta: cinza < 230 (fundo branco 255)
 MAX_FONTE_RODAPE_PT = 7.0  # o rodapé usa 6,2 pt; glifo maior na faixa do rodapé é sangria do conteúdo (contado à parte)
+# Diferenças conhecidas do PDF do kit, FIXADAS (qualquer outra diferença reprova a V3; docs/fidelidade.md):
+# - o kit corta, na borda direita da área, a etiqueta (nowrap) abaixo; o editor a mostra inteira: cada trecho do editor
+#   com caracteres além da borda tem de ser exatamente esta etiqueta, e a parte além da borda, um fim dela;
+ROTULOS_CORTADOS_PELO_KIT = ('INFORMAÇÕESDIVERGENTES',)
+# - o kit deixa na margem de baixo ~1 px do acento do 1º glifo da página seguinte: no máximo 1 caractere por página
+#   no kit, nenhum no editor.
+MAX_SANGRIA_KIT, MAX_SANGRIA_EDITOR = 1, 0
 CASO_RECUSA = 'estouro'    # bloco maior que a página: o editor recusa a exportação
 # Pasta de dados do editor (perfil do WebView2, sessões) dentro do repositório, como nos testes: fora do AppData virtualizado.
 os.environ.setdefault('PMVNI_DADOS_DIR', str(SAIDA / 'dados'))
@@ -243,6 +250,8 @@ def texto_paginas(pdf: Path, css_gerado: list[str], raster: list) -> list[dict]:
     Faixas pelo centro do caractere: cabeçalho (y < FIM_CABECALHO_MM), rodapé (y > INICIO_RODAPE_MM), área (o resto).
     'sangria': caracteres visíveis na faixa do rodapé com fonte maior que MAX_FONTE_RODAPE_PT (conteúdo, não rodapé: o
     Chromium do kit deixa na margem de baixo um fragmento, de ~1 px, do acento do 1º glifo da página seguinte).
+    'fora_trechos': [(texto do trecho inteiro, parte além da borda)] dos trechos com caracteres além da borda;
+    'fora_txt': essas partes, juntas.
     'fora': caracteres visíveis da faixa da área com o centro à direita de FIM_AREA_X_MM (além da borda direita da área
     útil, onde o kit corta e o editor não; ver docs/fidelidade.md) — ficam fora de 'area' e são contados à parte.
     A área segue a ordem do conteúdo do PDF (ordem de pintura do Chromium); cabeçalho e rodapé, a posição (as caixas
@@ -261,7 +270,7 @@ def texto_paginas(pdf: Path, css_gerado: list[str], raster: list) -> list[dict]:
                 x1, y1 = min(w, int(b[2] * esc + 1)), min(h, int(b[3] * esc + 1))
                 return x1 > x0 and y1 > y0 and bool((img[y0:y1, x0:x1] < TINTA).any())
 
-            cab, area, rod, todos, sangria = [], [], [], [], 0
+            cab, area, rod, todos, sangria, fora_trechos = [], [], [], [], 0, []
             for b in p.get_text('rawdict', flags=flags)['blocks']:
                 for l in b.get('lines', []):
                     for sp in l['spans']:
@@ -293,6 +302,8 @@ def texto_paginas(pdf: Path, css_gerado: list[str], raster: list) -> list[dict]:
                             area.append(t)
                         if t or t_fora:
                             todos.append(t + ''.join(t_fora))
+                        if t_fora:
+                            fora_trechos.append((t + ''.join(t_fora), ''.join(t_fora)))
 
             def sem_gerado(x: str) -> str:
                 for g in css_gerado:
@@ -301,7 +312,8 @@ def texto_paginas(pdf: Path, css_gerado: list[str], raster: list) -> list[dict]:
 
             a, a_toda = sem_gerado(''.join(area)), sem_gerado(''.join(todos))
             res.append({'cabecalho': ''.join(t for *_, t in sorted(cab)), 'area': a, 'area_toda': a_toda,
-                        'fora': len(a_toda) - len(a), 'rodape': ''.join(t for *_, t in sorted(rod)), 'sangria': sangria,
+                        'fora': len(a_toda) - len(a), 'fora_trechos': fora_trechos,
+                        'fora_txt': ''.join(f for _, f in fora_trechos), 'rodape': ''.join(t for *_, t in sorted(rod)), 'sangria': sangria,
                         # o gerado por CSS pode vir em trechos separados (o "✎" sai em outra fonte): fora da conferência
                         'trechos': [t for t in todos if not any(t in g for g in css_gerado)]})
     return res
@@ -356,22 +368,30 @@ def diferenca_visual(a, b) -> tuple[float | None, str | None]:
     return float(d.sum()) * 100.0 / (h * l), None
 
 
+def _tolerante_um_lado(x, y) -> float:
+    """% de pixels de x sem nenhum pixel de y na vizinhança 3 × 3 com |Δ| ≤ LIMIAR_PIXEL (x, y do mesmo tamanho)."""
+    import numpy as np
+    h, l = x.shape
+    yp = np.pad(y, 1, mode='edge')
+    melhor = np.full(x.shape, 999, dtype=np.int16)
+    for dy in (0, 1, 2):
+        for dx in (0, 1, 2):
+            melhor = np.minimum(melhor, np.abs(x - yp[dy:dy + h, dx:dx + l]))
+    return float((melhor > LIMIAR_PIXEL).sum()) * 100.0 / (h * l)
+
+
 def diferenca_tolerante(a, b) -> float | None:
-    """Critério visual da V2: % de pixels de `a` sem nenhum pixel de `b` a até 1 px (vizinhança 3 × 3) com
-    |Δ| ≤ LIMIAR_PIXEL. Separa a diferença de rasterização do texto (Chromium na tela × MuPDF no PDF: bordas dos
-    glifos) de diferença de composição (algo fora do lugar, que continua aparecendo aqui)."""
+    """Critério visual da V2, simétrico: o maior entre (% de pixels de `a` sem nenhum pixel de `b` na vizinhança 3 × 3
+    com |Δ| ≤ LIMIAR_PIXEL) e o mesmo de `b` contra `a`. Assim pega tanto tinta da tela que falta no PDF quanto tinta do
+    PDF que falta na tela. Separa a diferença de rasterização do texto (Chromium na tela × MuPDF no PDF: bordas dos
+    glifos, deslocadas em até 1 px) de diferença de composição (algo fora do lugar, a mais ou a menos)."""
     import numpy as np
     (ha, la), (hb, lb) = a.shape, b.shape
     if abs(ha - hb) > 1 or abs(la - lb) > 1:
         return None
     h, l = min(ha, hb), min(la, lb)
-    x = a[:h, :l].astype(np.int16)
-    y = np.pad(b[:h, :l].astype(np.int16), 1, mode='edge')
-    melhor = np.full(x.shape, 999, dtype=np.int16)
-    for dy in (0, 1, 2):
-        for dx in (0, 1, 2):
-            melhor = np.minimum(melhor, np.abs(x - y[dy:dy + h, dx:dx + l]))
-    return float((melhor > LIMIAR_PIXEL).sum()) * 100.0 / (h * l)
+    x, y = a[:h, :l].astype(np.int16), b[:h, :l].astype(np.int16)
+    return max(_tolerante_um_lado(x, y), _tolerante_um_lado(y, x))
 
 
 # ───────────────────────── V1 ─────────────────────────
@@ -451,6 +471,21 @@ def caso_v2(ex: Execucao, c: dict) -> dict:
 
 
 # ───────────────────────── V3 ─────────────────────────
+def conferir_conhecidas(kit: dict, editor: dict) -> list[str]:
+    """V3: as diferenças conhecidas (fora da área, sangria) dentro do que foi fixado; devolve os motivos (só contagens)."""
+    motivos = []
+    if kit['fora_txt'] not in editor['fora_txt']:
+        motivos.append(f'além da borda: o texto do kit ({len(kit["fora_txt"])} caracteres) não está no do editor ({len(editor["fora_txt"])})')
+    estranhos = [(len(t), len(f)) for t, f in editor['fora_trechos']
+                 if t not in ROTULOS_CORTADOS_PELO_KIT or not t.endswith(f) or f == t]
+    if estranhos:
+        motivos.append(f'além da borda: {len(estranhos)} trecho(s) do editor fora da etiqueta conhecida (tamanho, além da borda: {estranhos})')
+    if kit['sangria'] > MAX_SANGRIA_KIT or editor['sangria'] > MAX_SANGRIA_EDITOR:
+        motivos.append(f'sangria na margem de baixo acima do conhecido: kit {kit["sangria"]} (máx. {MAX_SANGRIA_KIT}),'
+                       f' editor {editor["sangria"]} (máx. {MAX_SANGRIA_EDITOR})')
+    return motivos
+
+
 def caso_v3(ex: Execucao, c: dict) -> dict:
     nome = c['nome']
     res = {'caso': nome, 'aprovado': False, 'paginas_kit': None, 'paginas_editor': None, 'recusado': None,
@@ -480,10 +515,14 @@ def caso_v3(ex: Execucao, c: dict) -> dict:
             res['sangria_rodape'].append([i, a['sangria'], b['sangria']])
             print(f'  V3 [{nome}] página {i}: sangria na margem de baixo: kit {a["sangria"]}, editor {b["sangria"]} caracteres')
         partes = [k for k in ('cabecalho', 'area', 'rodape') if a[k] != b[k]]
-        if partes:
+        conhecidas = conferir_conhecidas(a, b)
+        if partes or conhecidas:
             res['texto_divergente'].append(i)
+        if partes:
             print(f'  V3 [{nome}] página {i}: texto difere em ' + ', '.join(
                 f'{k} ({primeira_diferenca_texto(a[k], b[k])}; kit × editor)' for k in partes))
+        for m in conhecidas:
+            print(f'  V3 [{nome}] página {i}: diferença fora do conhecido — {m}')
     for i, (ra, rb) in enumerate(zip(rk, re_), start=1):
         pct, motivo = diferenca_visual(ra, rb)
         if pct is None:

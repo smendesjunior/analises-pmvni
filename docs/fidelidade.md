@@ -17,7 +17,7 @@ tela, escala 1).
 |---|---|
 | Pixel diferente | \|Δ\| > 48 em tons de cinza (0–255), imagens a 150 dpi |
 | V1 | HTML do editor = HTML do kit, byte a byte |
-| V2 (tela × PDF do editor) | **texto por folha idêntico (porta principal)**; cada folha capturada a 150 dpi × página do PDF rasterizada pelo PyMuPDF a 150 dpi: **≤ 1,0 % de pixels diferentes com 1 px de tolerância de posição** (um pixel só conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a \|Δ\| ≤ 48). O estrito (sem tolerância; limite inicial 0,5 %) é medido e registrado só como informação |
+| V2 (tela × PDF do editor) | **texto por folha idêntico (porta principal)**; cada folha capturada a 150 dpi × página do PDF rasterizada pelo PyMuPDF a 150 dpi: **≤ 1,0 % de pixels diferentes com 1 px de tolerância de posição** (um pixel só conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a \|Δ\| ≤ 48; medido nos dois sentidos — tela contra PDF e PDF contra tela — e vale o maior). O estrito (sem tolerância; limite inicial 0,5 %) é medido e registrado só como informação |
 | V3 (PDF do editor × PDF do kit) | mesmo número de páginas; mesmo texto em cada página (cabeçalho, área útil, rodapé); ≤ 2 % de pixels diferentes por página |
 | V4 | V1–V3 em todos os casos; `estouro` só verifica a recusa da exportação |
 
@@ -36,8 +36,16 @@ tela, escala 1).
   PDF: está no PDF, não no `innerText`.
 - **V2, ordem**: o `innerText` segue o DOM, o PDF a ordem de pintura (o Chromium pinta os blocos posicionados, como
   `.card`, depois do fluxo normal). A folha é igual à página quando (1) os caracteres são os mesmos, com as mesmas
-  contagens, e (2) cada trecho (span) do PDF aparece inteiro no texto da folha.
-- **V3, diferenças conhecidas contadas à parte** (impressas por página e gravadas em `v3.json`, nunca escondidas):
+  contagens, e (2) cada trecho (span) do PDF aparece inteiro no texto da folha. **O que isso garante, exatamente:** o
+  mesmo conjunto de caracteres na folha e na página (nada a mais, a menos ou em outra folha) e que cada trecho contínuo
+  do PDF existe, inteiro, no texto da folha. **Não garante a ordem entre trechos**: dois trechos trocados de lugar
+  dentro da mesma folha passariam (a ordem de pintura do PDF não é a do DOM, então ela não é comparável aqui; a ordem
+  é coberta pela V3, PDF × PDF, e pela V2 visual).
+- **V3, diferenças conhecidas FIXADAS** (impressas por página e gravadas em `v3.json`; qualquer diferença além do
+  fixado reprova a página): na faixa além da borda direita da área, o texto do kit tem de estar contido no do editor, e
+  cada trecho do editor com caracteres ali tem de ser exatamente a etiqueta `INFORMAÇÕESDIVERGENTES`, com a parte além da
+  borda sendo um fim dela (`ROTULOS_CORTADOS_PELO_KIT`); a parte dentro da área entra na comparação exata da área. Na
+  sangria: no máximo 1 caractere por página no kit e nenhum no editor (`MAX_SANGRIA_KIT`, `MAX_SANGRIA_EDITOR`).
   - `fora_da_area`: caracteres visíveis com o centro além da borda direita da área (x > 196,1 mm). O kit corta tudo o
     que passa da área (recorte da página do Chromium); o editor não corta nada (especificação: "nada cortado"). Caso
     real: a etiqueta `INFORMAÇÕES DIVERGENTES` (`nowrap`) numa coluna da direita da tabela de índices: no kit sai
@@ -105,7 +113,9 @@ glifos diferem em mais de 48 níveis em ~1–6 % dos pixels de uma página de te
 mede o antisserrilhado dos renderizadores, não a composição.
 
 **Decisão:** V2 visual = métrica com 1 px de tolerância de posição (um pixel conta como diferente só se nenhum pixel da
-vizinhança 3 × 3 da outra imagem estiver a |Δ| ≤ 48), limite **≤ 1,0 % por folha**. A métrica estrita continua medida e
+vizinhança 3 × 3 da outra imagem estiver a |Δ| ≤ 48), limite **≤ 1,0 % por folha**. Depois da revisão, a métrica é
+**simétrica** (tela contra PDF e PDF contra tela; vale o maior): a 1ª versão media só a tela contra o PDF e não via tinta
+do PDF ausente na tela. A métrica estrita continua medida e
 registrada (`visual_estrito_pct` em `v2.json`), só informativa. A identidade do texto por folha continua sendo a porta
 principal da V2. Nada de trocar o rasterizador nem instalar nada. O que essa métrica ainda pega: qualquer coisa fora do
 lugar por mais de 1 px, conteúdo a mais ou a menos, cor ou imagem diferente.
@@ -113,6 +123,16 @@ lugar por mais de 1 px, conteúdo a mais ou a menos, cor ou imagem diferente.
 **Diferenças conhecidas do próprio kit, aceitas** (decisão do controlador; contadas à parte na V3 e listadas na tabela):
 o kit corta a etiqueta `INFORMAÇÕES DIVERGENTES` que passa da borda direita da área (`fora_da_area`) e deixa ~1 px do
 acento do 1º glifo da página seguinte na margem de baixo (`sangria_rodape`).
+
+## Resultados após a revisão (métrica simétrica e diferenças fixadas) — V2 REPROVADA em `extremos`, folha 3
+
+`tudo` sai com 1. V1 7/7 e V3 7/7 (as diferenças conhecidas ficaram dentro do fixado em todas as páginas); V2 6/7:
+`extremos` folha 3 (página de texto corrido denso, a mesma que já era o pior caso) com **1,423 %** na métrica simétrica,
+acima de 1,0 %; no sentido tela → PDF eram 0,805 %, logo o excesso vem de tinta do PDF (MuPDF) sem par a 1 px na
+captura do Chromium. Texto idêntico em todas as folhas. Máximos por caso (simétrica / estrita, informativa):
+curto 0,459 / 1,792; longo 0,570 / 4,069; extremos **1,423** / 6,463 (folhas: 0,297; 0,115; 1,423; 0,553; 0,410;
+0,406; 0,364; 0,099); sem_opcionais 0,389 / 1,132; dados_modelo 0,404 / 2,629; 17098 0,544 / 3,712. Aguardando decisão.
+A tabela abaixo é da rodada anterior (métrica de um sentido).
 
 ## Resultados (`tudo`, 14/11/2026; WebView2 do editor 157.0.4341.46; Edge do kit 158.0.4370.21)
 
