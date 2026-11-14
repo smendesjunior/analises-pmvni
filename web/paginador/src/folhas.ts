@@ -3,17 +3,23 @@
 
 import folhaCss from '../folha.css';
 import {
-  acabamento, alturaConteudo, copiarIntervalo, elementoEm, enumerarPontos, estenderPedacos, resolver, type Ponto,
+  acabamento, alturaConteudo, ATR_OCULTO, copiarIntervalo, elementoEm, enumerarPontos, estenderPedacos, resolver, type Ponto,
 } from './fragmentar';
-import { EPS_PX, escalaDeImpressao, esperarEstabilidade, estilo, pxParaMm } from './medida';
-import { INICIO_DO_FLUXO, VERSAO_PLANO, type Composto, type Estouro, type PosicaoFluxo } from './plano';
+import {
+  ENCOLHIMENTO_MAXIMO, EPS_PX, esperarEstabilidade, estilo, imagensProntas, LIMITE_ESTABILIDADE_MS, medirLargura, pxParaMm,
+} from './medida';
+import {
+  ErroComposicao, INICIO_DO_FLUXO, truncaTopo, VERSAO_PLANO,
+  type AvisoLargura, type Composto, type Estouro, type PlanoQuebras, type PosicaoFluxo,
+} from './plano';
 
 export interface ConfigFolhas { cabecalhoUri: string; rodapeEsquerda: string; rodapeDireitaModelo: string }
 export interface RefDoc { seletor: string; indice: number; id: string }
-export interface PedidoCompor { sha256Html: string; refs: RefDoc[]; config: ConfigFolhas }
+export interface PedidoCompor { sha256Html: string; refs: RefDoc[]; config: ConfigFolhas; limiteEstabilidadeMs: number | null }
 
 const ID_CSS = 'pmvni-folha-css';
 const MAX_FOLHAS = 5000;
+const ATR_LARGO = 'data-pmvni-largo';
 
 /** Fluxo de medida (div.folha.pmvni-medida > .area) com os filhos originais do <body>; criado na 1ª composição. */
 export function prepararDocumento(): HTMLElement {
@@ -78,14 +84,28 @@ export function montarFolha(fluxo: HTMLElement, cfg: ConfigFolhas, de: PosicaoFl
   return f;
 }
 
+/**
+ * Monta a folha `indice` (0 = primeira) de um plano já calculado, só com os dados do plano: --pmvni-k = plano.escala,
+ * conteúdo entre inicioDasFolhas[indice] e o início da seguinte, margem de cima truncada se a quebra não for forçada
+ * (truncaTopo), acabamento das quebras e extensão dos pedaços. Rodapé sem numeração. É o caminho da Tarefa 8.
+ */
+export function montarFolhaDoPlano(plano: PlanoQuebras, indice: number, cfg: ConfigFolhas): { folha: HTMLElement; area: HTMLElement } {
+  const fluxo = prepararDocumento();
+  document.documentElement.style.setProperty('--pmvni-k', String(plano.escala));
+  const de = plano.inicioDasFolhas[indice];
+  if (!de) throw new ErroComposicao('folha_inexistente', `O plano não tem a folha ${indice + 1}.`);
+  const f = montarFolha(fluxo, cfg, de, plano.inicioDasFolhas[indice + 1] ?? null, truncaTopo(de, indice));
+  estenderPedacos(f.area);
+  return f;
+}
+
 function aplicarRefs(fluxo: HTMLElement, refs: RefDoc[]): void {
   for (const e of Array.from(fluxo.querySelectorAll('[data-ref]'))) e.removeAttribute('data-ref');
   for (const r of refs) fluxo.querySelectorAll(r.seletor)[r.indice]?.setAttribute('data-ref', r.id);
 }
 
-/** Ref do bloco na posição: o data-ref dele ou de um ancestral; senão, o do último bloco identificado antes dele. */
-function refDe(fluxo: HTMLElement, pos: PosicaoFluxo): string | null {
-  const el = elementoEm(fluxo, pos.caminho);
+/** Ref de um elemento do fluxo: o data-ref dele ou de um ancestral; senão, o do último bloco identificado antes dele. */
+function refDe(fluxo: HTMLElement, el: Element | null): string | null {
   if (!el) return null;
   const proprio = el.closest('[data-ref]');
   if (proprio && fluxo.contains(proprio)) return proprio.getAttribute('data-ref');
@@ -97,20 +117,18 @@ function refDe(fluxo: HTMLElement, pos: PosicaoFluxo): string | null {
   return ultimo;
 }
 
-const quebraForcada = (p: Ponto) => p.forcado;
-
-async function imagensProntas(raiz: HTMLElement): Promise<void> {
-  const pendentes = Array.from(raiz.querySelectorAll('img')).filter((i) => !i.complete);
-  if (pendentes.length) await Promise.all(pendentes.map((i) => i.decode().catch(() => undefined)));
-}
+const mm = (px: number) => Math.round(pxParaMm(px) * 100) / 100;
 
 /**
- * Compõe o documento: espera estabilidade, enumera os pontos de quebra no fluxo de medida e enche folha a folha.
- * Para cada folha, entre os pontos cuja altura prevista cabe na área, escolhe o de maior apelo e, entre iguais, o
- * mais tardio (quebra forçada encerra a folha); monta a folha e confere a altura real; se não couber, tenta o próximo
- * candidato. Sem candidato, coloca a menor porção possível (o próximo ponto) e registra o estouro.
+ * Compõe o documento: espera estabilidade (falha com 'instavel' se não houver), enumera os pontos de quebra no fluxo de
+ * medida e enche folha a folha. Para cada folha, entre os pontos cuja altura prevista cabe na área, tenta primeiro a
+ * quebra forçada que cabe, depois o maior apelo e, entre iguais, o mais tardio; monta a folha e confere a altura real;
+ * se não couber, tenta os demais candidatos na mesma ordem. Sem candidato que caiba, coloca a menor porção possível
+ * (o próximo ponto) e registra o estouro. Conteúdo mais largo que a área gera AvisoLargura (documento reduzido) e,
+ * além de ENCOLHIMENTO_MAXIMO, também Estouro de largura.
  */
 export async function compor(pedido: PedidoCompor): Promise<Composto> {
+  const limite = pedido.limiteEstabilidadeMs ?? LIMITE_ESTABILIDADE_MS;
   const fluxo = prepararDocumento();
   const medida = fluxo.parentElement!;
   for (const f of Array.from(document.querySelectorAll('section.folha'))) f.remove();
@@ -119,11 +137,14 @@ export async function compor(pedido: PedidoCompor): Promise<Composto> {
   // Escala de impressão: mede com k = 1 e, se o conteúdo for mais largo que a área, rediagrama com k (folha.css).
   const raiz = document.documentElement;
   raiz.style.setProperty('--pmvni-k', '1');
-  await esperarEstabilidade(fluxo);
-  const escala = escalaDeImpressao(fluxo);
+  await esperarEstabilidade(fluxo, limite);
+  const largura = medirLargura(fluxo);
+  for (const e of Array.from(fluxo.querySelectorAll(`[${ATR_LARGO}]`))) e.removeAttribute(ATR_LARGO);
+  largura.largos.forEach((l, i) => l.el.setAttribute(ATR_LARGO, String(i)));
+  const escala = largura.escala;
   if (escala !== 1) {
     raiz.style.setProperty('--pmvni-k', String(escala));
-    await esperarEstabilidade(fluxo);
+    await esperarEstabilidade(fluxo, limite);
   }
 
   // A altura útil vem de folha.css (constantes num só lugar).
@@ -136,22 +157,21 @@ export async function compor(pedido: PedidoCompor): Promise<Composto> {
   const inicios: PosicaoFluxo[] = [];
   const estouros: Estouro[] = [];
   const direitas: HTMLElement[] = [];
-  let ini = { pos: INICIO_DO_FLUXO, indice: -1, yInicio: fluxo.getBoundingClientRect().top, decoInicio: 0, forcado: false };
+  const areas: HTMLElement[] = [];
+  let ini = { pos: INICIO_DO_FLUXO, indice: -1, yInicio: fluxo.getBoundingClientRect().top, decoInicio: 0 };
 
-  for (let n = 1; n <= MAX_FOLHAS; n++) {
-    const truncar = n > 1 && !ini.forcado;
+  for (let n = 1; ; n++) {
+    if (n > MAX_FOLHAS) throw new ErroComposicao('folhas_demais', `O documento passaria de ${MAX_FOLHAS} folhas.`);
+    const truncar = truncaTopo(ini.pos, n - 1);
     const altura = (p: Ponto) => p.yFim - ini.yInicio + ini.decoInicio + p.decoFim;
     const candidatos: Ponto[] = [];
     for (let j = ini.indice + 1; j < pontos.length; j++) {
       const p = pontos[j]!;
       if (p.yFim - ini.yInicio > H + EPS_PX) break;
       if (altura(p) <= H + EPS_PX) candidatos.push(p);
-      if (quebraForcada(p)) break;
+      if (p.forcado) break;
     }
-    const ultimo = candidatos[candidatos.length - 1];
-    const ordem = ultimo && quebraForcada(ultimo)
-      ? [ultimo]
-      : [...candidatos].sort((a, b) => b.apelo - a.apelo || b.indice - a.indice);
+    const ordem = [...candidatos].sort((a, b) => Number(b.forcado) - Number(a.forcado) || b.apelo - a.apelo || b.indice - a.indice);
 
     let escolhido: { p: Ponto; pos: PosicaoFluxo | null } | null = null;
     let montada: ReturnType<typeof montarFolha> | null = null;
@@ -159,7 +179,7 @@ export async function compor(pedido: PedidoCompor): Promise<Composto> {
       const pos = resolver(p);
       if (pos === undefined) continue;
       const f = montarFolha(fluxo, pedido.config, ini.pos, pos, truncar);
-      await imagensProntas(f.area);
+      await imagensProntas(f.area, limite);
       if (alturaConteudo(f.area) <= H + EPS_PX) { escolhido = { p, pos }; montada = f; break; }
       f.folha.remove();
     }
@@ -170,24 +190,47 @@ export async function compor(pedido: PedidoCompor): Promise<Composto> {
         if (pos !== undefined) escolhido = { p: pontos[j]!, pos };
       }
       montada = montarFolha(fluxo, pedido.config, ini.pos, escolhido!.pos, truncar);
-      await imagensProntas(montada.area);
+      await imagensProntas(montada.area, limite);
       const h = alturaConteudo(montada.area);
-      if (h > H + EPS_PX) estouros.push({ folha: n, ref: refDe(fluxo, ini.pos), alturaMm: Math.round(pxParaMm(h) * 100) / 100 });
+      if (h > H + EPS_PX) {
+        estouros.push({ folha: n, ref: refDe(fluxo, elementoEm(fluxo, ini.pos.caminho)), alturaMm: mm(h), larguraMm: null });
+      }
     }
     estenderPedacos(montada!.area);
     inicios.push(ini.pos);
     direitas.push(montada!.direita);
+    areas.push(montada!.area);
     const { p, pos } = escolhido!;
     if (pos === null) break;
-    ini = { pos, indice: p.indice, yInicio: p.yInicio, decoInicio: p.decoInicio, forcado: p.forcado };
+    ini = { pos: { ...pos, forcada: p.forcado }, indice: p.indice, yInicio: p.yInicio, decoInicio: p.decoInicio };
   }
+
+  // Largura: um aviso por folha e ref (o bloco mais largo); além do encolhimento máximo, também estouro de largura.
+  const avisos = new Map<string, AvisoLargura>();
+  largura.largos.forEach((l, i) => {
+    const folha = 1 + areas.findIndex((a) =>
+      Array.from(a.querySelectorAll(`[${ATR_LARGO}="${i}"]`)).some((e) => !e.closest(`[${ATR_OCULTO}]`)));
+    const ref = refDe(fluxo, l.el);
+    const pedida = (l.direita - largura.esquerda) / largura.area;
+    const chave = folha + '|' + (ref ?? '');
+    if ((avisos.get(chave)?.escala ?? 0) < pedida) {
+      avisos.set(chave, { folha, ref, escala: pedida, larguraMm: mm(l.direita - largura.esquerda) });
+    }
+  });
+  const avisosLargura = [...avisos.values()].sort((a, b) => a.folha - b.folha || b.escala - a.escala);
+  for (const a of avisosLargura) {
+    if (a.escala > ENCOLHIMENTO_MAXIMO + 1e-9 && a.folha > 0) {
+      estouros.push({ folha: a.folha, ref: a.ref, alturaMm: mm(alturaConteudo(areas[a.folha - 1]!)), larguraMm: a.larguraMm });
+    }
+  }
+  estouros.sort((a, b) => a.folha - b.folha);
 
   medida.setAttribute('data-pmvni-guardado', '');
   const folhas = Array.from(document.querySelectorAll<HTMLElement>('section.folha'));
   folhas.forEach((_, i) => {
     direitas[i]!.textContent = pedido.config.rodapeDireitaModelo.replaceAll('{n}', String(i + 1)).replaceAll('{t}', String(folhas.length));
   });
-  await imagensProntas(document.body);
+  await imagensProntas(document.body, limite);
   const refsPorFolha = folhas.map((f) => {
     const ids: string[] = [];
     for (const e of Array.from(f.querySelectorAll('.area [data-ref]'))) {
@@ -197,7 +240,7 @@ export async function compor(pedido: PedidoCompor): Promise<Composto> {
     return ids;
   });
   return {
-    plano: { versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros, sha256Html: pedido.sha256Html, escala },
+    plano: { versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros, sha256Html: pedido.sha256Html, escala, avisosLargura },
     folhas: folhas.length,
     refsPorFolha,
   };
@@ -215,9 +258,12 @@ export function lerPedido(d: Record<string, unknown>): PedidoCompor {
   });
   const c = d.config as Record<string, unknown> | undefined;
   if (typeof c !== 'object' || c === null) throw new Error('campo config invalido');
+  const limite = d.limiteEstabilidadeMs;
+  if (limite != null && (typeof limite !== 'number' || !(limite > 0))) throw new Error('campo limiteEstabilidadeMs invalido');
   return {
     sha256Html, refs,
     config: { cabecalhoUri: texto(c.cabecalhoUri, 'cabecalhoUri'), rodapeEsquerda: texto(c.rodapeEsquerda, 'rodapeEsquerda'),
       rodapeDireitaModelo: texto(c.rodapeDireitaModelo, 'rodapeDireitaModelo') },
+    limiteEstabilidadeMs: limite == null ? null : limite,
   };
 }

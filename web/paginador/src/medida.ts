@@ -2,6 +2,8 @@
 // medidas podem diferir do layout real por frações de 1/64 px. Por isso "cabe" usa uma tolerância EPS_PX de 0,05 px
 // (3,2 LayoutUnits, 0,013 mm): grande o bastante para absorver o arredondamento, pequena demais para esconder uma linha.
 
+import { ErroComposicao } from './plano';
+
 export const PX_POR_MM = 96 / 25.4;
 export const EPS_PX = 0.05;
 
@@ -34,32 +36,55 @@ export function caixa(cs: CSSStyleDeclaration, escala = 1) {
  * kPrintingMinimumShrinkFactor 1,333): além disso o conteúdo é cortado, não reduzido. */
 export const ENCOLHIMENTO_MAXIMO = 1.5;
 
+/** Elemento mais largo que a área (o mais externo de cada ramo) e a borda direita mais distante da sua subárvore. */
+export interface Largo { el: Element; direita: number }
+
+export interface Largura {
+  /** Escala de impressão k aplicada: 1 sem transbordamento; senão a pedida, limitada a ENCOLHIMENTO_MAXIMO. */
+  escala: number;
+  /** Escala que o documento pede (sem limite). Maior que ENCOLHIMENTO_MAXIMO = conteúdo cortado: estouro. */
+  pedida: number;
+  largos: Largo[];
+  /** Largura e borda esquerda da área, em px, para converter `direita` em escala/mm. */
+  area: number;
+  esquerda: number;
+}
+
 /**
  * Escala de impressão k do Chromium (shrink-to-fit): com o fluxo diagramado na largura da área (k = 1), a largura do
  * documento é a borda direita mais distante do transbordamento rolável (caixas de borda dos elementos, sem descer em
  * quem corta o transbordamento; scrollWidth como reserva para texto solto). Maior que a área → k = largura / área,
- * limitado a ENCOLHIMENTO_MAXIMO.
+ * limitado a ENCOLHIMENTO_MAXIMO. Devolve também os elementos que transbordam (para avisos e estouros).
  */
-export function escalaDeImpressao(fluxo: HTMLElement): number {
+export function medirLargura(fluxo: HTMLElement): Largura {
   const q = fluxo.getBoundingClientRect();
   let direita = q.right;
-  const visitar = (el: Element) => {
+  const largos: Largo[] = [];
+  const visitar = (el: Element, ramo: Largo | null) => {
     for (const f of Array.from(el.children)) {
       const cs = estilo(f);
       if (cs.display === 'none') continue;
       const r = f.getBoundingClientRect();
-      if (r.width > 0 || r.height > 0) direita = Math.max(direita, r.right);
-      if (cs.overflowX === 'visible') visitar(f);
+      let alvo = ramo;
+      if (r.width > 0 || r.height > 0) {
+        direita = Math.max(direita, r.right);
+        if (alvo) alvo.direita = Math.max(alvo.direita, r.right);
+        else if (r.right > q.right + EPS_PX) { alvo = { el: f, direita: r.right }; largos.push(alvo); }
+      }
+      if (cs.overflowX === 'visible') visitar(f, alvo);
     }
   };
-  visitar(fluxo);
+  visitar(fluxo, null);
   direita = Math.max(direita, q.left + fluxo.scrollWidth - 1);
   const largura = direita - q.left;
-  if (largura <= q.width + EPS_PX) return 1;
-  return Math.min(largura / q.width, ENCOLHIMENTO_MAXIMO);
+  const pedida = largura <= q.width + EPS_PX ? 1 : largura / q.width;
+  return { escala: Math.min(pedida, ENCOLHIMENTO_MAXIMO), pedida, largos, area: q.width, esquerda: q.left };
 }
 
 // ---------- estabilidade ----------
+
+/** Tempo máximo, por padrão, para o documento estabilizar (o host pode mandar outro em `compor`). */
+export const LIMITE_ESTABILIDADE_MS = 30000;
 
 function quadro(): Promise<void> {
   // requestAnimationFrame pode não disparar num WebView sem janela visível: o setTimeout garante o andamento.
@@ -71,28 +96,47 @@ function quadro(): Promise<void> {
   });
 }
 
-function comLimite<T>(p: Promise<T>, ms: number): Promise<T | undefined> {
-  return Promise.race([p, new Promise<undefined>((ok) => setTimeout(() => ok(undefined), ms))]);
+const ESGOTADO = Symbol('esgotado');
+
+function comLimite<T>(p: Promise<T>, ms: number): Promise<T | typeof ESGOTADO> {
+  return Promise.race([p, new Promise<typeof ESGOTADO>((ok) => setTimeout(() => ok(ESGOTADO), Math.max(0, ms)))]);
 }
 
 /**
  * Espera o documento ficar estável antes de medir: document.fonts.ready, decode() de todas as imagens e dois quadros
- * seguidos sem mudança de altura de `raiz`. Repete enquanto algo mudar (no máximo ~30 s).
+ * seguidos sem mudança de altura de `raiz`; repete enquanto algo mudar. Sem estabilidade em `limiteMs`, falha com
+ * ErroComposicao('instavel') — nunca devolve um plano medido sobre um layout instável.
  */
-export async function esperarEstabilidade(raiz: HTMLElement): Promise<void> {
-  const limite = performance.now() + 30000;
+export async function esperarEstabilidade(raiz: HTMLElement, limiteMs = LIMITE_ESTABILIDADE_MS): Promise<void> {
+  const fim = performance.now() + limiteMs;
+  const resta = () => fim - performance.now();
   for (;;) {
-    await comLimite(document.fonts.ready, 10000);
+    await comLimite(document.fonts.ready, resta());
     const imagens = Array.from(document.images);
-    await comLimite(Promise.all(imagens.map((i) => i.decode().catch(() => undefined))), 15000);
+    await comLimite(Promise.all(imagens.map((i) => i.decode().catch(() => undefined))), resta());
     const antes = raiz.getBoundingClientRect().height;
     await quadro();
     await quadro();
     const depois = raiz.getBoundingClientRect().height;
-    const carregando = imagens.some((i) => !i.complete) || Array.from(document.images).length !== imagens.length
-      || document.fonts.status !== 'loaded';
-    if (antes === depois && !carregando) return;
-    if (performance.now() > limite) return;
+    const pendentes = imagens.filter((i) => !i.complete).length;
+    const novas = document.images.length !== imagens.length;
+    const fontes = document.fonts.status !== 'loaded';
+    if (antes === depois && !pendentes && !novas && !fontes) return;
+    if (resta() <= 0) {
+      const motivos = [pendentes ? `${pendentes} imagem(ns) carregando` : '', novas ? 'imagens novas' : '',
+        fontes ? 'fontes carregando' : '', antes !== depois ? 'altura mudando' : ''].filter(Boolean).join(', ');
+      throw new ErroComposicao('instavel', `O documento não estabilizou em ${limiteMs} ms (${motivos}).`);
+    }
+  }
+}
+
+/** Espera as imagens de `raiz` ainda não carregadas; se não terminarem em `limiteMs`, falha com 'instavel'. */
+export async function imagensProntas(raiz: ParentNode, limiteMs = LIMITE_ESTABILIDADE_MS): Promise<void> {
+  const pendentes = Array.from(raiz.querySelectorAll('img')).filter((i) => !i.complete);
+  if (!pendentes.length) return;
+  const r = await comLimite(Promise.all(pendentes.map((i) => i.decode().catch(() => undefined))), limiteMs);
+  if (r === ESGOTADO) {
+    throw new ErroComposicao('instavel', `${pendentes.filter((i) => !i.complete).length} imagem(ns) não carregaram em ${limiteMs} ms.`);
   }
 }
 

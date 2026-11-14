@@ -215,25 +215,79 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
     {
         // Como o Chromium ao imprimir (shrink-to-fit): 750 px de largura numa área de 687,87 px → a área é diagramada
         // k = 1,0903 vezes maior e pintada em 1/k; a página comporta 960·k px de layout, logo 3 blocos de 340 px (não 2).
-        var c = await ComporCaso("largo");
+        var c = await ComporCaso("largo", new RefElemento(".largo", 0, "largo-750", null));
         Assert.InRange(c.Plano.Escala, 1.090, 1.091);
         Assert.Equal(new[] { "[0]", "[4]" }, Inicios(c.Plano));
+        Assert.Empty(c.Plano.Estouros);
+        // O editor é avisado de que o documento sai reduzido, e por qual bloco.
+        var aviso = Assert.Single(c.Plano.AvisosLargura);
+        Assert.Equal(1, aviso.Folha);
+        Assert.Equal("largo-750", aviso.Ref);
+        Assert.InRange(aviso.Escala, 1.090, 1.091);
+        Assert.InRange(aviso.LarguraMm, 198.3, 198.5); // 750 px
         var e = await Js("""
             (() => { const a = document.querySelector('section.folha .area'); return [a.offsetWidth, a.getBoundingClientRect().width]; })()
             """);
         var medidas = e.EnumerateArray().Select(x => x.GetDouble()).ToList();
         Assert.InRange(medidas[0], 749, 751);          // layout
         Assert.InRange(medidas[1], 687.3, 688.4);      // na folha: 182 mm
-        // Recompor um documento sem transbordamento volta à escala 1.
-        Assert.Equal(1, (await ComporCaso("blocos")).Plano.Escala);
+        // Recompor um documento sem transbordamento volta à escala 1, sem avisos.
+        var sem = (await ComporCaso("blocos")).Plano;
+        Assert.Equal(1, sem.Escala);
+        Assert.Empty(sem.AvisosLargura);
+    }
+
+    [Fact]
+    public async Task conteudo_mais_largo_que_o_encolhimento_maximo_gera_estouro()
+    {
+        // 1100 px pedem k = 1,599; o Chromium reduz no máximo 1,5 e corta o resto: exportação recusada.
+        var c = await ComporCaso("muito_largo", new RefElemento(".largo", 0, "largo-1100", null));
+        Assert.Equal(PlanoQuebras.EscalaMaxima, c.Plano.Escala);
+        var estouro = Assert.Single(c.Plano.Estouros);
+        Assert.Equal(1, estouro.Folha);
+        Assert.Equal("largo-1100", estouro.Ref);
+        Assert.NotNull(estouro.LarguraMm);
+        Assert.InRange(estouro.LarguraMm!.Value, 290.9, 291.1); // 1100 px
+        var aviso = Assert.Single(c.Plano.AvisosLargura);
+        Assert.InRange(aviso.Escala, 1.598, 1.600);
+        // O estouro de altura continua sem largura.
+        var g = await ComporCaso("gigante");
+        Assert.Null(Assert.Single(g.Plano.Estouros).LarguraMm);
+    }
+
+    [Fact]
+    public async Task quebra_forcada_fica_no_plano_e_mantem_a_margem()
+    {
+        var c = await ComporCaso("forcada");
+        Assert.Equal(new[] { "[0]", "[1]", "[3]" }, Inicios(c.Plano));
+        Assert.Equal(new[] { false, true, false }, c.Plano.InicioDasFolhas.Select(i => i.Forcada));
+        var compostas = await DeslocamentoDoPrimeiroBloco();
+        Assert.InRange(compostas[1], 39.9, 40.1);  // forçada: a margem de 40 px fica
+        Assert.InRange(compostas[2], -0.1, 0.1);   // não forçada: truncada
+        // Só com o plano (como a Tarefa 8 fará), a mesma margem em cada folha.
+        var plano = c.Plano.ParaJson();
+        var cfg = JsonSerializer.Serialize(new { cabecalhoUri = Ambiente.Cfg.CabecalhoUri, rodapeEsquerda = Ambiente.Cfg.RodapeEsquerda, rodapeDireitaModelo = Ambiente.Cfg.RodapeDireitaModelo });
+        var refeitas = await Js($$"""
+            (() => {
+              const plano = {{plano}}, cfg = {{cfg}};
+              return plano.inicioDasFolhas.map((_, i) => {
+                const f = Paginador.montarFolhaDoPlano(plano, i, cfg);
+                const a = f.area.getBoundingClientRect().top;
+                const d = f.area.querySelector('.bloco:not([data-pmvni-oculto])').getBoundingClientRect().top - a;
+                f.folha.remove();
+                return d;
+              });
+            })()
+            """);
+        Assert.Equal(compostas, refeitas.EnumerateArray().Select(x => x.GetDouble()).ToArray());
     }
 
     [Fact]
     public async Task imagem_lenta_nao_altera_plano()
     {
         var html = Caso("imagem_lenta");
-        var rapido = await ComporComImagem(html, TimeSpan.Zero);
-        var lento = await ComporComImagem(html, TimeSpan.FromSeconds(2));
+        var rapido = await ComImagemLenta(html, TimeSpan.Zero, () => host.Documento.ComporDetalhadoAsync());
+        var lento = await ComImagemLenta(html, TimeSpan.FromSeconds(2), () => host.Documento.ComporDetalhadoAsync());
         // A imagem (750 × 500 px) é mais larga que a área: carregada, impõe a escala de impressão k = 750 / 687,87; antes de
         // carregar ocupa 0 px. A altura de uma folha é conferida depois de suas imagens carregarem, mas a escala é medida uma
         // vez, antes de compor: medir cedo demais daria k = 1.
@@ -241,6 +295,32 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
         Assert.InRange(rapido.Plano.Escala, 1.090, 1.091);
         // (a URL da imagem muda a cada execução, logo o hash do HTML também)
         Assert.Equal((rapido.Plano with { Sha256Html = "" }).ParaJson(), (lento.Plano with { Sha256Html = "" }).ParaJson());
+    }
+
+    [Fact]
+    public async Task documento_que_nao_estabiliza_falha_com_instavel()
+    {
+        // A imagem nunca chega: em vez de um plano medido sobre layout instável, compor falha com código "instavel".
+        var ex = await ComImagemLenta(Caso("imagem_lenta"), Timeout.InfiniteTimeSpan, () =>
+            Assert.ThrowsAsync<Pmvni.Composicao.Web.Ponte.ErroWebException>(() =>
+                host.Documento.ComporDetalhadoAsync(limiteEstabilidade: TimeSpan.FromMilliseconds(1500))), exigirServida: false);
+        Assert.Equal("instavel", ex.Codigo);
+        Assert.Contains("imagem", ex.Dados.GetProperty("mensagem").GetString());
+    }
+
+    [Fact]
+    public void plano_valida_versao_escala_e_compara_caminho_por_valor()
+    {
+        var bom = new PlanoQuebras(1, [new PosicaoFluxo([0], null, null, false)], [], "abc", 1.2, []);
+        static JsonElement Json(PlanoQuebras p) => JsonSerializer.SerializeToElement(p, Pmvni.Composicao.Web.Ponte.Mensagens.Opcoes);
+        Assert.Equal(bom.ParaJson(), PlanoQuebras.DeJson(Json(bom)).ParaJson());
+        Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { Versao = 2 })));
+        Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { Escala = 1.6 })));
+        Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { Escala = 0.9 })));
+        Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { InicioDasFolhas = [] })));
+        Assert.Equal(new PosicaoFluxo([3, 1], 5, null, true), new PosicaoFluxo([3, 1], 5, null, true));
+        Assert.Equal(new PosicaoFluxo([3, 1], 5, null, true).GetHashCode(), new PosicaoFluxo([3, 1], 5, null, true).GetHashCode());
+        Assert.NotEqual(new PosicaoFluxo([3, 1], null, null, false), new PosicaoFluxo([3, 2], null, null, false));
     }
 
     [Fact]
@@ -268,7 +348,8 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
         var plano = bruto.GetProperty("plano");
         var volta = JsonSerializer.SerializeToElement(PlanoQuebras.DeJson(plano), Pmvni.Composicao.Web.Ponte.Mensagens.Opcoes);
         Assert.True(JsonElement.DeepEquals(plano, volta), plano.GetRawText() + "\n≠\n" + volta.GetRawText());
-        Assert.Equal(new[] { "versao", "inicioDasFolhas", "estouros", "sha256Html", "escala" }, plano.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(new[] { "versao", "inicioDasFolhas", "estouros", "sha256Html", "escala", "avisosLargura" }, plano.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(new[] { "caminho", "deslocamentoTexto", "linha", "forcada" }, plano.GetProperty("inicioDasFolhas")[0].EnumerateObject().Select(p => p.Name));
     }
 
     [Fact]
@@ -287,11 +368,16 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
             var vistos = c.RefsPorFolha.SelectMany(x => x).ToHashSet();
             Assert.All(r.Refs, x => Assert.Contains(x.Id, vistos));
             if (caso == "estouro") Assert.NotEmpty(c.Plano.Estouros);
+            // Nestes, a etiqueta "INFORMAÇÕES DIVERGENTES" (nowrap) transborda a coluna: documento reduzido, com aviso.
+            if (caso is "longo" or "extremos") Assert.NotEmpty(c.Plano.AvisosLargura);
+            Assert.Equal(c.Plano.Escala > 1, c.Plano.AvisosLargura.Count > 0);
             resumo.Add(new JsonObject
             {
                 ["caso"] = caso,
                 ["folhas"] = c.Folhas,
                 ["estouros"] = JsonNode.Parse(JsonSerializer.Serialize(c.Plano.Estouros, Pmvni.Composicao.Web.Ponte.Mensagens.Opcoes)),
+                ["escala"] = c.Plano.Escala,
+                ["avisosLargura"] = JsonNode.Parse(JsonSerializer.Serialize(c.Plano.AvisosLargura, Pmvni.Composicao.Web.Ponte.Mensagens.Opcoes)),
                 ["ms"] = Math.Round(ms),
             });
         }
@@ -321,6 +407,18 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
         return await host.Documento.ComporDetalhadoAsync();
     }
 
+    /// <summary>Distância (px) do 1º bloco visível de cada folha ao topo da área.</summary>
+    async Task<double[]> DeslocamentoDoPrimeiroBloco()
+    {
+        var e = await Js("""
+            [...document.querySelectorAll('section.folha')].map(f => {
+              const a = f.querySelector('.area').getBoundingClientRect().top;
+              return f.querySelector('.area .bloco:not([data-pmvni-oculto])').getBoundingClientRect().top - a;
+            })
+            """);
+        return e.EnumerateArray().Select(x => x.GetDouble()).ToArray();
+    }
+
     static string[] Inicios(PlanoQuebras p) => p.InicioDasFolhas.Select(i =>
         "[" + string.Join(",", i.Caminho) + "]" + (i.DeslocamentoTexto is { } d ? "+" + d : "") + (i.Linha is { } l ? "#" + l : "")).ToArray();
 
@@ -342,16 +440,18 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
         return doc.RootElement.GetProperty("result").GetProperty("value").Clone();
     }
 
-    /// <summary>Serve a imagem do caso (750 × 500 px) depois de <paramref name="atraso"/>. O mapeamento do host virtual não passa
-    /// pelo WebResourceRequested nem pelo Fetch do CDP; por isso, só neste teste, a imagem vem de um host de teste não mapeado
-    /// (cuja requisição passa pelo WebResourceRequested) e a CSP é contornada pelo CDP (Page.setBypassCSP).</summary>
-    async Task<ResultadoComposicao> ComporComImagem(string html, TimeSpan atraso)
+    /// <summary>Carrega o caso com a imagem (750 × 500 px) servida depois de <paramref name="atraso"/> e roda <paramref name="acao"/>.
+    /// Com <see cref="Timeout.InfiniteTimeSpan"/> a imagem só é respondida depois que a ação termina. O mapeamento do host
+    /// virtual não passa pelo WebResourceRequested nem pelo Fetch do CDP; por isso, só nestes testes, a imagem vem de um host
+    /// de teste não mapeado (cuja requisição passa pelo WebResourceRequested) e a CSP é contornada pelo CDP (Page.setBypassCSP).</summary>
+    async Task<T> ComImagemLenta<T>(string html, TimeSpan atraso, Func<Task<T>> acao, bool exigirServida = true)
     {
         // URL única por execução: sem ela, o cache de imagens do Chromium entrega a imagem da execução anterior na hora.
         var Url = "https://lenta.pmvni.invalid/lenta.svg?n=" + Guid.NewGuid().ToString("N");
         html = html.Replace("https://doc.pmvni.invalid/lenta.svg", Url);
         var svg = Encoding.UTF8.GetBytes("""<svg xmlns="http://www.w3.org/2000/svg" width="750" height="500"><rect width="750" height="500" fill="#89a"/></svg>""");
         var servidas = 0;
+        using var fim = new CancellationTokenSource();
         void Servir(CoreWebView2 sender, CoreWebView2WebResourceRequestedEventArgs e)
         {
             if (e.Request.Uri != Url) return;
@@ -361,7 +461,8 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
             {
                 try
                 {
-                    if (atraso > TimeSpan.Zero) await Task.Delay(atraso);
+                    if (atraso == Timeout.InfiniteTimeSpan) await Task.Delay(Timeout.Infinite, fim.Token).ContinueWith(_ => { });
+                    else if (atraso > TimeSpan.Zero) await Task.Delay(atraso);
                     var fluxo = new MemoryStream(svg).AsRandomAccessStream();
                     e.Response = sender.Environment.CreateWebResourceResponse(fluxo, 200, "OK", "Content-Type: image/svg+xml");
                     Interlocked.Increment(ref servidas);
@@ -378,12 +479,13 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
         try
         {
             await host.Documento.CarregarAsync(new ResultadoRender(html, [], []), Ambiente.Cfg);
-            var c = await host.Documento.ComporDetalhadoAsync();
-            Assert.True(servidas >= 1, "a imagem não passou pelo manipulador de teste");
-            return c;
+            var r = await acao();
+            if (exigirServida) Assert.True(servidas >= 1, "a imagem não passou pelo manipulador de teste");
+            return r;
         }
         finally
         {
+            fim.Cancel();
             await host.ExecutarAsync(async core =>
             {
                 await core.CallDevToolsProtocolMethodAsync("Page.setBypassCSP", """{"enabled":false}""");

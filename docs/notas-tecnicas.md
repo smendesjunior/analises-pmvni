@@ -92,10 +92,13 @@ texto de cada página com o de cada folha (casos de `tests/Pmvni.Web.Testes/caso
   documento / largura da área, até 1,5) e a imprime reduzida. No kit isso acontece de verdade: a etiqueta "INFORMAÇÕES
   DIVERGENTES" (`white-space: nowrap`) transborda a coluna da tabela em ~50 px nos casos `longo` e `extremos` (k = 1,0723).
   O paginador mede k com k = 1 e diagrama a área em 182k × 254k mm com `transform: scale(1/k)` (`--pmvni-k`); k vai no plano
-  (`Escala`), para quem aplica o plano não medir de novo.
+  (`Escala`), para quem aplica o plano não medir de novo. Cada bloco que transborda vira `AvisoLargura` (folha, ref, escala
+  pedida) para o editor avisar "documento reduzido"; se pedir mais que 1,5, vira também `Estouro` com `LarguraMm`
+  (exportação recusada: o Chromium cortaria).
 - itens de flex em linha (o `.sec`) e de grade não se dividem por dentro; flex em coluna, sim.
-- bloco com altura fixa e conteúdo que não é monolítico é fatiado pelo Chromium entre páginas (o kit não gera esse caso);
-  o paginador o trata como indivisível.
+- bloco com altura fixa e conteúdo que não é monolítico: o Chromium fatia também a sobra de altura entre páginas (o kit
+  não gera esse caso). O paginador não fatia a sobra: o bloco só se divide onde qualquer bloco se divide (entre filhos
+  ou entre linhas); sem filhos, ou com uma só linha, fica indivisível.
 - margem de cima truncada depois de quebra não forçada; orphans/widows 2; `.refs` (slice) e `.card` (clone) como no PDF.
 - divergência aceita: linha de tabela (ou bloco indivisível) maior que a área — o Chromium fatia; o paginador registra
   `Estouro` e a exportação é recusada (spec, seção 5.3).
@@ -103,3 +106,9 @@ texto de cada página com o de cada folha (casos de `tests/Pmvni.Web.Testes/caso
   host de teste não mapeado com `Page.setBypassCSP` e `loading="lazy"` (imagem comum segura o `load`, e `CarregarAsync`
   espera o `NavigationCompleted`).
 - o papel do PDF sai com 209,89 × 297,01 mm (o Chromium arredonda o tamanho A4): a calibrar na Tarefa 9.
+
+Plano (além do brief): `PosicaoFluxo.Forcada` diz se a quebra que abre a folha é forçada (margem de cima mantida), para
+que aplicar o plano não precise medir; `montarFolhaDoPlano(plano, i, cfg)` (exportado no global `Paginador`) monta uma
+folha só com o plano. Se o documento não estabiliza no limite (30 s; `limiteEstabilidade` em `ComporDetalhadoAsync`),
+`compor` falha com o código `instavel` (e `folhas_demais` acima de 5000 folhas), nunca devolve plano medido em layout
+instável. `PlanoQuebras.DeJson` recusa versão diferente de 1 e escala fora de [1; 1,5].

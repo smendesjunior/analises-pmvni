@@ -1,5 +1,9 @@
 // Ponte JS do paginador: valida o que o host manda, despacha para os manipuladores registrados e responde com o mesmo id.
 import { compor, lerPedido } from './folhas';
+import { ErroComposicao } from './plano';
+
+// Montagem de uma folha a partir de um plano (base do aplicarPlano da Tarefa 8; usada também nos testes).
+export { montarFolhaDoPlano } from './folhas';
 import { lerMensagemHost, lerMensagemWeb, VERSAO, type MensagemHost, type TipoHost, type TipoWeb } from './mensagens';
 
 export type Resposta = { tipo: TipoWeb; dados: Record<string, unknown> };
@@ -46,7 +50,8 @@ async function aoReceber(bruto: unknown): Promise<void> {
     const resposta = await manipulador(msg.dados, msg);
     if (resposta) enviar(resposta.tipo, msg.id, resposta.dados);
   } catch (e) {
-    enviar('erro', msg.id, { codigo: 'falha_no_manipulador', mensagem: e instanceof Error ? e.message : String(e) });
+    const codigo = e instanceof ErroComposicao ? e.codigo : 'falha_no_manipulador';
+    enviar('erro', msg.id, { codigo, mensagem: e instanceof Error ? e.message : String(e) });
   }
 }
 

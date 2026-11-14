@@ -144,20 +144,22 @@ public sealed class DocumentoWeb : IDisposable
     public static readonly TimeSpan LimiteComporPadrao = TimeSpan.FromSeconds(120);
 
     /// <summary>Compõe o documento carregado em folhas A4 e devolve o plano de quebras. Ver <see cref="ComporDetalhadoAsync"/>.</summary>
-    public async Task<PlanoQuebras> ComporAsync(TimeSpan? limite = null) => (await ComporDetalhadoAsync(limite)).Plano;
+    public async Task<PlanoQuebras> ComporAsync(TimeSpan? limite = null, TimeSpan? limiteEstabilidade = null) =>
+        (await ComporDetalhadoAsync(limite, limiteEstabilidade)).Plano;
 
     /// <summary>Compõe o documento carregado: antes, fixa no core deste documento a escala 1 e a mídia de impressão
     /// (CDP <c>Emulation.setDeviceMetricsOverride</c> e <c>Emulation.setEmulatedMedia</c>), por isso deve rodar no
     /// <see cref="HostOculto"/>, nunca no WebView da tela. Depois manda <c>compor</c> ao paginador, com o sha256 do HTML,
-    /// os refs e o cabeçalho/rodapé, e devolve o plano, o número de folhas e os refs de cada folha.</summary>
-    public async Task<ResultadoComposicao> ComporDetalhadoAsync(TimeSpan? limite = null)
+    /// os refs e o cabeçalho/rodapé, e devolve o plano, o número de folhas e os refs de cada folha.
+    /// Se o documento não estabilizar (fontes/imagens carregando, altura mudando) em <paramref name="limiteEstabilidade"/>
+    /// (padrão do paginador: 30 s), falha com <see cref="ErroWebException"/> de código <c>instavel</c>, sem plano.</summary>
+    public async Task<ResultadoComposicao> ComporDetalhadoAsync(TimeSpan? limite = null, TimeSpan? limiteEstabilidade = null)
     {
-        var json = await ComporJsonAsync(limite);
+        var json = await ComporJsonAsync(limite, limiteEstabilidade);
         var plano = PlanoQuebras.DeJson(json.GetProperty("plano"));
         var refs = json.GetProperty("refsPorFolha").Deserialize<List<List<string>>>(Mensagens.Opcoes)
             ?? throw new InvalidDataException("refsPorFolha ausente.");
         var composicao = new ResultadoComposicao(plano, json.GetProperty("folhas").GetInt32(), refs.Select(r => (IReadOnlyList<string>)r).ToList());
-        if (plano.Versao != PlanoQuebras.VersaoAtual) throw new InvalidDataException("Versão de plano não suportada: " + plano.Versao);
         if (plano.Sha256Html != PlanoQuebras.Sha256De(Render!.Html)) throw new InvalidDataException("O plano devolvido é de outro documento.");
         if (plano.InicioDasFolhas.Count != composicao.Folhas || refs.Count != composicao.Folhas)
             throw new InvalidDataException("Plano incoerente: " + plano.InicioDasFolhas.Count + " inícios para " + composicao.Folhas + " folhas.");
@@ -165,7 +167,7 @@ public sealed class DocumentoWeb : IDisposable
     }
 
     /// <summary>Resposta bruta (<c>composto</c>) do paginador, para os testes de ida e volta do JSON.</summary>
-    internal async Task<JsonElement> ComporJsonAsync(TimeSpan? limite = null)
+    internal async Task<JsonElement> ComporJsonAsync(TimeSpan? limite = null, TimeSpan? limiteEstabilidade = null)
     {
         var r = Render ?? throw new InvalidOperationException("Nenhum documento carregado: chame CarregarAsync antes de compor.");
         var cfg = Config!;
@@ -181,6 +183,7 @@ public sealed class DocumentoWeb : IDisposable
             sha256Html = PlanoQuebras.Sha256De(r.Html),
             refs = r.Refs.Select(x => new { seletor = x.Seletor, indice = x.Indice, id = x.Id }).ToArray(),
             config = new { cabecalhoUri = cfg.CabecalhoUri, rodapeEsquerda = cfg.RodapeEsquerda, rodapeDireitaModelo = cfg.RodapeDireitaModelo },
+            limiteEstabilidadeMs = limiteEstabilidade?.TotalMilliseconds,
         };
         return await ChamarAsync("compor", dados, limite ?? LimiteComporPadrao);
     }
