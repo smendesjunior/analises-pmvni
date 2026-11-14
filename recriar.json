@@ -3,12 +3,62 @@
   "ordem": 84,
   "usadoPor": "Editor e revisão humana dos relatórios técnicos da PMVNI (entre a análise da IA e o PDF/despacho). Executável único e portátil em Aplicativo\\, sem instalação, admin ou serviço; usa o WebView2 do Windows. Dados em %LOCALAPPDATA%\\EditorRelatoriosPMVNI (não guardados: contêm dados de processos). Projeto separado do kit PMVNI: lê o kit (modelos HTML, só leitura) se estiver presente, nunca o altera, e o kit não é recriado por esta receita. Para compilar: .NET SDK 10, Node e Python 3.14 + PyMuPDF (já recriados pelas receitas do sistema), via tools\\build-release.ps1.",
   "passos": [
-    { "tipo": "manual",
+    {
+      "tipo": "manual",
       "texto": "Editor de Relatórios PMVNI: não precisa instalar. Abra Aplicativo\\Editor de Relatorios PMVNI.exe (a primeira abertura demora uns 15 s). Para gerar uma versão nova, rode tools\\build-release.ps1.",
-      "abrir": "%APP%\\Aplicativo" }
+      "abrir": "%APP%\\Aplicativo"
+    }
   ],
   "conferir": [
-    { "tipo": "arquivo", "caminho": "%APP%\\Aplicativo\\Editor de Relatorios PMVNI.exe", "nome": "Executável do Editor de Relatórios PMVNI" },
-    { "tipo": "comando", "nome": "dotnet", "aviso": true }
+    {
+      "tipo": "arquivo",
+      "caminho": "%APP%\\Aplicativo\\Editor de Relatorios PMVNI.exe",
+      "nome": "Executável do Editor de Relatórios PMVNI"
+    },
+    {
+      "tipo": "qualquer",
+      "nome": "WebView2 Runtime (obrigatório para abrir o app)",
+      "opcoes": [
+        {
+          "tipo": "arquivo",
+          "caminho": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\*\\msedgewebview2.exe"
+        },
+        {
+          "tipo": "arquivo",
+          "caminho": "C:\\Program Files\\Microsoft\\EdgeWebView\\Application\\*\\msedgewebview2.exe"
+        },
+        {
+          "tipo": "arquivo",
+          "caminho": "%LOCALAPPDATA%\\Microsoft\\EdgeWebView\\Application\\*\\msedgewebview2.exe"
+        }
+      ]
+    },
+    {
+      "tipo": "comando",
+      "nome": "dotnet",
+      "aviso": true
+    },
+    {
+      "tipo": "comando",
+      "nome": "node",
+      "aviso": true
+    },
+    {
+      "tipo": "python",
+      "versao": "3.14",
+      "aviso": true,
+      "nome": "Python 3.14 (só para os testes de fidelidade)"
+    },
+    {
+      "tipo": "saida",
+      "nome": "PyMuPDF (só para os testes de fidelidade)",
+      "comando": "python",
+      "argumentos": [
+        "-c",
+        "import fitz;print('pymupdf-ok')"
+      ],
+      "padrao": "pymupdf-ok",
+      "aviso": true
+    }
   ]
 }

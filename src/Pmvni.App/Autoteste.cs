@@ -18,6 +18,7 @@ internal static class Autoteste
 
     public static void GravarSucesso(string versaoWebView2) => Gravar(new Dictionary<string, object?>
     {
+        ["ok"] = true,
         ["webview2"] = versaoWebView2,
         ["baseDir"] = AppContext.BaseDirectory,
         ["elevado"] = Elevado(),

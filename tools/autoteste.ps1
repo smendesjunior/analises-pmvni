@@ -9,6 +9,9 @@ $raiz = Split-Path -Parent $PSScriptRoot
 $exe = Join-Path $raiz 'Aplicativo\Editor de Relatorios PMVNI.exe'
 $saida = Join-Path $raiz 'tests\saida'
 New-Item -ItemType Directory -Force -Path $saida | Out-Null
+# O build-release grava em tests\saida\autoteste-alvo.txt o .exe a testar (explorer.exe não repassa argumentos); sem o arquivo, usa Aplicativo\.
+$alvo = Join-Path $saida 'autoteste-alvo.txt'
+if (Test-Path -LiteralPath $alvo) { $exe = (Get-Content -LiteralPath $alvo -Raw -Encoding UTF8).Trim() }
 $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados'
 $log = Join-Path $saida 'autoteste-log.txt'
 $netTemp = Join-Path $env:TEMP '.net'

@@ -1,9 +1,14 @@
 ﻿<#
   Publica o Editor de Relatórios PMVNI como executável único em Aplicativo\ e limpa os builds.
   Uso: powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-release.ps1
-  Ordem: publicar -> conferir que a publicação tem um único executável -> copiar para Aplicativo\
-         -> conferir o arquivo final -> só então apagar bin, obj, pasta de publicação e temporários
-         -> abrir tools\limpar-extracoes.cmd (explorer.exe) para apagar as extrações antigas em %TEMP%\.net.
+  Ordem: testes (dotnet test, com PMVNI_DADOS_DIR em tests\saida\dados) -> publicar -> conferir que a publicação
+         tem um único executável (MZ, tamanho) -> abrir o .exe publicado com --autoteste (tools\autoteste.cmd, via
+         explorer.exe, fora do pacote do Claude; exige ok=true e sem elevação) -> só então copiar para Aplicativo\
+         com nome temporário, conferir o hash e trocar (Aplicativo\ nunca fica sem executável se algo falhar)
+         -> apagar bin, obj, artifacts, tests\saida, node_modules\.cache e temporários
+         -> abrir tools\limpar-extracoes.cmd (explorer.exe) para apagar as extrações antigas em %TEMP%\.net
+         -> informar o espaço liberado.
+  Não apaga web\paginador\node_modules (necessário para refazer o bundle), só os caches dele.
 #>
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
@@ -39,22 +44,18 @@ if ($arquivos.Count -ne 1 -or $arquivos[0].Extension -ne '.exe') {
 }
 $exePublicado = $arquivos[0].FullName
 
-# 3. Copiar para Aplicativo\ (só o .exe final fica lá)
-New-Item -ItemType Directory -Force -Path $pastaFinal | Out-Null
-Copy-Item -LiteralPath $exePublicado -Destination $exeFinal -Force
-Get-ChildItem -LiteralPath $pastaFinal -Force | Where-Object { $_.FullName -ne $exeFinal } | Remove-Item -Recurse -Force
+# 3. Conferir o .exe publicado ANTES de tocar em Aplicativo\: é um PE (MZ) e tem tamanho plausível
+$bytes = [System.IO.File]::ReadAllBytes($exePublicado)
+if ($bytes.Length -lt 1MB -or $bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { throw "Executável publicado inválido: $exePublicado" }
+$hashFinal = (Get-FileHash -LiteralPath $exePublicado -Algorithm SHA256).Hash
 
-# 4. Conferir o arquivo final: existe, é um PE (MZ) e é idêntico ao publicado
-$bytes = [System.IO.File]::ReadAllBytes($exeFinal)
-if ($bytes.Length -lt 1MB -or $bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { throw "Arquivo final inválido: $exeFinal" }
-if ((Get-FileHash -LiteralPath $exeFinal).Hash -ne (Get-FileHash -LiteralPath $exePublicado).Hash) { throw 'A cópia em Aplicativo\ difere do .exe publicado.' }
-$hashFinal = (Get-FileHash -LiteralPath $exeFinal -Algorithm SHA256).Hash
-
-# 4b. Autoteste: abre o .exe final com --autoteste, por script externo aberto com explorer.exe (fora do pacote do Claude).
-#     Duas rodadas (1ª fria, 2ª quente); cada uma grava um JSON em tests\saida.
+# 4. Autoteste do .exe publicado (o mesmo arquivo que vai para Aplicativo\, conferido por hash no passo 5): abre o .exe com
+#    --autoteste por script externo aberto com explorer.exe (fora do pacote do Claude), em duas rodadas (1ª fria, 2ª quente).
+#    Cada rodada grava um JSON em tests\saida; exige "ok": true (só gravado depois de a página carregar no WebView2) e "elevado": false.
 $jsons = @((Join-Path $saida 'autoteste.json'), (Join-Path $saida 'autoteste-2.json'))
 $logAuto = Join-Path $saida 'autoteste-log.txt'
 foreach ($f in $jsons + $logAuto) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force } }
+[System.IO.File]::WriteAllText((Join-Path $saida 'autoteste-alvo.txt'), $exePublicado, (New-Object System.Text.UTF8Encoding($false)))
 Start-Process -FilePath 'explorer.exe' -ArgumentList ('"' + (Join-Path $PSScriptRoot 'autoteste.cmd') + '"')
 $limite = (Get-Date).AddMinutes(5)
 while ((Get-Date) -lt $limite) {
@@ -65,11 +66,25 @@ if (-not ((Test-Path -LiteralPath $logAuto) -and (Select-String -LiteralPath $lo
 foreach ($f in $jsons) {
     if (-not (Test-Path -LiteralPath $f)) { throw "O autoteste não gravou ${f}: o executável não abriu." }
     $r = Get-Content -LiteralPath $f -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($r.erro -or -not $r.webview2) { throw "Autoteste reprovou em $f." }
+    if ($r.ok -ne $true) { throw "Autoteste reprovou em ${f}: sem ok=true ($($r.erro))." }
+    if ($r.elevado -ne $false) { throw "Autoteste reprovou em ${f}: o app abriu elevado (elevado=$($r.elevado))." }
 }
-Write-Host 'Autoteste do executável: aprovado (2 rodadas).'
+Write-Host 'Autoteste do executável: aprovado (2 rodadas, ok=true, sem elevação).'
 
-# 5. Limpeza: bin, obj, publicação e temporários dentro do projeto (caminhos conferidos sob $raiz)
+# 5. Só agora Aplicativo\ muda: copia com nome temporário, confere (hash e MZ) e troca; os executáveis antigos saem por último
+New-Item -ItemType Directory -Force -Path $pastaFinal | Out-Null
+$exeTemp = Join-Path $pastaFinal 'novo.exe.tmp'
+Copy-Item -LiteralPath $exePublicado -Destination $exeTemp -Force
+$bt = [System.IO.File]::ReadAllBytes($exeTemp)
+if ($bt.Length -ne $bytes.Length -or $bt[0] -ne 0x4D -or $bt[1] -ne 0x5A -or (Get-FileHash -LiteralPath $exeTemp -Algorithm SHA256).Hash -ne $hashFinal) {
+    Remove-Item -LiteralPath $exeTemp -Force
+    throw 'A cópia para Aplicativo\ difere do .exe publicado e autotestado; Aplicativo\ ficou como estava.'
+}
+Move-Item -LiteralPath $exeTemp -Destination $exeFinal -Force
+Get-ChildItem -LiteralPath $pastaFinal -Force | Where-Object { $_.FullName -ne $exeFinal } | Remove-Item -Recurse -Force
+if ((Get-FileHash -LiteralPath $exeFinal -Algorithm SHA256).Hash -ne $hashFinal) { throw "Arquivo final difere do publicado: $exeFinal" }
+
+# 5b. Limpeza: bin, obj, publicação e temporários dentro do projeto (caminhos conferidos sob $raiz)
 & dotnet build-server shutdown | Out-Null
 $alvos = @(Join-Path $raiz 'artifacts')
 foreach ($pasta in 'src', 'tests') {
