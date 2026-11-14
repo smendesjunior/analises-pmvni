@@ -1,0 +1,15 @@
+{
+  "name": "pmvni-paginador",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Paginador A4 e ponte tipada do Editor de Relatorios PMVNI (empacotado em src/Pmvni.Composicao.Web/web/paginador.js).",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  }
+}

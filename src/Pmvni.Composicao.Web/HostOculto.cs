@@ -12,13 +12,15 @@ namespace Pmvni.Composicao.Web;
 /// Nenhuma operação fica pendurada: cada uma tem tempo-limite, e todas as pendentes falham quando o
 /// host é descartado, quando um processo do WebView2 cai ou quando a thread STA registra um erro interno.
 /// </summary>
-public sealed class HostOculto : IDisposable
+public sealed class HostOculto : IDisposable, IAsyncDisposable
 {
-    const int LarguraPx = 1024, AlturaPx = 1400;
+    const int LarguraPadraoPx = 1024, AlturaPadraoPx = 1400;
     public static readonly TimeSpan TempoLimitePadrao = TimeSpan.FromSeconds(60);
     public static readonly TimeSpan TempoLimiteNavegacaoPadrao = TimeSpan.FromSeconds(30);
 
     readonly Thread thread;
+    readonly int larguraPx, alturaPx;
+    DocumentoWeb? documento;
     readonly TaskCompletionSource prontoJanela = new(TaskCreationOptions.RunContinuationsAsynchronously);
     readonly ConcurrentDictionary<object, Action<Exception>> pendentes = new();
     ContextoSta? contexto;
@@ -31,16 +33,31 @@ public sealed class HostOculto : IDisposable
     /// <summary>Último erro lançado por um trabalho da fila STA fora de uma operação (nunca cruza o WndProc).</summary>
     public Exception? UltimoErroInterno { get; private set; }
 
-    HostOculto()
+    HostOculto(int larguraPx, int alturaPx)
     {
+        this.larguraPx = larguraPx;
+        this.alturaPx = alturaPx;
         thread = new Thread(LoopSta) { IsBackground = true, Name = "HostOculto-STA" };
         thread.SetApartmentState(ApartmentState.STA);
     }
 
+    /// <summary>Documento do host: carrega o relatório na sandbox e conversa com o paginador. Seguro para chamar de qualquer thread.</summary>
+    public DocumentoWeb Documento => documento ?? throw new ObjectDisposedException(nameof(HostOculto));
+
+    /// <summary>Cria um host com viewport de <paramref name="larguraPx"/> x <paramref name="alturaPx"/>, com os dados do WebView2 em
+    /// <see cref="PastaDados.WebView2"/>.</summary>
+    public static Task<HostOculto> CriarAsync(int larguraPx, int alturaPx) =>
+        IniciarAsync(PastaDados.WebView2(), null, larguraPx, alturaPx);
+
+    /// <summary>Chama um método do Chrome DevTools Protocol e devolve o JSON da resposta.</summary>
+    public Task<string> CdpAsync(string metodo, string json) =>
+        ExecutarAsync(async core => await core.CallDevToolsProtocolMethodAsync(metodo, json));
+
     /// <summary>Cria a thread STA, a janela oculta, o ambiente e o controller do WebView2.</summary>
-    public static async Task<HostOculto> IniciarAsync(string pastaDadosUsuario, TimeSpan? tempoLimite = null)
+    public static async Task<HostOculto> IniciarAsync(string pastaDadosUsuario, TimeSpan? tempoLimite = null,
+        int larguraPx = LarguraPadraoPx, int alturaPx = AlturaPadraoPx)
     {
-        var host = new HostOculto();
+        var host = new HostOculto(larguraPx, alturaPx);
         host.thread.Start();
         await host.prontoJanela.Task.ConfigureAwait(false);
         try
@@ -53,9 +70,10 @@ public sealed class HostOculto : IDisposable
                 var novo = await ambiente.CreateCoreWebView2ControllerAsync(referencia);
                 if (host.descartado) { novo.Close(); throw new ObjectDisposedException(nameof(HostOculto)); }
                 host.controller = novo;
-                novo.Bounds = new Rect(0, 0, LarguraPx, AlturaPx);
+                novo.Bounds = new Rect(0, 0, host.larguraPx, host.alturaPx);
                 novo.IsVisible = true;
                 novo.CoreWebView2.ProcessFailed += host.ProcessoFalhou;
+                host.documento = new DocumentoWeb(novo.CoreWebView2, host.NaThreadSta);
                 return true;
             }, tempoLimite ?? TempoLimitePadrao).ConfigureAwait(false);
         }
@@ -77,6 +95,8 @@ public sealed class HostOculto : IDisposable
         if (falha is { } f) return Task.FromException<T>(new InvalidOperationException(f.Message, f));
         return ExecutarNaStaAsync(() => acao(controller!.CoreWebView2), tempoLimite ?? TempoLimitePadrao);
     }
+
+    Task NaThreadSta(Func<Task> acao) => ExecutarNaStaAsync(async () => { await acao(); return true; }, TempoLimitePadrao);
 
     Task<T> ExecutarNaStaAsync<T>(Func<Task<T>> acao, TimeSpan tempoLimite)
     {
@@ -106,7 +126,14 @@ public sealed class HostOculto : IDisposable
     /// <summary>Navega para um HTML e espera o NavigationCompleted <b>desta</b> navegação (pelo NavigationId).
     /// Lança se a navegação falhar ou não terminar em <paramref name="tempoLimite"/>. Chamar na thread STA
     /// (dentro de <see cref="ExecutarAsync{T}"/>).</summary>
-    public static async Task NavegarParaHtmlAsync(CoreWebView2 webView, string html, TimeSpan? tempoLimite = null)
+    public static Task NavegarParaHtmlAsync(CoreWebView2 webView, string html, TimeSpan? tempoLimite = null) =>
+        NavegarAsync(webView, () => webView.NavigateToString(html), tempoLimite);
+
+    /// <summary>Como <see cref="NavegarParaHtmlAsync"/>, para uma URL (por exemplo, o host virtual da sessão).</summary>
+    public static Task NavegarParaUrlAsync(CoreWebView2 webView, string url, TimeSpan? tempoLimite = null) =>
+        NavegarAsync(webView, () => webView.Navigate(url), tempoLimite);
+
+    static async Task NavegarAsync(CoreWebView2 webView, Action navegar, TimeSpan? tempoLimite)
     {
         var limite = tempoLimite ?? TempoLimiteNavegacaoPadrao;
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -125,7 +152,7 @@ public sealed class HostOculto : IDisposable
             new TimeoutException($"Navegação não terminou em {limite.TotalSeconds:0.#} s.")));
         try
         {
-            webView.NavigateToString(html);
+            navegar();
             await tcs.Task;
         }
         finally
@@ -157,14 +184,18 @@ public sealed class HostOculto : IDisposable
         foreach (var falhar in pendentes.Values) falhar(erro);
     }
 
+    /// <summary>Encerra o host, falha o que estava pendente e apaga a pasta da sessão do documento.</summary>
+    public ValueTask DisposeAsync() => new(Task.Run(Dispose));
+
     public void Dispose()
     {
         if (descartado) return;
         descartado = true;
         FalharPendentes(new ObjectDisposedException(nameof(HostOculto)));
-        if (contexto is null || hwnd == IntPtr.Zero) return;
+        if (contexto is null || hwnd == IntPtr.Zero) { documento?.ApagarPasta(); return; }
         contexto.Post(_ =>
         {
+            try { documento?.Desanexar(); } catch { }
             try { controller?.Close(); } catch { }
             controller = null;
             contexto.Fechar();
@@ -172,6 +203,7 @@ public sealed class HostOculto : IDisposable
             PostQuitMessage(0);
         }, null);
         if (Thread.CurrentThread != thread) thread.Join(TimeSpan.FromSeconds(10));
+        documento?.ApagarPasta();
     }
 
     void LoopSta()
@@ -190,7 +222,7 @@ public sealed class HostOculto : IDisposable
             };
             if (RegisterClassEx(ref classe) == 0) throw new InvalidOperationException("RegisterClassEx falhou: " + Marshal.GetLastWin32Error());
             // Janela popup nunca mostrada (sem WS_VISIBLE): pai real para o controller do WebView2.
-            hwnd = CreateWindowEx(0, nomeClasse, "Pmvni HostOculto", WS_POPUP, 0, 0, LarguraPx, AlturaPx, IntPtr.Zero, IntPtr.Zero, instancia, IntPtr.Zero);
+            hwnd = CreateWindowEx(0, nomeClasse, "Pmvni HostOculto", WS_POPUP, 0, 0, larguraPx, alturaPx, IntPtr.Zero, IntPtr.Zero, instancia, IntPtr.Zero);
             if (hwnd == IntPtr.Zero) throw new InvalidOperationException("CreateWindowEx falhou: " + Marshal.GetLastWin32Error());
             contexto = new ContextoSta(hwnd);
             SynchronizationContext.SetSynchronizationContext(contexto);

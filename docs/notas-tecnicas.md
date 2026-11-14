@@ -56,3 +56,18 @@ Robustez (nenhuma operação fica pendurada):
 
 `Pmvni.Verificador autoteste-pdf <saida.pdf>` imprime `<p>ok</p>` via CDP `Page.printToPDF`: 1 página,
 210,23 × 297,01 mm (o Chromium arredonda o papel), texto "ok".
+
+## Núcleo web (Tarefa 6)
+
+- `Seguranca.AplicarAsync(core, pastaSessao)`: pasta da sessão (`<dados>\sessao\<guid>`) mapeada para `doc.pmvni.invalid`
+  com acesso `Deny`; filtro `WebResourceRequested` (`*`, All) responde 403 a tudo fora desse host; `NavigationStarting`
+  fora do host é cancelado; janelas novas e downloads cancelados; menu de contexto, autofill, senhas, barra de status,
+  objetos do host e diálogos desligados; DevTools só em Debug. A CSP vai num `<meta>` inserido no `<head>` **só da cópia
+  da sessão** (`documento.html`), junto de `<script src=".../paginador.js" defer>`; o HTML do renderizador não muda.
+- A CSP barra a imagem externa antes de qualquer requisição; o filtro 403 é a segunda camada (testado sem CSP).
+- Ponte: `Ponte/Mensagens.cs` (C#) e `web/paginador/src/mensagens.ts` (TS) validam o envelope `{v:1,tipo,id,dados}`;
+  inválidas são descartadas e registradas (`DocumentoWeb.Descartadas`; no JS, `console.warn` e mensagem `erro` ao host).
+- `DocumentoWeb.ChamarAsync` correlaciona resposta por `id`; resposta `erro` vira `ErroWebException`.
+- `HostOculto.CriarAsync(l, a)`, `.Documento`, `.CdpAsync(metodo, json)`; `DisposeAsync` apaga a pasta da sessão.
+- Os testes (`tests/Pmvni.Web.Testes`) definem `PMVNI_DADOS_DIR=tests\saida\dados`: o shell do Claude roda dentro do MSIX e
+  virtualizaria o AppData. O `paginador.js` é gerado por `web/paginador` (`npm run build`) e fica commitado.
