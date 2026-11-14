@@ -1,0 +1,30 @@
+[
+ {
+  "situacao": "ATENDE",
+  "titulo": "Item 1"
+ },
+ {
+  "situacao": "NAO_ATENDE",
+  "titulo": "Item 2"
+ },
+ {
+  "situacao": "NAO_COMPROVADO",
+  "titulo": "Item 3"
+ },
+ {
+  "situacao": "DIVERGENCIA_INTERNA",
+  "titulo": "Item 4"
+ },
+ {
+  "situacao": "NAO_COMPROVADO",
+  "titulo": "Item 5"
+ },
+ {
+  "situacao": "ATENDE",
+  "titulo": "Item 6"
+ },
+ {
+  "situacao": "NAO_ATENDE",
+  "titulo": "Item 7"
+ }
+]

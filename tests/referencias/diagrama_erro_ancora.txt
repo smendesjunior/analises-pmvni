@@ -1,0 +1,1 @@
+ERRO: Âncora desconhecida no diagrama: 'sotao' (use lote, permeavel, edificacao, lateral, telhado, altura)

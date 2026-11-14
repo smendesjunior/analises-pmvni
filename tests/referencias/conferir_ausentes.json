@@ -1,0 +1,13 @@
+{
+ "dados": {},
+ "imagens": [],
+ "rascunho": false,
+ "erros": [
+  "Campo obrigatório ausente: capa",
+  "Campo obrigatório ausente: itens",
+  "Campo obrigatório ausente: fontes",
+  "Campo obrigatório ausente: conclusao",
+  "Campo obrigatório ausente: assinatura",
+  "A capa precisa de exatamente 4 quadros"
+ ]
+}

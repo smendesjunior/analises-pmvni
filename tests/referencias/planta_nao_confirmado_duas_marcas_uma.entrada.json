@@ -1,0 +1,32 @@
+{
+ "p": {
+  "limites_confirmados": false,
+  "testada": "10,00 m & \"frente\"",
+  "profundidade": "30,50 m",
+  "permeavel": {
+   "titulo": "ÁREA PERMEÁVEL",
+   "linha1": "25,0% do lote",
+   "linha2": "mínimo 20,0%"
+  },
+  "edificacao": [
+   "EDIFICAÇÃO"
+  ],
+  "lateral": [
+   "1,50 m"
+  ],
+  "frente": "5,00 m",
+  "fundos": "3,00 m",
+  "via": "RUA DAS FLORES 'TESTE'",
+  "beiral": "beiral 0,50 m"
+ },
+ "marcas": [
+  [
+   "lateral",
+   1
+  ],
+  [
+   "lote",
+   2
+  ]
+ ]
+}

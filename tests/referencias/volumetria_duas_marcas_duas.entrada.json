@@ -1,0 +1,23 @@
+{
+ "v": {
+  "altura_esquerda": [
+   "7,20 m",
+   "cumeeira"
+  ],
+  "altura_direita": [
+   "6,00 m",
+   "platibanda & muro"
+  ],
+  "via": "RUA DOS TESTES"
+ },
+ "marcas": [
+  [
+   "telhado",
+   1
+  ],
+  [
+   "altura",
+   2
+  ]
+ ]
+}

@@ -1,0 +1,76 @@
+{
+ "entrada": {
+  "situacao": "CONFIRMADO",
+  "imagem": "mapa.png",
+  "dados": [
+   {
+    "rotulo": "a",
+    "valor": "a",
+    "grupo": "Identificação"
+   },
+   {
+    "rotulo": "b",
+    "valor": "b",
+    "grupo": "Cadastro e entorno"
+   }
+  ],
+  "legenda": [
+   {
+    "tipo": "lote",
+    "texto": "Só o lote"
+   }
+  ]
+ },
+ "grupos": [
+  {
+   "titulo": "Identificação",
+   "dados": [
+    {
+     "rotulo": "a",
+     "valor": "a",
+     "grupo": "Identificação"
+    }
+   ]
+  },
+  {
+   "titulo": "Cadastro e entorno",
+   "dados": [
+    {
+     "rotulo": "b",
+     "valor": "b",
+     "grupo": "Cadastro e entorno"
+    }
+   ]
+  }
+ ],
+ "colunas": [
+  [
+   {
+    "titulo": "Identificação",
+    "dados": [
+     {
+      "rotulo": "a",
+      "valor": "a",
+      "grupo": "Identificação"
+     }
+    ]
+   },
+   {
+    "titulo": "Cadastro e entorno",
+    "dados": [
+     {
+      "rotulo": "b",
+      "valor": "b",
+      "grupo": "Cadastro e entorno"
+     }
+    ]
+   }
+  ]
+ ],
+ "legenda": [
+  {
+   "tipo": "lote",
+   "texto": "Só o lote"
+  }
+ ]
+}

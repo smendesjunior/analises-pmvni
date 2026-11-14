@@ -1,0 +1,143 @@
+using System.Globalization;
+
+namespace Pmvni.Composicao.Kit;
+
+/// <summary>Diagrama vetorial (planta e volumetria) desenhado a partir dos rótulos dos dados
+/// (<c>planta_svg</c>, <c>volumetria_svg</c> e <c>montar_diagrama</c> do gerar_relatorio.py do kit).</summary>
+public static class Diagrama
+{
+    public static IReadOnlyDictionary<string, (int X, int Y)> PosPlanta { get; } = new Dictionary<string, (int X, int Y)>(StringComparer.Ordinal)
+    {
+        ["lote"] = (286, 270), ["permeavel"] = (60, 58), ["edificacao"] = (118, 212), ["lateral"] = (298, 140),
+    };
+
+    public static IReadOnlyDictionary<string, (int X, int Y)> PosVolume { get; } = new Dictionary<string, (int X, int Y)>(StringComparer.Ordinal)
+    {
+        ["telhado"] = (184, 76), ["altura"] = (274, 150),
+    };
+
+    private static string E(object? t) => Dados.E(t);
+
+    private static string Mk(int x, int y, int n) =>
+        $"""<g class="mk"><circle cx="{x}" cy="{y}" r="8.5"/><text x="{x}" y="{PythonTexto.Str(y + 3.2)}">{n}</text></g>""";
+
+    private static string Marcadores(IEnumerable<(string Ancora, int Numero)> marcas, IReadOnlyDictionary<string, (int X, int Y)> pos) =>
+        string.Concat(marcas.Select(m => Mk(pos[m.Ancora].X, pos[m.Ancora].Y, m.Numero)));
+
+    private static object? Elem(object? lista, int i)
+    {
+        var l = Dados.Lista(lista);
+        return i < l.Count ? l[i] : throw new MoldeErro("list index out of range");
+    }
+
+    /// <summary>Texto de <c>x[1] if len(x) &gt; 1 else ''</c>.</summary>
+    private static string Segundo(object? lista) => Dados.Len(lista) > 1 ? E(Elem(lista, 1)) : "";
+
+    public static string PlantaSvg(IReadOnlyDictionary<string, object?> p, IEnumerable<(string Ancora, int Numero)> marcas)
+    {
+        var conf = PythonTexto.Verdadeiro(Dados.Obter(p, "limites_confirmados"));
+        var borda = conf ? "" : " stroke-dasharray=\"6 4\"";
+        var cor = conf ? "#2F8F5B" : "#E2AE1C";
+        var pm = Dados.Exigir(p, "permeavel");
+        var ed = Dados.Exigir(p, "edificacao");
+        var la = Dados.Exigir(p, "lateral");
+        var linhas = new[]
+        {
+            """<svg viewBox="0 0 330 332" class="dg">""",
+            """<defs><pattern id="dots" width="7" height="7" patternUnits="userSpaceOnUse"><circle cx="3.5" cy="3.5" r=".8" fill="#8CCB9E"/></pattern>""",
+            """<marker id="ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" fill="#6B7785"/></marker></defs>""",
+            """<rect x="0" y="294" width="330" height="34" rx="6" fill="#E6EAEF"/><line x1="10" y1="311" x2="320" y2="311" stroke="#fff" stroke-width="2" stroke-dasharray="12 9"/>""",
+            $"""<text x="165" y="306" class="street">{E(Dados.Obter(p, "via", "RUA"))}</text>""",
+            $"""<rect x="48" y="46" width="250" height="234" rx="8" fill="#EEF7F1"/><rect x="48" y="46" width="250" height="234" rx="8" fill="url(#dots)" stroke="{cor}" stroke-width="1.6"{borda}/>""",
+            $"""<line x1="48" y1="27" x2="298" y2="27" class="dim" marker-start="url(#ar)" marker-end="url(#ar)"/><text x="173" y="20" class="t7 mu">{E(Dados.Exigir(p, "testada"))}</text>""",
+            $"""<line x1="28" y1="46" x2="28" y2="280" class="dim" marker-start="url(#ar)" marker-end="url(#ar)"/><text x="20" y="163" class="t7 mu" transform="rotate(-90 20 163)">{E(Dados.Exigir(p, "profundidade"))}</text>""",
+            """<rect x="60" y="58" width="112" height="40" rx="7" fill="#fff" stroke="#CFE8D7"/>""",
+            $"""<text x="116" y="72" class="t7 b gr">{E(Dados.Exigir(pm, "titulo"))}</text><text x="116" y="82.5" class="t65">{E(Dados.Exigir(pm, "linha1"))}</text><text x="116" y="92" class="t65{(PythonTexto.Verdadeiro(Dados.Obter(pm, "linha2_destaque")) ? " or" : "")}">{E(Dados.Obter(pm, "linha2", ""))}</text>""",
+            """<rect x="112" y="114" width="116" height="104" rx="4" fill="none" stroke="#9AA6B3" stroke-dasharray="3 3"/>""",
+            $"""<text x="228" y="109" class="t6 mu" text-anchor="end">{E(Dados.Obter(p, "beiral", ""))}</text>""",
+            """<rect x="118" y="120" width="104" height="92" rx="3" fill="#DDE4EB" stroke="#5B6878" stroke-width="1.1"/>""",
+            $"""<text x="170" y="162" class="t7 b">{E(Elem(ed, 0))}</text><text x="170" y="174" class="t65 mu">{Segundo(ed)}</text>""",
+            """<line x1="228" y1="166" x2="298" y2="166" class="dim" marker-start="url(#ar)" marker-end="url(#ar)"/>""",
+            $"""<text x="263" y="159" class="t65 b">{E(Elem(la, 0))}</text><text x="263" y="180" class="t6 mu">{Segundo(la)}</text>""",
+            $"""<line x1="170" y1="218" x2="170" y2="280" class="dsh"/><text x="176" y="254" class="t6 mu" text-anchor="start">{E(Dados.Exigir(p, "frente"))}</text>""",
+            $"""<line x1="200" y1="46" x2="200" y2="114" class="dsh"/><text x="206" y="76" class="t6 mu" text-anchor="start">{E(Dados.Exigir(p, "fundos"))}</text>""",
+            Marcadores(marcas, PosPlanta),
+            "</svg>",
+        };
+        return string.Join("\n", linhas);
+    }
+
+    private static string Poly((double X, double Y)[] pts, string c) =>
+        "<polygon class=\"" + c + "\" points=\"" + string.Join(' ', pts.Select(p => Dados.F1(p.X) + "," + Dados.F1(p.Y))) + "\"/>";
+
+    private static (double, double) P(double u, double z) => (150 + 103.9 * u, 250 - 60 * u - z);
+
+    private static (double, double) L(double s, double z) => (150 - 77.9 * s, 250 - 45 * s - z);
+
+    private static string Win(Func<double, double, (double, double)> f, double a0, double a1, double z0, double z1, string c = "win") =>
+        Poly(new[] { f(a0, z0), f(a1, z0), f(a1, z1), f(a0, z1) }, c);
+
+    public static string VolumetriaSvg(IReadOnlyDictionary<string, object?> v, IEnumerable<(string Ancora, int Numero)> marcas)
+    {
+        var w = string.Concat(new (double, double, double, double)[]
+        {
+            (.12, .32, 18, 42), (.65, .85, 18, 42), (.12, .32, 78, 102), (.42, .58, 78, 102), (.65, .85, 78, 102),
+        }.Select(q => Win(P, q.Item1, q.Item2, q.Item3, q.Item4)));
+        w += Win(P, .42, .53, 0, 44, "door") + string.Concat(new (double, double, double, double)[]
+        {
+            (.18, .42, 20, 42), (.58, .82, 20, 42), (.18, .42, 80, 102), (.58, .82, 80, 102),
+        }.Select(q => Win(L, q.Item1, q.Item2, q.Item3, q.Item4)));
+        var ae = Dados.Exigir(v, "altura_esquerda");
+        var ad = Dados.Exigir(v, "altura_direita");
+        var linhas = new[]
+        {
+            """<svg viewBox="-22 0 344 318" class="dg">""",
+            """<defs><marker id="ar2" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" fill="#6B7785"/></marker></defs>""",
+            Poly(new[] { (150d, 285d), (301.6, 197.5), (180.4, 127.5), (28.8, 215d) }, "gnd") + Poly(new[] { (150d, 285d), (28.8, 215d), (-5.8, 235d), (115.4, 305d) }, "str"),
+            $"""<text x="52" y="266" class="street" transform="rotate(30 52 266)">{E(Dados.Obter(v, "via", "RUA"))}</text>""",
+            Poly(new[] { (72.1, 85d), (176d, 25d), (214.95, 17.5), (111.05, 77.5) }, "rfb") + Poly(new[] { (150d, 250d), (72.1, 205d), (72.1, 85d), (111.05, 77.5), (150d, 130d) }, "wl"),
+            Poly(new[] { (150d, 250d), (253.9, 190d), (253.9, 70d), (150d, 130d) }, "wr") + Poly(new[] { (150d, 130d), (253.9, 70d), (214.95, 17.5), (111.05, 77.5) }, "rff"),
+            """<line x1="150" y1="190" x2="253.9" y2="130" class="fl"/><line x1="150" y1="190" x2="72.1" y2="145" class="fl"/>""" + w,
+            """<line x1="44" y1="212" x2="44" y2="62" class="dim" marker-start="url(#ar2)" marker-end="url(#ar2)"/>""",
+            $"""<text x="36" y="132" class="t7 b" text-anchor="end">{E(Elem(ae, 0))}</text><text x="36" y="143" class="t7" text-anchor="end">{Segundo(ae)}</text>""",
+            """<line x1="274" y1="192" x2="274" y2="30" class="dim" marker-start="url(#ar2)" marker-end="url(#ar2)"/>""",
+            $"""<text x="281" y="104" class="t7 b" text-anchor="start">{E(Elem(ad, 0))}</text><text x="281" y="115" class="t7" text-anchor="start">{Segundo(ad)}</text>""",
+            Marcadores(marcas, PosVolume),
+            "</svg>",
+        };
+        return string.Join("\n", linhas);
+    }
+
+    /// <summary>montar_diagrama(d): numera as chamadas, separa por âncora (planta/volumetria) e desenha os dois SVGs.</summary>
+    public static Dictionary<string, object?> MontarDiagrama(IReadOnlyDictionary<string, object?> d)
+    {
+        var planta = new List<(string, int)>();
+        var volume = new List<(string, int)>();
+        var cp = new List<object?>();
+        var cv = new List<object?>();
+        var n = 0;
+        foreach (var item in Dados.Lista(Dados.Exigir(d, "chamadas")))
+        {
+            n++;
+            var a = Dados.Exigir(item, "ancora");
+            var c = new Dictionary<string, object?>();
+            foreach (var par in Dados.Dict(item)) c[par.Key] = par.Value;
+            c["numero"] = (long)n;
+            if (a is string s && PosPlanta.ContainsKey(s)) { planta.Add((s, n)); cp.Add(c); }
+            else if (a is string s2 && PosVolume.ContainsKey(s2)) { volume.Add((s2, n)); cv.Add(c); }
+            else
+                throw new MoldeErro("Âncora desconhecida no diagrama: " + PythonTexto.Repr(a) + " (use " +
+                                    string.Join(", ", PosPlanta.Keys.Concat(PosVolume.Keys)) + ")");
+            var sit = Dados.Exigir(c, "situacao");
+            if (sit is not string ss || !Situacoes.SitIndice.Contains(ss))
+                throw new MoldeErro("Situação inválida na chamada " + n.ToString(CultureInfo.InvariantCulture) + ": " + PythonTexto.Repr(sit));
+        }
+        var r = new Dictionary<string, object?>();
+        foreach (var par in d) r[par.Key] = par.Value;
+        r["planta_svg"] = new Seguro(PlantaSvg(Dados.Dict(Dados.Exigir(d, "planta")), planta));
+        r["volumetria_svg"] = new Seguro(VolumetriaSvg(Dados.Dict(Dados.Exigir(d, "volumetria")), volume));
+        r["chamadas_planta"] = cp;
+        r["chamadas_volumetria"] = cv;
+        return r;
+    }
+}

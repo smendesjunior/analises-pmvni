@@ -1,0 +1,62 @@
+{
+ "entrada": {
+  "situacao": "CONFIRMADO",
+  "imagem": "mapa.png",
+  "dados": [
+   {
+    "rotulo": "a",
+    "valor": "a",
+    "grupo": "Identificação"
+   }
+  ],
+  "legenda": null
+ },
+ "grupos": [
+  {
+   "titulo": "Identificação",
+   "dados": [
+    {
+     "rotulo": "a",
+     "valor": "a",
+     "grupo": "Identificação"
+    }
+   ]
+  }
+ ],
+ "colunas": [
+  [
+   {
+    "titulo": "Identificação",
+    "dados": [
+     {
+      "rotulo": "a",
+      "valor": "a",
+      "grupo": "Identificação"
+     }
+    ]
+   }
+  ]
+ ],
+ "legenda": [
+  {
+   "tipo": "lote",
+   "texto": "Lote do projeto"
+  },
+  {
+   "tipo": "edif",
+   "texto": "Edificação no lote"
+  },
+  {
+   "tipo": "app",
+   "texto": "Faixa de APP"
+  },
+  {
+   "tipo": "rio",
+   "texto": "Curso d'água"
+  },
+  {
+   "tipo": "zona",
+   "texto": "Zonas do PDM"
+  }
+ ]
+}

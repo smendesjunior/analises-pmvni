@@ -1,0 +1,47 @@
+{
+ "planta": {
+  "limites_confirmados": true,
+  "testada": "10,00 m & \"frente\"",
+  "profundidade": "30,50 m",
+  "permeavel": {
+   "titulo": "ÁREA PERMEÁVEL",
+   "linha1": "25,0% do lote",
+   "linha2": "mínimo 20,0%",
+   "linha2_destaque": true
+  },
+  "edificacao": [
+   "EDIFICAÇÃO",
+   "120,40 m²"
+  ],
+  "lateral": [
+   "1,50 m",
+   "afast. <lateral>"
+  ],
+  "frente": "5,00 m",
+  "fundos": "3,00 m",
+  "via": "RUA DAS FLORES 'TESTE'",
+  "beiral": "beiral 0,50 m"
+ },
+ "volumetria": {
+  "altura_esquerda": [
+   "7,20 m",
+   "cumeeira"
+  ],
+  "altura_direita": [
+   "6,00 m",
+   "platibanda & muro"
+  ],
+  "via": "RUA DOS TESTES"
+ },
+ "titulo": "Diagrama fictício",
+ "chamadas": [
+  {
+   "ancora": "lote",
+   "situacao": "CONTA_CONFERE"
+  },
+  {
+   "ancora": "sotao",
+   "situacao": "PENDENTE"
+  }
+ ]
+}

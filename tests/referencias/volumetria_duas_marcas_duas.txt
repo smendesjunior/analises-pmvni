@@ -1,0 +1,13 @@
+<svg viewBox="-22 0 344 318" class="dg">
+<defs><marker id="ar2" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" fill="#6B7785"/></marker></defs>
+<polygon class="gnd" points="150.0,285.0 301.6,197.5 180.4,127.5 28.8,215.0"/><polygon class="str" points="150.0,285.0 28.8,215.0 -5.8,235.0 115.4,305.0"/>
+<text x="52" y="266" class="street" transform="rotate(30 52 266)">RUA DOS TESTES</text>
+<polygon class="rfb" points="72.1,85.0 176.0,25.0 214.9,17.5 111.0,77.5"/><polygon class="wl" points="150.0,250.0 72.1,205.0 72.1,85.0 111.0,77.5 150.0,130.0"/>
+<polygon class="wr" points="150.0,250.0 253.9,190.0 253.9,70.0 150.0,130.0"/><polygon class="rff" points="150.0,130.0 253.9,70.0 214.9,17.5 111.0,77.5"/>
+<line x1="150" y1="190" x2="253.9" y2="130" class="fl"/><line x1="150" y1="190" x2="72.1" y2="145" class="fl"/><polygon class="win" points="162.5,224.8 183.2,212.8 183.2,188.8 162.5,200.8"/><polygon class="win" points="217.5,193.0 238.3,181.0 238.3,157.0 217.5,169.0"/><polygon class="win" points="162.5,164.8 183.2,152.8 183.2,128.8 162.5,140.8"/><polygon class="win" points="193.6,146.8 210.3,137.2 210.3,113.2 193.6,122.8"/><polygon class="win" points="217.5,133.0 238.3,121.0 238.3,97.0 217.5,109.0"/><polygon class="door" points="193.6,224.8 205.1,218.2 205.1,174.2 193.6,180.8"/><polygon class="win" points="136.0,221.9 117.3,211.1 117.3,189.1 136.0,199.9"/><polygon class="win" points="104.8,203.9 86.1,193.1 86.1,171.1 104.8,181.9"/><polygon class="win" points="136.0,161.9 117.3,151.1 117.3,129.1 136.0,139.9"/><polygon class="win" points="104.8,143.9 86.1,133.1 86.1,111.1 104.8,121.9"/>
+<line x1="44" y1="212" x2="44" y2="62" class="dim" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
+<text x="36" y="132" class="t7 b" text-anchor="end">7,20 m</text><text x="36" y="143" class="t7" text-anchor="end">cumeeira</text>
+<line x1="274" y1="192" x2="274" y2="30" class="dim" marker-start="url(#ar2)" marker-end="url(#ar2)"/>
+<text x="281" y="104" class="t7 b" text-anchor="start">6,00 m</text><text x="281" y="115" class="t7" text-anchor="start">platibanda &amp; muro</text>
+<g class="mk"><circle cx="184" cy="76" r="8.5"/><text x="184" y="79.2">1</text></g><g class="mk"><circle cx="274" cy="150" r="8.5"/><text x="274" y="153.2">2</text></g>
+</svg>
