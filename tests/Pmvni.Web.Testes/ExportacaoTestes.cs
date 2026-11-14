@@ -186,6 +186,75 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
         File.WriteAllText(CaminhoSaida("exportacao-corpus.json"), resumo.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
+    /// <summary>Tarefa 9 (achado da V2/V3 em <c>longo</c>): com k &gt; 1 a área é diagramada com 254k mm de altura e pintada
+    /// em 1/k. Na impressão, o Chromium fragmentava o conteúdo da área pelo layout NÃO escalado (28 + 254k mm passa da folha)
+    /// e empurrava o bloco indivisível do pé da folha (a PROVIDÊNCIA do ITEM 05 na folha 2) para a página seguinte, onde ele
+    /// era recortado: sumia do PDF, embora estivesse na tela. Corrigido com <c>contain: size</c> na área das folhas (caixa
+    /// monolítica: o conteúdo dela não se fragmenta). Conferência: as linhas (y) com tinta na área útil de cada folha da tela
+    /// também têm tinta na página do PDF (±2 px da captura de 96 dpi).</summary>
+    [Theory]
+    [InlineData("longo")]
+    [InlineData("extremos")]
+    public async Task pdf_com_escala_mostra_as_mesmas_linhas_que_a_tela(string caso)
+    {
+        var r = RenderCorpus(caso);
+        var pdf = CaminhoSaida("linhas-" + caso + ".pdf");
+        var x = await Exportador.ExportarAsync(r, Cfg(caso), pdf, CaminhoCorpus(caso), Modelo);
+        Assert.True(x.Plano.Escala > 1);
+
+        await using var tela = await HostOculto.CriarAsync(1024, 1400);
+        await tela.CdpAsync("Emulation.setDeviceMetricsOverride", """{"width":0,"height":0,"deviceScaleFactor":1,"mobile":false}""");
+        await tela.Documento.CarregarAsync(r, Cfg(caso));
+        await tela.Documento.AplicarPlanoAsync(x.Plano);
+
+        var arquivo = await Windows.Storage.StorageFile.GetFileFromPathAsync(pdf);
+        var doc = await Windows.Data.Pdf.PdfDocument.LoadFromFileAsync(arquivo);
+        Assert.Equal((uint)x.Folhas, doc.PageCount);
+        var falhas = new List<string>();
+        for (var i = 1; i <= x.Folhas; i++)
+        {
+            var (lt, at, pt) = await Decodificar(new MemoryStream(await tela.Documento.CapturarFolhaAsync(i, 96)).AsRandomAccessStream());
+            using var pagina = doc.GetPage((uint)(i - 1));
+            using var fluxo = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            await pagina.RenderToStreamAsync(fluxo); // tamanho do Windows.Data.Pdf (DIPs × escala do monitor)
+            var (lp, ap, pp) = await Decodificar(fluxo);
+            Assert.Equal(lt / (double)at, lp / (double)ap, 2);
+            int[] Faixa(int altura, int largura) => [(int)(28 * altura / 297.0), (int)(282 * altura / 297.0), (int)(14 * largura / 210.0), (int)(196 * largura / 210.0)];
+            var ft = Faixa(at, lt);
+            var fp = Faixa(ap, lp);
+            var linhasTela = LinhasComTinta(pt, lt, ft[0], ft[1], ft[2], ft[3]);
+            // linhas do PDF levadas para a escala da captura (mm iguais)
+            var linhasPdf = LinhasComTinta(pp, lp, fp[0], fp[1], fp[2], fp[3]).Select(y => (int)Math.Round(y * at / (double)ap)).ToHashSet();
+            var faltam = linhasTela.Count(y => !Enumerable.Range(y - 2, 5).Any(linhasPdf.Contains));
+            if (faltam > 0) falhas.Add($"folha {i}: {faltam} de {linhasTela.Count} linhas com tinta na tela sem tinta no PDF");
+        }
+        Assert.True(falhas.Count == 0, caso + ": " + string.Join("; ", falhas));
+    }
+
+    static async Task<(int Largura, int Altura, byte[] Bgra)> Decodificar(Windows.Storage.Streams.IRandomAccessStream fluxo)
+    {
+        fluxo.Seek(0);
+        var dec = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(fluxo);
+        var px = await dec.GetPixelDataAsync(Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, Windows.Graphics.Imaging.BitmapAlphaMode.Ignore,
+            new Windows.Graphics.Imaging.BitmapTransform(), Windows.Graphics.Imaging.ExifOrientationMode.IgnoreExifOrientation,
+            Windows.Graphics.Imaging.ColorManagementMode.DoNotColorManage);
+        return ((int)dec.PixelWidth, (int)dec.PixelHeight, px.DetachPixelData());
+    }
+
+    /// <summary>Linhas y (em [y0; y1)) com algum pixel escuro (cinza &lt; 100: texto; não as barras coloridas dos cartões nem
+    /// os fundos claros) entre x0 e x1.</summary>
+    static HashSet<int> LinhasComTinta(byte[] bgra, int largura, int y0, int y1, int x0, int x1)
+    {
+        var linhas = new HashSet<int>();
+        for (var y = y0; y < y1; y++)
+            for (var c = x0; c < x1; c++)
+            {
+                var o = (y * largura + c) * 4;
+                if (0.114 * bgra[o] + 0.587 * bgra[o + 1] + 0.299 * bgra[o + 2] < 100) { linhas.Add(y); break; }
+            }
+        return linhas;
+    }
+
     [Fact]
     public async Task recibo_gravado_com_hashes()
     {

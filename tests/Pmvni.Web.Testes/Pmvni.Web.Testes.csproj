@@ -19,4 +19,9 @@
     <ProjectReference Include="..\..\src\Pmvni.Composicao\Pmvni.Composicao.csproj" />
     <ProjectReference Include="..\..\src\Pmvni.Composicao.Web\Pmvni.Composicao.Web.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Tarefa 9: leitura da linha de comando do Verificador, compilada aqui (o Verificador é um executável; referenciá-lo
+         traria os tipos internos do inicializador do Windows App SDK em conflito, CS0436). -->
+    <Compile Include="..\..\src\Pmvni.Verificador\Argumentos.cs" Link="Verificador\Argumentos.cs" />
+  </ItemGroup>
 </Project>

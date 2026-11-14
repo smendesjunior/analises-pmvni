@@ -391,7 +391,7 @@ export function acabamento(area: HTMLElement, truncarTopo: boolean): void {
 }
 
 /**
- * Base da área útil na tela: o topo do rodapé da folha (folha.css põe os dois em 282 mm). A caixa da área não serve
+ * Base da área útil na tela: o topo do rodapé da folha (folha.css põe os dois em 1066 px). A caixa da área não serve
  * quando k > 1: diagramada com 254 mm e pintada em 1/k, ela termina antes (ver folha.css). Sem rodapé, a base da área.
  */
 export function fimDaArea(area: HTMLElement): number {

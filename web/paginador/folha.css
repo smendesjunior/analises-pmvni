@@ -1,7 +1,10 @@
 /* Folhas A4 do paginador (embutido no paginador.js). As regras @page do kit saem do documento e entram estas.
    CONSTANTES DE POSIÇÃO: só aqui. Elas reproduzem as caixas de margem do kit (@page margin 28/14/15/14 mm,
-   @top-center com padding-bottom 5 mm, @bottom-left/right com padding-top 2,5 mm) e são calibradas na Tarefa 9
-   contra o PDF do próprio kit. O paginador lê a área útil daqui (largura e altura de .area), nunca de constantes no JS. */
+   @top-center com padding-bottom 5 mm, @bottom-left/right com padding-top 2,5 mm), calibradas na Tarefa 9 contra o PDF
+   do próprio kit (medidas com PyMuPDF em docs/fidelidade.md). O Chromium do kit encaixa a caixa da página em pixels
+   inteiros (1 px = 1/96 pol.): a área útil começa em (53 px, 106 px) — 14 mm = 52,91 px e 28 mm = 105,83 px arredondados —
+   e tem 960 px (254 mm) de altura; por isso as posições abaixo vêm em px. O paginador lê a área útil daqui (largura de
+   .area; altura = topo do rodapé − topo da área), nunca de constantes no JS. */
 @page { size: 210mm 297mm; margin: 0; }
 
 /* Escala de impressão k (>= 1), definida pelo paginador: quando o conteúdo é mais largo que a página, o Chromium
@@ -16,31 +19,42 @@
 }
 section.folha:last-of-type { break-after: auto; }
 
-/* Área útil: 182 × 254 mm (na folha) a partir de (14 mm, 28 mm). Nunca overflow: hidden (estouro fica visível).
+/* Área útil: 182 × 254 mm (na folha) a partir de (53 px, 106 px). Nunca overflow: hidden (estouro fica visível).
    A altura da caixa fica em 254 mm (não 254k): com k > 1 a caixa diagramada (28 + 254k mm) passaria da folha e, na
    impressão, o fragmento que sobra da última folha vira uma página em branco a mais. A altura útil (254 mm na folha) é
    lida da posição do rodapé (fimDaArea em fragmentar.ts), não desta caixa. */
 .folha > .area {
-  position: absolute; left: 14mm; top: 28mm; width: calc(182mm * var(--pmvni-k)); height: 254mm;
+  position: absolute; left: 53px; top: 106px; width: calc(182mm * var(--pmvni-k)); height: 254mm;
   display: flow-root; margin: 0; padding: 0; border: 0; box-sizing: border-box; overflow: visible;
   transform: scale(calc(1 / var(--pmvni-k))); transform-origin: 0 0;
 }
 
-/* Cabeçalho: imagem do kit com 182 mm de largura, base a 23 mm do topo (28 mm − 5 mm). */
+/* Caixa monolítica (contain: size) nas folhas: com k > 1 o conteúdo é diagramado até 28 + 254k mm, além da folha, e o
+   Chromium, ao imprimir, fragmentava esse conteúdo pelo layout não escalado — empurrava o bloco indivisível do pé da
+   folha para a página seguinte, onde era recortado (sumia do PDF). Monolítica, a área imprime como está na tela.
+   Teste: ExportacaoTestes.pdf_com_escala_mostra_as_mesmas_linhas_que_a_tela. */
+section.folha > .area { contain: size; }
+
+/* Cabeçalho: a imagem no tamanho intrínseco (o SVG do kit tem 688 × 64 px; o kit a põe por content: url(), sem
+   redimensionar), centrada nos 182 mm. Base: 106 px − 5 mm (padding-bottom do @top-center) − 4 px; os 4 px são o vão
+   abaixo da linha de base da caixa de margem do kit, onde a imagem fica apoiada (medido: imagem 4 px = 1,058 mm acima). */
 section.folha > .folha-cabecalho {
   position: absolute; left: 14mm; top: 0; width: 182mm; height: 23mm;
-  display: flex; align-items: flex-end; justify-content: center; margin: 0; padding: 0;
+  display: flex; align-items: flex-end; justify-content: center; margin: 0; padding: 0 0 4px; box-sizing: border-box;
 }
-section.folha > .folha-cabecalho > img { display: block; width: 182mm; height: auto; }
+section.folha > .folha-cabecalho > img { display: block; width: auto; height: auto; }
 
-/* Rodapé: duas caixas a partir de 282 mm (297 − 15), como @bottom-left e @bottom-right do kit. */
+/* Rodapé: duas caixas como @bottom-left e @bottom-right do kit. O topo da caixa (1066 px = 106 + 960) é o fim da área
+   útil (fimDaArea em fragmentar.ts); a linha e o texto ficam 1 px abaixo (margin-top), onde o kit os desenha (linha em
+   1067 px = 282,31 mm). A divisão entre as duas caixas difere da do kit (lá, proporcional ao texto: 139,7 mm; aqui,
+   134,1 mm), sem efeito visível: as duas linhas têm a mesma cor e se emendam. */
 section.folha > .folha-rodape {
-  position: absolute; left: 14mm; top: 282mm; width: 182mm; height: 15mm;
+  position: absolute; left: 14mm; top: 1066px; width: 182mm; height: 15mm;
   display: flex; align-items: flex-start; margin: 0; padding: 0;
 }
 section.folha > .folha-rodape > div {
   flex: 1 1 auto; white-space: nowrap; box-sizing: border-box;
-  border-top: .6pt solid #DDE4EB; padding-top: 2.5mm; font: 6.2pt Verdana; line-height: normal;
+  border-top: .6pt solid #DDE4EB; padding-top: 2.5mm; font: 6.2pt Verdana; line-height: normal; margin-top: 1px;
 }
 section.folha > .folha-rodape > .folha-rodape-esq { color: #637083; text-align: left; }
 section.folha > .folha-rodape > .folha-rodape-dir { color: #1D3D5E; font-weight: bold; text-align: right; }

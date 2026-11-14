@@ -1,0 +1,79 @@
+{
+ "caso": "extremos",
+ "folhas": 8,
+ "escala": 1.0723031142811712,
+ "inicioDasFolhas": [
+  {
+   "caminho": [
+    0
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    3,
+    2
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    4,
+    2
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    4,
+    2
+   ],
+   "deslocamentoTexto": 8222,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    7,
+    1
+   ],
+   "deslocamentoTexto": null,
+   "linha": 5,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    7,
+    1
+   ],
+   "deslocamentoTexto": null,
+   "linha": 20,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    7,
+    1
+   ],
+   "deslocamentoTexto": null,
+   "linha": 35,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    11,
+    1,
+    2
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  }
+ ]
+}
