@@ -18,6 +18,8 @@ const MARGEM_AJUSTE_PX = 16;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3;
 const ESPERA_FOLHA_VISIVEL_MS = 120;
+/** Vão mínimo à esquerda: a faixa vermelha das folhas que transbordam fica na margem cinza, nunca fora da janela. */
+const GOLA_ESQUERDA_PX = 12;
 
 /** CSS só de tela. Tudo dentro de @media screen: a impressão (PDF) nunca vê estas regras. As variáveis --pmvni-zoom,
  * --pmvni-tela-x e --pmvni-tela-altura são definidas no <html> e só são usadas aqui. */
@@ -79,7 +81,7 @@ function folhaAtual(): number {
 /** Centraliza as folhas na janela (translate antes da escala) e fixa o tamanho de rolagem. */
 function centralizar(): void {
   const larguraNaTela = LARGURA_FOLHA_PX * zoom;
-  const x = Math.max(0, (raiz.clientWidth - larguraNaTela) / 2);
+  const x = Math.max(GOLA_ESQUERDA_PX, (raiz.clientWidth - larguraNaTela) / 2);
   raiz.style.setProperty('--pmvni-tela-x', `${x}px`);
 }
 
@@ -143,9 +145,12 @@ export function registrarTela(registrar: Registrar, enviar: Enviar): void {
     if (transbordam) {
       lista.forEach((f, i) => f.toggleAttribute(ATR_TRANSBORDA, transbordam.includes(i + 1)));
     }
+    const maximo = numeroOpcional(dados.maximo, 'maximo');
     let alvo = zoom;
-    if (ajustar === 'largura') alvo = (raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX;
-    else if (ajustar === 'pagina') {
+    if (ajustar === 'largura') {
+      alvo = (raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX;
+      if (maximo !== undefined) alvo = Math.min(alvo, maximo); // ex.: abrir em 100 %, ou menos se a janela for estreita
+    } else if (ajustar === 'pagina') {
       alvo = Math.min((raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
     } else if (pedido !== undefined) alvo = pedido;
     aplicarZoom(limitar(alvo));

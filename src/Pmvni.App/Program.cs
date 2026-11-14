@@ -9,6 +9,7 @@ internal static class Program
     static int Main(string[] args)
     {
         Autoteste.Configurar(args);
+        Argumentos.Ler(args);
         WinRT.ComWrappersSupport.InitializeComWrappers();
         Application.Start(parametros =>
         {

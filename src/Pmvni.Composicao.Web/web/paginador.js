@@ -995,6 +995,7 @@ var Paginador = (() => {
   var ZOOM_MIN = 0.5;
   var ZOOM_MAX = 3;
   var ESPERA_FOLHA_VISIVEL_MS = 120;
+  var GOLA_ESQUERDA_PX = 12;
   var CSS_TELA = `
 @media screen {
   :root { --pmvni-zoom: 1; --pmvni-tela-x: 0px; --pmvni-tela-fundo: #e4e4e4; --pmvni-tela-sombra: rgba(0, 0, 0, .30); }
@@ -1049,7 +1050,7 @@ var Paginador = (() => {
   }
   function centralizar() {
     const larguraNaTela = LARGURA_FOLHA_PX * zoom;
-    const x = Math.max(0, (raiz.clientWidth - larguraNaTela) / 2);
+    const x = Math.max(GOLA_ESQUERDA_PX, (raiz.clientWidth - larguraNaTela) / 2);
     raiz.style.setProperty("--pmvni-tela-x", `${x}px`);
   }
   function aplicarZoom(novo) {
@@ -1104,9 +1105,12 @@ var Paginador = (() => {
       if (transbordam) {
         lista.forEach((f, i) => f.toggleAttribute(ATR_TRANSBORDA, transbordam.includes(i + 1)));
       }
+      const maximo = numeroOpcional(dados.maximo, "maximo");
       let alvo = zoom;
-      if (ajustar === "largura") alvo = (raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX;
-      else if (ajustar === "pagina") {
+      if (ajustar === "largura") {
+        alvo = (raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX;
+        if (maximo !== void 0) alvo = Math.min(alvo, maximo);
+      } else if (ajustar === "pagina") {
         alvo = Math.min((raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
       } else if (pedido !== void 0) alvo = pedido;
       aplicarZoom(limitar(alvo));

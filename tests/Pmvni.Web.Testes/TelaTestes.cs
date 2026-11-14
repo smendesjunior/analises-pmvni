@@ -173,6 +173,37 @@ public sealed class TelaTestes : IClassFixture<TelaFixture>
         finally { tela.Documento.Recebida -= Ouvir; }
     }
 
+    [Fact]
+    public async Task folha_que_transborda_ganha_faixa_vermelha_fora_da_folha()
+    {
+        var (_, c, _) = await AbrirAsync("longo");
+        Assert.True(c.Folhas >= 3);
+        await tela.Documento.ChamarAsync("definirZoom", new { zoom = 1.0, transbordam = new[] { 2 } }, TimeSpan.FromSeconds(10));
+        Assert.Equal(1, (await Js("document.querySelectorAll('section.folha[data-pmvni-transborda]').length")).GetInt32());
+        await tela.Documento.ChamarAsync("rolarPara", new { folha = 2 }, TimeSpan.FromSeconds(10));
+        var f = await Js("(() => { const r = document.querySelectorAll('section.folha')[1].getBoundingClientRect(); return { x: r.left + scrollX, y: r.top + scrollY, h: Math.min(r.height, 400) }; })()");
+        var esquerda = f.GetProperty("x").GetDouble();
+        // A faixa (5 px, #c42b1c) fica à esquerda da folha, na margem cinza: há tinta vermelha ali e nenhuma dentro da folha.
+        async Task<int> Vermelhos(double x, double largura)
+        {
+            var png = await tela.CdpAsync("Page.captureScreenshot", JsonSerializer.Serialize(new
+            {
+                format = "png", clip = new { x = x + 0, y = f.GetProperty("y").GetDouble() + 0, width = largura, height = f.GetProperty("h").GetDouble(), scale = 1 },
+            }));
+            using var doc = JsonDocument.Parse(png);
+            var bytes = Convert.FromBase64String(doc.RootElement.GetProperty("data").GetString()!);
+            var dec = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(new MemoryStream(bytes).AsRandomAccessStream());
+            var px = (await dec.GetPixelDataAsync()).DetachPixelData();
+            var n = 0;
+            for (var i = 0; i < px.Length; i += 4) if (px[i + 2] > 170 && px[i + 1] < 80 && px[i] < 60) n++;
+            return n;
+        }
+        Assert.True(await Vermelhos(esquerda - 6, 6) > 100, "a faixa vermelha não aparece à esquerda da folha");
+        Assert.Equal(0, await Vermelhos(esquerda + 20, 200));
+        await tela.Documento.ChamarAsync("definirZoom", new { transbordam = Array.Empty<int>() }, TimeSpan.FromSeconds(10));
+        Assert.Equal(0, (await Js("document.querySelectorAll('section.folha[data-pmvni-transborda]').length")).GetInt32());
+    }
+
     // ---------- apoio ----------
 
     static async Task<string> Pixels(Windows.Data.Pdf.PdfDocument doc, uint i)

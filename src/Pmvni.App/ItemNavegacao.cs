@@ -1,0 +1,95 @@
+using System.ComponentModel;
+using System.Net;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using Microsoft.UI.Text;
+using Microsoft.UI.Xaml;
+using Windows.UI.Text;
+using Pmvni.Composicao;
+using Pmvni.Composicao.Web;
+
+namespace Pmvni.App;
+
+/// <summary>Linha da lista de seções e itens (esquerda). <see cref="Ref"/> é o data-ref do bloco (null na capa); <see cref="Folha"/>,
+/// a primeira folha (1 = primeira) em que ele aparece. O indicador de 3 x 16 marca o item da folha que está na tela.</summary>
+public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool secao) : INotifyPropertyChanged
+{
+    bool atual;
+
+    public string Rotulo { get; } = rotulo;
+    public int Folha { get; } = folha;
+    public string? Ref { get; } = @ref;
+    public bool Secao { get; } = secao;
+    public string FolhaTexto => "f. " + Folha;
+    public Thickness Recuo => Secao ? new Thickness(0) : new Thickness(14, 0, 0, 0);
+    public FontWeight Peso => Secao ? FontWeights.SemiBold : FontWeights.Normal;
+    public Visibility IndicadorVisivel => atual ? Visibility.Visible : Visibility.Collapsed;
+
+    public bool Atual
+    {
+        get => atual;
+        set
+        {
+            if (atual == value) return;
+            atual = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IndicadorVisivel)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
+
+/// <summary>O que a tela lê do dados.json além do HTML: título da janela ("Processo nº — Requerente") e os títulos dos itens e figuras.</summary>
+internal sealed record DadosRelatorio(string Titulo, string? Processo, IReadOnlyList<string> TitulosItens, IReadOnlyList<string> TitulosFiguras)
+{
+    static readonly Regex Marcas = new("<[^>]*>", RegexOptions.CultureInvariant);
+
+    public static DadosRelatorio Ler(string caminho)
+    {
+        using var fluxo = File.OpenRead(caminho);
+        using var doc = JsonDocument.Parse(fluxo);
+        var raiz = doc.RootElement;
+        string? Texto(JsonElement e, string nome) =>
+            e.ValueKind == JsonValueKind.Object && e.TryGetProperty(nome, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+        List<string> Titulos(string lista) =>
+            raiz.ValueKind == JsonValueKind.Object && raiz.TryGetProperty(lista, out var l) && l.ValueKind == JsonValueKind.Array
+                ? l.EnumerateArray().Select(x => Texto(x, "titulo") ?? "").ToList()
+                : [];
+        var capa = raiz.ValueKind == JsonValueKind.Object && raiz.TryGetProperty("capa", out var c) ? c : default;
+        var processo = Texto(capa, "processo");
+        var requerente = Texto(capa, "requerente");
+        var titulo = processo is null && requerente is null
+            ? Path.GetFileNameWithoutExtension(caminho)
+            : string.Join(" — ", new[] { processo is null ? null : "Processo nº " + processo, requerente }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        return new DadosRelatorio(titulo, processo, Titulos("itens"), Titulos("figuras"));
+    }
+
+    /// <summary>Lista de navegação na ordem do documento: capa, seções (h2 do relatório), itens e figuras, cada um na primeira
+    /// folha em que aparece (<see cref="ResultadoComposicao.RefsPorFolha"/>).</summary>
+    public IReadOnlyList<ItemNavegacao> Navegacao(ResultadoRender render, ResultadoComposicao composicao)
+    {
+        var porId = new Dictionary<string, RefElemento>();
+        foreach (var r in render.Refs) porId.TryAdd(r.Id, r);
+        var vistos = new HashSet<string>();
+        var lista = new List<ItemNavegacao> { new("Capa", 1, null, true) };
+        for (var f = 0; f < composicao.RefsPorFolha.Count; f++)
+        {
+            foreach (var id in composicao.RefsPorFolha[f])
+            {
+                if (!vistos.Add(id) || !porId.TryGetValue(id, out var r)) continue;
+                lista.Add(r.Seletor switch
+                {
+                    ".sec" => new ItemNavegacao(Limpar(r.Rotulo) ?? id, f + 1, id, true),
+                    ".card" => new ItemNavegacao($"{r.Indice + 1:00}  {TituloDe(TitulosItens, r.Indice, "Item " + (r.Indice + 1))}", f + 1, id, false),
+                    _ => new ItemNavegacao($"Figura {r.Indice + 1}  {TituloDe(TitulosFiguras, r.Indice, "")}".TrimEnd(), f + 1, id, false),
+                });
+            }
+        }
+        return lista;
+    }
+
+    static string TituloDe(IReadOnlyList<string> titulos, int i, string padrao) =>
+        i < titulos.Count && !string.IsNullOrWhiteSpace(titulos[i]) ? titulos[i] : padrao;
+
+    static string? Limpar(string? html) => html is null ? null : WebUtility.HtmlDecode(Marcas.Replace(html, "")).Trim();
+}
