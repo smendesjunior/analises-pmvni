@@ -1,6 +1,6 @@
 # Entrega da Etapa 1: fidelidade documental
 
-Editor de Relatórios PMVNI, versão da Etapa 1 (14/11/2026).
+Editor de Relatórios PMVNI, versão da Etapa 1 (14/11/2026). O nome do arquivo e do `.exe` é escrito sem acentos (`Editor de Relatorios PMVNI`), por segurança com nomes de pasta e de arquivo.
 Este texto diz o que já funciona, o que foi testado e o que ainda falta.
 
 ## O que funciona
@@ -28,8 +28,8 @@ Tudo abaixo foi rodado nesta entrega, no `tools\build-release.ps1` e em `tools\f
 - **Autoteste do executável final**: o autoteste é o próprio programa se abrindo sozinho, carregando a página no WebView2 e fechando,
   só para provar que o `.exe` pronto abre. Foi feito duas vezes (primeira abertura e segunda) e só vale se o programa avisar "ok" e não
   estiver rodando como administrador. Só depois de aprovado o `.exe` vai para `Aplicativo\`.
-- **Comparação com o gerador oficial do kit**, rodada em 14/11/2026 com `python -I toolsidelidade.py tudo`. As provas se chamam V1 a V4
-  (critérios e limites em `docsidelidade.md`); os resultados saem em `tests\saida1.json` a `v4.json`, que a limpeza do build apaga.
+- **Comparação com o gerador oficial do kit**, rodada em 14/11/2026 com `python -I tools\fidelidade.py tudo`. As provas se chamam V1 a V4
+  (critérios e limites em `docs\fidelidade.md`); os resultados saem em `tests\saida\v1.json` a `tests\saida\v4.json`, que a limpeza do build apaga.
   Foram 7 relatórios: 5 de teste (`tests\corpus`), o `dados_modelo` e 1 processo real (não citado nem copiado aqui).
   - **V1 (HTML igual ao do kit)**: o texto-base do relatório que o programa monta é comparado ao do gerador do kit, "byte a byte", isto é,
     letra por letra e sinal por sinal, sem nenhuma diferença. Resultado: igual nos 7 casos.
