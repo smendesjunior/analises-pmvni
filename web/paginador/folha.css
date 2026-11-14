@@ -16,9 +16,12 @@
 }
 section.folha:last-of-type { break-after: auto; }
 
-/* Área útil: 182 × 254 mm (na folha) a partir de (14 mm, 28 mm). Nunca overflow: hidden (estouro fica visível). */
+/* Área útil: 182 × 254 mm (na folha) a partir de (14 mm, 28 mm). Nunca overflow: hidden (estouro fica visível).
+   A altura da caixa fica em 254 mm (não 254k): com k > 1 a caixa diagramada (28 + 254k mm) passaria da folha e, na
+   impressão, o fragmento que sobra da última folha vira uma página em branco a mais. A altura útil (254 mm na folha) é
+   lida da posição do rodapé (fimDaArea em fragmentar.ts), não desta caixa. */
 .folha > .area {
-  position: absolute; left: 14mm; top: 28mm; width: calc(182mm * var(--pmvni-k)); height: calc(254mm * var(--pmvni-k));
+  position: absolute; left: 14mm; top: 28mm; width: calc(182mm * var(--pmvni-k)); height: 254mm;
   display: flow-root; margin: 0; padding: 0; border: 0; box-sizing: border-box; overflow: visible;
   transform: scale(calc(1 / var(--pmvni-k))); transform-origin: 0 0;
 }

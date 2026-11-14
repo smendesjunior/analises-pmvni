@@ -256,6 +256,52 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
     }
 
     [Fact]
+    public async Task texto_sem_quebra_mais_largo_que_o_encolhimento_maximo_gera_estouro()
+    {
+        // A largura vem só do scrollWidth (texto nowrap que transborda o próprio <p>; nenhuma caixa passa da área):
+        // antes era limitada a 1,5 em silêncio. Agora sai aviso e estouro, com a folha e o ref do bloco.
+        var c = await ComporCaso("texto_largo", new RefElemento(".moldura", 0, "texto-largo", null));
+        Assert.Equal(PlanoQuebras.EscalaMaxima, c.Plano.Escala);
+        var estouro = Assert.Single(c.Plano.Estouros);
+        Assert.Equal(1, estouro.Folha);
+        Assert.Equal("texto-largo", estouro.Ref);
+        Assert.True(estouro.LarguraMm > 182 * 1.5, "largura " + estouro.LarguraMm);
+        var aviso = Assert.Single(c.Plano.AvisosLargura);
+        Assert.Equal("texto-largo", aviso.Ref);
+        Assert.True(aviso.Escala > PlanoQuebras.EscalaMaxima);
+    }
+
+    [Fact]
+    public async Task bloco_largo_sem_folha_achada_ainda_gera_estouro()
+    {
+        // Se o marcador do bloco largo não for achado em nenhuma folha, o estouro de largura não pode sumir (a
+        // exportação precisa ser recusada): vale a folha que mostra o ref dele, senão a 1ª.
+        await ComporCaso("muito_largo", new RefElemento(".largo", 0, "largo-1100", null));
+        var r = await Js("""
+            (() => {
+              const fluxo = document.querySelector('.pmvni-fluxo');
+              const areas = [...document.querySelectorAll('section.folha > .area')];
+              const solto = document.createElement('div');
+              fluxo.appendChild(solto);  // sem marcador em folha nenhuma; o ref é o do último bloco identificado antes
+              const largos = [{ el: solto, direita: 1100 }];
+              const comRef = Paginador.larguraNoPlano({ pedida: 1.6, largos, area: 687.87, esquerda: 0 }, areas, fluxo);
+              const semFolhas = Paginador.larguraNoPlano({ pedida: 1.6, largos, area: 687.87, esquerda: 0 }, [], fluxo);
+              const soScroll = Paginador.larguraNoPlano({ pedida: 1.6, largos: [], area: 687.87, esquerda: 0 }, areas, fluxo);
+              solto.remove();
+              return { comRef: comRef.estouros, semFolhas: semFolhas.estouros, soScroll: soScroll.estouros, avisos: soScroll.avisosLargura };
+            })()
+            """);
+        foreach (var nome in new[] { "comRef", "semFolhas", "soScroll" })
+        {
+            var e = Assert.Single(r.GetProperty(nome).EnumerateArray());
+            Assert.Equal(1, e.GetProperty("folha").GetInt32());
+            Assert.Equal(JsonValueKind.Number, e.GetProperty("larguraMm").ValueKind);
+        }
+        Assert.Equal("largo-1100", r.GetProperty("comRef")[0].GetProperty("ref").GetString());
+        Assert.Single(r.GetProperty("avisos").EnumerateArray());
+    }
+
+    [Fact]
     public async Task quebra_forcada_fica_no_plano_e_mantem_a_margem()
     {
         var c = await ComporCaso("forcada");

@@ -3,13 +3,14 @@
 
 import folhaCss from '../folha.css';
 import {
-  acabamento, alturaConteudo, ATR_OCULTO, copiarIntervalo, elementoEm, enumerarPontos, estenderPedacos, resolver, type Ponto,
+  acabamento, alturaConteudo, alturaUtil, ATR_OCULTO, copiarIntervalo, elementoEm, enumerarPontos, estenderPedacos, resolver, type Ponto,
 } from './fragmentar';
 import {
-  ENCOLHIMENTO_MAXIMO, EPS_PX, esperarEstabilidade, estilo, imagensProntas, LIMITE_ESTABILIDADE_MS, medirLargura, pxParaMm,
+  ENCOLHIMENTO_MAXIMO, EPS_PX, esperarEstabilidade, estilo, folhasProntas, imagensProntas, LIMITE_ESTABILIDADE_MS, medirLargura,
+  pxParaMm, type Largura,
 } from './medida';
 import {
-  ErroComposicao, INICIO_DO_FLUXO, truncaTopo, VERSAO_PLANO,
+  ErroComposicao, INICIO_DO_FLUXO, lerPlano, truncaTopo, VERSAO_PLANO,
   type AvisoLargura, type Composto, type Estouro, type PlanoQuebras, type PosicaoFluxo,
 } from './plano';
 
@@ -99,6 +100,108 @@ export function montarFolhaDoPlano(plano: PlanoQuebras, indice: number, cfg: Con
   return f;
 }
 
+export interface PedidoAplicar {
+  plano: PlanoQuebras;
+  /** sha256 do HTML carregado (calculado pelo host); o plano precisa ser deste documento. */
+  sha256Documento: string;
+  refs: RefDoc[];
+  config: ConfigFolhas;
+  limiteEstabilidadeMs: number | null;
+}
+
+/** Resposta de `aplicarPlano`: folhas montadas, as que transbordam a área (1 = primeira; só informativo) e os refs. */
+export interface Aplicado { folhas: number; folhasQueTransbordam: number[]; refsPorFolha: string[][] }
+
+/**
+ * Aplica um plano já calculado (pelo host oculto) sem medir para decidir: as folhas saem exatamente das posições do
+ * plano, com --pmvni-k = plano.escala (nunca medirLargura), refs do documento, margem de cima pela regra truncaTopo,
+ * acabamento, numeração do rodapé e extensão dos pedaços. Recusa ('plano_de_outro_documento') se o plano for de outro
+ * HTML e ('plano_invalido') se um início não existir neste documento. Antes de medir espera as fontes e as imagens das
+ * folhas; a única medida é a altura do conteúdo de cada folha, para informar folhasQueTransbordam (na tela, com outra
+ * escala de monitor, pode haver transbordamento sem que o conteúdo das folhas mude).
+ */
+export async function aplicarPlano(pedido: PedidoAplicar): Promise<Aplicado> {
+  const { plano, config } = pedido;
+  if (plano.sha256Html !== pedido.sha256Documento) {
+    throw new ErroComposicao('plano_de_outro_documento', 'O plano de quebras foi calculado para outro documento.');
+  }
+  const limite = pedido.limiteEstabilidadeMs ?? LIMITE_ESTABILIDADE_MS;
+  const fluxo = prepararDocumento();
+  plano.inicioDasFolhas.forEach((p, i) => {
+    if (!elementoEm(fluxo, p.caminho)) {
+      throw new ErroComposicao('plano_invalido', `O início da folha ${i + 1} do plano não existe neste documento.`);
+    }
+  });
+  for (const f of Array.from(document.querySelectorAll('section.folha'))) f.remove();
+  // O fluxo não é medido: fica fora do layout, como depois de compor.
+  fluxo.parentElement!.setAttribute('data-pmvni-guardado', '');
+  aplicarRefs(fluxo, pedido.refs);
+  document.documentElement.style.setProperty('--pmvni-k', String(plano.escala));
+
+  const montadas = plano.inicioDasFolhas.map((de, i) =>
+    montarFolha(fluxo, config, de, plano.inicioDasFolhas[i + 1] ?? null, truncaTopo(de, i)));
+  numerarRodapes(montadas.map((f) => f.direita), config);
+  await folhasProntas(montadas.map((f) => f.folha), limite);
+  const H = alturaUtil(montadas[0]!.area);
+  const folhasQueTransbordam = montadas.flatMap((f, i) => (alturaConteudo(f.area) > H + EPS_PX ? [i + 1] : []));
+  for (const f of montadas) estenderPedacos(f.area);
+  return { folhas: montadas.length, folhasQueTransbordam, refsPorFolha: refsDasFolhas(montadas.map((f) => f.folha)) };
+}
+
+function numerarRodapes(direitas: HTMLElement[], cfg: ConfigFolhas): void {
+  direitas.forEach((d, i) => {
+    d.textContent = cfg.rodapeDireitaModelo.replaceAll('{n}', String(i + 1)).replaceAll('{t}', String(direitas.length));
+  });
+}
+
+/** data-ref visíveis de cada folha, na ordem do documento, sem repetição. */
+function refsDasFolhas(folhas: HTMLElement[]): string[][] {
+  return folhas.map((f) => {
+    const ids: string[] = [];
+    for (const e of Array.from(f.querySelectorAll('.area [data-ref]'))) {
+      const id = e.getAttribute('data-ref')!;
+      if (!ids.includes(id) && estilo(e).display !== 'none') ids.push(id);
+    }
+    return ids;
+  });
+}
+
+/**
+ * Avisos e estouros de largura: um aviso por folha e ref (o bloco mais largo); além do encolhimento máximo, também
+ * estouro. Nunca descarta um bloco largo: se a folha dele não for achada pelo marcador, vale a primeira folha que
+ * mostra o ref dele, senão a 1ª. Se a largura pedida vier só do scrollWidth (sem bloco identificado), o aviso e o
+ * estouro saem na 1ª folha, sem ref.
+ */
+export function larguraNoPlano(largura: Pick<Largura, 'pedida' | 'largos' | 'area' | 'esquerda'>, areas: HTMLElement[],
+  fluxo: HTMLElement): { avisosLargura: AvisoLargura[]; estouros: Estouro[] } {
+  const visivelEm = (a: HTMLElement, seletor: string) =>
+    Array.from(a.querySelectorAll(seletor)).some((e) => !e.closest(`[${ATR_OCULTO}]`));
+  const avisos = new Map<string, AvisoLargura>();
+  const registrar = (a: AvisoLargura) => {
+    const chave = a.folha + '|' + (a.ref ?? '');
+    if ((avisos.get(chave)?.escala ?? 0) < a.escala) avisos.set(chave, a);
+  };
+  largura.largos.forEach((l, i) => {
+    const ref = refDe(fluxo, l.el);
+    let folha = 1 + areas.findIndex((a) => visivelEm(a, `[${ATR_LARGO}="${i}"]`));
+    if (folha === 0 && ref !== null) folha = 1 + areas.findIndex((a) => visivelEm(a, `[data-ref="${CSS.escape(ref)}"]`));
+    if (folha === 0) folha = 1;
+    registrar({ folha, ref, escala: (l.direita - largura.esquerda) / largura.area, larguraMm: mm(l.direita - largura.esquerda) });
+  });
+  if (largura.largos.length === 0 && largura.pedida > 1) {
+    registrar({ folha: 1, ref: null, escala: largura.pedida, larguraMm: mm(largura.pedida * largura.area) });
+  }
+  const avisosLargura = [...avisos.values()].sort((a, b) => a.folha - b.folha || b.escala - a.escala);
+  const estouros: Estouro[] = [];
+  for (const a of avisosLargura) {
+    if (a.escala > ENCOLHIMENTO_MAXIMO + 1e-9) {
+      const area = areas[a.folha - 1];
+      estouros.push({ folha: a.folha, ref: a.ref, alturaMm: area ? mm(alturaConteudo(area)) : 0, larguraMm: a.larguraMm });
+    }
+  }
+  return { avisosLargura, estouros };
+}
+
 function aplicarRefs(fluxo: HTMLElement, refs: RefDoc[]): void {
   for (const e of Array.from(fluxo.querySelectorAll('[data-ref]'))) e.removeAttribute('data-ref');
   for (const r of refs) fluxo.querySelectorAll(r.seletor)[r.indice]?.setAttribute('data-ref', r.id);
@@ -150,7 +253,7 @@ export async function compor(pedido: PedidoCompor): Promise<Composto> {
   // A altura útil vem de folha.css (constantes num só lugar).
   const sonda = criarFolha(pedido.config);
   document.body.appendChild(sonda.folha);
-  const H = sonda.area.getBoundingClientRect().height;
+  const H = alturaUtil(sonda.area);
   sonda.folha.remove();
 
   const pontos = enumerarPontos(fluxo);
@@ -205,40 +308,16 @@ export async function compor(pedido: PedidoCompor): Promise<Composto> {
     ini = { pos: { ...pos, forcada: p.forcado }, indice: p.indice, yInicio: p.yInicio, decoInicio: p.decoInicio };
   }
 
-  // Largura: um aviso por folha e ref (o bloco mais largo); além do encolhimento máximo, também estouro de largura.
-  const avisos = new Map<string, AvisoLargura>();
-  largura.largos.forEach((l, i) => {
-    const folha = 1 + areas.findIndex((a) =>
-      Array.from(a.querySelectorAll(`[${ATR_LARGO}="${i}"]`)).some((e) => !e.closest(`[${ATR_OCULTO}]`)));
-    const ref = refDe(fluxo, l.el);
-    const pedida = (l.direita - largura.esquerda) / largura.area;
-    const chave = folha + '|' + (ref ?? '');
-    if ((avisos.get(chave)?.escala ?? 0) < pedida) {
-      avisos.set(chave, { folha, ref, escala: pedida, larguraMm: mm(l.direita - largura.esquerda) });
-    }
-  });
-  const avisosLargura = [...avisos.values()].sort((a, b) => a.folha - b.folha || b.escala - a.escala);
-  for (const a of avisosLargura) {
-    if (a.escala > ENCOLHIMENTO_MAXIMO + 1e-9 && a.folha > 0) {
-      estouros.push({ folha: a.folha, ref: a.ref, alturaMm: mm(alturaConteudo(areas[a.folha - 1]!)), larguraMm: a.larguraMm });
-    }
-  }
+  // Largura: avisos por folha e ref; além do encolhimento máximo, também estouro de largura (nunca descartado).
+  const { avisosLargura, estouros: deLargura } = larguraNoPlano(largura, areas, fluxo);
+  estouros.push(...deLargura);
   estouros.sort((a, b) => a.folha - b.folha);
 
   medida.setAttribute('data-pmvni-guardado', '');
   const folhas = Array.from(document.querySelectorAll<HTMLElement>('section.folha'));
-  folhas.forEach((_, i) => {
-    direitas[i]!.textContent = pedido.config.rodapeDireitaModelo.replaceAll('{n}', String(i + 1)).replaceAll('{t}', String(folhas.length));
-  });
+  numerarRodapes(direitas, pedido.config);
   await imagensProntas(document.body, limite);
-  const refsPorFolha = folhas.map((f) => {
-    const ids: string[] = [];
-    for (const e of Array.from(f.querySelectorAll('.area [data-ref]'))) {
-      const id = e.getAttribute('data-ref')!;
-      if (!ids.includes(id) && estilo(e).display !== 'none') ids.push(id);
-    }
-    return ids;
-  });
+  const refsPorFolha = refsDasFolhas(folhas);
   return {
     plano: { versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros, sha256Html: pedido.sha256Html, escala, avisosLargura },
     folhas: folhas.length,
@@ -246,10 +325,10 @@ export async function compor(pedido: PedidoCompor): Promise<Composto> {
   };
 }
 
-/** Valida o pedido de `compor` vindo da ponte. */
-export function lerPedido(d: Record<string, unknown>): PedidoCompor {
-  const texto = (v: unknown, nome: string) => { if (typeof v !== 'string') throw new Error(`campo ${nome} invalido`); return v; };
-  const sha256Html = texto(d.sha256Html, 'sha256Html');
+const texto = (v: unknown, nome: string) => { if (typeof v !== 'string') throw new Error(`campo ${nome} invalido`); return v; };
+
+/** Refs, config e limite, comuns a `compor` e `aplicarPlano`. */
+function lerComum(d: Record<string, unknown>): Omit<PedidoCompor, 'sha256Html'> {
   if (!Array.isArray(d.refs)) throw new Error('campo refs invalido');
   const refs = d.refs.map((r: unknown, i) => {
     const o = r as Record<string, unknown>;
@@ -261,9 +340,19 @@ export function lerPedido(d: Record<string, unknown>): PedidoCompor {
   const limite = d.limiteEstabilidadeMs;
   if (limite != null && (typeof limite !== 'number' || !(limite > 0))) throw new Error('campo limiteEstabilidadeMs invalido');
   return {
-    sha256Html, refs,
+    refs,
     config: { cabecalhoUri: texto(c.cabecalhoUri, 'cabecalhoUri'), rodapeEsquerda: texto(c.rodapeEsquerda, 'rodapeEsquerda'),
       rodapeDireitaModelo: texto(c.rodapeDireitaModelo, 'rodapeDireitaModelo') },
     limiteEstabilidadeMs: limite == null ? null : limite,
   };
+}
+
+/** Valida o pedido de `compor` vindo da ponte. */
+export function lerPedido(d: Record<string, unknown>): PedidoCompor {
+  return { sha256Html: texto(d.sha256Html, 'sha256Html'), ...lerComum(d) };
+}
+
+/** Valida o pedido de `aplicarPlano` vindo da ponte (o plano com lerPlano: 'plano_invalido'). */
+export function lerPedidoAplicar(d: Record<string, unknown>): PedidoAplicar {
+  return { plano: lerPlano(d.plano), sha256Documento: texto(d.sha256Documento, 'sha256Documento'), ...lerComum(d) };
 }

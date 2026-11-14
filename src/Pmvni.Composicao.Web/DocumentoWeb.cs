@@ -188,6 +188,105 @@ public sealed class DocumentoWeb : IDisposable
         return await ChamarAsync("compor", dados, limite ?? LimiteComporPadrao);
     }
 
+    /// <summary>Tempo-limite padrão de <see cref="AplicarPlanoAsync"/> (montagem sem medir, espera de imagens).</summary>
+    public static readonly TimeSpan LimiteAplicarPadrao = TimeSpan.FromSeconds(60);
+
+    /// <summary>Reconstrói as folhas do documento carregado pelas posições de <paramref name="p"/>, <b>sem medir para
+    /// decidir</b>: escala de impressão do plano (<c>--pmvni-k</c>), refs do render, margem de cima pela regra da quebra
+    /// forçada, acabamento e numeração. Não muda a emulação do core (serve à tela, com qualquer escala de monitor, e ao
+    /// host oculto). A única medida é a altura de cada folha, para informar <see cref="ResultadoAplicacao.FolhasQueTransbordam"/>.
+    /// Recusa com <see cref="ArgumentException"/> se o <see cref="PlanoQuebras.Sha256Html"/> não for o do HTML carregado.</summary>
+    public async Task<ResultadoAplicacao> AplicarPlanoAsync(PlanoQuebras p, TimeSpan? limite = null, TimeSpan? limiteEstabilidade = null)
+    {
+        ArgumentNullException.ThrowIfNull(p);
+        var r = Render ?? throw new InvalidOperationException("Nenhum documento carregado: chame CarregarAsync antes de aplicar o plano.");
+        var sha = PlanoQuebras.Sha256De(r.Html);
+        if (!string.Equals(p.Sha256Html, sha, StringComparison.Ordinal))
+            throw new ArgumentException("O plano de quebras é de outro documento: foi calculado para o HTML " + p.Sha256Html
+                + ", e o carregado é " + sha + ".", nameof(p));
+        var cfg = Config!;
+        var dados = new
+        {
+            plano = p,
+            sha256Documento = sha,
+            refs = r.Refs.Select(x => new { seletor = x.Seletor, indice = x.Indice, id = x.Id }).ToArray(),
+            config = new { cabecalhoUri = cfg.CabecalhoUri, rodapeEsquerda = cfg.RodapeEsquerda, rodapeDireitaModelo = cfg.RodapeDireitaModelo },
+            limiteEstabilidadeMs = limiteEstabilidade?.TotalMilliseconds,
+        };
+        var json = await ChamarAsync("aplicarPlano", dados, limite ?? LimiteAplicarPadrao);
+        var folhas = json.GetProperty("folhas").GetInt32();
+        var transbordam = json.GetProperty("folhasQueTransbordam").Deserialize<List<int>>(Mensagens.Opcoes)
+            ?? throw new InvalidDataException("folhasQueTransbordam ausente.");
+        if (folhas != p.InicioDasFolhas.Count)
+            throw new InvalidDataException("Plano aplicado incoerente: " + folhas + " folhas para " + p.InicioDasFolhas.Count + " inícios.");
+        return new ResultadoAplicacao(folhas, transbordam);
+    }
+
+    /// <summary>Texto visível da área útil de cada folha (espaços normalizados), na ordem. Sem folhas, lista vazia.</summary>
+    public async Task<IReadOnlyList<string>> TextoPorFolhaAsync(TimeSpan? limite = null)
+    {
+        var json = await ChamarAsync("textoPorFolha", new { }, limite ?? TimeSpan.FromSeconds(30));
+        return json.GetProperty("folhas").Deserialize<List<string>>(Mensagens.Opcoes) ?? throw new InvalidDataException("folhas ausente.");
+    }
+
+    /// <summary>PNG da folha <paramref name="folha"/> (1 = primeira) em <paramref name="dpi"/>: CDP <c>Page.captureScreenshot</c>
+    /// com o <c>clip</c> da folha (coordenadas do documento), <c>scale = dpi / 96</c> e <c>captureBeyondViewport</c>.</summary>
+    public Task<byte[]> CapturarFolhaAsync(int folha, int dpi)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(folha, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(dpi, 24);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(dpi, 1200);
+        return NaThreadAsync(async () =>
+        {
+            var expressao = "(() => { const f = document.querySelectorAll('section.folha')[" + (folha - 1) + "]; if (!f) return null;"
+                + " const r = f.getBoundingClientRect(); return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height }; })()";
+            var resposta = await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate",
+                JsonSerializer.Serialize(new { expression = expressao, returnByValue = true }));
+            using var doc = JsonDocument.Parse(resposta);
+            var valor = doc.RootElement.GetProperty("result");
+            if (!valor.TryGetProperty("value", out var q) || q.ValueKind != JsonValueKind.Object)
+                throw new ArgumentOutOfRangeException(nameof(folha), folha, "O documento não tem a folha " + folha + ".");
+            var clip = new
+            {
+                x = q.GetProperty("x").GetDouble(), y = q.GetProperty("y").GetDouble(),
+                width = q.GetProperty("w").GetDouble(), height = q.GetProperty("h").GetDouble(), scale = dpi / 96.0,
+            };
+            var captura = await core.CallDevToolsProtocolMethodAsync("Page.captureScreenshot",
+                JsonSerializer.Serialize(new { format = "png", clip, captureBeyondViewport = true, fromSurface = true }));
+            using var c = JsonDocument.Parse(captura);
+            return Convert.FromBase64String(c.RootElement.GetProperty("data").GetString()!);
+        });
+    }
+
+    /// <summary>Imprime o DOM atual (as folhas compostas) com CDP <c>Page.printToPDF</c>: tamanho da regra @page de folha.css,
+    /// fundos, sem cabeçalho/rodapé do navegador, margens 0.</summary>
+    internal Task<byte[]> ImprimirPdfAsync() =>
+        NaThreadAsync(async () =>
+        {
+            var r = await core.CallDevToolsProtocolMethodAsync("Page.printToPDF", JsonSerializer.Serialize(new
+            {
+                preferCSSPageSize = true, printBackground = true, displayHeaderFooter = false,
+                marginTop = 0, marginBottom = 0, marginLeft = 0, marginRight = 0,
+            }));
+            using var doc = JsonDocument.Parse(r);
+            return Convert.FromBase64String(doc.RootElement.GetProperty("data").GetString()!);
+        });
+
+    /// <summary>Versão do runtime do WebView2 deste documento (<c>BrowserVersionString</c>).</summary>
+    internal Task<string> VersaoWebView2Async() => NaThreadAsync(() => Task.FromResult(core.Environment.BrowserVersionString));
+
+    /// <summary>Roda <paramref name="acao"/> na thread do core (documento ainda anexado) e devolve o resultado.</summary>
+    async Task<T> NaThreadAsync<T>(Func<Task<T>> acao)
+    {
+        T resultado = default!;
+        await naThread(async () =>
+        {
+            ObjectDisposedException.ThrowIf(desanexado != 0, this);
+            resultado = await acao();
+        });
+        return resultado;
+    }
+
     internal Task EnviarBrutoAsync(string json) => naThread(() =>
     {
         ObjectDisposedException.ThrowIf(desanexado != 0, this);

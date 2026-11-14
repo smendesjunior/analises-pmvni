@@ -112,3 +112,28 @@ que aplicar o plano não precise medir; `montarFolhaDoPlano(plano, i, cfg)` (exp
 folha só com o plano. Se o documento não estabiliza no limite (30 s; `limiteEstabilidade` em `ComporDetalhadoAsync`),
 `compor` falha com o código `instavel` (e `folhas_demais` acima de 5000 folhas), nunca devolve plano medido em layout
 instável. `PlanoQuebras.DeJson` recusa versão diferente de 1 e escala fora de [1; 1,5].
+
+## Aplicar o plano, texto por folha e exportação (Tarefa 8)
+
+`DocumentoWeb.AplicarPlanoAsync(plano)` reconstrói as folhas só com o plano, sem medir para decidir e sem mexer na
+emulação do core (serve à tela com qualquer escala de monitor): confere o sha256 do HTML (no C# e no paginador: códigos
+`plano_de_outro_documento` e `plano_invalido`), aplica os refs do render, `--pmvni-k` = `plano.escala`, margem de cima pela
+regra `truncaTopo`, acabamento, numeração do rodapé e extensão dos pedaços; o fluxo de medida fica guardado
+(`display: none`) e as `section.folha` anteriores saem. Espera as fontes e as imagens das folhas e só então mede a altura de
+cada folha para informar `FolhasQueTransbordam`. Conferido: corpus inteiro, aplicado no mesmo host e num documento
+recém-carregado, e num host com `deviceScaleFactor` 1,5 e mídia de tela, dá o mesmo texto por folha da composição
+(`TextoPorFolhaAsync`: `innerText` da área, espaços normalizados).
+
+`Exportador.ExportarAsync` usa um host oculto novo: carrega, compõe, recusa se houver estouro ("Bloco 'ref' excede a página
+n …", só folha, ref e medidas) e imprime o mesmo DOM com `Page.printToPDF {preferCSSPageSize, printBackground, sem
+cabeçalho/rodapé, margens 0}`; confere páginas = folhas (leitor mínimo de PDF: objetos `/Type /Page` contra o `/Count` da
+raiz; recusa `/ObjStm`) antes de gravar o PDF e `<nome>.recibo-editor.json`.
+
+- Página em branco a mais com k > 1: a caixa `.area` diagramada com 254k mm passava da folha (28 + 272 mm) e a impressão
+  gerava um fragmento vazio depois da última folha (longo: 22 páginas para 21 folhas). A caixa agora tem 254 mm e a
+  altura útil vem do topo do rodapé (`fimDaArea`), sem mudar nenhum plano.
+- Papel medido no MediaBox (Chromium 157): 209,889 × 297,011 mm em todos os casos (dentro de ±0,5 mm de A4); o mesmo pelo
+  `Windows.Data.Pdf`.
+- Largura (correções da Tarefa 7): bloco largo cuja folha não é achada continua gerando estouro (folha do ref, senão a 1ª);
+  largura vinda só do `scrollWidth` (texto `nowrap` que transborda a própria caixa) procura o bloco responsável e gera aviso
+  e, acima de 1,5, estouro.

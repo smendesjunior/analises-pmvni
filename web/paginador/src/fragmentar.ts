@@ -390,6 +390,18 @@ export function acabamento(area: HTMLElement, truncarTopo: boolean): void {
   }
 }
 
+/**
+ * Base da área útil na tela: o topo do rodapé da folha (folha.css põe os dois em 282 mm). A caixa da área não serve
+ * quando k > 1: diagramada com 254 mm e pintada em 1/k, ela termina antes (ver folha.css). Sem rodapé, a base da área.
+ */
+export function fimDaArea(area: HTMLElement): number {
+  const rodape = area.parentElement?.querySelector(':scope > .folha-rodape');
+  return (rodape ?? area).getBoundingClientRect()[rodape ? 'top' : 'bottom'];
+}
+
+/** Altura útil da área na tela (do topo da área ao topo do rodapé). */
+export const alturaUtil = (area: HTMLElement): number => fimDaArea(area) - area.getBoundingClientRect().top;
+
 /** Altura do conteúdo da área (da borda de cima da área à base da caixa de borda mais baixa dos blocos em fluxo). */
 export function alturaConteudo(area: HTMLElement): number {
   const topo = area.getBoundingClientRect().top;
@@ -407,7 +419,7 @@ export function alturaConteudo(area: HTMLElement): number {
  * align-content: start para que as trilhas não estiquem. Chamar depois da verificação da altura.
  */
 export function estenderPedacos(area: HTMLElement): void {
-  const fimArea = area.getBoundingClientRect().bottom;
+  const fimArea = fimDaArea(area);
   for (const p of Array.from(area.querySelectorAll<HTMLElement>(`[${ATR_SEGUE}]`))) {
     const cs = estilo(p);
     if (cs.display === 'table' || ehInline(cs)) continue;

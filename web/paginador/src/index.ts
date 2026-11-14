@@ -1,9 +1,11 @@
 // Ponte JS do paginador: valida o que o host manda, despacha para os manipuladores registrados e responde com o mesmo id.
-import { compor, lerPedido } from './folhas';
+import { aplicarPlano, compor, lerPedido, lerPedidoAplicar } from './folhas';
 import { ErroComposicao } from './plano';
+import { textoPorFolha } from './texto';
 
-// Montagem de uma folha a partir de um plano (base do aplicarPlano da Tarefa 8; usada também nos testes).
-export { montarFolhaDoPlano } from './folhas';
+// Expostos no global Paginador para os testes: montagem de uma folha pelo plano e avisos/estouros de largura.
+export { larguraNoPlano, montarFolhaDoPlano } from './folhas';
+export { textoPorFolha } from './texto';
 import { lerMensagemHost, lerMensagemWeb, VERSAO, type MensagemHost, type TipoHost, type TipoWeb } from './mensagens';
 
 export type Resposta = { tipo: TipoWeb; dados: Record<string, unknown> };
@@ -58,8 +60,9 @@ async function aoReceber(bruto: unknown): Promise<void> {
 // Paginador (Tarefa 7): compoe o documento em folhas A4 e devolve o plano de quebras.
 registrar('compor', async (dados) => ({ tipo: 'composto', dados: { ...(await compor(lerPedido(dados))) } }));
 
-// Manipulador provisorio: a Tarefa 8 o substitui (texto por folha). Por ora devolve a lista vazia.
-registrar('textoPorFolha', () => ({ tipo: 'textoPorFolha', dados: { folhas: [] } }));
+// Tarefa 8: aplica um plano ja calculado (sem medir para decidir) e devolve o texto visivel de cada folha.
+registrar('aplicarPlano', async (dados) => ({ tipo: 'planoAplicado', dados: { ...(await aplicarPlano(lerPedidoAplicar(dados))) } }));
+registrar('textoPorFolha', () => ({ tipo: 'textoPorFolha', dados: { folhas: textoPorFolha() } }));
 
 if (webview) {
   webview.addEventListener('message', (e) => void aoReceber(e.data));

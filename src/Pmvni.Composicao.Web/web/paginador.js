@@ -22,12 +22,14 @@ var Paginador = (() => {
   var index_exports = {};
   __export(index_exports, {
     enviar: () => enviar,
+    larguraNoPlano: () => larguraNoPlano,
     montarFolhaDoPlano: () => montarFolhaDoPlano,
-    registrar: () => registrar
+    registrar: () => registrar,
+    textoPorFolha: () => textoPorFolha
   });
 
   // folha.css
-  var folha_default = "/* Folhas A4 do paginador (embutido no paginador.js). As regras @page do kit saem do documento e entram estas.\n   CONSTANTES DE POSIÇÃO: só aqui. Elas reproduzem as caixas de margem do kit (@page margin 28/14/15/14 mm,\n   @top-center com padding-bottom 5 mm, @bottom-left/right com padding-top 2,5 mm) e são calibradas na Tarefa 9\n   contra o PDF do próprio kit. O paginador lê a área útil daqui (largura e altura de .area), nunca de constantes no JS. */\n@page { size: 210mm 297mm; margin: 0; }\n\n/* Escala de impressão k (>= 1), definida pelo paginador: quando o conteúdo é mais largo que a página, o Chromium\n   diagrama a página k vezes maior (até 1,5) e a imprime reduzida (shrink-to-fit). A área reproduz isso: é diagramada com\n   182k × 254k mm e pintada em escala 1/k, ocupando os mesmos 182 × 254 mm da folha. */\n:root { --pmvni-k: 1; }\n\n.folha {\n  position: relative; display: block; box-sizing: border-box;\n  width: 210mm; height: 297mm; margin: 0; padding: 0; border: 0;\n  overflow: visible; background: #fff; break-after: page; break-inside: avoid;\n}\nsection.folha:last-of-type { break-after: auto; }\n\n/* Área útil: 182 × 254 mm (na folha) a partir de (14 mm, 28 mm). Nunca overflow: hidden (estouro fica visível). */\n.folha > .area {\n  position: absolute; left: 14mm; top: 28mm; width: calc(182mm * var(--pmvni-k)); height: calc(254mm * var(--pmvni-k));\n  display: flow-root; margin: 0; padding: 0; border: 0; box-sizing: border-box; overflow: visible;\n  transform: scale(calc(1 / var(--pmvni-k))); transform-origin: 0 0;\n}\n\n/* Cabeçalho: imagem do kit com 182 mm de largura, base a 23 mm do topo (28 mm − 5 mm). */\nsection.folha > .folha-cabecalho {\n  position: absolute; left: 14mm; top: 0; width: 182mm; height: 23mm;\n  display: flex; align-items: flex-end; justify-content: center; margin: 0; padding: 0;\n}\nsection.folha > .folha-cabecalho > img { display: block; width: 182mm; height: auto; }\n\n/* Rodapé: duas caixas a partir de 282 mm (297 − 15), como @bottom-left e @bottom-right do kit. */\nsection.folha > .folha-rodape {\n  position: absolute; left: 14mm; top: 282mm; width: 182mm; height: 15mm;\n  display: flex; align-items: flex-start; margin: 0; padding: 0;\n}\nsection.folha > .folha-rodape > div {\n  flex: 1 1 auto; white-space: nowrap; box-sizing: border-box;\n  border-top: .6pt solid #DDE4EB; padding-top: 2.5mm; font: 6.2pt Verdana; line-height: normal;\n}\nsection.folha > .folha-rodape > .folha-rodape-esq { color: #637083; text-align: left; }\nsection.folha > .folha-rodape > .folha-rodape-dir { color: #1D3D5E; font-weight: bold; text-align: right; }\n\n/* Fluxo de medida (div.folha.pmvni-medida > .area): o conteúdo original, com a mesma largura da área e altura livre,\n   fora da vista. As folhas de verdade são section.folha. */\ndiv.folha.pmvni-medida { position: absolute; left: 0; top: 0; height: auto; visibility: hidden; pointer-events: none; }\ndiv.folha.pmvni-medida > .area { position: relative; left: 0; top: 0; height: auto; }\ndiv.folha.pmvni-medida[data-pmvni-guardado] { display: none; }\n";
+  var folha_default = "/* Folhas A4 do paginador (embutido no paginador.js). As regras @page do kit saem do documento e entram estas.\n   CONSTANTES DE POSIÇÃO: só aqui. Elas reproduzem as caixas de margem do kit (@page margin 28/14/15/14 mm,\n   @top-center com padding-bottom 5 mm, @bottom-left/right com padding-top 2,5 mm) e são calibradas na Tarefa 9\n   contra o PDF do próprio kit. O paginador lê a área útil daqui (largura e altura de .area), nunca de constantes no JS. */\n@page { size: 210mm 297mm; margin: 0; }\n\n/* Escala de impressão k (>= 1), definida pelo paginador: quando o conteúdo é mais largo que a página, o Chromium\n   diagrama a página k vezes maior (até 1,5) e a imprime reduzida (shrink-to-fit). A área reproduz isso: é diagramada com\n   182k × 254k mm e pintada em escala 1/k, ocupando os mesmos 182 × 254 mm da folha. */\n:root { --pmvni-k: 1; }\n\n.folha {\n  position: relative; display: block; box-sizing: border-box;\n  width: 210mm; height: 297mm; margin: 0; padding: 0; border: 0;\n  overflow: visible; background: #fff; break-after: page; break-inside: avoid;\n}\nsection.folha:last-of-type { break-after: auto; }\n\n/* Área útil: 182 × 254 mm (na folha) a partir de (14 mm, 28 mm). Nunca overflow: hidden (estouro fica visível).\n   A altura da caixa fica em 254 mm (não 254k): com k > 1 a caixa diagramada (28 + 254k mm) passaria da folha e, na\n   impressão, o fragmento que sobra da última folha vira uma página em branco a mais. A altura útil (254 mm na folha) é\n   lida da posição do rodapé (fimDaArea em fragmentar.ts), não desta caixa. */\n.folha > .area {\n  position: absolute; left: 14mm; top: 28mm; width: calc(182mm * var(--pmvni-k)); height: 254mm;\n  display: flow-root; margin: 0; padding: 0; border: 0; box-sizing: border-box; overflow: visible;\n  transform: scale(calc(1 / var(--pmvni-k))); transform-origin: 0 0;\n}\n\n/* Cabeçalho: imagem do kit com 182 mm de largura, base a 23 mm do topo (28 mm − 5 mm). */\nsection.folha > .folha-cabecalho {\n  position: absolute; left: 14mm; top: 0; width: 182mm; height: 23mm;\n  display: flex; align-items: flex-end; justify-content: center; margin: 0; padding: 0;\n}\nsection.folha > .folha-cabecalho > img { display: block; width: 182mm; height: auto; }\n\n/* Rodapé: duas caixas a partir de 282 mm (297 − 15), como @bottom-left e @bottom-right do kit. */\nsection.folha > .folha-rodape {\n  position: absolute; left: 14mm; top: 282mm; width: 182mm; height: 15mm;\n  display: flex; align-items: flex-start; margin: 0; padding: 0;\n}\nsection.folha > .folha-rodape > div {\n  flex: 1 1 auto; white-space: nowrap; box-sizing: border-box;\n  border-top: .6pt solid #DDE4EB; padding-top: 2.5mm; font: 6.2pt Verdana; line-height: normal;\n}\nsection.folha > .folha-rodape > .folha-rodape-esq { color: #637083; text-align: left; }\nsection.folha > .folha-rodape > .folha-rodape-dir { color: #1D3D5E; font-weight: bold; text-align: right; }\n\n/* Fluxo de medida (div.folha.pmvni-medida > .area): o conteúdo original, com a mesma largura da área e altura livre,\n   fora da vista. As folhas de verdade são section.folha. */\ndiv.folha.pmvni-medida { position: absolute; left: 0; top: 0; height: auto; visibility: hidden; pointer-events: none; }\ndiv.folha.pmvni-medida > .area { position: relative; left: 0; top: 0; height: auto; }\ndiv.folha.pmvni-medida[data-pmvni-guardado] { display: none; }\n";
 
   // src/plano.ts
   var VERSAO_PLANO = 1;
@@ -46,6 +48,39 @@ var Paginador = (() => {
     return p.caminho.length > 1 || p.deslocamentoTexto !== null || p.linha !== null;
   }
   var truncaTopo = (inicio, indice) => indice > 0 && !inicio.forcada;
+  var ESCALA_MAXIMA_PLANO = 1.5;
+  function lerPlano(bruto) {
+    const falha = (motivo) => {
+      throw new ErroComposicao("plano_invalido", "Plano de quebras inválido: " + motivo + ".");
+    };
+    const obj = (x) => typeof x === "object" && x !== null && !Array.isArray(x);
+    const inteiro = (x) => typeof x === "number" && Number.isInteger(x) && x >= 0;
+    const opcional = (x) => x === null || inteiro(x);
+    if (!obj(bruto)) return falha("não é um objeto");
+    const p = bruto;
+    if (p.versao !== VERSAO_PLANO) falha("versão " + String(p.versao));
+    if (typeof p.escala !== "number" || !Number.isFinite(p.escala) || p.escala < 1 || p.escala > ESCALA_MAXIMA_PLANO) falha("escala");
+    if (typeof p.sha256Html !== "string" || p.sha256Html === "") falha("sha256Html");
+    if (!Array.isArray(p.inicioDasFolhas) || p.inicioDasFolhas.length === 0) falha("inicioDasFolhas");
+    if (!Array.isArray(p.estouros) || !Array.isArray(p.avisosLargura)) falha("estouros/avisosLargura");
+    const inicios = p.inicioDasFolhas.map((i, n) => {
+      if (!obj(i) || !Array.isArray(i.caminho) || i.caminho.length === 0 || !i.caminho.every(inteiro) || !opcional(i.deslocamentoTexto ?? null) || !opcional(i.linha ?? null)) return falha(`inicioDasFolhas[${n}]`);
+      return posicao(
+        [...i.caminho],
+        i.deslocamentoTexto ?? null,
+        i.linha ?? null,
+        i.forcada === true
+      );
+    });
+    return {
+      versao: VERSAO_PLANO,
+      inicioDasFolhas: inicios,
+      estouros: p.estouros,
+      sha256Html: p.sha256Html,
+      escala: p.escala,
+      avisosLargura: p.avisosLargura
+    };
+  }
 
   // src/medida.ts
   var PX_POR_MM = 96 / 25.4;
@@ -95,7 +130,28 @@ var Paginador = (() => {
     direita = Math.max(direita, q.left + fluxo.scrollWidth - 1);
     const largura = direita - q.left;
     const pedida = largura <= q.width + EPS_PX ? 1 : largura / q.width;
+    if (pedida > 1 && largos.length === 0) {
+      const procurar = (el) => {
+        for (const f of Array.from(el.children)) {
+          const cs = estilo(f);
+          if (cs.display === "none" || cs.overflowX !== "visible") continue;
+          const h = f;
+          const r = f.getBoundingClientRect();
+          const fim = r.left + h.scrollWidth * escalaVisual(f);
+          if (h.scrollWidth > h.clientWidth + 1 && fim > q.right + EPS_PX) largos.push({ el: f, direita: fim });
+          else procurar(f);
+        }
+      };
+      procurar(fluxo);
+    }
     return { escala: Math.min(pedida, ENCOLHIMENTO_MAXIMO), pedida, largos, area: q.width, esquerda: q.left };
+  }
+  async function folhasProntas(folhas, limiteMs = LIMITE_ESTABILIDADE_MS) {
+    const fim = performance.now() + limiteMs;
+    if (await comLimite(document.fonts.ready, limiteMs) === ESGOTADO || document.fonts.status !== "loaded") {
+      throw new ErroComposicao("instavel", `As fontes não carregaram em ${limiteMs} ms.`);
+    }
+    for (const f of folhas) await imagensProntas(f, Math.max(1, fim - performance.now()));
   }
   var LIMITE_ESTABILIDADE_MS = 3e4;
   function quadro() {
@@ -301,10 +357,10 @@ var Paginador = (() => {
     if (cs.overflowY === "auto" || cs.overflowY === "scroll") return "monolitico";
     if (/^(flex|grid)$/.test(cs.display)) return "conteiner";
     if (!["block", "flow-root", "list-item"].includes(cs.display)) return "monolitico";
-    let texto = false, inline = false, bloco = false;
+    let texto2 = false, inline = false, bloco = false;
     for (const n of Array.from(el.childNodes)) {
       if (n.nodeType === Node.TEXT_NODE) {
-        if (/\S/.test(n.data)) texto = true;
+        if (/\S/.test(n.data)) texto2 = true;
         continue;
       }
       if (n.nodeType !== Node.ELEMENT_NODE) continue;
@@ -314,8 +370,8 @@ var Paginador = (() => {
       if (f.localName === "br" || ehInline(c)) inline = true;
       else bloco = true;
     }
-    if (bloco && !texto && !inline) return "conteiner";
-    if ((texto || inline) && !bloco) return "linhas";
+    if (bloco && !texto2 && !inline) return "conteiner";
+    if ((texto2 || inline) && !bloco) return "linhas";
     return "monolitico";
   }
   var evitaDentro = (el) => EVITAR.has(estilo(el).breakInside);
@@ -610,6 +666,11 @@ var Paginador = (() => {
       el = primeiroBlocoVisivel(el);
     }
   }
+  function fimDaArea(area) {
+    const rodape = area.parentElement?.querySelector(":scope > .folha-rodape");
+    return (rodape ?? area).getBoundingClientRect()[rodape ? "top" : "bottom"];
+  }
+  var alturaUtil = (area) => fimDaArea(area) - area.getBoundingClientRect().top;
   function alturaConteudo(area) {
     const topo = area.getBoundingClientRect().top;
     let fim = topo;
@@ -620,7 +681,7 @@ var Paginador = (() => {
     return fim - topo;
   }
   function estenderPedacos(area) {
-    const fimArea = area.getBoundingClientRect().bottom;
+    const fimArea = fimDaArea(area);
     for (const p of Array.from(area.querySelectorAll(`[${ATR_SEGUE}]`))) {
       const cs = estilo(p);
       if (cs.display === "table" || ehInline(cs)) continue;
@@ -713,6 +774,72 @@ var Paginador = (() => {
     estenderPedacos(f.area);
     return f;
   }
+  async function aplicarPlano(pedido) {
+    const { plano, config } = pedido;
+    if (plano.sha256Html !== pedido.sha256Documento) {
+      throw new ErroComposicao("plano_de_outro_documento", "O plano de quebras foi calculado para outro documento.");
+    }
+    const limite = pedido.limiteEstabilidadeMs ?? LIMITE_ESTABILIDADE_MS;
+    const fluxo = prepararDocumento();
+    plano.inicioDasFolhas.forEach((p, i) => {
+      if (!elementoEm(fluxo, p.caminho)) {
+        throw new ErroComposicao("plano_invalido", `O início da folha ${i + 1} do plano não existe neste documento.`);
+      }
+    });
+    for (const f of Array.from(document.querySelectorAll("section.folha"))) f.remove();
+    fluxo.parentElement.setAttribute("data-pmvni-guardado", "");
+    aplicarRefs(fluxo, pedido.refs);
+    document.documentElement.style.setProperty("--pmvni-k", String(plano.escala));
+    const montadas = plano.inicioDasFolhas.map((de, i) => montarFolha(fluxo, config, de, plano.inicioDasFolhas[i + 1] ?? null, truncaTopo(de, i)));
+    numerarRodapes(montadas.map((f) => f.direita), config);
+    await folhasProntas(montadas.map((f) => f.folha), limite);
+    const H = alturaUtil(montadas[0].area);
+    const folhasQueTransbordam = montadas.flatMap((f, i) => alturaConteudo(f.area) > H + EPS_PX ? [i + 1] : []);
+    for (const f of montadas) estenderPedacos(f.area);
+    return { folhas: montadas.length, folhasQueTransbordam, refsPorFolha: refsDasFolhas(montadas.map((f) => f.folha)) };
+  }
+  function numerarRodapes(direitas, cfg) {
+    direitas.forEach((d, i) => {
+      d.textContent = cfg.rodapeDireitaModelo.replaceAll("{n}", String(i + 1)).replaceAll("{t}", String(direitas.length));
+    });
+  }
+  function refsDasFolhas(folhas) {
+    return folhas.map((f) => {
+      const ids = [];
+      for (const e of Array.from(f.querySelectorAll(".area [data-ref]"))) {
+        const id = e.getAttribute("data-ref");
+        if (!ids.includes(id) && estilo(e).display !== "none") ids.push(id);
+      }
+      return ids;
+    });
+  }
+  function larguraNoPlano(largura, areas, fluxo) {
+    const visivelEm = (a, seletor) => Array.from(a.querySelectorAll(seletor)).some((e) => !e.closest(`[${ATR_OCULTO}]`));
+    const avisos = /* @__PURE__ */ new Map();
+    const registrar2 = (a) => {
+      const chave = a.folha + "|" + (a.ref ?? "");
+      if ((avisos.get(chave)?.escala ?? 0) < a.escala) avisos.set(chave, a);
+    };
+    largura.largos.forEach((l, i) => {
+      const ref = refDe(fluxo, l.el);
+      let folha = 1 + areas.findIndex((a) => visivelEm(a, `[${ATR_LARGO}="${i}"]`));
+      if (folha === 0 && ref !== null) folha = 1 + areas.findIndex((a) => visivelEm(a, `[data-ref="${CSS.escape(ref)}"]`));
+      if (folha === 0) folha = 1;
+      registrar2({ folha, ref, escala: (l.direita - largura.esquerda) / largura.area, larguraMm: mm(l.direita - largura.esquerda) });
+    });
+    if (largura.largos.length === 0 && largura.pedida > 1) {
+      registrar2({ folha: 1, ref: null, escala: largura.pedida, larguraMm: mm(largura.pedida * largura.area) });
+    }
+    const avisosLargura = [...avisos.values()].sort((a, b) => a.folha - b.folha || b.escala - a.escala);
+    const estouros = [];
+    for (const a of avisosLargura) {
+      if (a.escala > ENCOLHIMENTO_MAXIMO + 1e-9) {
+        const area = areas[a.folha - 1];
+        estouros.push({ folha: a.folha, ref: a.ref, alturaMm: area ? mm(alturaConteudo(area)) : 0, larguraMm: a.larguraMm });
+      }
+    }
+    return { avisosLargura, estouros };
+  }
   function aplicarRefs(fluxo, refs) {
     for (const e of Array.from(fluxo.querySelectorAll("[data-ref]"))) e.removeAttribute("data-ref");
     for (const r of refs) fluxo.querySelectorAll(r.seletor)[r.indice]?.setAttribute("data-ref", r.id);
@@ -749,7 +876,7 @@ var Paginador = (() => {
     }
     const sonda = criarFolha(pedido.config);
     document.body.appendChild(sonda.folha);
-    const H = sonda.area.getBoundingClientRect().height;
+    const H = alturaUtil(sonda.area);
     sonda.folha.remove();
     const pontos = enumerarPontos(fluxo);
     const inicios = [];
@@ -803,49 +930,25 @@ var Paginador = (() => {
       if (pos === null) break;
       ini = { pos: { ...pos, forcada: p.forcado }, indice: p.indice, yInicio: p.yInicio, decoInicio: p.decoInicio };
     }
-    const avisos = /* @__PURE__ */ new Map();
-    largura.largos.forEach((l, i) => {
-      const folha = 1 + areas.findIndex((a) => Array.from(a.querySelectorAll(`[${ATR_LARGO}="${i}"]`)).some((e) => !e.closest(`[${ATR_OCULTO}]`)));
-      const ref = refDe(fluxo, l.el);
-      const pedida = (l.direita - largura.esquerda) / largura.area;
-      const chave = folha + "|" + (ref ?? "");
-      if ((avisos.get(chave)?.escala ?? 0) < pedida) {
-        avisos.set(chave, { folha, ref, escala: pedida, larguraMm: mm(l.direita - largura.esquerda) });
-      }
-    });
-    const avisosLargura = [...avisos.values()].sort((a, b) => a.folha - b.folha || b.escala - a.escala);
-    for (const a of avisosLargura) {
-      if (a.escala > ENCOLHIMENTO_MAXIMO + 1e-9 && a.folha > 0) {
-        estouros.push({ folha: a.folha, ref: a.ref, alturaMm: mm(alturaConteudo(areas[a.folha - 1])), larguraMm: a.larguraMm });
-      }
-    }
+    const { avisosLargura, estouros: deLargura } = larguraNoPlano(largura, areas, fluxo);
+    estouros.push(...deLargura);
     estouros.sort((a, b) => a.folha - b.folha);
     medida.setAttribute("data-pmvni-guardado", "");
     const folhas = Array.from(document.querySelectorAll("section.folha"));
-    folhas.forEach((_, i) => {
-      direitas[i].textContent = pedido.config.rodapeDireitaModelo.replaceAll("{n}", String(i + 1)).replaceAll("{t}", String(folhas.length));
-    });
+    numerarRodapes(direitas, pedido.config);
     await imagensProntas(document.body, limite);
-    const refsPorFolha = folhas.map((f) => {
-      const ids = [];
-      for (const e of Array.from(f.querySelectorAll(".area [data-ref]"))) {
-        const id = e.getAttribute("data-ref");
-        if (!ids.includes(id) && estilo(e).display !== "none") ids.push(id);
-      }
-      return ids;
-    });
+    const refsPorFolha = refsDasFolhas(folhas);
     return {
       plano: { versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros, sha256Html: pedido.sha256Html, escala, avisosLargura },
       folhas: folhas.length,
       refsPorFolha
     };
   }
-  function lerPedido(d) {
-    const texto = (v, nome) => {
-      if (typeof v !== "string") throw new Error(`campo ${nome} invalido`);
-      return v;
-    };
-    const sha256Html = texto(d.sha256Html, "sha256Html");
+  var texto = (v, nome) => {
+    if (typeof v !== "string") throw new Error(`campo ${nome} invalido`);
+    return v;
+  };
+  function lerComum(d) {
     if (!Array.isArray(d.refs)) throw new Error("campo refs invalido");
     const refs = d.refs.map((r, i) => {
       const o = r;
@@ -857,7 +960,6 @@ var Paginador = (() => {
     const limite = d.limiteEstabilidadeMs;
     if (limite != null && (typeof limite !== "number" || !(limite > 0))) throw new Error("campo limiteEstabilidadeMs invalido");
     return {
-      sha256Html,
       refs,
       config: {
         cabecalhoUri: texto(c.cabecalhoUri, "cabecalhoUri"),
@@ -866,6 +968,21 @@ var Paginador = (() => {
       },
       limiteEstabilidadeMs: limite == null ? null : limite
     };
+  }
+  function lerPedido(d) {
+    return { sha256Html: texto(d.sha256Html, "sha256Html"), ...lerComum(d) };
+  }
+  function lerPedidoAplicar(d) {
+    return { plano: lerPlano(d.plano), sha256Documento: texto(d.sha256Documento, "sha256Documento"), ...lerComum(d) };
+  }
+
+  // src/texto.ts
+  var normalizar = (s) => s.replace(/\s+/g, " ").trim();
+  function textoPorFolha() {
+    return Array.from(document.querySelectorAll("section.folha")).map((f) => {
+      const area = f.querySelector(":scope > .area");
+      return area ? normalizar(area.innerText) : "";
+    });
   }
 
   // src/mensagens.ts
@@ -927,7 +1044,8 @@ var Paginador = (() => {
     }
   }
   registrar("compor", async (dados) => ({ tipo: "composto", dados: { ...await compor(lerPedido(dados)) } }));
-  registrar("textoPorFolha", () => ({ tipo: "textoPorFolha", dados: { folhas: [] } }));
+  registrar("aplicarPlano", async (dados) => ({ tipo: "planoAplicado", dados: { ...await aplicarPlano(lerPedidoAplicar(dados)) } }));
+  registrar("textoPorFolha", () => ({ tipo: "textoPorFolha", dados: { folhas: textoPorFolha() } }));
   if (webview) {
     webview.addEventListener("message", (e) => void aoReceber(e.data));
     enviar("pronto", "pronto", { versao: VERSAO });

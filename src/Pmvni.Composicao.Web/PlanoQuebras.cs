@@ -74,3 +74,7 @@ public sealed record PlanoQuebras(int Versao, IReadOnlyList<PosicaoFluxo> Inicio
 
 /// <summary>Resposta de <c>compor</c>: o plano, o número de folhas e os data-ref visíveis em cada folha, na ordem.</summary>
 public sealed record ResultadoComposicao(PlanoQuebras Plano, int Folhas, IReadOnlyList<IReadOnlyList<string>> RefsPorFolha);
+
+/// <summary>Resposta de <c>aplicarPlano</c>: o número de folhas montadas (= inícios do plano) e as folhas (1 = primeira) cujo
+/// conteúdo passa da área útil no layout atual. Só informativo: o conteúdo de cada folha vem do plano, não desta medida.</summary>
+public sealed record ResultadoAplicacao(int Folhas, IReadOnlyList<int> FolhasQueTransbordam);

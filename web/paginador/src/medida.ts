@@ -78,7 +78,33 @@ export function medirLargura(fluxo: HTMLElement): Largura {
   direita = Math.max(direita, q.left + fluxo.scrollWidth - 1);
   const largura = direita - q.left;
   const pedida = largura <= q.width + EPS_PX ? 1 : largura / q.width;
+  // Largura vinda só do scrollWidth (texto que transborda a própria caixa, ex.: nowrap): procura o bloco responsável
+  // (o mais externo de cada ramo cujo transbordamento passa da área), para o aviso/estouro sair com folha e ref.
+  if (pedida > 1 && largos.length === 0) {
+    const procurar = (el: Element) => {
+      for (const f of Array.from(el.children)) {
+        const cs = estilo(f);
+        if (cs.display === 'none' || cs.overflowX !== 'visible') continue;
+        const h = f as HTMLElement;
+        const r = f.getBoundingClientRect();
+        const fim = r.left + h.scrollWidth * escalaVisual(f);
+        if (h.scrollWidth > h.clientWidth + 1 && fim > q.right + EPS_PX) largos.push({ el: f, direita: fim });
+        else procurar(f);
+      }
+    };
+    procurar(fluxo);
+  }
   return { escala: Math.min(pedida, ENCOLHIMENTO_MAXIMO), pedida, largos, area: q.width, esquerda: q.left };
+}
+
+/** Folhas prontas para medir e imprimir: fontes carregadas e imagens das folhas decodificadas, em `limiteMs`
+ * (senão 'instavel'). Só olha as folhas: imagens do fluxo guardado (display: none) não contam. */
+export async function folhasProntas(folhas: HTMLElement[], limiteMs = LIMITE_ESTABILIDADE_MS): Promise<void> {
+  const fim = performance.now() + limiteMs;
+  if (await comLimite(document.fonts.ready, limiteMs) === ESGOTADO || document.fonts.status !== 'loaded') {
+    throw new ErroComposicao('instavel', `As fontes não carregaram em ${limiteMs} ms.`);
+  }
+  for (const f of folhas) await imagensProntas(f, Math.max(1, fim - performance.now()));
 }
 
 // ---------- estabilidade ----------

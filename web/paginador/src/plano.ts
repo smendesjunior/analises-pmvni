@@ -83,3 +83,34 @@ export function dentroDoPrimeiro(p: PosicaoFluxo): boolean {
 
 /** Margem de cima do 1º bloco da folha `indice` (0 = primeira) é truncada? Só depende do plano. */
 export const truncaTopo = (inicio: PosicaoFluxo, indice: number): boolean => indice > 0 && !inicio.forcada;
+
+/** Escala de impressão máxima aceita num plano (espelho de PlanoQuebras.EscalaMaxima e de ENCOLHIMENTO_MAXIMO). */
+export const ESCALA_MAXIMA_PLANO = 1.5;
+
+/**
+ * Lê e valida um plano vindo da ponte (como PlanoQuebras.DeJson): versão 1, escala finita em [1; 1,5], ao menos uma
+ * folha, caminhos de inteiros ≥ 0, deslocamento/linha inteiros ≥ 0 ou null. Lança ErroComposicao('plano_invalido').
+ */
+export function lerPlano(bruto: unknown): PlanoQuebras {
+  const falha = (motivo: string): never => { throw new ErroComposicao('plano_invalido', 'Plano de quebras inválido: ' + motivo + '.'); };
+  const obj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
+  const inteiro = (x: unknown) => typeof x === 'number' && Number.isInteger(x) && x >= 0;
+  const opcional = (x: unknown) => x === null || inteiro(x);
+  if (!obj(bruto)) return falha('não é um objeto');
+  const p = bruto;
+  if (p.versao !== VERSAO_PLANO) falha('versão ' + String(p.versao));
+  if (typeof p.escala !== 'number' || !Number.isFinite(p.escala) || p.escala < 1 || p.escala > ESCALA_MAXIMA_PLANO) falha('escala');
+  if (typeof p.sha256Html !== 'string' || p.sha256Html === '') falha('sha256Html');
+  if (!Array.isArray(p.inicioDasFolhas) || p.inicioDasFolhas.length === 0) falha('inicioDasFolhas');
+  if (!Array.isArray(p.estouros) || !Array.isArray(p.avisosLargura)) falha('estouros/avisosLargura');
+  const inicios = (p.inicioDasFolhas as unknown[]).map((i, n): PosicaoFluxo => {
+    if (!obj(i) || !Array.isArray(i.caminho) || i.caminho.length === 0 || !i.caminho.every(inteiro)
+      || !opcional(i.deslocamentoTexto ?? null) || !opcional(i.linha ?? null)) return falha(`inicioDasFolhas[${n}]`);
+    return posicao([...(i.caminho as number[])], (i.deslocamentoTexto ?? null) as number | null, (i.linha ?? null) as number | null,
+      i.forcada === true);
+  });
+  return {
+    versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros: p.estouros as Estouro[], sha256Html: p.sha256Html as string,
+    escala: p.escala as number, avisosLargura: p.avisosLargura as AvisoLargura[],
+  };
+}
