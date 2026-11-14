@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(VersaoWindowsAppSDK)" />
+    <ProjectReference Include="..\Pmvni.Composicao\Pmvni.Composicao.csproj" />
     <ProjectReference Include="..\Pmvni.Composicao.Web\Pmvni.Composicao.Web.csproj" />
   </ItemGroup>
 </Project>
