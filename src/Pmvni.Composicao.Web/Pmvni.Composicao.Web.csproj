@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Composição no WebView2 (sem WinUI): host oculto, documento, impressão. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <UseWinUI>false</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <RootNamespace>Pmvni.Composicao.Web</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(VersaoWindowsAppSDK)" />
+  </ItemGroup>
+</Project>

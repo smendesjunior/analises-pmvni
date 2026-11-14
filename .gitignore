@@ -5,3 +5,5 @@ artifacts/
 node_modules/
 tests/local.json
 tests/saida/
+Aplicativo/*.pdb
+Aplicativo/*.exe
