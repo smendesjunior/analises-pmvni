@@ -150,6 +150,32 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
     }
 
     [Fact]
+    public async Task exportacao_final_recusada_com_campo_entre_colchetes()
+    {
+        var origem = CaminhoCorpus("curto");
+        var temp = Path.Combine(Path.GetDirectoryName(origem)!, "tmp-colchetes-" + Guid.NewGuid().ToString("N")[..8] + ".json");
+        var pdf = CaminhoSaida("colchetes.pdf");
+        File.Delete(pdf); File.Delete(Exportador.CaminhoReciboDe(pdf));
+        try
+        {
+            var no = JsonNode.Parse(File.ReadAllText(origem))!;
+            no["capa"]!["requerente"] = "[Nome do requerente]";
+            File.WriteAllText(temp, no.ToJsonString());
+            // Em rascunho (a visão da tela) o relatório abre; na exportação final a conferência do kit recusa.
+            Assert.True(RelatorioRenderer.Renderizar(temp, new OpcoesRender(false, true), Modelo).Ok);
+            Assert.False(RelatorioRenderer.Renderizar(temp, new OpcoesRender(false, false), Modelo).Ok);
+            var ex = await Assert.ThrowsAsync<ConferenciaFinalException>(() => Exportador.ExportarFinalAsync(temp, ConfigFolhas.PadraoDeDados(Modelo, temp), pdf, Modelo));
+            Assert.Contains(ex.Erros, e => e.Contains("colchetes") && e.Contains("[Nome do requerente]"));
+            Assert.False(File.Exists(pdf));
+            Assert.False(File.Exists(Exportador.CaminhoReciboDe(pdf)));
+            // Sem colchetes, a mesma rota exporta.
+            var ok = await Exportador.ExportarFinalAsync(origem, Cfg("curto"), pdf, Modelo);
+            Assert.True(File.Exists(ok.CaminhoPdf));
+        }
+        finally { File.Delete(temp); }
+    }
+
+    [Fact]
     public async Task pdf_tem_o_mesmo_numero_de_folhas()
     {
         var resumo = new JsonArray();

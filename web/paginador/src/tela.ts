@@ -15,7 +15,8 @@ const PX_POR_MM = 96 / 25.4;
 const LARGURA_FOLHA_PX = 210 * PX_POR_MM;
 const ALTURA_FOLHA_PX = 297 * PX_POR_MM;
 const MARGEM_AJUSTE_PX = 16;
-const ZOOM_MIN = 0.5;
+const ZOOM_MIN = 0.5; // zoom manual (botões)
+const ZOOM_MIN_AJUSTE = 0.25; // Ajustar largura / Página inteira podem ir mais abaixo
 const ZOOM_MAX = 3;
 const ESPERA_FOLHA_VISIVEL_MS = 120;
 /** Vão mínimo à esquerda: a faixa vermelha das folhas que transbordam fica na margem cinza, nunca fora da janela. */
@@ -96,8 +97,8 @@ function aplicarZoom(novo: number): void {
   if (antes !== zoom) window.scrollTo({ top: Math.max(0, centroDoc * zoom - raiz.clientHeight / 2), behavior: 'instant' });
 }
 
-function limitar(z: number): number {
-  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+function limitar(z: number, minimo = ZOOM_MIN): number {
+  return Math.min(ZOOM_MAX, Math.max(minimo, z));
 }
 
 function observar(enviar: Enviar): void {
@@ -153,7 +154,7 @@ export function registrarTela(registrar: Registrar, enviar: Enviar): void {
     } else if (ajustar === 'pagina') {
       alvo = Math.min((raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
     } else if (pedido !== undefined) alvo = pedido;
-    aplicarZoom(limitar(alvo));
+    aplicarZoom(limitar(alvo, ajustar ? ZOOM_MIN_AJUSTE : ZOOM_MIN));
     observar(enviar);
     return { tipo: 'folhaVisivel', dados: estado() };
   });

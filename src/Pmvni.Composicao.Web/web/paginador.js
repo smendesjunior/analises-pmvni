@@ -993,6 +993,7 @@ var Paginador = (() => {
   var ALTURA_FOLHA_PX = 297 * PX_POR_MM2;
   var MARGEM_AJUSTE_PX = 16;
   var ZOOM_MIN = 0.5;
+  var ZOOM_MIN_AJUSTE = 0.25;
   var ZOOM_MAX = 3;
   var ESPERA_FOLHA_VISIVEL_MS = 120;
   var GOLA_ESQUERDA_PX = 12;
@@ -1062,8 +1063,8 @@ var Paginador = (() => {
     raiz.style.setProperty("--pmvni-tela-altura", `${document.body.offsetHeight * zoom}px`);
     if (antes !== zoom) window.scrollTo({ top: Math.max(0, centroDoc * zoom - raiz.clientHeight / 2), behavior: "instant" });
   }
-  function limitar(z) {
-    return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+  function limitar(z, minimo = ZOOM_MIN) {
+    return Math.min(ZOOM_MAX, Math.max(minimo, z));
   }
   function observar(enviar2) {
     observador?.disconnect();
@@ -1113,7 +1114,7 @@ var Paginador = (() => {
       } else if (ajustar === "pagina") {
         alvo = Math.min((raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
       } else if (pedido !== void 0) alvo = pedido;
-      aplicarZoom(limitar(alvo));
+      aplicarZoom(limitar(alvo, ajustar ? ZOOM_MIN_AJUSTE : ZOOM_MIN));
       observar(enviar2);
       return { tipo: "folhaVisivel", dados: estado() };
     });

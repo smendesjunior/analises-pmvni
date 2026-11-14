@@ -15,7 +15,7 @@ namespace Pmvni.App;
 
 /// <summary>Resultado de abrir um relatório: render, configuração das folhas, plano composto (no host oculto) e o que a tela mostra.</summary>
 internal sealed record Aberto(string Caminho, ResultadoRender Render, ConfigFolhas Config, DadosRelatorio Dados, ResultadoComposicao Composicao,
-    ResultadoAplicacao Aplicacao, IReadOnlyList<ItemNavegacao> Navegacao);
+    ResultadoAplicacao Aplicacao, IReadOnlyList<ItemNavegacao> Navegacao, IReadOnlyList<string> ErrosFinais);
 
 /// <summary>Tela do editor: o relatório inteiro como folhas A4 empilhadas (WebView2 visível), lista de seções à esquerda, zoom e
 /// indicador de folha no rodapé e exportação do PDF. Somente leitura. Fluxo: renderiza (kit) → compõe no host oculto → aplica o
@@ -31,7 +31,7 @@ public sealed partial class MainWindow : Window
     HostOculto? hostComposicao;
     DocumentoWeb? documento;
     Aberto? aberto;
-    bool ocupado;
+    bool ocupado, fechada;
     double zoom = 1;
     string modoZoom = "manual"; // manual | largura | pagina
     int folhaAtual;
@@ -70,6 +70,7 @@ public sealed partial class MainWindow : Window
         Raiz.ActualThemeChanged += (_, _) => AplicarTemaWeb();
         Closed += (_, _) =>
         {
+            fechada = true;
             try { documento?.Dispose(); } catch { }
             try { hostComposicao?.Dispose(); } catch { }
         };
@@ -139,7 +140,9 @@ public sealed partial class MainWindow : Window
 
     // ---------- abrir ----------
 
-    async void AoAbrir(object sender, RoutedEventArgs e)
+    async void AoAbrir(object sender, RoutedEventArgs e) => await TentarAsync(AbrirPeloSeletorAsync);
+
+    async Task AbrirPeloSeletorAsync()
     {
         var seletor = new FileOpenPicker();
         WinRT.Interop.InitializeWithWindow.Initialize(seletor, WinRT.Interop.WindowNative.GetWindowHandle(this));
@@ -154,16 +157,19 @@ public sealed partial class MainWindow : Window
     {
         if (ocupado || documento is null) return null;
         Ocupar("Lendo o relatório…");
-        LimparAvisos();
+        var tocouATela = false;
         try
         {
             modelo ??= await Task.Run(ModeloOficial.Carregar);
             var m = modelo;
             // Rascunho: a conferência do kit não recusa dados incompletos (o editor serve justamente para completá-los).
-            var (render, config, dados) = await Task.Run<(ResultadoRender, ConfigFolhas?, DadosRelatorio?)>(() =>
+            var (render, config, dados, errosFinais) = await Task.Run<(ResultadoRender, ConfigFolhas?, DadosRelatorio?, IReadOnlyList<string>)>(() =>
             {
                 var r = RelatorioRenderer.Renderizar(caminho, new OpcoesRender(false, true), m);
-                return r.Ok ? (r, ConfigFolhas.PadraoDeDados(m, caminho), DadosRelatorio.Ler(caminho)) : (r, null, null);
+                if (!r.Ok) return (r, null, null, []);
+                // A conferência sem rascunho diz o que impediria o PDF final (campos [ ] não preenchidos).
+                var final = RelatorioRenderer.Renderizar(caminho, new OpcoesRender(false, false), m);
+                return (r, ConfigFolhas.PadraoDeDados(m, caminho), DadosRelatorio.Ler(caminho), final.Erros);
             });
             if (!render.Ok || config is null || dados is null)
             {
@@ -177,12 +183,15 @@ public sealed partial class MainWindow : Window
             var composicao = await hostComposicao.Documento.ComporDetalhadoAsync();
 
             Ocupar("Montando a visualização…");
+            tocouATela = true;
             await documento.CarregarAsync(render, config);
             var aplicacao = await documento.AplicarPlanoAsync(composicao.Plano);
             zoom = 1;
             modoZoom = "manual";
             var nav = dados.Navegacao(render, composicao);
-            aberto = new Aberto(caminho, render, config, dados, composicao, aplicacao, nav);
+            aberto = new Aberto(caminho, render, config, dados, composicao, aplicacao, nav, errosFinais);
+            if (fechada) return null;
+            LimparAvisos();
 
             itensNavegacao.Clear();
             foreach (var item in nav) itensNavegacao.Add(item);
@@ -194,6 +203,8 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception e)
         {
+            // Falha depois de mexer na tela: nada de estado meio aberto (o que sobrou não corresponde a nenhum relatório).
+            if (tocouATela) Reiniciar();
             MostrarMensagem(InfoBarSeverity.Error, "Não foi possível abrir o relatório", e.Message);
             return null;
         }
@@ -202,6 +213,7 @@ public sealed partial class MainWindow : Window
 
     void MostrarEstado(Aberto a)
     {
+        if (fechada) return;
         var plano = a.Composicao.Plano;
         TextoTitulo.Text = a.Dados.Titulo;
         Title = a.Dados.Titulo + " — Editor de Relatórios PMVNI";
@@ -209,6 +221,7 @@ public sealed partial class MainWindow : Window
         TextoEstado.Text = estouros == 0
             ? $"Composto: {a.Composicao.Folhas} folhas"
             : estouros == 1 ? "1 bloco excede a página" : $"{estouros} blocos excedem a página";
+        if (a.ErrosFinais.Count > 0) TextoEstado.Text += " · " + DescreverRascunho(a.ErrosFinais);
 
         if (plano.AvisosLargura.Count > 0)
         {
@@ -234,6 +247,28 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>"Rascunho: há campos [ ] não preenchidos (N)" quando a conferência sem rascunho recusa colchetes.</summary>
+    internal static string DescreverRascunho(IReadOnlyList<string> erros)
+    {
+        var colchetes = erros.FirstOrDefault(e => e.StartsWith("Campos ainda não preenchidos", StringComparison.Ordinal));
+        if (colchetes is null) return $"Rascunho: a conferência do kit tem {erros.Count} erro(s)";
+        var n = colchetes[(colchetes.IndexOf(':') + 1)..].Split("; ").Length;
+        return $"Rascunho: há campos [ ] não preenchidos ({n}{(colchetes.EndsWith('…') ? "+" : "")})";
+    }
+
+    void Reiniciar()
+    {
+        aberto = null;
+        itensNavegacao.Clear();
+        LimparAvisos();
+        TextoTitulo.Text = "Editor de Relatórios Técnicos — PMVNI";
+        TextoEstado.Text = "";
+        TextoFolha.Text = "";
+        BotaoExportar.IsEnabled = false;
+        DefinirDicaExportar("Abra um relatório para exportar o PDF.");
+        TextoVazio.Visibility = Visibility.Visible;
+    }
+
     static string DescreverEstouro(Estouro e)
     {
         var bloco = e.Ref is null ? "bloco sem identificação" : $"bloco '{e.Ref}'";
@@ -247,7 +282,9 @@ public sealed partial class MainWindow : Window
 
     // ---------- exportar ----------
 
-    async void AoExportar(object sender, RoutedEventArgs e)
+    async void AoExportar(object sender, RoutedEventArgs e) => await TentarAsync(ExportarPeloSeletorAsync);
+
+    async Task ExportarPeloSeletorAsync()
     {
         if (aberto is null) return;
         var seletor = new FileSavePicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
@@ -272,9 +309,15 @@ public sealed partial class MainWindow : Window
         AvisoMensagem.IsOpen = false;
         try
         {
-            var x = await Exportador.ExportarAsync(aberto.Render, aberto.Config, caminhoPdf, aberto.Caminho, modelo);
+            // Exportação final: re-renderiza SEM rascunho; campos [ ] não preenchidos bloqueiam (sem confirmar nem ignorar).
+            var x = await Exportador.ExportarFinalAsync(aberto.Caminho, aberto.Config, caminhoPdf, modelo);
             MostrarMensagem(InfoBarSeverity.Success, "PDF exportado", $"{x.Folhas} folhas em {x.CaminhoPdf}. Recibo: {Path.GetFileName(x.CaminhoRecibo)}.");
             return (true, x, null, null);
+        }
+        catch (ConferenciaFinalException e)
+        {
+            MostrarMensagem(InfoBarSeverity.Error, "Exportação bloqueada: o relatório ainda não está completo", string.Join(Environment.NewLine, e.Erros));
+            return (false, null, e.Message, e);
         }
         catch (ExportacaoRecusadaException e)
         {
@@ -294,8 +337,11 @@ public sealed partial class MainWindow : Window
     async void AoAumentar(object sender, RoutedEventArgs e) =>
         await TentarAsync(() => ZoomAsync(new { zoom = PassosZoom.FirstOrDefault(p => p > zoom + 0.001, PassosZoom[^1]) }, "manual"));
 
-    async void AoDiminuir(object sender, RoutedEventArgs e) =>
+    async void AoDiminuir(object sender, RoutedEventArgs e)
+    {
+        if (zoom <= PassosZoom[0] + 0.001) return; // piso do zoom manual: 50 % (os ajustes podem ir a 25 %)
         await TentarAsync(() => ZoomAsync(new { zoom = PassosZoom.LastOrDefault(p => p < zoom - 0.001, PassosZoom[0]) }, "manual"));
+    }
 
     async void AoAjustarLargura(object sender, RoutedEventArgs e) => await TentarAsync(() => AjustarAsync("largura"));
     async void AoPaginaInteira(object sender, RoutedEventArgs e) => await TentarAsync(() => AjustarAsync("pagina"));
@@ -332,6 +378,7 @@ public sealed partial class MainWindow : Window
 
     void AplicarEstadoDaWeb(JsonElement d)
     {
+        if (fechada) return;
         if (d.TryGetProperty("zoom", out var z) && z.ValueKind == JsonValueKind.Number)
         {
             zoom = z.GetDouble();
@@ -362,6 +409,7 @@ public sealed partial class MainWindow : Window
 
     void Ocupar(string texto)
     {
+        if (fechada) return;
         ocupado = true;
         TextoEspera.Text = texto;
         Anel.IsActive = true;
@@ -372,6 +420,7 @@ public sealed partial class MainWindow : Window
 
     void Liberar()
     {
+        if (fechada) return;
         ocupado = false;
         Anel.IsActive = false;
         Espera.Visibility = Visibility.Collapsed;
@@ -388,6 +437,7 @@ public sealed partial class MainWindow : Window
 
     void MostrarMensagem(InfoBarSeverity severidade, string titulo, string mensagem)
     {
+        if (fechada) return;
         AvisoMensagem.Severity = severidade;
         AvisoMensagem.Title = titulo;
         AvisoMensagem.Message = mensagem;
@@ -397,6 +447,6 @@ public sealed partial class MainWindow : Window
     async Task TentarAsync(Func<Task> acao)
     {
         try { await acao(); }
-        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "A visualização não respondeu", e.Message); }
+        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "A operação falhou", e.Message); }
     }
 }

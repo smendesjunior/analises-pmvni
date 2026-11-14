@@ -76,6 +76,17 @@ public static class Exportador
         return new ResultadoExportacao(pdfFinal, reciboFinal, folhas, info.LarguraMm, info.AlturaMm, sha256Pdf, plano);
     }
 
+    /// <summary>Exportação final: renderiza de novo SEM rascunho (a conferência do kit recusa campos entre colchetes ainda não
+    /// preenchidos) e só então exporta. Com erros de conferência lança <see cref="ConferenciaFinalException"/> sem gravar nada.
+    /// A tela pode abrir em rascunho (é só uma visão), mas o PDF final nunca sai com "[...]".</summary>
+    public static async Task<ResultadoExportacao> ExportarFinalAsync(string caminhoDados, ConfigFolhas cfg, string caminhoPdf, ModeloCarregado? modelo = null)
+    {
+        modelo ??= ModeloOficial.Carregar();
+        var final = await Task.Run(() => RelatorioRenderer.Renderizar(caminhoDados, new OpcoesRender(false, false), modelo));
+        if (!final.Ok) throw new ConferenciaFinalException(final.Erros);
+        return await ExportarAsync(final, cfg, caminhoPdf, caminhoDados, modelo);
+    }
+
     static string Hex(byte[] b) => Convert.ToHexStringLower(b);
 
     /// <summary>Grava num temporário da mesma pasta e troca: o arquivo final nunca fica pela metade.</summary>
@@ -94,6 +105,12 @@ public static class Exportador
 /// <summary>PDF exportado: caminhos, folhas (= páginas), tamanho da página medido no PDF (mm), sha256 do PDF e o plano usado.</summary>
 public sealed record ResultadoExportacao(string CaminhoPdf, string CaminhoRecibo, int Folhas, double LarguraPaginaMm, double AlturaPaginaMm,
     string Sha256Pdf, PlanoQuebras Plano);
+
+/// <summary>Exportação final recusada: a conferência do kit (sem rascunho) achou erros, como campos [ ] não preenchidos.</summary>
+public sealed class ConferenciaFinalException(IReadOnlyList<string> erros) : InvalidOperationException("Exportação recusada pela conferência do kit: " + string.Join(" ", erros))
+{
+    public IReadOnlyList<string> Erros { get; } = erros;
+}
 
 /// <summary>Exportação recusada porque o plano tem estouros (bloco maior que a página). A mensagem cita só folha, ref e
 /// medidas, nunca o texto do conteúdo.</summary>

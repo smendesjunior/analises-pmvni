@@ -25,7 +25,8 @@ internal static class Roteiro
     {
         var dadosLongo = args.Dados ?? throw new InvalidOperationException("--roteiro pede também o caminho do dados.json (tests\\corpus\\longo.json).");
         var corpus = Path.GetDirectoryName(dadosLongo)!;
-        var pasta = Path.GetFullPath(Path.Combine(corpus, "..", "saida", "roteiro"));
+        // Todas as saídas (capturas, PDFs, recibos) ficam na pasta do <saida.json>; nada é gravado nem apagado fora dela.
+        var pasta = Path.GetDirectoryName(args.Roteiro!)!;
         Directory.CreateDirectory(pasta);
         var estouro = Path.Combine(corpus, "estouro.json");
         var saida = new JsonObject
