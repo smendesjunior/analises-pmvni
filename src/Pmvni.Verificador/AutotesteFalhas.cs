@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.Web.WebView2.Core;
+using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
 
 namespace Pmvni.Verificador;
@@ -8,8 +9,11 @@ namespace Pmvni.Verificador;
 /// queda do processo do WebView2 e erro interno na fila STA terminam a operação com exceção clara.</summary>
 internal static class AutotesteFalhas
 {
-    // Requisições para este host ficam presas para sempre (deferral nunca concluído): a navegação nunca termina.
-    const string UrlPresa = "https://presa.pmvni.invalid/";
+    /// <summary>Documento mínimo (com &lt;head&gt;) para carregar pelo caminho protegido (sessão + sandbox).</summary>
+    internal static ResultadoRender DocumentoSimples(string corpo) =>
+        new($"<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body>{corpo}</body></html>", Array.Empty<string>(), Array.Empty<RefElemento>());
+
+    static readonly ConfigFolhas Cfg = new("data:,", "", "");
 
     public static async Task<int> ExecutarAsync()
     {
@@ -19,14 +23,18 @@ internal static class AutotesteFalhas
         using (var host = await HostOculto.IniciarAsync(pasta))
         {
             falhas += await Caso("navegacao presa -> TimeoutException em ~3 s", typeof(TimeoutException), TimeSpan.FromSeconds(8),
-                () => host.ExecutarAsync(async wv =>
+                async () =>
                 {
+                    // Requisições ao documento ficam presas para sempre (deferral nunca concluído): a navegação nunca termina.
                     var adiados = new List<Windows.Foundation.Deferral>();
-                    wv.AddWebResourceRequestedFilter(UrlPresa + "*", CoreWebView2WebResourceContext.All);
-                    wv.WebResourceRequested += (_, e) => adiados.Add(e.GetDeferral());
-                    await HostOculto.NavegarParaHtmlAsync(wv, $"<p>ok</p><img src=\"{UrlPresa}x.png\">", TimeSpan.FromSeconds(3));
+                    await host.ExecutarAsync(wv =>
+                    {
+                        wv.WebResourceRequested += (_, e) => { if (e.Request.Uri.Contains("documento.html")) adiados.Add(e.GetDeferral()); };
+                        return Task.FromResult(true);
+                    });
+                    await host.Documento.CarregarAsync(DocumentoSimples("<p>ok</p>"), Cfg, TimeSpan.FromSeconds(3));
                     return adiados.Count;
-                }));
+                });
 
             falhas += await Caso("acao que nunca termina -> TimeoutException em ~2 s", typeof(TimeoutException), TimeSpan.FromSeconds(6),
                 () => host.ExecutarAsync<bool>(async _ => { await Task.Delay(Timeout.Infinite); return true; }, TimeSpan.FromSeconds(2)));
@@ -41,19 +49,22 @@ internal static class AutotesteFalhas
             Console.WriteLine($"   UltimoErroInterno: {host.UltimoErroInterno?.GetType().Name}: {host.UltimoErroInterno?.Message}");
 
             falhas += await Caso("host continua utilizavel depois do erro interno", null, TimeSpan.FromSeconds(30),
-                () => host.ExecutarAsync(async wv => { await HostOculto.NavegarParaHtmlAsync(wv, "<p>ok</p>"); return true; }));
+                async () => { await host.Documento.CarregarAsync(DocumentoSimples("<p>ok</p>"), Cfg); return true; });
         }
 
         using (var host = await HostOculto.IniciarAsync(pasta))
         {
             falhas += await Caso("Page.crash (processo de renderizacao cai) -> InvalidOperationException", typeof(InvalidOperationException), TimeSpan.FromSeconds(20),
-                () => host.ExecutarAsync<bool>(async wv =>
+                async () =>
                 {
-                    await HostOculto.NavegarParaHtmlAsync(wv, "<p>ok</p>");
-                    _ = wv.CallDevToolsProtocolMethodAsync("Page.crash", "{}");
-                    await Task.Delay(Timeout.Infinite);
-                    return true;
-                }, TimeSpan.FromSeconds(60)));
+                    await host.Documento.CarregarAsync(DocumentoSimples("<p>ok</p>"), Cfg);
+                    return await host.ExecutarAsync<bool>(async wv =>
+                    {
+                        _ = wv.CallDevToolsProtocolMethodAsync("Page.crash", "{}");
+                        await Task.Delay(Timeout.Infinite);
+                        return true;
+                    }, TimeSpan.FromSeconds(60));
+                });
         }
 
         var outro = await HostOculto.IniciarAsync(pasta);

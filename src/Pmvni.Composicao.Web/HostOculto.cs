@@ -123,14 +123,10 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
         return tcs.Task;
     }
 
-    /// <summary>Navega para um HTML e espera o NavigationCompleted <b>desta</b> navegação (pelo NavigationId).
+    /// <summary>Navega para uma URL (o host virtual da sessão; com a sandbox, só ele é permitido) e espera o NavigationCompleted <b>desta</b> navegação (pelo NavigationId).
     /// Lança se a navegação falhar ou não terminar em <paramref name="tempoLimite"/>. Chamar na thread STA
     /// (dentro de <see cref="ExecutarAsync{T}"/>).</summary>
-    public static Task NavegarParaHtmlAsync(CoreWebView2 webView, string html, TimeSpan? tempoLimite = null) =>
-        NavegarAsync(webView, () => webView.NavigateToString(html), tempoLimite);
-
-    /// <summary>Como <see cref="NavegarParaHtmlAsync"/>, para uma URL (por exemplo, o host virtual da sessão).</summary>
-    public static Task NavegarParaUrlAsync(CoreWebView2 webView, string url, TimeSpan? tempoLimite = null) =>
+    internal static Task NavegarParaUrlAsync(CoreWebView2 webView, string url, TimeSpan? tempoLimite = null) =>
         NavegarAsync(webView, () => webView.Navigate(url), tempoLimite);
 
     static async Task NavegarAsync(CoreWebView2 webView, Action navegar, TimeSpan? tempoLimite)
@@ -185,14 +181,24 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
     }
 
     /// <summary>Encerra o host, falha o que estava pendente e apaga a pasta da sessão do documento.</summary>
-    public ValueTask DisposeAsync() => new(Task.Run(Dispose));
+    public async ValueTask DisposeAsync()
+    {
+        await Task.Run(Encerrar).ConfigureAwait(false);
+        if (documento is not null) await documento.ApagarPastaAsync().ConfigureAwait(false);
+    }
 
     public void Dispose()
+    {
+        Encerrar();
+        documento?.ApagarPasta();
+    }
+
+    void Encerrar()
     {
         if (descartado) return;
         descartado = true;
         FalharPendentes(new ObjectDisposedException(nameof(HostOculto)));
-        if (contexto is null || hwnd == IntPtr.Zero) { documento?.ApagarPasta(); return; }
+        if (contexto is null || hwnd == IntPtr.Zero) return;
         contexto.Post(_ =>
         {
             try { documento?.Desanexar(); } catch { }
@@ -203,7 +209,6 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
             PostQuitMessage(0);
         }, null);
         if (Thread.CurrentThread != thread) thread.Join(TimeSpan.FromSeconds(10));
-        documento?.ApagarPasta();
     }
 
     void LoopSta()

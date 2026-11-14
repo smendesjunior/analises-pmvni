@@ -14,7 +14,7 @@ public static class Seguranca
         "default-src 'none'; img-src data: https://doc.pmvni.invalid; style-src 'unsafe-inline'; script-src https://doc.pmvni.invalid/paginador.js";
 
     /// <summary>Aplica a sandbox a <paramref name="core"/> e mapeia <paramref name="pastaSessao"/> para <see cref="HostDocumento"/>.
-    /// Chamar na thread do CoreWebView2. <paramref name="aoBloquear"/> recebe a URL de cada requisição respondida com 403.</summary>
+    /// Chamar na thread do CoreWebView2, uma vez por core (o <see cref="DocumentoWeb"/> já a aplica na construção). <paramref name="aoBloquear"/> recebe a URL de cada requisição respondida com 403.</summary>
     public static Task AplicarAsync(CoreWebView2 core, string pastaSessao, Action<string>? aoBloquear = null)
     {
         ArgumentNullException.ThrowIfNull(core);
@@ -40,7 +40,7 @@ public static class Seguranca
         core.WebResourceRequested += (sender, e) =>
         {
             var uri = e.Request.Uri;
-            if (Permitida(uri)) return;
+            if (SubrecursoPermitido(uri)) return;
             e.Response = sender.Environment.CreateWebResourceResponse(null, 403, "Forbidden", "Content-Type: text/plain");
             aoBloquear?.Invoke(uri);
         };
@@ -49,16 +49,19 @@ public static class Seguranca
         core.DownloadStarting += (_, e) => { e.Cancel = true; e.Handled = true; };
         core.NavigationStarting += (_, e) =>
         {
-            if (!Permitida(e.Uri)) { e.Cancel = true; aoBloquear?.Invoke(e.Uri); }
+            if (!EhHostDocumento(e.Uri)) { e.Cancel = true; aoBloquear?.Invoke(e.Uri); }
         };
         return Task.CompletedTask;
     }
 
-    /// <summary>Só o host virtual do documento (https) e URIs sem rede (data:, blob:, about:blank) são permitidos.</summary>
-    internal static bool Permitida(string uri)
-    {
-        if (!Uri.TryCreate(uri, UriKind.Absolute, out var u)) return false;
-        if (u.Scheme == Uri.UriSchemeHttps && string.Equals(u.Host, HostDocumento, StringComparison.OrdinalIgnoreCase)) return true;
-        return u.Scheme is "data" or "blob" || uri == "about:blank";
-    }
+    /// <summary>Navegação de nível superior: somente https://doc.pmvni.invalid/.</summary>
+    internal static bool EhHostDocumento(string uri) =>
+        Uri.TryCreate(uri, UriKind.Absolute, out var u) && EhHostDocumento(u);
+
+    internal static bool EhHostDocumento(Uri u) =>
+        u.Scheme == Uri.UriSchemeHttps && string.Equals(u.Host, HostDocumento, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Subrecursos: o host virtual do documento e URIs sem rede (data:, blob:).</summary>
+    internal static bool SubrecursoPermitido(string uri) =>
+        Uri.TryCreate(uri, UriKind.Absolute, out var u) && (EhHostDocumento(u) || u.Scheme is "data" or "blob");
 }

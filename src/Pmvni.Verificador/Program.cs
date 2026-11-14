@@ -44,15 +44,12 @@ internal static class Program
     static async Task<int> AutotestePdfAsync(string saida)
     {
         var caminho = Path.GetFullPath(saida);
-        using var host = await HostOculto.IniciarAsync(PastaDados.WebView2());
-        var base64 = await host.ExecutarAsync(async webView =>
-        {
-            await HostOculto.NavegarParaHtmlAsync(webView, "<p>ok</p>");
-            var parametros = JsonSerializer.Serialize(new { printBackground = true, preferCSSPageSize = true, paperWidth = 210 / 25.4, paperHeight = 297 / 25.4 });
-            var resposta = await webView.CallDevToolsProtocolMethodAsync("Page.printToPDF", parametros);
-            using var json = JsonDocument.Parse(resposta);
-            return json.RootElement.GetProperty("data").GetString()!;
-        });
+        await using var host = await HostOculto.IniciarAsync(PastaDados.WebView2());
+        await host.Documento.CarregarAsync(AutotesteFalhas.DocumentoSimples("<p>ok</p>"), new ConfigFolhas("data:,", "", ""));
+        var parametros = JsonSerializer.Serialize(new { printBackground = true, preferCSSPageSize = true, paperWidth = 210 / 25.4, paperHeight = 297 / 25.4 });
+        var resposta = await host.CdpAsync("Page.printToPDF", parametros);
+        string base64;
+        using (var json = JsonDocument.Parse(resposta)) base64 = json.RootElement.GetProperty("data").GetString()!;
         Directory.CreateDirectory(Path.GetDirectoryName(caminho)!);
         await File.WriteAllBytesAsync(caminho, Convert.FromBase64String(base64));
         Console.WriteLine($"PDF gravado: {caminho} ({new FileInfo(caminho).Length} bytes)");

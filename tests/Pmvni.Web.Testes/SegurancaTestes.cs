@@ -30,24 +30,76 @@ public sealed class SegurancaTestes : IClassFixture<SegurancaFixture>
     public async Task requisicao_externa_bloqueada()
     {
         // Documento SEM CSP na pasta da sessão: só o filtro de requisições protege. A resposta é 403 e nada chega à página.
-        await using var proprio = await HostOculto.CriarAsync(800, 600); // host próprio: a Seguranca é aplicada a outra pasta
-        var bloqueios = new List<string>();
-        var pasta = Path.Combine(PastaDados.Raiz, "sessao", "teste-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(pasta);
+        await using var proprio = await HostOculto.CriarAsync(800, 600);
+        File.WriteAllText(Path.Combine(proprio.Documento.PastaSessao, "sem-csp.html"),
+            "<!DOCTYPE html><html><body><img id=\"i\" src=\"https://exemplo.com/x.png\"></body></html>");
+        await proprio.ExecutarAsync(async core => { await HostOculto.NavegarParaUrlAsync(core, Seguranca.UrlBase + "sem-csp.html"); return true; });
+        await Avaliar(proprio, "new Promise(r => { const i = document.getElementById('i'); if (i.complete) r(1); else { i.onload = i.onerror = () => r(1); } })");
+        Assert.Equal(0, (await Avaliar(proprio, "document.getElementById('i').naturalWidth")).GetInt32());
+        Assert.Contains(proprio.Documento.RequisicoesBloqueadas, u => u.StartsWith("https://exemplo.com/x.png", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task core_protegido_desde_a_criacao_sem_passar_por_carregar()
+    {
+        // ExecutarAsync é público: a navegação crua também esbarra na sandbox.
+        await using var proprio = await HostOculto.CriarAsync(800, 600);
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => proprio.ExecutarAsync(async core =>
+        {
+            await HostOculto.NavegarParaUrlAsync(core, "https://exemplo.com/", TimeSpan.FromSeconds(5));
+            return true;
+        }));
+        Assert.Contains("Navegação falhou", ex.Message);
+        ex = await Assert.ThrowsAsync<InvalidOperationException>(() => proprio.ExecutarAsync(async core =>
+        {
+            await HostOculto.NavegarParaUrlAsync(core, "data:text/html,<p>oi</p>", TimeSpan.FromSeconds(5));
+            return true;
+        }));
+        Assert.Contains("Navegação falhou", ex.Message);
+        Assert.False((await proprio.ExecutarAsync(core => Task.FromResult(core.Settings.AreDefaultContextMenusEnabled))));
+    }
+
+    [Theory]
+    [InlineData("https://doc.pmvni.invalid/documento.html", true)]
+    [InlineData("http://doc.pmvni.invalid/documento.html", false)]
+    [InlineData("https://exemplo.com/", false)]
+    [InlineData("data:text/html,x", false)]
+    [InlineData("", false)]
+    public void origem_de_mensagem_exige_https_e_host_do_documento(string origem, bool esperado) =>
+        Assert.Equal(esperado, Seguranca.EhHostDocumento(origem));
+
+    [Fact]
+    public async Task falha_ao_apagar_a_pasta_fica_registrada()
+    {
+        var host2 = await HostOculto.CriarAsync(800, 600);
+        var doc = host2.Documento;
+        FalhaRegistrada = null;
+        doc.FalhaAoApagarPasta += e => FalhaRegistrada = e;
+        using (new FileStream(Path.Combine(doc.PastaSessao, "preso.txt"), FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+            await host2.DisposeAsync();
+        Assert.NotNull(doc.ErroAoApagarPasta);
+        Assert.NotNull(FalhaRegistrada);
+        try { Directory.Delete(doc.PastaSessao, true); } catch { }
+    }
+    static Exception? FalhaRegistrada;
+
+    [Fact]
+    public async Task sessoes_orfas_antigas_sao_apagadas_na_criacao()
+    {
+        var raiz = Path.Combine(PastaDados.Raiz, "sessao");
+        var velha = Path.Combine(raiz, "orfa-" + Guid.NewGuid().ToString("N"));
+        var recente = Path.Combine(raiz, "viva-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(velha);
+        File.WriteAllText(Path.Combine(velha, "documento.html"), "<p>dados pessoais</p>");
+        Directory.CreateDirectory(recente);
+        Directory.SetLastWriteTimeUtc(velha, DateTime.UtcNow.AddDays(-2));
         try
         {
-            File.WriteAllText(Path.Combine(pasta, "sem-csp.html"), "<!DOCTYPE html><html><body><img id=\"i\" src=\"https://exemplo.com/x.png\"></body></html>");
-            await proprio.ExecutarAsync(async core =>
-            {
-                await Seguranca.AplicarAsync(core, pasta, u => { lock (bloqueios) bloqueios.Add(u); });
-                await HostOculto.NavegarParaUrlAsync(core, Seguranca.UrlBase + "sem-csp.html");
-                return true;
-            });
-            await Avaliar(proprio, "new Promise(r => { const i = document.getElementById('i'); if (i.complete) r(1); else { i.onload = i.onerror = () => r(1); } })");
-            Assert.Equal(0, (await Avaliar(proprio, "document.getElementById('i').naturalWidth")).GetInt32());
-            lock (bloqueios) Assert.Contains(bloqueios, u => u.StartsWith("https://exemplo.com/x.png", StringComparison.Ordinal));
+            await using var h = await HostOculto.CriarAsync(800, 600);
+            Assert.False(Directory.Exists(velha));
+            Assert.True(Directory.Exists(recente));
         }
-        finally { try { Directory.Delete(pasta, true); } catch { } }
+        finally { try { Directory.Delete(recente, true); } catch { } }
     }
 
     [Fact]

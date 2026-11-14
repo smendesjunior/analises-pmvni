@@ -26,7 +26,6 @@ public sealed class DocumentoWeb : IDisposable
     readonly ConcurrentQueue<Descarte> descartes = new();
     readonly ConcurrentQueue<string> bloqueadas = new();
     TaskCompletionSource? pronto;
-    bool segurancaAplicada;
     int carregamentos;
     int desanexado, pastaApagada;
 
@@ -37,11 +36,49 @@ public sealed class DocumentoWeb : IDisposable
     {
         this.core = core ?? throw new ArgumentNullException(nameof(core));
         this.naThread = naThread;
-        PastaSessao = Path.Combine(PastaDados.Raiz, "sessao", Guid.NewGuid().ToString("N"));
+        var raizSessoes = Path.Combine(PastaDados.Raiz, "sessao");
+        LimparOrfas(raizSessoes);
+        PastaSessao = Path.Combine(raizSessoes, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(PastaSessao);
+        // A sandbox vale desde a construção: o core nunca fica exposto, nem a navegações feitas fora de CarregarAsync.
+        // Se falhar, a construção falha (sem nova tentativa, logo sem manipuladores duplicados).
+        try { Seguranca.AplicarAsync(core, PastaSessao, RegistrarBloqueio).GetAwaiter().GetResult(); }
+        catch { ApagarPasta(); throw; }
         core.WebMessageReceived += AoReceberMensagem;
         core.ProcessFailed += AoFalharProcesso;
     }
+
+    /// <summary>Sessões com mais de <see cref="IdadeOrfa"/> sem alteração são restos de uma queda do app: apagadas na criação
+    /// de um documento. Só entram no alcance subpastas diretas de <c>&lt;dados&gt;\sessao</c> (nunca links simbólicos).</summary>
+    internal static readonly TimeSpan IdadeOrfa = TimeSpan.FromDays(1);
+
+    static void LimparOrfas(string raizSessoes)
+    {
+        if (!Directory.Exists(raizSessoes)) return;
+        var raiz = Path.TrimEndingDirectorySeparator(Path.GetFullPath(raizSessoes)) + Path.DirectorySeparatorChar;
+        foreach (var pasta in Directory.EnumerateDirectories(raizSessoes))
+        {
+            try
+            {
+                var info = new DirectoryInfo(pasta);
+                var completo = Path.GetFullPath(info.FullName);
+                if (!completo.StartsWith(raiz, StringComparison.OrdinalIgnoreCase)) continue;
+                if ((info.Attributes & FileAttributes.ReparsePoint) != 0) continue;
+                if (DateTime.UtcNow - info.LastWriteTimeUtc < IdadeOrfa) continue;
+                Directory.Delete(completo, true);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Debug.WriteLine("[sessao] orfa nao apagada: " + e.Message);
+            }
+        }
+    }
+
+    /// <summary>Preenchido quando a pasta da sessão não pôde ser apagada no Dispose (arquivo preso).</summary>
+    public Exception? ErroAoApagarPasta { get; private set; }
+
+    /// <summary>Disparado (em qualquer thread) quando a pasta da sessão não pôde ser apagada.</summary>
+    public event Action<Exception>? FalhaAoApagarPasta;
 
     /// <summary>Pasta da sessão (<c>sessao\&lt;guid&gt;</c>), mapeada para doc.pmvni.invalid e apagada no Dispose.</summary>
     public string PastaSessao { get; }
@@ -61,7 +98,7 @@ public sealed class DocumentoWeb : IDisposable
 
     /// <summary>Grava a cópia de sessão do HTML, navega até ela e espera o <c>pronto</c> do paginador.
     /// O HTML do <paramref name="r"/> não é alterado.</summary>
-    public Task CarregarAsync(ResultadoRender r, ConfigFolhas cfg)
+    public Task CarregarAsync(ResultadoRender r, ConfigFolhas cfg, TimeSpan? limiteNavegacao = null)
     {
         ArgumentNullException.ThrowIfNull(r);
         ArgumentNullException.ThrowIfNull(cfg);
@@ -70,11 +107,6 @@ public sealed class DocumentoWeb : IDisposable
         return naThread(async () =>
         {
             ObjectDisposedException.ThrowIf(desanexado != 0, this);
-            if (!segurancaAplicada)
-            {
-                await Seguranca.AplicarAsync(core, PastaSessao, RegistrarBloqueio);
-                segurancaAplicada = true;
-            }
             await File.WriteAllTextAsync(Path.Combine(PastaSessao, "documento.html"), html, new UTF8Encoding(false));
             await File.WriteAllBytesAsync(Path.Combine(PastaSessao, "paginador.js"), LerPaginador());
             Render = r;
@@ -82,8 +114,8 @@ public sealed class DocumentoWeb : IDisposable
             var espera = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             pronto = espera;
             // O parâmetro evita que o WebView2 trate a navegação como recarga do mesmo documento.
-            await HostOculto.NavegarParaUrlAsync(core, Seguranca.UrlBase + "documento.html?c=" + Interlocked.Increment(ref carregamentos));
-            await espera.Task.WaitAsync(LimiteProntoPadrao);
+            await HostOculto.NavegarParaUrlAsync(core, Seguranca.UrlBase + "documento.html?c=" + Interlocked.Increment(ref carregamentos), limiteNavegacao);
+            await espera.Task.WaitAsync(limiteNavegacao ?? LimiteProntoPadrao);
         });
     }
 
@@ -122,20 +154,27 @@ public sealed class DocumentoWeb : IDisposable
         FalharChamadas(new ObjectDisposedException(nameof(DocumentoWeb)));
         try { core.WebMessageReceived -= AoReceberMensagem; } catch { }
         try { core.ProcessFailed -= AoFalharProcesso; } catch { }
-        try { if (segurancaAplicada) core.ClearVirtualHostNameToFolderMapping(Seguranca.HostDocumento); } catch { }
+        try { core.ClearVirtualHostNameToFolderMapping(Seguranca.HostDocumento); } catch { }
     }
 
-    /// <summary>Apaga a pasta da sessão (com tentativas: o WebView2 pode demorar a soltar os arquivos).</summary>
-    internal void ApagarPasta()
+    /// <summary>Apaga a pasta da sessão, com tentativas (o WebView2 pode demorar a soltar os arquivos). Se não conseguir,
+    /// registra em <see cref="ErroAoApagarPasta"/> e dispara <see cref="FalhaAoApagarPasta"/>.</summary>
+    internal async Task ApagarPastaAsync()
     {
         if (Interlocked.Exchange(ref pastaApagada, 1) != 0) return;
+        Exception? ultimo = null;
         for (var i = 0; i < 40; i++)
         {
             try { if (Directory.Exists(PastaSessao)) Directory.Delete(PastaSessao, true); return; }
-            catch (IOException) { Thread.Sleep(50); }
-            catch (UnauthorizedAccessException) { Thread.Sleep(50); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { ultimo = e; }
+            await Task.Delay(50).ConfigureAwait(false);
         }
+        ErroAoApagarPasta = ultimo;
+        if (ultimo is not null) try { FalhaAoApagarPasta?.Invoke(ultimo); } catch { }
     }
+
+    /// <summary>Versão síncrona (para <see cref="Dispose"/>); roda fora do contexto de sincronização para não travar.</summary>
+    internal void ApagarPasta() => Task.Run(ApagarPastaAsync).GetAwaiter().GetResult();
 
     public void Dispose()
     {
@@ -148,7 +187,7 @@ public sealed class DocumentoWeb : IDisposable
         string json;
         try { json = e.WebMessageAsJson; }
         catch (Exception ex) { Descartar("mensagem ilegivel: " + ex.Message, ""); return; }
-        if (!Uri.TryCreate(e.Source, UriKind.Absolute, out var origem) || !string.Equals(origem.Host, Seguranca.HostDocumento, StringComparison.OrdinalIgnoreCase))
+        if (!Seguranca.EhHostDocumento(e.Source))
         {
             Descartar("origem nao permitida: " + e.Source, json);
             return;
