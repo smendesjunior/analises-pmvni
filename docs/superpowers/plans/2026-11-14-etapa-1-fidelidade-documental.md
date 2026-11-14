@@ -90,7 +90,7 @@ public sealed record ConfigFolhas(string CabecalhoUri, string RodapeEsquerda, st
 
 ---
 
-### Tarefa 1: Prova técnica — executável único com WinUI 3 + WebView2 (portão)
+### Task 1 (Tarefa 1): Prova técnica — executável único com WinUI 3 + WebView2 (portão)
 
 Se esta tarefa falhar, **parar e levar a decisão ao usuário** (spec D6). Nada mais começa antes.
 
@@ -107,7 +107,7 @@ Se esta tarefa falhar, **parar e levar a decisão ao usuário** (spec D6). Nada 
 - [ ] **Passo 6:** `dotnet run --project src/Pmvni.Verificador -- autoteste-pdf tests/saida/ok.pdf` → PDF de 1 página com "ok".
 - [ ] **Passo 7:** registrar no `docs/notas-tecnicas.md` tamanho do .exe, tempo de primeira abertura (extração) e onde o .NET extraiu os arquivos. Commit `chore: prova técnica do executável único`.
 
-### Tarefa 2: Modelo oficial embutido
+### Task 2 (Tarefa 2): Modelo oficial embutido
 
 **Arquivos:** `src/Pmvni.Composicao/ModeloOficial/rev10/*`, `ModeloOficial.cs`; teste `tests/Pmvni.Composicao.Testes/ModeloOficialTestes.cs`.
 **Produz:** `static ModeloCarregado ModeloOficial.Carregar()`; `static IReadOnlyDictionary<string,string> ModeloOficial.HashesDoRegistro` (os 7 hashes da rev. 10 copiados do registro).
@@ -116,7 +116,7 @@ Se esta tarefa falhar, **parar e levar a decisão ao usuário** (spec D6). Nada 
 - [ ] **Passo 2:** teste `cada_arquivo_embutido_confere_com_o_registro_rev10` (sha256 de cada recurso == valor do registro) e `carregar_devolve_revisao_10`. Rodar: falha.
 - [ ] **Passo 3:** implementar `ModeloOficial`. Rodar `dotnet test --filter ModeloOficial`: passa. Commit.
 
-### Tarefa 3: Mini-linguagem do kit
+### Task 3 (Tarefa 3): Mini-linguagem do kit
 
 **Arquivos:** `Molde/PythonTexto.cs`, `Molde/Molde.cs`; teste `MoldeTestes.cs`.
 **Produz:**
@@ -130,7 +130,7 @@ Semântica a copiar de `gerar_relatorio.py` (`compilar`, `valor`, `render`): com
 - [ ] **Passo 1:** testes: `escape_igual_ao_python` (`"a&b<c>\"d'"` → `a&amp;b&lt;c&gt;&quot;d&#x27;`), `loop_even_e_n2`, `if_else_com_lista_vazia`, `filtro_safe_nao_escapa`, `caminho_com_indice_numerico`, `marcador_desconhecido_lanca`, `str_de_bool_e_float` (`True`, `0.1`, `1e-05`, `12.0`). Falham.
 - [ ] **Passo 2:** implementar. Passam. Commit.
 
-### Tarefa 4: Funções do kit portadas, com referências geradas pelo próprio kit
+### Task 4 (Tarefa 4): Funções do kit portadas, com referências geradas pelo próprio kit
 
 **Arquivos:** `Kit/Situacoes.cs` (`SIT`, `Pill`, `Cor`, `SIT_ITEM`, `SIT_INDICE`, `SIT_LOCAL`), `Kit/Icones.cs` (`Icone`), `Kit/Cabecalho.cs` (`CabecalhoUri(string orgao, byte[] brasao)`), `Kit/Diagrama.cs` (`PlantaSvg`, `VolumetriaSvg`, `MontarDiagrama`), `Kit/Localizacao.cs` (`Agrupar` → grupos e colunas, legenda padrão), `Kit/Conferencia.cs` (`Conferir(JsonElement d, Func<string,bool> imagemExiste, bool rascunho) → IReadOnlyList<string>`, `Resumo`); `tools/gerar_referencias.py`; `tests/referencias/*.txt|json`; teste `KitTestes.cs`.
 
@@ -138,7 +138,7 @@ Semântica a copiar de `gerar_relatorio.py` (`compilar`, `valor`, `render`): com
 - [ ] **Passo 2:** testes em `KitTestes.cs` comparando cada função com o arquivo correspondente **byte a byte** (mensagens de `Conferir` iguais, na mesma ordem). Falham.
 - [ ] **Passo 3:** implementar. Atenção: formatação `:.1f` do Python = `ToString("F1", CultureInfo.InvariantCulture)`; base64 padrão; `html.escape` da Tarefa 3. Passam. Commit.
 
-### Tarefa 5: Renderizador do relatório e paridade V1
+### Task 5 (Tarefa 5): Renderizador do relatório e paridade V1
 
 **Arquivos:** `RelatorioRenderer.cs`; `tools/gerar_corpus.py`; `tests/corpus/{curto,longo,extremos,estouro,sem_opcionais}.json` + `tests/corpus/img/*.png`; `tools/fidelidade.py` (subcomando `v1`); teste `RelatorioRendererTestes.cs`.
 **Consome:** Tarefas 2–4. **Produz:** `static ResultadoRender RelatorioRenderer.Renderizar(string caminhoDados, OpcoesRender op, ModeloCarregado m)`.
@@ -151,7 +151,7 @@ Corpus (fictício, determinístico, sem nomes reais): `curto` (3 itens, sem seç
 - [ ] **Passo 2:** `fidelidade.py v1`: para cada caso do corpus + `dados_modelo.json` com `--instrucoes` + (se `tests/local.json` existir) o 17098, roda o gerador do kit com `--rascunho --manter-html` (nunca grava recibo) para uma pasta em `%TEMP%`, roda `Pmvni.Verificador html`, compara os HTML **byte a byte**, apaga a pasta, grava em `tests/saida/v1.json` só `{caso, igual, sha256_kit, sha256_editor}`.
   Esperado: todos `igual: true`. Commit.
 
-### Tarefa 6: Núcleo web — segurança, ponte tipada e host oculto
+### Task 6 (Tarefa 6): Núcleo web — segurança, ponte tipada e host oculto
 
 **Arquivos:** `Seguranca.cs`, `Ponte/Mensagens.cs`, `DocumentoWeb.cs`, `HostOculto.cs`; `web/paginador/src/index.ts` (ponte JS); teste `tests/Pmvni.Web.Testes/SegurancaTestes.cs`, `PonteTestes.cs`.
 **Produz:**
@@ -166,7 +166,7 @@ Segurança: pasta da sessão `%LOCALAPPDATA%\EditorRelatoriosPMVNI\sessao\<guid>
 - [ ] **Passo 1:** testes: `requisicao_externa_bloqueada` (documento com `<img src="https://exemplo.com/x.png">` → nenhuma requisição sai, evento de bloqueio registrado), `script_inline_nao_executa`, `mensagem_tipo_desconhecido_descartada`, `pasta_da_sessao_apagada_ao_fechar`. Falham.
 - [ ] **Passo 2:** implementar; `web/paginador` com `build.mjs` (esbuild, `--bundle --format=iife --target=chrome120`), saída copiada para `src/Pmvni.Composicao.Web/web/paginador.js` como recurso embutido. Passam. Commit.
 
-### Tarefa 7: Paginador — cálculo do plano de quebras
+### Task 7 (Tarefa 7): Paginador — cálculo do plano de quebras
 
 **Arquivos:** `web/paginador/src/{medida,fragmentar,folhas,plano}.ts`, `web/paginador/folha.css` (embutido no bundle); `PlanoQuebras.cs`; teste `tests/Pmvni.Web.Testes/PaginadorTestes.cs` + páginas de teste em `tests/Pmvni.Web.Testes/casos/*.html` (HTML curto com o CSS do kit).
 **Consome:** Tarefa 6. **Produz:** mensagem `compor` → `composto { plano: PlanoQuebras, folhas: number, refsPorFolha: string[][] }`; `Task<PlanoQuebras> DocumentoWeb.ComporAsync()`.
@@ -186,7 +186,7 @@ Regras (genéricas, lidas do estilo computado, não de nomes de classe):
 - [ ] **Passo 1:** testes (cada caso é um HTML pequeno com o CSS do kit): `blocos_simples_quebram_na_folha_seguinte`, `card_dividido_repete_borda_clone`, `refs_div_dividido_com_slice`, `tabela_repete_thead_e_nao_divide_linha`, `sec_acompanha_o_bloco_seguinte`, `paragrafo_longo_divide_por_linha_com_orphans_widows`, `margem_superior_zerada_na_folha_seguinte`, `bloco_gigante_gera_estouro`, `imagem_lenta_nao_altera_plano` (imagem servida com atraso dá o mesmo plano), `mesmo_html_mesmo_plano` (duas execuções idênticas). Falham.
 - [ ] **Passo 2:** implementar. Passam. Commit.
 
-### Tarefa 8: Aplicar o plano, texto por folha e exportação do PDF (V2)
+### Task 8 (Tarefa 8): Aplicar o plano, texto por folha e exportação do PDF (V2)
 
 **Arquivos:** `web/paginador/src/{plano,texto}.ts`; `DocumentoWeb.cs` (`AplicarPlanoAsync`, `TextoPorFolhaAsync`, `CapturarFolhaAsync`); `src/Pmvni.Composicao.Web/Exportador.cs`; teste `ExportacaoTestes.cs`.
 **Produz:**
@@ -200,7 +200,7 @@ Regras (genéricas, lidas do estilo computado, não de nomes de classe):
 - [ ] **Passo 1:** testes: `aplicar_plano_reproduz_as_mesmas_folhas` (texto por folha igual ao da composição), `plano_de_outro_documento_recusado`, `plano_aplicado_com_escala_150_nao_muda_conteudo_das_folhas` (host com `deviceScaleFactor: 1.5`), `exportacao_recusada_com_estouro` (corpus `estouro`, mensagem "Bloco … excede a página …"), `pdf_tem_o_mesmo_numero_de_folhas`, `recibo_gravado_com_hashes`. Falham.
 - [ ] **Passo 2:** implementar. Passam. Commit.
 
-### Tarefa 9: Verificador e suíte de fidelidade V2–V4; calibração de cabeçalho e rodapé
+### Task 9 (Tarefa 9): Verificador e suíte de fidelidade V2–V4; calibração de cabeçalho e rodapé
 
 **Arquivos:** `src/Pmvni.Verificador/Program.cs`; `tools/fidelidade.py` (subcomandos `v2`, `v3`, `v4`, `tudo`); `docs/fidelidade.md`.
 **Comandos do Verificador:** `html <dados.json> <saida.html> [--instrucoes]`; `plano <dados.json> <saida.json>`; `pdf <dados.json> <saida.pdf>`; `capturas <dados.json> <pasta> --dpi 150`; `texto <dados.json> <saida.json>`; `autoteste-pdf <saida.pdf>` (da Tarefa 1).
@@ -214,7 +214,7 @@ Critérios (iniciais; mudar só com justificativa registrada em `docs/fidelidade
 - [ ] **Passo 2:** rodar `python -I tools/fidelidade.py v3 --caso curto`. Medir no PDF do kit (PyMuPDF: posição da imagem do cabeçalho e das linhas/textos do rodapé) e ajustar as constantes de `folha.css` até V3 visual ≤ 2 % na página 1. Registrar as medidas em `docs/fidelidade.md`.
 - [ ] **Passo 3:** rodar `python -I tools/fidelidade.py tudo`. Esperado: todos aprovados. Divergência de quebra em algum caso → corrigir a regra do paginador (Tarefa 7) com um novo teste que reproduza o caso; nunca afrouxar o critério para passar. Commit.
 
-### Tarefa 10: App WinUI — visualização A4 contínua (somente leitura)
+### Task 10 (Tarefa 10): App WinUI — visualização A4 contínua (somente leitura)
 
 **Arquivos:** `src/Pmvni.App/{App.xaml,MainWindow.xaml,MainWindow.xaml.cs,Estilos.xaml}`; `web/paginador/src/tela.ts` (aparência só fora das folhas); teste manual roteirizado em `docs/roteiro-etapa-1.md` + teste `tests/Pmvni.Web.Testes/TelaTestes.cs`.
 
@@ -228,7 +228,7 @@ Critérios (iniciais; mudar só com justificativa registrada em `docs/fidelidade
 - [ ] **Passo 1:** testes `zoom_nao_recompoe` (mesmo plano e mesmo texto por folha após `definirZoom 0.5` e `2.0`) e `aparencia_de_tela_nao_entra_no_pdf` (PDF exportado após abrir na tela = PDF do Verificador, mesmo `sha256_html` e mesmo texto por página). Falham → implementar → passam.
 - [ ] **Passo 2:** build com `tools/build-release.ps1`; abrir o .exe via `explorer.exe` com `tests/corpus/longo.json`; seguir `docs/roteiro-etapa-1.md` (rolagem contínua, zoom, navegação, exportação, corpus `estouro` recusado, tema escuro) e registrar o resultado. Commit.
 
-### Tarefa 11: Entrega da etapa — build final, limpeza e Recriar PC
+### Task 11 (Tarefa 11): Entrega da etapa — build final, limpeza e Recriar PC
 
 **Arquivos:** `tools/build-release.ps1` (versão final), `recriar.json`, `docs/entrega-etapa-1.md`; conforme a receita: `Recriar PC\sistema\MAPA-DO-AMBIENTE.md` (se mudar ligações entre apps).
 
