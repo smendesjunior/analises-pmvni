@@ -254,6 +254,34 @@ public sealed partial class MainWindow
         foreach (var p in Enum.GetValues<Provedor>()) MostrarCartao(p);
     }
 
+    /// <summary>Cabeçalho do agente (correções 2026-11-15): ícone, nome, plugin e a situação num selo.</summary>
+    static FrameworkElement CabecalhoDoAgente(Provedor p, string situacao)
+    {
+        var nome = p == Provedor.ChatGpt ? "ChatGPT (Codex)" : "Claude (Claude Code)";
+        var g = new Grid { ColumnSpacing = 14, Padding = new Thickness(0, 8, 0, 8) };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        g.Children.Add(new FontIcon { Glyph = p == Provedor.ChatGpt ? "\uE99A" : "\uE945", FontSize = 26, VerticalAlignment = VerticalAlignment.Center });
+        var nomes = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        nomes.Children.Add(new TextBlock { Text = nome, FontSize = 18, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        nomes.Children.Add(new TextBlock { Text = p == Provedor.ChatGpt ? "Plugin analise" : "Plugin análise pro", Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] });
+        Grid.SetColumn(nomes, 1);
+        g.Children.Add(nomes);
+        var selo = new Border
+        {
+            CornerRadius = new CornerRadius(4), Padding = new Thickness(10, 3, 10, 4), BorderThickness = new Thickness(1), VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(18, 0, 0, 0),
+            BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["ControlStrongStrokeColorDefaultBrush"],
+            Child = new TextBlock { Text = situacao.Length > 60 ? situacao[..60].TrimEnd() + "…" : situacao, FontSize = 12 },
+        };
+        ToolTipService.SetToolTip(selo, situacao);
+        Grid.SetColumn(selo, 2);
+        g.Children.Add(selo);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(g, nome + ", " + situacao);
+        return g;
+    }
+
     void MostrarCartao(Provedor p)
     {
         var c = CartaoDoAgente(p);
@@ -273,7 +301,7 @@ public sealed partial class MainWindow
         c.TextoSituacao.Text = LinhaSituacaoAgente(p);
         // Cabeçalho do expansor em Ajustes › Inteligência artificial: o nome e a situação (auditoria §3.3).
         var expansor = p == Provedor.ChatGpt ? PaginaDeAjustes.ExpansorChatGpt : PaginaDeAjustes.ExpansorClaude;
-        expansor.Header = (p == Provedor.ChatGpt ? "ChatGPT (Codex)" : "Claude (Claude Code)") + "  ·  " + c.TextoSituacao.Text.Split('\n')[0].Trim();
+        expansor.Header = CabecalhoDoAgente(p, c.TextoSituacao.Text.Split('\n')[0].Trim());
         var avisos = AvisosDoAgente(p);
         c.TextoAvisosDoTeste.Text = string.Join(Environment.NewLine, avisos);
         c.TextoAvisosDoTeste.Visibility = avisos.Count == 0 ? Visibility.Collapsed : Visibility.Visible;

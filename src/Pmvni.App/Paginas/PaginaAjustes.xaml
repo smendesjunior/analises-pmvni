@@ -339,7 +339,11 @@
           <StackPanel x:Name="CategoriaIa" Tag="ia" Spacing="12" Visibility="Collapsed">
             <StackPanel Spacing="4"><TextBlock Text="Inteligência artificial" Style="{StaticResource PmvniAjusteTituloPagina}"/><TextBlock x:Name="AjudaIa" Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
             <TextBlock x:Name="TituloAgentes" x:FieldModifier="internal" Text="Inteligência artificial" Visibility="Collapsed"/>
-            <TextBlock x:Name="TextoIntroAgentes" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
+            <InfoBar Severity="Informational" IsOpen="True" IsClosable="False" Title="O editor não faz a análise">
+              <InfoBar.Content>
+                <TextBlock x:Name="TextoIntroAgentes" x:FieldModifier="internal" TextWrapping="Wrap" Margin="0,0,0,12"/>
+              </InfoBar.Content>
+            </InfoBar>
             <!-- Como funciona (correções 2026-11-15): a página se explica sozinha; Entrar abre o login de cada programa numa janela própria. -->
             <Border Style="{StaticResource PmvniCartaoSecao}">
               <StackPanel Spacing="14">
@@ -366,7 +370,7 @@
                 </StackPanel>
               </StackPanel>
             </Border>
-            <TextBlock Text="Agentes" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
+            <TextBlock Text="Agentes" Style="{StaticResource PmvniTituloSecao}" Margin="0,8,0,0"/>
             <Expander x:Name="ExpansorChatGpt" x:FieldModifier="internal" Header="ChatGPT (Codex)" IsExpanded="True" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
               <local:CartaoAgente x:Name="CartaoChatGpt" x:FieldModifier="internal"/>
             </Expander>
