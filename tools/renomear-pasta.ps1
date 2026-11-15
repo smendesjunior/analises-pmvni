@@ -1,4 +1,4 @@
-# Renomeia a pasta do projeto para "Análise de Projetos - PMVNI" e atualiza o recriar.json. Rodar fora do pacote (renomear-pasta.cmd via explorer.exe), com o app e o Claude fechados.
+﻿# Renomeia a pasta do projeto para "Análise de Projetos - PMVNI" e atualiza o recriar.json. Rodar fora do pacote (renomear-pasta.cmd via explorer.exe), com o app e o Claude fechados.
 $ErrorActionPreference = 'Stop'
 $velha = Split-Path $PSScriptRoot -Parent
 $nova = Join-Path (Split-Path $velha -Parent) 'Análise de Projetos - PMVNI'
