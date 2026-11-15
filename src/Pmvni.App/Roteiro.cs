@@ -10,25 +10,45 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
 using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
+using Pmvni.Revisao;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 
 namespace Pmvni.App;
 
-/// <summary>Modo de diagnóstico <c>--roteiro &lt;saida.json&gt;</c>: depois de abrir o relatório da linha de comando, exercita a tela
-/// pelos mesmos caminhos dos botões (abrir, rolagem, zoom, navegação, exportação, corpus com estouro, tema escuro) e grava o
-/// resultado em JSON. Como ninguém vê a janela, também grava capturas (PNG) em tests\saida\roteiro para a conferência visual.
-/// Cada passo é independente: falha num não impede os seguintes.</summary>
+/// <summary>Respostas fixas do roteiro: nenhum seletor nem diálogo abre (ninguém está olhando a janela). Confirmar responde
+/// <see cref="Confirmar"/>; cada pergunta fica registrada.</summary>
+internal sealed class PerguntasFixas : IPerguntas
+{
+    public bool Confirmar { get; set; } = true;
+    public RespostaRecuperacao Recuperacao { get; set; } = RespostaRecuperacao.Descartar;
+    public List<string> Feitas { get; } = [];
+
+    public Task<string?> AbrirArquivoAsync(string extensao) { Feitas.Add("abrir " + extensao); return Task.FromResult<string?>(null); }
+    public Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao) { Feitas.Add("salvar " + nomeSugerido); return Task.FromResult<string?>(null); }
+    public Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao) { Feitas.Add("confirmar " + titulo); return Task.FromResult(Confirmar); }
+    public Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos) { Feitas.Add($"recuperar {comandos}"); return Task.FromResult(Recuperacao); }
+}
+
+/// <summary>Modo de diagnóstico <c>--roteiro &lt;saida.json&gt;</c>: exercita o shell e o módulo Relatórios pelos mesmos caminhos dos
+/// comandos da faixa (importar, rolagem, zoom, navegação, exportação, corpus com estouro, tema escuro, campos em aberto, pacote mudado no
+/// disco, faixa por módulo, reabrir o pacote) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
+/// na pasta do &lt;saida.json&gt; (tests\saida\roteiro). As perguntas têm respostas fixas (<see cref="PerguntasFixas"/>). Cada passo é
+/// independente: falha num não impede os seguintes.</summary>
 internal static class Roteiro
 {
     public static async Task ExecutarAsync(MainWindow j, Argumentos args)
     {
         var dadosLongo = args.Dados ?? throw new InvalidOperationException("--roteiro pede também o caminho do dados.json (tests\\corpus\\longo.json).");
         var corpus = Path.GetDirectoryName(dadosLongo)!;
-        // Todas as saídas (capturas, PDFs, recibos) ficam na pasta do <saida.json>; nada é gravado nem apagado fora dela.
         var pasta = Path.GetDirectoryName(args.Roteiro!)!;
         Directory.CreateDirectory(pasta);
-        var estouro = Path.Combine(corpus, "estouro.json");
+        var perguntas = new PerguntasFixas();
+        Perguntas.Atual = perguntas;
+        var pacoteLongo = Path.Combine(pasta, "longo.pmvrel");
+        // Pacotes de rodadas anteriores (só os do roteiro, só nesta pasta): a importação nunca sobrescreve.
+        foreach (var nome in new[] { "longo", "estouro", "curto-colchetes", "curto-muda" })
+            foreach (var ext in new[] { ".pmvrel", ".pmvrel.bak" }) File.Delete(Path.Combine(pasta, nome + ext));
         var saida = new JsonObject
         {
             ["gerado_em"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
@@ -39,6 +59,7 @@ internal static class Roteiro
         var passos = new JsonObject();
         saida["passos"] = passos;
         var falhas = new JsonArray();
+        string? planoDaImportacao = null;
 
         async Task Passo(string nome, Func<JsonObject, Task> corpoPasso)
         {
@@ -49,17 +70,24 @@ internal static class Roteiro
             if (p["ok"]?.GetValue<bool>() != true) falhas.Add(nome);
         }
 
-        await Passo("1_abrir_longo", async p =>
+        await Passo("1_importar_longo", async p =>
         {
-            var a = await j.AbrirAsync(dadosLongo) ?? throw new InvalidOperationException("não abriu: " + j.InfoMensagem.Message);
+            if (!await j.ImportarParaAsync(dadosLongo, pacoteLongo)) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+            var a = j.Aberto!;
             var plano = a.Composicao.Plano;
+            planoDaImportacao = plano.ParaJson();
+            var capa = JsonNode.Parse(await File.ReadAllTextAsync(dadosLongo))!["capa"]!;
+            var tituloEsperado = TituloJanela.De(capa["processo"]?.GetValue<string>(), capa["requerente"]?.GetValue<string>(), "longo");
+            p["pacote_criado"] = File.Exists(pacoteLongo);
             p["folhas"] = a.Composicao.Folhas;
             p["escala_de_impressao"] = plano.Escala;
             p["avisos_de_largura"] = plano.AvisosLargura.Count;
             p["estouros"] = plano.Estouros.Count;
             p["folhas_que_transbordam_na_tela"] = new JsonArray(a.Aplicacao.FolhasQueTransbordam.Select(n => (JsonNode)n).ToArray());
             p["titulo_da_barra"] = j.TextoTituloAtual;
-            p["estado"] = j.TextoEstadoAtual;
+            p["titulo_confere"] = j.TextoTituloAtual == tituloEsperado && tituloEsperado.StartsWith("Proc. ", StringComparison.Ordinal);
+            p["estado_de_gravacao"] = j.TextoEstadoAtual;
+            p["composicao"] = j.TextoComposicaoAtual;
             p["itens_na_lista"] = j.Itens.Count;
             p["primeiros_itens"] = new JsonArray(j.Itens.Take(6).Select(i => (JsonNode)$"{i.Rotulo} (f. {i.Folha})").ToArray());
             p["aviso_largura_aberto"] = j.InfoLargura.IsOpen;
@@ -69,13 +97,14 @@ internal static class Roteiro
                 && (plano.AvisosLargura.Count == 0 || j.InfoLargura.Message == $"Conteúdo mais largo que a página: o documento foi reduzido {reducao}% para caber (como na impressão do kit).");
             p["exportar_habilitado"] = j.ExportarHabilitado;
             p["rodape_folha"] = j.TextoFolhaAtual;
+            p["latencia_recomposicao_ms"] = a.Milissegundos;
             p["convivencia_webview2"] = "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados";
             p["folhas_com_conteudo_alem_da_borda"] = new JsonArray(a.Aplicacao.FolhasQueTransbordamNaLargura.Select(n => (JsonNode)n).ToArray());
             p["aviso_fora_da_area_aberto"] = j.InfoForaDaArea.IsOpen;
-            // Diagnóstico (só medidas): retângulos do conteúdo além da borda lateral da área, por folha.
-            p["alem_da_borda_medidas"] = JsonNode.Parse((await Js(j, "(() => { const out=[]; document.querySelectorAll('section.folha').forEach((f,i)=>{ const area=f.querySelector('.area'); const r=area.getBoundingClientRect(); const g=document.createRange(); g.selectNodeContents(area); for (const q of g.getClientRects()) { if (q.width>0&&q.height>0&&(q.right>r.right+0.5||q.left<r.left-0.5)) out.push({folha:i+1, esquerda:Math.round((q.left-r.left)*10)/10, alemDaDireita:Math.round((q.right-r.right)*10)/10, largura:Math.round(q.width*10)/10}); } }); return out.slice(0,10); })()")).GetRawText());
             var faixas = (await Js(j, "document.querySelectorAll('section.folha[data-pmvni-transborda]').length")).GetInt32();
             p["folhas_com_faixa_vermelha"] = faixas;
+            // O estado do editor chegou à página (o CSS da edição só entra com o primeiro estadoEditor).
+            p["estado_do_editor_aplicado"] = (await Js(j, "!!document.getElementById('pmvni-edicao-css')")).GetBoolean();
             // D4: tela e host oculto InPrivate (nada do relatório no perfil); atalhos do navegador desligados nos dois.
             var host = await j.HostComposicao!.ExecutarAsync(core => Task.FromResult((core.Profile.IsInPrivateModeEnabled, core.Settings.AreBrowserAcceleratorKeysEnabled)));
             p["inprivate_tela"] = j.NucleoWeb.Profile.IsInPrivateModeEnabled;
@@ -83,7 +112,9 @@ internal static class Roteiro
             p["atalhos_do_navegador_tela"] = j.NucleoWeb.Settings.AreBrowserAcceleratorKeysEnabled;
             p["atalhos_do_navegador_host_oculto"] = host.Item2;
             var protegido = j.NucleoWeb.Profile.IsInPrivateModeEnabled && host.Item1 && !j.NucleoWeb.Settings.AreBrowserAcceleratorKeysEnabled && !host.Item2;
-            p["ok"] = a.Composicao.Folhas > 3 && plano.Estouros.Count == 0 && j.ExportarHabilitado && p["aviso_largura_confere"]!.GetValue<bool>()
+            p["ok"] = File.Exists(pacoteLongo) && a.Composicao.Folhas > 3 && plano.Estouros.Count == 0 && j.ExportarHabilitado
+                && p["aviso_largura_confere"]!.GetValue<bool>() && p["titulo_confere"]!.GetValue<bool>()
+                && j.TextoEstadoAtual.StartsWith("Salvo", StringComparison.Ordinal) && p["estado_do_editor_aplicado"]!.GetValue<bool>()
                 && protegido && faixas == a.Aplicacao.FolhasMarcadas.Count
                 && j.InfoForaDaArea.IsOpen == (a.Aplicacao.FolhasQueTransbordamNaLargura.Count > 0);
             await Esperar(600);
@@ -142,11 +173,17 @@ internal static class Roteiro
             }
             foreach (var z in new[] { 0.5, 2.0, 3.0, 1.0 }) { await j.ZoomAsync(new { zoom = z }, "manual"); await Confere("definirZoom " + z); }
             await j.ZoomAsync(new { zoom = 1.0 }, "manual");
+            // Rodapé (botões) e faixa (aba Exibir): os mesmos comandos.
             foreach (var botao in new[] { j.BotoesZoom[1], j.BotoesZoom[1], j.BotoesZoom[0], j.BotoesZoom[2], j.BotoesZoom[3] })
             {
                 var nomeBotao = botao.Content is string s ? s : Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(botao);
                 ((IInvokeProvider)new ButtonAutomationPeer(botao).GetPattern(PatternInterface.Invoke)).Invoke();
                 await Confere("botão " + nomeBotao);
+            }
+            foreach (var id in new[] { ComandosApp.ExibirMais, ComandosApp.ExibirMenos, ComandosApp.ExibirPagina, ComandosApp.ExibirLargura })
+            {
+                await j.ExecutarComandoAsync(id);
+                await Confere("comando " + id);
             }
             await j.ZoomAsync(new { zoom = 1.0 }, "manual");
             var recomposto = (await j.HostComposicao!.Documento.ComporAsync()).ParaJson();
@@ -179,7 +216,7 @@ internal static class Roteiro
                 var certa = j.FolhaAtual == item.Folha || j.FolhaAtual == item.Folha + 1;
                 todos &= visivel && certa;
                 amostras.Add(new JsonObject { ["item"] = item.Rotulo, ["folha_do_item"] = item.Folha, ["folha_na_tela"] = j.FolhaAtual, ["folha_visivel"] = visivel,
-                    ["indicador_do_trilho_marcado"] = j.Itens.Any(i => i.Atual), ["rodape"] = j.TextoFolhaAtual });
+                    ["indicador_da_lista_marcado"] = j.Itens.Any(i => i.Atual), ["rodape"] = j.TextoFolhaAtual });
             }
             p["amostras"] = amostras;
             p["ok"] = todos;
@@ -197,22 +234,26 @@ internal static class Roteiro
             var info = InfoPdf.Ler(bytes);
             using var recibo = JsonDocument.Parse(await File.ReadAllBytesAsync(x.CaminhoRecibo));
             var a = j.Aberto!;
+            var shaPacote = Convert.ToHexStringLower(SHA256.HashData(await File.ReadAllBytesAsync(pacoteLongo)));
             p["paginas_do_pdf"] = info.Paginas;
             p["folhas_na_tela"] = a.Composicao.Folhas;
             p["pagina_mm"] = $"{info.LarguraMm:0.##} x {info.AlturaMm:0.##}";
-            p["recibo_sha256_html_confere"] = recibo.RootElement.GetProperty("sha256_html").GetString() == PlanoQuebras.Sha256De(a.Render.Html);
+            p["recibo_sha256_html_confere"] = recibo.RootElement.GetProperty("sha256_html").GetString() == PlanoQuebras.Sha256De(a.Preparado.Render.Html);
             p["recibo_sha256_pdf_confere"] = recibo.RootElement.GetProperty("sha256_pdf").GetString() == Convert.ToHexStringLower(SHA256.HashData(bytes));
+            p["recibo_sha256_pacote_confere"] = recibo.RootElement.TryGetProperty("sha256_pacote", out var sp) && sp.GetString() == shaPacote;
             p["plano_do_pdf_igual_ao_da_tela"] = x.Plano.ParaJson() == a.Composicao.Plano.ParaJson();
             p["aviso_de_sucesso"] = j.InfoMensagem.IsOpen && j.InfoMensagem.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Success;
             p["ok"] = info.Paginas == a.Composicao.Folhas && p["recibo_sha256_html_confere"]!.GetValue<bool>() && p["recibo_sha256_pdf_confere"]!.GetValue<bool>()
-                && p["plano_do_pdf_igual_ao_da_tela"]!.GetValue<bool>() && p["aviso_de_sucesso"]!.GetValue<bool>();
+                && p["recibo_sha256_pacote_confere"]!.GetValue<bool>() && p["plano_do_pdf_igual_ao_da_tela"]!.GetValue<bool>() && p["aviso_de_sucesso"]!.GetValue<bool>();
         });
 
         await Passo("6_estouro_recusado", async p =>
         {
-            var a = await j.AbrirAsync(estouro) ?? throw new InvalidOperationException("não abriu o estouro: " + j.InfoMensagem.Message);
+            var pacote = Path.Combine(pasta, "estouro.pmvrel");
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "estouro.json"), pacote)) throw new InvalidOperationException("não importou o estouro: " + j.InfoMensagem.Message);
+            var a = j.Aberto!;
             p["estouros"] = new JsonArray(a.Composicao.Plano.Estouros.Select(e => (JsonNode)$"folha {e.Folha}, ref {e.Ref}").ToArray());
-            p["estado"] = j.TextoEstadoAtual;
+            p["composicao"] = j.TextoComposicaoAtual;
             p["aviso_de_erro_aberto"] = j.InfoEstouro.IsOpen && j.InfoEstouro.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error;
             p["aviso_de_erro_texto"] = j.InfoEstouro.Message;
             p["exportar_habilitado"] = j.ExportarHabilitado;
@@ -240,7 +281,8 @@ internal static class Roteiro
 
         await Passo("7_tema_escuro", async p =>
         {
-            var a = await j.AbrirAsync(dadosLongo) ?? throw new InvalidOperationException("não reabriu o longo: " + j.InfoMensagem.Message);
+            if (!await j.AbrirPacoteAsync(pacoteLongo)) throw new InvalidOperationException("não reabriu o longo: " + j.InfoMensagem.Message);
+            var a = j.Aberto!;
             var antes = await j.Documento!.TextoPorFolhaAsync();
             const string Cores = "({ escuro: matchMedia('(prefers-color-scheme: dark)').matches, fundoDaPagina: getComputedStyle(document.documentElement).backgroundColor, " +
                 "corpo: getComputedStyle(document.body).backgroundColor, fundoDaFolha: getComputedStyle(document.querySelector('section.folha')).backgroundColor })";
@@ -248,6 +290,7 @@ internal static class Roteiro
             await Esperar(700);
             var claro = await Js(j, Cores);
             await CapturarWebAsync(j, Path.Combine(pasta, "07-tema-claro.png"));
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "07-janela-xaml-claro.png"));
             j.DefinirTema(ElementTheme.Dark);
             await Esperar(900);
             var escuro = await Js(j, Cores);
@@ -264,46 +307,105 @@ internal static class Roteiro
             j.DefinirTema(ElementTheme.Default);
         });
 
-        // Cópias do curto (sem imagens) na pasta do roteiro: tudo o que este passo grava e apaga fica nela.
+        // Cópia do curto (sem imagens) na pasta do roteiro: tudo o que este passo grava e apaga fica nela.
         await Passo("8_campos_em_aberto_bloqueiam_exportar", async p =>
         {
             var copia = Path.Combine(pasta, "curto-colchetes.json");
             var no = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(corpus, "curto.json")))!;
             no["capa"]!["requerente"] = "[Nome do requerente]";
             await File.WriteAllTextAsync(copia, no.ToJsonString());
+            var pdf = Path.Combine(pasta, "curto-colchetes.pdf");
+            File.Delete(pdf);
             try
             {
-                var a = await j.AbrirAsync(copia) ?? throw new InvalidOperationException("não abriu: " + j.InfoMensagem.Message);
-                p["erros_finais"] = a.ErrosFinais.Count;
+                if (!await j.ImportarParaAsync(copia, Path.Combine(pasta, "curto-colchetes.pmvrel"))) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+                var a = j.Aberto!;
+                p["erros_finais"] = a.Preparado.ErrosFinais.Count;
                 p["exportar_habilitado"] = j.ExportarHabilitado;
                 p["dica_do_botao"] = j.DicaExportar;
-                p["ok"] = a.ErrosFinais.Count > 0 && !j.ExportarHabilitado && j.DicaExportar.StartsWith("A exportação está bloqueada", StringComparison.Ordinal);
+                p["composicao"] = j.TextoComposicaoAtual;
+                var (ok, _, erro, excecao) = await j.ExportarParaAsync(pdf);
+                p["exportacao_bloqueada"] = !ok && excecao is ConferenciaFinalException;
+                p["mensagem"] = erro;
+                p["ok"] = a.Preparado.ErrosFinais.Count > 0 && !j.ExportarHabilitado && j.DicaExportar.StartsWith("A exportação está bloqueada", StringComparison.Ordinal)
+                    && p["exportacao_bloqueada"]!.GetValue<bool>() && !File.Exists(pdf);
             }
             finally { File.Delete(copia); }
         });
 
-        await Passo("9_arquivo_mudou_recusa_exportar", async p =>
+        await Passo("9_pacote_mudou_recusa_exportar", async p =>
         {
-            var copia = Path.Combine(pasta, "curto-muda.json");
-            var original = await File.ReadAllTextAsync(Path.Combine(corpus, "curto.json"));
-            await File.WriteAllTextAsync(copia, original);
+            var pacote = Path.Combine(pasta, "curto-muda.pmvrel");
             var pdf = Path.Combine(pasta, "curto-muda.pdf");
             File.Delete(pdf);
-            try
-            {
-                _ = await j.AbrirAsync(copia) ?? throw new InvalidOperationException("não abriu: " + j.InfoMensagem.Message);
-                var no = JsonNode.Parse(original)!;
-                no["capa"]!["requerente"] = "OUTRO REQUERENTE DEPOIS DE ABRIR";
-                await File.WriteAllTextAsync(copia, no.ToJsonString());
-                var (ok, _, erro, excecao) = await j.ExportarParaAsync(pdf);
-                p["recusada"] = !ok && excecao is ExportacaoDivergenteException;
-                p["mensagem"] = erro;
-                p["nenhum_pdf_gravado"] = !File.Exists(pdf) && !File.Exists(Exportador.CaminhoReciboDe(pdf));
-                p["ok"] = p["recusada"]!.GetValue<bool>() && erro == ExportacaoDivergenteException.ArquivoMudou && p["nenhum_pdf_gravado"]!.GetValue<bool>();
-            }
-            finally { File.Delete(copia); File.Delete(pdf); File.Delete(Exportador.CaminhoReciboDe(pdf)); }
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), pacote)) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+            // Outro programa grava o mesmo pacote, com o requerente trocado, depois de aberto.
+            var lido = Pacote.Ler(pacote);
+            lido.Conteudo.Projeto.Documento["capa"]!["requerente"] = "OUTRO REQUERENTE DEPOIS DE ABRIR";
+            Pacote.Gravar(pacote, lido.Conteudo, lido.Disco);
+            var (ok, _, erro, excecao) = await j.ExportarParaAsync(pdf);
+            p["recusada"] = !ok && excecao is ExportacaoDivergenteException;
+            p["mensagem"] = erro;
+            p["nenhum_pdf_gravado"] = !File.Exists(pdf) && !File.Exists(Exportador.CaminhoReciboDe(pdf));
+            p["ok"] = p["recusada"]!.GetValue<bool>() && erro == ExportacaoDivergenteException.ArquivoMudou && p["nenhum_pdf_gravado"]!.GetValue<bool>();
         });
 
+        await Passo("10_faixa_por_modulo", async p =>
+        {
+            if (!await j.AbrirPacoteAsync(pacoteLongo)) throw new InvalidOperationException("não reabriu o longo: " + j.InfoMensagem.Message);
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var sem = j.ComandosSemManipulador();
+            var def = Faixas.Para(Modulo.Relatorios);
+            var faixa = j.FaixaAtual;
+            p["modulo_atual"] = j.ModuloAtual.ToString();
+            p["comandos_sem_manipulador"] = new JsonArray(sem.Select(s => (JsonNode)s).ToArray());
+            p["modulos_no_trilho"] = new JsonArray(j.TrilhoAtual.Modulos.Select(m => (JsonNode)m.ToString()).ToArray());
+            p["abas"] = new JsonArray(faixa.Definicao!.Abas.Select(a => (JsonNode)a.Nome).ToArray());
+            p["aba_aberta"] = faixa.AbaAtual;
+            var abasConferem = faixa.Definicao.Modulo == Modulo.Relatorios && faixa.Definicao.Abas.Select(a => a.Nome).SequenceEqual(def.Abas.Select(a => a.Nome));
+            var trilhoConfere = j.TrilhoAtual.Modulos.SequenceEqual(Faixas.Disponiveis);
+            var ajustesJson = Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo);
+            string? AbaLembrada() => JsonNode.Parse(File.ReadAllText(ajustesJson))?["aba_por_modulo"]?["Relatorios"]?.GetValue<string>();
+            faixa.EscolherAba("Ajuda");
+            await Esperar(200);
+            var botoesAjuda = faixa.IdsVisiveis;
+            var lembradaAjuda = AbaLembrada();
+            faixa.EscolherAba("Arquivo");
+            await Esperar(200);
+            var botoesArquivo = faixa.IdsVisiveis;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "10-janela-xaml-arquivo.png"));
+            faixa.EscolherAba("Exibir");
+            await Esperar(200);
+            var lembradaExibir = AbaLembrada();
+            var painelAntes = j.PainelVisivel;
+            await j.ExecutarComandoAsync(ComandosApp.ExibirPainel);
+            var painelDepois = j.PainelVisivel;
+            await j.ExecutarComandoAsync(ComandosApp.ExibirPainel);
+            p["botoes_aba_ajuda"] = new JsonArray(botoesAjuda.Select(s => (JsonNode)s).ToArray());
+            p["botoes_aba_arquivo"] = new JsonArray(botoesArquivo.Select(s => (JsonNode)s).ToArray());
+            p["aba_lembrada_em_ajustes"] = new JsonArray(lembradaAjuda, lembradaExibir);
+            p["painel_alterna"] = painelAntes && !painelDepois && j.PainelVisivel;
+            p["ok"] = sem.Count == 0 && abasConferem && trilhoConfere && lembradaAjuda == "Ajuda" && lembradaExibir == "Exibir"
+                && botoesAjuda.SequenceEqual(def.Abas[^1].Comandos.Select(c => c.Id)) && botoesArquivo.SequenceEqual(def.Abas[0].Comandos.Select(c => c.Id))
+                && p["painel_alterna"]!.GetValue<bool>();
+        });
+
+        await Passo("11_reabrir_pacote", async p =>
+        {
+            if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou");
+            p["fechado_sem_relatorio"] = j.Sessao is null && j.TextoTituloAtual == "Editor de Relatórios PMVNI" && !j.ExportarHabilitado;
+            if (!await j.AbrirPacoteAsync(pacoteLongo)) throw new InvalidOperationException("não reabriu o longo: " + j.InfoMensagem.Message);
+            var a = j.Aberto!;
+            p["plano_igual_ao_da_importacao"] = planoDaImportacao is not null && a.Composicao.Plano.ParaJson() == planoDaImportacao;
+            p["historico"] = j.Sessao!.Revisao.HistoricoCompleto.Count;
+            p["estado_de_gravacao"] = j.TextoEstadoAtual;
+            p["titulo_da_barra"] = j.TextoTituloAtual;
+            p["ok"] = p["plano_igual_ao_da_importacao"]!.GetValue<bool>() && p["fechado_sem_relatorio"]!.GetValue<bool>()
+                && j.TextoEstadoAtual.StartsWith("Salvo", StringComparison.Ordinal) && j.TextoTituloAtual.StartsWith("Proc. ", StringComparison.Ordinal);
+        });
+
+        await j.FecharSessaoAsync();
+        saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
         saida["ok"] = falhas.Count == 0;
         Gravar(args.Roteiro!, saida);

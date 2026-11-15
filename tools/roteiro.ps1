@@ -1,8 +1,9 @@
 ﻿<#
-  Roteiro da tela (Tarefa 10), FORA do pacote do Claude (aberto pelo roteiro.cmd via explorer.exe).
-  Roda o executável publicado com tests\corpus\longo.json e --roteiro: o app exercita abrir, rolagem, zoom, navegação,
-  exportação, o corpus com estouro e o tema escuro, e grava docs\roteiro-etapa-1.resultado.json; capturas PNG e PDFs
-  ficam em tests\saida\roteiro (ignorado pelo git). Dados do WebView2 em tests\saida\dados-app.
+  Roteiro da tela (Etapa 2), FORA do pacote do Claude (aberto pelo roteiro.cmd via explorer.exe; o roteiro-e-esperar.ps1 abre e espera).
+  Roda o executável publicado com tests\corpus\longo.json e --roteiro: o app exercita o shell e o módulo Relatórios (importar para
+  .pmvrel, rolagem, zoom, navegação, exportação, estouro, tema, campos em aberto, pacote mudado, faixa por módulo, reabrir) e o
+  resultado vai para docs\roteiro-etapa-2.resultado.json. Pacotes, capturas PNG e PDFs ficam em tests\saida\roteiro (ignorado pelo
+  git); dados do app (WebView2, ajustes.json, edicao) em tests\saida\dados-app. Ao terminar grava tests\saida\roteiro-fim.txt.
 #>
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
@@ -12,7 +13,7 @@ New-Item -ItemType Directory -Force -Path $saida | Out-Null
 $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados-app'
 $pasta = Join-Path $saida 'roteiro'
 $resultado = Join-Path $pasta 'resultado.json'
-$final = Join-Path $raiz 'docs\roteiro-etapa-1.resultado.json'
+$final = Join-Path $raiz 'docs\roteiro-etapa-2.resultado.json'
 New-Item -ItemType Directory -Force -Path $pasta | Out-Null
 if (Test-Path -LiteralPath $resultado) { Remove-Item -LiteralPath $resultado -Force }
 $p = Start-Process -FilePath $exe -ArgumentList ('"' + (Join-Path $raiz 'tests\corpus\longo.json') + '"'), '--roteiro', ('"' + $resultado + '"') -PassThru -Wait

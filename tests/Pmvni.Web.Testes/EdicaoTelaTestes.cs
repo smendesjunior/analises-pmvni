@@ -540,6 +540,15 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
         using var ev = new Eventos(tela.Documento);
         await EstadoAsync(null, true);
         await Js("window.__dp = []; document.addEventListener('keydown', e => window.__dp.push([e.key, e.ctrlKey, e.altKey, e.shiftKey, e.defaultPrevented])); 0");
+        // A primeira tecla logo depois de carregar às vezes não chega ao host oculto (o teclado ainda não chegou à página):
+        // uma tecla fora da lista até a página registrá-la; depois o registro recomeça vazio.
+        for (var i = 0; i < 40 && (await Js("window.__dp.length")).GetInt32() == 0; i++)
+        {
+            await TeclaAsync("Shift", "ShiftLeft", 16);
+            await Task.Delay(50);
+        }
+        await Js("window.__dp = []; 0");
+        ev.Descartar();
 
         var atalhos = new (string Nome, string Key, string Code, int Vk, int Mods)[]
         {

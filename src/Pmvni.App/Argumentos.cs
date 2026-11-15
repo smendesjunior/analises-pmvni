@@ -1,6 +1,7 @@
 namespace Pmvni.App;
 
-/// <summary>Linha de comando do app: <c>[dados.json]</c> abre o relatório; <c>--autoteste &lt;saida.json&gt;</c> é o autoteste
+/// <summary>Linha de comando do app: <c>[arquivo]</c> — um <c>.pmvrel</c> abre; um <c>dados.json</c> é importado (pergunta onde gravar o
+/// <c>.pmvrel</c> novo, como Arquivo › Importar); <c>--autoteste &lt;saida.json&gt;</c> é o autoteste
 /// do executável único (Tarefa 1); <c>--roteiro &lt;saida.json&gt;</c> roda o roteiro de diagnóstico da tela (Tarefa 10).</summary>
 internal sealed record Argumentos(string? Dados, string? Roteiro)
 {

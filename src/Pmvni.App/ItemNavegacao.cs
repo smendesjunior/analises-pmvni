@@ -39,15 +39,17 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
     public event PropertyChangedEventHandler? PropertyChanged;
 }
 
-/// <summary>O que a tela lê do dados.json além do HTML: título da janela ("Processo nº — Requerente") e os títulos dos itens e figuras.</summary>
-internal sealed record DadosRelatorio(string Titulo, string? Processo, IReadOnlyList<string> TitulosItens, IReadOnlyList<string> TitulosFiguras)
+/// <summary>O que a tela lê do dados.json efetivo além do HTML: título da barra (<see cref="TituloJanela"/>: "Proc. 9001/2026 · Requerente"),
+/// processo e requerente da capa e os títulos dos itens e figuras.</summary>
+internal sealed record DadosRelatorio(string Titulo, string? Processo, string? Requerente, IReadOnlyList<string> TitulosItens, IReadOnlyList<string> TitulosFiguras)
 {
     static readonly Regex Marcas = new("<[^>]*>", RegexOptions.CultureInvariant);
 
-    public static DadosRelatorio Ler(string caminho)
+    /// <summary>Lê os bytes do dados.json (o efetivo, gerado do pacote); <paramref name="nomeArquivo"/> é o título quando a capa não tem
+    /// processo nem requerente.</summary>
+    public static DadosRelatorio DeBytes(byte[] json, string nomeArquivo)
     {
-        using var fluxo = File.OpenRead(caminho);
-        using var doc = JsonDocument.Parse(fluxo);
+        using var doc = JsonDocument.Parse(json);
         var raiz = doc.RootElement;
         string? Texto(JsonElement e, string nome) =>
             e.ValueKind == JsonValueKind.Object && e.TryGetProperty(nome, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
@@ -58,10 +60,7 @@ internal sealed record DadosRelatorio(string Titulo, string? Processo, IReadOnly
         var capa = raiz.ValueKind == JsonValueKind.Object && raiz.TryGetProperty("capa", out var c) ? c : default;
         var processo = Texto(capa, "processo");
         var requerente = Texto(capa, "requerente");
-        var titulo = processo is null && requerente is null
-            ? Path.GetFileNameWithoutExtension(caminho)
-            : string.Join(" — ", new[] { processo is null ? null : "Processo nº " + processo, requerente }.Where(s => !string.IsNullOrWhiteSpace(s)));
-        return new DadosRelatorio(titulo, processo, Titulos("itens"), Titulos("figuras"));
+        return new DadosRelatorio(TituloJanela.De(processo, requerente, nomeArquivo), processo, requerente, Titulos("itens"), Titulos("figuras"));
     }
 
     /// <summary>Lista de navegação na ordem do documento: capa, seções (h2 do relatório), itens e figuras, cada um na primeira

@@ -13,6 +13,10 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Lógica do app sem tipos WinUI (Modulos, Faixas, Ajustes…): compilada também aqui para os testes. -->
+    <Compile Include="..\..\src\Pmvni.App\Logica\*.cs" LinkBase="Logica" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Pmvni.Revisao\Pmvni.Revisao.csproj" />
   </ItemGroup>
 </Project>
