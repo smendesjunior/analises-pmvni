@@ -1,6 +1,6 @@
 # Fidelidade documental — critérios e medidas (Etapa 1, Tarefa 9)
 
-Suíte: `python -I tools/fidelidade.py {v1|v2|v3|v4|tudo} [--caso NOME ...]`. Casos: `tests/corpus/*.json`,
+Suíte: `python -I tools/fidelidade.py {v1|v2|v3|v4|v5|tudo} [--caso NOME ...]`. Casos: `tests/corpus/*.json`,
 `dados_modelo.json` do modelo oficial (com `--instrucoes`) e os casos locais de `tests/local.json` (ignorado pelo git;
 hoje o 17098). O gerador do kit roda como na V1: `gerar_relatorio.py --rascunho --manter-html` no modo padrão (Edge
 aberto por `.cmd` via `explorer.exe`). **Onde ficam os temporários (D4):** tudo o que a rodada grava — PDFs e HTML do
@@ -27,6 +27,7 @@ tela, escala 1).
 | V2 (tela × PDF do editor) | **texto por folha idêntico (porta principal)**; cada folha capturada a 150 dpi × página do PDF rasterizada pelo PyMuPDF a 150 dpi: **≤ 2,0 % de pixels diferentes com 1 px de tolerância de posição** (limite inicial desta métrica: 1,0 %; ver as decisões abaixo) (um pixel só conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a \|Δ\| ≤ 48; medido nos dois sentidos — tela contra PDF e PDF contra tela — e vale o maior). O estrito (sem tolerância; limite inicial 0,5 %) é medido e registrado só como informação, e o maior ladrilho de 32 × 32 px também (sem limite: ver "Medida local por ladrilhos") |
 | V3 (PDF do editor × PDF do kit) | mesmo número de páginas; mesmo texto em cada página (cabeçalho, área útil, rodapé); ≤ 2 % de pixels diferentes por página |
 | V4 | V1–V3 em todos os casos; `estouro` só verifica a recusa da exportação |
+| V5 (Etapa 2, Tarefa 4) | HTML dos **dados efetivos do pacote** = HTML do kit, byte a byte (ver "V5" abaixo); `tudo` = V4 + V5 |
 
 ### Como o texto é comparado (método, registrado aqui como manda o brief)
 
@@ -59,6 +60,21 @@ tela, escala 1).
     "INFORMAÇÕES DIVERGEN", no editor inteira (até 202,3 mm). **O PDF do kit perde texto aqui.**
   - `sangria_rodape`: glifo de fonte > 7 pt na faixa do rodapé (o rodapé usa 6,2 pt). O Chromium do kit deixa na
     margem de baixo um fragmento de ~1 px do acento do 1º glifo da página seguinte ("Á" de um título); o editor não.
+
+## V5: dados efetivos × kit, via pacote (Etapa 2, Tarefa 4)
+
+Prova que o caminho que o editor percorre não muda o relatório: o `dados.json` é importado (itens com id, citações "item NN"
+convertidas em referências, imagens copiadas para `assets/<sha256>.<ext>`), gravado num `.pmvrel`, relido, e o HTML sai dos
+**dados efetivos** do projeto relido (`DadosEfetivos.Gerar`: itens incluídos, texto revisado no lugar do original, citações
+impressas com a numeração atual) sem nenhuma revisão. Esse HTML tem de ser igual, byte a byte, ao do gerador do kit com o
+`dados.json` original (a mesma comparação da V1).
+
+- Comando: `Pmvni.Verificador html <dados.json> <saida.html> --via-pacote [--instrucoes] [--rascunho]`. Grava, ao lado da saída,
+  `<saida>.pmvrel` (o pacote gravado e relido) e extrai os assets em `<saida>-assets\`; o HTML é renderizado a partir dessa pasta.
+  Só o `html` aceita `--via-pacote` (os outros comandos o recusam).
+- Casos: os mesmos da V4 (corpus, `dados_modelo --instrucoes` e os casos locais de `tests/local.json`). `tests/saida/v5.json`
+  leva só `{caso, igual, sha256_kit, sha256_editor}`.
+- Critério: `igual` em todos os casos (código de saída 0). Qualquer byte diferente reprova.
 
 ## Calibração do cabeçalho e do rodapé (passo 2)
 

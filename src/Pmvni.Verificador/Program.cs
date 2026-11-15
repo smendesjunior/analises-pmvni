@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text;
 using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
+using Pmvni.Revisao;
 
 namespace Pmvni.Verificador;
 
@@ -26,6 +27,7 @@ internal static class Program
             case "autoteste-falhas": return await AutotesteFalhas.ExecutarAsync();
         }
         var modelo = ModeloOficial.Carregar();
+        if (a.ViaPacote) return HtmlViaPacote(a, modelo);
         var r = RelatorioRenderer.Renderizar(a.Dados!, new OpcoesRender(a.Instrucoes, a.Rascunho), modelo);
         if (!r.Ok)
         {
@@ -53,6 +55,45 @@ internal static class Program
         File.WriteAllBytes(saida, new UTF8Encoding(false).GetBytes(r.Html.Replace("\n", "\r\n", StringComparison.Ordinal)));
         Console.WriteLine("HTML gravado: " + saida);
         return 0;
+    }
+
+    /// <summary>V5: o caminho que o editor percorre. Importa o dados.json num pacote, grava <c>&lt;saida&gt;.pmvrel</c>, relê, extrai os assets
+    /// em <c>&lt;saida&gt;-assets\</c> e grava o HTML dos dados efetivos (o projeto relido, sem revisão nenhuma); tem de sair igual ao do kit.</summary>
+    static int HtmlViaPacote(Argumentos a, ModeloCarregado modelo)
+    {
+        var saida = Path.GetFullPath(a.Saida!);
+        var semExtensao = Path.Combine(Path.GetDirectoryName(saida)!, Path.GetFileNameWithoutExtension(saida));
+        var caminhoPacote = semExtensao + ".pmvrel";
+        var pastaAssets = semExtensao + "-assets";
+        Directory.CreateDirectory(Path.GetDirectoryName(saida)!);
+
+        ConteudoPacote conteudo;
+        try
+        {
+            var bytes = File.ReadAllBytes(Path.GetFullPath(a.Dados!));
+            conteudo = Importador.Importar(bytes, Path.GetFullPath(a.Dados!), modelo, ContextoUsuario.Atual());
+        }
+        catch (ImportacaoRecusadaException e)
+        {
+            Console.Error.WriteLine("RELATORIO_DADOS_INVALIDOS" + Environment.NewLine + "- " + string.Join(Environment.NewLine + "- ", e.Erros));
+            return 1;
+        }
+
+        foreach (var antigo in new[] { caminhoPacote, caminhoPacote + ".bak" }) if (File.Exists(antigo)) File.Delete(antigo);
+        if (Directory.Exists(pastaAssets)) Directory.Delete(pastaAssets, true);
+        Pacote.Gravar(caminhoPacote, conteudo, null);
+        var lido = Pacote.Ler(caminhoPacote).Conteudo;
+        lido.ExtrairAssets(pastaAssets);
+
+        var efetivos = DadosEfetivos.Gerar(lido.Projeto);
+        var r = RelatorioRenderer.Renderizar(efetivos.Json, Path.Combine(pastaAssets, "dados.json"), new OpcoesRender(a.Instrucoes, a.Rascunho), modelo);
+        if (!r.Ok)
+        {
+            Console.Error.WriteLine("RELATORIO_DADOS_INVALIDOS" + Environment.NewLine + "- " + string.Join(Environment.NewLine + "- ", r.Erros));
+            return 1;
+        }
+        Console.WriteLine("Pacote gravado e relido: " + caminhoPacote + " (" + lido.Assets.Count + " imagens)");
+        return GerarHtml(r, saida);
     }
 
     /// <summary>Compõe no host oculto (como a exportação) e devolve o resultado da composição e a versão do WebView2.</summary>

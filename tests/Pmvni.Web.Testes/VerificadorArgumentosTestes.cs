@@ -60,6 +60,19 @@ public sealed class VerificadorArgumentosTestes
     }
 
     [Fact]
+    public void via_pacote_so_no_html()
+    {
+        var h = Argumentos.Ler(["html", "d.json", "s.html", "--via-pacote", "--instrucoes"]);
+        Assert.Null(h.Erro);
+        Assert.True(h.ViaPacote);
+        Assert.True(h.Instrucoes);
+        Assert.False(Argumentos.Ler(["html", "d.json", "s.html"]).ViaPacote);
+
+        foreach (var nome in new[] { "pdf", "plano", "texto", "capturas" })
+            Assert.NotNull(Argumentos.Ler([nome, "d.json", "s.out", "--via-pacote"]).Erro);
+    }
+
+    [Fact]
     public void sem_argumentos_da_erro() => Assert.NotNull(Argumentos.Ler([]).Erro);
 
     [Fact]

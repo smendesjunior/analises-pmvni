@@ -1,6 +1,6 @@
 r"""Verificações de fidelidade do Editor de Relatórios PMVNI contra o gerador do kit.
 
-Uso:  python -I tools/fidelidade.py {v1|v2|v3|v4|tudo} [--caso NOME ...]
+Uso:  python -I tools/fidelidade.py {v1|v2|v3|v4|v5|tudo} [--caso NOME ...]
 
 v1    Paridade do HTML: o `Pmvni.Verificador html` e o gerador do kit (gerar_relatorio.py --rascunho --manter-html)
       produzem o mesmo HTML, byte a byte. Grava tests/saida/v1.json.
@@ -13,7 +13,11 @@ v3    PDF do editor × PDF do gerador do kit (mesmo dados.json): mesmo número d
       (cabeçalho, área útil e rodapé) e diferença visual por página. Grava tests/saida/v3.json.
 v4    V1, V2 e V3 sobre todos os casos (corpus + dados_modelo --instrucoes + casos locais). O caso `estouro` não tem PDF:
       verifica só que a exportação é recusada (código 3, nada gravado). Grava v1/v2/v3.json e v4.json.
-tudo  O mesmo que v4.
+v5    Dados efetivos × kit, via pacote: `Pmvni.Verificador html --via-pacote` importa o dados.json num .pmvrel, grava, relê,
+      extrai os assets e gera o HTML a partir do projeto relido (sem nenhuma revisão); tem de ser igual, byte a byte, ao
+      HTML do gerador do kit (como a V1). Mesmos casos da V4. Grava tests/saida/v5.json só com
+      {caso, igual, sha256_kit, sha256_editor}.
+tudo  v4 (V1, V2 e V3 sobre todos os casos) + v5. Grava v1/v2/v3/v5.json e v4.json.
 --manter  não apaga %USERPROFILE%\.pmvni-fid\<run> (investigação; recusado com casos locais).
 
 Critérios (docs/fidelidade.md; mudar só com justificativa registrada lá):
@@ -59,7 +63,7 @@ KIT_PADRAO = (Path.home() / 'OneDrive' / 'PMVNI' / 'SIDNEY JUNIOR' / 'KIT DE TRE
               / '02 - MODELOS DE DOCUMENTOS' / 'RELATORIO' / 'MODELO HTML (USADO PELOS PLUGINS)')
 VERIFICADOR_PROJ = RAIZ / 'src' / 'Pmvni.Verificador' / 'Pmvni.Verificador.csproj'
 # Projetos que o build Release do Verificador compila: bin/obj deles são apagados no fim da rodada.
-PROJETOS_DO_VERIFICADOR = [RAIZ / 'src' / n for n in ('Pmvni.Verificador', 'Pmvni.Composicao.Web', 'Pmvni.Composicao')]
+PROJETOS_DO_VERIFICADOR = [RAIZ / 'src' / n for n in ('Pmvni.Verificador', 'Pmvni.Composicao.Web', 'Pmvni.Composicao', 'Pmvni.Revisao')]
 # Rascunho de cada rodada: fora do OneDrive e do AppData (ver Regras acima).
 RASCUNHO = Path.home() / '.pmvni-fid'
 EDGES = [Path(r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'), Path(r'C:\Program Files\Microsoft\Edge\Application\msedge.exe')]
@@ -485,6 +489,21 @@ def caso_v1(ex: Execucao, c: dict) -> dict:
     return res
 
 
+# ───────────────────────── V5 ─────────────────────────
+def caso_v5(ex: Execucao, c: dict) -> dict:
+    """Como a V1, mas o HTML do editor sai dos dados efetivos do pacote (importar → gravar → reler → extrair assets)."""
+    res = {'caso': c['nome'], 'igual': False, 'sha256_kit': None, 'sha256_editor': None}
+    html_kit = ex.pdf_kit(c).with_suffix('.html')
+    html_ed = ex.pasta(c) / 'editor-v5.html'
+    r = ex.verificador(c, 'html', html_ed, '--via-pacote')
+    if r.returncode != 0 or not html_ed.is_file() or not html_ed.with_suffix('.pmvrel').is_file():
+        raise RuntimeError(ex.falha(c, 'Pmvni.Verificador html --via-pacote', r))
+    a, b = html_kit.read_bytes(), html_ed.read_bytes()
+    res.update(sha256_kit=sha(a), sha256_editor=sha(b), igual=(a == b))
+    print(f'  V5 [{c["nome"]}] ' + ('IGUAL' if res['igual'] else 'DIFERE: ' + primeira_diferenca(a, b)) + f' ({len(a)} bytes)')
+    return res
+
+
 # ───────────────────────── V2 ─────────────────────────
 def caso_v2(ex: Execucao, c: dict) -> dict:
     nome = c['nome']
@@ -746,14 +765,15 @@ def caso_v3(ex: Execucao, c: dict) -> dict:
     return res
 
 
-VERIFICACOES = {'v1': caso_v1, 'v2': caso_v2, 'v3': caso_v3}
+VERIFICACOES = {'v1': caso_v1, 'v2': caso_v2, 'v3': caso_v3, 'v5': caso_v5}
 VAZIO = {'v1': lambda n: {'caso': n, 'igual': False, 'sha256_kit': None, 'sha256_editor': None},
          'v2': lambda n: {'caso': n, 'aprovado': False, 'erro': True},
-         'v3': lambda n: {'caso': n, 'aprovado': False, 'erro': True}}
+         'v3': lambda n: {'caso': n, 'aprovado': False, 'erro': True},
+         'v5': lambda n: {'caso': n, 'igual': False, 'sha256_kit': None, 'sha256_editor': None}}
 
 
 def aprovado(v: str, r: dict) -> bool:
-    return bool(r.get('igual') if v == 'v1' else r.get('aprovado'))
+    return bool(r.get('igual') if v in ('v1', 'v5') else r.get('aprovado'))
 
 
 def gravar(nome: str, conteudo) -> None:
@@ -763,7 +783,7 @@ def gravar(nome: str, conteudo) -> None:
 
 def executar(quais: list[str], filtro: list[str] | None, consolidado: bool, manter: bool = False) -> int:
     lista = casos(filtro)
-    ex = Execucao(precisa_kit=any(v in quais for v in ('v1', 'v3')))
+    ex = Execucao(precisa_kit=any(v in quais for v in ('v1', 'v3', 'v5')))
     resultados: dict[str, list[dict]] = {v: [] for v in quais}
     extras: dict[str, dict] = {}
     liberado = 0
@@ -819,14 +839,16 @@ def executar(quais: list[str], filtro: list[str] | None, consolidado: bool, mant
 
 def main() -> int:
     ap = argparse.ArgumentParser(description='Verificações de fidelidade do Editor de Relatórios PMVNI')
-    ap.add_argument('cmd', choices=['v1', 'v2', 'v3', 'v4', 'tudo'])
+    ap.add_argument('cmd', choices=['v1', 'v2', 'v3', 'v4', 'v5', 'tudo'])
     ap.add_argument('--caso', action='append', help='só este caso (pode repetir)')
     ap.add_argument('--manter', action='store_true', help='não apaga %%USERPROFILE%%\\.pmvni-fid\\<run> (investigação; só casos do corpus)')
     a = ap.parse_args()
     if a.manter and any(c['local'] for c in casos(a.caso)):
         raise SystemExit('--manter não vale com casos locais (dados reais): use --caso com casos do corpus.')
-    if a.cmd in ('v4', 'tudo'):
+    if a.cmd == 'v4':
         return executar(['v1', 'v2', 'v3'], a.caso, consolidado=True, manter=a.manter)
+    if a.cmd == 'tudo':  # PF2: v4 inteira (V1–V3, com o tratamento do estouro) + V5
+        return executar(['v1', 'v2', 'v3', 'v5'], a.caso, consolidado=True, manter=a.manter)
     return executar([a.cmd], a.caso, consolidado=False, manter=a.manter)
 
 
