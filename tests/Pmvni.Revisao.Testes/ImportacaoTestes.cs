@@ -413,6 +413,21 @@ public class ImportacaoTestes
     }
 
     /// <summary>Copia o corpus (extremos.json + img/) para a pasta, para testes que alteram imagens ou dados.</summary>
+    [Fact]
+    public void texto_com_digito_nao_ascii_importa_sem_excecao_e_fica_literal()
+    {
+        using var pasta = Ambiente.PastaDeTeste("digito-largo");
+        var dados = JsonFiel.Ler(File.ReadAllBytes(Ambiente.Corpus("curto.json")));
+        dados["itens"]![0]!["verificacao"] = "ver item ３ e item 02";
+        var caminho = Path.Combine(pasta, "largo.json");
+        File.WriteAllBytes(caminho, JsonFiel.Escrever(dados));
+
+        var c = Importador.Importar(File.ReadAllBytes(caminho), caminho, Modelo, Ambiente.Contexto());
+
+        Assert.Equal("ver item ３ e item {{ref:" + c.Projeto.Itens[1].Id + ":2}}",
+            c.Projeto.Itens[0].Campos["verificacao"].Original!.GetValue<string>());
+    }
+
     private static void CopiarCorpus(string pasta)
     {
         File.Copy(Ambiente.Corpus("extremos.json"), Path.Combine(pasta, "extremos.json"));

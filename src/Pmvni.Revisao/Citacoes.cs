@@ -11,16 +11,17 @@ public sealed record CitacaoConvertida(string Trecho, int Numero, string Alvo);
 /// na impressão o token vira o número atual do item citado, com zeros à esquerda até a largura do original.</summary>
 public static partial class Citacoes
 {
+    // Dígitos sempre [0-9]: em .NET "\d" casa também dígitos não ASCII (ex.: "３"), que o int.Parse recusa.
     // Regra de conversão (desenho §8.5): item/ITEM/Item + 1 a 3 dígitos, palavra inteira, sem decimal ("item 3.2") e sem norma
     // depois ("item 3 do art. 5"). Tudo o que não casa fica literal.
-    [GeneratedRegex(@"(?<![\p{L}\p{N}])(item|ITEM|Item)\s+(\d{1,3})(?![\p{L}\p{N}])(?![.,]\d)(?!\s*[,;]?\s*(?:do|da|de|dos|das)\b)", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?<![\p{L}\p{N}])(item|ITEM|Item)\s+([0-9]{1,3})(?![\p{L}\p{N}])(?![.,][0-9])(?!\s*[,;]?\s*(?:do|da|de|dos|das)\b)", RegexOptions.CultureInvariant)]
     private static partial Regex Inequivoca();
 
     // "item NN" ou "itens NN" (a forma "itens?" casaria "iten"/"itens" e nunca "item").
-    [GeneratedRegex(@"\b(?:item|itens)\s+\d{1,3}", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?:item|itens)\s+[0-9]{1,3}", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex Suspeita();
 
-    [GeneratedRegex(@"\{\{ref:([^:{}]+):(\d+)\}\}", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\{\{ref:([^:{}]+):([0-9]+)\}\}", RegexOptions.CultureInvariant)]
     private static partial Regex Token();
 
     /// <summary>Converte as citações inequívocas. <paramref name="idsPorNumero"/>[N-1] é o id do item de número N; NN fora de 1..Count fica literal.</summary>

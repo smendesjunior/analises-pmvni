@@ -19,6 +19,24 @@ public class CitacoesTestes
         Assert.NotEmpty(convertidas);
     }
 
+    [Theory]
+    [InlineData("ver item ３")]   // dígito largo (fullwidth): não é ASCII, fica literal
+    [InlineData("ver item ٣")]   // dígito arábico-índico
+    [InlineData("item 1３")]
+    public void digito_nao_ascii_fica_literal_sem_excecao(string de)
+    {
+        var (texto, convertidas) = Citacoes.Converter(de, Ids);
+        Assert.Equal(de, texto);
+        Assert.Empty(convertidas);
+    }
+
+    [Fact]
+    public void token_com_largura_nao_ascii_fica_literal_na_impressao()
+    {
+        const string texto = "ver item {{ref:#1:３}}";
+        Assert.Equal(texto, Citacoes.Imprimir(texto, _ => 1, _ => 1));
+    }
+
     [Fact]
     public void convertida_descreve_trecho_numero_e_alvo()
     {
