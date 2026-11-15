@@ -320,7 +320,8 @@ internal sealed class SessaoEdicao : IAsyncDisposable
             gravacoesEmCurso--;
             SalvoEmLocal = DateTime.Now;
             var tudo = Revisao.HistoricoCompleto.Count == registros;
-            if (tudo) Revisao.MarcarGravado();
+            // O arquivo tem os registros até a vez desta gravação; um comando que chegou durante ela continua pendente (e no diário).
+            Revisao.MarcarGravado(registros);
             if (!encerrada) DepoisDeGravar(caminhoAntes, registros);
             // Um comando aplicado enquanto gravava fica para a próxima gravação.
             DefinirEstado(SomenteLeitura ? EstadoGravacao.SomenteLeitura : tudo ? EstadoGravacao.Salvo : EstadoGravacao.NaoSalvo, final: true);

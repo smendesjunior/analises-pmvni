@@ -545,6 +545,27 @@ public class ComandosTestes
         Assert.Equal("desfeito", s.Pendentes[0].Tipo);
     }
 
+    [Fact]
+    public void marcar_gravado_ate_os_registros_gravados_deixa_so_os_que_chegaram_depois()
+    {
+        // Um comando chegou durante a gravação: o arquivo tem os registros até ela, e só o novo continua pendente.
+        var s = Sessao(Importar("curto"));
+        s.Aplicar(new DefinirSituacao(Id(s, 2), "ATENDE"));
+        s.Aplicar(new Excluir(Id(s, 3)));
+        var gravados = s.HistoricoCompleto.Count;
+        s.Aplicar(new DefinirJustificativa(Id(s, 2), "conferido"));
+
+        s.MarcarGravado(gravados);
+        Assert.Single(s.Pendentes);
+        Assert.Equal("DefinirJustificativa", s.Pendentes[0].Tipo);
+
+        // Nunca volta atrás nem passa do histórico.
+        s.MarcarGravado(1);
+        Assert.Single(s.Pendentes);
+        s.MarcarGravado(99);
+        Assert.Empty(s.Pendentes);
+    }
+
     // ---------- descrição do histórico ----------
 
     [Fact]

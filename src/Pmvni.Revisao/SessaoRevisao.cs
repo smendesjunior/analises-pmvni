@@ -89,6 +89,10 @@ public sealed class SessaoRevisao
     /// <summary>A sessão foi gravada: o que veio antes deixa de ser pendente.</summary>
     public void MarcarGravado() => _gravadoAte = _historico.Count;
 
+    /// <summary>A gravação levou os primeiros <paramref name="registros"/> do histórico (um comando chegou durante ela): só esses deixam de
+    /// ser pendentes. Nunca volta atrás nem passa do histórico.</summary>
+    public void MarcarGravado(int registros) => _gravadoAte = Math.Clamp(registros, _gravadoAte, _historico.Count);
+
     /// <summary>Reaplica registros do diário de recuperação sobre o projeto aberto (comandos, desfeitos e refeitos, na ordem), refazendo
     /// o histórico e as pilhas. Registros com <c>N</c> já presente no histórico são ignorados (o diário pode repetir o que o pacote já tem).
     /// Tudo ou nada: se um registro não bater com o projeto, <see cref="InvalidOperationException"/> e nada muda. Os registros reaplicados
