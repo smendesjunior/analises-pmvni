@@ -250,6 +250,8 @@ public sealed partial class MainWindow
     string RotuloDoComando(string id)
     {
         if (RotulosForaDaFaixa.TryGetValue(id, out var r)) return r;
+        // Ctrl+1 … Ctrl+5 (lista de atalhos): "Ir para Relatórios" etc.
+        if (Modulos.DoComando(id) is { } m) return "Ir para " + Modulos.Rotulo(m);
         var f = Faixa.Rotulo(id);
         return f.Length > 0 ? f : id;
     }
