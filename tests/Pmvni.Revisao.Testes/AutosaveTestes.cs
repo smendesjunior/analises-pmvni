@@ -267,6 +267,36 @@ public class AutosaveTestes
         Assert.Equal(0, DiarioDaSessao.LimparOrfaosAntigos(Path.Combine(pasta, "nao-existe"), agora));
     }
 
+    [Fact]
+    public void arquivar_conta_a_idade_do_orfao_a_partir_do_dia_em_que_foi_guardado()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-orfao-idade");
+        var a = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        using var d = new DiarioDaSessao(pasta);
+        d.Iniciar(a, "sha1", []);
+        d.Registrar(Comando(s, "Titulo 1"));
+        // O diário vivo parou de receber registros há 40 dias (ex.: o app caiu e só voltou agora).
+        var vivo = Diario.CaminhoDe(pasta, a);
+        d.Fechar(guardar: true);
+        File.SetLastWriteTimeUtc(vivo, DateTime.UtcNow.AddDays(-40));
+        d.Iniciar(a, "sha1", []); // recomeça: o diário de 40 dias é guardado como órfão (Diario.Iniciar)
+        var guardadoPeloIniciar = Assert.Single(Orfaos(pasta));
+        Assert.True(DateTime.UtcNow - File.GetLastWriteTimeUtc(guardadoPeloIniciar) < TimeSpan.FromMinutes(5), "o órfão guardado pelo Iniciar conta do dia em que foi guardado");
+
+        // Descartar / Recarregar / outra versão: DiarioDaSessao.Arquivar.
+        d.Registrar(Comando(s, "Titulo 2"));
+        d.Fechar(guardar: true);
+        File.SetLastWriteTimeUtc(vivo, DateTime.UtcNow.AddDays(-40));
+        var orfao = d.Arquivar(a);
+
+        Assert.NotNull(orfao);
+        Assert.True(DateTime.UtcNow - File.GetLastWriteTimeUtc(orfao) < TimeSpan.FromMinutes(5), "o órfão conta do dia em que foi guardado, não da última gravação do diário");
+        Assert.Equal(0, DiarioDaSessao.LimparOrfaosAntigos(pasta, DateTime.UtcNow)); // um órfão de agora não sai na limpeza seguinte
+        Assert.Equal(2, Orfaos(pasta).Length);
+        Assert.Equal(2, DiarioDaSessao.LimparOrfaosAntigos(pasta, DateTime.UtcNow.AddDays(31))); // e sai 30 dias depois
+    }
+
     // ---------- decisão na abertura ----------
 
     [Fact]

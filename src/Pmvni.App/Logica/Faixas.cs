@@ -25,7 +25,11 @@ public static class Faixas
     public static IReadOnlyList<string> OrdemSituacoes { get; } = ["ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA"];
 
     /// <summary>Módulos que já funcionam, na ordem do trilho (Ajustes, se presente, embaixo).</summary>
-    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios];
+    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Ajustes];
+
+    /// <summary>Menu de recentes: <see cref="ComandoFaixa.Itens"/> vazio de propósito; a faixa pede os itens a quem a monta
+    /// (<see cref="FaixaDeOpcoes.ItensDinamicos"/>) cada vez que o menu abre, porque eles vêm dos ajustes e dos arquivos que ainda existem.</summary>
+    static readonly ComandoFaixa RecentesMenu = new(ComandosApp.ArquivoRecentes, "Recentes", "", TipoComando.Menu, []);
 
     static readonly AbaFaixa Ajuda = new("Ajuda",
     [
@@ -39,6 +43,7 @@ public static class Faixas
         [
             new(ComandosApp.ArquivoImportar, "Importar dados.json", ""),
             new(ComandosApp.ArquivoAbrir, "Abrir", ""),
+            RecentesMenu,
             new(ComandosApp.ArquivoSalvar, "Salvar", ""),
             new(ComandosApp.ArquivoSalvarComo, "Salvar como", ""),
             new(ComandosApp.ArquivoExportarPdf, "Exportar PDF", ""),
@@ -62,6 +67,7 @@ public static class Faixas
             new(ComandosApp.RevisaoMarcas, "Marcas de revisão", "", TipoComando.Alternar),
             new(ComandosApp.RevisaoSomenteAlterados, "Somente alterados", "", TipoComando.Alternar),
             new(ComandosApp.RevisaoConferencia, "Conferência", ""),
+            new(ComandosApp.RevisaoComparar, "Comparar com o original", ""),
         ]),
         new("Exibir",
         [
@@ -71,6 +77,12 @@ public static class Faixas
             new(ComandosApp.ExibirPagina, "Página inteira", ""),
             new(ComandosApp.ExibirPainel, "Painel lateral", "", TipoComando.Alternar),
             new(ComandosApp.ExibirPropriedades, "Propriedades", "", TipoComando.Alternar),
+            new(ComandosApp.ExibirTema, "Tema", "", TipoComando.Menu,
+            [
+                new(ComandosApp.ExibirTemaSistema, "Sistema", ""),
+                new(ComandosApp.ExibirTemaClaro, "Claro", ""),
+                new(ComandosApp.ExibirTemaEscuro, "Escuro", ""),
+            ]),
         ]),
         Ajuda,
     ], AbaPadrao: 1);
@@ -81,6 +93,7 @@ public static class Faixas
         [
             new(ComandosApp.ArquivoImportar, "Importar dados.json", ""),
             new(ComandosApp.ArquivoAbrir, "Abrir", ""),
+            RecentesMenu,
         ]),
         Ajuda,
     ], AbaPadrao: 0);

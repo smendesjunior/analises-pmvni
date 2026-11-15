@@ -7,7 +7,7 @@ namespace Pmvni.Revisao.Testes;
 /// <summary>Faixa de opções por dados (Tarefa 8): uma definição por módulo, Arquivo primeiro e Ajuda por último, aba padrão a segunda.</summary>
 public class FaixasTestes
 {
-    /// <summary>Os módulos com faixa: os disponíveis no trilho e Ajustes (definida já, só Arquivo e Ajuda).</summary>
+    /// <summary>Os módulos com faixa: os disponíveis no trilho (Relatórios e Ajustes, o último embaixo).</summary>
     private static IEnumerable<Modulo> ComFaixa() => Faixas.Disponiveis.Append(Modulo.Ajustes).Distinct();
 
     [Fact]
@@ -79,11 +79,38 @@ public class FaixasTestes
         Assert.Equal(TipoComando.Alternar, inicio.Comandos.Single(c => c.Id == ComandosApp.InicioOriginal).Tipo);
 
         var revisao = f.Abas.Single(a => a.Nome == "Revisão");
-        Assert.Equal(new[] { ComandosApp.RevisaoMarcas, ComandosApp.RevisaoSomenteAlterados, ComandosApp.RevisaoConferencia }, revisao.Comandos.Select(c => c.Id));
-        Assert.Equal(new[] { TipoComando.Alternar, TipoComando.Alternar, TipoComando.Botao }, revisao.Comandos.Select(c => c.Tipo));
+        Assert.Equal(new[] { ComandosApp.RevisaoMarcas, ComandosApp.RevisaoSomenteAlterados, ComandosApp.RevisaoConferencia, ComandosApp.RevisaoComparar }, revisao.Comandos.Select(c => c.Id));
+        Assert.Equal(new[] { TipoComando.Alternar, TipoComando.Alternar, TipoComando.Botao, TipoComando.Botao }, revisao.Comandos.Select(c => c.Tipo));
 
         var exibir = f.Abas.Single(a => a.Nome == "Exibir");
         Assert.Equal(TipoComando.Alternar, exibir.Comandos.Single(c => c.Id == ComandosApp.ExibirPropriedades).Tipo);
+    }
+
+    [Fact]
+    public void ajustes_no_trilho_e_comandos_de_pesquisa_tema_recentes_e_comparar()
+    {
+        // Ajustes é módulo do trilho (embaixo) e tem faixa própria: Arquivo (com Recentes) e Ajuda.
+        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Ajustes }, Faixas.Disponiveis);
+        Assert.True(Modulos.Embaixo(Modulo.Ajustes));
+        Assert.Equal(new[] { ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes },
+            Faixas.Para(Modulo.Ajustes).Abas[0].Comandos.Select(c => c.Id));
+
+        var arquivo = Faixas.Para(Modulo.Relatorios).Abas.Single(a => a.Nome == "Arquivo");
+        var recentes = arquivo.Comandos.Single(c => c.Id == ComandosApp.ArquivoRecentes);
+        Assert.Equal(TipoComando.Menu, recentes.Tipo);
+        Assert.Empty(recentes.Itens!); // os itens vêm dos ajustes, na hora de abrir o menu
+
+        // Exibir › Tema: Sistema, Claro, Escuro, com os ids que levam ao valor guardado em Ajustes.Tema.
+        var tema = Faixas.Para(Modulo.Relatorios).Abas.Single(a => a.Nome == "Exibir").Comandos.Single(c => c.Id == ComandosApp.ExibirTema);
+        Assert.Equal(TipoComando.Menu, tema.Tipo);
+        Assert.Equal(new[] { "Sistema", "Claro", "Escuro" }, tema.Itens!.Select(i => i.Rotulo));
+        Assert.Equal(Ajustes.Temas, tema.Itens!.Select(i => ComandosApp.TemaDoComando(i.Id)!));
+        Assert.Null(ComandosApp.TemaDoComando(ComandosApp.ExibirTema));
+        Assert.Null(ComandosApp.TemaDoComando(ComandosApp.ExibirPainel));
+
+        // O atalho de pesquisa existe e Propriedades (Tarefa 9) continua uma só.
+        Assert.Equal("Ctrl+F", Atalhos.Tecla(ComandosApp.PesquisaFocar));
+        Assert.Single(Faixas.Comandos(Faixas.Para(Modulo.Relatorios)), c => c.Id == ComandosApp.ExibirPropriedades);
     }
 
     [Fact]

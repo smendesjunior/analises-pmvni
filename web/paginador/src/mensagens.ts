@@ -7,6 +7,8 @@ export const TIPOS_HOST = [
   'compor', 'aplicarPlano', 'textoPorFolha', 'rolarPara', 'definirZoom',
   // Tarefa 7 (Etapa 2): estado do editor, selecao, edicao no A4 e ancora de rolagem.
   'estadoEditor', 'selecionar', 'editarCampo', 'concluirEdicao', 'obterAncora',
+  // Tarefa 11: pesquisa no relatorio (realce por CSS Custom Highlight API; responde `pesquisado`).
+  'pesquisar',
 ] as const;
 export const TIPOS_WEB = [
   'pronto', 'composto', 'planoAplicado', 'textoPorFolha', 'folhaVisivel', 'erro',
@@ -14,6 +16,7 @@ export const TIPOS_WEB = [
   // (selecionado, pedirEdicao, editar, edicaoCancelada, atalho, menuContexto, excluidoClicado; id evento-N).
   'estadoAplicado', 'selecionado', 'edicaoIniciada', 'editar', 'semEdicao', 'ancora',
   'pedirEdicao', 'edicaoCancelada', 'atalho', 'menuContexto', 'excluidoClicado',
+  'pesquisado',
 ] as const;
 
 export type TipoHost = (typeof TIPOS_HOST)[number];

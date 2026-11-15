@@ -16,12 +16,21 @@ public sealed partial class FaixaDeOpcoes : UserControl
     readonly Dictionary<string, MenuFlyoutItem> itensMenu = new(StringComparer.Ordinal);
     readonly Dictionary<string, AppBarButton> visiveis = new(StringComparer.Ordinal);
     readonly Dictionary<string, AppBarToggleButton> alternaveis = new(StringComparer.Ordinal);
+    readonly Dictionary<string, MenuFlyout> menusDinamicos = new(StringComparer.Ordinal);
+    readonly HashSet<string> marcados = new(StringComparer.Ordinal);
     DefinicaoFaixa? definicao;
     bool montando;
 
     public FaixaDeOpcoes() => InitializeComponent();
 
     public event Action<string>? ComandoInvocado;
+
+    /// <summary>Os itens de um menu que a definição deixa vazio (ex.: Recentes), pedidos a quem monta a faixa cada vez que o menu abre:
+    /// texto, valor (o caminho) e dica. Sem este provedor ou sem itens, o menu mostra "Nenhum item".</summary>
+    public Func<string, IReadOnlyList<(string Texto, string Valor, string Dica)>>? ItensDinamicos { get; set; }
+
+    /// <summary>Um item de menu dinâmico foi escolhido: id do menu e valor do item.</summary>
+    public event Action<string, string>? ItemDinamicoEscolhido;
 
     /// <summary>A aba escolhida pelo usuário (nome), para a janela lembrar nos ajustes.</summary>
     public event Action<string>? AbaMudou;
@@ -82,6 +91,45 @@ public sealed partial class FaixaDeOpcoes : UserControl
     public string Rotulo(string id) =>
         rotulos.TryGetValue(id, out var r) ? r : definicao is null ? "" : Faixas.Comandos(definicao).FirstOrDefault(c => c.Id == id)?.Rotulo ?? "";
 
+    /// <summary>Refaz os itens do menu dinâmico <paramref name="menu"/> agora e devolve o valor de cada um, na ordem (só existe com a aba
+    /// do menu à vista; senão, lista vazia).</summary>
+    public IReadOnlyList<string> AtualizarMenuDinamico(string menu)
+    {
+        if (!menusDinamicos.TryGetValue(menu, out var m)) return [];
+        PreencherMenuDinamico(menu, m);
+        return m.Items.OfType<MenuFlyoutItem>().Where(i => i.Tag is string).Select(i => (string)i.Tag).ToList();
+    }
+
+    /// <summary>O texto de cada item do menu dinâmico, como o usuário o lê.</summary>
+    public IReadOnlyList<string> TextosDoMenuDinamico(string menu) =>
+        menusDinamicos.TryGetValue(menu, out var m) ? m.Items.OfType<MenuFlyoutItem>().Where(i => i.Tag is string).Select(i => i.Text).ToList() : [];
+
+    /// <summary>Marca (✓) ou desmarca um item de menu (ex.: o tema em uso); vale também quando o menu for montado de novo.</summary>
+    public void MarcarItem(string id, bool sim)
+    {
+        if (sim) marcados.Add(id); else marcados.Remove(id);
+        if (itensMenu.TryGetValue(id, out var i)) i.Icon = Icone(sim, "");
+    }
+
+    public bool Marcado(string id) => marcados.Contains(id);
+
+    /// <summary>O ícone de um item de menu: o ✓ (Segoe Fluent E73E) quando marcado, senão o glifo da definição.</summary>
+    static FontIcon Icone(bool marcado, string glifo) => new() { Glyph = marcado ? "" : glifo };
+
+    void PreencherMenuDinamico(string menu, MenuFlyout m)
+    {
+        m.Items.Clear();
+        var itens = ItensDinamicos?.Invoke(menu) ?? [];
+        foreach (var (texto, valor, dica) in itens)
+        {
+            var mi = new MenuFlyoutItem { Text = texto, Tag = valor };
+            ToolTipService.SetToolTip(mi, dica);
+            mi.Click += (_, _) => ItemDinamicoEscolhido?.Invoke(menu, valor);
+            m.Items.Add(mi);
+        }
+        if (itens.Count == 0) m.Items.Add(new MenuFlyoutItem { Text = "Nenhum item", IsEnabled = false });
+    }
+
     public bool Ligado(string id) => ligado.TryGetValue(id, out var l) && l;
 
     public bool Habilitado(string id) => !habilitado.TryGetValue(id, out var h) || h;
@@ -113,6 +161,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         visiveis.Clear();
         alternaveis.Clear();
         itensMenu.Clear();
+        menusDinamicos.Clear();
         if (definicao is null || AbaAtual is not { } nome) return;
         var aba = definicao.Abas.First(a => a.Nome == nome);
         foreach (var c in aba.Comandos) Barra.PrimaryCommands.Add(Botao(c));
@@ -140,9 +189,15 @@ public sealed partial class FaixaDeOpcoes : UserControl
         if (c.Tipo == TipoComando.Menu && c.Itens is { } itens)
         {
             var menu = new MenuFlyout();
+            if (itens.Count == 0)
+            {
+                menusDinamicos[c.Id] = menu;
+                menu.Opening += (_, _) => PreencherMenuDinamico(c.Id, menu);
+                PreencherMenuDinamico(c.Id, menu);
+            }
             foreach (var i in itens)
             {
-                var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = new FontIcon { Glyph = i.Glifo }, IsEnabled = Habilitado(i.Id) };
+                var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = Icone(marcados.Contains(i.Id), i.Glifo), IsEnabled = Habilitado(i.Id) };
                 mi.Click += (_, _) => ComandoInvocado?.Invoke(i.Id);
                 menu.Items.Add(mi);
                 itensMenu[i.Id] = mi;

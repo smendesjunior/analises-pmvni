@@ -131,7 +131,14 @@ public sealed class Diario : IDisposable
         {
             var novo = n == 1 ? baseNome + ".jsonl" : baseNome + "-" + n.ToString(CultureInfo.InvariantCulture) + ".jsonl";
             if (File.Exists(novo)) continue;
-            try { File.Move(caminho, novo, false); return novo; }
+            try
+            {
+                File.Move(caminho, novo, false);
+                // A idade do órfão (limpeza de 30 dias) conta do dia em que foi guardado, não da última gravação do diário:
+                // o Move preserva a data antiga, e um diário velho guardado agora sairia na abertura seguinte.
+                try { File.SetLastWriteTimeUtc(novo, DateTime.UtcNow); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+                return novo;
+            }
             catch (IOException) when (File.Exists(novo)) { }
         }
     }

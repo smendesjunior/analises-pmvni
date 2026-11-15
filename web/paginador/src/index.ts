@@ -3,6 +3,7 @@ import { aplicarPlano, compor, lerPedido, lerPedidoAplicar } from './folhas';
 import { ErroComposicao } from './plano';
 import { textoPorFolha } from './texto';
 import { registrarEdicao } from './edicao';
+import { registrarPesquisa } from './pesquisa';
 import { registrarTela } from './tela';
 
 // Expostos no global Paginador para os testes: montagem de uma folha pelo plano e avisos/estouros de largura.
@@ -71,6 +72,9 @@ registrarTela(registrar, enviar);
 
 // Tarefa 7 (Etapa 2): selecao, campos editaveis, edicao no A4, marcas de revisao, ancora, atalhos e menu de contexto.
 registrarEdicao(registrar, enviar);
+
+// Tarefa 11 (Etapa 2): pesquisa no relatório (realce fora do DOM; nada entra nas folhas nem no PDF).
+registrarPesquisa(registrar);
 
 if (webview) {
   webview.addEventListener('message', (e) => void aoReceber(e.data));

@@ -70,4 +70,49 @@ public class AjustesTestes
         Assert.Equal(30, a.IntervaloAutosaveS);
         Assert.Equal("Exibir", Assert.Single(a.AbaPorModulo).Value);
     }
+
+    [Fact]
+    public void recentes_no_maximo_10_sem_repetir()
+    {
+        var a = new Ajustes();
+        for (var i = 1; i <= 12; i++) a.AdicionarRecente(@"C:\x\r" + i + ".pmvrel");
+        Assert.Equal(10, a.Recentes.Count);
+        Assert.Equal(@"C:\x\r12.pmvrel", a.Recentes[0]);
+        Assert.Equal(@"C:\x\r3.pmvrel", a.Recentes[^1]); // r1 e r2 saíram
+
+        // Repetir (ignorando maiúsculas) leva ao topo, sem duplicar, e guarda o caminho como foi aberto agora.
+        a.AdicionarRecente(@"C:\X\R5.PMVREL");
+        Assert.Equal(10, a.Recentes.Count);
+        Assert.Equal(@"C:\X\R5.PMVREL", a.Recentes[0]);
+        Assert.Single(a.Recentes, r => string.Equals(r, @"C:\x\r5.pmvrel", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(@"C:\x\r12.pmvrel", a.Recentes[1]);
+
+        // Caminho vazio não entra; os recentes sobrevivem ao salvar e carregar.
+        a.AdicionarRecente("  ");
+        Assert.Equal(10, a.Recentes.Count);
+        using var pasta = Ambiente.PastaDeTeste("recentes-salvar");
+        a.Salvar(pasta);
+        Assert.Equal(a.Recentes, Ajustes.Carregar(pasta).Recentes);
+    }
+
+    [Fact]
+    public void recentes_somem_quando_o_arquivo_some()
+    {
+        using var pasta = Ambiente.PastaDeTeste("recentes-somem");
+        string Criar(string nome) { var c = Path.Combine(pasta, nome); File.WriteAllText(c, "x"); return c; }
+        var a1 = Criar("a.pmvrel");
+        var b = Criar("b.pmvrel");
+        var c = Criar("c.pmvrel");
+        var a = new Ajustes();
+        a.AdicionarRecente(a1);
+        a.AdicionarRecente(b);
+        a.AdicionarRecente(c);
+        Assert.Equal(new[] { c, b, a1 }, a.RecentesExistentes());
+
+        File.Delete(b);
+
+        Assert.Equal(new[] { c, a1 }, a.RecentesExistentes());
+        // Nada é desabilitado nem alterado: a lista guardada continua como está (um arquivo numa unidade offline pode voltar).
+        Assert.Equal(3, a.Recentes.Count);
+    }
 }

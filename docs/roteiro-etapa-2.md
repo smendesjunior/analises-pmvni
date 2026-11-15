@@ -7,10 +7,10 @@ rótulos recolhidos com a janela abaixo de 1000 DIP), trilho de módulos à esqu
 módulos de `Faixas.Disponiveis`) e as páginas dos módulos, criadas uma vez e trocadas por Visibility (o WebView2 nunca é recriado).
 Módulo e aba ativos ficam em `<dados>\ajustes.json`.
 
-Relatórios trabalha sobre o pacote `.pmvrel`: **Arquivo** (Importar dados.json, Abrir, Salvar, Salvar como, Exportar PDF,
+Relatórios trabalha sobre o pacote `.pmvrel`: **Arquivo** (Importar dados.json, Abrir, Recentes, Salvar, Salvar como, Exportar PDF,
 Fechar), **Página Inicial** (aba padrão; Situação ▾ com as 4 situações de item do kit, Excluir/Restaurar item, Editar texto,
 Original ⇄, Restaurar original, ◂ Item, Item ▸, Próximo pendente, Exportar PDF), **Revisão** (Marcas de revisão, Somente
-alterados, Conferência), **Exibir** (−, +, Ajustar largura, Página inteira, Painel lateral, Propriedades) e **Ajuda** (Atalhos de
+alterados, Conferência, Comparar com o original), **Exibir** (−, +, Ajustar largura, Página inteira, Painel lateral, Propriedades, Tema) e **Ajuda** (Atalhos de
 teclado, Sobre). Importar
 pede o `dados.json` e depois onde gravar o `.pmvrel` novo, com o nome `Relatorio_NNNN_AAAA.pmvrel` do processo da capa (nunca
 sobrescreve um arquivo existente). Na linha de comando, um `.pmvrel` abre e um `dados.json` é importado do mesmo jeito. Exportar é
@@ -31,8 +31,8 @@ número e id, No PDF, situação original e revisada, justificativa (aplica ao s
 numa folha: Situação ▸, Editar texto, Excluir/Restaurar, Original ⇄, Propriedades; clique na marca "◦ excl. NN": título e
 Restaurar. Desfazer e Refazer ficam na barra de título. Conferência mostra os erros finais e os avisos (citações a itens excluídos e
 citações literais com a numeração mudada). Os atalhos (`Atalhos.Mapa`, as 16 teclas que a página repassa) valem na janela
-(`KeyboardAccelerator`; numa caixa de texto, Delete, Ctrl+Z e Ctrl+Y são dela) e nas folhas (mensagem `atalho`); Ctrl+F só ganha
-ação com a pesquisa (Tarefa 11).
+(`KeyboardAccelerator`; numa caixa de texto, Delete, Ctrl+Z e Ctrl+Y são dela) e nas folhas (mensagem `atalho`); Ctrl+F foca a
+pesquisa (Tarefa 11).
 
 A partir da Tarefa 10 o trabalho não se perde (desenho §5.1, §8.6). Abrir trava o arquivo (`.~nome.pmvrel.lock` ao lado,
 batimento a cada 30 s): com a trava viva de outra janela, máquina ou usuário o relatório abre **somente leitura** ("Aberto por
@@ -50,6 +50,21 @@ arquivo com comandos que ele não tem ⇒ pergunta Recuperar (reaplica, "Não sa
 com um InfoBar que diz o nome. Órfãos parados há mais de 30 dias saem na abertura do app. Falha do diário grava o pacote na hora (pela fila) e o diário recomeça no comando seguinte. Exportar com alterações que o arquivo não tem e não pode receber (trava perdida, conflito) é recusado. Fechar em conflito não promete recuperação (o arquivo é outra versão) e oferece "Salvar como cópia". Arquivo mudado por outro programa ⇒ "Conflito": nada é sobrescrito, a exportação recusa e o InfoBar
 oferece **Salvar como cópia** (`<nome> (cópia AAAA-MM-DD HH-MM).pmvrel` ao lado, sem seletor; a cópia passa a ser o arquivo aberto,
 com a trava dela) e **Recarregar** (confirma; abre o arquivo do disco e guarda o diário desta sessão como órfão).
+
+A partir da Tarefa 11 (desenho §5.5, §8.5, §9): **Pesquisa** na barra de título ("Pesquisar no relatório", "3 de 12" ao lado,
+Enter = próxima, Shift+Enter = anterior, Esc limpa e volta às folhas, Ctrl+F foca a caixa). A página recebe `pesquisar {termo,
+passo}` e responde `pesquisado {total, atual, ref}`; o realce usa a CSS Custom Highlight API (`CSS.highlights`,
+`::highlight(pmvni-busca)` e `::highlight(pmvni-busca-atual)`, só em `@media screen`): nenhum elemento, atributo ou nó de texto é
+criado nas folhas, então nada do realce entra no PDF nem no HTML exportado. A busca é feita dentro de cada nó de texto da área útil,
+sem diferenciar maiúsculas nem acentos (NFD, um caractere por caractere); depois de cada recomposição o host refaz a pesquisa com a
+mesma ocorrência atual (`pesquisar` com `atual`, sem rolar). **Tema** (Exibir › Tema: Sistema, Claro, Escuro; guardado em
+`ajustes.json`; só a janela muda, as folhas continuam brancas). **Recentes** (Arquivo › Recentes: os 10 últimos `.pmvrel` abertos ou
+gravados, o mais novo primeiro; só aparece o que ainda existe, nada fica desabilitado). **Comparar com o original** (Revisão: só os
+itens alterados, na ordem do relatório, com a situação original → revisada, a justificativa e cada campo com o original e o
+revisado como são impressos hoje, mais os excluídos; numa seção à parte, **todas** as citações "item NN" que a importação converteu,
+inclusive as de itens sem alteração). O módulo **Ajustes** (embaixo no trilho) tem o tema, o intervalo do salvamento automático
+(15/30/60/120 s), a pasta de recuperação (só o caminho) e as versões (app, modelo rev10, WebView2). Abrir ou importar com os Ajustes à
+vista leva ao módulo Relatórios.
 
 ## Como rodar
 
@@ -83,7 +98,7 @@ com a trava dela) e **Recarregar** (confirma; abre o arquivo do disco e guarda o
 | 15 | `15_excluir_e_marca` | Excluir (pela faixa) o ITEM 05: 59 itens; o antigo 06 imprime "ITEM 05"; aba "Excluídos (1)" com 1 linha; marca "◦ excl. 05" na camada fora das folhas; o botão vira "Restaurar item". |
 | 16 | `16_desfazer_refazer` | Desfazer 4× (edição, situação, justificativa, exclusão) volta ao mesmo `Plano.ParaJson()` da importação e ao item sem revisão; refazer 4× volta ao plano anterior; 4 registros `desfeito` e 4 `refeito`; o Histórico na tela tem todos os registros, o mais recente primeiro. |
 | 17 | `17_salvar_reabrir_exportar` | Ctrl+S (CDP, nas folhas: mensagem `atalho`) salva; fechar e reabrir: mesmas alterações e o histórico com os `desfeito`/`refeito` (cada `Ref` = `N` do comando original, `{tipo, valor}`); o PDF exportado tem as mesmas folhas da tela. |
-| 18 | `18_menu_de_contexto_e_atalhos` | Botão direito (CDP) no ITEM 10: o menu abre com 5 entradas; Delete nas folhas exclui; Alt+↓ seleciona o próximo incluído; desfazer; clique na marca "◦ excl." abre o flyout; Somente alterados filtra, Marcas tira e põe a camada, Propriedades recolhe; todo atalho (menos Ctrl+F) e todo comando da faixa têm manipulador. |
+| 18 | `18_menu_de_contexto_e_atalhos` | Botão direito (CDP) no ITEM 10: o menu abre com 5 entradas; Delete nas folhas exclui; Alt+↓ seleciona o próximo incluído; desfazer; clique na marca "◦ excl." abre o flyout; Somente alterados filtra, Marcas tira e põe a camada, Propriedades recolhe; todo atalho (Ctrl+F inclusive, desde a Tarefa 11) e todo comando da faixa têm manipulador. |
 | 19 | `19_latencia` | Mediana de 5 comandos de situação no longo em `latencia_ms` (meta 1,5 s; só registra). |
 | 20 | `20_comandos_em_sequencia` | Justificativa e, sem esperar, Situação e Excluir pela faixa: os três entram na fila e são aplicados na ordem; uma situação e, sem esperar, um `editar` da página: a edição entra (modelo e folhas); tudo desfeito depois. |
 | 21 | `21_autosave` | `curto.json` importado em `<pasta>\curto-auto.pmvrel`; intervalo de 15 s nos ajustes do roteiro (definido no início); 1 comando: "Não salvo" e o registro no diário; sozinho, entre 14 e 25 s, o estado vira "Salvo HH:MM", o pacote em disco tem o registro e o diário só o cabeçalho com o sha novo. |
@@ -92,8 +107,18 @@ com a trava dela) e **Recarregar** (confirma; abre o arquivo do disco e guarda o
 | 24 | `24_trava_e_somente_leitura` | Trava viva de `OUTRA-MAQUINA` gravada pelo roteiro: "Somente leitura", InfoBar "Aberto por outro.usuario em OUTRA-MAQUINA desde HH:mm: somente leitura.", Excluir e Salvar desabilitados, Excluir não muda nada, a trava do outro fica intacta ao fechar; trava com batimento de 3 min atrás: abre editável, Excluir habilitado, a trava passa a ser deste processo; 1 comando e a trava apagada por fora: o batimento vira "Somente leitura" (InfoBar da trava perdida, Excluir desabilitado); exportar é recusado (`ExportacaoDivergenteException` com `TextosGravacao.ExportarSemGravar`, que aponta Salvar como; sem PDF nem recibo); fechar pergunta e "Fechar sem salvar" guarda o diário; reabrir pergunta "recuperar 1" e recupera; grava. |
 | 25 | `25_conflito_nao_sobrescreve` | Outro `Pacote.Gravar` depois de abrir; comando + `GravarAgoraAsync`: false, "Conflito", InfoBar do conflito, bytes do disco = os do outro, exportação recusada; "Salvar como cópia" cria `curto-auto (cópia AAAA-MM-DD HH-MM).pmvrel` com a alteração, o original continua o do outro, a trava passa para a cópia, "Salvo"; outro programa muda a cópia e "Recarregar" abre o que está no disco ("Salvo") e guarda o diário desta sessão como órfão; outro conflito e fechar: a pergunta vem marcada como conflito, não promete recuperação ("não serão oferecidas de novo") e "Salvar como cópia" (principal) grava a cópia e fecha. A exportação em conflito recusa apontando Salvar como cópia. |
 
+| 26 | `26_pesquisa` | (Tarefa 11) Ctrl+F foca a caixa; o título do ITEM 10 dá ao menos uma ocorrência, "1 de N", `ref` = ITEM 10 e a ocorrência atual está dentro do card do ITEM 10 e dentro da janela; "VERIFICAÇÃO" e "verificacao" dão o mesmo total, igual ao de um contador independente em JS; Enter avança ("2 de N"), Shift+Enter volta, com volta ao fim e ao começo; nº de elementos do `body` e `TextoPorFolha` iguais; um comando recompõe e a pesquisa é refeita na mesma ocorrência; o PDF exportado com a pesquisa ativa tem as mesmas folhas e o HTML não tem realce; termo vazio limpa. |
+| 27 | `27_tema_chrome` | Exibir › Tema Escuro e Claro: `ActualTheme` do app, item marcado na faixa, opção marcada na página Ajustes, `ajustes.json` com o tema, folha `rgb(255, 255, 255)` nos dois, fundo fora das folhas diferente, texto por folha igual; pela página Ajustes e de volta a Sistema. Página Ajustes (módulo no trilho, embaixo; a caixa de pesquisa fica desabilitada): versões (app, `rev10`, WebView2), pasta de recuperação e intervalo do salvamento (15 → 60 → 15 s, guardado em `ajustes.json`); volta ao módulo Relatórios. |
+| 28 | `28_recentes` | Dois pacotes abertos: o menu Recentes lista os dois, o mais recente primeiro, e `ajustes.json` guarda; escolher o A no menu abre o A e o leva ao topo; apagar o B por fora o tira do menu e abrir o item velho avisa "O arquivo não existe mais"; no máximo 10, sem repetir. |
+| 29 | `29_comparar_com_o_original` | No longo (ITEM 03 editado, ATENDE com justificativa e ITEM 05 excluído): o diálogo "Comparar com o original" tem exatamente os dois itens, a situação original → revisada, a justificativa e os textos original e revisado da verificação, e o excluído; num `curto` com duas citações no ITEM 03 e nenhuma alteração: "Nenhum item foi alterado" e as duas citações convertidas na seção própria. |
+
+(Os passos 26 a 29 são os da Tarefa 11; o plano os previa como 24 a 27, mas 24 e 25 já eram a trava e o conflito da Tarefa 10.
+Cada etapa que começa e termina fica em `tests\saidaoteiro\progresso.log`, para achar onde um roteiro travou.)
+
 Testes sem a janela (`tests\Pmvni.Revisao.Testes`): `FaixasTestes` (toda faixa começa em Arquivo e termina em Ajuda, aba padrão,
-ids únicos e conhecidos), `AjustesTestes` (lembrar módulo e aba; arquivo corrompido guardado e padrão), `NomesArquivoTestes`,
+ids únicos e conhecidos; Ajustes no trilho; Recentes, Tema e Comparar), `AjustesTestes` (lembrar módulo e aba; arquivo corrompido
+guardado e padrão; recentes: no máximo 10, sem repetir, somem quando o arquivo some), `ComparacaoTestes` (só o que mudou, textos
+impressos com os números de hoje, citações convertidas em seção própria, texto da janela), `NomesArquivoTestes`,
 `GravadorPacoteTestes` (gravações simultâneas sem conflito), `AutosaveTestes` (Tarefa 10: o diário da sessão recomeça só com
 o cabeçalho depois de gravar, o que chegou durante a gravação fica no diário novo e o antigo vira órfão, Salvar como leva o diário,
 fechar guarda o diário com trabalho, falha de disco informada; decisão de recuperação na abertura; texto do somente leitura),
@@ -109,5 +134,7 @@ Relatórios abre em Página Inicial).
   alterações, fechar com gravação que falhou, Recarregar): o roteiro usa respostas fixas.
 - Fechar a janela pelo X com alterações não gravadas (o roteiro fecha o relatório pelos mesmos caminhos, mas não clica no X) e o
   batimento pelo temporizador de 30 s (o roteiro chama o batimento direto).
+- A caixa de pesquisa com o teclado de verdade (Enter, Shift+Enter, Esc; o roteiro chama os mesmos métodos, não digita), o encaixe
+  da caixa na barra de título em janelas estreitas e a aparência do diálogo "Comparar com o original".
 - O menu de contexto e o flyout do excluído na posição do clique, o painel de Propriedades (Original ⇄ lado a lado) e os atalhos
   com o teclado de verdade (o roteiro manda as teclas pelo CDP, direto à página; os `KeyboardAccelerator`s da janela só são contados).

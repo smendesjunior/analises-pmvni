@@ -44,7 +44,8 @@ internal sealed class PerguntasFixas : IPerguntas
 /// comandos da faixa (importar, rolagem, zoom, navegação, exportação, corpus com estouro, tema escuro, campos em aberto, pacote mudado no
 /// disco, faixa por módulo, reabrir o pacote; Tarefa 9: seleção e edição no A4, situação e justificativa, exclusão e marca, desfazer e
 /// refazer, salvar/reabrir/exportar, menu de contexto e atalhos, latência; Tarefa 10: salvamento automático, gravação que falha sem
-/// perder nada, recuperação depois de uma queda, trava e somente leitura, conflito sem sobrescrever) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
+/// perder nada, recuperação depois de uma queda, trava e somente leitura, conflito sem sobrescrever; Tarefa 11: pesquisa no relatório,
+/// tema do app, Recentes e Comparar com o original) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
 /// na pasta do &lt;saida.json&gt; (tests\saida\roteiro). As perguntas têm respostas fixas (<see cref="PerguntasFixas"/>). Cada passo é
 /// independente: falha num não impede os seguintes.</summary>
 internal static class Roteiro
@@ -55,23 +56,30 @@ internal static class Roteiro
         var corpus = Path.GetDirectoryName(dadosLongo)!;
         var pasta = Path.GetDirectoryName(args.Roteiro!)!;
         Directory.CreateDirectory(pasta);
+        // Progresso em <pasta>\progresso.log (uma linha por etapa que começa e que termina): um roteiro que trava mostra onde.
+        var progresso = Path.Combine(pasta, "progresso.log");
+        File.WriteAllText(progresso, "");
+        void Registrar(string linha) { try { File.AppendAllText(progresso, DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture) + " " + linha + Environment.NewLine); } catch (IOException) { } }
+        Registrar("início da limpeza das rodadas anteriores");
         var perguntas = new PerguntasFixas();
         Perguntas.Atual = perguntas;
         var pacoteLongo = Path.Combine(pasta, "longo.pmvrel");
         // Pacotes de rodadas anteriores (só os do roteiro, só nesta pasta), com travas, cópias de conflito e diários de recuperação
         // (na pasta de dados do roteiro, tests\saida\dados-app): a importação nunca sobrescreve e nada de antes vira "recuperação".
         var recuperacao = Path.Combine(PastaDados.Raiz, "recuperacao");
-        foreach (var nome in new[] { "longo", "estouro", "curto-colchetes", "curto-muda", "curto-auto" })
+        foreach (var nome in new[] { "longo", "estouro", "curto-colchetes", "curto-muda", "curto-auto", "recentes-a", "recentes-b", "curto-citacoes" })
         {
             var arquivos = Directory.GetFiles(pasta, nome + ".pmvrel*").Concat(Directory.GetFiles(pasta, ".~" + nome + ".pmvrel*"))
                 .Concat(Directory.GetFiles(pasta, nome + " (cópia *")).Concat(Directory.GetFiles(pasta, ".~" + nome + " (cópia *")).ToList();
-            var pacotes = arquivos.Where(a => a.EndsWith(".pmvrel", StringComparison.OrdinalIgnoreCase)).Append(Path.Combine(pasta, nome + ".pmvrel"));
+            // ToList: o laço abaixo acrescenta a "arquivos" (uma consulta preguiçosa sobre ela falharia numa rodada com restos da anterior).
+            var pacotes = arquivos.Where(a => a.EndsWith(".pmvrel", StringComparison.OrdinalIgnoreCase)).Append(Path.Combine(pasta, nome + ".pmvrel")).ToList();
             if (Directory.Exists(recuperacao))
                 foreach (var pc in pacotes)
                     arquivos.AddRange(Directory.GetFiles(recuperacao, Path.GetFileNameWithoutExtension(Diario.CaminhoDe(PastaDados.Raiz, pc)) + "*"));
             foreach (var a in arquivos.Distinct()) { File.SetAttributes(a, FileAttributes.Normal); File.Delete(a); }
         }
         // Tarefa 10: salvamento automático com 15 s nos ajustes do roteiro (o menor intervalo permitido).
+        Registrar("limpeza concluída");
         j.DefinirIntervaloAutosave(15);
         var saida = new JsonObject
         {
@@ -88,10 +96,12 @@ internal static class Roteiro
         async Task Passo(string nome, Func<JsonObject, Task> corpoPasso)
         {
             var p = new JsonObject();
+            Registrar("início " + nome);
             try { await corpoPasso(p); p["ok"] ??= true; }
             catch (Exception e) { p["ok"] = false; p["excecao"] = e.GetType().Name + ": " + e.Message; }
             passos[nome] = p;
             if (p["ok"]?.GetValue<bool>() != true) falhas.Add(nome);
+            Registrar("fim " + nome + (p["ok"]?.GetValue<bool>() == true ? " ok" : " FALHOU"));
         }
 
         await Passo("1_importar_longo", async p =>
@@ -1024,6 +1034,284 @@ internal static class Roteiro
                 && copiaAoFechar;
             p["fechar_em_conflito_salva_copia"] = fecharOk;
             p["ok"] = !gravou && conflito && intacto && exportarRecusa && copiaOk && recarregarOk && fecharOk;
+        });
+
+        // ---------- Tarefa 11: pesquisa, tema, recentes e comparar com o original (no longo e em cópias do curto) ----------
+        // O contador de ocorrências é independente da pesquisa da página: texto de cada nó da área útil sem acento nem caixa.
+        const string ContadorJs = "((termo) => { const sem = (s) => s.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase(); const alvo = sem(termo); let total = 0; " +
+            "for (const area of document.querySelectorAll('section.folha > .area')) { const w = document.createTreeWalker(area, NodeFilter.SHOW_TEXT); " +
+            "for (let n = w.nextNode(); n; n = w.nextNode()) { if (n.parentElement.closest('[data-pmvni-oculto], style, script')) continue; total += sem(n.data).split(alvo).length - 1; } } return total; })";
+        const string OcorrenciaAtualJs = "(() => { const h = CSS.highlights.get('pmvni-busca-atual'); return (h && h.size === 1) ? [...h][0] : null; })()";
+
+        await Passo("26_pesquisa", async p =>
+        {
+            if (!await j.AbrirPacoteAsync(pacoteLongo)) throw new InvalidOperationException("não reabriu o longo: " + j.InfoMensagem.Message);
+            var s = j.Sessao!;
+            var proj = s.Revisao.Projeto;
+            var item10 = proj.Incluidos[9];
+            var titulo = DadosEfetivos.TextoEfetivo(proj, item10, "titulo")!;
+            var elementosAntes = (await Js(j, "document.body.querySelectorAll('*').length")).GetInt32();
+            var textoAntes = await j.Documento!.TextoPorFolhaAsync();
+
+            // Ctrl+F foca a caixa da barra de título.
+            await j.ExecutarComandoAsync(ComandosApp.PesquisaFocar);
+            p["caixa_habilitada"] = j.CaixaPesquisaHabilitada;
+            p["ctrl_f_foca_a_caixa"] = j.CaixaPesquisaComFoco;
+
+            // O título do ITEM 10: ao menos uma ocorrência, "1 de N", a página mostra a primeira e ela está dentro do card do item 10.
+            await j.DigitarPesquisaAsync(titulo);
+            p["titulo_pesquisado"] = titulo;
+            p["total_do_titulo"] = j.PesquisaTotal;
+            p["resultado_do_titulo"] = j.TextoResultadoPesquisa;
+            p["ref_do_titulo"] = j.PesquisaRef;
+            var dentroDoCard = (await Js(j, $"((r) => !r ? false : [...document.querySelectorAll('section.folha .card[data-ref=\"{item10.Id}\"]')].some((c) => {{ const a = r.getBoundingClientRect(), b = c.getBoundingClientRect(); return a.top >= b.top - 1 && a.bottom <= b.bottom + 1 && a.height > 0; }}))({OcorrenciaAtualJs})")).GetBoolean();
+            var naJanela = (await Js(j, $"((r) => !r ? false : (() => {{ const a = r.getBoundingClientRect(); return a.top >= 0 && a.bottom <= window.innerHeight; }})())({OcorrenciaAtualJs})")).GetBoolean();
+            p["rolou_para_o_item_10"] = dentroDoCard && naJanela;
+            var tituloOk = j.PesquisaTotal >= 1 && j.TextoResultadoPesquisa == $"1 de {j.PesquisaTotal}" && j.PesquisaRef == item10.Id && dentroDoCard && naJanela;
+            await CapturarWebAsync(j, Path.Combine(pasta, "26-pesquisa-titulo.png"));
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "26-janela-xaml-pesquisa.png"));
+
+            // Sem acento e sem caixa; Enter avança, Shift+Enter volta, com volta ao fim e ao começo (os mesmos caminhos das teclas).
+            await j.DigitarPesquisaAsync("VERIFICAÇÃO");
+            var totalMaiusculo = j.PesquisaTotal;
+            await j.DigitarPesquisaAsync("verificacao");
+            var total = j.PesquisaTotal;
+            var contados = (await Js(j, ContadorJs + "('verificacao')")).GetInt32();
+            p["total_verificacao"] = total;
+            p["contador_independente"] = contados;
+            var semAcento = total >= 60 && total == totalMaiusculo && total == contados && j.TextoResultadoPesquisa == $"1 de {total}";
+            await j.IrNaPesquisaAsync(+1);
+            var enter = j.PesquisaAtual == 2 && j.TextoResultadoPesquisa == $"2 de {total}";
+            await j.IrNaPesquisaAsync(-1);
+            var shiftEnter = j.PesquisaAtual == 1;
+            await j.IrNaPesquisaAsync(-1);
+            var voltaAoFim = j.PesquisaAtual == total && j.TextoResultadoPesquisa == $"{total} de {total}";
+            await j.IrNaPesquisaAsync(+1);
+            var voltaAoComeco = j.PesquisaAtual == 1;
+            p["enter_avanca"] = enter;
+            p["shift_enter_volta"] = shiftEnter;
+            p["volta_ao_fim_e_ao_comeco"] = voltaAoFim && voltaAoComeco;
+
+            // O realce não toca o DOM das folhas.
+            var elementosDepois = (await Js(j, "document.body.querySelectorAll('*').length")).GetInt32();
+            var textoDepois = await j.Documento!.TextoPorFolhaAsync();
+            var realcesNaPagina = (await Js(j, "CSS.highlights.get('pmvni-busca').size")).GetInt32();
+            p["elementos_do_body_antes_e_depois"] = new JsonArray(elementosAntes, elementosDepois);
+            p["ocorrencias_realcadas"] = realcesNaPagina;
+            var domIgual = elementosAntes == elementosDepois && textoAntes.SequenceEqual(textoDepois) && realcesNaPagina == total;
+
+            // Depois de recompor (um comando), a pesquisa é refeita sobre as folhas novas, na mesma ocorrência, sem rolar.
+            await j.IrNaPesquisaAsync(+1);
+            await j.IrNaPesquisaAsync(+1);
+            var atualAntes = j.PesquisaAtual;
+            var item = proj.Incluidos[19];
+            var atual = item.Situacao.Revisada ?? item.Situacao.Original!.GetValue<string>();
+            await j.AplicarAsync(new DefinirSituacao(item.Id, Faixas.OrdemSituacoes.First(c => c != atual)));
+            var refeita = await EsperarAteAsync(async () => (await Js(j, "(CSS.highlights.get('pmvni-busca') || { size: 0 }).size")).GetInt32() == total, 8000);
+            p["pesquisa_refeita_depois_de_recompor"] = refeita;
+            p["ocorrencia_atual_mantida"] = j.PesquisaAtual == atualAntes && atualAntes == 3;
+            await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            await EsperarAteAsync(async () => (await Js(j, "(CSS.highlights.get('pmvni-busca') || { size: 0 }).size")).GetInt32() == total, 8000);
+
+            // Exportar com o realce na tela: o PDF sai das folhas do host de composição, sem realce nem marcas.
+            var pdf = Path.Combine(pasta, "longo-com-pesquisa.pdf");
+            File.Delete(pdf);
+            var (ok, x, erro, _) = await j.ExportarParaAsync(pdf);
+            if (!ok || x is null) throw new InvalidOperationException("exportação falhou: " + erro);
+            var info = InfoPdf.Ler(await File.ReadAllBytesAsync(pdf));
+            var html = j.Aberto!.Preparado.Render.Html;
+            var paginasIguais = info.Paginas == j.Aberto.Composicao.Folhas;
+            var planoIgual = x.Plano.ParaJson() == j.Aberto.Composicao.Plano.ParaJson();
+            // "<mark>" como elemento (o SVG do kit tem <marker>, que não conta).
+            var htmlLimpo = !html.Contains("pmvni-busca", StringComparison.Ordinal) && !html.Contains("data-pmvni", StringComparison.Ordinal)
+                && !System.Text.RegularExpressions.Regex.IsMatch(html, @"<mark[\s>/]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var pdfOk = paginasIguais && planoIgual && htmlLimpo;
+            p["pdf_com_pesquisa_ativa"] = $"{info.Paginas} páginas, plano igual, HTML sem realce";
+
+            // Termo vazio limpa tudo.
+            await j.DigitarPesquisaAsync("");
+            var limpou = j.TextoResultadoPesquisa == "" && j.PesquisaTotal == 0 && (await Js(j, "CSS.highlights.size")).GetInt32() == 0;
+            p["termo_vazio_limpa"] = limpou;
+            p["conferencias"] = new JsonObject
+            {
+                ["caixa_habilitada"] = j.CaixaPesquisaHabilitada, ["titulo"] = tituloOk, ["sem_acento_e_sem_caixa"] = semAcento, ["dom_igual"] = domIgual,
+                ["pdf"] = pdfOk, ["pdf_paginas_iguais"] = paginasIguais, ["pdf_plano_igual"] = planoIgual, ["html_sem_realce"] = htmlLimpo, ["limpa"] = limpou, ["total_maiusculo"] = totalMaiusculo,
+            };
+            p["ok"] = j.CaixaPesquisaHabilitada && p["ctrl_f_foca_a_caixa"]!.GetValue<bool>() && tituloOk && semAcento && enter && shiftEnter && voltaAoFim && voltaAoComeco
+                && domIgual && refeita && p["ocorrencia_atual_mantida"]!.GetValue<bool>() && pdfOk && limpou;
+        });
+
+        await Passo("27_tema_chrome", async p =>
+        {
+            // O tema do app (janela, faixa, painéis) pelos comandos Exibir › Tema; as folhas continuam brancas nos dois. Guardado em ajustes.json.
+            if (j.Sessao is null) throw new InvalidOperationException("nenhum relatório aberto");
+            const string Cores = "({ escuro: matchMedia('(prefers-color-scheme: dark)').matches, fundoDaPagina: getComputedStyle(document.documentElement).backgroundColor, " +
+                "fundoDaFolha: getComputedStyle(document.querySelector('section.folha')).backgroundColor })";
+            var ajustesJson = Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo);
+            string? Guardado() => JsonNode.Parse(File.ReadAllText(ajustesJson))?["tema"]?.GetValue<string>();
+            var textoAntes = await j.Documento!.TextoPorFolhaAsync();
+            var faixa = j.FaixaAtual;
+
+            await j.ExecutarComandoAsync(ComandosApp.ExibirTemaEscuro);
+            await Esperar(900);
+            var escuro = await Js(j, Cores);
+            var escuroOk = j.TemaAtual == ElementTheme.Dark && j.TemaDosAjustes == "escuro" && Guardado() == "escuro"
+                && faixa.Marcado(ComandosApp.ExibirTemaEscuro) && !faixa.Marcado(ComandosApp.ExibirTemaClaro) && !faixa.Marcado(ComandosApp.ExibirTemaSistema)
+                && j.TemaMarcadoNaPagina == "escuro" && escuro.GetProperty("escuro").GetBoolean();
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "27-janela-xaml-escuro.png"));
+            await CapturarWebAsync(j, Path.Combine(pasta, "27-tela-escuro.png"));
+
+            await j.ExecutarComandoAsync(ComandosApp.ExibirTemaClaro);
+            await Esperar(900);
+            var claro = await Js(j, Cores);
+            var claroOk = j.TemaAtual == ElementTheme.Light && j.TemaDosAjustes == "claro" && Guardado() == "claro"
+                && faixa.Marcado(ComandosApp.ExibirTemaClaro) && !faixa.Marcado(ComandosApp.ExibirTemaEscuro)
+                && j.TemaMarcadoNaPagina == "claro" && !claro.GetProperty("escuro").GetBoolean();
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "27-janela-xaml-claro.png"));
+
+            // Pela página Ajustes (o mesmo caminho do clique na opção) e de volta ao sistema.
+            j.EscolherTema("escuro");
+            var pelaPagina = j.TemaAtual == ElementTheme.Dark && Guardado() == "escuro";
+            await j.ExecutarComandoAsync(ComandosApp.ExibirTemaSistema);
+            await Esperar(400);
+            var sistemaOk = j.TemaDosAjustes == "sistema" && Guardado() == "sistema" && faixa.Marcado(ComandosApp.ExibirTemaSistema) && j.TemaMarcadoNaPagina == "sistema";
+
+            // Página Ajustes (módulo do trilho, embaixo): tema, intervalo do salvamento, pasta de recuperação e versões.
+            await j.MudarModuloAsync(Modulo.Ajustes);
+            var pag = j.AjustesPagina;
+            var noTrilho = j.TrilhoAtual.Modulos.Contains(Modulo.Ajustes);
+            var visivel = j.PaginaAjustesVisivel && j.ModuloAtual == Modulo.Ajustes && j.FaixaAtual.Definicao!.Modulo == Modulo.Ajustes && !j.CaixaPesquisaHabilitada;
+            var versoes = pag.TextoVersoes.Text;
+            var recuperacao = pag.TextoPastaRecuperacao.Text;
+            var textosOk = versoes.Contains("Versão do app: ", StringComparison.Ordinal) && versoes.Contains($"Modelo do relatório: rev{ModeloOficial.Revisao}", StringComparison.Ordinal)
+                && versoes.Contains("WebView2: " + j.NucleoWeb.Environment.BrowserVersionString, StringComparison.Ordinal)
+                && recuperacao == Path.Combine(PastaDados.Raiz, "recuperacao");
+            var intervaloAntes = pag.CaixaIntervalo.SelectedItem is Microsoft.UI.Xaml.Controls.ComboBoxItem { Tag: int i0 } ? i0 : -1;
+            pag.CaixaIntervalo.SelectedIndex = Ajustes.Intervalos.ToList().IndexOf(60); // como a escolha do usuário na caixa
+            string? Intervalo() => JsonNode.Parse(File.ReadAllText(ajustesJson))?["intervalo_autosave_s"]?.GetValue<int>().ToString();
+            var intervaloOk = intervaloAntes == 15 && j.IntervaloAutosaveAtual == 60 && Intervalo() == "60";
+            pag.CaixaIntervalo.SelectedIndex = Ajustes.Intervalos.ToList().IndexOf(15);
+            intervaloOk = intervaloOk && j.IntervaloAutosaveAtual == 15 && Intervalo() == "15";
+            await Esperar(300);
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "27-janela-xaml-ajustes.png"));
+            p["pagina_ajustes"] = new JsonObject { ["no_trilho"] = noTrilho, ["visivel_com_a_faixa_dos_ajustes"] = visivel, ["versoes"] = versoes, ["pasta_de_recuperacao"] = recuperacao, ["intervalo_guardado"] = intervaloOk };
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var voltou = !j.PaginaAjustesVisivel && j.ModuloAtual == Modulo.Relatorios && j.CaixaPesquisaHabilitada;
+            var ajustesOk = noTrilho && visivel && textosOk && intervaloOk && voltou;
+            p["escuro"] = JsonNode.Parse(escuro.GetRawText());
+            p["claro"] = JsonNode.Parse(claro.GetRawText());
+            p["tema_guardado_em_ajustes"] = Guardado();
+            var fundoMuda = escuro.GetProperty("fundoDaPagina").GetString() != claro.GetProperty("fundoDaPagina").GetString();
+            var folhasBrancas = escuro.GetProperty("fundoDaFolha").GetString() == "rgb(255, 255, 255)" && claro.GetProperty("fundoDaFolha").GetString() == "rgb(255, 255, 255)";
+            p["folhas_brancas_nos_dois"] = folhasBrancas;
+            p["texto_por_folha_igual"] = (await j.Documento!.TextoPorFolhaAsync()).SequenceEqual(textoAntes);
+            p["conferencias"] = new JsonObject
+            {
+                ["escuro"] = escuroOk, ["claro"] = claroOk, ["pela_pagina_ajustes"] = pelaPagina, ["sistema"] = sistemaOk, ["fundo_muda"] = fundoMuda, ["pagina_ajustes"] = ajustesOk,
+                ["tema_depois_de_escuro"] = j.TemaDosAjustes,
+            };
+            p["ok"] = escuroOk && claroOk && pelaPagina && sistemaOk && fundoMuda && folhasBrancas && p["texto_por_folha_igual"]!.GetValue<bool>() && ajustesOk;
+        });
+
+        var recenteA = Path.Combine(pasta, "recentes-a.pmvrel");
+        var recenteB = Path.Combine(pasta, "recentes-b.pmvrel");
+        await Passo("28_recentes", async p =>
+        {
+            // Dois pacotes abertos (o mais recente primeiro no menu), abrir pelo menu, arquivo apagado some do menu, no máximo 10.
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), recenteA)) throw new InvalidOperationException("não importou A: " + j.InfoMensagem.Message);
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), recenteB)) throw new InvalidOperationException("não importou B: " + j.InfoMensagem.Message);
+            var faixa = j.FaixaAtual;
+            faixa.EscolherAba("Arquivo");
+            await Esperar(250);
+            var valores = faixa.AtualizarMenuDinamico(ComandosApp.ArquivoRecentes);
+            p["menu_recentes"] = new JsonArray(faixa.TextosDoMenuDinamico(ComandosApp.ArquivoRecentes).Take(4).Select(t => (JsonNode)t).ToArray());
+            var doisNoTopo = valores.Count >= 2 && valores[0] == Path.GetFullPath(recenteB) && valores[1] == Path.GetFullPath(recenteA);
+            p["os_dois_no_topo_mais_recente_primeiro"] = doisNoTopo;
+            p["menu_habilitado"] = faixa.Habilitado(ComandosApp.ArquivoRecentes);
+            string? GuardadoNoTopo() => JsonNode.Parse(File.ReadAllText(Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo)))?["recentes"]?[0]?.GetValue<string>();
+            var guardado = GuardadoNoTopo() == Path.GetFullPath(recenteB);
+
+            // Escolher o A no menu abre o A e ele sobe ao topo (o B fecha).
+            await j.AbrirRecenteAsync(valores[1]);
+            var abriuA = string.Equals(j.Sessao?.Caminho, Path.GetFullPath(recenteA), StringComparison.OrdinalIgnoreCase);
+            var topoAgora = faixa.AtualizarMenuDinamico(ComandosApp.ArquivoRecentes);
+            var aNoTopo = topoAgora.Count >= 2 && topoAgora[0] == Path.GetFullPath(recenteA) && topoAgora[1] == Path.GetFullPath(recenteB);
+
+            // Apagar o B (fechado) por fora: some do menu (nada desabilitado); a tentativa de abrir um item velho avisa.
+            foreach (var f in Directory.GetFiles(pasta, "recentes-b.pmvrel*").Concat(Directory.GetFiles(pasta, ".~recentes-b.pmvrel*"))) { File.SetAttributes(f, FileAttributes.Normal); File.Delete(f); }
+            var depois = faixa.AtualizarMenuDinamico(ComandosApp.ArquivoRecentes);
+            var sumiu = !depois.Contains(Path.GetFullPath(recenteB), StringComparer.OrdinalIgnoreCase) && depois.Count > 0 && depois[0] == Path.GetFullPath(recenteA);
+            var abertoAntes = j.Sessao?.Caminho;
+            await j.AbrirRecenteAsync(Path.GetFullPath(recenteB));
+            var avisou = j.InfoMensagem.IsOpen && j.InfoMensagem.Title == "O arquivo não existe mais" && j.Sessao?.Caminho == abertoAntes;
+            var max = j.RecentesNosAjustes.Count <= Ajustes.MaxRecentes && j.RecentesNosAjustes.Count == j.RecentesNosAjustes.Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            p["depois_de_abrir_o_a"] = new JsonArray(topoAgora.Take(2).Select(t => (JsonNode)Path.GetFileName(t)).ToArray());
+            p["depois_de_apagar_o_b"] = new JsonArray(depois.Take(3).Select(t => (JsonNode)Path.GetFileName(t)).ToArray());
+            p["aviso_de_arquivo_ausente"] = avisou;
+            p["recentes_guardados"] = j.RecentesNosAjustes.Count;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "28-janela-xaml-arquivo.png"));
+            p["ok"] = doisNoTopo && guardado && abriuA && aNoTopo && sumiu && avisou && max && faixa.Habilitado(ComandosApp.ArquivoRecentes);
+        });
+
+        var pacoteCitacoes = Path.Combine(pasta, "curto-citacoes.pmvrel");
+        await Passo("29_comparar_com_o_original", async p =>
+        {
+            // O longo, com as alterações dos passos 13–17 (ITEM 03: verificação, situação e justificativa; ITEM 05 excluído).
+            if (!await j.AbrirPacoteAsync(pacoteLongo)) throw new InvalidOperationException("não reabriu o longo: " + j.InfoMensagem.Message);
+            var s = j.Sessao!;
+            var proj = s.Revisao.Projeto;
+            var dados = JsonNode.Parse(await File.ReadAllTextAsync(dadosLongo))!["itens"]!.AsArray();
+            var item3 = dados[2]!.AsObject();
+            var codigoOriginal = item3["situacao"]!.GetValue<string>();
+            var verificacaoOriginal = item3["verificacao"]!.GetValue<string>();
+            await j.ExecutarComandoAsync(ComandosApp.RevisaoComparar);
+            var mostrada = perguntas.Informados.LastOrDefault();
+            var esperado = string.Join("\n",
+                "2 itens alterados em relação ao original recebido:",
+                "",
+                "ITEM 03",
+                "  Situação: " + Pmvni.Composicao.Kit.Situacoes.Sit[codigoOriginal].Texto + " → " + Pmvni.Composicao.Kit.Situacoes.Sit["ATENDE"].Texto,
+                "  Justificativa: " + Justificativa,
+                "  Verificação técnica:",
+                "    Original: " + verificacaoOriginal,
+                "    Revisado: " + NovaVerificacao,
+                "",
+                "Item excluído (era o 05)",
+                "  Excluído do relatório (não sai no PDF).",
+                "",
+                "Citações convertidas na importação (0):",
+                "  Nenhuma.");
+            p["texto_mostrado"] = mostrada.Texto;
+            p["titulo_do_dialogo"] = mostrada.Titulo;
+            var diferencas = Comparacao.Diferencas(proj, s.Revisao.HistoricoCompleto);
+            p["itens_alterados"] = new JsonArray(diferencas.Select(d => (JsonNode)Comparacao.Rotulo(d)).ToArray());
+            var longoOk = mostrada.Titulo == "Comparar com o original" && mostrada.Texto == esperado && j.TextoComparacao() == esperado
+                && diferencas.Count == 2 && diferencas[1].Excluido && diferencas[1].NumeroOriginal == 5;
+            p["longo_confere_os_textos_exatos"] = longoOk;
+
+            // Citações convertidas na importação aparecem em seção própria, mesmo no item sem alteração (PF13).
+            var copia = Path.Combine(pasta, "curto-citacoes.json");
+            var no = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(corpus, "curto.json")))!;
+            var v3 = no["itens"]![2]!["verificacao"]!.GetValue<string>();
+            no["itens"]![2]!["verificacao"] = v3 + " Ver item 02 e ITEM 01.";
+            await File.WriteAllTextAsync(copia, no.ToJsonString());
+            try
+            {
+                if (!await j.ImportarParaAsync(copia, pacoteCitacoes)) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+            }
+            finally { File.Delete(copia); }
+            await j.ExecutarComandoAsync(ComandosApp.RevisaoComparar);
+            var citacoes = perguntas.Informados.LastOrDefault().Texto;
+            var esperadoCitacoes = string.Join("\n",
+                "Nenhum item foi alterado em relação ao original recebido.",
+                "",
+                "Citações convertidas na importação (2):",
+                "  ITEM 03 · Verificação técnica: «item 02» → ITEM 02",
+                "  ITEM 03 · Verificação técnica: «ITEM 01» → ITEM 01");
+            p["texto_com_citacoes"] = citacoes;
+            var citacoesOk = citacoes == esperadoCitacoes;
+            p["citacoes_em_secao_propria"] = citacoesOk;
+            p["ok"] = longoOk && citacoesOk && j.FaixaAtual.Habilitado(ComandosApp.RevisaoComparar);
         });
 
         await j.FecharSessaoAsync();

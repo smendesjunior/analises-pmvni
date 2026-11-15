@@ -50,6 +50,19 @@ public sealed class Ajustes
         return a;
     }
 
+    /// <summary>Põe o arquivo no topo dos recentes (sem repetir, ignorando maiúsculas; no máximo <see cref="MaxRecentes"/>).</summary>
+    public void AdicionarRecente(string caminho)
+    {
+        if (string.IsNullOrWhiteSpace(caminho)) return;
+        Recentes.RemoveAll(r => string.Equals(r, caminho, StringComparison.OrdinalIgnoreCase));
+        Recentes.Insert(0, caminho);
+        if (Recentes.Count > MaxRecentes) Recentes.RemoveRange(MaxRecentes, Recentes.Count - MaxRecentes);
+    }
+
+    /// <summary>Os recentes que ainda existem, do mais novo ao mais antigo: o que sumiu não aparece (nada fica desabilitado). A lista
+    /// guardada não muda: um arquivo numa unidade que está fora do ar pode voltar.</summary>
+    public IReadOnlyList<string> RecentesExistentes() => Recentes.Where(r => File.Exists(r)).ToList();
+
     /// <summary>Grava num temporário ao lado e troca: o arquivo nunca fica pela metade.</summary>
     public void Salvar(string raizDados)
     {

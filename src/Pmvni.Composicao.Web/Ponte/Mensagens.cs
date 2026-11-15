@@ -22,16 +22,17 @@ public static class Mensagens
     public const int Versao = 1;
 
     /// <summary>Tipos do host para a web. Tarefa 7: <c>estadoEditor</c>, <c>selecionar</c>, <c>editarCampo</c>, <c>concluirEdicao</c> e
-    /// <c>obterAncora</c> (dados em camelCase; <c>ref</c> é o data-ref do bloco).</summary>
+    /// <c>obterAncora</c> (dados em camelCase; <c>ref</c> é o data-ref do bloco). Tarefa 11: <c>pesquisar</c> (<c>termo</c>, <c>passo</c>).</summary>
     public static readonly FrozenSet<string> TiposHostParaWeb =
         new[]
         {
             "compor", "aplicarPlano", "textoPorFolha", "rolarPara", "definirZoom",
             "estadoEditor", "selecionar", "editarCampo", "concluirEdicao", "obterAncora",
+            "pesquisar",
         }.ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>Tipos da web para o host: respostas (<c>estadoAplicado</c>, <c>selecionado</c>, <c>edicaoIniciada</c>, <c>editar</c>,
-    /// <c>semEdicao</c>, <c>ancora</c>) e eventos de interação, que chegam com id <c>evento-N</c> (<c>selecionado</c>,
+    /// <c>semEdicao</c>, <c>ancora</c>, <c>pesquisado</c>) e eventos de interação, que chegam com id <c>evento-N</c> (<c>selecionado</c>,
     /// <c>pedirEdicao</c>, <c>editar</c>, <c>edicaoCancelada</c>, <c>atalho</c>, <c>menuContexto</c>, <c>excluidoClicado</c>).</summary>
     public static readonly FrozenSet<string> TiposWebParaHost =
         new[]
@@ -39,6 +40,7 @@ public static class Mensagens
             "pronto", "composto", "planoAplicado", "textoPorFolha", "folhaVisivel", "erro",
             "estadoAplicado", "selecionado", "edicaoIniciada", "editar", "semEdicao", "ancora",
             "pedirEdicao", "edicaoCancelada", "atalho", "menuContexto", "excluidoClicado",
+            "pesquisado",
         }.ToFrozenSet(StringComparer.Ordinal);
 
     internal static readonly JsonSerializerOptions Opcoes = new(JsonSerializerDefaults.Web);

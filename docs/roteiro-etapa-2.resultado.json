@@ -1,10 +1,10 @@
 {
-  "gerado_em": "2026-11-15T06:26:43Z",
+  "gerado_em": "2026-11-15T07:17:03Z",
   "webview2": "157.0.4341.46",
   "escala_do_monitor": 1.5,
   "janela_px": {
-    "largura": 1585.3333740234375,
-    "altura": 923.3333129882812
+    "largura": 1265.3333740234375,
+    "altura": 700.6666870117188
   },
   "passos": {
     "1_importar_longo": {
@@ -16,7 +16,7 @@
       "folhas_que_transbordam_na_tela": [],
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "titulo_confere": true,
-      "estado_de_gravacao": "Salvo 03:26",
+      "estado_de_gravacao": "Salvo 04:17",
       "composicao": "Composto: 21 folhas",
       "itens_na_lista": 77,
       "primeiros_itens": [
@@ -32,7 +32,7 @@
       "aviso_largura_confere": true,
       "exportar_habilitado": true,
       "rodape_folha": "folha 1 de 21",
-      "latencia_recomposicao_ms": 929,
+      "latencia_recomposicao_ms": 906,
       "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
       "folhas_com_conteudo_alem_da_borda": [
         14
@@ -350,7 +350,8 @@
       "modulo_atual": "Relatorios",
       "comandos_sem_manipulador": [],
       "modulos_no_trilho": [
-        "Relatorios"
+        "Relatorios",
+        "Ajustes"
       ],
       "abas": [
         "Arquivo",
@@ -367,6 +368,7 @@
       "botoes_aba_arquivo": [
         "arquivo.importar",
         "arquivo.abrir",
+        "arquivo.recentes",
         "arquivo.salvar",
         "arquivo.salvarComo",
         "arquivo.exportarPdf",
@@ -383,12 +385,12 @@
       "fechado_sem_relatorio": true,
       "plano_igual_ao_da_importacao": true,
       "historico": 1,
-      "estado_de_gravacao": "Salvo 03:26",
+      "estado_de_gravacao": "Salvo 04:17",
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "ok": true
     },
     "12_salvar_duas_vezes_sem_conflito": {
-      "estado_de_gravacao": "Salvo 03:27",
+      "estado_de_gravacao": "Salvo 04:17",
       "disco_confere": true,
       "aviso_de_erro": false,
       "exporta_depois": true,
@@ -452,9 +454,9 @@
       "registros_desfeito": 4,
       "registros_refeito": 4,
       "historico_na_tela": [
-        "03:27 · smendesjunior · Refeito: Excluído o ITEM 05",
-        "03:27 · smendesjunior · Refeito: Justificativa do ITEM 03 definida",
-        "03:27 · smendesjunior · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
+        "04:17 · smendesjunior · Refeito: Excluído o ITEM 05",
+        "04:17 · smendesjunior · Refeito: Justificativa do ITEM 03 definida",
+        "04:17 · smendesjunior · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
       ],
       "linhas_do_historico": "13 na tela, 13 no histórico",
       "item_05_excluido_de_novo": true,
@@ -495,13 +497,13 @@
     },
     "19_latencia": {
       "medidas_ms": [
-        738,
-        504,
-        514,
-        631,
-        504
+        484,
+        503,
+        481,
+        446,
+        432
       ],
-      "latencia_ms": 514,
+      "latencia_ms": 481,
       "meta_ms": 1500,
       "dentro_da_meta": true,
       "ok": true
@@ -521,8 +523,8 @@
     "21_autosave": {
       "estado_depois_do_comando": "Não salvo",
       "diario_tem_o_registro": true,
-      "salvo_sozinho_em_s": 15.5,
-      "estado_de_gravacao": "Salvo 03:27",
+      "salvo_sozinho_em_s": 15.1,
+      "estado_de_gravacao": "Salvo 04:18",
       "pacote_tem_o_registro": true,
       "linhas_do_diario": 1,
       "diario_so_com_o_cabecalho_do_sha_novo": true,
@@ -537,7 +539,7 @@
       "sem_tmp_deixado": true,
       "diario_tem_o_registro": true,
       "solto_grava": true,
-      "estado_de_gravacao": "Salvo 03:27",
+      "estado_de_gravacao": "Salvo 04:18",
       "pacote_tem_o_registro": true,
       "ok": true
     },
@@ -556,12 +558,12 @@
     "24_trava_e_somente_leitura": {
       "trava_solta_ao_fechar": true,
       "estado_de_gravacao": "Somente leitura",
-      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 03:17: somente leitura.",
+      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 04:08: somente leitura.",
       "excluir_habilitado": false,
       "salvar_habilitado": false,
       "nada_mudou": true,
       "trava_do_outro_intacta": true,
-      "estado_com_trava_abandonada": "Salvo 03:27",
+      "estado_com_trava_abandonada": "Salvo 04:18",
       "excluir_habilitado_editavel": true,
       "trava_retomada_por_este_app": true,
       "trava_perdida_vira_somente_leitura": true,
@@ -578,18 +580,120 @@
       "disco_com_os_bytes_do_outro": true,
       "exportar_recusa": true,
       "erro_ao_exportar": "O arquivo mudou no disco e as alterações desta sessão não estão nele: o PDF não corresponderia ao pacote do recibo. Use Salvar como cópia e exporte depois.",
-      "copia": "curto-auto (cópia 2026-11-15 03-27).pmvrel",
+      "copia": "curto-auto (cópia 2026-11-15 04-18).pmvrel",
       "copia_tem_as_alteracoes": true,
       "original_continua_o_do_outro": true,
-      "estado_depois_da_copia": "Salvo 03:27",
+      "estado_depois_da_copia": "Salvo 04:18",
       "trava_passou_para_a_copia": true,
       "recarregou": true,
       "requerente_depois_de_recarregar": "OUTRO PROGRAMA DE NOVO",
       "orfao_guardado": true,
       "pergunta_ao_fechar_em_conflito": "fechar sem gravar (conflito): o arquivo mudou no disco depois de aberto",
       "texto_ao_fechar_em_conflito": "Não foi possível gravar as alterações no arquivo: o arquivo mudou no disco depois de aberto. Salvar como cópia grava as suas alterações ao lado, sem mexer no arquivo. Se fechar sem salvar, elas ficam guardadas na pasta de recuperação dos dados do app, mas não serão oferecidas de novo ao abrir o arquivo (ele agora é outra versão).",
-      "copia_ao_fechar": "curto-auto (cópia 2026-11-15 03-27) (cópia 2026-11-15 03-27).pmvrel",
+      "copia_ao_fechar": "curto-auto (cópia 2026-11-15 04-18) (cópia 2026-11-15 04-18).pmvrel",
       "fechar_em_conflito_salva_copia": true,
+      "ok": true
+    },
+    "26_pesquisa": {
+      "caixa_habilitada": true,
+      "ctrl_f_foca_a_caixa": true,
+      "titulo_pesquisado": "Item de teste 011: fachada porta existente",
+      "total_do_titulo": 1,
+      "resultado_do_titulo": "1 de 1",
+      "ref_do_titulo": "it_01M7F1253GEBHS1ZVH1QFBMPRJ",
+      "rolou_para_o_item_10": true,
+      "total_verificacao": 60,
+      "contador_independente": 60,
+      "enter_avanca": true,
+      "shift_enter_volta": true,
+      "volta_ao_fim_e_ao_comeco": true,
+      "elementos_do_body_antes_e_depois": [
+        6422,
+        6422
+      ],
+      "ocorrencias_realcadas": 60,
+      "pesquisa_refeita_depois_de_recompor": true,
+      "ocorrencia_atual_mantida": true,
+      "pdf_com_pesquisa_ativa": "21 páginas, plano igual, HTML sem realce",
+      "termo_vazio_limpa": true,
+      "conferencias": {
+        "caixa_habilitada": true,
+        "titulo": true,
+        "sem_acento_e_sem_caixa": true,
+        "dom_igual": true,
+        "pdf": true,
+        "pdf_paginas_iguais": true,
+        "pdf_plano_igual": true,
+        "html_sem_realce": true,
+        "limpa": true,
+        "total_maiusculo": 60
+      },
+      "ok": true
+    },
+    "27_tema_chrome": {
+      "pagina_ajustes": {
+        "no_trilho": true,
+        "visivel_com_a_faixa_dos_ajustes": true,
+        "versoes": "Versão do app: 0.1.0\r\nModelo do relatório: rev10\r\nWebView2: 157.0.4341.46",
+        "pasta_de_recuperacao": "C:\\Users\\smendesjunior\\OneDrive\\Aplicativos IA\\Editor de Relatorios PMVNI\\tests\\saida\\dados-app\\recuperacao",
+        "intervalo_guardado": true
+      },
+      "escuro": {
+        "escuro": true,
+        "fundoDaFolha": "rgb(255, 255, 255)",
+        "fundoDaPagina": "rgb(31, 31, 31)"
+      },
+      "claro": {
+        "escuro": false,
+        "fundoDaFolha": "rgb(255, 255, 255)",
+        "fundoDaPagina": "rgb(228, 228, 228)"
+      },
+      "tema_guardado_em_ajustes": "sistema",
+      "folhas_brancas_nos_dois": true,
+      "texto_por_folha_igual": true,
+      "conferencias": {
+        "escuro": true,
+        "claro": true,
+        "pela_pagina_ajustes": true,
+        "sistema": true,
+        "fundo_muda": true,
+        "pagina_ajustes": true,
+        "tema_depois_de_escuro": "sistema"
+      },
+      "ok": true
+    },
+    "28_recentes": {
+      "menu_recentes": [
+        "recentes-b.pmvrel  ·  roteiro",
+        "recentes-a.pmvrel  ·  roteiro",
+        "longo.pmvrel  ·  roteiro",
+        "curto-auto (cópia 2026-11-15 04-18) (cópia 2026-11-15 04-18).pmvrel  ·  roteiro"
+      ],
+      "os_dois_no_topo_mais_recente_primeiro": true,
+      "menu_habilitado": true,
+      "depois_de_abrir_o_a": [
+        "recentes-a.pmvrel",
+        "recentes-b.pmvrel"
+      ],
+      "depois_de_apagar_o_b": [
+        "recentes-a.pmvrel",
+        "longo.pmvrel",
+        "curto-auto (cópia 2026-11-15 04-18) (cópia 2026-11-15 04-18).pmvrel"
+      ],
+      "aviso_de_arquivo_ausente": true,
+      "recentes_guardados": 9,
+      "ok": true
+    },
+    "29_comparar_com_o_original": {
+      "texto_mostrado": "2 itens alterados em relação ao original recebido:\n\nITEM 03\n  Situação: INFORMAÇÕES DIVERGENTES → ATENDE\n  Justificativa: Conferido na planta de implantação pelo roteiro.\n  Verificação técnica:\n    Original: Calçada conferida aproveitamento legenda corte exigência alvará iluminação. Parágrafo alvará taxa alvará parâmetro mínimo área escada corrigir confere terreno afastamento medida. Indicar laje permeável cobertura edificação cotar soma garagem escala fachada.\n    Revisado: Verificação refeita pelo roteiro: cota & recuo <conferidos> \"na planta\".\n\nItem excluído (era o 05)\n  Excluído do relatório (não sai no PDF).\n\nCitações convertidas na importação (0):\n  Nenhuma.",
+      "titulo_do_dialogo": "Comparar com o original",
+      "itens_alterados": [
+        "ITEM 03",
+        "Item excluído (era o 05)"
+      ],
+      "longo_confere_os_textos_exatos": true,
+      "texto_com_citacoes": "Nenhum item foi alterado em relação ao original recebido.\n\nCitações convertidas na importação (2):\n  ITEM 03 · Verificação técnica: «item 02» → ITEM 02\n  ITEM 03 · Verificação técnica: «ITEM 01» → ITEM 01",
+      "citacoes_em_secao_propria": true,
       "ok": true
     }
   },
@@ -599,7 +703,9 @@
     "fechar sem gravar: A trava de edição deste arquivo foi perdida (apagada ou retomada por outro programa): somente leitura. As alterações que ainda não estavam no arquivo continuam no diário de recuperação; use Salvar como para guardá-las.",
     "recuperar 1",
     "confirmar Recarregar do disco?",
-    "fechar sem gravar (conflito): o arquivo mudou no disco depois de aberto"
+    "fechar sem gravar (conflito): o arquivo mudou no disco depois de aberto",
+    "informar Comparar com o original",
+    "informar Comparar com o original"
   ],
   "falhas": [],
   "ok": true

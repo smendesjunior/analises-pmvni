@@ -49,9 +49,9 @@ public sealed partial class MainWindow
     internal int AceleradoresDeTeclado => Raiz.KeyboardAccelerators.Count;
     internal void FocarFolhas() => R.Navegador.Focus(FocusState.Programmatic);
 
-    /// <summary>Ids do mapa de atalhos sem manipulador (a pesquisa chega na Tarefa 11: até lá Ctrl+F não faz nada).</summary>
+    /// <summary>Ids do mapa de atalhos sem manipulador: tem de ser vazia.</summary>
     internal IReadOnlyList<string> AtalhosSemManipulador() =>
-        Atalhos.Mapa.Values.Where(id => id != ComandosApp.PesquisaFocar && !manipuladores.ContainsKey(id)).ToList();
+        Atalhos.Mapa.Values.Where(id => !manipuladores.ContainsKey(id)).ToList();
 
     ItemRevisao? ItemSelecionado => selecionado is null ? null : sessao?.Revisao.Projeto.Item(selecionado);
 
@@ -146,6 +146,7 @@ public sealed partial class MainWindow
         Faixa.Habilitar(ComandosApp.RevisaoSomenteAlterados, temRelatorio);
         Faixa.Ligar(ComandosApp.RevisaoSomenteAlterados, somenteAlterados);
         Faixa.Habilitar(ComandosApp.RevisaoConferencia, temRelatorio);
+        Faixa.Habilitar(ComandosApp.RevisaoComparar, temRelatorio);
         Faixa.Ligar(ComandosApp.ExibirPropriedades, PropriedadesVisivel);
         var desfazer = editavel && sessao!.Revisao.PodeDesfazer;
         var refazer = editavel && sessao!.Revisao.PodeRefazer;
@@ -237,6 +238,7 @@ public sealed partial class MainWindow
         [ComandosApp.EditarDesfazer] = "Desfazer",
         [ComandosApp.EditarRefazer] = "Refazer",
         [ComandosApp.JanelaRegioes] = "Alternar entre faixa, painel, folhas e propriedades",
+        [ComandosApp.PesquisaFocar] = "Pesquisar no relatório",
         [ComandosApp.InicioItemAnterior] = "Item anterior",
         [ComandosApp.InicioItemProximo] = "Próximo item",
         [ComandosApp.InicioExcluirRestaurar] = "Excluir ou restaurar o item",

@@ -100,6 +100,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         IniciarRevisao();
         RegistrarAtalhos();
         IniciarGravacao();
+        IniciarPesquisa();
+        IniciarAjustes();
         Faixa.ComandoInvocado += async id => await ExecutarComandoAsync(id);
         Faixa.AbaMudou += nome => { ajustes.AbaPorModulo[moduloAtual] = nome; SalvarAjustes(); };
         TrilhoModulos.Montar(Faixas.Disponiveis);
@@ -229,6 +231,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         moduloAtual = m;
         R.Visibility = m == Modulo.Relatorios ? Visibility.Visible : Visibility.Collapsed;
+        PaginaDeAjustes.Visibility = m == Modulo.Ajustes ? Visibility.Visible : Visibility.Collapsed;
+        if (m == Modulo.Ajustes) PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes();
         var f = Faixas.Para(m);
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
         Faixa.Montar(f, Faixas.IndiceDaAba(f, aba));
@@ -256,7 +260,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     /// <summary>Executa o comando da faixa (ou do atalho) pelo id, se ele existe e está habilitado.</summary>
     /// <summary>Na fila de comandos (<see cref="NaFilaAsync"/>): espera o anterior terminar e, na sua vez, confere se está habilitado (o
-    /// motivo aparece se não estiver). Só Ctrl+F (pesquisa, Tarefa 11) ainda não tem manipulador e não faz nada.</summary>
+    /// motivo aparece se não estiver). Ctrl+F foca a caixa de pesquisa da barra de título.</summary>
     internal Task ExecutarComandoAsync(string id) => NaFilaAsync(async () =>
     {
         if (!manipuladores.TryGetValue(id, out var acao)) return;
@@ -321,6 +325,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Faixa.Habilitar(ComandosApp.ArquivoSalvarComo, temRelatorio);
         Faixa.Habilitar(ComandosApp.ArquivoExportarPdf, temRelatorio && PodeExportar(sessao?.Atual));
         Faixa.Habilitar(ComandosApp.ArquivoFechar, pronto && sessao is not null);
+        Faixa.Habilitar(ComandosApp.ArquivoRecentes, pronto && haRecentes);
+        AtualizarPesquisaHabilitada(temRelatorio);
         Faixa.Habilitar(ComandosApp.ExibirMenos, temRelatorio && zoom > PassosZoom[0] + 0.001);
         Faixa.Habilitar(ComandosApp.ExibirMais, temRelatorio && zoom < PassosZoom[^1] - 0.001);
         Faixa.Habilitar(ComandosApp.ExibirLargura, temRelatorio);
@@ -403,6 +409,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (ocupado || aplicando || documento is null) { AvisarOcupado(); return false; }
         if (sessao is not null && !await FecharSessaoAsync()) return false;
+        // Abrir (ou importar, ou escolher um recente) com os Ajustes à vista: o relatório aparece no módulo Relatórios.
+        if (moduloAtual != Modulo.Relatorios) MontarModulo(Modulo.Relatorios);
         Ocupar("Abrindo o relatório…");
         SessaoEdicao? nova = null;
         try
@@ -429,6 +437,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             if (sessao.Estado == EstadoGravacao.NaoSalvo) ReiniciarAutosave(); // o que foi recuperado também é gravado sozinho
             R.Navegador.Opacity = 1;
             R.TextoVazio.Visibility = Visibility.Collapsed;
+            RegistrarRecente(sessao.Caminho);
             return true;
         }
         catch (PacoteInvalidoException e)
@@ -487,6 +496,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         try
         {
             await sessao.GravarComoAsync(destino);
+            RegistrarRecente(sessao.Caminho);
             AtualizarBarra();
             MostrarMensagem(InfoBarSeverity.Success, "Relatório salvo", sessao.Caminho);
         }
@@ -567,6 +577,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 + string.Join(" ", r.Preparado.ErrosFinais.Distinct().Take(3)) + (r.Preparado.ErrosFinais.Distinct().Count() > 3 ? " …" : "");
         }
         AtualizarBarra();
+        ReaplicarPesquisa();
     }
 
     /// <summary>"Folha 14: há conteúdo além da borda lateral da área útil …" (informativo: nada é cortado no editor).</summary>
@@ -588,6 +599,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (fechada) return;
         LimparPaineis();
         LimparAvisos();
+        LimparPesquisa();
         R.TextoComposicao.Text = "";
         R.TextoFolha.Text = "";
         R.Navegador.Opacity = 0;
@@ -789,7 +801,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     Task MostrarAtalhosAsync()
     {
         var lista = new StackPanel { Spacing = 6 };
-        // Só os atalhos que já fazem algo (Ctrl+F chega com a pesquisa).
+        // Só os atalhos que fazem algo (todos, desde a pesquisa da Tarefa 11).
         foreach (var (atalho, id) in Atalhos.Mapa.Where(a => manipuladores.ContainsKey(a.Value)))
         {
             var rotulo = RotuloDoComando(id);
@@ -807,16 +819,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     Task MostrarSobreAsync()
     {
-        var versao = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0]
-            ?? typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "?";
-        var webview = R.Navegador.CoreWebView2?.Environment.BrowserVersionString ?? FabricaWebView2.VersaoDisponivel() ?? "ausente";
         var texto = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = $"Editor de Relatórios Técnicos — PMVNI{Environment.NewLine}{Environment.NewLine}"
-                + $"Versão do app: {versao}{Environment.NewLine}"
-                + $"Modelo do relatório: rev{ModeloOficial.Revisao}{Environment.NewLine}"
-                + $"WebView2: {webview}",
+            Text = $"Editor de Relatórios Técnicos — PMVNI{Environment.NewLine}{Environment.NewLine}" + TextoDasVersoes(),
         };
         return MostrarDialogoAsync("Sobre", texto);
     }

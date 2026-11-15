@@ -270,6 +270,7 @@ public sealed partial class MainWindow
         try
         {
             await s.GravarComoAsync(destino);
+            RegistrarRecente(s.Caminho);
             R.AvisoConflito.IsOpen = false;
             AtualizarBarra();
             MostrarMensagem(InfoBarSeverity.Success, "Cópia salva",

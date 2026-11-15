@@ -47,7 +47,7 @@ var Paginador = (() => {
   function dentroDoPrimeiro(p) {
     return p.caminho.length > 1 || p.deslocamentoTexto !== null || p.linha !== null;
   }
-  var truncaTopo = (inicio, indice) => indice > 0 && !inicio.forcada;
+  var truncaTopo = (inicio, indice2) => indice2 > 0 && !inicio.forcada;
   var ESCALA_MAXIMA_PLANO = 1.5;
   function lerPlano(bruto) {
     const falha = (motivo) => {
@@ -392,14 +392,14 @@ var Paginador = (() => {
     const escala = escalaVisual(el);
     const c = caixa(cs, escala);
     let topo = quebra === "clone" ? c.bt + c.pt : 0;
-    const base = quebra === "clone" ? c.bb + c.pb : 0;
+    const base2 = quebra === "clone" ? c.bb + c.pb : 0;
     if (cs.display === "table") {
       const t = el;
       if (t.tHead && estilo(t.tHead).display === "table-header-group") {
         topo += t.tHead.getBoundingClientRect().height + num(cs.borderSpacing.split(" ").pop()) * escala;
       }
     }
-    return { topo, base };
+    return { topo, base: base2 };
   }
   var soma = (a, k) => a.reduce((s, x) => s + x[k], 0);
   function enumerarPontos(fluxo) {
@@ -765,12 +765,12 @@ var Paginador = (() => {
     acabamento(f.area, truncarTopo);
     return f;
   }
-  function montarFolhaDoPlano(plano, indice, cfg) {
+  function montarFolhaDoPlano(plano, indice2, cfg) {
     const fluxo = prepararDocumento();
     document.documentElement.style.setProperty("--pmvni-k", String(plano.escala));
-    const de = plano.inicioDasFolhas[indice];
-    if (!de) throw new ErroComposicao("folha_inexistente", `O plano não tem a folha ${indice + 1}.`);
-    const f = montarFolha(fluxo, cfg, de, plano.inicioDasFolhas[indice + 1] ?? null, truncaTopo(de, indice));
+    const de = plano.inicioDasFolhas[indice2];
+    if (!de) throw new ErroComposicao("folha_inexistente", `O plano não tem a folha ${indice2 + 1}.`);
+    const f = montarFolha(fluxo, cfg, de, plano.inicioDasFolhas[indice2 + 1] ?? null, truncaTopo(de, indice2));
     estenderPedacos(f.area);
     return f;
   }
@@ -1623,6 +1623,129 @@ ${CSS_MARCAS}`;
     }, true);
   }
 
+  // src/pesquisa.ts
+  var ID_CSS4 = "pmvni-pesquisa-css";
+  var NOME_BUSCA = "pmvni-busca";
+  var NOME_ATUAL = "pmvni-busca-atual";
+  var CSS_PESQUISA = `
+@media screen {
+  ::highlight(${NOME_BUSCA}) { background-color: #ffe27a; color: #000; }
+  ::highlight(${NOME_ATUAL}) { background-color: #ff9a3c; color: #000; }
+}
+`;
+  var termoAtual = "";
+  var indice = 0;
+  var ocorrencias = [];
+  function base(c) {
+    const minusculo = c.normalize("NFD").toLowerCase();
+    return minusculo.length > 0 ? minusculo.charAt(0) : c;
+  }
+  function normalizarBusca(s) {
+    let r = "";
+    for (let i = 0; i < s.length; i++) r += base(s.charAt(i));
+    return r;
+  }
+  function garantirCss2() {
+    if (document.getElementById(ID_CSS4)) return;
+    const css = document.createElement("style");
+    css.id = ID_CSS4;
+    css.textContent = CSS_PESQUISA;
+    document.head.appendChild(css);
+  }
+  var api = () => typeof CSS !== "undefined" ? CSS.highlights : void 0;
+  function limparRealces() {
+    const h = api();
+    h?.delete(NOME_BUSCA);
+    h?.delete(NOME_ATUAL);
+    ocorrencias = [];
+    indice = 0;
+  }
+  function nosDeTexto2() {
+    const nos = [];
+    for (const area of Array.from(document.querySelectorAll("section.folha > .area"))) {
+      const passeio = document.createTreeWalker(area, NodeFilter.SHOW_TEXT);
+      for (let n = passeio.nextNode(); n; n = passeio.nextNode()) {
+        const no = n;
+        const pai = no.parentElement;
+        if (!pai || no.data === "") continue;
+        if (pai.closest(`[${ATR_OCULTO}], style, script`)) continue;
+        nos.push(no);
+      }
+    }
+    return nos;
+  }
+  function buscar(termo) {
+    const alvo = normalizarBusca(termo);
+    const achadas = [];
+    if (alvo === "") return achadas;
+    for (const no of nosDeTexto2()) {
+      const texto2 = normalizarBusca(no.data);
+      for (let i = texto2.indexOf(alvo); i >= 0; i = texto2.indexOf(alvo, i + alvo.length)) {
+        const r = document.createRange();
+        r.setStart(no, i);
+        r.setEnd(no, i + alvo.length);
+        achadas.push(r);
+      }
+    }
+    return achadas;
+  }
+  function pintar() {
+    const h = api();
+    if (!h) throw new ErroComposicao("pesquisa_indisponivel", "O navegador não tem a CSS Custom Highlight API.");
+    const todas = new Highlight(...ocorrencias);
+    todas.priority = 0;
+    h.set(NOME_BUSCA, todas);
+    const marcada = ocorrencias[indice];
+    const atual = new Highlight(...marcada ? [marcada] : []);
+    atual.priority = 1;
+    h.set(NOME_ATUAL, atual);
+  }
+  function rolarAteAtual() {
+    const r = ocorrencias[indice];
+    if (!r) return;
+    const caixa2 = r.getBoundingClientRect();
+    const alturaJanela = document.documentElement.clientHeight;
+    window.scrollTo({ top: Math.max(0, window.scrollY + caixa2.top - alturaJanela / 2 + caixa2.height / 2), behavior: "instant" });
+  }
+  function refDaAtual() {
+    const no = ocorrencias[indice]?.startContainer;
+    const el = no instanceof Element ? no : no?.parentElement;
+    return el?.closest("[data-ref]")?.getAttribute("data-ref") ?? null;
+  }
+  function resposta() {
+    return { total: ocorrencias.length, atual: ocorrencias.length === 0 ? 0 : indice + 1, ref: refDaAtual() };
+  }
+  function registrarPesquisa(registrar2) {
+    registrar2("pesquisar", (dados) => {
+      const termo = dados.termo;
+      const passo = dados.passo;
+      if (typeof termo !== "string") throw new ErroComposicao("pesquisa_invalida", '"termo" deve ser um texto.');
+      const manter = dados.atual;
+      if (passo !== -1 && passo !== 0 && passo !== 1) throw new ErroComposicao("pesquisa_invalida", '"passo" deve ser -1, 0 ou 1.');
+      if (manter !== void 0 && (typeof manter !== "number" || !Number.isInteger(manter) || manter < 1 || passo !== 0)) {
+        throw new ErroComposicao("pesquisa_invalida", '"atual" deve ser um inteiro a partir de 1 e só vale com passo 0.');
+      }
+      if (termo === "") {
+        termoAtual = "";
+        limparRealces();
+        return { tipo: "pesquisado", dados: resposta() };
+      }
+      garantirCss2();
+      const mudou = termo !== termoAtual;
+      const anterior = indice;
+      termoAtual = termo;
+      ocorrencias = buscar(termo);
+      const n = ocorrencias.length;
+      if (n === 0) indice = 0;
+      else if (manter !== void 0) indice = Math.min(manter - 1, n - 1);
+      else if (passo === 0) indice = mudou ? 0 : Math.min(anterior, n - 1);
+      else indice = mudou ? passo === 1 ? 0 : n - 1 : ((anterior + passo) % n + n) % n;
+      pintar();
+      if (manter === void 0 && (passo !== 0 || mudou)) rolarAteAtual();
+      return { tipo: "pesquisado", dados: resposta() };
+    });
+  }
+
   // src/mensagens.ts
   var VERSAO = 1;
   var TIPOS_HOST = [
@@ -1636,7 +1759,9 @@ ${CSS_MARCAS}`;
     "selecionar",
     "editarCampo",
     "concluirEdicao",
-    "obterAncora"
+    "obterAncora",
+    // Tarefa 11: pesquisa no relatorio (realce por CSS Custom Highlight API; responde `pesquisado`).
+    "pesquisar"
   ];
   var TIPOS_WEB = [
     "pronto",
@@ -1657,7 +1782,8 @@ ${CSS_MARCAS}`;
     "edicaoCancelada",
     "atalho",
     "menuContexto",
-    "excluidoClicado"
+    "excluidoClicado",
+    "pesquisado"
   ];
   function ehObjeto2(x) {
     return typeof x === "object" && x !== null && !Array.isArray(x);
@@ -1706,8 +1832,8 @@ ${CSS_MARCAS}`;
       return;
     }
     try {
-      const resposta = await manipulador(msg.dados, msg);
-      if (resposta) enviar(resposta.tipo, msg.id, resposta.dados);
+      const resposta2 = await manipulador(msg.dados, msg);
+      if (resposta2) enviar(resposta2.tipo, msg.id, resposta2.dados);
     } catch (e) {
       const codigo = e instanceof ErroComposicao ? e.codigo : "falha_no_manipulador";
       enviar("erro", msg.id, { codigo, mensagem: e instanceof Error ? e.message : String(e) });
@@ -1718,6 +1844,7 @@ ${CSS_MARCAS}`;
   registrar("textoPorFolha", () => ({ tipo: "textoPorFolha", dados: { folhas: textoPorFolha() } }));
   registrarTela(registrar, enviar);
   registrarEdicao(registrar, enviar);
+  registrarPesquisa(registrar);
   if (webview) {
     webview.addEventListener("message", (e) => void aoReceber(e.data));
     enviar("pronto", "pronto", { versao: VERSAO });

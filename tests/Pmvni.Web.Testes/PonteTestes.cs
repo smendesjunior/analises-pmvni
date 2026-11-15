@@ -58,9 +58,10 @@ public sealed class MensagensTestes
         Assert.Equal(Mensagens.TiposHostParaWeb.Order(StringComparer.Ordinal), host.Order(StringComparer.Ordinal));
         Assert.Equal(Mensagens.TiposWebParaHost.Order(StringComparer.Ordinal), web.Order(StringComparer.Ordinal));
 
-        string[] novosHost = ["estadoEditor", "selecionar", "editarCampo", "concluirEdicao", "obterAncora"];
+        // Tarefa 7 (edição) e Tarefa 11 (pesquisar / pesquisado).
+        string[] novosHost = ["estadoEditor", "selecionar", "editarCampo", "concluirEdicao", "obterAncora", "pesquisar"];
         string[] novosWeb = ["estadoAplicado", "selecionado", "edicaoIniciada", "editar", "semEdicao", "ancora", "pedirEdicao",
-            "edicaoCancelada", "atalho", "menuContexto", "excluidoClicado"];
+            "edicaoCancelada", "atalho", "menuContexto", "excluidoClicado", "pesquisado"];
         Assert.All(novosHost, t => { Assert.Contains(t, host); Assert.Contains(t, (IEnumerable<string>)Mensagens.TiposHostParaWeb); Assert.DoesNotContain(t, (IEnumerable<string>)Mensagens.TiposWebParaHost); });
         Assert.All(novosWeb, t => { Assert.Contains(t, web); Assert.Contains(t, (IEnumerable<string>)Mensagens.TiposWebParaHost); Assert.DoesNotContain(t, (IEnumerable<string>)Mensagens.TiposHostParaWeb); });
     }

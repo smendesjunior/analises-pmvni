@@ -21,7 +21,8 @@
       <controls:TitleBar.IconSource>
         <controls:FontIconSource Glyph="&#xE8A5;"/>
       </controls:TitleBar.IconSource>
-      <!-- Desfazer e Refazer ao lado do estado de gravação (desenho §5.5). -->
+      <!-- Desfazer e Refazer ao lado do estado de gravação (desenho §5.5) e a pesquisa no relatório (Ctrl+F; Enter = próxima,
+           Shift+Enter = anterior, Esc limpa). -->
       <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Left" VerticalAlignment="Center">
         <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
                 AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
@@ -30,6 +31,19 @@
         <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
                 AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
           <FontIcon Glyph="&#xE7A6;" FontSize="14"/>
+        </Button>
+        <TextBox x:Name="CaixaPesquisa" Width="240" Margin="16,0,0,0" VerticalAlignment="Center" IsEnabled="False"
+                 PlaceholderText="Pesquisar no relatório" AutomationProperties.Name="Pesquisar no relatório"
+                 ToolTipService.ToolTip="Pesquisar no relatório (Ctrl+F)"/>
+        <TextBlock x:Name="TextoPesquisa" MinWidth="72" Margin="6,0,2,0" VerticalAlignment="Center" TextAlignment="Center"
+                   Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.Name="Resultado da pesquisa"/>
+        <Button x:Name="BotaoPesquisaAnterior" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
+                AutomationProperties.Name="Ocorrência anterior" ToolTipService.ToolTip="Ocorrência anterior (Shift+Enter)">
+          <FontIcon Glyph="&#xE70E;" FontSize="12"/>
+        </Button>
+        <Button x:Name="BotaoPesquisaProxima" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
+                AutomationProperties.Name="Próxima ocorrência" ToolTipService.ToolTip="Próxima ocorrência (Enter)">
+          <FontIcon Glyph="&#xE70D;" FontSize="12"/>
         </Button>
       </StackPanel>
     </controls:TitleBar>
@@ -46,6 +60,7 @@
       <Grid x:Name="AreaPaginas" Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8,0,0,0"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
         <local:PaginaRelatorios x:Name="Relatorios"/>
+        <local:PaginaAjustes x:Name="PaginaDeAjustes" Visibility="Collapsed"/>
       </Grid>
     </Grid>
   </Grid>
