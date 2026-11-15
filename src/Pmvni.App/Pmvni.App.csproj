@@ -25,5 +25,6 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(VersaoWindowsAppSDK)" />
     <ProjectReference Include="..\Pmvni.Composicao.Web\Pmvni.Composicao.Web.csproj" />
     <ProjectReference Include="..\Pmvni.Revisao\Pmvni.Revisao.csproj" />
+    <ProjectReference Include="..\Pmvni.Agentes\Pmvni.Agentes.csproj" />
   </ItemGroup>
 </Project>

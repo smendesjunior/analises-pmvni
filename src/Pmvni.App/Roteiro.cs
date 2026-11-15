@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
+using Pmvni.Agentes;
 using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
 using Pmvni.Revisao;
@@ -2376,12 +2377,251 @@ internal static class Roteiro
                 && textoPergunta.EndsWith(". Fechar mesmo assim?", StringComparison.Ordinal) && voltou && textoNoCampo == Branco && fechouSemEle;
         });
 
+        // ---------- Tarefa 19: passos 49 e 50 (Ajustes › Inteligência artificial), só com o agente falso ----------
+        // O passo 48 fica reservado. Os passos 49 a 56 compartilham a preparação abaixo: o AgenteFalso.exe (publicado por tools\roteiro.ps1 em
+        // tests\saida\agente-falso) faz o papel do codex.exe, do claude.exe e do python.exe; o CODEX_HOME é uma pasta do roteiro; e
+        // ExecucaoProcesso.SomenteExecutaveisEm recusa qualquer programa fora da pasta do agente falso (o roteiro nunca toca o codex nem o claude
+        // de verdade, nem guarda uma chave real).
+        var agenteFalsoPasta = Path.GetFullPath(Path.Combine(pasta, "..", "agente-falso"));
+        var agenteFalso = Path.Combine(agenteFalsoPasta, "AgenteFalso.exe");
+        var codexHome = Path.Combine(pasta, "codex-home");
+        var configCodex = Path.Combine(codexHome, "config.toml");
+        const string ConfigHabilitado = "[plugins.\"analise@pmvni-kit\"]\nenabled = true\n";
+        var agentesPreparados = false;
+
+        async Task PrepararAgentesAsync()
+        {
+            if (agentesPreparados) return;
+            if (!File.Exists(agenteFalso)) throw new InvalidOperationException("O agente falso não foi publicado em " + agenteFalsoPasta + " (tools\\roteiro.ps1 o publica).");
+            ExecucaoProcesso.SomenteExecutaveisEm = agenteFalsoPasta;
+            File.Copy(agenteFalso, Path.Combine(agenteFalsoPasta, "claude.exe"), overwrite: true);   // o mesmo programa faz o papel do claude.exe (e do python.exe)
+            if (Directory.Exists(codexHome)) Directory.Delete(codexHome, true);
+            Directory.CreateDirectory(Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "2.4.0"));
+            var scripts = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-pro", "1.6.1", "skills", "analise-pro", "scripts");
+            Directory.CreateDirectory(scripts);
+            File.WriteAllText(Path.Combine(scripts, "pro_runtime.py"), "# pro_runtime.py fictício do roteiro\nraise ValueError('API paga desativada no analise-pro.')\n");
+            File.WriteAllText(configCodex, ConfigHabilitado);
+            j.OpcoesAgentes = () => new OpcoesLocalizacao(Path.Combine(pasta, "local-app-data"), codexHome, [agenteFalsoPasta], j.PastaKitEfetiva,
+                j.ProgramaEscolhidoDoAgente(Provedor.ChatGpt) ?? agenteFalso, j.ProgramaEscolhidoDoAgente(Provedor.Claude) ?? agenteFalso);
+            // Estado de partida: conta, programa padrão, sem chave (um roteiro anterior que caiu no meio não deixa nada).
+            foreach (var pv in Enum.GetValues<Provedor>())
+            {
+                CofreChaves.Remover(PastaDados.Raiz, pv);
+                await j.DefinirModoAsync(pv, ModoAcesso.Conta);
+                await j.EscolherProgramaAsync(pv, null);
+            }
+            agentesPreparados = true;
+        }
+
+        await Passo("49_ajustes_ia", async p =>
+        {
+            await PrepararAgentesAsync();
+            await j.MudarModuloAsync(Modulo.Ajustes);
+            await j.AguardarAgentesAsync();
+            var pag = j.AjustesPagina;
+            var chatgpt = j.CartaoDoAgente(Provedor.ChatGpt);
+            var claude = j.CartaoDoAgente(Provedor.Claude);
+
+            // (a) A seção, o texto fixo e os dois cartões.
+            const string Introducao = "O editor não faz a análise: ele inicia o ChatGPT (Codex) ou o Claude instalados neste computador, com a configuração, os plugins do kit PMVNI, "
+                + "os programas (QGIS…) e as pastas de rede deles, e importa o relatório no fim.";
+            pag.TituloAgentes.StartBringIntoView();
+            await Esperar(300);
+            var secao = j.PaginaAjustesVisivel && pag.TituloAgentes.Text == "Inteligência artificial" && pag.TextoIntroAgentes.Text == Introducao;
+            var cartoes = chatgpt.Titulo.Text == "ChatGPT (Codex · plugin analise)" && claude.Titulo.Text == "Claude (Claude Code · plugin análise pro)"
+                && chatgpt.ActualHeight > 0 && claude.ActualHeight > 0 && chatgpt.BotaoTestar.IsEnabled && claude.BotaoTestar.IsEnabled
+                && chatgpt.OpcaoConta.IsChecked == true && claude.OpcaoConta.IsChecked == true && chatgpt.OpcaoConta.Content as string == "Usar minha conta (login do programa)"
+                && chatgpt.OpcaoChave.Content as string == "Usar chave de API" && chatgpt.TextoSituacao.Text == TextosAgentes.NaoTestado;
+            p["secao_e_texto"] = secao;
+            p["dois_cartoes"] = cartoes;
+
+            // (b) As peças achadas são só as do agente falso (o codex e o claude de verdade nunca são procurados nem iniciados).
+            var pecas = j.PecasAgentes;
+            bool Dentro(string? c) => c is not null && Path.GetFullPath(c).StartsWith(agenteFalsoPasta + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            var soFalso = Dentro(pecas.Codex) && Dentro(pecas.Claude) && Dentro(pecas.Python) && !pecas.PythonPeloLauncher
+                && pecas.PluginAnaliseHabilitado && pecas.VersaoPluginAnalise == "2.4.0" && pecas.VersaoAnalisePro == "1.6.1" && !pecas.ApiPermitidaNoKit;
+            string? bloqueio = null;
+            try { await ExecucaoProcesso.RodarAsync(Path.Combine(Environment.SystemDirectory, "whoami.exe"), [], pasta, _ => { }, TimeSpan.FromSeconds(5), CancellationToken.None); }
+            catch (InvalidOperationException e) { bloqueio = e.Message; }
+            var travado = ExecucaoProcesso.SomenteExecutaveisEm == agenteFalsoPasta && bloqueio is not null && bloqueio.StartsWith("Programa fora da pasta permitida: ", StringComparison.Ordinal);
+            p["so_o_agente_falso"] = soFalso;
+            p["trava_de_programas"] = travado;
+
+            // (c) Testar o ChatGPT e o Claude (só comandos locais, no agente falso).
+            const string LinhaChatGpt = "Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 2.4.0 habilitado";
+            var rChatGpt = await j.TestarAgenteAsync(Provedor.ChatGpt);
+            var testouChatGpt = rChatGpt.Linha == LinhaChatGpt && chatgpt.TextoSituacao.Text == LinhaChatGpt && j.LinhaSituacaoAgente(Provedor.ChatGpt) == LinhaChatGpt
+                && rChatGpt.Avisos.Count == 0 && chatgpt.BotaoTestar.IsEnabled;
+            var versaoDoKit = LerVersaoDoKit(j.PastaKitEfetiva) ?? "não encontrado";
+            var rClaude = await j.TestarAgenteAsync(Provedor.Claude);
+            var linhaClaude = $"Claude Code 2.9.0 · conectado com a conta do Claude · análise pro 1.6.1 (kit: {versaoDoKit}) · Python 3.14.0";
+            var testouClaude = rClaude.Linha == linhaClaude && claude.TextoSituacao.Text == linhaClaude;
+            p["linha_chatgpt"] = rChatGpt.Linha;
+            p["linha_claude"] = rClaude.Linha;
+            p["avisos_claude"] = new JsonArray(rClaude.Avisos.Select(a => (JsonNode)a).ToArray());
+            p["testar"] = testouChatGpt && testouClaude;
+
+            // (d) Claude + chave de API: desabilitado, com a dica exata; pedir mesmo assim é recusado e nada muda.
+            const string Dica = "O análise pro do kit usa somente a conta do Claude (política do kit de 14/11/2026).";
+            await j.DefinirModoAsync(Provedor.Claude, ModoAcesso.Chave);
+            var claudeSoConta = !claude.OpcaoChave.IsEnabled && Microsoft.UI.Xaml.Controls.ToolTipService.GetToolTip(claude.OpcaoChave) as string == Dica && claude.TextoDicaChave.Text == Dica
+                && j.ModoDoAgente(Provedor.Claude) == ModoAcesso.Conta && j.MensagemDoAgente(Provedor.Claude) == Dica && claude.OpcaoConta.IsChecked == true
+                && chatgpt.OpcaoChave.IsEnabled;
+            p["claude_so_conta"] = claudeSoConta;
+
+            // (e) Programa que não existe (ou que não é .exe): mensagem exata e o programa não muda.
+            const string Invalido = "Escolha um programa .exe que exista.";
+            await j.EscolherProgramaAsync(Provedor.ChatGpt, Path.Combine(pasta, "nao-existe.exe"));
+            var recusouInexistente = j.MensagemDoAgente(Provedor.ChatGpt) == Invalido && chatgpt.TextoMensagem.Text == Invalido && j.ProgramaEscolhidoDoAgente(Provedor.ChatGpt) is null;
+            await j.EscolherProgramaAsync(Provedor.ChatGpt, configCodex);
+            var recusouNaoExe = j.MensagemDoAgente(Provedor.ChatGpt) == Invalido && j.ProgramaEscolhidoDoAgente(Provedor.ChatGpt) is null;
+            await j.EscolherProgramaAsync(Provedor.ChatGpt, agenteFalso);   // um programa que existe vale e "Usar o padrão" volta
+            var escolheu = j.MensagemDoAgente(Provedor.ChatGpt) is null && j.ProgramaEscolhidoDoAgente(Provedor.ChatGpt) == agenteFalso && chatgpt.BotaoProgramaPadrao.IsEnabled
+                && chatgpt.TextoPrograma.Text.EndsWith("(escolhido)", StringComparison.Ordinal);
+            await j.EscolherProgramaAsync(Provedor.ChatGpt, null);
+            var padrao = j.ProgramaEscolhidoDoAgente(Provedor.ChatGpt) is null && !chatgpt.BotaoProgramaPadrao.IsEnabled && chatgpt.TextoPrograma.Text.EndsWith("(padrão)", StringComparison.Ordinal);
+            p["programa_invalido_recusado"] = recusouInexistente && recusouNaoExe;
+            p["programa_escolhido_e_padrao"] = escolheu && padrao;
+
+            // (f) Plugin desabilitado no config.toml do Codex: a linha diz; ao voltar, volta.
+            File.WriteAllText(configCodex, "[plugins.\"analise@pmvni-kit\"]\nenabled = false\n");
+            var desabilitado = (await j.TestarAgenteAsync(Provedor.ChatGpt)).Linha;
+            File.WriteAllText(configCodex, ConfigHabilitado);
+            var reabilitado = (await j.TestarAgenteAsync(Provedor.ChatGpt)).Linha;
+            p["linha_plugin_desabilitado"] = desabilitado;
+            p["plugin_desabilitado_e_de_volta"] = desabilitado == "Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise não habilitado no Codex" && reabilitado == LinhaChatGpt;
+
+            await Esperar(300);
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "49-ajustes-ia-xaml.png"));
+            p["ok"] = secao && cartoes && soFalso && travado && testouChatGpt && testouClaude && claudeSoConta && recusouInexistente && recusouNaoExe && escolheu && padrao
+                && desabilitado.EndsWith("plugin analise não habilitado no Codex", StringComparison.Ordinal) && reabilitado == LinhaChatGpt;
+        });
+
+        await Passo("50_chave_api_protegida", async p =>
+        {
+            await PrepararAgentesAsync();
+            await j.MudarModuloAsync(Modulo.Ajustes);
+            await j.AguardarAgentesAsync();
+            var chatgpt = j.CartaoDoAgente(Provedor.ChatGpt);
+            perguntas.Confirmar = true;
+            var chave = "chave-falsa-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));   // aleatória, só deste roteiro; nunca vai para o resultado
+            var trechos = TrechosDaChave(chave);
+            var dpapi = Path.Combine(PastaDados.Raiz, "segredos", "chatgpt.dpapi");
+            var ajustesJson = Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo);
+            string ModoNoArquivo() => JsonNode.Parse(File.ReadAllText(ajustesJson))!["agentes"]!["chatgpt"]!["modo"]!.GetValue<string>();
+
+            // (a) ChatGPT › Usar chave de API › Guardar chave.
+            await j.DefinirModoAsync(Provedor.ChatGpt, ModoAcesso.Chave);
+            var painel = chatgpt.PainelChave.Visibility == Visibility.Visible && chatgpt.OpcaoChave.IsChecked == true && chatgpt.TextoChave.Text == TextosAgentes.SemChave && !chatgpt.BotaoRemoverChave.IsEnabled;
+            chatgpt.CaixaChave.Password = chave;
+            await j.GuardarChaveAsync(Provedor.ChatGpt, chatgpt.CaixaChave.Password);
+            const string Guardada = "Chave guardada, protegida pelo Windows para este usuário.";
+            var guardou = chatgpt.TextoChave.Text == Guardada && chatgpt.CaixaChave.Password.Length == 0 && File.Exists(dpapi) && chatgpt.BotaoRemoverChave.IsEnabled;
+            var protegida = File.Exists(dpapi) && !ArquivoContem(dpapi, trechos);
+            var ajustesTexto = File.ReadAllText(ajustesJson);
+            var soModo = ModoNoArquivo() == "chave" && !ajustesTexto.Contains(chave, StringComparison.Ordinal) && !ajustesTexto.Contains("\"chave\":", StringComparison.Ordinal);
+            p["painel_da_chave"] = painel;
+            p["guardou_e_limpou_a_caixa"] = guardou;
+            p["arquivo_protegido"] = protegida;
+            p["ajustes_so_com_o_modo"] = soModo;
+
+            // (b) Testar no modo chave só acrescenta o aviso (a chave só é conferida pelo provedor na primeira análise; nada é enviado).
+            var teste = await j.TestarAgenteAsync(Provedor.ChatGpt);
+            var avisoDaChave = teste.Avisos.Contains("Chave guardada; ela só é conferida pelo provedor na primeira análise.");
+            p["aviso_no_teste"] = avisoDaChave;
+
+            // (c) Remover: "Cancelar" mantém a chave; a confirmação "Remover" apaga o arquivo.
+            var feitas = perguntas.Feitas.Count;
+            perguntas.Confirmar = false;
+            await j.RemoverChaveAsync(Provedor.ChatGpt);
+            var manteve = File.Exists(dpapi) && chatgpt.TextoChave.Text == Guardada;
+            perguntas.Confirmar = true;
+            await j.RemoverChaveAsync(Provedor.ChatGpt);
+            var perguntou = perguntas.Feitas.Skip(feitas).Count(f => f == "confirmar Remover a chave de API do ChatGPT?") == 2;
+            var removeu = !File.Exists(dpapi) && chatgpt.TextoChave.Text == TextosAgentes.SemChave && !chatgpt.BotaoRemoverChave.IsEnabled;
+            p["cancelar_mantem"] = manteve;
+            p["remover_apaga"] = perguntou && removeu;
+
+            // (d) Nenhuma ocorrência da chave (UTF-8, UTF-16, base64) nos arquivos do roteiro nem nos dados do app.
+            var varredura = VarrerChave([pasta, PastaDados.Raiz], trechos);
+            p["arquivos_varridos"] = varredura.Lidos;
+            p["arquivos_trancados_pulados"] = varredura.Ilegiveis;
+            p["chave_em_arquivos"] = varredura.Achados.Count;
+
+            // (e) Volta para "Usar minha conta".
+            await j.DefinirModoAsync(Provedor.ChatGpt, ModoAcesso.Conta);
+            var voltou = j.ModoDoAgente(Provedor.ChatGpt) == ModoAcesso.Conta && chatgpt.OpcaoConta.IsChecked == true && chatgpt.PainelChave.Visibility == Visibility.Collapsed && ModoNoArquivo() == "conta";
+            p["voltou_para_a_conta"] = voltou;
+            p["ok"] = painel && guardou && protegida && soModo && avisoDaChave && manteve && perguntou && removeu && varredura.Achados.Count == 0 && varredura.Lidos > 0 && voltou;
+        });
+
         await j.FecharSessaoAsync();
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
         saida["ok"] = falhas.Count == 0;
         Gravar(args.Roteiro!, saida);
         Application.Current.Exit();
+    }
+
+    /// <summary>A versão do análise pro no kit (<c>01 - PLUGINS\plugins\analise-pro\.codex-plugin\plugin.json</c>), só lida; null se não houver.</summary>
+    static string? LerVersaoDoKit(string kit)
+    {
+        var json = Path.Combine(kit, "01 - PLUGINS", "plugins", "analise-pro", ".codex-plugin", "plugin.json");
+        try { return File.Exists(json) ? JsonNode.Parse(File.ReadAllText(json))?["version"]?.GetValue<string>() : null; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException) { return null; }
+    }
+
+    /// <summary>A chave como poderia aparecer num arquivo: UTF-8, UTF-16 e base64 (nas três posições possíveis dentro de um texto em base64).</summary>
+    static IReadOnlyList<byte[]> TrechosDaChave(string chave)
+    {
+        var utf8 = System.Text.Encoding.UTF8.GetBytes(chave);
+        var lista = new List<byte[]> { utf8, System.Text.Encoding.Unicode.GetBytes(chave) };
+        for (var deslocamento = 0; deslocamento < 3; deslocamento++)
+        {
+            var b64 = Convert.ToBase64String(new byte[deslocamento].Concat(utf8).ToArray());
+            var pular = deslocamento switch { 0 => 0, 1 => 2, _ => 3 };
+            lista.Add(System.Text.Encoding.ASCII.GetBytes(b64.Substring(pular, b64.Length - pular - 2)));
+        }
+        return lista;
+    }
+
+    /// <summary>true se o arquivo contém algum dos trechos (lido em blocos, sem trancar o arquivo para quem o usa).</summary>
+    static bool ArquivoContem(string arquivo, IReadOnlyList<byte[]> trechos)
+    {
+        var maior = trechos.Max(t => t.Length);
+        const int Bloco = 1 << 20;
+        var buffer = new byte[Bloco + maior];
+        var resto = 0;
+        using var f = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        while (true)
+        {
+            var n = f.Read(buffer, resto, Bloco);
+            if (n <= 0) return false;
+            var total = resto + n;
+            var janela = buffer.AsSpan(0, total);
+            foreach (var t in trechos)
+                if (janela.IndexOf(t) >= 0) return true;
+            resto = Math.Min(maior - 1, total);
+            buffer.AsSpan(total - resto, resto).CopyTo(buffer);
+        }
+    }
+
+    /// <summary>Procura os trechos da chave em todos os arquivos das pastas. Um arquivo trancado por outro programa (o perfil do WebView2) é contado à parte.</summary>
+    static (int Lidos, int Ilegiveis, List<string> Achados) VarrerChave(IEnumerable<string> pastas, IReadOnlyList<byte[]> trechos)
+    {
+        int lidos = 0, ilegiveis = 0;
+        var achados = new List<string>();
+        foreach (var raiz in pastas.Where(Directory.Exists))
+            foreach (var arquivo in Directory.EnumerateFiles(raiz, "*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    if (ArquivoContem(arquivo, trechos)) achados.Add(Path.GetRelativePath(raiz, arquivo));
+                    lidos++;
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { ilegiveis++; }
+            }
+        return (lidos, ilegiveis, achados);
     }
 
     /// <summary>Copia a árvore (pastas e arquivos, ocultos inclusive) para um destino novo.</summary>

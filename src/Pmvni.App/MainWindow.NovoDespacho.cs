@@ -161,6 +161,7 @@ public sealed partial class MainWindow
         MostrarKitNosAjustes();
         AtualizarComandos();
         _ = AtualizarModelosAsync(forcar: true);
+        AtualizarAgentes();   // o kit tem a versão e a política do análise pro
     }
 
     void MostrarKitNosAjustes()

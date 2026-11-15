@@ -1,6 +1,6 @@
 ﻿<#
   Roteiro da tela (Etapa 2), FORA do pacote do Claude (aberto pelo roteiro.cmd via explorer.exe; o roteiro-e-esperar.ps1 abre e espera).
-  Roda o executável publicado com tests\corpus\longo.json e --roteiro: o app exercita o shell e o módulo Relatórios (importar para
+  Publica o agente falso (tests\AgenteFalso, em tests\saida\agente-falso; faz o papel do codex, do claude e do python nos passos 49 em diante) e roda o executável publicado com tests\corpus\longo.json e --roteiro: o app exercita o shell e o módulo Relatórios (importar para
   .pmvrel, rolagem, zoom, navegação, exportação, estouro, tema, campos em aberto, pacote mudado, faixa por módulo, reabrir) e o
   resultado vai para docs\roteiro-etapa-2.resultado.json. Pacotes, capturas PNG e PDFs ficam em tests\saida\roteiro (ignorado pelo
   git); dados do app (WebView2, ajustes.json, edicao) em tests\saida\dados-app. Ao terminar grava tests\saida\roteiro-fim.txt.
@@ -16,6 +16,14 @@ $resultado = Join-Path $pasta 'resultado.json'
 $final = Join-Path $raiz 'docs\roteiro-etapa-2.resultado.json'
 New-Item -ItemType Directory -Force -Path $pasta | Out-Null
 if (Test-Path -LiteralPath $resultado) { Remove-Item -LiteralPath $resultado -Force }
+# Agente falso (Tarefa 19, passos 49 e 50 em diante): faz o papel do codex.exe, do claude.exe e do python.exe, sem rede e sem IA. O roteiro NUNCA toca o
+# codex nem o claude de verdade (ExecucaoProcesso.SomenteExecutaveisEm recusa qualquer programa fora desta pasta).
+$agenteFalso = Join-Path $saida 'agente-falso'
+& dotnet publish (Join-Path $raiz 'tests\AgenteFalso\AgenteFalso.csproj') -c Release -o $agenteFalso --nologo | Out-Null
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $agenteFalso 'AgenteFalso.exe'))) {
+    "roteiro: o agente falso não foi publicado (dotnet publish, código $LASTEXITCODE); o app não foi aberto." | Set-Content (Join-Path $saida 'roteiro-fim.txt') -Encoding utf8
+    exit 1
+}
 $p = Start-Process -FilePath $exe -ArgumentList ('"' + (Join-Path $raiz 'tests\corpus\longo.json') + '"'), '--roteiro', ('"' + $resultado + '"') -PassThru -Wait
 # O app só grava na pasta do JSON de saída (tests\saida\roteiro); o resultado é copiado para docs\ aqui sem nada do computador (o
 # arquivo é versionado): a pasta de dados vira <dados>, a do kit <kit>, a raiz do repositório ".", o perfil do Windows %USERPROFILE% e

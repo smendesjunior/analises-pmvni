@@ -18,5 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Pmvni.Revisao\Pmvni.Revisao.csproj" />
+    <!-- Provedor e ModoAcesso (Logica\Ajustes.cs, compilada aqui) e o CofreChaves do teste dos ajustes dos agentes. -->
+    <ProjectReference Include="..\..\src\Pmvni.Agentes\Pmvni.Agentes.csproj" />
   </ItemGroup>
 </Project>

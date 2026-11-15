@@ -143,6 +143,17 @@ dos dois modelos. Desfazer e Refazer da barra de título ficam desabilitados for
 | 45 | `45_despacho_gravando_e_pasta_de_processos` | (Onda de correções 1) Trocar a pasta de processos com o despacho no passo 2 pergunta (Continuar editando mantém); gravando o despacho, trocar de módulo não descarta nem diz que nada foi gravado. |
 | 46 | `46_salvar_como_com_edicao_aberta` | (Onda de correções 2, item 3) Texto digitado no A4 sem Enter e Salvar como: a cópia gravada tem o texto, passa a ser o relatório aberto (Salvo) e a edição fecha; depois, com o arquivo mudado por fora, Salvar como cópia (conflito) com outro texto aberto: a cópia ao lado tem o texto. |
 | 47 | `47_fechar_com_edicao_recusada` | (Onda de correções 2, item 4) Texto só de espaços no A4 (a conferência do kit recusa): Fechar pergunta "O texto em edição não pôde ser aplicado: <motivo>. Fechar mesmo assim?"; "Voltar à edição" mantém o relatório aberto e devolve o campo à edição com o texto; "Fechar sem ele" fecha e o arquivo fica como estava. |
+| 49 | `49_ajustes_ia` | (Tarefa 19, só o agente falso) Ajustes › Inteligência artificial: a seção com o texto fixo e os dois cartões; as peças achadas são só as do agente falso e a trava recusa um programa de verdade; Testar o ChatGPT ("Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 2.4.0 habilitado") e o Claude ("Claude Code 2.9.0 · conectado com a conta do Claude · análise pro 1.6.1 (kit: <versão do kit real>) · Python 3.14.0"); Claude › "Usar chave de API" desabilitado, com a dica "O análise pro do kit usa somente a conta do Claude (política do kit de 14/11/2026).", e o pedido direto é recusado sem mudar nada; "Escolha um programa .exe que exista." para um programa que não existe ou não é .exe (o programa não muda), um .exe que existe vale e "Usar o padrão" volta; com `enabled = false` no `config.toml` do Codex a linha diz "plugin analise não habilitado no Codex" e, restaurado, volta. |
+| 50 | `50_chave_api_protegida` | (Tarefa 19, só o agente falso) Chave falsa aleatória: ChatGPT › Usar chave de API › Guardar chave ("Chave guardada, protegida pelo Windows para este usuário."), `<dados>\segredos\chatgpt.dpapi` existe e não contém a chave (UTF-8, UTF-16, base64), `ajustes.json` só com `"modo": "chave"`, caixa de senha vazia; Testar acrescenta "Chave guardada; ela só é conferida pelo provedor na primeira análise."; Remover (Cancelar mantém; "Remover" apaga o arquivo); varredura de `tests\saida\roteiro` e `tests\saida\dados-app` sem nenhuma ocorrência da chave; volta para Usar minha conta. |
+
+(Passos 49 e 50, Tarefa 19; o 48 fica reservado. Os passos 49 a 56 usam o **agente falso** (`tests\AgenteFalso`, publicado por `tools\roteiro.ps1` com
+`dotnet publish -c Release -o tests\saida\agente-falso` antes de abrir o app): o mesmo `AgenteFalso.exe` faz o papel do `codex.exe`, do `claude.exe`
+(uma cópia dele na mesma pasta) e do `python.exe`, sem rede e sem IA. O roteiro troca `MainWindow.OpcoesAgentes` para apontar para ele, com o
+`CODEX_HOME` numa pasta do roteiro (`config.toml` com `[plugins."analise@pmvni-kit"]` `enabled = true`, `plugins\cache\pmvni-kit\analise\2.4.0` e um
+`pro_runtime.py` fictício de `analise-pro\1.6.1` com a âncora `API paga desativada no analise-pro.`); o kit real só é lido para a versão do `plugin.json`.
+`ExecucaoProcesso.SomenteExecutaveisEm` aponta para a pasta do agente falso: qualquer programa fora dela é recusado antes de iniciar, então o roteiro nunca toca
+o codex nem o claude de verdade nem guarda uma chave real. Os comandos de Ajustes entram na mesma fila de comandos dos outros módulos. A chave do passo 50 é
+falsa e aleatória, nunca aparece no resultado; o `.dpapi` fica em `<dados>\segredos`, dentro de `tests\saida\dados-app`.)
 
 (Numeração da Tarefa 16: o plano previa 34 a 38, mas 34 e 35 já são da Tarefa 13; os passos do Novo despacho são 36 a 40. O
 roteiro usa o kit no lugar (só lê o registro, os modelos e as referências do plugin; nada é copiado) e o LibreOffice real
@@ -172,7 +183,7 @@ Relatórios abre em Página Inicial); Tarefa 13: `FaixasTestes` ganhou `cada_mod
 e Ajustes), `trilho_na_ordem_do_desenho` (Relatórios, Despachos, Processos, Ajustes) e `comandos_do_relatorio_nao_valem_nos_outros_modulos`;
 `ListasPastasTestes` (processos por número, data e requerente, filtro por ano e termo; despachos por tipo, nome de arquivo, agrupados por mês ou
 por processo, mais recentes ou mais antigos primeiro; as linhas do detalhe do processo); `AjustesTestes` (pasta de processos efetiva e a chave
-antiga de legislação ignorada); `PastasTestes` (filtro de despachos pelo nome do arquivo). Tarefa 16: `FaixasTestes` ganhou `novo_despacho_nos_tres_modulos_com_os_dois_tipos`
+antiga de legislação ignorada); Tarefa 19: `AjustesTestes.ajustes_dos_agentes` (modo, programa e aviso dos agentes guardados em `ajustes.json`, valor inválido volta ao padrão, nunca a chave de API). `PastasTestes` (filtro de despachos pelo nome do arquivo). Tarefa 16: `FaixasTestes` ganhou `novo_despacho_nos_tres_modulos_com_os_dois_tipos`
 e `gerar_pdf_so_em_despachos`; `AjustesKitTestes` (pasta do kit: `PMVNI_KIT_RAIZ` > Ajustes > padrão, guardada em `ajustes.json`);
 `FluxoNovoDespachoTestes` (origem sugerida por Relatórios, Processos e Despachos; motivo do tipo desabilitado; poder gerar e gravar;
 trocar a etapa mantém o que foi editado).

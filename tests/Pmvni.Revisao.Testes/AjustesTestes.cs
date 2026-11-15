@@ -1,3 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json.Nodes;
+using Pmvni.Agentes;
 using Pmvni.App;
 using Xunit;
 
@@ -192,5 +196,78 @@ public class AjustesKitTestes
             Assert.Null(Ajustes.Carregar(pasta).PastaKit);
         }
         finally { Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", antes); }
+    }
+
+    [Fact]
+    public void ajustes_dos_agentes()
+    {
+        using var pasta = Ambiente.PastaDeTeste("ajustes-agentes");
+
+        // Padrão: os dois agentes existem, na conta, sem programa escolhido e sem aviso aceito.
+        var a = Ajustes.Carregar(pasta);
+        Assert.Equal(2, a.Agentes.Count);
+        foreach (var p in new[] { Provedor.ChatGpt, Provedor.Claude })
+        {
+            Assert.Equal(ModoAcesso.Conta, a.Agentes[p].Modo);
+            Assert.Null(a.Agentes[p].Executavel);
+            Assert.Null(a.Agentes[p].AvisoVersao);
+            Assert.Null(a.Agentes[p].AvisoEm);
+            Assert.False(a.Agentes[p].AvisoAceito);
+        }
+
+        // Salvar e carregar: modo, programa e aviso; o horário volta em UTC, em segundos.
+        var aceite = new DateTimeOffset(2026, 11, 15, 13, 45, 7, TimeSpan.Zero);
+        a.Agentes[Provedor.ChatGpt].Modo = ModoAcesso.Chave;
+        a.Agentes[Provedor.ChatGpt].Executavel = @"C:\Programas\codex.exe";
+        a.Agentes[Provedor.ChatGpt].AvisoVersao = Ajustes.VersaoAviso;
+        a.Agentes[Provedor.ChatGpt].AvisoEm = aceite;
+        a.Agentes[Provedor.Claude].Executavel = @"C:\Python\python.exe";
+        a.Salvar(pasta);
+
+        var texto = File.ReadAllText(Path.Combine(pasta, "ajustes.json"));
+        var j = JsonNode.Parse(texto)!;
+        Assert.Equal("chave", (string?)j["agentes"]!["chatgpt"]!["modo"]);
+        Assert.Equal("conta", (string?)j["agentes"]!["claude"]!["modo"]);
+        Assert.Equal("2026-11-15T13:45:07Z", (string?)j["agentes"]!["chatgpt"]!["aviso_em"]);
+        var b = Ajustes.Carregar(pasta);
+        Assert.Equal(ModoAcesso.Chave, b.Agentes[Provedor.ChatGpt].Modo);
+        Assert.Equal(@"C:\Programas\codex.exe", b.Agentes[Provedor.ChatGpt].Executavel);
+        Assert.Equal(1, b.Agentes[Provedor.ChatGpt].AvisoVersao);
+        Assert.Equal(aceite, b.Agentes[Provedor.ChatGpt].AvisoEm);
+        Assert.True(b.Agentes[Provedor.ChatGpt].AvisoAceito);
+        Assert.Equal(ModoAcesso.Conta, b.Agentes[Provedor.Claude].Modo);
+        Assert.Equal(@"C:\Python\python.exe", b.Agentes[Provedor.Claude].Executavel);
+        Assert.False(b.Agentes[Provedor.Claude].AvisoAceito);
+
+        // Aviso de uma versão anterior pede o aceite de novo.
+        b.Agentes[Provedor.ChatGpt].AvisoVersao = Ajustes.VersaoAviso - 1;
+        Assert.False(b.Agentes[Provedor.ChatGpt].AvisoAceito);
+
+        // Valor inválido volta ao padrão (modo desconhecido, executável vazio, aviso de outro tipo); o resto do arquivo vale.
+        File.WriteAllText(Path.Combine(pasta, "ajustes.json"),
+            "{ \"tema\": \"escuro\", \"agentes\": { \"chatgpt\": { \"modo\": \"x\", \"executavel\": \"  \", \"aviso_versao\": \"um\", \"aviso_em\": \"ontem\" }, \"claude\": 7 } }");
+        var c = Ajustes.Carregar(pasta);
+        Assert.Equal("escuro", c.Tema);
+        foreach (var p in new[] { Provedor.ChatGpt, Provedor.Claude })
+        {
+            Assert.Equal(ModoAcesso.Conta, c.Agentes[p].Modo);
+            Assert.Null(c.Agentes[p].Executavel);
+            Assert.Null(c.Agentes[p].AvisoVersao);
+            Assert.Null(c.Agentes[p].AvisoEm);
+        }
+
+        // O arquivo nunca leva a chave: nem um campo "chave" nem a chave falsa (UTF-8, UTF-16 ou base64), mesmo com a chave guardada no cofre.
+        var chaveFalsa = "chave-falsa-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
+        CofreChaves.Guardar(pasta, Provedor.ChatGpt, chaveFalsa);
+        var d = Ajustes.Carregar(pasta);
+        d.Agentes[Provedor.ChatGpt].Modo = ModoAcesso.Chave;
+        d.Salvar(pasta);
+        var bytes = File.ReadAllBytes(Path.Combine(pasta, "ajustes.json"));
+        var texto2 = Encoding.UTF8.GetString(bytes);
+        Assert.DoesNotContain("\"chave\":", texto2);
+        Assert.DoesNotContain(chaveFalsa, texto2);
+        Assert.DoesNotContain(chaveFalsa, Encoding.Unicode.GetString(bytes));
+        Assert.DoesNotContain(Convert.ToBase64String(Encoding.UTF8.GetBytes(chaveFalsa)), texto2);
+        Assert.Empty(Directory.GetFiles(pasta, "*.tmp"));
     }
 }
