@@ -239,3 +239,20 @@ qualquer outra extensão (scripts, executáveis, atalhos) é recusada com aviso.
 é feita fora da thread da interface e tolera pastas grandes e nomes fora do padrão (aparecem
 com o nome da pasta como veio). Dados reais dessas pastas nunca entram em testes versionados:
 os testes usam uma árvore fictícia em `tests/corpus/processos/`.
+
+### 9.1 Faixa de opções por módulo (pedido do usuário)
+A faixa de opções troca inteira quando o módulo do trilho muda (abas e comandos). "Arquivo" e
+"Ajuda" existem em todos; a aba aberta por padrão é a segunda.
+- **Relatórios:** Arquivo · Página Inicial · Revisão · Exibir · Ajuda (como na seção 5.5).
+- **Despachos:** Arquivo · Página Inicial (Abrir, Abrir PDF, Mostrar no Explorador, Ir ao
+  processo, Atualizar lista; filtro Todos/Correção/Aprovação) · Exibir (agrupar por processo ou
+  por data, ordenar) · Ajuda.
+- **Processos:** Arquivo · Página Inicial (Abrir relatório, Importar análise da IA, Abrir
+  pasta no Explorador, Atualizar, filtro por ano) · Exibir (ordenar por número, data ou
+  requerente; mostrar pastas PROJETO/DOCUMENTOS) · Ajuda.
+- **Legislação:** Arquivo · Página Inicial (Abrir, Mostrar no Explorador, Atualizar, Copiar
+  caminho) · Exibir (ordenar por nome ou data) · Ajuda.
+- **Ajustes:** sem faixa de comandos (só a página de ajustes); Arquivo e Ajuda continuam no topo.
+A caixa de pesquisa da barra de título também muda de alvo: no relatório, o texto das folhas;
+em Processos, número ou requerente; em Despachos e Legislação, o nome do arquivo.
+O módulo e a aba ativos são lembrados entre sessões (Ajustes locais, não no pacote).
