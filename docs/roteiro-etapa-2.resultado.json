@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-11-15T05:06:03Z",
+  "gerado_em": "2026-11-15T05:10:32Z",
   "webview2": "157.0.4341.46",
   "escala_do_monitor": 1.5,
   "janela_px": {
@@ -16,7 +16,7 @@
       "folhas_que_transbordam_na_tela": [],
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "titulo_confere": true,
-      "estado_de_gravacao": "Salvo 02:06",
+      "estado_de_gravacao": "Salvo 02:10",
       "composicao": "Composto: 21 folhas",
       "itens_na_lista": 77,
       "primeiros_itens": [
@@ -32,7 +32,7 @@
       "aviso_largura_confere": true,
       "exportar_habilitado": true,
       "rodape_folha": "folha 1 de 21",
-      "latencia_recomposicao_ms": 1109,
+      "latencia_recomposicao_ms": 1129,
       "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
       "folhas_com_conteudo_alem_da_borda": [
         14
@@ -294,7 +294,7 @@
       "aviso_de_erro_aberto": true,
       "aviso_de_erro_texto": "Folha 3: bloco 'secao-2' não cabe na página (altura do conteúdo: 1089,2 mm).",
       "exportar_habilitado": false,
-      "dica_do_botao": "Exportar o relatório em PDF (as mesmas folhas da tela).",
+      "dica_do_botao": "A exportação está bloqueada: Folha 3: bloco 'secao-2' não cabe na página (altura do conteúdo: 1089,2 mm). Corrija o conteúdo para exportar o PDF.",
       "exportacao_recusada": true,
       "mensagem_da_recusa": "Exportação recusada: Bloco 'secao-2' excede a página 3 (altura do conteúdo: 1089,2 mm).",
       "nenhum_pdf_gravado": true,
@@ -381,12 +381,12 @@
       "fechado_sem_relatorio": true,
       "plano_igual_ao_da_importacao": true,
       "historico": 1,
-      "estado_de_gravacao": "Salvo 02:06",
+      "estado_de_gravacao": "Salvo 02:10",
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "ok": true
     },
     "12_salvar_duas_vezes_sem_conflito": {
-      "estado_de_gravacao": "Salvo 02:06",
+      "estado_de_gravacao": "Salvo 02:11",
       "disco_confere": true,
       "aviso_de_erro": false,
       "exporta_depois": true,

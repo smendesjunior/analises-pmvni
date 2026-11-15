@@ -549,14 +549,22 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 + " Corrija o conteúdo para exportar o PDF.");
         }
         else if (r.Preparado.ErrosFinais.Count > 0)
+        {
             Faixa.DefinirDica(ComandosApp.ArquivoExportarPdf, "A exportação está bloqueada: " + DescreverRascunho(r.Preparado.ErrosFinais)
                 + ". O PDF final só sai com o relatório completo.");
+        }
+        else
+        {
+            Faixa.DefinirDica(ComandosApp.ArquivoExportarPdf, "Exportar o relatório em PDF (as mesmas folhas da tela).");
+        }
+
         // O motivo do bloqueio também à vista (um botão desabilitado não mostra a dica): o estouro já tem o seu aviso.
         R.AvisoBloqueio.IsOpen = estouros == 0 && r.Preparado.ErrosFinais.Count > 0;
         if (R.AvisoBloqueio.IsOpen)
+        {
             R.AvisoBloqueio.Message = DescreverRascunho(r.Preparado.ErrosFinais) + ". O PDF final só sai com o relatório completo: "
                 + string.Join(" ", r.Preparado.ErrosFinais.Distinct().Take(3)) + (r.Preparado.ErrosFinais.Distinct().Count() > 3 ? " …" : "");
-        else Faixa.DefinirDica(ComandosApp.ArquivoExportarPdf, "Exportar o relatório em PDF (as mesmas folhas da tela).");
+        }
         AtualizarBarra();
     }
 

@@ -267,7 +267,7 @@ internal static class Roteiro
             var faixas = (await Js(j, "document.querySelectorAll('section.folha[data-pmvni-transborda]').length")).GetInt32();
             p["folhas_com_faixa_vermelha"] = faixas;
             p["folhas_que_transbordam_na_tela"] = new JsonArray(a.Aplicacao.FolhasQueTransbordam.Select(n => (JsonNode)n).ToArray());
-            p["ok"] = a.Composicao.Plano.Estouros.Count > 0 && !j.ExportarHabilitado && p["aviso_de_erro_aberto"]!.GetValue<bool>()
+            p["ok"] = a.Composicao.Plano.Estouros.Count > 0 && !j.ExportarHabilitado && j.DicaExportar.StartsWith("A exportação está bloqueada", StringComparison.Ordinal) && p["aviso_de_erro_aberto"]!.GetValue<bool>()
                 && p["exportacao_recusada"]!.GetValue<bool>() && !File.Exists(pdf) && faixas == a.Aplicacao.FolhasMarcadas.Count;
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "06-janela-xaml-estouro.png"));
             await j.RolarParaAsync(new ItemNavegacao("folha do estouro", a.Composicao.Plano.Estouros[0].Folha, null, false));
