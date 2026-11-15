@@ -198,6 +198,67 @@ public class PacoteTestes
         Assert.False(File.GetAttributes(caminho).HasFlag(FileAttributes.Hidden));
     }
 
+    [Fact]
+    public void leitura_do_destino_falha_depois_da_troca_a_gravacao_continua_sucesso()
+    {
+        using var pasta = Ambiente.PastaDeTeste("pacote-pos-troca");
+        var c = Importar("curto");
+        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var e1 = Pacote.Gravar(caminho, c, null);
+
+        var novo = c with { Historico = [.. c.Historico, Registro(2)] };
+        FileStream? preso = null;
+        EstadoDisco e2;
+        try
+        {
+            // Logo depois da troca, "o antivírus" segura o arquivo novo sem compartilhar: a releitura do estado falha.
+            e2 = Pacote.Gravar(caminho, novo, e1, depoisDeTrocar: () => preso = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.None));
+            Assert.NotNull(preso);
+        }
+        finally { preso?.Dispose(); }
+
+        Assert.Equal(ShaDoArquivo(caminho), e2.Sha256);
+        Assert.Equal(new FileInfo(caminho).Length, e2.Tamanho);
+        Assert.Empty(Directory.GetFiles(pasta, "*.tmp"));
+
+        // A gravação seguinte, com o estado devolvido, não acusa conflito com a própria gravação anterior.
+        var e3 = Pacote.Gravar(caminho, novo with { Historico = [.. novo.Historico, Registro(3)] }, e2);
+        Assert.Equal(ShaDoArquivo(caminho), e3.Sha256);
+        Assert.Equal(3, Pacote.Ler(caminho).Conteudo.Historico.Count);
+    }
+
+    [Fact]
+    public void so_a_data_mudou_nao_e_conflito()
+    {
+        using var pasta = Ambiente.PastaDeTeste("pacote-data");
+        var c = Importar("curto");
+        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var e1 = Pacote.Gravar(caminho, c, null);
+
+        File.SetLastWriteTimeUtc(caminho, File.GetLastWriteTimeUtc(caminho).AddHours(3)); // o OneDrive mexeu só na data
+        Assert.NotEqual(e1.GravadoUtc, EstadoDisco.Ler(caminho).GravadoUtc);
+
+        var e2 = Pacote.Gravar(caminho, c with { Historico = [.. c.Historico, Registro(2)] }, e1);
+        Assert.Equal(2, Pacote.Ler(caminho).Conteudo.Historico.Count);
+        Assert.Equal(ShaDoArquivo(caminho), e2.Sha256);
+    }
+
+    [Fact]
+    public void entrada_pequena_muito_repetitiva_e_aceita()
+    {
+        using var pasta = Ambiente.PastaDeTeste("pacote-repetitivo");
+        var bom = PacoteBom(pasta);
+        var repetitivo = Path.Combine(pasta, "repetitivo.pmvrel");
+        var linhas = Encoding.UTF8.GetBytes(new string('\n', 900_000)); // 900 KB que comprimem mais de 100 vezes; só linhas em branco
+        Reescrever(bom, repetitivo, e =>
+        {
+            e[Indice(e, "historico.jsonl")] = ("historico.jsonl", linhas);
+            NoManifesto(e, m => m with { Partes = new Dictionary<string, string>(m.Partes) { ["historico.jsonl"] = Sha(linhas) } });
+        });
+
+        Assert.Empty(Pacote.Ler(repetitivo).Conteudo.Historico);
+    }
+
     [Theory]
     [InlineData("../fora.json")]
     [InlineData("/abs.json")]

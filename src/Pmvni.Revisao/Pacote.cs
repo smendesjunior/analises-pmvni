@@ -20,6 +20,10 @@ public sealed class ConflitoNoDiscoException(EstadoDisco atual)
 /// <summary>Como o arquivo está no disco: tamanho, data de gravação (UTC) e sha256 do conteúdo. Serve para detectar mudança de fora.</summary>
 public sealed record EstadoDisco(long Tamanho, DateTime GravadoUtc, string Sha256)
 {
+    /// <summary>Mesmo conteúdo (sha256 e tamanho). A data não conta: o OneDrive pode mexer só nela, e isso não é conflito.</summary>
+    public bool MesmoConteudo(EstadoDisco? outro) =>
+        outro is not null && Tamanho == outro.Tamanho && string.Equals(Sha256, outro.Sha256, StringComparison.Ordinal);
+
     /// <summary>Lê o arquivo inteiro (sha256). <see cref="IOException"/> se outro processo o segura de modo que não dá para ler.</summary>
     public static EstadoDisco Ler(string caminho)
     {
@@ -48,6 +52,9 @@ public sealed record PacoteAberto(ConteudoPacote Conteudo, EstadoDisco Disco, bo
 /// <summary>O <c>.pmvrel</c> (um ZIP): leitura que nunca confia no arquivo e gravação que nunca deixa o pacote antigo pela metade.</summary>
 public static class Pacote
 {
+    /// <summary>A razão de compressão só é conferida em entradas acima de 1 MB descomprimido; os limites absolutos valem sempre.</summary>
+    private const long PisoDaRazao = 1_048_576;
+
     private const string NomeManifesto = "manifesto.json";
     private const string NomeRecebido = "original/recebido.json";
     private const string NomeProjeto = "projeto.json";
@@ -199,7 +206,7 @@ public static class Pacote
                 throw new PacoteInvalidoException(e.FullName + " passa do limite de " + limites.PorEntrada + " bytes por entrada.");
             if (total > limites.Total)
                 throw new PacoteInvalidoException("O pacote passa do limite de " + limites.Total + " bytes descomprimidos.");
-            if (memoria.Length / (double)comprimido > limites.RazaoMaxima)
+            if (memoria.Length > PisoDaRazao && memoria.Length / (double)comprimido > limites.RazaoMaxima)
                 throw new PacoteInvalidoException(e.FullName + " tem razão de compressão acima de " + limites.RazaoMaxima + " (possível bomba de compressão).");
         }
         return memoria.ToArray();
@@ -208,8 +215,10 @@ public static class Pacote
     /// <summary>Grava o pacote sem nunca deixar o arquivo antigo pela metade: escreve <c>nome.pmvrel.tmp</c> (oculto) ao lado, confere relendo, e só
     /// então troca (<c>File.Replace</c>, guardando <c>nome.pmvrel.bak</c>) ou move. Se o destino existe, ele tem de estar igual a
     /// <paramref name="esperado"/>, senão <see cref="ConflitoNoDiscoException"/> e nada é trocado. Em qualquer exceção o <c>.tmp</c> é apagado.
-    /// <paramref name="antesDeTrocar"/> é um gancho de teste, chamado depois da conferência e antes da troca. Devolve o novo estado do disco.</summary>
-    public static EstadoDisco Gravar(string caminho, ConteudoPacote c, EstadoDisco? esperado, Action? antesDeTrocar = null)
+    /// <paramref name="antesDeTrocar"/> e <paramref name="depoisDeTrocar"/> são ganchos de teste (depois da conferência e antes da troca; logo
+    /// depois da troca). A conferência de conflito compara o conteúdo (sha256 e tamanho), não a data. Depois da troca nada mais pode falhar: o
+    /// disco já tem a versão nova. Devolve o novo estado do disco.</summary>
+    public static EstadoDisco Gravar(string caminho, ConteudoPacote c, EstadoDisco? esperado, Action? antesDeTrocar = null, Action? depoisDeTrocar = null)
     {
         ArgumentNullException.ThrowIfNull(caminho);
         ArgumentNullException.ThrowIfNull(c);
@@ -223,6 +232,7 @@ public static class Pacote
             ApagarSePreciso(tmp);
             var partes = Escrever(tmp, c);
             var relido = Ler(tmp);
+            var gravado = relido.Disco; // os bytes que vão para o destino: sha256 e tamanho conhecidos
             var lidas = relido.Conteudo.Manifesto.Partes;
             if (lidas.Count != partes.Count || partes.Any(p => !lidas.TryGetValue(p.Key, out var sha) || sha != p.Value))
                 throw new IOException("A conferência do pacote gravado falhou: o conteúdo relido não é o que foi gravado.");
@@ -232,7 +242,7 @@ public static class Pacote
             if (File.Exists(destino))
             {
                 var atual = EstadoDisco.Ler(destino);
-                if (atual != esperado) throw new ConflitoNoDiscoException(atual);
+                if (!atual.MesmoConteudo(esperado)) throw new ConflitoNoDiscoException(atual);
                 trocando = true;
                 File.Replace(tmp, destino, bak);
             }
@@ -242,9 +252,8 @@ public static class Pacote
                 File.Move(tmp, destino);
             }
 
-            var atributos = File.GetAttributes(destino) & ~FileAttributes.Hidden;
-            File.SetAttributes(destino, atributos == 0 ? FileAttributes.Normal : atributos);
-            return EstadoDisco.Ler(destino);
+            depoisDeTrocar?.Invoke();
+            return DepoisDaTroca(destino, gravado);
         }
         catch
         {
@@ -252,6 +261,30 @@ public static class Pacote
             if (!(trocando && !File.Exists(destino))) ApagarSePreciso(tmp);
             throw;
         }
+    }
+
+    /// <summary>Acabamento depois da troca, que não pode derrubar a gravação (o disco já tem a versão nova; o OneDrive ou o antivírus podem segurar
+    /// o arquivo por um instante): tira o atributo oculto e relê o estado, com poucas tentativas curtas; se não conseguir, devolve o estado dos bytes
+    /// que acabaram de ser gravados.</summary>
+    private static EstadoDisco DepoisDaTroca(string destino, EstadoDisco gravado)
+    {
+        const int tentativas = 5;
+        for (var i = 0; i < tentativas; i++)
+        {
+            try
+            {
+                var atributos = File.GetAttributes(destino) & ~FileAttributes.Hidden;
+                File.SetAttributes(destino, atributos == 0 ? FileAttributes.Normal : atributos);
+                break;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Thread.Sleep(50); }
+        }
+        for (var i = 0; i < tentativas; i++)
+        {
+            try { return EstadoDisco.Ler(destino); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Thread.Sleep(50); }
+        }
+        return gravado;
     }
 
     private static void ApagarSePreciso(string caminho)

@@ -195,3 +195,13 @@ rodadas; grava `tests\saida\tempos.json`). "Compor" = `CarregarAsync` + `ComporD
 | extremos | 8 | 340 ms (600 / 333 / 340) | 264 ms (517 / 204 / 264) |
 
 A abertura no app soma a isso o render do kit (duas vezes: rascunho e conferência final) e o zoom inicial.
+
+## Gravação do pacote: janela residual (Etapa 2, Tarefa 4)
+
+`Pacote.Gravar` confere o estado do `.pmvrel` no disco (sha256 e tamanho; a data não conta) e logo depois troca o arquivo com
+`File.Replace`. Entre as duas chamadas existe uma janela de milissegundos em que outro processo (OneDrive, outro PC, outra
+janela) pode gravar o destino e ser sobrescrito sem aviso: o Windows não oferece "troque só se ainda for esta versão". Na prática
+essa janela é coberta pela trava `.~nome.pmvrel.lock` (Tarefa 5): enquanto uma janela do editor tem o pacote aberto com a trava
+viva, a segunda abre só leitura, e a conferência de conflito pega o resto (alteração de fora feita antes da gravação). Depois da
+troca nada mais derruba a gravação: se o OneDrive ou o antivírus segurar o arquivo novo por um instante, `Gravar` tenta de novo
+algumas vezes e, se ainda falhar, devolve o estado calculado dos bytes que acabou de gravar.
