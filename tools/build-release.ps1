@@ -90,8 +90,17 @@ if ($bt.Length -ne $bytes.Length -or $bt[0] -ne 0x4D -or $bt[1] -ne 0x5A -or (Ge
     Remove-Item -LiteralPath $exeTemp -Force
     throw 'A cópia para Aplicativo\ difere do .exe publicado e autotestado; Aplicativo\ ficou como estava.'
 }
+# Com o editor aberto, o .exe antigo não pode ser sobrescrito, mas pode ser renomeado: ele sai do caminho e o novo entra; o antigo é
+# apagado agora ou, se ainda estiver em uso, no próximo build.
+if (Test-Path -LiteralPath $exeFinal) {
+    $exeAntigo = Join-Path $pastaFinal ('antigo-' + [Guid]::NewGuid().ToString('N') + '.exe.old')
+    Rename-Item -LiteralPath $exeFinal -NewName (Split-Path -Leaf $exeAntigo)
+}
 Move-Item -LiteralPath $exeTemp -Destination $exeFinal -Force
-Get-ChildItem -LiteralPath $pastaFinal -Force | Where-Object { $_.FullName -ne $exeFinal } | Remove-Item -Recurse -Force
+Get-ChildItem -LiteralPath $pastaFinal -Force | Where-Object { $_.FullName -ne $exeFinal } | ForEach-Object {
+    try { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop }
+    catch { Write-Host "Em uso (sai no próximo build): $($_.TargetObject)" }
+}
 if ((Get-FileHash -LiteralPath $exeFinal -Algorithm SHA256).Hash -ne $hashFinal) { throw "Arquivo final difere do publicado: $exeFinal" }
 
 # 5b. Limpeza: bin, obj, publicação e temporários dentro do projeto (caminhos conferidos sob $raiz)

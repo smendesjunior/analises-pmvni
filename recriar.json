@@ -13,7 +13,7 @@
     },
     {
       "tipo": "manual",
-      "texto": "Editor de Relatórios PMVNI: não precisa instalar. Abra Aplicativo\\Editor de Relatorios PMVNI.exe (a primeira abertura demora uns 15 s). Se usar chave de API no Novo relatório, digite-a de novo em Ajustes › Inteligência artificial. Para gerar uma versão nova, rode tools\\build-release.ps1.",
+      "texto": "Análise de Projetos – PMVNI (antigo Editor de Relatórios PMVNI): não precisa instalar. Abra Aplicativo\\Editor de Relatorios PMVNI.exe (a primeira abertura demora uns 15 s). Se usar chave de API no Novo relatório, digite-a de novo em Ajustes › Inteligência artificial. Para gerar uma versão nova, rode tools\\build-release.ps1.",
       "abrir": "%APP%\\Aplicativo"
     }
   ],
