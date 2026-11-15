@@ -223,3 +223,23 @@ essa janela é coberta pela trava `.~nome.pmvrel.lock` (Tarefa 5): enquanto uma 
 viva, a segunda abre só leitura, e a conferência de conflito pega o resto (alteração de fora feita antes da gravação). Depois da
 troca nada mais derruba a gravação: se o OneDrive ou o antivírus segurar o arquivo novo por um instante, `Gravar` tenta de novo
 algumas vezes e, se ainda falhar, devolve o estado calculado dos bytes que acabou de gravar.
+
+## LibreOffice com perfil persistente (Etapa 2, onda de correções 1, Ruling T16-C4)
+
+O conversor do despacho passou a usar um perfil só, persistente, em `<dados>\lo` (nome curto 8.3, limite de 120 caracteres),
+criado na primeira conversão e nunca apagado; o `TEMP` continua na pasta de trabalho de cada preparo. Uma conversão por vez (mutex
+`Local\PMVNI-Editor-LibreOffice-perfil`); `<dados>\lo.pid` guarda o soffice em curso, e um órfão vivo de uma queda é encerrado antes
+da conversão seguinte (com as travas `.lock` velhas do perfil).
+
+Medido no roteiro (passo 44; perfil apagado no início do passo 36; LibreOffice do kit, este computador), tempo de cada
+`Converter` (do início do `soffice.com` ao PDF lido), em ordem — correção (36), aprovação (37), Gerar PDF (38), não sobrescreve (39):
+
+| rodada | 1ª conversão (perfil novo) | 2ª | 3ª | 4ª |
+|---|---|---|---|---|
+| roteiro 1 da onda | 56,3 s | 52,8 s | 49,8 s | 52,0 s |
+| roteiro 2 da onda | 60,3 s | 53,5 s | 53,7 s | 51,0 s |
+| roteiro 3 da onda (final) | 56,7 s | 51,1 s | 53,4 s | 50,8 s |
+
+O perfil persistente funciona (o `user\` fica e é reaproveitado), mas **não** encurta a conversão: a 2ª e as seguintes levam quase o
+mesmo que a 1ª. Os ~50–55 s não são a inicialização do perfil (hipótese da Tarefa 16); a causa continua em aberto (pouca CPU durante a
+espera, como na Tarefa 16 — candidata: alguma espera do `soffice.bin` com entrada e saídas redirecionadas ou na pasta do OneDrive).
