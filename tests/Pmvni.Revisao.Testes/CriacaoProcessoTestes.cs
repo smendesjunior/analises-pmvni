@@ -59,6 +59,18 @@ public class CriacaoProcessoTestes
     }
 
     [Fact]
+    public void pasta_do_ano_que_e_atalho_nao_recebe_processo_novo()
+    {
+        using var t = Ambiente.PastaDeTeste("proc-juncao");
+        var fora = Path.Combine(t, "fora"); Directory.CreateDirectory(fora);
+        var raiz = Path.Combine(t, "raiz"); Directory.CreateDirectory(raiz);
+        if (!ArquivamentoTestes.CriarJuncao(Path.Combine(raiz, "2099"), fora)) return;    // sem permissão para atalhos neste PC: nada a provar
+        var e = Assert.Throws<IOException>(() => CriacaoProcesso.Criar(raiz, 5, 2099, "Fulano"));
+        Assert.Equal("A pasta 2099 é um atalho (link); o editor não cria processos nela.", e.Message);
+        Assert.Empty(Directory.GetFileSystemEntries(fora));
+    }
+
+    [Fact]
     public void dados_invalidos_sao_recusados()
     {
         using var t = Ambiente.PastaDeTeste("proc-invalido");

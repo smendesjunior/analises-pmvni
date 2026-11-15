@@ -9,7 +9,14 @@ namespace Pmvni.Agentes;
 public sealed class ExecucaoProcesso : IDisposable
 {
     static readonly UTF8Encoding Utf8 = new(false);
-    static readonly TimeSpan EsperaDasSaidas = TimeSpan.FromSeconds(3);
+
+    /// <summary>Máximo de caracteres de uma linha de saída (1 MB); o resto da linha é descartado.</summary>
+    public const int LimiteLinha = 1024 * 1024;
+
+    public const string MarcaLinhaTruncada = " …[linha truncada]";
+
+    /// <summary>Quanto o <see cref="Fim"/> espera as saídas fecharem depois que o processo sai (3 s); só testes mexem.</summary>
+    internal static TimeSpan EsperaDasSaidas { get; set; } = TimeSpan.FromSeconds(3);
 
     /// <summary>Trava de teste e de roteiro: programa fora desta pasta ⇒ <see cref="InvalidOperationException"/> antes de iniciar qualquer coisa.</summary>
     public static string? SomenteExecutaveisEm { get; set; }
@@ -77,8 +84,9 @@ public sealed class ExecucaoProcesso : IDisposable
         }
 
         // As saídas já estão sendo lidas antes de escrever a entrada: um agente que escreve muito antes de ler tudo não trava o editor.
-        var lerSaida = Task.Run(() => Bombear(p.StandardOutput, aoLerSaida));
-        var lerErro = Task.Run(() => Bombear(p.StandardError, aoLerErro));
+        var sinal = new Sinal();
+        var lerSaida = Task.Run(() => Bombear(p.StandardOutput, aoLerSaida, sinal));
+        var lerErro = Task.Run(() => Bombear(p.StandardError, aoLerErro, sinal));
         try
         {
             if (entrada is not null) p.StandardInput.Write(entrada);
@@ -89,19 +97,55 @@ public sealed class ExecucaoProcesso : IDisposable
         var fim = Task.Run(async () =>
         {
             await p.WaitForExitAsync().ConfigureAwait(false);
+            // Espera limitada pelo fim das saídas: um neto que herdou os canais e continua vivo não pode prender o Fim. Passado o prazo, as tarefas de leitura
+            // ficam para trás (terminam sozinhas quando o neto sair; o SafeHandle cuida do fechamento) e o que ainda chegar é descartado.
             await Task.WhenAny(Task.WhenAll(lerSaida, lerErro), Task.Delay(EsperaDasSaidas)).ConfigureAwait(false);
+            sinal.Encerrado = true;
             try { return p.ExitCode; }
             catch (Exception e) when (e is InvalidOperationException or ObjectDisposedException) { return -1; }
         });
         return new ExecucaoProcesso(p, fim);
     }
 
-    static void Bombear(StreamReader leitor, Action<string> aoLer)
+    sealed class Sinal { public volatile bool Encerrado; }
+
+    /// <summary>Lê por linhas (terminadas em "\n"; o "\r" do fim sai). Cada linha tem no máximo <see cref="LimiteLinha"/> caracteres: o excedente é descartado
+    /// e a linha termina com <see cref="MarcaLinhaTruncada"/>. Assim um agente que escreve sem nunca quebrar a linha não consome a memória do editor.</summary>
+    static void Bombear(StreamReader leitor, Action<string> aoLer, Sinal sinal)
     {
         try
         {
-            string? linha;
-            while ((linha = leitor.ReadLine()) is not null) aoLer(linha);
+            var buffer = new char[8192];
+            var linha = new StringBuilder();
+            var truncada = false;
+            int n;
+            while ((n = leitor.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                if (sinal.Encerrado) return;
+                var resto = buffer.AsSpan(0, n);
+                while (resto.Length > 0)
+                {
+                    var i = resto.IndexOf('\n');
+                    var parte = i < 0 ? resto : resto[..i];
+                    var cabe = LimiteLinha - linha.Length;
+                    if (parte.Length <= cabe) linha.Append(parte);
+                    else { linha.Append(parte[..cabe]); truncada = true; }
+                    if (i < 0) break;
+                    Emitir();
+                    resto = resto[(i + 1)..];
+                }
+            }
+            if (linha.Length > 0 || truncada) Emitir();
+
+            void Emitir()
+            {
+                if (sinal.Encerrado) { linha.Clear(); truncada = false; return; }
+                var texto = linha.ToString().TrimEnd('\r');
+                if (truncada) texto += MarcaLinhaTruncada;
+                linha.Clear();
+                truncada = false;
+                aoLer(texto);
+            }
         }
         catch (IOException) { /* canal fechado à força (processo morto) */ }
         catch (ObjectDisposedException) { }
@@ -130,7 +174,8 @@ public sealed class ExecucaoProcesso : IDisposable
     {
         ct.ThrowIfCancellationRequested();
         var saida = new StringBuilder();
-        void Acrescentar(string l) { lock (saida) saida.AppendLine(l); }
+        // Comandos curtos: no máximo 256 KB de saída guardados (o resto é lido e descartado).
+        void Acrescentar(string l) { lock (saida) if (saida.Length < 256 * 1024) saida.AppendLine(l); }
         using var execucao = Iniciar(exe, args, pastaTrabalho, null, ambiente, Acrescentar, Acrescentar);
         using var cancelamento = ct.Register(execucao.Cancelar);
         var primeira = await Task.WhenAny(execucao.Fim, Task.Delay(limite, CancellationToken.None)).ConfigureAwait(false);

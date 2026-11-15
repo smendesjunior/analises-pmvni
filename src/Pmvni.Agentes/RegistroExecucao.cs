@@ -16,7 +16,16 @@ public sealed class RegistroExecucao : IDisposable
     readonly object trava = new();
     readonly JsonObject execucao = new();
     readonly Dictionary<string, List<string>> pendentes = new();
+    readonly Dictionary<string, long> usados = new();      // bytes já no arquivo (e na fila) de cada saída
+    readonly HashSet<string> truncados = new();
+    long bytesPendentes;
     bool descartado;
+
+    /// <summary>Tamanho máximo de cada arquivo de saída (<c>saida.jsonl</c>, <c>erros.txt</c>, <c>situacoes.jsonl</c>): 50 MB. Passou disso, grava uma linha
+    /// "saída truncada…" e descarta o resto (a leitura do agente continua, para ele nunca ficar bloqueado).</summary>
+    public long LimiteArquivoBytes { get; set; } = 50L * 1024 * 1024;
+
+    const long DescarregarAcima = 4L * 1024 * 1024;
 
     RegistroExecucao(string pasta) => Pasta = pasta;
 
@@ -90,9 +99,28 @@ public sealed class RegistroExecucao : IDisposable
     {
         lock (trava)
         {
-            if (descartado) return;
+            if (descartado || truncados.Contains(arquivo)) return;
             if (!pendentes.TryGetValue(arquivo, out var lista)) pendentes[arquivo] = lista = new List<string>();
+            if (!usados.TryGetValue(arquivo, out var jaUsados))
+            {
+                try { jaUsados = File.Exists(Caminho(Pasta, arquivo)) ? new FileInfo(Caminho(Pasta, arquivo)).Length : 0; }
+                catch (IOException) { jaUsados = 0; }
+            }
+            var bytes = Utf8.GetByteCount(linha) + 1;
+            if (jaUsados + bytes > LimiteArquivoBytes)
+            {
+                var marca = "saída truncada: limite de " + (LimiteArquivoBytes >= 1024 * 1024 ? LimiteArquivoBytes / (1024 * 1024) + " MB" : LimiteArquivoBytes / 1024 + " KB")
+                            + " do arquivo atingido";
+                lista.Add(marca);
+                truncados.Add(arquivo);
+                usados[arquivo] = jaUsados;
+                bytesPendentes += Utf8.GetByteCount(marca) + 1;
+                return;
+            }
+            usados[arquivo] = jaUsados + bytes;
             lista.Add(linha);
+            bytesPendentes += bytes;
+            if (bytesPendentes > DescarregarAcima) DescarregarSemTrava();      // linhas grandes não se acumulam na memória
         }
     }
 
@@ -112,6 +140,7 @@ public sealed class RegistroExecucao : IDisposable
             foreach (var l in linhas) w.WriteLine(l);
             linhas.Clear();
         }
+        bytesPendentes = 0;
     }
 
     /// <summary>Grava o que ficou pendente e não aceita mais nada.</summary>

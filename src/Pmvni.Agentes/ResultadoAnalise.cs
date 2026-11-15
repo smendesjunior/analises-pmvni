@@ -60,17 +60,22 @@ public static class ResultadoAnalise
         if (!File.Exists(completo))
             return Falha($"O relatório indicado pela análise não foi encontrado: {documento}.");
 
-        string? pdfCompleto = null;
-        if (pdf is not null)
+        return new Resultado(completo, PdfDentro(pastaProcesso, pdf), null);
+    }
+
+    /// <summary>O PDF que o kit declara, com a mesma regra do documento: relativo vale em relação à pasta do processo; fora dela, link ou junção no caminho, ou
+    /// arquivo ausente ⇒ null (o editor só mostra um caminho que ele mesmo abriria).</summary>
+    public static string? PdfDentro(string pastaProcesso, string? pdf)
+    {
+        if (string.IsNullOrWhiteSpace(pdf)) return null;
+        try
         {
-            try
-            {
-                var c = Path.GetFullPath(Path.IsPathRooted(pdf) ? pdf : Path.Combine(pastaProcesso, pdf));
-                if (File.Exists(c)) pdfCompleto = c;
-            }
-            catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { }
+            var c = Path.GetFullPath(Path.IsPathRooted(pdf) ? pdf : Path.Combine(pastaProcesso, pdf));
+            var raizProcesso = Path.GetFullPath(pastaProcesso).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (!c.StartsWith(raizProcesso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || TemLink(raizProcesso, c)) return null;
+            return File.Exists(c) ? c : null;
         }
-        return new Resultado(completo, pdfCompleto, null);
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { return null; }
     }
 
     static Resultado Falha(string motivo) => new(null, null, motivo);

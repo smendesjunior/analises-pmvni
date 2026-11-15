@@ -46,6 +46,10 @@ public static class CriacaoProcesso
         var existente = existentes.FirstOrDefault(p => Path.GetFileName(Path.GetDirectoryName(p.Pasta)) == anoTexto) ?? existentes.FirstOrDefault();
         if (existente is not null) return (existente, false);
 
+        var pastaAno = Path.Combine(raiz, anoTexto);
+        if (Directory.Exists(pastaAno) && new DirectoryInfo(pastaAno).LinkTarget is not null)
+            throw new IOException($"A pasta {anoTexto} é um atalho (link); o editor não cria processos nela.");
+
         var pasta = Path.Combine(raiz, anoTexto, string.Create(CultureInfo.InvariantCulture, $"{numero} - {ano} - {nome}"));
         Directory.CreateDirectory(Path.Combine(pasta, "DOCUMENTOS"));
         Directory.CreateDirectory(Path.Combine(pasta, "PROJETO", "INICIAL"));

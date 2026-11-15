@@ -10,7 +10,7 @@ namespace Pmvni.Agentes.Testes;
 
 /// <summary>O serviço inteiro, do pedido ao resultado, sempre contra o agente falso (a trava <c>SomenteExecutaveisEm</c> impede qualquer programa real).</summary>
 [Collection("Ambiente")]
-public class OrquestradorTestes
+public partial class OrquestradorTestes
 {
     static readonly TimeSpan Limite = TimeSpan.FromSeconds(90);
 

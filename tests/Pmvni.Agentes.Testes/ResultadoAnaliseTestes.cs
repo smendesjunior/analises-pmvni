@@ -35,6 +35,48 @@ public class ResultadoAnaliseTestes
     }
 
     [Fact]
+    public void pdf_so_se_estiver_dentro_do_processo_e_sem_link()
+    {
+        using var t = Ambiente.PastaDeTeste("res-pdf");
+        var pasta = Ambiente.NovoProcesso(t).Pasta;
+        var doc = Escrever(Path.Combine(pasta, ".pmvni-ai", "analise", "relatorio_dados.json"), "{}");
+        var dentro = Escrever(Path.Combine(pasta, ".pmvni-ai", "analise", "relatorio.pdf"), "pdf");
+        var fora = Escrever(Path.Combine(t, "fora", "relatorio.pdf"), "pdf");
+
+        string? PdfDe(string pdf)
+        {
+            Entrega(pasta, Provedor.ChatGpt, doc, pdf);
+            var r = ResultadoAnalise.Localizar(pasta, Provedor.ChatGpt, Inicio, "reg");
+            Assert.Equal(doc, r.Documento);         // o documento continua valendo; só o PDF é descartado
+            return r.Pdf;
+        }
+
+        Assert.Equal(dentro, PdfDe(dentro));                                                  // absoluto dentro
+        Assert.Equal(dentro, PdfDe(@".pmvni-ai\analise\relatorio.pdf"));                      // relativo dentro
+        Assert.Null(PdfDe(fora));                                                             // absoluto fora
+        Assert.Null(PdfDe(Path.Combine(pasta, "..", "..", "..", "fora", "relatorio.pdf")));   // subida por ".."
+        Assert.Null(PdfDe(@"..\fora\relatorio.pdf"));                                         // relativo que sai
+        Assert.Null(PdfDe(Path.Combine(pasta, ".pmvni-ai", "analise", "nao-existe.pdf")));    // ausente
+        Assert.Null(PdfDe(pasta + "-outro\\relatorio.pdf"));                                  // prefixo parecido
+
+        // Junção no caminho.
+        var real = Path.Combine(t, "real");
+        Escrever(Path.Combine(real, "relatorio.pdf"), "pdf");
+        var atalho = Path.Combine(pasta, ".pmvni-ai", "analise", "atalho");
+        if (Ambiente.CriarJuncao(atalho, real))
+        {
+            Assert.Null(PdfDe(Path.Combine(atalho, "relatorio.pdf")));
+            Assert.Null(PdfDe(@".pmvni-ai\analise\atalho\relatorio.pdf"));
+        }
+
+        // A mesma regra para o PDF que a situação do kit informa (Claude).
+        Assert.Equal(dentro, ResultadoAnalise.PdfDentro(pasta, dentro));
+        Assert.Null(ResultadoAnalise.PdfDentro(pasta, fora));
+        Assert.Null(ResultadoAnalise.PdfDentro(pasta, null));
+        Assert.Null(ResultadoAnalise.PdfDentro(pasta, "  "));
+    }
+
+    [Fact]
     public void resultado_pelo_delivery()
     {
         using var t = Ambiente.PastaDeTeste("res-ok");
@@ -116,8 +158,7 @@ public class ResultadoAnaliseTestes
         var doc = Escrever(Path.Combine(real, "relatorio_dados.json"), "{}");
         var link = Path.Combine(pasta, ".pmvni-ai", "analise", "atalho");
         Directory.CreateDirectory(Path.GetDirectoryName(link)!);
-        try { Directory.CreateSymbolicLink(link, real); }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return; }    // sem permissão para links neste PC: nada a provar
+        if (!Ambiente.CriarJuncao(link, real)) return;    // sem permissão para links neste PC: nada a provar
         var viaLink = Path.Combine(link, "relatorio_dados.json");
         Entrega(pasta, Provedor.ChatGpt, viaLink);
         var r = ResultadoAnalise.Localizar(pasta, Provedor.ChatGpt, Inicio, "reg");

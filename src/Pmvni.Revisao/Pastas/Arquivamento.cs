@@ -21,6 +21,8 @@ public static class Arquivamento
     public const string MsgAtalho = "{0} é um atalho; anexe o arquivo de destino.";
     /// <summary>{0} = nome, {1} = motivo.</summary>
     public const string MsgIlegivel = "{0} não pôde ser lido: {1}.";
+    /// <summary>{0} = a pasta do processo que é um atalho (por exemplo <c>DOCUMENTOS</c>).</summary>
+    public const string MsgLinkDestino = "A pasta {0} do processo é um atalho (link); o editor não grava nela.";
 
     const string SubDocumentos = "DOCUMENTOS";
     const string SubProjeto = "PROJETO";
@@ -83,6 +85,29 @@ public static class Arquivamento
         _ => Path.Combine(SubProjeto, ProximaRevisao(pastaProcesso)),
     };
 
+    /// <summary>O primeiro trecho de <paramref name="relativo"/> (a partir da pasta do processo) que existe e é junção ou link simbólico; null se nenhum.
+    /// A própria pasta do processo também conta (devolve ".").</summary>
+    internal static string? LinkNoCaminho(string pastaProcesso, string relativo)
+    {
+        try
+        {
+            if (new DirectoryInfo(pastaProcesso).LinkTarget is not null) return ".";
+            var atual = pastaProcesso;
+            foreach (var parte in relativo.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                atual = Path.Combine(atual, parte);
+                var info = new DirectoryInfo(atual);
+                if (!info.Exists) return null;            // o que ainda não existe será criado por nós: não é atalho
+                if (info.LinkTarget is not null) return Path.GetRelativePath(pastaProcesso, atual);
+            }
+            return null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return relativo;    // sem conseguir saber, recusa (o lado seguro)
+        }
+    }
+
     static string NomeComSufixo(string nome, int k)
     {
         if (k <= 1) return nome;
@@ -137,6 +162,11 @@ public static class Arquivamento
             }
 
             var pasta = PastaDestino(pastaProcesso, destino);
+            if (LinkNoCaminho(pastaProcesso, pasta) is { } link)
+            {
+                plano.Add(new PlanoAnexo(origem, destino, null, false, string.Format(CultureInfo.InvariantCulture, MsgLinkDestino, link)));
+                continue;
+            }
             var nome = Path.GetFileName(origem);
             for (var k = 1; ; k++)
             {
@@ -190,6 +220,9 @@ public static class Arquivamento
                 continue;
             }
 
+            // O plano pode ser velho: de novo, nada é gravado através de um atalho (junção ou link simbólico) posto no lugar de uma pasta do processo.
+            if (LinkNoCaminho(pastaProcesso, Path.GetRelativePath(pastaProcesso, destinoPasta)) is { } link)
+                throw new IOException(string.Format(CultureInfo.InvariantCulture, MsgLinkDestino, link));
             Directory.CreateDirectory(destinoPasta);
             feitos.Add(Copiar(pastaProcesso, item, destinoPasta, copiadosNestaRemessa, ct));
         }

@@ -165,10 +165,45 @@ static class Program
         if (cenario["erro"] is JsonArray erros)
             foreach (var e in erros) Console.Error.WriteLine(e?.GetValue<string>() ?? "");
 
+        // Agente que repete a própria chave (um "echo" do shell dele): crua e escapada como JSON, na saída, no erro e na última mensagem.
+        var eco = "";
+        if (cenario["ecoar_chave"]?.GetValue<bool>() == true)
+        {
+            var valor = new[] { "CODEX_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_AUTH_TOKEN" }
+                .Select(Environment.GetEnvironmentVariable).FirstOrDefault(v => !string.IsNullOrEmpty(v)) ?? "";
+            eco = valor;
+            saida.WriteLine("eco cru: " + valor);
+            saida.WriteLine("{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":" + JsonSerializer.Serialize("eco json padrão: " + valor) + "}}");
+            saida.WriteLine("{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":" + JsonSerializer.Serialize("eco json relaxado: " + valor, Opcoes) + "}}");
+            Console.Error.WriteLine("eco erro: " + valor);
+        }
+
+        // Inundações: uma linha enorme sem quebra; muitas linhas na saída; muitas linhas no erro.
+        var semQuebra = Inteiro(cenario["inundacao_sem_quebra_mb"], 0);
+        if (semQuebra > 0)
+        {
+            var bloco = new string('x', 64 * 1024);
+            for (var i = 0; i < semQuebra * 16; i++) saida.Write(bloco);
+            saida.Write("\nfim da inundação sem quebra\n");
+        }
+        var linhasMb = Inteiro(cenario["inundacao_linhas_mb"], 0);
+        if (linhasMb > 0)
+        {
+            var linha = new string('y', 1000);
+            for (var i = 0; i < linhasMb * 1024; i++) saida.WriteLine(linha);
+            saida.WriteLine("fim da inundação de linhas");
+        }
+        var erroMb = Inteiro(cenario["inundacao_erro_mb"], 0);
+        if (erroMb > 0)
+        {
+            var linha = new string('e', 1000);
+            for (var i = 0; i < erroMb * 1024; i++) Console.Error.WriteLine(linha);
+        }
+
         Dormir(Inteiro(cenario["dormir_ms"], 0));
 
-        if (ultima is not null && cenario["ultima_mensagem"] is not null)
-            File.WriteAllText(ultima, Texto(cenario["ultima_mensagem"], ""), Utf8);
+        if (ultima is not null && (cenario["ultima_mensagem"] is not null || eco.Length > 0))
+            File.WriteAllText(ultima, Texto(cenario["ultima_mensagem"], "") + (eco.Length > 0 ? "ultima: " + eco : ""), Utf8);
         Entregar(Path.Combine(cwd, ".pmvni-ai", "analise"), pdf: false);
         return Inteiro(cenario["codigo"], 0);
     }

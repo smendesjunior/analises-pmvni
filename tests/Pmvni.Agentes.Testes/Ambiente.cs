@@ -124,6 +124,26 @@ public static class Ambiente
         catch (InvalidOperationException) { return false; }
     }
 
+    /// <summary>Cria uma junção (ou, se não der, um link simbólico) <paramref name="link"/> → <paramref name="alvo"/>; false se este PC não deixa criar nenhum dos dois.
+    /// <c>mklink /J</c> não pede administrador.</summary>
+    public static bool CriarJuncao(string link, string alvo)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(link)!);
+        var psi = new ProcessStartInfo("cmd.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var a in new[] { "/c", "mklink", "/J", link, alvo }) psi.ArgumentList.Add(a);
+        try
+        {
+            using var p = Process.Start(psi)!;
+            p.StandardOutput.ReadToEnd();
+            p.StandardError.ReadToEnd();
+            p.WaitForExit();
+            if (p.ExitCode == 0 && Directory.Exists(link)) return true;
+        }
+        catch (System.ComponentModel.Win32Exception) { }
+        try { Directory.CreateSymbolicLink(link, alvo); return true; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return false; }
+    }
+
     public static bool EsperarAte(Func<bool> condicao, TimeSpan limite)
     {
         var fim = DateTime.UtcNow + limite;

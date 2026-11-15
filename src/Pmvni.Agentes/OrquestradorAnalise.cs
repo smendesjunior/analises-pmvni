@@ -183,9 +183,10 @@ public sealed class OrquestradorAnalise
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(args).ToList());
         registro.Atualizar(o => o["entrada_padrao"] = "pedido.md");
 
+        var redator = new RedatorChave(chave);      // a chave nunca vai para o registro nem para a tela, nem se o agente a repetir
         var canal = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         using var execucao = ExecucaoProcesso.Iniciar(exe, args, pasta, pedido, Ambiente(Provedor.ChatGpt, pe.Modo, chave),
-            linha => canal.Writer.TryWrite(linha), registro.AcrescentarErro);
+            linha => canal.Writer.TryWrite(redator.Aplicar(linha)), linha => registro.AcrescentarErro(redator.Aplicar(linha)));
         using var cancelamento = ct.Register(execucao.Cancelar);
 
         // A saída vai para uma fila sem limite: o agente nunca espera pelo editor (nem pela tela). Um só consumidor grava o saida.jsonl e anuncia.
@@ -209,6 +210,7 @@ public sealed class OrquestradorAnalise
         var codigo = await execucao.Fim.ConfigureAwait(false);
         canal.Writer.TryComplete();
         await consumidor.ConfigureAwait(false);
+        RedigirArquivo(Path.Combine(registro.Pasta, "ultima-mensagem.md"), redator);     // este arquivo é escrito pelo próprio Codex
         registro.Descarregar();
 
         if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
@@ -219,6 +221,30 @@ public sealed class OrquestradorAnalise
         return r.Documento is null
             ? new FimAnalise("sem_resultado", null, null, r.Motivo, codigo)
             : new FimAnalise("concluida", r.Documento, r.Pdf, null, codigo);
+    }
+
+    /// <summary>Tira a chave de um arquivo que o agente escreveu dentro do registro (até 20 MB; o que passar disso é cortado, com aviso).</summary>
+    static void RedigirArquivo(string arquivo, RedatorChave redator)
+    {
+        if (!redator.Ativo) return;
+        const int Maximo = 20 * 1024 * 1024;
+        try
+        {
+            if (!File.Exists(arquivo)) return;
+            var info = new FileInfo(arquivo);
+            string texto;
+            using (var fs = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            using (var leitor = new StreamReader(fs, new UTF8Encoding(false)))
+            {
+                var buffer = new char[Maximo];
+                var n = leitor.ReadBlock(buffer, 0, buffer.Length);
+                texto = new string(buffer, 0, n);
+            }
+            var novo = redator.Aplicar(texto);
+            if (info.Length > Maximo) novo += "\n[arquivo cortado em 20 MB]";
+            if (novo != texto || info.Length > Maximo) File.WriteAllText(arquivo, novo, new UTF8Encoding(false));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* o arquivo é do agente; sem acesso, nada a fazer */ }
     }
 
     // ------------------------------------------------------------------ Claude (análise pro)
@@ -236,13 +262,15 @@ public sealed class OrquestradorAnalise
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(argsIniciar).ToList());
         var ambiente = Ambiente(Provedor.Claude, pe.Modo, chave);
 
+        var redator = new RedatorChave(chave);
         var log = new LeitorLog(Path.Combine(pasta, ResultadoAnalise.PastaControle(Provedor.Claude), "auto-log.txt"));
         log.IgnorarOQueJaHa();      // o kit acrescenta ao log: só o que vier depois da partida é desta execução
 
         var partida = await ExecucaoProcesso.RodarAsync(exe, argsIniciar, pasta, ambiente, LimiteIniciar, ct).ConfigureAwait(false);
-        var iniciada = partida.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(partida.Saida)) : null;
+        var saidaPartida = redator.Aplicar(partida.Saida);
+        var iniciada = partida.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(saidaPartida)) : null;
         if (iniciada is null || iniciada.Codigo is not ("INICIADA" or "JA_EM_ANDAMENTO"))
-            return Falha("O análise pro não partiu: " + PrimeiraLinha(partida.Saida) + ". Veja o registro: " + registro.Pasta + ".", partida.Codigo);
+            return Falha("O análise pro não partiu: " + PrimeiraLinha(saidaPartida) + ". Veja o registro: " + registro.Pasta + ".", partida.Codigo);
         if (iniciada.Codigo == "JA_EM_ANDAMENTO") log.MostrarOFimDoLog();     // uma análise que já rodava: mostra o que ela já escreveu
 
         var (_, argsSituacao) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, pecas.ProRuntime!, pasta, "situacao");
@@ -254,17 +282,19 @@ public sealed class OrquestradorAnalise
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            foreach (var linha in log.Novas()) Anunciar(progresso, new ProgressoAnalise(linha, null));
+            foreach (var linha in log.Novas()) Anunciar(progresso, new ProgressoAnalise(redator.Aplicar(linha), null));
 
             if (ultimaSituacao is null || relogio.Elapsed - ultimaSituacao >= IntervaloSituacao)
             {
                 ultimaSituacao = relogio.Elapsed;
                 var r = await ExecucaoProcesso.RodarAsync(exe, argsSituacao, pasta, ambiente, LimiteSituacao, ct).ConfigureAwait(false);
-                var situacao = r.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(r.Saida)) : null;
+                var saidaSituacao = redator.Aplicar(r.Saida);
+                var situacao = r.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(saidaSituacao)) : null;
+                if (situacao is { Pdf: not null }) situacao = situacao with { Pdf = ResultadoAnalise.PdfDentro(pasta, situacao.Pdf) };   // só um PDF que o editor abriria
                 if (situacao is null || situacao.Codigo.Length == 0)
                 {
                     if (++falhasSeguidas >= FalhasSeguidasDaSituacao)
-                        return Falha("Não foi possível ler a situação do análise pro: " + PrimeiraLinha(r.Saida) + ". Veja o registro: " + registro.Pasta + ".", r.Codigo);
+                        return Falha("Não foi possível ler a situação do análise pro: " + PrimeiraLinha(saidaSituacao) + ". Veja o registro: " + registro.Pasta + ".", r.Codigo);
                 }
                 else
                 {
@@ -273,12 +303,12 @@ public sealed class OrquestradorAnalise
                     if (chaveAtual != chaveAnterior)
                     {
                         chaveAnterior = chaveAtual;
-                        registro.AcrescentarSituacao(Compactar(DoPrimeiroJson(r.Saida)));
+                        registro.AcrescentarSituacao(Compactar(DoPrimeiroJson(saidaSituacao)));
                         Anunciar(progresso, new ProgressoAnalise(null, situacao));
                     }
                     if (SituacaoAnalisePro.Terminal(situacao.Codigo))
                     {
-                        foreach (var linha in log.Novas(ateOFim: true)) Anunciar(progresso, new ProgressoAnalise(linha, null));
+                        foreach (var linha in log.Novas(ateOFim: true)) Anunciar(progresso, new ProgressoAnalise(redator.Aplicar(linha), null));
                         registro.Descarregar();
                         return Terminou(pe, situacao, inicio);
                     }
@@ -298,7 +328,7 @@ public sealed class OrquestradorAnalise
                 var r = ResultadoAnalise.Localizar(pe.Processo.Pasta, Provedor.Claude, inicio.UtcDateTime, pe.Registro.Pasta);
                 return r.Documento is null
                     ? new FimAnalise("sem_resultado", null, null, r.Motivo, null)
-                    : new FimAnalise("concluida", r.Documento, r.Pdf ?? s.Pdf, null, null);
+                    : new FimAnalise("concluida", r.Documento, r.Pdf ?? ResultadoAnalise.PdfDentro(pe.Processo.Pasta, s.Pdf), null, null);
             case "FALHOU":
             case "OBJECOES":
                 return new FimAnalise("falhou", null, null, mensagem, null);
@@ -355,7 +385,9 @@ public sealed class OrquestradorAnalise
                                 || nome.Equals("py", StringComparison.OrdinalIgnoreCase)
                                 || nome.Equals(Path.GetFileNameWithoutExtension(pecas.Python), StringComparison.OrdinalIgnoreCase);
                 if (!permitido) return false;
-                if (new DateTimeOffset(processo.StartTime) < inicio - TimeSpan.FromMinutes(1)) return false;
+                // O processo do kit parte logo depois do "inicio" que ele mesmo gravou: muito antes ou muito depois é outro programa (pid reaproveitado).
+                var partiu = new DateTimeOffset(processo.StartTime);
+                if (partiu < inicio - TimeSpan.FromMinutes(1) || partiu > inicio + TimeSpan.FromMinutes(5)) return false;
                 processo.Kill(entireProcessTree: true);
                 await Task.WhenAny(processo.WaitForExitAsync(), Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
                 return processo.HasExited;

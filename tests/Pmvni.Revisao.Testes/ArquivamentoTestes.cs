@@ -179,6 +179,61 @@ public class ArquivamentoTestes
         Assert.Equal(new[] { @"DOCUMENTOS\ok.pdf" }, ArquivosDe(p));
     }
 
+    /// <summary>Junção (mklink /J, sem administrador); false se este PC não deixa criar atalho nenhum.</summary>
+    internal static bool CriarJuncao(string link, string alvo)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo("cmd.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var a in new[] { "/c", "mklink", "/J", link, alvo }) psi.ArgumentList.Add(a);
+        using var p = System.Diagnostics.Process.Start(psi)!;
+        p.StandardOutput.ReadToEnd();
+        p.StandardError.ReadToEnd();
+        p.WaitForExit();
+        if (p.ExitCode == 0 && Directory.Exists(link)) return true;
+        try { Directory.CreateSymbolicLink(link, alvo); return true; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return false; }
+    }
+
+    [Fact]
+    public void pasta_do_processo_que_e_atalho_nao_recebe_anexo()
+    {
+        using var t = Ambiente.PastaDeTeste("arq-juncao");
+        var p = NovoProcesso(t);
+        var o = Origem(t, "req.pdf", "requerimento");
+        var plantaPasta = Path.Combine(t, "origem2"); Directory.CreateDirectory(plantaPasta);
+        var planta = Path.Combine(plantaPasta, "planta.pdf"); File.WriteAllText(planta, "planta");
+        var alvoFora = Path.Combine(t, "fora-do-processo");
+        Directory.CreateDirectory(alvoFora);
+
+        // DOCUMENTOS vira junção para uma pasta de fora.
+        Directory.Delete(Path.Combine(p, "DOCUMENTOS"));
+        if (!CriarJuncao(Path.Combine(p, "DOCUMENTOS"), alvoFora)) return;     // sem permissão para atalhos neste PC: nada a provar
+        var plano = Arquivamento.Planejar(p, new[] { (o, DestinoAnexo.Documento), (planta, DestinoAnexo.ProjetoInicial) });
+        Assert.Equal("A pasta DOCUMENTOS do processo é um atalho (link); o editor não grava nela.", plano[0].Recusa);
+        Assert.Null(plano[0].Relativo);
+        Assert.Null(plano[1].Recusa);                                           // as outras pastas seguem normais
+        Assert.Equal(@"PROJETO\INICIAL\planta.pdf", plano[1].Relativo);
+
+        // Um plano velho (feito antes do atalho) também não grava através dele.
+        var velho = new[] { new PlanoAnexo(o, DestinoAnexo.Documento, @"DOCUMENTOS\req.pdf", false, null) };
+        Assert.Throws<IOException>(() => Arquivamento.Arquivar(p, velho, CancellationToken.None));
+        Assert.Empty(Directory.GetFileSystemEntries(alvoFora));
+
+        // Só os recusados deixam de ser copiados; PROJETO\INICIAL recebe o seu.
+        var arq = Arquivamento.Arquivar(p, plano, CancellationToken.None);
+        Assert.Equal(@"PROJETO\INICIAL\planta.pdf", Assert.Single(arq).Relativo);
+        Assert.Empty(Directory.GetFileSystemEntries(alvoFora));
+
+        // PROJETO inteiro como atalho: nenhuma das pastas de baixo serve.
+        Directory.CreateDirectory(Path.Combine(t, "outros"));
+        var p2 = CriacaoProcesso.Criar(Path.Combine(t, "outros"), 2, 2099, "Beltrano").Processo.Pasta;
+        Directory.Delete(Path.Combine(p2, "PROJETO", "INICIAL"));
+        Directory.Delete(Path.Combine(p2, "PROJETO"));
+        if (!CriarJuncao(Path.Combine(p2, "PROJETO"), alvoFora)) return;
+        var plano2 = Arquivamento.Planejar(p2, new[] { (planta, DestinoAnexo.ProjetoInicial), (planta, DestinoAnexo.ReapresentacaoNova) });
+        Assert.All(plano2, x => Assert.Equal("A pasta PROJETO do processo é um atalho (link); o editor não grava nela.", x.Recusa));
+        Assert.Empty(Directory.GetFileSystemEntries(alvoFora));
+    }
+
     [Fact]
     public void arquivo_preso_para_leitura_e_recusado_com_o_motivo()
     {
