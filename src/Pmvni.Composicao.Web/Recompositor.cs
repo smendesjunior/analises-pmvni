@@ -65,5 +65,8 @@ public sealed class Recompositor : IDisposable
         return await host.Documento.ComporDetalhadoAsync();
     }
 
+    /// <summary>A pasta de trabalho continua viva (a cada recomposição e a cada batimento da trava): nunca vira órfã para outra instância.</summary>
+    public void TocarPasta() => pasta.Tocar();
+
     public void Dispose() => pasta.Dispose();
 }

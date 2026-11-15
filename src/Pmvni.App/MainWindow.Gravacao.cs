@@ -59,7 +59,7 @@ public sealed partial class MainWindow
         s.FalhaNoDiario += MostrarFalhaNoDiario;
         s.DiarioVoltou += AoVoltarODiario;
         s.TravaMudou += AoMudarATrava;
-        if (s.TemTrava) batimento.Start();
+        batimento.Start(); // com ou sem trava: o batimento também mantém viva a pasta de trabalho
     }
 
     void DesligarSessao(SessaoEdicao s)
@@ -177,14 +177,13 @@ public sealed partial class MainWindow
 
     async Task BaterAsync()
     {
-        if (sessao is not { TemTrava: true } s) { batimento.Stop(); return; }
-        await s.BaterAsync(); // perdida ⇒ TravaMudou
+        if (sessao is not { } s) { batimento.Stop(); return; }
+        await s.BaterAsync(); // toca a pasta de trabalho; trava perdida ⇒ TravaMudou
     }
 
     void AoMudarATrava()
     {
         if (sessao is not { } s || fechada) return;
-        if (s.TemTrava) batimento.Start(); else batimento.Stop();
         if (s.SomenteLeitura)
         {
             autosave.Stop();

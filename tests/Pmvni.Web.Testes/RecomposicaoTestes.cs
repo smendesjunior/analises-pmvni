@@ -180,6 +180,19 @@ public sealed class RecomposicaoTestes : IClassFixture<TelaFixture>
         finally { try { Directory.Delete(nova, true); } catch (IOException) { } }
     }
 
+    [Fact]
+    public void batimento_toca_a_pasta_de_trabalho_e_uma_sessao_viva_nunca_vira_orfa()
+    {
+        // Uma sessão aberta há mais de um dia sem recompor (só lendo): o batimento da trava toca a pasta, e a varredura de órfãs de outra
+        // instância não a apaga.
+        using var rec = new Recompositor(Importar("curto"), Modelo);
+        Directory.SetLastWriteTimeUtc(rec.PastaTrabalho, DateTime.UtcNow.AddDays(-2));
+        rec.TocarPasta();
+        Assert.True(DateTime.UtcNow - Directory.GetLastWriteTimeUtc(rec.PastaTrabalho) < TimeSpan.FromMinutes(1));
+        using var outra = PastaTrabalho.Criar(Importar("curto")); // a criação de outra varre as órfãs
+        Assert.True(Directory.Exists(rec.PastaTrabalho));
+    }
+
     /// <summary>PF9: a latência por comando (Preparar + compor + aplicar na "tela") é medida e registrada em
     /// tests\saida\tempos-comando.json, ao lado da linha de base da Etapa 1; a meta de 1,5 s no longo vai para
     /// docs/notas-tecnicas.md, não é barreira. O que o teste afirma: as medidas são finitas e positivas e a recomposição deu certo.</summary>

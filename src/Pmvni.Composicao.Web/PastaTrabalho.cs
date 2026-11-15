@@ -37,6 +37,14 @@ public sealed class PastaTrabalho : IDisposable
         return new PastaTrabalho(pasta);
     }
 
+    /// <summary>Marca a pasta como viva (data de alteração = agora): a varredura de órfãs (mais de um dia sem alteração) de outra instância
+    /// nunca apaga a pasta de uma sessão aberta. Falha (pasta presa, apagada) só não toca.</summary>
+    public void Tocar()
+    {
+        try { if (Directory.Exists(Caminho)) Directory.SetLastWriteTimeUtc(Caminho, DateTime.UtcNow); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+    }
+
     public void Dispose()
     {
         if (Interlocked.Exchange(ref apagada, 1) != 0) return;

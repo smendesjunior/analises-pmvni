@@ -179,12 +179,18 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         return false;
     }
 
-    /// <summary>Renova a trava (fora da thread da interface). <c>false</c> = perdida: a sessão fica só para leitura (o diário continua com
-    /// o que não foi gravado) e <see cref="TravaMudou"/> avisa.</summary>
+    /// <summary>Batimento (a cada 30 s, com ou sem trava): toca a pasta de trabalho (a varredura de órfãs de outra instância nunca apaga
+    /// uma sessão viva) e renova a trava, se houver (fora da thread da interface). <c>false</c> = trava perdida: a sessão fica só para
+    /// leitura (o diário continua com o que não foi gravado) e <see cref="TravaMudou"/> avisa.</summary>
     public async Task<bool> BaterAsync()
     {
-        if (trava is not { } t || encerrada) return true;
-        var b = Task.Run(t.Bater);
+        if (encerrada) return true;
+        if (trava is not { } t)
+        {
+            await Task.Run(Recompositor.TocarPasta);
+            return true;
+        }
+        var b = Task.Run(() => { Recompositor.TocarPasta(); return t.Bater(); });
         batendo = b;
         var ok = await b;
         if (!ok && !encerrada && ReferenceEquals(t, trava)) PerderTrava();
@@ -226,7 +232,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         try
         {
             // A pasta de trabalho é "tocada" a cada preparação: a limpeza de órfãs de outra instância (pela data) nunca a apaga.
-            await Task.Run(() => { try { Directory.SetLastWriteTimeUtc(Recompositor.PastaTrabalho, DateTime.UtcNow); } catch (IOException) { } });
+            await Task.Run(Recompositor.TocarPasta);
             var projeto = Revisao.Projeto;
             var p = preparado ?? await Task.Run(() => Recompositor.Preparar(projeto));
             var host = await tela.HostAsync();
