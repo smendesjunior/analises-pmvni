@@ -1,3 +1,5 @@
+using Pmvni.Revisao;
+
 namespace Pmvni.App;
 
 /// <summary>Ids dos comandos da faixa de opções (e dos atalhos). Cada tarefa seguinte acrescenta os seus.</summary>
@@ -74,6 +76,24 @@ public static class ComandosApp
     public const string DespachosOrdenar = "despachos.ordenar";
     public const string DespachosOrdenarRecentes = "despachos.ordenar.recentes";
     public const string DespachosOrdenarAntigos = "despachos.ordenar.antigos";
+
+    // Novo despacho (Tarefa 16): o menu com os tipos do registro do kit (em Despachos, Processos e Relatórios) e Gerar PDF (só Despachos).
+    public const string DespachosNovo = "despachos.novo";
+    public const string DespachosNovoCorrecao = "despachos.novo.correcao";
+    public const string DespachosNovoAprovacao = "despachos.novo.aprovacao";
+    public const string DespachosGerarPdf = "despachos.gerarPdf";
+
+    /// <summary>Os itens do Novo despacho valem em qualquer módulo que os mostra: abrem a página Novo despacho no módulo Despachos.
+    /// Os outros comandos <c>despachos.*</c> só valem com a lista de despachos à vista.</summary>
+    public static bool ValeForaDeDespachos(string id) => id is DespachosNovoCorrecao or DespachosNovoAprovacao;
+
+    /// <summary>O tipo do item <c>despachos.novo.*</c>; null para os outros ids.</summary>
+    public static TipoDespacho? TipoDoNovoDespacho(string id) => id switch
+    {
+        DespachosNovoCorrecao => TipoDespacho.Correcao,
+        DespachosNovoAprovacao => TipoDespacho.Aprovacao,
+        _ => null,
+    };
 
     public const string AjudaAtalhos = "ajuda.atalhos";
     public const string AjudaSobre = "ajuda.sobre";

@@ -3,8 +3,8 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Pmvni.App">
   <!-- Módulo Despachos (desenho §9): os despachos que já existem nas pastas dos processos (de todos ou só do processo escolhido em
-       Processos), com tipo, data e número. Só listar e abrir: a criação de despachos é de outra tarefa. As linhas e os botões são
-       ligados pela janela (MainWindow.Pastas.cs). -->
+       Processos), com tipo, data e número. O Novo despacho abre a sua página no lugar desta (PaginaNovoDespacho). As linhas e os botões são
+       ligados pela janela (MainWindow.Pastas.cs e MainWindow.NovoDespacho.cs). -->
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
@@ -19,6 +19,16 @@
         </InfoBar.ActionButton>
       </InfoBar>
       <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
+      <!-- Depois de gravar um despacho (Novo despacho ou Gerar PDF): o que foi gravado e onde, com os botões para abrir. -->
+      <InfoBar x:Name="AvisoGravado" x:FieldModifier="internal" Severity="Success" IsOpen="False" IsClosable="True" Title="Despacho gravado">
+        <InfoBar.Content>
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <Button x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" Content="Abrir DOCX"/>
+            <Button x:Name="BotaoAbrirPdfGravado" x:FieldModifier="internal" Content="Abrir PDF"/>
+            <Button x:Name="BotaoMostrarGravado" x:FieldModifier="internal" Content="Mostrar no Explorador"/>
+          </StackPanel>
+        </InfoBar.Content>
+      </InfoBar>
     </StackPanel>
 
     <Grid Grid.Row="1" Padding="20,10,16,6" ColumnSpacing="8">

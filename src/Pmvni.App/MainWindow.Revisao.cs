@@ -148,8 +148,9 @@ public sealed partial class MainWindow
         Faixa.Habilitar(ComandosApp.RevisaoConferencia, temRelatorio);
         Faixa.Habilitar(ComandosApp.RevisaoComparar, temRelatorio);
         Faixa.Ligar(ComandosApp.ExibirPropriedades, PropriedadesVisivel);
-        var desfazer = editavel && sessao!.Revisao.PodeDesfazer;
-        var refazer = editavel && sessao!.Revisao.PodeRefazer;
+        // Fora de Relatórios o relatório fica escondido: Desfazer e Refazer (faixa e barra de título) não valem lá (ComandosApp.SoDoRelatorio).
+        var desfazer = editavel && moduloAtual == Modulo.Relatorios && sessao!.Revisao.PodeDesfazer;
+        var refazer = editavel && moduloAtual == Modulo.Relatorios && sessao!.Revisao.PodeRefazer;
         Faixa.Habilitar(ComandosApp.EditarDesfazer, desfazer);
         Faixa.Habilitar(ComandosApp.EditarRefazer, refazer);
         BotaoDesfazer.IsEnabled = desfazer;

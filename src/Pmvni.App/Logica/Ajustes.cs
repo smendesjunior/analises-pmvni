@@ -5,7 +5,7 @@ using Pmvni.Revisao;
 namespace Pmvni.App;
 
 /// <summary>Ajustes locais do app em <c>&lt;raiz de dados&gt;\ajustes.json</c> (nunca no pacote): módulo e aba ativos, tema, intervalo
-/// do salvamento automático, marcas de revisão, recentes e pasta de processos. Arquivo ilegível vira <c>ajustes.corrompido.json</c>
+/// do salvamento automático, marcas de revisão, recentes, pasta de processos e pasta do kit PMVNI. Arquivo ilegível vira <c>ajustes.corrompido.json</c>
 /// (sem sobrescrever outro) e o app segue com o padrão; valores fora do permitido voltam ao padrão.</summary>
 public sealed class Ajustes
 {
@@ -29,6 +29,18 @@ public sealed class Ajustes
 
     /// <summary>A pasta que Processos e Despachos leem: a escolhida em Ajustes ou, sem escolha, a padrão.</summary>
     public string PastaProcessosEfetiva => string.IsNullOrWhiteSpace(PastaProcessos) ? PastaProcessosPadrao : PastaProcessos;
+
+    /// <summary>A pasta do kit PMVNI escolhida em Ajustes (de onde os modelos de despacho são lidos, no lugar); null = a padrão.</summary>
+    public string? PastaKit { get; set; }
+
+    /// <summary>O kit PMVNI neste computador (<c>%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\KIT DE TREINAMENTO DE IA (PMVNI)</c>).</summary>
+    public static string PastaKitPadrao { get; } =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR", "KIT DE TREINAMENTO DE IA (PMVNI)");
+
+    /// <summary>O kit que o Novo despacho lê: <c>PMVNI_KIT_RAIZ</c> (testes) se definida, senão a escolhida em Ajustes, senão a padrão.</summary>
+    public string PastaKitEfetiva =>
+        Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ") is { } env && !string.IsNullOrWhiteSpace(env) ? env
+        : string.IsNullOrWhiteSpace(PastaKit) ? PastaKitPadrao : PastaKit;
 
     public static Ajustes Carregar(string raizDados)
     {
@@ -55,6 +67,7 @@ public sealed class Ajustes
             foreach (var r in rec)
                 if (r is JsonValue rv && rv.TryGetValue<string>(out var c) && !string.IsNullOrWhiteSpace(c) && a.Recentes.Count < MaxRecentes) a.Recentes.Add(c);
         a.PastaProcessos = Texto(j, "pasta_processos");
+        a.PastaKit = Texto(j, "pasta_kit");
         return a;
     }
 
@@ -86,6 +99,7 @@ public sealed class Ajustes
             ["marcas_revisao"] = MarcasRevisao,
             ["recentes"] = new JsonArray(Recentes.Take(MaxRecentes).Select(r => (JsonNode)r).ToArray()),
             ["pasta_processos"] = PastaProcessos,
+            ["pasta_kit"] = PastaKit,
         };
         var arquivo = Path.Combine(raizDados, NomeArquivo);
         var tmp = arquivo + ".tmp";

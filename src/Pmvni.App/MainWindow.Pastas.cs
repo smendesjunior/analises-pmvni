@@ -64,6 +64,7 @@ public sealed partial class MainWindow
         await tarefaDaLista;
         await tarefaDoDetalhe;
         await tarefaDaPasta;
+        await tarefaDoRecibo;
     }
 
     void IniciarPastas()
@@ -87,7 +88,7 @@ public sealed partial class MainWindow
         processos.BotaoAbrirAjustes.Click += async (_, _) => await AbrirAjustesAsync();
         despachos.BotaoAbrirAjustes.Click += async (_, _) => await AbrirAjustesAsync();
         PaginaDeAjustes.BotaoEscolherPasta.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(EscolherPastaDeProcessosAsync));
-        PaginaDeAjustes.BotaoPastaPadrao.Click += (_, _) => DefinirPastaProcessos(null);
+        PaginaDeAjustes.BotaoPastaPadrao.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(() => { DefinirPastaProcessos(null); return Task.CompletedTask; }));
         AtualizarPaginaDePastas();
 
         manipuladores[ComandosApp.ProcessosAbrirRelatorio] = AbrirRelatorioDoProcessoAsync;
@@ -191,8 +192,25 @@ public sealed partial class MainWindow
         detalheAtual = null;
         entradaEscolhida = null;
         despachoEscolhido = null;
+        docxSemPdf = null;
         pastaAusente = false;
+        // O que está na tela era da outra pasta: as listas e o detalhe ficam vazios até a leitura nova.
+        atualizandoListas = true;
+        try
+        {
+            PaginaDeProcessos.ListaProcessos.ItemsSource = null;
+            PaginaDeProcessos.ListaDetalhe.ItemsSource = null;
+            PaginaDeDespachos.ListaDespachos.ItemsSource = null;
+        }
+        finally { atualizandoListas = false; }
+        PaginaDeProcessos.TextoTituloDetalhe.Text = "";
+        PaginaDeProcessos.TextoPastaDetalhe.Text = "";
+        PaginaDeProcessos.TextoSemProcesso.Text = "Escolha um processo na lista.";
+        PaginaDeProcessos.TextoSemProcesso.Visibility = Visibility.Visible;
+        PaginaDeProcessos.TextoContagem.Text = PaginaDeDespachos.TextoContagem.Text = "";
+        PaginaDeProcessos.TextoListaVazia.Visibility = PaginaDeDespachos.TextoListaVazia.Visibility = Visibility.Collapsed;
         AtualizarPaginaDePastas();
+        AtualizarComandos();
     }
 
     /// <summary>Ajustes › Pasta de processos › Escolher pasta…: o seletor de pastas do Windows (o roteiro troca por uma resposta fixa).</summary>
@@ -437,6 +455,7 @@ public sealed partial class MainWindow
             if (pagina.ListaDespachos.SelectedItem is null) despachoEscolhido = null;
         }
         finally { atualizandoListas = false; }
+        AtualizarDespachoSemPdf();
         var escopo = despachosDoProcesso && processoEscolhido is { } pe
             ? " · só do processo " + (ListasPastas.NumeroDoProcesso(pe) ?? pe.NomePasta) : "";
         pagina.TextoContagem.Text = pastaAusente ? "" : $"{quantos} {(quantos == 1 ? "despacho" : "despachos")}{escopo}";
@@ -482,6 +501,7 @@ public sealed partial class MainWindow
                 finally { atualizandoListas = false; }
             }
         }
+        AtualizarDespachoSemPdf();
         AtualizarComandos();
     }
 
@@ -689,6 +709,9 @@ public sealed partial class MainWindow
             ComandosApp.ProcessosAno => "a lista de processos ainda não foi lida",
             ComandosApp.DespachosAbrirPdf => "o despacho escolhido não tem PDF",
             ComandosApp.DespachosDoProcesso => "escolha antes um processo no módulo Processos",
+            ComandosApp.DespachosNovoCorrecao or ComandosApp.DespachosNovoAprovacao => Faixa.Dica(id).TrimEnd('.'),
+            ComandosApp.DespachosGerarPdf => novo is not null ? FluxoNovoDespacho.Compondo.TrimEnd('.').ToLowerInvariant()
+                : "escolha um despacho gerado pelo editor que ficou só em Word (DOCX)",
             _ => "escolha um despacho na lista",
         };
     }

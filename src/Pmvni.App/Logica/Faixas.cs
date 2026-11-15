@@ -31,6 +31,14 @@ public static class Faixas
     /// (<see cref="FaixaDeOpcoes.ItensDinamicos"/>) cada vez que o menu abre, porque eles vêm dos ajustes e dos arquivos que ainda existem.</summary>
     static readonly ComandoFaixa RecentesMenu = new(ComandosApp.ArquivoRecentes, "Recentes", "", TipoComando.Menu, []);
 
+    /// <summary>Novo despacho ▾ (desenho §10.2): os papéis de despacho do registro do kit, na ordem Correção, Aprovação. O mesmo comando nas
+    /// três faixas que o têm (Despachos, Processos e Relatórios); um tipo cujo modelo falta fica desabilitado com o motivo na dica.</summary>
+    static readonly ComandoFaixa NovoDespacho = new(ComandosApp.DespachosNovo, "Novo despacho", "", TipoComando.Menu,
+    [
+        new(ComandosApp.DespachosNovoCorrecao, "Correção", ""),
+        new(ComandosApp.DespachosNovoAprovacao, "Aprovação", ""),
+    ]);
+
     static readonly AbaFaixa Ajuda = new("Ajuda",
     [
         new(ComandosApp.AjudaAtalhos, "Atalhos de teclado", ""),
@@ -70,6 +78,7 @@ public static class Faixas
             new(ComandosApp.InicioItemProximo, "Item ▸", ""),
             new(ComandosApp.InicioProximoPendente, "Próximo pendente", ""),
             new(ComandosApp.ArquivoExportarPdf, "Exportar PDF", ""),
+            NovoDespacho,
         ]),
         new("Revisão",
         [
@@ -101,8 +110,10 @@ public static class Faixas
         ArquivoDeModulo,
         new("Página Inicial",
         [
+            NovoDespacho,
             new(ComandosApp.DespachosAbrir, "Abrir", ""),
             new(ComandosApp.DespachosAbrirPdf, "Abrir PDF", ""),
+            new(ComandosApp.DespachosGerarPdf, "Gerar PDF", ""),
             new(ComandosApp.DespachosMostrar, "Mostrar no Explorador", ""),
             new(ComandosApp.DespachosIrAoProcesso, "Ir ao processo", ""),
             new(ComandosApp.DespachosAtualizar, "Atualizar lista", ""),
@@ -137,6 +148,7 @@ public static class Faixas
         [
             new(ComandosApp.ProcessosAbrirRelatorio, "Abrir relatório", ""),
             new(ComandosApp.ProcessosImportarAnalise, "Importar análise da IA", ""),
+            NovoDespacho,
             new(ComandosApp.ProcessosAbrirArquivo, "Abrir arquivo", ""),
             new(ComandosApp.ProcessosAbrirPasta, "Abrir pasta no Explorador", ""),
             new(ComandosApp.ProcessosAtualizar, "Atualizar", ""),

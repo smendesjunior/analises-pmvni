@@ -156,3 +156,41 @@ public class AjustesTestes
         Assert.Equal(3, a.Recentes.Count);
     }
 }
+
+/// <summary>A pasta do kit PMVNI nos Ajustes (Tarefa 16): mexe em <c>PMVNI_KIT_RAIZ</c>, então roda sem paralelismo.</summary>
+[Collection("Ambiente")]
+public class AjustesKitTestes
+{
+    [Fact]
+    public void ajustes_guardam_a_pasta_do_kit()
+    {
+        var padrao = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR",
+            "KIT DE TREINAMENTO DE IA (PMVNI)");
+        Assert.Equal(padrao, Ajustes.PastaKitPadrao);
+        var antes = Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ");
+        try
+        {
+            Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", null);
+            var a = new Ajustes();
+            Assert.Null(a.PastaKit);
+            Assert.Equal(padrao, a.PastaKitEfetiva);
+            a.PastaKit = "  ";
+            Assert.Equal(padrao, a.PastaKitEfetiva);
+            a.PastaKit = @"C:\outro\kit";
+            Assert.Equal(@"C:\outro\kit", a.PastaKitEfetiva);
+
+            // PMVNI_KIT_RAIZ (testes, roteiro) vence a escolha dos Ajustes, que vence o padrão.
+            Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", @"C:\kit-dos-testes");
+            Assert.Equal(@"C:\kit-dos-testes", a.PastaKitEfetiva);
+            Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", "");
+            Assert.Equal(@"C:\outro\kit", a.PastaKitEfetiva);
+
+            using var pasta = Ambiente.PastaDeTeste("ajustes-pasta-kit");
+            a.Salvar(pasta);
+            Assert.Equal(@"C:\outro\kit", Ajustes.Carregar(pasta).PastaKit);
+            new Ajustes().Salvar(pasta);
+            Assert.Null(Ajustes.Carregar(pasta).PastaKit);
+        }
+        finally { Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", antes); }
+    }
+}

@@ -144,6 +144,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     {
         dicas[id] = texto;
         if (visiveis.TryGetValue(id, out var b)) ToolTipService.SetToolTip(b, texto);
+        if (itensMenu.TryGetValue(id, out var i)) ToolTipService.SetToolTip(i, texto);
     }
 
     public string Dica(string id) => dicas.TryGetValue(id, out var d) ? d : "";
@@ -198,6 +199,8 @@ public sealed partial class FaixaDeOpcoes : UserControl
             foreach (var i in itens)
             {
                 var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = Icone(marcados.Contains(i.Id), i.Glifo), IsEnabled = Habilitado(i.Id) };
+                // A dica do item (ex.: por que um tipo de despacho está desabilitado) aparece ao passar o mouse.
+                if (dicas.TryGetValue(i.Id, out var dicaItem)) ToolTipService.SetToolTip(mi, dicaItem);
                 mi.Click += (_, _) => ComandoInvocado?.Invoke(i.Id);
                 menu.Items.Add(mi);
                 itensMenu[i.Id] = mi;

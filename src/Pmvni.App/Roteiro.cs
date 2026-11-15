@@ -43,13 +43,24 @@ internal sealed class PerguntasFixas : IPerguntas
     public List<string> Fechamentos { get; } = [];
 }
 
+/// <summary>Computador sem LibreOffice (passo 38 do roteiro): o despacho sai só em DOCX, com o motivo no recibo.</summary>
+internal sealed class ConversorSemLibreOffice : IConversorPdf
+{
+    public bool Disponivel => false;
+
+    public string? Versao => null;
+
+    public ResultadoConversao Converter(string docx, string pastaTrabalho, CancellationToken ct) => new(null, "SEM_LIBREOFFICE", null);
+}
+
 /// <summary>Modo de diagnóstico <c>--roteiro &lt;saida.json&gt;</c>: exercita o shell e o módulo Relatórios pelos mesmos caminhos dos
 /// comandos da faixa (importar, rolagem, zoom, navegação, exportação, corpus com estouro, tema escuro, campos em aberto, pacote mudado no
 /// disco, faixa por módulo, reabrir o pacote; Tarefa 9: seleção e edição no A4, situação e justificativa, exclusão e marca, desfazer e
 /// refazer, salvar/reabrir/exportar, menu de contexto e atalhos, latência; Tarefa 10: salvamento automático, gravação que falha sem
 /// perder nada, recuperação depois de uma queda, trava e somente leitura, conflito sem sobrescrever; Tarefa 11: pesquisa no relatório,
 /// tema do app, Recentes e Comparar com o original; Tarefa 13: módulos Processos e Despachos sobre uma cópia da árvore fictícia, pasta de processos
-/// nos Ajustes, faixa e pesquisa por módulo, pastas intactas) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
+/// nos Ajustes, faixa e pesquisa por módulo, pastas intactas; Tarefa 16: Novo despacho de correção e de aprovação, sem LibreOffice e Gerar PDF,
+/// nomes sem sobrescrever e bloqueios, sobre outra cópia da árvore fictícia, com o kit real só lido e o LibreOffice real) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
 /// na pasta do &lt;saida.json&gt; (tests\saida\roteiro). As perguntas têm respostas fixas (<see cref="PerguntasFixas"/>). Cada passo é
 /// independente: falha num não impede os seguintes.</summary>
 internal static class Roteiro
@@ -1715,6 +1726,374 @@ internal static class Roteiro
             p["ok"] = novos.SequenceEqual(esperadosNovos.Order(StringComparer.Ordinal), StringComparer.OrdinalIgnoreCase) && sumiram.Count == 0 && mudaram.Count == 0 && restos.Count == 0;
         });
 
+        // ---------- Tarefa 16: Novo despacho (tipo, prévia editável, conferência das páginas, gravar e abrir) ----------
+        // Numeração: o plano previa 34 a 38, mas 34 e 35 já são da Tarefa 13. Aqui: 36 correção (pela faixa de Relatórios), 37 aprovação
+        // (pela faixa de Processos), 38 sem LibreOffice e depois Gerar PDF (pela faixa de Despachos), 39 não sobrescreve, 40 bloqueios.
+        // Tudo numa CÓPIA separada da árvore fictícia (<pasta>\processos-despacho); o kit real é só lido no lugar (pasta do kit nos Ajustes);
+        // o PDF sai do LibreOffice real (este roteiro roda fora do pacote do Claude, aberto pelo explorer.exe), com perfil e TEMP na pasta de
+        // trabalho do app (tests\saida\dados-app\despachos). A data de hoje é fixa (2099-03-10). Nenhum arquivo é aberto fora (só registrado).
+        var copiaDespacho = Path.Combine(pasta, "processos-despacho");
+        var p0001 = Path.Combine(copiaDespacho, "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)");
+        var pmvrelD = Path.Combine(p0001, "Relatorio_0001_2099.pmvrel");
+        var pmvrelD2 = Path.Combine(p0001, "Relatorio_0001_2099_2.pmvrel");
+        var etapa03 = Path.Combine(p0001, "DESPACHO 03 - 2099-03-10");
+        var baseCorrecao = "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio";
+        var baseAprovacao = "Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio";
+        var kitEnv = Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ");
+        var kitReal = string.IsNullOrWhiteSpace(kitEnv) ? Ajustes.PastaKitPadrao : kitEnv;
+        var antesDoDespacho = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        string[] kitAntes = [];
+        var gravadosNaCopia = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var conversorReal = j.Conversor;
+        var preparadoDespacho = false;
+        bool Mesmo(string? a, string? b) => a is not null && b is not null && string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
+        string Sha(string arquivo) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(arquivo)));
+        void Anotar(Entrega e) { foreach (var a in new[] { e.Docx, e.Pdf, e.Recibo }) if (a is not null) gravadosNaCopia.Add(Path.GetRelativePath(copiaDespacho, a)); }
+        void Invocar(Microsoft.UI.Xaml.Controls.Button b) => ((IInvokeProvider)new ButtonAutomationPeer(b).GetPattern(PatternInterface.Invoke)).Invoke();
+        void Exigir() { if (!preparadoDespacho) throw new InvalidOperationException("a preparação do passo 36 não terminou"); }
+        // Marca todas as páginas (botão "Marcar todas") e espera "Gravar" habilitar.
+        async Task<bool> MarcarTodasAsync()
+        {
+            Invocar(j.NovoDespacho.BotaoMarcarTodas);
+            return await EsperarAteAsync(() => Task.FromResult(j.NovoDespacho.BotaoGravar.IsEnabled), 5000);
+        }
+
+        await Passo("36_novo_despacho_correcao", async p =>
+        {
+            // Preparação comum (vale para 36–40): a cópia da árvore, o kit real nos Ajustes, hoje fixo e o curto do 0001 importado.
+            Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", null); // o kit vem só dos Ajustes (o passo 40 troca a pasta)
+            if (Directory.Exists(copiaDespacho)) ApagarArvore(copiaDespacho);
+            CopiarArvore(Path.Combine(corpus, "processos"), copiaDespacho);
+            foreach (var (k, v) in FotografarArvore(copiaDespacho)) antesDoDespacho[k] = v;
+            kitAntes = RetratoDoKit(kitReal);
+            j.DefinirPastaKit(kitReal);
+            j.DefinirPastaProcessos(copiaDespacho);
+            j.Hoje = () => new DateOnly(2099, 3, 10);
+            j.Conversor = conversorReal;
+            var json = Path.Combine(pasta, "curto-0001.json");
+            var no = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(corpus, "curto.json")))!;
+            no["capa"]!["processo"] = "0001/2099";
+            no["capa"]!["requerente"] = "FULANO DE EXEMPLO (FICTICIO)";
+            await File.WriteAllTextAsync(json, no.ToJsonString());
+            if (!await j.ImportarParaAsync(json, pmvrelD)) throw new InvalidOperationException("não importou o curto-0001: " + j.InfoMensagem.Message);
+            await j.AguardarNovoDespachoAsync();
+            preparadoDespacho = true;
+            p["libreoffice"] = conversorReal.Versao;
+            p["kit"] = kitReal;
+
+            // Pela faixa de Relatórios, com o pacote aberto: a página abre em Despachos com tudo sugerido.
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            j.FaixaAtual.EscolherAba("Página Inicial");
+            await Esperar(250);
+            var habilitado = j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoCorrecao) && j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoAprovacao);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+            await j.AguardarNovoDespachoAsync();
+            var s = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página Novo despacho não abriu: " + j.InfoMensagemAtual.Message);
+            var origemOk = j.ModuloAtual == Modulo.Despachos && j.PaginaNovoDespachoVisivel && !j.PaginaDespachosVisivel && s.Passo == PassoNovoDespacho.Conteudo
+                && s.Processo?.Numero == 1 && Mesmo(s.CaminhoPacote, pmvrelD) && s.Etapa is { Nome: "DESPACHO 03 - 2099-03-10", Nova: true }
+                && !j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoCorrecao);
+            var exigencias = s.Rascunho!.Pendencias.Select(x => "ITEM " + x.Numero.ToString("D2", CultureInfo.InvariantCulture)).ToArray();
+            p["exigencias"] = new JsonArray(exigencias.Select(x => (JsonNode)x).ToArray());
+            var previa = j.NovoDespacho.TextoDaPrevia;
+            var previaOk = previa.Contains("Protocolo nº: 0001/2099", StringComparison.Ordinal) && j.NovoDespacho.BotaoGerar.IsEnabled;
+            var exigenciasOk = exigencias.SequenceEqual(["ITEM 02", "ITEM 03"]);
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "36-janela-xaml-novo-despacho.png"));
+
+            // Gerar e conferir com o LibreOffice real: as páginas aparecem; nada ainda na pasta do processo.
+            await j.GerarEConferirAsync();
+            var prep = s.Preparacao;
+            string? leitor = null;
+            try { if (prep?.Pdf is { } pdf) leitor = InfoPdf.Ler(pdf).Paginas.ToString(CultureInfo.InvariantCulture); }
+            catch (Exception ex) { leitor = "ERRO: " + ex.Message; }
+            p["preparacao"] = new JsonObject
+            {
+                ["paginas"] = prep?.Paginas, ["fontes"] = new JsonArray((prep?.Fontes ?? []).Select(f => (JsonNode)f).ToArray()), ["infopdf"] = leitor,
+                ["sem_pdf_motivo"] = prep?.SemPdfMotivo, ["mensagem"] = prep?.MensagemSemPdf, ["erros"] = new JsonArray((prep?.Erros ?? []).Select(f => (JsonNode)f).ToArray()),
+                ["texto_fontes"] = j.NovoDespacho.TextoFontes.Text,
+            };
+            var pdfOk = prep is { Pdf: not null, Erros.Count: 0 } && prep.Paginas >= 1 && prep.Fontes.Any(f => f.StartsWith("Verdana", StringComparison.Ordinal))
+                && leitor == prep.Paginas?.ToString(CultureInfo.InvariantCulture) && j.NovoDespacho.CaixasDasPaginas.Count == prep.Paginas
+                && j.NovoDespacho.TextoFontes.Text.StartsWith("Fontes do PDF: Verdana", StringComparison.Ordinal);
+            var nadaAntes = !Directory.Exists(etapa03) && !j.NovoDespacho.BotaoGravar.IsEnabled;
+            var marcou = await MarcarTodasAsync();
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "36-janela-xaml-conferencia.png"));
+
+            // Gravar: os 3 arquivos na pasta nova, validados como o kit; o recibo confere; a lista volta com o novo escolhido.
+            var e = await j.GravarDespachoAsync() ?? throw new InvalidOperationException("não gravou: " + j.InfoMensagemAtual.Message);
+            Anotar(e);
+            var modelo = j.ModelosDoKit!.Modelos.Single(m => m.Tipo == TipoDespacho.Correcao);
+            var comparar = ValidacaoDespacho.Comparar(await File.ReadAllBytesAsync(modelo.Caminho), await File.ReadAllBytesAsync(e.Docx));
+            var recibo = ReciboDespacho.Ler(e.Recibo);
+            var arquivosOk = Mesmo(e.Pasta, etapa03) && Mesmo(e.Docx, Path.Combine(etapa03, baseCorrecao + ".docx"))
+                && Mesmo(e.Pdf, Path.Combine(etapa03, baseCorrecao + ".pdf")) && Mesmo(e.Recibo, Path.Combine(etapa03, baseCorrecao + ".recibo-editor.json"))
+                && Directory.GetFiles(etapa03).Length == 3 && comparar.Count == 0
+                && string.Equals(recibo["docx"]?["sha256"]?.GetValue<string>(), Sha(e.Docx), StringComparison.OrdinalIgnoreCase)
+                && string.Equals(recibo["pdf"]?["sha256"]?.GetValue<string>(), Sha(e.Pdf!), StringComparison.OrdinalIgnoreCase)
+                && recibo["sem_pdf_motivo"] is null && recibo["paginas_conferidas"]?["paginas"]?.AsArray().Count == prep!.Paginas;
+            p["arquivos"] = new JsonArray(Directory.GetFiles(etapa03).Select(f => (JsonNode)Path.GetFileName(f)).ToArray());
+            p["validacao"] = new JsonArray(comparar.Select(c => (JsonNode)c).ToArray());
+            var aviso = j.AvisoDespachoGravado;
+            p["aviso"] = aviso.Message;
+            var escolhido = j.DespachoEscolhido?.Despacho;
+            var listaOk = j.PaginaDespachosVisivel && !j.PaginaNovoDespachoVisivel && aviso.IsOpen && aviso.Title == "Despacho gravado"
+                && aviso.Message == $"3 arquivos em {etapa03}. Recibo: {baseCorrecao}.recibo-editor.json."
+                && escolhido is { Tipo: TipoDespacho.Correcao, Numero: 3 } && escolhido.Data == new DateOnly(2099, 3, 10) && Mesmo(escolhido.Pasta, etapa03);
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "36-janela-xaml-despacho-gravado.png"));
+            AberturaExterna.Registradas.Clear();
+            Invocar(j.BotaoAbrirPdfGravado);
+            var abriuPdf = await EsperarAteAsync(() => Task.FromResult(AberturaExterna.Registradas.Contains(e.Pdf!)), 5000);
+            p["conferencias"] = new JsonObject
+            {
+                ["menu_habilitado"] = habilitado, ["origem_sugerida"] = origemOk, ["duas_exigencias"] = exigenciasOk, ["previa"] = previaOk, ["pdf_do_libreoffice"] = pdfOk,
+                ["nada_antes_de_gravar"] = nadaAntes, ["marcar_todas"] = marcou, ["tres_arquivos_validados"] = arquivosOk, ["lista_com_o_novo"] = listaOk, ["abrir_pdf"] = abriuPdf,
+            };
+            p["ok"] = habilitado && origemOk && exigenciasOk && previaOk && pdfOk && nadaAntes && marcou && arquivosOk && listaOk && abriuPdf;
+        });
+
+        await Passo("37_novo_despacho_aprovacao", async p =>
+        {
+            Exigir();
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            await j.EscolherProcessoNaListaAsync("0001");
+            j.FaixaAtual.EscolherAba("Página Inicial");
+            await Esperar(250);
+            var shasCorrecao = Directory.GetFiles(etapa03).ToDictionary(f => f, Sha);
+            perguntas.Confirmar = true; // "Emitir mesmo assim"
+            var feitasAntes = perguntas.Feitas.Count;
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoAprovacao);
+            await j.AguardarNovoDespachoAsync();
+            var s = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página não abriu: " + j.InfoMensagemAtual.Message);
+            var esperado = ConteudoDespacho.Avisos(TipoDespacho.Aprovacao, s.Pacote!.Conteudo.Projeto);
+            p["aviso"] = esperado.FirstOrDefault();
+            var avisoOk = esperado.Count == 1 && esperado[0].StartsWith("O relatório tem 2 itens com situação diferente de ATENDE", StringComparison.Ordinal)
+                && s.AvisosConfirmados.SequenceEqual(esperado) && perguntas.Feitas.Skip(feitasAntes).Contains("confirmar Emitir a aprovação?");
+            var faltando = s.Rascunho!.Faltando();
+            p["faltando"] = new JsonArray(faltando.Select(f => (JsonNode)f).ToArray());
+            var faltandoOk = faltando.SequenceEqual(["Tipo de obra (obra nova, alteração de obra ou ampliação de obra)", "Área total a construir (m², ex.: 210,52)"])
+                && j.NovoDespacho.LinhasFaltando.SequenceEqual(faltando) && !j.NovoDespacho.BotaoGerar.IsEnabled
+                && j.NovoDespacho.TextoDaPrevia.Contains("[preencher: ", StringComparison.Ordinal);
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "37-janela-xaml-aprovacao-faltando.png"));
+            j.NovoDespacho.CaixaObraNova.IsChecked = true;
+            j.NovoDespacho.CaixaArea.Text = "210,52";
+            var habilitou = await EsperarAteAsync(() => Task.FromResult(j.NovoDespacho.BotaoGerar.IsEnabled), 5000) && s.Rascunho.AreaTotal == "210,52";
+            // A etapa existente (a da correção): o que já foi preenchido continua.
+            await j.EscolherEtapaAsync("DESPACHO 03 - 2099-03-10");
+            var etapaOk = s.Etapa is { Nome: "DESPACHO 03 - 2099-03-10", Nova: false } && s.Rascunho!.Faltando().Count == 0 && j.NovoDespacho.BotaoGerar.IsEnabled
+                && j.NovoDespacho.TextoDaPrevia.Contains("obra nova", StringComparison.Ordinal) && j.NovoDespacho.TextoDaPrevia.Contains("210,52", StringComparison.Ordinal);
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "37-janela-xaml-aprovacao-preenchida.png"));
+            await j.GerarEConferirAsync();
+            var pdfOk = s.Preparacao is { Pdf: not null, Erros.Count: 0 } && j.NovoDespacho.CaixasDasPaginas.Count == s.Preparacao.Paginas;
+            var marcou = await MarcarTodasAsync();
+            var e = await j.GravarDespachoAsync() ?? throw new InvalidOperationException("não gravou: " + j.InfoMensagemAtual.Message);
+            Anotar(e);
+            var recibo = ReciboDespacho.Ler(e.Recibo);
+            var arquivosOk = Mesmo(e.Docx, Path.Combine(etapa03, baseAprovacao + ".docx")) && Mesmo(e.Pdf, Path.Combine(etapa03, baseAprovacao + ".pdf"))
+                && Mesmo(e.Recibo, Path.Combine(etapa03, baseAprovacao + ".recibo-editor.json")) && Directory.GetFiles(etapa03).Length == 6
+                && shasCorrecao.All(kv => File.Exists(kv.Key) && Sha(kv.Key) == kv.Value)
+                && recibo["avisos_confirmados"]!.AsArray().Select(a => a!.GetValue<string>()).SequenceEqual(esperado)
+                && recibo["etapa"]?["nova"]?.GetValue<bool>() == false;
+            p["arquivos"] = new JsonArray(Directory.GetFiles(etapa03).Select(f => Path.GetFileName(f)).Order(StringComparer.Ordinal).Select(f => (JsonNode)f).ToArray());
+            p["conferencias"] = new JsonObject
+            {
+                ["aviso_confirmado"] = avisoOk, ["faltando_bloqueia_gerar"] = faltandoOk, ["preencher_habilita"] = habilitou, ["etapa_existente"] = etapaOk,
+                ["pdf"] = pdfOk, ["marcar_todas"] = marcou, ["arquivos_e_recibo"] = arquivosOk,
+            };
+            p["ok"] = avisoOk && faltandoOk && habilitou && etapaOk && pdfOk && marcou && arquivosOk;
+        });
+
+        await Passo("38_despacho_sem_libreoffice", async p =>
+        {
+            Exigir();
+            await j.MudarModuloAsync(Modulo.Despachos);
+            await j.AguardarLeiturasAsync();
+            j.FaixaAtual.EscolherAba("Página Inicial");
+            await Esperar(250);
+            j.Conversor = new ConversorSemLibreOffice();
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+            await j.AguardarNovoDespachoAsync();
+            var s = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página não abriu: " + j.InfoMensagemAtual.Message);
+            var etapa04 = Path.Combine(p0001, "DESPACHO 04 - 2099-03-10");
+            var origemOk = s.Processo?.Numero == 1 && s.Etapa is { Nome: "DESPACHO 04 - 2099-03-10", Nova: true };
+            await j.GerarEConferirAsync();
+            var semPdf = "O LibreOffice não está instalado neste computador. O despacho será gravado só em Word (DOCX). Para o PDF, rode o instalador do kit "
+                + "(INSTALAR_KIT_PMVNI.cmd) e use Despachos › Gerar PDF.";
+            var n = j.NovoDespacho;
+            p["mensagem"] = n.AvisoSemPdf.Message;
+            var avisoOk = s.Passo == PassoNovoDespacho.Conferencia && n.AvisoSemPdf.IsOpen && n.AvisoSemPdf.Message == semPdf
+                && n.BotaoGravar.Content as string == "Gravar só o DOCX" && n.BotaoGravar.IsEnabled && n.CaixasDasPaginas.Count == 0;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "38-janela-xaml-sem-libreoffice.png"));
+            var e = await j.GravarDespachoAsync() ?? throw new InvalidOperationException("não gravou: " + j.InfoMensagemAtual.Message);
+            Anotar(e);
+            var recibo = ReciboDespacho.Ler(e.Recibo);
+            var soDocx = e.Pdf is null && Mesmo(e.Pasta, etapa04) && Directory.GetFiles(etapa04).Length == 2 && !File.Exists(Path.ChangeExtension(e.Docx, ".pdf"))
+                && recibo["sem_pdf_motivo"]?.GetValue<string>() == "SEM_LIBREOFFICE" && recibo["pdf"] is null
+                && j.AvisoDespachoGravado.Message == $"2 arquivos em {etapa04}. Recibo: {baseCorrecao}.recibo-editor.json.";
+            var shaDocx = Sha(e.Docx);
+
+            // O conversor real volta: Despachos › Gerar PDF nesse despacho (o escolhido na lista) → páginas → marcar → gravar só o PDF.
+            j.Conversor = conversorReal;
+            await j.AguardarLeiturasAsync();
+            var gerarHabilitado = Mesmo(j.DocxSemPdf, e.Docx) && j.FaixaAtual.Habilitado(ComandosApp.DespachosGerarPdf) && Mesmo(j.DespachoEscolhido?.Despacho.Pasta, etapa04);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosGerarPdf);
+            var s2 = j.DespachoEmEdicao;
+            var paginasOk = s2 is { SoPdf: true, Passo: PassoNovoDespacho.Conferencia, Preparacao: { Pdf: not null, Erros.Count: 0 } }
+                && n.CaixasDasPaginas.Count == s2.Preparacao.Paginas && !n.BotaoGravar.IsEnabled;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "38-janela-xaml-gerar-pdf.png"));
+            var marcou = await MarcarTodasAsync();
+            var e2 = await j.GravarDespachoAsync() ?? throw new InvalidOperationException("não gravou o PDF: " + j.InfoMensagemAtual.Message);
+            Anotar(e2);
+            var recibo2 = ReciboDespacho.Ler(e2.Recibo);
+            var pdfOk = Mesmo(e2.Pdf, Path.ChangeExtension(e.Docx, ".pdf")) && File.Exists(e2.Pdf!) && Sha(e.Docx) == shaDocx && Mesmo(e2.Recibo, e.Recibo)
+                && recibo2["sem_pdf_motivo"] is null && string.Equals(recibo2["pdf"]?["sha256"]?.GetValue<string>(), Sha(e2.Pdf!), StringComparison.OrdinalIgnoreCase)
+                && Directory.GetFiles(etapa04).Length == 3 && j.DocxSemPdf is null && !j.FaixaAtual.Habilitado(ComandosApp.DespachosGerarPdf);
+            p["arquivos"] = new JsonArray(Directory.GetFiles(etapa04).Select(f => Path.GetFileName(f)).Order(StringComparer.Ordinal).Select(f => (JsonNode)f).ToArray());
+            p["conferencias"] = new JsonObject
+            {
+                ["etapa_nova"] = origemOk, ["aviso_sem_pdf"] = avisoOk, ["so_docx"] = soDocx, ["gerar_pdf_habilitado"] = gerarHabilitado, ["paginas"] = paginasOk,
+                ["marcar_todas"] = marcou, ["pdf_gravado"] = pdfOk,
+            };
+            p["ok"] = origemOk && avisoOk && soDocx && gerarHabilitado && paginasOk && marcou && pdfOk;
+        });
+
+        await Passo("39_despacho_nao_sobrescreve", async p =>
+        {
+            Exigir();
+            j.Conversor = conversorReal;
+            await j.MudarModuloAsync(Modulo.Despachos);
+            await j.AguardarLeiturasAsync();
+            var antes = Directory.GetFiles(etapa03).ToDictionary(f => f, Sha);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+            await j.AguardarNovoDespachoAsync();
+            _ = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página não abriu: " + j.InfoMensagemAtual.Message);
+            await j.EscolherEtapaAsync("DESPACHO 03 - 2099-03-10");
+            await j.GerarEConferirAsync();
+            var marcou = await MarcarTodasAsync();
+            var e = await j.GravarDespachoAsync() ?? throw new InvalidOperationException("não gravou: " + j.InfoMensagemAtual.Message);
+            Anotar(e);
+            var b2 = baseCorrecao + " (2)";
+            var nomesOk = Mesmo(e.Docx, Path.Combine(etapa03, b2 + ".docx")) && Mesmo(e.Pdf, Path.Combine(etapa03, b2 + ".pdf"))
+                && Mesmo(e.Recibo, Path.Combine(etapa03, b2 + ".recibo-editor.json"));
+            var intactos = antes.All(kv => File.Exists(kv.Key) && Sha(kv.Key) == kv.Value) && Directory.GetFiles(etapa03).Length == antes.Count + 3;
+            var temporarios = Directory.GetFiles(copiaDespacho, "*.tmp", SearchOption.AllDirectories);
+            p["arquivos"] = new JsonArray(Directory.GetFiles(etapa03).Select(f => Path.GetFileName(f)).Order(StringComparer.Ordinal).Select(f => (JsonNode)f).ToArray());
+            p["temporarios"] = new JsonArray(temporarios.Select(f => (JsonNode)Path.GetRelativePath(copiaDespacho, f)).ToArray());
+            p["conferencias"] = new JsonObject { ["marcar_todas"] = marcou, ["nomes_com_2"] = nomesOk, ["anteriores_intactos"] = intactos, ["sem_tmp"] = temporarios.Length == 0 };
+            p["ok"] = marcou && nomesOk && intactos && temporarios.Length == 0;
+        });
+
+        await Passo("40_despacho_bloqueios", async p =>
+        {
+            Exigir();
+            var n = j.NovoDespacho;
+            // (a) Situação mudada sem justificativa no pacote aberto: a mensagem da conferência da revisão e só o passo 1.
+            if (!Mesmo(j.Sessao?.Caminho, pmvrelD) && !await j.AbrirPacoteAsync(pmvrelD)) throw new InvalidOperationException("não abriu: " + j.InfoMensagem.Message);
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var sessaoA = j.Sessao!;
+            await j.AplicarAsync(new DefinirSituacao(sessaoA.Revisao.Projeto.Incluidos[1].Id, "ATENDE"));
+            var erros = ConferenciaRevisao.Erros(sessaoA.Revisao.Projeto);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+            await j.AguardarNovoDespachoAsync();
+            var sa = j.DespachoEmEdicao;
+            await j.GerarEConferirAsync(); // não faz nada: não há rascunho
+            p["erros_da_revisao"] = new JsonArray(erros.Select(x => (JsonNode)x).ToArray());
+            p["bloqueio_a"] = n.AvisoBloqueio.Message;
+            var aOk = erros.Count == 1 && sa is { Passo: PassoNovoDespacho.Origem, Rascunho: null, Preparacao: null } && sa.Bloqueios.Contains(erros[0])
+                && n.AvisoBloqueio.IsOpen && n.AvisoBloqueio.Message.Split(Environment.NewLine).Contains(erros[0])
+                && n.PainelConteudo.Visibility == Visibility.Collapsed && !n.BotaoGerar.IsEnabled;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "40-janela-xaml-bloqueio-justificativa.png"));
+            await j.MudarModuloAsync(Modulo.Relatorios); // passo 1: sai sem perguntar
+            await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            var desfez = ConferenciaRevisao.Erros(sessaoA.Revisao.Projeto).Count == 0 && await j.GravarAgoraAsync() && j.DespachoEmEdicao is null;
+
+            // (b) A análise da IA da cópia (capa 9001/2026) importada como _2 e escolhida como relatório base: o processo não confere.
+            var dados = Directory.GetFiles(Path.Combine(p0001, ".pmvni-ai"), "dados_0001.json", SearchOption.AllDirectories).Single();
+            if (!await j.ImportarParaAsync(dados, pmvrelD2)) throw new InvalidOperationException("não importou o dados_0001: " + j.InfoMensagem.Message);
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            await j.EscolherProcessoNaListaAsync("0001");
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+            await j.AguardarNovoDespachoAsync();
+            var sb = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página não abriu: " + j.InfoMensagemAtual.Message);
+            await j.EscolherRelatorioAsync(pmvrelD); // o outro relatório abre o passo 2…
+            var outroAbre = sb.Passo == PassoNovoDespacho.Conteudo;
+            await j.EscolherRelatorioAsync(pmvrelD2); // …e o da análise errada para no passo 1
+            var msgB = "O processo da capa (9001/2026) não é o da pasta (0001/2099). Confira se o relatório é deste processo.";
+            p["bloqueio_b"] = n.AvisoBloqueio.Message;
+            var bOk = outroAbre && Mesmo(sb.CaminhoPacote, pmvrelD2) && sb.Passo == PassoNovoDespacho.Origem && sb.Rascunho is null && sb.Bloqueios.Contains(msgB)
+                && n.AvisoBloqueio.IsOpen && n.AvisoBloqueio.Message.Split(Environment.NewLine).Contains(msgB);
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "40-janela-xaml-bloqueio-processo.png"));
+
+            // (c) Kit vazio nos Ajustes: os dois tipos desabilitados com o motivo do registro; o kit volta.
+            await j.MudarModuloAsync(Modulo.Processos);
+            var kitVazio = Path.Combine(pasta, "kit-vazio");
+            if (Directory.Exists(kitVazio)) Directory.Delete(kitVazio, true);
+            Directory.CreateDirectory(kitVazio);
+            j.DefinirPastaKit(kitVazio);
+            await j.AguardarNovoDespachoAsync();
+            var msgC = $"Kit PMVNI não encontrado em {kitVazio}. Escolha a pasta do kit em Ajustes.";
+            var faixa = j.FaixaAtual;
+            p["dica_c"] = faixa.Dica(ComandosApp.DespachosNovoCorrecao);
+            var desabilitados = !faixa.Habilitado(ComandosApp.DespachosNovoCorrecao) && !faixa.Habilitado(ComandosApp.DespachosNovoAprovacao)
+                && faixa.Dica(ComandosApp.DespachosNovoCorrecao) == msgC && faixa.Dica(ComandosApp.DespachosNovoAprovacao) == msgC
+                && j.TextoModelosNosAjustes.Text == "Correção: " + msgC + Environment.NewLine + "Aprovação: " + msgC;
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+            var naoAbriu = j.DespachoEmEdicao is null && j.InfoMensagemAtual.IsOpen && j.InfoMensagemAtual.Message.Contains(msgC.TrimEnd('.'), StringComparison.Ordinal);
+            await j.MudarModuloAsync(Modulo.Ajustes);
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "40-janela-xaml-kit-vazio.png"));
+            j.DefinirPastaKit(kitReal);
+            await j.AguardarNovoDespachoAsync();
+            var voltou = j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoCorrecao) && j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoAprovacao)
+                && j.TextoModelosNosAjustes.Text == "Correção: disponível" + Environment.NewLine + "Aprovação: disponível";
+            var cOk = desabilitados && naoAbriu && voltou;
+
+            // (e) Com o despacho no passo 2, trocar de módulo pergunta: "Continuar editando" fica na página; "Descartar" fecha sem gravar nada.
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            await j.EscolherProcessoNaListaAsync("0001");
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+            await j.AguardarNovoDespachoAsync();
+            var se = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página não abriu: " + j.InfoMensagemAtual.Message);
+            await j.EscolherRelatorioAsync(pmvrelD);
+            var noPasso2 = se.Passo == PassoNovoDespacho.Conteudo;
+            var feitasE = perguntas.Feitas.Count;
+            perguntas.Confirmar = false; // "Continuar editando"
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var ficou = j.ModuloAtual == Modulo.Despachos && ReferenceEquals(j.DespachoEmEdicao, se) && j.PaginaNovoDespachoVisivel
+                && perguntas.Feitas.Skip(feitasE).Contains("confirmar Descartar o despacho em edição?");
+            perguntas.Confirmar = true; // "Descartar"
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var descartou = j.ModuloAtual == Modulo.Relatorios && j.DespachoEmEdicao is null;
+            var eOk = noPasso2 && ficou && descartou;
+
+            // (d) A cópia: o que havia + só os arquivos gravados em 36–39 e os .pmvrel importados; nada mudou no kit.
+            if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou");
+            var depois = FotografarArvore(copiaDespacho);
+            var novos = depois.Keys.Except(antesDoDespacho.Keys, StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).ToList();
+            // O .bak do Relatorio_0001_2099.pmvrel é o da gravação pedida no (a) (o relatório aberto é gravado antes do despacho): o app pode
+            // criá-lo ao lado de um pacote que ele abriu (restrições globais). Nenhum outro arquivo é aceito.
+            var bak = Path.GetRelativePath(copiaDespacho, pmvrelD) + ".bak";
+            var esperados = gravadosNaCopia.Append(Path.GetRelativePath(copiaDespacho, pmvrelD)).Append(Path.GetRelativePath(copiaDespacho, pmvrelD2))
+                .Concat(File.Exists(Path.Combine(copiaDespacho, bak)) ? [bak] : Array.Empty<string>())
+                .Order(StringComparer.Ordinal).ToList();
+            var sumiram = antesDoDespacho.Keys.Except(depois.Keys, StringComparer.OrdinalIgnoreCase).ToList();
+            var mudaram = antesDoDespacho.Where(kv => depois.TryGetValue(kv.Key, out var sha) && sha != kv.Value).Select(kv => kv.Key).ToList();
+            p["novos"] = new JsonArray(novos.Select(x => (JsonNode)x).ToArray());
+            p["sumiram"] = new JsonArray(sumiram.Select(x => (JsonNode)x).ToArray());
+            p["mudaram"] = new JsonArray(mudaram.Select(x => (JsonNode)x).ToArray());
+            var kitDepois = RetratoDoKit(kitReal);
+            p["kit_entradas"] = kitDepois.Length;
+            var dOk = novos.SequenceEqual(esperados, StringComparer.OrdinalIgnoreCase) && sumiram.Count == 0 && mudaram.Count == 0 && kitAntes.Length > 0
+                && kitDepois.SequenceEqual(kitAntes, StringComparer.Ordinal);
+            p["conferencias"] = new JsonObject
+            {
+                ["a_sem_justificativa"] = aOk, ["a_desfeito"] = desfez, ["b_processo_errado"] = bOk, ["c_kit_vazio"] = cOk,
+                ["e_descartar_pergunta"] = eOk, ["d_copia_e_kit"] = dOk,
+            };
+            p["ok"] = aOk && desfez && bOk && cOk && eOk && dOk;
+        });
+        Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", kitEnv);
+
         await j.FecharSessaoAsync();
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
@@ -1739,6 +2118,20 @@ internal static class Roteiro
         foreach (var f in Directory.GetFiles(pasta, "*", SearchOption.AllDirectories)) File.SetAttributes(f, FileAttributes.Normal);
         Directory.Delete(pasta, true);
     }
+
+    /// <summary>Os modelos e as referências do plugin despacho no kit (caminho, tamanho e data de cada arquivo e pasta): o roteiro prova que
+    /// o kit só foi lido.</summary>
+    static string[] RetratoDoKit(string kit) =>
+        new[] { Path.Combine(kit, "02 - MODELOS DE DOCUMENTOS"), Path.Combine(kit, TextosFixos.PastaReferencias.Replace('/', Path.DirectorySeparatorChar)) }
+            .Where(Directory.Exists)
+            .SelectMany(d => Directory.GetFileSystemEntries(d, "*", SearchOption.AllDirectories).Append(d))
+            .Select(f =>
+            {
+                FileSystemInfo info = File.Exists(f) ? new FileInfo(f) : new DirectoryInfo(f);
+                var tamanho = info is FileInfo fi ? fi.Length.ToString(CultureInfo.InvariantCulture) : "pasta";
+                return Path.GetRelativePath(kit, f) + " | " + tamanho + " | " + info.LastWriteTimeUtc.ToString("O", CultureInfo.InvariantCulture);
+            })
+            .Order(StringComparer.Ordinal).ToArray();
 
     /// <summary>Caminho relativo → sha256 de cada arquivo da árvore (para provar que o app só leu).</summary>
     static Dictionary<string, string> FotografarArvore(string raiz) =>

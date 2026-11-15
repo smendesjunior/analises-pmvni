@@ -149,10 +149,12 @@ public static class EmissaoDespacho
 
         for (var tentativa = 0; ; tentativa++)
         {
-            var livres = NomesDespacho.Livres(etapa.Pasta, nomeBase);
+            NomesLivres livres;
             var criados = new List<string>();
             try
             {
+                // Dentro do try: uma falha aqui (pasta ilegível) também desfaz a pasta da etapa criada agora.
+                livres = NomesDespacho.Livres(etapa.Pasta, nomeBase);
                 Mover(etapa.Pasta, p.Docx, livres.Docx, criados, antesDeMover);
                 JsonObject? pdf = null, conferidas = null;
                 if (p.Pdf is not null)
@@ -259,12 +261,13 @@ public static class EmissaoDespacho
         try { Mover(pasta, p.Pdf, caminhoPdf, criados); }
         catch (NomeOcupadoException) { throw new IOException("Já existe um PDF com o nome do despacho: " + Path.GetFileName(caminhoPdf)); }
 
-        recibo["pdf"] = ReciboDespacho.Pdf(caminhoPdf, p.Pdf, p.Paginas!.Value, p.Fontes, motorPdf);
-        recibo["sem_pdf_motivo"] = null;
-        recibo["paginas_conferidas"] = ReciboDespacho.Conferidas(paginasConferidas, u);
         var tmp = Path.Combine(pasta, Path.GetFileName(caminhoRecibo) + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp");
         try
         {
+            // Dentro do try: uma falha ao montar o recibo (relógio, fontes) também tira o PDF movido agora.
+            recibo["pdf"] = ReciboDespacho.Pdf(caminhoPdf, p.Pdf, p.Paginas!.Value, p.Fontes, motorPdf);
+            recibo["sem_pdf_motivo"] = null;
+            recibo["paginas_conferidas"] = ReciboDespacho.Conferidas(paginasConferidas, u);
             File.WriteAllBytes(tmp, ReciboDespacho.Escrever(recibo));
             File.SetAttributes(tmp, File.GetAttributes(tmp) | FileAttributes.Hidden);
             antesDaTroca?.Invoke(caminhoRecibo);

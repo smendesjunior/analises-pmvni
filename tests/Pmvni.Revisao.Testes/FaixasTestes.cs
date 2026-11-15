@@ -69,7 +69,7 @@ public class FaixasTestes
         {
             ComandosApp.InicioSituacao, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
             ComandosApp.InicioRestaurarOriginal, ComandosApp.InicioItemAnterior, ComandosApp.InicioItemProximo, ComandosApp.InicioProximoPendente,
-            ComandosApp.ArquivoExportarPdf,
+            ComandosApp.ArquivoExportarPdf, ComandosApp.DespachosNovo,
         }, inicio.Comandos.Select(c => c.Id));
         var situacao = inicio.Comandos[0];
         Assert.Equal(TipoComando.Menu, situacao.Tipo);
@@ -149,7 +149,7 @@ public class FaixasTestes
         var inicioP = processos.Abas.Single(a => a.Nome == "Página Inicial");
         Assert.Equal(new[]
         {
-            ComandosApp.ProcessosAbrirRelatorio, ComandosApp.ProcessosImportarAnalise, ComandosApp.ProcessosAbrirArquivo,
+            ComandosApp.ProcessosAbrirRelatorio, ComandosApp.ProcessosImportarAnalise, ComandosApp.DespachosNovo, ComandosApp.ProcessosAbrirArquivo,
             ComandosApp.ProcessosAbrirPasta, ComandosApp.ProcessosAtualizar, ComandosApp.ProcessosAno,
         }, inicioP.Comandos.Select(c => c.Id));
         Assert.Equal(TipoComando.Menu, inicioP.Comandos.Single(c => c.Id == ComandosApp.ProcessosAno).Tipo);
@@ -167,7 +167,8 @@ public class FaixasTestes
         var inicioD = despachos.Abas.Single(a => a.Nome == "Página Inicial");
         Assert.Equal(new[]
         {
-            ComandosApp.DespachosAbrir, ComandosApp.DespachosAbrirPdf, ComandosApp.DespachosMostrar, ComandosApp.DespachosIrAoProcesso,
+            ComandosApp.DespachosNovo, ComandosApp.DespachosAbrir, ComandosApp.DespachosAbrirPdf, ComandosApp.DespachosGerarPdf,
+            ComandosApp.DespachosMostrar, ComandosApp.DespachosIrAoProcesso,
             ComandosApp.DespachosAtualizar, ComandosApp.DespachosFiltro, ComandosApp.DespachosDoProcesso,
         }, inicioD.Comandos.Select(c => c.Id));
         var filtro = inicioD.Comandos.Single(c => c.Id == ComandosApp.DespachosFiltro);
@@ -185,6 +186,54 @@ public class FaixasTestes
             Assert.Equal(new[] { ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes },
                 Faixas.Para(m).Abas[0].Comandos.Select(c => c.Id));
             Assert.Equal(1, Faixas.Para(m).AbaPadrao);
+        }
+    }
+
+    [Fact]
+    public void novo_despacho_nos_tres_modulos_com_os_dois_tipos()
+    {
+        foreach (var m in new[] { Modulo.Despachos, Modulo.Processos, Modulo.Relatorios })
+        {
+            var inicio = Faixas.Para(m).Abas.Single(a => a.Nome == "Página Inicial").Comandos;
+            var novo = Assert.Single(inicio, c => c.Id == ComandosApp.DespachosNovo);
+            Assert.Equal(TipoComando.Menu, novo.Tipo);
+            Assert.Equal("Novo despacho", novo.Rotulo);
+            Assert.Equal(new[] { "despachos.novo.correcao", "despachos.novo.aprovacao" }, novo.Itens!.Select(i => i.Id));
+            Assert.Equal(new[] { "Correção", "Aprovação" }, novo.Itens!.Select(i => i.Rotulo));
+            var i = inicio.ToList().IndexOf(novo);
+            switch (m)
+            {
+                case Modulo.Despachos: Assert.Equal(0, i); break;
+                case Modulo.Processos: Assert.Equal(ComandosApp.ProcessosImportarAnalise, inicio[i - 1].Id); break;
+                default: Assert.Equal(inicio.Count - 1, i); break;
+            }
+            // Nenhuma outra aba do módulo tem o Novo despacho.
+            Assert.Single(Faixas.Comandos(Faixas.Para(m)), c => c.Id == ComandosApp.DespachosNovo);
+        }
+        Assert.DoesNotContain(Faixas.Comandos(Faixas.Para(Modulo.Ajustes)), c => c.Id.StartsWith("despachos.", StringComparison.Ordinal));
+        // Os itens do menu valem fora de Despachos (abrem a página Novo despacho no módulo Despachos); o resto de despachos.* não.
+        Assert.True(ComandosApp.ValeForaDeDespachos(ComandosApp.DespachosNovoCorrecao));
+        Assert.True(ComandosApp.ValeForaDeDespachos(ComandosApp.DespachosNovoAprovacao));
+        Assert.False(ComandosApp.ValeForaDeDespachos(ComandosApp.DespachosGerarPdf));
+        Assert.False(ComandosApp.ValeForaDeDespachos(ComandosApp.DespachosAbrir));
+        Assert.Equal(TipoDespacho.Correcao, ComandosApp.TipoDoNovoDespacho(ComandosApp.DespachosNovoCorrecao));
+        Assert.Equal(TipoDespacho.Aprovacao, ComandosApp.TipoDoNovoDespacho(ComandosApp.DespachosNovoAprovacao));
+        Assert.Null(ComandosApp.TipoDoNovoDespacho(ComandosApp.DespachosNovo));
+    }
+
+    [Fact]
+    public void gerar_pdf_so_em_despachos()
+    {
+        foreach (var m in Faixas.Disponiveis)
+        {
+            var todos = Faixas.Comandos(Faixas.Para(m)).Where(c => c.Id == ComandosApp.DespachosGerarPdf).ToList();
+            if (m != Modulo.Despachos) { Assert.Empty(todos); continue; }
+            Assert.Single(todos);
+            var inicio = Faixas.Para(m).Abas.Single(a => a.Nome == "Página Inicial").Comandos.ToList();
+            var i = inicio.FindIndex(c => c.Id == ComandosApp.DespachosGerarPdf);
+            Assert.Equal(ComandosApp.DespachosAbrirPdf, inicio[i - 1].Id);
+            Assert.Equal("Gerar PDF", inicio[i].Rotulo);
+            Assert.Equal(TipoComando.Botao, inicio[i].Tipo);
         }
     }
 

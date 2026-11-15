@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-11-15T07:52:01Z",
+  "gerado_em": "2026-11-15T09:41:44Z",
   "webview2": "157.0.4341.46",
   "escala_do_monitor": 1.5,
   "janela_px": {
@@ -16,7 +16,7 @@
       "folhas_que_transbordam_na_tela": [],
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "titulo_confere": true,
-      "estado_de_gravacao": "Salvo 04:52",
+      "estado_de_gravacao": "Salvo 06:41",
       "composicao": "Composto: 21 folhas",
       "itens_na_lista": 77,
       "primeiros_itens": [
@@ -32,7 +32,7 @@
       "aviso_largura_confere": true,
       "exportar_habilitado": true,
       "rodape_folha": "folha 1 de 21",
-      "latencia_recomposicao_ms": 1286,
+      "latencia_recomposicao_ms": 944,
       "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
       "folhas_com_conteudo_alem_da_borda": [
         14
@@ -387,12 +387,12 @@
       "fechado_sem_relatorio": true,
       "plano_igual_ao_da_importacao": true,
       "historico": 1,
-      "estado_de_gravacao": "Salvo 04:52",
+      "estado_de_gravacao": "Salvo 06:41",
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "ok": true
     },
     "12_salvar_duas_vezes_sem_conflito": {
-      "estado_de_gravacao": "Salvo 04:52",
+      "estado_de_gravacao": "Salvo 06:42",
       "disco_confere": true,
       "aviso_de_erro": false,
       "exporta_depois": true,
@@ -456,9 +456,9 @@
       "registros_desfeito": 4,
       "registros_refeito": 4,
       "historico_na_tela": [
-        "04:52 · smendesjunior · Refeito: Excluído o ITEM 05",
-        "04:52 · smendesjunior · Refeito: Justificativa do ITEM 03 definida",
-        "04:52 · smendesjunior · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
+        "06:42 · smendesjunior · Refeito: Excluído o ITEM 05",
+        "06:42 · smendesjunior · Refeito: Justificativa do ITEM 03 definida",
+        "06:42 · smendesjunior · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
       ],
       "linhas_do_historico": "13 na tela, 13 no histórico",
       "item_05_excluido_de_novo": true,
@@ -499,13 +499,13 @@
     },
     "19_latencia": {
       "medidas_ms": [
-        498,
-        455,
-        525,
-        470,
-        468
+        480,
+        500,
+        468,
+        503,
+        491
       ],
-      "latencia_ms": 470,
+      "latencia_ms": 491,
       "meta_ms": 1500,
       "dentro_da_meta": true,
       "ok": true
@@ -525,8 +525,8 @@
     "21_autosave": {
       "estado_depois_do_comando": "Não salvo",
       "diario_tem_o_registro": true,
-      "salvo_sozinho_em_s": 15.4,
-      "estado_de_gravacao": "Salvo 04:53",
+      "salvo_sozinho_em_s": 15.5,
+      "estado_de_gravacao": "Salvo 06:42",
       "pacote_tem_o_registro": true,
       "linhas_do_diario": 1,
       "diario_so_com_o_cabecalho_do_sha_novo": true,
@@ -541,7 +541,7 @@
       "sem_tmp_deixado": true,
       "diario_tem_o_registro": true,
       "solto_grava": true,
-      "estado_de_gravacao": "Salvo 04:53",
+      "estado_de_gravacao": "Salvo 06:42",
       "pacote_tem_o_registro": true,
       "ok": true
     },
@@ -560,12 +560,12 @@
     "24_trava_e_somente_leitura": {
       "trava_solta_ao_fechar": true,
       "estado_de_gravacao": "Somente leitura",
-      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 04:43: somente leitura.",
+      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 06:32: somente leitura.",
       "excluir_habilitado": false,
       "salvar_habilitado": false,
       "nada_mudou": true,
       "trava_do_outro_intacta": true,
-      "estado_com_trava_abandonada": "Salvo 04:53",
+      "estado_com_trava_abandonada": "Salvo 06:42",
       "excluir_habilitado_editavel": true,
       "trava_retomada_por_este_app": true,
       "trava_perdida_vira_somente_leitura": true,
@@ -582,17 +582,17 @@
       "disco_com_os_bytes_do_outro": true,
       "exportar_recusa": true,
       "erro_ao_exportar": "O arquivo mudou no disco e as alterações desta sessão não estão nele: o PDF não corresponderia ao pacote do recibo. Use Salvar como cópia e exporte depois.",
-      "copia": "curto-auto (cópia 2026-11-15 04-53).pmvrel",
+      "copia": "curto-auto (cópia 2026-11-15 06-42).pmvrel",
       "copia_tem_as_alteracoes": true,
       "original_continua_o_do_outro": true,
-      "estado_depois_da_copia": "Salvo 04:53",
+      "estado_depois_da_copia": "Salvo 06:42",
       "trava_passou_para_a_copia": true,
       "recarregou": true,
       "requerente_depois_de_recarregar": "OUTRO PROGRAMA DE NOVO",
       "orfao_guardado": true,
       "pergunta_ao_fechar_em_conflito": "fechar sem gravar (conflito): o arquivo mudou no disco depois de aberto",
       "texto_ao_fechar_em_conflito": "Não foi possível gravar as alterações no arquivo: o arquivo mudou no disco depois de aberto. Salvar como cópia grava as suas alterações ao lado, sem mexer no arquivo. Se fechar sem salvar, elas ficam guardadas na pasta de recuperação dos dados do app, mas não serão oferecidas de novo ao abrir o arquivo (ele agora é outra versão).",
-      "copia_ao_fechar": "curto-auto (cópia 2026-11-15 04-53) (cópia 2026-11-15 04-53).pmvrel",
+      "copia_ao_fechar": "curto-auto (cópia 2026-11-15 06-42) (cópia 2026-11-15 06-42).pmvrel",
       "fechar_em_conflito_salva_copia": true,
       "ok": true
     },
@@ -602,7 +602,7 @@
       "titulo_pesquisado": "Item de teste 011: fachada porta existente",
       "total_do_titulo": 1,
       "resultado_do_titulo": "1 de 1",
-      "ref_do_titulo": "it_01M7F3266XT7FX4N4QYDS6ZTMC",
+      "ref_do_titulo": "it_01M7F9B2EKNKS1SQDFAWZFV3V7",
       "rolou_para_o_item_10": true,
       "total_verificacao": 60,
       "contador_independente": 60,
@@ -669,7 +669,7 @@
         "recentes-b.pmvrel  ·  roteiro",
         "recentes-a.pmvrel  ·  roteiro",
         "longo.pmvrel  ·  roteiro",
-        "curto-auto (cópia 2026-11-15 04-53) (cópia 2026-11-15 04-53).pmvrel  ·  roteiro"
+        "curto-auto (cópia 2026-11-15 06-42) (cópia 2026-11-15 06-42).pmvrel  ·  roteiro"
       ],
       "os_dois_no_topo_mais_recente_primeiro": true,
       "menu_habilitado": true,
@@ -680,7 +680,7 @@
       "depois_de_apagar_o_b": [
         "recentes-a.pmvrel",
         "longo.pmvrel",
-        "curto-auto (cópia 2026-11-15 04-53) (cópia 2026-11-15 04-53).pmvrel"
+        "curto-auto (cópia 2026-11-15 06-42) (cópia 2026-11-15 06-42).pmvrel"
       ],
       "aviso_de_arquivo_ausente": true,
       "recentes_guardados": 9,
@@ -884,6 +884,147 @@
       "mudaram": [],
       "restos": [],
       "ok": true
+    },
+    "36_novo_despacho_correcao": {
+      "libreoffice": "LibreOffice 26.8.3.1",
+      "kit": "C:\\Users\\smendesjunior\\OneDrive\\PMVNI\\SIDNEY JUNIOR\\KIT DE TREINAMENTO DE IA (PMVNI)",
+      "exigencias": [
+        "ITEM 02",
+        "ITEM 03"
+      ],
+      "preparacao": {
+        "paginas": 2,
+        "fontes": [
+          "Verdana",
+          "Verdana-Bold"
+        ],
+        "infopdf": "2",
+        "sem_pdf_motivo": null,
+        "mensagem": null,
+        "erros": [],
+        "texto_fontes": "Fontes do PDF: Verdana, Verdana-Bold · LibreOffice 26.8.3.1"
+      },
+      "arquivos": [
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.docx",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.pdf",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.recibo-editor.json"
+      ],
+      "validacao": [],
+      "aviso": "3 arquivos em C:\\Users\\smendesjunior\\OneDrive\\Aplicativos IA\\Editor de Relatorios PMVNI\\tests\\saida\\roteiro\\processos-despacho\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10. Recibo: Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.recibo-editor.json.",
+      "conferencias": {
+        "menu_habilitado": true,
+        "origem_sugerida": true,
+        "duas_exigencias": true,
+        "previa": true,
+        "pdf_do_libreoffice": true,
+        "nada_antes_de_gravar": true,
+        "marcar_todas": true,
+        "tres_arquivos_validados": true,
+        "lista_com_o_novo": true,
+        "abrir_pdf": true
+      },
+      "ok": true
+    },
+    "37_novo_despacho_aprovacao": {
+      "aviso": "O relatório tem 2 itens com situação diferente de ATENDE (ITEM 02, ITEM 03). Emitir a aprovação mesmo assim?",
+      "faltando": [
+        "Tipo de obra (obra nova, alteração de obra ou ampliação de obra)",
+        "Área total a construir (m², ex.: 210,52)"
+      ],
+      "arquivos": [
+        "Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.docx",
+        "Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.pdf",
+        "Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.recibo-editor.json",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.docx",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.pdf",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.recibo-editor.json"
+      ],
+      "conferencias": {
+        "aviso_confirmado": true,
+        "faltando_bloqueia_gerar": true,
+        "preencher_habilita": true,
+        "etapa_existente": true,
+        "pdf": true,
+        "marcar_todas": true,
+        "arquivos_e_recibo": true
+      },
+      "ok": true
+    },
+    "38_despacho_sem_libreoffice": {
+      "mensagem": "O LibreOffice não está instalado neste computador. O despacho será gravado só em Word (DOCX). Para o PDF, rode o instalador do kit (INSTALAR_KIT_PMVNI.cmd) e use Despachos › Gerar PDF.",
+      "arquivos": [
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.docx",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.pdf",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.recibo-editor.json"
+      ],
+      "conferencias": {
+        "etapa_nova": true,
+        "aviso_sem_pdf": true,
+        "so_docx": true,
+        "gerar_pdf_habilitado": true,
+        "paginas": true,
+        "marcar_todas": true,
+        "pdf_gravado": true
+      },
+      "ok": true
+    },
+    "39_despacho_nao_sobrescreve": {
+      "arquivos": [
+        "Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.docx",
+        "Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.pdf",
+        "Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.recibo-editor.json",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio (2).docx",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio (2).pdf",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio (2).recibo-editor.json",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.docx",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.pdf",
+        "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.recibo-editor.json"
+      ],
+      "temporarios": [],
+      "conferencias": {
+        "marcar_todas": true,
+        "nomes_com_2": true,
+        "anteriores_intactos": true,
+        "sem_tmp": true
+      },
+      "ok": true
+    },
+    "40_despacho_bloqueios": {
+      "erros_da_revisao": [
+        "ITEM 02: a situação mudou de FALTA COMPROVAR para ATENDE sem justificativa"
+      ],
+      "bloqueio_a": "ITEM 02: a situação mudou de FALTA COMPROVAR para ATENDE sem justificativa",
+      "bloqueio_b": "O processo da capa (9001/2026) não é o da pasta (0001/2099). Confira se o relatório é deste processo.",
+      "dica_c": "Kit PMVNI não encontrado em C:\\Users\\smendesjunior\\OneDrive\\Aplicativos IA\\Editor de Relatorios PMVNI\\tests\\saida\\roteiro\\kit-vazio. Escolha a pasta do kit em Ajustes.",
+      "novos": [
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.docx",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.pdf",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.recibo-editor.json",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio (2).docx",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio (2).pdf",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio (2).recibo-editor.json",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.docx",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.pdf",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.recibo-editor.json",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 04 - 2099-03-10\\Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.docx",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 04 - 2099-03-10\\Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.pdf",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 04 - 2099-03-10\\Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.recibo-editor.json",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\Relatorio_0001_2099.pmvrel",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\Relatorio_0001_2099.pmvrel.bak",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\Relatorio_0001_2099_2.pmvrel"
+      ],
+      "sumiram": [],
+      "mudaram": [],
+      "kit_entradas": 45,
+      "conferencias": {
+        "a_sem_justificativa": true,
+        "a_desfeito": true,
+        "b_processo_errado": true,
+        "c_kit_vazio": true,
+        "e_descartar_pergunta": true,
+        "d_copia_e_kit": true
+      },
+      "ok": true
     }
   },
   "perguntas_feitas": [
@@ -895,7 +1036,10 @@
     "fechar sem gravar (conflito): o arquivo mudou no disco depois de aberto",
     "informar Comparar com o original",
     "informar Comparar com o original",
-    "escolher pasta"
+    "escolher pasta",
+    "confirmar Emitir a aprovação?",
+    "confirmar Descartar o despacho em edição?",
+    "confirmar Descartar o despacho em edição?"
   ],
   "falhas": [],
   "ok": true

@@ -182,6 +182,24 @@ public sealed class EmissaoDespachoTestes
     }
 
     [Fact]
+    public void gerar_pdf_que_falha_ao_montar_o_recibo_apaga_o_pdf()
+    {
+        using var c = new Cena("emissao-pdf-recibo-montar");
+        var e = c.Gravar(c.Preparar(new ConversorAusente()), null);
+        var reciboAntes = File.ReadAllBytes(e.Recibo);
+        var p = EmissaoDespacho.PrepararPdf(e.Docx, Path.Combine(c.Pasta, "trabalho-pdf"), ConversorFalso.Com(PdfVerdana), CancellationToken.None);
+        // O relógio falha só ao registrar as páginas conferidas (depois de o PDF já ter sido movido para a pasta da etapa).
+        var quebrado = new ContextoUsuario("fulano", () => throw new IOException("Relógio indisponível (simulado)."),
+            System.Security.Cryptography.RandomNumberGenerator.Create());
+
+        Assert.Throws<IOException>(() => EmissaoDespacho.GravarPdf(p, e.Docx, new[] { 1, 2 }, "LibreOffice teste", quebrado));
+
+        Assert.False(File.Exists(Path.ChangeExtension(e.Docx, ".pdf")));
+        Assert.Equal(reciboAntes, File.ReadAllBytes(e.Recibo));
+        Assert.Equal(2, Directory.GetFiles(e.Pasta).Length);
+    }
+
+    [Fact]
     public void preparar_gera_docx_e_pdf_so_na_pasta_de_trabalho()
     {
         using var c = new Cena("emissao-preparar");
@@ -471,6 +489,39 @@ public sealed class EmissaoDespachoTestes
         Assert.Equal(t + @"\conv\tmp", psi.Environment["TMP"]);
         Assert.True(psi.CreateNoWindow);
         Assert.False(psi.UseShellExecute);
+        // O app é de janela (sem console): entrada e saídas vão por pipes que o conversor fecha (entrada) e esvazia (saídas, que viram o
+        // detalhe de uma falha).
+        Assert.True(psi.RedirectStandardInput);
+        Assert.True(psi.RedirectStandardOutput);
+        Assert.True(psi.RedirectStandardError);
+    }
+
+    [Fact]
+    public void perfil_do_libreoffice_em_caminho_curto()
+    {
+        // O soffice aborta (0xC0000409) quando o perfil fica fundo demais: o arquivo mais fundo dele tem 134 caracteres abaixo da pasta do
+        // perfil (medido no LibreOffice 26.8), e o Windows corta em 260. O conversor usa o nome curto (8.3) da pasta, quando o volume o tem,
+        // e recusa com o motivo um perfil que ainda passe de 120 caracteres.
+        Assert.True(ConversorLibreOffice.PerfilCabe(new string('a', 120)));
+        Assert.False(ConversorLibreOffice.PerfilCabe(new string('a', 121)));
+
+        using var pasta = Ambiente.PastaDeTeste("perfil-curto");
+        var funda = Path.Combine(pasta, "uma pasta com nome bem comprido", "outra pasta com nome bem comprido", "perfil");
+        Directory.CreateDirectory(funda);
+        var curta = ConversorLibreOffice.CaminhoCurto(funda);
+        Assert.True(curta.Length <= funda.Length);
+        Assert.True(Directory.Exists(curta));
+        Assert.Equal(new DirectoryInfo(funda).FullName, new DirectoryInfo(Path.GetFullPath(curta)).FullName, ignoreCase: true, ignoreLineEndingDifferences: false,
+            ignoreWhiteSpaceDifferences: false);
+        // Pasta que não existe: o caminho como veio.
+        var inexistente = Path.Combine(pasta, "nao existe");
+        Assert.Equal(inexistente, ConversorLibreOffice.CaminhoCurto(inexistente));
+
+        // A linha de comando usa o perfil e o TEMP que o conversor passar (os curtos).
+        var psi = ConversorLibreOffice.Preparar(@"C:\LO\soffice.com", @"C:\t\conv\copia.docx", @"C:\t\conv", @"C:\T~1\perfil", @"C:\T~1\tmp");
+        Assert.Equal("-env:UserInstallation=" + new Uri(@"C:\T~1\perfil").AbsoluteUri, psi.ArgumentList[0]);
+        Assert.Equal(@"C:\T~1\tmp", psi.Environment["TEMP"]);
+        Assert.Equal(@"C:\T~1\tmp", psi.Environment["TMP"]);
     }
 
     [Fact]

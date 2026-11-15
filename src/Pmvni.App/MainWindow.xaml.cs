@@ -103,6 +103,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         IniciarPesquisa();
         IniciarAjustes();
         IniciarPastas();
+        IniciarNovoDespacho();
         Faixa.ComandoInvocado += async id => await ExecutarComandoAsync(id);
         Faixa.AbaMudou += nome => { ajustes.AbaPorModulo[moduloAtual] = nome; SalvarAjustes(); };
         TrilhoModulos.Montar(Faixas.Disponiveis);
@@ -115,6 +116,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             fechada = true;
             leituraDaLista?.Cancel(); // a leitura das pastas de processos em segundo plano para junto com a janela
             leituraDoDetalhe?.Cancel();
+            novo?.Descartar(); // um preparo em curso para e a pasta de trabalho sai
             PararTemporizadores();
             try { documento?.Dispose(); } catch { }
             try { hostComposicao?.Dispose(); } catch { }
@@ -220,14 +222,19 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     // ---------- módulos e faixa ----------
 
-    internal Task MudarModuloAsync(Modulo m)
+    internal async Task MudarModuloAsync(Modulo m)
     {
         if (!Faixas.Disponiveis.Contains(m)) throw new ArgumentOutOfRangeException(nameof(m), m, "Módulo indisponível.");
+        // Sair de Despachos com um despacho em edição (passo 2 ou 3) pergunta antes de descartar; "Continuar editando" fica onde está.
+        if (m != moduloAtual && !await SairDoNovoDespachoAsync())
+        {
+            TrilhoModulos.Marcar(moduloAtual);
+            return;
+        }
         // Trocar de módulo grava o que falta (na fila de comandos, como todo Salvar). Seguro sem await: GravarNaVezAsync trata toda
         // exceção (InfoBar de erro ou de conflito) e devolve false.
         if (m != moduloAtual && sessao is { Estado: EstadoGravacao.NaoSalvo }) _ = GravarAgoraAsync();
         if (m != moduloAtual || Faixa.Definicao?.Modulo != m) MontarModulo(m);
-        return Task.CompletedTask;
     }
 
     void MontarModulo(Modulo m)
@@ -235,13 +242,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         var anterior = moduloAtual;
         moduloAtual = m;
         R.Visibility = m == Modulo.Relatorios ? Visibility.Visible : Visibility.Collapsed;
-        PaginaDeDespachos.Visibility = m == Modulo.Despachos ? Visibility.Visible : Visibility.Collapsed;
+        AtualizarPaginasDeDespachos();
         PaginaDeProcessos.Visibility = m == Modulo.Processos ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeAjustes.Visibility = m == Modulo.Ajustes ? Visibility.Visible : Visibility.Collapsed;
         if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes(); AtualizarPaginaDePastas(); }
         var f = Faixas.Para(m);
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
         Faixa.Montar(f, Faixas.IndiceDaAba(f, aba));
+        _ = AtualizarModelosAsync(forcar: false); // o registro de modelos do kit, lido uma vez por pasta do kit (habilita o Novo despacho)
         TrilhoModulos.Marcar(m);
         TrocarPesquisaDeModulo(anterior, m);
         EntrarNoModuloDePastas(m);
@@ -276,7 +284,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // Delete, Ctrl+Z, zoom e os outros comandos do relatório não valem com a lista de processos à vista: o relatório fica escondido.
         if (moduloAtual != Modulo.Relatorios && ComandosApp.SoDoRelatorio(id)) return;
         if (id.StartsWith("processos.", StringComparison.Ordinal) && moduloAtual != Modulo.Processos) return;
-        if (id.StartsWith("despachos.", StringComparison.Ordinal) && moduloAtual != Modulo.Despachos) return;
+        if (id.StartsWith("despachos.", StringComparison.Ordinal) && moduloAtual != Modulo.Despachos && !ComandosApp.ValeForaDeDespachos(id)) return;
         if (!Faixa.Habilitado(id)) { AvisarIndisponivel(id); return; }
         await TentarAsync(acao);
     });
@@ -347,6 +355,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Faixa.Ligar(ComandosApp.ExibirPainel, PainelVisivel);
         AtualizarComandosRevisao(temRelatorio);
         AtualizarComandosPastas(pronto);
+        AtualizarComandosNovoDespacho();
         R.BotaoMenos.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMenos);
         R.BotaoMais.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMais);
         R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = temRelatorio;
@@ -422,6 +431,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal async Task<bool> AbrirPacoteAsync(string pmvrel)
     {
         if (ocupado || aplicando || documento is null) { AvisarOcupado(); return false; }
+        // Abrir um relatório leva a Relatórios: um despacho em edição pergunta antes de ser descartado.
+        if (!await SairDoNovoDespachoAsync()) return false;
         if (sessao is not null && !await FecharSessaoAsync()) return false;
         // Abrir (ou importar, ou escolher um recente) com os Ajustes à vista: o relatório aparece no módulo Relatórios.
         if (moduloAtual != Modulo.Relatorios) MontarModulo(Modulo.Relatorios);
@@ -477,7 +488,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// em andamento), grava e fecha; só pergunta se a gravação falhar (<see cref="FecharSessaoAsync"/>).</summary>
     async void AoFecharJanela(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (fecharDeVez || (sessao is null && !ocupado && naFila == 0)) return;
+        if (fecharDeVez || (sessao is null && novo is null && !ocupado && naFila == 0)) return;
         args.Cancel = true;
         if (fechando) return;
         fechando = true;
@@ -489,6 +500,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             {
                 // Abrir, importar ou exportar chamados fora da fila (linha de comando, roteiro): termina antes.
                 while (ocupado && !fechada) await Task.Delay(100);
+                // Um despacho em edição (passo 2 ou 3) pergunta antes de ser descartado; nada dele foi gravado na pasta do processo.
+                if (!await SairDoNovoDespachoAsync()) return false;
                 return await FecharSessaoAsync();
             });
             if (fechar && !fechada) { fecharDeVez = true; Close(); }
@@ -887,7 +900,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     InfoBar AvisoDoModulo => moduloAtual switch
     {
         Modulo.Processos => PaginaDeProcessos.AvisoMensagem,
-        Modulo.Despachos => PaginaDeDespachos.AvisoMensagem,
+        Modulo.Despachos => novo is not null ? PaginaDeNovoDespacho.AvisoMensagem : PaginaDeDespachos.AvisoMensagem,
         _ => R.AvisoMensagem,
     };
 

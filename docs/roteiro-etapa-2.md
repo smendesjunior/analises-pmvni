@@ -66,6 +66,20 @@ inclusive as de itens sem alteração). O módulo **Ajustes** (embaixo no trilho
 (15/30/60/120 s), a pasta de recuperação (só o caminho) e as versões (app, modelo rev10, WebView2). Abrir ou importar com os Ajustes à
 vista leva ao módulo Relatórios.
 
+A partir da Tarefa 16 (desenho §10): **Novo despacho ▾** (Correção, Aprovação) na Página Inicial de Despachos (primeiro comando),
+de Processos (depois de "Importar análise da IA") e de Relatórios (depois de "Exportar PDF"), e **Gerar PDF** em Despachos (depois
+de "Abrir PDF"). Só aparecem os papéis de despacho do registro do kit (`TEMPLATES_OFICIAIS.json`, lido da pasta do kit dos Ajustes ao
+montar a faixa e a cada abertura do Novo despacho); um tipo cujo modelo falta ou não confere fica desabilitado com o motivo na dica.
+A página Novo despacho abre no módulo Despachos, no lugar da lista: passo 1 (tipo, processo, relatório base `.pmvrel` e pasta da
+etapa, já sugeridos pelo módulo de onde se veio), passo 2 (cabeçalho, exigências em cartões ou tipo de obra e área, com a folha de
+prévia em Verdana ao lado; "[preencher: …]" em vermelho só na prévia; "Gerar e conferir ▸" só sem nada faltando) e passo 3 (DOCX,
+validação e PDF numa pasta de trabalho `<dados>\despachos\<guid>`; cada página do PDF desenhada pelo `Windows.Data.Pdf` com a caixa
+"Conferi a página N" e "Marcar todas"; "Gravar na pasta do processo" só com todas conferidas; sem LibreOffice, a mensagem do desenho
+§10.7 e "Gravar só o DOCX"). Nada é gravado na pasta do processo antes desse clique; a gravação nunca sobrescreve (`… (2)`). O relatório
+aberto com alterações é gravado antes (o despacho usa sempre a versão gravada). Trocar de módulo, abrir outro Novo despacho ou fechar o
+app com a página no passo 2 ou 3 pergunta "Descartar o despacho em edição?". A página Ajustes ganhou a pasta do kit PMVNI e a situação
+dos dois modelos. Desfazer e Refazer da barra de título ficam desabilitados fora de Relatórios.
+
 ## Como rodar
 
 1. `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-release.ps1` (testes, publicação do executável único em
@@ -117,6 +131,20 @@ vista leva ao módulo Relatórios.
 | 33 | `33_ajustes_pastas` | (Tarefa 13) Pasta inexistente nos Ajustes: Processos e Despachos mostram "A pasta de processos não foi encontrada: <caminho>. Escolha a pasta em Ajustes." com o botão "Abrir Ajustes" e listas vazias; o botão (clicado pelo `ButtonAutomationPeer`) leva à página Ajustes, que mostra a pasta em uso e o aviso de que ela não existe; Escolher pasta (seletor com resposta fixa) vale na hora, grava `pasta_processos` em `ajustes.json`, tira o aviso e a lista volta com os 4 processos. |
 | 34 | `34_faixa_e_pesquisa_por_modulo` | (Tarefa 13) Para cada módulo do trilho (Relatórios, Despachos, Processos, Ajustes): as abas são as de `Faixas.Para`, a aba aberta é a lembrada (ou a padrão), `ComandosSemManipulador()` é vazio, a dica da pesquisa é a do módulo e a caixa só fica desabilitada em Ajustes; a aba escolhida em Processos e o módulo ficam em `ajustes.json` e voltam depois de visitar outro módulo; cada módulo guarda o seu termo ("fulano" em Processos some em Despachos e volta); com Processos à vista, Excluir e Desfazer não mexem no relatório escondido (histórico e itens iguais, nenhum aviso); o termo e o "1 de N" da pesquisa do relatório voltam ao retornar a Relatórios. |
 | 35 | `35_pastas_intactas` | (Tarefa 13) Com o relatório fechado, a cópia da árvore tem os mesmos arquivos e os mesmos sha256 de antes, exceto os dois `.pmvrel` criados pelas importações; nenhum `.lock`, `.bak` ou `.tmp` ficou. |
+| 36 | `36_novo_despacho_correcao` | (Tarefa 16) Preparação dos passos 36–40: cópia separada da árvore fictícia em `<pasta>\processos-despacho` (a pasta de processos dos Ajustes passa a ser ela), pasta do kit = o kit real (só lido; `PMVNI_KIT_RAIZ` limpa no processo do roteiro), `Hoje` = 2099-03-10, `<pasta>\curto-0001.json` (o `curto` com `capa.processo` "0001/2099" e `capa.requerente` "FULANO DE EXEMPLO (FICTICIO)") importado para `Relatorio_0001_2099.pmvrel` do 0001. Pela faixa de Relatórios, com o pacote aberto: Novo despacho ▸ Correção leva a Despachos com o processo 0001, o relatório aberto e a etapa nova "DESPACHO 03 - 2099-03-10"; 2 exigências (ITEM 02, ITEM 03); prévia com "Protocolo nº: 0001/2099"; Gerar com o **LibreOffice real**: páginas ≥ 1, fontes com Verdana, `InfoPdf.Ler` lê o PDF, uma caixa por página, nada na pasta do processo e Gravar desabilitado até "Marcar todas"; Gravar: os 3 arquivos `Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.*` na pasta nova, `ValidacaoDespacho.Comparar(modelo, docx)` vazio, sha do DOCX e do PDF = os do recibo; Despachos volta com o novo (Correção, nº 3, 2099-03-10) escolhido e o aviso "Despacho gravado" ("3 arquivos em … Recibo: ….recibo-editor.json."); "Abrir PDF" só registra o caminho. |
+| 37 | `37_novo_despacho_aprovacao` | (Tarefa 16) Pela faixa de Processos, com o 0001 escolhido: o aviso de 2 itens ≠ ATENDE é confirmado ("Emitir mesmo assim", resposta fixa) e vai para `AvisosConfirmados`; `Faltando` = as 2 mensagens exatas (tipo de obra e área) e "Gerar e conferir" desabilitado; "obra nova" e área "210,52" habilitam; a etapa existente "DESPACHO 03 - 2099-03-10" mantém o que foi preenchido; Gerar, Marcar todas, Gravar: `Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.{docx,pdf,recibo-editor.json}` na mesma pasta, os arquivos da correção com o mesmo sha, o recibo com `avisos_confirmados` = o aviso exato e a etapa existente. |
+| 38 | `38_despacho_sem_libreoffice` | (Tarefa 16) Pela faixa de Despachos (0001 escolhido), com um conversor ausente: etapa nova "DESPACHO 04 - 2099-03-10"; o passo 3 mostra a mensagem exata de `EmissaoDespacho` ("O LibreOffice não está instalado neste computador. O despacho será gravado só em Word (DOCX). Para o PDF, rode o instalador do kit (INSTALAR_KIT_PMVNI.cmd) e use Despachos › Gerar PDF.") e "Gravar só o DOCX"; grava `.docx` e recibo com `sem_pdf_motivo` "SEM_LIBREOFFICE", sem `.pdf` ("2 arquivos em …"). Com o LibreOffice real de volta, o despacho escolhido habilita Despachos › Gerar PDF: a página abre direto no passo 3 com as páginas; Marcar todas, Gravar: `.pdf` com o mesmo nome base, o DOCX igual, o recibo com `pdf` preenchido e `sem_pdf_motivo` null; Gerar PDF volta a ficar desabilitado. |
+| 39 | `39_despacho_nao_sobrescreve` | (Tarefa 16) Nova correção na "DESPACHO 03 - 2099-03-10": os três nomes com " (2)"; os 6 arquivos anteriores da pasta com o mesmo sha; nenhum `.tmp` na cópia. |
+| 40 | `40_despacho_bloqueios` | (Tarefa 16) (a) Situação do ITEM 02 mudada para ATENDE sem justificativa no pacote aberto: o Novo despacho grava o pacote antes, mostra a mensagem exata da conferência da revisão (Tarefa 3) e fica no passo 1 (sem rascunho; Gerar não faz nada); desfeito e gravado. (b) O `dados_0001.json` da cópia (capa 9001/2026) importado para `Relatorio_0001_2099_2.pmvrel`: escolher o outro relatório abre o passo 2; escolhê-lo dá "O processo da capa (9001/2026) não é o da pasta (0001/2099). Confira se o relatório é deste processo." e volta ao passo 1. (c) Pasta do kit = `<pasta>\kit-vazio`: os dois itens do menu desabilitados com "Kit PMVNI não encontrado em <pasta>\kit-vazio. Escolha a pasta do kit em Ajustes." na dica e na página Ajustes; tentar não abre nada; o kit real volta ("Correção: disponível", "Aprovação: disponível"). (e) Com um despacho no passo 2, trocar de módulo pergunta "Descartar o despacho em edição?": "Continuar editando" (resposta fixa) fica na página; "Descartar" fecha sem gravar nada. (d) Com o relatório fechado, a cópia tem os arquivos de antes (mesmo sha) + só os gravados em 36–39, os dois `.pmvrel` importados e o `.bak` do `Relatorio_0001_2099.pmvrel` (da gravação do (a), permitida ao lado de um pacote aberto); no kit, `02 - MODELOS DE DOCUMENTOS` e a pasta `references` do plugin despacho têm a mesma lista, os mesmos tamanhos e as mesmas datas. |
+
+(Numeração da Tarefa 16: o plano previa 34 a 38, mas 34 e 35 já são da Tarefa 13; os passos do Novo despacho são 36 a 40. O
+roteiro usa o kit no lugar (só lê o registro, os modelos e as referências do plugin; nada é copiado) e o LibreOffice real
+(`ConversorLibreOffice.Localizar()`, com perfil e `TEMP`/`TMP` na pasta de trabalho dentro de `tests\saida\dados-app\despachos`): o
+roteiro roda fora do pacote do Claude, aberto pelo `explorer.exe`. O LibreOffice aborta (0xC0000409) quando o perfil fica fundo demais
+(o arquivo mais fundo do perfil fica 134 caracteres abaixo dele e o Windows corta em 260); a pasta de dados do roteiro é funda (dentro
+do projeto no OneDrive), então o conversor passa ao LibreOffice o nome curto (8.3) do perfil e do TEMP e recusa, com o motivo, um perfil
+que ainda passe de 120 caracteres. Os testes (`dotnet test`) nunca abrem o LibreOffice: usam conversores
+falsos.)
 
 (Numeração: o plano previa 28 e 29 para Processos e Despachos e 31 a 33 para o resto; 28 e 29 já são Recentes e Comparar e o 30
 fica reservado à Legislação (Tarefa 18). Os passos 31 a 35 são os da Tarefa 13.)
@@ -137,9 +165,19 @@ Relatórios abre em Página Inicial); Tarefa 13: `FaixasTestes` ganhou `cada_mod
 e Ajustes), `trilho_na_ordem_do_desenho` (Relatórios, Despachos, Processos, Ajustes) e `comandos_do_relatorio_nao_valem_nos_outros_modulos`;
 `ListasPastasTestes` (processos por número, data e requerente, filtro por ano e termo; despachos por tipo, nome de arquivo, agrupados por mês ou
 por processo, mais recentes ou mais antigos primeiro; as linhas do detalhe do processo); `AjustesTestes` (pasta de processos efetiva e a chave
-antiga de legislação ignorada); `PastasTestes` (filtro de despachos pelo nome do arquivo).
+antiga de legislação ignorada); `PastasTestes` (filtro de despachos pelo nome do arquivo). Tarefa 16: `FaixasTestes` ganhou `novo_despacho_nos_tres_modulos_com_os_dois_tipos`
+e `gerar_pdf_so_em_despachos`; `AjustesKitTestes` (pasta do kit: `PMVNI_KIT_RAIZ` > Ajustes > padrão, guardada em `ajustes.json`);
+`FluxoNovoDespachoTestes` (origem sugerida por Relatórios, Processos e Despachos; motivo do tipo desabilitado; poder gerar e gravar;
+trocar a etapa mantém o que foi editado).
 
 ## O que ainda precisa de olhar humano
+
+- O Novo despacho com o mouse e o teclado de verdade (cartões das exigências, mover acima/abaixo, a folha de prévia em Verdana nos dois
+  temas, as páginas do PDF na escala do monitor) e os diálogos "Emitir a aprovação?" e "Descartar o despacho em edição?" (o roteiro
+  responde fixo); o seletor de pasta do kit nos Ajustes; a dica do item desabilitado do menu ao passar o mouse.
+- Fechar o app pelo X depois de conferir as páginas de um despacho: com o driver de vídeo da Intel, a descarga das DLLs girava sem fim
+  depois de o `Windows.Data.Pdf` desenhar páginas (visto no roteiro); o app agora termina o processo direto no fim, só nesse caso. Vale
+  conferir no Gerenciador de Tarefas que nenhum "Editor de Relatorios PMVNI" sobra depois de fechar.
 
 - Acabamento da barra de título (ícone, título e estado ao lado dos botões da janela), da faixa e do trilho em outros monitores e
   no tema escuro (as capturas XAML não incluem o Mica).
