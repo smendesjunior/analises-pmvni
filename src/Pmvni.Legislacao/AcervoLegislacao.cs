@@ -23,6 +23,7 @@ public sealed class AcervoLegislacao
     const string NomeMutex = @"Local\EditorRelatoriosPMVNI.Legislacao";
     const string Leitor = "pdf.js " + RecursosLegislacao.VersaoPdfJs;
     static readonly TimeSpan IdadeEntradaOrfa = TimeSpan.FromDays(1);
+    static readonly TimeSpan IdadeCorrompido = TimeSpan.FromDays(30);
     static readonly Regex NomePdfDeCopia = new(@"^[0-9a-f]{64}\.pdf$", RegexOptions.CultureInvariant);
     static readonly Mutex Trava = new(false, NomeMutex);
     static readonly StringComparer ComparadorTitulo = StringComparer.Create(new CultureInfo("pt-BR"), ignoreCase: true);
@@ -30,8 +31,7 @@ public sealed class AcervoLegislacao
     readonly Func<DateTimeOffset> agora;
     readonly Func<string> novoId;
     readonly Dictionary<string, (long Tamanho, long Ticks, bool Valido)> validadeIndices = new(StringComparer.Ordinal);
-    readonly List<string> avisosPendentes = [];
-    IReadOnlyList<string> avisos = [];
+    readonly List<string> avisos = []; // acumulam até alguém ler (LerAvisos); sempre sob lock(avisos)
 
     public AcervoLegislacao(string pasta, Func<DateTimeOffset>? agora = null, Func<string>? novoId = null)
     {
@@ -47,8 +47,22 @@ public sealed class AcervoLegislacao
     /// <summary>O catálogo é de uma versão mais nova que a conhecida: só leitura (nada é gravado).</summary>
     public bool SomenteLeitura { get; private set; }
 
-    /// <summary>Avisos da última carga feita por <see cref="Listar"/> (catálogo danificado, PDFs recuperados).</summary>
-    public IReadOnlyList<string> Avisos => avisos;
+    /// <summary>Avisos pendentes (catálogo danificado, PDFs recuperados, cópia em uso), sem limpá-los. Qualquer carga os acumula
+    /// (o <see cref="IndiceLegislacao"/> também carrega o catálogo e não os consome): <see cref="LerAvisos"/> devolve e limpa.</summary>
+    public IReadOnlyList<string> Avisos { get { lock (avisos) return [.. avisos]; } }
+
+    /// <summary>Devolve os avisos acumulados e os limpa (a tela os mostra uma vez).</summary>
+    public IReadOnlyList<string> LerAvisos()
+    {
+        lock (avisos)
+        {
+            var lista = avisos.ToArray();
+            avisos.Clear();
+            return lista;
+        }
+    }
+
+    void Avisar(string aviso) { lock (avisos) avisos.Add(aviso); }
 
     /// <summary>Gancho de teste: roda depois de gravar o <c>catalogo.json.tmp</c> e antes de trocá-lo pelo catálogo.</summary>
     internal Action? AntesDeTrocarCatalogo { get; set; }
@@ -68,10 +82,7 @@ public sealed class AcervoLegislacao
     /// (pt-BR, sem diferenciar caixa).</summary>
     public IReadOnlyList<Anexo> Listar() => ComTrava(() =>
     {
-        var c = Carregar();
-        avisos = [.. avisosPendentes];
-        avisosPendentes.Clear();
-        return Ordenar(c.Anexos);
+        return Ordenar(Carregar().Anexos);
     });
 
     public EstadoAnexo Estado(string id) => ComTrava(() =>
@@ -207,6 +218,7 @@ public sealed class AcervoLegislacao
                 if (criouIndice) ApagarSilencioso(CaminhoIndice(e.Sha256));
                 throw;
             }
+            ApagarSilencioso(MarcaDeExclusao(e.Sha256)); // o mesmo PDF voltou ao catálogo: a exclusão pendente deixa de valer
             return anexo;
         });
     }
@@ -243,7 +255,8 @@ public sealed class AcervoLegislacao
                 if (criouIndice) ApagarSilencioso(CaminhoIndice(e.Sha256));
                 throw;
             }
-            ApagarArquivosDe(atual.Sha256);
+            ApagarSilencioso(MarcaDeExclusao(e.Sha256));
+            if (!ApagarArquivosDe(atual.Sha256)) Avisar(MensagensAnexo.CopiaEmUso);
             return novo;
         });
     }
@@ -282,16 +295,17 @@ public sealed class AcervoLegislacao
     });
 
     /// <summary>Grava o catálogo sem a linha e só depois apaga <c>&lt;sha&gt;.pdf</c> e o índice. O original do usuário nunca é
-    /// tocado. Anexo inexistente: nada a fazer.</summary>
-    public void Excluir(string id) => ComTrava(() =>
+    /// tocado. Anexo inexistente: nada a fazer. Se a cópia estiver em uso por outro programa e não puder ser apagada, o
+    /// catálogo já está gravado: devolve <see cref="MensagensAnexo.CopiaEmUso"/> e deixa uma marca <c>&lt;sha&gt;.excluir</c>, e a
+    /// próxima carga apaga a cópia em vez de "recuperá-la". Sem problema: null.</summary>
+    public string? Excluir(string id) => ComTrava(() =>
     {
         var c = Carregar();
         ExigirEscrita(c);
         var a = c.Anexos.FirstOrDefault(x => x.Id == id);
-        if (a is null) return 0;
+        if (a is null) return null;
         Salvar(c.Anexos.Where(x => x.Id != id));
-        ApagarArquivosDe(a.Sha256);
-        return 0;
+        return ApagarArquivosDe(a.Sha256) ? null : MensagensAnexo.CopiaEmUso;
     });
 
     // ---- Índice de texto ----
@@ -313,16 +327,21 @@ public sealed class AcervoLegislacao
         });
     }
 
-    /// <summary>Apaga de <c>.entrada</c> o que tem mais de um dia (restos de uma queda do app).</summary>
+    /// <summary>Apaga de <c>.entrada</c> o que tem mais de um dia (restos de uma queda do app) e os
+    /// <c>catalogo.corrompido-*.json</c> com mais de 30 dias.</summary>
     public void LimparEntradasOrfas()
     {
-        if (!Directory.Exists(PastaEntrada)) return;
-        var limite = agora().UtcDateTime - IdadeEntradaOrfa;
-        foreach (var f in Directory.EnumerateFiles(PastaEntrada))
-        {
-            try { if (File.GetLastWriteTimeUtc(f) < limite) File.Delete(f); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* em uso: fica para a próxima */ }
-        }
+        var agoraUtc = agora().UtcDateTime;
+        if (Directory.Exists(PastaEntrada))
+            foreach (var f in Directory.EnumerateFiles(PastaEntrada)) ApagarSeAntigo(f, agoraUtc - IdadeEntradaOrfa);
+        if (Directory.Exists(Pasta))
+            foreach (var f in Directory.EnumerateFiles(Pasta, "catalogo.corrompido-*.json")) ApagarSeAntigo(f, agoraUtc - IdadeCorrompido);
+    }
+
+    static void ApagarSeAntigo(string arquivo, DateTime limite)
+    {
+        try { if (File.GetLastWriteTimeUtc(arquivo) < limite) File.Delete(arquivo); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* em uso: fica para a próxima */ }
     }
 
     // ---- Carga e gravação do catálogo (sempre sob o Mutex) ----
@@ -346,7 +365,7 @@ public sealed class AcervoLegislacao
             if (bakValido)
             {
                 dados = doBak!;
-                if (corrompido) avisosPendentes.Add(MensagensAnexo.Corrompido);
+                if (corrompido) Avisar(MensagensAnexo.Corrompido);
                 try { File.Copy(CatalogoBak, Catalogo, overwrite: true); }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* a próxima gravação refaz */ }
             }
@@ -356,16 +375,17 @@ public sealed class AcervoLegislacao
         var somenteLeitura = dados.Versao > VersaoCatalogo;
         SomenteLeitura = somenteLeitura;
         var anexos = dados.Anexos;
-        if (!somenteLeitura) RecuperarSemLinha(anexos);
+        if (!somenteLeitura) RecuperarSemLinha(anexos, ApagarExclusoesPendentes(anexos));
         return new Carga(dados.Versao, anexos, somenteLeitura);
     }
 
     /// <summary>Um <c>&lt;sha&gt;.pdf</c> sem linha no catálogo (catálogo perdido, ou queda entre a cópia e a gravação) nunca é
     /// apagado: volta como "PDF recuperado &lt;8 hex&gt;", esfera Outras.</summary>
-    void RecuperarSemLinha(List<Anexo> anexos)
+    void RecuperarSemLinha(List<Anexo> anexos, HashSet<string> excluidosPendentes)
     {
         if (!Directory.Exists(Pasta)) return;
         var conhecidos = anexos.Select(a => a.Sha256).ToHashSet(StringComparer.Ordinal);
+        conhecidos.UnionWith(excluidosPendentes); // excluídos cuja cópia estava em uso: não voltam como "recuperados"
         var recuperados = 0;
         foreach (var arquivo in Directory.EnumerateFiles(Pasta, "*.pdf").Order(StringComparer.Ordinal))
         {
@@ -380,7 +400,7 @@ public sealed class AcervoLegislacao
             recuperados++;
         }
         if (recuperados == 0) return;
-        avisosPendentes.Add(MensagensAnexo.Recuperados(recuperados));
+        Avisar(MensagensAnexo.Recuperados(recuperados));
         try { Salvar(anexos); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* segue em memória; a próxima carga tenta de novo */ }
     }
@@ -481,22 +501,46 @@ public sealed class AcervoLegislacao
         ApagarSilencioso(inteiro);
     }
 
-    void ApagarArquivosDe(string sha)
+    string MarcaDeExclusao(string sha) => Path.Combine(Pasta, sha + ".excluir");
+
+    /// <summary>Apaga a cópia e o índice do sha (o catálogo já foi gravado). Se algum não puder ser apagado (preso por outro
+    /// programa), deixa a marca <c>&lt;sha&gt;.excluir</c> para a próxima carga terminar o serviço, e devolve false.</summary>
+    bool ApagarArquivosDe(string sha)
     {
-        // O catálogo já foi gravado: um arquivo que não puder ser apagado agora (preso por outro programa) volta como
-        // "PDF recuperado" na próxima carga, em vez de se perder em silêncio.
-        ApagarComTentativas(CaminhoCopia(sha));
-        ApagarComTentativas(CaminhoIndice(sha));
         validadeIndices.Remove(sha);
+        if (ApagarComTentativas(CaminhoCopia(sha), 4) & ApagarComTentativas(CaminhoIndice(sha), 4)) return true;
+        try { File.WriteAllBytes(MarcaDeExclusao(sha), []); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* sem a marca, só resta o aviso */ }
+        return false;
     }
 
-    static void ApagarComTentativas(string caminho)
+    /// <summary>Termina as exclusões que ficaram pendentes (<c>&lt;sha&gt;.excluir</c>): apaga cópia e índice e a marca; marca
+    /// de um sha que voltou ao catálogo só some. Devolve os shas ainda pendentes (cópia ainda em uso).</summary>
+    HashSet<string> ApagarExclusoesPendentes(List<Anexo> anexos)
     {
-        for (var i = 0; i < 4; i++)
+        var pendentes = new HashSet<string>(StringComparer.Ordinal);
+        if (!Directory.Exists(Pasta)) return pendentes;
+        foreach (var marca in Directory.EnumerateFiles(Pasta, "*.excluir"))
         {
-            try { File.Delete(caminho); return; }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Thread.Sleep(50); }
+            var sha = Path.GetFileName(marca)[..^".excluir".Length];
+            if (!CatalogoLegislacao.EhSha(sha)) continue;
+            if (anexos.Any(a => a.Sha256 == sha)) { ApagarSilencioso(marca); continue; }
+            validadeIndices.Remove(sha);
+            if (ApagarComTentativas(CaminhoCopia(sha), 1) & ApagarComTentativas(CaminhoIndice(sha), 1)) ApagarSilencioso(marca);
+            else pendentes.Add(sha);
         }
+        return pendentes;
+    }
+
+    /// <summary>Apaga o arquivo (já ausente conta como apagado); false se continuar preso depois das tentativas.</summary>
+    static bool ApagarComTentativas(string caminho, int tentativas)
+    {
+        for (var i = 0; i < tentativas; i++)
+        {
+            try { File.Delete(caminho); return true; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { if (i + 1 < tentativas) Thread.Sleep(50); }
+        }
+        return false;
     }
 
     static void ApagarSilencioso(string? caminho)

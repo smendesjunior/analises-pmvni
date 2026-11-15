@@ -464,6 +464,117 @@ public sealed class AcervoTestes : IDisposable
     }
 
     [Fact]
+    public void avisos_acumulam_ate_serem_lidos_e_o_indice_nao_os_consome()
+    {
+        c.Anexar(Cenario.Lei);
+        c.Anexar(Cenario.Nt);
+        c.Acervo.Renomear(c.Acervo.Listar()[0].Id, "x"); // o .bak passa a existir
+        var novo = c.Novo();
+        File.WriteAllBytes(Catalogo, "lixo"u8.ToArray());
+
+        var indice = IndiceLegislacao.Carregar(novo, CancellationToken.None); // carrega o catálogo (e detecta o dano)
+        indice.Atualizar(novo);
+        novo.Listar();
+        novo.Estado(novo.Listar()[0].Id);
+
+        Assert.Equal([MensagensAnexo.Corrompido], novo.Avisos); // continuam lá: ninguém leu
+        Assert.Equal([MensagensAnexo.Corrompido], novo.LerAvisos());
+        Assert.Empty(novo.Avisos);
+        Assert.Empty(novo.LerAvisos());
+    }
+
+    [Fact]
+    public void excluir_com_a_copia_em_uso_avisa_e_a_proxima_carga_apaga_sem_recuperar()
+    {
+        var lei = c.Anexar(Cenario.Lei);
+        var nt = c.Anexar(Cenario.Nt);
+        var pdf = Path.Combine(c.Dados, lei.Sha256 + ".pdf");
+        var marca = Path.Combine(c.Dados, lei.Sha256 + ".excluir");
+
+        string? aviso;
+        using (new FileStream(pdf, FileMode.Open, FileAccess.Read, FileShare.Read)) // outro programa segura a cópia (sem FileShare.Delete)
+        {
+            aviso = c.Acervo.Excluir(lei.Id);
+            Assert.Equal(MensagensAnexo.CopiaEmUso, aviso);
+            Assert.Equal([nt.Id], c.Acervo.Listar().Select(a => a.Id)); // a linha já saiu do catálogo
+            Assert.True(File.Exists(pdf));
+            Assert.True(File.Exists(marca));
+            // Ainda preso: a carga não a "recupera" como PDF sem linha.
+            var durante = c.Novo();
+            Assert.Equal([nt.Id], durante.Listar().Select(a => a.Id));
+            Assert.Empty(durante.Avisos);
+            Assert.True(File.Exists(pdf));
+        }
+
+        var depois = c.Novo();
+        Assert.Equal([nt.Id], depois.Listar().Select(a => a.Id));
+        Assert.Empty(depois.Avisos);
+        Assert.False(File.Exists(pdf));
+        Assert.False(File.Exists(Path.Combine(c.Dados, lei.Sha256 + ".texto.json.gz")));
+        Assert.False(File.Exists(marca));
+        Assert.Null(c.Acervo.Excluir("lg_" + new string('0', 32))); // inexistente: nada, sem aviso
+    }
+
+    [Fact]
+    public void excluir_normal_nao_deixa_marca_e_devolve_null()
+    {
+        var lei = c.Anexar(Cenario.Lei);
+        Assert.Null(c.Acervo.Excluir(lei.Id));
+        Assert.False(File.Exists(Path.Combine(c.Dados, lei.Sha256 + ".excluir")));
+    }
+
+    [Fact]
+    public void anexar_de_novo_o_pdf_de_uma_exclusao_pendente_cancela_a_exclusao()
+    {
+        var lei = c.Anexar(Cenario.Lei);
+        var pdf = Path.Combine(c.Dados, lei.Sha256 + ".pdf");
+        string novoId;
+        using (new FileStream(pdf, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            Assert.Equal(MensagensAnexo.CopiaEmUso, c.Acervo.Excluir(lei.Id));
+            novoId = c.Anexar(Cenario.Lei).Id; // o mesmo arquivo volta enquanto a cópia ainda está presa
+            Assert.False(File.Exists(Path.Combine(c.Dados, lei.Sha256 + ".excluir")));
+        }
+
+        var lista = c.Novo().Listar();
+        Assert.Equal([novoId], lista.Select(a => a.Id));
+        Assert.True(File.Exists(pdf)); // a cópia viva não foi apagada pela exclusão antiga
+        Assert.Equal(EstadoAnexo.Pronto, c.Acervo.Estado(novoId));
+    }
+
+    [Fact]
+    public void substituir_com_a_copia_antiga_em_uso_avisa()
+    {
+        var lei = c.Anexar(Cenario.Lei);
+        var pdf = Path.Combine(c.Dados, lei.Sha256 + ".pdf");
+        using (new FileStream(pdf, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            var e = c.Acervo.Preparar(c.Original(Cenario.Lei2), lei.Id);
+            c.Acervo.ConfirmarSubstituicao(lei.Id, e, c.Extrair(e.Caminho));
+            Assert.Equal([MensagensAnexo.CopiaEmUso], c.Acervo.LerAvisos());
+        }
+        Assert.Single(c.Novo().Listar()); // a cópia antiga não volta como "recuperada"
+        Assert.False(File.Exists(pdf));
+    }
+
+    [Fact]
+    public void catalogos_corrompidos_com_mais_de_30_dias_sao_apagados()
+    {
+        Directory.CreateDirectory(c.Dados);
+        var velho = Path.Combine(c.Dados, "catalogo.corrompido-2026-10-01-000000.json");
+        var recente = Path.Combine(c.Dados, "catalogo.corrompido-2026-11-14-000000.json");
+        File.WriteAllText(velho, "x");
+        File.WriteAllText(recente, "x");
+        File.SetLastWriteTimeUtc(velho, Cenario.Agora.UtcDateTime.AddDays(-31));
+        File.SetLastWriteTimeUtc(recente, Cenario.Agora.UtcDateTime.AddDays(-29));
+
+        c.Acervo.LimparEntradasOrfas();
+
+        Assert.False(File.Exists(velho));
+        Assert.True(File.Exists(recente));
+    }
+
+    [Fact]
     public void entradas_orfas_com_mais_de_um_dia_sao_apagadas()
     {
         Directory.CreateDirectory(c.PastaEntrada);

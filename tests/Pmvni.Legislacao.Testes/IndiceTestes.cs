@@ -29,6 +29,79 @@ public sealed class IndiceTestes : IDisposable
         Assert.Equal([2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15], origem);
     }
 
+    [Fact]
+    public void emoji_e_par_de_surrogates_sao_um_caractere_so()
+    {
+        Assert.Equal("par 😀 emoji", TextoPesquisa.Normalizar("Par 😀 EMOJI"));
+        var (n, origem) = TextoPesquisa.ComMapa("Ação 😀 Ok");
+        Assert.Equal("acao 😀 ok", n);
+        Assert.Equal(n.Length, origem.Length);
+        // A(0) ç(1) ã(2) o(3) ' '(4) 😀(5,6) ' '(7) O(8) k(9): o par ocupa duas posições normalizadas, as duas apontam para o início do par.
+        Assert.Equal([0, 1, 2, 3, 4, 5, 5, 7, 8, 9], origem);
+        Assert.Equal("𝐀b", TextoPesquisa.Normalizar("𝐀B")); // letra matemática (fora do BMP) não quebra a NFD
+    }
+
+    [Fact]
+    public void surrogate_solto_nao_derruba_a_normalizacao()
+    {
+        Assert.Equal("a\uD800b", TextoPesquisa.Normalizar("A\uD800B")); // fica como está
+        Assert.Equal("\uDC00x", TextoPesquisa.Normalizar("\uDC00X"));
+        var (n, origem) = TextoPesquisa.ComMapa("é\uD83D");
+        Assert.Equal("e\uD83D", n);
+        Assert.Equal([0, 1], origem);
+    }
+
+    [Fact]
+    public void pagina_com_emoji_carrega_e_pesquisa_com_posicoes_certas()
+    {
+        var lei = Lei();
+        var longa = new string('x', 120) + " 😀 ocupação " + new string('y', 120);
+        c.Acervo.GravarIndice(lei.Id, new ResultadoExtracao(["Par 😀 emoji", longa, "sem nada"]));
+        var indice = IndiceLegislacao.Carregar(c.Acervo, CancellationToken.None);
+
+        var r = indice.Pesquisar("emoji");
+        Assert.Equal("Par 😀 emoji", Assert.Single(r.Resultados).Trecho);
+        Assert.Equal(1, indice.Pesquisar("😀").Resultados[0].Pagina);
+        Assert.Equal(2, indice.Pesquisar("😀").Total);
+        var t = indice.Pesquisar("OCUPAÇÃO").Resultados.Single();
+        Assert.Equal(2, t.Pagina);
+        Assert.Contains("😀 ocupação", t.Trecho);
+        foreach (var x in indice.Pesquisar("😀").Resultados) Assert.True(SemSurrogateSolto(x.Trecho), x.Trecho);
+        Assert.Equal("Par 😀 emoji", indice.Pesquisar("par 😀").Resultados.Single().Trecho); // termo com o emoji no fim
+    }
+
+    [Fact]
+    public void trecho_nao_corta_o_par_de_surrogates_na_borda_da_janela()
+    {
+        var lei = Lei();
+        // O emoji cai exatamente nas bordas possíveis da janela de 160: testa várias posições.
+        var paginas = Enumerable.Range(0, 12).Select(k => new string('x', 70 + k) + "ocupacao" + string.Concat(Enumerable.Repeat("😀", 60))).ToArray();
+        c.Acervo.GravarIndice(lei.Id, new ResultadoExtracao(paginas));
+        foreach (var x in IndiceLegislacao.Carregar(c.Acervo, CancellationToken.None).Pesquisar("ocupacao").Resultados)
+            Assert.True(SemSurrogateSolto(x.Trecho.Trim('…')), x.Trecho);
+    }
+
+    [Fact]
+    public void surrogate_solto_no_termo_ou_no_texto_nao_derruba_a_pesquisa()
+    {
+        var lei = Lei();
+        c.Acervo.GravarIndice(lei.Id, new ResultadoExtracao(["texto com \uD800 solto e ocupação"]));
+        var indice = IndiceLegislacao.Carregar(c.Acervo, CancellationToken.None);
+        Assert.Equal(1, indice.Pesquisar("ocupacao").Total);
+        Assert.Equal(0, indice.Pesquisar("\uD800x").Total); // não lança
+        Assert.Equal(0, indice.Pesquisar("\uDC00\uD800").Total);
+    }
+
+    static bool SemSurrogateSolto(string s)
+    {
+        for (var i = 0; i < s.Length; i++)
+        {
+            if (char.IsHighSurrogate(s[i]) && i + 1 < s.Length && char.IsLowSurrogate(s[i + 1])) { i++; continue; }
+            if (char.IsSurrogate(s[i])) return false;
+        }
+        return true;
+    }
+
     Anexo Lei() => c.Anexar(Cenario.Lei);
 
     [Fact]

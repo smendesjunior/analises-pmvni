@@ -11,6 +11,8 @@ public static class MensagensAnexo
     public const string SomenteLeitura = "O catálogo da legislação foi gravado por uma versão mais nova do editor; os anexos ficam só para leitura.";
     public const string Corrompido = "O catálogo da legislação estava danificado; foi usada a cópia anterior (catalogo.json.bak).";
 
+    public const string CopiaEmUso = "O arquivo da cópia está em uso; ele será removido na próxima abertura.";
+
     public static string Vazio(string nome) => $"“{nome}” está vazio.";
 
     /// <summary>MB = 1.048.576 bytes, uma casa, vírgula.</summary>

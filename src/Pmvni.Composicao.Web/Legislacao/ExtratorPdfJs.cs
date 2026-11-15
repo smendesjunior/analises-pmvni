@@ -16,7 +16,7 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IAsyncDisposable
 {
     const string PaginaExtrator = SegurancaLegislacao.UrlBase + "extrator.html";
     const int MaxRegistros = 200;
-    static readonly TimeSpan LimiteExtracao = TimeSpan.FromMinutes(10);
+    static readonly TimeSpan LimiteExtracaoPadrao = TimeSpan.FromMinutes(10);
     static readonly TimeSpan LimiteInicio = TimeSpan.FromSeconds(30);
 
     readonly CoreWebView2Controller controller;
@@ -27,6 +27,9 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IAsyncDisposable
     readonly ConcurrentQueue<string> bloqueadas = new();
     readonly ConcurrentQueue<string> vistas = new();
     volatile bool inutilizavel;
+
+    /// <summary>Tempo máximo de uma extração (10 min; os testes o reduzem).</summary>
+    internal TimeSpan LimiteExtracao { get; set; } = LimiteExtracaoPadrao;
     int descartado;
 
     ExtratorPdfJs(CoreWebView2Controller controller, ServidorLegislacao servidor, SynchronizationContext contexto)
@@ -175,6 +178,8 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IAsyncDisposable
         }
         catch (Exception e) when (e is TimeoutException or InvalidOperationException or ObjectDisposedException)
         {
+            // Tempo esgotado: a página ainda trabalha nessa extração; manda parar (como no cancelamento do usuário).
+            if (e is TimeoutException) await EnviarCancelarAsync();
             throw new ExtracaoRecusadaException(FalhaExtracao.Falhou, e.Message);
         }
         finally { Ponte.Recebida -= Evento; }

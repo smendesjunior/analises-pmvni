@@ -96,7 +96,8 @@ public sealed class IndiceLegislacao
         var i = normalizado.IndexOf(termoNormalizado, StringComparison.Ordinal);
         if (i < 0) return texto.Length <= TamanhoTrecho ? texto : texto[..TamanhoTrecho] + Reticencias;
         var inicioAcerto = origem[i];
-        var fimAcerto = origem[i + termoNormalizado.Length - 1] + 1;
+        var ultimo = origem[i + termoNormalizado.Length - 1];
+        var fimAcerto = ultimo + (char.IsHighSurrogate(texto[ultimo]) && ultimo + 1 < texto.Length && char.IsLowSurrogate(texto[ultimo + 1]) ? 2 : 1);
         int inicio, fim;
         if (fimAcerto - inicioAcerto >= TamanhoTrecho) { inicio = inicioAcerto; fim = inicio + TamanhoTrecho; }
         else
@@ -105,6 +106,9 @@ public sealed class IndiceLegislacao
             fim = Math.Min(texto.Length, inicio + TamanhoTrecho);
             inicio = Math.Max(0, fim - TamanhoTrecho);
         }
+        // A janela não corta um par de surrogates ao meio (emoji): encolhe um caractere.
+        if (inicio > 0 && inicio < texto.Length && char.IsLowSurrogate(texto[inicio])) inicio++;
+        if (fim < texto.Length && char.IsLowSurrogate(texto[fim])) fim--;
         var corte = texto[inicio..fim].Trim();
         return (inicio > 0 ? Reticencias : "") + corte + (fim < texto.Length ? Reticencias : "");
     }

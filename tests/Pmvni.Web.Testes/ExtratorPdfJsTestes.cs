@@ -260,6 +260,27 @@ public sealed class ExtratorPdfJsTestes : IAsyncLifetime
     }
 
     [Fact]
+    public async Task tempo_esgotado_tambem_manda_a_pagina_parar()
+    {
+        var grande = Gravar("grande-timeout.pdf", PdfLegislacaoFicticio.GerarGrande(400));
+        var paradas = new List<string>();
+        extrator.Ponte.Recebida += m =>
+        {
+            if (m.Tipo == "erro" && m.Dados.TryGetProperty("mensagem", out var t) && t.GetString() == "Extracao cancelada.") lock (paradas) paradas.Add(m.Id);
+        };
+        extrator.LimiteExtracao = TimeSpan.FromMilliseconds(1); // esgota antes de a página terminar as 400 páginas
+
+        var ex = await Assert.ThrowsAsync<ExtracaoRecusadaException>(() => extrator.ExtrairAsync(grande, null, CancellationToken.None));
+
+        Assert.Equal(FalhaExtracao.Falhou, ex.Falha);
+        Assert.Contains("não respondeu", ex.Message);
+        await Esperar(() => { lock (paradas) return paradas.Count > 0; });
+        lock (paradas) Assert.Single(paradas); // a página recebeu o `cancelar` e respondeu que parou
+        extrator.LimiteExtracao = TimeSpan.FromMinutes(10);
+        Assert.Equal(3, (await extrator.ExtrairAsync(Fixture(Lei), null, CancellationToken.None)).Paginas);
+    }
+
+    [Fact]
     public async Task cancelamento_antes_de_comecar_nao_toca_o_leitor()
     {
         using var cts = new CancellationTokenSource();
