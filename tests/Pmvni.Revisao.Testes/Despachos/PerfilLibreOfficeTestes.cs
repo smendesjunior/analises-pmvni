@@ -134,4 +134,66 @@ public sealed class PerfilLibreOfficeTestes
         Thread.Sleep(TimeSpan.FromSeconds(6));
         Assert.False(File.Exists(Path.Combine(pasta, "fim.txt")));
     }
+
+    /// <summary>Um "soffice" lento: demora uns 5 s e só então grava <c>fim.txt</c> (e o PDF); encerrado antes, nunca grava.</summary>
+    static string SofficeLento(string pasta)
+    {
+        var cmd = Path.Combine(pasta, "soffice-lento.cmd");
+        File.WriteAllText(cmd, string.Join("\r\n",
+            "@echo off",
+            ":laco",
+            "if \"%~1\"==\"\" exit /b 2",
+            "if /i \"%~1\"==\"--outdir\" goto saida",
+            "shift",
+            "goto laco",
+            ":saida",
+            "ping -n 6 127.0.0.1 > nul",
+            "echo fim> \"" + Path.Combine(pasta, "fim.txt") + "\"",
+            "exit /b 1", ""));
+        return cmd;
+    }
+
+    /// <summary>Espera o soffice lento abrir (o pid fica registrado ao lado do perfil), para só então fechar o "app".</summary>
+    static void EsperarOSofficeAbrir(string raizPerfil)
+    {
+        var limite = DateTime.UtcNow.AddSeconds(10);
+        while (!File.Exists(ConversorLibreOffice.ArquivoPid(raizPerfil)))
+        {
+            Assert.True(DateTime.UtcNow < limite, "o soffice fictício não abriu");
+            Thread.Sleep(50);
+        }
+    }
+
+    [Theory]
+    [InlineData(10)]  // o preparo vê o cancelamento a tempo (o conversor encerra o soffice)
+    [InlineData(0)]   // sem tempo de espera: a árvore do soffice é encerrada já, de fora
+    public async Task fechar_o_app_durante_o_preparo_mata_o_soffice_e_apaga_a_pasta_de_trabalho(int esperaSegundos)
+    {
+        using var pasta = Ambiente.PastaDeTeste("fecha-no-preparo");
+        var raizPerfil = Path.Combine(pasta, "lo");
+        var trabalho = Path.Combine(pasta, "despachos", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(trabalho);
+        var docx = Path.Combine(trabalho, "despacho.docx");
+        File.WriteAllBytes(docx, [1, 2, 3]);
+        var conv = new ConversorLibreOffice(SofficeLento(pasta), TimeSpan.FromMinutes(5), raizPerfil);
+        using var cts = new CancellationTokenSource();
+        var preparo = Task.Run(() => conv.Converter(docx, trabalho, cts.Token), cts.Token);
+        EsperarOSofficeAbrir(raizPerfil);
+
+        var relogio = Stopwatch.StartNew();
+        EncerramentoDoPreparo.Encerrar(preparo, () => cts.Cancel(), TimeSpan.FromSeconds(esperaSegundos), () => Directory.Delete(trabalho, true));
+        relogio.Stop();
+
+        Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(4), "demorou " + relogio.Elapsed);
+        Assert.False(Directory.Exists(trabalho));
+        Assert.True(preparo.IsCompleted);
+        ResultadoConversao? resultado = null;
+        try { resultado = await preparo; }
+        catch (OperationCanceledException) { /* cancelado: o esperado no primeiro caso */ }
+        Assert.Null(resultado?.Pdf);
+        // O soffice (e o ping dele) morreu: nunca chega ao fim (espera além dos ~5 s que ele levaria).
+        Thread.Sleep(TimeSpan.FromSeconds(6));
+        Assert.False(File.Exists(Path.Combine(pasta, "fim.txt")));
+        Assert.False(File.Exists(ConversorLibreOffice.ArquivoPid(raizPerfil)));
+    }
 }

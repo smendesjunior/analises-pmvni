@@ -267,13 +267,7 @@ internal sealed class SessaoNovoDespacho
     public void EncerrarAoFechar(TimeSpan espera)
     {
         Descartada = true;
-        Interromper();
-        if (tarefaDoPreparo is { IsCompleted: false } t && !((IAsyncResult)t).AsyncWaitHandle.WaitOne(espera))
-        {
-            ConversorLibreOffice.EncerrarEmCurso();
-            ((IAsyncResult)t).AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(2));
-        }
-        ApagarTrabalho();
+        EncerramentoDoPreparo.Encerrar(tarefaDoPreparo, Interromper, espera, ApagarTrabalho);
     }
 
     void ApagarTrabalho()
