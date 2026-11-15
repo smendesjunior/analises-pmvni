@@ -10,6 +10,6 @@ public sealed partial class PaginaDespachos : UserControl
     {
         InitializeComponent();
         // A frase da tela vazia acompanha o texto que a janela escreve em TextoListaVazia.
-        TextoListaVazia.RegisterPropertyChangedCallback(TextBlock.TextProperty, (_, _) => Vazio.DefinirFrase(TextoListaVazia.Text));
+        // Despachos é só para criar (correções 2026-11-15): a lista dos emitidos fica em Processos; a frase da tela de criação é fixa.
     }
 }

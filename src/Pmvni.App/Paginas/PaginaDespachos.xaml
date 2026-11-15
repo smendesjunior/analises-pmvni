@@ -32,7 +32,7 @@
       </InfoBar>
     </local:AreaDeAvisos>
 
-    <Grid Grid.Row="1" Padding="20,10,16,6" ColumnSpacing="8">
+    <Grid Grid.Row="1" Visibility="Collapsed" Padding="20,10,16,6" ColumnSpacing="8">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*"/>
         <ColumnDefinition Width="Auto"/>
@@ -42,7 +42,7 @@
       <ProgressRing x:Name="Anel" x:FieldModifier="internal" Grid.Column="1" IsActive="False" Width="18" Height="18"/>
     </Grid>
 
-    <ListView x:Name="ListaDespachos" x:FieldModifier="internal" Grid.Row="2" SelectionMode="Single" Padding="12,0,12,8"
+    <ListView x:Name="ListaDespachos" x:FieldModifier="internal" Grid.Row="2" Visibility="Collapsed" SelectionMode="Single" Padding="12,0,12,8"
               AutomationProperties.Name="Despachos">
       <ListView.ItemTemplate>
         <DataTemplate x:DataType="local:ItemDespacho">
@@ -57,7 +57,7 @@
     </ListView>
     <!-- Lista vazia (M5): a tela vazia do módulo (ícone, título, frase e botões). A janela escreve o texto e a visibilidade em
          TextoListaVazia (guardado fora da tela); a frase e a visibilidade da tela vazia seguem esse texto. -->
-    <local:EstadoVazio x:Name="Vazio" x:FieldModifier="internal" Grid.Row="2" Visibility="{Binding Visibility, ElementName=TextoListaVazia}"/>
+    <local:EstadoVazio x:Name="Vazio" x:FieldModifier="internal" Grid.Row="2"/>
     <Border Grid.Row="2" Visibility="Collapsed">
       <TextBlock x:Name="TextoListaVazia" x:FieldModifier="internal" Visibility="Collapsed"/>
     </Border>

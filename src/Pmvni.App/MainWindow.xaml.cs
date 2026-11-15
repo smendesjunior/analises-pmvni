@@ -23,9 +23,9 @@ namespace Pmvni.App;
 /// voltam a ela.</summary>
 public sealed partial class MainWindow : Window, ITelaEdicao
 {
-    const string TituloPadrao = "Editor de Relatórios PMVNI";
+    const string TituloPadrao = "Análise de Projetos – PMVNI";
     /// <summary>O título fixo da barra (a marca é o brasão ao lado); o documento aberto vai no subtítulo.</summary>
-    const string TituloDaBarra = "Editor de Relatórios";
+    const string TituloDaBarra = "Análise de Projetos";
     static readonly double[] PassosZoom = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
     static readonly TimeSpan LimiteTela = TimeSpan.FromSeconds(15);
 
@@ -571,8 +571,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // Processos e Despachos (M5 completo): título, frase (o texto da lista vazia) e os botões de atualizar e de onde vêm os itens.
         PaginaDeProcessos.Vazio.Definir(Modulo.Processos, "Nenhum processo", "",
             ("Atualizar lista", Glifos.Atualizar, ComandosApp.ProcessosAtualizar), ("Abrir Ajustes", ComandosApp.ModuloAjustes));
-        PaginaDeDespachos.Vazio.Definir(Modulo.Despachos, "Nenhum despacho", "",
-            ("Atualizar lista", Glifos.Atualizar, ComandosApp.DespachosAtualizar), ("Ver processos", ComandosApp.ModuloProcessos));
+        PaginaDeDespachos.Vazio.Definir(Modulo.Despachos, "Criar um despacho",
+            "Escolha o tipo: correção ou aprovação. O relatório é opcional; anexado, a IA resume só os itens com pendência. Os despachos já emitidos ficam em Processos.",
+            ("Despacho de correção", Glifos.Adicionar, ComandosApp.DespachosNovoCorrecao), ("Despacho de aprovação", ComandosApp.DespachosNovoAprovacao));
         PaginaDeProcessos.Vazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
         PaginaDeDespachos.Vazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
     }
@@ -1119,7 +1120,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         painel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Text = $"Editor de Relatórios Técnicos — PMVNI{Environment.NewLine}{Environment.NewLine}" + TextoDasVersoes(),
+            Text = $"Análise de Projetos – PMVNI{Environment.NewLine}{Environment.NewLine}" + TextoDasVersoes(),
         });
         // O leitor da legislação usa o PDF.js (Apache-2.0): a licença vai junto, como o pacote pede.
         var licenca = Pmvni.Legislacao.RecursosLegislacao.Ler("pdfjs/LICENSE") is { } b ? System.Text.Encoding.UTF8.GetString(b) : "";

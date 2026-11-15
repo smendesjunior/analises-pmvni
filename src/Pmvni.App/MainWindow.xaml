@@ -4,7 +4,7 @@
   xmlns:controls="using:Microsoft.UI.Xaml.Controls"
   xmlns:media="using:Microsoft.UI.Xaml.Media"
   xmlns:local="using:Pmvni.App"
-  Title="Editor de Relatórios PMVNI">
+  Title="Análise de Projetos – PMVNI">
   <Window.SystemBackdrop>
     <media:MicaBackdrop/>
   </Window.SystemBackdrop>
@@ -21,7 +21,7 @@
       <!-- Marca: o brasão da Prefeitura (imagem do modelo de relatório do kit, com variante de texto claro no tema escuro), alinhado
            com o fundo dos itens do trilho; o título fica só "Editor de Relatórios" e o subtítulo leva o documento aberto. -->
       <controls:TitleBar.LeftHeader>
-        <Image x:Name="ImagemBrasao" Height="28" Margin="14,0,12,0" VerticalAlignment="Center" Stretch="Uniform"
+        <Image x:Name="ImagemBrasao" Height="40" Margin="16,2,14,2" VerticalAlignment="Center" Stretch="Uniform"
                AutomationProperties.Name="Prefeitura Municipal de Venda Nova do Imigrante"/>
       </controls:TitleBar.LeftHeader>
       <!-- Desfazer e Refazer ao lado do estado de gravação (desenho §5.5) e a pesquisa no relatório (Ctrl+F; Enter = próxima,
@@ -59,11 +59,11 @@
       </StackPanel>
     </controls:TitleBar>
 
-    <local:FaixaDeOpcoes x:Name="Faixa" Grid.Row="1" Margin="64,0,0,0"/>
+    <local:FaixaDeOpcoes x:Name="Faixa" Grid.Row="1" Margin="72,0,0,0"/>
 
     <Grid Grid.Row="2">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="64"/>
+        <ColumnDefinition Width="72"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
       <local:Trilho x:Name="TrilhoModulos" Grid.Column="0"/>

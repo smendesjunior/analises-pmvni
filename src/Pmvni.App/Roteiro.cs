@@ -547,7 +547,7 @@ internal static class Roteiro
         await Passo("11_reabrir_pacote", async p =>
         {
             if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou");
-            p["fechado_sem_relatorio"] = j.Sessao is null && j.TextoTituloAtual == "Editor de Relatórios PMVNI" && !j.ExportarHabilitado;
+            p["fechado_sem_relatorio"] = j.Sessao is null && j.TextoTituloAtual == "Análise de Projetos – PMVNI" && !j.ExportarHabilitado;
             if (!await j.AbrirPacoteAsync(pacoteLongo)) throw new InvalidOperationException("não reabriu o longo: " + j.InfoMensagem.Message);
             var a = j.Aberto!;
             p["plano_igual_ao_da_importacao"] = planoDaImportacao is not null && a.Composicao.Plano.ParaJson() == planoDaImportacao;
