@@ -10,6 +10,7 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(VersaoWindowsAppSDK)" />
     <ProjectReference Include="..\Pmvni.Composicao\Pmvni.Composicao.csproj" />
     <ProjectReference Include="..\Pmvni.Revisao\Pmvni.Revisao.csproj" />
+    <ProjectReference Include="..\Pmvni.Legislacao\Pmvni.Legislacao.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Gerado por web/paginador (npm run build) e commitado: dotnet build não precisa de Node. -->

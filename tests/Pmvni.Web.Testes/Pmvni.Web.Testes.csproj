@@ -19,6 +19,11 @@
     <ProjectReference Include="..\..\src\Pmvni.Composicao\Pmvni.Composicao.csproj" />
     <ProjectReference Include="..\..\src\Pmvni.Composicao.Web\Pmvni.Composicao.Web.csproj" />
     <ProjectReference Include="..\..\src\Pmvni.Revisao\Pmvni.Revisao.csproj" />
+    <ProjectReference Include="..\..\src\Pmvni.Legislacao\Pmvni.Legislacao.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Tarefa 17: os PDFs fictícios da legislação, gerados no próprio teste (o mesmo gerador de tests/Pmvni.Legislacao.Testes). -->
+    <Compile Include="..\Pmvni.Legislacao.Testes\Ficticios\PdfLegislacaoFicticio.cs" Link="Legislacao\PdfLegislacaoFicticio.cs" />
   </ItemGroup>
   <ItemGroup>
     <!-- Tarefa 9: leitura da linha de comando do Verificador, compilada aqui (o Verificador é um executável; referenciá-lo
