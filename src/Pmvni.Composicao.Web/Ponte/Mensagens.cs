@@ -47,7 +47,11 @@ public static class Mensagens
 
     /// <summary>Lê e valida uma mensagem web→host. Versão diferente de 1, tipo desconhecido (ou do sentido oposto) ou campo
     /// faltando: devolve false com o motivo.</summary>
-    public static bool TentarLerDaWeb(string json, out MensagemWeb? mensagem, out string? motivo)
+    public static bool TentarLerDaWeb(string json, out MensagemWeb? mensagem, out string? motivo) =>
+        TentarLer(json, TiposWebParaHost, out mensagem, out motivo);
+
+    /// <summary>A mesma validação para outro conjunto de tipos web→host (a ponte da legislação usa os seus).</summary>
+    internal static bool TentarLer(string json, FrozenSet<string> tiposWebParaHost, out MensagemWeb? mensagem, out string? motivo)
     {
         mensagem = null;
         JsonDocument doc;
@@ -61,7 +65,7 @@ public static class Mensagens
             if (v.ValueKind != JsonValueKind.Number || !v.TryGetInt32(out var versao) || versao != Versao) { motivo = "versao nao suportada: " + v.GetRawText(); return false; }
             if (!raiz.TryGetProperty("tipo", out var t) || t.ValueKind != JsonValueKind.String) { motivo = "campo \"tipo\" faltando"; return false; }
             var tipo = t.GetString()!;
-            if (!TiposWebParaHost.Contains(tipo)) { motivo = "tipo desconhecido: " + tipo; return false; }
+            if (!tiposWebParaHost.Contains(tipo)) { motivo = "tipo desconhecido: " + tipo; return false; }
             if (!raiz.TryGetProperty("id", out var i) || i.ValueKind != JsonValueKind.String || i.GetString() is not { Length: > 0 } id) { motivo = "campo \"id\" faltando"; return false; }
             if (!raiz.TryGetProperty("dados", out var dados) || dados.ValueKind != JsonValueKind.Object) { motivo = "campo \"dados\" faltando ou invalido"; return false; }
             mensagem = new MensagemWeb(versao, tipo, id, dados.Clone());
@@ -71,9 +75,12 @@ public static class Mensagens
     }
 
     /// <summary>Serializa uma mensagem host→web; o tipo precisa ser um dos tipos do host.</summary>
-    public static string SerializarParaWeb(string tipo, string id, object dados)
+    public static string SerializarParaWeb(string tipo, string id, object dados) => Serializar(TiposHostParaWeb, tipo, id, dados);
+
+    /// <summary>A mesma serialização para outro conjunto de tipos host→web (a ponte da legislação usa os seus).</summary>
+    internal static string Serializar(FrozenSet<string> tiposHostParaWeb, string tipo, string id, object dados)
     {
-        if (!TiposHostParaWeb.Contains(tipo)) throw new ArgumentException("Tipo host->web desconhecido: " + tipo, nameof(tipo));
+        if (!tiposHostParaWeb.Contains(tipo)) throw new ArgumentException("Tipo host->web desconhecido: " + tipo, nameof(tipo));
         if (string.IsNullOrEmpty(id)) throw new ArgumentException("id vazio", nameof(id));
         var elemento = JsonSerializer.SerializeToElement(dados, Opcoes);
         if (elemento.ValueKind != JsonValueKind.Object) throw new ArgumentException("dados precisa ser um objeto JSON", nameof(dados));

@@ -33,6 +33,9 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
     /// <summary>O host não serve mais: foi descartado ou um processo do WebView2 caiu (quem o usa deve criar outro).</summary>
     public bool Inutilizavel => descartado || falha is not null;
 
+    /// <summary>Janela oculta que hospeda o controller (testes: o <c>ExtratorPdfJs</c> cria o dele sobre ela).</summary>
+    internal IntPtr Janela => hwnd;
+
     /// <summary>Último erro lançado por um trabalho da fila STA fora de uma operação (nunca cruza o WndProc).</summary>
     public Exception? UltimoErroInterno { get; private set; }
 

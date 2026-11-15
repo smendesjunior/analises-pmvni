@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Legislação por PDFs anexados (catálogo, cópias, índice de texto, PDF.js embutido e servidor em memória): sem UI e
+       sem WebView2 (net10.0 puro). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier></RuntimeIdentifier>
+    <TargetPlatformMinVersion></TargetPlatformMinVersion>
+    <RootNamespace>Pmvni.Legislacao</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- web\pdfjs\** é vendorizado (web/paginador/build.mjs) e extrator.js é gerado; ambos commitados: dotnet build não precisa de Node.
+         O nome lógico é leg/<caminho relativo>; o código troca \ por / ao pedir um recurso. -->
+    <EmbeddedResource Include="web\**\*" LogicalName="leg/%(RecursiveDir)%(Filename)%(Extension)" />
+    <InternalsVisibleTo Include="Pmvni.Legislacao.Testes" />
+  </ItemGroup>
+</Project>
