@@ -358,7 +358,7 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="12">
                   <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="3" Style="{StaticResource PmvniNumeroPasso}"/></Border>
-                  <StackPanel VerticalAlignment="Center"><TextBlock Text="Ou use uma chave de API (opcional)" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Em Acesso, escolha Usar chave de API. A chave fica no Cofre de Credenciais do Windows, nunca em arquivo." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
+                  <StackPanel VerticalAlignment="Center"><TextBlock Text="Ou use uma chave de API (opcional)" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Em Acesso, escolha Usar chave de API. A chave fica protegida pelo Windows (DPAPI, só no seu usuário), nunca em texto aberto." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="12">
                   <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="4" Style="{StaticResource PmvniNumeroPasso}"/></Border>

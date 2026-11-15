@@ -39,7 +39,7 @@
       <TextBlock Text="Acesso" Style="{StaticResource BodyStrongTextBlockStyle}"/>
       <!-- RadioButton soltos (e não o RadioButtons): o Click só vem do usuário, nunca da marcação feita pelo código. -->
       <RadioButton x:Name="OpcaoConta" x:FieldModifier="internal" Content="Usar minha conta (login do programa)"/>
-      <RadioButton x:Name="OpcaoChave" x:FieldModifier="internal" Content="Usar chave de API (guardada no Cofre de Credenciais do Windows)"/>
+      <RadioButton x:Name="OpcaoChave" x:FieldModifier="internal" Content="Usar chave de API (guardada protegida pelo Windows, só neste usuário)"/>
       <TextBlock x:Name="TextoDicaChave" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" Visibility="Collapsed"/>
       <StackPanel x:Name="PainelChave" x:FieldModifier="internal" Spacing="6" Visibility="Collapsed">
         <PasswordBox x:Name="CaixaChave" x:FieldModifier="internal" PlaceholderText="Cole a chave de API aqui" MaxWidth="420" HorizontalAlignment="Left"/>
