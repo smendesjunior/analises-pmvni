@@ -80,6 +80,23 @@ public partial class OrquestradorTestes
         }
     }
 
+    /// <summary>O estado do kit falso, para a mensagem de um teste que espera por ele: o auto-status.json, as chamadas e os AgenteFalso vivos.</summary>
+    static string Diagnostico(Cena c)
+    {
+        string Ler(string arquivo)
+        {
+            try { return File.Exists(arquivo) ? File.ReadAllText(arquivo).ReplaceLineEndings(" ") : "(não existe)"; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return "(ilegível: " + e.Message + ")"; }
+        }
+        var vivos = string.Join(",", Process.GetProcessesByName("AgenteFalso").Select(p => p.Id));
+        var acoes = File.Exists(c.Falso("chamadas.txt"))
+            ? string.Join(",", File.ReadAllLines(c.Falso("chamadas.txt"), Encoding.UTF8).Select(l => l.Split('\t')[0]))
+            : "(nenhuma)";
+        return " | status: " + Ler(Path.Combine(c.Controle("analise-pro"), "auto-status.json"))
+            + " | chamadas: " + acoes + " | erros do agente falso: " + Ler(c.Falso("erros.txt")) + " | partidas: " + Ler(c.Falso("partidas.txt"))
+            + " | auto-log: " + Ler(Path.Combine(c.Controle("analise-pro"), "auto-log.txt")) + " | AgenteFalso vivos: " + vivos;
+    }
+
     static string[] Linhas(string arquivo) => File.ReadAllLines(arquivo, Encoding.UTF8);
 
     static JsonObject Json(string arquivo) => JsonNode.Parse(File.ReadAllText(arquivo))!.AsObject();
@@ -444,7 +461,7 @@ public partial class OrquestradorTestes
                 return true;
             }
             catch (IOException) { return false; }
-        }, TimeSpan.FromSeconds(60)), "a análise do kit não chegou à etapa analyze");
+        }, TimeSpan.FromSeconds(60)), "a análise do kit não chegou à etapa analyze" + Diagnostico(c));
         Assert.True(Ambiente.Vivo(pid));
 
         // Um pid de outro programa (o próprio processo de teste) é recusado e continua vivo.
@@ -482,7 +499,7 @@ public partial class OrquestradorTestes
         {
             try { var s = SituacaoAnalisePro.Ler(File.ReadAllText(status)); pid = s.Pid ?? 0; return s.Codigo == "EM_ANDAMENTO" && pid != 0; }
             catch (IOException) { return false; }
-        }, TimeSpan.FromSeconds(60)));
+        }, TimeSpan.FromSeconds(60)), "a análise do kit não passou a EM_ANDAMENTO" + Diagnostico(c));
 
         cts.Cancel();
         var fim = await Ambiente.Com(seguindo, TimeSpan.FromSeconds(15));

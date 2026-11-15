@@ -245,7 +245,7 @@ static class Program
         for (var i = 1; ; i++)
         {
             try { File.Move(tmp, caminho, overwrite: true); return; }
-            catch (Exception e) when ((e is IOException or UnauthorizedAccessException) && i < 400) { Thread.Sleep(10); }
+            catch (Exception e) when ((e is IOException or UnauthorizedAccessException) && i < 3000) { Thread.Sleep(10); }
         }
     }
 
@@ -317,14 +317,41 @@ static class Program
         File.AppendAllText(Path.Combine(pastaFalso, "chamadas.txt"),
             acao + "\t" + JsonSerializer.Serialize(args, Opcoes) + "\t" + Chave().Texto + "\n", Utf8);
 
-        switch (acao)
+        try
         {
-            case "iniciar": return Iniciar(caso, controle);
-            case "situacao": return Situacao(caso, controle);
-            case "auto": return Auto(caso, controle);
-            default: return Uso();
+            switch (acao)
+            {
+                case "iniciar": return Iniciar(caso, controle);
+                case "situacao": return Situacao(caso, controle);
+                case "auto": return Auto(caso, controle, Pai(args));
+                default: return Uso();
+            }
+        }
+        catch (Exception e)
+        {
+            // Um processo que cai em silêncio deixa o teste esperando por um status que nunca vem: o motivo fica ao lado das chamadas.
+            try { File.AppendAllText(Path.Combine(pastaFalso, "erros.txt"), acao + "\t" + e + "\n", Utf8); } catch (IOException) { }
+            throw;
         }
     }
+
+    /// <summary>Um registro de como a análise automática partiu (ao lado das chamadas), para um teste que espera por ela saber o que houve.</summary>
+    static void DiagnosticoDaPartida(string caso, string texto)
+    {
+        try
+        {
+            var pasta = Path.Combine(caso, ".pmvni-ai", "agente-falso");
+            Directory.CreateDirectory(pasta);
+            File.AppendAllText(Path.Combine(pasta, "partidas.txt"), Agora() + " " + texto + "\n", Utf8);
+        }
+        catch (IOException) { }
+    }
+
+    const int TentativasDeSubida = 3;
+    const int PrazoDaSubidaMs = 10_000;
+
+    /// <summary>O arquivo que o auto grava ao subir (o pid dele): é o que o iniciar espera antes de responder.</summary>
+    static string MarcaDoAuto(string controle) => Path.Combine(controle, "auto-subiu.txt");
 
     static int Iniciar(string caso, string controle)
     {
@@ -341,13 +368,37 @@ static class Program
         GravarStatus(controle, status);
 
         // Parte a si mesmo desanexado (sem herdar os canais deste processo): UseShellExecute, como o kit abre o executar-auto.cmd pelo Explorer.
-        var psi = new ProcessStartInfo(Environment.ProcessPath!)
+        // O auto confirma que subiu gravando a marca (antes de qualquer status); sem a marca no prazo (um processo que o sistema não deixou
+        // subir, sob carga), parte de novo. Só depois de confirmado o iniciar responde, e o auto só grava EM_ANDAMENTO quando este processo sair:
+        // quem acompanha nunca vê a análise andando enquanto o iniciar ainda existe (cancelar o iniciar levaria a árvore dele junto).
+        var marca = MarcaDoAuto(controle);
+        for (var tentativa = 1; tentativa <= TentativasDeSubida; tentativa++)
         {
-            UseShellExecute = true,
-            WindowStyle = ProcessWindowStyle.Hidden,
-            Arguments = "--case \"" + caso + "\" auto",
-        };
-        Process.Start(psi);
+            try { File.Delete(marca); } catch (IOException) { }
+            var psi = new ProcessStartInfo(Environment.ProcessPath!)
+            {
+                UseShellExecute = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                Arguments = "--case \"" + caso + "\" auto --pai " + Environment.ProcessId,
+            };
+            var filho = Process.Start(psi);
+            DiagnosticoDaPartida(caso, "tentativa " + tentativa + ": filho pid=" + (filho?.Id.ToString() ?? "nenhum"));
+            var espera = Stopwatch.StartNew();
+            while (espera.ElapsedMilliseconds < PrazoDaSubidaMs && !File.Exists(marca) && filho is { HasExited: false }) Thread.Sleep(20);
+            if (File.Exists(marca))
+            {
+                DiagnosticoDaPartida(caso, "tentativa " + tentativa + ": subiu em " + espera.ElapsedMilliseconds + " ms");
+                break;
+            }
+            DiagnosticoDaPartida(caso, "tentativa " + tentativa + ": não subiu em " + espera.ElapsedMilliseconds + " ms (saiu=" + (filho?.HasExited ?? true)
+                + (filho is { HasExited: true } ? ", código " + filho.ExitCode : "") + ")");
+            try { if (filho is { HasExited: false }) filho.Kill(true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            if (tentativa == TentativasDeSubida)
+            {
+                saida.WriteLine(new JsonObject { ["situacao"] = "FALHOU", ["erro"] = "O processo da análise não subiu depois de " + TentativasDeSubida + " tentativas." }.ToJsonString(Opcoes));
+                return 1;
+            }
+        }
         saida.WriteLine(new JsonObject
         {
             ["situacao"] = "INICIADA", ["processo"] = caso, ["acompanhamento"] = Path.Combine(controle, "auto-status.json"),
@@ -387,8 +438,20 @@ static class Program
         return 0;
     }
 
-    static int Auto(string caso, string controle)
+    /// <summary>O pid do iniciar que partiu este auto (<c>--pai N</c>), ou 0.</summary>
+    static int Pai(string[] args)
     {
+        var i = Array.IndexOf(args, "--pai");
+        return i >= 0 && i + 1 < args.Length && int.TryParse(args[i + 1], out var pid) ? pid : 0;
+    }
+
+    static int Auto(string caso, string controle, int pai)
+    {
+        // Confirma a subida ao iniciar e espera ele sair (no máximo 15 s) antes de gravar qualquer status.
+        Directory.CreateDirectory(controle);
+        File.WriteAllText(MarcaDoAuto(controle), Environment.ProcessId.ToString(), Utf8);
+        var esperaPai = Stopwatch.StartNew();
+        while (pai > 0 && Vivo(pai) && esperaPai.ElapsedMilliseconds < 15_000) Thread.Sleep(20);
         var auto = cenario["auto"] as JsonObject ?? new JsonObject();
         var etapaMs = Inteiro(auto["etapa_ms"], 300);
         var parar = Texto(auto["parar_na_etapa"], "");
