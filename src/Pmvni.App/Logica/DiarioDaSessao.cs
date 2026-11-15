@@ -9,6 +9,30 @@ namespace Pmvni.App;
 public sealed class DiarioDaSessao(string raizDados) : IDisposable
 {
     Diario? diario;
+    (string Pacote, string Sha)? alvo; // o diário que deveria estar aberto (para tentar de novo depois de uma falha)
+
+    /// <summary>Órfãos (<c>*.orfao-*.jsonl</c>) parados há mais de <see cref="IdadeOrfao"/> saem na abertura do app (T10-C1).</summary>
+    public static readonly TimeSpan IdadeOrfao = TimeSpan.FromDays(30);
+
+    /// <summary>Apaga de <c>&lt;raiz&gt;\recuperacao</c> só os órfãos cuja última gravação tem mais de 30 dias (nunca um mais novo, nunca um
+    /// diário vivo). Devolve quantos saíram; falha num arquivo não impede os outros.</summary>
+    public static int LimparOrfaosAntigos(string raizDados, DateTime agoraUtc)
+    {
+        var pasta = Path.Combine(raizDados, "recuperacao");
+        if (!Directory.Exists(pasta)) return 0;
+        var n = 0;
+        foreach (var f in Directory.EnumerateFiles(pasta, "*.orfao-*.jsonl"))
+        {
+            try
+            {
+                if (agoraUtc - File.GetLastWriteTimeUtc(f) <= IdadeOrfao) continue;
+                File.Delete(f);
+                n++;
+            }
+            catch (Exception e) when (Falha(e)) { }
+        }
+        return n;
+    }
 
     /// <summary>O diário está aberto e recebendo os registros.</summary>
     public bool Ativo => diario is not null;
@@ -22,6 +46,7 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
     public bool Iniciar(string pacote, string sha256Base, IEnumerable<RegistroHistorico> pendentes)
     {
         Fechar(guardar: true);
+        alvo = (pacote, sha256Base);
         try
         {
             var d = Diario.Iniciar(raizDados, pacote, sha256Base);
@@ -34,16 +59,29 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
         catch (Exception e) when (Falha(e)) { UltimoErro = e.Message; return false; }
     }
 
-    /// <summary>Acrescenta o registro (descarregado no disco). <c>false</c> se o diário não está aberto ou a escrita falhou.</summary>
-    public bool Registrar(RegistroHistorico r)
+    /// <summary>Acrescenta o registro (descarregado no disco). <c>false</c> se o diário não está aberto ou a escrita falhou. Com
+    /// <paramref name="pendentes"/> (todos os registros que o pacote ainda não tem, este incluído), um diário que não pôde começar (ou que
+    /// falhou numa escrita e foi fechado) é começado de novo com eles (T10-C2): nada fica só na memória por causa de uma falha passageira.</summary>
+    public bool Registrar(RegistroHistorico r, IReadOnlyList<RegistroHistorico>? pendentes = null)
     {
+        if (diario is null && pendentes is not null && alvo is { } a) return Iniciar(a.Pacote, a.Sha, pendentes);
         if (diario is not { } d)
         {
             UltimoErro ??= "o diário de recuperação não está aberto";
             return false;
         }
         try { d.Registrar(r); return true; }
-        catch (Exception e) when (Falha(e)) { UltimoErro = e.Message; return false; }
+        catch (Exception e) when (Falha(e))
+        {
+            UltimoErro = e.Message;
+            // Uma escrita pela metade deixaria o resto do arquivo ilegível: fecha (guardando) e o próximo registro recomeça com tudo.
+            if (pendentes is not null)
+            {
+                diario = null;
+                try { d.Dispose(); } catch (Exception e2) when (Falha(e2)) { }
+            }
+            return false;
+        }
     }
 
     /// <summary>O pacote foi gravado (em <paramref name="caminhoAgora"/>; igual a <paramref name="caminhoAntes"/> num Salvar, outro num
@@ -55,6 +93,8 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
         var mesmo = string.Equals(Path.GetFullPath(caminhoAntes), Path.GetFullPath(caminhoAgora), StringComparison.OrdinalIgnoreCase);
         var velho = diario;
         diario = null;
+        // Se algo abaixo falhar, o próximo registro tenta começar o diário do arquivo gravado, com o sha novo.
+        alvo = continuar ? (caminhoAgora, sha256Novo) : null;
         try
         {
             if (!continuar || mesmo)
@@ -76,6 +116,7 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
     {
         var d = diario;
         diario = null;
+        alvo = null;
         if (d is null) return;
         try { if (guardar) d.Dispose(); else d.Descartar(); }
         catch (Exception e) when (Falha(e)) { UltimoErro = e.Message; }
@@ -133,6 +174,21 @@ public static class TextosGravacao
 
     public static string SomenteLeituraSemTrava(string erro) =>
         $"Não foi possível travar o arquivo para edição ({erro.TrimEnd('.')}): somente leitura.";
+
+    /// <summary>A pergunta de fechar com alterações que não foram gravadas. Em conflito o diário não volta a ser oferecido (o arquivo no disco
+    /// é outra versão: na abertura ele vira órfão), então o texto não promete isso e indica Salvar como cópia.</summary>
+    public static string FecharSemGravar(string motivo, bool conflito) => conflito
+        ? $"Não foi possível gravar as alterações no arquivo: {motivo.TrimEnd('.')}. Salvar como cópia grava as suas alterações ao lado, sem mexer "
+          + "no arquivo. Se fechar sem salvar, elas ficam guardadas na pasta de recuperação dos dados do app, mas não serão oferecidas de novo ao "
+          + "abrir o arquivo (ele agora é outra versão)."
+        : $"Não foi possível gravar as alterações no arquivo: {motivo.TrimEnd('.')}. Se fechar sem salvar, elas ficam guardadas na recuperação: "
+          + "ao abrir este arquivo de novo, o app oferece recuperá-las.";
+
+    /// <summary>Exportar com alterações que o arquivo não tem e não pode receber agora (somente leitura ou conflito): o PDF e o recibo
+    /// (sha do pacote) não bateriam.</summary>
+    public static string ExportarSemGravar(bool conflito) => conflito
+        ? "O arquivo mudou no disco e as alterações desta sessão não estão nele: o PDF não corresponderia ao pacote do recibo. Use Salvar como cópia e exporte depois."
+        : "O relatório está somente para leitura e as alterações desta sessão não estão no arquivo: o PDF não corresponderia ao pacote do recibo. Use Salvar como para gravá-las num arquivo e exporte depois.";
 
     public const string TravaPerdida =
         "A trava de edição deste arquivo foi perdida (apagada ou retomada por outro programa): somente leitura. "

@@ -196,6 +196,77 @@ public class AutosaveTestes
         Assert.False(string.IsNullOrWhiteSpace(d.UltimoErro));
     }
 
+    // ---------- T10-C2: falha do diário é tentada de novo no comando seguinte ----------
+
+    [Fact]
+    public void iniciar_que_falhou_e_tentado_de_novo_no_registro_seguinte_com_todos_os_pendentes()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-retentar");
+        var bloqueio = Path.Combine(pasta, "recuperacao");
+        File.WriteAllText(bloqueio, "um arquivo no lugar da pasta");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        using var d = new DiarioDaSessao(pasta);
+        Assert.False(d.Iniciar(pacote, "sha1", []));
+        var r1 = Comando(s, "Titulo 1");
+        Assert.False(d.Registrar(r1, s.Pendentes)); // ainda bloqueado
+
+        File.Delete(bloqueio);
+        var r2 = Comando(s, "Titulo 2");
+        Assert.True(d.Registrar(r2, s.Pendentes));
+
+        Assert.True(d.Ativo);
+        Assert.Equal([r1.N, r2.N], Diario.Ler(pasta, pacote, "sha1")!.Registros.Select(r => r.N));
+    }
+
+    [Fact]
+    public void diario_que_nao_recomecou_depois_de_gravar_e_tentado_de_novo_com_o_sha_novo()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-retentar-depois");
+        var bloqueio = Path.Combine(pasta, "recuperacao");
+        File.WriteAllText(bloqueio, "um arquivo no lugar da pasta");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        using var d = new DiarioDaSessao(pasta);
+
+        Assert.False(d.DepoisDeGravar(pacote, pacote, "sha2", [], continuar: true));
+        File.Delete(bloqueio);
+        var r = Comando(s, "Titulo 1");
+        Assert.True(d.Registrar(r, s.Pendentes));
+
+        Assert.Equal([r.N], Diario.Ler(pasta, pacote, "sha2")!.Registros.Select(x => x.N));
+    }
+
+    // ---------- T10-C1: órfãos com mais de 30 dias saem na abertura do app ----------
+
+    [Fact]
+    public void limpeza_apaga_so_orfaos_com_mais_de_30_dias()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-orfaos");
+        var rec = Path.Combine(pasta, "recuperacao");
+        Directory.CreateDirectory(rec);
+        var agora = new DateTime(2026, 12, 31, 12, 0, 0, DateTimeKind.Utc);
+        string Criar(string nome, double dias)
+        {
+            var c = Path.Combine(rec, nome);
+            File.WriteAllText(c, "{}");
+            File.SetLastWriteTimeUtc(c, agora.AddDays(-dias));
+            return c;
+        }
+        var velho = Criar("aaa.orfao-20261101120000.jsonl", 31);
+        var novo = Criar("bbb.orfao-20261205120000.jsonl", 29);
+        var quase = Criar("ccc.orfao-20261201120000-2.jsonl", 29.9);
+        var vivo = Criar("ddd.jsonl", 90); // diário (não órfão): nunca sai pela idade
+
+        Assert.Equal(1, DiarioDaSessao.LimparOrfaosAntigos(pasta, agora));
+
+        Assert.False(File.Exists(velho));
+        Assert.True(File.Exists(novo));
+        Assert.True(File.Exists(quase));
+        Assert.True(File.Exists(vivo));
+        Assert.Equal(0, DiarioDaSessao.LimparOrfaosAntigos(Path.Combine(pasta, "nao-existe"), agora));
+    }
+
     // ---------- decisão na abertura ----------
 
     [Fact]
@@ -290,5 +361,24 @@ public class AutosaveTestes
         Assert.Equal($"Aberto por maria em PC-OBRAS desde {inicio.ToLocalTime():HH:mm}: somente leitura.", TextosGravacao.SomenteLeituraOcupada(t));
         var desconhecida = new InfoTrava("?", "?", 0, inicio, inicio);
         Assert.Equal("Aberto em outra janela ou por outro usuário (a trava não pôde ser lida): somente leitura.", TextosGravacao.SomenteLeituraOcupada(desconhecida));
+    }
+
+    [Fact]
+    public void fechar_sem_gravar_so_promete_recuperacao_quando_ela_vai_ser_oferecida()
+    {
+        var comum = TextosGravacao.FecharSemGravar("disco cheio.", conflito: false);
+        Assert.Contains("disco cheio", comum);
+        Assert.Contains("o app oferece recuperá-las", comum);
+        var conflito = TextosGravacao.FecharSemGravar("o arquivo mudou no disco depois de aberto", conflito: true);
+        Assert.DoesNotContain("oferece recuperá-las", conflito);
+        Assert.Contains("não serão oferecidas de novo", conflito);
+        Assert.Contains("Salvar como cópia", conflito);
+    }
+
+    [Fact]
+    public void exportar_sem_gravar_aponta_a_saida()
+    {
+        Assert.Contains("Salvar como", TextosGravacao.ExportarSemGravar(conflito: false));
+        Assert.Contains("Salvar como cópia", TextosGravacao.ExportarSemGravar(conflito: true));
     }
 }

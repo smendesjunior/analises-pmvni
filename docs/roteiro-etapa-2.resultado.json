@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-11-15T06:15:52Z",
+  "gerado_em": "2026-11-15T06:26:43Z",
   "webview2": "157.0.4341.46",
   "escala_do_monitor": 1.5,
   "janela_px": {
@@ -16,7 +16,7 @@
       "folhas_que_transbordam_na_tela": [],
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "titulo_confere": true,
-      "estado_de_gravacao": "Salvo 03:15",
+      "estado_de_gravacao": "Salvo 03:26",
       "composicao": "Composto: 21 folhas",
       "itens_na_lista": 77,
       "primeiros_itens": [
@@ -32,7 +32,7 @@
       "aviso_largura_confere": true,
       "exportar_habilitado": true,
       "rodape_folha": "folha 1 de 21",
-      "latencia_recomposicao_ms": 914,
+      "latencia_recomposicao_ms": 929,
       "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
       "folhas_com_conteudo_alem_da_borda": [
         14
@@ -383,12 +383,12 @@
       "fechado_sem_relatorio": true,
       "plano_igual_ao_da_importacao": true,
       "historico": 1,
-      "estado_de_gravacao": "Salvo 03:15",
+      "estado_de_gravacao": "Salvo 03:26",
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "ok": true
     },
     "12_salvar_duas_vezes_sem_conflito": {
-      "estado_de_gravacao": "Salvo 03:16",
+      "estado_de_gravacao": "Salvo 03:27",
       "disco_confere": true,
       "aviso_de_erro": false,
       "exporta_depois": true,
@@ -452,9 +452,9 @@
       "registros_desfeito": 4,
       "registros_refeito": 4,
       "historico_na_tela": [
-        "03:16 · smendesjunior · Refeito: Excluído o ITEM 05",
-        "03:16 · smendesjunior · Refeito: Justificativa do ITEM 03 definida",
-        "03:16 · smendesjunior · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
+        "03:27 · smendesjunior · Refeito: Excluído o ITEM 05",
+        "03:27 · smendesjunior · Refeito: Justificativa do ITEM 03 definida",
+        "03:27 · smendesjunior · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
       ],
       "linhas_do_historico": "13 na tela, 13 no histórico",
       "item_05_excluido_de_novo": true,
@@ -495,13 +495,13 @@
     },
     "19_latencia": {
       "medidas_ms": [
-        500,
-        473,
-        465,
-        458,
-        485
+        738,
+        504,
+        514,
+        631,
+        504
       ],
-      "latencia_ms": 473,
+      "latencia_ms": 514,
       "meta_ms": 1500,
       "dentro_da_meta": true,
       "ok": true
@@ -521,8 +521,8 @@
     "21_autosave": {
       "estado_depois_do_comando": "Não salvo",
       "diario_tem_o_registro": true,
-      "salvo_sozinho_em_s": 15.3,
-      "estado_de_gravacao": "Salvo 03:17",
+      "salvo_sozinho_em_s": 15.5,
+      "estado_de_gravacao": "Salvo 03:27",
       "pacote_tem_o_registro": true,
       "linhas_do_diario": 1,
       "diario_so_com_o_cabecalho_do_sha_novo": true,
@@ -537,7 +537,7 @@
       "sem_tmp_deixado": true,
       "diario_tem_o_registro": true,
       "solto_grava": true,
-      "estado_de_gravacao": "Salvo 03:17",
+      "estado_de_gravacao": "Salvo 03:27",
       "pacote_tem_o_registro": true,
       "ok": true
     },
@@ -556,15 +556,17 @@
     "24_trava_e_somente_leitura": {
       "trava_solta_ao_fechar": true,
       "estado_de_gravacao": "Somente leitura",
-      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 03:07: somente leitura.",
+      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 03:17: somente leitura.",
       "excluir_habilitado": false,
       "salvar_habilitado": false,
       "nada_mudou": true,
       "trava_do_outro_intacta": true,
-      "estado_com_trava_abandonada": "Salvo 03:17",
+      "estado_com_trava_abandonada": "Salvo 03:27",
       "excluir_habilitado_editavel": true,
       "trava_retomada_por_este_app": true,
       "trava_perdida_vira_somente_leitura": true,
+      "exportar_sem_trava_recusado": true,
+      "mensagem_exportar_sem_trava": "O relatório está somente para leitura e as alterações desta sessão não estão no arquivo: o PDF não corresponderia ao pacote do recibo. Use Salvar como para gravá-las num arquivo e exporte depois.",
       "perguntou_ao_fechar": true,
       "recuperou_depois_de_fechar_sem_salvar": true,
       "ok": true
@@ -575,15 +577,19 @@
       "infobar_conflito": true,
       "disco_com_os_bytes_do_outro": true,
       "exportar_recusa": true,
-      "erro_ao_exportar": "O arquivo mudou desde que foi aberto; reabra antes de exportar.",
-      "copia": "curto-auto (cópia 2026-11-15 03-17).pmvrel",
+      "erro_ao_exportar": "O arquivo mudou no disco e as alterações desta sessão não estão nele: o PDF não corresponderia ao pacote do recibo. Use Salvar como cópia e exporte depois.",
+      "copia": "curto-auto (cópia 2026-11-15 03-27).pmvrel",
       "copia_tem_as_alteracoes": true,
       "original_continua_o_do_outro": true,
-      "estado_depois_da_copia": "Salvo 03:17",
+      "estado_depois_da_copia": "Salvo 03:27",
       "trava_passou_para_a_copia": true,
       "recarregou": true,
       "requerente_depois_de_recarregar": "OUTRO PROGRAMA DE NOVO",
       "orfao_guardado": true,
+      "pergunta_ao_fechar_em_conflito": "fechar sem gravar (conflito): o arquivo mudou no disco depois de aberto",
+      "texto_ao_fechar_em_conflito": "Não foi possível gravar as alterações no arquivo: o arquivo mudou no disco depois de aberto. Salvar como cópia grava as suas alterações ao lado, sem mexer no arquivo. Se fechar sem salvar, elas ficam guardadas na pasta de recuperação dos dados do app, mas não serão oferecidas de novo ao abrir o arquivo (ele agora é outra versão).",
+      "copia_ao_fechar": "curto-auto (cópia 2026-11-15 03-27) (cópia 2026-11-15 03-27).pmvrel",
+      "fechar_em_conflito_salva_copia": true,
       "ok": true
     }
   },
@@ -592,7 +598,8 @@
     "recuperar 2",
     "fechar sem gravar: A trava de edição deste arquivo foi perdida (apagada ou retomada por outro programa): somente leitura. As alterações que ainda não estavam no arquivo continuam no diário de recuperação; use Salvar como para guardá-las.",
     "recuperar 1",
-    "confirmar Recarregar do disco?"
+    "confirmar Recarregar do disco?",
+    "fechar sem gravar (conflito): o arquivo mudou no disco depois de aberto"
   ],
   "falhas": [],
   "ok": true

@@ -60,7 +60,8 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         {
             if (Estado is EstadoGravacao.Salvo) DefinirEstado(EstadoGravacao.NaoSalvo);
             // Disco cheio ou pasta sem escrita: a janela mostra (nunca engolido); o pacote ainda pode ser gravado.
-            if (!diario.Registrar(r)) FalhaNoDiario?.Invoke(diario.UltimoErro ?? "erro desconhecido");
+            // Com os pendentes: um diário que não pôde começar (ou falhou numa escrita) recomeça aqui com tudo (T10-C2).
+            if (!diario.Registrar(r, Revisao.Pendentes)) FalhaNoDiario?.Invoke(diario.UltimoErro ?? "erro desconhecido");
         };
         Estado = SomenteLeitura ? EstadoGravacao.SomenteLeitura : EstadoGravacao.Salvo;
         SalvoEmLocal = aberto.Disco.GravadoUtc.ToLocalTime();

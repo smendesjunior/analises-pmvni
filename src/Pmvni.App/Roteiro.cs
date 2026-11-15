@@ -31,7 +31,13 @@ internal sealed class PerguntasFixas : IPerguntas
     public List<(string Titulo, string Texto)> Informados { get; } = [];
     public Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos) { Feitas.Add($"recuperar {comandos}"); return Task.FromResult(Recuperacao); }
     public RespostaFechar Fechar { get; set; } = RespostaFechar.FecharSemSalvar;
-    public Task<RespostaFechar> FecharSemGravarAsync(string motivo) { Feitas.Add("fechar sem gravar: " + motivo); return Task.FromResult(Fechar); }
+    public Task<RespostaFechar> FecharSemGravarAsync(string motivo, bool conflito)
+    {
+        Feitas.Add("fechar sem gravar" + (conflito ? " (conflito)" : "") + ": " + motivo);
+        Fechamentos.Add(TextosGravacao.FecharSemGravar(motivo, conflito));
+        return Task.FromResult(Fechar);
+    }
+    public List<string> Fechamentos { get; } = [];
 }
 
 /// <summary>Modo de diagnóstico <c>--roteiro &lt;saida.json&gt;</c>: exercita o shell e o módulo Relatórios pelos mesmos caminhos dos
@@ -906,6 +912,14 @@ internal static class Roteiro
             var perdida = !bateu && e.SomenteLeitura && j.TextoEstadoAtual == "Somente leitura" && j.InfoSomenteLeitura.IsOpen
                 && j.InfoSomenteLeitura.Message == TextosGravacao.TravaPerdida && !j.FaixaAtual.Habilitado(ComandosApp.InicioExcluirRestaurar);
             p["trava_perdida_vira_somente_leitura"] = perdida;
+            // Exportar com alterações que o arquivo não tem (e não pode receber): recusado, apontando Salvar como.
+            var pdfSemTrava = Path.Combine(pasta, "curto-auto-sem-trava.pdf");
+            File.Delete(pdfSemTrava);
+            var (exportouSemTrava, _, erroSemTrava, excSemTrava) = await j.ExportarParaAsync(pdfSemTrava);
+            var exportarRecusado = !exportouSemTrava && excSemTrava is ExportacaoDivergenteException && erroSemTrava == TextosGravacao.ExportarSemGravar(false)
+                && !File.Exists(pdfSemTrava) && !File.Exists(Exportador.CaminhoReciboDe(pdfSemTrava));
+            p["exportar_sem_trava_recusado"] = exportarRecusado;
+            p["mensagem_exportar_sem_trava"] = erroSemTrava;
             var feitas = perguntas.Feitas.Count;
             if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou depois de perder a trava");
             var perguntouAoFechar = perguntas.Feitas.Skip(feitas).Any(f => f.StartsWith("fechar sem gravar", StringComparison.Ordinal));
@@ -920,7 +934,7 @@ internal static class Roteiro
             p["recuperou_depois_de_fechar_sem_salvar"] = recuperou;
             var gravou = await j.GravarAgoraAsync();
             p["ok"] = p["trava_solta_ao_fechar"]!.GetValue<bool>() && somenteLeitura && aviso && !excluirSomente && !salvarSomente && nadaMudou && doOutro
-                && editavel && perdida && perguntouAoFechar && recuperou && gravou;
+                && editavel && perdida && exportarRecusado && perguntouAoFechar && recuperou && gravou;
         });
 
         await Passo("25_conflito_nao_sobrescreve", async p =>
@@ -946,7 +960,7 @@ internal static class Roteiro
             var pdf = Path.Combine(pasta, "curto-auto-conflito.pdf");
             File.Delete(pdf);
             var (exportou, _, erroExportar, excecao) = await j.ExportarParaAsync(pdf);
-            var exportarRecusa = !exportou && excecao is ExportacaoDivergenteException && !File.Exists(pdf);
+            var exportarRecusa = !exportou && excecao is ExportacaoDivergenteException && !File.Exists(pdf) && erroExportar == TextosGravacao.ExportarSemGravar(true);
             p["exportar_recusa"] = exportarRecusa;
             p["erro_ao_exportar"] = erroExportar;
 
@@ -983,7 +997,33 @@ internal static class Roteiro
             p["orfao_guardado"] = Orfaos() == orfaosAntes + 1;
             var recarregarOk = conflitoDeNovo && recarregou && requerente == "OUTRO PROGRAMA DE NOVO" && r!.Estado == EstadoGravacao.Salvo
                 && Orfaos() == orfaosAntes + 1 && !j.InfoConflito.IsOpen;
-            p["ok"] = !gravou && conflito && intacto && exportarRecusa && copiaOk && recarregarOk;
+            // Fechar em conflito: a pergunta não promete a recuperação (o arquivo é outra versão) e a saída principal é Salvar como cópia.
+            var aberto = r!.Caminho;
+            var terceiro = Pacote.Ler(aberto);
+            terceiro.Conteudo.Projeto.Documento["capa"]!["requerente"] = "OUTRO PROGRAMA PELA TERCEIRA VEZ";
+            Pacote.Gravar(aberto, terceiro.Conteudo, terceiro.Disco);
+            const string TituloAoFechar = "Título salvo na cópia ao fechar em conflito";
+            await j.AplicarAsync(new DefinirCampo(r.Revisao.Projeto.Incluidos[2].Id, "titulo", TituloAoFechar));
+            var regFechar = r.Revisao.HistoricoCompleto[^1];
+            var conflitoAoFechar = !await j.GravarAgoraAsync() && r.Estado == EstadoGravacao.Conflito;
+            var feitas = perguntas.Feitas.Count;
+            var copiasAntes = Directory.GetFiles(pasta, Path.GetFileNameWithoutExtension(aberto) + " (cópia *.pmvrel").ToHashSet();
+            perguntas.Fechar = RespostaFechar.SalvarCopia;
+            bool fechou;
+            try { fechou = await j.FecharSessaoAsync(); }
+            finally { perguntas.Fechar = RespostaFechar.FecharSemSalvar; }
+            var perguntaConflito = perguntas.Feitas.Skip(feitas).FirstOrDefault(f => f.StartsWith("fechar sem gravar", StringComparison.Ordinal));
+            var textoConflito = perguntas.Fechamentos.LastOrDefault() ?? "";
+            var novaCopia = Directory.GetFiles(pasta, Path.GetFileNameWithoutExtension(aberto) + " (cópia *.pmvrel").Where(c => !copiasAntes.Contains(c)).ToList();
+            var copiaAoFechar = novaCopia.Count == 1 && Pacote.Ler(novaCopia[0]).Conteudo.Historico.Any(x => x.N == regFechar.N);
+            p["pergunta_ao_fechar_em_conflito"] = perguntaConflito;
+            p["texto_ao_fechar_em_conflito"] = textoConflito;
+            p["copia_ao_fechar"] = novaCopia.Count == 1 ? Path.GetFileName(novaCopia[0]) : null;
+            var fecharOk = conflitoAoFechar && fechou && j.Sessao is null && perguntaConflito?.StartsWith("fechar sem gravar (conflito)", StringComparison.Ordinal) == true
+                && !textoConflito.Contains("oferece recuperá-las", StringComparison.Ordinal) && textoConflito.Contains("não serão oferecidas de novo", StringComparison.Ordinal)
+                && copiaAoFechar;
+            p["fechar_em_conflito_salva_copia"] = fecharOk;
+            p["ok"] = !gravou && conflito && intacto && exportarRecusa && copiaOk && recarregarOk && fecharOk;
         });
 
         await j.FecharSessaoAsync();

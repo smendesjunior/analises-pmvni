@@ -9,7 +9,7 @@ namespace Pmvni.App;
 public enum RespostaRecuperacao { Recuperar, Descartar }
 
 /// <summary>Resposta à pergunta de fechar quando a gravação falhou (Tarefa 10).</summary>
-public enum RespostaFechar { SalvarComo, FecharSemSalvar, Cancelar }
+public enum RespostaFechar { SalvarComo, SalvarCopia, FecharSemSalvar, Cancelar }
 
 /// <summary>Tudo o que o app pergunta ao usuário (seletores de arquivo e diálogos). O roteiro troca <see cref="Perguntas.Atual"/>
 /// por respostas fixas: nenhuma janela modal fica esperando quem não está olhando.</summary>
@@ -29,8 +29,9 @@ internal interface IPerguntas
     Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos);
 
     /// <summary>Fechar com alterações que não puderam ser gravadas (<paramref name="motivo"/>): "Salvar como…", "Fechar sem salvar (a
-    /// recuperação fica guardada)" ou "Cancelar".</summary>
-    Task<RespostaFechar> FecharSemGravarAsync(string motivo);
+    /// recuperação fica guardada)" ou "Cancelar". Em <paramref name="conflito"/>: "Salvar como cópia" (principal), "Fechar sem salvar"
+    /// (fica na pasta de recuperação, sem ser oferecida de novo) ou "Cancelar".</summary>
+    Task<RespostaFechar> FecharSemGravarAsync(string motivo, bool conflito);
 }
 
 internal static class Perguntas
@@ -92,15 +93,14 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         return r == ContentDialogResult.Primary ? RespostaRecuperacao.Recuperar : RespostaRecuperacao.Descartar;
     }
 
-    public async Task<RespostaFechar> FecharSemGravarAsync(string motivo)
+    public async Task<RespostaFechar> FecharSemGravarAsync(string motivo, bool conflito)
     {
-        var d = Dialogo("As alterações não foram gravadas",
-            $"Não foi possível gravar as alterações no arquivo: {motivo.TrimEnd('.')}. Se fechar sem salvar, elas ficam guardadas na recuperação: "
-            + "ao abrir este arquivo de novo, o app oferece recuperá-las.", "Salvar como…", "Cancelar");
-        d.SecondaryButtonText = "Fechar sem salvar (a recuperação fica guardada)";
+        var d = Dialogo("As alterações não foram gravadas", TextosGravacao.FecharSemGravar(motivo, conflito),
+            conflito ? "Salvar como cópia" : "Salvar como…", "Cancelar");
+        d.SecondaryButtonText = conflito ? "Fechar sem salvar (fica na pasta de recuperação)" : "Fechar sem salvar (a recuperação fica guardada)";
         return await d.ShowAsync() switch
         {
-            ContentDialogResult.Primary => RespostaFechar.SalvarComo,
+            ContentDialogResult.Primary => conflito ? RespostaFechar.SalvarCopia : RespostaFechar.SalvarComo,
             ContentDialogResult.Secondary => RespostaFechar.FecharSemSalvar,
             _ => RespostaFechar.Cancelar,
         };

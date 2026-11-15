@@ -218,7 +218,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal Task MudarModuloAsync(Modulo m)
     {
         if (!Faixas.Disponiveis.Contains(m)) throw new ArgumentOutOfRangeException(nameof(m), m, "Módulo indisponível.");
-        // Trocar de módulo grava o que falta (na fila de comandos, como todo Salvar).
+        // Trocar de módulo grava o que falta (na fila de comandos, como todo Salvar). Seguro sem await: GravarNaVezAsync trata toda
+        // exceção (InfoBar de erro ou de conflito) e devolve false.
         if (m != moduloAtual && sessao is { Estado: EstadoGravacao.NaoSalvo }) _ = GravarAgoraAsync();
         if (m != moduloAtual || Faixa.Definicao?.Modulo != m) MontarModulo(m);
         return Task.CompletedTask;
@@ -623,6 +624,15 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (sessao?.Atual is not { } r) return (false, null, "Nenhum relatório aberto.", null);
         if (ocupado || aplicando) { AvisarOcupado(); return (false, null, "A janela está ocupada.", null); }
+        // Alterações que o arquivo não tem e não pode receber agora (trava perdida, conflito): o PDF viria da memória e o recibo levaria
+        // o sha de um pacote sem elas. Recusa e aponta Salvar como / Salvar como cópia.
+        if (sessao.TemAlteracoesNaoGravadas && (sessao.SomenteLeitura || sessao.Estado == EstadoGravacao.Conflito))
+        {
+            var semGravar = new ExportacaoDivergenteException(TextosGravacao.ExportarSemGravar(sessao.Estado == EstadoGravacao.Conflito));
+            if (sessao.Estado == EstadoGravacao.Conflito) MostrarConflito();
+            MostrarMensagem(InfoBarSeverity.Error, "Exportação recusada", semGravar.Message);
+            return (false, null, semGravar.Message, semGravar);
+        }
         var avisos = r.Preparado.AvisosExportacao;
         if (r.Preparado.ErrosFinais.Count == 0 && avisos.Count > 0
             && !await Perguntas.Atual.ConfirmarAsync("Exportar com avisos?", string.Join(Environment.NewLine, avisos), "Exportar", "Cancelar"))

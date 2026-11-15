@@ -36,6 +36,12 @@ public sealed partial class MainWindow
         batimento.Tick += async (_, _) => await BaterAsync();
         R.BotaoSalvarCopia.Click += async (_, _) => await SalvarCopiaDeConflitoAsync();
         R.BotaoRecarregar.Click += async (_, _) => await RecarregarAsync();
+        // T10-C1: órfãos do diário com mais de 30 dias saem na abertura do app (fora da thread da interface; falha só não limpa).
+        _ = Task.Run(() =>
+        {
+            try { DiarioDaSessao.LimparOrfaosAntigos(Pmvni.Composicao.Web.PastaDados.Raiz, DateTime.UtcNow); }
+            catch (Exception e) { System.Diagnostics.Debug.WriteLine("[órfãos] " + e.Message); }
+        });
     }
 
     void PararTemporizadores()
@@ -95,13 +101,18 @@ public sealed partial class MainWindow
             }
             if (s.TemAlteracoesNaoGravadas)
             {
-                switch (await Perguntas.Atual.FecharSemGravarAsync(motivo.Length > 0 ? motivo : "erro desconhecido"))
+                // Em conflito o diário não será oferecido de novo (o arquivo é outra versão): a pergunta diz isso e oferece a cópia.
+                var conflito = s.Estado == EstadoGravacao.Conflito;
+                switch (await Perguntas.Atual.FecharSemGravarAsync(motivo.Length > 0 ? motivo : "erro desconhecido", conflito))
                 {
                     case RespostaFechar.Cancelar:
                         return false;
                     case RespostaFechar.SalvarComo:
                         await SalvarComoAsync();
                         if (!ReferenceEquals(sessao, s) || s.TemAlteracoesNaoGravadas) return false;
+                        break;
+                    case RespostaFechar.SalvarCopia:
+                        if (!await SalvarCopiaDeConflitoAsync() || !ReferenceEquals(sessao, s) || s.TemAlteracoesNaoGravadas) return false;
                         break;
                     case RespostaFechar.FecharSemSalvar:
                         if (!s.DiarioAtivo)
@@ -182,7 +193,7 @@ public sealed partial class MainWindow
         else R.AvisoSomenteLeitura.IsOpen = false;
         AtualizarPropriedades();
         AtualizarComandos();
-        // A página deixa de aceitar edição no A4 (ou volta a aceitar).
+        // A página deixa de aceitar edição no A4 (ou volta a aceitar). Seguro sem await: EnviarEstadoAsync registra e engole o próprio erro.
         _ = NaFilaAsync(() => sessao?.EnviarEstadoAsync() ?? Task.CompletedTask);
     }
 
@@ -198,8 +209,17 @@ public sealed partial class MainWindow
     void MostrarFalhaNoDiario(string motivo)
     {
         if (fechada) return;
-        R.AvisoDiario.Message = motivo.TrimEnd('.') + ". Salve o relatório (Ctrl+S) para não depender dele: até lá, uma queda do app pode perder as alterações não gravadas.";
+        R.AvisoDiario.Message = motivo.TrimEnd('.') + ". O app tenta gravar o relatório agora e recomeçar o diário no próximo comando; até lá, uma queda do app pode perder as alterações não gravadas.";
         R.AvisoDiario.IsOpen = true;
+        // T10-C2: o que só está na memória vai já para o arquivo. Só com alterações pendentes (uma falha logo depois de gravar não grava de
+        // novo, então não há laço). Fora da vez atual da fila: a falha chega no meio de um comando (Registrado) ou de uma gravação, e a
+        // gravação tem de esperar a vez deles; o fluxo do contexto (a vez da fila, AsyncLocal) não segue para o callback.
+        if (sessao is { Estado: EstadoGravacao.NaoSalvo, SomenteLeitura: false, TemAlteracoesNaoGravadas: true })
+        {
+            using (ExecutionContext.SuppressFlow())
+                // Seguro sem await: GravarNaVezAsync trata toda exceção (InfoBar) e devolve false.
+                DispatcherQueue.TryEnqueue(() => _ = GravarAgoraAsync());
+        }
     }
 
     void AoVoltarODiario() { if (!fechada) R.AvisoDiario.IsOpen = false; }
