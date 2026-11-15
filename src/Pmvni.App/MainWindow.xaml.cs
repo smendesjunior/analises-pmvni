@@ -71,6 +71,24 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal Trilho TrilhoAtual => TrilhoModulos;
     internal bool PainelVisivel => R.PainelNavegacao.Visibility == Visibility.Visible;
 
+    [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    static extern uint ExtractIconExW(string arquivo, int indice, out IntPtr grande, out IntPtr pequeno, uint quantos);
+
+    /// <summary>Ícone do app (Recursos\app.ico, embutido no executável) também na janela e na barra de tarefas.</summary>
+    private void AplicarIconeDaJanela()
+    {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (exe is null || ExtractIconExW(exe, 0, out var grande, out _, 1) == 0 || grande == IntPtr.Zero) return;
+            AppWindow.SetIcon(Microsoft.UI.Win32Interop.GetIconIdFromIcon(grande));
+        }
+        catch (Exception e)
+        {
+            RegistroErros.Gravar("icone", e);
+        }
+    }
+
     /// <summary>Brasão da Prefeitura na barra de título: a variante de texto escuro no tema claro e a de texto claro no tema escuro
     /// (recursos embutidos no executável, sem arquivo ao lado).</summary>
     private void AplicarBrasao()
@@ -119,6 +137,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.AreaCentral.SizeChanged += (_, _) => { if (modoZoom != "manual") reajuste.Start(); };
         Raiz.ActualThemeChanged += (_, _) => { AplicarTemaWeb(); AplicarBrasao(); };
         AplicarBrasao();
+        AplicarIconeDaJanela();
 
         RegistrarManipuladores();
         RegistrarManipuladoresRevisao();
