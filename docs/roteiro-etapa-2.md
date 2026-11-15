@@ -200,8 +200,8 @@ esperado e, se não for (o anterior falhou), refazem-no pelo próprio app (exclu
 `estado_refeito`; o 52 refaz o que o 51 deixa (0001 escolhido, 4 anexos e destinos). Os outros passos já importam ou abrem o próprio
 pacote. O `tools\roteiro.ps1` apaga o `bin\` e o `obj\` que o `dotnet publish` do agente falso deixa em `tests\AgenteFalso`, para nada
 ficar fora de `tests\saida`. A conferência "nada gravado fora" percorre o repositório e só aceita `tests\saida\roteiro`,
-`tests\saida\dados-app` e `tests\saida\agente-falso`; ignora só, na raiz, o `.git` e o `.superpowers` (progresso e relatórios dos agentes
-de desenvolvimento, que podem ser gravados enquanto o roteiro roda), o `web\paginador\node_modules` e o `desktop.ini` do OneDrive.
+`tests\saida\dados-app` e `tests\saida\agente-falso`; ignora só, na raiz, o `.git`, o `.superpowers` e o `.claude` (progresso, relatórios e
+worktrees dos agentes de desenvolvimento, que podem ser gravados enquanto o roteiro roda), o `web\paginador\node_modules` e o `desktop.ini` do OneDrive.
 As fotografias de atributos (anexos dos passos 51–56 e 64, originais da legislação) ignoram os bits de placeholder do OneDrive (fixado, não
 fixado, recuperar ao abrir/acessar): `tests\saida` fica no OneDrive e ele os muda sozinho; conteúdo, tamanho, datas e os demais atributos
 continuam conferidos.)

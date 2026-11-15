@@ -70,7 +70,7 @@ O nome do arquivo e do `.exe` continua sem acentos (`Editor de Relatorios PMVNI`
 
 Tudo abaixo foi rodado nesta entrega (15/11/2026).
 
-- **Testes automáticos** (`tools\build-release.ps1`, `dotnet test` da solução em Release): **991 testes, todos aprovados** na rodada final (59 da montagem do relatório, 493 da revisão, dos despachos e da lógica do app, 132 da legislação, 142 dos agentes e 165 da tela, do paginador, da exportação, do leitor e da segurança). Algumas rodadas anteriores do mesmo dia tiveram uma falha isolada em testes que dependem do relógio ou do OneDrive (registradas no relatório da tarefa); cada um passou sozinho e a rodada inteira seguinte saiu verde.
+- **Testes automáticos** (`tools\build-release.ps1`, `dotnet test` da solução em Release): **1.004 testes, todos aprovados** na rodada final (onda final de correções: 60 da montagem do relatório, 497 da revisão, dos despachos e da lógica do app, 133 da legislação, 149 dos agentes e 165 da tela, do paginador, da exportação, do leitor e da segurança). Algumas rodadas anteriores do mesmo dia tiveram uma falha isolada em testes que dependem do relógio ou do OneDrive (registradas no relatório da tarefa); cada um passou sozinho e a rodada inteira seguinte saiu verde.
 - **Autoteste do executável final**: aprovado (2 rodadas, ok, sem administrador); o PDF.js embutido confere com o `VERSAO.json` (283 arquivos, 4,75 MB). Executável: 89,1 MB. A limpeza do build liberou 999 MB no projeto e 410 MB em extrações antigas.
 - **Roteiro da tela** (`docs\roteiro-etapa-2.md`, resultado em `docs\roteiro-etapa-2.resultado.json`): **64 passos, todos
   aprovados** (`ok: true`, nenhuma falha), com o executável final, aberto fora do pacote do Claude. O último, `64_fluxo_completo`, faz o

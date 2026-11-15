@@ -3371,6 +3371,8 @@ internal static class Roteiro
                 && avisoLeg.IsOpen && avisoLeg.Message == resumo && avisoLeg.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning
                 && j.LeitorLegislacao.ProgressoAnexo.Visibility == Visibility.Collapsed;
             p["no_modulo_legislacao"] = new JsonObject { ["segundo_clique"] = segundo, ["andamento"] = andamentoNaLegislacao, ["ok"] = naLegislacao };
+            // Passos independentes: a InfoBar do resumo sai (aberta, ela muda a altura do leitor quando outro passo a fechar, e o PDF.js refaz a página).
+            avisoLeg.IsOpen = false;
             if (moduloAntes != Modulo.Legislacao) await j.MudarModuloAsync(moduloAntes);
             p["resumo"] = resumo;
             var linhas = j.LinhasLegislacaoAjustes;
@@ -3903,11 +3905,22 @@ internal static class Roteiro
             await j.DigitarPesquisaAsync("");
             await j.ExecutarComandoAsync(ComandosApp.LegislacaoPaginaInteira);
             var temTexto = await EsperarTextoDaPagina(2);
-            var selecionou = temTexto && (await SelecionarNoLeitor(2, "O afastamento frontal", 2, "3,00 m.")).GetBoolean();
-            await EsperarAteAsync(() => Task.FromResult(j.FaixaAtual.Habilitado(ComandosApp.LegislacaoCopiarCitacao)), 3000);
+            // O PDF.js pode refazer a camada de texto da página depois de "Página inteira" (a escala nova chega depois do texto antigo): a seleção
+            // feita nesse meio some. Seleciona de novo (até 3 vezes) até a faixa habilitar Copiar citação.
+            var selecionou = false;
+            var habilitouCitar = false;
+            var tentativasSelecao = 0;
+            while (temTexto && !habilitouCitar && tentativasSelecao < 3)
+            {
+                tentativasSelecao++;
+                selecionou = (await SelecionarNoLeitor(2, "O afastamento frontal", 2, "3,00 m.")).GetBoolean();
+                habilitouCitar = selecionou && await EsperarAteAsync(() => Task.FromResult(j.FaixaAtual.Habilitado(ComandosApp.LegislacaoCopiarCitacao)), 3000);
+            }
+            p["tentativas_de_selecao"] = tentativasSelecao;
             await j.ExecutarComandoAsync(ComandosApp.LegislacaoCopiarCitacao);
             var citacao = AreaTransferencia.Copiados.LastOrDefault();
             p["citacao"] = citacao;
+            p["citacao_diagnostico"] = new JsonObject { ["tem_texto"] = temTexto, ["selecionou"] = selecionou, ["copiar_citacao_habilitado"] = habilitouCitar, ["estado"] = j.EstadoDosComandosLegislacao };
             Conf("copiar_citacao", selecionou && citacao == "“O afastamento frontal mínimo é de 3,00 m.” (Lei nº 9.999/2099 (fictícia), página 2)");
             await JsLeitor("document.getSelection().removeAllRanges(), true");
 
@@ -4045,14 +4058,15 @@ internal static class Roteiro
     static FileAttributes SemNuvem(FileAttributes a) => a & ~(FileAttributes)(0x00040000 | 0x00080000 | 0x00100000 | 0x00400000);
 
     /// <summary>Arquivos do repositório gravados desde <paramref name="desde"/> fora das pastas permitidas (tests\saida\roteiro, dados-app e
-    /// agente-falso). Ficam de fora só, na raiz do repositório, o .git e o .superpowers (relatórios e progresso que os agentes de desenvolvimento
-    /// escrevem enquanto o roteiro roda; o app nunca escreve ali), o web\paginador\node_modules e o desktop.ini do OneDrive. Nenhuma exclusão por
+    /// agente-falso). Ficam de fora só, na raiz do repositório, o .git, o .superpowers e o .claude (relatórios, progresso e worktrees que os agentes
+    /// de desenvolvimento escrevem enquanto o roteiro roda; o app nunca escreve ali), o web\paginador\node_modules e o desktop.ini do OneDrive. Nenhuma exclusão por
     /// nome em outro nível (um bin ou obj gravado durante o roteiro aparece: o tools\roteiro.ps1 publica o agente falso antes de abrir o app).</summary>
     static List<string> EscritasFora(string raiz, DateTime desde, IReadOnlyList<string> permitidas)
     {
         var achados = new List<string>();
         var pendentes = new Stack<string>([raiz]);
-        var ignoradas = new[] { Path.Combine(raiz, ".git"), Path.Combine(raiz, ".superpowers"), Path.Combine(raiz, "web", "paginador", "node_modules") };
+        // .claude na raiz: as worktrees e a memória dos agentes de desenvolvimento (outro agente pode compilar nela enquanto o roteiro roda).
+        var ignoradas = new[] { Path.Combine(raiz, ".git"), Path.Combine(raiz, ".superpowers"), Path.Combine(raiz, ".claude"), Path.Combine(raiz, "web", "paginador", "node_modules") };
         while (pendentes.Count > 0)
         {
             var dir = pendentes.Pop();

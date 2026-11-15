@@ -316,7 +316,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         EntrarNoModuloDePastas(m);
         SincronizarPastas();
         AtualizarComandos();
-        if (m == Modulo.Legislacao) Soltar(EntrarNaLegislacaoAsync);
+        // Na fila (logo depois do comando que trocou de módulo, antes dos seguintes): a lista e o leitor ficam prontos na ordem dos comandos.
+        if (m == Modulo.Legislacao) Soltar(() => NaFilaAsync(EntrarNaLegislacaoAsync));
         if (ajustes.Modulo != m) { ajustes.Modulo = m; SalvarAjustes(); }
     }
 

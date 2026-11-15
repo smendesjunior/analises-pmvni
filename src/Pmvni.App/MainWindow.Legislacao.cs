@@ -611,6 +611,10 @@ public sealed partial class MainWindow
         PaginaDeAjustes.SecaoLegislacao.StartBringIntoView();
     }
 
+    /// <summary>O estado que decide os comandos da Legislação (o roteiro o grava quando uma conferência falha).</summary>
+    internal string EstadoDosComandosLegislacao =>
+        $"lei_aberta={leiAberta?.Id ?? "-"} leitor={(leitorPdf is not null)} selecao={selecaoNaLei} texto={leiAberta?.TemTexto} todas={escopoTodas} modulo={moduloAtual} aviso={P.AvisoMensagem.IsOpen}:{P.AvisoMensagem.Title} progresso={P.ProgressoAnexo.Visibility}";
+
     void AtualizarComandosLegislacao()
     {
         if (legislacao is null) return;
