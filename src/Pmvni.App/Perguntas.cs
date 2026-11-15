@@ -20,6 +20,9 @@ internal interface IPerguntas
 
     Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao);
 
+    /// <summary>Mostra um texto só para leitura (ex.: a Conferência), com o botão Fechar.</summary>
+    Task InformarAsync(string titulo, string texto);
+
     Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos);
 }
 
@@ -60,6 +63,18 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
 
     public async Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao) =>
         await Dialogo(titulo, texto, sim, nao).ShowAsync() == ContentDialogResult.Primary;
+
+    public async Task InformarAsync(string titulo, string texto)
+    {
+        var d = new ContentDialog
+        {
+            XamlRoot = raiz(),
+            Title = titulo,
+            Content = new ScrollViewer { MaxHeight = 480, Content = new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true } },
+            CloseButtonText = "Fechar",
+        };
+        await d.ShowAsync();
+    }
 
     public async Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos)
     {

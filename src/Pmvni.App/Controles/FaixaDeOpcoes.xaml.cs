@@ -12,6 +12,8 @@ public sealed partial class FaixaDeOpcoes : UserControl
     readonly Dictionary<string, bool> habilitado = new(StringComparer.Ordinal);
     readonly Dictionary<string, bool> ligado = new(StringComparer.Ordinal);
     readonly Dictionary<string, string> dicas = new(StringComparer.Ordinal);
+    readonly Dictionary<string, string> rotulos = new(StringComparer.Ordinal);
+    readonly Dictionary<string, MenuFlyoutItem> itensMenu = new(StringComparer.Ordinal);
     readonly Dictionary<string, AppBarButton> visiveis = new(StringComparer.Ordinal);
     readonly Dictionary<string, AppBarToggleButton> alternaveis = new(StringComparer.Ordinal);
     DefinicaoFaixa? definicao;
@@ -64,7 +66,23 @@ public sealed partial class FaixaDeOpcoes : UserControl
         habilitado[id] = sim;
         if (visiveis.TryGetValue(id, out var b)) b.IsEnabled = sim;
         if (alternaveis.TryGetValue(id, out var t)) t.IsEnabled = sim;
+        if (itensMenu.TryGetValue(id, out var i)) i.IsEnabled = sim;
     }
+
+    /// <summary>Troca o rótulo do botão (ex.: "Excluir item" ⇄ "Restaurar item"); vale também quando a aba voltar à vista.</summary>
+    public void DefinirRotulo(string id, string texto)
+    {
+        if (rotulos.TryGetValue(id, out var r) && r == texto) return;
+        rotulos[id] = texto;
+        if (visiveis.TryGetValue(id, out var b)) { b.Label = texto; AutomationProperties.SetName(b, texto); }
+        if (alternaveis.TryGetValue(id, out var t)) { t.Label = texto; AutomationProperties.SetName(t, texto); }
+    }
+
+    /// <summary>O rótulo atual do comando (o da definição, se nunca foi trocado).</summary>
+    public string Rotulo(string id) =>
+        rotulos.TryGetValue(id, out var r) ? r : definicao is null ? "" : Faixas.Comandos(definicao).FirstOrDefault(c => c.Id == id)?.Rotulo ?? "";
+
+    public bool Ligado(string id) => ligado.TryGetValue(id, out var l) && l;
 
     public bool Habilitado(string id) => !habilitado.TryGetValue(id, out var h) || h;
 
@@ -94,6 +112,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         Barra.PrimaryCommands.Clear();
         visiveis.Clear();
         alternaveis.Clear();
+        itensMenu.Clear();
         if (definicao is null || AbaAtual is not { } nome) return;
         var aba = definicao.Abas.First(a => a.Nome == nome);
         foreach (var c in aba.Comandos) Barra.PrimaryCommands.Add(Botao(c));
@@ -102,28 +121,31 @@ public sealed partial class FaixaDeOpcoes : UserControl
     ICommandBarElement Botao(ComandoFaixa c)
     {
         var icone = new FontIcon { Glyph = c.Glifo };
-        var dica = dicas.TryGetValue(c.Id, out var d) ? d : c.Atalho is null ? c.Rotulo : $"{c.Rotulo} ({c.Atalho})";
+        var rotulo = rotulos.TryGetValue(c.Id, out var r) ? r : c.Rotulo;
+        var atalho = Atalhos.Tecla(c.Id) is { } tecla ? Atalhos.Legivel(tecla) : null;
+        var dica = dicas.TryGetValue(c.Id, out var d) ? d : atalho is null ? rotulo : $"{rotulo} ({atalho})";
         if (c.Tipo == TipoComando.Alternar)
         {
-            var t = new AppBarToggleButton { Label = c.Rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id), IsChecked = ligado.TryGetValue(c.Id, out var l) && l };
-            AutomationProperties.SetName(t, c.Rotulo);
+            var t = new AppBarToggleButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id), IsChecked = ligado.TryGetValue(c.Id, out var l) && l };
+            AutomationProperties.SetName(t, rotulo);
             ToolTipService.SetToolTip(t, dica);
             t.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);
             alternaveis[c.Id] = t;
             return t;
         }
-        var b = new AppBarButton { Label = c.Rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id) };
-        if (c.Atalho is not null) b.KeyboardAcceleratorTextOverride = c.Atalho;
-        AutomationProperties.SetName(b, c.Rotulo);
+        var b = new AppBarButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id) };
+        if (atalho is not null) b.KeyboardAcceleratorTextOverride = atalho;
+        AutomationProperties.SetName(b, rotulo);
         ToolTipService.SetToolTip(b, dica);
         if (c.Tipo == TipoComando.Menu && c.Itens is { } itens)
         {
             var menu = new MenuFlyout();
             foreach (var i in itens)
             {
-                var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = new FontIcon { Glyph = i.Glifo } };
+                var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = new FontIcon { Glyph = i.Glifo }, IsEnabled = Habilitado(i.Id) };
                 mi.Click += (_, _) => ComandoInvocado?.Invoke(i.Id);
                 menu.Items.Add(mi);
+                itensMenu[i.Id] = mi;
             }
             b.Flyout = menu;
         }

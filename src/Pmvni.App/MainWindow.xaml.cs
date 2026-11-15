@@ -96,6 +96,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Raiz.ActualThemeChanged += (_, _) => AplicarTemaWeb();
 
         RegistrarManipuladores();
+        RegistrarManipuladoresRevisao();
+        IniciarRevisao();
+        RegistrarAtalhos();
         Faixa.ComandoInvocado += async id => await ExecutarComandoAsync(id);
         Faixa.AbaMudou += nome => { ajustes.AbaPorModulo[moduloAtual] = nome; SalvarAjustes(); };
         TrilhoModulos.Montar(Faixas.Disponiveis);
@@ -225,7 +228,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
         Faixa.Montar(f, Faixas.IndiceDaAba(f, aba));
         TrilhoModulos.Marcar(m);
-        RegistrarAtalhos(f);
         AtualizarComandos();
         if (ajustes.Modulo != m) { ajustes.Modulo = m; SalvarAjustes(); }
     }
@@ -250,7 +252,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// <summary>Executa o comando da faixa (ou do atalho) pelo id, se ele existe e está habilitado.</summary>
     internal async Task ExecutarComandoAsync(string id)
     {
-        if (!manipuladores.TryGetValue(id, out var acao) || !Faixa.Habilitado(id)) return;
+        // Durante a aplicação de uma alteração (até ~1,5 s) os comandos não entram em fila: são ignorados.
+        if (aplicando || !manipuladores.TryGetValue(id, out var acao) || !Faixa.Habilitado(id)) return;
         await TentarAsync(acao);
     }
 
@@ -261,17 +264,22 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             .Where(c => !(c.Tipo == TipoComando.Menu && c.Itens is not null))
             .Select(c => c.Id).Distinct().Where(id => !manipuladores.ContainsKey(id)).ToList();
 
-    /// <summary>Atalhos de teclado dos comandos da faixa do módulo (com o foco fora das folhas; dentro delas a página repassa a tecla).</summary>
-    void RegistrarAtalhos(DefinicaoFaixa f)
+    /// <summary>Atalhos de teclado (<see cref="Atalhos.Mapa"/>) com o foco fora das folhas; dentro delas a página repassa a tecla na
+    /// mensagem <c>atalho</c>, pelo mesmo mapa. Numa caixa de texto, Delete, Ctrl+Z e Ctrl+Y ficam com ela.</summary>
+    void RegistrarAtalhos()
     {
         Raiz.KeyboardAccelerators.Clear();
-        foreach (var c in Faixas.Comandos(f).Where(c => c.Atalho is not null))
+        foreach (var (atalho, id) in Atalhos.Mapa)
         {
-            foreach (var (mods, tecla) in Teclas(c.Atalho!))
+            foreach (var (mods, tecla) in Teclas(atalho))
             {
                 var k = new KeyboardAccelerator { Modifiers = mods, Key = tecla };
-                var id = c.Id;
-                k.Invoked += async (_, a) => { a.Handled = true; await ExecutarComandoAsync(id); };
+                k.Invoked += async (_, a) =>
+                {
+                    if (TeclaDoControleComFoco(id)) { a.Handled = false; return; }
+                    a.Handled = true;
+                    await ExecutarComandoAsync(id);
+                };
                 Raiz.KeyboardAccelerators.Add(k);
             }
         }
@@ -288,6 +296,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             case "Plus": yield return (mods, (VirtualKey)187); yield return (mods, VirtualKey.Add); break;
             case "Minus": yield return (mods, (VirtualKey)189); yield return (mods, VirtualKey.Subtract); break;
             case "0": yield return (mods, VirtualKey.Number0); yield return (mods, VirtualKey.NumberPad0); break;
+            case "ArrowUp": yield return (mods, VirtualKey.Up); break;
+            case "ArrowDown": yield return (mods, VirtualKey.Down); break;
             case var t when Enum.TryParse<VirtualKey>(t, out var k): yield return (mods, k); break;
         }
     }
@@ -309,6 +319,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Faixa.Habilitar(ComandosApp.ExibirLargura, temRelatorio);
         Faixa.Habilitar(ComandosApp.ExibirPagina, temRelatorio);
         Faixa.Ligar(ComandosApp.ExibirPainel, PainelVisivel);
+        AtualizarComandosRevisao(temRelatorio);
         R.BotaoMenos.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMenos);
         R.BotaoMais.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMais);
         R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = temRelatorio;
@@ -352,7 +363,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// <summary>Importa o dados.json do kit para o <c>.pmvrel</c> novo <paramref name="pmvrel"/> (recusa se ele existe) e o abre.</summary>
     internal async Task<bool> ImportarParaAsync(string json, string pmvrel)
     {
-        if (ocupado || documento is null) return false;
+        if (ocupado || aplicando || documento is null) return false;
         Ocupar("Importando o dados.json…");
         try
         {
@@ -383,7 +394,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// aparece num InfoBar).</summary>
     internal async Task<bool> AbrirPacoteAsync(string pmvrel)
     {
-        if (ocupado || documento is null) return false;
+        if (ocupado || aplicando || documento is null) return false;
         if (sessao is not null && !await FecharSessaoAsync()) return false;
         Ocupar("Abrindo o relatório…");
         SessaoEdicao? nova = null;
@@ -398,6 +409,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             if (fechada) { await nova.DisposeAsync(); return false; }
             sessao = nova;
             nova = null;
+            selecionado = ultimoCampo = itemNasPropriedades = null;
+            mostrarOriginal = false;
             sessao.Mudou += AtualizarBarra;
             LimparAvisos();
             MostrarRecomposicao(r);
@@ -451,9 +464,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     async void AoFecharJanela(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (fecharDeVez || (sessao is null && !ocupado)) return;
+        if (fecharDeVez || (sessao is null && !ocupado && !aplicando)) return;
         args.Cancel = true;
-        if (ocupado)
+        if (ocupado || aplicando)
         {
             // Uma operação em andamento (abrir, exportar…) termina antes: a janela fecha logo depois (Liberar).
             fecharQuandoLivre = true;
@@ -512,8 +525,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     void MostrarRecomposicao(Recomposicao r)
     {
         if (fechada) return;
-        itensNavegacao.Clear();
-        foreach (var item in r.Navegacao) itensNavegacao.Add(item);
+        navegacaoCompleta = r.Navegacao;
+        AtualizarPaineis();
         var plano = r.Composicao.Plano;
         var estouros = plano.Estouros.Count;
         R.TextoComposicao.Text = estouros == 0
@@ -585,7 +598,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     void Reiniciar()
     {
         if (fechada) return;
-        itensNavegacao.Clear();
+        LimparPaineis();
         LimparAvisos();
         R.TextoComposicao.Text = "";
         R.TextoFolha.Text = "";
@@ -622,7 +635,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal async Task<(bool Ok, ResultadoExportacao? Resultado, string? Erro, Exception? Excecao)> ExportarParaAsync(string caminhoPdf)
     {
         if (sessao?.Atual is not { } r) return (false, null, "Nenhum relatório aberto.", null);
-        if (ocupado) return (false, null, "A janela está ocupada.", null);
+        if (ocupado || aplicando) return (false, null, "A janela está ocupada.", null);
         var avisos = r.Preparado.AvisosExportacao;
         if (r.Preparado.ErrosFinais.Count == 0 && avisos.Count > 0
             && !await Perguntas.Atual.ConfirmarAsync("Exportar com avisos?", string.Join(Environment.NewLine, avisos), "Exportar", "Cancelar"))
@@ -714,7 +727,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     async void AoClicarItem(object sender, ItemClickEventArgs e)
     {
-        if (e.ClickedItem is ItemNavegacao item) await TentarAsync(() => RolarParaAsync(item));
+        if (e.ClickedItem is not ItemNavegacao item) return;
+        // Item do relatório: seleciona (folhas, Propriedades e faixa) e rola até ele; seção, capa ou figura: só rola.
+        if (!item.Secao && item.Ref is not null && sessao?.Revisao.Projeto.Item(item.Ref) is not null) await TentarAsync(() => SelecionarAsync(item.Ref));
+        else await TentarAsync(() => RolarParaAsync(item));
     }
 
     async void AoReceberDaWeb(Pmvni.Composicao.Web.Ponte.MensagemWeb m)
@@ -724,16 +740,12 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             case "folhaVisivel":
                 AplicarEstadoDaWeb(m.Dados);
                 break;
-            case "atalho":
-                // Tecla dentro das folhas (o WebView2 tem o foco): o comando da faixa do módulo com esse atalho.
-                if (m.Dados.TryGetProperty("tecla", out var t) && t.ValueKind == JsonValueKind.String && Faixa.Definicao is { } f
-                    && Faixas.Comandos(f).FirstOrDefault(c => c.Atalho == t.GetString()) is { } cmd)
-                    await ExecutarComandoAsync(cmd.Id);
-                break;
-            case "editar":
-            case "edicaoCancelada":
-                // A edição no A4 chega na Tarefa 9; até lá a tela volta ao estado do host (sem o estado, a página fica parada).
-                if (sessao is not null) await sessao.EnviarEstadoAsync();
+            default:
+                // Eventos de interação (selecionado, pedirEdicao, editar, edicaoCancelada, atalho, menuContexto, excluidoClicado)
+                // chegam com id "evento-N"; as respostas às chamadas do host (mesmos tipos, outro id) já foram entregues a quem chamou.
+                if (m.Id.StartsWith("evento-", StringComparison.Ordinal))
+                    try { await AoEventoDaPaginaAsync(m); }
+                    catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "A operação falhou", e.Message); }
                 break;
         }
     }
@@ -773,18 +785,28 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     Task MostrarAtalhosAsync()
     {
         var lista = new StackPanel { Spacing = 6 };
-        if (Faixa.Definicao is { } f)
-            foreach (var c in Faixas.Comandos(f).Where(c => c.Atalho is not null))
-            {
-                var linha = new Grid { ColumnSpacing = 24 };
-                linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                linha.Children.Add(new TextBlock { Text = c.Rotulo });
-                var tecla = new TextBlock { Text = c.Atalho!.Replace("Plus", "+").Replace("Minus", "−"), Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
-                Grid.SetColumn(tecla, 1);
-                linha.Children.Add(tecla);
-                lista.Children.Add(linha);
-            }
+        var foraDaFaixa = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [ComandosApp.EditarDesfazer] = "Desfazer",
+            [ComandosApp.EditarRefazer] = "Refazer",
+            [ComandosApp.JanelaRegioes] = "Alternar entre faixa, painel, folhas e propriedades",
+            [ComandosApp.InicioItemAnterior] = "Item anterior",
+            [ComandosApp.InicioItemProximo] = "Próximo item",
+            [ComandosApp.InicioExcluirRestaurar] = "Excluir ou restaurar o item",
+        };
+        // Só os atalhos que já fazem algo (Ctrl+F chega com a pesquisa).
+        foreach (var (atalho, id) in Atalhos.Mapa.Where(a => manipuladores.ContainsKey(a.Value)))
+        {
+            var rotulo = foraDaFaixa.TryGetValue(id, out var r) ? r : Faixa.Rotulo(id);
+            var linha = new Grid { ColumnSpacing = 24 };
+            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            linha.Children.Add(new TextBlock { Text = rotulo });
+            var tecla = new TextBlock { Text = Atalhos.Legivel(atalho), Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
+            Grid.SetColumn(tecla, 1);
+            linha.Children.Add(tecla);
+            lista.Children.Add(linha);
+        }
         return MostrarDialogoAsync("Atalhos de teclado", lista);
     }
 

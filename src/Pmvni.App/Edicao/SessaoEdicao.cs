@@ -71,8 +71,8 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     /// <summary>Item selecionado (data-ref) mandado no estado do editor.</summary>
     public string? Selecao { get; set; }
 
-    /// <summary>Campos editáveis no A4 (a edição chega na Tarefa 9; até lá a tela só mostra).</summary>
-    public bool CamposEditaveis { get; set; }
+    /// <summary>Campos editáveis no A4 (duplo clique, F2, Editar texto). Somente leitura desliga a edição de qualquer forma.</summary>
+    public bool CamposEditaveis { get; set; } = true;
 
     /// <summary>Estado de gravação mudou (a barra de título acompanha).</summary>
     public event Action? Mudou;
@@ -99,8 +99,10 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         return Pacote.Gravar(destino, conteudo, esperado: null);
     });
 
-    /// <summary>Recompõe e aplica na tela. Falha antes de tocar a tela deixa a tela como estava; o estado do editor vai sempre.</summary>
-    public async Task<Recomposicao> RecomporAsync()
+    /// <summary>Recompõe e aplica na tela. Falha antes de tocar a tela deixa a tela como estava; o estado do editor vai sempre.
+    /// <paramref name="preparado"/>: o que <see cref="Recompositor.Preparar"/> já fez com o projeto como está agora (o comando foi
+    /// testado nele antes de ser aplicado); sem ele, prepara de novo.</summary>
+    public async Task<Recomposicao> RecomporAsync(Preparado? preparado = null)
     {
         var relogio = Stopwatch.StartNew();
         var primeira = Atual is null;
@@ -110,7 +112,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
             // A pasta de trabalho é "tocada" a cada preparação: a limpeza de órfãs de outra instância (pela data) nunca a apaga.
             await Task.Run(() => { try { Directory.SetLastWriteTimeUtc(Recompositor.PastaTrabalho, DateTime.UtcNow); } catch (IOException) { } });
             var projeto = Revisao.Projeto;
-            var p = await Task.Run(() => Recompositor.Preparar(projeto));
+            var p = preparado ?? await Task.Run(() => Recompositor.Preparar(projeto));
             var host = await tela.HostAsync();
             ResultadoComposicao c;
             try { c = await Recompositor.ComporAsync(p, host); }

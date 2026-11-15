@@ -1,11 +1,13 @@
+using Pmvni.Composicao.Kit;
+
 namespace Pmvni.App;
 
 /// <summary>Botão comum, botão que alterna (ligado/desligado) ou menu (com <see cref="ComandoFaixa.Itens"/>).</summary>
 public enum TipoComando { Botao, Alternar, Menu }
 
-/// <summary>Um comando da faixa: id (de <see cref="ComandosApp"/>), rótulo, ícone Segoe Fluent, tipo, atalho canônico
-/// (<c>Ctrl+Shift+S</c>, <c>Ctrl+Plus</c>…; o mesmo nome que a página repassa na mensagem <c>atalho</c>) e itens de um menu.</summary>
-public sealed record ComandoFaixa(string Id, string Rotulo, string Glifo, TipoComando Tipo = TipoComando.Botao, string? Atalho = null,
+/// <summary>Um comando da faixa: id (de <see cref="ComandosApp"/>), rótulo, ícone Segoe Fluent, tipo e itens de um menu. O atalho
+/// de teclado não fica aqui: vem de <see cref="Atalhos.Mapa"/> (um mapa só para a faixa, a janela e a página).</summary>
+public sealed record ComandoFaixa(string Id, string Rotulo, string Glifo, TipoComando Tipo = TipoComando.Botao,
     IReadOnlyList<ComandoFaixa>? Itens = null);
 
 /// <summary>Uma aba da faixa (Arquivo, Exibir, Ajuda…) com os seus comandos, na ordem em que aparecem.</summary>
@@ -15,10 +17,13 @@ public sealed record AbaFaixa(string Nome, IReadOnlyList<ComandoFaixa> Comandos)
 public sealed record DefinicaoFaixa(Modulo Modulo, IReadOnlyList<AbaFaixa> Abas, int AbaPadrao);
 
 /// <summary>Faixa de opções por dados (desenho §9.1): uma definição por módulo; a faixa troca inteira com o módulo. Arquivo e Ajuda
-/// existem em todas; a aba padrão é a segunda (Ajustes: a primeira, porque a sua segunda é Ajuda). Só aparece o que funciona:
+/// existem em todas; a aba padrão é a segunda (Relatórios: Página Inicial; Ajustes: a primeira, porque a sua segunda é Ajuda). Só aparece o que funciona:
 /// cada tarefa seguinte acrescenta as suas abas e comandos e põe o módulo em <see cref="Disponiveis"/>.</summary>
 public static class Faixas
 {
+    /// <summary>As situações de item do kit (<see cref="Situacoes.SitItem"/>) na ordem do menu Situação.</summary>
+    public static IReadOnlyList<string> OrdemSituacoes { get; } = ["ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA"];
+
     /// <summary>Módulos que já funcionam, na ordem do trilho (Ajustes, se presente, embaixo).</summary>
     public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios];
 
@@ -32,20 +37,40 @@ public static class Faixas
     [
         new("Arquivo",
         [
-            new(ComandosApp.ArquivoImportar, "Importar dados.json", "", Atalho: "Ctrl+I"),
-            new(ComandosApp.ArquivoAbrir, "Abrir", "", Atalho: "Ctrl+O"),
-            new(ComandosApp.ArquivoSalvar, "Salvar", "", Atalho: "Ctrl+S"),
-            new(ComandosApp.ArquivoSalvarComo, "Salvar como", "", Atalho: "Ctrl+Shift+S"),
-            new(ComandosApp.ArquivoExportarPdf, "Exportar PDF", "", Atalho: "Ctrl+E"),
+            new(ComandosApp.ArquivoImportar, "Importar dados.json", ""),
+            new(ComandosApp.ArquivoAbrir, "Abrir", ""),
+            new(ComandosApp.ArquivoSalvar, "Salvar", ""),
+            new(ComandosApp.ArquivoSalvarComo, "Salvar como", ""),
+            new(ComandosApp.ArquivoExportarPdf, "Exportar PDF", ""),
             new(ComandosApp.ArquivoFechar, "Fechar", ""),
+        ]),
+        new("Página Inicial",
+        [
+            new(ComandosApp.InicioSituacao, "Situação", "", TipoComando.Menu, OrdemSituacoes
+                .Select(c => new ComandoFaixa(ComandosApp.ComandoDaSituacao(c), Situacoes.Sit[c].Texto, "")).ToList()),
+            new(ComandosApp.InicioExcluirRestaurar, "Excluir item", ""),
+            new(ComandosApp.InicioEditarTexto, "Editar texto", ""),
+            new(ComandosApp.InicioOriginal, "Original", "", TipoComando.Alternar),
+            new(ComandosApp.InicioRestaurarOriginal, "Restaurar original", ""),
+            new(ComandosApp.InicioItemAnterior, "◂ Item", ""),
+            new(ComandosApp.InicioItemProximo, "Item ▸", ""),
+            new(ComandosApp.InicioProximoPendente, "Próximo pendente", ""),
+            new(ComandosApp.ArquivoExportarPdf, "Exportar PDF", ""),
+        ]),
+        new("Revisão",
+        [
+            new(ComandosApp.RevisaoMarcas, "Marcas de revisão", "", TipoComando.Alternar),
+            new(ComandosApp.RevisaoSomenteAlterados, "Somente alterados", "", TipoComando.Alternar),
+            new(ComandosApp.RevisaoConferencia, "Conferência", ""),
         ]),
         new("Exibir",
         [
-            new(ComandosApp.ExibirMenos, "Diminuir", "", Atalho: "Ctrl+Minus"),
-            new(ComandosApp.ExibirMais, "Aumentar", "", Atalho: "Ctrl+Plus"),
-            new(ComandosApp.ExibirLargura, "Ajustar largura", "", Atalho: "Ctrl+0"),
+            new(ComandosApp.ExibirMenos, "Diminuir", ""),
+            new(ComandosApp.ExibirMais, "Aumentar", ""),
+            new(ComandosApp.ExibirLargura, "Ajustar largura", ""),
             new(ComandosApp.ExibirPagina, "Página inteira", ""),
             new(ComandosApp.ExibirPainel, "Painel lateral", "", TipoComando.Alternar),
+            new(ComandosApp.ExibirPropriedades, "Propriedades", "", TipoComando.Alternar),
         ]),
         Ajuda,
     ], AbaPadrao: 1);
@@ -54,8 +79,8 @@ public static class Faixas
     [
         new("Arquivo",
         [
-            new(ComandosApp.ArquivoImportar, "Importar dados.json", "", Atalho: "Ctrl+I"),
-            new(ComandosApp.ArquivoAbrir, "Abrir", "", Atalho: "Ctrl+O"),
+            new(ComandosApp.ArquivoImportar, "Importar dados.json", ""),
+            new(ComandosApp.ArquivoAbrir, "Abrir", ""),
         ]),
         Ajuda,
     ], AbaPadrao: 0);

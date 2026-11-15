@@ -50,7 +50,8 @@ public sealed class Recompositor : IDisposable
 
         var erros = new List<string>(RelatorioRenderer.Renderizar(gerado.Json, caminho, Final, modelo).Erros);
         erros.AddRange(ConferenciaRevisao.Erros(p));
-        return new Preparado(gerado.Json, caminho, render, ConfigFolhas.PadraoDeBytes(modelo, gerado.Json), erros,
+        // A conferência do kit e a da revisão podem repetir uma mensagem: cada uma aparece uma vez.
+        return new Preparado(gerado.Json, caminho, render, ConfigFolhas.PadraoDeBytes(modelo, gerado.Json), erros.Distinct(StringComparer.Ordinal).ToList(),
             ConferenciaRevisao.CitacoesAExcluidos(p));
     }
 

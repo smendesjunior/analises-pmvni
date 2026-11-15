@@ -27,12 +27,15 @@ internal sealed class PerguntasFixas : IPerguntas
     public Task<string?> AbrirArquivoAsync(string extensao) { Feitas.Add("abrir " + extensao); return Task.FromResult<string?>(null); }
     public Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao) { Feitas.Add("salvar " + nomeSugerido); return Task.FromResult<string?>(null); }
     public Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao) { Feitas.Add("confirmar " + titulo); return Task.FromResult(Confirmar); }
+    public Task InformarAsync(string titulo, string texto) { Feitas.Add("informar " + titulo); Informados.Add((titulo, texto)); return Task.CompletedTask; }
+    public List<(string Titulo, string Texto)> Informados { get; } = [];
     public Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos) { Feitas.Add($"recuperar {comandos}"); return Task.FromResult(Recuperacao); }
 }
 
 /// <summary>Modo de diagnóstico <c>--roteiro &lt;saida.json&gt;</c>: exercita o shell e o módulo Relatórios pelos mesmos caminhos dos
 /// comandos da faixa (importar, rolagem, zoom, navegação, exportação, corpus com estouro, tema escuro, campos em aberto, pacote mudado no
-/// disco, faixa por módulo, reabrir o pacote) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
+/// disco, faixa por módulo, reabrir o pacote; Tarefa 9: seleção e edição no A4, situação e justificativa, exclusão e marca, desfazer e
+/// refazer, salvar/reabrir/exportar, menu de contexto e atalhos, latência) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
 /// na pasta do &lt;saida.json&gt; (tests\saida\roteiro). As perguntas têm respostas fixas (<see cref="PerguntasFixas"/>). Cada passo é
 /// independente: falha num não impede os seguintes.</summary>
 internal static class Roteiro
@@ -424,12 +427,347 @@ internal static class Roteiro
                 && p["disco_confere"]!.GetValue<bool>() && !p["aviso_de_erro"]!.GetValue<bool>() && ok;
         });
 
+        // ---------- Tarefa 9: revisão dos itens no app (o longo continua aberto, salvo) ----------
+        string? id3 = null, id5 = null;
+        const string NovaVerificacao = "Verificação refeita pelo roteiro: cota & recuo <conferidos> \"na planta\".";
+        const string Justificativa = "Conferido na planta de implantação pelo roteiro.";
+
+        await Passo("13_selecionar_e_editar_no_a4", async p =>
+        {
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            var proj = s.Revisao.Projeto;
+            var item = proj.Incluidos[2];
+            id3 = item.Id;
+            // Clique (CDP) no título do ITEM 03: a página manda "selecionado" e as Propriedades mostram o item.
+            var ponto = await PontoDoCampoAsync(j, item.Id, "titulo");
+            await CliqueAsync(j, ponto);
+            await EsperarAteAsync(() => Task.FromResult(j.Selecionado == item.Id), 3000);
+            p["selecionado_pelo_clique"] = j.Selecionado == item.Id;
+            p["propriedades_titulo"] = j.TextoPropriedadesTitulo;
+            var camposNaTela = (await Js(j, "document.querySelectorAll('section.folha [data-campo]').length")).GetInt32();
+            p["campos_marcados_na_tela"] = camposNaTela;
+            // Duplo clique abre a edição no A4 (pedirEdicao → editarCampo); Esc cancela (edicaoCancelada → estadoEditor).
+            await GarantirTecladoAsync(j);
+            await CliqueAsync(j, ponto, cliques: 2);
+            var abriu = await EsperarAteAsync(async () => (await Js(j, "!!document.querySelector('[data-pmvni-editando]')")).GetBoolean(), 3000);
+            p["duplo_clique_abre_a_edicao"] = abriu;
+            await TeclaAsync(j, "Escape", "Escape", 27);
+            p["esc_cancela_a_edicao"] = await EsperarAteAsync(async () => !(await Js(j, "!!document.querySelector('[data-pmvni-editando]')")).GetBoolean(), 3000);
+            // A edição pelo host (a mesma rota do Enter no A4).
+            await j.EditarTextoAsync(item.Id, "verificacao", NovaVerificacao);
+            var efetivo = DadosEfetivos.TextoEfetivo(proj, item, "verificacao");
+            var folhas = await j.Documento!.TextoPorFolhaAsync();
+            var html = j.Aberto!.Preparado.Render.Html;
+            p["erros_da_edicao"] = new JsonArray(j.UltimosErros.Select(e => (JsonNode)e).ToArray());
+            p["modelo_tem_o_texto_novo"] = efetivo == NovaVerificacao;
+            p["folhas_tem_o_texto_novo"] = folhas.Any(f => f.Contains(NovaVerificacao, StringComparison.Ordinal));
+            p["data_campo_fora_do_html_preparado"] = !html.Contains("data-campo", StringComparison.Ordinal);
+            p["estado_de_gravacao"] = j.TextoEstadoAtual;
+            p["lista_marca_alterado"] = j.Itens.FirstOrDefault(i => i.Ref == item.Id)?.Alterado == true;
+            // F2: edita o último campo clicado (o título).
+            await j.ExecutarComandoAsync(ComandosApp.InicioEditarTexto);
+            var campoF2 = await EsperarValorAsync(j, "(() => { const e = document.querySelector('[data-pmvni-editando]'); return e ? e.getAttribute('data-campo') : null; })()", 3000);
+            p["f2_edita_o_ultimo_campo_clicado"] = campoF2;
+            await TeclaAsync(j, "Escape", "Escape", 27);
+            await EsperarAteAsync(async () => !(await Js(j, "!!document.querySelector('[data-pmvni-editando]')")).GetBoolean(), 3000);
+            p["ok"] = j.Selecionado == item.Id && j.TextoPropriedadesTitulo == "ITEM 03" && camposNaTela > 0 && abriu
+                && efetivo == NovaVerificacao && p["folhas_tem_o_texto_novo"]!.GetValue<bool>() && p["data_campo_fora_do_html_preparado"]!.GetValue<bool>()
+                && j.TextoEstadoAtual == "Não salvo" && p["lista_marca_alterado"]!.GetValue<bool>() && campoF2 == "titulo";
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "13-janela-xaml-propriedades.png"));
+            await CapturarWebAsync(j, Path.Combine(pasta, "13-tela-editado.png"));
+        });
+
+        await Passo("14_situacao_e_justificativa", async p =>
+        {
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            var item = s.Revisao.Projeto.Item(id3 ?? throw new InvalidOperationException("passo 13 não rodou"))!;
+            var original = item.Situacao.Original!.GetValue<string>();
+            await j.AplicarAsync(new DefinirSituacao(item.Id, "ATENDE"));
+            var esperado = $"ITEM 03: a situação mudou de {Pmvni.Composicao.Kit.Situacoes.Sit[original].Texto} para ATENDE sem justificativa";
+            var erros = j.Aberto!.Preparado.ErrosFinais;
+            p["erros_finais"] = new JsonArray(erros.Select(e => (JsonNode)e).ToArray());
+            p["mensagem_esperada"] = esperado;
+            p["mensagem_exata"] = erros.Contains(esperado);
+            p["erros_sem_repeticao"] = erros.Distinct().Count() == erros.Count;
+            var habilitadoSem = j.ExportarHabilitado;
+            p["exportar_habilitado_sem_justificativa"] = habilitadoSem;
+            var pdf = Path.Combine(pasta, "longo-sem-justificativa.pdf");
+            File.Delete(pdf);
+            var (ok, _, erro, excecao) = await j.ExportarParaAsync(pdf);
+            p["exportacao_recusada"] = !ok && excecao is ConferenciaFinalException && !File.Exists(pdf);
+            p["mensagem_da_recusa"] = erro;
+            var conferencia = j.TextoConferencia();
+            await j.ExecutarComandoAsync(ComandosApp.RevisaoConferencia);
+            var mostrada = perguntas.Informados.LastOrDefault();
+            p["conferencia_mostra_o_erro"] = conferencia.Contains(esperado, StringComparison.Ordinal) && mostrada.Titulo == "Conferência" && mostrada.Texto == conferencia;
+            p["propriedades_aviso_de_justificativa"] = j.TextoPropriedadesTitulo;
+            await j.AplicarAsync(new DefinirJustificativa(item.Id, Justificativa));
+            p["erros_finais_com_justificativa"] = j.Aberto!.Preparado.ErrosFinais.Count;
+            p["exportar_habilitado_com_justificativa"] = j.ExportarHabilitado;
+            p["ok"] = p["mensagem_exata"]!.GetValue<bool>() && p["erros_sem_repeticao"]!.GetValue<bool>() && !habilitadoSem
+                && p["exportacao_recusada"]!.GetValue<bool>() && p["conferencia_mostra_o_erro"]!.GetValue<bool>()
+                && j.Aberto!.Preparado.ErrosFinais.Count == 0 && j.ExportarHabilitado && item.Situacao.Justificativa == Justificativa;
+        });
+
+        await Passo("15_excluir_e_marca", async p =>
+        {
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            var proj = s.Revisao.Projeto;
+            var antes = proj.Incluidos.Count;
+            var quinto = proj.Incluidos[4];
+            var sexto = proj.Incluidos[5];
+            id5 = quinto.Id;
+            await j.SelecionarAsync(quinto.Id);
+            p["rotulo_antes"] = j.RotuloExcluirRestaurar;
+            await j.ExecutarComandoAsync(ComandosApp.InicioExcluirRestaurar);
+            p["itens_incluidos"] = proj.Incluidos.Count;
+            var rotuloDoSexto = await Js(j, $"(() => {{ const e = document.querySelector('section.folha .card[data-ref=\"{sexto.Id}\"] .ct span.id'); return e ? e.textContent : null; }})()");
+            p["rotulo_do_antigo_06"] = rotuloDoSexto.ValueKind == JsonValueKind.String ? rotuloDoSexto.GetString() : null;
+            p["aba_excluidos"] = j.TextoAbaExcluidos;
+            p["linhas_excluidos"] = j.LinhasExcluidos;
+            p["rotulo_depois"] = j.RotuloExcluirRestaurar;
+            var marcas = await Js(j, "(() => { const b = [...document.querySelectorAll('#pmvni-camada .pmvni-marca-excl')]; return { n: b.length, textos: b.map(x => x.textContent), dentroDeFolha: b.some(x => !!x.closest('section.folha')) }; })()");
+            p["marcas_de_excluido"] = JsonNode.Parse(marcas.GetRawText());
+            var textos = marcas.GetProperty("textos").EnumerateArray().Select(x => x.GetString()).ToList();
+            p["ok"] = proj.Incluidos.Count == antes - 1 && p["rotulo_do_antigo_06"]?.GetValue<string>() == "ITEM 05"
+                && j.TextoAbaExcluidos == "Excluídos (1)" && j.LinhasExcluidos == 1 && textos.Contains("◦ excl. 05")
+                && !marcas.GetProperty("dentroDeFolha").GetBoolean() && j.RotuloExcluirRestaurar == "Restaurar item";
+            await CapturarWebAsync(j, Path.Combine(pasta, "15-tela-excluido.png"));
+        });
+
+        await Passo("16_desfazer_refazer", async p =>
+        {
+            // Quatro comandos desde a importação (edição, situação, justificativa, exclusão): desfazer 4× volta ao plano da importação.
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            var depoisDosComandos = j.Aberto!.Composicao.Plano.ParaJson();
+            for (var k = 0; k < 4; k++) await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            var voltou = j.Aberto!.Composicao.Plano.ParaJson() == planoDaImportacao;
+            p["plano_igual_ao_da_importacao"] = voltou;
+            p["itens_incluidos_desfeito"] = s.Revisao.Projeto.Incluidos.Count;
+            var podeDesfazerMais = s.Revisao.PodeDesfazer;
+            p["pode_desfazer_mais"] = podeDesfazerMais;
+            var item3 = s.Revisao.Projeto.Item(id3!)!;
+            var semRevisao = item3.Situacao.Revisada is null && item3.Campos.Values.All(c => c.Revisado is null) && item3.Situacao.Justificativa is null;
+            p["item_03_sem_revisao_depois_de_desfazer"] = semRevisao;
+            p["item_03_depois_de_desfazer"] = $"revisada={item3.Situacao.Revisada ?? "null"}; justificativa={item3.Situacao.Justificativa ?? "null"}; campos revisados={item3.Campos.Count(c => c.Value.Revisado is not null)}";
+            for (var k = 0; k < 4; k++) await j.ExecutarComandoAsync(ComandosApp.EditarRefazer);
+            var refeito = j.Aberto!.Composicao.Plano.ParaJson() == depoisDosComandos;
+            p["plano_refeito_igual"] = refeito;
+            var registros = s.Revisao.HistoricoCompleto;
+            p["registros_desfeito"] = registros.Count(r => r.Tipo == "desfeito");
+            p["registros_refeito"] = registros.Count(r => r.Tipo == "refeito");
+            p["historico_na_tela"] = new JsonArray(j.LinhasHistorico.Take(3).Select(l => (JsonNode)l).ToArray());
+            p["linhas_do_historico"] = $"{j.LinhasHistorico.Count} na tela, {registros.Count} no histórico";
+            p["item_05_excluido_de_novo"] = s.Revisao.Projeto.Item(id5!)!.Incluido == false;
+            p["ok"] = voltou && !podeDesfazerMais && semRevisao && refeito && s.Revisao.Projeto.Item(id5!)!.Incluido == false
+                && registros.Count(r => r.Tipo == "desfeito") == 4 && registros.Count(r => r.Tipo == "refeito") == 4
+                && j.LinhasHistorico.Count == registros.Count && j.LinhasHistorico[0].Contains("Refeito: ", StringComparison.Ordinal);
+        });
+
+        await Passo("17_salvar_reabrir_exportar", async p =>
+        {
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            // Ctrl+S com o foco nas folhas: a página repassa o atalho (mensagem "atalho") e a janela salva.
+            await GarantirTecladoAsync(j);
+            await TeclaAsync(j, "s", "KeyS", 83, 2);
+            var salvou = await EsperarAteAsync(() => Task.FromResult(s.Estado == EstadoGravacao.Salvo), 10000);
+            p["ctrl_s_salvou"] = salvou;
+            var registrosAntes = s.Revisao.HistoricoCompleto.Count;
+            if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou");
+            if (!await j.AbrirPacoteAsync(pacoteLongo)) throw new InvalidOperationException("não reabriu o longo: " + j.InfoMensagem.Message);
+            var proj = j.Sessao!.Revisao.Projeto;
+            var item3 = proj.Item(id3!)!;
+            var reaberto = proj.Item(id5!)!.Incluido == false && item3.Situacao.Revisada == "ATENDE" && item3.Situacao.Justificativa == Justificativa
+                && DadosEfetivos.TextoEfetivo(proj, item3, "verificacao") == NovaVerificacao;
+            p["alteracoes_reabertas"] = reaberto;
+            var historico = j.Sessao.Revisao.HistoricoCompleto;
+            var porN = historico.ToDictionary(r => r.N);
+            var desfeitosRefeitos = historico.Where(r => r.Tipo is "desfeito" or "refeito").ToList();
+            var refsValidas = desfeitosRefeitos.All(r => r.Ref is { } n && porN.TryGetValue(n, out var o) && o.Tipo is not ("desfeito" or "refeito")
+                && r.Depois is JsonObject d && d["tipo"]?.GetValue<string>() == o.Tipo);
+            p["registros_no_pacote"] = historico.Count;
+            p["desfeitos_e_refeitos_com_ref"] = refsValidas && desfeitosRefeitos.Count == 8;
+            var pdf = Path.Combine(pasta, "longo-revisado.pdf");
+            File.Delete(pdf);
+            var (ok, x, erro, _) = await j.ExportarParaAsync(pdf);
+            if (!ok || x is null) throw new InvalidOperationException("exportação falhou: " + erro);
+            var info = InfoPdf.Ler(await File.ReadAllBytesAsync(pdf));
+            p["paginas_do_pdf"] = info.Paginas;
+            p["folhas_na_tela"] = j.Aberto!.Composicao.Folhas;
+            p["ok"] = salvou && reaberto && historico.Count == registrosAntes && refsValidas && desfeitosRefeitos.Count == 8
+                && info.Paginas == j.Aberto.Composicao.Folhas && x.Plano.ParaJson() == j.Aberto.Composicao.Plano.ParaJson();
+        });
+
+        await Passo("18_menu_de_contexto_e_atalhos", async p =>
+        {
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            var proj = s.Revisao.Projeto;
+            var alvo = proj.Incluidos[9];
+            // Botão direito (CDP) sobre o ITEM 10: menuContexto → MenuFlyout com 5 entradas.
+            await CliqueAsync(j, await PontoDoCampoAsync(j, alvo.Id, "titulo"), botao: "right");
+            var abriu = await EsperarAteAsync(() => Task.FromResult(j.UltimoMenuContexto is { IsOpen: true }), 3000);
+            var menu = j.UltimoMenuContexto;
+            p["menu_aberto"] = abriu;
+            p["menu_entradas"] = new JsonArray((menu?.Items ?? []).Select(i => (JsonNode)(i switch
+            {
+                Microsoft.UI.Xaml.Controls.MenuFlyoutSubItem sub => sub.Text + " ▸",
+                Microsoft.UI.Xaml.Controls.MenuFlyoutItem mi => mi.Text,
+                _ => i.GetType().Name,
+            })).ToArray());
+            var entradas = menu?.Items.Count ?? 0;
+            menu?.Hide();
+            p["selecionado_pelo_menu"] = j.Selecionado == alvo.Id;
+            await Esperar(300);
+
+            // Delete nas folhas (mensagem "atalho"): exclui o selecionado.
+            var antes = proj.Incluidos.Count;
+            await GarantirTecladoAsync(j);
+            await TeclaAsync(j, "Delete", "Delete", 46);
+            var excluiu = await EsperarAteAsync(() => Task.FromResult(proj.Incluidos.Count == antes - 1 && !j.Ocupado && !j.Aplicando), 6000);
+            p["delete_excluiu"] = excluiu;
+            p["selecionado_depois_do_delete"] = j.Selecionado == alvo.Id;
+            // Alt+↓: o próximo incluído depois do excluído.
+            var proximo = proj.Incluidos.First(i => i.Ordem > alvo.Ordem).Id;
+            await TeclaAsync(j, "ArrowDown", "ArrowDown", 40, 1);
+            var foi = await EsperarAteAsync(() => Task.FromResult(j.Selecionado == proximo), 3000);
+            p["alt_seta_seleciona_o_proximo"] = foi;
+            p["selecionado_depois_de_alt_seta"] = j.Selecionado == alvo.Id ? "o excluído" : j.Selecionado == proximo ? "o próximo" : j.Selecionado ?? "nenhum";
+            await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            p["desfeito_o_delete"] = proj.Item(alvo.Id)!.Incluido;
+
+            // Marca "◦ excl. 05": clique abre o flyout com o título e Restaurar.
+            var botao = await Js(j, "(() => { const b = document.querySelector('#pmvni-camada .pmvni-marca-excl'); if (!b) return null; b.scrollIntoView({ block: 'center', behavior: 'instant' }); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");
+            var flyout = false;
+            if (botao.ValueKind == JsonValueKind.Object)
+            {
+                await Esperar(200);
+                botao = await Js(j, "(() => { const r = document.querySelector('#pmvni-camada .pmvni-marca-excl').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");
+                await CliqueAsync(j, (botao.GetProperty("x").GetDouble(), botao.GetProperty("y").GetDouble()));
+                flyout = await EsperarAteAsync(() => Task.FromResult(j.UltimoFlyoutExcluido is { IsOpen: true }), 3000);
+                j.UltimoFlyoutExcluido?.Hide();
+            }
+            p["flyout_do_excluido"] = flyout;
+
+            // Revisão e Exibir: Somente alterados filtra a lista; Marcas tira e põe a camada; Propriedades recolhe.
+            await j.ExecutarComandoAsync(ComandosApp.RevisaoSomenteAlterados);
+            var itensFiltrados = j.Itens.Where(i => !i.Secao).ToList();
+            var filtra = itensFiltrados.Count > 0 && itensFiltrados.All(i => i.Alterado);
+            await j.ExecutarComandoAsync(ComandosApp.RevisaoSomenteAlterados);
+            await j.ExecutarComandoAsync(ComandosApp.RevisaoMarcas);
+            await Esperar(300);
+            var semMarcas = !(await Js(j, "!!document.getElementById('pmvni-camada')")).GetBoolean();
+            await j.ExecutarComandoAsync(ComandosApp.RevisaoMarcas);
+            await Esperar(300);
+            var comMarcas = (await Js(j, "!!document.getElementById('pmvni-camada')")).GetBoolean();
+            await j.ExecutarComandoAsync(ComandosApp.ExibirPropriedades);
+            var recolheu = !j.PropriedadesVisivel;
+            await j.ExecutarComandoAsync(ComandosApp.ExibirPropriedades);
+            p["somente_alterados_filtra"] = filtra;
+            p["marcas_alternam"] = semMarcas && comMarcas;
+            p["propriedades_recolhe"] = recolheu && j.PropriedadesVisivel;
+            p["aceleradores_de_teclado"] = j.AceleradoresDeTeclado;
+            var sem = j.AtalhosSemManipulador();
+            p["atalhos_sem_manipulador"] = new JsonArray(sem.Select(x => (JsonNode)x).ToArray());
+            p["comandos_sem_manipulador"] = new JsonArray(j.ComandosSemManipulador().Select(x => (JsonNode)x).ToArray());
+            p["ok"] = abriu && entradas == 5 && j.Selecionado is not null && excluiu && foi && proj.Item(alvo.Id)!.Incluido && flyout
+                && filtra && semMarcas && comMarcas && recolheu && j.PropriedadesVisivel && sem.Count == 0 && j.ComandosSemManipulador().Count == 0;
+        });
+
+        await Passo("19_latencia", async p =>
+        {
+            // Mediana de 5 comandos no longo (situação de um item, cada vez outra); só registra (meta 1,5 s, desenho §8.4).
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            var item = s.Revisao.Projeto.Incluidos[19];
+            var medidas = new List<long>();
+            var registros = s.Revisao.HistoricoCompleto.Count;
+            for (var k = 0; k < 5; k++)
+            {
+                var atual = item.Situacao.Revisada ?? item.Situacao.Original!.GetValue<string>();
+                var ordem = Faixas.OrdemSituacoes.ToList();
+                await j.AplicarAsync(new DefinirSituacao(item.Id, ordem[(ordem.IndexOf(atual) + 1) % ordem.Count]));
+                medidas.Add(j.UltimaLatenciaMs);
+            }
+            var aplicados = s.Revisao.HistoricoCompleto.Count - registros;
+            for (var k = 0; k < aplicados; k++) await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            var ordenadas = medidas.Order().ToList();
+            p["medidas_ms"] = new JsonArray(medidas.Select(m => (JsonNode)m).ToArray());
+            p["latencia_ms"] = ordenadas[ordenadas.Count / 2];
+            p["meta_ms"] = 1500;
+            p["dentro_da_meta"] = ordenadas[ordenadas.Count / 2] <= 1500;
+            p["ok"] = aplicados == 5;
+        });
+
         await j.FecharSessaoAsync();
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
         saida["ok"] = falhas.Count == 0;
         Gravar(args.Roteiro!, saida);
         Application.Current.Exit();
+    }
+
+    /// <summary>Centro (um pouco à esquerda, no texto) do campo <paramref name="campo"/> do item, depois de rolar até ele.</summary>
+    static async Task<(double X, double Y)> PontoDoCampoAsync(MainWindow j, string item, string campo)
+    {
+        var achar = $"[...document.querySelectorAll('section.folha .card[data-ref=\"{item}\"] [data-campo=\"{campo}\"]')][0]";
+        var ok = await Js(j, $"(() => {{ const e = {achar}; if (!e) return false; e.scrollIntoView({{ block: 'center', behavior: 'instant' }}); return true; }})()");
+        if (ok.ValueKind != JsonValueKind.True) throw new InvalidOperationException($"o campo {campo} do item {item} não está nas folhas");
+        await Esperar(250);
+        var r = await Js(j, $"(() => {{ const r = {achar}.getBoundingClientRect(); return {{ x: r.left + Math.min(r.width / 2, 60), y: r.top + Math.min(r.height / 2, 9) }}; }})()");
+        return (r.GetProperty("x").GetDouble(), r.GetProperty("y").GetDouble());
+    }
+
+    static async Task CliqueAsync(MainWindow j, (double X, double Y) ponto, int cliques = 1, string botao = "left")
+    {
+        var mascara = botao == "right" ? 2 : 1;
+        await Cdp(j, "Input.dispatchMouseEvent", new { type = "mouseMoved", x = ponto.X, y = ponto.Y, button = "none", buttons = 0 });
+        for (var n = 1; n <= cliques; n++)
+        {
+            await Cdp(j, "Input.dispatchMouseEvent", new { type = "mousePressed", x = ponto.X, y = ponto.Y, button = botao, buttons = mascara, clickCount = n });
+            await Cdp(j, "Input.dispatchMouseEvent", new { type = "mouseReleased", x = ponto.X, y = ponto.Y, button = botao, buttons = 0, clickCount = n });
+        }
+        await Esperar(150);
+    }
+
+    /// <summary>Tecla pelo CDP (modificadores: 1 Alt, 2 Ctrl, 8 Shift).</summary>
+    static async Task TeclaAsync(MainWindow j, string key, string code, int vk, int modificadores = 0)
+    {
+        await Cdp(j, "Input.dispatchKeyEvent", new { type = "rawKeyDown", key, code, windowsVirtualKeyCode = vk, nativeVirtualKeyCode = vk, modifiers = modificadores });
+        await Cdp(j, "Input.dispatchKeyEvent", new { type = "keyUp", key, code, windowsVirtualKeyCode = vk, nativeVirtualKeyCode = vk, modifiers = modificadores });
+    }
+
+    /// <summary>Foco nas folhas e o teclado chegando à página: manda Shift (fora da lista de atalhos, sem efeito) até ela registrar um keydown.</summary>
+    static async Task GarantirTecladoAsync(MainWindow j)
+    {
+        j.FocarFolhas();
+        await Js(j, "window.__pmvniTeclas = 0; if (!window.__pmvniEscuta) { window.__pmvniEscuta = true; addEventListener('keydown', () => { window.__pmvniTeclas++; }, true); } 1");
+        for (var k = 0; k < 40; k++)
+        {
+            await TeclaAsync(j, "Shift", "ShiftLeft", 16, 8);
+            await Esperar(50);
+            if ((await Js(j, "window.__pmvniTeclas")).GetInt32() > 0) return;
+        }
+        throw new InvalidOperationException("O teclado não chegou à página (40 tentativas com Shift).");
+    }
+
+    static Task Cdp(MainWindow j, string metodo, object parametros) =>
+        j.NucleoWeb.CallDevToolsProtocolMethodAsync(metodo, JsonSerializer.Serialize(parametros)).AsTask();
+
+    static async Task<bool> EsperarAteAsync(Func<Task<bool>> condicao, int ms)
+    {
+        var fim = DateTime.UtcNow.AddMilliseconds(ms);
+        while (true)
+        {
+            if (await condicao()) return true;
+            if (DateTime.UtcNow > fim) return false;
+            await Esperar(50);
+        }
+    }
+
+    static async Task<string?> EsperarValorAsync(MainWindow j, string expressao, int ms)
+    {
+        string? valor = null;
+        await EsperarAteAsync(async () => { var v = await Js(j, expressao); valor = v.ValueKind == JsonValueKind.String ? v.GetString() : null; return valor is not null; }, ms);
+        return valor;
     }
 
     static async Task<JsonElement> Js(MainWindow j, string expressao)

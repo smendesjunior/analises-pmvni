@@ -3,7 +3,8 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:controls="using:Microsoft.UI.Xaml.Controls"
   xmlns:local="using:Pmvni.App">
-  <!-- Módulo Relatórios: avisos, painel lateral (Seções), as folhas A4 (WebView2, criado uma vez) e o rodapé (zoom, folha X de Y). -->
+  <!-- Módulo Relatórios: avisos, painel lateral (Seções | Excluídos | Histórico), as folhas A4 (WebView2, criado uma vez),
+       Propriedades do item selecionado e o rodapé (zoom, folha X de Y). -->
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
@@ -25,16 +26,19 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
 
-      <!-- Painel lateral (recolhível por Exibir › Painel lateral): aba Seções; Excluídos e Histórico chegam na Tarefa 9. -->
+      <!-- Painel lateral (recolhível por Exibir › Painel lateral): abas Seções, Excluídos (n) e Histórico. -->
       <Grid x:Name="PainelNavegacao" x:FieldModifier="internal" Grid.Column="0" Width="292" Padding="0,2,0,0">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <SelectorBar x:Name="AbasPainel" Grid.Row="0" Margin="8,0,8,2">
-          <SelectorBarItem Text="Seções" IsSelected="True"/>
+        <SelectorBar x:Name="AbasPainel" x:FieldModifier="internal" Grid.Row="0" Margin="8,0,8,2">
+          <SelectorBarItem x:Name="AbaSecoes" x:FieldModifier="internal" Text="Seções" IsSelected="True"/>
+          <SelectorBarItem x:Name="AbaExcluidos" x:FieldModifier="internal" Text="Excluídos (0)"/>
+          <SelectorBarItem x:Name="AbaHistorico" x:FieldModifier="internal" Text="Histórico"/>
         </SelectorBar>
         <ListView x:Name="ListaNavegacao" x:FieldModifier="internal" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True"
                   Padding="6,0,6,8" AutomationProperties.Name="Seções e itens do relatório">
@@ -47,17 +51,37 @@
           </ListView.ItemContainerStyle>
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:ItemNavegacao">
-              <Grid MinHeight="28" ColumnSpacing="8" Padding="0,0,4,0">
+              <Grid MinHeight="28" ColumnSpacing="6" Padding="0,0,4,0">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="3"/>
+                  <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Style="{StaticResource PmvniRailIndicatorStyle}" Visibility="{x:Bind IndicadorVisivel, Mode=OneWay}"/>
-                <TextBlock Grid.Column="1" Text="{x:Bind Rotulo}" Margin="{x:Bind Recuo}" FontWeight="{x:Bind Peso}"
+                <Ellipse Grid.Column="1" Width="8" Height="8" Fill="{x:Bind CorSituacao}" Visibility="{x:Bind SituacaoVisivel}" Margin="{x:Bind Recuo}"
+                         VerticalAlignment="Center" ToolTipService.ToolTip="{x:Bind TextoSituacao}"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind Rotulo}" FontWeight="{x:Bind Peso}"
                            TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind FolhaTexto}" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
+                <Ellipse Grid.Column="3" Width="6" Height="6" Fill="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind AlteradoVisivel}"
+                         VerticalAlignment="Center" ToolTipService.ToolTip="alterado" AutomationProperties.Name="alterado"/>
+                <TextBlock Grid.Column="4" Text="{x:Bind FolhaTexto}" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
               </Grid>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
+        <!-- Excluídos: cada linha com o número original, o título e Restaurar (as linhas são montadas pela janela). -->
+        <ListView x:Name="ListaExcluidos" x:FieldModifier="internal" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True"
+                  Padding="6,0,6,8" Visibility="Collapsed" AutomationProperties.Name="Itens excluídos"/>
+        <TextBlock x:Name="TextoSemExcluidos" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed" Margin="16,12"
+                   Text="Nenhum item excluído." Style="{StaticResource PmvniSecondaryTextStyle}"/>
+        <!-- Histórico do pacote (historico.jsonl), mais recente primeiro. -->
+        <ListView x:Name="ListaHistorico" x:FieldModifier="internal" Grid.Row="1" SelectionMode="None" Visibility="Collapsed"
+                  Padding="6,0,6,8" AutomationProperties.Name="Histórico de alterações">
+          <ListView.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Text="{x:Bind}" TextWrapping="Wrap" Margin="0,4"/>
             </DataTemplate>
           </ListView.ItemTemplate>
         </ListView>
@@ -75,6 +99,61 @@
         <TextBlock x:Name="TextoVazio" x:FieldModifier="internal" Text="Importe um dados.json do kit ou abra um relatório (.pmvrel) pela aba Arquivo."
                    Style="{StaticResource PmvniSecondaryTextStyle}" HorizontalAlignment="Center" VerticalAlignment="Center"
                    IsHitTestVisible="False"/>
+      </Grid>
+
+      <!-- Propriedades do item selecionado (recolhível por Exibir › Propriedades). O original aparece aqui, lado a lado com o
+           revisado (Original ⇄), nunca nas folhas. As partes que dependem do item (campos, histórico) são montadas pela janela. -->
+      <Grid x:Name="PainelPropriedades" x:FieldModifier="internal" Grid.Column="2" Width="320"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Padding="16,10,8,6" ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel>
+            <TextBlock x:Name="PropTitulo" x:FieldModifier="internal" Text="Propriedades" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBlock x:Name="PropId" x:FieldModifier="internal" Text="" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"/>
+          </StackPanel>
+          <Button x:Name="BotaoFecharPropriedades" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniBarraButtonStyle}"
+                  AutomationProperties.Name="Fechar as propriedades" ToolTipService.ToolTip="Fechar (Exibir › Propriedades)" VerticalAlignment="Top">
+            <FontIcon Glyph="&#xE711;" FontSize="12"/>
+          </Button>
+        </Grid>
+        <TextBlock x:Name="PropVazio" x:FieldModifier="internal" Grid.Row="1" Margin="16,8" TextWrapping="Wrap"
+                   Text="Selecione um item nas folhas ou na lista de seções." Style="{StaticResource PmvniSecondaryTextStyle}"/>
+        <ScrollViewer x:Name="PropRolagem" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed">
+          <StackPanel x:Name="PropConteudo" x:FieldModifier="internal" Padding="16,4,16,16" Spacing="12">
+            <CheckBox x:Name="PropNoPdf" x:FieldModifier="internal" Content="No PDF"/>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Situação" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+              <ComboBox x:Name="PropSituacao" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Situação revisada"/>
+              <TextBlock x:Name="PropSituacaoOriginal" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Justificativa" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+              <TextBox x:Name="PropJustificativa" x:FieldModifier="internal" TextWrapping="Wrap" AcceptsReturn="False" MinHeight="56"
+                       PlaceholderText="Por que a situação mudou (Enter aplica)" AutomationProperties.Name="Justificativa"/>
+              <TextBlock x:Name="PropJustificativaAviso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
+                         Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed"
+                         Text="A situação mudou: a justificativa é exigida para exportar."/>
+            </StackPanel>
+            <StackPanel x:Name="PropCampos" x:FieldModifier="internal" Spacing="10"/>
+            <Button x:Name="PropRestaurarOriginal" x:FieldModifier="internal" HorizontalAlignment="Left">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
+                <TextBlock Text="Restaurar original"/>
+              </StackPanel>
+            </Button>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Histórico do item" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+              <StackPanel x:Name="PropHistorico" x:FieldModifier="internal" Spacing="2"/>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
       </Grid>
     </Grid>
 

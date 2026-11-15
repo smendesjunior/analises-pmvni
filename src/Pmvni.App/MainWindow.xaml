@@ -21,6 +21,17 @@
       <controls:TitleBar.IconSource>
         <controls:FontIconSource Glyph="&#xE8A5;"/>
       </controls:TitleBar.IconSource>
+      <!-- Desfazer e Refazer ao lado do estado de gravação (desenho §5.5). -->
+      <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Left" VerticalAlignment="Center">
+        <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
+                AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
+          <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
+        </Button>
+        <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
+                AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
+          <FontIcon Glyph="&#xE7A6;" FontSize="14"/>
+        </Button>
+      </StackPanel>
     </controls:TitleBar>
 
     <local:FaixaDeOpcoes x:Name="Faixa" Grid.Row="1" Margin="64,0,0,0"/>

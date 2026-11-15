@@ -3,17 +3,31 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.UI.Text;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using Windows.UI.Text;
+using Pmvni.Composicao.Kit;
 using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
 
 namespace Pmvni.App;
 
-/// <summary>Linha da lista de seções e itens (esquerda). <see cref="Ref"/> é o data-ref do bloco (null na capa); <see cref="Folha"/>,
-/// a primeira folha (1 = primeira) em que ele aparece. O indicador de 3 x 16 marca o item da folha que está na tela.</summary>
+/// <summary>Linha da lista de seções e itens (esquerda). <see cref="Ref"/> é o data-ref do bloco (null na capa; nos itens, o id do
+/// item no projeto); <see cref="Folha"/>, a primeira folha (1 = primeira) em que ele aparece. O indicador de 3 x 16 marca o item da
+/// folha que está na tela. Itens do relatório levam a situação efetiva (um ponto na cor do kit) e o marcador "alterado".</summary>
 public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool secao) : INotifyPropertyChanged
 {
+    // Cores das etiquetas de situação do kit (classes g, r, a, o do relatorio.css). Os pincéis são criados na thread da interface (na
+    // leitura da propriedade pela ligação), nunca num inicializador estático.
+    static readonly Dictionary<string, Windows.UI.Color> Cores = new(StringComparer.Ordinal)
+    {
+        ["g"] = ColorHelper.FromArgb(255, 0x10, 0x7C, 0x10),
+        ["r"] = ColorHelper.FromArgb(255, 0xC4, 0x2B, 0x1C),
+        ["a"] = ColorHelper.FromArgb(255, 0xB7, 0x80, 0x00),
+        ["o"] = ColorHelper.FromArgb(255, 0xCA, 0x50, 0x10),
+    };
+
     bool atual;
 
     public string Rotulo { get; } = rotulo;
@@ -24,6 +38,17 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
     public Thickness Recuo => Secao ? new Thickness(0) : new Thickness(14, 0, 0, 0);
     public FontWeight Peso => Secao ? FontWeights.SemiBold : FontWeights.Normal;
     public Visibility IndicadorVisivel => atual ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Código da situação efetiva (ATENDE…) de um item do relatório; null nas seções, capa e figuras.</summary>
+    public string? Situacao { get; set; }
+
+    /// <summary>O item tem revisão (situação ou texto).</summary>
+    public bool Alterado { get; set; }
+
+    public Brush CorSituacao => new SolidColorBrush(Situacao is not null && Situacoes.Sit.TryGetValue(Situacao, out var s) && Cores.TryGetValue(s.Cor, out var c) ? c : Colors.Transparent);
+    public string TextoSituacao => Situacao is not null && Situacoes.Sit.TryGetValue(Situacao, out var s) ? s.Texto : "";
+    public Visibility SituacaoVisivel => Situacao is null ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility AlteradoVisivel => Alterado ? Visibility.Visible : Visibility.Collapsed;
 
     public bool Atual
     {

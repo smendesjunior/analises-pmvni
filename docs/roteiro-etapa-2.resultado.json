@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-11-15T05:10:32Z",
+  "gerado_em": "2026-11-15T05:39:02Z",
   "webview2": "157.0.4341.46",
   "escala_do_monitor": 1.5,
   "janela_px": {
@@ -16,7 +16,7 @@
       "folhas_que_transbordam_na_tela": [],
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "titulo_confere": true,
-      "estado_de_gravacao": "Salvo 02:10",
+      "estado_de_gravacao": "Salvo 02:39",
       "composicao": "Composto: 21 folhas",
       "itens_na_lista": 77,
       "primeiros_itens": [
@@ -32,7 +32,7 @@
       "aviso_largura_confere": true,
       "exportar_habilitado": true,
       "rodape_folha": "folha 1 de 21",
-      "latencia_recomposicao_ms": 1129,
+      "latencia_recomposicao_ms": 1394,
       "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
       "folhas_com_conteudo_alem_da_borda": [
         14
@@ -52,7 +52,7 @@
         "folhas": 21,
         "fundoDaFolha": "rgb(255, 255, 255)",
         "fundoDaPagina": "rgb(31, 31, 31)",
-        "janela": 638,
+        "janela": 622,
         "passoEsperado": 1152.755905511811,
         "passoMax": 1152.740234375,
         "passoMin": 1152.73828125,
@@ -153,17 +153,17 @@
         },
         {
           "como": "botão Ajustar largura",
-          "zoom": 1.4879662698412697,
+          "zoom": 1.0847916666666666,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 1181
+          "largura_da_folha_px": 861
         },
         {
           "como": "botão Página inteira",
-          "zoom": 0.5264941077441077,
+          "zoom": 0.5122404601571268,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 417.9
+          "largura_da_folha_px": 406.6
         },
         {
           "como": "comando exibir.mais",
@@ -181,17 +181,17 @@
         },
         {
           "como": "comando exibir.pagina",
-          "zoom": 0.5398569023569023,
+          "zoom": 0.5256032547699214,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 428.5
+          "largura_da_folha_px": 417.2
         },
         {
           "como": "comando exibir.largura",
-          "zoom": 1.4879662698412697,
+          "zoom": 1.0847916666666666,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 1181
+          "largura_da_folha_px": 861
         }
       ],
       "plano_igual_depois_do_zoom": true,
@@ -305,7 +305,7 @@
       "ok": true,
       "folha_vista_apos_rolar_ate_o_estouro": {
         "comFaixa": true,
-        "esquerda": 209.64959716796875,
+        "esquerda": 72,
         "folhaNaTela": 3,
         "sombra": "rgb(196, 43, 28) -5px 0px 0px 0px, rgba(0, 0, 0, 0.75) 0px 1px 4px 0px, rgba(0, 0, 0, 0.08) 0px 0px 0px 1px",
         "zoom": "1"
@@ -354,10 +354,12 @@
       ],
       "abas": [
         "Arquivo",
+        "Página Inicial",
+        "Revisão",
         "Exibir",
         "Ajuda"
       ],
-      "aba_aberta": "Exibir",
+      "aba_aberta": "Página Inicial",
       "botoes_aba_ajuda": [
         "ajuda.atalhos",
         "ajuda.sobre"
@@ -381,20 +383,133 @@
       "fechado_sem_relatorio": true,
       "plano_igual_ao_da_importacao": true,
       "historico": 1,
-      "estado_de_gravacao": "Salvo 02:10",
+      "estado_de_gravacao": "Salvo 02:39",
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "ok": true
     },
     "12_salvar_duas_vezes_sem_conflito": {
-      "estado_de_gravacao": "Salvo 02:11",
+      "estado_de_gravacao": "Salvo 02:39",
       "disco_confere": true,
       "aviso_de_erro": false,
       "exporta_depois": true,
       "erro_ao_exportar": null,
       "ok": true
+    },
+    "13_selecionar_e_editar_no_a4": {
+      "selecionado_pelo_clique": true,
+      "propriedades_titulo": "ITEM 03",
+      "campos_marcados_na_tela": 300,
+      "duplo_clique_abre_a_edicao": true,
+      "esc_cancela_a_edicao": true,
+      "erros_da_edicao": [],
+      "modelo_tem_o_texto_novo": true,
+      "folhas_tem_o_texto_novo": true,
+      "data_campo_fora_do_html_preparado": true,
+      "estado_de_gravacao": "Não salvo",
+      "lista_marca_alterado": true,
+      "f2_edita_o_ultimo_campo_clicado": "titulo",
+      "ok": true
+    },
+    "14_situacao_e_justificativa": {
+      "erros_finais": [
+        "ITEM 03: a situação mudou de INFORMAÇÕES DIVERGENTES para ATENDE sem justificativa"
+      ],
+      "mensagem_esperada": "ITEM 03: a situação mudou de INFORMAÇÕES DIVERGENTES para ATENDE sem justificativa",
+      "mensagem_exata": true,
+      "erros_sem_repeticao": true,
+      "exportar_habilitado_sem_justificativa": false,
+      "exportacao_recusada": true,
+      "mensagem_da_recusa": "Exportação recusada pela conferência do kit: ITEM 03: a situação mudou de INFORMAÇÕES DIVERGENTES para ATENDE sem justificativa",
+      "conferencia_mostra_o_erro": true,
+      "propriedades_aviso_de_justificativa": "ITEM 03",
+      "erros_finais_com_justificativa": 0,
+      "exportar_habilitado_com_justificativa": true,
+      "ok": true
+    },
+    "15_excluir_e_marca": {
+      "rotulo_antes": "Excluir item",
+      "itens_incluidos": 59,
+      "rotulo_do_antigo_06": "ITEM 05",
+      "aba_excluidos": "Excluídos (1)",
+      "linhas_excluidos": 1,
+      "rotulo_depois": "Restaurar item",
+      "marcas_de_excluido": {
+        "dentroDeFolha": false,
+        "n": 1,
+        "textos": [
+          "◦ excl. 05"
+        ]
+      },
+      "ok": true
+    },
+    "16_desfazer_refazer": {
+      "plano_igual_ao_da_importacao": true,
+      "itens_incluidos_desfeito": 60,
+      "pode_desfazer_mais": false,
+      "item_03_sem_revisao_depois_de_desfazer": true,
+      "item_03_depois_de_desfazer": "revisada=null; justificativa=null; campos revisados=0",
+      "plano_refeito_igual": true,
+      "registros_desfeito": 4,
+      "registros_refeito": 4,
+      "historico_na_tela": [
+        "02:39 · smendesjunior · Refeito: Excluído o ITEM 05",
+        "02:39 · smendesjunior · Refeito: Justificativa do ITEM 03 definida",
+        "02:39 · smendesjunior · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
+      ],
+      "linhas_do_historico": "13 na tela, 13 no histórico",
+      "item_05_excluido_de_novo": true,
+      "ok": true
+    },
+    "17_salvar_reabrir_exportar": {
+      "ctrl_s_salvou": true,
+      "alteracoes_reabertas": true,
+      "registros_no_pacote": 13,
+      "desfeitos_e_refeitos_com_ref": true,
+      "paginas_do_pdf": 21,
+      "folhas_na_tela": 21,
+      "ok": true
+    },
+    "18_menu_de_contexto_e_atalhos": {
+      "menu_aberto": true,
+      "menu_entradas": [
+        "Situação ▸",
+        "Editar texto",
+        "Excluir item",
+        "Original ⇄",
+        "Propriedades"
+      ],
+      "selecionado_pelo_menu": true,
+      "delete_excluiu": true,
+      "selecionado_depois_do_delete": true,
+      "alt_seta_seleciona_o_proximo": true,
+      "selecionado_depois_de_alt_seta": "o próximo",
+      "desfeito_o_delete": true,
+      "flyout_do_excluido": true,
+      "somente_alterados_filtra": true,
+      "marcas_alternam": true,
+      "propriedades_recolhe": true,
+      "aceleradores_de_teclado": 19,
+      "atalhos_sem_manipulador": [],
+      "comandos_sem_manipulador": [],
+      "ok": true
+    },
+    "19_latencia": {
+      "medidas_ms": [
+        385,
+        493,
+        377,
+        523,
+        439
+      ],
+      "latencia_ms": 439,
+      "meta_ms": 1500,
+      "dentro_da_meta": true,
+      "ok": true
     }
   },
-  "perguntas_feitas": [],
+  "perguntas_feitas": [
+    "informar Conferência"
+  ],
   "falhas": [],
   "ok": true
 }

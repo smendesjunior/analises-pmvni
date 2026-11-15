@@ -24,7 +24,7 @@ public class FaixasTestes
             Assert.All(f.Abas, a => Assert.NotEmpty(a.Comandos));
         }
         Assert.Equal(new[] { "Arquivo", "Ajuda" }, Faixas.Para(Modulo.Ajustes).Abas.Select(a => a.Nome));
-        Assert.Equal(new[] { "Arquivo", "Exibir", "Ajuda" }, Faixas.Para(Modulo.Relatorios).Abas.Select(a => a.Nome));
+        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Revisão", "Exibir", "Ajuda" }, Faixas.Para(Modulo.Relatorios).Abas.Select(a => a.Nome));
     }
 
     [Fact]
@@ -49,12 +49,41 @@ public class FaixasTestes
         Assert.Contains("ajuda.sobre", conhecidos);
         foreach (var m in ComFaixa())
         {
-            var ids = Faixas.Para(m).Abas.SelectMany(a => a.Comandos).SelectMany(c => c.Itens is null ? [c] : c.Itens.Prepend(c))
-                .Where(c => c.Tipo != TipoComando.Menu).Select(c => c.Id).ToList();
-            Assert.All(ids, id => Assert.Contains(id, conhecidos));
-            Assert.Equal(ids.Count, ids.Distinct(StringComparer.Ordinal).Count());
+            // O mesmo comando pode aparecer em duas abas (Exportar PDF em Arquivo e em Página Inicial); dentro de uma aba, não.
+            foreach (var aba in Faixas.Para(m).Abas)
+            {
+                var ids = aba.Comandos.SelectMany(c => c.Itens is null ? [c] : c.Itens.Prepend(c)).Select(c => c.Id).ToList();
+                Assert.All(ids, id => Assert.Contains(id, conhecidos));
+                Assert.Equal(ids.Count, ids.Distinct(StringComparer.Ordinal).Count());
+            }
             Assert.All(Faixas.Para(m).Abas.SelectMany(a => a.Comandos), c => Assert.False(string.IsNullOrWhiteSpace(c.Rotulo)));
         }
+    }
+
+    [Fact]
+    public void pagina_inicial_e_revisao_tem_os_comandos_da_revisao()
+    {
+        var f = Faixas.Para(Modulo.Relatorios);
+        var inicio = f.Abas.Single(a => a.Nome == "Página Inicial");
+        Assert.Equal(new[]
+        {
+            ComandosApp.InicioSituacao, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
+            ComandosApp.InicioRestaurarOriginal, ComandosApp.InicioItemAnterior, ComandosApp.InicioItemProximo, ComandosApp.InicioProximoPendente,
+            ComandosApp.ArquivoExportarPdf,
+        }, inicio.Comandos.Select(c => c.Id));
+        var situacao = inicio.Comandos[0];
+        Assert.Equal(TipoComando.Menu, situacao.Tipo);
+        // As 4 situações de item do kit, pelos textos que o relatório imprime.
+        Assert.Equal(Pmvni.Composicao.Kit.Situacoes.SitItem.Order(StringComparer.Ordinal), situacao.Itens!.Select(i => ComandosApp.SituacaoDoComando(i.Id)!).Order(StringComparer.Ordinal));
+        Assert.All(situacao.Itens!, i => Assert.Equal(Pmvni.Composicao.Kit.Situacoes.Sit[ComandosApp.SituacaoDoComando(i.Id)!].Texto, i.Rotulo));
+        Assert.Equal(TipoComando.Alternar, inicio.Comandos.Single(c => c.Id == ComandosApp.InicioOriginal).Tipo);
+
+        var revisao = f.Abas.Single(a => a.Nome == "Revisão");
+        Assert.Equal(new[] { ComandosApp.RevisaoMarcas, ComandosApp.RevisaoSomenteAlterados, ComandosApp.RevisaoConferencia }, revisao.Comandos.Select(c => c.Id));
+        Assert.Equal(new[] { TipoComando.Alternar, TipoComando.Alternar, TipoComando.Botao }, revisao.Comandos.Select(c => c.Tipo));
+
+        var exibir = f.Abas.Single(a => a.Nome == "Exibir");
+        Assert.Equal(TipoComando.Alternar, exibir.Comandos.Single(c => c.Id == ComandosApp.ExibirPropriedades).Tipo);
     }
 
     [Fact]
