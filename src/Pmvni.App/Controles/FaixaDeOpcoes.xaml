@@ -3,21 +3,33 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!-- Faixa de opções: abas (SelectorBar) e, embaixo, o botão primário tonal do módulo (o mesmo em todas as abas, como "Novo email")
        seguido dos comandos da aba (CommandBar, rótulo à direita do ícone). -->
-  <StackPanel Padding="8,0,8,2">
-    <SelectorBar x:Name="Abas" SelectionChanged="AoMudarAba"/>
-    <Grid ColumnSpacing="8">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto"/>
-        <ColumnDefinition Width="*"/>
-      </Grid.ColumnDefinitions>
-      <!-- Cores tonais do primário (claro, escuro e alto contraste): só o botão primário é um Button dentro desta vaga. -->
-      <ContentControl x:Name="VagaPrimario" Grid.Column="0" VerticalAlignment="Center" IsTabStop="False" Margin="4,0,0,0">
-        <ContentControl.Resources>
-          <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
-        </ContentControl.Resources>
-      </ContentControl>
-      <CommandBar x:Name="Barra" Grid.Column="1" DefaultLabelPosition="Right" HorizontalAlignment="Left" IsDynamicOverflowEnabled="True"
-                  Background="Transparent" OverflowButtonVisibility="Auto"/>
-    </Grid>
+  <!-- Correções 2026-11-15 (como o Outlook): abas compactas e, embaixo, os comandos numa faixa arredondada só, sem espaço vazio. -->
+  <StackPanel Padding="8,0,12,6" Spacing="2">
+    <SelectorBar x:Name="Abas" SelectionChanged="AoMudarAba" Padding="0" MinHeight="36"/>
+    <Border CornerRadius="8" Padding="4,2" Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+      <Grid ColumnSpacing="4">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <!-- Cores tonais do primário (claro, escuro e alto contraste): só o botão primário é um Button dentro desta vaga. -->
+        <ContentControl x:Name="VagaPrimario" Grid.Column="0" VerticalAlignment="Center" IsTabStop="False">
+          <ContentControl.Resources>
+            <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
+          </ContentControl.Resources>
+        </ContentControl>
+        <Border Grid.Column="1" Width="1" Margin="4,8" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+        <CommandBar x:Name="Barra" Grid.Column="2" DefaultLabelPosition="Right" HorizontalAlignment="Left" IsDynamicOverflowEnabled="True"
+                    Background="Transparent" OverflowButtonVisibility="Auto">
+          <CommandBar.Resources>
+            <x:Double x:Key="AppBarButtonContentHeight">16</x:Double>
+            <Thickness x:Key="AppBarButtonInnerBorderMargin">2,4,2,4</Thickness>
+            <x:Double x:Key="AppBarThemeCompactHeight">40</x:Double>
+          </CommandBar.Resources>
+        </CommandBar>
+      </Grid>
+    </Border>
   </StackPanel>
 </UserControl>

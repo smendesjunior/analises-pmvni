@@ -58,7 +58,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal string TextoEstadoAtual => textoEstado;
     /// <summary>O título do documento aberto ("Proc. NNNN/AAAA · Requerente"), ou o nome do app sem relatório.</summary>
     internal string TextoTituloAtual => textoTitulo;
-    internal string TextoBarraTitulo => BarraTitulo.Title ?? "";
+    internal string TextoBarraTitulo => TextoMarca.Text;
     internal string TextoSubtituloBarra => BarraTitulo.Subtitle ?? "";
     internal string TextoComposicaoAtual => R.TextoComposicao.Text;
     internal string TextoFolhaAtual => totalFolhas == 0 ? "" : $"folha {folhaAtual} de {totalFolhas}";
@@ -777,7 +777,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         textoTitulo = titulo ?? TituloPadrao;
         textoEstado = sessao is null ? "" : EstadoGravacaoTexto.Texto(sessao.Estado, sessao.SalvoEmLocal);
         // A marca não se repete (auditoria B9): o título da barra é sempre "Editor de Relatórios"; o subtítulo leva o documento e o estado.
-        BarraTitulo.Title = TituloDaBarra;
+        TextoMarca.Text = TituloDaBarra; // o título fica no TextoMarca (estilo Gmail), não no Title da TitleBar
         BarraTitulo.Subtitle = titulo is null ? textoEstado : textoEstado.Length == 0 ? titulo : titulo + "  ·  " + textoEstado;
         Title = titulo is null ? TituloPadrao : titulo + " — " + TituloPadrao;
         AtualizarComandos();

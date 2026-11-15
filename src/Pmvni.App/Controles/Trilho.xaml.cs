@@ -55,22 +55,24 @@ public sealed partial class Trilho : UserControl
         foreach (var m in modulos)
         {
             var icone = CriarIcone(m);
+            // Como o Gmail (correções 2026-11-15): o fundo arredondado cobre o ícone e o rótulo juntos; a barrinha fica na borda esquerda.
+            var conteudo = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Spacing = 2 };
+            var vagaIcone = new Grid { Width = 28, Height = 28, HorizontalAlignment = HorizontalAlignment.Center };
+            vagaIcone.Children.Add((UIElement?)icone ?? new FontIcon { Glyph = Pmvni.App.Modulos.Glifo(m), FontSize = 20 });
+            var rotulo = new TextBlock { Text = Pmvni.App.Modulos.Rotulo(m), Style = Estilo("PmvniTrilhoRotuloStyle") };
+            conteudo.Children.Add(vagaIcone);
+            conteudo.Children.Add(rotulo);
             var fundo = new Border
             {
-                Width = 56, Height = 36, CornerRadius = new CornerRadius(10),
+                Width = 64, Height = 60, CornerRadius = new CornerRadius(8),
                 HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 Style = Estilo("PmvniTrilhoFundoInativoStyle"),
-                Child = (UIElement?)icone ?? new FontIcon { Glyph = Pmvni.App.Modulos.Glifo(m), FontSize = 18 },
+                Child = conteudo,
             };
-            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Visibility = Visibility.Collapsed, Margin = new Thickness(1, 0, 0, 0) };
-            var rotulo = new TextBlock { Text = Pmvni.App.Modulos.Rotulo(m), Style = Estilo("PmvniTrilhoRotuloStyle") };
+            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 0) };
             var grade = new Grid();
-            grade.RowDefinitions.Add(new RowDefinition { Height = new GridLength(38) });
-            grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             grade.Children.Add(fundo);
             grade.Children.Add(indicador);
-            Grid.SetRow(rotulo, 1);
-            grade.Children.Add(rotulo);
             var botao = new Button
             {
                 Content = grade,

@@ -7,6 +7,18 @@
        O tamanho vem de quem usa (Viewbox sem tamanho): 28 x 28 no trilho, 48 x 48 nas telas vazias. -->
   <ResourceDictionary.ThemeDictionaries>
     <ResourceDictionary x:Key="Light">
+      <LinearGradientBrush x:Key="PmvniGradAzul" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#4BA0F4" Offset="0"/><GradientStop Color="#1366D6" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradAzulClaro" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#A9D3FF" Offset="0"/><GradientStop Color="#6CB2F7" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradVerde" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#3CCB7F" Offset="0"/><GradientStop Color="#0E8A48" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradRoxo" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#9B7BF2" Offset="0"/><GradientStop Color="#5B3CC4" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradRoxoClaro" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#CDBBFF" Offset="0"/><GradientStop Color="#A58CF5" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradLaranja" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#FFB13B" Offset="0"/><GradientStop Color="#E8730C" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradAmarelo" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#FFD86B" Offset="0"/><GradientStop Color="#F4B400" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradAmareloEscuro" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#E9A800" Offset="0"/><GradientStop Color="#C98A00" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradVerdeAgua" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#2BC4B4" Offset="0"/><GradientStop Color="#0B8278" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradVermelho" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#FF6B6B" Offset="0"/><GradientStop Color="#D13438" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradCinza" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#9AA7B5" Offset="0"/><GradientStop Color="#5D6B7A" Offset="1"/></LinearGradientBrush>
+
       <SolidColorBrush x:Key="PmvniIconeAzul" Color="#1689D6"/>
       <SolidColorBrush x:Key="PmvniIconeAzulEscuro" Color="#0E5E96"/>
       <SolidColorBrush x:Key="PmvniIconeVerde" Color="#1E8E4E"/>
@@ -18,7 +30,7 @@
       <SolidColorBrush x:Key="PmvniIconeFolha" Color="#FFFFFF"/>
       <SolidColorBrush x:Key="PmvniIconeAco" Color="#5E7389"/>
       <SolidColorBrush x:Key="PmvniIconeBranco" Color="#FFFFFF"/>
-      <SolidColorBrush x:Key="PmvniTrilhoSelecionado" Color="#DDEAF5"/>
+      <SolidColorBrush x:Key="PmvniTrilhoSelecionado" Color="#14000000"/>
       <SolidColorBrush x:Key="PmvniTrilhoSelecionadoBorda" Color="Transparent"/>
       <SolidColorBrush x:Key="PmvniTonalFundo" Color="#D4EEDD"/>
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="#0F5132"/>
@@ -26,6 +38,18 @@
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#B2DDC1"/>
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
+      <LinearGradientBrush x:Key="PmvniGradAzul" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#4BA0F4" Offset="0"/><GradientStop Color="#1366D6" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradAzulClaro" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#A9D3FF" Offset="0"/><GradientStop Color="#6CB2F7" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradVerde" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#3CCB7F" Offset="0"/><GradientStop Color="#0E8A48" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradRoxo" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#9B7BF2" Offset="0"/><GradientStop Color="#5B3CC4" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradRoxoClaro" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#CDBBFF" Offset="0"/><GradientStop Color="#A58CF5" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradLaranja" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#FFB13B" Offset="0"/><GradientStop Color="#E8730C" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradAmarelo" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#FFD86B" Offset="0"/><GradientStop Color="#F4B400" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradAmareloEscuro" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#E9A800" Offset="0"/><GradientStop Color="#C98A00" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradVerdeAgua" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#2BC4B4" Offset="0"/><GradientStop Color="#0B8278" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradVermelho" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#FF6B6B" Offset="0"/><GradientStop Color="#D13438" Offset="1"/></LinearGradientBrush>
+      <LinearGradientBrush x:Key="PmvniGradCinza" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#9AA7B5" Offset="0"/><GradientStop Color="#5D6B7A" Offset="1"/></LinearGradientBrush>
+
       <SolidColorBrush x:Key="PmvniIconeAzul" Color="#5AB8F2"/>
       <SolidColorBrush x:Key="PmvniIconeAzulEscuro" Color="#3A93CC"/>
       <SolidColorBrush x:Key="PmvniIconeVerde" Color="#4CC27F"/>
@@ -37,7 +61,7 @@
       <SolidColorBrush x:Key="PmvniIconeFolha" Color="#E9EEF2"/>
       <SolidColorBrush x:Key="PmvniIconeAco" Color="#A9BCCF"/>
       <SolidColorBrush x:Key="PmvniIconeBranco" Color="#FFFFFF"/>
-      <SolidColorBrush x:Key="PmvniTrilhoSelecionado" Color="#2C3B49"/>
+      <SolidColorBrush x:Key="PmvniTrilhoSelecionado" Color="#33FFFFFF"/>
       <SolidColorBrush x:Key="PmvniTrilhoSelecionadoBorda" Color="Transparent"/>
       <SolidColorBrush x:Key="PmvniTonalFundo" Color="#1F4D33"/>
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="#CFEBD9"/>
@@ -45,6 +69,18 @@
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#2F6E4B"/>
     </ResourceDictionary>
     <ResourceDictionary x:Key="HighContrast">
+      <SolidColorBrush x:Key="PmvniGradAzul" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="PmvniGradAzulClaro" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="PmvniGradVerde" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="PmvniGradRoxo" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="PmvniGradRoxoClaro" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="PmvniGradLaranja" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="PmvniGradAmarelo" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="PmvniGradAmareloEscuro" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="PmvniGradVerdeAgua" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="PmvniGradVermelho" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="PmvniGradCinza" Color="{ThemeResource SystemColorButtonTextColor}"/>
+
       <SolidColorBrush x:Key="PmvniIconeAzul" Color="{ThemeResource SystemColorButtonTextColor}"/>
       <SolidColorBrush x:Key="PmvniIconeAzulEscuro" Color="{ThemeResource SystemColorButtonTextColor}"/>
       <SolidColorBrush x:Key="PmvniIconeVerde" Color="{ThemeResource SystemColorButtonTextColor}"/>
@@ -67,88 +103,61 @@
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
 
-  <!-- Relatórios: folha com canto dobrado, três linhas e selo verde com ✓ ("relatório conferido"). -->
+  <!-- Ícones no estilo Fluent do Windows 11 (correções 2026-11-15): formas arredondadas, degradê suave de cima para baixo, uma cor por
+       módulo e um detalhe que diz o que o módulo faz. Os degradês vêm de PmvniGrad* (sólidos no alto contraste). -->
+
+  <!-- Relatórios: folha azul com lista de verificação (análise do projeto) e lupa. -->
   <DataTemplate x:Key="PmvniIconeRelatorios">
     <Viewbox Stretch="Uniform"><Canvas Width="24" Height="24">
-      <Path Data="M6.5,2 H14.5 L19,6.5 V20.5 A1.5,1.5 0 0 1 17.5,22 H6.5 A1.5,1.5 0 0 1 5,20.5 V3.5 A1.5,1.5 0 0 1 6.5,2 Z"
-            Fill="{ThemeResource PmvniIconeFolha}" Stroke="{ThemeResource PmvniIconeAzulEscuro}" StrokeThickness="1.2" StrokeLineJoin="Round"/>
-      <Path Data="M14.5,2 V5.5 A1,1 0 0 0 15.5,6.5 H19" Stroke="{ThemeResource PmvniIconeAzulEscuro}" StrokeThickness="1.2"
-            StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-      <Rectangle Canvas.Left="8" Canvas.Top="9.3" Width="8" Height="1.5" RadiusX=".75" RadiusY=".75" Fill="{ThemeResource PmvniIconeAzul}"/>
-      <Rectangle Canvas.Left="8" Canvas.Top="12.3" Width="8" Height="1.5" RadiusX=".75" RadiusY=".75" Fill="{ThemeResource PmvniIconeAzul}"/>
-      <Rectangle Canvas.Left="8" Canvas.Top="15.3" Width="4.5" Height="1.5" RadiusX=".75" RadiusY=".75" Fill="{ThemeResource PmvniIconeAzul}"/>
-      <Ellipse Canvas.Left="12.2" Canvas.Top="12.7" Width="10.6" Height="10.6" Fill="{ThemeResource PmvniIconeFolha}"/>
-      <Ellipse Canvas.Left="13" Canvas.Top="13.5" Width="9" Height="9" Fill="{ThemeResource PmvniIconeVerde}"/>
-      <Path Data="M15.3,18.1 L16.8,19.6 L19.8,16.4" Stroke="{ThemeResource PmvniIconeBranco}" StrokeThickness="1.5"
-            StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+      <Path Data="M6,2 H13.5 L19,7.5 V20 A2,2 0 0 1 17,22 H6 A2,2 0 0 1 4,20 V4 A2,2 0 0 1 6,2 Z" Fill="{ThemeResource PmvniGradAzul}"/>
+      <Path Data="M13.5,2 V6 A1.5,1.5 0 0 0 15,7.5 H19 Z" Fill="{ThemeResource PmvniGradAzulClaro}"/>
+      <Path Data="M6.8,10.3 L7.6,11.1 L9,9.6" Stroke="{ThemeResource PmvniIconeBranco}" StrokeThickness="1.1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+      <Rectangle Canvas.Left="10.2" Canvas.Top="9.8" Width="5" Height="1.3" RadiusX=".65" RadiusY=".65" Fill="{ThemeResource PmvniIconeBranco}"/>
+      <Path Data="M6.8,13.8 L7.6,14.6 L9,13.1" Stroke="{ThemeResource PmvniIconeBranco}" StrokeThickness="1.1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+      <Rectangle Canvas.Left="10.2" Canvas.Top="13.3" Width="3.5" Height="1.3" RadiusX=".65" RadiusY=".65" Fill="{ThemeResource PmvniIconeBranco}"/>
+      <Ellipse Canvas.Left="12.4" Canvas.Top="13.4" Width="7.2" Height="7.2" Fill="{ThemeResource PmvniGradVerde}" Stroke="{ThemeResource PmvniIconeBranco}" StrokeThickness="1.2"/>
+      <Path Data="M18.8,19.8 L21.6,22.6" Stroke="{ThemeResource PmvniGradVerde}" StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
     </Canvas></Viewbox>
   </DataTemplate>
 
-  <!-- Despachos: folha com duas linhas, assinatura azul e carimbo amarelo com fitas ("documento assinado e carimbado"). -->
+  <!-- Despachos: folha roxa com texto e caneta laranja assinando. -->
   <DataTemplate x:Key="PmvniIconeDespachos">
     <Viewbox Stretch="Uniform"><Canvas Width="24" Height="24">
-      <Path Data="M6.5,2 H14.5 L19,6.5 V20.5 A1.5,1.5 0 0 1 17.5,22 H6.5 A1.5,1.5 0 0 1 5,20.5 V3.5 A1.5,1.5 0 0 1 6.5,2 Z"
-            Fill="{ThemeResource PmvniIconeFolha}" Stroke="{ThemeResource PmvniIconeMarrom}" StrokeThickness="1.2" StrokeLineJoin="Round"/>
-      <Path Data="M14.5,2 V5.5 A1,1 0 0 0 15.5,6.5 H19" Stroke="{ThemeResource PmvniIconeMarrom}" StrokeThickness="1.2"
-            StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-      <Rectangle Canvas.Left="7.5" Canvas.Top="6.75" Width="5.5" Height="1.5" RadiusX=".75" RadiusY=".75" Fill="{ThemeResource PmvniIconeMarrom}"/>
-      <Rectangle Canvas.Left="7.5" Canvas.Top="9.75" Width="8" Height="1.5" RadiusX=".75" RadiusY=".75" Fill="{ThemeResource PmvniIconeMarrom}"/>
-      <Path Data="M7.5,15.5 C8.6,13.6 9.6,17.2 10.7,15.3 S12.8,14.4 13.6,15.8" Stroke="{ThemeResource PmvniIconeAzul}" StrokeThickness="1.2"
-            StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
-      <Path Data="M15.1,20.9 L14.5,23.4 L16,22.6 L16.8,23.7 L17.2,21.6 Z" Fill="{ThemeResource PmvniIconeMarrom}"/>
-      <Ellipse Canvas.Left="12.8" Canvas.Top="13.3" Width="8.4" Height="8.4" Fill="{ThemeResource PmvniIconeAmarelo}"
-               Stroke="{ThemeResource PmvniIconeMarrom}" StrokeThickness="1"/>
-      <Ellipse Canvas.Left="15.3" Canvas.Top="15.8" Width="3.4" Height="3.4" Stroke="{ThemeResource PmvniIconeMarrom}" StrokeThickness=".8"/>
+      <Path Data="M5.5,2 H13 L18.5,7.5 V20 A2,2 0 0 1 16.5,22 H5.5 A2,2 0 0 1 3.5,20 V4 A2,2 0 0 1 5.5,2 Z" Fill="{ThemeResource PmvniGradRoxo}"/>
+      <Path Data="M13,2 V6 A1.5,1.5 0 0 0 14.5,7.5 H18.5 Z" Fill="{ThemeResource PmvniGradRoxoClaro}"/>
+      <Rectangle Canvas.Left="6.3" Canvas.Top="9.5" Width="7.5" Height="1.3" RadiusX=".65" RadiusY=".65" Fill="{ThemeResource PmvniIconeBranco}"/>
+      <Rectangle Canvas.Left="6.3" Canvas.Top="12.3" Width="5.5" Height="1.3" RadiusX=".65" RadiusY=".65" Fill="{ThemeResource PmvniIconeBranco}"/>
+      <Path Data="M6.3,17.6 C7.3,15.8 8.2,18.9 9.3,17.2" Stroke="{ThemeResource PmvniIconeBranco}" StrokeThickness="1.1" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+      <Path Data="M19.6,10.6 L21.4,12.4 A1,1 0 0 1 21.4,13.8 L14.4,20.8 L11.6,21.6 L12.4,18.8 L19.4,11.8 Z" Fill="{ThemeResource PmvniGradLaranja}"
+            Stroke="{ThemeResource PmvniIconeBranco}" StrokeThickness=".9" StrokeLineJoin="Round"/>
     </Canvas></Viewbox>
   </DataTemplate>
 
-  <!-- Processos: pasta caramelo com uma folha saindo, frente amarela e etiqueta verde. -->
+  <!-- Processos: pasta amarela (a do Explorador do Windows 11) com um selo de protocolo azul. -->
   <DataTemplate x:Key="PmvniIconeProcessos">
     <Viewbox Stretch="Uniform"><Canvas Width="24" Height="24">
-      <Path Data="M2.5,6 A1.5,1.5 0 0 1 4,4.5 H9.2 L11.2,6.5 H20 A1.5,1.5 0 0 1 21.5,8 V18.5 A1.5,1.5 0 0 1 20,20 H4 A1.5,1.5 0 0 1 2.5,18.5 Z"
-            Fill="{ThemeResource PmvniIconeMarromClaro}"/>
-      <Rectangle Canvas.Left="5" Canvas.Top="7.2" Width="14" Height="6" Fill="{ThemeResource PmvniIconeFolha}"
-                 Stroke="{ThemeResource PmvniIconeAzul}" StrokeThickness=".8"/>
-      <Path Data="M2.5,11 A1.5,1.5 0 0 1 4,9.5 H20 A1.5,1.5 0 0 1 21.5,11 V18.5 A1.5,1.5 0 0 1 20,20 H4 A1.5,1.5 0 0 1 2.5,18.5 Z"
-            Fill="{ThemeResource PmvniIconeAmarelo}" Stroke="{ThemeResource PmvniIconeMarrom}" StrokeThickness="1" StrokeLineJoin="Round"/>
-      <Rectangle Canvas.Left="9" Canvas.Top="13.6" Width="6" Height="2.2" RadiusX=".8" RadiusY=".8" Fill="{ThemeResource PmvniIconeVerde}"/>
+      <Path Data="M2,6.5 A2,2 0 0 1 4,4.5 H8.6 A2,2 0 0 1 10,5.1 L11.4,6.5 H20 A2,2 0 0 1 22,8.5 V9 H2 Z" Fill="{ThemeResource PmvniGradAmareloEscuro}"/>
+      <Path Data="M2,9 H22 V18 A2,2 0 0 1 20,20 H4 A2,2 0 0 1 2,18 Z" Fill="{ThemeResource PmvniGradAmarelo}"/>
+      <Rectangle Canvas.Left="13.5" Canvas.Top="12.2" Width="7" Height="4.6" RadiusX="1.2" RadiusY="1.2" Fill="{ThemeResource PmvniGradAzul}"/>
+      <Rectangle Canvas.Left="14.8" Canvas.Top="13.6" Width="4.4" Height="1" RadiusX=".5" RadiusY=".5" Fill="{ThemeResource PmvniIconeBranco}"/>
+      <Rectangle Canvas.Left="14.8" Canvas.Top="15.1" Width="2.8" Height="1" RadiusX=".5" RadiusY=".5" Fill="{ThemeResource PmvniIconeBranco}"/>
     </Canvas></Viewbox>
   </DataTemplate>
 
-  <!-- Legislação: livro de capa verde, páginas rosa e marcador amarelo. -->
+  <!-- Legislação: livro verde-azulado com o símbolo de parágrafo (§) e fita vermelha. -->
   <DataTemplate x:Key="PmvniIconeLegislacao">
     <Viewbox Stretch="Uniform"><Canvas Width="24" Height="24">
-      <Rectangle Canvas.Left="7" Canvas.Top="4" Width="13" Height="18" RadiusX="1.5" RadiusY="1.5" Fill="{ThemeResource PmvniIconeRosa}"
-                 Stroke="{ThemeResource PmvniIconeMarrom}" StrokeThickness=".8"/>
-      <Rectangle Canvas.Left="4.5" Canvas.Top="2.5" Width="13" Height="17.5" RadiusX="1.8" RadiusY="1.8" Fill="{ThemeResource PmvniIconeVerde}"
-                 Stroke="{ThemeResource PmvniIconeVerdeEscuro}" StrokeThickness="1"/>
-      <Rectangle Canvas.Left="6.2" Canvas.Top="2.5" Width="1.3" Height="17.5" Fill="{ThemeResource PmvniIconeVerdeEscuro}"/>
-      <Rectangle Canvas.Left="9" Canvas.Top="6" Width="6.5" Height="2.6" RadiusX=".6" RadiusY=".6" Fill="{ThemeResource PmvniIconeFolha}"/>
-      <Path Data="M12.8,17.5 V23 L14.4,21.6 L16,23 V17.5 Z" Fill="{ThemeResource PmvniIconeAmarelo}"
-            Stroke="{ThemeResource PmvniIconeMarrom}" StrokeThickness=".8" StrokeLineJoin="Round"/>
+      <Path Data="M6,2 H19 A1,1 0 0 1 20,3 V19 H6.5 A1.5,1.5 0 0 0 6.5,22 H20 V22 H6.5 A3,3 0 0 1 3.5,19 V4.5 A2.5,2.5 0 0 1 6,2 Z" Fill="{ThemeResource PmvniGradVerdeAgua}"/>
+      <Path Data="M6.5,19 H20 V22 H6.5 A1.5,1.5 0 0 1 6.5,19 Z" Fill="{ThemeResource PmvniIconeFolha}" Stroke="{ThemeResource PmvniGradVerdeAgua}" StrokeThickness=".8"/>
+      <TextBlock Canvas.Left="8.6" Canvas.Top="3.6" Text="§" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource PmvniIconeBranco}"/>
+      <Path Data="M15.5,2 V8.5 L17,7.3 L18.5,8.5 V2 Z" Fill="{ThemeResource PmvniGradVermelho}"/>
     </Canvas></Viewbox>
   </DataTemplate>
 
-  <!-- Ajustes: engrenagem cinza-azulada (círculo + 8 dentes) com miolo amarelo (sem furo: o fundo do item muda de cor). -->
+  <!-- Ajustes: engrenagem cinza do Windows 11 com o miolo vazado. -->
   <DataTemplate x:Key="PmvniIconeAjustes">
     <Viewbox Stretch="Uniform"><Canvas Width="24" Height="24">
-      <Path Fill="{ThemeResource PmvniIconeAco}">
-        <Path.Data>
-          <GeometryGroup FillRule="Nonzero">
-            <EllipseGeometry Center="12,12" RadiusX="6.6" RadiusY="6.6"/>
-            <RectangleGeometry Rect="10.4,2.6,3.2,4.2"/>
-            <RectangleGeometry Rect="10.4,2.6,3.2,4.2"><RectangleGeometry.Transform><RotateTransform Angle="45" CenterX="12" CenterY="12"/></RectangleGeometry.Transform></RectangleGeometry>
-            <RectangleGeometry Rect="10.4,2.6,3.2,4.2"><RectangleGeometry.Transform><RotateTransform Angle="90" CenterX="12" CenterY="12"/></RectangleGeometry.Transform></RectangleGeometry>
-            <RectangleGeometry Rect="10.4,2.6,3.2,4.2"><RectangleGeometry.Transform><RotateTransform Angle="135" CenterX="12" CenterY="12"/></RectangleGeometry.Transform></RectangleGeometry>
-            <RectangleGeometry Rect="10.4,2.6,3.2,4.2"><RectangleGeometry.Transform><RotateTransform Angle="180" CenterX="12" CenterY="12"/></RectangleGeometry.Transform></RectangleGeometry>
-            <RectangleGeometry Rect="10.4,2.6,3.2,4.2"><RectangleGeometry.Transform><RotateTransform Angle="225" CenterX="12" CenterY="12"/></RectangleGeometry.Transform></RectangleGeometry>
-            <RectangleGeometry Rect="10.4,2.6,3.2,4.2"><RectangleGeometry.Transform><RotateTransform Angle="270" CenterX="12" CenterY="12"/></RectangleGeometry.Transform></RectangleGeometry>
-            <RectangleGeometry Rect="10.4,2.6,3.2,4.2"><RectangleGeometry.Transform><RotateTransform Angle="315" CenterX="12" CenterY="12"/></RectangleGeometry.Transform></RectangleGeometry>
-          </GeometryGroup>
-        </Path.Data>
-      </Path>
-      <Ellipse Canvas.Left="9.3" Canvas.Top="9.3" Width="5.4" Height="5.4" Fill="{ThemeResource PmvniIconeAmarelo}"
-               Stroke="{ThemeResource PmvniIconeMarrom}" StrokeThickness=".9"/>
+      <Path Fill="{ThemeResource PmvniGradCinza}" Data="F0 M10.2,2.3 A1,1 0 0 1 11.2,1.5 H12.8 A1,1 0 0 1 13.8,2.3 L14.2,4.4 A8,8 0 0 1 16.3,5.6 L18.3,4.9 A1,1 0 0 1 19.5,5.3 L20.3,6.7 A1,1 0 0 1 20.1,8 L18.5,9.4 A8,8 0 0 1 18.5,14.6 L20.1,16 A1,1 0 0 1 20.3,17.3 L19.5,18.7 A1,1 0 0 1 18.3,19.1 L16.3,18.4 A8,8 0 0 1 14.2,19.6 L13.8,21.7 A1,1 0 0 1 12.8,22.5 H11.2 A1,1 0 0 1 10.2,21.7 L9.8,19.6 A8,8 0 0 1 7.7,18.4 L5.7,19.1 A1,1 0 0 1 4.5,18.7 L3.7,17.3 A1,1 0 0 1 3.9,16 L5.5,14.6 A8,8 0 0 1 5.5,9.4 L3.9,8 A1,1 0 0 1 3.7,6.7 L4.5,5.3 A1,1 0 0 1 5.7,4.9 L7.7,5.6 A8,8 0 0 1 9.8,4.4 Z M15.2,12 A3.2,3.2 0 1 1 8.8,12 A3.2,3.2 0 1 1 15.2,12 Z"/>
     </Canvas></Viewbox>
   </DataTemplate>
 </ResourceDictionary>

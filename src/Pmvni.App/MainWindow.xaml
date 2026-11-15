@@ -17,12 +17,17 @@
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <controls:TitleBar x:Name="BarraTitulo" Grid.Row="0" Title="Editor de Relatórios" Subtitle="">
+    <controls:TitleBar x:Name="BarraTitulo" Grid.Row="0" Title="" Subtitle="">
       <!-- Marca: o brasão da Prefeitura (imagem do modelo de relatório do kit, com variante de texto claro no tema escuro), alinhado
            com o fundo dos itens do trilho; o título fica só "Editor de Relatórios" e o subtítulo leva o documento aberto. -->
       <controls:TitleBar.LeftHeader>
-        <Image x:Name="ImagemBrasao" Height="40" Margin="16,2,14,2" VerticalAlignment="Center" Stretch="Uniform"
-               AutomationProperties.Name="Prefeitura Municipal de Venda Nova do Imigrante"/>
+        <!-- Título como o "Gmail" (correções 2026-11-15): grande, regular, cinza, ao lado do brasão. -->
+        <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,2,20,2" VerticalAlignment="Center">
+          <Image x:Name="ImagemBrasao" Height="40" VerticalAlignment="Center" Stretch="Uniform"
+                 AutomationProperties.Name="Prefeitura Municipal de Venda Nova do Imigrante"/>
+          <TextBlock x:Name="TextoMarca" Text="Análise de Projetos" FontFamily="Segoe UI Variable Display" FontSize="22" FontWeight="Normal"
+                     VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" CharacterSpacing="-10"/>
+        </StackPanel>
       </controls:TitleBar.LeftHeader>
       <!-- Desfazer e Refazer ao lado do estado de gravação (desenho §5.5) e a pesquisa no relatório (Ctrl+F; Enter = próxima,
            Shift+Enter = anterior, Esc limpa). -->
