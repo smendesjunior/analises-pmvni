@@ -2,7 +2,7 @@
 
 Suíte: `python -I tools/fidelidade.py {v1|v2|v3|v4|v5|v6|tudo} [--caso NOME ...]`. Casos: `tests/corpus/*.json`,
 `dados_modelo.json` do modelo oficial (com `--instrucoes`) e os casos locais de `tests/local.json` (ignorado pelo git;
-hoje o 17098). O gerador do kit roda como na V1: `gerar_relatorio.py --rascunho --manter-html` no modo padrão (Edge
+hoje um caso real). O gerador do kit roda como na V1: `gerar_relatorio.py --rascunho --manter-html` no modo padrão (Edge
 aberto por `.cmd` via `explorer.exe`). **Onde ficam os temporários (D4):** tudo o que a rodada grava — PDFs e HTML do
 kit e do editor, capturas, textos e a pasta de dados do editor (`PMVNI_DADOS_DIR`, com o perfil do WebView2 e as
 sessões) — vai para `%USERPROFILE%\.pmvni-fid\<run>\`, uma pasta por rodada, apagada no fim (e `.pmvni-fid` some se
@@ -194,7 +194,7 @@ Valores por caso (máximo por folha; simétrica com 1 px de tolerância / estrit
 | extremos | **1,423 %** (folha 3; folhas: 0,297 / 0,115 / 1,423 / 0,553 / 0,410 / 0,406 / 0,364 / 0,099) | 6,463 % |
 | sem_opcionais | 0,389 % | 1,132 % |
 | dados_modelo | 0,404 % | 2,629 % |
-| 17098 | 0,544 % | 3,712 % |
+| caso real (local) | 0,544 % | 3,712 % |
 | estouro | — (exportação recusada) | — |
 
 ## Histórico (superado)
@@ -213,11 +213,11 @@ corpus. Implementada em `ladrilho_max` (`tools/fidelidade.py`) e medida em todas
 borda colorida e mede de novo.
 
 Calibração (14/11/2026; maior ladrilho por caso, sem perda nenhuma = ruído de rasterização Chromium × MuPDF):
-curto 10,35 %; longo 14,16 %; extremos 10,45 %; sem_opcionais 9,47 %; dados_modelo 14,65 %; 17098 19,04 %.
+curto 10,35 %; longo 14,16 %; extremos 10,45 %; sem_opcionais 9,47 %; dados_modelo 14,65 %; caso real 19,04 %.
 Perdas sintéticas (corpus, todas as pílulas e barras escuras de todas as páginas, 40 × 20 px apagados): pílula de
 8,2 % a ~16 % (mínimo 8,2 %, 47 pílulas); borda a partir de 8,2 %. No autoteste (`curto` folha 1, ruído 9,47 %): pílula 15,72 %, barra
 escura da borda 17,19 % (a página inteira fica em 0,462–0,465 %: o critério de 2 % não vê nada) — pega no `curto`, mas
-abaixo do ruído do `longo`, do `dados_modelo` e do 17098.
+abaixo do ruído do `longo`, do `dados_modelo` e do caso real.
 
 **Resultado: nenhum limite separa o ruído (até 19,04 %) de uma pílula apagada (a partir de 8,2 %).** Conforme a
 instrução, o item parou aqui: `MAX_LADRILHO = None`, a medida e o autoteste ficam gravados só como informação e não
@@ -236,7 +236,7 @@ Variantes medidas no mesmo corpus (5 casos fictícios; ruído máximo × menor p
 | balanço de tinta (\|Σ escuridão tela − Σ PDF\| na janela), passo 8 | 5,02 % | 12,72 % | 2,57 % |
 
 O balanço de tinta separa as pílulas (5,0 % × 12,7 %), mas não as bordas finas; nenhuma variante separa as duas, e o
-17098 (ruído maior) não entrou nesta tabela. Nenhuma foi adotada sem decisão.
+O caso real (ruído maior) não entrou nesta tabela. Nenhuma foi adotada sem decisão.
 
 ## Resultados (`tudo`, 14/11/2026, rodada final da Etapa 1; WebView2 do editor 157.0.4341.46; Edge do kit 158.0.4370.21)
 
@@ -252,7 +252,7 @@ informativo. Temporários em `%USERPROFILE%\.pmvni-fid\<run>\`, apagados; bin/ob
 | sem_opcionais | 1 | igual | igual | 0,389 % | 9,47 % | 1,132 % | OK | 0,167 % | — |
 | estouro | recusada | igual | recusa OK | — | — | — | recusa OK | — | — |
 | dados_modelo (--instrucoes) | 7 | igual | igual | 0,404 % | 14,65 % | 2,629 % | OK | 1,086 % | p. 2 sangria 1; p. 4 fora 3, sangria 1 |
-| 17098 (local) | 11 | igual | igual | 0,544 % | 19,04 % | 3,712 % | OK | 1,620 % | p. 5 fora 3; p. 10 sangria 1 |
+| caso real (local) | 11 | igual | igual | 0,544 % | 19,04 % | 3,712 % | OK | 1,620 % | p. 5 fora 3; p. 10 sangria 1 |
 
 V2: texto idêntico em todas as folhas e, na métrica simétrica com 1 px de tolerância, **no máximo 1,423 %**
 (`extremos`, folha 3, texto corrido), dentro do limite de 2,0 %. O estrito fica em 1,1–6,5 % pela diferença entre os

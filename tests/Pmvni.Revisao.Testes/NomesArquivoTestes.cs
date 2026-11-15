@@ -8,13 +8,13 @@ public class NomesArquivoTestes
     [Fact]
     public void nomes_de_arquivo()
     {
-        Assert.Equal("Relatorio_17098_2026.pmvrel", NomesArquivo.Importacao(17098, 2026));
+        Assert.Equal("Relatorio_98765_2099.pmvrel", NomesArquivo.Importacao(98765, 2099));
         Assert.Equal("Relatorio_0001_2099.pmvrel", NomesArquivo.Importacao(1, 2099));
         Assert.Equal("Relatorio.pmvrel", NomesArquivo.Importacao(null, 2026));
         Assert.Equal("Relatorio.pmvrel", NomesArquivo.Importacao(null, null));
 
         Assert.Equal((9001, 2026), NomesArquivo.DoProcessoDaCapa("9001/2026"));
-        Assert.Equal((17098, 2026), NomesArquivo.DoProcessoDaCapa(" 17098 / 2026 "));
+        Assert.Equal((98765, 2099), NomesArquivo.DoProcessoDaCapa(" 98765 / 2099 "));
         Assert.Equal(((int?)null, (int?)null), NomesArquivo.DoProcessoDaCapa(null));
         Assert.Equal(((int?)null, (int?)null), NomesArquivo.DoProcessoDaCapa("[Número do processo]"));
 

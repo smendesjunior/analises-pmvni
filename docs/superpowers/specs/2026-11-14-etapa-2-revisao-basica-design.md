@@ -781,7 +781,7 @@ não é executado pelo editor):
   ser lido: <motivo>.").
 - **Criar processo…:** `<pasta de processos>\<ano>\<nº> - <ano> - <REQUERENTE>` (requerente em maiúsculas, sem acentos,
   como `nome_requerente` do kit) com `DOCUMENTOS` e `PROJETO\INICIAL`. Se já existe uma pasta desse nº/ano (inclusive
-  "FINALIZADO - …" ou "16488-2026 - …", pela leitura de `Processos`), usa a existente, sem renomear nem duplicar, e avisa
+  "FINALIZADO - …" ou "98765-2099 - …", pela leitura de `Processos`), usa a existente, sem renomear nem duplicar, e avisa
   "O processo <nº>/<ano> já existe: <pasta>.".
 
 ### 12.4 Analisar com o ChatGPT (Codex CLI + plugin `analise`)

@@ -24,7 +24,7 @@ ferramentas de teste em Python 3.14 + PyMuPDF (só desenvolvimento).
 - Hashes do modelo embutido = registro rev. 10: `modelo_relatorio.html` `2f27fdb6…9eff9a`, `relatorio.css` `c4b06d4b…6b69`, `brasao.png` `93f35890…92cd`, `gerar_relatorio.py` `cec0e5e3…5674`, `dados_modelo.json` `c56df9e6…f816` (valores completos no `TEMPLATES_OFICIAIS.json`).
 - **Executável único**, tudo embutido; manifesto `asInvoker`; sem admin, serviço, tarefa agendada, firewall, `HKLM` ou `Program Files`. Dados só em `%LOCALAPPDATA%\EditorRelatoriosPMVNI`.
 - Sem rede: o WebView2 bloqueia tudo que não for `https://doc.pmvni.invalid/` ou `data:`.
-- Nenhum dado pessoal no repositório. O caminho do `dados_17098.json` fica em `tests/local.json` (no `.gitignore`); saídas dele vão para pasta temporária, apagada ao fim; relatórios guardados têm só contagens, hashes e números de página.
+- Nenhum dado pessoal no repositório. O caminho do `dados.json` do caso real fica em `tests/local.json` (no `.gitignore`); saídas dele vão para pasta temporária, apagada ao fim; relatórios guardados têm só contagens, hashes e números de página.
 - Programas do usuário (o app, o Edge do kit, os scripts `.cmd`) são abertos via `explorer.exe`, fora do pacote do Claude. Verificações de resultado gravam em pasta do projeto (OneDrive), não em AppData.
 - Toda build termina apagando builds anteriores e temporários (regra do CLAUDE.md do usuário), só depois de conferir o arquivo final.
 
@@ -148,7 +148,7 @@ Contexto igual ao `main()` do kit: `instrucoes`, `css`, `cabecalho_svg`, `resumo
 Corpus (fictício, determinístico, sem nomes reais): `curto` (3 itens, sem seções opcionais além de fontes/conclusão); `longo` (60 itens, 6 índices, 12 ambientes, diagrama, 8 figuras 1600×1000); `extremos` (item com verificação de 9 000 caracteres, 40 linhas de índice, figura 800×2400, textos com `& < > " '`, emoji e `\n`); `estouro` (um ambiente com 80 vãos); `sem_opcionais`.
 
 - [ ] **Passo 1:** testes `refs_por_ordem_com_id_ausente`, `html_nao_contem_data_ref`, `erros_de_conferencia_impedem_render`. Falham → implementar → passam.
-- [ ] **Passo 2:** `fidelidade.py v1`: para cada caso do corpus + `dados_modelo.json` com `--instrucoes` + (se `tests/local.json` existir) o 17098, roda o gerador do kit com `--rascunho --manter-html` (nunca grava recibo) para uma pasta em `%TEMP%`, roda `Pmvni.Verificador html`, compara os HTML **byte a byte**, apaga a pasta, grava em `tests/saida/v1.json` só `{caso, igual, sha256_kit, sha256_editor}`.
+- [ ] **Passo 2:** `fidelidade.py v1`: para cada caso do corpus + `dados_modelo.json` com `--instrucoes` + (se `tests/local.json` existir) o caso real, roda o gerador do kit com `--rascunho --manter-html` (nunca grava recibo) para uma pasta em `%TEMP%`, roda `Pmvni.Verificador html`, compara os HTML **byte a byte**, apaga a pasta, grava em `tests/saida/v1.json` só `{caso, igual, sha256_kit, sha256_editor}`.
   Esperado: todos `igual: true`. Commit.
 
 ### Task 6 (Tarefa 6): Núcleo web — segurança, ponte tipada e host oculto
@@ -208,7 +208,7 @@ Regras (genéricas, lidas do estilo computado, não de nomes de classe):
 Critérios (iniciais; mudar só com justificativa registrada em `docs/fidelidade.md`):
 - **V2 (tela × PDF do editor):** cada folha capturada a 150 dpi vs. página do PDF rasterizada pelo PyMuPDF a 150 dpi; texto por folha **idêntico** (espaços normalizados); diferença visual: pixel diferente se |Δ| > 48 em tons de cinza; folha aprovada com ≤ 0,5 % de pixels diferentes.
 - **V3 (editor × gerador do kit, mesmo `dados.json`):** mesmo número de páginas e **mesmo texto por página** (logo, mesmas quebras); diferença visual ≤ 2 % por página. Registrar versões (WebView2 do editor, Edge do kit).
-- **V4:** V1–V3 sobre todo o corpus + `dados_modelo.json --instrucoes` + 17098 local (exceto `estouro`, que só verifica a recusa).
+- **V4:** V1–V3 sobre todo o corpus + `dados_modelo.json --instrucoes` + caso real local (exceto `estouro`, que só verifica a recusa).
 
 - [ ] **Passo 1:** implementar o Verificador e `fidelidade.py`. O gerador do kit roda sempre com `--rascunho --manter-html` em `%TEMP%` (abre o Edge pelo `.cmd` via `explorer.exe`, como o kit já faz); tudo apagado no fim; `tests/saida/*.json` só com contagens, hashes, páginas e porcentagens.
 - [ ] **Passo 2:** rodar `python -I tools/fidelidade.py v3 --caso curto`. Medir no PDF do kit (PyMuPDF: posição da imagem do cabeçalho e das linhas/textos do rodapé) e ajustar as constantes de `folha.css` até V3 visual ≤ 2 % na página 1. Registrar as medidas em `docs/fidelidade.md`.

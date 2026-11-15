@@ -9,7 +9,7 @@ public static class NomesArquivo
 {
     static readonly Regex Processo = new(@"^\s*(\d{1,6})\s*/\s*(\d{4})\s*$", RegexOptions.CultureInvariant);
 
-    /// <summary><c>Relatorio_17098_2026.pmvrel</c> (número com pelo menos 4 dígitos: <c>Relatorio_0001_2099.pmvrel</c>); sem número ou ano,
+    /// <summary><c>Relatorio_98765_2099.pmvrel</c> (número com pelo menos 4 dígitos: <c>Relatorio_0001_2099.pmvrel</c>); sem número ou ano,
     /// <c>Relatorio.pmvrel</c>.</summary>
     public static string Importacao(int? numero, int? ano) =>
         numero is { } n && ano is { } a
