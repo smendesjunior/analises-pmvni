@@ -49,10 +49,26 @@ public sealed partial class MainWindow
     /// <summary>Espera a leitura das peças que a abertura de Ajustes (ou a troca da pasta do kit) começou.</summary>
     internal Task AguardarAgentesAsync() => tarefaDosAgentes;
 
+    /// <summary>Entrar (correções 2026-11-15): abre o login do programa numa janela de console própria (o login é interativo e abre o navegador).</summary>
+    void AbrirLogin(string? exe, string nome, string argumento)
+    {
+        try
+        {
+            var programa = string.IsNullOrEmpty(exe) ? nome : "\"" + exe + "\"";
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/k " + programa + " " + argumento) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MostrarMensagem(InfoBarSeverity.Error, "Entrar", "Não foi possível abrir o login: " + ex.Message);
+        }
+    }
+
     void IniciarAgentes()
     {
         OpcoesAgentes = () => OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, ajustes.Agentes[Provedor.ChatGpt].Executavel, ajustes.Agentes[Provedor.Claude].Executavel);
         PaginaDeAjustes.TextoIntroAgentes.Text = TextosAgentes.Introducao;
+        PaginaDeAjustes.BotaoEntrarChatGpt.Click += (_, _) => AbrirLogin(pecasAgentes.Codex, "codex", "login");
+        PaginaDeAjustes.BotaoEntrarClaude.Click += (_, _) => AbrirLogin(pecasAgentes.Claude, "claude", "/login");
         foreach (var provedor in Enum.GetValues<Provedor>())
         {
             var p = provedor;

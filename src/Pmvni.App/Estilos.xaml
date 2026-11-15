@@ -126,4 +126,33 @@
     <Setter Property="HorizontalAlignment" Value="Right"/>
     <Setter Property="MinWidth" Value="0"/>
   </Style>
+  <!-- Cartões de seção numerados (correções 2026-11-15, modelo NovoRelatorioPage.xaml): usados em Novo relatório, Novo despacho e Ajustes. -->
+  <Style x:Key="PmvniCartaoSecao" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="24"/>
+  </Style>
+  <Style x:Key="PmvniTituloSecao" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="20"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="PmvniSeloPasso" TargetType="Border">
+    <Setter Property="Width" Value="32"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="CornerRadius" Value="16"/>
+    <Setter Property="Background" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniNumeroPasso" TargetType="TextBlock">
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+  </Style>
+  <Style x:Key="PmvniTextoAjuda" TargetType="TextBlock">
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+  </Style>
 </ResourceDictionary>

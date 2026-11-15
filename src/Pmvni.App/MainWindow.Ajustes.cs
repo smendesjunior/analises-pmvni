@@ -228,7 +228,8 @@ public sealed partial class MainWindow
         var efetivo = ConversorLibreOffice.Localizar(ajustes.Soffice);
         var origem = ajustes.Soffice is null ? "achado pelo editor" : ConversorLibreOffice.ProgramaValido(ajustes.Soffice) ? "escolhido" : "o escolhido não foi encontrado; achado pelo editor";
         PaginaDeAjustes.TextoSoffice.Text = efetivo is null ? "Nenhum LibreOffice encontrado: os despachos saem só em DOCX." : $"{efetivo}  ({origem})";
-        PaginaDeAjustes.BotaoSofficeAutomatico.IsEnabled = ajustes.Soffice is not null;
+        // Sempre clicável (correções 2026-11-15): sem escolha manual, procura o LibreOffice de novo.
+        PaginaDeAjustes.BotaoSofficeAutomatico.IsEnabled = true;
     }
 
     /// <summary>"Testar": confere o programa e a versão pelo arquivo (nada é executado).</summary>

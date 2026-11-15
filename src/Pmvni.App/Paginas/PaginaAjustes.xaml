@@ -251,7 +251,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Button x:Name="BotaoTestarSoffice" x:FieldModifier="internal" Content="Testar" AutomationProperties.Name="Testar o LibreOffice"/>
                   <Button x:Name="BotaoEscolherSoffice" x:FieldModifier="internal" Content="Escolher…" AutomationProperties.Name="Escolher o programa do LibreOffice"/>
-                  <Button x:Name="BotaoSofficeAutomatico" x:FieldModifier="internal" Content="Automático" AutomationProperties.Name="Achar o LibreOffice sozinho"/>
+                  <Button x:Name="BotaoSofficeAutomatico" x:FieldModifier="internal" Content="Procurar automaticamente" AutomationProperties.Name="Achar o LibreOffice sozinho" ToolTipService.ToolTip="Volta a procurar o LibreOffice instalado (desfaz uma escolha manual)"/>
                 </StackPanel>
                 <TextBlock x:Name="TextoTesteSoffice" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}"/>
               </StackPanel>
@@ -340,6 +340,32 @@
             <StackPanel Spacing="4"><TextBlock Text="Inteligência artificial" Style="{StaticResource PmvniAjusteTituloPagina}"/><TextBlock x:Name="AjudaIa" Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
             <TextBlock x:Name="TituloAgentes" x:FieldModifier="internal" Text="Inteligência artificial" Visibility="Collapsed"/>
             <TextBlock x:Name="TextoIntroAgentes" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
+            <!-- Como funciona (correções 2026-11-15): a página se explica sozinha; Entrar abre o login de cada programa numa janela própria. -->
+            <Border Style="{StaticResource PmvniCartaoSecao}">
+              <StackPanel Spacing="14">
+                <TextBlock Text="Como funciona a integração" Style="{StaticResource PmvniTituloSecao}"/>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="1" Style="{StaticResource PmvniNumeroPasso}"/></Border>
+                  <StackPanel VerticalAlignment="Center"><TextBlock Text="Instale o programa da IA" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="ChatGPT usa o Codex (OpenAI); Claude usa o Claude Code (Anthropic). O editor acha os dois sozinho." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="2" Style="{StaticResource PmvniNumeroPasso}"/></Border>
+                  <StackPanel VerticalAlignment="Center"><TextBlock Text="Entre com a sua conta" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Clique em Entrar: abre o login do programa no navegador. A assinatura do ChatGPT Plus ou do Claude Pro já basta." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="3" Style="{StaticResource PmvniNumeroPasso}"/></Border>
+                  <StackPanel VerticalAlignment="Center"><TextBlock Text="Ou use uma chave de API (opcional)" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Em Acesso, escolha Usar chave de API. A chave fica no Cofre de Credenciais do Windows, nunca em arquivo." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="4" Style="{StaticResource PmvniNumeroPasso}"/></Border>
+                  <StackPanel VerticalAlignment="Center"><TextBlock Text="Teste e analise" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Testar mostra a versão e se a sessão está ativa. Depois, Novo relatório › Analisar." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button x:Name="BotaoEntrarChatGpt" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Entrar no ChatGPT (Codex)"/>
+                  <Button x:Name="BotaoEntrarClaude" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Entrar no Claude (Claude Code)"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
             <TextBlock Text="Agentes" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
             <Expander x:Name="ExpansorChatGpt" x:FieldModifier="internal" Header="ChatGPT (Codex)" IsExpanded="True" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
               <local:CartaoAgente x:Name="CartaoChatGpt" x:FieldModifier="internal"/>
