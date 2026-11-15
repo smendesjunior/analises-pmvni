@@ -69,6 +69,8 @@ public sealed partial class MainWindow
         P.BotaoAbrirAjustes.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(GerenciarAnexosAsync));
         P.BotaoPaginaAnterior.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.LegislacaoPaginaAnterior);
         P.BotaoPaginaProxima.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.LegislacaoPaginaProxima);
+        P.BotaoZoomMenos.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.LegislacaoZoomMenos);
+        P.BotaoZoomMais.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.LegislacaoZoomMais);
         P.CaixaPagina.ValueChanged += async (_, e) =>
         {
             if (definindoPaginaLei || double.IsNaN(e.NewValue) || leiAberta is null) return;
@@ -354,7 +356,8 @@ public sealed partial class MainWindow
             P.TextoNadaAberto.Visibility = Visibility.Collapsed;
             P.AvisoSemTexto.IsOpen = !anexo.TemTexto;
             MontarMarcadores();
-            escopoTodas = false;
+            // Ajustes › Legislação › "Pesquisar em": o alvo da pesquisa ao abrir uma lei (padrão "Nesta lei", como sempre foi).
+            escopoTodas = ajustes.LegislacaoEscopo == "todas";
             AtualizarDicaDaPesquisaLegislacao();
             if (termo is not null)
             {
@@ -608,6 +611,8 @@ public sealed partial class MainWindow
     async Task GerenciarAnexosAsync()
     {
         await MudarModuloAsync(Modulo.Ajustes);
+        // "Gerenciar anexos" abre Ajustes › Legislação (auditoria §3.2).
+        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Legislacao);
         PaginaDeAjustes.SecaoLegislacao.StartBringIntoView();
     }
 
@@ -631,6 +636,8 @@ public sealed partial class MainWindow
         Faixa.Ligar(ComandosApp.LegislacaoMarcadores, P.AbasPainel.SelectedItem == P.AbaMarcadores);
         P.BotaoPaginaAnterior.IsEnabled = lei && paginaLei > 1;
         P.BotaoPaginaProxima.IsEnabled = lei && paginaLei < totalPaginasLei;
+        P.BotaoZoomMenos.IsEnabled = Faixa.Habilitado(ComandosApp.LegislacaoZoomMenos);
+        P.BotaoZoomMais.IsEnabled = Faixa.Habilitado(ComandosApp.LegislacaoZoomMais);
     }
 
     static readonly string[] IdsDaLegislacao = Faixas.Comandos(Faixas.Para(Modulo.Legislacao))

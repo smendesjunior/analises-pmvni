@@ -71,6 +71,8 @@ public sealed partial class MainWindow
     {
         var processos = PaginaDeProcessos;
         var despachos = PaginaDeDespachos;
+        // Ajustes › Pastas e kit › "Listas ao abrir": ordem e pastas de Processos, agrupar e ordenar Despachos (Exibir muda até fechar).
+        AplicarListasDosAjustes();
         processos.ListaProcessos.SelectionChanged += (_, _) =>
         {
             if (atualizandoListas) return;
@@ -138,7 +140,20 @@ public sealed partial class MainWindow
         SincronizarPastas();
     }
 
-    Task AbrirAjustesAsync() => NaFilaAsync(() => TentarAsync(() => MudarModuloAsync(Modulo.Ajustes)));
+    void AplicarListasDosAjustes()
+    {
+        ordemProcessos = ajustes.ProcessosOrdem switch { "data" => OrdemProcessos.Data, "requerente" => OrdemProcessos.Requerente, _ => OrdemProcessos.Numero };
+        mostrarPastas = ajustes.ProcessosPastas;
+        agrupamentoDespachos = ajustes.DespachosAgrupar == "processo" ? AgrupamentoDespachos.Processo : AgrupamentoDespachos.Data;
+        despachosRecentesPrimeiro = ajustes.DespachosOrdem != "antigos";
+    }
+
+    /// <summary>"Abrir Ajustes" do aviso de pasta ausente: Ajustes › Pastas e kit, onde a pasta se escolhe.</summary>
+    Task AbrirAjustesAsync() => NaFilaAsync(() => TentarAsync(async () =>
+    {
+        await MudarModuloAsync(Modulo.Ajustes);
+        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Pastas);
+    }));
 
     // ---------- entrada e saída de um módulo ----------
 

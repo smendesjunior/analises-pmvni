@@ -268,6 +268,31 @@ public class AutosaveTestes
     }
 
     [Fact]
+    public void limpeza_segue_os_dias_escolhidos_em_ajustes()
+    {
+        // Ajustes › Relatórios e revisão › Recuperação "Guardar por" 7 · 30 · 90 dias (padrão 30, o de sempre).
+        using var pasta = Ambiente.PastaDeTeste("autosave-orfaos-dias");
+        var rec = Path.Combine(pasta, "recuperacao");
+        Directory.CreateDirectory(rec);
+        var agora = new DateTime(2026, 12, 31, 12, 0, 0, DateTimeKind.Utc);
+        string Criar(string nome, double dias)
+        {
+            var c = Path.Combine(rec, nome);
+            File.WriteAllText(c, "{}");
+            File.SetLastWriteTimeUtc(c, agora.AddDays(-dias));
+            return c;
+        }
+        var oito = Criar("aaa.orfao-1.jsonl", 8);
+        var quarenta = Criar("bbb.orfao-2.jsonl", 40);
+        Assert.Equal(0, DiarioDaSessao.LimparOrfaosAntigos(pasta, agora, TimeSpan.FromDays(90)));
+        Assert.Equal(1, DiarioDaSessao.LimparOrfaosAntigos(pasta, agora, TimeSpan.FromDays(30)));
+        Assert.False(File.Exists(quarenta));
+        Assert.Equal(1, DiarioDaSessao.LimparOrfaosAntigos(pasta, agora, TimeSpan.FromDays(7)));
+        Assert.False(File.Exists(oito));
+        Assert.Equal(TimeSpan.FromDays(30), DiarioDaSessao.IdadeOrfao);
+    }
+
+    [Fact]
     public void arquivar_conta_a_idade_do_orfao_a_partir_do_dia_em_que_foi_guardado()
     {
         using var pasta = Ambiente.PastaDeTeste("autosave-orfao-idade");

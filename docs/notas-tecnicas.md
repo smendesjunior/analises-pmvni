@@ -335,6 +335,26 @@ Núcleo (`Pmvni.Legislacao`, `Pmvni.Composicao.Web\Legislacao`, `web\paginador\s
 - **Troca atômica da legislação**: `catalogo.json`, cópias e índices trocam de lugar com espera limitada (até ~2 s) quando outro programa
   segura o arquivo por um instante (acesso negado ou violação de compartilhamento: o OneDrive ou um antivírus); outra falha sobe na hora.
 
+## Interface e configurações (Etapa 2, auditoria da interface)
+
+- **Ícones e cores por tema:** as cores próprias ficam em `ResourceDictionary.ThemeDictionaries` (`IconesModulos.xaml`, `CoresTonais.xaml`).
+  Código que pinta um elemento troca o `Style` (os estilos usam `{ThemeResource}` e seguem o tema do elemento), nunca lê o pincel de
+  `Application.Current.Resources`: o app muda o tema em `Raiz.RequestedTheme`, e a leitura pelo código daria a cor do tema da aplicação.
+  O botão tonal ganha as cores de "sobre"/"pressionado" pelo dicionário `CoresTonais.xaml` posto num contêiner só com ele (as chaves
+  `ButtonBackground*` valem para o `Button` e o `DropDownButton`).
+- **Glifos com nome** (`Logica\Glifos.cs`, escritos como `\uXXXX`): o teste confere que nenhum caractere de uso privado sobrou literal em
+  `Faixas.cs`, `Modulos.cs` e `Glifos.cs`.
+- **Ctrl+1 … Ctrl+5** entram em `Atalhos.Mapa` e `Atalhos.MapaLegislacao` e nos `Set` ATALHOS de `edicao.ts` e `leitor.ts` (os bundles
+  `paginador.js` e `leitor.js` foram gerados de novo); na janela, "1" vira `VirtualKey.Number1`/`NumberPad1` (o `Enum.TryParse` leria o
+  valor numérico 1, o botão esquerdo do mouse).
+- **Área de avisos:** `AreaDeAvisos` é um `StackPanel` que recolhe as InfoBars abertas além de 2 (continuam `IsOpen`, só ficam
+  recolhidas atrás de "+n") e fecha as informativas e de sucesso fecháveis em 8 s; `Tag="fixo"` exclui as que têm botões ou descrevem o
+  documento. No roteiro, nada fecha sozinho (as conferências leem o estado das InfoBars).
+- **Ajustes:** cada caixa da página grava na hora; `Ajustes.LerOpcoes` aceita só valores das listas (o resto, inclusive a chave ausente
+  de um arquivo antigo, fica no padrão) e `RestaurarPadrao` preserva recentes, agentes e análises em andamento. "Testar" o LibreOffice
+  só confere o arquivo e a versão (nada é executado); "Redefinir perfil" apaga `<dados>\lo` com confirmação e nunca com um despacho em
+  preparo. A janela lembrada só é usada se ainda cabe num monitor (`DisplayArea.GetFromRect`), e nunca no roteiro.
+
 ### Testes que já falharam de vez em quando
 
 - Corrigidos nesta onda (pelo sinal, não pelo relógio): `PerfilLibreOfficeTestes.filho_que_segura…` e `cancelar_com_o_filho_preso…`

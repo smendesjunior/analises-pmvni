@@ -1,0 +1,66 @@
+namespace Pmvni.App;
+
+/// <summary>Glifos Segoe Fluent Icons usados na faixa, no trilho e nos menus, com nome (antes eram caracteres de uso privado
+/// literais, invisíveis no editor e no diff). Sem tipos WinUI: compilado também nos testes.</summary>
+public static class Glifos
+{
+    public const string Abrir = "\uE8E5";
+    public const string Adicionar = "\uE710";
+    public const string Ajustar = "\uE9A6";
+    public const string Alterados = "\uE71C";
+    public const string Anexar = "\uE723";
+    public const string Anterior = "\uE70E";
+    public const string Ano = "\uE787";
+    public const string Atalhos = "\uE765";
+    public const string Atualizar = "\uE72C";
+    public const string Aumentar = "\uE8A3";
+    public const string Avisos = "\uE7BA";
+    public const string Citacao = "\uE9B2";
+    public const string Conferir = "\uE9D5";
+    public const string Copiar = "\uE8C8";
+    public const string Diminuir = "\uE71F";
+    public const string Editar = "\uE70F";
+    public const string Engrenagem = "\uE713";
+    public const string Excluir = "\uE74D";
+    public const string Explorador = "\uE838";
+    public const string Exportar = "\uEA90";
+    public const string Fechar = "\uE8BB";
+    public const string Filtro = "\uE71C";
+    public const string Gerenciar = "\uE713";
+    public const string Importar = "\uE8B5";
+    public const string IrPara = "\uE72A";
+    public const string Livro = "\uE82D";
+    public const string Lista = "\uE8FD";
+    public const string Marca = "\uE73E";
+    public const string Marcadores = "\uE8A4";
+    public const string MarcasRevisao = "\uE70B";
+    public const string Ocorrencia = "\uE74A";
+    public const string OcorrenciaProxima = "\uE74B";
+    public const string Ordenar = "\uE8CB";
+    public const string Original = "\uE8AB";
+    public const string PaginaInteira = "\uE7B8";
+    public const string PaginaInteiraLei = "\uE740";
+    public const string Painel = "\uE8A0";
+    public const string Pasta = "\uE8B7";
+    public const string Pendente = "\uE7C1";
+    public const string Pesquisar = "\uE721";
+    public const string Propriedades = "\uE7C4";
+    public const string Proximo = "\uE70D";
+    public const string Recentes = "\uE81C";
+    public const string Relatorio = "\uE8A5";
+    public const string Despacho = "\uE715";
+    public const string AbrirArquivo = "\uE8A7";
+    public const string ImportarAnalise = "\uE896";
+    public const string Restaurar = "\uE777";
+    public const string Desfazer = "\uE7A7";
+    public const string Salvar = "\uE74E";
+    public const string SalvarComo = "\uE792";
+    public const string Situacao = "\uE73E";
+    public const string SituacaoItem = "\uEA3B";
+    public const string Sobre = "\uE946";
+    public const string Tema = "\uE790";
+    public const string Inicio = "\uE80F";
+    public const string Despachos = "\uE8C3";
+    public const string Ia = "\uE99A";
+    public const string AbrirPasta = "\uE838";
+}

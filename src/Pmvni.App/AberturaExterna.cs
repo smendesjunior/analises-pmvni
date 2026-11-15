@@ -35,6 +35,14 @@ internal static class AberturaExterna
 
     /// <summary>Abre o Explorador com o arquivo ou a pasta selecionados (<c>explorer.exe /select,"…"</c>). Serve também para o que
     /// <see cref="Abrir"/> recusa (scripts, atalhos): o Explorador só mostra, nada executa.</summary>
+    /// <summary>Abre a pasta no Explorador (Ajustes: pasta de processos, do kit, de recuperação, de dados). No roteiro, só registra.</summary>
+    public static void AbrirPasta(string pasta)
+    {
+        if (Simular) { Registradas.Add("pasta: " + pasta); return; }
+        try { Process.Start(new ProcessStartInfo("explorer.exe") { Arguments = "\"" + pasta + "\"", UseShellExecute = false })?.Dispose(); }
+        catch (Exception e) when (e is Win32Exception or InvalidOperationException) { Debug.WriteLine("[explorador] " + e.Message); }
+    }
+
     public static void MostrarNoExplorador(string caminho)
     {
         if (Simular) { Registradas.Add("explorador: " + caminho); return; }

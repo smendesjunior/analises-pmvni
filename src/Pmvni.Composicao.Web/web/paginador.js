@@ -1282,7 +1282,13 @@ var Paginador = (() => {
     "F6",
     "Ctrl+0",
     "Ctrl+Plus",
-    "Ctrl+Minus"
+    "Ctrl+Minus",
+    // Trilho de módulos (Ctrl+1 … Ctrl+5): valem também com o foco nas folhas.
+    "Ctrl+1",
+    "Ctrl+2",
+    "Ctrl+3",
+    "Ctrl+4",
+    "Ctrl+5"
   ]);
   var CSS_EDICAO = `
 @media screen {

@@ -4,8 +4,11 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Automation.Provider;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
 using Pmvni.Agentes;
@@ -217,11 +220,17 @@ internal static class Roteiro
             p["composicao"] = j.TextoComposicaoAtual;
             p["itens_na_lista"] = j.Itens.Count;
             p["primeiros_itens"] = new JsonArray(j.Itens.Take(6).Select(i => (JsonNode)$"{i.Rotulo} (f. {i.Folha})").ToArray());
+            // Auditoria A2: os avisos de layout vão para o indicador do rodapé; nenhuma InfoBar de layout abre sobre as folhas.
+            var indicador = j.IndicadorLayout;
+            var reducaoNoIndicador = indicador.Avisos.FirstOrDefault(x => x.Tipo == TipoAvisoLayout.Reducao);
+            p["indicador_de_layout"] = indicador.Resumo;
+            p["indicador_avisos"] = new JsonArray(indicador.Avisos.Select(x => (JsonNode)$"{x.Tipo}: {x.Texto}").ToArray());
             p["aviso_largura_aberto"] = j.InfoLargura.IsOpen;
-            p["aviso_largura_texto"] = j.InfoLargura.Message;
-            var reducao = (int)Math.Round((1 - 1 / plano.Escala) * 100, MidpointRounding.AwayFromZero);
-            p["aviso_largura_confere"] = j.InfoLargura.IsOpen == (plano.AvisosLargura.Count > 0)
-                && (plano.AvisosLargura.Count == 0 || j.InfoLargura.Message == $"Conteúdo mais largo que a página: o documento foi reduzido {reducao}% para caber (como na impressão do kit).");
+            p["aviso_largura_texto"] = reducaoNoIndicador?.Texto;
+            var reducao = AvisosLayout.ReducaoPercentual(plano.Escala);
+            p["aviso_largura_confere"] = !j.InfoLargura.IsOpen && (reducaoNoIndicador is not null) == (plano.AvisosLargura.Count > 0)
+                && (plano.AvisosLargura.Count == 0 || reducaoNoIndicador!.Texto == $"Conteúdo mais largo que a página: o documento foi reduzido {reducao}% para caber (como na impressão do kit).");
+            p["nenhuma_infobar_de_layout"] = !j.InfoLargura.IsOpen && !j.InfoForaDaArea.IsOpen && !j.InfoEstouro.IsOpen;
             p["exportar_habilitado"] = j.ExportarHabilitado;
             p["rodape_folha"] = j.TextoFolhaAtual;
             p["latencia_recomposicao_ms"] = a.Milissegundos;
@@ -242,8 +251,9 @@ internal static class Roteiro
             p["ok"] = File.Exists(pacoteLongo) && a.Composicao.Folhas > 3 && plano.Estouros.Count == 0 && j.ExportarHabilitado
                 && p["aviso_largura_confere"]!.GetValue<bool>() && p["titulo_confere"]!.GetValue<bool>()
                 && j.TextoEstadoAtual.StartsWith("Salvo", StringComparison.Ordinal) && p["estado_do_editor_aplicado"]!.GetValue<bool>()
-                && protegido && faixas == a.Aplicacao.FolhasMarcadas.Count
-                && j.InfoForaDaArea.IsOpen == (a.Aplicacao.FolhasQueTransbordamNaLargura.Count > 0);
+                && protegido && faixas == a.Aplicacao.FolhasMarcadas.Count && p["nenhuma_infobar_de_layout"]!.GetValue<bool>()
+                && indicador.Avisos.Count(x => x.Tipo == TipoAvisoLayout.AlemDaBorda) == a.Aplicacao.FolhasQueTransbordamNaLargura.Count
+                && indicador.Visivel == (indicador.Avisos.Count > 0) && !indicador.Critico;
             await Esperar(600);
             await CapturarWebAsync(j, Path.Combine(pasta, "01-tela-100.png"));
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "01-janela-xaml.png"));
@@ -381,8 +391,12 @@ internal static class Roteiro
             var a = j.Aberto!;
             p["estouros"] = new JsonArray(a.Composicao.Plano.Estouros.Select(e => (JsonNode)$"folha {e.Folha}, ref {e.Ref}").ToArray());
             p["composicao"] = j.TextoComposicaoAtual;
-            p["aviso_de_erro_aberto"] = j.InfoEstouro.IsOpen && j.InfoEstouro.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error;
-            p["aviso_de_erro_texto"] = j.InfoEstouro.Message;
+            // Auditoria A2: o estouro aparece como bloqueio no indicador do rodapé (cor crítica, uma linha por bloco com "Ir à folha N").
+            var bloqueios = j.IndicadorLayout.Avisos.Where(x => x.Bloqueia).ToList();
+            p["indicador_de_layout"] = j.IndicadorLayout.Resumo;
+            p["aviso_de_erro_aberto"] = j.IndicadorLayout.Critico && j.IndicadorLayout.Visivel && bloqueios.Count == a.Composicao.Plano.Estouros.Count
+                && bloqueios.Select(x => x.Folha).SequenceEqual(a.Composicao.Plano.Estouros.Select(e => (int?)e.Folha)) && !j.InfoEstouro.IsOpen;
+            p["aviso_de_erro_texto"] = string.Join(" ", bloqueios.Select(x => x.Texto));
             p["exportar_habilitado"] = j.ExportarHabilitado;
             p["dica_do_botao"] = j.DicaExportar;
             var pdf = Path.Combine(pasta, "estouro.pdf");
@@ -498,6 +512,7 @@ internal static class Roteiro
             faixa.EscolherAba("Ajuda");
             await Esperar(200);
             var botoesAjuda = faixa.IdsVisiveis;
+            var primarioNaAjuda = faixa.IdPrimario;
             var lembradaAjuda = AbaLembrada();
             faixa.EscolherAba("Arquivo");
             await Esperar(200);
@@ -514,7 +529,14 @@ internal static class Roteiro
             p["botoes_aba_arquivo"] = new JsonArray(botoesArquivo.Select(s => (JsonNode)s).ToArray());
             p["aba_lembrada_em_ajustes"] = new JsonArray(lembradaAjuda, lembradaExibir);
             p["painel_alterna"] = painelAntes && !painelDepois && j.PainelVisivel;
-            p["ok"] = sem.Count == 0 && abasConferem && trilhoConfere && lembradaAjuda == "Ajuda" && lembradaExibir == "Exibir"
+            // Auditoria §1.5: o primário (Novo relatório) fica à esquerda em todas as abas; a Página Inicial não o repete.
+            faixa.EscolherAba("Página Inicial");
+            await Esperar(200);
+            var botoesInicio = faixa.IdsVisiveis;
+            p["botao_primario"] = faixa.IdPrimario;
+            p["primario_em_todas_as_abas"] = primarioNaAjuda == ComandosApp.RelatoriosNovo && faixa.IdPrimario == ComandosApp.RelatoriosNovo;
+            p["pagina_inicial_sem_novo_relatorio"] = !botoesInicio.Contains(ComandosApp.RelatoriosNovo);
+            p["ok"] = p["primario_em_todas_as_abas"]!.GetValue<bool>() && p["pagina_inicial_sem_novo_relatorio"]!.GetValue<bool>() && sem.Count == 0 && abasConferem && trilhoConfere && lembradaAjuda == "Ajuda" && lembradaExibir == "Exibir"
                 && botoesAjuda.SequenceEqual(def.Abas[^1].Comandos.Select(c => c.Id)) && botoesArquivo.SequenceEqual(def.Abas[0].Comandos.Select(c => c.Id))
                 && p["painel_alterna"]!.GetValue<bool>();
         });
@@ -793,8 +815,17 @@ internal static class Roteiro
             var sem = j.AtalhosSemManipulador();
             p["atalhos_sem_manipulador"] = new JsonArray(sem.Select(x => (JsonNode)x).ToArray());
             p["comandos_sem_manipulador"] = new JsonArray(j.ComandosSemManipulador().Select(x => (JsonNode)x).ToArray());
+            // Auditoria M2: Ctrl+3 com o foco nas folhas (a página repassa a tecla) leva a Processos; Ctrl+1 (atalho da janela) volta.
+            await GarantirTecladoAsync(j);
+            await TeclaAsync(j, "3", "Digit3", 51, 2);
+            var foiAProcessos = await EsperarAteAsync(() => Task.FromResult(j.ModuloAtual == Modulo.Processos), 5000);
+            await j.ExecutarComandoAsync(ComandosApp.ModuloRelatorios);
+            var voltou = await EsperarAteAsync(() => Task.FromResult(j.ModuloAtual == Modulo.Relatorios && j.TrilhoAtual.Ativo == Modulo.Relatorios), 5000);
+            p["ctrl_3_da_pagina_leva_a_processos"] = foiAProcessos;
+            p["ctrl_1_volta_a_relatorios"] = voltou;
             p["ok"] = abriu && entradas == 5 && j.Selecionado is not null && excluiu && foi && proj.Item(alvo.Id)!.Incluido && flyout
-                && filtra && semMarcas && comMarcas && recolheu && j.PropriedadesVisivel && sem.Count == 0 && j.ComandosSemManipulador().Count == 0;
+                && filtra && semMarcas && comMarcas && recolheu && j.PropriedadesVisivel && sem.Count == 0 && j.ComandosSemManipulador().Count == 0
+                && foiAProcessos && voltou;
         });
 
         await Passo("19_latencia", async p =>
@@ -1255,6 +1286,7 @@ internal static class Roteiro
                 && faixa.Marcado(ComandosApp.ExibirTemaEscuro) && !faixa.Marcado(ComandosApp.ExibirTemaClaro) && !faixa.Marcado(ComandosApp.ExibirTemaSistema)
                 && j.TemaMarcadoNaPagina == "escuro" && escuro.GetProperty("escuro").GetBoolean();
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "27-janela-xaml-escuro.png"));
+            await CapturarXamlAsync(j.TrilhoAtual, Path.Combine(pasta, "27-trilho-escuro.png"));
             await CapturarWebAsync(j, Path.Combine(pasta, "27-tela-escuro.png"));
 
             await j.ExecutarComandoAsync(ComandosApp.ExibirTemaClaro);
@@ -1264,9 +1296,10 @@ internal static class Roteiro
                 && faixa.Marcado(ComandosApp.ExibirTemaClaro) && !faixa.Marcado(ComandosApp.ExibirTemaEscuro)
                 && j.TemaMarcadoNaPagina == "claro" && !claro.GetProperty("escuro").GetBoolean();
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "27-janela-xaml-claro.png"));
+            await CapturarXamlAsync(j.TrilhoAtual, Path.Combine(pasta, "27-trilho-claro.png"));
 
-            // Pela página Ajustes (o mesmo caminho do clique na opção) e de volta ao sistema.
-            j.EscolherTema("escuro");
+            // Pela página Ajustes › Aparência › Tema (a caixa de escolha, como o usuário) e de volta ao sistema.
+            j.AjustesPagina.CaixaTema.SelectedIndex = Ajustes.Temas.ToList().IndexOf("escuro");
             var pelaPagina = j.TemaAtual == ElementTheme.Dark && Guardado() == "escuro";
             await j.ExecutarComandoAsync(ComandosApp.ExibirTemaSistema);
             await Esperar(400);
@@ -1279,6 +1312,10 @@ internal static class Roteiro
             var visivel = j.PaginaAjustesVisivel && j.ModuloAtual == Modulo.Ajustes && j.FaixaAtual.Definicao!.Modulo == Modulo.Ajustes && !j.CaixaPesquisaHabilitada;
             var versoes = pag.TextoVersoes.Text;
             var recuperacao = pag.TextoPastaRecuperacao.Text;
+            // A página abre em Geral; intervalo e recuperação ficam em "Relatórios e revisão" (auditoria §3.3).
+            var abriuEmGeral = pag.CategoriaAtual == CategoriasAjustes.Geral;
+            pag.MostrarCategoria(CategoriasAjustes.Relatorios);
+            await Esperar(200);
             var textosOk = versoes.Contains("Versão do app: ", StringComparison.Ordinal) && versoes.Contains($"Modelo do relatório: rev{ModeloOficial.Revisao}", StringComparison.Ordinal)
                 && versoes.Contains("WebView2: " + j.NucleoWeb.Environment.BrowserVersionString, StringComparison.Ordinal)
                 && recuperacao == Path.Combine(PastaDados.Raiz, "recuperacao");
@@ -1290,10 +1327,10 @@ internal static class Roteiro
             intervaloOk = intervaloOk && j.IntervaloAutosaveAtual == 15 && Intervalo() == "15";
             await Esperar(300);
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "27-janela-xaml-ajustes.png"));
-            p["pagina_ajustes"] = new JsonObject { ["no_trilho"] = noTrilho, ["visivel_com_a_faixa_dos_ajustes"] = visivel, ["versoes"] = versoes, ["pasta_de_recuperacao"] = recuperacao, ["intervalo_guardado"] = intervaloOk };
+            p["pagina_ajustes"] = new JsonObject { ["abriu_em_geral"] = abriuEmGeral, ["categoria"] = pag.CategoriaAtual, ["no_trilho"] = noTrilho, ["visivel_com_a_faixa_dos_ajustes"] = visivel, ["versoes"] = versoes, ["pasta_de_recuperacao"] = recuperacao, ["intervalo_guardado"] = intervaloOk };
             await j.MudarModuloAsync(Modulo.Relatorios);
             var voltou = !j.PaginaAjustesVisivel && j.ModuloAtual == Modulo.Relatorios && j.CaixaPesquisaHabilitada;
-            var ajustesOk = noTrilho && visivel && textosOk && intervaloOk && voltou;
+            var ajustesOk = noTrilho && visivel && textosOk && intervaloOk && voltou && pag.CategoriaAtual == CategoriasAjustes.Relatorios;
             p["escuro"] = JsonNode.Parse(escuro.GetRawText());
             p["claro"] = JsonNode.Parse(claro.GetRawText());
             p["tema_guardado_em_ajustes"] = Guardado();
@@ -1669,7 +1706,10 @@ internal static class Roteiro
             var textoPasta = j.TextoPastaNosAjustes.Text;
             var avisoPasta = j.TextoAvisoPastaNosAjustes.Text;
             p["pagina_ajustes"] = new JsonObject { ["pasta"] = textoPasta, ["aviso"] = avisoPasta };
-            var ajustesOk = foiAosAjustes && textoPasta == inexistente && avisoPasta.StartsWith("A pasta não foi encontrada", StringComparison.Ordinal);
+            // O botão abre direto Ajustes › Pastas e kit (auditoria §3.2).
+            p["categoria_aberta"] = j.AjustesPagina.CategoriaAtual;
+            var ajustesOk = foiAosAjustes && textoPasta == inexistente && avisoPasta.StartsWith("A pasta não foi encontrada", StringComparison.Ordinal)
+                && j.AjustesPagina.CategoriaAtual == CategoriasAjustes.Pastas;
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "33-janela-xaml-ajustes-pasta.png"));
 
             // Escolher a pasta (seletor com resposta fixa) pelo botão: vale na hora, fica em ajustes.json e o aviso some.
@@ -1718,11 +1758,13 @@ internal static class Roteiro
                 var semManipulador = j.ComandosSemManipulador();
                 var abaAberta = j.FaixaAtual.AbaAtual;
                 var padraoOk = abaAberta == (AbaGuardada(m) ?? def.Abas[def.AbaPadrao].Nome); // a lembrada, ou a padrão (a segunda; em Ajustes, a primeira)
-                var ok = abasOk && dicaOk && semManipulador.Count == 0 && padraoOk && j.ModuloAtual == m;
+                // Auditoria §1.5: o primário de cada módulo (Ajustes sem primário) e o trilho marcando o módulo.
+                var primarioOk = j.FaixaAtual.IdPrimario == def.Primario?.Id && j.TrilhoAtual.Ativo == m && j.TrilhoAtual.EstadoAcessivel(m) == "Selecionado";
+                var ok = abasOk && dicaOk && semManipulador.Count == 0 && padraoOk && j.ModuloAtual == m && primarioOk;
                 tudoOk &= ok;
                 linhas.Add(new JsonObject
                 {
-                    ["modulo"] = m.ToString(), ["abas"] = new JsonArray(abas.Select(a => (JsonNode)a).ToArray()), ["aba_aberta"] = abaAberta, ["dica_da_pesquisa"] = j.DicaDaPesquisa,
+                    ["modulo"] = m.ToString(), ["primario"] = j.FaixaAtual.IdPrimario, ["rotulo_do_primario"] = j.FaixaAtual.RotuloPrimario, ["abas"] = new JsonArray(abas.Select(a => (JsonNode)a).ToArray()), ["aba_aberta"] = abaAberta, ["dica_da_pesquisa"] = j.DicaDaPesquisa,
                     ["caixa_habilitada"] = j.CaixaPesquisaHabilitada, ["comandos_sem_manipulador"] = new JsonArray(semManipulador.Select(c => (JsonNode)c).ToArray()), ["ok"] = ok,
                 });
                 await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, $"34-janela-xaml-{m.ToString().ToLowerInvariant()}.png"));
@@ -2473,9 +2515,12 @@ internal static class Roteiro
             // (a) A seção, o texto fixo e os dois cartões.
             const string Introducao = "O editor não faz a análise: ele inicia o ChatGPT (Codex) ou o Claude instalados neste computador, com a configuração, os plugins do kit PMVNI, "
                 + "os programas (QGIS…) e as pastas de rede deles, e importa o relatório no fim.";
-            pag.TituloAgentes.StartBringIntoView();
+            // Ajustes › Inteligência artificial (a página abre em Geral; os cartões ficam nesta categoria, auditoria §3.3).
+            pag.MostrarCategoria(CategoriasAjustes.Ia);
             await Esperar(300);
-            var secao = j.PaginaAjustesVisivel && pag.TituloAgentes.Text == "Inteligência artificial" && pag.TextoIntroAgentes.Text == Introducao;
+            pag.TextoIntroAgentes.StartBringIntoView();
+            await Esperar(300);
+            var secao = j.PaginaAjustesVisivel && pag.CategoriaAtual == CategoriasAjustes.Ia && pag.TituloAgentes.Text == "Inteligência artificial" && pag.TextoIntroAgentes.Text == Introducao;
             var cartoes = chatgpt.Titulo.Text == "ChatGPT (Codex · plugin analise)" && claude.Titulo.Text == "Claude (Claude Code · plugin análise pro)"
                 && chatgpt.ActualHeight > 0 && claude.ActualHeight > 0 && chatgpt.BotaoTestar.IsEnabled && claude.BotaoTestar.IsEnabled
                 && chatgpt.OpcaoConta.IsChecked == true && claude.OpcaoConta.IsChecked == true && chatgpt.OpcaoConta.Content as string == "Usar minha conta (login do programa)"
@@ -3441,6 +3486,8 @@ internal static class Roteiro
         await Passo("60_legislacao_editar_e_substituir", async p =>
         {
             await GarantirLegislacaoAsync(59, p);
+            // As linhas ficam em Ajustes › Legislação (auditoria §3.3).
+            j.AjustesPagina.MostrarCategoria(CategoriasAjustes.Legislacao);
             var lei = LinhaDe("LEI 9.999-2099 - FICTICIA") ?? throw new InvalidOperationException("a lei não está na lista");
             const string Novo = "Lei nº 9.999/2099 (fictícia)";
             var renomeou = await j.RenomearAnexoAsync(lei.Id, Novo) is null && j.LinhasLegislacaoAjustes.Any(l => l.Id == lei.Id && l.Titulo == Novo);
@@ -3525,7 +3572,9 @@ internal static class Roteiro
             var fotoAntes = FotoLeg(dadosLeg);
             var trilho = j.TrilhoAtual.Modulos.Select(Modulos.Rotulo).ToList();
             p["trilho"] = new JsonArray(trilho.Select(t => (JsonNode)t).ToArray());
-            var trilhoOk = trilho.SequenceEqual(["Relatórios", "Despachos", "Processos", "Legislação", "Ajustes"]);
+            // Os rótulos e, auditoria §1.2, o ícone colorido de cada módulo (o template de IconesModulos.xaml, não o glifo de reserva).
+            var trilhoOk = trilho.SequenceEqual(["Relatórios", "Despachos", "Processos", "Legislação", "Ajustes"])
+                && j.TrilhoAtual.Modulos.All(j.TrilhoAtual.IconeCarregado);
             await j.MudarModuloAsync(Modulo.Legislacao);
             await EsperarAteAsync(() => Task.FromResult(j.LeitorPdf is not null), 30000);
             var grupos = j.LeisMostradas;
@@ -3969,6 +4018,290 @@ internal static class Roteiro
             p["conferencias"] = conf;
             try { await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "64-fluxo-completo.png")); } catch (Exception e) { p["captura"] = e.Message; }
             p["ok"] = conf.All(kv => kv.Value!.GetValue<bool>());
+        });
+
+        // ---------- Rodada "Interface e configurações" (auditoria da interface): passos 65 a 69 ----------
+
+        await Passo("65_trilho_icones_e_selecao", async p =>
+        {
+            var trilho = j.TrilhoAtual;
+            var linhas = new JsonArray();
+            var tudoOk = true;
+            foreach (var m in Faixas.Disponiveis)
+            {
+                // Ctrl+1 … Ctrl+5 (o mesmo comando dos aceleradores da janela e da tecla repassada pela página).
+                await j.ExecutarComandoAsync(Modulos.Comando(m));
+                await EsperarAteAsync(() => Task.FromResult(j.ModuloAtual == m), 5000);
+                await j.AguardarLeiturasAsync();
+                var iconeOk = trilho.IconeCarregado(m);
+                var soOAtivo = Faixas.Disponiveis.All(o => trilho.FundoVisivel(o) == (o == m) && (trilho.EstadoAcessivel(o) == "Selecionado") == (o == m));
+                var ok = j.ModuloAtual == m && trilho.Ativo == m && iconeOk && soOAtivo;
+                tudoOk &= ok;
+                linhas.Add(new JsonObject { ["modulo"] = m.ToString(), ["atalho"] = "Ctrl+" + Modulos.Numero(m), ["icone_colorido"] = iconeOk, ["so_o_ativo_tem_fundo"] = soOAtivo, ["ok"] = ok });
+            }
+            p["modulos"] = linhas;
+            // Setas entre os módulos (uma parada de Tab para o trilho, XYFocusKeyboardNavigation).
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            trilho.Botao(Modulo.Relatorios)!.Focus(FocusState.Keyboard);
+            await Esperar(150);
+            var moveu = FocusManager.TryMoveFocus(FocusNavigationDirection.Down, new FindNextElementOptions { SearchRoot = j.ElementoRaiz.XamlRoot!.Content });
+            await Esperar(150);
+            var focado = FocusManager.GetFocusedElement(j.ElementoRaiz.XamlRoot);
+            p["seta_para_baixo_vai_a_despachos"] = moveu && ReferenceEquals(focado, trilho.Botao(Modulo.Despachos));
+            // Captura do trilho nos dois temas (o roteiro não muda o tema guardado).
+            j.DefinirTema(ElementTheme.Light);
+            await Esperar(600);
+            await CapturarXamlAsync(trilho, Path.Combine(pasta, "65-trilho-claro.png"));
+            j.DefinirTema(ElementTheme.Dark);
+            await Esperar(600);
+            await CapturarXamlAsync(trilho, Path.Combine(pasta, "65-trilho-escuro.png"));
+            j.DefinirTema(ElementTheme.Default);
+            await Esperar(300);
+            p["ok"] = tudoOk && p["seta_para_baixo_vai_a_despachos"]!.GetValue<bool>();
+        });
+
+        await Passo("66_avisos_de_layout_no_indicador", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var pacoteEstouro = Path.Combine(pasta, "estouro.pmvrel");
+            if (!await j.AbrirPacoteAsync(pacoteEstouro)) throw new InvalidOperationException("não abriu o estouro: " + j.InfoMensagem.Message);
+            await Esperar(500);
+            var a = j.Aberto!;
+            var plano = a.Composicao.Plano;
+            var indicador = j.IndicadorLayout;
+            var esperados = plano.Estouros.Count + (plano.AvisosLargura.Count > 0 ? 1 : 0) + a.Aplicacao.FolhasQueTransbordamNaLargura.Count;
+            p["resumo"] = indicador.Resumo;
+            p["avisos"] = new JsonArray(indicador.Avisos.Select(x => (JsonNode)$"{x.Tipo} f.{x.Folha}: {x.Texto}").ToArray());
+            var contagemOk = indicador.Avisos.Count == esperados && indicador.Resumo == AvisosLayout.Resumo(indicador.Avisos) && indicador.Critico == (plano.Estouros.Count > 0);
+            // "Ir à folha N" leva as folhas até lá.
+            var linha = indicador.Avisos.ToList().FindIndex(x => x.Folha is not null);
+            var folhaAlvo = linha >= 0 ? indicador.Avisos[linha].Folha!.Value : 0;
+            if (linha >= 0) indicador.EscolherLinha(linha);
+            var foi = linha >= 0 && await EsperarAteAsync(() => Task.FromResult(j.FolhaAtual == folhaAlvo), 5000);
+            p["ir_a_folha"] = new JsonObject { ["folha"] = folhaAlvo, ["chegou"] = foi };
+            // A área das folhas não muda de altura com os avisos no indicador; em "Faixas no topo" (Ajustes › Aparência) as InfoBars voltam.
+            var alturaIndicador = j.AlturaDasFolhas;
+            var pag = j.AjustesPagina;
+            pag.CaixaAvisosLayout.SelectedIndex = AvisosLayout.Modos.ToList().IndexOf("faixas");
+            await Esperar(500);
+            var faixasAbertas = j.InfoEstouro.IsOpen == (plano.Estouros.Count > 0) && !indicador.Visivel;
+            var alturaFaixas = j.AlturaDasFolhas;
+            var guardadoFaixas = JsonNode.Parse(File.ReadAllText(Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo)))?["avisos_layout"]?.GetValue<string>();
+            pag.CaixaAvisosLayout.SelectedIndex = AvisosLayout.Modos.ToList().IndexOf("indicador");
+            await Esperar(500);
+            var alturaDeVolta = j.AlturaDasFolhas;
+            p["alturas"] = new JsonObject { ["indicador"] = alturaIndicador, ["faixas"] = alturaFaixas, ["de_volta"] = alturaDeVolta };
+            var alturaOk = Math.Abs(alturaDeVolta - alturaIndicador) < 0.5 && (esperados == 0 || alturaFaixas < alturaIndicador);
+            // Área de avisos (M7): no máximo 2 à vista, o resto em "+n"; informativos fecham sozinhos (encurtado aqui para 1 s).
+            var area = j.AreaAvisosRelatorios;
+            j.InfoMensagem.Severity = Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning;
+            j.InfoMensagem.Title = "Roteiro";
+            j.InfoMensagem.Message = "aviso 1";
+            j.InfoMensagem.IsOpen = true;
+            j.InfoBloqueio.IsOpen = true;
+            j.InfoSomenteLeitura.IsOpen = true;
+            await Esperar(300);
+            var recolhidas = area.Recolhidas.Count;
+            var mais = area.TextoMais;
+            var maisOk = area.Abertas.Count >= 3 && recolhidas == area.Abertas.Count - AreaDeAvisos.MaxVisiveis && mais.StartsWith('+');
+            j.InfoBloqueio.IsOpen = false;
+            j.InfoSomenteLeitura.IsOpen = false;
+            AreaDeAvisos.FecharSozinho = true;
+            AreaDeAvisos.TempoParaFechar = TimeSpan.FromSeconds(1);
+            try
+            {
+                j.InfoMensagem.IsOpen = false;
+                j.InfoMensagem.Severity = Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational;
+                j.InfoMensagem.Message = "informativo do roteiro";
+                j.InfoMensagem.IsOpen = true;
+                var fechouSozinho = await EsperarAteAsync(() => Task.FromResult(!j.InfoMensagem.IsOpen), 4000);
+                p["informativo_fecha_sozinho"] = fechouSozinho;
+            }
+            finally
+            {
+                AreaDeAvisos.FecharSozinho = false;
+                AreaDeAvisos.TempoParaFechar = TimeSpan.FromSeconds(8);
+            }
+            p["area_de_avisos"] = new JsonObject { ["recolhidas"] = recolhidas, ["texto_mais"] = mais };
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "66-indicador-de-layout.png"));
+            p["ok"] = contagemOk && foi && faixasAbertas && guardadoFaixas == "faixas" && alturaOk && maisOk && p["informativo_fecha_sozinho"]!.GetValue<bool>()
+                && !j.ExportarHabilitado && j.DicaExportar.StartsWith("A exportação está bloqueada", StringComparison.Ordinal);
+            await j.FecharSessaoAsync();
+        });
+
+        await Passo("67_ajustes_categorias", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Ajustes);
+            var pag = j.AjustesPagina;
+            var ajustesJson = Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo);
+            JsonNode? Guardado(string chave) => JsonNode.Parse(File.ReadAllText(ajustesJson))?[chave];
+            var menuOk = pag.TitulosDoMenu.SequenceEqual(CategoriasAjustes.Menu.Select(c => c.Titulo));
+            p["menu"] = new JsonArray(pag.TitulosDoMenu.Select(t => (JsonNode)t).ToArray());
+            var categoriasOk = true;
+            foreach (var c in CategoriasAjustes.Menu)
+            {
+                pag.MostrarCategoria(c.Tag);
+                await Esperar(250);
+                categoriasOk &= pag.CategoriaAtual == c.Tag;
+                await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, $"67-ajustes-{c.Tag}.png"));
+            }
+            // Cada opção nova, escolhida na tela como o usuário, vai para ajustes.json e vale ao reabrir (Ajustes.Carregar).
+            var recentesAntes = j.RecentesNosAjustes;
+            var leisAntes = j.LinhasLegislacaoAjustes.Count;
+            var modoAgente = j.AjustesAtuais.Agentes[Provedor.ChatGpt].Modo;
+            static void Escolher(Microsoft.UI.Xaml.Controls.ComboBox c, object valor) =>
+                c.SelectedItem = c.Items.OfType<Microsoft.UI.Xaml.Controls.ComboBoxItem>().First(i => Equals(i.Tag, valor));
+            Escolher(pag.CaixaAbrirEm, "Processos");
+            Escolher(pag.CaixaRecentes, 20);
+            Escolher(pag.CaixaRotulosFaixa, "icones");
+            var soIcones = j.FaixaAtual.Compacta;
+            Escolher(pag.CaixaRotulosFaixa, "sempre");
+            var sempreRotulos = !j.FaixaAtual.Compacta;
+            Escolher(pag.CaixaZoomInicial, "pagina");
+            Escolher(pag.CaixaRecuperacao, 90);
+            Escolher(pag.CaixaOrdemProcessos, "requerente");
+            Escolher(pag.CaixaAgruparDespachos, "processo");
+            Escolher(pag.CaixaOrdemDespachos, "antigos");
+            Escolher(pag.CaixaEscopo, "todas");
+            pag.AlternarJanela.IsOn = true;
+            pag.AlternarPaineis.IsOn = true;
+            pag.AlternarPastasProcesso.IsOn = true;
+            pag.AlternarAbrirPdf.IsOn = true;
+            pag.AlternarConfirmarCancelar.IsOn = false;
+            pag.AlternarConfirmarFechar.IsOn = false;
+            pag.MostrarCategoria(CategoriasAjustes.Ia);
+            await Esperar(200);
+            pag.CaixaPedidoPadrao.Focus(FocusState.Keyboard);
+            pag.CaixaPedidoPadrao.Text = "Pedido padrão do roteiro";
+            pag.BotaoVerAtalhos.Focus(FocusState.Keyboard);
+            pag.ExpansorChatGpt.Focus(FocusState.Keyboard);
+            await Esperar(300);
+            var esperado = new Dictionary<string, string>
+            {
+                ["abrir_em"] = "Processos", ["recentes_max"] = "20", ["faixa_rotulos"] = "sempre", ["zoom_inicial"] = "pagina", ["recuperacao_dias"] = "90",
+                ["processos_ordem"] = "requerente", ["despachos_agrupar"] = "processo", ["despachos_ordem"] = "antigos", ["legislacao_escopo"] = "todas",
+                ["lembrar_janela"] = "true", ["lembrar_paineis"] = "true", ["processos_pastas"] = "true", ["despacho_abrir_pdf"] = "true",
+                ["confirmar_cancelar"] = "false", ["confirmar_fechar"] = "false", ["pedido_padrao"] = "Pedido padrão do roteiro",
+            };
+            var gravadas = new JsonObject();
+            var gravadasOk = true;
+            foreach (var (chave, valor) in esperado)
+            {
+                var g = Guardado(chave);
+                var texto = g is JsonValue v && v.TryGetValue<bool>(out var b) ? (b ? "true" : "false") : g?.ToString();
+                gravadas[chave] = texto;
+                gravadasOk &= texto == valor;
+            }
+            p["gravadas_em_ajustes_json"] = gravadas;
+            var reaberto = Ajustes.Carregar(PastaDados.Raiz);
+            var reabertoOk = reaberto.AbrirEm == "Processos" && reaberto.ModuloAoAbrir() == Modulo.Processos && reaberto.RecentesMax == 20 && reaberto.ZoomInicial == "pagina"
+                && reaberto.RecuperacaoDias == 90 && reaberto.ProcessosOrdem == "requerente" && reaberto.LegislacaoEscopo == "todas" && reaberto.LembrarPaineis
+                && !reaberto.ConfirmarCancelar && reaberto.PedidoPadrao == "Pedido padrão do roteiro";
+            // Restaurar os ajustes (com a confirmação respondida "Restaurar"): tudo ao padrão; chaves, leis e recentes ficam.
+            perguntas.Confirmar = true;
+            var restaurou = await j.RestaurarAjustesAsync();
+            var padrao = new Ajustes();
+            var a = j.AjustesAtuais;
+            var restaurouOk = restaurou && a.AbrirEm == padrao.AbrirEm && a.RecentesMax == padrao.RecentesMax && a.FaixaRotulos == padrao.FaixaRotulos
+                && a.ZoomInicial == padrao.ZoomInicial && a.RecuperacaoDias == padrao.RecuperacaoDias && a.LembrarJanela == padrao.LembrarJanela
+                && a.ConfirmarCancelar && a.PedidoPadrao == "" && Guardado("abrir_em")?.GetValue<string>() == "ultimo";
+            var preservou = j.RecentesNosAjustes.SequenceEqual(recentesAntes) && j.LinhasLegislacaoAjustes.Count == leisAntes && a.Agentes[Provedor.ChatGpt].Modo == modoAgente;
+            p["restaurar"] = new JsonObject { ["restaurou"] = restaurouOk, ["preservou_recentes_leis_e_agentes"] = preservou };
+            // O roteiro volta ao que os passos seguintes esperam (pasta de processos da cópia fictícia e salvamento automático em 15 s).
+            j.DefinirPastaProcessos(copiaProcessos);
+            j.DefinirIntervaloAutosave(15);
+            p["conferencias"] = new JsonObject
+            {
+                ["menu_com_8_categorias"] = menuOk, ["cada_categoria_abre"] = categoriasOk, ["so_icones"] = soIcones, ["sempre_rotulos"] = sempreRotulos,
+                ["gravadas"] = gravadasOk, ["valem_ao_reabrir"] = reabertoOk,
+            };
+            p["ok"] = menuOk && categoriasOk && soIcones && sempreRotulos && gravadasOk && reabertoOk && restaurouOk && preservou;
+            await j.MudarModuloAsync(Modulo.Relatorios);
+        });
+
+        await Passo("68_nomes_acessiveis_das_listas", async p =>
+        {
+            // Nenhum item de lista com nome igual ao do tipo ("Pmvni.App.ItemNavegacao"): o Narrador lê o que a linha mostra.
+            static List<string> Nomes(Microsoft.UI.Xaml.Controls.ListViewBase lista)
+            {
+                var nomes = new List<string>();
+                for (var i = 0; i < lista.Items.Count; i++)
+                    if (lista.ContainerFromIndex(i) is Microsoft.UI.Xaml.UIElement c && FrameworkElementAutomationPeer.CreatePeerForElement(c) is { } peer)
+                        nomes.Add(peer.GetName());
+                return nomes;
+            }
+            static bool Bons(List<string> nomes) => nomes.Count > 0 && nomes.All(n => !string.IsNullOrWhiteSpace(n) && !n.StartsWith("Pmvni.", StringComparison.Ordinal));
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            if (!await j.AbrirPacoteAsync(pacoteLongo)) throw new InvalidOperationException("não abriu o longo: " + j.InfoMensagem.Message);
+            await Esperar(500);
+            var secoes = Nomes(j.ListaDeSecoes);
+            var itemComSituacao = j.Itens.FirstOrDefault(i => i.Situacao is not null);
+            var situacaoPorExtenso = itemComSituacao is not null && itemComSituacao.NomeAcessivel.Contains(itemComSituacao.TextoSituacao, StringComparison.Ordinal);
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            var processos = Nomes(j.ListaDeProcessos);
+            await j.MudarModuloAsync(Modulo.Despachos);
+            await j.AguardarLeiturasAsync();
+            var despachos = Nomes(j.ListaDeDespachos);
+            var trilho = Faixas.Disponiveis.Select(m => AutomationProperties.GetName(j.TrilhoAtual.Botao(m)!)).ToList();
+            p["secoes"] = new JsonArray(secoes.Take(6).Select(n => (JsonNode)n).ToArray());
+            p["processos"] = new JsonArray(processos.Take(4).Select(n => (JsonNode)n).ToArray());
+            p["despachos"] = new JsonArray(despachos.Take(4).Select(n => (JsonNode)n).ToArray());
+            p["trilho"] = new JsonArray(trilho.Select(n => (JsonNode)n).ToArray());
+            p["situacao_por_extenso"] = situacaoPorExtenso;
+            p["ok"] = Bons(secoes) && Bons(processos) && Bons(despachos) && situacaoPorExtenso && trilho.SequenceEqual(Faixas.Disponiveis.Select(Modulos.Rotulo));
+            await j.MudarModuloAsync(Modulo.Relatorios);
+        });
+
+        await Passo("69_botao_primario", async p =>
+        {
+            var linhas = new JsonArray();
+            var tudoOk = true;
+            foreach (var m in Faixas.Disponiveis)
+            {
+                await j.MudarModuloAsync(m);
+                await j.AguardarLeiturasAsync();
+                var def = Faixas.Para(m);
+                var faixa = j.FaixaAtual;
+                var linha = new JsonObject { ["modulo"] = m.ToString(), ["primario"] = faixa.IdPrimario, ["rotulo"] = faixa.RotuloPrimario };
+                bool ok;
+                if (def.Primario is not { } primario) ok = faixa.IdPrimario is null && faixa.BotaoPrimario is null;
+                else
+                {
+                    var botao = faixa.BotaoPrimario!;
+                    var tipoOk = (primario.Tipo == TipoComando.Menu) == (botao is Microsoft.UI.Xaml.Controls.DropDownButton);
+                    // Desabilitado mostra o motivo na dica (Habilitar/DefinirDica guardam por id e valem para o primário).
+                    var habilitadoAntes = faixa.Habilitado(primario.Id);
+                    var dicaAntes = faixa.Dica(primario.Id);
+                    faixa.Habilitar(primario.Id, false);
+                    faixa.DefinirDica(primario.Id, "Motivo de teste do roteiro");
+                    var desabilitadoOk = !botao.IsEnabled && ToolTipService.GetToolTip(botao) as string == "Motivo de teste do roteiro";
+                    faixa.Habilitar(primario.Id, habilitadoAntes);
+                    faixa.DefinirDica(primario.Id, dicaAntes.Length > 0 ? dicaAntes : primario.TextoCompleto);
+                    // O primário fica em todas as abas do módulo.
+                    var emTodas = true;
+                    foreach (var aba in def.Abas)
+                    {
+                        faixa.EscolherAba(aba.Nome);
+                        await Esperar(80);
+                        emTodas &= faixa.IdPrimario == primario.Id;
+                    }
+                    faixa.EscolherAba(def.Abas[def.AbaPadrao].Nome);
+                    await CapturarXamlAsync(faixa, Path.Combine(pasta, $"69-primario-{m.ToString().ToLowerInvariant()}.png"));
+                    linha["tipo_ok"] = tipoOk;
+                    linha["desabilitado_com_motivo"] = desabilitadoOk;
+                    linha["em_todas_as_abas"] = emTodas;
+                    ok = faixa.IdPrimario == primario.Id && faixa.RotuloPrimario == primario.TextoCompleto && tipoOk && desabilitadoOk && emTodas
+                        && botao.IsEnabled == habilitadoAntes;
+                }
+                linha["ok"] = ok;
+                tudoOk &= ok;
+                linhas.Add(linha);
+            }
+            p["modulos"] = linhas;
+            p["comandos_sem_manipulador"] = new JsonArray(j.ComandosSemManipulador().Select(c => (JsonNode)c).ToArray());
+            p["ok"] = tudoOk && j.ComandosSemManipulador().Count == 0;
+            await j.MudarModuloAsync(Modulo.Relatorios);
         });
 
         await j.FecharSessaoAsync();

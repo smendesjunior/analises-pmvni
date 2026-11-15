@@ -11,18 +11,19 @@
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <StackPanel Grid.Row="0" Spacing="1">
+    <!-- Avisos (no máximo 2 à vista; o resto em "+n"; informativos fecham sozinhos). -->
+    <local:AreaDeAvisos x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0">
       <InfoBar x:Name="AvisoPasta" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="">
         <InfoBar.ActionButton>
           <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Abrir Ajustes"/>
         </InfoBar.ActionButton>
       </InfoBar>
       <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
-    </StackPanel>
+    </local:AreaDeAvisos>
 
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="380" MinWidth="260"/>
+        <ColumnDefinition Width="{StaticResource PmvniLarguraLista}" MinWidth="260"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
 
@@ -45,15 +46,20 @@
                   AutomationProperties.Name="Processos">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:LinhaProcesso">
-              <StackPanel Padding="0,6" Spacing="1">
+              <StackPanel Padding="0,6" Spacing="1" AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Titulo}">
                 <TextBlock Text="{x:Bind Titulo}" TextTrimming="CharacterEllipsis"/>
                 <TextBlock Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
               </StackPanel>
             </DataTemplate>
           </ListView.ItemTemplate>
         </ListView>
-        <TextBlock x:Name="TextoListaVazia" x:FieldModifier="internal" Grid.Row="1" Margin="16,12" TextWrapping="Wrap" Visibility="Collapsed"
-                   Style="{StaticResource PmvniSecondaryTextStyle}"/>
+        <!-- Lista vazia (M5): o ícone do módulo acima do texto (o texto e a visibilidade vêm da janela). -->
+        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Padding="16"
+                    Visibility="{Binding Visibility, ElementName=TextoListaVazia}">
+          <ContentPresenter Width="48" Height="48" HorizontalAlignment="Center" ContentTemplate="{StaticResource PmvniIconeProcessos}" IsHitTestVisible="False"/>
+          <TextBlock x:Name="TextoListaVazia" x:FieldModifier="internal" TextWrapping="Wrap" TextAlignment="Center" Visibility="Collapsed"
+                     Style="{StaticResource PmvniSecondaryTextStyle}"/>
+        </StackPanel>
       </Grid>
 
       <!-- Detalhe do processo escolhido. -->
@@ -63,18 +69,20 @@
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0" Padding="20,10,16,6">
-          <TextBlock x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{StaticResource SubtitleTextBlockStyle}" TextTrimming="CharacterEllipsis"/>
+          <TextBlock x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{StaticResource SubtitleTextBlockStyle}" TextTrimming="CharacterEllipsis"
+                     ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
           <TextBlock x:Name="TextoPastaDetalhe" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"
-                     TextTrimming="CharacterEllipsis"/>
+                     TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
         </StackPanel>
         <ListView x:Name="ListaDetalhe" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" Padding="12,0,12,8"
                   AutomationProperties.Name="Conteúdo do processo">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:LinhaDetalhe">
-              <StackPanel Padding="0,5" Spacing="1">
+              <StackPanel Padding="0,5" Spacing="1" AutomationProperties.Name="{x:Bind NomeAcessivel}">
                 <TextBlock Text="{x:Bind Texto}" Style="{StaticResource BodyStrongTextBlockStyle}" Visibility="{x:Bind EhTitulo}" Margin="0,8,0,0"/>
-                <TextBlock Text="{x:Bind Texto}" Visibility="{x:Bind NaoEhTitulo}" TextTrimming="CharacterEllipsis"/>
-                <TextBlock Text="{x:Bind Info}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind TemInfo}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{x:Bind Texto}" Visibility="{x:Bind NaoEhTitulo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Texto}"/>
+                <TextBlock Text="{x:Bind Info}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind TemInfo}" TextTrimming="CharacterEllipsis"
+                           ToolTipService.ToolTip="{x:Bind Info}"/>
               </StackPanel>
             </DataTemplate>
           </ListView.ItemTemplate>

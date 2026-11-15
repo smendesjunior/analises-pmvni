@@ -25,20 +25,122 @@ public sealed partial class MainWindow
     internal PaginaAjustes AjustesPagina => PaginaDeAjustes;
     internal bool PaginaAjustesVisivel => PaginaDeAjustes.Visibility == Visibility.Visible;
     internal int IntervaloAutosaveAtual => ajustes.IntervaloAutosaveS;
-    /// <summary>O tema marcado na página Ajustes (<c>sistema</c>, <c>claro</c> ou <c>escuro</c>).</summary>
-    internal string? TemaMarcadoNaPagina => PaginaDeAjustes.OpcoesTema.Children.OfType<RadioButton>().FirstOrDefault(r => r.IsChecked == true)?.Tag as string;
+    /// <summary>O tema escolhido na página Ajustes (<c>sistema</c>, <c>claro</c> ou <c>escuro</c>).</summary>
+    internal string? TemaMarcadoNaPagina => (PaginaDeAjustes.CaixaTema.SelectedItem as ComboBoxItem)?.Tag as string;
+    /// <summary>Os ajustes em memória (o roteiro confere as opções novas e "Restaurar os ajustes").</summary>
+    internal Ajustes AjustesAtuais => ajustes;
+
+    /// <summary>As caixas de escolha da página: cada opção tem o texto e o valor guardado em ajustes.json.</summary>
+    static readonly (string Valor, string Texto)[] TextosAbrirEm =
+        [("ultimo", "Último usado"), ("Relatorios", "Relatórios"), ("Despachos", "Despachos"), ("Processos", "Processos"), ("Legislacao", "Legislação")];
+    static readonly (string Valor, string Texto)[] TextosRotulos = [("automatico", "Automático"), ("sempre", "Sempre"), ("icones", "Só ícones")];
+    static readonly (string Valor, string Texto)[] TextosAvisos = [("indicador", "Indicador no rodapé"), ("faixas", "Faixas no topo")];
+    static readonly (string Valor, string Texto)[] TextosZoom = [("largura", "Ajustar largura"), ("pagina", "Página inteira"), ("100", "100 %")];
+    static readonly (string Valor, string Texto)[] TextosOrdemProcessos = [("numero", "Número"), ("data", "Data"), ("requerente", "Requerente")];
+    static readonly (string Valor, string Texto)[] TextosAgrupar = [("data", "Por data"), ("processo", "Por processo")];
+    static readonly (string Valor, string Texto)[] TextosOrdemDespachos = [("recentes", "Mais recentes primeiro"), ("antigos", "Mais antigos primeiro")];
+    static readonly (string Valor, string Texto)[] TextosEscopo = [("lei", "Nesta lei"), ("todas", "Em todas as leis")];
 
     void IniciarAjustes()
     {
-        foreach (var s in Ajustes.Intervalos) PaginaDeAjustes.CaixaIntervalo.Items.Add(new ComboBoxItem { Content = s + " segundos", Tag = s });
-        foreach (var opcao in PaginaDeAjustes.OpcoesTema.Children.OfType<RadioButton>())
-            opcao.Click += (o, _) => { if (((RadioButton)o).Tag is string tema) EscolherTema(tema); };
-        PaginaDeAjustes.CaixaIntervalo.SelectionChanged += (_, _) =>
+        var p = PaginaDeAjustes;
+        static void Preencher(ComboBox c, IEnumerable<(object Valor, string Texto)> itens)
         {
-            if (atualizandoAjustes || PaginaDeAjustes.CaixaIntervalo.SelectedItem is not ComboBoxItem { Tag: int s } || s == ajustes.IntervaloAutosaveS) return;
+            foreach (var (valor, texto) in itens) c.Items.Add(new ComboBoxItem { Content = texto, Tag = valor });
+        }
+        Preencher(p.CaixaIntervalo, Ajustes.Intervalos.Select(s => ((object)s, s + " segundos")));
+        Preencher(p.CaixaTema, Ajustes.Temas.Select(t => ((object)t, TextosTema.De(t))));
+        Preencher(p.CaixaAbrirEm, TextosAbrirEm.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaRecentes, Ajustes.OpcoesRecentes.Select(n => ((object)n, n + " arquivos")));
+        Preencher(p.CaixaRotulosFaixa, TextosRotulos.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaAvisosLayout, TextosAvisos.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaZoomInicial, TextosZoom.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaRecuperacao, new[] { 7, 30, 90 }.Select(d => ((object)d, d + " dias")));
+        Preencher(p.CaixaOrdemProcessos, TextosOrdemProcessos.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaAgruparDespachos, TextosAgrupar.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaOrdemDespachos, TextosOrdemDespachos.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaEscopo, TextosEscopo.Select(x => ((object)x.Valor, x.Texto)));
+
+        // Cada escolha grava na hora (barra "Alterações salvas automaticamente") e vale já onde é lida.
+        void AoEscolher(ComboBox c, Action<object> aplicar) => c.SelectionChanged += (_, _) =>
+        {
+            if (atualizandoAjustes || c.SelectedItem is not ComboBoxItem { Tag: { } valor }) return;
+            aplicar(valor);
+            SalvarAjustes();
+        };
+        void AoAlternar(ToggleSwitch t, Action<bool> aplicar) => t.Toggled += (_, _) =>
+        {
+            if (atualizandoAjustes) return;
+            aplicar(t.IsOn);
+            SalvarAjustes();
+        };
+        p.CaixaIntervalo.SelectionChanged += (_, _) =>
+        {
+            if (atualizandoAjustes || p.CaixaIntervalo.SelectedItem is not ComboBoxItem { Tag: int s } || s == ajustes.IntervaloAutosaveS) return;
             DefinirIntervaloAutosave(s);
             ReiniciarAutosave();
         };
+        p.CaixaTema.SelectionChanged += (_, _) =>
+        {
+            if (!atualizandoAjustes && p.CaixaTema.SelectedItem is ComboBoxItem { Tag: string tema } && tema != ajustes.Tema) EscolherTema(tema);
+        };
+        AoEscolher(p.CaixaAbrirEm, v => ajustes.AbrirEm = (string)v);
+        AoAlternar(p.AlternarJanela, sim => { ajustes.LembrarJanela = sim; if (!sim) ajustes.Janela = null; });
+        AoEscolher(p.CaixaRecentes, v => { ajustes.RecentesMax = (int)v; AtualizarRecentes(); });
+        p.BotaoLimparRecentes.Click += (_, _) =>
+        {
+            ajustes.LimparRecentes();
+            SalvarAjustes();
+            AtualizarRecentes();
+        };
+        AoEscolher(p.CaixaRotulosFaixa, v => { ajustes.FaixaRotulos = (string)v; AplicarLargura(Raiz.ActualWidth); });
+        AoEscolher(p.CaixaAvisosLayout, v =>
+        {
+            ajustes.AvisosLayout = (string)v;
+            if (sessao?.Atual is { } r) MostrarRecomposicao(r);
+        });
+        AoEscolher(p.CaixaZoomInicial, v => ajustes.ZoomInicial = (string)v);
+        // Marcas de revisão: o mesmo que Revisão › Marcas de revisão (a faixa e a página andam juntas).
+        p.AlternarMarcas.Toggled += async (_, _) =>
+        {
+            if (atualizandoAjustes || p.AlternarMarcas.IsOn == ajustes.MarcasRevisao) return;
+            await TentarAsync(AlternarMarcasAsync);
+        };
+        AoAlternar(p.AlternarPaineis, sim =>
+        {
+            ajustes.LembrarPaineis = sim;
+            ajustes.PainelLateral = R.PainelNavegacao.Visibility == Visibility.Visible;
+            ajustes.PainelPropriedades = R.PainelPropriedades.Visibility == Visibility.Visible;
+        });
+        AoEscolher(p.CaixaRecuperacao, v => ajustes.RecuperacaoDias = (int)v);
+        p.BotaoAbrirRecuperacao.Click += (_, _) => AbrirPastaDosAjustes(Path.Combine(PastaDados.Raiz, "recuperacao"));
+        p.BotaoAbrirPastaProcessos.Click += (_, _) => AbrirPastaDosAjustes(ajustes.PastaProcessosEfetiva);
+        p.BotaoAbrirPastaKit.Click += (_, _) => AbrirPastaDosAjustes(ajustes.PastaKitEfetiva);
+        AoEscolher(p.CaixaOrdemProcessos, v => ajustes.ProcessosOrdem = (string)v);
+        AoAlternar(p.AlternarPastasProcesso, sim => ajustes.ProcessosPastas = sim);
+        AoEscolher(p.CaixaAgruparDespachos, v => ajustes.DespachosAgrupar = (string)v);
+        AoEscolher(p.CaixaOrdemDespachos, v => ajustes.DespachosOrdem = (string)v);
+        p.BotaoTestarSoffice.Click += (_, _) => TestarSoffice();
+        p.BotaoEscolherSoffice.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(EscolherSofficeAsync));
+        p.BotaoSofficeAutomatico.Click += (_, _) => DefinirSoffice(null);
+        p.BotaoRedefinirPerfil.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(RedefinirPerfilSofficeAsync));
+        AoAlternar(p.AlternarAbrirPdf, sim => ajustes.DespachoAbrirPdf = sim);
+        AoEscolher(p.CaixaEscopo, v => ajustes.LegislacaoEscopo = (string)v);
+        p.CaixaPedidoPadrao.LostFocus += (_, _) =>
+        {
+            if (atualizandoAjustes || p.CaixaPedidoPadrao.Text == ajustes.PedidoPadrao) return;
+            ajustes.PedidoPadrao = p.CaixaPedidoPadrao.Text;
+            SalvarAjustes();
+        };
+        AoAlternar(p.AlternarConfirmarCancelar, sim => ajustes.ConfirmarCancelar = sim);
+        AoAlternar(p.AlternarConfirmarFechar, sim => ajustes.ConfirmarFechar = sim);
+        p.BotaoCopiarVersoes.Click += (_, _) => AreaTransferencia.Copiar(p.TextoVersoes.Text);
+        p.BotaoVerAtalhos.Click += async (_, _) => await TentarAsync(MostrarAtalhosAsync);
+        p.TextoPastaDados.Text = PastaDados.Raiz;
+        p.BotaoAbrirPastaDados.Click += (_, _) => AbrirPastaDosAjustes(PastaDados.Raiz);
+        p.BotaoRestaurarAjustes.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(async () => await RestaurarAjustesAsync()));
+        p.TextoPerfilSoffice.Text = Path.Combine(PastaDados.Raiz, "lo");
+
         Faixa.ItensDinamicos = ItensDoMenuDaFaixa;
         Faixa.ItemDinamicoEscolhido += async (menu, valor) =>
         {
@@ -52,8 +154,8 @@ public sealed partial class MainWindow
         }
         manipuladores[ComandosApp.RevisaoComparar] = CompararAsync;
         Activated += (_, e) => { if (e.WindowActivationState != WindowActivationState.Deactivated) AtualizarRecentes(); };
-        PaginaDeAjustes.TextoPastaRecuperacao.Text = Path.Combine(PastaDados.Raiz, "recuperacao");
-        PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes();
+        p.TextoPastaRecuperacao.Text = Path.Combine(PastaDados.Raiz, "recuperacao");
+        p.TextoVersoes.Text = TextoDasVersoes();
         SincronizarAjustes();
         AtualizarRecentes();
     }
@@ -70,19 +172,144 @@ public sealed partial class MainWindow
         SincronizarAjustes();
     }
 
-    /// <summary>Põe a faixa e a página Ajustes de acordo com os ajustes (tema marcado, intervalo escolhido).</summary>
+    /// <summary>Põe a faixa e a página Ajustes de acordo com os ajustes (cada caixa no valor guardado, cada chave ligada ou não).</summary>
     void SincronizarAjustes()
     {
         atualizandoAjustes = true;
         try
         {
+            var p = PaginaDeAjustes;
             foreach (var t in Ajustes.Temas) Faixa.MarcarItem("exibir.tema." + t, t == ajustes.Tema);
-            foreach (var opcao in PaginaDeAjustes.OpcoesTema.Children.OfType<RadioButton>())
-                opcao.IsChecked = opcao.Tag as string == ajustes.Tema;
-            foreach (var item in PaginaDeAjustes.CaixaIntervalo.Items.OfType<ComboBoxItem>())
-                if (item.Tag is int s && s == ajustes.IntervaloAutosaveS) PaginaDeAjustes.CaixaIntervalo.SelectedItem = item;
+            static void Escolher(ComboBox c, object valor)
+            {
+                foreach (var item in c.Items.OfType<ComboBoxItem>())
+                    if (Equals(item.Tag, valor)) { c.SelectedItem = item; return; }
+            }
+            Escolher(p.CaixaTema, ajustes.Tema);
+            Escolher(p.CaixaIntervalo, ajustes.IntervaloAutosaveS);
+            Escolher(p.CaixaAbrirEm, ajustes.AbrirEm);
+            Escolher(p.CaixaRecentes, ajustes.RecentesMax);
+            Escolher(p.CaixaRotulosFaixa, ajustes.FaixaRotulos);
+            Escolher(p.CaixaAvisosLayout, ajustes.AvisosLayout);
+            Escolher(p.CaixaZoomInicial, ajustes.ZoomInicial);
+            Escolher(p.CaixaRecuperacao, ajustes.RecuperacaoDias);
+            Escolher(p.CaixaOrdemProcessos, ajustes.ProcessosOrdem);
+            Escolher(p.CaixaAgruparDespachos, ajustes.DespachosAgrupar);
+            Escolher(p.CaixaOrdemDespachos, ajustes.DespachosOrdem);
+            Escolher(p.CaixaEscopo, ajustes.LegislacaoEscopo);
+            p.AlternarJanela.IsOn = ajustes.LembrarJanela;
+            p.AlternarMarcas.IsOn = ajustes.MarcasRevisao;
+            p.AlternarPaineis.IsOn = ajustes.LembrarPaineis;
+            p.AlternarPastasProcesso.IsOn = ajustes.ProcessosPastas;
+            p.AlternarAbrirPdf.IsOn = ajustes.DespachoAbrirPdf;
+            p.AlternarConfirmarCancelar.IsOn = ajustes.ConfirmarCancelar;
+            p.AlternarConfirmarFechar.IsOn = ajustes.ConfirmarFechar;
+            p.CaixaPedidoPadrao.Text = ajustes.PedidoPadrao;
+            AtualizarTextoSoffice();
+            // PMVNI_KIT_RAIZ (testes, roteiro) manda no kit: a escolha da página não vale enquanto ela estiver definida.
+            var env = Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ");
+            p.TextoAvisoKitAmbiente.Text = string.IsNullOrWhiteSpace(env) ? "" : "A variável PMVNI_KIT_RAIZ está definida: o editor lê o kit em " + env + ".";
+            p.TextoAvisoKitAmbiente.Visibility = string.IsNullOrWhiteSpace(env) ? Visibility.Collapsed : Visibility.Visible;
         }
         finally { atualizandoAjustes = false; }
+    }
+
+    void AbrirPastaDosAjustes(string pasta)
+    {
+        if (Directory.Exists(pasta)) AberturaExterna.AbrirPasta(pasta);
+        else MostrarMensagem(InfoBarSeverity.Warning, "A pasta não existe", pasta + " não foi encontrada.");
+    }
+
+    // ---------- LibreOffice (Ajustes › Despachos e PDF) ----------
+
+    /// <summary>O programa que o Novo despacho vai usar (o escolhido, se vale; senão o achado sozinho) e de onde ele veio.</summary>
+    void AtualizarTextoSoffice()
+    {
+        var efetivo = ConversorLibreOffice.Localizar(ajustes.Soffice);
+        var origem = ajustes.Soffice is null ? "achado pelo editor" : ConversorLibreOffice.ProgramaValido(ajustes.Soffice) ? "escolhido" : "o escolhido não foi encontrado; achado pelo editor";
+        PaginaDeAjustes.TextoSoffice.Text = efetivo is null ? "Nenhum LibreOffice encontrado: os despachos saem só em DOCX." : $"{efetivo}  ({origem})";
+        PaginaDeAjustes.BotaoSofficeAutomatico.IsEnabled = ajustes.Soffice is not null;
+    }
+
+    /// <summary>"Testar": confere o programa e a versão pelo arquivo (nada é executado).</summary>
+    void TestarSoffice()
+    {
+        var c = new ConversorLibreOffice(ConversorLibreOffice.Localizar(ajustes.Soffice));
+        var t = PaginaDeAjustes.TextoTesteSoffice;
+        t.Text = c.Disponivel ? (c.Versao ?? "LibreOffice encontrado (versão não informada).") + " Pronto para gerar o PDF dos despachos."
+            : "Nenhum LibreOffice encontrado: os despachos saem só em DOCX. Instale o LibreOffice ou escolha o soffice.exe.";
+        t.Visibility = Visibility.Visible;
+    }
+
+    async Task EscolherSofficeAsync()
+    {
+        var arquivo = await Perguntas.Atual.AbrirArquivoAsync(".exe");
+        if (arquivo is null) return;
+        if (!ConversorLibreOffice.ProgramaValido(arquivo))
+        {
+            MostrarMensagem(InfoBarSeverity.Warning, "Programa não aceito", "Escolha o soffice.exe da pasta program do LibreOffice.");
+            return;
+        }
+        DefinirSoffice(arquivo);
+    }
+
+    void DefinirSoffice(string? caminho)
+    {
+        ajustes.Soffice = caminho;
+        SalvarAjustes();
+        conversor = null; // o próximo despacho usa o programa novo
+        AtualizarTextoSoffice();
+        PaginaDeAjustes.TextoTesteSoffice.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>"Redefinir perfil" (Avançado): apaga <c>&lt;dados&gt;\lo</c>, com confirmação; nunca com um despacho em preparo.</summary>
+    async Task RedefinirPerfilSofficeAsync()
+    {
+        if (novo is not null)
+        {
+            MostrarMensagem(InfoBarSeverity.Warning, "Perfil não redefinido", "Termine ou cancele o despacho em edição antes de redefinir o perfil do LibreOffice.");
+            return;
+        }
+        var perfil = Path.Combine(PastaDados.Raiz, "lo");
+        if (!await Perguntas.Atual.ConfirmarAsync("Redefinir o perfil do LibreOffice?",
+                "O perfil do LibreOffice usado pelo editor será apagado. O próximo PDF de despacho demora perto de um minuto, enquanto ele é criado de novo.",
+                "Redefinir", "Cancelar")) return;
+        try
+        {
+            if (Directory.Exists(perfil)) await Task.Run(() => Directory.Delete(perfil, recursive: true));
+            conversor = null;
+            PaginaDeAjustes.TextoTesteSoffice.Text = "Perfil redefinido: o próximo PDF cria um perfil novo.";
+            PaginaDeAjustes.TextoTesteSoffice.Visibility = Visibility.Visible;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            MostrarMensagem(InfoBarSeverity.Error, "Perfil não redefinido", Erro(e));
+        }
+    }
+
+    // ---------- Restaurar os ajustes (Ajustes › Sobre e suporte) ----------
+
+    /// <summary>Volta todas as opções ao padrão, com confirmação; não toca nas chaves de API, nas leis anexadas nem nos recentes.
+    /// true = restaurou.</summary>
+    internal async Task<bool> RestaurarAjustesAsync()
+    {
+        if (!await Perguntas.Atual.ConfirmarAsync("Restaurar os ajustes?",
+                "Todas as opções voltam ao padrão. As chaves de API, as leis anexadas e os arquivos recentes continuam como estão.",
+                "Restaurar", "Cancelar")) return false;
+        var tinhaSoffice = ajustes.Soffice is not null;
+        ajustes.RestaurarPadrao();
+        SalvarAjustes();
+        AplicarTemaDosAjustes();
+        ReiniciarAutosave();
+        AplicarLargura(Raiz.ActualWidth);
+        if (tinhaSoffice) conversor = null;
+        AtualizarPaginaDePastas();
+        SincronizarAjustes();
+        SincronizarPastas();
+        AtualizarComandos();
+        if (sessao is { Atual: { } r } s) { MostrarRecomposicao(r); await s.EnviarEstadoAsync(); }
+        MostrarMensagem(InfoBarSeverity.Success, "Ajustes restaurados", "As opções voltaram ao padrão.");
+        return true;
     }
 
     string TextoDasVersoes()
@@ -121,11 +348,13 @@ public sealed partial class MainWindow
     {
         var lista = ajustes.Recentes.ToList();
         var geracao = ++geracaoRecentes;
-        bool ha;
-        try { ha = await Task.Run(() => lista.Any(File.Exists)); }
+        List<string> existentes;
+        try { existentes = await Task.Run(() => lista.Where(File.Exists).ToList()); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return; }
         if (fechada || geracao != geracaoRecentes) return;
-        haRecentes = ha;
+        haRecentes = existentes.Count > 0;
+        // A tela vazia de Relatórios (M5) mostra os 5 mais recentes que ainda existem.
+        R.TextoVazio.DefinirRecentes(existentes.Take(5).Select(c => (Path.GetFileName(c), c)).ToList());
         AtualizarComandos();
     }
 

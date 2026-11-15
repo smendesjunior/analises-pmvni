@@ -19,6 +19,8 @@ interface WebView2Web {
 /** Os atalhos que vao ao host (as 10 teclas de Atalhos.MapaLegislacao), com preventDefault. */
 const ATALHOS: ReadonlySet<string> = new Set([
   'Ctrl+F', 'Ctrl+C', 'Ctrl+Shift+C', 'Ctrl+Plus', 'Ctrl+Minus', 'Ctrl+0', 'Alt+ArrowUp', 'Alt+ArrowDown', 'F3', 'Shift+F3',
+  // Trilho de módulos (Ctrl+1 … Ctrl+5): valem também com o foco no texto da lei.
+  'Ctrl+1', 'Ctrl+2', 'Ctrl+3', 'Ctrl+4', 'Ctrl+5',
 ]);
 
 const ESCALA_MIN = 0.25;

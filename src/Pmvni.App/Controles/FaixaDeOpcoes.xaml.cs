@@ -19,6 +19,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     readonly Dictionary<string, MenuFlyout> menusDinamicos = new(StringComparer.Ordinal);
     readonly HashSet<string> marcados = new(StringComparer.Ordinal);
     DefinicaoFaixa? definicao;
+    Button? primario;
     bool montando;
 
     public FaixaDeOpcoes() => InitializeComponent();
@@ -42,6 +43,15 @@ public sealed partial class FaixaDeOpcoes : UserControl
     /// <summary>Ids dos comandos da aba à vista, na ordem dos botões.</summary>
     public IReadOnlyList<string> IdsVisiveis => Barra.PrimaryCommands.OfType<FrameworkElement>().Select(e => (string)e.Tag).ToList();
 
+    /// <summary>O id do botão primário tonal à vista (o mesmo em todas as abas do módulo), ou null se o módulo não tem primário.</summary>
+    public string? IdPrimario => primario?.Tag as string;
+
+    /// <summary>O botão primário (o roteiro confere rótulo, estado e dica).</summary>
+    internal Button? BotaoPrimario => primario;
+
+    /// <summary>O rótulo à vista no botão primário ("" sem primário).</summary>
+    public string RotuloPrimario => primario is null ? "" : AutomationProperties.GetName(primario);
+
     /// <summary>Rótulos compactos (só ícones) quando a janela é estreita.</summary>
     public bool Compacta
     {
@@ -59,6 +69,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             foreach (var a in f.Abas) Abas.Items.Add(new SelectorBarItem { Text = a.Nome, Tag = a.Nome });
             Abas.SelectedItem = Abas.Items[Math.Clamp(aba, 0, f.Abas.Count - 1)];
             MontarBotoes();
+            MontarPrimario();
         }
         finally { montando = false; }
     }
@@ -73,6 +84,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     public void Habilitar(string id, bool sim)
     {
         habilitado[id] = sim;
+        if (primario is not null && primario.Tag as string == id) primario.IsEnabled = sim;
         if (visiveis.TryGetValue(id, out var b)) b.IsEnabled = sim;
         if (alternaveis.TryGetValue(id, out var t)) t.IsEnabled = sim;
         if (itensMenu.TryGetValue(id, out var i)) i.IsEnabled = sim;
@@ -114,7 +126,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     public bool Marcado(string id) => marcados.Contains(id);
 
     /// <summary>O ícone de um item de menu: o ✓ (Segoe Fluent E73E) quando marcado, senão o glifo da definição.</summary>
-    static FontIcon Icone(bool marcado, string glifo) => new() { Glyph = marcado ? "" : glifo };
+    static FontIcon Icone(bool marcado, string glifo) => new() { Glyph = marcado ? Glifos.Marca : glifo };
 
     void PreencherMenuDinamico(string menu, MenuFlyout m)
     {
@@ -143,6 +155,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     public void DefinirDica(string id, string texto)
     {
         dicas[id] = texto;
+        if (primario is not null && primario.Tag as string == id) ToolTipService.SetToolTip(primario, texto);
         if (visiveis.TryGetValue(id, out var b)) ToolTipService.SetToolTip(b, texto);
         if (itensMenu.TryGetValue(id, out var i)) ToolTipService.SetToolTip(i, texto);
     }
@@ -163,21 +176,87 @@ public sealed partial class FaixaDeOpcoes : UserControl
         alternaveis.Clear();
         itensMenu.Clear();
         menusDinamicos.Clear();
+        // Os itens do menu do primário (Novo despacho ▾) ficam valendo em qualquer aba: Habilitar e DefinirDica os acham por id.
+        foreach (var (id, mi) in itensDoPrimario) itensMenu[id] = mi;
         if (definicao is null || AbaAtual is not { } nome) return;
         var aba = definicao.Abas.First(a => a.Nome == nome);
         foreach (var c in aba.Comandos) Barra.PrimaryCommands.Add(Botao(c));
     }
 
+    readonly List<(string Id, MenuFlyoutItem Item)> itensDoPrimario = [];
+
+    /// <summary>O botão primário tonal do módulo (à esquerda dos comandos, em todas as abas): Button, ou DropDownButton com os itens do
+    /// menu (Novo despacho ▾). Habilitado, dica e rótulo guardados por id valem para ele como para os da barra.</summary>
+    void MontarPrimario()
+    {
+        foreach (var (id, _) in itensDoPrimario) itensMenu.Remove(id);
+        itensDoPrimario.Clear();
+        primario = null;
+        VagaPrimario.Content = null;
+        if (definicao?.Primario is not { } c) { VagaPrimario.Visibility = Visibility.Collapsed; return; }
+        VagaPrimario.Visibility = Visibility.Visible;
+        var rotulo = rotulos.TryGetValue(c.Id, out var r) ? r : c.Rotulo;
+        var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        conteudo.Children.Add(new FontIcon { Glyph = c.Glifo, FontSize = 16 });
+        conteudo.Children.Add(new TextBlock { Text = rotulo, VerticalAlignment = VerticalAlignment.Center });
+        Button b;
+        if (c.Tipo == TipoComando.Menu && c.Itens is { Count: > 0 } itens)
+        {
+            var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft };
+            foreach (var i in itens)
+            {
+                var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = Icone(marcados.Contains(i.Id), i.Glifo), IsEnabled = Habilitado(i.Id) };
+                if (dicas.TryGetValue(i.Id, out var dicaItem)) ToolTipService.SetToolTip(mi, dicaItem);
+                mi.Click += (_, _) => ComandoInvocado?.Invoke(i.Id);
+                menu.Items.Add(mi);
+                itensDoPrimario.Add((i.Id, mi));
+                itensMenu[i.Id] = mi;
+            }
+            b = new DropDownButton { Content = conteudo, Flyout = menu };
+        }
+        else
+        {
+            b = new Button { Content = conteudo };
+            b.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);
+        }
+        // Forma do botão tonal (as cores vêm dos recursos da vaga: claro, escuro e alto contraste).
+        b.Tag = c.Id;
+        b.MinHeight = 36;
+        b.Padding = new Thickness(14, 0, 16, 0);
+        b.CornerRadius = new CornerRadius(8);
+        b.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+        b.VerticalAlignment = VerticalAlignment.Center;
+        b.IsEnabled = Habilitado(c.Id);
+        AutomationProperties.SetName(b, c.Descricao ?? rotulo);
+        ToolTipService.SetToolTip(b, dicas.TryGetValue(c.Id, out var d) ? d : DicaPadrao(c, rotulo));
+        VagaPrimario.Content = b;
+        primario = b;
+    }
+
+    /// <summary>A dica de um comando sem dica própria: o texto completo e o atalho do módulo ("Copiar (Ctrl+C)").</summary>
+    string DicaPadrao(ComandoFaixa c, string rotulo)
+    {
+        var atalho = AtalhoLegivel(c.Id);
+        var texto = c.Descricao ?? rotulo;
+        return atalho is null ? texto : $"{texto} ({atalho})";
+    }
+
+    /// <summary>O atalho do comando no módulo da faixa (o mapa do leitor na Legislação, auditoria M1).</summary>
+    string? AtalhoLegivel(string id) =>
+        Atalhos.Tecla(id, definicao?.Modulo ?? Modulo.Relatorios) is { } tecla ? Atalhos.Legivel(tecla) : null;
+
     ICommandBarElement Botao(ComandoFaixa c)
     {
         var icone = new FontIcon { Glyph = c.Glifo };
         var rotulo = rotulos.TryGetValue(c.Id, out var r) ? r : c.Rotulo;
-        var atalho = Atalhos.Tecla(c.Id) is { } tecla ? Atalhos.Legivel(tecla) : null;
-        var dica = dicas.TryGetValue(c.Id, out var d) ? d : atalho is null ? rotulo : $"{rotulo} ({atalho})";
+        var atalho = AtalhoLegivel(c.Id);
+        var dica = dicas.TryGetValue(c.Id, out var d) ? d : DicaPadrao(c, rotulo);
+        // O nome acessível é o texto completo (o rótulo pode ter sido encurtado para caber na faixa).
+        var nome = rotulos.ContainsKey(c.Id) ? rotulo : c.Descricao ?? rotulo;
         if (c.Tipo == TipoComando.Alternar)
         {
             var t = new AppBarToggleButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id), IsChecked = ligado.TryGetValue(c.Id, out var l) && l };
-            AutomationProperties.SetName(t, rotulo);
+            AutomationProperties.SetName(t, nome);
             ToolTipService.SetToolTip(t, dica);
             t.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);
             alternaveis[c.Id] = t;
@@ -185,7 +264,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         }
         var b = new AppBarButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id) };
         if (atalho is not null) b.KeyboardAcceleratorTextOverride = atalho;
-        AutomationProperties.SetName(b, rotulo);
+        AutomationProperties.SetName(b, nome);
         ToolTipService.SetToolTip(b, dica);
         if (c.Tipo == TipoComando.Menu && c.Itens is { } itens)
         {

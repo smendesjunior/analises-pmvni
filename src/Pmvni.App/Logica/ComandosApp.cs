@@ -127,6 +127,13 @@ public static class ComandosApp
     public const string JanelaRegioes = "janela.regioes";
     public const string PesquisaFocar = "pesquisa.focar";
 
+    // Trilho pelo teclado (auditoria da interface, M2): Ctrl+1 … Ctrl+5 levam ao módulo, de qualquer lugar (página e leitor inclusive).
+    public const string ModuloRelatorios = "modulo.relatorios";
+    public const string ModuloDespachos = "modulo.despachos";
+    public const string ModuloProcessos = "modulo.processos";
+    public const string ModuloLegislacao = "modulo.legislacao";
+    public const string ModuloAjustes = "modulo.ajustes";
+
     /// <summary>Comandos que mexem no relatório aberto ou na tela dele (Página Inicial, Revisão, desfazer, zoom, painel). Fora do módulo
     /// Relatórios não valem: um Delete ou Ctrl+Z com a lista de processos à vista não pode alterar um relatório que ficou escondido.
     /// Arquivo (Salvar, Abrir…), pesquisa, tema e ajuda valem em qualquer módulo.</summary>

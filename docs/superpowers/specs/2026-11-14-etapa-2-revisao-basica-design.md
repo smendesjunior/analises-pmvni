@@ -244,6 +244,27 @@ qualquer outra extensão (scripts, executáveis, atalhos) é recusada com aviso.
 com o nome da pasta como veio). Dados reais dessas pastas nunca entram em testes versionados:
 os testes usam uma árvore fictícia em `tests/corpus/processos/`.
 
+### 9.0 Trilho colorido, marca, primário, avisos e Ajustes (auditoria da interface, 15/11/2026)
+
+Pedido do usuário: ícones do trilho "semelhantes ao Gmail", auditoria da interface e Ajustes "similar ao WinStatusBar". Substitui o que
+as seções 5.5, 9 e 9.1 dizem sobre o trilho, a faixa e a página Ajustes onde houver conflito.
+
+- **Trilho:** ícones coloridos em XAML vetorial (`Recursos\IconesModulos.xaml`, paleta do brasão nos temas claro, escuro e alto contraste,
+  este monocromático); o módulo ativo tem fundo arredondado 48 x 30, a barrinha 3 x 16 e rótulo forte; `ItemStatus` "Selecionado",
+  teclas de acesso 1–5, uma parada de Tab e setas; **Ctrl+1 … Ctrl+5** levam aos módulos (também com o foco nas folhas e no leitor).
+- **Marca:** o brasão (28 px) é a marca; o título da barra é "Editor de Relatórios" e o subtítulo leva o documento e o estado de gravação.
+- **Botão primário tonal** à esquerda dos comandos da faixa, em todas as abas do módulo: Relatórios e Processos "Novo relatório",
+  Despachos "Novo despacho ▾", Legislação "Anexar PDFs…" (Ajustes sem primário). A Página Inicial não repete o Novo relatório.
+- **Avisos de layout** (redução, além da borda, blocos maiores que a página) num indicador do rodapé com a lista e "Ir à folha N"; as
+  faixas no topo ficam para o que pede ação imediata (conflito, desatualizado, somente leitura, diário). Ajustes › Aparência volta às
+  faixas. Cada página tem uma área de avisos: no máximo 2 à vista, o resto em "+n"; informativos fecham sozinhos em 8 s.
+- **Ajustes** no padrão do WinStatusBar: menu com 8 categorias (Geral, Aparência, Relatórios e revisão, Pastas e kit, Despachos e PDF,
+  Legislação, Inteligência artificial e, no rodapé, Sobre e suporte), cartões com título, ajuda e o controle à direita (empilha em
+  janelas estreitas) e a barra "Alterações salvas automaticamente". As opções novas (módulo ao abrir, lembrar a janela, quantos recentes,
+  rótulos da faixa, avisos de layout, zoom ao abrir, lembrar os painéis, dias da recuperação, listas de Processos e Despachos, LibreOffice
+  e o perfil dele, abrir o PDF do despacho, alvo da pesquisa da Legislação, pedido padrão, confirmações das análises e "Restaurar os
+  ajustes") ficam em `ajustes.json` com padrão igual ao comportamento anterior; o arquivo antigo é lido sem perda.
+
 ### 9.1 Faixa de opções por módulo (pedido do usuário)
 A faixa de opções troca inteira quando o módulo do trilho muda (abas e comandos). "Arquivo" e
 "Ajuda" existem em todos; a aba aberta por padrão é a segunda.

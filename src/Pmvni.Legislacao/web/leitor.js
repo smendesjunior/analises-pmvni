@@ -67,7 +67,13 @@ var ATALHOS = /* @__PURE__ */ new Set([
   "Alt+ArrowUp",
   "Alt+ArrowDown",
   "F3",
-  "Shift+F3"
+  "Shift+F3",
+  // Trilho de módulos (Ctrl+1 … Ctrl+5): valem também com o foco no texto da lei.
+  "Ctrl+1",
+  "Ctrl+2",
+  "Ctrl+3",
+  "Ctrl+4",
+  "Ctrl+5"
 ]);
 var ESCALA_MIN = 0.25;
 var ESCALA_MAX = 4;

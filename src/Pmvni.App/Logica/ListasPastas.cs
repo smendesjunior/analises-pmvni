@@ -21,6 +21,11 @@ public sealed class LinhaProcesso(Processo processo, DateTime alteradoUtc)
 
     /// <summary>"Processo 0012/2099" ou, fora do padrão de nome, "Nome da pasta fora do padrão".</summary>
     public string Detalhe => ListasPastas.NumeroDoProcesso(Processo) is { } n ? "Processo " + n : "Nome da pasta fora do padrão";
+
+    /// <summary>O que o Narrador lê na linha (auditoria A3): o requerente e o processo.</summary>
+    public string NomeAcessivel => Titulo + ", " + Detalhe;
+
+    public override string ToString() => NomeAcessivel;
 }
 
 public enum TipoLinhaDetalhe { Titulo, Vazio, Relatorio, Analise, ArquivoDeDespacho, Arquivo }
@@ -37,6 +42,11 @@ public sealed class LinhaDetalhe(TipoLinhaDetalhe tipo, string texto, string? in
     public bool EhTitulo => Tipo == TipoLinhaDetalhe.Titulo;
     public bool NaoEhTitulo => Tipo != TipoLinhaDetalhe.Titulo;
     public bool TemInfo => Info.Length > 0;
+
+    /// <summary>O que o Narrador lê na linha: "Grupo Relatórios" nos títulos; o texto e a informação nas outras.</summary>
+    public string NomeAcessivel => EhTitulo ? "Grupo " + Texto : TemInfo ? Texto + ", " + Info : Texto;
+
+    public override string ToString() => NomeAcessivel;
 }
 
 /// <summary>Um despacho na lista: o texto das duas linhas e os arquivos que se abrem.</summary>
@@ -51,7 +61,7 @@ public sealed class LinhaDespacho(Despacho despacho)
         get
         {
             var processo = Despacho.Processo is { } p ? ListasPastas.NumeroDoProcesso(p) is { } n ? $"Processo {n} · " : p.NomePasta + " · " : "";
-            return Despacho.Data.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) + " · " + processo
+            return Formatos.Data(Despacho.Data) + " · " + processo
                 + string.Join(", ", Despacho.Arquivos.Select(a => Path.GetFileName(a)));
         }
     }
@@ -60,6 +70,11 @@ public sealed class LinhaDespacho(Despacho despacho)
     public string? ArquivoParaAbrir => ArquivoComExtensao(".docx", ".doc") ?? ArquivoPdf;
 
     public string? ArquivoPdf => ArquivoComExtensao(".pdf");
+
+    /// <summary>O que o Narrador lê na linha: título e detalhe (data, processo e arquivos).</summary>
+    public string NomeAcessivel => Titulo + ", " + Detalhe;
+
+    public override string ToString() => NomeAcessivel;
 
     /// <summary>O que o Explorador mostra: o arquivo que se abriria; sem arquivo, a própria pasta do despacho.</summary>
     public string CaminhoNoExplorador => ArquivoParaAbrir ?? Despacho.Pasta;
@@ -83,6 +98,11 @@ public sealed class ItemDespacho
     public bool EhDespacho => Linha is not null;
     public string Titulo => Grupo ?? Linha!.Titulo;
     public string Detalhe => Linha?.Detalhe ?? "";
+
+    /// <summary>O que o Narrador lê na linha: "Grupo …" nos títulos de grupo; o despacho nas outras.</summary>
+    public string NomeAcessivel => Grupo is not null ? "Grupo " + Grupo : Linha!.NomeAcessivel;
+
+    public override string ToString() => NomeAcessivel;
 }
 
 /// <summary>Um bloco da lista de despachos: um título (o processo ou o mês) e os despachos dele.</summary>
