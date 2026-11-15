@@ -112,6 +112,15 @@ vista leva ao módulo Relatórios.
 | 28 | `28_recentes` | Dois pacotes abertos: o menu Recentes lista os dois, o mais recente primeiro, e `ajustes.json` guarda; escolher o A no menu abre o A e o leva ao topo; apagar o B por fora o tira do menu e abrir o item velho avisa "O arquivo não existe mais"; no máximo 10, sem repetir. |
 | 29 | `29_comparar_com_o_original` | No longo (ITEM 03 editado, ATENDE com justificativa e ITEM 05 excluído): o diálogo "Comparar com o original" tem exatamente os dois itens, a situação original → revisada, a justificativa e os textos original e revisado da verificação, e o excluído; num `curto` com duas citações no ITEM 03 e nenhuma alteração: "Nenhum item foi alterado" e as duas citações convertidas na seção própria. |
 
+| 31 | `31_processos` | (Tarefa 13) Sobre uma **cópia** da árvore fictícia (`<pasta>\processos`, feita no início do roteiro; a pasta real nunca é lida e `AberturaExterna.Simular` só registra): a lista tem os 4 processos na ordem da Tarefa 12 ("4 processos"); a pesquisa da barra ("Pesquisar processos") filtra por requerente, sem caixa nem acento ("fulano" e "FÚLANO" → só o 0001, texto "1 de 4"; "12" → só o 0012); o menu Ano (dinâmico) lista Todos os anos, 2099 e 2098 (✓ no escolhido) e 2098 deixa só o 0007; Ordenar por requerente (✓ no menu) e de volta a número; o detalhe do 0001 tem Relatórios (1: `dados_0001.json`), Despachos (2, com 3 arquivos) e, com Mostrar PROJETO e DOCUMENTOS ligado, as duas pastas; Abrir arquivo do PDF do PROJETO só registra o caminho, o `script.cmd` é recusado com "Este tipo de arquivo não é aberto pelo editor (.cmd). Use Mostrar no Explorador." sem registrar nada, e Abrir pasta registra o Explorador; **Importar análise da IA** do 0001 cria `Relatorio_0001_2099.pmvrel` na pasta do processo e abre no módulo Relatórios com 3 itens; repetir cria `Relatorio_0001_2099_2.pmvrel` (o primeiro fica igual, por sha256); o `.pmvrel` listado abre pelo Abrir relatório. |
+| 32 | `32_despachos` | (Tarefa 13) Os 4 despachos de todos os processos por data (05/03/2099, 20/02/2099, 15/01/2099, 02/03/2098), "4 despachos", dica "Pesquisar despachos"; filtro Aprovação → 2 (✓ no menu), Correção → 1, Todos → 4; a pesquisa é pelo nome do arquivo ("CORREÇÃO" → 1, "1 de 4"); Abrir PDF registra o PDF da aprovação do 0001 sem abrir nada e Abrir prefere o DOCX da correção; o despacho do 0012 só tem DOCX: Abrir PDF fica desabilitado e, ao tentar, "«Abrir PDF» não está disponível agora: o despacho escolhido não tem PDF."; `AberturaExterna.Abrir` de `MODELOS\atalho.lnk` é recusado com a mensagem exata e nada é registrado; Mostrar no Explorador só registra; Agrupar por processo dá 3 grupos, Mais antigos primeiro inverte; Ir ao processo leva ao módulo Processos com o 0001 escolhido e o detalhe lido; "Só do processo escolhido" mostra os 2 despachos do 0001 ("2 despachos · só do processo 0001/2099"). |
+| 33 | `33_ajustes_pastas` | (Tarefa 13) Pasta inexistente nos Ajustes: Processos e Despachos mostram "A pasta de processos não foi encontrada: <caminho>. Escolha a pasta em Ajustes." com o botão "Abrir Ajustes" e listas vazias; o botão (clicado pelo `ButtonAutomationPeer`) leva à página Ajustes, que mostra a pasta em uso e o aviso de que ela não existe; Escolher pasta (seletor com resposta fixa) vale na hora, grava `pasta_processos` em `ajustes.json`, tira o aviso e a lista volta com os 4 processos. |
+| 34 | `34_faixa_e_pesquisa_por_modulo` | (Tarefa 13) Para cada módulo do trilho (Relatórios, Despachos, Processos, Ajustes): as abas são as de `Faixas.Para`, a aba aberta é a lembrada (ou a padrão), `ComandosSemManipulador()` é vazio, a dica da pesquisa é a do módulo e a caixa só fica desabilitada em Ajustes; a aba escolhida em Processos e o módulo ficam em `ajustes.json` e voltam depois de visitar outro módulo; cada módulo guarda o seu termo ("fulano" em Processos some em Despachos e volta); com Processos à vista, Excluir e Desfazer não mexem no relatório escondido (histórico e itens iguais, nenhum aviso); o termo e o "1 de N" da pesquisa do relatório voltam ao retornar a Relatórios. |
+| 35 | `35_pastas_intactas` | (Tarefa 13) Com o relatório fechado, a cópia da árvore tem os mesmos arquivos e os mesmos sha256 de antes, exceto os dois `.pmvrel` criados pelas importações; nenhum `.lock`, `.bak` ou `.tmp` ficou. |
+
+(Numeração: o plano previa 28 e 29 para Processos e Despachos e 31 a 33 para o resto; 28 e 29 já são Recentes e Comparar e o 30
+fica reservado à Legislação (Tarefa 18). Os passos 31 a 35 são os da Tarefa 13.)
+
 (Os passos 26 a 29 são os da Tarefa 11; o plano os previa como 24 a 27, mas 24 e 25 já eram a trava e o conflito da Tarefa 10.
 Cada etapa que começa e termina fica em `tests\saidaoteiro\progresso.log`, para achar onde um roteiro travou.)
 
@@ -124,12 +133,19 @@ o cabeçalho depois de gravar, o que chegou durante a gravação fica no diário
 fechar guarda o diário com trabalho, falha de disco informada; decisão de recuperação na abertura; texto do somente leitura),
 `LogicaAppTestes` (título da janela, estado de gravação) e
 `AtalhosTestes` (as 16 teclas de `Atalhos.Mapa` = o `Set` ATALHOS de `edicao.ts`, todo atalho aponta para um comando conhecido,
-Relatórios abre em Página Inicial).
+Relatórios abre em Página Inicial); Tarefa 13: `FaixasTestes` ganhou `cada_modulo_tem_a_faixa_do_desenho` (abas e comandos de Despachos, Processos
+e Ajustes), `trilho_na_ordem_do_desenho` (Relatórios, Despachos, Processos, Ajustes) e `comandos_do_relatorio_nao_valem_nos_outros_modulos`;
+`ListasPastasTestes` (processos por número, data e requerente, filtro por ano e termo; despachos por tipo, nome de arquivo, agrupados por mês ou
+por processo, mais recentes ou mais antigos primeiro; as linhas do detalhe do processo); `AjustesTestes` (pasta de processos efetiva e a chave
+antiga de legislação ignorada); `PastasTestes` (filtro de despachos pelo nome do arquivo).
 
 ## O que ainda precisa de olhar humano
 
 - Acabamento da barra de título (ícone, título e estado ao lado dos botões da janela), da faixa e do trilho em outros monitores e
   no tema escuro (as capturas XAML não incluem o Mica).
+- O seletor de pastas dos Ajustes (Escolher pasta…) e Mostrar no Explorador / Abrir arquivo com o programa padrão de verdade (o roteiro só
+  registra); as listas de Processos e Despachos com a pasta real de processos (centenas de pastas no OneDrive, arquivos só-na-nuvem) e a
+  aparência delas nos temas claro e escuro.
 - Os seletores do Windows (Importar, Abrir, Salvar como, Exportar) e os diálogos (Atalhos, Sobre, Conferência, Recuperar
   alterações, fechar com gravação que falhou, Recarregar): o roteiro usa respostas fixas.
 - Fechar a janela pelo X com alterações não gravadas (o roteiro fecha o relatório pelos mesmos caminhos, mas não clica no X) e o

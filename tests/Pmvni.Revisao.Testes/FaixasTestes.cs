@@ -90,7 +90,7 @@ public class FaixasTestes
     public void ajustes_no_trilho_e_comandos_de_pesquisa_tema_recentes_e_comparar()
     {
         // Ajustes é módulo do trilho (embaixo) e tem faixa própria: Arquivo (com Recentes) e Ajuda.
-        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Ajustes }, Faixas.Disponiveis);
+        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Ajustes }, Faixas.Disponiveis);
         Assert.True(Modulos.Embaixo(Modulo.Ajustes));
         Assert.Equal(new[] { ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes },
             Faixas.Para(Modulo.Ajustes).Abas[0].Comandos.Select(c => c.Id));
@@ -124,6 +124,89 @@ public class FaixasTestes
             if (m == Modulo.Relatorios)
                 Assert.Equal(2, repetidos.Single(g => g.Key == ComandosApp.ArquivoExportarPdf).Count());
         }
+    }
+
+    [Fact]
+    public void trilho_na_ordem_do_desenho()
+    {
+        // Relatórios, Despachos, Processos e, embaixo, Ajustes. Legislação só entra no trilho quando a sua página existir (Tarefa 18).
+        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Ajustes }, Faixas.Disponiveis);
+        Assert.DoesNotContain(Modulo.Legislacao, Faixas.Disponiveis);
+        Assert.Equal(new[] { Modulo.Ajustes }, Faixas.Disponiveis.Where(Modulos.Embaixo));
+    }
+
+    [Fact]
+    public void cada_modulo_tem_a_faixa_do_desenho()
+    {
+        static string[] Abas(Modulo m) => Faixas.Para(m).Abas.Select(a => a.Nome).ToArray();
+        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Revisão", "Exibir", "Ajuda" }, Abas(Modulo.Relatorios));
+        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, Abas(Modulo.Despachos));
+        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, Abas(Modulo.Processos));
+        Assert.Equal(new[] { "Arquivo", "Ajuda" }, Abas(Modulo.Ajustes));
+
+        // Processos (desenho §9.1).
+        var processos = Faixas.Para(Modulo.Processos);
+        var inicioP = processos.Abas.Single(a => a.Nome == "Página Inicial");
+        Assert.Equal(new[]
+        {
+            ComandosApp.ProcessosAbrirRelatorio, ComandosApp.ProcessosImportarAnalise, ComandosApp.ProcessosAbrirArquivo,
+            ComandosApp.ProcessosAbrirPasta, ComandosApp.ProcessosAtualizar, ComandosApp.ProcessosAno,
+        }, inicioP.Comandos.Select(c => c.Id));
+        Assert.Equal(TipoComando.Menu, inicioP.Comandos.Single(c => c.Id == ComandosApp.ProcessosAno).Tipo);
+        // O menu do ano é dinâmico (os anos vêm da pasta): a definição o deixa vazio, como Recentes.
+        Assert.Empty(inicioP.Comandos.Single(c => c.Id == ComandosApp.ProcessosAno).Itens!);
+        var exibirP = processos.Abas.Single(a => a.Nome == "Exibir");
+        Assert.Equal(new[] { ComandosApp.ProcessosOrdenar, ComandosApp.ProcessosMostrarPastas }, exibirP.Comandos.Select(c => c.Id));
+        var ordenarP = exibirP.Comandos[0];
+        Assert.Equal(TipoComando.Menu, ordenarP.Tipo);
+        Assert.Equal(new[] { "Número", "Data", "Requerente" }, ordenarP.Itens!.Select(i => i.Rotulo));
+        Assert.Equal(TipoComando.Alternar, exibirP.Comandos[1].Tipo);
+
+        // Despachos (desenho §9.1).
+        var despachos = Faixas.Para(Modulo.Despachos);
+        var inicioD = despachos.Abas.Single(a => a.Nome == "Página Inicial");
+        Assert.Equal(new[]
+        {
+            ComandosApp.DespachosAbrir, ComandosApp.DespachosAbrirPdf, ComandosApp.DespachosMostrar, ComandosApp.DespachosIrAoProcesso,
+            ComandosApp.DespachosAtualizar, ComandosApp.DespachosFiltro, ComandosApp.DespachosDoProcesso,
+        }, inicioD.Comandos.Select(c => c.Id));
+        var filtro = inicioD.Comandos.Single(c => c.Id == ComandosApp.DespachosFiltro);
+        Assert.Equal(TipoComando.Menu, filtro.Tipo);
+        Assert.Equal(new[] { "Todos", "Correção", "Aprovação" }, filtro.Itens!.Select(i => i.Rotulo));
+        Assert.Equal(TipoComando.Alternar, inicioD.Comandos.Single(c => c.Id == ComandosApp.DespachosDoProcesso).Tipo);
+        var exibirD = despachos.Abas.Single(a => a.Nome == "Exibir");
+        Assert.Equal(new[] { ComandosApp.DespachosAgrupar, ComandosApp.DespachosOrdenar }, exibirD.Comandos.Select(c => c.Id));
+        Assert.Equal(new[] { "Por processo", "Por data" }, exibirD.Comandos[0].Itens!.Select(i => i.Rotulo));
+        Assert.Equal(new[] { "Mais recentes primeiro", "Mais antigos primeiro" }, exibirD.Comandos[1].Itens!.Select(i => i.Rotulo));
+
+        // Arquivo (Importar, Abrir, Recentes) vale em todos; Ajuda é a de sempre.
+        foreach (var m in new[] { Modulo.Despachos, Modulo.Processos })
+        {
+            Assert.Equal(new[] { ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes },
+                Faixas.Para(m).Abas[0].Comandos.Select(c => c.Id));
+            Assert.Equal(1, Faixas.Para(m).AbaPadrao);
+        }
+    }
+
+    [Fact]
+    public void comandos_do_relatorio_nao_valem_nos_outros_modulos()
+    {
+        // Delete, Ctrl+Z, Alt+↓ e os do zoom não podem mexer num relatório que ficou escondido atrás de Processos ou Despachos.
+        foreach (var id in new[]
+        {
+            ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioSituacaoAtende, ComandosApp.InicioItemProximo,
+            ComandosApp.RevisaoMarcas, ComandosApp.RevisaoComparar, ComandosApp.EditarDesfazer, ComandosApp.EditarRefazer,
+            ComandosApp.ExibirMais, ComandosApp.ExibirMenos, ComandosApp.ExibirLargura, ComandosApp.ExibirPagina,
+            ComandosApp.ExibirPainel, ComandosApp.ExibirPropriedades, ComandosApp.JanelaRegioes,
+        })
+            Assert.True(ComandosApp.SoDoRelatorio(id), id);
+        // Arquivo (Salvar, Abrir…), a pesquisa e os comandos dos outros módulos seguem valendo.
+        foreach (var id in new[]
+        {
+            ComandosApp.ArquivoAbrir, ComandosApp.ArquivoSalvar, ComandosApp.PesquisaFocar, ComandosApp.AjudaSobre, ComandosApp.ExibirTemaEscuro,
+            ComandosApp.ProcessosAtualizar, ComandosApp.DespachosAbrir,
+        })
+            Assert.False(ComandosApp.SoDoRelatorio(id), id);
     }
 
     [Fact]

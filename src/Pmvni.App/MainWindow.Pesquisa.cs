@@ -45,6 +45,8 @@ public sealed partial class MainWindow
         {
             if (definindoPesquisa) return;
             esperaPesquisa.Stop();
+            // Processos e Despachos: filtro da lista, em memória (nada de esperar a digitação assentar).
+            if (moduloAtual is Modulo.Processos or Modulo.Despachos) { AplicarTermoDeLista(CaixaPesquisa.Text); return; }
             // Vazio limpa na hora; o resto espera a digitação assentar (cada letra não refaz a busca no relatório inteiro).
             if (CaixaPesquisa.Text.Length == 0) _ = TentarAsync(() => PesquisarAsync("", 0));
             else esperaPesquisa.Start();
@@ -73,7 +75,7 @@ public sealed partial class MainWindow
             e.Handled = true;
             esperaPesquisa.Stop();
             if (CaixaPesquisa.Text.Length > 0) CaixaPesquisa.Text = ""; // o TextChanged limpa o realce
-            if (sessao?.Atual is not null) R.Navegador.Focus(FocusState.Programmatic);
+            if (sessao?.Atual is not null && moduloAtual == Modulo.Relatorios) R.Navegador.Focus(FocusState.Programmatic);
         }
     }
 
@@ -92,6 +94,8 @@ public sealed partial class MainWindow
         definindoPesquisa = true;
         try { CaixaPesquisa.Text = termo; }
         finally { definindoPesquisa = false; }
+        if (moduloAtual is Modulo.Processos or Modulo.Despachos) { AplicarTermoDeLista(termo); return; }
+        termosPesquisa[moduloAtual] = termo;
         await PesquisarAsync(termo, 0);
     }
 
@@ -99,6 +103,8 @@ public sealed partial class MainWindow
     /// <paramref name="manter"/> (só com passo 0): a ocorrência (1-based) que continua a atual depois de recompor, sem rolar.</summary>
     internal Task PesquisarAsync(string termo, int passo, int? manter = null) => NaFilaAsync(async () =>
     {
+        // Processos e Despachos filtram as listas (a pesquisa nas folhas não tem o que fazer aqui): só confere o texto "N de M".
+        if (moduloAtual is Modulo.Processos or Modulo.Despachos) { AtualizarTextoDaPesquisaDeLista(); return; }
         if (documento is null || sessao?.Atual is null || moduloAtual != Modulo.Relatorios)
         {
             MostrarResultadoDaPesquisa(0, 0, null, termo);
@@ -126,7 +132,7 @@ public sealed partial class MainWindow
     /// <summary>Depois de recompor, as folhas são outras: refaz o realce com o termo da caixa (a ocorrência atual não muda e a tela não rola).</summary>
     void ReaplicarPesquisa()
     {
-        if (CaixaPesquisa.Text.Length == 0 || sessao?.Atual is null) return;
+        if (moduloAtual != Modulo.Relatorios || CaixaPesquisa.Text.Length == 0 || sessao?.Atual is null) return;
         var atual = pesquisaAtual;
         _ = TentarAsync(() => PesquisarAsync(CaixaPesquisa.Text, 0, atual > 0 ? atual : null));
     }
@@ -135,6 +141,11 @@ public sealed partial class MainWindow
     void LimparPesquisa()
     {
         esperaPesquisa?.Stop();
+        termosPesquisa[Modulo.Relatorios] = "";
+        pesquisaTotal = pesquisaAtual = 0;
+        pesquisaRef = null;
+        // Com Processos ou Despachos à vista, a caixa é do filtro deles: não se mexe nela.
+        if (moduloAtual is Modulo.Processos or Modulo.Despachos) return;
         definindoPesquisa = true;
         try { CaixaPesquisa.Text = ""; }
         finally { definindoPesquisa = false; }
@@ -143,9 +154,27 @@ public sealed partial class MainWindow
 
     void AtualizarPesquisaHabilitada(bool temRelatorio)
     {
-        var habilitada = temRelatorio && moduloAtual == Modulo.Relatorios;
+        // Relatórios: o texto das folhas (precisa de um relatório aberto); Processos e Despachos: o filtro da lista; Ajustes: nada.
+        var habilitada = moduloAtual switch { Modulo.Relatorios => temRelatorio, Modulo.Processos or Modulo.Despachos => true, _ => false };
         CaixaPesquisa.IsEnabled = habilitada;
-        if (!habilitada) BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = false;
-        else BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = pesquisaTotal > 0;
+        // Anterior e próxima só andam pelas ocorrências nas folhas.
+        BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = habilitada && moduloAtual == Modulo.Relatorios && pesquisaTotal > 0;
+    }
+
+    /// <summary>Troca o alvo da caixa de pesquisa com o módulo: a dica ("Pesquisar no relatório", "Pesquisar processos", "Pesquisar despachos") e o
+    /// termo, que cada módulo guarda para si (voltar a um módulo traz o termo de antes).</summary>
+    void TrocarPesquisaDeModulo(Modulo anterior, Modulo novo)
+    {
+        if (anterior != novo) termosPesquisa[anterior] = CaixaPesquisa.Text;
+        var dica = novo switch { Modulo.Processos => "Pesquisar processos", Modulo.Despachos => "Pesquisar despachos", _ => "Pesquisar no relatório" };
+        CaixaPesquisa.PlaceholderText = dica;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CaixaPesquisa, dica);
+        Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(CaixaPesquisa, dica + " (Ctrl+F)");
+        esperaPesquisa?.Stop();
+        definindoPesquisa = true;
+        try { CaixaPesquisa.Text = novo == Modulo.Ajustes ? "" : TermoDe(novo); }
+        finally { definindoPesquisa = false; }
+        if (novo == Modulo.Relatorios) MostrarResultadoDaPesquisa(pesquisaTotal, pesquisaAtual, pesquisaRef, TermoDe(Modulo.Relatorios));
+        else TextoPesquisa.Text = "";
     }
 }

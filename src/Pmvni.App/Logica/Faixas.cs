@@ -25,7 +25,7 @@ public static class Faixas
     public static IReadOnlyList<string> OrdemSituacoes { get; } = ["ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA"];
 
     /// <summary>Módulos que já funcionam, na ordem do trilho (Ajustes, se presente, embaixo).</summary>
-    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Ajustes];
+    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Ajustes];
 
     /// <summary>Menu de recentes: <see cref="ComandoFaixa.Itens"/> vazio de propósito; a faixa pede os itens a quem a monta
     /// (<see cref="FaixaDeOpcoes.ItensDinamicos"/>) cada vez que o menu abre, porque eles vêm dos ajustes e dos arquivos que ainda existem.</summary>
@@ -35,6 +35,15 @@ public static class Faixas
     [
         new(ComandosApp.AjudaAtalhos, "Atalhos de teclado", ""),
         new(ComandosApp.AjudaSobre, "Sobre", ""),
+    ]);
+
+    /// <summary>A aba Arquivo dos módulos que não têm um relatório nas folhas (Despachos, Processos, Ajustes): importar, abrir e recentes
+    /// levam ao módulo Relatórios.</summary>
+    static readonly AbaFaixa ArquivoDeModulo = new("Arquivo",
+    [
+        new(ComandosApp.ArquivoImportar, "Importar dados.json", ""),
+        new(ComandosApp.ArquivoAbrir, "Abrir", ""),
+        RecentesMenu,
     ]);
 
     static readonly DefinicaoFaixa Relatorios = new(Modulo.Relatorios,
@@ -87,6 +96,66 @@ public static class Faixas
         Ajuda,
     ], AbaPadrao: 1);
 
+    static readonly DefinicaoFaixa Despachos = new(Modulo.Despachos,
+    [
+        ArquivoDeModulo,
+        new("Página Inicial",
+        [
+            new(ComandosApp.DespachosAbrir, "Abrir", ""),
+            new(ComandosApp.DespachosAbrirPdf, "Abrir PDF", ""),
+            new(ComandosApp.DespachosMostrar, "Mostrar no Explorador", ""),
+            new(ComandosApp.DespachosIrAoProcesso, "Ir ao processo", ""),
+            new(ComandosApp.DespachosAtualizar, "Atualizar lista", ""),
+            new(ComandosApp.DespachosFiltro, "Tipo", "", TipoComando.Menu,
+            [
+                new(ComandosApp.DespachosFiltroTodos, "Todos", ""),
+                new(ComandosApp.DespachosFiltroCorrecao, "Correção", ""),
+                new(ComandosApp.DespachosFiltroAprovacao, "Aprovação", ""),
+            ]),
+            new(ComandosApp.DespachosDoProcesso, "Só do processo escolhido", "", TipoComando.Alternar),
+        ]),
+        new("Exibir",
+        [
+            new(ComandosApp.DespachosAgrupar, "Agrupar", "", TipoComando.Menu,
+            [
+                new(ComandosApp.DespachosAgruparProcesso, "Por processo", ""),
+                new(ComandosApp.DespachosAgruparData, "Por data", ""),
+            ]),
+            new(ComandosApp.DespachosOrdenar, "Ordenar", "", TipoComando.Menu,
+            [
+                new(ComandosApp.DespachosOrdenarRecentes, "Mais recentes primeiro", ""),
+                new(ComandosApp.DespachosOrdenarAntigos, "Mais antigos primeiro", ""),
+            ]),
+        ]),
+        Ajuda,
+    ], AbaPadrao: 1);
+
+    static readonly DefinicaoFaixa Processos = new(Modulo.Processos,
+    [
+        ArquivoDeModulo,
+        new("Página Inicial",
+        [
+            new(ComandosApp.ProcessosAbrirRelatorio, "Abrir relatório", ""),
+            new(ComandosApp.ProcessosImportarAnalise, "Importar análise da IA", ""),
+            new(ComandosApp.ProcessosAbrirArquivo, "Abrir arquivo", ""),
+            new(ComandosApp.ProcessosAbrirPasta, "Abrir pasta no Explorador", ""),
+            new(ComandosApp.ProcessosAtualizar, "Atualizar", ""),
+            // Menu dinâmico: os anos vêm da pasta de processos (a janela os informa cada vez que o menu abre), como Recentes.
+            new(ComandosApp.ProcessosAno, "Ano", "", TipoComando.Menu, []),
+        ]),
+        new("Exibir",
+        [
+            new(ComandosApp.ProcessosOrdenar, "Ordenar", "", TipoComando.Menu,
+            [
+                new(ComandosApp.ProcessosOrdenarNumero, "Número", ""),
+                new(ComandosApp.ProcessosOrdenarData, "Data", ""),
+                new(ComandosApp.ProcessosOrdenarRequerente, "Requerente", ""),
+            ]),
+            new(ComandosApp.ProcessosMostrarPastas, "Mostrar PROJETO e DOCUMENTOS", "", TipoComando.Alternar),
+        ]),
+        Ajuda,
+    ], AbaPadrao: 1);
+
     static readonly DefinicaoFaixa Ajustes = new(Modulo.Ajustes,
     [
         new("Arquivo",
@@ -102,6 +171,8 @@ public static class Faixas
     public static DefinicaoFaixa Para(Modulo m) => m switch
     {
         Modulo.Relatorios => Relatorios,
+        Modulo.Despachos => Despachos,
+        Modulo.Processos => Processos,
         Modulo.Ajustes => Ajustes,
         _ => throw new ArgumentOutOfRangeException(nameof(m), m, "Módulo ainda sem faixa de opções."),
     };

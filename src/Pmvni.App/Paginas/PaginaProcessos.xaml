@@ -1,0 +1,87 @@
+<UserControl x:Class="Pmvni.App.PaginaProcessos"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Pmvni.App">
+  <!-- Módulo Processos (desenho §9): a lista de processos da pasta de processos à esquerda (mais recentes primeiro; a pesquisa da barra de
+       título filtra por número ou requerente) e, à direita, o que há no processo escolhido: relatórios, despachos e, se pedido, PROJETO
+       e DOCUMENTOS. Só leitura: as linhas e os botões são ligados pela janela (MainWindow.Pastas.cs). -->
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0" Spacing="1">
+      <InfoBar x:Name="AvisoPasta" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="">
+        <InfoBar.ActionButton>
+          <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Abrir Ajustes"/>
+        </InfoBar.ActionButton>
+      </InfoBar>
+      <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
+    </StackPanel>
+
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="380" MinWidth="260"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Lista de processos. -->
+      <Grid Grid.Column="0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Padding="16,10,12,6" ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" AutomationProperties.Name="Quantidade de processos"/>
+          <ProgressRing x:Name="Anel" x:FieldModifier="internal" Grid.Column="1" IsActive="False" Width="18" Height="18"/>
+        </Grid>
+        <ListView x:Name="ListaProcessos" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" Padding="6,0,6,8"
+                  AutomationProperties.Name="Processos">
+          <ListView.ItemTemplate>
+            <DataTemplate x:DataType="local:LinhaProcesso">
+              <StackPanel Padding="0,6" Spacing="1">
+                <TextBlock Text="{x:Bind Titulo}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
+        <TextBlock x:Name="TextoListaVazia" x:FieldModifier="internal" Grid.Row="1" Margin="16,12" TextWrapping="Wrap" Visibility="Collapsed"
+                   Style="{StaticResource PmvniSecondaryTextStyle}"/>
+      </Grid>
+
+      <!-- Detalhe do processo escolhido. -->
+      <Grid Grid.Column="1">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Padding="20,10,16,6">
+          <TextBlock x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{StaticResource SubtitleTextBlockStyle}" TextTrimming="CharacterEllipsis"/>
+          <TextBlock x:Name="TextoPastaDetalhe" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"
+                     TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+        <ListView x:Name="ListaDetalhe" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" Padding="12,0,12,8"
+                  AutomationProperties.Name="Conteúdo do processo">
+          <ListView.ItemTemplate>
+            <DataTemplate x:DataType="local:LinhaDetalhe">
+              <StackPanel Padding="0,5" Spacing="1">
+                <TextBlock Text="{x:Bind Texto}" Style="{StaticResource BodyStrongTextBlockStyle}" Visibility="{x:Bind EhTitulo}" Margin="0,8,0,0"/>
+                <TextBlock Text="{x:Bind Texto}" Visibility="{x:Bind NaoEhTitulo}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{x:Bind Info}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind TemInfo}" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
+        <TextBlock x:Name="TextoSemProcesso" x:FieldModifier="internal" Grid.Row="1" Margin="20,12" TextWrapping="Wrap"
+                   Text="Escolha um processo na lista." Style="{StaticResource PmvniSecondaryTextStyle}"/>
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -111,6 +111,21 @@ public class PastasTestes
         Assert.All(r.Itens, d => Assert.NotNull(d.Processo));
     }
 
+    [Fact]
+    public void filtro_de_despachos_pelo_nome_do_arquivo_sem_caixa_nem_acento()
+    {
+        var todos = Despachos.Listar(Processos.Listar(Raiz, CancellationToken.None).Itens, CancellationToken.None).Itens;
+        Assert.Equal(4, todos.Count(d => Despachos.Filtrar(d, "")));
+        Assert.Equal(4, todos.Count(d => Despachos.Filtrar(d, "   ")));
+        // "aprovação" casa com DESPACHO_APROVACAO_*.pdf (os dois de aprovação), nada mais.
+        Assert.Equal(new[] { new DateOnly(2099, 2, 20), new DateOnly(2098, 3, 2) }, todos.Where(d => Despachos.Filtrar(d, "aprovação")).Select(d => d.Data));
+        Assert.Equal(new[] { new DateOnly(2099, 1, 15) }, todos.Where(d => Despachos.Filtrar(d, "CORREÇÃO")).Select(d => d.Data));
+        Assert.Equal(new[] { new DateOnly(2099, 3, 5) }, todos.Where(d => Despachos.Filtrar(d, "oficio_0012")).Select(d => d.Data));
+        Assert.DoesNotContain(todos, d => Despachos.Filtrar(d, "inexistente"));
+        // O termo é o do nome do arquivo: o nome da subpasta ("DESPACHO 01 - …") não conta.
+        Assert.DoesNotContain(todos, d => Despachos.Filtrar(d, "DESPACHO 01"));
+    }
+
     [Theory]
     [InlineData("2099/0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)/PROJETO/ARQ 01-03.pdf", true)]
     [InlineData("2099/0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)/PROJETO/script.cmd", false)]

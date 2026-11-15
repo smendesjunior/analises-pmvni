@@ -20,7 +20,15 @@ public sealed class Ajustes
     public int IntervaloAutosaveS { get; set; } = 30;
     public bool MarcasRevisao { get; set; } = true;
     public List<string> Recentes { get; } = new();
+    /// <summary>A pasta de processos escolhida em Ajustes; null = a padrão (<see cref="PastaProcessosPadrao"/>).</summary>
     public string? PastaProcessos { get; set; }
+
+    /// <summary>A pasta de processos do usuário neste computador (<c>%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\PROCESSOS</c>).</summary>
+    public static string PastaProcessosPadrao { get; } =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR", "PROCESSOS");
+
+    /// <summary>A pasta que Processos e Despachos leem: a escolhida em Ajustes ou, sem escolha, a padrão.</summary>
+    public string PastaProcessosEfetiva => string.IsNullOrWhiteSpace(PastaProcessos) ? PastaProcessosPadrao : PastaProcessos;
 
     public static Ajustes Carregar(string raizDados)
     {

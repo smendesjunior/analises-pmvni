@@ -60,6 +60,8 @@
       <Grid x:Name="AreaPaginas" Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8,0,0,0"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
         <local:PaginaRelatorios x:Name="Relatorios"/>
+        <local:PaginaDespachos x:Name="PaginaDeDespachos" Visibility="Collapsed"/>
+        <local:PaginaProcessos x:Name="PaginaDeProcessos" Visibility="Collapsed"/>
         <local:PaginaAjustes x:Name="PaginaDeAjustes" Visibility="Collapsed"/>
       </Grid>
     </Grid>

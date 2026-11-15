@@ -21,6 +21,9 @@ internal interface IPerguntas
     /// <summary>Seletor de salvar com o nome sugerido; null se cancelado.</summary>
     Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao);
 
+    /// <summary>Seletor de pasta (a pasta de processos nos Ajustes); null se cancelado.</summary>
+    Task<string?> EscolherPastaAsync();
+
     Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao);
 
     /// <summary>Mostra um texto só para leitura (ex.: a Conferência), com o botão Fechar.</summary>
@@ -67,6 +70,14 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         seletor.FileTypeChoices.Add(Tipos.TryGetValue(extensao, out var t) ? t : extensao, [extensao]);
         seletor.SuggestedFileName = Path.GetFileNameWithoutExtension(nomeSugerido);
         return (await seletor.PickSaveFileAsync())?.Path;
+    }
+
+    public async Task<string?> EscolherPastaAsync()
+    {
+        var seletor = new FolderPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
+        WinRT.Interop.InitializeWithWindow.Initialize(seletor, Janela);
+        seletor.FileTypeFilter.Add("*");
+        return (await seletor.PickSingleFolderAsync())?.Path;
     }
 
     public async Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao) =>

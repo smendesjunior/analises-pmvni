@@ -26,6 +26,9 @@ internal sealed class PerguntasFixas : IPerguntas
 
     public Task<string?> AbrirArquivoAsync(string extensao) { Feitas.Add("abrir " + extensao); return Task.FromResult<string?>(null); }
     public Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao) { Feitas.Add("salvar " + nomeSugerido); return Task.FromResult<string?>(null); }
+    /// <summary>A pasta que o seletor de pastas "escolhe" (null = cancelado).</summary>
+    public string? PastaEscolhida { get; set; }
+    public Task<string?> EscolherPastaAsync() { Feitas.Add("escolher pasta"); return Task.FromResult(PastaEscolhida); }
     public Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao) { Feitas.Add("confirmar " + titulo); return Task.FromResult(Confirmar); }
     public Task InformarAsync(string titulo, string texto) { Feitas.Add("informar " + titulo); Informados.Add((titulo, texto)); return Task.CompletedTask; }
     public List<(string Titulo, string Texto)> Informados { get; } = [];
@@ -45,7 +48,8 @@ internal sealed class PerguntasFixas : IPerguntas
 /// disco, faixa por módulo, reabrir o pacote; Tarefa 9: seleção e edição no A4, situação e justificativa, exclusão e marca, desfazer e
 /// refazer, salvar/reabrir/exportar, menu de contexto e atalhos, latência; Tarefa 10: salvamento automático, gravação que falha sem
 /// perder nada, recuperação depois de uma queda, trava e somente leitura, conflito sem sobrescrever; Tarefa 11: pesquisa no relatório,
-/// tema do app, Recentes e Comparar com o original) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
+/// tema do app, Recentes e Comparar com o original; Tarefa 13: módulos Processos e Despachos sobre uma cópia da árvore fictícia, pasta de processos
+/// nos Ajustes, faixa e pesquisa por módulo, pastas intactas) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
 /// na pasta do &lt;saida.json&gt; (tests\saida\roteiro). As perguntas têm respostas fixas (<see cref="PerguntasFixas"/>). Cada passo é
 /// independente: falha num não impede os seguintes.</summary>
 internal static class Roteiro
@@ -63,6 +67,14 @@ internal static class Roteiro
         Registrar("início da limpeza das rodadas anteriores");
         var perguntas = new PerguntasFixas();
         Perguntas.Atual = perguntas;
+        // Tarefa 13: Processos e Despachos leem uma CÓPIA da árvore fictícia (nunca a pasta real de processos) e nenhum arquivo é aberto fora
+        // do app (as aberturas só são registradas). A cópia e a "fotografia" dela (caminho → sha256) são feitas antes de qualquer módulo.
+        AberturaExterna.Simular = true;
+        var copiaProcessos = Path.Combine(pasta, "processos");
+        if (Directory.Exists(copiaProcessos)) ApagarArvore(copiaProcessos);
+        CopiarArvore(Path.Combine(corpus, "processos"), copiaProcessos);
+        var antesDasPastas = FotografarArvore(copiaProcessos);
+        j.DefinirPastaProcessos(copiaProcessos);
         var pacoteLongo = Path.Combine(pasta, "longo.pmvrel");
         // Pacotes de rodadas anteriores (só os do roteiro, só nesta pasta), com travas, cópias de conflito e diários de recuperação
         // (na pasta de dados do roteiro, tests\saida\dados-app): a importação nunca sobrescreve e nada de antes vira "recuperação".
@@ -1314,6 +1326,395 @@ internal static class Roteiro
             p["ok"] = longoOk && citacoesOk && j.FaixaAtual.Habilitado(ComandosApp.RevisaoComparar);
         });
 
+        // ---------- Tarefa 13: módulos Processos e Despachos, pasta de processos nos Ajustes ----------
+        // Numeração: o plano previa 28 (processos), 29 (despachos), 31, 32 e 33; 28 e 29 já são Recentes e Comparar (Tarefa 11) e o 30 fica
+        // reservado à Legislação (Tarefa 18). Aqui: 31 processos, 32 despachos, 33 pasta nos Ajustes, 34 faixa e pesquisa por módulo, 35 pastas intactas.
+        // Tudo sobre a CÓPIA da árvore fictícia (<pasta>\processos, feita no início); nenhuma abertura externa acontece (só é registrada).
+        var processo0001 = Path.Combine(copiaProcessos, "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)");
+        var pmvrel1 = Path.Combine(processo0001, "Relatorio_0001_2099.pmvrel");
+        var pmvrel2 = Path.Combine(processo0001, "Relatorio_0001_2099_2.pmvrel");
+        var nomesDosProcessos = new[]
+        {
+            "0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "pasta fora do padrao", "0007 - 2098 - CICLANO DE EXEMPLO (FICTICIO)",
+        };
+
+        await Passo("31_processos", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            var faixa = j.FaixaAtual;
+            string[] Nomes() => j.ProcessosMostrados.Select(l => l.Processo.NomePasta).ToArray();
+            string[] Detalhe() => j.DetalheMostrado.Select(l => l.Texto).ToArray();
+            async Task<bool> EscolherProcessoAsync(string inicio)
+            {
+                await j.EscolherProcessoNaListaAsync(inicio);
+                return await EsperarAteAsync(() => Task.FromResult(j.ProcessoEscolhido?.NomePasta.StartsWith(inicio, StringComparison.Ordinal) == true && j.DetalheMostrado.Count > 0), 5000);
+            }
+
+            // A lista: os 4 processos da árvore fictícia, na ordem da Tarefa 12; a pasta e a dica certas; a página de Processos à vista.
+            var ordemOk = Nomes().SequenceEqual(nomesDosProcessos);
+            p["processos_na_ordem"] = new JsonArray(Nomes().Select(n => (JsonNode)n).ToArray());
+            p["contagem"] = j.TextoContagemProcessos;
+            var listaOk = ordemOk && j.TextoContagemProcessos == "4 processos" && j.PaginaProcessosVisivel && !j.PaginaDespachosVisivel
+                && j.ModuloAtual == Modulo.Processos && !j.AvisoPastaProcessos.IsOpen && j.PastaProcessosEfetiva == copiaProcessos;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "31-janela-xaml-processos.png"));
+
+            // A pesquisa da barra de título filtra por número ou requerente (sem caixa nem acento): "fulano" → 1; vazio → 4.
+            await j.DigitarPesquisaAsync("fulano");
+            var fulano = Nomes();
+            var textoFulano = j.TextoResultadoPesquisa;
+            await j.DigitarPesquisaAsync("FÚLANO");
+            var acento = Nomes().Length == 1;
+            await j.DigitarPesquisaAsync("12");
+            var numero = Nomes().SequenceEqual([nomesDosProcessos[0]]);
+            await j.DigitarPesquisaAsync("");
+            p["filtro_fulano"] = new JsonArray(fulano.Select(n => (JsonNode)n).ToArray());
+            p["texto_do_filtro"] = textoFulano;
+            var filtroOk = fulano.Length == 1 && fulano[0].StartsWith("0001", StringComparison.Ordinal) && textoFulano == "1 de 4" && acento && numero
+                && Nomes().Length == 4 && j.TextoResultadoPesquisa == "";
+
+            // Filtro por ano (menu dinâmico, anos da pasta) e ordenar por requerente (✓ no menu); de volta ao padrão.
+            faixa.EscolherAba("Página Inicial");
+            await Esperar(250);
+            var anos = faixa.AtualizarMenuDinamico(ComandosApp.ProcessosAno);
+            var textosAno = faixa.TextosDoMenuDinamico(ComandosApp.ProcessosAno);
+            await j.DefinirAnoAsync("2098");
+            var so2098 = Nomes().SequenceEqual([nomesDosProcessos[3]]) && j.TextoContagemProcessos == "1 de 4 processos · 2098";
+            faixa.AtualizarMenuDinamico(ComandosApp.ProcessosAno);
+            var textosAno2 = faixa.TextosDoMenuDinamico(ComandosApp.ProcessosAno);
+            await j.DefinirAnoAsync("");
+            p["menu_ano"] = new JsonArray(textosAno.Select(t => (JsonNode)t).ToArray());
+            var anoOk = anos.SequenceEqual(["", "2099", "2098"]) && textosAno[0].StartsWith('✓') && so2098 && textosAno2[2].StartsWith('✓') && Nomes().Length == 4;
+            faixa.EscolherAba("Exibir");
+            await Esperar(250);
+            await j.ExecutarComandoAsync(ComandosApp.ProcessosOrdenarRequerente);
+            var porRequerente = Nomes();
+            var marcaRequerente = faixa.Marcado(ComandosApp.ProcessosOrdenarRequerente) && !faixa.Marcado(ComandosApp.ProcessosOrdenarNumero);
+            await j.ExecutarComandoAsync(ComandosApp.ProcessosOrdenarNumero);
+            p["por_requerente"] = new JsonArray(porRequerente.Select(n => (JsonNode)n).ToArray());
+            var ordenarOk = porRequerente.SequenceEqual([nomesDosProcessos[0], nomesDosProcessos[3], nomesDosProcessos[1], nomesDosProcessos[2]])
+                && marcaRequerente && Nomes().SequenceEqual(nomesDosProcessos) && j.OrdemDeProcessos == OrdemProcessos.Numero;
+            faixa.EscolherAba("Página Inicial");
+            await Esperar(250);
+
+            // O detalhe do 0001: relatório (a análise da IA), despachos e, se pedido, PROJETO e DOCUMENTOS.
+            var escolheu = await EscolherProcessoAsync("0001");
+            var detalhe = Detalhe();
+            p["detalhe_do_0001"] = new JsonArray(detalhe.Select(t => (JsonNode)t).ToArray());
+            var detalheOk = escolheu && detalhe.Take(3).SequenceEqual(["Relatórios (1)", "dados_0001.json", "Despachos (2)"])
+                && !detalhe.Any(t => t.StartsWith("PROJETO", StringComparison.Ordinal))
+                && j.DetalheMostrado.Count(l => l.Tipo == TipoLinhaDetalhe.ArquivoDeDespacho) == 3;
+            await j.ExecutarComandoAsync(ComandosApp.ProcessosMostrarPastas);
+            var comPastas = Detalhe();
+            var pastasOk = comPastas.Contains("PROJETO (2)") && comPastas.Contains("DOCUMENTOS (1)") && faixa.Ligado(ComandosApp.ProcessosMostrarPastas);
+
+            // Abrir arquivo: um PDF do PROJETO é só registrado (modo roteiro); um script (.cmd) é recusado com a mensagem exata e nada é registrado.
+            AberturaExterna.Registradas.Clear();
+            var escolheuPdf = j.EscolherEntradaNaLista(l => l.Texto == "ARQ 01-03.pdf");
+            await j.ExecutarComandoAsync(ComandosApp.ProcessosAbrirArquivo);
+            var pdfRegistrado = AberturaExterna.Registradas.SequenceEqual([Path.Combine(processo0001, "PROJETO", "ARQ 01-03.pdf")]);
+            var escolheuScript = j.EscolherEntradaNaLista(l => l.Texto == "script.cmd");
+            await j.ExecutarComandoAsync(ComandosApp.ProcessosAbrirArquivo);
+            var scriptRecusado = AberturaExterna.Registradas.Count == 1 && j.MensagemDeProcessos.IsOpen && j.MensagemDeProcessos.Title == "O arquivo não foi aberto"
+                && j.MensagemDeProcessos.Message == "Este tipo de arquivo não é aberto pelo editor (.cmd). Use Mostrar no Explorador.";
+            p["mensagem_do_script"] = j.MensagemDeProcessos.Message;
+            // Abrir pasta no Explorador: só registra (modo roteiro).
+            await j.ExecutarComandoAsync(ComandosApp.ProcessosAbrirPasta);
+            var pastaRegistrada = AberturaExterna.Registradas.Count == 2 && AberturaExterna.Registradas[1] == "explorador: " + processo0001;
+            await j.ExecutarComandoAsync(ComandosApp.ProcessosMostrarPastas);
+            var semPastas = !Detalhe().Any(t => t.StartsWith("PROJETO", StringComparison.Ordinal)) && !faixa.Ligado(ComandosApp.ProcessosMostrarPastas);
+            p["registradas"] = new JsonArray(AberturaExterna.Registradas.Select(t => (JsonNode)t).ToArray());
+            var abrirOk = escolheuPdf && pdfRegistrado && escolheuScript && scriptRecusado && pastaRegistrada && semPastas;
+
+            // Importar análise da IA do 0001: cria Relatorio_0001_2099.pmvrel na pasta do processo e abre no módulo Relatórios com 3 itens.
+            var escolheuAnalise = j.EscolherEntradaNaLista(l => l.Tipo == TipoLinhaDetalhe.Analise);
+            await j.ExecutarComandoAsync(ComandosApp.ProcessosImportarAnalise);
+            var primeira = File.Exists(pmvrel1) && j.ModuloAtual == Modulo.Relatorios && j.Sessao is not null
+                && string.Equals(j.Sessao.Caminho, pmvrel1, StringComparison.OrdinalIgnoreCase) && j.Sessao.Revisao.Projeto.Incluidos.Count == 3;
+            p["primeira_importacao_itens"] = j.Sessao?.Revisao.Projeto.Incluidos.Count;
+            var titulo1 = j.TextoTituloAtual;
+            var sha1 = File.Exists(pmvrel1) ? Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(pmvrel1))) : "";
+
+            // Repetir: nunca sobrescreve (o nome livre seguinte, _2) e o primeiro fica como estava.
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            var escolheuDeNovo = j.EscolherEntradaNaLista(l => l.Tipo == TipoLinhaDetalhe.Analise);
+            var apareceu = Detalhe().Contains("Relatorio_0001_2099.pmvrel");
+            await j.ExecutarComandoAsync(ComandosApp.ProcessosImportarAnalise);
+            var segunda = File.Exists(pmvrel2) && string.Equals(j.Sessao?.Caminho, pmvrel2, StringComparison.OrdinalIgnoreCase) && j.ModuloAtual == Modulo.Relatorios
+                && j.Sessao!.Revisao.Projeto.Incluidos.Count == 3;
+            var primeiraIntacta = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(pmvrel1))) == sha1;
+            var criados = Directory.GetFiles(processo0001, "*.pmvrel").Select(f => Path.GetFileName(f)).Order(StringComparer.Ordinal).ToArray();
+            p["arquivos_criados"] = new JsonArray(criados.Select(n => (JsonNode)n).ToArray());
+
+            // Abrir relatório: o .pmvrel listado abre no módulo Relatórios.
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            var escolheuPacote = j.EscolherEntradaNaLista(l => l.Tipo == TipoLinhaDetalhe.Relatorio && l.Texto == "Relatorio_0001_2099.pmvrel");
+            await j.ExecutarComandoAsync(ComandosApp.ProcessosAbrirRelatorio);
+            var abriu = escolheuPacote && string.Equals(j.Sessao?.Caminho, pmvrel1, StringComparison.OrdinalIgnoreCase) && j.ModuloAtual == Modulo.Relatorios;
+            p["titulo_da_janela"] = titulo1;
+            var importarOk = escolheuAnalise && primeira && titulo1.Length > 0 && escolheuDeNovo && apareceu && segunda && primeiraIntacta && abriu;
+            p["conferencias"] = new JsonObject
+            {
+                ["lista"] = listaOk, ["filtro"] = filtroOk, ["ano"] = anoOk, ["ordenar"] = ordenarOk, ["detalhe"] = detalheOk && pastasOk, ["abrir_arquivo_e_pasta"] = abrirOk,
+                ["primeira_importacao"] = primeira, ["segunda_importacao_nome_livre"] = segunda, ["primeira_intacta"] = primeiraIntacta, ["abrir_relatorio"] = abriu,
+            };
+            p["ok"] = listaOk && filtroOk && anoOk && ordenarOk && detalheOk && pastasOk && abrirOk && importarOk;
+        });
+
+        await Passo("32_despachos", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Despachos);
+            await j.AguardarLeiturasAsync();
+            var faixa = j.FaixaAtual;
+            List<LinhaDespacho> Despachos() => j.DespachosMostrados.Where(i => i.EhDespacho).Select(i => i.Linha!).ToList();
+            string[] Datas() => Despachos().Select(d => d.Despacho.Data.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)).ToArray();
+            var esperadas = new[] { "2099-03-05", "2099-02-20", "2099-01-15", "2098-03-02" };
+            p["datas_de_todos"] = new JsonArray(Datas().Select(d => (JsonNode)d).ToArray());
+            p["contagem"] = j.TextoContagemDespachos;
+            var todosOk = Datas().SequenceEqual(esperadas) && j.TextoContagemDespachos == "4 despachos" && j.PaginaDespachosVisivel && !j.PaginaProcessosVisivel
+                && j.DicaDaPesquisa == "Pesquisar despachos" && j.CaixaPesquisaHabilitada && !j.AvisoPastaDespachos.IsOpen;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "32-janela-xaml-despachos.png"));
+
+            // Filtro por tipo: Aprovação → 2 (os dois de aprovação); Correção → 1; Todos → 4.
+            await j.ExecutarComandoAsync(ComandosApp.DespachosFiltroAprovacao);
+            var aprovacao = Datas();
+            var marcaAprovacao = faixa.Marcado(ComandosApp.DespachosFiltroAprovacao) && !faixa.Marcado(ComandosApp.DespachosFiltroTodos);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosFiltroCorrecao);
+            var correcao = Datas();
+            await j.ExecutarComandoAsync(ComandosApp.DespachosFiltroTodos);
+            p["aprovacao"] = new JsonArray(aprovacao.Select(d => (JsonNode)d).ToArray());
+            var filtroOk = aprovacao.SequenceEqual(["2099-02-20", "2098-03-02"]) && marcaAprovacao && correcao.SequenceEqual(["2099-01-15"]) && Datas().Length == 4;
+
+            // A pesquisa da barra de título é pelo nome do arquivo, sem caixa nem acento.
+            await j.DigitarPesquisaAsync("CORREÇÃO");
+            var porNome = Datas();
+            var textoNome = j.TextoResultadoPesquisa;
+            await j.DigitarPesquisaAsync("");
+            var pesquisaOk = porNome.SequenceEqual(["2099-01-15"]) && textoNome == "1 de 4" && Datas().Length == 4;
+
+            // Abrir PDF do despacho de aprovação do 0001: só registra (modo roteiro). Abrir prefere o DOCX; o do 0012 só tem DOCX (sem Abrir PDF).
+            AberturaExterna.Registradas.Clear();
+            var aprovacao0001 = Path.Combine(processo0001, "DESPACHO 02 - 2099-02-20", "DESPACHO_APROVACAO_0001_2099.pdf");
+            var escolheuAprovacao = j.EscolherDespachoNaLista(l => l.Despacho.Tipo == TipoDespacho.Aprovacao && l.Despacho.Processo?.Numero == 1);
+            var pdfHabilitado = faixa.Habilitado(ComandosApp.DespachosAbrirPdf);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosAbrirPdf);
+            var pdfRegistrado = AberturaExterna.Registradas.SequenceEqual([aprovacao0001]);
+            var escolheuCorrecao = j.EscolherDespachoNaLista(l => l.Despacho.Tipo == TipoDespacho.Correcao);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosAbrir);
+            var docxRegistrado = AberturaExterna.Registradas.Count == 2
+                && AberturaExterna.Registradas[1] == Path.Combine(processo0001, "DESPACHO 01 - 2099-01-15", "DESPACHO_CORRECAO_0001_2099.docx");
+            var escolheuSoDocx = j.EscolherDespachoNaLista(l => l.Despacho.Processo?.Numero == 12);
+            var semPdf = !faixa.Habilitado(ComandosApp.DespachosAbrirPdf) && faixa.Habilitado(ComandosApp.DespachosAbrir);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosAbrirPdf);
+            var recusouSemPdf = AberturaExterna.Registradas.Count == 2 && j.MensagemDeDespachos.IsOpen
+                && j.MensagemDeDespachos.Message == "«Abrir PDF» não está disponível agora: o despacho escolhido não tem PDF.";
+            p["registradas"] = new JsonArray(AberturaExterna.Registradas.Select(t => (JsonNode)t).ToArray());
+
+            // A abertura pela AberturaExterna recusa o atalho .lnk com a mensagem exata e nada é registrado.
+            var atalho = Path.Combine(copiaProcessos, "MODELOS", "atalho.lnk");
+            var abriuAtalho = AberturaExterna.Abrir(atalho, out var motivoAtalho);
+            p["motivo_do_atalho"] = motivoAtalho;
+            var atalhoOk = !abriuAtalho && motivoAtalho == "Este tipo de arquivo não é aberto pelo editor (.lnk). Use Mostrar no Explorador." && AberturaExterna.Registradas.Count == 2;
+            await j.ExecutarComandoAsync(ComandosApp.DespachosMostrar);
+            var mostrarOk = AberturaExterna.Registradas.Count == 3 && AberturaExterna.Registradas[2].StartsWith("explorador: ", StringComparison.Ordinal);
+            var abrirOk = escolheuAprovacao && pdfHabilitado && pdfRegistrado && escolheuCorrecao && docxRegistrado && escolheuSoDocx && semPdf && recusouSemPdf && atalhoOk && mostrarOk;
+
+            // Agrupar por processo (um título por processo) e ordenar pelos mais antigos; de volta a "por data" e "mais recentes".
+            await j.ExecutarComandoAsync(ComandosApp.DespachosAgruparProcesso);
+            var titulosGrupo = j.DespachosMostrados.Where(i => i.EhGrupo).Select(i => i.Titulo).ToArray();
+            await j.ExecutarComandoAsync(ComandosApp.DespachosOrdenarAntigos);
+            var antigos = Datas();
+            var marcaOrdem = faixa.Marcado(ComandosApp.DespachosOrdenarAntigos) && !faixa.Marcado(ComandosApp.DespachosOrdenarRecentes) && faixa.Marcado(ComandosApp.DespachosAgruparProcesso);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosAgruparData);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosOrdenarRecentes);
+            p["grupos_por_processo"] = new JsonArray(titulosGrupo.Select(t => (JsonNode)t).ToArray());
+            var agruparOk = titulosGrupo.Length == 3 && titulosGrupo[0].StartsWith("0012/2099", StringComparison.Ordinal) && marcaOrdem
+                && antigos.Length == 4 && Datas().SequenceEqual(esperadas);
+
+            // Ir ao processo do despacho escolhido (módulo Processos, processo escolhido, detalhe lido) e "só do processo escolhido" de volta aqui.
+            var escolheuDoUm = j.EscolherDespachoNaLista(l => l.Despacho.Processo?.Numero == 1 && l.Despacho.Tipo == TipoDespacho.Correcao);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosIrAoProcesso);
+            await j.AguardarLeiturasAsync();
+            var foiAoProcesso = escolheuDoUm && j.ModuloAtual == Modulo.Processos && j.ProcessoEscolhido?.NomePasta.StartsWith("0001", StringComparison.Ordinal) == true
+                && j.DetalheMostrado.Any(l => l.Texto == "dados_0001.json");
+            await j.MudarModuloAsync(Modulo.Despachos);
+            await j.AguardarLeiturasAsync();
+            await j.ExecutarComandoAsync(ComandosApp.DespachosDoProcesso);
+            var soDoUm = Datas();
+            var ligado = faixa.Ligado(ComandosApp.DespachosDoProcesso);
+            var textoDoUm = j.TextoContagemDespachos;
+            await j.ExecutarComandoAsync(ComandosApp.DespachosDoProcesso);
+            p["so_do_processo"] = new JsonArray(soDoUm.Select(d => (JsonNode)d).ToArray());
+            p["contagem_do_processo"] = textoDoUm;
+            var escopoOk = foiAoProcesso && soDoUm.SequenceEqual(["2099-02-20", "2099-01-15"]) && ligado && textoDoUm == "2 despachos · só do processo 0001/2099" && Datas().Length == 4;
+
+            p["conferencias"] = new JsonObject
+            {
+                ["todos_por_data"] = todosOk, ["filtro_por_tipo"] = filtroOk, ["pesquisa_por_nome"] = pesquisaOk, ["abrir"] = abrirOk, ["agrupar_e_ordenar"] = agruparOk,
+                ["ir_ao_processo_e_so_do_processo"] = escopoOk,
+            };
+            p["ok"] = todosOk && filtroOk && pesquisaOk && abrirOk && agruparOk && escopoOk;
+        });
+
+        await Passo("33_ajustes_pastas", async p =>
+        {
+            // Pasta inexistente: a mensagem exata com o botão "Abrir Ajustes", nos dois módulos (nada da pasta real é lido).
+            var inexistente = Path.Combine(pasta, "nao-existe-processos");
+            if (Directory.Exists(inexistente)) Directory.Delete(inexistente, true);
+            j.DefinirPastaProcessos(inexistente);
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            var mensagem = $"A pasta de processos não foi encontrada: {inexistente}. Escolha a pasta em Ajustes.";
+            p["mensagem"] = j.AvisoPastaProcessos.Message;
+            var botao = j.BotaoAbrirAjustesProcessos;
+            var processosOk = j.AvisoPastaProcessos.IsOpen && j.AvisoPastaProcessos.Message == mensagem && botao.Content as string == "Abrir Ajustes"
+                && j.ProcessosMostrados.Count == 0 && j.TextoContagemProcessos == "";
+            await j.MudarModuloAsync(Modulo.Despachos);
+            await j.AguardarLeiturasAsync();
+            var despachosOk = j.AvisoPastaDespachos.IsOpen && j.AvisoPastaDespachos.Message == mensagem && j.DespachosMostrados.Count == 0;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "33-janela-xaml-pasta-ausente.png"));
+
+            // O botão leva à página Ajustes, que mostra a pasta em uso e avisa que ela não existe.
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            ((IInvokeProvider)new ButtonAutomationPeer(j.BotaoAbrirAjustesProcessos).GetPattern(PatternInterface.Invoke)).Invoke();
+            var foiAosAjustes = await EsperarAteAsync(() => Task.FromResult(j.ModuloAtual == Modulo.Ajustes && j.PaginaAjustesVisivel), 5000);
+            await j.AguardarLeiturasAsync();
+            var textoPasta = j.TextoPastaNosAjustes.Text;
+            var avisoPasta = j.TextoAvisoPastaNosAjustes.Text;
+            p["pagina_ajustes"] = new JsonObject { ["pasta"] = textoPasta, ["aviso"] = avisoPasta };
+            var ajustesOk = foiAosAjustes && textoPasta == inexistente && avisoPasta.StartsWith("A pasta não foi encontrada", StringComparison.Ordinal);
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "33-janela-xaml-ajustes-pasta.png"));
+
+            // Escolher a pasta (seletor com resposta fixa) pelo botão: vale na hora, fica em ajustes.json e o aviso some.
+            perguntas.PastaEscolhida = copiaProcessos;
+            ((IInvokeProvider)new ButtonAutomationPeer(j.AjustesPagina.BotaoEscolherPasta).GetPattern(PatternInterface.Invoke)).Invoke();
+            var escolheu = await EsperarAteAsync(() => Task.FromResult(j.PastaProcessosEscolhida == copiaProcessos), 5000);
+            await j.AguardarLeiturasAsync();
+            var guardada = JsonNode.Parse(File.ReadAllText(Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo)))?["pasta_processos"]?.GetValue<string>();
+            var escolhaOk = escolheu && guardada == copiaProcessos && j.TextoPastaNosAjustes.Text == copiaProcessos
+                && j.TextoAvisoPastaNosAjustes.Visibility == Microsoft.UI.Xaml.Visibility.Collapsed && perguntas.Feitas.Contains("escolher pasta");
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            var voltou = j.ProcessosMostrados.Count == 4 && !j.AvisoPastaProcessos.IsOpen;
+            p["conferencias"] = new JsonObject
+            {
+                ["mensagem_em_processos"] = processosOk, ["mensagem_em_despachos"] = despachosOk, ["botao_leva_aos_ajustes"] = ajustesOk,
+                ["escolher_pasta"] = escolhaOk, ["lista_volta"] = voltou,
+            };
+            p["ok"] = processosOk && despachosOk && ajustesOk && escolhaOk && voltou;
+        });
+
+        await Passo("34_faixa_e_pesquisa_por_modulo", async p =>
+        {
+            // O relatório fica aberto atrás (com um item selecionado) enquanto se visita cada módulo.
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            if (j.Sessao is null && !await j.AbrirPacoteAsync(pacoteLongo)) throw new InvalidOperationException("não abriu o longo: " + j.InfoMensagem.Message);
+            var s = j.Sessao!;
+            await j.SelecionarAsync(s.Revisao.Projeto.Incluidos[0].Id);
+            string? Guardado(string chave) => JsonNode.Parse(File.ReadAllText(Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo)))?[chave]?.GetValue<string>();
+            string? AbaGuardada(Modulo m) => JsonNode.Parse(File.ReadAllText(Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo)))?["aba_por_modulo"]?[m.ToString()]?.GetValue<string>();
+            var dicas = new Dictionary<Modulo, string>
+            {
+                [Modulo.Relatorios] = "Pesquisar no relatório", [Modulo.Despachos] = "Pesquisar despachos", [Modulo.Processos] = "Pesquisar processos",
+            };
+            var linhas = new JsonArray();
+            var tudoOk = true;
+            foreach (var m in Faixas.Disponiveis)
+            {
+                await j.MudarModuloAsync(m);
+                await j.AguardarLeiturasAsync();
+                var def = Faixas.Para(m);
+                var abas = j.FaixaAtual.Definicao!.Abas.Select(a => a.Nome).ToArray();
+                var abasOk = j.FaixaAtual.Definicao.Modulo == m && abas.SequenceEqual(def.Abas.Select(a => a.Nome));
+                var dicaOk = m == Modulo.Ajustes ? !j.CaixaPesquisaHabilitada : j.DicaDaPesquisa == dicas[m] && j.CaixaPesquisaHabilitada;
+                var semManipulador = j.ComandosSemManipulador();
+                var abaAberta = j.FaixaAtual.AbaAtual;
+                var padraoOk = abaAberta == (AbaGuardada(m) ?? def.Abas[def.AbaPadrao].Nome); // a lembrada, ou a padrão (a segunda; em Ajustes, a primeira)
+                var ok = abasOk && dicaOk && semManipulador.Count == 0 && padraoOk && j.ModuloAtual == m;
+                tudoOk &= ok;
+                linhas.Add(new JsonObject
+                {
+                    ["modulo"] = m.ToString(), ["abas"] = new JsonArray(abas.Select(a => (JsonNode)a).ToArray()), ["aba_aberta"] = abaAberta, ["dica_da_pesquisa"] = j.DicaDaPesquisa,
+                    ["caixa_habilitada"] = j.CaixaPesquisaHabilitada, ["comandos_sem_manipulador"] = new JsonArray(semManipulador.Select(c => (JsonNode)c).ToArray()), ["ok"] = ok,
+                });
+                await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, $"34-janela-xaml-{m.ToString().ToLowerInvariant()}.png"));
+            }
+            p["modulos"] = linhas;
+
+
+            // Módulo e aba lembrados: Exibir em Processos; sair e voltar mantém a aba; ajustes.json guarda a aba e o módulo.
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            j.FaixaAtual.EscolherAba("Exibir");
+            await Esperar(250);
+            await j.MudarModuloAsync(Modulo.Despachos);
+            await j.MudarModuloAsync(Modulo.Processos);
+            var abaLembrada = j.FaixaAtual.AbaAtual == "Exibir" && AbaGuardada(Modulo.Processos) == "Exibir" && Guardado("modulo") == "Processos";
+            j.FaixaAtual.EscolherAba("Página Inicial");
+            await Esperar(250);
+
+            // Cada módulo guarda o seu termo de pesquisa: "fulano" em Processos some em Despachos e volta ao voltar.
+            await j.DigitarPesquisaAsync("fulano");
+            await j.MudarModuloAsync(Modulo.Despachos);
+            var vazioEmDespachos = j.TermoPesquisa == "" && j.DicaDaPesquisa == "Pesquisar despachos";
+            await j.MudarModuloAsync(Modulo.Processos);
+            var voltouTermo = j.TermoPesquisa == "fulano" && j.ProcessosMostrados.Count == 1;
+            await j.DigitarPesquisaAsync("");
+            var termosOk = vazioEmDespachos && voltouTermo;
+
+            // Com Processos à vista, os comandos do relatório (Excluir, Desfazer) não mexem no relatório escondido.
+            var historicoAntes = s.Revisao.HistoricoCompleto.Count;
+            var incluidosAntes = s.Revisao.Projeto.Incluidos.Count;
+            await j.ExecutarComandoAsync(ComandosApp.InicioExcluirRestaurar);
+            await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            var escondidoIntacto = s.Revisao.HistoricoCompleto.Count == historicoAntes && s.Revisao.Projeto.Incluidos.Count == incluidosAntes
+                && !j.InfoMensagemAtual.IsOpen && j.ModuloAtual == Modulo.Processos;
+
+            // A pesquisa de Relatórios volta como estava: o termo digitado nas folhas é lembrado ao sair e voltar.
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            await j.DigitarPesquisaAsync("verificacao");
+            var total = j.PesquisaTotal;
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var pesquisaVolta = total > 0 && j.TermoPesquisa == "verificacao" && j.TextoResultadoPesquisa == $"1 de {total}";
+            await j.DigitarPesquisaAsync("");
+            p["conferencias"] = new JsonObject
+            {
+                ["faixas_e_dicas"] = tudoOk, ["aba_lembrada"] = abaLembrada, ["termo_por_modulo"] = termosOk, ["relatorio_escondido_intacto"] = escondidoIntacto,
+                ["pesquisa_do_relatorio_volta"] = pesquisaVolta,
+            };
+            p["ok"] = tudoOk && abaLembrada && termosOk && escondidoIntacto && pesquisaVolta;
+
+        });
+
+        await Passo("35_pastas_intactas", async p =>
+        {
+            // Fecha o relatório (solta a trava) e compara a árvore com a de antes de tudo: só os .pmvrel das importações são novos.
+            if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou");
+            var depois = FotografarArvore(copiaProcessos);
+            var novos = depois.Keys.Except(antesDasPastas.Keys, StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).ToList();
+            var sumiram = antesDasPastas.Keys.Except(depois.Keys, StringComparer.OrdinalIgnoreCase).ToList();
+            var mudaram = antesDasPastas.Where(kv => depois.TryGetValue(kv.Key, out var sha) && sha != kv.Value).Select(kv => kv.Key).ToList();
+            p["arquivos_antes"] = antesDasPastas.Count;
+            p["arquivos_depois"] = depois.Count;
+            p["novos"] = new JsonArray(novos.Select(n => (JsonNode)n).ToArray());
+            p["sumiram"] = new JsonArray(sumiram.Select(n => (JsonNode)n).ToArray());
+            p["mudaram"] = new JsonArray(mudaram.Select(n => (JsonNode)n).ToArray());
+            var esperadosNovos = new[]
+            {
+                Path.Combine("2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "Relatorio_0001_2099.pmvrel"),
+                Path.Combine("2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "Relatorio_0001_2099_2.pmvrel"),
+            };
+            // Nenhum .lock, .bak ou .tmp ficou ao lado dos pacotes depois de fechar.
+            var restos = depois.Keys.Where(k => k.EndsWith(".lock", StringComparison.OrdinalIgnoreCase) || k.EndsWith(".bak", StringComparison.OrdinalIgnoreCase)
+                || k.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)).ToList();
+            p["restos"] = new JsonArray(restos.Select(n => (JsonNode)n).ToArray());
+            p["ok"] = novos.SequenceEqual(esperadosNovos.Order(StringComparer.Ordinal), StringComparer.OrdinalIgnoreCase) && sumiram.Count == 0 && mudaram.Count == 0 && restos.Count == 0;
+        });
+
         await j.FecharSessaoAsync();
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
@@ -1321,6 +1722,28 @@ internal static class Roteiro
         Gravar(args.Roteiro!, saida);
         Application.Current.Exit();
     }
+
+    /// <summary>Copia a árvore (pastas e arquivos, ocultos inclusive) para um destino novo.</summary>
+    static void CopiarArvore(string origem, string destino)
+    {
+        Directory.CreateDirectory(destino);
+        foreach (var d in Directory.GetDirectories(origem, "*", SearchOption.AllDirectories))
+            Directory.CreateDirectory(Path.Combine(destino, Path.GetRelativePath(origem, d)));
+        foreach (var f in Directory.GetFiles(origem, "*", SearchOption.AllDirectories))
+            File.Copy(f, Path.Combine(destino, Path.GetRelativePath(origem, f)));
+    }
+
+    /// <summary>Apaga uma árvore que o próprio roteiro criou antes (arquivos ocultos ou só-leitura inclusive).</summary>
+    static void ApagarArvore(string pasta)
+    {
+        foreach (var f in Directory.GetFiles(pasta, "*", SearchOption.AllDirectories)) File.SetAttributes(f, FileAttributes.Normal);
+        Directory.Delete(pasta, true);
+    }
+
+    /// <summary>Caminho relativo → sha256 de cada arquivo da árvore (para provar que o app só leu).</summary>
+    static Dictionary<string, string> FotografarArvore(string raiz) =>
+        Directory.GetFiles(raiz, "*", SearchOption.AllDirectories)
+            .ToDictionary(f => Path.GetRelativePath(raiz, f), f => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(f))), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>As linhas do diário (aberto pela sessão para escrita; lido sem atrapalhar).</summary>
     static string[] LinhasDoDiario(string arquivo)

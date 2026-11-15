@@ -72,6 +72,46 @@ public class AjustesTestes
     }
 
     [Fact]
+    public void pasta_de_processos_efetiva_usa_o_padrao_do_usuario_ate_escolherem_outra()
+    {
+        var padrao = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR", "PROCESSOS");
+        var a = new Ajustes();
+        Assert.Null(a.PastaProcessos);
+        Assert.Equal(padrao, a.PastaProcessosEfetiva);
+        Assert.Equal(padrao, Ajustes.PastaProcessosPadrao);
+
+        a.PastaProcessos = "   ";
+        Assert.Equal(padrao, a.PastaProcessosEfetiva);
+
+        a.PastaProcessos = @"C:\outra\pasta";
+        Assert.Equal(@"C:\outra\pasta", a.PastaProcessosEfetiva);
+
+        // Voltar ao padrão é pôr null; o arquivo guarda a escolha e o padrão não é gravado como se fosse escolha.
+        using var pasta = Ambiente.PastaDeTeste("ajustes-pasta-processos");
+        new Ajustes().Salvar(pasta);
+        Assert.Null(Ajustes.Carregar(pasta).PastaProcessos);
+        Assert.Equal(padrao, Ajustes.Carregar(pasta).PastaProcessosEfetiva);
+    }
+
+    [Fact]
+    public void ajustes_antigo_com_pasta_de_legislacao_e_lido_sem_erro_e_a_chave_e_ignorada()
+    {
+        using var pasta = Ambiente.PastaDeTeste("ajustes-legislacao-antiga");
+        File.WriteAllText(Path.Combine(pasta, "ajustes.json"),
+            "{\"modulo\":\"Processos\",\"tema\":\"escuro\",\"pasta_legislacao\":\"C:\\\\legislacao\",\"pasta_processos\":\"C:\\\\processos\"}");
+
+        var a = Ajustes.Carregar(pasta);
+
+        Assert.Equal(Modulo.Processos, a.Modulo);
+        Assert.Equal("escuro", a.Tema);
+        Assert.Equal(@"C:\processos", a.PastaProcessos);
+        Assert.False(File.Exists(Path.Combine(pasta, "ajustes.corrompido.json")));
+        // A chave velha não volta ao arquivo na próxima gravação.
+        a.Salvar(pasta);
+        Assert.DoesNotContain("pasta_legislacao", File.ReadAllText(Path.Combine(pasta, "ajustes.json")), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void recentes_no_maximo_10_sem_repetir()
     {
         var a = new Ajustes();

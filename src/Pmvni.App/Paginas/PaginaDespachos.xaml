@@ -1,0 +1,49 @@
+<UserControl x:Class="Pmvni.App.PaginaDespachos"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Pmvni.App">
+  <!-- Módulo Despachos (desenho §9): os despachos que já existem nas pastas dos processos (de todos ou só do processo escolhido em
+       Processos), com tipo, data e número. Só listar e abrir: a criação de despachos é de outra tarefa. As linhas e os botões são
+       ligados pela janela (MainWindow.Pastas.cs). -->
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0" Spacing="1">
+      <InfoBar x:Name="AvisoPasta" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="">
+        <InfoBar.ActionButton>
+          <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Abrir Ajustes"/>
+        </InfoBar.ActionButton>
+      </InfoBar>
+      <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
+    </StackPanel>
+
+    <Grid Grid.Row="1" Padding="20,10,16,6" ColumnSpacing="8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis" AutomationProperties.Name="Quantidade de despachos"/>
+      <ProgressRing x:Name="Anel" x:FieldModifier="internal" Grid.Column="1" IsActive="False" Width="18" Height="18"/>
+    </Grid>
+
+    <ListView x:Name="ListaDespachos" x:FieldModifier="internal" Grid.Row="2" SelectionMode="Single" Padding="12,0,12,8"
+              AutomationProperties.Name="Despachos">
+      <ListView.ItemTemplate>
+        <DataTemplate x:DataType="local:ItemDespacho">
+          <StackPanel Padding="0,5" Spacing="1">
+            <TextBlock Text="{x:Bind Titulo}" Style="{StaticResource BodyStrongTextBlockStyle}" Visibility="{x:Bind EhGrupo}" Margin="0,8,0,0"/>
+            <TextBlock Text="{x:Bind Titulo}" Visibility="{x:Bind EhDespacho}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind EhDespacho}" TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+        </DataTemplate>
+      </ListView.ItemTemplate>
+    </ListView>
+    <TextBlock x:Name="TextoListaVazia" x:FieldModifier="internal" Grid.Row="2" Margin="20,12" TextWrapping="Wrap" Visibility="Collapsed"
+               Style="{StaticResource PmvniSecondaryTextStyle}"/>
+  </Grid>
+</UserControl>

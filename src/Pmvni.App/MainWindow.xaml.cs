@@ -102,6 +102,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         IniciarGravacao();
         IniciarPesquisa();
         IniciarAjustes();
+        IniciarPastas();
         Faixa.ComandoInvocado += async id => await ExecutarComandoAsync(id);
         Faixa.AbaMudou += nome => { ajustes.AbaPorModulo[moduloAtual] = nome; SalvarAjustes(); };
         TrilhoModulos.Montar(Faixas.Disponiveis);
@@ -112,6 +113,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Closed += (_, _) =>
         {
             fechada = true;
+            leituraDaLista?.Cancel(); // a leitura das pastas de processos em segundo plano para junto com a janela
+            leituraDoDetalhe?.Cancel();
             PararTemporizadores();
             try { documento?.Dispose(); } catch { }
             try { hostComposicao?.Dispose(); } catch { }
@@ -229,14 +232,20 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     void MontarModulo(Modulo m)
     {
+        var anterior = moduloAtual;
         moduloAtual = m;
         R.Visibility = m == Modulo.Relatorios ? Visibility.Visible : Visibility.Collapsed;
+        PaginaDeDespachos.Visibility = m == Modulo.Despachos ? Visibility.Visible : Visibility.Collapsed;
+        PaginaDeProcessos.Visibility = m == Modulo.Processos ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeAjustes.Visibility = m == Modulo.Ajustes ? Visibility.Visible : Visibility.Collapsed;
-        if (m == Modulo.Ajustes) PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes();
+        if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes(); AtualizarPaginaDePastas(); }
         var f = Faixas.Para(m);
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
         Faixa.Montar(f, Faixas.IndiceDaAba(f, aba));
         TrilhoModulos.Marcar(m);
+        TrocarPesquisaDeModulo(anterior, m);
+        EntrarNoModuloDePastas(m);
+        SincronizarPastas();
         AtualizarComandos();
         if (ajustes.Modulo != m) { ajustes.Modulo = m; SalvarAjustes(); }
     }
@@ -264,6 +273,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal Task ExecutarComandoAsync(string id) => NaFilaAsync(async () =>
     {
         if (!manipuladores.TryGetValue(id, out var acao)) return;
+        // Delete, Ctrl+Z, zoom e os outros comandos do relatório não valem com a lista de processos à vista: o relatório fica escondido.
+        if (moduloAtual != Modulo.Relatorios && ComandosApp.SoDoRelatorio(id)) return;
+        if (id.StartsWith("processos.", StringComparison.Ordinal) && moduloAtual != Modulo.Processos) return;
+        if (id.StartsWith("despachos.", StringComparison.Ordinal) && moduloAtual != Modulo.Despachos) return;
         if (!Faixa.Habilitado(id)) { AvisarIndisponivel(id); return; }
         await TentarAsync(acao);
     });
@@ -333,6 +346,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Faixa.Habilitar(ComandosApp.ExibirPagina, temRelatorio);
         Faixa.Ligar(ComandosApp.ExibirPainel, PainelVisivel);
         AtualizarComandosRevisao(temRelatorio);
+        AtualizarComandosPastas(pronto);
         R.BotaoMenos.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMenos);
         R.BotaoMais.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMais);
         R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = temRelatorio;
@@ -869,13 +883,24 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.AvisoDiario.IsOpen = false;
     }
 
+    /// <summary>O aviso do módulo à vista: Processos e Despachos têm o seu; os outros usam o da página Relatórios.</summary>
+    InfoBar AvisoDoModulo => moduloAtual switch
+    {
+        Modulo.Processos => PaginaDeProcessos.AvisoMensagem,
+        Modulo.Despachos => PaginaDeDespachos.AvisoMensagem,
+        _ => R.AvisoMensagem,
+    };
+
+    internal InfoBar InfoMensagemAtual => AvisoDoModulo;
+
     void MostrarMensagem(InfoBarSeverity severidade, string titulo, string mensagem)
     {
         if (fechada) return;
-        R.AvisoMensagem.Severity = severidade;
-        R.AvisoMensagem.Title = titulo;
-        R.AvisoMensagem.Message = mensagem;
-        R.AvisoMensagem.IsOpen = true;
+        var aviso = AvisoDoModulo;
+        aviso.Severity = severidade;
+        aviso.Title = titulo;
+        aviso.Message = mensagem;
+        aviso.IsOpen = true;
     }
 
     async Task TentarAsync(Func<Task> acao)

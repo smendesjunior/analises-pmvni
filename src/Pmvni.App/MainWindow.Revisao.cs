@@ -211,6 +211,11 @@ public sealed partial class MainWindow
     {
         var rotulo = RotuloDoComando(id);
         string motivo;
+        if (id.StartsWith("processos.", StringComparison.Ordinal) || id.StartsWith("despachos.", StringComparison.Ordinal))
+        {
+            MostrarMensagem(InfoBarSeverity.Informational, "Comando indisponível", $"«{rotulo}» não está disponível agora: {MotivoIndisponivelDasPastas(id)}.");
+            return;
+        }
         if (documento is null) motivo = "a visualização ainda não está pronta";
         else if (ocupado) motivo = "aguarde a operação em andamento terminar";
         else if (sessao?.Atual is null) motivo = "abra ou importe um relatório";

@@ -41,6 +41,7 @@ public sealed partial class MainWindow
         Faixa.ItemDinamicoEscolhido += async (menu, valor) =>
         {
             if (menu == ComandosApp.ArquivoRecentes) await AbrirRecenteAsync(valor);
+            else if (menu == ComandosApp.ProcessosAno) await DefinirAnoAsync(valor);
         };
         foreach (var t in Ajustes.Temas)
         {
@@ -110,6 +111,7 @@ public sealed partial class MainWindow
 
     IReadOnlyList<(string Texto, string Valor, string Dica)> ItensDoMenuDaFaixa(string menu)
     {
+        if (menu == ComandosApp.ProcessosAno) return ItensDoMenuAno();
         if (menu != ComandosApp.ArquivoRecentes) return [];
         var lista = ajustes.RecentesExistentes();
         haRecentes = lista.Count > 0;

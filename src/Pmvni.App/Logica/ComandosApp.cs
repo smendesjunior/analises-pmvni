@@ -43,6 +43,38 @@ public static class ComandosApp
     public const string ExibirTemaClaro = "exibir.tema.claro";
     public const string ExibirTemaEscuro = "exibir.tema.escuro";
 
+    // Processos (Tarefa 13): ações sobre a pasta do processo escolhido. processos.ano é um menu dinâmico (os anos vêm da pasta).
+    public const string ProcessosAbrirRelatorio = "processos.abrirRelatorio";
+    public const string ProcessosImportarAnalise = "processos.importarAnalise";
+    public const string ProcessosAbrirArquivo = "processos.abrirArquivo";
+    public const string ProcessosAbrirPasta = "processos.abrirPasta";
+    public const string ProcessosAtualizar = "processos.atualizar";
+    public const string ProcessosAno = "processos.ano";
+    public const string ProcessosOrdenar = "processos.ordenar";
+    public const string ProcessosOrdenarNumero = "processos.ordenar.numero";
+    public const string ProcessosOrdenarData = "processos.ordenar.data";
+    public const string ProcessosOrdenarRequerente = "processos.ordenar.requerente";
+    public const string ProcessosMostrarPastas = "processos.mostrarPastas";
+
+    // Despachos (Tarefa 13): só listar e abrir os que já existem (a criação é das Tarefas 15 e 16).
+    public const string DespachosAbrir = "despachos.abrir";
+    public const string DespachosAbrirPdf = "despachos.abrirPdf";
+    public const string DespachosMostrar = "despachos.mostrar";
+    public const string DespachosIrAoProcesso = "despachos.irAoProcesso";
+    public const string DespachosAtualizar = "despachos.atualizar";
+    public const string DespachosFiltro = "despachos.filtro";
+    public const string DespachosFiltroTodos = "despachos.filtro.todos";
+    public const string DespachosFiltroCorrecao = "despachos.filtro.correcao";
+    public const string DespachosFiltroAprovacao = "despachos.filtro.aprovacao";
+    /// <summary>Alterna entre os despachos de todos os processos e só os do processo escolhido em Processos.</summary>
+    public const string DespachosDoProcesso = "despachos.doProcesso";
+    public const string DespachosAgrupar = "despachos.agrupar";
+    public const string DespachosAgruparProcesso = "despachos.agrupar.processo";
+    public const string DespachosAgruparData = "despachos.agrupar.data";
+    public const string DespachosOrdenar = "despachos.ordenar";
+    public const string DespachosOrdenarRecentes = "despachos.ordenar.recentes";
+    public const string DespachosOrdenarAntigos = "despachos.ordenar.antigos";
+
     public const string AjudaAtalhos = "ajuda.atalhos";
     public const string AjudaSobre = "ajuda.sobre";
 
@@ -51,6 +83,14 @@ public static class ComandosApp
     public const string EditarRefazer = "editar.refazer";
     public const string JanelaRegioes = "janela.regioes";
     public const string PesquisaFocar = "pesquisa.focar";
+
+    /// <summary>Comandos que mexem no relatório aberto ou na tela dele (Página Inicial, Revisão, desfazer, zoom, painel). Fora do módulo
+    /// Relatórios não valem: um Delete ou Ctrl+Z com a lista de processos à vista não pode alterar um relatório que ficou escondido.
+    /// Arquivo (Salvar, Abrir…), pesquisa, tema e ajuda valem em qualquer módulo.</summary>
+    public static bool SoDoRelatorio(string id) =>
+        id.StartsWith("inicio.", StringComparison.Ordinal) || id.StartsWith("revisao.", StringComparison.Ordinal)
+        || id.StartsWith("editar.", StringComparison.Ordinal)
+        || id is ExibirMenos or ExibirMais or ExibirLargura or ExibirPagina or ExibirPainel or ExibirPropriedades or JanelaRegioes;
 
     const string PrefixoSituacao = InicioSituacao + ".";
     const string PrefixoTema = ExibirTema + ".";
