@@ -650,6 +650,25 @@ public sealed class AcervoTestes : IDisposable
     }
 
     [Fact]
+    public async Task troca_atomica_espera_o_arquivo_preso_por_um_instante()
+    {
+        // O OneDrive (tests\saida fica nele) ou um antivírus segura o destino por um instante: a troca espera, em vez de falhar a gravação.
+        using var pasta = Ambiente.NovaPasta("troca-presa");
+        var destino = Path.Combine(pasta, "catalogo.json");
+        var tmp = destino + ".tmp";
+        File.WriteAllText(destino, "antigo");
+        File.WriteAllText(tmp, "novo");
+        var preso = new FileStream(destino, FileMode.Open, FileAccess.Read, FileShare.None);
+        var soltar = Task.Run(async () => { await Task.Delay(400); preso.Dispose(); });
+        AcervoLegislacao.ComRepeticao(() => File.Move(tmp, destino, overwrite: true));
+        await soltar;
+        Assert.Equal("novo", File.ReadAllText(destino));
+        Assert.False(File.Exists(tmp));
+        // Uma falha que não é passageira sobe na hora (sem esperar o prazo).
+        Assert.Throws<FileNotFoundException>(() => AcervoLegislacao.ComRepeticao(() => File.Move(tmp, destino, overwrite: true)));
+    }
+
+    [Fact]
     public void listar_com_estado_numa_so_carga()
     {
         var lei = c.Anexar(Cenario.Lei);

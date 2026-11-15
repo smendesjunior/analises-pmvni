@@ -235,6 +235,6 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IAsyncDisposable
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
         }
         catch (TimeoutException) { /* a thread do WebView2 já não existe: nada a fechar */ }
-        fila.Dispose();
+        // A fila não é descartada: uma extração que ainda espera a vez recebe a falha do controller fechado, nunca ObjectDisposedException solta.
     }
 }

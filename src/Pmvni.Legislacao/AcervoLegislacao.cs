@@ -440,8 +440,8 @@ public sealed class AcervoLegislacao
                 fs.Flush(flushToDisk: true);
             }
             AntesDeTrocarCatalogo?.Invoke();
-            if (File.Exists(Catalogo)) File.Replace(tmp, Catalogo, CatalogoBak, ignoreMetadataErrors: true);
-            else File.Move(tmp, Catalogo);
+            if (File.Exists(Catalogo)) ComRepeticao(() => File.Replace(tmp, Catalogo, CatalogoBak, ignoreMetadataErrors: true));
+            else ComRepeticao(() => File.Move(tmp, Catalogo));
         }
         finally
         {
@@ -493,7 +493,7 @@ public sealed class AcervoLegislacao
         var criouCopia = false;
         var destino = CaminhoCopia(e.Sha256);
         if (File.Exists(destino)) ApagarEntrada(e);
-        else { File.Move(e.Caminho, destino); criouCopia = true; }
+        else { ComRepeticao(() => File.Move(e.Caminho, destino)); criouCopia = true; }
         var criouIndice = !File.Exists(CaminhoIndice(e.Sha256));
         try { EscreverIndice(e.Sha256, r); }
         catch
@@ -553,6 +553,21 @@ public sealed class AcervoLegislacao
         return false;
     }
 
+    /// <summary>A troca atômica (mover/substituir) com espera limitada (até ~2 s) quando outro programa segura o arquivo por um instante — o cliente do
+    /// OneDrive ou um antivírus lendo o arquivo recém-gravado (acesso negado ou violação de compartilhamento). Outra falha, ou a mesma depois do prazo,
+    /// sobe como veio.</summary>
+    internal static void ComRepeticao(Action trocar)
+    {
+        for (var tentativa = 1; ; tentativa++)
+        {
+            try { trocar(); return; }
+            catch (Exception e) when (tentativa < 40 && Transitoria(e)) { Thread.Sleep(50); }
+        }
+    }
+
+    static bool Transitoria(Exception e) =>
+        e is UnauthorizedAccessException || (e is IOException && (e.HResult & 0xFFFF) is 32 or 33);   // ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION
+
     static void ApagarSilencioso(string? caminho)
     {
         if (caminho is null) return;
@@ -597,7 +612,7 @@ public sealed class AcervoLegislacao
             using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
             using (var gz = new GZipStream(fs, CompressionLevel.Optimal))
                 gz.Write(json);
-            File.Move(tmp, destino, overwrite: true);
+            ComRepeticao(() => File.Move(tmp, destino, overwrite: true));
         }
         finally { ApagarSilencioso(tmp); }
         validadeIndices.Remove(sha);

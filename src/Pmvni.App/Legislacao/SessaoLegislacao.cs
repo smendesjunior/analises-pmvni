@@ -105,6 +105,8 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
         return (anexados, recusas);
     }
 
+    public const string NaoEstaMaisAnexada = "Esta lei não está mais anexada.";
+
     /// <summary>"Substituir arquivo…": as mesmas verificações do anexar; mantém id, título e esfera. Devolve a mensagem de recusa ou null.</summary>
     public async Task<string?> SubstituirAsync(string id, string caminho, CancellationToken ct, IProgress<ProgressoAnexo>? p = null)
     {
@@ -123,6 +125,13 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
             RegistroErros.Gravar("legislacao.substituir", e);
             if (r is { } sobra) Descartar(sobra.Entrada);
             return MensagensAnexo.Ilegivel(nome, e);
+        }
+        catch (Exception e) when (e is KeyNotFoundException or InvalidOperationException)
+        {
+            // A lei saiu (excluída por outra janela) ou o catálogo ficou só leitura entre a escolha e a confirmação: a entrada preparada sai já.
+            RegistroErros.Gravar("legislacao.substituir", e);
+            if (r is { } sobra) Descartar(sobra.Entrada);
+            return e is KeyNotFoundException ? NaoEstaMaisAnexada : e.Message;
         }
         finally { operacao.Release(); }
         await AvisarMudancaAsync();
@@ -251,7 +260,15 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
                 extrator = null;
                 try { await caido.DisposeAsync(); } catch { }
             }
-            return extrator ??= await criarExtrator();
+            if (extrator is not null) return extrator;
+            var novo = await criarExtrator();
+            if (descartada)
+            {
+                // A sessão foi descartada enquanto o extrator era criado (a janela fechou): ele não fica vivo sem dono.
+                if (novo is IAsyncDisposable d) try { await d.DisposeAsync(); } catch { }
+                throw new ObjectDisposedException(nameof(SessaoLegislacao));
+            }
+            return extrator = novo;
         }
         finally { criacao.Release(); }
     }

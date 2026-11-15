@@ -101,14 +101,31 @@ public sealed partial class MainWindow
     {
         ajustes.AdicionarRecente(Path.GetFullPath(caminho));
         SalvarAjustes();
-        AtualizarRecentes();
+        if (fechada) return;
+        geracaoRecentes++;          // uma conferência em curso (de antes) não desfaz esta
+        haRecentes = true;          // o arquivo acabou de ser aberto ou gravado: existe
+        AtualizarComandos();
     }
 
-    /// <summary>Confere quais recentes ainda existem (só o que existe aparece; nada fica desabilitado) e habilita o menu se houver algum.</summary>
+    int geracaoRecentes;
+
+    /// <summary>Confere quais recentes ainda existem (só o que existe aparece; nada fica desabilitado) e habilita o menu se houver algum. A conferência
+    /// do disco corre fora da thread da interface: um recente numa pasta de rede lenta não congela a janela a cada ativação.</summary>
     void AtualizarRecentes()
     {
         if (fechada) return;
-        haRecentes = ajustes.RecentesExistentes().Count > 0;
+        _ = AtualizarRecentesAsync();
+    }
+
+    async Task AtualizarRecentesAsync()
+    {
+        var lista = ajustes.Recentes.ToList();
+        var geracao = ++geracaoRecentes;
+        bool ha;
+        try { ha = await Task.Run(() => lista.Any(File.Exists)); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return; }
+        if (fechada || geracao != geracaoRecentes) return;
+        haRecentes = ha;
         AtualizarComandos();
     }
 
@@ -179,6 +196,7 @@ public sealed partial class MainWindow
         // Os manipuladores daqui são async void: nenhuma exceção sai deles (mensagem em português na InfoBar, detalhe no registro).
         a.BotaoAnexarLegislacao.Click += async (_, _) => await SemDerrubarAsync(AnexarLegislacaoAsync);
         a.BotaoCancelarLegislacao.Click += (_, _) => cancelarAnexo?.Cancel();
+        PaginaDeLegislacao.BotaoCancelarAnexo.Click += (_, _) => cancelarAnexo?.Cancel();
         a.TituloEditado = async (id, t) =>
         {
             try { return await RenomearAnexoAsync(id, t); }
@@ -281,6 +299,7 @@ public sealed partial class MainWindow
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             MostrarAvisoLegislacao(InfoBarSeverity.Error, "Não foi possível ler a legislação anexada", Erro(e));
+            ReabilitarLegislacao();     // depois de uma anexação, Anexar e as linhas não ficam desabilitados
             return;
         }
         if (fechada) return;
@@ -308,15 +327,23 @@ public sealed partial class MainWindow
     /// <summary>Gancho para o módulo Legislação acompanhar a lista (Tarefa 18).</summary>
     partial void LinhasLegislacaoMudaram(IReadOnlyList<Anexo> anexos);
 
+    /// <summary>O aviso da legislação em Ajustes e, com o módulo Legislação à frente, também nele (onde o usuário está).</summary>
     void MostrarAvisoLegislacao(InfoBarSeverity severidade, string titulo, string mensagem)
     {
         if (fechada) return;
-        var aviso = PaginaDeAjustes.AvisoLegislacao;
-        aviso.Severity = severidade;
-        aviso.Title = titulo;
-        aviso.Message = mensagem;
-        aviso.IsOpen = true;
+        foreach (var aviso in moduloAtual == Modulo.Legislacao
+                     ? new[] { PaginaDeAjustes.AvisoLegislacao, PaginaDeLegislacao.AvisoMensagem }
+                     : new[] { PaginaDeAjustes.AvisoLegislacao })
+        {
+            aviso.Severity = severidade;
+            aviso.Title = titulo;
+            aviso.Message = mensagem;
+            aviso.IsOpen = true;
+        }
     }
+
+    /// <summary>O texto do segundo "Anexar PDFs…" com outra anexação correndo.</summary>
+    internal const string AnexacaoEmAndamento = "Uma anexação já está em andamento.";
 
     /// <summary>"Anexar PDFs…": o seletor (múltiplo, .pdf) na fila de comandos; a leitura dos arquivos (cópia, sha, PDF.js) corre fora
     /// dela, com a linha de progresso e "Cancelar". No fim, a InfoBar com o resumo exato (<see cref="ListaLegislacao.Resumo"/>), que
@@ -325,15 +352,28 @@ public sealed partial class MainWindow
     {
         IReadOnlyList<string> caminhos = [];
         CancellationTokenSource? cts = null;
+        var emAndamento = false;
         await NaFilaAsync(() => TentarAsync(async () =>
         {
             if (!PodeAlterarLegislacao()) return;
+            if (cancelarAnexo is not null)
+            {
+                MostrarAvisoLegislacao(InfoBarSeverity.Informational, "Anexar PDFs", AnexacaoEmAndamento);
+                emAndamento = true;
+                return;
+            }
             caminhos = await Perguntas.Atual.AbrirArquivosAsync(".pdf");
-            if (caminhos.Count == 0 || cancelarAnexo is not null) return;
+            if (caminhos.Count == 0) return;
+            if (cancelarAnexo is not null)
+            {
+                MostrarAvisoLegislacao(InfoBarSeverity.Informational, "Anexar PDFs", AnexacaoEmAndamento);
+                emAndamento = true;
+                return;
+            }
             cts = cancelarAnexo = new CancellationTokenSource();
             ComecarProgressoLegislacao();
         }));
-        if (cts is null) return "";
+        if (cts is null) return emAndamento ? AnexacaoEmAndamento : "";
         try
         {
             var progresso = new Progress<ProgressoAnexo>(p => MostrarProgressoLegislacao("Anexando", p));
@@ -479,17 +519,30 @@ public sealed partial class MainWindow
         a.ProgressoLegislacao.Visibility = Visibility.Visible;
         a.BotaoAnexarLegislacao.IsEnabled = false;
         a.ConteudoAnexos.IsEnabled = false;
+        var l = PaginaDeLegislacao;
+        l.AvisoMensagem.IsOpen = false;
+        l.TextoProgressoAnexo.Text = "Preparando…";
+        l.BarraProgressoAnexo.IsIndeterminate = true;
+        l.ProgressoAnexo.Visibility = Visibility.Visible;
     }
 
     /// <summary>"Anexando “LEI 1.382-2020.pdf” — página 12 de 81".</summary>
     void MostrarProgressoLegislacao(string acao, ProgressoAnexo p)
     {
         if (fechada) return;
-        var a = PaginaDeAjustes;
-        a.TextoProgressoLegislacao.Text = p.Total > 0 ? $"{acao} “{p.Nome}” — página {p.Pagina} de {p.Total}" : $"{acao} “{p.Nome}”…";
-        a.BarraProgressoLegislacao.IsIndeterminate = p.Total <= 0;
-        if (p.Total > 0) { a.BarraProgressoLegislacao.Maximum = p.Total; a.BarraProgressoLegislacao.Value = p.Pagina; }
+        var texto = p.Total > 0 ? $"{acao} “{p.Nome}” — página {p.Pagina} de {p.Total}" : $"{acao} “{p.Nome}”…";
+        foreach (var (rotulo, barra) in new[] { (PaginaDeAjustes.TextoProgressoLegislacao, PaginaDeAjustes.BarraProgressoLegislacao),
+                                                (PaginaDeLegislacao.TextoProgressoAnexo, PaginaDeLegislacao.BarraProgressoAnexo) })
+        {
+            rotulo.Text = texto;
+            barra.IsIndeterminate = p.Total <= 0;
+            if (p.Total > 0) { barra.Maximum = p.Total; barra.Value = p.Pagina; }
+        }
     }
+
+    /// <summary>O andamento da anexação/substituição em curso, como aparece no módulo Legislação ("" sem nenhuma).</summary>
+    internal string ProgressoNaLegislacao =>
+        PaginaDeLegislacao.ProgressoAnexo.Visibility == Visibility.Visible ? PaginaDeLegislacao.TextoProgressoAnexo.Text : "";
 
     void TerminarProgressoLegislacao(CancellationTokenSource cts)
     {
@@ -497,5 +550,6 @@ public sealed partial class MainWindow
         cts.Dispose();
         if (fechada) return;
         PaginaDeAjustes.ProgressoLegislacao.Visibility = Visibility.Collapsed;
+        PaginaDeLegislacao.ProgressoAnexo.Visibility = Visibility.Collapsed;
     }
 }

@@ -43,6 +43,11 @@ public class ComandosLegislacaoTestes
         Assert.DoesNotContain(ComandosApp.LegislacaoAnexar, ComandosLegislacao.Habilitados(false, false, false, false, true));
         Assert.Contains(ComandosApp.LegislacaoGerenciar, ComandosLegislacao.Habilitados(false, false, false, false, true));
         Assert.Equal("Selecione um trecho do texto.", ComandosLegislacao.DicaSemSelecao);
+        // "Em todas as leis": F3/Shift+F3 (ocorrências na lei aberta) não valem; os resultados ficam na aba Resultados.
+        var emTodas = ComandosLegislacao.Habilitados(true, true, false, true, false, emTodas: true);
+        Assert.DoesNotContain(ComandosApp.LegislacaoOcorrenciaProxima, emTodas);
+        Assert.DoesNotContain(ComandosApp.LegislacaoOcorrenciaAnterior, emTodas);
+        Assert.Contains(ComandosApp.LegislacaoPaginaProxima, emTodas);
     }
 
     [Fact]

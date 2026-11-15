@@ -112,8 +112,16 @@ public sealed partial class MainWindow
             if (reindexacao.IsCompleted && !legislacao.Acervo.SomenteLeitura)
                 reindexacao = legislacao.ReindexarPendentesAsync(cancelarReindexacao.Token);
             await GarantirLeitorAsync();
+            if (reabrirAoEntrar is { } r)
+            {
+                reabrirAoEntrar = null;
+                await NaFilaAsync(() => TentarAsync(async () => { if (leiAberta?.Id == r.Id && moduloAtual == Modulo.Legislacao) await AbrirLeiNaVezAsync(r.Id, r.Pagina, null); }));
+            }
         });
     }
+
+    /// <summary>A lei aberta foi substituída com outro módulo à frente: reabre com o arquivo novo quando o usuário voltar à Legislação.</summary>
+    (string Id, int Pagina)? reabrirAoEntrar;
 
     /// <summary>O leitor sobre o WebView2 da página (criado uma vez, InPrivate pela mesma fábrica e no mesmo ambiente da tela).</summary>
     Task<LeitorPdfJs> GarantirLeitorAsync()
@@ -204,7 +212,13 @@ public sealed partial class MainWindow
         if (leiAberta is not { } aberta) return;
         var atual = anexos.FirstOrDefault(a => a.Id == aberta.Id);
         if (atual is null) _ = NaFilaAsync(() => TentarAsync(async () => { if (leiAberta?.Id == aberta.Id) await FecharLeiNaVezAsync(); }));
-        else if (atual.Sha256 != aberta.Sha256) _ = NaFilaAsync(() => TentarAsync(async () => { if (leiAberta?.Id == aberta.Id) await AbrirLeiNaVezAsync(aberta.Id, paginaLei, null); }));
+        else if (atual.Sha256 != aberta.Sha256)
+        {
+            // Substituída (em Ajustes, por exemplo): reabre sem trocar de módulo; fora da Legislação, reabre ao voltar a ela.
+            if (moduloAtual == Modulo.Legislacao)
+                _ = NaFilaAsync(() => TentarAsync(async () => { if (leiAberta?.Id == aberta.Id) await AbrirLeiNaVezAsync(aberta.Id, paginaLei, null); }));
+            else reabrirAoEntrar = (aberta.Id, paginaLei);
+        }
         else leiAberta = atual; // título e esfera novos (a citação usa o título da linha)
     }
 
@@ -601,7 +615,7 @@ public sealed partial class MainWindow
     {
         if (legislacao is null) return;
         var lei = leiAberta is not null && leitorPdf is not null;
-        var h = ComandosLegislacao.Habilitados(lei, leiAberta?.TemTexto ?? false, selecaoNaLei, marcadoresLei.Count > 0, legislacao.Acervo.SomenteLeitura);
+        var h = ComandosLegislacao.Habilitados(lei, leiAberta?.TemTexto ?? false, selecaoNaLei, marcadoresLei.Count > 0, legislacao.Acervo.SomenteLeitura, escopoTodas);
         foreach (var id in IdsDaLegislacao) Faixa.Habilitar(id, h.Contains(id));
         var dicaCopiar = selecaoNaLei ? "Copiar o trecho selecionado (Ctrl+C)" : ComandosLegislacao.DicaSemSelecao;
         var dicaCitar = selecaoNaLei ? "Copiar o trecho selecionado como citação, com o título e a página (Ctrl+Shift+C)" : ComandosLegislacao.DicaSemSelecao;

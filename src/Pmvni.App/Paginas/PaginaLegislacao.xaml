@@ -19,6 +19,19 @@
       <InfoBar x:Name="AvisoSemCopia" x:FieldModifier="internal" Severity="Warning" IsClosable="True"
                Message="A cópia deste PDF não foi encontrada na pasta do editor. Use Substituir arquivo… em Ajustes › Legislação."/>
       <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsClosable="True"/>
+      <!-- A anexação começada aqui (ou em Ajustes) mostra o andamento e o Cancelar também neste módulo (desenho §11.1/§11.4). -->
+      <Grid x:Name="ProgressoAnexo" x:FieldModifier="internal" ColumnSpacing="12" Padding="12,6" Visibility="Collapsed">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Spacing="4" VerticalAlignment="Center">
+          <TextBlock x:Name="TextoProgressoAnexo" x:FieldModifier="internal" TextWrapping="Wrap"/>
+          <ProgressBar x:Name="BarraProgressoAnexo" x:FieldModifier="internal" IsIndeterminate="True"/>
+        </StackPanel>
+        <Button x:Name="BotaoCancelarAnexo" x:FieldModifier="internal" Grid.Column="1" Content="Cancelar"
+                AutomationProperties.Name="Cancelar a anexação"/>
+      </Grid>
     </StackPanel>
 
     <Grid Grid.Row="1">
