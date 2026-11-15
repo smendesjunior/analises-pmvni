@@ -68,4 +68,70 @@ public sealed class PerfilLibreOfficeTestes
         Assert.False(File.Exists(Path.Combine(raizPerfil, "user", ".lock")));
         ConversorLibreOffice.EncerrarEmCurso(); // sem conversão em curso: nada
     }
+
+    /// <summary>Um "soffice" que deixa um filho vivo segurando os canais de saída depois de sair (como um soffice.bin que não larga os pipes):
+    /// o filho (um <c>ping</c> de uns 4 s) só grava <c>fim.txt</c> se chegar ao fim, então o arquivo ausente prova que a árvore foi encerrada.
+    /// Com <paramref name="sucesso"/>, grava o PDF e sai com 0; sem, sai com 1 sem PDF.</summary>
+    static string SofficeComFilhoPreso(string pasta, bool sucesso)
+    {
+        var cmd = Path.Combine(pasta, "soffice-preso.cmd");
+        var fim = Path.Combine(pasta, "fim.txt");
+        var pdf = sucesso ? """(echo %%PDF-1.4& for /l %%i in (1,1,40) do echo 0123456789012345678901234567890123456789) > "%~2\copia.pdf" """ : "rem sem pdf";
+        File.WriteAllText(cmd, """
+            @echo off
+            :laco
+            if "%~1"=="" exit /b 2
+            if /i "%~1"=="--outdir" goto saida
+            shift
+            goto laco
+            :saida
+            start "" /b cmd /c "ping -n 5 127.0.0.1 & echo fim> "__FIM__""
+            __PDF__
+            exit /b __CODIGO__
+            """.Replace("__FIM__", fim, StringComparison.Ordinal).Replace("__PDF__", pdf, StringComparison.Ordinal)
+               .Replace("__CODIGO__", sucesso ? "0" : "1", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal));
+        return cmd;
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void filho_que_segura_a_saida_nao_prende_o_mutex_alem_do_limite_e_a_arvore_morre(bool sucesso)
+    {
+        using var pasta = Ambiente.PastaDeTeste("perfil-filho-preso");
+        var conv = new ConversorLibreOffice(SofficeComFilhoPreso(pasta, sucesso), TimeSpan.FromSeconds(1), Path.Combine(pasta, "lo"));
+        var docx = Path.Combine(pasta, "despacho.docx");
+        File.WriteAllBytes(docx, [1, 2, 3]);
+
+        var relogio = Stopwatch.StartNew();
+        var r = conv.Converter(docx, Path.Combine(pasta, "t1"), CancellationToken.None);
+        relogio.Stop();
+
+        // O filho dura uns 4 s e segura a saída; sem o limite a espera só acabaria com ele.
+        Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(3.5), "demorou " + relogio.Elapsed);
+        if (sucesso) Assert.NotNull(r.Pdf); else Assert.Equal("CONVERSAO_FALHOU", r.Motivo);
+        // A árvore foi encerrada: o filho nunca chega a gravar fim.txt (espera além dos ~4 s dele).
+        Thread.Sleep(TimeSpan.FromSeconds(6));
+        Assert.False(File.Exists(Path.Combine(pasta, "fim.txt")));
+
+        // O mutex foi solto: outra conversão (com um soffice normal) roda de imediato.
+        var outra = new ConversorLibreOffice(SofficeFicticio(pasta), TimeSpan.FromSeconds(30), Path.Combine(pasta, "lo"));
+        Assert.NotNull(outra.Converter(docx, Path.Combine(pasta, "t2"), CancellationToken.None).Pdf);
+    }
+
+    [Fact]
+    public void cancelar_com_o_filho_preso_encerra_a_arvore_e_solta_o_mutex()
+    {
+        using var pasta = Ambiente.PastaDeTeste("perfil-filho-cancela");
+        var conv = new ConversorLibreOffice(SofficeComFilhoPreso(pasta, true), TimeSpan.FromMinutes(5), Path.Combine(pasta, "lo"));
+        var docx = Path.Combine(pasta, "despacho.docx");
+        File.WriteAllBytes(docx, [1, 2, 3]);
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+
+        var relogio = Stopwatch.StartNew();
+        Assert.ThrowsAny<OperationCanceledException>(() => conv.Converter(docx, Path.Combine(pasta, "t1"), cts.Token));
+        Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(3.5), "demorou " + relogio.Elapsed);
+        Thread.Sleep(TimeSpan.FromSeconds(6));
+        Assert.False(File.Exists(Path.Combine(pasta, "fim.txt")));
+    }
 }

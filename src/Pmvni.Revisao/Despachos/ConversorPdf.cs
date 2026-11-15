@@ -216,6 +216,16 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
         finally { if (comMutex) mutex.ReleaseMutex(); }
     }
 
+    /// <summary>O que resta do limite depois de <paramref name="gasto"/>, com um piso de 2 s: o processo acabou de sair e as saídas só precisam chegar ao fim.</summary>
+    TimeSpan RestoDoLimite(TimeSpan gasto) => TimeSpan.FromSeconds(Math.Max(2, (_limite - gasto).TotalSeconds));
+
+    /// <summary>Encerra a árvore do processo (e a dos filhos que ficaram para trás, segurando os canais).</summary>
+    static void Matar(Process p)
+    {
+        try { p.Kill(entireProcessTree: true); }
+        catch (Exception e) when (e is InvalidOperationException or Win32Exception or NotSupportedException) { }
+    }
+
     ResultadoConversao Executar(string copia, string conv, string perfil, string temp, string? arquivoPid, CancellationToken ct)
     {
         Process? p;
@@ -250,8 +260,22 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
                         return new ResultadoConversao(null, "TEMPO_ESGOTADO", "tempo esgotado");
                     }
                 }
-                // Saiu: espera também as saídas redirecionadas terminarem de chegar (sem argumento), no sucesso e na falha.
-                p.WaitForExit();
+                // Saiu: espera também as saídas redirecionadas terminarem de chegar (sem argumento), no sucesso e na falha, mas só o que
+                // resta do limite (e com o cancelamento): um soffice.bin filho que segure os canais não pode prender o mutex do perfil.
+                var drenar = Task.Run(() => p.WaitForExit());
+                bool preso;
+                try { preso = !drenar.Wait(RestoDoLimite(relogio.Elapsed), ct); }
+                catch (OperationCanceledException)
+                {
+                    Matar(p);
+                    throw;
+                }
+                if (preso)
+                {
+                    Matar(p);
+                    try { drenar.Wait(10_000); }
+                    catch (AggregateException) { }
+                }
                 var pdf = Path.Combine(conv, "copia.pdf");
                 var bytes = File.Exists(pdf) ? File.ReadAllBytes(pdf) : Array.Empty<byte>();
                 if (bytes.Length >= TamanhoMinimoPdf && bytes.AsSpan(0, 5).SequenceEqual("%PDF-"u8))
