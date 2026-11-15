@@ -98,6 +98,26 @@ public static class ComandosApp
     /// <summary>Novo relatório pelos agentes locais (Tarefa 20; desenho §12.2): abre a página Novo relatório no módulo Relatórios, de qualquer módulo que o mostra.</summary>
     public const string RelatoriosNovo = "relatorios.novo";
 
+    // Legislação (Tarefa 18; desenho §11.5): o leitor dos PDFs anexados.
+    public const string LegislacaoAnexar = "legislacao.anexar";
+    public const string LegislacaoGerenciar = "legislacao.gerenciar";
+    public const string LegislacaoCopiar = "legislacao.copiar";
+    public const string LegislacaoCopiarCitacao = "legislacao.copiarCitacao";
+    public const string LegislacaoPaginaAnterior = "legislacao.paginaAnterior";
+    public const string LegislacaoPaginaProxima = "legislacao.paginaProxima";
+    /// <summary>Menu "Pesquisar em": "Nesta lei" ou "Em todas as leis" (o alvo da caixa de pesquisa da barra de título).</summary>
+    public const string LegislacaoEscopo = "legislacao.escopo";
+    public const string LegislacaoEscopoLei = "legislacao.escopo.lei";
+    public const string LegislacaoEscopoTodas = "legislacao.escopo.todas";
+    public const string LegislacaoOcorrenciaAnterior = "legislacao.ocorrenciaAnterior";
+    public const string LegislacaoOcorrenciaProxima = "legislacao.ocorrenciaProxima";
+    public const string LegislacaoZoomMenos = "legislacao.zoomMenos";
+    public const string LegislacaoZoomMais = "legislacao.zoomMais";
+    public const string LegislacaoAjustarLargura = "legislacao.ajustarLargura";
+    public const string LegislacaoPaginaInteira = "legislacao.paginaInteira";
+    public const string LegislacaoMarcadores = "legislacao.marcadores";
+    public const string LegislacaoLista = "legislacao.lista";
+
     public const string AjudaAtalhos = "ajuda.atalhos";
     public const string AjudaSobre = "ajuda.sobre";
 

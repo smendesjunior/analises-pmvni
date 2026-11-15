@@ -105,6 +105,8 @@ public sealed partial class MainWindow
     {
         // Processos e Despachos filtram as listas (a pesquisa nas folhas não tem o que fazer aqui): só confere o texto "N de M".
         if (moduloAtual is Modulo.Processos or Modulo.Despachos) { AtualizarTextoDaPesquisaDeLista(); return; }
+        // Legislação: "Nesta lei" (PDFFindController do leitor) ou "Em todas as leis" (índice do app), pelo menu "Pesquisar em".
+        if (moduloAtual == Modulo.Legislacao) { await PesquisarNaLegislacaoAsync(termo, passo); return; }
         if (documento is null || sessao?.Atual is null || moduloAtual != Modulo.Relatorios)
         {
             MostrarResultadoDaPesquisa(0, 0, null, termo);
@@ -154,10 +156,12 @@ public sealed partial class MainWindow
 
     void AtualizarPesquisaHabilitada(bool temRelatorio)
     {
-        // Relatórios: o texto das folhas (precisa de um relatório aberto); Processos e Despachos: o filtro da lista; Ajustes: nada.
-        var habilitada = moduloAtual switch { Modulo.Relatorios => temRelatorio, Modulo.Processos or Modulo.Despachos => true, _ => false };
+        // Relatórios: o texto das folhas (precisa de um relatório aberto); Processos e Despachos: o filtro da lista; Legislação: a lei
+        // aberta ou todas as leis; Ajustes: nada.
+        var habilitada = moduloAtual switch { Modulo.Relatorios => temRelatorio, Modulo.Processos or Modulo.Despachos or Modulo.Legislacao => true, _ => false };
         CaixaPesquisa.IsEnabled = habilitada;
-        // Anterior e próxima só andam pelas ocorrências nas folhas.
+        // Anterior e próxima andam pelas ocorrências nas folhas (e, na Legislação, pelas da lei aberta: quem acerta é o contador dela).
+        if (moduloAtual == Modulo.Legislacao) return;
         BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = habilitada && moduloAtual == Modulo.Relatorios && pesquisaTotal > 0;
     }
 
@@ -166,7 +170,7 @@ public sealed partial class MainWindow
     void TrocarPesquisaDeModulo(Modulo anterior, Modulo novo)
     {
         if (anterior != novo) termosPesquisa[anterior] = CaixaPesquisa.Text;
-        var dica = novo switch { Modulo.Processos => "Pesquisar processos", Modulo.Despachos => "Pesquisar despachos", _ => "Pesquisar no relatório" };
+        var dica = DicaDaPesquisaDe(novo);
         CaixaPesquisa.PlaceholderText = dica;
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CaixaPesquisa, dica);
         Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(CaixaPesquisa, dica + " (Ctrl+F)");
@@ -176,5 +180,15 @@ public sealed partial class MainWindow
         finally { definindoPesquisa = false; }
         if (novo == Modulo.Relatorios) MostrarResultadoDaPesquisa(pesquisaTotal, pesquisaAtual, pesquisaRef, TermoDe(Modulo.Relatorios));
         else TextoPesquisa.Text = "";
+        if (novo == Modulo.Legislacao) BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = false;
     }
+
+    /// <summary>A dica da caixa no módulo: na Legislação ela segue "Pesquisar em" ("Pesquisar nesta lei" / "Pesquisar em todas as leis").</summary>
+    string DicaDaPesquisaDe(Modulo m) => m switch
+    {
+        Modulo.Processos => "Pesquisar processos",
+        Modulo.Despachos => "Pesquisar despachos",
+        Modulo.Legislacao => escopoTodas || leiAberta is null ? "Pesquisar em todas as leis" : "Pesquisar nesta lei",
+        _ => "Pesquisar no relatório",
+    };
 }

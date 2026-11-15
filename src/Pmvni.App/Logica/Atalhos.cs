@@ -26,6 +26,27 @@ public static class Atalhos
         ["Ctrl+Minus"] = ComandosApp.ExibirMenos,
     };
 
+    /// <summary>Os atalhos do leitor da Legislação (desenho §11.4): exatamente as 10 teclas que <c>leitor.ts</c> repassa ao host.</summary>
+    public static IReadOnlyDictionary<string, string> MapaLegislacao { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["Ctrl+F"] = ComandosApp.PesquisaFocar,
+        ["Ctrl+C"] = ComandosApp.LegislacaoCopiar,
+        ["Ctrl+Shift+C"] = ComandosApp.LegislacaoCopiarCitacao,
+        ["Ctrl+Plus"] = ComandosApp.LegislacaoZoomMais,
+        ["Ctrl+Minus"] = ComandosApp.LegislacaoZoomMenos,
+        ["Ctrl+0"] = ComandosApp.LegislacaoAjustarLargura,
+        ["Alt+ArrowUp"] = ComandosApp.LegislacaoPaginaAnterior,
+        ["Alt+ArrowDown"] = ComandosApp.LegislacaoPaginaProxima,
+        ["F3"] = ComandosApp.LegislacaoOcorrenciaProxima,
+        ["Shift+F3"] = ComandosApp.LegislacaoOcorrenciaAnterior,
+    };
+
+    /// <summary>O mapa do módulo: o do leitor na Legislação; o <see cref="Mapa"/> nos outros.</summary>
+    public static IReadOnlyDictionary<string, string> MapaDe(Modulo m) => m == Modulo.Legislacao ? MapaLegislacao : Mapa;
+
+    /// <summary>O comando da tecla no módulo <paramref name="m"/>, ou null.</summary>
+    public static string? Comando(string tecla, Modulo m) => MapaDe(m).TryGetValue(tecla, out var id) ? id : null;
+
     static readonly Dictionary<string, string> PorComando = Mapa.ToDictionary(p => p.Value, p => p.Key, StringComparer.Ordinal);
 
     /// <summary>O comando da tecla canônica, ou null se ela não é atalho do app.</summary>
@@ -33,6 +54,12 @@ public static class Atalhos
 
     /// <summary>A tecla canônica do comando (para dicas e para a lista de atalhos), ou null se ele não tem atalho.</summary>
     public static string? Tecla(string id) => PorComando.TryGetValue(id, out var t) ? t : null;
+
+    static readonly Dictionary<string, string> PorComandoLegislacao = MapaLegislacao.ToDictionary(p => p.Value, p => p.Key, StringComparer.Ordinal);
+
+    /// <summary>A tecla do comando no módulo (para dicas e para a lista de atalhos), ou null.</summary>
+    public static string? Tecla(string id, Modulo m) =>
+        (m == Modulo.Legislacao ? PorComandoLegislacao : PorComando).TryGetValue(id, out var t) ? t : null;
 
     /// <summary>A tecla como o usuário lê: "Ctrl++", "Alt+↑", "Del".</summary>
     public static string Legivel(string tecla) => tecla

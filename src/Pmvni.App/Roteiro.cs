@@ -11,6 +11,7 @@ using Microsoft.Web.WebView2.Core;
 using Pmvni.Agentes;
 using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
+using Pmvni.Composicao.Web.Legislacao;
 using Pmvni.Legislacao;
 using Pmvni.Revisao;
 using Windows.Graphics.Imaging;
@@ -1691,6 +1692,7 @@ internal static class Roteiro
             var dicas = new Dictionary<Modulo, string>
             {
                 [Modulo.Relatorios] = "Pesquisar no relatório", [Modulo.Despachos] = "Pesquisar despachos", [Modulo.Processos] = "Pesquisar processos",
+                [Modulo.Legislacao] = "Pesquisar em todas as leis", // nenhuma lei aberta (Tarefa 18)
             };
             var linhas = new JsonArray();
             var tudoOk = true;
@@ -3356,6 +3358,256 @@ internal static class Roteiro
             p["linhas"] = LinhasEmJson(j.LinhasLegislacaoAjustes);
             try { await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "60-ajustes-legislacao.png")); } catch (Exception e) { p["captura"] = e.Message; }
             p["ok"] = renomeou && vazioOk && mudouEsfera && voltouEsfera && substituiu && gravado && relidas.Count == 4 && OriginaisLegIntactos(p);
+        });
+
+
+        // ---------- Legislação: o módulo e o leitor (Tarefa 18; passos 30, 61, 62, 63 e 48, nessa ordem, sobre o estado do 60) ----------
+        // O estado que os passos 57–60 deixam: Federal, NT, lei ("Lei nº 9.999/2099 (fictícia)", versão 2, 4 páginas, 5 marcadores) e
+        // digitalizada. A área de transferência e as aberturas externas só são registradas.
+        AreaTransferencia.Simular = true;
+        string IdDe(string titulo) => j.LinhasLegislacaoAjustes.Single(l => l.Titulo == titulo).Id;
+        const string TituloLei = "Lei nº 9.999/2099 (fictícia)";
+        async Task<JsonElement> JsLeitor(string expressao)
+        {
+            var r = await j.LeitorPdf!.AvaliarAsync(expressao);
+            return r.TryGetProperty("value", out var v) ? v : r;
+        }
+        async Task<bool> EsperarPagina(int pagina) => await EsperarAteAsync(() => Task.FromResult(j.RodapeLegislacao.StartsWith($"Página {pagina} de ", StringComparison.Ordinal)), 5000);
+        async Task TeclaLeitor(string key, string code, int vk, int modificadores)
+        {
+            // O foco no contêiner do PDF (só sem seleção: a tecla de citar precisa da seleção feita antes).
+            await JsLeitor("(document.getSelection().isCollapsed && document.getElementById('container').focus(), true)");
+            await j.LeitorPdf!.CdpAsync("Input.dispatchKeyEvent", new { type = "rawKeyDown", key, code, windowsVirtualKeyCode = vk, nativeVirtualKeyCode = vk, modifiers = modificadores });
+            await j.LeitorPdf!.CdpAsync("Input.dispatchKeyEvent", new { type = "keyUp", key, code, windowsVirtualKeyCode = vk, nativeVirtualKeyCode = vk, modifiers = modificadores });
+        }
+        async Task<bool> EsperarTextoDaPagina(int pagina)
+        {
+            await j.IrPaginaLegislacaoAsync(pagina);
+            return await EsperarAteAsync(async () => (await JsLeitor($"document.querySelectorAll('.page[data-page-number=\"{pagina}\"] .textLayer span').length")).GetInt32() > 0, 10000);
+        }
+        Task<JsonElement> SelecionarNoLeitor(int pi, string inicio, int pf, string fim) => JsLeitor($$"""
+            (() => {
+              const achar = (p, t) => {
+                const spans = [...document.querySelectorAll('.page[data-page-number="' + p + '"] .textLayer span')];
+                for (const s of spans) { const n = s.firstChild; if (n && n.nodeType === 3 && n.data.includes(t)) return [n, n.data.indexOf(t)]; }
+                return null;
+              };
+              const a = achar({{pi}}, {{JsonSerializer.Serialize(inicio)}}), b = achar({{pf}}, {{JsonSerializer.Serialize(fim)}});
+              if (!a || !b) return false;
+              const r = document.createRange();
+              r.setStart(a[0], a[1]);
+              r.setEnd(b[0], b[1] + {{JsonSerializer.Serialize(fim)}}.length);
+              const s = document.getSelection(); s.removeAllRanges(); s.addRange(r);
+              return true;
+            })()
+            """);
+
+        await Passo("30_legislacao_leitor", async p =>
+        {
+            var fotoAntes = FotoLeg(dadosLeg);
+            var trilho = j.TrilhoAtual.Modulos.Select(Modulos.Rotulo).ToList();
+            p["trilho"] = new JsonArray(trilho.Select(t => (JsonNode)t).ToArray());
+            var trilhoOk = trilho.SequenceEqual(["Relatórios", "Despachos", "Processos", "Legislação", "Ajustes"]);
+            await j.MudarModuloAsync(Modulo.Legislacao);
+            await EsperarAteAsync(() => Task.FromResult(j.LeitorPdf is not null), 30000);
+            var grupos = j.LeisMostradas;
+            p["grupos"] = new JsonArray(grupos.Select(g => (JsonNode)(g.Grupo + ": " + string.Join(" | ", g.Linhas.Select(l => l.Titulo)))).ToArray());
+            var listaOk = j.AbaDoPainelLegislacao == "Leis" && grupos.Select(g => g.Grupo).SequenceEqual(["Federal", "Estadual", "Municipal", "Outras"])
+                && grupos.All(g => g.Linhas.Count == 1) && grupos.Sum(g => g.Linhas.Count) == 4;
+            j.FiltrarLeis("nt");
+            var filtroOk = j.LeisMostradas is [{ Grupo: "Estadual", Linhas: [{ Titulo: "NT 99-2099 - FICTICIA" }] }];
+            j.FiltrarLeis("");
+            var lei = IdDe(TituloLei);
+            var abriu = await j.AbrirLeiAsync(lei);
+            var url = j.LeitorPdf!.Core.Source;
+            p["url"] = url;
+            p["rodape_ao_abrir"] = j.RodapeLegislacao;
+            var abrirOk = abriu && url == "https://leg.pmvni.invalid/leitor.html" && j.RodapeLegislacao.StartsWith("Página 1 de 4", StringComparison.Ordinal);
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoPaginaProxima);
+            var proximaOk = await EsperarPagina(2);
+            await TeclaLeitor("ArrowDown", "ArrowDown", 40, 1); // Alt+↓ dentro do PDF: a página repassa o atalho
+            var atalhoOk = await EsperarPagina(3);
+            p["rodape_depois_do_atalho"] = j.RodapeLegislacao;
+            var marcadores = j.MarcadoresDaLei;
+            p["marcadores"] = new JsonArray(marcadores.Select(m => (JsonNode)m.Titulo).ToArray());
+            var marcadoresOk = j.LeitorLegislacao.AbaMarcadores.IsEnabled && marcadores.Count == 5;
+            await j.IrPaginaLegislacaoAsync(1);
+            var anexo = marcadores.Select((m, i) => (m, i)).Single(x => x.m.Titulo == "Anexo I").i;
+            await j.IrMarcadorLegislacaoAsync([anexo]);
+            var anexoOk = await EsperarPagina(3);
+            var escalas = new JsonObject();
+            var escalaOk = true;
+            foreach (var (id, nome) in new[] { (ComandosApp.LegislacaoZoomMais, "mais"), (ComandosApp.LegislacaoZoomMenos, "menos"), (ComandosApp.LegislacaoPaginaInteira, "pagina"), (ComandosApp.LegislacaoAjustarLargura, "largura") })
+            {
+                var antes = j.RodapeLegislacao;
+                await j.ExecutarComandoAsync(id);
+                escalas[nome] = j.RodapeLegislacao;
+                escalaOk &= j.RodapeLegislacao != antes;
+            }
+            p["escalas"] = escalas;
+            var digital = IdDe("DIGITALIZADA - FICTICIA");
+            await j.AbrirLeiAsync(digital);
+            var aviso = j.LeitorLegislacao.AvisoSemTexto;
+            var semTextoOk = aviso.IsOpen && aviso.Message == "Este PDF não tem texto pesquisável: a pesquisa e a cópia de texto não funcionam nele."
+                && !j.LeitorLegislacao.AbaMarcadores.IsEnabled && !j.FaixaAtual.Habilitado(ComandosApp.LegislacaoMarcadores)
+                && !j.FaixaAtual.Habilitado(ComandosApp.LegislacaoCopiar) && j.RodapeLegislacao.StartsWith("Página 1 de 1", StringComparison.Ordinal);
+            var fotoDepois = FotoLeg(dadosLeg);
+            var nadaGravado = fotoDepois.Count == fotoAntes.Count && fotoAntes.All(kv => fotoDepois.TryGetValue(kv.Key, out var v) && v == kv.Value);
+            p["bloqueadas"] = j.RequisicoesBloqueadasLegislacao;
+            p["csp"] = j.ViolacoesCspLegislacao;
+            p["conferencias"] = new JsonObject
+            {
+                ["trilho"] = trilhoOk, ["lista"] = listaOk, ["filtro"] = filtroOk, ["abrir"] = abrirOk, ["proxima"] = proximaOk, ["atalho"] = atalhoOk,
+                ["marcadores"] = marcadoresOk, ["anexo_i"] = anexoOk, ["escala"] = escalaOk, ["sem_texto"] = semTextoOk, ["nada_gravado"] = nadaGravado,
+            };
+            try { await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "30-legislacao.png")); } catch (Exception e) { p["captura"] = e.Message; }
+            p["ok"] = trilhoOk && listaOk && filtroOk && abrirOk && proximaOk && atalhoOk && marcadoresOk && anexoOk && escalaOk && semTextoOk && nadaGravado
+                && j.RequisicoesBloqueadasLegislacao == 0 && j.ViolacoesCspLegislacao == 0;
+        });
+
+        await Passo("61_legislacao_pesquisa_na_lei", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Legislacao);
+            await j.AbrirLeiAsync(IdDe(TituloLei));
+            var dica = j.DicaDaPesquisa;
+            var r = new JsonObject();
+            await j.DigitarPesquisaAsync("AFASTAMENTO");
+            r["afastamento"] = j.TextoResultadoPesquisa;
+            await j.IrNaPesquisaAsync(1);
+            r["enter"] = j.TextoResultadoPesquisa;
+            await j.IrNaPesquisaAsync(-1);
+            await j.IrNaPesquisaAsync(-1);
+            r["shift_enter_2x"] = j.TextoResultadoPesquisa;
+            await j.DigitarPesquisaAsync("ocupacao");
+            r["ocupacao"] = j.TextoResultadoPesquisa;
+            await j.DigitarPesquisaAsync("inexistentexyz");
+            r["inexistente"] = j.TextoResultadoPesquisa;
+            await j.DigitarPesquisaAsync("");
+            var realces = await EsperarAteAsync(async () => (await JsLeitor("document.querySelectorAll('.highlight').length")).GetInt32() == 0, 3000);
+            await j.AbrirLeiAsync(IdDe("DIGITALIZADA - FICTICIA"));
+            await j.DigitarPesquisaAsync("x");
+            r["digitalizada"] = j.TextoResultadoPesquisa;
+            await j.DigitarPesquisaAsync("");
+            p["contadores"] = r;
+            p["dica"] = dica;
+            p["ok"] = dica == "Pesquisar nesta lei" && (string?)r["afastamento"] == "1 de 3" && (string?)r["enter"] == "2 de 3" && (string?)r["shift_enter_2x"] == "3 de 3"
+                && (string?)r["ocupacao"] == "1 de 2" && (string?)r["inexistente"] == "Nenhuma ocorrência" && realces
+                && (string?)r["digitalizada"] == "Este PDF não tem texto pesquisável.";
+        });
+
+        await Passo("62_legislacao_pesquisa_em_todas", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Legislacao);
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoEscopoTodas);
+            var dica = j.DicaDaPesquisa;
+            await j.DigitarPesquisaAsync("afastamento");
+            var grupos = j.ResultadosMostrados;
+            p["cabecalho"] = j.CabecalhoResultados;
+            p["resultados"] = new JsonArray(grupos.Select(g => (JsonNode)(g.Lei + ": " + string.Join(" | ", g.Linhas))).ToArray());
+            var listaOk = j.AbaDoPainelLegislacao == "Resultados" && j.CabecalhoResultados == "4 resultados em 2 leis" && grupos.Count == 2
+                && grupos[0].Lei == "NT 99-2099 - FICTICIA" && grupos[0].Linhas.SequenceEqual(["p. 2 — 5.1 O afastamento entre edificações fictícias é de 4,00 m."])
+                && grupos[1].Lei == TituloLei && grupos[1].Linhas.Select(l => l[..5]).SequenceEqual(["p. 1 ", "p. 2 ", "p. 3 "]);
+            var p3 = j.ResultadosDaPesquisa.Single(x => x.AnexoId == IdDe(TituloLei) && x.Pagina == 3);
+            var abriu = await j.AbrirResultadoAsync(p3, "afastamento");
+            await EsperarPagina(3);
+            p["depois_de_clicar"] = new JsonObject { ["rodape"] = j.RodapeLegislacao, ["contador"] = j.TextoResultadoPesquisa, ["dica"] = j.DicaDaPesquisa };
+            var clicarOk = abriu && j.LeiAbertaNoLeitor?.Titulo == TituloLei && j.RodapeLegislacao.StartsWith("Página 3 de 4", StringComparison.Ordinal)
+                && !j.EscopoTodasAsLeis && j.DicaDaPesquisa == "Pesquisar nesta lei" && j.TextoResultadoPesquisa == "3 de 3";
+            await j.DigitarPesquisaAsync(""); // Esc / caixa vazia: volta à aba Leis
+            var voltouOk = j.AbaDoPainelLegislacao == "Leis";
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoEscopoTodas);
+            await j.DigitarPesquisaAsync("a");
+            p["termo_curto"] = j.CabecalhoResultados;
+            var curtoOk = j.CabecalhoResultados == "Digite ao menos 2 caracteres." && j.ResultadosMostrados.Count == 0;
+            await j.DigitarPesquisaAsync("");
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoEscopoLei);
+            p["ok"] = dica == "Pesquisar em todas as leis" && listaOk && clicarOk && voltouOk && curtoOk;
+        });
+
+        await Passo("63_legislacao_copiar_e_citar", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Legislacao);
+            await j.AbrirLeiAsync(IdDe(TituloLei), 2);
+            await JsLeitor("document.getSelection().removeAllRanges(), true");
+            await EsperarAteAsync(() => Task.FromResult(!j.FaixaAtual.Habilitado(ComandosApp.LegislacaoCopiar)), 3000);
+            var f = j.FaixaAtual;
+            var semSelecaoOk = !f.Habilitado(ComandosApp.LegislacaoCopiar) && !f.Habilitado(ComandosApp.LegislacaoCopiarCitacao)
+                && f.Dica(ComandosApp.LegislacaoCopiar) == "Selecione um trecho do texto." && f.Dica(ComandosApp.LegislacaoCopiarCitacao) == "Selecione um trecho do texto.";
+            const string Trecho = "O afastamento frontal mínimo é de 3,00 m.";
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoPaginaInteira);
+            var texto2 = await EsperarTextoDaPagina(2);
+            var selecionou = texto2 && (await SelecionarNoLeitor(2, "O afastamento frontal", 2, "3,00 m.")).GetBoolean();
+            var habilitou = await EsperarAteAsync(() => Task.FromResult(f.Habilitado(ComandosApp.LegislacaoCopiar) && f.Habilitado(ComandosApp.LegislacaoCopiarCitacao)), 3000);
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoCopiar);
+            var copiou = AreaTransferencia.Copiados.LastOrDefault();
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoCopiarCitacao);
+            var citou = AreaTransferencia.Copiados.LastOrDefault();
+            var antes = AreaTransferencia.Copiados.Count;
+            await TeclaLeitor("C", "KeyC", 67, 2 | 8); // Ctrl+Shift+C dentro do PDF
+            await EsperarAteAsync(() => Task.FromResult(AreaTransferencia.Copiados.Count > antes), 3000);
+            var atalho = AreaTransferencia.Copiados.Count > antes ? AreaTransferencia.Copiados[^1] : null;
+            // A seleção mudou com a tecla? Não: Ctrl+Shift+C não mexe na seleção. Agora, da página 2 à 3.
+            var texto3 = await EsperarTextoDaPagina(3);
+            var duas = texto3 && (await SelecionarNoLeitor(2, "Art. 3º", 3, "ANEXO I")).GetBoolean();
+            // A troca de seleção passa por "sem seleção" (removeAllRanges): espera a faixa voltar a habilitar antes de citar.
+            await Esperar(300);
+            await EsperarAteAsync(() => Task.FromResult(f.Habilitado(ComandosApp.LegislacaoCopiarCitacao)), 3000);
+            p["selecao_duas_paginas"] = duas;
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoCopiarCitacao);
+            var citouDuas = AreaTransferencia.Copiados.LastOrDefault();
+            await JsLeitor("document.getSelection().removeAllRanges(), true");
+            p["copiados"] = new JsonArray(new[] { copiou, citou, atalho, citouDuas }.Select(c => (JsonNode?)c).ToArray());
+            const string Citacao = "“O afastamento frontal mínimo é de 3,00 m.” (Lei nº 9.999/2099 (fictícia), página 2)";
+            p["ok"] = semSelecaoOk && selecionou && habilitou && copiou == Trecho && citou == Citacao && atalho == Citacao
+                && duas && citouDuas is not null && citouDuas.EndsWith("páginas 2–3)", StringComparison.Ordinal) && citouDuas.StartsWith("“Art. 3º", StringComparison.Ordinal);
+        });
+
+        await Passo("48_legislacao_seguranca", async p =>
+        {
+            var script = Leg(@"OUTRAS\COM-SCRIPT - FICTICIA.pdf");
+            perguntas.ListasParaAbrir.Enqueue([script]);
+            var resumo = await j.AnexarLegislacaoAsync();
+            p["resumo"] = resumo;
+            await j.MudarModuloAsync(Modulo.Legislacao);
+            var id = IdDe("COM-SCRIPT - FICTICIA");
+            var bloqueadasAntes = j.RequisicoesBloqueadasLegislacao;
+            var cspAntes = j.ViolacoesCspLegislacao;
+            var abriu = await j.AbrirLeiAsync(id);
+            await Esperar(1000); // o OpenAction do PDF teria rodado aqui
+            var semNada = j.RequisicoesBloqueadasLegislacao == bloqueadasAntes && j.ViolacoesCspLegislacao == cspAntes;
+            // Clique por CDP no link /URI: nada navega, nenhuma janela nova, nada é aberto fora do app.
+            var aberturas = AberturaExterna.Registradas.Count;
+            var desenhou = await EsperarAteAsync(async () => (await JsLeitor("document.querySelectorAll('.annotationLayer a').length")).GetInt32() > 0, 10000);
+            var ponto = await JsLeitor("(() => { const a = document.querySelector('.annotationLayer a'); a.scrollIntoView({block:'center'}); const r = a.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");
+            double x = ponto.GetProperty("x").GetDouble(), y = ponto.GetProperty("y").GetDouble();
+            await j.LeitorPdf!.CdpAsync("Input.dispatchMouseEvent", new { type = "mousePressed", x, y, button = "left", buttons = 1, clickCount = 1 });
+            await j.LeitorPdf!.CdpAsync("Input.dispatchMouseEvent", new { type = "mouseReleased", x, y, button = "left", buttons = 0, clickCount = 1 });
+            await Esperar(1000);
+            var linkOk = desenhou && j.LeitorPdf.Core.Source == LeitorPdfJs.Pagina && AberturaExterna.Registradas.Count == aberturas
+                && j.RequisicoesBloqueadasLegislacao == bloqueadasAntes;
+            // Navegação de nível superior para outra URL do host: cancelada (1 bloqueio), o leitor continua.
+            await JsLeitor("location.href = 'https://leg.pmvni.invalid/pdfjs/build/pdf.min.mjs', true");
+            await EsperarAteAsync(() => Task.FromResult(j.RequisicoesBloqueadasLegislacao > bloqueadasAntes), 3000);
+            var navegacaoOk = j.RequisicoesBloqueadasLegislacao == bloqueadasAntes + 1 && (await JsLeitor("location.href")).GetString() == LeitorPdfJs.Pagina
+                && j.LeitorPdf.Core.Source == LeitorPdfJs.Pagina && (await j.ProcurarNaLeiAsync("script", 0)) == "1 de 1";
+            await j.ProcurarNaLeiAsync("", 0);
+            var catalogo = (await JsLeitor("fetch('https://leg.pmvni.invalid/catalogo.json').then(r => r.status)")).GetInt32();
+            // Excluir o anexo com o leitor aberto: o leitor fecha (aba Leis, nada aberto) e a URL do PDF dele passa a 403.
+            var urlPdf = j.LeitorPdf.UrlAberta;
+            perguntas.RespostaPorTitulo["Excluir “COM-SCRIPT - FICTICIA”?"] = true;
+            var excluiu = await j.ExcluirAnexoAsync(id);
+            perguntas.RespostaPorTitulo.Remove("Excluir “COM-SCRIPT - FICTICIA”?");
+            var fechou = await EsperarAteAsync(() => Task.FromResult(j.LeiAbertaNoLeitor is null && j.LeitorPdf.UrlAberta is null), 5000);
+            var pdf = urlPdf is null ? 0 : (await JsLeitor($"fetch({JsonSerializer.Serialize(urlPdf)}).then(r => r.status)")).GetInt32();
+            p["seguranca"] = new JsonObject
+            {
+                ["abriu"] = abriu, ["script_nao_rodou"] = semNada, ["link"] = linkOk, ["navegacao"] = navegacaoOk, ["catalogo"] = catalogo,
+                ["excluiu"] = excluiu, ["fechou"] = fechou, ["aba"] = j.AbaDoPainelLegislacao, ["pdf_depois"] = pdf,
+                ["bloqueadas"] = j.RequisicoesBloqueadasLegislacao, ["csp"] = j.ViolacoesCspLegislacao,
+            };
+            p["ok"] = resumo == "1 PDF anexado." && abriu && semNada && linkOk && navegacaoOk && catalogo == 403 && excluiu && fechou
+                && j.AbaDoPainelLegislacao == "Leis" && pdf == 403 && j.ViolacoesCspLegislacao == 0 && j.LinhasLegislacaoAjustes.Count == 4
+                && OriginaisLegIntactos(p);
         });
 
         await j.FecharSessaoAsync();

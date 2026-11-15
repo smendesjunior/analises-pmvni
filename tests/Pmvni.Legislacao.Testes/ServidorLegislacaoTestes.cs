@@ -170,7 +170,8 @@ public sealed class ServidorLegislacaoTestes : IDisposable
     [InlineData("https://leg.pmvni.invalid/pdf/")]
     [InlineData("https://leg.pmvni.invalid/catalogo.json")]
     [InlineData("https://leg.pmvni.invalid/")]
-    [InlineData("https://leg.pmvni.invalid/leitor.html")]
+    [InlineData("https://leg.pmvni.invalid/leitor.html/x")]
+    [InlineData("https://leg.pmvni.invalid/leitor.mjs")]
     [InlineData("https://exemplo.invalid/x.pdf")]
     [InlineData("not a uri")]
     public void recusa_o_resto(string uri)

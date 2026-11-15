@@ -8,8 +8,8 @@ namespace Pmvni.Legislacao;
 public sealed record RespostaLeg(int Status, string Razao, string TipoConteudo, Func<Stream>? AbrirCorpo, long? Tamanho,
     IReadOnlyList<KeyValuePair<string, string>> Cabecalhos);
 
-/// <summary>O host virtual <c>leg.pmvni.invalid</c>, <b>sem pasta mapeada</b>: responde só, e da memória, a página do extrator, o
-/// seu script, os arquivos do PDF.js listados no <c>VERSAO.json</c> e os PDFs que o próprio app registrou (token sorteado; o
+/// <summary>O host virtual <c>leg.pmvni.invalid</c>, <b>sem pasta mapeada</b>: responde só, e da memória, as páginas do extrator e do
+/// leitor (com os seus scripts e a folha de estilo do leitor), os arquivos do PDF.js listados no <c>VERSAO.json</c> e os PDFs que o próprio app registrou (token sorteado; o
 /// caminho do disco nunca vai para a página). Qualquer outra requisição (outro host, <c>http:</c>, query, <c>..</c>, token
 /// desconhecido, método diferente de GET) devolve null, e o app responde 403 (desenho §11.4).</summary>
 public sealed partial class ServidorLegislacao
@@ -21,6 +21,14 @@ public sealed partial class ServidorLegislacao
         "default-src 'none'; script-src https://leg.pmvni.invalid/pdfjs/build/pdf.min.mjs https://leg.pmvni.invalid/extrator.js 'wasm-unsafe-eval'; "
         + "worker-src https://leg.pmvni.invalid/pdfjs/build/pdf.worker.min.mjs; connect-src https://leg.pmvni.invalid; "
         + "img-src https://leg.pmvni.invalid data: blob:; font-src https://leg.pmvni.invalid data: blob:; "
+        + "style-src https://leg.pmvni.invalid 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'";
+
+    /// <summary>CSP da página do leitor (desenho §11.4, exatamente; meta na página e cabeçalho da resposta): só o PDF.js, o
+    /// componente de visualização dele e o leitor rodam.</summary>
+    public static string CspLeitor { get; } =
+        "default-src 'none'; script-src https://leg.pmvni.invalid/pdfjs/build/pdf.min.mjs https://leg.pmvni.invalid/pdfjs/web/pdf_viewer.mjs "
+        + "https://leg.pmvni.invalid/leitor.js 'wasm-unsafe-eval'; worker-src https://leg.pmvni.invalid/pdfjs/build/pdf.worker.min.mjs; "
+        + "connect-src https://leg.pmvni.invalid; img-src https://leg.pmvni.invalid data: blob:; font-src https://leg.pmvni.invalid data: blob:; "
         + "style-src https://leg.pmvni.invalid 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'";
 
     /// <summary>CSP do worker do PDF.js (cabeçalho da resposta do <c>pdf.worker.min.mjs</c>).</summary>
@@ -71,6 +79,12 @@ public sealed partial class ServidorLegislacao
                 return Recurso("extrator.html", "text/html; charset=utf-8", CspExtrator);
             case "/extrator.js":
                 return Recurso("extrator.js", TipoJs, null);
+            case "/leitor.html":
+                return Recurso("leitor.html", "text/html; charset=utf-8", CspLeitor);
+            case "/leitor.js":
+                return Recurso("leitor.js", TipoJs, null);
+            case "/leitor.css":
+                return Recurso("leitor.css", "text/css; charset=utf-8", null);
         }
         if (caminho.StartsWith("/pdfjs/", StringComparison.Ordinal))
         {

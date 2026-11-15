@@ -19,12 +19,21 @@ public sealed class MensagensLegislacaoTestes
         }
         var host = Lista(ts, "TIPOS_HOST");
         var web = Lista(ts, "TIPOS_WEB");
-        Assert.Equal(host.Count, host.Distinct().Count());
-        Assert.Equal(web.Count, web.Distinct().Count());
-        Assert.Equal(MensagensLegislacao.TiposHostParaWeb.Order(StringComparer.Ordinal), host.Order(StringComparer.Ordinal));
-        Assert.Equal(MensagensLegislacao.TiposWebParaHost.Order(StringComparer.Ordinal), web.Order(StringComparer.Ordinal));
+        var hostLeitor = Lista(ts, "TIPOS_HOST_LEITOR");
+        var webLeitor = Lista(ts, "TIPOS_WEB_LEITOR");
+        foreach (var l in new[] { host, web, hostLeitor, webLeitor }) Assert.Equal(l.Count, l.Distinct().Count());
+        // Extrator e leitor, cada um com os seus; o host aceita a união (cada página só manda os seus).
+        Assert.Equal(MensagensLegislacao.TiposHostExtrator.Order(StringComparer.Ordinal), host.Order(StringComparer.Ordinal));
+        Assert.Equal(MensagensLegislacao.TiposWebExtrator.Order(StringComparer.Ordinal), web.Order(StringComparer.Ordinal));
+        Assert.Equal(MensagensLegislacao.TiposHostLeitor.Order(StringComparer.Ordinal), hostLeitor.Order(StringComparer.Ordinal));
+        Assert.Equal(MensagensLegislacao.TiposWebLeitor.Order(StringComparer.Ordinal), webLeitor.Order(StringComparer.Ordinal));
+        Assert.Equal(MensagensLegislacao.TiposHostParaWeb.Order(StringComparer.Ordinal), host.Union(hostLeitor).Order(StringComparer.Ordinal));
+        Assert.Equal(MensagensLegislacao.TiposWebParaHost.Order(StringComparer.Ordinal), web.Union(webLeitor).Order(StringComparer.Ordinal));
         Assert.Equal(["cancelar", "extrair"], host.Order(StringComparer.Ordinal));
-        Assert.Empty(host.Intersect(web)); // nenhum tipo vale nos dois sentidos
+        Assert.Equal(["abrir", "fechar", "irMarcador", "irPagina", "obterSelecao", "procurar", "zoom"], hostLeitor.Order(StringComparer.Ordinal));
+        Assert.Equal(["aberto", "atalho", "cspViolacao", "erro", "fechado", "paginaAtual", "paginaMudou", "procurado", "pronto", "selecao",
+            "selecaoMudou", "zoomAplicado", "zoomMudou"], webLeitor.Order(StringComparer.Ordinal));
+        Assert.Empty(host.Union(hostLeitor).Intersect(web.Union(webLeitor))); // nenhum tipo vale nos dois sentidos
     }
 
     [Fact]

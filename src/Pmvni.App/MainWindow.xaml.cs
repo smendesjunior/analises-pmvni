@@ -103,6 +103,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         IniciarPesquisa();
         IniciarAjustes();
         IniciarLegislacaoAjustes();
+        IniciarLegislacao();
         IniciarPastas();
         IniciarNovoDespacho();
         IniciarAgentes();
@@ -126,7 +127,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             relogioAnalise.Stop();
             cancelarAnexo?.Cancel(); // a anexação em andamento para (o arquivo em processamento não entra)
             cancelarReindexacao.Cancel();
-            // O extrator da legislação (controller oculto sobre esta janela) sai antes da janela.
+            // O leitor e o extrator da legislação (controller oculto sobre esta janela) saem antes da janela.
+            try { _ = leitorPdf?.DisposeAsync().AsTask(); } catch { }
             try { _ = legislacao.DisposeAsync().AsTask(); } catch { }
             try { documento?.Dispose(); } catch { }
             try { hostComposicao?.Dispose(); } catch { }
@@ -209,6 +211,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 "{\"features\":[{\"name\":\"prefers-color-scheme\",\"value\":\"" + (escuro ? "dark" : "light") + "\"}]}");
         }
         catch (Exception e) { System.Diagnostics.Debug.WriteLine("[tema] " + e.Message); }
+        AplicarTemaLeitor();
     }
 
     internal void DefinirTema(ElementTheme tema) => Raiz.RequestedTheme = tema;
@@ -256,6 +259,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         AtualizarPaginasDeRelatorios();
         AtualizarPaginasDeDespachos();
         PaginaDeProcessos.Visibility = m == Modulo.Processos ? Visibility.Visible : Visibility.Collapsed;
+        PaginaDeLegislacao.Visibility = m == Modulo.Legislacao ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeAjustes.Visibility = m == Modulo.Ajustes ? Visibility.Visible : Visibility.Collapsed;
         if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes(); AtualizarPaginaDePastas(); AtualizarAgentes(); _ = EntrarNaLegislacaoDosAjustesAsync(); }
         var f = Faixas.Para(m);
@@ -267,6 +271,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         EntrarNoModuloDePastas(m);
         SincronizarPastas();
         AtualizarComandos();
+        if (m == Modulo.Legislacao) _ = EntrarNaLegislacaoAsync();
         if (ajustes.Modulo != m) { ajustes.Modulo = m; SalvarAjustes(); }
     }
 
@@ -298,6 +303,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // Com a página Novo relatório à frente, as folhas estão escondidas: os comandos delas não valem.
         if (novoRelatorioAberto && ComandosApp.SoDoRelatorio(id)) return;
         if (id.StartsWith("processos.", StringComparison.Ordinal) && moduloAtual != Modulo.Processos) return;
+        // Os comandos do leitor só valem com a Legislação à vista.
+        if (id.StartsWith("legislacao.", StringComparison.Ordinal) && moduloAtual != Modulo.Legislacao) return;
         if (id.StartsWith("despachos.", StringComparison.Ordinal) && moduloAtual != Modulo.Despachos && !ComandosApp.ValeForaDeDespachos(id)) return;
         if (!Faixa.Habilitado(id)) { AvisarIndisponivel(id); return; }
         await TentarAsync(acao);
@@ -315,14 +322,15 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     void RegistrarAtalhos()
     {
         Raiz.KeyboardAccelerators.Clear();
-        foreach (var (atalho, id) in Atalhos.Mapa)
+        foreach (var atalho in Atalhos.Mapa.Keys.Union(Atalhos.MapaLegislacao.Keys, StringComparer.Ordinal))
         {
             foreach (var (mods, tecla) in Teclas(atalho))
             {
                 var k = new KeyboardAccelerator { Modifiers = mods, Key = tecla };
                 k.Invoked += async (_, a) =>
                 {
-                    if (TeclaDoControleComFoco(id)) { a.Handled = false; return; }
+                    // A mesma tecla vale o comando do módulo à vista (Ctrl+0: largura das folhas ou da lei; Ctrl+C só no leitor).
+                    if (Atalhos.Comando(atalho, moduloAtual) is not { } id || TeclaDoControleComFoco(id)) { a.Handled = false; return; }
                     a.Handled = true;
                     await ExecutarComandoAsync(id);
                 };
@@ -375,6 +383,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         AtualizarComandosPastas(pronto);
         AtualizarComandosNovoDespacho();
         AtualizarComandosNovoRelatorio();
+        AtualizarComandosLegislacao();
         R.BotaoMenos.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMenos);
         R.BotaoMais.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMais);
         R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = temRelatorio;
@@ -868,7 +877,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         var lista = new StackPanel { Spacing = 6 };
         // Só os atalhos que fazem algo (todos, desde a pesquisa da Tarefa 11).
-        foreach (var (atalho, id) in Atalhos.Mapa.Where(a => manipuladores.ContainsKey(a.Value)))
+        foreach (var (atalho, id) in Atalhos.MapaDe(moduloAtual).Where(a => manipuladores.ContainsKey(a.Value)))
         {
             var rotulo = RotuloDoComando(id);
             var linha = new Grid { ColumnSpacing = 24 };
@@ -952,6 +961,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     InfoBar AvisoDoModulo => moduloAtual switch
     {
         Modulo.Processos => PaginaDeProcessos.AvisoMensagem,
+        Modulo.Legislacao => PaginaDeLegislacao.AvisoMensagem,
         Modulo.Despachos => novo is not null ? PaginaDeNovoDespacho.AvisoMensagem : PaginaDeDespachos.AvisoMensagem,
         Modulo.Relatorios when novoRelatorioAberto => PaginaDeNovoRelatorio.AvisoMensagem,
         _ => R.AvisoMensagem,

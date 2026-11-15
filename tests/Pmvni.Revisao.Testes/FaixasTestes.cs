@@ -90,7 +90,7 @@ public class FaixasTestes
     public void ajustes_no_trilho_e_comandos_de_pesquisa_tema_recentes_e_comparar()
     {
         // Ajustes é módulo do trilho (embaixo) e tem faixa própria: Arquivo (com Recentes) e Ajuda.
-        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Ajustes }, Faixas.Disponiveis);
+        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Ajustes }, Faixas.Disponiveis);
         Assert.True(Modulos.Embaixo(Modulo.Ajustes));
         Assert.Equal(new[] { ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes },
             Faixas.Para(Modulo.Ajustes).Abas[0].Comandos.Select(c => c.Id));
@@ -129,9 +129,8 @@ public class FaixasTestes
     [Fact]
     public void trilho_na_ordem_do_desenho()
     {
-        // Relatórios, Despachos, Processos e, embaixo, Ajustes. Legislação só entra no trilho quando a sua página existir (Tarefa 18).
-        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Ajustes }, Faixas.Disponiveis);
-        Assert.DoesNotContain(Modulo.Legislacao, Faixas.Disponiveis);
+        // Relatórios, Despachos, Processos, Legislação (Tarefa 18; desenho §11.4) e, embaixo, Ajustes.
+        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Ajustes }, Faixas.Disponiveis);
         Assert.Equal(new[] { Modulo.Ajustes }, Faixas.Disponiveis.Where(Modulos.Embaixo));
     }
 
@@ -143,6 +142,7 @@ public class FaixasTestes
         Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, Abas(Modulo.Despachos));
         Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, Abas(Modulo.Processos));
         Assert.Equal(new[] { "Arquivo", "Ajuda" }, Abas(Modulo.Ajustes));
+        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, Abas(Modulo.Legislacao));
 
         // Processos (desenho §9.1).
         var processos = Faixas.Para(Modulo.Processos);
@@ -290,5 +290,39 @@ public class FaixasTestes
     {
         foreach (var m in Enum.GetValues<Modulo>().Except(ComFaixa()))
             Assert.Throws<ArgumentOutOfRangeException>(() => Faixas.Para(m));
+    }
+
+    [Fact]
+    public void faixa_da_legislacao()
+    {
+        var f = Faixas.Para(Modulo.Legislacao);
+        Assert.Equal(Modulo.Legislacao, f.Modulo);
+        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, f.Abas.Select(a => a.Nome));
+        Assert.Equal(1, f.AbaPadrao);
+        static (string, string, TipoComando)[] Linhas(AbaFaixa a) => a.Comandos.Select(c => (c.Id, c.Rotulo, c.Tipo)).ToArray();
+
+        Assert.Equal(new[]
+        {
+            ("legislacao.anexar", "Anexar PDFs…", TipoComando.Botao), ("legislacao.gerenciar", "Gerenciar anexos", TipoComando.Botao),
+            ("arquivo.importar", "Importar dados.json", TipoComando.Botao), ("arquivo.abrir", "Abrir", TipoComando.Botao), ("arquivo.recentes", "Recentes", TipoComando.Menu),
+        }, Linhas(f.Abas[0]));
+        Assert.Equal(new[]
+        {
+            ("legislacao.copiar", "Copiar", TipoComando.Botao), ("legislacao.copiarCitacao", "Copiar citação", TipoComando.Botao),
+            ("legislacao.paginaAnterior", "◂ Página", TipoComando.Botao), ("legislacao.paginaProxima", "Página ▸", TipoComando.Botao),
+            ("legislacao.escopo", "Pesquisar em", TipoComando.Menu),
+            ("legislacao.ocorrenciaAnterior", "◂ Ocorrência", TipoComando.Botao), ("legislacao.ocorrenciaProxima", "Ocorrência ▸", TipoComando.Botao),
+        }, Linhas(f.Abas[1]));
+        var escopo = f.Abas[1].Comandos.Single(c => c.Id == "legislacao.escopo");
+        Assert.Equal(new[] { ("legislacao.escopo.lei", "Nesta lei"), ("legislacao.escopo.todas", "Em todas as leis") }, escopo.Itens!.Select(i => (i.Id, i.Rotulo)));
+        Assert.Equal(new[]
+        {
+            ("legislacao.zoomMenos", "Diminuir", TipoComando.Botao), ("legislacao.zoomMais", "Aumentar", TipoComando.Botao),
+            ("legislacao.ajustarLargura", "Ajustar largura", TipoComando.Botao), ("legislacao.paginaInteira", "Página inteira", TipoComando.Botao),
+            ("legislacao.marcadores", "Marcadores", TipoComando.Alternar), ("legislacao.lista", "Lista de leis", TipoComando.Alternar),
+        }, Linhas(f.Abas[2]));
+        Assert.Equal(new[] { ComandosApp.AjudaAtalhos, ComandosApp.AjudaSobre }, f.Abas[3].Comandos.Select(c => c.Id));
+        // Os comandos do leitor não são do relatório: valem com a Legislação à vista, sem mexer num relatório escondido.
+        Assert.All(Faixas.Comandos(f).Where(c => c.Id.StartsWith("legislacao.", StringComparison.Ordinal)), c => Assert.False(ComandosApp.SoDoRelatorio(c.Id)));
     }
 }

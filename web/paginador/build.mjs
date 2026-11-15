@@ -2,6 +2,7 @@
 // 2) Legislacao (Etapa 2, Tarefa 17): empacota src/legislacao/extrator.ts (ESM, sem empacotar o pdf.js: o codigo usa
 //    globalThis.pdfjsLib) em src/Pmvni.Legislacao/web/extrator.js e vendoriza os 283 arquivos de pdfjs-dist em
 //    src/Pmvni.Legislacao/web/pdfjs/, com o VERSAO.json (versao, licenca e sha256 de cada arquivo).
+// 3) Legislacao (Tarefa 18): empacota src/legislacao/leitor.ts (ESM) em src/Pmvni.Legislacao/web/leitor.js.
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
@@ -30,6 +31,19 @@ const raizLegislacao = path.resolve(aqui, '../../src/Pmvni.Legislacao/web');
 await build({
   entryPoints: [path.join(aqui, 'src/legislacao/extrator.ts')],
   outfile: path.join(raizLegislacao, 'extrator.js'),
+  bundle: true,
+  format: 'esm',
+  target: 'chrome120',
+  legalComments: 'none',
+  charset: 'utf8',
+  logLevel: 'info',
+});
+
+// ---- Legislacao: leitor (Tarefa 18) ----
+// ESM, sem empacotar o pdf.js nem o pdf_viewer: o codigo usa globalThis.pdfjsLib e globalThis.pdfjsViewer.
+await build({
+  entryPoints: [path.join(aqui, 'src/legislacao/leitor.ts')],
+  outfile: path.join(raizLegislacao, 'leitor.js'),
   bundle: true,
   format: 'esm',
   target: 'chrome120',

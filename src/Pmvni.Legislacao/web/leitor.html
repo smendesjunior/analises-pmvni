@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://leg.pmvni.invalid/pdfjs/build/pdf.min.mjs https://leg.pmvni.invalid/pdfjs/web/pdf_viewer.mjs https://leg.pmvni.invalid/leitor.js 'wasm-unsafe-eval'; worker-src https://leg.pmvni.invalid/pdfjs/build/pdf.worker.min.mjs; connect-src https://leg.pmvni.invalid; img-src https://leg.pmvni.invalid data: blob:; font-src https://leg.pmvni.invalid data: blob:; style-src https://leg.pmvni.invalid 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="pdfjs/web/pdf_viewer.css">
+<link rel="stylesheet" href="leitor.css">
+<title>Leitor de legislação</title>
+</head>
+<body>
+<!-- Leitor dos PDFs anexados: o PDF.js desenha as páginas em rolagem contínua, com a camada de texto selecionável. A ordem importa:
+     pdf.min.mjs deixa globalThis.pdfjsLib, que o pdf_viewer.mjs usa e que deixa globalThis.pdfjsViewer, que o leitor.js usa. -->
+<div id="container" tabindex="0"><div id="viewer" class="pdfViewer"></div></div>
+<script type="module" src="pdfjs/build/pdf.min.mjs"></script>
+<script type="module" src="pdfjs/web/pdf_viewer.mjs"></script>
+<script type="module" src="leitor.js"></script>
+</body>
+</html>

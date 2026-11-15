@@ -25,7 +25,7 @@ public static class Faixas
     public static IReadOnlyList<string> OrdemSituacoes { get; } = ["ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA"];
 
     /// <summary>Módulos que já funcionam, na ordem do trilho (Ajustes, se presente, embaixo).</summary>
-    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Ajustes];
+    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Ajustes];
 
     /// <summary>Menu de recentes: <see cref="ComandoFaixa.Itens"/> vazio de propósito; a faixa pede os itens a quem a monta
     /// (<see cref="FaixaDeOpcoes.ItensDinamicos"/>) cada vez que o menu abre, porque eles vêm dos ajustes e dos arquivos que ainda existem.</summary>
@@ -174,6 +174,44 @@ public static class Faixas
         Ajuda,
     ], AbaPadrao: 1);
 
+    /// <summary>Legislação (desenho §11.5): o leitor dos PDFs anexados. Comandos que dependem de uma lei aberta, de seleção ou de
+    /// marcadores ficam desabilitados sem eles (<see cref="ComandosLegislacao.Habilitados"/>).</summary>
+    static readonly DefinicaoFaixa Legislacao = new(Modulo.Legislacao,
+    [
+        new("Arquivo",
+        [
+            new(ComandosApp.LegislacaoAnexar, "Anexar PDFs…", "\uE723"),
+            new(ComandosApp.LegislacaoGerenciar, "Gerenciar anexos", "\uE713"),
+            new(ComandosApp.ArquivoImportar, "Importar dados.json", "\uE8B5"),
+            new(ComandosApp.ArquivoAbrir, "Abrir", "\uE8E5"),
+            RecentesMenu,
+        ]),
+        new("Página Inicial",
+        [
+            new(ComandosApp.LegislacaoCopiar, "Copiar", "\uE8C8"),
+            new(ComandosApp.LegislacaoCopiarCitacao, "Copiar citação", "\uE9B2"),
+            new(ComandosApp.LegislacaoPaginaAnterior, "◂ Página", "\uE70E"),
+            new(ComandosApp.LegislacaoPaginaProxima, "Página ▸", "\uE70D"),
+            new(ComandosApp.LegislacaoEscopo, "Pesquisar em", "\uE721", TipoComando.Menu,
+            [
+                new(ComandosApp.LegislacaoEscopoLei, "Nesta lei", ""),
+                new(ComandosApp.LegislacaoEscopoTodas, "Em todas as leis", ""),
+            ]),
+            new(ComandosApp.LegislacaoOcorrenciaAnterior, "◂ Ocorrência", "\uE74A"),
+            new(ComandosApp.LegislacaoOcorrenciaProxima, "Ocorrência ▸", "\uE74B"),
+        ]),
+        new("Exibir",
+        [
+            new(ComandosApp.LegislacaoZoomMenos, "Diminuir", "\uE71F"),
+            new(ComandosApp.LegislacaoZoomMais, "Aumentar", "\uE8A3"),
+            new(ComandosApp.LegislacaoAjustarLargura, "Ajustar largura", "\uE9A6"),
+            new(ComandosApp.LegislacaoPaginaInteira, "Página inteira", "\uE740"),
+            new(ComandosApp.LegislacaoMarcadores, "Marcadores", "\uE8A4", TipoComando.Alternar),
+            new(ComandosApp.LegislacaoLista, "Lista de leis", "\uE8FD", TipoComando.Alternar),
+        ]),
+        Ajuda,
+    ], AbaPadrao: 1);
+
     static readonly DefinicaoFaixa Ajustes = new(Modulo.Ajustes,
     [
         new("Arquivo",
@@ -191,6 +229,7 @@ public static class Faixas
         Modulo.Relatorios => Relatorios,
         Modulo.Despachos => Despachos,
         Modulo.Processos => Processos,
+        Modulo.Legislacao => Legislacao,
         Modulo.Ajustes => Ajustes,
         _ => throw new ArgumentOutOfRangeException(nameof(m), m, "Módulo ainda sem faixa de opções."),
     };

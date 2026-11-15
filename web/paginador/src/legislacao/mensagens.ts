@@ -5,11 +5,24 @@
 // web -> host: pronto {versao, pdfjs}; respostas de `extrair` (mesmo id): extraido {paginas} ou erro {codigo, mensagem} com
 // codigo "senha" | "invalido" | "falhou"; eventos (id evento-N, todos com `extracao` = id do `extrair` a que pertencem):
 // progresso {pagina, total}, textoPagina {pagina, texto}; e cspViolacao {diretiva, uri} (sem `extracao`).
+//
+// Leitor (Tarefa 18; pagina leitor.html, tipos proprios em TIPOS_HOST_LEITOR / TIPOS_WEB_LEITOR):
+// host -> web: abrir {url, pagina, termo} -> aberto {paginas, marcadores, escala, procurado?} ou erro {codigo}; fechar {} -> fechado {};
+// irPagina {pagina} e irMarcador {caminho} -> paginaAtual {atual, total}; zoom {acao} -> zoomAplicado {escala};
+// procurar {termo, passo} -> procurado {total, atual, pagina}; obterSelecao {} -> selecao {texto, paginaInicial, paginaFinal}.
+// web -> host (eventos, id evento-N): pronto, paginaMudou {atual, total}, selecaoMudou {temSelecao}, zoomMudou {escala},
+// atalho {tecla} e cspViolacao {diretiva, uri}.
 
 export const VERSAO = 1 as const;
 
 export const TIPOS_HOST = ['extrair', 'cancelar'] as const;
 export const TIPOS_WEB = ['pronto', 'progresso', 'textoPagina', 'cspViolacao', 'extraido', 'erro'] as const;
+
+export const TIPOS_HOST_LEITOR = ['abrir', 'fechar', 'irPagina', 'irMarcador', 'zoom', 'procurar', 'obterSelecao'] as const;
+export const TIPOS_WEB_LEITOR = [
+  'pronto', 'paginaMudou', 'selecaoMudou', 'zoomMudou', 'atalho', 'cspViolacao',
+  'aberto', 'erro', 'fechado', 'paginaAtual', 'zoomAplicado', 'procurado', 'selecao',
+] as const;
 
 export type TipoHost = (typeof TIPOS_HOST)[number];
 export type TipoWeb = (typeof TIPOS_WEB)[number];
@@ -25,6 +38,10 @@ export interface Envelope<T extends string> {
 
 export type MensagemHost = Envelope<TipoHost>;
 export type MensagemWeb = Envelope<TipoWeb>;
+export type TipoHostLeitor = (typeof TIPOS_HOST_LEITOR)[number];
+export type TipoWebLeitor = (typeof TIPOS_WEB_LEITOR)[number];
+export type MensagemHostLeitor = Envelope<TipoHostLeitor>;
+export type MensagemWebLeitor = Envelope<TipoWebLeitor>;
 
 export type Leitura<T> = { ok: true; msg: T } | { ok: false; motivo: string; id: string | null };
 
@@ -49,3 +66,7 @@ function ler<T extends string>(bruto: unknown, tipos: readonly T[]): Leitura<Env
 export const lerMensagemHost = (bruto: unknown): Leitura<MensagemHost> => ler(bruto, TIPOS_HOST);
 /** Valida uma mensagem que a web vai enviar ao host (garantia do lado de ca). */
 export const lerMensagemWeb = (bruto: unknown): Leitura<MensagemWeb> => ler(bruto, TIPOS_WEB);
+/** Leitor: valida uma mensagem recebida do host. */
+export const lerMensagemHostLeitor = (bruto: unknown): Leitura<MensagemHostLeitor> => ler(bruto, TIPOS_HOST_LEITOR);
+/** Leitor: valida uma mensagem que a web vai enviar ao host. */
+export const lerMensagemWebLeitor = (bruto: unknown): Leitura<MensagemWebLeitor> => ler(bruto, TIPOS_WEB_LEITOR);

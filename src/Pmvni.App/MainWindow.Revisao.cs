@@ -659,7 +659,8 @@ public sealed partial class MainWindow
     {
         var foco = Raiz.XamlRoot is null ? null : FocusManager.GetFocusedElement(Raiz.XamlRoot);
         if (foco is TextBox or PasswordBox or RichEditBox or AutoSuggestBox)
-            return id is ComandosApp.InicioExcluirRestaurar or ComandosApp.EditarDesfazer or ComandosApp.EditarRefazer;
+            return id is ComandosApp.InicioExcluirRestaurar or ComandosApp.EditarDesfazer or ComandosApp.EditarRefazer
+                or ComandosApp.LegislacaoCopiar or ComandosApp.LegislacaoCopiarCitacao;
         if (foco is ComboBox) return id is ComandosApp.InicioItemAnterior or ComandosApp.InicioItemProximo;
         return false;
     }

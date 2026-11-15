@@ -72,6 +72,7 @@
         <local:PaginaDespachos x:Name="PaginaDeDespachos" Visibility="Collapsed"/>
         <local:PaginaNovoDespacho x:Name="PaginaDeNovoDespacho" Visibility="Collapsed"/>
         <local:PaginaProcessos x:Name="PaginaDeProcessos" Visibility="Collapsed"/>
+        <local:PaginaLegislacao x:Name="PaginaDeLegislacao" Visibility="Collapsed"/>
         <local:PaginaAjustes x:Name="PaginaDeAjustes" Visibility="Collapsed"/>
       </Grid>
     </Grid>

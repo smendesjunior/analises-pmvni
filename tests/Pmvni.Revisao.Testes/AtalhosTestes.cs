@@ -55,4 +55,39 @@ public class AtalhosTestes
         Assert.Equal("Página Inicial", f.Abas[f.AbaPadrao].Nome);
         Assert.Equal("Página Inicial", f.Abas[Faixas.IndiceDaAba(f, "aba que não existe mais")].Nome);
     }
+
+    /// <summary>As teclas que o leitor da legislação repassa ao host: o <c>Set</c> ATALHOS de <c>web/paginador/src/legislacao/leitor.ts</c>.</summary>
+    private static IReadOnlyList<string> TeclasDoLeitor()
+    {
+        var arquivo = Path.Combine(Path.GetDirectoryName(Ambiente.PastaTestes)!, "web", "paginador", "src", "legislacao", "leitor.ts");
+        var m = Regex.Match(File.ReadAllText(arquivo), @"const ATALHOS[^=]*=\s*new Set\(\[(.*?)\]\)", RegexOptions.Singleline);
+        Assert.True(m.Success, "leitor.ts não tem mais o Set ATALHOS.");
+        return Regex.Matches(m.Groups[1].Value, "'([^']+)'").Select(x => x.Groups[1].Value).ToList();
+    }
+
+    [Fact]
+    public void atalhos_da_legislacao_sao_os_do_leitor()
+    {
+        var leitor = TeclasDoLeitor();
+        Assert.Equal(10, leitor.Count);
+        Assert.Equal(leitor.Order(StringComparer.Ordinal), Atalhos.MapaLegislacao.Keys.Order(StringComparer.Ordinal));
+        var faixa = Faixas.Comandos(Faixas.Para(Modulo.Legislacao)).Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+        Assert.All(Atalhos.MapaLegislacao.Values, id => Assert.True(faixa.Contains(id) || id == ComandosApp.PesquisaFocar, id));
+        Assert.Equal(Atalhos.MapaLegislacao.Count, Atalhos.MapaLegislacao.Values.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal("Ctrl+Shift+C", Atalhos.Tecla(ComandosApp.LegislacaoCopiarCitacao, Modulo.Legislacao));
+        Assert.Equal("F3", Atalhos.Tecla(ComandosApp.LegislacaoOcorrenciaProxima, Modulo.Legislacao));
+    }
+
+    [Fact]
+    public void atalhos_do_relatorio_nao_mudam()
+    {
+        Assert.Equal(16, Atalhos.Mapa.Count);
+        Assert.Equal(ComandosApp.ExibirLargura, Atalhos.Comando("Ctrl+0", Modulo.Relatorios));
+        Assert.Equal(ComandosApp.LegislacaoAjustarLargura, Atalhos.Comando("Ctrl+0", Modulo.Legislacao));
+        Assert.Equal(ComandosApp.InicioItemProximo, Atalhos.Comando("Alt+ArrowDown", Modulo.Relatorios));
+        Assert.Equal(ComandosApp.LegislacaoPaginaProxima, Atalhos.Comando("Alt+ArrowDown", Modulo.Legislacao));
+        Assert.Null(Atalhos.Comando("Ctrl+C", Modulo.Relatorios));
+        Assert.Null(Atalhos.Comando("Delete", Modulo.Legislacao));
+        Assert.Equal(ComandosApp.PesquisaFocar, Atalhos.Comando("Ctrl+F", Modulo.Despachos));
+    }
 }

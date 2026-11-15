@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-11-15T14:14:39Z",
+  "gerado_em": "2026-11-15T15:18:50Z",
   "webview2": "157.0.4341.46",
   "escala_do_monitor": 1.5,
   "janela_px": {
@@ -16,7 +16,7 @@
       "folhas_que_transbordam_na_tela": [],
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "titulo_confere": true,
-      "estado_de_gravacao": "Salvo 11:14",
+      "estado_de_gravacao": "Salvo 12:18",
       "composicao": "Composto: 21 folhas",
       "itens_na_lista": 77,
       "primeiros_itens": [
@@ -32,7 +32,7 @@
       "aviso_largura_confere": true,
       "exportar_habilitado": true,
       "rodape_folha": "folha 1 de 21",
-      "latencia_recomposicao_ms": 841,
+      "latencia_recomposicao_ms": 1233,
       "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
       "folhas_com_conteudo_alem_da_borda": [
         14
@@ -353,6 +353,7 @@
         "Relatorios",
         "Despachos",
         "Processos",
+        "Legislacao",
         "Ajustes"
       ],
       "abas": [
@@ -388,12 +389,12 @@
       "fechado_sem_relatorio": true,
       "plano_igual_ao_da_importacao": true,
       "historico": 1,
-      "estado_de_gravacao": "Salvo 11:14",
+      "estado_de_gravacao": "Salvo 12:18",
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "ok": true
     },
     "12_salvar_duas_vezes_sem_conflito": {
-      "estado_de_gravacao": "Salvo 11:15",
+      "estado_de_gravacao": "Salvo 12:19",
       "disco_confere": true,
       "aviso_de_erro": false,
       "exporta_depois": true,
@@ -457,9 +458,9 @@
       "registros_desfeito": 4,
       "registros_refeito": 4,
       "historico_na_tela": [
-        "11:15 · <usuario> · Refeito: Excluído o ITEM 05",
-        "11:15 · <usuario> · Refeito: Justificativa do ITEM 03 definida",
-        "11:15 · <usuario> · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
+        "12:19 · <usuario> · Refeito: Excluído o ITEM 05",
+        "12:19 · <usuario> · Refeito: Justificativa do ITEM 03 definida",
+        "12:19 · <usuario> · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
       ],
       "linhas_do_historico": "13 na tela, 13 no histórico",
       "item_05_excluido_de_novo": true,
@@ -493,20 +494,20 @@
       "somente_alterados_filtra": true,
       "marcas_alternam": true,
       "propriedades_recolhe": true,
-      "aceleradores_de_teclado": 19,
+      "aceleradores_de_teclado": 23,
       "atalhos_sem_manipulador": [],
       "comandos_sem_manipulador": [],
       "ok": true
     },
     "19_latencia": {
       "medidas_ms": [
-        422,
-        532,
-        528,
-        505,
-        508
+        658,
+        688,
+        753,
+        817,
+        615
       ],
-      "latencia_ms": 508,
+      "latencia_ms": 688,
       "meta_ms": 1500,
       "dentro_da_meta": true,
       "ok": true
@@ -527,7 +528,7 @@
       "estado_depois_do_comando": "Não salvo",
       "diario_tem_o_registro": true,
       "salvo_sozinho_em_s": 15.1,
-      "estado_de_gravacao": "Salvo 11:15",
+      "estado_de_gravacao": "Salvo 12:20",
       "pacote_tem_o_registro": true,
       "linhas_do_diario": 1,
       "diario_so_com_o_cabecalho_do_sha_novo": true,
@@ -543,7 +544,7 @@
       "sem_tmp_deixado": true,
       "diario_tem_o_registro": true,
       "solto_grava": true,
-      "estado_de_gravacao": "Salvo 11:15",
+      "estado_de_gravacao": "Salvo 12:20",
       "pacote_tem_o_registro": true,
       "ok": true
     },
@@ -562,12 +563,12 @@
     "24_trava_e_somente_leitura": {
       "trava_solta_ao_fechar": true,
       "estado_de_gravacao": "Somente leitura",
-      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 11:05: somente leitura.",
+      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 12:10: somente leitura.",
       "excluir_habilitado": false,
       "salvar_habilitado": false,
       "nada_mudou": true,
       "trava_do_outro_intacta": true,
-      "estado_com_trava_abandonada": "Salvo 11:15",
+      "estado_com_trava_abandonada": "Salvo 12:20",
       "excluir_habilitado_editavel": true,
       "trava_retomada_por_este_app": true,
       "trava_perdida_vira_somente_leitura": true,
@@ -584,17 +585,17 @@
       "disco_com_os_bytes_do_outro": true,
       "exportar_recusa": true,
       "erro_ao_exportar": "O arquivo mudou no disco e as alterações desta sessão não estão nele: o PDF não corresponderia ao pacote do recibo. Use Salvar como cópia e exporte depois.",
-      "copia": "curto-auto (cópia 2026-11-15 11-15).pmvrel",
+      "copia": "curto-auto (cópia 2026-11-15 12-20).pmvrel",
       "copia_tem_as_alteracoes": true,
       "original_continua_o_do_outro": true,
-      "estado_depois_da_copia": "Salvo 11:15",
+      "estado_depois_da_copia": "Salvo 12:20",
       "trava_passou_para_a_copia": true,
       "recarregou": true,
       "requerente_depois_de_recarregar": "OUTRO PROGRAMA DE NOVO",
       "orfao_guardado": true,
       "pergunta_ao_fechar_em_conflito": "fechar sem gravar (conflito): o arquivo mudou no disco depois de aberto",
       "texto_ao_fechar_em_conflito": "Não foi possível gravar as alterações no arquivo: o arquivo mudou no disco depois de aberto. Salvar como cópia grava as suas alterações ao lado, sem mexer no arquivo. Se fechar sem salvar, elas ficam guardadas na pasta de recuperação dos dados do app, mas não serão oferecidas de novo ao abrir o arquivo (ele agora é outra versão).",
-      "copia_ao_fechar": "curto-auto (cópia 2026-11-15 11-15) (cópia 2026-11-15 11-15).pmvrel",
+      "copia_ao_fechar": "curto-auto (cópia 2026-11-15 12-20) (cópia 2026-11-15 12-20).pmvrel",
       "fechar_em_conflito_salva_copia": true,
       "ok": true
     },
@@ -604,7 +605,7 @@
       "titulo_pesquisado": "Item de teste 011: fachada porta existente",
       "total_do_titulo": 1,
       "resultado_do_titulo": "1 de 1",
-      "ref_do_titulo": "it_01M7FRYSC3KCTVQH2Z3AY7Z3V0",
+      "ref_do_titulo": "it_01M7FWMAM5TPYE8JXVW1PHP2V4",
       "rolou_para_o_item_10": true,
       "total_verificacao": 60,
       "contador_independente": 60,
@@ -671,7 +672,7 @@
         "recentes-b.pmvrel  ·  roteiro",
         "recentes-a.pmvrel  ·  roteiro",
         "longo.pmvrel  ·  roteiro",
-        "curto-auto (cópia 2026-11-15 11-15) (cópia 2026-11-15 11-15).pmvrel  ·  roteiro"
+        "curto-auto (cópia 2026-11-15 12-20) (cópia 2026-11-15 12-20).pmvrel  ·  roteiro"
       ],
       "os_dois_no_topo_mais_recente_primeiro": true,
       "menu_habilitado": true,
@@ -682,7 +683,7 @@
       "depois_de_apagar_o_b": [
         "recentes-a.pmvrel",
         "longo.pmvrel",
-        "curto-auto (cópia 2026-11-15 11-15) (cópia 2026-11-15 11-15).pmvrel"
+        "curto-auto (cópia 2026-11-15 12-20) (cópia 2026-11-15 12-20).pmvrel"
       ],
       "aviso_de_arquivo_ausente": true,
       "recentes_guardados": 9,
@@ -849,6 +850,20 @@
           ],
           "aba_aberta": "Página Inicial",
           "dica_da_pesquisa": "Pesquisar processos",
+          "caixa_habilitada": true,
+          "comandos_sem_manipulador": [],
+          "ok": true
+        },
+        {
+          "modulo": "Legislacao",
+          "abas": [
+            "Arquivo",
+            "Página Inicial",
+            "Exibir",
+            "Ajuda"
+          ],
+          "aba_aberta": "Página Inicial",
+          "dica_da_pesquisa": "Pesquisar em todas as leis",
           "caixa_habilitada": true,
           "comandos_sem_manipulador": [],
           "ok": true
@@ -1063,10 +1078,10 @@
     },
     "44_libreoffice_perfil_persistente": {
       "tempos_das_conversoes_ms": [
-        56161,
-        52101,
-        52649,
-        55379
+        56423,
+        53805,
+        54540,
+        51449
       ],
       "perfil_existe": true,
       "perfil_inicializado": true,
@@ -1136,7 +1151,7 @@
       "aviso_no_teste": true,
       "cancelar_mantem": true,
       "remover_apaga": true,
-      "arquivos_varridos": 426,
+      "arquivos_varridos": 427,
       "arquivos_trancados_pulados": 10,
       "chave_em_arquivos": 0,
       "voltou_para_a_conta": true,
@@ -1193,7 +1208,7 @@
     "53_novo_relatorio_chatgpt_chave": {
       "conta_sem_chave_herdada": true,
       "chave_entregue_so_ao_agente": true,
-      "arquivos_varridos": 487,
+      "arquivos_varridos": 488,
       "arquivos_trancados_pulados": 10,
       "chave_em_arquivos": 0,
       "motivo_sem_chave": "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.",
@@ -1209,7 +1224,7 @@
         "audit",
         "final_review"
       ],
-      "situacao_chamadas": 10,
+      "situacao_chamadas": 12,
       "infobar": "Relatório da análise com o Claude importado: Relatorio_0001_2099_5.pmvrel. O PDF do kit continua em .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\analise-pro\\relatorio.pdf.",
       "objecoes": "parou com objeções da revisão final: A revisão final apontou objeções ao relatório.",
       "continuar_da_outra_partida": true,
@@ -1218,7 +1233,7 @@
     "55_novo_relatorio_segundo_plano_e_cancelar": {
       "segue_em_segundo_plano": true,
       "motivo_no_0001": "Já há uma análise em andamento neste processo.",
-      "cancelar_ms": 99,
+      "cancelar_ms": 61,
       "chatgpt_cancelado": true,
       "fechar_com_claude": {
         "pode_fechar": true,
@@ -1230,7 +1245,7 @@
       "claude_cancelado": "interrompida: interrompida (processo encerrado): O processo da análise foi encerrado antes de concluir. Rodar iniciar de novo continua de onde parou.",
       "registro_fora_do_editor_descartado": true,
       "retomada_diagnostico_antes": {
-        "status_do_kit": "{\"case\":\"C:\\\\Users\\\\<usuario>\\\\OneDrive\\\\Aplicativos IA\\\\Editor de Relatorios PMVNI\\\\tests\\\\saida\\\\roteiro\\\\processos-agentes\\\\2099\\\\0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)\",\"situacao\":\"CONCLUIDO\",\"pid\":62136,\"inicio\":\"2026-11-15T11:20:24\",\"eventos\":[{\"quando\":\"2026-11-15T11:20:24\",\"texto\":\"Partida pedida pela conversa\"},{\"quando\":\"2026-11-15T11:20:25\",\"texto\":\"Etapa prepare\"},{\"quando\":\"2026-11-15T11:20:26\",\"texto\":\"Etapa analyze\"},{\"quando\":\"2026-11-15T11:20:28\",\"texto\":\"Etapa technical_audit\"},{\"quando\":\"2026-11-15T11:20:29\",\"texto\":\"Etapa produce\"},{\"quando\":\"2026-11-15T11:20:31\",\"texto\":\"Etapa audit\"},{\"quando\":\"2026-11-15T11:20:32\",\"texto\":\"Etapa final_review\"}],\"atualizado_em\":\"2026-11-15T11:20:34\",\"etapa\":\"final_review\",\"pdf\":\"C:\\\\Users\\\\<usuario>\\\\OneDrive\\\\Aplicativos IA\\\\Editor de Relatorios PMVNI\\\\tests\\\\saida\\\\roteiro\\\\processos-agentes\\\\2099\\\\0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)\\\\.pmvni-ai\\\\analise-pro\\\\relatorio.pdf\",\"fim\":\"2026-11-15T11:20:34\"}",
+        "status_do_kit": "{\"case\":\"C:\\\\Users\\\\<usuario>\\\\OneDrive\\\\Aplicativos IA\\\\Editor de Relatorios PMVNI\\\\tests\\\\saida\\\\roteiro\\\\processos-agentes\\\\2099\\\\0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)\",\"situacao\":\"CONCLUIDO\",\"pid\":2700,\"inicio\":\"2026-11-15T12:24:56\",\"eventos\":[{\"quando\":\"2026-11-15T12:24:56\",\"texto\":\"Partida pedida pela conversa\"},{\"quando\":\"2026-11-15T12:24:56\",\"texto\":\"Etapa prepare\"},{\"quando\":\"2026-11-15T12:24:58\",\"texto\":\"Etapa analyze\"},{\"quando\":\"2026-11-15T12:24:59\",\"texto\":\"Etapa technical_audit\"},{\"quando\":\"2026-11-15T12:25:01\",\"texto\":\"Etapa produce\"},{\"quando\":\"2026-11-15T12:25:02\",\"texto\":\"Etapa audit\"},{\"quando\":\"2026-11-15T12:25:04\",\"texto\":\"Etapa final_review\"}],\"atualizado_em\":\"2026-11-15T12:25:05\",\"etapa\":\"final_review\",\"pdf\":\"C:\\\\Users\\\\<usuario>\\\\OneDrive\\\\Aplicativos IA\\\\Editor de Relatorios PMVNI\\\\tests\\\\saida\\\\roteiro\\\\processos-agentes\\\\2099\\\\0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)\\\\.pmvni-ai\\\\analise-pro\\\\relatorio.pdf\",\"fim\":\"2026-11-15T12:25:05\"}",
         "pendentes_nos_ajustes": 1,
         "em_curso": 0,
         "situacao_vista": "EM_ANDAMENTO",
@@ -1254,8 +1269,8 @@
     },
     "56_novo_relatorio_falhas": {
       "resultados": {
-        "sem_resultado": "sem_resultado: A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\editor\\2026-11-15_112035-chatgpt.",
-        "falha": "falhou: O Codex terminou com o código 2. Veja o registro: .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\editor\\2026-11-15_112035-chatgpt_2.",
+        "sem_resultado": "sem_resultado: A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\editor\\2026-11-15_122506-chatgpt.",
+        "falha": "falhou: O Codex terminou com o código 2. Veja o registro: .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\editor\\2026-11-15_122506-chatgpt_2.",
         "json_invalido": "sem_resultado: O delivery.json da análise não pôde ser lido: 'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 2.",
         "fora_do_processo": "sem_resultado: O relatório indicado pela análise está fora da pasta do processo: .\\tests\\corpus\\agentes\\relatorio_dados_0001.json."
       },
@@ -1271,8 +1286,8 @@
     "57_legislacao_anexar_dois": {
       "resumo": "2 PDFs anexados.",
       "linhas": [
-        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 15/11/2026 11:20 | ",
-        "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 15/11/2026 11:20 | "
+        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 15/11/2026 12:25 | ",
+        "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 15/11/2026 12:25 | "
       ],
       "total": "2 leis anexadas · 4 KB",
       "pasta_de_dados": [
@@ -1285,9 +1300,9 @@
     "58_legislacao_recusas": {
       "resumo": "1 PDF anexado; 4 recusados:\n“LEI 9.999-2099 - FICTICIA.pdf” já está anexado como “LEI 9.999-2099 - FICTICIA”.\n“NAO-E-PDF - FICTICIA.pdf” não é um arquivo PDF.\n“SENHA - FICTICIA.pdf” está protegido por senha e não pode ser aberto pelo editor. Anexe uma cópia sem senha.\n“CORROMPIDO - FICTICIA.pdf” não pôde ser lido como PDF (arquivo danificado ou incompleto).",
       "linhas": [
-        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 15/11/2026 11:20 | ",
-        "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 15/11/2026 11:20 | ",
-        "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 15/11/2026 11:20 | Sem texto pesquisável"
+        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 15/11/2026 12:25 | ",
+        "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 15/11/2026 12:25 | ",
+        "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 15/11/2026 12:25 | Sem texto pesquisável"
       ],
       "originais_intactos": true,
       "ok": true
@@ -1304,10 +1319,10 @@
       "anexar_de_novo": {
         "resumo": "2 PDFs anexados.",
         "linhas": [
-          "LEI 99.999-2099 - FICTICIA | Federal | LEI 99.999-2099 - FICTICIA.pdf · 1 KB · 1 página · anexado em 15/11/2026 11:20 | ",
-          "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 15/11/2026 11:20 | ",
-          "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 15/11/2026 11:20 | ",
-          "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 15/11/2026 11:20 | Sem texto pesquisável"
+          "LEI 99.999-2099 - FICTICIA | Federal | LEI 99.999-2099 - FICTICIA.pdf · 1 KB · 1 página · anexado em 15/11/2026 12:25 | ",
+          "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 15/11/2026 12:25 | ",
+          "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 15/11/2026 12:25 | ",
+          "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 15/11/2026 12:25 | Sem texto pesquisável"
         ],
         "pesquisa": 4
       },
@@ -1318,15 +1333,116 @@
     "60_legislacao_editar_e_substituir": {
       "substituir": {
         "recusa": null,
-        "linha": "Lei nº 9.999/2099 (fictícia) | LEI 9.999-2099 - FICTICIA (VERSAO 2).pdf · 3 KB · 4 páginas · anexado em 15/11/2026 11:20",
+        "linha": "Lei nº 9.999/2099 (fictícia) | LEI 9.999-2099 - FICTICIA (VERSAO 2).pdf · 3 KB · 4 páginas · anexado em 15/11/2026 12:25",
         "versao_2": 1
       },
       "linhas": [
-        "LEI 99.999-2099 - FICTICIA | Federal | LEI 99.999-2099 - FICTICIA.pdf · 1 KB · 1 página · anexado em 15/11/2026 11:20 | ",
-        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 15/11/2026 11:20 | ",
-        "Lei nº 9.999/2099 (fictícia) | Municipal | LEI 9.999-2099 - FICTICIA (VERSAO 2).pdf · 3 KB · 4 páginas · anexado em 15/11/2026 11:20 | ",
-        "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 15/11/2026 11:20 | Sem texto pesquisável"
+        "LEI 99.999-2099 - FICTICIA | Federal | LEI 99.999-2099 - FICTICIA.pdf · 1 KB · 1 página · anexado em 15/11/2026 12:25 | ",
+        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 15/11/2026 12:25 | ",
+        "Lei nº 9.999/2099 (fictícia) | Municipal | LEI 9.999-2099 - FICTICIA (VERSAO 2).pdf · 3 KB · 4 páginas · anexado em 15/11/2026 12:25 | ",
+        "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 15/11/2026 12:25 | Sem texto pesquisável"
       ],
+      "originais_intactos": true,
+      "ok": true
+    },
+    "30_legislacao_leitor": {
+      "trilho": [
+        "Relatórios",
+        "Despachos",
+        "Processos",
+        "Legislação",
+        "Ajustes"
+      ],
+      "grupos": [
+        "Federal: LEI 99.999-2099 - FICTICIA",
+        "Estadual: NT 99-2099 - FICTICIA",
+        "Municipal: Lei nº 9.999/2099 (fictícia)",
+        "Outras: DIGITALIZADA - FICTICIA"
+      ],
+      "url": "https://leg.pmvni.invalid/leitor.html",
+      "rodape_ao_abrir": "Página 1 de 4 · 147%",
+      "rodape_depois_do_atalho": "Página 3 de 4 · 147%",
+      "marcadores": [
+        "Art. 1º",
+        "Art. 2º",
+        "Art. 3º",
+        "Anexo I",
+        "Art. 4º"
+      ],
+      "escalas": {
+        "mais": "Página 3 de 4 · 80%",
+        "menos": "Página 3 de 4 · 70%",
+        "pagina": "Página 3 de 4 · 65%",
+        "largura": "Página 3 de 4 · 147%"
+      },
+      "bloqueadas": 0,
+      "csp": 0,
+      "conferencias": {
+        "trilho": true,
+        "lista": true,
+        "filtro": true,
+        "abrir": true,
+        "proxima": true,
+        "atalho": true,
+        "marcadores": true,
+        "anexo_i": true,
+        "escala": true,
+        "sem_texto": true,
+        "nada_gravado": true
+      },
+      "ok": true
+    },
+    "61_legislacao_pesquisa_na_lei": {
+      "contadores": {
+        "afastamento": "1 de 3",
+        "enter": "2 de 3",
+        "shift_enter_2x": "3 de 3",
+        "ocupacao": "1 de 2",
+        "inexistente": "Nenhuma ocorrência",
+        "digitalizada": "Este PDF não tem texto pesquisável."
+      },
+      "dica": "Pesquisar nesta lei",
+      "ok": true
+    },
+    "62_legislacao_pesquisa_em_todas": {
+      "cabecalho": "4 resultados em 2 leis",
+      "resultados": [
+        "NT 99-2099 - FICTICIA: p. 2 — 5.1 O afastamento entre edificações fictícias é de 4,00 m.",
+        "Lei nº 9.999/2099 (fictícia): p. 1 — LEI Nº 9.999, DE 1º DE JANEIRO DE 2099 (FICTÍCIA) Art. 1º Esta Lei fictícia trata do afastamento frontal das edificações. | p. 2 — Art. 2º O afastamento frontal mínimo é de 3,00 m. Art. 3º A taxa de ocupação máxima é de 60%. | p. 3 — ANEXO I – QUADRO FICTÍCIO Zona ZR1: afastamento de 3,00 m e taxa de ocupação de 60%."
+      ],
+      "depois_de_clicar": {
+        "rodape": "Página 3 de 4 · 147%",
+        "contador": "3 de 3",
+        "dica": "Pesquisar nesta lei"
+      },
+      "termo_curto": "Digite ao menos 2 caracteres.",
+      "ok": true
+    },
+    "63_legislacao_copiar_e_citar": {
+      "selecao_duas_paginas": true,
+      "copiados": [
+        "O afastamento frontal mínimo é de 3,00 m.",
+        "“O afastamento frontal mínimo é de 3,00 m.” (Lei nº 9.999/2099 (fictícia), página 2)",
+        "“O afastamento frontal mínimo é de 3,00 m.” (Lei nº 9.999/2099 (fictícia), página 2)",
+        "“Art. 3º A taxa de ocupação máxima é de 60%. ANEXO I” (Lei nº 9.999/2099 (fictícia), páginas 2–3)"
+      ],
+      "ok": true
+    },
+    "48_legislacao_seguranca": {
+      "resumo": "1 PDF anexado.",
+      "seguranca": {
+        "abriu": true,
+        "script_nao_rodou": true,
+        "link": true,
+        "navegacao": true,
+        "catalogo": 403,
+        "excluiu": true,
+        "fechou": true,
+        "aba": "Leis",
+        "pdf_depois": 403,
+        "bloqueadas": 3,
+        "csp": 0
+      },
       "originais_intactos": true,
       "ok": true
     }
@@ -1370,7 +1486,9 @@
     "confirmar Excluir “NT 99-2099 - FICTICIA”?",
     "abrir vários .pdf",
     "confirmar Excluir “LEI 99.999-2099 - FICTICIA”?",
-    "abrir .pdf"
+    "abrir .pdf",
+    "abrir vários .pdf",
+    "confirmar Excluir “COM-SCRIPT - FICTICIA”?"
   ],
   "falhas": [],
   "ok": true
