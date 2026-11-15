@@ -22,7 +22,7 @@
     <!-- Passos 1 e 2. -->
     <Grid x:Name="PainelEdicao" x:FieldModifier="internal" Grid.Row="1">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="{StaticResource PmvniLarguraLista}" MinWidth="300"/>
+        <ColumnDefinition Width="380" MinWidth="300"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
       <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
