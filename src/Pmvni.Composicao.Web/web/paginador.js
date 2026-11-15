@@ -1007,6 +1007,7 @@ var Paginador = (() => {
   var ZOOM_MAX = 3;
   var ESPERA_FOLHA_VISIVEL_MS = 120;
   var GOLA_ESQUERDA_PX = 12;
+  var GOLA_COM_MARCAS_PX = 72;
   var CSS_TELA = `
 @media screen {
   :root { --pmvni-zoom: 1; --pmvni-tela-x: 0px; --pmvni-tela-fundo: #e4e4e4; --pmvni-tela-sombra: rgba(0, 0, 0, .30); }
@@ -1026,6 +1027,7 @@ var Paginador = (() => {
 `;
   var zoom = 1;
   var ativa = false;
+  var golaEsquerda = GOLA_ESQUERDA_PX;
   var observador = null;
   var temporizador;
   var ultimaFolha = 0;
@@ -1061,8 +1063,13 @@ var Paginador = (() => {
   }
   function centralizar() {
     const larguraNaTela = LARGURA_FOLHA_PX * zoom;
-    const x = Math.max(GOLA_ESQUERDA_PX, (raiz.clientWidth - larguraNaTela) / 2);
+    const x = Math.max(golaEsquerda, (raiz.clientWidth - larguraNaTela) / 2);
     raiz.style.setProperty("--pmvni-tela-x", `${x}px`);
+  }
+  var zoomAtual = () => zoom;
+  function definirGola(px) {
+    golaEsquerda = px;
+    if (ativa) centralizar();
   }
   function aplicarZoom(novo) {
     const antes = zoom;
@@ -1129,39 +1136,534 @@ var Paginador = (() => {
       return { tipo: "folhaVisivel", dados: estado() };
     });
     registrar2("rolarPara", (dados) => {
-      const lista = folhas();
-      const margem = 8 * PX_POR_MM2 * zoom;
-      let destino;
-      let ajuste = 0;
       if (typeof dados.ref === "string") {
-        const alvo = lista.map((f) => f.querySelector(`.area [data-ref="${CSS.escape(dados.ref)}"]`)).find((e) => e !== null && e !== void 0);
-        if (!alvo) throw new ErroComposicao("ref_inexistente", `Nenhuma folha mostra o bloco "${dados.ref}".`);
-        const folha = alvo.closest("section.folha");
-        const naFolha = alvo.getBoundingClientRect().top - folha.getBoundingClientRect().top;
-        destino = naFolha < 40 * PX_POR_MM2 * zoom ? folha : alvo;
-        ajuste = destino === folha ? margem : 16;
+        rolarAteRef(dados.ref);
       } else if (typeof dados.folha === "number" && Number.isInteger(dados.folha)) {
-        const f = lista[dados.folha - 1];
+        const f = folhas()[dados.folha - 1];
         if (!f) throw new ErroComposicao("folha_inexistente", `O documento não tem a folha ${dados.folha}.`);
-        destino = f;
-        ajuste = margem;
+        irPara(f, 8 * PX_POR_MM2 * zoom);
       } else {
         throw new ErroComposicao("rolagem_invalida", 'rolarPara pede "folha" (inteiro) ou "ref" (texto).');
       }
-      window.scrollTo({ top: Math.max(0, window.scrollY + destino.getBoundingClientRect().top - ajuste), behavior: "instant" });
       return { tipo: "folhaVisivel", dados: estado() };
     });
+  }
+  function irPara(destino, ajuste) {
+    window.scrollTo({ top: Math.max(0, window.scrollY + destino.getBoundingClientRect().top - ajuste), behavior: "instant" });
+  }
+  function rolarAteRef(ref) {
+    const alvo = folhas().map((f) => f.querySelector(`.area [data-ref="${CSS.escape(ref)}"]`)).find((e) => e !== null && e !== void 0);
+    if (!alvo) throw new ErroComposicao("ref_inexistente", `Nenhuma folha mostra o bloco "${ref}".`);
+    const folha = alvo.closest("section.folha");
+    const naFolha = alvo.getBoundingClientRect().top - folha.getBoundingClientRect().top;
+    const naFolhaTopo = naFolha < 40 * PX_POR_MM2 * zoom;
+    irPara(naFolhaTopo ? folha : alvo, naFolhaTopo ? 8 * PX_POR_MM2 * zoom : 16);
+  }
+
+  // src/marcas.ts
+  var ID_CAMADA = "pmvni-camada";
+  var CLASSE_MARCA = "pmvni-marca";
+  var CLASSE_TRACO = "pmvni-marca-traco";
+  var CLASSE_EXCLUIDO = "pmvni-marca-excl";
+  var TRACO_LARGURA_PX = 3;
+  var TRACO_AFASTAMENTO_PX = 12;
+  var BOTAO_FOLGA_PX = 6;
+  var BOTAO_ALTURA_PX = 18;
+  var SELETOR_PEDACOS = "section.folha .area .card[data-ref]";
+  var CSS_MARCAS = `
+@media screen {
+  #${ID_CAMADA} { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; z-index: 5; pointer-events: none; }
+  #${ID_CAMADA} .${CLASSE_TRACO} { position: absolute; width: calc(${TRACO_LARGURA_PX}px / var(--pmvni-zoom, 1)); background: #1a73e8; border-radius: 2px; pointer-events: none; }
+  #${ID_CAMADA} .${CLASSE_EXCLUIDO} {
+    position: absolute; margin: 0; padding: 0 7px; box-sizing: border-box; height: ${BOTAO_ALTURA_PX}px; white-space: nowrap;
+    font: 600 11px/16px "Segoe UI", system-ui, sans-serif; color: #8a1f11; background: #fff; border: 1px solid #c42b1c; border-radius: 9px;
+    cursor: pointer; pointer-events: auto; transform-origin: 0 0; transform: scale(calc(1 / var(--pmvni-zoom, 1))) translateX(-100%);
+  }
+  #${ID_CAMADA} .${CLASSE_EXCLUIDO}:hover { background: #fdecea; }
+}
+@media screen and (prefers-color-scheme: dark) {
+  #${ID_CAMADA} .${CLASSE_TRACO} { background: #6ea8fe; }
+  #${ID_CAMADA} .${CLASSE_EXCLUIDO} { color: #ffb4a8; background: #2b2b2b; border-color: #e5604f; }
+  #${ID_CAMADA} .${CLASSE_EXCLUIDO}:hover { background: #3a2623; }
+}
+@media print { #${ID_CAMADA} { display: none !important; } }
+`;
+  var pedacosDe = (ref) => Array.from(document.querySelectorAll(SELETOR_PEDACOS)).filter((e) => e.getAttribute("data-ref") === ref);
+  function limparMarcas() {
+    document.getElementById(ID_CAMADA)?.remove();
+  }
+  function camada() {
+    let c = document.getElementById(ID_CAMADA);
+    if (c && c.parentElement !== document.body) {
+      c.remove();
+      c = null;
+    }
+    if (!c) {
+      c = document.createElement("div");
+      c.id = ID_CAMADA;
+      document.body.appendChild(c);
+    }
+    return c;
+  }
+  function desenharMarcas(m, aoClicarExcluido) {
+    limparMarcas();
+    if (!m.visiveis) return 0;
+    const c = camada();
+    const origem = c.getBoundingClientRect();
+    const z = zoomAtual();
+    const localX = (tela) => (tela - origem.left) / z;
+    const localY = (tela) => (tela - origem.top) / z;
+    let desenhadas = 0;
+    for (const ref of m.alterados) {
+      const pedacos = pedacosDe(ref);
+      if (pedacos.length === 0) continue;
+      desenhadas++;
+      for (const p of pedacos) {
+        const r = p.getBoundingClientRect();
+        const folha = p.closest("section.folha").getBoundingClientRect();
+        const traco = document.createElement("div");
+        traco.className = `${CLASSE_MARCA} ${CLASSE_TRACO}`;
+        traco.style.left = `calc(${localX(folha.left)}px - ${TRACO_AFASTAMENTO_PX}px / var(--pmvni-zoom, 1))`;
+        traco.style.top = `${localY(r.top)}px`;
+        traco.style.height = `${r.height / z}px`;
+        c.appendChild(traco);
+      }
+    }
+    const posicoes = m.excluidos.flatMap((e) => {
+      const pedacos = pedacosDe(e.ancora);
+      if (pedacos.length === 0) return [];
+      const p = e.lado === "antes" ? pedacos[0] : pedacos[pedacos.length - 1];
+      const r = p.getBoundingClientRect();
+      const folha = p.closest("section.folha").getBoundingClientRect();
+      return [{ e, x: localX(folha.left), y: localY(e.lado === "antes" ? r.top : r.bottom) }];
+    }).sort((a, b) => a.y - b.y);
+    let ultimo = -Infinity;
+    for (const { e, x, y } of posicoes) {
+      const topo = Math.max(y, ultimo + (BOTAO_ALTURA_PX + 2) / z);
+      ultimo = topo;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = `${CLASSE_MARCA} ${CLASSE_EXCLUIDO}`;
+      b.textContent = `◦ excl. ${e.rotulo}`;
+      b.title = `Item ${e.rotulo} excluído: clique para ver`;
+      b.style.left = `calc(${x}px - ${BOTAO_FOLGA_PX}px / var(--pmvni-zoom, 1))`;
+      b.style.top = `calc(${topo}px - ${BOTAO_ALTURA_PX / 2}px / var(--pmvni-zoom, 1))`;
+      b.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        aoClicarExcluido(e.id, ev.clientX, ev.clientY);
+      });
+      c.appendChild(b);
+      desenhadas++;
+    }
+    return desenhadas;
+  }
+
+  // src/edicao.ts
+  var CAMPOS = ["titulo", "verificacao", "providencia", "base_legal", "referencia"];
+  var ID_CSS3 = "pmvni-edicao-css";
+  var ATR_CAMPO = "data-campo";
+  var ATR_SELECIONADO = "data-pmvni-selecionado";
+  var ATR_EDITANDO = "data-pmvni-editando";
+  var SELETOR_PEDACOS2 = "section.folha .area .card[data-ref]";
+  var SEPARADOR_TITULO = " — ";
+  var ATALHOS = /* @__PURE__ */ new Set([
+    "Ctrl+O",
+    "Ctrl+I",
+    "Ctrl+S",
+    "Ctrl+Shift+S",
+    "Ctrl+E",
+    "Ctrl+Z",
+    "Ctrl+Y",
+    "Ctrl+F",
+    "Alt+ArrowUp",
+    "Alt+ArrowDown",
+    "Delete",
+    "F2",
+    "F6",
+    "Ctrl+0",
+    "Ctrl+Plus",
+    "Ctrl+Minus"
+  ]);
+  var CSS_EDICAO = `
+@media screen {
+  [${ATR_SELECIONADO}] { outline: 2px solid #1a73e8; outline-offset: 1px; }
+  section.folha [${ATR_CAMPO}]:hover { background-color: rgba(26, 115, 232, .10); }
+  [${ATR_EDITANDO}] { outline: 2px solid #1a73e8; outline-offset: 1px; background-color: #fff8d6 !important; cursor: text; }
+}
+${CSS_MARCAS}`;
+  var ativo = false;
+  var contadorEventos = 0;
+  var edicao = null;
+  var ehCampo = (v) => typeof v === "string" && CAMPOS.includes(v);
+  var pedacosDe2 = (ref) => Array.from(document.querySelectorAll(SELETOR_PEDACOS2)).filter((e) => e.getAttribute("data-ref") === ref);
+  function garantirCss() {
+    if (document.getElementById(ID_CSS3)) return;
+    const css = document.createElement("style");
+    css.id = ID_CSS3;
+    css.textContent = CSS_EDICAO;
+    document.head.appendChild(css);
+  }
+  function campoTitulo(card) {
+    const ct = card.querySelector(":scope > .ch > .ct");
+    if (!ct) return null;
+    const marcado = ct.querySelector(`:scope > span[${ATR_CAMPO}="titulo"]`);
+    if (marcado) return marcado;
+    const primeiro = ct.querySelector(":scope > span.id")?.nextSibling;
+    if (!primeiro || primeiro.nodeType !== Node.TEXT_NODE) return null;
+    const texto2 = primeiro;
+    if (!texto2.data.startsWith(SEPARADOR_TITULO)) return null;
+    const resto = texto2.data.slice(SEPARADOR_TITULO.length);
+    const seguintes = [];
+    for (let n = texto2.nextSibling; n; n = n.nextSibling) seguintes.push(n);
+    if (resto === "" && seguintes.length === 0) return null;
+    const span = document.createElement("span");
+    texto2.data = SEPARADOR_TITULO;
+    if (resto !== "") span.appendChild(document.createTextNode(resto));
+    span.append(...seguintes);
+    ct.appendChild(span);
+    return span;
+  }
+  function camposDoPedaco(card) {
+    const q = (seletor) => card.querySelector(`:scope > ${seletor}`);
+    return [
+      ["titulo", campoTitulo(card)],
+      ["verificacao", q(`p:not([${ATR_OCULTO}])`)],
+      ["providencia", q(`.prov > p:not([${ATR_OCULTO}])`)],
+      ["base_legal", q(`.two > div:nth-child(1) p.m:not([${ATR_OCULTO}])`)],
+      ["referencia", q(`.two > div:nth-child(2) p.m:not([${ATR_OCULTO}])`)]
+    ];
+  }
+  function marcarCampos() {
+    for (const card of Array.from(document.querySelectorAll(SELETOR_PEDACOS2))) {
+      for (const [campo, el] of camposDoPedaco(card)) el?.setAttribute(ATR_CAMPO, campo);
+    }
+    return document.querySelectorAll(`section.folha [${ATR_CAMPO}]`).length;
+  }
+  function desmarcarCampos() {
+    for (const el of Array.from(document.querySelectorAll(`section.folha [${ATR_CAMPO}]`))) {
+      const pai = el.parentElement;
+      if (el.localName === "span" && el.getAttribute(ATR_CAMPO) === "titulo" && pai?.classList.contains("ct")) {
+        el.replaceWith(...Array.from(el.childNodes));
+        pai.normalize();
+      } else el.removeAttribute(ATR_CAMPO);
+    }
+  }
+  function aplicarSelecao(ref) {
+    for (const e of Array.from(document.querySelectorAll(`[${ATR_SELECIONADO}]`))) e.removeAttribute(ATR_SELECIONADO);
+    if (ref !== null) for (const p of pedacosDe2(ref)) p.setAttribute(ATR_SELECIONADO, "");
+  }
+  function localizar2(alvo) {
+    if (!(alvo instanceof Element)) return { ref: null, campo: null };
+    const card = alvo.closest(SELETOR_PEDACOS2);
+    if (!card) return { ref: null, campo: null };
+    const el = alvo.closest(`[${ATR_CAMPO}]`);
+    const campo = el && card.contains(el) ? el.getAttribute(ATR_CAMPO) : null;
+    return { ref: card.getAttribute("data-ref"), campo: ehCampo(campo) ? campo : null };
+  }
+  function lerTexto(el) {
+    let s = "";
+    const visitar = (n) => {
+      if (n.nodeType === Node.TEXT_NODE) {
+        s += n.data;
+        return;
+      }
+      if (n.nodeType !== Node.ELEMENT_NODE) return;
+      const e = n;
+      if (e.localName === "br") {
+        s += "\n";
+        return;
+      }
+      if (/^(div|p|li)$/.test(e.localName) && s !== "" && !s.endsWith("\n")) s += "\n";
+      e.childNodes.forEach(visitar);
+    };
+    el.childNodes.forEach(visitar);
+    return s.replace(/[\r\n\u0085\u2028\u2029]+/g, " ").replace(/\u00a0/g, " ");
+  }
+  var umaLinha = (s) => s.replace(/[\r\n\u0085\u2028\u2029]+/g, " ");
+  function inserirTexto(texto2) {
+    if (document.execCommand("insertText", false, texto2)) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const r = sel.getRangeAt(0);
+    r.deleteContents();
+    const no = document.createTextNode(texto2);
+    r.insertNode(no);
+    r.setStartAfter(no);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+  function restaurarEdicao() {
+    const e = edicao;
+    if (!e) return;
+    edicao = null;
+    e.primeiro.removeAttribute("contenteditable");
+    e.primeiro.removeAttribute(ATR_EDITANDO);
+    e.primeiro.blur();
+    e.primeiro.replaceChildren(...e.originais);
+    e.demais.forEach((d, i) => {
+      d.style.visibility = e.visibilidade[i] ?? "";
+    });
+  }
+  function iniciarEdicao(ref, campo, texto2) {
+    const pedacos = pedacosDe2(ref).flatMap((p) => {
+      const el = p.querySelector(`[${ATR_CAMPO}="${campo}"]`);
+      return el ? [el] : [];
+    });
+    const [primeiro, ...demais] = pedacos;
+    if (!primeiro) throw new ErroComposicao("campo_inexistente", `O item "${ref}" não tem o campo "${campo}" marcado nas folhas.`);
+    restaurarEdicao();
+    edicao = {
+      ref,
+      campo,
+      primeiro,
+      demais,
+      originais: Array.from(primeiro.childNodes),
+      visibilidade: demais.map((d) => d.style.visibility),
+      pendente: false
+    };
+    primeiro.replaceChildren(document.createTextNode(texto2));
+    demais.forEach((d) => {
+      d.style.visibility = "hidden";
+    });
+    primeiro.setAttribute("contenteditable", "plaintext-only");
+    primeiro.setAttribute(ATR_EDITANDO, "");
+    const r = primeiro.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight) primeiro.scrollIntoView({ block: "center", behavior: "instant" });
+    primeiro.focus({ preventScroll: true });
+    const sel = window.getSelection();
+    const fim = document.createRange();
+    fim.selectNodeContents(primeiro);
+    fim.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(fim);
+  }
+  var editando = () => edicao && !edicao.pendente ? edicao : null;
+  function concluirEdicao() {
+    const e = edicao;
+    const texto2 = lerTexto(e.primeiro);
+    e.primeiro.removeAttribute("contenteditable");
+    e.primeiro.removeAttribute(ATR_EDITANDO);
+    e.primeiro.replaceChildren(document.createTextNode(texto2));
+    e.primeiro.blur();
+    e.pendente = true;
+    return { ref: e.ref, campo: e.campo, texto: texto2 };
+  }
+  function medirAncora() {
+    const blocos = Array.from(document.querySelectorAll("section.folha .area [data-ref]")).filter((e) => e.getClientRects().length > 0);
+    let atravessa = null;
+    let abaixo = null;
+    for (const e of blocos) {
+      const r = e.getBoundingClientRect();
+      if (r.top <= 0 && r.bottom > 0) {
+        if (!atravessa || r.top > atravessa.topo) atravessa = { e, topo: r.top };
+      } else if (r.top > 0 && (!abaixo || r.top < abaixo.topo)) abaixo = { e, topo: r.top };
+    }
+    const escolhido = atravessa ?? abaixo;
+    if (!escolhido) return { ref: null, deslocamentoPx: 0 };
+    const ref = escolhido.e.getAttribute("data-ref");
+    const primeiro = blocos.find((e) => e.getAttribute("data-ref") === ref) ?? escolhido.e;
+    return { ref, deslocamentoPx: -primeiro.getBoundingClientRect().top / zoomAtual() };
+  }
+  function restaurarAncora(a) {
+    const primeiro = Array.from(document.querySelectorAll("section.folha .area [data-ref]")).find((e) => e.getAttribute("data-ref") === a.ref && e.getClientRects().length > 0);
+    if (!primeiro) return;
+    const topo = primeiro.getBoundingClientRect().top;
+    window.scrollTo({ top: Math.max(0, window.scrollY + topo + a.deslocamentoPx * zoomAtual()), behavior: "instant" });
+  }
+  var ehObjeto = (x) => typeof x === "object" && x !== null && !Array.isArray(x);
+  var invalido = (m) => new ErroComposicao("estado_invalido", m);
+  function lerEstado(d) {
+    if (d.selecao !== null && typeof d.selecao !== "string") throw invalido("selecao deve ser texto ou nulo.");
+    if (typeof d.campos !== "boolean") throw invalido("campos deve ser verdadeiro ou falso.");
+    const m = d.marcas;
+    if (!ehObjeto(m) || typeof m.visiveis !== "boolean") throw invalido("marcas.visiveis deve ser verdadeiro ou falso.");
+    if (!Array.isArray(m.alterados) || m.alterados.some((r) => typeof r !== "string")) throw invalido("marcas.alterados deve ser uma lista de refs.");
+    if (!Array.isArray(m.excluidos)) throw invalido("marcas.excluidos deve ser uma lista.");
+    const excluidos = m.excluidos.map((x, i) => {
+      if (!ehObjeto(x) || typeof x.id !== "string" || typeof x.rotulo !== "string" || typeof x.ancora !== "string" || x.lado !== "antes" && x.lado !== "depois") throw invalido(`marcas.excluidos[${i}] invalido.`);
+      return { id: x.id, rotulo: x.rotulo, ancora: x.ancora, lado: x.lado };
+    });
+    let ancora = null;
+    if (d.ancora !== void 0 && d.ancora !== null) {
+      const a = d.ancora;
+      if (!ehObjeto(a) || typeof a.ref !== "string" || typeof a.deslocamentoPx !== "number" || !Number.isFinite(a.deslocamentoPx)) {
+        throw invalido("ancora deve ter ref (texto) e deslocamentoPx (número).");
+      }
+      ancora = { ref: a.ref, deslocamentoPx: a.deslocamentoPx };
+    }
+    return { selecao: d.selecao, campos: d.campos, marcas: { visiveis: m.visiveis, alterados: m.alterados, excluidos }, ancora };
+  }
+  function nomeDoAtalho(e) {
+    if (e.metaKey) return null;
+    let shift = e.shiftKey;
+    let tecla;
+    if (/^[a-z]$/i.test(e.key)) tecla = e.key.toUpperCase();
+    else if (e.key === "+" || e.key === "=") {
+      tecla = "Plus";
+      shift = false;
+    } else if (e.key === "-" || e.key === "_") {
+      tecla = "Minus";
+      shift = false;
+    } else tecla = e.key;
+    return [e.ctrlKey ? "Ctrl" : "", e.altKey ? "Alt" : "", shift ? "Shift" : "", tecla].filter((p) => p !== "").join("+");
+  }
+  function registrarEdicao(registrar2, enviar2) {
+    const evento = (tipo, dados) => enviar2(tipo, `evento-${++contadorEventos}`, dados);
+    const ligar = () => {
+      ativo = true;
+      garantirCss();
+    };
+    registrar2("estadoEditor", (dados) => {
+      const e = lerEstado(dados);
+      ligar();
+      if (edicao) {
+        if (!document.contains(edicao.primeiro)) edicao = null;
+        else if (edicao.pendente || !e.campos) restaurarEdicao();
+      }
+      let camposMarcados = 0;
+      if (e.campos) camposMarcados = marcarCampos();
+      else desmarcarCampos();
+      aplicarSelecao(e.selecao);
+      definirGola(e.marcas.visiveis ? GOLA_COM_MARCAS_PX : GOLA_ESQUERDA_PX);
+      const marcasDesenhadas = desenharMarcas(e.marcas, (id, x, y) => evento("excluidoClicado", { id, x, y }));
+      if (e.ancora) restaurarAncora(e.ancora);
+      return { tipo: "estadoAplicado", dados: { camposMarcados, marcasDesenhadas } };
+    });
+    registrar2("selecionar", (dados) => {
+      const ref = dados.ref;
+      if (ref !== null && typeof ref !== "string") throw new ErroComposicao("selecao_invalida", "ref deve ser texto ou nulo.");
+      if (typeof dados.rolar !== "boolean") throw new ErroComposicao("selecao_invalida", "rolar deve ser verdadeiro ou falso.");
+      if (ref !== null && pedacosDe2(ref).length === 0) throw new ErroComposicao("ref_inexistente", `Nenhuma folha mostra o item "${ref}".`);
+      ligar();
+      aplicarSelecao(ref);
+      if (ref !== null && dados.rolar) rolarAteRef(ref);
+      return { tipo: "selecionado", dados: { ref, campo: null } };
+    });
+    registrar2("editarCampo", (dados) => {
+      if (typeof dados.ref !== "string" || !ehCampo(dados.campo) || typeof dados.texto !== "string") {
+        throw new ErroComposicao("edicao_invalida", "editarCampo pede ref (texto), campo (um dos cinco campos) e texto.");
+      }
+      ligar();
+      iniciarEdicao(dados.ref, dados.campo, dados.texto);
+      return { tipo: "edicaoIniciada", dados: { ref: dados.ref, campo: dados.campo } };
+    });
+    registrar2("concluirEdicao", () => {
+      if (!editando()) return { tipo: "semEdicao", dados: {} };
+      return { tipo: "editar", dados: { ...concluirEdicao() } };
+    });
+    registrar2("obterAncora", () => ({ tipo: "ancora", dados: { ...medirAncora() } }));
+    document.addEventListener("mousedown", (e) => {
+      const ed = editando();
+      if (ed && !(e.target instanceof Node && ed.primeiro.contains(e.target))) e.preventDefault();
+    }, true);
+    document.addEventListener("click", (e) => {
+      if (!ativo || edicao || e.button !== 0) return;
+      if (e.target instanceof Element && e.target.closest(`#${ID_CAMADA}`)) return;
+      const { ref, campo } = localizar2(e.target);
+      aplicarSelecao(ref);
+      evento("selecionado", { ref, campo });
+    });
+    document.addEventListener("dblclick", (e) => {
+      if (!ativo || edicao) return;
+      const { ref, campo } = localizar2(e.target);
+      if (ref === null || campo === null) return;
+      window.getSelection()?.removeAllRanges();
+      evento("pedirEdicao", { ref, campo });
+    });
+    document.addEventListener("contextmenu", (e) => {
+      if (!ativo) return;
+      const ed = editando();
+      if (ed && e.target instanceof Node && ed.primeiro.contains(e.target)) return;
+      e.preventDefault();
+      if (edicao) return;
+      const { ref, campo } = localizar2(e.target);
+      aplicarSelecao(ref);
+      evento("menuContexto", { ref, campo, x: e.clientX, y: e.clientY });
+    });
+    window.addEventListener("keydown", (e) => {
+      if (!ativo) return;
+      const ed = editando();
+      if (ed) {
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          evento("editar", { ...concluirEdicao() });
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          const { ref, campo } = ed;
+          restaurarEdicao();
+          evento("edicaoCancelada", { ref, campo });
+        }
+        return;
+      }
+      if (edicao || e.isComposing) return;
+      const nome = nomeDoAtalho(e);
+      if (nome !== null && ATALHOS.has(nome)) {
+        e.preventDefault();
+        evento("atalho", { tecla: nome });
+      }
+    }, true);
+    document.addEventListener("beforeinput", (e) => {
+      const ed = editando();
+      if (!ed || !(e.target instanceof Node) || !ed.primeiro.contains(e.target)) return;
+      if (e.inputType === "insertParagraph" || e.inputType === "insertLineBreak") e.preventDefault();
+      else if (e.inputType === "insertText" && e.data && /[\r\n\u0085\u2028\u2029]/.test(e.data)) {
+        e.preventDefault();
+        inserirTexto(umaLinha(e.data));
+      }
+    }, true);
+    document.addEventListener("paste", (e) => {
+      const ed = editando();
+      if (!ed || !(e.target instanceof Node) || !ed.primeiro.contains(e.target)) return;
+      e.preventDefault();
+      inserirTexto(umaLinha(e.clipboardData?.getData("text/plain") ?? ""));
+    }, true);
   }
 
   // src/mensagens.ts
   var VERSAO = 1;
-  var TIPOS_HOST = ["compor", "aplicarPlano", "textoPorFolha", "rolarPara", "definirZoom"];
-  var TIPOS_WEB = ["pronto", "composto", "planoAplicado", "textoPorFolha", "folhaVisivel", "erro"];
-  function ehObjeto(x) {
+  var TIPOS_HOST = [
+    "compor",
+    "aplicarPlano",
+    "textoPorFolha",
+    "rolarPara",
+    "definirZoom",
+    // Tarefa 7 (Etapa 2): estado do editor, selecao, edicao no A4 e ancora de rolagem.
+    "estadoEditor",
+    "selecionar",
+    "editarCampo",
+    "concluirEdicao",
+    "obterAncora"
+  ];
+  var TIPOS_WEB = [
+    "pronto",
+    "composto",
+    "planoAplicado",
+    "textoPorFolha",
+    "folhaVisivel",
+    "erro",
+    // Tarefa 7: respostas (estadoAplicado, selecionado, edicaoIniciada, editar, semEdicao, ancora) e eventos de interacao
+    // (selecionado, pedirEdicao, editar, edicaoCancelada, atalho, menuContexto, excluidoClicado; id evento-N).
+    "estadoAplicado",
+    "selecionado",
+    "edicaoIniciada",
+    "editar",
+    "semEdicao",
+    "ancora",
+    "pedirEdicao",
+    "edicaoCancelada",
+    "atalho",
+    "menuContexto",
+    "excluidoClicado"
+  ];
+  function ehObjeto2(x) {
     return typeof x === "object" && x !== null && !Array.isArray(x);
   }
   function ler(bruto, tipos) {
-    if (!ehObjeto(bruto)) return { ok: false, motivo: "mensagem nao e um objeto", id: null };
+    if (!ehObjeto2(bruto)) return { ok: false, motivo: "mensagem nao e um objeto", id: null };
     const id = typeof bruto.id === "string" && bruto.id !== "" ? bruto.id : null;
     const falha = (motivo) => ({ ok: false, motivo, id });
     if (!("v" in bruto)) return falha('campo "v" faltando');
@@ -1169,7 +1671,7 @@ var Paginador = (() => {
     if (typeof bruto.tipo !== "string") return falha('campo "tipo" faltando');
     if (!tipos.includes(bruto.tipo)) return falha("tipo desconhecido: " + bruto.tipo);
     if (id === null) return falha('campo "id" faltando');
-    if (!ehObjeto(bruto.dados)) return falha('campo "dados" faltando ou invalido');
+    if (!ehObjeto2(bruto.dados)) return falha('campo "dados" faltando ou invalido');
     return { ok: true, msg: { v: VERSAO, tipo: bruto.tipo, id, dados: bruto.dados } };
   }
   var lerMensagemHost = (bruto) => ler(bruto, TIPOS_HOST);
@@ -1215,6 +1717,7 @@ var Paginador = (() => {
   registrar("aplicarPlano", async (dados) => ({ tipo: "planoAplicado", dados: { ...await aplicarPlano(lerPedidoAplicar(dados)) } }));
   registrar("textoPorFolha", () => ({ tipo: "textoPorFolha", dados: { folhas: textoPorFolha() } }));
   registrarTela(registrar, enviar);
+  registrarEdicao(registrar, enviar);
   if (webview) {
     webview.addEventListener("message", (e) => void aoReceber(e.data));
     enviar("pronto", "pronto", { versao: VERSAO });

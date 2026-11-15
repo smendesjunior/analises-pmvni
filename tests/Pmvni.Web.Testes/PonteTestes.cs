@@ -40,6 +40,31 @@ public sealed class MensagensTestes
         Assert.False(string.IsNullOrEmpty(motivo));
     }
 
+    /// <summary>Os tipos da ponte (Mensagens.cs) e os do TypeScript (mensagens.ts) são os mesmos, nos dois sentidos.</summary>
+    [Fact]
+    public void tipos_da_ponte_iguais_nos_dois_lados()
+    {
+        var ts = File.ReadAllText(Path.Combine(Ambiente.RaizRepositorio(), "web", "paginador", "src", "mensagens.ts"));
+        static List<string> Lista(string fonte, string nome)
+        {
+            var m = Regex.Match(fonte, nome + @"\s*=\s*\[(?<itens>[^\]]*)\]\s*as const");
+            Assert.True(m.Success, "lista " + nome + " não encontrada em mensagens.ts");
+            return Regex.Matches(m.Groups["itens"].Value, "'([^']+)'").Select(x => x.Groups[1].Value).ToList();
+        }
+        var host = Lista(ts, "TIPOS_HOST");
+        var web = Lista(ts, "TIPOS_WEB");
+        Assert.Equal(host.Count, host.Distinct().Count());
+        Assert.Equal(web.Count, web.Distinct().Count());
+        Assert.Equal(Mensagens.TiposHostParaWeb.Order(StringComparer.Ordinal), host.Order(StringComparer.Ordinal));
+        Assert.Equal(Mensagens.TiposWebParaHost.Order(StringComparer.Ordinal), web.Order(StringComparer.Ordinal));
+
+        string[] novosHost = ["estadoEditor", "selecionar", "editarCampo", "concluirEdicao", "obterAncora"];
+        string[] novosWeb = ["estadoAplicado", "selecionado", "edicaoIniciada", "editar", "semEdicao", "ancora", "pedirEdicao",
+            "edicaoCancelada", "atalho", "menuContexto", "excluidoClicado"];
+        Assert.All(novosHost, t => { Assert.Contains(t, host); Assert.Contains(t, (IEnumerable<string>)Mensagens.TiposHostParaWeb); Assert.DoesNotContain(t, (IEnumerable<string>)Mensagens.TiposWebParaHost); });
+        Assert.All(novosWeb, t => { Assert.Contains(t, web); Assert.Contains(t, (IEnumerable<string>)Mensagens.TiposWebParaHost); Assert.DoesNotContain(t, (IEnumerable<string>)Mensagens.TiposHostParaWeb); });
+    }
+
     [Fact]
     public void serializar_para_web_exige_tipo_de_host()
     {

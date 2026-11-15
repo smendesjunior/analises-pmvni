@@ -3,8 +3,18 @@
 
 export const VERSAO = 1 as const;
 
-export const TIPOS_HOST = ['compor', 'aplicarPlano', 'textoPorFolha', 'rolarPara', 'definirZoom'] as const;
-export const TIPOS_WEB = ['pronto', 'composto', 'planoAplicado', 'textoPorFolha', 'folhaVisivel', 'erro'] as const;
+export const TIPOS_HOST = [
+  'compor', 'aplicarPlano', 'textoPorFolha', 'rolarPara', 'definirZoom',
+  // Tarefa 7 (Etapa 2): estado do editor, selecao, edicao no A4 e ancora de rolagem.
+  'estadoEditor', 'selecionar', 'editarCampo', 'concluirEdicao', 'obterAncora',
+] as const;
+export const TIPOS_WEB = [
+  'pronto', 'composto', 'planoAplicado', 'textoPorFolha', 'folhaVisivel', 'erro',
+  // Tarefa 7: respostas (estadoAplicado, selecionado, edicaoIniciada, editar, semEdicao, ancora) e eventos de interacao
+  // (selecionado, pedirEdicao, editar, edicaoCancelada, atalho, menuContexto, excluidoClicado; id evento-N).
+  'estadoAplicado', 'selecionado', 'edicaoIniciada', 'editar', 'semEdicao', 'ancora',
+  'pedirEdicao', 'edicaoCancelada', 'atalho', 'menuContexto', 'excluidoClicado',
+] as const;
 
 export type TipoHost = (typeof TIPOS_HOST)[number];
 export type TipoWeb = (typeof TIPOS_WEB)[number];

@@ -20,7 +20,9 @@ const ZOOM_MIN_AJUSTE = 0.25; // Ajustar largura / Página inteira podem ir mais
 const ZOOM_MAX = 3;
 const ESPERA_FOLHA_VISIVEL_MS = 120;
 /** Vão mínimo à esquerda: a faixa vermelha das folhas que transbordam fica na margem cinza, nunca fora da janela. */
-const GOLA_ESQUERDA_PX = 12;
+export const GOLA_ESQUERDA_PX = 12;
+/** Com as marcas de revisão visíveis (marcas.ts), o botão "◦ excl. NN" também mora na margem cinza: vão maior. */
+export const GOLA_COM_MARCAS_PX = 72;
 
 /** CSS só de tela. Tudo dentro de @media screen: a impressão (PDF) nunca vê estas regras. As variáveis --pmvni-zoom,
  * --pmvni-tela-x e --pmvni-tela-altura são definidas no <html> e só são usadas aqui. */
@@ -44,6 +46,7 @@ const CSS_TELA = `
 
 let zoom = 1;
 let ativa = false;
+let golaEsquerda = GOLA_ESQUERDA_PX;
 let observador: IntersectionObserver | null = null;
 let temporizador: number | undefined;
 let ultimaFolha = 0;
@@ -82,8 +85,17 @@ function folhaAtual(): number {
 /** Centraliza as folhas na janela (translate antes da escala) e fixa o tamanho de rolagem. */
 function centralizar(): void {
   const larguraNaTela = LARGURA_FOLHA_PX * zoom;
-  const x = Math.max(GOLA_ESQUERDA_PX, (raiz.clientWidth - larguraNaTela) / 2);
+  const x = Math.max(golaEsquerda, (raiz.clientWidth - larguraNaTela) / 2);
   raiz.style.setProperty('--pmvni-tela-x', `${x}px`);
+}
+
+/** Zoom atual da tela (1 antes de qualquer `definirZoom`). */
+export const zoomAtual = (): number => zoom;
+
+/** Vão mínimo à esquerda das folhas (px de tela); recentraliza se a tela já está ativa. */
+export function definirGola(px: number): void {
+  golaEsquerda = px;
+  if (ativa) centralizar();
 }
 
 function aplicarZoom(novo: number): void {
@@ -160,27 +172,30 @@ export function registrarTela(registrar: Registrar, enviar: Enviar): void {
   });
 
   registrar('rolarPara', (dados) => {
-    const lista = folhas();
-    const margem = 8 * PX_POR_MM * zoom;
-    let destino: HTMLElement;
-    let ajuste = 0;
     if (typeof dados.ref === 'string') {
-      const alvo = lista.map((f) => f.querySelector<HTMLElement>(`.area [data-ref="${CSS.escape(dados.ref as string)}"]`)).find((e) => e !== null && e !== undefined);
-      if (!alvo) throw new ErroComposicao('ref_inexistente', `Nenhuma folha mostra o bloco "${dados.ref}".`);
-      const folha = alvo.closest<HTMLElement>('section.folha')!;
-      // Blocos no alto da folha: mostra a folha inteira (cabeçalho incluído); os demais ficam um pouco abaixo do topo.
-      const naFolha = alvo.getBoundingClientRect().top - folha.getBoundingClientRect().top;
-      destino = naFolha < 40 * PX_POR_MM * zoom ? folha : alvo;
-      ajuste = destino === folha ? margem : 16;
+      rolarAteRef(dados.ref);
     } else if (typeof dados.folha === 'number' && Number.isInteger(dados.folha)) {
-      const f = lista[dados.folha - 1];
+      const f = folhas()[dados.folha - 1];
       if (!f) throw new ErroComposicao('folha_inexistente', `O documento não tem a folha ${dados.folha}.`);
-      destino = f;
-      ajuste = margem;
+      irPara(f, 8 * PX_POR_MM * zoom);
     } else {
       throw new ErroComposicao('rolagem_invalida', 'rolarPara pede "folha" (inteiro) ou "ref" (texto).');
     }
-    window.scrollTo({ top: Math.max(0, window.scrollY + destino.getBoundingClientRect().top - ajuste), behavior: 'instant' });
     return { tipo: 'folhaVisivel', dados: estado() };
   });
+}
+
+function irPara(destino: HTMLElement, ajuste: number): void {
+  window.scrollTo({ top: Math.max(0, window.scrollY + destino.getBoundingClientRect().top - ajuste), behavior: 'instant' });
+}
+
+/** Rola até o bloco `[data-ref]` (o primeiro pedaço dele nas folhas). Blocos no alto da folha: mostra a folha inteira
+ * (cabeçalho incluído); os demais ficam um pouco abaixo do topo. Sem folha com o bloco: 'ref_inexistente'. */
+export function rolarAteRef(ref: string): void {
+  const alvo = folhas().map((f) => f.querySelector<HTMLElement>(`.area [data-ref="${CSS.escape(ref)}"]`)).find((e) => e !== null && e !== undefined);
+  if (!alvo) throw new ErroComposicao('ref_inexistente', `Nenhuma folha mostra o bloco "${ref}".`);
+  const folha = alvo.closest<HTMLElement>('section.folha')!;
+  const naFolha = alvo.getBoundingClientRect().top - folha.getBoundingClientRect().top;
+  const naFolhaTopo = naFolha < 40 * PX_POR_MM * zoom;
+  irPara(naFolhaTopo ? folha : alvo, naFolhaTopo ? 8 * PX_POR_MM * zoom : 16);
 }
