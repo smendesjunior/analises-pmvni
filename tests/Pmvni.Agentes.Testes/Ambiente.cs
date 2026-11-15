@@ -84,10 +84,10 @@ public static class Ambiente
         return new PastaTeste(caminho);
     }
 
-    /// <summary><c>tests\AgenteFalso\bin\&lt;Configuration&gt;\net10.0\AgenteFalso.exe</c> (a configuração é a mesma do projeto de teste).</summary>
-    public static string AgenteFalso { get; } = Path.Combine(PastaTestes, "AgenteFalso", "bin", Configuracao(), "net10.0", "AgenteFalso.exe");
-
-    static string Configuracao() => new DirectoryInfo(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar)).Parent!.Name;
+    /// <summary>O <c>AgenteFalso.exe</c> no mesmo caminho de saída do projeto de teste (configuração e plataforma): com <c>dotnet test</c> no projeto,
+    /// <c>bin\Debug\net10.0</c>; pela solução (<c>build-release.ps1</c>, Release|x64), <c>bin\x64\Release\net10.0</c>.</summary>
+    public static string AgenteFalso { get; } = Path.Combine(PastaTestes, "AgenteFalso", "bin",
+        Path.GetRelativePath(Path.Combine(PastaTestes, "Pmvni.Agentes.Testes", "bin"), AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar)), "AgenteFalso.exe");
 
     public static string Cenario(string nome) => Path.Combine(Corpus("agentes"), nome + ".json");
 

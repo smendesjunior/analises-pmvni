@@ -244,6 +244,15 @@ O perfil persistente funciona (o `user\` fica e é reaproveitado), mas **não** 
 mesmo que a 1ª. Os ~50–55 s não são a inicialização do perfil (hipótese da Tarefa 16); a causa continua em aberto (pouca CPU durante a
 espera, como na Tarefa 16 — candidata: alguma espera do `soffice.bin` com entrada e saídas redirecionadas ou na pasta do OneDrive).
 
+## Imagens do dados.json e espera do LibreOffice (Etapa 2, onda de correções 2)
+
+- `CaminhoImagem.Resolver` (importação e renderizador, modo do kit): o `..` relativo só vale se o caminho resolvido ficar dentro da pasta do
+  processo, isto é, o ancestral que contém `.pmvni-ai` (`PROCESSOS\<proc>`) ou, sem ele, a pasta pai da pasta do dados.json; junções e links
+  simbólicos são resolvidos antes da comparação (uma junção para fora recusa o caminho). Absoluto, de rede, com `:` ou com caractere de
+  controle continua recusado; o renderizador só lê `.png .jpg .jpeg .webp .gif` e confere a assinatura dos bytes.
+- `ConversorLibreOffice`: depois que o `soffice` sai, a espera pelas saídas redirecionadas é limitada ao que resta do limite (mínimo de 2 s) e
+  respeita o cancelamento; ao estourar, a árvore é encerrada. Um `soffice.bin` filho que segure os canais não prende mais o mutex do perfil.
+
 ## Agentes locais: opções conferidas (Etapa 2, Tarefa 19, passo 0)
 
 Conferido em 15/11/2026 por `tools\agentes-ajuda.ps1` (fora do pacote, só `--version`, `--help`, `login status` e `auth status`, sem chamar modelo):

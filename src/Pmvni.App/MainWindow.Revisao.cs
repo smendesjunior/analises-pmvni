@@ -349,9 +349,9 @@ public sealed partial class MainWindow
 
     /// <summary>Salvar, Exportar, Fechar (e Abrir outro, que fecha) concluem antes o campo em edição no A4, como o Enter: o texto digitado
     /// entra no relatório e a tela é recomposta; o arquivo e o PDF nunca saem sem ele. Recusado pela conferência: o aviso de sempre e a
-    /// página volta ao texto anterior. Recomposição que falha: a sessão fica desatualizada (exportar recusa até recompor).</summary>
-    /// <summary>Devolve a recusa (o texto e o motivo) quando a conferência não aceitou o campo em edição; quem fecha o relatório pergunta
-    /// antes de deixar o texto para trás. null = nada a dizer (sem edição, texto igual ou aplicado).</summary>
+    /// página volta ao texto anterior. Recomposição que falha: a sessão fica desatualizada (exportar recusa até recompor). Devolve a recusa (o
+    /// texto e o motivo) quando a conferência não aceitou o campo em edição: quem fecha o relatório pergunta antes de deixar o texto para trás;
+    /// null = nada a dizer (sem edição, texto igual ou aplicado).</summary>
     async Task<RecusaDeEdicao?> ConcluirEdicaoAntesAsync(SessaoEdicao s)
     {
         if (s.SomenteLeitura || s.Atual is null || ocupado || !ReferenceEquals(sessao, s)) return null;
