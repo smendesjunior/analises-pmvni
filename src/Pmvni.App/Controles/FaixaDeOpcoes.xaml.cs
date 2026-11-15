@@ -162,6 +162,11 @@ public sealed partial class FaixaDeOpcoes : UserControl
 
     public string Dica(string id) => dicas.TryGetValue(id, out var d) ? d : "";
 
+    /// <summary>O item <paramref name="id"/> do menu de um botão da aba à vista (não do primário), ou null (roteiro).</summary>
+    internal MenuFlyoutItem? ItemDoMenuDaAba(string id) =>
+        Barra.PrimaryCommands.OfType<AppBarButton>().Select(b => b.Flyout).OfType<MenuFlyout>()
+            .SelectMany(m => m.Items.OfType<MenuFlyoutItem>()).FirstOrDefault(i => i.Tag as string == id);
+
     void AoMudarAba(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
         if (montando || definicao is null) return;
@@ -189,7 +194,10 @@ public sealed partial class FaixaDeOpcoes : UserControl
     /// menu (Novo despacho ▾). Habilitado, dica e rótulo guardados por id valem para ele como para os da barra.</summary>
     void MontarPrimario()
     {
-        foreach (var (id, _) in itensDoPrimario) itensMenu.Remove(id);
+        // Só sai o registro que ainda aponta para o item do primário antigo: o mesmo id pode já ser de um item do menu da aba
+        // (Novo despacho ▾ na Página Inicial de Processos/Relatórios depois de passar por Despachos), que precisa continuar recebendo Habilitar e dica.
+        foreach (var (id, mi) in itensDoPrimario)
+            if (itensMenu.TryGetValue(id, out var atual) && ReferenceEquals(atual, mi)) itensMenu.Remove(id);
         itensDoPrimario.Clear();
         primario = null;
         VagaPrimario.Content = null;

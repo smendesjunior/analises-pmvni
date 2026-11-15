@@ -577,7 +577,7 @@ public sealed partial class MainWindow
         menu.Items.Add(situacao);
         menu.Items.Add(ItemDoMenu("Editar texto", Glifos.Editar, ComandosApp.InicioEditarTexto));
         menu.Items.Add(ItemDoMenu(it.Incluido ? "Excluir item" : "Restaurar item", it.Incluido ? Glifos.Excluir : Glifos.Restaurar, ComandosApp.InicioExcluirRestaurar));
-        var original = new ToggleMenuFlyoutItem { Text = "Original ⇄", IsChecked = mostrarOriginal, IsEnabled = Faixa.Habilitado(ComandosApp.InicioOriginal) };
+        var original = new ToggleMenuFlyoutItem { Text = "Original", IsChecked = mostrarOriginal, IsEnabled = Faixa.Habilitado(ComandosApp.InicioOriginal) };
         original.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioOriginal);
         menu.Items.Add(original);
         var propriedades = new MenuFlyoutItem { Text = "Propriedades", Icon = new FontIcon { Glyph = Glifos.Propriedades } };
@@ -618,6 +618,7 @@ public sealed partial class MainWindow
         ajustes.MarcasRevisao = !ajustes.MarcasRevisao;
         SalvarAjustes();
         AtualizarComandos();
+        SincronizarAjustes();   // a chave da página Ajustes acompanha a faixa (o primeiro clique nela volta a valer)
         if (sessao is { Atual: not null } s) await s.EnviarEstadoAsync();
     }
 

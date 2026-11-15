@@ -62,7 +62,7 @@
           <ListView x:Name="ListaLeis" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" IsItemClickEnabled="True"
                     Padding="4,0,4,8" AutomationProperties.Name="Leis anexadas"/>
           <StackPanel x:Name="VazioLeis" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed" Padding="14,8" Spacing="10">
-            <ContentPresenter Width="48" Height="48" HorizontalAlignment="Left" ContentTemplate="{StaticResource PmvniIconeLegislacao}" IsHitTestVisible="False"/>
+            <ContentPresenter Width="48" Height="48" HorizontalAlignment="Left" ContentTemplate="{StaticResource PmvniIconeLegislacao}" Content="" IsHitTestVisible="False"/>
             <TextBlock TextWrapping="Wrap" Text="Nenhuma lei anexada ainda."/>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar PDFs…" Style="{StaticResource AccentButtonStyle}"/>

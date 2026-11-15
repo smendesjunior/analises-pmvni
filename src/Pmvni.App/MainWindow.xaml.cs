@@ -70,6 +70,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal ListView ListaDeProcessos => PaginaDeProcessos.ListaProcessos;
     internal ListView ListaDeDespachos => PaginaDeDespachos.ListaDespachos;
     internal EstadoVazio EstadoVazioRelatorios => R.TextoVazio;
+    internal EstadoVazio EstadoVazioProcessos => PaginaDeProcessos.Vazio;
+    internal EstadoVazio EstadoVazioDespachos => PaginaDeDespachos.Vazio;
+    internal TextBlock TextoListaVaziaProcessos => PaginaDeProcessos.TextoListaVazia;
     internal bool ExportarHabilitado => Faixa.Habilitado(ComandosApp.ArquivoExportarPdf);
     internal string DicaExportar => Faixa.Dica(ComandosApp.ArquivoExportarPdf);
     internal IReadOnlyList<ItemNavegacao> Itens => itensNavegacao;
@@ -565,6 +568,13 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             ("Novo relatório", Glifos.Adicionar, ComandosApp.RelatoriosNovo), ("Abrir…", ComandosApp.ArquivoAbrir));
         R.TextoVazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
         R.TextoVazio.RecenteEscolhido += async caminho => await AbrirRecenteAsync(caminho);
+        // Processos e Despachos (M5 completo): título, frase (o texto da lista vazia) e os botões de atualizar e de onde vêm os itens.
+        PaginaDeProcessos.Vazio.Definir(Modulo.Processos, "Nenhum processo", "",
+            ("Atualizar lista", Glifos.Atualizar, ComandosApp.ProcessosAtualizar), ("Abrir Ajustes", ComandosApp.ModuloAjustes));
+        PaginaDeDespachos.Vazio.Definir(Modulo.Despachos, "Nenhum despacho", "",
+            ("Atualizar lista", Glifos.Atualizar, ComandosApp.DespachosAtualizar), ("Ver processos", ComandosApp.ModuloProcessos));
+        PaginaDeProcessos.Vazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
+        PaginaDeDespachos.Vazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
     }
 
     // ---------- importar e abrir ----------

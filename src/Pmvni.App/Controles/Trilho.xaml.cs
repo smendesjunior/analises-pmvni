@@ -11,7 +11,7 @@ namespace Pmvni.App;
 /// <see cref="Marcar"/>.</summary>
 public sealed partial class Trilho : UserControl
 {
-    sealed record Item(Button Botao, Border Fundo, Border Indicador, TextBlock Rotulo, ContentPresenter? Icone);
+    sealed record Item(Button Botao, Border Fundo, Border Indicador, TextBlock Rotulo, FrameworkElement? Icone);
 
     readonly Dictionary<Modulo, Item> itens = new();
     readonly HashSet<Modulo> sob = new();
@@ -28,8 +28,13 @@ public sealed partial class Trilho : UserControl
     /// <summary>O módulo marcado como ativo (fundo, barrinha e "Selecionado" para o Narrador), ou null antes do primeiro <see cref="Marcar"/>.</summary>
     public Modulo? Ativo => atual;
 
-    /// <summary>O ícone colorido do módulo carregou (o template de <c>IconesModulos.xaml</c>); false = ficou o glifo de reserva.</summary>
-    public bool IconeCarregado(Modulo m) => itens.TryGetValue(m, out var i) && i.Icone is not null;
+    /// <summary>O ícone colorido do módulo está desenhado: o template de <c>IconesModulos.xaml</c> virou elementos (Viewbox com o desenho), com
+    /// tamanho na tela; false = ficou o glifo de reserva ou o ícone não tem tamanho.</summary>
+    public bool IconeCarregado(Modulo m) => itens.TryGetValue(m, out var i) && IconeDesenhado(i.Icone);
+
+    /// <summary>Um ícone de <see cref="NovoIcone"/> está desenhado: tem largura e altura no layout e o Viewbox tem o Canvas com as formas.</summary>
+    internal static bool IconeDesenhado(FrameworkElement? icone) =>
+        icone is Viewbox { ActualWidth: > 0, ActualHeight: > 0, Child: Canvas { Children.Count: > 0 } };
 
     /// <summary>O fundo arredondado do item está pintado (só o ativo, fora o "sobre" do mouse).</summary>
     public bool FundoVisivel(Modulo m) => itens.TryGetValue(m, out var i) && i.Fundo.Style == Estilo("PmvniTrilhoFundoAtivoStyle");
@@ -89,15 +94,20 @@ public sealed partial class Trilho : UserControl
         if (atual is { } a) Marcar(a);
     }
 
-    /// <summary>O ícone colorido do módulo (DataTemplate do dicionário), 22 x 22; null se o template não existe.</summary>
-    static ContentPresenter? CriarIcone(Modulo m)
+    static FrameworkElement? CriarIcone(Modulo m) => NovoIcone(m, 22);
+
+    /// <summary>O ícone colorido do módulo (o DataTemplate do dicionário, materializado com LoadContent: um Viewbox), <paramref name="lado"/> x
+    /// <paramref name="lado"/>; null se o template não existe. As cores são ThemeResource e seguem o tema do lugar onde o ícone fica.</summary>
+    internal static FrameworkElement? NovoIcone(Modulo m, double lado)
     {
         if (!Application.Current.Resources.TryGetValue(Pmvni.App.Modulos.ChaveIcone(m), out var t) || t is not DataTemplate template) return null;
-        return new ContentPresenter
-        {
-            ContentTemplate = template, Width = 22, Height = 22,
-            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false,
-        };
+        if (template.LoadContent() is not FrameworkElement icone) return null;
+        icone.Width = lado;
+        icone.Height = lado;
+        icone.HorizontalAlignment = HorizontalAlignment.Center;
+        icone.VerticalAlignment = VerticalAlignment.Center;
+        icone.IsHitTestVisible = false;
+        return icone;
     }
 
     /// <summary>Marca o módulo ativo (e só ele): fundo arredondado, barrinha, rótulo forte e "Selecionado" para o Narrador.</summary>

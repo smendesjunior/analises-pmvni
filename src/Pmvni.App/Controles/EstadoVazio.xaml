@@ -4,7 +4,7 @@
   <!-- Tela vazia de um módulo (auditoria M5): o ícone colorido do módulo (48 px), título, frase, um botão tonal e um secundário e, em
        Relatórios, os recentes que ainda existem. -->
   <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="460" Padding="24">
-    <ContentPresenter x:Name="Icone" Width="48" Height="48" HorizontalAlignment="Center" IsHitTestVisible="False"/>
+    <Border x:Name="VagaIcone" Width="48" Height="48" HorizontalAlignment="Center" IsHitTestVisible="False"/>
     <TextBlock x:Name="Titulo" x:FieldModifier="internal" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center"
                TextAlignment="Center" TextWrapping="Wrap"/>
     <TextBlock x:Name="Frase" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" HorizontalAlignment="Center"

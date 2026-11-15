@@ -32,10 +32,9 @@ public sealed partial class EstadoVazio : UserControl
     /// <summary>Monta a tela: o ícone do módulo, os textos e os dois botões (rótulo, glifo e id do comando; null = sem o botão).</summary>
     public void Definir(Modulo modulo, string titulo, string frase, (string Rotulo, string Glifo, string Id)? primario, (string Rotulo, string Id)? secundario)
     {
-        Icone.ContentTemplate = Application.Current.Resources.TryGetValue(Modulos.ChaveIcone(modulo), out var t) ? t as DataTemplate : null;
+        VagaIcone.Child = Trilho.NovoIcone(modulo, 48);
         Titulo.Text = titulo;
-        Frase.Text = frase;
-        Frase.Visibility = frase.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        DefinirFrase(frase);
         idPrimario = primario?.Id;
         if (primario is { } p)
         {
@@ -56,6 +55,18 @@ public sealed partial class EstadoVazio : UserControl
         }
         else BotaoSecundario.Visibility = Visibility.Collapsed;
     }
+
+    /// <summary>Troca só a frase (ex.: "Nenhum processo combina com o filtro."); vazia = some.</summary>
+    public void DefinirFrase(string frase)
+    {
+        Frase.Text = frase;
+        Frase.Visibility = frase.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    public string TextoFrase => Frase.Text;
+
+    /// <summary>O ícone do módulo está desenhado (roteiro).</summary>
+    public bool IconeDesenhado => Trilho.IconeDesenhado(VagaIcone.Child as FrameworkElement);
 
     /// <summary>Os recentes que ainda existem (nome e pasta, caminho na dica), no máximo 5; vazio = some a seção.</summary>
     public void DefinirRecentes(IReadOnlyList<(string Texto, string Caminho)> recentes)

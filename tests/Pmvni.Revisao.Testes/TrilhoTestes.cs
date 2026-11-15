@@ -44,6 +44,17 @@ public class TrilhoTestes
     }
 
     [Fact]
+    public void alto_contraste_no_ativo_nao_pinta_o_icone_sobre_a_cor_de_selecao()
+    {
+        // Revisão I5: os ícones em alto contraste ficam na cor do texto dos botões; o fundo do ativo não pode ser a cor de seleção
+        // (Highlight claro + ButtonText branco = sem contraste). O destaque vai para a borda.
+        var hc = Dicionario().Root!.Descendants().First(e => e.Name.LocalName == "ResourceDictionary" && (string?)e.Attribute(X + "Key") == "HighContrast");
+        string Cor(string chave) => (string)hc.Elements().First(b => (string?)b.Attribute(X + "Key") == chave).Attribute("Color")!;
+        Assert.Equal("{ThemeResource SystemColorButtonFaceColor}", Cor("PmvniTrilhoSelecionado"));
+        Assert.Equal("{ThemeResource SystemColorHighlightColor}", Cor("PmvniTrilhoSelecionadoBorda"));
+    }
+
+    [Fact]
     public void cada_modulo_tem_atalho_e_comando()
     {
         Assert.Equal(new[] { 1, 2, 3, 4, 5 }, Faixas.Disponiveis.Select(Modulos.Numero));

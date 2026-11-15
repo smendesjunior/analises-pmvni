@@ -53,13 +53,12 @@
             </DataTemplate>
           </ListView.ItemTemplate>
         </ListView>
-        <!-- Lista vazia (M5): o ícone do módulo acima do texto (o texto e a visibilidade vêm da janela). -->
-        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Padding="16"
-                    Visibility="{Binding Visibility, ElementName=TextoListaVazia}">
-          <ContentPresenter Width="48" Height="48" HorizontalAlignment="Center" ContentTemplate="{StaticResource PmvniIconeProcessos}" IsHitTestVisible="False"/>
-          <TextBlock x:Name="TextoListaVazia" x:FieldModifier="internal" TextWrapping="Wrap" TextAlignment="Center" Visibility="Collapsed"
-                     Style="{StaticResource PmvniSecondaryTextStyle}"/>
-        </StackPanel>
+        <!-- Lista vazia (M5): a tela vazia do módulo (ícone, título, frase e botões). A janela escreve o texto e a visibilidade em
+             TextoListaVazia (guardado fora da tela); a frase e a visibilidade da tela vazia seguem esse texto. -->
+        <local:EstadoVazio x:Name="Vazio" x:FieldModifier="internal" Grid.Row="1" Visibility="{Binding Visibility, ElementName=TextoListaVazia}"/>
+        <Border Grid.Row="1" Visibility="Collapsed">
+          <TextBlock x:Name="TextoListaVazia" x:FieldModifier="internal" Visibility="Collapsed"/>
+        </Border>
       </Grid>
 
       <!-- Detalhe do processo escolhido. -->

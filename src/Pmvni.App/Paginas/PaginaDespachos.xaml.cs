@@ -6,5 +6,10 @@ namespace Pmvni.App;
 /// (<c>MainWindow.Pastas.cs</c>), pelos elementos <c>internal</c>. É criada uma vez e trocada por Visibility.</summary>
 public sealed partial class PaginaDespachos : UserControl
 {
-    public PaginaDespachos() => InitializeComponent();
+    public PaginaDespachos()
+    {
+        InitializeComponent();
+        // A frase da tela vazia acompanha o texto que a janela escreve em TextoListaVazia.
+        TextoListaVazia.RegisterPropertyChangedCallback(TextBlock.TextProperty, (_, _) => Vazio.DefinirFrase(TextoListaVazia.Text));
+    }
 }
