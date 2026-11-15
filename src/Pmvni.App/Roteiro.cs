@@ -2392,6 +2392,10 @@ internal static class Roteiro
         async Task PrepararAgentesAsync()
         {
             if (agentesPreparados) return;
+            // Nunca mexe no cofre nem nos ajustes de verdade do usuário: a pasta de dados do roteiro tem de estar em tests\saida.
+            var saidaDeTestes = Path.GetFullPath(Path.Combine(pasta, ".."));
+            if (!Path.GetFullPath(PastaDados.Raiz).StartsWith(saidaDeTestes + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("A pasta de dados (" + PastaDados.Raiz + ") não está em " + saidaDeTestes + ": o roteiro não toca o cofre nem os ajustes de verdade.");
             if (!File.Exists(agenteFalso)) throw new InvalidOperationException("O agente falso não foi publicado em " + agenteFalsoPasta + " (tools\\roteiro.ps1 o publica).");
             ExecucaoProcesso.SomenteExecutaveisEm = agenteFalsoPasta;
             File.Copy(agenteFalso, Path.Combine(agenteFalsoPasta, "claude.exe"), overwrite: true);   // o mesmo programa faz o papel do claude.exe (e do python.exe)
@@ -2493,7 +2497,40 @@ internal static class Roteiro
 
             await Esperar(300);
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "49-ajustes-ia-xaml.png"));
-            p["ok"] = secao && cartoes && soFalso && travado && testouChatGpt && testouClaude && claudeSoConta && recusouInexistente && recusouNaoExe && escolheu && padrao
+
+            // (g) Testar é só leitura e roda FORA da fila de comandos: com um agente falso que não responde (--version dorme), Gravar e Exportar o relatório aberto
+            // andam na hora; o botão desabilita já no clique e um segundo pedido devolve o mesmo teste; o teste termina sozinho em 15 s com a linha "não respondeu".
+            var trava = Path.Combine(pasta, "agente-trava.json");
+            File.WriteAllText(trava, "{ \"trava\": \"versao\" }");
+            var pmvrelTeste = Path.Combine(pasta, "ia-testar.pmvrel");
+            var pdfTeste = Path.Combine(pasta, "ia-testar.pdf");
+            ApagarSe(pmvrelTeste); ApagarSe(pdfTeste);
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), pmvrelTeste)) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+            Environment.SetEnvironmentVariable("AGENTE_FALSO_CENARIO", trava);
+            bool travado2 = false, mesmoTeste = false, botaoNoClique = false, gravouNaHora = false, exportou = false;
+            string linhaTravada = "";
+            try
+            {
+                var teste = j.TestarAgenteAsync(Provedor.ChatGpt);
+                botaoNoClique = !chatgpt.BotaoTestar.IsEnabled && chatgpt.TextoSituacao.Text == TextosAgentes.Testando;
+                mesmoTeste = ReferenceEquals(teste, j.TestarAgenteAsync(Provedor.ChatGpt));
+                await Esperar(1500);   // o programa já foi iniciado e está dormindo
+                travado2 = !teste.IsCompleted;
+                var relogio = System.Diagnostics.Stopwatch.StartNew();
+                gravouNaHora = await j.GravarAgoraAsync() && relogio.ElapsedMilliseconds < 5000 && !teste.IsCompleted;
+                var (okPdf, _, erroPdf, _) = await j.ExportarParaAsync(pdfTeste);
+                exportou = okPdf && File.Exists(pdfTeste);
+                p["exportar_com_teste_rodando"] = new JsonObject { ["exportou"] = exportou, ["teste_ainda_rodando"] = !teste.IsCompleted, ["erro"] = erroPdf };
+                linhaTravada = (await teste).Linha;
+            }
+            finally { Environment.SetEnvironmentVariable("AGENTE_FALSO_CENARIO", null); }
+            await j.FecharSessaoAsync();
+            var terminou = linhaTravada == "Codex não verificado: não respondeu em 15 s" && chatgpt.TextoSituacao.Text == linhaTravada && chatgpt.BotaoTestar.IsEnabled;
+            p["linha_do_teste_que_travou"] = linhaTravada;
+            p["testar_fora_da_fila"] = new JsonObject { ["botao_desabilita_no_clique"] = botaoNoClique, ["mesmo_teste_se_repetir"] = mesmoTeste, ["rodando_enquanto_gravava"] = travado2, ["gravou_na_hora"] = gravouNaHora, ["terminou_com_nao_respondeu"] = terminou };
+            var foraDaFila = botaoNoClique && mesmoTeste && travado2 && gravouNaHora && exportou && terminou;
+            p["ok"] = secao && cartoes && foraDaFila && soFalso && travado && testouChatGpt && testouClaude && claudeSoConta && recusouInexistente && recusouNaoExe && escolheu && padrao
                 && desabilitado.EndsWith("plugin analise não habilitado no Codex", StringComparison.Ordinal) && reabilitado == LinhaChatGpt;
         });
 

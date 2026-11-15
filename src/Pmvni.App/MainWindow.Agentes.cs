@@ -19,6 +19,8 @@ public sealed partial class MainWindow
     readonly Dictionary<Provedor, IReadOnlyList<string>> avisosDosAgentes = new();
     readonly Dictionary<Provedor, string> mensagensDosAgentes = new();
     readonly HashSet<Provedor> testandoAgentes = new();
+    readonly Dictionary<Provedor, Task<SituacaoProvedor>> testesEmCurso = new();
+    int sequenciaPecas, sequenciaPecasAplicada;
 
     // ---------- acessores do roteiro ----------
 
@@ -84,19 +86,36 @@ public sealed partial class MainWindow
         catch (Exception e) { System.Diagnostics.Debug.WriteLine("[agentes] " + e.Message); }
     }
 
+    /// <summary>Lê as peças fora da thread da janela. Leituras que terminam fora de ordem não se sobrepõem: só vale a mais nova (número de sequência);
+    /// quem chamou recebe sempre a sua. O modo "chave" do Claude guardado antes de o kit passar a proibir a API vira "conta".</summary>
     async Task<Pecas> LerPecasAsync()
     {
+        var minha = ++sequenciaPecas;
         var opcoes = OpcoesAgentes();
         var pecas = await Task.Run(() => Localizacao.Ler(opcoes));
-        pecasAgentes = pecas;
+        if (minha > sequenciaPecasAplicada)
+        {
+            sequenciaPecasAplicada = minha;
+            pecasAgentes = pecas;
+            if (ajustes.NormalizarModos(pecas.ApiPermitidaNoKit)) SalvarAjustes();
+        }
         return pecas;
     }
 
     // ---------- comandos ----------
 
     /// <summary>"Testar": só comandos locais do programa (<c>--version</c>, login/auth status, <c>python --version</c>), 15 s cada, sem pedir nada ao modelo.
-    /// O resultado vira a linha de situação do cartão.</summary>
-    internal Task<SituacaoProvedor> TestarAgenteAsync(Provedor p) => NaFilaAsync(async () =>
+    /// O resultado vira a linha de situação do cartão. É só leitura e NÃO entra na fila de comandos (um programa que não responde não prende Salvar nem
+    /// Exportar): um teste por provedor de cada vez (chamar de novo enquanto roda devolve o mesmo teste) e o botão desabilita já no clique.</summary>
+    internal Task<SituacaoProvedor> TestarAgenteAsync(Provedor p)
+    {
+        if (testesEmCurso.TryGetValue(p, out var emCurso)) return emCurso;
+        var tarefa = ExecutarTesteAsync(p);   // roda até o primeiro await aqui mesmo: já marca "Testando…" e desabilita o botão
+        if (!tarefa.IsCompleted) testesEmCurso[p] = tarefa;
+        return tarefa;
+    }
+
+    async Task<SituacaoProvedor> ExecutarTesteAsync(Provedor p)
     {
         testandoAgentes.Add(p);
         mensagensDosAgentes.Remove(p);
@@ -110,12 +129,16 @@ public sealed partial class MainWindow
             resultado = await Diagnostico.TestarAsync(p, pecas, ajustes.Agentes[p].Modo, CofreChaves.Existe(PastaDados.Raiz, p), CancellationToken.None);
         }
         catch (Exception e) { resultado = new SituacaoProvedor("Não foi possível testar: " + Erro(e), []); }
-        finally { testandoAgentes.Remove(p); }
+        finally
+        {
+            testandoAgentes.Remove(p);
+            testesEmCurso.Remove(p);
+        }
         situacaoDosAgentes[p] = resultado.Linha;
         avisosDosAgentes[p] = resultado.Avisos;
         MostrarAgentes();
         return resultado;
-    });
+    }
 
     /// <summary>Guarda a chave de API protegida pelo Windows (DPAPI, só para este usuário) e limpa a caixa. Nunca vai para <c>ajustes.json</c>, log ou registro.</summary>
     internal Task GuardarChaveAsync(Provedor p, string chave) => NaFilaAsync(() => TentarAsync(() =>
@@ -137,6 +160,7 @@ public sealed partial class MainWindow
             catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or IOException or UnauthorizedAccessException)
             {
                 mensagensDosAgentes[p] = "Não foi possível guardar a chave: " + e.Message;
+                caixa.Password = "";   // a chave não fica na caixa nem quando a gravação falha
             }
         }
         MostrarAgentes();

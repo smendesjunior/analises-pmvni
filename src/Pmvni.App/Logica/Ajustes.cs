@@ -105,6 +105,16 @@ public sealed class Ajustes
         return a;
     }
 
+    /// <summary>Se o análise pro instalado do kit proíbe a API paga (<paramref name="apiClaudePermitida"/> false), um "chave" do Claude guardado antes volta para
+    /// "conta" (a opção está desabilitada na tela e nenhuma análise sairia). true = mudou algo e é preciso salvar.</summary>
+    public bool NormalizarModos(bool apiClaudePermitida)
+    {
+        var claude = Agentes[Provedor.Claude];
+        if (apiClaudePermitida || claude.Modo != ModoAcesso.Chave) return false;
+        claude.Modo = ModoAcesso.Conta;
+        return true;
+    }
+
     /// <summary>Põe o arquivo no topo dos recentes (sem repetir, ignorando maiúsculas; no máximo <see cref="MaxRecentes"/>).</summary>
     public void AdicionarRecente(string caminho)
     {
