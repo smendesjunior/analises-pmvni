@@ -125,6 +125,72 @@ public class ImportacaoTestes
         Assert.Equal(c.Projeto.Documento["localizacao"]!["imagem"]!.GetValue<string>(), c.Projeto.Documento["figuras"]![0]!["imagem"]!.GetValue<string>());
     }
 
+    [Theory]
+    [InlineData("absoluto")]
+    [InlineData(@"\\host-que-nao-existe.invalid\share\x.png")]
+    [InlineData("//host-que-nao-existe.invalid/share/x.png")]
+    public void imagem_absoluta_ou_de_rede_recusa_importacao(string imagem)
+    {
+        using var pasta = Ambiente.PastaDeTeste("imagem-fora");
+        CopiarCorpus(pasta);
+        var dados = JsonFiel.Ler(File.ReadAllBytes(Path.Combine(pasta, "extremos.json")));
+        // Um arquivo que existe de verdade, por caminho absoluto: nunca é lido.
+        if (imagem == "absoluto") imagem = Path.GetFullPath(Path.Combine(pasta, dados["localizacao"]!["imagem"]!.GetValue<string>()));
+        dados["localizacao"]!["imagem"] = imagem;
+        var caminho = Path.Combine(pasta, "fora.json");
+        File.WriteAllBytes(caminho, JsonFiel.Escrever(dados));
+
+        var ex = Assert.Throws<ImportacaoRecusadaException>(() => Importador.Importar(File.ReadAllBytes(caminho), caminho, Modelo, Ambiente.Contexto()));
+        Assert.Contains(ex.Erros, e => e.StartsWith("Localização: mapa não encontrado", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void imagem_em_pasta_irma_como_no_kit_continua_aceita_na_importacao()
+    {
+        // A análise do kit cita o mapa de uma pasta irmã (../REANALISE_…/renders/mapa.png): o .. relativo é do kit e continua aceito.
+        using var pasta = Ambiente.PastaDeTeste("imagem-irma");
+        var sub = Path.Combine(pasta, "analise");
+        Directory.CreateDirectory(sub);
+        CopiarCorpus(sub);
+        var dados = JsonFiel.Ler(File.ReadAllBytes(Path.Combine(sub, "extremos.json")));
+        var mapa = dados["localizacao"]!["imagem"]!.GetValue<string>();
+        Directory.CreateDirectory(Path.Combine(pasta, "renders"));
+        File.Copy(Path.Combine(sub, mapa), Path.Combine(pasta, "renders", "mapa.png"));
+        dados["localizacao"]!["imagem"] = "../renders/mapa.png";
+        var caminho = Path.Combine(sub, "irma.json");
+        File.WriteAllBytes(caminho, JsonFiel.Escrever(dados));
+
+        var c = Importador.Importar(File.ReadAllBytes(caminho), caminho, Modelo, Ambiente.Contexto());
+        Assert.StartsWith("assets/", c.Projeto.Documento["localizacao"]!["imagem"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("../fora.png", false)]
+    [InlineData("img/../../fora.png", false)]
+    [InlineData("assets/x.png", true)]
+    public void renderizador_da_pasta_de_trabalho_nao_le_fora_dela(string imagem, bool dentro)
+    {
+        // Pasta de trabalho de um pacote (ImagensSoNaPasta): nada com .. nem fora dela, mesmo que o arquivo exista.
+        using var pasta = Ambiente.PastaDeTeste("render-estrito");
+        var trabalho = Path.Combine(pasta, "trabalho");
+        Directory.CreateDirectory(trabalho);
+        CopiarCorpus(trabalho);
+        var dados = JsonFiel.Ler(File.ReadAllBytes(Path.Combine(trabalho, "extremos.json")));
+        var mapa = Path.Combine(trabalho, dados["localizacao"]!["imagem"]!.GetValue<string>());
+        File.Copy(mapa, Path.Combine(pasta, "fora.png"));
+        Directory.CreateDirectory(Path.Combine(trabalho, "assets"));
+        File.Copy(mapa, Path.Combine(trabalho, "assets", "x.png"));
+        dados["localizacao"]!["imagem"] = imagem;
+        var bytes = JsonFiel.Escrever(dados);
+        var caminho = Path.Combine(trabalho, "dados.json");
+
+        var estrito = RelatorioRenderer.Renderizar(bytes, caminho, new OpcoesRender(false, true, ImagensSoNaPasta: true), Modelo);
+        Assert.Equal(dentro, estrito.Ok);
+        if (!dentro) Assert.Contains(estrito.Erros, e => e.StartsWith("Localização: mapa não encontrado", StringComparison.Ordinal));
+        // Fora do modo estrito (dados.json do kit) o mesmo caminho relativo é aceito, como no gerador do kit.
+        Assert.True(RelatorioRenderer.Renderizar(bytes, caminho, new OpcoesRender(false, true), Modelo).Ok);
+    }
+
     [Fact]
     public void imagem_com_assinatura_desconhecida_recusa_importacao()
     {

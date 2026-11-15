@@ -423,6 +423,36 @@ public class PacoteTestes
         Assert.Throws<PacoteInvalidoException>(() => Pacote.Ler(velho));
     }
 
+    [Theory]
+    [InlineData(@"C:\Windows\Web\Wallpaper\Windows\img0.jpg")]
+    [InlineData(@"\\host\share\x.png")]
+    [InlineData("//host/share/x.png")]
+    [InlineData("../fora.png")]
+    [InlineData("assets/../../fora.png")]
+    [InlineData("img/mapa.png")]
+    [InlineData("assets/0000000000000000000000000000000000000000000000000000000000000000.png")]
+    public void imagem_do_documento_fora_dos_assets_do_pacote_recusa(string imagem)
+    {
+        using var pasta = Ambiente.PastaDeTeste("pacote-imagem");
+        var bom = PacoteBom(pasta, "longo");
+        foreach (var onde in new[] { "localizacao", "figura" })
+        {
+            var ruim = Path.Combine(pasta, onde + ".pmvrel");
+            Reescrever(bom, ruim, e =>
+            {
+                var i = Indice(e, "projeto.json");
+                var projeto = ProjetoJson.Ler(e[i].Bytes);
+                if (onde == "localizacao") projeto.Documento["localizacao"]!["imagem"] = imagem;
+                else projeto.Documento["figuras"]![0]!["imagem"] = imagem;
+                var bytes = ProjetoJson.Escrever(projeto);
+                e[i] = ("projeto.json", bytes);
+                NoManifesto(e, m => m with { Partes = new Dictionary<string, string>(m.Partes) { ["projeto.json"] = Sha(bytes) } });
+            });
+            var ex = Assert.Throws<PacoteInvalidoException>(() => Pacote.Ler(ruim));
+            Assert.Contains("imagem não é uma das imagens do pacote", ex.Message, StringComparison.Ordinal);
+        }
+    }
+
     private static RegistroHistorico Registro(int n) =>
         new(n, new DateTimeOffset(2026, 11, 14, 12, n, 0, TimeSpan.Zero), "teste", "DefinirCampo", null, null, null, null, null);
 }

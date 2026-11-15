@@ -87,7 +87,7 @@ internal static class Program
         lido.ExtrairAssets(pastaAssets);
 
         var efetivos = DadosEfetivos.Gerar(lido.Projeto);
-        var r = RelatorioRenderer.Renderizar(efetivos.Json, Path.Combine(pastaAssets, "dados.json"), new OpcoesRender(a.Instrucoes, a.Rascunho), modelo);
+        var r = RelatorioRenderer.Renderizar(efetivos.Json, Path.Combine(pastaAssets, "dados.json"), new OpcoesRender(a.Instrucoes, a.Rascunho, ImagensSoNaPasta: true), modelo);
         if (!r.Ok)
         {
             Console.Error.WriteLine("RELATORIO_DADOS_INVALIDOS" + Environment.NewLine + "- " + string.Join(Environment.NewLine + "- ", r.Erros));

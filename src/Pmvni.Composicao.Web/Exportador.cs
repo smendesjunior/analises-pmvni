@@ -119,7 +119,9 @@ public static class Exportador
         ArgumentNullException.ThrowIfNull(planoTela);
         modelo ??= ModeloOficial.Carregar();
         var m = modelo;
-        var final = await Task.Run(() => RelatorioRenderer.Renderizar(bytesDados, caminhoDados, new OpcoesRender(false, false), m));
+        // Com o pacote de origem (o app), as imagens só podem vir da pasta de trabalho dele (assets\), nunca de fora.
+        var op = new OpcoesRender(false, false, ImagensSoNaPasta: sha256Pacote is not null);
+        var final = await Task.Run(() => RelatorioRenderer.Renderizar(bytesDados, caminhoDados, op, m));
         if (!final.Ok) throw new ConferenciaFinalException(final.Erros);
         return await ExportarRenderAsync(final, cfg, caminhoPdf, bytesDados, m, rascunho: false, planoTela, sha256Pacote);
     }

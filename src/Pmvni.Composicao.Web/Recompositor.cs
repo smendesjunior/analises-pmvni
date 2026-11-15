@@ -21,8 +21,9 @@ public sealed class RecomposicaoRecusadaException(IReadOnlyList<string> erros)
 /// compõe as folhas num <see cref="HostOculto"/>. Dono da <see cref="PastaTrabalho"/> do pacote aberto (as imagens do <c>documento</c>).</summary>
 public sealed class Recompositor : IDisposable
 {
-    static readonly OpcoesRender Rascunho = new(false, true);
-    static readonly OpcoesRender Final = new(false, false);
+    // As imagens do pacote estão em assets\ da pasta de trabalho: nada fora dela é lido (Pacote.Ler já amarra o documento aos assets).
+    static readonly OpcoesRender Rascunho = new(false, true, ImagensSoNaPasta: true);
+    static readonly OpcoesRender Final = new(false, false, ImagensSoNaPasta: true);
 
     readonly ModeloCarregado modelo;
     readonly Pmvni.Composicao.Web.PastaTrabalho pasta;

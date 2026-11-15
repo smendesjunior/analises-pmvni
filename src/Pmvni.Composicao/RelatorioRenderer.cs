@@ -4,8 +4,10 @@ using Pmvni.Composicao.Kit;
 
 namespace Pmvni.Composicao;
 
-/// <summary>Opções do render (as do kit: <c>--instrucoes</c> e <c>--rascunho</c>; rascunho vale também com instruções).</summary>
-public sealed record OpcoesRender(bool Instrucoes, bool Rascunho);
+/// <summary>Opções do render (as do kit: <c>--instrucoes</c> e <c>--rascunho</c>; rascunho vale também com instruções).
+/// <see cref="ImagensSoNaPasta"/>: as imagens só podem estar dentro da pasta do dados.json (sem <c>..</c>; a pasta de trabalho de um
+/// pacote aberto). Caminho absoluto ou de rede é recusado sempre (<see cref="CaminhoImagem"/>); recusado conta como imagem não encontrada.</summary>
+public sealed record OpcoesRender(bool Instrucoes, bool Rascunho, bool ImagensSoNaPasta = false);
 
 /// <summary>Elemento do HTML que o paginador (Tarefa 6+) precisa reconhecer: seletor CSS, posição (0 = primeiro) entre os
 /// elementos do mesmo seletor, id estável e, nas seções, o texto do h2. Os refs NÃO alteram o HTML.</summary>
@@ -38,7 +40,8 @@ public static class RelatorioRenderer
         var json = new UTF8Encoding(false, true).GetString(bytesDados);
         var d = Dados.Dict(JsonModelo.Ler(json));
 
-        var erros = Conferencia.Conferir(d, rel => File.Exists(Path.GetFullPath(Path.Combine(baseDir, rel))), op.Rascunho || op.Instrucoes);
+        var estrito = op.ImagensSoNaPasta;
+        var erros = Conferencia.Conferir(d, rel => CaminhoImagem.Resolver(baseDir, rel, estrito) is { } c && File.Exists(c), op.Rascunho || op.Instrucoes);
         if (erros.Count > 0) return new ResultadoRender("", erros, Array.Empty<RefElemento>());
 
         var ctx = new Dictionary<string, object?>();
@@ -54,7 +57,7 @@ public static class RelatorioRenderer
         if (PythonTexto.Verdadeiro(loc))
         {
             var l = Localizacao.Agrupar(Dados.Dict(loc));
-            l["imagem_uri"] = DataUriPng(baseDir, Dados.Exigir(loc, "imagem"));
+            l["imagem_uri"] = DataUriPng(baseDir, Dados.Exigir(loc, "imagem"), estrito);
             ctx["localizacao"] = l;
         }
 
@@ -63,7 +66,7 @@ public static class RelatorioRenderer
         {
             var nova = new Dictionary<string, object?>();
             foreach (var par in Dados.Dict(f)) nova[par.Key] = par.Value;
-            nova["imagem_uri"] = DataUriPng(baseDir, Dados.Exigir(f, "imagem"));
+            nova["imagem_uri"] = DataUriPng(baseDir, Dados.Exigir(f, "imagem"), estrito);
             return (object?)nova;
         }).ToList();
 
@@ -77,10 +80,12 @@ public static class RelatorioRenderer
     /// <summary><c>Path.read_text()</c> do Python converte \r\n e \r em \n; o gerador do kit lê o molde e o CSS assim.</summary>
     internal static string NovasLinhas(string s) => s.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
 
-    private static Seguro DataUriPng(string baseDir, object? imagem)
+    private static Seguro DataUriPng(string baseDir, object? imagem, bool estrito)
     {
         var rel = imagem as string ?? throw new MoldeErro("unsupported operand type(s) for /: 'PosixPath' and '" + PythonTexto.NomeTipo(imagem) + "'");
-        return new Seguro("data:image/png;base64," + Convert.ToBase64String(File.ReadAllBytes(Path.Combine(baseDir, rel))));
+        // A conferência já recusou um caminho inaceitável; esta é a segunda barreira (nunca lê fora do permitido).
+        var caminho = CaminhoImagem.Resolver(baseDir, rel, estrito) ?? throw new MoldeErro("caminho de imagem recusado: " + rel);
+        return new Seguro("data:image/png;base64," + Convert.ToBase64String(File.ReadAllBytes(caminho)));
     }
 
     private static string IdOu(object? item, int i, string prefixo)

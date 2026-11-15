@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace Pmvni.Revisao;
@@ -162,12 +163,32 @@ public static class Pacote
             throw new PacoteInvalidoException("O pacote não pôde ser lido" + (maior ? " (versão mais nova do esquema)" : "") + ": " + e.Message);
         }
 
+        ConferirImagensDoDocumento(projeto, imagens);
+
         if (!maior && VersaoDe(projeto.VersaoEsquema) > atual) maior = true;
         string? motivo = maior
             ? "Este pacote é de uma versão mais nova do editor (esquema " + manifesto.VersaoEsquema + "; este editor conhece o " + Manifesto.VersaoEsquemaAtual
               + "). Ele só pode ser aberto para leitura."
             : null;
         return new PacoteAberto(new ConteudoPacote(manifesto, recebido, projeto, historico, imagens), disco, maior, motivo);
+    }
+
+    /// <summary>Toda imagem do <c>documento</c> (o mapa da localização e cada figura) tem de ser <c>assets/&lt;sha256&gt;.&lt;ext&gt;</c>, um asset
+    /// que está no pacote: um <c>.pmvrel</c> adulterado com caminho absoluto, de rede (<c>\\host\share\x.png</c>) ou com <c>..</c> nunca chega ao
+    /// renderizador (que leria o arquivo do computador ou abriria uma conexão SMB).</summary>
+    private static void ConferirImagensDoDocumento(Projeto projeto, IReadOnlyDictionary<string, byte[]> imagens)
+    {
+        void Conferir(JsonNode? dono, string onde)
+        {
+            if (dono is not JsonObject o || !o.TryGetPropertyValue("imagem", out var no)) return;
+            var nome = no is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+            if (nome is null || !NomeAsset.IsMatch(nome) || !imagens.ContainsKey(nome))
+                throw new PacoteInvalidoException(onde + ": a imagem não é uma das imagens do pacote (" + (nome ?? no?.ToJsonString() ?? "null") + ").");
+        }
+
+        Conferir(projeto.Documento["localizacao"], "Localização");
+        if (projeto.Documento["figuras"] is JsonArray figuras)
+            for (var i = 0; i < figuras.Count; i++) Conferir(figuras[i], "Figura " + (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private static Manifesto LerManifesto(byte[] bytes)

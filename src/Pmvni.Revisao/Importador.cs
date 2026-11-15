@@ -136,7 +136,13 @@ public static class Importador
             if (dono is not JsonObject obj || obj["imagem"] is not JsonValue v || !v.TryGetValue<string>(out var rel)) return;
             if (!jaCopiadas.TryGetValue(rel, out var destino))
             {
-                var bytes = File.ReadAllBytes(Path.GetFullPath(Path.Combine(pastaDados, rel)));
+                // A conferência do render já recusou caminho absoluto ou de rede; esta é a segunda barreira (nunca lê fora do permitido).
+                if (CaminhoImagem.Resolver(pastaDados, rel, soNaPasta: false) is not { } arquivo)
+                {
+                    erros.Add("Caminho de imagem recusado (absoluto ou de rede): " + rel + ".");
+                    return;
+                }
+                var bytes = File.ReadAllBytes(arquivo);
                 var ext = ExtensaoPelaAssinatura(bytes);
                 if (ext is null)
                 {
