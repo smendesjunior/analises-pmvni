@@ -15,11 +15,16 @@ edição e pesquisa **fora do fluxo** das folhas e conversa com o host pelo enve
 
 **Tecnologia (Tech Stack):** .NET 10, Windows App SDK 1.8.260921001 (WinUI 3: `TitleBar`, `SelectorBar`, `CommandBar`,
 `InfoBar`, `MenuFlyout`, `ContentDialog`), WebView2 (projeção WinRT), `System.IO.Compression`, `System.Text.Json.Nodes`,
-xUnit 2.9.3, TypeScript + esbuild (`web/paginador`), Python 3.14 + PyMuPDF (só `tools/fidelidade.py`).
+xUnit 2.9.3, TypeScript + esbuild (`web/paginador`), Python 3.14 + PyMuPDF (só `tools/fidelidade.py`); despachos:
+`System.IO.Compression` + `System.Xml.Linq` (DOCX), LibreOffice instalado pelo kit (`soffice.com`, só o PDF do despacho),
+`Windows.Data.Pdf` (páginas na conferência).
 
 **Especificação (Spec):** `docs/superpowers/specs/2026-11-14-etapa-2-revisao-basica-design.md` (vinculante, inclusive §8,
-§9 e §9.1); contexto em `docs/especificacao/2026-11-14-editor-relatorios-concepcao.md` §3, §5.4, §6, §11. Formato e
+§9, §9.1 e §10); contexto em `docs/especificacao/2026-11-14-editor-relatorios-concepcao.md` §3, §5.4, §6, §10, §11. Formato e
 convenções: `docs/superpowers/plans/2026-11-14-etapa-1-fidelidade-documental.md`.
+
+**Ordem de execução:** Tarefas 1 a 13, depois **15 e 16** (novo despacho, desenho §10) e, **por último, a 14** (roteiro
+completo, entrega, Recriar PC), que cobre também o que as Tarefas 15 e 16 acrescentam.
 
 ## Restrições globais (Global Constraints)
 
@@ -29,10 +34,11 @@ convenções: `docs/superpowers/plans/2026-11-14-etapa-1-fidelidade-documental.m
 - Dados reais (17098, caminho em `tests/local.json`, ignorado pelo git) só locais: nunca em `tests/corpus`, `tests/referencias`, docs ou commits; saídas guardadas só com contagens, hashes e páginas. Pastas reais de PROCESSOS/LEGISLAÇÃO nunca entram em teste versionado: os testes usam `tests/corpus/processos/` e `tests/corpus/legislacao/` (fictícios).
 - Testes e ferramentas rodados pelo shell do Claude **não gravam** em `%APPDATA%`, `%LOCALAPPDATA%` nem `%TEMP%` (virtualização MSIX): pasta de dados por `PMVNI_DADOS_DIR` (`PastaDados.Raiz`); temporários de teste em `tests/saida/...` (ignorada pelo git). Testes novos não usam `Path.GetTempPath()`.
 - O app e o roteiro só são abertos por `explorer.exe` com `.cmd` (`tools/roteiro.cmd`, `tools/autoteste.cmd`); verificações leem o resultado por arquivo em `tests\saida` / `docs\`.
-- Fidelidade: `python -I tools/fidelidade.py tudo` continua aprovando V1–V4 (e a V5 nova, Tarefa 4). O HTML exportado nunca leva `data-campo`, seleção, marcas, chips ou realce: tudo isso existe só no DOM da tela.
+- Fidelidade: `python -I tools/fidelidade.py tudo` continua aprovando V1–V4 (e as novas V5, Tarefa 4, e V6, despachos × validador do kit, Tarefa 15). O HTML exportado nunca leva `data-campo`, seleção, marcas, chips ou realce: tudo isso existe só no DOM da tela.
 - Pacote: `versao_esquema` **"1.0.0"**; limites **50 MB por entrada, 500 MB no total, razão de compressão ≤ 100**; imagens só PNG/JPEG/WebP/GIF conferidas por assinatura; esquema maior que o conhecido ⇒ **somente leitura**.
 - Trava: batimento a cada **30 s**; abandonada com batimento **> 2 min**. Autosave: **30 s** sem edição (opções 15/30/60/120 s), ao trocar de arquivo e ao fechar. Recentes: **10**. Meta de latência por comando: **≤ 1,5 s** no `longo` (medida e registrada; não é assert).
-- O original recebido (`original/recebido.json`) nunca muda. O editor não preenche nada sozinho. Pastas de processos/legislação: leitura apenas; o único arquivo que o app cria nelas é o `.pmvrel` de uma importação pedida pelo usuário (e `.bak`/`.tmp`/`.lock` ao lado de um pacote que ele abriu).
+- O original recebido (`original/recebido.json`) nunca muda. O editor não preenche nada sozinho. Pastas de processos/legislação: leitura apenas; o app só cria nelas o `.pmvrel` de uma importação pedida pelo usuário (e `.bak`/`.tmp`/`.lock` ao lado de um pacote que ele abriu) e, ao gravar um despacho pedido pelo usuário (Tarefas 15–16), a pasta `DESPACHO NN - AAAA-MM-DD` (se nova) com o DOCX, o PDF e o `.recibo-editor.json`, **sem nunca sobrescrever, mover, renomear ou apagar**.
+- Kit PMVNI **somente leitura**: modelos DOCX (pelo `TEMPLATES_OFICIAIS.json`, sha conferido) e textos fixos do plugin `despacho` são lidos no lugar, em tempo de uso, e **nunca copiados para o repositório** (licença do plugin; desenho §10.10); o código guarda só âncoras curtas. Testes leem o kit no lugar por `PMVNI_KIT_RAIZ` (padrão `%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\KIT DE TREINAMENTO DE IA (PMVNI)`; ausente ⇒ `Assert.Fail`, como na Etapa 1) e montam DOCX/PDF fictícios no próprio código. O Word **nunca** é automatizado; o PDF do despacho sai pelo LibreOffice sobre uma cópia, com perfil e `TEMP`/`TMP` na pasta de trabalho; LibreOffice real **só no roteiro** (fora do pacote), nunca em `dotnet test`.
 - Abrir arquivo externo: só `.pdf .docx .doc .xlsx .xls .png .jpg .jpeg .dwg .dxf .txt`, pelo shell (`UseShellExecute`); o resto é recusado com aviso. No modo `--roteiro`, aberturas externas são só registradas.
 - Toda build termina limpando builds anteriores e temporários (já no `tools/build-release.ps1`); tarefas de interface terminam com `build-release.ps1` + roteiro. `recriar.json` e Recriar PC atualizados na entrega (Tarefa 14).
 - **Todo texto da interface em português do Brasil.** Nenhum botão "em breve" nem placeholder: um módulo, aba ou comando só aparece quando funciona (desabilitar por contexto é permitido).
@@ -67,6 +73,15 @@ src/Pmvni.Revisao/                        NOVO, net10.0 puro (referencia Pmvni.C
   Trava.cs  Diario.cs                     .~nome.pmvrel.lock; <dados>\recuperacao\<sha>.jsonl
   Pastas/NomesArquivo.cs                  nomes de importação e de cópia sem sobrescrever
   Pastas/Processos.cs  Pastas/Despachos.cs  Pastas/Legislacao.cs  Pastas/AbrirExterno.cs
+  Despachos/RegistroModelos.cs            NOVO (T15): TEMPLATES_OFICIAIS.json → modelos de correção e aprovação (sha conferido)
+  Despachos/TextosFixos.cs                NOVO (T15): parágrafos fixos lidos das referências do plugin despacho (no lugar)
+  Despachos/ConteudoDespacho.cs           NOVO (T15): Projeto → RascunhoDespacho (cabeçalho, exigências, lacunas), Faltando, Bloqueios
+  Despachos/Etapas.cs  Despachos/NomesDespacho.cs   NOVOS (T15): DESPACHO NN - AAAA-MM-DD, data por extenso, nomes sem sobrescrever
+  Despachos/PreenchimentoDocx.cs          NOVO (T15): ZipArchive + XLinq; só word/document.xml muda
+  Despachos/ValidacaoDespacho.cs          NOVO (T15): porta da comparação do validate_template_fidelity.py + conteúdo
+  Despachos/ConversorPdf.cs               NOVO (T15): IConversorPdf, ConversorLibreOffice (soffice.com sobre cópia)
+  Despachos/EmissaoDespacho.cs  Despachos/ReciboDespacho.cs   NOVOS (T15): preparar (trabalho) → gravar (pasta do processo) + recibo
+src/Pmvni.Composicao/InfoPdf.cs           MOVIDO (T15) de Pmvni.Composicao.Web/Exportador.cs, + InfoPdf.Fontes
 src/Pmvni.Composicao.Web/
   PastaTrabalho.cs                        NOVO: <dados>\edicao\<guid> com os assets do pacote
   Recompositor.cs                         NOVO: Projeto → render (refs de sessão) → composição
@@ -80,21 +95,25 @@ web/paginador/src/
   tela.ts  index.ts                       (registram os novos manipuladores)
 src/Pmvni.App/
   Logica/*.cs                             NOVO, sem tipos WinUI (compilados também nos testes): Modulos, Faixas,
-                                          ComandosApp, Ajustes, Atalhos, TituloJanela, EstadoGravacao
+                                          ComandosApp, Ajustes, Atalhos, TituloJanela, EstadoGravacao, FluxoNovoDespacho (T16)
   Controles/FaixaDeOpcoes.xaml(.cs)       NOVO: SelectorBar + CommandBar montados de uma DefinicaoFaixa
   Controles/Trilho.xaml(.cs)              NOVO: trilho de módulos (ícone + rótulo, estilo Outlook/Store)
   Paginas/PaginaRelatorios.xaml(.cs)      NOVO: painel (Seções | Excluídos | Histórico), WebView2, Propriedades
   Paginas/PaginaProcessos|PaginaDespachos|PaginaLegislacao|PaginaAjustes.xaml(.cs)   NOVOS (Tarefas 11 e 13)
+  Paginas/PaginaNovoDespacho.xaml(.cs)    NOVO (T16): origem → prévia editável → conferência das páginas → gravar
+  Despachos/SessaoNovoDespacho.cs         NOVO (T16): liga RascunhoDespacho, EmissaoDespacho, Windows.Data.Pdf e a página
   Edicao/SessaoEdicao.cs                  NOVO: liga SessaoRevisao, Recompositor, Pacote, Trava, Diário e a tela
   Perguntas.cs                            NOVO: IPerguntas (diálogos e seletores; o roteiro troca por respostas fixas)
   MainWindow.xaml(.cs)                    vira o "shell": barra de título, trilho, faixa, páginas
   Roteiro.cs  Argumentos.cs  ItemNavegacao.cs  Estilos.xaml  (alterados)
-src/Pmvni.Verificador/                    html --via-pacote (Tarefa 4)
+src/Pmvni.Verificador/                    html --via-pacote (Tarefa 4); despacho (Tarefa 15)
 tests/Pmvni.Revisao.Testes/               NOVO, xUnit net10.0; liga (Compile Link) src/Pmvni.App/Logica/*.cs
-  Ambiente.cs                             PastaDeTeste(nome) em tests/saida/revisao/<nome>-<guid>, apagada no Dispose
+  Ambiente.cs                             PastaDeTeste(nome) em tests/saida/revisao/<nome>-<guid>, apagada no Dispose; RaizKit (T15)
+  Ficticios/DocxFicticio.cs  Ficticios/PdfFicticio.cs  Ficticios/RelatorioFicticio.cs   NOVOS (T15): montados no código
+  Despachos/*Testes.cs                    NOVOS (T15): registro, textos fixos, conteúdo, etapas/nomes, DOCX, validação, emissão
 tests/Pmvni.Web.Testes/                   RecomposicaoTestes.cs, EdicaoTelaTestes.cs, PesquisaTelaTestes.cs (novos)
 tests/corpus/processos/  tests/corpus/legislacao/   árvores fictícias (Tarefa 12)
-tools/fidelidade.py                       subcomando v5; tudo = v1..v5
+tools/fidelidade.py                       subcomandos v5 e v6 (despacho × validador do kit, T15); tudo = v1..v3, v5, v6
 tools/roteiro.ps1  tools/roteiro-e-esperar.ps1 (novo)
 docs/roteiro-etapa-2.md  docs/roteiro-etapa-2.resultado.json  docs/entrega-etapa-2.md  docs/notas-tecnicas.md
 ```
@@ -688,27 +707,278 @@ Processos.NomeImportacao(p, capa.processo))` + módulo Relatórios (é a "Import
 
 ### Task 14 (Tarefa 14): Roteiro completo, build, fidelidade, documentação e Recriar PC
 
+> Executada **por último**, depois das Tarefas 15 e 16 (que vêm escritas abaixo dela). O roteiro, a documentação, a
+> fidelidade e o Recriar PC desta tarefa cobrem também o novo despacho das Tarefas 15–16 (desenho §10).
+
 **Files:**
 - Modify: `src/Pmvni.App/Roteiro.cs`, `tools/roteiro.ps1`, `docs/roteiro-etapa-2.md`, `docs/roteiro-etapa-2.resultado.json`, `docs/notas-tecnicas.md`, `docs/fidelidade.md`, `recriar.json`
 - Create: `docs/entrega-etapa-2.md`
 - Modify (fora do repositório, se a conferência pedir): `C:\Users\smendesjunior\OneDrive\Aplicativos IA\Recriar PC\sistema\MAPA-DO-AMBIENTE.md`
 
 **Interfaces:**
-- Consumes: tudo das Tarefas 1–13.
-- Produces: o roteiro final `34_fluxo_completo` em sequência única num pacote novo: importar `curto` → editar texto no A4 → mudar situação com justificativa → excluir item → desfazer → salvar → fechar → reabrir (mesmo estado e histórico) → exportar PDF (páginas = folhas; recibo com `sha256_pacote` = sha do arquivo) → pesquisar → trocar tema → Recentes com o pacote no topo → Comparar lista as 2 alterações restantes.
+- Consumes: tudo das Tarefas 1–13, 15 e 16.
+- Produces: o roteiro final `39_fluxo_completo` em sequência única num pacote novo: importar `curto` (com a capa do processo fictício `0001/2099`, `RelatorioFicticio`, na cópia da árvore de processos) → editar texto no A4 → mudar situação com justificativa → excluir item → desfazer → salvar → fechar → reabrir (mesmo estado e histórico) → exportar PDF (páginas = folhas; recibo com `sha256_pacote` = sha do arquivo) → pesquisar → trocar tema → Recentes com o pacote no topo → Comparar lista as 2 alterações restantes → **Novo despacho › Correção** pela faixa de Relatórios (processo e relatório pré-escolhidos, etapa nova) → exigências = itens ≠ ATENDE do estado atual → conferir as páginas → gravar (DOCX + PDF + recibo; `relatorio.sha256_pacote` do recibo = sha do pacote) → Despachos lista o novo como Correção.
 
-- [ ] **Step 1:** acrescentar `34_fluxo_completo`; garantir que todos os passos 1–34 continuam independentes (falha num não impede os seguintes) e que nada é gravado fora de `tests\saida\roteiro` e `tests\saida\dados-app`.
+- [ ] **Step 1:** acrescentar `39_fluxo_completo`; garantir que todos os passos 1–39 continuam independentes (falha num não impede os seguintes) e que nada é gravado fora de `tests\saida\roteiro` e `tests\saida\dados-app`.
 - [ ] **Step 2:** Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-release.ps1` → Expected: todos os testes aprovados, autoteste "aprovado (2 rodadas, ok=true, sem elevação)", "Executável final: …", espaço liberado informado; `Aplicativo\` só com o `.exe`.
 - [ ] **Step 3:** Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools\roteiro-e-esperar.ps1` → Expected: `ok: true`, `falhas: []`. Registrar a latência (passo 18) e a tabela da Tarefa 6 em `docs/notas-tecnicas.md` ("Latência de um comando (Etapa 2)", com a meta ≤ 1,5 s e se foi atingida; se não, registrar que a recomposição incremental fica para depois — desenho §8.4).
-- [ ] **Step 4:** Run `python -I tools/fidelidade.py tudo` → Expected: V1–V5 aprovados em todos os casos (corpus, `dados_modelo --instrucoes`, 17098 local), código 0. Resultado resumido em `docs/fidelidade.md` (só contagens e hashes).
-- [ ] **Step 5:** `docs/entrega-etapa-2.md` no formato de `docs/entrega-etapa-1.md` (o que funciona, o que foi testado com os números do `dotnet test`, do roteiro e da `fidelidade.py tudo`, o que fica pendente: cálculos, despachos emitidos, schema público, segurança completa do pacote, merge no kit); `docs/roteiro-etapa-2.md` com a tabela final dos 34 passos.
-- [ ] **Step 6:** `recriar.json`: `usadoPor` passa a citar o pacote `.pmvrel`, as pastas `recuperacao`, `edicao` e `ajustes.json` em `%LOCALAPPDATA%\EditorRelatoriosPMVNI` (não guardados: dados de processos) e a leitura das pastas PROCESSOS e LEGISLAÇÃO do PMVNI (só leitura; o app só cria `.pmvrel` de importação); dependências inalteradas. Se o `MAPA-DO-AMBIENTE.md` não cita essa ligação editor ↔ pastas do PMVNI, acrescentar uma linha. Abrir **via `explorer.exe`** `Recriar PC\sistema\motor\Capturar agora.cmd` e depois `Conferir.cmd`; ler `Recriar PC\sistema\CONFERENCIA.md` e corrigir o que ele apontar sobre este app (sem mexer no motor).
+- [ ] **Step 4:** Run `python -I tools/fidelidade.py tudo` → Expected: V1, V2, V3, V5 e V6 aprovados em todos os casos (corpus, `dados_modelo --instrucoes`, 17098 local; V6 = despachos de correção e de aprovação × validador do kit, Tarefa 15), código 0. Resultado resumido em `docs/fidelidade.md` (só contagens e hashes).
+- [ ] **Step 5:** `docs/entrega-etapa-2.md` no formato de `docs/entrega-etapa-1.md` (o que funciona, inclusive o novo despacho de correção e de aprovação; o que foi testado com os números do `dotnet test`, do roteiro e da `fidelidade.py tudo`; o que fica pendente: cálculos, aprovação completa e outros tipos de despacho fora do registro do kit, gestão de versões dos modelos, schema público, segurança completa do pacote, merge no kit); `docs/roteiro-etapa-2.md` com a tabela final dos 39 passos.
+- [ ] **Step 6:** `recriar.json`: `usadoPor` passa a citar o pacote `.pmvrel`, as pastas `recuperacao`, `edicao`, `despachos` e `ajustes.json` em `%LOCALAPPDATA%\EditorRelatoriosPMVNI` (não guardados: dados de processos), a leitura das pastas PROCESSOS e LEGISLAÇÃO do PMVNI (o app só cria `.pmvrel` de importação e, ao gravar um despacho, a pasta `DESPACHO NN` com DOCX/PDF/recibo), a leitura dos modelos de despacho e das referências do plugin `despacho` no kit (só leitura) e o LibreOffice para o PDF do despacho; em `conferir`, acrescentar como aviso (igual ao Python) `{ "tipo": "arquivo", "caminho": "%ProgramFiles%\\LibreOffice\\program\\soffice.com", "nome": "LibreOffice (PDF dos despachos; instalado pelo instalador do kit PMVNI)", "aviso": true }` — sem passo de instalação próprio (quem instala é o instalador do kit, receita `32-kit-pmvni`). Se o `MAPA-DO-AMBIENTE.md` não cita as ligações editor ↔ pastas do PMVNI e editor ↔ kit (modelos de despacho) ↔ LibreOffice, acrescentar uma linha para cada. Abrir **via `explorer.exe`** `Recriar PC\sistema\motor\Capturar agora.cmd` e depois `Conferir.cmd`; ler `Recriar PC\sistema\CONFERENCIA.md` e corrigir o que ele apontar sobre este app (sem mexer no motor).
 - [ ] **Step 7:** conferir que `tests\saida` e os builds sumiram (a limpeza do `build-release` já apaga; o roteiro e a `fidelidade.py` rodados depois deixam `tests\saida`: apagar só ela, conferindo o caminho sob a raiz). Commit — `docs: entrega da Etapa 2` (inclui `docs/roteiro-etapa-2.resultado.json`, sem capturas, PDFs ou dados).
+
+### Task 15 (Tarefa 15): Serviço de despacho — modelos do kit, conteúdo do relatório, DOCX, validação, PDF e recibo
+
+> Desenho §10 (vinculante). Executada depois da Tarefa 13 e antes da 16; a 14 vem por último.
+
+**Files:**
+- Create: `src/Pmvni.Revisao/Despachos/{RegistroModelos.cs,TextosFixos.cs,ConteudoDespacho.cs,Etapas.cs,NomesDespacho.cs,PreenchimentoDocx.cs,ValidacaoDespacho.cs,ConversorPdf.cs,EmissaoDespacho.cs,ReciboDespacho.cs}`
+- Create: `src/Pmvni.Composicao/InfoPdf.cs` (o `InfoPdf` sai de `src/Pmvni.Composicao.Web/Exportador.cs` sem mudar o comportamento, namespace `Pmvni.Composicao`; quem o usa só ganha o `using`) com `static IReadOnlyList<string> InfoPdf.Fontes(byte[] pdf)`
+- Create: `tests/Pmvni.Revisao.Testes/Ficticios/{DocxFicticio.cs,PdfFicticio.cs,RelatorioFicticio.cs,Conversores.cs}`, `tests/Pmvni.Revisao.Testes/Despachos/{RegistroModelosTestes.cs,TextosFixosTestes.cs,ConteudoDespachoTestes.cs,EtapasNomesTestes.cs,PreenchimentoDocxTestes.cs,ValidacaoDespachoTestes.cs,EmissaoDespachoTestes.cs}`
+- Modify: `tests/Pmvni.Revisao.Testes/Ambiente.cs` (`RaizKit`: `PMVNI_KIT_RAIZ` ou o padrão do desenho §10.10; `ExigirKit()` faz `Assert.Fail("Kit PMVNI ausente: <raiz> (defina PMVNI_KIT_RAIZ)")`, como a Etapa 1)
+- Modify: `src/Pmvni.Verificador/{Argumentos.cs,Program.cs}`, `tests/Pmvni.Web.Testes/VerificadorArgumentosTestes.cs`, `tools/fidelidade.py` (v6), `docs/fidelidade.md`
+
+**Interfaces:**
+- Consumes: `DadosEfetivos.Gerar`, `ConferenciaRevisao.Erros`, `Projeto`, `Pacote.Ler`/`PacoteAberto`, `TextoEditado.Normalizar`, `Situacoes.Sit`, `ContextoUsuario`, `Importador.Importar` (Verificador), `Processo`, `RelatorioEncontrado` e `TipoDespacho` (Tarefa 12; só `Correcao` e `Aprovacao` são emitidos, `NaoIdentificado` nunca).
+- Produces (tudo síncrono e puro, para `Task.Run`; nada grava no kit; nada grava na pasta do processo fora de `EmissaoDespacho.Gravar`/`GravarPdf`):
+  - **RegistroModelos:** `sealed record ModeloDespacho(TipoDespacho Tipo, string Papel, string CaminhoRelativo, string Caminho, string Sha256, int RevisaoRegistro, string Sha256Registro)`; `sealed record ModelosDisponiveis(IReadOnlyList<ModeloDespacho> Modelos, IReadOnlyDictionary<TipoDespacho, string> Indisponiveis)`; `static ModelosDisponiveis RegistroModelos.Ler(string raizKit)`; `const string RegistroModelos.CaminhoRegistro = "02 - MODELOS DE DOCUMENTOS/TEMPLATES_OFICIAIS.json"`; `static string Rotulo(TipoDespacho t)` → `"Correção"`/`"Aprovação"`; `static string NomeNoArquivo(TipoDespacho t)` → `"Correcao"`/`"Aprovacao"`. Papéis: `correction`→Correção, `approval_simple`→Aprovação; os outros são ignorados. `Ler` também chama `TextosFixos.Ler` e `PreenchimentoDocx.LerModelo` e põe em `Indisponiveis` o motivo de qualquer falha. Motivos exatos: `"Kit PMVNI não encontrado em <raiz>. Escolha a pasta do kit em Ajustes."` (os dois tipos); `"O registro de modelos do kit não tem o modelo <papel>."`; `"O registro de modelos do kit está na revisão <n>; o editor precisa da revisão 10 ou posterior."`; `"O registro aponta um modelo fora da pasta do kit: <path>."`; `"O modelo <path> não foi encontrado no kit."`; `"O modelo <path> não confere com o registro do kit (sha256 diferente)."`; `"O modelo <path> não está no formato esperado (âncora \"<ancora>\")."`.
+  - **TextosFixos:** `sealed record ParagrafoFixo(string Id, string Texto)` (lacunas como `{intervencao}` e `{area}`); `sealed record TextosFixos(TipoDespacho Tipo, string Arquivo, string Sha256, IReadOnlyList<ParagrafoFixo> Paragrafos)`; `static TextosFixos TextosFixos.Ler(string raizKit, TipoDespacho t)`; `sealed class TextosForaDoPadraoException(string arquivo, string detalhe)` com a mensagem `"O texto de referência do kit (<arquivo>) não está no formato esperado: <detalhe>."`; `const string PastaReferencias = "01 - PLUGINS/plugins/despacho/skills/despacho/references"`. Aprovação = `modelo-despacho-aprovacao-gabinete.md`, ids `considerando_pedido`, `considerando_analise`, `considerando_area`, `encaminho`; Correção = `modelo-despacho-analise-correcao.md`, id `fechamento`. Leitura (desenho §10.3): UTF-8 com ou sem BOM; só o bloco entre a linha `## Conteúdo na ordem do documento` e o próximo `## `; parágrafos = textos entre linhas `<!-- estilo: … -->`, aparados, vazios fora. Aprovação: exatamente 3 que começam por `Considerando` (pedido = o que contém `solicitou`; área = o que contém `área total`; análise = o terceiro) e 1 por `Encaminho`; no pedido o literal `obra nova/alteração de obra/ampliação de obra` vira `{intervencao}`; na área o número `\d{1,3}(?:\.\d{3})*,\d{2}` seguido de `m²` vira `{area}`. Correção: exatamente 1 que começa por `Para prosseguimento`. Qualquer outra forma ⇒ exceção.
+  - **ConteudoDespacho:** `enum Intervencao { ObraNova, AlteracaoDeObra, AmpliacaoDeObra }`; `static string ConteudoDespacho.Intervencoes(IEnumerable<Intervencao> i)` (na ordem do enum; 1 = "x", 2 = "x e y", 3 = "x, y e z"); `sealed class PendenciaDespacho { string ItemId; int Numero; string Situacao; string Titulo; string Grupo; string Texto; string Fundamento; bool Incluida; bool Editada; string TextoOriginal; string FundamentoOriginal }`; `sealed class RascunhoDespacho` com `TipoDespacho Tipo`, `string Protocolo`, `string Requerente`, `string Assunto`, `DateOnly Data`, `IReadOnlyList<PendenciaDespacho> Pendencias`, `IReadOnlySet<Intervencao> Intervencoes`, `string AreaTotal`, `IReadOnlySet<string> CamposEditados` e os únicos modificadores `DefinirCabecalho(string campo /* protocolo|requerente|assunto */, string texto)`, `DefinirTexto(string itemId, string texto)`, `DefinirFundamento(string itemId, string texto)`, `DefinirGrupo(string itemId, string texto)`, `Marcar(string itemId, bool incluida)`, `Mover(string itemId, int delta)`, `DefinirIntervencao(Intervencao i, bool marcada)`, `DefinirArea(string texto)` — todo texto passa por `TextoEditado.Normalizar`; `IReadOnlyList<string> Faltando()`; `DespachoFinal Congelar(TextosFixos tx)` (lança `DespachoIncompletoException(IReadOnlyList<string> Faltando)`); `sealed record ExigenciaFinal(string Texto, string Fundamento)`; `sealed record GrupoFinal(string Titulo, IReadOnlyList<ExigenciaFinal> Exigencias)`; `sealed record DespachoFinal(TipoDespacho Tipo, string Protocolo, string Requerente, string Assunto, string DataPorExtenso, IReadOnlyList<GrupoFinal> Grupos, IReadOnlyList<string> Corpo)` (aprovação: os 4 parágrafos resolvidos; correção: `[fechamento]`); `static RascunhoDespacho ConteudoDespacho.Montar(TipoDespacho t, Projeto p, InfoModelo m, EtapaDespacho etapa)`; `static IReadOnlyList<string> Bloqueios(TipoDespacho t, Projeto p, Processo processo, bool somenteLeitura)`; `static IReadOnlyList<string> Avisos(TipoDespacho t, Projeto p)`; `static ExigenciaFinal Exigencia(string providencia, string baseLegal)`; `static bool AreaValida(string area)` (`^(\d{1,3}(\.\d{3})+|\d+),\d{2}$`); `enum EstiloPrevia { Titulo, Rotulo, Destinatario, Grupo, Corpo, Data, Assinatura, Vazio }`; `sealed record ParagrafoPrevia(string Texto, EstiloPrevia Estilo, string? Faltando)`; `static IReadOnlyList<ParagrafoPrevia> Previa(InfoModelo m, RascunhoDespacho r, TextosFixos tx)`.
+    Regras de `Montar`: lê `DadosEfetivos.Gerar(p).Json`; `Protocolo` = `capa.processo`, `Requerente` = `capa.requerente` (string; ausente/não string ⇒ ""); `Assunto` = `m.Assunto`; `Data` = `etapa.Data`; Correção: um `PendenciaDespacho` por item incluído (ordem dos dados efetivos) com `situacao ≠ "ATENDE"`, `Numero` = posição, `Titulo`/`Texto`/`Fundamento` = `titulo`/`providencia`/`base_legal` efetivos, `Grupo` = `m.TituloGrupo`, `Incluida` = true; `ItemId` = `DadosGerados.IdsDosItens`. `Congelar`: grupos na ordem da primeira aparição, exigências marcadas na ordem da lista, cada uma `Exigencia(Texto, Fundamento)`; lacunas da aprovação resolvidas.
+    `Exigencia`: aparar; tirar um `.` final do fundamento; fundamento vazio ⇒ `(texto, "")`; senão, se o texto termina em `.`, `(texto sem o ponto, " (" + fundamento + ").")`, senão `(texto, " (" + fundamento + ")")`.
+    Mensagens exatas — Faltando: `"Protocolo nº"`, `"Requerente"`, `"Assunto"`, `"Ao menos uma exigência marcada"`, `"ITEM 02: texto da exigência"`, `"ITEM 02: grupo"`, `"Tipo de obra (obra nova, alteração de obra ou ampliação de obra)"`, `"Área total a construir (m², ex.: 210,52)"`. Bloqueios: cada erro de `ConferenciaRevisao.Erros(p)` como vem; `"O processo da capa (<capa>) não é o da pasta (<nº com 4 dígitos>/<ano>). Confira se o relatório é deste processo."` (comparação de número e ano como inteiros, capa lida pela regra `numero_ano` do kit `^\s*0*(\d{1,7})\s*(?:[/\-]|\s)\s*((?:19|20)\d{2})\s*$`); capa fora desse formato ⇒ `"O processo da capa (<capa>) não está no formato número/ano; confira o relatório."`; pasta do processo fora do padrão (`Numero`/`Ano` null) ⇒ sem essa conferência, e o número e o ano do nome do arquivo vêm da capa; `"Este relatório foi gravado por uma versão mais nova do editor (somente leitura); o despacho não pode ser emitido a partir dele."`; Correção sem item ≠ ATENDE ⇒ `"Nenhum item incluído tem situação diferente de ATENDE: não há exigência para o despacho de correção."`. Aviso (Aprovação): `"O relatório tem <n> itens com situação diferente de ATENDE (ITEM 02, ITEM 03). Emitir a aprovação mesmo assim?"` (`n = 1` ⇒ `"1 item"`).
+  - **Etapas:** `sealed record EtapaDespacho(string Pasta, string Nome, int Numero, DateOnly Data, bool Nova)`; `static EtapaDespacho Etapas.Nova(string pastaProcesso, DateOnly hoje)` (NN = maior `^DESPACHO\s+(\d+)\b`, sem caixa, entre as subpastas + 1; nome `DESPACHO {NN:00} - {aaaa-MM-dd}`; não cria nada); `static IReadOnlyList<EtapaDespacho> Etapas.Existentes(string pastaProcesso)` (só `^DESPACHO\s+(\d{1,3})\s+-\s+(\d{4}-\d{2}-\d{2})$` com data válida; nº desc); `static EtapaDespacho Etapas.Sugerida(string pastaProcesso, DateOnly hoje)` (a existente de maior nº sem `.docx`/`.pdf` iniciado por `Despacho_`/`DESPACHO_`, sem caixa; senão `Nova`); `static string Etapas.DataPorExtenso(DateOnly d)`.
+  - **NomesDespacho:** `static string Base(TipoDespacho t, int numero, int ano, string requerente)` (`Despacho_<NomeNoArquivo>_<numero>_<ano>_<Nome>`; `Nome` = NFD sem marcas, tudo que não é `[A-Za-z0-9]` vira espaço, palavras com inicial maiúscula e o resto minúsculo, unidas por `_`, cortadas na última palavra que cabe em 60 caracteres); `sealed record NomesLivres(string Docx, string Pdf, string Recibo)`; `static NomesLivres Livres(string pasta, string nomeBase)` (o primeiro de `nomeBase`, `nomeBase (2)`, `nomeBase (3)`… em que **nenhum** dos três existe).
+  - **PreenchimentoDocx:** `enum PapelParagrafo { Fixo, Protocolo, Requerente, Assunto, Destinatario, Grupo, Vaga, Data, LinhaAssinatura }`; `sealed record ParagrafoModelo(string Texto, bool Negrito, string Alinhamento, PapelParagrafo Papel)`; `sealed record InfoModelo(TipoDespacho Tipo, string Assunto, string TituloGrupo /* "" na aprovação */, int Vagas, IReadOnlyList<ParagrafoModelo> Paragrafos)`; `static InfoModelo LerModelo(byte[] docx, TipoDespacho t)`; `static byte[] Preencher(byte[] modelo, DespachoFinal d)`; `sealed class ModeloForaDoPadraoException(string ancora)`. Regras do desenho §10.5: âncoras `"Protocolo nº:"`, `"Requerente:"`, `"Assunto:"` (texto do parágrafo aparado começa por), destinatário = o parágrafo que começa por `"AO "` e termina em `":"`, grupo (só correção) = o parágrafo em negrito logo depois do destinatário, vagas = parágrafos sem texto com `w:jc="both"` consecutivos depois dele, data = o parágrafo que contém `"dia de mês de ano"`, linha de assinatura = o parágrafo cujo texto é só `_` (≥ 10); cada âncora exatamente uma vez. Zip: `ZipArchive` de leitura → `ZipArchive` novo em memória com as mesmas entradas, na mesma ordem, `LastWriteTime` igual, conteúdo copiado sem tocar, exceto `word/document.xml` (XDocument com `LoadOptions.PreserveWhitespace`, gravado com `SaveOptions.DisableFormatting`, UTF-8 sem BOM, `standalone="yes"` mantido).
+  - **ValidacaoDespacho:** `static IReadOnlyList<string> Comparar(byte[] modelo, byte[] documento)` — porta de `validate()` do `validate_template_fidelity.py` com as mesmas mensagens: `"Componente original alterado/ausente: <parte>"`, `"Seções, margens, formato, orientação ou vínculos de cabeçalho/rodapé alterados."`, `"Fonte ou tamanho direto não existente no template: <rFonts|sz|szCs>"`, `"Estrutura, propriedades ou colunas das tabelas originais alteradas."`, `"Não foi possível comparar os DOCX: <erro>"`; `static IReadOnlyList<string> Conteudo(byte[] modelo, byte[] documento, DespachoFinal d)`: `"Texto do modelo não preenchido: dia de mês de ano"` (e o mesmo para `XX`, `[ ]`, `{{`, `{intervencao}`, `{area}`), `"O despacho não traz o valor de <Protocolo nº|Requerente|Assunto|data>."`, `"O despacho não traz a exigência <n> do grupo <título>."`, `"Falta a linha em branco antes da assinatura."`, `"Parte do modelo alterada: <parte>"` (toda entrada ≠ `word/document.xml`).
+  - **ConversorPdf:** `interface IConversorPdf { bool Disponivel { get; } string? Versao { get; } ResultadoConversao Converter(string docx, string pastaTrabalho, CancellationToken ct); }`; `sealed record ResultadoConversao(byte[]? Pdf, string? Motivo /* null, "SEM_LIBREOFFICE", "CONVERSAO_FALHOU", "TEMPO_ESGOTADO" */, string? Detalhe)`; `sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = null) : IConversorPdf` (limite padrão 5 min) com `static string? Localizar()` (`PMVNI_SOFFICE` se o arquivo existe → `%ProgramFiles%\LibreOffice*\program\soffice.com` → `soffice.exe` → `%ProgramFiles(x86)%\…` → `soffice.com`/`soffice.exe` no PATH) e `static ProcessStartInfo Preparar(string soffice, string copia, string pastaConv)`; `Versao` = `"LibreOffice " + FileVersionInfo(soffice.exe ao lado).ProductVersion`, sem abrir processo. `Converter`: `<trabalho>\conv\copia.docx` (cópia), `Preparar`, `Start`, `WaitForExit(limite)` (estourou ⇒ `Kill(entireProcessTree: true)` e `TEMPO_ESGOTADO`), `copia.pdf` ≥ 1000 bytes começando por `%PDF-` (senão `CONVERSAO_FALHOU` com `"código <n>"`).
+  - **EmissaoDespacho:** `sealed record Preparacao(string PastaTrabalho, byte[] Docx, byte[]? Pdf, int? Paginas, IReadOnlyList<string> Fontes, string? SemPdfMotivo, string? MensagemSemPdf, IReadOnlyList<string> Erros)`; `static Preparacao Preparar(DespachoFinal d, ModeloDespacho m, string pastaTrabalho, IConversorPdf conv, CancellationToken ct)` (lê o modelo e confere o sha com `m.Sha256` → `Preencher` → `Comparar` + `Conteudo` → grava `<trabalho>\despacho.docx` → relê → converte → confere sha do DOCX, `InfoPdf.Ler`, `InfoPdf.Fontes` contém um nome que começa por `Verdana`); `sealed record OrigemDespacho(Processo Processo, string CaminhoPacote, string Sha256Pacote, string Sha256DadosEfetivos, int HistoricoN, string AppVersao, IReadOnlyList<string> AvisosConfirmados)`; `sealed record Entrega(string Pasta, string Docx, string? Pdf, string Recibo)`; `static Entrega Gravar(Preparacao p, RascunhoDespacho r, DespachoFinal d, ModeloDespacho m, TextosFixos tx, EtapaDespacho etapa, OrigemDespacho o, IReadOnlyList<int>? paginasConferidas, string? motorPdf, ContextoUsuario u)`; `static Preparacao PrepararPdf(string docxGravado, string pastaTrabalho, IConversorPdf conv, CancellationToken ct)` e `static Entrega GravarPdf(Preparacao p, string docxGravado, IReadOnlyList<int> paginasConferidas, string? motorPdf, ContextoUsuario u)` (Gerar PDF depois); `static void LimparOrfas(string raizTrabalho)` (subpastas com mais de 1 dia). `Gravar`: recusa com `Erros` ≠ []; com PDF exige `paginasConferidas` = 1..N (`ArgumentException`); cria a pasta da etapa se `Nova` (`Directory.CreateDirectory`; se já existir com o mesmo nome, usa-a); `NomesDespacho.Livres`; cada arquivo em `<nome>.<guid8>.tmp` oculto na mesma pasta e `File.Move(tmp, final, overwrite: false)` (se outro processo criar o nome no meio, recomeça com o próximo livre); recibo por último; apaga a pasta de trabalho; em qualquer exceção apaga os `.tmp` (nunca apaga um arquivo final que já existia).
+    Mensagens exatas: `"O LibreOffice não está instalado neste computador. O despacho será gravado só em Word (DOCX). Para o PDF, rode o instalador do kit (INSTALAR_KIT_PMVNI.cmd) e use Despachos › Gerar PDF."`; `"O LibreOffice não conseguiu gerar o PDF (<detalhe>). O despacho será gravado só em Word (DOCX); use Despachos › Gerar PDF para tentar de novo."` (`TEMPO_ESGOTADO`: detalhe `"tempo esgotado"`); `"O PDF saiu sem a fonte Verdana (fontes: <lista>); será gravado só o DOCX."`; erros: `"O DOCX mudou durante a conversão; gere o despacho de novo."`, `"O modelo do kit mudou depois de aberto; abra o Novo despacho de novo."`; `"Confira as <n> páginas do PDF antes de gravar."` (`n = 1` ⇒ `"Confira a página do PDF antes de gravar."`); `GravarPdf` sem recibo do editor ⇒ `"Este despacho não foi gerado pelo editor (sem recibo); o PDF não é gerado por aqui."`.
+  - **ReciboDespacho:** `static string CaminhoDe(string docx)` (`x.docx` → `x.recibo-editor.json`); `static JsonObject Ler(string caminho)`; o recibo (UTF-8 sem BOM, indentado, chaves nesta ordem):
+
+```json
+{ "recibo_versao": 1, "tipo": "correcao", "papel": "correction",
+  "registro": { "revisao": 10, "sha256": "62da…" },
+  "modelo": { "caminho": "02 - MODELOS DE DOCUMENTOS/DESPACHO/MODELO DESPACHO CORREÇÃO.docx", "sha256": "856d…" },
+  "textos_fixos": { "arquivo": "modelo-despacho-analise-correcao.md", "sha256": "465d…" },
+  "relatorio": { "arquivo": "Relatorio_0001_2099.pmvrel", "sha256_pacote": "…", "sha256_dados_efetivos": "…", "historico_n": 1 },
+  "processo": { "numero": 1, "ano": 2099, "pasta": "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)" },
+  "etapa": { "pasta": "DESPACHO 03 - 2099-03-10", "numero": 3, "data": "2099-03-10", "nova": true },
+  "exigencias": [ { "item": "it_…", "numero": 2, "situacao": "NAO_COMPROVADO", "grupo": "GERAL E DOCUMENTAÇÃO", "texto_editado": false } ],
+  "campos_editados": [], "avisos_confirmados": [],
+  "docx": { "arquivo": "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.docx", "sha256": "…", "validacao": "OK" },
+  "pdf": { "arquivo": "….pdf", "sha256": "…", "paginas": 2, "fontes": ["Verdana", "Verdana-Bold"], "motor": "LibreOffice 26.8.3.1" },
+  "sem_pdf_motivo": null,
+  "paginas_conferidas": { "paginas": [1, 2], "usuario": "…", "em": "2099-03-10T12:00:00Z" },
+  "usuario": "…", "app_versao": "…", "gerado_em": "2099-03-10T12:00:00Z" }
+```
+  (`pdf` e `paginas_conferidas` são `null` sem PDF; `exigencias` é `[]` na aprovação; `GravarPdf` regrava o recibo por temporário + troca, preenchendo `pdf`/`paginas_conferidas` e zerando `sem_pdf_motivo`.)
+
+Fictícios do teste (escritos no código, nada copiado do kit): `DocxFicticio.Criar(params string[] paragrafos)` monta um DOCX mínimo (`[Content_Types].xml`, `_rels/.rels`, `word/document.xml`, `word/_rels/document.xml.rels`, `word/styles.xml` com Verdana nos `docDefaults`, um `sectPr`); cada parágrafo é um run `sz 24`; `""` = vaga `jc both`; prefixo `**` = negrito; prefixo `>` = `jc right`. `DocxFicticio.KitFicticio(pasta, …)` grava uma árvore de kit fictícia (registro, DOCX e `.md` fictícios com textos inventados no teste). `PdfFicticio.Criar(int paginas, params string[] fontes)` monta um PDF 1.4 sem compressão (`/Type /Page` × n, `/Count n`, `/MediaBox [0 0 595.28 841.89]`, um `/BaseFont /<fonte>` por fonte). `RelatorioFicticio.Curto(processo = "0001/2099", requerente = "FULANO DE EXEMPLO (FICTICIO)")` = `tests/corpus/curto.json` com `capa.processo`/`capa.requerente` trocados (por `JsonFiel`); `RelatorioFicticio.Arvore(PastaDeTeste)` = cópia de `tests/corpus/processos` + `Relatorio_0001_2099.pmvrel` importado desse relatório na pasta do 0001. `Conversores.cs`: `ConversorFalso(Func<string, ResultadoConversao>)` e `ConversorAusente`. Testes que mexem em variável de ambiente ficam na coleção `[Collection("Ambiente")]` (sem paralelismo). Hoje fixo nos testes: `new DateOnly(2099, 3, 10)`.
+
+- [ ] **Step 1: Write the failing tests** (modelos e referências do kit lidos no lugar com `Ambiente.ExigirKit()`; tudo o que é gravado vai para `Ambiente.PastaDeTeste`)
+
+```csharp
+// RegistroModelosTestes
+[Fact] void registro_do_kit_oferece_correcao_e_aprovacao()
+    // Ler(kit): Modelos.Select(m => (m.Tipo, m.Papel)) == [(Correcao,"correction"), (Aprovacao,"approval_simple")]; RevisaoRegistro == 10; Indisponiveis vazio;
+    // Sha256 == "856dcf9ee49da68f5a7ea440bda43dc5a6f5ab06453c501b94b9a222f4039d61" e "f5598577e2954726e3a2ce99d06fc728e6447dc461101e6c2df2280d82e152b7"
+    // (falha de propósito se o kit mudar: rever o desenho §10.1 antes de ajustar o teste)
+[Fact] void so_papeis_de_despacho_conhecidos_viram_tipo()
+    // kit fictício com report, correction, approval_complete e declaration → Modelos == [Correcao]; Indisponiveis[Aprovacao] == "O registro de modelos do kit não tem o modelo approval_simple."
+[Fact] void sha_diferente_deixa_o_tipo_indisponivel()     // motivo exato "O modelo <path> não confere com o registro do kit (sha256 diferente)."
+[Fact] void caminho_fora_da_raiz_e_recusado()             // "path": "../fora.docx" → "O registro aponta um modelo fora da pasta do kit: ../fora.docx."
+[Fact] void revisao_antiga_e_recusada()                   // templates_revision 9 → os dois com "O registro de modelos do kit está na revisão 9; o editor precisa da revisão 10 ou posterior."
+[Fact] void kit_ausente_deixa_os_dois_indisponiveis()     // raiz inexistente → "Kit PMVNI não encontrado em <raiz>. Escolha a pasta do kit em Ajustes."
+[Fact] void ler_nao_grava_nada_no_kit()   // (caminho, tamanho, data) de "02 - MODELOS DE DOCUMENTOS" e da pasta references iguais antes e depois de Ler
+// TextosFixosTestes
+[Fact] void aprovacao_tem_4_paragrafos_com_as_lacunas()
+    // Sha256 == "0a0da0207f9ce04e478b2e1abd5e3f0e1a86a8f54fc04035fddc6e539eb4dbe7"; Ids == [considerando_pedido, considerando_analise, considerando_area, encaminho];
+    // pedido contém "{intervencao}" uma vez e não contém "obra nova/"; área contém "{area}m²" e nenhum dígito; nenhum contém "XX"
+[Fact] void correcao_tem_o_fechamento()   // Sha256 == "465d6432580f867ef60b0537931fc77c44b54cc9e63c3e1fe92bf007ed441e21"; 1 parágrafo, Id "fechamento", começa por "Para prosseguimento"
+[Theory] [InlineData("sem_secao")] [InlineData("dois_encaminho")] [InlineData("sem_lacuna_de_area")] [InlineData("sem_fechamento")]
+void referencia_fora_do_formato_lanca(string caso)   // .md fictício → TextosForaDoPadraoException, mensagem começa por "O texto de referência do kit (<arquivo>)"
+// ConteudoDespachoTestes (RelatorioFicticio.Curto importado; InfoModelo do kit)
+[Fact] void correcao_traz_os_itens_que_nao_atendem_na_ordem()
+    // Pendencias.Select(p => (p.Numero, p.Situacao)) == [(2,"NAO_COMPROVADO"), (3,"NAO_ATENDE")]; todas Incluida; Grupo == "GERAL E DOCUMENTAÇÃO";
+    // Texto == providencia efetiva do item 2 do curto; Fundamento == "Código de Obras (LC nº 70/1990), art. 102."
+[Fact] void situacao_e_texto_revisados_valem_e_excluido_nao_entra()
+    // DefinirSituacao(item1,"NAO_ATENDE") + justificativa; Excluir(item3); DefinirCampo(item2,"providencia","Apresentar a cota do recuo.")
+    // → [(1,"NAO_ATENDE"), (2,"NAO_COMPROVADO")]; Texto do 2º == "Apresentar a cota do recuo."
+[Fact] void cabecalho_vem_da_capa_e_do_modelo()   // "0001/2099", "FULANO DE EXEMPLO (FICTICIO)", Assunto "SOLICITAÇÃO DE ALVARÁ DE LICENÇA DE OBRA", Data == etapa.Data
+[Fact] void exigencia_com_fundamento()
+    // ("Apresentar a cota.", "Código de Obras (LC nº 70/1990), art. 102.") → ("Apresentar a cota", " (Código de Obras (LC nº 70/1990), art. 102).");
+    // ("Apresentar a cota", "") → ("Apresentar a cota", ""); ("Apresentar a cota", "LC 70/1990") → ("Apresentar a cota", " (LC 70/1990)")
+[Fact] void faltando_lista_o_que_o_usuario_precisa_preencher()
+    // DefinirTexto(2º, "") → ["ITEM 02: texto da exigência"]; desmarcar os 2 → ["Ao menos uma exigência marcada"]; DefinirCabecalho("requerente","") → contém "Requerente";
+    // aprovação recém-montada → ["Tipo de obra (obra nova, alteração de obra ou ampliação de obra)", "Área total a construir (m², ex.: 210,52)"]
+[Theory] [InlineData("210,52", true)] [InlineData("1.234,56", true)] [InlineData("1234,56", true)] [InlineData("210.52", false)]
+[InlineData("210", false)] [InlineData("12.34,56", false)] [InlineData("", false)]
+void area_total_no_formato_brasileiro(string area, bool valida)
+[Fact] void intervencoes_por_extenso()
+    // [ObraNova] → "obra nova"; [AmpliacaoDeObra, AlteracaoDeObra] → "alteração de obra e ampliação de obra"; as 3 → "obra nova, alteração de obra e ampliação de obra"
+[Fact] void congelar_resolve_lacunas_e_grupos()
+    // aprovação {ObraNova} + "210,52" → Corpo[0] termina com "para a execução de obra nova."; Corpo[2] contém "é de 210,52m²."; nenhum "{"
+    // correção com grupos [G, "PRANCHA 01", G] → Grupos == [(G, 2 exigências), ("PRANCHA 01", 1)]; Corpo == [fechamento]
+[Fact] void congelar_com_faltando_lanca()   // DespachoIncompletoException.Faltando == r.Faltando()
+[Fact] void textos_do_usuario_sao_texto_puro()   // DefinirTexto(id, "  a\r\nb <i>c</i> & d ") → "a b <i>c</i> & d"; Editada; CamposEditados contém "exigencia:<id>:texto"
+[Fact] void bloqueios_do_relatorio()
+    // situação mudada sem justificativa → contém a mensagem exata da Tarefa 3; capa "9001/2026" na pasta 0001/2099 →
+    // "O processo da capa (9001/2026) não é o da pasta (0001/2099). Confira se o relatório é deste processo."; capa "sem número" → formato; somenteLeitura → mensagem exata
+[Fact] void correcao_sem_item_pendente_e_bloqueada()   // os 3 em ATENDE (com justificativa) → a mensagem exata
+[Fact] void aprovacao_com_pendencias_avisa()   // Avisos(Aprovacao) == ["O relatório tem 2 itens com situação diferente de ATENDE (ITEM 02, ITEM 03). Emitir a aprovação mesmo assim?"]; Avisos(Correcao) vazio
+[Fact] void previa_segue_o_modelo_e_marca_o_que_falta()
+    // correção: textos na ordem contêm "INFORMAÇÕES GERAIS", "Protocolo nº: 0001/2099", "GERAL E DOCUMENTAÇÃO", as 2 exigências, o fechamento,
+    // "Venda Nova do Imigrante/ES, 10 de março de 2099"; os últimos parágrafos == os do modelo a partir da linha de assinatura;
+    // aprovação sem área → um ParagrafoPrevia com Faltando == "Área total a construir (m², ex.: 210,52)"
+// EtapasNomesTestes (RelatorioFicticio.Arvore)
+[Fact] void etapa_nova_e_a_seguinte_das_existentes()   // 0001 → Nome "DESPACHO 03 - 2099-03-10", Numero 3, Nova; nada criado
+[Fact] void pasta_sem_data_tambem_conta_no_numero()   // + "DESPACHO 7 rascunho" → "DESPACHO 08 - 2099-03-10"; Existentes não a lista
+[Fact] void processo_sem_despacho_comeca_em_01()      // pasta sem DESPACHO → "DESPACHO 01 - 2099-03-10"
+[Fact] void sugerida_e_a_ultima_etapa_ainda_sem_despacho()
+    // 0001 (a 02 tem DESPACHO_APROVACAO_0001_2099.pdf) → nova 03; com "DESPACHO 03 - 2099-03-01\relatorio.pdf" → a 03 existente, Data 2099-03-01, Nova false
+[Fact] void existentes_mais_recente_primeiro()        // 0001 → [(2, 2099-02-20), (1, 2099-01-15)]
+[Fact] void data_por_extenso()   // 2026-11-14 → "14 de novembro de 2026"; 2026-12-01 → "1º de dezembro de 2026"; 2099-03-05 → "5 de março de 2099"
+[Fact] void nome_base_como_o_kit()
+    // (Correcao, 1, 2099, "FULANO DE EXEMPLO (FICTICIO)") → "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio";
+    // (Aprovacao, 9001, 2026, "CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA") → "Despacho_Aprovacao_9001_2026_Condominio_Residencial_Exemplo_Alfa"
+[Fact] void nome_longo_corta_em_palavra()   // 30 × "PALAVRA" → parte do nome com ≤ 60 caracteres, terminando em "Palavra"
+[Fact] void nomes_livres_nunca_sobrescrevem()
+    // pasta vazia → "base.docx/.pdf/.recibo-editor.json"; só "base.pdf" existe → "base (2).*"; e "base (2).recibo-editor.json" também → "base (3).*"
+// PreenchimentoDocxTestes (modelos do kit lidos no lugar)
+[Theory] [InlineData("Correcao")] [InlineData("Aprovacao")]
+void so_o_document_xml_muda(string tipo)   // mesmas entradas na mesma ordem, mesmo LastWriteTime; bytes descomprimidos iguais em toda entrada ≠ word/document.xml
+[Fact] void ler_modelo_acha_as_ancoras()   // Correção: Assunto "SOLICITAÇÃO DE ALVARÁ DE LICENÇA DE OBRA", TituloGrupo "GERAL E DOCUMENTAÇÃO", Vagas 4; Aprovação: TituloGrupo "", Vagas 4
+[Fact] void valores_do_cabecalho_em_negrito_depois_do_rotulo()
+    // "Protocolo nº:" → runs ["Protocolo nº:", " 0001/2099"], o 2º com <w:b/> e <w:sz w:val="24"/>; "Requerente: " → ["Requerente: ", "FULANO DE EXEMPLO (FICTICIO)"]
+[Fact] void data_por_extenso_nos_dois_modelos()   // texto do parágrafo da data == "Venda Nova do Imigrante/ES, 10 de março de 2099"; "dia de mês de ano" não aparece
+[Fact] void exigencias_ocupam_as_vagas_e_as_que_sobram_saem()
+    // 2 exigências + fechamento: entre o título de grupo e a data, 3 parágrafos com o pPr da vaga do modelo, runs [texto, fundamento] (fechamento: 1 run);
+    // nenhuma vaga vazia sobra; o parágrafo vazio antes do "___" continua
+[Fact] void mais_exigencias_que_vagas_clonam_a_vaga()   // 7 exigências + fechamento → 8 parágrafos com o pPr da vaga
+[Fact] void grupos_clonam_o_titulo_de_grupo()   // 2º título com o mesmo pPr e rPr do "GERAL E DOCUMENTAÇÃO" e texto "PRANCHA 01"
+[Fact] void aprovacao_ocupa_as_4_vagas_com_o_corpo()   // os 4 textos de Corpo, na ordem; destinatário "AO SETOR DE FISCALIZAÇÃO:" intacto
+[Fact] void clones_sem_paraId_repetido()
+[Fact] void caracteres_especiais_e_emoji_sao_texto()   // "a & <b> \"x\" 'y' 😀" → w:t com o mesmo texto; XDocument.Parse ok; nenhum w:b novo nesse run
+[Fact] void ancora_ausente_ou_repetida_lanca()   // DocxFicticio sem "Requerente:" → Ancora == "Requerente:"; com dois "Protocolo nº:" → Ancora == "Protocolo nº:"
+// ValidacaoDespachoTestes
+[Theory] [InlineData("Correcao")] [InlineData("Aprovacao")]
+void despacho_gerado_passa_na_comparacao_do_kit(string tipo)   // Comparar(modelo, Preencher(...)) vazio e Conteudo(...) vazio
+[Fact] void parte_fixa_alterada_e_apontada()      // styles.xml com um byte trocado → "Componente original alterado/ausente: word/styles.xml"
+[Fact] void fonte_direta_nova_e_apontada()        // run com <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/> → "Fonte ou tamanho direto não existente no template: rFonts"
+[Fact] void secao_alterada_e_apontada()           // pgMar top 1417 → 1418 → "Seções, margens, formato, orientação ou vínculos de cabeçalho/rodapé alterados."
+[Fact] void resto_do_modelo_e_apontado()          // "dia de mês de ano" restante → "Texto do modelo não preenchido: dia de mês de ano"
+[Fact] void falta_de_linha_antes_da_assinatura_e_apontada()   // parágrafo vazio antes do "___" removido → "Falta a linha em branco antes da assinatura."
+[Fact] void valor_ausente_e_apontado()            // requerente apagado do XML → "O despacho não traz o valor de Requerente."
+// EmissaoDespachoTestes (RelatorioFicticio.Arvore; pasta de trabalho em PastaDeTeste)
+[Fact] void preparar_gera_docx_e_pdf_so_na_pasta_de_trabalho()
+    // ConversorFalso(PdfFicticio(2, "BAAAAA+Verdana", "CAAAAA+Verdana-Bold")) → Erros vazio; Paginas 2; Fontes ["Verdana", "Verdana-Bold"]; SemPdfMotivo null;
+    // lista e sha dos arquivos da árvore de processos iguais aos de antes
+[Fact] void sem_libreoffice_fica_so_o_docx()       // ConversorAusente → Pdf null; SemPdfMotivo "SEM_LIBREOFFICE"; MensagemSemPdf == a mensagem exata
+[Fact] void conversao_que_falha_fica_so_o_docx()   // Motivo "CONVERSAO_FALHOU", Detalhe "código 1" → "O LibreOffice não conseguiu gerar o PDF (código 1). O despacho será gravado só em Word (DOCX); use Despachos › Gerar PDF para tentar de novo."
+[Fact] void pdf_sem_verdana_nao_e_entregue()       // PdfFicticio(1, "ArialMT") → Pdf null; "SEM_VERDANA"; "O PDF saiu sem a fonte Verdana (fontes: ArialMT); será gravado só o DOCX."
+[Fact] void docx_alterado_durante_a_conversao_e_erro()   // conversor falso que regrava o docx → Erros == ["O DOCX mudou durante a conversão; gere o despacho de novo."]
+[Fact] void modelo_alterado_depois_de_aberto_e_erro()    // ModeloDespacho com outro Sha256 → Erros == ["O modelo do kit mudou depois de aberto; abra o Novo despacho de novo."]
+[Fact] void gravar_exige_todas_as_paginas()   // [1] de 2 → "Confira as 2 páginas do PDF antes de gravar."; PDF de 1 página e null → "Confira a página do PDF antes de gravar."
+[Fact] void gravar_cria_a_etapa_nova_com_os_tres_arquivos()
+    // 0001, etapa nova → "DESPACHO 03 - 2099-03-10\Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio.{docx,pdf,recibo-editor.json}";
+    // nenhum .tmp; pasta de trabalho apagada; os outros arquivos da árvore iguais (lista e sha)
+[Fact] void gravar_na_etapa_existente_nunca_sobrescreve()   // 2× na "DESPACHO 02 - 2099-02-20" → 2ª com " (2)"; sha dos da 1ª e do DESPACHO_APROVACAO_0001_2099.pdf iguais
+[Fact] void recibo_com_origens_e_hashes()
+    // tipo "correcao"; papel "correction"; registro.revisao 10; modelo.sha256 == m.Sha256; textos_fixos.sha256 == tx.Sha256; relatorio.sha256_pacote == sha do .pmvrel;
+    // docx.sha256/pdf.sha256 == sha dos arquivos; pdf.paginas 2; exigencias.numero == [2,3]; paginas_conferidas.paginas == [1,2]; usuario == u.Usuario
+[Fact] void gravar_so_docx_registra_o_motivo()   // SEM_LIBREOFFICE → 2 arquivos (docx, recibo); pdf null; sem_pdf_motivo "SEM_LIBREOFFICE"; paginas_conferidas null
+[Fact] void gerar_pdf_depois_completa_o_despacho()   // PrepararPdf + GravarPdf([1,2]) → "<base>.pdf"; recibo com pdf preenchido e sem_pdf_motivo null; DOCX com o mesmo sha
+[Fact] void gerar_pdf_recusa_docx_sem_recibo_do_editor()   // DESPACHO_CORRECAO_0001_2099.docx da árvore → a mensagem exata
+[Fact] void argumentos_do_libreoffice()
+    // Preparar(@"C:\LO\soffice.com", @"<t>\conv\copia.docx", @"<t>\conv") → ArgumentList == ["-env:UserInstallation=" + new Uri(@"<t>\conv\perfil").AbsoluteUri,
+    // "--headless", "--norestore", "--convert-to", "pdf", "--outdir", @"<t>\conv", @"<t>\conv\copia.docx"]; Environment["TEMP"] == Environment["TMP"] == @"<t>\conv\tmp";
+    // CreateNoWindow; !UseShellExecute
+[Fact] void localizar_usa_PMVNI_SOFFICE_quando_o_arquivo_existe()   // [Collection("Ambiente")]: arquivo fictício → ele; caminho inexistente → nunca ele
+[Fact] void orfas_com_mais_de_um_dia_sao_apagadas()   // 2 subpastas (uma com data de 2 dias atrás) → só a nova fica
+[Fact] void info_pdf_lista_fontes_sem_prefixo()   // PdfFicticio(1, "BAAAAA+Verdana", "Verdana-Bold", "CAAAAA+Verdana") → ["Verdana", "Verdana-Bold"]
+```
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `dotnet test tests/Pmvni.Revisao.Testes -c Debug --nologo --filter FullyQualifiedName~Despachos`
+Expected: FAIL (compilação: `RegistroModelos`, `PreenchimentoDocx`… não existem).
+
+- [ ] **Step 3: Implement** os tipos acima (sem pacote NuGet novo: só `System.IO.Compression`, `System.Xml.Linq`, `System.Text.Json`, `System.Diagnostics.Process`) e mover o `InfoPdf`.
+
+- [ ] **Step 4: Run to verify they pass**
+
+Run: `dotnet test tests/Pmvni.Revisao.Testes -c Debug --nologo` → Expected: PASS (todos, inclusive os das Tarefas 1–13).
+Run: `dotnet test tests/Pmvni.Web.Testes -c Debug --nologo` → Expected: PASS (o `InfoPdf` movido continua igual).
+
+- [ ] **Step 5: V6 (despacho × validador do kit).** `Pmvni.Verificador despacho <correcao|aprovacao> <dados.json> <saida.docx> --data AAAA-MM-DD [--kit <raiz>] [--intervencao obra-nova|alteracao|ampliacao]… [--area 210,52]`: importa em memória (não grava pacote), monta o rascunho com todas as exigências marcadas, congela, preenche, valida (`Comparar` + `Conteudo`) e grava só o DOCX; imprime `DESPACHO_OK <sha256>`; faltando ⇒ código 4 com a lista; validação ⇒ código 5 com os erros (sem a conferência da pasta do processo, que não existe aqui). Testes em `VerificadorArgumentosTestes`: `despacho_exige_tipo_dados_saida_e_data`, `despacho_aceita_intervencoes_repetidas_e_area`, `despacho_recusa_tipo_desconhecido` (`aprovacao_completa` → `"Tipo de despacho desconhecido: aprovacao_completa (use correcao ou aprovacao)."`). `fidelidade.py v6`: para `curto` (correção) e `curto` (aprovação com `--intervencao obra-nova --area 210,52`) e, se houver, os casos de `tests/local.json` (correção), roda o Verificador com saída em `%USERPROFILE%\.pmvni-fid\<run>\`, importa o validador do kit (`<kit>/01 - PLUGINS/plugins/despacho/skills/despacho/scripts/validate_template_fidelity.py`) por `importlib.util.spec_from_file_location` com `sys.dont_write_bytecode = True` (nada gravado no kit), exige `check_registry(<kit>/02 - MODELOS DE DOCUMENTOS/TEMPLATES_OFICIAIS.json)[1] == []` e `validate(<modelo do papel>, <docx>) == []`; grava `tests/saida/v6.json` só com `{caso, tipo, erros_kit, sha256_docx}`; `tudo` = v1, v2, v3, v5, v6. Registrar a V6 em `docs/fidelidade.md`.
+  Run: `dotnet test tests/Pmvni.Web.Testes --filter FullyQualifiedName~VerificadorArgumentosTestes` → Expected: PASS.
+  Run: `python -I tools/fidelidade.py v6` → Expected: `V6 [curto-correcao] OK`, `V6 [curto-aprovacao] OK` (e os locais), código 0.
+
+- [ ] **Step 6: Commit** — `git add src/Pmvni.Revisao/Despachos src/Pmvni.Composicao/InfoPdf.cs src/Pmvni.Composicao.Web/Exportador.cs src/Pmvni.App/Roteiro.cs src/Pmvni.Verificador tests/Pmvni.Revisao.Testes tests/Pmvni.Web.Testes tools/fidelidade.py docs/fidelidade.md` · `feat: servico de despacho com modelos do kit, docx, validacao e pdf`
+
+### Task 16 (Tarefa 16): Novo despacho na interface — tipo, prévia editável, conferência das páginas, gravar e abrir
+
+> Desenho §10.2, §10.4, §10.7–§10.9. Executada depois da Tarefa 15; a 14 vem por último.
+
+**Files:**
+- Create: `src/Pmvni.App/Logica/FluxoNovoDespacho.cs`, `src/Pmvni.App/Paginas/PaginaNovoDespacho.xaml(.cs)`, `src/Pmvni.App/Despachos/SessaoNovoDespacho.cs`
+- Modify: `src/Pmvni.App/Logica/{Faixas.cs,ComandosApp.cs,Ajustes.cs}`, `Paginas/{PaginaDespachos,PaginaProcessos,PaginaRelatorios,PaginaAjustes}.xaml(.cs)`, `MainWindow.xaml(.cs)`, `Roteiro.cs`, `docs/roteiro-etapa-2.md`
+- Test: `tests/Pmvni.Revisao.Testes/{FaixasTestes.cs,AjustesTestes.cs,FluxoNovoDespachoTestes.cs}`
+
+**Interfaces:**
+- Consumes: Tarefa 15 inteira; `Processos.Listar/Detalhar`, `Despachos.Listar`, `AberturaExterna`, `MainWindow.GravarAgoraAsync`, `SessaoEdicao.Estado`, `IPerguntas.ConfirmarAsync`, `Pacote.Ler`, `PastaDados.Raiz`, `FaixaDeOpcoes`.
+- Produces:
+  - `ComandosApp`: `"despachos.novo"` (Menu, rótulo "Novo despacho") com os itens `"despachos.novo.correcao"` ("Correção") e `"despachos.novo.aprovacao"` ("Aprovação"), e `"despachos.gerarPdf"` ("Gerar PDF"). O Menu `despachos.novo` entra em Despachos › Página Inicial (primeiro comando), Processos › Página Inicial (depois de `processos.importarAnalise`) e Relatórios › Página Inicial (último comando); `despachos.gerarPdf` em Despachos › Página Inicial depois de `despachos.abrirPdf`. As abas de cada módulo não mudam.
+  - `Ajustes.PastaKit` (string?) e `Ajustes.PastaKitEfetiva` (`PMVNI_KIT_RAIZ` se definida, senão `PastaKit`, senão `%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\KIT DE TREINAMENTO DE IA (PMVNI)`); página Ajustes ganha "Pasta do kit PMVNI" (`FolderPicker`) e a situação dos modelos ("Correção: disponível" ou o motivo de `ModelosDisponiveis.Indisponiveis`, idem Aprovação).
+  - `FluxoNovoDespacho` (lógica pura, compilada nos testes): `enum PassoNovoDespacho { Origem, Conteudo, Conferencia, Gravado }`; `sealed record OrigemSugerida(Processo? Processo, string? Pacote, EtapaDespacho? Etapa)`; `static OrigemSugerida Sugerir(Modulo origem, Processo? selecionado, string? pacoteAberto, IReadOnlyList<Processo> processos, Func<Processo, IReadOnlyList<RelatorioEncontrado>> relatorios, DateOnly hoje)` (Relatórios: o processo cuja `Pasta` contém o pacote aberto, e esse pacote; Processos/Despachos: o selecionado e o `.pmvrel` mais novo dele; `Etapa` = `Etapas.Sugerida`); `static string? MotivoDesabilitado(TipoDespacho t, ModelosDisponiveis m, bool compondo)` (`compondo` ⇒ `"Termine ou cancele o despacho em edição."`); `static bool PodeGerar(RascunhoDespacho r)` (= `Faltando()` vazio); `static bool PodeGravar(Preparacao p, IReadOnlyCollection<int> conferidas)`.
+  - `MainWindow`: `internal Task<bool> NovoDespachoAsync(TipoDespacho t)` (o mesmo caminho do menu, com a origem do módulo atual), `internal PaginaNovoDespacho NovoDespacho`, `internal IConversorPdf Conversor { get; set; }` (padrão `new ConversorLibreOffice(ConversorLibreOffice.Localizar())`; o roteiro troca), `internal Func<DateOnly> Hoje` (padrão data local; o roteiro fixa), `internal Task<Entrega?> GravarDespachoAsync()` (o clique em "Gravar na pasta do processo"), `internal Task<bool> GerarPdfDoDespachoAsync(string docx)`.
+
+Comportamento (desenho §10.2–§10.4, §10.7–§10.9):
+- **Menu:** ao montar a faixa de cada módulo e ao mudar a pasta do kit, `RegistroModelos.Ler(Ajustes.PastaKitEfetiva)` (em `Task.Run`, guardado até a pasta mudar) habilita cada item ou o desabilita com `MotivoDesabilitado` na dica. Nunca há item de tipo que o registro não tem.
+- **Abrir:** `NovoDespachoAsync` passa ao módulo Despachos e mostra `PaginaNovoDespacho` no lugar da lista (a lista volta em Cancelar ou depois de gravar); `EmissaoDespacho.LimparOrfas(<dados>\despachos)`; `FluxoNovoDespacho.Sugerir`. Se o relatório escolhido é o aberto em Relatórios e o estado não é Salvo ⇒ `GravarAgoraAsync()` antes; falha ⇒ InfoBar `"O relatório não pôde ser salvo; o despacho usa sempre a versão gravada. Resolva a gravação e tente de novo."` e para. Processo sem `.pmvrel` ⇒ `"Este processo não tem relatório revisado (.pmvrel). Importe a análise da IA em Processos antes de emitir o despacho."`. `Pacote.Ler` do arquivo (somente leitura, sem trava; `Disco.Sha256` vai para a origem); `Bloqueios` ⇒ InfoBar de erro com a lista e só o passo 1 fica ativo; `Avisos` ⇒ `ConfirmarAsync("Emitir a aprovação?", <aviso>, "Emitir mesmo assim", "Voltar")` (Voltar ⇒ fica no passo 1; Emitir ⇒ o aviso vai para `AvisosConfirmados`).
+- **Passo 2:** cartões e folha de prévia do desenho §10.4; cada alteração chama o modificador do `RascunhoDespacho` e redesenha a prévia por `ConteudoDespacho.Previa` (texto `[preencher: <rótulo>]` em vermelho só na prévia); a lista `Faltando` fica acima do botão "Gerar e conferir ▸", desabilitado enquanto não estiver vazia.
+- **Passo 3:** `Congelar` + `EmissaoDespacho.Preparar` em `Task.Run` com `CancellationToken` (Cancelar interrompe e apaga a pasta de trabalho `<PastaDados.Raiz>\despachos\<guid>`); `Erros` ⇒ lista + "Voltar e editar"; com PDF ⇒ cada página desenhada por `Windows.Data.Pdf.PdfDocument.LoadFromFileAsync` (`StorageFile.GetFileFromPathAsync` do PDF da pasta de trabalho) com largura de 600 DIP, cada uma com a caixa "Conferi a página N" e um "Marcar todas"; linha "Fontes do PDF: Verdana, Verdana-Bold · LibreOffice 26.8.3.1"; "Gravar na pasta do processo" habilitado por `PodeGravar`; sem PDF ⇒ InfoBar de aviso com `MensagemSemPdf` e o botão "Gravar só o DOCX".
+- **Gravar:** `EmissaoDespacho.Gravar(...)`; InfoBar de sucesso "Despacho gravado" com `"<n> arquivos em <pasta>. Recibo: <recibo>."` e botões "Abrir DOCX", "Abrir PDF" (se houver) e "Mostrar no Explorador" (por `AberturaExterna`); a lista de Despachos é relida e o novo fica selecionado.
+- **Gerar PDF** (Despachos): habilitado só para despacho com `.recibo-editor.json` ao lado e `sem_pdf_motivo` não nulo; abre a página direto no passo 3 com `PrepararPdf` e grava por `GravarPdf`.
+- Trocar de módulo, abrir outro Novo despacho ou fechar o app com a página no passo 2 ou 3 ⇒ `ConfirmarAsync("Descartar o despacho em edição?", "Nada foi gravado na pasta do processo.", "Descartar", "Continuar editando")`.
+
+- [ ] **Step 1: Write the failing tests**
+
+```csharp
+[Fact] void novo_despacho_nos_tres_modulos_com_os_dois_tipos()
+    // Despachos, Processos e Relatórios: aba "Página Inicial" tem "despachos.novo" (Tipo Menu, Rotulo "Novo despacho") com Itens ids
+    // ["despachos.novo.correcao", "despachos.novo.aprovacao"] e rótulos ["Correção", "Aprovação"]; em Despachos é o 1º comando; em Processos vem logo depois de "processos.importarAnalise"
+[Fact] void gerar_pdf_so_em_despachos()   // "despachos.gerarPdf" só em Despachos › Página Inicial, logo depois de "despachos.abrirPdf"
+[Fact] void ids_de_comando_unicos_e_conhecidos()   // (caso existente) continua verde com os ids novos
+[Fact] void cada_modulo_tem_a_faixa_do_desenho()   // (caso existente) abas iguais às da Tarefa 13
+[Fact] void ajustes_guardam_a_pasta_do_kit()   // Salvar/Carregar com PastaKit; PastaKitEfetiva: PMVNI_KIT_RAIZ > PastaKit > padrão ([Collection("Ambiente")])
+[Fact] void sugestao_pelo_relatorio_aberto()
+    // RelatorioFicticio.Arvore; pacote "<arvore>\2099\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\Relatorio_0001_2099.pmvrel" aberto, origem Relatorios →
+    // Processo.Numero 1, Pacote == esse, Etapa.Nome "DESPACHO 03 - 2099-03-10" (hoje 2099-03-10)
+[Fact] void sugestao_por_processos_escolhe_o_pmvrel_mais_novo()   // 2 .pmvrel (AlteradoUtc diferentes) → o mais novo
+[Fact] void sugestao_sem_contexto_nao_escolhe_nada()   // Despachos sem seleção e nada aberto → (null, null, null)
+[Fact] void motivo_desabilitado()   // indisponível → o motivo do registro; compondo → "Termine ou cancele o despacho em edição."; disponível → null
+[Fact] void pode_gravar_so_com_todas_as_paginas()   // Paginas 2 + {1} → false; {1,2} → true; sem PDF (SemPdfMotivo "SEM_LIBREOFFICE") + {} → true; Erros ≠ [] → false
+```
+
+- [ ] **Step 2: Run** `dotnet test tests/Pmvni.Revisao.Testes --filter "FullyQualifiedName~FaixasTestes|FullyQualifiedName~AjustesTestes|FullyQualifiedName~FluxoNovoDespachoTestes"` → Expected: FAIL.
+- [ ] **Step 3: Implement** a lógica e passar os testes; depois a página, a sessão e as ligações no `MainWindow`. `dotnet build src/Pmvni.App -c Debug` → Expected: 0 erros; os testes do Step 2 → PASS.
+- [ ] **Step 4: Roteiro** (cada passo confere o modelo, a tela e os arquivos; tudo em `tests\saida\roteiro`). Preparação comum: copiar `tests\corpus\processos` para `<pasta>\processos-despacho\` (cópia separada da Tarefa 13) e apontar `Ajustes.PastaProcessos` para ela; `Ajustes.PastaKit` = o kit real (o roteiro só lê); `Hoje` = 2099-03-10; gravar `<pasta>\curto-0001.json` (o `curto` com `capa.processo` `"0001/2099"` e `capa.requerente` `"FULANO DE EXEMPLO (FICTICIO)"`) e importá-lo para `<cópia>\2099\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\Relatorio_0001_2099.pmvrel`; `AberturaExterna.Simular = true`.
+  - `34_novo_despacho_correcao` (pela faixa de Relatórios, com o pacote aberto): `NovoDespachoAsync(Correcao)` → módulo Despachos; processo 0001, relatório o aberto, etapa nova "DESPACHO 03 - 2099-03-10"; 2 exigências (ITEM 02, ITEM 03), prévia com "Protocolo nº: 0001/2099"; Gerar com o **LibreOffice real** → `Paginas ≥ 1`, `Fontes` contém "Verdana", `InfoPdf.Ler` sem exceção (se o leitor mínimo não ler o PDF do LibreOffice: **parar e relatar**, nunca afrouxar o leitor); marcar todas; Gravar → os 3 arquivos na pasta nova; `ValidacaoDespacho.Comparar(modelo, docx)` vazio; sha do docx e do pdf = os do recibo; Despachos lista o novo (Correção, nº 3, 2099-03-10) selecionado; "Abrir PDF" registra o caminho em `AberturaExterna.Registradas`.
+  - `35_novo_despacho_aprovacao` (pela faixa de Processos, 0001 selecionado): aviso de 2 itens (resposta fixa "Emitir mesmo assim"); `Faltando` == as 2 mensagens exatas e "Gerar e conferir" desabilitado; marcar "obra nova" e área "210,52" → habilitado; etapa existente "DESPACHO 03 - 2099-03-10" → Gerar, marcar, Gravar → `Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.{docx,pdf,recibo-editor.json}` na mesma pasta; sha dos arquivos da correção iguais; recibo com `avisos_confirmados` = o aviso exato.
+  - `36_despacho_sem_libreoffice` (pela faixa de Despachos, 0001 selecionado): `Conversor = ConversorAusente` → passo 3 mostra a mensagem exata do desenho §10.7 e "Gravar só o DOCX" → `.docx` + recibo com `sem_pdf_motivo` `"SEM_LIBREOFFICE"`, sem `.pdf`; volta o conversor real → Despachos › Gerar PDF nesse despacho → páginas → marcar → Gravar → `.pdf` com o mesmo nome base; recibo com `pdf` preenchido e `sem_pdf_motivo` null.
+  - `37_despacho_nao_sobrescreve`: nova correção na "DESPACHO 03 - 2099-03-10" → nomes com " (2)"; sha de todos os arquivos anteriores da pasta iguais; nenhum `.tmp` na árvore.
+  - `38_despacho_bloqueios`: (a) `DefinirSituacao` sem justificativa no pacote aberto → Novo despacho mostra a mensagem exata da Tarefa 3 e não passa do passo 1; (b) importar o `dados_0001.json` da cópia (capa `9001/2026`) para `Relatorio_0001_2099_2.pmvrel`, escolhê-lo → `"O processo da capa (9001/2026) não é o da pasta (0001/2099). Confira se o relatório é deste processo."`; (c) `Ajustes.PastaKit` = `<pasta>\kit-vazio` → os dois itens do menu desabilitados com `"Kit PMVNI não encontrado em <pasta>\kit-vazio. Escolha a pasta do kit em Ajustes."`; volta o kit; (d) lista de arquivos da cópia = a de antes + só os arquivos gravados nos passos 34–37 e os `.pmvrel` importados; nada mudou no kit (lista, tamanho e data de `02 - MODELOS DE DOCUMENTOS` e da pasta `references`).
+  Run: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-release.ps1` → Expected: testes aprovados, autoteste aprovado, "Executável final: …".
+  Run: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\roteiro-e-esperar.ps1` → Expected: `ok: true`, código 0.
+  Run: `python -I tools/fidelidade.py v6` → Expected: os casos `OK`, código 0.
+- [ ] **Step 5:** `docs/roteiro-etapa-2.md` (passos 34–38 na tabela; como o roteiro usa o kit no lugar e o LibreOffice real). Commit — `feat: novo despacho com escolha do tipo, previa, conferencia e gravacao`
 
 ---
 
 ## Autoconferência do plano
 
-- **Cobertura do desenho:** §5.1 pacote (T4), trava/autosave/diário (T5, T10), importação e assets (T1); §5.2 dados efetivos e numeração (T2), citações (T1, T3); §5.3 comandos/histórico (T3); §5.4 edição no A4 e marcas (T7, T9); §5.5 barra, faixa, trilho, propriedades, menu, atalhos, fechar com autosave (T8–T11); §6 prova de pronto (T4, T5, T3, T2, T14); §8.1–8.8 (T1–T3, T7, T9, T10); §9 módulos (T12, T13, Ajustes em T11/T13); §9.1 faixa por módulo e pesquisa por módulo (T8 dados, T9/T11/T13 abas, T13 pesquisa).
-- **Ordem do desenho §8.7:** pacote + importação (T1, T4) → modelo/comandos/efetivos (T2, T3) → ponte de seleção e edição (T6, T7) → controles (T8, T9) → autosave/recuperação/trava (T5, T10) → pesquisa/tema/recentes/comparar (T11) → módulos (T12, T13) → roteiro, build e entrega (T14). T5 (lógica pura) vem cedo; a ligação no app fica na T10, na ordem do desenho.
-- **Decisões tomadas no plano (o desenho deixava ao construtor):** projeto novo `Pmvni.Revisao`; formato interno do `projeto.json` (`chaves`, `outros`, `numero_original`); token `{{ref:<id>:<largura>}}` só nos dígitos; alvo excluído imprime o número original; edição reconverte citações; recusa por teste em clone + render do kit; Ajustes abre na aba Arquivo; `dados*.json` nas análises da IA; nome da cópia de conflito; seletor de salvar na importação genérica.
+- **Cobertura do desenho:** §5.1 pacote (T4), trava/autosave/diário (T5, T10), importação e assets (T1); §5.2 dados efetivos e numeração (T2), citações (T1, T3); §5.3 comandos/histórico (T3); §5.4 edição no A4 e marcas (T7, T9); §5.5 barra, faixa, trilho, propriedades, menu, atalhos, fechar com autosave (T8–T11); §6 prova de pronto (T4, T5, T3, T2, T14); §8.1–8.8 (T1–T3, T7, T9, T10); §9 módulos (T12, T13, Ajustes em T11/T13); §9.1 faixa por módulo e pesquisa por módulo (T8 dados, T9/T11/T13 abas, T13 pesquisa). §10 novo despacho: tipos do registro, textos fixos, conteúdo, etapa/nomes, DOCX, validação, PDF e recibo (T15); menu nos três módulos, prévia editável, conferência das páginas, Gerar PDF e pasta do kit nos Ajustes (T16); roteiro final, V6 em `tudo` e recriar.json/LibreOffice (T14).
+- **Ordem do desenho §8.7:** pacote + importação (T1, T4) → modelo/comandos/efetivos (T2, T3) → ponte de seleção e edição (T6, T7) → controles (T8, T9) → autosave/recuperação/trava (T5, T10) → pesquisa/tema/recentes/comparar (T11) → módulos (T12, T13) → novo despacho (T15 serviço, T16 interface) → roteiro, build e entrega (T14, sempre a última). T5 (lógica pura) vem cedo; a ligação no app fica na T10, na ordem do desenho.
+- **Decisões tomadas no plano (o desenho deixava ao construtor):** projeto novo `Pmvni.Revisao`; formato interno do `projeto.json` (`chaves`, `outros`, `numero_original`); token `{{ref:<id>:<largura>}}` só nos dígitos; alvo excluído imprime o número original; edição reconverte citações; recusa por teste em clone + render do kit; Ajustes abre na aba Arquivo; `dados*.json` nas análises da IA; nome da cópia de conflito; seletor de salvar na importação genérica. Nas Tarefas 15–16: assinaturas e mensagens exatas do serviço de despacho; `Verificador despacho` e V6 para rodar o validador do kit; recibo `.recibo-editor.json` com as chaves listadas; LibreOffice real só no roteiro (passos 34–38) e conversor falso nos testes; roteiro final renumerado para `39_fluxo_completo`.
