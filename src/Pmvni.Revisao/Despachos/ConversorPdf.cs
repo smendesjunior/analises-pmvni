@@ -44,6 +44,20 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
         }
     }
 
+    /// <summary>O arquivo existe e é o <c>soffice.com</c> ou o <c>soffice.exe</c> do LibreOffice (pelo nome; nada é executado).</summary>
+    public static bool ProgramaValido(string? caminho) =>
+        !string.IsNullOrWhiteSpace(caminho) && File.Exists(caminho)
+        && Path.GetFileName(caminho) is var n && (n.Equals("soffice.com", StringComparison.OrdinalIgnoreCase) || n.Equals("soffice.exe", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>O programa escolhido em Ajustes (o <c>soffice.com</c> ao lado, se houver: o de console, sem janela) quando ele existe e é o
+    /// soffice; senão (ou com null, "Automático"), <see cref="Localizar()"/>.</summary>
+    public static string? Localizar(string? escolhido)
+    {
+        if (!ProgramaValido(escolhido)) return Localizar();
+        var com = Path.Combine(Path.GetDirectoryName(escolhido!)!, "soffice.com");
+        return File.Exists(com) ? com : escolhido;
+    }
+
     /// <summary><c>PMVNI_SOFFICE</c> (se o arquivo existe) → <c>%ProgramFiles%\LibreOffice*\program\soffice.com</c> → <c>soffice.exe</c> →
     /// o mesmo em <c>%ProgramFiles(x86)%</c> → <c>soffice.com</c>/<c>soffice.exe</c> no PATH; null se nada.</summary>
     public static string? Localizar()

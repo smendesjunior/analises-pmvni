@@ -14,10 +14,12 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
     /// <summary>Órfãos (<c>*.orfao-*.jsonl</c>) parados há mais de <see cref="IdadeOrfao"/> saem na abertura do app (T10-C1).</summary>
     public static readonly TimeSpan IdadeOrfao = TimeSpan.FromDays(30);
 
-    /// <summary>Apaga de <c>&lt;raiz&gt;\recuperacao</c> só os órfãos cuja última gravação tem mais de 30 dias (nunca um mais novo, nunca um
-    /// diário vivo). Devolve quantos saíram; falha num arquivo não impede os outros.</summary>
-    public static int LimparOrfaosAntigos(string raizDados, DateTime agoraUtc)
+    /// <summary>Apaga de <c>&lt;raiz&gt;\recuperacao</c> só os órfãos cuja última gravação tem mais de <paramref name="idade"/> (padrão:
+    /// <see cref="IdadeOrfao"/>, 30 dias; Ajustes › Relatórios e revisão › Recuperação escolhe 7, 30 ou 90), nunca um mais novo, nunca um
+    /// diário vivo. Devolve quantos saíram; falha num arquivo não impede os outros.</summary>
+    public static int LimparOrfaosAntigos(string raizDados, DateTime agoraUtc, TimeSpan? idade = null)
     {
+        var limite = idade ?? IdadeOrfao;
         var pasta = Path.Combine(raizDados, "recuperacao");
         if (!Directory.Exists(pasta)) return 0;
         var n = 0;
@@ -25,7 +27,7 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
         {
             try
             {
-                if (agoraUtc - File.GetLastWriteTimeUtc(f) <= IdadeOrfao) continue;
+                if (agoraUtc - File.GetLastWriteTimeUtc(f) <= limite) continue;
                 File.Delete(f);
                 n++;
             }

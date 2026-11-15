@@ -578,4 +578,26 @@ public sealed class LocalizarLibreOfficeTestes
             Environment.SetEnvironmentVariable("PMVNI_SOFFICE", antes);
         }
     }
+
+    [Fact]
+    public void programa_escolhido_em_ajustes_vale_se_for_o_soffice_e_existir()
+    {
+        // Ajustes › Despachos e PDF › LibreOffice: "Escolher…" guarda o caminho; "Automático" (null) acha sozinho, como antes.
+        using var pasta = Ambiente.PastaDeTeste("soffice-escolhido");
+        var exe = Path.Combine(pasta, "soffice.exe");
+        File.WriteAllText(exe, "ficticio");
+        Assert.True(ConversorLibreOffice.ProgramaValido(exe));
+        Assert.Equal(exe, ConversorLibreOffice.Localizar(exe));
+        // Com o soffice.com ao lado (o de console, sem janela), é ele que vale.
+        var com = Path.Combine(pasta, "soffice.com");
+        File.WriteAllText(com, "ficticio");
+        Assert.Equal(com, ConversorLibreOffice.Localizar(exe));
+        // Outro programa ou arquivo que sumiu: volta ao automático.
+        var outro = Path.Combine(pasta, "notepad.exe");
+        File.WriteAllText(outro, "x");
+        Assert.False(ConversorLibreOffice.ProgramaValido(outro));
+        Assert.Equal(ConversorLibreOffice.Localizar(), ConversorLibreOffice.Localizar(outro));
+        Assert.Equal(ConversorLibreOffice.Localizar(), ConversorLibreOffice.Localizar(Path.Combine(pasta, "sumiu", "soffice.exe")));
+        Assert.Equal(ConversorLibreOffice.Localizar(), ConversorLibreOffice.Localizar(null));
+    }
 }

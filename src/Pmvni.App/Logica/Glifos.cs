@@ -59,4 +59,8 @@ public static class Glifos
     public const string SituacaoItem = "\uEA3B";
     public const string Sobre = "\uE946";
     public const string Tema = "\uE790";
+    public const string Inicio = "\uE80F";
+    public const string Despachos = "\uE8C3";
+    public const string Ia = "\uE99A";
+    public const string AbrirPasta = "\uE838";
 }
