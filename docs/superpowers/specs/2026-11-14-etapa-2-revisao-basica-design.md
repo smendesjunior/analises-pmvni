@@ -206,3 +206,36 @@ o formato exato das mensagens novas da ponte (seguindo o envelope `{v:1,tipo,id,
    ao valor original zera `revisada` e a exigência de justificativa (a justificativa digitada
    fica guardada mas não é exigida). Desfazer grava no histórico um registro `desfeito` que
    aponta para o comando original (append-only; nada é apagado).
+
+## 9. Trilho principal com os módulos do app (pedido do usuário, 14/11/2026)
+
+Substitui o trilho da seção 5.5. O trilho à esquerda tem os **módulos principais**, como Email/
+Calendário no Outlook: **Relatórios, Despachos, Processos, Legislação** e, embaixo, **Ajustes**.
+Cada módulo troca a área principal inteira; a faixa de opções mostra as abas do módulo ativo.
+
+- **Relatórios:** o editor desenhado nas seções 5.1–5.5. O painel ao lado das folhas ganha três
+  abas no topo: Seções (árvore de seções e itens), Excluídos (n), Histórico.
+- **Processos:** lista as pastas de processo da pasta de processos (padrão
+  `C:\Users\smendesjunior\OneDrive\PMVNI\SIDNEY JUNIOR\PROCESSOS`, configurável em Ajustes), no
+  formato `<ano>\<nº> - <ano> - <requerente>` (aceita também `<nº>-<ano> - <requerente>`), mais
+  recentes primeiro, com filtro por número ou nome. Ao escolher um processo, mostra: relatórios
+  encontrados (`*.pmvrel` na pasta do processo e `dados.json` dentro de `.pmvni-ai\*\`), despachos
+  (subpastas `DESPACHO NN - AAAA-MM-DD` com seus DOCX/PDF) e as pastas PROJETO/DOCUMENTOS.
+  Ações: Abrir relatório (vai ao módulo Relatórios; `dados.json` é importado para um `.pmvrel`
+  novo gravado na pasta do processo, com nome `Relatorio_<nº>_<ano>.pmvrel`), Abrir arquivo,
+  Mostrar no Explorador. Somente leitura sobre a pasta: o app nunca move, renomeia ou apaga nada.
+- **Despachos:** lista os despachos existentes (do processo selecionado ou de todos), com tipo
+  (Correção/Aprovação pelo nome do arquivo), data e número; abrir DOCX/PDF no programa padrão.
+  A emissão de despachos continua sendo a Etapa 5; aqui não há botão de emitir.
+- **Legislação:** lista os arquivos da pasta de legislação (padrão
+  `C:\Users\smendesjunior\OneDrive\PMVNI\SIDNEY JUNIOR\LEGISLAÇÃO`, configurável), com filtro
+  por nome; abrir no programa padrão. Nada é copiado nem redistribuído.
+- **Ajustes:** pastas de processos e de legislação, tema, intervalo do salvamento automático,
+  pasta de recuperação (somente leitura, informativo), versões (app, modelo, WebView2).
+
+Abrir arquivos externos: só extensões de documento (`.pdf`, `.docx`, `.doc`, `.xlsx`, `.xls`,
+`.png`, `.jpg`, `.jpeg`, `.dwg`, `.dxf`, `.txt`) pelo shell do Windows (`UseShellExecute`);
+qualquer outra extensão (scripts, executáveis, atalhos) é recusada com aviso. Leitura das pastas
+é feita fora da thread da interface e tolera pastas grandes e nomes fora do padrão (aparecem
+com o nome da pasta como veio). Dados reais dessas pastas nunca entram em testes versionados:
+os testes usam uma árvore fictícia em `tests/corpus/processos/`.
