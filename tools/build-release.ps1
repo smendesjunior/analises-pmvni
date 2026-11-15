@@ -131,6 +131,19 @@ if (@($limpeza.erros).Count -gt 0) { throw "Limpeza das extrações com erros: $
 $liberadoSaida = Tamanho $saida
 $completo = [System.IO.Path]::GetFullPath($saida)
 if (-not $completo.StartsWith($raiz + '\', [StringComparison]::OrdinalIgnoreCase)) { throw "Caminho fora do projeto: $completo" }
+# Os testes de junção (mklink /J) podem deixar junções em tests\saida: o Remove-Item -Recurse do PowerShell 5.1 não as apaga ("a pasta não está
+# vazia"). Primeiro sai só o link de cada uma (Directory.Delete sem recursão nunca entra no alvo), sem descer por elas. Pelo LinkType, não pelo
+# atributo ReparsePoint: as pastas do OneDrive também o têm e não são atalhos.
+$pilha = New-Object System.Collections.Stack
+if (Test-Path -LiteralPath $completo) { $pilha.Push($completo) }
+while ($pilha.Count -gt 0) {
+    $dir = $pilha.Pop()
+    foreach ($sub in [System.IO.Directory]::GetDirectories($dir)) {
+        $tipo = (Get-Item -LiteralPath $sub -Force).LinkType
+        if ($tipo -eq 'Junction' -or $tipo -eq 'SymbolicLink') { [System.IO.Directory]::Delete($sub) }
+        else { $pilha.Push($sub) }
+    }
+}
 Remove-Item -LiteralPath $completo -Recurse -Force
 if (Test-Path -LiteralPath $completo) { throw "Não foi possível apagar: $completo" }
 $liberado += $liberadoSaida
