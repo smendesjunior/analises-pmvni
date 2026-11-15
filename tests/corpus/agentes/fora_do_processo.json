@@ -1,0 +1,6 @@
+{
+  "descricao": "delivery.json com document fora da pasta do processo.",
+  "codigo": 0,
+  "eventos": [ "{\"type\":\"thread.started\",\"thread_id\":\"t-6\"}" ],
+  "delivery": "fora"
+}

@@ -243,3 +243,12 @@ Medido no roteiro (passo 44; perfil apagado no início do passo 36; LibreOffice 
 O perfil persistente funciona (o `user\` fica e é reaproveitado), mas **não** encurta a conversão: a 2ª e as seguintes levam quase o
 mesmo que a 1ª. Os ~50–55 s não são a inicialização do perfil (hipótese da Tarefa 16); a causa continua em aberto (pouca CPU durante a
 espera, como na Tarefa 16 — candidata: alguma espera do `soffice.bin` com entrada e saídas redirecionadas ou na pasta do OneDrive).
+
+## Agentes locais: opções conferidas (Etapa 2, Tarefa 19, passo 0)
+
+Conferido em 15/11/2026 por `tools\agentes-ajuda.ps1` (fora do pacote, só `--version`, `--help`, `login status` e `auth status`, sem chamar modelo):
+
+- **Codex** `codex-cli 0.167.0-alpha.4.1` (`%LOCALAPPDATA%\OpenAI\Codex\bin\<id>\codex.exe`). A linha de versão tem o prefixo `codex-cli ` e um sufixo de pré-lançamento (`-alpha.4.1`): a leitura da versão pega só o `major.minor.patch`. `codex exec` aceita `--skip-git-repo-check`, `-C/--cd`, `--json`, `-o/--output-last-message` e o prompt `-` (lido da entrada padrão). `codex login status` sai com 0 e a primeira linha contém "Logged in" quando há login. A ajuda do `exec` **não cita** `CODEX_API_KEY`; o binário do Codex lê essa variável (a mensagem "run `codex login` or set CODEX_API_KEY" e a lista de variáveis de autenticação `OPENAI_API_KEY`/`CODEX_API_KEY`/`CODEX_ACCESS_TOKEN` estão nele), então ela segue como a variável do modo chave. A confirmação final é a primeira análise real com chave (fora dos testes, que nunca chamam IA).
+- **Claude Code** `2.1.318 (Claude Code)` (`%LOCALAPPDATA%\Microsoft\WinGet\Links\claude.exe`). `claude auth status` existe; imprime JSON com as chaves `loggedIn`, `authMethod`, `apiProvider`, `analyticsDisabled`, `projectsDirectory`, `configDirectory`, `loginExpiresAt` e sai com **1 quando não há login** (com JSON mesmo assim): a leitura da sessão usa o JSON, não só o código de saída.
+- **Python** `Python 3.14.10` (`python.exe` e `py -3`).
+- Windows PowerShell 5.1 não tem `ProcessStartInfo.ArgumentList`: o script do passo 0 monta `Arguments` (só argumentos sem espaços). O código C# do editor usa `ArgumentList`.

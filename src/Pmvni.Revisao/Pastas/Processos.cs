@@ -153,7 +153,7 @@ public static class Processos
                 {
                     ct.ThrowIfCancellationRequested();
                     if (EhLink(revisao)) continue;
-                    foreach (var f in Directory.EnumerateFiles(revisao, "dados*.json"))
+                    foreach (var f in Directory.EnumerateFiles(revisao, "dados*.json").Concat(Directory.EnumerateFiles(revisao, "relatorio_dados*.json")))
                         if (!EhLink(f)) relatorios.Add(new RelatorioEncontrado(f, TipoRelatorio.AnaliseIa, File.GetLastWriteTimeUtc(f)));
                 }
         }

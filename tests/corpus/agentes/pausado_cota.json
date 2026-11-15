@@ -1,0 +1,4 @@
+{
+  "descricao": "análise pro que pausa por cota esgotada.",
+  "auto": { "etapa_ms": 200, "final": "PAUSADO_COTA", "erro": "Cota do Claude esgotada." }
+}

@@ -1,0 +1,6 @@
+{
+  "descricao": "delivery.json com JSON inválido.",
+  "codigo": 0,
+  "eventos": [ "{\"type\":\"thread.started\",\"thread_id\":\"t-5\"}" ],
+  "delivery": "json_invalido"
+}
