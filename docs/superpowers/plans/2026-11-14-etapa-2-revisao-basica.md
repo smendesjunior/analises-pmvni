@@ -17,28 +17,31 @@ edição e pesquisa **fora do fluxo** das folhas e conversa com o host pelo enve
 `InfoBar`, `MenuFlyout`, `ContentDialog`), WebView2 (projeção WinRT), `System.IO.Compression`, `System.Text.Json.Nodes`,
 xUnit 2.9.3, TypeScript + esbuild (`web/paginador`), Python 3.14 + PyMuPDF (só `tools/fidelidade.py`); despachos:
 `System.IO.Compression` + `System.Xml.Linq` (DOCX), LibreOffice instalado pelo kit (`soffice.com`, só o PDF do despacho),
-`Windows.Data.Pdf` (páginas na conferência).
+`Windows.Data.Pdf` (páginas na conferência); legislação embutida (T17–T18): Python + PyMuPDF + Pillow só em
+`tools/legislacao` (rodado pelo desenvolvedor quando o kit muda; o build não precisa deles), projeto `Pmvni.Legislacao`.
 
 **Especificação (Spec):** `docs/superpowers/specs/2026-11-14-etapa-2-revisao-basica-design.md` (vinculante, inclusive §8,
-§9, §9.1 e §10); contexto em `docs/especificacao/2026-11-14-editor-relatorios-concepcao.md` §3, §5.4, §6, §10, §11. Formato e
+§9, §9.1, §10 e §11); contexto em `docs/especificacao/2026-11-14-editor-relatorios-concepcao.md` §3, §5.4, §6, §10, §11. Formato e
 convenções: `docs/superpowers/plans/2026-11-14-etapa-1-fidelidade-documental.md`.
 
-**Ordem de execução:** Tarefas 1 a 13, depois **15 e 16** (novo despacho, desenho §10) e, **por último, a 14** (roteiro
-completo, entrega, Recriar PC), que cobre também o que as Tarefas 15 e 16 acrescentam.
+**Ordem de execução:** Tarefas 1 a 13, depois **15 e 16** (novo despacho, desenho §10), depois **17 e 18** (legislação
+compilada embutida, desenho §11) e, **por último, a 14** (roteiro completo, entrega, Recriar PC), que cobre também o que
+as Tarefas 15 a 18 acrescentam.
 
 ## Restrições globais (Global Constraints)
 
 - **Executável único** self-contained (`Aplicativo\Editor de Relatorios PMVNI.exe`), manifesto `asInvoker`; sem admin, serviço, tarefa agendada, `HKLM`, `Program Files`, associação de arquivo ou permissão nova.
 - WebView2 **InPrivate**, host virtual `doc.pmvni.invalid` com `CoreWebView2HostResourceAccessKind.Deny`, CSP e filtro 403 da Etapa 1 intactos; atalhos do navegador desligados. **Todo HTML do relatório é conteúdo não confiável**: texto editado é texto puro, nunca HTML.
 - Nada sai da máquina (sem rede, telemetria ou atualização).
-- Dados reais (17098, caminho em `tests/local.json`, ignorado pelo git) só locais: nunca em `tests/corpus`, `tests/referencias`, docs ou commits; saídas guardadas só com contagens, hashes e páginas. Pastas reais de PROCESSOS/LEGISLAÇÃO nunca entram em teste versionado: os testes usam `tests/corpus/processos/` e `tests/corpus/legislacao/` (fictícios).
+- Dados reais (17098, caminho em `tests/local.json`, ignorado pelo git) só locais: nunca em `tests/corpus`, `tests/referencias`, docs ou commits; saídas guardadas só com contagens, hashes e páginas. Pastas reais de PROCESSOS nunca entram em teste versionado: os testes usam `tests/corpus/processos/` (fictício). Legislação: os testes usam só os PDFs fictícios de `tests/corpus/legislacao/` (montados por `tools/legislacao/ficticios.py`) e o pacote gerado deles; o kit real só é lido no lugar (geração do pacote, conferência, roteiro).
 - Testes e ferramentas rodados pelo shell do Claude **não gravam** em `%APPDATA%`, `%LOCALAPPDATA%` nem `%TEMP%` (virtualização MSIX): pasta de dados por `PMVNI_DADOS_DIR` (`PastaDados.Raiz`); temporários de teste em `tests/saida/...` (ignorada pelo git). Testes novos não usam `Path.GetTempPath()`.
 - O app e o roteiro só são abertos por `explorer.exe` com `.cmd` (`tools/roteiro.cmd`, `tools/autoteste.cmd`); verificações leem o resultado por arquivo em `tests\saida` / `docs\`.
 - Fidelidade: `python -I tools/fidelidade.py tudo` continua aprovando V1–V4 (e as novas V5, Tarefa 4, e V6, despachos × validador do kit, Tarefa 15). O HTML exportado nunca leva `data-campo`, seleção, marcas, chips ou realce: tudo isso existe só no DOM da tela.
 - Pacote: `versao_esquema` **"1.0.0"**; limites **50 MB por entrada, 500 MB no total, razão de compressão ≤ 100**; imagens só PNG/JPEG/WebP/GIF conferidas por assinatura; esquema maior que o conhecido ⇒ **somente leitura**.
 - Trava: batimento a cada **30 s**; abandonada com batimento **> 2 min**. Autosave: **30 s** sem edição (opções 15/30/60/120 s), ao trocar de arquivo e ao fechar. Recentes: **10**. Meta de latência por comando: **≤ 1,5 s** no `longo` (medida e registrada; não é assert).
-- O original recebido (`original/recebido.json`) nunca muda. O editor não preenche nada sozinho. Pastas de processos/legislação: leitura apenas; o app só cria nelas o `.pmvrel` de uma importação pedida pelo usuário (e `.bak`/`.tmp`/`.lock` ao lado de um pacote que ele abriu) e, ao gravar um despacho pedido pelo usuário (Tarefas 15–16), a pasta `DESPACHO NN - AAAA-MM-DD` (se nova) com o DOCX, o PDF e o `.recibo-editor.json`, **sem nunca sobrescrever, mover, renomear ou apagar**.
+- O original recebido (`original/recebido.json`) nunca muda. O editor não preenche nada sozinho. Pastas de processos: leitura apenas; o app só cria nelas o `.pmvrel` de uma importação pedida pelo usuário (e `.bak`/`.tmp`/`.lock` ao lado de um pacote que ele abriu) e, ao gravar um despacho pedido pelo usuário (Tarefas 15–16), a pasta `DESPACHO NN - AAAA-MM-DD` (se nova) com o DOCX, o PDF e o `.recibo-editor.json`, **sem nunca sobrescrever, mover, renomear ou apagar**.
 - Kit PMVNI **somente leitura**: modelos DOCX (pelo `TEMPLATES_OFICIAIS.json`, sha conferido) e textos fixos do plugin `despacho` são lidos no lugar, em tempo de uso, e **nunca copiados para o repositório** (licença do plugin; desenho §10.10); o código guarda só âncoras curtas. Testes leem o kit no lugar por `PMVNI_KIT_RAIZ` (padrão `%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\KIT DE TREINAMENTO DE IA (PMVNI)`; ausente ⇒ `Assert.Fail`, como na Etapa 1) e montam DOCX/PDF fictícios no próprio código. O Word **nunca** é automatizado; o PDF do despacho sai pelo LibreOffice sobre uma cópia, com perfil e `TEMP`/`TMP` na pasta de trabalho; LibreOffice real **só no roteiro** (fora do pacote), nunca em `dotnet test`.
+- **Legislação embutida** (desenho §11; T17–T18): os atos públicos de `<kit>\03 - LEGISLACAO` (Lei 9.610/98, art. 8º, IV) entram no executável como `legislacao.pmvleg` (recurso de `Pmvni.Legislacao`), **gerado pelo desenvolvedor** com `tools/legislacao/extrair.py` e **versionado**; o `build-release.ps1` não exige Python nem PyMuPDF e só **avisa** quando o kit mudou. Só texto e imagens dos próprios atos (WebP 60, ≤ 1.600 px); **sem OCR e sem texto inventado** (página sem texto fica como imagem, com aviso); texto riscado (revogado) marcado, nunca apresentado como vigente. Normas ABNT **nunca** entram (a ferramenta recusa). Orçamento do pacote: **≤ 11 MB** (aviso; medido ≈ 9,8 MB), **12 MB** no máximo (falha). Viewer: WebView2 InPrivate no host `leg.pmvni.invalid` servido da memória (sem pasta mapeada, CSP própria, resto 403); o app não grava nada da legislação em disco. A ferramenta e os seus testes gravam só em `src/Pmvni.Legislacao/Dados/`, `docs/legislacao-embutida.md` e `tests/saida/legislacao/` (`sys.dont_write_bytecode`, sem `__pycache__`).
 - Abrir arquivo externo: só `.pdf .docx .doc .xlsx .xls .png .jpg .jpeg .dwg .dxf .txt`, pelo shell (`UseShellExecute`); o resto é recusado com aviso. No modo `--roteiro`, aberturas externas são só registradas.
 - Toda build termina limpando builds anteriores e temporários (já no `tools/build-release.ps1`); tarefas de interface terminam com `build-release.ps1` + roteiro. `recriar.json` e Recriar PC atualizados na entrega (Tarefa 14).
 - **Todo texto da interface em português do Brasil.** Nenhum botão "em breve" nem placeholder: um módulo, aba ou comando só aparece quando funciona (desabilitar por contexto é permitido).
@@ -72,7 +75,7 @@ src/Pmvni.Revisao/                        NOVO, net10.0 puro (referencia Pmvni.C
   Pacote.cs                               ZIP: leitura segura, gravação segura, EstadoDisco, ConteudoPacote
   Trava.cs  Diario.cs                     .~nome.pmvrel.lock; <dados>\recuperacao\<sha>.jsonl
   Pastas/NomesArquivo.cs                  nomes de importação e de cópia sem sobrescrever
-  Pastas/Processos.cs  Pastas/Despachos.cs  Pastas/Legislacao.cs  Pastas/AbrirExterno.cs
+  Pastas/Processos.cs  Pastas/Despachos.cs  Pastas/AbrirExterno.cs   (Pastas/Legislacao.cs saiu: desenho §11)
   Despachos/RegistroModelos.cs            NOVO (T15): TEMPLATES_OFICIAIS.json → modelos de correção e aprovação (sha conferido)
   Despachos/TextosFixos.cs                NOVO (T15): parágrafos fixos lidos das referências do plugin despacho (no lugar)
   Despachos/ConteudoDespacho.cs           NOVO (T15): Projeto → RascunhoDespacho (cabeçalho, exigências, lacunas), Faltando, Bloqueios
@@ -81,6 +84,14 @@ src/Pmvni.Revisao/                        NOVO, net10.0 puro (referencia Pmvni.C
   Despachos/ValidacaoDespacho.cs          NOVO (T15): porta da comparação do validate_template_fidelity.py + conteúdo
   Despachos/ConversorPdf.cs               NOVO (T15): IConversorPdf, ConversorLibreOffice (soffice.com sobre cópia)
   Despachos/EmissaoDespacho.cs  Despachos/ReciboDespacho.cs   NOVOS (T15): preparar (trabalho) → gravar (pasta do processo) + recibo
+src/Pmvni.Legislacao/                     NOVO (T17), net10.0 puro (sem UI, sem WebView2)
+  Pmvni.Legislacao.csproj                 EmbeddedResource Dados\legislacao.pmvleg e web\legislacao.js; InternalsVisibleTo testes
+  Modelo.cs  PacoteLegislacao.cs          NOVOS (T17): manifesto, leis, blocos; leitura segura do ZIP (memória)
+  ConferenciaKit.cs                       NOVO (T17): sha do kit × manifesto; Aviso e Resumo
+  Busca.cs  Citacao.cs                    NOVOS (T18): dispositivo ("art. 45 pdm"), texto livre, citação
+  HtmlLei.cs  ServidorLegislacao.cs       NOVOS (T18): JSON → HTML escapado; respostas do host leg.pmvni.invalid
+  Dados/legislacao.pmvleg                 GERADO por tools/legislacao (versionado, ≈ 10 MB)
+  web/legislacao.js                       GERADO por web/paginador (versionado)
 src/Pmvni.Composicao/InfoPdf.cs           MOVIDO (T15) de Pmvni.Composicao.Web/Exportador.cs, + InfoPdf.Fontes
 src/Pmvni.Composicao.Web/
   PastaTrabalho.cs                        NOVO: <dados>\edicao\<guid> com os assets do pacote
@@ -93,13 +104,20 @@ web/paginador/src/
   marcas.ts                               NOVO: camada de marcas de revisão fora das folhas
   pesquisa.ts                             NOVO: realce por CSS Custom Highlight API
   tela.ts  index.ts                       (registram os novos manipuladores)
+  legislacao/index.ts  legislacao/mensagens.ts   NOVOS (T18): rolar, realçar e seleção no viewer da legislação
+web/paginador/build.mjs                   (T18) segunda entrada → src/Pmvni.Legislacao/web/legislacao.js
 src/Pmvni.App/
   Logica/*.cs                             NOVO, sem tipos WinUI (compilados também nos testes): Modulos, Faixas,
-                                          ComandosApp, Ajustes, Atalhos, TituloJanela, EstadoGravacao, FluxoNovoDespacho (T16)
+                                          ComandosApp, Ajustes, Atalhos, TituloJanela, EstadoGravacao, FluxoNovoDespacho (T16),
+                                          ArvoreLegislacao (T18)
   Controles/FaixaDeOpcoes.xaml(.cs)       NOVO: SelectorBar + CommandBar montados de uma DefinicaoFaixa
   Controles/Trilho.xaml(.cs)              NOVO: trilho de módulos (ícone + rótulo, estilo Outlook/Store)
   Paginas/PaginaRelatorios.xaml(.cs)      NOVO: painel (Seções | Excluídos | Histórico), WebView2, Propriedades
-  Paginas/PaginaProcessos|PaginaDespachos|PaginaLegislacao|PaginaAjustes.xaml(.cs)   NOVOS (Tarefas 11 e 13)
+  Paginas/PaginaProcessos|PaginaDespachos|PaginaAjustes.xaml(.cs)   NOVOS (Tarefas 11 e 13)
+  Paginas/PaginaLegislacao.xaml(.cs)      NOVO (T18): árvore nativa + WebView2 do texto + resultados da pesquisa
+  Legislacao/SessaoLegislacao.cs  Legislacao/SegurancaLegislacao.cs   NOVOS (T18): pacote embutido, conferência, sandbox
+  AreaTransferencia.cs                    NOVO (T18): copiar citação/texto (no roteiro só registra)
+  Autoteste.cs                            (T17) bloco "legislacao" no JSON do autoteste
   Paginas/PaginaNovoDespacho.xaml(.cs)    NOVO (T16): origem → prévia editável → conferência das páginas → gravar
   Despachos/SessaoNovoDespacho.cs         NOVO (T16): liga RascunhoDespacho, EmissaoDespacho, Windows.Data.Pdf e a página
   Edicao/SessaoEdicao.cs                  NOVO: liga SessaoRevisao, Recompositor, Pacote, Trava, Diário e a tela
@@ -112,7 +130,11 @@ tests/Pmvni.Revisao.Testes/               NOVO, xUnit net10.0; liga (Compile Lin
   Ficticios/DocxFicticio.cs  Ficticios/PdfFicticio.cs  Ficticios/RelatorioFicticio.cs   NOVOS (T15): montados no código
   Despachos/*Testes.cs                    NOVOS (T15): registro, textos fixos, conteúdo, etapas/nomes, DOCX, validação, emissão
 tests/Pmvni.Web.Testes/                   RecomposicaoTestes.cs, EdicaoTelaTestes.cs, PesquisaTelaTestes.cs (novos)
-tests/corpus/processos/  tests/corpus/legislacao/   árvores fictícias (Tarefa 12)
+tests/Pmvni.Legislacao.Testes/            NOVO (T17–T18), xUnit net10.0: pacote, conferência, embutido, busca, citação, HTML, servidor
+tests/corpus/processos/                   árvore fictícia (Tarefa 12)
+tests/corpus/legislacao/                  NOVO (T17): kit fictício (lei, NT, NBR e .docx fictícios), catalogo.json, ficticia.pmvleg
+tools/legislacao/                         NOVO (T17): extrair.py (gerar|conferir), catalogo.json, ficticios.py, testes_extrair.py
+docs/legislacao-embutida.md               GERADO (T17): o que entrou, contagens, o que ficou fora e por quê
 tools/fidelidade.py                       subcomandos v5 e v6 (despacho × validador do kit, T15); tudo = v1..v3, v5, v6
 tools/roteiro.ps1  tools/roteiro-e-esperar.ps1 (novo)
 docs/roteiro-etapa-2.md  docs/roteiro-etapa-2.resultado.json  docs/entrega-etapa-2.md  docs/notas-tecnicas.md
@@ -120,7 +142,9 @@ docs/roteiro-etapa-2.md  docs/roteiro-etapa-2.resultado.json  docs/entrega-etapa
 
 `EditorRelatoriosPMVNI.sln` ganha `Pmvni.Revisao` e `Pmvni.Revisao.Testes`; `Pmvni.Composicao.Web`, `Pmvni.App` e
 `Pmvni.Verificador` referenciam `Pmvni.Revisao`. O `build-release.ps1` já roda `dotnet test` na solução e limpa
-`bin`/`obj` de todo projeto sob `src` e `tests` (nada a mudar nele).
+`bin`/`obj` de todo projeto sob `src` e `tests` (a Tarefa 17 só acrescenta a linha de resultado e o aviso da legislação
+embutida, lidos do JSON do autoteste). A Tarefa 17 acrescenta `Pmvni.Legislacao` e `Pmvni.Legislacao.Testes` à solução;
+`Pmvni.App` referencia `Pmvni.Legislacao`.
 
 Formato do `projeto.json` (decisão do plano; segue o desenho §5.1 e §8.2):
 
@@ -486,7 +510,7 @@ e o deslocamento em px sem zoom.
   - `enum Modulo { Relatorios, Despachos, Processos, Legislacao, Ajustes }`.
   - `enum TipoComando { Botao, Alternar, Menu }`; `sealed record ComandoFaixa(string Id, string Rotulo, string Glifo, TipoComando Tipo = TipoComando.Botao, string? Atalho = null, IReadOnlyList<ComandoFaixa>? Itens = null)`; `sealed record AbaFaixa(string Nome, IReadOnlyList<ComandoFaixa> Comandos)`; `sealed record DefinicaoFaixa(Modulo Modulo, IReadOnlyList<AbaFaixa> Abas, int AbaPadrao)`; `static class Faixas { DefinicaoFaixa Para(Modulo m); IReadOnlyList<Modulo> Disponiveis }` — **uma definição por módulo**; cada tarefa seguinte acrescenta suas abas/comandos e põe o módulo em `Disponiveis`.
   - `static class ComandosApp` com as constantes de id (`"arquivo.importar"`, `"arquivo.abrir"`, `"arquivo.salvar"`, `"arquivo.salvarComo"`, `"arquivo.exportarPdf"`, `"arquivo.fechar"`, `"exibir.menos"`, `"exibir.mais"`, `"exibir.largura"`, `"exibir.pagina"`, `"exibir.painel"`, `"ajuda.atalhos"`, `"ajuda.sobre"`; tarefas seguintes acrescentam).
-  - `sealed class Ajustes { Modulo Modulo; Dictionary<Modulo,string> AbaPorModulo; string Tema = "sistema"; int IntervaloAutosaveS = 30; bool MarcasRevisao = true; List<string> Recentes; string? PastaProcessos; string? PastaLegislacao; static Ajustes Carregar(string raizDados) /* <raiz>\ajustes.json; corrompido ⇒ renomeia para ajustes.corrompido.json e usa o padrão */; void Salvar(string raizDados) /* tmp + Move */ }`.
+  - `sealed class Ajustes { Modulo Modulo; Dictionary<Modulo,string> AbaPorModulo; string Tema = "sistema"; int IntervaloAutosaveS = 30; bool MarcasRevisao = true; List<string> Recentes; string? PastaProcessos; static Ajustes Carregar(string raizDados) /* <raiz>\ajustes.json; corrompido ⇒ renomeia para ajustes.corrompido.json e usa o padrão */; void Salvar(string raizDados) /* tmp + Move */ }`.
   - `static string TituloJanela.De(string? processo, string? requerente, string nomeArquivo)` → `"Proc. 9001/2026 · FULANO DE TAL"`; sem os dois ⇒ nome do arquivo.
   - `enum EstadoGravacao { Salvo, Salvando, NaoSalvo, Conflito, SomenteLeitura }`; `static string EstadoGravacaoTexto.Texto(EstadoGravacao e, DateTime? salvoEmLocal)` → `"Salvo 14:32"`, `"Salvando…"`, `"Não salvo"`, `"Conflito"`, `"Somente leitura"`.
   - `static class NomesArquivo { string Importacao(int? numero, int? ano) /* "Relatorio_17098_2026.pmvrel" ou "Relatorio.pmvrel" */; (int? Numero, int? Ano) DoProcessoDaCapa(string? processo) /* "9001/2026" */; string Livre(string pasta, string nome) /* sem sobrescrever: nome, nome_2, nome_3… */; string CopiaDeConflito(string pacote, DateTime local) /* "<nome> (cópia 2026-11-14 14-32).pmvrel" */ }`.
@@ -622,10 +646,15 @@ autosave (15/30/60/120 s), pasta de recuperação (só o caminho, informativo), 
 - [ ] **Step 4: Roteiro:** `24_pesquisa` (termo do título do ITEM 10 → total ≥ 1, `rolarPara` coerente, "1 de N"; Enter avança), `25_tema_chrome` (Escuro/Claro pelos comandos; `ajustes.json` guarda; folha `rgb(255, 255, 255)` nos dois), `26_recentes` (abrir 2 pacotes → menu com os 2, mais recente primeiro; apagar um arquivo → some do menu), `27_comparar_com_o_original` (depois dos passos 12–16: itens alterados listados com os textos exatos). Run `tools\build-release.ps1`, `tools\roteiro-e-esperar.ps1` → Expected: `ok: true`.
 - [ ] **Step 5: Commit** — `feat: pesquisa, tema, recentes, comparar e ajustes`
 
-### Task 12 (Tarefa 12): Serviço de pastas — processos, despachos, legislação e abertura externa
+### Task 12 (Tarefa 12): Serviço de pastas — processos, despachos e abertura externa
+
+> **Alterada pelo desenho §11 (15/11/2026):** saíram a leitura da pasta de legislação (`Pastas/Legislacao.cs`,
+> `Legislacao.Listar`), a árvore `tests/corpus/legislacao/` de 4 arquivos e o teste `legislacao_lista_todos_por_nome`;
+> o `atalho.lnk` do teste de abertura externa foi para `tests/corpus/processos/MODELOS/` (pasta que `Processos.Listar`
+> já ignora). A legislação passa a ser embutida (Tarefas 17–18).
 
 **Files:**
-- Create: `src/Pmvni.Revisao/Pastas/{Processos.cs,Despachos.cs,Legislacao.cs,AbrirExterno.cs}`
+- Create: `src/Pmvni.Revisao/Pastas/{Processos.cs,Despachos.cs,AbrirExterno.cs}`
 - Create (fictícios, arquivos de 0 byte salvo o `dados_0001.json`, cópia de `tests/corpus/curto.json`):
 
 ```
@@ -637,9 +666,7 @@ tests/corpus/processos/
   2099/0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)/PROJETO/ARQ 01-03.pdf   PROJETO/script.cmd   DOCUMENTOS/ART.pdf
   2099/0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)/DESPACHO 01 - 2099-03-05/OFICIO_0012.docx
   2099/pasta fora do padrao/leia.txt
-  MODELOS/x.txt
-tests/corpus/legislacao/
-  LEI 1382-2020 PDM.pdf   NBR 9050.pdf   CODIGO DE OBRAS/LC 70-1990.pdf   atalho.lnk
+  MODELOS/x.txt   MODELOS/atalho.lnk
 ```
 - Test: `tests/Pmvni.Revisao.Testes/PastasTestes.cs`
 
@@ -651,7 +678,6 @@ tests/corpus/legislacao/
   - `sealed record ArquivoEncontrado(string Caminho, string Relativo, long Tamanho, DateTime AlteradoUtc)`; `enum TipoRelatorio { Pacote, AnaliseIa }`; `sealed record RelatorioEncontrado(string Caminho, TipoRelatorio Tipo, DateTime AlteradoUtc)`; `enum TipoDespacho { Correcao, Aprovacao, NaoIdentificado }`; `sealed record Despacho(string Pasta, int Numero, DateOnly Data, TipoDespacho Tipo, IReadOnlyList<string> Arquivos, Processo? Processo)`; `sealed record DetalheProcesso(Processo Processo, IReadOnlyList<RelatorioEncontrado> Relatorios, IReadOnlyList<Despacho> Despachos, IReadOnlyList<ArquivoEncontrado> Projeto, IReadOnlyList<ArquivoEncontrado> Documentos, IReadOnlyList<string> Avisos)`; `static DetalheProcesso Processos.Detalhar(Processo p, CancellationToken ct)` — relatórios = `*.pmvrel` no 1º nível + `.pmvni-ai\*\dados*.json` (decisão do plano: o kit grava `dados_<nº>.json`), mais novo primeiro; despachos = subpastas `^DESPACHO\s+(\d{1,3})\s+-\s+(\d{4}-\d{2}-\d{2})$` (sem caixa) com `.docx/.doc/.pdf`; PROJETO/DOCUMENTOS até 3 níveis.
   - `static string Processos.NomeImportacao(Processo p, string? processoDaCapa)` → `NomesArquivo.Livre(p.Pasta, NomesArquivo.Importacao(nº/ano da pasta, senão da capa))`.
   - `static Leitura<Despacho> Despachos.Listar(IEnumerable<Processo> processos, CancellationToken ct)` — data desc; tipo pelo nome dos arquivos: contém `CORRECAO` → Correção, `APROVACAO` → Aprovação (sem caixa e sem acento), senão Não identificado.
-  - `static Leitura<ArquivoEncontrado> Legislacao.Listar(string raiz, CancellationToken ct)` — todos os arquivos até 4 níveis, por nome.
   - `static class AbrirExterno { IReadOnlySet<string> Extensoes /* as 11 da restrição global */; bool Permitido(string caminho, out string? motivo) }` — exige arquivo existente, comum (não pasta nem ponto de reparse), sem `:` depois da unidade, extensão na lista; motivo em pt-BR: `"Este tipo de arquivo não é aberto pelo editor (.cmd). Use Mostrar no Explorador."`.
 
 - [ ] **Step 1: Write the failing tests** (sobre `tests/corpus/...`, só leitura; a árvore grande é gerada em `PastaDeTeste`)
@@ -667,9 +693,8 @@ tests/corpus/legislacao/
 [Fact] void pmvrel_na_pasta_do_processo_aparece_como_pacote()   // cópia da árvore em PastaDeTeste + Relatorio_0001_2099.pmvrel
 [Fact] void nome_de_importacao_nao_sobrescreve()     // na cópia: "Relatorio_0001_2099.pmvrel", depois "Relatorio_0001_2099_2.pmvrel"
 [Fact] void despachos_de_todos_por_data()            // 4 despachos: 2099-03-05 NaoIdentificado, 2099-02-20, 2099-01-15, 2098-03-02
-[Fact] void legislacao_lista_todos_por_nome()        // 4 arquivos, "CODIGO DE OBRAS\LC 70-1990.pdf" com Relativo
 [Theory] [InlineData("ARQ 01-03.pdf", true)] [InlineData("script.cmd", false)] [InlineData("atalho.lnk", false)]
-void abrir_externo_so_documentos(string arquivo, bool permitido)   // + pasta → false; "x.pdf:fluxo" → false
+void abrir_externo_so_documentos(string arquivo, bool permitido)   // atalho.lnk em MODELOS/; + pasta → false; "x.pdf:fluxo" → false
 [Fact] void raiz_ausente_vira_aviso()                // Itens vazio, 1 aviso com "não foi encontrada"
 [Fact] void arvore_grande_e_lida_por_inteiro()       // 2 000 pastas geradas em PastaDeTeste: 2 000 processos; tempo só registrado
 [Fact] void cancelamento_interrompe_a_leitura()
@@ -677,22 +702,29 @@ void abrir_externo_so_documentos(string arquivo, bool permitido)   // + pasta �
 
 - [ ] **Step 2: Run** `dotnet test tests/Pmvni.Revisao.Testes --filter FullyQualifiedName~PastasTestes` → Expected: FAIL.
 - [ ] **Step 3: Implement.** - [ ] **Step 4: Run** o filtro → Expected: PASS.
-- [ ] **Step 5: Commit** — `feat: leitura das pastas de processos, despachos e legislacao`
+- [ ] **Step 5: Commit** — `feat: leitura das pastas de processos e despachos e abertura externa`
 
-### Task 13 (Tarefa 13): Módulos Processos, Despachos e Legislação na interface; pastas nos Ajustes
+### Task 13 (Tarefa 13): Módulos Processos e Despachos na interface; pasta de processos nos Ajustes
+
+> **Alterada pelo desenho §11 (15/11/2026):** saíram desta tarefa a `PaginaLegislacao` (vai para a Tarefa 18), a faixa
+> de Legislação (`legislacao.abrir`, `legislacao.mostrar`, `legislacao.atualizar`, `legislacao.copiarCaminho`,
+> `legislacao.ordenar`), `Ajustes.PastaLegislacaoEfetiva` e o seu seletor de pasta, a pesquisa por nome de arquivo em
+> Legislação, a cópia de `tests\corpus\legislacao` no roteiro e o passo `30_legislacao` (o número 30 é reaproveitado
+> pela Tarefa 18). Legislação **não** entra em `Faixas.Disponiveis` aqui (nenhum módulo sem função no trilho); entra na
+> Tarefa 18.
 
 **Files:**
-- Create: `src/Pmvni.App/Paginas/{PaginaProcessos,PaginaDespachos,PaginaLegislacao}.xaml(.cs)`, `src/Pmvni.App/AberturaExterna.cs`
+- Create: `src/Pmvni.App/Paginas/{PaginaProcessos,PaginaDespachos}.xaml(.cs)`, `src/Pmvni.App/AberturaExterna.cs`
 - Modify: `Logica/{Faixas.cs,ComandosApp.cs,Ajustes.cs}`, `PaginaAjustes.xaml(.cs)`, `MainWindow.xaml(.cs)`, `Roteiro.cs`, `docs/roteiro-etapa-2.md`
 - Test: `tests/Pmvni.Revisao.Testes/FaixasTestes.cs` (casos novos)
 
 **Interfaces:**
 - Consumes: Tarefa 12; `MainWindow.ImportarParaAsync/AbrirPacoteAsync/MudarModuloAsync`; `FaixaDeOpcoes`.
 - Produces:
-  - Faixas (desenho §9.1): **Processos** — Página Inicial (`processos.abrirRelatorio`, `processos.importarAnalise`, `processos.abrirArquivo`, `processos.abrirPasta`, `processos.atualizar`, `processos.ano` Menu), Exibir (`processos.ordenar` Menu número/data/requerente, `processos.mostrarPastas` Alternar); **Despachos** — Página Inicial (`despachos.abrir`, `despachos.abrirPdf`, `despachos.mostrar`, `despachos.irAoProcesso`, `despachos.atualizar`, `despachos.filtro` Menu Todos/Correção/Aprovação), Exibir (`despachos.agrupar` Menu processo/data, `despachos.ordenar`); **Legislação** — Página Inicial (`legislacao.abrir`, `legislacao.mostrar`, `legislacao.atualizar`, `legislacao.copiarCaminho`), Exibir (`legislacao.ordenar` Menu nome/data). Os três entram em `Faixas.Disponiveis` na ordem do trilho: Relatórios, Despachos, Processos, Legislação; Ajustes embaixo.
+  - Faixas (desenho §9.1): **Processos** — Página Inicial (`processos.abrirRelatorio`, `processos.importarAnalise`, `processos.abrirArquivo`, `processos.abrirPasta`, `processos.atualizar`, `processos.ano` Menu), Exibir (`processos.ordenar` Menu número/data/requerente, `processos.mostrarPastas` Alternar); **Despachos** — Página Inicial (`despachos.abrir`, `despachos.abrirPdf`, `despachos.mostrar`, `despachos.irAoProcesso`, `despachos.atualizar`, `despachos.filtro` Menu Todos/Correção/Aprovação), Exibir (`despachos.agrupar` Menu processo/data, `despachos.ordenar`). Os dois entram em `Faixas.Disponiveis` na ordem do trilho: Relatórios, Despachos, Processos; Ajustes embaixo (Legislação entra entre Processos e Ajustes na Tarefa 18).
   - `static class AberturaExterna { bool Simular; List<string> Registradas; bool Abrir(string caminho, out string? motivo) /* AbrirExterno.Permitido + Process.Start(UseShellExecute) */; void MostrarNoExplorador(string caminho) /* explorer.exe /select,"…" */ }`.
-  - `Ajustes.PastaProcessosEfetiva` (padrão `%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\PROCESSOS`) e `PastaLegislacaoEfetiva` (padrão `…\SIDNEY JUNIOR\LEGISLAÇÃO`); Ajustes ganha os dois seletores de pasta (`FolderPicker`).
-  - Pesquisa da barra muda de alvo: Relatórios = folhas; Processos = `Processos.Filtrar`; Despachos e Legislação = nome do arquivo (sem caixa/acento). O texto de dica muda ("Pesquisar processos", "Pesquisar despachos", "Pesquisar legislação").
+  - `Ajustes.PastaProcessosEfetiva` (padrão `%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\PROCESSOS`); Ajustes ganha o seletor dessa pasta (`FolderPicker`). O campo `Ajustes.PastaLegislacao` da Tarefa 8 sai (um `ajustes.json` antigo com essa chave é lido sem erro e a chave é ignorada).
+  - Pesquisa da barra muda de alvo: Relatórios = folhas; Processos = `Processos.Filtrar`; Despachos = nome do arquivo (sem caixa/acento). O texto de dica muda ("Pesquisar processos", "Pesquisar despachos"); Legislação: Tarefa 18.
 
 Processos: lista à esquerda (mais recentes primeiro, filtro por ano), detalhe à direita (relatórios, despachos, PROJETO/
 DOCUMENTOS); Abrir relatório: `.pmvrel` → `AbrirPacoteAsync` + módulo Relatórios; `dados*.json` → `ImportarParaAsync(json,
@@ -700,15 +732,17 @@ Processos.NomeImportacao(p, capa.processo))` + módulo Relatórios (é a "Import
 "A pasta de processos não foi encontrada: <caminho>. Escolha a pasta em Ajustes." com o botão "Abrir Ajustes". Leitura em
 `Task.Run`, cancelada ao trocar de módulo ou atualizar. Despachos: do processo selecionado ou de todos (alternância).
 
-- [ ] **Step 1: Write the failing tests** — `cada_modulo_tem_a_faixa_do_desenho` (nomes das abas por módulo exatamente: Relatórios `[Arquivo, Página Inicial, Revisão, Exibir, Ajuda]`; Despachos/Processos/Legislação `[Arquivo, Página Inicial, Exibir, Ajuda]`; Ajustes `[Arquivo, Ajuda]`), `trilho_na_ordem_do_desenho`. Run o filtro `FaixasTestes` → Expected: FAIL.
+- [ ] **Step 1: Write the failing tests** — `cada_modulo_tem_a_faixa_do_desenho` (nomes das abas por módulo exatamente: Relatórios `[Arquivo, Página Inicial, Revisão, Exibir, Ajuda]`; Despachos/Processos `[Arquivo, Página Inicial, Exibir, Ajuda]`; Ajustes `[Arquivo, Ajuda]`), `trilho_na_ordem_do_desenho` (`[Relatorios, Despachos, Processos, Ajustes]`; a Tarefa 18 acrescenta Legislação). Run o filtro `FaixasTestes` → Expected: FAIL.
 - [ ] **Step 2: Implement**; build Debug → 0 erros; testes → PASS.
-- [ ] **Step 3: Roteiro** (copia `tests\corpus\processos` e `tests\corpus\legislacao` para `<pasta>\` e aponta os Ajustes para as cópias **antes** de abrir os módulos; `AberturaExterna.Simular = true`): `28_processos` (4 processos na ordem da Tarefa 12; filtro "fulano" → 1; Importar análise da IA do 0001 → cria `Relatorio_0001_2099.pmvrel` na cópia, módulo Relatórios aberto com 3 itens; repetir → `_2`), `29_despachos` (todos: 4 na ordem por data; filtro Aprovação → 2; Abrir PDF registra o caminho sem abrir), `30_legislacao` (4 arquivos; Abrir `atalho.lnk` → recusado com a mensagem exata, nada registrado), `31_ajustes_pastas` (pasta inexistente → mensagem + botão Abrir Ajustes), `32_faixa_e_pesquisa_por_modulo` (para cada módulo: abas iguais a `Faixas.Para`, `ComandosSemManipulador()` vazio, dica da pesquisa certa; módulo/aba lembrados após `MudarModuloAsync`), `33_pastas_intactas` (lista de arquivos e sha das cópias iguais às de antes, exceto os `.pmvrel` criados). Run `tools\build-release.ps1`, `tools\roteiro-e-esperar.ps1` → Expected: `ok: true`.
-- [ ] **Step 4: Commit** — `feat: modulos processos, despachos e legislacao`
+- [ ] **Step 3: Roteiro** (copia `tests\corpus\processos` para `<pasta>\` e aponta os Ajustes para a cópia **antes** de abrir os módulos; `AberturaExterna.Simular = true`): `28_processos` (4 processos na ordem da Tarefa 12; filtro "fulano" → 1; Importar análise da IA do 0001 → cria `Relatorio_0001_2099.pmvrel` na cópia, módulo Relatórios aberto com 3 itens; repetir → `_2`), `29_despachos` (todos: 4 na ordem por data; filtro Aprovação → 2; Abrir PDF registra o caminho sem abrir; Abrir `MODELOS\atalho.lnk` pela `AberturaExterna` → recusado com a mensagem exata, nada registrado), `31_ajustes_pastas` (pasta inexistente → mensagem + botão Abrir Ajustes), `32_faixa_e_pesquisa_por_modulo` (para cada módulo: abas iguais a `Faixas.Para`, `ComandosSemManipulador()` vazio, dica da pesquisa certa; módulo/aba lembrados após `MudarModuloAsync`), `33_pastas_intactas` (lista de arquivos e sha da cópia igual à de antes, exceto os `.pmvrel` criados). Run `tools\build-release.ps1`, `tools\roteiro-e-esperar.ps1` → Expected: `ok: true`.
+- [ ] **Step 4: Commit** — `feat: modulos processos e despachos`
 
 ### Task 14 (Tarefa 14): Roteiro completo, build, fidelidade, documentação e Recriar PC
 
-> Executada **por último**, depois das Tarefas 15 e 16 (que vêm escritas abaixo dela). O roteiro, a documentação, a
-> fidelidade e o Recriar PC desta tarefa cobrem também o novo despacho das Tarefas 15–16 (desenho §10).
+> Executada **por último**, depois das Tarefas 15 a 18 (que vêm escritas abaixo dela). O roteiro, a documentação, a
+> fidelidade e o Recriar PC desta tarefa cobrem também o novo despacho das Tarefas 15–16 (desenho §10) e a legislação
+> compilada embutida das Tarefas 17–18 (desenho §11). O passo final passa de `39_fluxo_completo` para
+> `44_fluxo_completo` (a Tarefa 18 acrescenta os passos 30 e 40–43).
 
 **Files:**
 - Modify: `src/Pmvni.App/Roteiro.cs`, `tools/roteiro.ps1`, `docs/roteiro-etapa-2.md`, `docs/roteiro-etapa-2.resultado.json`, `docs/notas-tecnicas.md`, `docs/fidelidade.md`, `recriar.json`
@@ -716,16 +750,17 @@ Processos.NomeImportacao(p, capa.processo))` + módulo Relatórios (é a "Import
 - Modify (fora do repositório, se a conferência pedir): `C:\Users\smendesjunior\OneDrive\Aplicativos IA\Recriar PC\sistema\MAPA-DO-AMBIENTE.md`
 
 **Interfaces:**
-- Consumes: tudo das Tarefas 1–13, 15 e 16.
-- Produces: o roteiro final `39_fluxo_completo` em sequência única num pacote novo: importar `curto` (com a capa do processo fictício `0001/2099`, `RelatorioFicticio`, na cópia da árvore de processos) → editar texto no A4 → mudar situação com justificativa → excluir item → desfazer → salvar → fechar → reabrir (mesmo estado e histórico) → exportar PDF (páginas = folhas; recibo com `sha256_pacote` = sha do arquivo) → pesquisar → trocar tema → Recentes com o pacote no topo → Comparar lista as 2 alterações restantes → **Novo despacho › Correção** pela faixa de Relatórios (processo e relatório pré-escolhidos, etapa nova) → exigências = itens ≠ ATENDE do estado atual → conferir as páginas → gravar (DOCX + PDF + recibo; `relatorio.sha256_pacote` do recibo = sha do pacote) → Despachos lista o novo como Correção.
+- Consumes: tudo das Tarefas 1–13 e 15–18.
+- Produces: o roteiro final `44_fluxo_completo` em sequência única num pacote novo: importar `curto` (com a capa do processo fictício `0001/2099`, `RelatorioFicticio`, na cópia da árvore de processos) → editar texto no A4 → mudar situação com justificativa → excluir item → desfazer → salvar → fechar → reabrir (mesmo estado e histórico) → exportar PDF (páginas = folhas; recibo com `sha256_pacote` = sha do arquivo) → pesquisar → trocar tema → Recentes com o pacote no topo → Comparar lista as 2 alterações restantes → **Novo despacho › Correção** pela faixa de Relatórios (processo e relatório pré-escolhidos, etapa nova) → exigências = itens ≠ ATENDE do estado atual → conferir as páginas → gravar (DOCX + PDF + recibo; `relatorio.sha256_pacote` do recibo = sha do pacote) → Despachos lista o novo como Correção → **Legislação**: pesquisar `art. 45 pdm` → o PDM abre no Art. 45 → Copiar citação
+= `"art. 45 da Lei Municipal nº 1.382/2020 (PDM)"`.
 
-- [ ] **Step 1:** acrescentar `39_fluxo_completo`; garantir que todos os passos 1–39 continuam independentes (falha num não impede os seguintes) e que nada é gravado fora de `tests\saida\roteiro` e `tests\saida\dados-app`.
-- [ ] **Step 2:** Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-release.ps1` → Expected: todos os testes aprovados, autoteste "aprovado (2 rodadas, ok=true, sem elevação)", "Executável final: …", espaço liberado informado; `Aplicativo\` só com o `.exe`.
+- [ ] **Step 1:** acrescentar `44_fluxo_completo`; garantir que todos os passos 1–44 continuam independentes (falha num não impede os seguintes) e que nada é gravado fora de `tests\saida\roteiro` e `tests\saida\dados-app`.
+- [ ] **Step 2:** Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-release.ps1` → Expected: todos os testes aprovados, autoteste "aprovado (2 rodadas, ok=true, sem elevação)", a linha `Legislação embutida: 50 textos, … MB; kit: igual` (ou o `AVISO:` da Tarefa 17, que não reprova; se aparecer, regenerar o pacote pela Tarefa 17, Step 5, e rodar de novo), "Executável final: …" com o tamanho registrado, espaço liberado informado; `Aplicativo\` só com o `.exe`. O build **não** pode exigir Python/PyMuPDF: conferir que nenhum passo do `build-release.ps1` chama `tools\legislacao`.
 - [ ] **Step 3:** Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools\roteiro-e-esperar.ps1` → Expected: `ok: true`, `falhas: []`. Registrar a latência (passo 18) e a tabela da Tarefa 6 em `docs/notas-tecnicas.md` ("Latência de um comando (Etapa 2)", com a meta ≤ 1,5 s e se foi atingida; se não, registrar que a recomposição incremental fica para depois — desenho §8.4).
-- [ ] **Step 4:** Run `python -I tools/fidelidade.py tudo` → Expected: V1, V2, V3, V5 e V6 aprovados em todos os casos (corpus, `dados_modelo --instrucoes`, 17098 local; V6 = despachos de correção e de aprovação × validador do kit, Tarefa 15), código 0. Resultado resumido em `docs/fidelidade.md` (só contagens e hashes).
-- [ ] **Step 5:** `docs/entrega-etapa-2.md` no formato de `docs/entrega-etapa-1.md` (o que funciona, inclusive o novo despacho de correção e de aprovação; o que foi testado com os números do `dotnet test`, do roteiro e da `fidelidade.py tudo`; o que fica pendente: cálculos, aprovação completa e outros tipos de despacho fora do registro do kit, gestão de versões dos modelos, schema público, segurança completa do pacote, merge no kit); `docs/roteiro-etapa-2.md` com a tabela final dos 39 passos.
-- [ ] **Step 6:** `recriar.json`: `usadoPor` passa a citar o pacote `.pmvrel`, as pastas `recuperacao`, `edicao`, `despachos` e `ajustes.json` em `%LOCALAPPDATA%\EditorRelatoriosPMVNI` (não guardados: dados de processos), a leitura das pastas PROCESSOS e LEGISLAÇÃO do PMVNI (o app só cria `.pmvrel` de importação e, ao gravar um despacho, a pasta `DESPACHO NN` com DOCX/PDF/recibo), a leitura dos modelos de despacho e das referências do plugin `despacho` no kit (só leitura) e o LibreOffice para o PDF do despacho; em `conferir`, acrescentar como aviso (igual ao Python) `{ "tipo": "arquivo", "caminho": "%ProgramFiles%\\LibreOffice\\program\\soffice.com", "nome": "LibreOffice (PDF dos despachos; instalado pelo instalador do kit PMVNI)", "aviso": true }` — sem passo de instalação próprio (quem instala é o instalador do kit, receita `32-kit-pmvni`). Se o `MAPA-DO-AMBIENTE.md` não cita as ligações editor ↔ pastas do PMVNI e editor ↔ kit (modelos de despacho) ↔ LibreOffice, acrescentar uma linha para cada. Abrir **via `explorer.exe`** `Recriar PC\sistema\motor\Capturar agora.cmd` e depois `Conferir.cmd`; ler `Recriar PC\sistema\CONFERENCIA.md` e corrigir o que ele apontar sobre este app (sem mexer no motor).
-- [ ] **Step 7:** conferir que `tests\saida` e os builds sumiram (a limpeza do `build-release` já apaga; o roteiro e a `fidelidade.py` rodados depois deixam `tests\saida`: apagar só ela, conferindo o caminho sob a raiz). Commit — `docs: entrega da Etapa 2` (inclui `docs/roteiro-etapa-2.resultado.json`, sem capturas, PDFs ou dados).
+- [ ] **Step 4:** Run `python -I tools/fidelidade.py tudo` → Expected: V1, V2, V3, V5 e V6 aprovados em todos os casos (corpus, `dados_modelo --instrucoes`, 17098 local; V6 = despachos de correção e de aprovação × validador do kit, Tarefa 15), código 0. Resultado resumido em `docs/fidelidade.md` (só contagens e hashes). Run `python -I tools/legislacao/testes_extrair.py` → Expected: `OK`; Run `python -I tools/legislacao/extrair.py conferir --kit "<kit>"` → Expected: código 0 (igual) — se 1, o pacote embutido está desatualizado: regenerar (Tarefa 17, Step 5), refazer o build e registrar na entrega.
+- [ ] **Step 5:** `docs/entrega-etapa-2.md` no formato de `docs/entrega-etapa-1.md` (o que funciona, inclusive o novo despacho de correção e de aprovação e a legislação compilada embutida — quantos textos, tamanho do pacote e do executável, o que ficou fora e por quê, como regenerar; o que foi testado com os números do `dotnet test`, do roteiro, da `fidelidade.py tudo` e dos `testes_extrair.py`; o que fica pendente: cálculos, aprovação completa e outros tipos de despacho fora do registro do kit, gestão de versões dos modelos, schema público, segurança completa do pacote, merge no kit); `docs/roteiro-etapa-2.md` com a tabela final dos 44 passos (o 30 é o `30_legislacao_arvore` da Tarefa 18).
+- [ ] **Step 6:** `recriar.json`: `usadoPor` passa a citar o pacote `.pmvrel`, as pastas `recuperacao`, `edicao`, `despachos` e `ajustes.json` em `%LOCALAPPDATA%\EditorRelatoriosPMVNI` (não guardados: dados de processos), a leitura da pasta PROCESSOS do PMVNI (o app só cria `.pmvrel` de importação e, ao gravar um despacho, a pasta `DESPACHO NN` com DOCX/PDF/recibo), a leitura dos modelos de despacho e das referências do plugin `despacho` no kit (só leitura), a **legislação compilada embutida no executável** (nada a instalar; a leitura de `<kit>\03 - LEGISLACAO` é opcional, só para a conferência e o PDF original) e o LibreOffice para o PDF do despacho; nenhum item novo em `conferir` nem em `guardado` para a legislação; em `conferir`, acrescentar como aviso (igual ao Python) `{ "tipo": "arquivo", "caminho": "%ProgramFiles%\\LibreOffice\\program\\soffice.com", "nome": "LibreOffice (PDF dos despachos; instalado pelo instalador do kit PMVNI)", "aviso": true }` — sem passo de instalação próprio (quem instala é o instalador do kit, receita `32-kit-pmvni`). Se o `MAPA-DO-AMBIENTE.md` não cita as ligações editor ↔ pastas do PMVNI, editor ↔ kit (modelos de despacho) ↔ LibreOffice e editor ↔ kit (`03 - LEGISLACAO`, só leitura e opcional; o texto vem embutido), acrescentar uma linha para cada. Abrir **via `explorer.exe`** `Recriar PC\sistema\motor\Capturar agora.cmd` e depois `Conferir.cmd`; ler `Recriar PC\sistema\CONFERENCIA.md` e corrigir o que ele apontar sobre este app (sem mexer no motor).
+- [ ] **Step 7:** conferir que `tests\saida` e os builds sumiram (a limpeza do `build-release` já apaga; o roteiro, a `fidelidade.py` e os `testes_extrair.py` rodados depois deixam `tests\saida`: apagar só ela, conferindo o caminho sob a raiz) e que não há `tools\legislacao\__pycache__`; o `src/Pmvni.Legislacao/Dados/legislacao.pmvleg` versionado **fica** (é fonte do build, não saída). Commit — `docs: entrega da Etapa 2` (inclui `docs/roteiro-etapa-2.resultado.json`, sem capturas, PDFs ou dados).
 
 ### Task 15 (Tarefa 15): Serviço de despacho — modelos do kit, conteúdo do relatório, DOCX, validação, PDF e recibo
 
@@ -975,10 +1010,230 @@ Comportamento (desenho §10.2–§10.4, §10.7–§10.9):
   Run: `python -I tools/fidelidade.py v6` → Expected: os casos `OK`, código 0.
 - [ ] **Step 5:** `docs/roteiro-etapa-2.md` (passos 34–38 na tabela; como o roteiro usa o kit no lugar e o LibreOffice real). Commit — `feat: novo despacho com escolha do tipo, previa, conferencia e gravacao`
 
+
+### Task 17 (Tarefa 17): Legislação compilada — ferramenta de extração, pacote `legislacao.pmvleg` e embutimento
+
+> Desenho §11 (vinculante). Executada depois da Tarefa 16 e antes da 18; a 14 vem por último. Pedido do usuário de
+> 14/11/2026 ("A legislação tem que estar compilada… somente o texto. Se houver imagem por, mas comprimir").
+
+**Files:**
+- Create: `tools/legislacao/extrair.py` (CLI `gerar` e `conferir`), `tools/legislacao/catalogo.json` (os 61 arquivos do kit, §11.1), `tools/legislacao/ficticios.py` (monta os PDFs fictícios), `tools/legislacao/testes_extrair.py` (unittest)
+- Create (fixtures fictícias, versionadas, poucos KB; regeneradas só por `python -I tools/legislacao/ficticios.py`):
+
+```
+tests/corpus/legislacao/
+  catalogo.json                                   catálogo da fixture (2 incluídos, 2 excluídos)
+  kit/03 - LEGISLACAO/MUNICIPAL/LEI 9.999-2099 - FICTICIA.pdf          4 páginas (casos da lei)
+  kit/03 - LEGISLACAO/MUNICIPAL/ANOTACOES.docx                         0 byte (excluído: não é ato normativo)
+  kit/03 - LEGISLACAO/ESTADUAL - CBMES (NORMAS TECNICAS)/NT 99-2099 - FICTICIA.pdf   1 página (itens)
+  kit/03 - LEGISLACAO/NORMAS ABNT/NBR 0000 - FICTICIA.pdf              1 página (excluído: ABNT)
+  ficticia.pmvleg                                 pacote gerado da fixture com --gerado-em 2099-01-01T00:00:00Z
+```
+- Create: `src/Pmvni.Legislacao/Pmvni.Legislacao.csproj` (net10.0, sem UI; `<EmbeddedResource Include="Dados\legislacao.pmvleg" LogicalName="legislacao.pmvleg" />`; `<InternalsVisibleTo Include="Pmvni.Legislacao.Testes" />`), `src/Pmvni.Legislacao/{Modelo.cs,PacoteLegislacao.cs,ConferenciaKit.cs}`, `src/Pmvni.Legislacao/Dados/legislacao.pmvleg` (**gerado pela ferramenta e versionado**), `docs/legislacao-embutida.md` (gerado)
+- Create: `tests/Pmvni.Legislacao.Testes/` (xUnit 2.9.3, net10.0; `Ambiente.cs` com `PastaDeTeste` em `tests/saida/legislacao/<nome>-<guid>` e `RaizKit` como na Tarefa 15), `{PacoteLegislacaoTestes.cs,ConferenciaKitTestes.cs,PacoteEmbutidoTestes.cs}`
+- Modify: `EditorRelatoriosPMVNI.sln` (os dois projetos novos), `src/Pmvni.App/Pmvni.App.csproj` (referência a `Pmvni.Legislacao`), `src/Pmvni.App/Autoteste.cs` (bloco `legislacao` no JSON), `tools/build-release.ps1` (linha de resultado e aviso da legislação, sem falhar), `.gitignore` (`tools/legislacao/__pycache__/`, por garantia)
+
+**Interfaces:**
+- Consumes: kit em `<kit>\03 - LEGISLACAO` (somente leitura); `Ajustes.PastaKitEfetiva` (Tarefa 16) só no autoteste.
+- Produces (Python, `python -I`; a ferramenta põe `sys.dont_write_bytecode = True` e os testes também, antes de importar `extrair` pelo caminho do próprio arquivo — com `-I` a pasta do script não entra no `sys.path`):
+  - `python -I tools/legislacao/extrair.py gerar --kit <raiz> [--catalogo tools/legislacao/catalogo.json] [--saida src/Pmvni.Legislacao/Dados/legislacao.pmvleg] [--relatorio docs/legislacao-embutida.md] [--gerado-em <ISO UTC>] [--aviso-mb 11] [--limite-mb 12]` — códigos: 0 gerado ou "Nada mudou"; 2 catálogo inválido; 3 PDF ilegível; 4 acima do limite. Saída em uma linha: `Legislação embutida: <n> textos, <e> excluídos, <i> imagens, <p> páginas sem texto, <x,xx> MB (conjunto <sha8>).` ou `Nada mudou (conjunto <sha8>).`; acima do aviso, mais `AVISO: o pacote da legislação passou de 11 MB.`
+  - `python -I tools/legislacao/extrair.py conferir --kit <raiz> [--pacote …]` — 0 igual; 1 diferente, com linhas `DIFERENTE <rel>`, `NOVO <rel>`, `AUSENTE <rel>` (rel com `/`, relativo a `03 - LEGISLACAO`).
+  - Funções: `classificar(raiz_leg, catalogo) -> list[Entrada]` (cada arquivo casa com exatamente uma entrada por `padrao` fnmatch; cada entrada `incluir` casa com exatamente um arquivo), `extrair_pdf(caminho, entrada) -> (lei: dict, imagens: dict[str, bytes])`, `estruturar(blocos, tipo) -> list[dict]`, `reencodar(bytes) -> (webp: bytes, w, h) | None`, `montar_pacote(manifesto, leis, imagens) -> bytes`.
+  - Mensagens exatas (código 2): `Arquivo do kit sem entrada no catálogo: <rel>`, `Entrada do catálogo sem arquivo no kit: <padrao>`, `Arquivo casa com mais de uma entrada do catálogo: <rel>`, `Norma ABNT não pode ser embutida: <rel>` (qualquer `incluir: true` com `NBR` ou `ABNT` no caminho, sem caixa); código 4: `O pacote da legislação ficou com <x,xx> MB, acima do limite de <l> MB.`
+- Catálogo (`catalogo.json`, à mão; formato):
+
+```json
+{ "versao": 1,
+  "arquivos": [
+    { "padrao": "MUNICIPAL/PDM - LEI 1.382-2020 - TEXTO COMPILADO*.pdf", "incluir": true, "id": "pdm", "esfera": "Municipal",
+      "titulo": "Plano Diretor Municipal — Lei nº 1.382/2020 (texto compilado)", "citacao": "Lei Municipal nº 1.382/2020 (PDM)",
+      "apelidos": ["pdm", "plano diretor", "1.382", "1382"], "estrutura": "artigos" },
+    { "padrao": "FEDERAL/LEI 10.406-2002*.pdf", "incluir": true, "id": "codigo-civil", "esfera": "Federal",
+      "titulo": "Código Civil — Lei nº 10.406/2002", "citacao": "Lei nº 10.406/2002 (Código Civil)",
+      "apelidos": ["codigo civil", "cc", "10.406", "10406"], "estrutura": "artigos", "abrir_em": "Art. 1.277" },
+    { "padrao": "MUNICIPAL/PDM - LEIS DE ALTERACAO (ORIGINAIS)/*.pdf", "incluir": false,
+      "motivo": "Lei de alteração já incorporada ao texto compilado do PDM (original digitalizado)." },
+    { "padrao": "NORMAS ABNT/*", "incluir": false,
+      "motivo": "Norma ABNT protegida por direito autoral (cópia licenciada; não redistribuir)." } ] }
+```
+  Ordem do catálogo = ordem da árvore: Municipal (PDM, Código de Obras, perímetros 1.271, 1.276, 1.301), Estadual — CBMES (NT 01 parte 1 … NT 23), Federal (na ordem dos arquivos). Esferas exatas: `"Municipal"`, `"Estadual — CBMES"`, `"Federal"`. Ids: `[a-z0-9-]{1,64}` (`pdm`, `codigo-de-obras`, `nt-01-1`, `nt-10-1`, `estatuto-da-cidade`…). Os excluídos do kit real: 6 leis de alteração, `DÚVIDAS DO NOVO PDM.docx` (`"Não é ato normativo (perguntas de trabalho)."`), 3 PDFs ABNT e o `.md` ABNT (`"Não é ato normativo (lista de normas e onde obter)."`) = 11.
+- Formato do pacote (desenho §11.2, decisões de detalhe do plano): `manifesto.json` =
+
+```json
+{ "formato": "pmvleg", "versao_formato": "1.0.0", "versao_extrator": "1.0.0", "gerado_em": "2026-11-15T12:00:00Z",
+  "kit": { "pasta": "03 - LEGISLACAO", "sha256_conjunto": "…64 hex…" },
+  "leis": [ { "id": "pdm", "esfera": "Municipal", "titulo": "…", "citacao": "…", "apelidos": ["…"], "estrutura": "artigos",
+              "abrir_em": null, "arquivo": "MUNICIPAL/PDM - LEI 1.382-2020 - TEXTO COMPILADO (CAMARA, ATUALIZADO EM 16-10-2026).pdf",
+              "sha256": "…", "tamanho": 5638944, "paginas": 81, "paginas_sem_texto": [79], "paginas_vazias": [],
+              "unidades": 212, "aviso_fonte": "Este texto não substitui o original publicado e arquivado na Câmara Municipal…" } ],
+  "excluidos": [ { "arquivo": "NORMAS ABNT/NBR 9050-2020 - Acessibilidade.pdf", "sha256": "…", "motivo": "…" } ] }
+```
+  `leis/<id>.json` = `{ "id", "estrutura": [No] }`; `No` = `{ "id": "u17", "tipo": "preambulo|titulo|capitulo|secao|subsecao|artigo|item|anexo", "rotulo": "Art. 45", "numero": "45" | null, "nome": "DAS DISPOSIÇÕES GERAIS" | null, "pagina": 12, "revogado": false, "blocos": [Bloco], "filhos": [No] }` (ids `u1…` na ordem do texto); `Bloco` = `{ "t": "p", "texto": [Trecho] }` · `{ "t": "dispositivo", "id": "d40", "tipo": "par|inciso|alinea", "rotulo": "§ 2º", "texto": [Trecho], "notas": [Trecho] }` · `{ "t": "nota", "texto": [Trecho] }` · `{ "t": "tabela", "pagina", "cabecalho": 1, "linhas": [[{ "texto": "…", "colspan": 1 }]] }` · `{ "t": "imagem", "src": "img/<16 hex>.webp", "w", "h", "pagina" }` · `{ "t": "recorte", "src", "w", "h", "pagina", "texto": "…" }` · `{ "t": "pagina_sem_texto", "pagina" }`; `Trecho` = `{ "t": "…", "r": true }` (`r` só quando riscado). Alínea guarda `"pai": "<id do inciso>"`. `revogado` = todo o texto da unidade riscado. `aviso_fonte` = a 1ª frase que começa por "Este texto não substitui" no PDF, ou null.
+  ZIP: entradas em ordem (`manifesto.json`, `leis/*` por id, `img/*` por nome), data 1980-01-01 00:00, Deflate nível 9 para `.json`, Stored para `.webp`; JSON com `ensure_ascii=False`, `sort_keys=False`, separadores `(",", ":")`, UTF-8 sem BOM.
+- Produces (C#, `Pmvni.Legislacao`, tudo síncrono, para `Task.Run`):
+  - Registros `Manifesto(string Formato, string VersaoFormato, string VersaoExtrator, DateTimeOffset GeradoEm, string PastaKit, string Sha256Conjunto, IReadOnlyList<LeiResumo> Leis, IReadOnlyList<Excluido> Excluidos)`, `LeiResumo(string Id, string Esfera, string Titulo, string Citacao, IReadOnlyList<string> Apelidos, string Estrutura, string? AbrirEm, string Arquivo, string Sha256, long Tamanho, int Paginas, IReadOnlyList<int> PaginasSemTexto, int Unidades, string? AvisoFonte)`, `Excluido(string Arquivo, string Sha256, string Motivo)`, `Lei(string Id, IReadOnlyList<No> Estrutura)`, `No(string Id, string Tipo, string Rotulo, string? Numero, string? Nome, int Pagina, bool Revogado, IReadOnlyList<Bloco> Blocos, IReadOnlyList<No> Filhos)`, `Trecho(string Texto, bool Riscado)`, `abstract record Bloco` com `BlocoParagrafo`, `BlocoDispositivo(string Id, string Tipo, string Rotulo, string? Pai, …)`, `BlocoNota`, `BlocoTabela`, `BlocoImagem`, `BlocoRecorte`, `BlocoPaginaSemTexto` (desserializados com `System.Text.Json`, discriminador `t`).
+  - `sealed class PacoteLegislacao : IDisposable { static PacoteLegislacao Abrir(Stream zip); static PacoteLegislacao Embutido(); static long TamanhoEmbutido(); Manifesto Manifesto; Lei Carregar(string id) /* cache */; byte[]? Imagem(string src) }` — leitura segura: só `manifesto.json`, `leis/<id>.json` (id do manifesto) e `img/<16 hex>.webp`; outra entrada, `..`, `\`, caminho absoluto, entrada > 20 MB descomprimida, total > 100 MB ou razão > 100 ⇒ `FormatoLegislacaoException`; imagem sem assinatura `RIFF????WEBP` ⇒ exceção; `versao_formato` com maior > 1 ⇒ `FormatoLegislacaoException("Pacote de legislação em formato mais novo (2.0.0) do que este editor conhece (1.x).")`.
+  - `enum EstadoKit { Igual, Diferente, KitAusente }`; `sealed record ResultadoConferencia(EstadoKit Estado, IReadOnlyList<string> Diferentes, IReadOnlyList<string> Novos, IReadOnlyList<string> Ausentes)`; `static ResultadoConferencia ConferenciaKit.Conferir(Manifesto m, string raizKit, CancellationToken ct)` (sha256 de cada arquivo do manifesto, incluídos e excluídos, em `<raiz>\03 - LEGISLACAO`; novos = arquivos que não estão no manifesto; ilegível conta como diferente); `static string? ConferenciaKit.Aviso(ResultadoConferencia r, Manifesto m)` → null se Igual ou KitAusente, senão exatamente `"A legislação do kit mudou depois da versão embutida neste editor (diferentes: 1, novos: 0, ausentes: 0). O texto mostrado é o da versão embutida de 01/01/2099."` (data local de `GeradoEm`, `dd/MM/yyyy`); `static string ConferenciaKit.Resumo(Manifesto m)` → `"Legislação embutida: versão de 01/01/2099, 2 textos, extrator 1.0.0, conjunto do kit 1a2b3c4d"`.
+
+PDFs fictícios (`ficticios.py`, PyMuPDF; `set_metadata` com datas `D:20990101000000Z`, `save(garbage=4, deflate=True, no_new_id=True)` ⇒ bytes fixos; o teste `test_fixtures_sao_estaveis` confere):
+- **Lei** (A4, 4 páginas): cabeçalho "CÂMARA MUNICIPAL FICTÍCIA" no topo e rodapé "Página N de 4" nas págs. 1–2; pág. 1: "LEI Nº 9.999, DE 1º DE JANEIRO DE 2099 (FICTÍCIA)", "TÍTULO I" / "DAS DISPOSIÇÕES GERAIS", "CAPÍTULO I" / "DO OBJETO", "Art. 1º Esta Lei fictícia serve para testar a extra-" / "ção do editor.", "§ 1º Primeiro parágrafo, com aviso pré-" / "via." (hifenização sem a palavra "prévia" em outro lugar do texto), "§ 2º Segundo parágrafo. (Redação dada pela Lei nº 9.998/2099)", "Art. 2º São objetivos da extração de tabelas:", "I – primeiro inciso;", "II – segundo inciso:", "a) alínea a;", "b) alínea b.", "Parágrafo único. Parágrafo único fictício.", "Art. 2º-A Artigo incluído. (Incluído pela Lei nº 9.998/2099)", "Art. 3º Texto antigo." **tachado** (por `insert_htmlbox` com `<s>`; se o PyMuPDF não marcar o tachado, desenhar a linha com `draw_line` na meia altura, como o Skia do Planalto) e "Art. 3º Texto vigente. (Redação dada pela Lei nº 9.998/2099)"; pág. 2: "CAPÍTULO II" / "DAS TABELAS", "Art. 4º Os parâmetros constam da tabela:", tabela com bordas 3 × 3 (`Zona | Taxa de ocupação | Coeficiente`, `ZR1 | 60% | 1,2`, `ZC | 80% | 2,0`), imagem PNG 400 × 300 (pixmap gerado), figura vetorial 6 × 4 cm (retângulo e círculo) com o texto "Figura 1" dentro, "ANEXO I" / "QUADRO FICTÍCIO"; pág. 3: só uma imagem raster 2000 × 2800 cobrindo a página (página digitalizada, sem texto); pág. 4: vazia.
+- **NT** (1 página): "NORMA TÉCNICA FICTÍCIA Nº 99/2099", "1 OBJETIVO", "1.1 Estabelecer critérios fictícios.", "2 APLICAÇÃO", "2.1 Aplica-se a edificações fictícias.", "2.1.1 Subitem fictício.", "ANEXO A", "Modelo fictício.".
+- **NBR** (1 página, "NORMA FICTÍCIA"): só para o caso de exclusão.
+- Catálogo da fixture: `lei-ficticia` (Municipal, citação `"Lei nº 9.999/2099 (fictícia)"`, apelidos `["ficticia", "9.999", "9999"]`, `artigos`), `nt-99` (Estadual — CBMES, citação `"NT 99/2099 (fictícia)"`, apelidos `["nt 99", "nt99"]`, `itens`); `MUNICIPAL/ANOTACOES.docx` e `NORMAS ABNT/*` excluídos.
+
+- [ ] **Step 1: Write the failing tests (Python)** — `tools/legislacao/testes_extrair.py`, tudo gravado em `tests/saida/legislacao/<teste>-<uuid>` (apagada no `tearDown`; nunca `%TEMP%`):
+
+```python
+def test_fixtures_sao_estaveis(self)          # ficticios.py em pasta de teste → os 3 PDFs byte a byte iguais aos versionados
+def test_estrutura_da_lei_ficticia(self)
+    # árvore: [preambulo "LEI Nº 9.999…", titulo "TÍTULO I" (nome "DAS DISPOSIÇÕES GERAIS") > capitulo "CAPÍTULO I" >
+    #   artigos ["Art. 1º", "Art. 2º", "Art. 2º-A", "Art. 3º" (revogado), "Art. 3º"]; capitulo "CAPÍTULO II" > ["Art. 4º"]; anexo "ANEXO I"]
+    # números ["1", "2", "2-A", "3", "3", "4"]; Art. 1º: p "Esta Lei fictícia serve para testar a extração do editor.",
+    # dispositivos par ["§ 1º", "§ 2º"], nota do § 2º "(Redação dada pela Lei nº 9.998/2099)"; Art. 2º: incisos ["I", "II"],
+    # alíneas ["a)", "b)"] com pai = id do inciso II, par ["Parágrafo único"]
+def test_hifenizacao_desfeita_so_com_palavra_conhecida(self)   # "extração" unida (existe no Art. 2º); § 1º == "Primeiro parágrafo, com aviso pré-via."
+def test_cabecalho_e_rodape_repetidos_saem(self)   # "CÂMARA MUNICIPAL FICTÍCIA" e "Página 1 de 4" em nenhum trecho
+def test_tachado_vira_trecho_riscado_e_unidade_revogada(self)   # 1º "Art. 3º": revogado true, todos os trechos r; 2º: revogado false
+def test_tabela_vira_celulas_e_sai_do_texto(self)   # linhas == [["Zona","Taxa de ocupação","Coeficiente"],["ZR1","60%","1,2"],["ZC","80%","2,0"]], cabecalho 1; "ZR1" em nenhum bloco p
+def test_imagem_reduzida_para_1600_em_webp(self)   # 400×300 fica 400×300; 2000×2800 vira 1143×1600; bytes começam com b"RIFF" e [8:12] == b"WEBP"
+def test_figura_vetorial_vira_recorte_com_texto(self)   # 1 recorte na pág. 2 com texto "Figura 1"; "Figura 1" fora dos blocos p
+def test_pagina_sem_texto_nao_tem_ocr(self)   # pág. 3: bloco pagina_sem_texto {pagina: 3} + 1 imagem; nenhum trecho com pagina 3; paginas_sem_texto == [3]
+def test_pagina_vazia_omitida(self)   # paginas_vazias == [4]; nenhum bloco com pagina 4
+def test_itens_da_nt_ficticia(self)   # item "1" > ["1.1"]; item "2" > ["2.1" > ["2.1.1"]]; anexo "ANEXO A"
+def test_catalogo_incompleto_falha(self)   # sem a entrada do .docx → código 2, "Arquivo do kit sem entrada no catálogo: MUNICIPAL/ANOTACOES.docx"
+def test_abnt_nunca_entra(self)   # NBR com incluir true → código 2, "Norma ABNT não pode ser embutida: NORMAS ABNT/NBR 0000 - FICTICIA.pdf"
+def test_limite_de_tamanho(self)   # --limite-mb 0.001 → código 4, mensagem com "acima do limite de 0.001 MB"; nada gravado na saída
+def test_pacote_deterministico_e_igual_a_fixture(self)   # 2 gerações com --gerado-em 2099-01-01T00:00:00Z → bytes iguais entre si e a tests/corpus/legislacao/ficticia.pmvleg
+def test_nada_mudou_nao_regrava(self)   # 2ª geração sobre a saída existente: "Nada mudou (conjunto …)." e mesmos bytes/mtime
+def test_conferir_aponta_diferencas(self)   # cópia do kit fictício com 1 byte trocado na lei → código 1 e "DIFERENTE MUNICIPAL/LEI 9.999-2099 - FICTICIA.pdf"; + arquivo novo → "NOVO …"
+```
+
+- [ ] **Step 2: Run** `python -I tools/legislacao/testes_extrair.py` → Expected: FAIL (o módulo `extrair` não existe).
+- [ ] **Step 3: Implement** `ficticios.py` (rodar uma vez: `python -I tools/legislacao/ficticios.py` grava os 3 PDFs em `tests/corpus/legislacao/kit/…`) e `extrair.py` (desenho §11.2; limiares: faixa de cabeçalho/rodapé 7% da altura e ≥ 50% das páginas; página "sem texto" = nenhum caractere visível fora de espaços; imagem < 16 × 16 px descartada; recorte vetorial: desenhos sem fios (< 2,5 pt) nem fundos brancos (canais > 0,97), grupo ≥ 4 cm², < 85% da página e < 0,02 caractere/pt², a 150 dpi; página sem texto sem imagem raster que cubra ≥ 50% dela ⇒ recorte da página inteira a 110 dpi em cinza; tabela não confiável ⇒ recorte). Gerar a fixture: `python -I tools/legislacao/extrair.py gerar --kit tests/corpus/legislacao/kit --catalogo tests/corpus/legislacao/catalogo.json --saida tests/corpus/legislacao/ficticia.pmvleg --relatorio tests/saida/legislacao/ficticia.md --gerado-em 2099-01-01T00:00:00Z` → Expected: `Legislação embutida: 2 textos, 2 excluídos, 3 imagens, 1 páginas sem texto, 0,0… MB (conjunto …).`, código 0 ("imagens" conta as entradas `img/*` do pacote: o PNG, a página digitalizada e o recorte vetorial).
+- [ ] **Step 4: Run** `python -I tools/legislacao/testes_extrair.py` → Expected: `OK` (17 testes), nenhum `__pycache__` em `tools/legislacao`.
+- [ ] **Step 5: Gerar o pacote real** (o kit só é lido): `python -I tools/legislacao/extrair.py gerar --kit "%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\KIT DE TREINAMENTO DE IA (PMVNI)"` → Expected: `Legislação embutida: 50 textos, 11 excluídos, …, … MB (conjunto …).`, código 0, tamanho ≤ 11 MB (estimativa medida no desenho §11.3: ≈ 9,8 MB — texto 1,06, imagens 7,25, páginas sem texto 0,22, 113 figuras vetoriais 1,22; acima de 11 MB, medir 1.400 px/WebP 55 e registrar a escolha em `docs/notas-tecnicas.md` antes de commitar; acima de 12 MB a ferramenta falha). Figuras vetoriais ≈ 113 (fora disso, conferir os filtros de fios e fundos brancos do desenho §11.2). Conferir em `docs/legislacao-embutida.md`: PDM com 199 unidades `artigo` e 13 `anexo` (ANEXO XIII não tem título em texto no compilado — a pág. 79 só tem mapas — e **não** é inventado: fica a nota de página sem texto) e 34 tabelas; Código de Obras com 150 `artigo`; Estatuto da Cidade com trechos riscados (> 0); NT 01 parte 6 com 190 páginas; nenhuma linha "NBR" na lista de textos; os 11 excluídos com motivo. Divergência dessas contagens ⇒ investigar a extração antes de seguir (não ajustar o número esperado sem entender). Registrar o tempo da geração.
+- [ ] **Step 6: Write the failing tests (C#)** — `tests/Pmvni.Legislacao.Testes`:
+
+```csharp
+[Fact] void abre_o_pacote_ficticio()   // Formato "pmvleg", VersaoFormato "1.0.0", GeradoEm 2099-01-01T00:00:00Z, Leis ids ["lei-ficticia", "nt-99"], 2 Excluidos
+[Fact] void arvore_da_lei_ficticia()   // as mesmas contagens e rótulos do teste Python test_estrutura_da_lei_ficticia (contrato Python × C#)
+[Fact] void trechos_riscados_e_imagens()   // 1º "Art. 3º" Revogado; Imagem(src) de cada BlocoImagem/BlocoRecorte começa com RIFF…WEBP; tabela 3 × 3
+[Fact] void formato_mais_novo_e_recusado()   // manifesto com versao_formato "2.0.0" (zip montado no teste) → mensagem exata
+[Theory] [InlineData("../fora.json")] [InlineData("leis/../../x.json")] [InlineData("img/abc.exe")] [InlineData("outro.txt")]
+void entrada_fora_do_padrao_e_recusada(string nome)
+[Fact] void bomba_de_compressao_e_recusada()   // entrada de 21 MB de zeros (razão > 100) → FormatoLegislacaoException
+[Fact] void imagem_com_assinatura_errada_e_recusada()   // img/0123456789abcdef.webp com bytes PNG
+[Fact] void conferencia_igual_diferente_novo_ausente()
+    // cópia de tests/corpus/legislacao/kit em PastaDeTeste: Igual; 1 byte trocado na lei → Diferente ["MUNICIPAL/LEI 9.999-2099 - FICTICIA.pdf"];
+    // + "MUNICIPAL/NOVA.pdf" → Novos ["MUNICIPAL/NOVA.pdf"]; NT apagada → Ausentes [...NT 99…]; Aviso == a frase exata com (diferentes: 1, novos: 1, ausentes: 1)
+[Fact] void conferencia_sem_kit()   // raiz inexistente → KitAusente; Aviso null
+[Fact] void resumo_da_versao()   // Resumo == "Legislação embutida: versão de 01/01/2099, 2 textos, extrator 1.0.0, conjunto do kit <8 hex do manifesto>"
+[Fact] void pacote_embutido_dentro_do_orcamento()   // TamanhoEmbutido() ≤ 12_000_000 bytes (registra o tamanho na saída do teste)
+[Fact] void pacote_embutido_tem_50_textos_e_nenhuma_abnt()
+    // Embutido(): 50 Leis, 11 Excluidos; nenhum LeiResumo.Arquivo com "NBR" ou "ABNT" (sem caixa); esferas na ordem Municipal, Estadual — CBMES, Federal;
+    // ids "pdm", "codigo-de-obras" e "codigo-civil" presentes; codigo-civil.AbrirEm "Art. 1.277"; Carregar de cada id sem exceção
+```
+  (Sem teste que compare o pacote embutido com o kit real: o kit se atualiza sozinho a cada 15 min, e isso não pode quebrar o build — essa conferência é só aviso, no autoteste.)
+- [ ] **Step 7: Run** `dotnet test tests/Pmvni.Legislacao.Testes` → Expected: FAIL (projeto sem implementação). **Implement** `Modelo.cs`, `PacoteLegislacao.cs`, `ConferenciaKit.cs`. Run → Expected: PASS.
+- [ ] **Step 8: Autoteste e build.** `Autoteste.cs` acrescenta ao JSON `"legislacao": { "textos": 50, "bytes": <TamanhoEmbutido>, "kit": "igual|diferente|ausente", "diferentes": n, "novos": n, "ausentes": n }` (conferência com `Ajustes.PastaKitEfetiva`, fora do pacote MSIX porque o autoteste já roda pelo `explorer.exe`); `ok` exige só que o pacote embutido abra e tenha ≥ 1 texto (diferença do kit **não** reprova). `build-release.ps1`, depois do autoteste, escreve `Legislação embutida: 50 textos, <x,x> MB; kit: igual` ou, se `diferente`, `AVISO: a legislação do kit mudou depois da versão embutida (diferentes: D, novos: N, ausentes: A). Rode: python -I tools\legislacao\extrair.py gerar --kit "<kit>"` — sem falhar e sem exigir Python. Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-release.ps1` → Expected: testes aprovados, autoteste aprovado, a linha da legislação, `Executável final: …` com tamanho ≈ 85 MB + o pacote (registrar o tamanho antes e depois em `docs/notas-tecnicas.md`, "Legislação embutida (Etapa 2)").
+- [ ] **Step 9: Commit** — `feat: legislacao compilada embutida (extracao, pacote e leitura)` (inclui `src/Pmvni.Legislacao/Dados/legislacao.pmvleg`, `docs/legislacao-embutida.md` e as fixtures; nada de `tests/saida`).
+
+### Task 18 (Tarefa 18): Módulo Legislação — árvore, texto, pesquisa, citação e PDF original
+
+> Desenho §11.4–§11.6. Executada depois da Tarefa 17; a 14 vem por último. Substitui a parte de Legislação que as
+> Tarefas 12 e 13 tinham (lista de arquivos de uma pasta).
+
+**Files:**
+- Create: `src/Pmvni.Legislacao/{Busca.cs,Citacao.cs,HtmlLei.cs,ServidorLegislacao.cs}`, `src/Pmvni.Legislacao/web/legislacao.js` (gerado, commitado; `<EmbeddedResource Include="web\legislacao.js" LogicalName="legislacao.js" />`), `web/paginador/src/legislacao/{index.ts,mensagens.ts}`
+- Create: `src/Pmvni.App/Logica/ArvoreLegislacao.cs`, `src/Pmvni.App/Paginas/PaginaLegislacao.xaml(.cs)`, `src/Pmvni.App/Legislacao/{SessaoLegislacao.cs,SegurancaLegislacao.cs}`, `src/Pmvni.App/AreaTransferencia.cs`
+- Modify: `web/paginador/build.mjs` (segunda entrada → `src/Pmvni.Legislacao/web/legislacao.js`, IIFE `Legislacao`), `src/Pmvni.App/Logica/{Faixas.cs,ComandosApp.cs,Atalhos.cs}`, `Paginas/PaginaAjustes.xaml(.cs)`, `MainWindow.xaml(.cs)`, `Roteiro.cs`, `docs/roteiro-etapa-2.md`, `tests/Pmvni.Revisao.Testes/Pmvni.Revisao.Testes.csproj` (referência a `Pmvni.Legislacao`, para compilar `Logica/ArvoreLegislacao.cs`)
+- Test: `tests/Pmvni.Legislacao.Testes/{BuscaTestes.cs,CitacaoTestes.cs,HtmlLeiTestes.cs,ServidorLegislacaoTestes.cs}`, `tests/Pmvni.Revisao.Testes/{FaixasTestes.cs,ArvoreLegislacaoTestes.cs}`
+
+**Interfaces:**
+- Consumes: Tarefa 17 (`PacoteLegislacao`, `ConferenciaKit`); `FabricaWebView2`, o padrão da `Seguranca` (Etapa 1); `AberturaExterna` (Tarefa 13); `Ajustes.PastaKitEfetiva` (Tarefa 16); a pesquisa da barra de título e o realce da Tarefa 11; `FaixaDeOpcoes`, `Faixas`, `ComandosApp`.
+- Produces (`Pmvni.Legislacao`, puro):
+  - `static string Busca.Normalizar(string s)` (NFD sem marcas combinantes, minúsculas invariantes, `º`/`°` → `o`, espaços e NBSP colapsados, nas pontas removidos); `sealed record ConsultaDispositivo(string? LeiId, string Tipo /* "artigo" | "item" | "anexo" */, string Numero)`; `static ConsultaDispositivo? Busca.InterpretarDispositivo(string consulta, IReadOnlyList<LeiResumo> leis)` — aceita `art. 45`, `art 45`, `artigo 45`, `art. 45-a`, `art. 1.277` = `art. 1277`, `item 5.1.2`, `anexo xii`, e `nt 10-1 5.1.2` (= item 5.1.2 da `nt-10-1`); apelido da lei antes ou depois (`pdm art 45`); número comparado sem pontos de milhar e com a letra em maiúscula; sem apelido ⇒ `LeiId` null.
+  - `sealed record ResultadoBusca(string LeiId, string NoId, string? DispId, string Rotulo, string Trecho, bool Revogado)`; `sealed class IndiceBusca { static IndiceBusca Montar(PacoteLegislacao p, CancellationToken ct); IReadOnlyList<ResultadoBusca> Dispositivo(ConsultaDispositivo c) /* vigente antes do revogado; na ordem do catálogo */; IReadOnlyList<ResultadoBusca> Pesquisar(string termo, int max = 200) /* termo normalizado com ≥ 2 caracteres; trecho de até 160 caracteres em volta da 1ª ocorrência; ordem do catálogo e do texto */ }`.
+  - `static string Citacao.De(LeiResumo lei, No unidade, BlocoDispositivo? disp, BlocoDispositivo? pai, bool revogado)` → `"art. 1º da Lei nº 9.999/2099 (fictícia)"`, `"art. 1º, § 2º, da Lei nº 9.999/2099 (fictícia)"`, `"art. 2º, parágrafo único, da …"`, `"art. 2º, inciso II, da …"`, `"art. 2º, inciso II, alínea \"a\", da …"`, `"art. 2º-A da …"`, `"item 2.1.1 da NT 99/2099 (fictícia)"`, `"Anexo I da Lei nº 9.999/2099 (fictícia)"`; revogado ⇒ + `" (revogado)"`. O rótulo vem do texto (`Art. 1º` → `art. 1º`; `ANEXO I` → `Anexo I`); `static string Citacao.TextoDoDispositivo(…)` = citação + `"\n\n"` + o texto puro (trechos unidos; riscados entre `[revogado: …]`).
+  - `sealed record OpcoesHtml(int TamanhoPct = 100, bool MostrarRevogado = true)`; `static string HtmlLei.Gerar(LeiResumo r, Lei lei, OpcoesHtml o)` — documento completo com `<meta http-equiv="Content-Security-Policy" content="<HtmlLei.Csp>">`, um único `<script src="https://leg.pmvni.invalid/legislacao.js">`, cabeçalho com título, citação, "Fonte: <arquivo>" e `AvisoFonte`; cada nó `<section id="u-<id>" data-no="<id>">` com `<h2|h3|h4>` do rótulo e nome; dispositivo `<p data-disp="<id>">`; trecho riscado `<s class="revogado" title="Texto revogado">`; tabela `<table>` com `colspan`; imagem e recorte `<img src="https://leg.pmvni.invalid/img/<x>.webp" width="w" height="h" alt="Figura da página N do PDF original" loading="lazy">`; `pagina_sem_texto` ⇒ `<p class="aviso">Página N do PDF original sem texto: mostrada como imagem; o conteúdo não foi transcrito.</p>`; **todo** texto por `WebUtility.HtmlEncode`; sem `style` vindo de dados, sem `on*=`, sem `href`.
+  - `HtmlLei.Csp` = `"default-src 'none'; img-src https://leg.pmvni.invalid; style-src 'unsafe-inline'; script-src https://leg.pmvni.invalid/legislacao.js"`; `HtmlLei.Host` = `"leg.pmvni.invalid"`.
+  - `sealed record RespostaLeg(byte[] Corpo, string TipoConteudo)`; `sealed class ServidorLegislacao(PacoteLegislacao p, Func<OpcoesHtml> opcoes) { RespostaLeg? Responder(string uri) }` — só `https://leg.pmvni.invalid/lei/<id>.html` (`text/html; charset=utf-8`), `/legislacao.js` (`text/javascript; charset=utf-8`) e `/img/<16 hex>.webp` (`image/webp`); qualquer outra (outro host, `http:`, query, `..`, id desconhecido) ⇒ null (o app responde 403).
+- Produces (web, `legislacao.ts`, envelope `{v:1,tipo,id,dados}` da Etapa 1): host→web `irPara {no, disp|null}` (rola até o elemento, foco visual por 2 s), `realcar {termo, passo: -1|0|1}` → `realcado {total, atual}` (CSS Custom Highlight API, mesma normalização 1:1 por caractere da Tarefa 11; **nenhum elemento novo** no DOM), `opcoes {tamanho, mostrarRevogado}` (classe no `body`, sem recarregar); web→host `pronto`, `posicao {no}` (unidade no topo da vista, debounce 200 ms), `selecao {no, disp|null, texto}` (a cada mudança de seleção dentro da área do texto).
+- Produces (App):
+  - `Logica/ArvoreLegislacao`: `sealed record NoArvore(string Rotulo, string? LeiId, string? NoId, bool Revogado, bool TemFilhos)`; `static IReadOnlyList<NoArvore> Raizes(Manifesto m)` (3 esferas, na ordem do catálogo, com as leis por `Titulo`); `static IReadOnlyList<NoArvore> Filhos(Lei lei, string? noId)` (rótulos: `"TÍTULO I — DAS DISPOSIÇÕES GERAIS"`, `"Art. 45"`, `"5.1.2"`; artigos e itens sem nome); carga preguiçosa (`TreeView` com `HasUnrealizedChildren`).
+  - Faixa **Legislação** (desenho §11.4; abas `[Arquivo, Página Inicial, Exibir, Ajuda]`, padrão Página Inicial): Página Inicial — `legislacao.copiarCitacao` ("Copiar citação", Ctrl+Shift+C), `legislacao.copiarTexto` ("Copiar texto"), `legislacao.abrirPdf` ("Abrir o PDF original"), `legislacao.mostrar` ("Mostrar no Explorador"); Exibir — `legislacao.tamanho` (Menu: "100%", "125%", "150%"), `legislacao.revogados` (Alternar, "Mostrar texto revogado", ligado), `legislacao.recolher` ("Recolher a árvore"). `Faixas.Disponiveis` passa a `[Relatorios, Despachos, Processos, Legislacao, Ajustes]` (ordem do desenho §9).
+  - `internal static class AreaTransferencia { bool Simular; List<string> Copiados; void Copiar(string texto) /* DataPackage + Clipboard.SetContent; no roteiro só registra */ }`.
+  - `SegurancaLegislacao.AplicarAsync(CoreWebView2 core, ServidorLegislacao s, Action<string>? aoBloquear)` — as mesmas configurações da `Seguranca` da Etapa 1, **sem** `SetVirtualHostNameToFolderMapping` (nada no disco): filtro `*` responde `s.Responder(uri)` ou 403; navegação de nível superior só para `https://leg.pmvni.invalid/lei/<id>.html`; `NewWindowRequested`/`DownloadStarting` cancelados. Controller InPrivate pela `FabricaWebView2`.
+  - `MainWindow`: `internal PaginaLegislacao Legislacao`, `internal Task<bool> IrParaLegislacaoAsync(string consulta)` (o Enter da pesquisa), `internal Task<IReadOnlyList<ResultadoBusca>> PesquisarLegislacaoAsync(string termo)`, `internal int RequisicoesBloqueadasLegislacao`.
+
+Comportamento (desenho §11.4–§11.5): o módulo abre na página "Sobre a legislação embutida" (`ConferenciaKit.Resumo`, lista dos excluídos com motivo, resultado da conferência). Na primeira abertura da sessão, `ConferenciaKit.Conferir(Manifesto, Ajustes.PastaKitEfetiva)` em `Task.Run`; `Aviso` não nulo ⇒ InfoBar de aviso no topo do módulo (fechável; volta na sessão seguinte). Escolher uma lei sem nó ⇒ abre no `AbrirEm` (Código Civil: Art. 1.277) ou no início. Pesquisa da barra (dica "Pesquisar na legislação"): ao digitar, depois de 300 ms, `InterpretarDispositivo` → lista com as unidades; senão `Pesquisar` → lista "N resultados" agrupada por texto no painel da esquerda (no lugar da árvore; Esc ou limpar a caixa volta à árvore); Enter abre o 1º resultado e realça o termo no texto ("1 de N"; Enter/Shift+Enter navegam como no relatório); resultado revogado com o sufixo " (revogado)". Copiar citação/texto: a seleção (`selecao`) ou, sem seleção, a unidade da `posicao`; trecho revogado ⇒ InfoBar informativa "Este trecho está revogado no texto compilado." e copia mesmo assim. "Abrir o PDF original" e "Mostrar no Explorador": `<PastaKitEfetiva>\03 - LEGISLACAO\<Arquivo>` existe ⇒ `AberturaExterna.Abrir` / `MostrarNoExplorador`; não existe ⇒ desabilitados com a dica "Pasta do kit não encontrada.". Ajustes ganha a seção "Legislação embutida" com `Resumo` e o resultado da conferência (`"Igual ao kit."`, o `Aviso`, ou `"Pasta do kit não encontrada: a conferência da legislação não foi feita."`). Nada da legislação é gravado em disco pelo app.
+
+- [ ] **Step 1: Write the failing tests**
+
+```csharp
+// tests/Pmvni.Legislacao.Testes (sobre tests/corpus/legislacao/ficticia.pmvleg)
+[Theory]
+[InlineData("art. 1 ficticia", "lei-ficticia", "artigo", "1")] [InlineData("ARTIGO 2º-a 9999", "lei-ficticia", "artigo", "2-A")]
+[InlineData("ficticia art 4", "lei-ficticia", "artigo", "4")] [InlineData("nt 99 2.1.1", "nt-99", "item", "2.1.1")]
+[InlineData("anexo i ficticia", "lei-ficticia", "anexo", "I")] [InlineData("art. 1.277", null, "artigo", "1277")]
+void interpreta_dispositivo(string consulta, string? lei, string tipo, string numero)
+[Theory] [InlineData("extracao de tabelas")] [InlineData("zona")] [InlineData("a")] void consultas_que_nao_sao_dispositivo(string c)   // → null
+[Fact] void dispositivo_prefere_o_vigente()   // "art. 3 ficticia" → 2 resultados, o 1º com Revogado false
+[Fact] void pesquisa_sem_acento_nem_caixa()   // "EXTRACAO" → ≥ 2 resultados (Art. 1º e Art. 2º), trecho contém "extração"; "ZR1" → 1 (célula de tabela); "Figura 1" → 1 (recorte)
+[Fact] void pesquisa_marca_revogado()   // "texto antigo" → 1 resultado com Revogado true
+[Fact] void pesquisa_limita_a_200()   // índice com 300 ocorrências (lei montada no teste) → 200
+[Theory]
+[InlineData("Art. 1º", null, "art. 1º da Lei nº 9.999/2099 (fictícia)")]
+[InlineData("Art. 1º", "§ 2º", "art. 1º, § 2º, da Lei nº 9.999/2099 (fictícia)")]
+[InlineData("Art. 2º", "Parágrafo único", "art. 2º, parágrafo único, da Lei nº 9.999/2099 (fictícia)")]
+[InlineData("Art. 2º", "II", "art. 2º, inciso II, da Lei nº 9.999/2099 (fictícia)")]
+[InlineData("Art. 2º", "a)", "art. 2º, inciso II, alínea \"a\", da Lei nº 9.999/2099 (fictícia)")]
+[InlineData("Art. 2º-A", null, "art. 2º-A da Lei nº 9.999/2099 (fictícia)")]
+[InlineData("ANEXO I", null, "Anexo I da Lei nº 9.999/2099 (fictícia)")]
+void citacao_exata(string unidade, string? disp, string esperado)
+[Fact] void citacao_de_item_e_de_revogado()   // "item 2.1.1 da NT 99/2099 (fictícia)"; 1º Art. 3º → "art. 3º da Lei nº 9.999/2099 (fictícia) (revogado)"
+[Fact] void texto_do_dispositivo()   // § 2º → "art. 1º, § 2º, da Lei nº 9.999/2099 (fictícia)\n\nSegundo parágrafo. (Redação dada pela Lei nº 9.998/2099)"
+[Fact] void html_escapa_tudo_e_tem_csp()
+    // lei montada no teste com texto "<script>alert(1)</script> & \"x\"" → aparece escapado; 1 único "<script" (o src permitido); meta CSP == HtmlLei.Csp;
+    // nenhum "on" + letra + "=" em atributos, nenhum "href", nenhum "http://"; ids "u-<id>" de todas as unidades
+[Fact] void html_riscado_tabela_imagem_e_pagina_sem_texto()   // <s class="revogado"; <table> 3 linhas; 3 <img> com o host; o aviso exato da pág. 3
+[Theory]
+[InlineData("https://leg.pmvni.invalid/lei/lei-ficticia.html", "text/html; charset=utf-8")]
+[InlineData("https://leg.pmvni.invalid/legislacao.js", "text/javascript; charset=utf-8")]
+void servidor_responde_o_permitido(string uri, string tipo)   // + a 1ª imagem do manifesto → "image/webp"
+[Theory]
+[InlineData("https://leg.pmvni.invalid/lei/nao-existe.html")] [InlineData("http://leg.pmvni.invalid/legislacao.js")]
+[InlineData("https://doc.pmvni.invalid/legislacao.js")] [InlineData("https://leg.pmvni.invalid/lei/lei-ficticia.html?x=1")]
+[InlineData("https://leg.pmvni.invalid/img/../manifesto.json")] [InlineData("https://exemplo.com/x.png")]
+void servidor_recusa_o_resto(string uri)   // → null
+
+// tests/Pmvni.Revisao.Testes
+[Fact] void arvore_raizes_e_filhos()   // fixture: raízes ["Municipal", "Estadual — CBMES"] (sem Federal na fixture); filhos da lei: ["LEI Nº 9.999, DE 1º DE JANEIRO DE 2099 (FICTÍCIA)", "TÍTULO I — DAS DISPOSIÇÕES GERAIS", "ANEXO I — QUADRO FICTÍCIO"]
+[Fact] void faixa_da_legislacao()   // abas [Arquivo, Página Inicial, Exibir, Ajuda]; ids e rótulos exatos acima; Ctrl+Shift+C em Atalhos sem conflito
+[Fact] void trilho_na_ordem_do_desenho()   // (caso da Tarefa 13 atualizado) [Relatorios, Despachos, Processos, Legislacao, Ajustes]
+[Fact] void cada_modulo_tem_a_faixa_do_desenho()   // (caso existente) agora com Legislação [Arquivo, Página Inicial, Exibir, Ajuda]
+[Fact] void ids_de_comando_unicos_e_conhecidos()   // (caso existente) verde com os ids novos
+```
+
+- [ ] **Step 2: Run** `dotnet test tests/Pmvni.Legislacao.Testes` e `dotnet test tests/Pmvni.Revisao.Testes --filter "FullyQualifiedName~FaixasTestes|FullyQualifiedName~ArvoreLegislacaoTestes"` → Expected: FAIL.
+- [ ] **Step 3: Implement** `Busca`, `Citacao`, `HtmlLei`, `ServidorLegislacao`, `ArvoreLegislacao`, faixa; TS: `cd web/paginador; npm run typecheck; npm run build` → Expected: 0 erros, `src/Pmvni.Legislacao/web/legislacao.js` e `src/Pmvni.Composicao.Web/web/paginador.js` gerados (o paginador sem diferença de bytes). Run os filtros do Step 2 → Expected: PASS.
+- [ ] **Step 4: Implement** a página, a sessão, `SegurancaLegislacao`, `AreaTransferencia` e as ligações no `MainWindow` e nos Ajustes. `dotnet build src/Pmvni.App -c Debug` → Expected: 0 erros.
+- [ ] **Step 5: Roteiro** (pacote **embutido real**; `AberturaExterna.Simular = true`, `AreaTransferencia.Simular = true`; `Ajustes.PastaKit` = o kit real, só lido):
+  - `30_legislacao_arvore` (substitui o `30_legislacao` da Tarefa 13): `MudarModuloAsync(Legislacao)` → página "Sobre" com `ConferenciaKit.Resumo` (50 textos); raízes `["Municipal", "Estadual — CBMES", "Federal"]`; expandir o PDM → 1º filho de título começa por `"TÍTULO I"`; escolher "Art. 1º" → URL `https://leg.pmvni.invalid/lei/pdm.html`, `posicao.no` = o nó escolhido; abrir o Código Civil sem nó → `posicao` em "Art. 1.277"; `RequisicoesBloqueadasLegislacao == 0` e nenhuma requisição a outro host; nenhum arquivo novo em `<dados>` além de `ajustes.json`.
+  - `40_legislacao_pesquisa`: `"art. 45 pdm"` → PDM aberto com `posicao` em "Art. 45"; `"art 1277 codigo civil"` → "Art. 1.277"; `"nt 10-1 5.1"` → NT 10 parte 1 no item "5.1" (se o item não existir no texto, o passo registra e falha: não inventar); texto livre `"afastamento frontal"` → ≥ 1 resultado, todos com `LeiId` do catálogo; Enter abre o 1º com "1 de N"; termo `""` → árvore de volta e `CSS.highlights.size == 0`.
+  - `41_legislacao_citacao`: depois de `"art. 45 pdm"`, Copiar citação → `AreaTransferencia.Copiados[^1] == "art. 45 da Lei Municipal nº 1.382/2020 (PDM)"`; Copiar texto começa por essa citação + `"\n\n"`; no Estatuto da Cidade, a 1ª unidade com `Revogado` → citação termina com `" (revogado)"` e a InfoBar exata aparece; Exibir › Mostrar texto revogado desligado → nenhum `s.revogado` visível (`getComputedStyle(...).display == "none"`), religado → visível.
+  - `42_legislacao_pdf_original`: com o kit real, Abrir o PDF original no PDM → `AberturaExterna.Registradas[^1]` = `<kit>\03 - LEGISLACAO\MUNICIPAL\PDM - LEI 1.382-2020 - TEXTO COMPILADO (CAMARA, ATUALIZADO EM 16-10-2026).pdf` (o nome do manifesto); `Ajustes.PastaKit` = `<pasta>\kit-vazio` → os dois comandos desabilitados com a dica "Pasta do kit não encontrada." e Ajustes com "Pasta do kit não encontrada: a conferência da legislação não foi feita."; volta o kit real.
+  - `43_legislacao_kit_diferente`: com o kit real, registra só o estado (`igual`/`diferente`, sem falhar: o kit se atualiza sozinho); `Ajustes.PastaKit` = `<pasta>\kit-legislacao` (criado pelo roteiro com `03 - LEGISLACAO\MUNICIPAL\NOVA.pdf` de 1 byte) → InfoBar do módulo com o texto exato `"A legislação do kit mudou depois da versão embutida neste editor (diferentes: 0, novos: 1, ausentes: 61). O texto mostrado é o da versão embutida de <dd/MM/aaaa do manifesto>."`; volta o kit real.
+  Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-release.ps1` → Expected: testes aprovados, autoteste aprovado, linha da legislação, "Executável final: …". Run `powershell -NoProfile -ExecutionPolicy Bypass -File tools\roteiro-e-esperar.ps1` → Expected: `ok: true`, código 0.
+- [ ] **Step 6:** `docs/roteiro-etapa-2.md` (passos 30 e 40–43; como o roteiro usa o pacote embutido e o kit só para o PDF original e a conferência). Commit — `feat: modulo legislacao com texto compilado, pesquisa e citacao`
+
 ---
 
 ## Autoconferência do plano
 
-- **Cobertura do desenho:** §5.1 pacote (T4), trava/autosave/diário (T5, T10), importação e assets (T1); §5.2 dados efetivos e numeração (T2), citações (T1, T3); §5.3 comandos/histórico (T3); §5.4 edição no A4 e marcas (T7, T9); §5.5 barra, faixa, trilho, propriedades, menu, atalhos, fechar com autosave (T8–T11); §6 prova de pronto (T4, T5, T3, T2, T14); §8.1–8.8 (T1–T3, T7, T9, T10); §9 módulos (T12, T13, Ajustes em T11/T13); §9.1 faixa por módulo e pesquisa por módulo (T8 dados, T9/T11/T13 abas, T13 pesquisa). §10 novo despacho: tipos do registro, textos fixos, conteúdo, etapa/nomes, DOCX, validação, PDF e recibo (T15); menu nos três módulos, prévia editável, conferência das páginas, Gerar PDF e pasta do kit nos Ajustes (T16); roteiro final, V6 em `tudo` e recriar.json/LibreOffice (T14).
-- **Ordem do desenho §8.7:** pacote + importação (T1, T4) → modelo/comandos/efetivos (T2, T3) → ponte de seleção e edição (T6, T7) → controles (T8, T9) → autosave/recuperação/trava (T5, T10) → pesquisa/tema/recentes/comparar (T11) → módulos (T12, T13) → novo despacho (T15 serviço, T16 interface) → roteiro, build e entrega (T14, sempre a última). T5 (lógica pura) vem cedo; a ligação no app fica na T10, na ordem do desenho.
-- **Decisões tomadas no plano (o desenho deixava ao construtor):** projeto novo `Pmvni.Revisao`; formato interno do `projeto.json` (`chaves`, `outros`, `numero_original`); token `{{ref:<id>:<largura>}}` só nos dígitos; alvo excluído imprime o número original; edição reconverte citações; recusa por teste em clone + render do kit; Ajustes abre na aba Arquivo; `dados*.json` nas análises da IA; nome da cópia de conflito; seletor de salvar na importação genérica. Nas Tarefas 15–16: assinaturas e mensagens exatas do serviço de despacho; `Verificador despacho` e V6 para rodar o validador do kit; recibo `.recibo-editor.json` com as chaves listadas; LibreOffice real só no roteiro (passos 34–38) e conversor falso nos testes; roteiro final renumerado para `39_fluxo_completo`.
+- **Cobertura do desenho:** §5.1 pacote (T4), trava/autosave/diário (T5, T10), importação e assets (T1); §5.2 dados efetivos e numeração (T2), citações (T1, T3); §5.3 comandos/histórico (T3); §5.4 edição no A4 e marcas (T7, T9); §5.5 barra, faixa, trilho, propriedades, menu, atalhos, fechar com autosave (T8–T11); §6 prova de pronto (T4, T5, T3, T2, T14); §8.1–8.8 (T1–T3, T7, T9, T10); §9 módulos (T12, T13, Ajustes em T11/T13); §9.1 faixa por módulo e pesquisa por módulo (T8 dados, T9/T11/T13 abas, T13 pesquisa). §10 novo despacho: tipos do registro, textos fixos, conteúdo, etapa/nomes, DOCX, validação, PDF e recibo (T15); menu nos três módulos, prévia editável, conferência das páginas, Gerar PDF e pasta do kit nos Ajustes (T16); roteiro final, V6 em `tudo` e recriar.json/LibreOffice (T14). §11 legislação compilada embutida: inclusão/exclusão,
+ferramenta de extração, pacote, orçamento e embutimento, conferência com o kit e aviso no build (T17); viewer em WebView2
+com host próprio, árvore, pesquisa por dispositivo e por texto, citação, PDF original, Ajustes e roteiro (T18); §9/§9.1
+Legislação por pasta retirada das T12–T13; roteiro final `44_fluxo_completo`, docs e recriar.json (T14).
+- **Ordem do desenho §8.7:** pacote + importação (T1, T4) → modelo/comandos/efetivos (T2, T3) → ponte de seleção e edição (T6, T7) → controles (T8, T9) → autosave/recuperação/trava (T5, T10) → pesquisa/tema/recentes/comparar (T11) → módulos (T12, T13) → novo despacho (T15 serviço, T16 interface) → legislação embutida (T17 pacote, T18 interface) → roteiro, build e entrega (T14, sempre a última). T5 (lógica pura) vem cedo; a ligação no app fica na T10, na ordem do desenho.
+- **Decisões tomadas no plano (o desenho deixava ao construtor):** projeto novo `Pmvni.Revisao`; formato interno do `projeto.json` (`chaves`, `outros`, `numero_original`); token `{{ref:<id>:<largura>}}` só nos dígitos; alvo excluído imprime o número original; edição reconverte citações; recusa por teste em clone + render do kit; Ajustes abre na aba Arquivo; `dados*.json` nas análises da IA; nome da cópia de conflito; seletor de salvar na importação genérica. Nas Tarefas 15–16: assinaturas e mensagens exatas do serviço de despacho; `Verificador despacho` e V6 para rodar o validador do kit; recibo `.recibo-editor.json` com as chaves listadas; LibreOffice real só no roteiro (passos 34–38) e conversor falso nos testes; roteiro final renumerado para `39_fluxo_completo`. Nas Tarefas 17–18: projeto `Pmvni.Legislacao` e testes próprios; formato `legislacao.pmvleg` (manifesto, nós, blocos, trechos riscados) e catálogo por `padrao`; limiares da extração; PDFs fictícios como contrato Python × C#; conferência com o kit no autoteste (aviso no build, nunca falha) em vez de teste que dependa do kit atualizado; passo 30 reaproveitado e passos 40–43; roteiro final renumerado para `44_fluxo_completo`; `Ajustes.PastaLegislacao` (T8) retirado.

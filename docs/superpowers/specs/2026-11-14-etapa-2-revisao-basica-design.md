@@ -231,7 +231,9 @@ Cada módulo troca a área principal inteira; a faixa de opções mostra as abas
 - **Legislação:** lista os arquivos da pasta de legislação (padrão
   `C:\Users\smendesjunior\OneDrive\PMVNI\SIDNEY JUNIOR\LEGISLAÇÃO`, configurável), com filtro
   por nome; abrir no programa padrão. Nada é copiado nem redistribuído.
-- **Ajustes:** pastas de processos e de legislação, tema, intervalo do salvamento automático,
+  **Substituído pela seção 11** (pedido de 14/11/2026): a legislação vem compilada e embutida no
+  executável; não há mais lista de pasta nem pasta de legislação.
+- **Ajustes:** pastas de processos e de legislação (a de legislação sai: seção 11), tema, intervalo do salvamento automático,
   pasta de recuperação (somente leitura, informativo), versões (app, modelo, WebView2).
 
 Abrir arquivos externos: só extensões de documento (`.pdf`, `.docx`, `.doc`, `.xlsx`, `.xls`,
@@ -252,7 +254,8 @@ A faixa de opções troca inteira quando o módulo do trilho muda (abas e comand
   pasta no Explorador, Atualizar, filtro por ano) · Exibir (ordenar por número, data ou
   requerente; mostrar pastas PROJETO/DOCUMENTOS) · Ajuda.
 - **Legislação:** Arquivo · Página Inicial (Abrir, Mostrar no Explorador, Atualizar, Copiar
-  caminho) · Exibir (ordenar por nome ou data) · Ajuda.
+  caminho) · Exibir (ordenar por nome ou data) · Ajuda. **Substituída pela faixa da seção 11.4**
+  (e a pesquisa em Legislação passa a ser no texto das leis embutidas, não no nome do arquivo).
 - **Ajustes:** sem faixa de comandos (só a página de ajustes); Arquivo e Ajuda continuam no topo.
 A caixa de pesquisa da barra de título também muda de alvo: no relatório, o texto das folhas;
 em Processos, número ou requerente; em Despachos e Legislação, o nome do arquivo.
@@ -456,3 +459,197 @@ que já estão no próprio despacho. "Gerar PDF" atualiza o mesmo recibo (tempor
 8. Nada é gravado na pasta do processo antes da conferência de todas as páginas; sem PDF, só o DOCX, com "Gerar
    PDF" para completar depois.
 9. O despacho não altera o `.pmvrel` nem grava `.pmvni-ai\`; o vínculo fica no recibo.
+
+## 11. Legislação compilada embutida (pedido do usuário, 14/11/2026)
+
+Pedido: "A legislação tem que estar compilada." Esclarecido: "Embutir no kit mas somente o texto. Se houver imagem
+por, mas comprimir para baixar o tamanho." Interpretação vinculante: o módulo Legislação mostra a legislação
+**embutida no próprio executável**, em texto compilado (versões consolidadas), e não mais uma lista de PDFs de uma
+pasta. Vai só o texto e as imagens que os atos contêm, comprimidas. Esta seção substitui, para a Legislação, o item
+"Legislação" da seção 9, a faixa "Legislação" e o alvo da pesquisa da seção 9.1, e a "pasta de legislação" dos
+Ajustes (§9). Abrir o PDF original continua possível só como ação secundária, quando a pasta do kit existe.
+
+### 11.1 O que entra e por quê (medido no kit em 15/11/2026)
+
+Fonte: `<kit>\03 - LEGISLACAO` (somente leitura), 61 arquivos, 93 MB. Inspeção com PyMuPDF 2.1:
+
+| Grupo | Arquivos | Páginas | Decisão |
+|---|---|---|---|
+| `MUNICIPAL` — PDM Lei 1.382/2020 e Código de Obras LC 70/1990, **texto compilado** da Câmara | 2 | 81 + 32 | **Entram.** Texto extraível em todas as páginas com texto; o PDM tem 34 páginas de tabelas (anexos de parâmetros por zona, detectadas por `find_tables`: 56 × 7, 54 × 3…) e 15 imagens (mapas de zoneamento dos anexos); a pág. 79 do PDM não tem texto (só 2 mapas). |
+| `MUNICIPAL\PERIMETROS URBANOS` — Leis 1.271/2017, 1.276/2017, 1.301/2018 | 3 | 21 + 11 + 8 | **Entram.** Texto extraível; 7 páginas sem texto (mapas), que ficam só como as imagens que já são. |
+| `FEDERAL` — 10 leis e decretos, texto compilado do Planalto | 10 | 362 | **Entram inteiros** (o Código Civil vem completo, 194 páginas; o viewer abre no art. 1.277, como o nome do arquivo indica). Texto riscado do Planalto (redação revogada) é detectado pelo PyMuPDF (`TEXT_COLLECT_STYLES`, bit de tachado: 229 trechos no Estatuto da Cidade, 242 na Lei 6.766) e **fica marcado como revogado**, nunca como vigente. |
+| `ESTADUAL - CBMES (NORMAS TECNICAS)` — 35 NTs | 35 | 892 | **Entram.** Texto extraível em todas as páginas; muitas figuras e tabelas (NT 01 parte 6 com 190 páginas). |
+| `MUNICIPAL\PDM - LEIS DE ALTERACAO (ORIGINAIS)` — 6 leis de alteração (1.391/2020, 1.415/2021, 1.484/2022, 1.507/2022, 1.510/2022, 1.556/2023) | 6 | 41 | **Não entram.** Já incorporadas ao texto compilado do PDM: o compilado cita cada uma nas notas de redação (1.391 ×23, 1.415 ×55, 1.484 ×7, 1.507 ×12, 1.510 ×3, 1.556 ×7) e o índice do kit diz "Já incorporada ao texto compilado; guardar como original". São digitalizações (22 MB; a 1.484 não tem camada de texto nenhuma): embuti-las duplicaria o texto e traria versões superadas. |
+| `MUNICIPAL\PDM - LEIS DE ALTERACAO (ORIGINAIS)\DÚVIDAS DO NOVO PDM.docx` | 1 | — | **Não entra:** não é ato normativo (perguntas de trabalho). |
+| `NORMAS ABNT` — NBR 9050:2020, NBR 16537:2024, NBR 6492:1994 e a lista "ONDE OBTER" | 4 | — | **Não entram.** Normas da ABNT são obras protegidas; o índice do kit marca as duas vigentes como "MANTER (LICENCIADO) … Não redistribuir: cópia do acesso pessoal à ABNT", e a 6492 também é da ABNT (e está superada). A lista `.md` não é ato normativo. |
+
+Total embutido: **50 PDFs, 1.407 páginas**, 65,6 MB de origem (ficam fora 11 arquivos, 31 MB). Motivo jurídico (registrado): leis, decretos,
+regulamentos e demais atos oficiais não são objeto de direito autoral (Lei 9.610/98, art. 8º, IV). As NTs do CBMES
+são regulamentos baixados por portaria do Corpo de Bombeiros do ES (ato oficial estadual); os textos compilados são
+publicados pelos próprios órgãos (Câmara Municipal e Presidência da República); as imagens embutidas são parte do
+próprio ato (mapas, figuras e tabelas dos anexos). A proibição do `LICENSE` do plugin (desenho §10.10) cobre os
+plugins e os modelos, não os atos públicos da pasta de legislação. Cada texto embutido mostra a fonte (arquivo do
+kit, órgão, data no nome do arquivo) e mantém o aviso que o próprio PDF traz, quando houver ("Este texto não
+substitui o original publicado…").
+
+Regra de inclusão (vale na regeneração): a ferramenta classifica **todo** arquivo de `03 - LEGISLACAO` pelo catálogo
+(§11.2). Arquivo sem entrada no catálogo faz a geração falhar; um arquivo com "NBR" ou "ABNT" no caminho nunca pode
+ser marcado para entrar (a ferramenta recusa).
+
+### 11.2 Ferramenta de extração (tempo de build, nunca no app)
+
+`tools/legislacao/extrair.py` (Python 3.14 + PyMuPDF + Pillow, `python -I`), rodada pelo desenvolvedor quando o kit
+muda; o app nunca extrai nada em tempo de execução e o `build-release.ps1` não precisa de PyMuPDF. Entradas: a raiz do
+kit e `tools/legislacao/catalogo.json` (escrito à mão, versionado: para cada arquivo, `incluir` ou `excluir` com o
+motivo; para os incluídos, id, esfera, título curto, forma de citação, apelidos da pesquisa, tipo de estrutura
+`artigos` ou `itens`, e opcionalmente `abrir_em`). Saída: `src/Pmvni.Legislacao/Dados/legislacao.pmvleg` e o relatório
+`docs/legislacao-embutida.md` (por texto: páginas, unidades, tabelas, imagens, páginas sem texto, trechos revogados;
+totais e tamanho).
+
+Extração por página (`get_text("dict", sort=True)` com `TEXT_COLLECT_STYLES`):
+- **Cabeçalhos e rodapés repetidos** (mesmo texto normalizado na faixa de 7% do topo ou da base em ≥ 50% das páginas,
+  com números de página trocados por `#`) são removidos.
+- **Parágrafos** = blocos do PyMuPDF; linhas unidas com espaço, hifenização de fim de linha desfeita só quando a
+  palavra unida existe em outro lugar do mesmo texto; um bloco é quebrado sempre que uma linha começa um dispositivo.
+- **Estrutura (tipo `artigos`)**: `TÍTULO`, `CAPÍTULO`, `SEÇÃO`, `SUBSEÇÃO` (+ linha seguinte como nome) viram nós da
+  árvore; `Art. 45`, `Art. 45-A`, `Art. 1.277` viram unidades; dentro delas, blocos `§ 2º`, `Parágrafo único`,
+  incisos `III –` e alíneas `a)`; `ANEXO XII` vira unidade. **Tipo `itens`** (NTs): títulos numerados `5`, `5.1`,
+  `5.1.2` (até 5 níveis, número crescente) e `ANEXO A`. Nada é renumerado nem corrigido: o rótulo é o do texto.
+- **Notas de redação** ("(Redação dada pela Lei nº 1.743/2025)", "(Incluído pela…)", "(Revogado pela…)") ficam como
+  notas do dispositivo onde aparecem.
+- **Texto riscado** (tachado no PDF) vira trecho com `riscado: true`.
+- **Tabelas**: `page.find_tables()`; cada tabela vira uma tabela de células de texto (células mescladas, que o
+  PyMuPDF devolve como `None`, viram `colspan`); as palavras dentro da tabela saem do fluxo de parágrafos. Tabela com
+  menos de 2 colunas ou mais de 30% de células vazias não é confiável: vira **recorte** (imagem da região da página)
+  com o texto da camada de texto guardado para busca e cópia.
+- **Imagens raster**: cada imagem é decodificada, reduzida para no máximo **1.600 px** no lado maior e regravada em
+  **WebP qualidade 60** (Pillow, `method=6`); deduplicada pelo sha256 dos bytes originais (o brasão do Planalto, por
+  exemplo, entra uma vez). Imagens com menos de 16 × 16 px são descartadas (fios e marcadores).
+- **Figuras vetoriais**: `page.cluster_drawings()` só sobre os desenhos que não são fios (altura ou largura < 2,5 pt:
+  tachados, sublinhados, bordas) nem fundos brancos (preenchimento com todos os canais > 0,97 — o Planalto põe um
+  retângulo branco atrás de cada página); grupo fora das tabelas, com área ≥ 4 cm², menos de 85% da página e menos de
+  0,02 caractere por pt² vira recorte a 150 dpi, WebP 60, com o texto que estiver dentro guardado para busca. (Sem
+  esses filtros, o protótipo recortou 467 "figuras", 46 MB, quase todas páginas inteiras de texto do Planalto; com eles,
+  113 figuras reais das NTs.)
+- **Páginas sem camada de texto: nunca OCR, nunca texto inventado.** Se uma página não tem texto, ela entra só com as
+  suas imagens (ou como recorte da página inteira a 110 dpi em tons de cinza, se não houver imagem raster que a
+  cubra), e o viewer mostra: "Página N do PDF original sem texto: mostrada como imagem; o conteúdo não foi
+  transcrito." Página totalmente vazia é omitida.
+
+Pacote `legislacao.pmvleg` (ZIP determinístico: entradas em ordem, data fixa 1980-01-01, Deflate 9 para JSON e
+Stored para WebP; mesma entrada ⇒ mesmos bytes):
+- `manifesto.json`: `formato: "pmvleg"`, `versao_formato: "1.0.0"`, `versao_extrator`, `gerado_em` (UTC),
+  `kit.sha256_conjunto` (sha256 da lista ordenada `caminho\tsha256` dos incluídos), e para cada texto `id`, `esfera`,
+  `titulo`, `citacao`, `apelidos`, `arquivo` (relativo a `03 - LEGISLACAO`), `sha256`, `tamanho`, `paginas`,
+  `paginas_sem_texto`, `unidades`; `excluidos` com `arquivo`, `sha256` e `motivo` (para a conferência saber o que já
+  era conhecido).
+- `leis/<id>.json`: a árvore (nós `titulo|capitulo|secao|subsecao|artigo|item|anexo|preambulo` com `id`, `rotulo`,
+  `nome`, `pagina`, `blocos`, `filhos`); blocos `p`, `dispositivo` (`par|inciso|alinea`, `rotulo`), `nota`, `tabela`
+  (`linhas` de células `{texto, colspan}`, `cabecalho`), `imagem` (`src`, `w`, `h`, `pagina`), `recorte` (`src`,
+  `texto`), `pagina_sem_texto` (`pagina`); todo texto é uma lista de trechos `{t, riscado?}`. Só texto puro: nenhum
+  HTML vem do PDF.
+- `img/<sha256 16 hex>.webp`.
+
+Se a regeneração não mudar nenhum sha e a `versao_extrator` for a mesma, a ferramenta não regrava nada ("Nada mudou")
+— o arquivo versionado só muda quando o kit ou o extrator mudam.
+
+### 11.3 Tamanho (medido) e embutimento
+
+Medido em 15/11/2026 sobre os 50 PDFs incluídos (protótipo da extração): texto 4,1 MB em UTF-8 → **1,06 MB**
+comprimido; 398 imagens únicas (25,9 MB de origem) → **7,25 MB** em WebP 60 com 1.600 px; páginas sem texto →
+**0,22 MB**; figuras vetoriais (113 recortes) → **1,22 MB**. **Estimativa do pacote: ≈ 9,8 MB** (mais a estrutura JSON, que
+acrescenta pouco ao texto comprimido; até ~10,5 MB). Referência: com 1.280 px e qualidade 50
+as imagens cairiam para 6,0 MB, mas o texto miúdo das figuras das NTs fica ilegível; fica 1.600/60. Orçamento: **até
+11 MB** (a ferramenta avisa acima e, então, o passo é medir 1.400 px/WebP 55 antes de seguir), **12 MB no máximo** (a
+ferramenta e o teste falham acima). O executável passa de ~85 MB para ~95 MB.
+
+Embutimento: `legislacao.pmvleg` é `EmbeddedResource` (LogicalName `legislacao.pmvleg`) de um projeto novo
+`src/Pmvni.Legislacao` (net10.0, sem UI e sem WebView2), referenciado por `Pmvni.App` e `Pmvni.Verificador`. O
+conteúdo já é comprimido (Deflate/WebP), então a compressão do single-file não ganha nada com ele; o recurso é lido
+por `GetManifestResourceStream` (memória, sem extrair para o disco, sem `%TEMP%`). O arquivo gerado **é versionado**
+(≈ 10 MB): o build não depende de PyMuPDF nem da pasta do kit, e o histórico só cresce quando o kit muda (regeneração
+determinística).
+
+### 11.4 Viewer no módulo Legislação
+
+**Decisão: árvore nativa (WinUI `TreeView`) à esquerda e o texto num WebView2 à direita**, porque o PDM tem dezenas
+de tabelas largas e as NTs têm figuras entre os parágrafos: controles de texto nativos (`RichTextBlock`) não têm
+tabela, e a pesquisa com realce já existe em web (Tarefa 11). Modelo de segurança da Etapa 1, com host próprio:
+- WebView2 InPrivate pela `FabricaWebView2`, mesmas configurações da `Seguranca` (menus, atalhos do navegador,
+  DevTools só em Debug, janelas novas e downloads cancelados).
+- Host virtual `leg.pmvni.invalid` **sem pasta mapeada**: tudo é respondido da memória pelo filtro
+  `WebResourceRequested` (`/lei/<id>.html`, `/legislacao.js`, `/img/<nome>.webp`); qualquer outra URL ⇒ 403;
+  navegação de nível superior só para `https://leg.pmvni.invalid/lei/<id>.html`.
+- CSP: `default-src 'none'; img-src https://leg.pmvni.invalid; style-src 'unsafe-inline'; script-src
+  https://leg.pmvni.invalid/legislacao.js`.
+- O HTML é gerado pelo host a partir do JSON (todo texto escapado; nenhum HTML vindo do PDF). O script
+  `legislacao.js` (TypeScript, mesmo esbuild do paginador) só rola, realça pela CSS Custom Highlight API e informa a
+  unidade e o dispositivo da seleção pela ponte `{v:1,tipo,id,dados}`.
+
+Tela: árvore **esfera → texto → títulos/capítulos/seções → artigos/itens/anexos** (Municipal, Estadual — CBMES,
+Federal; na ordem do catálogo); página inicial do módulo "Sobre a legislação embutida" (versão, data, número de
+textos, o que não está embutido e por quê, resultado da conferência com o kit). Ao escolher um nó, abre o texto e rola
+até ele. Trecho revogado aparece riscado e cinza (como no Planalto), com o título "Texto revogado"; Exibir › "Mostrar
+texto revogado" (ligado por padrão) esconde os trechos riscados. Páginas sem texto e recortes aparecem com a nota do
+§11.2. Tamanho do texto: 100/125/150%.
+
+Faixa (substitui a da §9.1): **Arquivo · Página Inicial** (Copiar citação, Copiar texto do dispositivo, Abrir o PDF
+original, Mostrar no Explorador) **· Exibir** (Tamanho do texto, Mostrar texto revogado, Recolher a árvore) **· Ajuda**.
+"Abrir o PDF original" e "Mostrar no Explorador" só existem habilitados quando `<kit>\03 - LEGISLACAO\<arquivo>` existe
+(senão ficam desabilitados com a dica "Pasta do kit não encontrada."); abrem por `AberturaExterna`.
+
+**Pesquisa** (a caixa da barra de título no módulo Legislação, retarget da §9.1: "Pesquisar na legislação"):
+1. Consulta de dispositivo: `art. 45 pdm`, `artigo 1.277 código civil`, `art 45-A lc 70`, `nt 10-1 5.1.2`,
+   `anexo xii pdm` → vai direto à unidade (apelidos do catálogo; sem o apelido, procura em todos e lista as unidades
+   com esse rótulo).
+2. Texto livre: em todos os textos (sem diferenciar maiúsculas nem acentos, espaços normalizados), lista de
+   resultados no painel da esquerda (no máximo 200, agrupados por texto, com o rótulo da unidade e um trecho), Enter
+   abre o primeiro; dentro do texto aberto, realce e "3 de 12" como no relatório. Resultado em trecho revogado leva a
+   marca "(revogado)".
+O índice de busca é montado em memória, em `Task.Run`, na primeira pesquisa.
+
+**Copiar citação**: a unidade e o dispositivo da seleção (ou, sem seleção, a unidade no topo da vista) viram texto
+pela forma de citação do catálogo: `art. 45 da Lei Municipal nº 1.382/2020 (PDM)`, `art. 45, § 2º, da Lei Municipal
+nº 1.382/2020 (PDM)`, `art. 12, parágrafo único, …`, `art. 3º, inciso II, alínea "a", …`, `item 5.1.2 da NT 10 —
+Parte 1 (CBMES)`, `Anexo II da Lei Municipal nº 1.382/2020 (PDM)`. "Copiar texto do dispositivo" copia a citação, uma
+linha em branco e o texto puro. Copiar um trecho revogado mostra o aviso "Este trecho está revogado no texto
+compilado." e copia mesmo assim com " (revogado)" no fim da citação.
+
+### 11.5 Atualização
+
+- O texto embutido só muda com uma nova versão do editor: o desenvolvedor roda
+  `python -I tools/legislacao/extrair.py gerar --kit "<raiz>"`, confere `docs/legislacao-embutida.md` e gera o build.
+- **Ajustes** mostra "Legislação embutida: versão de <gerado_em, dd/MM/aaaa>, <n> textos, extrator <versão>, conjunto
+  do kit <8 primeiros hex>" e o resultado da conferência.
+- **Conferência com o kit** (no app, ao abrir o módulo pela primeira vez na sessão, em `Task.Run`; e no autoteste do
+  executável publicado, que o `build-release.ps1` já roda fora do pacote — o build só escreve o aviso, nunca falha, e
+  não precisa de Python): sha256 de cada arquivo do
+  manifesto (incluídos e excluídos) contra `<kit>\03 - LEGISLACAO`, mais os arquivos novos. Diferença ⇒ InfoBar de
+  aviso no módulo: "A legislação do kit mudou depois da versão embutida neste editor (diferentes: D, novos: N,
+  ausentes: A). O texto mostrado é o da versão embutida de <data>." Kit ausente ⇒ sem aviso no módulo (o texto
+  embutido funciona sem o kit); Ajustes diz "Pasta do kit não encontrada: a conferência da legislação não foi feita."
+
+### 11.6 Restrições e testes
+
+- Nada sai da máquina; textos da interface em português; nenhum botão sem função.
+- A ferramenta e os testes rodados pelo shell do Claude gravam só no repositório (`src/Pmvni.Legislacao/Dados/`,
+  `docs/legislacao-embutida.md`) e em `tests/saida/legislacao/`; nunca em `%APPDATA%`/`%LOCALAPPDATA%`/`%TEMP%`. O app
+  não grava nada para a legislação (nem cache).
+- Fixture: as leis são públicas, mas os testes não dependem do kit inteiro; usam **um PDF fictício montado pelo
+  próprio teste** com PyMuPDF ("Lei nº 9.999/2099 (fictícia)", metadados e id fixos, logo bytes fixos) com todos os
+  casos (estrutura, tachado, tabela, imagem, figura vetorial, página sem texto, cabeçalho repetido, hifenização) e um
+  "NT fictícia" de itens; o pacote gerado dele, `tests/corpus/legislacao/ficticia.pmvleg` (versionado, poucos KB), é
+  o contrato entre o Python e o C#. Um teste com o kit real (via `PMVNI_KIT_RAIZ`) confere só contagens do pacote
+  embutido e que nenhum arquivo `NBR` entrou.
+- Recriar PC: o pacote vai dentro do executável; nada novo a instalar. O `recriar.json` passa a citar a legislação
+  embutida e a leitura opcional de `03 - LEGISLACAO` do kit (conferência e PDF original).
+
+### 11.7 Decisões minhas (registradas)
+1. Viewer em WebView2 (com host `leg.pmvni.invalid` servido da memória), árvore nativa.
+2. Leis de alteração originais fora (já incorporadas; digitalizações); Código Civil inteiro (abre no art. 1.277).
+3. Texto revogado do Planalto mantido e marcado, nunca apresentado como vigente; ocultável.
+4. Imagens: 1.600 px, WebP 60; páginas sem texto como imagem, sem OCR.
+5. Pacote gerado versionado no repositório (build sem PyMuPDF); regeneração determinística.
+6. Conferência com o kit só avisa; nunca bloqueia nem troca o texto embutido.
+7. Pasta de legislação dos Ajustes (§9) deixa de existir: o PDF original é procurado em `<pasta do kit>\03 -
+   LEGISLACAO` (a pasta do kit da §10.10).
