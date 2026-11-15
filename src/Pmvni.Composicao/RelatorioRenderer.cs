@@ -23,12 +23,19 @@ public static class RelatorioRenderer
 {
     private static readonly Regex Secao = new(@"<div class=""sec(?: [^""]*)?""><div><h2>(.*?)</h2>", RegexOptions.CultureInvariant | RegexOptions.Singleline);
 
-    public static ResultadoRender Renderizar(string caminhoDados, OpcoesRender op, ModeloCarregado m)
+    public static ResultadoRender Renderizar(string caminhoDados, OpcoesRender op, ModeloCarregado m) =>
+        Renderizar(File.ReadAllBytes(Path.GetFullPath(caminhoDados)), caminhoDados, op, m);
+
+    /// <summary>Como <see cref="Renderizar(string, OpcoesRender, ModeloCarregado)"/>, com os bytes do dados.json já lidos
+    /// (<paramref name="caminhoDados"/> só dá a pasta das imagens): quem precisa do sha256 dos bytes exatos que geraram o
+    /// HTML lê o arquivo uma vez só.</summary>
+    public static ResultadoRender Renderizar(byte[] bytesDados, string caminhoDados, OpcoesRender op, ModeloCarregado m)
     {
+        ArgumentNullException.ThrowIfNull(bytesDados);
         var arquivo = Path.GetFullPath(caminhoDados);
         var baseDir = Path.GetDirectoryName(arquivo)!;
         // read_text(encoding='utf-8-sig'): UTF-8 estrito, sem o BOM.
-        var json = new UTF8Encoding(false, true).GetString(File.ReadAllBytes(arquivo));
+        var json = new UTF8Encoding(false, true).GetString(bytesDados);
         var d = Dados.Dict(JsonModelo.Ler(json));
 
         var erros = Conferencia.Conferir(d, rel => File.Exists(Path.GetFullPath(Path.Combine(baseDir, rel))), op.Rascunho || op.Instrucoes);

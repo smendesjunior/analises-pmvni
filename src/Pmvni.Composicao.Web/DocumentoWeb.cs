@@ -26,6 +26,7 @@ public sealed class DocumentoWeb : IDisposable
     readonly ConcurrentQueue<Descarte> descartes = new();
     readonly ConcurrentQueue<string> bloqueadas = new();
     TaskCompletionSource? pronto;
+    string? urlPermitida; // a única navegação aceita: a que CarregarAsync está abrindo (uma vez só; thread do core)
     int carregamentos;
     int desanexado, pastaApagada;
 
@@ -42,7 +43,7 @@ public sealed class DocumentoWeb : IDisposable
         Directory.CreateDirectory(PastaSessao);
         // A sandbox vale desde a construção: o core nunca fica exposto, nem a navegações feitas fora de CarregarAsync.
         // Se falhar, a construção falha (sem nova tentativa, logo sem manipuladores duplicados).
-        try { Seguranca.AplicarAsync(core, PastaSessao, RegistrarBloqueio).GetAwaiter().GetResult(); }
+        try { Seguranca.AplicarAsync(core, PastaSessao, RegistrarBloqueio, NavegacaoPermitida).GetAwaiter().GetResult(); }
         catch { ApagarPasta(); throw; }
         core.WebMessageReceived += AoReceberMensagem;
         core.ProcessFailed += AoFalharProcesso;
@@ -109,14 +110,39 @@ public sealed class DocumentoWeb : IDisposable
             ObjectDisposedException.ThrowIf(desanexado != 0, this);
             await File.WriteAllTextAsync(Path.Combine(PastaSessao, "documento.html"), html, new UTF8Encoding(false));
             await File.WriteAllBytesAsync(Path.Combine(PastaSessao, "paginador.js"), LerPaginador());
+            // Sessão viva: a varredura de órfãs (LimparOrfas, por data de alteração) nunca a apaga enquanto ela é usada.
+            Directory.SetLastWriteTimeUtc(PastaSessao, DateTime.UtcNow);
             Render = r;
             Config = cfg;
             var espera = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             pronto = espera;
             // O parâmetro evita que o WebView2 trate a navegação como recarga do mesmo documento.
-            await HostOculto.NavegarParaUrlAsync(core, Seguranca.UrlBase + "documento.html?c=" + Interlocked.Increment(ref carregamentos), limiteNavegacao);
+            await NavegarNaThreadAsync(Seguranca.UrlBase + "documento.html?c=" + Interlocked.Increment(ref carregamentos), limiteNavegacao);
             await espera.Task.WaitAsync(limiteNavegacao ?? LimiteProntoPadrao);
         });
+    }
+
+    /// <summary>Navega para <paramref name="url"/> do host do documento, liberando só esta navegação (testes: página própria
+    /// gravada na pasta da sessão). Fora daqui e de <see cref="CarregarAsync"/>, toda navegação é cancelada.</summary>
+    internal Task NavegarAsync(string url, TimeSpan? limite = null) => naThread(() =>
+    {
+        ObjectDisposedException.ThrowIf(desanexado != 0, this);
+        return NavegarNaThreadAsync(url, limite);
+    });
+
+    async Task NavegarNaThreadAsync(string url, TimeSpan? limite)
+    {
+        urlPermitida = url;
+        try { await HostOculto.NavegarParaUrlAsync(core, url, limite); }
+        finally { urlPermitida = null; }
+    }
+
+    /// <summary>NavigationStarting (thread do core): só a URL exata que <see cref="NavegarNaThreadAsync"/> está abrindo, uma vez.</summary>
+    bool NavegacaoPermitida(string uri)
+    {
+        if (urlPermitida is null || !string.Equals(uri, urlPermitida, StringComparison.Ordinal)) return false;
+        urlPermitida = null;
+        return true;
     }
 
     /// <summary>Envia uma mensagem host→web e espera a resposta com o mesmo id. Uma resposta <c>erro</c> vira
@@ -194,7 +220,8 @@ public sealed class DocumentoWeb : IDisposable
     /// <summary>Reconstrói as folhas do documento carregado pelas posições de <paramref name="p"/>, <b>sem medir para
     /// decidir</b>: escala de impressão do plano (<c>--pmvni-k</c>), refs do render, margem de cima pela regra da quebra
     /// forçada, acabamento e numeração. Não muda a emulação do core (serve à tela, com qualquer escala de monitor, e ao
-    /// host oculto). A única medida é a altura de cada folha, para informar <see cref="ResultadoAplicacao.FolhasQueTransbordam"/>.
+    /// host oculto). As únicas medidas são a altura e a extensão horizontal do conteúdo de cada folha, para informar
+    /// <see cref="ResultadoAplicacao.FolhasQueTransbordam"/> e <see cref="ResultadoAplicacao.FolhasQueTransbordamNaLargura"/>.
     /// Recusa com <see cref="ArgumentException"/> se o <see cref="PlanoQuebras.Sha256Html"/> não for o do HTML carregado.</summary>
     public async Task<ResultadoAplicacao> AplicarPlanoAsync(PlanoQuebras p, TimeSpan? limite = null, TimeSpan? limiteEstabilidade = null)
     {
@@ -217,9 +244,11 @@ public sealed class DocumentoWeb : IDisposable
         var folhas = json.GetProperty("folhas").GetInt32();
         var transbordam = json.GetProperty("folhasQueTransbordam").Deserialize<List<int>>(Mensagens.Opcoes)
             ?? throw new InvalidDataException("folhasQueTransbordam ausente.");
+        var naLargura = json.GetProperty("folhasQueTransbordamNaLargura").Deserialize<List<int>>(Mensagens.Opcoes)
+            ?? throw new InvalidDataException("folhasQueTransbordamNaLargura ausente.");
         if (folhas != p.InicioDasFolhas.Count)
             throw new InvalidDataException("Plano aplicado incoerente: " + folhas + " folhas para " + p.InicioDasFolhas.Count + " inícios.");
-        return new ResultadoAplicacao(folhas, transbordam);
+        return new ResultadoAplicacao(folhas, transbordam, naLargura);
     }
 
     /// <summary>Texto visível da área útil de cada folha (espaços normalizados), na ordem. Sem folhas, lista vazia.</summary>

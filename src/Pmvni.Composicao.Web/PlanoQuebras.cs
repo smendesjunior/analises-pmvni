@@ -55,7 +55,8 @@ public sealed record PlanoQuebras(int Versao, IReadOnlyList<PosicaoFluxo> Inicio
 
     public string ParaJson() => JsonSerializer.Serialize(this, Mensagens.Opcoes);
 
-    /// <summary>Lê e valida o plano: versão suportada, escala finita em [1; 1,5], listas e caminhos presentes.</summary>
+    /// <summary>Lê e valida o plano como o <c>lerPlano</c> do paginador: versão suportada, escala finita em [1; 1,5], listas
+    /// presentes, ao menos uma folha, caminhos não vazios de índices ≥ 0 e deslocamento/linha ≥ 0 (ou nulos).</summary>
     public static PlanoQuebras DeJson(JsonElement json)
     {
         var p = json.Deserialize<PlanoQuebras>(Mensagens.Opcoes) ?? throw new InvalidDataException("Plano de quebras vazio.");
@@ -65,6 +66,12 @@ public sealed record PlanoQuebras(int Versao, IReadOnlyList<PosicaoFluxo> Inicio
         if (p.InicioDasFolhas is null || p.Estouros is null || p.AvisosLargura is null || string.IsNullOrEmpty(p.Sha256Html)
             || p.InicioDasFolhas.Count == 0 || p.InicioDasFolhas.Any(i => i?.Caminho is null))
             throw new InvalidDataException("Plano de quebras incompleto.");
+        for (var n = 0; n < p.InicioDasFolhas.Count; n++)
+        {
+            var i = p.InicioDasFolhas[n];
+            if (i.Caminho.Length == 0 || i.Caminho.Any(x => x < 0) || i.DeslocamentoTexto < 0 || i.Linha < 0)
+                throw new InvalidDataException($"Plano de quebras inválido: inicioDasFolhas[{n}].");
+        }
         return p;
     }
 
@@ -75,6 +82,12 @@ public sealed record PlanoQuebras(int Versao, IReadOnlyList<PosicaoFluxo> Inicio
 /// <summary>Resposta de <c>compor</c>: o plano, o número de folhas e os data-ref visíveis em cada folha, na ordem.</summary>
 public sealed record ResultadoComposicao(PlanoQuebras Plano, int Folhas, IReadOnlyList<IReadOnlyList<string>> RefsPorFolha);
 
-/// <summary>Resposta de <c>aplicarPlano</c>: o número de folhas montadas (= inícios do plano) e as folhas (1 = primeira) cujo
-/// conteúdo passa da área útil no layout atual. Só informativo: o conteúdo de cada folha vem do plano, não desta medida.</summary>
-public sealed record ResultadoAplicacao(int Folhas, IReadOnlyList<int> FolhasQueTransbordam);
+/// <summary>Resposta de <c>aplicarPlano</c>: o número de folhas montadas (= inícios do plano), as folhas (1 = primeira) cujo
+/// conteúdo passa da área útil em altura no layout atual e as que têm conteúdo além da borda esquerda ou direita da área
+/// (<see cref="FolhasQueTransbordamNaLargura"/>: nada é cortado, mas sai fora da área útil). Só informativo: o conteúdo de
+/// cada folha vem do plano, não destas medidas.</summary>
+public sealed record ResultadoAplicacao(int Folhas, IReadOnlyList<int> FolhasQueTransbordam, IReadOnlyList<int> FolhasQueTransbordamNaLargura)
+{
+    /// <summary>Folhas com qualquer transbordamento (altura ou largura), em ordem: as que a tela marca com a faixa vermelha.</summary>
+    public IReadOnlyList<int> FolhasMarcadas => FolhasQueTransbordam.Union(FolhasQueTransbordamNaLargura).Order().ToArray();
+}

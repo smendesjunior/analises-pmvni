@@ -70,7 +70,22 @@ internal static class Roteiro
             p["exportar_habilitado"] = j.ExportarHabilitado;
             p["rodape_folha"] = j.TextoFolhaAtual;
             p["convivencia_webview2"] = "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados";
-            p["ok"] = a.Composicao.Folhas > 3 && plano.Estouros.Count == 0 && j.ExportarHabilitado && p["aviso_largura_confere"]!.GetValue<bool>();
+            p["folhas_com_conteudo_alem_da_borda"] = new JsonArray(a.Aplicacao.FolhasQueTransbordamNaLargura.Select(n => (JsonNode)n).ToArray());
+            p["aviso_fora_da_area_aberto"] = j.InfoForaDaArea.IsOpen;
+            // Diagnóstico (só medidas): retângulos do conteúdo além da borda lateral da área, por folha.
+            p["alem_da_borda_medidas"] = JsonNode.Parse((await Js(j, "(() => { const out=[]; document.querySelectorAll('section.folha').forEach((f,i)=>{ const area=f.querySelector('.area'); const r=area.getBoundingClientRect(); const g=document.createRange(); g.selectNodeContents(area); for (const q of g.getClientRects()) { if (q.width>0&&q.height>0&&(q.right>r.right+0.5||q.left<r.left-0.5)) out.push({folha:i+1, esquerda:Math.round((q.left-r.left)*10)/10, alemDaDireita:Math.round((q.right-r.right)*10)/10, largura:Math.round(q.width*10)/10}); } }); return out.slice(0,10); })()")).GetRawText());
+            var faixas = (await Js(j, "document.querySelectorAll('section.folha[data-pmvni-transborda]').length")).GetInt32();
+            p["folhas_com_faixa_vermelha"] = faixas;
+            // D4: tela e host oculto InPrivate (nada do relatório no perfil); atalhos do navegador desligados nos dois.
+            var host = await j.HostComposicao!.ExecutarAsync(core => Task.FromResult((core.Profile.IsInPrivateModeEnabled, core.Settings.AreBrowserAcceleratorKeysEnabled)));
+            p["inprivate_tela"] = j.NucleoWeb.Profile.IsInPrivateModeEnabled;
+            p["inprivate_host_oculto"] = host.Item1;
+            p["atalhos_do_navegador_tela"] = j.NucleoWeb.Settings.AreBrowserAcceleratorKeysEnabled;
+            p["atalhos_do_navegador_host_oculto"] = host.Item2;
+            var protegido = j.NucleoWeb.Profile.IsInPrivateModeEnabled && host.Item1 && !j.NucleoWeb.Settings.AreBrowserAcceleratorKeysEnabled && !host.Item2;
+            p["ok"] = a.Composicao.Folhas > 3 && plano.Estouros.Count == 0 && j.ExportarHabilitado && p["aviso_largura_confere"]!.GetValue<bool>()
+                && protegido && faixas == a.Aplicacao.FolhasMarcadas.Count
+                && j.InfoForaDaArea.IsOpen == (a.Aplicacao.FolhasQueTransbordamNaLargura.Count > 0);
             await Esperar(600);
             await CapturarWebAsync(j, Path.Combine(pasta, "01-tela-100.png"));
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "01-janela-xaml.png"));
@@ -212,7 +227,7 @@ internal static class Roteiro
             p["folhas_com_faixa_vermelha"] = faixas;
             p["folhas_que_transbordam_na_tela"] = new JsonArray(a.Aplicacao.FolhasQueTransbordam.Select(n => (JsonNode)n).ToArray());
             p["ok"] = a.Composicao.Plano.Estouros.Count > 0 && !j.ExportarHabilitado && p["aviso_de_erro_aberto"]!.GetValue<bool>()
-                && p["exportacao_recusada"]!.GetValue<bool>() && !File.Exists(pdf) && faixas == a.Aplicacao.FolhasQueTransbordam.Count;
+                && p["exportacao_recusada"]!.GetValue<bool>() && !File.Exists(pdf) && faixas == a.Aplicacao.FolhasMarcadas.Count;
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "06-janela-xaml-estouro.png"));
             await j.RolarParaAsync(new ItemNavegacao("folha do estouro", a.Composicao.Plano.Estouros[0].Folha, null, false));
             await Esperar(500);
@@ -247,6 +262,46 @@ internal static class Roteiro
             p["texto_por_folha_igual"] = depois.SequenceEqual(antes);
             p["ok"] = escuro.GetProperty("escuro").GetBoolean() && !claro.GetProperty("escuro").GetBoolean() && fundoMuda && folhaBranca && depois.SequenceEqual(antes) && a.Composicao.Folhas > 0;
             j.DefinirTema(ElementTheme.Default);
+        });
+
+        // Cópias do curto (sem imagens) na pasta do roteiro: tudo o que este passo grava e apaga fica nela.
+        await Passo("8_campos_em_aberto_bloqueiam_exportar", async p =>
+        {
+            var copia = Path.Combine(pasta, "curto-colchetes.json");
+            var no = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(corpus, "curto.json")))!;
+            no["capa"]!["requerente"] = "[Nome do requerente]";
+            await File.WriteAllTextAsync(copia, no.ToJsonString());
+            try
+            {
+                var a = await j.AbrirAsync(copia) ?? throw new InvalidOperationException("não abriu: " + j.InfoMensagem.Message);
+                p["erros_finais"] = a.ErrosFinais.Count;
+                p["exportar_habilitado"] = j.ExportarHabilitado;
+                p["dica_do_botao"] = j.DicaExportar;
+                p["ok"] = a.ErrosFinais.Count > 0 && !j.ExportarHabilitado && j.DicaExportar.StartsWith("A exportação está bloqueada", StringComparison.Ordinal);
+            }
+            finally { File.Delete(copia); }
+        });
+
+        await Passo("9_arquivo_mudou_recusa_exportar", async p =>
+        {
+            var copia = Path.Combine(pasta, "curto-muda.json");
+            var original = await File.ReadAllTextAsync(Path.Combine(corpus, "curto.json"));
+            await File.WriteAllTextAsync(copia, original);
+            var pdf = Path.Combine(pasta, "curto-muda.pdf");
+            File.Delete(pdf);
+            try
+            {
+                _ = await j.AbrirAsync(copia) ?? throw new InvalidOperationException("não abriu: " + j.InfoMensagem.Message);
+                var no = JsonNode.Parse(original)!;
+                no["capa"]!["requerente"] = "OUTRO REQUERENTE DEPOIS DE ABRIR";
+                await File.WriteAllTextAsync(copia, no.ToJsonString());
+                var (ok, _, erro, excecao) = await j.ExportarParaAsync(pdf);
+                p["recusada"] = !ok && excecao is ExportacaoDivergenteException;
+                p["mensagem"] = erro;
+                p["nenhum_pdf_gravado"] = !File.Exists(pdf) && !File.Exists(Exportador.CaminhoReciboDe(pdf));
+                p["ok"] = p["recusada"]!.GetValue<bool>() && erro == ExportacaoDivergenteException.ArquivoMudou && p["nenhum_pdf_gravado"]!.GetValue<bool>();
+            }
+            finally { File.Delete(copia); File.Delete(pdf); File.Delete(Exportador.CaminhoReciboDe(pdf)); }
         });
 
         saida["falhas"] = falhas;

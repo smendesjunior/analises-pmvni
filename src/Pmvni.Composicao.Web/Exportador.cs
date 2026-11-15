@@ -19,18 +19,29 @@ public static class Exportador
 
     /// <summary>Exporta <paramref name="r"/> para <paramref name="caminhoPdf"/>. <paramref name="caminhoDados"/> é o dados.json
     /// que gerou o render (o recibo leva o sha256 dos bytes dele); <paramref name="modelo"/>, o modelo oficial verificado
-    /// (padrão: <see cref="ModeloOficial.Carregar"/>). Com estouro no plano, lança <see cref="ExportacaoRecusadaException"/>
-    /// sem gravar nada. PDF e recibo só são gravados depois de conferidos.</summary>
+    /// (padrão: <see cref="ModeloOficial.Carregar"/>); <paramref name="rascunho"/> vai para o recibo (o render aceitou campos
+    /// [ ] em aberto). Com estouro no plano, lança <see cref="ExportacaoRecusadaException"/> sem gravar nada. PDF e recibo só
+    /// são gravados depois de conferidos. Rota do Verificador e dos testes; o app usa <see cref="ExportarFinalAsync"/>.</summary>
     public static async Task<ResultadoExportacao> ExportarAsync(ResultadoRender r, ConfigFolhas cfg, string caminhoPdf, string caminhoDados,
-        ModeloCarregado? modelo = null)
+        ModeloCarregado? modelo = null, bool rascunho = true)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(caminhoDados);
+        return await ExportarRenderAsync(r, cfg, caminhoPdf, await File.ReadAllBytesAsync(caminhoDados), modelo ?? ModeloOficial.Carregar(), rascunho, null);
+    }
+
+    /// <summary>Compõe <paramref name="r"/> num host novo e, se <paramref name="planoTela"/> vier, recusa com
+    /// <see cref="ExportacaoDivergenteException"/> o que não for o que a tela mostrou (outro HTML, outros inícios de folha ou
+    /// outra escala). <paramref name="dados"/>: os bytes exatos que geraram <paramref name="r"/> (sha256 do recibo).</summary>
+    static async Task<ResultadoExportacao> ExportarRenderAsync(ResultadoRender r, ConfigFolhas cfg, string caminhoPdf, byte[] dados,
+        ModeloCarregado modelo, bool rascunho, PlanoQuebras? planoTela)
     {
         ArgumentNullException.ThrowIfNull(r);
         ArgumentNullException.ThrowIfNull(cfg);
         ArgumentException.ThrowIfNullOrEmpty(caminhoPdf);
-        ArgumentException.ThrowIfNullOrEmpty(caminhoDados);
         if (!r.Ok) throw new ArgumentException("Render com erros de conferência não pode ser exportado: " + string.Join("; ", r.Erros), nameof(r));
-        modelo ??= ModeloOficial.Carregar();
-        var dados = await File.ReadAllBytesAsync(caminhoDados);
+        var shaHtml = PlanoQuebras.Sha256De(r.Html);
+        if (planoTela is not null && !string.Equals(planoTela.Sha256Html, shaHtml, StringComparison.Ordinal))
+            throw new ExportacaoDivergenteException(ExportacaoDivergenteException.ArquivoMudou);
         var pdfFinal = Path.GetFullPath(caminhoPdf);
         var reciboFinal = CaminhoReciboDe(pdfFinal);
 
@@ -43,6 +54,9 @@ public static class Exportador
             var doc = host.Documento;
             await doc.CarregarAsync(r, cfg);
             var c = await doc.ComporDetalhadoAsync();
+            // A tela é o que o usuário viu: o PDF sai com as mesmas folhas ou não sai.
+            if (planoTela is not null && !MesmasFolhas(planoTela, c.Plano))
+                throw new ExportacaoDivergenteException(ExportacaoDivergenteException.ComposicaoDiferente);
             if (c.Plano.Estouros.Count > 0) throw new ExportacaoRecusadaException(c.Plano.Estouros);
             plano = c.Plano;
             folhas = c.Folhas;
@@ -63,7 +77,8 @@ public static class Exportador
             modelo_revisao = int.Parse(modelo.Revisao, CultureInfo.InvariantCulture),
             sha256_modelo = new SortedDictionary<string, string>(modelo.Sha256.ToDictionary(p => p.Key, p => p.Value), StringComparer.Ordinal),
             sha256_dados = Hex(SHA256.HashData(dados)),
-            sha256_html = PlanoQuebras.Sha256De(r.Html),
+            sha256_html = shaHtml,
+            rascunho,
             plano_versao = plano.Versao,
             webview2,
             sha256_pdf = sha256Pdf,
@@ -76,16 +91,34 @@ public static class Exportador
         return new ResultadoExportacao(pdfFinal, reciboFinal, folhas, info.LarguraMm, info.AlturaMm, sha256Pdf, plano);
     }
 
-    /// <summary>Exportação final: renderiza de novo SEM rascunho (a conferência do kit recusa campos entre colchetes ainda não
-    /// preenchidos) e só então exporta. Com erros de conferência lança <see cref="ConferenciaFinalException"/> sem gravar nada.
-    /// A tela pode abrir em rascunho (é só uma visão), mas o PDF final nunca sai com "[...]".</summary>
-    public static async Task<ResultadoExportacao> ExportarFinalAsync(string caminhoDados, ConfigFolhas cfg, string caminhoPdf, ModeloCarregado? modelo = null)
+    /// <summary>Exportação final (a do app): lê o dados.json UMA vez, renderiza esses bytes SEM rascunho (a conferência do kit
+    /// recusa campos entre colchetes ainda não preenchidos) e só então exporta; o recibo leva o sha256 desses mesmos bytes.
+    /// <paramref name="planoTela"/> é o plano das folhas que a tela mostra (D2: o PDF é a impressão delas): se o HTML final
+    /// não for o da tela (o arquivo ou uma imagem mudou depois de aberto) ou a composição da exportação não der os mesmos
+    /// inícios de folha e a mesma escala, lança <see cref="ExportacaoDivergenteException"/>. Com erros de conferência lança
+    /// <see cref="ConferenciaFinalException"/>. Em toda recusa, nada é gravado. A tela pode abrir em rascunho (é só uma
+    /// visão), mas o PDF final nunca sai com "[...]".</summary>
+    public static async Task<ResultadoExportacao> ExportarFinalAsync(string caminhoDados, ConfigFolhas cfg, string caminhoPdf, PlanoQuebras planoTela,
+        ModeloCarregado? modelo = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(caminhoDados);
+        ArgumentNullException.ThrowIfNull(planoTela);
         modelo ??= ModeloOficial.Carregar();
-        var final = await Task.Run(() => RelatorioRenderer.Renderizar(caminhoDados, new OpcoesRender(false, false), modelo));
+        var m = modelo;
+        var (bytes, final) = await Task.Run(() =>
+        {
+            var b = File.ReadAllBytes(Path.GetFullPath(caminhoDados));
+            return (b, RelatorioRenderer.Renderizar(b, caminhoDados, new OpcoesRender(false, false), m));
+        });
         if (!final.Ok) throw new ConferenciaFinalException(final.Erros);
-        return await ExportarAsync(final, cfg, caminhoPdf, caminhoDados, modelo);
+        return await ExportarRenderAsync(final, cfg, caminhoPdf, bytes, m, rascunho: false, planoTela);
     }
+
+    /// <summary>Mesmas folhas: mesmo HTML, mesmos inícios (posição a posição) e mesma escala de impressão.</summary>
+    internal static bool MesmasFolhas(PlanoQuebras tela, PlanoQuebras exportacao) =>
+        string.Equals(tela.Sha256Html, exportacao.Sha256Html, StringComparison.Ordinal)
+        && tela.Escala.Equals(exportacao.Escala)
+        && tela.InicioDasFolhas.SequenceEqual(exportacao.InicioDasFolhas);
 
     static string Hex(byte[] b) => Convert.ToHexStringLower(b);
 
@@ -110,6 +143,14 @@ public sealed record ResultadoExportacao(string CaminhoPdf, string CaminhoRecibo
 public sealed class ConferenciaFinalException(IReadOnlyList<string> erros) : InvalidOperationException("Exportação recusada pela conferência do kit: " + string.Join(" ", erros))
 {
     public IReadOnlyList<string> Erros { get; } = erros;
+}
+
+/// <summary>Exportação recusada porque o PDF não seria o que a tela mostra: o arquivo (ou uma imagem) mudou desde que foi
+/// aberto, ou a composição da exportação deu outras folhas. A mensagem não cita conteúdo.</summary>
+public sealed class ExportacaoDivergenteException(string mensagem) : InvalidOperationException(mensagem)
+{
+    public const string ArquivoMudou = "O arquivo mudou desde que foi aberto; reabra antes de exportar.";
+    public const string ComposicaoDiferente = "A exportação compôs folhas diferentes das que estão na tela; reabra antes de exportar.";
 }
 
 /// <summary>Exportação recusada porque o plano tem estouros (bloco maior que a página). A mensagem cita só folha, ref e

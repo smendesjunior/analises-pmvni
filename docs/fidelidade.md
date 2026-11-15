@@ -3,8 +3,15 @@
 Suíte: `python -I tools/fidelidade.py {v1|v2|v3|v4|tudo} [--caso NOME ...]`. Casos: `tests/corpus/*.json`,
 `dados_modelo.json` do modelo oficial (com `--instrucoes`) e os casos locais de `tests/local.json` (ignorado pelo git;
 hoje o 17098). O gerador do kit roda como na V1: `gerar_relatorio.py --rascunho --manter-html` no modo padrão (Edge
-aberto por `.cmd` via `explorer.exe`), com tudo em `tests/saida/tmp/<run>/`, apagado no fim. `tests/saida/*.json`
-levam só contagens, hashes, páginas e porcentagens.
+aberto por `.cmd` via `explorer.exe`). **Onde ficam os temporários (D4):** tudo o que a rodada grava — PDFs e HTML do
+kit e do editor, capturas, textos e a pasta de dados do editor (`PMVNI_DADOS_DIR`, com o perfil do WebView2 e as
+sessões) — vai para `%USERPROFILE%\.pmvni-fid\<run>\`, uma pasta por rodada, apagada no fim (e `.pmvni-fid` some se
+ficar vazia). Fica fora do OneDrive (nada do processo real numa pasta sincronizada) e fora do AppData/`%TEMP%` (o Python
+iniciado pelo shell do Claude roda dentro do pacote MSIX, que virtualiza o AppData; o Edge do kit, aberto via
+`explorer.exe`, lê e grava a mesma pasta porque ela está no perfil real do usuário). `tests/saida/*.json` levam só
+contagens, hashes, páginas e porcentagens. No fim de cada rodada, `bin`/`obj` do Verificador e dos projetos que ele
+compila em Release são apagados (depois de `dotnet build-server shutdown`). Os testes automáticos (`dotnet test`) usam
+`PMVNI_DADOS_DIR=tests\saida\dados`: só dados fictícios do corpus passam por ali, e o build apaga `tests\saida`.
 
 Comandos do Verificador usados pela suíte (todos aceitam `--instrucoes` e `--rascunho`, as opções do kit):
 `html`, `plano`, `pdf` (pelo `Exportador`; estouro → recusa, código 3, nada gravado), `texto` e `capturas --dpi N`
@@ -17,7 +24,7 @@ tela, escala 1).
 |---|---|
 | Pixel diferente | \|Δ\| > 48 em tons de cinza (0–255), imagens a 150 dpi |
 | V1 | HTML do editor = HTML do kit, byte a byte |
-| V2 (tela × PDF do editor) | **texto por folha idêntico (porta principal)**; cada folha capturada a 150 dpi × página do PDF rasterizada pelo PyMuPDF a 150 dpi: **≤ 2,0 % de pixels diferentes com 1 px de tolerância de posição** (limite inicial desta métrica: 1,0 %; ver as decisões abaixo) (um pixel só conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a \|Δ\| ≤ 48; medido nos dois sentidos — tela contra PDF e PDF contra tela — e vale o maior). O estrito (sem tolerância; limite inicial 0,5 %) é medido e registrado só como informação |
+| V2 (tela × PDF do editor) | **texto por folha idêntico (porta principal)**; cada folha capturada a 150 dpi × página do PDF rasterizada pelo PyMuPDF a 150 dpi: **≤ 2,0 % de pixels diferentes com 1 px de tolerância de posição** (limite inicial desta métrica: 1,0 %; ver as decisões abaixo) (um pixel só conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a \|Δ\| ≤ 48; medido nos dois sentidos — tela contra PDF e PDF contra tela — e vale o maior). O estrito (sem tolerância; limite inicial 0,5 %) é medido e registrado só como informação, e o maior ladrilho de 32 × 32 px também (sem limite: ver "Medida local por ladrilhos") |
 | V3 (PDF do editor × PDF do kit) | mesmo número de páginas; mesmo texto em cada página (cabeçalho, área útil, rodapé); ≤ 2 % de pixels diferentes por página |
 | V4 | V1–V3 em todos os casos; `estouro` só verifica a recusa da exportação |
 
@@ -113,16 +120,20 @@ glifos diferem em mais de 48 níveis em ~1–6 % dos pixels de uma página de te
 mede o antisserrilhado dos renderizadores, não a composição.
 
 **Decisão:** V2 visual = métrica com 1 px de tolerância de posição (um pixel conta como diferente só se nenhum pixel da
-vizinhança 3 × 3 da outra imagem estiver a |Δ| ≤ 48), limite **≤ 1,0 % por folha**. Depois da revisão, a métrica é
+vizinhança 3 × 3 da outra imagem estiver a |Δ| ≤ 48), limite **≤ 1,0 % por folha** (limite SUPERADO pela 2ª decisão
+abaixo: hoje 2,0 %). Depois da revisão, a métrica é
 **simétrica** (tela contra PDF e PDF contra tela; vale o maior): a 1ª versão media só a tela contra o PDF e não via tinta
 do PDF ausente na tela. A métrica estrita continua medida e
 registrada (`visual_estrito_pct` em `v2.json`), só informativa. A identidade do texto por folha continua sendo a porta
 principal da V2. Nada de trocar o rasterizador nem instalar nada. O que essa métrica ainda pega: qualquer coisa fora do
 lugar por mais de 1 px, conteúdo a mais ou a menos, cor ou imagem diferente.
 
-**Diferenças conhecidas do próprio kit, aceitas** (decisão do controlador; contadas à parte na V3 e listadas na tabela):
-o kit corta a etiqueta `INFORMAÇÕES DIVERGENTES` que passa da borda direita da área (`fora_da_area`) e deixa ~1 px do
-acento do 1º glifo da página seguinte na margem de baixo (`sangria_rodape`).
+**Diferenças conhecidas do próprio kit, FIXADAS** (decisão do controlador): o kit corta a etiqueta `INFORMAÇÕES
+DIVERGENTES` que passa da borda direita da área (`fora_da_area`) e deixa ~1 px do acento do 1º glifo da página seguinte
+na margem de baixo (`sangria_rodape`). Elas **não são excluídas da conferência**: os caracteres além da borda e os da
+sangria ficam fora da comparação exata do texto da área, mas são conferidos à parte contra o que foi fixado (só a
+etiqueta conhecida, a parte do kit contida na do editor; sangria ≤ 1 no kit e 0 no editor). Qualquer outra diferença,
+ou uma dessas além do fixado, reprova a página.
 
 ## 2ª decisão sobre a V2 visual (controlador, 14/11/2026): limite 2,0 %
 
@@ -148,29 +159,63 @@ Valores por caso (máximo por folha; simétrica com 1 px de tolerância / estrit
 | 17098 | 0,544 % | 3,712 % |
 | estouro | — (exportação recusada) | — |
 
-## Resultados após a revisão (métrica simétrica e diferenças fixadas), antes da 2ª decisão
+## Histórico (superado)
 
-`tudo` sai com 1. V1 7/7 e V3 7/7 (as diferenças conhecidas ficaram dentro do fixado em todas as páginas); V2 6/7:
-`extremos` folha 3 (página de texto corrido denso, a mesma que já era o pior caso) com **1,423 %** na métrica simétrica,
-acima de 1,0 %; no sentido tela → PDF eram 0,805 %, logo o excesso vem de tinta do PDF (MuPDF) sem par a 1 px na
-captura do Chromium. Texto idêntico em todas as folhas. Máximos por caso (simétrica / estrita, informativa):
-curto 0,459 / 1,792; longo 0,570 / 4,069; extremos **1,423** / 6,463 (folhas: 0,297; 0,115; 1,423; 0,553; 0,410;
-0,406; 0,364; 0,099); sem_opcionais 0,389 / 1,132; dados_modelo 0,404 / 2,629; 17098 0,544 / 3,712. Resolvido pela
-2ª decisão (limite 2,0 %): com ela, `tudo` sai com 0.
-A tabela abaixo é da rodada anterior (métrica de um sentido).
+Antes da 2ª decisão, com a métrica simétrica e limite 1,0 %, `tudo` saía com 1 (V2 6/7: `extremos` folha 3 com 1,423 %;
+no sentido tela → PDF eram 0,805 %, logo o excesso vinha de tinta do PDF sem par a 1 px na captura). A tabela de uma
+rodada mais antiga, com a métrica de um sentido só (máximo 0,805 %, critério ≤ 1,0 %), foi retirada: não vale mais.
 
-## Resultados (`tudo`, 14/11/2026; WebView2 do editor 157.0.4341.46; Edge do kit 158.0.4370.21)
+## Medida local por ladrilhos (pedida pelo controlador) — sem limite: nenhum separa ruído de perda
 
-| caso | folhas | páginas do kit | V1 | V2 texto | V2 visual máx, 1 px de tolerância (critério ≤ 1,0 %) | V2 estrito máx (informativo) | V3 | V3 visual máx | diferenças conhecidas (V3) |
+Pedido: o critério de 2 % por página pode esconder uma perda localizada que não é texto (uma pílula, um ícone, um
+trecho de borda). Guarda proposta: por página, ladrilhos de 32 × 32 px a 150 dpi sobre a diferença tolerante dos dois
+sentidos (pixel diferente em qualquer das duas máscaras), reprovando se algum ladrilho passar de um limite calibrado no
+corpus. Implementada em `ladrilho_max` (`tools/fidelidade.py`) e medida em todas as folhas (`ladrilho_pct` em
+`v2.json`); autoteste `autoteste_ladrilhos`: apaga (branco) 40 × 20 px do raster do PDF sobre uma pílula e sobre uma
+borda colorida e mede de novo.
+
+Calibração (14/11/2026; maior ladrilho por caso, sem perda nenhuma = ruído de rasterização Chromium × MuPDF):
+curto 10,35 %; longo 14,16 %; extremos 10,45 %; sem_opcionais 9,47 %; dados_modelo 14,65 %; 17098 19,04 %.
+Perdas sintéticas (corpus, todas as pílulas e barras escuras de todas as páginas, 40 × 20 px apagados): pílula de
+8,2 % a ~16 % (mínimo 8,2 %, 47 pílulas); borda a partir de 8,2 %. No autoteste (`curto` folha 1, ruído 9,47 %): pílula 15,72 %, barra
+escura da borda 17,19 % (a página inteira fica em 0,462–0,465 %: o critério de 2 % não vê nada) — pega no `curto`, mas
+abaixo do ruído do `longo`, do `dados_modelo` e do 17098.
+
+**Resultado: nenhum limite separa o ruído (até 19,04 %) de uma pílula apagada (a partir de 8,2 %).** Conforme a
+instrução, o item parou aqui: `MAX_LADRILHO = None`, a medida e o autoteste ficam gravados só como informação e não
+reprovam. O ruído vem das bordas dos glifos em texto denso (1 px de tolerância não absorve tudo); a pílula perde só os
+glifos (o fundo #D3EFDD fica a menos de 48 níveis do branco).
+
+Variantes medidas no mesmo corpus (5 casos fictícios; ruído máximo × menor perda), para a decisão do controlador:
+
+| variante (ladrilho de 32 px) | ruído máx | pílula mín | borda mín |
+|---|---|---|---|
+| união das máscaras, passo 32 (a pedida) | 14,65 % | 8,20 % | 8,20 % |
+| maior das duas máscaras, passo 32 | 13,18 % | 6,15 % | 4,69 % |
+| união, janelas sobrepostas (passo 8) | 18,07 % | 15,14 % | 10,35 % |
+| maior das duas, passo 8 | 13,18 % | 15,14 % | 7,32 % |
+| só pixels escuros (< 128) sem par, passo 8 | 9,08 % | 10,06 % | 2,64 % |
+| balanço de tinta (\|Σ escuridão tela − Σ PDF\| na janela), passo 8 | 5,02 % | 12,72 % | 2,57 % |
+
+O balanço de tinta separa as pílulas (5,0 % × 12,7 %), mas não as bordas finas; nenhuma variante separa as duas, e o
+17098 (ruído maior) não entrou nesta tabela. Nenhuma foi adotada sem decisão.
+
+## Resultados (`tudo`, 14/11/2026, rodada final da Etapa 1; WebView2 do editor 157.0.4341.46; Edge do kit 158.0.4370.21)
+
+`python -I tools/fidelidade.py tudo` sai com **0**: V1 7/7, V2 7/7, V3 7/7, `perfil_webview2` OK (marca em 0 de 142
+arquivos; processo/requerente dos 7 casos em 0 arquivos da pasta de dados da rodada); `autoteste_ladrilhos`
+informativo. Temporários em `%USERPROFILE%\.pmvni-fid\<run>\`, apagados; bin/obj do Verificador apagados no fim.
+
+| caso | folhas | V1 | V2 texto | V2 visual máx, simétrica 1 px (≤ 2,0 %) | ladrilho máx (informativo) | V2 estrito (informativo) | V3 | V3 visual máx | diferenças fixadas (V3) |
 |---|---|---|---|---|---|---|---|---|---|
-| curto | 2 | 2 | igual | igual | 0,123 % | 1,792 % | OK | 0,160 % | — |
-| longo | 21 | 21 | igual | igual | 0,404 % | 4,069 % | OK | 1,663 % | p. 1 sangria 1; p. 14 fora 3 |
-| extremos | 8 | 8 | igual | igual | 0,805 % | 6,463 % | OK | 1,349 % | p. 4/5/6/7 fora 3/12/9/6 |
-| sem_opcionais | 1 | 1 | igual | igual | 0,116 % | 1,132 % | OK | 0,167 % | — |
-| estouro | recusada | 7 | igual | recusa OK | — | — | recusa OK | — | — |
-| dados_modelo (--instrucoes) | 7 | 7 | igual | igual | 0,326 % | 2,629 % | OK | 1,086 % | p. 2 sangria 1; p. 4 fora 3, sangria 1 |
-| 17098 (local) | 11 | 11 | igual | igual | 0,315 % | 3,712 % | OK | 1,620 % | p. 5 fora 3; p. 10 sangria 1 |
+| curto | 2 | igual | igual | 0,459 % | 10,35 % | 1,792 % | OK | 0,160 % | — |
+| longo | 21 | igual | igual | 0,570 % | 14,16 % | 4,069 % | OK | 1,663 % | p. 1 sangria 1; p. 14 fora 3 |
+| extremos | 8 | igual | igual | **1,423 %** (folha 3) | 10,45 % | 6,463 % | OK | 1,349 % | p. 4/5/6/7 fora 3/12/9/6 |
+| sem_opcionais | 1 | igual | igual | 0,389 % | 9,47 % | 1,132 % | OK | 0,167 % | — |
+| estouro | recusada | igual | recusa OK | — | — | — | recusa OK | — | — |
+| dados_modelo (--instrucoes) | 7 | igual | igual | 0,404 % | 14,65 % | 2,629 % | OK | 1,086 % | p. 2 sangria 1; p. 4 fora 3, sangria 1 |
+| 17098 (local) | 11 | igual | igual | 0,544 % | 19,04 % | 3,712 % | OK | 1,620 % | p. 5 fora 3; p. 10 sangria 1 |
 
-**V1, V2 e V3 aprovados em todos os casos; `tudo` sai com 0.** V3: mesmas páginas e mesmo texto por página (as
-mesmas quebras do kit). V2: texto idêntico em todas as folhas e, com 1 px de tolerância, no máximo 0,805 % (`extremos`,
-folha 3, texto corrido); o estrito fica em 1,1–6,5 % pela diferença entre os rasterizadores (ver a decisão acima).
+V2: texto idêntico em todas as folhas e, na métrica simétrica com 1 px de tolerância, **no máximo 1,423 %**
+(`extremos`, folha 3, texto corrido), dentro do limite de 2,0 %. O estrito fica em 1,1–6,5 % pela diferença entre os
+rasterizadores (ver as decisões acima).

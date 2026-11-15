@@ -796,7 +796,17 @@ var Paginador = (() => {
     const H = alturaUtil(montadas[0].area);
     const folhasQueTransbordam = montadas.flatMap((f, i) => alturaConteudo(f.area) > H + EPS_PX ? [i + 1] : []);
     for (const f of montadas) estenderPedacos(f.area);
-    return { folhas: montadas.length, folhasQueTransbordam, refsPorFolha: refsDasFolhas(montadas.map((f) => f.folha)) };
+    const folhasQueTransbordamNaLargura = montadas.flatMap((f, i) => transbordaNaLargura(f.area) ? [i + 1] : []);
+    return { folhas: montadas.length, folhasQueTransbordam, folhasQueTransbordamNaLargura, refsPorFolha: refsDasFolhas(montadas.map((f) => f.folha)) };
+  }
+  function transbordaNaLargura(area) {
+    const r = area.getBoundingClientRect();
+    const intervalo = document.createRange();
+    intervalo.selectNodeContents(area);
+    for (const q of Array.from(intervalo.getClientRects())) {
+      if (q.width > 0 && q.height > 0 && (q.right > r.right + EPS_PX + 0.45 || q.left < r.left - EPS_PX - 0.45)) return true;
+    }
+    return false;
   }
   function numerarRodapes(direitas, cfg) {
     direitas.forEach((d, i) => {

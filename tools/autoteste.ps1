@@ -14,23 +14,33 @@ $alvo = Join-Path $saida 'autoteste-alvo.txt'
 if (Test-Path -LiteralPath $alvo) { $exe = (Get-Content -LiteralPath $alvo -Raw -Encoding UTF8).Trim() }
 $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados'
 $log = Join-Path $saida 'autoteste-log.txt'
+# O build-release lê este log enquanto ele é gravado: cada linha é acrescentada com novas tentativas (arquivo preso por instantes).
+function Registrar([Parameter(ValueFromPipeline = $true)][string]$linha) {
+  process {
+    for ($i = 0; $i -lt 50; $i++) {
+      try { [System.IO.File]::AppendAllText($log, $linha + [Environment]::NewLine, (New-Object System.Text.UTF8Encoding($false))); return }
+      catch [System.IO.IOException] { Start-Sleep -Milliseconds 100 }
+    }
+    throw "Não consegui gravar no log: $log"
+  }
+}
 $netTemp = Join-Path $env:TEMP '.net'
 "TEMP=$env:TEMP" | Set-Content $log -Encoding utf8
 $pastaApp = Join-Path $netTemp ([IO.Path]::GetFileNameWithoutExtension($exe))
-if (Test-Path -LiteralPath $pastaApp) { Remove-Item -LiteralPath $pastaApp -Recurse -Force; "apagado: $pastaApp" | Add-Content $log -Encoding utf8 }
+if (Test-Path -LiteralPath $pastaApp) { Remove-Item -LiteralPath $pastaApp -Recurse -Force; "apagado: $pastaApp" | Registrar }
 foreach ($rodada in 1, 2) {
   $json = if ($rodada -eq 1) { Join-Path $saida 'autoteste.json' } else { Join-Path $saida 'autoteste-2.json' }
   if (Test-Path -LiteralPath $json) { Remove-Item -LiteralPath $json -Force }
   $sw = [Diagnostics.Stopwatch]::StartNew()
   $p = Start-Process -FilePath $exe -ArgumentList '--autoteste', ('"' + $json + '"') -PassThru -Wait
-  "rodada $rodada : $([math]::Round($sw.Elapsed.TotalSeconds,2)) s, código $($p.ExitCode)" | Add-Content $log -Encoding utf8
+  "rodada $rodada : $([math]::Round($sw.Elapsed.TotalSeconds,2)) s, código $($p.ExitCode)" | Registrar
 }
-"--- conteúdo de $netTemp ---" | Add-Content $log -Encoding utf8
+"--- conteúdo de $netTemp ---" | Registrar
 if (Test-Path $netTemp) {
   Get-ChildItem -LiteralPath $netTemp -Directory | ForEach-Object {
     $tam = (Get-ChildItem -LiteralPath $_.FullName -Recurse -File -Force | Measure-Object Length -Sum).Sum
-    "$($_.Name)  $([math]::Round($tam/1MB,1)) MB" | Add-Content $log -Encoding utf8
-    Get-ChildItem -LiteralPath $_.FullName -Directory | ForEach-Object { "   $($_.Name)" | Add-Content $log -Encoding utf8 }
+    "$($_.Name)  $([math]::Round($tam/1MB,1)) MB" | Registrar
+    Get-ChildItem -LiteralPath $_.FullName -Directory | ForEach-Object { "   $($_.Name)" | Registrar }
   }
 }
-"FIM" | Add-Content $log -Encoding utf8
+"FIM" | Registrar

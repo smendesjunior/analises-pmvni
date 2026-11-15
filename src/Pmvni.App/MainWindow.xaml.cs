@@ -49,6 +49,7 @@ public sealed partial class MainWindow : Window
     internal IReadOnlyList<ItemNavegacao> Itens => itensNavegacao;
     internal InfoBar InfoLargura => AvisoLargura;
     internal InfoBar InfoEstouro => AvisoEstouro;
+    internal InfoBar InfoForaDaArea => AvisoForaDaArea;
     internal InfoBar InfoMensagem => AvisoMensagem;
     internal FrameworkElement ElementoRaiz => Raiz;
     internal CoreWebView2 NucleoWeb => Navegador.CoreWebView2;
@@ -92,10 +93,17 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            // Mesmas opções e mesma pasta de dados do host oculto (HostOculto usa um CoreWebView2EnvironmentOptions padrão):
-            // as duas instâncias do WebView2 convivem no mesmo processo.
-            var ambiente = await CoreWebView2Environment.CreateWithOptionsAsync(string.Empty, PastaDados.WebView2(), new CoreWebView2EnvironmentOptions());
-            await Navegador.EnsureCoreWebView2Async(ambiente);
+            if (FabricaWebView2.VersaoDisponivel() is null)
+            {
+                if (Autoteste.Ativo) { Autoteste.GravarErro("WebView2 Runtime ausente."); Application.Current.Exit(); return; }
+                MostrarMensagem(InfoBarSeverity.Error, "Falta o WebView2 Runtime", FabricaWebView2.ExplicacaoSemRuntime);
+                BotaoAbrir.IsEnabled = false;
+                return;
+            }
+            // Mesma fábrica do host oculto (mesmas opções de ambiente e de controller, InPrivate) e mesma pasta de dados:
+            // as duas instâncias do WebView2 convivem no mesmo processo, e nada do relatório fica gravado no perfil.
+            var ambiente = await FabricaWebView2.CriarAmbienteAsync();
+            await Navegador.EnsureCoreWebView2Async(ambiente, FabricaWebView2.OpcoesController(ambiente));
             if (Autoteste.Ativo)
             {
                 Navegador.CoreWebView2.NavigationCompleted += (_, e) =>
@@ -125,13 +133,18 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>O tema do app vai para a página (prefers-color-scheme): só o fundo fora das folhas muda; as folhas seguem brancas.</summary>
-    void AplicarTemaWeb()
+    /// <summary>O tema do app vai para a página (prefers-color-scheme): só o fundo fora das folhas muda; as folhas seguem brancas.
+    /// O perfil InPrivate não repassa <c>Profile.PreferredColorScheme</c> à página depois de criado: o tema vai também pela
+    /// emulação do CDP (só a característica prefers-color-scheme; a mídia continua a de tela).</summary>
+    async void AplicarTemaWeb()
     {
         try
         {
-            if (Navegador.CoreWebView2 is { } web)
-                web.Profile.PreferredColorScheme = Raiz.ActualTheme == ElementTheme.Dark ? CoreWebView2PreferredColorScheme.Dark : CoreWebView2PreferredColorScheme.Light;
+            if (Navegador.CoreWebView2 is not { } web) return;
+            var escuro = Raiz.ActualTheme == ElementTheme.Dark;
+            web.Profile.PreferredColorScheme = escuro ? CoreWebView2PreferredColorScheme.Dark : CoreWebView2PreferredColorScheme.Light;
+            await web.CallDevToolsProtocolMethodAsync("Emulation.setEmulatedMedia",
+                "{\"features\":[{\"name\":\"prefers-color-scheme\",\"value\":\"" + (escuro ? "dark" : "light") + "\"}]}");
         }
         catch (Exception e) { System.Diagnostics.Debug.WriteLine("[tema] " + e.Message); }
     }
@@ -158,6 +171,7 @@ public sealed partial class MainWindow : Window
         if (ocupado || documento is null) return null;
         Ocupar("Lendo o relatório…");
         var tocouATela = false;
+        var usouHost = false;
         try
         {
             modelo ??= await Task.Run(ModeloOficial.Carregar);
@@ -178,7 +192,9 @@ public sealed partial class MainWindow : Window
             }
 
             Ocupar("Compondo as folhas…");
+            if (hostComposicao is { Inutilizavel: true }) await DescartarHostComposicaoAsync(); // processo do WebView2 caiu
             hostComposicao ??= await HostOculto.CriarAsync(1024, 1400);
+            usouHost = true;
             await hostComposicao.Documento.CarregarAsync(render, config);
             var composicao = await hostComposicao.Documento.ComporDetalhadoAsync();
 
@@ -197,7 +213,7 @@ public sealed partial class MainWindow : Window
             foreach (var item in nav) itensNavegacao.Add(item);
             MostrarEstado(aberto);
             // 100 %, ou o que couber na largura se a janela for mais estreita que a folha.
-            await ZoomAsync(new { ajustar = "largura", maximo = 1.0, transbordam = aplicacao.FolhasQueTransbordam });
+            await ZoomAsync(new { ajustar = "largura", maximo = 1.0, transbordam = aplicacao.FolhasMarcadas });
             TextoVazio.Visibility = Visibility.Collapsed;
             return aberto;
         }
@@ -205,11 +221,23 @@ public sealed partial class MainWindow : Window
         {
             // Falha depois de mexer na tela: nada de estado meio aberto (o que sobrou não corresponde a nenhum relatório).
             if (tocouATela) Reiniciar();
+            // Composição que falhou, caiu ou estourou o tempo: o host pode ter ficado inutilizável; o próximo abrir cria outro.
+            if (usouHost && !tocouATela) await DescartarHostComposicaoAsync();
             MostrarMensagem(InfoBarSeverity.Error, "Não foi possível abrir o relatório", e.Message);
             return null;
         }
         finally { Liberar(); }
     }
+
+    async Task DescartarHostComposicaoAsync()
+    {
+        var h = hostComposicao;
+        hostComposicao = null;
+        if (h is not null) try { await h.DisposeAsync(); } catch (Exception e) { System.Diagnostics.Debug.WriteLine("[host] " + e.Message); }
+    }
+
+    /// <summary>Exportar só com o relatório composto sem estouro e sem erros da conferência final (campos [ ] em aberto).</summary>
+    static bool PodeExportar(Aberto? a) => a is not null && a.Composicao.Plano.Estouros.Count == 0 && a.ErrosFinais.Count == 0;
 
     void MostrarEstado(Aberto a)
     {
@@ -231,6 +259,14 @@ public sealed partial class MainWindow : Window
             AvisoLargura.IsOpen = true;
         }
 
+        var foraDaArea = a.Aplicacao.FolhasQueTransbordamNaLargura;
+        if (foraDaArea.Count > 0)
+        {
+            AvisoForaDaArea.Title = "";
+            AvisoForaDaArea.Message = DescreverForaDaArea(foraDaArea);
+            AvisoForaDaArea.IsOpen = true;
+        }
+
         if (estouros > 0)
         {
             AvisoEstouro.Title = estouros == 1 ? "Há um bloco maior que a página" : $"Há {estouros} blocos maiores que a página";
@@ -238,14 +274,18 @@ public sealed partial class MainWindow : Window
             AvisoEstouro.IsOpen = true;
             DefinirDicaExportar("A exportação está bloqueada: " + string.Join(" ", plano.Estouros.Select(DescreverEstouro))
                 + " Corrija o conteúdo para exportar o PDF.");
-            BotaoExportar.IsEnabled = false;
         }
-        else
-        {
-            DefinirDicaExportar("Exportar o relatório em PDF (as mesmas folhas da tela).");
-            BotaoExportar.IsEnabled = true;
-        }
+        else if (a.ErrosFinais.Count > 0)
+            DefinirDicaExportar("A exportação está bloqueada: " + DescreverRascunho(a.ErrosFinais)
+                + ". O PDF final só sai com o relatório completo: preencha os campos e abra o relatório de novo.");
+        else DefinirDicaExportar("Exportar o relatório em PDF (as mesmas folhas da tela).");
+        BotaoExportar.IsEnabled = PodeExportar(a);
     }
+
+    /// <summary>"Folha 14: há conteúdo além da borda lateral da área útil …" (informativo: nada é cortado no editor).</summary>
+    internal static string DescreverForaDaArea(IReadOnlyList<int> folhas) =>
+        (folhas.Count == 1 ? $"Folha {folhas[0]}: há conteúdo" : $"Folhas {string.Join(", ", folhas)}: há conteúdo")
+        + " além da borda lateral da área útil (marcado com a faixa vermelha). Nada é cortado no PDF do editor; o gerador do kit cortaria esse trecho.";
 
     /// <summary>"Rascunho: há campos [ ] não preenchidos (N)" quando a conferência sem rascunho recusa colchetes.</summary>
     internal static string DescreverRascunho(IReadOnlyList<string> erros)
@@ -310,7 +350,8 @@ public sealed partial class MainWindow : Window
         try
         {
             // Exportação final: re-renderiza SEM rascunho; campos [ ] não preenchidos bloqueiam (sem confirmar nem ignorar).
-            var x = await Exportador.ExportarFinalAsync(aberto.Caminho, aberto.Config, caminhoPdf, modelo);
+            // D2: o PDF tem de ser o que a tela mostra; se o arquivo mudou desde a abertura, a exportação recusa.
+            var x = await Exportador.ExportarFinalAsync(aberto.Caminho, aberto.Config, caminhoPdf, aberto.Composicao.Plano, modelo);
             MostrarMensagem(InfoBarSeverity.Success, "PDF exportado", $"{x.Folhas} folhas em {x.CaminhoPdf}. Recibo: {Path.GetFileName(x.CaminhoRecibo)}.");
             return (true, x, null, null);
         }
@@ -320,6 +361,11 @@ public sealed partial class MainWindow : Window
             return (false, null, e.Message, e);
         }
         catch (ExportacaoRecusadaException e)
+        {
+            MostrarMensagem(InfoBarSeverity.Error, "Exportação recusada", e.Message);
+            return (false, null, e.Message, e);
+        }
+        catch (ExportacaoDivergenteException e)
         {
             MostrarMensagem(InfoBarSeverity.Error, "Exportação recusada", e.Message);
             return (false, null, e.Message, e);
@@ -425,13 +471,14 @@ public sealed partial class MainWindow : Window
         Anel.IsActive = false;
         Espera.Visibility = Visibility.Collapsed;
         BotaoAbrir.IsEnabled = true;
-        BotaoExportar.IsEnabled = aberto is not null && aberto.Composicao.Plano.Estouros.Count == 0;
+        BotaoExportar.IsEnabled = PodeExportar(aberto);
     }
 
     void LimparAvisos()
     {
         AvisoLargura.IsOpen = false;
         AvisoEstouro.IsOpen = false;
+        AvisoForaDaArea.IsOpen = false;
         AvisoMensagem.IsOpen = false;
     }
 

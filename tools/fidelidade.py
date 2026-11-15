@@ -1,4 +1,4 @@
-"""Verificações de fidelidade do Editor de Relatórios PMVNI contra o gerador do kit.
+r"""Verificações de fidelidade do Editor de Relatórios PMVNI contra o gerador do kit.
 
 Uso:  python -I tools/fidelidade.py {v1|v2|v3|v4|tudo} [--caso NOME ...]
 
@@ -6,19 +6,22 @@ v1    Paridade do HTML: o `Pmvni.Verificador html` e o gerador do kit (gerar_rel
       produzem o mesmo HTML, byte a byte. Grava tests/saida/v1.json.
 v2    Tela × PDF do editor: cada folha da tela (`Pmvni.Verificador capturas --dpi 150`, plano aplicado como na tela) contra
       a página do PDF do editor (`Pmvni.Verificador pdf`) rasterizada pelo PyMuPDF a 150 dpi; o texto de cada folha
-      (`Pmvni.Verificador texto`) contra o texto da área útil da página do PDF. Grava tests/saida/v2.json.
+      (`Pmvni.Verificador texto`) contra o texto da área útil da página do PDF; mede (informativo) a diferença por
+      ladrilho de 32 × 32 px e o que uma pílula/borda apagada daria. Também confere o perfil do WebView2 (nada do
+      relatório gravado). Grava tests/saida/v2.json.
 v3    PDF do editor × PDF do gerador do kit (mesmo dados.json): mesmo número de páginas, mesmo texto em cada página
       (cabeçalho, área útil e rodapé) e diferença visual por página. Grava tests/saida/v3.json.
 v4    V1, V2 e V3 sobre todos os casos (corpus + dados_modelo --instrucoes + casos locais). O caso `estouro` não tem PDF:
       verifica só que a exportação é recusada (código 3, nada gravado). Grava v1/v2/v3.json e v4.json.
 tudo  O mesmo que v4.
---manter  não apaga tests/saida/tmp/<run> (investigação; recusado com casos locais).
+--manter  não apaga %USERPROFILE%\.pmvni-fid\<run> (investigação; recusado com casos locais).
 
 Critérios (docs/fidelidade.md; mudar só com justificativa registrada lá):
 - pixel diferente: |Δ| > 48 em tons de cinza (0–255), imagens a 150 dpi;
 - V2: texto idêntico (porta principal) e ≤ 2,0 % de pixels diferentes com 1 px de tolerância de posição (um pixel só
   conta se nenhum pixel da vizinhança 3 × 3 da outra imagem estiver a |Δ| ≤ 48; nos dois sentidos, vale o maior); o estrito (sem tolerância, limite
   inicial 0,5 %) fica só informativo: mede a diferença entre os rasterizadores (Chromium na tela × MuPDF no PDF);
+  medida local (informativa, sem limite: ver docs/fidelidade.md): maior % de pixels diferentes num ladrilho de 32 × 32 px;
 - V3: mesmo número de páginas, texto idêntico em cada página e ≤ 2 % de pixels diferentes por página.
 - Texto: só o visível do PDF (há tinta na caixa do caractere), sem espaços em branco, sem o texto gerado por CSS
   (`content: "…"` do relatorio.css). V2: mesmos caracteres e cada trecho do PDF presente na folha (a ordem de pintura do
@@ -29,20 +32,24 @@ Critérios (docs/fidelidade.md; mudar só com justificativa registrada lá):
 Regras:
 - O gerador do kit é só LIDO (nada é gravado na pasta do kit; sem bytecode: python -I + dont_write_bytecode). Ele roda
   no modo padrão (abre o Edge por um .cmd via explorer.exe, fora do pacote do app).
-- Tudo o que os dois lados escrevem vai para tests/saida/tmp/<run-id>/ (dentro do repositório, NUNCA em %TEMP% ou
-  AppData: o Python iniciado daqui roda dentro do pacote MSIX do app Claude e escreveria em pasta virtualizada,
-  que o Edge aberto via explorer.exe não enxerga). A pasta é apagada no fim.
+- Tudo o que os dois lados escrevem (PDFs e HTML do kit e do editor, capturas, textos e a pasta de dados do editor,
+  PMVNI_DADOS_DIR, com o perfil do WebView2) vai para %USERPROFILE%\.pmvni-fid\<run-id>\: fora do OneDrive (D4: nada
+  do processo real numa pasta sincronizada) e fora do AppData/%TEMP% (o Python iniciado daqui roda dentro do pacote
+  MSIX do app Claude, que virtualiza o AppData; o Edge aberto via explorer.exe não enxergaria). A pasta é apagada no
+  fim. Em tests/saida ficam só os JSON de contagens, hashes, páginas e porcentagens.
+- No fim de cada rodada, bin/obj do Verificador e dos projetos que ele compila (Release) são apagados, depois de
+  `dotnet build-server shutdown` (regra de limpeza a cada build).
 - Casos locais (tests/local.json, ignorado pelo git) são dados reais: o nome nas saídas é só o informado, nada do
   conteúdo é impresso nem gravado; numa diferença só saem páginas, contagens e posições. tests/saida/*.json só levam
   contagens, hashes, páginas e porcentagens.
 """
 from __future__ import annotations
-import argparse, datetime, hashlib, json, os, re, shutil, subprocess, sys, time
+import argparse, datetime, hashlib, json, os, re, shutil, stat, subprocess, sys, time, uuid
 from pathlib import Path
 
 sys.dont_write_bytecode = True
 if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
 RAIZ = Path(__file__).resolve().parent.parent
 CORPUS = RAIZ / 'tests' / 'corpus'
 SAIDA = RAIZ / 'tests' / 'saida'
@@ -51,6 +58,10 @@ MODELO_OFICIAL = RAIZ / 'src' / 'Pmvni.Composicao' / 'ModeloOficial' / 'rev10'
 KIT_PADRAO = (Path.home() / 'OneDrive' / 'PMVNI' / 'SIDNEY JUNIOR' / 'KIT DE TREINAMENTO DE IA (PMVNI)'
               / '02 - MODELOS DE DOCUMENTOS' / 'RELATORIO' / 'MODELO HTML (USADO PELOS PLUGINS)')
 VERIFICADOR_PROJ = RAIZ / 'src' / 'Pmvni.Verificador' / 'Pmvni.Verificador.csproj'
+# Projetos que o build Release do Verificador compila: bin/obj deles são apagados no fim da rodada.
+PROJETOS_DO_VERIFICADOR = [RAIZ / 'src' / n for n in ('Pmvni.Verificador', 'Pmvni.Composicao.Web', 'Pmvni.Composicao')]
+# Rascunho de cada rodada: fora do OneDrive e do AppData (ver Regras acima).
+RASCUNHO = Path.home() / '.pmvni-fid'
 EDGES = [Path(r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'), Path(r'C:\Program Files\Microsoft\Edge\Application\msedge.exe')]
 
 DPI = 150
@@ -59,6 +70,9 @@ MAX_V2 = 2.0               # % de pixels diferentes por folha (tela × PDF do ed
                            # sentidos (decisões do controlador, 14/11/2026; ver docs/fidelidade.md): guarda grosseira
                            # para o que não é texto; a composição é provada pela identidade do texto por folha
 MAX_V3 = 2.0               # % de pixels diferentes por página (editor × kit)
+LADO_LADRILHO = 32         # medida local da V2: ladrilhos de 32 × 32 px a 150 dpi (5,4 mm)
+MAX_LADRILHO = None        # SEM limite (só informativo): na calibração, nenhum limite separa o ruído de texto (até 19,04 %)
+                           # de uma pílula apagada (a partir de 8,2 %); decisão pendente do controlador (docs/fidelidade.md)
 MM = 72 / 25.4             # pt por mm
 # Faixas da página (mm, pelo centro de cada palavra): cabeçalho acima de 24 mm (a imagem termina em ~22 mm; a área útil
 # começa em 28 mm), rodapé abaixo de 283,5 mm (a linha do rodapé fica em ~282,3 mm e o texto dele começa em ~284,6 mm).
@@ -74,8 +88,8 @@ ROTULOS_CORTADOS_PELO_KIT = ('INFORMAÇÕESDIVERGENTES',)
 #   no kit, nenhum no editor.
 MAX_SANGRIA_KIT, MAX_SANGRIA_EDITOR = 1, 0
 CASO_RECUSA = 'estouro'    # bloco maior que a página: o editor recusa a exportação
-# Pasta de dados do editor (perfil do WebView2, sessões) dentro do repositório, como nos testes: fora do AppData virtualizado.
-os.environ.setdefault('PMVNI_DADOS_DIR', str(SAIDA / 'dados'))
+ROTULOS_PILULA = ('ATENDE', 'NÃOATENDE', 'ACONFIRMAR', 'CONFIRMADO', 'CONTACONFERE', 'DIVERGÊNCIA', 'DIVERGÊNCIAINTERNA',
+                  'NÃOCOMPROVADO', 'PENDENTE')
 
 
 def sha(b: bytes) -> str:
@@ -121,15 +135,46 @@ def primeira_diferenca(a: bytes, b: bytes) -> str:
     return f'kit={len(a)} bytes, editor={len(b)} bytes, primeiro byte diferente na posição {pos}'
 
 
+def tamanho(pasta: Path) -> int:
+    return sum(f.stat().st_size for f in pasta.rglob('*') if f.is_file()) if pasta.exists() else 0
+
+
+def limpar_build() -> int:
+    """bin/obj do Verificador e dos projetos que ele compila; devolve os bytes liberados."""
+    subprocess.run(['dotnet', 'build-server', 'shutdown'], capture_output=True, text=True, encoding='utf-8', errors='replace')
+    liberado = 0
+    for proj in PROJETOS_DO_VERIFICADOR:
+        for nome in ('bin', 'obj'):
+            alvo = (proj / nome).resolve()
+            if not alvo.is_relative_to(RAIZ.resolve()) or not alvo.exists():
+                continue
+            n = tamanho(alvo)
+            apagar(alvo)
+            if not alvo.exists():
+                liberado += n
+    return liberado
+
+
+def _tirar_somente_leitura(func, caminho, _exc):
+    """O OneDrive marca pastas como somente leitura (atributo de pasta fixada): limpa o atributo e tenta de novo."""
+    os.chmod(caminho, stat.S_IWRITE | stat.S_IREAD)
+    func(caminho)
+
+
 def apagar(pasta: Path):
-    for _ in range(20):
+    for tentativa in range(20):
         try:
-            shutil.rmtree(pasta)
+            shutil.rmtree(pasta, onexc=_tirar_somente_leitura)
             return
         except FileNotFoundError:
             return
         except OSError:
-            time.sleep(2)
+            # Reserva: Remove-Item -Force (pastas do OneDrive com ponto de nova análise que o rmtree recusa).
+            subprocess.run(['powershell', '-NoProfile', '-Command', 'Remove-Item -LiteralPath $env:PMVNI_APAGAR -Recurse -Force'],
+                           capture_output=True, env={**os.environ, 'PMVNI_APAGAR': str(pasta)})
+            if not pasta.exists():
+                return
+            time.sleep(2 if tentativa < 5 else 5)
     print(f'AVISO: não consegui apagar {pasta}; apague manualmente.', file=sys.stderr)
 
 
@@ -166,8 +211,11 @@ class Execucao:
     def __init__(self, precisa_kit: bool):
         self.kit = pasta_do_kit() if precisa_kit else None
         self.exe = compilar_verificador()
-        self.run = SAIDA / 'tmp' / ('fid-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
+        self.run = RASCUNHO / ('fid-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
         self.run.mkdir(parents=True, exist_ok=True)
+        # Pasta de dados do editor (perfil do WebView2, sessões) desta rodada, apagada com ela.
+        self.dados = self.run / 'dados'
+        os.environ['PMVNI_DADOS_DIR'] = str(self.dados)
         self.cache: dict[tuple[str, str], object] = {}
         self.css_gerado = textos_gerados_por_css()
         self.webview2: str | None = None
@@ -179,7 +227,7 @@ class Execucao:
             return
         apagar(self.run)
         try:
-            (SAIDA / 'tmp').rmdir()
+            RASCUNHO.rmdir()
         except OSError:
             pass
 
@@ -369,8 +417,8 @@ def diferenca_visual(a, b) -> tuple[float | None, str | None]:
     return float(d.sum()) * 100.0 / (h * l), None
 
 
-def _tolerante_um_lado(x, y) -> float:
-    """% de pixels de x sem nenhum pixel de y na vizinhança 3 × 3 com |Δ| ≤ LIMIAR_PIXEL (x, y do mesmo tamanho)."""
+def _mascara_um_lado(x, y):
+    """Pixels de x sem nenhum pixel de y na vizinhança 3 × 3 com |Δ| ≤ LIMIAR_PIXEL (x, y do mesmo tamanho, int16)."""
     import numpy as np
     h, l = x.shape
     yp = np.pad(y, 1, mode='edge')
@@ -378,7 +426,13 @@ def _tolerante_um_lado(x, y) -> float:
     for dy in (0, 1, 2):
         for dx in (0, 1, 2):
             melhor = np.minimum(melhor, np.abs(x - yp[dy:dy + h, dx:dx + l]))
-    return float((melhor > LIMIAR_PIXEL).sum()) * 100.0 / (h * l)
+    return melhor > LIMIAR_PIXEL
+
+
+def _tolerante_um_lado(x, y) -> float:
+    """% de pixels de x sem nenhum pixel de y na vizinhança 3 × 3 com |Δ| ≤ LIMIAR_PIXEL (x, y do mesmo tamanho)."""
+    h, l = x.shape
+    return float(_mascara_um_lado(x, y).sum()) * 100.0 / (h * l)
 
 
 def diferenca_tolerante(a, b) -> float | None:
@@ -393,6 +447,28 @@ def diferenca_tolerante(a, b) -> float | None:
     h, l = min(ha, hb), min(la, lb)
     x, y = a[:h, :l].astype(np.int16), b[:h, :l].astype(np.int16)
     return max(_tolerante_um_lado(x, y), _tolerante_um_lado(y, x))
+
+
+def ladrilho_max(a, b) -> tuple[float, int, int] | None:
+    """Guarda local da V2: (maior % de pixels diferentes num ladrilho de LADO_LADRILHO × LADO_LADRILHO px, linha e coluna do
+    ladrilho). Diferente = pixel de qualquer das duas máscaras tolerantes (a contra b ou b contra a). O critério de 2 % por
+    página dilui uma perda pequena e localizada (uma pílula, um ícone, um trecho de borda); num ladrilho de 5,4 mm ela
+    aparece inteira. Ladrilhos da borda direita/de baixo incompletos contam sobre o ladrilho inteiro. None: tamanhos
+    incompatíveis (como em diferenca_tolerante)."""
+    import numpy as np
+    (ha, la), (hb, lb) = a.shape, b.shape
+    if abs(ha - hb) > 1 or abs(la - lb) > 1:
+        return None
+    h, l = min(ha, hb), min(la, lb)
+    x, y = a[:h, :l].astype(np.int16), b[:h, :l].astype(np.int16)
+    m = _mascara_um_lado(x, y) | _mascara_um_lado(y, x)
+    n = LADO_LADRILHO
+    H, L = -(-h // n) * n, -(-l // n) * n
+    mp = np.zeros((H, L), dtype=np.int32)
+    mp[:h, :l] = m
+    contas = mp.reshape(H // n, n, L // n, n).sum(axis=(1, 3))
+    i = int(contas.argmax())
+    return float(contas.flat[i]) * 100.0 / (n * n), i // contas.shape[1], i % contas.shape[1]
 
 
 # ───────────────────────── V1 ─────────────────────────
@@ -414,7 +490,8 @@ def caso_v2(ex: Execucao, c: dict) -> dict:
     nome = c['nome']
     res = {'caso': nome, 'aprovado': False, 'folhas': None, 'paginas_pdf': None, 'recusado': None,
            'texto_divergente': [], 'visual_max_pct': None, 'visual_pct': [], 'visual_reprovadas': [],
-           'visual_estrito_max_pct': None, 'visual_estrito_pct': []}
+           'visual_estrito_max_pct': None, 'visual_estrito_pct': [], 'ladrilho_pct': [], 'ladrilho_max_pct': None,
+           'ladrilho_reprovadas': []}
     pdf, codigo = ex.pdf_editor(c)
     if nome == CASO_RECUSA:
         res['recusado'] = codigo == 3 and not (ex.pasta(c) / 'editor.pdf').exists()
@@ -460,14 +537,139 @@ def caso_v2(ex: Execucao, c: dict) -> dict:
         res['visual_estrito_pct'].append(round(estrito, 4))
         if tol > MAX_V2:
             res['visual_reprovadas'].append(i)
+        lad, _, _ = ladrilho_max(cap, pg)
+        res['ladrilho_pct'].append(round(lad, 2))
+        if MAX_LADRILHO is not None and lad > MAX_LADRILHO:
+            res['ladrilho_reprovadas'].append(i)
+        if nome == 'curto' and i == 1:
+            ex.amostra_ladrilhos = (cap, pg, pdf)
     vals = [v for v in res['visual_pct'] if v is not None]
     res['visual_max_pct'] = max(vals) if vals else None
     estritos = [v for v in res['visual_estrito_pct'] if v is not None]
     res['visual_estrito_max_pct'] = max(estritos) if estritos else None
-    res['aprovado'] = ok and not res['texto_divergente'] and not res['visual_reprovadas']
+    res['ladrilho_max_pct'] = max(res['ladrilho_pct']) if res['ladrilho_pct'] else None
+    res['aprovado'] = ok and not res['texto_divergente'] and not res['visual_reprovadas'] and not res['ladrilho_reprovadas']
     print(f'  V2 [{nome}] {"OK" if res["aprovado"] else "FALHOU"}: {res["folhas"]} folhas; texto divergente em {res["texto_divergente"] or "nenhuma"};'
           f' visual (1 px de tolerância) máx {res["visual_max_pct"]} % (limite {MAX_V2} %), acima em {res["visual_reprovadas"] or "nenhuma"};'
+          f' ladrilho {LADO_LADRILHO} px máx {res["ladrilho_max_pct"]} % (limite {MAX_LADRILHO} %), acima em {res["ladrilho_reprovadas"] or "nenhuma"};'
           f' informativo, estrito: máx {res["visual_estrito_max_pct"]} %')
+    return res
+
+
+def _regioes_de_teste(pdf: Path) -> list[tuple[str, int, int]]:
+    """Centros (px a DPI, página 1) de uma pílula de situação e de um trecho de borda/barra colorida (desenho fino)."""
+    fz = _fitz()
+    esc = DPI / 72
+    regioes = []
+    with fz.open(pdf) as d:
+        p = d[0]
+        for b in p.get_text('rawdict')['blocks']:
+            for l in b.get('lines', []):
+                for sp in l['spans']:
+                    t = sem_espacos(''.join(ch['c'] for ch in sp['chars']))
+                    if t in ROTULOS_PILULA and not any(r[0] == 'pílula' for r in regioes):
+                        x0, y0, x1, y1 = sp['bbox']
+                        regioes.append(('pílula', int((x0 + x1) / 2 * esc), int((y0 + y1) / 2 * esc)))
+        for dr in p.get_drawings():
+            r = dr.get('rect')
+            if r is None or dr.get('fill') is None:
+                continue
+            w, h = (r.x1 - r.x0) / MM, (r.y1 - r.y0) / MM
+            fill = dr['fill']
+            cinza = 255 * (0.299 * fill[0] + 0.587 * fill[1] + 0.114 * fill[2])
+            if cinza < 200 and w <= 2 and h >= 6 and FIM_CABECALHO_MM < r.y0 / MM < INICIO_RODAPE_MM:
+                regioes.append(('borda', int((r.x0 + r.x1) / 2 * esc), int((r.y0 + r.y1) / 2 * esc)))
+                break
+    return regioes
+
+
+def autoteste_ladrilhos(ex: Execucao) -> dict:
+    """Medida (informativa enquanto MAX_LADRILHO for None): na folha 1 do `curto`, apaga (branco) 40 × 20 px do raster do
+    PDF sobre uma pílula de situação e sobre um trecho de borda colorida e registra o ladrilho e a página resultantes.
+    Com um limite definido, as duas perdas têm de ser pegas e a original tem de passar."""
+    res = {'aprovado': False, 'informativo': MAX_LADRILHO is None, 'original_pct': None, 'regioes': []}
+    if getattr(ex, 'amostra_ladrilhos', None) is None:
+        print('  V2 autoteste dos ladrilhos: sem a folha 1 do curto (rode a V2 com o curto)')
+        return res
+    cap, pg, pdf = ex.amostra_ladrilhos
+    res['original_pct'] = round(ladrilho_max(cap, pg)[0], 2)
+    ok = MAX_LADRILHO is None or res['original_pct'] <= MAX_LADRILHO
+    regioes = _regioes_de_teste(pdf)
+    for tipo, cx, cy in regioes:
+        alterado = pg.copy()
+        alterado[max(0, cy - 10):cy + 10, max(0, cx - 20):cx + 20] = 255
+        lad, ty, tx = ladrilho_max(cap, alterado)
+        pagina = diferenca_tolerante(cap, alterado)
+        pega = MAX_LADRILHO is not None and lad > MAX_LADRILHO
+        ok &= pega
+        res['regioes'].append({'tipo': tipo, 'ladrilho_pct': round(lad, 2), 'pagina_pct': round(pagina, 4), 'pega': pega})
+        print(f'  V2 autoteste dos ladrilhos: {tipo} apagada (40 × 20 px): ladrilho {lad:.2f} % (limite {MAX_LADRILHO} %),'
+              f' página {pagina:.4f} % (limite {MAX_V2} %) → ' + ('PEGA' if pega else 'NÃO PEGA'))
+    res['aprovado'] = ok and {r['tipo'] for r in res['regioes']} == {'pílula', 'borda'}
+    print(f'  V2 autoteste dos ladrilhos: ' + ('INFORMATIVO (sem limite)' if res['informativo'] else 'OK' if res['aprovado'] else 'FALHOU') + f' (original: ladrilho máx {res["original_pct"]} %)')
+    return res
+
+
+def _marcadores(c: dict) -> list[bytes]:
+    """Trechos do caso que não podem aparecer no perfil do WebView2: processo e requerente (UTF-8 e UTF-16)."""
+    try:
+        capa = json.loads(Path(c['dados']).read_text(encoding='utf-8-sig')).get('capa', {})
+    except (OSError, ValueError):
+        return []
+    out = []
+    for k in ('processo', 'requerente'):
+        v = capa.get(k)
+        if isinstance(v, str) and len(v.strip()) >= 6:
+            out += [v.encode('utf-8'), v.encode('utf-16-le')]
+    return out
+
+
+def procurar(pasta: Path, marcas: list[bytes]) -> int:
+    """Quantos arquivos de `pasta` contêm alguma das marcas (só a contagem: nada do conteúdo sai daqui)."""
+    n = 0
+    for f in (pasta.rglob('*') if pasta.exists() else []):
+        try:
+            if f.is_file() and not f.is_symlink():
+                b = f.read_bytes()
+                n += any(m in b for m in marcas)
+        except OSError:
+            pass
+    return n
+
+
+def verificar_perfil(ex: Execucao, lista: list[dict]) -> dict:
+    """D4: o perfil do WebView2 do editor não guarda conteúdo do relatório. (1) Uma cópia do `curto` com uma marca única
+    no processo e no requerente (o processo vai ao <title>, que um perfil comum grava no histórico) passa por pdf, capturas
+    e texto numa pasta de dados própria; com os processos encerrados, a marca não pode estar em nenhum arquivo dela.
+    (2) Depois de todos os casos, processo e requerente de cada caso não podem estar na pasta de dados da rodada.
+    Controle negativo (registrado em docs/fidelidade.md): sem InPrivate, a marca aparece no History do perfil."""
+    res = {'aprovado': False, 'marca_arquivos': None, 'arquivos_no_perfil': None, 'casos_arquivos': None}
+    pasta = ex.run / 'perfil'
+    pasta.mkdir(parents=True, exist_ok=True)
+    marca = 'MARCAPERFIL' + uuid.uuid4().hex.upper()
+    d = json.loads((CORPUS / 'curto.json').read_text(encoding='utf-8-sig'))
+    d['capa']['processo'] = d['capa']['requerente'] = marca
+    dados = pasta / 'dados.json'
+    dados.write_text(json.dumps(d, ensure_ascii=False), encoding='utf-8')
+    c = {'nome': 'perfil', 'dados': dados, 'instrucoes': False, 'local': False}
+    perfil = pasta / 'dados-editor'
+    anterior = os.environ['PMVNI_DADOS_DIR']
+    os.environ['PMVNI_DADOS_DIR'] = str(perfil)
+    try:
+        for cmd, saida, extra in (('pdf', pasta / 'p.pdf', ()), ('capturas', pasta / 'cap', ('--dpi', '96')), ('texto', pasta / 't.json', ())):
+            r = ex.verificador(c, cmd, saida, *extra)
+            if r.returncode != 0:
+                raise RuntimeError(ex.falha(c, f'Pmvni.Verificador {cmd}', r))
+    finally:
+        os.environ['PMVNI_DADOS_DIR'] = anterior
+    time.sleep(5)  # os processos do WebView2 terminam de gravar e saem depois do Verificador
+    res['arquivos_no_perfil'] = sum(1 for f in perfil.rglob('*') if f.is_file())
+    res['marca_arquivos'] = procurar(perfil, [marca.encode('utf-8'), marca.encode('utf-16-le')])
+    marcas = [m for c in lista for m in _marcadores(c)]
+    res['casos_arquivos'] = procurar(ex.dados, marcas) if marcas else 0
+    res['aprovado'] = res['arquivos_no_perfil'] > 0 and res['marca_arquivos'] == 0 and res['casos_arquivos'] == 0
+    print(f'  PERFIL do WebView2: marca em {res["marca_arquivos"]} de {res["arquivos_no_perfil"]} arquivos; processo/requerente dos'
+          f' casos em {res["casos_arquivos"]} arquivos da pasta de dados da rodada → ' + ('OK' if res['aprovado'] else 'FALHOU'))
     return res
 
 
@@ -563,6 +765,8 @@ def executar(quais: list[str], filtro: list[str] | None, consolidado: bool, mant
     lista = casos(filtro)
     ex = Execucao(precisa_kit=any(v in quais for v in ('v1', 'v3')))
     resultados: dict[str, list[dict]] = {v: [] for v in quais}
+    extras: dict[str, dict] = {}
+    liberado = 0
     try:
         for c in lista:
             for v in quais:
@@ -571,19 +775,40 @@ def executar(quais: list[str], filtro: list[str] | None, consolidado: bool, mant
                 except Exception as e:  # um caso com problema não esconde os outros
                     print(f'  {v.upper()} [{c["nome"]}] erro: {type(e).__name__}' + ('' if c['local'] else f': {e}'))
                     resultados[v].append(VAZIO[v](c['nome']))
+        if 'v2' in quais:
+            for nome, f in (('autoteste_ladrilhos', lambda: autoteste_ladrilhos(ex)), ('perfil_webview2', lambda: verificar_perfil(ex, lista))):
+                try:
+                    extras[nome] = f()
+                except Exception as e:
+                    print(f'  {nome} erro: {type(e).__name__}: {e}')
+                    extras[nome] = {'aprovado': False, 'erro': True}
     finally:
         ex.fechar(manter)
+        liberado = limpar_build()
+        print(f'Limpeza: bin/obj do Verificador e dependências apagados ({liberado / 2**20:.1f} MB);'
+              f' rascunho {"mantido" if manter else "apagado"} ({ex.run})')
     ok = True
     for v in quais:
-        gravar(f'{v}.json', resultados[v])
+        conteudo = resultados[v]
+        if v == 'v2' and extras:
+            conteudo = {'casos': resultados[v], **extras, 'ladrilho': {'lado_px': LADO_LADRILHO, 'max_pct': MAX_LADRILHO}}
+        gravar(f'{v}.json', conteudo)
         n = sum(aprovado(v, r) for r in resultados[v])
         ok &= n == len(resultados[v])
         print(f'{v.upper()} ' + ('OK' if n == len(resultados[v]) else 'FALHOU') + f': {n}/{len(resultados[v])} casos aprovados')
+    for nome, r in extras.items():
+        if r.get('informativo'):
+            print(f'{nome}: informativo (sem limite; não reprova)')
+            continue
+        ok &= bool(r.get('aprovado'))
+        print(f'{nome}: ' + ('OK' if r.get('aprovado') else 'FALHOU'))
     if consolidado:
         gravar('v4.json', {
             'gerado_em': datetime.datetime.now().isoformat(timespec='seconds'),
             'versoes': {'webview2_editor': ex.webview2, 'edge_kit': ex.edge},
-            'criterios': {'dpi': DPI, 'limiar_pixel': LIMIAR_PIXEL, 'v2_max_pct_tolerancia_1px': MAX_V2, 'v3_max_pct': MAX_V3},
+            'criterios': {'dpi': DPI, 'limiar_pixel': LIMIAR_PIXEL, 'v2_max_pct_tolerancia_1px': MAX_V2, 'v3_max_pct': MAX_V3,
+                          'v2_ladrilho_px': LADO_LADRILHO, 'v2_ladrilho_max_pct': MAX_LADRILHO},
+            'extras': {k: ('informativo' if v.get('informativo') else bool(v.get('aprovado'))) for k, v in extras.items()},
             'casos': [{'caso': c['nome'], **{v: aprovado(v, next(r for r in resultados[v] if r['caso'] == c['nome'])) for v in quais}}
                       for c in lista],
             'aprovado': ok,
@@ -596,7 +821,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description='Verificações de fidelidade do Editor de Relatórios PMVNI')
     ap.add_argument('cmd', choices=['v1', 'v2', 'v3', 'v4', 'tudo'])
     ap.add_argument('--caso', action='append', help='só este caso (pode repetir)')
-    ap.add_argument('--manter', action='store_true', help='não apaga tests/saida/tmp/<run> (investigação; só casos do corpus)')
+    ap.add_argument('--manter', action='store_true', help='não apaga %%USERPROFILE%%\\.pmvni-fid\\<run> (investigação; só casos do corpus)')
     a = ap.parse_args()
     if a.manter and any(c['local'] for c in casos(a.caso)):
         raise SystemExit('--manter não vale com casos locais (dados reais): use --caso com casos do corpus.')

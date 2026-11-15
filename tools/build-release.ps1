@@ -57,12 +57,17 @@ $logAuto = Join-Path $saida 'autoteste-log.txt'
 foreach ($f in $jsons + $logAuto) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force } }
 [System.IO.File]::WriteAllText((Join-Path $saida 'autoteste-alvo.txt'), $exePublicado, (New-Object System.Text.UTF8Encoding($false)))
 Start-Process -FilePath 'explorer.exe' -ArgumentList ('"' + (Join-Path $PSScriptRoot 'autoteste.cmd') + '"')
+# O autoteste.ps1 ainda pode estar gravando o log: leitura presa conta como "ainda não terminou".
+function AutotesteTerminou {
+    if (-not (Test-Path -LiteralPath $logAuto)) { return $false }
+    try { return [bool](Select-String -LiteralPath $logAuto -Pattern '^FIM' -Quiet -ErrorAction Stop) } catch { return $false }
+}
 $limite = (Get-Date).AddMinutes(5)
 while ((Get-Date) -lt $limite) {
-    if ((Test-Path -LiteralPath $logAuto) -and (Select-String -LiteralPath $logAuto -Pattern '^FIM' -Quiet)) { break }
+    if (AutotesteTerminou) { break }
     Start-Sleep -Milliseconds 500
 }
-if (-not ((Test-Path -LiteralPath $logAuto) -and (Select-String -LiteralPath $logAuto -Pattern '^FIM' -Quiet))) { throw 'O autoteste não terminou em 5 min.' }
+if (-not (AutotesteTerminou)) { throw 'O autoteste não terminou em 5 min.' }
 foreach ($f in $jsons) {
     if (-not (Test-Path -LiteralPath $f)) { throw "O autoteste não gravou ${f}: o executável não abriu." }
     $r = Get-Content -LiteralPath $f -Raw -Encoding UTF8 | ConvertFrom-Json

@@ -164,15 +164,83 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
             // Em rascunho (a visão da tela) o relatório abre; na exportação final a conferência do kit recusa.
             Assert.True(RelatorioRenderer.Renderizar(temp, new OpcoesRender(false, true), Modelo).Ok);
             Assert.False(RelatorioRenderer.Renderizar(temp, new OpcoesRender(false, false), Modelo).Ok);
-            var ex = await Assert.ThrowsAsync<ConferenciaFinalException>(() => Exportador.ExportarFinalAsync(temp, ConfigFolhas.PadraoDeDados(Modelo, temp), pdf, Modelo));
+            var planoTemp = await PlanoDaTela(RelatorioRenderer.Renderizar(temp, new OpcoesRender(false, true), Modelo), ConfigFolhas.PadraoDeDados(Modelo, temp));
+            var ex = await Assert.ThrowsAsync<ConferenciaFinalException>(() => Exportador.ExportarFinalAsync(temp, ConfigFolhas.PadraoDeDados(Modelo, temp), pdf, planoTemp, Modelo));
             Assert.Contains(ex.Erros, e => e.Contains("colchetes") && e.Contains("[Nome do requerente]"));
             Assert.False(File.Exists(pdf));
             Assert.False(File.Exists(Exportador.CaminhoReciboDe(pdf)));
-            // Sem colchetes, a mesma rota exporta.
-            var ok = await Exportador.ExportarFinalAsync(origem, Cfg("curto"), pdf, Modelo);
+            // Sem colchetes, a mesma rota exporta; o recibo diz que não é rascunho e leva o sha256 dos bytes renderizados.
+            var ok = await Exportador.ExportarFinalAsync(origem, Cfg("curto"), pdf, await PlanoDaTela(RenderCorpus("curto"), Cfg("curto")), Modelo);
             Assert.True(File.Exists(ok.CaminhoPdf));
+            using var recibo = JsonDocument.Parse(await File.ReadAllBytesAsync(ok.CaminhoRecibo));
+            Assert.False(recibo.RootElement.GetProperty("rascunho").GetBoolean());
+            Assert.Equal(Sha(File.ReadAllBytes(origem)), recibo.RootElement.GetProperty("sha256_dados").GetString());
         }
         finally { File.Delete(temp); }
+    }
+
+    /// <summary>D2: o PDF é a impressão das folhas que a tela mostra. Se o dados.json mudar depois de aberto, o HTML final
+    /// não é o da tela e a exportação recusa, sem gravar PDF nem recibo; com outro plano (inícios ou escala), também.</summary>
+    [Fact]
+    public async Task exportacao_final_recusada_se_o_arquivo_mudou_depois_de_aberto()
+    {
+        var origem = CaminhoCorpus("curto");
+        var temp = Path.Combine(Path.GetDirectoryName(origem)!, "tmp-muda-" + Guid.NewGuid().ToString("N")[..8] + ".json");
+        var pdf = CaminhoSaida("muda.pdf");
+        var recibo = Exportador.CaminhoReciboDe(pdf);
+        File.Delete(pdf); File.Delete(recibo);
+        try
+        {
+            File.Copy(origem, temp);
+            var cfg = ConfigFolhas.PadraoDeDados(Modelo, temp);
+            var tela = RelatorioRenderer.Renderizar(temp, new OpcoesRender(false, true), Modelo); // o que o app abre (rascunho)
+            var plano = await PlanoDaTela(tela, cfg);
+
+            var no = JsonNode.Parse(File.ReadAllText(temp))!;
+            no["capa"]!["requerente"] = "REQUERENTE ALTERADO DEPOIS DE ABRIR";
+            File.WriteAllText(temp, no.ToJsonString());
+            var ex = await Assert.ThrowsAsync<ExportacaoDivergenteException>(() => Exportador.ExportarFinalAsync(temp, cfg, pdf, plano, Modelo));
+            Assert.Equal("O arquivo mudou desde que foi aberto; reabra antes de exportar.", ex.Message);
+            Assert.False(File.Exists(pdf));
+            Assert.False(File.Exists(recibo));
+
+            // Arquivo de volta como foi aberto, mas plano da tela diferente do que a exportação compõe: recusado também.
+            File.Copy(origem, temp, overwrite: true);
+            foreach (var outro in new[] { plano with { Escala = 1.2 }, plano with { InicioDasFolhas = plano.InicioDasFolhas.Take(1).ToArray() } })
+            {
+                var dif = await Assert.ThrowsAsync<ExportacaoDivergenteException>(() => Exportador.ExportarFinalAsync(temp, cfg, pdf, outro, Modelo));
+                Assert.Equal(ExportacaoDivergenteException.ComposicaoDiferente, dif.Message);
+                Assert.False(File.Exists(pdf));
+                Assert.False(File.Exists(recibo));
+            }
+            // E com o plano certo, exporta.
+            Assert.True(File.Exists((await Exportador.ExportarFinalAsync(temp, cfg, pdf, plano, Modelo)).CaminhoPdf));
+        }
+        finally { File.Delete(temp); File.Delete(pdf); File.Delete(recibo); }
+    }
+
+    /// <summary>Conteúdo além da borda lateral da área (nada cortado): aplicarPlano informa as folhas, só informativo.</summary>
+    [Fact]
+    public async Task conteudo_alem_da_borda_da_area_e_informado()
+    {
+        var r = Ambiente.Resultado("<p>curto</p><p style=\"white-space:nowrap\">" + string.Concat(Enumerable.Repeat("PALAVRA ", 60)) + "</p>");
+        await host.Documento.CarregarAsync(r, Ambiente.Cfg);
+        var c = await host.Documento.ComporDetalhadoAsync();
+        var a = await host.Documento.AplicarPlanoAsync(c.Plano);
+        Assert.Equal(new[] { 1 }, a.FolhasQueTransbordamNaLargura);
+        Assert.Equal(new[] { 1 }, a.FolhasMarcadas);
+        await host.Documento.CarregarAsync(Ambiente.Resultado("<p>cabe na área</p>"), Ambiente.Cfg);
+        var b = await host.Documento.AplicarPlanoAsync(await host.Documento.ComporAsync());
+        Assert.Empty(b.FolhasQueTransbordamNaLargura);
+        foreach (var caso in new[] { "curto", "longo", "extremos" })
+        {
+            var rc = RenderCorpus(caso);
+            await host.Documento.CarregarAsync(rc, Cfg(caso));
+            var x = await host.Documento.AplicarPlanoAsync(await host.Documento.ComporAsync());
+            saida.WriteLine($"{caso}: além da borda lateral nas folhas [{string.Join(",", x.FolhasQueTransbordamNaLargura)}]");
+            if (caso == "curto") Assert.Empty(x.FolhasQueTransbordamNaLargura);
+            else Assert.NotEmpty(x.FolhasQueTransbordamNaLargura); // a etiqueta INFORMAÇÕES DIVERGENTES (nowrap) passa da borda
+        }
     }
 
     [Fact]
@@ -291,8 +359,9 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
         Assert.Equal(Path.Combine(Path.GetDirectoryName(pdf)!, "recibo-curto.recibo-editor.json"), x.CaminhoRecibo);
         using var doc = JsonDocument.Parse(await File.ReadAllBytesAsync(x.CaminhoRecibo));
         var j = doc.RootElement;
-        Assert.Equal(new[] { "recibo_versao", "modelo_revisao", "sha256_modelo", "sha256_dados", "sha256_html", "plano_versao", "webview2",
+        Assert.Equal(new[] { "recibo_versao", "modelo_revisao", "sha256_modelo", "sha256_dados", "sha256_html", "rascunho", "plano_versao", "webview2",
             "sha256_pdf", "folhas", "gerado_em", "pagina_mm" }, j.EnumerateObject().Select(p => p.Name));
+        Assert.True(j.GetProperty("rascunho").GetBoolean()); // ExportarAsync sem dizer o contrário: rascunho
         Assert.Equal(1, j.GetProperty("recibo_versao").GetInt32());
         Assert.Equal(10, j.GetProperty("modelo_revisao").GetInt32());
         var modelo = j.GetProperty("sha256_modelo").Deserialize<Dictionary<string, string>>()!;
@@ -329,6 +398,14 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
     }
 
     // ---------- apoio ----------
+
+    /// <summary>Plano composto no host oculto, como o app faz ao abrir (o que a tela mostra).</summary>
+    async Task<PlanoQuebras> PlanoDaTela(ResultadoRender r, ConfigFolhas cfg)
+    {
+        Assert.True(r.Ok, string.Join("; ", r.Erros));
+        await host.Documento.CarregarAsync(r, cfg);
+        return await host.Documento.ComporAsync();
+    }
 
     static ConfigFolhas Cfg(string caso) => ConfigFolhas.PadraoDeDados(Modelo, CaminhoCorpus(caso));
 

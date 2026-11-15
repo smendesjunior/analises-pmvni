@@ -204,6 +204,48 @@ public sealed class TelaTestes : IClassFixture<TelaFixture>
         Assert.Equal(0, (await Js("document.querySelectorAll('section.folha[data-pmvni-transborda]').length")).GetInt32());
     }
 
+    /// <summary>Linha de base da Etapa 2 (docs/notas-tecnicas.md): tempo de compor (carregar + compor no host de composição) e
+    /// de aplicar (carregar + aplicar o plano na "tela") para curto, longo e extremos; mediana de 3 rodadas, em
+    /// tests\saida\tempos.json. Só mede (sem limite): a máquina de teste varia.</summary>
+    [Fact]
+    public async Task tempos_de_compor_e_aplicar_do_corpus()
+    {
+        var resumo = new System.Text.Json.Nodes.JsonObject();
+        foreach (var caso in new[] { "curto", "longo", "extremos" })
+        {
+            var r = RenderCorpus(caso);
+            var cfg = Cfg(caso);
+            var compor = new List<double>();
+            var aplicar = new List<double>();
+            var folhas = 0;
+            for (var i = 0; i < 3; i++)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                await comp.Documento.CarregarAsync(r, cfg);
+                var c = await comp.Documento.ComporDetalhadoAsync();
+                compor.Add(sw.Elapsed.TotalMilliseconds);
+                sw.Restart();
+                await tela.Documento.CarregarAsync(r, cfg);
+                var a = await tela.Documento.AplicarPlanoAsync(c.Plano);
+                aplicar.Add(sw.Elapsed.TotalMilliseconds);
+                Assert.Equal(c.Folhas, a.Folhas);
+                folhas = c.Folhas;
+            }
+            static double Mediana(List<double> v) => v.Order().ElementAt(v.Count / 2);
+            resumo[caso] = new System.Text.Json.Nodes.JsonObject
+            {
+                ["folhas"] = folhas, ["compor_ms"] = Math.Round(Mediana(compor)), ["aplicar_ms"] = Math.Round(Mediana(aplicar)),
+                ["compor_ms_rodadas"] = new System.Text.Json.Nodes.JsonArray(compor.Select(x => (System.Text.Json.Nodes.JsonNode)Math.Round(x)).ToArray()),
+                ["aplicar_ms_rodadas"] = new System.Text.Json.Nodes.JsonArray(aplicar.Select(x => (System.Text.Json.Nodes.JsonNode)Math.Round(x)).ToArray()),
+            };
+            saida.WriteLine($"{caso}: {folhas} folhas; compor (carregar + compor) {Mediana(compor):0} ms; aplicar (carregar + aplicar) {Mediana(aplicar):0} ms"
+                + $" [compor {string.Join("/", compor.Select(x => x.ToString("0")))}; aplicar {string.Join("/", aplicar.Select(x => x.ToString("0")))}]");
+        }
+        var dir = Path.Combine(Ambiente.RaizRepositorio(), "tests", "saida");
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, "tempos.json"), resumo.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+    }
+
     // ---------- apoio ----------
 
     static async Task<string> Pixels(Windows.Data.Pdf.PdfDocument doc, uint i)

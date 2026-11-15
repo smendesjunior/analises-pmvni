@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-11-14T22:33:39Z",
+  "gerado_em": "2026-11-15T00:13:18Z",
   "webview2": "157.0.4341.46",
   "escala_do_monitor": 1.5,
   "janela_px": {
@@ -9,7 +9,7 @@
   "passos": {
     "1_abrir_longo": {
       "folhas": 21,
-      "escala_de_impressao": 1.071522658348635,
+      "escala_de_impressao": 1.0723031142811712,
       "avisos_de_largura": 1,
       "estouros": 0,
       "folhas_que_transbordam_na_tela": [],
@@ -30,6 +30,23 @@
       "exportar_habilitado": true,
       "rodape_folha": "folha 1 de 21",
       "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
+      "folhas_com_conteudo_alem_da_borda": [
+        14
+      ],
+      "aviso_fora_da_area_aberto": true,
+      "alem_da_borda_medidas": [
+        {
+          "alemDaDireita": 23.9,
+          "esquerda": 551.4,
+          "folha": 14,
+          "largura": 160.4
+        }
+      ],
+      "folhas_com_faixa_vermelha": 1,
+      "inprivate_tela": true,
+      "inprivate_host_oculto": true,
+      "atalhos_do_navegador_tela": false,
+      "atalhos_do_navegador_host_oculto": false,
       "ok": true
     },
     "2_rolagem_continua": {
@@ -38,7 +55,7 @@
         "folhas": 21,
         "fundoDaFolha": "rgb(255, 255, 255)",
         "fundoDaPagina": "rgb(31, 31, 31)",
-        "janela": 776,
+        "janela": 722,
         "passoEsperado": 1152.755905511811,
         "passoMax": 1152.740234375,
         "passoMin": 1152.73828125,
@@ -146,10 +163,10 @@
         },
         {
           "como": "botão Página inteira",
-          "zoom": 0.6627946127946127,
+          "zoom": 0.6146885521885521,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 526.1
+          "largura_da_folha_px": 487.9
         }
       ],
       "plano_igual_depois_do_zoom": true,
@@ -185,10 +202,10 @@
         {
           "item": "ÍNDICES URBANÍSTICOS",
           "folha_do_item": 13,
-          "folha_na_tela": 13,
+          "folha_na_tela": 14,
           "folha_visivel": true,
           "indicador_do_trilho_marcado": true,
-          "rodape": "folha 13 de 21"
+          "rodape": "folha 14 de 21"
         },
         {
           "item": "06  Item de teste 006: taxa escada indicada",
@@ -249,11 +266,11 @@
       ],
       "estado": "1 bloco excede a página",
       "aviso_de_erro_aberto": true,
-      "aviso_de_erro_texto": "Folha 3: bloco 'secao-2' não cabe na página (altura do conteúdo: 1082,2 mm).",
+      "aviso_de_erro_texto": "Folha 3: bloco 'secao-2' não cabe na página (altura do conteúdo: 1089,2 mm).",
       "exportar_habilitado": false,
-      "dica_do_botao": "A exportação está bloqueada: Folha 3: bloco 'secao-2' não cabe na página (altura do conteúdo: 1082,2 mm). Corrija o conteúdo para exportar o PDF.",
+      "dica_do_botao": "A exportação está bloqueada: Folha 3: bloco 'secao-2' não cabe na página (altura do conteúdo: 1089,2 mm). Corrija o conteúdo para exportar o PDF.",
       "exportacao_recusada": true,
-      "mensagem_da_recusa": "Exportação recusada: Bloco 'secao-2' excede a página 3 (altura do conteúdo: 1082,2 mm).",
+      "mensagem_da_recusa": "Exportação recusada: Bloco 'secao-2' excede a página 3 (altura do conteúdo: 1089,2 mm).",
       "nenhum_pdf_gravado": true,
       "folhas_com_faixa_vermelha": 1,
       "folhas_que_transbordam_na_tela": [
@@ -284,6 +301,18 @@
       },
       "so_o_fundo_fora_das_folhas_muda": true,
       "texto_por_folha_igual": true,
+      "ok": true
+    },
+    "8_campos_em_aberto_bloqueiam_exportar": {
+      "erros_finais": 1,
+      "exportar_habilitado": false,
+      "dica_do_botao": "A exportação está bloqueada: Rascunho: há campos [ ] não preenchidos (1). O PDF final só sai com o relatório completo: preencha os campos e abra o relatório de novo.",
+      "ok": true
+    },
+    "9_arquivo_mudou_recusa_exportar": {
+      "recusada": true,
+      "mensagem": "O arquivo mudou desde que foi aberto; reabra antes de exportar.",
+      "nenhum_pdf_gravado": true,
       "ok": true
     }
   },

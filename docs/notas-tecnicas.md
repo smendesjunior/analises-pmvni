@@ -33,7 +33,13 @@ O que foi necessário para o WinUI 3 rodar em arquivo único:
   roda o .exe 2x com `--autoteste`, grava `tests\saida\autoteste*.json` e `autoteste-log.txt`).
 
 Pasta de dados: `%LOCALAPPDATA%\EditorRelatoriosPMVNI` (ou a variável `PMVNI_DADOS_DIR`); perfil do WebView2
-em `<raiz>\WebView2`, igual no app e no `HostOculto`.
+em `<raiz>\WebView2`, igual no app e no `HostOculto`, com os controllers **InPrivate** (ver "Perfil do WebView2" abaixo);
+sessões em `<raiz>\sessao\<guid>`; erros não tratados em `<raiz>\logs\erro-*.txt` (só tipo, HRESULT e pilha; nenhuma
+mensagem, que pode citar conteúdo; ficam os 20 mais recentes; vale também fora do autoteste).
+
+Sem o WebView2 Runtime (`CoreWebView2Environment.GetAvailableBrowserVersionString()` sem versão ou com erro), o app não
+tenta abrir a visualização: mostra um InfoBar com a explicação simples (instalar o "Microsoft Edge WebView2 Runtime",
+Evergreen, e abrir de novo) e desabilita o Abrir; no autoteste grava o erro.
 
 ## Host oculto (WebView2 sem interface)
 
@@ -45,8 +51,13 @@ console `Pmvni.Verificador`. As continuações voltam à thread STA por um `Sync
 `PostMessage` para a janela oculta.
 
 Robustez (nenhuma operação fica pendurada):
-- `ExecutarAsync(acao, tempoLimite)` (padrão 60 s) e `NavegarParaHtmlAsync(webView, html, tempoLimite)` (padrão
+- `ExecutarAsync(acao, tempoLimite)` (padrão 60 s) e `NavegarParaUrlAsync(webView, url, tempoLimite)` (padrão
   30 s) falham com `TimeoutException`; a navegação só aceita o `NavigationCompleted` do seu `NavigationId`.
+- Escala 1 em qualquer processo: `ShouldDetectMonitorScaleChanges = false` e `RasterizationScale = 1` no controller. Achado
+  na revisão final: no app (DPI por monitor, monitor a 150 %) o controller herdava a escala do monitor e o `longo` saía
+  com a etiqueta além da borda na folha 13 (tela e PDF do app), contra a folha 14 do Verificador, dos testes e do kit.
+- `Inutilizavel` (descartado ou processo do WebView2 caído): o app descarta o host de composição e cria outro no
+  próximo Abrir; também o descarta depois de uma composição que falhou, caiu ou estourou o tempo.
 - `Dispose` falha todas as operações pendentes com `ObjectDisposedException`; chamadas depois dele também.
 - `ProcessFailed` (navegador, renderização encerrada ou sem resposta) falha as pendentes e as seguintes com
   `InvalidOperationException`.
@@ -61,8 +72,12 @@ Robustez (nenhuma operação fica pendurada):
 
 - `Seguranca.AplicarAsync(core, pastaSessao)`: pasta da sessão (`<dados>\sessao\<guid>`) mapeada para `doc.pmvni.invalid`
   com acesso `Deny`; filtro `WebResourceRequested` (`*`, All) responde 403 a tudo fora desse host; `NavigationStarting`
-  fora do host é cancelado; janelas novas e downloads cancelados; menu de contexto, autofill, senhas, barra de status,
-  objetos do host e diálogos desligados; DevTools só em Debug. A CSP vai num `<meta>` inserido no `<head>` **só da cópia
+  só aceita, uma vez, a URL exata que o `DocumentoWeb` está abrindo (`CarregarAsync`): recarga (F5, `location.reload()`),
+  a mesma URL de novo e outras páginas do host depois do carregamento são canceladas; janelas novas e downloads cancelados;
+  menu de contexto, autofill, senhas, barra de status, objetos do host, diálogos e **atalhos do navegador**
+  (`AreBrowserAcceleratorKeysEnabled = false`: Ctrl+P, F5/Ctrl+R, Ctrl+F, zoom do navegador; Ctrl+C e a navegação por
+  teclado continuam) desligados nos dois hosts; DevTools só em Debug. `CarregarAsync` atualiza a data da pasta da sessão:
+  a varredura de sessões órfãs (mais de 1 dia sem alteração) nunca apaga uma sessão viva. A CSP vai num `<meta>` inserido no `<head>` **só da cópia
   da sessão** (`documento.html`), junto de `<script src=".../paginador.js" defer>`; o HTML do renderizador não muda.
 - A CSP barra a imagem externa antes de qualquer requisição; o filtro 403 é a segunda camada (testado sem CSP).
 - Ponte: `Ponte/Mensagens.cs` (C#) e `web/paginador/src/mensagens.ts` (TS) validam o envelope `{v:1,tipo,id,dados}`;
@@ -129,6 +144,35 @@ n …", só folha, ref e medidas) e imprime o mesmo DOM com `Page.printToPDF {pr
 cabeçalho/rodapé, margens 0}`; confere páginas = folhas (leitor mínimo de PDF: objetos `/Type /Page` contra o `/Count` da
 raiz; recusa `/ObjStm`) antes de gravar o PDF e `<nome>.recibo-editor.json`.
 
+Exportação do app (D2: o PDF é a impressão das folhas que a tela mostra): `Exportador.ExportarFinalAsync(dados, cfg, pdf,
+planoTela)` lê o dados.json **uma vez**, renderiza esses bytes sem rascunho e grava no recibo o sha256 deles. Recusa com
+`ExportacaoDivergenteException`, sem gravar nada, se o sha256 do HTML final não for o `Sha256Html` do plano da tela ("O
+arquivo mudou desde que foi aberto; reabra antes de exportar." — o dados.json ou uma imagem mudou) ou se a composição da
+exportação não der os mesmos inícios de folha e a mesma escala do plano da tela. O recibo leva `"rascunho"`: `false` na
+exportação final; `true` na rota do Verificador com `--rascunho`/`--instrucoes` (a suíte de fidelidade, como o kit). O
+botão Exportar fica desabilitado, com dica explicando, quando há estouro ou quando a conferência final tem erros
+(campos `[ ]` em aberto).
+
+Conteúdo além da borda lateral da área: `aplicarPlano` devolve também `folhasQueTransbordamNaLargura` (retângulos do
+`Range` do conteúdo da área, texto inclusive, além da borda esquerda/direita). A tela marca essas folhas com a mesma faixa
+vermelha das que transbordam em altura e abre um InfoBar informativo (nada é cortado no editor; o kit cortaria). No
+corpus: `longo` folha 14 e `extremos` folhas 4–7, exatamente as páginas de `fora_da_area` da V3.
+
+`PlanoQuebras.DeJson` valida como o `lerPlano` do paginador: além de versão e escala, caminho não vazio com índices ≥ 0 e
+deslocamento/linha ≥ 0 ou nulos.
+
+## Perfil do WebView2 (D4)
+
+`FabricaWebView2` é a única fábrica do ambiente (opções padrão, pasta `<dados>\WebView2`) e das opções de controller,
+usada pelo controle XAML (`EnsureCoreWebView2Async(ambiente, opcoes)`) e pelo `HostOculto`
+(`CreateCoreWebView2ControllerAsync(janela, opcoes)`): `IsInPrivateModeEnabled = true` nos dois. O conteúdo do relatório
+(HTML, imagens, título no histórico, cache) não é gravado no perfil. Prova com o processo encerrado:
+`perfil_webview2` de `tools/fidelidade.py` (marca única no processo e no requerente de uma cópia do `curto`; pdf, capturas e
+texto pelo Verificador; nenhum arquivo da pasta de dados contém a marca). Controle negativo (14/11/2026): com
+`IsInPrivateModeEnabled = false`, a mesma marca aparece em `EBWebView\Default\History` (o `<title>` do relatório leva o
+número do processo); com InPrivate, 0 de 142 arquivos. O teste `SegurancaTestes.conteudo_do_relatorio_nao_fica_no_perfil_do_webview2`
+confere o InPrivate e a ausência da marca com o navegador ainda aberto.
+
 - Página em branco a mais com k > 1: a caixa `.area` diagramada com 254k mm passava da folha (28 + 272 mm) e a impressão
   gerava um fragmento vazio depois da última folha (longo: 22 páginas para 21 folhas). A caixa agora tem 254 mm e a
   altura útil vem do topo do rodapé (`fimDaArea`), sem mudar nenhum plano.
@@ -137,3 +181,17 @@ raiz; recusa `/ObjStm`) antes de gravar o PDF e `<nome>.recibo-editor.json`.
 - Largura (correções da Tarefa 7): bloco largo cuja folha não é achada continua gerando estouro (folha do ref, senão a 1ª);
   largura vinda só do `scrollWidth` (texto `nowrap` que transborda a própria caixa) procura o bloco responsável e gera aviso
   e, acima de 1,5, estouro.
+
+## Linha de base de desempenho para a Etapa 2 (14/11/2026)
+
+`TelaTestes.tempos_de_compor_e_aplicar_do_corpus` (Release, WebView2 157.0.4341.46, host 1024 × 1400; mediana de 3
+rodadas; grava `tests\saida\tempos.json`). "Compor" = `CarregarAsync` + `ComporDetalhadoAsync` no host de composição;
+"aplicar" = `CarregarAsync` + `AplicarPlanoAsync` na "tela" (outro host, mídia de tela, escala 1). Só mede, sem limite.
+
+| caso | folhas | compor (mediana; rodadas) | aplicar (mediana; rodadas) |
+|---|---|---|---|
+| curto | 2 | 80 ms (69 / 80 / 95) | 65 ms (69 / 64 / 65) |
+| longo | 21 | 348 ms (236 / 348 / 613) | 196 ms (141 / 196 / 399) |
+| extremos | 8 | 340 ms (600 / 333 / 340) | 264 ms (517 / 204 / 264) |
+
+A abertura no app soma a isso o render do kit (duas vezes: rascunho e conferência final) e o zoom inicial.

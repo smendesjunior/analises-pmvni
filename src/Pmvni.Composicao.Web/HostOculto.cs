@@ -30,6 +30,9 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
     volatile bool descartado;
     volatile Exception? falha;
 
+    /// <summary>O host não serve mais: foi descartado ou um processo do WebView2 caiu (quem o usa deve criar outro).</summary>
+    public bool Inutilizavel => descartado || falha is not null;
+
     /// <summary>Último erro lançado por um trabalho da fila STA fora de uma operação (nunca cruza o WndProc).</summary>
     public Exception? UltimoErroInterno { get; private set; }
 
@@ -64,12 +67,16 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
         {
             await host.ExecutarNaStaAsync(async () =>
             {
-                var opcoes = new CoreWebView2EnvironmentOptions();
-                var ambiente = await CoreWebView2Environment.CreateWithOptionsAsync(string.Empty, pastaDadosUsuario, opcoes);
+                // Mesma fábrica do controle XAML do app: mesmas opções de ambiente e controller InPrivate (nada do relatório no perfil).
+                var ambiente = await FabricaWebView2.CriarAmbienteAsync(pastaDadosUsuario);
                 var referencia = CoreWebView2ControllerWindowReference.CreateFromWindowHandle((ulong)host.hwnd);
-                var novo = await ambiente.CreateCoreWebView2ControllerAsync(referencia);
+                var novo = await ambiente.CreateCoreWebView2ControllerAsync(referencia, FabricaWebView2.OpcoesController(ambiente));
                 if (host.descartado) { novo.Close(); throw new ObjectDisposedException(nameof(HostOculto)); }
                 host.controller = novo;
+                // Escala 1 sempre, em qualquer processo: num app com DPI por monitor (o editor, a 150 %) o controller herdaria
+                // a escala do monitor, e a composição sairia diferente da do Verificador/testes (processos sem DPI).
+                novo.ShouldDetectMonitorScaleChanges = false;
+                novo.RasterizationScale = 1.0;
                 novo.Bounds = new Rect(0, 0, host.larguraPx, host.alturaPx);
                 novo.IsVisible = true;
                 novo.CoreWebView2.ProcessFailed += host.ProcessoFalhou;

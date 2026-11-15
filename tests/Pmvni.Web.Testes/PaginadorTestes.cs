@@ -364,6 +364,11 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
         Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { Escala = 1.6 })));
         Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { Escala = 0.9 })));
         Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { InicioDasFolhas = [] })));
+        // Como o lerPlano do paginador: caminho não vazio, índices, deslocamento e linha ≥ 0.
+        Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { InicioDasFolhas = [new PosicaoFluxo([], null, null, false)] })));
+        Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { InicioDasFolhas = [new PosicaoFluxo([2, -1], null, null, false)] })));
+        Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { InicioDasFolhas = [new PosicaoFluxo([2], -3, null, false)] })));
+        Assert.Throws<InvalidDataException>(() => PlanoQuebras.DeJson(Json(bom with { InicioDasFolhas = [new PosicaoFluxo([2], null, -1, false)] })));
         Assert.Equal(new PosicaoFluxo([3, 1], 5, null, true), new PosicaoFluxo([3, 1], 5, null, true));
         Assert.Equal(new PosicaoFluxo([3, 1], 5, null, true).GetHashCode(), new PosicaoFluxo([3, 1], 5, null, true).GetHashCode());
         Assert.NotEqual(new PosicaoFluxo([3, 1], null, null, false), new PosicaoFluxo([3, 2], null, null, false));

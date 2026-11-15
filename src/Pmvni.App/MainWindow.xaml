@@ -57,10 +57,11 @@
       </Grid>
     </Grid>
 
-    <!-- Avisos (InfoBar): largura, blocos que não cabem e resultado da exportação. -->
+    <!-- Avisos (InfoBar): largura, blocos que não cabem, conteúdo além da borda da área e resultado da exportação. -->
     <StackPanel x:Name="Avisos" Grid.Row="1" Spacing="1">
       <InfoBar x:Name="AvisoLargura" Severity="Informational" IsOpen="False" IsClosable="True"/>
       <InfoBar x:Name="AvisoEstouro" Severity="Error" IsOpen="False" IsClosable="False"/>
+      <InfoBar x:Name="AvisoForaDaArea" Severity="Informational" IsOpen="False" IsClosable="True"/>
       <InfoBar x:Name="AvisoMensagem" Severity="Informational" IsOpen="False" IsClosable="True"/>
     </StackPanel>
 

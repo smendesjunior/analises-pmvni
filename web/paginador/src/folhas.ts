@@ -109,8 +109,9 @@ export interface PedidoAplicar {
   limiteEstabilidadeMs: number | null;
 }
 
-/** Resposta de `aplicarPlano`: folhas montadas, as que transbordam a área (1 = primeira; só informativo) e os refs. */
-export interface Aplicado { folhas: number; folhasQueTransbordam: number[]; refsPorFolha: string[][] }
+/** Resposta de `aplicarPlano`: folhas montadas, as que transbordam a área em altura e as que têm conteúdo além das
+ * bordas esquerda/direita da área (1 = primeira; só informativo) e os refs. */
+export interface Aplicado { folhas: number; folhasQueTransbordam: number[]; folhasQueTransbordamNaLargura: number[]; refsPorFolha: string[][] }
 
 /**
  * Aplica um plano já calculado (pelo host oculto) sem medir para decidir: as folhas saem exatamente das posições do
@@ -145,7 +146,21 @@ export async function aplicarPlano(pedido: PedidoAplicar): Promise<Aplicado> {
   const H = alturaUtil(montadas[0]!.area);
   const folhasQueTransbordam = montadas.flatMap((f, i) => (alturaConteudo(f.area) > H + EPS_PX ? [i + 1] : []));
   for (const f of montadas) estenderPedacos(f.area);
-  return { folhas: montadas.length, folhasQueTransbordam, refsPorFolha: refsDasFolhas(montadas.map((f) => f.folha)) };
+  const folhasQueTransbordamNaLargura = montadas.flatMap((f, i) => (transbordaNaLargura(f.area) ? [i + 1] : []));
+  return { folhas: montadas.length, folhasQueTransbordam, folhasQueTransbordamNaLargura, refsPorFolha: refsDasFolhas(montadas.map((f) => f.folha)) };
+}
+
+/** Há conteúdo pintado além da borda esquerda ou direita da área útil? Mede as caixas de tudo o que a área contém (texto
+ * inclusive: um `nowrap` que passa da própria caixa aparece nos retângulos do Range, não no da caixa), nas coordenadas da
+ * tela (a escala 1/k já aplicada). O editor não corta nada; isto só avisa que algo sai da área (o kit cortaria). */
+function transbordaNaLargura(area: HTMLElement): boolean {
+  const r = area.getBoundingClientRect();
+  const intervalo = document.createRange();
+  intervalo.selectNodeContents(area);
+  for (const q of Array.from(intervalo.getClientRects())) {
+    if (q.width > 0 && q.height > 0 && (q.right > r.right + EPS_PX + 0.45 || q.left < r.left - EPS_PX - 0.45)) return true;
+  }
+  return false;
 }
 
 function numerarRodapes(direitas: HTMLElement[], cfg: ConfigFolhas): void {

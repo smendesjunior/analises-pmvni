@@ -38,7 +38,7 @@ internal static class Program
         {
             "html" => GerarHtml(r, saida),
             "plano" => await PlanoAsync(r, cfg, saida),
-            "pdf" => await PdfAsync(r, cfg, saida, a.Dados!, modelo),
+            "pdf" => await PdfAsync(r, cfg, saida, a.Dados!, modelo, a.Rascunho || a.Instrucoes),
             "texto" => await TextoAsync(r, cfg, saida),
             "capturas" => await CapturasAsync(r, cfg, saida, a.Dpi),
             _ => 2,
@@ -79,12 +79,13 @@ internal static class Program
         return 0;
     }
 
-    /// <summary>Exporta pelo <see cref="Exportador"/> (PDF + recibo). Estouro: recusa, nada gravado, código 3.</summary>
-    static async Task<int> PdfAsync(ResultadoRender r, ConfigFolhas cfg, string saida, string dados, ModeloCarregado modelo)
+    /// <summary>Exporta pelo <see cref="Exportador"/> (PDF + recibo, com <c>"rascunho"</c> = render com --rascunho ou --instrucoes;
+    /// a suíte de fidelidade usa --rascunho, como o kit). Estouro: recusa, nada gravado, código 3.</summary>
+    static async Task<int> PdfAsync(ResultadoRender r, ConfigFolhas cfg, string saida, string dados, ModeloCarregado modelo, bool rascunho)
     {
         try
         {
-            var x = await Exportador.ExportarAsync(r, cfg, saida, dados, modelo);
+            var x = await Exportador.ExportarAsync(r, cfg, saida, dados, modelo, rascunho);
             Console.WriteLine($"PDF gravado: {x.CaminhoPdf} ({x.Folhas} folhas, {x.LarguraPaginaMm:0.###} x {x.AlturaPaginaMm:0.###} mm)");
             return 0;
         }
