@@ -140,13 +140,15 @@ internal static class Roteiro
         // Tarefa 13: Processos e Despachos leem uma CÓPIA da árvore fictícia (nunca a pasta real de processos) e nenhum arquivo é aberto fora
         // do app (as aberturas só são registradas). A cópia e a "fotografia" dela (caminho → sha256) são feitas antes de qualquer módulo.
         AberturaExterna.Simular = true;
-        // Tarefa 14: a trava de programas vale no roteiro inteiro (desde o passo 1): só o agente falso (tests\saida\agente-falso) pode ser iniciado
-        // pelo editor, e cada programa iniciado fica listado no resultado (programas_iniciados). O LibreOffice dos despachos não passa por aqui.
+        // Tarefa 14: a trava de programas vale no roteiro inteiro (desde o passo 1) e para todo programa que o editor inicia: só o agente falso
+        // (a pasta tests\saida\agente-falso) e o soffice do LibreOffice dos despachos (o programa exato que o editor acha) podem partir; cada
+        // programa que partiu fica listado no resultado (programas_iniciados), o LibreOffice inclusive.
         var inicioDoRoteiro = DateTime.UtcNow;
         var pastaDoAgenteFalso = Path.GetFullPath(Path.Combine(pasta, "..", "agente-falso"));
-        ExecucaoProcesso.SomenteExecutaveisEm = pastaDoAgenteFalso;
+        var sofficeDoRoteiro = ConversorLibreOffice.Localizar() is { } so ? Path.GetFullPath(so) : null;
+        TravaDeProgramas.Permitidos = sofficeDoRoteiro is null ? [pastaDoAgenteFalso] : [pastaDoAgenteFalso, sofficeDoRoteiro];
         var programasIniciados = new List<string>();
-        ExecucaoProcesso.AoIniciar = c => { lock (programasIniciados) programasIniciados.Add(c); };
+        TravaDeProgramas.AoIniciar = c => { lock (programasIniciados) programasIniciados.Add(c); };
         // As chaves falsas que os passos 50 e 53 sorteiam (e o valor herdado do 53): o passo 64 confere que nenhuma ficou em tests\saida.
         var chavesDoRoteiro = new List<string> { "falsa-herdada" };
         var copiaProcessos = Path.Combine(pasta, "processos");
@@ -2438,7 +2440,8 @@ internal static class Roteiro
             if (!Path.GetFullPath(PastaDados.Raiz).StartsWith(saidaDeTestes + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("A pasta de dados (" + PastaDados.Raiz + ") não está em " + saidaDeTestes + ": o roteiro não toca o cofre nem os ajustes de verdade.");
             if (!File.Exists(agenteFalso)) throw new InvalidOperationException("O agente falso não foi publicado em " + agenteFalsoPasta + " (tools\\roteiro.ps1 o publica).");
-            ExecucaoProcesso.SomenteExecutaveisEm = agenteFalsoPasta;
+            // A trava do roteiro inteiro (agente falso + soffice) já vale desde o passo 1: confere em vez de trocar a lista.
+            if (ExecucaoProcesso.SomenteExecutaveisEm != agenteFalsoPasta) throw new InvalidOperationException("A trava de programas do roteiro não está ligada.");
             File.Copy(agenteFalso, Path.Combine(agenteFalsoPasta, "claude.exe"), overwrite: true);   // o mesmo programa faz o papel do claude.exe (e do python.exe)
             if (Directory.Exists(codexHome)) Directory.Delete(codexHome, true);
             Directory.CreateDirectory(Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "2.4.0"));
@@ -2700,6 +2703,13 @@ internal static class Roteiro
             novoRelatorioPreparado = true;
         }
 
+        // Ruling FD-I3: o relatório da análise só abre sozinho sem relatório aberto (e com a vista da execução à frente); os passos que conferem a
+        // abertura direta começam sem relatório aberto, para não dependerem do que o passo anterior deixou.
+        async Task SemRelatorioAbertoAsync()
+        {
+            if (j.Sessao is not null && !await j.FecharSessaoAsync()) throw new InvalidOperationException("o relatório aberto não fechou: " + j.InfoMensagemAtual.Message);
+        }
+
         async Task<(ExecucaoEmCurso E, FimAnalise Fim)> AnalisarAteOFimAsync(Provedor pv, string cenario)
         {
             j.Orquestrador = Orq(cenario);
@@ -2790,6 +2800,7 @@ internal static class Roteiro
         await Passo("52_novo_relatorio_chatgpt", async p =>
         {
             await PrepararNovoRelatorioAsync();
+            await SemRelatorioAbertoAsync();
             var processo = P0001();
             if (j.ProcessoDoNovoRelatorio?.Pasta != processo || j.AnexosDoNovoRelatorio.Count != 4)
             {
@@ -2864,13 +2875,24 @@ internal static class Roteiro
             await j.SoltarArquivosAsync([outroAnexo]);
             await j.AguardarNovoRelatorioAsync();
             var antes = perguntas.Confirmacoes.Count;
+            var abertoAntes = j.Sessao?.Caminho;
             var (e2, fim2) = await AnalisarAteOFimAsync(Provedor.ChatGpt, "ok");
+            // Com um relatório aberto, o fim não troca nada: o .pmvrel novo é criado, "Relatório pronto" com "Abrir relatório", e só o botão o abre.
+            var pronto = j.RelatorioPronto;
+            var aviso2 = j.InfoMensagemAtual;
+            var naoInterrompeu = abertoAntes is not null && j.Sessao?.Caminho == abertoAntes && pronto is not null && pronto != abertoAntes && File.Exists(pronto)
+                && Path.GetDirectoryName(pronto) == processo && aviso2.IsOpen && aviso2.Title == FluxoNovoRelatorio.RelatorioProntoTitulo
+                && aviso2.Message == FluxoNovoRelatorio.TextoRelatorioPronto(Provedor.ChatGpt, pronto, fim2.Pdf) && aviso2.ActionButton is Microsoft.UI.Xaml.Controls.Button { Content: "Abrir relatório" }
+                && j.RecentesNosAjustes.FirstOrDefault() == Path.GetFullPath(pronto);
+            if (pronto is not null) await j.AbrirRelatorioProntoAsync(pronto);
+            var abriuNoBotao = pronto is not null && j.Sessao?.Caminho == pronto && j.FolhasVisiveis;
+            p["relatorio_pronto"] = new JsonObject { ["nao_interrompeu"] = naoInterrompeu, ["abriu_no_botao"] = abriuNoBotao, ["infobar"] = aviso2.Message };
             var semAviso = perguntas.Confirmacoes.Skip(antes).All(c => c.Titulo != "Analisar com o ChatGPT");
             var semAndamento = j.TituloAnalise is null && !j.BotaoDoTituloVisivel && j.ExecucoesEmCurso.Count == 0;
             p["aviso_nao_repetido"] = semAviso;
             p["segunda_analise"] = fim2.Situacao;
             p["ok"] = motivo is null && avisos == 1 && avisoGravado && titulo.StartsWith("Analisando com o ChatGPT · 0001/2099", StringComparison.Ordinal) && vista
-                && fim.Situacao == "concluida" && linhas && copiados && registro && linhaExata && importado && semAviso && fim2.Situacao == "concluida" && semAndamento;
+                && fim.Situacao == "concluida" && linhas && copiados && registro && linhaExata && importado && semAviso && fim2.Situacao == "concluida" && semAndamento && naoInterrompeu && abriuNoBotao;
         });
 
         await Passo("53_novo_relatorio_chatgpt_chave", async p =>
@@ -2924,6 +2946,7 @@ internal static class Roteiro
         await Passo("54_novo_relatorio_claude", async p =>
         {
             await PrepararNovoRelatorioAsync();
+            await SemRelatorioAbertoAsync();
             var processo = P0001();
             await j.NovoRelatorioAsync();
             await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
@@ -3012,6 +3035,18 @@ internal static class Roteiro
             var perguntaFechar = perguntas.Confirmacoes.Skip(confirmacoes).FirstOrDefault(c => c.Titulo == "Cancelar a análise e fechar?");
             var naoFechou = !podeFechar && !e.Fim.IsCompleted && perguntaFechar.Texto == "A análise com o ChatGPT em 0001/2099 será interrompida."
                 && perguntaFechar.Sim == "Cancelar análise e fechar" && perguntaFechar.Nao == "Continuar";
+            // A segunda checagem do fechamento (na fila, depois de um Analisar que estava copiando) só pergunta pelas execuções novas.
+            var tratadas = new HashSet<ExecucaoEmCurso>();
+            perguntas.RespostaPorTitulo["Cancelar a análise e fechar?"] = false;
+            var antesPrimeira = perguntas.Confirmacoes.Count;
+            var fecharPrimeira = await j.PodeFecharComAnalisesAsync(tratadas);
+            var perguntouPrimeira = perguntas.Confirmacoes.Count == antesPrimeira + 1;
+            tratadas.Add(e);       // "Continuar" não marca; aqui simula a execução já perguntada nesta tentativa de fechar
+            var antesSegunda = perguntas.Confirmacoes.Count;
+            var fecharSegunda = await j.PodeFecharComAnalisesAsync(tratadas);
+            perguntas.RespostaPorTitulo.Remove("Cancelar a análise e fechar?");
+            var segundaSoNovas = !fecharPrimeira && perguntouPrimeira && fecharSegunda && perguntas.Confirmacoes.Count == antesSegunda && !e.Fim.IsCompleted;
+            p["segunda_checagem_so_novas"] = segundaSoNovas;
 
             // Cancelar (confirmado): em até 5 s nenhum processo do agente falso vivo, "cancelada", nenhum .pmvrel novo e a trava apagada.
             var pids = JsonNode.Parse(File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "agente-falso", "pids.json")))!.AsObject()
@@ -3118,7 +3153,7 @@ internal static class Roteiro
             {
                 ["oferecido"] = oferecido, ["digitou"] = digitou, ["cancelada_fica"] = ficou, ["importou_na_segunda"] = importouRetomada, ["infobar"] = j.InfoMensagem.Message,
             };
-            p["ok"] = segue && motivo0001 == "Já há uma análise em andamento neste processo." && motivo0012 is null && naoFechou && cancelado
+            p["ok"] = segue && motivo0001 == "Já há uma análise em andamento neste processo." && motivo0012 is null && naoFechou && segundaSoNovas && cancelado
                 && podeFecharClaude && informou && pendente && seguiuSozinha && voltou && claudeCancelado && descartou && oferecido && digitou && ficou && importouRetomada;
         });
 
@@ -3321,14 +3356,28 @@ internal static class Roteiro
         await Passo("58_legislacao_recusas", async p =>
         {
             await GarantirLegislacaoAsync(57, p);
+            // Anexar a partir do módulo Legislação: o andamento, o Cancelar e o resumo (com as recusas) aparecem nele; um segundo clique avisa.
+            var moduloAntes = j.ModuloAtual;
+            await j.MudarModuloAsync(Modulo.Legislacao);
             perguntas.ListasParaAbrir.Enqueue([legLei, legNaoPdf, legSenha, legCorrompido, legDigital]);
-            var resumo = await j.AnexarLegislacaoAsync();
+            var anexando = j.AnexarLegislacaoAsync();
+            var segundo = await j.AnexarLegislacaoAsync();
+            var andamentoNaLegislacao = j.ProgressoNaLegislacao;
+            var progressoVisivel = j.LeitorLegislacao.ProgressoAnexo.Visibility == Visibility.Visible;
+            var resumo = await anexando;
+            var avisoLeg = j.LeitorLegislacao.AvisoMensagem;
+            var naLegislacao = segundo == MainWindow.AnexacaoEmAndamento && andamentoNaLegislacao.Length > 0
+                && progressoVisivel
+                && avisoLeg.IsOpen && avisoLeg.Message == resumo && avisoLeg.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning
+                && j.LeitorLegislacao.ProgressoAnexo.Visibility == Visibility.Collapsed;
+            p["no_modulo_legislacao"] = new JsonObject { ["segundo_clique"] = segundo, ["andamento"] = andamentoNaLegislacao, ["ok"] = naLegislacao };
+            if (moduloAntes != Modulo.Legislacao) await j.MudarModuloAsync(moduloAntes);
             p["resumo"] = resumo;
             var linhas = j.LinhasLegislacaoAjustes;
             p["linhas"] = LinhasEmJson(linhas);
             const string Esperado = "1 PDF anexado; 4 recusados:\n“LEI 9.999-2099 - FICTICIA.pdf” já está anexado como “LEI 9.999-2099 - FICTICIA”.\n“NAO-E-PDF - FICTICIA.pdf” não é um arquivo PDF.\n“SENHA - FICTICIA.pdf” está protegido por senha e não pode ser aberto pelo editor. Anexe uma cópia sem senha.\n“CORROMPIDO - FICTICIA.pdf” não pôde ser lido como PDF (arquivo danificado ou incompleto).";
             var digital = LinhaDe("DIGITALIZADA - FICTICIA");
-            p["ok"] = resumo == Esperado && linhas.Count == 3 && digital is { Esfera: Esfera.Outras, Paginas: "1 página", Selo: "Sem texto pesquisável" }
+            p["ok"] = resumo == Esperado && naLegislacao && linhas.Count == 3 && digital is { Esfera: Esfera.Outras, Paginas: "1 página", Selo: "Sem texto pesquisável" }
                 && CopiasLeg().Count == 3 && EntradasLeg() == 0 && j.AvisoLegislacaoAjustes.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning
                 && OriginaisLegIntactos(p);
         });
@@ -3709,7 +3758,9 @@ internal static class Roteiro
             perguntas.Confirmar = true;
             var proc = Directory.GetDirectories(Path.Combine(fluxoProcessos, "2099"), "0001 - 2099 - *").Single();
 
-            // (1) Novo relatório pela faixa de Relatórios, com o anexo na reapresentação, e Analisar com o ChatGPT (agente falso).
+            // (1) Novo relatório pela faixa de Relatórios, com o anexo na reapresentação, e Analisar com o ChatGPT (agente falso). Sem relatório aberto:
+            // o importado abre direto (Ruling FD-I3).
+            await SemRelatorioAbertoAsync();
             await j.MudarModuloAsync(Modulo.Relatorios);
             await j.ExecutarComandoAsync(ComandosApp.RelatoriosNovo);
             await j.AguardarNovoRelatorioAsync();
@@ -3888,15 +3939,20 @@ internal static class Roteiro
             p["arquivos_varridos"] = varreduraFluxo.Lidos;
             p["arquivos_trancados_pulados"] = varreduraFluxo.Ilegiveis;
             p["chave_em_arquivos"] = varreduraFluxo.Achados.Count;
-            Conf("nenhuma_chave_em_tests_saida", varreduraFluxo.Achados.Count == 0 && varreduraFluxo.Lidos > 0 && chavesDoRoteiro.Count >= 3);
+            // Passos independentes: basta haver uma chave para procurar (a herdada existe sempre; os passos 50 e 53 somam as deles).
+            Conf("nenhuma_chave_em_tests_saida", varreduraFluxo.Achados.Count == 0 && varreduraFluxo.Lidos > 0 && chavesDoRoteiro.Count >= 1);
             var raizRepo = Path.GetFullPath(Path.Combine(saidaTestes, "..", ".."));
-            var fora = EscritasFora(raizRepo, inicioDoRoteiro, [saidaTestes]);
+            var fora = EscritasFora(raizRepo, inicioDoRoteiro,
+                [Path.Combine(saidaTestes, "roteiro"), Path.Combine(saidaTestes, "dados-app"), Path.Combine(saidaTestes, "agente-falso")]);
             p["gravados_fora_de_tests_saida"] = new JsonArray(fora.Take(10).Select(f => (JsonNode)f).ToArray());
             Conf("nada_gravado_fora_de_tests_saida", fora.Count == 0);
             string[] iniciadosAgora;
             lock (programasIniciados) iniciadosAgora = programasIniciados.ToArray();
-            Conf("so_o_agente_falso_iniciado", iniciadosAgora.Length > 0 && ExecucaoProcesso.SomenteExecutaveisEm == pastaDoAgenteFalso
-                && iniciadosAgora.All(c => c.StartsWith(pastaDoAgenteFalso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)));
+            // Só o agente falso e o soffice permitido partiram (o despacho deste passo converte com o LibreOffice: ele aparece na lista).
+            Conf("so_programas_permitidos_iniciados", iniciadosAgora.Length > 0 && ExecucaoProcesso.SomenteExecutaveisEm == pastaDoAgenteFalso
+                && iniciadosAgora.All(c => c.StartsWith(pastaDoAgenteFalso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                                           || string.Equals(c, sofficeDoRoteiro, StringComparison.OrdinalIgnoreCase))
+                && (sofficeDoRoteiro is null || iniciadosAgora.Any(c => string.Equals(c, sofficeDoRoteiro, StringComparison.OrdinalIgnoreCase))));
             p["conferencias"] = conf;
             try { await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "64-fluxo-completo.png")); } catch (Exception e) { p["captura"] = e.Message; }
             p["ok"] = conf.All(kv => kv.Value!.GetValue<bool>());
@@ -3907,9 +3963,13 @@ internal static class Roteiro
         lock (programasIniciados) iniciados = programasIniciados.ToArray();
         saida["programas_iniciados"] = new JsonObject
         {
-            ["programas"] = new JsonArray(iniciados.Select(c => Path.GetRelativePath(pastaDoAgenteFalso, c)).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).Select(c => (JsonNode)c).ToArray()),
+            ["programas"] = new JsonArray(iniciados
+                .Select(c => c.StartsWith(pastaDoAgenteFalso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ? Path.GetRelativePath(pastaDoAgenteFalso, c) : c)
+                .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).Select(c => (JsonNode)c).ToArray()),
+            ["permitidos"] = new JsonArray((TravaDeProgramas.Permitidos ?? []).Select(c => (JsonNode)c).ToArray()),
             ["inicios"] = iniciados.Length,
-            ["fora_do_agente_falso"] = iniciados.Count(c => !c.StartsWith(pastaDoAgenteFalso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)),
+            // O LibreOffice dos despachos (passos 44 e 64) conta aqui: a trava vale para ele também.
+            ["fora_do_agente_falso"] = TravaDeProgramas.ForaDe(iniciados, pastaDoAgenteFalso),
         };
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
@@ -3984,13 +4044,15 @@ internal static class Roteiro
     /// arquivos do roteiro (tests\saida fica dentro do OneDrive), sem tocar no conteúdo, nas datas nem nos atributos que o editor poderia mudar.</summary>
     static FileAttributes SemNuvem(FileAttributes a) => a & ~(FileAttributes)(0x00040000 | 0x00080000 | 0x00100000 | 0x00400000);
 
-    /// <summary>Arquivos do repositório gravados desde <paramref name="desde"/> fora das pastas permitidas (tests\saida). Ficam de fora o .git, as saídas
-    /// de compilação (bin, obj, node_modules: o tools\roteiro.ps1 publica o agente falso antes de abrir o app), o desktop.ini do OneDrive e o
-    /// .superpowers (relatórios e progresso que os agentes de desenvolvimento escrevem enquanto o roteiro roda; o app nunca escreve ali).</summary>
+    /// <summary>Arquivos do repositório gravados desde <paramref name="desde"/> fora das pastas permitidas (tests\saida\roteiro, dados-app e
+    /// agente-falso). Ficam de fora só, na raiz do repositório, o .git e o .superpowers (relatórios e progresso que os agentes de desenvolvimento
+    /// escrevem enquanto o roteiro roda; o app nunca escreve ali), o web\paginador\node_modules e o desktop.ini do OneDrive. Nenhuma exclusão por
+    /// nome em outro nível (um bin ou obj gravado durante o roteiro aparece: o tools\roteiro.ps1 publica o agente falso antes de abrir o app).</summary>
     static List<string> EscritasFora(string raiz, DateTime desde, IReadOnlyList<string> permitidas)
     {
         var achados = new List<string>();
         var pendentes = new Stack<string>([raiz]);
+        var ignoradas = new[] { Path.Combine(raiz, ".git"), Path.Combine(raiz, ".superpowers"), Path.Combine(raiz, "web", "paginador", "node_modules") };
         while (pendentes.Count > 0)
         {
             var dir = pendentes.Pop();
@@ -3998,8 +4060,7 @@ internal static class Roteiro
             {
                 foreach (var sub in Directory.EnumerateDirectories(dir))
                 {
-                    var nome = Path.GetFileName(sub);
-                    if (nome is ".git" or ".superpowers" or "bin" or "obj" or "node_modules") continue;
+                    if (ignoradas.Any(i => string.Equals(Path.GetFullPath(sub).TrimEnd('\\'), Path.GetFullPath(i).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))) continue;
                     if (permitidas.Any(pp => string.Equals(Path.GetFullPath(sub).TrimEnd('\\'), Path.GetFullPath(pp).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))) continue;
                     pendentes.Push(sub);
                 }

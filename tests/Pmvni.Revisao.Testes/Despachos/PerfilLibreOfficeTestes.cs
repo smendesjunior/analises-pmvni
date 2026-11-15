@@ -70,7 +70,7 @@ public sealed class PerfilLibreOfficeTestes
     }
 
     /// <summary>Um "soffice" que deixa um filho vivo segurando os canais de saída depois de sair (como um soffice.bin que não larga os pipes):
-    /// o filho (um <c>ping</c> de uns 4 s) só grava <c>fim.txt</c> se chegar ao fim, então o arquivo ausente prova que a árvore foi encerrada.
+    /// o filho (um <c>ping</c> de uns 7 s) só grava <c>fim.txt</c> se chegar ao fim, então o arquivo ausente prova que a árvore foi encerrada.
     /// Com <paramref name="sucesso"/>, grava o PDF e sai com 0; sem, sai com 1 sem PDF.</summary>
     static string SofficeComFilhoPreso(string pasta, bool sucesso)
     {
@@ -85,7 +85,7 @@ public sealed class PerfilLibreOfficeTestes
             shift
             goto laco
             :saida
-            start "" /b cmd /c "ping -n 5 127.0.0.1 & echo fim> "__FIM__""
+            start "" /b cmd /c "ping -n 8 127.0.0.1 & echo fim> "__FIM__""
             __PDF__
             exit /b __CODIGO__
             """.Replace("__FIM__", fim, StringComparison.Ordinal).Replace("__PDF__", pdf, StringComparison.Ordinal)
@@ -107,11 +107,13 @@ public sealed class PerfilLibreOfficeTestes
         var r = conv.Converter(docx, Path.Combine(pasta, "t1"), CancellationToken.None);
         relogio.Stop();
 
-        // O filho dura uns 4 s e segura a saída; sem o limite a espera só acabaria com ele.
-        Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(3.5), "demorou " + relogio.Elapsed);
+        // O filho dura uns 7 s e segura a saída; sem o limite a espera só acabaria com ele. Pelo sinal, não pelo relógio (com a suíte inteira o
+        // computador fica lento): a conversão voltou antes de o filho terminar (ele ainda não gravou fim.txt). O teto largo só pega um travamento.
+        Assert.False(File.Exists(Path.Combine(pasta, "fim.txt")), "a conversão esperou o filho terminar (" + relogio.Elapsed + ")");
+        Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(30), "demorou " + relogio.Elapsed);
         if (sucesso) Assert.NotNull(r.Pdf); else Assert.Equal("CONVERSAO_FALHOU", r.Motivo);
-        // A árvore foi encerrada: o filho nunca chega a gravar fim.txt (espera além dos ~4 s dele).
-        Thread.Sleep(TimeSpan.FromSeconds(6));
+        // A árvore foi encerrada: o filho nunca chega a gravar fim.txt (espera além dos ~7 s dele).
+        Thread.Sleep(TimeSpan.FromSeconds(9));
         Assert.False(File.Exists(Path.Combine(pasta, "fim.txt")));
 
         // O mutex foi solto: outra conversão (com um soffice normal) roda de imediato.
@@ -130,8 +132,10 @@ public sealed class PerfilLibreOfficeTestes
 
         var relogio = Stopwatch.StartNew();
         Assert.ThrowsAny<OperationCanceledException>(() => conv.Converter(docx, Path.Combine(pasta, "t1"), cts.Token));
-        Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(3.5), "demorou " + relogio.Elapsed);
-        Thread.Sleep(TimeSpan.FromSeconds(6));
+        // Pelo sinal: o cancelamento voltou antes de o filho (uns 7 s) terminar; o teto largo só pega um travamento.
+        Assert.False(File.Exists(Path.Combine(pasta, "fim.txt")), "o cancelamento esperou o filho terminar (" + relogio.Elapsed + ")");
+        Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(30), "demorou " + relogio.Elapsed);
+        Thread.Sleep(TimeSpan.FromSeconds(9));
         Assert.False(File.Exists(Path.Combine(pasta, "fim.txt")));
     }
 
