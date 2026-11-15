@@ -51,6 +51,7 @@ public sealed partial class MainWindow
 
     void IniciarLegislacao()
     {
+        IniciarLeituraPadronizada();
         P.AbasPainel.SelectionChanged += (_, _) => MostrarVistaDoPainel();
         P.FiltroLeis.TextChanged += (_, _) => MontarListaDeLeis();
         P.ListaLeis.ItemClick += async (_, e) =>
@@ -356,6 +357,9 @@ public sealed partial class MainWindow
             P.TextoNadaAberto.Visibility = Visibility.Collapsed;
             P.AvisoSemTexto.IsOpen = !anexo.TemTexto;
             MontarMarcadores();
+            // Leitura padronizada (correções 2026-11-15); vindo de uma pesquisa (página/termo), fica no PDF original.
+            await MostrarLeituraPadronizadaAsync(anexo);
+            if ((pagina is not null || termo is not null) && leituraPadronizadaLigada) P.ModoLeitura.SelectedItem = P.ModoPdf;
             // Ajustes › Legislação › "Pesquisar em": o alvo da pesquisa ao abrir uma lei (padrão "Nesta lei", como sempre foi).
             escopoTodas = ajustes.LegislacaoEscopo == "todas";
             AtualizarDicaDaPesquisaLegislacao();
@@ -399,6 +403,8 @@ public sealed partial class MainWindow
         if (l is not null) await l.FecharAsync();
         if (fechada) return;
         P.Leitor.Opacity = 0;
+        EsconderLeituraPadronizada();
+        P.Leitor.Visibility = Visibility.Visible;
         P.TextoNadaAberto.Visibility = Visibility.Visible;
         P.AvisoSemTexto.IsOpen = false;
         MontarMarcadores();

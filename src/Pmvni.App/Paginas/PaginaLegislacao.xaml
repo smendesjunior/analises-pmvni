@@ -90,8 +90,30 @@
       </Grid>
 
       <Grid Grid.Column="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
-        <controls:WebView2 x:Name="Leitor" x:FieldModifier="internal" Opacity="0" AutomationProperties.Name="PDF da lei"/>
-        <TextBlock x:Name="TextoNadaAberto" x:FieldModifier="internal" HorizontalAlignment="Center" VerticalAlignment="Center"
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <!-- Correções 2026-11-15: leitura padronizada (processador interno do texto da lei) ou o PDF original. -->
+        <SelectorBar x:Name="ModoLeitura" x:FieldModifier="internal" Margin="12,6,12,0" Visibility="Collapsed">
+          <SelectorBarItem x:Name="ModoPadronizado" x:FieldModifier="internal" Text="Leitura padronizada" IsSelected="True">
+            <SelectorBarItem.Icon><FontIcon Glyph="&#xE736;"/></SelectorBarItem.Icon>
+          </SelectorBarItem>
+          <SelectorBarItem x:Name="ModoPdf" x:FieldModifier="internal" Text="PDF original">
+            <SelectorBarItem.Icon><FontIcon Glyph="&#xEA90;"/></SelectorBarItem.Icon>
+          </SelectorBarItem>
+        </SelectorBar>
+        <controls:WebView2 x:Name="Leitor" x:FieldModifier="internal" Grid.Row="1" Opacity="0" AutomationProperties.Name="PDF da lei"/>
+        <Grid x:Name="VistaPadronizada" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed" ColumnSpacing="0">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <Grid Padding="12,8" RowSpacing="6" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <TextBlock Text="Neste documento" Style="{StaticResource PmvniTituloSecao}" FontSize="16"/>
+            <ListView x:Name="SumarioLei" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" IsItemClickEnabled="True"
+                      AutomationProperties.Name="Sumário da lei"/>
+          </Grid>
+          <ScrollViewer x:Name="RolagemPadronizada" x:FieldModifier="internal" Grid.Column="1" VerticalScrollBarVisibility="Auto" Background="White">
+            <StackPanel x:Name="TextoPadronizado" x:FieldModifier="internal" MaxWidth="900" Padding="48,32" Spacing="10" RequestedTheme="Light"/>
+          </ScrollViewer>
+        </Grid>
+        <TextBlock x:Name="TextoNadaAberto" x:FieldModifier="internal" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center"
                    TextWrapping="Wrap" Margin="24" Style="{StaticResource PmvniSecondaryTextStyle}"
                    Text="Escolha uma lei na lista para ler."/>
       </Grid>
