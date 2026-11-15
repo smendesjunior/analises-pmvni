@@ -234,7 +234,8 @@ public sealed partial class MainWindow
         switch (d.Acao)
         {
             case AcaoRecuperacao.Arquivar:
-                return d.Motivo + Guardado(s.ArquivarDiario());
+                var orfao = s.ArquivarDiario();
+                return d.Motivo is null ? null : d.Motivo + Guardado(orfao); // sem motivo: tudo já estava no arquivo, nada a avisar
             case AcaoRecuperacao.Perguntar:
                 if (await Perguntas.Atual.RecuperarAsync(rec!.UltimoUtc, d.Comandos) == RespostaRecuperacao.Recuperar)
                 {

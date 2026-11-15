@@ -141,7 +141,7 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
 public enum AcaoRecuperacao { Nada, Perguntar, Arquivar }
 
 /// <summary><see cref="AcaoRecuperacao.Perguntar"/>: <see cref="Comandos"/> registros novos para reaplicar; <see cref="AcaoRecuperacao.Arquivar"/>:
-/// o <see cref="Motivo"/> (mostrado ao usuário junto com o nome do órfão).</summary>
+/// o <see cref="Motivo"/> (mostrado ao usuário junto com o nome do órfão; null = guardar em silêncio, nada se perdeu).</summary>
 public sealed record DecisaoRecuperacao(AcaoRecuperacao Acao, int Comandos = 0, string? Motivo = null);
 
 public static class RecuperacaoAbertura
@@ -153,6 +153,9 @@ public static class RecuperacaoAbertura
     {
         ArgumentNullException.ThrowIfNull(historicoDoPacote);
         if (rec is null) return new(AcaoRecuperacao.Nada);
+        // Queda entre a troca do arquivo e o recomeço do diário: o diário ficou com o sha antigo, mas cada registro dele (mesmo N, mesmo
+        // conteúdo) já está no histórico do pacote. Nada se perdeu: guarda como órfão sem mensagem (Motivo null).
+        if (!rec.DaMesmaVersao && TodosNoPacote(rec, historicoDoPacote)) return new(AcaoRecuperacao.Arquivar);
         if (!rec.DaMesmaVersao)
             return new(AcaoRecuperacao.Arquivar, Motivo: "Havia alterações não gravadas de outra versão deste arquivo (ele mudou depois delas); não foram aplicadas.");
         if (rec.Divergencias(historicoDoPacote).Count > 0)
@@ -160,6 +163,12 @@ public static class RecuperacaoAbertura
         var ultimo = historicoDoPacote.Count == 0 ? 0 : historicoDoPacote.Max(r => r.N);
         var novos = rec.Registros.Count(r => r.N > ultimo);
         return novos == 0 ? new(AcaoRecuperacao.Nada) : new(AcaoRecuperacao.Perguntar, novos);
+    }
+
+    static bool TodosNoPacote(Recuperacao rec, IReadOnlyList<RegistroHistorico> historico)
+    {
+        var porN = historico.GroupBy(r => r.N).ToDictionary(g => g.Key, g => HistoricoJsonl.Linha(g.First()));
+        return rec.Registros.All(r => porN.TryGetValue(r.N, out var l) && l == HistoricoJsonl.Linha(r));
     }
 }
 

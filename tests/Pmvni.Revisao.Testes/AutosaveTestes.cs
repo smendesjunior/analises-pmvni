@@ -381,6 +381,37 @@ public class AutosaveTestes
         Assert.Equal(AcaoRecuperacao.Nada, decisao.Acao);
     }
 
+    [Fact]
+    public void diario_de_sha_antigo_com_tudo_ja_no_pacote_e_arquivado_em_silencio()
+    {
+        // Queda entre o File.Replace e o recomeço do diário: o diário ficou com o sha antigo, mas tudo o que ele tem já está no arquivo.
+        using var pasta = Ambiente.PastaDeTeste("recuperar-queda-na-troca");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        using (var d = Diario.Iniciar(pasta, pacote, "sha-antes-da-gravacao"))
+        {
+            s.Registrado += d.Registrar;
+            Comando(s, "Titulo 1");
+            Comando(s, "Titulo 2");
+        }
+
+        var decisao = RecuperacaoAbertura.Decidir(Diario.Ler(pasta, pacote, "sha-depois-da-gravacao"), s.HistoricoCompleto);
+
+        Assert.Equal(AcaoRecuperacao.Arquivar, decisao.Acao);
+        Assert.Null(decisao.Motivo); // nenhuma mensagem falsa de "não foram aplicadas"
+
+        // Com um registro que o pacote não tem, continua o aviso de outra versão.
+        var (s2, c2) = Sessao();
+        using (var d = Diario.Iniciar(pasta, pacote, "sha-antes-da-gravacao"))
+        {
+            s2.Registrado += d.Registrar;
+            Comando(s2, "Titulo 1");
+        }
+        var outra = RecuperacaoAbertura.Decidir(Diario.Ler(pasta, pacote, "sha-depois-da-gravacao"), c2.Historico);
+        Assert.Equal(AcaoRecuperacao.Arquivar, outra.Acao);
+        Assert.False(string.IsNullOrWhiteSpace(outra.Motivo));
+    }
+
     // ---------- textos ----------
 
     [Fact]
