@@ -116,7 +116,6 @@ public class PastasTestes
     [InlineData("2099/0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)/PROJETO/script.cmd", false)]
     [InlineData("MODELOS/atalho.lnk", false)]
     [InlineData("2099/0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)/PROJETO", false)]
-    [InlineData("2099/0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)/PROJETO/ARQ 01-03.pdf:fluxo", false)]
     [InlineData("2099/nao existe.pdf", false)]
     public void abrir_externo_so_documentos(string relativo, bool permitido)
     {
@@ -164,5 +163,104 @@ public class PastasTestes
         Assert.Throws<OperationCanceledException>(() => Processos.Listar(Raiz, cts.Token));
         Assert.Throws<OperationCanceledException>(() => Despachos.Listar(Array.Empty<Processo>(), cts.Token));
         Assert.Throws<OperationCanceledException>(() => Processos.Detalhar(Achar("0001"), cts.Token));
+    }
+
+    [Fact]
+    public void abrir_externo_recusa_fluxo_alternativo_com_arquivo_base_existente()
+    {
+        using var t = Ambiente.PastaDeTeste("pastas-fluxo");
+        var baseArq = Path.Combine(t, "x.pdf");
+        File.WriteAllText(baseArq, "x");
+        Assert.True(AbrirExterno.Permitido(baseArq, out _));
+        Assert.False(AbrirExterno.Permitido(baseArq + ":fluxo", out var motivo));
+        Assert.Contains("caracteres não permitidos", motivo);
+    }
+
+    [Fact]
+    public void abrir_externo_recusa_dupla_extensao_e_pasta_com_nome_de_arquivo()
+    {
+        using var t = Ambiente.PastaDeTeste("pastas-dupla");
+        foreach (var nome in new[] { "x.pdf.exe", "x.pdf.lnk" })
+        {
+            File.WriteAllText(Path.Combine(t, nome), "x");
+            Assert.False(AbrirExterno.Permitido(Path.Combine(t, nome), out _));
+        }
+        var pasta = Path.Combine(t, "foo.pdf");
+        Directory.CreateDirectory(pasta);
+        Assert.False(AbrirExterno.Permitido(pasta, out var motivo));
+        Assert.Contains("Pastas", motivo);
+    }
+
+    static void CriarJuncao(string juncao, string alvo)
+    {
+        var psi = new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{juncao}\" \"{alvo}\"") { CreateNoWindow = true, RedirectStandardOutput = true };
+        using var proc = Process.Start(psi)!;
+        proc.StandardOutput.ReadToEnd();
+        proc.WaitForExit();
+        Assert.Equal(0, proc.ExitCode);
+    }
+
+    [Fact]
+    public void juncao_e_ignorada_na_listagem_e_recusada_na_abertura_mas_pasta_comum_e_lida()
+    {
+        using var t = Ambiente.PastaDeTeste("pastas-juncao");
+        CopiarArvore(Raiz, t);
+        Assert.False(Processos.EhLink(Path.Combine(t, "2099")));
+
+        var alvo = Path.Combine(t, "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)");
+        var juncao = Path.Combine(t, "2099", "0099 - 2099 - JUNCAO (FICTICIO)");
+        CriarJuncao(juncao, alvo);
+        Assert.True(Processos.EhLink(juncao));
+        var itens = Processos.Listar(t, CancellationToken.None).Itens;
+        Assert.DoesNotContain(itens, p => p.Numero == 99);
+        Assert.Equal(4, itens.Count);
+
+        var p1 = itens.Single(x => x.Numero == 1);
+        CriarJuncao(Path.Combine(p1.Pasta, "DOCUMENTOS", "atalho"), Path.Combine(p1.Pasta, "PROJETO"));
+        var d = Processos.Detalhar(p1, CancellationToken.None);
+        Assert.Equal(new[] { "ART.pdf" }, d.Documentos.Select(a => Path.GetFileName(a.Relativo)));
+
+        Assert.False(AbrirExterno.Permitido(juncao, out _));
+        Assert.True(AbrirExterno.Permitido(Path.Combine(alvo, "PROJETO", "ARQ 01-03.pdf"), out _));
+    }
+
+    [Fact]
+    public void atalho_simbolico_de_arquivo_e_recusado_quando_o_sistema_deixa_criar()
+    {
+        using var t = Ambiente.PastaDeTeste("pastas-simbolico");
+        var alvo = Path.Combine(t, "real.pdf");
+        File.WriteAllText(alvo, "x");
+        var link = Path.Combine(t, "link.pdf");
+        try { File.CreateSymbolicLink(link, alvo); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return; } // sem privilégio para link simbólico
+        Assert.False(AbrirExterno.Permitido(link, out var motivo));
+        Assert.Contains("Links", motivo);
+    }
+
+    [Fact]
+    public void data_invalida_de_despacho_vira_aviso()
+    {
+        using var t = Ambiente.PastaDeTeste("pastas-data");
+        Directory.CreateDirectory(Path.Combine(t, "2099", "0005 - 2099 - TESTE (FICTICIO)", "DESPACHO 01 - 2099-02-31"));
+        Directory.CreateDirectory(Path.Combine(t, "2099", "0005 - 2099 - TESTE (FICTICIO)", "DESPACHO 02 - 2099-02-28"));
+        var p = Processos.Listar(t, CancellationToken.None).Itens.Single();
+        var d = Processos.Detalhar(p, CancellationToken.None);
+        Assert.Equal(new[] { 2 }, d.Despachos.Select(x => x.Numero));
+        Assert.Contains("data", Assert.Single(d.Avisos));
+    }
+
+    [Fact]
+    public void projeto_le_no_maximo_tres_niveis()
+    {
+        using var t = Ambiente.PastaDeTeste("pastas-niveis");
+        var proc = Path.Combine(t, "2099", "0005 - 2099 - TESTE (FICTICIO)");
+        foreach (var rel in new[] { "n1.pdf", "a/n2.pdf", "a/b/n3.pdf", "a/b/c/n4.pdf" })
+        {
+            var f = Path.Combine(proc, "PROJETO", rel.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(f)!);
+            File.WriteAllText(f, "x");
+        }
+        var p = Processos.Listar(t, CancellationToken.None).Itens.Single();
+        Assert.Equal(new[] { "n1.pdf", "n2.pdf", "n3.pdf" }, Processos.Detalhar(p, CancellationToken.None).Projeto.Select(a => Path.GetFileName(a.Relativo)).Order());
     }
 }

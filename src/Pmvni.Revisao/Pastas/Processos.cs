@@ -41,9 +41,16 @@ public static class Processos
 
     static bool Ilegivel(Exception e) => e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException;
 
-    static bool EhLink(string caminho)
+    /// <summary>Link de verdade: link simbólico ou junção (<see cref="FileSystemInfo.LinkTarget"/> preenchido). Um ponto de reparse qualquer
+    /// NÃO basta: os marcadores de arquivo só-na-nuvem do OneDrive (Files On-Demand) também têm o atributo ReparsePoint, mas são arquivos e
+    /// pastas comuns e precisam ser lidos. Se não der para saber, trata como link (o app só lê, então recusar é o lado seguro).</summary>
+    internal static bool EhLink(string caminho)
     {
-        try { return (File.GetAttributes(caminho) & FileAttributes.ReparsePoint) != 0; }
+        try
+        {
+            FileSystemInfo info = Directory.Exists(caminho) ? new DirectoryInfo(caminho) : new FileInfo(caminho);
+            return info.LinkTarget is not null;
+        }
         catch (Exception e) when (Ilegivel(e)) { return true; }
     }
 

@@ -37,7 +37,7 @@ public static class AbrirExterno
                 motivo = "Pastas não são abertas pelo editor. Use Mostrar no Explorador.";
                 return false;
             }
-            if ((atributos & FileAttributes.ReparsePoint) != 0)
+            if (Processos.EhLink(caminho))
             {
                 motivo = "Links e atalhos não são abertos pelo editor. Use Mostrar no Explorador.";
                 return false;
