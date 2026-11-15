@@ -437,6 +437,26 @@ public class AutosaveTestes
     }
 
     [Fact]
+    public void salvar_como_no_proprio_arquivo_somente_leitura_ou_em_conflito_e_recusado()
+    {
+        var atual = Path.GetFullPath(Path.Combine("x", "Relatorio_0001_2099.pmvrel"));
+        var mesmo = Path.GetFullPath(Path.Combine("x", "RELATORIO_0001_2099.PMVREL")); // o Windows não distingue caixa
+        var outro = Path.GetFullPath(Path.Combine("x", "Relatorio_0001_2099 (2).pmvrel"));
+        const string motivo = "Aberto por maria em PC-OBRAS desde 14:05: somente leitura.";
+
+        // Somente leitura (esquema mais novo, trava de outro, trava perdida): por cima do mesmo arquivo, nunca.
+        var r = TextosGravacao.RecusaSalvarComo(mesmo, atual, somenteLeitura: true, conflito: false, motivo);
+        Assert.NotNull(r);
+        Assert.Contains(motivo.TrimEnd('.'), r);
+        Assert.Contains("outro nome", r);
+        // Conflito: gravar por cima apagaria a versão que outro programa deixou.
+        Assert.Contains("Salvar como cópia", TextosGravacao.RecusaSalvarComo(atual, atual, somenteLeitura: false, conflito: true, null));
+        // Outro arquivo, ou o próprio com a sessão editável: segue.
+        Assert.Null(TextosGravacao.RecusaSalvarComo(outro, atual, somenteLeitura: true, conflito: true, motivo));
+        Assert.Null(TextosGravacao.RecusaSalvarComo(mesmo, atual, somenteLeitura: false, conflito: false, null));
+    }
+
+    [Fact]
     public void exportar_sem_gravar_aponta_a_saida()
     {
         Assert.Contains("Salvar como", TextosGravacao.ExportarSemGravar(conflito: false));

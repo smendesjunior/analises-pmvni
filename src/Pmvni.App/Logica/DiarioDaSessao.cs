@@ -199,6 +199,19 @@ public static class TextosGravacao
         ? "O arquivo mudou no disco e as alterações desta sessão não estão nele: o PDF não corresponderia ao pacote do recibo. Use Salvar como cópia e exporte depois."
         : "O relatório está somente para leitura e as alterações desta sessão não estão no arquivo: o PDF não corresponderia ao pacote do recibo. Use Salvar como para gravá-las num arquivo e exporte depois.";
 
+    /// <summary>"Salvar como" escolhendo o próprio arquivo aberto: com a sessão somente leitura (esquema mais novo, trava de outro, sem
+    /// trava, trava perdida) ou em conflito, gravar por cima furaria a proteção; devolve o motivo da recusa (null = pode seguir).</summary>
+    public static string? RecusaSalvarComo(string destino, string atual, bool somenteLeitura, bool conflito, string? motivoSomenteLeitura)
+    {
+        if (!string.Equals(Path.GetFullPath(destino), Path.GetFullPath(atual), StringComparison.OrdinalIgnoreCase)) return null;
+        if (conflito)
+            return "O arquivo mudou no disco depois de aberto: gravar por cima dele apagaria a versão que está lá. Use Salvar como cópia ou escolha outro nome.";
+        if (somenteLeitura)
+            return (motivoSomenteLeitura ?? "O relatório está aberto somente para leitura").TrimEnd('.')
+                   + ". Não é possível gravar por cima deste arquivo: escolha outro nome em Salvar como.";
+        return null;
+    }
+
     public const string TravaPerdida =
         "A trava de edição deste arquivo foi perdida (apagada ou retomada por outro programa): somente leitura. "
         + "As alterações que ainda não estavam no arquivo continuam no diário de recuperação; use Salvar como para guardá-las.";

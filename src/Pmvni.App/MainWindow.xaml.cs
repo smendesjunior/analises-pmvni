@@ -519,6 +519,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (sessao is null) return;
         var destino = await Perguntas.Atual.SalvarArquivoAsync(Path.GetFileName(sessao.Caminho), ".pmvrel");
         if (destino is null) return;
+        if (sessao.RecusaSalvarComo(destino) is { } recusa)
+        {
+            MostrarMensagem(InfoBarSeverity.Warning, "Não foi possível salvar", recusa);
+            return;
+        }
         if (!string.Equals(Path.GetFullPath(destino), sessao.Caminho, StringComparison.OrdinalIgnoreCase) && !DestinoNovo(destino)) return;
         try
         {

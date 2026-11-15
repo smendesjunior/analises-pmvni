@@ -304,7 +304,16 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     }
 
     /// <summary>Grava num arquivo novo (nunca sobrescreve outro) e passa a editar esse arquivo; na mesma fila das gravações.</summary>
-    public Task GravarComoAsync(string novo) => GravarNaFilaAsync(c => gravador.GravarComoAsync(novo, c));
+    public Task GravarComoAsync(string novo)
+    {
+        // O próprio arquivo, com a sessão somente leitura ou em conflito: nunca por cima (a proteção não é furada pelo Salvar como).
+        if (RecusaSalvarComo(novo) is { } recusa) throw new InvalidOperationException(recusa);
+        return GravarNaFilaAsync(c => gravador.GravarComoAsync(novo, c));
+    }
+
+    /// <summary>O motivo de recusar um Salvar como para <paramref name="destino"/> (null = pode).</summary>
+    public string? RecusaSalvarComo(string destino) =>
+        TextosGravacao.RecusaSalvarComo(destino, Caminho, SomenteLeitura, Estado == EstadoGravacao.Conflito, MotivoSomenteLeitura);
 
     async Task GravarNaFilaAsync(Func<Func<ConteudoPacote>, Task<EstadoDisco>> gravar)
     {
