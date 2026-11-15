@@ -805,6 +805,7 @@ internal static class Roteiro
             await j.ExecutarComandoAsync(ComandosApp.RevisaoMarcas);
             await Esperar(300);
             var semMarcas = !(await Js(j, "!!document.getElementById('pmvni-camada')")).GetBoolean();
+            var chaveDosAjustesAcompanha = !j.AjustesPagina.AlternarMarcas.IsOn;   // revisão I2: a chave dos Ajustes segue a faixa
             await j.ExecutarComandoAsync(ComandosApp.RevisaoMarcas);
             await Esperar(300);
             var comMarcas = (await Js(j, "!!document.getElementById('pmvni-camada')")).GetBoolean();
@@ -812,7 +813,9 @@ internal static class Roteiro
             var recolheu = !j.PropriedadesVisivel;
             await j.ExecutarComandoAsync(ComandosApp.ExibirPropriedades);
             p["somente_alterados_filtra"] = filtra;
+            chaveDosAjustesAcompanha &= j.AjustesPagina.AlternarMarcas.IsOn;
             p["marcas_alternam"] = semMarcas && comMarcas;
+            p["marcas_na_chave_dos_ajustes"] = chaveDosAjustesAcompanha;
             p["propriedades_recolhe"] = recolheu && j.PropriedadesVisivel;
             p["aceleradores_de_teclado"] = j.AceleradoresDeTeclado;
             var sem = j.AtalhosSemManipulador();
@@ -827,7 +830,7 @@ internal static class Roteiro
             p["ctrl_3_da_pagina_leva_a_processos"] = foiAProcessos;
             p["ctrl_1_volta_a_relatorios"] = voltou;
             p["ok"] = abriu && entradas == 5 && j.Selecionado is not null && excluiu && foi && proj.Item(alvo.Id)!.Incluido && flyout
-                && filtra && semMarcas && comMarcas && recolheu && j.PropriedadesVisivel && sem.Count == 0 && j.ComandosSemManipulador().Count == 0
+                && filtra && semMarcas && comMarcas && chaveDosAjustesAcompanha && recolheu && j.PropriedadesVisivel && sem.Count == 0 && j.ComandosSemManipulador().Count == 0
                 && foiAProcessos && voltou;
         });
 
@@ -4051,6 +4054,15 @@ internal static class Roteiro
             await Esperar(150);
             var focado = FocusManager.GetFocusedElement(j.ElementoRaiz.XamlRoot);
             p["seta_para_baixo_vai_a_despachos"] = moveu && ReferenceEquals(focado, trilho.Botao(Modulo.Despachos));
+            // Revisão I3: Processos e Despachos têm a tela vazia completa (título, botões) e a frase segue o texto da lista vazia.
+            var textoVazio = j.TextoListaVaziaProcessos.Text;
+            j.TextoListaVaziaProcessos.Text = "Frase de teste do roteiro";
+            var fraseSegue = j.EstadoVazioProcessos.TextoFrase == "Frase de teste do roteiro";
+            j.TextoListaVaziaProcessos.Text = textoVazio;
+            var telasVazias = j.EstadoVazioProcessos.TextoTitulo == "Nenhum processo" && j.EstadoVazioProcessos.TextoPrimario == "Atualizar lista"
+                && j.EstadoVazioDespachos.TextoTitulo == "Nenhum despacho" && j.EstadoVazioDespachos.TextoPrimario == "Atualizar lista" && fraseSegue;
+            p["telas_vazias_de_processos_e_despachos"] = telasVazias;
+            tudoOk &= telasVazias;
             // Captura do trilho nos dois temas (o roteiro não muda o tema guardado).
             j.DefinirTema(ElementTheme.Light);
             await Esperar(600);
@@ -4154,6 +4166,10 @@ internal static class Roteiro
             var modoAgente = j.AjustesAtuais.Agentes[Provedor.ChatGpt].Modo;
             static void Escolher(Microsoft.UI.Xaml.Controls.ComboBox c, object valor) =>
                 c.SelectedItem = c.Items.OfType<Microsoft.UI.Xaml.Controls.ComboBoxItem>().First(i => Equals(i.Tag, valor));
+            // Revisão m9: se o passo falhar no meio, os ajustes voltam ao padrão mesmo assim (confirmações ligadas para os passos seguintes).
+            var restaurado = false;
+            try
+            {
             Escolher(pag.CaixaAbrirEm, "Processos");
             Escolher(pag.CaixaRecentes, 20);
             Escolher(pag.CaixaRotulosFaixa, "icones");
@@ -4203,6 +4219,7 @@ internal static class Roteiro
             // Restaurar os ajustes (com a confirmação respondida "Restaurar"): tudo ao padrão; chaves, leis e recentes ficam.
             perguntas.Confirmar = true;
             var restaurou = await j.RestaurarAjustesAsync();
+            restaurado = restaurou;
             var padrao = new Ajustes();
             var a = j.AjustesAtuais;
             var restaurouOk = restaurou && a.AbrirEm == padrao.AbrirEm && a.RecentesMax == padrao.RecentesMax && a.FaixaRotulos == padrao.FaixaRotulos
@@ -4210,15 +4227,20 @@ internal static class Roteiro
                 && a.ConfirmarCancelar && a.PedidoPadrao == "" && Guardado("abrir_em")?.GetValue<string>() == "ultimo";
             var preservou = j.RecentesNosAjustes.SequenceEqual(recentesAntes) && j.LinhasLegislacaoAjustes.Count == leisAntes && a.Agentes[Provedor.ChatGpt].Modo == modoAgente;
             p["restaurar"] = new JsonObject { ["restaurou"] = restaurouOk, ["preservou_recentes_leis_e_agentes"] = preservou };
-            // O roteiro volta ao que os passos seguintes esperam (pasta de processos da cópia fictícia e salvamento automático em 15 s).
-            j.DefinirPastaProcessos(copiaProcessos);
-            j.DefinirIntervaloAutosave(15);
             p["conferencias"] = new JsonObject
             {
                 ["menu_com_8_categorias"] = menuOk, ["cada_categoria_abre"] = categoriasOk, ["so_icones"] = soIcones, ["sempre_rotulos"] = sempreRotulos,
                 ["gravadas"] = gravadasOk, ["valem_ao_reabrir"] = reabertoOk,
             };
             p["ok"] = menuOk && categoriasOk && soIcones && sempreRotulos && gravadasOk && reabertoOk && restaurouOk && preservou;
+            }
+            finally
+            {
+                if (!restaurado) { perguntas.Confirmar = true; await j.RestaurarAjustesAsync(); }
+                // O roteiro volta ao que os passos seguintes esperam (pasta de processos da cópia fictícia e salvamento automático em 15 s).
+                j.DefinirPastaProcessos(copiaProcessos);
+                j.DefinirIntervaloAutosave(15);
+            }
             await j.MudarModuloAsync(Modulo.Relatorios);
         });
 
@@ -4240,12 +4262,21 @@ internal static class Roteiro
             var secoes = Nomes(j.ListaDeSecoes);
             var itemComSituacao = j.Itens.FirstOrDefault(i => i.Situacao is not null);
             var situacaoPorExtenso = itemComSituacao is not null && itemComSituacao.NomeAcessivel.Contains(itemComSituacao.TextoSituacao, StringComparison.Ordinal);
+            // A lista só tem contêineres depois de ter itens e de um layout com a página à vista.
+            async Task<List<string>> NomesDepoisDeLer(Microsoft.UI.Xaml.Controls.ListViewBase lista)
+            {
+                await j.AguardarLeiturasAsync();
+                await EsperarAteAsync(() => Task.FromResult(lista.Items.Count > 0), 5000);
+                lista.UpdateLayout();
+                await Esperar(200);
+                return Nomes(lista);
+            }
             await j.MudarModuloAsync(Modulo.Processos);
-            await j.AguardarLeiturasAsync();
-            var processos = Nomes(j.ListaDeProcessos);
+            var processos = await NomesDepoisDeLer(j.ListaDeProcessos);
+            p["itens_processos"] = j.ListaDeProcessos.Items.Count;
             await j.MudarModuloAsync(Modulo.Despachos);
-            await j.AguardarLeiturasAsync();
-            var despachos = Nomes(j.ListaDeDespachos);
+            var despachos = await NomesDepoisDeLer(j.ListaDeDespachos);
+            p["itens_despachos"] = j.ListaDeDespachos.Items.Count;
             var trilho = Faixas.Disponiveis.Select(m => AutomationProperties.GetName(j.TrilhoAtual.Botao(m)!)).ToList();
             p["secoes"] = new JsonArray(secoes.Take(6).Select(n => (JsonNode)n).ToArray());
             p["processos"] = new JsonArray(processos.Take(4).Select(n => (JsonNode)n).ToArray());
@@ -4302,6 +4333,57 @@ internal static class Roteiro
                 linhas.Add(linha);
             }
             p["modulos"] = linhas;
+            // Revisão I1: depois de passar por Despachos (primário Novo despacho ▾), os itens Correção/Aprovação do menu da Página Inicial de
+            // Processos e de Relatórios continuam recebendo Habilitar e a dica.
+            var itensDaAba = new JsonArray();
+            foreach (var m in new[] { Modulo.Processos, Modulo.Relatorios })
+            {
+                await j.MudarModuloAsync(Modulo.Despachos);
+                await j.MudarModuloAsync(m);
+                await j.AguardarLeiturasAsync();
+                var faixa = j.FaixaAtual;
+                var abaInicial = faixa.Definicao!.Abas.First(a => a.Comandos.Any(c => c.Id == ComandosApp.DespachosNovo)).Nome;
+                faixa.EscolherAba(abaInicial);
+                await Esperar(80);
+                var item = faixa.ItemDoMenuDaAba(ComandosApp.DespachosNovoCorrecao);
+                var antes = faixa.Habilitado(ComandosApp.DespachosNovoCorrecao);
+                var dicaAntes = faixa.Dica(ComandosApp.DespachosNovoCorrecao);
+                faixa.Habilitar(ComandosApp.DespachosNovoCorrecao, false);
+                faixa.DefinirDica(ComandosApp.DespachosNovoCorrecao, "Motivo de teste do roteiro");
+                var desligou = item is { IsEnabled: false } && ToolTipService.GetToolTip(item) as string == "Motivo de teste do roteiro";
+                faixa.Habilitar(ComandosApp.DespachosNovoCorrecao, antes);
+                faixa.DefinirDica(ComandosApp.DespachosNovoCorrecao, dicaAntes);
+                var voltou = item is not null && item.IsEnabled == antes;
+                itensDaAba.Add(new JsonObject { ["modulo"] = m.ToString(), ["aba"] = abaInicial, ["achou_item"] = item is not null, ["atualiza"] = desligou && voltou });
+                tudoOk &= desligou && voltou;
+            }
+            p["novo_despacho_na_aba_depois_de_despachos"] = itensDaAba;
+            // Capturas da janela para mostrar ao usuário (tests\saida\capturas, ignorada pelo git): trilho com o módulo ativo, faixa e página,
+            // nos temas claro e escuro (o tema guardado não muda). Último passo: nada mais confere escritas depois daqui.
+            var capturas = Path.Combine(Path.GetDirectoryName(pasta)!, "capturas");
+            Directory.CreateDirectory(capturas);
+            var arquivosCaptura = new JsonArray();
+            async Task Capturar(FrameworkElement alvo, string nome)
+            {
+                await CapturarXamlAsync(alvo, Path.Combine(capturas, nome));
+                arquivosCaptura.Add(nome);
+            }
+            foreach (var (tema, nome) in new[] { (ElementTheme.Light, "claro"), (ElementTheme.Dark, "escuro") })
+            {
+                j.DefinirTema(tema);
+                await j.MudarModuloAsync(Modulo.Ajustes);
+                j.AjustesPagina.MostrarCategoria(CategoriasAjustes.Geral);
+                await Esperar(800);
+                await Capturar(j.ElementoRaiz, $"janela-ajustes-{nome}.png");
+                await j.MudarModuloAsync(Modulo.Processos);
+                await j.AguardarLeiturasAsync();
+                await Esperar(800);
+                await Capturar(j.ElementoRaiz, $"janela-processos-{nome}.png");
+                await Capturar(j.TrilhoAtual, $"trilho-{nome}.png");
+            }
+            j.DefinirTema(ElementTheme.Default);
+            await Esperar(300);
+            p["capturas"] = arquivosCaptura;
             p["comandos_sem_manipulador"] = new JsonArray(j.ComandosSemManipulador().Select(c => (JsonNode)c).ToArray());
             p["ok"] = tudoOk && j.ComandosSemManipulador().Count == 0;
             await j.MudarModuloAsync(Modulo.Relatorios);
@@ -4449,8 +4531,24 @@ internal static class Roteiro
     /// <summary>Apaga uma árvore que o próprio roteiro criou antes (arquivos ocultos ou só-leitura inclusive).</summary>
     static void ApagarArvore(string pasta)
     {
-        foreach (var f in Directory.GetFiles(pasta, "*", SearchOption.AllDirectories)) File.SetAttributes(f, FileAttributes.Normal);
-        Directory.Delete(pasta, true);
+        // A pasta fica no OneDrive: o sincronizador (ou o Explorer) pode segurar um arquivo ou uma subpasta por instantes e o Delete lança
+        // "O diretório não está vazio". Tenta de novo por até ~10 s antes de desistir.
+        for (var tentativa = 1; ; tentativa++)
+        {
+            try
+            {
+                if (!Directory.Exists(pasta)) return;
+                foreach (var f in Directory.GetFiles(pasta, "*", SearchOption.AllDirectories)) File.SetAttributes(f, FileAttributes.Normal);
+                Directory.Delete(pasta, true);
+                return;
+            }
+            catch (Exception e) when ((e is IOException or UnauthorizedAccessException) && tentativa < 40) { Thread.Sleep(250); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                var restantes = Directory.Exists(pasta) ? string.Join(", ", Directory.GetFileSystemEntries(pasta, "*", SearchOption.AllDirectories).Take(5)) : "";
+                throw new IOException($"não consegui apagar {pasta} ({e.Message}); ainda há: {restantes}", e);
+            }
+        }
     }
 
     /// <summary>Os modelos e as referências do plugin despacho no kit (caminho, tamanho e data de cada arquivo e pasta): o roteiro prova que
