@@ -127,7 +127,7 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         numero.TextChanged += (_, _) => Conferir();
         ano.TextChanged += (_, _) => Conferir();
         requerente.TextChanged += (_, _) => Conferir();
-        if (await d.ShowAsync() != ContentDialogResult.Primary) return null;
+        if (await Mostrar(d) != ContentDialogResult.Primary) return null;
         return FluxoNovoRelatorio.LerNovoProcesso(numero.Text, ano.Text, requerente.Text, anoAtual);
     }
 
@@ -155,8 +155,23 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         return (await seletor.PickSingleFolderAsync())?.Path;
     }
 
-    public async Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao) =>
-        await Dialogo(titulo, texto, sim, nao).ShowAsync() == ContentDialogResult.Primary;
+    /// <summary>Confirmações (quase todas de uma ação destrutiva: descartar, cancelar a análise, excluir): Enter escolhe "não" (Ruling FD-I3), nunca a ação.</summary>
+    public async Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao)
+    {
+        var d = Dialogo(titulo, texto, sim, nao);
+        d.DefaultButton = ContentDialogButton.Close;
+        return await Mostrar(d) == ContentDialogResult.Primary;
+    }
+
+    /// <summary>Um diálogo de cada vez (o WinUI recusa dois ContentDialog abertos): quem chega com outro aberto espera a vez em vez de falhar.</summary>
+    readonly SemaphoreSlim umDialogo = new(1, 1);
+
+    async Task<ContentDialogResult> Mostrar(ContentDialog d)
+    {
+        await umDialogo.WaitAsync();
+        try { return await d.ShowAsync(); }
+        finally { umDialogo.Release(); }
+    }
 
     public async Task InformarAsync(string titulo, string texto)
     {
@@ -167,7 +182,7 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
             Content = new ScrollViewer { MaxHeight = 480, Content = new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true } },
             CloseButtonText = "Fechar",
         };
-        await d.ShowAsync();
+        await Mostrar(d);
     }
 
     public async Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos)
@@ -175,7 +190,7 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         var quando = ultimo.ToLocalTime().ToString("dd/MM/yyyy 'às' HH:mm", CultureInfo.GetCultureInfo("pt-BR"));
         var texto = (comandos == 1 ? "Há 1 alteração" : $"Há {comandos} alterações")
             + $" que não chegou ao arquivo (a última em {quando}). Recuperar refaz essas alterações; descartar abre o arquivo como está gravado.";
-        var r = await Dialogo("Recuperar alterações não gravadas?", texto, "Recuperar", "Descartar").ShowAsync();
+        var r = await Mostrar(Dialogo("Recuperar alterações não gravadas?", texto, "Recuperar", "Descartar"));
         return r == ContentDialogResult.Primary ? RespostaRecuperacao.Recuperar : RespostaRecuperacao.Descartar;
     }
 
@@ -184,7 +199,7 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         var d = Dialogo("As alterações não foram gravadas", TextosGravacao.FecharSemGravar(motivo, conflito),
             conflito ? "Salvar como cópia" : "Salvar como…", "Cancelar");
         d.SecondaryButtonText = conflito ? "Fechar sem salvar (fica na pasta de recuperação)" : "Fechar sem salvar (a recuperação fica guardada)";
-        return await d.ShowAsync() switch
+        return await Mostrar(d) switch
         {
             ContentDialogResult.Primary => conflito ? RespostaFechar.SalvarCopia : RespostaFechar.SalvarComo,
             ContentDialogResult.Secondary => RespostaFechar.FecharSemSalvar,
@@ -196,7 +211,7 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
     {
         var d = Dialogo("O texto em edição não foi aplicado", TextosGravacao.FecharSemOTexto(motivo), "Voltar à edição", "");
         d.SecondaryButtonText = "Fechar sem ele";
-        return await d.ShowAsync() == ContentDialogResult.Secondary; // Esc e o resto voltam à edição: o texto nunca se perde sem pedir
+        return await Mostrar(d) == ContentDialogResult.Secondary; // Esc e o resto voltam à edição: o texto nunca se perde sem pedir
     }
 
     ContentDialog Dialogo(string titulo, string texto, string sim, string nao) => new()

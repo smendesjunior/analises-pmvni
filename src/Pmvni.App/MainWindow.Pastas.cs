@@ -584,7 +584,11 @@ public sealed partial class MainWindow
 
     /// <summary>"Importar análise da IA": o <c>dados*.json</c> do processo vira um <c>.pmvrel</c> novo na pasta do processo, com o nome
     /// <c>Relatorio_NNNN_AAAA.pmvrel</c> (o do processo; se já existe, <c>_2</c>, <c>_3</c>…: nunca sobrescreve) e abre no módulo Relatórios.</summary>
-    internal async Task<bool> ImportarAnaliseAsync(Processo p, string json)
+    internal async Task<bool> ImportarAnaliseAsync(Processo p, string json) => await ImportarAnaliseParaAsync(p, json, abrir: true) is not null;
+
+    /// <summary>Como <see cref="ImportarAnaliseAsync"/>; devolve o <c>.pmvrel</c> criado (null = não importou). <paramref name="abrir"/> = false: não abre
+    /// (o relatório fica nos Recentes e na pasta do processo).</summary>
+    internal async Task<string?> ImportarAnaliseParaAsync(Processo p, string json, bool abrir)
     {
         string destino;
         try
@@ -600,9 +604,9 @@ public sealed partial class MainWindow
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             MostrarMensagem(InfoBarSeverity.Error, "Não foi possível importar a análise", Erro(e));
-            return false;
+            return null;
         }
-        return await ImportarParaAsync(json, destino);
+        return await ImportarParaAsync(json, destino, abrir) ? destino : null;
     }
 
     void AbrirNoPrograma(string? caminho)

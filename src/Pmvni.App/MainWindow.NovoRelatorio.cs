@@ -235,16 +235,19 @@ public sealed partial class MainWindow
         if (fechada) return;
         escolher ??= processoNR;
         var n = NR;
-        var linhas = ListasPastas.FiltrarProcessos(processosNR.Select(p => new LinhaProcesso(p, DateTime.MinValue)), n.CaixaFiltro.Text, null, OrdemProcessos.Numero);
+        var linhas = ListasPastas.FiltrarProcessos(processosNR.Select(p => new LinhaProcesso(p, DateTime.MinValue)), n.CaixaFiltro.Text, null, OrdemProcessos.Numero)
+            .Select(l => l.Processo).ToList();
+        // O processo escolhido fica sempre à vista, mesmo fora do filtro: o Analisar parte para ele.
+        if (escolher is not null && !linhas.Any(p => p.Pasta == escolher.Pasta)) linhas.Insert(0, escolher);
         preenchendoNR = true;
         try
         {
             n.CaixaProcesso.Items.Clear();
-            foreach (var l in linhas)
+            foreach (var processo in linhas)
                 n.CaixaProcesso.Items.Add(new ComboBoxItem
                 {
-                    Content = ListasPastas.NumeroDoProcesso(l.Processo) is { } num ? num + " · " + (l.Processo.Requerente ?? l.Processo.NomePasta) : l.Processo.NomePasta,
-                    Tag = l.Processo,
+                    Content = ListasPastas.NumeroDoProcesso(processo) is { } num ? num + " · " + (processo.Requerente ?? processo.NomePasta) : processo.NomePasta,
+                    Tag = processo,
                 });
             n.CaixaProcesso.SelectedItem = n.CaixaProcesso.Items.OfType<ComboBoxItem>().FirstOrDefault(i => i.Tag is Processo p && escolher is not null && p.Pasta == escolher.Pasta);
         }
@@ -515,11 +518,13 @@ public sealed partial class MainWindow
             MostrarAgentes();
         }
         var processo = processoNR!;
-        var anexos = anexosNR.Select(x => (x.Origem, x.Destino)).ToList();
-        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, PedidoTexto), limparAnexos: true);
+        var instantaneo = anexosNR.ToList();      // o que foi enviado: um anexo posto durante a cópia fica na lista para a próxima
+        var anexos = instantaneo.Select(x => (x.Origem, x.Destino)).ToList();
+        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, PedidoTexto), instantaneo);
     }
 
-    async Task<ExecucaoEmCurso?> PartirAsync(Func<Task<ExecucaoEmCurso?>> partir, bool limparAnexos)
+    /// <param name="enviados">Os anexos da lista que foram para esta partida (saem da lista depois dela); null = a lista não muda.</param>
+    async Task<ExecucaoEmCurso?> PartirAsync(Func<Task<ExecucaoEmCurso?>> partir, IReadOnlyList<AnexoNovo>? enviados)
     {
         partindoNR = true;
         AtualizarBotoesNR();
@@ -528,6 +533,11 @@ public sealed partial class MainWindow
         catch (AnaliseRecusadaException x)
         {
             MostrarMensagem(InfoBarSeverity.Warning, "A análise não foi iniciada", x.Message);
+            return null;
+        }
+        catch (CopiaInterrompidaException x)
+        {
+            MostrarMensagem(InfoBarSeverity.Error, "A análise não foi iniciada", FluxoNovoRelatorio.TextoCopiaInterrompida(Erro(x.InnerException!), x.Pasta));
             return null;
         }
         catch (Exception x)
@@ -547,12 +557,15 @@ public sealed partial class MainWindow
             SalvarAjustes();
         }
         conclusoes[e] = ConcluirAsync(e);
-        if (limparAnexos)
+        if (enviados is not null)
         {
-            // Os anexos já estão na pasta do processo: a lista começa de novo (o processo e o pedido ficam).
-            anexosNR.Clear();
+            // Os anexos enviados já estão na pasta do processo: saem da lista (o processo, o pedido e o que foi posto durante a cópia ficam).
+            foreach (var a in enviados) anexosNR.Remove(a);
             recusasNR.Clear();
-            NR.TextoRecusas.Visibility = Visibility.Collapsed;
+            // Um anexo que ficou ilegível entre a prévia e o clique não foi enviado: o motivo fica à vista.
+            recusasNR.AddRange(e.Recusas);
+            NR.TextoRecusas.Text = string.Join(Environment.NewLine, recusasNR);
+            NR.TextoRecusas.Visibility = recusasNR.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             RenderizarAnexos();
         }
         if (fechada) return e;
@@ -568,7 +581,7 @@ public sealed partial class MainWindow
         if (ultimoResultadoNR is not { Provedor: Provedor.Claude } anterior) return null;
         NR.AvisoResultado.IsOpen = false;
         await LerPecasAsync();
-        return await PartirAsync(() => sessaoNR.AnalisarAsync(Provedor.Claude, anterior.Processo, [], anterior.Texto), limparAnexos: false);
+        return await PartirAsync(() => sessaoNR.AnalisarAsync(Provedor.Claude, anterior.Processo, [], anterior.Texto), enviados: null);
     });
 
     // ---------- vista da execução ----------
@@ -658,9 +671,12 @@ public sealed partial class MainWindow
         var comRelatorio = fim.Situacao == "concluida" && fim.Documento is not null;
         // A análise do Claude sai dos ajustes quando acaba sem relatório; com relatório, só depois de importado (até lá o editor reaberto ainda o oferece).
         if (e.Provedor == Provedor.Claude && !comRelatorio) EsquecerPendenteClaude(e.Registro.Pasta);
+        var naVista = ReferenceEquals(execucaoMostrada, e) && PaginaNovoRelatorioVisivel;
         if (ReferenceEquals(execucaoMostrada, e)) MostrarFormularioNR();
+        // Ruling FD-I3: o fim em segundo plano nunca troca de módulo nem fecha o que está aberto; abre direto só com o usuário na vista desta execução,
+        // sem relatório aberto e sem despacho em edição (conferido na vez da fila). Senão, "Relatório pronto" com "Abrir relatório".
         if (comRelatorio)
-            await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf));
+            await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf), () => naVista && PodeAbrirSemInterromper);
         else MostrarResultadoNR(e, fim);
         AtualizarTituloAnalise();
         AtualizarBotoesNR();
@@ -716,9 +732,10 @@ public sealed partial class MainWindow
 
     /// <summary>Antes do fechamento de sempre (desenho §12.7): ChatGPT ⇒ "Cancelar a análise e fechar?" (Continuar ⇒ não fecha; sim ⇒ cancela e espera até 5 s);
     /// Claude ⇒ só informa (a análise segue na janela do kit e fica nos ajustes para a retomada). true = pode fechar.</summary>
-    internal async Task<bool> PodeFecharComAnalisesAsync()
+    /// <param name="tratadas">As execuções já perguntadas/informadas neste fechamento (a segunda checagem, na fila, só olha as novas).</param>
+    internal async Task<bool> PodeFecharComAnalisesAsync(HashSet<ExecucaoEmCurso>? tratadas = null)
     {
-        var ativas = sessaoNR.Execucoes.Where(e => !e.Abandonada).ToList();
+        var ativas = sessaoNR.Execucoes.Where(e => !e.Abandonada && tratadas?.Contains(e) != true).ToList();
         foreach (var e in ativas.Where(e => e.Provedor == Provedor.ChatGpt))
         {
             if (!await Perguntas.Atual.ConfirmarAsync(FluxoNovoRelatorio.FecharTitulo, FluxoNovoRelatorio.TextoFecharChatGpt(e.Processo), FluxoNovoRelatorio.FecharSim, FluxoNovoRelatorio.FecharNao))
@@ -737,6 +754,7 @@ public sealed partial class MainWindow
             SalvarAjustes();
             await Perguntas.Atual.InformarAsync("A análise com o Claude continua", FluxoNovoRelatorio.TextoFecharClaude);
         }
+        tratadas?.UnionWith(ativas);
         return true;
     }
 
@@ -871,11 +889,25 @@ public sealed partial class MainWindow
         return await ImportarAsync(imp with { Documento = r.Documento, Pdf = r.Pdf });
     }
 
-    /// <summary>Importa o documento que o kit declarou e abre o <c>.pmvrel</c>; só então a pendência sai e o registro recebe o <c>.pmvrel</c>.</summary>
-    async Task<bool> ImportarAsync(ImportacaoPendente imp)
+    /// <summary>Nada em curso que a abertura de um relatório interromperia: a página Novo relatório à frente, nenhum relatório aberto e nenhum despacho
+    /// em edição (passo 2 ou 3, preparando ou gravando).</summary>
+    bool PodeAbrirSemInterromper =>
+        PaginaNovoRelatorioVisivel && sessao is null
+        && novo is not ({ Passo: PassoNovoDespacho.Conteudo or PassoNovoDespacho.Conferencia } or { Preparando: true } or { Gravando: true });
+
+    /// <summary>Importa o documento que o kit declarou e abre o <c>.pmvrel</c>; só então a pendência sai e o registro recebe o <c>.pmvrel</c>.
+    /// <paramref name="abrirDireto"/> (lido na vez da fila) false ⇒ só cria o <c>.pmvrel</c> e mostra "Relatório pronto" com "Abrir relatório";
+    /// null = gesto do usuário ("Importar relatório"): abre.</summary>
+    async Task<bool> ImportarAsync(ImportacaoPendente imp, Func<bool>? abrirDireto = null)
     {
-        var importou = await NaFilaAsync(() => ImportarAnaliseAsync(imp.Processo, imp.Documento!));
-        if (!importou || sessao is not { } s)
+        var abriu = false;
+        var criado = await NaFilaAsync(async () =>
+        {
+            abriu = abrirDireto?.Invoke() ?? true;
+            return await ImportarAnaliseParaAsync(imp.Processo, imp.Documento!, abriu);
+        });
+        var s = abriu ? sessao : null;
+        if (criado is null || (abriu && s is null))
         {
             if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, imp.Registro))) importacoesPendentes.Add(imp);
             else importacoesPendentes[importacoesPendentes.FindIndex(i => MesmoRegistro(i.Registro, imp.Registro))] = imp;
@@ -883,15 +915,37 @@ public sealed partial class MainWindow
             return false;
         }
         EsquecerPendenteClaude(imp.Registro);
+        var pmvrel = s?.Caminho ?? criado;
         try
         {
             using var registro = RegistroExecucao.Abrir(imp.Registro, imp.Processo.Pasta);
-            registro.Atualizar(o => { o["pmvrel"] = s.Caminho; o["document"] = imp.Documento; o["situacao"] = "concluida"; });
+            registro.Atualizar(o => { o["pmvrel"] = pmvrel; o["document"] = imp.Documento; o["situacao"] = "concluida"; });
         }
         catch (Exception x) when (x is IOException or UnauthorizedAccessException or InvalidOperationException) { System.Diagnostics.Debug.WriteLine("[registro] " + x.Message); }
-        MostrarMensagem(InfoBarSeverity.Success, "Relatório importado", FluxoNovoRelatorio.TextoImportado(imp.Provedor, s.Caminho, imp.Pdf));
+        if (abriu) MostrarMensagem(InfoBarSeverity.Success, "Relatório importado", FluxoNovoRelatorio.TextoImportado(imp.Provedor, pmvrel, imp.Pdf));
+        else MostrarRelatorioPronto(imp, pmvrel);
         return true;
     }
+
+    /// <summary>"Relatório pronto" no módulo à vista, com "Abrir relatório" (na fila, como Abrir; quem decide abrir é o usuário).</summary>
+    void MostrarRelatorioPronto(ImportacaoPendente imp, string pmvrel)
+    {
+        if (fechada) return;
+        MostrarMensagem(InfoBarSeverity.Success, FluxoNovoRelatorio.RelatorioProntoTitulo, FluxoNovoRelatorio.TextoRelatorioPronto(imp.Provedor, pmvrel, imp.Pdf));
+        var botao = new Button { Content = FluxoNovoRelatorio.AbrirRelatorio };
+        botao.Click += async (_, _) => await AbrirRelatorioProntoAsync(pmvrel);
+        AvisoDoModulo.ActionButton = botao;
+        RelatorioPronto = pmvrel;
+    }
+
+    /// <summary>O último "Relatório pronto" oferecido (o roteiro aperta "Abrir relatório" por aqui).</summary>
+    internal string? RelatorioPronto { get; private set; }
+
+    internal Task AbrirRelatorioProntoAsync(string pmvrel) => NaFilaAsync(() => TentarAsync(async () =>
+    {
+        AvisoDoModulo.IsOpen = false;
+        await AbrirPacoteAsync(pmvrel);
+    }));
 
     async Task<Processo> ProcessoDaPastaAsync(string pasta)
     {

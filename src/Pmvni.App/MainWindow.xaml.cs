@@ -162,6 +162,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Closed += (_, _) =>
         {
             fechada = true;
+            sessaoNR.Encerrar();      // nenhum Codex fica sem dono (nem um que ainda ia partir)
             leituraDaLista?.Cancel(); // a leitura das pastas de processos em segundo plano para junto com a janela
             leituraDoDetalhe?.Cancel();
             // Um preparo em curso para (até ~3 s; senão a árvore do soffice é encerrada já, antes de o processo terminar) e a pasta de
@@ -305,17 +306,17 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         PaginaDeProcessos.Visibility = m == Modulo.Processos ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeLegislacao.Visibility = m == Modulo.Legislacao ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeAjustes.Visibility = m == Modulo.Ajustes ? Visibility.Visible : Visibility.Collapsed;
-        if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes(); AtualizarPaginaDePastas(); AtualizarAgentes(); _ = EntrarNaLegislacaoDosAjustesAsync(); }
+        if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes(); AtualizarPaginaDePastas(); AtualizarAgentes(); Soltar(EntrarNaLegislacaoDosAjustesAsync); }
         var f = Faixas.Para(m);
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
         Faixa.Montar(f, Faixas.IndiceDaAba(f, aba));
-        _ = AtualizarModelosAsync(forcar: false); // o registro de modelos do kit, lido uma vez por pasta do kit (habilita o Novo despacho)
+        Soltar(() => AtualizarModelosAsync(forcar: false)); // o registro de modelos do kit, lido uma vez por pasta do kit (habilita o Novo despacho)
         TrilhoModulos.Marcar(m);
         TrocarPesquisaDeModulo(anterior, m);
         EntrarNoModuloDePastas(m);
         SincronizarPastas();
         AtualizarComandos();
-        if (m == Modulo.Legislacao) _ = EntrarNaLegislacaoAsync();
+        if (m == Modulo.Legislacao) Soltar(EntrarNaLegislacaoAsync);
         if (ajustes.Modulo != m) { ajustes.Modulo = m; SalvarAjustes(); }
     }
 
@@ -468,8 +469,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         return false;
     }
 
-    /// <summary>Importa o dados.json do kit para o <c>.pmvrel</c> novo <paramref name="pmvrel"/> (recusa se ele existe) e o abre.</summary>
-    internal async Task<bool> ImportarParaAsync(string json, string pmvrel)
+    /// <summary>Importa o dados.json do kit para o <c>.pmvrel</c> novo <paramref name="pmvrel"/> (recusa se ele existe) e o abre.
+    /// <paramref name="abrir"/> = false: só cria o <c>.pmvrel</c> (vai para os Recentes; o que está aberto não muda).</summary>
+    internal async Task<bool> ImportarParaAsync(string json, string pmvrel, bool abrir = true)
     {
         if (ocupado || aplicando || documento is null) { AvisarOcupado(); return false; }
         Ocupar("Importando o dados.json…");
@@ -489,6 +491,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             return false;
         }
         finally { Liberar(); }
+        if (!abrir)
+        {
+            RegistrarRecente(pmvrel);
+            return true;
+        }
         return await AbrirPacoteAsync(pmvrel);
     }
 
@@ -568,7 +575,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         try
         {
             // Análises em andamento (desenho §12.7): o ChatGPT pergunta (Continuar ⇒ não fecha); o Claude só informa e segue sozinho.
-            if (!await PodeFecharComAnalisesAsync()) return;
+            var tratadas = new HashSet<ExecucaoEmCurso>();
+            if (!await PodeFecharComAnalisesAsync(tratadas)) return;
             if (ocupado || naFila > 0)
                 MostrarMensagem(InfoBarSeverity.Informational, "Aguarde", "A janela fecha assim que a operação em andamento terminar.");
             var fechar = await NaFilaAsync(async () =>
@@ -577,6 +585,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 while (ocupado && !fechada) await Task.Delay(100);
                 // Um despacho em edição (passo 2 ou 3) pergunta antes de ser descartado; nada dele foi gravado na pasta do processo.
                 if (!await SairDoNovoDespachoAsync()) return false;
+                // Uma análise que partiu enquanto a janela esperava a vez (o Analisar copiava os anexos) pergunta agora, como as outras.
+                if (!await PodeFecharComAnalisesAsync(tratadas)) return false;
                 return await FecharSessaoAsync();
             });
             if (fechar && !fechada) { fecharDeVez = true; Close(); }

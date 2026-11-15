@@ -144,25 +144,23 @@ public sealed partial class MainWindow
     internal Task GuardarChaveAsync(Provedor p, string chave) => NaFilaAsync(() => TentarAsync(() =>
     {
         var caixa = CartaoDoAgente(p).CaixaChave;
-        if (string.IsNullOrWhiteSpace(chave))
+        try
         {
-            caixa.Password = "";
-            mensagensDosAgentes[p] = TextosAgentes.ChaveVazia;
-        }
-        else
-        {
-            try
+            if (string.IsNullOrWhiteSpace(chave)) mensagensDosAgentes[p] = TextosAgentes.ChaveVazia;
+            else
             {
-                CofreChaves.Guardar(PastaDados.Raiz, p, chave);
-                mensagensDosAgentes.Remove(p);
-                caixa.Password = "";
-            }
-            catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or IOException or UnauthorizedAccessException)
-            {
-                mensagensDosAgentes[p] = "Não foi possível guardar a chave: " + e.Message;
-                caixa.Password = "";   // a chave não fica na caixa nem quando a gravação falha
+                try
+                {
+                    CofreChaves.Guardar(PastaDados.Raiz, p, chave);
+                    mensagensDosAgentes.Remove(p);
+                }
+                catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or IOException or UnauthorizedAccessException)
+                {
+                    mensagensDosAgentes[p] = "Não foi possível guardar a chave: " + Erro(e);
+                }
             }
         }
+        finally { caixa.Password = ""; }    // a chave nunca fica na caixa, qualquer que seja a falha
         MostrarAgentes();
         return Task.CompletedTask;
     }));

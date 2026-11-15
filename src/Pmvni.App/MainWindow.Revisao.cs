@@ -200,6 +200,18 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Uma tarefa solta (fire-and-forget) iniciada de dentro de um comando da fila não herda a vez: o que ela puser na fila espera o comando
+    /// atual terminar, em vez de rodar em paralelo com o próximo (a mudança do AsyncLocal fica só no fluxo desta tarefa).</summary>
+    static void Soltar(Func<Task> tarefa)
+    {
+        _ = ForaDaVez(tarefa);
+        static async Task ForaDaVez(Func<Task> t)
+        {
+            naVez.Value = false;
+            await t();
+        }
+    }
+
     /// <summary><see cref="NaFilaAsync(Func{Task})"/> com resultado.</summary>
     async Task<T> NaFilaAsync<T>(Func<Task<T>> acao)
     {

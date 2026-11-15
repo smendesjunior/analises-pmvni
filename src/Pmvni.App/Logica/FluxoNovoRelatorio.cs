@@ -169,6 +169,18 @@ public static class FluxoNovoRelatorio
     public static string TextoImportado(Provedor p, string pmvrel, string? pdf) =>
         $"Relatório da análise com o {Provedores.Nome(p)} importado: {Path.GetFileName(pmvrel)}." + (string.IsNullOrWhiteSpace(pdf) ? "" : $" O PDF do kit continua em {pdf}.");
 
+    /// <summary>A cópia dos anexos parou no meio: nada foi iniciado, mas o que já foi copiado ficou no processo.</summary>
+    public static string TextoCopiaInterrompida(string erro, string pastaProcesso) =>
+        $"{erro.TrimEnd('.')}. Nada foi iniciado. Os anexos já copiados ficaram em {pastaProcesso}.";
+
+    public const string RelatorioProntoTitulo = "Relatório pronto";
+    public const string AbrirRelatorio = "Abrir relatório";
+
+    /// <summary>A análise terminou com o usuário fazendo outra coisa (Ruling FD-I3): o <c>.pmvrel</c> foi criado e nada do que estava aberto mudou.</summary>
+    public static string TextoRelatorioPronto(Provedor p, string pmvrel, string? pdf) =>
+        $"A análise com o {Provedores.Nome(p)} terminou: {Path.GetFileName(pmvrel)} foi criado na pasta do processo e está nos Recentes."
+        + (string.IsNullOrWhiteSpace(pdf) ? "" : $" O PDF do kit continua em {pdf}.");
+
     public static string TextoFecharChatGpt(Processo p) => $"A análise com o ChatGPT em {Identificacao(p)} será interrompida.";
 
     public static string TextoClaudeTerminou(Processo p) => $"A análise com o Claude de {Identificacao(p)} terminou.";

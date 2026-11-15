@@ -9,6 +9,12 @@ namespace Pmvni.App;
 /// <summary>Uma análise recusada antes da partida (o motivo exato, em português): nada foi copiado nem iniciado.</summary>
 internal sealed class AnaliseRecusadaException(string mensagem) : Exception(mensagem);
 
+/// <summary>A cópia dos anexos parou no meio (disco cheio, arquivo preso): nada foi iniciado, mas as cópias já feitas ficaram em <see cref="Pasta"/>.</summary>
+internal sealed class CopiaInterrompidaException(string pasta, Exception causa) : Exception(causa.Message, causa)
+{
+    public string Pasta { get; } = pasta;
+}
+
 /// <summary>Uma análise em andamento (desenho §12.7): pertence à janela, não à página; trocar de módulo ou de relatório não a interrompe.</summary>
 public sealed class ExecucaoEmCurso
 {
@@ -59,6 +65,9 @@ public sealed class ExecucaoEmCurso
 
     public string UltimaMensagem => Path.Combine(Registro.Pasta, "ultima-mensagem.md");
 
+    /// <summary>Os anexos recusados no plano do clique (ficaram ilegíveis entre a prévia e a partida): não foram copiados nem enviados.</summary>
+    public IReadOnlyList<string> Recusas { get; internal init; } = [];
+
     internal void Aplicar(LoteProgresso lote)
     {
         var novas = lote.Linhas;
@@ -83,6 +92,7 @@ public sealed class ExecucaoEmCurso
 internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<OrquestradorAnalise> orquestrador, Func<Pecas> pecas, Func<Provedor, ModoAcesso> modo, string raizDados)
 {
     readonly List<ExecucaoEmCurso> execucoes = [];
+    volatile bool encerrada;
 
     /// <summary>As execuções em andamento, da mais antiga à mais nova.</summary>
     public IReadOnlyList<ExecucaoEmCurso> Execucoes => execucoes;
@@ -108,24 +118,38 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         if (FluxoNovoRelatorio.MotivoDesabilitado(p, pr, EmAndamento(pr.Pasta), pc, m, chaveGuardada) is { } motivo) throw new AnaliseRecusadaException(motivo);
         texto = string.IsNullOrWhiteSpace(texto) ? null : texto;
 
-        var (trava, registro, arquivados) = await Task.Run(() =>
+        var (trava, registro, arquivados, recusas) = await Task.Run(() =>
         {
             var t = TravaExecucao.Tentar(pr.Pasta, p) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
             try
             {
                 var plano = Arquivamento.Planejar(pr.Pasta, anexos);
                 var reg = RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now);
-                var feitos = Arquivamento.Arquivar(pr.Pasta, plano, CancellationToken.None);
+                IReadOnlyList<ArquivoArquivado> feitos;
+                try { feitos = Arquivamento.Arquivar(pr.Pasta, plano, CancellationToken.None); }
+                catch (Exception x) when (x is IOException or UnauthorizedAccessException && plano.Any(i => i.Recusa is null && !i.JaEstava))
+                {
+                    throw new CopiaInterrompidaException(pr.Pasta, x);
+                }
                 reg.GravarPedido(p == Provedor.ChatGpt ? PedidoAgente.Codex(pr.Pasta, pr, feitos, texto) : texto ?? "");
                 reg.GravarAnexos(feitos);
-                return (t, reg, feitos);
+                return (t, reg, feitos, plano.Where(i => i.Recusa is not null).Select(i => i.Recusa!).ToList());
             }
             catch { t.Dispose(); throw; }   // falha antes da partida: a trava sai e nada é iniciado
         });
 
+        if (encerrada)
+        {
+            // A janela fechou durante a cópia dos anexos: o Codex/kit nunca parte (o que já foi copiado fica no processo).
+            trava.Dispose();
+            try { registro.Atualizar(o => { o["situacao"] = "cancelada"; o["mensagem"] = "A janela foi fechada antes da partida; nada foi iniciado."; }); }
+            catch (Exception x) when (x is IOException or UnauthorizedAccessException) { }
+            registro.Dispose();
+            throw new AnaliseRecusadaException("A janela foi fechada antes da partida; nada foi iniciado.");
+        }
         // A trava pega antes de copiar os anexos passa ao orquestrador, que a segura até o fim (nunca fica um instante sem dono).
         var orq = orquestrador();
-        var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false);
+        var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false) { Recusas = recusas };
         var progresso = Progresso(e);
         var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro);
         e.Fim = RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava);
@@ -186,6 +210,16 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
             return true;
         }
         return await e.Orquestrador.CancelarClaudeAsync(e.Processo.Pasta, e.Pecas);
+    }
+
+    /// <summary>A janela fechou (rede de segurança do desenho §12.7): toda execução do ChatGPT é cancelada (a árvore do Codex sai; o job do editor cobre uma
+    /// queda) e nenhuma análise parte depois disto, nem uma que ainda copiava os anexos. O Claude segue a regra de sempre (continua sozinho).</summary>
+    public void Encerrar()
+    {
+        encerrada = true;
+        foreach (var e in execucoes.Where(e => e.Provedor == Provedor.ChatGpt).ToList())
+            try { e.Cancelamento.Cancel(); }
+            catch (ObjectDisposedException) { }
     }
 
     /// <summary>Fechar o editor com o Claude rodando: só para de acompanhar (a análise do kit continua; o editor reaberto a retoma).</summary>
