@@ -17,7 +17,8 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
 /// <summary>Uma linha de andamento para a tela (do Codex, ou do <c>auto-log.txt</c> do kit) e/ou a situação mais recente do kit.</summary>
 public sealed record ProgressoAnalise(string? Linha, SituacaoKit? Situacao);
 
-/// <summary><c>Situacao</c>: <c>concluida</c> | <c>falhou</c> | <c>cancelada</c> | <c>sem_resultado</c> | <c>interrompida</c>.</summary>
+/// <summary><c>Situacao</c>: <c>concluida</c> | <c>falhou</c> | <c>cancelada</c> | <c>sem_resultado</c> | <c>interrompida</c> | <c>acompanhamento_interrompido</c>
+/// (Claude: o editor parou de acompanhar; a análise do kit continua).</summary>
 public sealed record FimAnalise(string Situacao, string? Documento, string? Pdf, string? Mensagem, int? Codigo);
 
 /// <summary>O intermediário (desenho §12.1): inicia o agente instalado neste computador, acompanha, guarda o registro e localiza o resultado que o próprio kit
@@ -26,6 +27,7 @@ public sealed record FimAnalise(string Situacao, string? Documento, string? Pdf,
 /// sozinha, fora do editor, e o editor só acompanha (<c>situacao</c> e <c>auto-log.txt</c>); parar de acompanhar não a encerra (<see cref="CancelarClaudeAsync"/> sim).</summary>
 public sealed class OrquestradorAnalise
 {
+    public const string AcompanhamentoInterrompido = "acompanhamento_interrompido";
     const int LinhasDoLog = 2000;
     const int FalhasSeguidasDaSituacao = 5;
     static readonly TimeSpan LimiteIniciar = TimeSpan.FromMinutes(2);
@@ -37,6 +39,15 @@ public sealed class OrquestradorAnalise
 
     /// <summary>Só testes e roteiro (<c>AGENTE_FALSO_CENARIO</c>): variáveis a mais no ambiente do filho, postas ANTES de tirar as chaves herdadas.</summary>
     public IReadOnlyDictionary<string, string>? AmbienteExtra { get; init; }
+
+    /// <summary>O job em que o Codex entra (encerrado quando o editor termina, até numa queda). Padrão: o do editor; sem job (Windows recusou), segue sem.</summary>
+    public TarefaDoEditor? TarefaCodex { get; init; } = TarefaPadrao();
+
+    static TarefaDoEditor? TarefaPadrao()
+    {
+        try { return TarefaDoEditor.Padrao; }
+        catch (System.ComponentModel.Win32Exception) { return null; }
+    }
 
     // ------------------------------------------------------------------ comum
 
@@ -82,9 +93,10 @@ public sealed class OrquestradorAnalise
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            fim = new FimAnalise("cancelada", null, null, pe.Provedor == Provedor.ChatGpt
-                ? "A análise foi cancelada."
-                : "O acompanhamento foi interrompido; a análise do kit continua sozinha na janela minimizada.", null);
+            // Claude: o editor só parou de acompanhar (fechou); a análise do kit segue, então o registro nunca diz "cancelada".
+            fim = pe.Provedor == Provedor.ChatGpt
+                ? new FimAnalise("cancelada", null, null, "A análise foi cancelada.", null)
+                : new FimAnalise(AcompanhamentoInterrompido, null, null, "O acompanhamento foi interrompido; a análise do kit continua sozinha na janela minimizada.", null);
         }
         catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
@@ -149,8 +161,11 @@ public sealed class OrquestradorAnalise
     {
         try
         {
+            pe.Registro.Descarregar();      // não lança; o que não pôde ser gravado vira o aviso abaixo
+            var aviso = pe.Registro.Aviso;
             pe.Registro.Atualizar(o =>
             {
+                if (aviso is not null) o["aviso_registro"] = aviso;
                 o["provedor"] ??= Provedores.Sufixo(pe.Provedor);
                 o["modo"] ??= pe.Modo == ModoAcesso.Chave ? "chave" : "conta";
                 o["inicio"] ??= inicio.ToString("o", CultureInfo.InvariantCulture);
@@ -164,6 +179,12 @@ public sealed class OrquestradorAnalise
             pe.Registro.Descarregar();
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* o registro não pode derrubar o resultado */ }
+    }
+
+    static void Registrar(Exception e)
+    {
+        try { MensagensDeErro.Registrar?.Invoke(e); }
+        catch (Exception x) when (x is IOException or UnauthorizedAccessException) { }
     }
 
     static void Anunciar(IProgress<ProgressoAnalise> progresso, ProgressoAnalise p)
@@ -189,7 +210,7 @@ public sealed class OrquestradorAnalise
         var redator = new RedatorChave(chave);      // a chave nunca vai para o registro nem para a tela, nem se o agente a repetir
         var canal = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         using var execucao = ExecucaoProcesso.Iniciar(exe, args, pasta, pedido, Ambiente(Provedor.ChatGpt, pe.Modo, chave),
-            linha => canal.Writer.TryWrite(redator.Aplicar(linha)), linha => registro.AcrescentarErro(redator.Aplicar(linha)));
+            linha => canal.Writer.TryWrite(redator.Aplicar(linha)), linha => registro.AcrescentarErro(redator.Aplicar(linha)), TarefaCodex);
         using var cancelamento = ct.Register(execucao.Cancelar);
 
         // A saída vai para uma fila sem limite: o agente nunca espera pelo editor (nem pela tela). Um só consumidor grava o saida.jsonl e anuncia.
@@ -201,8 +222,13 @@ public sealed class OrquestradorAnalise
             {
                 while (leitor.TryRead(out var linha))
                 {
-                    registro.AcrescentarSaida(linha);
-                    if (EventosCodex.Linha(linha) is { } texto) Anunciar(progresso, new ProgressoAnalise(texto, null));
+                    // Nada aqui pode matar o consumidor (o andamento congelaria e o fim viraria "falhou"): o registro não lança e o resto é contido.
+                    try
+                    {
+                        registro.AcrescentarSaida(linha);
+                        if (EventosCodex.Linha(linha) is { } texto) Anunciar(progresso, new ProgressoAnalise(texto, null));
+                    }
+                    catch (Exception e) when (e is not OutOfMemoryException) { Registrar(e); }
                     if (++desdeODescarregar >= 5000) { registro.Descarregar(); desdeODescarregar = 0; }
                 }
                 registro.Descarregar();
@@ -294,7 +320,7 @@ public sealed class OrquestradorAnalise
             try { fim = await AcompanharAsync(pe, Ambiente(Provedor.Claude, ModoAcesso.Conta, null), new RedatorChave(null), log, inicio, progresso, ct).ConfigureAwait(false); }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                fim = new FimAnalise("cancelada", null, null, "O acompanhamento foi interrompido; a análise do kit continua sozinha na janela minimizada.", null);
+                fim = new FimAnalise(AcompanhamentoInterrompido, null, null, "O acompanhamento foi interrompido; a análise do kit continua sozinha na janela minimizada.", null);
             }
             catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             {
@@ -450,8 +476,9 @@ public sealed class OrquestradorAnalise
     }
 
     /// <summary>Lê só o que o kit acrescentou ao <c>auto-log.txt</c> (somente leitura, sem prender o arquivo), em linhas completas.</summary>
-    sealed class LeitorLog
+    internal sealed class LeitorLog
     {
+        internal const int TetoDaLeitura = 4 * 1024 * 1024;
         readonly string caminho;
         long deslocamento;
         bool ultimasLinhas;
@@ -480,7 +507,8 @@ public sealed class OrquestradorAnalise
                 if (!File.Exists(caminho)) return Array.Empty<string>();
                 using var fs = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 if (fs.Length < deslocamento) { deslocamento = 0; sobra = Array.Empty<byte>(); }   // o log foi recomeçado
-                if (ultimasLinhas && fs.Length > 4 * 1024 * 1024) deslocamento = fs.Length - 4 * 1024 * 1024;
+                // No máximo 4 MB por leitura (o log pode crescer muito entre duas leituras): o que passar disso fica de fora da tela (o arquivo é do kit).
+                if (fs.Length - deslocamento > TetoDaLeitura) { deslocamento = fs.Length - TetoDaLeitura; sobra = Array.Empty<byte>(); }
                 fs.Seek(deslocamento, SeekOrigin.Begin);
                 var novos = new byte[fs.Length - deslocamento];
                 var lidos = 0;

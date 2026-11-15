@@ -22,7 +22,7 @@ public partial class OrquestradorTestes
                 catch (IOException) { return false; }
             }, TimeSpan.FromSeconds(60)), "a análise do kit não passou a EM_ANDAMENTO" + Diagnostico(c));
             cts.Cancel();     // o editor "fechou": parar de acompanhar não encerra o kit
-            Assert.Equal("cancelada", (await Ambiente.Com(seguindo, TimeSpan.FromSeconds(15))).Situacao);
+            Assert.Equal("acompanhamento_interrompido", (await Ambiente.Com(seguindo, TimeSpan.FromSeconds(15))).Situacao);
         }
 
         // A situação, só lida (um "situacao" e nenhum "iniciar" novo).

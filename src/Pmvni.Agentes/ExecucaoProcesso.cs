@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using Pmvni.Revisao;
 
 namespace Pmvni.Agentes;
 
@@ -18,12 +19,21 @@ public sealed class ExecucaoProcesso : IDisposable
     /// <summary>Quanto o <see cref="Fim"/> espera as saídas fecharem depois que o processo sai (3 s); só testes mexem.</summary>
     internal static TimeSpan EsperaDasSaidas { get; set; } = TimeSpan.FromSeconds(3);
 
-    /// <summary>Trava de teste e de roteiro: programa fora desta pasta ⇒ <see cref="InvalidOperationException"/> antes de iniciar qualquer coisa.</summary>
-    public static string? SomenteExecutaveisEm { get; set; }
+    /// <summary>Trava de teste: programa fora desta pasta ⇒ <see cref="InvalidOperationException"/> antes de iniciar qualquer coisa. Atalho para
+    /// <see cref="TravaDeProgramas.Permitidos"/> com uma pasta só (o roteiro usa a lista inteira: agente falso + LibreOffice).</summary>
+    public static string? SomenteExecutaveisEm
+    {
+        get => TravaDeProgramas.Permitidos is { Count: > 0 } l ? l[0] : null;
+        set => TravaDeProgramas.Permitidos = value is null ? null : [value];
+    }
 
-    /// <summary>Chamado com o caminho completo de cada programa que a trava deixou passar, logo antes de iniciá-lo (o roteiro lista os programas
-    /// iniciados no resultado); o que a trava recusa nunca chega aqui.</summary>
-    public static Action<string>? AoIniciar { get; set; }
+    /// <summary>Chamado com o caminho completo de cada programa que partiu de fato (<see cref="TravaDeProgramas.AoIniciar"/>, comum ao LibreOffice do
+    /// despacho); o que a trava recusa e um início que falhou nunca chegam aqui.</summary>
+    public static Action<string>? AoIniciar
+    {
+        get => TravaDeProgramas.AoIniciar;
+        set => TravaDeProgramas.AoIniciar = value;
+    }
 
     readonly Process processo;
     readonly Task<int> fim;
@@ -43,29 +53,12 @@ public sealed class ExecucaoProcesso : IDisposable
     /// ficou segurando o canal).</summary>
     public Task<int> Fim => fim;
 
-    static void ConferirPrograma(string exe)
-    {
-        var pasta = SomenteExecutaveisEm;
-        if (pasta is null) return;
-        string completo, permitida;
-        try
-        {
-            completo = Path.GetFullPath(exe);
-            permitida = Path.GetFullPath(pasta).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        }
-        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            throw new InvalidOperationException("Programa fora da pasta permitida: " + exe);
-        }
-        if (!completo.StartsWith(permitida, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Programa fora da pasta permitida: " + exe);
-    }
 
+    /// <param name="tarefa">O job em que o processo entra logo depois de partir (o Codex: encerrado junto com o editor); null = nenhum.</param>
     public static ExecucaoProcesso Iniciar(string exe, IReadOnlyList<string> args, string pastaTrabalho, string? entrada,
-        Action<IDictionary<string, string?>> ambiente, Action<string> aoLerSaida, Action<string> aoLerErro)
+        Action<IDictionary<string, string?>> ambiente, Action<string> aoLerSaida, Action<string> aoLerErro, TarefaDoEditor? tarefa = null)
     {
-        ConferirPrograma(exe);
-        AoIniciar?.Invoke(Path.GetFullPath(exe));
+        TravaDeProgramas.Conferir(exe);
         var psi = new ProcessStartInfo(exe)
         {
             WorkingDirectory = pastaTrabalho,
@@ -87,6 +80,9 @@ public sealed class ExecucaoProcesso : IDisposable
             p.Dispose();
             throw new InvalidOperationException("Não foi possível iniciar o programa: " + exe);
         }
+        TravaDeProgramas.Iniciou(exe);
+        // Os filhos que ele criar daqui em diante também ficam no job (um neto criado no primeiro instante, antes desta linha, escapa: o Kill da árvore cobre o cancelamento).
+        var naTarefa = tarefa?.Atribuir(p) ?? false;
 
         // As saídas já estão sendo lidas antes de escrever a entrada: um agente que escreve muito antes de ler tudo não trava o editor.
         var sinal = new Sinal();
@@ -109,10 +105,13 @@ public sealed class ExecucaoProcesso : IDisposable
             try { return p.ExitCode; }
             catch (Exception e) when (e is InvalidOperationException or ObjectDisposedException) { return -1; }
         });
-        return new ExecucaoProcesso(p, fim);
+        return new ExecucaoProcesso(p, fim) { NaTarefa = naTarefa };
     }
 
-    sealed class Sinal { public volatile bool Encerrado; }
+    /// <summary>true se o processo entrou no job pedido em <see cref="Iniciar"/>.</summary>
+    public bool NaTarefa { get; private init; }
+
+    sealed class Sinal { public volatile bool Encerrado; public int FalhaAvisada; }
 
     /// <summary>Lê por linhas (terminadas em "\n"; o "\r" do fim sai). Cada linha tem no máximo <see cref="LimiteLinha"/> caracteres: o excedente é descartado
     /// e a linha termina com <see cref="MarcaLinhaTruncada"/>. Assim um agente que escreve sem nunca quebrar a linha não consome a memória do editor.</summary>
@@ -149,7 +148,16 @@ public sealed class ExecucaoProcesso : IDisposable
                 if (truncada) texto += MarcaLinhaTruncada;
                 linha.Clear();
                 truncada = false;
-                aoLer(texto);
+                // Uma falha de quem recebe a linha (o registro, a tela) nunca para a leitura: o agente que escreve num canal que ninguém lê trava para sempre.
+                try { aoLer(texto); }
+                catch (Exception e) when (e is not OutOfMemoryException)
+                {
+                    if (Interlocked.Exchange(ref sinal.FalhaAvisada, 1) == 0)
+                    {
+                        try { Pmvni.Revisao.MensagensDeErro.Registrar?.Invoke(e); }
+                        catch (Exception x) when (x is IOException or UnauthorizedAccessException) { }
+                    }
+                }
             }
         }
         catch (IOException) { /* canal fechado à força (processo morto) */ }

@@ -18,8 +18,37 @@ public sealed class RegistroExecucao : IDisposable
     readonly Dictionary<string, List<string>> pendentes = new();
     readonly Dictionary<string, long> usados = new();      // bytes já no arquivo (e na fila) de cada saída
     readonly HashSet<string> truncados = new();
+    readonly Dictionary<string, long> perdidas = new();    // linhas descartadas por arquivo enquanto ele não pôde ser gravado
+    readonly SortedSet<string> naoGravados = new(StringComparer.Ordinal);
     long bytesPendentes;
     bool descartado;
+    int falhas;
+    long ultimaFalha;
+    string? ultimoErro;
+
+    bool PodeTentarDeNovo() => falhas == 0 || Environment.TickCount64 - ultimaFalha >= 1000;
+
+    /// <summary>Quanto o registro guarda na memória enquanto um arquivo não pode ser gravado (32 MB); passou disso, as linhas novas são descartadas e
+    /// contadas (uma linha "registro: N linha(s) não puderam ser gravadas…" entra no arquivo quando ele voltar a aceitar gravação).</summary>
+    public long LimitePendenteBytes { get; set; } = 32L * 1024 * 1024;
+
+    /// <summary>Quantas tentativas de gravar um arquivo de saída falharam (E/S ou acesso). O registro nunca lança para quem acompanha o agente.</summary>
+    public int FalhasDeGravacao { get { lock (trava) return falhas; } }
+
+    /// <summary>null se toda gravação deu certo; senão o aviso em português para o <c>execucao.json</c>.</summary>
+    public string? Aviso
+    {
+        get
+        {
+            lock (trava)
+            {
+                if (falhas == 0) return null;
+                var perdidasTotal = perdidas.Values.Sum();
+                return "O registro não pôde gravar " + string.Join(", ", naoGravados) + " em algum momento (" + falhas + " tentativa(s) falharam"
+                       + (perdidasTotal > 0 ? "; " + perdidasTotal + " linha(s) descartadas" : "") + "): " + ultimoErro;
+            }
+        }
+    }
 
     /// <summary>Tamanho máximo de cada arquivo de saída (<c>saida.jsonl</c>, <c>erros.txt</c>, <c>situacoes.jsonl</c>): 50 MB. Passou disso, grava uma linha
     /// "saída truncada…" e descarta o resto (a leitura do agente continua, para ele nunca ficar bloqueado).</summary>
@@ -163,10 +192,21 @@ public sealed class RegistroExecucao : IDisposable
                 bytesPendentes += Utf8.GetByteCount(marca) + 1;
                 return;
             }
+            if (bytesPendentes + bytes > LimitePendenteBytes)
+            {
+                if (PodeTentarDeNovo()) DescarregarSemTrava();
+                if (bytesPendentes + bytes > LimitePendenteBytes)
+                {
+                    // O disco não aceita gravação e a memória já guarda o teto: descarta e conta (a leitura do agente continua).
+                    perdidas[arquivo] = perdidas.GetValueOrDefault(arquivo) + 1;
+                    return;
+                }
+            }
             usados[arquivo] = jaUsados + bytes;
             lista.Add(linha);
             bytesPendentes += bytes;
-            if (bytesPendentes > DescarregarAcima) DescarregarSemTrava();      // linhas grandes não se acumulam na memória
+            // Linhas grandes não se acumulam na memória; com o arquivo preso, uma tentativa por segundo no máximo.
+            if (bytesPendentes > DescarregarAcima && PodeTentarDeNovo()) DescarregarSemTrava();
         }
     }
 
@@ -176,17 +216,41 @@ public sealed class RegistroExecucao : IDisposable
         lock (trava) DescarregarSemTrava();
     }
 
+    /// <summary>Grava arquivo por arquivo; o que falha (OneDrive segurando, disco cheio) fica pendente para a próxima vez, sem lançar: o registro nunca
+    /// para a leitura do agente nem muda o resultado da análise.</summary>
     void DescarregarSemTrava()
     {
+        long restante = 0;
         foreach (var (arquivo, linhas) in pendentes)
         {
-            if (linhas.Count == 0) continue;
-            using var fs = new FileStream(Caminho(Pasta, arquivo), FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
-            using var w = new StreamWriter(fs, Utf8, 64 * 1024) { NewLine = "\n" };
-            foreach (var l in linhas) w.WriteLine(l);
-            linhas.Clear();
+            var perdidasAqui = perdidas.GetValueOrDefault(arquivo);
+            if (linhas.Count == 0 && perdidasAqui == 0) continue;
+            try
+            {
+                using (var fs = new FileStream(Caminho(Pasta, arquivo), FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+                using (var w = new StreamWriter(fs, Utf8, 64 * 1024) { NewLine = "\n" })
+                {
+                    foreach (var l in linhas) w.WriteLine(l);
+                    if (perdidasAqui > 0)
+                        w.WriteLine("registro: " + perdidasAqui + " linha(s) não puderam ser gravadas (arquivo preso ou disco cheio) e foram descartadas");
+                }
+                linhas.Clear();
+                perdidas.Remove(arquivo);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                falhas++;
+                ultimaFalha = Environment.TickCount64;
+                if (naoGravados.Add(arquivo))
+                {
+                    try { MensagensDeErro.Registrar?.Invoke(e); }      // o detalhe técnico vai para o log do app, uma vez por arquivo
+                    catch (Exception x) when (x is IOException or UnauthorizedAccessException) { }
+                }
+                ultimoErro = MensagensDeErro.Traduzir(e);
+                foreach (var l in linhas) restante += Utf8.GetByteCount(l) + 1;
+            }
         }
-        bytesPendentes = 0;
+        bytesPendentes = restante;
     }
 
     /// <summary>Grava o que ficou pendente e não aceita mais nada.</summary>

@@ -395,8 +395,11 @@ public partial class OrquestradorTestes
         Assert.True(Chamadas(c, "situacao").Count >= 3);
         Assert.Single(Chamadas(c, "auto"));
 
-        // Progresso: passa por todas as etapas do kit; as linhas do auto-log.txt chegam.
-        var etapas = c.Progresso.Todos().Where(p => p.Situacao?.Etapa is not null).Select(p => p.Situacao!.Etapa!).Distinct().ToList();
+        // Progresso: passa por todas as etapas do kit; as linhas do auto-log.txt chegam. A etapa de cada leitura é uma amostra (com a suíte inteira, a
+        // primeira leitura pode chegar depois de "prepare"): a prova é a etapa lida OU o evento "Etapa X" que o próprio kit registrou e o editor mostrou.
+        var etapas = c.Progresso.Todos().Where(p => p.Situacao?.Etapa is not null).Select(p => p.Situacao!.Etapa!)
+            .Concat(c.Progresso.Todos().SelectMany(p => p.Situacao?.Eventos ?? []).Where(e => e.StartsWith("Etapa ", StringComparison.Ordinal)).Select(e => e[6..]))
+            .Distinct().ToList();
         foreach (var etapa in SituacaoAnalisePro.Etapas) Assert.Contains(etapa, etapas);
         Assert.Contains(c.Progresso.Todos(), p => p.Situacao?.Codigo == "CONCLUIDO");
         var linhas = c.Progresso.Linhas();
@@ -520,7 +523,8 @@ public partial class OrquestradorTestes
 
         cts.Cancel();
         var fim = await Ambiente.Com(seguindo, TimeSpan.FromSeconds(15));
-        Assert.Equal("cancelada", fim.Situacao);
+        Assert.Equal("acompanhamento_interrompido", fim.Situacao);
+        Assert.Equal("acompanhamento_interrompido", c.Execucao()["situacao"]!.GetValue<string>());      // nunca "cancelada": a análise do kit segue
         Assert.True(Ambiente.Vivo(pid), "a análise do kit roda sozinha: parar de acompanhar não a encerra");
         Assert.False(TravaExecucao.EmAndamento(c.Processo.Pasta));
         Process.GetProcessById(pid).Kill(true);
