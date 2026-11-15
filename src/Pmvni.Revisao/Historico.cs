@@ -86,3 +86,65 @@ public static class HistoricoJsonl
         }
     }
 }
+
+/// <summary>O texto, em português, de um registro do histórico (para a lista de Histórico da tela).</summary>
+public static class DescricaoHistorico
+{
+    public static string Texto(RegistroHistorico r, Projeto p)
+    {
+        ArgumentNullException.ThrowIfNull(r);
+        ArgumentNullException.ThrowIfNull(p);
+        if ((r.Tipo == "desfeito" || r.Tipo == "refeito") && r.Depois is JsonObject o && o["tipo"] is JsonValue t && t.TryGetValue<string>(out var tipo))
+        {
+            var original = r with { Tipo = tipo, Antes = Valor(r.Antes), Depois = Valor(r.Depois) };
+            return (r.Tipo == "desfeito" ? "Desfeito: " : "Refeito: ") + Texto(original, p);
+        }
+
+        var item = Rotulo(r.Item, p);
+        (string Nome, bool Feminino) campo = r.Campo is null ? ("campo", false) : NomeDoCampo(r.Campo);
+        switch (r.Tipo)
+        {
+            case nameof(DefinirSituacao):
+                return "Situação do " + item + ": " + ConferenciaRevisao.TextoSituacao(r.Antes?.GetValue<string>()) + " → "
+                       + ConferenciaRevisao.TextoSituacao(r.Depois?.GetValue<string>());
+            case nameof(DefinirJustificativa):
+                var antes = r.Antes is JsonValue a && a.TryGetValue<string>(out var sa) && sa.Length > 0;
+                var depois = r.Depois is JsonValue d && d.TryGetValue<string>(out var sd) && sd.Length > 0;
+                return "Justificativa do " + item + (!depois ? " removida" : antes ? " alterada" : " definida");
+            case nameof(DefinirCampo):
+                return campo.Nome + " do " + item + (campo.Feminino ? " editada" : " editado");
+            case nameof(RestaurarCampo):
+                return campo.Nome + " do " + item + (campo.Feminino ? " restaurada" : " restaurado") + " ao original";
+            case nameof(Excluir):
+                return "Excluído o " + item;
+            case nameof(Restaurar):
+                return "Restaurado o " + item;
+            case nameof(RestaurarItemOriginal):
+                return item + " restaurado ao original";
+            case Importador.TipoHistorico:
+                var n = r.Depois is JsonArray lista ? lista.Count : 0;
+                return "Importação do dados.json: " + n + (n == 1 ? " citação convertida" : " citações convertidas");
+            default:
+                return r.Tipo;
+        }
+    }
+
+    private static JsonNode? Valor(JsonNode? embrulho) => embrulho is JsonObject o ? o["valor"]?.DeepClone() : null;
+
+    private static string Rotulo(string? id, Projeto p)
+    {
+        if (id is null) return "item";
+        var n = p.NumeroAtual(id) ?? p.Item(id)?.NumeroOriginal;
+        return n is null ? "item " + id : "ITEM " + n.Value.ToString("D2", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static (string Nome, bool Feminino) NomeDoCampo(string campo) => campo switch
+    {
+        "titulo" => ("Título", false),
+        "verificacao" => ("Verificação técnica", true),
+        "providencia" => ("Providência", true),
+        "base_legal" => ("Base legal", true),
+        "referencia" => ("Referência", true),
+        _ => (campo, false),
+    };
+}

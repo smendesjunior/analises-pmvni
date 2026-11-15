@@ -79,6 +79,6 @@ public static class DadosEfetivos
         return c.Original?.DeepClone();
     }
 
-    private static string Imprimir(Projeto p, string texto) =>
+    internal static string Imprimir(Projeto p, string texto) =>
         Citacoes.Imprimir(texto, id => p.NumeroAtual(id), id => p.Item(id)?.NumeroOriginal);
 }

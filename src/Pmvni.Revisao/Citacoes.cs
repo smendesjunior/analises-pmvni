@@ -62,6 +62,13 @@ public static partial class Citacoes
         });
     }
 
+    /// <summary>Os ids citados pelos tokens do texto, na ordem em que aparecem (um por ocorrência).</summary>
+    internal static IReadOnlyList<string> Alvos(string texto)
+    {
+        ArgumentNullException.ThrowIfNull(texto);
+        return Token().Matches(texto).Select(m => m.Groups[1].Value).ToList();
+    }
+
     /// <summary>Os trechos "item NN"/"itens NN" que continuam literais no texto (não viraram token): candidatos ao aviso de numeração.</summary>
     public static IReadOnlyList<string> LiteraisSuspeitos(string texto)
     {
