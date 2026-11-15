@@ -56,7 +56,7 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
             UltimoErro = null;
             return true;
         }
-        catch (Exception e) when (Falha(e)) { UltimoErro = e.Message; return false; }
+        catch (Exception e) when (Falha(e)) { UltimoErro = MensagensDeErro.ParaUsuario(e); return false; }
     }
 
     /// <summary>Acrescenta o registro (descarregado no disco). <c>false</c> se o diário não está aberto ou a escrita falhou. Com
@@ -73,7 +73,7 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
         try { d.Registrar(r); return true; }
         catch (Exception e) when (Falha(e))
         {
-            UltimoErro = e.Message;
+            UltimoErro = MensagensDeErro.ParaUsuario(e);
             // Uma escrita pela metade deixaria o resto do arquivo ilegível: fecha (guardando) e o próximo registro recomeça com tudo.
             if (pendentes is not null)
             {
@@ -107,7 +107,7 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
             if (ok || extras.Count == 0) velho?.Descartar(); else velho?.Dispose();
             return ok;
         }
-        catch (Exception e) when (Falha(e)) { velho?.Dispose(); UltimoErro = e.Message; return false; }
+        catch (Exception e) when (Falha(e)) { velho?.Dispose(); UltimoErro = MensagensDeErro.ParaUsuario(e); return false; }
     }
 
     /// <summary>Fecha o diário: <paramref name="guardar"/> = true deixa o arquivo para uma recuperação (há alterações não gravadas);
@@ -119,7 +119,7 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
         alvo = null;
         if (d is null) return;
         try { if (guardar) d.Dispose(); else d.Descartar(); }
-        catch (Exception e) when (Falha(e)) { UltimoErro = e.Message; }
+        catch (Exception e) when (Falha(e)) { UltimoErro = MensagensDeErro.ParaUsuario(e); }
     }
 
     /// <summary>Fecha e guarda o diário do <paramref name="pacote"/> como órfão (Recarregar, recuperação recusada ou de outra versão);
@@ -128,7 +128,7 @@ public sealed class DiarioDaSessao(string raizDados) : IDisposable
     {
         Fechar(guardar: true);
         try { return File.Exists(Diario.CaminhoDe(raizDados, pacote)) ? Diario.Arquivar(raizDados, pacote) : null; }
-        catch (Exception e) when (Falha(e)) { UltimoErro = e.Message; return null; }
+        catch (Exception e) when (Falha(e)) { UltimoErro = MensagensDeErro.ParaUsuario(e); return null; }
     }
 
     /// <summary>Fecha sem apagar: o que estiver no diário fica para uma recuperação.</summary>

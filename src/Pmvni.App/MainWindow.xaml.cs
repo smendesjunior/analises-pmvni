@@ -179,7 +179,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         catch (Exception e)
         {
             if (Autoteste.Ativo) { Autoteste.GravarErro(e.ToString()); Application.Current.Exit(); return; }
-            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível iniciar a visualização", e.Message);
+            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível iniciar a visualização", Erro(e));
         }
     }
 
@@ -413,7 +413,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         }
         catch (Exception e)
         {
-            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível importar o dados.json", e.Message);
+            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível importar o dados.json", Erro(e));
             return false;
         }
         finally { Liberar(); }
@@ -474,7 +474,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         catch (Exception e)
         {
             Reiniciar();
-            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível abrir o relatório", e is RecomposicaoRecusadaException rr ? string.Join(Environment.NewLine, rr.Erros.Take(8)) : e.Message);
+            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível abrir o relatório", e is RecomposicaoRecusadaException rr ? string.Join(Environment.NewLine, rr.Erros.Take(8)) : Erro(e));
             return false;
         }
         finally
@@ -506,7 +506,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             });
             if (fechar && !fechada) { fecharDeVez = true; Close(); }
         }
-        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível fechar", e.Message); }
+        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível fechar", Erro(e)); }
         finally { fechando = false; }
     }
 
@@ -532,7 +532,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             AtualizarBarra();
             MostrarMensagem(InfoBarSeverity.Success, "Relatório salvo", sessao.Caminho);
         }
-        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível salvar", e.Message); }
+        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível salvar", Erro(e)); }
     }
 
     // ---------- estado na tela ----------
@@ -710,8 +710,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         }
         catch (Exception e)
         {
-            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível exportar o PDF", e.Message);
-            return (false, null, e.Message, e);
+            var texto = Erro(e);
+            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível exportar o PDF", texto);
+            return (false, null, texto, e);
         }
         finally { Liberar(); }
     }
@@ -793,7 +794,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 // chegam com id "evento-N"; as respostas às chamadas do host (mesmos tipos, outro id) já foram entregues a quem chamou.
                 if (m.Id.StartsWith("evento-", StringComparison.Ordinal))
                     try { await AoEventoDaPaginaAsync(m); }
-                    catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "A operação falhou", e.Message); }
+                    catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "A operação falhou", Erro(e)); }
                 break;
         }
     }
@@ -921,9 +922,13 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         aviso.IsOpen = true;
     }
 
+    /// <summary>O texto de uma falha para um aviso: falha de disco ou de permissão em português (o detalhe técnico só no registro);
+    /// as exceções do editor, já em português, como vieram.</summary>
+    static string Erro(Exception e) => MensagensDeErro.ParaUsuario(e);
+
     async Task TentarAsync(Func<Task> acao)
     {
         try { await acao(); }
-        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "A operação falhou", e.Message); }
+        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "A operação falhou", Erro(e)); }
     }
 }

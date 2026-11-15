@@ -54,7 +54,7 @@ public sealed class Trava : IDisposable
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException or NotSupportedException)
         {
-            return new ResultadoTrava(null, null, e.Message);
+            return new ResultadoTrava(null, null, MensagensDeErro.ParaUsuario(e));
         }
     }
 

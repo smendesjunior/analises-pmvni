@@ -97,7 +97,7 @@ public sealed partial class MainWindow
                 motivo = "";
                 try { await s.GravarAsync(); }
                 catch (ConflitoNoDiscoException) { motivo = "o arquivo mudou no disco depois de aberto"; MostrarConflito(); }
-                catch (Exception e) { motivo = e.Message; }
+                catch (Exception e) { motivo = Erro(e); }
             }
             if (s.TemAlteracoesNaoGravadas)
             {
@@ -167,7 +167,7 @@ public sealed partial class MainWindow
         catch (ConflitoNoDiscoException) { MostrarConflito(); return false; }
         catch (Exception e)
         {
-            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível salvar", e.Message.TrimEnd('.') + ". O arquivo no disco não foi alterado"
+            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível salvar", Erro(e) + ". O arquivo no disco não foi alterado"
                 + (s.DiarioAtivo ? "; as alterações continuam guardadas no diário de recuperação e o salvamento será tentado de novo." : "."));
             return false;
         }
@@ -278,7 +278,7 @@ public sealed partial class MainWindow
                 $"As suas alterações foram gravadas em {Path.GetFileName(s.Caminho)}, ao lado do original (que não foi alterado). O relatório aberto agora é a cópia.");
             return true;
         }
-        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível salvar a cópia", e.Message); return false; }
+        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível salvar a cópia", Erro(e)); return false; }
     });
 
     /// <summary>"Recarregar" (confirma): descarta a sessão e abre o arquivo como está no disco; o diário com as alterações desta sessão é

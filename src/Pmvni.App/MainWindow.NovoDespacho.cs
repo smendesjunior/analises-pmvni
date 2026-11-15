@@ -140,7 +140,7 @@ public sealed partial class MainWindow
         try { m = await Task.Run(() => RegistroModelos.Ler(kit)); }
         catch (Exception e)
         {
-            var motivo = "O registro de modelos do kit não pôde ser lido (" + e.Message.TrimEnd('.') + ").";
+            var motivo = "O registro de modelos do kit não pôde ser lido (" + Erro(e) + ").";
             m = new ModelosDisponiveis([], new Dictionary<TipoDespacho, string> { [TipoDespacho.Correcao] = motivo, [TipoDespacho.Aprovacao] = motivo });
         }
         if (fechada || !string.Equals(kit, ajustes.PastaKitEfetiva, StringComparison.Ordinal)) return m;
@@ -352,7 +352,7 @@ public sealed partial class MainWindow
         }
         catch (Exception e) when (e is PacoteInvalidoException or IOException or UnauthorizedAccessException)
         {
-            if (ReferenceEquals(novo, s)) N.MostrarBloqueios(["O relatório " + Path.GetFileName(caminho) + " não pôde ser lido: " + e.Message]);
+            if (ReferenceEquals(novo, s)) N.MostrarBloqueios(["O relatório " + Path.GetFileName(caminho) + " não pôde ser lido: " + Erro(e)]);
             return false;
         }
         if (!ReferenceEquals(novo, s)) return false;
@@ -560,7 +560,7 @@ public sealed partial class MainWindow
         {
             if (!ReferenceEquals(novo, s)) return;
             N.MostrarEspera(null, false);
-            MostrarMensagem(InfoBarSeverity.Error, "O despacho não pôde ser gerado", e is DespachoIncompletoException di ? string.Join(Environment.NewLine, di.Faltando) : e.Message);
+            MostrarMensagem(InfoBarSeverity.Error, "O despacho não pôde ser gerado", e is DespachoIncompletoException di ? string.Join(Environment.NewLine, di.Faltando) : Erro(e));
             MostrarPassoAtual(s);
             return;
         }
@@ -598,7 +598,7 @@ public sealed partial class MainWindow
         try { paginas = await s.PaginasAsync((uint)Math.Round(600 * escala)); }
         catch (Exception e)
         {
-            MostrarMensagem(InfoBarSeverity.Error, "As páginas do PDF não puderam ser mostradas", e.Message + " Sem conferir as páginas, o despacho não é gravado.");
+            MostrarMensagem(InfoBarSeverity.Error, "As páginas do PDF não puderam ser mostradas", Erro(e) + ". Sem conferir as páginas, o despacho não é gravado.");
             paginas = [];
         }
         if (!ReferenceEquals(novo, s)) return;
@@ -642,7 +642,7 @@ public sealed partial class MainWindow
         {
             if (ReferenceEquals(novo, s)) N.MostrarEspera(null, false);
             MostrarMensagem(InfoBarSeverity.Error, "O despacho não foi gravado",
-                x.Message.TrimEnd('.') + ". Nada desta gravação ficou na pasta do processo.");
+                Erro(x) + ". Nada desta gravação ficou na pasta do processo.");
             if (ReferenceEquals(novo, s)) AtualizarGravar(s);
             return null;
         }
@@ -699,7 +699,7 @@ public sealed partial class MainWindow
         catch (Exception e)
         {
             if (ReferenceEquals(novo, s)) N.MostrarEspera(null, false);
-            MostrarMensagem(InfoBarSeverity.Error, "O PDF não pôde ser gerado", e.Message);
+            MostrarMensagem(InfoBarSeverity.Error, "O PDF não pôde ser gerado", Erro(e));
             return false;
         }
         if (!ReferenceEquals(novo, s)) { s.Descartar(); return false; }

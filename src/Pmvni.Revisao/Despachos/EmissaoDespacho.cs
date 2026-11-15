@@ -60,7 +60,7 @@ public static class EmissaoDespacho
         return Converter(pastaTrabalho, caminho, docx, conv, ct);
     }
 
-    static string Trabalho(Exception e) => "Não foi possível gravar o despacho na pasta de trabalho (" + e.Message.TrimEnd('.') + ").";
+    static string Trabalho(Exception e) => "Não foi possível gravar o despacho na pasta de trabalho (" + MensagensDeErro.ParaUsuario(e) + ").";
 
     const string ModeloMudou = "O modelo do kit mudou depois de aberto; abra o Novo despacho de novo.";
     const string DocxMudou = "O DOCX mudou durante a conversão; gere o despacho de novo.";
@@ -74,7 +74,7 @@ public static class EmissaoDespacho
         catch (Exception e) when (e is not OperationCanceledException)
         {
             // Falha do conversor (arquivo preso, disco cheio, processo que não abre): sem PDF, com o motivo; nunca uma exceção crua.
-            r = new ResultadoConversao(null, "CONVERSAO_FALHOU", e.Message.TrimEnd('.'));
+            r = new ResultadoConversao(null, "CONVERSAO_FALHOU", MensagensDeErro.ParaUsuario(e));
         }
         ct.ThrowIfCancellationRequested();
         bool mudou;

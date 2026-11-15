@@ -279,7 +279,7 @@ public sealed partial class MainWindow
         catch (OperationCanceledException) { /* trocou de módulo ou atualizou: a leitura nova assume */ }
         catch (Exception e) when (!fechada)
         {
-            MostrarAvisoDeLeitura("Não foi possível ler a pasta de processos", e.Message);
+            MostrarAvisoDeLeitura("Não foi possível ler a pasta de processos", Erro(e));
         }
         finally
         {
@@ -358,7 +358,7 @@ public sealed partial class MainWindow
         catch (Exception e) when (!fechada)
         {
             pagina.TextoSemProcesso.Text = "O processo não pôde ser lido.";
-            MostrarAvisoDeLeitura("Não foi possível ler o processo", e.Message);
+            MostrarAvisoDeLeitura("Não foi possível ler o processo", Erro(e));
         }
     }
 
@@ -590,7 +590,7 @@ public sealed partial class MainWindow
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível importar a análise", e.Message);
+            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível importar a análise", Erro(e));
             return false;
         }
         return await ImportarParaAsync(json, destino);

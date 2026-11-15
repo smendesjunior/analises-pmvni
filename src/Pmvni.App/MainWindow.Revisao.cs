@@ -300,8 +300,8 @@ public sealed partial class MainWindow
         }
         catch (Exception e)
         {
-            ultimosErros.Add(e.Message);
-            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível aplicar a alteração", e.Message);
+            ultimosErros.Add(Erro(e));
+            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível aplicar a alteração", Erro(e));
         }
         finally
         {

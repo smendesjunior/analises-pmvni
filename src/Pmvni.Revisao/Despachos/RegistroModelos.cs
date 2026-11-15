@@ -62,7 +62,7 @@ public static class RegistroModelos
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException
                                       or FormatException or NullReferenceException)
         {
-            return Todos("O registro de modelos do kit não pôde ser lido (" + e.Message + ").");
+            return Todos("O registro de modelos do kit não pôde ser lido (" + MensagensDeErro.ParaUsuario(e) + ").");
         }
         if (revisao < RevisaoMinima)
             return Todos($"O registro de modelos do kit está na revisão {revisao}; o editor precisa da revisão {RevisaoMinima} ou posterior.");

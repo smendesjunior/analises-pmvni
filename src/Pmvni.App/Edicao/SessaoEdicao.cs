@@ -157,7 +157,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     {
         if (SomenteLeitura) return null;
         try { return Diario.Ler(raizDados, Caminho, Disco.Sha256); }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { FalhaNoDiario?.Invoke(e.Message); return null; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { FalhaNoDiario?.Invoke(MensagensDeErro.ParaUsuario(e)); return null; }
     }
 
     /// <summary>Reaplica o diário (tudo ou nada: <see cref="InvalidOperationException"/> e nada muda) e o estado vira "Não salvo".</summary>

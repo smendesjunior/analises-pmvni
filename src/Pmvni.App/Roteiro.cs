@@ -838,6 +838,9 @@ internal static class Roteiro
                 naoSalvo = j.TextoEstadoAtual == "Não salvo";
                 erroVisivel = j.InfoMensagem.IsOpen && j.InfoMensagem.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error;
                 p["mensagem_de_erro"] = j.InfoMensagem.Title + ": " + j.InfoMensagem.Message;
+                // Onda 1, item 7: o texto do .NET em inglês (com o caminho inteiro) nunca chega ao aviso.
+                p["mensagem_em_portugues"] = j.InfoMensagem.Message.Contains("está em uso por outro programa", StringComparison.Ordinal)
+                    && !j.InfoMensagem.Message.Contains("process", StringComparison.OrdinalIgnoreCase) && !j.InfoMensagem.Message.Contains(pasta, StringComparison.OrdinalIgnoreCase);
                 using var ms = new MemoryStream();
                 preso.CopyTo(ms);
                 igual = ms.ToArray().AsSpan().SequenceEqual(antes);
@@ -856,7 +859,7 @@ internal static class Roteiro
             p["estado_de_gravacao"] = j.TextoEstadoAtual;
             p["pacote_tem_o_registro"] = lido.Conteudo.Historico.Any(r => r.N == reg.N);
             p["ok"] = !gravouPreso && naoSalvo && erroVisivel && igual && semTmp && diarioTem && gravouSolto && s.Estado == EstadoGravacao.Salvo
-                && p["pacote_tem_o_registro"]!.GetValue<bool>();
+                && p["pacote_tem_o_registro"]!.GetValue<bool>() && p["mensagem_em_portugues"]!.GetValue<bool>();
         });
 
         await Passo("23_recuperacao_apos_queda", async p =>

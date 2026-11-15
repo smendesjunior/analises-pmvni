@@ -39,7 +39,7 @@ public sealed record TextosFixos(TipoDespacho Tipo, string Arquivo, string Sha25
         try { bytes = File.ReadAllBytes(caminho); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            throw new TextosForaDoPadraoException(arquivo, "o arquivo não pôde ser lido (" + e.Message + ")");
+            throw new TextosForaDoPadraoException(arquivo, "o arquivo não pôde ser lido (" + MensagensDeErro.ParaUsuario(e) + ")");
         }
         string texto;
         try { texto = new UTF8Encoding(false, true).GetString(bytes); }
