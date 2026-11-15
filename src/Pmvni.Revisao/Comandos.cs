@@ -156,8 +156,10 @@ internal static class Motor
             gravar = original; // voltou ao original impresso: sem revisão (o original guarda os tokens das citações)
         else
         {
-            // A edição devolve números ("item 03"): religa as citações inequívocas com a numeração de agora.
-            (gravar, convertidas) = Citacoes.Converter(texto, p.Incluidos.Select(i => i.Id).ToList());
+            // A edição devolve números ("item 03"): religa as citações inequívocas. Os números que o texto já citava (como estão
+            // impressos agora, inclusive o número original de um item excluído) continuam apontando para o mesmo item; só os números
+            // novos usam a numeração de agora.
+            (gravar, convertidas) = Citacoes.Converter(texto, p.Incluidos.Select(i => i.Id).ToList(), CitacoesAtuais(p, campo));
         }
 
         var antes = campo is null ? null : Armazenado(campo);
@@ -169,6 +171,21 @@ internal static class Motor
             ["citacoes"] = new JsonArray(convertidas.Select(c => (JsonNode?)new JsonObject { ["trecho"] = c.Trecho, ["alvo"] = c.Alvo }).ToArray()),
         };
         return new Efeito(nameof(DefinirCampo), it.Id, d.Campo, new JsonObject { ["texto"] = antes }, depois);
+    }
+
+    /// <summary>Número impresso → id, para cada citação (token) do texto guardado do campo antes da edição. Se dois itens imprimem o
+    /// mesmo número (um excluído e um incluído), vale o primeiro citado.</summary>
+    private static IReadOnlyDictionary<int, string> CitacoesAtuais(Projeto p, CampoTexto? campo)
+    {
+        var mapa = new Dictionary<int, string>();
+        var texto = campo is null ? null : Armazenado(campo);
+        if (texto is null) return mapa;
+        foreach (var id in Citacoes.Alvos(texto))
+        {
+            var numero = p.NumeroAtual(id) ?? p.Item(id)?.NumeroOriginal;
+            if (numero is not null) mapa.TryAdd(numero.Value, id);
+        }
+        return mapa;
     }
 
     private static Efeito? CalcularRestaurarCampo(ItemRevisao it, RestaurarCampo d)

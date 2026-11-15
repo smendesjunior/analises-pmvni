@@ -6,7 +6,7 @@ namespace Pmvni.Revisao;
 /// Nada é escapado aqui (o kit escapa na impressão) e nada vira marcação.</summary>
 public static partial class TextoEditado
 {
-    [GeneratedRegex(@"(?:\r\n|\r|\n| | )+", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?:\r\n|\r|\n|\u2028|\u2029)+", RegexOptions.CultureInvariant)]
     private static partial Regex Quebras();
 
     /// <summary>Cada sequência de quebras de linha (<c>\r\n</c>, <c>\r</c>, <c>\n</c>, U+2028, U+2029) vira um único espaço; as pontas são aparadas; nada mais muda.</summary>

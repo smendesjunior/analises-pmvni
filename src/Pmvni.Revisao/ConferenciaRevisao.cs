@@ -73,7 +73,7 @@ public static class ConferenciaRevisao
     }
 
     private static bool NumeracaoMudou(Projeto p) =>
-        p.Itens.Any(i => p.NumeroAtual(i.Id) != i.NumeroOriginal);
+        p.Incluidos.Any(i => p.NumeroAtual(i.Id) != i.NumeroOriginal);
 
     /// <summary>Os textos guardados (com tokens de citação) dos campos de texto do item, na ordem dos campos editáveis.</summary>
     private static IEnumerable<(string Campo, string Texto)> TextosDoItem(ItemRevisao it)

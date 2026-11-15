@@ -201,6 +201,59 @@ public class ComandosTestes
     }
 
     [Fact]
+    public void editar_campo_que_cita_item_excluido_mantem_a_citacao_ao_excluido()
+    {
+        var s = Sessao(Importar("curto"));
+        var id1 = Id(s, 1);
+        var id2 = Id(s, 2);
+        var id3 = Id(s, 3);
+        s.Aplicar(new DefinirCampo(id1, "verificacao", "Ver item 02."));
+        Assert.Contains("{{ref:" + id2 + ":2}}", s.Projeto.Item(id1)!.Campos["verificacao"].Revisado);
+        s.Aplicar(new Excluir(id2)); // imprime "item 02" (o original); o item 02 de agora é o antigo 03
+
+        var r = s.Aplicar(new DefinirCampo(id1, "verificacao", "Ver item 02, com outra palavra."))!;
+
+        var revisado = s.Projeto.Item(id1)!.Campos["verificacao"].Revisado!;
+        Assert.Contains("{{ref:" + id2 + ":2}}", revisado);
+        Assert.DoesNotContain(id3, revisado);
+        Assert.Single(r.Depois!["citacoes"]!.AsArray());
+        Assert.Equal(new[] { "ITEM 01 cita o item excluído que era o item 02 (campo verificacao)" }, ConferenciaRevisao.CitacoesAExcluidos(s.Projeto));
+        Assert.Equal("Ver item 02, com outra palavra.", DadosEfetivos.TextoEfetivo(s.Projeto, s.Projeto.Item(id1)!, "verificacao"));
+    }
+
+    [Fact]
+    public void edicao_que_acrescenta_item_novo_usa_a_numeracao_atual()
+    {
+        var s = Sessao(Importar("curto"));
+        var id1 = Id(s, 1);
+        var id3 = Id(s, 3);
+        s.Aplicar(new Excluir(Id(s, 2)));
+
+        s.Aplicar(new DefinirCampo(id1, "verificacao", "Ver item 02."));
+
+        Assert.Contains("{{ref:" + id3 + ":2}}", s.Projeto.Item(id1)!.Campos["verificacao"].Revisado); // o 02 de agora
+        Assert.Empty(ConferenciaRevisao.CitacoesAExcluidos(s.Projeto));
+    }
+
+    [Fact]
+    public void edicao_mantem_citacao_a_item_incluido_e_acrescenta_outra_ao_lado()
+    {
+        var s = Sessao(Importar("curto"));
+        var id1 = Id(s, 1);
+        var id2 = Id(s, 2);
+        var id3 = Id(s, 3);
+        s.Aplicar(new DefinirCampo(id1, "verificacao", "Ver item 03."));
+        var antes = s.Projeto.Item(id1)!.Campos["verificacao"].Revisado!;
+
+        s.Aplicar(new DefinirCampo(id1, "verificacao", "Ver item 03 (corrigido)."));
+        Assert.Equal(antes.Replace(".", " (corrigido)."), s.Projeto.Item(id1)!.Campos["verificacao"].Revisado);
+
+        s.Aplicar(new DefinirCampo(id1, "verificacao", "Ver item 03 e item 02."));
+        var revisado = s.Projeto.Item(id1)!.Campos["verificacao"].Revisado!;
+        Assert.Contains("{{ref:" + id3 + ":2}} e item {{ref:" + id2 + ":2}}", revisado);
+    }
+
+    [Fact]
     public void restaurar_campo_volta_ao_original_e_sem_revisao_nao_tem_efeito()
     {
         var s = Sessao(Importar("curto"));

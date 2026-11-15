@@ -25,7 +25,14 @@ public static partial class Citacoes
     private static partial Regex Token();
 
     /// <summary>Converte as citações inequívocas. <paramref name="idsPorNumero"/>[N-1] é o id do item de número N; NN fora de 1..Count fica literal.</summary>
-    public static (string Texto, IReadOnlyList<CitacaoConvertida> Convertidas) Converter(string texto, IReadOnlyList<string> idsPorNumero)
+    public static (string Texto, IReadOnlyList<CitacaoConvertida> Convertidas) Converter(string texto, IReadOnlyList<string> idsPorNumero) =>
+        Converter(texto, idsPorNumero, null);
+
+    /// <summary>Como <see cref="Converter(string, IReadOnlyList{string})"/>, mas um número presente em <paramref name="fixos"/> (número impresso → id)
+    /// aponta sempre para aquele id, mesmo que esteja fora de 1..Count: serve a manter, numa edição, as citações que o texto já tinha
+    /// (inclusive as de itens excluídos, que imprimem o número original).</summary>
+    public static (string Texto, IReadOnlyList<CitacaoConvertida> Convertidas) Converter(
+        string texto, IReadOnlyList<string> idsPorNumero, IReadOnlyDictionary<int, string>? fixos)
     {
         ArgumentNullException.ThrowIfNull(texto);
         ArgumentNullException.ThrowIfNull(idsPorNumero);
@@ -34,8 +41,10 @@ public static partial class Citacoes
         {
             var digitos = m.Groups[2];
             var numero = int.Parse(digitos.Value, CultureInfo.InvariantCulture);
-            if (numero < 1 || numero > idsPorNumero.Count) return m.Value;
-            var alvo = idsPorNumero[numero - 1];
+            string alvo;
+            if (fixos is not null && fixos.TryGetValue(numero, out var fixo)) alvo = fixo;
+            else if (numero < 1 || numero > idsPorNumero.Count) return m.Value;
+            else alvo = idsPorNumero[numero - 1];
             convertidas.Add(new CitacaoConvertida(m.Value, numero, alvo));
             return m.Value[..(digitos.Index - m.Index)] + "{{ref:" + alvo + ":" + digitos.Length.ToString(CultureInfo.InvariantCulture) + "}}";
         });

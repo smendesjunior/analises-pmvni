@@ -104,6 +104,20 @@ public class ConferenciaRevisaoTestes
     }
 
     [Fact]
+    public void excluir_so_o_ultimo_item_nao_muda_a_numeracao_dos_demais()
+    {
+        var s = Sessao();
+        s.Aplicar(new DefinirCampo(Id(s, 1), "verificacao", "Conforme itens 03 a 07."));
+
+        s.Aplicar(new Excluir(Id(s, 3)));
+        Assert.Empty(ConferenciaRevisao.Avisos(s.Projeto));      // o 01 e o 02 continuam 01 e 02
+
+        s.Aplicar(new Restaurar(s.Projeto.Itens[2].Id));
+        s.Aplicar(new Excluir(s.Projeto.Itens[1].Id));            // agora o 03 virou 02
+        Assert.Single(ConferenciaRevisao.Avisos(s.Projeto));
+    }
+
+    [Fact]
     public void literais_suspeitos_na_conclusao_tambem_sao_avisados()
     {
         var s = Sessao();
