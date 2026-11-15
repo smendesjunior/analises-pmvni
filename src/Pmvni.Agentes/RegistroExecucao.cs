@@ -46,6 +46,25 @@ public sealed class RegistroExecucao : IDisposable
         }
     }
 
+    /// <summary>Reabre o registro de uma execução que já existe (o editor reaberto volta a acompanhar uma análise do Claude, desenho §12.7): o que o
+    /// <c>execucao.json</c> já tem continua (as mudanças seguintes se somam a ele). <c>execucao.json</c> ilegível ou ausente: começa vazio.</summary>
+    public static RegistroExecucao Abrir(string pasta)
+    {
+        if (!Directory.Exists(pasta)) throw new DirectoryNotFoundException("A pasta do registro da execução não existe: " + pasta);
+        var r = new RegistroExecucao(pasta);
+        try
+        {
+            if (JsonNode.Parse(File.ReadAllText(Caminho(pasta, "execucao.json"))) is JsonObject antes)
+                foreach (var (chave, valor) in antes.ToList())
+                {
+                    antes.Remove(chave);
+                    r.execucao[chave] = valor;
+                }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { /* começa vazio */ }
+        return r;
+    }
+
     static string Caminho(string pasta, string nome) => Path.Combine(pasta, nome);
 
     /// <summary><c>pedido.md</c>: o pedido exato, UTF-8 sem BOM.</summary>

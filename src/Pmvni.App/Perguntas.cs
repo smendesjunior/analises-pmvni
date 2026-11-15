@@ -18,6 +18,12 @@ internal interface IPerguntas
     /// <summary>Seletor de abrir com o filtro <paramref name="extensao"/> (".json", ".pmvrel"); null se cancelado.</summary>
     Task<string?> AbrirArquivoAsync(string extensao);
 
+    /// <summary>Seletor de abrir com seleção múltipla e qualquer tipo de arquivo (os anexos do Novo relatório); null se cancelado.</summary>
+    Task<IReadOnlyList<string>?> AbrirArquivosAsync();
+
+    /// <summary>"Criar processo": número, ano do protocolo e requerente ("Criar" só com os três válidos); null se cancelado.</summary>
+    Task<DadosNovoProcesso?> PedirNovoProcessoAsync();
+
     /// <summary>Seletor de salvar com o nome sugerido; null se cancelado.</summary>
     Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao);
 
@@ -65,6 +71,57 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         WinRT.Interop.InitializeWithWindow.Initialize(seletor, Janela);
         seletor.FileTypeFilter.Add(extensao);
         return (await seletor.PickSingleFileAsync())?.Path;
+    }
+
+    public async Task<IReadOnlyList<string>?> AbrirArquivosAsync()
+    {
+        var seletor = new FileOpenPicker();
+        WinRT.Interop.InitializeWithWindow.Initialize(seletor, Janela);
+        seletor.FileTypeFilter.Add("*");
+        var arquivos = await seletor.PickMultipleFilesAsync();
+        if (arquivos is null || arquivos.Count == 0) return null;
+        return arquivos.Select(a => a.Path).Where(c => !string.IsNullOrEmpty(c)).ToList();
+    }
+
+    public async Task<DadosNovoProcesso?> PedirNovoProcessoAsync()
+    {
+        var anoAtual = DateTime.Now.Year;
+        var numero = new TextBox { Header = "Número do processo", PlaceholderText = "ex.: 123", MaxLength = 6, InputScope = Numerico() };
+        var ano = new TextBox { Header = "Ano do protocolo", Text = anoAtual.ToString(CultureInfo.InvariantCulture), MaxLength = 4, InputScope = Numerico() };
+        var requerente = new TextBox { Header = "Requerente", PlaceholderText = "Nome do requerente" };
+        var painel = new StackPanel { Spacing = 10, MinWidth = 360 };
+        painel.Children.Add(numero);
+        painel.Children.Add(ano);
+        painel.Children.Add(requerente);
+        painel.Children.Add(new TextBlock
+        {
+            Text = "A pasta é criada na pasta de processos, no ano do protocolo, com DOCUMENTOS e PROJETO\\INICIAL. Se o processo já existe, a pasta dele é usada.",
+            TextWrapping = TextWrapping.Wrap,
+            Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"],
+        });
+        var d = new ContentDialog
+        {
+            XamlRoot = raiz(),
+            Title = "Criar processo",
+            Content = painel,
+            PrimaryButtonText = "Criar",
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = false,
+        };
+        void Conferir() => d.IsPrimaryButtonEnabled = FluxoNovoRelatorio.LerNovoProcesso(numero.Text, ano.Text, requerente.Text, anoAtual) is not null;
+        numero.TextChanged += (_, _) => Conferir();
+        ano.TextChanged += (_, _) => Conferir();
+        requerente.TextChanged += (_, _) => Conferir();
+        if (await d.ShowAsync() != ContentDialogResult.Primary) return null;
+        return FluxoNovoRelatorio.LerNovoProcesso(numero.Text, ano.Text, requerente.Text, anoAtual);
+    }
+
+    static Microsoft.UI.Xaml.Input.InputScope Numerico()
+    {
+        var escopo = new Microsoft.UI.Xaml.Input.InputScope();
+        escopo.Names.Add(new Microsoft.UI.Xaml.Input.InputScopeName(Microsoft.UI.Xaml.Input.InputScopeNameValue.Number));
+        return escopo;
     }
 
     public async Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao)

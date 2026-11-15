@@ -1,0 +1,147 @@
+<UserControl x:Class="Pmvni.App.PaginaNovoRelatorio"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Novo relatório (desenho §12.2): no módulo Relatórios, no lugar das folhas enquanto está aberta. Formulário: processo, anexos (botão ou arrastar),
+       pedido e os dois botões "Analisar"; vista da execução: andamento ao vivo, cancelar e o registro. Quem liga os controles é a janela
+       (MainWindow.NovoRelatorio.cs). Nada é gravado antes do clique em Analisar. -->
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0" Spacing="1">
+      <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
+      <InfoBar x:Name="AvisoResultado" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="True">
+        <InfoBar.Content>
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <Button x:Name="BotaoMostrarRegistroResultado" x:FieldModifier="internal" Content="Mostrar registro"/>
+            <Button x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Continuar a análise" Visibility="Collapsed"/>
+            <Button x:Name="BotaoImportarPendente" x:FieldModifier="internal" Content="Importar relatório" Visibility="Collapsed"/>
+          </StackPanel>
+        </InfoBar.Content>
+      </InfoBar>
+    </StackPanel>
+
+    <!-- Formulário. -->
+    <ScrollViewer x:Name="PainelFormulario" x:FieldModifier="internal" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+      <StackPanel Padding="24,16,24,24" Spacing="14" MaxWidth="980" HorizontalAlignment="Stretch">
+        <Grid ColumnSpacing="12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <TextBlock Text="Novo relatório" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center"/>
+          <Button x:Name="BotaoExecucoes" x:FieldModifier="internal" Grid.Column="1" Content="Ver a análise em andamento" Visibility="Collapsed"/>
+          <Button x:Name="BotaoVoltarRelatorio" x:FieldModifier="internal" Grid.Column="2" Content="Voltar ao relatório" Visibility="Collapsed"/>
+        </Grid>
+
+        <TextBlock Text="1. Processo" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+        <Grid ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <TextBox x:Name="CaixaFiltro" x:FieldModifier="internal" PlaceholderText="Filtrar por número ou requerente" AutomationProperties.Name="Filtrar processos"/>
+          <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" PlaceholderText="Escolha o processo"
+                    AutomationProperties.Name="Processo"/>
+          <Button x:Name="BotaoCriarProcesso" x:FieldModifier="internal" Grid.Column="2" Content="Criar processo…"/>
+        </Grid>
+        <TextBlock x:Name="TextoPastaProcesso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+
+        <TextBlock Text="2. Anexos" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,6,0,0"/>
+        <Border x:Name="AreaAnexos" x:FieldModifier="internal" AllowDrop="True" MinHeight="84" Padding="16" CornerRadius="8"
+                BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
+                Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+          <StackPanel Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock x:Name="TextoArraste" x:FieldModifier="internal" Text="Arraste arquivos para cá" HorizontalAlignment="Center"
+                       Style="{StaticResource BodyStrongTextBlockStyle}"/>
+            <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar arquivos…" HorizontalAlignment="Center"/>
+            <TextBlock Text="Qualquer tipo de arquivo. Nada é copiado antes de Analisar; a cópia vai para a pasta do processo e o original não muda."
+                       Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" HorizontalAlignment="Center"/>
+          </StackPanel>
+        </Border>
+        <StackPanel x:Name="ListaAnexos" x:FieldModifier="internal" Spacing="6"/>
+        <TextBlock x:Name="TextoRecusas" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed"
+                   Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+
+        <TextBlock Text="3. Pedido para a IA" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,6,0,0"/>
+        <TextBox x:Name="CaixaPedido" x:FieldModifier="internal" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" MaxHeight="320"
+                 MaxLength="20000" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Pedido para a IA"/>
+
+        <Grid ColumnSpacing="16" Margin="0,6,0,0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel Spacing="6">
+            <Button x:Name="BotaoChatGpt" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" Padding="12,8">
+              <StackPanel>
+                <TextBlock Text="Analisar com o ChatGPT" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <TextBlock Text="Codex · plugin analise" FontSize="12" Opacity="0.85"/>
+              </StackPanel>
+            </Button>
+            <TextBlock x:Name="TextoMotivoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+          </StackPanel>
+          <StackPanel Grid.Column="1" Spacing="6">
+            <Button x:Name="BotaoClaude" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" Padding="12,8">
+              <StackPanel>
+                <TextBlock Text="Analisar com o Claude" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <TextBlock Text="Claude Code · plugin análise pro" FontSize="12" Opacity="0.85"/>
+              </StackPanel>
+            </Button>
+            <TextBlock x:Name="TextoPedidoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="TextoMotivoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Grid>
+        <ProgressRing x:Name="AnelPartida" x:FieldModifier="internal" IsActive="False" Width="24" Height="24" HorizontalAlignment="Left"/>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- Vista da execução. -->
+    <Grid x:Name="PainelExecucao" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed" Padding="24,16,24,16" RowSpacing="10">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <TextBlock x:Name="TextoCabecalho" x:FieldModifier="internal" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap"/>
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+        <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" Content="Cancelar análise"/>
+        <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" Content="Mostrar registro no Explorador"/>
+        <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" Content="Nova análise"/>
+        <ProgressRing IsActive="True" Width="20" Height="20" VerticalAlignment="Center"/>
+      </StackPanel>
+      <StackPanel x:Name="PainelClaude" x:FieldModifier="internal" Grid.Row="2" Spacing="6" Visibility="Collapsed">
+        <StackPanel x:Name="PainelEtapas" x:FieldModifier="internal" Orientation="Horizontal" Spacing="16"/>
+        <TextBlock x:Name="TextoRotulo" x:FieldModifier="internal" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
+        <TextBlock x:Name="TextoEventos" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" MaxLines="6"/>
+      </StackPanel>
+      <ListView x:Name="ListaLinhas" x:FieldModifier="internal" Grid.Row="3" SelectionMode="None" IsItemClickEnabled="False"
+                BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="6"
+                FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.Name="Andamento da análise">
+        <ListView.ItemContainerStyle>
+          <Style TargetType="ListViewItem">
+            <Setter Property="MinHeight" Value="20"/>
+            <Setter Property="Padding" Value="8,1"/>
+          </Style>
+        </ListView.ItemContainerStyle>
+        <ListView.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <TextBlock Text="{x:Bind}" TextWrapping="NoWrap" IsTextSelectionEnabled="True"/>
+          </DataTemplate>
+        </ListView.ItemTemplate>
+      </ListView>
+      <Expander x:Name="ExpansorUltimaMensagem" x:FieldModifier="internal" Grid.Row="4" Header="Última mensagem do ChatGPT"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+        <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto">
+          <TextBlock x:Name="TextoUltimaMensagem" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+        </ScrollViewer>
+      </Expander>
+    </Grid>
+  </Grid>
+</UserControl>

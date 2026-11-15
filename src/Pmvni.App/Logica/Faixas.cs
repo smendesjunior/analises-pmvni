@@ -39,6 +39,9 @@ public static class Faixas
         new(ComandosApp.DespachosNovoAprovacao, "Aprovação", ""),
     ]);
 
+    /// <summary>Novo relatório (desenho §12.2): primeiro de Relatórios › Arquivo e › Página Inicial; em Processos, logo depois do Novo despacho.</summary>
+    static readonly ComandoFaixa NovoRelatorio = new(ComandosApp.RelatoriosNovo, "Novo relatório", "");
+
     static readonly AbaFaixa Ajuda = new("Ajuda",
     [
         new(ComandosApp.AjudaAtalhos, "Atalhos de teclado", ""),
@@ -58,6 +61,7 @@ public static class Faixas
     [
         new("Arquivo",
         [
+            NovoRelatorio,
             new(ComandosApp.ArquivoImportar, "Importar dados.json", ""),
             new(ComandosApp.ArquivoAbrir, "Abrir", ""),
             RecentesMenu,
@@ -68,6 +72,7 @@ public static class Faixas
         ]),
         new("Página Inicial",
         [
+            NovoRelatorio,
             new(ComandosApp.InicioSituacao, "Situação", "", TipoComando.Menu, OrdemSituacoes
                 .Select(c => new ComandoFaixa(ComandosApp.ComandoDaSituacao(c), Situacoes.Sit[c].Texto, "")).ToList()),
             new(ComandosApp.InicioExcluirRestaurar, "Excluir item", ""),
@@ -149,6 +154,7 @@ public static class Faixas
             new(ComandosApp.ProcessosAbrirRelatorio, "Abrir relatório", ""),
             new(ComandosApp.ProcessosImportarAnalise, "Importar análise da IA", ""),
             NovoDespacho,
+            NovoRelatorio,
             new(ComandosApp.ProcessosAbrirArquivo, "Abrir arquivo", ""),
             new(ComandosApp.ProcessosAbrirPasta, "Abrir pasta no Explorador", ""),
             new(ComandosApp.ProcessosAtualizar, "Atualizar", ""),

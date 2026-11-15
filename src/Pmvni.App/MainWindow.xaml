@@ -24,6 +24,14 @@
       <!-- Desfazer e Refazer ao lado do estado de gravação (desenho §5.5) e a pesquisa no relatório (Ctrl+F; Enter = próxima,
            Shift+Enter = anterior, Esc limpa). -->
       <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Left" VerticalAlignment="Center">
+        <!-- Novo relatório (desenho §12.7): com uma análise em andamento, o tempo dela ao lado do estado de gravação; clicar abre a vista da execução. -->
+        <Button x:Name="BotaoAnalise" Style="{StaticResource PmvniBarraButtonStyle}" Visibility="Collapsed" Margin="0,0,12,0"
+                AutomationProperties.Name="Análise em andamento" ToolTipService.ToolTip="Abrir a vista da análise em andamento">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ProgressRing IsActive="True" Width="14" Height="14"/>
+            <TextBlock x:Name="TextoBotaoAnalise" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
         <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
                 AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
           <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
@@ -60,6 +68,7 @@
       <Grid x:Name="AreaPaginas" Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8,0,0,0"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
         <local:PaginaRelatorios x:Name="Relatorios"/>
+        <local:PaginaNovoRelatorio x:Name="PaginaDeNovoRelatorio" Visibility="Collapsed"/>
         <local:PaginaDespachos x:Name="PaginaDeDespachos" Visibility="Collapsed"/>
         <local:PaginaNovoDespacho x:Name="PaginaDeNovoDespacho" Visibility="Collapsed"/>
         <local:PaginaProcessos x:Name="PaginaDeProcessos" Visibility="Collapsed"/>

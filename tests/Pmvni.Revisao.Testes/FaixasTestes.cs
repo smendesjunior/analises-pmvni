@@ -67,11 +67,11 @@ public class FaixasTestes
         var inicio = f.Abas.Single(a => a.Nome == "Página Inicial");
         Assert.Equal(new[]
         {
-            ComandosApp.InicioSituacao, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
+            ComandosApp.RelatoriosNovo, ComandosApp.InicioSituacao, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
             ComandosApp.InicioRestaurarOriginal, ComandosApp.InicioItemAnterior, ComandosApp.InicioItemProximo, ComandosApp.InicioProximoPendente,
             ComandosApp.ArquivoExportarPdf, ComandosApp.DespachosNovo,
         }, inicio.Comandos.Select(c => c.Id));
-        var situacao = inicio.Comandos[0];
+        var situacao = inicio.Comandos[1];
         Assert.Equal(TipoComando.Menu, situacao.Tipo);
         // As 4 situações de item do kit, pelos textos que o relatório imprime.
         Assert.Equal(Pmvni.Composicao.Kit.Situacoes.SitItem.Order(StringComparer.Ordinal), situacao.Itens!.Select(i => ComandosApp.SituacaoDoComando(i.Id)!).Order(StringComparer.Ordinal));
@@ -149,7 +149,7 @@ public class FaixasTestes
         var inicioP = processos.Abas.Single(a => a.Nome == "Página Inicial");
         Assert.Equal(new[]
         {
-            ComandosApp.ProcessosAbrirRelatorio, ComandosApp.ProcessosImportarAnalise, ComandosApp.DespachosNovo, ComandosApp.ProcessosAbrirArquivo,
+            ComandosApp.ProcessosAbrirRelatorio, ComandosApp.ProcessosImportarAnalise, ComandosApp.DespachosNovo, ComandosApp.RelatoriosNovo, ComandosApp.ProcessosAbrirArquivo,
             ComandosApp.ProcessosAbrirPasta, ComandosApp.ProcessosAtualizar, ComandosApp.ProcessosAno,
         }, inicioP.Comandos.Select(c => c.Id));
         Assert.Equal(TipoComando.Menu, inicioP.Comandos.Single(c => c.Id == ComandosApp.ProcessosAno).Tipo);
@@ -256,6 +256,33 @@ public class FaixasTestes
             ComandosApp.ProcessosAtualizar, ComandosApp.DespachosAbrir,
         })
             Assert.False(ComandosApp.SoDoRelatorio(id), id);
+    }
+
+    [Fact]
+    public void novo_relatorio_na_faixa()
+    {
+        Assert.Equal("relatorios.novo", ComandosApp.RelatoriosNovo);
+        var relatorios = Faixas.Para(Modulo.Relatorios);
+        foreach (var nome in new[] { "Arquivo", "Página Inicial" })
+        {
+            var c = relatorios.Abas.Single(a => a.Nome == nome).Comandos[0];
+            Assert.Equal(ComandosApp.RelatoriosNovo, c.Id);
+            Assert.Equal(TipoComando.Botao, c.Tipo);
+            Assert.Equal("Novo relatório", c.Rotulo);
+        }
+        Assert.Equal(ComandosApp.DespachosNovo, relatorios.Abas.Single(a => a.Nome == "Página Inicial").Comandos[^1].Id);
+        Assert.Equal(2, Faixas.Comandos(relatorios).Count(c => c.Id == ComandosApp.RelatoriosNovo));
+
+        var inicioP = Faixas.Para(Modulo.Processos).Abas.Single(a => a.Nome == "Página Inicial").Comandos.ToList();
+        var i = inicioP.FindIndex(c => c.Id == ComandosApp.RelatoriosNovo);
+        Assert.Equal(ComandosApp.DespachosNovo, inicioP[i - 1].Id);
+        Assert.Equal(ComandosApp.ProcessosImportarAnalise, inicioP[i - 2].Id);
+        Assert.Single(Faixas.Comandos(Faixas.Para(Modulo.Processos)), c => c.Id == ComandosApp.RelatoriosNovo);
+
+        foreach (var m in new[] { Modulo.Despachos, Modulo.Ajustes })
+            Assert.DoesNotContain(Faixas.Comandos(Faixas.Para(m)), c => c.Id == ComandosApp.RelatoriosNovo);
+        // Abrir a página Novo relatório não mexe no relatório aberto: vale em qualquer módulo.
+        Assert.False(ComandosApp.SoDoRelatorio(ComandosApp.RelatoriosNovo));
     }
 
     [Fact]

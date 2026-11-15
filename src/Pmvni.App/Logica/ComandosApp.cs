@@ -95,6 +95,9 @@ public static class ComandosApp
         _ => null,
     };
 
+    /// <summary>Novo relatório pelos agentes locais (Tarefa 20; desenho §12.2): abre a página Novo relatório no módulo Relatórios, de qualquer módulo que o mostra.</summary>
+    public const string RelatoriosNovo = "relatorios.novo";
+
     public const string AjudaAtalhos = "ajuda.atalhos";
     public const string AjudaSobre = "ajuda.sobre";
 

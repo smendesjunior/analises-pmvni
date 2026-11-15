@@ -410,6 +410,9 @@ static class Program
     static int Situacao(string caso, string controle)
     {
         var st = LerStatus(controle);
+        // O auto pode gravar o status final e sair entre a leitura e a conferência do pid: com o pid morto, relê antes de dizer "interrompida".
+        if (st is not null && Texto(st["situacao"], "") is "EM_ANDAMENTO" or "AGUARDANDO_COTA" && !Vivo(Inteiro(st["pid"], 0)))
+            st = LerStatus(controle) ?? st;
         if (st is null)
         {
             saida.WriteLine(new JsonObject { ["case"] = caso, ["situacao"] = "NAO_INICIADA" }.ToJsonString(Opcoes));

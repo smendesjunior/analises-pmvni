@@ -105,6 +105,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         IniciarPastas();
         IniciarNovoDespacho();
         IniciarAgentes();
+        IniciarNovoRelatorio();
         Faixa.ComandoInvocado += async id => await ExecutarComandoAsync(id);
         Faixa.AbaMudou += nome => { ajustes.AbaPorModulo[moduloAtual] = nome; SalvarAjustes(); };
         TrilhoModulos.Montar(Faixas.Disponiveis);
@@ -121,6 +122,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             // trabalho do despacho sai.
             novo?.EncerrarAoFechar(TimeSpan.FromSeconds(3));
             PararTemporizadores();
+            relogioAnalise.Stop();
             try { documento?.Dispose(); } catch { }
             try { hostComposicao?.Dispose(); } catch { }
         };
@@ -172,6 +174,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             AtualizarComandos();
 
             var args = Argumentos.Atual;
+            // As análises do Claude que seguiam quando o editor fechou (desenho §12.7). O roteiro chama no passo dele.
+            if (args.Roteiro is null) _ = TentarAsync(RetomarExecucoesClaudeAsync);
             if (args.Roteiro is not null) await Roteiro.ExecutarAsync(this, args);
             else if (args.Dados is { } arquivo)
             {
@@ -244,7 +248,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         var anterior = moduloAtual;
         moduloAtual = m;
-        R.Visibility = m == Modulo.Relatorios ? Visibility.Visible : Visibility.Collapsed;
+        AtualizarPaginasDeRelatorios();
         AtualizarPaginasDeDespachos();
         PaginaDeProcessos.Visibility = m == Modulo.Processos ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeAjustes.Visibility = m == Modulo.Ajustes ? Visibility.Visible : Visibility.Collapsed;
@@ -286,6 +290,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (!manipuladores.TryGetValue(id, out var acao)) return;
         // Delete, Ctrl+Z, zoom e os outros comandos do relatório não valem com a lista de processos à vista: o relatório fica escondido.
         if (moduloAtual != Modulo.Relatorios && ComandosApp.SoDoRelatorio(id)) return;
+        // Com a página Novo relatório à frente, as folhas estão escondidas: os comandos delas não valem.
+        if (novoRelatorioAberto && ComandosApp.SoDoRelatorio(id)) return;
         if (id.StartsWith("processos.", StringComparison.Ordinal) && moduloAtual != Modulo.Processos) return;
         if (id.StartsWith("despachos.", StringComparison.Ordinal) && moduloAtual != Modulo.Despachos && !ComandosApp.ValeForaDeDespachos(id)) return;
         if (!Faixa.Habilitado(id)) { AvisarIndisponivel(id); return; }
@@ -343,6 +349,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (fechada) return;
         var pronto = documento is not null && !ocupado;
         var temRelatorio = pronto && sessao?.Atual is not null;
+        var folhas = temRelatorio && !novoRelatorioAberto;     // a página Novo relatório esconde as folhas: os comandos delas ficam desabilitados
         Faixa.Habilitar(ComandosApp.ArquivoImportar, pronto);
         Faixa.Habilitar(ComandosApp.ArquivoAbrir, pronto);
         Faixa.Habilitar(ComandosApp.ArquivoSalvar, temRelatorio && sessao is { SomenteLeitura: false });
@@ -353,15 +360,16 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.AvisoDesatualizado.IsOpen = desatualizada;
         Faixa.Habilitar(ComandosApp.ArquivoFechar, pronto && sessao is not null);
         Faixa.Habilitar(ComandosApp.ArquivoRecentes, pronto && haRecentes);
-        AtualizarPesquisaHabilitada(temRelatorio);
-        Faixa.Habilitar(ComandosApp.ExibirMenos, temRelatorio && zoom > PassosZoom[0] + 0.001);
-        Faixa.Habilitar(ComandosApp.ExibirMais, temRelatorio && zoom < PassosZoom[^1] - 0.001);
-        Faixa.Habilitar(ComandosApp.ExibirLargura, temRelatorio);
-        Faixa.Habilitar(ComandosApp.ExibirPagina, temRelatorio);
+        AtualizarPesquisaHabilitada(folhas);
+        Faixa.Habilitar(ComandosApp.ExibirMenos, folhas && zoom > PassosZoom[0] + 0.001);
+        Faixa.Habilitar(ComandosApp.ExibirMais, folhas && zoom < PassosZoom[^1] - 0.001);
+        Faixa.Habilitar(ComandosApp.ExibirLargura, folhas);
+        Faixa.Habilitar(ComandosApp.ExibirPagina, folhas);
         Faixa.Ligar(ComandosApp.ExibirPainel, PainelVisivel);
-        AtualizarComandosRevisao(temRelatorio);
+        AtualizarComandosRevisao(folhas);
         AtualizarComandosPastas(pronto);
         AtualizarComandosNovoDespacho();
+        AtualizarComandosNovoRelatorio();
         R.BotaoMenos.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMenos);
         R.BotaoMais.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMais);
         R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = temRelatorio;
@@ -440,6 +448,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // Abrir um relatório leva a Relatórios: um despacho em edição pergunta antes de ser descartado.
         if (!await SairDoNovoDespachoAsync()) return false;
         if (sessao is not null && !await FecharSessaoAsync()) return false;
+        FecharPaginaNovoRelatorio();   // o relatório aberto aparece nas folhas (a página Novo relatório fica como estava, por trás)
         // Abrir (ou importar, ou escolher um recente) com os Ajustes à vista: o relatório aparece no módulo Relatórios.
         if (moduloAtual != Modulo.Relatorios) MontarModulo(Modulo.Relatorios);
         Ocupar("Abrindo o relatório…");
@@ -494,12 +503,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// em andamento), grava e fecha; só pergunta se a gravação falhar (<see cref="FecharSessaoAsync"/>).</summary>
     async void AoFecharJanela(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (fecharDeVez || (sessao is null && novo is null && !ocupado && naFila == 0)) return;
+        if (fecharDeVez || (sessao is null && novo is null && !ocupado && naFila == 0 && !sessaoNR.Execucoes.Any(e => !e.Abandonada))) return;
         args.Cancel = true;
         if (fechando) return;
         fechando = true;
         try
         {
+            // Análises em andamento (desenho §12.7): o ChatGPT pergunta (Continuar ⇒ não fecha); o Claude só informa e segue sozinho.
+            if (!await PodeFecharComAnalisesAsync()) return;
             if (ocupado || naFila > 0)
                 MostrarMensagem(InfoBarSeverity.Informational, "Aguarde", "A janela fecha assim que a operação em andamento terminar.");
             var fechar = await NaFilaAsync(async () =>
@@ -925,6 +936,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         Modulo.Processos => PaginaDeProcessos.AvisoMensagem,
         Modulo.Despachos => novo is not null ? PaginaDeNovoDespacho.AvisoMensagem : PaginaDeDespachos.AvisoMensagem,
+        Modulo.Relatorios when novoRelatorioAberto => PaginaDeNovoRelatorio.AvisoMensagem,
         _ => R.AvisoMensagem,
     };
 
@@ -934,6 +946,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (fechada) return;
         var aviso = AvisoDoModulo;
+        aviso.ActionButton = null;   // o botão de uma mensagem anterior (ex.: "Importar relatório") não fica na seguinte
         aviso.Severity = severidade;
         aviso.Title = titulo;
         aviso.Message = mensagem;

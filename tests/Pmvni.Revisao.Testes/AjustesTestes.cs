@@ -286,4 +286,33 @@ public class AjustesKitTestes
         Assert.Equal(ModoAcesso.Chave, a.Agentes[Provedor.ChatGpt].Modo);
         Assert.False(a.NormalizarModos(apiClaudePermitida: false));  // já estava na conta
     }
+
+    [Fact]
+    public void ajustes_guardam_execucoes_do_claude()
+    {
+        using var pasta = Ambiente.PastaDeTeste("ajustes-execucoes");
+        var a = Ajustes.Carregar(pasta);
+        Assert.Empty(a.ExecucoesClaude);
+        a.ExecucoesClaude.Add(new ExecucaoClaudePendente(@"C:\p\2099\0001 - 2099 - X", @"C:\p\2099\0001 - 2099 - X\.pmvni-ai\editor\2099-01-01_100000-claude"));
+        a.ExecucoesClaude.Add(new ExecucaoClaudePendente(@"C:\p\2099\0002 - 2099 - Y", @"C:\p\2099\0002 - 2099 - Y\.pmvni-ai\editor\r"));
+        a.Salvar(pasta);
+
+        var j = JsonNode.Parse(File.ReadAllText(Path.Combine(pasta, "ajustes.json")))!;
+        var lista = j["execucoes_claude"]!.AsArray();
+        Assert.Equal(2, lista.Count);
+        Assert.Equal(@"C:\p\2099\0001 - 2099 - X", lista[0]!["processo"]!.GetValue<string>());
+        Assert.Equal(@"C:\p\2099\0002 - 2099 - Y\.pmvni-ai\editor\r", lista[1]!["registro"]!.GetValue<string>());
+
+        var b = Ajustes.Carregar(pasta);
+        Assert.Equal(a.ExecucoesClaude, b.ExecucoesClaude);
+
+        // Item com chave faltando (ou de tipo errado, ou vazio) é ignorado; os bons ficam.
+        j["execucoes_claude"] = JsonNode.Parse("""
+            [ { "processo": "C:\\a" }, { "registro": "C:\\a\\r" }, { "processo": 3, "registro": "C:\\b" }, "x",
+              { "processo": "", "registro": "C:\\c" }, { "processo": "C:\\d", "registro": "C:\\d\\r" } ]
+            """);
+        File.WriteAllText(Path.Combine(pasta, "ajustes.json"), j.ToJsonString());
+        var c = Ajustes.Carregar(pasta);
+        Assert.Equal(new[] { new ExecucaoClaudePendente(@"C:\d", @"C:\d\r") }, c.ExecucoesClaude);
+    }
 }

@@ -272,8 +272,58 @@ public sealed class OrquestradorAnalise
         if (iniciada is null || iniciada.Codigo is not ("INICIADA" or "JA_EM_ANDAMENTO"))
             return Falha("O análise pro não partiu: " + PrimeiraLinha(saidaPartida) + ". Veja o registro: " + registro.Pasta + ".", partida.Codigo);
         if (iniciada.Codigo == "JA_EM_ANDAMENTO") log.MostrarOFimDoLog();     // uma análise que já rodava: mostra o que ela já escreveu
+        return await AcompanharAsync(pe, ambiente, redator, log, inicio, progresso, ct).ConfigureAwait(false);
+    }
 
-        var (_, argsSituacao) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, pecas.ProRuntime!, pasta, "situacao");
+    /// <summary>O editor reaberto volta a acompanhar uma análise do Claude que seguiu sozinha (desenho §12.7): só <c>situacao</c> e o <c>auto-log.txt</c>, sem
+    /// outra partida (<c>iniciar</c>) e sem trava (quem chama a pega). <paramref name="inicio"/> é o da execução original (o <c>delivery.json</c> tem de ser mais
+    /// novo que ele). O fim vai para o <c>execucao.json</c> do registro reaberto, como numa execução comum.</summary>
+    public async Task<FimAnalise> AcompanharClaudeAsync(PedidoExecucao pe, DateTimeOffset inicio, IProgress<ProgressoAnalise> progresso, CancellationToken ct)
+    {
+        FimAnalise fim;
+        if (pe.Pecas.Python is null || pe.Pecas.ProRuntime is null)
+            fim = Falha(pe.Pecas.Python is null ? "O Python não foi encontrado neste computador (o análise pro do kit precisa dele)."
+                : "O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
+        else
+        {
+            var log = new LeitorLog(Path.Combine(pe.Processo.Pasta, ResultadoAnalise.PastaControle(Provedor.Claude), "auto-log.txt"));
+            log.MostrarOFimDoLog();
+            try { fim = await AcompanharAsync(pe, Ambiente(Provedor.Claude, ModoAcesso.Conta, null), new RedatorChave(null), log, inicio, progresso, ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                fim = new FimAnalise("cancelada", null, null, "O acompanhamento foi interrompido; a análise do kit continua sozinha na janela minimizada.", null);
+            }
+            catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            {
+                fim = Falha("A análise não pôde ser acompanhada: " + e.Message.TrimEnd('.') + ". Veja o registro: " + pe.Registro.Pasta + ".");
+            }
+        }
+        Encerrar(pe, fim, inicio);
+        return fim;
+    }
+
+    /// <summary>Uma leitura da situação do análise pro (<c>situacao</c>, só leitura); null se as peças faltam ou a resposta não é legível.</summary>
+    public async Task<SituacaoKit?> SituacaoClaudeAsync(string pastaProcesso, Pecas pecas)
+    {
+        if (pecas.Python is null || pecas.ProRuntime is null) return null;
+        var (exe, args) = LinhasDeComando.ProRuntime(pecas.Python, pecas.PythonPeloLauncher, pecas.ProRuntime, pastaProcesso, "situacao");
+        try
+        {
+            var r = await ExecucaoProcesso.RodarAsync(exe, args, pastaProcesso, Ambiente(Provedor.Claude, ModoAcesso.Conta, null), LimiteSituacao, CancellationToken.None).ConfigureAwait(false);
+            if (r.Codigo != 0) return null;
+            var s = SituacaoAnalisePro.Ler(DoPrimeiroJson(r.Saida));
+            return s.Codigo.Length == 0 ? null : s;
+        }
+        catch (Exception e) when (e is IOException or InvalidOperationException or System.ComponentModel.Win32Exception) { return null; }
+    }
+
+    async Task<FimAnalise> AcompanharAsync(PedidoExecucao pe, Action<IDictionary<string, string?>> ambiente, RedatorChave redator, LeitorLog log, DateTimeOffset inicio,
+        IProgress<ProgressoAnalise> progresso, CancellationToken ct)
+    {
+        var registro = pe.Registro;
+        var pasta = pe.Processo.Pasta;
+        var pecas = pe.Pecas;
+        var (exe, argsSituacao) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, pecas.ProRuntime!, pasta, "situacao");
         var relogio = Stopwatch.StartNew();
         TimeSpan? ultimaSituacao = null;
         string? chaveAnterior = null;

@@ -32,7 +32,21 @@ internal sealed class PerguntasFixas : IPerguntas
     /// <summary>A pasta que o seletor de pastas "escolhe" (null = cancelado).</summary>
     public string? PastaEscolhida { get; set; }
     public Task<string?> EscolherPastaAsync() { Feitas.Add("escolher pasta"); return Task.FromResult(PastaEscolhida); }
-    public Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao) { Feitas.Add("confirmar " + titulo); return Task.FromResult(Confirmar); }
+    public Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao)
+    {
+        Feitas.Add("confirmar " + titulo);
+        Confirmacoes.Add((titulo, texto, sim, nao));
+        return Task.FromResult(RespostaPorTitulo.TryGetValue(titulo, out var r) ? r : Confirmar);
+    }
+    /// <summary>Respostas por título da confirmação (as outras seguem <see cref="Confirmar"/>).</summary>
+    public Dictionary<string, bool> RespostaPorTitulo { get; } = new(StringComparer.Ordinal);
+    public List<(string Titulo, string Texto, string Sim, string Nao)> Confirmacoes { get; } = [];
+    /// <summary>Os arquivos que "Anexar arquivos…" escolhe (null = cancelado).</summary>
+    public IReadOnlyList<string>? ArquivosParaAnexar { get; set; }
+    public Task<IReadOnlyList<string>?> AbrirArquivosAsync() { Feitas.Add("anexar arquivos"); return Task.FromResult(ArquivosParaAnexar); }
+    /// <summary>O que o diálogo "Criar processo" responde (null = cancelado).</summary>
+    public DadosNovoProcesso? NovoProcesso { get; set; }
+    public Task<DadosNovoProcesso?> PedirNovoProcessoAsync() { Feitas.Add("criar processo"); return Task.FromResult(NovoProcesso); }
     public Task InformarAsync(string titulo, string texto) { Feitas.Add("informar " + titulo); Informados.Add((titulo, texto)); return Task.CompletedTask; }
     public List<(string Titulo, string Texto)> Informados { get; } = [];
     public Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos) { Feitas.Add($"recuperar {comandos}"); return Task.FromResult(Recuperacao); }
@@ -2592,6 +2606,500 @@ internal static class Roteiro
             p["ok"] = painel && guardou && protegida && soModo && avisoDaChave && manteve && perguntou && removeu && varredura.Achados.Count == 0 && varredura.Lidos > 0 && voltou;
         });
 
+        // ---------- Tarefa 20: passos 51 a 56 (Novo relatório), só com o agente falso ----------
+        // Sobre uma cópia da árvore fictícia em <pasta>\processos-agentes (Ajustes › Pasta de processos aponta para ela) e anexos fictícios gerados em <pasta>\anexos.
+        // O orquestrador do roteiro lê o cenário do agente falso por AGENTE_FALSO_CENARIO e consulta a situação e o log a cada 200 ms.
+        var processosAgentes = Path.Combine(pasta, "processos-agentes");
+        var anexosPasta = Path.Combine(pasta, "anexos");
+        var planta = Path.Combine(anexosPasta, "planta-ficticia.pdf");
+        var requerimento = Path.Combine(anexosPasta, "requerimento-ficticio.pdf");
+        var memorial = Path.Combine(anexosPasta, "memorial.docx");
+        var foto = Path.Combine(anexosPasta, "foto.heic");
+        var fotosPasta = Path.Combine(anexosPasta, "fotos");
+        var atalho = Path.Combine(anexosPasta, "atalho.lnk");
+        var outroAnexo = Path.Combine(anexosPasta, "complemento-ficticio.pdf");
+        var claudeAnexo = Path.Combine(anexosPasta, "levantamento-ficticio.pdf");
+        var recusadoAnexo = Path.Combine(anexosPasta, "nao-copiar.pdf");
+        string P0001() => Directory.GetDirectories(Path.Combine(processosAgentes, "2099"), "0001 - 2099 - *").Single();
+        string P0012() => Directory.GetDirectories(Path.Combine(processosAgentes, "2099"), "0012-2099 - *").Single();
+        Dictionary<string, string> antesDoNovoRelatorio = new();
+        Dictionary<string, (string Sha, long Tamanho, DateTime Escrita, DateTime Criacao, FileAttributes Atributos)> fotoDosAnexos = new();
+        var novoRelatorioPreparado = false;
+
+        OrquestradorAnalise Orq(string cenario) => new()
+        {
+            IntervaloSituacao = TimeSpan.FromMilliseconds(200),
+            IntervaloLog = TimeSpan.FromMilliseconds(200),
+            AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = Path.Combine(corpus, "agentes", cenario + ".json") },
+        };
+
+        static async Task<T> Prazo<T>(Task<T> tarefa, int segundos)
+        {
+            if (await Task.WhenAny(tarefa, Task.Delay(TimeSpan.FromSeconds(segundos))) != tarefa) throw new TimeoutException($"não terminou em {segundos} s");
+            return await tarefa;
+        }
+
+        static string ShaDe(string arquivo) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(arquivo)));
+
+        async Task PrepararNovoRelatorioAsync()
+        {
+            await PrepararAgentesAsync();
+            if (novoRelatorioPreparado) return;
+            if (Directory.Exists(processosAgentes)) ApagarArvore(processosAgentes);
+            CopiarArvore(Path.Combine(corpus, "processos"), processosAgentes);
+            j.DefinirPastaProcessos(processosAgentes);
+            if (Directory.Exists(anexosPasta)) ApagarArvore(anexosPasta);
+            Directory.CreateDirectory(fotosPasta);
+            File.WriteAllBytes(planta, PdfFicticio("Planta baixa fictícia do roteiro"));
+            File.WriteAllBytes(requerimento, PdfFicticio("Requerimento fictício do roteiro"));
+            File.WriteAllBytes(outroAnexo, PdfFicticio("Complemento fictício do roteiro"));
+            File.WriteAllBytes(claudeAnexo, PdfFicticio("Levantamento fictício do roteiro"));
+            File.WriteAllBytes(recusadoAnexo, PdfFicticio("Anexo de uma análise recusada no aviso"));
+            using (var zip = new System.IO.Compression.ZipArchive(File.Create(memorial), System.IO.Compression.ZipArchiveMode.Create))
+            using (var w = new StreamWriter(zip.CreateEntry("word/document.xml").Open()))
+                w.Write("<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>Memorial fictício</w:t></w:r></w:p></w:body></w:document>");
+            File.WriteAllBytes(foto, [0, 0, 0, 0x18, (byte)'f', (byte)'t', (byte)'y', (byte)'p', (byte)'h', (byte)'e', (byte)'i', (byte)'c', 0, 0, 0, 0, (byte)'m', (byte)'i', (byte)'f', (byte)'1', 1, 2, 3, 4, 5, 6, 7, 8]);
+            File.WriteAllText(Path.Combine(fotosPasta, "f1.jpg"), "foto fictícia");
+            File.WriteAllBytes(atalho, [0x4C, 0, 0, 0, 1, 0x14, 2, 0]);
+            foreach (var a in Directory.GetFiles(anexosPasta, "*", SearchOption.AllDirectories))
+            {
+                var info = new FileInfo(a);
+                fotoDosAnexos[a] = (ShaDe(a), info.Length, info.LastWriteTimeUtc, info.CreationTimeUtc, info.Attributes);
+            }
+            antesDoNovoRelatorio = FotografarArvore(processosAgentes);
+            j.EsquecerExecucoesClaude();
+            foreach (var pv in Enum.GetValues<Provedor>()) j.EsquecerAviso(pv);
+            novoRelatorioPreparado = true;
+        }
+
+        async Task<(ExecucaoEmCurso E, FimAnalise Fim)> AnalisarAteOFimAsync(Provedor pv, string cenario)
+        {
+            j.Orquestrador = Orq(cenario);
+            var e = await j.AnalisarAsync(pv) ?? throw new InvalidOperationException("a análise não partiu: " + j.InfoMensagemAtual.Message);
+            return (e, await Prazo(j.AguardarAnaliseAsync(e), 180));
+        }
+
+        JsonObject Recebido(string pastaProcesso) => JsonNode.Parse(File.ReadAllText(Path.Combine(pastaProcesso, ".pmvni-ai", "agente-falso", "recebido.json")))!.AsObject();
+
+        JsonObject ExecucaoJson(ExecucaoEmCurso e) => JsonNode.Parse(File.ReadAllText(Path.Combine(e.Registro.Pasta, "execucao.json")))!.AsObject();
+
+        string[] Chamadas(string pastaProcesso, string acao)
+        {
+            var arquivo = Path.Combine(pastaProcesso, ".pmvni-ai", "agente-falso", "chamadas.txt");
+            return File.Exists(arquivo) ? File.ReadAllLines(arquivo, System.Text.Encoding.UTF8).Where(l => l.StartsWith(acao + "\t", StringComparison.Ordinal)).ToArray() : [];
+        }
+
+        await Passo("51_novo_relatorio_anexos", async p =>
+        {
+            await PrepararNovoRelatorioAsync();
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            await j.ExecutarComandoAsync(ComandosApp.RelatoriosNovo);   // pela faixa de Relatórios
+            await j.AguardarNovoRelatorioAsync();
+            var abriu = j.ModuloAtual == Modulo.Relatorios && j.PaginaNovoRelatorioVisivel && !j.FolhasVisiveis
+                && j.FaixaAtual.Definicao!.Abas[0].Comandos[0].Id == ComandosApp.RelatoriosNovo;
+            p["pagina_aberta_pela_faixa"] = abriu;
+
+            // Criar processo… (9998/2099 "Fulána de Tál") e, de novo, o mesmo número: nenhuma pasta nova e o aviso exato.
+            perguntas.NovoProcesso = new DadosNovoProcesso(9998, 2099, "Fulána de Tál");
+            var criado = await j.CriarProcessoAsync();
+            var pastaNova = Path.Combine(processosAgentes, "2099", "9998 - 2099 - FULANA DE TAL");
+            var criou = criado?.Pasta == pastaNova && Directory.Exists(Path.Combine(pastaNova, "DOCUMENTOS")) && Directory.Exists(Path.Combine(pastaNova, "PROJETO", "INICIAL"))
+                && j.ProcessoDoNovoRelatorio?.Pasta == pastaNova;
+            var pastasAntes = Directory.GetDirectories(processosAgentes, "*", SearchOption.AllDirectories).Length;
+            var repetido = await j.CriarProcessoAsync();
+            var avisoRepetido = j.InfoMensagemAtual.Message;
+            var naoDuplicou = repetido?.Pasta == pastaNova && Directory.GetDirectories(processosAgentes, "*", SearchOption.AllDirectories).Length == pastasAntes
+                && avisoRepetido == $"O processo 9998/2099 já existe: {pastaNova}.";
+            perguntas.NovoProcesso = null;
+            p["criar_processo"] = criou;
+            p["criar_de_novo_nao_duplica"] = naoDuplicou;
+            p["aviso_ja_existe"] = avisoRepetido;
+
+            // O 0001 (sem PROJETO\INICIAL): anexos pelo botão e arrastados (uma pasta e um atalho recusados).
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == P0001()));
+            var antesDosAnexos = FotografarArvore(processosAgentes);
+            perguntas.ArquivosParaAnexar = [planta, requerimento, memorial];
+            await j.AnexarAsync();
+            await j.SoltarArquivosAsync([foto, fotosPasta, atalho]);
+            await j.SoltarArquivosAsync([foto]);    // o mesmo caminho duas vezes entra uma vez
+            await j.AguardarNovoRelatorioAsync();
+            var linhas = j.AnexosDoNovoRelatorio;
+            var recusas = j.RecusasDoNovoRelatorio.ToList();
+            await j.SoltarArquivosAsync([fotosPasta, atalho]);
+            await j.AguardarNovoRelatorioAsync();
+            recusas = j.RecusasDoNovoRelatorio.ToList();
+            const string RecusaPasta = "Arraste arquivos, não pastas: fotos.";
+            const string RecusaAtalho = "atalho.lnk é um atalho; anexe o arquivo de destino.";
+            var quatro = linhas.Count == 4 && j.AnexosDoNovoRelatorio.Count == 4 && recusas.SequenceEqual([RecusaPasta, RecusaAtalho]);
+            var padrao = j.AnexosDoNovoRelatorio.All(a => a.Destino == DestinoAnexo.ProjetoInicial)
+                && j.AnexosDoNovoRelatorio[3].Previa == @"PROJETO\INICIAL\foto.heic";
+            var semJuntar = j.OpcoesDeDestino.SequenceEqual(["Documento (DOCUMENTOS)", @"Projeto — primeira apresentação (PROJETO\INICIAL)", "Projeto — reapresentação (nova REVISÃO NN)"]);
+            p["linhas"] = new JsonArray(j.AnexosDoNovoRelatorio.Select(a => (JsonNode)(Path.GetFileName(a.Origem) + " → " + a.Previa)).ToArray());
+            p["recusas"] = new JsonArray(recusas.Select(r => (JsonNode)r).ToArray());
+            p["quatro_linhas_e_duas_recusas"] = quatro;
+            p["destino_padrao_primeira_apresentacao"] = padrao;
+            p["sem_juntar_a_revisao_atual"] = semJuntar;
+
+            j.DefinirDestino(0, DestinoAnexo.ReapresentacaoNova);
+            j.DefinirDestino(2, DestinoAnexo.ReapresentacaoNova);
+            j.DefinirDestino(1, DestinoAnexo.Documento);
+            await j.AguardarNovoRelatorioAsync();
+            var a2 = j.AnexosDoNovoRelatorio;
+            var previas = a2[0].Previa == @"PROJETO\REVISÃO 01\planta-ficticia.pdf" && a2[2].Previa == @"PROJETO\REVISÃO 01\memorial.docx"
+                && a2[1].Previa == @"DOCUMENTOS\requerimento-ficticio.pdf" && a2[3].Previa == @"PROJETO\INICIAL\foto.heic";
+            p["previas"] = new JsonArray(a2.Select(a => (JsonNode)a.Previa).ToArray());
+            p["previas_por_destino"] = previas;
+
+            // Nada é gravado antes do clique: a lista de arquivos e o sha de cada um são os mesmos.
+            var depois = FotografarArvore(processosAgentes);
+            var nadaGravado = depois.Count == antesDosAnexos.Count && depois.All(kv => antesDosAnexos.TryGetValue(kv.Key, out var s) && s == kv.Value);
+            p["nada_gravado_antes_de_analisar"] = nadaGravado;
+            await Esperar(300);
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "51-novo-relatorio-xaml.png"));
+            p["ok"] = abriu && criou && naoDuplicou && quatro && padrao && semJuntar && previas && nadaGravado;
+        });
+
+        await Passo("52_novo_relatorio_chatgpt", async p =>
+        {
+            await PrepararNovoRelatorioAsync();
+            var processo = P0001();
+            if (j.ProcessoDoNovoRelatorio?.Pasta != processo) throw new InvalidOperationException("o passo 51 não deixou o 0001 escolhido");
+            j.PedidoTexto = "Confira a reapresentação fictícia.\nVeja as pendências do despacho anterior.";
+            var texto = j.PedidoTexto;
+            var motivo = j.MotivoBotao(Provedor.ChatGpt);
+            var confirmacoes = perguntas.Confirmacoes.Count;
+            j.Orquestrador = Orq("ok");
+            var e = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException("não partiu: " + j.InfoMensagemAtual.Message);
+            var avisos = perguntas.Confirmacoes.Skip(confirmacoes).Count(c => c.Titulo == "Analisar com o ChatGPT" && c.Sim == "Concordo e analisar" && c.Texto == FluxoNovoRelatorio.TextoAviso(Provedor.ChatGpt));
+            var avisoGravado = JsonNode.Parse(File.ReadAllText(Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo)))?["agentes"]?["chatgpt"]?["aviso_versao"]?.GetValue<int>() == 1;
+            var titulo = j.TituloAnalise ?? "";
+            var vista = j.ExecucaoMostrada == e && j.NovoRelatorio.VistaDaExecucao && j.BotaoDoTituloVisivel;
+            var fim = await Prazo(j.AguardarAnaliseAsync(e), 120);
+            p["fim"] = fim.Situacao + (fim.Mensagem is null ? "" : ": " + fim.Mensagem);
+            p["titulo_durante"] = titulo;
+            var linhas = e.Linhas.Count >= 3 && e.Linhas.Any(l => l.StartsWith("Mensagem: ", StringComparison.Ordinal)) && e.Linhas.Any(l => l.StartsWith("Comando: ", StringComparison.Ordinal));
+            p["linhas"] = new JsonArray(e.Linhas.Take(10).Select(l => (JsonNode)l).ToArray());
+
+            // Os anexos copiados (sha = origem) e a origem intacta.
+            bool Copia(string relativo, string origem) => File.Exists(Path.Combine(processo, relativo)) && ShaDe(Path.Combine(processo, relativo)) == ShaDe(origem);
+            var copiados = Copia(@"PROJETO\REVISÃO 01\planta-ficticia.pdf", planta) && Copia(@"PROJETO\REVISÃO 01\memorial.docx", memorial)
+                && Copia(@"PROJETO\INICIAL\foto.heic", foto) && Copia(@"DOCUMENTOS\requerimento-ficticio.pdf", requerimento)
+                && Directory.GetFiles(Path.Combine(processo, "PROJETO", "REVISÃO 01")).Length == 2;
+            p["anexos_copiados"] = copiados;
+
+            // O registro: pedido.md (o pedido exato), anexos.json (4), saida.jsonl e execucao.json.
+            var reg = e.Registro.Pasta;
+            var anexosJson = JsonNode.Parse(File.ReadAllText(Path.Combine(reg, "anexos.json")))!.AsArray();
+            var arquivados = anexosJson.Select(x => new ArquivoArquivado(x!["origem"]!.GetValue<string>(), x["destino"]!.GetValue<string>(), x["sha256"]!.GetValue<string>(),
+                x["tamanho"]!.GetValue<long>(), x["situacao"]!.GetValue<string>() == "JA_ARQUIVADO")).ToList();
+            var pedidoEsperado = PedidoAgente.Codex(processo, e.Processo, arquivados, texto);
+            var pedido = File.ReadAllText(Path.Combine(reg, "pedido.md"), System.Text.Encoding.UTF8);
+            var ex = ExecucaoJson(e);
+            var registro = reg.StartsWith(Path.Combine(processo, ".pmvni-ai", "editor") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                && pedido == pedidoEsperado && anexosJson.Count == 4 && File.Exists(Path.Combine(reg, "saida.jsonl"))
+                && ex["situacao"]?.GetValue<string>() == "concluida" && ex["modo"]?.GetValue<string>() == "conta" && ex["pmvrel"]?.GetValue<string>() is { Length: > 0 };
+            p["registro"] = registro;
+
+            // O agente falso recebeu a linha exata, na pasta do processo, com o pedido pela entrada padrão.
+            var recebido = Recebido(processo);
+            var argv = recebido["argv"]!.AsArray().Select(a => a!.GetValue<string>()).ToArray();
+            var linhaExata = argv.SequenceEqual(["exec", "--skip-git-repo-check", "--cd", processo, "--json", "--output-last-message", Path.Combine(reg, "ultima-mensagem.md"), "-"])
+                && string.Equals(recebido["cwd"]!.GetValue<string>().TrimEnd('\\'), processo, StringComparison.OrdinalIgnoreCase) && recebido["entrada"]!.GetValue<string>() == pedidoEsperado;
+            p["linha_de_comando_exata"] = linhaExata;
+
+            // O relatório importado e aberto em Relatórios, com a InfoBar exata.
+            var s = j.Sessao;
+            var importado = s is not null && Path.GetDirectoryName(s.Caminho) == processo && Path.GetFileName(s.Caminho).StartsWith("Relatorio_0001_2099", StringComparison.Ordinal)
+                && j.ModuloAtual == Modulo.Relatorios && j.FolhasVisiveis && s.Revisao.Projeto.Itens.Count == 3
+                && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.ChatGpt, s.Caminho, fim.Pdf) && j.InfoMensagem.IsOpen;
+            p["pmvrel"] = s is null ? null : Path.GetFileName(s.Caminho);
+            p["infobar"] = j.InfoMensagem.Message;
+            p["importado_e_aberto"] = importado;
+
+            // De novo, com outro anexo: o aviso não é pedido outra vez; no fim, nada em andamento.
+            await j.NovoRelatorioAsync();
+            await j.SoltarArquivosAsync([outroAnexo]);
+            await j.AguardarNovoRelatorioAsync();
+            var antes = perguntas.Confirmacoes.Count;
+            var (e2, fim2) = await AnalisarAteOFimAsync(Provedor.ChatGpt, "ok");
+            var semAviso = perguntas.Confirmacoes.Skip(antes).All(c => c.Titulo != "Analisar com o ChatGPT");
+            var semAndamento = j.TituloAnalise is null && !j.BotaoDoTituloVisivel && j.ExecucoesEmCurso.Count == 0;
+            p["aviso_nao_repetido"] = semAviso;
+            p["segunda_analise"] = fim2.Situacao;
+            p["ok"] = motivo is null && avisos == 1 && avisoGravado && titulo.StartsWith("Analisando com o ChatGPT · 0001/2099", StringComparison.Ordinal) && vista
+                && fim.Situacao == "concluida" && linhas && copiados && registro && linhaExata && importado && semAviso && fim2.Situacao == "concluida" && semAndamento;
+        });
+
+        await Passo("53_novo_relatorio_chatgpt_chave", async p =>
+        {
+            await PrepararNovoRelatorioAsync();
+            var processo = P0001();
+            await j.NovoRelatorioAsync();
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", "falsa-herdada");
+            var chave = "chave-falsa-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));   // aleatória, nunca vai para o resultado
+            try
+            {
+                // Conta: a chave herdada do ambiente do editor não chega ao agente.
+                var (_, fimConta) = await AnalisarAteOFimAsync(Provedor.ChatGpt, "chave");
+                var semChave = Recebido(processo)["chave"]!.GetValue<string>() == "CHAVE_AUSENTE";
+                p["conta_sem_chave_herdada"] = semChave;
+
+                // Chave guardada: só ela chega (8 hex do sha256, conferidos aqui).
+                await j.DefinirModoAsync(Provedor.ChatGpt, ModoAcesso.Chave);
+                await j.GuardarChaveAsync(Provedor.ChatGpt, chave);
+                var (eChave, fimChave) = await AnalisarAteOFimAsync(Provedor.ChatGpt, "chave");
+                var esperado = "CHAVE_PRESENTE " + Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(chave)))[..8];
+                var comChave = Recebido(processo)["chave"]!.GetValue<string>() == esperado && ExecucaoJson(eChave)["modo"]?.GetValue<string>() == "chave";
+                p["chave_entregue_so_ao_agente"] = comChave;
+
+                // Nenhuma ocorrência da chave nem do valor herdado em tests\saida (o .dpapi é o cofre e fica de fora).
+                var saidaDeTestes = Path.GetFullPath(Path.Combine(pasta, ".."));
+                var trechos = TrechosDaChave(chave).Concat(TrechosDaChave("falsa-herdada")).ToList();
+                var varredura = VarrerChave([saidaDeTestes], trechos, ignorar: a => a.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase));
+                p["arquivos_varridos"] = varredura.Lidos;
+                p["arquivos_trancados_pulados"] = varredura.Ilegiveis;
+                p["chave_em_arquivos"] = varredura.Achados.Count;
+
+                // Remover a chave: o botão do ChatGPT diz por quê; volta para a conta.
+                perguntas.Confirmar = true;
+                await j.RemoverChaveAsync(Provedor.ChatGpt);
+                var motivoSemChave = j.MotivoBotao(Provedor.ChatGpt);
+                p["motivo_sem_chave"] = motivoSemChave;
+                await j.DefinirModoAsync(Provedor.ChatGpt, ModoAcesso.Conta);
+                p["ok"] = fimConta.Situacao == "concluida" && semChave && fimChave.Situacao == "concluida" && comChave && varredura.Achados.Count == 0 && varredura.Lidos > 0
+                    && motivoSemChave == "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta." && j.ModoDoAgente(Provedor.ChatGpt) == ModoAcesso.Conta;
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("OPENAI_API_KEY", null);
+                CofreChaves.Remover(PastaDados.Raiz, Provedor.ChatGpt);
+            }
+        });
+
+        await Passo("54_novo_relatorio_claude", async p =>
+        {
+            await PrepararNovoRelatorioAsync();
+            var processo = P0001();
+            await j.NovoRelatorioAsync();
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
+            var textoSob = j.NovoRelatorio.TextoPedidoClaude.Text == "O análise pro do kit roda sozinho e não recebe o pedido escrito; ele fica guardado no registro da execução.";
+            await j.SoltarArquivosAsync([claudeAnexo]);
+            await j.AguardarNovoRelatorioAsync();
+            j.PedidoTexto = "Pedido guardado só no registro.";
+            var iniciarAntes = Chamadas(processo, "iniciar").Length;
+            var situacaoAntes = Chamadas(processo, "situacao").Length;
+            var confirmacoes = perguntas.Confirmacoes.Count;
+            j.Orquestrador = Orq("claude_ok");
+            var e = await j.AnalisarAsync(Provedor.Claude) ?? throw new InvalidOperationException("não partiu: " + j.InfoMensagemAtual.Message);
+            var aviso = perguntas.Confirmacoes.Skip(confirmacoes).Count(c => c.Titulo == "Analisar com o Claude" && c.Texto == FluxoNovoRelatorio.TextoAviso(Provedor.Claude)) == 1;
+            var pendenteDurante = j.ExecucoesClaudePendentes.Count == 1;
+            // As etapas vistas na tela enquanto a análise do kit anda.
+            var etapasVistas = new List<string>();
+            while (!e.Fim.IsCompleted)
+            {
+                if (e.Situacao?.Etapa is { } et && (etapasVistas.Count == 0 || etapasVistas[^1] != et)) etapasVistas.Add(et);
+                await Esperar(100);
+            }
+            var linhasDoLog = e.Linhas.Count;
+            var fim = await Prazo(j.AguardarAnaliseAsync(e), 120);
+            p["fim"] = fim.Situacao + (fim.Mensagem is null ? "" : ": " + fim.Mensagem);
+            p["etapas_vistas"] = new JsonArray(etapasVistas.Select(x => (JsonNode)x).ToArray());
+            var iniciar = Chamadas(processo, "iniciar").Skip(iniciarAntes).ToArray();
+            var argsIniciar = iniciar.Length == 1 ? JsonNode.Parse(iniciar[0].Split('\t')[1])!.AsArray().Select(a => a!.GetValue<string>()).ToArray() : [];
+            var proRuntime = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-pro", "1.6.1", "skills", "analise-pro", "scripts", "pro_runtime.py");
+            var linhaIniciar = argsIniciar.SequenceEqual(["-B", "-X", "utf8", proRuntime, "--case", processo, "iniciar"]);
+            var situacoes = Chamadas(processo, "situacao").Length - situacaoAntes;
+            p["situacao_chamadas"] = situacoes;
+            var reg = e.Registro.Pasta;
+            var registro = File.Exists(Path.Combine(reg, "situacoes.jsonl")) && File.ReadAllText(Path.Combine(reg, "pedido.md"), System.Text.Encoding.UTF8) == "Pedido guardado só no registro.";
+            var s = j.Sessao;
+            var importado = fim.Situacao == "concluida" && s is not null && Path.GetDirectoryName(s.Caminho) == processo
+                && fim.Documento == Path.Combine(processo, ".pmvni-ai", "analise-pro", "relatorio_dados.json") && j.FolhasVisiveis
+                && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Claude, s.Caminho, fim.Pdf);
+            p["infobar"] = j.InfoMensagem.Message;
+            var semPendente = j.ExecucoesClaudePendentes.Count == 0;
+            var etapas = etapasVistas.Count >= 2 && etapasVistas[0] is "prepare" or "analyze" && etapasVistas[^1] == "final_review";
+
+            // Objeções: a InfoBar com o rótulo e o erro do kit e "Continuar a análise", que dá outra partida.
+            await j.NovoRelatorioAsync();
+            var (eObj, fimObj) = await AnalisarAteOFimAsync(Provedor.Claude, "objecoes");
+            var infoObj = j.NovoRelatorio.AvisoResultado;
+            var objecoes = fimObj.Situacao == "falhou" && infoObj.IsOpen && infoObj.Message == "parou com objeções da revisão final: A revisão final apontou objeções ao relatório."
+                && j.NovoRelatorio.BotaoContinuar.Visibility == Visibility.Visible;
+            p["objecoes"] = infoObj.Message;
+            var antesContinuar = Chamadas(processo, "iniciar").Length;
+            var eCont = await j.ContinuarAnaliseAsync() ?? throw new InvalidOperationException("Continuar não partiu: " + j.InfoMensagemAtual.Message);
+            await Prazo(j.AguardarAnaliseAsync(eCont), 120);
+            var continuou = Chamadas(processo, "iniciar").Length == antesContinuar + 1;
+            p["continuar_da_outra_partida"] = continuou;
+            p["ok"] = textoSob && aviso && pendenteDurante && linhaIniciar && situacoes >= 2 && linhasDoLog > 0 && registro && importado && semPendente && etapas && objecoes && continuou;
+        });
+
+        await Passo("55_novo_relatorio_segundo_plano_e_cancelar", async p =>
+        {
+            await PrepararNovoRelatorioAsync();
+            var processo = P0001();
+            var outro = P0012();     // a árvore fictícia não tem 0002: o segundo processo é o 0012
+            await j.NovoRelatorioAsync();
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
+            var pmvrelAntes = Directory.GetFiles(processo, "*.pmvrel").Length;
+            j.Orquestrador = Orq("lento");
+            var e = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException("não partiu: " + j.InfoMensagemAtual.Message);
+            await EsperarAteAsync(() => Task.FromResult(e.Linhas.Count > 0), 30000);
+            var linhasAntes = e.Linhas.Count;
+
+            // Trocar de módulo não interrompe a execução.
+            await j.MudarModuloAsync(Modulo.Processos);
+            await Esperar(600);
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var segue = !e.Fim.IsCompleted && j.ExecucoesEmCurso.Contains(e) && j.BotaoDoTituloVisivel && e.Linhas.Count >= linhasAntes;
+            var motivo0001 = j.MotivoBotao(Provedor.ChatGpt);
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == outro));
+            var motivo0012 = j.MotivoBotao(Provedor.ChatGpt);
+            p["segue_em_segundo_plano"] = segue;
+            p["motivo_no_0001"] = motivo0001;
+
+            // Fechar com o ChatGPT rodando: "Continuar" não fecha e a análise segue.
+            perguntas.RespostaPorTitulo["Cancelar a análise e fechar?"] = false;
+            var confirmacoes = perguntas.Confirmacoes.Count;
+            var podeFechar = await j.PodeFecharComAnalisesAsync();
+            perguntas.RespostaPorTitulo.Remove("Cancelar a análise e fechar?");
+            var perguntaFechar = perguntas.Confirmacoes.Skip(confirmacoes).FirstOrDefault(c => c.Titulo == "Cancelar a análise e fechar?");
+            var naoFechou = !podeFechar && !e.Fim.IsCompleted && perguntaFechar.Texto == "A análise com o ChatGPT em 0001/2099 será interrompida."
+                && perguntaFechar.Sim == "Cancelar análise e fechar" && perguntaFechar.Nao == "Continuar";
+
+            // Cancelar (confirmado): em até 5 s nenhum processo do agente falso vivo, "cancelada", nenhum .pmvrel novo e a trava apagada.
+            var pids = JsonNode.Parse(File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "agente-falso", "pids.json")))!.AsObject()
+                .Select(kv => kv.Value!.GetValue<int>()).ToList();
+            perguntas.Confirmar = true;
+            var relogio = System.Diagnostics.Stopwatch.StartNew();
+            var cancelou = await j.CancelarAnaliseAsync(e);
+            var fim = await Prazo(j.AguardarAnaliseAsync(e), 30);
+            var mortos = await EsperarAteAsync(() => Task.FromResult(pids.All(pid => !Vivo(pid))), 5000);
+            p["cancelar_ms"] = relogio.ElapsedMilliseconds;
+            var cancelado = cancelou && mortos && fim.Situacao == "cancelada" && ExecucaoJson(e)["situacao"]?.GetValue<string>() == "cancelada"
+                && Directory.GetFiles(processo, "*.pmvrel").Length == pmvrelAntes && !File.Exists(Path.Combine(processo, ".pmvni-ai", "editor", "execucao.lock"));
+            p["chatgpt_cancelado"] = cancelado;
+
+            // Claude lento no 0012: fechar só informa, a análise fica nos ajustes; reaberto, volta a acompanhar; cancelar encerra o pid do kit.
+            j.Orquestrador = Orq("claude_lento");
+            var eC = await j.AnalisarAsync(Provedor.Claude) ?? throw new InvalidOperationException("Claude não partiu: " + j.InfoMensagemAtual.Message);
+            await EsperarAteAsync(() => Task.FromResult(eC.Situacao?.Codigo == "EM_ANDAMENTO" && eC.Situacao.Pid is not null), 60000);
+            var pidKit = eC.Situacao?.Pid ?? 0;
+            var informados = perguntas.Informados.Count;
+            var podeFecharClaude = await j.PodeFecharComAnalisesAsync();
+            var informou = perguntas.Informados.Skip(informados).Any(i => i.Texto == "A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, o resultado é importado.");
+            var pendente = j.ExecucoesClaudePendentes.Count == 1 && j.ExecucoesClaudePendentes[0].Processo == outro;
+            await j.PararDeAcompanharClaudeAsync();     // o que o fechamento deixa: a análise do kit segue sozinha
+            var seguiuSozinha = pidKit != 0 && Vivo(pidKit) && j.ExecucoesEmCurso.Count == 0 && j.ExecucoesClaudePendentes.Count == 1;
+            await j.RetomarExecucoesClaudeAsync();
+            var retomada = j.ExecucoesEmCurso.SingleOrDefault();
+            var voltou = retomada is { Retomada: true, Provedor: Provedor.Claude } && retomada.Processo.Pasta == outro;
+            p["fechar_com_claude"] = new JsonObject { ["pode_fechar"] = podeFecharClaude, ["informou"] = informou, ["pendente"] = pendente, ["seguiu_sozinha"] = seguiuSozinha, ["retomada"] = voltou };
+            var claudeCancelado = false;
+            if (retomada is not null)
+            {
+                await EsperarAteAsync(() => Task.FromResult(retomada.Situacao?.Codigo == "EM_ANDAMENTO"), 30000);
+                var ok = await j.CancelarAnaliseAsync(retomada);
+                var fimC = await Prazo(j.AguardarAnaliseAsync(retomada), 60);
+                var info = j.NovoRelatorio.AvisoResultado;
+                p["claude_cancelado"] = fimC.Situacao + ": " + fimC.Mensagem;
+                claudeCancelado = ok && !Vivo(pidKit) && fimC.Situacao == "interrompida" && info.IsOpen && info.Message.StartsWith("interrompida", StringComparison.Ordinal)
+                    && j.NovoRelatorio.BotaoContinuar.Visibility == Visibility.Visible && j.ExecucoesClaudePendentes.Count == 0;
+            }
+            p["ok"] = segue && motivo0001 == "Já há uma análise em andamento neste processo." && motivo0012 is null && naoFechou && cancelado
+                && podeFecharClaude && informou && pendente && seguiuSozinha && voltou && claudeCancelado;
+        });
+
+        await Passo("56_novo_relatorio_falhas", async p =>
+        {
+            await PrepararNovoRelatorioAsync();
+            var processo = P0001();
+            await j.NovoRelatorioAsync();
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
+            var pmvrelAntes = Directory.GetFiles(processo, "*.pmvrel").Length;
+            var resultados = new JsonObject();
+            var tudo = true;
+            foreach (var (cenario, conferir) in new (string, Func<ExecucaoEmCurso, FimAnalise, bool>)[]
+            {
+                ("sem_resultado", (e, f) => f.Situacao == "sem_resultado" && f.Mensagem == $"A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: {e.Registro.Pasta}."),
+                ("falha", (e, f) => f.Situacao == "falhou" && f.Mensagem == $"O Codex terminou com o código 2. Veja o registro: {e.Registro.Pasta}."),
+                ("json_invalido", (e, f) => f.Situacao == "sem_resultado" && f.Mensagem!.StartsWith("O delivery.json da análise não pôde ser lido: ", StringComparison.Ordinal)),
+                ("fora_do_processo", (e, f) => f.Situacao == "sem_resultado" && f.Mensagem!.StartsWith("O relatório indicado pela análise está fora da pasta do processo: ", StringComparison.Ordinal)),
+            })
+            {
+                var (e, fim) = await AnalisarAteOFimAsync(Provedor.ChatGpt, cenario);
+                var info = j.NovoRelatorio.AvisoResultado;
+                var ok = conferir(e, fim) && info.IsOpen && info.Message == fim.Mensagem && Directory.GetFiles(processo, "*.pmvrel").Length == pmvrelAntes;
+                resultados[cenario] = (ok ? "" : "FALHOU · ") + fim.Situacao + ": " + fim.Mensagem;
+                tudo &= ok;
+            }
+            p["resultados"] = resultados;
+
+            // Codex ausente: o motivo exato e o botão desabilitado.
+            var opcoes = j.OpcoesAgentes;
+            j.OpcoesAgentes = () => opcoes() with { CodexEscolhido = Path.Combine(pasta, "nao-existe", "codex.exe") };
+            await j.AtualizarPecasNovoRelatorioAsync();
+            var semCodex = j.MotivoBotao(Provedor.ChatGpt) == "O Codex não foi encontrado neste computador. Instale o app do ChatGPT/Codex ou escolha o programa em Ajustes › Inteligência artificial."
+                && !j.BotaoAnaliseHabilitado(Provedor.ChatGpt);
+            j.OpcoesAgentes = opcoes;
+            await j.AtualizarPecasNovoRelatorioAsync();
+            p["codex_ausente"] = semCodex;
+
+            // Aviso recusado: nada copiado, nenhum registro, nenhum processo iniciado.
+            j.EsquecerAviso(Provedor.ChatGpt);
+            await j.SoltarArquivosAsync([recusadoAnexo]);
+            await j.AguardarNovoRelatorioAsync();
+            var editor = Path.Combine(processo, ".pmvni-ai", "editor");
+            var registrosAntes = Directory.GetDirectories(editor).Length;
+            var recebidoAntes = File.GetLastWriteTimeUtc(Path.Combine(processo, ".pmvni-ai", "agente-falso", "recebido.json"));
+            perguntas.RespostaPorTitulo["Analisar com o ChatGPT"] = false;
+            j.Orquestrador = Orq("ok");
+            var recusado = await j.AnalisarAsync(Provedor.ChatGpt);
+            perguntas.RespostaPorTitulo.Remove("Analisar com o ChatGPT");
+            var nada = recusado is null && Directory.GetDirectories(editor).Length == registrosAntes
+                && File.GetLastWriteTimeUtc(Path.Combine(processo, ".pmvni-ai", "agente-falso", "recebido.json")) == recebidoAntes
+                && !Directory.EnumerateFiles(processosAgentes, "nao-copiar*.pdf", SearchOption.AllDirectories).Any() && j.AvisoVersaoDoAgente(Provedor.ChatGpt) is null;
+            p["aviso_recusado_nada_feito"] = nada;
+            j.RemoverAnexo(0);
+
+            // A cópia da árvore: o que já existia não mudou; o que é novo são só os anexos copiados, o registro do editor, o que o agente falso gravou e os .pmvrel.
+            var depois = FotografarArvore(processosAgentes);
+            var alterados = antesDoNovoRelatorio.Where(kv => !depois.TryGetValue(kv.Key, out var s) || s != kv.Value).Select(kv => kv.Key).ToList();
+            static bool Permitido(string relativo)
+            {
+                var partes = relativo.Split(Path.DirectorySeparatorChar);
+                var nome = partes[^1];
+                if (relativo.Contains(@"\.pmvni-ai\editor\", StringComparison.OrdinalIgnoreCase) || relativo.Contains(@"\.pmvni-ai\agente-falso\", StringComparison.OrdinalIgnoreCase)
+                    || relativo.Contains(@"\.pmvni-ai\analise\", StringComparison.OrdinalIgnoreCase) || relativo.Contains(@"\.pmvni-ai\analise-pro\", StringComparison.OrdinalIgnoreCase))
+                    return true;
+                if (nome.StartsWith("Relatorio_0001_2099", StringComparison.Ordinal)) return true;   // os .pmvrel importados (e o .bak de uma gravação)
+                if (nome.StartsWith(".~Relatorio_0001_2099", StringComparison.Ordinal)) return true;   // a trava do relatório aberto
+                return relativo.EndsWith(@"\PROJETO\REVISÃO 01\planta-ficticia.pdf", StringComparison.Ordinal) || relativo.EndsWith(@"\PROJETO\REVISÃO 01\memorial.docx", StringComparison.Ordinal)
+                    || relativo.EndsWith(@"\PROJETO\INICIAL\foto.heic", StringComparison.Ordinal) || relativo.EndsWith(@"\DOCUMENTOS\requerimento-ficticio.pdf", StringComparison.Ordinal)
+                    || relativo.EndsWith(@"\PROJETO\complemento-ficticio.pdf", StringComparison.Ordinal) || relativo.EndsWith(@"\complemento-ficticio.pdf", StringComparison.Ordinal)
+                    || relativo.EndsWith(@"\levantamento-ficticio.pdf", StringComparison.Ordinal);
+            }
+            var novos = depois.Keys.Where(k => !antesDoNovoRelatorio.ContainsKey(k)).ToList();
+            var foraDoPermitido = novos.Where(k => !Permitido(k)).ToList();
+            p["arquivos_novos"] = novos.Count;
+            p["novos_fora_do_permitido"] = new JsonArray(foraDoPermitido.Select(k => (JsonNode)k).ToArray());
+            p["existentes_alterados"] = new JsonArray(alterados.Select(k => (JsonNode)k).ToArray());
+
+            // Os anexos originais: mesmo sha, tamanho, datas e atributos.
+            var anexosIntactos = fotoDosAnexos.All(kv =>
+            {
+                var info = new FileInfo(kv.Key);
+                return info.Exists && ShaDe(kv.Key) == kv.Value.Sha && info.Length == kv.Value.Tamanho && info.LastWriteTimeUtc == kv.Value.Escrita
+                    && info.CreationTimeUtc == kv.Value.Criacao && info.Attributes == kv.Value.Atributos;
+            });
+            p["anexos_originais_intactos"] = anexosIntactos;
+            var soOFalso = ExecucaoProcesso.SomenteExecutaveisEm == agenteFalsoPasta;
+            p["programas_iniciados"] = soOFalso ? "só o agente falso (trava SomenteExecutaveisEm)" : "trava desligada";
+            p["ok"] = tudo && semCodex && nada && alterados.Count == 0 && foraDoPermitido.Count == 0 && anexosIntactos && soOFalso && j.ExecucoesEmCurso.Count == 0;
+        });
+
         await j.FecharSessaoAsync();
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
@@ -2644,13 +3152,14 @@ internal static class Roteiro
     }
 
     /// <summary>Procura os trechos da chave em todos os arquivos das pastas. Um arquivo trancado por outro programa (o perfil do WebView2) é contado à parte.</summary>
-    static (int Lidos, int Ilegiveis, List<string> Achados) VarrerChave(IEnumerable<string> pastas, IReadOnlyList<byte[]> trechos)
+    static (int Lidos, int Ilegiveis, List<string> Achados) VarrerChave(IEnumerable<string> pastas, IReadOnlyList<byte[]> trechos, Func<string, bool>? ignorar = null)
     {
         int lidos = 0, ilegiveis = 0;
         var achados = new List<string>();
         foreach (var raiz in pastas.Where(Directory.Exists))
             foreach (var arquivo in Directory.EnumerateFiles(raiz, "*", SearchOption.AllDirectories))
             {
+                if (ignorar?.Invoke(arquivo) == true) continue;
                 try
                 {
                     if (ArquivoContem(arquivo, trechos)) achados.Add(Path.GetRelativePath(raiz, arquivo));
@@ -2659,6 +3168,19 @@ internal static class Roteiro
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException) { ilegiveis++; }
             }
         return (lidos, ilegiveis, achados);
+    }
+
+    /// <summary>Um PDF fictício mínimo (uma página em branco com um comentário): só serve de anexo, o editor não o abre.</summary>
+    static byte[] PdfFicticio(string comentario) => System.Text.Encoding.ASCII.GetBytes(
+        "%PDF-1.4\n% " + new string(comentario.Select(c => c < 128 ? c : '?').ToArray()) + "\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+        + "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n");
+
+    /// <summary>O processo ainda roda?</summary>
+    static bool Vivo(int pid)
+    {
+        if (pid <= 0) return false;
+        try { using var p = System.Diagnostics.Process.GetProcessById(pid); return !p.HasExited; }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException) { return false; }
     }
 
     /// <summary>Copia a árvore (pastas e arquivos, ocultos inclusive) para um destino novo.</summary>

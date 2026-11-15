@@ -25,6 +25,10 @@ public sealed class AjustesAgente
     public bool AvisoAceito => AvisoVersao is { } v && v >= Ajustes.VersaoAviso;
 }
 
+/// <summary>Uma análise do Claude que seguia quando o editor fechou (desenho §12.7): a pasta do processo e a do registro da execução
+/// (<c>.pmvni-ai\editor\…</c>). Ao abrir, o editor consulta a situação de cada uma.</summary>
+public sealed record ExecucaoClaudePendente(string Processo, string Registro);
+
 /// <summary>Ajustes locais do app em <c>&lt;raiz de dados&gt;\ajustes.json</c> (nunca no pacote): módulo e aba ativos, tema, intervalo
 /// do salvamento automático, marcas de revisão, recentes, pasta de processos e pasta do kit PMVNI. Arquivo ilegível vira <c>ajustes.corrompido.json</c>
 /// (sem sobrescrever outro) e o app segue com o padrão; valores fora do permitido voltam ao padrão.</summary>
@@ -44,6 +48,9 @@ public sealed class Ajustes
         [Provedor.ChatGpt] = new(),
         [Provedor.Claude] = new(),
     };
+
+    /// <summary>As análises do Claude em andamento (<c>"execucoes_claude"</c>): ficam aqui do início ao fim, para o editor reaberto acompanhar ou importar.</summary>
+    public List<ExecucaoClaudePendente> ExecucoesClaude { get; } = new();
 
     public Modulo Modulo { get; set; } = Modulo.Relatorios;
     public Dictionary<Modulo, string> AbaPorModulo { get; } = new();
@@ -102,6 +109,10 @@ public sealed class Ajustes
         if (j["agentes"] is JsonObject agentes)
             foreach (var p in Enum.GetValues<Provedor>())
                 if (agentes[Provedores.Sufixo(p)] is JsonObject o) LerAgente(o, a.Agentes[p]);
+        if (j["execucoes_claude"] is JsonArray execucoes)
+            foreach (var e in execucoes)
+                if (e is JsonObject eo && Texto(eo, "processo") is { Length: > 0 } processo && Texto(eo, "registro") is { Length: > 0 } registro)
+                    a.ExecucoesClaude.Add(new ExecucaoClaudePendente(processo, registro));
         return a;
     }
 
@@ -145,6 +156,7 @@ public sealed class Ajustes
             ["pasta_processos"] = PastaProcessos,
             ["pasta_kit"] = PastaKit,
             ["agentes"] = new JsonObject(Agentes.Select(par => KeyValuePair.Create(Provedores.Sufixo(par.Key), (JsonNode?)EscreverAgente(par.Value)))),
+            ["execucoes_claude"] = new JsonArray(ExecucoesClaude.Select(e => (JsonNode)new JsonObject { ["processo"] = e.Processo, ["registro"] = e.Registro }).ToArray()),
         };
         var arquivo = Path.Combine(raizDados, NomeArquivo);
         var tmp = arquivo + ".tmp";
