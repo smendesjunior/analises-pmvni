@@ -2,6 +2,17 @@
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Pmvni.App">
+  <UserControl.Resources>
+    <DataTemplate x:Key="ModeloLinhaDetalhe" x:DataType="local:LinhaDetalhe">
+      <StackPanel Padding="0,5" Spacing="1" AutomationProperties.Name="{x:Bind NomeAcessivel}">
+        <TextBlock Text="{x:Bind Texto}" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                   Visibility="{x:Bind EhTitulo}" Margin="0,8,0,0"/>
+        <TextBlock Text="{x:Bind Texto}" Visibility="{x:Bind NaoEhTitulo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Texto}"/>
+        <TextBlock Text="{x:Bind Info}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind TemInfo}" TextTrimming="CharacterEllipsis"
+                   ToolTipService.ToolTip="{x:Bind Info}"/>
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.Resources>
   <!-- Módulo Processos (desenho §9): a lista de processos da pasta de processos à esquerda (mais recentes primeiro; a pesquisa da barra de
        título filtra por número ou requerente) e, à direita, o que há no processo escolhido: relatórios, despachos e, se pedido, PROJETO
        e DOCUMENTOS. Só leitura: as linhas e os botões são ligados pela janela (MainWindow.Pastas.cs). -->
@@ -46,10 +57,17 @@
                   AutomationProperties.Name="Processos">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:LinhaProcesso">
-              <StackPanel Padding="0,6" Spacing="1" AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Titulo}">
-                <TextBlock Text="{x:Bind Titulo}" TextTrimming="CharacterEllipsis"/>
-                <TextBlock Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
-              </StackPanel>
+              <Grid Padding="0,8" ColumnSpacing="12" AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Titulo}">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Border Width="36" Height="36" CornerRadius="18" Background="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center">
+                  <TextBlock Text="{x:Bind Iniciais}" FontWeight="SemiBold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
+                             Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                </Border>
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                  <TextBlock Text="{x:Bind Titulo}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+              </Grid>
             </DataTemplate>
           </ListView.ItemTemplate>
         </ListView>
@@ -68,12 +86,35 @@
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0" Padding="20,10,16,6">
-          <TextBlock x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{StaticResource SubtitleTextBlockStyle}" TextTrimming="CharacterEllipsis"
+          <TextBlock x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{ThemeResource TitleTextBlockStyle}" TextTrimming="CharacterEllipsis"
                      ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
           <TextBlock x:Name="TextoPastaDetalhe" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"
                      TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
         </StackPanel>
-        <ListView x:Name="ListaDetalhe" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" Padding="12,0,12,8"
+        <!-- Correções 2026-11-15: três colunas (Relatórios, Despachos, Projeto), cada uma agrupada por data. A ListaDetalhe guarda a seleção
+             (os comandos e o roteiro leem dela) e fica fora da tela; as colunas mostram as mesmas linhas. -->
+        <Grid x:Name="GradeColunas" Grid.Row="1" Padding="12,0,12,8" ColumnSpacing="12">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="0">
+            <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+              <TextBlock Text="Relatórios" Style="{StaticResource PmvniTituloSecao}" FontSize="16" Margin="8,4"/>
+              <ListView x:Name="ColunaRelatorios" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Relatórios"/>
+            </Grid>
+          </Border>
+          <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="1">
+            <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+              <TextBlock Text="Despachos" Style="{StaticResource PmvniTituloSecao}" FontSize="16" Margin="8,4"/>
+              <ListView x:Name="ColunaDespachos" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Despachos"/>
+            </Grid>
+          </Border>
+          <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="2">
+            <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+              <TextBlock Text="Projeto e documentos" Style="{StaticResource PmvniTituloSecao}" FontSize="16" Margin="8,4"/>
+              <ListView x:Name="ColunaProjeto" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Projeto e documentos"/>
+            </Grid>
+          </Border>
+        </Grid>
+        <ListView x:Name="ListaDetalhe" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" Padding="12,0,12,8" Opacity="0" IsHitTestVisible="False" Width="1" HorizontalAlignment="Left"
                   AutomationProperties.Name="Conteúdo do processo">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:LinhaDetalhe">

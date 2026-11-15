@@ -85,6 +85,13 @@ public sealed partial class MainWindow
             await ExecutarComandoAsync(entradaEscolhida.Tipo is TipoLinhaDetalhe.Relatorio or TipoLinhaDetalhe.Analise
                 ? ComandosApp.ProcessosAbrirRelatorio : ComandosApp.ProcessosAbrirArquivo);
         };
+        foreach (var coluna in processos.Colunas)
+            coluna.DoubleTapped += async (_, _) =>
+            {
+                if (entradaEscolhida is null) return;
+                await ExecutarComandoAsync(entradaEscolhida.Tipo is TipoLinhaDetalhe.Relatorio or TipoLinhaDetalhe.Analise
+                    ? ComandosApp.ProcessosAbrirRelatorio : ComandosApp.ProcessosAbrirArquivo);
+            };
         despachos.ListaDespachos.SelectionChanged += (_, _) => AoEscolherDespacho();
         despachos.ListaDespachos.DoubleTapped += async (_, _) => { if (despachoEscolhido is not null) await ExecutarComandoAsync(ComandosApp.DespachosAbrir); };
         processos.BotaoAbrirAjustes.Click += async (_, _) => await AbrirAjustesAsync();

@@ -19,6 +19,21 @@ public sealed class LinhaProcesso(Processo processo, DateTime alteradoUtc)
     /// <summary>O requerente (ou o nome da pasta, quando ele não segue o padrão), como veio.</summary>
     public string Titulo => Processo.Requerente ?? Processo.NomePasta;
 
+    /// <summary>As iniciais do requerente (o selo redondo da linha).</summary>
+    public string Iniciais
+    {
+        get
+        {
+            var partes = Titulo.Split([' ', '-', '_'], StringSplitOptions.RemoveEmptyEntries).Where(x => char.IsLetter(x[0])).ToList();
+            return partes.Count switch
+            {
+                0 => "?",
+                1 => partes[0][..1].ToUpperInvariant(),
+                _ => (partes[0][..1] + partes[^1][..1]).ToUpperInvariant(),
+            };
+        }
+    }
+
     /// <summary>"Processo 0012/2099" ou, fora do padrão de nome, "Nome da pasta fora do padrão".</summary>
     public string Detalhe => ListasPastas.NumeroDoProcesso(Processo) is { } n ? "Processo " + n : "Nome da pasta fora do padrão";
 
@@ -226,6 +241,46 @@ public static class ListasPastas
             AcrescentarPasta(linhas, d.Processo.Pasta, "DOCUMENTOS", d.Documentos);
         }
         return linhas;
+    }
+
+    /// <summary>Correções 2026-11-15: as linhas do detalhe em três colunas. Relatórios (os .pmvrel, as análises e os RELATORIO_* das pastas de
+    /// despacho), Despachos (os demais arquivos das pastas de despacho) e Projeto (PROJETO e DOCUMENTOS); cada coluna agrupada por data
+    /// (a mais nova primeiro), com o título da data como linha não selecionável.</summary>
+    public static (List<LinhaDetalhe> Relatorios, List<LinhaDetalhe> Despachos, List<LinhaDetalhe> Projeto) EmColunas(IReadOnlyList<LinhaDetalhe> linhas)
+    {
+        var rel = new List<(DateOnly? Data, LinhaDetalhe L)>();
+        var desp = new List<(DateOnly? Data, LinhaDetalhe L)>();
+        var proj = new List<LinhaDetalhe>();
+        foreach (var l in linhas)
+        {
+            switch (l.Tipo)
+            {
+                case TipoLinhaDetalhe.Relatorio or TipoLinhaDetalhe.Analise:
+                    rel.Add((l.Caminho is { } c && File.Exists(c) ? DateOnly.FromDateTime(File.GetLastWriteTime(c)) : null, l));
+                    break;
+                case TipoLinhaDetalhe.ArquivoDeDespacho:
+                    var data = l.Despacho?.Data;
+                    if (l.Texto.StartsWith("RELATORIO", StringComparison.OrdinalIgnoreCase)) rel.Add((data, l));
+                    else desp.Add((data, l));
+                    break;
+                case TipoLinhaDetalhe.Arquivo:
+                    proj.Add(l);
+                    break;
+            }
+        }
+        static List<LinhaDetalhe> PorData(List<(DateOnly? Data, LinhaDetalhe L)> itens, string vazio)
+        {
+            var saida = new List<LinhaDetalhe>();
+            foreach (var g in itens.GroupBy(x => x.Data).OrderByDescending(g => g.Key ?? DateOnly.MinValue))
+            {
+                saida.Add(new(TipoLinhaDetalhe.Titulo, g.Key is { } d ? d.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) : "Sem data"));
+                saida.AddRange(g.Select(x => x.L));
+            }
+            if (saida.Count == 0) saida.Add(new(TipoLinhaDetalhe.Vazio, vazio));
+            return saida;
+        }
+        if (proj.Count == 0) proj.Add(new(TipoLinhaDetalhe.Vazio, "Nenhum arquivo de projeto (ligue Mostrar pastas)."));
+        return (PorData(rel, "Nenhum relatório."), PorData(desp, "Nenhum despacho."), proj);
     }
 
     static void AcrescentarPasta(List<LinhaDetalhe> linhas, string pastaDoProcesso, string nome, IReadOnlyList<ArquivoEncontrado> arquivos)
