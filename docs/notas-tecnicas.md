@@ -223,3 +223,12 @@ essa janela é coberta pela trava `.~nome.pmvrel.lock` (Tarefa 5): enquanto uma 
 viva, a segunda abre só leitura, e a conferência de conflito pega o resto (alteração de fora feita antes da gravação). Depois da
 troca nada mais derruba a gravação: se o OneDrive ou o antivírus segurar o arquivo novo por um instante, `Gravar` tenta de novo
 algumas vezes e, se ainda falhar, devolve o estado calculado dos bytes que acabou de gravar.
+
+## Agentes locais: opções conferidas (Etapa 2, Tarefa 19, passo 0)
+
+Conferido em 15/11/2026 por `tools\agentes-ajuda.ps1` (fora do pacote, só `--version`, `--help`, `login status` e `auth status`, sem chamar modelo):
+
+- **Codex** `codex-cli 0.167.0-alpha.4.1` (`%LOCALAPPDATA%\OpenAI\Codex\bin\<id>\codex.exe`). A linha de versão tem o prefixo `codex-cli ` e um sufixo de pré-lançamento (`-alpha.4.1`): a leitura da versão pega só o `major.minor.patch`. `codex exec` aceita `--skip-git-repo-check`, `-C/--cd`, `--json`, `-o/--output-last-message` e o prompt `-` (lido da entrada padrão). `codex login status` sai com 0 e a primeira linha contém "Logged in" quando há login. A ajuda do `exec` **não cita** `CODEX_API_KEY`; o binário do Codex lê essa variável (a mensagem "run `codex login` or set CODEX_API_KEY" e a lista de variáveis de autenticação `OPENAI_API_KEY`/`CODEX_API_KEY`/`CODEX_ACCESS_TOKEN` estão nele), então ela segue como a variável do modo chave. A confirmação final é a primeira análise real com chave (fora dos testes, que nunca chamam IA).
+- **Claude Code** `2.1.318 (Claude Code)` (`%LOCALAPPDATA%\Microsoft\WinGet\Links\claude.exe`). `claude auth status` existe; imprime JSON com as chaves `loggedIn`, `authMethod`, `apiProvider`, `analyticsDisabled`, `projectsDirectory`, `configDirectory`, `loginExpiresAt` e sai com **1 quando não há login** (com JSON mesmo assim): a leitura da sessão usa o JSON, não só o código de saída.
+- **Python** `Python 3.14.10` (`python.exe` e `py -3`).
+- Windows PowerShell 5.1 não tem `ProcessStartInfo.ArgumentList`: o script do passo 0 monta `Arguments` (só argumentos sem espaços). O código C# do editor usa `ArgumentList`.
