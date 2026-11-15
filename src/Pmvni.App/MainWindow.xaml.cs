@@ -36,7 +36,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     DocumentoWeb? documento;
     SessaoEdicao? sessao;
     Modulo moduloAtual = Modulo.Relatorios;
-    bool ocupado, fechada, fecharDeVez, fecharQuandoLivre;
+    bool ocupado, fechada, fecharDeVez, fechando;
     double zoom = 1;
     string modoZoom = "manual"; // manual | largura | pagina
     int folhaAtual;
@@ -99,6 +99,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         RegistrarManipuladoresRevisao();
         IniciarRevisao();
         RegistrarAtalhos();
+        IniciarGravacao();
         Faixa.ComandoInvocado += async id => await ExecutarComandoAsync(id);
         Faixa.AbaMudou += nome => { ajustes.AbaPorModulo[moduloAtual] = nome; SalvarAjustes(); };
         TrilhoModulos.Montar(Faixas.Disponiveis);
@@ -109,6 +110,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Closed += (_, _) =>
         {
             fechada = true;
+            PararTemporizadores();
             try { documento?.Dispose(); } catch { }
             try { hostComposicao?.Dispose(); } catch { }
         };
@@ -216,6 +218,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal Task MudarModuloAsync(Modulo m)
     {
         if (!Faixas.Disponiveis.Contains(m)) throw new ArgumentOutOfRangeException(nameof(m), m, "Módulo indisponível.");
+        // Trocar de módulo grava o que falta (na fila de comandos, como todo Salvar).
+        if (m != moduloAtual && sessao is { Estado: EstadoGravacao.NaoSalvo }) _ = GravarAgoraAsync();
         if (m != moduloAtual || Faixa.Definicao?.Modulo != m) MontarModulo(m);
         return Task.CompletedTask;
     }
@@ -392,8 +396,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (arquivo is not null) await AbrirPacoteAsync(arquivo);
     }
 
-    /// <summary>Abre o pacote: fecha o atual (gravando o que faltar), lê, recompõe e aplica na tela. Devolve false se falhar (o motivo
-    /// aparece num InfoBar).</summary>
+    /// <summary>Abre o pacote: fecha o atual (gravando o que faltar), lê e trava, oferece a recuperação do diário, recompõe e aplica na
+    /// tela, e começa o diário. Devolve false se falhar (o motivo aparece num InfoBar).</summary>
     internal async Task<bool> AbrirPacoteAsync(string pmvrel)
     {
         if (ocupado || aplicando || documento is null) { AvisarOcupado(); return false; }
@@ -403,7 +407,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         try
         {
             modelo ??= await Task.Run(ModeloOficial.Carregar);
-            nova = await SessaoEdicao.AbrirAsync(pmvrel, modelo, this);
+            nova = await SessaoEdicao.AbrirAsync(pmvrel, modelo, this, PastaDados.Raiz);
+            // Diário deixado por uma queda: antes de compor (a recuperação muda o projeto) e antes de começar o diário novo.
+            var avisoRecuperacao = await RecuperarSeHouverAsync(nova);
             Ocupar("Compondo as folhas…");
             zoom = 1;
             modoZoom = "manual";
@@ -413,11 +419,13 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             nova = null;
             selecionado = ultimoCampo = itemNasPropriedades = null;
             mostrarOriginal = false;
-            sessao.Mudou += AtualizarBarra;
             LimparAvisos();
+            LigarSessao(sessao);
             MostrarRecomposicao(r);
-            if (sessao.SomenteLeitura)
-                MostrarMensagem(InfoBarSeverity.Warning, "Aberto somente para leitura", sessao.MotivoSomenteLeitura ?? "O pacote não pode ser alterado.");
+            sessao.IniciarDiario();
+            if (sessao.SomenteLeitura) MostrarSomenteLeitura(sessao);
+            if (avisoRecuperacao is not null) MostrarMensagem(InfoBarSeverity.Informational, "Recuperação", avisoRecuperacao);
+            if (sessao.Estado == EstadoGravacao.NaoSalvo) ReiniciarAutosave(); // o que foi recuperado também é gravado sozinho
             R.Navegador.Opacity = 1;
             R.TextoVazio.Visibility = Visibility.Collapsed;
             return true;
@@ -441,56 +449,33 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         }
     }
 
-    /// <summary>Fecha o relatório aberto. Alterações não gravadas: grava sozinho; só pergunta se a gravação falhar. Devolve false se
-    /// o usuário preferiu não fechar.</summary>
-    internal async Task<bool> FecharSessaoAsync()
-    {
-        if (sessao is not { } s) return true;
-        if (s.Estado is EstadoGravacao.NaoSalvo or EstadoGravacao.Conflito)
-        {
-            string? erro = null;
-            if (s.Estado == EstadoGravacao.NaoSalvo)
-                try { await s.GravarAsync(); } catch (Exception e) { erro = e.Message; }
-            if (s.Estado != EstadoGravacao.Salvo
-                && !await Perguntas.Atual.ConfirmarAsync("Fechar sem salvar?",
-                    "As alterações não puderam ser gravadas" + (erro is null ? "." : ": " + erro) + " Fechar mesmo assim descarta essas alterações.",
-                    "Fechar sem salvar", "Cancelar"))
-                return false;
-        }
-        sessao = null;
-        s.Mudou -= AtualizarBarra;
-        Reiniciar();
-        await s.DisposeAsync();
-        return true;
-    }
-
+    /// <summary>Fechar a janela (desenho §5.1): cancela o fechamento e, na fila de comandos (depois do que já está nela e de uma operação
+    /// em andamento), grava e fecha; só pergunta se a gravação falhar (<see cref="FecharSessaoAsync"/>).</summary>
     async void AoFecharJanela(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (fecharDeVez || (sessao is null && !ocupado && naFila == 0)) return;
         args.Cancel = true;
-        if (ocupado || naFila > 0)
+        if (fechando) return;
+        fechando = true;
+        try
         {
-            // Uma operação em andamento (abrir, exportar…) termina antes: a janela fecha logo depois (Liberar).
-            fecharQuandoLivre = true;
-            MostrarMensagem(InfoBarSeverity.Informational, "Aguarde", "A janela fecha assim que a operação em andamento terminar.");
-            return;
+            if (ocupado || naFila > 0)
+                MostrarMensagem(InfoBarSeverity.Informational, "Aguarde", "A janela fecha assim que a operação em andamento terminar.");
+            var fechar = await NaFilaAsync(async () =>
+            {
+                // Abrir, importar ou exportar chamados fora da fila (linha de comando, roteiro): termina antes.
+                while (ocupado && !fechada) await Task.Delay(100);
+                return await FecharSessaoAsync();
+            });
+            if (fechar && !fechada) { fecharDeVez = true; Close(); }
         }
-        if (await FecharSessaoAsync()) { fecharDeVez = true; Close(); }
+        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível fechar", e.Message); }
+        finally { fechando = false; }
     }
 
     // ---------- gravar ----------
 
-    async Task SalvarAsync()
-    {
-        if (sessao is null) return;
-        try { await sessao.GravarAsync(); }
-        catch (ConflitoNoDiscoException)
-        {
-            MostrarMensagem(InfoBarSeverity.Error, "O arquivo mudou no disco",
-                "Outro programa alterou o relatório depois que ele foi aberto; nada foi sobrescrito. Use Salvar como para guardar a sua versão.");
-        }
-        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível salvar", e.Message); }
-    }
+    Task SalvarAsync() => GravarNaVezAsync();
 
     async Task SalvarComoAsync()
     {
@@ -647,10 +632,17 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         try
         {
             // O recibo leva o sha256 do pacote gravado: o que ainda não foi gravado vai antes para o arquivo.
-            if (sessao.Estado == EstadoGravacao.NaoSalvo) await sessao.GravarAsync();
+            // Com um salvamento automático em curso, espera ele (a gravação vai na fila do gravador): o disco e o "esperado" batem.
+            if (sessao.Estado is EstadoGravacao.NaoSalvo or EstadoGravacao.Salvando) await sessao.GravarAsync();
             var x = await sessao.ExportarAsync(caminhoPdf);
             MostrarMensagem(InfoBarSeverity.Success, "PDF exportado", $"{x.Folhas} folhas em {x.CaminhoPdf}. Recibo: {Path.GetFileName(x.CaminhoRecibo)}.");
             return (true, x, null, null);
+        }
+        catch (ConflitoNoDiscoException e)
+        {
+            MostrarConflito();
+            MostrarMensagem(InfoBarSeverity.Error, "Exportação recusada", ExportacaoDivergenteException.ArquivoMudou);
+            return (false, null, ExportacaoDivergenteException.ArquivoMudou, e);
         }
         catch (ConferenciaFinalException e)
         {
@@ -844,7 +836,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.Anel.IsActive = false;
         R.Espera.Visibility = Visibility.Collapsed;
         AtualizarComandos();
-        if (fecharQuandoLivre && naFila == 0) { fecharQuandoLivre = false; DispatcherQueue.TryEnqueue(Close); }
     }
 
     void AvisarOcupado() =>
@@ -857,6 +848,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.AvisoForaDaArea.IsOpen = false;
         R.AvisoBloqueio.IsOpen = false;
         R.AvisoMensagem.IsOpen = false;
+        R.AvisoConflito.IsOpen = false;
+        R.AvisoSomenteLeitura.IsOpen = false;
+        R.AvisoDiario.IsOpen = false;
     }
 
     void MostrarMensagem(InfoBarSeverity severidade, string titulo, string mensagem)

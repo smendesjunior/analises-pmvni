@@ -30,12 +30,15 @@ internal sealed class PerguntasFixas : IPerguntas
     public Task InformarAsync(string titulo, string texto) { Feitas.Add("informar " + titulo); Informados.Add((titulo, texto)); return Task.CompletedTask; }
     public List<(string Titulo, string Texto)> Informados { get; } = [];
     public Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos) { Feitas.Add($"recuperar {comandos}"); return Task.FromResult(Recuperacao); }
+    public RespostaFechar Fechar { get; set; } = RespostaFechar.FecharSemSalvar;
+    public Task<RespostaFechar> FecharSemGravarAsync(string motivo) { Feitas.Add("fechar sem gravar: " + motivo); return Task.FromResult(Fechar); }
 }
 
 /// <summary>Modo de diagnóstico <c>--roteiro &lt;saida.json&gt;</c>: exercita o shell e o módulo Relatórios pelos mesmos caminhos dos
 /// comandos da faixa (importar, rolagem, zoom, navegação, exportação, corpus com estouro, tema escuro, campos em aberto, pacote mudado no
 /// disco, faixa por módulo, reabrir o pacote; Tarefa 9: seleção e edição no A4, situação e justificativa, exclusão e marca, desfazer e
-/// refazer, salvar/reabrir/exportar, menu de contexto e atalhos, latência) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
+/// refazer, salvar/reabrir/exportar, menu de contexto e atalhos, latência; Tarefa 10: salvamento automático, gravação que falha sem
+/// perder nada, recuperação depois de uma queda, trava e somente leitura, conflito sem sobrescrever) e grava o resultado em JSON. Tudo o que o roteiro cria (pacotes, PDFs, capturas PNG) fica
 /// na pasta do &lt;saida.json&gt; (tests\saida\roteiro). As perguntas têm respostas fixas (<see cref="PerguntasFixas"/>). Cada passo é
 /// independente: falha num não impede os seguintes.</summary>
 internal static class Roteiro
@@ -49,9 +52,21 @@ internal static class Roteiro
         var perguntas = new PerguntasFixas();
         Perguntas.Atual = perguntas;
         var pacoteLongo = Path.Combine(pasta, "longo.pmvrel");
-        // Pacotes de rodadas anteriores (só os do roteiro, só nesta pasta): a importação nunca sobrescreve.
-        foreach (var nome in new[] { "longo", "estouro", "curto-colchetes", "curto-muda" })
-            foreach (var ext in new[] { ".pmvrel", ".pmvrel.bak" }) File.Delete(Path.Combine(pasta, nome + ext));
+        // Pacotes de rodadas anteriores (só os do roteiro, só nesta pasta), com travas, cópias de conflito e diários de recuperação
+        // (na pasta de dados do roteiro, tests\saida\dados-app): a importação nunca sobrescreve e nada de antes vira "recuperação".
+        var recuperacao = Path.Combine(PastaDados.Raiz, "recuperacao");
+        foreach (var nome in new[] { "longo", "estouro", "curto-colchetes", "curto-muda", "curto-auto" })
+        {
+            var arquivos = Directory.GetFiles(pasta, nome + ".pmvrel*").Concat(Directory.GetFiles(pasta, ".~" + nome + ".pmvrel*"))
+                .Concat(Directory.GetFiles(pasta, nome + " (cópia *")).Concat(Directory.GetFiles(pasta, ".~" + nome + " (cópia *")).ToList();
+            var pacotes = arquivos.Where(a => a.EndsWith(".pmvrel", StringComparison.OrdinalIgnoreCase)).Append(Path.Combine(pasta, nome + ".pmvrel"));
+            if (Directory.Exists(recuperacao))
+                foreach (var pc in pacotes)
+                    arquivos.AddRange(Directory.GetFiles(recuperacao, Path.GetFileNameWithoutExtension(Diario.CaminhoDe(PastaDados.Raiz, pc)) + "*"));
+            foreach (var a in arquivos.Distinct()) { File.SetAttributes(a, FileAttributes.Normal); File.Delete(a); }
+        }
+        // Tarefa 10: salvamento automático com 15 s nos ajustes do roteiro (o menor intervalo permitido).
+        j.DefinirIntervaloAutosave(15);
         var saida = new JsonObject
         {
             ["gerado_em"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
@@ -738,12 +753,272 @@ internal static class Roteiro
             p["ok"] = primeiros && edicaoEntrou && p["tela_tem_o_texto"]!.GetValue<bool>() && aplicados == 5 && p["desfeito_tudo"]!.GetValue<bool>();
         });
 
+        // ---------- Tarefa 10: salvamento automático, gravação que falha, recuperação, trava e conflito (no curto) ----------
+        var pacoteAuto = Path.Combine(pasta, "curto-auto.pmvrel");
+        var raizDados = PastaDados.Raiz;
+        string SituacaoEfetiva(ItemRevisao it) => it.Situacao.Revisada ?? it.Situacao.Original!.GetValue<string>();
+
+        await Passo("21_autosave", async p =>
+        {
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), pacoteAuto)) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+            var s = j.Sessao!;
+            var item = s.Revisao.Projeto.Incluidos[0];
+            var nova = Faixas.OrdemSituacoes.First(c => c != SituacaoEfetiva(item));
+            var relogio = System.Diagnostics.Stopwatch.StartNew();
+            await j.AplicarAsync(new DefinirSituacao(item.Id, nova));
+            var reg = s.Revisao.HistoricoCompleto[^1];
+            p["estado_depois_do_comando"] = j.TextoEstadoAtual;
+            var naoSalvo = s.Estado == EstadoGravacao.NaoSalvo;
+            p["diario_tem_o_registro"] = Diario.Ler(raizDados, pacoteAuto, s.Disco.Sha256)?.Registros.Any(r => r.N == reg.N) == true;
+            var salvou = await EsperarAteAsync(() => Task.FromResult(s.Estado == EstadoGravacao.Salvo), 25000);
+            var segundos = relogio.Elapsed.TotalSeconds;
+            p["salvo_sozinho_em_s"] = Math.Round(segundos, 1);
+            p["estado_de_gravacao"] = j.TextoEstadoAtual;
+            var lido = Pacote.Ler(pacoteAuto);
+            p["pacote_tem_o_registro"] = lido.Conteudo.Historico.Any(r => r.N == reg.N && r.Tipo == reg.Tipo);
+            var linhas = LinhasDoDiario(Diario.CaminhoDe(raizDados, pacoteAuto));
+            p["linhas_do_diario"] = linhas.Length;
+            var soCabecalho = linhas.Length == 1 && linhas[0].Contains("\"cabecalho\"", StringComparison.Ordinal) && linhas[0].Contains(lido.Disco.Sha256, StringComparison.Ordinal);
+            p["diario_so_com_o_cabecalho_do_sha_novo"] = soCabecalho;
+            p["ok"] = naoSalvo && p["diario_tem_o_registro"]!.GetValue<bool>() && salvou && segundos >= 14 && j.TextoEstadoAtual.StartsWith("Salvo ", StringComparison.Ordinal)
+                && p["pacote_tem_o_registro"]!.GetValue<bool>() && soCabecalho;
+        });
+
+        await Passo("22_gravacao_falha_sem_perder", async p =>
+        {
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            var item = s.Revisao.Projeto.Incluidos[0];
+            var antes = await File.ReadAllBytesAsync(pacoteAuto);
+            await j.AplicarAsync(new DefinirJustificativa(item.Id, "Justificativa gravada depois de soltar o arquivo."));
+            var reg = s.Revisao.HistoricoCompleto[^1];
+            bool gravouPreso, igual, erroVisivel, naoSalvo, diarioTem, semTmp;
+            // O roteiro segura o arquivo (como o OneDrive ou o antivírus): a gravação falha antes da troca.
+            using (var preso = new FileStream(pacoteAuto, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                gravouPreso = await j.GravarAgoraAsync();
+                naoSalvo = j.TextoEstadoAtual == "Não salvo";
+                erroVisivel = j.InfoMensagem.IsOpen && j.InfoMensagem.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error;
+                p["mensagem_de_erro"] = j.InfoMensagem.Title + ": " + j.InfoMensagem.Message;
+                using var ms = new MemoryStream();
+                preso.CopyTo(ms);
+                igual = ms.ToArray().AsSpan().SequenceEqual(antes);
+                semTmp = !File.Exists(pacoteAuto + ".tmp");
+                diarioTem = Diario.Ler(raizDados, pacoteAuto, s.Disco.Sha256)?.Registros.Any(r => r.N == reg.N) == true;
+            }
+            p["gravou_com_o_arquivo_preso"] = gravouPreso;
+            p["estado_nao_salvo"] = naoSalvo;
+            p["infobar_de_erro"] = erroVisivel;
+            p["pacote_em_disco_igual_ao_de_antes"] = igual;
+            p["sem_tmp_deixado"] = semTmp;
+            p["diario_tem_o_registro"] = diarioTem;
+            var gravouSolto = await j.GravarAgoraAsync();
+            var lido = Pacote.Ler(pacoteAuto);
+            p["solto_grava"] = gravouSolto;
+            p["estado_de_gravacao"] = j.TextoEstadoAtual;
+            p["pacote_tem_o_registro"] = lido.Conteudo.Historico.Any(r => r.N == reg.N);
+            p["ok"] = !gravouPreso && naoSalvo && erroVisivel && igual && semTmp && diarioTem && gravouSolto && s.Estado == EstadoGravacao.Salvo
+                && p["pacote_tem_o_registro"]!.GetValue<bool>();
+        });
+
+        await Passo("23_recuperacao_apos_queda", async p =>
+        {
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            var proj = s.Revisao.Projeto;
+            await j.AplicarAsync(new DefinirCampo(proj.Incluidos[1].Id, "titulo", "Título alterado antes da queda"));
+            await j.AplicarAsync(new DefinirCampo(proj.Incluidos[2].Id, "verificacao", "Verificação alterada antes da queda."));
+            var projetoAntes = Convert.ToHexString(ProjetoJson.Escrever(proj));
+            var registros = s.Revisao.HistoricoCompleto.Count;
+            j.SimularQuedaParaRoteiro();
+            p["trava_solta"] = !File.Exists(Trava.CaminhoDe(pacoteAuto));
+            p["diario_ficou_com"] = Diario.Ler(raizDados, pacoteAuto, EstadoDisco.Ler(pacoteAuto).Sha256)?.Registros.Count ?? 0;
+            perguntas.Recuperacao = RespostaRecuperacao.Recuperar;
+            var feitas = perguntas.Feitas.Count;
+            try
+            {
+                if (!await j.AbrirPacoteAsync(pacoteAuto)) throw new InvalidOperationException("não reabriu: " + j.InfoMensagem.Message);
+            }
+            finally { perguntas.Recuperacao = RespostaRecuperacao.Descartar; }
+            var pergunta = perguntas.Feitas.Skip(feitas).FirstOrDefault(f => f.StartsWith("recuperar", StringComparison.Ordinal));
+            var r = j.Sessao!;
+            var mesmo = Convert.ToHexString(ProjetoJson.Escrever(r.Revisao.Projeto)) == projetoAntes;
+            p["pergunta"] = pergunta;
+            p["mesmo_projeto_json"] = mesmo;
+            p["historico_igual"] = r.Revisao.HistoricoCompleto.Count == registros;
+            p["estado_de_gravacao"] = j.TextoEstadoAtual;
+            p["aviso"] = j.InfoMensagem.Message;
+            var diarioNovo = Diario.Ler(raizDados, pacoteAuto, r.Disco.Sha256);
+            p["diario_novo_com_os_pendentes"] = diarioNovo?.Registros.Count ?? 0;
+            var naoSalvo = r.Estado == EstadoGravacao.NaoSalvo;
+            var gravou = await j.GravarAgoraAsync();
+            p["gravado_depois"] = gravou;
+            p["ok"] = pergunta == "recuperar 2" && mesmo && naoSalvo && p["diario_ficou_com"]!.GetValue<int>() == 2 && p["trava_solta"]!.GetValue<bool>()
+                && diarioNovo?.Registros.Count == 2 && p["historico_igual"]!.GetValue<bool>() && gravou;
+        });
+
+        await Passo("24_trava_e_somente_leitura", async p =>
+        {
+            if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou");
+            var trava = Trava.CaminhoDe(pacoteAuto);
+            p["trava_solta_ao_fechar"] = !File.Exists(trava);
+            var inicio = DateTimeOffset.UtcNow.AddMinutes(-10);
+            // Outra instância viva, em outra máquina, com batimento agora.
+            EscreverTrava(trava, "OUTRA-MAQUINA", "outro.usuario", 4242, inicio, DateTimeOffset.UtcNow);
+            if (!await j.AbrirPacoteAsync(pacoteAuto)) throw new InvalidOperationException("não abriu: " + j.InfoMensagem.Message);
+            var s = j.Sessao!;
+            var esperado = $"Aberto por outro.usuario em OUTRA-MAQUINA desde {inicio.ToLocalTime():HH:mm}: somente leitura.";
+            p["estado_de_gravacao"] = j.TextoEstadoAtual;
+            p["aviso"] = j.InfoSomenteLeitura.Message;
+            var aviso = j.InfoSomenteLeitura.IsOpen && j.InfoSomenteLeitura.Message == esperado;
+            await j.SelecionarAsync(s.Revisao.Projeto.Incluidos[0].Id);
+            var excluirSomente = j.FaixaAtual.Habilitado(ComandosApp.InicioExcluirRestaurar);
+            var salvarSomente = j.FaixaAtual.Habilitado(ComandosApp.ArquivoSalvar);
+            var registros = s.Revisao.HistoricoCompleto.Count;
+            await j.ExecutarComandoAsync(ComandosApp.InicioExcluirRestaurar);
+            var nadaMudou = s.Revisao.HistoricoCompleto.Count == registros && s.Revisao.Projeto.Incluidos.Count == 3;
+            var somenteLeitura = j.TextoEstadoAtual == "Somente leitura";
+            p["excluir_habilitado"] = excluirSomente;
+            p["salvar_habilitado"] = salvarSomente;
+            p["nada_mudou"] = nadaMudou;
+            if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou o somente leitura");
+            var doOutro = LerPidDaTrava(trava) == 4242;
+            p["trava_do_outro_intacta"] = doOutro;
+
+            // Batimento de 3 min atrás: abandonada, retomada; abre editável.
+            EscreverTrava(trava, "OUTRA-MAQUINA", "outro.usuario", 4242, inicio, DateTimeOffset.UtcNow.AddMinutes(-3));
+            if (!await j.AbrirPacoteAsync(pacoteAuto)) throw new InvalidOperationException("não abriu: " + j.InfoMensagem.Message);
+            var e = j.Sessao!;
+            p["estado_com_trava_abandonada"] = j.TextoEstadoAtual;
+            await j.SelecionarAsync(e.Revisao.Projeto.Incluidos[0].Id);
+            var excluirEditavel = j.FaixaAtual.Habilitado(ComandosApp.InicioExcluirRestaurar);
+            var nossa = LerPidDaTrava(trava) == Environment.ProcessId;
+            p["excluir_habilitado_editavel"] = excluirEditavel;
+            p["trava_retomada_por_este_app"] = nossa;
+            var editavel = !e.SomenteLeitura && j.TextoEstadoAtual.StartsWith("Salvo", StringComparison.Ordinal) && excluirEditavel && nossa && !j.InfoSomenteLeitura.IsOpen;
+
+            // Trava perdida com o arquivo aberto (outro programa a apagou): o batimento vira somente leitura; fechar sem salvar guarda a
+            // recuperação, e reabrir a oferece.
+            const string TituloAntesDePerder = "Título feito antes de perder a trava";
+            var alvo = e.Revisao.Projeto.Incluidos[1];
+            await j.AplicarAsync(new DefinirCampo(alvo.Id, "titulo", TituloAntesDePerder));
+            File.SetAttributes(trava, FileAttributes.Normal);
+            File.Delete(trava);
+            var bateu = await e.BaterAsync();
+            var perdida = !bateu && e.SomenteLeitura && j.TextoEstadoAtual == "Somente leitura" && j.InfoSomenteLeitura.IsOpen
+                && j.InfoSomenteLeitura.Message == TextosGravacao.TravaPerdida && !j.FaixaAtual.Habilitado(ComandosApp.InicioExcluirRestaurar);
+            p["trava_perdida_vira_somente_leitura"] = perdida;
+            var feitas = perguntas.Feitas.Count;
+            if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou depois de perder a trava");
+            var perguntouAoFechar = perguntas.Feitas.Skip(feitas).Any(f => f.StartsWith("fechar sem gravar", StringComparison.Ordinal));
+            p["perguntou_ao_fechar"] = perguntouAoFechar;
+            perguntas.Recuperacao = RespostaRecuperacao.Recuperar;
+            try { if (!await j.AbrirPacoteAsync(pacoteAuto)) throw new InvalidOperationException("não reabriu: " + j.InfoMensagem.Message); }
+            finally { perguntas.Recuperacao = RespostaRecuperacao.Descartar; }
+            var pergunta = perguntas.Feitas.Skip(feitas).FirstOrDefault(f => f.StartsWith("recuperar", StringComparison.Ordinal));
+            var rec = j.Sessao!;
+            var recuperou = pergunta == "recuperar 1" && rec.Estado == EstadoGravacao.NaoSalvo
+                && DadosEfetivos.TextoEfetivo(rec.Revisao.Projeto, rec.Revisao.Projeto.Item(alvo.Id)!, "titulo") == TituloAntesDePerder;
+            p["recuperou_depois_de_fechar_sem_salvar"] = recuperou;
+            var gravou = await j.GravarAgoraAsync();
+            p["ok"] = p["trava_solta_ao_fechar"]!.GetValue<bool>() && somenteLeitura && aviso && !excluirSomente && !salvarSomente && nadaMudou && doOutro
+                && editavel && perdida && perguntouAoFechar && recuperou && gravou;
+        });
+
+        await Passo("25_conflito_nao_sobrescreve", async p =>
+        {
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            if (s.SomenteLeitura) throw new InvalidOperationException("aberto somente para leitura");
+            // Outro programa grava o mesmo pacote depois de aberto.
+            var outro = Pacote.Ler(pacoteAuto);
+            outro.Conteudo.Projeto.Documento["capa"]!["requerente"] = "OUTRO PROGRAMA GRAVOU DEPOIS DE ABRIR";
+            Pacote.Gravar(pacoteAuto, outro.Conteudo, outro.Disco);
+            var bytesDoOutro = await File.ReadAllBytesAsync(pacoteAuto);
+            const string Titulo = "Título alterado antes do conflito";
+            var item = s.Revisao.Projeto.Incluidos[0];
+            await j.AplicarAsync(new DefinirCampo(item.Id, "titulo", Titulo));
+            var reg = s.Revisao.HistoricoCompleto[^1];
+            var gravou = await j.GravarAgoraAsync();
+            p["gravou"] = gravou;
+            p["estado_de_gravacao"] = j.TextoEstadoAtual;
+            var conflito = j.TextoEstadoAtual == "Conflito" && j.InfoConflito.IsOpen;
+            p["infobar_conflito"] = j.InfoConflito.IsOpen;
+            var intacto = (await File.ReadAllBytesAsync(pacoteAuto)).AsSpan().SequenceEqual(bytesDoOutro);
+            p["disco_com_os_bytes_do_outro"] = intacto;
+            var pdf = Path.Combine(pasta, "curto-auto-conflito.pdf");
+            File.Delete(pdf);
+            var (exportou, _, erroExportar, excecao) = await j.ExportarParaAsync(pdf);
+            var exportarRecusa = !exportou && excecao is ExportacaoDivergenteException && !File.Exists(pdf);
+            p["exportar_recusa"] = exportarRecusa;
+            p["erro_ao_exportar"] = erroExportar;
+
+            var copiou = await j.SalvarCopiaDeConflitoAsync();
+            var copia = s.Caminho;
+            var lidaCopia = Pacote.Ler(copia);
+            var copiaConfere = copiou && !string.Equals(copia, pacoteAuto, StringComparison.OrdinalIgnoreCase)
+                && Path.GetFileName(copia).StartsWith("curto-auto (cópia ", StringComparison.Ordinal)
+                && lidaCopia.Conteudo.Historico.Any(r => r.N == reg.N)
+                && DadosEfetivos.TextoEfetivo(lidaCopia.Conteudo.Projeto, lidaCopia.Conteudo.Projeto.Item(item.Id)!, "titulo") == Titulo;
+            p["copia"] = Path.GetFileName(copia);
+            p["copia_tem_as_alteracoes"] = copiaConfere;
+            var originalIntacto = (await File.ReadAllBytesAsync(pacoteAuto)).AsSpan().SequenceEqual(bytesDoOutro);
+            p["original_continua_o_do_outro"] = originalIntacto;
+            p["estado_depois_da_copia"] = j.TextoEstadoAtual;
+            var travas = !File.Exists(Trava.CaminhoDe(pacoteAuto)) && LerPidDaTrava(Trava.CaminhoDe(copia)) == Environment.ProcessId;
+            p["trava_passou_para_a_copia"] = travas;
+            var copiaOk = copiaConfere && originalIntacto && s.Estado == EstadoGravacao.Salvo && !j.InfoConflito.IsOpen && travas;
+
+            // Recarregar: outro programa muda a cópia; a alteração desta sessão vai para um órfão do diário, nunca é apagada.
+            var outra = Pacote.Ler(copia);
+            outra.Conteudo.Projeto.Documento["capa"]!["requerente"] = "OUTRO PROGRAMA DE NOVO";
+            Pacote.Gravar(copia, outra.Conteudo, outra.Disco);
+            await j.AplicarAsync(new DefinirCampo(s.Revisao.Projeto.Incluidos[1].Id, "titulo", "Título que o Recarregar guarda no órfão"));
+            var conflitoDeNovo = !await j.GravarAgoraAsync() && s.Estado == EstadoGravacao.Conflito;
+            var prefixo = Path.GetFileNameWithoutExtension(Diario.CaminhoDe(raizDados, copia));
+            int Orfaos() => Directory.GetFiles(Path.Combine(raizDados, "recuperacao"), prefixo + ".orfao-*").Length;
+            var orfaosAntes = Orfaos();
+            var recarregou = await j.RecarregarAsync();
+            var r = j.Sessao;
+            var requerente = r?.Revisao.Projeto.Documento["capa"]?["requerente"]?.GetValue<string>();
+            p["recarregou"] = recarregou;
+            p["requerente_depois_de_recarregar"] = requerente;
+            p["orfao_guardado"] = Orfaos() == orfaosAntes + 1;
+            var recarregarOk = conflitoDeNovo && recarregou && requerente == "OUTRO PROGRAMA DE NOVO" && r!.Estado == EstadoGravacao.Salvo
+                && Orfaos() == orfaosAntes + 1 && !j.InfoConflito.IsOpen;
+            p["ok"] = !gravou && conflito && intacto && exportarRecusa && copiaOk && recarregarOk;
+        });
+
         await j.FecharSessaoAsync();
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
         saida["ok"] = falhas.Count == 0;
         Gravar(args.Roteiro!, saida);
         Application.Current.Exit();
+    }
+
+    /// <summary>As linhas do diário (aberto pela sessão para escrita; lido sem atrapalhar).</summary>
+    static string[] LinhasDoDiario(string arquivo)
+    {
+        if (!File.Exists(arquivo)) return [];
+        using var f = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var r = new StreamReader(f);
+        return r.ReadToEnd().Split('\n').Where(l => l.Trim().Length > 0).ToArray();
+    }
+
+    /// <summary>Uma trava "de outro" no formato da <see cref="Trava"/> (datas UTC com 7 casas).</summary>
+    static void EscreverTrava(string caminho, string maquina, string usuario, int pid, DateTimeOffset inicio, DateTimeOffset batimento)
+    {
+        static string Utc(DateTimeOffset t) => t.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'", CultureInfo.InvariantCulture);
+        if (File.Exists(caminho)) { File.SetAttributes(caminho, FileAttributes.Normal); File.Delete(caminho); }
+        File.WriteAllText(caminho, new JsonObject { ["maquina"] = maquina, ["usuario"] = usuario, ["pid"] = pid, ["inicio_utc"] = Utc(inicio), ["batimento_utc"] = Utc(batimento) }.ToJsonString());
+    }
+
+    static int? LerPidDaTrava(string caminho)
+    {
+        try
+        {
+            using var f = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return JsonNode.Parse(f)?["pid"]?.GetValue<int>();
+        }
+        catch (Exception e) when (e is IOException or JsonException) { return null; }
     }
 
     /// <summary>Centro (um pouco à esquerda, no texto) do campo <paramref name="campo"/> do item, depois de rolar até ele.</summary>

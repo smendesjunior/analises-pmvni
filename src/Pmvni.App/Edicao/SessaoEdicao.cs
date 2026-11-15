@@ -26,27 +26,64 @@ internal sealed record Recomposicao(Preparado Preparado, ResultadoComposicao Com
 /// (pasta de trabalho com as imagens) e a tela. <see cref="RecomporAsync"/>: âncora → preparar → compor no host oculto → carregar e
 /// aplicar na tela → <c>estadoEditor</c> (sempre, num finally: sem ele a página fica parada). <see cref="GravarAsync"/>: grava com
 /// <c>Pacote.Gravar(…, esperado: o disco como foi aberto ou gravado)</c>; mudança no disco vira Conflito e nada é sobrescrito.
-/// Não é segura para várias threads: a janela usa uma só (e não aceita dois comandos ao mesmo tempo).</summary>
+/// Tarefa 10 (desenho §5.1): a trava do arquivo (adquirida na abertura; ocupada ou sem como travar ⇒ somente leitura com o motivo; perdida
+/// num batimento ⇒ somente leitura), o diário de recuperação (<see cref="DiarioDaSessao"/>: cada registro vai para ele e ele recomeça a cada
+/// gravação) e a recuperação na abertura. Não é segura para várias threads: a janela usa uma só (os comandos vão numa fila).</summary>
 internal sealed class SessaoEdicao : IAsyncDisposable
 {
     readonly ModeloCarregado modelo;
     readonly ITelaEdicao tela;
     readonly GravadorPacote gravador;
+    readonly string raizDados;
+    readonly bool somenteLeituraDoPacote; // esquema mais novo que o conhecido: nunca editável, com ou sem trava
+    readonly DiarioDaSessao diario;
+    Trava? trava;
+    Task<bool>? batendo;
     int descartada, gravacoesEmCurso;
+    bool encerrada;
 
-    SessaoEdicao(string caminho, PacoteAberto aberto, Recompositor recompositor, ModeloCarregado modelo, ITelaEdicao tela)
+    SessaoEdicao(string caminho, PacoteAberto aberto, ResultadoTrava? travou, Recompositor recompositor, ModeloCarregado modelo, ITelaEdicao tela, string raizDados)
     {
         gravador = new GravadorPacote(caminho, aberto.Disco);
         Conteudo = aberto.Conteudo;
+        this.raizDados = raizDados;
+        diario = new DiarioDaSessao(raizDados);
+        somenteLeituraDoPacote = aberto.SomenteLeitura;
         SomenteLeitura = aberto.SomenteLeitura;
         MotivoSomenteLeitura = aberto.MotivoSomenteLeitura;
+        if (travou is not null) AplicarTrava(travou);
         Recompositor = recompositor;
         this.modelo = modelo;
         this.tela = tela;
         Revisao = new SessaoRevisao(aberto.Conteudo.Projeto, aberto.Conteudo.Historico, ContextoUsuario.Atual());
-        Revisao.Registrado += _ => { if (Estado is EstadoGravacao.Salvo) DefinirEstado(EstadoGravacao.NaoSalvo); };
+        Revisao.Registrado += r =>
+        {
+            if (Estado is EstadoGravacao.Salvo) DefinirEstado(EstadoGravacao.NaoSalvo);
+            // Disco cheio ou pasta sem escrita: a janela mostra (nunca engolido); o pacote ainda pode ser gravado.
+            if (!diario.Registrar(r)) FalhaNoDiario?.Invoke(diario.UltimoErro ?? "erro desconhecido");
+        };
         Estado = SomenteLeitura ? EstadoGravacao.SomenteLeitura : EstadoGravacao.Salvo;
         SalvoEmLocal = aberto.Disco.GravadoUtc.ToLocalTime();
+    }
+
+    /// <summary>Quem este app é na trava: máquina, usuário do Windows, processo, agora.</summary>
+    static InfoTrava Eu()
+    {
+        var agora = DateTimeOffset.UtcNow;
+        return new InfoTrava(Environment.MachineName, ContextoUsuario.Atual().Usuario, Environment.ProcessId, agora, agora);
+    }
+
+    static ResultadoTrava Travar(string caminho) => Trava.Adquirir(caminho, Eu(), () => DateTimeOffset.UtcNow);
+
+    /// <summary>Adquirida ⇒ editável (se o pacote deixa); ocupada ⇒ "Aberto por … desde HH:mm: somente leitura."; erro ⇒ somente leitura com o motivo.</summary>
+    void AplicarTrava(ResultadoTrava r)
+    {
+        trava = r.Adquirida;
+        if (somenteLeituraDoPacote) return;
+        SomenteLeitura = trava is null;
+        MotivoSomenteLeitura = r.Adquirida is not null ? null
+            : r.Ocupada is { } o ? TextosGravacao.SomenteLeituraOcupada(o)
+            : TextosGravacao.SomenteLeituraSemTrava(r.Erro ?? "erro desconhecido");
     }
 
     /// <summary>O <c>.pmvrel</c> no disco.</summary>
@@ -58,8 +95,18 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     /// <summary>O disco como foi aberto ou gravado por último: o "esperado" da próxima gravação e a referência da exportação.</summary>
     public EstadoDisco Disco => gravador.Disco;
 
-    public bool SomenteLeitura { get; }
-    public string? MotivoSomenteLeitura { get; }
+    /// <summary>Somente leitura: esquema mais novo, trava de outro (ou sem como travar) ou trava perdida. Muda com a trava.</summary>
+    public bool SomenteLeitura { get; private set; }
+    public string? MotivoSomenteLeitura { get; private set; }
+
+    /// <summary>A trava do arquivo é desta sessão (o batimento a renova).</summary>
+    public bool TemTrava => trava is not null;
+
+    /// <summary>Há registros que o arquivo ainda não tem (estão só na memória e no diário).</summary>
+    public bool TemAlteracoesNaoGravadas => Revisao.Pendentes.Count > 0;
+
+    /// <summary>O diário de recuperação está recebendo os registros.</summary>
+    public bool DiarioAtivo => diario.Ativo;
     public SessaoRevisao Revisao { get; }
     public Recompositor Recompositor { get; }
     public EstadoGravacao Estado { get; private set; }
@@ -77,16 +124,84 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     /// <summary>Estado de gravação mudou (a barra de título acompanha).</summary>
     public event Action? Mudou;
 
-    /// <summary>Lê o pacote (fora da thread da interface) e prepara a pasta de trabalho; a tela ainda não muda.</summary>
-    public static async Task<SessaoEdicao> AbrirAsync(string pmvrel, ModeloCarregado modelo, ITelaEdicao tela)
+    /// <summary>O diário não pôde ser começado ou um registro não foi gravado nele (o motivo); a janela mostra.</summary>
+    public event Action<string>? FalhaNoDiario;
+
+    /// <summary>O diário recomeçou bem depois de uma gravação (o aviso de falha pode sair).</summary>
+    public event Action? DiarioVoltou;
+
+    /// <summary>A trava mudou: perdida num batimento (somente leitura) ou trocada por um Salvar como.</summary>
+    public event Action? TravaMudou;
+
+    /// <summary>Lê o pacote e tenta a trava (fora da thread da interface) e prepara a pasta de trabalho; a tela ainda não muda. O diário
+    /// só começa em <see cref="IniciarDiario"/>, depois de a janela decidir a recuperação.</summary>
+    public static async Task<SessaoEdicao> AbrirAsync(string pmvrel, ModeloCarregado modelo, ITelaEdicao tela, string raizDados)
     {
         var caminho = Path.GetFullPath(pmvrel);
-        var (aberto, rec) = await Task.Run(() =>
+        var (aberto, travou, rec) = await Task.Run(() =>
         {
             var a = Pacote.Ler(caminho);
-            return (a, new Recompositor(a.Conteudo, modelo));
+            var t = a.SomenteLeitura ? null : Travar(caminho);
+            try { return (a, t, new Recompositor(a.Conteudo, modelo)); }
+            catch { t?.Adquirida?.Dispose(); throw; }
         });
-        return new SessaoEdicao(caminho, aberto, rec, modelo, tela);
+        return new SessaoEdicao(caminho, aberto, travou, rec, modelo, tela, raizDados);
+    }
+
+    // ---------- recuperação, diário e trava ----------
+
+    /// <summary>O diário deixado para este arquivo (null se não há ou não tem registros). Só com a trava nossa: com outra janela ou outro
+    /// usuário editando, o diário pode ser o dela.</summary>
+    public Recuperacao? LerRecuperacao()
+    {
+        if (SomenteLeitura) return null;
+        try { return Diario.Ler(raizDados, Caminho, Disco.Sha256); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { FalhaNoDiario?.Invoke(e.Message); return null; }
+    }
+
+    /// <summary>Reaplica o diário (tudo ou nada: <see cref="InvalidOperationException"/> e nada muda) e o estado vira "Não salvo".</summary>
+    public void Recuperar(Recuperacao rec)
+    {
+        Revisao.Reaplicar(rec.Registros);
+        if (TemAlteracoesNaoGravadas) DefinirEstado(EstadoGravacao.NaoSalvo);
+    }
+
+    /// <summary>Guarda o diário deste arquivo como órfão (recuperação recusada, de outra versão ou Recarregar); devolve o caminho do órfão.</summary>
+    public string? ArquivarDiario() => diario.Arquivar(Caminho);
+
+    /// <summary>Começa o diário com o sha do arquivo aberto e os pendentes (o que foi recuperado). Somente leitura: nada a registrar.</summary>
+    public bool IniciarDiario()
+    {
+        if (SomenteLeitura) return true;
+        if (diario.Iniciar(Caminho, Disco.Sha256, Revisao.Pendentes)) return true;
+        FalhaNoDiario?.Invoke(diario.UltimoErro ?? "erro desconhecido");
+        return false;
+    }
+
+    /// <summary>Renova a trava (fora da thread da interface). <c>false</c> = perdida: a sessão fica só para leitura (o diário continua com
+    /// o que não foi gravado) e <see cref="TravaMudou"/> avisa.</summary>
+    public async Task<bool> BaterAsync()
+    {
+        if (trava is not { } t || encerrada) return true;
+        var b = Task.Run(t.Bater);
+        batendo = b;
+        var ok = await b;
+        if (!ok && !encerrada && ReferenceEquals(t, trava)) PerderTrava();
+        return ok;
+    }
+
+    void PerderTrava()
+    {
+        var t = trava;
+        trava = null;
+        try { t?.Dispose(); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        if (!somenteLeituraDoPacote)
+        {
+            SomenteLeitura = true;
+            MotivoSomenteLeitura = TextosGravacao.TravaPerdida;
+        }
+        DefinirEstado(EstadoGravacao.SomenteLeitura);
+        TravaMudou?.Invoke();
     }
 
     /// <summary>Importa o dados.json do kit para um <c>.pmvrel</c> novo (nunca sobrescreve: se o destino existe, recusa).</summary>
@@ -199,12 +314,15 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         try
         {
             // O conteúdo é tirado quando chega a vez desta gravação: o que já estava na fila não volta a ser gravado velho.
+            var caminhoAntes = Caminho;
             await gravar(() => { registros = Revisao.HistoricoCompleto.Count; return ConteudoAtual(); });
             gravacoesEmCurso--;
             SalvoEmLocal = DateTime.Now;
+            var tudo = Revisao.HistoricoCompleto.Count == registros;
+            if (tudo) Revisao.MarcarGravado();
+            if (!encerrada) DepoisDeGravar(caminhoAntes, registros);
             // Um comando aplicado enquanto gravava fica para a próxima gravação.
-            if (Revisao.HistoricoCompleto.Count == registros) { Revisao.MarcarGravado(); DefinirEstado(EstadoGravacao.Salvo, final: true); }
-            else DefinirEstado(EstadoGravacao.NaoSalvo, final: true);
+            DefinirEstado(SomenteLeitura ? EstadoGravacao.SomenteLeitura : tudo ? EstadoGravacao.Salvo : EstadoGravacao.NaoSalvo, final: true);
         }
         catch (ConflitoNoDiscoException) { gravacoesEmCurso--; DefinirEstado(EstadoGravacao.Conflito, final: true); throw; }
         catch
@@ -231,6 +349,23 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         return await Exportador.ExportarFinalAsync(p.Dados, p.CaminhoDados, p.Config, pdf, r.Composicao.Plano, modelo, Disco.Sha256);
     }
 
+    /// <summary>Gravado: num arquivo novo (Salvar como), solta a trava do antigo e tenta a do novo (sem ela, somente leitura); o diário
+    /// recomeça com o sha novo e o que chegou durante a gravação.</summary>
+    void DepoisDeGravar(string caminhoAntes, int registros)
+    {
+        if (!string.Equals(caminhoAntes, Caminho, StringComparison.OrdinalIgnoreCase) && !somenteLeituraDoPacote)
+        {
+            var velha = trava;
+            trava = null;
+            try { velha?.Dispose(); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+            AplicarTrava(Travar(Caminho));
+            TravaMudou?.Invoke();
+        }
+        var extras = Revisao.HistoricoCompleto.Skip(registros).ToList();
+        if (diario.DepoisDeGravar(caminhoAntes, Caminho, Disco.Sha256, extras, continuar: !SomenteLeitura)) DiarioVoltou?.Invoke();
+        else FalhaNoDiario?.Invoke(diario.UltimoErro ?? "erro desconhecido");
+    }
+
     /// <summary>Com gravações ainda na fila, o estado continua "Salvando…" até a última terminar.</summary>
     void DefinirEstado(EstadoGravacao e, bool final = false)
     {
@@ -239,10 +374,28 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         Mudou?.Invoke();
     }
 
-    /// <summary>Apaga a pasta de trabalho fora da thread da interface (o Dispose dela pode esperar ~1 s por arquivos presos).</summary>
+    /// <summary>Só o roteiro: a queda do app sem gravar — solta a trava e a pasta de trabalho; o diário fica como está no disco.</summary>
+    internal void SimularQueda()
+    {
+        encerrada = true;
+        var t = trava;
+        trava = null;
+        try { t?.Dispose(); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        diario.Dispose();
+        _ = DisposeAsync();
+    }
+
+    /// <summary>Fecha: solta a trava, fecha o diário (guardado se há alterações não gravadas; apagado se tudo está no arquivo) e apaga a
+    /// pasta de trabalho fora da thread da interface (o Dispose dela pode esperar ~1 s por arquivos presos).</summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref descartada, 1) != 0) return;
+        encerrada = true;
+        if (batendo is { } b) try { await b; } catch { /* o batimento nunca lança; só espera ele terminar */ }
+        var t = trava;
+        trava = null;
+        try { t?.Dispose(); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        diario.Fechar(guardar: TemAlteracoesNaoGravadas);
         await Task.Run(Recompositor.Dispose);
     }
 }

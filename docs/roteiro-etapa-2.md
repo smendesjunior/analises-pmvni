@@ -34,6 +34,23 @@ citações literais com a numeração mudada). Os atalhos (`Atalhos.Mapa`, as 16
 (`KeyboardAccelerator`; numa caixa de texto, Delete, Ctrl+Z e Ctrl+Y são dela) e nas folhas (mensagem `atalho`); Ctrl+F só ganha
 ação com a pesquisa (Tarefa 11).
 
+A partir da Tarefa 10 o trabalho não se perde (desenho §5.1, §8.6). Abrir trava o arquivo (`.~nome.pmvrel.lock` ao lado,
+batimento a cada 30 s): com a trava viva de outra janela, máquina ou usuário o relatório abre **somente leitura** ("Aberto por
+{usuário} em {máquina} desde HH:mm: somente leitura.", num InfoBar; os comandos de edição ficam desabilitados); sem como travar
+(pasta sem escrita) também; trava perdida num batimento ⇒ somente leitura, com as alterações guardadas no diário. Uma trava sem
+batimento há mais de 2 min (ou do mesmo usuário e máquina com o processo encerrado) é retomada. Cada comando vai para o diário de
+recuperação (`<dados>\recuperacao\<sha do caminho>.jsonl`); falha nele (disco cheio) aparece num InfoBar de erro. O pacote é gravado
+sozinho depois do intervalo dos ajustes sem comando (15/30/60/120 s; padrão 30), ao trocar de módulo ou de arquivo e ao fechar a
+janela (o fechamento espera na fila de comandos, grava e fecha; só pergunta se a gravação falhar: "Salvar como…", "Fechar sem
+salvar (a recuperação fica guardada)" ou "Cancelar"). Gravou ⇒ "Salvo HH:MM" e o diário recomeça com o sha novo (o que chegou
+durante a gravação vai para o diário novo). Gravação que falha (arquivo preso pelo OneDrive, disco cheio) ⇒ "Não salvo", InfoBar
+de erro, arquivo antigo intacto, diário com tudo e nova tentativa no intervalo seguinte. Na abertura, um diário da mesma versão do
+arquivo com comandos que ele não tem ⇒ pergunta Recuperar (reaplica, "Não salvo") ou Descartar (o diário é guardado como órfão
+`<sha>.orfao-AAAAMMDDhhmmss.jsonl`, nunca apagado); de outra versão ou divergente do histórico ⇒ guardado como órfão sem aplicar,
+com um InfoBar que diz o nome. Arquivo mudado por outro programa ⇒ "Conflito": nada é sobrescrito, a exportação recusa e o InfoBar
+oferece **Salvar como cópia** (`<nome> (cópia AAAA-MM-DD HH-MM).pmvrel` ao lado, sem seletor; a cópia passa a ser o arquivo aberto,
+com a trava dela) e **Recarregar** (confirma; abre o arquivo do disco e guarda o diário desta sessão como órfão).
+
 ## Como rodar
 
 1. `powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-release.ps1` (testes, publicação do executável único em
@@ -69,10 +86,18 @@ ação com a pesquisa (Tarefa 11).
 | 18 | `18_menu_de_contexto_e_atalhos` | Botão direito (CDP) no ITEM 10: o menu abre com 5 entradas; Delete nas folhas exclui; Alt+↓ seleciona o próximo incluído; desfazer; clique na marca "◦ excl." abre o flyout; Somente alterados filtra, Marcas tira e põe a camada, Propriedades recolhe; todo atalho (menos Ctrl+F) e todo comando da faixa têm manipulador. |
 | 19 | `19_latencia` | Mediana de 5 comandos de situação no longo em `latencia_ms` (meta 1,5 s; só registra). |
 | 20 | `20_comandos_em_sequencia` | Justificativa e, sem esperar, Situação e Excluir pela faixa: os três entram na fila e são aplicados na ordem; uma situação e, sem esperar, um `editar` da página: a edição entra (modelo e folhas); tudo desfeito depois. |
+| 21 | `21_autosave` | `curto.json` importado em `<pasta>\curto-auto.pmvrel`; intervalo de 15 s nos ajustes do roteiro (definido no início); 1 comando: "Não salvo" e o registro no diário; sozinho, entre 14 e 25 s, o estado vira "Salvo HH:MM", o pacote em disco tem o registro e o diário só o cabeçalho com o sha novo. |
+| 22 | `22_gravacao_falha_sem_perder` | 1 comando; o roteiro prende o pacote (`FileShare.None`) e chama `GravarAgoraAsync`: false, "Não salvo", InfoBar de erro, bytes do pacote iguais aos de antes, sem `.tmp`, o diário com o registro; solto, `GravarAgoraAsync` grava e o pacote tem o registro. |
+| 23 | `23_recuperacao_apos_queda` | 2 comandos e `SimularQuedaParaRoteiro` (solta pacote, trava e temporizadores sem gravar; o diário fica com os 2); reabrir pergunta "recuperar 2"; Recuperar dá o mesmo `ProjetoJson` e o mesmo histórico, "Não salvo", diário novo com os 2 pendentes; grava depois. |
+| 24 | `24_trava_e_somente_leitura` | Trava viva de `OUTRA-MAQUINA` gravada pelo roteiro: "Somente leitura", InfoBar "Aberto por outro.usuario em OUTRA-MAQUINA desde HH:mm: somente leitura.", Excluir e Salvar desabilitados, Excluir não muda nada, a trava do outro fica intacta ao fechar; trava com batimento de 3 min atrás: abre editável, Excluir habilitado, a trava passa a ser deste processo; 1 comando e a trava apagada por fora: o batimento vira "Somente leitura" (InfoBar da trava perdida, Excluir desabilitado); fechar pergunta e "Fechar sem salvar" guarda o diário; reabrir pergunta "recuperar 1" e recupera; grava. |
+| 25 | `25_conflito_nao_sobrescreve` | Outro `Pacote.Gravar` depois de abrir; comando + `GravarAgoraAsync`: false, "Conflito", InfoBar do conflito, bytes do disco = os do outro, exportação recusada; "Salvar como cópia" cria `curto-auto (cópia AAAA-MM-DD HH-MM).pmvrel` com a alteração, o original continua o do outro, a trava passa para a cópia, "Salvo"; outro programa muda a cópia e "Recarregar" abre o que está no disco ("Salvo") e guarda o diário desta sessão como órfão. |
 
 Testes sem a janela (`tests\Pmvni.Revisao.Testes`): `FaixasTestes` (toda faixa começa em Arquivo e termina em Ajuda, aba padrão,
 ids únicos e conhecidos), `AjustesTestes` (lembrar módulo e aba; arquivo corrompido guardado e padrão), `NomesArquivoTestes`,
-`GravadorPacoteTestes` (gravações simultâneas sem conflito), `LogicaAppTestes` (título da janela, estado de gravação) e
+`GravadorPacoteTestes` (gravações simultâneas sem conflito), `AutosaveTestes` (Tarefa 10: o diário da sessão recomeça só com
+o cabeçalho depois de gravar, o que chegou durante a gravação fica no diário novo e o antigo vira órfão, Salvar como leva o diário,
+fechar guarda o diário com trabalho, falha de disco informada; decisão de recuperação na abertura; texto do somente leitura),
+`LogicaAppTestes` (título da janela, estado de gravação) e
 `AtalhosTestes` (as 16 teclas de `Atalhos.Mapa` = o `Set` ATALHOS de `edicao.ts`, todo atalho aponta para um comando conhecido,
 Relatórios abre em Página Inicial).
 
@@ -80,7 +105,9 @@ Relatórios abre em Página Inicial).
 
 - Acabamento da barra de título (ícone, título e estado ao lado dos botões da janela), da faixa e do trilho em outros monitores e
   no tema escuro (as capturas XAML não incluem o Mica).
-- Os seletores do Windows (Importar, Abrir, Salvar como, Exportar) e os diálogos (Atalhos, Sobre, Conferência): o roteiro usa
-  respostas fixas.
+- Os seletores do Windows (Importar, Abrir, Salvar como, Exportar) e os diálogos (Atalhos, Sobre, Conferência, Recuperar
+  alterações, fechar com gravação que falhou, Recarregar): o roteiro usa respostas fixas.
+- Fechar a janela pelo X com alterações não gravadas (o roteiro fecha o relatório pelos mesmos caminhos, mas não clica no X) e o
+  batimento pelo temporizador de 30 s (o roteiro chama o batimento direto).
 - O menu de contexto e o flyout do excluído na posição do clique, o painel de Propriedades (Original ⇄ lado a lado) e os atalhos
   com o teclado de verdade (o roteiro manda as teclas pelo CDP, direto à página; os `KeyboardAccelerator`s da janela só são contados).

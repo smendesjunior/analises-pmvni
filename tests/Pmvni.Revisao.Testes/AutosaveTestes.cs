@@ -1,0 +1,294 @@
+using Pmvni.App;
+using Pmvni.Composicao;
+using Xunit;
+
+namespace Pmvni.Revisao.Testes;
+
+/// <summary>Tarefa 10: o diário da sessão aberta no app (reiniciado a cada gravação, sem nunca perder o que ainda não está no pacote),
+/// a decisão de recuperação na abertura e os textos de somente leitura.</summary>
+public class AutosaveTestes
+{
+    private static readonly ModeloCarregado Modelo = ModeloOficial.Carregar();
+
+    private static ConteudoPacote Importar()
+    {
+        var caminho = Ambiente.Corpus("curto.json");
+        return Importador.Importar(File.ReadAllBytes(caminho), caminho, Modelo, Ambiente.Contexto());
+    }
+
+    private static (SessaoRevisao Sessao, ConteudoPacote Conteudo) Sessao()
+    {
+        var c = Importar();
+        return (new SessaoRevisao(c.Projeto, c.Historico, Ambiente.Contexto("ana")), c);
+    }
+
+    private static RegistroHistorico Comando(SessaoRevisao s, string texto) =>
+        s.Aplicar(new DefinirCampo(s.Projeto.Incluidos[0].Id, "titulo", texto))!;
+
+    /// <summary>As linhas do diário, lidas com ele ainda aberto pela sessão.</summary>
+    private static string[] Linhas(string arquivo)
+    {
+        using var f = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var r = new StreamReader(f);
+        return r.ReadToEnd().Split('\n').Where(l => l.Trim().Length > 0).ToArray();
+    }
+
+    private static string[] Orfaos(string raiz) =>
+        Directory.Exists(Path.Combine(raiz, "recuperacao")) ? Directory.GetFiles(Path.Combine(raiz, "recuperacao"), "*.orfao-*.jsonl") : [];
+
+    [Fact]
+    public void diario_da_sessao_registra_e_reinicia_so_com_o_cabecalho_depois_de_gravar()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-reinicia");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        using var d = new DiarioDaSessao(pasta);
+        Assert.True(d.Iniciar(pacote, "sha1", []));
+        Assert.True(d.Registrar(Comando(s, "Titulo 1")));
+        Assert.Single(Diario.Ler(pasta, pacote, "sha1")!.Registros);
+
+        Assert.True(d.DepoisDeGravar(pacote, pacote, "sha2", [], continuar: true));
+
+        Assert.Null(Diario.Ler(pasta, pacote, "sha2"));
+        Assert.Single(Linhas(Diario.CaminhoDe(pasta, pacote))); // só o cabeçalho, com o sha novo
+        Assert.Contains("sha2", Linhas(Diario.CaminhoDe(pasta, pacote))[0]);
+        Assert.Empty(Orfaos(pasta));
+        Assert.True(d.Registrar(Comando(s, "Titulo 2")));
+        Assert.Single(Diario.Ler(pasta, pacote, "sha2")!.Registros);
+    }
+
+    [Fact]
+    public void comando_aplicado_durante_a_gravacao_fica_no_diario_novo_e_o_antigo_e_guardado()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-extras");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        using var d = new DiarioDaSessao(pasta);
+        d.Iniciar(pacote, "sha1", []);
+        d.Registrar(Comando(s, "Titulo 1"));
+        var depois = Comando(s, "Titulo 2"); // chegou enquanto gravava
+        d.Registrar(depois);
+
+        Assert.True(d.DepoisDeGravar(pacote, pacote, "sha2", [depois], continuar: true));
+
+        var rec = Diario.Ler(pasta, pacote, "sha2")!;
+        Assert.True(rec.DaMesmaVersao);
+        Assert.Equal([depois.N], rec.Registros.Select(r => r.N));
+        Assert.Single(Orfaos(pasta)); // o diário anterior (com os dois) nunca é apagado com trabalho dentro
+    }
+
+    [Fact]
+    public void salvar_como_leva_o_diario_para_o_arquivo_novo()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-salvar-como");
+        var antigo = Path.Combine(pasta, "a.pmvrel");
+        var novo = Path.Combine(pasta, "b.pmvrel");
+        var (s, _) = Sessao();
+        using var d = new DiarioDaSessao(pasta);
+        d.Iniciar(antigo, "sha1", []);
+        d.Registrar(Comando(s, "Titulo 1"));
+
+        Assert.True(d.DepoisDeGravar(antigo, novo, "sha2", [], continuar: true));
+
+        Assert.False(File.Exists(Diario.CaminhoDe(pasta, antigo)));
+        Assert.Single(Linhas(Diario.CaminhoDe(pasta, novo)));
+    }
+
+    [Fact]
+    public void somente_leitura_depois_de_gravar_nao_comeca_diario_novo()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-sem-continuar");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        using var d = new DiarioDaSessao(pasta);
+        d.Iniciar(pacote, "sha1", []);
+        d.Registrar(Comando(s, "Titulo 1"));
+
+        d.DepoisDeGravar(pacote, Path.Combine(pasta, "copia.pmvrel"), "sha2", [], continuar: false);
+
+        Assert.False(d.Ativo);
+        Assert.False(File.Exists(Diario.CaminhoDe(pasta, pacote)));
+        Assert.False(File.Exists(Diario.CaminhoDe(pasta, Path.Combine(pasta, "copia.pmvrel"))));
+    }
+
+    [Fact]
+    public void iniciar_com_pendentes_recuperados_grava_os_pendentes_no_diario_novo()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-pendentes");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        var r1 = Comando(s, "Titulo 1");
+        var r2 = Comando(s, "Titulo 2");
+        using var d = new DiarioDaSessao(pasta);
+
+        Assert.True(d.Iniciar(pacote, "sha1", [r1, r2]));
+
+        Assert.Equal([r1.N, r2.N], Diario.Ler(pasta, pacote, "sha1")!.Registros.Select(r => r.N));
+    }
+
+    [Fact]
+    public void fechar_guarda_o_diario_com_trabalho_e_apaga_o_vazio()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-fechar");
+        var a = Path.Combine(pasta, "a.pmvrel");
+        var b = Path.Combine(pasta, "b.pmvrel");
+        var (s, _) = Sessao();
+        using (var d = new DiarioDaSessao(pasta))
+        {
+            d.Iniciar(a, "sha1", []);
+            d.Registrar(Comando(s, "Titulo 1"));
+            d.Fechar(guardar: true);
+        }
+        using (var d = new DiarioDaSessao(pasta))
+        {
+            d.Iniciar(b, "sha1", []);
+            d.Fechar(guardar: false);
+        }
+
+        Assert.NotNull(Diario.Ler(pasta, a, "sha1"));
+        Assert.False(File.Exists(Diario.CaminhoDe(pasta, b)));
+    }
+
+    [Fact]
+    public void dispose_nunca_apaga_o_diario()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-dispose");
+        var a = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        using (var d = new DiarioDaSessao(pasta))
+        {
+            d.Iniciar(a, "sha1", []);
+            d.Registrar(Comando(s, "Titulo 1"));
+        }
+        Assert.NotNull(Diario.Ler(pasta, a, "sha1"));
+    }
+
+    [Fact]
+    public void arquivar_guarda_o_diario_como_orfao_e_devolve_o_nome()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-arquivar");
+        var a = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        using var d = new DiarioDaSessao(pasta);
+        d.Iniciar(a, "sha1", []);
+        d.Registrar(Comando(s, "Titulo 1"));
+
+        var orfao = d.Arquivar(a);
+
+        Assert.NotNull(orfao);
+        Assert.True(File.Exists(orfao));
+        Assert.False(File.Exists(Diario.CaminhoDe(pasta, a)));
+        Assert.False(d.Ativo);
+    }
+
+    [Fact]
+    public void falha_ao_iniciar_ou_registrar_e_informada_nunca_engolida()
+    {
+        using var pasta = Ambiente.PastaDeTeste("autosave-falha");
+        File.WriteAllText(Path.Combine(pasta, "recuperacao"), "um arquivo no lugar da pasta"); // a pasta do diário não pode ser criada
+        var (s, _) = Sessao();
+        using var d = new DiarioDaSessao(pasta);
+
+        Assert.False(d.Iniciar(Path.Combine(pasta, "a.pmvrel"), "sha1", []));
+        Assert.False(d.Ativo);
+        Assert.False(string.IsNullOrWhiteSpace(d.UltimoErro));
+        Assert.False(d.Registrar(Comando(s, "Titulo 1")));
+        Assert.False(string.IsNullOrWhiteSpace(d.UltimoErro));
+    }
+
+    // ---------- decisão na abertura ----------
+
+    [Fact]
+    public void sem_diario_nada_a_recuperar()
+    {
+        var (s, _) = Sessao();
+        Assert.Equal(AcaoRecuperacao.Nada, RecuperacaoAbertura.Decidir(null, s.HistoricoCompleto).Acao);
+    }
+
+    [Fact]
+    public void diario_da_mesma_versao_com_comandos_novos_pergunta_quantos()
+    {
+        using var pasta = Ambiente.PastaDeTeste("recuperar-pergunta");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s, c) = Sessao();
+        using (var d = Diario.Iniciar(pasta, pacote, "sha1"))
+        {
+            s.Registrado += d.Registrar;
+            Comando(s, "Titulo 1");
+            Comando(s, "Titulo 2");
+        }
+
+        var decisao = RecuperacaoAbertura.Decidir(Diario.Ler(pasta, pacote, "sha1"), c.Historico);
+
+        Assert.Equal(AcaoRecuperacao.Perguntar, decisao.Acao);
+        Assert.Equal(2, decisao.Comandos);
+    }
+
+    [Fact]
+    public void diario_de_outra_versao_e_arquivado_sem_aplicar()
+    {
+        using var pasta = Ambiente.PastaDeTeste("recuperar-outra");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s, c) = Sessao();
+        using (var d = Diario.Iniciar(pasta, pacote, "sha1"))
+        {
+            s.Registrado += d.Registrar;
+            Comando(s, "Titulo 1");
+        }
+
+        var decisao = RecuperacaoAbertura.Decidir(Diario.Ler(pasta, pacote, "sha-outro"), c.Historico);
+
+        Assert.Equal(AcaoRecuperacao.Arquivar, decisao.Acao);
+        Assert.False(string.IsNullOrWhiteSpace(decisao.Motivo));
+    }
+
+    [Fact]
+    public void diario_que_diverge_do_historico_do_pacote_e_arquivado_sem_aplicar()
+    {
+        using var pasta = Ambiente.PastaDeTeste("recuperar-diverge");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s1, c) = Sessao();
+        var s2 = new SessaoRevisao(c.Projeto.Clonar(), c.Historico, Ambiente.Contexto("bia"));
+        using (var d = Diario.Iniciar(pasta, pacote, "sha1"))
+        {
+            s1.Registrado += d.Registrar;
+            Comando(s1, "Titulo do diario");
+            Comando(s1, "Titulo do diario 2");
+        }
+        // O pacote tem outro registro com o mesmo N do primeiro do diário.
+        Comando(s2, "Titulo do pacote");
+
+        var decisao = RecuperacaoAbertura.Decidir(Diario.Ler(pasta, pacote, "sha1"), s2.HistoricoCompleto);
+
+        Assert.Equal(AcaoRecuperacao.Arquivar, decisao.Acao);
+    }
+
+    [Fact]
+    public void diario_que_ja_esta_todo_no_pacote_nao_pergunta()
+    {
+        using var pasta = Ambiente.PastaDeTeste("recuperar-ja-gravado");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var (s, _) = Sessao();
+        using (var d = Diario.Iniciar(pasta, pacote, "sha1"))
+        {
+            s.Registrado += d.Registrar;
+            Comando(s, "Titulo 1");
+        }
+
+        var decisao = RecuperacaoAbertura.Decidir(Diario.Ler(pasta, pacote, "sha1"), s.HistoricoCompleto);
+
+        Assert.Equal(AcaoRecuperacao.Nada, decisao.Acao);
+    }
+
+    // ---------- textos ----------
+
+    [Fact]
+    public void texto_do_somente_leitura_por_trava_de_outro()
+    {
+        var inicio = new DateTimeOffset(2026, 11, 14, 17, 5, 0, TimeSpan.Zero);
+        var t = new InfoTrava("PC-OBRAS", "maria", 42, inicio, inicio);
+        Assert.Equal($"Aberto por maria em PC-OBRAS desde {inicio.ToLocalTime():HH:mm}: somente leitura.", TextosGravacao.SomenteLeituraOcupada(t));
+        var desconhecida = new InfoTrava("?", "?", 0, inicio, inicio);
+        Assert.Equal("Aberto em outra janela ou por outro usuário (a trava não pôde ser lida): somente leitura.", TextosGravacao.SomenteLeituraOcupada(desconhecida));
+    }
+}

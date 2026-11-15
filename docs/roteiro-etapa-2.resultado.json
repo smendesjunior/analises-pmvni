@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-11-15T05:48:06Z",
+  "gerado_em": "2026-11-15T06:15:52Z",
   "webview2": "157.0.4341.46",
   "escala_do_monitor": 1.5,
   "janela_px": {
@@ -16,7 +16,7 @@
       "folhas_que_transbordam_na_tela": [],
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "titulo_confere": true,
-      "estado_de_gravacao": "Salvo 02:48",
+      "estado_de_gravacao": "Salvo 03:15",
       "composicao": "Composto: 21 folhas",
       "itens_na_lista": 77,
       "primeiros_itens": [
@@ -32,7 +32,7 @@
       "aviso_largura_confere": true,
       "exportar_habilitado": true,
       "rodape_folha": "folha 1 de 21",
-      "latencia_recomposicao_ms": 1058,
+      "latencia_recomposicao_ms": 914,
       "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
       "folhas_com_conteudo_alem_da_borda": [
         14
@@ -52,7 +52,7 @@
         "folhas": 21,
         "fundoDaFolha": "rgb(255, 255, 255)",
         "fundoDaPagina": "rgb(31, 31, 31)",
-        "janela": 622,
+        "janela": 620,
         "passoEsperado": 1152.755905511811,
         "passoMax": 1152.740234375,
         "passoMin": 1152.73828125,
@@ -160,10 +160,10 @@
         },
         {
           "como": "botão Página inteira",
-          "zoom": 0.5122404601571268,
+          "zoom": 0.5104587542087542,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 406.6
+          "largura_da_folha_px": 405.2
         },
         {
           "como": "comando exibir.mais",
@@ -181,10 +181,10 @@
         },
         {
           "como": "comando exibir.pagina",
-          "zoom": 0.5256032547699214,
+          "zoom": 0.5238215488215487,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 417.2
+          "largura_da_folha_px": 415.8
         },
         {
           "como": "comando exibir.largura",
@@ -383,12 +383,12 @@
       "fechado_sem_relatorio": true,
       "plano_igual_ao_da_importacao": true,
       "historico": 1,
-      "estado_de_gravacao": "Salvo 02:48",
+      "estado_de_gravacao": "Salvo 03:15",
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "ok": true
     },
     "12_salvar_duas_vezes_sem_conflito": {
-      "estado_de_gravacao": "Salvo 02:48",
+      "estado_de_gravacao": "Salvo 03:16",
       "disco_confere": true,
       "aviso_de_erro": false,
       "exporta_depois": true,
@@ -452,9 +452,9 @@
       "registros_desfeito": 4,
       "registros_refeito": 4,
       "historico_na_tela": [
-        "02:48 · smendesjunior · Refeito: Excluído o ITEM 05",
-        "02:48 · smendesjunior · Refeito: Justificativa do ITEM 03 definida",
-        "02:48 · smendesjunior · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
+        "03:16 · smendesjunior · Refeito: Excluído o ITEM 05",
+        "03:16 · smendesjunior · Refeito: Justificativa do ITEM 03 definida",
+        "03:16 · smendesjunior · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
       ],
       "linhas_do_historico": "13 na tela, 13 no histórico",
       "item_05_excluido_de_novo": true,
@@ -495,13 +495,13 @@
     },
     "19_latencia": {
       "medidas_ms": [
-        434,
-        498,
-        512,
-        507,
-        507
+        500,
+        473,
+        465,
+        458,
+        485
       ],
-      "latencia_ms": 507,
+      "latencia_ms": 473,
       "meta_ms": 1500,
       "dentro_da_meta": true,
       "ok": true
@@ -517,10 +517,82 @@
       "tela_tem_o_texto": true,
       "desfeito_tudo": true,
       "ok": true
+    },
+    "21_autosave": {
+      "estado_depois_do_comando": "Não salvo",
+      "diario_tem_o_registro": true,
+      "salvo_sozinho_em_s": 15.3,
+      "estado_de_gravacao": "Salvo 03:17",
+      "pacote_tem_o_registro": true,
+      "linhas_do_diario": 1,
+      "diario_so_com_o_cabecalho_do_sha_novo": true,
+      "ok": true
+    },
+    "22_gravacao_falha_sem_perder": {
+      "mensagem_de_erro": "Não foi possível salvar: The process cannot access the file 'C:\\Users\\smendesjunior\\OneDrive\\Aplicativos IA\\Editor de Relatorios PMVNI\\tests\\saida\\roteiro\\curto-auto.pmvrel' because it is being used by another process. O arquivo no disco não foi alterado; as alterações continuam guardadas no diário de recuperação e o salvamento será tentado de novo.",
+      "gravou_com_o_arquivo_preso": false,
+      "estado_nao_salvo": true,
+      "infobar_de_erro": true,
+      "pacote_em_disco_igual_ao_de_antes": true,
+      "sem_tmp_deixado": true,
+      "diario_tem_o_registro": true,
+      "solto_grava": true,
+      "estado_de_gravacao": "Salvo 03:17",
+      "pacote_tem_o_registro": true,
+      "ok": true
+    },
+    "23_recuperacao_apos_queda": {
+      "trava_solta": true,
+      "diario_ficou_com": 2,
+      "pergunta": "recuperar 2",
+      "mesmo_projeto_json": true,
+      "historico_igual": true,
+      "estado_de_gravacao": "Não salvo",
+      "aviso": "2 alterações recuperadas (ainda não gravadas no arquivo).",
+      "diario_novo_com_os_pendentes": 2,
+      "gravado_depois": true,
+      "ok": true
+    },
+    "24_trava_e_somente_leitura": {
+      "trava_solta_ao_fechar": true,
+      "estado_de_gravacao": "Somente leitura",
+      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 03:07: somente leitura.",
+      "excluir_habilitado": false,
+      "salvar_habilitado": false,
+      "nada_mudou": true,
+      "trava_do_outro_intacta": true,
+      "estado_com_trava_abandonada": "Salvo 03:17",
+      "excluir_habilitado_editavel": true,
+      "trava_retomada_por_este_app": true,
+      "trava_perdida_vira_somente_leitura": true,
+      "perguntou_ao_fechar": true,
+      "recuperou_depois_de_fechar_sem_salvar": true,
+      "ok": true
+    },
+    "25_conflito_nao_sobrescreve": {
+      "gravou": false,
+      "estado_de_gravacao": "Conflito",
+      "infobar_conflito": true,
+      "disco_com_os_bytes_do_outro": true,
+      "exportar_recusa": true,
+      "erro_ao_exportar": "O arquivo mudou desde que foi aberto; reabra antes de exportar.",
+      "copia": "curto-auto (cópia 2026-11-15 03-17).pmvrel",
+      "copia_tem_as_alteracoes": true,
+      "original_continua_o_do_outro": true,
+      "estado_depois_da_copia": "Salvo 03:17",
+      "trava_passou_para_a_copia": true,
+      "recarregou": true,
+      "requerente_depois_de_recarregar": "OUTRO PROGRAMA DE NOVO",
+      "orfao_guardado": true,
+      "ok": true
     }
   },
   "perguntas_feitas": [
-    "informar Conferência"
+    "informar Conferência",
+    "recuperar 2",
+    "fechar sem gravar: A trava de edição deste arquivo foi perdida (apagada ou retomada por outro programa): somente leitura. As alterações que ainda não estavam no arquivo continuam no diário de recuperação; use Salvar como para guardá-las.",
+    "recuperar 1",
+    "confirmar Recarregar do disco?"
   ],
   "falhas": [],
   "ok": true

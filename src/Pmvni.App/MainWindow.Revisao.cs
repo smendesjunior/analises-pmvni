@@ -192,8 +192,17 @@ public sealed partial class MainWindow
             naVez.Value = false;
             fila.Release();
             naFila--;
-            if (naFila == 0 && fecharQuandoLivre && !ocupado) { fecharQuandoLivre = false; DispatcherQueue.TryEnqueue(Close); }
         }
+    }
+
+    /// <summary><see cref="NaFilaAsync(Func{Task})"/> com resultado.</summary>
+    async Task<T> NaFilaAsync<T>(Func<Task<T>> acao)
+    {
+        T resultado = default!;
+        // Corpo em bloco: com uma expressão, o lambda viraria Func<Task<T>> e chamaria esta mesma sobrecarga sem fim.
+        Func<Task> semResultado = async () => { resultado = await acao(); };
+        await NaFilaAsync(semResultado);
+        return resultado;
     }
 
     /// <summary>"«Excluir item» não está disponível agora: selecione um item…" — todo comando que não pode rodar diz por quê.</summary>

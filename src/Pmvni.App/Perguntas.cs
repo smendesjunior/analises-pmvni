@@ -8,6 +8,9 @@ namespace Pmvni.App;
 /// <summary>Resposta à pergunta de recuperação do diário (Tarefa 10 usa).</summary>
 public enum RespostaRecuperacao { Recuperar, Descartar }
 
+/// <summary>Resposta à pergunta de fechar quando a gravação falhou (Tarefa 10).</summary>
+public enum RespostaFechar { SalvarComo, FecharSemSalvar, Cancelar }
+
 /// <summary>Tudo o que o app pergunta ao usuário (seletores de arquivo e diálogos). O roteiro troca <see cref="Perguntas.Atual"/>
 /// por respostas fixas: nenhuma janela modal fica esperando quem não está olhando.</summary>
 internal interface IPerguntas
@@ -24,6 +27,10 @@ internal interface IPerguntas
     Task InformarAsync(string titulo, string texto);
 
     Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos);
+
+    /// <summary>Fechar com alterações que não puderam ser gravadas (<paramref name="motivo"/>): "Salvar como…", "Fechar sem salvar (a
+    /// recuperação fica guardada)" ou "Cancelar".</summary>
+    Task<RespostaFechar> FecharSemGravarAsync(string motivo);
 }
 
 internal static class Perguntas
@@ -83,6 +90,20 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
             + $" que não chegou ao arquivo (a última em {quando}). Recuperar refaz essas alterações; descartar abre o arquivo como está gravado.";
         var r = await Dialogo("Recuperar alterações não gravadas?", texto, "Recuperar", "Descartar").ShowAsync();
         return r == ContentDialogResult.Primary ? RespostaRecuperacao.Recuperar : RespostaRecuperacao.Descartar;
+    }
+
+    public async Task<RespostaFechar> FecharSemGravarAsync(string motivo)
+    {
+        var d = Dialogo("As alterações não foram gravadas",
+            $"Não foi possível gravar as alterações no arquivo: {motivo.TrimEnd('.')}. Se fechar sem salvar, elas ficam guardadas na recuperação: "
+            + "ao abrir este arquivo de novo, o app oferece recuperá-las.", "Salvar como…", "Cancelar");
+        d.SecondaryButtonText = "Fechar sem salvar (a recuperação fica guardada)";
+        return await d.ShowAsync() switch
+        {
+            ContentDialogResult.Primary => RespostaFechar.SalvarComo,
+            ContentDialogResult.Secondary => RespostaFechar.FecharSemSalvar,
+            _ => RespostaFechar.Cancelar,
+        };
     }
 
     ContentDialog Dialogo(string titulo, string texto, string sim, string nao) => new()
