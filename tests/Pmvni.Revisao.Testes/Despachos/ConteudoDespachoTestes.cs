@@ -65,6 +65,23 @@ public sealed class ConteudoDespachoTestes
     }
 
     [Fact]
+    public void textos_do_relatorio_tambem_sao_normalizados()
+    {
+        var d = JsonFiel.Ler(RelatorioFicticio.CurtoJson());
+        var item = (System.Text.Json.Nodes.JsonObject)d["itens"]![1]!;
+        item["providencia"] = "  Apresentar\r\na cota. ";
+        item["base_legal"] = " LC 70/1990.\n";
+        var c = Importador.Importar(JsonFiel.Escrever(d), Ambiente.Corpus("curto.json"), Pmvni.Composicao.ModeloOficial.Carregar(), Ambiente.Contexto());
+
+        var r = ConteudoDespacho.Montar(TipoDespacho.Correcao, c.Projeto, Info(TipoDespacho.Correcao), Etapa);
+
+        Assert.Equal("Apresentar a cota.", r.Pendencias[0].Texto);
+        Assert.Equal("LC 70/1990.", r.Pendencias[0].Fundamento);
+        Assert.False(r.Pendencias[0].Editada);
+        Assert.Empty(r.CamposEditados);
+    }
+
+    [Fact]
     public void cabecalho_vem_da_capa_e_do_modelo()
     {
         var r = Correcao();

@@ -230,6 +230,20 @@ public sealed class PreenchimentoDocxTestes
     }
 
     [Fact]
+    public void rotulo_fora_de_run_direto_lanca()
+    {
+        const string run = "<w:r><w:rPr><w:sz w:val=\"24\"/></w:rPr><w:t xml:space=\"preserve\">Requerente: </w:t></w:r>";
+        var docx = ValidacaoDespachoTestes.Trocar(DocxFicticio.Correcao(), "word/document.xml", b =>
+        {
+            var xml = Encoding.UTF8.GetString(b);
+            Assert.Contains(run, xml);
+            return new UTF8Encoding(false).GetBytes(xml.Replace(run, "<w:hyperlink>" + run + "</w:hyperlink>", StringComparison.Ordinal));
+        });
+
+        Assert.Equal("Requerente:", Assert.Throws<ModeloForaDoPadraoException>(() => PreenchimentoDocx.LerModelo(docx, TipoDespacho.Correcao)).Ancora);
+    }
+
+    [Fact]
     public void ancora_ausente_ou_repetida_lanca()
     {
         var sem = DocxFicticio.Criar("Protocolo nº:", "Assunto: **X", "**AO X:", "**G", "", ">dia de mês de ano", "", "______________");

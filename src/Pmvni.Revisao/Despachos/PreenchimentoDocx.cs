@@ -154,16 +154,23 @@ public static class PreenchimentoDocx
             return achados[0];
         }
 
-        papeis[Unico(x => x.StartsWith(RotuloProtocolo, StringComparison.Ordinal), RotuloProtocolo)] = PapelParagrafo.Protocolo;
-        papeis[Unico(x => x.StartsWith(RotuloRequerente, StringComparison.Ordinal), RotuloRequerente)] = PapelParagrafo.Requerente;
-        papeis[Unico(x => x.StartsWith(RotuloAssunto, StringComparison.Ordinal), RotuloAssunto)] = PapelParagrafo.Assunto;
+        // Rótulos, assunto e grupo são trocados run a run: todo o texto deles tem de estar em runs diretos do parágrafo.
+        int Rotulo(string rotulo)
+        {
+            var i = Unico(x => x.StartsWith(rotulo, StringComparison.Ordinal), rotulo);
+            if (!SoRunsDiretos(ps[i])) throw new ModeloForaDoPadraoException(rotulo);
+            return i;
+        }
+        papeis[Rotulo(RotuloProtocolo)] = PapelParagrafo.Protocolo;
+        papeis[Rotulo(RotuloRequerente)] = PapelParagrafo.Requerente;
+        papeis[Rotulo(RotuloAssunto)] = PapelParagrafo.Assunto;
         var destinatario = Unico(x => x.StartsWith("AO ", StringComparison.Ordinal) && x.EndsWith(':'), AncoraDestinatario);
         papeis[destinatario] = PapelParagrafo.Destinatario;
 
         var i = destinatario + 1;
         if (t == TipoDespacho.Correcao)
         {
-            if (i >= ps.Count || textos[i].Length == 0 || !Negrito(ps[i])) throw new ModeloForaDoPadraoException(AncoraGrupo);
+            if (i >= ps.Count || textos[i].Length == 0 || !Negrito(ps[i]) || !SoRunsDiretos(ps[i])) throw new ModeloForaDoPadraoException(AncoraGrupo);
             papeis[i++] = PapelParagrafo.Grupo;
         }
         while (i < ps.Count && textos[i].Length == 0 && !Justificado(ps[i])) i++;
@@ -184,6 +191,9 @@ public static class PreenchimentoDocx
     // ---------- runs e texto ----------
 
     internal static string Texto(XElement p) => string.Concat(p.Descendants(W + "t").Select(t => t.Value));
+
+    static bool SoRunsDiretos(XElement p) =>
+        Runs(p).Any() && string.Concat(Runs(p).Select(TextoRun)) == Texto(p);
 
     static string TextoRun(XElement r) => string.Concat(r.Elements(W + "t").Select(t => t.Value));
 

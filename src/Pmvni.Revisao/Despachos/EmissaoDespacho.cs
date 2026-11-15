@@ -22,6 +22,8 @@ public sealed record Entrega(string Pasta, string Docx, string? Pdf, string Reci
 public static class EmissaoDespacho
 {
     const string SemRecibo = "Este despacho não foi gerado pelo editor (sem recibo); o PDF não é gerado por aqui.";
+    const string DocxNaoConfere =
+        "O DOCX não é mais o que o editor gravou (não confere com o recibo); o PDF não é gerado por aqui. Gere um novo despacho.";
     const int TentativasDeNome = 100;
 
     public static Preparacao Preparar(DespachoFinal d, ModeloDespacho m, string pastaTrabalho, IConversorPdf conv, CancellationToken ct)
@@ -43,15 +45,22 @@ public static class EmissaoDespacho
         var erros = ValidacaoDespacho.Comparar(modelo, docx).Concat(ValidacaoDespacho.Conteudo(modelo, docx, d)).ToList();
         if (erros.Count > 0) return Erro(erros.ToArray());
 
-        Directory.CreateDirectory(pastaTrabalho);
         var caminho = Path.Combine(pastaTrabalho, "despacho.docx");
-        File.WriteAllBytes(caminho, docx);
-        var relido = File.ReadAllBytes(caminho);
+        byte[] relido;
+        try
+        {
+            Directory.CreateDirectory(pastaTrabalho);
+            File.WriteAllBytes(caminho, docx);
+            relido = File.ReadAllBytes(caminho);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return Erro(Trabalho(e)); }
         erros = ValidacaoDespacho.Comparar(modelo, relido).Concat(ValidacaoDespacho.Conteudo(modelo, relido, d)).ToList();
         if (erros.Count > 0 || !relido.AsSpan().SequenceEqual(docx)) return Erro(erros.Count > 0 ? erros.ToArray() : new[] { DocxMudou });
 
         return Converter(pastaTrabalho, caminho, docx, conv, ct);
     }
+
+    static string Trabalho(Exception e) => "Não foi possível gravar o despacho na pasta de trabalho (" + e.Message.TrimEnd('.') + ").";
 
     const string ModeloMudou = "O modelo do kit mudou depois de aberto; abra o Novo despacho de novo.";
     const string DocxMudou = "O DOCX mudou durante a conversão; gere o despacho de novo.";
@@ -60,10 +69,18 @@ public static class EmissaoDespacho
     static Preparacao Converter(string pastaTrabalho, string caminhoDocx, byte[] docx, IConversorPdf conv, CancellationToken ct)
     {
         var sha = RegistroModelos.Sha(docx);
-        var r = conv.Disponivel ? conv.Converter(caminhoDocx, pastaTrabalho, ct) : new ResultadoConversao(null, "SEM_LIBREOFFICE", null);
+        ResultadoConversao r;
+        try { r = conv.Disponivel ? conv.Converter(caminhoDocx, pastaTrabalho, ct) : new ResultadoConversao(null, "SEM_LIBREOFFICE", null); }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Falha do conversor (arquivo preso, disco cheio, processo que não abre): sem PDF, com o motivo; nunca uma exceção crua.
+            r = new ResultadoConversao(null, "CONVERSAO_FALHOU", e.Message.TrimEnd('.'));
+        }
         ct.ThrowIfCancellationRequested();
-        if (!File.Exists(caminhoDocx) || RegistroModelos.Sha(File.ReadAllBytes(caminhoDocx)) != sha)
-            return new Preparacao(pastaTrabalho, docx, null, null, Array.Empty<string>(), null, null, new[] { DocxMudou });
+        bool mudou;
+        try { mudou = !File.Exists(caminhoDocx) || RegistroModelos.Sha(File.ReadAllBytes(caminhoDocx)) != sha; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { mudou = true; }
+        if (mudou) return new Preparacao(pastaTrabalho, docx, null, null, Array.Empty<string>(), null, null, new[] { DocxMudou });
 
         Preparacao SemPdf(string motivo, string mensagem, IReadOnlyList<string>? fontes = null) =>
             new(pastaTrabalho, docx, null, null, fontes ?? Array.Empty<string>(), motivo, mensagem, Array.Empty<string>());
@@ -96,9 +113,15 @@ public static class EmissaoDespacho
     }
 
     /// <summary>Grava DOCX, PDF (se houver) e recibo na pasta da etapa (criada se nova), cada um por um <c>.tmp</c> oculto movido sem sobrescrever;
-    /// o recibo por último; depois apaga a pasta de trabalho. Em qualquer falha, apaga os <c>.tmp</c> (nunca um arquivo que já existia).</summary>
+    /// o recibo por último; depois apaga a pasta de trabalho. Em qualquer falha, desfaz tudo o que esta chamada criou (os <c>.tmp</c>, os
+    /// arquivos já movidos e a pasta da etapa, se foi criada agora e ficou vazia) e relança; nunca apaga um arquivo que já existia.</summary>
     public static Entrega Gravar(Preparacao p, RascunhoDespacho r, DespachoFinal d, ModeloDespacho m, TextosFixos tx, EtapaDespacho etapa, OrigemDespacho o,
-        IReadOnlyList<int>? paginasConferidas, string? motorPdf, ContextoUsuario u)
+        IReadOnlyList<int>? paginasConferidas, string? motorPdf, ContextoUsuario u) =>
+        Gravar(p, r, d, m, tx, etapa, o, paginasConferidas, motorPdf, u, null);
+
+    /// <summary><paramref name="antesDeMover"/> (testes): chamado com o caminho final antes de cada troca, para simular uma falha.</summary>
+    internal static Entrega Gravar(Preparacao p, RascunhoDespacho r, DespachoFinal d, ModeloDespacho m, TextosFixos tx, EtapaDespacho etapa,
+        OrigemDespacho o, IReadOnlyList<int>? paginasConferidas, string? motorPdf, ContextoUsuario u, Action<string>? antesDeMover)
     {
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(r);
@@ -116,7 +139,12 @@ public static class EmissaoDespacho
                 "O processo da capa (" + d.Protocolo + ") não está no formato número/ano; confira o relatório.");
         var nomeBase = NomesDespacho.Base(d.Tipo, processo.Item1, processo.Item2, d.Requerente);
 
-        if (etapa.Nova) Directory.CreateDirectory(etapa.Pasta);
+        var criouPasta = false;
+        if (etapa.Nova)
+        {
+            criouPasta = !Directory.Exists(etapa.Pasta);
+            Directory.CreateDirectory(etapa.Pasta);
+        }
         else if (!Directory.Exists(etapa.Pasta)) throw new DirectoryNotFoundException("A pasta da etapa não existe mais: " + etapa.Pasta);
 
         for (var tentativa = 0; ; tentativa++)
@@ -125,23 +153,30 @@ public static class EmissaoDespacho
             var criados = new List<string>();
             try
             {
-                Mover(etapa.Pasta, p.Docx, livres.Docx, criados);
+                Mover(etapa.Pasta, p.Docx, livres.Docx, criados, antesDeMover);
                 JsonObject? pdf = null, conferidas = null;
                 if (p.Pdf is not null)
                 {
-                    Mover(etapa.Pasta, p.Pdf, livres.Pdf, criados);
+                    Mover(etapa.Pasta, p.Pdf, livres.Pdf, criados, antesDeMover);
                     pdf = ReciboDespacho.Pdf(livres.Pdf, p.Pdf, p.Paginas!.Value, p.Fontes, motorPdf);
                     conferidas = ReciboDespacho.Conferidas(paginasConferidas!, u);
                 }
                 var recibo = ReciboDespacho.Montar(r, d, m, tx, etapa, o, processo, livres.Docx, p.Docx, pdf, p.Pdf is null ? p.SemPdfMotivo : null,
                     conferidas, u);
-                Mover(etapa.Pasta, ReciboDespacho.Escrever(recibo), livres.Recibo, criados);
+                Mover(etapa.Pasta, ReciboDespacho.Escrever(recibo), livres.Recibo, criados, antesDeMover);
             }
             catch (NomeOcupadoException) when (tentativa < TentativasDeNome)
             {
                 // Outro processo criou um dos nomes no meio: os que este gravou saem e recomeça com o próximo nome livre.
                 foreach (var c in criados) ApagarSeguro(c);
                 continue;
+            }
+            catch
+            {
+                // Qualquer outra falha (disco cheio, OneDrive segurando o arquivo…): nada desta gravação fica pela metade.
+                foreach (var c in criados) ApagarSeguro(c);
+                if (criouPasta) ApagarPastaSeVazia(etapa.Pasta);
+                throw;
             }
             ApagarPasta(p.PastaTrabalho);
             return new Entrega(etapa.Pasta, livres.Docx, p.Pdf is null ? null : livres.Pdf, livres.Recibo);
@@ -152,7 +187,7 @@ public static class EmissaoDespacho
 
     /// <summary>Grava <paramref name="bytes"/> num <c>&lt;nome&gt;.&lt;guid8&gt;.tmp</c> oculto da mesma pasta e o move para <paramref name="final"/>
     /// sem sobrescrever. O <c>.tmp</c> nunca fica.</summary>
-    static void Mover(string pasta, byte[] bytes, string final, List<string> criados)
+    static void Mover(string pasta, byte[] bytes, string final, List<string> criados, Action<string>? antesDeMover = null)
     {
         var tmp = Path.Combine(pasta, Path.GetFileName(final) + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp");
         try
@@ -163,6 +198,7 @@ public static class EmissaoDespacho
                 fs.Flush(true);
             }
             File.SetAttributes(tmp, File.GetAttributes(tmp) | FileAttributes.Hidden);
+            antesDeMover?.Invoke(final);
             try { File.Move(tmp, final, overwrite: false); }
             catch (IOException) when (File.Exists(final) || Directory.Exists(final)) { throw new NomeOcupadoException(final); }
             criados.Add(final);
@@ -180,17 +216,30 @@ public static class EmissaoDespacho
         ArgumentNullException.ThrowIfNull(docxGravado);
         ArgumentNullException.ThrowIfNull(pastaTrabalho);
         ArgumentNullException.ThrowIfNull(conv);
-        if (LerRecibo(docxGravado) is null)
-            return new Preparacao(pastaTrabalho, Array.Empty<byte>(), null, null, Array.Empty<string>(), null, null, new[] { SemRecibo });
-        Directory.CreateDirectory(pastaTrabalho);
+        Preparacao Erro(string e) => new(pastaTrabalho, Array.Empty<byte>(), null, null, Array.Empty<string>(), null, null, new[] { e });
+        var recibo = LerRecibo(docxGravado);
+        if (recibo is null) return Erro(SemRecibo);
         var copia = Path.Combine(pastaTrabalho, "despacho.docx");
-        File.Copy(docxGravado, copia, overwrite: true);
-        return Converter(pastaTrabalho, copia, File.ReadAllBytes(copia), conv, ct);
+        byte[] bytes;
+        try
+        {
+            Directory.CreateDirectory(pastaTrabalho);
+            File.Copy(docxGravado, copia, overwrite: true);
+            bytes = File.ReadAllBytes(copia);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return Erro(Trabalho(e)); }
+        if (!ConfereComRecibo(recibo, docxGravado, bytes)) return Erro(DocxNaoConfere);
+        return Converter(pastaTrabalho, copia, bytes, conv, ct);
     }
 
     /// <summary>Grava o PDF de <see cref="PrepararPdf"/> ao lado do DOCX (<c>&lt;base&gt;.pdf</c>, sem sobrescrever) e regrava o recibo por
     /// temporário + troca, com <c>pdf</c> e <c>paginas_conferidas</c> preenchidos e <c>sem_pdf_motivo</c> zerado.</summary>
-    public static Entrega GravarPdf(Preparacao p, string docxGravado, IReadOnlyList<int> paginasConferidas, string? motorPdf, ContextoUsuario u)
+    public static Entrega GravarPdf(Preparacao p, string docxGravado, IReadOnlyList<int> paginasConferidas, string? motorPdf, ContextoUsuario u) =>
+        GravarPdf(p, docxGravado, paginasConferidas, motorPdf, u, null);
+
+    /// <summary><paramref name="antesDaTroca"/> (testes): chamado com o caminho do recibo antes da troca, para simular uma falha.</summary>
+    internal static Entrega GravarPdf(Preparacao p, string docxGravado, IReadOnlyList<int> paginasConferidas, string? motorPdf, ContextoUsuario u,
+        Action<string>? antesDaTroca)
     {
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(docxGravado);
@@ -199,8 +248,9 @@ public static class EmissaoDespacho
         if (p.Erros.Count > 0) throw new InvalidOperationException(string.Join(" ", p.Erros));
         if (p.Pdf is null) throw new InvalidOperationException(p.MensagemSemPdf ?? "Não há PDF para gravar.");
         ExigirPaginas(p.Paginas ?? 0, paginasConferidas);
-        if (RegistroModelos.Sha(File.ReadAllBytes(docxGravado)) != RegistroModelos.Sha(p.Docx))
-            throw new InvalidOperationException(DocxMudou);
+        var atual = File.ReadAllBytes(docxGravado);
+        if (!ConfereComRecibo(recibo, docxGravado, atual)) throw new InvalidOperationException(DocxNaoConfere);
+        if (RegistroModelos.Sha(atual) != RegistroModelos.Sha(p.Docx)) throw new InvalidOperationException(DocxMudou);
 
         var pasta = Path.GetDirectoryName(Path.GetFullPath(docxGravado))!;
         var caminhoPdf = Path.ChangeExtension(Path.GetFullPath(docxGravado), ".pdf");
@@ -217,16 +267,30 @@ public static class EmissaoDespacho
         {
             File.WriteAllBytes(tmp, ReciboDespacho.Escrever(recibo));
             File.SetAttributes(tmp, File.GetAttributes(tmp) | FileAttributes.Hidden);
+            antesDaTroca?.Invoke(caminhoRecibo);
             File.Move(tmp, caminhoRecibo, overwrite: true);
-            File.SetAttributes(caminhoRecibo, File.GetAttributes(caminhoRecibo) & ~FileAttributes.Hidden);
+        }
+        catch
+        {
+            // O recibo antigo ficou como estava: o PDF movido agora sai, para não haver PDF que o recibo não conhece.
+            foreach (var c in criados) ApagarSeguro(c);
+            throw;
         }
         finally
         {
             if (File.Exists(tmp)) ApagarSeguro(tmp);
         }
+        try { File.SetAttributes(caminhoRecibo, File.GetAttributes(caminhoRecibo) & ~FileAttributes.Hidden); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* o recibo já foi trocado; o atributo é só cosmético */ }
         ApagarPasta(p.PastaTrabalho);
         return new Entrega(pasta, Path.GetFullPath(docxGravado), caminhoPdf, caminhoRecibo);
     }
+
+    /// <summary>O DOCX é o que o recibo registra: mesmo nome de arquivo e mesmo sha256.</summary>
+    static bool ConfereComRecibo(JsonObject recibo, string docx, byte[] bytes) =>
+        recibo["docx"] is JsonObject d
+        && d["arquivo"] is JsonValue a && a.TryGetValue<string>(out var arquivo) && arquivo == Path.GetFileName(docx)
+        && d["sha256"] is JsonValue s && s.TryGetValue<string>(out var sha) && string.Equals(sha, RegistroModelos.Sha(bytes), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>O recibo do editor ao lado do DOCX, ou null se não houver (ou não for um recibo do editor).</summary>
     static JsonObject? LerRecibo(string docx)
@@ -256,6 +320,12 @@ public static class EmissaoDespacho
     {
         try { if (Directory.Exists(pasta)) Directory.Delete(pasta, true); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* temporário: sai na próxima limpeza de órfãs */ }
+    }
+
+    static void ApagarPastaSeVazia(string pasta)
+    {
+        try { if (Directory.Exists(pasta) && !Directory.EnumerateFileSystemEntries(pasta).Any()) Directory.Delete(pasta); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
     }
 
     static void ApagarSeguro(string arquivo)

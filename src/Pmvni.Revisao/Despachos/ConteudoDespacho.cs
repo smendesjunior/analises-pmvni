@@ -269,8 +269,8 @@ public static class ConteudoDespacho
             {
                 var situacao = SituacaoDe(item);
                 if (situacao == "ATENDE") continue;
-                var texto = Texto(item["providencia"]) ?? "";
-                var fundamento = Texto(item["base_legal"]) ?? "";
+                var texto = TextoEditado.Normalizar(Texto(item["providencia"]) ?? "");
+                var fundamento = TextoEditado.Normalizar(Texto(item["base_legal"]) ?? "");
                 pendencias.Add(new PendenciaDespacho
                 {
                     ItemId = id, Numero = numero, Situacao = situacao, Titulo = Texto(item["titulo"]) ?? "",

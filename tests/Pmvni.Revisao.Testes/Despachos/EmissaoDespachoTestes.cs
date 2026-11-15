@@ -48,7 +48,137 @@ public sealed class EmissaoDespachoTestes
         public Entrega Gravar(Preparacao p, IReadOnlyList<int>? paginas) =>
             EmissaoDespacho.Gravar(p, Rascunho, Final, Modelo, Textos, Etapa, Origem, paginas, "LibreOffice teste", Ambiente.Contexto("fulano"));
 
+        /// <summary>Gravar com uma falha simulada antes de mover o arquivo final que a função recusar.</summary>
+        public Entrega GravarCom(Preparacao p, IReadOnlyList<int>? paginas, Action<string> antesDeMover) =>
+            EmissaoDespacho.Gravar(p, Rascunho, Final, Modelo, Textos, Etapa, Origem, paginas, "LibreOffice teste", Ambiente.Contexto("fulano"), antesDeMover);
+
         public void Dispose() => Pasta.Dispose();
+    }
+
+    /// <summary>Arquivos (caminho relativo + sha) e pastas da árvore: para provar que nada ficou pela metade.</summary>
+    static (IReadOnlyList<(string, string)> Arquivos, string[] Pastas) Tudo(string raiz) =>
+        (RelatorioFicticio.Retrato(raiz),
+         Directory.GetDirectories(raiz, "*", SearchOption.AllDirectories).Select(d => Path.GetRelativePath(raiz, d)).Order(StringComparer.Ordinal).ToArray());
+
+    static void FalharEm(string final, string sufixo)
+    {
+        if (final.EndsWith(sufixo, StringComparison.Ordinal)) throw new IOException("Disco cheio (simulado).");
+    }
+
+    [Fact]
+    public void falha_ao_gravar_o_recibo_desfaz_tudo()
+    {
+        using var c = new Cena("emissao-falha-recibo");
+        var p = c.Preparar(ConversorFalso.Com(PdfVerdana));
+        var antes = Tudo(c.Arvore.Raiz);
+
+        var e = Assert.Throws<IOException>(() => c.GravarCom(p, new[] { 1, 2 }, f => FalharEm(f, ".recibo-editor.json")));
+
+        Assert.Equal("Disco cheio (simulado).", e.Message);
+        var depois = Tudo(c.Arvore.Raiz);
+        Assert.Equal(antes.Arquivos, depois.Arquivos);
+        Assert.Equal(antes.Pastas, depois.Pastas);
+        Assert.False(Directory.Exists(c.Etapa.Pasta));
+    }
+
+    [Fact]
+    public void segundo_arquivo_que_nao_grava_desfaz_tudo()
+    {
+        using var c = new Cena("emissao-falha-pdf");
+        var p = c.Preparar(ConversorFalso.Com(PdfVerdana));
+        var antes = Tudo(c.Arvore.Raiz);
+
+        Assert.Throws<UnauthorizedAccessException>(() => c.GravarCom(p, new[] { 1, 2 }, f =>
+        {
+            if (f.EndsWith(".pdf", StringComparison.Ordinal)) throw new UnauthorizedAccessException("Acesso negado (simulado).");
+        }));
+
+        var depois = Tudo(c.Arvore.Raiz);
+        Assert.Equal(antes.Arquivos, depois.Arquivos);
+        Assert.Equal(antes.Pastas, depois.Pastas);
+    }
+
+    [Fact]
+    public void falha_na_etapa_existente_mantem_a_pasta_e_o_que_ela_tinha()
+    {
+        using var c = new Cena("emissao-falha-existente", etapa: a => Etapas.Existentes(a.Processo.Pasta).Single(x => x.Numero == 2));
+        var p = c.Preparar(ConversorFalso.Com(PdfVerdana));
+        var antes = Tudo(c.Arvore.Raiz);
+
+        Assert.Throws<IOException>(() => c.GravarCom(p, new[] { 1, 2 }, f => FalharEm(f, ".recibo-editor.json")));
+
+        var depois = Tudo(c.Arvore.Raiz);
+        Assert.Equal(antes.Arquivos, depois.Arquivos);
+        Assert.Equal(antes.Pastas, depois.Pastas);
+        Assert.True(Directory.Exists(c.Etapa.Pasta));
+    }
+
+    [Fact]
+    public void conversor_que_lanca_vira_despacho_sem_pdf()
+    {
+        using var c = new Cena("emissao-conversor-lanca");
+
+        var p = c.Preparar(new ConversorFalso(_ => throw new IOException("arquivo preso")));
+
+        Assert.Empty(p.Erros);
+        Assert.Null(p.Pdf);
+        Assert.Equal("CONVERSAO_FALHOU", p.SemPdfMotivo);
+        Assert.Equal("O LibreOffice não conseguiu gerar o PDF (arquivo preso). O despacho será gravado só em Word (DOCX); use Despachos › Gerar PDF para tentar de novo.",
+            p.MensagemSemPdf);
+    }
+
+    [Fact]
+    public void pasta_de_trabalho_que_nao_grava_vira_erro()
+    {
+        using var c = new Cena("emissao-trabalho-ruim");
+        Directory.CreateDirectory(Path.GetDirectoryName(c.Trabalho)!);
+        File.WriteAllText(c.Trabalho, "um arquivo no lugar da pasta");
+
+        var p = c.Preparar(ConversorFalso.Com(PdfVerdana));
+
+        var erro = Assert.Single(p.Erros);
+        Assert.StartsWith("Não foi possível gravar o despacho na pasta de trabalho (", erro);
+    }
+
+    [Fact]
+    public void gerar_pdf_recusa_docx_que_nao_confere_com_o_recibo()
+    {
+        using var c = new Cena("emissao-pdf-docx-editado");
+        var e = c.Gravar(c.Preparar(new ConversorAusente()), null);
+        const string msg = "O DOCX não é mais o que o editor gravou (não confere com o recibo); o PDF não é gerado por aqui. Gere um novo despacho.";
+
+        // Outro nome (o recibo registra o nome do DOCX que o editor gravou).
+        var outro = Path.Combine(e.Pasta, "outro.docx");
+        File.Copy(e.Docx, outro);
+        File.Copy(e.Recibo, ReciboDespacho.CaminhoDe(outro));
+        var conv = ConversorFalso.Com(PdfVerdana);
+        Assert.Equal(new[] { msg }, EmissaoDespacho.PrepararPdf(outro, Path.Combine(c.Pasta, "t1"), conv, CancellationToken.None).Erros);
+
+        // Um byte mudado (o DOCX editado no Word depois de gravado).
+        var bytes = File.ReadAllBytes(e.Docx);
+        bytes[^1] ^= 0x01;
+        File.WriteAllBytes(e.Docx, bytes);
+        var p = EmissaoDespacho.PrepararPdf(e.Docx, Path.Combine(c.Pasta, "t2"), conv, CancellationToken.None);
+
+        Assert.Equal(new[] { msg }, p.Erros);
+        Assert.Equal(0, conv.Chamadas);
+        Assert.False(File.Exists(Path.ChangeExtension(e.Docx, ".pdf")));
+    }
+
+    [Fact]
+    public void gerar_pdf_que_falha_na_troca_do_recibo_apaga_o_pdf()
+    {
+        using var c = new Cena("emissao-pdf-troca");
+        var e = c.Gravar(c.Preparar(new ConversorAusente()), null);
+        var reciboAntes = File.ReadAllBytes(e.Recibo);
+        var p = EmissaoDespacho.PrepararPdf(e.Docx, Path.Combine(c.Pasta, "trabalho-pdf"), ConversorFalso.Com(PdfVerdana), CancellationToken.None);
+
+        Assert.Throws<IOException>(() => EmissaoDespacho.GravarPdf(p, e.Docx, new[] { 1, 2 }, "LibreOffice teste", Ambiente.Contexto(),
+            _ => throw new IOException("Recibo preso (simulado).")));
+
+        Assert.False(File.Exists(Path.ChangeExtension(e.Docx, ".pdf")));
+        Assert.Equal(reciboAntes, File.ReadAllBytes(e.Recibo));
+        Assert.Equal(2, Directory.GetFiles(e.Pasta).Length);
     }
 
     [Fact]
