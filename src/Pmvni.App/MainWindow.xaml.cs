@@ -36,7 +36,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     DocumentoWeb? documento;
     SessaoEdicao? sessao;
     Modulo moduloAtual = Modulo.Relatorios;
-    bool ocupado, fechada, fecharDeVez;
+    bool ocupado, fechada, fecharDeVez, fecharQuandoLivre;
     double zoom = 1;
     string modoZoom = "manual"; // manual | largura | pagina
     int folhaAtual;
@@ -60,6 +60,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal InfoBar InfoLargura => R.AvisoLargura;
     internal InfoBar InfoEstouro => R.AvisoEstouro;
     internal InfoBar InfoForaDaArea => R.AvisoForaDaArea;
+    internal InfoBar InfoBloqueio => R.AvisoBloqueio;
     internal InfoBar InfoMensagem => R.AvisoMensagem;
     internal FrameworkElement ElementoRaiz => Raiz;
     internal CoreWebView2 NucleoWeb => R.Navegador.CoreWebView2;
@@ -450,9 +451,15 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     async void AoFecharJanela(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (fecharDeVez || sessao is null) return;
+        if (fecharDeVez || (sessao is null && !ocupado)) return;
         args.Cancel = true;
-        if (ocupado) return;
+        if (ocupado)
+        {
+            // Uma operação em andamento (abrir, exportar…) termina antes: a janela fecha logo depois (Liberar).
+            fecharQuandoLivre = true;
+            MostrarMensagem(InfoBarSeverity.Informational, "Aguarde", "A janela fecha assim que a operação em andamento terminar.");
+            return;
+        }
         if (await FecharSessaoAsync()) { fecharDeVez = true; Close(); }
     }
 
@@ -479,7 +486,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         try
         {
             await sessao.GravarComoAsync(destino);
-            if (sessao.Atual is { } r) MostrarRecomposicao(r);
+            AtualizarBarra();
             MostrarMensagem(InfoBarSeverity.Success, "Relatório salvo", sessao.Caminho);
         }
         catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível salvar", e.Message); }
@@ -491,9 +498,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (fechada) return;
         var r = sessao?.Atual;
-        BarraTitulo.Title = r?.Dados.Titulo ?? TituloPadrao;
+        // O nome do arquivo entra no título quando a capa não tem processo nem requerente: segue o arquivo atual (Salvar como).
+        var titulo = r is null || sessao is null ? null : TituloJanela.De(r.Dados.Processo, r.Dados.Requerente, Path.GetFileNameWithoutExtension(sessao.Caminho));
+        BarraTitulo.Title = titulo ?? TituloPadrao;
         BarraTitulo.Subtitle = sessao is null ? "" : EstadoGravacaoTexto.Texto(sessao.Estado, sessao.SalvoEmLocal);
-        Title = r is null ? TituloPadrao : r.Dados.Titulo + " — " + TituloPadrao;
+        Title = titulo is null ? TituloPadrao : titulo + " — " + TituloPadrao;
         AtualizarComandos();
     }
 
@@ -542,6 +551,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         else if (r.Preparado.ErrosFinais.Count > 0)
             Faixa.DefinirDica(ComandosApp.ArquivoExportarPdf, "A exportação está bloqueada: " + DescreverRascunho(r.Preparado.ErrosFinais)
                 + ". O PDF final só sai com o relatório completo.");
+        // O motivo do bloqueio também à vista (um botão desabilitado não mostra a dica): o estouro já tem o seu aviso.
+        R.AvisoBloqueio.IsOpen = estouros == 0 && r.Preparado.ErrosFinais.Count > 0;
+        if (R.AvisoBloqueio.IsOpen)
+            R.AvisoBloqueio.Message = DescreverRascunho(r.Preparado.ErrosFinais) + ". O PDF final só sai com o relatório completo: "
+                + string.Join(" ", r.Preparado.ErrosFinais.Distinct().Take(3)) + (r.Preparado.ErrosFinais.Distinct().Count() > 3 ? " …" : "");
         else Faixa.DefinirDica(ComandosApp.ArquivoExportarPdf, "Exportar o relatório em PDF (as mesmas folhas da tela).");
         AtualizarBarra();
     }
@@ -807,6 +821,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.Anel.IsActive = false;
         R.Espera.Visibility = Visibility.Collapsed;
         AtualizarComandos();
+        if (fecharQuandoLivre) { fecharQuandoLivre = false; DispatcherQueue.TryEnqueue(Close); }
     }
 
     void LimparAvisos()
@@ -814,6 +829,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.AvisoLargura.IsOpen = false;
         R.AvisoEstouro.IsOpen = false;
         R.AvisoForaDaArea.IsOpen = false;
+        R.AvisoBloqueio.IsOpen = false;
         R.AvisoMensagem.IsOpen = false;
     }
 

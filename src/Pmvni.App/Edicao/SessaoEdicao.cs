@@ -31,13 +31,13 @@ internal sealed class SessaoEdicao : IAsyncDisposable
 {
     readonly ModeloCarregado modelo;
     readonly ITelaEdicao tela;
-    int descartada;
+    readonly GravadorPacote gravador;
+    int descartada, gravacoesEmCurso;
 
     SessaoEdicao(string caminho, PacoteAberto aberto, Recompositor recompositor, ModeloCarregado modelo, ITelaEdicao tela)
     {
-        Caminho = caminho;
+        gravador = new GravadorPacote(caminho, aberto.Disco);
         Conteudo = aberto.Conteudo;
-        Disco = aberto.Disco;
         SomenteLeitura = aberto.SomenteLeitura;
         MotivoSomenteLeitura = aberto.MotivoSomenteLeitura;
         Recompositor = recompositor;
@@ -50,13 +50,13 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     }
 
     /// <summary>O <c>.pmvrel</c> no disco.</summary>
-    public string Caminho { get; private set; }
+    public string Caminho => gravador.Caminho;
 
     /// <summary>O conteúdo como foi lido (manifesto, recebido, imagens); o projeto e o histórico vivos estão em <see cref="Revisao"/>.</summary>
     public ConteudoPacote Conteudo { get; }
 
     /// <summary>O disco como foi aberto ou gravado por último: o "esperado" da próxima gravação e a referência da exportação.</summary>
-    public EstadoDisco Disco { get; private set; }
+    public EstadoDisco Disco => gravador.Disco;
 
     public bool SomenteLeitura { get; }
     public string? MotivoSomenteLeitura { get; }
@@ -176,44 +176,41 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     public ConteudoPacote ConteudoAtual() =>
         Conteudo with { Projeto = Revisao.Projeto.Clonar(), Historico = Revisao.HistoricoCompleto.ToList() };
 
-    /// <summary>Grava no mesmo arquivo. Conflito (o disco mudou desde a abertura/última gravação) ⇒ Conflito, nada é trocado; outra falha ⇒
-    /// Não salvo (o arquivo antigo fica intacto). As exceções seguem para quem chamou mostrar.</summary>
-    public async Task GravarAsync()
+    /// <summary>Grava no mesmo arquivo. As gravações vão em fila (<see cref="GravadorPacote"/>): um Salvar pedido durante outro roda
+    /// depois dele, com o conteúdo mais novo e o disco que ele deixou; nunca dá conflito consigo mesmo. Conflito (outro programa mudou o
+    /// disco) ⇒ Conflito, nada é trocado; outra falha ⇒ Não salvo (o arquivo antigo fica intacto). As exceções seguem para quem chamou.</summary>
+    public Task GravarAsync()
     {
         if (SomenteLeitura) throw new InvalidOperationException("O relatório está aberto somente para leitura.");
-        var conteudo = ConteudoAtual();
-        var anterior = Estado;
-        DefinirEstado(EstadoGravacao.Salvando);
-        try
-        {
-            var esperado = Disco;
-            Disco = await Task.Run(() => Pacote.Gravar(Caminho, conteudo, esperado));
-            Revisao.MarcarGravado();
-            SalvoEmLocal = DateTime.Now;
-            DefinirEstado(EstadoGravacao.Salvo);
-        }
-        catch (ConflitoNoDiscoException) { DefinirEstado(EstadoGravacao.Conflito); throw; }
-        catch { DefinirEstado(anterior == EstadoGravacao.Conflito ? EstadoGravacao.Conflito : EstadoGravacao.NaoSalvo); throw; }
+        return GravarNaFilaAsync(c => gravador.GravarAsync(c));
     }
 
-    /// <summary>Grava num arquivo novo (nunca sobrescreve outro) e passa a editar esse arquivo.</summary>
-    public async Task GravarComoAsync(string novo)
+    /// <summary>Grava num arquivo novo (nunca sobrescreve outro) e passa a editar esse arquivo; na mesma fila das gravações.</summary>
+    public Task GravarComoAsync(string novo) => GravarNaFilaAsync(c => gravador.GravarComoAsync(novo, c));
+
+    async Task GravarNaFilaAsync(Func<Func<ConteudoPacote>, Task<EstadoDisco>> gravar)
     {
-        var destino = Path.GetFullPath(novo);
-        if (string.Equals(destino, Caminho, StringComparison.OrdinalIgnoreCase)) { await GravarAsync(); return; }
-        if (File.Exists(destino)) throw new IOException("Já existe um arquivo com esse nome: " + Path.GetFileName(destino) + ". Escolha outro nome.");
-        var conteudo = ConteudoAtual();
         var anterior = Estado;
+        gravacoesEmCurso++;
         DefinirEstado(EstadoGravacao.Salvando);
+        var registros = -1;
         try
         {
-            Disco = await Task.Run(() => Pacote.Gravar(destino, conteudo, esperado: null));
-            Caminho = destino;
-            Revisao.MarcarGravado();
+            // O conteúdo é tirado quando chega a vez desta gravação: o que já estava na fila não volta a ser gravado velho.
+            await gravar(() => { registros = Revisao.HistoricoCompleto.Count; return ConteudoAtual(); });
+            gravacoesEmCurso--;
             SalvoEmLocal = DateTime.Now;
-            DefinirEstado(EstadoGravacao.Salvo);
+            // Um comando aplicado enquanto gravava fica para a próxima gravação.
+            if (Revisao.HistoricoCompleto.Count == registros) { Revisao.MarcarGravado(); DefinirEstado(EstadoGravacao.Salvo, final: true); }
+            else DefinirEstado(EstadoGravacao.NaoSalvo, final: true);
         }
-        catch { DefinirEstado(anterior); throw; }
+        catch (ConflitoNoDiscoException) { gravacoesEmCurso--; DefinirEstado(EstadoGravacao.Conflito, final: true); throw; }
+        catch
+        {
+            gravacoesEmCurso--;
+            DefinirEstado(anterior == EstadoGravacao.Conflito ? EstadoGravacao.Conflito : EstadoGravacao.NaoSalvo, final: true);
+            throw;
+        }
     }
 
     /// <summary>Exporta o PDF das folhas que a tela mostra, a partir dos bytes efetivos. Recusa (sem gravar nada): erros finais
@@ -232,8 +229,10 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         return await Exportador.ExportarFinalAsync(p.Dados, p.CaminhoDados, p.Config, pdf, r.Composicao.Plano, modelo, Disco.Sha256);
     }
 
-    void DefinirEstado(EstadoGravacao e)
+    /// <summary>Com gravações ainda na fila, o estado continua "Salvando…" até a última terminar.</summary>
+    void DefinirEstado(EstadoGravacao e, bool final = false)
     {
+        if (final && gravacoesEmCurso > 0 && e != EstadoGravacao.Conflito) e = EstadoGravacao.Salvando;
         Estado = e;
         Mudou?.Invoke();
     }

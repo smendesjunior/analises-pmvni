@@ -15,6 +15,8 @@
     <StackPanel Grid.Row="0" Spacing="1">
       <InfoBar x:Name="AvisoLargura" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
       <InfoBar x:Name="AvisoEstouro" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="False"/>
+      <InfoBar x:Name="AvisoBloqueio" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="True"
+               Title="Exportação bloqueada"/>
       <InfoBar x:Name="AvisoForaDaArea" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
       <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
     </StackPanel>

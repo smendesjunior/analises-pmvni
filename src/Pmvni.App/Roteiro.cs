@@ -327,7 +327,9 @@ internal static class Roteiro
                 var (ok, _, erro, excecao) = await j.ExportarParaAsync(pdf);
                 p["exportacao_bloqueada"] = !ok && excecao is ConferenciaFinalException;
                 p["mensagem"] = erro;
-                p["ok"] = a.Preparado.ErrosFinais.Count > 0 && !j.ExportarHabilitado && j.DicaExportar.StartsWith("A exportação está bloqueada", StringComparison.Ordinal)
+                p["aviso_de_bloqueio_aberto"] = j.InfoBloqueio.IsOpen;
+                p["aviso_de_bloqueio_texto"] = j.InfoBloqueio.Message;
+                p["ok"] = j.InfoBloqueio.IsOpen && a.Preparado.ErrosFinais.Count > 0 && !j.ExportarHabilitado && j.DicaExportar.StartsWith("A exportação está bloqueada", StringComparison.Ordinal)
                     && p["exportacao_bloqueada"]!.GetValue<bool>() && !File.Exists(pdf);
             }
             finally { File.Delete(copia); }
@@ -402,6 +404,24 @@ internal static class Roteiro
             p["titulo_da_barra"] = j.TextoTituloAtual;
             p["ok"] = p["plano_igual_ao_da_importacao"]!.GetValue<bool>() && p["fechado_sem_relatorio"]!.GetValue<bool>()
                 && j.TextoEstadoAtual.StartsWith("Salvo", StringComparison.Ordinal) && j.TextoTituloAtual.StartsWith("Proc. ", StringComparison.Ordinal);
+        });
+
+        await Passo("12_salvar_duas_vezes_sem_conflito", async p =>
+        {
+            // Ctrl+S duas vezes (e mais um Salvar direto) ao mesmo tempo: as gravações vão em fila, nunca em conflito consigo mesmas.
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            await Task.WhenAll(j.ExecutarComandoAsync(ComandosApp.ArquivoSalvar), j.ExecutarComandoAsync(ComandosApp.ArquivoSalvar), s.GravarAsync());
+            var lido = Pacote.Ler(pacoteLongo);
+            p["estado_de_gravacao"] = j.TextoEstadoAtual;
+            p["disco_confere"] = lido.Disco.Sha256 == s.Disco.Sha256;
+            p["aviso_de_erro"] = j.InfoMensagem.IsOpen && j.InfoMensagem.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Error;
+            var pdf = Path.Combine(pasta, "longo-depois-de-salvar.pdf");
+            File.Delete(pdf);
+            var (ok, _, erro, _) = await j.ExportarParaAsync(pdf);
+            p["exporta_depois"] = ok;
+            p["erro_ao_exportar"] = erro;
+            p["ok"] = s.Estado == EstadoGravacao.Salvo && j.TextoEstadoAtual.StartsWith("Salvo", StringComparison.Ordinal)
+                && p["disco_confere"]!.GetValue<bool>() && !p["aviso_de_erro"]!.GetValue<bool>() && ok;
         });
 
         await j.FecharSessaoAsync();

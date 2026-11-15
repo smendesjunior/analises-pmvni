@@ -540,15 +540,6 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
         using var ev = new Eventos(tela.Documento);
         await EstadoAsync(null, true);
         await Js("window.__dp = []; document.addEventListener('keydown', e => window.__dp.push([e.key, e.ctrlKey, e.altKey, e.shiftKey, e.defaultPrevented])); 0");
-        // A primeira tecla logo depois de carregar às vezes não chega ao host oculto (o teclado ainda não chegou à página):
-        // uma tecla fora da lista até a página registrá-la; depois o registro recomeça vazio.
-        for (var i = 0; i < 40 && (await Js("window.__dp.length")).GetInt32() == 0; i++)
-        {
-            await TeclaAsync("Shift", "ShiftLeft", 16);
-            await Task.Delay(50);
-        }
-        await Js("window.__dp = []; 0");
-        ev.Descartar();
 
         var atalhos = new (string Nome, string Key, string Code, int Vk, int Mods)[]
         {
@@ -694,6 +685,7 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
             await tela.CdpAsync("Emulation.setFocusEmulationEnabled", """{"enabled":true}""");
             await tela.Documento.ChamarAsync("definirZoom", new { zoom = 1.0 }, Limite);
             await Js("window.scrollTo(0, 0); 0");
+            await GarantirTecladoAsync();
             return new Aberto(pacote, rec, e, c, pacote.Projeto.Itens.Select(i => i.Id).ToList());
         }
         catch
@@ -708,6 +700,7 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
         await tela.Documento.CarregarAsync(a.E.Render, a.E.Config);
         await tela.Documento.AplicarPlanoAsync(a.C.Plano);
         await tela.Documento.ChamarAsync("definirZoom", new { zoom = 1.0 }, Limite);
+        await GarantirTecladoAsync();
     }
 
     static object Marcas(bool visiveis, string[]? alterados = null, object[]? excluidos = null) =>
@@ -768,6 +761,21 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
             await tela.CdpAsync("Input.dispatchMouseEvent", Json(new { type = "mousePressed", x, y, button = botao, buttons = mask, clickCount = n }));
             await tela.CdpAsync("Input.dispatchMouseEvent", Json(new { type = "mouseReleased", x, y, button = botao, buttons = 0, clickCount = n }));
         }
+    }
+
+    /// <summary>Logo depois de carregar, a primeira tecla às vezes não chega à página do host oculto (o teclado ainda não chegou a
+    /// ela): manda Shift (fora da lista de atalhos, sem efeito) até a página registrar um keydown. Falha claramente se não chegar.</summary>
+    async Task GarantirTecladoAsync()
+    {
+        await Js("window.__teclado = 0; window.__ouvirTeclado = () => window.__teclado++; window.addEventListener('keydown', window.__ouvirTeclado, true); 0");
+        for (var i = 0; i < 40 && (await Js("window.__teclado")).GetInt32() == 0; i++)
+        {
+            await TeclaAsync("Shift", "ShiftLeft", 16);
+            await Task.Delay(50);
+        }
+        var chegou = (await Js("window.__teclado")).GetInt32() > 0;
+        await Js("window.removeEventListener('keydown', window.__ouvirTeclado, true); 0");
+        Assert.True(chegou, "O teclado não chegou à página (40 tentativas com Shift).");
     }
 
     async Task TeclaAsync(string key, string code, int vk, int modificadores = 0)

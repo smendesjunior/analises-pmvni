@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-11-15T04:50:40Z",
+  "gerado_em": "2026-11-15T05:06:03Z",
   "webview2": "157.0.4341.46",
   "escala_do_monitor": 1.5,
   "janela_px": {
@@ -16,7 +16,7 @@
       "folhas_que_transbordam_na_tela": [],
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "titulo_confere": true,
-      "estado_de_gravacao": "Salvo 01:50",
+      "estado_de_gravacao": "Salvo 02:06",
       "composicao": "Composto: 21 folhas",
       "itens_na_lista": 77,
       "primeiros_itens": [
@@ -32,7 +32,7 @@
       "aviso_largura_confere": true,
       "exportar_habilitado": true,
       "rodape_folha": "folha 1 de 21",
-      "latencia_recomposicao_ms": 1098,
+      "latencia_recomposicao_ms": 1109,
       "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
       "folhas_com_conteudo_alem_da_borda": [
         14
@@ -52,7 +52,7 @@
         "folhas": 21,
         "fundoDaFolha": "rgb(255, 255, 255)",
         "fundoDaPagina": "rgb(31, 31, 31)",
-        "janela": 640,
+        "janela": 638,
         "passoEsperado": 1152.755905511811,
         "passoMax": 1152.740234375,
         "passoMin": 1152.73828125,
@@ -160,10 +160,10 @@
         },
         {
           "como": "botão Página inteira",
-          "zoom": 0.5282758136924803,
+          "zoom": 0.5264941077441077,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 419.3
+          "largura_da_folha_px": 417.9
         },
         {
           "como": "comando exibir.mais",
@@ -181,10 +181,10 @@
         },
         {
           "como": "comando exibir.pagina",
-          "zoom": 0.5416386083052749,
+          "zoom": 0.5398569023569023,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 429.9
+          "largura_da_folha_px": 428.5
         },
         {
           "como": "comando exibir.largura",
@@ -294,7 +294,7 @@
       "aviso_de_erro_aberto": true,
       "aviso_de_erro_texto": "Folha 3: bloco 'secao-2' não cabe na página (altura do conteúdo: 1089,2 mm).",
       "exportar_habilitado": false,
-      "dica_do_botao": "A exportação está bloqueada: Folha 3: bloco 'secao-2' não cabe na página (altura do conteúdo: 1089,2 mm). Corrija o conteúdo para exportar o PDF.",
+      "dica_do_botao": "Exportar o relatório em PDF (as mesmas folhas da tela).",
       "exportacao_recusada": true,
       "mensagem_da_recusa": "Exportação recusada: Bloco 'secao-2' excede a página 3 (altura do conteúdo: 1089,2 mm).",
       "nenhum_pdf_gravado": true,
@@ -336,6 +336,8 @@
       "composicao": "Composto: 2 folhas · Rascunho: há campos [ ] não preenchidos (1)",
       "exportacao_bloqueada": true,
       "mensagem": "Exportação recusada pela conferência do kit: Campos ainda não preenchidos (texto entre colchetes): [Nome do requerente]",
+      "aviso_de_bloqueio_aberto": true,
+      "aviso_de_bloqueio_texto": "Rascunho: há campos [ ] não preenchidos (1). O PDF final só sai com o relatório completo: Campos ainda não preenchidos (texto entre colchetes): [Nome do requerente]",
       "ok": true
     },
     "9_pacote_mudou_recusa_exportar": {
@@ -379,8 +381,16 @@
       "fechado_sem_relatorio": true,
       "plano_igual_ao_da_importacao": true,
       "historico": 1,
-      "estado_de_gravacao": "Salvo 01:50",
+      "estado_de_gravacao": "Salvo 02:06",
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
+      "ok": true
+    },
+    "12_salvar_duas_vezes_sem_conflito": {
+      "estado_de_gravacao": "Salvo 02:06",
+      "disco_confere": true,
+      "aviso_de_erro": false,
+      "exporta_depois": true,
+      "erro_ao_exportar": null,
       "ok": true
     }
   },
