@@ -18,6 +18,10 @@ namespace Pmvni.App;
 /// comandos só até a partida: a análise em andamento nunca prende a fila.</summary>
 public sealed partial class MainWindow
 {
+    /// <summary>Um relatório da IA que ainda não foi importado: a análise do Claude que terminou com o editor fechado (sem <see cref="Documento"/>: procurado no
+    /// <c>delivery.json</c>) ou uma importação que falhou ou foi cancelada (com o documento já localizado). Sai da lista só depois de importado.</summary>
+    internal sealed record ImportacaoPendente(Provedor Provedor, Processo Processo, string Registro, string? Documento, string? Pdf);
+
     /// <summary>Uma linha da lista de anexos (nada é gravado antes de Analisar).</summary>
     sealed class AnexoNovo(string origem, long tamanho, DestinoAnexo destino)
     {
@@ -39,7 +43,7 @@ public sealed partial class MainWindow
     readonly List<AnexoNovo> anexosNR = [];
     readonly List<string> recusasNR = [];
     readonly Dictionary<ExecucaoEmCurso, Task<FimAnalise>> conclusoes = new();
-    readonly List<ExecucaoClaudePendente> pendentesConcluidos = [];
+    readonly List<ImportacaoPendente> importacoesPendentes = [];
     Task tarefaListaNR = Task.CompletedTask, tarefaPreviaNR = Task.CompletedTask;
     int sequenciaPreviaNR;
     DispatcherQueueTimer relogioAnalise = null!;
@@ -61,7 +65,7 @@ public sealed partial class MainWindow
     internal IReadOnlyList<ExecucaoEmCurso> ExecucoesEmCurso => sessaoNR.Execucoes;
     internal ExecucaoEmCurso? ExecucaoMostrada => execucaoMostrada;
     internal IReadOnlyList<ExecucaoClaudePendente> ExecucoesClaudePendentes => ajustes.ExecucoesClaude;
-    internal IReadOnlyList<ExecucaoClaudePendente> PendentesParaImportar => pendentesConcluidos;
+    internal IReadOnlyList<ImportacaoPendente> PendentesParaImportar => importacoesPendentes;
     internal bool BotaoAnaliseHabilitado(Provedor p) => (p == Provedor.ChatGpt ? NR.BotaoChatGpt : NR.BotaoClaude).IsEnabled;
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);
     internal void EsquecerAviso(Provedor p) { ajustes.Agentes[p].AvisoVersao = null; ajustes.Agentes[p].AvisoEm = null; SalvarAjustes(); }
@@ -71,7 +75,14 @@ public sealed partial class MainWindow
     internal void EsquecerExecucoesClaude()
     {
         ajustes.ExecucoesClaude.Clear();
-        pendentesConcluidos.Clear();
+        importacoesPendentes.Clear();
+        SalvarAjustes();
+    }
+
+    /// <summary>Roteiro: um item de <c>execucoes_claude</c> como se o <c>ajustes.json</c> tivesse sido editado à mão.</summary>
+    internal void AdicionarPendenteClaude(ExecucaoClaudePendente pend)
+    {
+        ajustes.ExecucoesClaude.Add(pend);
         SalvarAjustes();
     }
 
@@ -122,7 +133,7 @@ public sealed partial class MainWindow
         n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
         n.BotaoMostrarRegistroResultado.Click += (_, _) => { if (ultimoResultadoNR is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
         n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await ContinuarAnaliseAsync());
-        n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(async () => { if (pendentesConcluidos.FirstOrDefault() is { } pend) await ImportarPendenteAsync(pend); });
+        n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
         n.ExpansorUltimaMensagem.Expanding += async (_, _) => { if (execucaoMostrada is { } e) await MostrarUltimaMensagemAsync(e); };
         BotaoAnalise.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(async () =>
         {
@@ -376,18 +387,23 @@ public sealed partial class MainWindow
         await AtualizarPreviaNRAsync();
     }
 
-    /// <summary>A caixa Destino da linha (começa em 0).</summary>
-    internal void DefinirDestino(int linha, DestinoAnexo d)
+    /// <summary>A caixa Destino da linha (começa em 0; o roteiro escolhe pela posição na tela, resolvida na hora).</summary>
+    internal void DefinirDestino(int linha, DestinoAnexo d) => DefinirDestino(anexosNR[linha], d);
+
+    internal void RemoverAnexo(int linha) => RemoverAnexo(anexosNR[linha]);
+
+    // Os controles de cada linha guardam o próprio anexo (não a posição): um clique que chega antes de a lista ser redesenhada nunca muda outra linha.
+    void DefinirDestino(AnexoNovo a, DestinoAnexo d)
     {
-        var a = anexosNR[linha];
+        if (!anexosNR.Contains(a)) return;
         a.Destino = d;
         a.Escolhido = true;
         tarefaPreviaNR = AtualizarPreviaNRAsync();
     }
 
-    internal void RemoverAnexo(int linha)
+    void RemoverAnexo(AnexoNovo a)
     {
-        anexosNR.RemoveAt(linha);
+        if (!anexosNR.Remove(a)) return;
         tarefaPreviaNR = AtualizarPreviaNRAsync();
     }
 
@@ -419,7 +435,6 @@ public sealed partial class MainWindow
         var opcoes = FluxoNovoRelatorio.OpcoesDestino(revisaoAtualNR);
         for (var i = 0; i < anexosNR.Count; i++)
         {
-            var linha = i;
             var a = anexosNR[i];
             var grade = new Grid { ColumnSpacing = 10, Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(6),
                 Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"] };
@@ -435,14 +450,14 @@ public sealed partial class MainWindow
             AutomationPropertiesNome(caixa, "Destino de " + a.Nome);
             foreach (var o in opcoes) caixa.Items.Add(new ComboBoxItem { Content = o.Rotulo, Tag = o.Destino });
             caixa.SelectedItem = caixa.Items.OfType<ComboBoxItem>().FirstOrDefault(x => x.Tag is DestinoAnexo d && d == a.Destino);
-            caixa.SelectionChanged += (_, _) => { if (caixa.SelectedItem is ComboBoxItem { Tag: DestinoAnexo d } && d != anexosNR[linha].Destino) DefinirDestino(linha, d); };
+            caixa.SelectionChanged += (_, _) => { if (caixa.SelectedItem is ComboBoxItem { Tag: DestinoAnexo d } && d != a.Destino) DefinirDestino(a, d); };
             Grid.SetColumn(caixa, 1);
             grade.Children.Add(caixa);
             var previa = new TextBlock { Text = a.Previa, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = true };
             Grid.SetColumn(previa, 2);
             grade.Children.Add(previa);
             var remover = new Button { Content = "Remover da lista", VerticalAlignment = VerticalAlignment.Center };
-            remover.Click += (_, _) => RemoverAnexo(linha);
+            remover.Click += (_, _) => RemoverAnexo(a);
             Grid.SetColumn(remover, 3);
             grade.Children.Add(remover);
             lista.Children.Add(grade);
@@ -640,19 +655,12 @@ public sealed partial class MainWindow
         if (fechada) return fim;
         sessaoNR.Remover(e);
         if (e.Abandonada) { AtualizarTituloAnalise(); AtualizarBotoesNR(); return fim; }
-        if (e.Provedor == Provedor.Claude && ajustes.ExecucoesClaude.RemoveAll(x => string.Equals(x.Registro, e.Registro.Pasta, StringComparison.OrdinalIgnoreCase)) > 0)
-            SalvarAjustes();
+        var comRelatorio = fim.Situacao == "concluida" && fim.Documento is not null;
+        // A análise do Claude sai dos ajustes quando acaba sem relatório; com relatório, só depois de importado (até lá o editor reaberto ainda o oferece).
+        if (e.Provedor == Provedor.Claude && !comRelatorio) EsquecerPendenteClaude(e.Registro.Pasta);
         if (ReferenceEquals(execucaoMostrada, e)) MostrarFormularioNR();
-        if (fim.Situacao == "concluida" && fim.Documento is { } documento)
-        {
-            var importou = await NaFilaAsync(() => ImportarAnaliseAsync(e.Processo, documento));
-            if (importou && sessao is { } s)
-            {
-                try { e.Registro.Atualizar(o => o["pmvrel"] = s.Caminho); }
-                catch (Exception x) when (x is IOException or UnauthorizedAccessException) { System.Diagnostics.Debug.WriteLine("[registro] " + x.Message); }
-                MostrarMensagem(InfoBarSeverity.Success, "Relatório importado", FluxoNovoRelatorio.TextoImportado(e.Provedor, s.Caminho, fim.Pdf));
-            }
-        }
+        if (comRelatorio)
+            await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf));
         else MostrarResultadoNR(e, fim);
         AtualizarTituloAnalise();
         AtualizarBotoesNR();
@@ -745,15 +753,21 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Na abertura (desenho §12.7): a situação de cada análise do Claude que seguia quando o editor fechou. Ainda em andamento ⇒ volta a acompanhar;
-    /// <c>CONCLUIDO</c> ⇒ InfoBar com "Importar relatório"; parou de outro jeito ⇒ o rótulo e o erro do kit; pasta sumida ⇒ sai da lista.</summary>
+    /// <c>CONCLUIDO</c> ⇒ InfoBar com "Importar relatório"; parou de outro jeito ⇒ o rótulo e o erro do kit; pasta sumida ⇒ sai da lista. Os caminhos vêm do
+    /// <c>ajustes.json</c> (editável): um registro fora de <c>&lt;processo&gt;\.pmvni-ai\editor</c> (ou atrás de um atalho) é descartado com o motivo à vista.</summary>
     internal async Task RetomarExecucoesClaudeAsync()
     {
-        var mudou = false;
         foreach (var pend in ajustes.ExecucoesClaude.ToList())
         {
             if (sessaoNR.EmAndamento(pend.Processo)) continue;
+            if (await Task.Run(() => RegistroExecucao.MotivoInvalido(pend.Processo, pend.Registro)) is { } invalido)
+            {
+                EsquecerPendenteClaude(pend.Registro);
+                MostrarMensagem(InfoBarSeverity.Warning, "Uma análise guardada nos ajustes foi descartada", invalido);
+                continue;
+            }
             var existe = await Task.Run(() => Directory.Exists(pend.Processo) && Directory.Exists(pend.Registro));
-            if (!existe) { ajustes.ExecucoesClaude.Remove(pend); mudou = true; continue; }
+            if (!existe) { EsquecerPendenteClaude(pend.Registro); continue; }
             var pecas = await LerPecasAsync();
             var s = await Orquestrador.SituacaoClaudeAsync(pend.Processo, pecas);
             if (s is null) continue;     // sem resposta do kit agora: fica para a próxima abertura
@@ -761,74 +775,122 @@ public sealed partial class MainWindow
             switch (s.Codigo)
             {
                 case "CONCLUIDO":
-                    if (!pendentesConcluidos.Contains(pend)) pendentesConcluidos.Add(pend);
-                    MostrarPendenteConcluido(processo);
+                    if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, pend.Registro)))
+                        importacoesPendentes.Add(new ImportacaoPendente(Provedor.Claude, processo, pend.Registro, null, null));
+                    MostrarImportacaoPendente(processo, FluxoNovoRelatorio.TextoClaudeTerminou(processo), InfoBarSeverity.Success);
                     break;
                 case "EM_ANDAMENTO" or "AGUARDANDO_COTA" or "INICIANDO":
-                    var inicio = await Task.Run(() => LerInicio(pend.Registro)) ?? DateTimeOffset.UtcNow;
+                    if (await Task.Run(() => LerInicio(pend.Registro)) is not { } inicio)
+                    {
+                        // Sem a hora de início não há como saber se o delivery.json do kit é desta análise: não acompanha nem importa às cegas.
+                        EsquecerPendenteClaude(pend.Registro);
+                        MostrarMensagem(InfoBarSeverity.Warning, "A análise com o Claude não foi retomada", FluxoNovoRelatorio.TextoSemInicio(processo, pend.Registro));
+                        break;
+                    }
                     try
                     {
                         var e = await sessaoNR.RetomarClaudeAsync(processo, pend.Registro, inicio);
                         conclusoes[e] = ConcluirAsync(e);
                     }
-                    catch (Exception x) when (x is AnaliseRecusadaException or IOException or UnauthorizedAccessException) { MostrarMensagem(InfoBarSeverity.Warning, "A análise com o Claude não foi retomada", x.Message); }
+                    catch (Exception x) when (x is AnaliseRecusadaException or IOException or UnauthorizedAccessException or InvalidOperationException)
+                    {
+                        MostrarMensagem(InfoBarSeverity.Warning, "A análise com o Claude não foi retomada", x.Message);
+                    }
                     break;
                 default:
-                    ajustes.ExecucoesClaude.Remove(pend);
-                    mudou = true;
+                    EsquecerPendenteClaude(pend.Registro);
                     MostrarMensagem(InfoBarSeverity.Warning, $"A análise com o Claude de {FluxoNovoRelatorio.Identificacao(processo)} parou",
                         (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro));
                     break;
             }
         }
-        if (mudou) SalvarAjustes();
         AtualizarTituloAnalise();
         AtualizarBotoesNR();
     }
 
-    void MostrarPendenteConcluido(Processo processo)
+    static bool MesmoRegistro(string a, string b)
+    {
+        try { return string.Equals(Path.GetFullPath(a).TrimEnd('\\'), Path.GetFullPath(b).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase); }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { return string.Equals(a, b, StringComparison.OrdinalIgnoreCase); }
+    }
+
+    /// <summary>A análise sai de <c>execucoes_claude</c> (e da lista do "Importar relatório").</summary>
+    void EsquecerPendenteClaude(string registro)
+    {
+        importacoesPendentes.RemoveAll(i => MesmoRegistro(i.Registro, registro));
+        if (ajustes.ExecucoesClaude.RemoveAll(x => MesmoRegistro(x.Registro, registro)) > 0) SalvarAjustes();
+    }
+
+    /// <summary>"Importar relatório" à vista (na página e, fora dela, na mensagem do módulo, sem apagar o motivo de uma falha que já esteja lá).</summary>
+    void MostrarImportacaoPendente(Processo processo, string mensagem, InfoBarSeverity severidade)
     {
         if (fechada) return;
         var aviso = NR.AvisoResultado;
-        aviso.Severity = InfoBarSeverity.Success;
-        aviso.Title = "Análise concluída";
-        aviso.Message = FluxoNovoRelatorio.TextoClaudeTerminou(processo);
+        aviso.Severity = severidade;
+        aviso.Title = severidade == InfoBarSeverity.Success ? "Análise concluída" : "O relatório não foi importado";
+        aviso.Message = mensagem;
         NR.BotaoImportarPendente.Visibility = Visibility.Visible;
         NR.BotaoContinuar.Visibility = Visibility.Collapsed;
         NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed;
         aviso.IsOpen = true;
         if (!PaginaNovoRelatorioVisivel)
         {
-            MostrarMensagem(InfoBarSeverity.Success, "Análise concluída", FluxoNovoRelatorio.TextoClaudeTerminou(processo));
+            var modulo = AvisoDoModulo;
+            if (!(modulo.IsOpen && modulo.Severity == InfoBarSeverity.Error)) MostrarMensagem(severidade, aviso.Title, mensagem);
             var botao = new Button { Content = "Importar relatório" };
-            botao.Click += async (_, _) => await TentarAsync(async () => { if (pendentesConcluidos.FirstOrDefault() is { } pend) await ImportarPendenteAsync(pend); });
+            botao.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
             AvisoDoModulo.ActionButton = botao;
         }
     }
 
-    /// <summary>"Importar relatório" de uma análise do Claude que terminou com o editor fechado: o <c>delivery.json</c> do kit (mais novo que o início da execução).</summary>
-    internal async Task<bool> ImportarPendenteAsync(ExecucaoClaudePendente pend)
+    /// <summary>"Importar relatório": a do Claude que terminou com o editor fechado procura o <c>delivery.json</c> do kit (mais novo que o início da execução);
+    /// a que já tem o documento (a importação de antes não aconteceu) só importa. A pendência só sai da lista (e dos ajustes) depois de importar; uma falha ou
+    /// um cancelamento deixa o "Importar relatório" à vista para tentar de novo.</summary>
+    internal async Task<bool> ImportarPendenteAsync(ImportacaoPendente imp)
     {
-        var inicio = await Task.Run(() => LerInicio(pend.Registro)) ?? DateTimeOffset.MinValue;
-        var r = await Task.Run(() => ResultadoAnalise.Localizar(pend.Processo, Provedor.Claude, inicio.UtcDateTime, pend.Registro));
-        pendentesConcluidos.Remove(pend);
-        ajustes.ExecucoesClaude.Remove(pend);
-        SalvarAjustes();
         NR.AvisoResultado.IsOpen = false;
-        if (r.Documento is null)
+        if (imp.Documento is not null) return await ImportarAsync(imp);
+        if (await Task.Run(() => RegistroExecucao.MotivoInvalido(imp.Processo.Pasta, imp.Registro)) is { } invalido)
         {
-            MostrarMensagem(InfoBarSeverity.Error, "O relatório não foi importado", r.Motivo ?? "");
+            EsquecerPendenteClaude(imp.Registro);
+            MostrarMensagem(InfoBarSeverity.Warning, "Uma análise guardada nos ajustes foi descartada", invalido);
             return false;
         }
-        var processo = await ProcessoDaPastaAsync(pend.Processo);
-        var ok = await NaFilaAsync(() => ImportarAnaliseAsync(processo, r.Documento));
-        if (ok && sessao is { } s)
+        if (await Task.Run(() => LerInicio(imp.Registro)) is not { } inicio)
         {
-            try { using var registro = RegistroExecucao.Abrir(pend.Registro); registro.Atualizar(o => { o["pmvrel"] = s.Caminho; o["situacao"] = "concluida"; o["document"] = r.Documento; }); }
-            catch (Exception x) when (x is IOException or UnauthorizedAccessException) { System.Diagnostics.Debug.WriteLine("[registro] " + x.Message); }
-            MostrarMensagem(InfoBarSeverity.Success, "Relatório importado", FluxoNovoRelatorio.TextoImportado(Provedor.Claude, s.Caminho, r.Pdf));
+            EsquecerPendenteClaude(imp.Registro);
+            MostrarMensagem(InfoBarSeverity.Warning, "O relatório não foi importado", FluxoNovoRelatorio.TextoSemInicio(imp.Processo, imp.Registro));
+            return false;
         }
-        return ok;
+        var r = await Task.Run(() => ResultadoAnalise.Localizar(imp.Processo.Pasta, Provedor.Claude, inicio.UtcDateTime, imp.Registro));
+        if (r.Documento is null)
+        {
+            MostrarImportacaoPendente(imp.Processo, r.Motivo ?? "", InfoBarSeverity.Error);
+            return false;
+        }
+        return await ImportarAsync(imp with { Documento = r.Documento, Pdf = r.Pdf });
+    }
+
+    /// <summary>Importa o documento que o kit declarou e abre o <c>.pmvrel</c>; só então a pendência sai e o registro recebe o <c>.pmvrel</c>.</summary>
+    async Task<bool> ImportarAsync(ImportacaoPendente imp)
+    {
+        var importou = await NaFilaAsync(() => ImportarAnaliseAsync(imp.Processo, imp.Documento!));
+        if (!importou || sessao is not { } s)
+        {
+            if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, imp.Registro))) importacoesPendentes.Add(imp);
+            else importacoesPendentes[importacoesPendentes.FindIndex(i => MesmoRegistro(i.Registro, imp.Registro))] = imp;
+            MostrarImportacaoPendente(imp.Processo, FluxoNovoRelatorio.TextoNaoImportado(imp.Provedor, imp.Processo), InfoBarSeverity.Error);
+            return false;
+        }
+        EsquecerPendenteClaude(imp.Registro);
+        try
+        {
+            using var registro = RegistroExecucao.Abrir(imp.Registro, imp.Processo.Pasta);
+            registro.Atualizar(o => { o["pmvrel"] = s.Caminho; o["document"] = imp.Documento; o["situacao"] = "concluida"; });
+        }
+        catch (Exception x) when (x is IOException or UnauthorizedAccessException or InvalidOperationException) { System.Diagnostics.Debug.WriteLine("[registro] " + x.Message); }
+        MostrarMensagem(InfoBarSeverity.Success, "Relatório importado", FluxoNovoRelatorio.TextoImportado(imp.Provedor, s.Caminho, imp.Pdf));
+        return true;
     }
 
     async Task<Processo> ProcessoDaPastaAsync(string pasta)

@@ -32,7 +32,7 @@ public partial class OrquestradorTestes
 
         // O registro da execução reaberto guarda o que já tinha (provedor, início, pedido) e recebe o fim.
         var inicio = DateTimeOffset.Parse(c.Execucao()["inicio"]!.GetValue<string>(), System.Globalization.CultureInfo.InvariantCulture);
-        using var registro = RegistroExecucao.Abrir(c.Registro.Pasta);
+        using var registro = RegistroExecucao.Abrir(c.Registro.Pasta, c.Processo.Pasta);
         Assert.Equal(c.Registro.Pasta, registro.Pasta);
         var progresso = new Coletor();
         var pe = new PedidoExecucao(Provedor.Claude, c.Processo, c.Pecas, ModoAcesso.Conta, c.RaizDados, null, Array.Empty<Pmvni.Revisao.ArquivoArquivado>(), registro);
@@ -54,16 +54,63 @@ public partial class OrquestradorTestes
     }
 
     [Fact]
-    public void registro_aberto_de_pasta_que_nao_existe_e_recusado()
+    public void registro_reaberto_so_dentro_do_editor_do_processo()
     {
         using var t = Ambiente.PastaDeTeste("registro-abrir");
-        Assert.Throws<DirectoryNotFoundException>(() => RegistroExecucao.Abrir(Path.Combine(t, "nao-existe")));
+        var processo = Ambiente.NovoProcesso(t).Pasta;
+        var editor = Path.Combine(processo, ".pmvni-ai", "editor");
+        var bom = Path.Combine(editor, "2099-01-01_100000-claude");
+        Assert.Throws<DirectoryNotFoundException>(() => RegistroExecucao.Abrir(bom, processo));
+        Directory.CreateDirectory(bom);
+        Assert.Null(RegistroExecucao.MotivoInvalido(processo, bom));
+        Assert.Null(RegistroExecucao.MotivoInvalido(processo, bom + Path.DirectorySeparatorChar));
+
+        // Caminhos vindos de um ajustes.json editado à mão: fora do editor, mais fundo, com "..", o próprio editor, outro processo, vazio.
+        var fora = Path.Combine(t, "fora");
+        Directory.CreateDirectory(fora);
+        var fundo = Path.Combine(bom, "sub");
+        Directory.CreateDirectory(fundo);
+        var outro = Path.Combine(t, "outro", ".pmvni-ai", "editor", "r");
+        Directory.CreateDirectory(outro);
+        foreach (var ruim in new[] { fora, fundo, Path.Combine(editor, "..", "..", "..", "fora"), editor, Path.Combine(processo, ".pmvni-ai"), outro, "", processo })
+        {
+            Assert.NotNull(RegistroExecucao.MotivoInvalido(processo, ruim));
+            if (ruim.Length > 0) Assert.Throws<InvalidOperationException>(() => RegistroExecucao.Abrir(ruim, processo));
+        }
+        Assert.False(File.Exists(Path.Combine(fora, "execucao.json")));
+
+        // Uma junção no lugar do registro (ou do editor) é recusada: o editor não grava através de atalhos.
+        var juncao = Path.Combine(editor, "juncao-claude");
+        if (Ambiente.CriarJuncao(juncao, fora))
+        {
+            Assert.NotNull(RegistroExecucao.MotivoInvalido(processo, juncao));
+            Assert.Throws<InvalidOperationException>(() => RegistroExecucao.Abrir(juncao, processo));
+            Assert.False(File.Exists(Path.Combine(fora, "execucao.json")));
+            Directory.Delete(juncao);
+        }
+
         // execucao.json ilegível: começa vazio (nada é perdido do que é gravado depois).
-        var pasta = Path.Combine(t, "r");
-        Directory.CreateDirectory(pasta);
-        File.WriteAllText(Path.Combine(pasta, "execucao.json"), "{ quebrado");
-        using var r = RegistroExecucao.Abrir(pasta);
+        File.WriteAllText(Path.Combine(bom, "execucao.json"), "{ quebrado");
+        using var r = RegistroExecucao.Abrir(bom, processo);
         r.Atualizar(o => o["situacao"] = "concluida");
-        Assert.Equal("concluida", JsonNode.Parse(File.ReadAllText(Path.Combine(pasta, "execucao.json")))!["situacao"]!.GetValue<string>());
+        Assert.Equal("concluida", JsonNode.Parse(File.ReadAllText(Path.Combine(bom, "execucao.json")))!["situacao"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task trava_entregue_pelo_chamador_vale_ate_o_fim()
+    {
+        using var c = new Cena("orq-trava-entregue", "ok", Provedor.ChatGpt);
+        var trava = TravaExecucao.Tentar(c.Processo.Pasta, Provedor.ChatGpt);
+        Assert.NotNull(trava);
+        var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.ChatGpt), c.Progresso, CancellationToken.None, trava), Limite);
+        Assert.Equal("concluida", fim.Situacao);        // a trava do chamador não é tratada como "outra execução"
+        Assert.False(TravaExecucao.EmAndamento(c.Processo.Pasta));   // e é solta no fim
+
+        // Recusa antes da partida (peça faltando): a trava entregue também é solta.
+        var trava2 = TravaExecucao.Tentar(c.Processo.Pasta, Provedor.ChatGpt);
+        c.Pecas = c.Pecas with { Codex = null };
+        var recusa = await c.Orq().ExecutarAsync(c.Pedido(Provedor.ChatGpt), c.Progresso, CancellationToken.None, trava2);
+        Assert.Equal("falhou", recusa.Situacao);
+        Assert.False(TravaExecucao.EmAndamento(c.Processo.Pasta));
     }
 }

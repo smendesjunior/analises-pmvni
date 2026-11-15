@@ -3008,8 +3008,74 @@ internal static class Roteiro
                 claudeCancelado = ok && !Vivo(pidKit) && fimC.Situacao == "interrompida" && info.IsOpen && info.Message.StartsWith("interrompida", StringComparison.Ordinal)
                     && j.NovoRelatorio.BotaoContinuar.Visibility == Visibility.Visible && j.ExecucoesClaudePendentes.Count == 0;
             }
+            // (d) Ajustes editados à mão: um registro fora de <processo>\.pmvni-ai\editor é descartado com o motivo, e nada é gravado nele.
+            var foraDoEditor = Path.Combine(pasta, "registro-falso");
+            Directory.CreateDirectory(foraDoEditor);
+            j.AdicionarPendenteClaude(new ExecucaoClaudePendente(outro, foraDoEditor));
+            await j.RetomarExecucoesClaudeAsync();
+            var descartou = j.ExecucoesClaudePendentes.Count == 0 && j.ExecucoesEmCurso.Count == 0 && !File.Exists(Path.Combine(foraDoEditor, "execucao.json"))
+                && j.InfoMensagemAtual.Message.StartsWith("O registro da análise (" + foraDoEditor + ") não fica em ", StringComparison.Ordinal);
+            p["registro_fora_do_editor_descartado"] = descartou;
+
+            // (e) O Claude termina com o editor "fechado": reaberto, "Importar relatório"; a 1ª tentativa é cancelada (o relatório aberto tem um texto que a
+            // conferência recusa e o usuário escolhe "Voltar à edição"): a pendência e o botão ficam; a 2ª importa e só então a pendência sai.
+            var cenarioConcluido = Path.Combine(pasta, "claude-conclui-com-o-editor-fechado.json");
+            // O relatório fictício do agente falso é relativo à pasta do cenário: este cenário fica no roteiro, então aponta para o do corpus.
+            File.WriteAllText(cenarioConcluido, new JsonObject
+            {
+                ["auto"] = new JsonObject { ["etapa_ms"] = 1500, ["final"] = "CONCLUIDO" },
+                ["relatorio"] = Path.Combine(corpus, "agentes", "relatorio_dados_0001.json"),
+            }.ToJsonString());
+            j.Orquestrador = new OrquestradorAnalise
+            {
+                IntervaloSituacao = TimeSpan.FromMilliseconds(200), IntervaloLog = TimeSpan.FromMilliseconds(200),
+                AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = cenarioConcluido },
+            };
+            var eD = await j.AnalisarAsync(Provedor.Claude) ?? throw new InvalidOperationException("Claude não partiu: " + j.InfoMensagemAtual.Message);
+            await EsperarAteAsync(() => Task.FromResult(eD.Situacao?.Codigo == "EM_ANDAMENTO"), 60000);
+            await j.PodeFecharComAnalisesAsync();
+            await j.PararDeAcompanharClaudeAsync();
+            var statusKit = Path.Combine(outro, ".pmvni-ai", "analise-pro", "auto-status.json");
+            await EsperarAteAsync(() =>
+            {
+                try { return Task.FromResult(SituacaoAnalisePro.Ler(File.ReadAllText(statusKit)).Codigo == "CONCLUIDO"); }
+                catch (IOException) { return Task.FromResult(false); }
+            }, 60000);
+            string Ler(string f) { try { return File.Exists(f) ? File.ReadAllText(f) : "(não existe)"; } catch (IOException e) { return "(ilegível: " + e.Message + ")"; } }
+            p["retomada_diagnostico_antes"] = new JsonObject
+            {
+                ["status_do_kit"] = Ler(statusKit), ["pendentes_nos_ajustes"] = j.ExecucoesClaudePendentes.Count, ["em_curso"] = j.ExecucoesEmCurso.Count,
+                ["situacao_vista"] = eD.Situacao?.Codigo, ["fim"] = eD.Fim.IsCompleted ? eD.Fim.Result.Situacao : "(rodando)",
+            };
+            await j.RetomarExecucoesClaudeAsync();
+            p["retomada_diagnostico_depois"] = new JsonObject
+            {
+                ["para_importar"] = j.PendentesParaImportar.Count, ["pendentes_nos_ajustes"] = j.ExecucoesClaudePendentes.Count, ["em_curso"] = j.ExecucoesEmCurso.Count,
+                ["mensagem"] = j.InfoMensagemAtual.Message, ["resultado"] = j.NovoRelatorio.AvisoResultado.Message,
+            };
+            if (j.PendentesParaImportar.Count == 0) throw new InvalidOperationException("a retomada não ofereceu Importar relatório");
+            var oferecido = j.PendentesParaImportar.Count == 1 && j.ExecucoesEmCurso.Count == 0 && j.NovoRelatorio.AvisoResultado.IsOpen
+                && j.NovoRelatorio.AvisoResultado.Message == "A análise com o Claude de 0012/2099 terminou." && j.NovoRelatorio.BotaoImportarPendente.Visibility == Visibility.Visible;
+            var aberto = Path.Combine(pasta, "retomada-aberto.pmvrel");
+            ApagarSe(aberto);
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), aberto)) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+            var digitou = await DigitarAsync(j.Sessao!.Revisao.Projeto.Incluidos[0].Id, "   ");
+            perguntas.FecharSemOTexto = false;
+            var primeira = await j.ImportarPendenteAsync(j.PendentesParaImportar[0]);
+            var ficou = !primeira && j.PendentesParaImportar.Count == 1 && j.ExecucoesClaudePendentes.Count == 1 && j.Sessao?.Caminho == aberto
+                && (j.InfoMensagemAtual.ActionButton as Microsoft.UI.Xaml.Controls.Button)?.Content as string == "Importar relatório";
+            perguntas.FecharSemOTexto = true;
+            var segunda = await j.ImportarPendenteAsync(j.PendentesParaImportar[0]);
+            perguntas.FecharSemOTexto = false;
+            var importouRetomada = segunda && j.PendentesParaImportar.Count == 0 && j.ExecucoesClaudePendentes.Count == 0 && j.Sessao is { } sr
+                && Path.GetDirectoryName(sr.Caminho) == outro && JsonNode.Parse(File.ReadAllText(Path.Combine(eD.Registro.Pasta, "execucao.json")))?["pmvrel"]?.GetValue<string>() == sr.Caminho
+                && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Claude, sr.Caminho, Path.Combine(outro, ".pmvni-ai", "analise-pro", "relatorio.pdf"));
+            p["retomada_concluida"] = new JsonObject
+            {
+                ["oferecido"] = oferecido, ["digitou"] = digitou, ["cancelada_fica"] = ficou, ["importou_na_segunda"] = importouRetomada, ["infobar"] = j.InfoMensagem.Message,
+            };
             p["ok"] = segue && motivo0001 == "Já há uma análise em andamento neste processo." && motivo0012 is null && naoFechou && cancelado
-                && podeFecharClaude && informou && pendente && seguiuSozinha && voltou && claudeCancelado;
+                && podeFecharClaude && informou && pendente && seguiuSozinha && voltou && claudeCancelado && descartou && oferecido && digitou && ficou && importouRetomada;
         });
 
         await Passo("56_novo_relatorio_falhas", async p =>
@@ -3074,8 +3140,9 @@ internal static class Roteiro
                 if (relativo.Contains(@"\.pmvni-ai\editor\", StringComparison.OrdinalIgnoreCase) || relativo.Contains(@"\.pmvni-ai\agente-falso\", StringComparison.OrdinalIgnoreCase)
                     || relativo.Contains(@"\.pmvni-ai\analise\", StringComparison.OrdinalIgnoreCase) || relativo.Contains(@"\.pmvni-ai\analise-pro\", StringComparison.OrdinalIgnoreCase))
                     return true;
-                if (nome.StartsWith("Relatorio_0001_2099", StringComparison.Ordinal)) return true;   // os .pmvrel importados (e o .bak de uma gravação)
-                if (nome.StartsWith(".~Relatorio_0001_2099", StringComparison.Ordinal)) return true;   // a trava do relatório aberto
+                // Os .pmvrel importados no 0001 e no 0012 (e o .bak de uma gravação) e a trava do relatório aberto.
+                if (nome.StartsWith("Relatorio_0001_2099", StringComparison.Ordinal) || nome.StartsWith("Relatorio_0012_2099", StringComparison.Ordinal)) return true;
+                if (nome.StartsWith(".~Relatorio_0001_2099", StringComparison.Ordinal) || nome.StartsWith(".~Relatorio_0012_2099", StringComparison.Ordinal)) return true;
                 return relativo.EndsWith(@"\PROJETO\REVISÃO 01\planta-ficticia.pdf", StringComparison.Ordinal) || relativo.EndsWith(@"\PROJETO\REVISÃO 01\memorial.docx", StringComparison.Ordinal)
                     || relativo.EndsWith(@"\PROJETO\INICIAL\foto.heic", StringComparison.Ordinal) || relativo.EndsWith(@"\DOCUMENTOS\requerimento-ficticio.pdf", StringComparison.Ordinal)
                     || relativo.EndsWith(@"\PROJETO\complemento-ficticio.pdf", StringComparison.Ordinal) || relativo.EndsWith(@"\complemento-ficticio.pdf", StringComparison.Ordinal)

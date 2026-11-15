@@ -47,11 +47,14 @@ public sealed class RegistroExecucao : IDisposable
     }
 
     /// <summary>Reabre o registro de uma execução que já existe (o editor reaberto volta a acompanhar uma análise do Claude, desenho §12.7): o que o
-    /// <c>execucao.json</c> já tem continua (as mudanças seguintes se somam a ele). <c>execucao.json</c> ilegível ou ausente: começa vazio.</summary>
-    public static RegistroExecucao Abrir(string pasta)
+    /// <c>execucao.json</c> já tem continua (as mudanças seguintes se somam a ele). <c>execucao.json</c> ilegível ou ausente: começa vazio.
+    /// Os caminhos vêm dos ajustes locais (editáveis): o registro tem de ser uma pasta filha direta de <c>&lt;processo&gt;\.pmvni-ai\editor</c>, sem atalho
+    /// (junção ou link) no caminho; senão <see cref="InvalidOperationException"/> e nada é gravado.</summary>
+    public static RegistroExecucao Abrir(string pasta, string pastaProcesso)
     {
+        if (MotivoInvalido(pastaProcesso, pasta) is { } motivo) throw new InvalidOperationException(motivo);
         if (!Directory.Exists(pasta)) throw new DirectoryNotFoundException("A pasta do registro da execução não existe: " + pasta);
-        var r = new RegistroExecucao(pasta);
+        var r = new RegistroExecucao(Path.GetFullPath(pasta));
         try
         {
             if (JsonNode.Parse(File.ReadAllText(Caminho(pasta, "execucao.json"))) is JsonObject antes)
@@ -63,6 +66,30 @@ public sealed class RegistroExecucao : IDisposable
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { /* começa vazio */ }
         return r;
+    }
+
+    /// <summary>null se <paramref name="pastaRegistro"/> é uma pasta filha direta de <c>&lt;processo&gt;\.pmvni-ai\editor</c> (caminho completo, sem <c>..</c>
+    /// escapando, sem junção nem link simbólico da pasta do processo até o registro); senão, o motivo em português.</summary>
+    public static string? MotivoInvalido(string pastaProcesso, string pastaRegistro)
+    {
+        var recusa = $"O registro da análise ({pastaRegistro}) não fica em {Path.Combine(pastaProcesso ?? "", ".pmvni-ai", "editor")}; o editor não grava nele.";
+        if (string.IsNullOrWhiteSpace(pastaProcesso) || string.IsNullOrWhiteSpace(pastaRegistro)) return recusa;
+        try
+        {
+            var processo = Path.GetFullPath(pastaProcesso).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var registro = Path.GetFullPath(pastaRegistro).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var editor = Path.Combine(processo, ".pmvni-ai", "editor");
+            if (!string.Equals(Path.GetDirectoryName(registro), editor, StringComparison.OrdinalIgnoreCase)) return recusa;
+            var nome = Path.GetFileName(registro);
+            if (nome.Length == 0 || nome is "." or "..") return recusa;
+            foreach (var trecho in new[] { processo, Path.Combine(processo, ".pmvni-ai"), editor, registro })
+            {
+                var info = new DirectoryInfo(trecho);
+                if (info.Exists && info.LinkTarget is not null) return recusa;
+            }
+            return null;
+        }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException or IOException or UnauthorizedAccessException) { return recusa; }
     }
 
     static string Caminho(string pasta, string nome) => Path.Combine(pasta, nome);

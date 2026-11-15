@@ -173,6 +173,15 @@ public static class FluxoNovoRelatorio
 
     public static string TextoClaudeTerminou(Processo p) => $"A análise com o Claude de {Identificacao(p)} terminou.";
 
+    /// <summary>O <c>execucao.json</c> do registro não tem a hora de início: sem ela não há como saber se o resultado do kit é desta análise.</summary>
+    public static string TextoSemInicio(Processo p, string registro) =>
+        $"O registro da análise com o Claude de {Identificacao(p)} não tem a hora de início (execucao.json em {registro}); o editor não a acompanha nem importa "
+        + "o resultado sem ela. Quando o kit terminar, importe pelo módulo Processos › Importar análise da IA.";
+
+    /// <summary>A importação do relatório que o kit declarou não aconteceu (falhou ou foi cancelada): "Importar relatório" tenta de novo.</summary>
+    public static string TextoNaoImportado(Provedor p, Processo pr) =>
+        $"O relatório da análise com o {Provedores.Nome(p)} de {Identificacao(pr)} ainda não foi importado. Use Importar relatório para tentar de novo.";
+
     public static string TextoProcessoExiste(int numero, int ano, string pasta) =>
         string.Create(CultureInfo.InvariantCulture, $"O processo {numero:D4}/{ano} já existe: {pasta}.");
 

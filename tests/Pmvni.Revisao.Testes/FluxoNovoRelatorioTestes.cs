@@ -164,7 +164,11 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal("A análise com o ChatGPT em 0001/2099 será interrompida.", FluxoNovoRelatorio.TextoFecharChatGpt(P0001));
         Assert.Equal("A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, o resultado é importado.", FluxoNovoRelatorio.TextoFecharClaude);
         Assert.Equal("A análise com o Claude de 0012/2099 terminou.", FluxoNovoRelatorio.TextoClaudeTerminou(P0012));
-        Assert.Equal("O processo 9998/2099 já existe: C:\\p\\2099\\9998 - 2099 - X.", FluxoNovoRelatorio.TextoProcessoExiste(9998, 2099, @"C:\p\2099\9998 - 2099 - X"));
+        Assert.Equal("O registro da análise com o Claude de 0012/2099 não tem a hora de início (execucao.json em C:\\r); o editor não a acompanha nem importa "
+            + "o resultado sem ela. Quando o kit terminar, importe pelo módulo Processos › Importar análise da IA.", FluxoNovoRelatorio.TextoSemInicio(P0012, @"C:\r"));
+        Assert.Equal("O relatório da análise com o Claude de 0001/2099 ainda não foi importado. Use Importar relatório para tentar de novo.",
+            FluxoNovoRelatorio.TextoNaoImportado(Provedor.Claude, P0001));
+        Assert.Equal("O processo 9998/2099 já existe: C:\\p\\2099\\9998 - 2099 - X.",FluxoNovoRelatorio.TextoProcessoExiste(9998, 2099, @"C:\p\2099\9998 - 2099 - X"));
     }
 
     [Fact]

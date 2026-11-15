@@ -108,9 +108,9 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         if (FluxoNovoRelatorio.MotivoDesabilitado(p, pr, EmAndamento(pr.Pasta), pc, m, chaveGuardada) is { } motivo) throw new AnaliseRecusadaException(motivo);
         texto = string.IsNullOrWhiteSpace(texto) ? null : texto;
 
-        var (registro, arquivados) = await Task.Run(() =>
+        var (trava, registro, arquivados) = await Task.Run(() =>
         {
-            var trava = TravaExecucao.Tentar(pr.Pasta, p) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
+            var t = TravaExecucao.Tentar(pr.Pasta, p) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
             try
             {
                 var plano = Arquivamento.Planejar(pr.Pasta, anexos);
@@ -118,16 +118,17 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                 var feitos = Arquivamento.Arquivar(pr.Pasta, plano, CancellationToken.None);
                 reg.GravarPedido(p == Provedor.ChatGpt ? PedidoAgente.Codex(pr.Pasta, pr, feitos, texto) : texto ?? "");
                 reg.GravarAnexos(feitos);
-                return (reg, feitos);
+                return (t, reg, feitos);
             }
-            finally { trava.Dispose(); }   // o orquestrador pega a trava de novo na partida (e a segura até o fim)
+            catch { t.Dispose(); throw; }   // falha antes da partida: a trava sai e nada é iniciado
         });
 
+        // A trava pega antes de copiar os anexos passa ao orquestrador, que a segura até o fim (nunca fica um instante sem dono).
         var orq = orquestrador();
         var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false);
         var progresso = Progresso(e);
         var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro);
-        e.Fim = RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token), progresso, null);
+        e.Fim = RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava);
         execucoes.Add(e);
         return e;
     }
@@ -142,7 +143,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
             var t = TravaExecucao.Tentar(pr.Pasta, Provedor.Claude) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
             try
             {
-                var r = RegistroExecucao.Abrir(pastaRegistro);
+                var r = RegistroExecucao.Abrir(pastaRegistro, pr.Pasta);   // recusa um registro fora de <processo>\.pmvni-ai\editor
                 string? pedido = null;
                 try { pedido = File.ReadAllText(Path.Combine(pastaRegistro, "pedido.md"), Encoding.UTF8); }
                 catch (Exception x) when (x is IOException or UnauthorizedAccessException) { }

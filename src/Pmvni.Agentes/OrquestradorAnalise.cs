@@ -49,16 +49,19 @@ public sealed class OrquestradorAnalise
 
     static FimAnalise Falha(string mensagem, int? codigo = null) => new("falhou", null, null, mensagem, codigo);
 
-    public async Task<FimAnalise> ExecutarAsync(PedidoExecucao pe, IProgress<ProgressoAnalise> progresso, CancellationToken ct)
+    /// <param name="travaPega">A trava do processo que quem chama já pegou (a página pega antes de copiar os anexos e a entrega aqui, sem soltar no meio);
+    /// passa a ser deste método, que a solta no fim. null = o método pega a sua.</param>
+    public async Task<FimAnalise> ExecutarAsync(PedidoExecucao pe, IProgress<ProgressoAnalise> progresso, CancellationToken ct, TravaExecucao? travaPega = null)
     {
         var impedimento = Conferir(pe);
         if (impedimento is not null)
         {
+            travaPega?.Dispose();
             Encerrar(pe, impedimento, DateTimeOffset.UtcNow);
             return impedimento;
         }
 
-        using var trava = TravaExecucao.Tentar(pe.Processo.Pasta, pe.Provedor);
+        using var trava = travaPega ?? TravaExecucao.Tentar(pe.Processo.Pasta, pe.Provedor);
         if (trava is null)
         {
             var recusa = Falha("Já há uma análise em andamento neste processo.");
