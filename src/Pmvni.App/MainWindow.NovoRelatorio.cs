@@ -512,7 +512,7 @@ public sealed partial class MainWindow
         var a = ajustes.Agentes[p];
         if (FluxoNovoRelatorio.PrecisaAviso(a))
         {
-            if (!await Perguntas.Atual.ConfirmarAsync(FluxoNovoRelatorio.AvisoTitulo(p), FluxoNovoRelatorio.TextoAviso(p), FluxoNovoRelatorio.AvisoSim, FluxoNovoRelatorio.AvisoNao))
+            if (!await Perguntas.Atual.ConfirmarAsync(FluxoNovoRelatorio.AvisoTitulo(p), FluxoNovoRelatorio.TextoAviso(p), FluxoNovoRelatorio.AvisoSim, FluxoNovoRelatorio.AvisoNao, destrutiva: false))
                 return null;    // recusar não copia nada e não inicia nada
             a.AvisoVersao = Ajustes.VersaoAviso;
             a.AvisoEm = DateTimeOffset.UtcNow;

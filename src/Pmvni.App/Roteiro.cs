@@ -52,12 +52,15 @@ internal sealed class PerguntasFixas : IPerguntas
     /// <summary>A pasta que o seletor de pastas "escolhe" (null = cancelado).</summary>
     public string? PastaEscolhida { get; set; }
     public Task<string?> EscolherPastaAsync() { Feitas.Add("escolher pasta"); return Task.FromResult(PastaEscolhida); }
-    public Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao)
+    public Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao, bool destrutiva = true)
     {
         Feitas.Add("confirmar " + titulo);
+        Destrutivas[titulo] = destrutiva;
         Confirmacoes.Add((titulo, texto, sim, nao));
         return Task.FromResult(RespostaPorTitulo.TryGetValue(titulo, out var r) ? r : Confirmar);
     }
+    /// <summary>Se a última confirmação de cada título era destrutiva (Enter = "não") ou não (Enter = botão principal).</summary>
+    public Dictionary<string, bool> Destrutivas { get; } = new(StringComparer.Ordinal);
     /// <summary>Respostas por título da confirmação (as outras seguem <see cref="Confirmar"/>).</summary>
     public Dictionary<string, bool> RespostaPorTitulo { get; } = new(StringComparer.Ordinal);
     public List<(string Titulo, string Texto, string Sim, string Nao)> Confirmacoes { get; } = [];
@@ -3287,7 +3290,7 @@ internal static class Roteiro
             });
             p["anexos_originais_intactos"] = anexosIntactos;
             var soOFalso = ExecucaoProcesso.SomenteExecutaveisEm == agenteFalsoPasta;
-            p["programas_iniciados"] = soOFalso ? "só o agente falso (trava SomenteExecutaveisEm)" : "trava desligada";
+            p["programas_iniciados"] = soOFalso ? "agente falso e soffice (trava SomenteExecutaveisEm)" : "trava desligada";
             p["ok"] = tudo && semCodex && nada && alterados.Count == 0 && foraDoPermitido.Count == 0 && anexosIntactos && soOFalso && j.ExecucoesEmCurso.Count == 0;
         });
 

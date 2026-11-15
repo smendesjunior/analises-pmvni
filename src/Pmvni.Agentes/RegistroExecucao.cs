@@ -179,7 +179,7 @@ public sealed class RegistroExecucao : IDisposable
             if (!usados.TryGetValue(arquivo, out var jaUsados))
             {
                 try { jaUsados = File.Exists(Caminho(Pasta, arquivo)) ? new FileInfo(Caminho(Pasta, arquivo)).Length : 0; }
-                catch (IOException) { jaUsados = 0; }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { jaUsados = 0; }
             }
             var bytes = Utf8.GetByteCount(linha) + 1;
             if (jaUsados + bytes > LimiteArquivoBytes)
@@ -227,12 +227,22 @@ public sealed class RegistroExecucao : IDisposable
             if (linhas.Count == 0 && perdidasAqui == 0) continue;
             try
             {
+                // O lote vai de uma vez; se a gravação falhar no meio, o arquivo volta ao tamanho de antes, para o lote repetido depois não
+                // duplicar as linhas que já tinham entrado.
+                var texto = new StringBuilder();
+                foreach (var l in linhas) texto.Append(l).Append('\n');
+                if (perdidasAqui > 0)
+                    texto.Append("registro: ").Append(perdidasAqui).Append(" linha(s) não puderam ser gravadas (arquivo preso ou disco cheio) e foram descartadas\n");
+                var dados = Utf8.GetBytes(texto.ToString());
                 using (var fs = new FileStream(Caminho(Pasta, arquivo), FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
-                using (var w = new StreamWriter(fs, Utf8, 64 * 1024) { NewLine = "\n" })
                 {
-                    foreach (var l in linhas) w.WriteLine(l);
-                    if (perdidasAqui > 0)
-                        w.WriteLine("registro: " + perdidasAqui + " linha(s) não puderam ser gravadas (arquivo preso ou disco cheio) e foram descartadas");
+                    var inicio = fs.Position;
+                    try { fs.Write(dados, 0, dados.Length); fs.Flush(); }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                    {
+                        try { fs.SetLength(inicio); } catch (Exception x) when (x is IOException or UnauthorizedAccessException) { }
+                        throw;
+                    }
                 }
                 linhas.Clear();
                 perdidas.Remove(arquivo);

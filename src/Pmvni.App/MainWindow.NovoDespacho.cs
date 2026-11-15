@@ -368,7 +368,7 @@ public sealed partial class MainWindow
         }
         foreach (var aviso in avisos)
         {
-            if (!await Perguntas.Atual.ConfirmarAsync("Emitir a aprovação?", aviso, "Emitir mesmo assim", "Voltar"))
+            if (!await Perguntas.Atual.ConfirmarAsync("Emitir a aprovação?", aviso, "Emitir mesmo assim", "Voltar", destrutiva: false))
             {
                 MostrarPassoAtual(s);
                 return false;

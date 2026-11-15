@@ -219,7 +219,7 @@ public sealed partial class MainWindow
         var concordou = false;
         await NaFilaAsync(() => TentarAsync(async () =>
         {
-            concordou = await Perguntas.Atual.ConfirmarAsync($"Analisar com o {Provedores.Nome(p)}", TextosAgentes.Aviso(p), "Concordo", "Cancelar");
+            concordou = await Perguntas.Atual.ConfirmarAsync($"Analisar com o {Provedores.Nome(p)}", TextosAgentes.Aviso(p), "Concordo", "Cancelar", destrutiva: false);
             if (!concordou) return;
             var a = ajustes.Agentes[p];
             a.AvisoVersao = Ajustes.VersaoAviso;

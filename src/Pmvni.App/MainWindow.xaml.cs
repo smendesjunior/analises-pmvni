@@ -919,7 +919,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         }
         var avisos = r.Preparado.AvisosExportacao;
         if (r.Preparado.ErrosFinais.Count == 0 && avisos.Count > 0
-            && !await Perguntas.Atual.ConfirmarAsync("Exportar com avisos?", string.Join(Environment.NewLine, avisos), "Exportar", "Cancelar"))
+            && !await Perguntas.Atual.ConfirmarAsync("Exportar com avisos?", string.Join(Environment.NewLine, avisos), "Exportar", "Cancelar", destrutiva: false))
             return (false, null, "Exportação cancelada.", null);
         Ocupar("Exportando o PDF…");
         R.AvisoMensagem.IsOpen = false;

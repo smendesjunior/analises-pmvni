@@ -34,7 +34,9 @@ internal interface IPerguntas
     /// <summary>Seletor de pasta (a pasta de processos nos Ajustes); null se cancelado.</summary>
     Task<string?> EscolherPastaAsync();
 
-    Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao);
+    /// <summary>Confirmação de dois botões. <paramref name="destrutiva"/> (descartar, excluir, cancelar, fechar sem salvar): Enter escolhe "não";
+    /// nas outras (consentimento, "Exportar", "Emitir mesmo assim") Enter aciona o botão principal (decisão do controlador sobre o FD-I3).</summary>
+    Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao, bool destrutiva = true);
 
     /// <summary>Mostra um texto só para leitura (ex.: a Conferência), com o botão Fechar.</summary>
     Task InformarAsync(string titulo, string texto);
@@ -155,11 +157,12 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         return (await seletor.PickSingleFolderAsync())?.Path;
     }
 
-    /// <summary>Confirmações (quase todas de uma ação destrutiva: descartar, cancelar a análise, excluir): Enter escolhe "não" (Ruling FD-I3), nunca a ação.</summary>
-    public async Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao)
+    /// <summary>Destrutiva (descartar, cancelar a análise, excluir, fechar): Enter escolhe "não" (Ruling FD-I3), nunca a ação. Não destrutiva
+    /// (consentimento, exportar, emitir): Enter aciona o botão principal.</summary>
+    public async Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao, bool destrutiva = true)
     {
         var d = Dialogo(titulo, texto, sim, nao);
-        d.DefaultButton = ContentDialogButton.Close;
+        d.DefaultButton = destrutiva ? ContentDialogButton.Close : ContentDialogButton.Primary;
         return await Mostrar(d) == ContentDialogResult.Primary;
     }
 
