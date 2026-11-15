@@ -130,6 +130,29 @@ public class CaminhoImagemProcessoTestes
         Assert.StartsWith("assets/", c.Projeto.Documento["localizacao"]!["imagem"]!.GetValue<string>(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void importar_recusa_imagem_maior_que_o_limite_de_uma_entrada()
+    {
+        using var pasta = Ambiente.PastaDeTeste("img-importar-enorme");
+        var (_, processo, dados) = Processo(pasta);
+        var origem = Ambiente.Corpus("extremos.json");
+        var json = JsonFiel.Ler(File.ReadAllBytes(origem));
+        foreach (var f in Directory.GetFiles(Path.GetDirectoryName(origem)! + Path.DirectorySeparatorChar + "img"))
+            Gravar(Path.Combine(dados, "img", Path.GetFileName(f)));
+        // Um PNG de verdade seguido de zeros até passar dos 50 MB (o limite de uma entrada do pacote): nunca é lido inteiro na memória.
+        var enorme = Path.Combine(dados, "img", "enorme.png");
+        using (var fs = new FileStream(enorme, FileMode.Create))
+        {
+            fs.Write(File.ReadAllBytes(Ambiente.Corpus("img/mapa.png")));
+            fs.SetLength(new LimitesPacote().PorEntrada + 1);
+        }
+        json["localizacao"]!["imagem"] = "img/enorme.png";
+        var caminho = Path.Combine(dados, "dados.json");
+        File.WriteAllBytes(caminho, JsonFiel.Escrever(json));
+        var ex = Assert.Throws<ImportacaoRecusadaException>(() => Importador.Importar(File.ReadAllBytes(caminho), caminho, Modelo, Ambiente.Contexto()));
+        Assert.Contains(ex.Erros, e => e == "Imagem maior que o limite de 50 MB: img/enorme.png.");
+    }
+
     [Theory]
     [InlineData("img/x.bmp")]
     [InlineData("img/x.svg")]

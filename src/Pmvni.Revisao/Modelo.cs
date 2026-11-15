@@ -128,7 +128,7 @@ public sealed record ConteudoPacote(
         foreach (var (chave, bytes) in Assets)
         {
             var destino = Path.GetFullPath(Path.Combine(raiz, chave.Replace('/', Path.DirectorySeparatorChar)));
-            if (!destino.StartsWith(raiz + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            if (!destino.StartsWith(Path.TrimEndingDirectorySeparator(raiz) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Asset fora da pasta de destino: " + chave);
             Directory.CreateDirectory(Path.GetDirectoryName(destino)!);
             File.WriteAllBytes(destino, bytes);

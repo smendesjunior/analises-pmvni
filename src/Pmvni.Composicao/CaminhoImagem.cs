@@ -39,10 +39,15 @@ public static class CaminhoImagem
         return completo;
     }
 
-    /// <summary>A pasta do processo: o ancestral (a própria pasta incluída) que contém <c>.pmvni-ai</c>; sem ele, a pasta pai.</summary>
+    /// <summary>Quantos níveis acima da pasta do dados.json a pasta do processo pode estar (o kit grava em <c>&lt;processo&gt;\.pmvni-ainalise</c>: 2).</summary>
+    const int NiveisAcima = 3;
+
+    /// <summary>A pasta do processo: o ancestral (a própria pasta incluída, até <see cref="NiveisAcima"/> acima) que contém <c>.pmvni-ai</c>; sem ele, a
+    /// pasta pai. Não sobe até a raiz: um <c>.pmvni-ai</c> numa pasta de cima (a raiz de PROCESSOS, por exemplo) não amplia o limite a todos os processos.</summary>
     internal static string PastaDoProcesso(string pastaDados)
     {
-        for (var d = pastaDados; d is not null; d = Path.GetDirectoryName(d))
+        var nivel = 0;
+        for (var d = pastaDados; d is not null && nivel <= NiveisAcima; d = Path.GetDirectoryName(d), nivel++)
         {
             var ia = Path.Combine(d, ".pmvni-ai");
             if (Directory.Exists(ia) && (File.GetAttributes(ia) & FileAttributes.ReparsePoint) == 0) return d;
