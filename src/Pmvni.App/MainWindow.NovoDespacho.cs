@@ -33,7 +33,8 @@ public sealed partial class MainWindow
     /// <summary>Quem converte o DOCX em PDF: o LibreOffice do computador (o roteiro troca por um ausente para o caso "sem LibreOffice").</summary>
     internal IConversorPdf Conversor
     {
-        get => conversor ??= new ConversorLibreOffice(ConversorLibreOffice.Localizar());
+        // Um perfil do LibreOffice só, persistente, em <dados>\lo (Ruling T16-C4): a 1ª conversão inicializa o perfil; as seguintes o reaproveitam.
+        get => conversor ??= new ConversorLibreOffice(ConversorLibreOffice.Localizar(), raizPerfil: Path.Combine(PastaDados.Raiz, "lo"));
         set => conversor = value;
     }
     /// <summary>A data local de hoje (a da etapa nova); o roteiro fixa.</summary>
@@ -727,6 +728,12 @@ public sealed partial class MainWindow
     async Task<bool> SairDoNovoDespachoAsync()
     {
         if (novo is not { } s) return true;
+        if (s.Gravando)
+        {
+            // A gravação na pasta do processo está em curso: nada de "Nada foi gravado"; a troca fica para depois dela.
+            MostrarMensagem(InfoBarSeverity.Informational, "Aguarde", FluxoNovoDespacho.GravandoAguarde);
+            return false;
+        }
         if (s.Passo is PassoNovoDespacho.Conteudo or PassoNovoDespacho.Conferencia || s.Preparando)
         {
             if (!await Perguntas.Atual.ConfirmarAsync("Descartar o despacho em edição?", "Nada foi gravado na pasta do processo.", "Descartar", "Continuar editando"))

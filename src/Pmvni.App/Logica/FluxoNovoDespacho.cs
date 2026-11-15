@@ -14,6 +14,10 @@ public sealed record OrigemSugerida(Processo? Processo, string? Pacote, EtapaDes
 public static class FluxoNovoDespacho
 {
     public const string Compondo = "Termine ou cancele o despacho em edição.";
+
+    /// <summary>Trocar de módulo, abrir outro despacho ou trocar a pasta de processos durante "Gravando na pasta do processo…".</summary>
+    public const string GravandoAguarde = "O despacho está sendo gravado na pasta do processo; tente de novo quando a gravação terminar.";
+
     public const string SemPmvrel =
         "Este processo não tem relatório revisado (.pmvrel). Importe a análise da IA em Processos antes de emitir o despacho.";
     public const string NaoSalvou =

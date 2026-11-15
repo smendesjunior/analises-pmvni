@@ -88,7 +88,7 @@ public sealed partial class MainWindow
         processos.BotaoAbrirAjustes.Click += async (_, _) => await AbrirAjustesAsync();
         despachos.BotaoAbrirAjustes.Click += async (_, _) => await AbrirAjustesAsync();
         PaginaDeAjustes.BotaoEscolherPasta.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(EscolherPastaDeProcessosAsync));
-        PaginaDeAjustes.BotaoPastaPadrao.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(() => { DefinirPastaProcessos(null); return Task.CompletedTask; }));
+        PaginaDeAjustes.BotaoPastaPadrao.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(() => TrocarPastaProcessosAsync(null)));
         AtualizarPaginaDePastas();
 
         manipuladores[ComandosApp.ProcessosAbrirRelatorio] = AbrirRelatorioDoProcessoAsync;
@@ -217,7 +217,16 @@ public sealed partial class MainWindow
     async Task EscolherPastaDeProcessosAsync()
     {
         var pasta = await Perguntas.Atual.EscolherPastaAsync();
-        if (pasta is not null) DefinirPastaProcessos(pasta);
+        if (pasta is not null) await TrocarPastaProcessosAsync(pasta);
+    }
+
+    /// <summary>Trocar a pasta de processos (Ajustes) com um Novo despacho aberto: o processo dele é da pasta antiga, então a página é fechada
+    /// antes (no passo 2 ou 3 pergunta; "Continuar editando" mantém a pasta e o despacho). true = a pasta mudou.</summary>
+    internal async Task<bool> TrocarPastaProcessosAsync(string? pasta)
+    {
+        if (!await SairDoNovoDespachoAsync()) return false;
+        DefinirPastaProcessos(pasta);
+        return true;
     }
 
     /// <summary>Mostra na página Ajustes a pasta de processos em uso (e se ela é a padrão) e avisa, sem travar a tela, se ela não existe.</summary>

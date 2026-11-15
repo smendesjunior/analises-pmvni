@@ -16,6 +16,7 @@ namespace Pmvni.App;
 internal sealed class SessaoNovoDespacho
 {
     CancellationTokenSource? preparo;
+    Task<Preparacao>? tarefaDoPreparo; // o trabalho em segundo plano do preparo em curso (o fechamento do app espera por ele)
     DespachoFinal? final;
     string? pastaTrabalho;
 
@@ -64,6 +65,9 @@ internal sealed class SessaoNovoDespacho
     public Preparacao? Preparacao { get; private set; }
     public SortedSet<int> Conferidas { get; } = new();
     public bool Preparando => preparo is not null;
+
+    /// <summary>Gravando na pasta do processo agora: trocar de módulo, abrir outro despacho ou fechar esperam (nunca "Nada foi gravado").</summary>
+    public bool Gravando { get; private set; }
 
     /// <summary>Este processo já desenhou páginas de PDF pelo <c>Windows.Data.Pdf</c> (o <c>Program</c> então termina o processo direto no fim:
     /// o driver de vídeo da Intel trava a descarga das DLLs depois disso).</summary>
@@ -174,7 +178,9 @@ internal sealed class SessaoNovoDespacho
         preparo = cts;
         try
         {
-            var p = await Task.Run(() => preparar(pasta, cts.Token), cts.Token);
+            var tarefa = Task.Run(() => preparar(pasta, cts.Token), cts.Token);
+            tarefaDoPreparo = tarefa;
+            var p = await tarefa;
             cts.Token.ThrowIfCancellationRequested();
             Preparacao = p;
             final = f;
@@ -190,6 +196,7 @@ internal sealed class SessaoNovoDespacho
         finally
         {
             preparo = null;
+            tarefaDoPreparo = null;
             cts.Dispose();
         }
     }
@@ -221,9 +228,14 @@ internal sealed class SessaoNovoDespacho
             Convert.ToHexStringLower(SHA256.HashData(DadosEfetivos.Gerar(pacote.Conteudo.Projeto).Json)), pacote.Conteudo.Historico.Count, appVersao,
             AvisosConfirmados.ToList());
         var paginas = p.Pdf is null ? null : Conferidas.ToList();
-        var e = await Task.Run(() => EmissaoDespacho.Gravar(p, r, f, m, tx, etapa, origem, paginas, motor, u));
-        Passo = PassoNovoDespacho.Gravado;
-        return e;
+        Gravando = true;
+        try
+        {
+            var e = await Task.Run(() => EmissaoDespacho.Gravar(p, r, f, m, tx, etapa, origem, paginas, motor, u));
+            Passo = PassoNovoDespacho.Gravado;
+            return e;
+        }
+        finally { Gravando = false; }
     }
 
     /// <summary>Gerar PDF: grava o PDF ao lado do DOCX e atualiza o recibo.</summary>
@@ -231,9 +243,14 @@ internal sealed class SessaoNovoDespacho
     {
         if (Preparacao is not { } p || DocxGravado is not { } docx) throw new InvalidOperationException("O PDF ainda não foi gerado e conferido.");
         var paginas = Conferidas.ToList();
-        var e = await Task.Run(() => EmissaoDespacho.GravarPdf(p, docx, paginas, motor, u));
-        Passo = PassoNovoDespacho.Gravado;
-        return e;
+        Gravando = true;
+        try
+        {
+            var e = await Task.Run(() => EmissaoDespacho.GravarPdf(p, docx, paginas, motor, u));
+            Passo = PassoNovoDespacho.Gravado;
+            return e;
+        }
+        finally { Gravando = false; }
     }
 
     /// <summary>Fecha sem gravar: interrompe o preparo e apaga a pasta de trabalho. Nada foi gravado na pasta do processo.</summary>
@@ -242,6 +259,21 @@ internal sealed class SessaoNovoDespacho
         Descartada = true;
         Interromper();
         if (!Preparando) ApagarTrabalho(); // com o preparo em curso, quem o espera apaga a pasta quando ele parar
+    }
+
+    /// <summary>O app fechando com o despacho aberto: interrompe o preparo e espera até <paramref name="espera"/> ele parar (o conversor
+    /// encerra o soffice ao ver o cancelamento); se não parar, encerra já a árvore do soffice (síncrono), antes de o processo do app terminar.
+    /// Depois apaga a pasta de trabalho (o que não sair agora sai na limpeza das órfãs).</summary>
+    public void EncerrarAoFechar(TimeSpan espera)
+    {
+        Descartada = true;
+        Interromper();
+        if (tarefaDoPreparo is { IsCompleted: false } t && !((IAsyncResult)t).AsyncWaitHandle.WaitOne(espera))
+        {
+            ConversorLibreOffice.EncerrarEmCurso();
+            ((IAsyncResult)t).AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(2));
+        }
+        ApagarTrabalho();
     }
 
     void ApagarTrabalho()
