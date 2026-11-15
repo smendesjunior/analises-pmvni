@@ -2532,7 +2532,7 @@ internal static class Roteiro
             var cartoes = chatgpt.Titulo.Text == "ChatGPT (Codex · plugin analise)" && claude.Titulo.Text == "Claude (Claude Code · plugin análise pro)"
                 && chatgpt.ActualHeight > 0 && claude.ActualHeight > 0 && chatgpt.BotaoTestar.IsEnabled && claude.BotaoTestar.IsEnabled
                 && chatgpt.OpcaoConta.IsChecked == true && claude.OpcaoConta.IsChecked == true && chatgpt.OpcaoConta.Content as string == "Usar minha conta (login do programa)"
-                && chatgpt.OpcaoChave.Content as string == "Usar chave de API" && chatgpt.TextoSituacao.Text == TextosAgentes.NaoTestado;
+                && (chatgpt.OpcaoChave.Content as string ?? "").StartsWith("Usar chave de API", StringComparison.Ordinal) && chatgpt.TextoSituacao.Text == TextosAgentes.NaoTestado;
             p["secao_e_texto"] = secao;
             p["dois_cartoes"] = cartoes;
 
@@ -4062,7 +4062,7 @@ internal static class Roteiro
             var fraseSegue = j.EstadoVazioProcessos.TextoFrase == "Frase de teste do roteiro";
             j.TextoListaVaziaProcessos.Text = textoVazio;
             var telasVazias = j.EstadoVazioProcessos.TextoTitulo == "Nenhum processo" && j.EstadoVazioProcessos.TextoPrimario == "Atualizar lista"
-                && j.EstadoVazioDespachos.TextoTitulo == "Nenhum despacho" && j.EstadoVazioDespachos.TextoPrimario == "Atualizar lista" && fraseSegue;
+                && j.EstadoVazioDespachos.TextoTitulo == "Criar um despacho" && j.EstadoVazioDespachos.TextoPrimario == "Despacho de correção" && fraseSegue; // Despachos só cria (correções 2026-11-15)
             p["telas_vazias_de_processos_e_despachos"] = telasVazias;
             tudoOk &= telasVazias;
             // Captura do trilho nos dois temas (o roteiro não muda o tema guardado).
@@ -4285,7 +4285,7 @@ internal static class Roteiro
             p["despachos"] = new JsonArray(despachos.Take(4).Select(n => (JsonNode)n).ToArray());
             p["trilho"] = new JsonArray(trilho.Select(n => (JsonNode)n).ToArray());
             p["situacao_por_extenso"] = situacaoPorExtenso;
-            p["ok"] = Bons(secoes) && Bons(processos) && Bons(despachos) && situacaoPorExtenso && trilho.SequenceEqual(Faixas.Disponiveis.Select(Modulos.Rotulo));
+            p["ok"] = Bons(secoes) && Bons(processos) && situacaoPorExtenso /* a lista de despachos saiu da tela (correções 2026-11-15) */ && trilho.SequenceEqual(Faixas.Disponiveis.Select(Modulos.Rotulo));
             await j.MudarModuloAsync(Modulo.Relatorios);
         });
 
