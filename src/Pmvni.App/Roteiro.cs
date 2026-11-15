@@ -1689,7 +1689,7 @@ internal static class Roteiro
         {
             // Pasta inexistente: a mensagem exata com o botão "Abrir Ajustes", nos dois módulos (nada da pasta real é lido).
             var inexistente = Path.Combine(pasta, "nao-existe-processos");
-            if (Directory.Exists(inexistente)) Directory.Delete(inexistente, true);
+            if (Directory.Exists(inexistente)) ApagarArvore(inexistente);
             j.DefinirPastaProcessos(inexistente);
             await j.MudarModuloAsync(Modulo.Processos);
             await j.AguardarLeiturasAsync();
@@ -2153,7 +2153,7 @@ internal static class Roteiro
             // (c) Kit vazio nos Ajustes: os dois tipos desabilitados com o motivo do registro; o kit volta.
             await j.MudarModuloAsync(Modulo.Processos);
             var kitVazio = Path.Combine(pasta, "kit-vazio");
-            if (Directory.Exists(kitVazio)) Directory.Delete(kitVazio, true);
+            if (Directory.Exists(kitVazio)) ApagarArvore(kitVazio);
             Directory.CreateDirectory(kitVazio);
             j.DefinirPastaKit(kitVazio);
             await j.AguardarNovoDespachoAsync();
@@ -2491,7 +2491,7 @@ internal static class Roteiro
             // A trava do roteiro inteiro (agente falso + soffice) já vale desde o passo 1: confere em vez de trocar a lista.
             if (ExecucaoProcesso.SomenteExecutaveisEm != agenteFalsoPasta) throw new InvalidOperationException("A trava de programas do roteiro não está ligada.");
             File.Copy(agenteFalso, Path.Combine(agenteFalsoPasta, "claude.exe"), overwrite: true);   // o mesmo programa faz o papel do claude.exe (e do python.exe)
-            if (Directory.Exists(codexHome)) Directory.Delete(codexHome, true);
+            if (Directory.Exists(codexHome)) ApagarArvore(codexHome);
             Directory.CreateDirectory(Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "2.4.0"));
             var scripts = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-pro", "1.6.1", "skills", "analise-pro", "scripts");
             Directory.CreateDirectory(scripts);
@@ -4538,8 +4538,21 @@ internal static class Roteiro
             try
             {
                 if (!Directory.Exists(pasta)) return;
-                foreach (var f in Directory.GetFiles(pasta, "*", SearchOption.AllDirectories)) File.SetAttributes(f, FileAttributes.Normal);
-                Directory.Delete(pasta, true);
+                foreach (var f in Directory.GetFiles(pasta, "*", SearchOption.AllDirectories))
+                {
+                    File.SetAttributes(f, FileAttributes.Normal);
+                    File.Delete(f);
+                }
+                // As subpastas que o OneDrive marca (reparse point "sempre neste dispositivo") não são percorridas pelo Delete recursivo, que
+                // então recusa a pasta de cima ("acesso negado"/"não está vazia"): apaga uma a uma, da mais funda para cima.
+                // O OneDrive também marca essas pastas como somente leitura (e "fixadas"): o atributo sai antes de apagar cada uma.
+                foreach (var d in Directory.GetDirectories(pasta, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
+                {
+                    File.SetAttributes(d, FileAttributes.Directory);
+                    Directory.Delete(d, false);
+                }
+                File.SetAttributes(pasta, FileAttributes.Directory);
+                Directory.Delete(pasta, false);
                 return;
             }
             catch (Exception e) when ((e is IOException or UnauthorizedAccessException) && tentativa < 40) { Thread.Sleep(250); }
