@@ -42,6 +42,8 @@ public sealed class Diario : IDisposable
     {
         var caminho = CaminhoDe(raizDados, pacote);
         Directory.CreateDirectory(Path.GetDirectoryName(caminho)!);
+        // Nunca apaga em silêncio um diário que tem trabalho: guarda-o como órfão antes de começar outro.
+        if (File.Exists(caminho) && Ler(raizDados, pacote, sha256Base) is not null) Arquivar(raizDados, pacote);
         var f = new FileStream(caminho, FileMode.Create, FileAccess.Write, FileShare.Read);
         var d = new Diario(caminho, f);
         d.Acrescentar(new JsonObject
@@ -122,9 +124,15 @@ public sealed class Diario : IDisposable
     public static string Arquivar(string raizDados, string pacote)
     {
         var caminho = CaminhoDe(raizDados, pacote);
-        var novo = Path.Combine(Path.GetDirectoryName(caminho)!,
-            Path.GetFileNameWithoutExtension(caminho) + ".orfao-" + DateTime.Now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture) + ".jsonl");
-        File.Move(caminho, novo, true);
-        return novo;
+        var baseNome = Path.Combine(Path.GetDirectoryName(caminho)!,
+            Path.GetFileNameWithoutExtension(caminho) + ".orfao-" + DateTime.Now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture));
+        // Nunca sobrescreve um órfão que já existe: acrescenta -2, -3...
+        for (var n = 1; ; n++)
+        {
+            var novo = n == 1 ? baseNome + ".jsonl" : baseNome + "-" + n.ToString(CultureInfo.InvariantCulture) + ".jsonl";
+            if (File.Exists(novo)) continue;
+            try { File.Move(caminho, novo, false); return novo; }
+            catch (IOException) when (File.Exists(novo)) { }
+        }
     }
 }

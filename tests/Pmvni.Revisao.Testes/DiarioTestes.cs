@@ -144,4 +144,50 @@ public class DiarioTestes
         Assert.Equal("recuperacao", Path.GetFileName(Path.GetDirectoryName(a)));
         Assert.DoesNotContain("123", Path.GetFileName(a));
     }
+
+    [Fact]
+    public void iniciar_nao_destroi_diario_com_registros()
+    {
+        using var pasta = Ambiente.PastaDeTeste("diario-iniciar");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var d1 = Diario.Iniciar(pasta, pacote, "abc");
+        var (_, feitos) = Trabalho(Importar(), d1);
+        d1.Dispose();
+
+        using var d2 = Diario.Iniciar(pasta, pacote, "abc");
+
+        var orfaos = Directory.GetFiles(Path.GetDirectoryName(Diario.CaminhoDe(pasta, pacote))!, "*.orfao-*.jsonl");
+        Assert.Single(orfaos);
+        Assert.Equal(feitos.Count, File.ReadAllLines(orfaos[0]).Length - 1);
+        Assert.Null(Diario.Ler(pasta, pacote, "abc")); // o novo comeca vazio
+    }
+
+    [Fact]
+    public void iniciar_sobre_diario_sem_registros_nao_cria_orfao()
+    {
+        using var pasta = Ambiente.PastaDeTeste("diario-iniciar-vazio");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        Diario.Iniciar(pasta, pacote, "abc").Dispose();
+        Diario.Iniciar(pasta, pacote, "abc").Dispose();
+
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(Diario.CaminhoDe(pasta, pacote))!, "*.orfao-*"));
+    }
+
+    [Fact]
+    public void arquivar_duas_vezes_no_mesmo_segundo_nao_sobrescreve()
+    {
+        using var pasta = Ambiente.PastaDeTeste("diario-orfao2");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var nomes = new List<string>();
+        for (var i = 0; i < 3; i++)
+        {
+            var d = Diario.Iniciar(pasta, pacote, "abc");
+            Trabalho(Importar(), d);
+            d.Dispose();
+            nomes.Add(Diario.Arquivar(pasta, pacote));
+        }
+
+        Assert.Equal(3, nomes.Distinct().Count());
+        Assert.All(nomes, n => Assert.True(File.Exists(n)));
+    }
 }

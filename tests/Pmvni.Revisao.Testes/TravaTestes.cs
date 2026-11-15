@@ -84,4 +84,82 @@ public class TravaTestes
         Assert.Equal(".~a.pmvrel.lock", Path.GetFileName(caminho));
         Assert.True(File.GetAttributes(caminho).HasFlag(FileAttributes.Hidden));
     }
+
+    [Fact]
+    public void retomada_concorrente_deixa_um_so_dono()
+    {
+        using var pasta = Ambiente.PastaDeTeste("trava-corrida");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        using var antiga = Trava.Adquirir(pacote, Eu("ana", 11), () => T0).Adquirida;
+        var tarde = T0 + Trava.Abandono + TimeSpan.FromSeconds(1);
+        Trava? a = null;
+        try
+        {
+            // B le a trava abandonada e, antes de apagar, A retoma e cria a sua
+            Trava.AntesDeApagar = _ =>
+            {
+                Trava.AntesDeApagar = null;
+                a = Trava.Adquirir(pacote, Eu("carla", 33), () => tarde).Adquirida;
+            };
+            var b = Trava.Adquirir(pacote, Eu("bia", 22), () => tarde);
+
+            Assert.NotNull(a);
+            Assert.Null(b.Adquirida);
+            Assert.Equal("carla", b.Ocupada!.Usuario);
+            Assert.True(a!.Bater());
+        }
+        finally { Trava.AntesDeApagar = null; a?.Dispose(); }
+    }
+
+    [Fact]
+    public void bater_informa_trava_perdida()
+    {
+        using var pasta = Ambiente.PastaDeTeste("trava-perdida");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var antiga = Trava.Adquirir(pacote, Eu("ana", 11), () => T0).Adquirida!;
+        Assert.True(antiga.Bater());
+
+        using var nova = Trava.Adquirir(pacote, Eu("bia", 22), () => T0 + Trava.Abandono + TimeSpan.FromSeconds(1)).Adquirida!;
+        Assert.False(antiga.Bater());
+
+        File.Delete(Trava.CaminhoDe(pacote));
+        Assert.False(nova.Bater());
+    }
+
+    [Fact]
+    public void reinicio_apos_queda_retoma_na_hora_se_o_processo_morreu()
+    {
+        using var pasta = Ambiente.PastaDeTeste("trava-queda");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        using var morta = Trava.Adquirir(pacote, new InfoTrava("PC", "ana", 2_000_000_000, T0, T0), () => T0).Adquirida;
+
+        using var nova = Trava.Adquirir(pacote, new InfoTrava("PC", "ana", Environment.ProcessId, T0, T0), () => T0.AddSeconds(5)).Adquirida;
+        Assert.NotNull(nova);
+
+        // outro usuario, ou outra maquina, nao tem como saber: continua ocupada
+        using var viva = Trava.Adquirir(Path.Combine(pasta, "b.pmvrel"), new InfoTrava("PC", "ana", 2_000_000_000, T0, T0), () => T0).Adquirida;
+        var outro = Trava.Adquirir(Path.Combine(pasta, "b.pmvrel"), new InfoTrava("PC", "bia", Environment.ProcessId, T0, T0), () => T0.AddSeconds(5));
+        Assert.Null(outro.Adquirida);
+    }
+
+    [Fact]
+    public void batimento_no_futuro_conta_como_abandonada()
+    {
+        using var pasta = Ambiente.PastaDeTeste("trava-futuro");
+        var pacote = Path.Combine(pasta, "a.pmvrel");
+        using var adiantada = Trava.Adquirir(pacote, Eu("ana", 11), () => T0.AddMinutes(10)).Adquirida;
+
+        Assert.Null(Trava.Adquirir(pacote, Eu("bia", 22), () => T0.AddMinutes(11)).Adquirida);
+        Assert.NotNull(Trava.Adquirir(pacote, Eu("bia", 22), () => T0).Adquirida);
+    }
+
+    [Fact]
+    public void pasta_inexistente_ou_somente_leitura_nao_lanca()
+    {
+        using var pasta = Ambiente.PastaDeTeste("trava-semescrita");
+        var r = Trava.Adquirir(Path.Combine(pasta, "nao-existe", "a.pmvrel"), Eu("ana", 11), () => T0);
+        Assert.Null(r.Adquirida);
+        Assert.Null(r.Ocupada);
+        Assert.False(string.IsNullOrEmpty(r.Erro));
+    }
 }
