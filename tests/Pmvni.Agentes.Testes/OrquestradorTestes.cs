@@ -285,6 +285,23 @@ public partial class OrquestradorTestes
     }
 
     [Fact]
+    public async Task programas_iniciados_ficam_registrados_e_os_recusados_nao()
+    {
+        // O roteiro (Tarefa 14) lista no resultado os programas que de fato partiram; o que a trava recusa nunca entra na lista.
+        var vistos = new List<string>();
+        ExecucaoProcesso.AoIniciar = c => { lock (vistos) vistos.Add(c); };
+        try
+        {
+            var (codigo, _) = await ExecucaoProcesso.RodarAsync(Ambiente.AgenteFalso, new[] { "--version" }, Ambiente.PastaTestes, _ => { }, TimeSpan.FromSeconds(30), CancellationToken.None);
+            Assert.Equal(0, codigo);
+            var real = Path.Combine(Environment.SystemDirectory, "whoami.exe");
+            await Assert.ThrowsAsync<InvalidOperationException>(() => ExecucaoProcesso.RodarAsync(real, Array.Empty<string>(), Ambiente.PastaTestes, _ => { }, TimeSpan.FromSeconds(5), CancellationToken.None));
+        }
+        finally { ExecucaoProcesso.AoIniciar = null; }
+        Assert.Equal(new[] { Path.GetFullPath(Ambiente.AgenteFalso) }, vistos);
+    }
+
+    [Fact]
     public async Task testes_nunca_iniciam_programa_real()
     {
         var real = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenAI", "Codex", "bin", "x", "codex.exe");

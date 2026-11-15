@@ -24,6 +24,15 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $agenteFalso
     "roteiro: o agente falso não foi publicado (dotnet publish, código $LASTEXITCODE); o app não foi aberto." | Set-Content (Join-Path $saida 'roteiro-fim.txt') -Encoding utf8
     exit 1
 }
+# Tarefa 14: o publish deixa bin\ e obj\ no projeto do agente falso; só a cópia publicada em tests\saida\agente-falso é usada. Apaga as duas (só
+# esses caminhos, conferidos sob tests\AgenteFalso), para o roteiro não deixar nada fora de tests\saida.
+$projetoFalso = Join-Path $raiz 'tests\AgenteFalso'
+foreach ($d in 'bin', 'obj') {
+    $alvo = Join-Path $projetoFalso $d
+    if ((Test-Path -LiteralPath $alvo) -and ([IO.Path]::GetFullPath($alvo)).StartsWith([IO.Path]::GetFullPath($projetoFalso) + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        Remove-Item -LiteralPath $alvo -Recurse -Force
+    }
+}
 $p = Start-Process -FilePath $exe -ArgumentList ('"' + (Join-Path $raiz 'tests\corpus\longo.json') + '"'), '--roteiro', ('"' + $resultado + '"') -PassThru -Wait
 # O app só grava na pasta do JSON de saída (tests\saida\roteiro); o resultado é copiado para docs\ aqui sem nada do computador (o
 # arquivo é versionado): a pasta de dados vira <dados>, a do kit <kit>, a raiz do repositório ".", o perfil do Windows %USERPROFILE% e

@@ -140,6 +140,15 @@ internal static class Roteiro
         // Tarefa 13: Processos e Despachos leem uma CÓPIA da árvore fictícia (nunca a pasta real de processos) e nenhum arquivo é aberto fora
         // do app (as aberturas só são registradas). A cópia e a "fotografia" dela (caminho → sha256) são feitas antes de qualquer módulo.
         AberturaExterna.Simular = true;
+        // Tarefa 14: a trava de programas vale no roteiro inteiro (desde o passo 1): só o agente falso (tests\saida\agente-falso) pode ser iniciado
+        // pelo editor, e cada programa iniciado fica listado no resultado (programas_iniciados). O LibreOffice dos despachos não passa por aqui.
+        var inicioDoRoteiro = DateTime.UtcNow;
+        var pastaDoAgenteFalso = Path.GetFullPath(Path.Combine(pasta, "..", "agente-falso"));
+        ExecucaoProcesso.SomenteExecutaveisEm = pastaDoAgenteFalso;
+        var programasIniciados = new List<string>();
+        ExecucaoProcesso.AoIniciar = c => { lock (programasIniciados) programasIniciados.Add(c); };
+        // As chaves falsas que os passos 50 e 53 sorteiam (e o valor herdado do 53): o passo 64 confere que nenhuma ficou em tests\saida.
+        var chavesDoRoteiro = new List<string> { "falsa-herdada" };
         var copiaProcessos = Path.Combine(pasta, "processos");
         if (Directory.Exists(copiaProcessos)) ApagarArvore(copiaProcessos);
         CopiarArvore(Path.Combine(corpus, "processos"), copiaProcessos);
@@ -2574,6 +2583,7 @@ internal static class Roteiro
             var chatgpt = j.CartaoDoAgente(Provedor.ChatGpt);
             perguntas.Confirmar = true;
             var chave = "chave-falsa-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));   // aleatória, só deste roteiro; nunca vai para o resultado
+            chavesDoRoteiro.Add(chave);
             var trechos = TrechosDaChave(chave);
             var dpapi = Path.Combine(PastaDados.Raiz, "segredos", "chatgpt.dpapi");
             var ajustesJson = Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo);
@@ -2682,7 +2692,7 @@ internal static class Roteiro
             foreach (var a in Directory.GetFiles(anexosPasta, "*", SearchOption.AllDirectories))
             {
                 var info = new FileInfo(a);
-                fotoDosAnexos[a] = (ShaDe(a), info.Length, info.LastWriteTimeUtc, info.CreationTimeUtc, info.Attributes);
+                fotoDosAnexos[a] = (ShaDe(a), info.Length, info.LastWriteTimeUtc, info.CreationTimeUtc, SemNuvem(info.Attributes));
             }
             antesDoNovoRelatorio = FotografarArvore(processosAgentes);
             j.EsquecerExecucoesClaude();
@@ -2781,7 +2791,22 @@ internal static class Roteiro
         {
             await PrepararNovoRelatorioAsync();
             var processo = P0001();
-            if (j.ProcessoDoNovoRelatorio?.Pasta != processo) throw new InvalidOperationException("o passo 51 não deixou o 0001 escolhido");
+            if (j.ProcessoDoNovoRelatorio?.Pasta != processo || j.AnexosDoNovoRelatorio.Count != 4)
+            {
+                // O passo 51 falhou no meio: refaz aqui o que ele deixa (o 0001 escolhido, os 4 anexos e os destinos), para este passo não depender dele.
+                await j.MudarModuloAsync(Modulo.Relatorios);
+                await j.NovoRelatorioAsync();
+                await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
+                perguntas.ArquivosParaAnexar = [planta, requerimento, memorial];
+                await j.AnexarAsync();
+                await j.SoltarArquivosAsync([foto]);
+                await j.AguardarNovoRelatorioAsync();
+                j.DefinirDestino(0, DestinoAnexo.ReapresentacaoNova);
+                j.DefinirDestino(2, DestinoAnexo.ReapresentacaoNova);
+                j.DefinirDestino(1, DestinoAnexo.Documento);
+                await j.AguardarNovoRelatorioAsync();
+                p["estado_refeito"] = true;
+            }
             j.PedidoTexto = "Confira a reapresentação fictícia.\nVeja as pendências do despacho anterior.";
             var texto = j.PedidoTexto;
             var motivo = j.MotivoBotao(Provedor.ChatGpt);
@@ -2856,6 +2881,7 @@ internal static class Roteiro
             await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
             Environment.SetEnvironmentVariable("OPENAI_API_KEY", "falsa-herdada");
             var chave = "chave-falsa-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));   // aleatória, nunca vai para o resultado
+            chavesDoRoteiro.Add(chave);
             try
             {
                 // Conta: a chave herdada do ambiente do editor não chega ao agente.
@@ -3177,7 +3203,7 @@ internal static class Roteiro
             {
                 var info = new FileInfo(kv.Key);
                 return info.Exists && ShaDe(kv.Key) == kv.Value.Sha && info.Length == kv.Value.Tamanho && info.LastWriteTimeUtc == kv.Value.Escrita
-                    && info.CreationTimeUtc == kv.Value.Criacao && info.Attributes == kv.Value.Atributos;
+                    && info.CreationTimeUtc == kv.Value.Criacao && SemNuvem(info.Attributes) == kv.Value.Atributos;
             });
             p["anexos_originais_intactos"] = anexosIntactos;
             var soOFalso = ExecucaoProcesso.SomenteExecutaveisEm == agenteFalsoPasta;
@@ -3207,7 +3233,7 @@ internal static class Roteiro
             Directory.GetFiles(raiz, "*", SearchOption.AllDirectories).ToDictionary(f => f, f =>
             {
                 var i = new FileInfo(f);
-                return (ShaLeg(f), i.Length, i.LastWriteTimeUtc, i.Attributes);
+                return (ShaLeg(f), i.Length, i.LastWriteTimeUtc, SemNuvem(i.Attributes));
             }, StringComparer.OrdinalIgnoreCase);
         var fotoLegOriginais = FotoLeg(legOriginais);
         bool OriginaisLegIntactos(JsonObject p)
@@ -3227,6 +3253,44 @@ internal static class Roteiro
         JsonArray LinhasEmJson(IReadOnlyList<LinhaAnexo> l) => new(l.Select(x => (JsonNode)$"{x.Titulo} | {Esferas.Rotulo(x.Esfera)} | {x.Detalhe} | {x.Selo}").ToArray());
         LinhaAnexo? LinhaDe(string titulo) => j.LinhasLegislacaoAjustes.FirstOrDefault(l => l.Titulo == titulo);
         var anexadoEm = new System.Text.RegularExpressions.Regex(@"^anexado em \d{2}/\d{2}/\d{4} \d{2}:\d{2}$");
+        const string TituloLei = "Lei nº 9.999/2099 (fictícia)";
+
+        // Tarefa 14: os passos 58–63, 30 e 48 partem do estado que o anterior deixa. Se ele falhou e deixou outro, o estado é refeito aqui pelo
+        // app (excluir tudo e anexar de novo), para uma falha não derrubar os seguintes; o passo registra "estado_refeito".
+        async Task GarantirLegislacaoAsync(int depoisDo, JsonObject p)
+        {
+            string[] esperado = depoisDo switch
+            {
+                57 => ["LEI 9.999-2099 - FICTICIA", "NT 99-2099 - FICTICIA"],
+                58 => ["DIGITALIZADA - FICTICIA", "LEI 9.999-2099 - FICTICIA", "NT 99-2099 - FICTICIA"],
+                59 => ["DIGITALIZADA - FICTICIA", "LEI 9.999-2099 - FICTICIA", "LEI 99.999-2099 - FICTICIA", "NT 99-2099 - FICTICIA"],
+                _ => ["DIGITALIZADA - FICTICIA", "LEI 99.999-2099 - FICTICIA", "NT 99-2099 - FICTICIA", TituloLei],
+            };
+            var atuais = j.LinhasLegislacaoAjustes.Select(l => l.Titulo).Order(StringComparer.Ordinal).ToList();
+            if (atuais.SequenceEqual(esperado.Order(StringComparer.Ordinal)) && (depoisDo < 60 || LinhaDe(TituloLei)?.Paginas == "4 páginas")) return;
+            var confirmar = perguntas.Confirmar;
+            perguntas.Confirmar = true;
+            try
+            {
+                foreach (var l in j.LinhasLegislacaoAjustes.ToList()) await j.ExcluirAnexoAsync(l.Id);
+                string[] lista = depoisDo switch
+                {
+                    57 => [legLei, legNt],
+                    58 => [legLei, legNt, legDigital],
+                    59 => [legFederal, legNt, legLei, legDigital],
+                    _ => [legFederal, legNt, legLei2, legDigital],
+                };
+                perguntas.ListasParaAbrir.Enqueue(lista);
+                await j.AnexarLegislacaoAsync();
+                if (depoisDo >= 60)
+                {
+                    var v2 = LinhaDe("LEI 9.999-2099 - FICTICIA (VERSAO 2)") ?? throw new InvalidOperationException("a versão 2 da lei não foi anexada ao refazer o estado");
+                    await j.RenomearAnexoAsync(v2.Id, TituloLei);
+                }
+            }
+            finally { perguntas.Confirmar = confirmar; }
+            p["estado_refeito"] = "depois do passo " + depoisDo;
+        }
 
         await Passo("57_legislacao_anexar_dois", async p =>
         {
@@ -3256,6 +3320,7 @@ internal static class Roteiro
 
         await Passo("58_legislacao_recusas", async p =>
         {
+            await GarantirLegislacaoAsync(57, p);
             perguntas.ListasParaAbrir.Enqueue([legLei, legNaoPdf, legSenha, legCorrompido, legDigital]);
             var resumo = await j.AnexarLegislacaoAsync();
             p["resumo"] = resumo;
@@ -3270,6 +3335,7 @@ internal static class Roteiro
 
         await Passo("59_legislacao_excluir_e_anexar_novos", async p =>
         {
+            await GarantirLegislacaoAsync(58, p);
             var nt = LinhaDe("NT 99-2099 - FICTICIA") ?? throw new InvalidOperationException("a NT não está na lista");
             var lei = LinhaDe("LEI 9.999-2099 - FICTICIA") ?? throw new InvalidOperationException("a lei não está na lista");
             var outros = new[] { CopiaLeg(legLei), IndiceLeg(legLei), CopiaLeg(legDigital), IndiceLeg(legDigital) }
@@ -3323,6 +3389,7 @@ internal static class Roteiro
 
         await Passo("60_legislacao_editar_e_substituir", async p =>
         {
+            await GarantirLegislacaoAsync(59, p);
             var lei = LinhaDe("LEI 9.999-2099 - FICTICIA") ?? throw new InvalidOperationException("a lei não está na lista");
             const string Novo = "Lei nº 9.999/2099 (fictícia)";
             var renomeou = await j.RenomearAnexoAsync(lei.Id, Novo) is null && j.LinhasLegislacaoAjustes.Any(l => l.Id == lei.Id && l.Titulo == Novo);
@@ -3366,7 +3433,6 @@ internal static class Roteiro
         // digitalizada. A área de transferência e as aberturas externas só são registradas.
         AreaTransferencia.Simular = true;
         string IdDe(string titulo) => j.LinhasLegislacaoAjustes.Single(l => l.Titulo == titulo).Id;
-        const string TituloLei = "Lei nº 9.999/2099 (fictícia)";
         async Task<JsonElement> JsLeitor(string expressao)
         {
             var r = await j.LeitorPdf!.AvaliarAsync(expressao);
@@ -3404,6 +3470,7 @@ internal static class Roteiro
 
         await Passo("30_legislacao_leitor", async p =>
         {
+            await GarantirLegislacaoAsync(60, p);
             var fotoAntes = FotoLeg(dadosLeg);
             var trilho = j.TrilhoAtual.Modulos.Select(Modulos.Rotulo).ToList();
             p["trilho"] = new JsonArray(trilho.Select(t => (JsonNode)t).ToArray());
@@ -3467,6 +3534,7 @@ internal static class Roteiro
 
         await Passo("61_legislacao_pesquisa_na_lei", async p =>
         {
+            await GarantirLegislacaoAsync(60, p);
             await j.MudarModuloAsync(Modulo.Legislacao);
             await j.AbrirLeiAsync(IdDe(TituloLei));
             var dica = j.DicaDaPesquisa;
@@ -3497,6 +3565,7 @@ internal static class Roteiro
 
         await Passo("62_legislacao_pesquisa_em_todas", async p =>
         {
+            await GarantirLegislacaoAsync(60, p);
             await j.MudarModuloAsync(Modulo.Legislacao);
             await j.ExecutarComandoAsync(ComandosApp.LegislacaoEscopoTodas);
             var dica = j.DicaDaPesquisa;
@@ -3526,6 +3595,7 @@ internal static class Roteiro
 
         await Passo("63_legislacao_copiar_e_citar", async p =>
         {
+            await GarantirLegislacaoAsync(60, p);
             await j.MudarModuloAsync(Modulo.Legislacao);
             await j.AbrirLeiAsync(IdDe(TituloLei), 2);
             await JsLeitor("document.getSelection().removeAllRanges(), true");
@@ -3564,6 +3634,7 @@ internal static class Roteiro
 
         await Passo("48_legislacao_seguranca", async p =>
         {
+            await GarantirLegislacaoAsync(60, p);
             var script = Leg(@"OUTRAS\COM-SCRIPT - FICTICIA.pdf");
             perguntas.ListasParaAbrir.Enqueue([script]);
             var resumo = await j.AnexarLegislacaoAsync();
@@ -3610,7 +3681,236 @@ internal static class Roteiro
                 && OriginaisLegIntactos(p);
         });
 
+        // ---------- Tarefa 14: passo 64, o fluxo completo em sequência única ----------
+        // Novo relatório (agente falso, cenário ok) → editar, situação, excluir e desfazer → salvar, fechar, reabrir → exportar → pesquisar → tema →
+        // Recentes → Comparar → Novo despacho › Correção → Ajustes › Legislação → leitor (pesquisa em todas, citação) → excluir a lei; por fim o
+        // registro da execução, o anexo original, nenhuma chave em tests\saida, nada gravado fora de tests\saida e só o agente falso iniciado.
+        await Passo("64_fluxo_completo", async p =>
+        {
+            var conf = new JsonObject();
+            bool Conf(string nome, bool valor) { conf[nome] = valor; return valor; }
+            await j.FecharSessaoAsync();
+            var fluxoPasta = Path.Combine(pasta, "fluxo");
+            if (Directory.Exists(fluxoPasta)) ApagarArvore(fluxoPasta);
+            var fluxoProcessos = Path.Combine(fluxoPasta, "processos");
+            CopiarArvore(Path.Combine(corpus, "processos"), fluxoProcessos);
+            var fluxoLeg = Path.Combine(fluxoPasta, "legislacao");
+            CopiarArvore(Path.Combine(corpus, "legislacao"), fluxoLeg);
+            var fluxoAnexo = Path.Combine(fluxoPasta, "anexos", "planta-ficticia.pdf");
+            Directory.CreateDirectory(Path.GetDirectoryName(fluxoAnexo)!);
+            File.WriteAllBytes(fluxoAnexo, PdfFicticio("Planta baixa ficticia do fluxo completo"));
+            var fotoAnexo = FotoLeg(Path.GetDirectoryName(fluxoAnexo)!);
+            await PrepararAgentesAsync();
+            j.DefinirPastaProcessos(fluxoProcessos);
+            Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", null);
+            j.DefinirPastaKit(kitReal);
+            j.Hoje = () => new DateOnly(2099, 3, 10);
+            j.Conversor = conversorReal;
+            perguntas.Confirmar = true;
+            var proc = Directory.GetDirectories(Path.Combine(fluxoProcessos, "2099"), "0001 - 2099 - *").Single();
+
+            // (1) Novo relatório pela faixa de Relatórios, com o anexo na reapresentação, e Analisar com o ChatGPT (agente falso).
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            await j.ExecutarComandoAsync(ComandosApp.RelatoriosNovo);
+            await j.AguardarNovoRelatorioAsync();
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == proc));
+            perguntas.ArquivosParaAnexar = [fluxoAnexo];
+            await j.AnexarAsync();
+            await j.AguardarNovoRelatorioAsync();
+            j.DefinirDestino(0, DestinoAnexo.ReapresentacaoNova);
+            await j.AguardarNovoRelatorioAsync();
+            var previaAnexo = j.AnexosDoNovoRelatorio.Count == 1 ? j.AnexosDoNovoRelatorio[0].Previa : null;
+            p["previa_do_anexo"] = previaAnexo;
+            Conf("novo_relatorio_pela_faixa", j.PaginaNovoRelatorioVisivel && previaAnexo == @"PROJETO\REVISÃO 01\planta-ficticia.pdf");
+            j.PedidoTexto = "Fluxo completo do roteiro (fictício).";
+            j.Orquestrador = Orq("ok");
+            var exec = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException("a análise não partiu: " + j.InfoMensagemAtual.Message);
+            var fimExec = await Prazo(j.AguardarAnaliseAsync(exec), 180);
+            p["analise"] = fimExec.Situacao + (fimExec.Mensagem is null ? "" : ": " + fimExec.Mensagem);
+            var sessao = j.Sessao ?? throw new InvalidOperationException("o relatório importado não abriu: " + j.InfoMensagemAtual.Message);
+            var pmvrelFluxo = sessao.Caminho;
+            p["pmvrel"] = Path.GetFileName(pmvrelFluxo);
+            Conf("importado_e_aberto", fimExec.Situacao == "concluida" && Mesmo(Path.GetDirectoryName(pmvrelFluxo), proc)
+                && Path.GetFileName(pmvrelFluxo).StartsWith("Relatorio_0001_2099", StringComparison.Ordinal) && j.FolhasVisiveis && sessao.Revisao.Projeto.Itens.Count == 3);
+            var idsFluxo = sessao.Revisao.Projeto.Incluidos.Select(i => i.Id).ToList();
+
+            // (2) Editar o texto no A4 (Enter), mudar a situação com justificativa, excluir um item e desfazer.
+            const string TextoFluxo = "Verificação refeita no fluxo completo do roteiro.";
+            const string JustificativaFluxo = "Conferido na planta pelo fluxo completo do roteiro.";
+            string? VerificacaoFluxo() => DadosEfetivos.TextoEfetivo(sessao.Revisao.Projeto, sessao.Revisao.Projeto.Item(idsFluxo[0])!, "verificacao");
+            var abriuA4 = await DigitarAsync(idsFluxo[0], TextoFluxo);
+            await TeclaAsync(j, "Enter", "Enter", 13);
+            var editou = abriuA4 && await EsperarAteAsync(() => Task.FromResult(VerificacaoFluxo() == TextoFluxo), 5000) && await EsperarAteAsync(async () => !await EditandoAsync(), 3000);
+            Conf("editou_no_a4", editou);
+            await j.AplicarAsync(new DefinirSituacao(idsFluxo[1], "ATENDE"));
+            await j.AplicarAsync(new DefinirJustificativa(idsFluxo[1], JustificativaFluxo));
+            var item2 = sessao.Revisao.Projeto.Item(idsFluxo[1])!;
+            Conf("situacao_com_justificativa", item2.Situacao.Revisada == "ATENDE" && item2.Situacao.Justificativa == JustificativaFluxo && j.Aberto!.Preparado.ErrosFinais.Count == 0);
+            await j.SelecionarAsync(idsFluxo[2]);
+            await j.ExecutarComandoAsync(ComandosApp.InicioExcluirRestaurar);
+            var excluiuItem = sessao.Revisao.Projeto.Item(idsFluxo[2])!.Incluido == false;
+            await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            Conf("excluir_e_desfazer", excluiuItem && sessao.Revisao.Projeto.Item(idsFluxo[2])!.Incluido);
+
+            // (3) Salvar, fechar e reabrir: o mesmo estado e o mesmo histórico.
+            await j.ExecutarComandoAsync(ComandosApp.ArquivoSalvar);
+            var salvou = await EsperarAteAsync(() => Task.FromResult(sessao.Estado == EstadoGravacao.Salvo), 10000);
+            var historicoAntes = sessao.Revisao.HistoricoCompleto.Count;
+            var reabriu = await j.FecharSessaoAsync() && await j.AbrirPacoteAsync(pmvrelFluxo);
+            sessao = j.Sessao ?? throw new InvalidOperationException("não reabriu: " + j.InfoMensagem.Message);
+            var pj = sessao.Revisao.Projeto;
+            var mesmoEstado = reabriu && VerificacaoFluxo() == TextoFluxo && pj.Item(idsFluxo[1])!.Situacao.Revisada == "ATENDE"
+                && pj.Item(idsFluxo[1])!.Situacao.Justificativa == JustificativaFluxo && pj.Item(idsFluxo[2])!.Incluido && sessao.Revisao.HistoricoCompleto.Count == historicoAntes;
+            p["registros_no_historico"] = historicoAntes;
+            Conf("salvar_fechar_reabrir", salvou && mesmoEstado);
+
+            // (4) Exportar o PDF: páginas = folhas; o recibo leva o sha do pacote gravado.
+            var pdfFluxo = Path.Combine(fluxoPasta, "fluxo-completo.pdf");
+            var (okPdf, xPdf, erroPdf, _) = await j.ExportarParaAsync(pdfFluxo);
+            var paginasPdf = okPdf ? InfoPdf.Ler(await File.ReadAllBytesAsync(pdfFluxo)).Paginas : 0;
+            var shaRecibo = xPdf is null ? null : JsonNode.Parse(await File.ReadAllTextAsync(xPdf.CaminhoRecibo))?["sha256_pacote"]?.GetValue<string>();
+            p["exportar"] = new JsonObject { ["paginas"] = paginasPdf, ["folhas"] = j.Aberto?.Composicao.Folhas, ["erro"] = erroPdf };
+            Conf("exportou_pdf", okPdf && paginasPdf == j.Aberto!.Composicao.Folhas && string.Equals(shaRecibo, ShaDe(pmvrelFluxo), StringComparison.OrdinalIgnoreCase));
+
+            // (5) Pesquisar no relatório, (6) trocar o tema e voltar, (7) Recentes com o pacote no topo, (8) Comparar com as 2 alterações restantes.
+            await j.DigitarPesquisaAsync("fluxo completo");
+            p["pesquisa"] = j.TextoResultadoPesquisa;
+            Conf("pesquisa", j.PesquisaTotal >= 1 && j.TextoResultadoPesquisa == $"1 de {j.PesquisaTotal}" && j.PesquisaRef == idsFluxo[0]);
+            await j.DigitarPesquisaAsync("");
+            await j.ExecutarComandoAsync(ComandosApp.ExibirTemaEscuro);
+            await Esperar(600);
+            var ficouEscuro = j.TemaAtual == ElementTheme.Dark;
+            await j.ExecutarComandoAsync(ComandosApp.ExibirTemaSistema);
+            await Esperar(400);
+            Conf("tema", ficouEscuro && j.TemaDosAjustes == "sistema");
+            var faixaArquivo = j.FaixaAtual;
+            faixaArquivo.EscolherAba("Arquivo");
+            await Esperar(250);
+            var recentesFluxo = faixaArquivo.AtualizarMenuDinamico(ComandosApp.ArquivoRecentes);
+            Conf("recentes_no_topo", recentesFluxo.Count > 0 && Mesmo(recentesFluxo[0], pmvrelFluxo));
+            await j.ExecutarComandoAsync(ComandosApp.RevisaoComparar);
+            var comparado = perguntas.Informados.LastOrDefault();
+            var diferencas = Comparacao.Diferencas(sessao.Revisao.Projeto, sessao.Revisao.HistoricoCompleto);
+            p["comparar"] = comparado.Texto?.Split('\n')[0];
+            Conf("comparar_duas_alteracoes", comparado.Titulo == "Comparar com o original" && diferencas.Count == 2
+                && comparado.Texto?.StartsWith("2 itens alterados", StringComparison.Ordinal) == true);
+
+            // (9) Novo despacho › Correção pela faixa de Relatórios: processo e relatório pré-escolhidos, etapa nova, exigências = itens ≠ ATENDE agora.
+            var esperadas = sessao.Revisao.Projeto.Incluidos.Select((it, k) => (it, n: k + 1))
+                .Where(t => (t.it.Situacao.Revisada ?? t.it.Situacao.Original!.GetValue<string>()) != "ATENDE")
+                .Select(t => "ITEM " + t.n.ToString("D2", CultureInfo.InvariantCulture)).ToArray();
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            j.FaixaAtual.EscolherAba("Página Inicial");
+            await Esperar(250);
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+            await j.AguardarNovoDespachoAsync();
+            var desp = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página Novo despacho não abriu: " + j.InfoMensagemAtual.Message);
+            var exigencias = desp.Rascunho?.Pendencias.Select(x => "ITEM " + x.Numero.ToString("D2", CultureInfo.InvariantCulture)).ToArray() ?? [];
+            p["exigencias"] = new JsonArray(exigencias.Select(x => (JsonNode)x).ToArray());
+            p["etapa"] = desp.Etapa?.Nome;
+            Conf("origem_pre_escolhida", desp.Processo?.Numero == 1 && Mesmo(desp.CaminhoPacote, pmvrelFluxo) && desp.Etapa is { Nova: true });
+            Conf("exigencias_do_estado_atual", exigencias.SequenceEqual(esperadas) && esperadas.SequenceEqual(["ITEM 03"]));
+            await j.GerarEConferirAsync();
+            Conf("paginas_para_conferir", desp.Preparacao is { Pdf: not null, Erros.Count: 0 } && j.NovoDespacho.CaixasDasPaginas.Count == desp.Preparacao.Paginas);
+            var marcouTodas = await MarcarTodasAsync();
+            var entrega = await j.GravarDespachoAsync() ?? throw new InvalidOperationException("não gravou o despacho: " + j.InfoMensagemAtual.Message);
+            var reciboDesp = ReciboDespacho.Ler(entrega.Recibo);
+            p["despacho"] = new JsonArray(Directory.GetFiles(entrega.Pasta).Select(f => (JsonNode)Path.GetFileName(f)).ToArray());
+            Conf("despacho_gravado", marcouTodas && File.Exists(entrega.Docx) && entrega.Pdf is not null && File.Exists(entrega.Pdf) && File.Exists(entrega.Recibo)
+                && Directory.GetFiles(entrega.Pasta).Length == 3 && Mesmo(Path.GetDirectoryName(entrega.Pasta), proc)
+                && string.Equals(reciboDesp["relatorio"]?["sha256_pacote"]?.GetValue<string>(), ShaDe(pmvrelFluxo), StringComparison.OrdinalIgnoreCase));
+            var escolhidoFluxo = j.DespachoEscolhido?.Despacho;
+            Conf("despachos_lista_correcao", j.PaginaDespachosVisivel && escolhidoFluxo is { Tipo: TipoDespacho.Correcao } && Mesmo(escolhidoFluxo.Pasta, entrega.Pasta));
+
+            // (10) Ajustes › Legislação com a pasta vazia: anexar a lei fictícia, uma linha, o título.
+            await j.ReindexacaoLegislacao;
+            await j.MudarModuloAsync(Modulo.Ajustes);
+            foreach (var l in j.LinhasLegislacaoAjustes.ToList()) await j.ExcluirAnexoAsync(l.Id);
+            Conf("legislacao_vazia", j.LinhasLegislacaoAjustes.Count == 0 && CopiasLeg().Count == 0);
+            var leiFluxo = Path.Combine(fluxoLeg, "MUNICIPAL", "LEI 9.999-2099 - FICTICIA.pdf");
+            var fotoLeiFluxo = FotoLeg(fluxoLeg);
+            perguntas.ListasParaAbrir.Enqueue([leiFluxo]);
+            var resumoLeg = await j.AnexarLegislacaoAsync();
+            p["anexar"] = resumoLeg;
+            Conf("uma_linha", resumoLeg == "1 PDF anexado." && j.LinhasLegislacaoAjustes.Count == 1);
+            var idLeiFluxo = j.LinhasLegislacaoAjustes.Single().Id;
+            Conf("titulo", await j.RenomearAnexoAsync(idLeiFluxo, TituloLei) is null && j.LinhasLegislacaoAjustes.Single().Titulo == TituloLei);
+
+            // (11) Legislação: pesquisar em todas as leis, abrir o resultado da p. 2, selecionar e Copiar citação.
+            await j.MudarModuloAsync(Modulo.Legislacao);
+            await EsperarAteAsync(() => Task.FromResult(j.LeitorPdf is not null), 30000);
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoEscopoTodas);
+            await j.DigitarPesquisaAsync("afastamento frontal");
+            var paginasAchadas = j.ResultadosDaPesquisa.Select(r => r.Pagina).ToList();
+            p["pesquisa_em_todas"] = j.CabecalhoResultados + " (p. " + string.Join(", ", paginasAchadas) + ")";
+            Conf("pesquisa_em_todas", j.CabecalhoResultados == "2 resultados em 1 lei" && paginasAchadas.SequenceEqual([1, 2]));
+            var resultado2 = j.ResultadosDaPesquisa.Single(r => r.Pagina == 2);
+            var abriuResultado = await j.AbrirResultadoAsync(resultado2, "afastamento frontal");
+            await EsperarPagina(2);
+            p["contador"] = j.TextoResultadoPesquisa;
+            Conf("abriu_o_da_pagina_2", abriuResultado && j.TextoResultadoPesquisa == "2 de 2" && j.RodapeLegislacao.StartsWith("Página 2 de ", StringComparison.Ordinal));
+            await j.DigitarPesquisaAsync("");
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoPaginaInteira);
+            var temTexto = await EsperarTextoDaPagina(2);
+            var selecionou = temTexto && (await SelecionarNoLeitor(2, "O afastamento frontal", 2, "3,00 m.")).GetBoolean();
+            await EsperarAteAsync(() => Task.FromResult(j.FaixaAtual.Habilitado(ComandosApp.LegislacaoCopiarCitacao)), 3000);
+            await j.ExecutarComandoAsync(ComandosApp.LegislacaoCopiarCitacao);
+            var citacao = AreaTransferencia.Copiados.LastOrDefault();
+            p["citacao"] = citacao;
+            Conf("copiar_citacao", selecionou && citacao == "“O afastamento frontal mínimo é de 3,00 m.” (Lei nº 9.999/2099 (fictícia), página 2)");
+            await JsLeitor("document.getSelection().removeAllRanges(), true");
+
+            // (12) Ajustes › Legislação › Excluir (confirmado): nenhuma linha, a cópia e o índice apagados, o original igual (sha, tamanho, data, atributos).
+            var copiaLei = CopiaLeg(leiFluxo);
+            var indiceLei = IndiceLeg(leiFluxo);
+            var existiam = File.Exists(copiaLei) && File.Exists(indiceLei);
+            await j.MudarModuloAsync(Modulo.Ajustes);
+            var excluiuLei = await j.ExcluirAnexoAsync(idLeiFluxo);
+            var fotoLeiDepois = FotoLeg(fluxoLeg);
+            Conf("excluir_lei", existiam && excluiuLei && j.LinhasLegislacaoAjustes.Count == 0 && !File.Exists(copiaLei) && !File.Exists(indiceLei)
+                && fotoLeiDepois.Count == fotoLeiFluxo.Count && fotoLeiFluxo.All(kv => fotoLeiDepois.TryGetValue(kv.Key, out var v) && v == kv.Value));
+
+            // (13) Por fim: o registro da execução do início, o anexo original, nenhuma chave, nada gravado fora de tests\saida, só o agente falso iniciado.
+            var execucao = ExecucaoJson(exec);
+            var pmvrelRegistrado = execucao["pmvrel"]?.GetValue<string>();
+            p["execucao"] = execucao["situacao"]?.GetValue<string>();
+            Conf("execucao_concluida", execucao["situacao"]?.GetValue<string>() == "concluida" && pmvrelRegistrado is { Length: > 0 }
+                && File.Exists(Path.IsPathRooted(pmvrelRegistrado) ? pmvrelRegistrado : Path.Combine(proc, pmvrelRegistrado))
+                && exec.Registro.Pasta.StartsWith(Path.Combine(proc, ".pmvni-ai", "editor") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+            var copiaDoAnexo = Path.Combine(proc, "PROJETO", "REVISÃO 01", "planta-ficticia.pdf");
+            var fotoAnexoDepois = FotoLeg(Path.GetDirectoryName(fluxoAnexo)!);
+            Conf("anexo_original_intacto", fotoAnexoDepois.Count == fotoAnexo.Count && fotoAnexo.All(kv => fotoAnexoDepois.TryGetValue(kv.Key, out var v) && v == kv.Value)
+                && File.Exists(copiaDoAnexo) && ShaDe(copiaDoAnexo) == ShaDe(fluxoAnexo));
+            var saidaTestes = Path.GetFullPath(Path.Combine(pasta, ".."));
+            var trechosChaves = chavesDoRoteiro.SelectMany(TrechosDaChave).ToList();
+            var varreduraFluxo = VarrerChave([saidaTestes], trechosChaves, ignorar: a => a.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase));
+            p["chaves_procuradas"] = chavesDoRoteiro.Count;
+            p["arquivos_varridos"] = varreduraFluxo.Lidos;
+            p["arquivos_trancados_pulados"] = varreduraFluxo.Ilegiveis;
+            p["chave_em_arquivos"] = varreduraFluxo.Achados.Count;
+            Conf("nenhuma_chave_em_tests_saida", varreduraFluxo.Achados.Count == 0 && varreduraFluxo.Lidos > 0 && chavesDoRoteiro.Count >= 3);
+            var raizRepo = Path.GetFullPath(Path.Combine(saidaTestes, "..", ".."));
+            var fora = EscritasFora(raizRepo, inicioDoRoteiro, [saidaTestes]);
+            p["gravados_fora_de_tests_saida"] = new JsonArray(fora.Take(10).Select(f => (JsonNode)f).ToArray());
+            Conf("nada_gravado_fora_de_tests_saida", fora.Count == 0);
+            string[] iniciadosAgora;
+            lock (programasIniciados) iniciadosAgora = programasIniciados.ToArray();
+            Conf("so_o_agente_falso_iniciado", iniciadosAgora.Length > 0 && ExecucaoProcesso.SomenteExecutaveisEm == pastaDoAgenteFalso
+                && iniciadosAgora.All(c => c.StartsWith(pastaDoAgenteFalso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)));
+            p["conferencias"] = conf;
+            try { await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "64-fluxo-completo.png")); } catch (Exception e) { p["captura"] = e.Message; }
+            p["ok"] = conf.All(kv => kv.Value!.GetValue<bool>());
+        });
+
         await j.FecharSessaoAsync();
+        string[] iniciados;
+        lock (programasIniciados) iniciados = programasIniciados.ToArray();
+        saida["programas_iniciados"] = new JsonObject
+        {
+            ["programas"] = new JsonArray(iniciados.Select(c => Path.GetRelativePath(pastaDoAgenteFalso, c)).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).Select(c => (JsonNode)c).ToArray()),
+            ["inicios"] = iniciados.Length,
+            ["fora_do_agente_falso"] = iniciados.Count(c => !c.StartsWith(pastaDoAgenteFalso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)),
+        };
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
         saida["ok"] = falhas.Count == 0;
@@ -3678,6 +3978,38 @@ internal static class Roteiro
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException) { ilegiveis++; }
             }
         return (lidos, ilegiveis, achados);
+    }
+
+    /// <summary>Os atributos sem os bits de placeholder do OneDrive (fixado, não fixado, recuperar ao abrir/ao acessar): o OneDrive os muda sozinho nos
+    /// arquivos do roteiro (tests\saida fica dentro do OneDrive), sem tocar no conteúdo, nas datas nem nos atributos que o editor poderia mudar.</summary>
+    static FileAttributes SemNuvem(FileAttributes a) => a & ~(FileAttributes)(0x00040000 | 0x00080000 | 0x00100000 | 0x00400000);
+
+    /// <summary>Arquivos do repositório gravados desde <paramref name="desde"/> fora das pastas permitidas (tests\saida). Ficam de fora o .git, as saídas
+    /// de compilação (bin, obj, node_modules: o tools\roteiro.ps1 publica o agente falso antes de abrir o app), o desktop.ini do OneDrive e o
+    /// .superpowers (relatórios e progresso que os agentes de desenvolvimento escrevem enquanto o roteiro roda; o app nunca escreve ali).</summary>
+    static List<string> EscritasFora(string raiz, DateTime desde, IReadOnlyList<string> permitidas)
+    {
+        var achados = new List<string>();
+        var pendentes = new Stack<string>([raiz]);
+        while (pendentes.Count > 0)
+        {
+            var dir = pendentes.Pop();
+            try
+            {
+                foreach (var sub in Directory.EnumerateDirectories(dir))
+                {
+                    var nome = Path.GetFileName(sub);
+                    if (nome is ".git" or ".superpowers" or "bin" or "obj" or "node_modules") continue;
+                    if (permitidas.Any(pp => string.Equals(Path.GetFullPath(sub).TrimEnd('\\'), Path.GetFullPath(pp).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))) continue;
+                    pendentes.Push(sub);
+                }
+                foreach (var f in Directory.EnumerateFiles(dir))
+                    if (!Path.GetFileName(f).Equals("desktop.ini", StringComparison.OrdinalIgnoreCase) && File.GetLastWriteTimeUtc(f) >= desde)
+                        achados.Add(Path.GetRelativePath(raiz, f));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        }
+        return achados;
     }
 
     /// <summary>Um PDF fictício mínimo (uma página em branco com um comentário): só serve de anexo, o editor não o abre.</summary>

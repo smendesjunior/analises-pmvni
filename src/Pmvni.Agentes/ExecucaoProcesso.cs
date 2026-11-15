@@ -21,6 +21,10 @@ public sealed class ExecucaoProcesso : IDisposable
     /// <summary>Trava de teste e de roteiro: programa fora desta pasta ⇒ <see cref="InvalidOperationException"/> antes de iniciar qualquer coisa.</summary>
     public static string? SomenteExecutaveisEm { get; set; }
 
+    /// <summary>Chamado com o caminho completo de cada programa que a trava deixou passar, logo antes de iniciá-lo (o roteiro lista os programas
+    /// iniciados no resultado); o que a trava recusa nunca chega aqui.</summary>
+    public static Action<string>? AoIniciar { get; set; }
+
     readonly Process processo;
     readonly Task<int> fim;
     int cancelado;
@@ -61,6 +65,7 @@ public sealed class ExecucaoProcesso : IDisposable
         Action<IDictionary<string, string?>> ambiente, Action<string> aoLerSaida, Action<string> aoLerErro)
     {
         ConferirPrograma(exe);
+        AoIniciar?.Invoke(Path.GetFullPath(exe));
         var psi = new ProcessStartInfo(exe)
         {
             WorkingDirectory = pastaTrabalho,
