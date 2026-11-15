@@ -23,6 +23,10 @@ public sealed class PastaTeste : IDisposable
     }
 }
 
+/// <summary>Testes que mexem em variável de ambiente: sem paralelismo entre eles.</summary>
+[CollectionDefinition("Ambiente", DisableParallelization = true)]
+public sealed class ColecaoAmbiente;
+
 /// <summary>Caminhos do repositório usados pelos testes. Nada aqui grava em %APPDATA%, %LOCALAPPDATA% nem %TEMP%
 /// (o shell do Claude é virtualizado): tudo o que o teste cria fica em <c>tests/saida</c>.</summary>
 public static class Ambiente
@@ -43,6 +47,28 @@ public static class Ambiente
     /// <summary>Contexto com relógio fixo (o sorteio é o real).</summary>
     public static ContextoUsuario Contexto(string usuario = "teste") =>
         new(usuario, () => new DateTimeOffset(2026, 11, 14, 12, 0, 0, TimeSpan.Zero), RandomNumberGenerator.Create());
+
+    /// <summary>Raiz do kit PMVNI (somente leitura): <c>PMVNI_KIT_RAIZ</c> ou o padrão do desenho §10.10.</summary>
+    public static string RaizKit
+    {
+        get
+        {
+            var env = Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ");
+            return !string.IsNullOrWhiteSpace(env)
+                ? env
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR",
+                    "KIT DE TREINAMENTO DE IA (PMVNI)");
+        }
+    }
+
+    /// <summary>A raiz do kit, lida no lugar; sem o registro de modelos, o teste falha (como a Etapa 1 com o gerador do kit).</summary>
+    public static string ExigirKit()
+    {
+        var raiz = RaizKit;
+        if (!File.Exists(Path.Combine(raiz, RegistroModelos.CaminhoRegistro)))
+            Assert.Fail("Kit PMVNI ausente: " + raiz + " (defina PMVNI_KIT_RAIZ)");
+        return raiz;
+    }
 
     private static string Localizar()
     {

@@ -1,6 +1,6 @@
 r"""Verificações de fidelidade do Editor de Relatórios PMVNI contra o gerador do kit.
 
-Uso:  python -I tools/fidelidade.py {v1|v2|v3|v4|v5|tudo} [--caso NOME ...]
+Uso:  python -I tools/fidelidade.py {v1|v2|v3|v4|v5|v6|tudo} [--caso NOME ...]
 
 v1    Paridade do HTML: o `Pmvni.Verificador html` e o gerador do kit (gerar_relatorio.py --rascunho --manter-html)
       produzem o mesmo HTML, byte a byte. Grava tests/saida/v1.json.
@@ -17,7 +17,11 @@ v5    Dados efetivos × kit, via pacote: `Pmvni.Verificador html --via-pacote` i
       extrai os assets e gera o HTML a partir do projeto relido (sem nenhuma revisão); tem de ser igual, byte a byte, ao
       HTML do gerador do kit (como a V1). Mesmos casos da V4. Grava tests/saida/v5.json só com
       {caso, igual, sha256_kit, sha256_editor}.
-tudo  v4 (V1, V2 e V3 sobre todos os casos) + v5. Grava v1/v2/v3/v5.json e v4.json.
+v6    Despacho × validador do kit: `Pmvni.Verificador despacho` gera o DOCX do despacho (correção do `curto`, aprovação do
+      `curto` com --intervencao obra-nova --area 210,52 e a correção de cada caso local) a partir do modelo do kit; o próprio
+      validador do kit (validate_template_fidelity.py, importado do kit sem bytecode) exige check_registry sem erros e
+      validate(modelo, docx) == []. Grava tests/saida/v6.json só com {caso, tipo, erros_kit, sha256_docx}.
+tudo  v4 (V1, V2 e V3 sobre todos os casos) + v5 + v6. Grava v1/v2/v3/v5/v6.json e v4.json.
 --manter  não apaga %USERPROFILE%\.pmvni-fid\<run> (investigação; recusado com casos locais).
 
 Critérios (docs/fidelidade.md; mudar só com justificativa registrada lá):
@@ -59,6 +63,10 @@ CORPUS = RAIZ / 'tests' / 'corpus'
 SAIDA = RAIZ / 'tests' / 'saida'
 LOCAL = RAIZ / 'tests' / 'local.json'
 MODELO_OFICIAL = RAIZ / 'src' / 'Pmvni.Composicao' / 'ModeloOficial' / 'rev10'
+KIT_RAIZ_PADRAO = Path.home() / 'OneDrive' / 'PMVNI' / 'SIDNEY JUNIOR' / 'KIT DE TREINAMENTO DE IA (PMVNI)'
+VALIDADOR_KIT = Path('01 - PLUGINS') / 'plugins' / 'despacho' / 'skills' / 'despacho' / 'scripts' / 'validate_template_fidelity.py'
+REGISTRO_KIT = Path('02 - MODELOS DE DOCUMENTOS') / 'TEMPLATES_OFICIAIS.json'
+PAPEL_V6 = {'correcao': 'correction', 'aprovacao': 'approval_simple'}
 KIT_PADRAO = (Path.home() / 'OneDrive' / 'PMVNI' / 'SIDNEY JUNIOR' / 'KIT DE TREINAMENTO DE IA (PMVNI)'
               / '02 - MODELOS DE DOCUMENTOS' / 'RELATORIO' / 'MODELO HTML (USADO PELOS PLUGINS)')
 VERIFICADOR_PROJ = RAIZ / 'src' / 'Pmvni.Verificador' / 'Pmvni.Verificador.csproj'
@@ -765,6 +773,86 @@ def caso_v3(ex: Execucao, c: dict) -> dict:
     return res
 
 
+# ───────────────────────── V6 ─────────────────────────
+def raiz_do_kit() -> Path:
+    p = Path(os.environ.get('PMVNI_KIT_RAIZ') or KIT_RAIZ_PADRAO)
+    if not (p / REGISTRO_KIT).is_file() or not (p / VALIDADOR_KIT).is_file():
+        raise SystemExit(f'Kit PMVNI ausente: {p} (defina PMVNI_KIT_RAIZ)')
+    return p
+
+
+def validador_do_kit(kit: Path):
+    """Importa o validate_template_fidelity.py do kit no lugar, sem gravar bytecode (nada é gravado na pasta do kit)."""
+    import importlib.util
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location('pmvni_validate_template_fidelity', kit / VALIDADOR_KIT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def casos_v6(filtro: list[str] | None) -> list[dict]:
+    curto = CORPUS / 'curto.json'
+    lista = [{'nome': 'curto-correcao', 'dados': curto, 'tipo': 'correcao', 'extra': [], 'local': False},
+             {'nome': 'curto-aprovacao', 'dados': curto, 'tipo': 'aprovacao', 'extra': ['--intervencao', 'obra-nova', '--area', '210,52'],
+              'local': False}]
+    if LOCAL.is_file():
+        for c in json.loads(LOCAL.read_text(encoding='utf-8-sig')).get('casos_locais', []):
+            lista.append({'nome': f'{c["nome"]}-correcao', 'dados': Path(c['dados']), 'tipo': 'correcao', 'extra': [], 'local': True})
+    if filtro:
+        lista = [c for c in lista if c['nome'] in filtro or c['nome'].rsplit('-', 1)[0] in filtro]
+    return lista
+
+
+def executar_v6(filtro: list[str] | None, manter: bool = False) -> int:
+    """V6 (Tarefa 15): despacho gerado pelo editor × validador do kit. Temporários em %USERPROFILE%\\.pmvni-fid\\<run>, apagados no fim."""
+    kit = raiz_do_kit()
+    validador = validador_do_kit(kit)
+    dados_registro, erros_registro = validador.check_registry(kit / REGISTRO_KIT)
+    modelos = {e['role']: kit / e['path'] for e in dados_registro['templates'] if 'path' in e}
+    lista = casos_v6(filtro)
+    exe = compilar_verificador()
+    run = RASCUNHO / ('fid-v6-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
+    run.mkdir(parents=True, exist_ok=True)
+    os.environ['PMVNI_DADOS_DIR'] = str(run / 'dados')
+    resultados, ok = [], not erros_registro
+    try:
+        if erros_registro:
+            print(f'  V6 registro do kit: {len(erros_registro)} erro(s): ' + '; '.join(erros_registro))
+        for c in lista:
+            res = {'caso': c['nome'], 'tipo': c['tipo'], 'erros_kit': None, 'sha256_docx': None}
+            resultados.append(res)
+            docx = run / (c['nome'] + '.docx')
+            r = subprocess.run([str(exe), 'despacho', c['tipo'], str(c['dados']), str(docx), '--data', datetime.date.today().isoformat(),
+                                '--kit', str(kit), *c['extra']], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=600)
+            if r.returncode != 0 or not docx.is_file():
+                ok = False
+                print(f'  V6 [{c["nome"]}] FALHOU: Pmvni.Verificador despacho saiu com o código {r.returncode}'
+                      + ('' if c['local'] else ': ' + (r.stderr or r.stdout)[-600:]))
+                continue
+            erros = validador.validate(modelos[PAPEL_V6[c['tipo']]], docx)
+            res['erros_kit'] = erros
+            res['sha256_docx'] = sha(docx.read_bytes())
+            ok &= not erros
+            print(f'  V6 [{c["nome"]}] ' + ('OK' if not erros else 'FALHOU: ' + '; '.join(erros)))
+    finally:
+        if manter and not any(c['local'] for c in lista):
+            print(f'(--manter) temporários mantidos em {run}; apague a pasta depois de investigar.')
+        else:
+            apagar(run)
+            try:
+                RASCUNHO.rmdir()
+            except OSError:
+                pass
+        liberado = limpar_build()
+        print(f'Limpeza: bin/obj do Verificador e dependências apagados ({liberado / 2**20:.1f} MB); rascunho da V6 '
+              + ('mantido' if manter else 'apagado'))
+    gravar('v6.json', resultados)
+    n = sum(1 for r in resultados if r['erros_kit'] == [])
+    print('V6 ' + ('OK' if ok and n == len(resultados) else 'FALHOU') + f': {n}/{len(resultados)} casos aprovados')
+    return 0 if ok and n == len(resultados) else 1
+
+
 VERIFICACOES = {'v1': caso_v1, 'v2': caso_v2, 'v3': caso_v3, 'v5': caso_v5}
 VAZIO = {'v1': lambda n: {'caso': n, 'igual': False, 'sha256_kit': None, 'sha256_editor': None},
          'v2': lambda n: {'caso': n, 'aprovado': False, 'erro': True},
@@ -839,7 +927,7 @@ def executar(quais: list[str], filtro: list[str] | None, consolidado: bool, mant
 
 def main() -> int:
     ap = argparse.ArgumentParser(description='Verificações de fidelidade do Editor de Relatórios PMVNI')
-    ap.add_argument('cmd', choices=['v1', 'v2', 'v3', 'v4', 'v5', 'tudo'])
+    ap.add_argument('cmd', choices=['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'tudo'])
     ap.add_argument('--caso', action='append', help='só este caso (pode repetir)')
     ap.add_argument('--manter', action='store_true', help='não apaga %%USERPROFILE%%\\.pmvni-fid\\<run> (investigação; só casos do corpus)')
     a = ap.parse_args()
@@ -847,8 +935,11 @@ def main() -> int:
         raise SystemExit('--manter não vale com casos locais (dados reais): use --caso com casos do corpus.')
     if a.cmd == 'v4':
         return executar(['v1', 'v2', 'v3'], a.caso, consolidado=True, manter=a.manter)
-    if a.cmd == 'tudo':  # PF2: v4 inteira (V1–V3, com o tratamento do estouro) + V5
-        return executar(['v1', 'v2', 'v3', 'v5'], a.caso, consolidado=True, manter=a.manter)
+    if a.cmd == 'v6':
+        return executar_v6(a.caso, manter=a.manter)
+    if a.cmd == 'tudo':  # PF2: v4 inteira (V1–V3, com o tratamento do estouro) + V5; Tarefa 15: + V6
+        r = executar(['v1', 'v2', 'v3', 'v5'], a.caso, consolidado=True, manter=a.manter)
+        return max(r, executar_v6(a.caso, manter=a.manter))
     return executar([a.cmd], a.caso, consolidado=False, manter=a.manter)
 
 

@@ -25,6 +25,7 @@ internal static class Program
         {
             case "autoteste-pdf": return await AutotestePdfAsync(a.Saida!);
             case "autoteste-falhas": return await AutotesteFalhas.ExecutarAsync();
+            case "despacho": return GerarDespacho(a);
         }
         var modelo = ModeloOficial.Carregar();
         if (a.ViaPacote) return HtmlViaPacote(a, modelo);
@@ -94,6 +95,63 @@ internal static class Program
         }
         Console.WriteLine("Pacote gravado e relido: " + caminhoPacote + " (" + lido.Assets.Count + " imagens)");
         return GerarHtml(r, saida);
+    }
+
+    /// <summary>V6: o despacho que o editor gera a partir de um dados.json importado em memória (nenhum pacote gravado; sem a conferência da
+    /// pasta do processo, que aqui não existe), com todas as exigências marcadas. Grava só o DOCX e imprime <c>DESPACHO_OK &lt;sha256&gt;</c>.
+    /// Modelo indisponível: código 1; faltando: código 4 (com a lista); validação: código 5 (com os erros).</summary>
+    static int GerarDespacho(Argumentos a)
+    {
+        var tipo = a.TipoDespacho == "correcao" ? TipoDespacho.Correcao : TipoDespacho.Aprovacao;
+        var env = Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ");
+        var kit = a.Kit ?? (!string.IsNullOrWhiteSpace(env) ? env
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR", "KIT DE TREINAMENTO DE IA (PMVNI)"));
+        var registro = RegistroModelos.Ler(kit);
+        var m = registro.Modelos.FirstOrDefault(x => x.Tipo == tipo);
+        if (m is null)
+        {
+            Console.Error.WriteLine("MODELO_INDISPONIVEL" + Environment.NewLine + "- " + registro.Indisponiveis[tipo]);
+            return 1;
+        }
+
+        ConteudoPacote conteudo;
+        var dados = Path.GetFullPath(a.Dados!);
+        try
+        {
+            conteudo = Importador.Importar(File.ReadAllBytes(dados), dados, ModeloOficial.Carregar(), ContextoUsuario.Atual());
+        }
+        catch (ImportacaoRecusadaException e)
+        {
+            Console.Error.WriteLine("RELATORIO_DADOS_INVALIDOS" + Environment.NewLine + "- " + string.Join(Environment.NewLine + "- ", e.Erros));
+            return 1;
+        }
+
+        var modelo = File.ReadAllBytes(m.Caminho);
+        var tx = TextosFixos.Ler(kit, tipo);
+        var etapa = new EtapaDespacho("", "", 0, a.Data!.Value, true);
+        var r = ConteudoDespacho.Montar(tipo, conteudo.Projeto, PreenchimentoDocx.LerModelo(modelo, tipo), etapa);
+        foreach (var i in a.Intervencoes)
+            r.DefinirIntervencao(i switch { "obra-nova" => Intervencao.ObraNova, "alteracao" => Intervencao.AlteracaoDeObra, _ => Intervencao.AmpliacaoDeObra }, true);
+        if (a.Area is not null) r.DefinirArea(a.Area);
+        var faltando = r.Faltando();
+        if (faltando.Count > 0)
+        {
+            Console.Error.WriteLine("DESPACHO_INCOMPLETO" + Environment.NewLine + "- " + string.Join(Environment.NewLine + "- ", faltando));
+            return 4;
+        }
+        var d = r.Congelar(tx);
+        var docx = PreenchimentoDocx.Preencher(modelo, d);
+        var erros = ValidacaoDespacho.Comparar(modelo, docx).Concat(ValidacaoDespacho.Conteudo(modelo, docx, d)).ToList();
+        if (erros.Count > 0)
+        {
+            Console.Error.WriteLine("DESPACHO_REPROVADO" + Environment.NewLine + "- " + string.Join(Environment.NewLine + "- ", erros));
+            return 5;
+        }
+        var saida = Path.GetFullPath(a.Saida!);
+        Directory.CreateDirectory(Path.GetDirectoryName(saida)!);
+        File.WriteAllBytes(saida, docx);
+        Console.WriteLine("DESPACHO_OK " + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(docx)));
+        return 0;
     }
 
     /// <summary>Compõe no host oculto (como a exportação) e devolve o resultado da composição e a versão do WebView2.</summary>

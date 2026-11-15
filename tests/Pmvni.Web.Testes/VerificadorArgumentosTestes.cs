@@ -83,4 +83,49 @@ public sealed class VerificadorArgumentosTestes
         Assert.Equal("ok.pdf", a.Saida);
         Assert.Null(Argumentos.Ler(["autoteste-falhas"]).Erro);
     }
+
+    [Fact]
+    public void despacho_exige_tipo_dados_saida_e_data()
+    {
+        var d = Argumentos.Ler(["despacho", "correcao", "d.json", "s.docx", "--data", "2099-03-10"]);
+        Assert.Null(d.Erro);
+        Assert.Equal("despacho", d.Nome);
+        Assert.Equal("correcao", d.TipoDespacho);
+        Assert.Equal("d.json", d.Dados);
+        Assert.Equal("s.docx", d.Saida);
+        Assert.Equal(new DateOnly(2099, 3, 10), d.Data);
+        Assert.Null(d.Kit);
+        Assert.Empty(d.Intervencoes);
+        Assert.Null(d.Area);
+
+        Assert.NotNull(Argumentos.Ler(["despacho", "correcao", "d.json", "s.docx"]).Erro);                       // sem --data
+        Assert.NotNull(Argumentos.Ler(["despacho", "correcao", "d.json", "--data", "2099-03-10"]).Erro);         // sem saída
+        Assert.NotNull(Argumentos.Ler(["despacho", "d.json", "s.docx", "--data", "2099-03-10"]).Erro);           // sem tipo
+        Assert.NotNull(Argumentos.Ler(["despacho", "correcao", "d.json", "s.docx", "--data", "10/03/2099"]).Erro);
+        Assert.NotNull(Argumentos.Ler(["despacho", "correcao", "d.json", "s.docx", "--data"]).Erro);
+        Assert.NotNull(Argumentos.Ler(["despacho", "correcao", "d.json", "s.docx", "--data", "2099-03-10", "--rascunho"]).Erro);
+        Assert.NotNull(Argumentos.Ler(["pdf", "d.json", "s.pdf", "--data", "2099-03-10"]).Erro);                 // --data só no despacho
+    }
+
+    [Fact]
+    public void despacho_aceita_intervencoes_repetidas_e_area()
+    {
+        var d = Argumentos.Ler(["despacho", "aprovacao", "d.json", "s.docx", "--intervencao", "obra-nova", "--data", "2099-03-10",
+            "--intervencao", "ampliacao", "--area", "210,52", "--kit", @"C:\kit ficticio"]);
+        Assert.Null(d.Erro);
+        Assert.Equal("aprovacao", d.TipoDespacho);
+        Assert.Equal(new[] { "obra-nova", "ampliacao" }, d.Intervencoes);
+        Assert.Equal("210,52", d.Area);
+        Assert.Equal(@"C:\kit ficticio", d.Kit);
+
+        Assert.NotNull(Argumentos.Ler(["despacho", "aprovacao", "d.json", "s.docx", "--data", "2099-03-10", "--intervencao", "reforma"]).Erro);
+        Assert.NotNull(Argumentos.Ler(["despacho", "aprovacao", "d.json", "s.docx", "--data", "2099-03-10", "--area"]).Erro);
+    }
+
+    [Fact]
+    public void despacho_recusa_tipo_desconhecido()
+    {
+        var d = Argumentos.Ler(["despacho", "aprovacao_completa", "d.json", "s.docx", "--data", "2099-03-10"]);
+        Assert.Equal("Tipo de despacho desconhecido: aprovacao_completa (use correcao ou aprovacao).", d.Erro);
+    }
 }

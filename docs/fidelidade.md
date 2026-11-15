@@ -1,6 +1,6 @@
 # Fidelidade documental — critérios e medidas (Etapa 1, Tarefa 9)
 
-Suíte: `python -I tools/fidelidade.py {v1|v2|v3|v4|v5|tudo} [--caso NOME ...]`. Casos: `tests/corpus/*.json`,
+Suíte: `python -I tools/fidelidade.py {v1|v2|v3|v4|v5|v6|tudo} [--caso NOME ...]`. Casos: `tests/corpus/*.json`,
 `dados_modelo.json` do modelo oficial (com `--instrucoes`) e os casos locais de `tests/local.json` (ignorado pelo git;
 hoje o 17098). O gerador do kit roda como na V1: `gerar_relatorio.py --rascunho --manter-html` no modo padrão (Edge
 aberto por `.cmd` via `explorer.exe`). **Onde ficam os temporários (D4):** tudo o que a rodada grava — PDFs e HTML do
@@ -75,6 +75,28 @@ impressas com a numeração atual) sem nenhuma revisão. Esse HTML tem de ser ig
 - Casos: os mesmos da V4 (corpus, `dados_modelo --instrucoes` e os casos locais de `tests/local.json`). `tests/saida/v5.json`
   leva só `{caso, igual, sha256_kit, sha256_editor}`.
 - Critério: `igual` em todos os casos (código de saída 0). Qualquer byte diferente reprova.
+
+## V6: despacho × validador do kit (Etapa 2, Tarefa 15)
+
+Prova que o despacho que o editor gera passa no mesmo validador que o kit usa para os despachos (`validate()` do
+`validate_template_fidelity.py` do plugin `despacho`), além da porta em C# dessa comparação (`ValidacaoDespacho.Comparar`) e da
+conferência de conteúdo (`ValidacaoDespacho.Conteudo`) que o próprio editor faz antes de gravar.
+
+- Comando: `Pmvni.Verificador despacho <correcao|aprovacao> <dados.json> <saida.docx> --data AAAA-MM-DD [--kit <raiz>]
+  [--intervencao obra-nova|alteracao|ampliacao]... [--area 210,52]`. Importa o `dados.json` em memória (nenhum pacote gravado),
+  monta o despacho com todas as exigências marcadas, congela, preenche o modelo do kit (lido no lugar pelo `TEMPLATES_OFICIAIS.json`,
+  sha conferido), valida e grava só o DOCX; imprime `DESPACHO_OK <sha256>`. Faltando campo: código 4 (com a lista); validação
+  reprovada: código 5 (com os erros); modelo indisponível ou dados inválidos: código 1. Não há conferência da pasta do processo
+  (ela não existe aqui).
+- Casos: `curto-correcao`, `curto-aprovacao` (`--intervencao obra-nova --area 210,52`) e a correção de cada caso local de
+  `tests/local.json`. A data é a do dia da rodada.
+- O validador é importado do kit no lugar (`importlib.util.spec_from_file_location`, `sys.dont_write_bytecode = True`): nada é
+  gravado na pasta do kit. Exige `check_registry(<kit>/02 - MODELOS DE DOCUMENTOS/TEMPLATES_OFICIAIS.json)[1] == []` e
+  `validate(<modelo do papel>, <docx>) == []`.
+- Os DOCX ficam em `%USERPROFILE%\.pmvni-fid\<run>\`, apagados no fim; `tests/saida/v6.json` leva só
+  `{caso, tipo, erros_kit, sha256_docx}`.
+- Critério: zero erros do kit em todos os casos (código de saída 0). `tudo` = V1, V2, V3, V5 e V6.
+- Medido em 15/11/2026: `curto-correcao`, `curto-aprovacao` e o caso local aprovados (0 erros do kit).
 
 ## Calibração do cabeçalho e do rodapé (passo 2)
 
