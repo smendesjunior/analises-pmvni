@@ -163,3 +163,46 @@ conferido.
 Estrutura interna de classes, nomes, como a faixa de opções é montada em XAML (controle próprio
 sobre `SelectorBar` + `CommandBar` é aceitável), ícones exatos, a forma de realçar a pesquisa, e
 o formato exato das mensagens novas da ponte (seguindo o envelope `{v:1,tipo,id,dados}`).
+
+## 8. Respostas à conferência do construtor (decisões minhas, registradas)
+
+1. **Texto editado é texto puro.** O modelo imprime os campos com `html.escape` (sem marcação
+   interna). Edição devolve string pura; quebras de linha do `plaintext-only` viram espaço simples
+   (o modelo não tem `<br>`); espaços nas pontas são removidos; texto vazio é permitido só em
+   `providencia`/`base_legal`/`referencia` (a conferência do kit decide se é erro). Nada de HTML.
+2. **Campos ausentes.** Só os 5 campos de texto (`titulo`, `verificacao`, `providencia`,
+   `base_legal`, `referencia`) são editáveis. Campo ausente no original pode ser criado pela
+   edição. Sem revisão, `DadosEfetivos` reproduz exatamente a forma original (ausente continua
+   ausente, null continua null, ordem das chaves preservada) — é o que garante o byte-idêntico.
+   A forma `{original, revisado}` existe só no `projeto.json`, nunca no dados efetivo.
+3. **Original ⇄ e marca de excluído.** "Original ⇄" mostra o original **no painel de
+   Propriedades** (lado a lado com o revisado), nunca no A4. A marca "◦ excl. 07" é desenhada
+   pela página na margem cinza, ancorada no `data-ref` do **item incluído seguinte** (ou do
+   anterior, se for o último); isso é um acréscimo pequeno no `tela.ts`, fora das folhas,
+   sem tocar no fluxo nem no plano.
+4. **Ponte e estado.** O host é o dono do estado. A cada comando: recompõe por inteiro (o
+   relatório recarrega a cópia de sessão), e a página restaura rolagem pela âncora (data-ref
+   + deslocamento dentro dele) e a seleção pelo data-ref. Meta de latência: ≤ 1,5 s para o
+   longo no PC atual, medida e registrada em notas-tecnicas; recomposição incremental fica
+   para depois se a meta falhar. Edição em andamento: enquanto um campo está em edição não há
+   recomposição.
+5. **Citações.** Conversão conservadora por padrão fechado: só `item NN` / `ITEM NN` / `Item NN`
+   com NN de 1 a 3 dígitos, palavra inteira, **não** seguido de `do`/`da`/`de`/`dos`/`das` + norma,
+   artigo, lei, NBR, anexo ou tabela (ex.: "item 3 do art. 5" fica literal), e NN ≤ número de
+   itens. Tudo o mais fica literal. O `original/recebido.json` nunca muda; o token existe só no
+   `projeto.json`; a lista do que foi convertido fica no histórico (comando `ImportarCitacoes`)
+   e é visível na aba Revisão > Comparar.
+6. **OneDrive.** O usuário guarda nas pastas de processos do OneDrive; aceito. `.tmp` e `.lock`
+   ficam ao lado (o `File.Replace` exige o mesmo volume) e são marcados como ocultos; o `.tmp`
+   vive só segundos. O `.bak` é mantido (uma versão). Conflito do OneDrive ("arquivo (1)")
+   não é tratado além da detecção de mudança no disco.
+7. **Ordem e corte.** Ordem do plano: pacote + importação → modelo/comandos/dados efetivos →
+   ponte de seleção e edição no A4 → controles (faixa, trilho, painéis, propriedades, atalhos,
+   menu de contexto) → autosave/recuperação/trava → pesquisa, tema, recentes, comparar →
+   roteiro, build e entrega. Mínimo para "pronto": tudo da seção 6; pesquisa, tema, Recentes e
+   Comparar entram no roteiro também (não ficam fora).
+8. **Menores.** Histórico grava o nome de usuário do Windows (sem domínio) — o arquivo é
+   documento interno da prefeitura e o autor da revisão é informação útil. Voltar a situação
+   ao valor original zera `revisada` e a exigência de justificativa (a justificativa digitada
+   fica guardada mas não é exigida). Desfazer grava no histórico um registro `desfeito` que
+   aponta para o comando original (append-only; nada é apagado).
