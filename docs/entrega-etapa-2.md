@@ -76,16 +76,20 @@ Tudo abaixo foi rodado nesta entrega (15/11/2026).
   aprovados** (`ok: true`, nenhuma falha), com o executável final, aberto fora do pacote do Claude. O último, `64_fluxo_completo`, faz o
   caminho inteiro em sequência: Novo relatório pelo agente falso → editar, situação, excluir e desfazer → salvar, fechar e reabrir →
   exportar PDF → pesquisar → tema → Recentes → Comparar → Novo despacho de correção com o LibreOffice real → anexar, pesquisar, citar e
-  excluir uma lei fictícia; no fim confere que nenhuma chave falsa ficou em arquivo, que nada foi gravado fora da pasta de testes e que só
-  o agente falso foi iniciado (51 inícios, 0 fora dele). Latência de um comando no relatório longo: 700 ms (meta 1,5 s).
+  excluir uma lei fictícia; no fim confere que nenhuma chave falsa ficou em arquivo, que nada foi gravado fora de `tests\saida\roteiro`,
+  `tests\saida\dados-app` e `tests\saida\agente-falso` e que só partiram os programas da trava do roteiro: o agente falso e o
+  LibreOffice (o `soffice` exato que o editor acha), que converte os despachos dos passos 44 e 64 e aparece em `programas_iniciados`
+  (`fora_do_agente_falso` conta as partidas dele). Latência de um comando no relatório longo: 700 ms (meta 1,5 s).
 - **Comparação com o kit** (`python -I tools\fidelidade.py tudo`, código 0; detalhes em `docs\fidelidade.md`): 7 relatórios (5 de
   teste, o `dados_modelo` e 1 processo real, não citado nem copiado). V1 (HTML igual ao do kit) 7/7; V2 (tela × PDF do editor) 7/7, maior
   diferença 1,42 %; V3 (PDF do editor × PDF do kit) 7/7, maior diferença 1,66 %; **V5** (o relatório refeito a partir do pacote `.pmvrel`
   dá o mesmo HTML do kit, letra por letra) 7/7; **V6** (o despacho gerado pelo editor passa no validador oficial do kit) 3/3 (correção
   e aprovação de teste e a correção do processo real), 0 erros. Privacidade do navegador interno: a marca de teste em 0 de 142 arquivos.
 - **Novo relatório**: no `dotnet test` (`Pmvni.Agentes.Testes`) e no roteiro (passos 49 a 56 e 64) só com o **agente falso**
-  (`tests\AgenteFalso`), que faz o papel do `codex.exe`, do `claude.exe` e do `python.exe` sem rede e sem IA; uma trava impede
-  qualquer outro programa de ser iniciado. A execução com o ChatGPT e o Claude reais é a conferência humana abaixo.
+  (`tests\AgenteFalso`), que faz o papel do `codex.exe`, do `claude.exe` e do `python.exe` sem rede e sem IA. A trava de programas
+  (`TravaDeProgramas`) vale para tudo o que o editor inicia, o agente e o LibreOffice: nos testes, só a pasta do agente falso; no roteiro,
+  a pasta do agente falso e o `soffice` do LibreOffice (os despachos são convertidos com o LibreOffice real). A execução com o ChatGPT e o
+  Claude reais é a conferência humana abaixo.
 
 ## Conferência humana pendente
 

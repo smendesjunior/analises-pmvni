@@ -306,3 +306,48 @@ Núcleo (`Pmvni.Legislacao`, `Pmvni.Composicao.Web\Legislacao`, `web\paginador\s
 - **Faixa e atalhos**: `Atalhos.Comando(tecla, Modulo)` (a Legislação usa `MapaLegislacao`, as 10 teclas do `leitor.ts`; os outros módulos, o `Mapa` de 16, que não mudou). Os `KeyboardAccelerator`s da janela são os das duas listas, e cada tecla vale o comando do módulo à vista; numa caixa de texto, Ctrl+C é dela.
 - **Página atual**: o PDF.js recalcula a página pela parte visível depois de rolar; a última página de um PDF curto não chegava ao alto da tela e o contador voltava à anterior (visto como falha intermitente no teste do marcador "Anexo I"). O `leitor.css` dá à lista de páginas um espaço depois da última (`padding-bottom: calc(100vh - 48px)`), e `irPagina`/`irMarcador` respondem a página pedida (o marcador resolve o destino com `getDestination`/`getPageIndex`).
 - **Correção rodada 1 (17b/18)**: nada de exceção escapa dos manipuladores da tela Ajustes › Legislação (mensagem em português, detalhe no registro); a lista na tela é atualizada no lugar, por id (`ObservableCollection`), e espera o usuário sair de uma caixa de título; anexos e estados vêm de `AcervoLegislacao.ListarComEstado` numa só carga; falha do leitor/extrator e de E/S chegam ao usuário com texto fixo (`MensagensAnexo.LeitorFalhou`, `LeitorIndisponivel`, `Ilegivel(nome, Exception)`, motivo pelo tipo da falha). As gravações da legislação seguem fora da fila de comandos: o acervo as serializa (todas sob o mesmo `Mutex` de sessão, inclusive `LimparEntradasOrfas`), com teste de gravações concorrentes. Um leitor que falhou ao iniciar troca o WebView2 por um novo antes de tentar de novo (a sandbox nunca entra duas vezes no mesmo core).
+
+## Onda final de correções (Etapa 2)
+
+- **Registro da execução nunca derruba o agente**: `RegistroExecucao.Acrescentar*`/`Descarregar` não lançam. Um arquivo do registro preso (o
+  OneDrive durante o envio, disco cheio) fica pendente na memória (até 32 MB; passou disso, as linhas novas são descartadas e contadas, e uma
+  linha `registro: N linha(s) não puderam ser gravadas…` entra quando o arquivo volta a aceitar gravação), com no máximo uma tentativa por
+  segundo; o detalhe vai para o log do app e o `execucao.json` ganha `aviso_registro`. O `ExecucaoProcesso` separa a falha de quem recebe a
+  linha da falha do canal: o callback que lança não para a leitura (um Codex que escreve num canal que ninguém lê travaria para sempre). O
+  resultado continua vindo do `delivery.json` do kit; o pendente do Claude não sai dos ajustes por erro de registro.
+- **Codex nunca fica órfão**: o `codex.exe` entra num Job Object do editor com `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` (`TarefaDoEditor`), logo
+  depois de partir: o editor que termina, até numa queda, leva junto o Codex e os filhos criados depois disso (um neto criado no primeiro
+  instante, antes da atribuição, escapa do job; o cancelamento continua matando a árvore). O análise pro do Claude nunca entra no job (continua
+  depois de fechar, como manda o desenho §12.7). Fechar a janela: a pergunta das análises roda de novo na vez da fila (uma análise que partiu
+  enquanto o Analisar copiava os anexos também pergunta), e o `Closed` cancela todo ChatGPT e impede uma partida que ainda copiava anexos.
+  Parar de acompanhar o Claude grava `acompanhamento_interrompido` no `execucao.json` (nunca `cancelada`: a análise do kit segue).
+- **Fim em segundo plano** (Ruling FD-I3): o relatório é importado (o `.pmvrel` novo fica na pasta do processo e nos Recentes), mas só abre
+  sozinho com o usuário na vista daquela execução, sem relatório aberto e sem despacho em edição; senão, InfoBar "Relatório pronto" com
+  "Abrir relatório". As confirmações (descartar, cancelar a análise, excluir) têm o botão "não" como padrão do Enter, e os diálogos são
+  mostrados um de cada vez (`Perguntas`).
+- **Anexar PDFs a partir da Legislação**: o andamento, o Cancelar e o resumo (com as recusas) aparecem também no módulo Legislação; um segundo
+  "Anexar PDFs…" durante uma anexação diz "Uma anexação já está em andamento.". A lei aberta substituída em Ajustes reabre sem trocar de
+  módulo (fora da Legislação, ao voltar a ela). F3/Shift+F3 ficam desabilitados com "Em todas as leis".
+- **Trava de programas do roteiro** (`TravaDeProgramas`, em `Pmvni.Revisao`): vale para todo programa que o editor inicia — o agente pelo
+  `ExecucaoProcesso` e o LibreOffice do despacho pelo `ConversorLibreOffice`. No roteiro a lista é a pasta do agente falso e o `soffice`
+  exato que o editor acha; um início só entra em `programas_iniciados` depois de partir de fato, e `fora_do_agente_falso` conta os do
+  LibreOffice.
+- **Troca atômica da legislação**: `catalogo.json`, cópias e índices trocam de lugar com espera limitada (até ~2 s) quando outro programa
+  segura o arquivo por um instante (acesso negado ou violação de compartilhamento: o OneDrive ou um antivírus); outra falha sobe na hora.
+
+### Testes que já falharam de vez em quando
+
+- Corrigidos nesta onda (pelo sinal, não pelo relógio): `PerfilLibreOfficeTestes.filho_que_segura…` e `cancelar_com_o_filho_preso…`
+  (a prova é o `fim.txt` do filho ainda ausente quando a conversão volta; o teto de tempo, largo, só pega um travamento);
+  `OrquestradorTestes.claude_iniciar_acompanhar_e_resultado` (a etapa lida é uma amostra: vale a etapa lida ou o evento "Etapa X" que o
+  kit registrou); `AcervoTestes.gravacoes_concorrentes…` (a troca atômica espera o OneDrive soltar o arquivo).
+- Aceitos e registrados (a revisão final os manteve): o host WebView2 que às vezes demora a subir no primeiro teste da tela, `DiarioTestes`
+  e `cancelar_claude…` (dependem de relógio e de processo). Cada um passou sozinho e na rodada seguinte da suíte inteira.
+
+### Verificações humanas pendentes
+
+- A variável `CODEX_API_KEY` no modo chave do ChatGPT (a ajuda do `codex exec` não a cita; o binário a lê): conferir na primeira análise
+  real com chave (erro claro se a chave não valer).
+- `EhLink` com arquivos "só online" do OneDrive (placeholders): conferir na árvore real de PROCESSOS que um placeholder não é tratado como
+  atalho (o lado seguro é recusar).
+- Codex e Claude reais (o construtor nunca roda IA real): a conferência humana do `docs\entrega-etapa-2.md`.
