@@ -33,28 +33,67 @@ public sealed partial class PaginaNovoDespacho : UserControl
     internal IReadOnlyList<string> LinhasFaltando { get; private set; } = [];
 
     /// <summary>Os parágrafos na ordem do DOCX: o que falta aparece como "[preencher: …]" em vermelho (só aqui, nunca no DOCX).</summary>
+    /// <summary>Edição direta na prévia (correções 2026-11-15): a chave do campo (<see cref="ParagrafoPrevia.Chave"/>) e o texto novo.</summary>
+    internal event Action<string, string>? PreviaEditada;
+
     internal void MostrarPrevia(IReadOnlyList<ParagrafoPrevia> paragrafos)
     {
         previa = paragrafos;
         Previa.Children.Clear();
         foreach (var p in paragrafos)
         {
+            var alinhamento = p.Estilo switch
+            {
+                EstiloPrevia.Titulo or EstiloPrevia.Assinatura => TextAlignment.Center,
+                EstiloPrevia.Data => TextAlignment.Right,
+                EstiloPrevia.Corpo => TextAlignment.Justify,
+                _ => TextAlignment.Left,
+            };
+            var peso = p.Estilo is EstiloPrevia.Titulo or EstiloPrevia.Grupo or EstiloPrevia.Destinatario ? FontWeights.Bold : FontWeights.Normal;
+            if (p.Chave is { } chave)
+            {
+                Previa.Children.Add(CampoEditavel(p, chave, alinhamento, peso));
+                continue;
+            }
             var t = new TextBlock
             {
                 FontFamily = Verdana, FontSize = 12, Foreground = Preto, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
-                TextAlignment = p.Estilo switch
-                {
-                    EstiloPrevia.Titulo or EstiloPrevia.Assinatura => TextAlignment.Center,
-                    EstiloPrevia.Data => TextAlignment.Right,
-                    EstiloPrevia.Corpo => TextAlignment.Justify,
-                    _ => TextAlignment.Left,
-                },
-                FontWeight = p.Estilo is EstiloPrevia.Titulo or EstiloPrevia.Grupo or EstiloPrevia.Destinatario ? FontWeights.Bold : FontWeights.Normal,
+                TextAlignment = alinhamento, FontWeight = peso,
             };
             if (p.Estilo == EstiloPrevia.Vazio) t.Text = " ";
             else Trechos(t, p.Texto);
             Previa.Children.Add(t);
         }
+    }
+
+    /// <summary>Um campo da prévia que se edita como num editor de texto: sem borda, na fonte da folha; grava ao sair do campo.</summary>
+    FrameworkElement CampoEditavel(ParagrafoPrevia p, string chave, TextAlignment alinhamento, Windows.UI.Text.FontWeight peso)
+    {
+        var valor = p.Valor ?? "";
+        var rotulo = "";
+        if (p.Estilo == EstiloPrevia.Rotulo)
+        {
+            var corte = valor.Length > 0 && p.Texto.EndsWith(valor, StringComparison.Ordinal) ? p.Texto.Length - valor.Length : p.Texto.IndexOf(Marca, StringComparison.Ordinal);
+            rotulo = corte > 0 ? p.Texto[..corte] : "";
+        }
+        var caixa = new TextBox
+        {
+            Text = valor, FontFamily = Verdana, FontSize = 12, Foreground = Preto, TextWrapping = TextWrapping.Wrap, AcceptsReturn = false,
+            TextAlignment = alinhamento, FontWeight = peso, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(2, 0, 2, 0), MinHeight = 0,
+            Background = new SolidColorBrush(Colors.Transparent), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(40, 0, 0, 0)),
+            PlaceholderText = p.Faltando is { } f ? Marca + f + "]" : "",
+            RequestedTheme = ElementTheme.Light,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(caixa, p.Faltando ?? chave);
+        caixa.LostFocus += (_, _) => { if (caixa.Text != valor) PreviaEditada?.Invoke(chave, caixa.Text); };
+        if (rotulo.Length == 0) return caixa;
+        var g = new Grid { ColumnSpacing = 2 };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        g.Children.Add(new TextBlock { Text = rotulo, FontFamily = Verdana, FontSize = 12, Foreground = Preto, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
+        Grid.SetColumn(caixa, 1);
+        g.Children.Add(caixa);
+        return g;
     }
 
     /// <summary>Divide o texto nos "[preencher: …]" e pinta só esses trechos de vermelho.</summary>

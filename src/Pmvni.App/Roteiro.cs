@@ -26,6 +26,8 @@ namespace Pmvni.App;
 /// <see cref="Confirmar"/>; cada pergunta fica registrada.</summary>
 internal sealed class PerguntasFixas : IPerguntas
 {
+    public Task<string?> PedirTextoAsync(string titulo, string rotulo, string sugestao) => Task.FromResult<string?>(sugestao);
+
     public bool Confirmar { get; set; } = true;
     public RespostaRecuperacao Recuperacao { get; set; } = RespostaRecuperacao.Descartar;
     public List<string> Feitas { get; } = [];

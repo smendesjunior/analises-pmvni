@@ -33,9 +33,16 @@
           <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Header="Processo" HorizontalAlignment="Stretch" AutomationProperties.Name="Processo"/>
           <ComboBox x:Name="CaixaRelatorio" x:FieldModifier="internal" Header="Relatório base (.pmvrel)" HorizontalAlignment="Stretch"
                     AutomationProperties.Name="Relatório base"/>
-          <ComboBox x:Name="CaixaEtapa" x:FieldModifier="internal" Header="Pasta da etapa" HorizontalAlignment="Stretch" AutomationProperties.Name="Pasta da etapa"/>
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <ComboBox x:Name="CaixaEtapa" x:FieldModifier="internal" Header="Pasta da etapa" HorizontalAlignment="Stretch" AutomationProperties.Name="Pasta da etapa"/>
+            <Button x:Name="BotaoNovaPasta" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Bottom" AutomationProperties.Name="Criar pasta nova"
+                    ToolTipService.ToolTip="Criar uma pasta nova para este despacho">
+              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8F4;" FontSize="14"/><TextBlock Text="Nova pasta…"/></StackPanel>
+            </Button>
+          </Grid>
           <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
-                     Text="O despacho usa a versão gravada do relatório. A data do despacho é a da pasta da etapa."/>
+                     Text="O relatório é opcional. Anexado, entram só os itens que não atendem; sem ele, escreva as exigências ou peça à IA. A data é a da pasta da etapa."/>
 
           <StackPanel x:Name="PainelConteudo" x:FieldModifier="internal" Spacing="10" Visibility="Collapsed">
             <TextBlock Text="2. Conteúdo" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,8,0,0"/>
@@ -43,6 +50,9 @@
             <TextBox x:Name="CaixaRequerente" x:FieldModifier="internal" Header="Requerente" AutomationProperties.Name="Requerente"/>
             <TextBox x:Name="CaixaAssunto" x:FieldModifier="internal" Header="Assunto" AutomationProperties.Name="Assunto"/>
             <StackPanel x:Name="PainelExigencias" x:FieldModifier="internal" Spacing="10"/>
+            <Button x:Name="BotaoAdicionarExigencia" x:FieldModifier="internal" AutomationProperties.Name="Adicionar exigência">
+              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14"/><TextBlock Text="Adicionar exigência"/></StackPanel>
+            </Button>
             <StackPanel x:Name="PainelAprovacao" x:FieldModifier="internal" Spacing="6" Visibility="Collapsed">
               <TextBlock Text="Tipo de obra" Style="{StaticResource BodyStrongTextBlockStyle}"/>
               <CheckBox x:Name="CaixaObraNova" x:FieldModifier="internal" Content="obra nova"/>
@@ -60,7 +70,23 @@
       <!-- A folha de prévia: branca, proporção A4, Verdana; atualizada a cada tecla. -->
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
         <StackPanel Padding="24" HorizontalAlignment="Center">
-          <TextBlock Text="Prévia do texto (a paginação real é conferida no PDF)" Style="{StaticResource PmvniSecondaryTextStyle}" Margin="0,0,0,8"/>
+          <!-- Instrução para a IA (como o Copilot do Word): modifica o despacho em edição. -->
+          <Border Width="600" Margin="0,0,0,12" Padding="12,4,6,4" CornerRadius="22" BorderThickness="1"
+                  BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Background="{ThemeResource ControlFillColorDefaultBrush}">
+            <Grid ColumnSpacing="6">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <FontIcon Glyph="&#xE945;" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+              <TextBox x:Name="CaixaInstrucao" x:FieldModifier="internal" Grid.Column="1" BorderThickness="0" Background="Transparent" AcceptsReturn="False"
+                       TextWrapping="Wrap" PlaceholderText="Descreva o que mudar no despacho (ex.: junte os itens de cotas; cite o art. 12 da LC 70)"
+                       AutomationProperties.Name="Instrução para a IA modificar o despacho"/>
+              <ProgressRing x:Name="AnelInstrucao" x:FieldModifier="internal" Grid.Column="2" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
+              <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource AccentButtonStyle}" CornerRadius="16"
+                      AutomationProperties.Name="Aplicar a instrução" ToolTipService.ToolTip="Pedir à IA (Enter)">
+                <FontIcon Glyph="&#xE724;" FontSize="14"/>
+              </Button>
+            </Grid>
+          </Border>
+          <TextBlock Text="Prévia no modelo oficial: clique no texto para editar (a paginação real é conferida no PDF)" Style="{StaticResource PmvniSecondaryTextStyle}" Margin="0,0,0,8"/>
           <Border x:Name="Folha" x:FieldModifier="internal" Background="White" Width="600" MinHeight="849" Padding="56,48,56,48"
                   BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="2">
             <StackPanel x:Name="Previa" x:FieldModifier="internal" Spacing="6"/>

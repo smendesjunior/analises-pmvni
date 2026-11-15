@@ -133,8 +133,11 @@ internal sealed class SessaoNovoDespacho
     /// <summary>Monta o rascunho (passo 2) a partir do pacote gravado e da etapa.</summary>
     public void Montar()
     {
-        if (Pacote is null || Info is null || Etapa is null) throw new InvalidOperationException("Escolha o processo, o relatório e a pasta da etapa.");
-        Rascunho = ConteudoDespacho.Montar(Tipo, Pacote.Conteudo.Projeto, Info, Etapa);
+        if (Info is null || Etapa is null) throw new InvalidOperationException("Escolha o processo e a pasta da etapa.");
+        // Sem relatório (correções 2026-11-15): o despacho começa só com o cabeçalho do processo; com relatório, só os itens que não atendem.
+        Rascunho = Pacote is null
+            ? ConteudoDespacho.MontarEmBranco(Tipo, Info, Etapa.Data, ProtocoloDoProcesso(), Processo?.Requerente ?? "")
+            : ConteudoDespacho.Montar(Tipo, Pacote.Conteudo.Projeto, Info, Etapa);
         Passo = PassoNovoDespacho.Conteudo;
     }
 
@@ -142,14 +145,33 @@ internal sealed class SessaoNovoDespacho
     public void DefinirEtapa(EtapaDespacho etapa)
     {
         Etapa = etapa;
-        if (Rascunho is not { } antes || Pacote is null || Info is null) return;
-        var novo = ConteudoDespacho.Montar(Tipo, Pacote.Conteudo.Projeto, Info, etapa);
+        if (Rascunho is not { } antes || Info is null) return;
+        var novo = Pacote is null
+            ? ConteudoDespacho.MontarEmBranco(Tipo, Info, etapa.Data, antes.Protocolo, antes.Requerente)
+            : ConteudoDespacho.Montar(Tipo, Pacote.Conteudo.Projeto, Info, etapa);
+        if (Pacote is null) foreach (var p in antes.Pendencias) novo.AdicionarExigencia(p.Texto, p.Fundamento, p.Grupo);
         FluxoNovoDespacho.TransferirEdicoes(antes, novo);
         Rascunho = novo;
     }
 
+    /// <summary>A prévia: o rascunho ou, antes dele, o próprio modelo do kit com os campos a preencher (nunca a folha em branco).</summary>
     public IReadOnlyList<ParagrafoPrevia> Previa() =>
-        Rascunho is { } r && Info is { } i && Textos is { } t ? ConteudoDespacho.Previa(i, r, t) : [];
+        Info is { } i && Textos is { } t
+            ? ConteudoDespacho.Previa(i, Rascunho ?? ConteudoDespacho.MontarEmBranco(Tipo, i, Etapa?.Data ?? DateOnly.FromDateTime(DateTime.Today), ProtocoloDoProcesso(), Processo?.Requerente ?? ""), t)
+            : [];
+
+    string ProtocoloDoProcesso() =>
+        Processo is { Numero: { } n, Ano: { } a } ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{n:D4}/{a}") : "";
+
+    public void AtualizarEtapas(IReadOnlyList<EtapaDespacho> etapas) => Etapas = etapas;
+
+    /// <summary>Volta a não ter relatório base (o despacho segue com o que já foi escrito à mão).</summary>
+    public void SemRelatorio()
+    {
+        CaminhoPacote = null;
+        Pacote = null;
+        Bloqueios = [];
+    }
 
     string NovaPastaDeTrabalho() => pastaTrabalho = Path.Combine(RaizTrabalho, Guid.NewGuid().ToString("N"));
 
@@ -222,11 +244,14 @@ internal sealed class SessaoNovoDespacho
     public async Task<Entrega> GravarAsync(string? motor, ContextoUsuario u, string appVersao)
     {
         if (Preparacao is not { } p || final is not { } f || Rascunho is not { } r || Modelo is not { } m || Textos is not { } tx || Etapa is not { } etapa
-            || Pacote is not { } pacote || Processo is not { } processo || CaminhoPacote is not { } caminho)
+            || Processo is not { } processo)
             throw new InvalidOperationException("O despacho ainda não foi gerado e conferido.");
-        var origem = new OrigemDespacho(processo, caminho, pacote.Disco.Sha256,
-            Convert.ToHexStringLower(SHA256.HashData(DadosEfetivos.Gerar(pacote.Conteudo.Projeto).Json)), pacote.Conteudo.Historico.Count, appVersao,
-            AvisosConfirmados.ToList());
+        // Sem relatório base: o recibo leva a origem vazia (o despacho foi escrito à mão ou pela IA).
+        var origem = Pacote is { } pacote && CaminhoPacote is { } caminho
+            ? new OrigemDespacho(processo, caminho, pacote.Disco.Sha256,
+                Convert.ToHexStringLower(SHA256.HashData(DadosEfetivos.Gerar(pacote.Conteudo.Projeto).Json)), pacote.Conteudo.Historico.Count, appVersao,
+                AvisosConfirmados.ToList())
+            : new OrigemDespacho(processo, "", "", "", 0, appVersao, AvisosConfirmados.ToList());
         var paginas = p.Pdf is null ? null : Conferidas.ToList();
         Gravando = true;
         try

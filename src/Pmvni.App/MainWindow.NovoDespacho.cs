@@ -88,6 +88,21 @@ public sealed partial class MainWindow
             if (!preenchendoNovo && n.CaixaEtapa.SelectedItem is ComboBoxItem { Tag: EtapaDespacho e }) NaOrigem(() => TrocarEtapaNaVezAsync(e));
         };
         n.CaixaProtocolo.TextChanged += (_, _) => Editar(r => r.DefinirCabecalho("protocolo", n.CaixaProtocolo.Text));
+        // Correções 2026-11-15: editar direto na prévia, exigência escrita à mão, pasta nova e instrução para a IA.
+        n.PreviaEditada += (chave, texto) => EditarPelaPrevia(chave, texto);
+        n.BotaoAdicionarExigencia.Click += (_, _) => _ = NaFilaAsync(() => TentarAsync(() =>
+        {
+            if (novo is { Passo: PassoNovoDespacho.Conteudo, Rascunho: { } r } s0) { r.AdicionarExigencia(); PreencherConteudo(s0); }
+            return Task.CompletedTask;
+        }));
+        n.BotaoNovaPasta.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(CriarPastaNovaNaVezAsync));
+        n.BotaoAplicarInstrucao.Click += async (_, _) => await AplicarInstrucaoAsync(n.CaixaInstrucao.Text);
+        n.CaixaInstrucao.KeyDown += async (_, e) =>
+        {
+            if (e.Key != Windows.System.VirtualKey.Enter) return;
+            e.Handled = true;
+            await AplicarInstrucaoAsync(n.CaixaInstrucao.Text);
+        };
         n.CaixaRequerente.TextChanged += (_, _) => Editar(r => r.DefinirCabecalho("requerente", n.CaixaRequerente.Text));
         n.CaixaAssunto.TextChanged += (_, _) => Editar(r => r.DefinirCabecalho("assunto", n.CaixaAssunto.Text));
         foreach (var (caixa, i) in new[] { (n.CaixaObraNova, Intervencao.ObraNova), (n.CaixaAlteracao, Intervencao.AlteracaoDeObra), (n.CaixaAmpliacao, Intervencao.AmpliacaoDeObra) })
@@ -317,11 +332,8 @@ public sealed partial class MainWindow
         PreencherOrigem(s);
         N.MostrarPasso(PassoNovoDespacho.Origem, false);
         N.MostrarBloqueios([]);
-        if (pacote is null)
-        {
-            N.MostrarBloqueios([FluxoNovoDespacho.SemPmvrel]);
-            return false;
-        }
+        // Despacho não depende de relatório (correções 2026-11-15): sem .pmvrel, começa em branco com o cabeçalho do processo.
+        if (pacote is null) return MontarSemRelatorio(s);
         return await CarregarPacoteAsync(s, pacote);
     }
 
@@ -379,6 +391,8 @@ public sealed partial class MainWindow
         s.Montar();
         PreencherConteudo(s);
         MostrarPassoAtual(s);
+        // Relatório anexado: a IA resume as exigências (só o que não atende) sozinha, se houver programa de IA e o ajuste estiver ligado.
+        if (s.Tipo == TipoDespacho.Correcao && Perguntas.Atual is PerguntasDaJanela) _ = AplicarInstrucaoAsync(IaDespacho.PedidoResumo);
         return true;
     }
 
@@ -411,8 +425,24 @@ public sealed partial class MainWindow
         await CarregarProcessoAsync(s, p, null, null);
     }
 
+    bool MontarSemRelatorio(SessaoNovoDespacho s)
+    {
+        s.SemRelatorio();
+        if (s.Etapa is null) return false;
+        s.Montar();
+        PreencherOrigem(s);
+        PreencherConteudo(s);
+        MostrarPassoAtual(s);
+        return true;
+    }
+
     async Task TrocarRelatorioNaVezAsync(string caminho)
     {
+        if (caminho.Length == 0)
+        {
+            if (novo is { SoPdf: false } s0 && s0.Pacote is not null) MontarSemRelatorio(s0);
+            return;
+        }
         if (novo is not { SoPdf: false } s || string.Equals(s.CaminhoPacote, caminho, StringComparison.OrdinalIgnoreCase) && s.Pacote is not null) return;
         await CarregarPacoteAsync(s, caminho);
     }
@@ -457,6 +487,7 @@ public sealed partial class MainWindow
                 n.CaixaProcesso.Items.Add(new ComboBoxItem { Content = ListasPastas.NumeroDoProcesso(p) is { } num ? num + " · " + (p.Requerente ?? p.NomePasta) : p.NomePasta, Tag = p });
             n.CaixaProcesso.SelectedItem = n.CaixaProcesso.Items.OfType<ComboBoxItem>().FirstOrDefault(i => i.Tag is Processo p && p == s.Processo);
             n.CaixaRelatorio.Items.Clear();
+            n.CaixaRelatorio.Items.Add(new ComboBoxItem { Content = "Sem relatório (escrever o despacho)", Tag = "" });
             foreach (var r in s.Relatorios)
                 n.CaixaRelatorio.Items.Add(new ComboBoxItem
                 {
@@ -464,7 +495,7 @@ public sealed partial class MainWindow
                     Tag = r.Caminho,
                 });
             n.CaixaRelatorio.SelectedItem = n.CaixaRelatorio.Items.OfType<ComboBoxItem>()
-                .FirstOrDefault(i => i.Tag is string c && string.Equals(c, s.CaminhoPacote, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(i => i.Tag is string c && string.Equals(c, s.CaminhoPacote ?? "", StringComparison.OrdinalIgnoreCase));
             n.CaixaEtapa.Items.Clear();
             foreach (var e in s.Etapas)
                 n.CaixaEtapa.Items.Add(new ComboBoxItem { Content = e.Nome + (e.Nova ? "  (nova)" : ""), Tag = e });
@@ -528,10 +559,76 @@ public sealed partial class MainWindow
 
     void AtualizarPrevia()
     {
-        if (novo is not { Rascunho: { } r } s || fechada) return;
-        N.MostrarPrevia(s.Previa());
+        if (novo is not { } s || fechada) return;
+        N.MostrarPrevia(s.Previa()); // antes do rascunho, o modelo do kit com os campos a preencher (nunca a folha em branco)
+        if (s.Rascunho is not { } r) return;
         N.MostrarFaltando(r.Faltando());
         N.BotaoGerar.IsEnabled = s.Passo == PassoNovoDespacho.Conteudo && FluxoNovoDespacho.PodeGerar(r) && !s.Preparando;
+    }
+
+    /// <summary>Um campo editado direto na prévia vai para o rascunho (cabeçalho ou texto da exigência).</summary>
+    void EditarPelaPrevia(string chave, string texto)
+    {
+        if (novo is not { Passo: PassoNovoDespacho.Conteudo, Rascunho: { } r } s) return;
+        if (chave.StartsWith("cabecalho:", StringComparison.Ordinal)) r.DefinirCabecalho(chave["cabecalho:".Length..], texto);
+        else if (chave.StartsWith("exigencia:", StringComparison.Ordinal)) r.DefinirTexto(chave["exigencia:".Length..], texto);
+        PreencherConteudo(s);
+    }
+
+    /// <summary>"Nova pasta…": pede o nome e cria a pasta no processo; ela vira a pasta da etapa.</summary>
+    async Task CriarPastaNovaNaVezAsync()
+    {
+        if (novo is not { SoPdf: false, Processo: { } processo } s) return;
+        var sugestao = Pmvni.Revisao.Etapas.Nova(processo.Pasta, Hoje()).Nome;
+        var nome = await Perguntas.Atual.PedirTextoAsync("Nova pasta do despacho", "Nome da pasta dentro do processo:", sugestao);
+        if (string.IsNullOrWhiteSpace(nome) || !ReferenceEquals(novo, s)) return;
+        nome = string.Concat(nome.Trim().Split(Path.GetInvalidFileNameChars()));
+        var pasta = Path.Combine(processo.Pasta, nome);
+        Directory.CreateDirectory(pasta);
+        var etapa = new EtapaDespacho(pasta, nome, s.Etapa?.Numero ?? 1, Hoje(), false);
+        var (relatorios, etapas, _) = await Task.Run(() => SessaoNovoDespacho.LerProcesso(processo, Hoje()));
+        var lista = etapas.Any(e => e.Nome == nome) ? etapas : etapas.Append(etapa).ToList();
+        s.DefinirEtapa(lista.First(e => e.Nome == nome));
+        s.AtualizarEtapas(lista);
+        PreencherOrigem(s);
+        if (s.Rascunho is not null) PreencherConteudo(s);
+    }
+
+    /// <summary>A caixa acima da prévia: a IA reescreve as exigências conforme a instrução (nada é gravado).</summary>
+    async Task AplicarInstrucaoAsync(string instrucao)
+    {
+        if (novo is not { Passo: PassoNovoDespacho.Conteudo, Rascunho: { } r } s || instrucao.Trim().Length == 0) return;
+        var n = N;
+        n.BotaoAplicarInstrucao.Visibility = Visibility.Collapsed;
+        n.AnelInstrucao.Visibility = Visibility.Visible;
+        n.AnelInstrucao.IsActive = true;
+        try
+        {
+            var pecas = await LerPecasAsync();
+            var saida = await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, IaDespacho.Prompt(r, instrucao), CancellationToken.None);
+            if (!ReferenceEquals(novo, s) || !ReferenceEquals(s.Rascunho, r)) return;
+            if (IaDespacho.Ler(saida) is not { } resp)
+            {
+                MostrarMensagem(InfoBarSeverity.Warning, "IA", "A resposta da IA não veio no formato esperado; nada mudou.");
+                return;
+            }
+            if (resp.Protocolo is { Length: > 0 } pr) r.DefinirCabecalho("protocolo", pr);
+            if (resp.Requerente is { Length: > 0 } rq) r.DefinirCabecalho("requerente", rq);
+            if (resp.Assunto is { Length: > 0 } a) r.DefinirCabecalho("assunto", a);
+            if (r.Tipo == TipoDespacho.Correcao) r.SubstituirExigencias(resp.Exigencias);
+            n.CaixaInstrucao.Text = "";
+            PreencherConteudo(s);
+        }
+        catch (Exception e) when (e is InvalidOperationException or IOException or System.ComponentModel.Win32Exception)
+        {
+            MostrarMensagem(InfoBarSeverity.Error, "IA", e.Message);
+        }
+        finally
+        {
+            n.AnelInstrucao.IsActive = false;
+            n.AnelInstrucao.Visibility = Visibility.Collapsed;
+            n.BotaoAplicarInstrucao.Visibility = Visibility.Visible;
+        }
     }
 
     void MostrarPassoAtual(SessaoNovoDespacho s)

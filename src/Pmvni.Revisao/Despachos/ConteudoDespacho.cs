@@ -46,7 +46,9 @@ public sealed record DespachoFinal(TipoDespacho Tipo, string Protocolo, string R
 public enum EstiloPrevia { Titulo, Rotulo, Destinatario, Grupo, Corpo, Data, Assinatura, Vazio }
 
 /// <summary>Um parágrafo da prévia de texto. <see cref="Faltando"/> preenchido = campo a preencher (o texto leva "[preencher: …]", só na tela).</summary>
-public sealed record ParagrafoPrevia(string Texto, EstiloPrevia Estilo, string? Faltando);
+/// <see cref="Chave"/>: o campo editável por trás do parágrafo (<c>cabecalho:protocolo|requerente|assunto</c> ou <c>exigencia:&lt;id&gt;</c>), para editar
+/// direto na prévia; <see cref="Valor"/> é o texto do campo (sem rótulo nem fundamento).
+public sealed record ParagrafoPrevia(string Texto, EstiloPrevia Estilo, string? Faltando, string? Chave = null, string? Valor = null);
 
 /// <summary>O despacho em edição. Todo texto do usuário passa por <see cref="TextoEditado.Normalizar"/> (texto puro, uma linha).</summary>
 public sealed class RascunhoDespacho
@@ -116,6 +118,34 @@ public sealed class RascunhoDespacho
     public void DefinirGrupo(string itemId, string texto) => Pendencia(itemId).Grupo = TextoEditado.Normalizar(texto);
 
     public void Marcar(string itemId, bool incluida) => Pendencia(itemId).Incluida = incluida;
+
+    /// <summary>O grupo das exigências novas (o título do grupo do modelo).</summary>
+    public string GrupoPadrao { get; init; } = "";
+
+    /// <summary>Exigência escrita à mão ou pela IA (sem item do relatório). Devolve o id.</summary>
+    public string AdicionarExigencia(string texto = "", string fundamento = "", string? grupo = null)
+    {
+        var numero = _pendencias.Count == 0 ? 1 : _pendencias.Max(p => p.Numero) + 1;
+        var id = "manual-" + Guid.NewGuid().ToString("N")[..8];
+        var t = TextoEditado.Normalizar(texto);
+        var f = TextoEditado.Normalizar(fundamento);
+        var g = TextoEditado.Normalizar(grupo ?? GrupoPadrao);
+        _pendencias.Add(new PendenciaDespacho
+        {
+            ItemId = id, Numero = numero, Situacao = "NAO ATENDE", Titulo = "", Grupo = g, GrupoOriginal = g,
+            Texto = t, TextoOriginal = "", Fundamento = f, FundamentoOriginal = "",
+        });
+        return id;
+    }
+
+    public void RemoverExigencia(string itemId) => _pendencias.Remove(Pendencia(itemId));
+
+    /// <summary>Troca todas as exigências (resposta da IA a uma instrução de modificação).</summary>
+    public void SubstituirExigencias(IEnumerable<(string Grupo, string Texto, string Fundamento)> novas)
+    {
+        _pendencias.Clear();
+        foreach (var (g, t, f) in novas) AdicionarExigencia(t, f, string.IsNullOrWhiteSpace(g) ? null : g);
+    }
 
     /// <summary>Move a exigência <paramref name="delta"/> posições (negativo = para cima), parando nas pontas.</summary>
     public void Mover(string itemId, int delta)
@@ -254,6 +284,14 @@ public static class ConteudoDespacho
 
     static string SituacaoDe(JsonObject item) => Texto(item["situacao"]) ?? item["situacao"]?.ToJsonString() ?? "";
 
+    /// <summary>Despacho sem relatório (correções 2026-11-15): o cabeçalho do processo e nenhuma exigência (o usuário escreve ou pede à IA).</summary>
+    public static RascunhoDespacho MontarEmBranco(TipoDespacho t, InfoModelo m, DateOnly data, string protocolo, string requerente)
+    {
+        ArgumentNullException.ThrowIfNull(m);
+        if (t is not (TipoDespacho.Correcao or TipoDespacho.Aprovacao)) throw new ArgumentOutOfRangeException(nameof(t), t, "Tipo de despacho não emitido.");
+        return new RascunhoDespacho(t, protocolo ?? "", requerente ?? "", m.Assunto, data, []) { GrupoPadrao = m.TituloGrupo };
+    }
+
     public static RascunhoDespacho Montar(TipoDespacho t, Projeto p, InfoModelo m, EtapaDespacho etapa)
     {
         ArgumentNullException.ThrowIfNull(p);
@@ -278,7 +316,7 @@ public static class ConteudoDespacho
                     Texto = texto, TextoOriginal = texto, Fundamento = fundamento, FundamentoOriginal = fundamento,
                 });
             }
-        return new RascunhoDespacho(t, Texto(capa?["processo"]) ?? "", Texto(capa?["requerente"]) ?? "", m.Assunto, etapa.Data, pendencias);
+        return new RascunhoDespacho(t, Texto(capa?["processo"]) ?? "", Texto(capa?["requerente"]) ?? "", m.Assunto, etapa.Data, pendencias) { GrupoPadrao = m.TituloGrupo };
     }
 
     /// <summary>O que não deixa abrir o despacho (desenho §10.3): erros da conferência da revisão, processo da capa diferente do da pasta ou
@@ -329,10 +367,10 @@ public static class ConteudoDespacho
         var depoisDaAssinatura = false;
         var corpoPosto = false;
 
-        void Rotulo(string rotulo, string valor, string falta)
+        void Rotulo(string rotulo, string valor, string falta, string chave)
         {
             var semValor = valor.Length == 0;
-            lista.Add(new ParagrafoPrevia(rotulo + " " + (semValor ? Preencher(falta) : valor), EstiloPrevia.Rotulo, semValor ? falta : null));
+            lista.Add(new ParagrafoPrevia(rotulo + " " + (semValor ? Preencher(falta) : valor), EstiloPrevia.Rotulo, semValor ? falta : null, chave, valor));
         }
 
         foreach (var p in m.Paragrafos)
@@ -341,10 +379,10 @@ public static class ConteudoDespacho
             {
                 case PapelParagrafo.Protocolo:
                     antesDoProtocolo = false;
-                    Rotulo(PreenchimentoDocx.RotuloProtocolo, r.Protocolo, FaltaProtocolo);
+                    Rotulo(PreenchimentoDocx.RotuloProtocolo, r.Protocolo, FaltaProtocolo, "cabecalho:protocolo");
                     break;
-                case PapelParagrafo.Requerente: Rotulo(PreenchimentoDocx.RotuloRequerente, r.Requerente, FaltaRequerente); break;
-                case PapelParagrafo.Assunto: Rotulo(PreenchimentoDocx.RotuloAssunto, r.Assunto, FaltaAssunto); break;
+                case PapelParagrafo.Requerente: Rotulo(PreenchimentoDocx.RotuloRequerente, r.Requerente, FaltaRequerente, "cabecalho:requerente"); break;
+                case PapelParagrafo.Assunto: Rotulo(PreenchimentoDocx.RotuloAssunto, r.Assunto, FaltaAssunto, "cabecalho:assunto"); break;
                 case PapelParagrafo.Destinatario: lista.Add(new ParagrafoPrevia(p.Texto, EstiloPrevia.Destinatario, null)); break;
                 case PapelParagrafo.Grupo: Exigencias(lista, r, tx); break;
                 case PapelParagrafo.Vaga:
@@ -389,11 +427,11 @@ public static class ConteudoDespacho
                 if (p.Texto.Length == 0)
                 {
                     var falta = p.Rotulo + ": texto da exigência";
-                    lista.Add(new ParagrafoPrevia(Preencher(falta), EstiloPrevia.Corpo, falta));
+                    lista.Add(new ParagrafoPrevia(Preencher(falta), EstiloPrevia.Corpo, falta, "exigencia:" + p.ItemId, ""));
                     continue;
                 }
                 var e = Exigencia(p.Texto, p.Fundamento);
-                lista.Add(new ParagrafoPrevia(e.Texto + e.Fundamento, EstiloPrevia.Corpo, null));
+                lista.Add(new ParagrafoPrevia(e.Texto + e.Fundamento, EstiloPrevia.Corpo, null, "exigencia:" + p.ItemId, p.Texto));
             }
         }
         if (tx.Paragrafos.FirstOrDefault(p => p.Id == "fechamento") is { } f) lista.Add(new ParagrafoPrevia(f.Texto, EstiloPrevia.Corpo, null));
