@@ -2203,7 +2203,8 @@ internal static class Roteiro
             var recibo = x2 is null ? null : JsonNode.Parse(await File.ReadAllTextAsync(x2.CaminhoRecibo));
             var folhas = await j.Documento!.TextoPorFolhaAsync();
             var exportou = ok2 && recibo?["sha256_dados"]?.GetValue<string>() == ShaHex(efetivo)
-                && recibo?["sha256_pacote"]?.GetValue<string>() == s.Disco.Sha256 && folhas.Any(f => f.Contains(Titulo, StringComparison.Ordinal));
+                && recibo?["sha256_pacote"]?.GetValue<string>() == s.Disco.Sha256 && folhas.Any(f => f.Contains(Titulo, StringComparison.OrdinalIgnoreCase)); // o título do card sai em caixa alta (CSS)
+            p["exporta_depois_detalhe"] = new JsonObject { ["dados"] = recibo?["sha256_dados"]?.GetValue<string>() == ShaHex(efetivo), ["pacote"] = recibo?["sha256_pacote"]?.GetValue<string>() == s.Disco.Sha256, ["folhas"] = folhas.Any(f => f.Contains(Titulo, StringComparison.OrdinalIgnoreCase)) };
             p["conferencias"] = new JsonObject
             {
                 ["alteracao_aplicada"] = aplicada, ["exportar_bloqueado"] = bloqueou, ["exportar_recusado"] = recusou, ["recompor"] = voltou,
