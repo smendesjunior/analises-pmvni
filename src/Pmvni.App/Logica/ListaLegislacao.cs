@@ -8,6 +8,9 @@ public sealed record LinhaAnexo(string Id, string Titulo, Esfera Esfera, string 
 {
     /// <summary>A linha de detalhes: "&lt;arquivo&gt; · &lt;tamanho&gt; · &lt;páginas&gt; · &lt;anexado em&gt;".</summary>
     public string Detalhe => $"{Arquivo} · {Tamanho} · {Paginas} · {AnexadoEm}";
+
+    /// <summary>Título e esfera editáveis: não numa linha sem a cópia do editor (desenho §11.2: só Substituir e Excluir).</summary>
+    public bool Editavel => Selo != ListaLegislacao.SeloSemCopia;
 }
 
 /// <summary>Textos da lista de leis anexadas (desenho §11.1): <b>uma linha por anexo</b> (nunca agrupada nem resumida), agrupadas por
@@ -16,6 +19,8 @@ public static class ListaLegislacao
 {
     static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
     const long Mega = 1_048_576;
+
+    public const string SeloSemCopia = "Cópia do editor não encontrada";
 
     public static LinhaAnexo Linha(Anexo a, EstadoAnexo estado, bool indexando, TimeZoneInfo fuso)
     {
@@ -28,7 +33,7 @@ public static class ListaLegislacao
     /// <summary>"Cópia do editor não encontrada" › "Preparando a pesquisa…" › "Sem texto pesquisável" › "2 de 81 páginas sem texto" › null.</summary>
     static string? Selo(Anexo a, EstadoAnexo estado, bool indexando)
     {
-        if (estado == EstadoAnexo.SemCopia) return "Cópia do editor não encontrada";
+        if (estado == EstadoAnexo.SemCopia) return SeloSemCopia;
         if (indexando) return "Preparando a pesquisa…";
         if (!a.TemTexto) return "Sem texto pesquisável";
         if (a.PaginasSemTexto.Count > 0) return $"{a.PaginasSemTexto.Count} de {a.Paginas} páginas sem texto";

@@ -25,10 +25,30 @@ public static class MensagensAnexo
     public static string Invalido(string nome) => $"“{nome}” não pôde ser lido como PDF (arquivo danificado ou incompleto).";
     public static string Ilegivel(string nome, string msg) => $"“{nome}” não pôde ser lido: {msg.Trim().TrimEnd('.')}.";
 
+    /// <summary>"Ilegível" com o motivo em português pelo tipo da falha de E/S (o texto do sistema, às vezes em inglês, não vai à tela).</summary>
+    public static string Ilegivel(string nome, Exception e) => Ilegivel(nome, MotivoDeEs(e));
+
+    /// <summary>O motivo de uma falha de leitura em português.</summary>
+    public static string MotivoDeEs(Exception e) => e switch
+    {
+        FileNotFoundException or DirectoryNotFoundException => "o arquivo não foi encontrado",
+        UnauthorizedAccessException or System.Security.SecurityException => "acesso negado",
+        PathTooLongException => "o caminho é longo demais",
+        IOException io when (io.HResult & 0xFFFF) is 32 or 33 => "o arquivo está em uso por outro programa",
+        IOException io when (io.HResult & 0xFFFF) is 112 => "não há espaço no disco",
+        _ => "erro de leitura do disco",
+    };
+
+    /// <summary>O leitor de PDF (PDF.js) falhou por outro motivo que não senha nem arquivo danificado.</summary>
+    public static string LeitorFalhou(string nome) => $"“{nome}” não pôde ser lido pelo leitor de PDF do editor.";
+
+    /// <summary>O leitor de PDF não pôde ser iniciado (WebView2).</summary>
+    public const string LeitorIndisponivel = "O leitor de PDF do editor não pôde ser iniciado.";
+
     public static string Recuperados(int n) => n == 1
         ? "1 PDF sem registro no catálogo foi recuperado; confira o título e a esfera em Ajustes › Legislação."
         : $"{n} PDFs sem registro no catálogo foram recuperados; confira o título e a esfera em Ajustes › Legislação.";
 }
 
 /// <summary>Recusa com a mensagem já pronta para o usuário.</summary>
-public sealed class AnexoRecusadoException(string mensagem) : Exception(mensagem);
+public sealed class AnexoRecusadoException(string mensagem, Exception? causa = null) : Exception(mensagem, causa);

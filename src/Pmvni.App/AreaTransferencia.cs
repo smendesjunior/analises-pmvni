@@ -17,5 +17,8 @@ internal static class AreaTransferencia
         var pacote = new DataPackage { RequestedOperation = DataPackageOperation.Copy };
         pacote.SetText(texto);
         Clipboard.SetContent(pacote);
+        // O texto continua na área de transferência depois de o editor fechar.
+        try { Clipboard.Flush(); }
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or UnauthorizedAccessException) { RegistroErros.Gravar("area-transferencia", e); }
     }
 }

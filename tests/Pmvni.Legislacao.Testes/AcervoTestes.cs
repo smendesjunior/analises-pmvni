@@ -621,6 +621,46 @@ public sealed class AcervoTestes : IDisposable
     }
 
     [Fact]
+    public async Task gravacoes_concorrentes_na_mesma_instancia_sao_serializadas()
+    {
+        // O app grava fora da fila de comandos (anexar, renomear, esfera, excluir, índice, órfãs): o acervo serializa cada gravação.
+        var lei = c.Anexar(Cenario.Lei);
+        var nt = c.Anexar(Cenario.Nt);
+        var dig = c.Anexar(Cenario.Digitalizada);
+        var texto = c.Acervo.TextoPorPagina(lei.Id)!;
+        var tarefas = new List<Task>();
+        for (var i = 0; i < 20; i++)
+        {
+            var n = i;
+            tarefas.Add(Task.Run(() => c.Acervo.Renomear(lei.Id, "Lei " + n)));
+            tarefas.Add(Task.Run(() => c.Acervo.DefinirEsfera(nt.Id, n % 2 == 0 ? Esfera.Outras : Esfera.Federal)));
+            tarefas.Add(Task.Run(() => c.Acervo.GravarIndice(lei.Id, new ResultadoExtracao(texto))));
+            tarefas.Add(Task.Run(() => c.Acervo.LimparEntradasOrfas()));
+            tarefas.Add(Task.Run(() => c.Acervo.ListarComEstado()));
+        }
+        tarefas.Add(Task.Run(() => c.Acervo.Excluir(dig.Id)));
+        tarefas.Add(Task.Run(() => c.Anexar(Cenario.Federal)));
+        await Task.WhenAll(tarefas);
+        var final = c.Novo().Listar();
+        Assert.Equal(3, final.Count); // lei, NT e federal: nenhuma gravação perdeu a outra
+        Assert.StartsWith("Lei ", final.Single(x => x.Id == lei.Id).Titulo);
+        Assert.Contains(final.Single(x => x.Id == nt.Id).Esfera, new[] { Esfera.Outras, Esfera.Federal }); // a que gravou por último
+        Assert.DoesNotContain(final, x => x.Id == dig.Id);
+        Assert.Empty(c.Acervo.SemIndice());
+    }
+
+    [Fact]
+    public void listar_com_estado_numa_so_carga()
+    {
+        var lei = c.Anexar(Cenario.Lei);
+        var nt = c.Anexar(Cenario.Nt);
+        File.Delete(Path.Combine(c.Dados, nt.Sha256 + ".pdf"));
+        var l = c.Acervo.ListarComEstado();
+        Assert.Equal([nt.Id, lei.Id], l.Select(x => x.Anexo.Id));
+        Assert.Equal([EstadoAnexo.SemCopia, EstadoAnexo.Pronto], l.Select(x => x.Estado));
+    }
+
+    [Fact]
     public void catalogo_ordena_por_esfera_e_titulo_sem_caixa()
     {
         var a = c.Anexar(Cenario.Lei);

@@ -18,9 +18,9 @@
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBox Text="{x:Bind Titulo}" LostFocus="AoSairDoTitulo" KeyDown="AoTeclarNoTitulo"
+        <TextBox Text="{x:Bind Titulo}" IsEnabled="{x:Bind Editavel}" LostFocus="AoSairDoTitulo" KeyDown="AoTeclarNoTitulo"
                  AutomationProperties.Name="Título da lei" ToolTipService.ToolTip="Título usado na lista e nas citações (até 200 caracteres)"/>
-        <ComboBox Grid.Column="1" MinWidth="140" SelectedIndex="{x:Bind local:PaginaAjustes.IndiceDaEsfera(Esfera)}"
+        <ComboBox Grid.Column="1" MinWidth="140" IsEnabled="{x:Bind Editavel}" SelectedIndex="{x:Bind local:PaginaAjustes.IndiceDaEsfera(Esfera)}"
                   SelectionChanged="AoMudarEsfera" AutomationProperties.Name="Esfera da lei">
           <x:String>Federal</x:String>
           <x:String>Estadual</x:String>

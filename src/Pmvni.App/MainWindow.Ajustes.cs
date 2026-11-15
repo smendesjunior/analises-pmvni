@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
 using Pmvni.Legislacao;
@@ -157,6 +158,8 @@ public sealed partial class MainWindow
     Task reindexacao = Task.CompletedTask;
     IReadOnlyList<LinhaAnexo> linhasLegislacao = [];
     readonly SemaphoreSlim releituraLegislacao = new(1, 1);
+    readonly System.Collections.ObjectModel.ObservableCollection<LinhaAnexo> linhasNaTela = [];
+    bool releituraAdiada;
 
     internal SessaoLegislacao Legislacao => legislacao;
     /// <summary>As linhas da seção Legislação dos Ajustes (uma por anexo), como estão na tela.</summary>
@@ -172,12 +175,19 @@ public sealed partial class MainWindow
         legislacao = new SessaoLegislacao(Path.Combine(PastaDados.Raiz, "legislacao"), CriarExtratorLegislacaoAsync);
         legislacao.Mudou += () => DispatcherQueue.TryEnqueue(() => _ = AtualizarListaLegislacaoAsync());
         var a = PaginaDeAjustes;
-        a.BotaoAnexarLegislacao.Click += async (_, _) => await AnexarLegislacaoAsync();
+        a.ListaAnexos.ItemsSource = linhasNaTela;
+        // Os manipuladores daqui são async void: nenhuma exceção sai deles (mensagem em português na InfoBar, detalhe no registro).
+        a.BotaoAnexarLegislacao.Click += async (_, _) => await SemDerrubarAsync(AnexarLegislacaoAsync);
         a.BotaoCancelarLegislacao.Click += (_, _) => cancelarAnexo?.Cancel();
-        a.TituloEditado = RenomearAnexoAsync;
-        a.EsferaEscolhida += async (id, e) => await DefinirEsferaAnexoAsync(id, e);
-        a.SubstituirPedido += async id => await SubstituirAnexoAsync(id);
-        a.ExcluirPedido += async id => await ExcluirAnexoAsync(id);
+        a.TituloEditado = async (id, t) =>
+        {
+            try { return await RenomearAnexoAsync(id, t); }
+            catch (Exception e) { var texto = Erro(e); MostrarAvisoLegislacao(InfoBarSeverity.Error, "Título não alterado", texto); return texto; }
+        };
+        a.TituloConcluido += async () => { if (releituraAdiada) await SemDerrubarAsync(AtualizarListaLegislacaoAsync); };
+        a.EsferaEscolhida += async (id, e) => await SemDerrubarAsync(() => DefinirEsferaAnexoAsync(id, e));
+        a.SubstituirPedido += async id => await SemDerrubarAsync(() => SubstituirAnexoAsync(id));
+        a.ExcluirPedido += async id => await SemDerrubarAsync(() => ExcluirAnexoAsync(id));
         _ = AtualizarListaLegislacaoAsync();
     }
 
@@ -220,7 +230,47 @@ public sealed partial class MainWindow
         // Uma releitura por vez, na ordem: a que termina por último leu o acervo por último (quem espera esta vê o estado de agora).
         await releituraLegislacao.WaitAsync();
         try { await RelerLegislacaoAsync(); }
+        catch (Exception e)
+        {
+            MostrarAvisoLegislacao(InfoBarSeverity.Error, "Não foi possível ler a legislação anexada", Erro(e));
+            ReabilitarLegislacao();
+        }
         finally { releituraLegislacao.Release(); }
+    }
+
+    /// <summary>Roda uma ação da tela da legislação sem deixar exceção escapar (manipuladores async void).</summary>
+    async Task SemDerrubarAsync(Func<Task> acao)
+    {
+        try { await acao(); }
+        catch (Exception e) { MostrarAvisoLegislacao(InfoBarSeverity.Error, "A operação falhou", Erro(e)); }
+    }
+
+    void ReabilitarLegislacao()
+    {
+        if (fechada) return;
+        var livre = !legislacao.Acervo.SomenteLeitura && cancelarAnexo is null;
+        PaginaDeAjustes.BotaoAnexarLegislacao.IsEnabled = livre;
+        PaginaDeAjustes.ConteudoAnexos.IsEnabled = livre;
+    }
+
+    /// <summary>Uma caixa de título das linhas está com o foco (o usuário está digitando).</summary>
+    bool EditandoTituloDeAnexo() =>
+        Raiz.XamlRoot is not null && FocusManager.GetFocusedElement(Raiz.XamlRoot) is TextBox { DataContext: LinhaAnexo };
+
+    /// <summary>Atualiza as linhas na tela no lugar, por id: o que não mudou fica com o mesmo elemento (foco, rolagem e texto).</summary>
+    void SincronizarLinhas(IReadOnlyList<LinhaAnexo> novas)
+    {
+        var col = linhasNaTela;
+        var ids = novas.Select(l => l.Id).ToHashSet(StringComparer.Ordinal);
+        for (var i = col.Count - 1; i >= 0; i--) if (!ids.Contains(col[i].Id)) col.RemoveAt(i);
+        for (var i = 0; i < novas.Count; i++)
+        {
+            var j = -1;
+            for (var k = i; k < col.Count; k++) if (col[k].Id == novas[i].Id) { j = k; break; }
+            if (j < 0) { col.Insert(i, novas[i]); continue; }
+            if (j != i) col.Move(j, i);
+            if (col[i] != novas[i]) col[i] = novas[i];
+        }
     }
 
     async Task RelerLegislacaoAsync()
@@ -236,7 +286,9 @@ public sealed partial class MainWindow
         if (fechada) return;
         linhasLegislacao = linhas;
         var a = PaginaDeAjustes;
-        a.ListaAnexos.ItemsSource = linhas;
+        // Com um título em edição, a tela espera o usuário sair da caixa (o texto digitado nunca se perde); os dados já estão novos.
+        releituraAdiada = EditandoTituloDeAnexo();
+        if (!releituraAdiada) SincronizarLinhas(linhas);
         a.TextoTotalLegislacao.Text = ListaLegislacao.Total(anexos);
         var somenteLeitura = legislacao.Acervo.SomenteLeitura;
         a.TextoSomenteLeituraLegislacao.Text = somenteLeitura ? MensagensAnexo.SomenteLeitura : "";
@@ -289,7 +341,9 @@ public sealed partial class MainWindow
             var resumo = ListaLegislacao.Resumo(anexados.Count, recusas);
             var cancelado = cts.IsCancellationRequested;
             if (cancelado) resumo += "\nAnexação cancelada: o arquivo em andamento não entrou.";
-            MostrarAvisoLegislacao(recusas.Count > 0 || cancelado ? InfoBarSeverity.Warning : InfoBarSeverity.Success, "Anexar PDFs", resumo);
+            // Cancelar não é erro: aviso neutro (só as recusas pedem atenção).
+            var severidade = recusas.Count > 0 ? InfoBarSeverity.Warning : cancelado ? InfoBarSeverity.Informational : InfoBarSeverity.Success;
+            MostrarAvisoLegislacao(severidade, "Anexar PDFs", resumo);
             return resumo;
         }
         catch (Exception e)
@@ -310,7 +364,13 @@ public sealed partial class MainWindow
     internal Task<bool> ExcluirAnexoAsync(string id) => NaFilaAsync(async () =>
     {
         if (!PodeAlterarLegislacao()) return false;
-        var anexo = (await Task.Run(legislacao.Acervo.Listar)).FirstOrDefault(a => a.Id == id);
+        Anexo? anexo;
+        try { anexo = (await Task.Run(legislacao.Acervo.Listar)).FirstOrDefault(a => a.Id == id); }
+        catch (Exception e)
+        {
+            MostrarAvisoLegislacao(InfoBarSeverity.Error, "Não foi possível excluir", Erro(e));
+            return false;
+        }
         if (anexo is null) return false;
         var confirmou = await Perguntas.Atual.ConfirmarAsync($"Excluir “{anexo.Titulo}”?",
             $"A cópia do PDF guardada pelo editor e o seu índice de pesquisa serão apagados. O arquivo original ({anexo.ArquivoOriginal}) não é alterado.",
@@ -378,9 +438,9 @@ public sealed partial class MainWindow
     {
         string? recusa = null;
         try { await legislacao.RenomearAsync(id, titulo); }
-        catch (Exception e) when (e is ArgumentException or InvalidOperationException or KeyNotFoundException or IOException or UnauthorizedAccessException)
+        catch (Exception e)
         {
-            recusa = e is IOException or UnauthorizedAccessException ? Erro(e) : e.Message;
+            recusa = MotivoLegislacao(e);
             MostrarAvisoLegislacao(InfoBarSeverity.Warning, "Título não alterado", recusa);
         }
         await AtualizarListaLegislacaoAsync();
@@ -390,12 +450,18 @@ public sealed partial class MainWindow
     internal Task DefinirEsferaAnexoAsync(string id, Esfera e) => NaFilaAsync(async () =>
     {
         try { await legislacao.DefinirEsferaAsync(id, e); }
-        catch (Exception x) when (x is InvalidOperationException or KeyNotFoundException or IOException or UnauthorizedAccessException)
-        {
-            MostrarAvisoLegislacao(InfoBarSeverity.Warning, "Esfera não alterada", x is IOException or UnauthorizedAccessException ? Erro(x) : x.Message);
-        }
+        catch (Exception x) { MostrarAvisoLegislacao(InfoBarSeverity.Warning, "Esfera não alterada", MotivoLegislacao(x)); }
         await AtualizarListaLegislacaoAsync();
     });
+
+    /// <summary>O motivo de uma alteração recusada, em português: as mensagens do acervo já são (título vazio, só leitura); o resto passa
+    /// por <see cref="Erro"/> (o detalhe vai para o registro).</summary>
+    string MotivoLegislacao(Exception e) => e switch
+    {
+        ArgumentException or InvalidOperationException => e.Message,
+        KeyNotFoundException => "Esta lei não está mais anexada.",
+        _ => Erro(e),
+    };
 
     bool PodeAlterarLegislacao()
     {

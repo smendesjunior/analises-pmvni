@@ -57,8 +57,10 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
     public Task<(IReadOnlyList<Anexo> Anexos, IReadOnlyList<LinhaAnexo> Linhas)> ListarAsync(TimeZoneInfo fuso) => Task.Run(() =>
     {
         var emCurso = Indexando;
-        var anexos = Acervo.Listar();
-        IReadOnlyList<LinhaAnexo> linhas = anexos.Select(a => ListaLegislacao.Linha(a, Acervo.Estado(a.Id), emCurso.Contains(a.Id), fuso)).ToList();
+        // Anexos e estados numa só carga do catálogo: um anexo excluído no meio nunca derruba a releitura.
+        var comEstado = Acervo.ListarComEstado();
+        IReadOnlyList<Anexo> anexos = comEstado.Select(x => x.Anexo).ToList();
+        IReadOnlyList<LinhaAnexo> linhas = comEstado.Select(x => ListaLegislacao.Linha(x.Anexo, x.Estado, emCurso.Contains(x.Anexo.Id), fuso)).ToList();
         return (anexos, linhas);
     });
 
@@ -70,7 +72,9 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
     {
         var anexados = new List<Anexo>();
         var recusas = new List<string>();
-        await operacao.WaitAsync(ct);
+        // Cancelar enquanto espera a reindexação em segundo plano não é erro: nada foi feito, a lista volta vazia.
+        try { await operacao.WaitAsync(ct); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return (anexados, recusas); }
         try
         {
             foreach (var caminho in caminhos)
@@ -78,13 +82,22 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
                 if (ct.IsCancellationRequested) break;
                 var nome = Path.GetFileName(caminho);
                 p?.Report(new ProgressoAnexo(nome, 0, 0));
+                (Entrada Entrada, ResultadoExtracao Resultado)? r = null;
                 try
                 {
-                    var r = await PrepararEExtrairAsync(caminho, null, nome, p, ct);
-                    anexados.Add(await Task.Run(() => Acervo.Confirmar(r.Entrada, r.Resultado)));
+                    r = await PrepararEExtrairAsync(caminho, null, nome, p, ct);
+                    var pronto = r.Value;
+                    anexados.Add(await Task.Run(() => Acervo.Confirmar(pronto.Entrada, pronto.Resultado)));
                 }
                 catch (AnexoRecusadoException e) { recusas.Add(e.Message); }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
+                {
+                    // Falha ao gravar este arquivo (catálogo preso, disco): ele fica de fora, com o motivo; os outros seguem.
+                    RegistroErros.Gravar("legislacao.anexar", e);
+                    if (r is { } sobra) Descartar(sobra.Entrada);
+                    recusas.Add(e is InvalidOperationException ? e.Message : MensagensAnexo.Ilegivel(nome, e));
+                }
             }
         }
         finally { operacao.Release(); }
@@ -97,12 +110,20 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
     {
         var nome = Path.GetFileName(caminho);
         await operacao.WaitAsync(ct);
+        (Entrada Entrada, ResultadoExtracao Resultado)? r = null;
         try
         {
-            var r = await PrepararEExtrairAsync(caminho, id, nome, p, ct);
-            await Task.Run(() => Acervo.ConfirmarSubstituicao(id, r.Entrada, r.Resultado));
+            r = await PrepararEExtrairAsync(caminho, id, nome, p, ct);
+            var pronto = r.Value;
+            await Task.Run(() => Acervo.ConfirmarSubstituicao(id, pronto.Entrada, pronto.Resultado));
         }
         catch (AnexoRecusadoException e) { return e.Message; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            RegistroErros.Gravar("legislacao.substituir", e);
+            if (r is { } sobra) Descartar(sobra.Entrada);
+            return MensagensAnexo.Ilegivel(nome, e);
+        }
         finally { operacao.Release(); }
         await AvisarMudancaAsync();
         return null;
@@ -125,8 +146,8 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
             {
                 FalhaExtracao.Senha => MensagensAnexo.Senha(nome),
                 FalhaExtracao.Invalido => MensagensAnexo.Invalido(nome),
-                _ => MensagensAnexo.Ilegivel(nome, e.Detalhe),
-            });
+                _ => Registrado(e, MensagensAnexo.LeitorFalhou(nome)),
+            }, e);
         }
         catch
         {
@@ -197,8 +218,26 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
     {
         Task<IndiceLegislacao>? atual;
         lock (trava) atual = indice;
-        if (atual is { IsCompletedSuccessfully: true }) await Task.Run(() => atual.Result.Atualizar(Acervo));
+        try { if (atual is { IsCompletedSuccessfully: true }) await Task.Run(() => atual.Result.Atualizar(Acervo)); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException)
+        {
+            // O índice fica com o que tinha; a próxima mudança tenta de novo. A gravação já valeu.
+            RegistroErros.Gravar("legislacao.indice", e);
+            lock (trava) if (ReferenceEquals(indice, atual)) indice = null;
+        }
         Mudou?.Invoke();
+    }
+
+    void Descartar(Entrada e)
+    {
+        try { Acervo.Descartar(e); }
+        catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RegistroErros.Gravar("legislacao.descartar", x); }
+    }
+
+    static string Registrado(Exception e, string mensagem)
+    {
+        RegistroErros.Gravar("legislacao.leitor", e);
+        return mensagem;
     }
 
     async Task<IExtratorPdf> ObterExtratorAsync()
@@ -240,7 +279,8 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
             try { real = await s.ObterExtratorAsync(); }
             catch (Exception e) when (e is not (OperationCanceledException or ObjectDisposedException))
             {
-                throw new ExtracaoRecusadaException(FalhaExtracao.Falhou, "O leitor de PDF não pôde ser iniciado: " + e.Message);
+                RegistroErros.Gravar("legislacao.extrator", e);
+                throw new ExtracaoRecusadaException(FalhaExtracao.Falhou, MensagensAnexo.LeitorIndisponivel);
             }
             return await real.ExtrairAsync(caminhoPdf, progresso, ct);
         }

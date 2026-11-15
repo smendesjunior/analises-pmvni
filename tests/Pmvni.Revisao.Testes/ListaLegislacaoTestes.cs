@@ -47,6 +47,10 @@ public class ListaLegislacaoTestes
         var parte = A("lg_3", "Parte", Esfera.Outras, "p.pdf", paginas: 81, semTexto: [5, 9]);
         Assert.Equal("2 de 81 páginas sem texto", ListaLegislacao.Linha(parte, EstadoAnexo.Pronto, false, Utc).Selo);
         Assert.Null(ListaLegislacao.Linha(pronto, EstadoAnexo.Pronto, false, Utc).Selo);
+        // Sem a cópia do editor: só Substituir e Excluir (título e esfera não editáveis); nos outros estados, editáveis.
+        Assert.False(ListaLegislacao.Linha(pronto, EstadoAnexo.SemCopia, false, Utc).Editavel);
+        Assert.True(ListaLegislacao.Linha(pronto, EstadoAnexo.SemIndice, true, Utc).Editavel);
+        Assert.True(ListaLegislacao.Linha(semTexto, EstadoAnexo.Pronto, false, Utc).Editavel);
     }
 
     [Fact]

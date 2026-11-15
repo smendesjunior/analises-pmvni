@@ -85,11 +85,15 @@ public sealed class AcervoLegislacao
         return Ordenar(Carregar().Anexos);
     });
 
-    public EstadoAnexo Estado(string id) => ComTrava(() =>
-    {
-        var a = Achar(Carregar(), id);
-        return !File.Exists(CaminhoCopia(a.Sha256)) ? EstadoAnexo.SemCopia : IndiceValido(a.Sha256) ? EstadoAnexo.Pronto : EstadoAnexo.SemIndice;
-    });
+    public EstadoAnexo Estado(string id) => ComTrava(() => EstadoDe(Achar(Carregar(), id)));
+
+    /// <summary>Os anexos (na ordem de <see cref="Listar"/>) com o estado de cada um, lidos numa só carga do catálogo: um anexo excluído
+    /// por outra janela no meio nunca aparece numa lista e falta na outra.</summary>
+    public IReadOnlyList<(Anexo Anexo, EstadoAnexo Estado)> ListarComEstado() => ComTrava(() =>
+        (IReadOnlyList<(Anexo, EstadoAnexo)>)[.. Ordenar(Carregar().Anexos).Select(a => (a, EstadoDe(a)))]);
+
+    EstadoAnexo EstadoDe(Anexo a) =>
+        !File.Exists(CaminhoCopia(a.Sha256)) ? EstadoAnexo.SemCopia : IndiceValido(a.Sha256) ? EstadoAnexo.Pronto : EstadoAnexo.SemIndice;
 
     /// <summary>A cópia do PDF, ou null se o anexo não existe ou a cópia sumiu.</summary>
     public string? CaminhoPdf(string id) => ComTrava(() =>
@@ -135,7 +139,7 @@ public sealed class AcervoLegislacao
         try { origem = new FileStream(caminhoOriginal, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 81920, FileOptions.SequentialScan); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or System.Security.SecurityException)
         {
-            throw new AnexoRecusadoException(MensagensAnexo.Ilegivel(nome, e.Message));
+            throw new AnexoRecusadoException(MensagensAnexo.Ilegivel(nome, e), e);
         }
 
         string? destino = null;
@@ -187,7 +191,7 @@ public sealed class AcervoLegislacao
         catch (Exception e)
         {
             ApagarSilencioso(destino);
-            if (e is IOException or UnauthorizedAccessException) throw new AnexoRecusadoException(MensagensAnexo.Ilegivel(nome, e.Message));
+            if (e is IOException or UnauthorizedAccessException) throw new AnexoRecusadoException(MensagensAnexo.Ilegivel(nome, e), e);
             throw;
         }
     }
@@ -329,7 +333,13 @@ public sealed class AcervoLegislacao
 
     /// <summary>Apaga de <c>.entrada</c> o que tem mais de um dia (restos de uma queda do app) e os
     /// <c>catalogo.corrompido-*.json</c> com mais de 30 dias.</summary>
-    public void LimparEntradasOrfas()
+    public void LimparEntradasOrfas() => ComTrava(() =>
+    {
+        LimparEntradasOrfasNaTrava();
+        return 0;
+    });
+
+    void LimparEntradasOrfasNaTrava()
     {
         var agoraUtc = agora().UtcDateTime;
         if (Directory.Exists(PastaEntrada))

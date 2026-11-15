@@ -120,6 +120,8 @@ public sealed partial class MainWindow
     {
         if (leitorPdf is not null) return Task.FromResult(leitorPdf);
         if (criacaoLeitor is { IsFaulted: false, IsCanceled: false }) return criacaoLeitor;
+        // A sandbox entra uma vez por core: depois de uma falha, o WebView2 é trocado por um novo (nada de handlers em dobro).
+        if (criacaoLeitor is not null) TrocarWebView2DoLeitor();
         return criacaoLeitor = CriarLeitorAsync();
     }
 
@@ -132,6 +134,18 @@ public sealed partial class MainWindow
         leitorPdf = l;
         AplicarTemaLeitor();
         return l;
+    }
+
+    void TrocarWebView2DoLeitor()
+    {
+        var antigo = P.Leitor;
+        if (antigo.Parent is not Grid grade) return;
+        var i = grade.Children.IndexOf(antigo);
+        try { antigo.Close(); } catch (Exception e) { RegistroErros.Gravar("legislacao.leitor", e); }
+        var novo = new WebView2 { Opacity = 0 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(novo, "PDF da lei");
+        grade.Children[i] = novo;
+        P.Leitor = novo;
     }
 
     /// <summary>O tema do app chega à página do leitor (só o fundo em volta das páginas muda; as páginas continuam brancas).</summary>
@@ -310,7 +324,7 @@ public sealed partial class MainWindow
                 {
                     FalhaExtracao.Senha => MensagensAnexo.Senha(anexo.ArquivoOriginal),
                     FalhaExtracao.Invalido => MensagensAnexo.Invalido(anexo.ArquivoOriginal),
-                    _ => MensagensAnexo.Ilegivel(anexo.ArquivoOriginal, e.Detalhe),
+                    _ => MensagemDoLeitor(e, anexo.ArquivoOriginal),
                 };
                 P.AvisoErro.IsOpen = true;
                 return false;
@@ -344,9 +358,17 @@ public sealed partial class MainWindow
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível abrir a lei", Erro(e));
+            var texto = Erro(e);
+            try { await FecharLeiNaVezAsync(); } catch (Exception x) { RegistroErros.Gravar("legislacao.fechar", x); }
+            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível abrir a lei", texto);
             return false;
         }
+    }
+
+    static string MensagemDoLeitor(ExtracaoRecusadaException e, string nome)
+    {
+        RegistroErros.Gravar("legislacao.leitor", e);
+        return MensagensAnexo.LeitorFalhou(nome);
     }
 
     /// <summary>Fecha a lei aberta: a página a solta, o registro do PDF sai do servidor (a URL dele passa a 403), aba Leis, nada aberto.</summary>

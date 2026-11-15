@@ -15,6 +15,9 @@ public sealed partial class PaginaAjustes : UserControl
     /// <summary>Título digitado numa linha (ao sair da caixa ou com Enter): devolve a mensagem de recusa, ou null se valeu.</summary>
     internal Func<string, string, Task<string?>>? TituloEditado { get; set; }
 
+    /// <summary>O usuário saiu de uma caixa de título (aplicada ou não): a janela refaz a tela adiada durante a edição.</summary>
+    internal event Action? TituloConcluido;
+
     /// <summary>Esfera escolhida numa linha (id, esfera).</summary>
     internal event Action<string, Esfera>? EsferaEscolhida;
 
@@ -31,7 +34,11 @@ public sealed partial class PaginaAjustes : UserControl
     /// <summary>A linha de um controle da lista: o ItemsRepeater põe o item no DataContext do elemento (e dos filhos).</summary>
     static LinhaAnexo? LinhaDe(object sender) => (sender as FrameworkElement)?.DataContext as LinhaAnexo;
 
-    async void AoSairDoTitulo(object sender, RoutedEventArgs e) => await AplicarTituloAsync(sender as TextBox);
+    async void AoSairDoTitulo(object sender, RoutedEventArgs e)
+    {
+        await AplicarTituloAsync(sender as TextBox);
+        TituloConcluido?.Invoke();
+    }
 
     async void AoTeclarNoTitulo(object sender, KeyRoutedEventArgs e)
     {
@@ -44,7 +51,9 @@ public sealed partial class PaginaAjustes : UserControl
     {
         if (caixa is null || LinhaDe(caixa) is not { } linha || TituloEditado is null) return;
         if (caixa.Text.Trim() == linha.Titulo) return;
-        var recusa = await TituloEditado(linha.Id, caixa.Text);
+        string? recusa;
+        try { recusa = await TituloEditado(linha.Id, caixa.Text); }
+        catch (Exception) { recusa = ""; } // a janela já mostrou o motivo; a caixa volta ao título anterior
         // Recusado: a caixa volta ao título anterior (a mensagem aparece na InfoBar da seção).
         if (recusa is not null && ReferenceEquals(LinhaDe(caixa), linha)) caixa.Text = linha.Titulo;
     }
