@@ -98,7 +98,7 @@
       </StackPanel>
     </Grid>
 
-    <!-- Rodapé: o que falta preencher, acima de "Gerar e conferir ▸". -->
+    <!-- Rodapé: o que falta preencher, acima de "Gerar e conferir" (seta como ícone: o Narrador não lê "triângulo"). -->
     <Grid Grid.Row="2" Padding="20,8,20,12" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*"/>
@@ -111,7 +111,13 @@
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
         <Button x:Name="BotaoCancelar" x:FieldModifier="internal" Content="Cancelar"/>
         <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Content="Voltar e editar" Visibility="Collapsed"/>
-        <Button x:Name="BotaoGerar" x:FieldModifier="internal" Content="Gerar e conferir ▸" Style="{StaticResource AccentButtonStyle}" IsEnabled="False"/>
+        <Button x:Name="BotaoGerar" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" IsEnabled="False"
+                AutomationProperties.Name="Gerar e conferir">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Gerar e conferir"/>
+            <FontIcon Glyph="&#xE72A;" FontSize="12"/>
+          </StackPanel>
+        </Button>
         <Button x:Name="BotaoGravar" x:FieldModifier="internal" Content="Gravar na pasta do processo" Style="{StaticResource AccentButtonStyle}"
                 IsEnabled="False" Visibility="Collapsed"/>
       </StackPanel>

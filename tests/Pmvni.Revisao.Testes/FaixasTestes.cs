@@ -67,11 +67,11 @@ public class FaixasTestes
         var inicio = f.Abas.Single(a => a.Nome == "Página Inicial");
         Assert.Equal(new[]
         {
-            ComandosApp.RelatoriosNovo, ComandosApp.InicioSituacao, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
+            ComandosApp.InicioSituacao, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
             ComandosApp.InicioRestaurarOriginal, ComandosApp.InicioItemAnterior, ComandosApp.InicioItemProximo, ComandosApp.InicioProximoPendente,
             ComandosApp.ArquivoExportarPdf, ComandosApp.DespachosNovo,
         }, inicio.Comandos.Select(c => c.Id));
-        var situacao = inicio.Comandos[1];
+        var situacao = inicio.Comandos[0];
         Assert.Equal(TipoComando.Menu, situacao.Tipo);
         // As 4 situações de item do kit, pelos textos que o relatório imprime.
         Assert.Equal(Pmvni.Composicao.Kit.Situacoes.SitItem.Order(StringComparer.Ordinal), situacao.Itens!.Select(i => ComandosApp.SituacaoDoComando(i.Id)!).Order(StringComparer.Ordinal));
@@ -103,7 +103,7 @@ public class FaixasTestes
         // Exibir › Tema: Sistema, Claro, Escuro, com os ids que levam ao valor guardado em Ajustes.Tema.
         var tema = Faixas.Para(Modulo.Relatorios).Abas.Single(a => a.Nome == "Exibir").Comandos.Single(c => c.Id == ComandosApp.ExibirTema);
         Assert.Equal(TipoComando.Menu, tema.Tipo);
-        Assert.Equal(new[] { "Sistema", "Claro", "Escuro" }, tema.Itens!.Select(i => i.Rotulo));
+        Assert.Equal(new[] { "Acompanhar o Windows", "Claro", "Escuro" }, tema.Itens!.Select(i => i.Rotulo));
         Assert.Equal(Ajustes.Temas, tema.Itens!.Select(i => ComandosApp.TemaDoComando(i.Id)!));
         Assert.Null(ComandosApp.TemaDoComando(ComandosApp.ExibirTema));
         Assert.Null(ComandosApp.TemaDoComando(ComandosApp.ExibirPainel));
@@ -149,7 +149,7 @@ public class FaixasTestes
         var inicioP = processos.Abas.Single(a => a.Nome == "Página Inicial");
         Assert.Equal(new[]
         {
-            ComandosApp.ProcessosAbrirRelatorio, ComandosApp.ProcessosImportarAnalise, ComandosApp.DespachosNovo, ComandosApp.RelatoriosNovo, ComandosApp.ProcessosAbrirArquivo,
+            ComandosApp.ProcessosAbrirRelatorio, ComandosApp.ProcessosImportarAnalise, ComandosApp.DespachosNovo, ComandosApp.ProcessosAbrirArquivo,
             ComandosApp.ProcessosAbrirPasta, ComandosApp.ProcessosAtualizar, ComandosApp.ProcessosAno,
         }, inicioP.Comandos.Select(c => c.Id));
         Assert.Equal(TipoComando.Menu, inicioP.Comandos.Single(c => c.Id == ComandosApp.ProcessosAno).Tipo);
@@ -167,7 +167,7 @@ public class FaixasTestes
         var inicioD = despachos.Abas.Single(a => a.Nome == "Página Inicial");
         Assert.Equal(new[]
         {
-            ComandosApp.DespachosNovo, ComandosApp.DespachosAbrir, ComandosApp.DespachosAbrirPdf, ComandosApp.DespachosGerarPdf,
+            ComandosApp.DespachosAbrir, ComandosApp.DespachosAbrirPdf, ComandosApp.DespachosGerarPdf,
             ComandosApp.DespachosMostrar, ComandosApp.DespachosIrAoProcesso,
             ComandosApp.DespachosAtualizar, ComandosApp.DespachosFiltro, ComandosApp.DespachosDoProcesso,
         }, inicioD.Comandos.Select(c => c.Id));
@@ -195,7 +195,9 @@ public class FaixasTestes
         foreach (var m in new[] { Modulo.Despachos, Modulo.Processos, Modulo.Relatorios })
         {
             var inicio = Faixas.Para(m).Abas.Single(a => a.Nome == "Página Inicial").Comandos;
-            var novo = Assert.Single(inicio, c => c.Id == ComandosApp.DespachosNovo);
+            // Em Despachos o Novo despacho é o botão primário (à esquerda dos comandos, em todas as abas); nos outros, fica na Página Inicial.
+            var novo = m == Modulo.Despachos ? Faixas.Para(m).Primario! : Assert.Single(inicio, c => c.Id == ComandosApp.DespachosNovo);
+            Assert.Equal(ComandosApp.DespachosNovo, novo.Id);
             Assert.Equal(TipoComando.Menu, novo.Tipo);
             Assert.Equal("Novo despacho", novo.Rotulo);
             Assert.Equal(new[] { "despachos.novo.correcao", "despachos.novo.aprovacao" }, novo.Itens!.Select(i => i.Id));
@@ -203,7 +205,7 @@ public class FaixasTestes
             var i = inicio.ToList().IndexOf(novo);
             switch (m)
             {
-                case Modulo.Despachos: Assert.Equal(0, i); break;
+                case Modulo.Despachos: Assert.Equal(-1, i); break;
                 case Modulo.Processos: Assert.Equal(ComandosApp.ProcessosImportarAnalise, inicio[i - 1].Id); break;
                 default: Assert.Equal(inicio.Count - 1, i); break;
             }
@@ -263,26 +265,93 @@ public class FaixasTestes
     {
         Assert.Equal("relatorios.novo", ComandosApp.RelatoriosNovo);
         var relatorios = Faixas.Para(Modulo.Relatorios);
-        foreach (var nome in new[] { "Arquivo", "Página Inicial" })
-        {
-            var c = relatorios.Abas.Single(a => a.Nome == nome).Comandos[0];
-            Assert.Equal(ComandosApp.RelatoriosNovo, c.Id);
-            Assert.Equal(TipoComando.Botao, c.Tipo);
-            Assert.Equal("Novo relatório", c.Rotulo);
-        }
+        // Primário de Relatórios (e o primeiro de Arquivo); saiu da Página Inicial, que não repete mais o botão.
+        Assert.Equal(ComandosApp.RelatoriosNovo, relatorios.Primario!.Id);
+        Assert.Equal(TipoComando.Botao, relatorios.Primario.Tipo);
+        Assert.Equal("Novo relatório", relatorios.Primario.Rotulo);
+        Assert.Equal(relatorios.Primario, relatorios.Abas.Single(a => a.Nome == "Arquivo").Comandos[0]);
+        Assert.DoesNotContain(relatorios.Abas.Single(a => a.Nome == "Página Inicial").Comandos, c => c.Id == ComandosApp.RelatoriosNovo);
         Assert.Equal(ComandosApp.DespachosNovo, relatorios.Abas.Single(a => a.Nome == "Página Inicial").Comandos[^1].Id);
-        Assert.Equal(2, Faixas.Comandos(relatorios).Count(c => c.Id == ComandosApp.RelatoriosNovo));
 
-        var inicioP = Faixas.Para(Modulo.Processos).Abas.Single(a => a.Nome == "Página Inicial").Comandos.ToList();
-        var i = inicioP.FindIndex(c => c.Id == ComandosApp.RelatoriosNovo);
-        Assert.Equal(ComandosApp.DespachosNovo, inicioP[i - 1].Id);
-        Assert.Equal(ComandosApp.ProcessosImportarAnalise, inicioP[i - 2].Id);
-        Assert.Single(Faixas.Comandos(Faixas.Para(Modulo.Processos)), c => c.Id == ComandosApp.RelatoriosNovo);
+        // Processos: primário Novo relatório; Novo despacho fica na Página Inicial.
+        var processos = Faixas.Para(Modulo.Processos);
+        Assert.Equal(ComandosApp.RelatoriosNovo, processos.Primario!.Id);
+        Assert.Single(Faixas.Comandos(processos), c => c.Id == ComandosApp.RelatoriosNovo);
+        Assert.DoesNotContain(processos.Abas.SelectMany(a => a.Comandos), c => c.Id == ComandosApp.RelatoriosNovo);
 
         foreach (var m in new[] { Modulo.Despachos, Modulo.Ajustes })
             Assert.DoesNotContain(Faixas.Comandos(Faixas.Para(m)), c => c.Id == ComandosApp.RelatoriosNovo);
         // Abrir a página Novo relatório não mexe no relatório aberto: vale em qualquer módulo.
         Assert.False(ComandosApp.SoDoRelatorio(ComandosApp.RelatoriosNovo));
+    }
+
+    [Fact]
+    public void botao_primario_por_modulo()
+    {
+        Assert.Equal(ComandosApp.RelatoriosNovo, Faixas.Para(Modulo.Relatorios).Primario?.Id);
+        Assert.Equal(ComandosApp.DespachosNovo, Faixas.Para(Modulo.Despachos).Primario?.Id);
+        Assert.Equal(TipoComando.Menu, Faixas.Para(Modulo.Despachos).Primario!.Tipo);
+        Assert.Equal(ComandosApp.RelatoriosNovo, Faixas.Para(Modulo.Processos).Primario?.Id);
+        Assert.Equal(ComandosApp.LegislacaoAnexar, Faixas.Para(Modulo.Legislacao).Primario?.Id);
+        Assert.Null(Faixas.Para(Modulo.Ajustes).Primario);
+        // O primário entra em Faixas.Comandos (manipulador obrigatório) e não se repete na barra da mesma faixa, salvo Arquivo de Relatórios.
+        foreach (var m in Faixas.Disponiveis.Where(m => Faixas.Para(m).Primario is not null))
+        {
+            var f = Faixas.Para(m);
+            Assert.Equal(f.Primario, Faixas.Comandos(f).First());
+            var naBarra = f.Abas.SelectMany(a => a.Comandos).Count(c => c.Id == f.Primario!.Id);
+            Assert.Equal(m == Modulo.Relatorios ? 1 : 0, naBarra);
+        }
+    }
+
+    [Fact]
+    public void rotulos_curtos_com_texto_completo_na_descricao()
+    {
+        // Auditoria A5: nenhum rótulo cortado na faixa ("Restaurar ori…"); o texto completo vai na dica e no nome acessível.
+        var esperado = new Dictionary<string, (string Rotulo, string Completo)>
+        {
+            [ComandosApp.InicioRestaurarOriginal] = ("Restaurar", "Restaurar o original"),
+            [ComandosApp.RevisaoComparar] = ("Comparar", "Comparar com o original"),
+            [ComandosApp.DespachosDoProcesso] = ("Só do processo", "Só os despachos do processo escolhido"),
+            [ComandosApp.ProcessosImportarAnalise] = ("Importar análise", "Importar a análise da IA"),
+            [ComandosApp.ProcessosAbrirPasta] = ("Abrir pasta", "Abrir a pasta no Explorador"),
+            [ComandosApp.ProcessosMostrarPastas] = ("PROJETO e DOCS", "Mostrar as pastas PROJETO e DOCUMENTOS"),
+        };
+        var todos = Faixas.Disponiveis.SelectMany(m => Faixas.Comandos(Faixas.Para(m))).ToList();
+        foreach (var (id, (rotulo, completo)) in esperado)
+        {
+            var c = todos.First(x => x.Id == id);
+            Assert.Equal(rotulo, c.Rotulo);
+            Assert.Equal(completo, c.TextoCompleto);
+            Assert.True(c.Rotulo.Length <= 16, c.Rotulo);
+        }
+        // Auditoria M3: nenhuma seta tipográfica nos rótulos (o Narrador lia "triângulo"); a seta é o ícone.
+        Assert.All(todos, c => Assert.DoesNotContain(c.Rotulo, ch => ch is (char)0x25C2 or (char)0x25B8));
+        Assert.Equal("Item anterior", todos.First(c => c.Id == ComandosApp.InicioItemAnterior).Rotulo);
+        Assert.Equal("Próximo item", todos.First(c => c.Id == ComandosApp.InicioItemProximo).Rotulo);
+    }
+
+    static bool UsoPrivado(char c) => c >= (char)0xE000 && c <= (char)0xF8FF;
+
+    [Fact]
+    public void glifos_sao_caracteres_de_uso_privado_com_nome()
+    {
+        var campos = typeof(Glifos).GetFields(BindingFlags.Public | BindingFlags.Static).Where(c => c.IsLiteral).ToList();
+        Assert.NotEmpty(campos);
+        Assert.All(campos, c =>
+        {
+            var g = (string)c.GetRawConstantValue()!;
+            Assert.Single(g);
+            Assert.True(UsoPrivado(g[0]), c.Name);
+        });
+        // Nenhum glifo literal sobrou nas definições (B1): todos vêm de Glifos, escritos como escapes.
+        foreach (var arquivo in new[] { "Faixas.cs", "Modulos.cs", "Glifos.cs" })
+        {
+            var texto = File.ReadAllText(Path.Combine(Path.GetDirectoryName(Ambiente.PastaTestes)!, "src", "Pmvni.App", "Logica", arquivo));
+            Assert.DoesNotContain(texto, UsoPrivado);
+        }
+        Assert.All(Faixas.Disponiveis.SelectMany(m => Faixas.Comandos(Faixas.Para(m))).Where(c => c.Glifo.Length > 0),
+            c => Assert.True(UsoPrivado(c.Glifo[0]), c.Id));
     }
 
     [Fact]
@@ -303,15 +372,15 @@ public class FaixasTestes
 
         Assert.Equal(new[]
         {
-            ("legislacao.anexar", "Anexar PDFs…", TipoComando.Botao), ("legislacao.gerenciar", "Gerenciar anexos", TipoComando.Botao),
+            ("legislacao.gerenciar", "Gerenciar anexos", TipoComando.Botao),
             ("arquivo.importar", "Importar dados.json", TipoComando.Botao), ("arquivo.abrir", "Abrir", TipoComando.Botao), ("arquivo.recentes", "Recentes", TipoComando.Menu),
         }, Linhas(f.Abas[0]));
         Assert.Equal(new[]
         {
             ("legislacao.copiar", "Copiar", TipoComando.Botao), ("legislacao.copiarCitacao", "Copiar citação", TipoComando.Botao),
-            ("legislacao.paginaAnterior", "◂ Página", TipoComando.Botao), ("legislacao.paginaProxima", "Página ▸", TipoComando.Botao),
+            ("legislacao.paginaAnterior", "Página anterior", TipoComando.Botao), ("legislacao.paginaProxima", "Próxima página", TipoComando.Botao),
             ("legislacao.escopo", "Pesquisar em", TipoComando.Menu),
-            ("legislacao.ocorrenciaAnterior", "◂ Ocorrência", TipoComando.Botao), ("legislacao.ocorrenciaProxima", "Ocorrência ▸", TipoComando.Botao),
+            ("legislacao.ocorrenciaAnterior", "Ocorrência anterior", TipoComando.Botao), ("legislacao.ocorrenciaProxima", "Próxima ocorrência", TipoComando.Botao),
         }, Linhas(f.Abas[1]));
         var escopo = f.Abas[1].Comandos.Single(c => c.Id == "legislacao.escopo");
         Assert.Equal(new[] { ("legislacao.escopo.lei", "Nesta lei"), ("legislacao.escopo.todas", "Em todas as leis") }, escopo.Itens!.Select(i => (i.Id, i.Rotulo)));

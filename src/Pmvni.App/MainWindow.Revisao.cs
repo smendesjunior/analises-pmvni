@@ -563,7 +563,7 @@ public sealed partial class MainWindow
     {
         if (ItemSelecionado is not { } it) return;
         var menu = new MenuFlyout();
-        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = "" }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
+        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
         var efetiva = SituacaoEfetiva(it);
         foreach (var c in Faixas.OrdemSituacoes)
         {
@@ -573,12 +573,12 @@ public sealed partial class MainWindow
             situacao.Items.Add(i);
         }
         menu.Items.Add(situacao);
-        menu.Items.Add(ItemDoMenu("Editar texto", "", ComandosApp.InicioEditarTexto));
-        menu.Items.Add(ItemDoMenu(it.Incluido ? "Excluir item" : "Restaurar item", it.Incluido ? "" : "", ComandosApp.InicioExcluirRestaurar));
+        menu.Items.Add(ItemDoMenu("Editar texto", Glifos.Editar, ComandosApp.InicioEditarTexto));
+        menu.Items.Add(ItemDoMenu(it.Incluido ? "Excluir item" : "Restaurar item", it.Incluido ? Glifos.Excluir : Glifos.Restaurar, ComandosApp.InicioExcluirRestaurar));
         var original = new ToggleMenuFlyoutItem { Text = "Original ⇄", IsChecked = mostrarOriginal, IsEnabled = Faixa.Habilitado(ComandosApp.InicioOriginal) };
         original.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioOriginal);
         menu.Items.Add(original);
-        var propriedades = new MenuFlyoutItem { Text = "Propriedades", Icon = new FontIcon { Glyph = "" } };
+        var propriedades = new MenuFlyoutItem { Text = "Propriedades", Icon = new FontIcon { Glyph = Glifos.Propriedades } };
         propriedades.Click += (_, _) => MostrarPropriedades(true);
         menu.Items.Add(propriedades);
         UltimoMenuContexto = menu;
