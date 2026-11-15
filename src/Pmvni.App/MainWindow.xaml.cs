@@ -250,12 +250,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     }
 
     /// <summary>Executa o comando da faixa (ou do atalho) pelo id, se ele existe e está habilitado.</summary>
-    internal async Task ExecutarComandoAsync(string id)
+    /// <summary>Na fila de comandos (<see cref="NaFilaAsync"/>): espera o anterior terminar e, na sua vez, confere se está habilitado (o
+    /// motivo aparece se não estiver). Só Ctrl+F (pesquisa, Tarefa 11) ainda não tem manipulador e não faz nada.</summary>
+    internal Task ExecutarComandoAsync(string id) => NaFilaAsync(async () =>
     {
-        // Durante a aplicação de uma alteração (até ~1,5 s) os comandos não entram em fila: são ignorados.
-        if (aplicando || !manipuladores.TryGetValue(id, out var acao) || !Faixa.Habilitado(id)) return;
+        if (!manipuladores.TryGetValue(id, out var acao)) return;
+        if (!Faixa.Habilitado(id)) { AvisarIndisponivel(id); return; }
         await TentarAsync(acao);
-    }
+    });
 
     /// <summary>Ids de comando de alguma faixa (dos módulos disponíveis e de Ajustes) sem manipulador: tem de ser vazia.</summary>
     internal IReadOnlyList<string> ComandosSemManipulador() =>
@@ -363,7 +365,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// <summary>Importa o dados.json do kit para o <c>.pmvrel</c> novo <paramref name="pmvrel"/> (recusa se ele existe) e o abre.</summary>
     internal async Task<bool> ImportarParaAsync(string json, string pmvrel)
     {
-        if (ocupado || aplicando || documento is null) return false;
+        if (ocupado || aplicando || documento is null) { AvisarOcupado(); return false; }
         Ocupar("Importando o dados.json…");
         try
         {
@@ -394,7 +396,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// aparece num InfoBar).</summary>
     internal async Task<bool> AbrirPacoteAsync(string pmvrel)
     {
-        if (ocupado || aplicando || documento is null) return false;
+        if (ocupado || aplicando || documento is null) { AvisarOcupado(); return false; }
         if (sessao is not null && !await FecharSessaoAsync()) return false;
         Ocupar("Abrindo o relatório…");
         SessaoEdicao? nova = null;
@@ -464,9 +466,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     async void AoFecharJanela(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (fecharDeVez || (sessao is null && !ocupado && !aplicando)) return;
+        if (fecharDeVez || (sessao is null && !ocupado && naFila == 0)) return;
         args.Cancel = true;
-        if (ocupado || aplicando)
+        if (ocupado || naFila > 0)
         {
             // Uma operação em andamento (abrir, exportar…) termina antes: a janela fecha logo depois (Liberar).
             fecharQuandoLivre = true;
@@ -635,7 +637,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal async Task<(bool Ok, ResultadoExportacao? Resultado, string? Erro, Exception? Excecao)> ExportarParaAsync(string caminhoPdf)
     {
         if (sessao?.Atual is not { } r) return (false, null, "Nenhum relatório aberto.", null);
-        if (ocupado || aplicando) return (false, null, "A janela está ocupada.", null);
+        if (ocupado || aplicando) { AvisarOcupado(); return (false, null, "A janela está ocupada.", null); }
         var avisos = r.Preparado.AvisosExportacao;
         if (r.Preparado.ErrosFinais.Count == 0 && avisos.Count > 0
             && !await Perguntas.Atual.ConfirmarAsync("Exportar com avisos?", string.Join(Environment.NewLine, avisos), "Exportar", "Cancelar"))
@@ -729,7 +731,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (e.ClickedItem is not ItemNavegacao item) return;
         // Item do relatório: seleciona (folhas, Propriedades e faixa) e rola até ele; seção, capa ou figura: só rola.
-        if (!item.Secao && item.Ref is not null && sessao?.Revisao.Projeto.Item(item.Ref) is not null) await TentarAsync(() => SelecionarAsync(item.Ref));
+        if (!item.Secao && item.Ref is not null && sessao?.Revisao.Projeto.Item(item.Ref) is not null) await NaFilaAsync(() => TentarAsync(() => SelecionarAsync(item.Ref)));
         else await TentarAsync(() => RolarParaAsync(item));
     }
 
@@ -785,19 +787,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     Task MostrarAtalhosAsync()
     {
         var lista = new StackPanel { Spacing = 6 };
-        var foraDaFaixa = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            [ComandosApp.EditarDesfazer] = "Desfazer",
-            [ComandosApp.EditarRefazer] = "Refazer",
-            [ComandosApp.JanelaRegioes] = "Alternar entre faixa, painel, folhas e propriedades",
-            [ComandosApp.InicioItemAnterior] = "Item anterior",
-            [ComandosApp.InicioItemProximo] = "Próximo item",
-            [ComandosApp.InicioExcluirRestaurar] = "Excluir ou restaurar o item",
-        };
         // Só os atalhos que já fazem algo (Ctrl+F chega com a pesquisa).
         foreach (var (atalho, id) in Atalhos.Mapa.Where(a => manipuladores.ContainsKey(a.Value)))
         {
-            var rotulo = foraDaFaixa.TryGetValue(id, out var r) ? r : Faixa.Rotulo(id);
+            var rotulo = RotuloDoComando(id);
             var linha = new Grid { ColumnSpacing = 24 };
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -851,8 +844,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.Anel.IsActive = false;
         R.Espera.Visibility = Visibility.Collapsed;
         AtualizarComandos();
-        if (fecharQuandoLivre) { fecharQuandoLivre = false; DispatcherQueue.TryEnqueue(Close); }
+        if (fecharQuandoLivre && naFila == 0) { fecharQuandoLivre = false; DispatcherQueue.TryEnqueue(Close); }
     }
+
+    void AvisarOcupado() =>
+        MostrarMensagem(InfoBarSeverity.Warning, "Aguarde", "Outra operação ainda está em andamento; tente de novo quando ela terminar.");
 
     void LimparAvisos()
     {

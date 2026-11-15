@@ -87,6 +87,19 @@ public class FaixasTestes
     }
 
     [Fact]
+    public void id_em_duas_abas_e_o_mesmo_comando()
+    {
+        foreach (var m in ComFaixa())
+        {
+            var repetidos = Faixas.Comandos(Faixas.Para(m)).GroupBy(c => c.Id, StringComparer.Ordinal).Where(g => g.Count() > 1).ToList();
+            // Mesmo id em duas abas = o mesmo comando: rótulo, ícone, tipo e itens iguais (e um manipulador só, na janela).
+            Assert.All(repetidos, g => Assert.All(g, c => Assert.Equal(g.First(), c)));
+            if (m == Modulo.Relatorios)
+                Assert.Equal(2, repetidos.Single(g => g.Key == ComandosApp.ArquivoExportarPdf).Count());
+        }
+    }
+
+    [Fact]
     public void modulo_sem_faixa_definida_e_recusado()
     {
         foreach (var m in Enum.GetValues<Modulo>().Except(ComFaixa()))

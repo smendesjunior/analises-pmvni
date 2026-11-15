@@ -62,7 +62,7 @@ public sealed partial class MainWindow
     void IniciarRevisao()
     {
         R.AbasPainel.SelectionChanged += (_, _) => MostrarAbaDoPainel();
-        R.ListaExcluidos.ItemClick += async (_, e) => { if (e.ClickedItem is FrameworkElement { Tag: string id }) await TentarAsync(() => SelecionarAsync(id)); };
+        R.ListaExcluidos.ItemClick += async (_, e) => { if (e.ClickedItem is FrameworkElement { Tag: string id }) await NaFilaAsync(() => TentarAsync(() => SelecionarAsync(id))); };
         R.BotaoFecharPropriedades.Click += (_, _) => MostrarPropriedades(false);
         R.PropNoPdf.Click += async (_, _) =>
         {
@@ -164,15 +164,93 @@ public sealed partial class MainWindow
     /// <summary>A edição de um campo pelo host: a mesma rota do <c>editar</c> da página (Enter no A4).</summary>
     internal Task EditarTextoAsync(string itemId, string campo, string texto) => AplicarAsync(new DefinirCampo(itemId, campo, texto));
 
-    /// <summary><paramref name="testar"/>: o projeto como ficaria (null = não precisa testar: desfazer e refazer voltam a estados que já
-    /// foram compostos); <paramref name="aplicar"/>: aplica e devolve o registro (null = nada mudou).</summary>
-    async Task ExecutarRevisaoAsync(Func<SessaoEdicao, Projeto>? testar, Func<SessaoEdicao, RegistroHistorico?> aplicar)
+    // ---------- fila de comandos ----------
+
+    // Uma fila só (FIFO) para tudo o que muda o relatório ou depende da tela composta: comandos da faixa e dos atalhos, comandos de
+    // revisão (Propriedades, menus, edição no A4) e seleção pela lista. Nada é descartado por chegar durante outro: espera a vez e é
+    // conferido de novo contra o projeto como está nessa hora. Quem já está na vez (um manipulador que chama AplicarAsync) não
+    // espera de novo: a vez segue no fluxo assíncrono (AsyncLocal).
+    readonly SemaphoreSlim fila = new(1, 1);
+    static readonly AsyncLocal<bool> naVez = new();
+    int naFila;
+
+    /// <summary>Comandos esperando a vez ou rodando.</summary>
+    internal int ComandosNaFila => naFila;
+
+    async Task NaFilaAsync(Func<Task> acao)
     {
-        if (sessao is not { Atual: not null } s) return;
-        if (aplicando || ocupado)
+        if (naVez.Value) { await acao(); return; }
+        naFila++;
+        await fila.WaitAsync();
+        try
         {
-            // Outra alteração ou operação em andamento: esta não entra (a página volta ao estado do host quando aquela terminar).
+            naVez.Value = true;
+            await acao();
+        }
+        finally
+        {
+            naVez.Value = false;
+            fila.Release();
+            naFila--;
+            if (naFila == 0 && fecharQuandoLivre && !ocupado) { fecharQuandoLivre = false; DispatcherQueue.TryEnqueue(Close); }
+        }
+    }
+
+    /// <summary>"«Excluir item» não está disponível agora: selecione um item…" — todo comando que não pode rodar diz por quê.</summary>
+    void AvisarIndisponivel(string id)
+    {
+        var rotulo = RotuloDoComando(id);
+        string motivo;
+        if (documento is null) motivo = "a visualização ainda não está pronta";
+        else if (ocupado) motivo = "aguarde a operação em andamento terminar";
+        else if (sessao?.Atual is null) motivo = "abra ou importe um relatório";
+        else if (sessao.SomenteLeitura && id is not (ComandosApp.ArquivoSalvarComo or ComandosApp.ArquivoExportarPdf)) motivo = "o relatório está aberto somente para leitura";
+        else if (ItemSelecionado is null && (id.StartsWith("inicio.", StringComparison.Ordinal) && id is not (ComandosApp.InicioItemAnterior or ComandosApp.InicioItemProximo or ComandosApp.InicioProximoPendente)))
+            motivo = "selecione um item nas folhas ou na lista de seções";
+        else if (ItemSelecionado is { Incluido: false } && (id == ComandosApp.InicioEditarTexto || ComandosApp.SituacaoDoComando(id) is not null || id == ComandosApp.InicioSituacao))
+            motivo = "o item selecionado está excluído (restaure-o antes)";
+        else if (id == ComandosApp.EditarDesfazer) motivo = "não há nada para desfazer";
+        else if (id == ComandosApp.EditarRefazer) motivo = "não há nada para refazer";
+        else if (id == ComandosApp.ArquivoExportarPdf) motivo = Faixa.Dica(id);
+        else motivo = "não há o que fazer com o relatório como está";
+        MostrarMensagem(InfoBarSeverity.Informational, "Comando indisponível", $"«{rotulo}» não está disponível agora: {motivo}.");
+    }
+
+    string RotuloDoComando(string id)
+    {
+        if (RotulosForaDaFaixa.TryGetValue(id, out var r)) return r;
+        var f = Faixa.Rotulo(id);
+        return f.Length > 0 ? f : id;
+    }
+
+    static readonly IReadOnlyDictionary<string, string> RotulosForaDaFaixa = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        [ComandosApp.EditarDesfazer] = "Desfazer",
+        [ComandosApp.EditarRefazer] = "Refazer",
+        [ComandosApp.JanelaRegioes] = "Alternar entre faixa, painel, folhas e propriedades",
+        [ComandosApp.InicioItemAnterior] = "Item anterior",
+        [ComandosApp.InicioItemProximo] = "Próximo item",
+        [ComandosApp.InicioExcluirRestaurar] = "Excluir ou restaurar o item",
+    };
+
+    /// <summary><paramref name="testar"/>: o projeto como ficaria (null = não precisa testar: desfazer e refazer voltam a estados que já
+    /// foram compostos); <paramref name="aplicar"/>: aplica e devolve o registro (null = nada mudou). Entra na fila: um comando que chega
+    /// durante outro espera a vez e é testado contra o projeto de então.</summary>
+    Task ExecutarRevisaoAsync(Func<SessaoEdicao, Projeto>? testar, Func<SessaoEdicao, RegistroHistorico?> aplicar) =>
+        NaFilaAsync(() => ExecutarNaVezAsync(testar, aplicar));
+
+    async Task ExecutarNaVezAsync(Func<SessaoEdicao, Projeto>? testar, Func<SessaoEdicao, RegistroHistorico?> aplicar)
+    {
+        if (sessao is not { Atual: not null } s)
+        {
+            MostrarMensagem(InfoBarSeverity.Warning, "A alteração não foi aplicada", "Nenhum relatório aberto.");
+            return;
+        }
+        if (ocupado)
+        {
+            // Abrir, importar ou exportar chamados fora da fila (o roteiro): a alteração não entra e a página volta ao estado do host.
             MostrarMensagem(InfoBarSeverity.Warning, "A alteração não foi aplicada", "Outra operação ainda está em andamento; tente de novo em seguida.");
+            await s.EnviarEstadoAsync();
             return;
         }
         aplicando = true;
@@ -182,21 +260,27 @@ public sealed partial class MainWindow
         try
         {
             if (s.SomenteLeitura) { Recusar([s.MotivoSomenteLeitura ?? "O relatório está aberto somente para leitura."]); return; }
-            var editou = await ConcluirEdicaoAbertaAsync(s);
+            var recompor = false;
             Preparado? preparado = null;
-            if (testar is not null)
+            try
             {
-                var candidato = testar(s);
-                preparado = await Task.Run(() => s.Recompositor.Preparar(candidato));
+                // O texto de um campo em edição entra antes (como o Enter). Se o comando seguinte for recusado, a tela ainda é recomposta
+                // com o texto aplicado: tela e modelo nunca ficam diferentes.
+                recompor = await ConcluirEdicaoAbertaAsync(s);
+                if (testar is not null)
+                {
+                    var candidato = testar(s);
+                    preparado = await Task.Run(() => s.Recompositor.Preparar(candidato));
+                }
+                if (aplicar(s) is not null) recompor = true; // sem efeito: o candidato é o projeto de agora e vale como preparado
             }
-            var registro = aplicar(s);
-            if (registro is null && !editou) return; // nada mudou (sem efeito, o candidato é o projeto de agora)
+            catch (ComandoRecusadoException e) { Recusar([e.Message]); preparado = null; }
+            catch (RecomposicaoRecusadaException e) { Recusar(e.Erros); preparado = null; }
+            if (!recompor) return;
             estadoEnviado = true; // a recomposição manda o estado do editor (no finally dela)
             var r = await s.RecomporAsync(preparado);
             MostrarRecomposicao(r);
         }
-        catch (ComandoRecusadoException e) { Recusar([e.Message]); }
-        catch (RecomposicaoRecusadaException e) { Recusar(e.Erros); }
         catch (Exception e)
         {
             ultimosErros.Add(e.Message);
@@ -209,7 +293,6 @@ public sealed partial class MainWindow
             aplicando = false;
             AtualizarPaineis();
             AtualizarComandos();
-            if (fecharQuandoLivre) { fecharQuandoLivre = false; DispatcherQueue.TryEnqueue(Close); }
         }
     }
 
@@ -299,7 +382,8 @@ public sealed partial class MainWindow
     /// <summary>Põe o campo em edição no A4 com o texto efetivo (as citações já numeradas). O foco vai às folhas para a digitação.</summary>
     async Task IniciarEdicaoAsync(string itemId, string campo)
     {
-        if (!Editavel || aplicando || documento is null || sessao is null) return;
+        if (documento is null || sessao is null) return;
+        if (!Editavel) { AvisarIndisponivel(ComandosApp.InicioEditarTexto); return; }
         if (sessao.Revisao.Projeto.Item(itemId) is not { Incluido: true } it || !Campos.Editaveis.Contains(campo)) return;
         if (selecionado != itemId) await SelecionarAsync(itemId);
         ultimoCampo = campo;
@@ -327,20 +411,17 @@ public sealed partial class MainWindow
                 SelecionadoNaPagina(Texto("ref"), Texto("campo"));
                 break;
             case "pedirEdicao":
-                if (Texto("ref") is { } r && Texto("campo") is { } c) await IniciarEdicaoAsync(r, c);
+                if (Texto("ref") is { } r && Texto("campo") is { } c) await NaFilaAsync(() => IniciarEdicaoAsync(r, c));
                 break;
             case "editar":
                 if (sessao is null) break;
-                if (Texto("ref") is { } item && Texto("campo") is { } campo && Texto("texto") is { } texto && !aplicando && !ocupado)
+                // Chegando durante outro comando, a edição espera a vez na fila (nunca é descartada).
+                if (Texto("ref") is { } item && Texto("campo") is { } campo && Texto("texto") is { } texto)
                     await EditarTextoAsync(item, campo, texto);
-                else
-                {
-                    if (aplicando || ocupado) MostrarMensagem(InfoBarSeverity.Warning, "A alteração não foi aplicada", "Outra operação ainda está em andamento; tente de novo em seguida.");
-                    if (!aplicando) await sessao.EnviarEstadoAsync(); // a página espera o estado (a recomposição em curso manda o seu)
-                }
+                else await sessao.EnviarEstadoAsync(); // mensagem incompleta: a página espera o estado
                 break;
             case "edicaoCancelada":
-                if (sessao is not null && !aplicando) await sessao.EnviarEstadoAsync();
+                if (sessao is not null) await NaFilaAsync(() => sessao?.EnviarEstadoAsync() ?? Task.CompletedTask);
                 break;
             case "atalho":
                 if (Texto("tecla") is { } tecla && Atalhos.Comando(tecla) is { } id) await ExecutarComandoAsync(id);
@@ -414,7 +495,7 @@ public sealed partial class MainWindow
         painel.Children.Add(restaurar);
         UltimoFlyoutExcluido = flyout;
         flyout.ShowAt(R.Navegador, new FlyoutShowOptions { Position = ponto });
-        _ = TentarAsync(() => SelecionarAsync(id));
+        _ = NaFilaAsync(() => TentarAsync(() => SelecionarAsync(id)));
     }
 
     // ---------- Revisão e Exibir ----------
@@ -424,7 +505,7 @@ public sealed partial class MainWindow
         ajustes.MarcasRevisao = !ajustes.MarcasRevisao;
         SalvarAjustes();
         AtualizarComandos();
-        if (sessao is { Atual: not null } s && !aplicando) await s.EnviarEstadoAsync();
+        if (sessao is { Atual: not null } s) await s.EnviarEstadoAsync();
     }
 
     void MostrarPropriedades(bool visivel)
@@ -675,7 +756,7 @@ public sealed partial class MainWindow
 
     async Task AplicarJustificativaAsync()
     {
-        if (atualizandoPropriedades || aplicando || itemNasPropriedades is not { } id || sessao?.Revisao.Projeto.Item(id) is not { } it) return;
+        if (atualizandoPropriedades || itemNasPropriedades is not { } id || sessao?.Revisao.Projeto.Item(id) is not { } it) return;
         var texto = R.PropJustificativa.Text;
         if (TextoEditado.Normalizar(texto) == TextoEditado.Normalizar(it.Situacao.Justificativa ?? "")) return;
         await TentarAsync(() => AplicarAsync(new DefinirJustificativa(id, texto)));

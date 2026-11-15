@@ -20,7 +20,9 @@ se o pacote mudou no disco desde a abertura ou a última gravação. O rodapé (
 A partir da Tarefa 9 os itens são revisados no app. Todo comando segue o mesmo fluxo (desenho §8.4): conclui a edição aberta no A4,
 testa o comando numa cópia do projeto (`SessaoRevisao.Testar`), prepara o candidato com o kit (`Recompositor.Preparar`; recusa ⇒
 InfoBar "A alteração não foi aplicada" com os erros, nada muda), aplica e recompõe; o estado vira "Não salvo". A página recebe
-`estadoEditor` sempre (também quando nada foi aplicado). Clique numa folha seleciona o item (Propriedades e faixa acompanham);
+`estadoEditor` sempre (também quando nada foi aplicado). Os comandos (faixa, atalhos, Propriedades, menus, edição no A4, seleção
+pela lista) passam por uma fila só: o que chega durante outro espera a vez e é testado contra o projeto de então; nada é descartado,
+e um comando indisponível diz por quê ("Comando indisponível"). Clique numa folha seleciona o item (Propriedades e faixa acompanham);
 duplo clique ou F2 abre o campo para edição no próprio A4 com o texto efetivo (F2 usa o último campo clicado ou a verificação). O
 painel lateral tem **Seções** (ponto na cor da situação e marcador "alterado"; "Somente alterados" filtra), **Excluídos (n)**
 (Restaurar em cada linha) e **Histórico** (mais recente primeiro, "14:32 · usuário · …"). **Propriedades** (320 px, recolhível):
@@ -66,6 +68,7 @@ ação com a pesquisa (Tarefa 11).
 | 17 | `17_salvar_reabrir_exportar` | Ctrl+S (CDP, nas folhas: mensagem `atalho`) salva; fechar e reabrir: mesmas alterações e o histórico com os `desfeito`/`refeito` (cada `Ref` = `N` do comando original, `{tipo, valor}`); o PDF exportado tem as mesmas folhas da tela. |
 | 18 | `18_menu_de_contexto_e_atalhos` | Botão direito (CDP) no ITEM 10: o menu abre com 5 entradas; Delete nas folhas exclui; Alt+↓ seleciona o próximo incluído; desfazer; clique na marca "◦ excl." abre o flyout; Somente alterados filtra, Marcas tira e põe a camada, Propriedades recolhe; todo atalho (menos Ctrl+F) e todo comando da faixa têm manipulador. |
 | 19 | `19_latencia` | Mediana de 5 comandos de situação no longo em `latencia_ms` (meta 1,5 s; só registra). |
+| 20 | `20_comandos_em_sequencia` | Justificativa e, sem esperar, Situação e Excluir pela faixa: os três entram na fila e são aplicados na ordem; uma situação e, sem esperar, um `editar` da página: a edição entra (modelo e folhas); tudo desfeito depois. |
 
 Testes sem a janela (`tests\Pmvni.Revisao.Testes`): `FaixasTestes` (toda faixa começa em Arquivo e termina em Ajuda, aba padrão,
 ids únicos e conhecidos), `AjustesTestes` (lembrar módulo e aba; arquivo corrompido guardado e padrão), `NomesArquivoTestes`,

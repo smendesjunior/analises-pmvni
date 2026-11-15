@@ -697,6 +697,47 @@ internal static class Roteiro
             p["ok"] = aplicados == 5;
         });
 
+        await Passo("20_comandos_em_sequencia", async p =>
+        {
+            // Justificativa (como ao sair da caixa) e, sem esperar, Situação e Excluir pela faixa; depois uma situação e, sem esperar, um
+            // "editar" da página. Nada é descartado: tudo entra na fila e é aplicado na ordem, cada um testado contra o projeto de então.
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            var proj = s.Revisao.Projeto;
+            var item = proj.Incluidos[10];
+            var outro = proj.Incluidos[11];
+            await j.SelecionarAsync(item.Id);
+            var registros = s.Revisao.HistoricoCompleto.Count;
+            var atual = item.Situacao.Revisada ?? item.Situacao.Original!.GetValue<string>();
+            var nova = Faixas.OrdemSituacoes.First(c => c != atual);
+            var t1 = j.AplicarAsync(new DefinirJustificativa(item.Id, "Justificativa digitada antes de mudar a situação."));
+            var t2 = j.ExecutarComandoAsync(ComandosApp.ComandoDaSituacao(nova));
+            var t3 = j.ExecutarComandoAsync(ComandosApp.InicioExcluirRestaurar);
+            p["na_fila_ao_mesmo_tempo"] = j.ComandosNaFila;
+            await Task.WhenAll(t1, t2, t3);
+            var tipos = s.Revisao.HistoricoCompleto.Skip(registros).Select(r => r.Tipo).ToList();
+            p["registros_em_ordem"] = new JsonArray(tipos.Select(t => (JsonNode)t).ToArray());
+            var primeiros = tipos.SequenceEqual(["DefinirJustificativa", "DefinirSituacao", "Excluir"])
+                && item.Situacao.Revisada == nova && item.Situacao.Justificativa is not null && !item.Incluido;
+
+            var atualOutro = outro.Situacao.Revisada ?? outro.Situacao.Original!.GetValue<string>();
+            var novaOutro = Faixas.OrdemSituacoes.First(c => c != atualOutro);
+            const string TextoNaFila = "Texto digitado no A4 enquanto outra alteração era aplicada.";
+            var t4 = j.AplicarAsync(new DefinirSituacao(outro.Id, novaOutro));
+            var t5 = j.EditarTextoAsync(outro.Id, "providencia", TextoNaFila);
+            await Task.WhenAll(t4, t5);
+            var depois = s.Revisao.HistoricoCompleto.Skip(registros).Select(r => r.Tipo).ToList();
+            var edicaoEntrou = outro.Situacao.Revisada == novaOutro && DadosEfetivos.TextoEfetivo(proj, outro, "providencia") == TextoNaFila
+                && depois.Skip(3).SequenceEqual(["DefinirSituacao", "DefinirCampo"]);
+            var folhas = await j.Documento!.TextoPorFolhaAsync();
+            p["edicao_durante_outra_entrou"] = edicaoEntrou;
+            p["tela_tem_o_texto"] = folhas.Any(f => f.Contains(TextoNaFila, StringComparison.Ordinal));
+            var aplicados = s.Revisao.HistoricoCompleto.Count - registros;
+            for (var k = 0; k < aplicados; k++) await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            p["desfeito_tudo"] = item.Incluido && item.Situacao.Revisada is null && outro.Situacao.Revisada is null
+                && outro.Campos["providencia"].Revisado is null;
+            p["ok"] = primeiros && edicaoEntrou && p["tela_tem_o_texto"]!.GetValue<bool>() && aplicados == 5 && p["desfeito_tudo"]!.GetValue<bool>();
+        });
+
         await j.FecharSessaoAsync();
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
