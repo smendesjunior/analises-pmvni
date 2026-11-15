@@ -798,7 +798,7 @@ Processos.NomeImportacao(p, capa.processo))` + módulo Relatórios (é a "Import
 **Files:**
 - Modify: `src/Pmvni.App/Roteiro.cs`, `tools/roteiro.ps1`, `docs/roteiro-etapa-2.md`, `docs/roteiro-etapa-2.resultado.json`, `docs/notas-tecnicas.md`, `docs/fidelidade.md`, `recriar.json`
 - Create: `docs/entrega-etapa-2.md`
-- Modify (fora do repositório, se a conferência pedir): `C:\Users\smendesjunior\OneDrive\Aplicativos IA\Recriar PC\sistema\MAPA-DO-AMBIENTE.md`
+- Modify (fora do repositório, se a conferência pedir): `<OneDrive>\Aplicativos IA\Recriar PC\sistema\MAPA-DO-AMBIENTE.md`
 
 **Interfaces:**
 - Consumes: tudo das Tarefas 1–13 e 15–20.

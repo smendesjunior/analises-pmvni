@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace Pmvni.Revisao;
 
 /// <summary>Criar o processo como o <c>criar</c> do <c>pasta_processo.py</c> do kit (desenho §12.3): <c>&lt;raiz&gt;\&lt;ano&gt;\&lt;nº&gt; - &lt;ano&gt; - &lt;REQUERENTE&gt;</c>
-/// com <c>DOCUMENTOS</c> e <c>PROJETO\INICIAL</c>. Se já existe pasta desse número e ano (inclusive "FINALIZADO - …" ou "16488-2026 - …"),
+/// com <c>DOCUMENTOS</c> e <c>PROJETO\INICIAL</c>. Se já existe pasta desse número e ano (inclusive "FINALIZADO - …" ou "0007-2099 - …"),
 /// usa a existente, sem renomear nem duplicar.</summary>
 public static class CriacaoProcesso
 {

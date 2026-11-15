@@ -216,7 +216,7 @@ Cada módulo troca a área principal inteira; a faixa de opções mostra as abas
 - **Relatórios:** o editor desenhado nas seções 5.1–5.5. O painel ao lado das folhas ganha três
   abas no topo: Seções (árvore de seções e itens), Excluídos (n), Histórico.
 - **Processos:** lista as pastas de processo da pasta de processos (padrão
-  `C:\Users\smendesjunior\OneDrive\PMVNI\SIDNEY JUNIOR\PROCESSOS`, configurável em Ajustes), no
+  `%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\PROCESSOS`, configurável em Ajustes), no
   formato `<ano>\<nº> - <ano> - <requerente>` (aceita também `<nº>-<ano> - <requerente>`), mais
   recentes primeiro, com filtro por número ou nome. Ao escolher um processo, mostra: relatórios
   encontrados (`*.pmvrel` na pasta do processo e `dados.json` dentro de `.pmvni-ai\*\`), despachos

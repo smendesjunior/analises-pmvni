@@ -20,7 +20,7 @@ ferramentas de teste em Python 3.14 + PyMuPDF (só desenvolvimento).
 
 - A4 = **210 × 297 mm**; margens do modelo **28 / 14 / 15 / 14 mm** (topo/direita/baixo/esquerda); área útil **182 × 254 mm**.
 - Fonte Verdana (do Windows). Zoom muda só a escala da exibição, nunca o plano de quebras.
-- O kit em `C:\Users\smendesjunior\OneDrive\PMVNI\SIDNEY JUNIOR\KIT DE TREINAMENTO DE IA (PMVNI)` é **somente leitura**. Nenhuma tarefa grava nele.
+- O kit em `%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\KIT DE TREINAMENTO DE IA (PMVNI)` é **somente leitura**. Nenhuma tarefa grava nele.
 - Hashes do modelo embutido = registro rev. 10: `modelo_relatorio.html` `2f27fdb6…9eff9a`, `relatorio.css` `c4b06d4b…6b69`, `brasao.png` `93f35890…92cd`, `gerar_relatorio.py` `cec0e5e3…5674`, `dados_modelo.json` `c56df9e6…f816` (valores completos no `TEMPLATES_OFICIAIS.json`).
 - **Executável único**, tudo embutido; manifesto `asInvoker`; sem admin, serviço, tarefa agendada, firewall, `HKLM` ou `Program Files`. Dados só em `%LOCALAPPDATA%\EditorRelatoriosPMVNI`.
 - Sem rede: o WebView2 bloqueia tudo que não for `https://doc.pmvni.invalid/` ou `data:`.
