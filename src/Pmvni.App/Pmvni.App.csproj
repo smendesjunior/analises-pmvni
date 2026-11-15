@@ -28,4 +28,8 @@
     <ProjectReference Include="..\Pmvni.Agentes\Pmvni.Agentes.csproj" />
     <ProjectReference Include="..\Pmvni.Legislacao\Pmvni.Legislacao.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Recursos\brasao-claro.png" LogicalName="Pmvni.App.brasao-claro.png" />
+    <EmbeddedResource Include="Recursos\brasao-escuro.png" LogicalName="Pmvni.App.brasao-escuro.png" />
+  </ItemGroup>
 </Project>

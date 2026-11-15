@@ -71,6 +71,30 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal Trilho TrilhoAtual => TrilhoModulos;
     internal bool PainelVisivel => R.PainelNavegacao.Visibility == Visibility.Visible;
 
+    /// <summary>Brasão da Prefeitura na barra de título: a variante de texto escuro no tema claro e a de texto claro no tema escuro
+    /// (recursos embutidos no executável, sem arquivo ao lado).</summary>
+    private void AplicarBrasao()
+    {
+        var nome = Raiz.ActualTheme == ElementTheme.Dark ? "Pmvni.App.brasao-escuro.png" : "Pmvni.App.brasao-claro.png";
+        try
+        {
+            using var recurso = typeof(MainWindow).Assembly.GetManifestResourceStream(nome);
+            if (recurso is null) return;
+            var fluxo = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            var escrita = System.IO.WindowsRuntimeStreamExtensions.AsStreamForWrite(fluxo);
+            recurso.CopyTo(escrita);
+            escrita.Flush();
+            fluxo.Seek(0);
+            var imagem = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage();
+            imagem.SetSource(fluxo);
+            ImagemBrasao.Source = imagem;
+        }
+        catch (Exception e)
+        {
+            RegistroErros.Gravar("brasao", e);
+        }
+    }
+
     public MainWindow()
     {
         InitializeComponent();
@@ -93,7 +117,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         reajuste.IsRepeating = false;
         reajuste.Tick += async (_, _) => { if (modoZoom != "manual" && sessao?.Atual is not null) await TentarAsync(() => AjustarAsync(modoZoom)); };
         R.AreaCentral.SizeChanged += (_, _) => { if (modoZoom != "manual") reajuste.Start(); };
-        Raiz.ActualThemeChanged += (_, _) => AplicarTemaWeb();
+        Raiz.ActualThemeChanged += (_, _) => { AplicarTemaWeb(); AplicarBrasao(); };
+        AplicarBrasao();
 
         RegistrarManipuladores();
         RegistrarManipuladoresRevisao();
