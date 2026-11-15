@@ -53,6 +53,23 @@ internal sealed class ConversorSemLibreOffice : IConversorPdf
     public ResultadoConversao Converter(string docx, string pastaTrabalho, CancellationToken ct) => new(null, "SEM_LIBREOFFICE", null);
 }
 
+/// <summary>O conversor real, medido (onda 1, item 11): quanto levou cada conversão, na ordem.</summary>
+internal sealed class ConversorMedido(IConversorPdf real) : IConversorPdf
+{
+    public List<long> Milissegundos { get; } = [];
+
+    public bool Disponivel => real.Disponivel;
+
+    public string? Versao => real.Versao;
+
+    public ResultadoConversao Converter(string docx, string pastaTrabalho, CancellationToken ct)
+    {
+        var relogio = System.Diagnostics.Stopwatch.StartNew();
+        try { return real.Converter(docx, pastaTrabalho, ct); }
+        finally { lock (Milissegundos) Milissegundos.Add(relogio.ElapsedMilliseconds); }
+    }
+}
+
 /// <summary>Modo de diagnóstico <c>--roteiro &lt;saida.json&gt;</c>: exercita o shell e o módulo Relatórios pelos mesmos caminhos dos
 /// comandos da faixa (importar, rolagem, zoom, navegação, exportação, corpus com estouro, tema escuro, campos em aberto, pacote mudado no
 /// disco, faixa por módulo, reabrir o pacote; Tarefa 9: seleção e edição no A4, situação e justificativa, exclusão e marca, desfazer e
@@ -90,7 +107,7 @@ internal static class Roteiro
         // Pacotes de rodadas anteriores (só os do roteiro, só nesta pasta), com travas, cópias de conflito e diários de recuperação
         // (na pasta de dados do roteiro, tests\saida\dados-app): a importação nunca sobrescreve e nada de antes vira "recuperação".
         var recuperacao = Path.Combine(PastaDados.Raiz, "recuperacao");
-        foreach (var nome in new[] { "longo", "estouro", "curto-colchetes", "curto-muda", "curto-auto", "recentes-a", "recentes-b", "curto-citacoes" })
+        foreach (var nome in new[] { "longo", "estouro", "curto-colchetes", "curto-muda", "curto-auto", "recentes-a", "recentes-b", "curto-citacoes", "onda1" })
         {
             var arquivos = Directory.GetFiles(pasta, nome + ".pmvrel*").Concat(Directory.GetFiles(pasta, ".~" + nome + ".pmvrel*"))
                 .Concat(Directory.GetFiles(pasta, nome + " (cópia *")).Concat(Directory.GetFiles(pasta, ".~" + nome + " (cópia *")).ToList();
@@ -1747,7 +1764,8 @@ internal static class Roteiro
         var antesDoDespacho = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         string[] kitAntes = [];
         var gravadosNaCopia = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var conversorReal = j.Conversor;
+        // Onda 1, item 11: o conversor real medido (cada conversão do LibreOffice, em ms), para a 1ª e a 2ª com o perfil persistente.
+        var conversorReal = new ConversorMedido(j.Conversor);
         var preparadoDespacho = false;
         bool Mesmo(string? a, string? b) => a is not null && b is not null && string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
         string Sha(string arquivo) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(arquivo)));
@@ -1765,6 +1783,9 @@ internal static class Roteiro
         {
             // Preparação comum (vale para 36–40): a cópia da árvore, o kit real nos Ajustes, hoje fixo e o curto do 0001 importado.
             Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", null); // o kit vem só dos Ajustes (o passo 40 troca a pasta)
+            // O perfil do LibreOffice (<dados>\lo) começa do zero nesta rodada: a 1ª conversão mede a inicialização dele (passo 43).
+            var perfilLo = Path.Combine(PastaDados.Raiz, "lo");
+            if (Directory.Exists(perfilLo)) ApagarArvore(perfilLo);
             if (Directory.Exists(copiaDespacho)) ApagarArvore(copiaDespacho);
             CopiarArvore(Path.Combine(corpus, "processos"), copiaDespacho);
             foreach (var (k, v) in FotografarArvore(copiaDespacho)) antesDoDespacho[k] = v;
@@ -2094,6 +2115,175 @@ internal static class Roteiro
                 ["e_descartar_pergunta"] = eOk, ["d_copia_e_kit"] = dOk,
             };
             p["ok"] = aOk && desfez && bOk && cOk && eOk && dOk;
+        });
+
+        // ---------- Onda de correções 1 (revisão geral antecipada e pendências da Tarefa 16): passos 41 a 45 ----------
+        // 41 a edição aberta no A4 entra em Exportar, Salvar e Fechar; 42 recomposição que falha bloqueia exportar até Recompor; 43 o
+        // batimento toca a pasta de trabalho; 44 tempos do LibreOffice com o perfil persistente (<dados>\lo); 45 gravando o despacho não
+        // troca de módulo e a troca da pasta de processos fecha (ou mantém) o despacho aberto.
+        var pacoteOnda = Path.Combine(pasta, "onda1.pmvrel");
+        async Task<bool> EditandoAsync() => (await Js(j, "!!document.querySelector('[data-pmvni-editando]')")).GetBoolean();
+        // Abre a edição da verificação do item no A4 (Editar texto) e "digita" o texto (sem Enter: a edição continua aberta).
+        async Task<bool> DigitarAsync(string itemId, string texto)
+        {
+            await j.SelecionarAsync(itemId);
+            await j.ExecutarComandoAsync(ComandosApp.InicioEditarTexto);
+            var abriu = await EsperarAteAsync(EditandoAsync, 3000);
+            await Js(j, "(() => { const e = document.querySelector('[data-pmvni-editando]'); if (!e) return false; e.textContent = "
+                + JsonSerializer.Serialize(texto) + "; return true; })()");
+            return abriu && await EditandoAsync();
+        }
+        string ShaHex(byte[] b) => Convert.ToHexStringLower(SHA256.HashData(b));
+
+        await Passo("41_edicao_aberta_concluida", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), pacoteOnda)) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+            var s = j.Sessao!;
+            var ids = s.Revisao.Projeto.Incluidos.Select(i => i.Id).ToList();
+            string? Verificacao(Projeto pr, string id) => DadosEfetivos.TextoEfetivo(pr, pr.Item(id)!, "verificacao");
+
+            // Exportar com o campo aberto: o texto entra no relatório, a tela é recomposta e o PDF sai dos dados com ele.
+            const string TextoExportar = "Texto digitado no A4 e exportado sem Enter pelo roteiro.";
+            var abriu1 = await DigitarAsync(ids[0], TextoExportar);
+            var pdf = Path.Combine(pasta, "onda1-edicao-aberta.pdf");
+            File.Delete(pdf);
+            var (ok, x, erro, _) = await j.ExportarParaAsync(pdf);
+            var efetivo = DadosEfetivos.Gerar(s.Revisao.Projeto).Json;
+            var recibo = x is null ? null : JsonNode.Parse(await File.ReadAllTextAsync(x.CaminhoRecibo));
+            var folhas = await j.Documento!.TextoPorFolhaAsync();
+            var exportou = abriu1 && ok && Verificacao(s.Revisao.Projeto, ids[0]) == TextoExportar
+                && recibo?["sha256_dados"]?.GetValue<string>() == ShaHex(efetivo) && System.Text.Encoding.UTF8.GetString(efetivo).Contains(TextoExportar, StringComparison.Ordinal)
+                && folhas.Any(f => f.Contains(TextoExportar, StringComparison.Ordinal)) && !await EditandoAsync();
+            p["exportar"] = new JsonObject { ["abriu_a_edicao"] = abriu1, ["exportou"] = ok, ["erro"] = erro, ["pdf_com_o_texto"] = exportou };
+
+            // Salvar (Ctrl+S pela faixa) com o campo aberto: o arquivo tem o texto.
+            const string TextoSalvar = "Texto digitado no A4 e salvo sem Enter pelo roteiro.";
+            var abriu2 = await DigitarAsync(ids[1], TextoSalvar);
+            await j.ExecutarComandoAsync(ComandosApp.ArquivoSalvar);
+            var noArquivo = Pacote.Ler(pacoteOnda).Conteudo.Projeto;
+            var salvou = abriu2 && s.Estado == EstadoGravacao.Salvo && Verificacao(noArquivo, ids[1]) == TextoSalvar && !await EditandoAsync();
+            p["salvar"] = salvou;
+
+            // Fechar com o campo aberto: gravado e fechado com o texto.
+            const string TextoFechar = "Texto digitado no A4 e gravado ao fechar pelo roteiro.";
+            var abriu3 = await DigitarAsync(ids[2], TextoFechar);
+            var fechou = await j.FecharSessaoAsync() && j.Sessao is null;
+            var aoFechar = Pacote.Ler(pacoteOnda).Conteudo.Projeto;
+            var fechouComTexto = abriu3 && fechou && Verificacao(aoFechar, ids[2]) == TextoFechar;
+            p["fechar"] = fechouComTexto;
+            p["ok"] = exportou && salvou && fechouComTexto;
+        });
+
+        await Passo("42_recomposicao_que_falha_bloqueia_exportar", async p =>
+        {
+            if (!await j.AbrirPacoteAsync(pacoteOnda)) throw new InvalidOperationException("não abriu: " + j.InfoMensagem.Message);
+            var s = j.Sessao!;
+            var item = s.Revisao.Projeto.Incluidos[3];
+            const string Titulo = "Título mudado com a recomposição falhando (roteiro)";
+            // A composição cai depois de o comando ser aplicado: o relatório tem a alteração, a tela não.
+            s.FalhaDeRoteiroNaRecomposicao = () => Task.FromException(new InvalidOperationException("falha simulada da composição (roteiro)"));
+            await j.AplicarAsync(new DefinirCampo(item.Id, "titulo", Titulo));
+            s.FalhaDeRoteiroNaRecomposicao = null;
+            var aplicada = DadosEfetivos.TextoEfetivo(s.Revisao.Projeto, s.Revisao.Projeto.Item(item.Id)!, "titulo") == Titulo;
+            var bloqueou = s.Desatualizada && j.InfoDesatualizado.IsOpen && !j.ExportarHabilitado
+                && j.DicaExportar == "A exportação está bloqueada: " + SessaoEdicao.TextoDesatualizada;
+            p["mensagem"] = j.InfoMensagem.Title + ": " + j.InfoMensagem.Message;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "42-janela-xaml-desatualizada.png"));
+            var pdf = Path.Combine(pasta, "onda1-desatualizada.pdf");
+            File.Delete(pdf);
+            var (ok1, _, erro1, _) = await j.ExportarParaAsync(pdf);
+            var recusou = !ok1 && erro1 == SessaoEdicao.TextoDesatualizada && !File.Exists(pdf);
+            p["exportar_recusado"] = erro1;
+            // Recompor (o botão do aviso): a tela volta a ser a do relatório e a exportação vale de novo, com o PDF do relatório novo.
+            var recompos = await j.RecomporDesatualizadaAsync();
+            var voltou = recompos && !s.Desatualizada && !j.InfoDesatualizado.IsOpen && j.ExportarHabilitado;
+            var (ok2, x2, erro2, _) = await j.ExportarParaAsync(pdf);
+            var efetivo = DadosEfetivos.Gerar(s.Revisao.Projeto).Json;
+            var recibo = x2 is null ? null : JsonNode.Parse(await File.ReadAllTextAsync(x2.CaminhoRecibo));
+            var folhas = await j.Documento!.TextoPorFolhaAsync();
+            var exportou = ok2 && recibo?["sha256_dados"]?.GetValue<string>() == ShaHex(efetivo)
+                && recibo?["sha256_pacote"]?.GetValue<string>() == s.Disco.Sha256 && folhas.Any(f => f.Contains(Titulo, StringComparison.Ordinal));
+            p["conferencias"] = new JsonObject
+            {
+                ["alteracao_aplicada"] = aplicada, ["exportar_bloqueado"] = bloqueou, ["exportar_recusado"] = recusou, ["recompor"] = voltou,
+                ["exporta_depois"] = exportou, ["erro_depois"] = erro2,
+            };
+            p["ok"] = aplicada && bloqueou && recusou && voltou && exportou;
+        });
+
+        await Passo("43_batimento_toca_a_pasta_de_trabalho", async p =>
+        {
+            var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+            var trabalho = s.Recompositor.PastaTrabalho;
+            Directory.SetLastWriteTimeUtc(trabalho, DateTime.UtcNow.AddDays(-2));
+            await s.BaterAsync();
+            var idade = DateTime.UtcNow - Directory.GetLastWriteTimeUtc(trabalho);
+            p["idade_depois_do_batimento_s"] = Math.Round(idade.TotalSeconds, 1);
+            p["ok"] = idade < TimeSpan.FromMinutes(1);
+            if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou");
+        });
+
+        await Passo("44_libreoffice_perfil_persistente", p =>
+        {
+            Exigir();
+            var tempos = conversorReal.Milissegundos.ToList();
+            var perfil = Path.Combine(PastaDados.Raiz, "lo");
+            p["tempos_das_conversoes_ms"] = new JsonArray(tempos.Select(t => (JsonNode)t).ToArray());
+            p["perfil_existe"] = Directory.Exists(perfil);
+            p["perfil_inicializado"] = Directory.Exists(Path.Combine(perfil, "user"));
+            p["sem_pid_deixado"] = !File.Exists(ConversorLibreOffice.ArquivoPid(perfil));
+            p["ok"] = tempos.Count >= 2 && Directory.Exists(Path.Combine(perfil, "user")) && !File.Exists(ConversorLibreOffice.ArquivoPid(perfil));
+            return Task.CompletedTask;
+        });
+
+        await Passo("45_despacho_gravando_e_pasta_de_processos", async p =>
+        {
+            Exigir();
+            perguntas.Confirmar = true;
+            async Task<SessaoNovoDespacho> AbrirNoPasso2Async()
+            {
+                await j.MudarModuloAsync(Modulo.Processos);
+                await j.AguardarLeiturasAsync();
+                await j.EscolherProcessoNaListaAsync("0001");
+                await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+                await j.AguardarNovoDespachoAsync();
+                var s = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página não abriu: " + j.InfoMensagemAtual.Message);
+                await j.EscolherRelatorioAsync(pmvrelD);
+                if (s.Passo != PassoNovoDespacho.Conteudo) throw new InvalidOperationException("não chegou ao passo 2: " + j.NovoDespacho.AvisoBloqueio.Message);
+                return s;
+            }
+
+            // (a) Trocar a pasta de processos com o despacho no passo 2: pergunta; "Continuar editando" mantém a pasta e o despacho.
+            var outra = Path.Combine(pasta, "processos");
+            var s1 = await AbrirNoPasso2Async();
+            var feitas = perguntas.Feitas.Count;
+            perguntas.Confirmar = false;
+            var trocouComContinuar = await j.TrocarPastaProcessosAsync(outra);
+            var manteve = !trocouComContinuar && ReferenceEquals(j.DespachoEmEdicao, s1) && Mesmo(j.PastaProcessosEfetiva, copiaDespacho)
+                && perguntas.Feitas.Skip(feitas).Contains("confirmar Descartar o despacho em edição?");
+            perguntas.Confirmar = true;
+            var trocou = await j.TrocarPastaProcessosAsync(outra) && j.DespachoEmEdicao is null && Mesmo(j.PastaProcessosEfetiva, outra);
+            var voltou = await j.TrocarPastaProcessosAsync(copiaDespacho) && Mesmo(j.PastaProcessosEfetiva, copiaDespacho);
+            p["pasta"] = new JsonObject { ["continuar_mantem"] = manteve, ["descartar_troca"] = trocou, ["voltou"] = voltou };
+
+            // (b) Gravando na pasta do processo (só DOCX, sem LibreOffice): trocar de módulo não descarta nem diz "Nada foi gravado".
+            j.Conversor = new ConversorSemLibreOffice();
+            var s2 = await AbrirNoPasso2Async();
+            await j.GerarEConferirAsync();
+            var prontoParaGravar = s2.Passo == PassoNovoDespacho.Conferencia && j.NovoDespacho.BotaoGravar.IsEnabled;
+            var feitas2 = perguntas.Feitas.Count;
+            var gravando = j.GravarDespachoAsync();
+            var viuGravando = s2.Gravando;
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var ficou = j.ModuloAtual == Modulo.Despachos && !perguntas.Feitas.Skip(feitas2).Any(f => f.Contains("Descartar", StringComparison.Ordinal))
+                && j.InfoMensagemAtual.Message == FluxoNovoDespacho.GravandoAguarde;
+            var entrega = await gravando;
+            j.Conversor = conversorReal;
+            if (entrega is not null) Anotar(entrega);
+            var gravou = entrega is { Pdf: null } && File.Exists(entrega.Docx) && File.Exists(entrega.Recibo) && j.DespachoEmEdicao is null;
+            p["gravando"] = new JsonObject { ["pronto"] = prontoParaGravar, ["viu_gravando"] = viuGravando, ["nao_trocou"] = ficou, ["gravou"] = gravou };
+            p["ok"] = manteve && trocou && voltou && prontoParaGravar && viuGravando && ficou && gravou;
         });
         Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", kitEnv);
 
