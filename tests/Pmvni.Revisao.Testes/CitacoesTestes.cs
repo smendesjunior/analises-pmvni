@@ -37,6 +37,23 @@ public class CitacoesTestes
         Assert.Equal(texto, Citacoes.Imprimir(texto, _ => 1, _ => 1));
     }
 
+    [Theory]
+    [InlineData("ver {{ref:A:99999999999}}")]   // estoura int
+    [InlineData("ver {{ref:A:5000}}")]           // largura fora de 1..3 (evitaria "D5000" gigante)
+    [InlineData("ver {{ref:A:0}}")]
+    [InlineData("ver {{ref:A:4}}")]
+    public void token_com_largura_fora_de_1_a_3_fica_literal(string texto)
+    {
+        Assert.Equal(texto, Citacoes.Imprimir(texto, _ => 1, _ => 1));
+    }
+
+    [Fact]
+    public void token_de_id_desconhecido_fica_literal()
+    {
+        const string texto = "ver {{ref:abc:2}} e {{ref:A:2}}";
+        Assert.Equal("ver {{ref:abc:2}} e 01", Citacoes.Imprimir(texto, id => id == "A" ? 1 : null, id => id == "A" ? 1 : null));
+    }
+
     [Fact]
     public void convertida_descreve_trecho_numero_e_alvo()
     {

@@ -43,8 +43,10 @@ public static partial class Citacoes
     }
 
     /// <summary>Troca cada token pelo número atual do item (com zeros à esquerda até a largura do original); se o item foi excluído
-    /// (<paramref name="numeroAtual"/> devolve null), imprime o <paramref name="numeroOriginal"/> dele.</summary>
-    public static string Imprimir(string texto, Func<string, int?> numeroAtual, Func<string, int> numeroOriginal)
+    /// (<paramref name="numeroAtual"/> devolve null), imprime o <paramref name="numeroOriginal"/> dele. O texto pode ser digitado pelo
+    /// usuário e precisa continuar imprimível: um token que não resolve (id desconhecido, isto é, os dois delegados devolvem null, ou
+    /// largura fora de 1..3) fica literal, exatamente como foi escrito, e nunca lança.</summary>
+    public static string Imprimir(string texto, Func<string, int?> numeroAtual, Func<string, int?> numeroOriginal)
     {
         ArgumentNullException.ThrowIfNull(texto);
         ArgumentNullException.ThrowIfNull(numeroAtual);
@@ -52,9 +54,11 @@ public static partial class Citacoes
         return Token().Replace(texto, m =>
         {
             var id = m.Groups[1].Value;
-            var largura = int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
+            if (!int.TryParse(m.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var largura) || largura < 1 || largura > 3)
+                return m.Value;
             var n = numeroAtual(id) ?? numeroOriginal(id);
-            return n.ToString("D" + largura.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+            if (n is null) return m.Value;
+            return n.Value.ToString("D" + largura.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
         });
     }
 

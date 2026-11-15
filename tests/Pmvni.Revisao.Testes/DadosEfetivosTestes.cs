@@ -133,6 +133,22 @@ public class DadosEfetivosTestes
         Assert.Equal("Criada pela edicao", DadosEfetivos.TextoEfetivo(c.Projeto, item, "providencia"));
     }
 
+    [Theory]
+    [InlineData("a {{ref:abc:2}} b")]               // id que não existe
+    [InlineData("a {{ref:x:99999999999}} b")]       // largura que estoura int
+    [InlineData("a {{ref:x:5000}} b")]              // largura absurda
+    public void token_digitado_pelo_usuario_que_nao_resolve_fica_literal_sem_excecao(string digitado)
+    {
+        var c = Importar("curto");
+        var item = c.Projeto.Itens[0];
+        item.Campos["titulo"].Revisado = digitado;
+
+        var g = DadosEfetivos.Gerar(c.Projeto);
+
+        Assert.Equal(digitado, ItemGerado(g, 0)["titulo"]!.GetValue<string>());
+        Assert.Equal(digitado, DadosEfetivos.TextoEfetivo(c.Projeto, item, "titulo"));
+    }
+
     [Fact]
     public void situacao_sem_revisao_fica_a_original()
     {

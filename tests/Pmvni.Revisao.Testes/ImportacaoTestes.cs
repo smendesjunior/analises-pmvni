@@ -412,7 +412,6 @@ public class ImportacaoTestes
         Assert.NotNull(u.Rng);
     }
 
-    /// <summary>Copia o corpus (extremos.json + img/) para a pasta, para testes que alteram imagens ou dados.</summary>
     [Fact]
     public void texto_com_digito_nao_ascii_importa_sem_excecao_e_fica_literal()
     {
@@ -428,6 +427,7 @@ public class ImportacaoTestes
             c.Projeto.Itens[0].Campos["verificacao"].Original!.GetValue<string>());
     }
 
+    /// <summary>Copia o corpus (extremos.json + img/) para a pasta, para testes que alteram imagens ou dados.</summary>
     private static void CopiarCorpus(string pasta)
     {
         File.Copy(Ambiente.Corpus("extremos.json"), Path.Combine(pasta, "extremos.json"));

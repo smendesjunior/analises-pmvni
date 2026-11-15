@@ -80,6 +80,5 @@ public static class DadosEfetivos
     }
 
     private static string Imprimir(Projeto p, string texto) =>
-        Citacoes.Imprimir(texto, id => p.NumeroAtual(id), id =>
-            p.Item(id)?.NumeroOriginal ?? throw new InvalidOperationException("Citação a um item que não existe no projeto: " + id));
+        Citacoes.Imprimir(texto, id => p.NumeroAtual(id), id => p.Item(id)?.NumeroOriginal);
 }
