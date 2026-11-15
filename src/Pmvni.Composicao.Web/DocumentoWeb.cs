@@ -53,7 +53,7 @@ public sealed class DocumentoWeb : IDisposable
     /// de um documento. Só entram no alcance subpastas diretas de <c>&lt;dados&gt;\sessao</c> (nunca links simbólicos).</summary>
     internal static readonly TimeSpan IdadeOrfa = TimeSpan.FromDays(1);
 
-    static void LimparOrfas(string raizSessoes)
+    internal static void LimparOrfas(string raizSessoes)
     {
         if (!Directory.Exists(raizSessoes)) return;
         var raiz = Path.TrimEndingDirectorySeparator(Path.GetFullPath(raizSessoes)) + Path.DirectorySeparatorChar;

@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Pmvni.Composicao\Pmvni.Composicao.csproj" />
     <ProjectReference Include="..\..\src\Pmvni.Composicao.Web\Pmvni.Composicao.Web.csproj" />
+    <ProjectReference Include="..\..\src\Pmvni.Revisao\Pmvni.Revisao.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Tarefa 9: leitura da linha de comando do Verificador, compilada aqui (o Verificador é um executável; referenciá-lo

@@ -196,6 +196,24 @@ rodadas; grava `tests\saida\tempos.json`). "Compor" = `CarregarAsync` + `ComporD
 
 A abertura no app soma a isso o render do kit (duas vezes: rascunho e conferência final) e o zoom inicial.
 
+## Latência de um comando (Etapa 2, Tarefa 6)
+
+`RecomposicaoTestes.tempos_de_recompor_um_comando_do_corpus` (Release, WebView2 157.0.4341.46, host 1024 × 1400; mediana de 3
+rodadas; grava `tests\saida\tempos-comando.json`). Depois de um `DefinirCampo` (título do item 1), mede o que a tela espera:
+`Recompositor.Preparar` (dados.json efetivo + render do kit em rascunho + conferência final do kit, refs de sessão) +
+`ComporAsync` (carregar e compor no host de composição) + carregar e `AplicarPlanoAsync` na "tela" (outro host). O teste só
+exige medidas finitas e positivas e a recomposição correta; a meta de 1,5 s no `longo` é registrada aqui, não é barreira.
+
+| caso | folhas | comando (mediana; rodadas) | preparar | compor | aplicar | linha de base da Etapa 1 (compor / aplicar) |
+|---|---|---|---|---|---|---|
+| curto | 2 | 118 ms (341 / 118 / 116) | 3 ms | 63 ms | 61 ms | 66 ms / 57 ms |
+| longo | 21 | 254 ms (319 / 248 / 254) | 13 ms | 151 ms | 90 ms | 159 ms / 93 ms |
+| extremos | 8 | 191 ms (263 / 188 / 191) | 8 ms | 110 ms | 74 ms | 106 ms / 71 ms |
+
+O `longo` fica em cerca de um sexto da meta de 1,5 s. A recomposição soma à linha de base da Etapa 1 só o `Preparar` (13 ms no
+`longo`); a primeira rodada de cada caso é a mais lenta (aquecimento do WebView2 e do renderizador), e a mediana a descarta. A
+medida não inclui o zoom inicial nem a pintura da janela do app (Tarefa 9).
+
 ## Gravação do pacote: janela residual (Etapa 2, Tarefa 4)
 
 `Pacote.Gravar` confere o estado do `.pmvrel` no disco (sha256 e tamanho; a data não conta) e logo depois troca o arquivo com

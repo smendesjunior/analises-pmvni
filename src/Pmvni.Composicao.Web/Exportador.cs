@@ -26,14 +26,15 @@ public static class Exportador
         ModeloCarregado? modelo = null, bool rascunho = true)
     {
         ArgumentException.ThrowIfNullOrEmpty(caminhoDados);
-        return await ExportarRenderAsync(r, cfg, caminhoPdf, await File.ReadAllBytesAsync(caminhoDados), modelo ?? ModeloOficial.Carregar(), rascunho, null);
+        return await ExportarRenderAsync(r, cfg, caminhoPdf, await File.ReadAllBytesAsync(caminhoDados), modelo ?? ModeloOficial.Carregar(), rascunho, null, null);
     }
 
     /// <summary>Compõe <paramref name="r"/> num host novo e, se <paramref name="planoTela"/> vier, recusa com
     /// <see cref="ExportacaoDivergenteException"/> o que não for o que a tela mostrou (outro HTML, outros inícios de folha ou
-    /// outra escala). <paramref name="dados"/>: os bytes exatos que geraram <paramref name="r"/> (sha256 do recibo).</summary>
+    /// outra escala). <paramref name="dados"/>: os bytes exatos que geraram <paramref name="r"/> (sha256 do recibo);
+    /// <paramref name="sha256Pacote"/>, quando vem, entra no recibo (o pacote .pmvrel de onde os dados efetivos saíram).</summary>
     static async Task<ResultadoExportacao> ExportarRenderAsync(ResultadoRender r, ConfigFolhas cfg, string caminhoPdf, byte[] dados,
-        ModeloCarregado modelo, bool rascunho, PlanoQuebras? planoTela)
+        ModeloCarregado modelo, bool rascunho, PlanoQuebras? planoTela, string? sha256Pacote)
     {
         ArgumentNullException.ThrowIfNull(r);
         ArgumentNullException.ThrowIfNull(cfg);
@@ -71,22 +72,24 @@ public static class Exportador
 
         Directory.CreateDirectory(Path.GetDirectoryName(pdfFinal)!);
         await GravarAsync(pdfFinal, pdf);
-        var recibo = new
+        // Dictionary preserva a ordem de inserção (só se acrescenta): o recibo sai com as chaves nesta ordem.
+        var recibo = new Dictionary<string, object?>
         {
-            recibo_versao = VersaoRecibo,
-            modelo_revisao = int.Parse(modelo.Revisao, CultureInfo.InvariantCulture),
-            sha256_modelo = new SortedDictionary<string, string>(modelo.Sha256.ToDictionary(p => p.Key, p => p.Value), StringComparer.Ordinal),
-            sha256_dados = Hex(SHA256.HashData(dados)),
-            sha256_html = shaHtml,
-            rascunho,
-            plano_versao = plano.Versao,
-            webview2,
-            sha256_pdf = sha256Pdf,
-            folhas,
-            gerado_em = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
-            // Tamanho medido no MediaBox do PDF (não faz parte da lista do brief; registrado para a calibração da página).
-            pagina_mm = new { largura = Math.Round(info.LarguraMm, 3), altura = Math.Round(info.AlturaMm, 3) },
+            ["recibo_versao"] = VersaoRecibo,
+            ["modelo_revisao"] = int.Parse(modelo.Revisao, CultureInfo.InvariantCulture),
+            ["sha256_modelo"] = new SortedDictionary<string, string>(modelo.Sha256.ToDictionary(p => p.Key, p => p.Value), StringComparer.Ordinal),
+            ["sha256_dados"] = Hex(SHA256.HashData(dados)),
         };
+        if (sha256Pacote is not null) recibo["sha256_pacote"] = sha256Pacote;
+        recibo["sha256_html"] = shaHtml;
+        recibo["rascunho"] = rascunho;
+        recibo["plano_versao"] = plano.Versao;
+        recibo["webview2"] = webview2;
+        recibo["sha256_pdf"] = sha256Pdf;
+        recibo["folhas"] = folhas;
+        recibo["gerado_em"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+        // Tamanho medido no MediaBox do PDF (não faz parte da lista do brief; registrado para a calibração da página).
+        recibo["pagina_mm"] = new { largura = Math.Round(info.LarguraMm, 3), altura = Math.Round(info.AlturaMm, 3) };
         await GravarAsync(reciboFinal, JsonSerializer.SerializeToUtf8Bytes(recibo, new JsonSerializerOptions { WriteIndented = true }));
         return new ResultadoExportacao(pdfFinal, reciboFinal, folhas, info.LarguraMm, info.AlturaMm, sha256Pdf, plano);
     }
@@ -102,16 +105,24 @@ public static class Exportador
         ModeloCarregado? modelo = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(caminhoDados);
+        var bytes = await Task.Run(() => File.ReadAllBytes(Path.GetFullPath(caminhoDados)));
+        return await ExportarFinalAsync(bytes, caminhoDados, cfg, caminhoPdf, planoTela, modelo);
+    }
+
+    /// <summary>Como a versão por caminho, com os bytes do dados.json já em mãos (o dados.json efetivo gerado do pacote, que não
+    /// é um arquivo): <paramref name="caminhoDados"/> só dá a pasta das imagens (não precisa existir). O recibo leva o sha256 de
+    /// <paramref name="bytesDados"/> e, se informado, <c>sha256_pacote</c> (<paramref name="sha256Pacote"/>: o .pmvrel de origem).</summary>
+    public static async Task<ResultadoExportacao> ExportarFinalAsync(byte[] bytesDados, string caminhoDados, ConfigFolhas cfg, string caminhoPdf,
+        PlanoQuebras planoTela, ModeloCarregado? modelo = null, string? sha256Pacote = null)
+    {
+        ArgumentNullException.ThrowIfNull(bytesDados);
+        ArgumentException.ThrowIfNullOrEmpty(caminhoDados);
         ArgumentNullException.ThrowIfNull(planoTela);
         modelo ??= ModeloOficial.Carregar();
         var m = modelo;
-        var (bytes, final) = await Task.Run(() =>
-        {
-            var b = File.ReadAllBytes(Path.GetFullPath(caminhoDados));
-            return (b, RelatorioRenderer.Renderizar(b, caminhoDados, new OpcoesRender(false, false), m));
-        });
+        var final = await Task.Run(() => RelatorioRenderer.Renderizar(bytesDados, caminhoDados, new OpcoesRender(false, false), m));
         if (!final.Ok) throw new ConferenciaFinalException(final.Erros);
-        return await ExportarRenderAsync(final, cfg, caminhoPdf, bytes, m, rascunho: false, planoTela);
+        return await ExportarRenderAsync(final, cfg, caminhoPdf, bytesDados, m, rascunho: false, planoTela, sha256Pacote);
     }
 
     /// <summary>Mesmas folhas: mesmo HTML, mesmos inícios (posição a posição) e mesma escala de impressão.</summary>

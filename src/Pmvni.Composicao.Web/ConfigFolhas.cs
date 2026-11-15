@@ -15,10 +15,14 @@ public sealed record ConfigFolhas(string CabecalhoUri, string RodapeEsquerda, st
         new(Cabecalho.CabecalhoUri(orgao, m.Brasao), RodapeEsquerdaPadrao, RodapeDireitaPadrao);
 
     /// <summary>Como <see cref="Padrao"/>, com o órgão lido de <c>config.orgao</c> do dados.json (como o gerador do kit).</summary>
-    public static ConfigFolhas PadraoDeDados(ModeloCarregado m, string caminhoDados)
+    public static ConfigFolhas PadraoDeDados(ModeloCarregado m, string caminhoDados) =>
+        PadraoDeBytes(m, File.ReadAllBytes(caminhoDados));
+
+    /// <summary>Como <see cref="PadraoDeDados"/>, com os bytes do dados.json já lidos (o efetivo gerado a partir do pacote não é um arquivo).</summary>
+    public static ConfigFolhas PadraoDeBytes(ModeloCarregado m, byte[] dados)
     {
-        using var fluxo = File.OpenRead(caminhoDados);
-        using var doc = JsonDocument.Parse(fluxo);
+        ArgumentNullException.ThrowIfNull(dados);
+        using var doc = JsonDocument.Parse(dados);
         var orgao = Cabecalho.OrgaoPadrao;
         if (doc.RootElement.ValueKind == JsonValueKind.Object
             && doc.RootElement.TryGetProperty("config", out var config) && config.ValueKind == JsonValueKind.Object
