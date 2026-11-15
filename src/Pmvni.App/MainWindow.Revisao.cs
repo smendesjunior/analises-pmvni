@@ -86,6 +86,8 @@ public sealed partial class MainWindow
         R.PropRestaurarOriginal.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioRestaurarOriginal);
         BotaoDesfazer.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.EditarDesfazer);
         BotaoRefazer.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.EditarRefazer);
+        R.AvisoDesatualizado.Message = SessaoEdicao.TextoDesatualizada;
+        R.BotaoRecompor.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(RecomporDesatualizadaAsync));
         AtualizarPropriedades();
     }
 
@@ -283,7 +285,7 @@ public sealed partial class MainWindow
             {
                 // O texto de um campo em edição entra antes (como o Enter). Se o comando seguinte for recusado, a tela ainda é recomposta
                 // com o texto aplicado: tela e modelo nunca ficam diferentes.
-                recompor = await ConcluirEdicaoAbertaAsync(s);
+                recompor = await ConcluirEdicaoAbertaAsync(s) == true;
                 if (testar is not null)
                 {
                     var candidato = testar(s);
@@ -300,8 +302,11 @@ public sealed partial class MainWindow
         }
         catch (Exception e)
         {
-            ultimosErros.Add(Erro(e));
-            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível aplicar a alteração", Erro(e));
+            var texto = Erro(e);
+            ultimosErros.Add(texto);
+            // A alteração entrou no relatório e só a tela ficou para trás: o aviso de folhas desatualizadas (com Recompor) diz isso.
+            if (s.Desatualizada) MostrarMensagem(InfoBarSeverity.Error, "As folhas não foram recompostas", texto + ". A alteração foi aplicada ao relatório; use Recompor.");
+            else MostrarMensagem(InfoBarSeverity.Error, "Não foi possível aplicar a alteração", texto);
         }
         finally
         {
@@ -313,17 +318,18 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Campo em edição no A4: conclui antes (como o Enter) e aplica o texto, sem recompor ainda. Devolve true se mudou o projeto.</summary>
-    async Task<bool> ConcluirEdicaoAbertaAsync(SessaoEdicao s)
+    /// <summary>Campo em edição no A4: conclui antes (como o Enter) e aplica o texto, sem recompor ainda. Devolve true se mudou o projeto,
+    /// false se havia edição mas nada mudou (texto igual ou recusado: a página espera o estado do editor) e null se não havia edição.</summary>
+    async Task<bool?> ConcluirEdicaoAbertaAsync(SessaoEdicao s)
     {
-        if (documento is null) return false;
+        if (documento is null) return null;
         JsonElement d;
         try { d = await documento.ChamarAsync("concluirEdicao", new { }, LimiteTela); }
-        catch (Exception e) { Debug.WriteLine("[concluirEdicao] " + e.Message); return false; }
+        catch (Exception e) { Debug.WriteLine("[concluirEdicao] " + e.Message); return null; }
         if (!d.TryGetProperty("ref", out var rf) || rf.GetString() is not { } item
             || !d.TryGetProperty("campo", out var cp) || cp.GetString() is not { } campo
             || !d.TryGetProperty("texto", out var tx) || tx.GetString() is not { } texto)
-            return false; // semEdicao
+            return null; // semEdicao
         var c = new DefinirCampo(item, campo, texto);
         try
         {
@@ -334,6 +340,61 @@ public sealed partial class MainWindow
         catch (ComandoRecusadoException e) { ultimosErros.Add(e.Message); }
         catch (RecomposicaoRecusadaException e) { ultimosErros.AddRange(e.Erros); }
         return false;
+    }
+
+    /// <summary>Salvar, Exportar, Fechar (e Abrir outro, que fecha) concluem antes o campo em edição no A4, como o Enter: o texto digitado
+    /// entra no relatório e a tela é recomposta; o arquivo e o PDF nunca saem sem ele. Recusado pela conferência: o aviso de sempre e a
+    /// página volta ao texto anterior. Recomposição que falha: a sessão fica desatualizada (exportar recusa até recompor).</summary>
+    async Task ConcluirEdicaoAntesAsync(SessaoEdicao s)
+    {
+        if (s.SomenteLeitura || s.Atual is null || ocupado || !ReferenceEquals(sessao, s)) return;
+        ultimosErros.Clear();
+        var mudou = await ConcluirEdicaoAbertaAsync(s);
+        if (mudou is null) return;
+        try
+        {
+            if (mudou == false)
+            {
+                if (ultimosErros.Count > 0) Recusar(ultimosErros.ToList());
+                await s.EnviarEstadoAsync();
+                return;
+            }
+            var r = await s.RecomporAsync();
+            MostrarRecomposicao(r);
+        }
+        catch (Exception e)
+        {
+            ultimosErros.Add(Erro(e));
+            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível aplicar a alteração", Erro(e));
+        }
+        finally
+        {
+            AtualizarPaineis();
+            AtualizarComandos();
+        }
+    }
+
+    /// <summary>"Recompor" do aviso de folhas desatualizadas: compõe de novo o relatório como está (a alteração já foi aplicada). true = a tela
+    /// voltou a mostrar o relatório atual (e a exportação volta a valer).</summary>
+    internal async Task<bool> RecomporDesatualizadaAsync()
+    {
+        if (sessao is not { Atual: not null } s || ocupado) return false;
+        try
+        {
+            var r = await s.RecomporAsync();
+            MostrarRecomposicao(r);
+            return true;
+        }
+        catch (Exception e)
+        {
+            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível recompor", Erro(e));
+            return false;
+        }
+        finally
+        {
+            AtualizarPaineis();
+            AtualizarComandos();
+        }
     }
 
     void Recusar(IReadOnlyList<string> erros)

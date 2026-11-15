@@ -15,6 +15,7 @@ public sealed partial class MainWindow
     // ---------- acessores do roteiro ----------
     internal InfoBar InfoConflito => R.AvisoConflito;
     internal InfoBar InfoSomenteLeitura => R.AvisoSomenteLeitura;
+    internal InfoBar InfoDesatualizado => R.AvisoDesatualizado;
 
     /// <summary>Muda o intervalo do salvamento automático (15, 30, 60 ou 120 s) e o guarda nos ajustes.</summary>
     internal void DefinirIntervaloAutosave(int segundos)
@@ -87,6 +88,7 @@ public sealed partial class MainWindow
     internal async Task<bool> FecharSessaoAsync()
     {
         if (sessao is not { } s) return true;
+        await ConcluirEdicaoAntesAsync(s); // o texto digitado no A4 entra antes de gravar e fechar
         if (s.TemAlteracoesNaoGravadas)
         {
             string motivo;
@@ -141,18 +143,21 @@ public sealed partial class MainWindow
     async Task AutosalvarAsync()
     {
         if (sessao is not { Estado: EstadoGravacao.NaoSalvo, SomenteLeitura: false }) return;
-        var ok = await GravarAgoraAsync();
+        // Sozinho: um campo que o usuário está digitando no A4 continua aberto (só o Salvar e os outros comandos o concluem).
+        var ok = await GravarAgoraAsync(concluirEdicao: false);
         // Falhou (arquivo preso pelo OneDrive, disco cheio…): tenta de novo no próximo intervalo; em conflito, espera o usuário decidir.
         if (!ok && sessao is { Estado: EstadoGravacao.NaoSalvo }) ReiniciarAutosave();
     }
 
     /// <summary>Grava agora, na fila de comandos. Devolve true se o arquivo ficou com tudo; falha ⇒ InfoBar de erro (o arquivo antigo fica
-    /// intacto e o diário com as alterações); conflito ⇒ InfoBar "Conflito" com Salvar como cópia e Recarregar.</summary>
-    internal Task<bool> GravarAgoraAsync() => NaFilaAsync(GravarNaVezAsync);
+    /// intacto e o diário com as alterações); conflito ⇒ InfoBar "Conflito" com Salvar como cópia e Recarregar.
+    /// <paramref name="concluirEdicao"/>: um campo em edição no A4 entra antes (como o Enter); o salvamento automático não o fecha.</summary>
+    internal Task<bool> GravarAgoraAsync(bool concluirEdicao = true) => NaFilaAsync(() => GravarNaVezAsync(concluirEdicao));
 
-    async Task<bool> GravarNaVezAsync()
+    async Task<bool> GravarNaVezAsync(bool concluirEdicao = true)
     {
         if (sessao is not { } s) return false;
+        if (concluirEdicao) await ConcluirEdicaoAntesAsync(s);
         if (s.SomenteLeitura)
         {
             MostrarMensagem(InfoBarSeverity.Warning, "Não foi possível salvar", (s.MotivoSomenteLeitura ?? "O relatório está aberto somente para leitura.") + " Use Salvar como.");
@@ -217,7 +222,7 @@ public sealed partial class MainWindow
         {
             using (ExecutionContext.SuppressFlow())
                 // Seguro sem await: GravarNaVezAsync trata toda exceção (InfoBar) e devolve false.
-                DispatcherQueue.TryEnqueue(() => _ = GravarAgoraAsync());
+                DispatcherQueue.TryEnqueue(() => _ = GravarAgoraAsync(concluirEdicao: false));
         }
     }
 

@@ -24,6 +24,15 @@
           </StackPanel>
         </InfoBar.Content>
       </InfoBar>
+      <!-- Onda 1, item 1: a última alteração está no relatório mas a tela não foi recomposta; a exportação fica bloqueada até recompor. -->
+      <InfoBar x:Name="AvisoDesatualizado" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="False"
+               Title="As folhas não mostram a última alteração">
+        <InfoBar.Content>
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <Button x:Name="BotaoRecompor" x:FieldModifier="internal" Content="Recompor" Style="{StaticResource AccentButtonStyle}"/>
+          </StackPanel>
+        </InfoBar.Content>
+      </InfoBar>
       <InfoBar x:Name="AvisoSomenteLeitura" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="True"
                Title="Somente leitura"/>
       <InfoBar x:Name="AvisoDiario" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="True"

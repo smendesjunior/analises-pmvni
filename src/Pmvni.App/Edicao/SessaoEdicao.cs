@@ -116,6 +116,17 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     /// <summary>A última recomposição aplicada na tela (null antes da primeira).</summary>
     public Recomposicao? Atual { get; private set; }
 
+    /// <summary>A última alteração já está no projeto (e no diário), mas a recomposição falhou: a tela e <see cref="Atual"/> são de antes
+    /// dela. A exportação fica recusada até uma recomposição dar certo (o PDF sairia velho com o recibo do pacote novo).</summary>
+    public bool Desatualizada { get; private set; }
+
+    /// <summary>"A tela não mostra a última alteração…": o motivo da recusa da exportação com a sessão desatualizada.</summary>
+    public const string TextoDesatualizada =
+        "As folhas na tela não mostram a última alteração (a recomposição falhou). Use Recompor; o PDF só sai das folhas atualizadas.";
+
+    /// <summary>Só o roteiro: faz a próxima recomposição falhar depois de preparar (como o host de composição caindo).</summary>
+    internal Func<Task>? FalhaDeRoteiroNaRecomposicao { get; set; }
+
     /// <summary>Item selecionado (data-ref) mandado no estado do editor.</summary>
     public string? Selecao { get; set; }
 
@@ -235,6 +246,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
             await Task.Run(Recompositor.TocarPasta);
             var projeto = Revisao.Projeto;
             var p = preparado ?? await Task.Run(() => Recompositor.Preparar(projeto));
+            if (FalhaDeRoteiroNaRecomposicao is { } falhar) await falhar();
             var host = await tela.HostAsync();
             ResultadoComposicao c;
             try { c = await Recompositor.ComporAsync(p, host); }
@@ -245,7 +257,14 @@ internal sealed class SessaoEdicao : IAsyncDisposable
             await tela.AjustarZoomAsync(primeira, a);
             var dados = DadosRelatorio.DeBytes(p.Dados, Path.GetFileNameWithoutExtension(Caminho));
             Atual = new Recomposicao(p, c, a, dados, dados.Navegacao(p.Render, c), relogio.ElapsedMilliseconds);
+            Desatualizada = false;
             return Atual;
+        }
+        catch
+        {
+            // O projeto já tem a alteração (o comando foi aplicado antes): a tela e o preparado ficaram de antes dela.
+            if (!primeira) Desatualizada = true;
+            throw;
         }
         finally { await EnviarEstadoAsync(ancora); }
     }
@@ -358,6 +377,10 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     {
         var r = Atual ?? throw new InvalidOperationException("O relatório ainda não foi composto.");
         var p = r.Preparado;
+        // A tela tem de ser a do projeto de agora: recomposição que falhou, ou qualquer diferença entre o que foi composto e o dados.json
+        // efetivo do projeto, recusa (o recibo levaria o sha do pacote novo com o PDF velho).
+        if (Desatualizada || !p.Dados.AsSpan().SequenceEqual(DadosEfetivos.Gerar(Revisao.Projeto).Json))
+            throw new ExportacaoDivergenteException(TextoDesatualizada);
         if (p.ErrosFinais.Count > 0) throw new ConferenciaFinalException(p.ErrosFinais.Distinct().ToList());
         if (Estado == EstadoGravacao.Conflito) throw new ExportacaoDivergenteException(ExportacaoDivergenteException.ArquivoMudou);
         var caminho = Caminho;

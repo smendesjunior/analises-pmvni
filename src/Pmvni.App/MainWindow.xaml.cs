@@ -116,7 +116,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             fechada = true;
             leituraDaLista?.Cancel(); // a leitura das pastas de processos em segundo plano para junto com a janela
             leituraDoDetalhe?.Cancel();
-            novo?.Descartar(); // um preparo em curso para e a pasta de trabalho sai
+            // Um preparo em curso para (até ~3 s; senão a árvore do soffice é encerrada já, antes de o processo terminar) e a pasta de
+            // trabalho do despacho sai.
+            novo?.EncerrarAoFechar(TimeSpan.FromSeconds(3));
             PararTemporizadores();
             try { documento?.Dispose(); } catch { }
             try { hostComposicao?.Dispose(); } catch { }
@@ -344,7 +346,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Faixa.Habilitar(ComandosApp.ArquivoAbrir, pronto);
         Faixa.Habilitar(ComandosApp.ArquivoSalvar, temRelatorio && sessao is { SomenteLeitura: false });
         Faixa.Habilitar(ComandosApp.ArquivoSalvarComo, temRelatorio);
-        Faixa.Habilitar(ComandosApp.ArquivoExportarPdf, temRelatorio && PodeExportar(sessao?.Atual));
+        var desatualizada = sessao is { Desatualizada: true };
+        Faixa.Habilitar(ComandosApp.ArquivoExportarPdf, temRelatorio && PodeExportar(sessao?.Atual) && !desatualizada);
+        if (desatualizada) Faixa.DefinirDica(ComandosApp.ArquivoExportarPdf, "A exportação está bloqueada: " + SessaoEdicao.TextoDesatualizada);
+        R.AvisoDesatualizado.IsOpen = desatualizada;
         Faixa.Habilitar(ComandosApp.ArquivoFechar, pronto && sessao is not null);
         Faixa.Habilitar(ComandosApp.ArquivoRecentes, pronto && haRecentes);
         AtualizarPesquisaHabilitada(temRelatorio);
@@ -666,8 +671,17 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// excluídos) pedem confirmação; recusa se o pacote mudou no disco. Devolve o resultado ou o motivo da recusa (também num InfoBar).</summary>
     internal async Task<(bool Ok, ResultadoExportacao? Resultado, string? Erro, Exception? Excecao)> ExportarParaAsync(string caminhoPdf)
     {
-        if (sessao?.Atual is not { } r) return (false, null, "Nenhum relatório aberto.", null);
+        if (sessao?.Atual is null) return (false, null, "Nenhum relatório aberto.", null);
         if (ocupado || aplicando) { AvisarOcupado(); return (false, null, "A janela está ocupada.", null); }
+        // O campo em edição no A4 entra antes (como o Enter): o PDF sai com o texto digitado.
+        await ConcluirEdicaoAntesAsync(sessao);
+        if (sessao?.Atual is not { } r) return (false, null, "Nenhum relatório aberto.", null);
+        if (sessao.Desatualizada)
+        {
+            var desatualizada = new ExportacaoDivergenteException(SessaoEdicao.TextoDesatualizada);
+            MostrarMensagem(InfoBarSeverity.Error, "Exportação recusada", desatualizada.Message);
+            return (false, null, desatualizada.Message, desatualizada);
+        }
         // Alterações que o arquivo não tem e não pode receber agora (trava perdida, conflito): o PDF viria da memória e o recibo levaria
         // o sha de um pacote sem elas. Recusa e aponta Salvar como / Salvar como cópia.
         if (sessao.TemAlteracoesNaoGravadas && (sessao.SomenteLeitura || sessao.Estado == EstadoGravacao.Conflito))
@@ -900,6 +914,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.AvisoConflito.IsOpen = false;
         R.AvisoSomenteLeitura.IsOpen = false;
         R.AvisoDiario.IsOpen = false;
+        R.AvisoDesatualizado.IsOpen = false;
     }
 
     /// <summary>O aviso do módulo à vista: Processos e Despachos têm o seu; os outros usam o da página Relatórios.</summary>
