@@ -102,6 +102,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         IniciarGravacao();
         IniciarPesquisa();
         IniciarAjustes();
+        IniciarLegislacaoAjustes();
         IniciarPastas();
         IniciarNovoDespacho();
         IniciarAgentes();
@@ -123,6 +124,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             novo?.EncerrarAoFechar(TimeSpan.FromSeconds(3));
             PararTemporizadores();
             relogioAnalise.Stop();
+            cancelarAnexo?.Cancel(); // a anexação em andamento para (o arquivo em processamento não entra)
+            cancelarReindexacao.Cancel();
+            // O extrator da legislação (controller oculto sobre esta janela) sai antes da janela.
+            try { _ = legislacao.DisposeAsync().AsTask(); } catch { }
             try { documento?.Dispose(); } catch { }
             try { hostComposicao?.Dispose(); } catch { }
         };
@@ -252,7 +257,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         AtualizarPaginasDeDespachos();
         PaginaDeProcessos.Visibility = m == Modulo.Processos ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeAjustes.Visibility = m == Modulo.Ajustes ? Visibility.Visible : Visibility.Collapsed;
-        if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes(); AtualizarPaginaDePastas(); AtualizarAgentes(); }
+        if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes(); AtualizarPaginaDePastas(); AtualizarAgentes(); _ = EntrarNaLegislacaoDosAjustesAsync(); }
         var f = Faixas.Para(m);
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
         Faixa.Montar(f, Faixas.IndiceDaAba(f, aba));
@@ -880,12 +885,24 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     Task MostrarSobreAsync()
     {
-        var texto = new TextBlock
+        var painel = new StackPanel { Spacing = 12 };
+        painel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
             Text = $"Editor de Relatórios Técnicos — PMVNI{Environment.NewLine}{Environment.NewLine}" + TextoDasVersoes(),
-        };
-        return MostrarDialogoAsync("Sobre", texto);
+        });
+        // O leitor da legislação usa o PDF.js (Apache-2.0): a licença vai junto, como o pacote pede.
+        var licenca = Pmvni.Legislacao.RecursosLegislacao.Ler("pdfjs/LICENSE") is { } b ? System.Text.Encoding.UTF8.GetString(b) : "";
+        if (licenca.Length > 0)
+        {
+            painel.Children.Add(new TextBlock { Text = "Licença do PDF.js", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+            painel.Children.Add(new ScrollViewer
+            {
+                MaxHeight = 220,
+                Content = new TextBlock { Text = licenca, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, FontSize = 12 },
+            });
+        }
+        return MostrarDialogoAsync("Sobre", painel);
     }
 
     async Task MostrarDialogoAsync(string titulo, UIElement conteudo)

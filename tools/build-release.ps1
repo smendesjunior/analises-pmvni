@@ -75,6 +75,11 @@ foreach ($f in $jsons) {
     if ($r.elevado -ne $false) { throw "Autoteste reprovou em ${f}: o app abriu elevado (elevado=$($r.elevado))." }
 }
 Write-Host 'Autoteste do executável: aprovado (2 rodadas, ok=true, sem elevação).'
+# 4b. PDF.js embutido (Legislação, desenho §11.4): o bloco "legislacao" do autoteste (versão, arquivos, bytes, sha conferido).
+$leg = (Get-Content -LiteralPath $jsons[0] -Raw -Encoding UTF8 | ConvertFrom-Json).legislacao
+if ($null -eq $leg -or $leg.sha_ok -ne $true) { throw 'Autoteste reprovou: o PDF.js embutido não confere com o VERSAO.json.' }
+$ptBr = [System.Globalization.CultureInfo]::GetCultureInfo('pt-BR')
+Write-Host ("PDF.js {0} embutido: {1} arquivos, {2} MB (sha conferido)." -f $leg.pdfjs, $leg.arquivos, ([double]$leg.bytes / 1000000).ToString('0.00', $ptBr))
 
 # 5. Só agora Aplicativo\ muda: copia com nome temporário, confere (hash e MZ) e troca; os executáveis antigos saem por último
 New-Item -ItemType Directory -Force -Path $pastaFinal | Out-Null

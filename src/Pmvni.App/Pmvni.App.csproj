@@ -26,5 +26,6 @@
     <ProjectReference Include="..\Pmvni.Composicao.Web\Pmvni.Composicao.Web.csproj" />
     <ProjectReference Include="..\Pmvni.Revisao\Pmvni.Revisao.csproj" />
     <ProjectReference Include="..\Pmvni.Agentes\Pmvni.Agentes.csproj" />
+    <ProjectReference Include="..\Pmvni.Legislacao\Pmvni.Legislacao.csproj" />
   </ItemGroup>
 </Project>

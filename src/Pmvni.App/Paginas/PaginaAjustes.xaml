@@ -4,6 +4,48 @@
   xmlns:local="using:Pmvni.App">
   <!-- Módulo Ajustes (desenho §9, §10.10, §12.8): tema, intervalo do salvamento automático, pasta de processos, pasta do kit PMVNI (com a situação dos
        modelos de despacho), Inteligência artificial (um cartão por agente local), pasta de recuperação (só o caminho) e versões. -->
+  <UserControl.Resources>
+    <!-- Uma linha por anexo (LinhaAnexo): o título vale ao sair da caixa ou com Enter; a esfera, ao escolher. -->
+    <DataTemplate x:Key="ModeloLinhaAnexo" x:DataType="local:LinhaAnexo">
+      <Grid Padding="12,10" RowSpacing="6" ColumnSpacing="8" CornerRadius="6" BorderThickness="1"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBox Text="{x:Bind Titulo}" LostFocus="AoSairDoTitulo" KeyDown="AoTeclarNoTitulo"
+                 AutomationProperties.Name="Título da lei" ToolTipService.ToolTip="Título usado na lista e nas citações (até 200 caracteres)"/>
+        <ComboBox Grid.Column="1" MinWidth="140" SelectedIndex="{x:Bind local:PaginaAjustes.IndiceDaEsfera(Esfera)}"
+                  SelectionChanged="AoMudarEsfera" AutomationProperties.Name="Esfera da lei">
+          <x:String>Federal</x:String>
+          <x:String>Estadual</x:String>
+          <x:String>Municipal</x:String>
+          <x:String>Outras</x:String>
+        </ComboBox>
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniSecondaryTextStyle}"
+                   Text="{x:Bind Detalhe}"/>
+        <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <Border VerticalAlignment="Center" HorizontalAlignment="Left" Padding="8,2" CornerRadius="4"
+                  Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" Visibility="{x:Bind local:PaginaAjustes.VisivelSe(Selo)}">
+            <TextBlock Text="{x:Bind Selo}" Style="{StaticResource CaptionTextBlockStyle}"/>
+          </Border>
+          <Button Grid.Column="1" Content="Substituir arquivo…" Click="AoSubstituir" AutomationProperties.Name="Substituir o arquivo desta lei"/>
+          <Button Grid.Column="2" Content="Excluir" Click="AoExcluir" AutomationProperties.Name="Excluir esta lei"/>
+        </Grid>
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Padding="32,20,32,32" Spacing="24" MaxWidth="760" HorizontalAlignment="Left">
       <TextBlock Text="Ajustes" Style="{StaticResource TitleTextBlockStyle}"/>
@@ -50,6 +92,43 @@
           <Button x:Name="BotaoKitPadrao" x:FieldModifier="internal" Content="Usar a pasta padrão" AutomationProperties.Name="Usar a pasta do kit padrão"/>
         </StackPanel>
         <TextBlock x:Name="TextoModelos" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+      </StackPanel>
+
+      <!-- Legislação (desenho §11.1): os PDFs das leis anexados, uma linha por anexo (título e esfera editáveis, arquivo, tamanho, páginas,
+           data, selo, Substituir arquivo… e Excluir). "Anexar PDFs…" fica sempre à mão (também com a lista vazia). -->
+      <StackPanel x:Name="SecaoLegislacao" x:FieldModifier="internal" Spacing="8">
+        <TextBlock Text="Legislação" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+        <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
+                   Text="Anexe os PDFs das leis que você consulta. O editor guarda uma cópia de cada um na pasta de dados dele e nunca altera o arquivo original. Nada é enviado para fora do computador."/>
+        <TextBlock x:Name="TextoTotalLegislacao" x:FieldModifier="internal" TextWrapping="Wrap"/>
+        <TextBlock x:Name="TextoSomenteLeituraLegislacao" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed"
+                   Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button x:Name="BotaoAnexarLegislacao" x:FieldModifier="internal" Content="Anexar PDFs…" Style="{StaticResource AccentButtonStyle}"
+                  AutomationProperties.Name="Anexar PDFs das leis"/>
+        </StackPanel>
+        <Grid x:Name="ProgressoLegislacao" x:FieldModifier="internal" ColumnSpacing="12" Visibility="Collapsed">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel Spacing="4" VerticalAlignment="Center">
+            <TextBlock x:Name="TextoProgressoLegislacao" x:FieldModifier="internal" TextWrapping="Wrap"/>
+            <ProgressBar x:Name="BarraProgressoLegislacao" x:FieldModifier="internal" IsIndeterminate="True"/>
+          </StackPanel>
+          <Button x:Name="BotaoCancelarLegislacao" x:FieldModifier="internal" Grid.Column="1" Content="Cancelar"
+                  AutomationProperties.Name="Cancelar a anexação"/>
+        </Grid>
+        <InfoBar x:Name="AvisoLegislacao" x:FieldModifier="internal" IsClosable="True"/>
+        <InfoBar x:Name="AvisosAcervoLegislacao" x:FieldModifier="internal" IsClosable="True" Severity="Warning"/>
+        <!-- IsEnabled do ContentControl vale para os controles das linhas: catálogo só leitura ⇒ nada de alterar. -->
+        <ContentControl x:Name="ConteudoAnexos" x:FieldModifier="internal" HorizontalContentAlignment="Stretch" IsTabStop="False">
+          <ItemsRepeater x:Name="ListaAnexos" x:FieldModifier="internal" ItemTemplate="{StaticResource ModeloLinhaAnexo}">
+            <ItemsRepeater.Layout>
+              <StackLayout Spacing="6"/>
+            </ItemsRepeater.Layout>
+          </ItemsRepeater>
+        </ContentControl>
       </StackPanel>
 
       <StackPanel Spacing="10">

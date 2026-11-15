@@ -11,6 +11,7 @@ using Microsoft.Web.WebView2.Core;
 using Pmvni.Agentes;
 using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
+using Pmvni.Legislacao;
 using Pmvni.Revisao;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
@@ -25,7 +26,22 @@ internal sealed class PerguntasFixas : IPerguntas
     public RespostaRecuperacao Recuperacao { get; set; } = RespostaRecuperacao.Descartar;
     public List<string> Feitas { get; } = [];
 
-    public Task<string?> AbrirArquivoAsync(string extensao) { Feitas.Add("abrir " + extensao); return Task.FromResult<string?>(null); }
+    /// <summary>O arquivo que o seletor de abrir "escolhe" (null = cancelado); vale uma vez e volta a null.</summary>
+    public string? ArquivoParaAbrir { get; set; }
+    public Task<string?> AbrirArquivoAsync(string extensao)
+    {
+        Feitas.Add("abrir " + extensao);
+        var escolhido = ArquivoParaAbrir;
+        ArquivoParaAbrir = null;
+        return Task.FromResult(escolhido);
+    }
+    /// <summary>As listas que o seletor múltiplo com filtro ("Anexar PDFs…") "escolhe", uma por chamada, na ordem; sem lista = cancelado.</summary>
+    public Queue<IReadOnlyList<string>> ListasParaAbrir { get; } = new();
+    public Task<IReadOnlyList<string>> AbrirArquivosAsync(string extensao)
+    {
+        Feitas.Add("abrir vários " + extensao);
+        return Task.FromResult(ListasParaAbrir.TryDequeue(out var l) ? l : (IReadOnlyList<string>)[]);
+    }
     /// <summary>O caminho que o seletor de salvar "escolhe" (null = cancelado).</summary>
     public string? ArquivoParaSalvar { get; set; }
     public Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao) { Feitas.Add("salvar " + nomeSugerido); return Task.FromResult(ArquivoParaSalvar); }
@@ -3165,6 +3181,181 @@ internal static class Roteiro
             var soOFalso = ExecucaoProcesso.SomenteExecutaveisEm == agenteFalsoPasta;
             p["programas_iniciados"] = soOFalso ? "só o agente falso (trava SomenteExecutaveisEm)" : "trava desligada";
             p["ok"] = tudo && semCodex && nada && alterados.Count == 0 && foraDoPermitido.Count == 0 && anexosIntactos && soOFalso && j.ExecucoesEmCurso.Count == 0;
+        });
+
+
+        // ---------- Legislação: Ajustes › Legislação (Tarefa 17; passos 57 a 60) ----------
+        // Só os PDFs fictícios de tests\corpus\legislacao, copiados para <pasta>\legislacao-originais (a pasta real LEGISLAÇÃO nunca
+        // é lida). Sha, tamanho, data e atributos de cada original são registrados antes e conferidos no fim de cada passo.
+        var legOriginais = Path.Combine(pasta, "legislacao-originais");
+        if (Directory.Exists(legOriginais)) ApagarArvore(legOriginais);
+        CopiarArvore(Path.Combine(corpus, "legislacao"), legOriginais);
+        string Leg(string relativo) => Path.Combine(legOriginais, relativo);
+        var legLei = Leg(@"MUNICIPAL\LEI 9.999-2099 - FICTICIA.pdf");
+        var legLei2 = Leg(@"MUNICIPAL\LEI 9.999-2099 - FICTICIA (VERSAO 2).pdf");
+        var legNt = Leg(@"ESTADUAL - CBMES\NT 99-2099 - FICTICIA.pdf");
+        var legFederal = Leg(@"FEDERAL\LEI 99.999-2099 - FICTICIA.pdf");
+        var legDigital = Leg(@"OUTRAS\DIGITALIZADA - FICTICIA.pdf");
+        var legSenha = Leg(@"OUTRAS\SENHA - FICTICIA.pdf");
+        var legCorrompido = Leg(@"OUTRAS\CORROMPIDO - FICTICIA.pdf");
+        var legNaoPdf = Leg(@"OUTRAS\NAO-E-PDF - FICTICIA.pdf");
+        File.SetAttributes(legNt, File.GetAttributes(legNt) | FileAttributes.ReadOnly); // um original só leitura continua só leitura
+        static string ShaLeg(string arquivo) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(arquivo)));
+        static Dictionary<string, (string Sha, long Tamanho, DateTime Escrita, FileAttributes Atributos)> FotoLeg(string raiz) =>
+            Directory.GetFiles(raiz, "*", SearchOption.AllDirectories).ToDictionary(f => f, f =>
+            {
+                var i = new FileInfo(f);
+                return (ShaLeg(f), i.Length, i.LastWriteTimeUtc, i.Attributes);
+            }, StringComparer.OrdinalIgnoreCase);
+        var fotoLegOriginais = FotoLeg(legOriginais);
+        bool OriginaisLegIntactos(JsonObject p)
+        {
+            var agora = FotoLeg(legOriginais);
+            var ok = agora.Count == fotoLegOriginais.Count && fotoLegOriginais.All(kv => agora.TryGetValue(kv.Key, out var v) && v == kv.Value);
+            p["originais_intactos"] = ok;
+            return ok;
+        }
+        var dadosLeg = Path.Combine(PastaDados.Raiz, "legislacao");
+        string CopiaLeg(string original) => Path.Combine(dadosLeg, ShaLeg(original) + ".pdf");
+        string IndiceLeg(string original) => Path.Combine(dadosLeg, ShaLeg(original) + ".texto.json.gz");
+        IReadOnlyList<string> CopiasLeg() => Directory.Exists(dadosLeg)
+            ? Directory.GetFiles(dadosLeg, "*.pdf").Select(f => Path.GetFileName(f)).Where(n => System.Text.RegularExpressions.Regex.IsMatch(n, "^[0-9a-f]{64}\\.pdf$")).Order(StringComparer.Ordinal).ToList()
+            : [];
+        int EntradasLeg() => Directory.Exists(Path.Combine(dadosLeg, ".entrada")) ? Directory.GetFileSystemEntries(Path.Combine(dadosLeg, ".entrada")).Length : 0;
+        JsonArray LinhasEmJson(IReadOnlyList<LinhaAnexo> l) => new(l.Select(x => (JsonNode)$"{x.Titulo} | {Esferas.Rotulo(x.Esfera)} | {x.Detalhe} | {x.Selo}").ToArray());
+        LinhaAnexo? LinhaDe(string titulo) => j.LinhasLegislacaoAjustes.FirstOrDefault(l => l.Titulo == titulo);
+        var anexadoEm = new System.Text.RegularExpressions.Regex(@"^anexado em \d{2}/\d{2}/\d{4} \d{2}:\d{2}$");
+
+        await Passo("57_legislacao_anexar_dois", async p =>
+        {
+            await j.ReindexacaoLegislacao; // nada em segundo plano mexendo na pasta enquanto ela é apagada
+            if (Directory.Exists(dadosLeg)) ApagarArvore(dadosLeg);
+            await j.MudarModuloAsync(Modulo.Ajustes);
+            perguntas.ListasParaAbrir.Enqueue([legLei, legNt]);
+            var resumo = await j.AnexarLegislacaoAsync();
+            var linhas = j.LinhasLegislacaoAjustes;
+            p["resumo"] = resumo;
+            p["linhas"] = LinhasEmJson(linhas);
+            p["total"] = j.TotalLegislacaoAjustes;
+            var linhasOk = linhas.Count == 2
+                && linhas[0] is { Titulo: "NT 99-2099 - FICTICIA", Esfera: Esfera.Estadual, Arquivo: "NT 99-2099 - FICTICIA.pdf", Paginas: "2 páginas", Selo: null }
+                && linhas[1] is { Titulo: "LEI 9.999-2099 - FICTICIA", Esfera: Esfera.Municipal, Arquivo: "LEI 9.999-2099 - FICTICIA.pdf", Paginas: "3 páginas", Selo: null }
+                && linhas[0].Tamanho == ListaLegislacao.Tamanho(new FileInfo(legNt).Length) && linhas[1].Tamanho == ListaLegislacao.Tamanho(new FileInfo(legLei).Length)
+                && linhas.All(l => anexadoEm.IsMatch(l.AnexadoEm));
+            var copias = CopiasLeg();
+            var pastaOk = copias.SequenceEqual(new[] { ShaLeg(legLei) + ".pdf", ShaLeg(legNt) + ".pdf" }.Order(StringComparer.Ordinal))
+                && File.ReadAllBytes(CopiaLeg(legLei)).AsSpan().SequenceEqual(File.ReadAllBytes(legLei))
+                && File.ReadAllBytes(CopiaLeg(legNt)).AsSpan().SequenceEqual(File.ReadAllBytes(legNt))
+                && File.Exists(IndiceLeg(legLei)) && File.Exists(IndiceLeg(legNt)) && File.Exists(Path.Combine(dadosLeg, "catalogo.json")) && EntradasLeg() == 0;
+            p["pasta_de_dados"] = new JsonArray(copias.Select(c => (JsonNode)c).ToArray());
+            p["ok"] = resumo == "2 PDFs anexados." && j.AvisoLegislacaoAjustes.IsOpen && j.AvisoLegislacaoAjustes.Message == resumo
+                && linhasOk && pastaOk && j.TotalLegislacaoAjustes.StartsWith("2 leis anexadas · ", StringComparison.Ordinal) && OriginaisLegIntactos(p);
+        });
+
+        await Passo("58_legislacao_recusas", async p =>
+        {
+            perguntas.ListasParaAbrir.Enqueue([legLei, legNaoPdf, legSenha, legCorrompido, legDigital]);
+            var resumo = await j.AnexarLegislacaoAsync();
+            p["resumo"] = resumo;
+            var linhas = j.LinhasLegislacaoAjustes;
+            p["linhas"] = LinhasEmJson(linhas);
+            const string Esperado = "1 PDF anexado; 4 recusados:\n“LEI 9.999-2099 - FICTICIA.pdf” já está anexado como “LEI 9.999-2099 - FICTICIA”.\n“NAO-E-PDF - FICTICIA.pdf” não é um arquivo PDF.\n“SENHA - FICTICIA.pdf” está protegido por senha e não pode ser aberto pelo editor. Anexe uma cópia sem senha.\n“CORROMPIDO - FICTICIA.pdf” não pôde ser lido como PDF (arquivo danificado ou incompleto).";
+            var digital = LinhaDe("DIGITALIZADA - FICTICIA");
+            p["ok"] = resumo == Esperado && linhas.Count == 3 && digital is { Esfera: Esfera.Outras, Paginas: "1 página", Selo: "Sem texto pesquisável" }
+                && CopiasLeg().Count == 3 && EntradasLeg() == 0 && j.AvisoLegislacaoAjustes.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning
+                && OriginaisLegIntactos(p);
+        });
+
+        await Passo("59_legislacao_excluir_e_anexar_novos", async p =>
+        {
+            var nt = LinhaDe("NT 99-2099 - FICTICIA") ?? throw new InvalidOperationException("a NT não está na lista");
+            var lei = LinhaDe("LEI 9.999-2099 - FICTICIA") ?? throw new InvalidOperationException("a lei não está na lista");
+            var outros = new[] { CopiaLeg(legLei), IndiceLeg(legLei), CopiaLeg(legDigital), IndiceLeg(legDigital) }
+                .ToDictionary(f => f, f => (ShaLeg(f), File.GetLastWriteTimeUtc(f)));
+            const string Titulo = "Excluir “NT 99-2099 - FICTICIA”?";
+            const string Texto = "A cópia do PDF guardada pelo editor e o seu índice de pesquisa serão apagados. O arquivo original (NT 99-2099 - FICTICIA.pdf) não é alterado.";
+            perguntas.RespostaPorTitulo[Titulo] = true;
+            var antes = perguntas.Confirmacoes.Count;
+            var excluiu = await j.ExcluirAnexoAsync(nt.Id);
+            perguntas.RespostaPorTitulo.Remove(Titulo);
+            var pergunta = perguntas.Confirmacoes.Skip(antes).ToList();
+            var perguntaOk = pergunta.Count == 1 && pergunta[0] == (Titulo, Texto, "Excluir", "Cancelar");
+            var depoisDeExcluir = j.LinhasLegislacaoAjustes.Select(l => l.Titulo).ToList();
+            var apagou = !File.Exists(CopiaLeg(legNt)) && !File.Exists(IndiceLeg(legNt));
+            var outrosIguais = outros.All(kv => File.Exists(kv.Key) && (ShaLeg(kv.Key), File.GetLastWriteTimeUtc(kv.Key)) == kv.Value);
+            var pesquisa = (await j.Legislacao.IndiceAsync()).Pesquisar("afastamento");
+            p["excluir"] = new JsonObject
+            {
+                ["pergunta"] = pergunta.Count == 1 ? pergunta[0].Titulo + " / " + pergunta[0].Texto : "(" + pergunta.Count + " perguntas)",
+                ["linhas"] = new JsonArray(depoisDeExcluir.Select(t => (JsonNode)t).ToArray()), ["pesquisa"] = pesquisa.Total,
+            };
+            var excluirOk = excluiu && perguntaOk && apagou && outrosIguais
+                && depoisDeExcluir.SequenceEqual(["LEI 9.999-2099 - FICTICIA", "DIGITALIZADA - FICTICIA"])
+                && pesquisa.Total == 3 && pesquisa.Resultados.All(r => r.AnexoId == lei.Id) && pesquisa.Resultados.Select(r => r.Pagina).SequenceEqual([1, 2, 3]);
+
+            perguntas.ListasParaAbrir.Enqueue([legFederal, legNt]);
+            var resumo = await j.AnexarLegislacaoAsync();
+            var linhas = j.LinhasLegislacaoAjustes;
+            var pesquisa4 = (await j.Legislacao.IndiceAsync()).Pesquisar("afastamento");
+            var ntNova = LinhaDe("NT 99-2099 - FICTICIA");
+            p["anexar_de_novo"] = new JsonObject { ["resumo"] = resumo, ["linhas"] = LinhasEmJson(linhas), ["pesquisa"] = pesquisa4.Total };
+            var anexarOk = resumo == "2 PDFs anexados."
+                && linhas.Select(l => l.Titulo).SequenceEqual(["LEI 99.999-2099 - FICTICIA", "NT 99-2099 - FICTICIA", "LEI 9.999-2099 - FICTICIA", "DIGITALIZADA - FICTICIA"])
+                && linhas.Select(l => l.Esfera).SequenceEqual([Esfera.Federal, Esfera.Estadual, Esfera.Municipal, Esfera.Outras])
+                && ntNova is not null && ntNova.Id != nt.Id && pesquisa4.Total == 4;
+
+            // "Cancelar" na pergunta: nada muda (linhas e arquivos).
+            var federal = LinhaDe("LEI 99.999-2099 - FICTICIA")!;
+            var tituloFederal = "Excluir “LEI 99.999-2099 - FICTICIA”?";
+            var linhasAntes = j.LinhasLegislacaoAjustes.ToList();
+            var arquivosAntes = FotoLeg(dadosLeg);
+            perguntas.RespostaPorTitulo[tituloFederal] = false;
+            var cancelou = !await j.ExcluirAnexoAsync(federal.Id);
+            perguntas.RespostaPorTitulo.Remove(tituloFederal);
+            var nadaMudou = cancelou && j.LinhasLegislacaoAjustes.SequenceEqual(linhasAntes)
+                && FotoLeg(dadosLeg) is var arquivosDepois && arquivosDepois.Count == arquivosAntes.Count
+                && arquivosAntes.All(kv => arquivosDepois.TryGetValue(kv.Key, out var v) && v == kv.Value);
+            p["cancelar_nao_muda"] = nadaMudou;
+            p["ok"] = excluirOk && anexarOk && nadaMudou && OriginaisLegIntactos(p);
+        });
+
+        await Passo("60_legislacao_editar_e_substituir", async p =>
+        {
+            var lei = LinhaDe("LEI 9.999-2099 - FICTICIA") ?? throw new InvalidOperationException("a lei não está na lista");
+            const string Novo = "Lei nº 9.999/2099 (fictícia)";
+            var renomeou = await j.RenomearAnexoAsync(lei.Id, Novo) is null && j.LinhasLegislacaoAjustes.Any(l => l.Id == lei.Id && l.Titulo == Novo);
+            var vazio = await j.RenomearAnexoAsync(lei.Id, "");
+            var vazioOk = vazio == "O título não pode ficar vazio." && j.AvisoLegislacaoAjustes.Message == vazio
+                && j.LinhasLegislacaoAjustes.Single(l => l.Id == lei.Id).Titulo == Novo;
+            // Esfera: muda e volta (o estado que o leitor usa fica o mesmo).
+            var digital = LinhaDe("DIGITALIZADA - FICTICIA")!;
+            await j.DefinirEsferaAnexoAsync(digital.Id, Esfera.Municipal);
+            var mudouEsfera = j.LinhasLegislacaoAjustes.Single(l => l.Id == digital.Id).Esfera == Esfera.Municipal
+                && new AcervoLegislacao(dadosLeg).Listar().Single(a => a.Id == digital.Id).Esfera == Esfera.Municipal;
+            await j.DefinirEsferaAnexoAsync(digital.Id, Esfera.Outras);
+            var voltouEsfera = j.LinhasLegislacaoAjustes.Single(l => l.Id == digital.Id).Esfera == Esfera.Outras;
+
+            var copiaAntiga = CopiaLeg(legLei);
+            var indiceAntigo = IndiceLeg(legLei);
+            perguntas.ArquivoParaAbrir = legLei2;
+            var recusa = await j.SubstituirAnexoAsync(lei.Id);
+            var depois = j.LinhasLegislacaoAjustes.SingleOrDefault(l => l.Id == lei.Id);
+            var versao2 = (await j.Legislacao.IndiceAsync()).Pesquisar("versao 2");
+            p["substituir"] = new JsonObject
+            {
+                ["recusa"] = recusa, ["linha"] = depois is null ? null : $"{depois.Titulo} | {depois.Detalhe}", ["versao_2"] = versao2.Total,
+            };
+            var substituiu = recusa is null && depois is { Titulo: Novo, Esfera: Esfera.Municipal, Paginas: "4 páginas", Arquivo: "LEI 9.999-2099 - FICTICIA (VERSAO 2).pdf" }
+                && versao2.Total == 1 && versao2.Resultados[0] is { Pagina: 4 } r && r.AnexoId == lei.Id
+                && !File.Exists(copiaAntiga) && !File.Exists(indiceAntigo) && File.Exists(CopiaLeg(legLei2)) && EntradasLeg() == 0;
+
+            // Gravado de verdade: um acervo novo sobre a mesma pasta lista as mesmas 4 linhas com os mesmos campos.
+            var novo = new AcervoLegislacao(dadosLeg);
+            var relidas = novo.Listar().Select(a => ListaLegislacao.Linha(a, novo.Estado(a.Id), false, TimeZoneInfo.Local)).ToList();
+            var gravado = relidas.SequenceEqual(j.LinhasLegislacaoAjustes);
+            p["linhas"] = LinhasEmJson(j.LinhasLegislacaoAjustes);
+            try { await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "60-ajustes-legislacao.png")); } catch (Exception e) { p["captura"] = e.Message; }
+            p["ok"] = renomeou && vazioOk && mudouEsfera && voltouEsfera && substituiu && gravado && relidas.Count == 4 && OriginaisLegIntactos(p);
         });
 
         await j.FecharSessaoAsync();

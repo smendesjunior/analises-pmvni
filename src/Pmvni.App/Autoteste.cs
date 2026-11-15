@@ -1,5 +1,6 @@
 using System.Security.Principal;
 using System.Text.Json;
+using Pmvni.Legislacao;
 
 namespace Pmvni.App;
 
@@ -16,13 +17,30 @@ internal static class Autoteste
         if (i >= 0 && i + 1 < args.Length) arquivo = Path.GetFullPath(args[i + 1]);
     }
 
-    public static void GravarSucesso(string versaoWebView2) => Gravar(new Dictionary<string, object?>
+    /// <summary>Grava o resultado da primeira navegação. O bloco "legislacao" confere o PDF.js embutido (versão, arquivos, bytes e
+    /// sha256 de cada arquivo contra o VERSAO.json); "ok" exige o sha conferido.</summary>
+    public static void GravarSucesso(string versaoWebView2)
     {
-        ["ok"] = true,
-        ["webview2"] = versaoWebView2,
-        ["baseDir"] = AppContext.BaseDirectory,
-        ["elevado"] = Elevado(),
-    });
+        var shaOk = RecursosLegislacao.ConferirPdfJs(out var divergentes);
+        var legislacao = new Dictionary<string, object?>
+        {
+            ["pdfjs"] = RecursosLegislacao.VersaoPdfJs,
+            ["arquivos"] = RecursosLegislacao.ShaPdfJs.Count,
+            ["bytes"] = RecursosLegislacao.BytesPdfJs,
+            ["sha_ok"] = shaOk,
+        };
+        if (!shaOk) legislacao["divergentes"] = divergentes.Take(20).ToArray();
+        var dados = new Dictionary<string, object?>
+        {
+            ["ok"] = shaOk,
+            ["webview2"] = versaoWebView2,
+            ["baseDir"] = AppContext.BaseDirectory,
+            ["elevado"] = Elevado(),
+            ["legislacao"] = legislacao,
+        };
+        if (!shaOk) dados["erro"] = "O PDF.js embutido não confere com o VERSAO.json: " + string.Join(", ", divergentes.Take(5));
+        Gravar(dados);
+    }
 
     public static void GravarErro(string erro) => Gravar(new Dictionary<string, object?>
     {

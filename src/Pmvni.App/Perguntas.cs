@@ -21,6 +21,10 @@ internal interface IPerguntas
     /// <summary>Seletor de abrir com seleção múltipla e qualquer tipo de arquivo (os anexos do Novo relatório); null se cancelado.</summary>
     Task<IReadOnlyList<string>?> AbrirArquivosAsync();
 
+    /// <summary>Seletor de abrir com seleção múltipla e o filtro <paramref name="extensao"/> (".pdf": "Anexar PDFs…" da legislação),
+    /// na ordem em que vieram; cancelado ⇒ lista vazia.</summary>
+    Task<IReadOnlyList<string>> AbrirArquivosAsync(string extensao);
+
     /// <summary>"Criar processo": número, ano do protocolo e requerente ("Criar" só com os três válidos); null se cancelado.</summary>
     Task<DadosNovoProcesso?> PedirNovoProcessoAsync();
 
@@ -80,6 +84,16 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         seletor.FileTypeFilter.Add("*");
         var arquivos = await seletor.PickMultipleFilesAsync();
         if (arquivos is null || arquivos.Count == 0) return null;
+        return arquivos.Select(a => a.Path).Where(c => !string.IsNullOrEmpty(c)).ToList();
+    }
+
+    public async Task<IReadOnlyList<string>> AbrirArquivosAsync(string extensao)
+    {
+        var seletor = new FileOpenPicker();
+        WinRT.Interop.InitializeWithWindow.Initialize(seletor, Janela);
+        seletor.FileTypeFilter.Add(extensao);
+        var arquivos = await seletor.PickMultipleFilesAsync();
+        if (arquivos is null || arquivos.Count == 0) return [];
         return arquivos.Select(a => a.Path).Where(c => !string.IsNullOrEmpty(c)).ToList();
     }
 

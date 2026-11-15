@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
+using Pmvni.Legislacao;
 using Pmvni.Revisao;
 
 namespace Pmvni.App;
@@ -88,7 +89,8 @@ public sealed partial class MainWindow
         var versao = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0]
             ?? typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "?";
         var webview = R.Navegador.CoreWebView2?.Environment.BrowserVersionString ?? FabricaWebView2.VersaoDisponivel() ?? "ausente";
-        return $"Versão do app: {versao}{Environment.NewLine}Modelo do relatório: rev{ModeloOficial.Revisao}{Environment.NewLine}WebView2: {webview}";
+        return $"Versão do app: {versao}{Environment.NewLine}Modelo do relatório: rev{ModeloOficial.Revisao}{Environment.NewLine}WebView2: {webview}"
+            + $"{Environment.NewLine}PDF.js {RecursosLegislacao.VersaoPdfJs} (Apache-2.0)";
     }
 
     // ---------- recentes ----------
@@ -146,4 +148,288 @@ public sealed partial class MainWindow
     }
 
     Task CompararAsync() => Perguntas.Atual.InformarAsync("Comparar com o original", TextoComparacao());
+
+    // ---------- legislação (desenho §11.1): Ajustes › Legislação ----------
+
+    SessaoLegislacao legislacao = null!;
+    CancellationTokenSource? cancelarAnexo;
+    readonly CancellationTokenSource cancelarReindexacao = new();
+    Task reindexacao = Task.CompletedTask;
+    IReadOnlyList<LinhaAnexo> linhasLegislacao = [];
+    readonly SemaphoreSlim releituraLegislacao = new(1, 1);
+
+    internal SessaoLegislacao Legislacao => legislacao;
+    /// <summary>As linhas da seção Legislação dos Ajustes (uma por anexo), como estão na tela.</summary>
+    internal IReadOnlyList<LinhaAnexo> LinhasLegislacaoAjustes => linhasLegislacao;
+    internal InfoBar AvisoLegislacaoAjustes => PaginaDeAjustes.AvisoLegislacao;
+    internal InfoBar AvisosAcervoAjustes => PaginaDeAjustes.AvisosAcervoLegislacao;
+    internal string TotalLegislacaoAjustes => PaginaDeAjustes.TextoTotalLegislacao.Text;
+    /// <summary>O índice que está sendo refeito em segundo plano (o roteiro espera antes de mexer na pasta).</summary>
+    internal Task ReindexacaoLegislacao => reindexacao;
+
+    void IniciarLegislacaoAjustes()
+    {
+        legislacao = new SessaoLegislacao(Path.Combine(PastaDados.Raiz, "legislacao"), CriarExtratorLegislacaoAsync);
+        legislacao.Mudou += () => DispatcherQueue.TryEnqueue(() => _ = AtualizarListaLegislacaoAsync());
+        var a = PaginaDeAjustes;
+        a.BotaoAnexarLegislacao.Click += async (_, _) => await AnexarLegislacaoAsync();
+        a.BotaoCancelarLegislacao.Click += (_, _) => cancelarAnexo?.Cancel();
+        a.TituloEditado = RenomearAnexoAsync;
+        a.EsferaEscolhida += async (id, e) => await DefinirEsferaAnexoAsync(id, e);
+        a.SubstituirPedido += async id => await SubstituirAnexoAsync(id);
+        a.ExcluirPedido += async id => await ExcluirAnexoAsync(id);
+        _ = AtualizarListaLegislacaoAsync();
+    }
+
+    /// <summary>O extrator real (PDF.js num WebView2 oculto e InPrivate sobre esta janela, no ambiente da tela), criado na thread da
+    /// interface, de onde quer que a sessão o peça.</summary>
+    Task<IExtratorPdf> CriarExtratorLegislacaoAsync()
+    {
+        var tcs = new TaskCompletionSource<IExtratorPdf>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!DispatcherQueue.TryEnqueue(async () =>
+        {
+            try
+            {
+                if (fechada) throw new InvalidOperationException("A janela foi fechada.");
+                var ambiente = R.Navegador.CoreWebView2?.Environment ?? throw new InvalidOperationException("A visualização ainda não está pronta.");
+                var janela = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                tcs.TrySetResult(await Pmvni.Composicao.Web.Legislacao.ExtratorPdfJs.CriarAsync(ambiente, janela, legislacao.Servidor));
+            }
+            catch (Exception e) { tcs.TrySetException(e); }
+        })) tcs.TrySetException(new InvalidOperationException("A janela foi fechada."));
+        return tcs.Task;
+    }
+
+    /// <summary>Ao abrir os Ajustes: apaga entradas órfãs (mais de 1 dia), mostra os avisos da carga e refaz em segundo plano os índices
+    /// que faltam (selo "Preparando a pesquisa…").</summary>
+    async Task EntrarNaLegislacaoDosAjustesAsync()
+    {
+        try
+        {
+            await Task.Run(legislacao.Acervo.LimparEntradasOrfas);
+            await AtualizarListaLegislacaoAsync();
+            if (reindexacao.IsCompleted && !legislacao.Acervo.SomenteLeitura)
+                reindexacao = legislacao.ReindexarPendentesAsync(cancelarReindexacao.Token);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { MostrarAvisoLegislacao(InfoBarSeverity.Error, "Legislação", Erro(e)); }
+    }
+
+    /// <summary>Relê o acervo e redesenha a seção: total, linhas, só leitura e os avisos pendentes do acervo (lidos uma vez).</summary>
+    internal async Task AtualizarListaLegislacaoAsync()
+    {
+        // Uma releitura por vez, na ordem: a que termina por último leu o acervo por último (quem espera esta vê o estado de agora).
+        await releituraLegislacao.WaitAsync();
+        try { await RelerLegislacaoAsync(); }
+        finally { releituraLegislacao.Release(); }
+    }
+
+    async Task RelerLegislacaoAsync()
+    {
+        IReadOnlyList<Anexo> anexos;
+        IReadOnlyList<LinhaAnexo> linhas;
+        try { (anexos, linhas) = await legislacao.ListarAsync(TimeZoneInfo.Local); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            MostrarAvisoLegislacao(InfoBarSeverity.Error, "Não foi possível ler a legislação anexada", Erro(e));
+            return;
+        }
+        if (fechada) return;
+        linhasLegislacao = linhas;
+        var a = PaginaDeAjustes;
+        a.ListaAnexos.ItemsSource = linhas;
+        a.TextoTotalLegislacao.Text = ListaLegislacao.Total(anexos);
+        var somenteLeitura = legislacao.Acervo.SomenteLeitura;
+        a.TextoSomenteLeituraLegislacao.Text = somenteLeitura ? MensagensAnexo.SomenteLeitura : "";
+        a.TextoSomenteLeituraLegislacao.Visibility = somenteLeitura ? Visibility.Visible : Visibility.Collapsed;
+        a.BotaoAnexarLegislacao.IsEnabled = !somenteLeitura && cancelarAnexo is null;
+        a.ConteudoAnexos.IsEnabled = !somenteLeitura && cancelarAnexo is null;
+        var avisos = legislacao.Acervo.LerAvisos();
+        if (avisos.Count > 0)
+        {
+            a.AvisosAcervoLegislacao.Title = "Legislação";
+            a.AvisosAcervoLegislacao.Message = string.Join("\n", avisos);
+            a.AvisosAcervoLegislacao.IsOpen = true;
+        }
+        LinhasLegislacaoMudaram(anexos);
+    }
+
+    /// <summary>Gancho para o módulo Legislação acompanhar a lista (Tarefa 18).</summary>
+    partial void LinhasLegislacaoMudaram(IReadOnlyList<Anexo> anexos);
+
+    void MostrarAvisoLegislacao(InfoBarSeverity severidade, string titulo, string mensagem)
+    {
+        if (fechada) return;
+        var aviso = PaginaDeAjustes.AvisoLegislacao;
+        aviso.Severity = severidade;
+        aviso.Title = titulo;
+        aviso.Message = mensagem;
+        aviso.IsOpen = true;
+    }
+
+    /// <summary>"Anexar PDFs…": o seletor (múltiplo, .pdf) na fila de comandos; a leitura dos arquivos (cópia, sha, PDF.js) corre fora
+    /// dela, com a linha de progresso e "Cancelar". No fim, a InfoBar com o resumo exato (<see cref="ListaLegislacao.Resumo"/>), que
+    /// também é devolvido ("" se nada foi escolhido ou outra anexação já corre).</summary>
+    internal async Task<string> AnexarLegislacaoAsync()
+    {
+        IReadOnlyList<string> caminhos = [];
+        CancellationTokenSource? cts = null;
+        await NaFilaAsync(() => TentarAsync(async () =>
+        {
+            if (!PodeAlterarLegislacao()) return;
+            caminhos = await Perguntas.Atual.AbrirArquivosAsync(".pdf");
+            if (caminhos.Count == 0 || cancelarAnexo is not null) return;
+            cts = cancelarAnexo = new CancellationTokenSource();
+            ComecarProgressoLegislacao();
+        }));
+        if (cts is null) return "";
+        try
+        {
+            var progresso = new Progress<ProgressoAnexo>(p => MostrarProgressoLegislacao("Anexando", p));
+            var (anexados, recusas) = await legislacao.AnexarAsync(caminhos, progresso, cts.Token);
+            var resumo = ListaLegislacao.Resumo(anexados.Count, recusas);
+            var cancelado = cts.IsCancellationRequested;
+            if (cancelado) resumo += "\nAnexação cancelada: o arquivo em andamento não entrou.";
+            MostrarAvisoLegislacao(recusas.Count > 0 || cancelado ? InfoBarSeverity.Warning : InfoBarSeverity.Success, "Anexar PDFs", resumo);
+            return resumo;
+        }
+        catch (Exception e)
+        {
+            var texto = Erro(e);
+            MostrarAvisoLegislacao(InfoBarSeverity.Error, "Não foi possível anexar", texto);
+            return texto;
+        }
+        finally
+        {
+            TerminarProgressoLegislacao(cts);
+            await AtualizarListaLegislacaoAsync();
+        }
+    }
+
+    /// <summary>"Excluir" de uma linha: confirma com os textos do desenho §11.1 e apaga a linha, a cópia e o índice (o original nunca).
+    /// true se excluiu. Cópia presa por outro programa: excluída do catálogo e o aviso aparece.</summary>
+    internal Task<bool> ExcluirAnexoAsync(string id) => NaFilaAsync(async () =>
+    {
+        if (!PodeAlterarLegislacao()) return false;
+        var anexo = (await Task.Run(legislacao.Acervo.Listar)).FirstOrDefault(a => a.Id == id);
+        if (anexo is null) return false;
+        var confirmou = await Perguntas.Atual.ConfirmarAsync($"Excluir “{anexo.Titulo}”?",
+            $"A cópia do PDF guardada pelo editor e o seu índice de pesquisa serão apagados. O arquivo original ({anexo.ArquivoOriginal}) não é alterado.",
+            "Excluir", "Cancelar");
+        if (!confirmou) return false;
+        try
+        {
+            var aviso = await legislacao.ExcluirAsync(id);
+            if (aviso is not null) MostrarAvisoLegislacao(InfoBarSeverity.Warning, $"“{anexo.Titulo}” foi excluído", aviso);
+            else MostrarAvisoLegislacao(InfoBarSeverity.Success, "Excluído", $"“{anexo.Titulo}” foi excluído. O arquivo original não foi alterado.");
+            return true;
+        }
+        catch (Exception e)
+        {
+            MostrarAvisoLegislacao(InfoBarSeverity.Error, "Não foi possível excluir", Erro(e));
+            return false;
+        }
+        finally { await AtualizarListaLegislacaoAsync(); }
+    });
+
+    /// <summary>"Substituir arquivo…": o seletor na fila de comandos; a leitura do arquivo novo corre fora dela (com o progresso). Devolve a
+    /// mensagem de recusa, ou null (substituído, ou nada escolhido).</summary>
+    internal async Task<string?> SubstituirAnexoAsync(string id)
+    {
+        string? caminho = null;
+        CancellationTokenSource? cts = null;
+        await NaFilaAsync(() => TentarAsync(async () =>
+        {
+            if (!PodeAlterarLegislacao()) return;
+            caminho = await Perguntas.Atual.AbrirArquivoAsync(".pdf");
+            if (caminho is null || cancelarAnexo is not null) return;
+            cts = cancelarAnexo = new CancellationTokenSource();
+            ComecarProgressoLegislacao();
+        }));
+        if (cts is null || caminho is null) return null;
+        try
+        {
+            var progresso = new Progress<ProgressoAnexo>(p => MostrarProgressoLegislacao("Substituindo pelo arquivo", p));
+            var recusa = await legislacao.SubstituirAsync(id, caminho, cts.Token, progresso);
+            if (recusa is not null) MostrarAvisoLegislacao(InfoBarSeverity.Warning, "Substituir arquivo", recusa);
+            else MostrarAvisoLegislacao(InfoBarSeverity.Success, "Substituir arquivo", $"O arquivo foi substituído por “{Path.GetFileName(caminho)}”.");
+            return recusa;
+        }
+        catch (OperationCanceledException)
+        {
+            MostrarAvisoLegislacao(InfoBarSeverity.Informational, "Substituir arquivo", "Substituição cancelada: o arquivo anterior continua.");
+            return null;
+        }
+        catch (Exception e)
+        {
+            var texto = Erro(e);
+            MostrarAvisoLegislacao(InfoBarSeverity.Error, "Não foi possível substituir", texto);
+            return texto;
+        }
+        finally
+        {
+            TerminarProgressoLegislacao(cts);
+            await AtualizarListaLegislacaoAsync();
+        }
+    }
+
+    /// <summary>Título de uma linha (ao sair da caixa ou com Enter): devolve a mensagem de recusa ("O título não pode ficar vazio.",
+    /// "O título pode ter até 200 caracteres.") ou null.</summary>
+    internal Task<string?> RenomearAnexoAsync(string id, string titulo) => NaFilaAsync(async () =>
+    {
+        string? recusa = null;
+        try { await legislacao.RenomearAsync(id, titulo); }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException or KeyNotFoundException or IOException or UnauthorizedAccessException)
+        {
+            recusa = e is IOException or UnauthorizedAccessException ? Erro(e) : e.Message;
+            MostrarAvisoLegislacao(InfoBarSeverity.Warning, "Título não alterado", recusa);
+        }
+        await AtualizarListaLegislacaoAsync();
+        return recusa;
+    });
+
+    internal Task DefinirEsferaAnexoAsync(string id, Esfera e) => NaFilaAsync(async () =>
+    {
+        try { await legislacao.DefinirEsferaAsync(id, e); }
+        catch (Exception x) when (x is InvalidOperationException or KeyNotFoundException or IOException or UnauthorizedAccessException)
+        {
+            MostrarAvisoLegislacao(InfoBarSeverity.Warning, "Esfera não alterada", x is IOException or UnauthorizedAccessException ? Erro(x) : x.Message);
+        }
+        await AtualizarListaLegislacaoAsync();
+    });
+
+    bool PodeAlterarLegislacao()
+    {
+        if (!legislacao.Acervo.SomenteLeitura) return true;
+        MostrarAvisoLegislacao(InfoBarSeverity.Warning, "Legislação só para leitura", MensagensAnexo.SomenteLeitura);
+        return false;
+    }
+
+    void ComecarProgressoLegislacao()
+    {
+        var a = PaginaDeAjustes;
+        a.AvisoLegislacao.IsOpen = false;
+        a.TextoProgressoLegislacao.Text = "Preparando…";
+        a.BarraProgressoLegislacao.IsIndeterminate = true;
+        a.ProgressoLegislacao.Visibility = Visibility.Visible;
+        a.BotaoAnexarLegislacao.IsEnabled = false;
+        a.ConteudoAnexos.IsEnabled = false;
+    }
+
+    /// <summary>"Anexando “LEI 1.382-2020.pdf” — página 12 de 81".</summary>
+    void MostrarProgressoLegislacao(string acao, ProgressoAnexo p)
+    {
+        if (fechada) return;
+        var a = PaginaDeAjustes;
+        a.TextoProgressoLegislacao.Text = p.Total > 0 ? $"{acao} “{p.Nome}” — página {p.Pagina} de {p.Total}" : $"{acao} “{p.Nome}”…";
+        a.BarraProgressoLegislacao.IsIndeterminate = p.Total <= 0;
+        if (p.Total > 0) { a.BarraProgressoLegislacao.Maximum = p.Total; a.BarraProgressoLegislacao.Value = p.Pagina; }
+    }
+
+    void TerminarProgressoLegislacao(CancellationTokenSource cts)
+    {
+        if (ReferenceEquals(cancelarAnexo, cts)) cancelarAnexo = null;
+        cts.Dispose();
+        if (fechada) return;
+        PaginaDeAjustes.ProgressoLegislacao.Visibility = Visibility.Collapsed;
+    }
 }
