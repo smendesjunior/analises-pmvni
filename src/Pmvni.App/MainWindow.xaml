@@ -17,10 +17,11 @@
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <controls:TitleBar x:Name="BarraTitulo" Grid.Row="0" Title="Editor de Relatórios PMVNI" Subtitle="">
-      <!-- Brasão da Prefeitura (imagem do modelo de relatório do kit), com variante de texto claro no tema escuro. -->
+    <controls:TitleBar x:Name="BarraTitulo" Grid.Row="0" Title="Editor de Relatórios" Subtitle="">
+      <!-- Marca: o brasão da Prefeitura (imagem do modelo de relatório do kit, com variante de texto claro no tema escuro), alinhado
+           com o fundo dos itens do trilho; o título fica só "Editor de Relatórios" e o subtítulo leva o documento aberto. -->
       <controls:TitleBar.LeftHeader>
-        <Image x:Name="ImagemBrasao" Height="32" Margin="12,0,4,0" VerticalAlignment="Center" Stretch="Uniform"
+        <Image x:Name="ImagemBrasao" Height="28" Margin="14,0,12,0" VerticalAlignment="Center" Stretch="Uniform"
                AutomationProperties.Name="Prefeitura Municipal de Venda Nova do Imigrante"/>
       </controls:TitleBar.LeftHeader>
       <!-- Desfazer e Refazer ao lado do estado de gravação (desenho §5.5) e a pesquisa no relatório (Ctrl+F; Enter = próxima,

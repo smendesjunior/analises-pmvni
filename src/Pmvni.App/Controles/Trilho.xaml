@@ -1,14 +1,22 @@
 <UserControl x:Class="Pmvni.App.Trilho"
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <!-- Trilho de módulos (estilo Outlook/Store): ícone + rótulo, 64 px, indicador 3 x 16 no módulo ativo; Ajustes embaixo. -->
-  <Grid Width="64" Padding="0,4,0,8">
+  <!-- Trilho de módulos (como o Gmail): ícone colorido sobre um fundo arredondado no módulo ativo, barrinha 3 x 16 e rótulo; Ajustes
+       embaixo. Uma parada de Tab para o trilho inteiro; as setas andam entre os módulos. -->
+  <UserControl.Resources>
+    <!-- O botão nunca pinta fundo nem borda (nem ao passar o mouse): o estado aparece no Border "Fundo" de cada item. -->
+    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+    <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+  </UserControl.Resources>
+  <Grid x:Name="Raiz" Width="64" Padding="0,4,0,8" XYFocusKeyboardNavigation="Enabled" TabFocusNavigation="Once">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
-    <StackPanel x:Name="Cima" Grid.Row="0" Spacing="2"/>
-    <StackPanel x:Name="Baixo" Grid.Row="2" Spacing="2"/>
+    <StackPanel x:Name="Cima" Grid.Row="0" Spacing="2" XYFocusKeyboardNavigation="Enabled"/>
+    <StackPanel x:Name="Baixo" Grid.Row="2" Spacing="2" XYFocusKeyboardNavigation="Enabled"/>
   </Grid>
 </UserControl>

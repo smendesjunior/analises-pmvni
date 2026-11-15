@@ -24,6 +24,8 @@ namespace Pmvni.App;
 public sealed partial class MainWindow : Window, ITelaEdicao
 {
     const string TituloPadrao = "Editor de Relatórios PMVNI";
+    /// <summary>O título fixo da barra (a marca é o brasão ao lado); o documento aberto vai no subtítulo.</summary>
+    const string TituloDaBarra = "Editor de Relatórios";
     static readonly double[] PassosZoom = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
     static readonly TimeSpan LimiteTela = TimeSpan.FromSeconds(15);
 
@@ -40,6 +42,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     double zoom = 1;
     string modoZoom = "manual"; // manual | largura | pagina
     int folhaAtual;
+    string textoTitulo = TituloPadrao, textoEstado = "";
 
     PaginaRelatorios R => Relatorios;
 
@@ -50,8 +53,12 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal double Zoom => zoom;
     internal int FolhaAtual => folhaAtual;
     internal bool Ocupado => ocupado;
-    internal string TextoEstadoAtual => BarraTitulo.Subtitle ?? "";
-    internal string TextoTituloAtual => BarraTitulo.Title ?? "";
+    /// <summary>O estado de gravação ("Salvo às …", "Não salvo"…), como aparece no subtítulo da barra ("" sem relatório).</summary>
+    internal string TextoEstadoAtual => textoEstado;
+    /// <summary>O título do documento aberto ("Proc. NNNN/AAAA · Requerente"), ou o nome do app sem relatório.</summary>
+    internal string TextoTituloAtual => textoTitulo;
+    internal string TextoBarraTitulo => BarraTitulo.Title ?? "";
+    internal string TextoSubtituloBarra => BarraTitulo.Subtitle ?? "";
     internal string TextoComposicaoAtual => R.TextoComposicao.Text;
     internal string TextoFolhaAtual => R.TextoFolha.Text;
     internal bool ExportarHabilitado => Faixa.Habilitado(ComandosApp.ArquivoExportarPdf);
@@ -335,6 +342,12 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         manipuladores[ComandosApp.ExibirPainel] = () => { AlternarPainel(); return Task.CompletedTask; };
         manipuladores[ComandosApp.AjudaAtalhos] = MostrarAtalhosAsync;
         manipuladores[ComandosApp.AjudaSobre] = MostrarSobreAsync;
+        // Ctrl+1 … Ctrl+5: o módulo do trilho (como clicar nele).
+        foreach (var m in Faixas.Disponiveis)
+        {
+            var modulo = m;
+            manipuladores[Modulos.Comando(modulo)] = () => MudarModuloAsync(modulo);
+        }
     }
 
     /// <summary>Executa o comando da faixa (ou do atalho) pelo id, se ele existe e está habilitado.</summary>
@@ -395,6 +408,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             case "Plus": yield return (mods, (VirtualKey)187); yield return (mods, VirtualKey.Add); break;
             case "Minus": yield return (mods, (VirtualKey)189); yield return (mods, VirtualKey.Subtract); break;
             case "0": yield return (mods, VirtualKey.Number0); yield return (mods, VirtualKey.NumberPad0); break;
+            // Ctrl+1 … Ctrl+5 (trilho): "1" não pode ir para Enum.TryParse (viraria o valor numérico 1, o botão esquerdo do mouse).
+            case [var d] when d is >= '1' and <= '9':
+                yield return (mods, VirtualKey.Number0 + (d - '0'));
+                yield return (mods, VirtualKey.NumberPad0 + (d - '0'));
+                break;
             case "ArrowUp": yield return (mods, VirtualKey.Up); break;
             case "ArrowDown": yield return (mods, VirtualKey.Down); break;
             case var t when Enum.TryParse<VirtualKey>(t, out var k): yield return (mods, k); break;
@@ -630,8 +648,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         var r = sessao?.Atual;
         // O nome do arquivo entra no título quando a capa não tem processo nem requerente: segue o arquivo atual (Salvar como).
         var titulo = r is null || sessao is null ? null : TituloJanela.De(r.Dados.Processo, r.Dados.Requerente, Path.GetFileNameWithoutExtension(sessao.Caminho));
-        BarraTitulo.Title = titulo ?? TituloPadrao;
-        BarraTitulo.Subtitle = sessao is null ? "" : EstadoGravacaoTexto.Texto(sessao.Estado, sessao.SalvoEmLocal);
+        textoTitulo = titulo ?? TituloPadrao;
+        textoEstado = sessao is null ? "" : EstadoGravacaoTexto.Texto(sessao.Estado, sessao.SalvoEmLocal);
+        // A marca não se repete (auditoria B9): o título da barra é sempre "Editor de Relatórios"; o subtítulo leva o documento e o estado.
+        BarraTitulo.Title = TituloDaBarra;
+        BarraTitulo.Subtitle = titulo is null ? textoEstado : textoEstado.Length == 0 ? titulo : titulo + "  ·  " + textoEstado;
         Title = titulo is null ? TituloPadrao : titulo + " — " + TituloPadrao;
         AtualizarComandos();
     }

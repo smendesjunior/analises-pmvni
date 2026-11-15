@@ -24,10 +24,10 @@ public class AtalhosTestes
             .ToHashSet(StringComparer.Ordinal);
 
     [Fact]
-    public void atalhos_sao_as_16_teclas_da_ponte()
+    public void atalhos_sao_as_21_teclas_da_ponte()
     {
         var ponte = TeclasDaPonte();
-        Assert.Equal(16, ponte.Count);
+        Assert.Equal(21, ponte.Count);
         Assert.Equal(ponte.Order(StringComparer.Ordinal), Atalhos.Mapa.Keys.Order(StringComparer.Ordinal));
         Assert.Equal(ComandosApp.ArquivoAbrir, Atalhos.Comando("Ctrl+O"));
         Assert.Equal(ComandosApp.InicioExcluirRestaurar, Atalhos.Comando("Delete"));
@@ -69,10 +69,10 @@ public class AtalhosTestes
     public void atalhos_da_legislacao_sao_os_do_leitor()
     {
         var leitor = TeclasDoLeitor();
-        Assert.Equal(10, leitor.Count);
+        Assert.Equal(15, leitor.Count);
         Assert.Equal(leitor.Order(StringComparer.Ordinal), Atalhos.MapaLegislacao.Keys.Order(StringComparer.Ordinal));
         var faixa = Faixas.Comandos(Faixas.Para(Modulo.Legislacao)).Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
-        Assert.All(Atalhos.MapaLegislacao.Values, id => Assert.True(faixa.Contains(id) || id == ComandosApp.PesquisaFocar, id));
+        Assert.All(Atalhos.MapaLegislacao.Values, id => Assert.True(faixa.Contains(id) || id == ComandosApp.PesquisaFocar || Modulos.DoComando(id) is not null, id));
         Assert.Equal(Atalhos.MapaLegislacao.Count, Atalhos.MapaLegislacao.Values.Distinct(StringComparer.Ordinal).Count());
         Assert.Equal("Ctrl+Shift+C", Atalhos.Tecla(ComandosApp.LegislacaoCopiarCitacao, Modulo.Legislacao));
         Assert.Equal("F3", Atalhos.Tecla(ComandosApp.LegislacaoOcorrenciaProxima, Modulo.Legislacao));
@@ -81,7 +81,7 @@ public class AtalhosTestes
     [Fact]
     public void atalhos_do_relatorio_nao_mudam()
     {
-        Assert.Equal(16, Atalhos.Mapa.Count);
+        Assert.Equal(21, Atalhos.Mapa.Count);
         Assert.Equal(ComandosApp.ExibirLargura, Atalhos.Comando("Ctrl+0", Modulo.Relatorios));
         Assert.Equal(ComandosApp.LegislacaoAjustarLargura, Atalhos.Comando("Ctrl+0", Modulo.Legislacao));
         Assert.Equal(ComandosApp.InicioItemProximo, Atalhos.Comando("Alt+ArrowDown", Modulo.Relatorios));
