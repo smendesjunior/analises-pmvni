@@ -255,6 +255,9 @@ public sealed partial class MainWindow
         c.TextoMensagem.Visibility = mensagem is null ? Visibility.Collapsed : Visibility.Visible;
 
         c.TextoSituacao.Text = LinhaSituacaoAgente(p);
+        // Cabeçalho do expansor em Ajustes › Inteligência artificial: o nome e a situação (auditoria §3.3).
+        var expansor = p == Provedor.ChatGpt ? PaginaDeAjustes.ExpansorChatGpt : PaginaDeAjustes.ExpansorClaude;
+        expansor.Header = (p == Provedor.ChatGpt ? "ChatGPT (Codex)" : "Claude (Claude Code)") + "  ·  " + c.TextoSituacao.Text.Split('\n')[0].Trim();
         var avisos = AvisosDoAgente(p);
         c.TextoAvisosDoTeste.Text = string.Join(Environment.NewLine, avisos);
         c.TextoAvisosDoTeste.Visibility = avisos.Count == 0 ? Visibility.Collapsed : Visibility.Visible;

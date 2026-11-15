@@ -40,7 +40,7 @@ public sealed partial class MainWindow
         // T10-C1: órfãos do diário com mais de 30 dias saem na abertura do app (fora da thread da interface; falha só não limpa).
         _ = Task.Run(() =>
         {
-            try { DiarioDaSessao.LimparOrfaosAntigos(Pmvni.Composicao.Web.PastaDados.Raiz, DateTime.UtcNow); }
+            try { DiarioDaSessao.LimparOrfaosAntigos(Pmvni.Composicao.Web.PastaDados.Raiz, DateTime.UtcNow, TimeSpan.FromDays(ajustes.RecuperacaoDias)); }
             catch (Exception e) { System.Diagnostics.Debug.WriteLine("[órfãos] " + e.Message); }
         });
     }

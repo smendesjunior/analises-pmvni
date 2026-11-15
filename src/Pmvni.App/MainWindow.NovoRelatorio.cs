@@ -172,6 +172,8 @@ public sealed partial class MainWindow
         var emCurso = sessaoNR.Execucoes.Where(e => !e.Abandonada).ToList();
         if (execucaoMostrada is null && emCurso.Count > 0) MostrarExecucaoNR(emCurso[0]);
         else if (execucaoMostrada is null) NR.MostrarExecucao(false);
+        // Ajustes › Inteligência artificial › Pedido padrão: o texto que já vem na caixa (só se ela estiver vazia; nada digitado se perde).
+        if (string.IsNullOrEmpty(NR.CaixaPedido.Text) && ajustes.PedidoPadrao.Length > 0) NR.CaixaPedido.Text = ajustes.PedidoPadrao;
         tarefaListaNR = CarregarProcessosNRAsync(origem, selecionado, aberto);
         await tarefaListaNR;
         await LerPecasAsync();
@@ -647,7 +649,8 @@ public sealed partial class MainWindow
     internal async Task<bool> CancelarAnaliseAsync(ExecucaoEmCurso e)
     {
         var chatgpt = e.Provedor == Provedor.ChatGpt;
-        if (!await Perguntas.Atual.ConfirmarAsync(chatgpt ? FluxoNovoRelatorio.CancelarChatGptTitulo : FluxoNovoRelatorio.CancelarClaudeTitulo,
+        // Ajustes › Inteligência artificial › "Confirmar antes de cancelar uma análise" (padrão: ligado, como sempre).
+        if (ajustes.ConfirmarCancelar && !await Perguntas.Atual.ConfirmarAsync(chatgpt ? FluxoNovoRelatorio.CancelarChatGptTitulo : FluxoNovoRelatorio.CancelarClaudeTitulo,
                 chatgpt ? FluxoNovoRelatorio.CancelarChatGptTexto : FluxoNovoRelatorio.CancelarClaudeTexto, FluxoNovoRelatorio.CancelarAnalise, FluxoNovoRelatorio.Voltar))
             return false;
         var ok = await sessaoNR.CancelarAsync(e);
@@ -738,7 +741,8 @@ public sealed partial class MainWindow
         var ativas = sessaoNR.Execucoes.Where(e => !e.Abandonada && tratadas?.Contains(e) != true).ToList();
         foreach (var e in ativas.Where(e => e.Provedor == Provedor.ChatGpt))
         {
-            if (!await Perguntas.Atual.ConfirmarAsync(FluxoNovoRelatorio.FecharTitulo, FluxoNovoRelatorio.TextoFecharChatGpt(e.Processo), FluxoNovoRelatorio.FecharSim, FluxoNovoRelatorio.FecharNao))
+            // Ajustes › Inteligência artificial › "Avisar ao fechar…" desligado: fecha e cancela sem perguntar.
+            if (ajustes.ConfirmarFechar && !await Perguntas.Atual.ConfirmarAsync(FluxoNovoRelatorio.FecharTitulo, FluxoNovoRelatorio.TextoFecharChatGpt(e.Processo), FluxoNovoRelatorio.FecharSim, FluxoNovoRelatorio.FecharNao))
                 return false;
         }
         foreach (var e in ativas.Where(e => e.Provedor == Provedor.ChatGpt))

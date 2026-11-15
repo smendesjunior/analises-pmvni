@@ -187,7 +187,7 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
 
     public async Task<RespostaRecuperacao> RecuperarAsync(DateTimeOffset ultimo, int comandos)
     {
-        var quando = ultimo.ToLocalTime().ToString("dd/MM/yyyy 'às' HH:mm", CultureInfo.GetCultureInfo("pt-BR"));
+        var quando = ultimo.ToLocalTime().ToString("dd/MM/yyyy 'às' HH:mm", Formatos.Cultura);
         var texto = (comandos == 1 ? "Há 1 alteração" : $"Há {comandos} alterações")
             + $" que não chegou ao arquivo (a última em {quando}). Recuperar refaz essas alterações; descartar abre o arquivo como está gravado.";
         var r = await Mostrar(Dialogo("Recuperar alterações não gravadas?", texto, "Recuperar", "Descartar"));

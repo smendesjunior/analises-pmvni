@@ -160,6 +160,10 @@ public sealed partial class MainWindow
         // aberta ou todas as leis; Ajustes: nada.
         var habilitada = moduloAtual switch { Modulo.Relatorios => temRelatorio, Modulo.Processos or Modulo.Despachos or Modulo.Legislacao => true, _ => false };
         CaixaPesquisa.IsEnabled = habilitada;
+        // Desabilitada diz o motivo (auditoria M6), na dica e para o Narrador.
+        var motivo = habilitada ? "" : moduloAtual == Modulo.Relatorios ? "Abra um relatório para pesquisar nele." : "Não há o que pesquisar nos Ajustes.";
+        Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(CaixaPesquisa, habilitada ? CaixaPesquisa.PlaceholderText + " (Ctrl+F)" : motivo);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(CaixaPesquisa, motivo);
         // Anterior e próxima andam pelas ocorrências nas folhas (e, na Legislação, pelas da lei aberta: quem acerta é o contador dela).
         if (moduloAtual == Modulo.Legislacao) return;
         BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = habilitada && moduloAtual == Modulo.Relatorios && pesquisaTotal > 0;

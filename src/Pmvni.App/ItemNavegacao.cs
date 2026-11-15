@@ -50,6 +50,12 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
     public Visibility SituacaoVisivel => Situacao is null ? Visibility.Collapsed : Visibility.Visible;
     public Visibility AlteradoVisivel => Alterado ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>O que o Narrador lê na linha (auditoria A3/M10): "Item 07, Recuos, Não atende, alterado, folha 4" (a situação, que na tela
+    /// é só a cor do ponto, vai por extenso).</summary>
+    public string NomeAcessivel => NomesAcessiveis.ItemNavegacao(Rotulo, Secao, TextoSituacao, Alterado, Folha);
+
+    public override string ToString() => NomeAcessivel;
+
     public bool Atual
     {
         get => atual;

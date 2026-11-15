@@ -12,7 +12,8 @@
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <StackPanel Grid.Row="0" Spacing="1">
+    <!-- Avisos (no máximo 2 à vista; o resto em "+n"; informativos fecham sozinhos). -->
+    <local:AreaDeAvisos x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0">
       <InfoBar x:Name="AvisoPasta" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="">
         <InfoBar.ActionButton>
           <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Abrir Ajustes"/>
@@ -20,7 +21,7 @@
       </InfoBar>
       <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
       <!-- Depois de gravar um despacho (Novo despacho ou Gerar PDF): o que foi gravado e onde, com os botões para abrir. -->
-      <InfoBar x:Name="AvisoGravado" x:FieldModifier="internal" Severity="Success" IsOpen="False" IsClosable="True" Title="Despacho gravado">
+      <InfoBar x:Name="AvisoGravado" x:FieldModifier="internal" Severity="Success" IsOpen="False" IsClosable="True" Title="Despacho gravado" Tag="fixo">
         <InfoBar.Content>
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Button x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" Content="Abrir DOCX"/>
@@ -29,7 +30,7 @@
           </StackPanel>
         </InfoBar.Content>
       </InfoBar>
-    </StackPanel>
+    </local:AreaDeAvisos>
 
     <Grid Grid.Row="1" Padding="20,10,16,6" ColumnSpacing="8">
       <Grid.ColumnDefinitions>
@@ -45,15 +46,21 @@
               AutomationProperties.Name="Despachos">
       <ListView.ItemTemplate>
         <DataTemplate x:DataType="local:ItemDespacho">
-          <StackPanel Padding="0,5" Spacing="1">
+          <StackPanel Padding="0,5" Spacing="1" AutomationProperties.Name="{x:Bind NomeAcessivel}">
             <TextBlock Text="{x:Bind Titulo}" Style="{StaticResource BodyStrongTextBlockStyle}" Visibility="{x:Bind EhGrupo}" Margin="0,8,0,0"/>
-            <TextBlock Text="{x:Bind Titulo}" Visibility="{x:Bind EhDespacho}" TextTrimming="CharacterEllipsis"/>
-            <TextBlock Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind EhDespacho}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{x:Bind Titulo}" Visibility="{x:Bind EhDespacho}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Titulo}"/>
+            <TextBlock Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind EhDespacho}" TextTrimming="CharacterEllipsis"
+                       ToolTipService.ToolTip="{x:Bind Detalhe}"/>
           </StackPanel>
         </DataTemplate>
       </ListView.ItemTemplate>
     </ListView>
-    <TextBlock x:Name="TextoListaVazia" x:FieldModifier="internal" Grid.Row="2" Margin="20,12" TextWrapping="Wrap" Visibility="Collapsed"
-               Style="{StaticResource PmvniSecondaryTextStyle}"/>
+    <!-- Lista vazia (M5): o ícone do módulo acima do texto (o texto e a visibilidade vêm da janela). -->
+    <StackPanel Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="460" Padding="24"
+                Visibility="{Binding Visibility, ElementName=TextoListaVazia}">
+      <ContentPresenter Width="48" Height="48" HorizontalAlignment="Center" ContentTemplate="{StaticResource PmvniIconeDespachos}" IsHitTestVisible="False"/>
+      <TextBlock x:Name="TextoListaVazia" x:FieldModifier="internal" TextWrapping="Wrap" TextAlignment="Center" Visibility="Collapsed"
+                 Style="{StaticResource PmvniSecondaryTextStyle}"/>
+    </StackPanel>
   </Grid>
 </UserControl>

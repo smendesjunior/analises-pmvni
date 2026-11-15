@@ -41,7 +41,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     bool ocupado, fechada, fecharDeVez, fechando;
     double zoom = 1;
     string modoZoom = "manual"; // manual | largura | pagina
-    int folhaAtual;
+    int folhaAtual, totalFolhas;
+    bool mudandoCaixaFolha;
     string textoTitulo = TituloPadrao, textoEstado = "";
 
     PaginaRelatorios R => Relatorios;
@@ -60,7 +61,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal string TextoBarraTitulo => BarraTitulo.Title ?? "";
     internal string TextoSubtituloBarra => BarraTitulo.Subtitle ?? "";
     internal string TextoComposicaoAtual => R.TextoComposicao.Text;
-    internal string TextoFolhaAtual => R.TextoFolha.Text;
+    internal string TextoFolhaAtual => totalFolhas == 0 ? "" : $"folha {folhaAtual} de {totalFolhas}";
+    internal IndicadorAvisos IndicadorLayout => R.IndicadorLayout;
+    internal EstadoVazio EstadoVazioRelatorios => R.TextoVazio;
     internal bool ExportarHabilitado => Faixa.Habilitado(ComandosApp.ArquivoExportarPdf);
     internal string DicaExportar => Faixa.Dica(ComandosApp.ArquivoExportarPdf);
     internal IReadOnlyList<ItemNavegacao> Itens => itensNavegacao;
@@ -129,13 +132,21 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         ajustes = CarregarAjustes();
         AplicarTemaDosAjustes();
         Raiz.Loaded += (_, _) => DimensionarJanela();
-        Raiz.SizeChanged += (_, e) => Faixa.Compacta = e.NewSize.Width < 1000;
+        Raiz.SizeChanged += (_, e) => AplicarLargura(e.NewSize.Width);
         R.ListaNavegacao.ItemsSource = itensNavegacao;
         R.ListaNavegacao.ItemClick += AoClicarItem;
         R.BotaoMenos.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.ExibirMenos);
         R.BotaoMais.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.ExibirMais);
         R.BotaoLargura.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.ExibirLargura);
         R.BotaoPagina.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.ExibirPagina);
+        // "Folha n de M" (M4): digitar o número e Enter leva à folha; "Ir à folha N" do indicador de layout (A2) também.
+        R.CaixaFolha.ValueChanged += async (_, e) =>
+        {
+            if (mudandoCaixaFolha || double.IsNaN(e.NewValue) || sessao?.Atual is null) return;
+            await TentarAsync(() => IrParaFolhaAsync((int)e.NewValue));
+        };
+        R.IndicadorLayout.IrParaFolha += async folha => await TentarAsync(() => IrParaFolhaAsync(folha));
+        IniciarEstadoVazio();
         R.Navegador.Opacity = 0; // nada aberto: só o texto de "importe ou abra"
         reajuste = DispatcherQueue.GetForCurrentThread().CreateTimer();
         reajuste.Interval = TimeSpan.FromMilliseconds(250);
@@ -163,11 +174,16 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Faixa.AbaMudou += nome => { ajustes.AbaPorModulo[moduloAtual] = nome; SalvarAjustes(); };
         TrilhoModulos.Montar(Faixas.Disponiveis);
         TrilhoModulos.ModuloEscolhido += async m => await TentarAsync(() => MudarModuloAsync(m));
-        MontarModulo(Faixas.Disponiveis.Contains(ajustes.Modulo) ? ajustes.Modulo : Faixas.Disponiveis[0]);
+        // Ajustes › Geral › "Ao abrir o editor": o último módulo usado (padrão) ou o escolhido.
+        var inicial = ajustes.ModuloAoAbrir();
+        MontarModulo(Faixas.Disponiveis.Contains(inicial) ? inicial : Faixas.Disponiveis[0]);
+        AplicarPaineisDosAjustes();
+        AppWindow.Changed += (_, e) => { if (e.DidSizeChange || e.DidPositionChange || e.DidPresenterChange) GuardarRetanguloDaJanela(); };
 
         AppWindow.Closing += AoFecharJanela;
         Closed += (_, _) =>
         {
+            GuardarJanelaNosAjustes();
             fechada = true;
             sessaoNR.Encerrar();      // nenhum Codex fica sem dono (nem um que ainda ia partir)
             leituraDaLista?.Cancel(); // a leitura das pastas de processos em segundo plano para junto com a janela
@@ -190,12 +206,81 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     // ---------- inicialização ----------
 
-    /// <summary>Tamanho inicial em DIPs (1600 x 1000), reduzido para caber na área de trabalho do monitor.</summary>
+    /// <summary>Tamanho inicial em DIPs (1600 x 1000), reduzido para caber na área de trabalho do monitor; com Ajustes › Geral › "Lembrar
+    /// tamanho e posição" ligado (fora do roteiro), o retângulo guardado, se ainda cabe num monitor.</summary>
     void DimensionarJanela()
     {
+        if (ajustes.LembrarJanela && ajustes.Janela is { Valida: true } g && Argumentos.Atual.Roteiro is null)
+        {
+            var retangulo = new Windows.Graphics.RectInt32(g.X, g.Y, g.Largura, g.Altura);
+            if (DisplayArea.GetFromRect(retangulo, DisplayAreaFallback.None) is not null)
+            {
+                AppWindow.MoveAndResize(retangulo);
+                if (g.Maximizada && AppWindow.Presenter is OverlappedPresenter p) p.Maximize();
+                return;
+            }
+        }
         var escala = Raiz.XamlRoot?.RasterizationScale ?? 1.0;
         var area = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
         AppWindow.Resize(new Windows.Graphics.SizeInt32((int)Math.Min(1600 * escala, area.Width * 0.96), (int)Math.Min(1000 * escala, area.Height * 0.96)));
+    }
+
+    Windows.Graphics.RectInt32? ultimoRetangulo;
+
+    /// <summary>O último retângulo da janela fora de maximizada (é o que volta ao reabrir, maximizada ou não).</summary>
+    void GuardarRetanguloDaJanela()
+    {
+        try
+        {
+            if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Restored })
+                ultimoRetangulo = new Windows.Graphics.RectInt32(AppWindow.Position.X, AppWindow.Position.Y, AppWindow.Size.Width, AppWindow.Size.Height);
+        }
+        catch (Exception e) { System.Diagnostics.Debug.WriteLine("[janela] " + e.Message); }
+    }
+
+    void GuardarJanelaNosAjustes()
+    {
+        if (!ajustes.LembrarJanela || Argumentos.Atual.Roteiro is not null) return;
+        try
+        {
+            var maximizada = AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized };
+            var r = ultimoRetangulo ?? new Windows.Graphics.RectInt32(AppWindow.Position.X, AppWindow.Position.Y, AppWindow.Size.Width, AppWindow.Size.Height);
+            var g = new JanelaGuardada(r.X, r.Y, r.Width, r.Height, maximizada);
+            if (!g.Valida) return;
+            ajustes.Janela = g;
+            SalvarAjustes();
+        }
+        catch (Exception e) { System.Diagnostics.Debug.WriteLine("[janela] " + e.Message); }
+    }
+
+    /// <summary>Ajustes › Aparência › "Rótulos da faixa" (automático: só ícones abaixo de 1000 px) e a pesquisa entre 180 e 320 px (M8).</summary>
+    void AplicarLargura(double largura)
+    {
+        if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
+        Faixa.Compacta = ajustes.FaixaRotulos switch { "sempre" => false, "icones" => true, _ => largura < 1000 };
+        CaixaPesquisa.Width = Math.Clamp(largura * 0.2, 180, 320);
+    }
+
+    /// <summary>Ajustes › Relatórios e revisão › "Painéis ao abrir": com "Lembrar", o painel lateral e as Propriedades como ficaram.</summary>
+    void AplicarPaineisDosAjustes()
+    {
+        if (!ajustes.LembrarPaineis) return;
+        R.PainelNavegacao.Visibility = ajustes.PainelLateral ? Visibility.Visible : Visibility.Collapsed;
+        Faixa.Ligar(ComandosApp.ExibirPainel, ajustes.PainelLateral);
+        R.PainelPropriedades.Visibility = ajustes.PainelPropriedades ? Visibility.Visible : Visibility.Collapsed;
+        Faixa.Ligar(ComandosApp.ExibirPropriedades, ajustes.PainelPropriedades);
+    }
+
+    /// <summary>Guarda o estado dos dois painéis (só com "Lembrar" ligado).</summary>
+    void LembrarPaineis()
+    {
+        if (!ajustes.LembrarPaineis) return;
+        var lateral = R.PainelNavegacao.Visibility == Visibility.Visible;
+        var propriedades = R.PainelPropriedades.Visibility == Visibility.Visible;
+        if (lateral == ajustes.PainelLateral && propriedades == ajustes.PainelPropriedades) return;
+        ajustes.PainelLateral = lateral;
+        ajustes.PainelPropriedades = propriedades;
+        SalvarAjustes();
     }
 
     async Task IniciarAsync()
@@ -450,6 +535,29 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.BotaoMenos.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMenos);
         R.BotaoMais.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMais);
         R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = temRelatorio;
+        // Desabilitado diz o motivo (M6); habilitado, o atalho.
+        ToolTipService.SetToolTip(R.BotaoMenos, temRelatorio ? "Diminuir o zoom (Ctrl+−)" : "Abra um relatório para mudar o zoom.");
+        ToolTipService.SetToolTip(R.BotaoMais, temRelatorio ? "Aumentar o zoom (Ctrl++)" : "Abra um relatório para mudar o zoom.");
+        ToolTipService.SetToolTip(R.BotaoLargura, temRelatorio ? "Ajustar à largura da janela (Ctrl+0)" : "Abra um relatório para ajustar a largura.");
+        ToolTipService.SetToolTip(R.BotaoPagina, temRelatorio ? "Mostrar a página inteira" : "Abra um relatório para ver a página inteira.");
+    }
+
+    /// <summary>Leva as folhas à folha <paramref name="folha"/> (1 = primeira), da caixa "Folha n de M" ou de "Ir à folha N" do indicador.</summary>
+    internal async Task IrParaFolhaAsync(int folha)
+    {
+        if (documento is null || sessao?.Atual is null) return;
+        var d = await documento.ChamarAsync("rolarPara", new { folha = Math.Clamp(folha, 1, Math.Max(1, totalFolhas)) }, LimiteTela);
+        AplicarEstadoDaWeb(d);
+    }
+
+    /// <summary>A tela vazia de Relatórios (M5): Novo relatório, Abrir e os recentes que ainda existem.</summary>
+    void IniciarEstadoVazio()
+    {
+        R.TextoVazio.Definir(Modulo.Relatorios, "Nenhum relatório aberto",
+            "Peça um relatório novo à IA, importe o dados.json do kit (Arquivo › Importar) ou abra um relatório (.pmvrel).",
+            ("Novo relatório", Glifos.Adicionar, ComandosApp.RelatoriosNovo), ("Abrir…", ComandosApp.ArquivoAbrir));
+        R.TextoVazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
+        R.TextoVazio.RecenteEscolhido += async caminho => await AbrirRecenteAsync(caminho);
     }
 
     // ---------- importar e abrir ----------
@@ -672,18 +780,24 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             : estouros == 1 ? "1 bloco excede a página" : $"{estouros} blocos excedem a página";
         if (r.Preparado.ErrosFinais.Count > 0) R.TextoComposicao.Text += " · " + DescreverRascunho(r.Preparado.ErrosFinais);
 
+        // Avisos de layout (auditoria A2): no indicador do rodapé (padrão) ou, com Ajustes › Aparência › "Faixas no topo", nas InfoBars
+        // de antes. A lista é a mesma nos dois modos: nenhum aviso some.
+        var foraDaArea = r.Aplicacao.FolhasQueTransbordamNaLargura;
+        var avisosLayout = AvisosLayout.Montar(plano.Escala, plano.AvisosLargura.Count, foraDaArea,
+            plano.Estouros.Select(e => (e.Folha, DescreverEstouro(e))).ToList());
+        var emFaixas = ajustes.AvisosLayout == "faixas";
+        R.IndicadorLayout.Mostrar(emFaixas ? Array.Empty<AvisoLayout>() : avisosLayout);
+
         R.AvisoLargura.IsOpen = false;
-        if (plano.AvisosLargura.Count > 0)
+        if (emFaixas && plano.AvisosLargura.Count > 0)
         {
-            var reducao = (int)Math.Round((1 - 1 / plano.Escala) * 100, MidpointRounding.AwayFromZero);
             R.AvisoLargura.Title = "";
-            R.AvisoLargura.Message = $"Conteúdo mais largo que a página: o documento foi reduzido {reducao}% para caber (como na impressão do kit).";
+            R.AvisoLargura.Message = AvisosLayout.TextoReducao(plano.Escala);
             R.AvisoLargura.IsOpen = true;
         }
 
-        var foraDaArea = r.Aplicacao.FolhasQueTransbordamNaLargura;
         R.AvisoForaDaArea.IsOpen = false;
-        if (foraDaArea.Count > 0)
+        if (emFaixas && foraDaArea.Count > 0)
         {
             R.AvisoForaDaArea.Title = "";
             R.AvisoForaDaArea.Message = DescreverForaDaArea(foraDaArea);
@@ -695,7 +809,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         {
             R.AvisoEstouro.Title = estouros == 1 ? "Há um bloco maior que a página" : $"Há {estouros} blocos maiores que a página";
             R.AvisoEstouro.Message = string.Join(Environment.NewLine, plano.Estouros.Select(DescreverEstouro));
-            R.AvisoEstouro.IsOpen = true;
+            R.AvisoEstouro.IsOpen = emFaixas;
             Faixa.DefinirDica(ComandosApp.ArquivoExportarPdf, "A exportação está bloqueada: " + string.Join(" ", plano.Estouros.Select(DescreverEstouro))
                 + " Corrija o conteúdo para exportar o PDF.");
         }
@@ -742,6 +856,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         LimparPesquisa();
         R.TextoComposicao.Text = "";
         R.TextoFolha.Text = "";
+        totalFolhas = 0;
+        R.PainelFolha.Visibility = Visibility.Collapsed;
         R.Navegador.Opacity = 0;
         R.TextoVazio.Visibility = Visibility.Visible;
         Faixa.DefinirDica(ComandosApp.ArquivoExportarPdf, "Abra um relatório para exportar o PDF.");
@@ -850,8 +966,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     async Task ITelaEdicao.AjustarZoomAsync(bool primeiraVez, ResultadoAplicacao a)
     {
-        // Abrir: 100 %, ou o que couber na largura se a janela for mais estreita que a folha. Recompor: o zoom que estava.
-        if (primeiraVez) await ZoomAsync(new { ajustar = "largura", maximo = 1.0, transbordam = a.FolhasMarcadas });
+        // Abrir (Ajustes › Relatórios e revisão › "Zoom ao abrir"): largura = 100 %, ou o que couber na largura se a janela for mais estreita que
+        // a folha (o padrão, como sempre); página inteira; ou 100 % fixo. Recompor: o zoom que estava.
+        if (primeiraVez && ajustes.ZoomInicial == "pagina") await ZoomAsync(new { ajustar = "pagina" }, "pagina");
+        else if (primeiraVez && ajustes.ZoomInicial == "100") await ZoomAsync(new { zoom = 1.0 }, "manual");
+        else if (primeiraVez) await ZoomAsync(new { ajustar = "largura", maximo = 1.0, transbordam = a.FolhasMarcadas });
         else if (modoZoom == "manual") await ZoomAsync(new { zoom });
         else await ZoomAsync(new { ajustar = modoZoom });
     }
@@ -928,7 +1047,16 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (d.TryGetProperty("folha", out var f) && f.ValueKind == JsonValueKind.Number && d.TryGetProperty("total", out var t))
         {
             folhaAtual = f.GetInt32();
-            R.TextoFolha.Text = $"folha {folhaAtual} de {t.GetInt32()}";
+            totalFolhas = t.GetInt32();
+            R.TextoFolha.Text = $"de {totalFolhas}";
+            mudandoCaixaFolha = true;
+            try
+            {
+                R.CaixaFolha.Maximum = Math.Max(1, totalFolhas);
+                R.CaixaFolha.Value = folhaAtual;
+            }
+            finally { mudandoCaixaFolha = false; }
+            R.PainelFolha.Visibility = totalFolhas > 0 ? Visibility.Visible : Visibility.Collapsed;
             MarcarItemAtual(folhaAtual);
         }
     }
@@ -944,6 +1072,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         R.PainelNavegacao.Visibility = PainelVisivel ? Visibility.Collapsed : Visibility.Visible;
         Faixa.Ligar(ComandosApp.ExibirPainel, PainelVisivel);
+        LembrarPaineis();
     }
 
     // ---------- ajuda ----------
@@ -1030,6 +1159,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.AvisoSomenteLeitura.IsOpen = false;
         R.AvisoDiario.IsOpen = false;
         R.AvisoDesatualizado.IsOpen = false;
+        R.IndicadorLayout.Mostrar(Array.Empty<AvisoLayout>());
     }
 
     /// <summary>O aviso do módulo à vista: Processos e Despachos têm o seu; os outros usam o da página Relatórios.</summary>

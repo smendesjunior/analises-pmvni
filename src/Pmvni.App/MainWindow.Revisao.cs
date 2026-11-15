@@ -623,6 +623,7 @@ public sealed partial class MainWindow
     {
         R.PainelPropriedades.Visibility = visivel ? Visibility.Visible : Visibility.Collapsed;
         Faixa.Ligar(ComandosApp.ExibirPropriedades, visivel);
+        LembrarPaineis();
     }
 
     /// <summary>A Conferência: erros finais (bloqueiam a exportação), citações a itens excluídos e citações literais que a numeração
@@ -725,13 +726,14 @@ public sealed partial class MainWindow
             var linha = new Grid { Tag = x.Id, ColumnSpacing = 8, MinHeight = 32 };
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            linha.Children.Add(new TextBlock
-            {
-                Text = $"{x.NumeroOriginal:00}  {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}",
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-            var restaurar = new Button { Content = "Restaurar", Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"], IsEnabled = Editavel };
+            var tituloExcluido = $"{x.NumeroOriginal:00}  {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}";
+            var texto = new TextBlock { Text = tituloExcluido, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+            ToolTipService.SetToolTip(texto, tituloExcluido); // M11: o título inteiro na dica
+            linha.Children.Add(texto);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linha, $"Item excluído {x.NumeroOriginal:00}, {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}");
+            // B6: botão pequeno com borda (sem borda, parecia texto).
+            var restaurar = new Button { Content = "Restaurar", IsEnabled = Editavel, Padding = new Thickness(8, 2, 8, 3), VerticalAlignment = VerticalAlignment.Center };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, $"Restaurar o item {x.NumeroOriginal:00}");
             var id = x.Id;
             restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new Restaurar(id)));
             Grid.SetColumn(restaurar, 1);
@@ -831,7 +833,9 @@ public sealed partial class MainWindow
                 var marca = new TextBlock { Text = "alterado", Style = secundario, Foreground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"], VerticalAlignment = VerticalAlignment.Center };
                 Grid.SetColumn(marca, 1);
                 cabecalho.Children.Add(marca);
-                var restaurar = new Button { Content = "Restaurar", Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"], IsEnabled = editavel, Padding = new Thickness(6, 2, 6, 3) };
+                // B6: botão pequeno com borda (sem borda, parecia texto).
+                var restaurar = new Button { Content = "Restaurar", IsEnabled = editavel, Padding = new Thickness(8, 1, 8, 2), VerticalAlignment = VerticalAlignment.Center };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, "Restaurar o campo " + NomesCampos[k]);
                 ToolTipService.SetToolTip(restaurar, "Voltar este campo ao texto original");
                 var id = it.Id;
                 restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new RestaurarCampo(id, campo)));
@@ -888,6 +892,6 @@ public sealed partial class MainWindow
     static string Hora(DateTimeOffset utc)
     {
         var local = utc.ToLocalTime();
-        return local.Date == DateTime.Today ? local.ToString("HH:mm", CultureInfo.InvariantCulture) : local.ToString("dd/MM HH:mm", CultureInfo.InvariantCulture);
+        return local.Date == DateTime.Today ? local.ToString("HH:mm", Formatos.Cultura) : local.ToString("dd/MM HH:mm", Formatos.Cultura);
     }
 }

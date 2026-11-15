@@ -34,7 +34,7 @@ public sealed partial class MainWindow
     internal IConversorPdf Conversor
     {
         // Um perfil do LibreOffice só, persistente, em <dados>\lo (Ruling T16-C4): a 1ª conversão inicializa o perfil; as seguintes o reaproveitam.
-        get => conversor ??= new ConversorLibreOffice(ConversorLibreOffice.Localizar(), raizPerfil: Path.Combine(PastaDados.Raiz, "lo"));
+        get => conversor ??= new ConversorLibreOffice(ConversorLibreOffice.Localizar(ajustes.Soffice), raizPerfil: Path.Combine(PastaDados.Raiz, "lo"));
         set => conversor = value;
     }
     /// <summary>A data local de hoje (a da etapa nova); o roteiro fixa.</summary>
@@ -184,7 +184,7 @@ public sealed partial class MainWindow
         {
             var motivo = modelos is { } m ? FluxoNovoDespacho.MotivoDesabilitado(t, m, compondo) : compondo ? FluxoNovoDespacho.Compondo : "Lendo os modelos do kit…";
             Faixa.Habilitar(id, motivo is null);
-            Faixa.DefinirDica(id, motivo ?? "Novo despacho de " + RegistroModelos.Rotulo(t).ToLower(CultureInfo.GetCultureInfo("pt-BR")) + " a partir do relatório revisado");
+            Faixa.DefinirDica(id, motivo ?? "Novo despacho de " + RegistroModelos.Rotulo(t).ToLower(Formatos.Cultura) + " a partir do relatório revisado");
         }
         Faixa.Habilitar(ComandosApp.DespachosGerarPdf, !compondo && docxSemPdf is not null);
     }
@@ -658,6 +658,8 @@ public sealed partial class MainWindow
         aviso.Message = $"{arquivos} arquivos em {e.Pasta}. Recibo: {Path.GetFileName(e.Recibo)}.";
         PaginaDeDespachos.BotaoAbrirPdfGravado.Visibility = e.Pdf is null ? Visibility.Collapsed : Visibility.Visible;
         aviso.IsOpen = true;
+        // Ajustes › Despachos e PDF › "Abrir o PDF depois de gravar" (padrão: desligado, como sempre).
+        if (ajustes.DespachoAbrirPdf && e.Pdf is { } pdfGravado) AbrirNoPrograma(pdfGravado);
         // A lista é relida (a pasta nova, ou o PDF novo, aparecem) e o despacho gravado fica escolhido.
         despachoEscolhido = null;
         tarefaDaLista = CarregarListasAsync(comDespachos: true);

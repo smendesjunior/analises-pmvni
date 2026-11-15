@@ -7,6 +7,7 @@
   <!-- Medidas comuns das páginas (painéis laterais e margens). -->
   <x:Double x:Key="PmvniLarguraPainel">300</x:Double>
   <x:Double x:Key="PmvniLarguraPropriedades">320</x:Double>
+  <x:Double x:Key="PmvniLarguraLista">380</x:Double>
   <Thickness x:Key="PmvniMargemPagina">24,16,24,16</Thickness>
 
   <Style x:Key="PmvniSecondaryTextStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">

@@ -71,6 +71,8 @@ public sealed partial class MainWindow
     {
         var processos = PaginaDeProcessos;
         var despachos = PaginaDeDespachos;
+        // Ajustes › Pastas e kit › "Listas ao abrir": ordem e pastas de Processos, agrupar e ordenar Despachos (Exibir muda até fechar).
+        AplicarListasDosAjustes();
         processos.ListaProcessos.SelectionChanged += (_, _) =>
         {
             if (atualizandoListas) return;
@@ -136,6 +138,14 @@ public sealed partial class MainWindow
         manipuladores[ComandosApp.DespachosOrdenarRecentes] = () => DefinirOrdemDeDespachos(true);
         manipuladores[ComandosApp.DespachosOrdenarAntigos] = () => DefinirOrdemDeDespachos(false);
         SincronizarPastas();
+    }
+
+    void AplicarListasDosAjustes()
+    {
+        ordemProcessos = ajustes.ProcessosOrdem switch { "data" => OrdemProcessos.Data, "requerente" => OrdemProcessos.Requerente, _ => OrdemProcessos.Numero };
+        mostrarPastas = ajustes.ProcessosPastas;
+        agrupamentoDespachos = ajustes.DespachosAgrupar == "processo" ? AgrupamentoDespachos.Processo : AgrupamentoDespachos.Data;
+        despachosRecentesPrimeiro = ajustes.DespachosOrdem != "antigos";
     }
 
     Task AbrirAjustesAsync() => NaFilaAsync(() => TentarAsync(() => MudarModuloAsync(Modulo.Ajustes)));
