@@ -5,7 +5,7 @@ O nome do arquivo e do `.exe` continua sem acentos (`Editor de Relatorios PMVNI`
 
 ## O que funciona
 
-- **O programa**: continua um único arquivo, `Aplicativo\Editor de Relatorios PMVNI.exe` (89,1 MB), sem instalar e sem ser
+- **O programa**: continua um único arquivo, `Aplicativo\Editor de Relatorios PMVNI.exe` (89,2 MB), sem instalar e sem ser
   administrador. O ícone "PMVNI Projetos" está no executável (atalho), na janela e na barra de tarefas; a barra de título mostra o
   brasão da Prefeitura, com a versão clara no tema escuro. À esquerda, o **trilho** com os módulos Relatórios, Despachos, Processos,
   Legislação e Ajustes; em cima, a **faixa de opções** do módulo (abas e botões, como no Office).
@@ -70,16 +70,16 @@ O nome do arquivo e do `.exe` continua sem acentos (`Editor de Relatorios PMVNI`
 
 Tudo abaixo foi rodado nesta entrega (15/11/2026).
 
-- **Testes automáticos** (`tools\build-release.ps1`, `dotnet test` da solução em Release): **1.004 testes, todos aprovados** na rodada final (onda final de correções: 60 da montagem do relatório, 497 da revisão, dos despachos e da lógica do app, 133 da legislação, 149 dos agentes e 165 da tela, do paginador, da exportação, do leitor e da segurança). Algumas rodadas anteriores do mesmo dia tiveram uma falha isolada em testes que dependem do relógio ou do OneDrive (registradas no relatório da tarefa); cada um passou sozinho e a rodada inteira seguinte saiu verde.
-- **Autoteste do executável final**: aprovado (2 rodadas, ok, sem administrador); o PDF.js embutido confere com o `VERSAO.json` (283 arquivos, 4,75 MB). Executável: 89,1 MB. A limpeza do build liberou 999 MB no projeto e 410 MB em extrações antigas.
-- **Roteiro da tela** (`docs\roteiro-etapa-2.md`, resultado em `docs\roteiro-etapa-2.resultado.json`): **64 passos, todos
-  aprovados** (`ok: true`, nenhuma falha), com o executável final, aberto fora do pacote do Claude. O último, `64_fluxo_completo`, faz o
+- **Testes automáticos** (`tools\build-release.ps1`, `dotnet test` da solução em Release): **1.031 testes, todos aprovados** na rodada final (integração da onda final de correções com a rodada de interface, duas execuções inteiras seguidas do `build-release.ps1` verdes: 60 da montagem do relatório, 524 da revisão, dos despachos e da lógica do app, 133 da legislação, 149 dos agentes e 165 da tela, do paginador, da exportação, do leitor e da segurança). Algumas rodadas anteriores do mesmo dia tiveram uma falha isolada em testes que dependem do relógio ou do OneDrive (registradas no relatório da tarefa); cada um passou sozinho e a rodada inteira seguinte saiu verde.
+- **Autoteste do executável final**: aprovado (2 rodadas, ok, sem administrador); o PDF.js embutido confere com o `VERSAO.json` (283 arquivos, 4,75 MB). Executável: 89,2 MB. A limpeza do build liberou 1.001 MB no projeto e 411 MB em extrações antigas.
+- **Roteiro da tela** (`docs\roteiro-etapa-2.md`, resultado em `docs\roteiro-etapa-2.resultado.json`): **69 passos, todos
+  aprovados** (`ok: true`, nenhuma falha), com o executável final, aberto fora do pacote do Claude. Os passos 65 a 69 conferem a interface (ícones e seleção do trilho, avisos de layout no indicador, Ajustes por categorias, nomes acessíveis, botão primário) e gravam as capturas da janela em `tests\saida\capturas`. O `64_fluxo_completo` faz o
   caminho inteiro em sequência: Novo relatório pelo agente falso → editar, situação, excluir e desfazer → salvar, fechar e reabrir →
   exportar PDF → pesquisar → tema → Recentes → Comparar → Novo despacho de correção com o LibreOffice real → anexar, pesquisar, citar e
   excluir uma lei fictícia; no fim confere que nenhuma chave falsa ficou em arquivo, que nada foi gravado fora de `tests\saida\roteiro`,
   `tests\saida\dados-app` e `tests\saida\agente-falso` e que só partiram os programas da trava do roteiro: o agente falso e o
   LibreOffice (o `soffice` exato que o editor acha), que converte os despachos dos passos 44 e 64 e aparece em `programas_iniciados`
-  (`fora_do_agente_falso` conta as partidas dele). Latência de um comando no relatório longo: 700 ms (meta 1,5 s).
+  (`fora_do_agente_falso` conta as partidas dele). Latência de um comando no relatório longo: 623 ms (meta 1,5 s).
 - **Comparação com o kit** (`python -I tools\fidelidade.py tudo`, código 0; detalhes em `docs\fidelidade.md`): 7 relatórios (5 de
   teste, o `dados_modelo` e 1 processo real, não citado nem copiado). V1 (HTML igual ao do kit) 7/7; V2 (tela × PDF do editor) 7/7, maior
   diferença 1,42 %; V3 (PDF do editor × PDF do kit) 7/7, maior diferença 1,66 %; **V5** (o relatório refeito a partir do pacote `.pmvrel`
