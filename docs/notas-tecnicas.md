@@ -214,6 +214,24 @@ O `longo` fica em cerca de um sexto da meta de 1,5 s. A recomposição soma à l
 `longo`); a primeira rodada de cada caso é a mais lenta (aquecimento do WebView2 e do renderizador), e a mediana a descarta. A
 medida não inclui o zoom inicial nem a pintura da janela do app (Tarefa 9).
 
+## Latência de um comando (Etapa 2)
+
+Medida de ponta a ponta na janela do app, no roteiro da entrega (`19_latencia`, 15/11/2026, executável final, monitor 150 %,
+janela 1265 × 701 DIP): mediana de 5 comandos de situação no `longo` (21 folhas), do comando até a tela recomposta e aplicada.
+
+| rodada do roteiro | medidas (ms) | mediana | meta ≤ 1,5 s |
+|---|---|---|---|
+| final da Tarefa 14 (todos os 64 passos ok) | 637 / 700 / 719 / 688 / 701 | **700 ms** | atingida |
+| rodada anterior do mesmo dia | 1521 / 1620 / 1591 / 1724 / 1521 | 1591 ms | não atingida |
+
+A meta de 1,5 s é **atingida** na rodada final. A rodada anterior passou da meta (a causa não foi isolada; o mesmo executável e
+o mesmo corpus deram 700 ms depois, o que aponta para carga do computador); a medida não é barreira (Ruling PF9), só registro. Em comparação com a tabela da Tarefa 6 acima (254 ms no
+`longo`, só preparar + compor + aplicar nos hosts de teste), a janela soma o zoom, a pintura, o diário e a fila de comandos. A
+recomposição incremental (desenho §8.4) fica para depois: com 700 ms ela não é necessária agora, mas é o caminho se relatórios maiores
+passarem da meta.
+
+Na mesma rodada, as conversões do LibreOffice (perfil persistente, passo 44) levaram 60,3 / 53,8 / 50,9 / 52,0 s.
+
 ## Gravação do pacote: janela residual (Etapa 2, Tarefa 4)
 
 `Pacote.Gravar` confere o estado do `.pmvrel` no disco (sha256 e tamanho; a data não conta) e logo depois troca o arquivo com

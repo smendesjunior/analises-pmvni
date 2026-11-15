@@ -1,11 +1,19 @@
 {
   "nome": "Editor de Relatorios PMVNI",
   "ordem": 84,
-  "usadoPor": "Editor e revisão humana dos relatórios técnicos da PMVNI (entre a análise da IA e o PDF/despacho). Executável único e portátil em Aplicativo\\, sem instalação, admin ou serviço; usa o WebView2 do Windows. Dados em %LOCALAPPDATA%\\EditorRelatoriosPMVNI (não guardados: contêm dados de processos). Projeto separado do kit PMVNI: lê o kit (modelos HTML, só leitura) se estiver presente, nunca o altera, e o kit não é recriado por esta receita. Para compilar: .NET SDK 10, Node e Python 3.14 + PyMuPDF (já recriados pelas receitas do sistema), via tools\\build-release.ps1. Os testes de fidelidade (tools\\fidelidade.py) gravam temporários em %USERPROFILE%\\.pmvni-fid (fora do OneDrive; apagado no fim de cada rodada; nada a recriar).",
+  "usadoPor": "Editor e revisão humana dos relatórios técnicos da PMVNI (entre a análise da IA e o PDF/despacho). Executável único e portátil em Aplicativo\\, sem instalação, admin ou serviço; usa o WebView2 do Windows; o PDF.js do leitor de legislação vai dentro do executável (nada a instalar). Relatórios revisados no pacote .pmvrel. Dados em %LOCALAPPDATA%\\EditorRelatoriosPMVNI: as pastas recuperacao, edicao, despachos e o ajustes.json NÃO são guardados (contêm dados de processos); a pasta legislacao (catalogo.json e cópias <sha>.pdf dos PDFs de legislação anexados em Ajustes, atos públicos) é guardada por esta receita; a pasta segredos (chave de API do Novo relatório, protegida por DPAPI) NÃO é guardada: depois de formatar, digite a chave de novo em Ajustes › Inteligência artificial. Lê a pasta PROCESSOS do PMVNI e só cria nela o .pmvrel de uma importação e, ao gravar um despacho, a pasta DESPACHO NN com DOCX, PDF e recibo. Lê no kit PMVNI (só leitura, nunca altera) os modelos HTML do relatório, os modelos de despacho e as referências do plugin despacho; o kit não é recriado por esta receita (receita 32-kit-pmvni). O PDF do despacho sai pelo LibreOffice (instalado pelo instalador do kit). Novo relatório (Analisar com o ChatGPT / com o Claude): o editor só inicia, como o próprio usuário e fora de pacote, o Codex CLI do app do ChatGPT/Codex com o plugin analise (receita 30-codex e 32-kit-pmvni) ou o analise-pro do kit instalado no Codex, pelo Python 3.14, que chama o Claude Code (receita 40-claude); eles fazem a análise. Grava na pasta do processo os anexos copiados, .pmvni-ai\\editor\\… (registro da execução) e o .pmvrel importado. Para compilar: .NET SDK 10, Node e Python 3.14 + PyMuPDF (já recriados pelas receitas do sistema), via tools\\build-release.ps1. Os testes de fidelidade (tools\\fidelidade.py) gravam temporários em %USERPROFILE%\\.pmvni-fid (fora do OneDrive; apagado no fim de cada rodada; nada a recriar).",
   "passos": [
     {
+      "tipo": "arquivo",
+      "nome": "PDFs de legislação anexados no editor (catálogo e cópias; atos públicos, sem segredos)",
+      "local": "%LOCALAPPDATA%\\EditorRelatoriosPMVNI\\legislacao",
+      "guardado": "editor-relatorios-pmvni\\legislacao",
+      "filtro": "^(catalogo\\.json|[0-9a-f]{64}\\.pdf)$",
+      "opcional": true
+    },
+    {
       "tipo": "manual",
-      "texto": "Editor de Relatórios PMVNI: não precisa instalar. Abra Aplicativo\\Editor de Relatorios PMVNI.exe (a primeira abertura demora uns 15 s). Para gerar uma versão nova, rode tools\\build-release.ps1.",
+      "texto": "Editor de Relatórios PMVNI: não precisa instalar. Abra Aplicativo\\Editor de Relatorios PMVNI.exe (a primeira abertura demora uns 15 s). Se usar chave de API no Novo relatório, digite-a de novo em Ajustes › Inteligência artificial. Para gerar uma versão nova, rode tools\\build-release.ps1.",
       "abrir": "%APP%\\Aplicativo"
     }
   ],
@@ -47,7 +55,7 @@
       "tipo": "python",
       "versao": "3.14",
       "aviso": true,
-      "nome": "Python 3.14 (só para os testes de fidelidade)"
+      "nome": "Python 3.14 (Novo relatório: Analisar com o Claude, pelo análise pro do kit; e testes de fidelidade)"
     },
     {
       "tipo": "saida",
@@ -58,6 +66,36 @@
         "import fitz;print('pymupdf-ok')"
       ],
       "padrao": "pymupdf-ok",
+      "aviso": true
+    },
+    {
+      "tipo": "arquivo",
+      "caminho": "%ProgramFiles%\\LibreOffice\\program\\soffice.com",
+      "nome": "LibreOffice (PDF dos despachos; instalado pelo instalador do kit PMVNI)",
+      "aviso": true
+    },
+    {
+      "tipo": "arquivo",
+      "caminho": "%LOCALAPPDATA%\\OpenAI\\Codex\\bin\\*\\codex.exe",
+      "nome": "Codex CLI (Analisar com o ChatGPT; instalado pelo app do ChatGPT/Codex)",
+      "aviso": true
+    },
+    {
+      "tipo": "comando",
+      "nome": "claude",
+      "aviso": true
+    },
+    {
+      "tipo": "contem",
+      "caminho": "%USERPROFILE%\\.codex\\config.toml",
+      "texto": "[plugins.\"analise@pmvni-kit\"]",
+      "nome": "Plugin analise do kit no Codex (Analisar com o ChatGPT)",
+      "aviso": true
+    },
+    {
+      "tipo": "arquivo",
+      "caminho": "%USERPROFILE%\\.codex\\plugins\\cache\\pmvni-kit\\analise-pro\\*\\skills\\analise-pro\\scripts\\pro_runtime.py",
+      "nome": "análise pro do kit instalado no Codex (Analisar com o Claude)",
       "aviso": true
     }
   ]

@@ -257,3 +257,22 @@ informativo. Temporários em `%USERPROFILE%\.pmvni-fid\<run>\`, apagados; bin/ob
 V2: texto idêntico em todas as folhas e, na métrica simétrica com 1 px de tolerância, **no máximo 1,423 %**
 (`extremos`, folha 3, texto corrido), dentro do limite de 2,0 %. O estrito fica em 1,1–6,5 % pela diferença entre os
 rasterizadores (ver as decisões acima).
+
+## Resultados da entrega da Etapa 2 (`tudo`, 15/11/2026, Tarefa 14; WebView2 do editor 157.0.4341.46; Edge do kit 158.0.4370.21)
+
+`python -I tools/fidelidade.py tudo` sai com **0**: V1 7/7, V2 7/7, V3 7/7, V5 7/7, V6 3/3, `perfil_webview2` OK (marca em 0 de 142
+arquivos; processo/requerente dos casos em 0 arquivos da pasta de dados da rodada); `autoteste_ladrilhos` informativo. Os mesmos 7
+casos da Etapa 1 (5 do corpus, `dados_modelo --instrucoes` e o caso real local, não citado); os números são os da Etapa 1, sem mudança.
+
+| caso | folhas | V1 | V2 visual máx (≤ 2,0 %) | V3 | V3 visual máx | V5 (dados efetivos do pacote) |
+|---|---|---|---|---|---|---|
+| curto | 2 | igual | 0,459 % | OK | 0,160 % | igual (275.024 bytes) |
+| longo | 21 | igual | 0,570 % | OK | 1,663 % | igual (498.911 bytes) |
+| extremos | 8 | igual | 1,423 % | OK | 1,349 % | igual (344.824 bytes) |
+| sem_opcionais | 1 | igual | 0,389 % | OK | 0,167 % | igual (272.634 bytes) |
+| estouro | recusada | igual | recusa OK | recusa OK | — | igual (284.483 bytes) |
+| dados_modelo (--instrucoes) | 7 | igual | 0,404 % | OK | 1,086 % | igual (353.529 bytes) |
+| caso real (local) | 11 | igual | 0,544 % | OK | 1,620 % | igual |
+
+V6 (despacho × `validate()` do kit, 0 erros em todos): `curto-correcao` (DOCX sha256 `73ab14e8…`), `curto-aprovacao` (`ae0cc097…`) e a
+correção do caso real local. A legislação não entra na `fidelidade.py`: o PDF anexado é mostrado como veio, pelo PDF.js.
