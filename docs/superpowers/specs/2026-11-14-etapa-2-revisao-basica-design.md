@@ -43,7 +43,7 @@ Anti-objetivos (seria fracasso mesmo funcionando):
 ## 3. Restrições herdadas
 
 Executável único self-contained, asInvoker; WebView2 InPrivate; host virtual com Deny; todo HTML
-do relatório é conteúdo não confiável; nada sai da máquina; dados reais só locais; regras do
+do relatório é conteúdo não confiável; nada sai da máquina (emenda só para o Novo relatório: §12); dados reais só locais; regras do
 CLAUDE.md do usuário (nada em pastas virtualizadas, explorer.exe, Recriar PC, limpeza de builds).
 Exportação final continua recusando campos `[ ]`, estouro e arquivo mudado desde a abertura.
 
@@ -233,7 +233,8 @@ Cada módulo troca a área principal inteira; a faixa de opções mostra as abas
   de arquivos de uma pasta de legislação (primeira versão desta seção) e a legislação compilada
   embutida (versão de 14/11/2026): não há pasta de legislação, pacote embutido nem leitura do kit.
 - **Ajustes:** pasta de processos, pasta do kit (seção 10), **Legislação** (anexar, listar, editar,
-  substituir e excluir os PDFs: seção 11.1), tema, intervalo do salvamento automático, pasta de
+  substituir e excluir os PDFs: seção 11.1), **Inteligência artificial** (conta ou chave de API, programas e
+  situação do ChatGPT/Codex e do Claude: seção 12.8), tema, intervalo do salvamento automático, pasta de
   recuperação (somente leitura, informativo), versões (app, modelo, WebView2, PDF.js).
 
 Abrir arquivos externos: só extensões de documento (`.pdf`, `.docx`, `.doc`, `.xlsx`, `.xls`,
@@ -246,7 +247,8 @@ os testes usam uma árvore fictícia em `tests/corpus/processos/`.
 ### 9.1 Faixa de opções por módulo (pedido do usuário)
 A faixa de opções troca inteira quando o módulo do trilho muda (abas e comandos). "Arquivo" e
 "Ajuda" existem em todos; a aba aberta por padrão é a segunda.
-- **Relatórios:** Arquivo · Página Inicial · Revisão · Exibir · Ajuda (como na seção 5.5).
+- **Relatórios:** Arquivo · Página Inicial · Revisão · Exibir · Ajuda (como na seção 5.5), com "Novo relatório" no
+  início de Arquivo e de Página Inicial (seção 12.2; também em Processos › Página Inicial).
 - **Despachos:** Arquivo · Página Inicial (Abrir, Abrir PDF, Mostrar no Explorador, Ir ao
   processo, Atualizar lista; filtro Todos/Correção/Aprovação) · Exibir (agrupar por processo ou
   por data, ordenar) · Ajuda.
@@ -697,3 +699,305 @@ dados do editor, guardadas pelo Recriar PC)" e perde a ligação editor ↔ `03 
    no catálogo nunca é apagado sozinho.
 8. `cmaps` incluídos (1,17 MB) para não falhar em PDFs com fontes CID; o sandbox de scripts (`quickjs`) fica fora.
 9. Recriar PC guarda catálogo e cópias (não os índices).
+
+## 12. Novo relatório pelos agentes locais (ChatGPT/Codex e Claude) (pedido do usuário, 15/11/2026)
+
+Pedido (vinculante, nas palavras do usuário):
+1. "Em relatório, crie um botão novo relatório tb. Essa ferramenta deverá ser conectada ao app ChatGPT e Claude. Nela
+   precisamos de um espaço para anexar arquivos (todos os tipos), que pode ser botão para anexar ou área para arrastar. Uma
+   caixa de diálogo para escrever o prompt. E as opções Análise com ChatGPT (que deve usar automaticamente o plugin
+   análise) e Analisar com o Claude (que deverá automaticamente usar o plugin análise pro). Assim não precisaremos mais usar
+   a interface do ChatGPT e Claude separado. O próprio app que estamos criamos, conectado, já gera o relatório de análise
+   mesmo."
+2. "Crie opção nos ajustes de usar API ao invés da conta. Mas por regra a análise precisa acontecer localmente, não pode
+   ser na nuvem, igual o ChatGPT e Claude fazem, pois acessam arquivos do computador e rede. Essa interface seria apenas um
+   intermediário para o ChatGPT e Claude reais."
+3. "Lembre se que o ChatGPT e Claude na análise acessam vários outros apps, tipo qgis, por isso a análise é localmente. Por
+   isso tudo continua acontecendo nos apps ChatGPT e Claude na verdade. E o nosso novo app é apenas o intermediário."
+
+Esta seção acrescenta ao §2 o objetivo "gerar o relatório da IA a partir do editor" e emenda, **só para esta função e só
+quando o usuário clica em Analisar**, a restrição "nada sai da máquina" do §3, do §10.10 e do §11.9: o editor continua sem
+abrir nenhuma conexão de rede; quem conversa com o provedor do modelo (OpenAI ou Anthropic) é o agente local do usuário,
+exatamente como já faz fora do editor.
+
+### 12.1 O que o editor faz e o que não faz
+
+O editor é **só o intermediário**. Ele **não** analisa, não reimplementa nenhuma etapa do kit, não chama API de modelo,
+não abre chat web, não usa tarefa na nuvem nem sandbox remoto, não escolhe peças e não interpreta o resultado. Ele:
+1. arquiva os anexos na pasta do processo, pela regra do kit (12.3);
+2. inicia o agente **instalado neste computador** como processo comum do usuário do Windows (o editor é `asInvoker` e
+   não é empacotado; nada de MSIX, contêiner ou sandbox do editor), com a instalação e a configuração reais dele: os
+   mesmos plugins e skills do kit, servidores MCP, programas do PC (QGIS, LibreOffice, AutoCAD…) e pastas de rede;
+3. mostra o andamento, permite cancelar e guarda o registro da execução na pasta do processo (12.10);
+4. quando o agente termina, localiza o resultado que **o próprio kit** declara (`delivery.json` → `document`), importa
+   esse `relatorio_dados.json` para um `.pmvrel` novo (a importação da Tarefa 1, sem mudar o arquivo do kit) e o abre no
+   módulo Relatórios para a revisão humana.
+
+A inferência do modelo acontece na OpenAI ou na Anthropic, como hoje; leitura de arquivos, programas e rede acontecem
+neste computador, pelo agente. Nada do que chega nos anexos é aberto ou executado pelo editor.
+
+### 12.2 Onde fica e como é o fluxo
+
+- **Entradas:** "Novo relatório" na faixa de **Relatórios**: primeiro comando de Arquivo e primeiro comando de Página
+  Inicial (o "Novo despacho ▾" continua o último da Página Inicial); e na Página Inicial de **Processos**, logo depois de
+  "Novo despacho ▾" (com o processo selecionado). Todas abrem a página **Novo relatório** dentro do módulo Relatórios, no
+  lugar das folhas (a faixa de Relatórios fica, com os comandos das folhas desabilitados enquanto a página está à frente;
+  "Voltar ao relatório" volta às folhas se houver pacote aberto).
+- **Página Novo relatório**, de cima para baixo:
+  1. **Processo:** lista de `Processos.Listar` com filtro (pré-escolhido: o selecionado em Processos, ou o processo cuja
+     pasta contém o `.pmvrel` aberto em Relatórios) e **"Criar processo…"** (nº, ano do protocolo, requerente; 12.3).
+  2. **Anexos:** área "Arraste arquivos para cá" (aceita arquivos do Explorador) e o botão **"Anexar arquivos…"**
+     (seletor com seleção múltipla, filtro "Todos os arquivos"). **Qualquer tipo de arquivo.** Uma linha por anexo: nome,
+     tamanho, **Destino** (12.3), prévia do caminho final ("PROJETO\REVISÃO 03\planta.pdf" ou "já está no processo (mesmo
+     conteúdo)") e "Remover da lista". Nada é copiado antes do clique em Analisar.
+  3. **Pedido para a IA:** caixa de texto de várias linhas (até 20.000 caracteres; opcional), com a dica "Ex.: Analise a
+     reapresentação do projeto e confira as pendências do despacho anterior."
+  4. Dois botões: **"Analisar com o ChatGPT"** (subtítulo "Codex · plugin analise") e **"Analisar com o Claude"**
+     (subtítulo "Claude Code · plugin análise pro"). Cada um fica desabilitado com o motivo exato na dica (12.11) quando
+     falta algo.
+- **Aviso antes da primeira execução de cada provedor** (texto exato em 12.8; `ConfirmarAsync` com "Concordo e analisar"
+  / "Cancelar"). O aceite fica nos ajustes locais com a versão do texto e a data UTC; texto novo (versão maior) pede de
+  novo. Recusar não copia nada e não inicia nada.
+- **Depois do clique:** arquiva os anexos (12.3), grava o registro (12.10), inicia o agente (12.4 ou 12.5) e troca a
+  página para a **vista da execução**: provedor, processo, tempo decorrido, andamento ao vivo, "Cancelar análise",
+  "Mostrar registro no Explorador". Ao terminar com resultado: importa e abre o `.pmvrel` (12.6), com a InfoBar de
+  sucesso. Sem resultado ou com erro: InfoBar com a mensagem exata e o caminho do registro; o formulário volta preenchido.
+
+### 12.3 Anexos e processo (regra do kit, `organizacao-arquivos.md` e `pasta_processo.py`, só leitura)
+
+O editor aplica a mesma regra que o kit aplica a "arquivo enviado no chat ou anexado", reescrita em C# (o script do kit
+não é executado pelo editor):
+- **Destino** de cada anexo, escolhido pelo usuário na linha: "Documento (DOCUMENTOS)", "Projeto — primeira apresentação
+  (PROJETO\INICIAL)", "Projeto — reapresentação (nova REVISÃO NN)" e, se já houver revisão, "Projeto — juntar à
+  REVISÃO NN atual". Padrão: primeira apresentação se `PROJETO\INICIAL` não existe ou está vazia; senão, reapresentação
+  nova. Todos os anexos marcados como reapresentação nova vão para **a mesma** `REVISÃO NN` nova.
+- **REVISÃO NN:** maior `^REVISÃO\s+(\d+)\b` (sem caixa; se não houver, `^REVISAO\s+(\d+)\b`) de `PROJETO` + 1, com
+  2 dígitos, nome `REVISÃO NN` (com acento, como o kit). Criada só no clique em Analisar.
+- **Cópia, nunca movimento:** o original é aberto só para leitura (conteúdo, datas e atributos não mudam). Mesmo sha256
+  já no destino com o mesmo nome ⇒ "já arquivado" (não duplica); nome igual com conteúdo diferente ⇒ `nome (2).ext`,
+  `(3)`…; cada cópia vai para um `.tmp` oculto da mesma pasta e é movida **sem sobrescrever**; o sha da cópia é conferido.
+- **Recusados** (mensagem exata, o resto segue): pasta ("Arraste arquivos, não pastas: <nome>."), atalho `.lnk`/`.url`
+  ou link simbólico ("<nome> é um atalho; anexe o arquivo de destino."), arquivo que sumiu ou não abre ("<nome> não pôde
+  ser lido: <motivo>.").
+- **Criar processo…:** `<pasta de processos>\<ano>\<nº> - <ano> - <REQUERENTE>` (requerente em maiúsculas, sem acentos,
+  como `nome_requerente` do kit) com `DOCUMENTOS` e `PROJETO\INICIAL`. Se já existe uma pasta desse nº/ano (inclusive
+  "FINALIZADO - …" ou "16488-2026 - …", pela leitura de `Processos`), usa a existente, sem renomear nem duplicar, e avisa
+  "O processo <nº>/<ano> já existe: <pasta>.".
+
+### 12.4 Analisar com o ChatGPT (Codex CLI + plugin `analise`)
+
+O kit instala o plugin `analise` no Codex (`INSTALAR_KIT_PMVNI.cmd`: `$PLUGINS_CODEX = analise, analise-pro, despacho`,
+marketplace `pmvni-kit`). O editor inicia o **Codex CLI** do usuário em modo não interativo:
+- **Onde fica o `codex.exe`** (mesma regra do `engine_path` do kit): o mais novo (data de modificação) de
+  `%LOCALAPPDATA%\OpenAI\Codex\bin\*\codex.exe` (o CLI que o app do ChatGPT/Codex instala; neste PC
+  `…\bin\9e1da79431da526b\codex.exe`); senão `codex.exe` no `PATH`; ou o programa escolhido em Ajustes. Shims `.cmd`/`.ps1`
+  (npm) não são executados.
+- **Linha de comando exata** (`ProcessStartInfo.ArgumentList`, sem `cmd.exe` nem shell; diretório de trabalho = a pasta do
+  processo; pedido pela entrada padrão em UTF-8):
+  `"<codex.exe>" exec --skip-git-repo-check --cd "<PASTA DO PROCESSO>" --json --output-last-message "<PASTA DO PROCESSO>\.pmvni-ai\editor\<id>\ultima-mensagem.md" -`
+  Sem `--sandbox`, `--model`, `--ignore-user-config`, `--ephemeral` nem `-c`: vale a configuração real do usuário
+  (`%USERPROFILE%\.codex\config.toml`, ou `CODEX_HOME`): modelo, `sandbox_mode` (neste PC `danger-full-access`),
+  `approval_policy` (`never`), plugins, MCP e o `AGENTS.md` da pasta de processos — o mesmo que o app do ChatGPT usa.
+- **Pedido** (texto exato; as linhas entre colchetes só existem quando há conteúdo):
+  ```
+  Use $analise para analisar o processo PMVNI desta pasta, com as 28 seções, as referências do índice do kit e o relatório oficial em PDF.
+  Pasta do processo: <PASTA DO PROCESSO>
+  Processo: <nº>/<ano> — <requerente>
+  [Arquivos que o usuário anexou agora, já copiados na pasta do processo pelo Editor de Relatórios PMVNI:]
+  [- <caminho relativo ao processo> (<situação: copiado | já estava no processo>)]
+  [Pedido do usuário:]
+  [<texto da caixa, como foi digitado>]
+  ```
+  A primeira linha é o `defaultPrompt` do `plugin.json` do `analise` (2.4.0). O pedido é guardado em `pedido.md` (12.10).
+- **Andamento:** a saída `--json` (uma linha JSON por evento) vai inteira para `saida.jsonl`; a tela mostra as últimas
+  2.000 linhas interpretadas de forma tolerante: `item.completed` com `agent_message` ⇒ "Mensagem: <texto>",
+  `command_execution` ⇒ "Comando: <comando>", `file_change` ⇒ "Arquivos alterados: <n>", `mcp_tool_call` ⇒ "Ferramenta:
+  <servidor>/<ferramenta>", `error` ou `turn.failed` ⇒ "Erro: <mensagem>"; os demais eventos não aparecem; linha que não
+  é JSON aparece como veio (cortada em 2.000 caracteres). A saída de erro vai para `erros.txt`.
+- **Fim:** código de saída 0 ⇒ procurar o resultado (12.6) em `.pmvni-ai\analise\delivery.json` (pasta de controle do
+  `analise_runtime.py`); código ≠ 0 ⇒ "O Codex terminou com o código <n>. Veja o registro: <pasta>.". A
+  `ultima-mensagem.md` aparece num expansor "Última mensagem do ChatGPT".
+
+### 12.5 Analisar com o Claude (plugin `analise-pro`, pelo controlador do kit)
+
+Reconciliação com o kit (lido em 15/11/2026): o `analise-pro` 1.6.1 existe **só no Codex** (`$PLUGINS_CLAUDE = analise,
+despacho`; não há `.claude-plugin` nele) e o `CLAUDE.md` da pasta de processos diz que ele "é acionado pelo Codex (perfil
+somente Claude: Sonnet 5.5 + Opus 5.5, chamados pelo controlador)". O `SKILL.md` dele define o **modo automático** como o
+padrão: o modelo da conversa "SÓ dá a partida" com um único comando (`pro_runtime.py --case "<PROCESSO>" iniciar`),
+"qualquer modelo da conversa serve", e todo o trabalho (peças atuais, seis etapas, cota, validadores e gate) é feito pelo
+controlador chamando o **Claude Code** (`claude --print --model claude-sonnet-5-5|claude-opus-5-5 …`) com a conta do
+usuário. Por isso **"Analisar com o Claude" = o editor dá essa mesma partida**, sem uma conversa do Codex no meio (que
+gastaria um modelo GPT só para rodar um comando e contrariaria o "somente Claude"); quem analisa é o Claude, pelo kit.
+- **Onde ficam as peças:** o `pro_runtime.py` **instalado** (o mesmo que o Codex rodaria):
+  `<CODEX_HOME ou %USERPROFILE%\.codex>\plugins\cache\pmvni-kit\analise-pro\<maior versão>\skills\analise-pro\scripts\pro_runtime.py`
+  (versões comparadas por número). A versão do kit (`<pasta do kit>\01 - PLUGINS\plugins\analise-pro\.codex-plugin\plugin.json`)
+  só gera aviso se for maior ("O kit tem o análise pro <x>; instalado <y>. Atualize pelo INSTALAR_KIT_PMVNI.cmd."). O
+  **Python**: `python.exe` do `PATH` que não seja o atalho da Microsoft Store (`%LOCALAPPDATA%\Microsoft\WindowsApps`),
+  senão `py.exe -3`, ou o escolhido em Ajustes. O `claude.exe` é o que o kit acha pelo `PATH`
+  (`shutil.which`; neste PC `%LOCALAPPDATA%\Microsoft\WinGet\Links\claude.exe`); o editor só o usa para o diagnóstico.
+- **Linhas de comando exatas** (mesmas regras de `ArgumentList` e diretório de trabalho):
+  `"<python.exe>" -B -X utf8 "<pro_runtime.py>" --case "<PASTA DO PROCESSO>" iniciar` (uma vez) e
+  `"<python.exe>" -B -X utf8 "<pro_runtime.py>" --case "<PASTA DO PROCESSO>" situacao` (a cada 10 s). Com `py.exe`, o
+  primeiro argumento é `-3`. O `iniciar` imprime um JSON (`situacao` `INICIADA` ou `JA_EM_ANDAMENTO`, `aviso`) e o próprio
+  kit abre `.pmvni-ai\analise-pro\executar-auto.cmd` pelo `explorer.exe`, numa janela minimizada; a análise segue sozinha,
+  **fora do editor**, e no fim o kit avisa pelo Windows e abre o PDF (comportamento do kit, que o editor não muda).
+- **Andamento:** o JSON de `situacao` (`situacao`, `rotulo`, `etapa`, `erro`, `pdf`, `eventos`) e o fim do
+  `.pmvni-ai\analise-pro\auto-log.txt` (lido a cada 2 s, só leitura, últimas 2.000 linhas). As etapas aparecem com os
+  nomes "Preparo", "Análise", "Auditoria técnica", "Produção do relatório", "Auditoria cruzada" e "Revisão final"
+  (`prepare` … `final_review`); a situação, com o `rotulo` do kit. Cada mudança de situação vai para `situacoes.jsonl`.
+- **Pedido escrito:** o modo automático do `analise-pro` 1.6.1 não recebe instruções (as peças são escolhidas pelo
+  Claude). O texto da caixa é guardado em `pedido.md` e a página mostra, sob o botão, "O análise pro do kit roda sozinho e
+  não recebe o pedido escrito; ele fica guardado no registro da execução." Os anexos valem: são arquivados antes da
+  partida e o kit os encontra na pasta do processo.
+- **Fim:** `CONCLUIDO` ⇒ resultado em `.pmvni-ai\analise-pro\delivery.json` (12.6); `FALHOU`, `OBJECOES`,
+  `PAUSADO_COTA`, `AGUARDANDO_COTA`, `INTERROMPIDA`, `NAO_PARTIU` ⇒ a InfoBar mostra o `rotulo` e o `erro` do kit como
+  vieram e o botão **"Continuar a análise"** (roda `iniciar` de novo, que o kit retoma de onde parou; em `AGUARDANDO_COTA`
+  só acompanha). `JA_EM_ANDAMENTO` ⇒ só acompanha a execução que já existe.
+- **Cancelar:** com confirmação ("Cancelar a análise com o Claude?", "O kit guarda o que já foi feito; Continuar a
+  análise retoma de onde parou.", "Cancelar análise", "Voltar"), o editor encerra a árvore do processo `pid` do
+  `situacao` (só se estiver vivo, se for `python*.exe` ou `py.exe` e se tiver começado depois de `inicio` − 1 min); o
+  kit passa a "interrompida".
+
+### 12.6 Resultado e importação
+
+- **Onde:** `<processo>\.pmvni-ai\analise\delivery.json` (ChatGPT) ou `<processo>\.pmvni-ai\analise-pro\delivery.json`
+  (Claude), escritos pelo kit no fim (`analise_runtime.py`/`pro_runtime.py`: chaves `registry`, `document`, `pdf`,
+  `visual_audit`, caminhos absolutos). O documento é o `document` (o `relatorio_dados.json` do kit).
+- **Conferências** (mensagem exata quando falha; nada é importado): `delivery.json` ausente ou não modificado desde o
+  início da execução (tolerância 2 s) ⇒ "A análise terminou, mas não deixou relatório novo (delivery.json não foi
+  atualizado). Veja o registro: <pasta>."; JSON inválido ou sem `document` ⇒ "O delivery.json da análise não pôde ser
+  lido: <motivo>."; `document` fora da pasta do processo, link ou junção ⇒ "O relatório indicado pela análise está fora
+  da pasta do processo: <caminho>."; ausente ⇒ "O relatório indicado pela análise não foi encontrado: <caminho>.";
+  maior que 50 MB ⇒ o limite da importação da Tarefa 4.
+- **Importar:** `ImportarAnaliseAsync(processo, document)` (Tarefa 13: nome `Relatorio_<nº>_<ano>.pmvrel`, `_2`… sem
+  sobrescrever; a capa decide o nome), abre no módulo Relatórios e mostra "Relatório da análise com o <ChatGPT|Claude>
+  importado: <nome>.pmvrel. O PDF do kit continua em <pdf>." Erro do importador ⇒ a mensagem dele, sem `.pmvrel`.
+- `Processos.Detalhar` passa a listar também `relatorio_dados*.json` das subpastas de `.pmvni-ai` (o nome atual do kit;
+  hoje só `dados*.json`), para que "Importar análise da IA" ache também os resultados gerados fora do editor.
+
+### 12.7 Segundo plano, uma por processo, fechar o app
+
+- A execução pertence à janela (não à página): trocar de módulo, abrir outro relatório ou voltar ao formulário não a
+  interrompe. Enquanto houver execução, a barra de título mostra "Analisando com o <ChatGPT|Claude> · <nº>/<ano> · <mm>
+  min" e clicar nela abre a vista da execução. Mais de um processo ao mesmo tempo é permitido; **um por processo**: a trava
+  `<processo>\.pmvni-ai\editor\execucao.lock` (pid do editor, provedor, início; abandonada se o pid não vive) e, no Claude,
+  também a do kit (`JA_EM_ANDAMENTO`). Segunda tentativa no mesmo processo ⇒ botão desabilitado com "Já há uma análise em
+  andamento neste processo.".
+- **Sem tempo limite** (uma análise completa leva horas; o kit espera a cota). O diagnóstico (12.8) tem 15 s por comando.
+- **Fechar o editor:** com execução do ChatGPT (processo filho do editor) ⇒ `ConfirmarAsync("Cancelar a análise e
+  fechar?", "A análise com o ChatGPT em <nº>/<ano> será interrompida.", "Cancelar análise e fechar", "Continuar")`;
+  com execução do Claude ⇒ só informa ("A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o
+  editor de novo, o resultado é importado.") e fecha. As execuções do Claude em andamento ficam nos ajustes locais
+  (`execucoes_claude`: pasta do processo e pasta do registro); ao abrir, o editor roda `situacao` de cada uma e, se
+  `CONCLUIDO`, mostra a InfoBar "A análise com o Claude de <nº>/<ano> terminou." com "Importar relatório".
+
+### 12.8 Ajustes › Inteligência artificial
+
+Seção nova da página Ajustes, depois de "Legislação". Texto: "O editor não faz a análise: ele inicia o ChatGPT (Codex) ou
+o Claude instalados neste computador, com a configuração, os plugins do kit PMVNI, os programas (QGIS…) e as pastas de rede
+deles, e importa o relatório no fim." Um cartão por provedor:
+- **ChatGPT (Codex · plugin analise):** programa (caminho, "Escolher programa…", "Usar o padrão"); situação
+  ("Codex <versão> · conectado com a conta do ChatGPT · plugin analise <versão> habilitado", com cada parte trocada por
+  "não encontrado", "não conectado", "não verificado: <1ª linha>" ou "plugin analise não habilitado no Codex"); acesso.
+- **Claude (Claude Code · plugin análise pro):** Python (caminho e versão, "Escolher programa…"); "Claude Code <versão> ·
+  conectado com a conta do Claude"; "análise pro <versão instalada> (kit: <versão do kit>)"; acesso.
+- **Acesso**, por provedor: (•) **"Usar minha conta (login do programa)"** ou ( ) **"Usar chave de API"** com uma
+  `PasswordBox`, "Guardar chave", "Remover chave" e a linha "Chave guardada, protegida pelo Windows para este usuário."
+  Para o Claude, "Usar chave de API" fica **desabilitado** enquanto o `pro_runtime.py` instalado contiver a âncora
+  `API paga desativada` (o kit: "Somente conta padrão do Claude: sem API paga, chaves…"), com a dica "O análise pro do kit
+  usa somente a conta do Claude (política do kit de 14/11/2026)." Se o kit mudar, a opção passa a funcionar sem mudar o
+  editor (12.13, decisão 4).
+- **"Testar"** por provedor: roda só comandos locais de cada programa, sem pedir nada ao modelo:
+  `codex --version`, `codex login status`; `claude --version`, `claude auth status`; `python --version`; lê
+  `config.toml` (`[plugins."analise@pmvni-kit"]` com `enabled = true`) e a pasta `plugins\cache\pmvni-kit`. Cada comando
+  com 15 s; o resultado substitui a linha de situação. No modo chave, acrescenta "Chave guardada; ela só é conferida pelo
+  provedor na primeira análise." A sessão só informa: login desconhecido não bloqueia a análise.
+- **Aviso** (ver §12.2), com "Rever aviso". Texto, versão 1:
+  - ChatGPT: "Analisar com o ChatGPT inicia o Codex instalado neste computador, com a sua configuração e o plugin analise
+    do kit PMVNI. O Codex lê os arquivos do processo, usa os programas e as pastas de rede deste computador e envia à
+    OpenAI o pedido e o conteúdo de que precisar, como faz no app do ChatGPT. O editor não envia nada por conta própria:
+    ele só inicia o Codex, mostra o andamento e importa o relatório no fim."
+  - Claude: "Analisar com o Claude inicia o análise pro do kit PMVNI, que roda sozinho numa janela minimizada e chama o
+    Claude Code deste computador com a sua conta do Claude (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os
+    arquivos do processo, usa os programas e as pastas de rede deste computador e envia à Anthropic o conteúdo de que
+    precisar. O editor não envia nada por conta própria: ele só dá a partida, mostra o andamento e importa o relatório
+    no fim."
+
+### 12.9 Chave de API
+
+- Guardada **por usuário do Windows** com DPAPI (`ProtectedData.Protect`, `DataProtectionScope.CurrentUser`, entropia
+  fixa `"PMVNI-Editor-Agentes-v1"`) em `<dados>\segredos\<chatgpt|claude>.dpapi` (`PastaDados.Raiz`; gravação atômica,
+  tmp → troca). Nunca em `ajustes.json`, no registro da execução, em log, no resultado do roteiro, no `.pmvrel`, em
+  receita ou no `guardado` do Recriar PC. A tela nunca mostra a chave guardada (só "Chave guardada…").
+- Entregue **só como variável de ambiente do processo filho**: ChatGPT ⇒ `CODEX_API_KEY` (a variável que o `codex exec`
+  aceita para usar a chave; conferida na Tarefa 19, passo 0); Claude ⇒ `ANTHROPIC_API_KEY` (hoje sem uso: 12.8).
+- **Em todo processo filho** o editor remove do ambiente herdado `OPENAI_API_KEY`, `CODEX_API_KEY`, `ANTHROPIC_API_KEY`
+  e `ANTHROPIC_AUTH_TOKEN` e só põe a do provedor no modo chave: no modo conta, vale só o login do programa (como o kit
+  pede: "variáveis de chaves são removidas dos processos filhos").
+- Escolha DPAPI em vez do Gerenciador de Credenciais: sem P/Invoke, o arquivo fica na pasta de dados (os testes usam
+  `PMVNI_DADOS_DIR`, sem tocar no cofre do Windows) e a chave não vai para outro PC (depois de formatar, digita-se de novo).
+
+### 12.10 Registro da execução (pasta do processo)
+
+Como o kit guarda os controles em `.pmvni-ai\<etapa>`, o editor guarda o seu em `<processo>\.pmvni-ai\editor\<AAAA-MM-DD_HHMMSS>-<chatgpt|claude>\`
+(criada no clique; nunca reutilizada; `_2`… se colidir): `pedido.md` (o pedido exato), `anexos.json` (por anexo: nome de
+origem, destino relativo, sha256, tamanho, `COPIADO` ou `JA_ARQUIVADO`), `execucao.json` (provedor, modo `conta` ou
+`chave` — **nunca a chave** —, programa e versão, linha de comando com o pedido trocado por `<pedido.md>`, início e fim
+UTC, código de saída, situação final `concluida|falhou|cancelada|sem_resultado`, `delivery.json` e `document` usados,
+`.pmvrel` criado, usuário do Windows, versão do editor; gravado de forma atômica a cada mudança), `saida.jsonl` e
+`erros.txt` (ChatGPT) ou `situacoes.jsonl` (Claude), e `ultima-mensagem.md` (ChatGPT). O editor não grava nada dentro das
+pastas de controle do kit (`.pmvni-ai\analise`, `.pmvni-ai\analise-pro`): elas são do agente.
+
+### 12.11 Botões desabilitados (motivos exatos)
+
+- Sem processo: "Escolha o processo."; execução no processo: "Já há uma análise em andamento neste processo.".
+- ChatGPT: "O Codex não foi encontrado neste computador. Instale o app do ChatGPT/Codex ou escolha o programa em Ajustes ›
+  Inteligência artificial."; "O plugin analise do kit PMVNI não está habilitado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd
+  (fora do editor)."; modo chave sem chave: "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua
+  conta.".
+- Claude: "O Python não foi encontrado neste computador (o análise pro do kit precisa dele)."; "O plugin análise pro do
+  kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor)."; "O Claude Code não foi
+  encontrado neste computador (claude.exe)."; modo chave: "O análise pro do kit usa somente a conta do Claude (política do
+  kit de 14/11/2026). Em Ajustes › Inteligência artificial, use Usar minha conta.".
+
+### 12.12 Restrições, segurança e testes
+
+- O editor só inicia **dois programas** para esta função: o `codex.exe` localizado (só `exec`, `--version` e `login
+  status`) e o Python com o `pro_runtime.py` instalado do kit (só `iniciar` e `situacao`), além de `claude --version`/`auth
+  status` e `python --version` no diagnóstico. Nunca `cmd.exe`, PowerShell, `UseShellExecute` ou texto de linha de comando
+  montado à mão: sempre `ArgumentList`. Nunca o executável de um anexo.
+- O editor precisa ser aberto pelo `explorer.exe` (regra do usuário) para que os filhos herdem o Windows real; aberto pelo
+  shell do app Claude, eles herdariam o pacote MSIX.
+- Gravações nas pastas de processos (emenda o §10.10 e as restrições globais): só os anexos copiados (e as pastas
+  `DOCUMENTOS`, `PROJETO\INICIAL`, `PROJETO\REVISÃO NN` e a do processo, se novas), `.pmvni-ai\editor\…` e o `.pmvrel` da
+  importação; sem nunca mover, renomear, apagar ou sobrescrever. O que o agente grava é do agente (o editor não confere nem
+  desfaz).
+- **Testes nunca chamam IA real**: um programa de teste, `tests/AgenteFalso` (console net10.0), faz o papel do `codex.exe`
+  (eventos `--json`, `--output-last-message`, `delivery.json` e um `relatorio_dados.json` fictício, código de saída), do
+  Python com o `pro_runtime.py` (`iniciar` que parte um `auto` desanexado, `auto-status.json`, `auto-log.txt`, `situacao`)
+  e responde `--version`, `login status` e `auth status`; o cenário vem de um JSON indicado por `AGENTE_FALSO_CENARIO`.
+  O orquestrador tem uma trava de teste (`SomenteExecutaveisEm`) que recusa qualquer programa fora da pasta do agente
+  falso. O roteiro usa o mesmo agente falso (publicado em `tests\saida\agente-falso`). A execução real fica para a
+  conferência humana da Tarefa 14.
+- Só pastas fictícias (`tests/corpus/processos`, copiado para `tests/saida/…`) e chaves falsas geradas no teste; os testes
+  conferem que a chave não aparece em nenhum arquivo gravado (UTF-8, UTF-16 e base64).
+
+### 12.13 Decisões minhas (registradas)
+
+1. "Analisar com o Claude" dá a partida do `analise-pro` pelo `pro_runtime.py … iniciar` instalado, sem conversa do Codex
+   no meio (o kit diz que a conversa só dá a partida e que qualquer modelo serve; assim só modelos Claude trabalham).
+2. "Analisar com o ChatGPT" usa `codex exec` com a configuração real do usuário (sem `--sandbox`/`--ignore-user-config`),
+   para ter o mesmo acesso a arquivos, programas, MCP e rede que o app do ChatGPT tem.
+3. O resultado é o que o kit declara no `delivery.json` (`document`), nunca uma busca por nome de arquivo; o editor não
+   valida o mérito (o gate do kit já fez isso) e o `.pmvrel` é revisado por pessoa.
+4. Chave de API do Claude: guardável, mas a opção fica desabilitada enquanto o `analise-pro` instalado proibir API (âncora
+   `API paga desativada` no `pro_runtime.py`). O pedido do usuário ("usar API ao invés da conta") vale integralmente para
+   o ChatGPT; para o Claude, a regra do kit prevalece e o motivo aparece na tela.
+5. ChatGPT roda como filho do editor (para receber a chave por variável e poder cancelar); o Claude roda na janela do kit,
+   fora do editor, e sobrevive ao fechamento do editor.
+6. Anexos: o usuário escolhe o destino por linha (padrão pela regra do kit); a cópia segue o `copiar` do `pasta_processo.py`
+   (sha, `(2)`), sem executar o script do kit; pastas e atalhos recusados.
+7. Registro em `.pmvni-ai\editor\…` (ao lado dos controles do kit, como o kit pede para logs), sem tocar nas pastas de
+   controle do kit.
+8. Diagnóstico sem pedir nada ao modelo ("Testar" não gasta cota); a chave só é conferida na primeira análise.
+9. Sem tempo limite para a análise; uma execução por processo; várias em processos diferentes.
