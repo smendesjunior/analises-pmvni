@@ -1,0 +1,181 @@
+using System.Text.Json;
+using System.Text.RegularExpressions;
+
+namespace Pmvni.Agentes;
+
+/// <summary>De onde ler as peças. Tudo é injetável (os testes montam pastas inteiras em <c>tests/saida</c>).</summary>
+public sealed record OpcoesLocalizacao(string LocalAppData, string CodexHome, IReadOnlyList<string> Path, string PastaKit, string? CodexEscolhido, string? PythonEscolhido)
+{
+    /// <summary>O ambiente real: <c>%LOCALAPPDATA%</c>, <c>CODEX_HOME</c> (ou <c>%USERPROFILE%\.codex</c>) e o <c>PATH</c>.</summary>
+    public static OpcoesLocalizacao DoAmbiente(string pastaKit, string? codex, string? python)
+    {
+        var home = Environment.GetEnvironmentVariable("CODEX_HOME");
+        if (string.IsNullOrWhiteSpace(home))
+            home = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+        var path = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(System.IO.Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return new OpcoesLocalizacao(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), home, path, pastaKit, codex, python);
+    }
+}
+
+/// <summary>O que foi achado neste computador. <c>null</c> = não achado.</summary>
+public sealed record Pecas(
+    string? Codex,
+    string? Claude,
+    string? Python,
+    bool PythonPeloLauncher,
+    string? ProRuntime,
+    string? VersaoAnalisePro,
+    string? VersaoAnaliseProKit,
+    bool PluginAnaliseHabilitado,
+    string? VersaoPluginAnalise,
+    bool ApiPermitidaNoKit);
+
+/// <summary>Onde estão o Codex, o Claude Code, o Python e as peças do kit (desenho §12.4–§12.5). Só lê; nada falha: peça ilegível é peça ausente.</summary>
+public static class Localizacao
+{
+    static readonly Regex Habilitado = new(@"^enabled\s*=\s*true\s*(#.*)?$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    static readonly Regex DottedHabilitado = new(@"^plugins\.[""']analise@pmvni-kit[""']\.enabled\s*=\s*true\s*(#.*)?$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    static readonly Regex InlineHabilitado = new(@"^plugins\.[""']analise@pmvni-kit[""']\s*=\s*\{[^}]*\benabled\s*=\s*true\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+    public static Pecas Ler(OpcoesLocalizacao o)
+    {
+        var codex = AcharCodex(o);
+        var claude = NoPath(o, "claude.exe");
+        var (python, launcher) = AcharPython(o);
+
+        var cacheKit = Path.Combine(o.CodexHome, "plugins", "cache", "pmvni-kit");
+        var (versaoPro, pastaPro) = MaiorVersao(Path.Combine(cacheKit, "analise-pro"));
+        string? proRuntime = null;
+        if (pastaPro is not null)
+        {
+            var script = Path.Combine(pastaPro, "skills", "analise-pro", "scripts", "pro_runtime.py");
+            if (File.Exists(script)) proRuntime = script;
+        }
+
+        var apiPermitida = true;
+        if (proRuntime is not null)
+        {
+            try { apiPermitida = PoliticaKit.ApiPermitida(File.ReadAllText(proRuntime)); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        }
+
+        var (versaoPlugin, _) = MaiorVersao(Path.Combine(cacheKit, "analise"));
+        return new Pecas(codex, claude, python, launcher, proRuntime, versaoPro, VersaoDoKit(o), PluginHabilitado(o.CodexHome), versaoPlugin, apiPermitida);
+    }
+
+    static bool EhExe(string caminho) => caminho.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+
+    static string? NoPath(OpcoesLocalizacao o, string nome, Func<string, bool>? ignorarPasta = null)
+    {
+        foreach (var dir in o.Path)
+        {
+            if (ignorarPasta?.Invoke(dir) == true) continue;
+            try
+            {
+                var f = Path.Combine(dir, nome);
+                if (File.Exists(f)) return f;
+            }
+            catch (ArgumentException) { /* entrada inválida no PATH */ }
+        }
+        return null;
+    }
+
+    /// <summary>O escolhido em Ajustes (se não existir, nada: não cai no padrão); senão o mais novo de <c>%LOCALAPPDATA%\OpenAI\Codex\bin\*\codex.exe</c>;
+    /// senão <c>codex.exe</c> no PATH. Shims <c>.cmd</c>/<c>.ps1</c> (npm) nunca são executados.</summary>
+    static string? AcharCodex(OpcoesLocalizacao o)
+    {
+        if (!string.IsNullOrWhiteSpace(o.CodexEscolhido))
+            return EhExe(o.CodexEscolhido) && File.Exists(o.CodexEscolhido) ? o.CodexEscolhido : null;
+
+        var bin = Path.Combine(o.LocalAppData, "OpenAI", "Codex", "bin");
+        try
+        {
+            if (Directory.Exists(bin))
+            {
+                var maisNovo = Directory.EnumerateDirectories(bin)
+                    .Select(d => Path.Combine(d, "codex.exe"))
+                    .Where(File.Exists)
+                    .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
+                    .ThenByDescending(f => f, StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault();
+                if (maisNovo is not null) return maisNovo;
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        return NoPath(o, "codex.exe");
+    }
+
+    static bool EhAtalhoDaLoja(string dir) =>
+        dir.TrimEnd('\\', '/').EndsWith(Path.Combine("Microsoft", "WindowsApps"), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>O escolhido; senão o <c>python.exe</c> do PATH que não seja o atalho da Microsoft Store; senão o <c>py.exe</c> (launcher, com <c>-3</c>).</summary>
+    static (string? Python, bool Launcher) AcharPython(OpcoesLocalizacao o)
+    {
+        if (!string.IsNullOrWhiteSpace(o.PythonEscolhido))
+        {
+            if (!EhExe(o.PythonEscolhido) || !File.Exists(o.PythonEscolhido)) return (null, false);
+            return (o.PythonEscolhido, Path.GetFileName(o.PythonEscolhido).Equals("py.exe", StringComparison.OrdinalIgnoreCase));
+        }
+        var python = NoPath(o, "python.exe", EhAtalhoDaLoja);
+        if (python is not null) return (python, false);
+        var py = NoPath(o, "py.exe");
+        return py is not null ? (py, true) : (null, false);
+    }
+
+    /// <summary>A maior versão (por <see cref="Version"/>, não por texto) entre as subpastas de nome numérico.</summary>
+    static (string? Versao, string? Pasta) MaiorVersao(string pasta)
+    {
+        try
+        {
+            if (!Directory.Exists(pasta)) return (null, null);
+            var melhor = Directory.EnumerateDirectories(pasta)
+                .Select(d => (Nome: Path.GetFileName(d), Pasta: d, Ok: Version.TryParse(Path.GetFileName(d), out var v), V: v))
+                .Where(x => x.Ok)
+                .OrderByDescending(x => x.V)
+                .FirstOrDefault();
+            return melhor.Nome is null ? (null, null) : (melhor.Nome, melhor.Pasta);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return (null, null); }
+    }
+
+    static string? VersaoDoKit(OpcoesLocalizacao o)
+    {
+        var json = Path.Combine(o.PastaKit, "01 - PLUGINS", "plugins", "analise-pro", ".codex-plugin", "plugin.json");
+        try
+        {
+            if (!File.Exists(json)) return null;
+            using var doc = JsonDocument.Parse(File.ReadAllText(json));
+            return doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("version", out var v) && v.ValueKind == JsonValueKind.String
+                ? v.GetString()
+                : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { return null; }
+    }
+
+    /// <summary><c>[plugins."analise@pmvni-kit"]</c> com <c>enabled = true</c> no <c>config.toml</c> do Codex (leitura simples; o editor não interpreta o resto).</summary>
+    static bool PluginHabilitado(string codexHome)
+    {
+        try
+        {
+            var config = Path.Combine(codexHome, "config.toml");
+            if (!File.Exists(config)) return false;
+            var naSecao = false;
+            foreach (var bruta in File.ReadLines(config))
+            {
+                var linha = bruta.Trim();
+                if (linha.Length == 0 || linha[0] == '#') continue;
+                if (linha[0] == '[')
+                {
+                    var fim = linha.IndexOf(']');
+                    var cabecalho = fim > 0 ? linha[1..fim].Replace(" ", "").Replace('\'', '"') : "";
+                    naSecao = cabecalho == "plugins.\"analise@pmvni-kit\"";
+                    continue;
+                }
+                if (naSecao && Habilitado.IsMatch(linha)) return true;
+                if (DottedHabilitado.IsMatch(linha) || InlineHabilitado.IsMatch(linha)) return true;
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        return false;
+    }
+}

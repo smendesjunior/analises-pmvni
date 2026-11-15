@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Orquestração dos agentes locais (Codex e Claude/análise pro): sem UI e sem WebView2 (net10.0 puro; o editor é só o intermediário). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier></RuntimeIdentifier>
+    <TargetPlatformMinVersion></TargetPlatformMinVersion>
+    <RootNamespace>Pmvni.Agentes</RootNamespace>
+    <!-- O editor só roda no Windows (DPAPI do CofreChaves): o aviso de plataforma não acrescenta nada. -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pmvni.Agentes.Testes" />
+    <InternalsVisibleTo Include="Pmvni.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Pmvni.Revisao\Pmvni.Revisao.csproj" />
+  </ItemGroup>
+</Project>

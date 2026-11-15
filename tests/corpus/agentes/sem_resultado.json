@@ -1,0 +1,9 @@
+{
+  "descricao": "Codex termina com 0 mas não deixa delivery.json.",
+  "codigo": 0,
+  "eventos": [
+    "{\"type\":\"thread.started\",\"thread_id\":\"t-4\"}",
+    "{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"Pronto\"}}"
+  ],
+  "delivery": "ausente"
+}
