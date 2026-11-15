@@ -1,0 +1,183 @@
+{
+ "entrada": {
+  "situacao": "CONFIRMADO",
+  "imagem": "mapa.png",
+  "dados": [
+   {
+    "rotulo": "a",
+    "valor": "a",
+    "grupo": "Grupo A"
+   },
+   {
+    "rotulo": "b",
+    "valor": "b",
+    "grupo": "Grupo A"
+   },
+   {
+    "rotulo": "c",
+    "valor": "c",
+    "grupo": "Grupo A"
+   },
+   {
+    "rotulo": "d",
+    "valor": "d",
+    "grupo": "Grupo B"
+   },
+   {
+    "rotulo": "e",
+    "valor": "e",
+    "grupo": "Grupo C"
+   },
+   {
+    "rotulo": "f",
+    "valor": "f",
+    "grupo": "Grupo C"
+   },
+   {
+    "rotulo": "g",
+    "valor": "g",
+    "grupo": "Grupo D"
+   }
+  ]
+ },
+ "grupos": [
+  {
+   "titulo": "Grupo A",
+   "dados": [
+    {
+     "rotulo": "a",
+     "valor": "a",
+     "grupo": "Grupo A"
+    },
+    {
+     "rotulo": "b",
+     "valor": "b",
+     "grupo": "Grupo A"
+    },
+    {
+     "rotulo": "c",
+     "valor": "c",
+     "grupo": "Grupo A"
+    }
+   ]
+  },
+  {
+   "titulo": "Grupo B",
+   "dados": [
+    {
+     "rotulo": "d",
+     "valor": "d",
+     "grupo": "Grupo B"
+    }
+   ]
+  },
+  {
+   "titulo": "Grupo C",
+   "dados": [
+    {
+     "rotulo": "e",
+     "valor": "e",
+     "grupo": "Grupo C"
+    },
+    {
+     "rotulo": "f",
+     "valor": "f",
+     "grupo": "Grupo C"
+    }
+   ]
+  },
+  {
+   "titulo": "Grupo D",
+   "dados": [
+    {
+     "rotulo": "g",
+     "valor": "g",
+     "grupo": "Grupo D"
+    }
+   ]
+  }
+ ],
+ "colunas": [
+  [
+   {
+    "titulo": "Grupo A",
+    "dados": [
+     {
+      "rotulo": "a",
+      "valor": "a",
+      "grupo": "Grupo A"
+     },
+     {
+      "rotulo": "b",
+      "valor": "b",
+      "grupo": "Grupo A"
+     },
+     {
+      "rotulo": "c",
+      "valor": "c",
+      "grupo": "Grupo A"
+     }
+    ]
+   },
+   {
+    "titulo": "Grupo D",
+    "dados": [
+     {
+      "rotulo": "g",
+      "valor": "g",
+      "grupo": "Grupo D"
+     }
+    ]
+   }
+  ],
+  [
+   {
+    "titulo": "Grupo B",
+    "dados": [
+     {
+      "rotulo": "d",
+      "valor": "d",
+      "grupo": "Grupo B"
+     }
+    ]
+   },
+   {
+    "titulo": "Grupo C",
+    "dados": [
+     {
+      "rotulo": "e",
+      "valor": "e",
+      "grupo": "Grupo C"
+     },
+     {
+      "rotulo": "f",
+      "valor": "f",
+      "grupo": "Grupo C"
+     }
+    ]
+   }
+  ]
+ ],
+ "legenda": [
+  {
+   "tipo": "lote",
+   "texto": "Lote do projeto"
+  },
+  {
+   "tipo": "edif",
+   "texto": "Edificação no lote"
+  },
+  {
+   "tipo": "app",
+   "texto": "Faixa de APP"
+  },
+  {
+   "tipo": "rio",
+   "texto": "Curso d'água"
+  },
+  {
+   "tipo": "zona",
+   "texto": "Zonas do PDM"
+  }
+ ]
+}

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Revisão do relatório (modelo, comandos, pacote): sem UI e sem dependências do Windows (net10.0 puro). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier></RuntimeIdentifier>
+    <TargetPlatformMinVersion></TargetPlatformMinVersion>
+    <RootNamespace>Pmvni.Revisao</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pmvni.Revisao.Testes" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Pmvni.Composicao\Pmvni.Composicao.csproj" />
+  </ItemGroup>
+</Project>

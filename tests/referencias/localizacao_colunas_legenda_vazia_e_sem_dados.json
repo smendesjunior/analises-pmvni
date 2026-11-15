@@ -1,0 +1,32 @@
+{
+ "entrada": {
+  "situacao": "CONFIRMADO",
+  "imagem": "mapa.png",
+  "dados": [],
+  "legenda": []
+ },
+ "grupos": [],
+ "colunas": [],
+ "legenda": [
+  {
+   "tipo": "lote",
+   "texto": "Lote do projeto"
+  },
+  {
+   "tipo": "edif",
+   "texto": "Edificação no lote"
+  },
+  {
+   "tipo": "app",
+   "texto": "Faixa de APP"
+  },
+  {
+   "tipo": "rio",
+   "texto": "Curso d'água"
+  },
+  {
+   "tipo": "zona",
+   "texto": "Zonas do PDM"
+  }
+ ]
+}

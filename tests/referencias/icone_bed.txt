@@ -1,0 +1,1 @@
+<svg class="ico tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 18.5V7M3.5 14h17v4.5M20.5 14v-1.6a3 3 0 0 0-3-3h-6.5V14"/><circle cx="7.3" cy="11.2" r="1.7"/></svg>

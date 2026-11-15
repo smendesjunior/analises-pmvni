@@ -1,0 +1,4 @@
+src/Pmvni.Composicao/ModeloOficial/** -text
+tests/referencias/** -text
+tests/corpus/** -text
+src/Pmvni.Legislacao/web/** -text

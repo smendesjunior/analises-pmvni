@@ -1,0 +1,684 @@
+{
+ "config": {
+  "orgao": "SECRETARIA MUNICIPAL DE OBRAS"
+ },
+ "capa": {
+  "protocolo": "03/02/2026",
+  "rotulo_data": "ANÁLISE",
+  "data": "14/11/2026",
+  "processo": "9001/2026",
+  "requerente": "CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
+  "quadros": [
+   {
+    "titulo": "LOCALIZAÇÃO",
+    "cor": "g",
+    "destaque": "Rua das Palmeiras Imaginárias, nº 100, Bairro Exemplo",
+    "apoio": "Acesso pela via principal"
+   },
+   {
+    "titulo": "CARACTERIZAÇÃO",
+    "cor": "y",
+    "destaque": "Residencial multifamiliar",
+    "apoio": "8 unidades • 3 pavimentos"
+   },
+   {
+    "titulo": "AUTORIA INDICADA",
+    "cor": "y",
+    "destaque": "Fulana de Tal Exemplo",
+    "apoio": "Registro profissional não informado"
+   },
+   {
+    "titulo": "PARÂMETROS URBANÍSTICOS",
+    "cor": "g",
+    "destaque": "Parcela e zoneamento conferidos",
+    "apoio": "Zona indicada no projeto: ZXX"
+   }
+  ],
+  "pontos_confirmar": "Afastamentos • Permeabilidade • Autoria"
+ },
+ "itens": [
+  {
+   "titulo": "Item de teste 001: zona confere garagem",
+   "situacao": "ATENDE",
+   "verificacao": "Corte permeável indicar coeficiente matrícula vão proposta área laje indicada fachada parâmetro soma legenda. Corrigir apresentar garagem vão projeto circulação vaga zona vão cobertura. Licença projeto vão passeio falta quadro garagem rampa cotar edificação.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 101.",
+   "referencia": "ARQ 02/09, planta. Figura 2."
+  },
+  {
+   "titulo": "Item de teste 002: terreno mínimo coeficiente",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Vaga diverge apresentada medida vaga memorial fachada ambiente lote aproveitamento telhado parágrafo artigo área. Cotar existente porta iluminação laje zona aproveitamento parágrafo vaga máximo cálculo. Zona planta escala janela zona divisa falta taxa muro.",
+   "providencia": "Apresentar Vão confere mínimo soma parâmetro parágrafo edificação taxa zona zona. Cotar prancha quadro parágrafo diferença circulação circulação norma legenda cotar.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 102.",
+   "referencia": "ARQ 03/09, planta. Figura 3."
+  }
+ ],
+ "iluminacao": {
+  "subtitulo": "Conferência de vãos, iluminação e ventilação na edificação.",
+  "tag": "8 UNIDADES • 3 PAVIMENTOS",
+  "ambientes": [
+   {
+    "icone": "bed",
+    "nome": "Ambiente 1",
+    "detalhes": [
+     "6 ambientes • piso 5,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "CONTA_CONFERE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "0.70 × 1.23 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "1.39 × 0.96 m",
+      "tipo": "Janela de correr",
+      "area": "1.23 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "0.71 × 1.47 m",
+      "tipo": "Janela de correr",
+      "area": "0.65 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J4",
+      "medidas": "1.06 × 1.31 m",
+      "tipo": "Janela de correr",
+      "area": "1.65 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J5",
+      "medidas": "1.00 × 0.71 m",
+      "tipo": "Janela de correr",
+      "area": "1.47 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J6",
+      "medidas": "1.90 × 0.63 m",
+      "tipo": "Janela de correr",
+      "area": "0.85 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J7",
+      "medidas": "1.93 × 1.20 m",
+      "tipo": "Janela de correr",
+      "area": "1.37 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J8",
+      "medidas": "1.57 × 0.60 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J9",
+      "medidas": "1.20 × 0.72 m",
+      "tipo": "Janela de correr",
+      "area": "0.68 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J10",
+      "medidas": "1.76 × 0.68 m",
+      "tipo": "Janela de correr",
+      "area": "1.97 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J11",
+      "medidas": "1.85 × 1.31 m",
+      "tipo": "Janela de correr",
+      "area": "2.23 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J12",
+      "medidas": "1.04 × 1.08 m",
+      "tipo": "Janela de correr",
+      "area": "1.50 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J13",
+      "medidas": "1.93 × 1.36 m",
+      "tipo": "Janela de correr",
+      "area": "1.32 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J14",
+      "medidas": "0.90 × 0.87 m",
+      "tipo": "Janela de correr",
+      "area": "1.64 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J15",
+      "medidas": "0.73 × 0.73 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J16",
+      "medidas": "1.05 × 0.72 m",
+      "tipo": "Janela de correr",
+      "area": "2.35 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J17",
+      "medidas": "1.41 × 1.43 m",
+      "tipo": "Janela de correr",
+      "area": "2.19 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J18",
+      "medidas": "1.83 × 1.08 m",
+      "tipo": "Janela de correr",
+      "area": "2.10 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J19",
+      "medidas": "1.94 × 0.61 m",
+      "tipo": "Janela de correr",
+      "area": "2.27 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J20",
+      "medidas": "0.66 × 1.21 m",
+      "tipo": "Janela de correr",
+      "area": "2.07 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J21",
+      "medidas": "1.20 × 1.44 m",
+      "tipo": "Janela de correr",
+      "area": "2.27 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J22",
+      "medidas": "0.62 × 1.15 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J23",
+      "medidas": "1.16 × 0.66 m",
+      "tipo": "Janela de correr",
+      "area": "1.74 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J24",
+      "medidas": "0.75 × 0.98 m",
+      "tipo": "Janela de correr",
+      "area": "0.59 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J25",
+      "medidas": "0.72 × 1.42 m",
+      "tipo": "Janela de correr",
+      "area": "1.72 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J26",
+      "medidas": "1.52 × 0.97 m",
+      "tipo": "Janela de correr",
+      "area": "2.45 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J27",
+      "medidas": "0.70 × 1.44 m",
+      "tipo": "Janela de correr",
+      "area": "1.43 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J28",
+      "medidas": "1.47 × 1.09 m",
+      "tipo": "Janela de correr",
+      "area": "1.58 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J29",
+      "medidas": "1.87 × 0.77 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J30",
+      "medidas": "1.23 × 0.91 m",
+      "tipo": "Janela de correr",
+      "area": "1.78 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J31",
+      "medidas": "1.74 × 1.38 m",
+      "tipo": "Janela de correr",
+      "area": "2.49 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J32",
+      "medidas": "1.58 × 0.85 m",
+      "tipo": "Janela de correr",
+      "area": "1.69 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J33",
+      "medidas": "0.74 × 0.89 m",
+      "tipo": "Janela de correr",
+      "area": "1.15 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J34",
+      "medidas": "1.00 × 1.31 m",
+      "tipo": "Janela de correr",
+      "area": "1.22 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J35",
+      "medidas": "1.10 × 1.46 m",
+      "tipo": "Janela de correr",
+      "area": "2.11 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J36",
+      "medidas": "1.23 × 1.22 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J37",
+      "medidas": "1.12 × 1.23 m",
+      "tipo": "Janela de correr",
+      "area": "2.08 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J38",
+      "medidas": "1.22 × 1.00 m",
+      "tipo": "Janela de correr",
+      "area": "1.24 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J39",
+      "medidas": "1.56 × 0.79 m",
+      "tipo": "Janela de correr",
+      "area": "1.89 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J40",
+      "medidas": "0.91 × 1.22 m",
+      "tipo": "Janela de correr",
+      "area": "2.10 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J41",
+      "medidas": "0.69 × 0.90 m",
+      "tipo": "Janela de correr",
+      "area": "1.62 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J42",
+      "medidas": "1.78 × 0.76 m",
+      "tipo": "Janela de correr",
+      "area": "0.90 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J43",
+      "medidas": "1.44 × 1.43 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J44",
+      "medidas": "1.10 × 0.90 m",
+      "tipo": "Janela de correr",
+      "area": "2.21 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J45",
+      "medidas": "0.78 × 0.97 m",
+      "tipo": "Janela de correr",
+      "area": "1.15 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J46",
+      "medidas": "0.65 × 1.16 m",
+      "tipo": "Janela de correr",
+      "area": "1.82 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J47",
+      "medidas": "1.75 × 1.21 m",
+      "tipo": "Janela de correr",
+      "area": "1.99 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J48",
+      "medidas": "1.96 × 0.80 m",
+      "tipo": "Janela de correr",
+      "area": "2.48 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J49",
+      "medidas": "0.75 × 0.97 m",
+      "tipo": "Janela de correr",
+      "area": "2.34 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J50",
+      "medidas": "1.56 × 0.89 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J51",
+      "medidas": "1.62 × 1.22 m",
+      "tipo": "Janela de correr",
+      "area": "1.84 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J52",
+      "medidas": "0.75 × 1.29 m",
+      "tipo": "Janela de correr",
+      "area": "1.67 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J53",
+      "medidas": "1.37 × 1.05 m",
+      "tipo": "Janela de correr",
+      "area": "0.66 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J54",
+      "medidas": "1.06 × 0.62 m",
+      "tipo": "Janela de correr",
+      "area": "2.05 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J55",
+      "medidas": "0.97 × 1.18 m",
+      "tipo": "Janela de correr",
+      "area": "1.33 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J56",
+      "medidas": "1.73 × 1.08 m",
+      "tipo": "Janela de correr",
+      "area": "1.43 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J57",
+      "medidas": "1.87 × 0.62 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J58",
+      "medidas": "1.92 × 1.38 m",
+      "tipo": "Janela de correr",
+      "area": "2.04 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J59",
+      "medidas": "1.07 × 1.01 m",
+      "tipo": "Janela de correr",
+      "area": "1.95 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J60",
+      "medidas": "0.99 × 1.24 m",
+      "tipo": "Janela de correr",
+      "area": "1.76 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J61",
+      "medidas": "1.27 × 0.76 m",
+      "tipo": "Janela de correr",
+      "area": "1.64 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J62",
+      "medidas": "1.79 × 0.87 m",
+      "tipo": "Janela de correr",
+      "area": "0.96 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J63",
+      "medidas": "1.00 × 0.79 m",
+      "tipo": "Janela de correr",
+      "area": "0.95 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J64",
+      "medidas": "1.68 × 1.09 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J65",
+      "medidas": "2.00 × 0.85 m",
+      "tipo": "Janela de correr",
+      "area": "0.77 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J66",
+      "medidas": "1.40 × 1.06 m",
+      "tipo": "Janela de correr",
+      "area": "2.09 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J67",
+      "medidas": "1.89 × 1.17 m",
+      "tipo": "Janela de correr",
+      "area": "1.98 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J68",
+      "medidas": "1.48 × 1.36 m",
+      "tipo": "Janela de correr",
+      "area": "1.90 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J69",
+      "medidas": "1.27 × 0.90 m",
+      "tipo": "Janela de correr",
+      "area": "2.40 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J70",
+      "medidas": "1.50 × 1.38 m",
+      "tipo": "Janela de correr",
+      "area": "2.33 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J71",
+      "medidas": "1.45 × 1.46 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J72",
+      "medidas": "1.85 × 1.41 m",
+      "tipo": "Janela de correr",
+      "area": "1.47 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J73",
+      "medidas": "1.04 × 1.38 m",
+      "tipo": "Janela de correr",
+      "area": "0.55 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J74",
+      "medidas": "1.10 × 0.71 m",
+      "tipo": "Janela de correr",
+      "area": "1.53 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J75",
+      "medidas": "0.78 × 0.70 m",
+      "tipo": "Janela de correr",
+      "area": "2.39 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J76",
+      "medidas": "1.52 × 1.04 m",
+      "tipo": "Janela de correr",
+      "area": "0.97 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J77",
+      "medidas": "1.94 × 1.15 m",
+      "tipo": "Janela de correr",
+      "area": "1.07 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J78",
+      "medidas": "1.98 × 0.77 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J79",
+      "medidas": "1.52 × 1.17 m",
+      "tipo": "Janela de correr",
+      "area": "1.51 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J80",
+      "medidas": "1.06 × 1.30 m",
+      "tipo": "Janela de correr",
+      "area": "2.44 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "18,00 ÷ 5 = 3,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "Conferência por ambiente",
+    "textos": [
+     "Artigo apresentar conferida cota confere."
+    ],
+    "resultado": {
+     "total": "8,00 m²",
+     "conta": "J1 1,00 + J2 2,00 = 3,00 m²",
+     "comparacao": "Mínimo 2,00 m²; confere."
+    }
+   }
+  ],
+  "abrangencia": [
+   "Escada indicar telhado iluminação carimbo limite passeio fachada certidão laje.",
+   "Vão de cada esquadria = largura × altura do quadro de esquadrias."
+  ],
+  "nao_computadas": [
+   "Nenhuma."
+  ],
+  "atencao": "Proposta calçada indicada calçada quadro apresentada.",
+  "fonte": "ARQ 02/09 — plantas e quadros; ARQ 05/09 — cortes e fachada."
+ },
+ "fontes": [
+  {
+   "rotulo": "Projeto",
+   "texto": "Pranchas ARQ 01/09 a ARQ 09/09, revisão 02, protocolo de 03/02/2026.",
+   "url": ""
+  },
+  {
+   "rotulo": "Imóvel",
+   "texto": "Matrícula fictícia nº 00.000, certidão de 10/01/2026.",
+   "url": ""
+  },
+  {
+   "rotulo": "Código de Obras",
+   "texto": "LC municipal nº 70/1990, arts. 100 a 160.",
+   "url": "https://exemplo.invalid/codigo-de-obras"
+  }
+ ],
+ "conclusao": "Foram recebidos os documentos desta etapa. Permanecem as pendências dos itens indicados, que precisam ser atendidas para a continuidade do processo. Os itens que atendem o fazem apenas nos pontos indicados e não autorizam a aprovação do projeto. Depois da complementação, os itens pendentes serão reanalisados.",
+ "assinatura": {
+  "nome": "FULANO DE TAL EXEMPLO",
+  "cargo": "ARQUITETO E URBANISTA — CAU/ES 000000-0"
+ }
+}

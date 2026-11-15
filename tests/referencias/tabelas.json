@@ -1,0 +1,106 @@
+{
+ "SIT": {
+  "ATENDE": [
+   "ATENDE",
+   "g"
+  ],
+  "NAO_ATENDE": [
+   "NÃO ATENDE",
+   "r"
+  ],
+  "NAO_COMPROVADO": [
+   "FALTA COMPROVAR",
+   "a"
+  ],
+  "DIVERGENCIA_INTERNA": [
+   "INFORMAÇÕES DIVERGENTES",
+   "o"
+  ],
+  "CONTA_CONFERE": [
+   "ATENDE",
+   "g"
+  ],
+  "PENDENTE": [
+   "FALTA COMPROVAR",
+   "a"
+  ],
+  "DIVERGENCIA": [
+   "INFORMAÇÕES DIVERGENTES",
+   "o"
+  ],
+  "CONFIRMADO": [
+   "LOCAL CONFIRMADO",
+   "g"
+  ],
+  "A_CONFIRMAR": [
+   "LOCAL A CONFIRMAR",
+   "a"
+  ]
+ },
+ "SIT_LOCAL": [
+  "A_CONFIRMAR",
+  "CONFIRMADO"
+ ],
+ "SIT_ITEM": [
+  "ATENDE",
+  "DIVERGENCIA_INTERNA",
+  "NAO_ATENDE",
+  "NAO_COMPROVADO"
+ ],
+ "SIT_INDICE": [
+  "CONTA_CONFERE",
+  "DIVERGENCIA",
+  "NAO_ATENDE",
+  "PENDENTE"
+ ],
+ "LEGENDA_PADRAO": [
+  {
+   "tipo": "lote",
+   "texto": "Lote do projeto"
+  },
+  {
+   "tipo": "edif",
+   "texto": "Edificação no lote"
+  },
+  {
+   "tipo": "app",
+   "texto": "Faixa de APP"
+  },
+  {
+   "tipo": "rio",
+   "texto": "Curso d'água"
+  },
+  {
+   "tipo": "zona",
+   "texto": "Zonas do PDM"
+  }
+ ],
+ "POS_PLANTA": {
+  "lote": [
+   286,
+   270
+  ],
+  "permeavel": [
+   60,
+   58
+  ],
+  "edificacao": [
+   118,
+   212
+  ],
+  "lateral": [
+   298,
+   140
+  ]
+ },
+ "POS_VOLUME": {
+  "telhado": [
+   184,
+   76
+  ],
+  "altura": [
+   274,
+   150
+  ]
+ }
+}

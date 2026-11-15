@@ -1,0 +1,10 @@
+{
+  "descricao": "Codex que falha com código 2.",
+  "codigo": 2,
+  "eventos": [
+    "{\"type\":\"thread.started\",\"thread_id\":\"t-3\"}",
+    "{\"type\":\"error\",\"message\":\"falhou de propósito\"}"
+  ],
+  "erro": [ "erro do agente falso" ],
+  "delivery": "ausente"
+}

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Texto sem quebra mais largo que 1,5 × a página (a largura só aparece no scrollWidth)</title>
+<style>
+/*CSS_DO_KIT*/
+.nowrap { white-space: nowrap; font: 16px monospace; margin: 0; }
+</style>
+</head>
+<body>
+<div class="bloco" style="height:300px;break-inside:avoid">B1</div>
+<div class="moldura"><p class="nowrap">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</p></div>
+<div class="bloco" style="height:300px;break-inside:avoid">B2</div>
+</body>
+</html>

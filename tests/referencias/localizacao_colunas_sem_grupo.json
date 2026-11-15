@@ -1,0 +1,85 @@
+{
+ "entrada": {
+  "situacao": "CONFIRMADO",
+  "imagem": "mapa.png",
+  "dados": [
+   {
+    "rotulo": "a",
+    "valor": "a"
+   },
+   {
+    "rotulo": "b",
+    "valor": "b",
+    "grupo": ""
+   },
+   {
+    "rotulo": "c",
+    "valor": "c"
+   }
+  ]
+ },
+ "grupos": [
+  {
+   "titulo": "Dados do imóvel",
+   "dados": [
+    {
+     "rotulo": "a",
+     "valor": "a"
+    },
+    {
+     "rotulo": "b",
+     "valor": "b",
+     "grupo": ""
+    },
+    {
+     "rotulo": "c",
+     "valor": "c"
+    }
+   ]
+  }
+ ],
+ "colunas": [
+  [
+   {
+    "titulo": "Dados do imóvel",
+    "dados": [
+     {
+      "rotulo": "a",
+      "valor": "a"
+     },
+     {
+      "rotulo": "b",
+      "valor": "b",
+      "grupo": ""
+     },
+     {
+      "rotulo": "c",
+      "valor": "c"
+     }
+    ]
+   }
+  ]
+ ],
+ "legenda": [
+  {
+   "tipo": "lote",
+   "texto": "Lote do projeto"
+  },
+  {
+   "tipo": "edif",
+   "texto": "Edificação no lote"
+  },
+  {
+   "tipo": "app",
+   "texto": "Faixa de APP"
+  },
+  {
+   "tipo": "rio",
+   "texto": "Curso d'água"
+  },
+  {
+   "tipo": "zona",
+   "texto": "Zonas do PDM"
+  }
+ ]
+}

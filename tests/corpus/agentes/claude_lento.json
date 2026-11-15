@@ -1,0 +1,4 @@
+{
+  "descricao": "análise pro que fica na etapa analyze por 60 s (para cancelar).",
+  "auto": { "etapa_ms": 200, "parar_na_etapa": "analyze", "dormir_ms": 60000, "final": "CONCLUIDO" }
+}

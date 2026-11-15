@@ -1,0 +1,1 @@
+<svg class="ico tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><rect x="7.5" y="9" width="8.5" height="7.5" rx="1" fill="currentColor" fill-opacity=".18"/></svg>

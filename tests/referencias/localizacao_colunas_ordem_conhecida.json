@@ -1,0 +1,168 @@
+{
+ "entrada": {
+  "situacao": "CONFIRMADO",
+  "imagem": "mapa.png",
+  "dados": [
+   {
+    "rotulo": "a",
+    "valor": "a",
+    "grupo": "Zona e condicionantes"
+   },
+   {
+    "rotulo": "b",
+    "valor": "b",
+    "grupo": "Identificação"
+   },
+   {
+    "rotulo": "c",
+    "valor": "c",
+    "grupo": "Áreas e edificação"
+   },
+   {
+    "rotulo": "d",
+    "valor": "d",
+    "grupo": "Cadastro e entorno"
+   },
+   {
+    "rotulo": "e",
+    "valor": "e",
+    "grupo": "Zona e condicionantes"
+   },
+   {
+    "rotulo": "f",
+    "valor": "f",
+    "grupo": "Identificação"
+   }
+  ]
+ },
+ "grupos": [
+  {
+   "titulo": "Zona e condicionantes",
+   "dados": [
+    {
+     "rotulo": "a",
+     "valor": "a",
+     "grupo": "Zona e condicionantes"
+    },
+    {
+     "rotulo": "e",
+     "valor": "e",
+     "grupo": "Zona e condicionantes"
+    }
+   ]
+  },
+  {
+   "titulo": "Identificação",
+   "dados": [
+    {
+     "rotulo": "b",
+     "valor": "b",
+     "grupo": "Identificação"
+    },
+    {
+     "rotulo": "f",
+     "valor": "f",
+     "grupo": "Identificação"
+    }
+   ]
+  },
+  {
+   "titulo": "Áreas e edificação",
+   "dados": [
+    {
+     "rotulo": "c",
+     "valor": "c",
+     "grupo": "Áreas e edificação"
+    }
+   ]
+  },
+  {
+   "titulo": "Cadastro e entorno",
+   "dados": [
+    {
+     "rotulo": "d",
+     "valor": "d",
+     "grupo": "Cadastro e entorno"
+    }
+   ]
+  }
+ ],
+ "colunas": [
+  [
+   {
+    "titulo": "Identificação",
+    "dados": [
+     {
+      "rotulo": "b",
+      "valor": "b",
+      "grupo": "Identificação"
+     },
+     {
+      "rotulo": "f",
+      "valor": "f",
+      "grupo": "Identificação"
+     }
+    ]
+   },
+   {
+    "titulo": "Cadastro e entorno",
+    "dados": [
+     {
+      "rotulo": "d",
+      "valor": "d",
+      "grupo": "Cadastro e entorno"
+     }
+    ]
+   }
+  ],
+  [
+   {
+    "titulo": "Áreas e edificação",
+    "dados": [
+     {
+      "rotulo": "c",
+      "valor": "c",
+      "grupo": "Áreas e edificação"
+     }
+    ]
+   },
+   {
+    "titulo": "Zona e condicionantes",
+    "dados": [
+     {
+      "rotulo": "a",
+      "valor": "a",
+      "grupo": "Zona e condicionantes"
+     },
+     {
+      "rotulo": "e",
+      "valor": "e",
+      "grupo": "Zona e condicionantes"
+     }
+    ]
+   }
+  ]
+ ],
+ "legenda": [
+  {
+   "tipo": "lote",
+   "texto": "Lote do projeto"
+  },
+  {
+   "tipo": "edif",
+   "texto": "Edificação no lote"
+  },
+  {
+   "tipo": "app",
+   "texto": "Faixa de APP"
+  },
+  {
+   "tipo": "rio",
+   "texto": "Curso d'água"
+  },
+  {
+   "tipo": "zona",
+   "texto": "Zonas do PDM"
+  }
+ ]
+}

@@ -1,0 +1,113 @@
+{
+ "entrada": {
+  "situacao": "CONFIRMADO",
+  "imagem": "mapa.png",
+  "dados": [
+   {
+    "rotulo": "a",
+    "valor": "a",
+    "grupo": "Identificação"
+   },
+   {
+    "rotulo": "b",
+    "valor": "b",
+    "grupo": "Outro"
+   },
+   {
+    "rotulo": "c",
+    "valor": "c",
+    "grupo": "Áreas e edificação"
+   }
+  ]
+ },
+ "grupos": [
+  {
+   "titulo": "Identificação",
+   "dados": [
+    {
+     "rotulo": "a",
+     "valor": "a",
+     "grupo": "Identificação"
+    }
+   ]
+  },
+  {
+   "titulo": "Outro",
+   "dados": [
+    {
+     "rotulo": "b",
+     "valor": "b",
+     "grupo": "Outro"
+    }
+   ]
+  },
+  {
+   "titulo": "Áreas e edificação",
+   "dados": [
+    {
+     "rotulo": "c",
+     "valor": "c",
+     "grupo": "Áreas e edificação"
+    }
+   ]
+  }
+ ],
+ "colunas": [
+  [
+   {
+    "titulo": "Identificação",
+    "dados": [
+     {
+      "rotulo": "a",
+      "valor": "a",
+      "grupo": "Identificação"
+     }
+    ]
+   },
+   {
+    "titulo": "Áreas e edificação",
+    "dados": [
+     {
+      "rotulo": "c",
+      "valor": "c",
+      "grupo": "Áreas e edificação"
+     }
+    ]
+   }
+  ],
+  [
+   {
+    "titulo": "Outro",
+    "dados": [
+     {
+      "rotulo": "b",
+      "valor": "b",
+      "grupo": "Outro"
+     }
+    ]
+   }
+  ]
+ ],
+ "legenda": [
+  {
+   "tipo": "lote",
+   "texto": "Lote do projeto"
+  },
+  {
+   "tipo": "edif",
+   "texto": "Edificação no lote"
+  },
+  {
+   "tipo": "app",
+   "texto": "Faixa de APP"
+  },
+  {
+   "tipo": "rio",
+   "texto": "Curso d'água"
+  },
+  {
+   "tipo": "zona",
+   "texto": "Zonas do PDM"
+  }
+ ]
+}

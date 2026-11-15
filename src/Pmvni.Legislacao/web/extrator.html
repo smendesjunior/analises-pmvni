@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://leg.pmvni.invalid/pdfjs/build/pdf.min.mjs https://leg.pmvni.invalid/extrator.js 'wasm-unsafe-eval'; worker-src https://leg.pmvni.invalid/pdfjs/build/pdf.worker.min.mjs; connect-src https://leg.pmvni.invalid; img-src https://leg.pmvni.invalid data: blob:; font-src https://leg.pmvni.invalid data: blob:; style-src https://leg.pmvni.invalid 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'">
+<link rel="icon" href="data:,">
+<title>Extrator de texto</title>
+</head>
+<body>
+<!-- Página sem interface: o PDF.js lê o PDF e o extrator.js devolve o texto de cada página ao programa. A ordem importa:
+     pdf.min.mjs deixa globalThis.pdfjsLib, que o extrator.js usa. -->
+<script type="module" src="pdfjs/build/pdf.min.mjs"></script>
+<script type="module" src="extrator.js"></script>
+</body>
+</html>

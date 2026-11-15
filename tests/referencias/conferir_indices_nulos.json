@@ -1,0 +1,84 @@
+{
+ "dados": {
+  "capa": {
+   "quadros": [
+    {
+     "titulo": "A"
+    },
+    {
+     "titulo": "B"
+    },
+    {
+     "titulo": "C"
+    },
+    {
+     "titulo": "D"
+    }
+   ]
+  },
+  "itens": [
+   {
+    "situacao": "ATENDE",
+    "titulo": "Recuo frontal",
+    "verificacao": "Conferido na prancha 01.",
+    "providencia": "Nenhuma.",
+    "base_legal": "Art. 1º da Lei Fictícia nº 0/2000",
+    "referencia": "Prancha 01"
+   },
+   {
+    "situacao": "NAO_COMPROVADO",
+    "titulo": "Área permeável",
+    "verificacao": "Conferido na prancha 01.",
+    "providencia": "Nenhuma.",
+    "base_legal": "Art. 1º da Lei Fictícia nº 0/2000",
+    "referencia": "Prancha 01"
+   }
+  ],
+  "fontes": [
+   {
+    "nome": "Lei Fictícia nº 0/2000"
+   }
+  ],
+  "conclusao": {
+   "texto": "Conclusão fictícia."
+  },
+  "assinatura": {
+   "nome": "Fulano de Tal"
+  },
+  "indices": null,
+  "iluminacao": {},
+  "figuras": [
+   {
+    "imagem": "fig1.png",
+    "notas": [
+     "n1",
+     "n2"
+    ]
+   }
+  ],
+  "localizacao": {
+   "situacao": "CONFIRMADO",
+   "imagem": "mapa.png",
+   "dados": [
+    {
+     "rotulo": "Inscrição",
+     "valor": "1"
+    },
+    {
+     "rotulo": "Lote",
+     "valor": "2"
+    },
+    {
+     "rotulo": "Rua",
+     "valor": "3"
+    }
+   ]
+  }
+ },
+ "imagens": [
+  "fig1.png",
+  "mapa.png"
+ ],
+ "rascunho": false,
+ "erros": []
+}

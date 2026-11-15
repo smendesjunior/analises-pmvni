@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Testes do núcleo web: WebView2 real (HostOculto), mesmas configurações do Pmvni.Composicao.Web / Verificador. -->
+  <PropertyGroup>
+    <UseWinUI>false</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Pmvni.Web.Testes</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(VersaoWindowsAppSDK)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Pmvni.Composicao\Pmvni.Composicao.csproj" />
+    <ProjectReference Include="..\..\src\Pmvni.Composicao.Web\Pmvni.Composicao.Web.csproj" />
+    <ProjectReference Include="..\..\src\Pmvni.Revisao\Pmvni.Revisao.csproj" />
+    <ProjectReference Include="..\..\src\Pmvni.Legislacao\Pmvni.Legislacao.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Tarefa 17: os PDFs fictícios da legislação, gerados no próprio teste (o mesmo gerador de tests/Pmvni.Legislacao.Testes). -->
+    <Compile Include="..\Pmvni.Legislacao.Testes\Ficticios\PdfLegislacaoFicticio.cs" Link="Legislacao\PdfLegislacaoFicticio.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Tarefa 9: leitura da linha de comando do Verificador, compilada aqui (o Verificador é um executável; referenciá-lo
+         traria os tipos internos do inicializador do Windows App SDK em conflito, CS0436). -->
+    <Compile Include="..\..\src\Pmvni.Verificador\Argumentos.cs" Link="Verificador\Argumentos.cs" />
+  </ItemGroup>
+</Project>

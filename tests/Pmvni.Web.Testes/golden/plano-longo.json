@@ -1,0 +1,185 @@
+{
+ "caso": "longo",
+ "folhas": 21,
+ "escala": 1.0723031142811712,
+ "inicioDasFolhas": [
+  {
+   "caminho": [
+    0
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    2
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    7,
+    4
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    13
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    18
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    23,
+    2
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    28,
+    2
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    33,
+    2
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    38,
+    3
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    43,
+    3
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    48,
+    3
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    53,
+    3
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    58,
+    4
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    63,
+    1
+   ],
+   "deslocamentoTexto": null,
+   "linha": 1,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    68
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    69
+   ],
+   "deslocamentoTexto": null,
+   "linha": 4,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    69
+   ],
+   "deslocamentoTexto": null,
+   "linha": 8,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    70
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    74
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    76
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  },
+  {
+   "caminho": [
+    79
+   ],
+   "deslocamentoTexto": null,
+   "linha": null,
+   "forcada": false
+  }
+ ]
+}

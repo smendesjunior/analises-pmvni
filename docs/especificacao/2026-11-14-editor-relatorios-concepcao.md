@@ -53,7 +53,7 @@ de processos.
 | Projeto Gmail | WinUI 3, .NET 10, Windows App SDK 1.8, sem empacotamento MSIX, autocontido; usa WebView2 com `bridge.js`; estilos de trilho no padrão NavigationView (indicador 3 × 16, cantos 1,5), texto secundário com `TextFillColorSecondaryBrush`. [VERIFICADO, leitura superficial] | Reaproveitar a mesma base técnica e os estilos do trilho e do texto secundário. |
 
 **Não verificado:** as sete imagens de referência da conversa original **não estão disponíveis**
-e não foram examinadas. O exemplo real (processo 17098/2026) existe só na pasta do processo e
+e não foram examinadas. O exemplo real (um processo real de 2026) existe só na pasta do processo e
 **não foi aberto**, porque contém dados pessoais (ver decisão D4). O PDF de instruções e o modelo
 Word de apoio não foram abertos. Os outros validadores do kit (`validate_analysis.py` etc.) foram
 apenas listados.
@@ -435,7 +435,7 @@ e revisão; nada inventado; template do kit preservado (V1/V3).
   (V3), não como caminho de emissão.
 - **D3 — Modelos de indeferimento e circular.** Precisam ser fornecidos por você; até lá, ficam
   desabilitados.
-- **D4 — Corpus real de teste. DECIDIDO em 14/11/2026: sim, só local.** O `dados_17098.json` pode
+- **D4 — Corpus real de teste. DECIDIDO em 14/11/2026: sim, só local.** O `dados.json` do caso real pode
   ser usado nos testes de fidelidade (V1–V4) **lido diretamente da pasta do processo**, sem cópia
   para este projeto, para exemplos, documentação ou repositório. Saídas geradas a partir dele
   (HTML, PDFs, capturas, relatórios de diferença) ficam em pasta temporária e são apagadas ao fim

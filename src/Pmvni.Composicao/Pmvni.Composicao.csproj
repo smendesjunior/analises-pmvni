@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Biblioteca de composição do relatório: sem dependências do Windows (net10.0 puro). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier></RuntimeIdentifier>
+    <TargetPlatformMinVersion></TargetPlatformMinVersion>
+    <RootNamespace>Pmvni.Composicao</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Modelo oficial (revisão 10) embutido byte a byte; o nome lógico é o nome do arquivo. -->
+    <EmbeddedResource Include="ModeloOficial\rev10\*" LogicalName="%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

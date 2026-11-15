@@ -1,0 +1,6 @@
+{
+  "descricao": "Codex que informa se recebeu uma chave (só o início do sha256 dela); termina com 0.",
+  "codigo": 0,
+  "eventos": [ "{\"type\":\"thread.started\",\"thread_id\":\"t-7\"}" ],
+  "delivery": "ok"
+}

@@ -1,0 +1,12 @@
+{
+  "descricao": "Codex que não termina: um filho e 60 s de espera (para cancelar).",
+  "intervalo_ms": 10,
+  "codigo": 0,
+  "eventos": [
+    "{\"type\":\"thread.started\",\"thread_id\":\"t-2\"}",
+    "{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"Trabalhando\"}}"
+  ],
+  "filho": true,
+  "dormir_ms": 60000,
+  "delivery": "ok"
+}

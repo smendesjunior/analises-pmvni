@@ -1,0 +1,23 @@
+<UserControl x:Class="Pmvni.App.FaixaDeOpcoes"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Faixa de opções: abas (SelectorBar) e, embaixo, o botão primário tonal do módulo (o mesmo em todas as abas, como "Novo email")
+       seguido dos comandos da aba (CommandBar, rótulo à direita do ícone). -->
+  <StackPanel Padding="8,0,8,2">
+    <SelectorBar x:Name="Abas" SelectionChanged="AoMudarAba"/>
+    <Grid ColumnSpacing="8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <!-- Cores tonais do primário (claro, escuro e alto contraste): só o botão primário é um Button dentro desta vaga. -->
+      <ContentControl x:Name="VagaPrimario" Grid.Column="0" VerticalAlignment="Center" IsTabStop="False" Margin="4,0,0,0">
+        <ContentControl.Resources>
+          <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
+        </ContentControl.Resources>
+      </ContentControl>
+      <CommandBar x:Name="Barra" Grid.Column="1" DefaultLabelPosition="Right" HorizontalAlignment="Left" IsDynamicOverflowEnabled="True"
+                  Background="Transparent" OverflowButtonVisibility="Auto"/>
+    </Grid>
+  </StackPanel>
+</UserControl>

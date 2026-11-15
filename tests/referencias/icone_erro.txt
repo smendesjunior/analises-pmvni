@@ -1,0 +1,1 @@
+ERRO: Ícone desconhecido: 'zz' (use plot, to, ca, tp, pav, afa, bed, wc, pot, wash, sun, pin)

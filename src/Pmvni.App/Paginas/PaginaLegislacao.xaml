@@ -1,0 +1,136 @@
+<UserControl x:Class="Pmvni.App.PaginaLegislacao"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:controls="using:Microsoft.UI.Xaml.Controls"
+  xmlns:local="using:Pmvni.App">
+  <!-- Módulo Legislação (desenho §11.4): painel com Leis · Marcadores · Resultados, o PDF num WebView2 (criado uma vez, com a sandbox do
+       host leg.pmvni.invalid) e o rodapé "Página N de M", ◂ ▸ e a escala. Quem preenche e reage é a janela (MainWindow.Legislacao.cs). -->
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- Avisos (no máximo 2 à vista; o resto em "+n"; informativos fecham sozinhos). -->
+    <local:AreaDeAvisos x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0">
+      <InfoBar x:Name="AvisoSemTexto" x:FieldModifier="internal" Severity="Informational" IsClosable="True" Tag="fixo"
+               Message="Este PDF não tem texto pesquisável: a pesquisa e a cópia de texto não funcionam nele."/>
+      <InfoBar x:Name="AvisoErro" x:FieldModifier="internal" Severity="Error" IsClosable="True"/>
+      <InfoBar x:Name="AvisoSemCopia" x:FieldModifier="internal" Severity="Warning" IsClosable="True"
+               Message="A cópia deste PDF não foi encontrada na pasta do editor. Use Substituir arquivo… em Ajustes › Legislação."/>
+      <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsClosable="True"/>
+      <!-- A anexação começada aqui (ou em Ajustes) mostra o andamento e o Cancelar também neste módulo (desenho §11.1/§11.4). -->
+      <Grid x:Name="ProgressoAnexo" x:FieldModifier="internal" ColumnSpacing="12" Padding="12,6" Visibility="Collapsed">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Spacing="4" VerticalAlignment="Center">
+          <TextBlock x:Name="TextoProgressoAnexo" x:FieldModifier="internal" TextWrapping="Wrap"/>
+          <ProgressBar x:Name="BarraProgressoAnexo" x:FieldModifier="internal" IsIndeterminate="True"/>
+        </StackPanel>
+        <Button x:Name="BotaoCancelarAnexo" x:FieldModifier="internal" Grid.Column="1" Content="Cancelar"
+                AutomationProperties.Name="Cancelar a anexação"/>
+      </Grid>
+    </local:AreaDeAvisos>
+
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <Grid x:Name="Painel" x:FieldModifier="internal" Width="{StaticResource PmvniLarguraPainel}" Padding="0,2,0,0">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <SelectorBar x:Name="AbasPainel" x:FieldModifier="internal" Margin="8,0,8,2">
+          <SelectorBarItem x:Name="AbaLeis" x:FieldModifier="internal" Text="Leis" IsSelected="True"/>
+          <SelectorBarItem x:Name="AbaMarcadores" x:FieldModifier="internal" Text="Marcadores" IsEnabled="False"/>
+          <SelectorBarItem x:Name="AbaResultados" x:FieldModifier="internal" Text="Resultados" IsEnabled="False"/>
+        </SelectorBar>
+
+        <Grid x:Name="VistaLeis" x:FieldModifier="internal" Grid.Row="1">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <TextBox x:Name="FiltroLeis" x:FieldModifier="internal" Margin="8,4,8,6" PlaceholderText="Filtrar por título ou arquivo"
+                   AutomationProperties.Name="Filtrar as leis"/>
+          <ListView x:Name="ListaLeis" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" IsItemClickEnabled="True"
+                    Padding="4,0,4,8" AutomationProperties.Name="Leis anexadas"/>
+          <StackPanel x:Name="VazioLeis" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed" Padding="14,8" Spacing="10">
+            <ContentPresenter Width="48" Height="48" HorizontalAlignment="Left" ContentTemplate="{StaticResource PmvniIconeLegislacao}" Content="" IsHitTestVisible="False"/>
+            <TextBlock TextWrapping="Wrap" Text="Nenhuma lei anexada ainda."/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar PDFs…" Style="{StaticResource AccentButtonStyle}"/>
+              <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Gerenciar anexos"/>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+
+        <TreeView x:Name="ArvoreMarcadores" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed" SelectionMode="None"
+                  Padding="4,0,4,8" AutomationProperties.Name="Marcadores do PDF"/>
+
+        <Grid x:Name="VistaResultados" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <TextBlock x:Name="TextoResultados" x:FieldModifier="internal" Margin="12,6,12,4" TextWrapping="Wrap"
+                     Style="{StaticResource BodyStrongTextBlockStyle}"/>
+          <TextBlock x:Name="AvisoResultados" x:FieldModifier="internal" Grid.Row="1" Margin="12,0,12,6" TextWrapping="Wrap" Visibility="Collapsed"
+                     Style="{StaticResource PmvniSecondaryTextStyle}"/>
+          <ListView x:Name="ListaResultados" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True"
+                    Padding="4,0,4,8" AutomationProperties.Name="Resultados da pesquisa em todas as leis"/>
+        </Grid>
+      </Grid>
+
+      <Grid Grid.Column="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
+        <controls:WebView2 x:Name="Leitor" x:FieldModifier="internal" Opacity="0" AutomationProperties.Name="PDF da lei"/>
+        <TextBlock x:Name="TextoNadaAberto" x:FieldModifier="internal" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   TextWrapping="Wrap" Margin="24" Style="{StaticResource PmvniSecondaryTextStyle}"
+                   Text="Escolha uma lei na lista para ler."/>
+      </Grid>
+    </Grid>
+
+    <!-- Rodapé (o mesmo padrão de Relatórios, M4): zoom com ícones e atalhos na dica, "Página n de M" com caixa e a escala. -->
+    <Grid Grid.Row="2" MinHeight="44" Padding="12,4" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+      <Button x:Name="BotaoZoomMenos" x:FieldModifier="internal" Grid.Column="6" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
+              AutomationProperties.Name="Diminuir o zoom" ToolTipService.ToolTip="Diminuir o zoom (Ctrl+−)">
+        <FontIcon Glyph="&#xE71F;" FontSize="14"/>
+      </Button>
+      <Button x:Name="BotaoZoomMais" x:FieldModifier="internal" Grid.Column="8" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
+              AutomationProperties.Name="Aumentar o zoom" ToolTipService.ToolTip="Aumentar o zoom (Ctrl++)">
+        <FontIcon Glyph="&#xE8A3;" FontSize="14"/>
+      </Button>
+      <TextBlock Text="Página" VerticalAlignment="Center"/>
+      <NumberBox x:Name="CaixaPagina" x:FieldModifier="internal" Grid.Column="1" MinWidth="72" Minimum="1" Maximum="1" Value="1"
+                 SpinButtonPlacementMode="Hidden" IsEnabled="False" AutomationProperties.Name="Página"/>
+      <TextBlock x:Name="TextoTotalPaginas" x:FieldModifier="internal" Grid.Column="2" VerticalAlignment="Center" Text="de 0"/>
+      <Button x:Name="BotaoPaginaAnterior" x:FieldModifier="internal" Grid.Column="3" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
+              AutomationProperties.Name="Página anterior" ToolTipService.ToolTip="Página anterior (Alt+↑)">
+        <FontIcon Glyph="&#xE76B;" FontSize="12"/>
+      </Button>
+      <Button x:Name="BotaoPaginaProxima" x:FieldModifier="internal" Grid.Column="4" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
+              AutomationProperties.Name="Próxima página" ToolTipService.ToolTip="Próxima página (Alt+↓)">
+        <FontIcon Glyph="&#xE76C;" FontSize="12"/>
+      </Button>
+      <TextBlock x:Name="TextoEscala" x:FieldModifier="internal" Grid.Column="7" MinWidth="48" TextAlignment="Center" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+    </Grid>
+  </Grid>
+</UserControl>

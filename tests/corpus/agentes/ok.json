@@ -1,0 +1,17 @@
+{
+  "descricao": "Codex: eventos, relatório e delivery.json; sai com 0.",
+  "intervalo_ms": 10,
+  "codigo": 0,
+  "eventos": [
+    "{\"type\":\"thread.started\",\"thread_id\":\"t-1\"}",
+    "{\"type\":\"turn.started\"}",
+    "{\"type\":\"item.completed\",\"item\":{\"id\":\"i1\",\"type\":\"agent_message\",\"text\":\"Lendo o processo\"}}",
+    "{\"type\":\"item.completed\",\"item\":{\"id\":\"i2\",\"type\":\"command_execution\",\"command\":\"python conferir.py\"}}",
+    "{\"type\":\"item.completed\",\"item\":{\"id\":\"i3\",\"type\":\"file_change\",\"changes\":[{\"path\":\"a\"},{\"path\":\"b\"}]}}",
+    "texto solto do agente",
+    "{\"type\":\"item.completed\",\"item\":{\"id\":\"i4\",\"type\":\"agent_message\",\"text\":\"Relatório pronto\"}}",
+    "{\"type\":\"turn.completed\"}"
+  ],
+  "ultima_mensagem": "Relatório pronto",
+  "delivery": "ok"
+}

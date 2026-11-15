@@ -1,0 +1,42 @@
+<ResourceDictionary
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Cores do botão primário tonal (PmvniBotaoTonalStyle) ao passar o mouse e ao pressionar: posto nos recursos de um contêiner que só tem
+       o botão tonal dentro (a vaga do primário na faixa, a tela vazia, o Novo relatório). As cores são as de PmvniTonal* em
+       IconesModulos.xaml, repetidas aqui porque um dicionário de tema não pode apontar para outro. -->
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="ButtonBackground" Color="#D4EEDD"/>
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#C3E6CF"/>
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#B2DDC1"/>
+      <SolidColorBrush x:Key="ButtonForeground" Color="#0F5132"/>
+      <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#0F5132"/>
+      <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#0F5132"/>
+      <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="ButtonBackground" Color="#1F4D33"/>
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#275E3F"/>
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#2F6E4B"/>
+      <SolidColorBrush x:Key="ButtonForeground" Color="#CFEBD9"/>
+      <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#CFEBD9"/>
+      <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#CFEBD9"/>
+      <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="HighContrast">
+      <SolidColorBrush x:Key="ButtonBackground" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}"/>
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}"/>
+      <SolidColorBrush x:Key="ButtonForeground" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="ButtonForegroundPressed" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="ButtonBorderBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="{ThemeResource SystemColorButtonTextColor}"/>
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

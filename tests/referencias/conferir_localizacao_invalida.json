@@ -1,0 +1,92 @@
+{
+ "dados": {
+  "capa": {
+   "quadros": [
+    {
+     "titulo": "A"
+    },
+    {
+     "titulo": "B"
+    },
+    {
+     "titulo": "C"
+    },
+    {
+     "titulo": "D"
+    }
+   ]
+  },
+  "itens": [
+   {
+    "situacao": "ATENDE",
+    "titulo": "Recuo frontal",
+    "verificacao": "Conferido na prancha 01.",
+    "providencia": "Nenhuma.",
+    "base_legal": "Art. 1º da Lei Fictícia nº 0/2000",
+    "referencia": "Prancha 01"
+   },
+   {
+    "situacao": "NAO_COMPROVADO",
+    "titulo": "Área permeável",
+    "verificacao": "Conferido na prancha 01.",
+    "providencia": "Nenhuma.",
+    "base_legal": "Art. 1º da Lei Fictícia nº 0/2000",
+    "referencia": "Prancha 01"
+   }
+  ],
+  "fontes": [
+   {
+    "nome": "Lei Fictícia nº 0/2000"
+   }
+  ],
+  "conclusao": {
+   "texto": "Conclusão fictícia."
+  },
+  "assinatura": {
+   "nome": "Fulano de Tal"
+  },
+  "indices": {
+   "linhas": [
+    {
+     "nome": "TO",
+     "situacao": "CONTA_CONFERE"
+    },
+    {
+     "nome": "CA",
+     "situacao": "PENDENTE"
+    }
+   ]
+  },
+  "iluminacao": {
+   "ambientes": [
+    {
+     "nome": "Sala",
+     "situacao": "DIVERGENCIA"
+    }
+   ]
+  },
+  "figuras": [
+   {
+    "imagem": "fig1.png",
+    "notas": [
+     "n1",
+     "n2"
+    ]
+   }
+  ],
+  "localizacao": {
+   "situacao": "TALVEZ",
+   "dados": []
+  }
+ },
+ "imagens": [
+  "fig1.png",
+  "mapa.png"
+ ],
+ "rascunho": false,
+ "erros": [
+  "Localização: situação inválida 'TALVEZ' (CONFIRMADO ou A_CONFIRMAR)",
+  "Localização: mapa não encontrado (None)",
+  "Localização: a ficha precisa de ao menos 3 dados (inscrição, lote, ruas…)"
+ ]
+}

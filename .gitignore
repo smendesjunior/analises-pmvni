@@ -1,7 +1,14 @@
 .superpowers/
+.claude/
 bin/
 obj/
 artifacts/
 node_modules/
 tests/local.json
 tests/saida/
+# tools/fidelidade.py grava seus temporários (kit, editor, capturas, perfil do WebView2) fora do repositório e do OneDrive,
+# em %USERPROFILE%/.pmvni-fid/<run>/, apagado no fim; em tests/saida ficam só os JSON de contagens e hashes.
+Aplicativo/*.pdb
+Aplicativo/*.exe
+
+desktop.ini

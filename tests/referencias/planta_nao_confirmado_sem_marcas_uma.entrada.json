@@ -1,0 +1,20 @@
+{
+ "p": {
+  "limites_confirmados": false,
+  "testada": "10,00 m & \"frente\"",
+  "profundidade": "30,50 m",
+  "permeavel": {
+   "titulo": "ÁREA PERMEÁVEL",
+   "linha1": "25,0% do lote"
+  },
+  "edificacao": [
+   "EDIFICAÇÃO"
+  ],
+  "lateral": [
+   "1,50 m"
+  ],
+  "frente": "5,00 m",
+  "fundos": "3,00 m"
+ },
+ "marcas": []
+}

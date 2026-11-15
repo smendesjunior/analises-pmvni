@@ -1,0 +1,1724 @@
+{
+ "config": {
+  "orgao": "SECRETARIA MUNICIPAL DE OBRAS"
+ },
+ "capa": {
+  "protocolo": "03/02/2026",
+  "rotulo_data": "ANÁLISE",
+  "data": "14/11/2026",
+  "processo": "9001/2026",
+  "requerente": "CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
+  "quadros": [
+   {
+    "titulo": "LOCALIZAÇÃO",
+    "cor": "g",
+    "destaque": "Rua das Palmeiras Imaginárias, nº 100, Bairro Exemplo",
+    "apoio": "Acesso pela via principal"
+   },
+   {
+    "titulo": "CARACTERIZAÇÃO",
+    "cor": "y",
+    "destaque": "Residencial multifamiliar",
+    "apoio": "8 unidades • 3 pavimentos"
+   },
+   {
+    "titulo": "AUTORIA INDICADA",
+    "cor": "y",
+    "destaque": "Fulana de Tal Exemplo",
+    "apoio": "Registro profissional não informado"
+   },
+   {
+    "titulo": "PARÂMETROS URBANÍSTICOS",
+    "cor": "g",
+    "destaque": "Parcela e zoneamento conferidos",
+    "apoio": "Zona indicada no projeto: ZXX"
+   }
+  ],
+  "pontos_confirmar": "Afastamentos • Permeabilidade • Autoria"
+ },
+ "itens": [
+  {
+   "titulo": "Item de teste 001: calçada fachada circulação",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Garagem escala apresentada garagem carimbo aproveitamento vão planta memorial. Indicada zona recuo diferença artigo limite telhado divisa apresentada falta. Informar passeio ventilação corrigir cobertura complementar pavimento falta lote divisa porta porta.",
+   "providencia": "Apresentar Recuo divisa soma telhado recuo indicar declarada apresentar. Cobertura apresentada legenda porta porta indicar cobertura carimbo carimbo calçada permeável parâmetro licença.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 101.",
+   "referencia": "ARQ 02/09, planta. Figura 2."
+  },
+  {
+   "titulo": "Item de teste 002: afastamento cobertura norma",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Diferença conferida parâmetro rampa escala apresentar indicar planta licença certidão pavimento máximo. Mínimo taxa projeto circulação indicada edificação telhado indicar soma telhado. Complementar recuo diferença edificação telhado declarada terreno legenda área pavimento quadro parâmetro memorial indicada.",
+   "providencia": "Apresentar Área exigência certidão beiral garagem cálculo parâmetro terreno limite corrigir pavimento calçada. Circulação porta limite prancha coeficiente coeficiente taxa informar proposta cota ventilação prancha norma escada.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 102.",
+   "referencia": "ARQ 03/09, planta. Figura 3.",
+   "id": "it-002"
+  },
+  {
+   "titulo": "Item de teste 003: afastamento calçada planta",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Calçada conferida aproveitamento legenda corte exigência alvará iluminação. Parágrafo alvará taxa alvará parâmetro mínimo área escada corrigir confere terreno afastamento medida. Indicar laje permeável cobertura edificação cotar soma garagem escala fachada.",
+   "providencia": "Apresentar Permeável artigo exigência lote soma cálculo ambiente complementar. Parâmetro apresentada diverge beiral escada prancha permeável área matrícula.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 103.",
+   "referencia": "ARQ 04/09, planta. Figura 4."
+  },
+  {
+   "titulo": "Item de teste 004: recuo telhado edificação",
+   "situacao": "ATENDE",
+   "verificacao": "Indicada existente diverge prancha garagem diferença indicar cotar diferença garagem terreno recuo confere norma. Medida passeio cotar testada mínimo vaga parágrafo circulação. Cálculo existente apresentada edificação escala apresentada matrícula edificação permeável.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 104.",
+   "referencia": "ARQ 05/09, planta. Figura 5.",
+   "id": "it-004"
+  },
+  {
+   "titulo": "Item de teste 005: legenda falta ocupação",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Parâmetro conferida ventilação quadro zona proposta declarada taxa legenda medida. Taxa quadro fachada soma afastamento laje proposta legenda planta mínimo parâmetro. Garagem lote ambiente circulação máximo indicar parâmetro passeio diverge testada projeto soma norma ambiente.",
+   "providencia": "Apresentar Matrícula permeável falta legenda informar cálculo iluminação proposta diverge recuo projeto existente falta permeável. Rampa beiral fachada existente área corrigir passeio garagem diverge.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 105.",
+   "referencia": "ARQ 06/09, planta. Figura 6."
+  },
+  {
+   "titulo": "Item de teste 006: taxa escada indicada",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Coeficiente parâmetro testada matrícula proposta muro carimbo fachada ambiente coeficiente projeto cobertura. Soma escala mínimo área iluminação edificação indicada parâmetro afastamento garagem permeável. Rampa ventilação ventilação aproveitamento artigo cálculo complementar ventilação terreno existente porta parâmetro apresentar zona.",
+   "providencia": "Apresentar Soma medida planta rampa mínimo licença cálculo máximo área coeficiente. Aproveitamento vão máximo cálculo testada telhado legenda soma taxa soma exigência parágrafo norma.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 106.",
+   "referencia": "ARQ 07/09, planta. Figura 7.",
+   "id": "it-006"
+  },
+  {
+   "titulo": "Item de teste 007: testada soma janela",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Vão telhado matrícula telhado alvará indicada garagem certidão edificação norma terreno testada. Diferença porta zona beiral recuo vão complementar telhado coeficiente. Passeio vão permeável corrigir edificação apresentada complementar terreno cobertura cotar testada.",
+   "providencia": "Apresentar Legenda soma carimbo apresentar corte recuo área passeio lote edificação porta. Existente máximo falta conferida ventilação soma lote planta diferença.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 107.",
+   "referencia": "ARQ 08/09, planta. Figura 8."
+  },
+  {
+   "titulo": "Item de teste 008: corte vão parâmetro",
+   "situacao": "ATENDE",
+   "verificacao": "Quadro soma passeio lote prancha rampa confere máximo porta declarada calçada quadro. Falta alvará limite conferida vão muro taxa carimbo fachada. Alvará testada legenda mínimo janela memorial parágrafo ambiente.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 108.",
+   "referencia": "ARQ 09/09, planta. Figura 1.",
+   "id": "it-008"
+  },
+  {
+   "titulo": "Item de teste 009: pavimento certidão cota",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Exigência beiral cota rampa certidão artigo quadro coeficiente confere máximo diferença ocupação complementar. Existente exigência iluminação informar indicada fachada escala indicar matrícula falta. Lote ocupação ventilação certidão cotar indicada cálculo apresentar licença calçada rampa.",
+   "providencia": "Apresentar Exigência fachada circulação circulação planta medida garagem indicar falta. Projeto edificação memorial cotar escala projeto indicar aproveitamento artigo.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 109.",
+   "referencia": "ARQ 01/09, planta. Figura 2."
+  },
+  {
+   "titulo": "Item de teste 010: quadro ocupação proposta",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Parágrafo coeficiente permeável complementar cotar divisa afastamento divisa apresentada iluminação falta edificação. Terreno janela licença conferida existente corrigir laje vaga permeável vão passeio legenda edificação declarada. Circulação máximo ocupação medida garagem fachada falta mínimo ambiente mínimo divisa certidão recuo.",
+   "providencia": "Apresentar Muro diferença vão apresentada confere diverge terreno lote limite medida circulação memorial matrícula porta. Ocupação passeio divisa norma apresentar escala falta artigo rampa memorial iluminação diverge coeficiente.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 110.",
+   "referencia": "ARQ 02/09, planta. Figura 3.",
+   "id": "it-010"
+  },
+  {
+   "titulo": "Item de teste 011: fachada porta existente",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Certidão testada alvará rampa laje indicada cobertura área porta cota soma artigo permeável corte. Licença projeto recuo indicar vaga alvará área confere diferença aproveitamento apresentada. Terreno afastamento afastamento muro escala carimbo medida alvará existente.",
+   "providencia": "Apresentar Diverge artigo porta zona corrigir existente afastamento permeável rampa ventilação soma vaga. Norma declarada divisa cotar conferida legenda indicada taxa porta apresentada apresentar.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 111.",
+   "referencia": "ARQ 03/09, planta. Figura 4."
+  },
+  {
+   "titulo": "Item de teste 012: máximo cobertura planta",
+   "situacao": "ATENDE",
+   "verificacao": "Legenda permeável calçada iluminação conferida apresentada escada zona parágrafo licença diverge área. Vão lote conferida existente carimbo cálculo prancha cotar exigência vão fachada diverge escala alvará. Pavimento garagem artigo testada terreno testada mínimo medida zona.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 112.",
+   "referencia": "ARQ 04/09, planta. Figura 5.",
+   "id": "it-012"
+  },
+  {
+   "titulo": "Item de teste 013: carimbo cálculo ambiente",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Pavimento área cota ambiente existente diferença projeto janela porta. Ventilação afastamento memorial conferida parágrafo fachada telhado corrigir vaga indicada garagem prancha ocupação laje. Beiral complementar calçada corte quadro permeável calçada cotar limite vaga.",
+   "providencia": "Apresentar Rampa falta matrícula indicar indicada proposta zona vão conferida cobertura área apresentar. Recuo indicar pavimento soma corrigir área medida corte ambiente.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 113.",
+   "referencia": "ARQ 05/09, planta. Figura 6."
+  },
+  {
+   "titulo": "Item de teste 014: artigo cotar divisa",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Declarada muro alvará afastamento diferença afastamento carimbo legenda conferida janela terreno matrícula. Indicada divisa passeio permeável certidão porta projeto medida circulação muro legenda. Porta divisa rampa mínimo falta cota permeável certidão licença área taxa.",
+   "providencia": "Apresentar Muro passeio licença indicar apresentada fachada divisa rampa ambiente mínimo projeto terreno. Máximo pavimento proposta garagem lote beiral testada indicada permeável iluminação certidão.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 114.",
+   "referencia": "ARQ 06/09, planta. Figura 7.",
+   "id": "it-014"
+  },
+  {
+   "titulo": "Item de teste 015: quadro existente laje",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Cálculo prancha proposta divisa laje apresentar aproveitamento parágrafo ocupação parâmetro escada declarada. Telhado cota soma prancha artigo limite área zona máximo pavimento legenda. Terreno legenda parâmetro fachada carimbo declarada existente legenda.",
+   "providencia": "Apresentar Corrigir vão diverge informar planta área norma coeficiente divisa complementar. Telhado porta laje indicar escada lote legenda diverge.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 115.",
+   "referencia": "ARQ 07/09, planta. Figura 8."
+  },
+  {
+   "titulo": "Item de teste 016: edificação alvará licença",
+   "situacao": "ATENDE",
+   "verificacao": "Ambiente testada fachada exigência zona cotar matrícula memorial exigência medida proposta permeável legenda licença. Complementar testada pavimento falta carimbo prancha parâmetro memorial pavimento existente pavimento existente laje. Passeio artigo projeto janela ventilação legenda calçada permeável artigo fachada corrigir beiral.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 116.",
+   "referencia": "ARQ 08/09, planta. Figura 1.",
+   "id": "it-016"
+  },
+  {
+   "titulo": "Item de teste 017: edificação afastamento aproveitamento",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Parâmetro parâmetro confere área escada legenda parágrafo projeto passeio testada confere. Pavimento edificação área afastamento confere laje legenda memorial artigo parâmetro. Soma terreno falta passeio permeável permeável terreno cotar.",
+   "providencia": "Apresentar Taxa norma terreno escala permeável taxa cobertura divisa muro porta corrigir. Circulação cálculo taxa corrigir terreno indicada pavimento divisa parâmetro certidão porta complementar permeável lote.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 117.",
+   "referencia": "ARQ 09/09, planta. Figura 2."
+  },
+  {
+   "titulo": "Item de teste 018: medida legenda indicar",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Taxa corte vão aproveitamento declarada beiral circulação janela máximo permeável. Passeio ventilação indicada licença existente corte apresentada rampa garagem. Cálculo rampa alvará lote corrigir parágrafo diverge proposta.",
+   "providencia": "Apresentar Circulação medida complementar licença aproveitamento matrícula falta corrigir mínimo divisa rampa projeto legenda. Taxa beiral terreno falta beiral rampa circulação carimbo parágrafo falta coeficiente.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 118.",
+   "referencia": "ARQ 01/09, planta. Figura 3.",
+   "id": "it-018"
+  },
+  {
+   "titulo": "Item de teste 019: licença edificação cotar",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Cálculo iluminação existente diferença circulação corte testada corrigir planta coeficiente. Lote lote lote laje beiral carimbo mínimo informar lote. Declarada indicada matrícula telhado vaga mínimo mínimo proposta máximo janela licença terreno telhado cálculo.",
+   "providencia": "Apresentar Planta diferença cota mínimo telhado indicada memorial certidão informar indicada licença testada pavimento. Cobertura parâmetro norma diverge ocupação coeficiente vão ventilação matrícula garagem alvará testada.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 119.",
+   "referencia": "ARQ 02/09, planta. Figura 4."
+  },
+  {
+   "titulo": "Item de teste 020: existente prancha cota",
+   "situacao": "ATENDE",
+   "verificacao": "Zona cálculo lote cota afastamento porta indicar calçada muro iluminação parâmetro janela. Proposta permeável conferida telhado aproveitamento testada indicada certidão. Quadro informar exigência passeio ambiente escala proposta ventilação permeável norma.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 120.",
+   "referencia": "ARQ 03/09, planta. Figura 5.",
+   "id": "it-020"
+  },
+  {
+   "titulo": "Item de teste 021: diferença máximo ventilação",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Telhado lote parágrafo iluminação declarada janela certidão divisa lote. Afastamento laje testada cálculo planta fachada corte memorial máximo garagem porta. Certidão alvará vão artigo área indicar beiral alvará vaga indicada.",
+   "providencia": "Apresentar Coeficiente confere parâmetro taxa declarada apresentar falta janela declarada cotar laje cobertura conferida medida. Matrícula indicada cálculo diverge complementar muro cobertura medida cálculo cálculo afastamento informar.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 121.",
+   "referencia": "ARQ 04/09, planta. Figura 6."
+  },
+  {
+   "titulo": "Item de teste 022: pavimento diverge beiral",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Informar pavimento certidão matrícula ambiente pavimento escala janela terreno escada legenda coeficiente projeto. Legenda divisa janela vaga cota divisa aproveitamento laje. Fachada circulação iluminação testada porta alvará muro circulação cálculo porta vão matrícula edificação.",
+   "providencia": "Apresentar Ocupação aproveitamento vaga indicar cotar vaga certidão terreno passeio. Divisa divisa medida matrícula afastamento pavimento informar ocupação cálculo aproveitamento calçada circulação complementar aproveitamento.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 122.",
+   "referencia": "ARQ 05/09, planta. Figura 7.",
+   "id": "it-022"
+  },
+  {
+   "titulo": "Item de teste 023: confere escada prancha",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Lote cálculo ocupação corrigir proposta projeto pavimento ocupação circulação aproveitamento corte cobertura. Lote janela declarada diverge ventilação confere ambiente cota corte matrícula escala terreno. Circulação soma existente licença muro telhado conferida medida indicada legenda.",
+   "providencia": "Apresentar Cobertura beiral medida lote cotar alvará planta edificação artigo edificação janela. Escala ambiente testada apresentar recuo ventilação indicada laje cota pavimento.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 123.",
+   "referencia": "ARQ 06/09, planta. Figura 8."
+  },
+  {
+   "titulo": "Item de teste 024: soma ventilação matrícula",
+   "situacao": "ATENDE",
+   "verificacao": "Garagem pavimento lote garagem calçada afastamento porta escada corrigir máximo. Declarada área testada indicar calçada ambiente lote proposta conferida aproveitamento permeável conferida. Alvará apresentar matrícula cota proposta área falta lote limite.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 124.",
+   "referencia": "ARQ 07/09, planta. Figura 1.",
+   "id": "it-024"
+  },
+  {
+   "titulo": "Item de teste 025: falta terreno parâmetro",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Escada área rampa apresentar laje zona terreno corrigir carimbo planta indicar fachada. Proposta planta passeio declarada memorial porta ocupação divisa. Projeto mínimo soma ventilação fachada divisa permeável soma parâmetro recuo lote corrigir coeficiente declarada.",
+   "providencia": "Apresentar Carimbo aproveitamento exigência corrigir informar testada muro cotar máximo. Fachada permeável confere beiral lote lote pavimento exigência laje afastamento terreno artigo existente afastamento.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 125.",
+   "referencia": "ARQ 08/09, planta. Figura 2."
+  },
+  {
+   "titulo": "Item de teste 026: porta telhado ventilação",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Legenda soma artigo coeficiente certidão rampa vaga confere fachada lote zona proposta afastamento passeio. Escada medida mínimo norma fachada afastamento falta permeável. Limite laje testada licença iluminação cobertura garagem telhado lote diferença corte medida cota.",
+   "providencia": "Apresentar Parâmetro beiral circulação ocupação declarada artigo divisa calçada zona circulação. Escala alvará limite licença telhado beiral ambiente cobertura laje janela zona.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 126.",
+   "referencia": "ARQ 09/09, planta. Figura 3.",
+   "id": "it-026"
+  },
+  {
+   "titulo": "Item de teste 027: quadro existente ambiente",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Cálculo cota afastamento coeficiente indicar matrícula aproveitamento área projeto. Licença memorial soma rampa mínimo declarada rampa fachada permeável. Área área existente permeável vão certidão coeficiente pavimento pavimento corte prancha conferida.",
+   "providencia": "Apresentar Certidão indicar muro porta exigência calçada ocupação apresentada confere aproveitamento taxa. Permeável laje telhado terreno soma lote edificação telhado projeto permeável aproveitamento vaga.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 127.",
+   "referencia": "ARQ 01/09, planta. Figura 4."
+  },
+  {
+   "titulo": "Item de teste 028: existente iluminação calçada",
+   "situacao": "ATENDE",
+   "verificacao": "Muro apresentada norma legenda parâmetro corte limite carimbo medida cobertura área laje. Vão carimbo norma janela cálculo recuo informar licença indicar fachada apresentada divisa proposta. Artigo porta matrícula declarada porta falta aproveitamento muro.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 128.",
+   "referencia": "ARQ 02/09, planta. Figura 5.",
+   "id": "it-028"
+  },
+  {
+   "titulo": "Item de teste 029: coeficiente área lote",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Exigência ocupação máximo área medida vaga corrigir diverge calçada pavimento escala. Prancha memorial divisa aproveitamento rampa circulação proposta soma mínimo escala fachada. Mínimo quadro circulação licença lote indicar informar corte matrícula passeio corte apresentada taxa.",
+   "providencia": "Apresentar Ambiente licença exigência permeável declarada cobertura mínimo legenda limite matrícula. Cobertura cálculo calçada diverge calçada medida escada quadro confere vão quadro alvará declarada quadro.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 129.",
+   "referencia": "ARQ 03/09, planta. Figura 6."
+  },
+  {
+   "titulo": "Item de teste 030: parágrafo muro diferença",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Corte parágrafo memorial corte ocupação limite exigência pavimento apresentada corte. Lote projeto laje afastamento prancha testada conferida certidão exigência exigência planta terreno afastamento testada. Calçada proposta quadro carimbo certidão limite calçada mínimo beiral parágrafo parágrafo garagem falta declarada.",
+   "providencia": "Apresentar Memorial planta coeficiente afastamento memorial informar vaga cálculo memorial testada proposta rampa. Beiral ventilação máximo ventilação máximo prancha ambiente recuo divisa.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 130.",
+   "referencia": "ARQ 04/09, planta. Figura 7.",
+   "id": "it-030"
+  },
+  {
+   "titulo": "Item de teste 031: fachada parâmetro complementar",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Projeto carimbo escala permeável artigo certidão complementar diverge parâmetro. Cota licença confere parágrafo vaga aproveitamento falta rampa coeficiente circulação taxa ocupação mínimo. Garagem artigo rampa indicar conferida falta zona matrícula parâmetro apresentar zona mínimo porta telhado.",
+   "providencia": "Apresentar Diverge informar apresentada vaga escada projeto corte ocupação parágrafo projeto diferença zona certidão. Soma lote garagem porta indicar coeficiente apresentada telhado existente apresentada afastamento projeto.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 131.",
+   "referencia": "ARQ 05/09, planta. Figura 8."
+  },
+  {
+   "titulo": "Item de teste 032: recuo indicada rampa",
+   "situacao": "ATENDE",
+   "verificacao": "Iluminação confere indicar afastamento vão afastamento calçada proposta declarada cobertura calçada. Janela vaga parágrafo diverge existente legenda laje divisa planta taxa. Ventilação telhado proposta vão muro testada legenda calçada.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 132.",
+   "referencia": "ARQ 06/09, planta. Figura 1.",
+   "id": "it-032"
+  },
+  {
+   "titulo": "Item de teste 033: vaga licença medida",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Complementar rampa aproveitamento rampa planta beiral planta exigência. Coeficiente indicar edificação alvará laje carimbo escala zona limite aproveitamento. Alvará vão parágrafo vaga rampa quadro limite passeio medida aproveitamento.",
+   "providencia": "Apresentar Prancha quadro complementar rampa existente confere norma porta complementar corte soma indicar ocupação. Escada testada complementar artigo circulação área beiral edificação corte quadro exigência mínimo.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 133.",
+   "referencia": "ARQ 07/09, planta. Figura 2."
+  },
+  {
+   "titulo": "Item de teste 034: taxa cotar soma",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Proposta diferença área planta edificação quadro cobertura exigência apresentar artigo. Apresentada porta muro laje limite divisa parâmetro informar. Limite legenda soma limite informar iluminação informar coeficiente zona zona soma.",
+   "providencia": "Apresentar Licença soma corte confere divisa área beiral corte apresentar artigo. Edificação zona mínimo projeto corrigir artigo legenda máximo edificação.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 134.",
+   "referencia": "ARQ 08/09, planta. Figura 3.",
+   "id": "it-034"
+  },
+  {
+   "titulo": "Item de teste 035: circulação alvará edificação",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Norma indicada quadro cobertura apresentar diverge licença limite garagem zona declarada janela medida. Confere muro carimbo permeável área legenda matrícula passeio exigência planta área. Existente apresentada quadro janela vão coeficiente beiral calçada iluminação escala calçada permeável carimbo.",
+   "providencia": "Apresentar Indicar licença pavimento ocupação matrícula existente terreno divisa medida. Quadro muro testada limite área soma legenda ambiente indicada artigo medida complementar.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 135.",
+   "referencia": "ARQ 09/09, planta. Figura 4."
+  },
+  {
+   "titulo": "Item de teste 036: pavimento legenda apresentar",
+   "situacao": "ATENDE",
+   "verificacao": "Soma exigência existente telhado diverge muro corrigir garagem ventilação porta escala diverge confere. Ambiente telhado recuo lote apresentar mínimo projeto existente janela aproveitamento diverge coeficiente ventilação divisa. Indicar memorial proposta informar falta terreno muro alvará conferida cobertura.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 136.",
+   "referencia": "ARQ 01/09, planta. Figura 5.",
+   "id": "it-036"
+  },
+  {
+   "titulo": "Item de teste 037: porta cálculo projeto",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Vaga mínimo lote coeficiente artigo telhado legenda passeio passeio cota indicar projeto. Vaga diverge planta circulação edificação quadro licença licença passeio edificação falta. Mínimo cotar declarada licença parágrafo declarada matrícula área escala complementar.",
+   "providencia": "Apresentar Artigo corrigir memorial corte licença ventilação afastamento edificação rampa laje confere planta iluminação. Confere licença soma alvará matrícula norma memorial rampa máximo permeável taxa planta.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 137.",
+   "referencia": "ARQ 02/09, planta. Figura 6."
+  },
+  {
+   "titulo": "Item de teste 038: edificação informar apresentar",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Memorial planta beiral pavimento indicar pavimento planta licença. Soma artigo parâmetro passeio ambiente matrícula afastamento alvará apresentar garagem telhado. Apresentar indicar legenda taxa mínimo diverge artigo laje soma lote cota projeto limite.",
+   "providencia": "Apresentar Existente taxa ocupação matrícula existente calçada iluminação máximo taxa conferida medida. Corte aproveitamento memorial corrigir diferença recuo proposta corrigir aproveitamento complementar ventilação passeio apresentada.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 138.",
+   "referencia": "ARQ 03/09, planta. Figura 7.",
+   "id": "it-038"
+  },
+  {
+   "titulo": "Item de teste 039: coeficiente parágrafo carimbo",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Complementar pavimento janela informar terreno escala existente certidão calçada fachada área coeficiente telhado. Declarada cobertura porta cálculo quadro muro escada cotar edificação complementar cotar calçada parágrafo. Licença lote afastamento prancha carimbo conferida confere vão.",
+   "providencia": "Apresentar Ambiente soma projeto taxa permeável divisa falta janela. Zona quadro garagem vaga memorial passeio passeio escada terreno exigência área.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 139.",
+   "referencia": "ARQ 04/09, planta. Figura 8."
+  },
+  {
+   "titulo": "Item de teste 040: beiral afastamento escala",
+   "situacao": "ATENDE",
+   "verificacao": "Aproveitamento cotar cotar calçada janela soma edificação permeável. Norma porta parágrafo mínimo laje complementar medida exigência escada parâmetro escala. Lote norma mínimo permeável carimbo apresentada conferida área falta fachada.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 140.",
+   "referencia": "ARQ 05/09, planta. Figura 1.",
+   "id": "it-040"
+  },
+  {
+   "titulo": "Item de teste 041: apresentada beiral parâmetro",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Circulação norma parâmetro corte recuo máximo circulação declarada apresentada calçada certidão declarada limite. Beiral cota soma divisa corrigir área informar matrícula ambiente máximo recuo ocupação vão. Certidão matrícula escala escada memorial edificação existente pavimento falta laje pavimento licença muro corte.",
+   "providencia": "Apresentar Apresentar recuo medida iluminação beiral terreno indicar lote parâmetro limite. Medida cobertura proposta calçada informar beiral quadro alvará apresentar.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 141.",
+   "referencia": "ARQ 06/09, planta. Figura 2."
+  },
+  {
+   "titulo": "Item de teste 042: carimbo existente informar",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Projeto cotar área laje licença complementar escada indicar. Planta mínimo escada quadro circulação corrigir vão máximo máximo edificação apresentar. Coeficiente divisa beiral fachada prancha lote vão lote existente exigência beiral coeficiente calçada taxa.",
+   "providencia": "Apresentar Ambiente declarada beiral parâmetro taxa indicada fachada ocupação taxa indicar prancha. Corrigir garagem ocupação janela máximo recuo ambiente parágrafo rampa medida falta parâmetro circulação.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 142.",
+   "referencia": "ARQ 07/09, planta. Figura 3.",
+   "id": "it-042"
+  },
+  {
+   "titulo": "Item de teste 043: vão conferida aproveitamento",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Passeio telhado área exigência cálculo circulação complementar fachada parágrafo testada. Escala aproveitamento medida fachada vaga lote proposta limite iluminação carimbo norma. Coeficiente memorial corrigir telhado declarada diferença soma aproveitamento muro corte.",
+   "providencia": "Apresentar Exigência telhado vaga lote afastamento cálculo projeto confere ocupação. Fachada medida iluminação existente zona calçada ventilação zona limite projeto norma janela.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 143.",
+   "referencia": "ARQ 08/09, planta. Figura 4."
+  },
+  {
+   "titulo": "Item de teste 044: limite calçada iluminação",
+   "situacao": "ATENDE",
+   "verificacao": "Parágrafo quadro licença taxa complementar projeto rampa máximo janela aproveitamento. Escada quadro licença alvará diverge alvará cota projeto área afastamento indicar muro. Diferença beiral rampa rampa parâmetro legenda recuo indicada.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 144.",
+   "referencia": "ARQ 09/09, planta. Figura 5.",
+   "id": "it-044"
+  },
+  {
+   "titulo": "Item de teste 045: declarada parágrafo indicar",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Certidão norma rampa taxa escada indicada parâmetro taxa laje. Vão prancha escala informar afastamento fachada cotar escada matrícula proposta coeficiente licença cotar diferença. Pavimento complementar certidão apresentar confere laje vaga divisa cobertura.",
+   "providencia": "Apresentar Testada apresentar declarada garagem parâmetro área taxa recuo ambiente. Quadro lote certidão proposta muro recuo escada corte rampa.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 145.",
+   "referencia": "ARQ 01/09, planta. Figura 6."
+  },
+  {
+   "titulo": "Item de teste 046: apresentada indicar declarada",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Projeto fachada pavimento medida vão pavimento fachada fachada máximo indicar apresentada escada projeto edificação. Permeável escala terreno ocupação norma falta aproveitamento diferença diferença prancha certidão. Cobertura indicar circulação afastamento certidão rampa vão vão cotar certidão escala.",
+   "providencia": "Apresentar Carimbo janela apresentar calçada conferida diferença planta licença máximo vaga escada. Legenda janela matrícula matrícula rampa iluminação artigo aproveitamento cotar.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 146.",
+   "referencia": "ARQ 02/09, planta. Figura 7.",
+   "id": "it-046"
+  },
+  {
+   "titulo": "Item de teste 047: cotar conferida cota",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Conferida cálculo fachada parágrafo janela legenda quadro indicar. Confere cálculo área cálculo área parâmetro alvará coeficiente escada existente passeio falta vaga. Falta alvará complementar parágrafo máximo quadro porta taxa ambiente existente iluminação aproveitamento.",
+   "providencia": "Apresentar Edificação soma corrigir memorial testada declarada passeio circulação complementar memorial corrigir escala. Cota iluminação legenda divisa área apresentar certidão diverge fachada carimbo rampa soma aproveitamento.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 147.",
+   "referencia": "ARQ 03/09, planta. Figura 8."
+  },
+  {
+   "titulo": "Item de teste 048: apresentar diverge declarada",
+   "situacao": "ATENDE",
+   "verificacao": "Carimbo memorial janela memorial laje matrícula falta área mínimo calçada existente. Proposta cobertura iluminação permeável beiral projeto ventilação complementar muro prancha. Planta escada cota rampa parâmetro janela corrigir iluminação rampa carimbo passeio apresentar.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 148.",
+   "referencia": "ARQ 04/09, planta. Figura 1.",
+   "id": "it-048"
+  },
+  {
+   "titulo": "Item de teste 049: quadro prancha ventilação",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Janela conferida calçada máximo rampa circulação divisa vão. Cálculo alvará muro carimbo alvará norma vaga vão testada ocupação laje vão planta apresentada. Máximo garagem mínimo pavimento proposta beiral cálculo afastamento calçada parágrafo pavimento.",
+   "providencia": "Apresentar Medida ocupação lote proposta taxa falta carimbo lote. Quadro declarada coeficiente carimbo coeficiente indicada pavimento exigência diferença memorial corrigir.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 149.",
+   "referencia": "ARQ 05/09, planta. Figura 2."
+  },
+  {
+   "titulo": "Item de teste 050: indicar aproveitamento corte",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Fachada cobertura calçada máximo cobertura área cotar permeável zona iluminação aproveitamento exigência diverge fachada. Planta lote muro declarada vão lote cálculo parâmetro cota. Rampa área confere proposta calçada iluminação afastamento muro.",
+   "providencia": "Apresentar Rampa vão diverge limite ocupação iluminação parâmetro quadro diferença beiral afastamento limite. Coeficiente ocupação alvará diferença mínimo quadro testada divisa cálculo rampa.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 150.",
+   "referencia": "ARQ 06/09, planta. Figura 3.",
+   "id": "it-050"
+  },
+  {
+   "titulo": "Item de teste 051: planta indicada máximo",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Complementar muro rampa cotar testada indicada quadro coeficiente ambiente divisa porta cotar cota projeto. Rampa fachada apresentar pavimento garagem proposta limite alvará coeficiente garagem planta. Projeto proposta afastamento passeio parâmetro certidão corrigir norma.",
+   "providencia": "Apresentar Terreno vão ocupação porta cálculo proposta recuo diferença falta certidão calçada indicada lote. Cota matrícula projeto prancha área escala lote cota projeto ambiente.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 151.",
+   "referencia": "ARQ 07/09, planta. Figura 4."
+  },
+  {
+   "titulo": "Item de teste 052: divisa vão passeio",
+   "situacao": "ATENDE",
+   "verificacao": "Planta projeto beiral máximo confere licença iluminação escada. Matrícula informar informar artigo divisa lote terreno divisa cálculo indicada lote. Parâmetro apresentar diferença pavimento prancha indicada apresentar parágrafo cobertura recuo lote.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 152.",
+   "referencia": "ARQ 08/09, planta. Figura 5.",
+   "id": "it-052"
+  },
+  {
+   "titulo": "Item de teste 053: cota cobertura ventilação",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Cálculo quadro cobertura confere conferida telhado indicada afastamento cotar cota taxa licença alvará. Pavimento norma garagem diverge confere área cota edificação taxa. Zona circulação memorial laje carimbo circulação matrícula cobertura lote apresentar falta vão cota proposta.",
+   "providencia": "Apresentar Mínimo laje parâmetro máximo zona complementar proposta planta parágrafo soma calçada indicada. Telhado divisa recuo máximo legenda testada confere informar projeto divisa alvará aproveitamento indicada afastamento.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 153.",
+   "referencia": "ARQ 09/09, planta. Figura 6."
+  },
+  {
+   "titulo": "Item de teste 054: corte quadro informar",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Afastamento informar ocupação diverge taxa alvará cota diferença complementar declarada coeficiente. Existente licença lote passeio indicada vaga quadro corte lote falta. Coeficiente laje apresentada carimbo indicar corte complementar edificação medida lote diferença.",
+   "providencia": "Apresentar Legenda divisa pavimento cotar edificação diverge coeficiente conferida lote apresentar quadro pavimento diverge máximo. Limite exigência pavimento escala lote escada muro memorial ventilação.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 154.",
+   "referencia": "ARQ 01/09, planta. Figura 7.",
+   "id": "it-054"
+  },
+  {
+   "titulo": "Item de teste 055: porta rampa confere",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Afastamento laje licença parâmetro beiral terreno beiral limite vaga. Escada complementar lote prancha laje garagem testada cobertura exigência exigência legenda. Muro janela ocupação planta escala quadro apresentada edificação corrigir escala.",
+   "providencia": "Apresentar Carimbo planta parágrafo complementar mínimo exigência proposta taxa memorial carimbo janela. Porta aproveitamento divisa laje cobertura complementar complementar apresentar diverge divisa licença.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 155.",
+   "referencia": "ARQ 02/09, planta. Figura 8."
+  },
+  {
+   "titulo": "Item de teste 056: janela cotar divisa",
+   "situacao": "ATENDE",
+   "verificacao": "Artigo coeficiente vão terreno ventilação circulação cálculo informar pavimento mínimo cotar laje diverge porta. Área passeio circulação indicada beiral indicar janela máximo aproveitamento máximo permeável zona área garagem. Vaga calçada parágrafo conferida permeável testada carimbo testada informar muro prancha projeto porta.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 156.",
+   "referencia": "ARQ 03/09, planta. Figura 1.",
+   "id": "it-056"
+  },
+  {
+   "titulo": "Item de teste 057: ambiente cota ventilação",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Proposta iluminação permeável lote divisa prancha escala divisa taxa. Limite existente certidão parágrafo corte falta declarada coeficiente edificação porta existente escala. Divisa zona ventilação vão declarada vaga garagem complementar.",
+   "providencia": "Apresentar Mínimo soma afastamento escada zona exigência máximo licença área. Diverge recuo alvará fachada apresentada ventilação coeficiente beiral laje conferida vão artigo laje.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 157.",
+   "referencia": "ARQ 04/09, planta. Figura 2."
+  },
+  {
+   "titulo": "Item de teste 058: porta indicada indicar",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Escada cota taxa vão exigência zona divisa cálculo ocupação. Cota janela apresentada carimbo ambiente janela apresentar artigo aproveitamento quadro passeio soma edificação. Rampa carimbo cobertura prancha telhado fachada cotar divisa mínimo indicada janela.",
+   "providencia": "Apresentar Terreno ambiente cotar alvará recuo edificação indicar matrícula confere alvará. Ventilação parâmetro limite ventilação confere máximo conferida projeto fachada testada ambiente diverge.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 158.",
+   "referencia": "ARQ 05/09, planta. Figura 3.",
+   "id": "it-058"
+  },
+  {
+   "titulo": "Item de teste 059: calçada testada terreno",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "Passeio carimbo alvará ambiente indicar diverge ambiente corrigir vaga pavimento garagem beiral edificação. Cotar certidão medida diferença diferença porta testada cota quadro artigo indicada afastamento telhado. Licença indicar corte certidão vaga confere pavimento apresentar indicada confere passeio telhado.",
+   "providencia": "Apresentar Ocupação norma planta informar apresentada máximo falta ambiente vão. Cobertura falta garagem proposta prancha diferença existente norma telhado cotar taxa máximo área.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 159.",
+   "referencia": "ARQ 06/09, planta. Figura 4."
+  },
+  {
+   "titulo": "Item de teste 060: norma cota declarada",
+   "situacao": "ATENDE",
+   "verificacao": "Cota diferença escala aproveitamento mínimo alvará mínimo terreno passeio. Ambiente soma conferida telhado carimbo cálculo medida coeficiente matrícula pavimento existente projeto beiral pavimento. Norma beiral aproveitamento vaga fachada máximo máximo artigo certidão.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 100.",
+   "referencia": "ARQ 07/09, planta. Figura 5.",
+   "id": "it-060"
+  }
+ ],
+ "localizacao": {
+  "subtitulo": "Conferência do endereço com a base cartográfica e cadastral.",
+  "situacao": "A_CONFIRMAR",
+  "imagem": "img/mapa.png",
+  "dados": [
+   {
+    "grupo": "Identificação",
+    "rotulo": "Dado 1",
+    "valor": "35,41 m²"
+   },
+   {
+    "grupo": "Identificação",
+    "rotulo": "Dado 2",
+    "valor": "986,22 m²",
+    "chip": "DIVERGE",
+    "alerta": "a"
+   },
+   {
+    "grupo": "Identificação",
+    "rotulo": "Dado 3",
+    "valor": "617,29 m²",
+    "nota": "Ressalva curta do campo."
+   },
+   {
+    "grupo": "Identificação",
+    "rotulo": "Dado 4",
+    "valor": "485,36 m²"
+   },
+   {
+    "grupo": "Áreas e edificação",
+    "rotulo": "Dado 1",
+    "valor": "462,39 m²"
+   },
+   {
+    "grupo": "Áreas e edificação",
+    "rotulo": "Dado 2",
+    "valor": "492,59 m²",
+    "chip": "DIVERGE",
+    "alerta": "a"
+   },
+   {
+    "grupo": "Áreas e edificação",
+    "rotulo": "Dado 3",
+    "valor": "538,75 m²",
+    "nota": "Ressalva curta do campo."
+   },
+   {
+    "grupo": "Áreas e edificação",
+    "rotulo": "Dado 4",
+    "valor": "958,63 m²"
+   },
+   {
+    "grupo": "Zona e condicionantes",
+    "rotulo": "Dado 1",
+    "valor": "738,84 m²"
+   },
+   {
+    "grupo": "Zona e condicionantes",
+    "rotulo": "Dado 2",
+    "valor": "434,08 m²",
+    "chip": "DIVERGE",
+    "alerta": "a"
+   },
+   {
+    "grupo": "Zona e condicionantes",
+    "rotulo": "Dado 3",
+    "valor": "655,34 m²",
+    "nota": "Ressalva curta do campo."
+   },
+   {
+    "grupo": "Zona e condicionantes",
+    "rotulo": "Dado 4",
+    "valor": "796,93 m²"
+   },
+   {
+    "grupo": "Cadastro e entorno",
+    "rotulo": "Dado 1",
+    "valor": "336,55 m²"
+   },
+   {
+    "grupo": "Cadastro e entorno",
+    "rotulo": "Dado 2",
+    "valor": "606,84 m²",
+    "chip": "DIVERGE",
+    "alerta": "a"
+   },
+   {
+    "grupo": "Cadastro e entorno",
+    "rotulo": "Dado 3",
+    "valor": "186,25 m²",
+    "nota": "Ressalva curta do campo."
+   },
+   {
+    "grupo": "Cadastro e entorno",
+    "rotulo": "Dado 4",
+    "valor": "730,99 m²"
+   }
+  ],
+  "texto": "Mínimo ambiente artigo certidão área escala exigência porta garagem cotar. Complementar matrícula declarada ambiente cota medida cotar falta falta.",
+  "legenda": [
+   {
+    "tipo": "lote",
+    "texto": "Lote do projeto"
+   },
+   {
+    "tipo": "edif",
+    "texto": "Edificação no lote"
+   },
+   {
+    "tipo": "app",
+    "texto": "Faixa de APP"
+   },
+   {
+    "tipo": "rio",
+    "texto": "Curso d'água"
+   }
+  ],
+  "observacoes": [
+   "Legenda indicar janela ventilação confere indicada ambiente ventilação matrícula laje.",
+   "Indicar muro escada licença afastamento exigência complementar edificação vaga vaga permeável corrigir."
+  ],
+  "fonte": "Base municipal fictícia e cadastro imobiliário fictício; SIRGAS 2000 / UTM 24S."
+ },
+ "indices": {
+  "subtitulo": "Parcela declarada: 480,00 m² • parâmetros sujeitos à confirmação.",
+  "zona": "ZXX",
+  "linhas": [
+   {
+    "icone": "plot",
+    "nome": "Índice 1",
+    "descricao": "Soma indicar máximo norma indicada existente cota.",
+    "calculo": "70,00 ÷ 480,00 × 100 = 51%",
+    "projeto": "52%",
+    "projeto_destaque": false,
+    "limite": "≤ 47%",
+    "situacao": "CONTA_CONFERE",
+    "texto": "Garagem indicada vaga proposta limite diverge."
+   },
+   {
+    "icone": "to",
+    "nome": "Índice 2",
+    "descricao": "Laje pavimento indicar vão soma.",
+    "calculo": "188,00 ÷ 480,00 × 100 = 14%",
+    "projeto": "69%",
+    "projeto_destaque": false,
+    "limite": "≤ 77%",
+    "situacao": "NAO_ATENDE",
+    "texto": "Calçada ventilação confere terreno complementar ventilação parágrafo prancha."
+   },
+   {
+    "icone": "ca",
+    "nome": "Índice 3",
+    "descricao": "Circulação artigo parâmetro coeficiente falta divisa lote recuo.",
+    "calculo": "290,00 ÷ 480,00 × 100 = 79%",
+    "projeto": "46%",
+    "projeto_destaque": false,
+    "limite": "≤ 82%",
+    "situacao": "PENDENTE",
+    "texto": "Planta escada ambiente garagem proposta."
+   },
+   {
+    "icone": "tp",
+    "nome": "Índice 4",
+    "descricao": "Vaga diverge parágrafo declarada ocupação cotar.",
+    "calculo": "227,00 ÷ 480,00 × 100 = 86%",
+    "projeto": "40%",
+    "projeto_destaque": true,
+    "limite": "≤ 83%",
+    "situacao": "DIVERGENCIA",
+    "texto": "Pavimento medida cotar beiral telhado complementar."
+   },
+   {
+    "icone": "pav",
+    "nome": "Índice 5",
+    "descricao": "Diverge telhado porta licença.",
+    "calculo": "108,00 ÷ 480,00 × 100 = 53%",
+    "projeto": "57%",
+    "projeto_destaque": false,
+    "limite": "≤ 42%",
+    "situacao": "CONTA_CONFERE",
+    "texto": "Legenda coeficiente cota artigo mínimo afastamento testada corte."
+   },
+   {
+    "icone": "afa",
+    "nome": "Índice 6",
+    "descricao": "Proposta rampa exigência corrigir projeto beiral cotar.",
+    "calculo": "339,00 ÷ 480,00 × 100 = 45%",
+    "projeto": "86%",
+    "projeto_destaque": false,
+    "limite": "≤ 40%",
+    "situacao": "NAO_ATENDE",
+    "texto": "Zona certidão vaga laje."
+   }
+  ],
+  "observacao": "Corte cotar lote coeficiente iluminação parágrafo falta indicada cota recuo zona cotar. Beiral permeável planta prancha passeio medida testada recuo limite licença mínimo terreno ambiente."
+ },
+ "diagrama": {
+  "planta": {
+   "testada": "Testada (12,00 m)",
+   "profundidade": "Profundidade (40,00 m)",
+   "limites_confirmados": false,
+   "permeavel": {
+    "titulo": "ÁREA PERMEÁVEL",
+    "linha1": "18% no projeto",
+    "linha2": "12% no cálculo",
+    "linha2_destaque": true
+   },
+   "edificacao": [
+    "EDIFICAÇÃO NOVA",
+    "3 pavimentos"
+   ],
+   "beiral": "beiral 0,60 m",
+   "lateral": [
+    "lateral 1,50 m",
+    "(cotada)"
+   ],
+   "frente": "frente 5,00 m",
+   "fundos": "fundos não cotados"
+  },
+  "volumetria": {
+   "altura_esquerda": [
+    "Corte AA",
+    "9,20 m"
+   ],
+   "altura_direita": [
+    "Corte BB",
+    "9,35 m"
+   ]
+  },
+  "chamadas": [
+   {
+    "ancora": "lote",
+    "titulo": "Chamada 1",
+    "situacao": "CONTA_CONFERE",
+    "texto": "Indicar carimbo vaga informar testada."
+   },
+   {
+    "ancora": "permeavel",
+    "titulo": "Chamada 2",
+    "situacao": "NAO_ATENDE",
+    "texto": "Pavimento diferença pavimento indicar indicar exigência."
+   },
+   {
+    "ancora": "edificacao",
+    "titulo": "Chamada 3",
+    "situacao": "PENDENTE",
+    "texto": "Coeficiente ambiente conferida exigência edificação cálculo beiral telhado ventilação legenda."
+   },
+   {
+    "ancora": "lateral",
+    "titulo": "Chamada 4",
+    "situacao": "DIVERGENCIA",
+    "texto": "Exigência testada laje afastamento."
+   },
+   {
+    "ancora": "telhado",
+    "titulo": "Chamada 5",
+    "situacao": "CONTA_CONFERE",
+    "texto": "Iluminação indicada escada circulação."
+   },
+   {
+    "ancora": "altura",
+    "titulo": "Chamada 6",
+    "situacao": "NAO_ATENDE",
+    "texto": "Ambiente cálculo iluminação parágrafo memorial ambiente."
+   }
+  ],
+  "nota": "O esquema não representa a implantação real. Medidas e limites conforme a tabela de índices."
+ },
+ "iluminacao": {
+  "subtitulo": "Conferência de vãos, iluminação e ventilação na edificação.",
+  "tag": "8 UNIDADES • 3 PAVIMENTOS",
+  "ambientes": [
+   {
+    "icone": "bed",
+    "nome": "Ambiente 1",
+    "detalhes": [
+     "8 ambientes • piso 8,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "CONTA_CONFERE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "1.96 × 1.26 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "1.47 × 1.02 m",
+      "tipo": "Janela de correr",
+      "area": "1.91 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "1.56 × 1.28 m",
+      "tipo": "Janela de correr",
+      "area": "0.64 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "17,00 ÷ 5 = 2,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "Conferência por ambiente",
+    "textos": [
+     "Permeável corrigir ocupação carimbo exigência iluminação legenda divisa zona taxa laje."
+    ],
+    "resultado": {
+     "total": "1,00 m²",
+     "conta": "J1 1,00 + J2 2,00 = 3,00 m²",
+     "comparacao": "Mínimo 2,00 m²; confere."
+    }
+   },
+   {
+    "icone": "wc",
+    "nome": "Ambiente 2",
+    "detalhes": [
+     "3 ambientes • piso 6,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "PENDENTE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "1.60 × 1.11 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "1.64 × 1.20 m",
+      "tipo": "Janela de correr",
+      "area": "1.37 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "0.64 × 1.30 m",
+      "tipo": "Janela de correr",
+      "area": "1.52 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J4",
+      "medidas": "1.10 × 0.85 m",
+      "tipo": "Janela de correr",
+      "area": "2.40 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "4,00 ÷ 5 = 1,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "",
+    "textos": [
+     "Indicada ambiente diverge ocupação escada circulação quadro."
+    ]
+   },
+   {
+    "icone": "pot",
+    "nome": "Ambiente 3",
+    "detalhes": [
+     "6 ambientes • piso 13,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "NAO_ATENDE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "1.76 × 0.60 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "1.84 × 0.72 m",
+      "tipo": "Janela de correr",
+      "area": "0.79 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "0.66 × 0.98 m",
+      "tipo": "Janela de correr",
+      "area": "2.31 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J4",
+      "medidas": "0.96 × 0.64 m",
+      "tipo": "Janela de correr",
+      "area": "1.00 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J5",
+      "medidas": "0.96 × 1.15 m",
+      "tipo": "Janela de correr",
+      "area": "0.92 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "20,00 ÷ 5 = 2,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "Conferência por ambiente",
+    "textos": [
+     "Janela cálculo diverge licença laje complementar garagem telhado artigo telhado legenda."
+    ]
+   },
+   {
+    "icone": "wash",
+    "nome": "Ambiente 4",
+    "detalhes": [
+     "6 ambientes • piso 16,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "CONTA_CONFERE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "1.39 × 1.24 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "1.49 × 1.23 m",
+      "tipo": "Janela de correr",
+      "area": "1.57 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "1.00 × 1.02 m",
+      "tipo": "Janela de correr",
+      "area": "1.37 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "13,00 ÷ 5 = 3,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "",
+    "textos": [
+     "Apresentar testada ventilação conferida fachada coeficiente cobertura cotar máximo."
+    ],
+    "resultado": {
+     "total": "5,00 m²",
+     "conta": "J1 1,00 + J2 2,00 = 3,00 m²",
+     "comparacao": "Mínimo 2,00 m²; confere."
+    }
+   },
+   {
+    "icone": "sun",
+    "nome": "Ambiente 5",
+    "detalhes": [
+     "8 ambientes • piso 20,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "PENDENTE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "0.91 × 0.68 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "0.87 × 1.34 m",
+      "tipo": "Janela de correr",
+      "area": "1.06 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "1.02 × 1.04 m",
+      "tipo": "Janela de correr",
+      "area": "1.11 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J4",
+      "medidas": "1.44 × 0.62 m",
+      "tipo": "Janela de correr",
+      "area": "1.45 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "16,00 ÷ 5 = 3,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "Conferência por ambiente",
+    "textos": [
+     "Aproveitamento circulação complementar norma artigo matrícula complementar soma."
+    ]
+   },
+   {
+    "icone": "bed",
+    "nome": "Ambiente 6",
+    "detalhes": [
+     "6 ambientes • piso 19,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "NAO_ATENDE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "1.38 × 0.63 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "1.36 × 1.05 m",
+      "tipo": "Janela de correr",
+      "area": "1.93 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "1.27 × 1.31 m",
+      "tipo": "Janela de correr",
+      "area": "2.29 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J4",
+      "medidas": "1.38 × 1.05 m",
+      "tipo": "Janela de correr",
+      "area": "0.87 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J5",
+      "medidas": "1.14 × 1.27 m",
+      "tipo": "Janela de correr",
+      "area": "2.00 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "13,00 ÷ 5 = 1,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "",
+    "textos": [
+     "Matrícula divisa parágrafo escala janela."
+    ]
+   },
+   {
+    "icone": "wc",
+    "nome": "Ambiente 7",
+    "detalhes": [
+     "3 ambientes • piso 10,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "CONTA_CONFERE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "1.68 × 1.14 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "1.51 × 0.91 m",
+      "tipo": "Janela de correr",
+      "area": "1.69 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "1.33 × 0.93 m",
+      "tipo": "Janela de correr",
+      "area": "2.32 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "5,00 ÷ 5 = 3,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "Conferência por ambiente",
+    "textos": [
+     "Indicar alvará diverge norma apresentada."
+    ],
+    "resultado": {
+     "total": "3,00 m²",
+     "conta": "J1 1,00 + J2 2,00 = 3,00 m²",
+     "comparacao": "Mínimo 2,00 m²; confere."
+    }
+   },
+   {
+    "icone": "pot",
+    "nome": "Ambiente 8",
+    "detalhes": [
+     "3 ambientes • piso 8,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "PENDENTE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "0.80 × 0.73 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "1.52 × 1.06 m",
+      "tipo": "Janela de correr",
+      "area": "1.37 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "1.15 × 0.82 m",
+      "tipo": "Janela de correr",
+      "area": "1.17 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J4",
+      "medidas": "1.34 × 1.13 m",
+      "tipo": "Janela de correr",
+      "area": "0.89 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "15,00 ÷ 5 = 1,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "",
+    "textos": [
+     "Permeável diferença beiral diferença prancha informar confere existente laje planta."
+    ]
+   },
+   {
+    "icone": "wash",
+    "nome": "Ambiente 9",
+    "detalhes": [
+     "6 ambientes • piso 12,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "NAO_ATENDE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "0.77 × 0.67 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "1.49 × 0.93 m",
+      "tipo": "Janela de correr",
+      "area": "2.39 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "1.12 × 1.26 m",
+      "tipo": "Janela de correr",
+      "area": "1.36 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J4",
+      "medidas": "1.08 × 0.98 m",
+      "tipo": "Janela de correr",
+      "area": "2.41 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J5",
+      "medidas": "1.97 × 1.27 m",
+      "tipo": "Janela de correr",
+      "area": "2.25 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "12,00 ÷ 5 = 1,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "Conferência por ambiente",
+    "textos": [
+     "Alvará legenda memorial corte quadro mínimo projeto escala ventilação porta."
+    ]
+   },
+   {
+    "icone": "sun",
+    "nome": "Ambiente 10",
+    "detalhes": [
+     "3 ambientes • piso 6,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "CONTA_CONFERE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "0.86 × 1.34 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "0.65 × 1.17 m",
+      "tipo": "Janela de correr",
+      "area": "0.69 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "0.79 × 1.22 m",
+      "tipo": "Janela de correr",
+      "area": "2.06 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "14,00 ÷ 5 = 4,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "",
+    "textos": [
+     "Janela memorial ambiente quadro cota licença cobertura vão indicada testada."
+    ],
+    "resultado": {
+     "total": "2,00 m²",
+     "conta": "J1 1,00 + J2 2,00 = 3,00 m²",
+     "comparacao": "Mínimo 2,00 m²; confere."
+    }
+   },
+   {
+    "icone": "bed",
+    "nome": "Ambiente 11",
+    "detalhes": [
+     "3 ambientes • piso 18,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "PENDENTE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "0.95 × 1.46 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "0.97 × 1.43 m",
+      "tipo": "Janela de correr",
+      "area": "1.24 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "1.85 × 1.02 m",
+      "tipo": "Janela de correr",
+      "area": "1.52 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J4",
+      "medidas": "0.71 × 1.09 m",
+      "tipo": "Janela de correr",
+      "area": "2.13 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "15,00 ÷ 5 = 1,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "Conferência por ambiente",
+    "textos": [
+     "Fachada terreno complementar indicada proposta cálculo laje soma apresentar."
+    ]
+   },
+   {
+    "icone": "wc",
+    "nome": "Ambiente 12",
+    "detalhes": [
+     "3 ambientes • piso 14,00 m²",
+     "Pavimento tipo"
+    ],
+    "situacao": "NAO_ATENDE",
+    "vaos": [
+     {
+      "codigo": "J1",
+      "medidas": "1.53 × 0.60 m",
+      "tipo": "Janela de correr",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     },
+     {
+      "codigo": "J2",
+      "medidas": "0.61 × 0.71 m",
+      "tipo": "Janela de correr",
+      "area": "2.35 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J3",
+      "medidas": "1.92 × 0.85 m",
+      "tipo": "Janela de correr",
+      "area": "0.73 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J4",
+      "medidas": "0.84 × 0.75 m",
+      "tipo": "Janela de correr",
+      "area": "2.33 m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "J5",
+      "medidas": "0.61 × 0.87 m",
+      "tipo": "Janela de correr",
+      "area": "2.32 m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "6,00 ÷ 5 = 3,00 m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "",
+    "textos": [
+     "Calçada laje diverge matrícula cobertura diferença diverge permeável cálculo circulação."
+    ]
+   }
+  ],
+  "abrangencia": [
+   "Limite diverge taxa apresentada corte janela conferida.",
+   "Vão de cada esquadria = largura × altura do quadro de esquadrias."
+  ],
+  "nao_computadas": [
+   "Nenhuma."
+  ],
+  "atencao": "Licença cotar licença aproveitamento medida ventilação.",
+  "fonte": "ARQ 02/09 — plantas e quadros; ARQ 05/09 — cortes e fachada."
+ },
+ "figuras": [
+  {
+   "prancha": "ARQ 01/09",
+   "titulo": "Vista 1: certidão lote planta",
+   "imagem": "img/fig1.png",
+   "texto": "",
+   "notas": [
+    {
+     "elemento": "Licença ocupação edificação medida indicar parágrafo planta",
+     "texto": "Apresentar Ocupação máximo matrícula mínimo certidão declarada rampa vaga certidão diverge medida falta permeável.",
+     "itens": "item 01"
+    },
+    {
+     "elemento": "Proposta prancha confere parágrafo conferida existente conferida projeto",
+     "texto": "Apresentar Ambiente apresentar corrigir soma iluminação matrícula soma divisa laje circulação janela iluminação área recuo.",
+     "itens": "item 02"
+    }
+   ],
+   "fonte": "ARQ 01/09, vista 1.",
+   "id": "fig-01"
+  },
+  {
+   "prancha": "ARQ 02/09",
+   "titulo": "Vista 2: lote vaga fachada",
+   "imagem": "img/fig2.png",
+   "texto": "",
+   "notas": [
+    {
+     "elemento": "Mínimo escala zona conferida diferença vão",
+     "texto": "Apresentar Planta legenda quadro corrigir indicada diverge quadro ocupação existente cálculo diferença taxa ambiente.",
+     "itens": "item 02"
+    },
+    {
+     "elemento": "Norma fachada soma porta",
+     "texto": "Apresentar Edificação confere zona indicada complementar cota lote edificação circulação.",
+     "itens": "item 03"
+    },
+    {
+     "elemento": "Ventilação passeio cota planta indicar memorial parágrafo edificação",
+     "texto": "",
+     "itens": "item 04"
+    }
+   ],
+   "fonte": "ARQ 02/09, vista 2."
+  },
+  {
+   "prancha": "ARQ 03/09",
+   "titulo": "Vista 3: vaga quadro legenda",
+   "imagem": "img/fig3.png",
+   "texto": "Memorial parágrafo cálculo lote aproveitamento ocupação janela telhado escada janela porta existente proposta.",
+   "notas": [
+    {
+     "elemento": "Ambiente artigo beiral indicada porta porta",
+     "texto": "Apresentar Lote passeio licença legenda norma proposta vão medida.",
+     "itens": "item 03"
+    },
+    {
+     "elemento": "Recuo prancha memorial laje existente",
+     "texto": "Apresentar Memorial pavimento cota vaga rampa complementar beiral confere corrigir afastamento licença.",
+     "itens": "item 04"
+    },
+    {
+     "elemento": "Complementar corte muro mínimo iluminação vão parágrafo escada",
+     "texto": "",
+     "itens": "item 05"
+    },
+    {
+     "elemento": "Cota alvará matrícula apresentar",
+     "texto": "Apresentar Existente vaga existente diferença iluminação norma passeio vaga.",
+     "itens": "item 06"
+    }
+   ],
+   "fonte": "ARQ 03/09, vista 3.",
+   "id": "fig-03"
+  },
+  {
+   "prancha": "ARQ 04/09",
+   "titulo": "Vista 4: existente mínimo corrigir",
+   "imagem": "img/fig4.png",
+   "texto": "",
+   "notas": [
+    {
+     "elemento": "Confere indicar muro garagem indicada",
+     "texto": "Apresentar Máximo falta cotar ambiente planta iluminação beiral soma garagem cobertura afastamento.",
+     "itens": "item 04"
+    },
+    {
+     "elemento": "Mínimo vaga escala legenda circulação ventilação alvará prancha",
+     "texto": "Apresentar Afastamento ocupação iluminação mínimo conferida medida diferença afastamento apresentada coeficiente apresentada porta aproveitamento.",
+     "itens": "item 05"
+    },
+    {
+     "elemento": "Norma permeável ambiente telhado corte beiral",
+     "texto": "",
+     "itens": "item 06"
+    },
+    {
+     "elemento": "Rampa quadro afastamento falta alvará terreno quadro calçada",
+     "texto": "Apresentar Prancha escada projeto laje ambiente rampa permeável ventilação pavimento porta alvará laje.",
+     "itens": "item 07"
+    },
+    {
+     "elemento": "Edificação permeável escada ventilação corrigir falta prancha",
+     "texto": "Apresentar Cota projeto prancha diferença planta vaga ventilação exigência proposta testada escala licença ocupação.",
+     "itens": "item 08"
+    }
+   ],
+   "fonte": "ARQ 04/09, vista 4."
+  },
+  {
+   "prancha": "ARQ 05/09",
+   "titulo": "Vista 5: muro cálculo alvará",
+   "imagem": "img/fig5.png",
+   "texto": "",
+   "notas": [
+    {
+     "elemento": "Taxa planta cálculo taxa taxa testada",
+     "texto": "Apresentar Iluminação parágrafo cálculo diverge planta cota laje soma terreno exigência indicar.",
+     "itens": "item 05"
+    },
+    {
+     "elemento": "Parâmetro memorial laje certidão indicar indicar mínimo",
+     "texto": "Apresentar Pavimento mínimo porta complementar informar certidão escada limite corte cota fachada.",
+     "itens": "item 06"
+    },
+    {
+     "elemento": "Apresentada vão muro laje aproveitamento parâmetro vão taxa",
+     "texto": "",
+     "itens": "item 07"
+    },
+    {
+     "elemento": "Divisa escada complementar garagem",
+     "texto": "Apresentar Cobertura divisa confere complementar cálculo cobertura vão calçada legenda apresentar diferença.",
+     "itens": "item 08"
+    },
+    {
+     "elemento": "Beiral legenda certidão indicada falta",
+     "texto": "Apresentar Matrícula ocupação beiral indicada muro beiral lote projeto falta.",
+     "itens": "item 09"
+    },
+    {
+     "elemento": "Terreno carimbo projeto alvará cotar artigo taxa",
+     "texto": "Apresentar Norma vaga complementar informar coeficiente vaga matrícula escala beiral passeio passeio indicar.",
+     "itens": "item 10"
+    }
+   ],
+   "fonte": "ARQ 05/09, vista 5.",
+   "id": "fig-05"
+  },
+  {
+   "prancha": "ARQ 06/09",
+   "titulo": "Vista 6: diverge calçada afastamento",
+   "imagem": "img/fig6.png",
+   "texto": "Legenda testada certidão parágrafo alvará indicar ocupação corrigir indicar cobertura indicada diverge projeto corrigir.",
+   "notas": [
+    {
+     "elemento": "Artigo matrícula taxa prancha exigência edificação complementar escala",
+     "texto": "Apresentar Existente lote porta existente vaga quadro exigência falta ambiente memorial informar iluminação.",
+     "itens": "item 06"
+    }
+   ],
+   "fonte": "ARQ 06/09, vista 6."
+  },
+  {
+   "prancha": "ARQ 07/09",
+   "titulo": "Vista 7: norma vaga telhado",
+   "imagem": "img/fig7.png",
+   "texto": "",
+   "notas": [
+    {
+     "elemento": "Falta máximo recuo proposta",
+     "texto": "Apresentar Afastamento vão alvará ambiente garagem planta diverge exigência falta memorial taxa.",
+     "itens": "item 07"
+    },
+    {
+     "elemento": "Edificação informar janela apresentar laje carimbo calçada",
+     "texto": "Apresentar Testada diverge cobertura zona cobertura proposta indicar divisa.",
+     "itens": "item 08"
+    }
+   ],
+   "fonte": "ARQ 07/09, vista 7.",
+   "id": "fig-07"
+  },
+  {
+   "prancha": "ARQ 08/09",
+   "titulo": "Vista 8: coeficiente legenda existente",
+   "imagem": "img/fig8.png",
+   "texto": "",
+   "notas": [
+    {
+     "elemento": "Medida exigência testada cálculo corte coeficiente proposta passeio",
+     "texto": "Apresentar Recuo calçada parâmetro muro cobertura licença parágrafo exigência garagem soma complementar.",
+     "itens": "item 08"
+    },
+    {
+     "elemento": "Diverge laje prancha matrícula",
+     "texto": "Apresentar Prancha ambiente mínimo licença laje legenda alvará indicada garagem norma janela.",
+     "itens": "item 09"
+    },
+    {
+     "elemento": "Garagem ambiente memorial falta norma confere corrigir",
+     "texto": "",
+     "itens": "item 10"
+    }
+   ],
+   "fonte": "ARQ 08/09, vista 8."
+  }
+ ],
+ "sem_figura": [
+  "Item 05 — Assunto fictício: sem figura, porque o desenho não tem ponto a indicar."
+ ],
+ "fontes": [
+  {
+   "rotulo": "Projeto",
+   "texto": "Pranchas ARQ 01/09 a ARQ 09/09, revisão 02, protocolo de 03/02/2026.",
+   "url": ""
+  },
+  {
+   "rotulo": "Imóvel",
+   "texto": "Matrícula fictícia nº 00.000, certidão de 10/01/2026.",
+   "url": ""
+  },
+  {
+   "rotulo": "Código de Obras",
+   "texto": "LC municipal nº 70/1990, arts. 100 a 160.",
+   "url": "https://exemplo.invalid/codigo-de-obras"
+  }
+ ],
+ "conclusao": "Foram recebidos os documentos desta etapa. Permanecem as pendências dos itens indicados, que precisam ser atendidas para a continuidade do processo. Os itens que atendem o fazem apenas nos pontos indicados e não autorizam a aprovação do projeto. Depois da complementação, os itens pendentes serão reanalisados.",
+ "assinatura": {
+  "nome": "FULANO DE TAL EXEMPLO",
+  "cargo": "ARQUITETO E URBANISTA — CAU/ES 000000-0"
+ }
+}

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier></RuntimeIdentifier>
+    <TargetPlatformMinVersion></TargetPlatformMinVersion>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Pmvni.Revisao.Testes</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Lógica do app sem tipos WinUI (Modulos, Faixas, Ajustes…): compilada também aqui para os testes. -->
+    <Compile Include="..\..\src\Pmvni.App\Logica\*.cs" LinkBase="Logica" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Pmvni.Revisao\Pmvni.Revisao.csproj" />
+    <!-- Provedor e ModoAcesso (Logica\Ajustes.cs, compilada aqui) e o CofreChaves do teste dos ajustes dos agentes. -->
+    <ProjectReference Include="..\..\src\Pmvni.Agentes\Pmvni.Agentes.csproj" />
+    <!-- Anexo, Esfera e EstadoAnexo (Logica\ListaLegislacao.cs, compilada aqui). -->
+    <ProjectReference Include="..\..\src\Pmvni.Legislacao\Pmvni.Legislacao.csproj" />
+  </ItemGroup>
+</Project>

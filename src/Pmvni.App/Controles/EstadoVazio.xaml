@@ -1,0 +1,26 @@
+<UserControl x:Class="Pmvni.App.EstadoVazio"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Tela vazia de um módulo (auditoria M5): o ícone colorido do módulo (48 px), título, frase, um botão tonal e um secundário e, em
+       Relatórios, os recentes que ainda existem. -->
+  <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="460" Padding="24">
+    <Border x:Name="VagaIcone" Width="48" Height="48" HorizontalAlignment="Center" IsHitTestVisible="False"/>
+    <TextBlock x:Name="Titulo" x:FieldModifier="internal" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center"
+               TextAlignment="Center" TextWrapping="Wrap"/>
+    <TextBlock x:Name="Frase" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" HorizontalAlignment="Center"
+               TextAlignment="Center" TextWrapping="Wrap"/>
+    <StackPanel x:Name="Botoes" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,6,0,0">
+      <Grid>
+        <Grid.Resources>
+          <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
+        </Grid.Resources>
+        <Button x:Name="BotaoPrimario" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" Visibility="Collapsed"/>
+      </Grid>
+      <Button x:Name="BotaoSecundario" x:FieldModifier="internal" Visibility="Collapsed" VerticalAlignment="Center"/>
+    </StackPanel>
+    <StackPanel x:Name="PainelRecentes" x:FieldModifier="internal" Spacing="2" Margin="0,10,0,0" Visibility="Collapsed">
+      <TextBlock Text="Recentes" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+      <StackPanel x:Name="ListaRecentes" x:FieldModifier="internal" Spacing="0"/>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

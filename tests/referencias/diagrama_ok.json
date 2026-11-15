@@ -1,0 +1,107 @@
+{
+ "planta": {
+  "limites_confirmados": true,
+  "testada": "10,00 m & \"frente\"",
+  "profundidade": "30,50 m",
+  "permeavel": {
+   "titulo": "ÁREA PERMEÁVEL",
+   "linha1": "25,0% do lote",
+   "linha2": "mínimo 20,0%",
+   "linha2_destaque": true
+  },
+  "edificacao": [
+   "EDIFICAÇÃO",
+   "120,40 m²"
+  ],
+  "lateral": [
+   "1,50 m",
+   "afast. <lateral>"
+  ],
+  "frente": "5,00 m",
+  "fundos": "3,00 m",
+  "via": "RUA DAS FLORES 'TESTE'",
+  "beiral": "beiral 0,50 m"
+ },
+ "volumetria": {
+  "altura_esquerda": [
+   "7,20 m",
+   "cumeeira"
+  ],
+  "altura_direita": [
+   "6,00 m",
+   "platibanda & muro"
+  ],
+  "via": "RUA DOS TESTES"
+ },
+ "titulo": "Diagrama fictício",
+ "chamadas": [
+  {
+   "ancora": "lote",
+   "situacao": "CONTA_CONFERE",
+   "texto": "um"
+  },
+  {
+   "ancora": "telhado",
+   "situacao": "PENDENTE",
+   "texto": "dois"
+  },
+  {
+   "ancora": "permeavel",
+   "situacao": "NAO_ATENDE",
+   "texto": "três"
+  },
+  {
+   "ancora": "altura",
+   "situacao": "DIVERGENCIA",
+   "texto": "quatro"
+  },
+  {
+   "ancora": "edificacao",
+   "situacao": "CONTA_CONFERE"
+  },
+  {
+   "ancora": "lateral",
+   "situacao": "PENDENTE"
+  }
+ ],
+ "planta_svg": "<svg viewBox=\"0 0 330 332\" class=\"dg\">\n<defs><pattern id=\"dots\" width=\"7\" height=\"7\" patternUnits=\"userSpaceOnUse\"><circle cx=\"3.5\" cy=\"3.5\" r=\".8\" fill=\"#8CCB9E\"/></pattern>\n<marker id=\"ar\" viewBox=\"0 0 10 10\" refX=\"5\" refY=\"5\" markerWidth=\"5\" markerHeight=\"5\" orient=\"auto-start-reverse\"><path d=\"M0 1L9 5L0 9z\" fill=\"#6B7785\"/></marker></defs>\n<rect x=\"0\" y=\"294\" width=\"330\" height=\"34\" rx=\"6\" fill=\"#E6EAEF\"/><line x1=\"10\" y1=\"311\" x2=\"320\" y2=\"311\" stroke=\"#fff\" stroke-width=\"2\" stroke-dasharray=\"12 9\"/>\n<text x=\"165\" y=\"306\" class=\"street\">RUA DAS FLORES &#x27;TESTE&#x27;</text>\n<rect x=\"48\" y=\"46\" width=\"250\" height=\"234\" rx=\"8\" fill=\"#EEF7F1\"/><rect x=\"48\" y=\"46\" width=\"250\" height=\"234\" rx=\"8\" fill=\"url(#dots)\" stroke=\"#2F8F5B\" stroke-width=\"1.6\"/>\n<line x1=\"48\" y1=\"27\" x2=\"298\" y2=\"27\" class=\"dim\" marker-start=\"url(#ar)\" marker-end=\"url(#ar)\"/><text x=\"173\" y=\"20\" class=\"t7 mu\">10,00 m &amp; &quot;frente&quot;</text>\n<line x1=\"28\" y1=\"46\" x2=\"28\" y2=\"280\" class=\"dim\" marker-start=\"url(#ar)\" marker-end=\"url(#ar)\"/><text x=\"20\" y=\"163\" class=\"t7 mu\" transform=\"rotate(-90 20 163)\">30,50 m</text>\n<rect x=\"60\" y=\"58\" width=\"112\" height=\"40\" rx=\"7\" fill=\"#fff\" stroke=\"#CFE8D7\"/>\n<text x=\"116\" y=\"72\" class=\"t7 b gr\">ÁREA PERMEÁVEL</text><text x=\"116\" y=\"82.5\" class=\"t65\">25,0% do lote</text><text x=\"116\" y=\"92\" class=\"t65 or\">mínimo 20,0%</text>\n<rect x=\"112\" y=\"114\" width=\"116\" height=\"104\" rx=\"4\" fill=\"none\" stroke=\"#9AA6B3\" stroke-dasharray=\"3 3\"/>\n<text x=\"228\" y=\"109\" class=\"t6 mu\" text-anchor=\"end\">beiral 0,50 m</text>\n<rect x=\"118\" y=\"120\" width=\"104\" height=\"92\" rx=\"3\" fill=\"#DDE4EB\" stroke=\"#5B6878\" stroke-width=\"1.1\"/>\n<text x=\"170\" y=\"162\" class=\"t7 b\">EDIFICAÇÃO</text><text x=\"170\" y=\"174\" class=\"t65 mu\">120,40 m²</text>\n<line x1=\"228\" y1=\"166\" x2=\"298\" y2=\"166\" class=\"dim\" marker-start=\"url(#ar)\" marker-end=\"url(#ar)\"/>\n<text x=\"263\" y=\"159\" class=\"t65 b\">1,50 m</text><text x=\"263\" y=\"180\" class=\"t6 mu\">afast. &lt;lateral&gt;</text>\n<line x1=\"170\" y1=\"218\" x2=\"170\" y2=\"280\" class=\"dsh\"/><text x=\"176\" y=\"254\" class=\"t6 mu\" text-anchor=\"start\">5,00 m</text>\n<line x1=\"200\" y1=\"46\" x2=\"200\" y2=\"114\" class=\"dsh\"/><text x=\"206\" y=\"76\" class=\"t6 mu\" text-anchor=\"start\">3,00 m</text>\n<g class=\"mk\"><circle cx=\"286\" cy=\"270\" r=\"8.5\"/><text x=\"286\" y=\"273.2\">1</text></g><g class=\"mk\"><circle cx=\"60\" cy=\"58\" r=\"8.5\"/><text x=\"60\" y=\"61.2\">3</text></g><g class=\"mk\"><circle cx=\"118\" cy=\"212\" r=\"8.5\"/><text x=\"118\" y=\"215.2\">5</text></g><g class=\"mk\"><circle cx=\"298\" cy=\"140\" r=\"8.5\"/><text x=\"298\" y=\"143.2\">6</text></g>\n</svg>",
+ "volumetria_svg": "<svg viewBox=\"-22 0 344 318\" class=\"dg\">\n<defs><marker id=\"ar2\" viewBox=\"0 0 10 10\" refX=\"5\" refY=\"5\" markerWidth=\"5\" markerHeight=\"5\" orient=\"auto-start-reverse\"><path d=\"M0 1L9 5L0 9z\" fill=\"#6B7785\"/></marker></defs>\n<polygon class=\"gnd\" points=\"150.0,285.0 301.6,197.5 180.4,127.5 28.8,215.0\"/><polygon class=\"str\" points=\"150.0,285.0 28.8,215.0 -5.8,235.0 115.4,305.0\"/>\n<text x=\"52\" y=\"266\" class=\"street\" transform=\"rotate(30 52 266)\">RUA DOS TESTES</text>\n<polygon class=\"rfb\" points=\"72.1,85.0 176.0,25.0 214.9,17.5 111.0,77.5\"/><polygon class=\"wl\" points=\"150.0,250.0 72.1,205.0 72.1,85.0 111.0,77.5 150.0,130.0\"/>\n<polygon class=\"wr\" points=\"150.0,250.0 253.9,190.0 253.9,70.0 150.0,130.0\"/><polygon class=\"rff\" points=\"150.0,130.0 253.9,70.0 214.9,17.5 111.0,77.5\"/>\n<line x1=\"150\" y1=\"190\" x2=\"253.9\" y2=\"130\" class=\"fl\"/><line x1=\"150\" y1=\"190\" x2=\"72.1\" y2=\"145\" class=\"fl\"/><polygon class=\"win\" points=\"162.5,224.8 183.2,212.8 183.2,188.8 162.5,200.8\"/><polygon class=\"win\" points=\"217.5,193.0 238.3,181.0 238.3,157.0 217.5,169.0\"/><polygon class=\"win\" points=\"162.5,164.8 183.2,152.8 183.2,128.8 162.5,140.8\"/><polygon class=\"win\" points=\"193.6,146.8 210.3,137.2 210.3,113.2 193.6,122.8\"/><polygon class=\"win\" points=\"217.5,133.0 238.3,121.0 238.3,97.0 217.5,109.0\"/><polygon class=\"door\" points=\"193.6,224.8 205.1,218.2 205.1,174.2 193.6,180.8\"/><polygon class=\"win\" points=\"136.0,221.9 117.3,211.1 117.3,189.1 136.0,199.9\"/><polygon class=\"win\" points=\"104.8,203.9 86.1,193.1 86.1,171.1 104.8,181.9\"/><polygon class=\"win\" points=\"136.0,161.9 117.3,151.1 117.3,129.1 136.0,139.9\"/><polygon class=\"win\" points=\"104.8,143.9 86.1,133.1 86.1,111.1 104.8,121.9\"/>\n<line x1=\"44\" y1=\"212\" x2=\"44\" y2=\"62\" class=\"dim\" marker-start=\"url(#ar2)\" marker-end=\"url(#ar2)\"/>\n<text x=\"36\" y=\"132\" class=\"t7 b\" text-anchor=\"end\">7,20 m</text><text x=\"36\" y=\"143\" class=\"t7\" text-anchor=\"end\">cumeeira</text>\n<line x1=\"274\" y1=\"192\" x2=\"274\" y2=\"30\" class=\"dim\" marker-start=\"url(#ar2)\" marker-end=\"url(#ar2)\"/>\n<text x=\"281\" y=\"104\" class=\"t7 b\" text-anchor=\"start\">6,00 m</text><text x=\"281\" y=\"115\" class=\"t7\" text-anchor=\"start\">platibanda &amp; muro</text>\n<g class=\"mk\"><circle cx=\"184\" cy=\"76\" r=\"8.5\"/><text x=\"184\" y=\"79.2\">2</text></g><g class=\"mk\"><circle cx=\"274\" cy=\"150\" r=\"8.5\"/><text x=\"274\" y=\"153.2\">4</text></g>\n</svg>",
+ "chamadas_planta": [
+  {
+   "ancora": "lote",
+   "situacao": "CONTA_CONFERE",
+   "texto": "um",
+   "numero": 1
+  },
+  {
+   "ancora": "permeavel",
+   "situacao": "NAO_ATENDE",
+   "texto": "três",
+   "numero": 3
+  },
+  {
+   "ancora": "edificacao",
+   "situacao": "CONTA_CONFERE",
+   "numero": 5
+  },
+  {
+   "ancora": "lateral",
+   "situacao": "PENDENTE",
+   "numero": 6
+  }
+ ],
+ "chamadas_volumetria": [
+  {
+   "ancora": "telhado",
+   "situacao": "PENDENTE",
+   "texto": "dois",
+   "numero": 2
+  },
+  {
+   "ancora": "altura",
+   "situacao": "DIVERGENCIA",
+   "texto": "quatro",
+   "numero": 4
+  }
+ ]
+}

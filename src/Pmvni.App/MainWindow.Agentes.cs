@@ -1,0 +1,280 @@
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Pmvni.Agentes;
+using Pmvni.Composicao.Web;
+
+namespace Pmvni.App;
+
+/// <summary>Ajustes › Inteligência artificial (Tarefa 19; desenho §12.8 e §12.9): um cartão por agente local (ChatGPT/Codex e Claude/análise pro) com o
+/// programa, a situação ("Testar" só roda comandos locais, nunca pede nada ao modelo), o acesso (conta do programa ou chave de API guardada pelo Windows com
+/// DPAPI, nunca no <c>ajustes.json</c>) e o aviso. O editor só inicia o agente do computador; nenhum botão "Analisar" mora aqui (Tarefa 20). Todo comando
+/// entra na fila de comandos; ler as peças do disco e rodar os programas de diagnóstico não prende a thread da janela (<see cref="Task.Run(Func{Task})"/> e processos).</summary>
+public sealed partial class MainWindow
+{
+    static readonly Pecas PecasNaoLidas = new(null, null, null, false, null, null, null, false, null, true);
+
+    Pecas pecasAgentes = PecasNaoLidas;
+    Task tarefaDosAgentes = Task.CompletedTask;
+    readonly Dictionary<Provedor, string> situacaoDosAgentes = new();
+    readonly Dictionary<Provedor, IReadOnlyList<string>> avisosDosAgentes = new();
+    readonly Dictionary<Provedor, string> mensagensDosAgentes = new();
+    readonly HashSet<Provedor> testandoAgentes = new();
+    readonly Dictionary<Provedor, Task<SituacaoProvedor>> testesEmCurso = new();
+    int sequenciaPecas, sequenciaPecasAplicada;
+
+    // ---------- acessores do roteiro ----------
+
+    /// <summary>De onde ler as peças (Codex, Claude Code, Python, kit). O padrão é o computador de verdade; o roteiro troca pelo agente falso.</summary>
+    internal Func<OpcoesLocalizacao> OpcoesAgentes { get; set; } = null!;
+
+    /// <summary>As peças da última leitura (ao abrir Ajustes, ao Testar, ao escolher programa e ao trocar a pasta do kit).</summary>
+    internal Pecas PecasAgentes => pecasAgentes;
+
+    internal CartaoAgente CartaoDoAgente(Provedor p) => p == Provedor.ChatGpt ? PaginaDeAjustes.CartaoChatGpt : PaginaDeAjustes.CartaoClaude;
+
+    /// <summary>A linha de situação do cartão (a do último "Testar", ou "Ainda não testado…").</summary>
+    internal string LinhaSituacaoAgente(Provedor p) => situacaoDosAgentes.TryGetValue(p, out var s) ? s : TextosAgentes.NaoTestado;
+
+    internal IReadOnlyList<string> AvisosDoAgente(Provedor p) => avisosDosAgentes.TryGetValue(p, out var a) ? a : [];
+
+    /// <summary>A última recusa mostrada no cartão (programa inválido, chave vazia, API do Claude…); null se não há.</summary>
+    internal string? MensagemDoAgente(Provedor p) => mensagensDosAgentes.TryGetValue(p, out var m) ? m : null;
+
+    internal ModoAcesso ModoDoAgente(Provedor p) => ajustes.Agentes[p].Modo;
+
+    internal string? ProgramaEscolhidoDoAgente(Provedor p) => ajustes.Agentes[p].Executavel;
+
+    internal bool AvisoAceitoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoAceito;
+
+    /// <summary>Espera a leitura das peças que a abertura de Ajustes (ou a troca da pasta do kit) começou.</summary>
+    internal Task AguardarAgentesAsync() => tarefaDosAgentes;
+
+    void IniciarAgentes()
+    {
+        OpcoesAgentes = () => OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, ajustes.Agentes[Provedor.ChatGpt].Executavel, ajustes.Agentes[Provedor.Claude].Executavel);
+        PaginaDeAjustes.TextoIntroAgentes.Text = TextosAgentes.Introducao;
+        foreach (var provedor in Enum.GetValues<Provedor>())
+        {
+            var p = provedor;
+            var c = CartaoDoAgente(p);
+            c.Configurar(p);
+            c.BotaoTestar.Click += async (_, _) => await TestarAgenteAsync(p);
+            c.BotaoEscolherPrograma.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(async () =>
+            {
+                if (await Perguntas.Atual.AbrirArquivoAsync(".exe") is { } caminho) await EscolherProgramaAsync(p, caminho);
+            }));
+            c.BotaoProgramaPadrao.Click += async (_, _) => await EscolherProgramaAsync(p, null);
+            c.OpcaoConta.Click += async (_, _) => await DefinirModoAsync(p, ModoAcesso.Conta);
+            c.OpcaoChave.Click += async (_, _) => await DefinirModoAsync(p, ModoAcesso.Chave);
+            c.BotaoGuardarChave.Click += async (_, _) => await GuardarChaveAsync(p, c.CaixaChave.Password);
+            c.BotaoRemoverChave.Click += async (_, _) => await RemoverChaveAsync(p);
+            c.BotaoReverAviso.Click += async (_, _) => await ReverAvisoAsync(p);
+        }
+        MostrarAgentes();
+    }
+
+    /// <summary>Lê de novo as peças do disco (fora da thread da janela) e atualiza os cartões. Ao abrir Ajustes e ao trocar a pasta do kit.</summary>
+    void AtualizarAgentes() => tarefaDosAgentes = RelerAgentesAsync();
+
+    async Task RelerAgentesAsync()
+    {
+        try
+        {
+            await LerPecasAsync();
+            MostrarAgentes();
+        }
+        catch (Exception e) { System.Diagnostics.Debug.WriteLine("[agentes] " + e.Message); }
+    }
+
+    /// <summary>Lê as peças fora da thread da janela. Leituras que terminam fora de ordem não se sobrepõem: só vale a mais nova (número de sequência);
+    /// quem chamou recebe sempre a sua. O modo "chave" do Claude guardado antes de o kit passar a proibir a API vira "conta".</summary>
+    async Task<Pecas> LerPecasAsync()
+    {
+        var minha = ++sequenciaPecas;
+        var opcoes = OpcoesAgentes();
+        var pecas = await Task.Run(() => Localizacao.Ler(opcoes));
+        if (minha > sequenciaPecasAplicada)
+        {
+            sequenciaPecasAplicada = minha;
+            pecasAgentes = pecas;
+            if (ajustes.NormalizarModos(pecas.ApiPermitidaNoKit)) SalvarAjustes();
+        }
+        return pecas;
+    }
+
+    // ---------- comandos ----------
+
+    /// <summary>"Testar": só comandos locais do programa (<c>--version</c>, login/auth status, <c>python --version</c>), 15 s cada, sem pedir nada ao modelo.
+    /// O resultado vira a linha de situação do cartão. É só leitura e NÃO entra na fila de comandos (um programa que não responde não prende Salvar nem
+    /// Exportar): um teste por provedor de cada vez (chamar de novo enquanto roda devolve o mesmo teste) e o botão desabilita já no clique.</summary>
+    internal Task<SituacaoProvedor> TestarAgenteAsync(Provedor p)
+    {
+        if (testesEmCurso.TryGetValue(p, out var emCurso)) return emCurso;
+        var tarefa = ExecutarTesteAsync(p);   // roda até o primeiro await aqui mesmo: já marca "Testando…" e desabilita o botão
+        if (!tarefa.IsCompleted) testesEmCurso[p] = tarefa;
+        return tarefa;
+    }
+
+    async Task<SituacaoProvedor> ExecutarTesteAsync(Provedor p)
+    {
+        testandoAgentes.Add(p);
+        mensagensDosAgentes.Remove(p);
+        situacaoDosAgentes[p] = TextosAgentes.Testando;
+        avisosDosAgentes[p] = [];
+        MostrarAgentes();
+        SituacaoProvedor resultado;
+        try
+        {
+            var pecas = await LerPecasAsync();
+            resultado = await Diagnostico.TestarAsync(p, pecas, ajustes.Agentes[p].Modo, CofreChaves.Existe(PastaDados.Raiz, p), CancellationToken.None);
+        }
+        catch (Exception e) { resultado = new SituacaoProvedor("Não foi possível testar: " + Erro(e), []); }
+        finally
+        {
+            testandoAgentes.Remove(p);
+            testesEmCurso.Remove(p);
+        }
+        situacaoDosAgentes[p] = resultado.Linha;
+        avisosDosAgentes[p] = resultado.Avisos;
+        MostrarAgentes();
+        return resultado;
+    }
+
+    /// <summary>Guarda a chave de API protegida pelo Windows (DPAPI, só para este usuário) e limpa a caixa. Nunca vai para <c>ajustes.json</c>, log ou registro.</summary>
+    internal Task GuardarChaveAsync(Provedor p, string chave) => NaFilaAsync(() => TentarAsync(() =>
+    {
+        var caixa = CartaoDoAgente(p).CaixaChave;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(chave)) mensagensDosAgentes[p] = TextosAgentes.ChaveVazia;
+            else
+            {
+                try
+                {
+                    CofreChaves.Guardar(PastaDados.Raiz, p, chave);
+                    mensagensDosAgentes.Remove(p);
+                }
+                catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or IOException or UnauthorizedAccessException)
+                {
+                    mensagensDosAgentes[p] = "Não foi possível guardar a chave: " + Erro(e);
+                }
+            }
+        }
+        finally { caixa.Password = ""; }    // a chave nunca fica na caixa, qualquer que seja a falha
+        MostrarAgentes();
+        return Task.CompletedTask;
+    }));
+
+    /// <summary>Remove a chave guardada, depois de perguntar.</summary>
+    internal Task RemoverChaveAsync(Provedor p) => NaFilaAsync(() => TentarAsync(async () =>
+    {
+        if (!CofreChaves.Existe(PastaDados.Raiz, p)) return;
+        if (await Perguntas.Atual.ConfirmarAsync(TextosAgentes.PerguntaRemover(p), TextosAgentes.ExplicacaoRemover, "Remover", "Cancelar"))
+        {
+            CofreChaves.Remover(PastaDados.Raiz, p);
+            mensagensDosAgentes.Remove(p);
+        }
+        MostrarAgentes();
+    }));
+
+    /// <summary>Usar a conta do programa ou a chave de API. O Claude só aceita a chave se o análise pro instalado do kit não a proibir; senão nada muda.</summary>
+    internal Task DefinirModoAsync(Provedor p, ModoAcesso m) => NaFilaAsync(() => TentarAsync(async () =>
+    {
+        if (p == Provedor.Claude && m == ModoAcesso.Chave && !(await LerPecasAsync()).ApiPermitidaNoKit)
+            mensagensDosAgentes[p] = TextosAgentes.ClaudeSoConta;
+        else
+        {
+            mensagensDosAgentes.Remove(p);
+            if (ajustes.Agentes[p].Modo != m)
+            {
+                ajustes.Agentes[p].Modo = m;
+                SalvarAjustes();
+            }
+        }
+        MostrarAgentes();
+    }));
+
+    /// <summary>"Escolher programa…" (o <c>codex.exe</c> do ChatGPT; o <c>python.exe</c> do Claude) ou, com null, "Usar o padrão". Um caminho que não termina em
+    /// <c>.exe</c> ou não existe é recusado e nada muda.</summary>
+    internal Task EscolherProgramaAsync(Provedor p, string? caminho) => NaFilaAsync(() => TentarAsync(async () =>
+    {
+        if (caminho is not null && !(caminho.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(caminho)))
+        {
+            mensagensDosAgentes[p] = TextosAgentes.ProgramaInvalido;
+            MostrarAgentes();
+            return;
+        }
+        mensagensDosAgentes.Remove(p);
+        ajustes.Agentes[p].Executavel = caminho is null ? null : Path.GetFullPath(caminho);
+        SalvarAjustes();
+        situacaoDosAgentes.Remove(p);   // era do programa de antes
+        avisosDosAgentes.Remove(p);
+        await LerPecasAsync();
+        MostrarAgentes();
+    }));
+
+    /// <summary>"Rever aviso": mostra o aviso do provedor; ao concordar, guarda a versão e a data (UTC) do aceite. true = concordou.</summary>
+    internal async Task<bool> ReverAvisoAsync(Provedor p)
+    {
+        var concordou = false;
+        await NaFilaAsync(() => TentarAsync(async () =>
+        {
+            concordou = await Perguntas.Atual.ConfirmarAsync($"Analisar com o {Provedores.Nome(p)}", TextosAgentes.Aviso(p), "Concordo", "Cancelar", destrutiva: false);
+            if (!concordou) return;
+            var a = ajustes.Agentes[p];
+            a.AvisoVersao = Ajustes.VersaoAviso;
+            a.AvisoEm = DateTimeOffset.UtcNow;
+            SalvarAjustes();
+            MostrarAgentes();
+        }));
+        return concordou;
+    }
+
+    // ---------- a tela ----------
+
+    void MostrarAgentes()
+    {
+        if (fechada) return;
+        foreach (var p in Enum.GetValues<Provedor>()) MostrarCartao(p);
+    }
+
+    void MostrarCartao(Provedor p)
+    {
+        var c = CartaoDoAgente(p);
+        var a = ajustes.Agentes[p];
+        var pecas = pecasAgentes;
+
+        c.TextoPrograma.Text = p == Provedor.ChatGpt
+            ? TextosAgentes.LinhaDoPrograma("Codex", pecas.Codex, a.Executavel)
+            : TextosAgentes.LinhaDoPrograma("Python", pecas.Python, a.Executavel) + (pecas.PythonPeloLauncher ? " (pelo py.exe -3)" : "")
+              + Environment.NewLine + "Claude Code: " + (pecas.Claude ?? "não encontrado");
+        c.BotaoProgramaPadrao.IsEnabled = !string.IsNullOrWhiteSpace(a.Executavel);
+
+        var mensagem = MensagemDoAgente(p);
+        c.TextoMensagem.Text = mensagem ?? "";
+        c.TextoMensagem.Visibility = mensagem is null ? Visibility.Collapsed : Visibility.Visible;
+
+        c.TextoSituacao.Text = LinhaSituacaoAgente(p);
+        // Cabeçalho do expansor em Ajustes › Inteligência artificial: o nome e a situação (auditoria §3.3).
+        var expansor = p == Provedor.ChatGpt ? PaginaDeAjustes.ExpansorChatGpt : PaginaDeAjustes.ExpansorClaude;
+        expansor.Header = (p == Provedor.ChatGpt ? "ChatGPT (Codex)" : "Claude (Claude Code)") + "  ·  " + c.TextoSituacao.Text.Split('\n')[0].Trim();
+        var avisos = AvisosDoAgente(p);
+        c.TextoAvisosDoTeste.Text = string.Join(Environment.NewLine, avisos);
+        c.TextoAvisosDoTeste.Visibility = avisos.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        c.BotaoTestar.IsEnabled = !testandoAgentes.Contains(p);
+
+        c.OpcaoConta.IsChecked = a.Modo == ModoAcesso.Conta;
+        c.OpcaoChave.IsChecked = a.Modo == ModoAcesso.Chave;
+        var apiProibida = p == Provedor.Claude && !pecas.ApiPermitidaNoKit;
+        c.OpcaoChave.IsEnabled = !apiProibida;
+        ToolTipService.SetToolTip(c.OpcaoChave, apiProibida ? TextosAgentes.ClaudeSoConta : null);
+        c.TextoDicaChave.Text = apiProibida ? TextosAgentes.ClaudeSoConta : "";
+        c.TextoDicaChave.Visibility = apiProibida ? Visibility.Visible : Visibility.Collapsed;
+        c.PainelChave.Visibility = a.Modo == ModoAcesso.Chave && !apiProibida ? Visibility.Visible : Visibility.Collapsed;
+        var guardada = CofreChaves.Existe(PastaDados.Raiz, p);
+        c.TextoChave.Text = guardada ? TextosAgentes.ChaveGuardada : TextosAgentes.SemChave;
+        c.BotaoRemoverChave.IsEnabled = guardada;
+
+        c.TextoAviso.Text = TextosAgentes.SituacaoDoAviso(a);
+    }
+}

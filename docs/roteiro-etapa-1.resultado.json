@@ -1,0 +1,321 @@
+{
+  "gerado_em": "2026-11-15T00:13:18Z",
+  "webview2": "157.0.4341.46",
+  "escala_do_monitor": 1.5,
+  "janela_px": {
+    "largura": 1585.3333740234375,
+    "altura": 923.3333129882812
+  },
+  "passos": {
+    "1_abrir_longo": {
+      "folhas": 21,
+      "escala_de_impressao": 1.0723031142811712,
+      "avisos_de_largura": 1,
+      "estouros": 0,
+      "folhas_que_transbordam_na_tela": [],
+      "titulo_da_barra": "Processo nº 9001/2026 — CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
+      "estado": "Composto: 21 folhas",
+      "itens_na_lista": 77,
+      "primeiros_itens": [
+        "Capa (f. 1)",
+        "LOCALIZAÇÃO NA BASE MUNICIPAL (f. 1)",
+        "ANÁLISE (f. 2)",
+        "01  Item de teste 001: calçada fachada circulação (f. 2)",
+        "02  Item de teste 002: afastamento cobertura norma (f. 2)",
+        "03  Item de teste 003: afastamento calçada planta (f. 2)"
+      ],
+      "aviso_largura_aberto": true,
+      "aviso_largura_texto": "Conteúdo mais largo que a página: o documento foi reduzido 7% para caber (como na impressão do kit).",
+      "aviso_largura_confere": true,
+      "exportar_habilitado": true,
+      "rodape_folha": "folha 1 de 21",
+      "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
+      "folhas_com_conteudo_alem_da_borda": [
+        14
+      ],
+      "aviso_fora_da_area_aberto": true,
+      "alem_da_borda_medidas": [
+        {
+          "alemDaDireita": 23.9,
+          "esquerda": 551.4,
+          "folha": 14,
+          "largura": 160.4
+        }
+      ],
+      "folhas_com_faixa_vermelha": 1,
+      "inprivate_tela": true,
+      "inprivate_host_oculto": true,
+      "atalhos_do_navegador_tela": false,
+      "atalhos_do_navegador_host_oculto": false,
+      "ok": true
+    },
+    "2_rolagem_continua": {
+      "geometria": {
+        "devicePixelRatio": 1.5,
+        "folhas": 21,
+        "fundoDaFolha": "rgb(255, 255, 255)",
+        "fundoDaPagina": "rgb(31, 31, 31)",
+        "janela": 722,
+        "passoEsperado": 1152.755905511811,
+        "passoMax": 1152.740234375,
+        "passoMin": 1152.73828125,
+        "rolagemTotal": 24238,
+        "sombraDaFolha": "rgba(0, 0, 0, 0.75) 0px 1px 4px 0px, rgba(0, 0, 0, 0.08) 0px 0px 0px 1px",
+        "topos": [
+          30.229167938232422,
+          1182.96875,
+          2335.70849609375
+        ]
+      },
+      "visitas_por_rolagem": [
+        {
+          "rolou_para_folha": 1,
+          "indicador": "folha 1 de 21",
+          "folha_no_indicador": 1
+        },
+        {
+          "rolou_para_folha": 4,
+          "indicador": "folha 4 de 21",
+          "folha_no_indicador": 4
+        },
+        {
+          "rolou_para_folha": 9,
+          "indicador": "folha 9 de 21",
+          "folha_no_indicador": 9
+        },
+        {
+          "rolou_para_folha": 10,
+          "indicador": "folha 10 de 21",
+          "folha_no_indicador": 10
+        },
+        {
+          "rolou_para_folha": 20,
+          "indicador": "folha 20 de 21",
+          "folha_no_indicador": 20
+        },
+        {
+          "rolou_para_folha": 21,
+          "indicador": "folha 21 de 21",
+          "folha_no_indicador": 21
+        }
+      ],
+      "folhas_contiguas_com_8mm": true,
+      "indicador_acompanha_a_rolagem": true,
+      "ok": true
+    },
+    "3_zoom_nao_recompoe": {
+      "amostras": [
+        {
+          "como": "definirZoom 0,5",
+          "zoom": 0.5,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 396.8
+        },
+        {
+          "como": "definirZoom 2",
+          "zoom": 2,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 1587.4
+        },
+        {
+          "como": "definirZoom 3",
+          "zoom": 3,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 2381.1
+        },
+        {
+          "como": "definirZoom 1",
+          "zoom": 1,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 793.7
+        },
+        {
+          "como": "botão Aumentar o zoom",
+          "zoom": 1.1,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 873.1
+        },
+        {
+          "como": "botão Aumentar o zoom",
+          "zoom": 1.25,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 992.1
+        },
+        {
+          "como": "botão Diminuir o zoom",
+          "zoom": 1.1,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 873.1
+        },
+        {
+          "como": "botão Ajustar largura",
+          "zoom": 1.5711210317460316,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 1247
+        },
+        {
+          "como": "botão Página inteira",
+          "zoom": 0.6146885521885521,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 487.9
+        }
+      ],
+      "plano_igual_depois_do_zoom": true,
+      "texto_por_folha_igual": true,
+      "ok": true
+    },
+    "4_navegacao": {
+      "amostras": [
+        {
+          "item": "Capa",
+          "folha_do_item": 1,
+          "folha_na_tela": 1,
+          "folha_visivel": true,
+          "indicador_do_trilho_marcado": true,
+          "rodape": "folha 1 de 21"
+        },
+        {
+          "item": "LOCALIZAÇÃO NA BASE MUNICIPAL",
+          "folha_do_item": 1,
+          "folha_na_tela": 1,
+          "folha_visivel": true,
+          "indicador_do_trilho_marcado": true,
+          "rodape": "folha 1 de 21"
+        },
+        {
+          "item": "ANÁLISE",
+          "folha_do_item": 2,
+          "folha_na_tela": 2,
+          "folha_visivel": true,
+          "indicador_do_trilho_marcado": true,
+          "rodape": "folha 2 de 21"
+        },
+        {
+          "item": "ÍNDICES URBANÍSTICOS",
+          "folha_do_item": 13,
+          "folha_na_tela": 14,
+          "folha_visivel": true,
+          "indicador_do_trilho_marcado": true,
+          "rodape": "folha 14 de 21"
+        },
+        {
+          "item": "06  Item de teste 006: taxa escada indicada",
+          "folha_do_item": 3,
+          "folha_na_tela": 3,
+          "folha_visivel": true,
+          "indicador_do_trilho_marcado": true,
+          "rodape": "folha 3 de 21"
+        },
+        {
+          "item": "17  Item de teste 017: edificação afastamento aproveitamento",
+          "folha_do_item": 5,
+          "folha_na_tela": 5,
+          "folha_visivel": true,
+          "indicador_do_trilho_marcado": true,
+          "rodape": "folha 5 de 21"
+        },
+        {
+          "item": "28  Item de teste 028: existente iluminação calçada",
+          "folha_do_item": 7,
+          "folha_na_tela": 7,
+          "folha_visivel": true,
+          "indicador_do_trilho_marcado": true,
+          "rodape": "folha 7 de 21"
+        },
+        {
+          "item": "39  Item de teste 039: coeficiente parágrafo carimbo",
+          "folha_do_item": 9,
+          "folha_na_tela": 9,
+          "folha_visivel": true,
+          "indicador_do_trilho_marcado": true,
+          "rodape": "folha 9 de 21"
+        },
+        {
+          "item": "CONCLUSÃO",
+          "folha_do_item": 21,
+          "folha_na_tela": 21,
+          "folha_visivel": true,
+          "indicador_do_trilho_marcado": true,
+          "rodape": "folha 21 de 21"
+        }
+      ],
+      "ok": true
+    },
+    "5_exportar_pdf": {
+      "paginas_do_pdf": 21,
+      "folhas_na_tela": 21,
+      "pagina_mm": "209,89 x 297,01",
+      "recibo_sha256_html_confere": true,
+      "recibo_sha256_pdf_confere": true,
+      "plano_do_pdf_igual_ao_da_tela": true,
+      "aviso_de_sucesso": true,
+      "ok": true
+    },
+    "6_estouro_recusado": {
+      "estouros": [
+        "folha 3, ref secao-2"
+      ],
+      "estado": "1 bloco excede a página",
+      "aviso_de_erro_aberto": true,
+      "aviso_de_erro_texto": "Folha 3: bloco 'secao-2' não cabe na página (altura do conteúdo: 1089,2 mm).",
+      "exportar_habilitado": false,
+      "dica_do_botao": "A exportação está bloqueada: Folha 3: bloco 'secao-2' não cabe na página (altura do conteúdo: 1089,2 mm). Corrija o conteúdo para exportar o PDF.",
+      "exportacao_recusada": true,
+      "mensagem_da_recusa": "Exportação recusada: Bloco 'secao-2' excede a página 3 (altura do conteúdo: 1089,2 mm).",
+      "nenhum_pdf_gravado": true,
+      "folhas_com_faixa_vermelha": 1,
+      "folhas_que_transbordam_na_tela": [
+        3
+      ],
+      "ok": true,
+      "folha_vista_apos_rolar_ate_o_estouro": {
+        "comFaixa": true,
+        "esquerda": 242.64959716796875,
+        "folhaNaTela": 3,
+        "sombra": "rgb(196, 43, 28) -5px 0px 0px 0px, rgba(0, 0, 0, 0.75) 0px 1px 4px 0px, rgba(0, 0, 0, 0.08) 0px 0px 0px 1px",
+        "zoom": "1"
+      },
+      "faixa_vermelha_na_folha_vista": true
+    },
+    "7_tema_escuro": {
+      "claro": {
+        "corpo": "rgba(0, 0, 0, 0)",
+        "escuro": false,
+        "fundoDaFolha": "rgb(255, 255, 255)",
+        "fundoDaPagina": "rgb(228, 228, 228)"
+      },
+      "escuro": {
+        "corpo": "rgba(0, 0, 0, 0)",
+        "escuro": true,
+        "fundoDaFolha": "rgb(255, 255, 255)",
+        "fundoDaPagina": "rgb(31, 31, 31)"
+      },
+      "so_o_fundo_fora_das_folhas_muda": true,
+      "texto_por_folha_igual": true,
+      "ok": true
+    },
+    "8_campos_em_aberto_bloqueiam_exportar": {
+      "erros_finais": 1,
+      "exportar_habilitado": false,
+      "dica_do_botao": "A exportação está bloqueada: Rascunho: há campos [ ] não preenchidos (1). O PDF final só sai com o relatório completo: preencha os campos e abra o relatório de novo.",
+      "ok": true
+    },
+    "9_arquivo_mudou_recusa_exportar": {
+      "recusada": true,
+      "mensagem": "O arquivo mudou desde que foi aberto; reabra antes de exportar.",
+      "nenhum_pdf_gravado": true,
+      "ok": true
+    }
+  },
+  "falhas": [],
+  "ok": true
+}

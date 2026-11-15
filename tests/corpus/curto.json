@@ -1,0 +1,87 @@
+{
+ "config": {
+  "orgao": "SECRETARIA MUNICIPAL DE OBRAS"
+ },
+ "capa": {
+  "protocolo": "03/02/2026",
+  "rotulo_data": "ANÁLISE",
+  "data": "14/11/2026",
+  "processo": "9001/2026",
+  "requerente": "CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
+  "quadros": [
+   {
+    "titulo": "LOCALIZAÇÃO",
+    "cor": "g",
+    "destaque": "Rua das Palmeiras Imaginárias, nº 100, Bairro Exemplo",
+    "apoio": "Acesso pela via principal"
+   },
+   {
+    "titulo": "CARACTERIZAÇÃO",
+    "cor": "y",
+    "destaque": "Residencial multifamiliar",
+    "apoio": "8 unidades • 3 pavimentos"
+   },
+   {
+    "titulo": "AUTORIA INDICADA",
+    "cor": "y",
+    "destaque": "Fulana de Tal Exemplo",
+    "apoio": "Registro profissional não informado"
+   },
+   {
+    "titulo": "PARÂMETROS URBANÍSTICOS",
+    "cor": "g",
+    "destaque": "Parcela e zoneamento conferidos",
+    "apoio": "Zona indicada no projeto: ZXX"
+   }
+  ],
+  "pontos_confirmar": "Afastamentos • Permeabilidade • Autoria"
+ },
+ "itens": [
+  {
+   "titulo": "Item de teste 001: apresentada fachada limite",
+   "situacao": "ATENDE",
+   "verificacao": "Beiral memorial telhado taxa pavimento lote medida ventilação confere laje muro ambiente informar. Beiral diferença escala escala passeio matrícula aproveitamento matrícula telhado informar medida. Mínimo planta matrícula corrigir apresentada prancha memorial alvará prancha terreno rampa lote.",
+   "providencia": "Nenhuma correção nessas medidas.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 101.",
+   "referencia": "ARQ 02/09, planta. Figura 2."
+  },
+  {
+   "titulo": "Item de teste 002: cota parágrafo lote",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "Taxa carimbo falta recuo ventilação afastamento afastamento conferida permeável carimbo projeto. Edificação passeio conferida declarada muro complementar muro quadro. Informar informar cobertura legenda diverge certidão recuo soma ocupação.",
+   "providencia": "Apresentar Declarada informar cotar afastamento licença recuo vão parágrafo coeficiente laje. Garagem pavimento corrigir edificação parágrafo fachada mínimo recuo proposta.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 102.",
+   "referencia": "ARQ 03/09, planta. Figura 3."
+  },
+  {
+   "titulo": "Item de teste 003: pavimento norma corte",
+   "situacao": "NAO_ATENDE",
+   "verificacao": "Testada corrigir porta apresentar garagem iluminação corte permeável passeio máximo coeficiente matrícula máximo. Beiral artigo parâmetro corte legenda ventilação recuo fachada. Recuo cálculo matrícula vaga falta carimbo cálculo projeto ventilação parágrafo permeável planta.",
+   "providencia": "Apresentar Legenda lote taxa edificação pavimento área ventilação ventilação existente terreno proposta. Memorial apresentada beiral laje ambiente carimbo cobertura declarada janela cálculo garagem zona vão.",
+   "base_legal": "Código de Obras (LC nº 70/1990), art. 103.",
+   "referencia": "ARQ 04/09, planta. Figura 4."
+  }
+ ],
+ "fontes": [
+  {
+   "rotulo": "Projeto",
+   "texto": "Pranchas ARQ 01/09 a ARQ 09/09, revisão 02, protocolo de 03/02/2026.",
+   "url": ""
+  },
+  {
+   "rotulo": "Imóvel",
+   "texto": "Matrícula fictícia nº 00.000, certidão de 10/01/2026.",
+   "url": ""
+  },
+  {
+   "rotulo": "Código de Obras",
+   "texto": "LC municipal nº 70/1990, arts. 100 a 160.",
+   "url": "https://exemplo.invalid/codigo-de-obras"
+  }
+ ],
+ "conclusao": "Foram recebidos os documentos desta etapa. Permanecem as pendências dos itens indicados, que precisam ser atendidas para a continuidade do processo. Os itens que atendem o fazem apenas nos pontos indicados e não autorizam a aprovação do projeto. Depois da complementação, os itens pendentes serão reanalisados.",
+ "assinatura": {
+  "nome": "FULANO DE TAL EXEMPLO",
+  "cargo": "ARQUITETO E URBANISTA — CAU/ES 000000-0"
+ }
+}
