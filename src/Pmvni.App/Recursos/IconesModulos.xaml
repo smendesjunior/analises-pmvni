@@ -4,7 +4,7 @@
   <!-- Ícones coloridos dos módulos (trilho e telas vazias), desenhados em XAML vetorial 24 x 24 (nada baixado), com a paleta do
        brasão da Prefeitura (azul celeste, verde, amarelo, rosa claro e marrom). Amarelo e rosa sempre com contorno marrom (no tema
        claro o amarelo puro some sobre o Mica). Alto contraste: tudo na cor do texto dos botões (o sistema exige ícone monocromático).
-       O tamanho vem de quem usa (Viewbox sem tamanho): 22 x 22 no trilho, 48 x 48 nas telas vazias. -->
+       O tamanho vem de quem usa (Viewbox sem tamanho): 28 x 28 no trilho, 48 x 48 nas telas vazias. -->
   <ResourceDictionary.ThemeDictionaries>
     <ResourceDictionary x:Key="Light">
       <SolidColorBrush x:Key="PmvniIconeAzul" Color="#1689D6"/>

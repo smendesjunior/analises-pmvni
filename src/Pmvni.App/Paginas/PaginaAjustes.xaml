@@ -64,8 +64,10 @@
     <NavigationView x:Name="Menu" x:FieldModifier="internal" PaneDisplayMode="Left" OpenPaneLength="220" CompactPaneLength="48"
                     IsSettingsVisible="False" IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False"
                     SelectionChanged="AoEscolherCategoria" AutomationProperties.Name="Categorias dos ajustes">
-      <ScrollViewer x:Name="Rolagem" x:FieldModifier="internal" Padding="24,8,24,24" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-        <Grid x:Name="Paginas" MaxWidth="900" HorizontalAlignment="Stretch">
+      <ScrollViewer x:Name="Rolagem" x:FieldModifier="internal" Padding="48,8,40,24" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+        <!-- Conteúdo alinhado à esquerda, logo depois do menu, até 1000 px (como as Configurações do Windows e o WinStatusBar). -->
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="1000"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Grid x:Name="Paginas">
 
           <!-- ===== 1. Geral ===== -->
           <StackPanel x:Name="CategoriaGeral" Tag="geral" Spacing="12">
@@ -403,6 +405,7 @@
               </Grid>
             </StackPanel></Border>
           </StackPanel>
+        </Grid>
         </Grid>
       </ScrollViewer>
     </NavigationView>

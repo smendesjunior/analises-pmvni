@@ -57,7 +57,7 @@ public sealed partial class Trilho : UserControl
             var icone = CriarIcone(m);
             var fundo = new Border
             {
-                Width = 48, Height = 30, CornerRadius = new CornerRadius(8),
+                Width = 56, Height = 36, CornerRadius = new CornerRadius(10),
                 HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 Style = Estilo("PmvniTrilhoFundoInativoStyle"),
                 Child = (UIElement?)icone ?? new FontIcon { Glyph = Pmvni.App.Modulos.Glifo(m), FontSize = 18 },
@@ -65,7 +65,7 @@ public sealed partial class Trilho : UserControl
             var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Visibility = Visibility.Collapsed, Margin = new Thickness(1, 0, 0, 0) };
             var rotulo = new TextBlock { Text = Pmvni.App.Modulos.Rotulo(m), Style = Estilo("PmvniTrilhoRotuloStyle") };
             var grade = new Grid();
-            grade.RowDefinitions.Add(new RowDefinition { Height = new GridLength(32) });
+            grade.RowDefinitions.Add(new RowDefinition { Height = new GridLength(38) });
             grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             grade.Children.Add(fundo);
             grade.Children.Add(indicador);
@@ -94,7 +94,7 @@ public sealed partial class Trilho : UserControl
         if (atual is { } a) Marcar(a);
     }
 
-    static FrameworkElement? CriarIcone(Modulo m) => NovoIcone(m, 22);
+    static FrameworkElement? CriarIcone(Modulo m) => NovoIcone(m, 28);
 
     /// <summary>O ícone colorido do módulo (o DataTemplate do dicionário, materializado com LoadContent: um Viewbox), <paramref name="lado"/> x
     /// <paramref name="lado"/>; null se o template não existe. As cores são ThemeResource e seguem o tema do lugar onde o ícone fica.</summary>

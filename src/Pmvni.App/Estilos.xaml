@@ -31,15 +31,15 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
 
-  <!-- Item do trilho de módulos (como o Gmail): 64 x 60, ícone colorido sobre um fundo arredondado 48 x 30 que só aparece no módulo
+  <!-- Item do trilho de módulos (como o Gmail): 68 x 66, ícone colorido de 28 px sobre um fundo arredondado 56 x 36 que só aparece no módulo
        ativo (e ao passar o mouse), rótulo de 11 px embaixo. O botão em si nunca pinta fundo: quem muda é o Border "Fundo" (estilos
        PmvniTrilhoFundo*), trocado pelo Trilho conforme o estado. -->
   <Style x:Key="PmvniTrilhoItemStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderBrush" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="Width" Value="64"/>
-    <Setter Property="Height" Value="60"/>
+    <Setter Property="Width" Value="68"/>
+    <Setter Property="Height" Value="66"/>
     <Setter Property="Padding" Value="0"/>
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="FocusVisualMargin" Value="-2"/>

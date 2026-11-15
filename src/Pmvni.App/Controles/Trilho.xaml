@@ -10,7 +10,7 @@
     <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
     <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
   </UserControl.Resources>
-  <Grid x:Name="Raiz" Width="64" Padding="0,4,0,8" XYFocusKeyboardNavigation="Enabled" TabFocusNavigation="Once">
+  <Grid x:Name="Raiz" Width="72" Padding="0,4,0,8" XYFocusKeyboardNavigation="Enabled" TabFocusNavigation="Once">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
