@@ -522,6 +522,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     async Task SalvarComoAsync()
     {
         if (sessao is null) return;
+        await ConcluirEdicaoAntesAsync(sessao); // o texto digitado no A4 entra na cópia
+        if (sessao is null) return;
         var destino = await Perguntas.Atual.SalvarArquivoAsync(Path.GetFileName(sessao.Caminho), ".pmvrel");
         if (destino is null) return;
         if (sessao.RecusaSalvarComo(destino) is { } recusa)

@@ -88,7 +88,15 @@ public sealed partial class MainWindow
     internal async Task<bool> FecharSessaoAsync()
     {
         if (sessao is not { } s) return true;
-        await ConcluirEdicaoAntesAsync(s); // o texto digitado no A4 entra antes de gravar e fechar
+        // O texto digitado no A4 entra antes de gravar e fechar; se a conferência o recusa, ele não se perde em silêncio.
+        if (await ConcluirEdicaoAntesAsync(s) is { } recusada)
+        {
+            if (!await Perguntas.Atual.FecharSemOTextoAsync(recusada.Motivo))
+            {
+                await DevolverEdicaoAsync(recusada);
+                return false;
+            }
+        }
         if (s.TemAlteracoesNaoGravadas)
         {
             string motivo;
@@ -271,6 +279,7 @@ public sealed partial class MainWindow
     internal Task<bool> SalvarCopiaDeConflitoAsync() => NaFilaAsync(async () =>
     {
         if (sessao is not { } s) return false;
+        await ConcluirEdicaoAntesAsync(s); // o texto digitado no A4 entra na cópia
         var destino = NomesArquivo.CopiaDeConflito(s.Caminho, DateTime.Now);
         try
         {

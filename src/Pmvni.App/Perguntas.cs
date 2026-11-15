@@ -35,6 +35,10 @@ internal interface IPerguntas
     /// recuperação fica guardada)" ou "Cancelar". Em <paramref name="conflito"/>: "Salvar como cópia" (principal), "Fechar sem salvar"
     /// (fica na pasta de recuperação, sem ser oferecida de novo) ou "Cancelar".</summary>
     Task<RespostaFechar> FecharSemGravarAsync(string motivo, bool conflito);
+
+    /// <summary>Fechar com um campo em edição no A4 cujo texto a conferência recusou (<paramref name="motivo"/>): "Voltar à edição" (o
+    /// padrão; também Esc) ou "Fechar sem ele". true = fechar sem o texto.</summary>
+    Task<bool> FecharSemOTextoAsync(string motivo);
 }
 
 internal static class Perguntas
@@ -115,6 +119,13 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
             ContentDialogResult.Secondary => RespostaFechar.FecharSemSalvar,
             _ => RespostaFechar.Cancelar,
         };
+    }
+
+    public async Task<bool> FecharSemOTextoAsync(string motivo)
+    {
+        var d = Dialogo("O texto em edição não foi aplicado", TextosGravacao.FecharSemOTexto(motivo), "Voltar à edição", "");
+        d.SecondaryButtonText = "Fechar sem ele";
+        return await d.ShowAsync() == ContentDialogResult.Secondary; // Esc e o resto voltam à edição: o texto nunca se perde sem pedir
     }
 
     ContentDialog Dialogo(string titulo, string texto, string sim, string nao) => new()

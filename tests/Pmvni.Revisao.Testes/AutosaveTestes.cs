@@ -437,6 +437,13 @@ public class AutosaveTestes
     }
 
     [Fact]
+    public void fechar_com_o_texto_em_edicao_recusado_pergunta_com_o_motivo()
+    {
+        Assert.Equal("O texto em edição não pôde ser aplicado: O campo verificacao não pode ficar vazio. Fechar mesmo assim?",
+            TextosGravacao.FecharSemOTexto("O campo verificacao não pode ficar vazio."));
+    }
+
+    [Fact]
     public void salvar_como_no_proprio_arquivo_somente_leitura_ou_em_conflito_e_recusado()
     {
         var atual = Path.GetFullPath(Path.Combine("x", "Relatorio_0001_2099.pmvrel"));

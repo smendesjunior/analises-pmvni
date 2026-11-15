@@ -193,6 +193,10 @@ public static class TextosGravacao
         : $"Não foi possível gravar as alterações no arquivo: {motivo.TrimEnd('.')}. Se fechar sem salvar, elas ficam guardadas na recuperação: "
           + "ao abrir este arquivo de novo, o app oferece recuperá-las.";
 
+    /// <summary>Fechar com um campo em edição no A4 cujo texto a conferência recusou: o texto não entra em lugar nenhum se fechar.</summary>
+    public static string FecharSemOTexto(string motivo) =>
+        $"O texto em edição não pôde ser aplicado: {motivo.TrimEnd('.')}. Fechar mesmo assim?";
+
     /// <summary>Exportar com alterações que o arquivo não tem e não pode receber agora (somente leitura ou conflito): o PDF e o recibo
     /// (sha do pacote) não bateriam.</summary>
     public static string ExportarSemGravar(bool conflito) => conflito

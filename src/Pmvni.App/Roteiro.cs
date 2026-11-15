@@ -25,7 +25,9 @@ internal sealed class PerguntasFixas : IPerguntas
     public List<string> Feitas { get; } = [];
 
     public Task<string?> AbrirArquivoAsync(string extensao) { Feitas.Add("abrir " + extensao); return Task.FromResult<string?>(null); }
-    public Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao) { Feitas.Add("salvar " + nomeSugerido); return Task.FromResult<string?>(null); }
+    /// <summary>O caminho que o seletor de salvar "escolhe" (null = cancelado).</summary>
+    public string? ArquivoParaSalvar { get; set; }
+    public Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao) { Feitas.Add("salvar " + nomeSugerido); return Task.FromResult(ArquivoParaSalvar); }
     /// <summary>A pasta que o seletor de pastas "escolhe" (null = cancelado).</summary>
     public string? PastaEscolhida { get; set; }
     public Task<string?> EscolherPastaAsync() { Feitas.Add("escolher pasta"); return Task.FromResult(PastaEscolhida); }
@@ -41,6 +43,14 @@ internal sealed class PerguntasFixas : IPerguntas
         return Task.FromResult(Fechar);
     }
     public List<string> Fechamentos { get; } = [];
+    /// <summary>A resposta a "O texto em edição não pôde ser aplicado… Fechar mesmo assim?": true = fechar sem o texto.</summary>
+    public bool FecharSemOTexto { get; set; }
+    public Task<bool> FecharSemOTextoAsync(string motivo)
+    {
+        Feitas.Add("fechar com texto recusado: " + motivo);
+        Fechamentos.Add(TextosGravacao.FecharSemOTexto(motivo));
+        return Task.FromResult(FecharSemOTexto);
+    }
 }
 
 /// <summary>Computador sem LibreOffice (passo 38 do roteiro): o despacho sai só em DOCX, com o motivo no recibo.</summary>
@@ -2287,6 +2297,84 @@ internal static class Roteiro
             p["ok"] = manteve && trocou && voltou && prontoParaGravar && viuGravando && ficou && gravou;
         });
         Environment.SetEnvironmentVariable("PMVNI_KIT_RAIZ", kitEnv);
+
+        // ---------- Onda de correções 2: passos 46 e 47 ----------
+        // 46 Salvar como e Salvar como cópia (conflito) concluem a edição aberta no A4: a cópia tem o texto; 47 fechar com a edição
+        // recusada pela conferência pergunta (Voltar à edição / Fechar sem ele) em vez de perder o texto em silêncio.
+        string Completo(string c) => Path.GetFullPath(c);
+        void ApagarSe(string c) { if (File.Exists(c)) File.Delete(c); }
+
+        await Passo("46_salvar_como_com_edicao_aberta", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var original = Path.Combine(pasta, "onda2-a.pmvrel");
+            var copia = Path.Combine(pasta, "onda2-a-copia.pmvrel");
+            ApagarSe(original); ApagarSe(copia);
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), original)) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+            var s = j.Sessao!;
+            var ids = s.Revisao.Projeto.Incluidos.Select(i => i.Id).ToList();
+            string? Verificacao(Projeto pr, string id) => DadosEfetivos.TextoEfetivo(pr, pr.Item(id)!, "verificacao");
+
+            // Salvar como com o campo aberto: a cópia tem o texto e passa a ser o relatório aberto.
+            const string TextoCopia = "Texto digitado no A4 e gravado pelo Salvar como (roteiro).";
+            var abriu1 = await DigitarAsync(ids[0], TextoCopia);
+            perguntas.ArquivoParaSalvar = copia;
+            try { await j.ExecutarComandoAsync(ComandosApp.ArquivoSalvarComo); }
+            finally { perguntas.ArquivoParaSalvar = null; }
+            var naCopia = File.Exists(copia) ? Pacote.Ler(copia).Conteudo.Projeto : null;
+            var salvouComo = abriu1 && naCopia is not null && Verificacao(naCopia, ids[0]) == TextoCopia && j.Sessao is { } sc
+                && Completo(sc.Caminho) == Completo(copia) && sc.Estado == EstadoGravacao.Salvo && !await EditandoAsync();
+            p["salvar_como"] = salvouComo;
+
+            // Salvar como cópia (conflito) com o campo aberto: a cópia ao lado tem o texto.
+            var outro = Pacote.Ler(copia);
+            outro.Conteudo.Projeto.Documento["capa"]!["requerente"] = "OUTRO PROGRAMA GRAVOU (roteiro 46)";
+            Pacote.Gravar(copia, outro.Conteudo, outro.Disco);
+            const string TextoConflito = "Texto digitado no A4 e gravado na cópia do conflito (roteiro).";
+            var abriu2 = await DigitarAsync(ids[1], TextoConflito);
+            var copiou = await j.SalvarCopiaDeConflitoAsync();
+            var caminhoCopia = j.Sessao!.Caminho;
+            var naCopiaDoConflito = copiou && Completo(caminhoCopia) != Completo(copia) ? Pacote.Ler(caminhoCopia).Conteudo.Projeto : null;
+            var copiaConflito = abriu2 && naCopiaDoConflito is not null && Verificacao(naCopiaDoConflito, ids[1]) == TextoConflito && !await EditandoAsync();
+            p["copia_de_conflito"] = copiaConflito;
+            p["ok"] = salvouComo && copiaConflito;
+            if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou");
+        });
+
+        await Passo("47_fechar_com_edicao_recusada", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            var arquivo = Path.Combine(pasta, "onda2-b.pmvrel");
+            ApagarSe(arquivo);
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), arquivo)) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+            var s = j.Sessao!;
+            var id = s.Revisao.Projeto.Incluidos[0].Id;
+            var antes = DadosEfetivos.TextoEfetivo(s.Revisao.Projeto, s.Revisao.Projeto.Item(id)!, "verificacao");
+            const string Branco = "   "; // só espaços: o kit exige a verificação preenchida, então a conferência recusa
+
+            // (a) "Voltar à edição": o relatório continua aberto, a pergunta traz o motivo e o campo volta a ser editado no A4.
+            var abriu = await DigitarAsync(id, Branco);
+            var feitas = perguntas.Feitas.Count;
+            perguntas.FecharSemOTexto = false;
+            var fechou1 = await j.FecharSessaoAsync();
+            var pergunta = perguntas.Feitas.Skip(feitas).FirstOrDefault(f => f.StartsWith("fechar com texto recusado: ", StringComparison.Ordinal));
+            var textoPergunta = perguntas.Fechamentos.LastOrDefault() ?? "";
+            var voltou = !fechou1 && j.Sessao is not null && await EsperarAteAsync(EditandoAsync, 3000);
+            var textoNoCampo = (await Js(j, "(() => { const e = document.querySelector('[data-pmvni-editando]'); return e ? e.textContent : null; })()")).GetString();
+            p["pergunta"] = textoPergunta;
+            p["voltou_a_edicao"] = voltou;
+            p["texto_devolvido_ao_campo"] = textoNoCampo == Branco;
+
+            // (b) "Fechar sem ele": fecha; o arquivo continua com o texto de antes.
+            perguntas.FecharSemOTexto = true;
+            var fechou2 = await j.FecharSessaoAsync();
+            perguntas.FecharSemOTexto = false;
+            var noArquivo = Pacote.Ler(arquivo).Conteudo.Projeto;
+            var fechouSemEle = fechou2 && j.Sessao is null && DadosEfetivos.TextoEfetivo(noArquivo, noArquivo.Item(id)!, "verificacao") == antes;
+            p["fechou_sem_o_texto"] = fechouSemEle;
+            p["ok"] = abriu && pergunta is not null && textoPergunta.StartsWith("O texto em edição não pôde ser aplicado: ", StringComparison.Ordinal)
+                && textoPergunta.EndsWith(". Fechar mesmo assim?", StringComparison.Ordinal) && voltou && textoNoCampo == Branco && fechouSemEle;
+        });
 
         await j.FecharSessaoAsync();
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());

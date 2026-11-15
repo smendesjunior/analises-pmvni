@@ -31,6 +31,7 @@ public sealed partial class MainWindow
     bool mostrarOriginal, somenteAlterados, aplicando, atualizandoPropriedades;
     IReadOnlyList<ItemNavegacao> navegacaoCompleta = [];
     readonly List<string> ultimosErros = [];
+    (string Item, string Campo, string Texto)? edicaoRecusada; // o campo que a última conclusão da edição no A4 teve recusado pela conferência
     long ultimaLatenciaMs;
 
     // ---------- acessores do roteiro ----------
@@ -322,6 +323,7 @@ public sealed partial class MainWindow
     /// false se havia edição mas nada mudou (texto igual ou recusado: a página espera o estado do editor) e null se não havia edição.</summary>
     async Task<bool?> ConcluirEdicaoAbertaAsync(SessaoEdicao s)
     {
+        edicaoRecusada = null;
         if (documento is null) return null;
         JsonElement d;
         try { d = await documento.ChamarAsync("concluirEdicao", new { }, LimiteTela); }
@@ -337,27 +339,35 @@ public sealed partial class MainWindow
             await Task.Run(() => s.Recompositor.Preparar(candidato));
             return s.Revisao.Aplicar(c) is not null;
         }
-        catch (ComandoRecusadoException e) { ultimosErros.Add(e.Message); }
-        catch (RecomposicaoRecusadaException e) { ultimosErros.AddRange(e.Erros); }
+        catch (ComandoRecusadoException e) { ultimosErros.Add(e.Message); edicaoRecusada = (item, campo, texto); }
+        catch (RecomposicaoRecusadaException e) { ultimosErros.AddRange(e.Erros); edicaoRecusada = (item, campo, texto); }
         return false;
     }
+
+    /// <summary>O texto de um campo em edição que a conferência recusou ao concluir antes de fechar, com o motivo.</summary>
+    internal sealed record RecusaDeEdicao(string Item, string Campo, string Texto, string Motivo);
 
     /// <summary>Salvar, Exportar, Fechar (e Abrir outro, que fecha) concluem antes o campo em edição no A4, como o Enter: o texto digitado
     /// entra no relatório e a tela é recomposta; o arquivo e o PDF nunca saem sem ele. Recusado pela conferência: o aviso de sempre e a
     /// página volta ao texto anterior. Recomposição que falha: a sessão fica desatualizada (exportar recusa até recompor).</summary>
-    async Task ConcluirEdicaoAntesAsync(SessaoEdicao s)
+    /// <summary>Devolve a recusa (o texto e o motivo) quando a conferência não aceitou o campo em edição; quem fecha o relatório pergunta
+    /// antes de deixar o texto para trás. null = nada a dizer (sem edição, texto igual ou aplicado).</summary>
+    async Task<RecusaDeEdicao?> ConcluirEdicaoAntesAsync(SessaoEdicao s)
     {
-        if (s.SomenteLeitura || s.Atual is null || ocupado || !ReferenceEquals(sessao, s)) return;
+        if (s.SomenteLeitura || s.Atual is null || ocupado || !ReferenceEquals(sessao, s)) return null;
         ultimosErros.Clear();
         var mudou = await ConcluirEdicaoAbertaAsync(s);
-        if (mudou is null) return;
+        if (mudou is null) return null;
         try
         {
             if (mudou == false)
             {
+                var recusa = edicaoRecusada is var (item, campo, texto) && ultimosErros.Count > 0
+                    ? new RecusaDeEdicao(item, campo, texto, string.Join(" ", ultimosErros.Distinct().Take(3)))
+                    : null;
                 if (ultimosErros.Count > 0) Recusar(ultimosErros.ToList());
                 await s.EnviarEstadoAsync();
-                return;
+                return recusa;
             }
             var r = await s.RecomporAsync();
             MostrarRecomposicao(r);
@@ -372,6 +382,17 @@ public sealed partial class MainWindow
             AtualizarPaineis();
             AtualizarComandos();
         }
+        return null;
+    }
+
+    /// <summary>"Voltar à edição": o campo volta a ser editado no A4 com o texto que a conferência recusou (a página já voltou ao anterior).</summary>
+    async Task DevolverEdicaoAsync(RecusaDeEdicao r)
+    {
+        if (documento is null || sessao is null || !Editavel) return;
+        selecionado ??= r.Item;
+        R.Navegador.Focus(FocusState.Programmatic);
+        try { await documento.ChamarAsync("editarCampo", new { @ref = r.Item, campo = r.Campo, texto = r.Texto }, LimiteTela); }
+        catch (Exception e) { Debug.WriteLine("[devolverEdicao] " + e.Message); }
     }
 
     /// <summary>"Recompor" do aviso de folhas desatualizadas: compõe de novo o relatório como está (a alteração já foi aplicada). true = a tela
