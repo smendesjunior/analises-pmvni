@@ -148,7 +148,12 @@ public sealed partial class MainWindow
         despachosRecentesPrimeiro = ajustes.DespachosOrdem != "antigos";
     }
 
-    Task AbrirAjustesAsync() => NaFilaAsync(() => TentarAsync(() => MudarModuloAsync(Modulo.Ajustes)));
+    /// <summary>"Abrir Ajustes" do aviso de pasta ausente: Ajustes › Pastas e kit, onde a pasta se escolhe.</summary>
+    Task AbrirAjustesAsync() => NaFilaAsync(() => TentarAsync(async () =>
+    {
+        await MudarModuloAsync(Modulo.Ajustes);
+        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Pastas);
+    }));
 
     // ---------- entrada e saída de um módulo ----------
 

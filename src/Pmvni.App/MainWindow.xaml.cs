@@ -63,6 +63,12 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal string TextoComposicaoAtual => R.TextoComposicao.Text;
     internal string TextoFolhaAtual => totalFolhas == 0 ? "" : $"folha {folhaAtual} de {totalFolhas}";
     internal IndicadorAvisos IndicadorLayout => R.IndicadorLayout;
+    internal AreaDeAvisos AreaAvisosRelatorios => R.AreaAvisos;
+    /// <summary>A altura da área das folhas (os avisos no indicador não a mudam; as faixas no topo, sim).</summary>
+    internal double AlturaDasFolhas => R.AreaCentral.ActualHeight;
+    internal ListView ListaDeSecoes => R.ListaNavegacao;
+    internal ListView ListaDeProcessos => PaginaDeProcessos.ListaProcessos;
+    internal ListView ListaDeDespachos => PaginaDeDespachos.ListaDespachos;
     internal EstadoVazio EstadoVazioRelatorios => R.TextoVazio;
     internal bool ExportarHabilitado => Faixa.Habilitado(ComandosApp.ArquivoExportarPdf);
     internal string DicaExportar => Faixa.Dica(ComandosApp.ArquivoExportarPdf);
