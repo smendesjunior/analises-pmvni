@@ -136,10 +136,10 @@ public static class Importador
             if (dono is not JsonObject obj || obj["imagem"] is not JsonValue v || !v.TryGetValue<string>(out var rel)) return;
             if (!jaCopiadas.TryGetValue(rel, out var destino))
             {
-                // A conferência do render já recusou caminho absoluto ou de rede; esta é a segunda barreira (nunca lê fora do permitido).
+                // A conferência do render já recusou caminho absoluto, de rede ou fora da pasta do processo; esta é a segunda barreira.
                 if (CaminhoImagem.Resolver(pastaDados, rel, soNaPasta: false) is not { } arquivo)
                 {
-                    erros.Add("Caminho de imagem recusado (absoluto ou de rede): " + rel + ".");
+                    erros.Add("Caminho de imagem recusado (absoluto, de rede ou fora da pasta do processo): " + rel + ".");
                     return;
                 }
                 var bytes = File.ReadAllBytes(arquivo);
@@ -164,14 +164,7 @@ public static class Importador
     }
 
     /// <summary>Extensão normalizada (<c>png</c>, <c>jpg</c>, <c>webp</c>, <c>gif</c>) pela assinatura dos bytes; null se for outro formato.</summary>
-    internal static string? ExtensaoPelaAssinatura(ReadOnlySpan<byte> b)
-    {
-        if (b.StartsWith(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A })) return "png";
-        if (b.StartsWith(new byte[] { 0xFF, 0xD8, 0xFF })) return "jpg";
-        if (b.StartsWith("GIF87a"u8) || b.StartsWith("GIF89a"u8)) return "gif";
-        if (b.Length >= 12 && b[..4].SequenceEqual("RIFF"u8) && b.Slice(8, 4).SequenceEqual("WEBP"u8)) return "webp";
-        return null;
-    }
+    internal static string? ExtensaoPelaAssinatura(ReadOnlySpan<byte> b) => CaminhoImagem.ExtensaoPelaAssinatura(b);
 
     private static string Sha(byte[] b) => Convert.ToHexString(SHA256.HashData(b)).ToLowerInvariant();
 

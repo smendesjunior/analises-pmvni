@@ -6,7 +6,8 @@ namespace Pmvni.Composicao;
 
 /// <summary>Opções do render (as do kit: <c>--instrucoes</c> e <c>--rascunho</c>; rascunho vale também com instruções).
 /// <see cref="ImagensSoNaPasta"/>: as imagens só podem estar dentro da pasta do dados.json (sem <c>..</c>; a pasta de trabalho de um
-/// pacote aberto). Caminho absoluto ou de rede é recusado sempre (<see cref="CaminhoImagem"/>); recusado conta como imagem não encontrada.</summary>
+/// pacote aberto). Caminho absoluto ou de rede é recusado sempre, e <c>..</c> só dentro da pasta do processo (<see cref="CaminhoImagem"/>);
+/// só <c>.png .jpg .jpeg .webp .gif</c> com assinatura conferida; recusado conta como imagem não encontrada.</summary>
 public sealed record OpcoesRender(bool Instrucoes, bool Rascunho, bool ImagensSoNaPasta = false);
 
 /// <summary>Elemento do HTML que o paginador (Tarefa 6+) precisa reconhecer: seletor CSS, posição (0 = primeiro) entre os
@@ -41,7 +42,7 @@ public static class RelatorioRenderer
         var d = Dados.Dict(JsonModelo.Ler(json));
 
         var estrito = op.ImagensSoNaPasta;
-        var erros = Conferencia.Conferir(d, rel => CaminhoImagem.Resolver(baseDir, rel, estrito) is { } c && File.Exists(c), op.Rascunho || op.Instrucoes);
+        var erros = Conferencia.Conferir(d, rel => CaminhoImagem.Resolver(baseDir, rel, estrito) is { } c && CaminhoImagem.ImagemAceita(rel, c), op.Rascunho || op.Instrucoes);
         if (erros.Count > 0) return new ResultadoRender("", erros, Array.Empty<RefElemento>());
 
         var ctx = new Dictionary<string, object?>();
@@ -85,7 +86,10 @@ public static class RelatorioRenderer
         var rel = imagem as string ?? throw new MoldeErro("unsupported operand type(s) for /: 'PosixPath' and '" + PythonTexto.NomeTipo(imagem) + "'");
         // A conferência já recusou um caminho inaceitável; esta é a segunda barreira (nunca lê fora do permitido).
         var caminho = CaminhoImagem.Resolver(baseDir, rel, estrito) ?? throw new MoldeErro("caminho de imagem recusado: " + rel);
-        return new Seguro("data:image/png;base64," + Convert.ToBase64String(File.ReadAllBytes(caminho)));
+        if (!CaminhoImagem.ExtensaoPermitida(rel)) throw new MoldeErro("imagem em formato não aceito: " + rel);
+        var bytes = File.ReadAllBytes(caminho);
+        if (CaminhoImagem.ExtensaoPelaAssinatura(bytes) is null) throw new MoldeErro("imagem em formato não aceito: " + rel);
+        return new Seguro("data:image/png;base64," + Convert.ToBase64String(bytes));
     }
 
     private static string IdOu(object? item, int i, string prefixo)
