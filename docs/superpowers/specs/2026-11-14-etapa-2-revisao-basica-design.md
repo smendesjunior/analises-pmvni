@@ -394,14 +394,15 @@ exige é o passo 3 (o usuário confere cada página antes de gravar; as páginas
 
 ### 10.7 PDF pelo LibreOffice
 Como o kit (`programas_pmvni.py docx-pdf`): `soffice.com --headless --norestore --convert-to pdf --outdir …` sobre
-uma **cópia** do DOCX, com perfil próprio (`-env:UserInstallation=` na pasta de trabalho, para não ser entregue a
+uma **cópia** do DOCX, com perfil próprio do editor (`-env:UserInstallation=` em `<dados>\lo`, um só e persistente — Ruling T16-C4: a 1ª
+inicialização de um perfil leva perto de um minuto —, com uma conversão por vez; para não ser entregue a
 um LibreOffice aberto) e `TEMP`/`TMP` do processo apontados para a pasta de trabalho; sem janela; prazo de 5 min
 (depois encerra só a árvore desse processo); o Word **nunca** é automatizado. Depois: o DOCX não pode ter mudado
 (sha), o PDF precisa abrir no leitor mínimo (`InfoPdf`: páginas) e listar a fonte **Verdana** (`/BaseFont`, sem o
 prefixo de subconjunto). Localização: `PMVNI_SOFFICE` (testes) → `%ProgramFiles%\LibreOffice*\program\soffice.com`
 → `%ProgramFiles(x86)%\…` → `soffice` no PATH. **Sem LibreOffice**, com falha ou sem Verdana: grava **só o DOCX**
 (e o recibo com o motivo) e mostra a mensagem clara: "O LibreOffice não está instalado neste computador. O despacho
-foi gravado só em Word (DOCX). Para o PDF, rode o instalador do kit (INSTALAR_KIT_PMVNI.cmd) e use Despachos ›
+será gravado só em Word (DOCX). Para o PDF, rode o instalador do kit (INSTALAR_KIT_PMVNI.cmd) e use Despachos ›
 Gerar PDF." O comando **Gerar PDF** (Despachos) completa depois um despacho do editor que ficou sem PDF, com a
 mesma conferência de páginas.
 
