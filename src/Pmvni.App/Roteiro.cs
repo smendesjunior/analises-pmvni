@@ -2179,7 +2179,7 @@ internal static class Roteiro
         {
             if (!await j.AbrirPacoteAsync(pacoteOnda)) throw new InvalidOperationException("não abriu: " + j.InfoMensagem.Message);
             var s = j.Sessao!;
-            var item = s.Revisao.Projeto.Incluidos[3];
+            var item = s.Revisao.Projeto.Incluidos[^1]; // o título do último item (o curto tem 3)
             const string Titulo = "Título mudado com a recomposição falhando (roteiro)";
             // A composição cai depois de o comando ser aplicado: o relatório tem a alteração, a tela não.
             s.FalhaDeRoteiroNaRecomposicao = () => Task.FromException(new InvalidOperationException("falha simulada da composição (roteiro)"));
