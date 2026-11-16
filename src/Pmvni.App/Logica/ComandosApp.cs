@@ -80,16 +80,22 @@ public static class ComandosApp
     public const string DespachosNovo = "despachos.novo";
     public const string DespachosNovoCorrecao = "despachos.novo.correcao";
     public const string DespachosNovoAprovacao = "despachos.novo.aprovacao";
+    /// <summary>Correção automática (2026-11-16): monta o despacho de correção com todos os itens pendentes do relatório mais recente do
+    /// processo e vai direto para a conferência.</summary>
+    public const string DespachosNovoCorrecaoAutomatica = "despachos.novo.correcaoAutomatica";
     public const string DespachosGerarPdf = "despachos.gerarPdf";
 
     /// <summary>Os itens do Novo despacho valem em qualquer módulo que os mostra: abrem a página Novo despacho no módulo Despachos.
     /// Os outros comandos <c>despachos.*</c> só valem com a lista de despachos à vista.</summary>
-    public static bool ValeForaDeDespachos(string id) => id is DespachosNovoCorrecao or DespachosNovoAprovacao;
+    public static bool ValeForaDeDespachos(string id) => id is DespachosNovoCorrecao or DespachosNovoAprovacao or DespachosNovoCorrecaoAutomatica;
+
+    /// <summary>O item "Correção automática" do menu Novo despacho.</summary>
+    public static bool EhCorrecaoAutomatica(string id) => id == DespachosNovoCorrecaoAutomatica;
 
     /// <summary>O tipo do item <c>despachos.novo.*</c>; null para os outros ids.</summary>
     public static TipoDespacho? TipoDoNovoDespacho(string id) => id switch
     {
-        DespachosNovoCorrecao => TipoDespacho.Correcao,
+        DespachosNovoCorrecao or DespachosNovoCorrecaoAutomatica => TipoDespacho.Correcao,
         DespachosNovoAprovacao => TipoDespacho.Aprovacao,
         _ => null,
     };

@@ -51,6 +51,13 @@
               <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8F4;" FontSize="14"/><TextBlock Text="Nova pasta…"/></StackPanel>
             </Button>
           </Grid>
+          <!-- Correção automática (2026-11-16): só no tipo Correção; a janela mostra e liga o botão. -->
+          <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" HorizontalAlignment="Stretch" Visibility="Collapsed"
+                  AutomationProperties.Name="Criar automaticamente a partir do relatório"
+                  local:Dicas.Titulo="Criar automaticamente a partir do relatório"
+                  local:Dicas.Descricao="Monta o despacho com todos os itens pendentes do relatório (não atende, falta comprovar e informações divergentes) e vai direto para a conferência.">
+            <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE945;" FontSize="14"/><TextBlock Text="Criar automaticamente a partir do relatório" TextWrapping="Wrap"/></StackPanel>
+          </Button>
           <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
                      Text="O relatório é opcional. Anexado, entram só os itens que não atendem; sem ele, escreva as exigências ou peça à IA. Um relatório de outra pasta entra pelo Escolher arquivo. A data é a da pasta da etapa."/>
 

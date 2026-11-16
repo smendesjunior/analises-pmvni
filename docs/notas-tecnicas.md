@@ -440,3 +440,21 @@ Núcleo (`Pmvni.Legislacao`, `Pmvni.Composicao.Web\Legislacao`, `web\paginador\s
 - **Caixa de edição da prévia:** o cartão de um `Flyout` tem largura máxima de 456 DIP e rolagem própria; o conteúdo tinha 640 DIP
   fixos (cortado à direita, barra horizontal) e a caixa de texto, 160 DIP de altura mínima. `CaixaEdicaoPrevia.Medir` dá a largura do
   conteúdo e a do cartão juntas, dentro da janela, e a altura de uma linha até 240 DIP.
+
+## Correção automática a partir do relatório (16/11/2026)
+
+- **Onde:** item "Correção automática (itens pendentes do relatório)" do menu Novo despacho (Relatórios, Processos e Despachos;
+  `despachos.novo.correcaoAutomatica`) e o botão "Criar automaticamente a partir do relatório" do painel Novo despacho (só no tipo
+  Correção). O painel não foi redesenhado: só ganhou o botão.
+- **O que faz:** abre o Novo despacho de correção com a origem de sempre (`FluxoNovoDespacho.Sugerir`: o relatório aberto em Relatórios,
+  ou o `.rpmvni` mais novo do processo escolhido), monta o rascunho com `ConteudoDespacho.Montar` (todos os itens incluídos com situação
+  efetiva diferente de ATENDE — NÃO ATENDE, FALTA COMPROVAR e INFORMAÇÕES DIVERGENTES —, já com as revisões; excluídos ficam de fora;
+  protocolo e requerente da capa, assunto do modelo) e chama o "Gerar e conferir": cai na conferência das páginas. Nada é gravado na
+  pasta do processo antes de "Gravar na pasta do processo". No painel vale o relatório escolhido na caixa (ou, com "Sem relatório", o mais
+  novo); edições já feitas só são trocadas depois de confirmar.
+- **Sem o resumo da IA:** neste caminho o relatório é carregado sem o `IaDespacho.PedidoResumo` (as exigências entram como estão no
+  relatório, e a resposta da IA chegaria com o PDF já gerado).
+- **Quando para antes** (`FluxoNovoDespacho.PlanejarAutomatico`, com a mensagem na página): sem processo; processo sem relatório (fica
+  o rascunho em branco para escrever à mão); relatório que não serve (os bloqueios de sempre, entre eles "Nenhum item incluído tem
+  situação diferente de ATENDE…"); item pendente sem providência escrita (fica no passo 2 com a lista do que falta).
+- Não conferido na tela pelo construtor (a lógica está em `FluxoNovoDespachoTestes`; o caminho na janela fica para o roteiro).

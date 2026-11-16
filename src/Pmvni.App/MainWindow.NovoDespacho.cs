@@ -24,6 +24,8 @@ public sealed partial class MainWindow
     Entrega? ultimaEntrega;
     IConversorPdf? conversor;
     bool preenchendoNovo;
+    /// <summary>A correção automática está em curso: o relatório é carregado sem o resumo da IA (entram as exigências como estão no relatório).</summary>
+    bool automatico;
 
     PaginaNovoDespacho N => PaginaDeNovoDespacho;
 
@@ -66,6 +68,7 @@ public sealed partial class MainWindow
             var tipo = ComandosApp.TipoDoNovoDespacho(id)!.Value;
             manipuladores[id] = async () => await AbrirNovoDespachoAsync(tipo);
         }
+        manipuladores[ComandosApp.DespachosNovoCorrecaoAutomatica] = async () => await AbrirCorrecaoAutomaticaAsync();
         manipuladores[ComandosApp.DespachosGerarPdf] = async () => { if (docxSemPdf is { } d) await AbrirGerarPdfAsync(d); };
 
         var n = N;
@@ -97,6 +100,7 @@ public sealed partial class MainWindow
         }));
         n.BotaoNovaPasta.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(CriarPastaNovaNaVezAsync));
         n.BotaoEscolherRelatorio.Click += (_, _) => NaOrigem(EscolherRelatorioNaVezAsync);
+        n.BotaoAutomatico.Click += (_, _) => NaOrigem(AutomaticoNoPainelNaVezAsync);
         n.BotaoAplicarInstrucao.Click += async (_, _) => await AplicarInstrucaoAsync(n.CaixaInstrucao.Text);
         n.CaixaInstrucao.KeyDown += async (_, e) =>
         {
@@ -196,11 +200,14 @@ public sealed partial class MainWindow
     {
         var compondo = novo is not null;
         Faixa.Habilitar(ComandosApp.DespachosNovo, !compondo);
-        foreach (var (id, t) in new[] { (ComandosApp.DespachosNovoCorrecao, TipoDespacho.Correcao), (ComandosApp.DespachosNovoAprovacao, TipoDespacho.Aprovacao) })
+        foreach (var (id, t) in new[] { (ComandosApp.DespachosNovoCorrecao, TipoDespacho.Correcao), (ComandosApp.DespachosNovoCorrecaoAutomatica, TipoDespacho.Correcao),
+                     (ComandosApp.DespachosNovoAprovacao, TipoDespacho.Aprovacao) })
         {
             var motivo = modelos is { } m ? FluxoNovoDespacho.MotivoDesabilitado(t, m, compondo) : compondo ? FluxoNovoDespacho.Compondo : "Lendo os modelos do kit…";
             Faixa.Habilitar(id, motivo is null);
-            Faixa.DefinirDica(id, motivo ?? "Novo despacho de " + RegistroModelos.Rotulo(t).ToLower(Formatos.Cultura) + " a partir do relatório revisado");
+            Faixa.DefinirDica(id, motivo ?? (ComandosApp.EhCorrecaoAutomatica(id)
+                ? "Despacho de correção com todos os itens pendentes do relatório mais recente do processo, direto para a conferência"
+                : "Novo despacho de " + RegistroModelos.Rotulo(t).ToLower(Formatos.Cultura) + " a partir do relatório revisado"));
         }
         Faixa.Habilitar(ComandosApp.DespachosGerarPdf, !compondo && docxSemPdf is not null);
     }
@@ -393,8 +400,71 @@ public sealed partial class MainWindow
         PreencherConteudo(s);
         MostrarPassoAtual(s);
         // Relatório anexado: a IA resume as exigências (só o que não atende) sozinha, se houver programa de IA e o ajuste estiver ligado.
-        if (s.Tipo == TipoDespacho.Correcao && Perguntas.Atual is PerguntasDaJanela) _ = AplicarInstrucaoAsync(IaDespacho.PedidoResumo);
+        // Na correção automática não: entram as exigências como estão no relatório, e o despacho segue para a conferência.
+        if (s.Tipo == TipoDespacho.Correcao && !automatico && Perguntas.Atual is PerguntasDaJanela) _ = AplicarInstrucaoAsync(IaDespacho.PedidoResumo);
         return true;
+    }
+
+    // ---------- correção automática (2026-11-16) ----------
+
+    /// <summary>"Novo despacho ▸ Correção automática" (de Relatórios, Processos ou Despachos), na fila de comandos: abre o Novo despacho de
+    /// correção com o processo e o relatório da origem (o aberto em Relatórios, ou o mais recente do processo escolhido), monta todas as
+    /// exigências dos itens pendentes (situação efetiva diferente de ATENDE; excluídos ficam de fora) e segue direto para a conferência.
+    /// true = as páginas estão prontas para conferir; false = parou antes, com o motivo à vista.</summary>
+    internal Task<bool> NovaCorrecaoAutomaticaAsync() => NaFilaAsync(AbrirCorrecaoAutomaticaAsync);
+
+    async Task<bool> AbrirCorrecaoAutomaticaAsync()
+    {
+        automatico = true;
+        try
+        {
+            await AbrirNovoDespachoAsync(TipoDespacho.Correcao);
+            return await ConcluirAutomaticoAsync();
+        }
+        finally { automatico = false; }
+    }
+
+    /// <summary>O botão "Criar automaticamente a partir do relatório" do painel (tipo Correção): usa o relatório escolhido na caixa ou, sem
+    /// ele, o mais recente do processo; o que já foi editado só é trocado depois de confirmar.</summary>
+    async Task AutomaticoNoPainelNaVezAsync()
+    {
+        if (novo is not { SoPdf: false, Tipo: TipoDespacho.Correcao } s || s.Passo == PassoNovoDespacho.Conferencia || s.Preparando) return;
+        if (s.Processo is not null && FluxoNovoDespacho.TemEdicoes(s.Rascunho)
+            && !await Perguntas.Atual.ConfirmarAsync("Criar o despacho automaticamente?",
+                "As exigências e os campos que você já editou neste despacho serão trocados pelos do relatório.", "Criar", "Continuar editando", destrutiva: false))
+            return;
+        if (!ReferenceEquals(novo, s)) return;
+        automatico = true;
+        try
+        {
+            if (s.Processo is not null && FluxoNovoDespacho.RelatorioDoAutomatico(s.Pacote is null ? null : s.CaminhoPacote, s.Relatorios) is { } caminho)
+                await CarregarPacoteAsync(s, caminho);
+            await ConcluirAutomaticoAsync();
+        }
+        finally { automatico = false; }
+    }
+
+    /// <summary>Depois de a origem ser lida: gera e mostra a conferência, ou para onde for preciso com a mensagem do
+    /// <see cref="FluxoNovoDespacho.PlanejarAutomatico"/> (sem processo, sem relatório, relatório que não serve, falta preencher).</summary>
+    async Task<bool> ConcluirAutomaticoAsync()
+    {
+        // A página não abriu (modelo indisponível, troca de módulo recusada): o motivo já está à vista.
+        if (novo is not { SoPdf: false, Tipo: TipoDespacho.Correcao } s) return false;
+        // Relatório ilegível ou que não pôde ser salvo: o motivo já está na faixa de bloqueio, mesmo sem a sessão ter o pacote.
+        var plano = N.AvisoBloqueio.IsOpen && s.Bloqueios.Count == 0
+            ? FluxoNovoDespacho.PlanejarAutomatico(s.Processo, "", [N.AvisoBloqueio.Message], null)
+            : FluxoNovoDespacho.PlanejarAutomatico(s.Processo, s.Pacote is null ? null : s.CaminhoPacote, s.Bloqueios, s.Rascunho);
+        if (plano.Destino == DestinoAutomatico.Conferir)
+        {
+            await GerarEConferirNaVezAsync();
+            // Não gerou (erro ou cancelado): a mensagem do preparo fica; nada de "despacho criado".
+            if (!ReferenceEquals(novo, s) || s.Passo != PassoNovoDespacho.Conferencia) return false;
+        }
+        N.AvisoMensagem.Severity = plano.Destino == DestinoAutomatico.Conferir ? InfoBarSeverity.Success : InfoBarSeverity.Warning;
+        N.AvisoMensagem.Title = plano.Titulo;
+        N.AvisoMensagem.Message = plano.Mensagem;
+        N.AvisoMensagem.IsOpen = true;
+        return plano.Destino == DestinoAutomatico.Conferir && s.Preparacao is { Erros.Count: 0 };
     }
 
     // ---------- trocas na origem ----------
@@ -540,6 +610,7 @@ public sealed partial class MainWindow
                 n.CaixaEtapa.Items.Add(new ComboBoxItem { Content = e.Nome + (e.Nova ? "  (nova)" : ""), Tag = e });
             n.CaixaEtapa.SelectedItem = n.CaixaEtapa.Items.OfType<ComboBoxItem>().FirstOrDefault(i => i.Tag is EtapaDespacho e && e.Nome == s.Etapa?.Nome);
             n.CaixaProcesso.IsEnabled = n.CaixaRelatorio.IsEnabled = n.CaixaEtapa.IsEnabled = n.BotaoEscolherRelatorio.IsEnabled = !s.SoPdf;
+            n.BotaoAutomatico.Visibility = !s.SoPdf && s.Tipo == TipoDespacho.Correcao ? Visibility.Visible : Visibility.Collapsed;
         }
         finally { preenchendoNovo = false; }
     }

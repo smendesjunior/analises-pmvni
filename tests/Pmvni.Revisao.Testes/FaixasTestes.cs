@@ -199,8 +199,8 @@ public class FaixasTestes
             Assert.Equal(ComandosApp.DespachosNovo, novo.Id);
             Assert.Equal(TipoComando.Menu, novo.Tipo);
             Assert.Equal("Novo despacho", novo.Rotulo);
-            Assert.Equal(new[] { "despachos.novo.correcao", "despachos.novo.aprovacao" }, novo.Itens!.Select(i => i.Id));
-            Assert.Equal(new[] { "Correção", "Aprovação" }, novo.Itens!.Select(i => i.Rotulo));
+            Assert.Equal(new[] { "despachos.novo.correcao", "despachos.novo.correcaoAutomatica", "despachos.novo.aprovacao" }, novo.Itens!.Select(i => i.Id));
+            Assert.Equal(new[] { "Correção", "Correção automática (itens pendentes do relatório)", "Aprovação" }, novo.Itens!.Select(i => i.Rotulo));
             var i = inicio.ToList().IndexOf(novo);
             switch (m)
             {
