@@ -28,7 +28,42 @@ public sealed partial class PaginaSites : Grid
     }
 
     static Task<CoreWebView2Environment> Ambiente() => ambiente ??= CoreWebView2Environment.CreateWithOptionsAsync(
-        string.Empty, Path.Combine(Pmvni.Composicao.Web.PastaDados.Raiz, "Sites"), new CoreWebView2EnvironmentOptions()).AsTask();
+        string.Empty, Path.Combine(Pmvni.Composicao.Web.PastaDados.Raiz, "Sites"),
+        new CoreWebView2EnvironmentOptions { AreBrowserExtensionsEnabled = true }).AsTask();
+
+    /// <summary>Extensões do Edge/Chrome que valem nos sistemas (escolha do usuário, 2026-11-16): o iCloud Senhas (id do Edge e do Chrome).
+    /// O app carrega a versão instalada no navegador, do jeito que ela está; extensão que o WebView2 não aceita só fica de fora (registro).</summary>
+    static readonly string[] Extensoes = ["mfbcdcnpokpoajjciilocoachedjkima", "pejdijmoenmkgeppbflobdenhhabjlaj"];
+    static Task? extensoesCarregadas;
+
+    static Task CarregarExtensoesAsync(CoreWebView2Profile perfil) => extensoesCarregadas ??= CarregarAsync(perfil);
+
+    static async Task CarregarAsync(CoreWebView2Profile perfil)
+    {
+        try
+        {
+            var ja = (await perfil.GetBrowserExtensionsAsync()).Select(e => e.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            foreach (var navegador in new[] { Path.Combine(local, "Microsoft", "Edge", "User Data", "Default", "Extensions"),
+                                              Path.Combine(local, "Google", "Chrome", "User Data", "Default", "Extensions") })
+                foreach (var id in Extensoes)
+                {
+                    var pasta = Path.Combine(navegador, id);
+                    if (!Directory.Exists(pasta)) continue;
+                    var versao = Directory.GetDirectories(pasta).OrderByDescending(d => Version.TryParse(Path.GetFileName(d).Split('_')[0], out var v) ? v : new Version()).FirstOrDefault();
+                    if (versao is null || !File.Exists(Path.Combine(versao, "manifest.json"))) continue;
+                    try
+                    {
+                        // A cópia do navegador é carregada como pasta: se o id já está no perfil (de uma abertura anterior), sai e entra de novo
+                        // para valer a versão atual.
+                        if (ja.Contains(id)) foreach (var e in await perfil.GetBrowserExtensionsAsync()) if (e.Id == id) await e.RemoveAsync();
+                        await perfil.AddBrowserExtensionAsync(versao);
+                    }
+                    catch (Exception e) { RegistroErros.Gravar("sites.extensao." + id, e); }
+                }
+        }
+        catch (Exception e) { RegistroErros.Gravar("sites.extensoes", e); }
+    }
 
     public CoreWebView2? Atual => atual is { } m && navegadores.TryGetValue(m, out var w) ? w.CoreWebView2 : null;
 
@@ -46,6 +81,7 @@ public sealed partial class PaginaSites : Grid
         {
             await web.EnsureCoreWebView2Async(await Ambiente());
             var core = web.CoreWebView2;
+            await CarregarExtensoesAsync(core.Profile);
             core.Settings.AreDevToolsEnabled = false;
             core.NavigationStarting += (_, _) => { if (atual == m) progresso.Visibility = Visibility.Visible; };
             core.NavigationCompleted += (_, e) =>
@@ -55,7 +91,9 @@ public sealed partial class PaginaSites : Grid
                 if (!e.IsSuccess && e.WebErrorStatus != CoreWebView2WebErrorStatus.OperationCanceled)
                 {
                     aviso.Title = "A página não abriu";
-                    aviso.Message = $"{Modulos.Endereco(m)} não respondeu ({e.WebErrorStatus}). Alguns sistemas só abrem na rede da Prefeitura.";
+                    aviso.Message = e.WebErrorStatus == CoreWebView2WebErrorStatus.HostNameNotResolved
+                        ? $"Este computador não encontrou o endereço {new Uri(Modulos.Endereco(m)).Host}: ele só existe na rede da Prefeitura (ou pela VPN). Conecte-se a ela e use Atualizar."
+                        : $"{Modulos.Endereco(m)} não respondeu ({e.WebErrorStatus}). Confira a conexão e use Atualizar.";
                     aviso.IsOpen = true;
                 }
                 else aviso.IsOpen = false;

@@ -494,7 +494,7 @@ public sealed partial class MainWindow
             try
             {
                 if (fechada) throw new InvalidOperationException("A janela foi fechada.");
-                var ambiente = R.Navegador.CoreWebView2?.Environment ?? throw new InvalidOperationException("A visualização ainda não está pronta.");
+                var ambiente = R.Navegador.CoreWebView2?.Environment ?? await ambienteDaTela.Task.WaitAsync(TimeSpan.FromSeconds(60));
                 var janela = WinRT.Interop.WindowNative.GetWindowHandle(this);
                 tcs.TrySetResult(await Pmvni.Composicao.Web.Legislacao.ExtratorPdfJs.CriarAsync(ambiente, janela, legislacao.Servidor));
             }

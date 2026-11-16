@@ -138,7 +138,7 @@ public sealed partial class MainWindow
 
     async Task<LeitorPdfJs> CriarLeitorAsync()
     {
-        var ambiente = R.Navegador.CoreWebView2?.Environment ?? throw new InvalidOperationException("A visualização ainda não está pronta.");
+        var ambiente = R.Navegador.CoreWebView2?.Environment ?? await ambienteDaTela.Task.WaitAsync(TimeSpan.FromSeconds(60));
         if (P.Leitor.CoreWebView2 is null) await P.Leitor.EnsureCoreWebView2Async(ambiente, FabricaWebView2.OpcoesController(ambiente));
         var l = await LeitorPdfJs.SobreAsync(P.Leitor.CoreWebView2!, legislacao.Servidor);
         l.Evento += AoEventoDoLeitor;
@@ -154,6 +154,11 @@ public sealed partial class MainWindow
         var i = grade.Children.IndexOf(antigo);
         try { antigo.Close(); } catch (Exception e) { RegistroErros.Gravar("legislacao.leitor", e); }
         var novo = new WebView2 { Opacity = 0 };
+        // O substituto fica no mesmo lugar da grade (sem isto, ia para a linha 0 e a lei aparecia numa faixa estreita no alto).
+        Grid.SetRow(novo, Grid.GetRow(antigo));
+        Grid.SetColumn(novo, Grid.GetColumn(antigo));
+        Grid.SetRowSpan(novo, Grid.GetRowSpan(antigo));
+        Grid.SetColumnSpan(novo, Grid.GetColumnSpan(antigo));
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(novo, "PDF da lei");
         grade.Children[i] = novo;
         P.Leitor = novo;

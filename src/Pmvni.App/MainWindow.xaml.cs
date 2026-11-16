@@ -325,6 +325,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             // as duas instâncias do WebView2 convivem no mesmo processo, e nada do relatório fica gravado no perfil.
             var ambiente = await FabricaWebView2.CriarAmbienteAsync();
             await R.Navegador.EnsureCoreWebView2Async(ambiente, FabricaWebView2.OpcoesController(ambiente));
+            ambienteDaTela.TrySetResult(ambiente);
             if (Autoteste.Ativo)
             {
                 R.Navegador.CoreWebView2.NavigationCompleted += (_, e) =>
@@ -382,6 +383,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         catch (Exception e) { System.Diagnostics.Debug.WriteLine("[tema] " + e.Message); }
         AplicarTemaLeitor();
     }
+
+    /// <summary>O ambiente do WebView2 da tela, quando ficar pronto (o leitor da Legislação e o extrator esperam por ele, 2026-11-16: abrir o
+    /// app direto na Legislação fazia o leitor nascer antes da tela, falhar e ser trocado por um WebView2 fora do lugar).</summary>
+    readonly TaskCompletionSource<Microsoft.Web.WebView2.Core.CoreWebView2Environment> ambienteDaTela = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     internal void DefinirTema(ElementTheme tema) => Raiz.RequestedTheme = tema;
 

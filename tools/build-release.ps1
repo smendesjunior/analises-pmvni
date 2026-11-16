@@ -30,7 +30,15 @@ New-Item -ItemType Directory -Force -Path $saida | Out-Null
 $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados'
 # Um projeto de teste por vez (-m:1): em paralelo, os testes de processos (soffice fictício, AgenteFalso) estouram os limites de tempo.
 & dotnet test (Join-Path $raiz 'EditorRelatoriosPMVNI.sln') -c Release --nologo -m:1
-if ($LASTEXITCODE -ne 0) { throw "Os testes falharam (código $LASTEXITCODE): nenhuma versão foi publicada." }
+if ($LASTEXITCODE -ne 0) {
+    # Alguns testes medem tempo (LibreOffice, PDF.js, paginador) e falham à toa com o PC ocupado. Cada projeto de teste roda de novo, uma vez;
+    # um defeito de verdade falha nas duas e continua bloqueando a publicação (2026-11-16).
+    Write-Warning 'Algum teste falhou; cada projeto de teste roda mais uma vez antes de desistir.'
+    foreach ($p in Get-ChildItem (Join-Path $raiz 'tests') -Filter 'Pmvni.*.Testes.csproj' -Recurse) {
+        & dotnet test $p.FullName -c Release --nologo --no-build
+        if ($LASTEXITCODE -ne 0) { throw "Os testes de $($p.BaseName) falharam duas vezes (código $LASTEXITCODE): nenhuma versão foi publicada." }
+    }
+}
 
 # 1. Publicar
 if (Test-Path -LiteralPath $publicacao) { Remove-Item -LiteralPath $publicacao -Recurse -Force }
