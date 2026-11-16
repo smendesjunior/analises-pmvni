@@ -371,3 +371,18 @@ Núcleo (`Pmvni.Legislacao`, `Pmvni.Composicao.Web\Legislacao`, `web\paginador\s
 - `EhLink` com arquivos "só online" do OneDrive (placeholders): conferir na árvore real de PROCESSOS que um placeholder não é tratado como
   atalho (o lado seguro é recusar).
 - Codex e Claude reais (o construtor nunca roda IA real): a conferência humana do `docs\entrega-etapa-2.md`.
+
+## Novo despacho: prévia no modelo do kit (correções 2026-11-15)
+
+- A prévia é desenhada em XAML nativo (sem WebView2 nem LibreOffice a cada tecla) a partir do `LayoutDespacho`, lido do próprio DOCX do kit
+  em tempo de execução: página, margens, Verdana e formato de cada parágrafo do corpo, faixas/brasão e tarja do cabeçalho (bytes das imagens
+  do DOCX, com o recorte `srcRect`), linha vermelha (VML) e endereço do rodapé. Nada do kit vai para o repositório.
+- O corpo é um `RichTextBlock` só que transborda de folha em folha (`RichTextBlockOverflow`): quebra de página entre linhas. Não segue
+  "manter com o próximo" nem viúvas/órfãs do Word; a paginação final continua conferida nas páginas do PDF (passo 3).
+- Trechos variáveis viram links sem sublinhado; o clique abre uma caixa (Enter grava, Esc desiste) e a edição vai ao rascunho por
+  `ConteudoDespacho.AplicarEdicao` (cabeçalho, data, título de grupo, texto e fundamento, tipo de obra e área). A data editada vale até
+  voltar à da etapa.
+- As exigências saem numeradas "01. ", "02. "… em negrito no DOCX (como os despachos do kit); a validação do conteúdo confere com o número.
+- "Escolher arquivo…" no relatório base: um `.pmvrel` de qualquer pasta ou o `dados.json` da análise, importado pelo Importador para um
+  `.pmvrel` novo onde o usuário escolher. A conferência do processo da capa continua valendo (bloqueio se for de outro processo).
+- Não conferido na tela pelo construtor: o desenho das folhas (fica para o roteiro/conferência humana).
