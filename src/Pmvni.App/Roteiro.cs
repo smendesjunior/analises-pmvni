@@ -286,7 +286,10 @@ internal static class Roteiro
                 """);
             p["geometria"] = JsonNode.Parse(g.GetRawText());
             var n = g.GetProperty("folhas").GetInt32();
-            var passo = g.GetProperty("passoEsperado").GetDouble();
+            // Correções 2026-11-15: com o painel de seções mais largo, a folha abre ajustada à largura (zoom < 100 %); o passo na tela é
+            // (297 + 8) mm vezes o zoom (o zoom é um scale() nas folhas).
+            var passo = g.GetProperty("passoEsperado").GetDouble() * j.Zoom;
+            p["zoom"] = j.Zoom;
             var continuo = Math.Abs(g.GetProperty("passoMin").GetDouble() - passo) < 1 && Math.Abs(g.GetProperty("passoMax").GetDouble() - passo) < 1;
             var visitas = new JsonArray();
             var coerente = true;

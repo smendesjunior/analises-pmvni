@@ -18,6 +18,10 @@
     </Grid.RowDefinitions>
 
     <controls:TitleBar x:Name="BarraTitulo" Grid.Row="0" Title="" Subtitle="" Height="60">
+      <!-- Correções 2026-11-15: o modelo do WinUI fixa a altura interna em TitleBarExpandedHeight (48) e cortava o brasão; 60 aqui. -->
+      <controls:TitleBar.Resources>
+        <x:Double x:Key="TitleBarExpandedHeight">60</x:Double>
+      </controls:TitleBar.Resources>
       <!-- Cabeçalho (correções 2026-11-15, image15): brasão | "Análise de Projetos" | o processo aberto em duas linhas ("Proc. NNNN/AAAA"
            maior e em negrito; o requerente embaixo, menor) e o selo do estado de gravação ("Salvo 14:32" com o ✓). -->
       <controls:TitleBar.LeftHeader>

@@ -308,7 +308,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         double Largura(FrameworkElement e) => e.Visibility == Visibility.Visible ? e.ActualWidth + e.Margin.Left + e.Margin.Right : 0;
         var ocupado = Largura(CabecalhoEsquerdo) + Largura(BotaoAnalise) + Largura(BotaoDesfazer) + Largura(BotaoRefazer)
                       + Largura(TextoPesquisa) + Largura(BotaoPesquisaAnterior) + Largura(BotaoPesquisaProxima);
-        const double botoesDaJanelaEFolgas = 190; // minimizar, maximizar, fechar, espaçamentos e a área de arrastar
+        const double botoesDaJanelaEFolgas = 300; // minimizar, maximizar, fechar (área reservada pela TitleBar, ~255 px medidos), espaçamentos e arrasto
         CaixaPesquisa.Width = Math.Clamp(largura - ocupado - botoesDaJanelaEFolgas - CaixaPesquisa.Margin.Left, 200, 640);
     }
 
