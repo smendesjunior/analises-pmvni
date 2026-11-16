@@ -30,7 +30,7 @@
                legível em qualquer escala; a cor do texto segue o tema. -->
           <StackPanel x:Name="MarcaPrefeitura" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                       AutomationProperties.Name="Prefeitura Municipal de Venda Nova do Imigrante">
-            <Viewbox Height="46" VerticalAlignment="Center">
+            <Viewbox Height="42" VerticalAlignment="Center">
               <Canvas Width="600" Height="500" Margin="-40,-40,0,0">
                 <Line X1="72" Y1="105" X2="252" Y2="192" Stroke="#A68B6A" StrokeThickness="7"/>
                 <Line X1="616" Y1="105" X2="438" Y2="192" Stroke="#A68B6A" StrokeThickness="7"/>
@@ -52,11 +52,11 @@
                       Data="M100,385 Q160,360 232,436 L182,452 Q160,410 125,440 Q95,440 100,385 Z M590,385 Q530,360 458,436 L508,452 Q530,410 565,440 Q595,440 590,385 Z M182,452 Q345,492 508,452 L505,510 Q345,548 185,510 Z"/>
               </Canvas>
             </Viewbox>
-            <StackPanel VerticalAlignment="Center" Spacing="-3">
-              <TextBlock Text="Prefeitura Municipal de" FontFamily="Bahnschrift" FontSize="10" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-              <TextBlock Text="VENDA NOVA" FontFamily="Bahnschrift" FontWeight="Bold" FontSize="17" LineHeight="17" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-              <TextBlock Text="DO IMIGRANTE" FontFamily="Bahnschrift" FontWeight="Bold" FontSize="17" LineHeight="17" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-              <TextBlock Text="Estado do Espírito Santo" FontFamily="Bahnschrift" FontSize="10" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+            <StackPanel VerticalAlignment="Center" Spacing="0">
+              <TextBlock Text="Prefeitura Municipal de" FontFamily="Bahnschrift" FontSize="9" LineHeight="10" LineStackingStrategy="BlockLineHeight" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+              <TextBlock Text="VENDA NOVA" FontFamily="Bahnschrift" FontWeight="Bold" FontSize="15" LineHeight="14" LineStackingStrategy="BlockLineHeight" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+              <TextBlock Text="DO IMIGRANTE" FontFamily="Bahnschrift" FontWeight="Bold" FontSize="15" LineHeight="14" LineStackingStrategy="BlockLineHeight" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+              <TextBlock Text="Estado do Espírito Santo" FontFamily="Bahnschrift" FontSize="9" LineHeight="10" LineStackingStrategy="BlockLineHeight" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
             </StackPanel>
           </StackPanel>
           <Border x:Name="DivisoriaMarca" Style="{StaticResource PmvniDivisoriaCabecalho}"/>
@@ -143,6 +143,7 @@
         <local:PaginaProcessos x:Name="PaginaDeProcessos" Visibility="Collapsed"/>
         <local:PaginaLegislacao x:Name="PaginaDeLegislacao" Visibility="Collapsed"/>
         <local:PaginaAjustes x:Name="PaginaDeAjustes" Visibility="Collapsed"/>
+        <local:PaginaSites x:Name="PaginaDeSites" Visibility="Collapsed"/>
       </Grid>
     </Grid>
   </Grid>

@@ -137,6 +137,14 @@ public static class ComandosApp
     public const string ModuloProcessos = "modulo.processos";
     public const string ModuloLegislacao = "modulo.legislacao";
     public const string ModuloAjustes = "modulo.ajustes";
+    public const string ModuloEssencial = "modulo.essencial";
+    public const string ModuloGpi = "modulo.gpi";
+    public const string ModuloAlfresco = "modulo.alfresco";
+    public const string SiteVoltar = "site.voltar";
+    public const string SiteAvancar = "site.avancar";
+    public const string SiteAtualizar = "site.atualizar";
+    public const string SiteInicio = "site.inicio";
+    public const string SiteNavegador = "site.navegador";
 
     /// <summary>Comandos que mexem no relatório aberto ou na tela dele (Página Inicial, Revisão, desfazer, zoom, painel). Fora do módulo
     /// Relatórios não valem: um Delete ou Ctrl+Z com a lista de processos à vista não pode alterar um relatório que ficou escondido.

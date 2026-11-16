@@ -430,6 +430,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         PaginaDeProcessos.Visibility = m == Modulo.Processos ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeLegislacao.Visibility = m == Modulo.Legislacao ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeAjustes.Visibility = m == Modulo.Ajustes ? Visibility.Visible : Visibility.Collapsed;
+        PaginaDeSites.Visibility = Modulos.EhSite(m) ? Visibility.Visible : Visibility.Collapsed;
+        if (Modulos.EhSite(m)) Soltar(() => PaginaDeSites.MostrarAsync(m));
         if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes(); AtualizarPaginaDePastas(); AtualizarAgentes(); Soltar(EntrarNaLegislacaoDosAjustesAsync); }
         var f = Faixas.Para(m);
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
@@ -447,6 +449,18 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     void RegistrarManipuladores()
     {
+        // Sistemas da Prefeitura (navegador embutido).
+        manipuladores[ComandosApp.SiteVoltar] = () => { PaginaDeSites.Voltar(); return Task.CompletedTask; };
+        manipuladores[ComandosApp.SiteAvancar] = () => { PaginaDeSites.Avancar(); return Task.CompletedTask; };
+        manipuladores[ComandosApp.SiteAtualizar] = () => { PaginaDeSites.Atualizar(); return Task.CompletedTask; };
+        manipuladores[ComandosApp.SiteInicio] = () => { PaginaDeSites.Inicio(); return Task.CompletedTask; };
+        manipuladores[ComandosApp.SiteNavegador] = () =>
+        {
+            if (PaginaDeSites.EnderecoAtual is { } u && Uri.TryCreate(u, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+                _ = Windows.System.Launcher.LaunchUriAsync(uri);
+            return Task.CompletedTask;
+        };
+        PaginaDeSites.EstadoMudou += AtualizarComandos;
         manipuladores[ComandosApp.ArquivoImportar] = ImportarPeloSeletorAsync;
         manipuladores[ComandosApp.ArquivoAbrir] = AbrirPeloSeletorAsync;
         manipuladores[ComandosApp.ArquivoSalvar] = SalvarAsync;
@@ -545,6 +559,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         var temRelatorio = pronto && sessao?.Atual is not null;
         var folhas = temRelatorio && !novoRelatorioAberto;     // a página Novo relatório esconde as folhas: os comandos delas ficam desabilitados
         Faixa.Habilitar(ComandosApp.ArquivoImportar, pronto);
+        Faixa.Habilitar(ComandosApp.SiteVoltar, PaginaDeSites.Atual?.CanGoBack == true);
+        Faixa.Habilitar(ComandosApp.SiteAvancar, PaginaDeSites.Atual?.CanGoForward == true);
+        Faixa.Habilitar(ComandosApp.SiteAtualizar, PaginaDeSites.Atual is not null);
+        Faixa.Habilitar(ComandosApp.SiteInicio, PaginaDeSites.Atual is not null);
+        Faixa.Habilitar(ComandosApp.SiteNavegador, PaginaDeSites.Atual is not null);
         Faixa.Habilitar(ComandosApp.ArquivoAbrir, pronto);
         Faixa.Habilitar(ComandosApp.ArquivoSalvar, temRelatorio && sessao is { SomenteLeitura: false });
         Faixa.Habilitar(ComandosApp.ArquivoSalvarComo, temRelatorio);

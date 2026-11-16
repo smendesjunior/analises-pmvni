@@ -31,7 +31,7 @@ public static class Faixas
     public static IReadOnlyList<string> OrdemSituacoes { get; } = ["ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA"];
 
     /// <summary>Módulos que já funcionam, na ordem do trilho (Ajustes, se presente, embaixo).</summary>
-    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Ajustes];
+    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco, Modulo.Ajustes];
 
     /// <summary>Menu de recentes: <see cref="ComandoFaixa.Itens"/> vazio de propósito; a faixa pede os itens a quem a monta
     /// (<see cref="FaixaDeOpcoes.ItensDinamicos"/>) cada vez que o menu abre, porque eles vêm dos ajustes e dos arquivos que ainda existem.</summary>
@@ -223,6 +223,21 @@ public static class Faixas
         Ajuda,
     ], AbaPadrao: 1, Primario: AnexarLeis);
 
+    /// <summary>Os sistemas da Prefeitura (2026-11-16): a navegação básica do navegador embutido.</summary>
+    static readonly AbaFaixa NavegacaoDoSite = new("Página Inicial",
+    [
+        new(ComandosApp.SiteVoltar, "Voltar", Glifos.Voltar),
+        new(ComandosApp.SiteAvancar, "Avançar", Glifos.Avancar),
+        new(ComandosApp.SiteAtualizar, "Atualizar", Glifos.Atualizar),
+        new(ComandosApp.SiteInicio, "Página inicial", Glifos.Inicio),
+        new(ComandosApp.SiteNavegador, "Abrir no navegador", Glifos.AbrirArquivo),
+    ]);
+
+    static DefinicaoFaixa Site(Modulo m) => new(m, [ArquivoDeModulo, NavegacaoDoSite, Ajuda], AbaPadrao: 1);
+    static readonly DefinicaoFaixa SiteEssencial = Site(Modulo.Essencial);
+    static readonly DefinicaoFaixa SiteGpi = Site(Modulo.Gpi);
+    static readonly DefinicaoFaixa SiteAlfresco = Site(Modulo.Alfresco);
+
     static readonly DefinicaoFaixa Ajustes = new(Modulo.Ajustes,
     [
         new("Arquivo",
@@ -242,6 +257,9 @@ public static class Faixas
         Modulo.Processos => Processos,
         Modulo.Legislacao => Legislacao,
         Modulo.Ajustes => Ajustes,
+        Modulo.Essencial => SiteEssencial,
+        Modulo.Gpi => SiteGpi,
+        Modulo.Alfresco => SiteAlfresco,
         _ => throw new ArgumentOutOfRangeException(nameof(m), m, "Módulo ainda sem faixa de opções."),
     };
 

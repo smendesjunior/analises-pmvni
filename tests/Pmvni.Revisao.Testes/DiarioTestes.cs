@@ -142,7 +142,7 @@ public class DiarioTestes
         Assert.Equal(a, b);
         Assert.Matches("^[0-9a-f]{64}\\.jsonl$", Path.GetFileName(a));
         Assert.Equal("recuperacao", Path.GetFileName(Path.GetDirectoryName(a)));
-        Assert.DoesNotContain("123", Path.GetFileName(a));
+        Assert.DoesNotContain("Processo", Path.GetFileName(a), StringComparison.OrdinalIgnoreCase); // o hash pode ter "123" por acaso
     }
 
     [Fact]

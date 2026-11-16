@@ -57,8 +57,11 @@ public class TrilhoTestes
     [Fact]
     public void cada_modulo_tem_atalho_e_comando()
     {
-        Assert.Equal(new[] { 1, 2, 3, 4, 5 }, Faixas.Disponiveis.Select(Modulos.Numero));
-        foreach (var m in Faixas.Disponiveis)
+        // Os sistemas da Prefeitura (2026-11-16) ficam no trilho sem atalho: Ctrl+1 … Ctrl+5 continuam os mesmos.
+        Assert.Equal(new[] { 1, 2, 3, 4, 6, 7, 8, 5 }, Faixas.Disponiveis.Select(Modulos.Numero));
+        Assert.Equal(new[] { Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco }, Faixas.Disponiveis.Where(Modulos.EhSite));
+        Assert.All(Faixas.Disponiveis.Where(Modulos.EhSite), m => Assert.StartsWith("http", Modulos.Endereco(m), StringComparison.Ordinal));
+        foreach (var m in Faixas.Disponiveis.Where(m => !Modulos.EhSite(m)))
         {
             var tecla = "Ctrl+" + Modulos.Numero(m);
             Assert.Equal(Modulos.Comando(m), Atalhos.Comando(tecla));

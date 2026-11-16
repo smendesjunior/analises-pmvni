@@ -127,6 +127,14 @@ public static class DicasComandos
         [ComandosApp.ModuloProcessos] = "Mostra os processos da pasta da Secretaria, com projetos e documentos.",
         [ComandosApp.ModuloLegislacao] = "Consulta as leis anexadas, com pesquisa, marcadores e citação.",
         [ComandosApp.ModuloAjustes] = "Configura pastas, IAs, aparência, legislação e outras preferências do app.",
+        [ComandosApp.ModuloEssencial] = "Abre o Essencial BPMS (processos e protocolos) dentro do app.",
+        [ComandosApp.ModuloGpi] = "Abre o GPI (gestão pública integrada) dentro do app.",
+        [ComandosApp.ModuloAlfresco] = "Abre os documentos de Obras no Alfresco dentro do app.",
+        [ComandosApp.SiteVoltar] = "Volta à página anterior do site.",
+        [ComandosApp.SiteAvancar] = "Avança para a página seguinte do site.",
+        [ComandosApp.SiteAtualizar] = "Carrega a página de novo.",
+        [ComandosApp.SiteInicio] = "Volta à página inicial do sistema.",
+        [ComandosApp.SiteNavegador] = "Abre a página atual no navegador do Windows.",
     };
 
     /// <summary>Todas as descrições, por id de comando.</summary>
