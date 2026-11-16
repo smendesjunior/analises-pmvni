@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -19,16 +20,63 @@ namespace Pmvni.App;
 /// marcador "alterado".</summary>
 public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool secao) : INotifyPropertyChanged
 {
-    bool atual;
+    static readonly Regex NumeroETitulo = new(@"^(\d{1,3})\s+(.*)$", RegexOptions.CultureInvariant | RegexOptions.Singleline);
+
+    bool atual, selecionado, recolhida;
+    int contagem;
 
     public string Rotulo { get; } = rotulo;
     public int Folha { get; } = folha;
     public string? Ref { get; } = @ref;
     public bool Secao { get; } = secao;
     public string FolhaTexto => "f. " + Folha;
-    public Thickness Recuo => Secao ? new Thickness(0) : new Thickness(14, 0, 0, 0);
     public FontWeight Peso => Secao ? FontWeights.SemiBold : FontWeights.Normal;
-    public Visibility IndicadorVisivel => atual ? Visibility.Visible : Visibility.Collapsed;
+    public double TamanhoTitulo => Secao ? 14 : 13;
+
+    /// <summary>Painel de navegação (correções 2026-11-15): o número do item ("01") fica numa coluna própria, o título ao lado e a etiqueta
+    /// de situação embaixo dele; seções e figuras não têm número.</summary>
+    public string Numero => !Secao && NumeroETitulo.Match(Rotulo) is { Success: true } m ? m.Groups[1].Value : "";
+    public string Titulo => !Secao && NumeroETitulo.Match(Rotulo) is { Success: true } m ? m.Groups[2].Value.Trim() : Rotulo;
+    public Visibility NumeroVisivel => Secao ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>A barra fina à esquerda: o item selecionado ou, sem seleção na lista, o da folha que está na tela.</summary>
+    public Visibility IndicadorVisivel => atual || selecionado ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Fundo um pouco mais claro no item selecionado (como no Explorador de Arquivos).</summary>
+    public Brush FundoLinha => selecionado && Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var b) && b is Brush pincel
+        ? pincel : new SolidColorBrush(Colors.Transparent);
+
+    /// <summary>Nas seções: quantos itens passam no filtro atual (o contador ao lado do título).</summary>
+    public int Contagem
+    {
+        get => contagem;
+        set { if (contagem == value) return; contagem = value; Avisar(nameof(Contagem), nameof(ContagemTexto), nameof(ContagemVisivel), nameof(ChevronVisivel)); }
+    }
+
+    public string ContagemTexto => Contagem.ToString(CultureInfo.InvariantCulture);
+    public Visibility ContagemVisivel => Secao && Contagem > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ChevronVisivel => Secao && Contagem > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>A seção está recolhida (os itens dela somem da lista; a seção fica, com o contador).</summary>
+    public bool Recolhida
+    {
+        get => recolhida;
+        set { if (recolhida == value) return; recolhida = value; Avisar(nameof(Recolhida), nameof(GlifoChevron), nameof(NomeChevron)); }
+    }
+
+    public string GlifoChevron => recolhida ? "" : ""; // ChevronRight / ChevronDown
+    public string NomeChevron => (recolhida ? "Expandir " : "Recolher ") + Rotulo;
+
+    public bool Selecionado
+    {
+        get => selecionado;
+        set { if (selecionado == value) return; selecionado = value; Avisar(nameof(IndicadorVisivel), nameof(FundoLinha)); }
+    }
+
+    void Avisar(params string[] nomes)
+    {
+        foreach (var n in nomes) PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+    }
 
     /// <summary>Código da situação efetiva (ATENDE…) de um item do relatório; null nas seções, capa e figuras.</summary>
     public string? Situacao { get; set; }
@@ -52,7 +100,7 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
         {
             if (atual == value) return;
             atual = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IndicadorVisivel)));
+            Avisar(nameof(IndicadorVisivel));
         }
     }
 

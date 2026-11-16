@@ -58,6 +58,7 @@
       <Grid x:Name="PainelNavegacao" x:FieldModifier="internal" Grid.Column="0" Width="{StaticResource PmvniLarguraPainelSecoes}" Padding="0,2,0,0">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <SelectorBar x:Name="AbasPainel" x:FieldModifier="internal" Grid.Row="0" Margin="8,0,8,2">
@@ -65,48 +66,76 @@
           <SelectorBarItem x:Name="AbaExcluidos" x:FieldModifier="internal" Text="Excluídos (0)"/>
           <SelectorBarItem x:Name="AbaHistorico" x:FieldModifier="internal" Text="Histórico"/>
         </SelectorBar>
-        <ListView x:Name="ListaNavegacao" x:FieldModifier="internal" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True"
+        <!-- Painel de navegação (correções 2026-11-15): pesquisa por texto ou situação e filtro rápido dos apontamentos. Os botões do
+             filtro são montados pela janela (FiltroNavegacao.Ordem), com a contagem de cada situação. -->
+        <StackPanel x:Name="PainelFiltros" x:FieldModifier="internal" Grid.Row="1" Spacing="8" Margin="12,4,12,8">
+          <TextBox x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar por texto ou situação"
+                   AutomationProperties.Name="Pesquisar nas seções e itens"/>
+          <ScrollViewer HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled"
+                        VerticalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="BotoesFiltro" x:FieldModifier="internal" Orientation="Horizontal" Spacing="6"
+                        AutomationProperties.Name="Filtro rápido de apontamentos"/>
+          </ScrollViewer>
+        </StackPanel>
+        <ListView x:Name="ListaNavegacao" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True"
                   Padding="6,0,6,8" AutomationProperties.Name="Seções e itens do relatório">
           <ListView.ItemContainerStyle>
             <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
               <Setter Property="MinHeight" Value="30"/>
-              <Setter Property="Padding" Value="6,0,6,0"/>
+              <Setter Property="Padding" Value="2,0,2,0"/>
               <Setter Property="Margin" Value="0,1,0,1"/>
+              <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             </Style>
           </ListView.ItemContainerStyle>
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:ItemNavegacao">
               <!-- Nome acessível e dica com o texto inteiro (A3, A4, M10): o Narrador lê "Item 07, Recuos, Não atende, alterado, folha 4".
-                   Correções 2026-11-15: a situação é a etiqueta do relatório (ATENDE, FALTA COMPROVAR…) à direita do título, que quebra a
-                   linha; clicar na etiqueta abre o menu das situações (o mesmo comando da faixa, com histórico e desfazer). -->
-              <Grid MinHeight="28" ColumnSpacing="6" Padding="0,3,2,3" AutomationProperties.Name="{x:Bind NomeAcessivel}"
-                    ToolTipService.ToolTip="{x:Bind Rotulo}">
+                   Correções 2026-11-15 (painel de navegação): número numa coluna própria, título em até duas linhas e a etiqueta de
+                   situação embaixo dele; a folha numa coluna fixa à direita; o item selecionado com fundo mais claro e barra fina; as
+                   seções com seta para recolher e o contador de itens. Clicar na etiqueta abre o menu das situações. -->
+              <Grid MinHeight="30" ColumnSpacing="8" Padding="0,5,6,5" CornerRadius="4" Background="{x:Bind FundoLinha, Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Rotulo}">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="3"/>
+                  <ColumnDefinition Width="24"/>
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="36"/>
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Style="{StaticResource PmvniRailIndicatorStyle}" Visibility="{x:Bind IndicadorVisivel, Mode=OneWay}"/>
-                <TextBlock Grid.Column="1" Text="{x:Bind Rotulo}" FontWeight="{x:Bind Peso}" Margin="{x:Bind Recuo}" MaxLines="3"
-                           TextWrapping="WrapWholeWords" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                <local:EtiquetaSituacao Grid.Column="2" Situacao="{x:Bind Situacao}" Tag="{x:Bind}" Click="AoClicarEtiqueta"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind Numero}" Visibility="{x:Bind NumeroVisivel}" FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,1,0,0" VerticalAlignment="Top"/>
+                <Button Grid.Column="1" Visibility="{x:Bind ChevronVisivel, Mode=OneWay}" Tag="{x:Bind}" Click="AoClicarChevron"
+                        Width="24" Height="24" Padding="0" Margin="0,-2,0,0" VerticalAlignment="Top" Background="Transparent" BorderThickness="0"
+                        AutomationProperties.Name="{x:Bind NomeChevron, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind NomeChevron, Mode=OneWay}">
+                  <FontIcon Glyph="{x:Bind GlifoChevron, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Button>
+                <StackPanel Grid.Column="2" Spacing="5" VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{x:Bind Titulo}" FontWeight="{x:Bind Peso}" FontSize="{x:Bind TamanhoTitulo}" MaxLines="2"
+                               TextWrapping="WrapWholeWords" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    <Border Visibility="{x:Bind ContagemVisivel, Mode=OneWay}" CornerRadius="9" Padding="7,0,7,1" VerticalAlignment="Center"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                      <TextBlock Text="{x:Bind ContagemTexto, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </Border>
+                  </StackPanel>
+                  <local:EtiquetaSituacao Situacao="{x:Bind Situacao}" Tag="{x:Bind}" Click="AoClicarEtiqueta" HorizontalAlignment="Left"/>
+                </StackPanel>
                 <Ellipse Grid.Column="3" Width="6" Height="6" Fill="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind AlteradoVisivel}"
-                         VerticalAlignment="Center" ToolTipService.ToolTip="alterado" AutomationProperties.Name="alterado"/>
-                <TextBlock Grid.Column="4" Text="{x:Bind FolhaTexto}" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
-                           MinWidth="26" TextAlignment="Right"/>
+                         VerticalAlignment="Top" Margin="0,7,0,0" ToolTipService.ToolTip="alterado" AutomationProperties.Name="alterado"/>
+                <TextBlock Grid.Column="4" Text="{x:Bind FolhaTexto}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Top" Margin="0,1,0,0" TextAlignment="Right" HorizontalAlignment="Right"/>
               </Grid>
             </DataTemplate>
           </ListView.ItemTemplate>
         </ListView>
         <!-- Excluídos: cada linha com o número original, o título e Restaurar (as linhas são montadas pela janela). -->
-        <ListView x:Name="ListaExcluidos" x:FieldModifier="internal" Grid.Row="1" SelectionMode="None" IsItemClickEnabled="True"
+        <ListView x:Name="ListaExcluidos" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True"
                   Padding="6,0,6,8" Visibility="Collapsed" AutomationProperties.Name="Itens excluídos"/>
-        <TextBlock x:Name="TextoSemExcluidos" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed" Margin="16,12"
+        <TextBlock x:Name="TextoSemExcluidos" x:FieldModifier="internal" Grid.Row="2" Visibility="Collapsed" Margin="16,12"
                    Text="Nenhum item excluído." Style="{StaticResource PmvniSecondaryTextStyle}"/>
         <!-- Histórico do pacote (historico.jsonl), mais recente primeiro. -->
-        <ListView x:Name="ListaHistorico" x:FieldModifier="internal" Grid.Row="1" SelectionMode="None" Visibility="Collapsed"
+        <ListView x:Name="ListaHistorico" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" Visibility="Collapsed"
                   Padding="6,0,6,8" AutomationProperties.Name="Histórico de alterações">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="x:String">

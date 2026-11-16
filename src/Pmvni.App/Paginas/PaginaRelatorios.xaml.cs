@@ -16,4 +16,12 @@ public sealed partial class PaginaRelatorios : UserControl
     {
         if (sender is FrameworkElement { Tag: ItemNavegacao item } alvo) EtiquetaClicada?.Invoke(item, alvo);
     }
+
+    /// <summary>Clique na seta de uma seção da lista: a janela recolhe ou expande os itens dela.</summary>
+    internal event Action<ItemNavegacao>? SecaoAlternada;
+
+    void AoClicarChevron(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: ItemNavegacao item }) SecaoAlternada?.Invoke(item);
+    }
 }

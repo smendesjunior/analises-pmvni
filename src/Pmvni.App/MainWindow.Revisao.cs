@@ -30,6 +30,8 @@ public sealed partial class MainWindow
     string? itemNasPropriedades;  // item cujos valores estão no painel (a justificativa digitada vai para ele)
     bool mostrarOriginal, somenteAlterados, aplicando, atualizandoPropriedades;
     IReadOnlyList<ItemNavegacao> navegacaoCompleta = [];
+    FiltroSituacao filtroSituacao = FiltroSituacao.Todos;
+    readonly HashSet<string> secoesRecolhidas = new(StringComparer.Ordinal);
     readonly List<string> ultimosErros = [];
     (string Item, string Campo, string Texto)? edicaoRecusada; // o campo que a última conclusão da edição no A4 teve recusado pela conferência
     long ultimaLatenciaMs;
@@ -69,6 +71,14 @@ public sealed partial class MainWindow
     {
         R.AbasPainel.SelectionChanged += (_, _) => MostrarAbaDoPainel();
         R.EtiquetaClicada += async (item, alvo) => await MostrarMenuDaEtiquetaAsync(item, alvo);
+        // Painel de navegação (correções 2026-11-15): seções recolhíveis, pesquisa e filtro rápido por situação.
+        R.SecaoAlternada += item =>
+        {
+            if (!secoesRecolhidas.Remove(item.Rotulo)) secoesRecolhidas.Add(item.Rotulo);
+            MontarSecoes();
+        };
+        R.CaixaFiltroSecoes.TextChanged += (_, _) => MontarSecoes();
+        MontarBotoesFiltro();
         R.ListaExcluidos.ItemClick += async (_, e) => { if (e.ClickedItem is FrameworkElement { Tag: string id }) await NaFilaAsync(() => TentarAsync(() => SelecionarAsync(id))); };
         R.BotaoFecharPropriedades.Click += (_, _) => MostrarPropriedades(false);
         R.PropNoPdf.Click += async (_, _) =>
@@ -473,6 +483,7 @@ public sealed partial class MainWindow
         if (itemId != selecionado) ultimoCampo = null;
         selecionado = itemId;
         s.Selecao = itemId;
+        MarcarSelecionadoNaLista();
         AtualizarPropriedades();
         AtualizarComandos();
         if (documento is null || s.Atual is null) return;
@@ -599,6 +610,7 @@ public sealed partial class MainWindow
         selecionado = @ref;
         ultimoCampo = @ref is null ? null : campo;
         s.Selecao = @ref;
+        MarcarSelecionadoNaLista();
         AtualizarPropriedades();
         AtualizarComandos();
     }
@@ -820,11 +832,11 @@ public sealed partial class MainWindow
         AtualizarPaineis();
     }
 
-    /// <summary>A lista de seções e itens, com situação e "alterado"; com Somente alterados, só as seções e os itens alterados.</summary>
+    /// <summary>A lista de seções e itens, com situação e "alterado", passada pelo filtro do painel (<see cref="FiltroNavegacao"/>):
+    /// filtro rápido por situação, pesquisa, Somente alterados e seções recolhidas (com o contador de itens de cada seção).</summary>
     void MontarSecoes()
     {
         var p = sessao?.Revisao.Projeto;
-        itensNavegacao.Clear();
         foreach (var i in navegacaoCompleta)
         {
             if (i.Ref is not null && !i.Secao && p?.Item(i.Ref) is { } it)
@@ -832,10 +844,59 @@ public sealed partial class MainWindow
                 i.Situacao = SituacaoEfetiva(it);
                 i.Alterado = TemRevisao(it);
             }
-            if (somenteAlterados && !i.Secao && !i.Alterado) continue;
+        }
+        var entradas = navegacaoCompleta.Select(i => new EntradaNavegacao(i.Rotulo, i.Secao, i.Situacao, i.Alterado)).ToList();
+        var r = FiltroNavegacao.Aplicar(entradas, filtroSituacao, R.CaixaFiltroSecoes.Text, somenteAlterados, secoesRecolhidas);
+        itensNavegacao.Clear();
+        foreach (var k in r.Visiveis)
+        {
+            var i = navegacaoCompleta[k];
+            if (i.Secao)
+            {
+                i.Contagem = r.ItensPorSecao.TryGetValue(k, out var n) ? n : 0;
+                i.Recolhida = secoesRecolhidas.Contains(i.Rotulo);
+            }
+            i.Selecionado = i.Ref is not null && i.Ref == selecionado;
             itensNavegacao.Add(i);
         }
+        AtualizarBotoesFiltro(r.ItensPorFiltro);
         if (folhaAtual > 0) MarcarItemAtual(folhaAtual);
+    }
+
+    /// <summary>Marca na lista o item selecionado (fundo mais claro e barra fina), sem remontar a lista.</summary>
+    void MarcarSelecionadoNaLista()
+    {
+        foreach (var i in navegacaoCompleta) i.Selecionado = i.Ref is not null && i.Ref == selecionado;
+    }
+
+    /// <summary>Os botões do filtro rápido (Todos, Não atende, Falta comprovar, Divergentes, Atende), criados uma vez.</summary>
+    void MontarBotoesFiltro()
+    {
+        R.BotoesFiltro.Children.Clear();
+        foreach (var f in FiltroNavegacao.Ordem)
+        {
+            var b = new ToggleButton { Tag = f, IsChecked = f == filtroSituacao, CornerRadius = new CornerRadius(14), Padding = new Thickness(12, 4, 12, 5) };
+            var filtro = f;
+            b.Click += (_, _) =>
+            {
+                filtroSituacao = filtro;
+                MontarSecoes();
+            };
+            R.BotoesFiltro.Children.Add(b);
+        }
+        AtualizarBotoesFiltro(FiltroNavegacao.Ordem.ToDictionary(f => f, _ => 0));
+    }
+
+    void AtualizarBotoesFiltro(IReadOnlyDictionary<FiltroSituacao, int> contagens)
+    {
+        foreach (var b in R.BotoesFiltro.Children.OfType<ToggleButton>())
+        {
+            if (b.Tag is not FiltroSituacao f) continue;
+            var n = contagens.TryGetValue(f, out var c) ? c : 0;
+            b.Content = n > 0 ? $"{FiltroNavegacao.Rotulo(f)}  {n}" : FiltroNavegacao.Rotulo(f);
+            b.IsChecked = f == filtroSituacao;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"Mostrar {FiltroNavegacao.Rotulo(f).ToLowerInvariant()}, {n} itens");
+        }
     }
 
     void MontarExcluidos()
@@ -877,6 +938,7 @@ public sealed partial class MainWindow
     {
         var aba = R.AbasPainel.SelectedItem;
         R.ListaNavegacao.Visibility = ReferenceEquals(aba, R.AbaSecoes) || aba is null ? Visibility.Visible : Visibility.Collapsed;
+        R.PainelFiltros.Visibility = R.ListaNavegacao.Visibility;
         var excl = ReferenceEquals(aba, R.AbaExcluidos);
         R.ListaExcluidos.Visibility = excl && R.ListaExcluidos.Items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         R.TextoSemExcluidos.Visibility = excl && R.ListaExcluidos.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;

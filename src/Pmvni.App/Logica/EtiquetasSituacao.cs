@@ -19,13 +19,14 @@ public static class EtiquetasSituacao
         ["r"] = new(0xFFF9D2CE, 0xFF9B1C12, 0xFFEC9890, 0xFFD93025),
     };
 
-    // Tema escuro: o ponto do kit, fundo com 22% dele e borda com 55%; texto clareado para o contraste sobre o fundo escuro.
+    // Tema escuro (painel de navegação, correções 2026-11-15: cores menos saturadas): o ponto do kit, fundo com 16% dele e borda
+    // discreta com 30%; texto clareado para o contraste sobre o fundo escuro.
     static readonly Dictionary<string, CoresEtiqueta> Escuro = new(StringComparer.Ordinal)
     {
-        ["g"] = new(0x382F9E62, 0xFF9BE0B7, 0x8C2F9E62, 0xFF4CC283),
-        ["a"] = new(0x38E0A800, 0xFFF6D67A, 0x8CE0A800, 0xFFF0BE2A),
-        ["o"] = new(0x38E2701F, 0xFFF7B88C, 0x8CE2701F, 0xFFF08A45),
-        ["r"] = new(0x38D93025, 0xFFF6ABA4, 0x8CD93025, 0xFFF0584D),
+        ["g"] = new(0x292F9E62, 0xFF9BE0B7, 0x4D2F9E62, 0xFF4CC283),
+        ["a"] = new(0x29E0A800, 0xFFF6D67A, 0x4DE0A800, 0xFFF0BE2A),
+        ["o"] = new(0x29E2701F, 0xFFF7B88C, 0x4DE2701F, 0xFFF08A45),
+        ["r"] = new(0x29D93025, 0xFFF6ABA4, 0x4DD93025, 0xFFF0584D),
     };
 
     /// <summary>Texto da etiqueta ("ATENDE", "FALTA COMPROVAR"…); "" sem situação ou com código desconhecido.</summary>
