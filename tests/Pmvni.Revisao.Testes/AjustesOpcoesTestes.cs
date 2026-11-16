@@ -29,6 +29,10 @@ public class AjustesOpcoesTestes
         Assert.False(a.ProcessosPastas);
         Assert.Equal("data", a.DespachosAgrupar);
         Assert.Equal("recentes", a.DespachosOrdem);
+        Assert.Equal("lista", a.ArquivosExibicao);
+        Assert.Equal("etapa", a.ArquivosAgrupar);
+        Assert.Equal("nome", a.ArquivosOrdenar);
+        Assert.False(a.ArquivosDecrescente);
         Assert.Null(a.Soffice);
         Assert.False(a.DespachoAbrirPdf);
         Assert.Equal("lei", a.LegislacaoEscopo);
@@ -51,12 +55,14 @@ public class AjustesOpcoesTestes
             PainelPropriedades = false, RecuperacaoDias = 90, ProcessosOrdem = "requerente", ProcessosPastas = true, DespachosAgrupar = "processo",
             DespachosOrdem = "antigos", Soffice = @"C:\LibreOffice\program\soffice.exe", DespachoAbrirPdf = true, LegislacaoEscopo = "todas",
             PedidoPadrao = "Conferir recuos e taxa de ocupação.", ConfirmarCancelar = false, ConfirmarFechar = false,
+            ArquivosExibicao = "miniaturas", ArquivosAgrupar = "data", ArquivosOrdenar = "tipo", ArquivosDecrescente = true,
         };
         a.Salvar(pasta);
         var j = JsonNode.Parse(File.ReadAllText(Path.Combine(pasta, "ajustes.json")))!.AsObject();
         foreach (var chave in new[] { "abrir_em", "lembrar_janela", "janela", "recentes_max", "faixa_rotulos", "avisos_layout", "zoom_inicial",
                      "lembrar_paineis", "paineis", "recuperacao_dias", "processos_ordem", "processos_pastas", "despachos_agrupar", "despachos_ordem",
-                     "soffice", "despacho_abrir_pdf", "legislacao_escopo", "pedido_padrao", "confirmar_cancelar", "confirmar_fechar" })
+                     "soffice", "despacho_abrir_pdf", "legislacao_escopo", "pedido_padrao", "confirmar_cancelar", "confirmar_fechar",
+                     "arquivos_exibicao", "arquivos_agrupar", "arquivos_ordenar", "arquivos_decrescente" })
             Assert.True(j.ContainsKey(chave), chave);
 
         var b = Ajustes.Carregar(pasta);
@@ -82,6 +88,16 @@ public class AjustesOpcoesTestes
         Assert.Equal("Conferir recuos e taxa de ocupação.", b.PedidoPadrao);
         Assert.False(b.ConfirmarCancelar);
         Assert.False(b.ConfirmarFechar);
+        Assert.Equal("miniaturas", b.ArquivosExibicao);
+        Assert.Equal("data", b.ArquivosAgrupar);
+        Assert.Equal("tipo", b.ArquivosOrdenar);
+        Assert.True(b.ArquivosDecrescente);
+        // "Restaurar os ajustes" volta a página do processo para a lista por etapa.
+        b.RestaurarPadrao();
+        Assert.Equal("lista", b.ArquivosExibicao);
+        Assert.Equal("etapa", b.ArquivosAgrupar);
+        Assert.Equal("nome", b.ArquivosOrdenar);
+        Assert.False(b.ArquivosDecrescente);
     }
 
     [Fact]
@@ -93,7 +109,8 @@ public class AjustesOpcoesTestes
               "recentes_max": 7, "faixa_rotulos": "grande", "avisos_layout": "popup", "zoom_inicial": "200", "lembrar_paineis": 1,
               "paineis": { "lateral": "não" }, "recuperacao_dias": 365, "processos_ordem": "tamanho", "processos_pastas": null,
               "despachos_agrupar": "mes", "despachos_ordem": "aleatorio", "soffice": "   ", "despacho_abrir_pdf": "x",
-              "legislacao_escopo": "kit", "pedido_padrao": 42, "confirmar_cancelar": "talvez", "confirmar_fechar": [] }
+              "legislacao_escopo": "kit", "pedido_padrao": 42, "confirmar_cancelar": "talvez", "confirmar_fechar": [],
+              "arquivos_exibicao": "detalhes", "arquivos_agrupar": "cor", "arquivos_ordenar": 3, "arquivos_decrescente": "sim" }
             """);
         var a = Ajustes.Carregar(pasta);
         var p = new Ajustes();
@@ -117,6 +134,10 @@ public class AjustesOpcoesTestes
         Assert.Equal("", a.PedidoPadrao);
         Assert.True(a.ConfirmarCancelar);
         Assert.True(a.ConfirmarFechar);
+        Assert.Equal(p.ArquivosExibicao, a.ArquivosExibicao);
+        Assert.Equal(p.ArquivosAgrupar, a.ArquivosAgrupar);
+        Assert.Equal(p.ArquivosOrdenar, a.ArquivosOrdenar);
+        Assert.False(a.ArquivosDecrescente);
     }
 
     [Fact]

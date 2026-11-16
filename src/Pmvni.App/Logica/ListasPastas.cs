@@ -58,6 +58,15 @@ public sealed class LinhaDetalhe(TipoLinhaDetalhe tipo, string texto, string? in
     public bool NaoEhTitulo => Tipo != TipoLinhaDetalhe.Titulo;
     public bool TemInfo => Info.Length > 0;
 
+    /// <summary>Quando o arquivo foi alterado (UTC), se a leitura trouxe; os arquivos de despacho usam a data do despacho.</summary>
+    public DateTime? AlteradoUtc { get; init; }
+
+    /// <summary>O tamanho em bytes, se a leitura trouxe (PROJETO e DOCUMENTOS).</summary>
+    public long? Tamanho { get; init; }
+
+    /// <summary>A pasta do arquivo, relativa à pasta do processo ("" = a própria pasta do processo): a etapa em que ele está.</summary>
+    public string Pasta { get; init; } = "";
+
     /// <summary>O caminho que dá o ícone do tipo de arquivo na frente da linha; null nos títulos e nas linhas sem arquivo.</summary>
     public string? CaminhoDoIcone => Selecionavel ? Caminho : null;
 
@@ -214,6 +223,7 @@ public static class ListasPastas
     /// Um relatório em revisão (.rpmvni) abre no editor; uma análise da IA (<c>dados*.json</c>) vira um .rpmvni novo na pasta do processo.</summary>
     public static IReadOnlyList<LinhaDetalhe> Detalhe(DetalheProcesso d, bool mostrarPastas)
     {
+        string Pasta(string caminho) => PastaRelativa(d.Processo.Pasta, caminho);
         var linhas = new List<LinhaDetalhe>
         {
             new(TipoLinhaDetalhe.Titulo, $"Relatórios ({d.Relatorios.Count})"),
@@ -224,8 +234,10 @@ public static class ListasPastas
             var quando = r.AlteradoUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
             linhas.Add(r.Tipo == TipoRelatorio.Pacote
                 ? new(TipoLinhaDetalhe.Relatorio, Path.GetFileName(r.Caminho), "Relatório em revisão · " + quando, r.Caminho)
+                    { AlteradoUtc = r.AlteradoUtc, Pasta = Pasta(r.Caminho) }
                 : new(TipoLinhaDetalhe.Analise, Path.GetFileName(r.Caminho),
-                    "Análise da IA · " + Path.GetFileName(Path.GetDirectoryName(r.Caminho)) + " · " + quando, r.Caminho));
+                    "Análise da IA · " + Path.GetFileName(Path.GetDirectoryName(r.Caminho)) + " · " + quando, r.Caminho)
+                    { AlteradoUtc = r.AlteradoUtc, Pasta = Pasta(r.Caminho) });
         }
 
         linhas.Add(new(TipoLinhaDetalhe.Titulo, $"Despachos ({d.Despachos.Count})"));
@@ -235,7 +247,7 @@ public static class ListasPastas
             var info = $"Despacho {despacho.Numero:D2} · {TextoDoTipo(despacho.Tipo)} · {despacho.Data.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}";
             if (despacho.Arquivos.Count == 0) linhas.Add(new(TipoLinhaDetalhe.Vazio, info + " (sem arquivos)"));
             foreach (var a in despacho.Arquivos)
-                linhas.Add(new(TipoLinhaDetalhe.ArquivoDeDespacho, Path.GetFileName(a), info, a, despacho));
+                linhas.Add(new(TipoLinhaDetalhe.ArquivoDeDespacho, Path.GetFileName(a), info, a, despacho) { Pasta = Pasta(a) });
         }
 
         if (mostrarPastas)
@@ -246,44 +258,12 @@ public static class ListasPastas
         return linhas;
     }
 
-    /// <summary>Correções 2026-11-15: as linhas do detalhe em três colunas. Relatórios (os .rpmvni, as análises e os RELATORIO_* das pastas de
-    /// despacho), Despachos (os demais arquivos das pastas de despacho) e Projeto (PROJETO e DOCUMENTOS); cada coluna agrupada por data
-    /// (a mais nova primeiro), com o título da data como linha não selecionável.</summary>
-    public static (List<LinhaDetalhe> Relatorios, List<LinhaDetalhe> Despachos, List<LinhaDetalhe> Projeto) EmColunas(IReadOnlyList<LinhaDetalhe> linhas)
+    /// <summary>A pasta de <paramref name="caminho"/> relativa à do processo ("" = a própria pasta do processo; fora dela, "").</summary>
+    public static string PastaRelativa(string pastaDoProcesso, string caminho)
     {
-        var rel = new List<(DateOnly? Data, LinhaDetalhe L)>();
-        var desp = new List<(DateOnly? Data, LinhaDetalhe L)>();
-        var proj = new List<LinhaDetalhe>();
-        foreach (var l in linhas)
-        {
-            switch (l.Tipo)
-            {
-                case TipoLinhaDetalhe.Relatorio or TipoLinhaDetalhe.Analise:
-                    rel.Add((l.Caminho is { } c && File.Exists(c) ? DateOnly.FromDateTime(File.GetLastWriteTime(c)) : null, l));
-                    break;
-                case TipoLinhaDetalhe.ArquivoDeDespacho:
-                    var data = l.Despacho?.Data;
-                    if (l.Texto.StartsWith("RELATORIO", StringComparison.OrdinalIgnoreCase)) rel.Add((data, l));
-                    else desp.Add((data, l));
-                    break;
-                case TipoLinhaDetalhe.Arquivo:
-                    proj.Add(l);
-                    break;
-            }
-        }
-        static List<LinhaDetalhe> PorData(List<(DateOnly? Data, LinhaDetalhe L)> itens, string vazio)
-        {
-            var saida = new List<LinhaDetalhe>();
-            foreach (var g in itens.GroupBy(x => x.Data).OrderByDescending(g => g.Key ?? DateOnly.MinValue))
-            {
-                saida.Add(new(TipoLinhaDetalhe.Titulo, g.Key is { } d ? d.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) : "Sem data"));
-                saida.AddRange(g.Select(x => x.L));
-            }
-            if (saida.Count == 0) saida.Add(new(TipoLinhaDetalhe.Vazio, vazio));
-            return saida;
-        }
-        if (proj.Count == 0) proj.Add(new(TipoLinhaDetalhe.Vazio, "Nenhum arquivo nas pastas PROJETO e DOCUMENTOS."));
-        return (PorData(rel, "Nenhum relatório."), PorData(desp, "Nenhum despacho."), proj);
+        var relativo = Path.GetRelativePath(pastaDoProcesso, caminho);
+        if (Path.IsPathRooted(relativo) || relativo.StartsWith("..", StringComparison.Ordinal)) return "";
+        return Path.GetDirectoryName(relativo) ?? "";
     }
 
     static void AcrescentarPasta(List<LinhaDetalhe> linhas, string pastaDoProcesso, string nome, IReadOnlyList<ArquivoEncontrado> arquivos)
@@ -291,7 +271,8 @@ public static class ListasPastas
         linhas.Add(new(TipoLinhaDetalhe.Titulo, $"{nome} ({arquivos.Count})"));
         if (arquivos.Count == 0) linhas.Add(new(TipoLinhaDetalhe.Vazio, "Nenhum arquivo encontrado."));
         foreach (var a in arquivos)
-            linhas.Add(new(TipoLinhaDetalhe.Arquivo, Path.GetRelativePath(Path.Combine(pastaDoProcesso, nome), a.Caminho), TextoDoTamanho(a.Tamanho), a.Caminho));
+            linhas.Add(new(TipoLinhaDetalhe.Arquivo, Path.GetRelativePath(Path.Combine(pastaDoProcesso, nome), a.Caminho), TextoDoTamanho(a.Tamanho), a.Caminho)
+                { AlteradoUtc = a.AlteradoUtc, Tamanho = a.Tamanho, Pasta = PastaRelativa(pastaDoProcesso, a.Caminho) });
     }
 
     /// <summary>"512 B", "3,4 KB", "12,0 MB" (vírgula decimal, como o resto da interface).</summary>

@@ -57,6 +57,10 @@ public sealed class Ajustes
     public static readonly IReadOnlyList<string> OpcoesDespachosAgrupar = ["data", "processo"];
     public static readonly IReadOnlyList<string> OpcoesDespachosOrdem = ["recentes", "antigos"];
     public static readonly IReadOnlyList<string> OpcoesLegislacaoEscopo = ["lei", "todas"];
+    // A página do processo (2026-11-16): como os arquivos aparecem. Não estão na tela de Ajustes: a própria página muda e lembra.
+    public static readonly IReadOnlyList<string> OpcoesArquivosExibicao = ["lista", "miniaturas"];
+    public static readonly IReadOnlyList<string> OpcoesArquivosAgrupar = ["etapa", "tipo", "data", "nenhum"];
+    public static readonly IReadOnlyList<string> OpcoesArquivosOrdenar = ["nome", "data", "tipo"];
     public const int MaxPedidoPadrao = 2000;
 
     /// <summary>A versão do texto do aviso dos agentes (desenho §12.8): texto novo pede o aceite de novo.</summary>
@@ -118,6 +122,13 @@ public sealed class Ajustes
     public bool ProcessosPastas { get; set; }
     public string DespachosAgrupar { get; set; } = "data";
     public string DespachosOrdem { get; set; } = "recentes";
+    /// <summary>Os arquivos do processo em <c>lista</c> (três colunas) ou em <c>miniaturas</c> (grade com a prévia, como o Explorador).</summary>
+    public string ArquivosExibicao { get; set; } = "lista";
+    /// <summary>Agrupar os arquivos do processo por <c>etapa</c> (a pasta), <c>tipo</c>, <c>data</c> ou <c>nenhum</c>.</summary>
+    public string ArquivosAgrupar { get; set; } = "etapa";
+    /// <summary>Ordenar os arquivos do processo por <c>nome</c>, <c>data</c> ou <c>tipo</c>.</summary>
+    public string ArquivosOrdenar { get; set; } = "nome";
+    public bool ArquivosDecrescente { get; set; }
     /// <summary>O soffice do LibreOffice escolhido em Ajustes; null = o editor acha sozinho.</summary>
     public string? Soffice { get; set; }
     public bool DespachoAbrirPdf { get; set; }
@@ -168,6 +179,10 @@ public sealed class Ajustes
         ProcessosPastas = p.ProcessosPastas;
         DespachosAgrupar = p.DespachosAgrupar;
         DespachosOrdem = p.DespachosOrdem;
+        ArquivosExibicao = p.ArquivosExibicao;
+        ArquivosAgrupar = p.ArquivosAgrupar;
+        ArquivosOrdenar = p.ArquivosOrdenar;
+        ArquivosDecrescente = p.ArquivosDecrescente;
         Soffice = null;
         DespachoAbrirPdf = p.DespachoAbrirPdf;
         LegislacaoEscopo = p.LegislacaoEscopo;
@@ -308,6 +323,10 @@ public sealed class Ajustes
             ["processos_pastas"] = ProcessosPastas,
             ["despachos_agrupar"] = DespachosAgrupar,
             ["despachos_ordem"] = DespachosOrdem,
+            ["arquivos_exibicao"] = ArquivosExibicao,
+            ["arquivos_agrupar"] = ArquivosAgrupar,
+            ["arquivos_ordenar"] = ArquivosOrdenar,
+            ["arquivos_decrescente"] = ArquivosDecrescente,
             ["soffice"] = Soffice,
             ["despacho_abrir_pdf"] = DespachoAbrirPdf,
             ["legislacao_escopo"] = LegislacaoEscopo,
@@ -349,6 +368,10 @@ public sealed class Ajustes
         a.ProcessosPastas = Logico(j, "processos_pastas", a.ProcessosPastas);
         a.DespachosAgrupar = Escolha("despachos_agrupar", OpcoesDespachosAgrupar, a.DespachosAgrupar);
         a.DespachosOrdem = Escolha("despachos_ordem", OpcoesDespachosOrdem, a.DespachosOrdem);
+        a.ArquivosExibicao = Escolha("arquivos_exibicao", OpcoesArquivosExibicao, a.ArquivosExibicao);
+        a.ArquivosAgrupar = Escolha("arquivos_agrupar", OpcoesArquivosAgrupar, a.ArquivosAgrupar);
+        a.ArquivosOrdenar = Escolha("arquivos_ordenar", OpcoesArquivosOrdenar, a.ArquivosOrdenar);
+        a.ArquivosDecrescente = Logico(j, "arquivos_decrescente", a.ArquivosDecrescente);
         a.Soffice = Texto(j, "soffice") is { } so && !string.IsNullOrWhiteSpace(so) ? so : null;
         a.DespachoAbrirPdf = Logico(j, "despacho_abrir_pdf", a.DespachoAbrirPdf);
         a.LegislacaoEscopo = Escolha("legislacao_escopo", OpcoesLegislacaoEscopo, a.LegislacaoEscopo);
