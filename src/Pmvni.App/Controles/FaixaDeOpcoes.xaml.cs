@@ -332,6 +332,9 @@ public sealed partial class FaixaDeOpcoes : UserControl
             return t;
         }
         var b = new AppBarButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id) };
+        // Correções 2026-11-15: o estado "rótulo à direita" do WinUI anima a margem do texto para 16/10 (StaticResource, não dá para
+        // trocar pelo recurso); o texto sobe 3 px por transformação (a animação não mexe nela) e fica na linha do ícone e do primário.
+        b.Loaded += (_, _) => { if (Descendente(b, "TextLabel") is UIElement rotuloTexto) rotuloTexto.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -3 }; };
         if (atalho is not null) b.KeyboardAcceleratorTextOverride = atalho;
         // A dica automática do atalho (só "Ctrl+O") não pode tomar o lugar da dica do app, que já traz o atalho no título.
         b.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
