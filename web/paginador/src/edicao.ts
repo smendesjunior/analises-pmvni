@@ -32,6 +32,8 @@ const ATR_SELECIONADO = 'data-pmvni-selecionado';
 const ATR_EDITANDO = 'data-pmvni-editando';
 /** Cada pedaço de um item (um card inteiro ou a parte dele que cabe numa folha) leva o data-ref do item. */
 const SELETOR_PEDACOS = 'section.folha .area .card[data-ref]';
+/** Figuras da seção IMAGENS DO PROJETO (Etapa 4): clique seleciona, duplo clique pede o editor de marcações (campo null). */
+const SELETOR_FIGURAS = 'section.folha .area .fig[data-ref]';
 const SEPARADOR_TITULO = ' — ';
 
 /** Atalhos repassados ao host (nomes canônicos; fora da edição). */
@@ -149,7 +151,7 @@ function aplicarSelecao(ref: string | null): void {
 function localizar(alvo: EventTarget | null): { ref: string | null; campo: string | null } {
   if (!(alvo instanceof Element)) return { ref: null, campo: null };
   const bloco = blocoDe(alvo);
-  if (!bloco) return { ref: null, campo: null };
+  if (!bloco) return { ref: alvo.closest<HTMLElement>(SELETOR_FIGURAS)?.getAttribute('data-ref') ?? null, campo: null };
   const el = alvo.closest<HTMLElement>(`[${ATR_CAMPO}]`);
   const campo = el && bloco.el.contains(el) ? el.getAttribute(ATR_CAMPO) : null;
   return { ref: bloco.ref, campo: campoDoBloco(bloco.ref, campo) ? campo : null };
@@ -403,6 +405,10 @@ export function registrarEdicao(registrar: Registrar, enviar: Enviar): void {
   document.addEventListener('dblclick', (e) => {
     if (!ativo || edicao) return;
     const { ref, campo } = localizar(e.target);
+    if (ref !== null && campo === null && e.target instanceof Element && e.target.closest(SELETOR_FIGURAS)) {
+      evento('pedirEdicao', { ref, campo: null }); // figura: o host abre o editor de marcações
+      return;
+    }
     if (ref === null || campo === null) return;
     window.getSelection()?.removeAllRanges(); // o duplo clique selecionou uma palavra; o campo entra em edição a seguir
     evento('pedirEdicao', { ref, campo });

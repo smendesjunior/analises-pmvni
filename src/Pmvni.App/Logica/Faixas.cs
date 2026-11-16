@@ -66,6 +66,14 @@ public static class Faixas
         RecentesMenu,
     ]);
 
+    /// <summary>Figuras (Etapa 4): o editor de marcações da figura selecionada e o recorte de uma região das pranchas do projeto.</summary>
+    static readonly AbaFaixa FigurasDoRelatorio = new("Figuras",
+    [
+        new(ComandosApp.FigurasInserirRegiao, "Inserir região da prancha", "\uE7A8", Descricao: "Inserir no relatório uma região de uma prancha do projeto (PDF)"),
+        new(ComandosApp.FigurasEditar, "Editar figura", Glifos.Editar, Descricao: "Editar as marcações da figura selecionada (setas, regiões, textos)"),
+        new(ComandosApp.FigurasExcluir, "Excluir figura", Glifos.Excluir, Descricao: "Tirar do relatório a figura selecionada"),
+    ]);
+
     static readonly DefinicaoFaixa Relatorios = new(Modulo.Relatorios,
     [
         new("Arquivo",
@@ -100,6 +108,7 @@ public static class Faixas
             new(ComandosApp.RevisaoConferencia, "Conferência", Glifos.Conferir),
             new(ComandosApp.RevisaoComparar, "Comparar", Glifos.Original, Descricao: "Comparar com o original"),
         ]),
+        FigurasDoRelatorio,
         new("Exibir",
         [
             new(ComandosApp.ExibirMenos, "Diminuir", Glifos.Diminuir),

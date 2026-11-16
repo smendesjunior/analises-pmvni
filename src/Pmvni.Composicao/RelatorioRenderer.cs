@@ -68,6 +68,13 @@ public static class RelatorioRenderer
             var nova = new Dictionary<string, object?>();
             foreach (var par in Dados.Dict(f)) nova[par.Key] = par.Value;
             nova["imagem_uri"] = DataUriPng(baseDir, Dados.Exigir(f, "imagem"), estrito);
+            // Marcações editáveis (Etapa 4, editor de figuras): a figura sai como SVG (imagem base + camada de marcações). Sem a chave
+            // "marcacoes" (o dados.json do kit), nada muda: o HTML é o do kit byte a byte.
+            if (Dados.Obter(f, "marcacoes") is { } marcacoes && Figuras.SvgFigura.DoDados(marcacoes) is { Count: > 0 } marcas)
+            {
+                try { nova["imagem_uri"] = new Seguro(Figuras.SvgFigura.DataUri(LerImagem(baseDir, Dados.Exigir(f, "imagem"), estrito), marcas)); }
+                catch (InvalidOperationException e) { throw new MoldeErro(e.Message); }
+            }
             return (object?)nova;
         }).ToList();
 
@@ -81,7 +88,10 @@ public static class RelatorioRenderer
     /// <summary><c>Path.read_text()</c> do Python converte \r\n e \r em \n; o gerador do kit lê o molde e o CSS assim.</summary>
     internal static string NovasLinhas(string s) => s.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
 
-    private static Seguro DataUriPng(string baseDir, object? imagem, bool estrito)
+    private static Seguro DataUriPng(string baseDir, object? imagem, bool estrito) =>
+        new("data:image/png;base64," + Convert.ToBase64String(LerImagem(baseDir, imagem, estrito)));
+
+    private static byte[] LerImagem(string baseDir, object? imagem, bool estrito)
     {
         var rel = imagem as string ?? throw new MoldeErro("unsupported operand type(s) for /: 'PosixPath' and '" + PythonTexto.NomeTipo(imagem) + "'");
         // A conferência já recusou um caminho inaceitável; esta é a segunda barreira (nunca lê fora do permitido).
@@ -89,7 +99,7 @@ public static class RelatorioRenderer
         if (!CaminhoImagem.ExtensaoPermitida(rel)) throw new MoldeErro("imagem em formato não aceito: " + rel);
         var bytes = File.ReadAllBytes(caminho);
         if (CaminhoImagem.ExtensaoPelaAssinatura(bytes) is null) throw new MoldeErro("imagem em formato não aceito: " + rel);
-        return new Seguro("data:image/png;base64," + Convert.ToBase64String(bytes));
+        return bytes;
     }
 
     private static string IdOu(object? item, int i, string prefixo)

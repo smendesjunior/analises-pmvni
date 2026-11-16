@@ -22,6 +22,9 @@ public static class DadosEfetivos
             documento["conclusao"] = Imprimir(p, conclusao);
         documento["itens"] = itens; // a chave já existe: fica no lugar original
         TabelasRevisao.Aplicar(p, documento); // linhas de tabela revisadas (sem revisão, nada muda)
+        // Figuras: a camada de edição, se houver; senão as do documento, com o "(item NN)" das notas renumerado.
+        if (p.Figuras is not null) documento["figuras"] = CamadaFiguras.Efetivas(p);
+        else CamadaFiguras.RenumerarNotas(p, documento);
 
         return new DadosGerados(JsonFiel.Escrever(documento), incluidos.Select(i => i.Id).ToList());
     }

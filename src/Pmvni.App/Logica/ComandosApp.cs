@@ -118,6 +118,11 @@ public static class ComandosApp
     public const string LegislacaoMarcadores = "legislacao.marcadores";
     public const string LegislacaoLista = "legislacao.lista";
 
+    // Figuras (Etapa 4): editor de marcações das figuras e recorte de prancha.
+    public const string FigurasEditar = "figuras.editar";
+    public const string FigurasInserirRegiao = "figuras.inserirRegiao";
+    public const string FigurasExcluir = "figuras.excluir";
+
     public const string AjudaAtalhos = "ajuda.atalhos";
     public const string AjudaSobre = "ajuda.sobre";
 
@@ -139,7 +144,7 @@ public static class ComandosApp
     /// Arquivo (Salvar, Abrir…), pesquisa, tema e ajuda valem em qualquer módulo.</summary>
     public static bool SoDoRelatorio(string id) =>
         id.StartsWith("inicio.", StringComparison.Ordinal) || id.StartsWith("revisao.", StringComparison.Ordinal)
-        || id.StartsWith("editar.", StringComparison.Ordinal)
+        || id.StartsWith("editar.", StringComparison.Ordinal) || id.StartsWith("figuras.", StringComparison.Ordinal)
         || id is ExibirMenos or ExibirMais or ExibirLargura or ExibirPagina or ExibirPainel or ExibirPropriedades or JanelaRegioes;
 
     const string PrefixoSituacao = InicioSituacao + ".";

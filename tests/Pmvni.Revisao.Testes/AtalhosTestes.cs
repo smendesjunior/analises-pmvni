@@ -51,7 +51,7 @@ public class AtalhosTestes
     public void relatorios_abre_em_pagina_inicial()
     {
         var f = Faixas.Para(Modulo.Relatorios);
-        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Revisão", "Exibir", "Ajuda" }, f.Abas.Select(a => a.Nome));
+        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Revisão", "Figuras", "Exibir", "Ajuda" }, f.Abas.Select(a => a.Nome));
         Assert.Equal("Página Inicial", f.Abas[f.AbaPadrao].Nome);
         Assert.Equal("Página Inicial", f.Abas[Faixas.IndiceDaAba(f, "aba que não existe mais")].Nome);
     }

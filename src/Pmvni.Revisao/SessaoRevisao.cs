@@ -132,6 +132,7 @@ public sealed class SessaoRevisao
         Projeto.Itens = trabalho.Itens;
         Projeto.Documento = trabalho.Documento;
         Projeto.Linhas = trabalho.Linhas;
+        Projeto.Figuras = trabalho.Figuras;
         _historico.Clear();
         _historico.AddRange(historico);
         _desfazer = desfazer;

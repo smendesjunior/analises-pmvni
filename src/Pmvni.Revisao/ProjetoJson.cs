@@ -27,6 +27,7 @@ public static class ProjetoJson
                     if (!TabelasRevisao.EhLinha(id)) throw new JsonException("projeto.json inválido: linha de tabela com id inválido: " + id);
                     p.Linhas[id] = LerLinha(valor!.AsObject());
                 }
+            if (j["figuras"] is { } figuras) p.Figuras = CamadaFiguras.Ler(figuras);
             return p;
         }
         catch (Exception e) when (e is NullReferenceException or InvalidOperationException or InvalidCastException or FormatException)
@@ -102,6 +103,8 @@ public static class ProjetoJson
             }
             o["linhas"] = linhas;
         }
+        // A camada de figuras só existe depois da primeira edição de figura (um projeto sem ela grava como antes).
+        if (p.Figuras is not null) o["figuras"] = CamadaFiguras.Escrever(p.Figuras);
         return JsonFiel.Escrever(o);
     }
 

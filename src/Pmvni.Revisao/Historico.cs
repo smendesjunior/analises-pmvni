@@ -126,7 +126,7 @@ public static class DescricaoHistorico
                 var n = r.Depois is JsonArray lista ? lista.Count : 0;
                 return "Importação do dados.json: " + n + (n == 1 ? " citação convertida" : " citações convertidas");
             default:
-                return r.Tipo;
+                return MotorFiguras.Descrever(r.Tipo, r.Item, r.Campo, p) ?? r.Tipo;
         }
     }
 

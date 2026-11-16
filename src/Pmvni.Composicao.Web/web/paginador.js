@@ -1379,6 +1379,7 @@ var Paginador = (() => {
   var ATR_SELECIONADO = "data-pmvni-selecionado";
   var ATR_EDITANDO = "data-pmvni-editando";
   var SELETOR_PEDACOS = "section.folha .area .card[data-ref]";
+  var SELETOR_FIGURAS = "section.folha .area .fig[data-ref]";
   var SEPARADOR_TITULO = " — ";
   var ATALHOS = /* @__PURE__ */ new Set([
     "Ctrl+O",
@@ -1477,7 +1478,7 @@ ${CSS_MARCAS}`;
   function localizar2(alvo) {
     if (!(alvo instanceof Element)) return { ref: null, campo: null };
     const bloco = blocoDe(alvo);
-    if (!bloco) return { ref: null, campo: null };
+    if (!bloco) return { ref: alvo.closest(SELETOR_FIGURAS)?.getAttribute("data-ref") ?? null, campo: null };
     const el = alvo.closest(`[${ATR_CAMPO2}]`);
     const campo = el && bloco.el.contains(el) ? el.getAttribute(ATR_CAMPO2) : null;
     return { ref: bloco.ref, campo: campoDoBloco(bloco.ref, campo) ? campo : null };
@@ -1701,6 +1702,10 @@ ${CSS_MARCAS}`;
     document.addEventListener("dblclick", (e) => {
       if (!ativo || edicao) return;
       const { ref, campo } = localizar2(e.target);
+      if (ref !== null && campo === null && e.target instanceof Element && e.target.closest(SELETOR_FIGURAS)) {
+        evento("pedirEdicao", { ref, campo: null });
+        return;
+      }
       if (ref === null || campo === null) return;
       window.getSelection()?.removeAllRanges();
       evento("pedirEdicao", { ref, campo });

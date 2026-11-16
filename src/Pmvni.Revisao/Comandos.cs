@@ -48,6 +48,7 @@ internal static class Motor
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(c);
         if (TabelasRevisao.EhLinha(c.Item)) return MotorLinhas.Calcular(p, c); // linha de tabela (Linhas.cs)
+        if (c is ComandoFigura cf) return MotorFiguras.Calcular(p, cf);
         var it = p.Item(c.Item) ?? throw new ComandoRecusadoException("O item não existe no relatório.");
         return c switch
         {
@@ -66,6 +67,7 @@ internal static class Motor
     public static void Definir(Projeto p, string tipo, string item, string? campo, JsonNode? valor)
     {
         if (TabelasRevisao.EhLinha(item)) { MotorLinhas.Definir(p, tipo, item, campo, valor); return; } // linha de tabela (Linhas.cs)
+        if (MotorFiguras.EhTipo(tipo)) { MotorFiguras.Definir(p, valor); return; }
         var it = p.Item(item) ?? throw new InvalidOperationException("O registro cita um item que não existe: " + item);
         switch (tipo)
         {

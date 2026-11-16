@@ -77,6 +77,9 @@ public sealed class Projeto
 
     /// <summary>As linhas de tabela revisadas (<see cref="TabelasRevisao"/>), por id; o original delas fica no <see cref="Documento"/>.</summary>
     public SortedDictionary<string, LinhaRevisao> Linhas { get; set; } = new(StringComparer.Ordinal);
+    /// <summary>A camada de edição das figuras (editor de figuras, recortes de prancha). Null = nenhuma figura foi editada: as figuras saem do
+    /// <see cref="Documento"/> como vieram.</summary>
+    public List<FiguraRevisao>? Figuras { get; set; }
 
     public Projeto Clonar() => new()
     {
@@ -84,6 +87,7 @@ public sealed class Projeto
         Itens = Itens.Select(i => i.Clonar()).ToList(),
         Documento = (JsonObject)Documento.DeepClone(),
         Linhas = new SortedDictionary<string, LinhaRevisao>(Linhas.ToDictionary(l => l.Key, l => l.Value.Clonar()), StringComparer.Ordinal),
+        Figuras = Figuras?.Select(f => f.Clonar()).ToList(),
     };
 
     public ItemRevisao? Item(string id) => Itens.FirstOrDefault(i => string.Equals(i.Id, id, StringComparison.Ordinal));

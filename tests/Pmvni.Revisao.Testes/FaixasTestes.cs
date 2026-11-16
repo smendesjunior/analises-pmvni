@@ -24,7 +24,7 @@ public class FaixasTestes
             Assert.All(f.Abas, a => Assert.NotEmpty(a.Comandos));
         }
         Assert.Equal(new[] { "Arquivo", "Ajuda" }, Faixas.Para(Modulo.Ajustes).Abas.Select(a => a.Nome));
-        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Revisão", "Exibir", "Ajuda" }, Faixas.Para(Modulo.Relatorios).Abas.Select(a => a.Nome));
+        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Revisão", "Figuras", "Exibir", "Ajuda" }, Faixas.Para(Modulo.Relatorios).Abas.Select(a => a.Nome));
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public class FaixasTestes
     public void cada_modulo_tem_a_faixa_do_desenho()
     {
         static string[] Abas(Modulo m) => Faixas.Para(m).Abas.Select(a => a.Nome).ToArray();
-        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Revisão", "Exibir", "Ajuda" }, Abas(Modulo.Relatorios));
+        Assert.Equal(new[] { "Arquivo", "Página Inicial", "Revisão", "Figuras", "Exibir", "Ajuda" }, Abas(Modulo.Relatorios));
         Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, Abas(Modulo.Despachos));
         Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, Abas(Modulo.Processos));
         Assert.Equal(new[] { "Arquivo", "Ajuda" }, Abas(Modulo.Ajustes));
