@@ -223,6 +223,7 @@ internal sealed class JanelaFigura : Window
     void Botao(Panel barra, FerramentaFigura f, string glifo, string texto, string dica)
     {
         var b = new ToggleButton { Content = Rotulo(glifo, texto) };
+        Pilulas.Estilizar(b); // a ferramenta escolhida acende na cor de destaque
         Dicas.Aplicar(b, texto, dica.EndsWith('.') ? dica : dica + ".");
         AutomationNome(b, texto);
         b.Click += (_, _) => Escolher(f);

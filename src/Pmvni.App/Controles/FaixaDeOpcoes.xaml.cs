@@ -325,6 +325,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             var t = new AppBarToggleButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id), IsChecked = ligado.TryGetValue(c.Id, out var l) && l };
             AutomationProperties.SetName(t, nome);
             t.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
+            Pilulas.Estilizar(t); // ligado acende na cor de destaque, como no WinStatusBar
             Dicas.Aplicar(t, dica);
             t.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);
             alternaveis[c.Id] = t;

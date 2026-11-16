@@ -881,7 +881,8 @@ public sealed partial class MainWindow
         R.BotoesFiltro.Children.Clear();
         foreach (var f in FiltroNavegacao.Ordem)
         {
-            var b = new ToggleButton { Tag = f, IsChecked = f == filtroSituacao, CornerRadius = new CornerRadius(14), Padding = new Thickness(12, 4, 12, 5) };
+            var b = new ToggleButton { Tag = f, IsChecked = f == filtroSituacao };
+            Pilulas.Estilizar(b); // o filtro escolhido acende na cor de destaque, como no WinStatusBar
             var filtro = f;
             b.Click += (_, _) =>
             {
