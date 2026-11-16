@@ -35,11 +35,23 @@ public static class TabelasRevisao
 {
     public const string Indices = "indices";
     public const string Ambientes = "ambientes";
+    /// <summary>Correção 2026-11-16: o DIAGRAMA DOS ÍNDICES também se revisa (as chamadas são linhas; a planta e a volumetria, uma
+    /// linha cada), para acompanhar os valores novos dos índices.</summary>
+    public const string Chamadas = "chamadas";
+    public const string Planta = "planta";
+    public const string Volumetria = "volumetria";
 
-    public static IReadOnlyList<string> Blocos { get; } = new[] { Indices, Ambientes };
+    public static IReadOnlyList<string> Blocos { get; } = new[] { Indices, Ambientes, Chamadas, Planta, Volumetria };
+
+    /// <summary>Formas da volumetria que o desenho entende; entram na linha "volumetria/01" mesmo que o original não as tenha
+    /// (o original do kit desenha 2 pavimentos com telhado de duas águas e nenhum destaque).</summary>
+    public static IReadOnlyDictionary<string, string> FormaPadraoVolumetria { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["pavimentos"] = "2", ["telhado"] = "duas águas", ["destaque"] = "nenhum",
+    };
 
     /// <summary>Chaves da linha que não são texto editável (o ícone e a situação, que tem comando próprio).</summary>
-    private static readonly HashSet<string> NaoEditaveis = new(StringComparer.Ordinal) { "icone", "situacao" };
+    private static readonly HashSet<string> NaoEditaveis = new(StringComparer.Ordinal) { "icone", "situacao", "ancora" };
 
     /// <summary>Campo de texto que a tecla F2 edita quando nenhum foi clicado.</summary>
     public static string CampoPadrao(string id) => Bloco(id) == Ambientes ? "nome" : "calculo";
@@ -75,13 +87,27 @@ public static class TabelasRevisao
     {
         Indices => (documento["indices"] as JsonObject)?["linhas"] as JsonArray,
         Ambientes => (documento["iluminacao"] as JsonObject)?["ambientes"] as JsonArray,
+        Chamadas => (documento["diagrama"] as JsonObject)?["chamadas"] as JsonArray,
         _ => null,
     };
+
+    /// <summary>Planta e volumetria: um objeto só (posição 01).</summary>
+    static JsonObject? Unico(JsonObject documento, string bloco) =>
+        bloco is Planta or Volumetria ? (documento["diagrama"] as JsonObject)?[bloco] as JsonObject : null;
+
+    /// <summary>A volumetria com as chaves de forma que faltam (cópia; o documento não muda).</summary>
+    static JsonObject ComForma(JsonObject v)
+    {
+        var c = (JsonObject)v.DeepClone();
+        foreach (var (k, valor) in FormaPadraoVolumetria) if (!c.ContainsKey(k)) c[k] = valor;
+        return c;
+    }
 
     /// <summary>A linha <paramref name="id"/> em <paramref name="documento"/>; null se não existe.</summary>
     internal static JsonObject? Linha(JsonObject documento, string id)
     {
         if (!TentarLer(id, out var bloco, out var posicao)) return null;
+        if (bloco is Planta or Volumetria) return posicao == 1 ? Unico(documento, bloco) : null;
         var lista = Lista(documento, bloco);
         return lista is not null && posicao <= lista.Count ? lista[posicao - 1] as JsonObject : null;
     }
@@ -91,7 +117,8 @@ public static class TabelasRevisao
     {
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(id);
-        return Linha(p.Documento, id);
+        var l = Linha(p.Documento, id);
+        return l is not null && id == Id(Volumetria, 1) ? ComForma(l) : l;
     }
 
     public static bool Existe(Projeto p, string? id) => id is not null && Original(p, id) is not null;
@@ -102,7 +129,8 @@ public static class TabelasRevisao
         ArgumentNullException.ThrowIfNull(p);
         var ids = new List<string>();
         foreach (var bloco in Blocos)
-            if (Lista(p.Documento, bloco) is { } lista)
+            if (Unico(p.Documento, bloco) is not null) ids.Add(Id(bloco, 1));
+            else if (Lista(p.Documento, bloco) is { } lista)
                 for (var i = 0; i < lista.Count; i++)
                     if (lista[i] is JsonObject) ids.Add(Id(bloco, i + 1));
         return ids;
@@ -231,7 +259,14 @@ public static class TabelasRevisao
 
     /// <summary><c>ÍNDICE 02</c> ou <c>AMBIENTE 03</c> (como a tabela imprime).</summary>
     public static string Rotulo(string id) =>
-        TentarLer(id, out var bloco, out var n) ? (bloco == Indices ? "ÍNDICE " : "AMBIENTE ") + n.ToString("D2", CultureInfo.InvariantCulture) : id;
+        TentarLer(id, out var bloco, out var n) ? bloco switch
+        {
+            Indices => "ÍNDICE " + n.ToString("D2", CultureInfo.InvariantCulture),
+            Ambientes => "AMBIENTE " + n.ToString("D2", CultureInfo.InvariantCulture),
+            Chamadas => "DIAGRAMA · CHAMADA " + n.ToString("D2", CultureInfo.InvariantCulture),
+            Planta => "DIAGRAMA · PLANTA",
+            _ => "DIAGRAMA · VOLUMETRIA",
+        } : id;
 
     /// <summary><c>Índice 02 (Taxa de ocupação (TO))</c>: o rótulo com o nome atual da linha, para listas e mensagens.</summary>
     public static string Descricao(Projeto p, string id)
@@ -289,6 +324,9 @@ public static class TabelasRevisao
         foreach (var (id, r) in p.Linhas)
         {
             if (Linha(documento, id) is not { } linha) continue;
+            if (id == Id(Volumetria, 1))
+                foreach (var (k, valor) in FormaPadraoVolumetria)
+                    if (!linha.ContainsKey(k) && r.Campos.ContainsKey(k)) linha[k] = valor;
             if (r.Situacao is not null && linha.ContainsKey("situacao")) linha["situacao"] = r.Situacao;
             foreach (var (caminho, texto) in r.Campos) Trocar(linha, caminho, texto);
         }

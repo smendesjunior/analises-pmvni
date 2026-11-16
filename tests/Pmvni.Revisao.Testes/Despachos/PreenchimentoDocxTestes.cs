@@ -160,7 +160,9 @@ public sealed class PreenchimentoDocxTestes
         var linha = ps.FindIndex(p => Texto(p).StartsWith("____", StringComparison.Ordinal));
         Assert.Equal("", Texto(ps[linha - 1]));
         Assert.Equal(linha - 1, data + 1);
-        Assert.Equal(1, ps.Count(p => Texto(p).Length == 0 && PPr(p) == pprVaga)); // só a linha em branco antes da assinatura
+        // só a linha em branco antes da assinatura (que agora leva "manter com o próximo", para o fecho não se separar)
+        Assert.Equal(1, ps.Count(p => Texto(p).Length == 0 && PPr(p).Replace("<w:keepNext />", "", StringComparison.Ordinal) == pprVaga));
+        Assert.All(ps.Skip(data).SkipLast(1), p => Assert.Contains("keepNext", PPr(p), StringComparison.Ordinal));
     }
 
     [Fact]

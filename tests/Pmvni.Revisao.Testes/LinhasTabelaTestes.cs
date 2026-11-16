@@ -28,11 +28,20 @@ public class LinhasTabelaTestes
     {
         var p = Importar("longo").Projeto;
         var ids = TabelasRevisao.Ids(p);
-        Assert.Equal(6 + 12, ids.Count);
+        // 6 índices, 12 ambientes e, desde 2026-11-16, o diagrama: 6 chamadas, a planta e a volumetria.
+        Assert.Equal(6 + 12 + 6 + 2, ids.Count);
         Assert.Equal("indices/01", ids[0]);
         Assert.Equal("indices/06", ids[5]);
         Assert.Equal("ambientes/01", ids[6]);
-        Assert.Equal("ambientes/12", ids[^1]);
+        Assert.Equal("ambientes/12", ids[17]);
+        Assert.Equal("chamadas/01", ids[18]);
+        Assert.Equal("planta/01", ids[^2]);
+        Assert.Equal("volumetria/01", ids[^1]);
+        // A volumetria ganha a forma (pavimentos, telhado, destaque) mesmo que o original não a tenha; o documento não muda.
+        Assert.Equal("2", TabelasRevisao.TextoOriginal(p, "volumetria/01", "pavimentos"));
+        Assert.True(TabelasRevisao.Editavel(p, "volumetria/01", "telhado"));
+        Assert.False(TabelasRevisao.Editavel(p, "chamadas/01", "ancora"));
+        Assert.Null((p.Documento["diagrama"]!["volumetria"] as System.Text.Json.Nodes.JsonObject)!["pavimentos"]);
         Assert.True(TabelasRevisao.EhLinha("ambientes/03"));
         foreach (var x in new[] { "indices/1", "indices/00", "indices/x1", "figuras/01", "it_01", "indices/", "/01", "indices/001" })
             Assert.False(TabelasRevisao.EhLinha(x), x);

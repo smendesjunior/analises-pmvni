@@ -56,7 +56,6 @@ public static class ComandosApp
     public const string ProcessosOrdenarNumero = "processos.ordenar.numero";
     public const string ProcessosOrdenarData = "processos.ordenar.data";
     public const string ProcessosOrdenarRequerente = "processos.ordenar.requerente";
-    public const string ProcessosMostrarPastas = "processos.mostrarPastas";
 
     // Despachos (Tarefa 13): só listar e abrir os que já existem (a criação é das Tarefas 15 e 16).
     public const string DespachosAbrir = "despachos.abrir";

@@ -28,7 +28,6 @@ public sealed partial class MainWindow
     LinhaDespacho? despachoEscolhido;
     OrdemProcessos ordemProcessos = OrdemProcessos.Numero;
     int? anoProcessos;
-    bool mostrarPastas;
     FiltroTipoDespacho tipoDespachos = FiltroTipoDespacho.Todos;
     AgrupamentoDespachos agrupamentoDespachos = AgrupamentoDespachos.Data;
     bool despachosRecentesPrimeiro = true, despachosDoProcesso;
@@ -113,13 +112,6 @@ public sealed partial class MainWindow
         manipuladores[ComandosApp.ProcessosOrdenarNumero] = () => DefinirOrdemDeProcessos(OrdemProcessos.Numero);
         manipuladores[ComandosApp.ProcessosOrdenarData] = () => DefinirOrdemDeProcessos(OrdemProcessos.Data);
         manipuladores[ComandosApp.ProcessosOrdenarRequerente] = () => DefinirOrdemDeProcessos(OrdemProcessos.Requerente);
-        manipuladores[ComandosApp.ProcessosMostrarPastas] = () =>
-        {
-            mostrarPastas = !mostrarPastas;
-            SincronizarPastas();
-            RenderizarDetalhe();
-            return Task.CompletedTask;
-        };
 
         manipuladores[ComandosApp.DespachosAbrir] = () => { AbrirNoPrograma(despachoEscolhido?.ArquivoParaAbrir); return Task.CompletedTask; };
         manipuladores[ComandosApp.DespachosAbrirPdf] = () => { AbrirNoPrograma(despachoEscolhido?.ArquivoPdf); return Task.CompletedTask; };
@@ -150,7 +142,6 @@ public sealed partial class MainWindow
     void AplicarListasDosAjustes()
     {
         ordemProcessos = ajustes.ProcessosOrdem switch { "data" => OrdemProcessos.Data, "requerente" => OrdemProcessos.Requerente, _ => OrdemProcessos.Numero };
-        mostrarPastas = ajustes.ProcessosPastas;
         agrupamentoDespachos = ajustes.DespachosAgrupar == "processo" ? AgrupamentoDespachos.Processo : AgrupamentoDespachos.Data;
         despachosRecentesPrimeiro = ajustes.DespachosOrdem != "antigos";
     }
@@ -457,7 +448,7 @@ public sealed partial class MainWindow
             {
                 pagina.TextoTituloDetalhe.Text = d.Processo.Requerente ?? d.Processo.NomePasta;
                 pagina.TextoPastaDetalhe.Text = d.Processo.Pasta;
-                pagina.ListaDetalhe.ItemsSource = ListasPastas.Detalhe(d, mostrarPastas);
+                pagina.ListaDetalhe.ItemsSource = ListasPastas.Detalhe(d, true) /* a coluna Projeto e documentos lista sempre PROJETO e DOCUMENTOS */;
                 pagina.TextoSemProcesso.Visibility = Visibility.Collapsed;
                 entradaEscolhida = null;
             }
@@ -483,6 +474,12 @@ public sealed partial class MainWindow
             pagina.ListaDespachos.ItemsSource = itens;
             pagina.ListaDespachos.SelectedItem = despachoEscolhido is null ? null
                 : itens.FirstOrDefault(i => i.Linha is { } l && string.Equals(l.Despacho.Pasta, despachoEscolhido.Despacho.Pasta, StringComparison.OrdinalIgnoreCase));
+            // Correção 2026-11-16: sem escolha, o primeiro despacho já vem escolhido (os botões Abrir, Abrir PDF... ficam ativos).
+            if (pagina.ListaDespachos.SelectedItem is null && itens.FirstOrDefault(i => i.EhDespacho) is { Linha: { } primeiro } item)
+            {
+                pagina.ListaDespachos.SelectedItem = item;
+                despachoEscolhido = primeiro;
+            }
             if (pagina.ListaDespachos.SelectedItem is null) despachoEscolhido = null;
         }
         finally { atualizandoListas = false; }
@@ -620,7 +617,7 @@ public sealed partial class MainWindow
                 string? capa = null;
                 try { capa = DadosRelatorio.DeBytes(File.ReadAllBytes(json), "").Processo; }
                 catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException) { /* a importação diz o que há de errado */ }
-                return Processos.NomeImportacao(p, capa);
+                return Processos.NomeImportacao(p, capa, Hoje());
             });
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -702,7 +699,6 @@ public sealed partial class MainWindow
         Faixa.MarcarItem(ComandosApp.ProcessosOrdenarNumero, ordemProcessos == OrdemProcessos.Numero);
         Faixa.MarcarItem(ComandosApp.ProcessosOrdenarData, ordemProcessos == OrdemProcessos.Data);
         Faixa.MarcarItem(ComandosApp.ProcessosOrdenarRequerente, ordemProcessos == OrdemProcessos.Requerente);
-        Faixa.Ligar(ComandosApp.ProcessosMostrarPastas, mostrarPastas);
         Faixa.MarcarItem(ComandosApp.DespachosFiltroTodos, tipoDespachos == FiltroTipoDespacho.Todos);
         Faixa.MarcarItem(ComandosApp.DespachosFiltroCorrecao, tipoDespachos == FiltroTipoDespacho.Correcao);
         Faixa.MarcarItem(ComandosApp.DespachosFiltroAprovacao, tipoDespachos == FiltroTipoDespacho.Aprovacao);

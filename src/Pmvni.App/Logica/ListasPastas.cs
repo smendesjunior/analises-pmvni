@@ -282,7 +282,7 @@ public static class ListasPastas
             if (saida.Count == 0) saida.Add(new(TipoLinhaDetalhe.Vazio, vazio));
             return saida;
         }
-        if (proj.Count == 0) proj.Add(new(TipoLinhaDetalhe.Vazio, "Nenhum arquivo de projeto (ligue Mostrar pastas)."));
+        if (proj.Count == 0) proj.Add(new(TipoLinhaDetalhe.Vazio, "Nenhum arquivo nas pastas PROJETO e DOCUMENTOS."));
         return (PorData(rel, "Nenhum relatório."), PorData(desp, "Nenhum despacho."), proj);
     }
 

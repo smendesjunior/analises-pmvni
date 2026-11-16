@@ -45,4 +45,25 @@ public class ProcessosTestes
         Assert.Equal(antes.Projeto.Count, d.Projeto.Count);
         Assert.Equal(antes.Documentos.Count, d.Documentos.Count);
     }
+
+    [Fact]
+    public void relatorio_importado_vai_para_a_pasta_despacho_e_aparece_em_processos()
+    {
+        // Correção 2026-11-16 (regra do kit): o relatório novo fica em DESPACHO NN - AAAA-MM-DD, não na raiz do processo.
+        using var t = Ambiente.PastaDeTeste("processos-relatorio-na-etapa");
+        CopiarArvore(Ambiente.Corpus("processos"), t);
+        var p = Processos.Listar(t, CancellationToken.None).Itens.Single(x => x.Numero == 1);
+        var hoje = new DateOnly(2099, 3, 10);
+        var esperada = Pmvni.Revisao.Etapas.Sugerida(p.Pasta, hoje);
+        var caminho = Processos.NomeImportacao(p, null, hoje);
+        Assert.Equal(esperada.Pasta, Path.GetDirectoryName(caminho));
+        Assert.StartsWith("DESPACHO ", Path.GetFileName(Path.GetDirectoryName(caminho)), StringComparison.Ordinal);
+        Assert.True(Directory.Exists(esperada.Pasta));
+        Assert.Equal("Relatorio_0001_2099.pmvrel", Path.GetFileName(caminho));
+
+        File.WriteAllText(caminho, "x");
+        Assert.Contains(Processos.Detalhar(p, CancellationToken.None).Relatorios, r => r.Caminho == caminho && r.Tipo == TipoRelatorio.Pacote);
+        // O segundo não sobrescreve: mesma etapa (ainda sem despacho), nome com _2.
+        Assert.Equal(Path.Combine(esperada.Pasta, "Relatorio_0001_2099_2.pmvrel"), Processos.NomeImportacao(p, null, hoje));
+    }
 }

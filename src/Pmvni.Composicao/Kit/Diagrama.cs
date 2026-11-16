@@ -77,7 +77,99 @@ public static class Diagrama
     private static string Win(Func<double, double, (double, double)> f, double a0, double a1, double z0, double z1, string c = "win") =>
         Poly(new[] { f(a0, z0), f(a1, z0), f(a1, z1), f(a0, z1) }, c);
 
+    /// <summary>Correção 2026-11-16: a volumetria aceita, além das alturas, a forma (opcional, como texto): <c>pavimentos</c> (1 a 6;
+    /// padrão 2), <c>telhado</c> ("duas águas" = padrão; "sem", "plano", "laje" = cobertura plana) e <c>destaque</c> ("nenhum" = padrão;
+    /// senão o texto sai em vermelho embaixo, e a parte citada — lateral direita, lateral esquerda, telhado, altura, frente — fica
+    /// marcada em vermelho). Sem essas chaves o desenho é o mesmo de sempre.</summary>
     public static string VolumetriaSvg(IReadOnlyDictionary<string, object?> v, IEnumerable<(string Ancora, int Numero)> marcas)
+    {
+        if (!v.ContainsKey("pavimentos") && !v.ContainsKey("telhado") && !v.ContainsKey("destaque")) return VolumetriaOriginal(v, marcas);
+        var pav = int.TryParse(Dados.Obter(v, "pavimentos", "2") as string, NumberStyles.Integer, CultureInfo.InvariantCulture, out var np) ? Math.Clamp(np, 1, 6) : 2;
+        var telhadoTexto = (Dados.Obter(v, "telhado", "duas águas") as string ?? "").Trim().ToLowerInvariant();
+        var comTelhado = !(telhadoTexto.StartsWith("sem", StringComparison.Ordinal) || telhadoTexto.Contains("plan", StringComparison.Ordinal) || telhadoTexto.Contains("laje", StringComparison.Ordinal));
+        var destaque = (Dados.Obter(v, "destaque", "nenhum") as string ?? "").Trim();
+        var dl = destaque.ToLowerInvariant();
+        var temDestaque = dl.Length > 0 && dl != "nenhum";
+        bool Fala(params string[] chaves) => temDestaque && chaves.Any(c => dl.Contains(c, StringComparison.Ordinal));
+        var dDir = Fala("direit"); var dEsq = Fala("esquerd"); var dTel = Fala("telhad", "cobert"); var dAlt = Fala("altur", "gabarit"); var dFre = Fala("frent", "recuo");
+
+        // Altura de cada pavimento: 60 até 2; acima disso o prédio cresce até 200 no total.
+        var h = pav <= 2 ? 60.0 : Math.Max(33.0, 200.0 / pav);
+        var H = h * pav;
+        var cume = comTelhado ? 30.0 : 0.0;
+        (double, double) Q(double u, double sp, double z) => (150 + 103.9 * u - 77.9 * sp, 250 - 60 * u - 45 * sp - z);
+        string Pl((double, double)[] pts, string c, string extra = "") =>
+            "<polygon class=\"" + c + "\"" + extra + " points=\"" + string.Join(' ', pts.Select(t => Dados.F1(t.Item1) + "," + Dados.F1(t.Item2))) + "\"/>";
+        const string Vermelho = " style=\"stroke:#D64545;stroke-width:2.4\"";
+
+        var w = new System.Text.StringBuilder();
+        for (var k = 0; k < pav; k++)
+        {
+            var z0 = h * k;
+            double Z(double rel) => z0 + rel * h / 60.0;
+            var frenteJanelas = k == 0
+                ? new (double, double, double, double)[] { (.12, .32, 18, 42), (.65, .85, 18, 42) }
+                : new (double, double, double, double)[] { (.12, .32, 18, 42), (.42, .58, 18, 42), (.65, .85, 18, 42) };
+            foreach (var q in frenteJanelas) w.Append(Win(P, q.Item1, q.Item2, Z(q.Item3), Z(q.Item4)));
+            if (k == 0) w.Append(Win(P, .42, .53, 0, Z(44), "door"));
+            foreach (var q in new (double, double, double, double)[] { (.18, .42, 20, 42), (.58, .82, 20, 42) })
+                w.Append(Win(L, q.Item1, q.Item2, Z(q.Item3), Z(q.Item4)));
+        }
+        var pisos = new System.Text.StringBuilder();
+        for (var k = 1; k < pav; k++)
+        {
+            var (ax, ay) = Q(0, 0, h * k); var (bx, by) = Q(1, 0, h * k); var (cx, cy) = Q(0, 1, h * k);
+            pisos.Append($"""<line x1="{Dados.F1(ax)}" y1="{Dados.F1(ay)}" x2="{Dados.F1(bx)}" y2="{Dados.F1(by)}" class="fl"/><line x1="{Dados.F1(ax)}" y1="{Dados.F1(ay)}" x2="{Dados.F1(cx)}" y2="{Dados.F1(cy)}" class="fl"/>""");
+        }
+
+        // Paredes: a esquerda leva a empena (o triângulo do telhado) quando há telhado de duas águas.
+        var paredeEsq = comTelhado
+            ? new[] { Q(0, 0, 0), Q(0, 1, 0), Q(0, 1, H), Q(0, .5, H + cume), Q(0, 0, H) }
+            : new[] { Q(0, 0, 0), Q(0, 1, 0), Q(0, 1, H), Q(0, 0, H) };
+        var paredeDir = new[] { Q(0, 0, 0), Q(1, 0, 0), Q(1, 0, H), Q(0, 0, H) };
+        var cobertura = comTelhado
+            ? Pl(new[] { Q(0, 1, H), Q(1, 1, H), Q(1, .5, H + cume), Q(0, .5, H + cume) }, "rfb", dTel ? Vermelho : "")
+              + Pl(new[] { Q(0, 0, H), Q(1, 0, H), Q(1, .5, H + cume), Q(0, .5, H + cume) }, "rff", dTel ? Vermelho : "")
+            : Pl(new[] { Q(0, 0, H), Q(1, 0, H), Q(1, 1, H), Q(0, 1, H) }, "rff", dTel ? Vermelho : "");
+
+        var ae = Dados.Exigir(v, "altura_esquerda");
+        var ad = Dados.Exigir(v, "altura_direita");
+        var topo = Q(1, .5, H + cume).Item2;
+        var y0 = Math.Min(0, Math.Floor(topo - 14));
+        var altE1 = 212 - H - cume; var altD1 = 192 - H - cume - 12;
+        var corDim = dAlt ? " style=\"stroke:#D64545\"" : "";
+        var frente = dFre
+            ? Pl(new[] { Q(0, 0, 0), Q(1, 0, 0), Q(1.25, -.35, 0), Q(-.1, -.35, 0) }, "gnd", " style=\"fill:#F6D5D5;stroke:#D64545;stroke-width:2\"")
+            : "";
+        var aviso = temDestaque
+            ? $"""<text x="150" y="314" class="t7 b" style="fill:#C03535" text-anchor="middle">{E(destaque)}</text>"""
+            : "";
+        var posMarcas = new Dictionary<string, (int X, int Y)>(StringComparer.Ordinal)
+        {
+            ["telhado"] = (184, (int)Math.Round(76 - (H - 120) - (30 - cume))),
+            ["altura"] = (274, (int)Math.Round(150 - (H - 120) / 2)),
+        };
+        var linhas = new[]
+        {
+            $"""<svg viewBox="-22 {Dados.F1(y0)} 344 {Dados.F1(322 - y0)}" class="dg">""",
+            """<defs><marker id="ar2" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" fill="#6B7785"/></marker></defs>""",
+            Poly(new[] { (150d, 285d), (301.6, 197.5), (180.4, 127.5), (28.8, 215d) }, "gnd") + Poly(new[] { (150d, 285d), (28.8, 215d), (-5.8, 235d), (115.4, 305d) }, "str") + frente,
+            $"""<text x="52" y="266" class="street" transform="rotate(30 52 266)">{E(Dados.Obter(v, "via", "RUA"))}</text>""",
+            Pl(paredeEsq, "wl", dEsq ? Vermelho : ""),
+            Pl(paredeDir, "wr", dDir ? Vermelho : "") + cobertura,
+            pisos.ToString() + w,
+            $"""<line x1="44" y1="212" x2="44" y2="{Dados.F1(altE1)}" class="dim"{corDim} marker-start="url(#ar2)" marker-end="url(#ar2)"/>""",
+            $"""<text x="36" y="{Dados.F1((212 + altE1) / 2 - 5)}" class="t7 b" text-anchor="end">{E(Elem(ae, 0))}</text><text x="36" y="{Dados.F1((212 + altE1) / 2 + 6)}" class="t7" text-anchor="end">{Segundo(ae)}</text>""",
+            $"""<line x1="274" y1="192" x2="274" y2="{Dados.F1(altD1)}" class="dim"{corDim} marker-start="url(#ar2)" marker-end="url(#ar2)"/>""",
+            $"""<text x="281" y="{Dados.F1((192 + altD1) / 2 - 7)}" class="t7 b" text-anchor="start">{E(Elem(ad, 0))}</text><text x="281" y="{Dados.F1((192 + altD1) / 2 + 4)}" class="t7" text-anchor="start">{Segundo(ad)}</text>""",
+            Marcadores(marcas, posMarcas),
+            aviso,
+            "</svg>",
+        };
+        return string.Join("\n", linhas.Where(l => l.Length > 0));
+    }
+
+    static string VolumetriaOriginal(IReadOnlyDictionary<string, object?> v, IEnumerable<(string Ancora, int Numero)> marcas)
     {
         var w = string.Concat(new (double, double, double, double)[]
         {

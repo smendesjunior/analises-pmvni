@@ -270,7 +270,7 @@ public sealed partial class PaginaNovoDespacho
     {
         if (t.Chave is not { } chave) return;
         var valor = t.Valor ?? "";
-        var painel = new StackPanel { Spacing = 8, Width = 460 };
+        var painel = new StackPanel { Spacing = 8, Width = 640 };
         var fly = new Flyout { Content = painel, Placement = FlyoutPlacementMode.Bottom };
         if (chave == ConteudoDespacho.ChaveIntervencao)
         {
@@ -287,7 +287,8 @@ public sealed partial class PaginaNovoDespacho
         }
         else
         {
-            var caixa = new TextBox { Header = NomeDoCampo(chave), Text = valor, TextWrapping = TextWrapping.Wrap, AcceptsReturn = false };
+            var caixa = new TextBox { Header = NomeDoCampo(chave), Text = valor, TextWrapping = TextWrapping.Wrap, AcceptsReturn = false, MinHeight = 160, MaxHeight = 400 };
+            ScrollViewer.SetVerticalScrollBarVisibility(caixa, ScrollBarVisibility.Auto);
             AutomationProperties.SetName(caixa, NomeDoCampo(chave));
             painel.Children.Add(caixa);
             painel.Children.Add(new TextBlock { Text = "Enter grava; Esc desiste.", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });

@@ -87,14 +87,18 @@ public class PastasTestes
         using var t = Ambiente.PastaDeTeste("pastas-importacao");
         CopiarArvore(Raiz, t);
         var p = Processos.Listar(t, CancellationToken.None).Itens.Single(x => x.Numero == 1);
-        var primeiro = Processos.NomeImportacao(p, null);
-        Assert.Equal(Path.Combine(p.Pasta, "Relatorio_0001_2099.pmvrel"), primeiro);
+        // Desde 2026-11-16 o relatório fica na pasta da etapa (DESPACHO NN - AAAA-MM-DD), pela regra do kit.
+        var hoje = new DateOnly(2099, 3, 10);
+        var etapa = Etapas.Sugerida(p.Pasta, hoje).Pasta;
+        var primeiro = Processos.NomeImportacao(p, null, hoje);
+        Assert.Equal(Path.Combine(etapa, "Relatorio_0001_2099.pmvrel"), primeiro);
         File.WriteAllText(primeiro, "x");
-        Assert.Equal(Path.Combine(p.Pasta, "Relatorio_0001_2099_2.pmvrel"), Processos.NomeImportacao(p, null));
+        Assert.Equal(Path.Combine(etapa, "Relatorio_0001_2099_2.pmvrel"), Processos.NomeImportacao(p, null, hoje));
 
         var fora = Processos.Listar(t, CancellationToken.None).Itens.Single(x => x.Numero is null);
-        Assert.Equal(Path.Combine(fora.Pasta, "Relatorio_9001_2026.pmvrel"), Processos.NomeImportacao(fora, "9001/2026"));
-        Assert.Equal(Path.Combine(fora.Pasta, "Relatorio.pmvrel"), Processos.NomeImportacao(fora, null));
+        var etapaFora = Etapas.Sugerida(fora.Pasta, hoje).Pasta;
+        Assert.Equal(Path.Combine(etapaFora, "Relatorio_9001_2026.pmvrel"), Processos.NomeImportacao(fora, "9001/2026", hoje));
+        Assert.Equal(Path.Combine(etapaFora, "Relatorio.pmvrel"), Processos.NomeImportacao(fora, null, hoje));
     }
 
     [Fact]

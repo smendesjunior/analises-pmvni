@@ -223,10 +223,7 @@ public sealed partial class MainWindow
         topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         topo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        if (Brasao() is { } brasao) topo.Children.Add(new Image { Source = brasao, Height = 52, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center });
-        var linha = new Border { Width = 1, Background = CoresLeitura.Linha, Margin = new Thickness(0, 6, 0, 6) };
-        Grid.SetColumn(linha, 1);
-        topo.Children.Add(linha);
+        // Correção 2026-11-16: as leis não levam o brasão de Venda Nova (nem a linha que o separava).
         var textos = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 2 };
         textos.Children.Add(new TextBlock
         {
@@ -249,21 +246,6 @@ public sealed partial class MainWindow
             faixas.Children.Add(r);
         }
         return new StackPanel { Margin = new Thickness(0, 0, 0, 14), Children = { topo, faixas } };
-    }
-
-    /// <summary>O brasão de texto escuro (a folha é sempre clara), do recurso embutido.</summary>
-    static BitmapImage? Brasao()
-    {
-        try
-        {
-            using var recurso = typeof(MainWindow).Assembly.GetManifestResourceStream("Pmvni.App.brasao-claro.png");
-            return recurso is null ? null : ImagemDe(recurso);
-        }
-        catch (Exception e)
-        {
-            RegistroErros.Gravar("leitura.brasao", e);
-            return null;
-        }
     }
 
     static BitmapImage ImagemDe(Stream origem)

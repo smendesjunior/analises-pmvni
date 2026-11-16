@@ -178,7 +178,7 @@ public static class FluxoNovoRelatorio
 
     /// <summary>A análise terminou com o usuário fazendo outra coisa (Ruling FD-I3): o <c>.pmvrel</c> foi criado e nada do que estava aberto mudou.</summary>
     public static string TextoRelatorioPronto(Provedor p, string pmvrel, string? pdf) =>
-        $"A análise com o {Provedores.Nome(p)} terminou: {Path.GetFileName(pmvrel)} foi criado na pasta do processo e está nos Recentes."
+        $"A análise com o {Provedores.Nome(p)} terminou: {Path.GetFileName(pmvrel)} foi criado em {Path.GetFileName(Path.GetDirectoryName(pmvrel))} e está nos Recentes."
         + (string.IsNullOrWhiteSpace(pdf) ? "" : $" O PDF do kit continua em {pdf}.");
 
     public static string TextoFecharChatGpt(Processo p) => $"A análise com o ChatGPT em {Identificacao(p)} será interrompida.";

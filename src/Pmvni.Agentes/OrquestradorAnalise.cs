@@ -137,6 +137,12 @@ public sealed class OrquestradorAnalise
         catch (InvalidOperationException) { return ""; }
     }
 
+    /// <summary>O plugin do kit que cada provedor usa: ChatGPT (Codex) = analise; Claude = análise pro.</summary>
+    public static string PluginUsado(Provedor p) => p == Provedor.ChatGpt ? "analise" : "análise pro";
+
+    /// <summary>A versão instalada desse plugin (a maior no cache de plugins do Codex); null se não foi achada.</summary>
+    public static string? VersaoDoPlugin(Provedor p, Pecas? pecas) => p == Provedor.ChatGpt ? pecas?.VersaoPluginAnalise : pecas?.VersaoAnalisePro;
+
     static string VersaoEditor() =>
         Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? typeof(OrquestradorAnalise).Assembly.GetName().Version?.ToString() ?? "";
 
@@ -152,6 +158,9 @@ public sealed class OrquestradorAnalise
             o["inicio"] = inicio.ToString("o", CultureInfo.InvariantCulture);
             o["usuario"] = Usuario();
             o["versao_do_editor"] = VersaoEditor();
+            // 2026-11-16: o plugin do kit e a versão instalada que fizeram a análise (auditável depois).
+            o["plugin"] = PluginUsado(pe.Provedor);
+            o["versao_do_plugin"] = VersaoDoPlugin(pe.Provedor, pe.Pecas) ?? "não encontrada";
             o["situacao"] = "em_andamento";
         });
     }

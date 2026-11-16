@@ -233,13 +233,6 @@
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Mostrar PROJETO e DOCUMENTOS" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Lista também os arquivos dessas duas pastas no processo escolhido." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                <ToggleSwitch x:Name="AlternarPastasProcesso" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Mostrar PROJETO e DOCUMENTOS"/>
-              </Grid>
-              <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
-              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Despachos: agrupar e ordenar" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Como a lista de despachos abre." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
                   <ComboBox x:Name="CaixaAgruparDespachos" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteEscolha}" AutomationProperties.Name="Agrupar os despachos"/>

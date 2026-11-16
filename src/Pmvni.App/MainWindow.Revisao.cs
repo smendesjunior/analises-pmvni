@@ -107,6 +107,7 @@ public sealed partial class MainWindow
             e.Handled = true;
             await AplicarJustificativaAsync();
         };
+        R.PropAjustarTexto.Click += async (_, _) => await AjustarTextoComIaAsync();
         R.PropRestaurarOriginal.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioRestaurarOriginal);
         BotaoDesfazer.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.EditarDesfazer);
         BotaoRefazer.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.EditarRefazer);
@@ -201,7 +202,9 @@ public sealed partial class MainWindow
     internal Task AplicarAsync(Comando c) => ExecutarRevisaoAsync(s => s.Revisao.Testar(c), s => s.Revisao.Aplicar(c));
 
     /// <summary>A edição de um campo pelo host: a mesma rota do <c>editar</c> da página (Enter no A4).</summary>
-    internal Task EditarTextoAsync(string itemId, string campo, string texto) => AplicarAsync(new DefinirCampo(itemId, campo, texto));
+    internal Task EditarTextoAsync(string itemId, string campo, string texto) =>
+        AplicarAsync(new DefinirCampo(itemId, campo, TabelasRevisao.EhLinha(itemId) && sessao?.Revisao.Projeto is { } pj
+            ? IaRecalculoIndices.CompletarUnidade(texto, TabelasRevisao.TextoOriginal(pj, itemId, campo)) : texto));
 
     // ---------- fila de comandos ----------
 
@@ -382,6 +385,8 @@ public sealed partial class MainWindow
             || !d.TryGetProperty("campo", out var cp) || cp.GetString() is not { } campo
             || !d.TryGetProperty("texto", out var tx) || tx.GetString() is not { } texto)
             return null; // semEdicao
+        if (TabelasRevisao.EhLinha(item) && s.Revisao.Projeto is { } pj)
+            texto = IaRecalculoIndices.CompletarUnidade(texto, TabelasRevisao.TextoOriginal(pj, item, campo));
         var c = new DefinirCampo(item, campo, texto);
         try
         {
@@ -579,6 +584,8 @@ public sealed partial class MainWindow
         {
             case "selecionado":
                 SelecionadoNaPagina(Texto("ref"), Texto("campo"));
+                if (d.TryGetProperty("volumetria", out var vol) && vol.ValueKind == JsonValueKind.True)
+                    MostrarPedidoVolumetria(new Point(Numero("x"), Numero("y")));
                 break;
             case "pedirEdicao":
                 if (Texto("ref") is { } r && Texto("campo") is { } c) await NaFilaAsync(() => IniciarEdicaoAsync(r, c));
@@ -998,6 +1005,9 @@ public sealed partial class MainWindow
             if (!digitando) R.PropJustificativa.Text = it.Situacao.Justificativa ?? "";
             R.PropJustificativa.IsEnabled = editavel;
             R.PropJustificativaAviso.Visibility = it.Situacao.Revisada is not null && string.IsNullOrWhiteSpace(it.Situacao.Justificativa) ? Visibility.Visible : Visibility.Collapsed;
+            R.PropAjustarTexto.Visibility = it.Situacao.Revisada is not null ? Visibility.Visible : Visibility.Collapsed;
+            R.PropAjustarRotulo.Text = "Ajustar texto com a IA";
+            R.PropAjustarTexto.IsEnabled = editavel && !ajustandoComIa;
             itemNasPropriedades = it.Id;
 
             MontarCampos(p, it, editavel);
@@ -1093,6 +1103,9 @@ public sealed partial class MainWindow
         if (!digitando) R.PropJustificativa.Text = rev?.Justificativa ?? "";
         R.PropJustificativa.IsEnabled = editavel;
         R.PropJustificativaAviso.Visibility = rev is not null && TabelasRevisao.FaltaJustificativa(rev) ? Visibility.Visible : Visibility.Collapsed;
+        R.PropAjustarTexto.Visibility = rev?.Revisada == true ? Visibility.Visible : Visibility.Collapsed;
+        R.PropAjustarTexto.IsEnabled = editavel && !ajustandoComIa;
+        R.PropAjustarRotulo.Text = "Recalcular a tabela com a IA";
         itemNasPropriedades = linha;
 
         R.PropCampos.Children.Clear();
@@ -1163,6 +1176,154 @@ public sealed partial class MainWindow
         if (p.Item(id) is not { } it) return;
         if (TextoEditado.Normalizar(texto) == TextoEditado.Normalizar(it.Situacao.Justificativa ?? "")) return;
         await TentarAsync(() => AplicarAsync(new DefinirJustificativa(id, texto)));
+    }
+
+    bool ajustandoComIa;
+
+    /// <summary>"Ajustar texto com a IA": grava a justificativa digitada, manda à IA o item, a situação escolhida e a justificativa, com
+    /// leitura da pasta do processo e da legislação do kit, e aplica os campos devolvidos como edições comuns (desfazíveis).</summary>
+    async Task AjustarTextoComIaAsync()
+    {
+        if (ajustandoComIa || itemNasPropriedades is not { } id) return;
+        if (TabelasRevisao.EhLinha(id)) { await RecalcularTabelaComIaAsync(id); return; }
+        await AplicarJustificativaAsync();
+        if (sessao is not { Revisao.Projeto: { } p } s || p.Item(id) is not { } it || it.Situacao.Revisada is not { } nova) return;
+        var justificativa = it.Situacao.Justificativa ?? "";
+        if (justificativa.Trim().Length == 0)
+        {
+            MostrarMensagem(InfoBarSeverity.Warning, "Ajustar texto", "Escreva a justificativa antes: é dela que a IA parte.");
+            R.PropJustificativa.Focus(FocusState.Programmatic);
+            return;
+        }
+        var original = it.Situacao.Original is JsonValue v && v.TryGetValue<string>(out var so) ? so : null;
+        var campos = Campos.Editaveis.ToDictionary(c => c, c => DadosEfetivos.TextoEfetivo(p, it, c) ?? "");
+        var pastaProcesso = RecortePrancha.PastaDoProcesso(s.Caminho);
+        var extras = new List<string>();
+        var leis = Path.Combine(ajustes.PastaKitEfetiva ?? "", "03 - LEGISLACAO");
+        if (Directory.Exists(leis)) extras.Add(leis);
+
+        ajustandoComIa = true;
+        R.PropAjustarTexto.IsEnabled = false;
+        R.PropAjustarAnel.Visibility = Visibility.Visible;
+        R.PropAjustarAnel.IsActive = true;
+        try
+        {
+            var pecas = await LerPecasAsync();
+            var prompt = IaAjusteItem.Prompt(TextoSituacao(original), TextoSituacao(nova), justificativa, campos, extras.Count > 0);
+            var saida = await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, prompt, CancellationToken.None, pastaProcesso, extras);
+            if (!ReferenceEquals(sessao, s) || p.Item(id) is null) return;
+            if (IaAjusteItem.Ler(saida) is not { Count: > 0 } novos)
+            {
+                MostrarMensagem(InfoBarSeverity.Warning, "Ajustar texto", "A resposta da IA não veio no formato esperado; nada mudou.");
+                return;
+            }
+            var mudou = 0;
+            foreach (var campo in Campos.Editaveis)
+            {
+                if (!novos.TryGetValue(campo, out var texto) || texto.Trim().Length == 0) continue;
+                if (TextoEditado.Normalizar(texto) == TextoEditado.Normalizar(campos[campo])) continue;
+                if (p.Item(id) is not { } atual || (DadosEfetivos.TextoEfetivo(p, atual, campo) ?? "") != campos[campo]) continue; // editado durante a espera
+                await TentarAsync(() => AplicarAsync(new DefinirCampo(id, campo, texto)));
+                mudou++;
+            }
+            MostrarMensagem(InfoBarSeverity.Success, "Ajustar texto",
+                mudou == 0 ? "A IA manteve o texto: nada mudou." : $"A IA reescreveu {mudou} {(mudou == 1 ? "campo" : "campos")}. Confira; Desfazer volta.");
+        }
+        catch (Exception e)
+        {
+            // Auditoria 2026-11-16: nenhum erro da IA (JSON, tempo, rede, processo) derruba o editor; o detalhe vai para o registro.
+            RegistroErros.Gravar("ia", e);
+            MostrarMensagem(InfoBarSeverity.Error, "IA", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + e.Message);
+        }
+        finally
+        {
+            ajustandoComIa = false;
+            R.PropAjustarAnel.IsActive = false;
+            R.PropAjustarAnel.Visibility = Visibility.Collapsed;
+            AtualizarPropriedades();
+        }
+    }
+
+    /// <summary>Linha de tabela editada: a IA refaz as contas das outras linhas do mesmo bloco e devolve textos e situações; tudo entra
+    /// como edição comum (desfazível), com a justificativa que a IA deu quando a situação muda.</summary>
+    async Task RecalcularTabelaComIaAsync(string linhaEditada)
+    {
+        if (ajustandoComIa) return;
+        await AplicarJustificativaAsync();
+        if (sessao is not { Revisao.Projeto: { } p } s || !TabelasRevisao.TentarLer(linhaEditada, out var bloco, out _)) return;
+        var linhas = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        var blocosJuntos = bloco == TabelasRevisao.Indices
+            ? new[] { TabelasRevisao.Indices, TabelasRevisao.Chamadas, TabelasRevisao.Planta, TabelasRevisao.Volumetria }
+            : new[] { bloco };
+        foreach (var id in TabelasRevisao.Ids(p).Where(i => TabelasRevisao.TentarLer(i, out var b, out _) && blocosJuntos.Contains(b)))
+        {
+            var d = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var c in TabelasRevisao.Caminhos(TabelasRevisao.Original(p, id)!)) d[c] = TabelasRevisao.TextoEfetivo(p, id, c) ?? "";
+            d["situacao"] = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(p, id)) ?? "";
+            linhas[id] = d;
+        }
+        var pastaProcesso = RecortePrancha.PastaDoProcesso(s.Caminho);
+        var extras = new List<string>();
+        var leis = Path.Combine(ajustes.PastaKitEfetiva ?? "", "03 - LEGISLACAO");
+        if (Directory.Exists(leis)) extras.Add(leis);
+
+        ajustandoComIa = true;
+        R.PropAjustarTexto.IsEnabled = false;
+        R.PropAjustarAnel.Visibility = Visibility.Visible;
+        R.PropAjustarAnel.IsActive = true;
+        try
+        {
+            var pecas = await LerPecasAsync();
+            var prompt = IaRecalculoIndices.Prompt(bloco, linhaEditada, linhas, TabelasRevisao.Justificativa(p, linhaEditada), extras.Count > 0);
+            var saida = await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, prompt, CancellationToken.None, pastaProcesso, extras);
+            if (!ReferenceEquals(sessao, s)) return;
+            if (IaRecalculoIndices.Ler(saida, linhas.Keys) is not { } novas)
+            {
+                MostrarMensagem(InfoBarSeverity.Warning, "Recalcular", "A resposta da IA não veio no formato esperado; nada mudou.");
+                return;
+            }
+            var mudou = 0;
+            var ignoradas = 0;
+            foreach (var (id, campos) in novas)
+            {
+                if (!linhas.TryGetValue(id, out var antes)) continue;
+                foreach (var (caminho, texto) in campos)
+                {
+                    if (caminho is "situacao" or "justificativa" || !antes.ContainsKey(caminho) || texto.Trim().Length == 0) continue;
+                    if (id == linhaEditada && p.Linhas.TryGetValue(id, out var r) && r.Campos.ContainsKey(caminho)) continue; // o valor do usuário fica
+                    if (TextoEditado.Normalizar(texto) == TextoEditado.Normalizar(antes[caminho])) continue;
+                    // Editado pelo usuário enquanto a IA respondia: a edição dele fica.
+                    if ((TabelasRevisao.TextoEfetivo(p, id, caminho) ?? "") != antes[caminho]) { ignoradas++; continue; }
+                    await TentarAsync(() => AplicarAsync(new DefinirCampo(id, caminho, texto)));
+                    mudou++;
+                }
+                if (campos.TryGetValue("situacao", out var sit) && antes["situacao"].Length > 0 && TabelasRevisao.SituacaoDeLinha(sit) is { } codigo && sit != antes["situacao"])
+                {
+                    await TentarAsync(() => AplicarAsync(new DefinirSituacao(id, codigo)));
+                    var motivo = campos.TryGetValue("justificativa", out var j) && j.Trim().Length > 0 ? j : "Recalculado depois da edição de " + TabelasRevisao.Rotulo(linhaEditada) + ".";
+                    if (string.IsNullOrWhiteSpace(TabelasRevisao.Justificativa(p, id)))
+                        await TentarAsync(() => AplicarAsync(new DefinirJustificativa(id, "IA: " + motivo)));
+                    mudou++;
+                }
+            }
+            MostrarMensagem(InfoBarSeverity.Success, "Recalcular",
+                (mudou == 0 ? "A IA conferiu a tabela a partir de " + TabelasRevisao.Rotulo(linhaEditada) + ": nada mudou."
+                    : $"A IA atualizou {mudou} {(mudou == 1 ? "valor" : "valores")} a partir de {TabelasRevisao.Rotulo(linhaEditada)}. Confira; Desfazer volta.")
+                + (ignoradas > 0 ? $" {ignoradas} {(ignoradas == 1 ? "texto editado" : "textos editados")} por você durante a espera {(ignoradas == 1 ? "ficou" : "ficaram")} como estava." : ""));
+        }
+        catch (Exception e)
+        {
+            // Auditoria 2026-11-16: nenhum erro da IA (JSON, tempo, rede, processo) derruba o editor; o detalhe vai para o registro.
+            RegistroErros.Gravar("ia", e);
+            MostrarMensagem(InfoBarSeverity.Error, "IA", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + e.Message);
+        }
+        finally
+        {
+            ajustandoComIa = false;
+            R.PropAjustarAnel.IsActive = false;
+            R.PropAjustarAnel.Visibility = Visibility.Collapsed;
+            AtualizarPropriedades();
+        }
     }
 
     // ---------- auxiliares ----------

@@ -37,5 +37,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Recursos\brasao-claro.png" LogicalName="Pmvni.App.brasao-claro.png" />
     <EmbeddedResource Include="Recursos\brasao-escuro.png" LogicalName="Pmvni.App.brasao-escuro.png" />
+    <!-- Ícones dos módulos (pacote Fluent de 2026-11-16), 64 e 128 px: o trilho e as telas vazias escolhem pelo tamanho. -->
+    <EmbeddedResource Include="Recursos\Modulos\*.png" LogicalName="Pmvni.App.modulos.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

@@ -141,12 +141,17 @@ public static class Processos
 
         try
         {
-            foreach (var f in Directory.EnumerateFiles(p.Pasta, "*.pmvrel"))
-            {
-                ct.ThrowIfCancellationRequested();
-                if (EhLink(f)) continue;
-                relatorios.Add(new RelatorioEncontrado(f, TipoRelatorio.Pacote, File.GetLastWriteTimeUtc(f)));
-            }
+            // Os relatórios ficam nas pastas DESPACHO NN - AAAA-MM-DD (regra do kit); os antigos, na raiz do processo, continuam valendo.
+            var pastasDeRelatorio = new List<string> { p.Pasta };
+            foreach (var d in Directory.EnumerateDirectories(p.Pasta))
+                if (NomeDespacho.IsMatch(Path.GetFileName(d)) && !EhLink(d)) pastasDeRelatorio.Add(d);
+            foreach (var pasta in pastasDeRelatorio)
+                foreach (var f in Directory.EnumerateFiles(pasta, "*.pmvrel"))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (EhLink(f)) continue;
+                    relatorios.Add(new RelatorioEncontrado(f, TipoRelatorio.Pacote, File.GetLastWriteTimeUtc(f)));
+                }
             var ia = Path.Combine(p.Pasta, ".pmvni-ai");
             if (Directory.Exists(ia) && !EhLink(ia))
                 foreach (var revisao in Directory.EnumerateDirectories(ia))
@@ -169,6 +174,12 @@ public static class Processos
             ArquivosAte3Niveis(p, "PROJETO", avisos, ct),
             ArquivosAte3Niveis(p, "DOCUMENTOS", avisos, ct),
             avisos);
+    }
+
+    static bool TemRelatorio(string pasta)
+    {
+        try { return Directory.EnumerateFiles(pasta, "*.pmvrel").Any(); }
+        catch (Exception e) when (Ilegivel(e)) { return false; }
     }
 
     internal static List<Despacho> LerDespachos(Processo p, List<string> avisos, CancellationToken ct)
@@ -198,6 +209,8 @@ public static class Processos
                     avisos.Add($"A pasta {Path.GetFileName(pasta)} não pôde ser lida: {e.Message}");
                 }
                 arquivos.Sort(StringComparer.OrdinalIgnoreCase);
+                // A pasta da etapa que até agora só tem o relatório (o .pmvrel importado, 2026-11-16) ainda não é um despacho.
+                if (arquivos.Count == 0 && TemRelatorio(pasta)) continue;
                 lista.Add(new Despacho(pasta, int.Parse(m.Groups["n"].Value, CultureInfo.InvariantCulture), data, TipoPeloNome(arquivos), arquivos, p));
             }
         }
@@ -247,10 +260,14 @@ public static class Processos
         }
     }
 
-    /// <summary>Caminho (sem sobrescrever) do pacote de uma importação, na pasta do processo: número/ano da pasta, senão o da capa.</summary>
-    public static string NomeImportacao(Processo p, string? processoDaCapa)
+    /// <summary>Caminho (sem sobrescrever) do pacote de uma importação: número/ano da pasta, senão o da capa. Regra do kit (correção
+    /// 2026-11-16): o relatório é entrega da etapa e fica em <c>DESPACHO NN - AAAA-MM-DD</c> — a etapa existente de maior número que ainda
+    /// não tem despacho, senão a próxima, com a data de hoje (<see cref="Etapas.Sugerida"/>). A pasta da etapa é criada aqui.</summary>
+    public static string NomeImportacao(Processo p, string? processoDaCapa, DateOnly hoje)
     {
         var (numero, ano) = p.Numero is not null && p.Ano is not null ? (p.Numero, p.Ano) : NomesArquivo.DoProcessoDaCapa(processoDaCapa);
-        return NomesArquivo.Livre(p.Pasta, NomesArquivo.Importacao(numero, ano));
+        var etapa = Etapas.Sugerida(p.Pasta, hoje);
+        Directory.CreateDirectory(etapa.Pasta);
+        return NomesArquivo.Livre(etapa.Pasta, NomesArquivo.Importacao(numero, ano));
     }
 }

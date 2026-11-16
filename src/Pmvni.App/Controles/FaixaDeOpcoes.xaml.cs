@@ -20,6 +20,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     readonly HashSet<string> marcados = new(StringComparer.Ordinal);
     DefinicaoFaixa? definicao;
     Button? primario;
+    Button? secundario;
     bool montando;
 
     public FaixaDeOpcoes() => InitializeComponent();
@@ -91,6 +92,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         var mudou = Habilitado(id) != sim;
         habilitado[id] = sim;
         if (primario is not null && primario.Tag as string == id) primario.IsEnabled = sim;
+        if (secundario is not null && secundario.Tag as string == id) secundario.IsEnabled = sim;
         if (visiveis.TryGetValue(id, out var b)) b.IsEnabled = sim;
         if (alternaveis.TryGetValue(id, out var t)) t.IsEnabled = sim;
         if (itensMenu.TryGetValue(id, out var i)) i.IsEnabled = sim;
@@ -186,6 +188,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     void AtualizarDicas(string id)
     {
         if (primario is not null && primario.Tag as string == id) Dicas.Aplicar(primario, TextoDaDica(id));
+        if (secundario is not null && secundario.Tag as string == id) Dicas.Aplicar(secundario, TextoDaDica(id));
         if (visiveis.TryGetValue(id, out var b)) Dicas.Aplicar(b, TextoDaDica(id));
         if (alternaveis.TryGetValue(id, out var t)) Dicas.Aplicar(t, TextoDaDica(id));
         if (itensMenu.TryGetValue(id, out var i)) Dicas.Aplicar(i, TextoDaDica(id, i.Text));
@@ -199,6 +202,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         {
             var lista = new List<(string, TextoDica?)>();
             if (primario is not null) lista.Add(((string)primario.Tag, Dicas.De(primario)));
+            if (secundario is not null) lista.Add(((string)secundario.Tag, Dicas.De(secundario)));
             foreach (var (id, mi) in itensDoPrimario) lista.Add((id, Dicas.De(mi)));
             foreach (var e in Barra.PrimaryCommands.OfType<FrameworkElement>())
             {
@@ -266,10 +270,22 @@ public sealed partial class FaixaDeOpcoes : UserControl
         foreach (var (id, mi) in itensDoPrimario)
             if (itensMenu.TryGetValue(id, out var atual) && ReferenceEquals(atual, mi)) itensMenu.Remove(id);
         itensDoPrimario.Clear();
-        primario = null;
+        primario = secundario = null;
         VagaPrimario.Content = null;
         if (definicao?.Primario is not { } c) { VagaPrimario.Visibility = Visibility.Collapsed; return; }
         VagaPrimario.Visibility = Visibility.Visible;
+        primario = BotaoVerde(c);
+        // Correção 2026-11-16: um segundo comando verde ao lado do primário (Abrir, em Relatórios).
+        if (definicao.Secundario is { } s2)
+        {
+            secundario = BotaoVerde(s2);
+            VagaPrimario.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { primario, secundario } };
+        }
+        else VagaPrimario.Content = primario;
+    }
+
+    Button BotaoVerde(ComandoFaixa c)
+    {
         var rotulo = rotulos.TryGetValue(c.Id, out var r) ? r : c.Rotulo;
         var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         conteudo.Children.Add(new FontIcon { Glyph = c.Glifo, FontSize = 16 });
@@ -304,8 +320,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         b.IsEnabled = Habilitado(c.Id);
         AutomationProperties.SetName(b, c.Descricao ?? rotulo);
         Dicas.Aplicar(b, TextoDaDica(c.Id));
-        VagaPrimario.Content = b;
-        primario = b;
+        return b;
     }
 
     /// <summary>O atalho do comando no módulo da faixa (o mapa do leitor na Legislação, auditoria M1).</summary>

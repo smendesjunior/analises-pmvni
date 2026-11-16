@@ -262,6 +262,7 @@ public sealed partial class MainWindow
     {
         processoNR = p;
         NR.TextoPastaProcesso.Text = p?.Pasta ?? "";
+        NR.TextoPastaProcesso.Visibility = string.IsNullOrEmpty(NR.TextoPastaProcesso.Text) ? Visibility.Collapsed : Visibility.Visible;
         var mostrado = (NR.CaixaProcesso.SelectedItem as ComboBoxItem)?.Tag as Processo;
         if (p is not null && mostrado?.Pasta != p.Pasta) PreencherProcessosNR(p);
         if (p is not null)
@@ -494,6 +495,12 @@ public sealed partial class MainWindow
             if (Dicas.De(botao) != dica) Dicas.Aplicar(botao, dica);
             texto.Text = motivo ?? "";
             texto.Visibility = motivo is null ? Visibility.Collapsed : Visibility.Visible;
+            // 2026-11-16: a versão instalada do plugin que vai fazer a análise, sempre à vista (também gravada no execucao.json).
+            var versao = Pmvni.Agentes.OrquestradorAnalise.VersaoDoPlugin(p, pecasAgentes);
+            var rotulo = (p == Provedor.ChatGpt ? "Codex · plugin " : "Claude Code · plugin ") + Pmvni.Agentes.OrquestradorAnalise.PluginUsado(p)
+                + " " + (versao is not null ? "v" + versao : ReferenceEquals(pecasAgentes, PecasNaoLidas) ? "(verificando versão…)" : "(versão não encontrada)");
+            var vaga = p == Provedor.ChatGpt ? NR.TextoPluginChatGpt : NR.TextoPluginClaude;
+            if (vaga.Text != rotulo) vaga.Text = rotulo;
         }
         NR.AnelPartida.IsActive = partindoNR;
         AtualizarComandosNovoRelatorio();

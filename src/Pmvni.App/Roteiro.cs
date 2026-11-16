@@ -1509,8 +1509,10 @@ internal static class Roteiro
         // reservado à Legislação (Tarefa 18). Aqui: 31 processos, 32 despachos, 33 pasta nos Ajustes, 34 faixa e pesquisa por módulo, 35 pastas intactas.
         // Tudo sobre a CÓPIA da árvore fictícia (<pasta>\processos, feita no início); nenhuma abertura externa acontece (só é registrada).
         var processo0001 = Path.Combine(copiaProcessos, "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)");
-        var pmvrel1 = Path.Combine(processo0001, "Relatorio_0001_2099.pmvrel");
-        var pmvrel2 = Path.Combine(processo0001, "Relatorio_0001_2099_2.pmvrel");
+        // Correção 2026-11-16: a importação grava na pasta DESPACHO NN - AAAA-MM-DD sugerida pela regra do kit (a mesma conta aqui).
+        var etapaImportacao = Pmvni.Revisao.Etapas.Sugerida(processo0001, j.Hoje()).Pasta;
+        var pmvrel1 = Path.Combine(etapaImportacao, "Relatorio_0001_2099.pmvrel");
+        var pmvrel2 = Path.Combine(etapaImportacao, "Relatorio_0001_2099_2.pmvrel");
         var nomesDosProcessos = new[]
         {
             "0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "pasta fora do padrao", "0007 - 2098 - CICLANO DE EXEMPLO (FICTICIO)",
@@ -1580,11 +1582,11 @@ internal static class Roteiro
             var detalhe = Detalhe();
             p["detalhe_do_0001"] = new JsonArray(detalhe.Select(t => (JsonNode)t).ToArray());
             var detalheOk = escolheu && detalhe.Take(3).SequenceEqual(["Relatórios (1)", "dados_0001.json", "Despachos (2)"])
-                && !detalhe.Any(t => t.StartsWith("PROJETO", StringComparison.Ordinal))
+                && detalhe.Contains("PROJETO (2)")
                 && j.DetalheMostrado.Count(l => l.Tipo == TipoLinhaDetalhe.ArquivoDeDespacho) == 3;
-            await j.ExecutarComandoAsync(ComandosApp.ProcessosMostrarPastas);
+            // PROJETO e DOCUMENTOS aparecem sempre (2026-11-16: o botão "PROJETO e DOCS" saiu).
             var comPastas = Detalhe();
-            var pastasOk = comPastas.Contains("PROJETO (2)") && comPastas.Contains("DOCUMENTOS (1)") && faixa.Ligado(ComandosApp.ProcessosMostrarPastas);
+            var pastasOk = comPastas.Contains("PROJETO (2)") && comPastas.Contains("DOCUMENTOS (1)");
 
             // Abrir arquivo: um PDF do PROJETO é só registrado (modo roteiro); um script (.cmd) é recusado com a mensagem exata e nada é registrado.
             AberturaExterna.Registradas.Clear();
@@ -1599,10 +1601,8 @@ internal static class Roteiro
             // Abrir pasta no Explorador: só registra (modo roteiro).
             await j.ExecutarComandoAsync(ComandosApp.ProcessosAbrirPasta);
             var pastaRegistrada = AberturaExterna.Registradas.Count == 2 && AberturaExterna.Registradas[1] == "explorador: " + processo0001;
-            await j.ExecutarComandoAsync(ComandosApp.ProcessosMostrarPastas);
-            var semPastas = !Detalhe().Any(t => t.StartsWith("PROJETO", StringComparison.Ordinal)) && !faixa.Ligado(ComandosApp.ProcessosMostrarPastas);
             p["registradas"] = new JsonArray(AberturaExterna.Registradas.Select(t => (JsonNode)t).ToArray());
-            var abrirOk = escolheuPdf && pdfRegistrado && escolheuScript && scriptRecusado && pastaRegistrada && semPastas;
+            var abrirOk = escolheuPdf && pdfRegistrado && escolheuScript && scriptRecusado && pastaRegistrada;
 
             // Importar análise da IA do 0001: cria Relatorio_0001_2099.pmvrel na pasta do processo e abre no módulo Relatórios com 3 itens.
             var escolheuAnalise = j.EscolherEntradaNaLista(l => l.Tipo == TipoLinhaDetalhe.Analise);
@@ -1622,7 +1622,7 @@ internal static class Roteiro
             var segunda = File.Exists(pmvrel2) && string.Equals(j.Sessao?.Caminho, pmvrel2, StringComparison.OrdinalIgnoreCase) && j.ModuloAtual == Modulo.Relatorios
                 && j.Sessao!.Revisao.Projeto.Incluidos.Count == 3;
             var primeiraIntacta = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(pmvrel1))) == sha1;
-            var criados = Directory.GetFiles(processo0001, "*.pmvrel").Select(f => Path.GetFileName(f)).Order(StringComparer.Ordinal).ToArray();
+            var criados = Pmvrels(processo0001).Select(f => Path.GetFileName(f)).Order(StringComparer.Ordinal).ToArray();
             p["arquivos_criados"] = new JsonArray(criados.Select(n => (JsonNode)n).ToArray());
 
             // Abrir relatório: o .pmvrel listado abre no módulo Relatórios.
@@ -1889,8 +1889,8 @@ internal static class Roteiro
             p["mudaram"] = new JsonArray(mudaram.Select(n => (JsonNode)n).ToArray());
             var esperadosNovos = new[]
             {
-                Path.Combine("2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "Relatorio_0001_2099.pmvrel"),
-                Path.Combine("2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "Relatorio_0001_2099_2.pmvrel"),
+                Path.GetRelativePath(copiaProcessos, pmvrel1),
+                Path.GetRelativePath(copiaProcessos, pmvrel2),
             };
             // Nenhum .lock, .bak ou .tmp ficou ao lado dos pacotes depois de fechar.
             var restos = depois.Keys.Where(k => k.EndsWith(".lock", StringComparison.OrdinalIgnoreCase) || k.EndsWith(".bak", StringComparison.OrdinalIgnoreCase)
@@ -2835,6 +2835,13 @@ internal static class Roteiro
 
         JsonObject ExecucaoJson(ExecucaoEmCurso e) => JsonNode.Parse(File.ReadAllText(Path.Combine(e.Registro.Pasta, "execucao.json")))!.AsObject();
 
+        // Correção 2026-11-16: o relatório importado fica numa pasta DESPACHO NN - AAAA-MM-DD do processo (regra do kit).
+        static bool NaEtapa(string pmvrel, string processo) =>
+            string.Equals(Path.GetFullPath(Path.GetDirectoryName(Path.GetDirectoryName(pmvrel)!)!), Path.GetFullPath(processo), StringComparison.OrdinalIgnoreCase)
+            && Path.GetFileName(Path.GetDirectoryName(pmvrel)!).StartsWith("DESPACHO ", StringComparison.Ordinal);
+        static string[] Pmvrels(string processo) =>
+            Directory.GetFiles(processo, "*.pmvrel").Concat(Directory.GetDirectories(processo, "DESPACHO *").SelectMany(d => Directory.GetFiles(d, "*.pmvrel"))).ToArray();
+
         string[] Chamadas(string pastaProcesso, string acao)
         {
             var arquivo = Path.Combine(pastaProcesso, ".pmvni-ai", "agente-falso", "chamadas.txt");
@@ -2848,7 +2855,8 @@ internal static class Roteiro
             await j.ExecutarComandoAsync(ComandosApp.RelatoriosNovo);   // pela faixa de Relatórios
             await j.AguardarNovoRelatorioAsync();
             var abriu = j.ModuloAtual == Modulo.Relatorios && j.PaginaNovoRelatorioVisivel && !j.FolhasVisiveis
-                && j.FaixaAtual.Definicao!.Abas[0].Comandos[0].Id == ComandosApp.RelatoriosNovo;
+                // 2026-11-16: Novo relatório é o botão verde (primário), com Abrir verde ao lado; não se repete na aba Arquivo.
+                && j.FaixaAtual.Definicao!.Primario?.Id == ComandosApp.RelatoriosNovo && j.FaixaAtual.Definicao.Secundario?.Id == ComandosApp.ArquivoAbrir;
             p["pagina_aberta_pela_faixa"] = abriu;
 
             // Criar processo… (9998/2099 "Fulána de Tál") e, de novo, o mesmo número: nenhuma pasta nova e o aviso exato.
@@ -2977,7 +2985,7 @@ internal static class Roteiro
 
             // O relatório importado e aberto em Relatórios, com a InfoBar exata.
             var s = j.Sessao;
-            var importado = s is not null && Path.GetDirectoryName(s.Caminho) == processo && Path.GetFileName(s.Caminho).StartsWith("Relatorio_0001_2099", StringComparison.Ordinal)
+            var importado = s is not null && NaEtapa(s.Caminho, processo) && Path.GetFileName(s.Caminho).StartsWith("Relatorio_0001_2099", StringComparison.Ordinal)
                 && j.ModuloAtual == Modulo.Relatorios && j.FolhasVisiveis && s.Revisao.Projeto.Itens.Count == 3
                 && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.ChatGpt, s.Caminho, fim.Pdf) && j.InfoMensagem.IsOpen;
             p["pmvrel"] = s is null ? null : Path.GetFileName(s.Caminho);
@@ -2995,7 +3003,7 @@ internal static class Roteiro
             var pronto = j.RelatorioPronto;
             var aviso2 = j.InfoMensagemAtual;
             var naoInterrompeu = abertoAntes is not null && j.Sessao?.Caminho == abertoAntes && pronto is not null && pronto != abertoAntes && File.Exists(pronto)
-                && Path.GetDirectoryName(pronto) == processo && aviso2.IsOpen && aviso2.Title == FluxoNovoRelatorio.RelatorioProntoTitulo
+                && NaEtapa(pronto, processo) && aviso2.IsOpen && aviso2.Title == FluxoNovoRelatorio.RelatorioProntoTitulo
                 && aviso2.Message == FluxoNovoRelatorio.TextoRelatorioPronto(Provedor.ChatGpt, pronto, fim2.Pdf) && aviso2.ActionButton is Microsoft.UI.Xaml.Controls.Button { Content: "Abrir relatório" }
                 && j.RecentesNosAjustes.FirstOrDefault() == Path.GetFullPath(pronto);
             if (pronto is not null) await j.AbrirRelatorioProntoAsync(pronto);
@@ -3095,7 +3103,7 @@ internal static class Roteiro
             var reg = e.Registro.Pasta;
             var registro = File.Exists(Path.Combine(reg, "situacoes.jsonl")) && File.ReadAllText(Path.Combine(reg, "pedido.md"), System.Text.Encoding.UTF8) == "Pedido guardado só no registro.";
             var s = j.Sessao;
-            var importado = fim.Situacao == "concluida" && s is not null && Path.GetDirectoryName(s.Caminho) == processo
+            var importado = fim.Situacao == "concluida" && s is not null && NaEtapa(s.Caminho, processo)
                 && fim.Documento == Path.Combine(processo, ".pmvni-ai", "analise-pro", "relatorio_dados.json") && j.FolhasVisiveis
                 && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Claude, s.Caminho, fim.Pdf);
             p["infobar"] = j.InfoMensagem.Message;
@@ -3124,7 +3132,7 @@ internal static class Roteiro
             var outro = P0012();     // a árvore fictícia não tem 0002: o segundo processo é o 0012
             await j.NovoRelatorioAsync();
             await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
-            var pmvrelAntes = Directory.GetFiles(processo, "*.pmvrel").Length;
+            var pmvrelAntes = Pmvrels(processo).Length;
             j.Orquestrador = Orq("lento");
             var e = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException("não partiu: " + j.InfoMensagemAtual.Message);
             await EsperarAteAsync(() => Task.FromResult(e.Linhas.Count > 0), 30000);
@@ -3172,7 +3180,7 @@ internal static class Roteiro
             var mortos = await EsperarAteAsync(() => Task.FromResult(pids.All(pid => !Vivo(pid))), 5000);
             p["cancelar_ms"] = relogio.ElapsedMilliseconds;
             var cancelado = cancelou && mortos && fim.Situacao == "cancelada" && ExecucaoJson(e)["situacao"]?.GetValue<string>() == "cancelada"
-                && Directory.GetFiles(processo, "*.pmvrel").Length == pmvrelAntes && !File.Exists(Path.Combine(processo, ".pmvni-ai", "editor", "execucao.lock"));
+                && Pmvrels(processo).Length == pmvrelAntes && !File.Exists(Path.Combine(processo, ".pmvni-ai", "editor", "execucao.lock"));
             p["chatgpt_cancelado"] = cancelado;
 
             // Claude lento no 0012: fechar só informa, a análise fica nos ajustes; reaberto, volta a acompanhar; cancelar encerra o pid do kit.
@@ -3261,7 +3269,7 @@ internal static class Roteiro
             var segunda = await j.ImportarPendenteAsync(j.PendentesParaImportar[0]);
             perguntas.FecharSemOTexto = false;
             var importouRetomada = segunda && j.PendentesParaImportar.Count == 0 && j.ExecucoesClaudePendentes.Count == 0 && j.Sessao is { } sr
-                && Path.GetDirectoryName(sr.Caminho) == outro && JsonNode.Parse(File.ReadAllText(Path.Combine(eD.Registro.Pasta, "execucao.json")))?["pmvrel"]?.GetValue<string>() == sr.Caminho
+                && NaEtapa(sr.Caminho, outro) && JsonNode.Parse(File.ReadAllText(Path.Combine(eD.Registro.Pasta, "execucao.json")))?["pmvrel"]?.GetValue<string>() == sr.Caminho
                 && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Claude, sr.Caminho, Path.Combine(outro, ".pmvni-ai", "analise-pro", "relatorio.pdf"));
             p["retomada_concluida"] = new JsonObject
             {
@@ -3277,7 +3285,7 @@ internal static class Roteiro
             var processo = P0001();
             await j.NovoRelatorioAsync();
             await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
-            var pmvrelAntes = Directory.GetFiles(processo, "*.pmvrel").Length;
+            var pmvrelAntes = Pmvrels(processo).Length;
             var resultados = new JsonObject();
             var tudo = true;
             foreach (var (cenario, conferir) in new (string, Func<ExecucaoEmCurso, FimAnalise, bool>)[]
@@ -3290,7 +3298,7 @@ internal static class Roteiro
             {
                 var (e, fim) = await AnalisarAteOFimAsync(Provedor.ChatGpt, cenario);
                 var info = j.NovoRelatorio.AvisoResultado;
-                var ok = conferir(e, fim) && info.IsOpen && info.Message == fim.Mensagem && Directory.GetFiles(processo, "*.pmvrel").Length == pmvrelAntes;
+                var ok = conferir(e, fim) && info.IsOpen && info.Message == fim.Mensagem && Pmvrels(processo).Length == pmvrelAntes;
                 resultados[cenario] = (ok ? "" : "FALHOU · ") + fim.Situacao + ": " + fim.Mensagem;
                 tudo &= ok;
             }
@@ -3903,7 +3911,7 @@ internal static class Roteiro
             var sessao = j.Sessao ?? throw new InvalidOperationException("o relatório importado não abriu: " + j.InfoMensagemAtual.Message);
             var pmvrelFluxo = sessao.Caminho;
             p["pmvrel"] = Path.GetFileName(pmvrelFluxo);
-            Conf("importado_e_aberto", fimExec.Situacao == "concluida" && Mesmo(Path.GetDirectoryName(pmvrelFluxo), proc)
+            Conf("importado_e_aberto", fimExec.Situacao == "concluida" && NaEtapa(pmvrelFluxo, proc)
                 && Path.GetFileName(pmvrelFluxo).StartsWith("Relatorio_0001_2099", StringComparison.Ordinal) && j.FolhasVisiveis && sessao.Revisao.Projeto.Itens.Count == 3);
             var idsFluxo = sessao.Revisao.Projeto.Incluidos.Select(i => i.Id).ToList();
 
@@ -4249,7 +4257,6 @@ internal static class Roteiro
             Escolher(pag.CaixaEscopo, "todas");
             pag.AlternarJanela.IsOn = true;
             pag.AlternarPaineis.IsOn = true;
-            pag.AlternarPastasProcesso.IsOn = true;
             pag.AlternarAbrirPdf.IsOn = true;
             pag.AlternarConfirmarCancelar.IsOn = false;
             pag.AlternarConfirmarFechar.IsOn = false;
@@ -4264,7 +4271,7 @@ internal static class Roteiro
             {
                 ["abrir_em"] = "Processos", ["recentes_max"] = "20", ["faixa_rotulos"] = "sempre", ["zoom_inicial"] = "pagina", ["recuperacao_dias"] = "90",
                 ["processos_ordem"] = "requerente", ["despachos_agrupar"] = "processo", ["despachos_ordem"] = "antigos", ["legislacao_escopo"] = "todas",
-                ["lembrar_janela"] = "true", ["lembrar_paineis"] = "true", ["processos_pastas"] = "true", ["despacho_abrir_pdf"] = "true",
+                ["lembrar_janela"] = "true", ["lembrar_paineis"] = "true", ["despacho_abrir_pdf"] = "true",
                 ["confirmar_cancelar"] = "false", ["confirmar_fechar"] = "false", ["pedido_padrao"] = "Pedido padrão do roteiro",
             };
             var gravadas = new JsonObject();

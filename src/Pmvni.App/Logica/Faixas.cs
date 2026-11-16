@@ -20,7 +20,7 @@ public sealed record AbaFaixa(string Nome, IReadOnlyList<ComandoFaixa> Comandos)
 
 /// <summary>A faixa inteira de um módulo: abas, a que abre por padrão (índice em <see cref="Abas"/>) e o botão primário tonal, à
 /// esquerda dos comandos e visível em todas as abas do módulo (como "Novo email"); null = sem primário (Ajustes).</summary>
-public sealed record DefinicaoFaixa(Modulo Modulo, IReadOnlyList<AbaFaixa> Abas, int AbaPadrao, ComandoFaixa? Primario = null);
+public sealed record DefinicaoFaixa(Modulo Modulo, IReadOnlyList<AbaFaixa> Abas, int AbaPadrao, ComandoFaixa? Primario = null, ComandoFaixa? Secundario = null);
 
 /// <summary>Faixa de opções por dados (desenho §9.1): uma definição por módulo; a faixa troca inteira com o módulo. Arquivo e Ajuda
 /// existem em todas; a aba padrão é a segunda (Relatórios: Página Inicial; Ajustes: a primeira, porque a sua segunda é Ajuda). Só aparece o que funciona:
@@ -78,9 +78,7 @@ public static class Faixas
     [
         new("Arquivo",
         [
-            NovoRelatorio,
             new(ComandosApp.ArquivoImportar, "Importar dados.json", Glifos.Importar),
-            new(ComandosApp.ArquivoAbrir, "Abrir", Glifos.Abrir),
             RecentesMenu,
             new(ComandosApp.ArquivoSalvar, "Salvar", Glifos.Salvar),
             new(ComandosApp.ArquivoSalvarComo, "Salvar como", Glifos.SalvarComo),
@@ -125,7 +123,7 @@ public static class Faixas
             ]),
         ]),
         Ajuda,
-    ], AbaPadrao: 1, Primario: NovoRelatorio);
+    ], AbaPadrao: 1, Primario: NovoRelatorio, Secundario: new(ComandosApp.ArquivoAbrir, "Abrir", Glifos.Abrir));
 
     static readonly DefinicaoFaixa Despachos = new(Modulo.Despachos,
     [
@@ -184,7 +182,6 @@ public static class Faixas
                 new(ComandosApp.ProcessosOrdenarData, "Data", ""),
                 new(ComandosApp.ProcessosOrdenarRequerente, "Requerente", ""),
             ]),
-            new(ComandosApp.ProcessosMostrarPastas, "PROJETO e DOCS", Glifos.Pasta, TipoComando.Alternar, Descricao: "Mostrar as pastas PROJETO e DOCUMENTOS"),
         ]),
         Ajuda,
     ], AbaPadrao: 1, Primario: NovoRelatorio);
@@ -250,7 +247,7 @@ public static class Faixas
 
     /// <summary>Todos os comandos de uma faixa (o primário e os itens dos menus inclusive), o primário primeiro e depois na ordem das abas.</summary>
     public static IEnumerable<ComandoFaixa> Comandos(DefinicaoFaixa f) =>
-        (f.Primario is { } p ? f.Abas.SelectMany(a => a.Comandos).Prepend(p) : f.Abas.SelectMany(a => a.Comandos))
+        new[] { f.Primario, f.Secundario }.OfType<ComandoFaixa>().Concat(f.Abas.SelectMany(a => a.Comandos))
             .SelectMany(c => c.Itens is null ? [c] : c.Itens.Prepend(c));
 
     /// <summary>O índice da aba lembrada (pelo nome), ou a padrão se ela não existe mais.</summary>

@@ -30,7 +30,7 @@ public sealed partial class EstadoVazio : UserControl
     public int QuantosRecentes => ListaRecentes.Children.Count;
 
     /// <summary>Monta a tela: o ícone do módulo, os textos e os dois botões (rótulo, glifo e id do comando; null = sem o botão).</summary>
-    public void Definir(Modulo modulo, string titulo, string frase, (string Rotulo, string Glifo, string Id)? primario, (string Rotulo, string Id)? secundario)
+    public void Definir(Modulo modulo, string titulo, string frase, (string Rotulo, string Glifo, string Id)? primario, (string Rotulo, string Id)? secundario, string? glifoSecundario = null)
     {
         VagaIcone.Child = Trilho.NovoIcone(modulo, 48);
         Titulo.Text = titulo;
@@ -50,7 +50,16 @@ public sealed partial class EstadoVazio : UserControl
         idSecundario = secundario?.Id;
         if (secundario is { } s)
         {
-            BotaoSecundario.Content = s.Rotulo;
+            // Com glifo, o secundário é verde como o primário (correção 2026-11-16: "+ Despacho de aprovação").
+            if (glifoSecundario is { } g)
+            {
+                var c2 = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                c2.Children.Add(new FontIcon { Glyph = g, FontSize = 16 });
+                c2.Children.Add(new TextBlock { Text = s.Rotulo, VerticalAlignment = VerticalAlignment.Center });
+                BotaoSecundario.Content = c2;
+                BotaoSecundario.Style = (Style)BotaoPrimario.Style;
+            }
+            else { BotaoSecundario.Content = s.Rotulo; BotaoSecundario.ClearValue(StyleProperty); }
             AutomationProperties.SetName(BotaoSecundario, s.Rotulo);
             Dicas.AplicarComando(BotaoSecundario, s.Id, s.Rotulo, modulo);
             BotaoSecundario.Visibility = Visibility.Visible;

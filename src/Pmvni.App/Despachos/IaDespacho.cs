@@ -40,46 +40,156 @@ internal static class IaDespacho
 
     internal sealed record Resposta(string? Protocolo, string? Requerente, string? Assunto, IReadOnlyList<(string Grupo, string Texto, string Fundamento)> Exigencias);
 
-    /// <summary>Lê o primeiro objeto JSON da resposta (a IA às vezes cerca com ```json).</summary>
+    /// <summary>Lê a resposta do despacho. Sem a lista "exigencias" (ou com outro formato) é resposta inválida: null, e nada muda —
+    /// nunca uma lista vazia que apagaria as exigências (auditoria 2026-11-16).</summary>
     internal static Resposta? Ler(string saida)
     {
-        var ini = saida.IndexOf('{');
-        var fim = saida.LastIndexOf('}');
-        if (ini < 0 || fim <= ini) return null;
-        try
-        {
-            if (JsonNode.Parse(saida[ini..(fim + 1)]) is not JsonObject o) return null;
-            static string? T(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
-            var lista = (o["exigencias"] as JsonArray ?? [])
-                .OfType<JsonObject>()
-                .Select(e => (T(e["grupo"]) ?? "", T(e["texto"]) ?? "", T(e["fundamento"]) ?? ""))
-                .Where(e => e.Item2.Trim().Length > 0)
-                .ToList();
-            return new Resposta(T(o["protocolo"]), T(o["requerente"]), T(o["assunto"]), lista);
-        }
-        catch (JsonException) { return null; }
+        if (RespostaJson.Objeto(saida, o => o["exigencias"] is JsonArray) is not { } o) return null;
+        static string? T(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+        var lista = ((JsonArray)o["exigencias"]!)
+            .OfType<JsonObject>()
+            .Select(e => (T(e["grupo"]) ?? "", T(e["texto"]) ?? "", T(e["fundamento"]) ?? ""))
+            .Where(e => e.Item2.Trim().Length > 0)
+            .ToList();
+        return new Resposta(T(o["protocolo"]), T(o["requerente"]), T(o["assunto"]), lista);
     }
 
-    /// <summary>Roda o programa da IA com o pedido no stdin e devolve a saída. Sem programa: <see cref="InvalidOperationException"/>.</summary>
-    internal static async Task<string> PerguntarAsync(string? claude, string? codex, string prompt, CancellationToken ct)
+    /// <summary>Tempo máximo de uma pergunta à IA; passado isso, o programa é encerrado e o usuário recebe a mensagem.</summary>
+    internal static readonly TimeSpan Limite = TimeSpan.FromMinutes(10);
+
+    /// <summary>Ferramentas que o Claude nunca usa nestas perguntas (só lê): valem mesmo que a configuração do usuário as permita.</summary>
+    const string FerramentasProibidas = "Bash Edit Write MultiEdit NotebookEdit WebFetch WebSearch Task";
+
+    /// <summary>Roda o programa da IA com o pedido no stdin e devolve a resposta. Sem programa: <see cref="InvalidOperationException"/>.
+    /// Auditoria 2026-11-16: tempo-limite (<see cref="Limite"/>), o processo entra no job do editor (morre se o editor fechar) e é encerrado
+    /// em qualquer saída antecipada; o Claude roda sem ferramentas de escrita nem de rede; o Codex em sandbox só leitura, com a resposta
+    /// final lida de --output-last-message (sem o cabeçalho que ele imprime).</summary>
+    internal static async Task<string> PerguntarAsync(string? claude, string? codex, string prompt, CancellationToken ct,
+        string? pasta = null, IReadOnlyList<string>? pastasExtras = null)
     {
+        var dir = pasta is not null && Directory.Exists(pasta) ? pasta : Path.GetTempPath();
+        var extras = (pastasExtras ?? []).Where(Directory.Exists).ToList();
+        if (extras.Count > 0)
+            prompt += "\n\nPastas que você pode ler (só leitura), além da pasta de trabalho:\n" + string.Join("\n", extras.Select(e => "- " + e));
+        string? ultima = null;
         ProcessStartInfo si;
-        if (!string.IsNullOrEmpty(claude)) si = new ProcessStartInfo(claude, "-p --output-format text");
-        else if (!string.IsNullOrEmpty(codex)) si = new ProcessStartInfo(codex, "exec --skip-git-repo-check -");
+        if (!string.IsNullOrEmpty(claude))
+        {
+            si = new ProcessStartInfo(claude);
+            foreach (var a in new[] { "-p", "--output-format", "text", "--permission-mode", "default", "--disallowedTools", FerramentasProibidas })
+                si.ArgumentList.Add(a);
+            if (pasta is not null)
+            {
+                si.ArgumentList.Add("--allowedTools");
+                si.ArgumentList.Add("Read Grep Glob");
+                foreach (var d in extras) { si.ArgumentList.Add("--add-dir"); si.ArgumentList.Add(d); }
+            }
+        }
+        else if (!string.IsNullOrEmpty(codex))
+        {
+            ultima = Path.Combine(Path.GetTempPath(), "pmvni-ia-" + Guid.NewGuid().ToString("N") + ".txt");
+            si = new ProcessStartInfo(codex);
+            foreach (var a in new[] { "exec", "--skip-git-repo-check", "--sandbox", "read-only", "--cd", dir, "--output-last-message", ultima, "-" })
+                si.ArgumentList.Add(a);
+        }
         else throw new InvalidOperationException("Nenhum programa de IA encontrado. Instale e entre no Claude Code ou no Codex em Ajustes › Inteligência artificial.");
         si.RedirectStandardInput = si.RedirectStandardOutput = si.RedirectStandardError = true;
         si.UseShellExecute = false;
         si.CreateNoWindow = true;
         si.StandardInputEncoding = si.StandardOutputEncoding = si.StandardErrorEncoding = new UTF8Encoding(false);
-        si.WorkingDirectory = Path.GetTempPath();
+        si.WorkingDirectory = dir;
+
+        using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        limite.CancelAfter(Limite);
         using var p = Process.Start(si) ?? throw new InvalidOperationException("O programa da IA não abriu.");
-        await p.StandardInput.WriteAsync(prompt.AsMemory(), ct);
-        p.StandardInput.Close();
-        var saida = p.StandardOutput.ReadToEndAsync(ct);
-        var erro = p.StandardError.ReadToEndAsync(ct);
-        try { await p.WaitForExitAsync(ct); }
-        catch (OperationCanceledException) { try { p.Kill(true); } catch (InvalidOperationException) { } throw; }
-        if (p.ExitCode != 0) throw new InvalidOperationException("A IA respondeu com erro: " + (await erro).Trim());
-        return await saida;
+        try { Pmvni.Agentes.TarefaDoEditor.Padrao.Atribuir(p); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+        var saida = p.StandardOutput.ReadToEndAsync(limite.Token);
+        var erro = p.StandardError.ReadToEndAsync(limite.Token);
+        try
+        {
+            // O programa pode fechar a entrada antes de ler tudo (sem login, executável quebrado): segue para ler o motivo.
+            try
+            {
+                await p.StandardInput.WriteAsync(prompt.AsMemory(), limite.Token);
+                p.StandardInput.Close();
+            }
+            catch (IOException) { }
+            try { await p.WaitForExitAsync(limite.Token); }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new InvalidOperationException($"A IA não respondeu em {Limite.TotalMinutes:0} minutos e foi interrompida. Tente de novo; se repetir, confira a conta em Ajustes › Inteligência artificial.");
+            }
+            string Ler(Task<string> t) => t.IsCompletedSuccessfully ? t.Result : "";
+            await Task.WhenAny(Task.WhenAll(saida, erro), Task.Delay(TimeSpan.FromSeconds(3), CancellationToken.None));
+            if (p.ExitCode != 0)
+            {
+                // O Claude Code em -p costuma escrever o motivo na saída comum, não na de erro: mostra o que vier, senão o código.
+                var motivo = Ler(erro).Trim();
+                if (motivo.Length == 0) motivo = Ler(saida).Trim();
+                if (motivo.Length > 600) motivo = "…" + motivo[^600..];
+                if (motivo.Length == 0) motivo = $"o programa terminou com o código {p.ExitCode} sem explicar o motivo ({Path.GetFileName(si.FileName)}). Confira se você entrou na conta em Ajustes › Inteligência artificial.";
+                throw new InvalidOperationException("A IA respondeu com erro: " + motivo);
+            }
+            if (ultima is not null && File.Exists(ultima))
+            {
+                var final = await File.ReadAllTextAsync(ultima, Encoding.UTF8, CancellationToken.None);
+                if (final.Trim().Length > 0) return final;
+            }
+            return Ler(saida);
+        }
+        finally
+        {
+            try { if (!p.HasExited) p.Kill(true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            if (ultima is not null) try { File.Delete(ultima); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+}
+
+/// <summary>Acha o objeto JSON da resposta da IA (auditoria 2026-11-16): primeiro os blocos cercados por ```json, depois cada objeto
+/// completo do texto; fica com o ÚLTIMO que o critério aceita (a IA às vezes mostra um rascunho antes do final). Chave repetida, JSON
+/// quebrado ou texto com chaves soltas não derrubam nada: o candidato é só ignorado.</summary>
+internal static class RespostaJson
+{
+    internal static JsonObject? Objeto(string saida, Func<JsonObject, bool> aceita)
+    {
+        JsonObject? achado = null;
+        foreach (var candidato in Candidatos(saida))
+        {
+            try
+            {
+                if (JsonNode.Parse(candidato) is JsonObject o && aceita(o)) achado = o;
+            }
+            catch (Exception e) when (e is JsonException or ArgumentException or InvalidOperationException or FormatException) { }
+        }
+        return achado;
+    }
+
+    static IEnumerable<string> Candidatos(string s)
+    {
+        // Cada objeto de nível mais alto, achado pelo equilíbrio das chaves fora de strings.
+        for (var i = 0; i < s.Length; i++)
+        {
+            if (s[i] != '{') continue;
+            var nivel = 0;
+            var emTexto = false;
+            for (var j = i; j < s.Length; j++)
+            {
+                var c = s[j];
+                if (emTexto)
+                {
+                    if (c == '\\') j++;
+                    else if (c == '"') emTexto = false;
+                    continue;
+                }
+                if (c == '"') emTexto = true;
+                else if (c == '{') nivel++;
+                else if (c == '}' && --nivel == 0)
+                {
+                    yield return s[i..(j + 1)];
+                    i = j;
+                    break;
+                }
+            }
+        }
     }
 }

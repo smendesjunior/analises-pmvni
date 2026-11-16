@@ -94,7 +94,6 @@ public static class DicasComandos
         [ComandosApp.ProcessosOrdenarNumero] = "Ordena os processos pelo número.",
         [ComandosApp.ProcessosOrdenarData] = "Ordena os processos pela data, os mais novos primeiro.",
         [ComandosApp.ProcessosOrdenarRequerente] = "Ordena os processos pelo nome do requerente, em ordem alfabética.",
-        [ComandosApp.ProcessosMostrarPastas] = "Mostra ou esconde as pastas PROJETO e DOCUMENTOS de cada processo.",
 
         // Legislação
         [ComandosApp.LegislacaoAnexar] = "Acrescenta leis em PDF à biblioteca de legislação do app.",

@@ -65,6 +65,8 @@
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
+        <!-- Arrastar a borda muda a largura do painel (correção 2026-11-16). -->
+        <local:AlcaDeLargura Borda="Right"/>
         <SelectorBar x:Name="AbasPainel" x:FieldModifier="internal" Grid.Row="0" Margin="8,0,8,2">
           <SelectorBarItem x:Name="AbaSecoes" x:FieldModifier="internal" Text="Seções" IsSelected="True"/>
           <SelectorBarItem x:Name="AbaExcluidos" x:FieldModifier="internal" Text="Excluídos (0)"/>
@@ -166,6 +168,8 @@
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
+        <!-- Arrastar a borda muda a largura do painel (correção 2026-11-16). -->
+        <local:AlcaDeLargura Borda="Left"/>
         <Grid Grid.Row="0" Padding="16,10,8,6" ColumnSpacing="8">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -198,6 +202,17 @@
               <TextBlock x:Name="PropJustificativaAviso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
                          Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed"
                          Text="A situação mudou: a justificativa é exigida para exportar."/>
+              <!-- Correção 2026-11-16: a IA revê a própria conclusão e reescreve o item conforme a situação e a justificativa do usuário. -->
+              <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                <Button x:Name="PropAjustarTexto" x:FieldModifier="internal" Visibility="Collapsed"
+                        local:Dicas.Descricao="A IA relê o projeto e a legislação e reescreve o item conforme a situação escolhida e a justificativa. Dá para desfazer.">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE945;" FontSize="14"/>
+                    <TextBlock x:Name="PropAjustarRotulo" x:FieldModifier="internal" Text="Ajustar texto com a IA"/>
+                  </StackPanel>
+                </Button>
+                <ProgressRing x:Name="PropAjustarAnel" x:FieldModifier="internal" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
+              </StackPanel>
             </StackPanel>
             <StackPanel x:Name="PropCampos" x:FieldModifier="internal" Spacing="10"/>
             <Button x:Name="PropRestaurarOriginal" x:FieldModifier="internal" HorizontalAlignment="Left"

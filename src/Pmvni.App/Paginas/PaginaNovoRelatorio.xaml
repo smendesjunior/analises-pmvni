@@ -33,9 +33,9 @@
          (no máximo 1080) posta pelo código a cada mudança de tamanho: nada sai da tela, mesmo que um texto peça mais largura. -->
     <ScrollViewer x:Name="PainelFormulario" x:FieldModifier="internal" Grid.Row="1" VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-      <Grid x:Name="ColunaFormulario" x:FieldModifier="internal" Margin="0,24,0,24" HorizontalAlignment="Center">
+      <Grid x:Name="ColunaFormulario" x:FieldModifier="internal" Margin="0,12,0,16" HorizontalAlignment="Center">
       <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="0"/></Grid.ColumnDefinitions>
-      <StackPanel Spacing="16">
+      <StackPanel Spacing="12">
         <Grid ColumnSpacing="12" RowSpacing="8">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -50,7 +50,7 @@
           </StackPanel>
         </Grid>
 
-        <Border Style="{StaticResource PmvniCartaoSecao}"><StackPanel Spacing="16">
+        <Border Style="{StaticResource PmvniCartaoSecao}" Padding="20,14,20,16"><StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="12">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="1" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Processo" Style="{StaticResource PmvniTituloSecao}"/>
@@ -67,18 +67,18 @@
           <Button x:Name="BotaoCriarProcesso" x:FieldModifier="internal" Grid.Column="2" Content="Criar processo…"
                   local:Dicas.Descricao="Cria a pasta de um processo novo na pasta de processos."/>
         </Grid>
-        <TextBlock x:Name="TextoPastaProcesso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+        <TextBlock x:Name="TextoPastaProcesso" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
 
         </StackPanel></Border>
-        <Border Style="{StaticResource PmvniCartaoSecao}"><StackPanel Spacing="16">
+        <Border Style="{StaticResource PmvniCartaoSecao}" Padding="20,14,20,16"><StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="12">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="2" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Anexos" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-        <Border x:Name="AreaAnexos" x:FieldModifier="internal" AllowDrop="True" MinHeight="84" Padding="16" CornerRadius="8"
+        <Border x:Name="AreaAnexos" x:FieldModifier="internal" AllowDrop="True" MinHeight="72" Padding="12" CornerRadius="8"
                 BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
                 Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-          <StackPanel Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <StackPanel Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
             <TextBlock x:Name="TextoArraste" x:FieldModifier="internal" Text="Arraste arquivos para cá" HorizontalAlignment="Center"
                        Style="{StaticResource BodyStrongTextBlockStyle}"/>
             <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar arquivos…" HorizontalAlignment="Center"
@@ -92,22 +92,22 @@
                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
 
         </StackPanel></Border>
-        <Border Style="{StaticResource PmvniCartaoSecao}"><StackPanel Spacing="16">
+        <Border Style="{StaticResource PmvniCartaoSecao}" Padding="20,14,20,16"><StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="12">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="3" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Pedido para a IA" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-        <TextBox x:Name="CaixaPedido" x:FieldModifier="internal" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" MaxHeight="320"
+        <TextBox x:Name="CaixaPedido" x:FieldModifier="internal" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="320"
                  MaxLength="20000" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Pedido para a IA"/>
 
         </StackPanel></Border>
-        <Border Style="{StaticResource PmvniCartaoSecao}"><StackPanel Spacing="16">
+        <Border Style="{StaticResource PmvniCartaoSecao}" Padding="20,14,20,16"><StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="12">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="4" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Analisar" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
         <!-- Os dois agentes com o mesmo peso (tonal, B7): não competem com o primário da faixa. -->
-        <Grid ColumnSpacing="16" Margin="0,6,0,0">
+        <Grid ColumnSpacing="16">
           <Grid.Resources>
             <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
           </Grid.Resources>
@@ -119,7 +119,7 @@
             <Button x:Name="BotaoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="12,8">
               <StackPanel>
                 <TextBlock Text="Analisar com o ChatGPT" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                <TextBlock Text="Codex · plugin analise" FontSize="12" Opacity="0.85"/>
+                <TextBlock x:Name="TextoPluginChatGpt" x:FieldModifier="internal" Text="Codex · plugin analise" FontSize="12" Opacity="0.85"/>
               </StackPanel>
             </Button>
             <TextBlock x:Name="TextoMotivoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
@@ -128,7 +128,7 @@
             <Button x:Name="BotaoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="12,8">
               <StackPanel>
                 <TextBlock Text="Analisar com o Claude" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                <TextBlock Text="Claude Code · plugin análise pro" FontSize="12" Opacity="0.85"/>
+                <TextBlock x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Claude Code · plugin análise pro" FontSize="12" Opacity="0.85"/>
               </StackPanel>
             </Button>
             <TextBlock x:Name="TextoPedidoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>

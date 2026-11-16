@@ -643,11 +643,22 @@ public sealed partial class MainWindow
         try
         {
             var pecas = await LerPecasAsync();
+            var retrato = IaDespacho.Prompt(r, "");
             var saida = await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, IaDespacho.Prompt(r, instrucao), CancellationToken.None);
             if (!ReferenceEquals(novo, s) || !ReferenceEquals(s.Rascunho, r)) return;
+            if (IaDespacho.Prompt(r, "") != retrato)
+            {
+                MostrarMensagem(InfoBarSeverity.Warning, "IA", "O despacho foi editado enquanto a IA respondia; a resposta foi descartada para não apagar a sua edição. Aplique a instrução de novo.");
+                return;
+            }
             if (IaDespacho.Ler(saida) is not { } resp)
             {
                 MostrarMensagem(InfoBarSeverity.Warning, "IA", "A resposta da IA não veio no formato esperado; nada mudou.");
+                return;
+            }
+            if (r.Tipo == TipoDespacho.Correcao && resp.Exigencias.Count == 0 && r.Pendencias.Any(x => x.Incluida))
+            {
+                MostrarMensagem(InfoBarSeverity.Warning, "IA", "A IA devolveu o despacho sem nenhuma exigência; nada mudou. Reescreva a instrução se a ideia era tirar todas.");
                 return;
             }
             if (resp.Protocolo is { Length: > 0 } pr) r.DefinirCabecalho("protocolo", pr);
@@ -657,9 +668,11 @@ public sealed partial class MainWindow
             n.CaixaInstrucao.Text = "";
             PreencherConteudo(s);
         }
-        catch (Exception e) when (e is InvalidOperationException or IOException or System.ComponentModel.Win32Exception)
+        catch (Exception e)
         {
-            MostrarMensagem(InfoBarSeverity.Error, "IA", e.Message);
+            // Auditoria 2026-11-16: nenhum erro da IA (JSON, tempo, rede, processo) derruba o editor; o detalhe vai para o registro.
+            RegistroErros.Gravar("ia", e);
+            MostrarMensagem(InfoBarSeverity.Error, "IA", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + e.Message);
         }
         finally
         {

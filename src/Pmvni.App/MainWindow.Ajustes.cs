@@ -117,7 +117,6 @@ public sealed partial class MainWindow
         p.BotaoAbrirPastaProcessos.Click += (_, _) => AbrirPastaDosAjustes(ajustes.PastaProcessosEfetiva);
         p.BotaoAbrirPastaKit.Click += (_, _) => AbrirPastaDosAjustes(ajustes.PastaKitEfetiva);
         AoEscolher(p.CaixaOrdemProcessos, v => ajustes.ProcessosOrdem = (string)v);
-        AoAlternar(p.AlternarPastasProcesso, sim => ajustes.ProcessosPastas = sim);
         AoEscolher(p.CaixaAgruparDespachos, v => ajustes.DespachosAgrupar = (string)v);
         AoEscolher(p.CaixaOrdemDespachos, v => ajustes.DespachosOrdem = (string)v);
         p.BotaoTestarSoffice.Click += (_, _) => TestarSoffice();
@@ -201,7 +200,6 @@ public sealed partial class MainWindow
             p.AlternarJanela.IsOn = ajustes.LembrarJanela;
             p.AlternarMarcas.IsOn = ajustes.MarcasRevisao;
             p.AlternarPaineis.IsOn = ajustes.LembrarPaineis;
-            p.AlternarPastasProcesso.IsOn = ajustes.ProcessosPastas;
             p.AlternarAbrirPdf.IsOn = ajustes.DespachoAbrirPdf;
             p.AlternarConfirmarCancelar.IsOn = ajustes.ConfirmarCancelar;
             p.AlternarConfirmarFechar.IsOn = ajustes.ConfirmarFechar;

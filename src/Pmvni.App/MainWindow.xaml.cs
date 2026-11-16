@@ -622,7 +622,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             ("Atualizar lista", Glifos.Atualizar, ComandosApp.ProcessosAtualizar), ("Abrir Ajustes", ComandosApp.ModuloAjustes));
         PaginaDeDespachos.Vazio.Definir(Modulo.Despachos, "Criar um despacho",
             "Escolha o tipo: correção ou aprovação. O relatório é opcional; anexado, a IA resume só os itens com pendência. Os despachos já emitidos ficam em Processos.",
-            ("Despacho de correção", Glifos.Adicionar, ComandosApp.DespachosNovoCorrecao), ("Despacho de aprovação", ComandosApp.DespachosNovoAprovacao));
+            ("Despacho de correção", Glifos.Adicionar, ComandosApp.DespachosNovoCorrecao), ("Despacho de aprovação", ComandosApp.DespachosNovoAprovacao), Glifos.Adicionar);
         PaginaDeProcessos.Vazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
         PaginaDeDespachos.Vazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
     }

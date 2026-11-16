@@ -399,7 +399,11 @@ export function registrarEdicao(registrar: Registrar, enviar: Enviar): void {
     if (e.target instanceof Element && e.target.closest(`#${ID_CAMADA}`)) return;
     const { ref, campo } = localizar(e.target);
     aplicarSelecao(ref);
-    evento('selecionado', { ref, campo });
+    // Correção 2026-11-16: clique no desenho da volumetria (o painel cujo título diz VOLUMETRIA) abre o pedido à IA no host.
+    const painel = e.target instanceof Element ? e.target.closest('.panel') : null;
+    const volumetria = painel !== null && e.target instanceof Element && e.target.closest('svg.dg') !== null
+      && (painel.querySelector('.chip')?.textContent ?? '').toUpperCase().includes('VOLUMETRIA');
+    evento('selecionado', volumetria ? { ref, campo, volumetria: true, x: e.clientX, y: e.clientY } : { ref, campo });
   });
 
   document.addEventListener('dblclick', (e) => {

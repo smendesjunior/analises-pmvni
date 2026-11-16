@@ -67,8 +67,10 @@ public static class FluxoNovoDespacho
         if (origem == Modulo.Relatorios)
         {
             if (pacoteAberto is null) return new OrigemSugerida(null, null, null);
-            var pasta = Normalizar(Path.GetDirectoryName(Path.GetFullPath(pacoteAberto)));
-            p = processos.FirstOrDefault(x => string.Equals(Normalizar(x.Pasta), pasta, StringComparison.OrdinalIgnoreCase));
+            // O relatório fica na pasta do processo ou, desde 2026-11-16, numa pasta DESPACHO NN dela: vale o processo que o contém.
+            var arquivo = Normalizar(Path.GetFullPath(pacoteAberto));
+            p = processos.Where(x => arquivo.StartsWith(Normalizar(x.Pasta) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.Pasta.Length).FirstOrDefault();
             if (p is null) return new OrigemSugerida(null, null, null);
             pacote = pacoteAberto;
         }
@@ -78,7 +80,20 @@ public static class FluxoNovoDespacho
             p = selecionado;
             pacote = MaisNovo(relatorios(p));
         }
-        return new OrigemSugerida(p, pacote, Etapas.Sugerida(p.Pasta, hoje));
+        return new OrigemSugerida(p, pacote, EtapaDoRelatorio(p, pacote, hoje));
+    }
+
+    /// <summary>Regra do kit: o despacho da mesma análise reutiliza a pasta dela. Relatório dentro de uma pasta DESPACHO NN - AAAA-MM-DD do
+    /// processo = essa etapa; senão, a sugerida (<see cref="Etapas.Sugerida"/>).</summary>
+    static EtapaDespacho EtapaDoRelatorio(Processo p, string? pacote, DateOnly hoje)
+    {
+        if (pacote is not null)
+        {
+            var pastaDoPacote = Normalizar(Path.GetDirectoryName(Path.GetFullPath(pacote)));
+            var daAnalise = Etapas.Existentes(p.Pasta).FirstOrDefault(e => string.Equals(Normalizar(e.Pasta), pastaDoPacote, StringComparison.OrdinalIgnoreCase));
+            if (daAnalise is not null) return daAnalise;
+        }
+        return Etapas.Sugerida(p.Pasta, hoje);
     }
 
     static string Normalizar(string? pasta) => pasta is null ? "" : Path.GetFullPath(pasta).TrimEnd(Path.DirectorySeparatorChar);

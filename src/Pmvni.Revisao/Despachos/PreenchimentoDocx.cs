@@ -69,6 +69,7 @@ public static class PreenchimentoDocx
         AcrescentarValor(mapa.Um(PapelParagrafo.Requerente), d.Requerente);
         TrocarAssunto(mapa.Um(PapelParagrafo.Assunto), d.Assunto);
         TrocarData(mapa.Um(PapelParagrafo.Data), d.DataPorExtenso);
+        ManterFechoJunto(mapa.Um(PapelParagrafo.Data));
 
         var vagas = mapa.Todos(PapelParagrafo.Vaga);
         var novos = new List<XElement>();
@@ -264,6 +265,24 @@ public static class PreenchimentoDocx
         }
         TrocarTextoRun(negritos[0], assunto);
         foreach (var r in negritos.Skip(1)) r.Remove();
+    }
+
+    /// <summary>Data, linha e assinatura (nome, cargo, CAU, matrícula) não se separam entre páginas: "manter com o próximo" do
+    /// parágrafo da data até o penúltimo do corpo.</summary>
+    static void ManterFechoJunto(XElement data)
+    {
+        var seguintes = new List<XElement> { data };
+        seguintes.AddRange(data.ElementsAfterSelf(W + "p"));
+        for (var i = 0; i < seguintes.Count - 1; i++)
+        {
+            var p = seguintes[i];
+            var ppr = p.Element(W + "pPr");
+            if (ppr is null) { ppr = new XElement(W + "pPr"); p.AddFirst(ppr); }
+            ppr.Element(W + "keepNext")?.Remove();
+            var k = new XElement(W + "keepNext");
+            // ordem do esquema: pStyle vem antes de keepNext
+            if (ppr.Element(W + "pStyle") is { } estilo) estilo.AddAfterSelf(k); else ppr.AddFirst(k);
+        }
     }
 
     static void TrocarData(XElement p, string data)

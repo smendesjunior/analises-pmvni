@@ -156,11 +156,10 @@ public class FaixasTestes
         // O menu do ano é dinâmico (os anos vêm da pasta): a definição o deixa vazio, como Recentes.
         Assert.Empty(inicioP.Comandos.Single(c => c.Id == ComandosApp.ProcessosAno).Itens!);
         var exibirP = processos.Abas.Single(a => a.Nome == "Exibir");
-        Assert.Equal(new[] { ComandosApp.ProcessosOrdenar, ComandosApp.ProcessosMostrarPastas }, exibirP.Comandos.Select(c => c.Id));
+        Assert.Equal(new[] { ComandosApp.ProcessosOrdenar }, exibirP.Comandos.Select(c => c.Id));
         var ordenarP = exibirP.Comandos[0];
         Assert.Equal(TipoComando.Menu, ordenarP.Tipo);
         Assert.Equal(new[] { "Número", "Data", "Requerente" }, ordenarP.Itens!.Select(i => i.Rotulo));
-        Assert.Equal(TipoComando.Alternar, exibirP.Comandos[1].Tipo);
 
         // Despachos (desenho §9.1).
         var despachos = Faixas.Para(Modulo.Despachos);
@@ -265,11 +264,14 @@ public class FaixasTestes
     {
         Assert.Equal("relatorios.novo", ComandosApp.RelatoriosNovo);
         var relatorios = Faixas.Para(Modulo.Relatorios);
-        // Primário de Relatórios (e o primeiro de Arquivo); saiu da Página Inicial, que não repete mais o botão.
+        // Primário de Relatórios; correção 2026-11-16: não se repete em Arquivo, e Abrir é o segundo botão verde, ao lado dele.
         Assert.Equal(ComandosApp.RelatoriosNovo, relatorios.Primario!.Id);
         Assert.Equal(TipoComando.Botao, relatorios.Primario.Tipo);
         Assert.Equal("Novo relatório", relatorios.Primario.Rotulo);
-        Assert.Equal(relatorios.Primario, relatorios.Abas.Single(a => a.Nome == "Arquivo").Comandos[0]);
+        Assert.DoesNotContain(relatorios.Abas.Single(a => a.Nome == "Arquivo").Comandos, c => c.Id == ComandosApp.RelatoriosNovo);
+        Assert.Equal(ComandosApp.ArquivoAbrir, relatorios.Secundario!.Id);
+        Assert.DoesNotContain(relatorios.Abas.SelectMany(a => a.Comandos), c => c.Id == ComandosApp.ArquivoAbrir);
+        Assert.Single(Faixas.Comandos(relatorios), c => c.Id == ComandosApp.ArquivoAbrir);
         Assert.DoesNotContain(relatorios.Abas.Single(a => a.Nome == "Página Inicial").Comandos, c => c.Id == ComandosApp.RelatoriosNovo);
         Assert.Equal(ComandosApp.DespachosNovo, relatorios.Abas.Single(a => a.Nome == "Página Inicial").Comandos[^1].Id);
 
@@ -294,13 +296,13 @@ public class FaixasTestes
         Assert.Equal(ComandosApp.RelatoriosNovo, Faixas.Para(Modulo.Processos).Primario?.Id);
         Assert.Equal(ComandosApp.LegislacaoAnexar, Faixas.Para(Modulo.Legislacao).Primario?.Id);
         Assert.Null(Faixas.Para(Modulo.Ajustes).Primario);
-        // O primário entra em Faixas.Comandos (manipulador obrigatório) e não se repete na barra da mesma faixa, salvo Arquivo de Relatórios.
+        // O primário entra em Faixas.Comandos (manipulador obrigatório) e não se repete na barra da mesma faixa (2026-11-16: nem em Relatórios).
         foreach (var m in Faixas.Disponiveis.Where(m => Faixas.Para(m).Primario is not null))
         {
             var f = Faixas.Para(m);
             Assert.Equal(f.Primario, Faixas.Comandos(f).First());
             var naBarra = f.Abas.SelectMany(a => a.Comandos).Count(c => c.Id == f.Primario!.Id);
-            Assert.Equal(m == Modulo.Relatorios ? 1 : 0, naBarra);
+            Assert.Equal(0, naBarra);
         }
     }
 
@@ -315,7 +317,6 @@ public class FaixasTestes
             [ComandosApp.DespachosDoProcesso] = ("Só do processo", "Só os despachos do processo escolhido"),
             [ComandosApp.ProcessosImportarAnalise] = ("Importar análise", "Importar a análise da IA"),
             [ComandosApp.ProcessosAbrirPasta] = ("Abrir pasta", "Abrir a pasta no Explorador"),
-            [ComandosApp.ProcessosMostrarPastas] = ("PROJETO e DOCS", "Mostrar as pastas PROJETO e DOCUMENTOS"),
         };
         var todos = Faixas.Disponiveis.SelectMany(m => Faixas.Comandos(Faixas.Para(m))).ToList();
         foreach (var (id, (rotulo, completo)) in esperado)

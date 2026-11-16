@@ -14,6 +14,25 @@ public sealed class FluxoNovoDespachoTestes
     static IReadOnlyList<Processo> Lista(ArvoreFicticia a) => Processos.Listar(a.Raiz, CancellationToken.None).Itens;
 
     [Fact]
+    public void relatorio_na_pasta_despacho_acha_o_processo_e_reutiliza_a_etapa()
+    {
+        // 2026-11-16 (regra do kit): o relatório fica em DESPACHO NN - AAAA-MM-DD; o despacho da mesma análise reutiliza essa pasta.
+        using var pasta = Ambiente.PastaDeTeste("fluxo-relatorio-na-etapa");
+        var a = RelatorioFicticio.Arvore(pasta);
+        var processo = Lista(a).First(p => p.Numero == 1);
+        var etapa = Path.Combine(processo.Pasta, "DESPACHO 07 - 2099-03-01");
+        Directory.CreateDirectory(etapa);
+        var pacote = Path.Combine(etapa, "Relatorio_0001_2099.pmvrel");
+        File.Copy(a.CaminhoPacote, pacote);
+
+        var s = FluxoNovoDespacho.Sugerir(Modulo.Relatorios, null, pacote, Lista(a), Relatorios, Hoje);
+        Assert.Equal(processo.Pasta, s.Processo?.Pasta);
+        Assert.Equal(pacote, s.Pacote);
+        Assert.Equal(etapa, s.Etapa?.Pasta);
+        Assert.False(s.Etapa!.Nova);
+    }
+
+    [Fact]
     public void sugestao_pelo_relatorio_aberto()
     {
         using var pasta = Ambiente.PastaDeTeste("fluxo-relatorio-aberto");

@@ -34,7 +34,8 @@ public sealed partial class Trilho : UserControl
 
     /// <summary>Um ícone de <see cref="NovoIcone"/> está desenhado: tem largura e altura no layout e o Viewbox tem o Canvas com as formas.</summary>
     internal static bool IconeDesenhado(FrameworkElement? icone) =>
-        icone is Viewbox { ActualWidth: > 0, ActualHeight: > 0, Child: Canvas { Children.Count: > 0 } };
+        icone is Image { ActualWidth: > 0, ActualHeight: > 0, Source: not null }
+        || icone is Viewbox { ActualWidth: > 0, ActualHeight: > 0, Child: Canvas { Children.Count: > 0 } };
 
     /// <summary>O fundo arredondado do item está pintado (só o ativo, fora o "sobre" do mouse).</summary>
     public bool FundoVisivel(Modulo m) => itens.TryGetValue(m, out var i) && i.Fundo.Style == Estilo("PmvniTrilhoFundoAtivoStyle");
@@ -103,6 +104,13 @@ public sealed partial class Trilho : UserControl
     /// <paramref name="lado"/>; null se o template não existe. As cores são ThemeResource e seguem o tema do lugar onde o ícone fica.</summary>
     internal static FrameworkElement? NovoIcone(Modulo m, double lado)
     {
+        // Correção 2026-11-16: os ícones novos (PNG em alta, do pacote Fluent); o desenho vetorial antigo fica de reserva.
+        if (ImagemDoModulo(m, lado) is { } imagem)
+            return new Image
+            {
+                Source = imagem, Width = lado, Height = lado, Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false,
+            };
         if (!Application.Current.Resources.TryGetValue(Pmvni.App.Modulos.ChaveIcone(m), out var t) || t is not DataTemplate template) return null;
         if (template.LoadContent() is not FrameworkElement icone) return null;
         icone.Width = lado;
@@ -111,6 +119,34 @@ public sealed partial class Trilho : UserControl
         icone.VerticalAlignment = VerticalAlignment.Center;
         icone.IsHitTestVisible = false;
         return icone;
+    }
+
+    static readonly Dictionary<string, Microsoft.UI.Xaml.Media.Imaging.BitmapImage?> imagens = new(StringComparer.Ordinal);
+
+    /// <summary>O PNG embutido do módulo no tamanho que dá nitidez até 200 % de escala (64 px até 32 de lado; 128 acima); null se faltar.</summary>
+    static Microsoft.UI.Xaml.Media.Imaging.BitmapImage? ImagemDoModulo(Modulo m, double lado)
+    {
+        var nome = "Pmvni.App.modulos." + m.ToString().ToLowerInvariant() + (lado <= 32 ? "-64" : "-128") + ".png";
+        if (imagens.TryGetValue(nome, out var pronta)) return pronta;
+        Microsoft.UI.Xaml.Media.Imaging.BitmapImage? imagem = null;
+        try
+        {
+            using var recurso = typeof(Trilho).Assembly.GetManifestResourceStream(nome);
+            if (recurso is not null)
+            {
+                var fluxo = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                // Sem using: fechar o adaptador fecharia o fluxo que a imagem ainda lê (ObjectDisposedException, 2026-11-16).
+                var escrita = System.IO.WindowsRuntimeStreamExtensions.AsStreamForWrite(fluxo);
+                recurso.CopyTo(escrita);
+                escrita.Flush();
+                fluxo.Seek(0);
+                imagem = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage();
+                imagem.SetSource(fluxo);
+            }
+        }
+        catch (Exception e) { RegistroErros.Gravar("trilho.icone", e); imagem = null; }
+        imagens[nome] = imagem;
+        return imagem;
     }
 
     /// <summary>Marca o módulo ativo (e só ele): fundo arredondado, barrinha, rótulo forte e "Selecionado" para o Narrador.</summary>
