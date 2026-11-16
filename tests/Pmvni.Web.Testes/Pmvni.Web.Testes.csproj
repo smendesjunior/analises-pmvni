@@ -26,6 +26,13 @@
     <Compile Include="..\Pmvni.Legislacao.Testes\Ficticios\PdfLegislacaoFicticio.cs" Link="Legislacao\PdfLegislacaoFicticio.cs" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Correções 2026-11-15 (roteiro, passo 48): a sessão da legislação do app (figuras em segundo plano, canceladas ao excluir),
+         compilada aqui com o que ela usa (o app é WinUI e não é referenciado pelos testes). -->
+    <Compile Include="..\..\src\Pmvni.App\Legislacao\SessaoLegislacao.cs" Link="App\SessaoLegislacao.cs" />
+    <Compile Include="..\..\src\Pmvni.App\RegistroErros.cs" Link="App\RegistroErros.cs" />
+    <Compile Include="..\..\src\Pmvni.App\Logica\ListaLegislacao.cs" Link="App\ListaLegislacao.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Tarefa 9: leitura da linha de comando do Verificador, compilada aqui (o Verificador é um executável; referenciá-lo
          traria os tipos internos do inicializador do Windows App SDK em conflito, CS0436). -->
     <Compile Include="..\..\src\Pmvni.Verificador\Argumentos.cs" Link="Verificador\Argumentos.cs" />

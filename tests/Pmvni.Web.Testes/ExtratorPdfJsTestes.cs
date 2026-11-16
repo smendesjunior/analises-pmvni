@@ -145,6 +145,76 @@ public sealed class ExtratorPdfJsTestes : IAsyncLifetime
         Assert.Equal(FalhaExtracao.Senha, e.Falha);
     }
 
+    // Roteiro, passo 48 (2026-11-15): cancelar as figuras no meio (abrir outra lei, fechar, excluir) destruía o documento com o
+    // getOperatorList pendente; essa promessa do PDF.js nunca terminava e prendia a fila da página: toda extração seguinte (texto ou
+    // figuras) esperava os 10 minutos do limite.
+    [Fact]
+    public async Task cancelar_as_figuras_no_meio_nunca_prende_as_extracoes_seguintes()
+    {
+        var figuras = Gravar("COM-FIGURAS - FICTICIA.pdf", PdfLegislacaoFicticio.GerarComFiguras());
+        var lei = Fixture(Lei);
+        extrator.LimiteExtracao = TimeSpan.FromSeconds(10);
+        foreach (var atraso in new[] { 0, 20, 40, 60, 80, 100, 130, 160, 200, 250, 300, 400 })
+        {
+            using var cts = new CancellationTokenSource();
+            var lendo = extrator.ExtrairFigurasAsync(figuras, cts.Token);
+            await Task.Delay(atraso);
+            cts.Cancel();
+            try { await lendo; } catch (OperationCanceledException) { }
+            var relogio = Stopwatch.StartNew();
+            Assert.Equal(3, (await extrator.ExtrairAsync(lei, null, CancellationToken.None)).Paginas);
+            Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(5), $"texto depois de cancelar as figuras em {atraso} ms levou {relogio.Elapsed}");
+        }
+        // E as figuras seguintes também saem (a fila das figuras não ficou presa).
+        Assert.Equal(4, (await extrator.ExtrairFigurasAsync(figuras, CancellationToken.None)).Count);
+        extrator.LimiteExtracao = TimeSpan.FromMinutes(10);
+    }
+
+    [Fact]
+    public async Task texto_nao_espera_as_figuras_de_outra_lei()
+    {
+        var grande = Gravar("figuras-grande.pdf", PdfLegislacaoFicticio.GerarComFigurasGrande(120));
+        var figurasVistas = 0;
+        extrator.Ponte.Recebida += m => { if (m.Tipo == "figurasPagina") Interlocked.Increment(ref figurasVistas); };
+        using var cts = new CancellationTokenSource();
+        var lendo = extrator.ExtrairFigurasAsync(grande, cts.Token);
+        await Esperar(() => Volatile.Read(ref figurasVistas) > 0, 20000);
+        Assert.True(figurasVistas > 0, "a leitura das figuras não começou");
+
+        // Com as figuras em andamento, a extração de texto (anexar outra lei) sai na hora.
+        var relogio = Stopwatch.StartNew();
+        Assert.Equal(3, (await extrator.ExtrairAsync(Fixture(Lei), null, CancellationToken.None)).Paginas);
+        Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(5), "o texto esperou " + relogio.Elapsed);
+        Assert.False(lendo.IsCompleted, "a leitura das figuras terminou antes do texto: o teste não provou nada");
+
+        cts.Cancel();
+        relogio.Restart();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => lendo);
+        Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(5), "cancelar as figuras levou " + relogio.Elapsed);
+    }
+
+    [Fact]
+    public async Task tempo_total_das_figuras_esgotado_recusa_e_libera_o_extrator()
+    {
+        var grande = Gravar("figuras-limite.pdf", PdfLegislacaoFicticio.GerarComFigurasGrande(120));
+        extrator.LimiteFiguras = TimeSpan.FromMilliseconds(300);
+        var relogio = Stopwatch.StartNew();
+        var e = await Assert.ThrowsAsync<ExtracaoRecusadaException>(() => extrator.ExtrairFigurasAsync(grande, CancellationToken.None));
+        Assert.Equal(FalhaExtracao.Falhou, e.Falha);
+        Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(5), "o limite levou " + relogio.Elapsed);
+        extrator.LimiteFiguras = TimeSpan.FromMinutes(3);
+        Assert.Equal(3, (await extrator.ExtrairAsync(Fixture(Lei), null, CancellationToken.None)).Paginas);
+        Assert.Equal(OrigemFigura.Desenho, Assert.Single(await extrator.ExtrairFigurasAsync(Fixture("OUTRAS/DIGITALIZADA - FICTICIA.pdf"), CancellationToken.None)).Origem);
+    }
+
+    [Fact]
+    public async Task figuras_de_pdf_danificado_sao_recusadas_e_o_extrator_segue()
+    {
+        var e = await Assert.ThrowsAsync<ExtracaoRecusadaException>(() => extrator.ExtrairFigurasAsync(Fixture("OUTRAS/CORROMPIDO - FICTICIA.pdf"), CancellationToken.None));
+        Assert.Equal(FalhaExtracao.Invalido, e.Falha);
+        Assert.Equal(3, (await extrator.ExtrairAsync(Fixture(Lei), null, CancellationToken.None)).Paginas);
+    }
+
     [Fact]
     public void figura_com_assinatura_ou_origem_errada_e_descartada()
     {
