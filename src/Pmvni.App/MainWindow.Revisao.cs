@@ -202,10 +202,41 @@ public sealed partial class MainWindow
     /// "A alteração não foi aplicada" com os erros (também em <see cref="UltimosErros"/>) e nada muda.</summary>
     internal Task AplicarAsync(Comando c) => ExecutarRevisaoAsync(s => s.Revisao.Testar(c), s => s.Revisao.Aplicar(c));
 
-    /// <summary>A edição de um campo pelo host: a mesma rota do <c>editar</c> da página (Enter no A4).</summary>
+    /// <summary>A edição de um campo pelo host: a mesma rota do <c>editar</c> da página (Enter no A4). Numa linha de tabela, o comando
+    /// vem de <see cref="ComandoDeEdicao"/>: a edição do valor (ou do limite) de um índice leva junto o recálculo da situação.</summary>
     internal Task EditarTextoAsync(string itemId, string campo, string texto) =>
-        AplicarAsync(new DefinirCampo(itemId, campo, TabelasRevisao.EhLinha(itemId) && sessao?.Revisao.Projeto is { } pj
-            ? IaRecalculoIndices.CompletarUnidade(texto, TabelasRevisao.TextoOriginal(pj, itemId, campo)) : texto));
+        NaFilaAsync(() => AplicarAsync(sessao?.Revisao.Projeto is { } pj ? ComandoDeEdicao(pj, itemId, campo, texto) : new DefinirCampo(itemId, campo, texto)));
+
+    /// <summary>O que a última edição manual de uma linha de tabela recalculou (ou não conseguiu recalcular): vira o aviso ao fim do comando.</summary>
+    EdicaoDeLinha? avisoRecalculo;
+
+    /// <summary>O último aviso de recálculo mostrado (o roteiro confere).</summary>
+    internal string? UltimoAvisoRecalculo { get; private set; }
+
+    /// <summary>O comando da edição manual de um texto (correções 2026-11-16). Item: <see cref="DefinirCampo"/>. Linha de tabela: o
+    /// número digitado sem unidade ganha a do original e, se o texto é o valor no projeto ou o limite de um índice com critério numérico,
+    /// a situação e o texto da diferença são refeitos pelo editor, sem IA (<see cref="RecalculoLinha.AoEditar"/>), tudo num só Desfazer.
+    /// O critério ilegível não é adivinhado: a edição entra sozinha e o aviso sugere «Rever com a IA».</summary>
+    Comando ComandoDeEdicao(Projeto pj, string itemId, string campo, string texto)
+    {
+        if (!TabelasRevisao.EhLinha(itemId)) return new DefinirCampo(itemId, campo, texto);
+        texto = IaRecalculoIndices.CompletarUnidade(texto, TabelasRevisao.TextoOriginal(pj, itemId, campo));
+        if (!TabelasRevisao.Existe(pj, itemId)) return new DefinirCampo(itemId, campo, texto);
+        var e = RecalculoLinha.AoEditar(pj, itemId, campo, texto);
+        avisoRecalculo = e.Mensagem is null ? null : e;
+        return e.Comando;
+    }
+
+    /// <summary>Depois de um comando: diz o que o editor recalculou (ou por que não recalculou) na linha editada à mão.</summary>
+    void MostrarAvisoDeRecalculo()
+    {
+        if (avisoRecalculo is not { Mensagem: { } texto } e) return;
+        avisoRecalculo = null;
+        if (ultimosErros.Count > 0) return; // a edição foi recusada: o aviso de recusa já está na tela
+        UltimoAvisoRecalculo = texto;
+        if (e.Recalculado) MostrarMensagem(InfoBarSeverity.Success, "Linha recalculada", texto);
+        else MostrarMensagem(InfoBarSeverity.Informational, "Situação não recalculada", texto);
+    }
 
     // ---------- fila de comandos ----------
 
@@ -317,11 +348,13 @@ public sealed partial class MainWindow
     {
         if (sessao is not { Atual: not null } s)
         {
+            avisoRecalculo = null;
             MostrarMensagem(InfoBarSeverity.Warning, "A alteração não foi aplicada", "Nenhum relatório aberto.");
             return;
         }
         if (ocupado)
         {
+            avisoRecalculo = null;
             // Abrir, importar ou exportar chamados fora da fila (o roteiro): a alteração não entra e a página volta ao estado do host.
             MostrarMensagem(InfoBarSeverity.Warning, "A alteração não foi aplicada", "Outra operação ainda está em andamento; tente de novo em seguida.");
             await s.EnviarEstadoAsync();
@@ -370,6 +403,7 @@ public sealed partial class MainWindow
             aplicando = false;
             AtualizarPaineis();
             AtualizarComandos();
+            MostrarAvisoDeRecalculo();
         }
     }
 
@@ -386,9 +420,7 @@ public sealed partial class MainWindow
             || !d.TryGetProperty("campo", out var cp) || cp.GetString() is not { } campo
             || !d.TryGetProperty("texto", out var tx) || tx.GetString() is not { } texto)
             return null; // semEdicao
-        if (TabelasRevisao.EhLinha(item) && s.Revisao.Projeto is { } pj)
-            texto = IaRecalculoIndices.CompletarUnidade(texto, TabelasRevisao.TextoOriginal(pj, item, campo));
-        var c = new DefinirCampo(item, campo, texto);
+        var c = ComandoDeEdicao(s.Revisao.Projeto, item, campo, texto);
         try
         {
             var candidato = s.Revisao.Testar(c);
@@ -397,6 +429,7 @@ public sealed partial class MainWindow
         }
         catch (ComandoRecusadoException e) { ultimosErros.Add(e.Message); edicaoRecusada = (item, campo, texto); }
         catch (RecomposicaoRecusadaException e) { ultimosErros.AddRange(e.Erros); edicaoRecusada = (item, campo, texto); }
+        avisoRecalculo = null; // recusada: nada foi recalculado
         return false;
     }
 
@@ -437,6 +470,7 @@ public sealed partial class MainWindow
         {
             AtualizarPaineis();
             AtualizarComandos();
+            MostrarAvisoDeRecalculo();
         }
         return null;
     }
