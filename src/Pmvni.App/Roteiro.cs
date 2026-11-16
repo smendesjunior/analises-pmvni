@@ -2529,21 +2529,32 @@ internal static class Roteiro
             var chatgpt = j.CartaoDoAgente(Provedor.ChatGpt);
             var claude = j.CartaoDoAgente(Provedor.Claude);
 
-            // (a) A seção, o texto fixo e os dois cartões.
-            const string Introducao = "O editor não faz a análise: ele inicia o ChatGPT (Codex) ou o Claude instalados neste computador, com a configuração, os plugins do kit PMVNI, "
-                + "os programas (QGIS…) e as pastas de rede deles, e importa o relatório no fim.";
+            // (a) A seção e os dois cartões no padrão do WinStatusBar (correções 2026-11-15): sem texto explicativo; a página se consulta sozinha ao ser vista
+            // (conta, plugins e o teste local), sem clicar em Testar. O CODEX_HOME do roteiro não tem auth.json e a pasta do Claude não é lida: "Não conectado".
             // Ajustes › Inteligência artificial (a página abre em Geral; os cartões ficam nesta categoria, auditoria §3.3).
             pag.MostrarCategoria(CategoriasAjustes.Ia);
+            await j.AguardarAgentesAsync();
             await Esperar(300);
-            pag.TextoIntroAgentes.StartBringIntoView();
+            pag.CartaoChatGpt.StartBringIntoView();
             await Esperar(300);
-            var secao = j.PaginaAjustesVisivel && pag.CategoriaAtual == CategoriasAjustes.Ia && pag.TituloAgentes.Text == "Inteligência artificial" && pag.TextoIntroAgentes.Text == Introducao;
+            var situacaoSozinha = chatgpt.TextoSituacao.Text;
+            var secao = j.PaginaAjustesVisivel && pag.CategoriaAtual == CategoriasAjustes.Ia && pag.TituloAgentes.Text == "Inteligência artificial";
             var cartoes = chatgpt.Titulo.Text == "ChatGPT (Codex · plugin analise)" && claude.Titulo.Text == "Claude (Claude Code · plugin análise pro)"
+                && chatgpt.TextoServico.Text == "Codex (ChatGPT)" && claude.TextoServico.Text == "Claude Code"
                 && chatgpt.ActualHeight > 0 && claude.ActualHeight > 0 && chatgpt.BotaoTestar.IsEnabled && claude.BotaoTestar.IsEnabled
                 && chatgpt.OpcaoConta.IsChecked == true && claude.OpcaoConta.IsChecked == true && chatgpt.OpcaoConta.Content as string == "Usar minha conta (login do programa)"
-                && (chatgpt.OpcaoChave.Content as string ?? "").StartsWith("Usar chave de API", StringComparison.Ordinal) && chatgpt.TextoSituacao.Text == TextosAgentes.NaoTestado;
+                && (chatgpt.OpcaoChave.Content as string ?? "").StartsWith("Usar chave de API", StringComparison.Ordinal);
+            var contas = chatgpt.TextoNomeConta.Text == TextosAgentes.NaoConectado && claude.TextoNomeConta.Text == TextosAgentes.NaoConectado
+                && chatgpt.BotaoConta.Content as string == "Entrar" && chatgpt.TextoAssinatura.Text == "—" && chatgpt.SeloChave.Texto == TextosAgentes.NaoConfigurada;
+            var plugins = chatgpt.SeloPluginAnalise.Texto == "Versão 2.4.0" && chatgpt.SeloPluginAnalise.Ok && claude.SeloPluginPro.Texto == "Versão 1.6.1"
+                && claude.LinhaPluginPro.Visibility == Visibility.Visible && chatgpt.LinhaPluginPro.Visibility == Visibility.Collapsed
+                && chatgpt.TextoPluginAnalise.Text.StartsWith("No Codex, habilitado · instalado ou atualizado em ", StringComparison.Ordinal)
+                && j.AjustesAtuais.PluginsVistos.TryGetValue("chatgpt.analise", out var vista) && vista == "2.4.0";
             p["secao_e_texto"] = secao;
             p["dois_cartoes"] = cartoes;
+            p["contas_locais"] = contas;
+            p["plugins_do_kit"] = plugins;
+            p["situacao_sozinha"] = situacaoSozinha;
 
             // (b) As peças achadas são só as do agente falso (o codex e o claude de verdade nunca são procurados nem iniciados).
             var pecas = j.PecasAgentes;
@@ -2570,6 +2581,7 @@ internal static class Roteiro
             p["linha_claude"] = rClaude.Linha;
             p["avisos_claude"] = new JsonArray(rClaude.Avisos.Select(a => (JsonNode)a).ToArray());
             p["testar"] = testouChatGpt && testouClaude;
+            var consultouSozinho = situacaoSozinha == LinhaChatGpt;
 
             // (d) Claude + chave de API: desabilitado, com a dica exata; pedir mesmo assim é recusado e nada muda.
             const string Dica = "O análise pro do kit usa somente a conta do Claude (política do kit de 14/11/2026).";
@@ -2636,7 +2648,7 @@ internal static class Roteiro
             p["linha_do_teste_que_travou"] = linhaTravada;
             p["testar_fora_da_fila"] = new JsonObject { ["botao_desabilita_no_clique"] = botaoNoClique, ["mesmo_teste_se_repetir"] = mesmoTeste, ["rodando_enquanto_gravava"] = travado2, ["gravou_na_hora"] = gravouNaHora, ["terminou_com_nao_respondeu"] = terminou };
             var foraDaFila = botaoNoClique && mesmoTeste && travado2 && gravouNaHora && exportou && terminou;
-            p["ok"] = secao && cartoes && foraDaFila && soFalso && travado && testouChatGpt && testouClaude && claudeSoConta && recusouInexistente && recusouNaoExe && escolheu && padrao
+            p["ok"] = secao && cartoes && contas && plugins && consultouSozinho && foraDaFila && soFalso && travado && testouChatGpt && testouClaude && claudeSoConta && recusouInexistente && recusouNaoExe && escolheu && padrao
                 && desabilitado.EndsWith("plugin analise não habilitado no Codex", StringComparison.Ordinal) && reabilitado == LinhaChatGpt;
         });
 
@@ -4204,7 +4216,7 @@ internal static class Roteiro
             pag.CaixaPedidoPadrao.Focus(FocusState.Keyboard);
             pag.CaixaPedidoPadrao.Text = "Pedido padrão do roteiro";
             pag.BotaoVerAtalhos.Focus(FocusState.Keyboard);
-            pag.ExpansorChatGpt.Focus(FocusState.Keyboard);
+            pag.CartaoChatGpt.BotaoTestar.Focus(FocusState.Keyboard);
             await Esperar(300);
             var esperado = new Dictionary<string, string>
             {

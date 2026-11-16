@@ -69,6 +69,11 @@ public sealed class Ajustes
         [Provedor.Claude] = new(),
     };
 
+    /// <summary>A última versão vista de cada plugin do kit em Ajustes › Inteligência artificial (<c>"plugins_vistos"</c>; chave
+    /// <c>chatgpt.analise</c>, <c>claude.analise</c>, <c>claude.analise-pro</c>): quando a instalada muda, o cartão avisa "Atualizado desde a última vez".
+    /// "Restaurar os ajustes" não a apaga (não é uma opção).</summary>
+    public Dictionary<string, string> PluginsVistos { get; } = new(StringComparer.Ordinal);
+
     /// <summary>As análises do Claude em andamento (<c>"execucoes_claude"</c>): ficam aqui do início ao fim, para o editor reaberto acompanhar ou importar.</summary>
     public List<ExecucaoClaudePendente> ExecucoesClaude { get; } = new();
 
@@ -221,6 +226,9 @@ public sealed class Ajustes
         if (j["agentes"] is JsonObject agentes)
             foreach (var p in Enum.GetValues<Provedor>())
                 if (agentes[Provedores.Sufixo(p)] is JsonObject o) LerAgente(o, a.Agentes[p]);
+        if (j["plugins_vistos"] is JsonObject vistos)
+            foreach (var (chave, valor) in vistos)
+                if (valor is JsonValue vv && vv.TryGetValue<string>(out var versao) && versao is { Length: > 0 and <= 64 } && chave.Length <= 64) a.PluginsVistos[chave] = versao;
         if (j["execucoes_claude"] is JsonArray execucoes)
             foreach (var e in execucoes)
                 if (e is JsonObject eo && Texto(eo, "processo") is { Length: > 0 } processo && Texto(eo, "registro") is { Length: > 0 } registro)
@@ -269,6 +277,7 @@ public sealed class Ajustes
             ["pasta_processos"] = PastaProcessos,
             ["pasta_kit"] = PastaKit,
             ["agentes"] = new JsonObject(Agentes.Select(par => KeyValuePair.Create(Provedores.Sufixo(par.Key), (JsonNode?)EscreverAgente(par.Value)))),
+            ["plugins_vistos"] = new JsonObject(PluginsVistos.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => KeyValuePair.Create(p.Key, (JsonNode?)p.Value))),
             ["execucoes_claude"] = new JsonArray(ExecucoesClaude.Select(e => (JsonNode)new JsonObject { ["processo"] = e.Processo, ["registro"] = e.Registro }).ToArray()),
             ["abrir_em"] = AbrirEm,
             ["lembrar_janela"] = LembrarJanela,
