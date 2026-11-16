@@ -12,4 +12,8 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <InternalsVisibleTo Include="Pmvni.Imoveis.Testes" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- O CSS oficial do relatório (rev. 10), o mesmo arquivo do Pmvni.Composicao, sem cópia: o relatório do imóvel tem o aspecto do relatório de análise. -->
+    <EmbeddedResource Include="..\Pmvni.Composicao\ModeloOficial\rev10\relatorio.css" LogicalName="relatorio.css" Link="relatorio.css" />
+  </ItemGroup>
 </Project>
