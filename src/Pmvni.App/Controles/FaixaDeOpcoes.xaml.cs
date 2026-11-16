@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 
@@ -66,7 +66,12 @@ public sealed partial class FaixaDeOpcoes : UserControl
         {
             definicao = f;
             Abas.Items.Clear();
-            foreach (var a in f.Abas) Abas.Items.Add(new SelectorBarItem { Text = a.Nome, Tag = a.Nome });
+            foreach (var a in f.Abas)
+        {
+            var itemAba = new SelectorBarItem { Text = a.Nome, Tag = a.Nome };
+            itemAba.SizeChanged += (_, _) => PilulaNaLarguraDoTexto(itemAba);
+            Abas.Items.Add(itemAba);
+        }
             Abas.SelectedItem = Abas.Items[Math.Clamp(aba, 0, f.Abas.Count - 1)];
             MontarBotoes();
             MontarPrimario();
@@ -236,6 +241,24 @@ public sealed partial class FaixaDeOpcoes : UserControl
 
     /// <summary>O botão primário tonal do módulo (à esquerda dos comandos, em todas as abas): Button, ou DropDownButton com os itens do
     /// menu (Novo despacho ▾). Habilitado, dica e rótulo guardados por id valem para ele como para os da barra.</summary>
+    /// <summary>Correções 2026-11-15: o traço da aba selecionada ocupa a largura do texto (o modelo do WinUI tem um traço de 4 px que a
+    /// seleção estica 4 vezes, ScaleX = 4, a partir do centro): a largura do traço passa a ser 1/4 da largura do texto da aba.</summary>
+    static void PilulaNaLarguraDoTexto(SelectorBarItem aba)
+    {
+        if (Descendente(aba, "PART_SelectionVisual") is not FrameworkElement pilula || Descendente(aba, "PART_TextVisual") is not FrameworkElement texto) return;
+        if (texto.ActualWidth > 0) pilula.Width = Math.Max(4, texto.ActualWidth / 4);
+    }
+
+    static DependencyObject? Descendente(DependencyObject raiz, string nome)
+    {
+        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(raiz); i++)
+        {
+            var filho = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(raiz, i);
+            if (filho is FrameworkElement { Name: var n } && n == nome) return filho;
+            if (Descendente(filho, nome) is { } achado) return achado;
+        }
+        return null;
+    }
     void MontarPrimario()
     {
         // Só sai o registro que ainda aponta para o item do primário antigo: o mesmo id pode já ser de um item do menu da aba
