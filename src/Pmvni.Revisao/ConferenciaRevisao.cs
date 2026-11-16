@@ -20,6 +20,13 @@ public static class ConferenciaRevisao
             erros.Add(Rotulo(p, it) + ": a situação mudou de " + TextoSituacao(SituacaoOriginal(it)) + " para " + TextoSituacao(it.Situacao.Revisada)
                       + " sem justificativa");
         }
+        // Linhas das tabelas (índices, iluminação e ventilação): a mesma regra.
+        foreach (var (id, l) in p.Linhas)
+        {
+            if (!TabelasRevisao.FaltaJustificativa(l)) continue;
+            erros.Add(TabelasRevisao.Rotulo(id) + ": a situação mudou de " + TextoSituacao(TabelasRevisao.SituacaoOriginal(p, id)) + " para "
+                      + TextoSituacao(l.Situacao) + " sem justificativa");
+        }
         return erros;
     }
 

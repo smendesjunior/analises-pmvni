@@ -100,6 +100,7 @@ public static class DescricaoHistorico
             return (r.Tipo == "desfeito" ? "Desfeito: " : "Refeito: ") + Texto(original, p);
         }
 
+        if (TabelasRevisao.EhLinha(r.Item)) return TextoDaLinha(r);
         var item = Rotulo(r.Item, p);
         (string Nome, bool Feminino) campo = r.Campo is null ? ("campo", false) : NomeDoCampo(r.Campo);
         switch (r.Tipo)
@@ -126,6 +127,32 @@ public static class DescricaoHistorico
                 return "Importação do dados.json: " + n + (n == 1 ? " citação convertida" : " citações convertidas");
             default:
                 return r.Tipo;
+        }
+    }
+
+    /// <summary>Registro sobre uma linha de tabela: <c>Índice 02 · Situação: FALTA COMPROVAR → ATENDE</c>, <c>Ambiente 03 · Vão 1 — tipo: texto editado</c>.</summary>
+    private static string TextoDaLinha(RegistroHistorico r)
+    {
+        var rotulo = TabelasRevisao.Rotulo(r.Item!);
+        rotulo = rotulo[..1] + rotulo[1..].ToLowerInvariant() + " · ";
+        var campo = r.Campo is null ? "" : TabelasRevisao.NomeDoCampo(r.Campo);
+        switch (r.Tipo)
+        {
+            case nameof(DefinirSituacao):
+                return rotulo + "Situação: " + ConferenciaRevisao.TextoSituacao(r.Antes?.GetValue<string>()) + " → "
+                       + ConferenciaRevisao.TextoSituacao(r.Depois?.GetValue<string>());
+            case nameof(DefinirJustificativa):
+                var antes = r.Antes is JsonValue a && a.TryGetValue<string>(out var sa) && sa.Length > 0;
+                var depois = r.Depois is JsonValue d && d.TryGetValue<string>(out var sd) && sd.Length > 0;
+                return rotulo + "Justificativa " + (!depois ? "removida" : antes ? "alterada" : "definida");
+            case nameof(DefinirCampo):
+                return rotulo + campo + ": texto editado";
+            case nameof(RestaurarCampo):
+                return rotulo + campo + ": texto restaurado ao original";
+            case nameof(RestaurarItemOriginal):
+                return rotulo + "linha restaurada ao original";
+            default:
+                return rotulo + r.Tipo;
         }
     }
 

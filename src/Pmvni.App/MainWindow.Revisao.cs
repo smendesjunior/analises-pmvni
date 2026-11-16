@@ -56,6 +56,9 @@ public sealed partial class MainWindow
 
     ItemRevisao? ItemSelecionado => selecionado is null ? null : sessao?.Revisao.Projeto.Item(selecionado);
 
+    /// <summary>A linha de tabela selecionada (ÍNDICES URBANÍSTICOS, ILUMINAÇÃO E VENTILAÇÃO): o id dela (<c>indices/02</c>), ou null.</summary>
+    string? LinhaSelecionada => TabelasRevisao.EhLinha(selecionado) && sessao?.Revisao.Projeto is { } p && TabelasRevisao.Existe(p, selecionado) ? selecionado : null;
+
     bool Editavel => sessao is { SomenteLeitura: false, Atual: not null } && documento is not null && !ocupado;
 
     // ---------- ligação dos controles ----------
@@ -73,8 +76,15 @@ public sealed partial class MainWindow
         foreach (var c in Faixas.OrdemSituacoes) R.PropSituacao.Items.Add(new ComboBoxItem { Content = Situacoes.Sit[c].Texto, Tag = c });
         R.PropSituacao.SelectionChanged += async (_, _) =>
         {
-            if (atualizandoPropriedades || ItemSelecionado is not { } it || R.PropSituacao.SelectedItem is not ComboBoxItem { Tag: string c }) return;
-            if (c == SituacaoEfetiva(it)) return;
+            if (atualizandoPropriedades || R.PropSituacao.SelectedItem is not ComboBoxItem { Tag: string c }) return;
+            if (LinhaSelecionada is { } linha)
+            {
+                // Linha de tabela: a lista mostra as situações de item com o mesmo texto impresso (ATENDE = CONTA_CONFERE…).
+                if (c == TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(sessao!.Revisao.Projeto, linha))) return;
+                await TentarAsync(() => AplicarAsync(new DefinirSituacao(linha, TabelasRevisao.SituacaoDeLinha(c)!)));
+                return;
+            }
+            if (ItemSelecionado is not { } it || c == SituacaoEfetiva(it)) return;
             await TentarAsync(() => AplicarAsync(new DefinirSituacao(it.Id, c)));
         };
         R.PropJustificativa.LostFocus += async (_, _) => await AplicarJustificativaAsync();
@@ -95,7 +105,10 @@ public sealed partial class MainWindow
     void RegistrarManipuladoresRevisao()
     {
         foreach (var codigo in Faixas.OrdemSituacoes)
-            manipuladores[ComandosApp.ComandoDaSituacao(codigo)] = () => ItemSelecionado is { Incluido: true } it ? AplicarAsync(new DefinirSituacao(it.Id, codigo)) : Task.CompletedTask;
+            manipuladores[ComandosApp.ComandoDaSituacao(codigo)] = () =>
+                ItemSelecionado is { Incluido: true } it ? AplicarAsync(new DefinirSituacao(it.Id, codigo))
+                : LinhaSelecionada is { } linha ? AplicarAsync(new DefinirSituacao(linha, TabelasRevisao.SituacaoDeLinha(codigo)!))
+                : Task.CompletedTask;
         manipuladores[ComandosApp.InicioExcluirRestaurar] = () =>
             ItemSelecionado is { } it ? AplicarAsync(it.Incluido ? new Excluir(it.Id) : new Restaurar(it.Id)) : Task.CompletedTask;
         manipuladores[ComandosApp.InicioEditarTexto] = EditarSelecionadoAsync;
@@ -108,7 +121,9 @@ public sealed partial class MainWindow
             return Task.CompletedTask;
         };
         manipuladores[ComandosApp.InicioRestaurarOriginal] = () =>
-            ItemSelecionado is { } it ? AplicarAsync(new RestaurarItemOriginal(it.Id)) : Task.CompletedTask;
+            ItemSelecionado is { } it ? AplicarAsync(new RestaurarItemOriginal(it.Id))
+            : LinhaSelecionada is { } linha ? AplicarAsync(new RestaurarItemOriginal(linha))
+            : Task.CompletedTask;
         manipuladores[ComandosApp.InicioItemAnterior] = () => IrParaItemAsync(-1);
         manipuladores[ComandosApp.InicioItemProximo] = () => IrParaItemAsync(+1);
         manipuladores[ComandosApp.InicioProximoPendente] = ProximoPendenteAsync;
@@ -132,15 +147,18 @@ public sealed partial class MainWindow
     {
         var editavel = temRelatorio && Editavel;
         var it = temRelatorio ? ItemSelecionado : null;
-        var incluido = it is { Incluido: true };
+        var linha = temRelatorio ? LinhaSelecionada : null;
+        // Uma linha de tabela se revisa como um item incluído (situação, texto, original), mas não se exclui.
+        var incluido = it is { Incluido: true } || linha is not null;
         Faixa.Habilitar(ComandosApp.InicioSituacao, editavel && incluido);
         foreach (var c in Faixas.OrdemSituacoes) Faixa.Habilitar(ComandosApp.ComandoDaSituacao(c), editavel && incluido);
         Faixa.Habilitar(ComandosApp.InicioExcluirRestaurar, editavel && it is not null);
         Faixa.DefinirRotulo(ComandosApp.InicioExcluirRestaurar, it is { Incluido: false } ? "Restaurar item" : "Excluir item");
         Faixa.Habilitar(ComandosApp.InicioEditarTexto, editavel && incluido);
-        Faixa.Habilitar(ComandosApp.InicioOriginal, temRelatorio && it is not null);
+        Faixa.Habilitar(ComandosApp.InicioOriginal, temRelatorio && (it is not null || linha is not null));
         Faixa.Ligar(ComandosApp.InicioOriginal, mostrarOriginal);
-        Faixa.Habilitar(ComandosApp.InicioRestaurarOriginal, editavel && it is not null && TemRevisao(it));
+        Faixa.Habilitar(ComandosApp.InicioRestaurarOriginal, editavel && (it is not null && TemRevisao(it)
+            || linha is not null && TabelasRevisao.Revisada(sessao!.Revisao.Projeto, linha)));
         Faixa.Habilitar(ComandosApp.InicioItemAnterior, temRelatorio);
         Faixa.Habilitar(ComandosApp.InicioItemProximo, temRelatorio);
         Faixa.Habilitar(ComandosApp.InicioProximoPendente, temRelatorio);
@@ -236,7 +254,9 @@ public sealed partial class MainWindow
         else if (ocupado) motivo = "aguarde a operação em andamento terminar";
         else if (sessao?.Atual is null) motivo = "abra ou importe um relatório";
         else if (sessao.SomenteLeitura && id is not (ComandosApp.ArquivoSalvarComo or ComandosApp.ArquivoExportarPdf)) motivo = "o relatório está aberto somente para leitura";
-        else if (ItemSelecionado is null && (id.StartsWith("inicio.", StringComparison.Ordinal) && id is not (ComandosApp.InicioItemAnterior or ComandosApp.InicioItemProximo or ComandosApp.InicioProximoPendente)))
+        else if (LinhaSelecionada is not null && id == ComandosApp.InicioExcluirRestaurar)
+            motivo = "as linhas das tabelas não se excluem; edite os textos ou a situação";
+        else if (ItemSelecionado is null && LinhaSelecionada is null && (id.StartsWith("inicio.", StringComparison.Ordinal) && id is not (ComandosApp.InicioItemAnterior or ComandosApp.InicioItemProximo or ComandosApp.InicioProximoPendente)))
             motivo = "selecione um item nas folhas ou na lista de seções";
         else if (ItemSelecionado is { Incluido: false } && (id == ComandosApp.InicioEditarTexto || ComandosApp.SituacaoDoComando(id) is not null || id == ComandosApp.InicioSituacao))
             motivo = "o item selecionado está excluído (restaure-o antes)";
@@ -445,7 +465,8 @@ public sealed partial class MainWindow
     {
         if (sessao is not { } s) return;
         var it = itemId is null ? null : s.Revisao.Projeto.Item(itemId);
-        if (itemId is not null && it is null) throw new ArgumentException("O item não existe no relatório.", nameof(itemId));
+        var linha = itemId is not null && TabelasRevisao.Existe(s.Revisao.Projeto, itemId);
+        if (itemId is not null && it is null && !linha) throw new ArgumentException("O item não existe no relatório.", nameof(itemId));
         if (itemId != selecionado) ultimoCampo = null;
         selecionado = itemId;
         s.Selecao = itemId;
@@ -454,7 +475,7 @@ public sealed partial class MainWindow
         if (documento is null || s.Atual is null) return;
         try
         {
-            if (it is { Incluido: true }) await documento.ChamarAsync("selecionar", new { @ref = itemId, rolar = true }, LimiteTela);
+            if (it is { Incluido: true } || linha) await documento.ChamarAsync("selecionar", new { @ref = itemId, rolar = true }, LimiteTela);
             else await documento.ChamarAsync("selecionar", new { @ref = (string?)null, rolar = false }, LimiteTela);
         }
         catch (ErroWebException e) { Debug.WriteLine("[selecionar] " + e.Codigo); }
@@ -490,17 +511,36 @@ public sealed partial class MainWindow
 
     /// <summary>Editar texto / F2: o último campo clicado do item selecionado, ou a verificação.</summary>
     Task EditarSelecionadoAsync() =>
-        ItemSelecionado is { Incluido: true } it ? IniciarEdicaoAsync(it.Id, ultimoCampo ?? "verificacao") : Task.CompletedTask;
+        ItemSelecionado is { Incluido: true } it ? IniciarEdicaoAsync(it.Id, ultimoCampo ?? "verificacao")
+        : LinhaSelecionada is { } linha ? IniciarEdicaoAsync(linha, ultimoCampo ?? TabelasRevisao.CampoPadrao(linha))
+        : Task.CompletedTask;
 
     /// <summary>Põe o campo em edição no A4 com o texto efetivo (as citações já numeradas). O foco vai às folhas para a digitação.</summary>
     async Task IniciarEdicaoAsync(string itemId, string campo)
     {
         if (documento is null || sessao is null) return;
         if (!Editavel) { AvisarIndisponivel(ComandosApp.InicioEditarTexto); return; }
-        if (sessao.Revisao.Projeto.Item(itemId) is not { Incluido: true } it || !Campos.Editaveis.Contains(campo)) return;
-        if (selecionado != itemId) await SelecionarAsync(itemId);
+        var p = sessao.Revisao.Projeto;
+        string texto;
+        if (TabelasRevisao.EhLinha(itemId))
+        {
+            // Linha de tabela: o texto do caminho (a célula, ou parte dela). Texto vazio no original não se edita.
+            if (!TabelasRevisao.Editavel(p, itemId, campo))
+            {
+                if (TabelasRevisao.Existe(p, itemId))
+                    MostrarMensagem(InfoBarSeverity.Informational, "Este texto não pode ser editado", "Ele está vazio no relatório original recebido.");
+                return;
+            }
+            if (selecionado != itemId) await SelecionarAsync(itemId);
+            texto = TabelasRevisao.TextoEfetivo(p, itemId, campo) ?? "";
+        }
+        else
+        {
+            if (p.Item(itemId) is not { Incluido: true } it || !Campos.Editaveis.Contains(campo)) return;
+            if (selecionado != itemId) await SelecionarAsync(itemId);
+            texto = DadosEfetivos.TextoEfetivo(p, it, campo) ?? "";
+        }
         ultimoCampo = campo;
-        var texto = DadosEfetivos.TextoEfetivo(sessao.Revisao.Projeto, it, campo) ?? "";
         R.Navegador.Focus(FocusState.Programmatic);
         try { await documento.ChamarAsync("editarCampo", new { @ref = itemId, campo, texto }, LimiteTela); }
         catch (ErroWebException e)
@@ -552,7 +592,7 @@ public sealed partial class MainWindow
     void SelecionadoNaPagina(string? @ref, string? campo)
     {
         if (sessao is not { } s) return;
-        if (@ref is not null && s.Revisao.Projeto.Item(@ref) is null) @ref = null;
+        if (@ref is not null && s.Revisao.Projeto.Item(@ref) is null && !TabelasRevisao.Existe(s.Revisao.Projeto, @ref)) @ref = null;
         selecionado = @ref;
         ultimoCampo = @ref is null ? null : campo;
         s.Selecao = @ref;
@@ -563,6 +603,7 @@ public sealed partial class MainWindow
     /// <summary>Botão direito sobre um item: Situação ▸, Editar texto, Excluir/Restaurar, Original ⇄, Propriedades.</summary>
     void MostrarMenuContexto(Point ponto)
     {
+        if (LinhaSelecionada is { } linha) { MostrarMenuContextoLinha(linha, ponto); return; }
         if (ItemSelecionado is not { } it) return;
         var menu = new MenuFlyout();
         var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
@@ -585,6 +626,45 @@ public sealed partial class MainWindow
         menu.Items.Add(propriedades);
         UltimoMenuContexto = menu;
         menu.ShowAt(R.Navegador, new FlyoutShowOptions { Position = ponto });
+    }
+
+    /// <summary>Botão direito sobre uma linha de tabela: Situação ▸ (a mudança pede a justificativa nas Propriedades, obrigatória para
+    /// exportar, como nos itens), Editar texto, Restaurar original, Original ⇄, Propriedades. A linha não se exclui.</summary>
+    void MostrarMenuContextoLinha(string linha, Point ponto)
+    {
+        var menu = new MenuFlyout();
+        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
+        var efetiva = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(sessao!.Revisao.Projeto, linha));
+        foreach (var c in Faixas.OrdemSituacoes)
+        {
+            var id = ComandosApp.ComandoDaSituacao(c);
+            var i = new ToggleMenuFlyoutItem { Text = Situacoes.Sit[c].Texto, IsChecked = c == efetiva, IsEnabled = Faixa.Habilitado(id) };
+            i.Click += async (_, _) =>
+            {
+                await ExecutarComandoAsync(id);
+                PedirJustificativaSeFaltar(linha);
+            };
+            situacao.Items.Add(i);
+        }
+        menu.Items.Add(situacao);
+        menu.Items.Add(ItemDoMenu("Editar texto", Glifos.Editar, ComandosApp.InicioEditarTexto));
+        menu.Items.Add(ItemDoMenu("Restaurar original", Glifos.Restaurar, ComandosApp.InicioRestaurarOriginal));
+        var original = new ToggleMenuFlyoutItem { Text = "Original", IsChecked = mostrarOriginal, IsEnabled = Faixa.Habilitado(ComandosApp.InicioOriginal) };
+        original.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioOriginal);
+        menu.Items.Add(original);
+        var propriedades = new MenuFlyoutItem { Text = "Propriedades", Icon = new FontIcon { Glyph = Glifos.Propriedades } };
+        propriedades.Click += (_, _) => MostrarPropriedades(true);
+        menu.Items.Add(propriedades);
+        UltimoMenuContexto = menu;
+        menu.ShowAt(R.Navegador, new FlyoutShowOptions { Position = ponto });
+    }
+
+    /// <summary>A situação da linha mudou e falta a justificativa (obrigatória para exportar): abre as Propriedades com o foco nela.</summary>
+    void PedirJustificativaSeFaltar(string linha)
+    {
+        if (sessao?.Revisao.Projeto is not { } p || !p.Linhas.TryGetValue(linha, out var r) || !TabelasRevisao.FaltaJustificativa(r)) return;
+        if (!PropriedadesVisivel) MostrarPropriedades(true);
+        R.PropJustificativa.Focus(FocusState.Programmatic);
     }
 
     MenuFlyoutItem ItemDoMenu(string texto, string glifo, string id)
@@ -773,6 +853,11 @@ public sealed partial class MainWindow
         {
             var p = sessao?.Revisao.Projeto;
             var it = sessao?.Atual is null ? null : ItemSelecionado;
+            if (p is not null && sessao?.Atual is not null && LinhaSelecionada is { } linha)
+            {
+                MontarPropriedadesLinha(p, linha);
+                return;
+            }
             if (p is null || it is null)
             {
                 itemNasPropriedades = null;
@@ -873,10 +958,97 @@ public sealed partial class MainWindow
         }
     }
 
+    /// <summary>Propriedades de uma linha de tabela: rótulo e nome, situação (original e revisada), justificativa, cada texto da linha
+    /// (com "alterado" e Restaurar; com Original ⇄, o original ao lado), Restaurar original e o histórico da linha. "No PDF" fica marcado
+    /// e desligado: a linha não se exclui.</summary>
+    void MontarPropriedadesLinha(Projeto p, string linha)
+    {
+        var editavel = Editavel;
+        R.PropVazio.Visibility = Visibility.Collapsed;
+        R.PropRolagem.Visibility = Visibility.Visible;
+        R.PropTitulo.Text = TabelasRevisao.Rotulo(linha);
+        R.PropId.Text = TabelasRevisao.TextoEfetivo(p, linha, "nome") is { Length: > 0 } nome ? nome + " · " + linha : linha;
+        R.PropNoPdf.IsChecked = true;
+        R.PropNoPdf.IsEnabled = false;
+
+        var efetiva = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(p, linha));
+        R.PropSituacao.SelectedIndex = efetiva is null ? -1 : Faixas.OrdemSituacoes.ToList().IndexOf(efetiva);
+        R.PropSituacao.IsEnabled = editavel;
+        p.Linhas.TryGetValue(linha, out var rev);
+        R.PropSituacaoOriginal.Text = "original: " + TextoSituacao(TabelasRevisao.SituacaoOriginal(p, linha)) + (rev?.Situacao is null ? " (sem revisão)" : " · revisada");
+
+        var digitando = itemNasPropriedades == linha && Raiz.XamlRoot is not null && ReferenceEquals(FocusManager.GetFocusedElement(Raiz.XamlRoot), R.PropJustificativa);
+        if (!digitando) R.PropJustificativa.Text = rev?.Justificativa ?? "";
+        R.PropJustificativa.IsEnabled = editavel;
+        R.PropJustificativaAviso.Visibility = rev is not null && TabelasRevisao.FaltaJustificativa(rev) ? Visibility.Visible : Visibility.Collapsed;
+        itemNasPropriedades = linha;
+
+        R.PropCampos.Children.Clear();
+        var secundario = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"];
+        foreach (var caminho in TabelasRevisao.Caminhos(TabelasRevisao.Original(p, linha)!))
+        {
+            var nomeCampo = TabelasRevisao.NomeDoCampo(caminho);
+            var alterado = rev?.Campos.ContainsKey(caminho) == true;
+            var bloco = new StackPanel { Spacing = 2 };
+            var cabecalho = new Grid { ColumnSpacing = 6 };
+            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            cabecalho.Children.Add(new TextBlock { Text = nomeCampo, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], VerticalAlignment = VerticalAlignment.Center });
+            if (alterado)
+            {
+                var marca = new TextBlock { Text = "alterado", Style = secundario, Foreground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"], VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(marca, 1);
+                cabecalho.Children.Add(marca);
+                var restaurar = new Button { Content = "Restaurar", IsEnabled = editavel, Padding = new Thickness(8, 1, 8, 2), VerticalAlignment = VerticalAlignment.Center };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, "Restaurar o campo " + nomeCampo);
+                ToolTipService.SetToolTip(restaurar, "Voltar este texto ao original");
+                var c = caminho;
+                restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new RestaurarCampo(linha, c)));
+                Grid.SetColumn(restaurar, 2);
+                cabecalho.Children.Add(restaurar);
+            }
+            bloco.Children.Add(cabecalho);
+            var atual = new TextBlock { Text = TabelasRevisao.TextoEfetivo(p, linha, caminho) ?? "", TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+            if (!mostrarOriginal) bloco.Children.Add(atual);
+            else
+            {
+                var lado = new Grid { ColumnSpacing = 10 };
+                lado.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                lado.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var esquerda = new StackPanel();
+                esquerda.Children.Add(new TextBlock { Text = "Atual", Style = secundario });
+                esquerda.Children.Add(atual);
+                var direita = new StackPanel();
+                direita.Children.Add(new TextBlock { Text = "Original", Style = secundario });
+                direita.Children.Add(new TextBlock { Text = TabelasRevisao.TextoOriginal(p, linha, caminho) ?? "", TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+                Grid.SetColumn(direita, 1);
+                lado.Children.Add(esquerda);
+                lado.Children.Add(direita);
+                bloco.Children.Add(lado);
+            }
+            R.PropCampos.Children.Add(bloco);
+        }
+        R.PropRestaurarOriginal.IsEnabled = editavel && rev?.Revisada == true;
+
+        R.PropHistorico.Children.Clear();
+        var daLinha = sessao!.Revisao.HistoricoCompleto.Where(r => r.Item == linha).Reverse().ToList();
+        if (daLinha.Count == 0) R.PropHistorico.Children.Add(new TextBlock { Text = "Sem alterações.", Style = secundario });
+        foreach (var r in daLinha)
+            R.PropHistorico.Children.Add(new TextBlock { Text = $"{Hora(r.DataUtc)}  {DescricaoHistorico.Texto(r, p)}", TextWrapping = TextWrapping.Wrap });
+    }
+
     async Task AplicarJustificativaAsync()
     {
-        if (atualizandoPropriedades || itemNasPropriedades is not { } id || sessao?.Revisao.Projeto.Item(id) is not { } it) return;
+        if (atualizandoPropriedades || itemNasPropriedades is not { } id || sessao?.Revisao.Projeto is not { } p) return;
         var texto = R.PropJustificativa.Text;
+        if (TabelasRevisao.EhLinha(id))
+        {
+            if (!TabelasRevisao.Existe(p, id) || TextoEditado.Normalizar(texto) == TextoEditado.Normalizar(TabelasRevisao.Justificativa(p, id) ?? "")) return;
+            await TentarAsync(() => AplicarAsync(new DefinirJustificativa(id, texto)));
+            return;
+        }
+        if (p.Item(id) is not { } it) return;
         if (TextoEditado.Normalizar(texto) == TextoEditado.Normalizar(it.Situacao.Justificativa ?? "")) return;
         await TentarAsync(() => AplicarAsync(new DefinirJustificativa(id, texto)));
     }

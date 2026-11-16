@@ -303,7 +303,9 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     internal static object Marcas(Projeto p, bool visiveis)
     {
         var incluidos = p.Itens.Where(i => i.Incluido).OrderBy(i => i.Ordem).ToList();
-        var alterados = incluidos.Where(i => i.Situacao.Revisada is not null || i.Campos.Values.Any(c => c.Revisado is not null)).Select(i => i.Id).ToArray();
+        var alterados = incluidos.Where(i => i.Situacao.Revisada is not null || i.Campos.Values.Any(c => c.Revisado is not null)).Select(i => i.Id)
+            .Concat(p.Linhas.Where(l => l.Value.Revisada).Select(l => l.Key)) // linhas de tabela revisadas (traço azul na linha)
+            .ToArray();
         var excluidos = new List<object>();
         foreach (var x in p.Itens.Where(i => !i.Incluido).OrderBy(i => i.Ordem))
         {

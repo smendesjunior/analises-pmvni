@@ -4,6 +4,7 @@
 // mídia de impressão). As posições são do documento sem zoom (o <body> escala junto com as folhas); o botão tem o
 // tamanho constante na tela (contra-escala por --pmvni-zoom).
 
+import { pedacosDoBloco } from './linhas';
 import { zoomAtual } from './tela';
 
 export const ID_CAMADA = 'pmvni-camada';
@@ -16,7 +17,6 @@ const TRACO_AFASTAMENTO_PX = 12;
 /** Folga (px de tela) entre o botão e a borda esquerda da folha. */
 const BOTAO_FOLGA_PX = 6;
 const BOTAO_ALTURA_PX = 18;
-const SELETOR_PEDACOS = 'section.folha .area .card[data-ref]';
 
 export interface Excluido { id: string; rotulo: string; ancora: string; lado: 'antes' | 'depois' }
 export interface EstadoMarcas { visiveis: boolean; alterados: string[]; excluidos: Excluido[] }
@@ -41,8 +41,8 @@ export const CSS_MARCAS = `
 @media print { #${ID_CAMADA} { display: none !important; } }
 `;
 
-const pedacosDe = (ref: string): HTMLElement[] =>
-  Array.from(document.querySelectorAll<HTMLElement>(SELETOR_PEDACOS)).filter((e) => e.getAttribute('data-ref') === ref);
+/** Pedaços de um item alterado (cards) ou de uma linha de tabela alterada (linhas.ts). */
+const pedacosDe = (ref: string): HTMLElement[] => pedacosDoBloco(ref);
 
 /** Remove a camada (e com ela todas as marcas). */
 export function limparMarcas(): void {

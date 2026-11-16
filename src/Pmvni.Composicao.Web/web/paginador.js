@@ -995,6 +995,121 @@ var Paginador = (() => {
     });
   }
 
+  // src/linhas.ts
+  var ATR_LINHA = "data-pmvni-linha";
+  var ATR_ENVOLTO = "data-pmvni-envolto";
+  var ATR_CAMPO = "data-campo";
+  var SELETOR_LINHAS = `section.folha .area tr[${ATR_LINHA}]`;
+  var SELETOR_CARDS = "section.folha .area .card[data-ref]";
+  var SEPARADOR_VAO = " • ";
+  var PREFIXO_AREA = "ÁREA: ";
+  var TAG_TRECHO = "pmvni-trecho";
+  var TABELAS = [["ind", "indices"], ["ilu", "ambientes"]];
+  var ehLinha = (ref) => typeof ref === "string" && /^(indices|ambientes)\/\d{2,}$/.test(ref);
+  var ehCaminho = (v) => typeof v === "string" && /^[a-z_]+(\/([0-9]+|[a-z_]+))*$/.test(v);
+  var visivel2 = (e) => !e.closest(`[${ATR_OCULTO}]`);
+  function pedacosDoBloco(ref) {
+    if (ehLinha(ref)) {
+      return Array.from(document.querySelectorAll(SELETOR_LINHAS)).filter((e) => e.getAttribute(ATR_LINHA) === ref && visivel2(e));
+    }
+    return Array.from(document.querySelectorAll(SELETOR_CARDS)).filter((e) => e.getAttribute("data-ref") === ref);
+  }
+  function blocoDe(alvo) {
+    const card = alvo.closest(SELETOR_CARDS);
+    if (card) return { el: card, ref: card.getAttribute("data-ref"), linha: false };
+    const tr = alvo.closest(SELETOR_LINHAS);
+    if (tr) return { el: tr, ref: tr.getAttribute(ATR_LINHA), linha: true };
+    return null;
+  }
+  function marcarLinhas() {
+    for (const [classe, bloco] of TABELAS) {
+      for (const t of Array.from(document.querySelectorAll(`section.folha .area table.tb.${classe}`))) {
+        const linhas = Array.from(t.tBodies).flatMap((b) => Array.from(b.rows));
+        linhas.forEach((tr, i) => {
+          const rotulo = tr.querySelector(":scope > td.nm span.sm")?.textContent ?? "";
+          const m = /(\d+)\s*$/.exec(rotulo);
+          const n = m ? parseInt(m[1], 10) : i + 1;
+          tr.setAttribute(ATR_LINHA, `${bloco}/${String(n).padStart(2, "0")}`);
+        });
+      }
+    }
+  }
+  function marcar(el, campo) {
+    if (!el) return 0;
+    el.setAttribute(ATR_CAMPO, campo);
+    return 1;
+  }
+  function envolverTexto(no, campo) {
+    if (no.data.length === 0) return 0;
+    const span = document.createElement(TAG_TRECHO);
+    span.setAttribute(ATR_ENVOLTO, "");
+    span.setAttribute(ATR_CAMPO, campo);
+    no.replaceWith(span);
+    span.appendChild(no);
+    return 1;
+  }
+  function textoUnico(el) {
+    return el.childNodes.length === 1 && el.firstChild.nodeType === Node.TEXT_NODE ? el.firstChild : null;
+  }
+  var jaMarcados = (el) => el.querySelectorAll(`:scope > [${ATR_ENVOLTO}]`).length;
+  function marcarIndice(tr) {
+    const [nm, calculo, projeto, limite, situacao] = Array.from(tr.cells);
+    marcar(nm?.querySelector(":scope .nmw > div > b"), "nome");
+    marcar(nm?.querySelector(":scope .nmw > div > small"), "descricao");
+    marcar(calculo, "calculo");
+    marcar(projeto, "projeto");
+    marcar(limite, "limite");
+    marcar(situacao?.querySelector(":scope > .st"), "texto");
+  }
+  function marcarAmbiente(tr) {
+    const [nm, vaos, minimo, situacao] = Array.from(tr.cells);
+    marcar(nm?.querySelector(":scope .nmw > div > b"), "nome");
+    nm?.querySelectorAll(":scope .nmw > div > small").forEach((s, i) => marcar(s, `detalhes/${i}`));
+    vaos?.querySelectorAll(":scope > .vao").forEach((v, k) => {
+      const b = v.querySelector(":scope > b");
+      if (b && jaMarcados(b) === 0) {
+        const no = textoUnico(b);
+        const sep = no ? no.data.indexOf(SEPARADOR_VAO) : -1;
+        if (!no || sep < 0) marcar(b, `vaos/${k}/codigo`);
+        else {
+          const resto = no.splitText(sep);
+          const medidas = resto.splitText(SEPARADOR_VAO.length);
+          envolverTexto(no, `vaos/${k}/codigo`);
+          envolverTexto(medidas, `vaos/${k}/medidas`);
+        }
+      }
+      marcar(v.querySelector(":scope > span"), `vaos/${k}/tipo`);
+      const em = v.querySelector(":scope > em");
+      if (em?.classList.contains("o")) marcar(em, `vaos/${k}/sem_area`);
+      else if (em && jaMarcados(em) === 0) {
+        const no = textoUnico(em);
+        if (no?.data.startsWith(PREFIXO_AREA)) envolverTexto(no.splitText(PREFIXO_AREA.length), `vaos/${k}/area`);
+      }
+    });
+    minimo?.querySelectorAll(":scope > div").forEach((d, i) => marcar(d, `minimo/${i}/texto`));
+    if (situacao) {
+      marcar(situacao.querySelector(":scope > .vres .vrt > b"), "resultado/total");
+      marcar(situacao.querySelector(":scope > .vres > .vrc"), "resultado/conta");
+      marcar(situacao.querySelector(":scope > .vres > .vrm"), "resultado/comparacao");
+      marcar(situacao.querySelector(":scope > .st.sb"), "situacao_titulo");
+      situacao.querySelectorAll(":scope > .st:not(.sb)").forEach((s, i) => marcar(s, `textos/${i}`));
+    }
+  }
+  function marcarCamposLinhas() {
+    marcarLinhas();
+    for (const tr of Array.from(document.querySelectorAll(SELETOR_LINHAS))) {
+      if (tr.closest("table")?.classList.contains("ind")) marcarIndice(tr);
+      else marcarAmbiente(tr);
+    }
+  }
+  function desenvolver(el) {
+    if (!el.hasAttribute(ATR_ENVOLTO)) return false;
+    const pai = el.parentElement;
+    el.replaceWith(...Array.from(el.childNodes));
+    pai?.normalize();
+    return true;
+  }
+
   // src/tela.ts
   var ID_CSS2 = "pmvni-tela-css";
   var ATR_TRANSBORDA = "data-pmvni-transborda";
@@ -1169,7 +1284,6 @@ var Paginador = (() => {
   var TRACO_AFASTAMENTO_PX = 12;
   var BOTAO_FOLGA_PX = 6;
   var BOTAO_ALTURA_PX = 18;
-  var SELETOR_PEDACOS = "section.folha .area .card[data-ref]";
   var CSS_MARCAS = `
 @media screen {
   #${ID_CAMADA} { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; z-index: 5; pointer-events: none; }
@@ -1188,7 +1302,7 @@ var Paginador = (() => {
 }
 @media print { #${ID_CAMADA} { display: none !important; } }
 `;
-  var pedacosDe = (ref) => Array.from(document.querySelectorAll(SELETOR_PEDACOS)).filter((e) => e.getAttribute("data-ref") === ref);
+  var pedacosDe = (ref) => pedacosDoBloco(ref);
   function limparMarcas() {
     document.getElementById(ID_CAMADA)?.remove();
   }
@@ -1261,10 +1375,10 @@ var Paginador = (() => {
   // src/edicao.ts
   var CAMPOS = ["titulo", "verificacao", "providencia", "base_legal", "referencia"];
   var ID_CSS3 = "pmvni-edicao-css";
-  var ATR_CAMPO = "data-campo";
+  var ATR_CAMPO2 = "data-campo";
   var ATR_SELECIONADO = "data-pmvni-selecionado";
   var ATR_EDITANDO = "data-pmvni-editando";
-  var SELETOR_PEDACOS2 = "section.folha .area .card[data-ref]";
+  var SELETOR_PEDACOS = "section.folha .area .card[data-ref]";
   var SEPARADOR_TITULO = " — ";
   var ATALHOS = /* @__PURE__ */ new Set([
     "Ctrl+O",
@@ -1293,7 +1407,7 @@ var Paginador = (() => {
   var CSS_EDICAO = `
 @media screen {
   [${ATR_SELECIONADO}] { outline: 2px solid #1a73e8; outline-offset: 1px; }
-  section.folha [${ATR_CAMPO}]:hover { background-color: rgba(26, 115, 232, .10); }
+  section.folha [${ATR_CAMPO2}]:hover { background-color: rgba(26, 115, 232, .10); }
   [${ATR_EDITANDO}] { outline: 2px solid #1a73e8; outline-offset: 1px; background-color: #fff8d6 !important; cursor: text; }
 }
 ${CSS_MARCAS}`;
@@ -1301,7 +1415,8 @@ ${CSS_MARCAS}`;
   var contadorEventos = 0;
   var edicao = null;
   var ehCampo = (v) => typeof v === "string" && CAMPOS.includes(v);
-  var pedacosDe2 = (ref) => Array.from(document.querySelectorAll(SELETOR_PEDACOS2)).filter((e) => e.getAttribute("data-ref") === ref);
+  var campoDoBloco = (ref, v) => ehLinha(ref) ? ehCaminho(v) : ehCampo(v);
+  var pedacosDe2 = (ref) => pedacosDoBloco(ref);
   function garantirCss() {
     if (document.getElementById(ID_CSS3)) return;
     const css = document.createElement("style");
@@ -1312,7 +1427,7 @@ ${CSS_MARCAS}`;
   function campoTitulo(card) {
     const ct = card.querySelector(":scope > .ch > .ct");
     if (!ct) return null;
-    const marcado = ct.querySelector(`:scope > span[${ATR_CAMPO}="titulo"]`);
+    const marcado = ct.querySelector(`:scope > span[${ATR_CAMPO2}="titulo"]`);
     if (marcado) return marcado;
     const primeiro = ct.querySelector(":scope > span.id")?.nextSibling;
     if (!primeiro || primeiro.nodeType !== Node.TEXT_NODE) return null;
@@ -1340,18 +1455,19 @@ ${CSS_MARCAS}`;
     ];
   }
   function marcarCampos() {
-    for (const card of Array.from(document.querySelectorAll(SELETOR_PEDACOS2))) {
-      for (const [campo, el] of camposDoPedaco(card)) el?.setAttribute(ATR_CAMPO, campo);
+    for (const card of Array.from(document.querySelectorAll(SELETOR_PEDACOS))) {
+      for (const [campo, el] of camposDoPedaco(card)) el?.setAttribute(ATR_CAMPO2, campo);
     }
-    return document.querySelectorAll(`section.folha [${ATR_CAMPO}]`).length;
+    marcarCamposLinhas();
+    return document.querySelectorAll(`section.folha [${ATR_CAMPO2}]`).length;
   }
   function desmarcarCampos() {
-    for (const el of Array.from(document.querySelectorAll(`section.folha [${ATR_CAMPO}]`))) {
+    for (const el of Array.from(document.querySelectorAll(`section.folha [${ATR_CAMPO2}]`))) {
       const pai = el.parentElement;
-      if (el.localName === "span" && el.getAttribute(ATR_CAMPO) === "titulo" && pai?.classList.contains("ct")) {
+      if (el.localName === "span" && el.getAttribute(ATR_CAMPO2) === "titulo" && pai?.classList.contains("ct")) {
         el.replaceWith(...Array.from(el.childNodes));
         pai.normalize();
-      } else el.removeAttribute(ATR_CAMPO);
+      } else if (!desenvolver(el)) el.removeAttribute(ATR_CAMPO2);
     }
   }
   function aplicarSelecao(ref) {
@@ -1360,11 +1476,11 @@ ${CSS_MARCAS}`;
   }
   function localizar2(alvo) {
     if (!(alvo instanceof Element)) return { ref: null, campo: null };
-    const card = alvo.closest(SELETOR_PEDACOS2);
-    if (!card) return { ref: null, campo: null };
-    const el = alvo.closest(`[${ATR_CAMPO}]`);
-    const campo = el && card.contains(el) ? el.getAttribute(ATR_CAMPO) : null;
-    return { ref: card.getAttribute("data-ref"), campo: ehCampo(campo) ? campo : null };
+    const bloco = blocoDe(alvo);
+    if (!bloco) return { ref: null, campo: null };
+    const el = alvo.closest(`[${ATR_CAMPO2}]`);
+    const campo = el && bloco.el.contains(el) ? el.getAttribute(ATR_CAMPO2) : null;
+    return { ref: bloco.ref, campo: campoDoBloco(bloco.ref, campo) ? campo : null };
   }
   function lerTexto(el) {
     let s = "";
@@ -1413,7 +1529,7 @@ ${CSS_MARCAS}`;
   }
   function iniciarEdicao(ref, campo, texto2) {
     const pedacos = pedacosDe2(ref).flatMap((p) => {
-      const el = p.querySelector(`[${ATR_CAMPO}="${campo}"]`);
+      const el = p.querySelector(`[${ATR_CAMPO2}="${CSS.escape(campo)}"]`);
       return el ? [el] : [];
     });
     const [primeiro, ...demais] = pedacos;
@@ -1454,6 +1570,13 @@ ${CSS_MARCAS}`;
     e.primeiro.blur();
     e.pendente = true;
     return { ref: e.ref, campo: e.campo, texto: texto2 };
+  }
+  function rolarAteLinha(ref) {
+    const alvo = pedacosDe2(ref)[0];
+    if (!alvo) return;
+    const r = alvo.getBoundingClientRect();
+    if (r.top >= 0 && r.bottom <= window.innerHeight) return;
+    window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 48), behavior: "instant" });
   }
   function medirAncora() {
     const blocos = Array.from(document.querySelectorAll("section.folha .area [data-ref]")).filter((e) => e.getClientRects().length > 0);
@@ -1527,6 +1650,7 @@ ${CSS_MARCAS}`;
         if (!document.contains(edicao.primeiro)) edicao = null;
         else if (edicao.pendente || !e.campos) restaurarEdicao();
       }
+      marcarLinhas();
       let camposMarcados = 0;
       if (e.campos) camposMarcados = marcarCampos();
       else desmarcarCampos();
@@ -1540,15 +1664,19 @@ ${CSS_MARCAS}`;
       const ref = dados.ref;
       if (ref !== null && typeof ref !== "string") throw new ErroComposicao("selecao_invalida", "ref deve ser texto ou nulo.");
       if (typeof dados.rolar !== "boolean") throw new ErroComposicao("selecao_invalida", "rolar deve ser verdadeiro ou falso.");
+      if (ref !== null && ehLinha(ref)) marcarLinhas();
       if (ref !== null && pedacosDe2(ref).length === 0) throw new ErroComposicao("ref_inexistente", `Nenhuma folha mostra o item "${ref}".`);
       ligar();
       aplicarSelecao(ref);
-      if (ref !== null && dados.rolar) rolarAteRef(ref);
+      if (ref !== null && dados.rolar) {
+        if (ehLinha(ref)) rolarAteLinha(ref);
+        else rolarAteRef(ref);
+      }
       return { tipo: "selecionado", dados: { ref, campo: null } };
     });
     registrar2("editarCampo", (dados) => {
-      if (typeof dados.ref !== "string" || !ehCampo(dados.campo) || typeof dados.texto !== "string") {
-        throw new ErroComposicao("edicao_invalida", "editarCampo pede ref (texto), campo (um dos cinco campos) e texto.");
+      if (typeof dados.ref !== "string" || !campoDoBloco(dados.ref, dados.campo) || typeof dados.texto !== "string") {
+        throw new ErroComposicao("edicao_invalida", "editarCampo pede ref (texto), campo (um dos cinco campos, ou o caminho do texto na linha da tabela) e texto.");
       }
       ligar();
       iniciarEdicao(dados.ref, dados.campo, dados.texto);

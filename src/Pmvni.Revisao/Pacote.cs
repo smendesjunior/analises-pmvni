@@ -164,6 +164,9 @@ public static class Pacote
         }
 
         ConferirImagensDoDocumento(projeto, imagens);
+        foreach (var id in projeto.Linhas.Keys)
+            if (!TabelasRevisao.Existe(projeto, id))
+                throw new PacoteInvalidoException("O pacote revisa a linha de tabela " + id + ", que não existe no relatório.");
 
         if (!maior && VersaoDe(projeto.VersaoEsquema) > atual) maior = true;
         string? motivo = maior

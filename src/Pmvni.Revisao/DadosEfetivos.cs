@@ -21,6 +21,7 @@ public static class DadosEfetivos
         if (documento["conclusao"] is JsonValue v && v.TryGetValue<string>(out var conclusao))
             documento["conclusao"] = Imprimir(p, conclusao);
         documento["itens"] = itens; // a chave já existe: fica no lugar original
+        TabelasRevisao.Aplicar(p, documento); // linhas de tabela revisadas (sem revisão, nada muda)
 
         return new DadosGerados(JsonFiel.Escrever(documento), incluidos.Select(i => i.Id).ToList());
     }

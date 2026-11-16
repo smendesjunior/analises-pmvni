@@ -3,7 +3,8 @@ using Pmvni.Composicao.Kit;
 
 namespace Pmvni.Revisao;
 
-/// <summary>Um comando de revisão sobre um item. Quem aplica é a <see cref="SessaoRevisao"/>.</summary>
+/// <summary>Um comando de revisão sobre um item ou sobre uma linha de tabela (<see cref="TabelasRevisao"/>: <c>indices/02</c>,
+/// <c>ambientes/03</c>; o campo é o caminho do texto na linha). Quem aplica é a <see cref="SessaoRevisao"/>.</summary>
 public abstract record Comando(string Item);
 
 /// <summary>Muda a situação do item (só <see cref="Situacoes.SitItem"/>); voltar à original zera a revisão.</summary>
@@ -46,6 +47,7 @@ internal static class Motor
     {
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(c);
+        if (TabelasRevisao.EhLinha(c.Item)) return MotorLinhas.Calcular(p, c); // linha de tabela (Linhas.cs)
         var it = p.Item(c.Item) ?? throw new ComandoRecusadoException("O item não existe no relatório.");
         return c switch
         {
@@ -63,6 +65,7 @@ internal static class Motor
     /// <summary>Põe <paramref name="valor"/> (o "depois" de um registro) no item. <see cref="InvalidOperationException"/> se o item não existe.</summary>
     public static void Definir(Projeto p, string tipo, string item, string? campo, JsonNode? valor)
     {
+        if (TabelasRevisao.EhLinha(item)) { MotorLinhas.Definir(p, tipo, item, campo, valor); return; } // linha de tabela (Linhas.cs)
         var it = p.Item(item) ?? throw new InvalidOperationException("O registro cita um item que não existe: " + item);
         switch (tipo)
         {
