@@ -237,8 +237,65 @@ function evento(tipo, extracao, dados) {
 }
 var Cancelada = class extends Error {
 };
-var atual = null;
-var fila = Promise.resolve();
+function novaExtracao(id) {
+  let rejeitar = () => {
+  };
+  const aoCancelar = new Promise((_, falhar) => {
+    rejeitar = falhar;
+  });
+  aoCancelar.catch(() => {
+  });
+  const estado = {
+    id,
+    cancelada: false,
+    tarefa: null,
+    aoCancelar,
+    cancelar() {
+      if (estado.cancelada) return;
+      estado.cancelada = true;
+      rejeitar(new Cancelada());
+    }
+  };
+  return estado;
+}
+var TempoEsgotado = class extends Error {
+};
+function ate(p, estado, limiteMs = 0) {
+  if (estado.cancelada) return Promise.reject(new Cancelada());
+  const corrida = [p, estado.aoCancelar];
+  let limite;
+  if (limiteMs > 0) corrida.push(new Promise((_, falhar) => {
+    limite = setTimeout(() => falhar(new TempoEsgotado("tempo")), limiteMs);
+  }));
+  return Promise.race(corrida).finally(() => clearTimeout(limite));
+}
+async function destruir(estado) {
+  const tarefa = estado.tarefa;
+  estado.tarefa = null;
+  if (!tarefa) return;
+  let limite;
+  try {
+    await Promise.race([tarefa.destroy(), new Promise((pronto) => {
+      limite = setTimeout(pronto, 2e3);
+    })]);
+  } catch {
+  } finally {
+    clearTimeout(limite);
+  }
+}
+var emCurso = /* @__PURE__ */ new Map();
+var canceladasAntes = /* @__PURE__ */ new Set();
+var filaTexto = Promise.resolve();
+var filaFiguras = Promise.resolve();
+function comecar(id) {
+  const estado = novaExtracao(id);
+  if (canceladasAntes.delete(id)) estado.cancelar();
+  emCurso.set(id, estado);
+  return estado;
+}
+function terminar(estado) {
+  if (emCurso.get(estado.id) === estado) emCurso.delete(estado.id);
+}
 function codigoDoErro(e) {
   if (pdfjs && e instanceof pdfjs.PasswordException) return "senha";
   if (pdfjs && e instanceof pdfjs.InvalidPDFException) return "invalido";
@@ -248,36 +305,33 @@ function codigoDoErro(e) {
   return "falhou";
 }
 async function extrair(id, url) {
-  const estado = { id, cancelada: false, tarefa: null };
-  atual = estado;
+  const estado = comecar(id);
   try {
     if (!pdfjs) throw new Error("O PDF.js nao foi carregado.");
+    if (estado.cancelada) throw new Cancelada();
     const tarefa = pdfjs.getDocument(opcoesDocumento(url));
     estado.tarefa = tarefa;
-    const doc = await tarefa.promise;
+    const doc = await ate(tarefa.promise, estado);
     const total = doc.numPages;
     for (let p = 1; p <= total; p++) {
       if (estado.cancelada) throw new Cancelada();
-      const pagina = await doc.getPage(p);
-      const conteudo = await pagina.getTextContent();
+      const pagina = await ate(doc.getPage(p), estado);
+      const conteudo = await ate(pagina.getTextContent(), estado);
       const { texto } = montarTexto(conteudo.items);
       pagina.cleanup();
       if (estado.cancelada) throw new Cancelada();
       evento("textoPagina", id, { pagina: p, texto });
       evento("progresso", id, { pagina: p, total });
     }
-    await tarefa.destroy();
+    await destruir(estado);
     enviar("extraido", id, { paginas: total });
   } catch (e) {
     const codigo = estado.cancelada ? "falhou" : codigoDoErro(e);
     const mensagem = estado.cancelada ? "Extracao cancelada." : e instanceof Error ? e.message : String(e);
     enviar("erro", id, { codigo, mensagem });
-    try {
-      await estado.tarefa?.destroy();
-    } catch {
-    }
+    await destruir(estado);
   } finally {
-    if (atual === estado) atual = null;
+    terminar(estado);
   }
 }
 var MAX_PIXELS = 4e6;
@@ -297,19 +351,21 @@ function recortar(origem, x, y, w, h) {
   if (!url.startsWith("data:" + tipo) || virgula < 0) throw new Error("recorte vazio");
   return { tipo, dados: url.slice(virgula + 1) };
 }
+var LIMITE_PASSO_MS = 3e4;
 async function figurasDaPagina(pagina, estado) {
-  const conteudo = await pagina.getTextContent();
+  const conteudo = await ate(pagina.getTextContent(), estado, LIMITE_PASSO_MS);
   const texto = montarTexto(conteudo.items);
   const [vx0, vy0, vx1, vy1] = pagina.view;
   const vista = { x0: Math.min(vx0, vx1), y0: Math.min(vy0, vy1), x1: Math.max(vx0, vx1), y1: Math.max(vy0, vy1) };
   let lista = [];
   let semLugar = false;
   try {
-    const ops = await pagina.getOperatorList({ intent: "print", annotationMode: pdfjs.AnnotationMode.DISABLE });
+    const ops = await ate(pagina.getOperatorList({ intent: "print", annotationMode: pdfjs.AnnotationMode.DISABLE }), estado, LIMITE_PASSO_MS);
     const g = lerOperacoes(ops.fnArray, ops.argsArray, pdfjs.OPS);
     lista = regioes(g, vista, texto).slice(0, MAX_FIGURAS_PAGINA);
     semLugar = g.semLugar && lista.length === 0;
-  } catch {
+  } catch (e) {
+    if (e instanceof Cancelada || estado.cancelada) throw new Cancelada();
     semLugar = true;
   }
   if (lista.length === 0 && !semLugar) return [];
@@ -324,18 +380,18 @@ async function figurasDaPagina(pagina, estado) {
   canvas.height = Math.ceil(viewport.height);
   try {
     const tarefa = pagina.render({ canvas, viewport, intent: "print", annotationMode: pdfjs.AnnotationMode.DISABLE });
-    let limite;
     try {
-      await Promise.race([tarefa.promise, new Promise((_, falhar) => {
-        limite = setTimeout(() => falhar(new Error("tempo")), 3e4);
-      })]);
+      await ate(tarefa.promise, estado, LIMITE_PASSO_MS);
     } catch (e) {
       tarefa.cancel();
       throw e;
-    } finally {
-      clearTimeout(limite);
     }
-  } catch {
+  } catch (e) {
+    if (e instanceof Cancelada || estado.cancelada) {
+      canvas.width = canvas.height = 0;
+      throw new Cancelada();
+    }
+    canvas.width = canvas.height = 0;
     return [paginaInteira("falhou")];
   }
   try {
@@ -378,40 +434,37 @@ async function figurasDaPagina(pagina, estado) {
   }
 }
 async function extrairFiguras(id, url) {
-  const estado = { id, cancelada: false, tarefa: null };
-  atual = estado;
+  const estado = comecar(id);
   try {
     if (!pdfjs) throw new Error("O PDF.js nao foi carregado.");
+    if (estado.cancelada) throw new Cancelada();
     const tarefa = pdfjs.getDocument(opcoesDocumento(url));
     estado.tarefa = tarefa;
-    const doc = await tarefa.promise;
+    const doc = await ate(tarefa.promise, estado);
     const total = doc.numPages;
     for (let p = 1; p <= total; p++) {
       if (estado.cancelada) throw new Cancelada();
-      const pagina = await doc.getPage(p);
+      const pagina = await ate(doc.getPage(p), estado, LIMITE_PASSO_MS);
       let figuras;
       try {
         figuras = await figurasDaPagina(pagina, estado);
       } catch (e) {
-        if (e instanceof Cancelada || estado.cancelada) throw e;
+        if (e instanceof Cancelada || estado.cancelada) throw new Cancelada();
         figuras = [{ linha: 1e6, x: 0, y: 0, w: 1, h: 1, largura: 0, origem: "falhou", tipo: "", dados: "" }];
       }
       pagina.cleanup();
       if (estado.cancelada) throw new Cancelada();
       evento("figurasPagina", id, { pagina: p, figuras });
     }
-    await tarefa.destroy();
+    await destruir(estado);
     enviar("figurasExtraidas", id, { paginas: total });
   } catch (e) {
     const codigo = estado.cancelada ? "falhou" : codigoDoErro(e);
     const mensagem = estado.cancelada ? "Extracao cancelada." : e instanceof Error ? e.message : String(e);
     enviar("erro", id, { codigo, mensagem });
-    try {
-      await estado.tarefa?.destroy();
-    } catch {
-    }
+    await destruir(estado);
   } finally {
-    if (atual === estado) atual = null;
+    terminar(estado);
   }
 }
 function aoReceber(bruto) {
@@ -428,18 +481,25 @@ function aoReceber(bruto) {
       enviar("erro", msg.id, { codigo: "falhou", mensagem: "extrair sem url" });
       return;
     }
-    fila = fila.then(() => extrair(msg.id, url));
+    filaTexto = filaTexto.then(() => extrair(msg.id, url));
   } else if (msg.tipo === "figuras") {
     const url = msg.dados.url;
     if (typeof url !== "string" || url === "") {
       enviar("erro", msg.id, { codigo: "falhou", mensagem: "figuras sem url" });
       return;
     }
-    fila = fila.then(() => extrairFiguras(msg.id, url));
+    filaFiguras = filaFiguras.then(() => extrairFiguras(msg.id, url));
   } else if (msg.tipo === "cancelar") {
-    if (atual) {
-      atual.cancelada = true;
-      void atual.tarefa?.destroy();
+    const alvo = msg.dados.extracao;
+    if (typeof alvo === "string" && alvo !== "") {
+      const estado = emCurso.get(alvo);
+      if (estado) estado.cancelar();
+      else {
+        canceladasAntes.add(alvo);
+        if (canceladasAntes.size > 100) canceladasAntes.delete(canceladasAntes.values().next().value);
+      }
+    } else {
+      for (const estado of emCurso.values()) estado.cancelar();
     }
   }
 }

@@ -151,6 +151,40 @@ public static class PdfLegislacaoFicticio
         return pdf.Serializar(trailer);
     }
 
+    /// <summary>Lei fictícia de <paramref name="n"/> páginas, cada uma com um artigo e uma imagem (200×100 pt) e um degradê de página inteira:
+    /// a leitura das figuras leva alguns segundos (testes de cancelamento e de exclusão durante a leitura).</summary>
+    public static byte[] GerarComFigurasGrande(int n)
+    {
+        var pdf = new Corpo();
+        var catalogo = pdf.Reservar();
+        var arvore = pdf.Reservar();
+        var fonte = pdf.Reservar();
+        var imagem = pdf.Reservar();
+        var sombra = pdf.Reservar();
+        pdf.Definir(fonte, Latin("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"));
+        pdf.Definir(imagem, ComFluxo(" /Type /XObject /Subtype /Image /Width 2 /Height 2 /ColorSpace /DeviceRGB /BitsPerComponent 8",
+            [255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 0]));
+        pdf.Definir(sombra, Latin("<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 595 0] /Function << /FunctionType 2 /Domain [0 1] "
+            + "/C0 [1 1 1] /C1 [0.1 0.35 0.6] /N 1 >> /Extend [true true] >>"));
+        var paginas = new List<int>();
+        for (var i = 1; i <= n; i++)
+        {
+            var b = new List<byte>();
+            b.AddRange(Latin("BT /F1 12 Tf 1 0 0 1 72 770 Tm ("));
+            b.AddRange(Escapar($"Art. {i}º Artigo fictício com figura."));
+            b.AddRange(Latin(") Tj ET\nq 200 0 0 100 72 630 cm /Im1 Do Q\nq 0 0 595 842 re W n /Sh1 sh Q\n"));
+            var conteudo = pdf.Reservar();
+            var pagina = pdf.Reservar();
+            pdf.Definir(conteudo, ComFluxo("", [.. b]));
+            pdf.Definir(pagina, Latin($"<< /Type /Page /Parent {arvore} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 {fonte} 0 R >> "
+                + $"/XObject << /Im1 {imagem} 0 R >> /Shading << /Sh1 {sombra} 0 R >> >> /Contents {conteudo} 0 R >>"));
+            paginas.Add(pagina);
+        }
+        pdf.Definir(arvore, Latin($"<< /Type /Pages /Kids [{string.Join(" ", paginas.Select(o => o + " 0 R"))}] /Count {n} >>"));
+        pdf.Definir(catalogo, Latin($"<< /Type /Catalog /Pages {arvore} 0 R >>"));
+        return pdf.Serializar($"/Root {catalogo} 0 R /ID [<00112233445566778899AABBCCDDEEF0><00112233445566778899AABBCCDDEEF0>]");
+    }
+
     /// <summary>Lei fictícia com figuras (correções 2026-11-15), para a leitura padronizada. Página 1: duas linhas de texto, uma imagem
     /// (objeto de imagem 2×2 RGB, desenhada em 200×100 pt de y 630 a 730) e outra linha em y 600. Página 2: uma linha em y 770, um desenho
     /// vetorial (triângulo traçado e retângulo azul, de y 500 a 700), uma imagem embutida (BI…EI, 50×50 pt de y 600 a 650, à direita) e a

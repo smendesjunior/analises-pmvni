@@ -2,7 +2,8 @@
 // O host manda `extrair {url}`; para cada pagina vem `textoPagina` e `progresso`, e no fim `extraido {paginas}` ou `erro`.
 // Texto da pagina = `str` dos itens na ordem, com "\n" depois de cada item com `hasEOL`. Sem OCR, sem tentar senha.
 // Figuras (correcoes 2026-11-15): o host manda `figuras {url}`; para cada pagina vem `figurasPagina {pagina, figuras}` e no fim
-// `figurasExtraidas {paginas}` ou `erro` (veja figuras.ts).
+// `figurasExtraidas {paginas}` ou `erro` (veja figuras.ts). Texto e figuras tem filas separadas (uma nunca espera a outra);
+// `cancelar {extracao}` cancela so aquela extracao, `cancelar {}` todas.
 import type { PDFDocumentLoadingTask, PDFPageProxy } from 'pdfjs-dist';
 import { lerOperacoes, linhaDaFigura, montarTexto, regioes, type Caixa, type FiguraWeb } from './figuras';
 import { lerMensagemHost, lerMensagemWeb, VERSAO, type CodigoErro, type TipoWeb } from './mensagens';
@@ -34,16 +35,74 @@ function evento(tipo: TipoWeb, extracao: string | null, dados: Record<string, un
   enviar(tipo, `evento-${++sequencia}`, extracao === null ? dados : { extracao, ...dados });
 }
 
+class Cancelada extends Error {}
+
+/** Uma extracao (texto ou figuras). `cancelar` rejeita `aoCancelar`, e toda espera do PDF.js corre contra ela (`ate`): uma promessa do
+ * PDF.js que nunca termina (o `getOperatorList` de um documento destruido no meio, visto no roteiro) e abandonada, e a extracao sai
+ * na hora. O documento so e destruido depois disso, com limite de tempo: a fila da pagina nunca fica presa. */
 interface Extracao {
   id: string;
   cancelada: boolean;
   tarefa: PDFDocumentLoadingTask | null;
+  aoCancelar: Promise<never>;
+  cancelar(): void;
 }
 
-class Cancelada extends Error {}
+function novaExtracao(id: string): Extracao {
+  let rejeitar: (e: unknown) => void = () => {};
+  const aoCancelar = new Promise<never>((_, falhar) => { rejeitar = falhar; });
+  aoCancelar.catch(() => { /* so serve para a corrida */ });
+  const estado: Extracao = {
+    id, cancelada: false, tarefa: null, aoCancelar,
+    cancelar() {
+      if (estado.cancelada) return;
+      estado.cancelada = true;
+      rejeitar(new Cancelada());
+    },
+  };
+  return estado;
+}
 
-let atual: Extracao | null = null;
-let fila: Promise<void> = Promise.resolve();
+class TempoEsgotado extends Error {}
+
+/** Espera `p` ou o cancelamento da extracao (e, com `limiteMs`, no maximo esse tempo: TempoEsgotado). */
+function ate<T>(p: Promise<T>, estado: Extracao, limiteMs = 0): Promise<T> {
+  if (estado.cancelada) return Promise.reject(new Cancelada());
+  const corrida: Promise<T>[] = [p, estado.aoCancelar];
+  let limite: ReturnType<typeof setTimeout> | undefined;
+  if (limiteMs > 0) corrida.push(new Promise<never>((_, falhar) => { limite = setTimeout(() => falhar(new TempoEsgotado('tempo')), limiteMs); }));
+  return Promise.race(corrida).finally(() => clearTimeout(limite));
+}
+
+/** Destroi o documento sem esperar mais que 2 s (um destroy preso nao segura a fila). */
+async function destruir(estado: Extracao): Promise<void> {
+  const tarefa = estado.tarefa;
+  estado.tarefa = null;
+  if (!tarefa) return;
+  let limite: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([tarefa.destroy(), new Promise<void>((pronto) => { limite = setTimeout(pronto, 2000); })]);
+  } catch { /* ja destruida */ } finally {
+    clearTimeout(limite);
+  }
+}
+
+// Extracoes em andamento (por id) e as filas: texto e figuras tem filas separadas, para uma nunca esperar a outra.
+const emCurso = new Map<string, Extracao>();
+const canceladasAntes = new Set<string>();
+let filaTexto: Promise<void> = Promise.resolve();
+let filaFiguras: Promise<void> = Promise.resolve();
+
+function comecar(id: string): Extracao {
+  const estado = novaExtracao(id);
+  if (canceladasAntes.delete(id)) estado.cancelar(); // cancelada enquanto esperava a vez
+  emCurso.set(id, estado);
+  return estado;
+}
+
+function terminar(estado: Extracao): void {
+  if (emCurso.get(estado.id) === estado) emCurso.delete(estado.id);
+}
 
 function codigoDoErro(e: unknown): CodigoErro {
   if (pdfjs && e instanceof pdfjs.PasswordException) return 'senha';
@@ -55,33 +114,33 @@ function codigoDoErro(e: unknown): CodigoErro {
 }
 
 async function extrair(id: string, url: string): Promise<void> {
-  const estado: Extracao = { id, cancelada: false, tarefa: null };
-  atual = estado;
+  const estado = comecar(id);
   try {
     if (!pdfjs) throw new Error('O PDF.js nao foi carregado.');
+    if (estado.cancelada) throw new Cancelada();
     const tarefa = pdfjs.getDocument(opcoesDocumento(url));
     estado.tarefa = tarefa;
-    const doc = await tarefa.promise;
+    const doc = await ate(tarefa.promise, estado);
     const total = doc.numPages;
     for (let p = 1; p <= total; p++) {
       if (estado.cancelada) throw new Cancelada();
-      const pagina = await doc.getPage(p);
-      const conteudo = await pagina.getTextContent();
+      const pagina = await ate(doc.getPage(p), estado);
+      const conteudo = await ate(pagina.getTextContent(), estado);
       const { texto } = montarTexto(conteudo.items);
       pagina.cleanup();
       if (estado.cancelada) throw new Cancelada();
       evento('textoPagina', id, { pagina: p, texto });
       evento('progresso', id, { pagina: p, total });
     }
-    await tarefa.destroy();
+    await destruir(estado);
     enviar('extraido', id, { paginas: total });
   } catch (e) {
     const codigo: CodigoErro = estado.cancelada ? 'falhou' : codigoDoErro(e);
     const mensagem = estado.cancelada ? 'Extracao cancelada.' : e instanceof Error ? e.message : String(e);
     enviar('erro', id, { codigo, mensagem });
-    try { await estado.tarefa?.destroy(); } catch { /* ja destruida */ }
+    await destruir(estado);
   } finally {
-    if (atual === estado) atual = null;
+    terminar(estado);
   }
 }
 
@@ -107,19 +166,24 @@ function recortar(origem: HTMLCanvasElement, x: number, y: number, w: number, h:
   return { tipo, dados: url.slice(virgula + 1) };
 }
 
+// Limite de cada passo do PDF.js por pagina (texto, lista de operacoes, desenho): uma pagina que nao responde vira o aviso, sem
+// segurar as outras. O tempo total por lei e do host (ExtratorPdfJs.LimiteFiguras), que cancela.
+const LIMITE_PASSO_MS = 30_000;
+
 async function figurasDaPagina(pagina: PDFPageProxy, estado: Extracao): Promise<FiguraWeb[]> {
-  const conteudo = await pagina.getTextContent();
+  const conteudo = await ate(pagina.getTextContent(), estado, LIMITE_PASSO_MS);
   const texto = montarTexto(conteudo.items);
   const [vx0, vy0, vx1, vy1] = pagina.view as [number, number, number, number];
   const vista = { x0: Math.min(vx0, vx1), y0: Math.min(vy0, vy1), x1: Math.max(vx0, vx1), y1: Math.max(vy0, vy1) };
   let lista: { caixa: Caixa; imagem: boolean }[] = [];
   let semLugar = false;
   try {
-    const ops = await pagina.getOperatorList({ intent: 'print', annotationMode: pdfjs!.AnnotationMode.DISABLE });
+    const ops = await ate(pagina.getOperatorList({ intent: 'print', annotationMode: pdfjs!.AnnotationMode.DISABLE }), estado, LIMITE_PASSO_MS);
     const g = lerOperacoes(ops.fnArray, ops.argsArray, pdfjs!.OPS as unknown as Record<string, number>);
     lista = regioes(g, vista, texto).slice(0, MAX_FIGURAS_PAGINA);
     semLugar = g.semLugar && lista.length === 0;
-  } catch {
+  } catch (e) {
+    if (e instanceof Cancelada || estado.cancelada) throw new Cancelada();
     semLugar = true; // lista de operacoes ilegivel: a pagina inteira garante que nada some
   }
   if (lista.length === 0 && !semLugar) return [];
@@ -136,18 +200,16 @@ async function figurasDaPagina(pagina: PDFPageProxy, estado: Extracao): Promise<
   canvas.height = Math.ceil(viewport.height);
   try {
     // intent 'print': sem requestAnimationFrame, que fica parado no WebView2 oculto (com 'display' o desenho nunca termina).
-    // Limite de 30 s por página: uma página que não termina de desenhar vira o aviso, sem segurar as outras.
     const tarefa = pagina.render({ canvas, viewport, intent: 'print', annotationMode: pdfjs!.AnnotationMode.DISABLE });
-    let limite: ReturnType<typeof setTimeout> | undefined;
     try {
-      await Promise.race([tarefa.promise, new Promise((_, falhar) => { limite = setTimeout(() => falhar(new Error('tempo')), 30_000); })]);
+      await ate(tarefa.promise, estado, LIMITE_PASSO_MS);
     } catch (e) {
       tarefa.cancel();
       throw e;
-    } finally {
-      clearTimeout(limite);
     }
-  } catch {
+  } catch (e) {
+    if (e instanceof Cancelada || estado.cancelada) { canvas.width = canvas.height = 0; throw new Cancelada(); }
+    canvas.width = canvas.height = 0;
     return [paginaInteira('falhou')];
   }
   try {
@@ -186,37 +248,37 @@ async function figurasDaPagina(pagina: PDFPageProxy, estado: Extracao): Promise<
 }
 
 async function extrairFiguras(id: string, url: string): Promise<void> {
-  const estado: Extracao = { id, cancelada: false, tarefa: null };
-  atual = estado;
+  const estado = comecar(id);
   try {
     if (!pdfjs) throw new Error('O PDF.js nao foi carregado.');
+    if (estado.cancelada) throw new Cancelada();
     const tarefa = pdfjs.getDocument(opcoesDocumento(url));
     estado.tarefa = tarefa;
-    const doc = await tarefa.promise;
+    const doc = await ate(tarefa.promise, estado);
     const total = doc.numPages;
     for (let p = 1; p <= total; p++) {
       if (estado.cancelada) throw new Cancelada();
-      const pagina = await doc.getPage(p);
+      const pagina = await ate(doc.getPage(p), estado, LIMITE_PASSO_MS);
       let figuras: FiguraWeb[];
       try {
         figuras = await figurasDaPagina(pagina, estado);
       } catch (e) {
-        if (e instanceof Cancelada || estado.cancelada) throw e;
+        if (e instanceof Cancelada || estado.cancelada) throw new Cancelada();
         figuras = [{ linha: 1e6, x: 0, y: 0, w: 1, h: 1, largura: 0, origem: 'falhou', tipo: '', dados: '' }];
       }
       pagina.cleanup();
       if (estado.cancelada) throw new Cancelada();
       evento('figurasPagina', id, { pagina: p, figuras });
     }
-    await tarefa.destroy();
+    await destruir(estado);
     enviar('figurasExtraidas', id, { paginas: total });
   } catch (e) {
     const codigo: CodigoErro = estado.cancelada ? 'falhou' : codigoDoErro(e);
     const mensagem = estado.cancelada ? 'Extracao cancelada.' : e instanceof Error ? e.message : String(e);
     enviar('erro', id, { codigo, mensagem });
-    try { await estado.tarefa?.destroy(); } catch { /* ja destruida */ }
+    await destruir(estado);
   } finally {
-    if (atual === estado) atual = null;
+    terminar(estado);
   }
 }
 
@@ -234,19 +296,27 @@ function aoReceber(bruto: unknown): void {
       enviar('erro', msg.id, { codigo: 'falhou', mensagem: 'extrair sem url' });
       return;
     }
-    // Uma extracao por vez: a nova espera a anterior (cancelada ou nao) terminar.
-    fila = fila.then(() => extrair(msg.id, url));
+    // Uma extracao de texto por vez: a nova espera a anterior (cancelada ou nao) terminar. As figuras tem a fila delas.
+    filaTexto = filaTexto.then(() => extrair(msg.id, url));
   } else if (msg.tipo === 'figuras') {
     const url = msg.dados.url;
     if (typeof url !== 'string' || url === '') {
       enviar('erro', msg.id, { codigo: 'falhou', mensagem: 'figuras sem url' });
       return;
     }
-    fila = fila.then(() => extrairFiguras(msg.id, url));
+    filaFiguras = filaFiguras.then(() => extrairFiguras(msg.id, url));
   } else if (msg.tipo === 'cancelar') {
-    if (atual) {
-      atual.cancelada = true;
-      void atual.tarefa?.destroy();
+    // cancelar {extracao}: so aquela (em andamento ou ainda na fila); cancelar {}: todas as em andamento.
+    const alvo = msg.dados.extracao;
+    if (typeof alvo === 'string' && alvo !== '') {
+      const estado = emCurso.get(alvo);
+      if (estado) estado.cancelar();
+      else {
+        canceladasAntes.add(alvo);
+        if (canceladasAntes.size > 100) canceladasAntes.delete(canceladasAntes.values().next().value as string);
+      }
+    } else {
+      for (const estado of emCurso.values()) estado.cancelar();
     }
   }
 }

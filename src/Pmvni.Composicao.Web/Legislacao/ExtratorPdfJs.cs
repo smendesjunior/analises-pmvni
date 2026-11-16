@@ -18,18 +18,23 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IExtratorFiguras, IAsyncDispos
     const int MaxRegistros = 200;
     static readonly TimeSpan LimiteExtracaoPadrao = TimeSpan.FromMinutes(10);
     static readonly TimeSpan LimiteInicio = TimeSpan.FromSeconds(30);
+    static readonly TimeSpan LimiteFigurasPadrao = TimeSpan.FromMinutes(3);
 
     readonly CoreWebView2Controller controller;
     readonly CoreWebView2 core;
     readonly ServidorLegislacao servidor;
     readonly SynchronizationContext contexto;
     readonly SemaphoreSlim fila = new(1, 1);
+    readonly SemaphoreSlim filaFiguras = new(1, 1); // as figuras têm fila própria: nunca seguram a extração de texto (nem o contrário)
     readonly ConcurrentQueue<string> bloqueadas = new();
     readonly ConcurrentQueue<string> vistas = new();
     volatile bool inutilizavel;
 
     /// <summary>Tempo máximo de uma extração (10 min; os testes o reduzem).</summary>
     internal TimeSpan LimiteExtracao { get; set; } = LimiteExtracaoPadrao;
+
+    /// <summary>Tempo máximo das figuras de uma lei (3 min; os testes o reduzem). Passou disso, a leitura segue sem figuras.</summary>
+    internal TimeSpan LimiteFiguras { get; set; } = LimiteFigurasPadrao;
     int descartado;
 
     ExtratorPdfJs(CoreWebView2Controller controller, ServidorLegislacao servidor, SynchronizationContext contexto)
@@ -162,7 +167,7 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IExtratorFiguras, IAsyncDispos
             else if (m.Dados.TryGetProperty("total", out var t) && t.TryGetInt32(out var total)) progresso?.Report((pagina, total));
         }
         Ponte.Recebida += Evento;
-        using var cancelamento = ct.Register(() => _ = EnviarCancelarAsync());
+        using var cancelamento = ct.Register(() => _ = EnviarCancelarAsync(id));
         try
         {
             var resposta = await Ponte.ChamarComIdAsync(id, "extrair", new { url }, LimiteExtracao, ct);
@@ -179,7 +184,7 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IExtratorFiguras, IAsyncDispos
         catch (Exception e) when (e is TimeoutException or InvalidOperationException or ObjectDisposedException)
         {
             // Tempo esgotado: a página ainda trabalha nessa extração; manda parar (como no cancelamento do usuário).
-            if (e is TimeoutException) await EnviarCancelarAsync();
+            if (e is TimeoutException) await EnviarCancelarAsync(id);
             throw new ExtracaoRecusadaException(FalhaExtracao.Falhou, e.Message);
         }
         finally { Ponte.Recebida -= Evento; }
@@ -190,7 +195,8 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IExtratorFiguras, IAsyncDispos
     const int MaximoBytesFigura = 12 * 1024 * 1024;
     const long MaximoBytesFiguras = 150L * 1024 * 1024;
 
-    /// <summary>Lê as figuras do PDF (mensagem <c>figuras</c>; na mesma fila e com o mesmo limite de tempo da extração de texto): para
+    /// <summary>Lê as figuras do PDF (mensagem <c>figuras</c>; numa fila própria, aqui e na página, para nunca segurar a extração de
+    /// texto, e com o limite <see cref="LimiteFiguras"/>; cancelar ou esgotar o tempo manda a página parar só esta extração): para
     /// cada página, as imagens e desenhos recortados da página desenhada, ou a página inteira quando o conteúdo gráfico não pôde ser
     /// localizado. Figura com tipo, assinatura ou tamanho fora do esperado é descartada; passado o total de 150 MB, as figuras seguintes
     /// viram só o aviso (<see cref="OrigemFigura.Falhou"/>). Erros como em <see cref="ExtrairAsync"/>.</summary>
@@ -199,7 +205,7 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IExtratorFiguras, IAsyncDispos
         ArgumentException.ThrowIfNullOrWhiteSpace(caminhoPdf);
         ct.ThrowIfCancellationRequested();
         if (Inutilizavel) throw new ExtracaoRecusadaException(FalhaExtracao.Falhou, "O leitor de PDF não está mais disponível.");
-        await fila.WaitAsync(ct).ConfigureAwait(false);
+        await filaFiguras.WaitAsync(ct).ConfigureAwait(false);
         string? url = null;
         try
         {
@@ -214,7 +220,7 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IExtratorFiguras, IAsyncDispos
         finally
         {
             if (url is not null) servidor.RemoverPdf(url);
-            fila.Release();
+            filaFiguras.Release();
         }
     }
 
@@ -238,10 +244,10 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IExtratorFiguras, IAsyncDispos
             }
         }
         Ponte.Recebida += Evento;
-        using var cancelamento = ct.Register(() => _ = EnviarCancelarAsync());
+        using var cancelamento = ct.Register(() => _ = EnviarCancelarAsync(id));
         try
         {
-            await Ponte.ChamarComIdAsync(id, "figuras", new { url }, LimiteExtracao, ct);
+            await Ponte.ChamarComIdAsync(id, "figuras", new { url }, LimiteFiguras, ct);
             return [.. figuras.OrderBy(f => f.Pagina)];
         }
         catch (ErroWebException e)
@@ -251,7 +257,7 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IExtratorFiguras, IAsyncDispos
         }
         catch (Exception e) when (e is TimeoutException or InvalidOperationException or ObjectDisposedException)
         {
-            if (e is TimeoutException) await EnviarCancelarAsync();
+            if (e is TimeoutException) await EnviarCancelarAsync(id);
             throw new ExtracaoRecusadaException(FalhaExtracao.Falhou, e.Message);
         }
         finally { Ponte.Recebida -= Evento; }
@@ -282,9 +288,10 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IExtratorFiguras, IAsyncDispos
             Math.Clamp(h, 0, 1), origem, tipo, dados, Math.Max(0, largura));
     }
 
-    async Task EnviarCancelarAsync()
+    /// <summary>Manda a página parar só a extração <paramref name="id"/> (texto e figuras correm em filas separadas).</summary>
+    async Task EnviarCancelarAsync(string id)
     {
-        try { await Ponte.EnviarAsync("cancelar", new { }); }
+        try { await Ponte.EnviarAsync("cancelar", new { extracao = id }); }
         catch (Exception e) when (e is InvalidOperationException or ObjectDisposedException or System.Runtime.InteropServices.COMException) { }
     }
 

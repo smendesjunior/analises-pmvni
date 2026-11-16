@@ -50,6 +50,7 @@ public sealed partial class MainWindow
     }
 
     const string DicaResumoAutomatico = "Resumo automático do texto do artigo (não substitui a leitura). Clique no lápis para escrever outro.";
+    internal const string AvisoSemImagens = "Não foi possível preparar as imagens desta lei. Figuras, tabelas em imagem e anexos gráficos estão no PDF original.";
     const string DicaResumoEditado = "Resumo escrito por você. Clique no lápis para mudar ou voltar ao automático.";
 
     bool leituraPadronizadaLigada;
@@ -157,9 +158,15 @@ public sealed partial class MainWindow
             andamento.Children.Add(new TextBlock { Text = "Preparando as imagens do PDF…", Foreground = CoresLeitura.Apoio, FontSize = 13, FontFamily = CoresLeitura.Fonte });
             selos.Children.Add(new Border { Background = CoresLeitura.Cinza, CornerRadius = new CornerRadius(14), Padding = new Thickness(12, 4, 14, 5), Child = andamento });
         }
-        t.Children.Add(selos);
         if (estado == EstadoFiguras.Falharam)
-            t.Children.Add(Nota("Imagens do PDF", "Não foi possível preparar as imagens desta lei. Figuras, tabelas em imagem e anexos gráficos estão no PDF original."));
+        {
+            // Aviso discreto: a leitura segue normal, só sem as imagens (o PDF original as tem).
+            var semImagens = Selo("Sem as imagens do PDF", CoresLeitura.AmareloSuave, CoresLeitura.AmareloTexto);
+            ToolTipService.SetToolTip(semImagens, AvisoSemImagens);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(semImagens, AvisoSemImagens);
+            selos.Children.Add(semImagens);
+        }
+        t.Children.Add(selos);
         if (!blocos.Any(b => b.Tipo == TipoBlocoLei.Epigrafe)) t.Children.Add(Epigrafe(anexo.Titulo));
         foreach (var b in blocos)
         {

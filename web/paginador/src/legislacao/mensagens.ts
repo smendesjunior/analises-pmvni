@@ -1,7 +1,7 @@
 // Envelope da ponte do extrator de texto dos PDFs anexados (espelho de src/Pmvni.Composicao.Web/Legislacao/MensagensLegislacao.cs):
 // { v: 1, tipo, id, dados }. Mensagem com v diferente de 1, tipo desconhecido ou campo faltando e descartada nos dois lados.
 //
-// host -> web: extrair {url}, cancelar {}.
+// host -> web: extrair {url}, cancelar {extracao?} (com o id, so aquela extracao; sem, todas).
 // web -> host: pronto {versao, pdfjs}; respostas de `extrair` (mesmo id): extraido {paginas} ou erro {codigo, mensagem} com
 // codigo "senha" | "invalido" | "falhou"; eventos (id evento-N, todos com `extracao` = id do `extrair` a que pertencem):
 // progresso {pagina, total}, textoPagina {pagina, texto}; e cspViolacao {diretiva, uri} (sem `extracao`).

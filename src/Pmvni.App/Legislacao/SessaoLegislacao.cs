@@ -16,6 +16,11 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
     readonly SemaphoreSlim criacao = new(1, 1);
     readonly object trava = new();
     readonly HashSet<string> indexando = new(StringComparer.Ordinal);
+    // Figuras (correções 2026-11-15): a leitura de cada lei, cancelável (excluir, substituir, fechar o app), e os PDFs cuja leitura
+    // falhou nesta sessão (a lei abre sem figuras, sem tentar de novo a cada abertura).
+    readonly Dictionary<string, CancellationTokenSource> figurasEmCurso = new(StringComparer.Ordinal);
+    readonly HashSet<string> figurasFalharam = new(StringComparer.OrdinalIgnoreCase);
+    readonly CancellationTokenSource encerrando = new();
     Task<IndiceLegislacao>? indice;
     IExtratorPdf? extrator;
     bool descartada;
@@ -111,6 +116,7 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
     public async Task<string?> SubstituirAsync(string id, string caminho, CancellationToken ct, IProgress<ProgressoAnexo>? p = null)
     {
         var nome = Path.GetFileName(caminho);
+        CancelarFiguras(id); // a leitura das figuras do arquivo antigo não segura nem atrapalha a troca
         await operacao.WaitAsync(ct);
         (Entrada Entrada, ResultadoExtracao Resultado)? r = null;
         try
@@ -168,6 +174,7 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
     /// <summary>Exclui o anexo (catálogo, cópia e índice; o original nunca). Devolve o aviso de cópia em uso, ou null.</summary>
     public async Task<string?> ExcluirAsync(string id)
     {
+        CancelarFiguras(id);
         var aviso = await Task.Run(() => Acervo.Excluir(id));
         await AvisarMudancaAsync();
         return aviso;
@@ -225,35 +232,66 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
 
     /// <summary>As figuras da lei para a leitura padronizada (correções 2026-11-15): as guardadas no acervo ou, na primeira vez, as que o
     /// extrator lê do PDF (e que ficam guardadas). Null se não foi possível lê-las (sem cópia, extrator indisponível, PDF recusado): a
-    /// leitura segue sem elas e avisa. Na thread da interface (o extrator real é criado nela).</summary>
+    /// leitura segue sem elas e avisa. Na thread da interface (o extrator real é criado nela). Corre em segundo plano, numa fila própria do
+    /// extrator (nunca segura abrir, pesquisar, anexar ou excluir), com tempo limitado por lei, e é cancelada ao excluir ou substituir a lei
+    /// (<see cref="CancelarFiguras"/>), ao fechar o app (<see cref="DisposeAsync"/>) e por <paramref name="ct"/> (a lei fechada ou trocada).</summary>
     public async Task<IReadOnlyList<FiguraPdf>?> FigurasAsync(string id, CancellationToken ct)
     {
         var guardadas = await Task.Run(() => Acervo.Figuras(id), ct);
         if (guardadas is not null) return guardadas;
         var caminho = await Task.Run(() => Acervo.CaminhoPdf(id), ct);
         if (caminho is null) return null;
-        IExtratorPdf real;
-        try { real = await ObterExtratorAsync(); }
-        catch (Exception e) when (e is not (OperationCanceledException or ObjectDisposedException))
+        CancellationTokenSource propria;
+        lock (trava)
         {
-            RegistroErros.Gravar("legislacao.extrator", e);
-            return null;
+            if (figurasFalharam.Contains(caminho)) return null;
+            ObjectDisposedException.ThrowIf(descartada, this);
+            if (figurasEmCurso.Remove(id, out var anterior)) anterior.Cancel();
+            propria = CancellationTokenSource.CreateLinkedTokenSource(ct, encerrando.Token);
+            figurasEmCurso[id] = propria;
         }
-        if (real is not IExtratorFiguras leitor) return null;
-        IReadOnlyList<FiguraPdf> figuras;
-        try { figuras = await leitor.ExtrairFigurasAsync(caminho, ct); }
-        catch (ExtracaoRecusadaException e)
+        try
         {
-            RegistroErros.Gravar("legislacao.figuras", e);
-            return null;
+            IExtratorPdf real;
+            try { real = await ObterExtratorAsync(); }
+            catch (Exception e) when (e is not (OperationCanceledException or ObjectDisposedException))
+            {
+                RegistroErros.Gravar("legislacao.extrator", e);
+                return null;
+            }
+            if (real is not IExtratorFiguras leitor) return null;
+            IReadOnlyList<FiguraPdf> figuras;
+            try { figuras = await leitor.ExtrairFigurasAsync(caminho, propria.Token); }
+            catch (ExtracaoRecusadaException e)
+            {
+                // PDF recusado, erro ou tempo esgotado: a lei segue aberta, sem figuras (com o aviso), e não tenta de novo nesta sessão.
+                RegistroErros.Gravar("legislacao.figuras", e);
+                lock (trava) figurasFalharam.Add(caminho);
+                return null;
+            }
+            propria.Token.ThrowIfCancellationRequested(); // excluída ou substituída no fim da leitura: nada é gravado
+            try { await Task.Run(() => Acervo.GravarFiguras(id, figuras), CancellationToken.None); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException)
+            {
+                RegistroErros.Gravar("legislacao.figuras", e); // mostra agora; na próxima vez lê de novo
+            }
+            return figuras;
         }
-        try { await Task.Run(() => Acervo.GravarFiguras(id, figuras), CancellationToken.None); }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException)
+        finally
         {
-            RegistroErros.Gravar("legislacao.figuras", e); // mostra agora; na próxima vez lê de novo
+            lock (trava) if (figurasEmCurso.TryGetValue(id, out var x) && ReferenceEquals(x, propria)) figurasEmCurso.Remove(id);
+            propria.Dispose();
         }
-        return figuras;
     }
+
+    /// <summary>Cancela a leitura das figuras da lei <paramref name="id"/>, se houver (excluir, substituir).</summary>
+    public void CancelarFiguras(string id)
+    {
+        lock (trava) if (figurasEmCurso.Remove(id, out var cts)) cts.Cancel();
+    }
+
+    /// <summary>Ids das leis cujas figuras estão sendo lidas agora (testes).</summary>
+    internal IReadOnlyCollection<string> FigurasEmCurso { get { lock (trava) return [.. figurasEmCurso.Keys]; } }
 
     async Task AvisarMudancaAsync()
     {
@@ -315,7 +353,10 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
             descartada = true;
             e = extrator;
             extrator = null;
+            foreach (var cts in figurasEmCurso.Values) cts.Cancel();
+            figurasEmCurso.Clear();
         }
+        encerrando.Cancel();
         if (e is IAsyncDisposable d) await d.DisposeAsync();
     }
 
