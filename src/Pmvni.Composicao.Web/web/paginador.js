@@ -78,7 +78,11 @@ var Paginador = (() => {
       estouros: p.estouros,
       sha256Html: p.sha256Html,
       escala: p.escala,
-      avisosLargura: p.avisosLargura
+      avisosLargura: p.avisosLargura,
+      figuras: Array.isArray(p.figuras) ? p.figuras.map((a, n) => {
+        if (!obj(a) || !Array.isArray(a.caminho) || a.caminho.length === 0 || !a.caminho.every(inteiro) || typeof a.alturaPx !== "number" || !Number.isFinite(a.alturaPx) || a.alturaPx <= 0) return falha(`figuras[${n}]`);
+        return { caminho: [...a.caminho], alturaPx: a.alturaPx };
+      }) : null
     };
   }
 
@@ -768,6 +772,7 @@ var Paginador = (() => {
   function montarFolhaDoPlano(plano, indice2, cfg) {
     const fluxo = prepararDocumento();
     document.documentElement.style.setProperty("--pmvni-k", String(plano.escala));
+    aplicarAjustesFiguras(fluxo, plano.figuras ?? []);
     const de = plano.inicioDasFolhas[indice2];
     if (!de) throw new ErroComposicao("folha_inexistente", `O plano não tem a folha ${indice2 + 1}.`);
     const f = montarFolha(fluxo, cfg, de, plano.inicioDasFolhas[indice2 + 1] ?? null, truncaTopo(de, indice2));
@@ -790,6 +795,7 @@ var Paginador = (() => {
     fluxo.parentElement.setAttribute("data-pmvni-guardado", "");
     aplicarRefs(fluxo, pedido.refs);
     document.documentElement.style.setProperty("--pmvni-k", String(plano.escala));
+    aplicarAjustesFiguras(fluxo, plano.figuras ?? []);
     const montadas = plano.inicioDasFolhas.map((de, i) => montarFolha(fluxo, config, de, plano.inicioDasFolhas[i + 1] ?? null, truncaTopo(de, i)));
     numerarRodapes(montadas.map((f) => f.direita), config);
     await folhasProntas(montadas.map((f) => f.folha), limite);
@@ -888,6 +894,81 @@ var Paginador = (() => {
     document.body.appendChild(sonda.folha);
     const H = alturaUtil(sonda.area);
     sonda.folha.remove();
+    const ajustes = /* @__PURE__ */ new Map();
+    aplicarAjustesFiguras(fluxo, []);
+    let r = await paginar(fluxo, pedido, H, limite);
+    for (let rodada = 0; rodada < RODADAS_FIGURAS; rodada++) {
+      const novos = ajustesDeFiguras(fluxo, r, H);
+      if (novos.size === 0) break;
+      for (const [fig, px] of novos) ajustes.set(fig, px);
+      for (const f of Array.from(document.querySelectorAll("section.folha"))) f.remove();
+      aplicarAjustesFiguras(fluxo, [...ajustes].map(([fig, px]) => ({ caminho: caminhoDe(fluxo, fig), alturaPx: px })));
+      await esperarEstabilidade(fluxo, limite);
+      r = await paginar(fluxo, pedido, H, limite);
+    }
+    const { inicios, estouros, direitas, areas } = r;
+    const figuras = ajustes.size === 0 ? null : [...ajustes].map(([fig, px]) => ({ caminho: caminhoDe(fluxo, fig), alturaPx: px }));
+    const { avisosLargura, estouros: deLargura } = larguraNoPlano(largura, areas, fluxo);
+    estouros.push(...deLargura);
+    estouros.sort((a, b) => a.folha - b.folha);
+    medida.setAttribute("data-pmvni-guardado", "");
+    const folhas2 = Array.from(document.querySelectorAll("section.folha"));
+    numerarRodapes(direitas, pedido.config);
+    await imagensProntas(document.body, limite);
+    const refsPorFolha = refsDasFolhas(folhas2);
+    return {
+      plano: { versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros, sha256Html: pedido.sha256Html, escala, avisosLargura, figuras },
+      folhas: folhas2.length,
+      refsPorFolha
+    };
+  }
+  var RODADAS_FIGURAS = 3;
+  var FIGURA_REDUCAO_MAXIMA = 0.4;
+  var FIGURA_ALTURA_MINIMA_MM = 40;
+  var SELETOR_IMG_FIGURA = ":scope > .fi img";
+  function caminhoDe(fluxo, el) {
+    const c = [];
+    for (let e = el; e !== fluxo && e.parentElement; e = e.parentElement) c.unshift(Array.prototype.indexOf.call(e.parentElement.children, e));
+    return c;
+  }
+  function aplicarAjustesFiguras(fluxo, ajustes) {
+    for (const img of Array.from(fluxo.querySelectorAll(".fig > .fi img"))) img.style.removeProperty("max-height");
+    for (const a of ajustes) {
+      const img = elementoEm(fluxo, a.caminho)?.querySelector(SELETOR_IMG_FIGURA);
+      if (img) img.style.setProperty("max-height", `${a.alturaPx.toFixed(2)}px`);
+    }
+  }
+  function ajustesDeFiguras(fluxo, r, H) {
+    const novos = /* @__PURE__ */ new Map();
+    for (let i = 0; i + 1 < r.areas.length; i++) {
+      if (r.inicios[i + 1].forcada) continue;
+      const fig = primeiroVisivel(r.areas[i + 1]);
+      if (!fig?.matches(".fig")) continue;
+      const img = fig.querySelector(SELETOR_IMG_FIGURA);
+      const original = elementoEm(fluxo, r.inicios[i + 1].caminho);
+      const imgFluxo = original?.querySelector(SELETOR_IMG_FIGURA);
+      if (!img || !original || !imgFluxo || !original.matches(".fig")) continue;
+      const sobra = H - alturaConteudo(r.areas[i]);
+      const rFig = fig.getBoundingClientRect();
+      const margem = parseFloat(estilo(fig).marginTop) || 0;
+      const precisa = rFig.height + margem - sobra + 2;
+      const rImg = img.getBoundingClientRect();
+      if (precisa <= 0 || rImg.height <= 0) continue;
+      const textos = Array.from(fig.children).filter((c) => !c.matches(".fi")).reduce((m, c) => Math.max(m, c.getBoundingClientRect().height), 0);
+      const novaTela = rImg.height - precisa;
+      const escalaTela = rImg.height / imgFluxo.offsetHeight;
+      const minimoTela = Math.max(rImg.height * (1 - FIGURA_REDUCAO_MAXIMA), mmParaPx(FIGURA_ALTURA_MINIMA_MM) * escalaTela, textos);
+      if (novaTela < minimoTela || !Number.isFinite(escalaTela) || escalaTela <= 0) continue;
+      novos.set(original, novaTela / escalaTela);
+    }
+    return novos;
+  }
+  function primeiroVisivel(area) {
+    for (const c of Array.from(area.children)) if (!c.hasAttribute(ATR_OCULTO) && estilo(c).display !== "none") return c;
+    return null;
+  }
+  var mmParaPx = (mm2) => mm2 * 96 / 25.4;
+  async function paginar(fluxo, pedido, H, limite) {
     const pontos = enumerarPontos(fluxo);
     const inicios = [];
     const estouros = [];
@@ -940,19 +1021,7 @@ var Paginador = (() => {
       if (pos === null) break;
       ini = { pos: { ...pos, forcada: p.forcado }, indice: p.indice, yInicio: p.yInicio, decoInicio: p.decoInicio };
     }
-    const { avisosLargura, estouros: deLargura } = larguraNoPlano(largura, areas, fluxo);
-    estouros.push(...deLargura);
-    estouros.sort((a, b) => a.folha - b.folha);
-    medida.setAttribute("data-pmvni-guardado", "");
-    const folhas2 = Array.from(document.querySelectorAll("section.folha"));
-    numerarRodapes(direitas, pedido.config);
-    await imagensProntas(document.body, limite);
-    const refsPorFolha = refsDasFolhas(folhas2);
-    return {
-      plano: { versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros, sha256Html: pedido.sha256Html, escala, avisosLargura },
-      folhas: folhas2.length,
-      refsPorFolha
-    };
+    return { inicios, estouros, direitas, areas };
   }
   var texto = (v, nome) => {
     if (typeof v !== "string") throw new Error(`campo ${nome} invalido`);
@@ -1697,7 +1766,9 @@ ${CSS_MARCAS}`;
       if (e.target instanceof Element && e.target.closest(`#${ID_CAMADA}`)) return;
       const { ref, campo } = localizar2(e.target);
       aplicarSelecao(ref);
-      evento("selecionado", { ref, campo });
+      const painel = e.target instanceof Element ? e.target.closest(".panel") : null;
+      const volumetria = painel !== null && e.target instanceof Element && e.target.closest("svg.dg") !== null && (painel.querySelector(".chip")?.textContent ?? "").toUpperCase().includes("VOLUMETRIA");
+      evento("selecionado", volumetria ? { ref, campo, volumetria: true, x: e.clientX, y: e.clientY } : { ref, campo });
     });
     document.addEventListener("dblclick", (e) => {
       if (!ativo || edicao) return;

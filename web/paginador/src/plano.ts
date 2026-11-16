@@ -49,7 +49,13 @@ export interface PlanoQuebras {
    *  (folha.css, --pmvni-k). Quem aplica o plano usa este valor, sem medir de novo. */
   escala: number;
   avisosLargura: AvisoLargura[];
+  /** Figuras reduzidas para caber na sobra da folha anterior (o paginador decide sozinho quantas cabem por folha): caminho do
+   *  bloco .fig no fluxo e a altura máxima da imagem em px CSS. null/ausente = nenhuma. Quem aplica o plano aplica estas alturas. */
+  figuras?: AjusteFigura[] | null;
 }
+
+/** Altura máxima (px CSS) imposta à imagem (.fi img) de uma figura (.fig) do fluxo. */
+export interface AjusteFigura { caminho: number[]; alturaPx: number }
 
 /** Resposta de `compor`. */
 export interface Composto {
@@ -112,5 +118,12 @@ export function lerPlano(bruto: unknown): PlanoQuebras {
   return {
     versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros: p.estouros as Estouro[], sha256Html: p.sha256Html as string,
     escala: p.escala as number, avisosLargura: p.avisosLargura as AvisoLargura[],
+    figuras: Array.isArray(p.figuras)
+      ? (p.figuras as unknown[]).map((a, n): AjusteFigura => {
+        if (!obj(a) || !Array.isArray(a.caminho) || a.caminho.length === 0 || !a.caminho.every(inteiro)
+          || typeof a.alturaPx !== 'number' || !Number.isFinite(a.alturaPx) || a.alturaPx <= 0) return falha(`figuras[${n}]`);
+        return { caminho: [...(a.caminho as number[])], alturaPx: a.alturaPx };
+      })
+      : null,
   };
 }

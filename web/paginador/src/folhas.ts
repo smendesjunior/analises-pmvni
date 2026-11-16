@@ -93,6 +93,7 @@ export function montarFolha(fluxo: HTMLElement, cfg: ConfigFolhas, de: PosicaoFl
 export function montarFolhaDoPlano(plano: PlanoQuebras, indice: number, cfg: ConfigFolhas): { folha: HTMLElement; area: HTMLElement } {
   const fluxo = prepararDocumento();
   document.documentElement.style.setProperty('--pmvni-k', String(plano.escala));
+  aplicarAjustesFiguras(fluxo, plano.figuras ?? []);
   const de = plano.inicioDasFolhas[indice];
   if (!de) throw new ErroComposicao('folha_inexistente', `O plano não tem a folha ${indice + 1}.`);
   const f = montarFolha(fluxo, cfg, de, plano.inicioDasFolhas[indice + 1] ?? null, truncaTopo(de, indice));
@@ -138,6 +139,7 @@ export async function aplicarPlano(pedido: PedidoAplicar): Promise<Aplicado> {
   fluxo.parentElement!.setAttribute('data-pmvni-guardado', '');
   aplicarRefs(fluxo, pedido.refs);
   document.documentElement.style.setProperty('--pmvni-k', String(plano.escala));
+  aplicarAjustesFiguras(fluxo, plano.figuras ?? []);
 
   const montadas = plano.inicioDasFolhas.map((de, i) =>
     montarFolha(fluxo, config, de, plano.inicioDasFolhas[i + 1] ?? null, truncaTopo(de, i)));
@@ -271,6 +273,104 @@ export async function compor(pedido: PedidoCompor): Promise<Composto> {
   const H = alturaUtil(sonda.area);
   sonda.folha.remove();
 
+  // Quantas figuras cabem por folha, sem o usuário escolher: pagina; se uma figura foi empurrada para a folha seguinte e
+  // caberia na sobra da anterior com a imagem um pouco menor, reduz a imagem e pagina de novo (poucas rodadas).
+  const ajustes = new Map<Element, number>();
+  aplicarAjustesFiguras(fluxo, []);
+  let r = await paginar(fluxo, pedido, H, limite);
+  for (let rodada = 0; rodada < RODADAS_FIGURAS; rodada++) {
+    const novos = ajustesDeFiguras(fluxo, r, H);
+    if (novos.size === 0) break;
+    for (const [fig, px] of novos) ajustes.set(fig, px);
+    for (const f of Array.from(document.querySelectorAll('section.folha'))) f.remove();
+    aplicarAjustesFiguras(fluxo, [...ajustes].map(([fig, px]) => ({ caminho: caminhoDe(fluxo, fig), alturaPx: px })));
+    await esperarEstabilidade(fluxo, limite);
+    r = await paginar(fluxo, pedido, H, limite);
+  }
+  const { inicios, estouros, direitas, areas } = r;
+  const figuras = ajustes.size === 0 ? null : [...ajustes].map(([fig, px]) => ({ caminho: caminhoDe(fluxo, fig), alturaPx: px }));
+
+  // Largura: avisos por folha e ref; além do encolhimento máximo, também estouro de largura (nunca descartado).
+  const { avisosLargura, estouros: deLargura } = larguraNoPlano(largura, areas, fluxo);
+  estouros.push(...deLargura);
+  estouros.sort((a, b) => a.folha - b.folha);
+
+  medida.setAttribute('data-pmvni-guardado', '');
+  const folhas = Array.from(document.querySelectorAll<HTMLElement>('section.folha'));
+  numerarRodapes(direitas, pedido.config);
+  await imagensProntas(document.body, limite);
+  const refsPorFolha = refsDasFolhas(folhas);
+  return {
+    plano: { versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros, sha256Html: pedido.sha256Html, escala, avisosLargura, figuras },
+    folhas: folhas.length,
+    refsPorFolha,
+  };
+}
+
+/** Rodadas de reajuste das figuras (cada uma repagina o documento). */
+const RODADAS_FIGURAS = 3;
+/** A imagem de uma figura pode encolher até esta fração da altura que tinha… */
+const FIGURA_REDUCAO_MAXIMA = 0.4;
+/** …e nunca abaixo desta altura (mm): a prancha precisa continuar legível. */
+const FIGURA_ALTURA_MINIMA_MM = 40;
+const SELETOR_IMG_FIGURA = ':scope > .fi img';
+
+interface Paginado { inicios: PosicaoFluxo[]; estouros: Estouro[]; direitas: HTMLElement[]; areas: HTMLElement[] }
+
+/** Caminho (índices de filhos-elemento) de `el` a partir do fluxo. */
+function caminhoDe(fluxo: Element, el: Element): number[] {
+  const c: number[] = [];
+  for (let e: Element = el; e !== fluxo && e.parentElement; e = e.parentElement) c.unshift(Array.prototype.indexOf.call(e.parentElement.children, e));
+  return c;
+}
+
+/** Tira as alturas impostas antes e aplica as do plano (max-height inline na imagem da figura). */
+function aplicarAjustesFiguras(fluxo: HTMLElement, ajustes: readonly { caminho: number[]; alturaPx: number }[]): void {
+  for (const img of Array.from(fluxo.querySelectorAll<HTMLElement>('.fig > .fi img'))) img.style.removeProperty('max-height');
+  for (const a of ajustes) {
+    const img = elementoEm(fluxo, a.caminho)?.querySelector<HTMLElement>(SELETOR_IMG_FIGURA);
+    if (img) img.style.setProperty('max-height', `${a.alturaPx.toFixed(2)}px`);
+  }
+}
+
+/** Figuras que abrem uma folha (quebra não forçada) e caberiam na sobra da folha anterior com a imagem reduzida dentro dos
+ * limites: a nova altura máxima (px CSS) da imagem de cada uma, no fluxo. */
+function ajustesDeFiguras(fluxo: HTMLElement, r: Paginado, H: number): Map<Element, number> {
+  const novos = new Map<Element, number>();
+  for (let i = 0; i + 1 < r.areas.length; i++) {
+    if (r.inicios[i + 1]!.forcada) continue;
+    const fig = primeiroVisivel(r.areas[i + 1]!);
+    if (!fig?.matches('.fig')) continue;
+    const img = fig.querySelector<HTMLElement>(SELETOR_IMG_FIGURA);
+    const original = elementoEm(fluxo, r.inicios[i + 1]!.caminho);
+    const imgFluxo = original?.querySelector<HTMLElement>(SELETOR_IMG_FIGURA);
+    if (!img || !original || !imgFluxo || !original.matches('.fig')) continue;
+    const sobra = H - alturaConteudo(r.areas[i]!);
+    const rFig = fig.getBoundingClientRect();
+    const margem = parseFloat(estilo(fig).marginTop) || 0;
+    const precisa = rFig.height + margem - sobra + 2;
+    const rImg = img.getBoundingClientRect();
+    if (precisa <= 0 || rImg.height <= 0) continue;
+    // A figura é uma grade (imagem | textos): só encolhe enquanto a imagem for a parte mais alta.
+    const textos = Array.from(fig.children).filter((c) => !c.matches('.fi')).reduce((m, c) => Math.max(m, c.getBoundingClientRect().height), 0);
+    const novaTela = rImg.height - precisa;
+    const escalaTela = rImg.height / imgFluxo.offsetHeight; // tela ÷ px CSS (a folha pinta em 1/k)
+    const minimoTela = Math.max(rImg.height * (1 - FIGURA_REDUCAO_MAXIMA), mmParaPx(FIGURA_ALTURA_MINIMA_MM) * escalaTela, textos);
+    if (novaTela < minimoTela || !Number.isFinite(escalaTela) || escalaTela <= 0) continue;
+    novos.set(original, novaTela / escalaTela);
+  }
+  return novos;
+}
+
+function primeiroVisivel(area: HTMLElement): Element | null {
+  for (const c of Array.from(area.children)) if (!c.hasAttribute(ATR_OCULTO) && estilo(c).display !== 'none') return c;
+  return null;
+}
+
+const mmParaPx = (mm: number) => (mm * 96) / 25.4;
+
+/** Pagina o fluxo (já medido e estável) folha a folha, escolhendo as quebras como o Chromium. */
+async function paginar(fluxo: HTMLElement, pedido: PedidoCompor, H: number, limite: number): Promise<Paginado> {
   const pontos = enumerarPontos(fluxo);
   const inicios: PosicaoFluxo[] = [];
   const estouros: Estouro[] = [];
@@ -322,22 +422,7 @@ export async function compor(pedido: PedidoCompor): Promise<Composto> {
     if (pos === null) break;
     ini = { pos: { ...pos, forcada: p.forcado }, indice: p.indice, yInicio: p.yInicio, decoInicio: p.decoInicio };
   }
-
-  // Largura: avisos por folha e ref; além do encolhimento máximo, também estouro de largura (nunca descartado).
-  const { avisosLargura, estouros: deLargura } = larguraNoPlano(largura, areas, fluxo);
-  estouros.push(...deLargura);
-  estouros.sort((a, b) => a.folha - b.folha);
-
-  medida.setAttribute('data-pmvni-guardado', '');
-  const folhas = Array.from(document.querySelectorAll<HTMLElement>('section.folha'));
-  numerarRodapes(direitas, pedido.config);
-  await imagensProntas(document.body, limite);
-  const refsPorFolha = refsDasFolhas(folhas);
-  return {
-    plano: { versao: VERSAO_PLANO, inicioDasFolhas: inicios, estouros, sha256Html: pedido.sha256Html, escala, avisosLargura },
-    folhas: folhas.length,
-    refsPorFolha,
-  };
+  return { inicios, estouros, direitas, areas };
 }
 
 const texto = (v: unknown, nome: string) => { if (typeof v !== 'string') throw new Error(`campo ${nome} invalido`); return v; };

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Web.WebView2.Core;
@@ -392,6 +392,23 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
     }
 
     [Fact]
+    public async Task figura_empurrada_encolhe_para_caber_na_sobra_e_o_plano_reaplica_igual()
+    {
+        var c = await ComporCaso("figuras");
+        Assert.Equal(new[] { "F1 F2 F3", "F4" }, await TextosDasFolhas(".ft"));
+        var ajuste = Assert.Single(c.Plano.Figuras!);
+        Assert.Equal(new[] { 3 }, ajuste.Caminho);
+        // Reduz no máximo 40% e nunca abaixo de 40 mm (151 px).
+        var natural = await Js("document.querySelector('section.folha .fig .fi img').offsetHeight");
+        Assert.InRange(ajuste.AlturaPx, Math.Max(natural.GetDouble() * .6, 151) - 1, natural.GetDouble());
+        // Aplicar o plano (tela/PDF) dá as mesmas folhas, com a mesma imagem reduzida.
+        await host.Documento.CarregarAsync(new ResultadoRender(Caso("figuras"), [], []), Ambiente.Cfg);
+        var aplicado = await host.Documento.AplicarPlanoAsync(c.Plano);
+        Assert.Empty(aplicado.FolhasQueTransbordam);
+        Assert.Equal(new[] { "F1 F2 F3", "F4" }, await TextosDasFolhas(".ft"));
+    }
+
+    [Fact]
     public async Task plano_json_ida_e_volta()
     {
         await host.Documento.CarregarAsync(new ResultadoRender(Caso("paragrafo"), [], []), Ambiente.Cfg);
@@ -399,7 +416,7 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
         var plano = bruto.GetProperty("plano");
         var volta = JsonSerializer.SerializeToElement(PlanoQuebras.DeJson(plano), Pmvni.Composicao.Web.Ponte.Mensagens.Opcoes);
         Assert.True(JsonElement.DeepEquals(plano, volta), plano.GetRawText() + "\n≠\n" + volta.GetRawText());
-        Assert.Equal(new[] { "versao", "inicioDasFolhas", "estouros", "sha256Html", "escala", "avisosLargura" }, plano.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(new[] { "versao", "inicioDasFolhas", "estouros", "sha256Html", "escala", "avisosLargura", "figuras" }, plano.EnumerateObject().Select(p => p.Name));
         Assert.Equal(new[] { "caminho", "deslocamentoTexto", "linha", "forcada" }, plano.GetProperty("inicioDasFolhas")[0].EnumerateObject().Select(p => p.Name));
     }
 

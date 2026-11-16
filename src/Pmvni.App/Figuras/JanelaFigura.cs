@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -18,7 +18,7 @@ namespace Pmvni.App;
 /// <summary>Ferramenta ativa do editor de figura.</summary>
 internal enum FerramentaFigura { Selecionar, Regiao, Seta, Texto, Remover }
 
-/// <summary>Editor de marcações de uma figura (Etapa 4, especificação §9): barra Selecionar | Marcar região | Seta | Texto | Remover sobre a
+/// <summary>Editor de marcações de uma figura (Etapa 4, especificação §9): barra Inserir região | Selecionar | Marcar região | Seta | Texto | Desfazer/Refazer | zoom | Concluir sobre a
 /// imagem, a camada de marcações desenhada em XAML por cima da imagem (que nunca é alterada) e, ao lado, os textos da figura e a lista das
 /// marcações com a legenda e o vínculo aos itens. Cada gesto concluído vira um comando da janela principal (histórico, desfazer/refazer,
 /// recomposição das folhas); durante o arrasto só a tela do editor muda. A geometria é a mesma do SVG do relatório
@@ -37,7 +37,7 @@ internal sealed class JanelaFigura : Window
     readonly Grid superficie = new() { Background = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     readonly Image imagem = new() { Stretch = Stretch.Fill, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
     readonly Canvas camada = new() { Background = new SolidColorBrush(Colors.Transparent) };
-    readonly Dictionary<FerramentaFigura, ToggleButton> botoes = new();
+    readonly Dictionary<FerramentaFigura, AppBarToggleButton> botoes = new();
     readonly InfoBar avisoGravadas = new() { Severity = InfoBarSeverity.Informational, IsClosable = false, Title = "Marcações gravadas na imagem" };
     readonly InfoBar avisoErro = new() { Severity = InfoBarSeverity.Warning, IsClosable = true, Title = "A alteração não foi aplicada" };
     readonly TextBox caixaPrancha = new() { Header = "Prancha" };
@@ -51,8 +51,10 @@ internal sealed class JanelaFigura : Window
     readonly ListView listaItens = new() { SelectionMode = ListViewSelectionMode.Multiple, MaxHeight = 220, Header = "Itens ligados a esta marcação" };
     readonly Button botaoRemover = new() { Content = "Remover marcação" };
     readonly TextBlock estado = new() { Opacity = .8, TextWrapping = TextWrapping.Wrap };
-    readonly Button botaoDesfazer = new() { Content = "Desfazer" };
-    readonly Button botaoRefazer = new() { Content = "Refazer" };
+    readonly AppBarButton botaoDesfazer = new() { Icon = new SymbolIcon(Symbol.Undo), Label = "Desfazer" };
+    readonly AppBarButton botaoRefazer = new() { Icon = new SymbolIcon(Symbol.Redo), Label = "Refazer" };
+    readonly AppBarButton botaoInserir = new() { Icon = new SymbolIcon(Symbol.Add), Label = "Inserir região da prancha" };
+    readonly TextBlock textoZoom = new() { Text = "100%", VerticalAlignment = VerticalAlignment.Center, MinWidth = 52, TextAlignment = TextAlignment.Center };
 
     // ---------- estado ----------
     FiguraRevisao? figura;
@@ -60,11 +62,11 @@ internal sealed class JanelaFigura : Window
     string? imagemCarregada;
     string? selecionada;
     FerramentaFigura ferramenta = FerramentaFigura.Selecionar;
-    bool preenchendo, aplicando;
+    bool preenchendo, aplicando, fechada;
+    readonly SemaphoreSlim filaEdicoes = new(1, 1);
+    int edicoesPendentes;
     // arrasto em curso
-    AcertoFigura? arrasto;
-    MarcaDesenho? arrastoOriginal, arrastoAtual;
-    Ponto inicioArrasto;
+    readonly GestoFigura gesto = new();
     Rectangle? retanguloNovo;
 
     public JanelaFigura(IHostFiguras host, SessaoEdicao sessao, string figuraId)
@@ -77,15 +79,16 @@ internal sealed class JanelaFigura : Window
         Content = raiz;
         raiz.RequestedTheme = host.TemaAtual;
         sessao.Revisao.Registrado += AoRegistrar;
-        Closed += (_, _) => sessao.Revisao.Registrado -= AoRegistrar;
+        Closed += (_, _) => { fechada = true; sessao.Revisao.Registrado -= AoRegistrar; };
         try { AppWindow.Resize(new Windows.Graphics.SizeInt32(1400, 900)); } catch (Exception) { /* tamanho inicial é só conveniência */ }
         Atualizar();
     }
 
     /// <summary>Id da figura editada.</summary>
     public string Figura => figuraId;
+    internal bool PertenceASessao(SessaoEdicao atual) => sessao == atual;
 
-    void AoRegistrar(RegistroHistorico _) => DispatcherQueue.TryEnqueue(Atualizar);
+    void AoRegistrar(RegistroHistorico _) => DispatcherQueue.TryEnqueue(() => { if (!aplicando) Atualizar(); });
 
     // ---------- montagem ----------
 
@@ -94,60 +97,77 @@ internal sealed class JanelaFigura : Window
         raiz.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
         raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         raiz.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         raiz.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         raiz.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360) });
 
         // Barra de ferramentas
-        var barra = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Padding = new Thickness(12, 8, 12, 8) };
+        // Uma barra só, em grupos: origem (nova figura do PDF) | ferramentas de marcação | histórico | zoom | Concluir.
+        // "Remover" deixou de ser ferramenta: a marcação selecionada sai pelo botão do painel ou pela tecla Del (eram três caminhos).
+        var cabecalho = new Grid();
+        cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var barra = new CommandBar { DefaultLabelPosition = CommandBarDefaultLabelPosition.Right, IsDynamicOverflowEnabled = true, HorizontalAlignment = HorizontalAlignment.Left };
+        Dicas.Aplicar(botaoInserir, "Inserir região da prancha", "Recorta um PDF do projeto e insere uma nova figura depois desta.");
+        botaoInserir.Click += (_, _) => host.AbrirRecortePrancha(figuraId);
+        barra.PrimaryCommands.Add(botaoInserir);
+        barra.PrimaryCommands.Add(new AppBarSeparator());
         Botao(barra, FerramentaFigura.Selecionar, "", "Selecionar", "Selecionar, mover e redimensionar marcações (arraste as alças)");
-        Botao(barra, FerramentaFigura.Regiao, "", "Marcar região", "Arraste um retângulo sobre o elemento: caixa vermelha, seta e número");
-        Botao(barra, FerramentaFigura.Seta, "", "Seta", "Clique no ponto que a seta deve indicar: seta e número");
+        Botao(barra, FerramentaFigura.Regiao, "", "Marcar região", "Arraste um retângulo sobre o elemento: caixa vermelha, seta e número");
+        Botao(barra, FerramentaFigura.Seta, "", "Seta", "Clique no ponto que a seta deve indicar: seta e número");
         Botao(barra, FerramentaFigura.Texto, "", "Texto", "Clique onde o texto deve ficar e escreva no painel ao lado");
-        Botao(barra, FerramentaFigura.Remover, "", "Remover", "Clique numa marcação para tirá-la");
-        barra.Children.Add(new AppBarSeparator());
-        var inserir = new Button { Content = Rotulo("", "Inserir região da prancha") };
-        Dicas.Aplicar(inserir, "Inserir região da prancha", "Recorta uma região de uma prancha do projeto (PDF) e a insere como figura nova depois desta.");
-        inserir.Click += (_, _) => host.AbrirRecortePrancha(figuraId);
-        barra.Children.Add(inserir);
-        barra.Children.Add(new AppBarSeparator());
-        botaoDesfazer.Click += async (_, _) => { await host.DesfazerFiguraAsync(); Atualizar(); };
-        botaoRefazer.Click += async (_, _) => { await host.RefazerFiguraAsync(); Atualizar(); };
-        barra.Children.Add(botaoDesfazer);
-        barra.Children.Add(botaoRefazer);
-        barra.Children.Add(new AppBarSeparator());
-        var menos = new Button { Content = "−" };
-        var mais = new Button { Content = "+" };
-        var ajustar = new Button { Content = "Ajustar" };
-        AutomationNome(menos, "Diminuir");
-        AutomationNome(mais, "Aumentar");
-        Dicas.Aplicar(botaoDesfazer, "Desfazer", "Desfaz a última alteração feita nesta figura.", "Ctrl+Z");
-        Dicas.Aplicar(botaoRefazer, "Refazer", "Refaz a alteração que você acabou de desfazer.", "Ctrl+Y");
+        barra.PrimaryCommands.Add(new AppBarSeparator());
+        botaoDesfazer.Click += async (_, _) => await HistoricoAsync(false);
+        botaoRefazer.Click += async (_, _) => await HistoricoAsync(true);
+        barra.PrimaryCommands.Add(botaoDesfazer);
+        barra.PrimaryCommands.Add(botaoRefazer);
+        var menos = new AppBarButton { Icon = new SymbolIcon(Symbol.ZoomOut), Label = "Diminuir", LabelPosition = CommandBarLabelPosition.Collapsed };
+        var mais = new AppBarButton { Icon = new SymbolIcon(Symbol.ZoomIn), Label = "Aumentar", LabelPosition = CommandBarLabelPosition.Collapsed };
+        var ajustar = new AppBarButton { Icon = new FontIcon { Glyph = "" }, Label = "Ajustar" };
+        Dicas.Aplicar(botaoDesfazer, "Desfazer", "Desfaz a última alteração do relatório.", "Ctrl+Z");
+        Dicas.Aplicar(botaoRefazer, "Refazer", "Refaz a última alteração desfeita do relatório.", "Ctrl+Y");
         Dicas.Aplicar(menos, "Diminuir", "Diminui o zoom da figura.");
         Dicas.Aplicar(mais, "Aumentar", "Aumenta o zoom da figura.");
         Dicas.Aplicar(ajustar, "Ajustar", "Ajusta o zoom para a figura inteira caber na janela.");
         menos.Click += (_, _) => rolagem.ChangeView(null, null, Math.Max(rolagem.MinZoomFactor, rolagem.ZoomFactor / 1.25f));
         mais.Click += (_, _) => rolagem.ChangeView(null, null, Math.Min(rolagem.MaxZoomFactor, rolagem.ZoomFactor * 1.25f));
         ajustar.Click += (_, _) => AjustarZoom();
-        barra.Children.Add(menos);
-        barra.Children.Add(mais);
-        barra.Children.Add(ajustar);
-        Grid.SetColumnSpan(barra, 2);
-        raiz.Children.Add(barra);
+        barra.PrimaryCommands.Add(new AppBarSeparator());
+        barra.PrimaryCommands.Add(menos);
+        barra.PrimaryCommands.Add(new AppBarElementContainer { Content = textoZoom, VerticalContentAlignment = VerticalAlignment.Center });
+        barra.PrimaryCommands.Add(mais);
+        barra.PrimaryCommands.Add(ajustar);
+        var concluir = new Button { Content = "Concluir", Style = (Style)Application.Current.Resources["AccentButtonStyle"], Margin = new Thickness(8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+        Dicas.Aplicar(concluir, "Concluir", "Fecha o editor. Cada alteração já foi aplicada ao relatório; desfaça com Ctrl+Z na janela principal.");
+        concluir.Click += (_, _) => Close();
+        Grid.SetColumn(concluir, 1);
+        cabecalho.Children.Add(barra);
+        cabecalho.Children.Add(concluir);
+        Grid.SetColumnSpan(cabecalho, 2);
+        raiz.Children.Add(cabecalho);
+        estado.Margin = new Thickness(12, 8, 12, 8);
+        Grid.SetRow(estado, 2);
+        Grid.SetColumnSpan(estado, 2);
+        raiz.Children.Add(estado);
 
         // Superfície: imagem + camada de marcações (mesmas coordenadas: pixels da figura composta)
         superficie.Children.Add(imagem);
         superficie.Children.Add(camada);
         rolagem.Content = superficie;
-        rolagem.Background = new SolidColorBrush(Color.FromArgb(255, 0x8a, 0x8a, 0x8a));
+        rolagem.Background = (Brush)Application.Current.Resources["SolidBackgroundFillColorBaseBrush"];
         Grid.SetRow(rolagem, 1);
         raiz.Children.Add(rolagem);
         // As alças têm tamanho fixo na tela: redesenha ao terminar uma mudança de zoom.
-        rolagem.ViewChanged += (_, e) => { if (!e.IsIntermediate && arrasto is null && retanguloNovo is null) Desenhar(); };
+        rolagem.ViewChanged += (_, e) =>
+        {
+            textoZoom.Text = rolagem.ZoomFactor.ToString("P0", CultureInfo.CurrentCulture);
+            if (!e.IsIntermediate && !gesto.Ativo) Desenhar();
+        };
         camada.PointerPressed += AoPressionar;
         camada.PointerMoved += AoMover;
         camada.PointerReleased += AoSoltar;
         camada.PointerCanceled += (_, _) => CancelarArrasto();
-        camada.PointerCaptureLost += (_, _) => { if (arrasto is not null || retanguloNovo is not null) CancelarArrasto(); };
+        camada.PointerCaptureLost += (_, _) => { if (gesto.Ativo) CancelarArrasto(); };
 
         // Painel lateral
         var painel = new StackPanel { Spacing = 10, Padding = new Thickness(14) };
@@ -188,7 +208,6 @@ internal sealed class JanelaFigura : Window
         };
         botaoRemover.Click += async (_, _) => { if (selecionada is { } s) await AplicarAsync(new ExcluirMarcacao(figuraId, s)); };
         painel.Children.Add(painelMarcacao);
-        painel.Children.Add(estado);
         var lateral = new ScrollViewer { Content = painel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         Grid.SetRow(lateral, 1);
         Grid.SetColumn(lateral, 1);
@@ -197,14 +216,14 @@ internal sealed class JanelaFigura : Window
         // Teclado: Delete remove; Esc volta a Selecionar; Ctrl+Z / Ctrl+Y.
         raiz.KeyDown += async (_, e) =>
         {
-            if (e.OriginalSource is TextBox) return;
-            if (e.Key == VirtualKey.Delete && selecionada is { } s) { e.Handled = true; await AplicarAsync(new ExcluirMarcacao(figuraId, s)); }
+            if (FocoEmTexto()) return;
+            if (e.Key == VirtualKey.Delete && selecionada is { } s && figura?.Buscar(s) is { Gravada: false } && !sessao.SomenteLeitura) { e.Handled = true; await AplicarAsync(new ExcluirMarcacao(figuraId, s)); }
             else if (e.Key == VirtualKey.Escape) { e.Handled = true; Escolher(FerramentaFigura.Selecionar); }
         };
         var desfazer = new KeyboardAccelerator { Key = VirtualKey.Z, Modifiers = VirtualKeyModifiers.Control };
-        desfazer.Invoked += async (_, a) => { a.Handled = true; await host.DesfazerFiguraAsync(); Atualizar(); };
+        desfazer.Invoked += async (_, a) => { if (FocoEmTexto()) return; a.Handled = true; await HistoricoAsync(false); };
         var refazer = new KeyboardAccelerator { Key = VirtualKey.Y, Modifiers = VirtualKeyModifiers.Control };
-        refazer.Invoked += async (_, a) => { a.Handled = true; await host.RefazerFiguraAsync(); Atualizar(); };
+        refazer.Invoked += async (_, a) => { if (FocoEmTexto()) return; a.Handled = true; await HistoricoAsync(true); };
         raiz.KeyboardAccelerators.Add(desfazer);
         raiz.KeyboardAccelerators.Add(refazer);
         Escolher(FerramentaFigura.Selecionar);
@@ -220,19 +239,19 @@ internal sealed class JanelaFigura : Window
 
     static void AutomationNome(FrameworkElement e, string nome) => Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(e, nome);
 
-    void Botao(Panel barra, FerramentaFigura f, string glifo, string texto, string dica)
+    void Botao(CommandBar barra, FerramentaFigura f, string glifo, string texto, string dica)
     {
-        var b = new ToggleButton { Content = Rotulo(glifo, texto) };
-        Pilulas.Estilizar(b); // a ferramenta escolhida acende na cor de destaque
+        var b = new AppBarToggleButton { Icon = new FontIcon { Glyph = glifo }, Label = texto };
         Dicas.Aplicar(b, texto, dica.EndsWith('.') ? dica : dica + ".");
         AutomationNome(b, texto);
         b.Click += (_, _) => Escolher(f);
         botoes[f] = b;
-        barra.Children.Add(b);
+        barra.PrimaryCommands.Add(b);
     }
 
     void Escolher(FerramentaFigura f)
     {
+        CancelarArrasto();
         ferramenta = f;
         foreach (var (k, b) in botoes) b.IsChecked = k == f;
         estado.Text = f switch
@@ -260,7 +279,7 @@ internal sealed class JanelaFigura : Window
     {
         async Task Gravar()
         {
-            if (preenchendo || selecionada is null || figura?.Buscar(selecionada) is not { } m) return;
+            if (preenchendo || caixa.Tag is not string id || figura?.Buscar(id) is not { } m) return;
             var atual = elemento ? m.Elemento : m.Texto;
             if (atual == caixa.Text) return;
             await AplicarAsync(elemento ? new DefinirLegenda(figuraId, m.Id, caixa.Text, null) : new DefinirLegenda(figuraId, m.Id, null, caixa.Text));
@@ -274,25 +293,50 @@ internal sealed class JanelaFigura : Window
     /// <summary>Relê a figura do projeto (depois de qualquer comando, aqui ou na janela principal) e redesenha.</summary>
     void Atualizar()
     {
+        if (fechada || edicoesPendentes > 0) return;
         if (host.Sessao != sessao) { Close(); return; }
         var p = sessao.Revisao.Projeto;
         var camadaFiguras = p.Figuras ?? CamadaFiguras.Inicial(p);
         figura = camadaFiguras.FirstOrDefault(f => f.Id == figuraId);
+        var disponivel = figura is { Incluida: true };
+        var somenteLeitura = sessao.SomenteLeitura || !disponivel;
+        foreach (var b in botoes.Values) b.IsEnabled = !somenteLeitura;
+        botaoInserir.IsEnabled = !sessao.SomenteLeitura;
+        caixaPrancha.IsReadOnly = caixaTitulo.IsReadOnly = caixaFonte.IsReadOnly = caixaElemento.IsReadOnly = caixaTexto.IsReadOnly = somenteLeitura;
+        botaoDesfazer.IsEnabled = !sessao.SomenteLeitura && sessao.Revisao.PodeDesfazer;
+        botaoRefazer.IsEnabled = !sessao.SomenteLeitura && sessao.Revisao.PodeRefazer;
         if (figura is null || !figura.Incluida)
         {
+            CancelarArrasto();
             estado.Text = "Esta figura não está mais no relatório (foi excluída ou desfeita).";
             camada.Children.Clear();
             imagem.Source = null;
+            imagemCarregada = null;
+            medidas = null;
+            selecionada = null;
+            preenchendo = true;
+            try { listaMarcacoes.Items.Clear(); }
+            finally { preenchendo = false; }
+            painelMarcacao.Visibility = Visibility.Collapsed;
+            avisoGravadas.IsOpen = false;
             return;
         }
         Title = MotorFigurasRotulo(p) + " — editar marcações";
-        if (imagemCarregada != figura.Imagem) CarregarImagem(figura.Imagem);
+        try
+        {
+            if (imagemCarregada != figura.Imagem) CarregarImagem(figura.Imagem);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            imagem.Source = null;
+            imagemCarregada = null;
+            medidas = null;
+            camada.Children.Clear();
+            avisoErro.Title = "Não foi possível carregar a imagem";
+            avisoErro.Message = e.Message;
+            avisoErro.IsOpen = true;
+        }
         if (selecionada is not null && figura.Buscar(selecionada) is null) selecionada = null;
-        var somenteLeitura = sessao.SomenteLeitura;
-        foreach (var b in botoes.Values) b.IsEnabled = !somenteLeitura;
-        caixaPrancha.IsReadOnly = caixaTitulo.IsReadOnly = caixaFonte.IsReadOnly = caixaElemento.IsReadOnly = caixaTexto.IsReadOnly = somenteLeitura;
-        botaoDesfazer.IsEnabled = !somenteLeitura && sessao.Revisao.PodeDesfazer;
-        botaoRefazer.IsEnabled = !somenteLeitura && sessao.Revisao.PodeRefazer;
         var gravadas = figura.Marcacoes.Count(m => m.Gravada);
         avisoGravadas.IsOpen = gravadas > 0;
         avisoGravadas.Message = gravadas == 1
@@ -301,14 +345,27 @@ internal sealed class JanelaFigura : Window
         preenchendo = true;
         try
         {
-            caixaPrancha.Text = figura.TextoBase("prancha");
-            caixaTitulo.Text = figura.TextoBase("titulo");
-            caixaFonte.Text = figura.TextoBase("fonte");
+            AtualizarTexto(caixaPrancha, figura.TextoBase("prancha"));
+            AtualizarTexto(caixaTitulo, figura.TextoBase("titulo"));
+            AtualizarTexto(caixaFonte, figura.TextoBase("fonte"));
             PreencherLista();
         }
         finally { preenchendo = false; }
         PreencherMarcacao();
         Desenhar();
+    }
+
+    static void AtualizarTexto(TextBox caixa, string texto)
+    {
+        // Uma recomposição de outra alteração não pode apagar o campo que ainda está sendo digitado.
+        if (caixa.FocusState == FocusState.Unfocused && caixa.Text != texto) caixa.Text = texto;
+    }
+
+    bool FocoEmTexto()
+    {
+        for (var alvo = FocusManager.GetFocusedElement(raiz.XamlRoot) as DependencyObject; alvo is not null; alvo = VisualTreeHelper.GetParent(alvo))
+            if (alvo is TextBox) return true;
+        return false;
     }
 
     string MotorFigurasRotulo(Projeto p)
@@ -373,7 +430,7 @@ internal sealed class JanelaFigura : Window
             linha.Children.Add(marca);
             var texto = m.Numerada ? m.Elemento : "Texto: " + m.Texto;
             var itens = m.Numerada && m.Itens.Length > 0 ? "  (" + CamadaFiguras.ItensImpressos(sessao.Revisao.Projeto, m) + ")" : "";
-            linha.Children.Add(new TextBlock { Text = texto + itens + (m.Gravada ? "  · gravada na imagem" : ""), TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 280, VerticalAlignment = VerticalAlignment.Center });
+            linha.Children.Add(new TextBlock { Text = texto + itens + (m.Gravada ? "  · gravada na imagem" : ""), TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 240, VerticalAlignment = VerticalAlignment.Center });
             AutomationNome(linha, (m.Numerada && numeros.TryGetValue(m.Id, out var nn) ? "Marcação " + nn.ToString(CultureInfo.InvariantCulture) + ": " : "") + texto);
             listaMarcacoes.Items.Add(linha);
             if (m.Id == selecionada) listaMarcacoes.SelectedItem = linha;
@@ -393,8 +450,9 @@ internal sealed class JanelaFigura : Window
             caixaElemento.Visibility = m.Numerada ? Visibility.Visible : Visibility.Collapsed;
             listaItens.Visibility = m.Numerada ? Visibility.Visible : Visibility.Collapsed;
             caixaTexto.Header = m.Numerada ? "Solução ou o que foi conferido" : "Texto escrito na imagem";
-            caixaElemento.Text = m.Elemento;
-            caixaTexto.Text = m.Texto;
+            caixaElemento.Tag = caixaTexto.Tag = m.Id;
+            AtualizarTexto(caixaElemento, m.Elemento);
+            AtualizarTexto(caixaTexto, m.Texto);
             botaoRemover.IsEnabled = !m.Gravada && !sessao.SomenteLeitura;
             Dicas.Aplicar(botaoRemover, "Remover marcação", "Tira esta marcação da figura.", "Del",
                 m.Gravada ? "O número está desenhado na imagem recebida e não sai dela." : null);
@@ -422,9 +480,9 @@ internal sealed class JanelaFigura : Window
 
     IReadOnlyList<MarcaDesenho> MarcasAtuais()
     {
-        if (figura is null) return Array.Empty<MarcaDesenho>();
+        if (figura is not { Incluida: true }) return Array.Empty<MarcaDesenho>();
         var lista = CamadaFiguras.Desenho(figura).ToList();
-        if (arrastoAtual is not null) lista = lista.Select(x => x.Id == arrastoAtual.Id ? arrastoAtual : x).ToList();
+        if (gesto.Atual is { } atual) lista = lista.Select(x => x.Id == atual.Id ? atual : x).ToList();
         return lista;
     }
 
@@ -433,7 +491,7 @@ internal sealed class JanelaFigura : Window
     void Desenhar()
     {
         camada.Children.Clear();
-        if (medidas is not { } m || figura is null) return;
+        if (medidas is not { } m || figura is not { Incluida: true }) return;
         var formas = GeometriaFigura.Calcular(m, MarcasAtuais());
         var vermelho = new SolidColorBrush(Vermelho);
         var branco = new SolidColorBrush(Colors.White);
@@ -480,14 +538,21 @@ internal sealed class JanelaFigura : Window
         {
             if (f.Texto is not { } t) continue;
             var (w, h) = InteracaoFigura.TamanhoTexto(m, f.Marca.Texto ?? "");
-            var caixa = new Grid { Width = w + 40, Height = h };
-            caixa.Children.Add(new TextBlock
+            // Fundo branco opaco com contorno, igual ao SVG do relatório (SvgFigura).
+            var caixa = new Border
+            {
+                Width = w + m.Fonte * .6, Height = h + m.Fonte * .3, Background = branco, BorderBrush = vermelho,
+                BorderThickness = new Thickness(Math.Max(1, m.Traco / 2.0)), CornerRadius = new CornerRadius(m.Fonte * .2),
+            };
+            var grade = new Grid();
+            caixa.Child = grade;
+            grade.Children.Add(new TextBlock
             {
                 Text = f.Marca.Texto ?? "", Foreground = vermelho, FontWeight = Microsoft.UI.Text.FontWeights.Bold, FontSize = m.Fonte,
                 FontFamily = new FontFamily("Arial"), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             });
-            Canvas.SetLeft(caixa, t.X - (w + 40) / 2);
-            Canvas.SetTop(caixa, t.Y - h / 2);
+            Canvas.SetLeft(caixa, t.X - caixa.Width / 2);
+            Canvas.SetTop(caixa, t.Y - caixa.Height / 2);
             camada.Children.Add(caixa);
         }
 
@@ -545,8 +610,10 @@ internal sealed class JanelaFigura : Window
 
     async void AoPressionar(object sender, PointerRoutedEventArgs e)
     {
-        if (medidas is not { } m || figura is null || aplicando || sessao.SomenteLeitura) return;
+        if (medidas is not { } m || figura is not { Incluida: true } || aplicando || sessao.SomenteLeitura) return;
         if (!e.GetCurrentPoint(camada).Properties.IsLeftButtonPressed) return;
+        e.Handled = true;
+        CancelarArrasto();
         var p = PontoDe(e);
         var (nx, ny) = m.ParaNormalizado(p);
         var dentro = nx is >= 0 and <= 1 && ny is >= 0 and <= 1;
@@ -560,18 +627,16 @@ internal sealed class JanelaFigura : Window
                 SincronizarLista();
                 if (acerto is not null && CamadaFiguras.Desenho(figura).FirstOrDefault(x => x.Id == acerto.Marcacao) is { } x)
                 {
-                    arrasto = acerto;
-                    arrastoOriginal = arrastoAtual = x;
-                    inicioArrasto = p;
-                    camada.CapturePointer(e.Pointer);
+                    gesto.IniciarArrasto(m, x, acerto.Alca, p);
+                    if (!camada.CapturePointer(e.Pointer)) CancelarArrasto();
                 }
                 Desenhar();
                 break;
             }
             case FerramentaFigura.Regiao when dentro:
-                inicioArrasto = p;
+                gesto.IniciarRegiao(m, p);
                 retanguloNovo = new Rectangle { Stroke = new SolidColorBrush(Vermelho), StrokeThickness = 2 / Escala, StrokeDashArray = { 4, 3 }, Fill = new SolidColorBrush(Color.FromArgb(40, 0xC0, 0, 0)) };
-                camada.CapturePointer(e.Pointer);
+                if (!camada.CapturePointer(e.Pointer)) { CancelarArrasto(); break; }
                 AtualizarRetangulo(p);
                 break;
             case FerramentaFigura.Seta when dentro:
@@ -602,55 +667,48 @@ internal sealed class JanelaFigura : Window
 
     void AoMover(object sender, PointerRoutedEventArgs e)
     {
-        if (medidas is not { } m) return;
+        if (medidas is null || !gesto.Ativo) return;
         var p = PontoDe(e);
         if (retanguloNovo is not null) { AtualizarRetangulo(p); return; }
-        if (arrasto is null || arrastoOriginal is null) return;
-        arrastoAtual = InteracaoFigura.Arrastar(m, arrastoOriginal, arrasto.Alca, inicioArrasto, p);
+        gesto.Mover(p);
         Desenhar();
     }
 
     async void AoSoltar(object sender, PointerRoutedEventArgs e)
     {
-        if (medidas is not { } m) return;
-        var p = PontoDe(e);
+        if (!gesto.Ativo) return;
+        e.Handled = true;
+        var nova = gesto.NovaRegiao;
+        // Consome o estado antes de PointerCaptureLost disparar ao liberar o mouse.
+        var comando = gesto.Concluir(figuraId, PontoDe(e));
+        retanguloNovo = null;
         camada.ReleasePointerCapture(e.Pointer);
-        if (retanguloNovo is not null)
+        Desenhar();
+        if (comando is null)
         {
-            retanguloNovo = null;
-            var caixa = InteracaoFigura.CaixaDoArrasto(m, inicioArrasto, p);
-            Desenhar();
-            if (caixa[2] - caixa[0] < .005 || caixa[3] - caixa[1] < .005) { estado.Text = "Arraste um retângulo maior para marcar a região."; return; }
-            var id = Marcacao.NovoId();
-            if (await AplicarAsync(new IncluirMarcacao(figuraId, id, TiposMarcacao.Regiao, Caixa: caixa))) Selecionar(id);
+            if (nova) estado.Text = "Arraste um retângulo maior para marcar a região.";
             return;
         }
-        if (arrasto is null || arrastoOriginal is null) return;
-        var final = InteracaoFigura.Arrastar(m, arrastoOriginal, arrasto.Alca, inicioArrasto, p);
-        var comando = InteracaoFigura.ComandoDoArrasto(figuraId, arrastoOriginal, final, arrasto.Alca);
-        arrasto = null;
-        if (comando is null) { arrastoAtual = arrastoOriginal = null; Desenhar(); return; }
-        arrastoAtual = final; // fica na posição nova enquanto o comando é aplicado
-        await AplicarAsync(comando);
-        arrastoAtual = arrastoOriginal = null;
-        Desenhar();
+        if (await AplicarAsync(comando) && comando is IncluirMarcacao incluir) Selecionar(incluir.Marcacao);
     }
 
     void CancelarArrasto()
     {
-        arrasto = null;
-        arrastoAtual = arrastoOriginal = null;
+        gesto.Cancelar();
         retanguloNovo = null;
         Desenhar();
     }
 
     void AtualizarRetangulo(Ponto p)
     {
-        if (retanguloNovo is null) return;
-        var x0 = Math.Min(p.X, inicioArrasto.X);
-        var y0 = Math.Min(p.Y, inicioArrasto.Y);
-        retanguloNovo.Width = Math.Abs(p.X - inicioArrasto.X);
-        retanguloNovo.Height = Math.Abs(p.Y - inicioArrasto.Y);
+        if (retanguloNovo is null || medidas is not { } m) return;
+        var c = InteracaoFigura.CaixaDoArrasto(m, gesto.Inicio, p);
+        var a = m.ParaPixel(c[0], c[1]);
+        var b = m.ParaPixel(c[2], c[3]);
+        var x0 = a.X;
+        var y0 = a.Y;
+        retanguloNovo.Width = b.X - a.X;
+        retanguloNovo.Height = b.Y - a.Y;
         Canvas.SetLeft(retanguloNovo, x0);
         Canvas.SetTop(retanguloNovo, y0);
         if (!camada.Children.Contains(retanguloNovo)) camada.Children.Add(retanguloNovo);
@@ -675,18 +733,57 @@ internal sealed class JanelaFigura : Window
     /// <summary>Manda o comando para a janela principal (fila, histórico, recomposição). Recusa: aviso aqui, nada muda.</summary>
     async Task<bool> AplicarAsync(Comando c)
     {
-        if (aplicando) return false;
+        edicoesPendentes++;
+        await filaEdicoes.WaitAsync();
         aplicando = true;
         try
         {
+            if (fechada || host.Sessao != sessao || sessao.SomenteLeitura) return false;
             var erros = await host.AplicarFiguraAsync(c);
+            avisoErro.Title = "A alteração não foi aplicada";
             avisoErro.IsOpen = erros.Count > 0;
             avisoErro.Message = string.Join(Environment.NewLine, erros);
             return erros.Count == 0;
         }
+        catch (Exception e)
+        {
+            avisoErro.Title = "A alteração não foi aplicada";
+            avisoErro.Message = e.Message;
+            avisoErro.IsOpen = true;
+            return false;
+        }
         finally
         {
             aplicando = false;
+            edicoesPendentes--;
+            filaEdicoes.Release();
+            Atualizar();
+        }
+    }
+
+    async Task HistoricoAsync(bool refazer)
+    {
+        CancelarArrasto();
+        edicoesPendentes++;
+        await filaEdicoes.WaitAsync();
+        aplicando = true;
+        try
+        {
+            if (fechada || host.Sessao != sessao || sessao.SomenteLeitura) return;
+            if (refazer) await host.RefazerFiguraAsync();
+            else await host.DesfazerFiguraAsync();
+        }
+        catch (Exception e)
+        {
+            avisoErro.Title = refazer ? "Não foi possível refazer" : "Não foi possível desfazer";
+            avisoErro.Message = e.Message;
+            avisoErro.IsOpen = true;
+        }
+        finally
+        {
+            aplicando = false;
+            edicoesPendentes--;
+            filaEdicoes.Release();
             Atualizar();
         }
     }

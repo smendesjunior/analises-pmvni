@@ -46,9 +46,11 @@ public sealed record AvisoLargura(int Folha, string? Ref, double Escala, double 
 /// <summary>Plano de quebras: onde começa cada folha, o que estourou e o hash do HTML para o qual foi calculado.
 /// <see cref="Escala"/> é a escala de impressão k (1 a 1,5) do shrink-to-fit do Chromium: quando o conteúdo é mais largo
 /// que a página, a área é diagramada k vezes maior e pintada em 1/k (folha.css, <c>--pmvni-k</c>); quem aplica o plano usa
-/// este valor. <see cref="AvisosLargura"/> lista os blocos que causam a redução.</summary>
+/// este valor. <see cref="AvisosLargura"/> lista os blocos que causam a redução.
+/// <see cref="Figuras"/>: imagens de figura reduzidas pelo paginador para caber na sobra da folha anterior (ele decide sozinho
+/// quantas figuras cabem por folha); null = nenhuma.</summary>
 public sealed record PlanoQuebras(int Versao, IReadOnlyList<PosicaoFluxo> InicioDasFolhas, IReadOnlyList<Estouro> Estouros,
-    string Sha256Html, double Escala, IReadOnlyList<AvisoLargura> AvisosLargura)
+    string Sha256Html, double Escala, IReadOnlyList<AvisoLargura> AvisosLargura, IReadOnlyList<AjusteFigura>? Figuras = null)
 {
     public const int VersaoAtual = 1;
     public const double EscalaMaxima = 1.5;
@@ -78,6 +80,9 @@ public sealed record PlanoQuebras(int Versao, IReadOnlyList<PosicaoFluxo> Inicio
     /// <summary>sha256 (hex minúsculo) do HTML do renderizador, como string UTF-8 (com as quebras LF dele).</summary>
     public static string Sha256De(string html) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(html)));
 }
+
+/// <summary>Altura máxima (px CSS) da imagem (.fi img) da figura (.fig) no <see cref="Caminho"/> do fluxo.</summary>
+public sealed record AjusteFigura(int[] Caminho, double AlturaPx);
 
 /// <summary>Resposta de <c>compor</c>: o plano, o número de folhas e os data-ref visíveis em cada folha, na ordem.</summary>
 public sealed record ResultadoComposicao(PlanoQuebras Plano, int Folhas, IReadOnlyList<IReadOnlyList<string>> RefsPorFolha);

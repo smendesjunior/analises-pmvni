@@ -28,7 +28,8 @@ function Tamanho([string]$caminho) {
 $saida = Join-Path $raiz 'tests\saida'
 New-Item -ItemType Directory -Force -Path $saida | Out-Null
 $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados'
-& dotnet test (Join-Path $raiz 'EditorRelatoriosPMVNI.sln') -c Release --nologo
+# Um projeto de teste por vez (-m:1): em paralelo, os testes de processos (soffice fictício, AgenteFalso) estouram os limites de tempo.
+& dotnet test (Join-Path $raiz 'EditorRelatoriosPMVNI.sln') -c Release --nologo -m:1
 if ($LASTEXITCODE -ne 0) { throw "Os testes falharam (código $LASTEXITCODE): nenhuma versão foi publicada." }
 
 # 1. Publicar

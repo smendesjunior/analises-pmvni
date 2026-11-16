@@ -1496,6 +1496,11 @@ internal static class Roteiro
             p["erros"] = new JsonArray(j.UltimosErros.Select(e => (JsonNode)e).ToArray());
             p["ok"] = j.EditorFiguraAberto && numero == 3 && (bool)p["figura_virou_svg"]! && (bool)p["legenda_nas_folhas"]! && (bool)p["comparar_lista_a_figura"]! && voltou;
             j.FecharEditorFigura();
+            // Inserir região da prancha: a janela tem de abrir (correção 2026-11-16: o zoom mínimo 0,05 derrubava a janela na montagem).
+            await j.ExecutarComandoAsync(ComandosApp.FigurasInserirRegiao);
+            p["recorte_abriu"] = j.RecortePranchaAberto;
+            p["ok"] = (bool)p["ok"]! && j.RecortePranchaAberto;
+            j.FecharRecortePrancha();
             static int Ocorrencias(string texto, string trecho) => (texto.Length - texto.Replace(trecho, "", StringComparison.Ordinal).Length) / trecho.Length;
         });
 

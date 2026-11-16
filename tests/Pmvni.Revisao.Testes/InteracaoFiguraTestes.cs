@@ -14,6 +14,105 @@ public class InteracaoFiguraTestes
     static readonly MarcaDesenho Seta = new(TiposMarcacao.Seta, 2, [.8, .7], null, "direita", .7, null, null, "mk_s");
 
     [Fact]
+    public void concluir_regiao_preserva_o_comando_apos_perder_a_captura_e_nao_duplica()
+    {
+        var gesto = new GestoFigura();
+        gesto.IniciarRegiao(M, M.ParaPixel(.2, .3));
+        var comando = Assert.IsType<IncluirMarcacao>(gesto.Concluir("fig", M.ParaPixel(.6, .7)));
+        gesto.Cancelar(); // PointerCaptureLost emitido pela liberação programática do mouse.
+        Assert.False(gesto.Ativo);
+        Assert.Equal(new[] { .2, .3, .6, .7 }, comando.Caixa!, new Aproximado());
+        Assert.Null(gesto.Concluir("fig", M.ParaPixel(.6, .7)));
+    }
+
+    [Fact]
+    public void cancelar_ou_clicar_sem_arrastar_nao_inclui_regiao()
+    {
+        var gesto = new GestoFigura();
+        var ponto = M.ParaPixel(.2, .3);
+        gesto.IniciarRegiao(M, ponto);
+        gesto.Cancelar();
+        Assert.Null(gesto.Concluir("fig", M.ParaPixel(.6, .7)));
+        gesto.IniciarRegiao(M, ponto);
+        Assert.Null(gesto.Concluir("fig", ponto));
+    }
+
+    [Fact]
+    public void mover_e_redimensionar_concluem_com_a_posicao_da_soltura()
+    {
+        var gesto = new GestoFigura();
+        gesto.IniciarArrasto(M, Regiao, AlcaFigura.Caixa, M.ParaPixel(.3, .3));
+        gesto.Mover(M.ParaPixel(.4, .4));
+        Assert.NotNull(gesto.Atual);
+        var comando = Assert.IsType<MoverMarcacao>(gesto.Concluir("fig", M.ParaPixel(.5, .5)));
+        gesto.Cancelar();
+        Assert.Equal(.45, comando.Caixa![0], 8);
+        Assert.Equal(.45, comando.Caixa![1], 8);
+        gesto.IniciarArrasto(M, Regiao, AlcaFigura.CantoInferiorDireito, M.ParaPixel(.5, .5));
+        Assert.IsType<RedimensionarMarcacao>(gesto.Concluir("fig", M.ParaPixel(.7, .8)));
+    }
+
+    sealed class Aproximado : IEqualityComparer<double>
+    {
+        public bool Equals(double x, double y) => Math.Abs(x - y) < 1e-8;
+        public int GetHashCode(double obj) => 0;
+    }
+
+    [Fact]
+    public void recorte_converte_os_dois_eixos_e_arredonda_so_no_png()
+    {
+        // Página de tamanho fracionário: a prévia é arredondada em pixels em cada eixo.
+        var r = RecortePdf.DeTela(100, 150, 500, 450, 1000, 600, 500.25, 300.4);
+        Assert.Equal(50.025, r.X, 8);
+        Assert.Equal(75.1, r.Y, 8);
+        Assert.Equal(200.1, r.Largura, 8);
+        Assert.Equal(150.2, r.Altura, 8);
+        Assert.Equal(417u, r.PixelsLargura);
+        Assert.Equal(313u, r.PixelsAltura);
+    }
+
+    [Fact]
+    public void recorte_invertido_e_fora_da_pagina_e_limitado_a_pagina()
+    {
+        var r = RecortePdf.DeTela(1200, 700, -10, -20, 1000, 600, 500, 300);
+        Assert.Equal(0, r.X);
+        Assert.Equal(0, r.Y);
+        Assert.Equal(500, r.Largura);
+        Assert.Equal(300, r.Altura);
+    }
+
+    [Fact]
+    public void recorte_vazio_invalido_ou_grande_demais_e_recusado()
+    {
+        Assert.Throws<ArgumentException>(() => RecortePdf.DeTela(10, 10, 10, 20, 100, 100, 100, 100));
+        Assert.Throws<ArgumentException>(() => RecortePdf.DeTela(0, 0, 20, 20, double.NaN, 100, 100, 100));
+        Assert.Throws<ArgumentException>(() => RecortePdf.DeTela(0, 0, 100, 100, 100, 100, 20000, 20000));
+    }
+
+    [Fact]
+    public void procura_projeto_quando_relatorio_esta_numa_subpasta_e_ordena_revisoes()
+    {
+        var pasta = Path.Combine(Path.GetTempPath(), "pmvni-figuras-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            foreach (var sub in new[] { "PROJETO/INICIAL", "PROJETO/REVISÃO 02", "DOCUMENTOS", "RELATORIOS/2026", ".pmvni-ai/analise", "DESPACHO" })
+                Directory.CreateDirectory(Path.Combine(pasta, sub));
+            var inicial = Path.Combine(pasta, "PROJETO/INICIAL/ARQ 01-03.pdf");
+            var revisao = Path.Combine(pasta, "PROJETO/REVISÃO 02/ARQ 01-03.pdf");
+            foreach (var pdf in new[] { inicial, revisao, Path.Combine(pasta, "DOCUMENTOS/doc.pdf"), Path.Combine(pasta, "DESPACHO/saida.pdf"), Path.Combine(pasta, ".pmvni-ai/analise/relatorio.pdf") })
+                File.WriteAllBytes(pdf, []);
+            var relatorio = Path.Combine(pasta, "RELATORIOS/2026/Relatorio.pmvrel");
+            Assert.Equal(pasta, RecortePrancha.PastaDoProcesso(relatorio));
+            Assert.Equal(pasta, RecortePrancha.PastaDoProcesso(Path.Combine(pasta, ".pmvni-ai/analise/Relatorio.pmvrel")));
+            var pdfs = RecortePrancha.PdfsDoProcesso(relatorio);
+            Assert.Equal(3, pdfs.Count);
+            Assert.Equal(Path.GetFullPath(revisao), pdfs[0]);
+            Assert.Equal(Path.GetFullPath(inicial), pdfs[1]);
+        }
+        finally { if (Directory.Exists(pasta)) Directory.Delete(pasta, true); }
+    }
+
+    [Fact]
     public void acerta_numero_caixa_canto_e_ponta()
     {
         var marcas = new[] { Regiao, Seta };
@@ -80,6 +179,24 @@ public class InteracaoFiguraTestes
     [InlineData(@"C:\p\PROJETO\Planta baixa.pdf", "Planta baixa")]
     public void prancha_sugerida_pelo_nome(string caminho, string esperado) =>
         Assert.Equal(esperado, RecortePrancha.SugerirPrancha(caminho));
+
+    [Fact]
+    public void pdfs_do_processo_revisao_mais_recente_primeiro_e_subpastas_fundas()
+    {
+        var pasta = Path.Combine(Path.GetTempPath(), "pmvni-pdfs-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            foreach (var r in new[] { @"PROJETO\INICIAL\ARQ\A.pdf", @"PROJETO\REVISÃO 01\B.pdf", @"PROJETO\REVISÃO 02\X\Y\C.pdf", @"DOCUMENTOS\D.pdf", @"DESPACHO 01\E.pdf", @".pmvni-ai\F.pdf" })
+            {
+                var c = Path.Combine(pasta, r);
+                Directory.CreateDirectory(Path.GetDirectoryName(c)!);
+                File.WriteAllText(c, "");
+            }
+            var nomes = RecortePrancha.PdfsDoProcesso(Path.Combine(pasta, "R.pmvrel")).Select(Path.GetFileName).ToArray();
+            Assert.Equal(new[] { "C.pdf", "B.pdf", "A.pdf", "D.pdf" }, nomes);
+        }
+        finally { Directory.Delete(pasta, true); }
+    }
 
     [Fact]
     public void pdfs_do_processo_ficticio_vem_da_pasta_projeto()

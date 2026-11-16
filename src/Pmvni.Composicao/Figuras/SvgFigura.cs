@@ -118,6 +118,11 @@ public static class SvgFigura
         foreach (var f in formas)
         {
             if (f.Texto is not { } t || string.IsNullOrWhiteSpace(f.Marca.Texto)) continue;
+            // Fundo branco opaco atrás do texto (legível sobre o desenho da prancha); mesma medida do editor (InteracaoFigura.TamanhoTexto).
+            var lt = Math.Max(m.Fonte, f.Marca.Texto!.Length * m.Fonte * .6) + m.Fonte * .6;
+            var at = m.Fonte * 1.3 + m.Fonte * .3;
+            sb.Append("<rect x=\"").Append(n(t.X - lt / 2)).Append("\" y=\"").Append(n(t.Y - at / 2)).Append("\" width=\"").Append(n(lt)).Append("\" height=\"").Append(n(at))
+              .Append("\" rx=\"").Append(n(m.Fonte * .2)).Append("\" fill=\"#fff\" stroke=\"").Append(Vermelho).Append("\" stroke-width=\"").Append(n(Math.Max(1, m.Traco / 2.0))).Append("\"/>");
             sb.Append("<text x=\"").Append(n(t.X)).Append("\" y=\"").Append(n(t.Y)).Append("\" fill=\"").Append(Vermelho).Append("\" stroke=\"#fff\" stroke-width=\"")
               .Append(m.Halo).Append("\" paint-order=\"stroke\" stroke-linejoin=\"round\" font-family=\"Arial, Helvetica, sans-serif\" font-weight=\"bold\" font-size=\"")
               .Append(m.Fonte).Append("\" text-anchor=\"middle\" dominant-baseline=\"central\">").Append(Escapar(f.Marca.Texto!)).Append("</text>");

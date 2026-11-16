@@ -17,6 +17,8 @@ public sealed partial class MainWindow : IHostFiguras
     internal string? FiguraSelecionada => figuraSelecionada;
     internal bool EditorFiguraAberto => janelaFigura is not null;
     internal void FecharEditorFigura() => janelaFigura?.Close();
+    internal bool RecortePranchaAberto => janelaPrancha is not null;
+    internal void FecharRecortePrancha() => janelaPrancha?.Close();
 
     void RegistrarManipuladoresFiguras()
     {
@@ -60,19 +62,36 @@ public sealed partial class MainWindow : IHostFiguras
 
     async Task<IReadOnlyList<string>> IHostFiguras.AplicarFiguraAsync(Comando c)
     {
-        await AplicarAsync(c);
-        return ultimosErros.ToList();
+        var origem = sessao;
+        return await NaFilaAsync<IReadOnlyList<string>>(async () =>
+        {
+            if (origem is null || sessao != origem) return new[] { "O relatório aberto foi alterado. Abra novamente o editor de figuras." };
+            if (ocupado) return new[] { "Outra operação está em andamento. Tente novamente em seguida." };
+            await AplicarAsync(c);
+            // Captura o resultado ainda dentro da fila, antes do próximo comando limpar os erros.
+            return ultimosErros.ToList();
+        });
     }
 
-    Task IHostFiguras.DesfazerFiguraAsync() => ExecutarRevisaoAsync(null, s => s.Revisao.Desfazer());
+    Task IHostFiguras.DesfazerFiguraAsync() => HistoricoFiguraAsync(false);
 
-    Task IHostFiguras.RefazerFiguraAsync() => ExecutarRevisaoAsync(null, s => s.Revisao.Refazer());
+    Task IHostFiguras.RefazerFiguraAsync() => HistoricoFiguraAsync(true);
+
+    Task HistoricoFiguraAsync(bool refazer)
+    {
+        var origem = sessao;
+        return NaFilaAsync(async () =>
+        {
+            if (origem is null || origem != sessao) return;
+            await ExecutarRevisaoAsync(null, s => refazer ? s.Revisao.Refazer() : s.Revisao.Desfazer());
+        });
+    }
 
     /// <summary>Abre (ou traz para a frente) o editor de marcações da figura.</summary>
     public void AbrirEditorFigura(string figura)
     {
         if (sessao is not { Atual: not null } s) return;
-        if (janelaFigura is { } aberta && aberta.Figura == figura) { aberta.Activate(); return; }
+        if (janelaFigura is { } aberta && aberta.PertenceASessao(s) && aberta.Figura == figura) { aberta.Activate(); return; }
         janelaFigura?.Close();
         try
         {
@@ -89,10 +108,15 @@ public sealed partial class MainWindow : IHostFiguras
     {
         if (sessao is not { Atual: not null } s) { AvisarIndisponivel(ComandosApp.FigurasInserirRegiao); return; }
         if (s.SomenteLeitura) { MostrarMensagem(InfoBarSeverity.Informational, "Inserir região da prancha", "O relatório está aberto somente para leitura."); return; }
-        if (janelaPrancha is { } aberta) { aberta.Activate(); return; }
-        var j = new JanelaPrancha(this, s, depoisDe);
-        j.Closed += (_, _) => { if (ReferenceEquals(janelaPrancha, j)) janelaPrancha = null; };
-        janelaPrancha = j;
-        j.Activate();
+        if (janelaPrancha is { } aberta && aberta.PertenceASessao(s)) { aberta.Activate(); return; }
+        janelaPrancha?.Close();
+        try
+        {
+            var j = new JanelaPrancha(this, s, depoisDe);
+            j.Closed += (_, _) => { if (ReferenceEquals(janelaPrancha, j)) janelaPrancha = null; };
+            janelaPrancha = j;
+            j.Activate();
+        }
+        catch (Exception e) { MostrarMensagem(InfoBarSeverity.Error, "Não foi possível abrir a prancha", Erro(e)); }
     }
 }
