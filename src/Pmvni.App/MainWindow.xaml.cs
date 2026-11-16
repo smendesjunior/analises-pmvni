@@ -367,6 +367,27 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                     }
                     catch (Exception e) { RegistroErros.Gravar("captura", e); }
                 }
+                // A página de um processo, em Lista e em Miniaturas (o processo cujo nome começa por PMVNI_CAPTURA_PROCESSO, ou o primeiro).
+                try
+                {
+                    await MudarModuloAsync(Modulo.Processos);
+                    await AguardarLeiturasAsync();
+                    var inicio = Environment.GetEnvironmentVariable("PMVNI_CAPTURA_PROCESSO");
+                    if (ProcessosMostrados.Count > 0)
+                    {
+                        if (!string.IsNullOrEmpty(inicio)) await EscolherProcessoNaListaAsync(inicio);
+                        else await EscolherProcessoAsync(ProcessosMostrados[0].Processo);
+                        await AguardarLeiturasAsync();
+                        var exibicao = ExibicaoArquivos.DosAjustes(ajustes.ArquivosAgrupar, ajustes.ArquivosOrdenar, ajustes.ArquivosDecrescente);
+                        PaginaDoProcesso.DefinirExibicao(exibicao, false);
+                        await Task.Delay(1200);
+                        await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "processo-lista.png"));
+                        PaginaDoProcesso.DefinirExibicao(exibicao, true);
+                        await Task.Delay(6000);
+                        await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "processo-miniaturas.png"));
+                    }
+                }
+                catch (Exception e) { RegistroErros.Gravar("captura", e); }
                 Application.Current.Exit();
             }
             else if (args.AnexarLeis is { } pastaLeis && Directory.Exists(pastaLeis))
