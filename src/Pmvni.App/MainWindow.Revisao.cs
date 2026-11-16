@@ -158,6 +158,7 @@ public sealed partial class MainWindow
         Faixa.Habilitar(ComandosApp.EditarRefazer, refazer);
         BotaoDesfazer.IsEnabled = desfazer;
         BotaoRefazer.IsEnabled = refazer;
+        AtualizarComandosFiguras(temRelatorio);
     }
 
     // ---------- o fluxo de um comando ----------
@@ -525,6 +526,7 @@ public sealed partial class MainWindow
                 break;
             case "pedirEdicao":
                 if (Texto("ref") is { } r && Texto("campo") is { } c) await NaFilaAsync(() => IniciarEdicaoAsync(r, c));
+                else if (FiguraDoRef(Texto("ref")) is { } fig) AbrirEditorFigura(fig); // duplo clique numa figura (Etapa 4)
                 break;
             case "editar":
                 if (sessao is null) break;
@@ -552,6 +554,7 @@ public sealed partial class MainWindow
     void SelecionadoNaPagina(string? @ref, string? campo)
     {
         if (sessao is not { } s) return;
+        figuraSelecionada = FiguraDoRef(@ref); // clique numa figura (Etapa 4)
         if (@ref is not null && s.Revisao.Projeto.Item(@ref) is null) @ref = null;
         selecionado = @ref;
         ultimoCampo = @ref is null ? null : campo;
@@ -694,7 +697,7 @@ public sealed partial class MainWindow
 
     void LimparPaineis()
     {
-        selecionado = ultimoCampo = itemNasPropriedades = null;
+        selecionado = ultimoCampo = itemNasPropriedades = figuraSelecionada = null;
         mostrarOriginal = false;
         navegacaoCompleta = [];
         AtualizarPaineis();

@@ -168,6 +168,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
         RegistrarManipuladores();
         RegistrarManipuladoresRevisao();
+        RegistrarManipuladoresFiguras();
         IniciarRevisao();
         RegistrarAtalhos();
         IniciarGravacao();

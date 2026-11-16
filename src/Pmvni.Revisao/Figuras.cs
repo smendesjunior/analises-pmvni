@@ -321,6 +321,9 @@ public static partial class CamadaFiguras
         return "itens " + string.Join(", ", lista.Take(lista.Count - 1)) + " e " + lista[^1];
     }
 
+    /// <summary>O campo de itens da marcação como sai na legenda ("item 03"), com a numeração atual.</summary>
+    public static string ItensImpressos(Projeto p, Marcacao m) => DadosEfetivos.Imprimir(p, m.Itens);
+
     /// <summary>Os ids dos itens citados no campo de itens (tokens).</summary>
     public static IReadOnlyList<string> ItensCitados(string itens) => Citacoes.Alvos(itens ?? "");
 

@@ -392,7 +392,9 @@ public sealed partial class MainWindow
         if (sessao?.Atual is null) return "Nenhum relatório aberto.";
         var p = sessao.Revisao.Projeto;
         var h = sessao.Revisao.HistoricoCompleto;
-        return Comparacao.Texto(Comparacao.Diferencas(p, h), Comparacao.CitacoesImportadas(p, h));
+        var texto = Comparacao.Texto(Comparacao.Diferencas(p, h), Comparacao.CitacoesImportadas(p, h));
+        // Figuras (Etapa 4): marcações, recortes e textos das figuras, à parte (só quando alguma figura mudou).
+        return ComparacaoFiguras.Texto(p) is { Length: > 0 } figuras ? texto + "\n\n" + figuras : texto;
     }
 
     Task CompararAsync() => Perguntas.Atual.InformarAsync("Comparar com o original", TextoComparacao());

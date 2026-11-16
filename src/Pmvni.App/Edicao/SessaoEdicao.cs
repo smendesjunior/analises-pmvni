@@ -175,6 +175,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     public void Recuperar(Recuperacao rec)
     {
         Revisao.Reaplicar(rec.Registros);
+        RecuperarImagens();
         if (TemAlteracoesNaoGravadas) DefinirEstado(EstadoGravacao.NaoSalvo);
     }
 
@@ -317,7 +318,59 @@ internal sealed class SessaoEdicao : IAsyncDisposable
 
     /// <summary>O pacote como está agora (projeto e histórico da sessão; o resto como foi lido), numa cópia que a gravação pode ler fora da thread da interface.</summary>
     public ConteudoPacote ConteudoAtual() =>
-        Conteudo with { Projeto = Revisao.Projeto.Clonar(), Historico = Revisao.HistoricoCompleto.ToList() };
+        Conteudo with { Projeto = Revisao.Projeto.Clonar(), Historico = Revisao.HistoricoCompleto.ToList(), Assets = TodosOsAssets() };
+
+    // ---------- imagens novas (recortes de prancha) ----------
+
+    readonly Dictionary<string, byte[]> assetsNovos = new(StringComparer.Ordinal);
+
+    IReadOnlyDictionary<string, byte[]> TodosOsAssets()
+    {
+        if (assetsNovos.Count == 0) return Conteudo.Assets;
+        var todos = new Dictionary<string, byte[]>(Conteudo.Assets, StringComparer.Ordinal);
+        foreach (var (k, v) in assetsNovos) todos[k] = v;
+        return todos;
+    }
+
+    /// <summary>Pasta onde as imagens novas ficam guardadas até o pacote ser gravado (para a recuperação depois de uma queda).</summary>
+    string PastaImagensRecuperacao => Path.Combine(raizDados, "recuperacao-imagens");
+
+    /// <summary>Guarda uma imagem nova (PNG de um recorte) como <c>assets/&lt;sha256&gt;.png</c>: entra na pasta de trabalho (o render lê de lá),
+    /// no próximo Salvar e numa cópia para a recuperação. Devolve a chave.</summary>
+    public string AdicionarImagem(byte[] png)
+    {
+        ArgumentNullException.ThrowIfNull(png);
+        var ext = Pmvni.Composicao.CaminhoImagem.ExtensaoPelaAssinatura(png) ?? throw new InvalidOperationException("A imagem do recorte não é PNG.");
+        var chave = "assets/" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(png)).ToLowerInvariant() + "." + ext;
+        if (Conteudo.Assets.ContainsKey(chave) || assetsNovos.ContainsKey(chave)) return chave;
+        assetsNovos[chave] = png;
+        var destino = Path.Combine(Recompositor.PastaTrabalho, chave.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(destino)!);
+        File.WriteAllBytes(destino, png);
+        try
+        {
+            Directory.CreateDirectory(PastaImagensRecuperacao);
+            File.WriteAllBytes(Path.Combine(PastaImagensRecuperacao, Path.GetFileName(destino)), png);
+            // As cópias antigas (mais de 7 dias) não servem mais a nenhuma recuperação.
+            foreach (var velho in Directory.GetFiles(PastaImagensRecuperacao).Where(f => File.GetLastWriteTimeUtc(f) < DateTime.UtcNow.AddDays(-7)))
+                File.Delete(velho);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Debug.WriteLine("[imagem recuperacao] " + e.Message); }
+        return chave;
+    }
+
+    /// <summary>Depois de reaplicar o diário: as imagens de recortes que ainda não estavam no pacote voltam da cópia de recuperação.</summary>
+    void RecuperarImagens()
+    {
+        foreach (var f in Revisao.Projeto.Figuras ?? new List<FiguraRevisao>())
+        {
+            if (Conteudo.Assets.ContainsKey(f.Imagem) || assetsNovos.ContainsKey(f.Imagem)) continue;
+            var copia = Path.Combine(PastaImagensRecuperacao, Path.GetFileName(f.Imagem));
+            if (!File.Exists(copia)) continue;
+            var bytes = File.ReadAllBytes(copia);
+            if (AdicionarImagem(bytes) != f.Imagem) assetsNovos.Remove(f.Imagem); // hash diferente: não é a mesma imagem
+        }
+    }
 
     /// <summary>Grava no mesmo arquivo. As gravações vão em fila (<see cref="GravadorPacote"/>): um Salvar pedido durante outro roda
     /// depois dele, com o conteúdo mais novo e o disco que ele deixou; nunca dá conflito consigo mesmo. Conflito (outro programa mudou o
