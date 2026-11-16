@@ -136,6 +136,8 @@ internal sealed class JanelaFigura : Window
         rolagem.Background = new SolidColorBrush(Color.FromArgb(255, 0x8a, 0x8a, 0x8a));
         Grid.SetRow(rolagem, 1);
         raiz.Children.Add(rolagem);
+        // As alças têm tamanho fixo na tela: redesenha ao terminar uma mudança de zoom.
+        rolagem.ViewChanged += (_, e) => { if (!e.IsIntermediate && arrasto is null && retanguloNovo is null) Desenhar(); };
         camada.PointerPressed += AoPressionar;
         camada.PointerMoved += AoMover;
         camada.PointerReleased += AoSoltar;

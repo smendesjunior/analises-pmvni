@@ -1455,6 +1455,38 @@ internal static class Roteiro
             p["ok"] = longoOk && citacoesOk && j.FaixaAtual.Habilitado(ComandosApp.RevisaoComparar);
         });
 
+        // ---------- Etapa 4: editor de figura (marcações editáveis sobre a imagem) ----------
+        await Passo("29b_figuras_marcacoes", async p =>
+        {
+            if (!await j.AbrirPacoteAsync(pacoteLongo)) throw new InvalidOperationException("não reabriu o longo: " + j.InfoMensagem.Message);
+            var s = j.Sessao!;
+            var dadosAntes = DadosEfetivos.Gerar(s.Revisao.Projeto).Json;
+            var svgAntes = Ocorrencias(s.Atual!.Preparado.Render.Html, "data:image/svg+xml;base64,");
+            var fig = CamadaFiguras.Inicial(s.Revisao.Projeto)[0].Id;
+            j.AbrirEditorFigura(fig);
+            p["editor_abriu"] = j.EditorFiguraAberto;
+            var item2 = s.Revisao.Projeto.Incluidos[1].Id;
+            await j.AplicarAsync(new IncluirMarcacao(fig, "mk_roteiro", Pmvni.Composicao.Figuras.TiposMarcacao.Regiao, Caixa: [.2, .2, .45, .45], Elemento: "Região do roteiro"));
+            await j.AplicarAsync(new VincularItens(fig, "mk_roteiro", [item2]));
+            var html = s.Atual!.Preparado.Render.Html;
+            var folhas = await j.Documento!.TextoPorFolhaAsync();
+            var f = s.Revisao.Projeto.Figuras!.Single(x => x.Id == fig);
+            var numero = CamadaFiguras.Numero(f, "mk_roteiro");
+            p["numero_visivel"] = numero;
+            p["figura_virou_svg"] = Ocorrencias(html, "data:image/svg+xml;base64,") == svgAntes + 1;
+            p["legenda_nas_folhas"] = folhas.Any(t => t.Contains("Região do roteiro.", StringComparison.Ordinal) && t.Contains("(item 02)", StringComparison.Ordinal));
+            await j.ExecutarComandoAsync(ComandosApp.RevisaoComparar);
+            p["comparar_lista_a_figura"] = j.TextoComparacao().Contains("Figuras alteradas:", StringComparison.Ordinal);
+            await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            var voltou = DadosEfetivos.Gerar(s.Revisao.Projeto).Json.AsSpan().SequenceEqual(dadosAntes);
+            p["desfazer_volta_ao_kit"] = voltou;
+            p["erros"] = new JsonArray(j.UltimosErros.Select(e => (JsonNode)e).ToArray());
+            p["ok"] = j.EditorFiguraAberto && numero == 3 && (bool)p["figura_virou_svg"]! && (bool)p["legenda_nas_folhas"]! && (bool)p["comparar_lista_a_figura"]! && voltou;
+            j.FecharEditorFigura();
+            static int Ocorrencias(string texto, string trecho) => (texto.Length - texto.Replace(trecho, "", StringComparison.Ordinal).Length) / trecho.Length;
+        });
+
         // ---------- Tarefa 13: módulos Processos e Despachos, pasta de processos nos Ajustes ----------
         // Numeração: o plano previa 28 (processos), 29 (despachos), 31, 32 e 33; 28 e 29 já são Recentes e Comparar (Tarefa 11) e o 30 fica
         // reservado à Legislação (Tarefa 18). Aqui: 31 processos, 32 despachos, 33 pasta nos Ajustes, 34 faixa e pesquisa por módulo, 35 pastas intactas.

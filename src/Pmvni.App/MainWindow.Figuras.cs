@@ -16,6 +16,7 @@ public sealed partial class MainWindow : IHostFiguras
     // ---------- acessores do roteiro ----------
     internal string? FiguraSelecionada => figuraSelecionada;
     internal bool EditorFiguraAberto => janelaFigura is not null;
+    internal void FecharEditorFigura() => janelaFigura?.Close();
 
     void RegistrarManipuladoresFiguras()
     {
