@@ -1428,45 +1428,107 @@ public sealed partial class MainWindow
                 MostrarMensagem(InfoBarSeverity.Warning, "Rever com a IA", "A resposta da IA não veio no formato esperado; nada mudou.");
                 return;
             }
+            var novosVaos = IaRecalculoIndices.LerNovosVaos(saida, linhas.Keys);
+            var ambientes = bloco == TabelasRevisao.Ambientes;
             var comandos = new List<Comando>();
-            var mudou = 0;
-            var ignoradas = 0;
-            foreach (var (id, campos) in novas)
+            var trabalho = p;            // o projeto como fica com o que já foi aceito (cópias de Testar; o da sessão só muda no fim)
+            int mudou = 0, ignoradas = 0, acrescentadas = 0, contas = 0;
+            foreach (var id in linhas.Keys)
             {
-                if (!linhas.TryGetValue(id, out var antes)) continue;
-                foreach (var (caminho, texto) in campos)
+                novas.TryGetValue(id, out var campos);
+                novosVaos.TryGetValue(id, out var vaos);
+                if (campos is null && vaos is null) continue;
+                var antes = linhas[id];
+                var daLinha = new List<Comando>();
+                var textos = 0;
+                // Esquadrias pedidas na instrução ("adicionar a porta de 80x210"): entram com a área calculada pelo editor.
+                if (ambientes && vaos is not null)
+                    foreach (var (codigo, tipo, medidas) in vaos)
+                    {
+                        try
+                        {
+                            var conta = Esquadrias.Calcular(trabalho, id);
+                            var categoria = Esquadrias.Categoria(codigo, tipo.Length > 0 ? tipo : "Porta");
+                            var usados = (conta?.Esquadrias ?? []).Select(e => e.Codigo)
+                                .Concat(daLinha.OfType<AcrescentarVao>().Select(v => v.Codigo)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                            var cod = codigo.Length > 0 && !usados.Contains(codigo) ? codigo : ProximoCodigoLivre(usados, categoria);
+                            daLinha.Add(Esquadrias.Nova(id, cod, tipo.Length > 0 ? tipo : categoria == CategoriaEsquadria.Janela ? "Janela" : "Porta", medidas));
+                            acrescentadas++;
+                        }
+                        catch (ComandoRecusadoException) { ignoradas++; }
+                    }
+                string? situacaoDaIa = null, motivo = null;
+                foreach (var (caminho, texto) in campos ?? [])
                 {
-                    if (caminho is "situacao" or "justificativa" || !antes.ContainsKey(caminho) || texto.Trim().Length == 0) continue;
-                    if (id == linhaEditada && p.Linhas.TryGetValue(id, out var r) && r.Campos.ContainsKey(caminho)) continue; // o valor do usuário fica
+                    if (caminho == "situacao") { situacaoDaIa = texto; continue; }
+                    if (caminho == "justificativa") { motivo = texto; continue; }
+                    if (!antes.ContainsKey(caminho) || texto.Trim().Length == 0) continue;
+                    // No ambiente, a área de cada vão e o vão total são conta do editor, não da IA.
+                    if (ambientes && (caminho.StartsWith("resultado/", StringComparison.Ordinal) || caminho.EndsWith("/area", StringComparison.Ordinal))) continue;
+                    if (id == linhaEditada && editados.Contains(caminho)) continue; // o valor do usuário fica
                     if (TextoEditado.Normalizar(texto) == TextoEditado.Normalizar(antes[caminho])) continue;
                     // Editado pelo usuário enquanto a IA respondia: a edição dele fica.
                     if ((TabelasRevisao.TextoEfetivo(p, id, caminho) ?? "") != antes[caminho]) { ignoradas++; continue; }
-                    comandos.Add(new DefinirCampo(id, caminho, texto));
-                    mudou++;
+                    daLinha.Add(new DefinirCampo(id, caminho, texto));
+                    textos++;
                 }
-                if (campos.TryGetValue("situacao", out var sit) && antes["situacao"].Length > 0 && TabelasRevisao.SituacaoDeLinha(sit) is { } codigo && sit != antes["situacao"])
+                var editorDecide = false;
+                if (ambientes && daLinha.Count > 0)
                 {
-                    comandos.Add(new DefinirSituacao(id, codigo));
-                    var motivo = campos.TryGetValue("justificativa", out var j) && j.Trim().Length > 0 ? j : "Recalculado a partir de " + TabelasRevisao.Rotulo(linhaEditada) + ".";
-                    if (string.IsNullOrWhiteSpace(TabelasRevisao.Justificativa(p, id)))
-                        comandos.Add(new DefinirJustificativa(id, "IA: " + motivo));
-                    mudou++;
+                    // A conta do ambiente (áreas, vão total, mínimo, situação) é refeita pelo editor depois das mudanças da IA.
+                    try
+                    {
+                        var n = daLinha.Count;
+                        daLinha = Esquadrias.Recalcular(trabalho, id, daLinha, "").Comandos.ToList();
+                        editorDecide = Esquadrias.Calcular(trabalho, id)?.Minimo is not null;
+                        if (daLinha.Count > n) contas++;
+                    }
+                    catch (ComandoRecusadoException) { ignoradas++; continue; }
                 }
+                if (!editorDecide && situacaoDaIa is not null && antes["situacao"].Length > 0 && TabelasRevisao.SituacaoDeLinha(situacaoDaIa) is { } codigoSituacao
+                    && situacaoDaIa != antes["situacao"])
+                {
+                    daLinha.Add(new DefinirSituacao(id, codigoSituacao));
+                    if (string.IsNullOrWhiteSpace(TabelasRevisao.Justificativa(p, id)))
+                        daLinha.Add(new DefinirJustificativa(id, "IA: " + (motivo is { } j && j.Trim().Length > 0 ? j : "Recalculado a partir de " + TabelasRevisao.Rotulo(linhaEditada) + ".")));
+                    textos++;
+                }
+                if (daLinha.Count == 0) continue;
+                try
+                {
+                    trabalho = s.Revisao.Testar(new Lote(linhaEditada, [.. comandos, .. daLinha], "Revisto pela IA"));
+                    comandos.AddRange(daLinha);
+                    mudou += textos;
+                }
+                catch (ComandoRecusadoException) { ignoradas++; }
             }
             if (comandos.Count == 0)
             {
                 conferidosPelaIa.Add(linhaEditada + "\n" + TextoEditado.Normalizar(TabelasRevisao.Justificativa(p, linhaEditada) ?? ""));
-                MostrarMensagem(InfoBarSeverity.Success, "Rever com a IA", "A IA conferiu a tabela a partir de " + TabelasRevisao.Rotulo(linhaEditada) + ": nada mudou.");
+                MostrarMensagem(InfoBarSeverity.Success, "Rever com a IA", "A IA conferiu a tabela a partir de " + TabelasRevisao.Rotulo(linhaEditada) + ": nada mudou."
+                    + (ignoradas > 0 ? $" ({ignoradas} {(ignoradas == 1 ? "sugestão não pôde" : "sugestões não puderam")} ser aplicada{(ignoradas == 1 ? "" : "s")}.)" : ""));
                 return;
             }
             await TentarAsync(() => AplicarAsync(new Lote(linhaEditada, comandos, "Revisto pela IA")));
             if (ultimosErros.Count > 0) return;
+            var partes = new List<string>();
+            if (acrescentadas > 0) partes.Add($"{acrescentadas} {(acrescentadas == 1 ? "esquadria acrescentada" : "esquadrias acrescentadas")}");
+            if (mudou > 0) partes.Add($"{mudou} {(mudou == 1 ? "texto atualizado" : "textos atualizados")}");
+            if (contas > 0) partes.Add("a conta do ambiente refeita pelo editor (área, vão total, mínimo e situação)");
             MostrarMensagem(InfoBarSeverity.Success, "Rever com a IA",
-                $"A IA atualizou {mudou} {(mudou == 1 ? "valor" : "valores")} a partir de {TabelasRevisao.Rotulo(linhaEditada)}. Confira; um Desfazer volta tudo."
-                + (ignoradas > 0 ? $" {ignoradas} {(ignoradas == 1 ? "texto editado" : "textos editados")} por você durante a espera {(ignoradas == 1 ? "ficou" : "ficaram")} como estava." : ""));
+                $"Revisão a partir de {TabelasRevisao.Rotulo(linhaEditada)}: {string.Join("; ", partes)}. Confira; um Desfazer volta tudo."
+                + (ignoradas > 0 ? $" {ignoradas} {(ignoradas == 1 ? "mudança não foi aplicada" : "mudanças não foram aplicadas")} (texto editado por você durante a espera ou recusado pela conferência)." : ""));
         }
         catch (Exception e) { MostrarErroDaIa(e); }
         finally { TerminarEsperaIa(); }
+    }
+
+    /// <summary>"P1", "P2"…, "J3": o primeiro código da categoria que ainda não está em uso no ambiente.</summary>
+    static string ProximoCodigoLivre(IReadOnlySet<string> usados, CategoriaEsquadria categoria)
+    {
+        var letra = categoria == CategoriaEsquadria.Porta ? "P" : categoria == CategoriaEsquadria.Janela ? "J" : "V";
+        for (var n = 1; ; n++)
+            if (!usados.Contains(letra + n.ToString(CultureInfo.InvariantCulture))) return letra + n.ToString(CultureInfo.InvariantCulture);
     }
 
     // ---------- auxiliares ----------

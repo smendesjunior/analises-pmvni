@@ -170,6 +170,7 @@ public static partial class RecalculoLinha
         ArgumentNullException.ThrowIfNull(p);
         var edicao = new DefinirCampo(linha, campo, texto);
         var simples = new EdicaoDeLinha(edicao, false, false, null);
+        if (TabelasRevisao.TentarLer(linha, out var tabela, out _) && tabela == TabelasRevisao.Ambientes) return AoEditarAmbiente(p, linha, campo, texto, simples);
         if (campo is not (CampoValor or CampoLimite) || !TabelasRevisao.TentarLer(linha, out var bloco, out _) || bloco != TabelasRevisao.Indices) return simples;
         if (TabelasRevisao.Original(p, linha) is not { } original || TabelasRevisao.SituacaoEfetiva(p, linha) is not { } situacao) return simples;
         var caminhos = TabelasRevisao.Caminhos(original);
@@ -218,6 +219,37 @@ public static partial class RecalculoLinha
                        + (mudaSituacao ? "; situação " + ConferenciaRevisao.TextoSituacao(novaSituacao) : "; a situação continua " + ConferenciaRevisao.TextoSituacao(novaSituacao))
                        + (mudaTexto ? "; texto: \"" + diferenca + "\"" : "") + ". Um Desfazer volta tudo.";
         return new EdicaoDeLinha(new Lote(linha, comandos, resumo), true, false, mensagem);
+    }
+
+    [GeneratedRegex(@"^(vaos/[0-9]+/medidas|minimo/[0-9]+/texto)\z", RegexOptions.CultureInvariant)]
+    private static partial Regex CampoDeConta();
+
+    /// <summary>A edição manual das medidas de uma esquadria (ou do mínimo exigido) de um ambiente: a área do vão, o vão total, a
+    /// comparação com o mínimo e a situação são refeitos (<see cref="Esquadrias.Recalcular"/>). Medidas que não são "largura × altura":
+    /// só a edição entra, com o aviso.</summary>
+    static EdicaoDeLinha AoEditarAmbiente(Projeto p, string linha, string campo, string texto, EdicaoDeLinha simples)
+    {
+        if (!CampoDeConta().IsMatch(campo) || TabelasRevisao.Original(p, linha) is not { } original || !TabelasRevisao.Caminhos(original).Contains(campo)) return simples;
+        var novo = TextoEditado.Normalizar(texto);
+        if (novo.Length == 0 || novo == TabelasRevisao.TextoEfetivo(p, linha, campo)) return simples;
+        var rotulo = TabelasRevisao.Rotulo(linha);
+        if (campo.EndsWith("/medidas", StringComparison.Ordinal) && Esquadrias.LerMedidas(novo) is null)
+            return new EdicaoDeLinha(simples.Comando, false, true,
+                rotulo + ": o texto mudou, mas \"" + novo + "\" não é largura × altura; a área, o vão total e a situação ficaram como estavam. " +
+                "Confira-os, ou use «Rever com a IA» nas Propriedades.");
+        Lote lote;
+        try { lote = Esquadrias.Recalcular(p, linha, [simples.Comando], "Recalculado: " + TabelasRevisao.NomeDoCampo(campo) + " " + novo); }
+        catch (ComandoRecusadoException) { return simples; }   // a recusa aparece quando a edição for aplicada
+        if (lote.Comandos.Count <= 1) return simples;
+        var depois = p.Clonar();
+        foreach (var c in lote.Comandos)
+            if (Motor.Calcular(depois, c) is { } ef) Motor.Definir(depois, ef.Tipo, ef.Item, ef.Campo, ef.Depois);
+        var conta = Esquadrias.Calcular(depois, linha);
+        var mensagem = rotulo + " recalculado pelo editor (sem IA): vão total " + (conta?.TextoTotal ?? "—")
+                       + (conta?.Minimo is not null ? "; mínimo " + conta.TextoMinimo : "")
+                       + "; situação " + ConferenciaRevisao.TextoSituacao(TabelasRevisao.SituacaoEfetiva(depois, linha))
+                       + ". Confira o texto da situação; um Desfazer volta tudo.";
+        return new EdicaoDeLinha(lote, true, false, mensagem);
     }
 
     [GeneratedRegex(@"^\s*(Faltam?\s+[0-9]|Excede\s+em\s+[0-9]|Dentro\s+do\s+limite|Atende\b|Acima\s+do\s+(limite|m[áa]ximo)|Abaixo\s+do\s+(limite|m[íi]nimo))", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]

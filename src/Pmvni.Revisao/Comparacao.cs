@@ -88,11 +88,17 @@ public static class Comparacao
         var lista = new List<DiferencaLinha>();
         foreach (var id in TabelasRevisao.Ids(p))
         {
-            if (!p.Linhas.TryGetValue(id, out var l) || !l.Revisada) continue;
-            var campos = l.Campos.Select(c => new DiferencaCampo(c.Key, TabelasRevisao.TextoOriginal(p, id, c.Key) ?? "", c.Value)).ToList();
+            p.Linhas.TryGetValue(id, out var l);
+            if (l?.Revisada != true && !TabelasRevisao.TemAcrescimo(p, id)) continue;
+            // O que o usuário acrescentou (a linha inteira ou uma esquadria) não tem original: aparece como texto novo.
+            bool Novo(string caminho) =>
+                TabelasRevisao.Acrescentado(p, id) || caminho.Split('/') is { Length: > 2 } partes && TabelasRevisao.Acrescentado(p, id, partes[0] + "/" + partes[1]);
+            var campos = TabelasRevisao.Caminhos(TabelasRevisao.Original(p, id)!)
+                .Where(c => l?.Campos.ContainsKey(c) == true || Novo(c))
+                .Select(c => new DiferencaCampo(c, Novo(c) ? "" : TabelasRevisao.TextoOriginal(p, id, c) ?? "", TabelasRevisao.TextoEfetivo(p, id, c) ?? "")).ToList();
             lista.Add(new DiferencaLinha(id, TabelasRevisao.Descricao(p, id),
-                l.Situacao is null ? null : TabelasRevisao.SituacaoOriginal(p, id), l.Situacao, campos,
-                string.IsNullOrWhiteSpace(l.Justificativa) ? null : l.Justificativa));
+                l?.Situacao is null ? null : TabelasRevisao.SituacaoOriginal(p, id), l?.Situacao, campos,
+                string.IsNullOrWhiteSpace(l?.Justificativa) ? null : l!.Justificativa));
         }
         return lista;
     }
@@ -166,7 +172,7 @@ public static class Comparacao
                 foreach (var c in d.Campos)
                 {
                     linhas.Add("  " + TabelasRevisao.NomeDoCampo(c.Campo) + ":");
-                    linhas.Add("    Original: " + c.Original);
+                    linhas.Add("    Original: " + (c.Original.Length == 0 ? "(acrescentado na revisão)" : c.Original));
                     linhas.Add("    Revisado: " + c.Revisado);
                 }
             }

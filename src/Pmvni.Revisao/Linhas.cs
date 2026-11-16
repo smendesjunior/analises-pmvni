@@ -112,14 +112,99 @@ public static class TabelasRevisao
         return lista is not null && posicao <= lista.Count ? lista[posicao - 1] as JsonObject : null;
     }
 
-    /// <summary>A linha como veio no original recebido.</summary>
+    /// <summary>A linha como veio no original recebido — ou, numa linha que o usuário acrescentou (<see cref="Projeto.Acrescimos"/>),
+    /// como foi criada —, já com as partes acrescentadas a ela (as esquadrias novas de um ambiente). É o "original" da revisão:
+    /// os caminhos editáveis saem daqui.</summary>
     public static JsonObject? Original(Projeto p, string id)
     {
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(id);
         var l = Linha(p.Documento, id);
-        return l is not null && id == Id(Volumetria, 1) ? ComForma(l) : l;
+        if (p.Acrescimos.Count == 0) return l is not null && id == Id(Volumetria, 1) ? ComForma(l) : l;
+        if (l is null && !p.Acrescimos.TryGetValue(id, out l)) return null;
+        if (id == Id(Volumetria, 1)) l = ComForma(l);
+        var partes = PartesDe(p, id);
+        if (partes.Count == 0) return l;
+        var c = (JsonObject)l.DeepClone();
+        foreach (var (caminho, modelo) in partes) AcrescentarParte(c, caminho, modelo.DeepClone());
+        return c;
     }
+
+    // ---------- acréscimos (esquadrias e chamadas criadas pelo usuário) ----------
+
+    /// <summary>A chave de um acréscimo: o id de uma linha nova (<c>chamadas/07</c>) ou o id da linha mais o caminho da parte nova
+    /// (<c>ambientes/01/vaos/1</c>).</summary>
+    public static string ChaveDeAcrescimo(string linha, string? caminho) => string.IsNullOrEmpty(caminho) ? linha : linha + "/" + caminho;
+
+    /// <summary>Separa a chave: a linha e o caminho da parte ("" = a linha inteira). False se não tem a forma de chave.</summary>
+    public static bool TentarLerAcrescimo(string chave, out string linha, out string caminho)
+    {
+        linha = caminho = "";
+        if (chave is null) return false;
+        var primeira = chave.IndexOf('/', StringComparison.Ordinal);
+        if (primeira < 0) return false;
+        var segunda = chave.IndexOf('/', primeira + 1);
+        var id = segunda < 0 ? chave : chave[..segunda];
+        if (!TentarLer(id, out var bloco, out _)) return false;
+        if (segunda < 0)
+        {
+            if (bloco != Chamadas) return false;   // só as chamadas do diagrama se acrescentam como linha
+            linha = id;
+            return true;
+        }
+        var resto = chave[(segunda + 1)..];
+        var partes = resto.Split('/');
+        // Só uma lista de primeiro nível com o índice: "vaos/3".
+        if (bloco != Ambientes || partes.Length != 2 || partes[0] != "vaos" || !int.TryParse(partes[1], NumberStyles.None, CultureInfo.InvariantCulture, out _)) return false;
+        linha = id;
+        caminho = resto;
+        return true;
+    }
+
+    public static bool EhChaveDeAcrescimo(string chave) => TentarLerAcrescimo(chave, out _, out _);
+
+    /// <summary>As partes acrescentadas à linha (caminho → modelo), na ordem do índice.</summary>
+    static List<(string Caminho, JsonObject Modelo)> PartesDe(Projeto p, string id)
+    {
+        var lista = new List<(string, JsonObject)>();
+        if (p.Acrescimos.Count == 0) return lista;
+        var prefixo = id + "/";
+        foreach (var (chave, modelo) in p.Acrescimos)
+            if (chave.StartsWith(prefixo, StringComparison.Ordinal)) lista.Add((chave[prefixo.Length..], modelo));
+        lista.Sort((a, b) => IndiceFinal(a.Item1).CompareTo(IndiceFinal(b.Item1)));
+        return lista;
+    }
+
+    static int IndiceFinal(string caminho) =>
+        int.TryParse(caminho[(caminho.LastIndexOf('/') + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out var i) ? i : int.MaxValue;
+
+    /// <summary>Põe a parte no fim da lista do caminho ("vaos/3" → a lista "vaos", criada se a linha não a tem).</summary>
+    static void AcrescentarParte(JsonObject linha, string caminho, JsonNode modelo)
+    {
+        var lista = caminho[..caminho.LastIndexOf('/')];
+        if (linha[lista] is not JsonArray a) linha[lista] = a = new JsonArray();
+        a.Add(modelo);
+    }
+
+    /// <summary>A linha ou a parte foi criada pelo usuário (não veio no relatório recebido).</summary>
+    public static bool Acrescentado(Projeto p, string linha, string? caminho = null) => p.Acrescimos.ContainsKey(ChaveDeAcrescimo(linha, caminho));
+
+    /// <summary>A linha tem alguma parte acrescentada, ou é ela mesma um acréscimo.</summary>
+    public static bool TemAcrescimo(Projeto p, string linha) =>
+        p.Acrescimos.Count > 0 && (p.Acrescimos.ContainsKey(linha) || p.Acrescimos.Keys.Any(k => k.StartsWith(linha + "/", StringComparison.Ordinal)));
+
+    /// <summary>O id da próxima chamada do diagrama (a seguinte à última); null se o relatório não tem diagrama.</summary>
+    public static string? ProximaChamada(Projeto p)
+    {
+        ArgumentNullException.ThrowIfNull(p);
+        if (Lista(p.Documento, Chamadas) is not { } lista) return null;
+        var n = lista.Count + 1;
+        while (p.Acrescimos.ContainsKey(Id(Chamadas, n))) n++;
+        return Id(Chamadas, n);
+    }
+
+    /// <summary>Quantos vãos (esquadrias) o ambiente tem agora, com os acrescentados.</summary>
+    public static int Vaos(Projeto p, string ambiente) => (Original(p, ambiente)?["vaos"] as JsonArray)?.Count ?? 0;
 
     public static bool Existe(Projeto p, string? id) => id is not null && Original(p, id) is not null;
 
@@ -131,8 +216,12 @@ public static class TabelasRevisao
         foreach (var bloco in Blocos)
             if (Unico(p.Documento, bloco) is not null) ids.Add(Id(bloco, 1));
             else if (Lista(p.Documento, bloco) is { } lista)
+            {
                 for (var i = 0; i < lista.Count; i++)
                     if (lista[i] is JsonObject) ids.Add(Id(bloco, i + 1));
+                // As linhas acrescentadas pelo usuário vêm depois das recebidas, na sequência.
+                for (var n = lista.Count + 1; p.Acrescimos.ContainsKey(Id(bloco, n)); n++) ids.Add(Id(bloco, n));
+            }
         return ids;
     }
 
@@ -229,7 +318,8 @@ public static class TabelasRevisao
 
     public static string? Justificativa(Projeto p, string id) => p.Linhas.TryGetValue(id, out var r) ? r.Justificativa : null;
 
-    public static bool Revisada(Projeto p, string id) => p.Linhas.TryGetValue(id, out var r) && r.Revisada;
+    /// <summary>A linha difere do relatório recebido: situação ou texto revisado, ou algo acrescentado a ela.</summary>
+    public static bool Revisada(Projeto p, string id) => p.Linhas.TryGetValue(id, out var r) && r.Revisada || TemAcrescimo(p, id);
 
     /// <summary>Situação mudada sem justificativa (erro da conferência final, como nos itens).</summary>
     public static bool FaltaJustificativa(LinhaRevisao r) => r.Situacao is not null && string.IsNullOrWhiteSpace(r.Justificativa);
@@ -321,6 +411,17 @@ public static class TabelasRevisao
     /// revisados no lugar dos originais, sem mudar a ordem das chaves. Sem revisões, o documento não muda.</summary>
     internal static void Aplicar(Projeto p, JsonObject documento)
     {
+        // Primeiro o que o usuário acrescentou (linhas novas no fim da lista; partes novas no fim da lista da linha): as revisões
+        // de uma linha acrescentada se aplicam sobre ela.
+        if (p.Acrescimos.Count > 0)
+        {
+            foreach (var id in Ids(p))
+            {
+                if (p.Acrescimos.TryGetValue(id, out var nova) && TentarLer(id, out var bloco, out _)) Lista(documento, bloco)?.Add(nova.DeepClone());
+                if (Linha(documento, id) is not { } destino) continue;
+                foreach (var (caminho, modelo) in PartesDe(p, id)) AcrescentarParte(destino, caminho, modelo.DeepClone());
+            }
+        }
         foreach (var (id, r) in p.Linhas)
         {
             if (Linha(documento, id) is not { } linha) continue;
@@ -339,8 +440,18 @@ public static class TabelasRevisao
 /// <c>{texto}</c> com o texto efetivo; restaurar a linha = <c>{situacao, campos{caminho: revisado}}</c> com só o que está revisado.</summary>
 internal static class MotorLinhas
 {
+    /// <summary>O tipo do registro de um acréscimo ou da remoção dele. <c>Antes</c>/<c>Depois</c>: null (não existe) ou
+    /// <c>{modelo, revisao?{situacao, justificativa, campos}}</c> (o que foi criado e, na remoção, o que estava revisado nele).</summary>
+    public const string TipoAcrescimo = "Acrescimo";
+
     public static Efeito? Calcular(Projeto p, Comando c)
     {
+        switch (c)
+        {
+            case AcrescentarVao v: return CalcularVao(p, v);
+            case AcrescentarChamada ch: return CalcularChamada(p, ch);
+            case RemoverAcrescimo rm: return CalcularRemocao(p, rm);
+        }
         var original = TabelasRevisao.Original(p, c.Item) ?? throw new ComandoRecusadoException("A linha não existe na tabela do relatório.");
         p.Linhas.TryGetValue(c.Item, out var r);
         return c switch
@@ -357,6 +468,7 @@ internal static class MotorLinhas
 
     public static void Definir(Projeto p, string tipo, string id, string? campo, JsonNode? valor)
     {
+        if (tipo == TipoAcrescimo) { DefinirAcrescimo(p, id, campo, valor); return; }
         if (TabelasRevisao.Original(p, id) is null) throw new InvalidOperationException("O registro cita uma linha de tabela que não existe: " + id);
         if (!p.Linhas.TryGetValue(id, out var r)) r = new LinhaRevisao();
         switch (tipo)
@@ -383,6 +495,113 @@ internal static class MotorLinhas
         }
         if (r.Vazia) p.Linhas.Remove(id);
         else p.Linhas[id] = r;
+    }
+
+    // ---------- acréscimos ----------
+
+    private static string Limpo(string? t, string nome)
+    {
+        var s = TextoEditado.Normalizar(t ?? "");
+        return s.Length > 0 ? s : throw new ComandoRecusadoException(nome + ": o texto não pode ficar vazio.");
+    }
+
+    private static Efeito CalcularVao(Projeto p, AcrescentarVao v)
+    {
+        if (!TabelasRevisao.TentarLer(v.Item, out var bloco, out _) || bloco != TabelasRevisao.Ambientes || TabelasRevisao.Original(p, v.Item) is null)
+            throw new ComandoRecusadoException("A esquadria só pode ser acrescentada a um ambiente da tabela de iluminação e ventilação.");
+        var modelo = new JsonObject
+        {
+            ["codigo"] = Limpo(v.Codigo, "Código da esquadria"),
+            ["medidas"] = Limpo(v.Medidas, "Medidas da esquadria"),
+            ["tipo"] = Limpo(v.Tipo, "Tipo da esquadria"),
+            ["area"] = Limpo(v.Area, "Área da esquadria"),
+            ["sem_area"] = "",
+        };
+        var caminho = "vaos/" + TabelasRevisao.Vaos(p, v.Item).ToString(CultureInfo.InvariantCulture);
+        return new Efeito(TipoAcrescimo, v.Item, caminho, null, new JsonObject { ["modelo"] = modelo });
+    }
+
+    private static Efeito CalcularChamada(Projeto p, AcrescentarChamada c)
+    {
+        if (TabelasRevisao.ProximaChamada(p) is not { } proxima) throw new ComandoRecusadoException("O relatório não tem o diagrama dos índices: não há onde pôr a chamada.");
+        if (c.Item != proxima) throw new ComandoRecusadoException("A chamada nova tem de ser a " + TabelasRevisao.Rotulo(proxima) + ".");
+        if (!Pmvni.Composicao.Kit.Diagrama.PosPlanta.ContainsKey(c.Ancora) && !Pmvni.Composicao.Kit.Diagrama.PosVolume.ContainsKey(c.Ancora))
+            throw new ComandoRecusadoException("Âncora desconhecida para a chamada: " + c.Ancora + ".");
+        if (!Situacoes.SitIndice.Contains(c.Situacao)) throw new ComandoRecusadoException("Situação inválida para a chamada: " + c.Situacao + ".");
+        var modelo = new JsonObject
+        {
+            ["ancora"] = c.Ancora,
+            ["titulo"] = Limpo(c.Titulo, "Título da chamada"),
+            ["situacao"] = c.Situacao,
+            ["texto"] = Limpo(c.Texto, "Texto da chamada"),
+        };
+        return new Efeito(TipoAcrescimo, c.Item, null, null, new JsonObject { ["modelo"] = modelo });
+    }
+
+    /// <summary>Só o último acréscimo de uma lista se remove (os índices dos outros não mudam). O que estava revisado nele vai no
+    /// registro, para o Desfazer devolver.</summary>
+    private static Efeito CalcularRemocao(Projeto p, RemoverAcrescimo r)
+    {
+        var chave = TabelasRevisao.ChaveDeAcrescimo(r.Item, r.Campo);
+        if (!p.Acrescimos.TryGetValue(chave, out var modelo)) throw new ComandoRecusadoException("Só o que você acrescentou pode ser removido.");
+        p.Linhas.TryGetValue(r.Item, out var rev);
+        var revisao = new JsonObject();
+        if (string.IsNullOrEmpty(r.Campo))
+        {
+            if (TabelasRevisao.ProximaChamada(p) is not { } proxima || !TabelasRevisao.TentarLer(proxima, out var b, out var n) || r.Item != TabelasRevisao.Id(b, n - 1))
+                throw new ComandoRecusadoException("Remova antes as chamadas acrescentadas depois desta.");
+            if (rev is not null)
+            {
+                revisao["situacao"] = rev.Situacao;
+                revisao["justificativa"] = rev.Justificativa;
+                var campos = new JsonObject();
+                foreach (var (caminho, texto) in rev.Campos) campos[caminho] = texto;
+                revisao["campos"] = campos;
+            }
+        }
+        else
+        {
+            if (r.Campo != "vaos/" + (TabelasRevisao.Vaos(p, r.Item) - 1).ToString(CultureInfo.InvariantCulture))
+                throw new ComandoRecusadoException("Remova antes as esquadrias acrescentadas depois desta.");
+            var campos = new JsonObject();
+            if (rev is not null)
+                foreach (var (caminho, texto) in rev.Campos)
+                    if (caminho.StartsWith(r.Campo + "/", StringComparison.Ordinal)) campos[caminho] = texto;
+            if (campos.Count > 0) revisao["campos"] = campos;
+        }
+        var antes = new JsonObject { ["modelo"] = modelo.DeepClone() };
+        if (revisao.Count > 0) antes["revisao"] = revisao;
+        return new Efeito(TipoAcrescimo, r.Item, string.IsNullOrEmpty(r.Campo) ? null : r.Campo, antes, null);
+    }
+
+    private static void DefinirAcrescimo(Projeto p, string id, string? campo, JsonNode? valor)
+    {
+        var chave = TabelasRevisao.ChaveDeAcrescimo(id, campo);
+        if (!TabelasRevisao.EhChaveDeAcrescimo(chave)) throw new InvalidOperationException("O registro cita um acréscimo inválido: " + chave);
+        p.Linhas.TryGetValue(id, out var r);
+        if (valor is null)
+        {
+            p.Acrescimos.Remove(chave);
+            if (campo is null) p.Linhas.Remove(id);
+            else if (r is not null)
+            {
+                foreach (var caminho in r.Campos.Keys.Where(k => k.StartsWith(campo + "/", StringComparison.Ordinal)).ToList()) r.Campos.Remove(caminho);
+                if (r.Vazia) p.Linhas.Remove(id);
+            }
+            return;
+        }
+        p.Acrescimos[chave] = (valor["modelo"] as JsonObject ?? throw new InvalidOperationException("O registro do acréscimo não tem o modelo.")).DeepClone().AsObject();
+        if (valor["revisao"] is not JsonObject revisao) return;
+        r ??= new LinhaRevisao();
+        if (campo is null)
+        {
+            r.Situacao = revisao["situacao"]?.GetValue<string>();
+            r.Justificativa = revisao["justificativa"]?.GetValue<string>();
+        }
+        if (revisao["campos"] is JsonObject revisados)
+            foreach (var (caminho, texto) in revisados)
+                if (texto is not null) r.Campos[caminho] = texto.GetValue<string>();
+        if (!r.Vazia) p.Linhas[id] = r;
     }
 
     private static void DefinirTexto(Projeto p, string id, LinhaRevisao r, string caminho, string? texto)

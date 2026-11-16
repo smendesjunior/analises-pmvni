@@ -305,7 +305,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     {
         var incluidos = p.Itens.Where(i => i.Incluido).OrderBy(i => i.Ordem).ToList();
         var alterados = incluidos.Where(i => i.Situacao.Revisada is not null || i.Campos.Values.Any(c => c.Revisado is not null)).Select(i => i.Id)
-            .Concat(p.Linhas.Where(l => l.Value.Revisada).Select(l => l.Key)) // linhas de tabela revisadas (traço azul na linha)
+            .Concat(TabelasRevisao.Ids(p).Where(id => TabelasRevisao.Revisada(p, id))) // linhas de tabela revisadas ou com acréscimo (traço azul na linha)
             .ToArray();
         var excluidos = new List<object>();
         foreach (var x in p.Itens.Where(i => !i.Incluido).OrderBy(i => i.Ordem))

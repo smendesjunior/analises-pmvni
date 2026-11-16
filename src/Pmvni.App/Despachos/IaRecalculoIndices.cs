@@ -39,6 +39,13 @@ internal static class IaRecalculoIndices
             "situação (ATENDE, NAO_ATENDE, NAO_COMPROVADO ou DIVERGENCIA_INTERNA) comparando com o limite ou o mínimo que está na própria " +
             "linha. Use vírgula decimal e ponto de milhar, como no texto atual, e mantenha cada texto curto como está (sem contar a " +
             "história da revisão nem citar o revisor). Não invente dados: use só os números da tabela e os da instrução.\n\n" +
+            (bloco == Pmvni.Revisao.TabelasRevisao.Ambientes
+                ? "ESQUADRIAS: se a instrução pedir para acrescentar uma esquadria a um ambiente (uma porta, outra janela), devolva-a na linha " +
+                  "dele em \"novos_vaos\": [{\"codigo\": \"P1\", \"tipo\": \"Porta\", \"medidas\": \"0,80 × 2,10 m\"}] (medidas = largura × altura " +
+                  "em metros). O EDITOR calcula a área de cada vão, o vão total, a comparação com o mínimo e a situação: não devolva " +
+                  "\"vaos/N/area\", \"resultado/…\" nem \"situacao\" de um ambiente; devolva só as medidas que a instrução corrigir e os " +
+                  "textos explicativos (\"textos/N\") que precisarem mudar para acompanhar a conta nova.\n\n"
+                : "") +
             "Tabela atual (JSON; cada linha tem os textos pelo caminho e a situação):\n" +
             tabela.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = Relaxado.Encoder }) +
             "\n\nResponda SOMENTE com um JSON com as linhas que MUDARAM, no mesmo formato (id → {caminho: texto, \"situacao\": código, " +
@@ -84,6 +91,22 @@ internal static class IaRecalculoIndices
             foreach (var (k, t) in (JsonObject)v!)
                 if (t is JsonValue jv && jv.TryGetValue<string>(out var s)) d[k] = s;
             r[id] = d;
+        }
+        return r;
+    }
+
+    /// <summary>As esquadrias que a IA pediu para acrescentar (<c>novos_vaos</c> de cada linha de ambiente): código, tipo e medidas.
+    /// Sem código, o editor numera; sem medidas, a entrada é ignorada (não há conta a fazer).</summary>
+    internal static Dictionary<string, List<(string Codigo, string Tipo, string Medidas)>> LerNovosVaos(string saida, IReadOnlyCollection<string> ids)
+    {
+        var r = new Dictionary<string, List<(string, string, string)>>(StringComparer.Ordinal);
+        if (RespostaJson.Objeto(saida, o => o.All(par => ids.Contains(par.Key) && par.Value is JsonObject)) is not { } o) return r;
+        static string T(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s.Trim() : "";
+        foreach (var (id, v) in o)
+        {
+            if ((v as JsonObject)?["novos_vaos"] is not JsonArray lista) continue;
+            var vaos = lista.OfType<JsonObject>().Select(x => (T(x["codigo"]), T(x["tipo"]), T(x["medidas"]))).Where(x => x.Item3.Length > 0).Take(6).ToList();
+            if (vaos.Count > 0) r[id] = vaos;
         }
         return r;
     }

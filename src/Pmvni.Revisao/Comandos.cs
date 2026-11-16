@@ -28,6 +28,20 @@ public sealed record Restaurar(string Item) : Comando(Item);
 /// <summary>Descarta todas as revisões de texto e de situação do item (a inclusão e a justificativa digitada ficam).</summary>
 public sealed record RestaurarItemOriginal(string Item) : Comando(Item);
 
+/// <summary>Acrescenta uma esquadria (vão) a um ambiente da tabela ILUMINAÇÃO E VENTILAÇÃO (correções 2026-11-16): entra no fim da
+/// lista de vãos do ambiente e passa a ser editada como as outras. <see cref="Item"/> é a linha do ambiente (<c>ambientes/01</c>).</summary>
+public sealed record AcrescentarVao(string Item, string Codigo, string Medidas, string Tipo, string Area) : Comando(Item);
+
+/// <summary>Acrescenta uma chamada numerada ao DIAGRAMA DOS ÍNDICES (correções 2026-11-16). <see cref="Item"/> é o id da linha nova
+/// (<see cref="TabelasRevisao.ProximaChamada"/>); <see cref="Ancora"/> diz em que desenho e em que ponto fica a marca com o número
+/// (lote, permeavel, edificacao, lateral: planta; telhado, altura, frente…: volumetria); a situação é a de linha de tabela.</summary>
+public sealed record AcrescentarChamada(string Item, string Ancora, string Titulo, string Texto, string Situacao) : Comando(Item);
+
+/// <summary>Remove algo que o usuário acrescentou: a esquadria <see cref="Campo"/> (<c>vaos/2</c>) do ambiente <see cref="Item"/>, ou,
+/// sem campo, a chamada <see cref="Item"/>. Só o último acréscimo de cada lista (os outros não mudam de posição). O que veio no
+/// relatório recebido nunca é removido.</summary>
+public sealed record RemoverAcrescimo(string Item, string? Campo = null) : Comando(Item);
+
 /// <summary>Vários comandos aplicados de uma vez, como UMA alteração: um registro no histórico e um passo do Desfazer (correções
 /// 2026-11-16: o ajuste do item pela IA, o recálculo de uma linha de tabela depois de editar o valor). <see cref="Item"/> é o item ou a
 /// linha a que o lote pertence (o histórico dele); <see cref="Descricao"/> é o texto do registro ("Recalculado: …"). Os comandos são
