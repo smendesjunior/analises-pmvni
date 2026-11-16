@@ -91,7 +91,9 @@ public sealed partial class PaginaNovoDespacho : UserControl
             Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"],
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, nome);
-        ToolTipService.SetToolTip(b, nome);
+        Dicas.Aplicar(b, nome, nome == "Mover acima"
+            ? "Sobe esta exigência uma posição na lista do despacho."
+            : "Desce esta exigência uma posição na lista do despacho.");
         b.Click += (_, _) => acao();
         return b;
     }

@@ -588,10 +588,17 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.BotaoMais.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMais);
         R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = temRelatorio;
         // Desabilitado diz o motivo (M6); habilitado, o atalho.
-        ToolTipService.SetToolTip(R.BotaoMenos, temRelatorio ? "Diminuir o zoom (Ctrl+−)" : "Abra um relatório para mudar o zoom.");
-        ToolTipService.SetToolTip(R.BotaoMais, temRelatorio ? "Aumentar o zoom (Ctrl++)" : "Abra um relatório para mudar o zoom.");
-        ToolTipService.SetToolTip(R.BotaoLargura, temRelatorio ? "Ajustar à largura da janela (Ctrl+0)" : "Abra um relatório para ajustar a largura.");
-        ToolTipService.SetToolTip(R.BotaoPagina, temRelatorio ? "Mostrar a página inteira" : "Abra um relatório para ver a página inteira.");
+        DicaDoRodape(R.BotaoMenos, ComandosApp.ExibirMenos, "Diminuir o zoom", temRelatorio ? null : "Abra um relatório para mudar o zoom.");
+        DicaDoRodape(R.BotaoMais, ComandosApp.ExibirMais, "Aumentar o zoom", temRelatorio ? null : "Abra um relatório para mudar o zoom.");
+        DicaDoRodape(R.BotaoLargura, ComandosApp.ExibirLargura, "Ajustar largura", temRelatorio ? null : "Abra um relatório para ajustar a largura.");
+        DicaDoRodape(R.BotaoPagina, ComandosApp.ExibirPagina, "Página inteira", temRelatorio ? null : "Abra um relatório para ver a página inteira.");
+    }
+
+    /// <summary>A dica de um botão do rodapé (o mesmo comando da faixa): só refeita quando muda.</summary>
+    static void DicaDoRodape(DependencyObject botao, string id, string nome, string? motivo)
+    {
+        var d = DicasComandos.DoComando(id, nome, Modulo.Relatorios, motivo);
+        if (Dicas.De(botao) != d) Dicas.Aplicar(botao, d);
     }
 
     /// <summary>Leva as folhas à folha <paramref name="folha"/> (1 = primeira), da caixa "Folha n de M" ou de "Ir à folha N" do indicador.</summary>
@@ -827,7 +834,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         TextoProcesso.Text = principal;
         TextoRequerente.Text = secundaria;
         TextoRequerente.Visibility = secundaria.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        ToolTipService.SetToolTip(BlocoProcesso, titulo);
+        if (titulo is null) ToolTipService.SetToolTip(BlocoProcesso, null);
+        else Dicas.Aplicar(BlocoProcesso, titulo, "O processo e o requerente do relatório aberto.");
         BlocoProcesso.Visibility = DivisoriaProcesso.Visibility = principal.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         AtualizarSeloGravacao();
         Title = titulo is null ? TituloPadrao : titulo + " — " + TituloPadrao;
@@ -845,6 +853,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         IconeGravacao.Glyph = EstadoGravacaoTexto.Glifo(s.Estado);
         TextoGravacao.Text = textoEstado;
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SeloGravacao, "Estado de gravação: " + textoEstado);
+        Dicas.Aplicar(SeloGravacao, textoEstado, "Mostra se as alterações do relatório já estão gravadas no arquivo; Ctrl+S salva.");
         SeloGravacao.Visibility = Visibility.Visible;
     }
 

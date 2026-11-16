@@ -408,7 +408,7 @@ public sealed partial class MainWindow
             Padding = new Thickness(6), Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), VerticalAlignment = VerticalAlignment.Center,
             Content = new FontIcon { Glyph = "", FontSize = 13, Foreground = CoresLeitura.Azul },
         };
-        ToolTipService.SetToolTip(lapis, "Escrever o resumo deste artigo");
+        Dicas.Aplicar(lapis, "Escrever o resumo", "Troca o resumo automático deste artigo por um escrito por você.");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(lapis, "Escrever o resumo do " + b.Rotulo);
         lapis.Flyout = FlyoutDoResumo(anexo, b);
         Grid.SetColumn(lapis, 2);
@@ -453,6 +453,8 @@ public sealed partial class MainWindow
         var salvar = new Button { Content = "Salvar" };
         if (Application.Current.Resources.TryGetValue("AccentButtonStyle", out var estilo) && estilo is Style s) salvar.Style = s;
         var automatico = new Button { Content = "Voltar ao automático" };
+        Dicas.Aplicar(salvar, "Salvar", "Guarda o seu resumo deste artigo com os dados da lei.");
+        Dicas.Aplicar(automatico, "Voltar ao automático", "Apaga o seu resumo e volta a usar o tirado do texto do artigo.");
         var nota = new TextBlock
         {
             Text = "O resumo automático é tirado do próprio texto do artigo. O seu fica guardado com os dados da lei; o PDF não muda.",

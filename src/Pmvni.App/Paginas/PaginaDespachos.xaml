@@ -16,7 +16,8 @@
     <local:AreaDeAvisos x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0">
       <InfoBar x:Name="AvisoPasta" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="">
         <InfoBar.ActionButton>
-          <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Abrir Ajustes"/>
+          <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Abrir Ajustes"
+                  local:Dicas.Descricao="Abre os Ajustes para escolher a pasta onde ficam os processos."/>
         </InfoBar.ActionButton>
       </InfoBar>
       <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
@@ -24,9 +25,12 @@
       <InfoBar x:Name="AvisoGravado" x:FieldModifier="internal" Severity="Success" IsOpen="False" IsClosable="True" Title="Despacho gravado" Tag="fixo">
         <InfoBar.Content>
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Button x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" Content="Abrir DOCX"/>
-            <Button x:Name="BotaoAbrirPdfGravado" x:FieldModifier="internal" Content="Abrir PDF"/>
-            <Button x:Name="BotaoMostrarGravado" x:FieldModifier="internal" Content="Mostrar no Explorador"/>
+            <Button x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" Content="Abrir DOCX"
+                    local:Dicas.Descricao="Abre no Word o despacho que acabou de ser gravado."/>
+            <Button x:Name="BotaoAbrirPdfGravado" x:FieldModifier="internal" Content="Abrir PDF"
+                    local:Dicas.Descricao="Abre o PDF do despacho que acabou de ser gravado."/>
+            <Button x:Name="BotaoMostrarGravado" x:FieldModifier="internal" Content="Mostrar no Explorador"
+                    local:Dicas.Descricao="Abre a pasta do despacho gravado no Explorador de Arquivos."/>
           </StackPanel>
         </InfoBar.Content>
       </InfoBar>

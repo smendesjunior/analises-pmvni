@@ -33,5 +33,6 @@ public sealed partial class CartaoAgente : UserControl
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BotaoRemoverChave, "Remover a chave de API do " + nome);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BotaoReverAviso, "Rever o aviso do " + nome);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(LinkConta, TextosAgentes.RotuloConta(p) + " (abre no navegador)");
+        Dicas.Aplicar(LinkConta, TextosAgentes.RotuloConta(p), "Abre no navegador a página da sua conta do " + nome + ".");
     }
 }

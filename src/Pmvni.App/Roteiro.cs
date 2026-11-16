@@ -4365,6 +4365,44 @@ internal static class Roteiro
             await j.MudarModuloAsync(Modulo.Relatorios);
         });
 
+        // Correções 2026-11-15 (dicas dos botões): todo botão da faixa (primário, os das abas e os itens dos menus) e do trilho tem a dica
+        // no formato do app, com título (nome e atalho) e uma descrição do que faz; "Abrir" mostra "Abrir (Ctrl+O)" e não só o atalho.
+        await Passo("68b_dicas_dos_botoes", async p =>
+        {
+            var semDica = new JsonArray();
+            var conferidos = 0;
+            var abrirOk = false;
+            foreach (var m in Faixas.Disponiveis)
+            {
+                await j.MudarModuloAsync(m);
+                await j.AguardarLeiturasAsync();
+                var def = Faixas.Para(m);
+                var faixa = j.FaixaAtual;
+                foreach (var aba in def.Abas)
+                {
+                    faixa.EscolherAba(aba.Nome);
+                    await Esperar(80);
+                    foreach (var (id, dica) in faixa.DicasVisiveis)
+                    {
+                        conferidos++;
+                        if (m == Modulo.Relatorios && id == ComandosApp.ArquivoAbrir) abrirOk = dica?.Titulo == "Abrir (Ctrl+O)";
+                        if (dica is { Titulo.Length: > 0, Descricao.Length: > 0 }) continue;
+                        semDica.Add(new JsonObject { ["modulo"] = m.ToString(), ["aba"] = aba.Nome, ["id"] = id, ["dica"] = dica?.ToString() });
+                    }
+                }
+                faixa.EscolherAba(def.Abas[def.AbaPadrao].Nome);
+                var noTrilho = Dicas.De(j.TrilhoAtual.Botao(m)!);
+                conferidos++;
+                if (noTrilho is not { Titulo.Length: > 0, Descricao.Length: > 0 })
+                    semDica.Add(new JsonObject { ["modulo"] = m.ToString(), ["aba"] = "trilho", ["id"] = Modulos.Comando(m), ["dica"] = noTrilho?.ToString() });
+            }
+            p["botoes_conferidos"] = conferidos;
+            p["sem_dica"] = semDica;
+            p["abrir_com_titulo_e_atalho"] = abrirOk;
+            p["ok"] = conferidos > 0 && semDica.Count == 0 && abrirOk;
+            await j.MudarModuloAsync(Modulo.Relatorios);
+        });
+
         await Passo("69_botao_primario", async p =>
         {
             var linhas = new JsonArray();
@@ -4387,7 +4425,7 @@ internal static class Roteiro
                     var dicaAntes = faixa.Dica(primario.Id);
                     faixa.Habilitar(primario.Id, false);
                     faixa.DefinirDica(primario.Id, "Motivo de teste do roteiro");
-                    var desabilitadoOk = !botao.IsEnabled && ToolTipService.GetToolTip(botao) as string == "Motivo de teste do roteiro";
+                    var desabilitadoOk = !botao.IsEnabled && Dicas.De(botao)?.Motivo == "Motivo de teste do roteiro";
                     faixa.Habilitar(primario.Id, habilitadoAntes);
                     faixa.DefinirDica(primario.Id, dicaAntes.Length > 0 ? dicaAntes : primario.TextoCompleto);
                     // O primário fica em todas as abas do módulo.
@@ -4428,7 +4466,7 @@ internal static class Roteiro
                 var dicaAntes = faixa.Dica(ComandosApp.DespachosNovoCorrecao);
                 faixa.Habilitar(ComandosApp.DespachosNovoCorrecao, false);
                 faixa.DefinirDica(ComandosApp.DespachosNovoCorrecao, "Motivo de teste do roteiro");
-                var desligou = item is { IsEnabled: false } && ToolTipService.GetToolTip(item) as string == "Motivo de teste do roteiro";
+                var desligou = item is { IsEnabled: false } && Dicas.De(item)?.Motivo == "Motivo de teste do roteiro";
                 faixa.Habilitar(ComandosApp.DespachosNovoCorrecao, antes);
                 faixa.DefinirDica(ComandosApp.DespachosNovoCorrecao, dicaAntes);
                 var voltou = item is not null && item.IsEnabled == antes;

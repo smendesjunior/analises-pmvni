@@ -141,6 +141,7 @@ public sealed partial class MainWindow
             if (!await AbrirNovoRelatorioNaVezAsync()) return;
             MostrarExecucaoNR(e);
         }));
+        Dicas.Aplicar(BotaoAnalise, "Análise em andamento", "Abre a tela que acompanha a análise que a IA está fazendo agora.");
 
         relogioAnalise = DispatcherQueue.GetForCurrentThread().CreateTimer();
         relogioAnalise.Interval = TimeSpan.FromSeconds(30);
@@ -463,6 +464,7 @@ public sealed partial class MainWindow
             grade.Children.Add(previa);
             var remover = new Button { Content = "Remover da lista", VerticalAlignment = VerticalAlignment.Center };
             remover.Click += (_, _) => RemoverAnexo(a);
+            Dicas.Aplicar(remover, "Remover da lista", "Tira este arquivo da análise; o arquivo continua no computador.");
             Grid.SetColumn(remover, 3);
             grade.Children.Add(remover);
             lista.Children.Add(grade);
@@ -487,7 +489,9 @@ public sealed partial class MainWindow
             var texto = p == Provedor.ChatGpt ? NR.TextoMotivoChatGpt : NR.TextoMotivoClaude;
             var motivo = MotivoBotao(p);
             botao.IsEnabled = motivo is null && !partindoNR;
-            ToolTipService.SetToolTip(botao, motivo);
+            var servico = p == Provedor.ChatGpt ? "ChatGPT" : "Claude";
+            var dica = DicasComandos.Livre("Analisar com o " + servico, $"Manda o processo, os anexos e o pedido para o {servico} analisar e montar o relatório.", motivo: motivo);
+            if (Dicas.De(botao) != dica) Dicas.Aplicar(botao, dica);
             texto.Text = motivo ?? "";
             texto.Visibility = motivo is null ? Visibility.Collapsed : Visibility.Visible;
         }
@@ -860,6 +864,7 @@ public sealed partial class MainWindow
             var modulo = AvisoDoModulo;
             if (!(modulo.IsOpen && modulo.Severity == InfoBarSeverity.Error)) MostrarMensagem(severidade, aviso.Title, mensagem);
             var botao = new Button { Content = "Importar relatório" };
+            Dicas.Aplicar(botao, "Importar relatório", "Traz para o app o relatório da análise que terminou com o editor fechado.");
             botao.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
             AvisoDoModulo.ActionButton = botao;
         }
@@ -937,6 +942,7 @@ public sealed partial class MainWindow
         if (fechada) return;
         MostrarMensagem(InfoBarSeverity.Success, FluxoNovoRelatorio.RelatorioProntoTitulo, FluxoNovoRelatorio.TextoRelatorioPronto(imp.Provedor, pmvrel, imp.Pdf));
         var botao = new Button { Content = FluxoNovoRelatorio.AbrirRelatorio };
+        Dicas.Aplicar(botao, FluxoNovoRelatorio.AbrirRelatorio, "Abre o relatório que a IA acabou de montar, para revisar.");
         botao.Click += async (_, _) => await AbrirRelatorioProntoAsync(pmvrel);
         AvisoDoModulo.ActionButton = botao;
         RelatorioPronto = pmvrel;

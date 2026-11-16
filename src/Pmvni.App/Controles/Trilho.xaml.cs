@@ -82,7 +82,7 @@ public sealed partial class Trilho : UserControl
             };
             AutomationProperties.SetName(botao, Pmvni.App.Modulos.Rotulo(m));
             AutomationProperties.SetAcceleratorKey(botao, "Ctrl+" + Pmvni.App.Modulos.Numero(m));
-            ToolTipService.SetToolTip(botao, Pmvni.App.Modulos.Dica(m));
+            Dicas.AplicarComando(botao, Pmvni.App.Modulos.Comando(m), Pmvni.App.Modulos.Rotulo(m));
             botao.Click += (_, _) => ModuloEscolhido?.Invoke(m);
             botao.PointerEntered += (_, _) => { sob.Add(m); Pintar(m); };
             botao.PointerExited += (_, _) => { sob.Remove(m); pressionados.Remove(m); Pintar(m); };

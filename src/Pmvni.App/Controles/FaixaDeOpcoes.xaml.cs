@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 
@@ -83,11 +83,14 @@ public sealed partial class FaixaDeOpcoes : UserControl
 
     public void Habilitar(string id, bool sim)
     {
+        var mudou = Habilitado(id) != sim;
         habilitado[id] = sim;
         if (primario is not null && primario.Tag as string == id) primario.IsEnabled = sim;
         if (visiveis.TryGetValue(id, out var b)) b.IsEnabled = sim;
         if (alternaveis.TryGetValue(id, out var t)) t.IsEnabled = sim;
         if (itensMenu.TryGetValue(id, out var i)) i.IsEnabled = sim;
+        // O motivo (terceira linha da dica) só aparece com o botão desabilitado.
+        if (mudou) AtualizarDicas(id);
     }
 
     /// <summary>Troca o rótulo do botão (ex.: "Excluir item" ⇄ "Restaurar item"); vale também quando a aba voltar à vista.</summary>
@@ -97,6 +100,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         rotulos[id] = texto;
         if (visiveis.TryGetValue(id, out var b)) { b.Label = texto; AutomationProperties.SetName(b, texto); }
         if (alternaveis.TryGetValue(id, out var t)) { t.Label = texto; AutomationProperties.SetName(t, texto); }
+        AtualizarDicas(id);
     }
 
     /// <summary>O rótulo atual do comando (o da definição, se nunca foi trocado).</summary>
@@ -135,7 +139,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         foreach (var (texto, valor, dica) in itens)
         {
             var mi = new MenuFlyoutItem { Text = texto, Tag = valor };
-            ToolTipService.SetToolTip(mi, dica);
+            Dicas.Aplicar(mi, new TextoDica(texto, dica));
             mi.Click += (_, _) => ItemDinamicoEscolhido?.Invoke(menu, valor);
             m.Items.Add(mi);
         }
@@ -152,15 +156,55 @@ public sealed partial class FaixaDeOpcoes : UserControl
         if (alternaveis.TryGetValue(id, out var t)) t.IsChecked = sim;
     }
 
+    /// <summary>O texto dinâmico do comando (ex.: por que ele está desabilitado). A dica mostra sempre nome, atalho e a descrição de
+    /// <see cref="DicasComandos"/>; este texto entra como terceira linha enquanto o botão está desabilitado.</summary>
     public void DefinirDica(string id, string texto)
     {
+        if (dicas.TryGetValue(id, out var d) && d == texto) return;
         dicas[id] = texto;
-        if (primario is not null && primario.Tag as string == id) ToolTipService.SetToolTip(primario, texto);
-        if (visiveis.TryGetValue(id, out var b)) ToolTipService.SetToolTip(b, texto);
-        if (itensMenu.TryGetValue(id, out var i)) ToolTipService.SetToolTip(i, texto);
+        AtualizarDicas(id);
     }
 
     public string Dica(string id) => dicas.TryGetValue(id, out var d) ? d : "";
+
+    /// <summary>A dica do comando no formato do app: o nome à vista (o texto completo), o atalho do módulo, a descrição e, com o
+    /// botão desabilitado, o motivo guardado por <see cref="DefinirDica"/>.</summary>
+    internal TextoDica TextoDaDica(string id, string? nome = null)
+    {
+        var c = definicao is null ? null : Faixas.Comandos(definicao).FirstOrDefault(x => x.Id == id);
+        nome ??= rotulos.TryGetValue(id, out var r) ? r : c?.TextoCompleto ?? id;
+        var motivo = Habilitado(id) ? null : Dica(id);
+        return DicasComandos.DoComando(id, nome, definicao?.Modulo ?? Modulo.Relatorios, motivo);
+    }
+
+    /// <summary>Refaz a dica do comando onde ele está à vista (primário, botão da aba, item de menu).</summary>
+    void AtualizarDicas(string id)
+    {
+        if (primario is not null && primario.Tag as string == id) Dicas.Aplicar(primario, TextoDaDica(id));
+        if (visiveis.TryGetValue(id, out var b)) Dicas.Aplicar(b, TextoDaDica(id));
+        if (alternaveis.TryGetValue(id, out var t)) Dicas.Aplicar(t, TextoDaDica(id));
+        if (itensMenu.TryGetValue(id, out var i)) Dicas.Aplicar(i, TextoDaDica(id, i.Text));
+    }
+
+    /// <summary>A dica de cada botão à vista (o primário, os da aba e os itens dos menus deles), na ordem: o roteiro confere que todos
+    /// têm título e descrição.</summary>
+    internal IReadOnlyList<(string Id, TextoDica? Dica)> DicasVisiveis
+    {
+        get
+        {
+            var lista = new List<(string, TextoDica?)>();
+            if (primario is not null) lista.Add(((string)primario.Tag, Dicas.De(primario)));
+            foreach (var (id, mi) in itensDoPrimario) lista.Add((id, Dicas.De(mi)));
+            foreach (var e in Barra.PrimaryCommands.OfType<FrameworkElement>())
+            {
+                lista.Add(((string)e.Tag, Dicas.De(e)));
+                if (e is AppBarButton { Flyout: MenuFlyout m } && !menusDinamicos.ContainsKey((string)e.Tag))
+                    foreach (var i in m.Items.OfType<MenuFlyoutItem>().Where(i => i.Tag is string))
+                        lista.Add(((string)i.Tag, Dicas.De(i)));
+            }
+            return lista;
+        }
+    }
 
     /// <summary>O item <paramref name="id"/> do menu de um botão da aba à vista (não do primário), ou null (roteiro).</summary>
     internal MenuFlyoutItem? ItemDoMenuDaAba(string id) =>
@@ -214,7 +258,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             foreach (var i in itens)
             {
                 var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = Icone(marcados.Contains(i.Id), i.Glifo), IsEnabled = Habilitado(i.Id) };
-                if (dicas.TryGetValue(i.Id, out var dicaItem)) ToolTipService.SetToolTip(mi, dicaItem);
+                Dicas.Aplicar(mi, TextoDaDica(i.Id, i.Rotulo));
                 mi.Click += (_, _) => ComandoInvocado?.Invoke(i.Id);
                 menu.Items.Add(mi);
                 itensDoPrimario.Add((i.Id, mi));
@@ -236,17 +280,9 @@ public sealed partial class FaixaDeOpcoes : UserControl
         b.VerticalAlignment = VerticalAlignment.Center;
         b.IsEnabled = Habilitado(c.Id);
         AutomationProperties.SetName(b, c.Descricao ?? rotulo);
-        ToolTipService.SetToolTip(b, dicas.TryGetValue(c.Id, out var d) ? d : DicaPadrao(c, rotulo));
+        Dicas.Aplicar(b, TextoDaDica(c.Id));
         VagaPrimario.Content = b;
         primario = b;
-    }
-
-    /// <summary>A dica de um comando sem dica própria: o texto completo e o atalho do módulo ("Copiar (Ctrl+C)").</summary>
-    string DicaPadrao(ComandoFaixa c, string rotulo)
-    {
-        var atalho = AtalhoLegivel(c.Id);
-        var texto = c.Descricao ?? rotulo;
-        return atalho is null ? texto : $"{texto} ({atalho})";
     }
 
     /// <summary>O atalho do comando no módulo da faixa (o mapa do leitor na Legislação, auditoria M1).</summary>
@@ -258,22 +294,25 @@ public sealed partial class FaixaDeOpcoes : UserControl
         var icone = new FontIcon { Glyph = c.Glifo };
         var rotulo = rotulos.TryGetValue(c.Id, out var r) ? r : c.Rotulo;
         var atalho = AtalhoLegivel(c.Id);
-        var dica = dicas.TryGetValue(c.Id, out var d) ? d : DicaPadrao(c, rotulo);
+        var dica = TextoDaDica(c.Id);
         // O nome acessível é o texto completo (o rótulo pode ter sido encurtado para caber na faixa).
         var nome = rotulos.ContainsKey(c.Id) ? rotulo : c.Descricao ?? rotulo;
         if (c.Tipo == TipoComando.Alternar)
         {
             var t = new AppBarToggleButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id), IsChecked = ligado.TryGetValue(c.Id, out var l) && l };
             AutomationProperties.SetName(t, nome);
-            ToolTipService.SetToolTip(t, dica);
+            t.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
+            Dicas.Aplicar(t, dica);
             t.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);
             alternaveis[c.Id] = t;
             return t;
         }
         var b = new AppBarButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id) };
         if (atalho is not null) b.KeyboardAcceleratorTextOverride = atalho;
+        // A dica automática do atalho (só "Ctrl+O") não pode tomar o lugar da dica do app, que já traz o atalho no título.
+        b.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
         AutomationProperties.SetName(b, nome);
-        ToolTipService.SetToolTip(b, dica);
+        Dicas.Aplicar(b, dica);
         if (c.Tipo == TipoComando.Menu && c.Itens is { } itens)
         {
             var menu = new MenuFlyout();
@@ -286,8 +325,8 @@ public sealed partial class FaixaDeOpcoes : UserControl
             foreach (var i in itens)
             {
                 var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = Icone(marcados.Contains(i.Id), i.Glifo), IsEnabled = Habilitado(i.Id) };
-                // A dica do item (ex.: por que um tipo de despacho está desabilitado) aparece ao passar o mouse.
-                if (dicas.TryGetValue(i.Id, out var dicaItem)) ToolTipService.SetToolTip(mi, dicaItem);
+                // A dica do item: nome, descrição e, desabilitado, o motivo (ex.: por que um tipo de despacho não está disponível).
+                Dicas.Aplicar(mi, TextoDaDica(i.Id, i.Rotulo));
                 mi.Click += (_, _) => ComandoInvocado?.Invoke(i.Id);
                 menu.Items.Add(mi);
                 itensMenu[i.Id] = mi;

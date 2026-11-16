@@ -106,7 +106,7 @@ internal sealed class JanelaFigura : Window
         Botao(barra, FerramentaFigura.Remover, "", "Remover", "Clique numa marcação para tirá-la");
         barra.Children.Add(new AppBarSeparator());
         var inserir = new Button { Content = Rotulo("", "Inserir região da prancha") };
-        ToolTipService.SetToolTip(inserir, "Recortar uma região de uma prancha do projeto (PDF) e inserir como figura nova depois desta");
+        Dicas.Aplicar(inserir, "Inserir região da prancha", "Recorta uma região de uma prancha do projeto (PDF) e a insere como figura nova depois desta.");
         inserir.Click += (_, _) => host.AbrirRecortePrancha(figuraId);
         barra.Children.Add(inserir);
         barra.Children.Add(new AppBarSeparator());
@@ -120,6 +120,11 @@ internal sealed class JanelaFigura : Window
         var ajustar = new Button { Content = "Ajustar" };
         AutomationNome(menos, "Diminuir");
         AutomationNome(mais, "Aumentar");
+        Dicas.Aplicar(botaoDesfazer, "Desfazer", "Desfaz a última alteração feita nesta figura.", "Ctrl+Z");
+        Dicas.Aplicar(botaoRefazer, "Refazer", "Refaz a alteração que você acabou de desfazer.", "Ctrl+Y");
+        Dicas.Aplicar(menos, "Diminuir", "Diminui o zoom da figura.");
+        Dicas.Aplicar(mais, "Aumentar", "Aumenta o zoom da figura.");
+        Dicas.Aplicar(ajustar, "Ajustar", "Ajusta o zoom para a figura inteira caber na janela.");
         menos.Click += (_, _) => rolagem.ChangeView(null, null, Math.Max(rolagem.MinZoomFactor, rolagem.ZoomFactor / 1.25f));
         mais.Click += (_, _) => rolagem.ChangeView(null, null, Math.Min(rolagem.MaxZoomFactor, rolagem.ZoomFactor * 1.25f));
         ajustar.Click += (_, _) => AjustarZoom();
@@ -218,7 +223,7 @@ internal sealed class JanelaFigura : Window
     void Botao(Panel barra, FerramentaFigura f, string glifo, string texto, string dica)
     {
         var b = new ToggleButton { Content = Rotulo(glifo, texto) };
-        ToolTipService.SetToolTip(b, dica);
+        Dicas.Aplicar(b, texto, dica.EndsWith('.') ? dica : dica + ".");
         AutomationNome(b, texto);
         b.Click += (_, _) => Escolher(f);
         botoes[f] = b;
@@ -390,7 +395,8 @@ internal sealed class JanelaFigura : Window
             caixaElemento.Text = m.Elemento;
             caixaTexto.Text = m.Texto;
             botaoRemover.IsEnabled = !m.Gravada && !sessao.SomenteLeitura;
-            ToolTipService.SetToolTip(botaoRemover, m.Gravada ? "O número está desenhado na imagem recebida e não sai dela." : "Tirar esta marcação da figura");
+            Dicas.Aplicar(botaoRemover, "Remover marcação", "Tira esta marcação da figura.", "Del",
+                m.Gravada ? "O número está desenhado na imagem recebida e não sai dela." : null);
             listaItens.Items.Clear();
             if (m.Numerada)
             {

@@ -30,7 +30,6 @@ public sealed partial class EtiquetaSituacao : Button
         Content = painel;
         Visibility = Visibility.Collapsed; // sem situação (seções, capa, figuras), nada aparece
         ActualThemeChanged += (_, _) => Aplicar();
-        ToolTipService.SetToolTip(this, "Mudar a situação");
     }
 
     /// <summary>Código da situação (ATENDE, NAO_ATENDE…), como em <see cref="Pmvni.Composicao.Kit.Situacoes.Sit"/>.</summary>
@@ -50,6 +49,8 @@ public sealed partial class EtiquetaSituacao : Button
             return;
         }
         Visibility = Visibility.Visible;
+        var dica = DicasComandos.Livre("Situação: " + texto.Text, "Clique para mudar a situação deste item.");
+        if (Dicas.De(this) != dica) Dicas.Aplicar(this, dica);
         Background = Pincel(c.Fundo);
         BorderBrush = Pincel(c.Borda);
         texto.Foreground = Pincel(c.Texto);

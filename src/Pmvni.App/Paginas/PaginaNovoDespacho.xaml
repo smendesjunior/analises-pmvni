@@ -39,7 +39,7 @@
                       AutomationProperties.Name="Relatório base"/>
             <Button x:Name="BotaoEscolherRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Bottom"
                     AutomationProperties.Name="Escolher o arquivo do relatório"
-                    ToolTipService.ToolTip="Escolher um relatório (.pmvrel) de qualquer pasta, ou o dados.json da análise">
+                    local:Dicas.Titulo="Escolher arquivo…" local:Dicas.Descricao="Usa um relatório (.pmvrel) de qualquer pasta, ou o dados.json da análise.">
               <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8E5;" FontSize="14"/><TextBlock Text="Escolher arquivo…"/></StackPanel>
             </Button>
           </Grid>
@@ -47,7 +47,7 @@
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <ComboBox x:Name="CaixaEtapa" x:FieldModifier="internal" Header="Pasta da etapa" HorizontalAlignment="Stretch" AutomationProperties.Name="Pasta da etapa"/>
             <Button x:Name="BotaoNovaPasta" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Bottom" AutomationProperties.Name="Criar pasta nova"
-                    ToolTipService.ToolTip="Criar uma pasta nova para este despacho">
+                    local:Dicas.Titulo="Nova pasta…" local:Dicas.Descricao="Cria uma pasta de etapa nova no processo para guardar este despacho.">
               <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8F4;" FontSize="14"/><TextBlock Text="Nova pasta…"/></StackPanel>
             </Button>
           </Grid>
@@ -60,7 +60,8 @@
             <TextBox x:Name="CaixaRequerente" x:FieldModifier="internal" Header="Requerente" AutomationProperties.Name="Requerente"/>
             <TextBox x:Name="CaixaAssunto" x:FieldModifier="internal" Header="Assunto" AutomationProperties.Name="Assunto"/>
             <StackPanel x:Name="PainelExigencias" x:FieldModifier="internal" Spacing="10"/>
-            <Button x:Name="BotaoAdicionarExigencia" x:FieldModifier="internal" AutomationProperties.Name="Adicionar exigência">
+            <Button x:Name="BotaoAdicionarExigencia" x:FieldModifier="internal" AutomationProperties.Name="Adicionar exigência"
+                    local:Dicas.Descricao="Acrescenta uma exigência em branco para você escrever.">
               <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14"/><TextBlock Text="Adicionar exigência"/></StackPanel>
             </Button>
             <StackPanel x:Name="PainelAprovacao" x:FieldModifier="internal" Spacing="6" Visibility="Collapsed">
@@ -92,7 +93,8 @@
                        AutomationProperties.Name="Instrução para a IA modificar o despacho"/>
               <ProgressRing x:Name="AnelInstrucao" x:FieldModifier="internal" Grid.Column="2" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
               <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource AccentButtonStyle}" CornerRadius="16"
-                      AutomationProperties.Name="Aplicar a instrução" ToolTipService.ToolTip="Pedir à IA (Enter)">
+                      AutomationProperties.Name="Aplicar a instrução" local:Dicas.Titulo="Pedir à IA" local:Dicas.Atalho="Enter"
+                      local:Dicas.Descricao="Manda a instrução escrita ao lado para a IA mudar o despacho.">
                 <FontIcon Glyph="&#xE724;" FontSize="14"/>
               </Button>
             </Grid>
@@ -117,7 +119,8 @@
         <TextBlock x:Name="TextoFontes" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
         <StackPanel Orientation="Horizontal" Spacing="12">
           <TextBlock x:Name="TextoPaginas" x:FieldModifier="internal" VerticalAlignment="Center"/>
-          <Button x:Name="BotaoMarcarTodas" x:FieldModifier="internal" Content="Marcar todas" Visibility="Collapsed"/>
+          <Button x:Name="BotaoMarcarTodas" x:FieldModifier="internal" Content="Marcar todas" Visibility="Collapsed"
+                  local:Dicas.Descricao="Marca todas as páginas do PDF como conferidas."/>
         </StackPanel>
       </StackPanel>
       <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
@@ -131,7 +134,8 @@
                   Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" CornerRadius="8">
         <ProgressRing x:Name="Anel" x:FieldModifier="internal" IsActive="False" Width="32" Height="32"/>
         <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" HorizontalAlignment="Center"/>
-        <Button x:Name="BotaoInterromper" x:FieldModifier="internal" Content="Cancelar" HorizontalAlignment="Center"/>
+        <Button x:Name="BotaoInterromper" x:FieldModifier="internal" Content="Cancelar" HorizontalAlignment="Center"
+                local:Dicas.Descricao="Interrompe a geração e apaga a pasta de trabalho."/>
       </StackPanel>
     </Grid>
 
@@ -146,17 +150,21 @@
         <TextBlock x:Name="TextoFaltando" x:FieldModifier="internal" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
-        <Button x:Name="BotaoCancelar" x:FieldModifier="internal" Content="Cancelar"/>
-        <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Content="Voltar e editar" Visibility="Collapsed"/>
+        <Button x:Name="BotaoCancelar" x:FieldModifier="internal" Content="Cancelar"
+                local:Dicas.Descricao="Fecha o novo despacho sem gravar nada."/>
+        <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Content="Voltar e editar" Visibility="Collapsed"
+                local:Dicas.Descricao="Volta para a edição do despacho, antes de gravar."/>
         <Button x:Name="BotaoGerar" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" IsEnabled="False"
-                AutomationProperties.Name="Gerar e conferir">
+                AutomationProperties.Name="Gerar e conferir"
+                local:Dicas.Descricao="Gera o DOCX e o PDF do despacho e mostra as páginas para conferir.">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Text="Gerar e conferir"/>
             <FontIcon Glyph="&#xE72A;" FontSize="12"/>
           </StackPanel>
         </Button>
         <Button x:Name="BotaoGravar" x:FieldModifier="internal" Content="Gravar na pasta do processo" Style="{StaticResource AccentButtonStyle}"
-                IsEnabled="False" Visibility="Collapsed"/>
+                IsEnabled="False" Visibility="Collapsed"
+                local:Dicas.Descricao="Grava o despacho conferido na pasta da etapa do processo."/>
       </StackPanel>
     </Grid>
   </Grid>

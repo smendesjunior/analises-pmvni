@@ -43,6 +43,7 @@ public sealed partial class EstadoVazio : UserControl
             conteudo.Children.Add(new TextBlock { Text = p.Rotulo, VerticalAlignment = VerticalAlignment.Center });
             BotaoPrimario.Content = conteudo;
             AutomationProperties.SetName(BotaoPrimario, p.Rotulo);
+            Dicas.AplicarComando(BotaoPrimario, p.Id, p.Rotulo, modulo);
             BotaoPrimario.Visibility = Visibility.Visible;
         }
         else BotaoPrimario.Visibility = Visibility.Collapsed;
@@ -51,6 +52,7 @@ public sealed partial class EstadoVazio : UserControl
         {
             BotaoSecundario.Content = s.Rotulo;
             AutomationProperties.SetName(BotaoSecundario, s.Rotulo);
+            Dicas.AplicarComando(BotaoSecundario, s.Id, s.Rotulo, modulo);
             BotaoSecundario.Visibility = Visibility.Visible;
         }
         else BotaoSecundario.Visibility = Visibility.Collapsed;
@@ -76,7 +78,7 @@ public sealed partial class EstadoVazio : UserControl
         {
             var b = new HyperlinkButton { Content = texto, Padding = new Thickness(0, 3, 0, 3) };
             AutomationProperties.SetName(b, "Abrir " + texto);
-            ToolTipService.SetToolTip(b, caminho);
+            Dicas.Aplicar(b, texto, "Abre este relatório aberto há pouco: " + caminho);
             b.Click += (_, _) => RecenteEscolhido?.Invoke(caminho);
             ListaRecentes.Children.Add(b);
         }

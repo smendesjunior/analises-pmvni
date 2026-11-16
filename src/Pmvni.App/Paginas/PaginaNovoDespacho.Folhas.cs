@@ -243,7 +243,8 @@ public sealed partial class PaginaNovoDespacho
             var link = new Hyperlink { UnderlineStyle = UnderlineStyle.None, Foreground = run.Foreground };
             link.Inlines.Add(run);
             AutomationProperties.SetName(link, "Editar " + NomeDoCampo(t.Chave).ToLower(CultureInfo.GetCultureInfo("pt-BR")));
-            ToolTipService.SetToolTip(link, "Clique para editar: " + NomeDoCampo(t.Chave).ToLower(CultureInfo.GetCultureInfo("pt-BR")));
+            Dicas.Aplicar(link, "Editar " + NomeDoCampo(t.Chave).ToLower(CultureInfo.GetCultureInfo("pt-BR")),
+                "Clique para mudar este trecho do despacho.");
             var trecho = t;
             link.Click += (_, _) => Editar(trecho);
             par.Inlines.Add(link);

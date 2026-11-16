@@ -95,6 +95,14 @@ internal sealed class JanelaPrancha : Window
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(mais, "Aumentar");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(anterior, "Página anterior");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(proxima, "Próxima página");
+        Dicas.Aplicar(escolher, "Escolher arquivo…", "Escolhe no computador outro PDF de prancha para recortar.");
+        Dicas.Aplicar(anterior, "Página anterior", "Volta para a página anterior do PDF.");
+        Dicas.Aplicar(proxima, "Próxima página", "Avança para a próxima página do PDF.");
+        Dicas.Aplicar(menos, "Diminuir", "Diminui o zoom da prancha.");
+        Dicas.Aplicar(mais, "Aumentar", "Aumenta o zoom da prancha, para recortar com mais precisão.");
+        Dicas.Aplicar(ajustar, "Página inteira", "Ajusta o zoom para a página inteira caber na janela.");
+        Dicas.Aplicar(inserir, "Inserir no relatório", "Insere a região marcada como figura nova no relatório.");
+        Dicas.Aplicar(cancelar, "Cancelar", "Fecha esta janela sem inserir nada.");
         menos.Click += (_, _) => rolagem.ChangeView(null, null, Math.Max(rolagem.MinZoomFactor, rolagem.ZoomFactor / 1.25f));
         mais.Click += (_, _) => rolagem.ChangeView(null, null, Math.Min(rolagem.MaxZoomFactor, rolagem.ZoomFactor * 1.25f));
         ajustar.Click += (_, _) => AjustarZoom();

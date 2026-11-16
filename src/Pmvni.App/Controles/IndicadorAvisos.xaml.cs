@@ -39,7 +39,8 @@ public sealed partial class IndicadorAvisos : UserControl
         Texto.Style = (Style)Resources[critico ? "TextoCritico" : "TextoNormal"];
         Icone.Style = (Style)Resources[critico ? "IconeCritico" : "IconeNormal"];
         AutomationProperties.SetName(Botao, Texto.Text + ": abrir a lista");
-        ToolTipService.SetToolTip(Botao, critico ? "Há blocos maiores que a página: a exportação do PDF está bloqueada." : "Avisos de layout da composição");
+        Dicas.Aplicar(Botao, "Avisos de layout", "Abre a lista dos problemas de layout das folhas, com o caminho até cada um.",
+            motivo: critico ? "Há blocos maiores que a página: a exportação do PDF está bloqueada." : null);
         foreach (var a in lista)
         {
             var linha = new StackPanel { Spacing = 2 };
@@ -50,6 +51,7 @@ public sealed partial class IndicadorAvisos : UserControl
             {
                 var ir = new HyperlinkButton { Content = $"Ir à folha {folha}", Padding = new Thickness(0, 2, 0, 2) };
                 AutomationProperties.SetName(ir, $"Ir à folha {folha}");
+                Dicas.Aplicar(ir, $"Ir à folha {folha}", "Rola as folhas até onde está este aviso.");
                 ir.Click += (_, _) => { Lista.Hide(); IrParaFolha?.Invoke(folha); };
                 linha.Children.Add(ir);
             }
