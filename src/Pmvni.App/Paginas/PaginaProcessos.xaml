@@ -3,11 +3,12 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Pmvni.App">
   <UserControl.Resources>
-    <!-- Correções 2026-11-15: na frente de cada arquivo, o ícone do tipo que o Windows associa à extensão (IconeArquivo). -->
-    <DataTemplate x:Key="ModeloLinhaDetalhe" x:DataType="local:LinhaDetalhe">
+    <!-- Modo Lista: na frente de cada arquivo, o ícone do tipo que o Windows associa à extensão (IconeArquivo); os títulos de grupo
+         (etapa, tipo ou data) são linhas que não se escolhem. -->
+    <DataTemplate x:Key="ModeloLinhaDetalhe" x:DataType="local:ItemArquivo">
       <Grid Padding="0,5" ColumnSpacing="10" AutomationProperties.Name="{x:Bind NomeAcessivel}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-        <local:IconeArquivo Caminho="{x:Bind CaminhoDoIcone}" VerticalAlignment="Top" Margin="0,1,0,0"/>
+        <local:IconeArquivo Caminho="{x:Bind Caminho}" VerticalAlignment="Top" Margin="0,1,0,0"/>
         <StackPanel Grid.Column="1" Spacing="1">
           <TextBlock Text="{x:Bind Texto}" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                      Visibility="{x:Bind EhTitulo}" Margin="0,8,0,0"/>
@@ -16,6 +17,15 @@
                      ToolTipService.ToolTip="{x:Bind Info}"/>
         </StackPanel>
       </Grid>
+    </DataTemplate>
+    <!-- Modo Miniaturas: o bloco do Explorador em "ícones grandes" — a prévia do arquivo e o nome embaixo, em até três linhas. -->
+    <DataTemplate x:Key="ModeloMiniatura" x:DataType="local:ItemArquivo">
+      <StackPanel Width="120" Height="168" Padding="4,6,4,2" Spacing="4" Background="Transparent"
+                  AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Dica}">
+        <local:MiniaturaArquivo Caminho="{x:Bind Caminho}" HorizontalAlignment="Center"/>
+        <TextBlock Text="{x:Bind Texto}" FontSize="12" TextAlignment="Center" HorizontalAlignment="Center" TextWrapping="Wrap" MaxLines="3"
+                   TextTrimming="CharacterEllipsis"/>
+      </StackPanel>
     </DataTemplate>
   </UserControl.Resources>
   <!-- Módulo Processos (desenho §9): a lista de processos da pasta de processos à esquerda (mais recentes primeiro; a pesquisa da barra de
@@ -91,15 +101,73 @@
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" Padding="20,10,16,6">
-          <TextBlock x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{ThemeResource TitleTextBlockStyle}" TextTrimming="CharacterEllipsis"
-                     ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-          <TextBlock x:Name="TextoPastaDetalhe" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"
-                     TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-        </StackPanel>
-        <!-- Correções 2026-11-15: três colunas (Relatórios, Despachos, Projeto), cada uma agrupada por data. A ListaDetalhe guarda a seleção
-             (os comandos e o roteiro leem dela) e fica fora da tela; as colunas mostram as mesmas linhas. -->
-        <Grid x:Name="GradeColunas" Grid.Row="1" Padding="12,0,12,8" ColumnSpacing="12">
+        <Grid Grid.Row="0" Padding="20,10,16,6" ColumnSpacing="12">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <StackPanel>
+            <TextBlock x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{ThemeResource TitleTextBlockStyle}" TextTrimming="CharacterEllipsis"
+                       ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+            <TextBlock x:Name="TextoPastaDetalhe" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"
+                       TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+          </StackPanel>
+          <!-- 2026-11-16: como os arquivos do processo aparecem (como "Classificar" e "Visualizar" do Explorador). A escolha fica
+               lembrada nos Ajustes; a janela guarda (MainWindow.Pastas.cs). -->
+          <StackPanel x:Name="BarraExibicao" x:FieldModifier="internal" Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Bottom">
+            <DropDownButton x:Name="BotaoClassificar" x:FieldModifier="internal" AutomationProperties.Name="Classificar"
+                            local:Dicas.Descricao="Ordena os arquivos do processo por nome, data ou tipo, em ordem crescente ou decrescente.">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE8CB;" FontSize="14"/>
+                <TextBlock Text="Classificar"/>
+              </StackPanel>
+              <DropDownButton.Flyout>
+                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                  <ToggleMenuFlyoutItem x:Name="ItemOrdemNome" x:FieldModifier="internal" Text="Nome" Click="AoEscolherOrdem"/>
+                  <ToggleMenuFlyoutItem x:Name="ItemOrdemData" x:FieldModifier="internal" Text="Data" Click="AoEscolherOrdem"/>
+                  <ToggleMenuFlyoutItem x:Name="ItemOrdemTipo" x:FieldModifier="internal" Text="Tipo" Click="AoEscolherOrdem"/>
+                  <MenuFlyoutSeparator/>
+                  <ToggleMenuFlyoutItem x:Name="ItemCrescente" x:FieldModifier="internal" Text="Crescente" Click="AoEscolherSentido"/>
+                  <ToggleMenuFlyoutItem x:Name="ItemDecrescente" x:FieldModifier="internal" Text="Decrescente" Click="AoEscolherSentido"/>
+                </MenuFlyout>
+              </DropDownButton.Flyout>
+            </DropDownButton>
+            <DropDownButton x:Name="BotaoAgrupar" x:FieldModifier="internal" AutomationProperties.Name="Agrupar"
+                            local:Dicas.Descricao="Junta os arquivos do processo por etapa ou pasta, por tipo de arquivo ou por data.">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xF168;" FontSize="14"/>
+                <TextBlock Text="Agrupar"/>
+              </StackPanel>
+              <DropDownButton.Flyout>
+                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                  <ToggleMenuFlyoutItem x:Name="ItemGrupoEtapa" x:FieldModifier="internal" Text="Etapa ou pasta" Click="AoEscolherGrupo"/>
+                  <ToggleMenuFlyoutItem x:Name="ItemGrupoTipo" x:FieldModifier="internal" Text="Tipo de arquivo" Click="AoEscolherGrupo"/>
+                  <ToggleMenuFlyoutItem x:Name="ItemGrupoData" x:FieldModifier="internal" Text="Data" Click="AoEscolherGrupo"/>
+                  <MenuFlyoutSeparator/>
+                  <ToggleMenuFlyoutItem x:Name="ItemGrupoNenhum" x:FieldModifier="internal" Text="Não agrupar" Click="AoEscolherGrupo"/>
+                </MenuFlyout>
+              </DropDownButton.Flyout>
+            </DropDownButton>
+            <DropDownButton x:Name="BotaoVisualizar" x:FieldModifier="internal" AutomationProperties.Name="Visualizar"
+                            local:Dicas.Descricao="Mostra os arquivos do processo em lista (três colunas) ou em miniaturas, com a prévia de cada arquivo.">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xECA5;" FontSize="14"/>
+                <TextBlock Text="Visualizar"/>
+              </StackPanel>
+              <DropDownButton.Flyout>
+                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                  <ToggleMenuFlyoutItem x:Name="ItemModoLista" x:FieldModifier="internal" Text="Lista" Click="AoEscolherModo">
+                    <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE8FD;"/></ToggleMenuFlyoutItem.Icon>
+                  </ToggleMenuFlyoutItem>
+                  <ToggleMenuFlyoutItem x:Name="ItemModoMiniaturas" x:FieldModifier="internal" Text="Miniaturas" Click="AoEscolherModo">
+                    <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xECA5;"/></ToggleMenuFlyoutItem.Icon>
+                  </ToggleMenuFlyoutItem>
+                </MenuFlyout>
+              </DropDownButton.Flyout>
+            </DropDownButton>
+          </StackPanel>
+        </Grid>
+        <!-- Modo Lista (correções 2026-11-15): três colunas (Relatórios, Despachos, Projeto), cada uma agrupada e ordenada pela escolha
+             de Agrupar e Classificar. A ListaDetalhe guarda a seleção (os comandos e o roteiro leem dela) e fica fora da tela; as colunas
+             mostram as mesmas linhas. -->
+        <Grid x:Name="GradeColunas" x:FieldModifier="internal" Grid.Row="1" Padding="12,0,12,8" ColumnSpacing="12">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="0">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -120,6 +188,40 @@
             </Grid>
           </Border>
         </Grid>
+        <!-- Modo Miniaturas (2026-11-16): no lugar das três colunas, uma grade só, como o Explorador em "ícones grandes": todos os
+             arquivos do processo com a prévia, em grupos que se recolhem pelo cabeçalho. A grade só cria os blocos que estão na tela. -->
+        <Border x:Name="CartaoMiniaturas" x:FieldModifier="internal" Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="8" Margin="12,0,12,8"
+                Visibility="Collapsed">
+          <Grid>
+            <GridView x:Name="GradeMiniaturas" x:FieldModifier="internal" SelectionMode="Single" IsItemClickEnabled="False" Padding="4,0,4,4"
+                      IsSynchronizedWithCurrentItem="False"
+                      ItemTemplate="{StaticResource ModeloMiniatura}" AutomationProperties.Name="Arquivos do processo em miniaturas">
+              <GridView.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <ItemsWrapGrid Orientation="Horizontal" AreStickyGroupHeadersEnabled="False"/>
+                </ItemsPanelTemplate>
+              </GridView.ItemsPanel>
+              <GridView.GroupStyle>
+                <GroupStyle HidesIfEmpty="False">
+                  <GroupStyle.HeaderTemplate>
+                    <DataTemplate x:DataType="local:GrupoMiniaturas">
+                      <Button Click="AoAlternarGrupo" Background="Transparent" BorderThickness="0" Padding="4,2"
+                              AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Dica}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <FontIcon Glyph="{x:Bind Glifo}" FontSize="10" VerticalAlignment="Center"/>
+                          <TextBlock Text="{x:Bind Titulo}" FontSize="15" VerticalAlignment="Center"/>
+                          <TextBlock Text="{x:Bind Contagem}" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Button>
+                    </DataTemplate>
+                  </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+              </GridView.GroupStyle>
+            </GridView>
+            <TextBlock x:Name="TextoSemMiniaturas" x:FieldModifier="internal" Margin="12,8" Text="Nenhum arquivo neste processo."
+                       Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="Collapsed"/>
+          </Grid>
+        </Border>
         <ListView x:Name="ListaDetalhe" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" Padding="12,0,12,8" Opacity="0" IsHitTestVisible="False" Width="1" HorizontalAlignment="Left"
                   AutomationProperties.Name="Conteúdo do processo">
           <ListView.ItemTemplate>

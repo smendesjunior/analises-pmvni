@@ -52,6 +52,7 @@ public sealed partial class MainWindow
     internal string? PastaProcessosEscolhida => ajustes.PastaProcessos;
     internal LinhaDetalhe? EntradaEscolhida => entradaEscolhida;
     internal LinhaDespacho? DespachoEscolhido => despachoEscolhido;
+    internal PaginaProcessos PaginaDoProcesso => PaginaDeProcessos;
     internal OrdemProcessos OrdemDeProcessos => ordemProcessos;
     internal int? AnoDeProcessos => anoProcessos;
     internal TextBlock TextoPastaNosAjustes => PaginaDeAjustes.TextoPastaProcessos;
@@ -84,13 +85,17 @@ public sealed partial class MainWindow
             await ExecutarComandoAsync(entradaEscolhida.Tipo is TipoLinhaDetalhe.Relatorio or TipoLinhaDetalhe.Analise
                 ? ComandosApp.ProcessosAbrirRelatorio : ComandosApp.ProcessosAbrirArquivo);
         };
-        foreach (var coluna in processos.Colunas)
-            coluna.DoubleTapped += async (_, _) =>
-            {
-                if (entradaEscolhida is null) return;
-                await ExecutarComandoAsync(entradaEscolhida.Tipo is TipoLinhaDetalhe.Relatorio or TipoLinhaDetalhe.Analise
-                    ? ComandosApp.ProcessosAbrirRelatorio : ComandosApp.ProcessosAbrirArquivo);
-            };
+        // Duplo clique, Enter ou menu de contexto num arquivo (nas colunas da Lista ou na grade de Miniaturas).
+        processos.AcaoPedida += async acao => await FazerNoArquivoEscolhidoAsync(acao);
+        // Agrupar, Classificar e Lista/Miniaturas da página do processo: a escolha fica lembrada nos Ajustes.
+        processos.ExibicaoMudou += () =>
+        {
+            ajustes.ArquivosExibicao = processos.EmMiniaturas ? "miniaturas" : "lista";
+            ajustes.ArquivosAgrupar = processos.Exibicao.AgruparNosAjustes;
+            ajustes.ArquivosOrdenar = processos.Exibicao.OrdenarNosAjustes;
+            ajustes.ArquivosDecrescente = processos.Exibicao.Decrescente;
+            SalvarAjustes();
+        };
         despachos.ListaDespachos.SelectionChanged += (_, _) => AoEscolherDespacho();
         despachos.ListaDespachos.DoubleTapped += async (_, _) => { if (despachoEscolhido is not null) await ExecutarComandoAsync(ComandosApp.DespachosAbrir); };
         processos.BotaoAbrirAjustes.Click += async (_, _) => await AbrirAjustesAsync();
@@ -149,6 +154,30 @@ public sealed partial class MainWindow
         ordemProcessos = ajustes.ProcessosOrdem switch { "data" => OrdemProcessos.Data, "requerente" => OrdemProcessos.Requerente, _ => OrdemProcessos.Numero };
         agrupamentoDespachos = ajustes.DespachosAgrupar == "processo" ? AgrupamentoDespachos.Processo : AgrupamentoDespachos.Data;
         despachosRecentesPrimeiro = ajustes.DespachosOrdem != "antigos";
+    }
+
+    /// <summary>O que a página do processo pede para o arquivo escolhido: abrir (como o comando da faixa: o relatório no editor, a
+    /// análise importada, o arquivo no programa dele), mostrar no Explorador ou copiar o caminho.</summary>
+    async Task FazerNoArquivoEscolhidoAsync(AcaoArquivo acao)
+    {
+        if (entradaEscolhida is not { Caminho: { } caminho } entrada) return;
+        switch (acao)
+        {
+            case AcaoArquivo.Abrir:
+                await ExecutarComandoAsync(entrada.Tipo is TipoLinhaDetalhe.Relatorio or TipoLinhaDetalhe.Analise
+                    ? ComandosApp.ProcessosAbrirRelatorio : ComandosApp.ProcessosAbrirArquivo);
+                break;
+            case AcaoArquivo.MostrarNoExplorador:
+                AberturaExterna.MostrarNoExplorador(caminho);
+                break;
+            case AcaoArquivo.CopiarCaminho:
+                try { AreaTransferencia.Copiar(caminho); }
+                catch (Exception e) when (e is System.Runtime.InteropServices.COMException or UnauthorizedAccessException)
+                {
+                    MostrarMensagem(InfoBarSeverity.Warning, "O caminho não foi copiado", Erro(e));
+                }
+                break;
+        }
     }
 
     /// <summary>"Abrir Ajustes" do aviso de pasta ausente: Ajustes › Pastas e kit, onde a pasta se escolhe.</summary>
@@ -697,6 +726,9 @@ public sealed partial class MainWindow
     /// <summary>Marca (✓) nos menus e liga os botões que alternam, de acordo com o que está escolhido.</summary>
     void SincronizarPastas()
     {
+        // A página do processo segue os Ajustes (ao abrir o app e depois de "Restaurar os ajustes"); igual ao que já mostra, nada muda.
+        PaginaDeProcessos.DefinirExibicao(
+            ExibicaoArquivos.DosAjustes(ajustes.ArquivosAgrupar, ajustes.ArquivosOrdenar, ajustes.ArquivosDecrescente), ajustes.ArquivosExibicao == "miniaturas");
         Faixa.MarcarItem(ComandosApp.ProcessosOrdenarNumero, ordemProcessos == OrdemProcessos.Numero);
         Faixa.MarcarItem(ComandosApp.ProcessosOrdenarData, ordemProcessos == OrdemProcessos.Data);
         Faixa.MarcarItem(ComandosApp.ProcessosOrdenarRequerente, ordemProcessos == OrdemProcessos.Requerente);
