@@ -6,6 +6,10 @@ namespace Pmvni.App;
 /// editável), conferência (as páginas do PDF gerado na pasta de trabalho) e gravado (na pasta do processo).</summary>
 public enum PassoNovoDespacho { Origem, Conteudo, Conferencia, Gravado }
 
+/// <summary>O arquivo escolhido à mão como relatório base: um <c>.pmvrel</c> (usado como está) ou o <c>dados.json</c> da análise do kit
+/// (importado para um <c>.pmvrel</c> novo antes de usar).</summary>
+public enum ArquivoBase { Pacote, DadosJson }
+
 /// <summary>O que a página já traz escolhido ao abrir: o processo, o relatório base (<c>.pmvrel</c>) e a pasta da etapa. Null = o usuário escolhe.</summary>
 public sealed record OrigemSugerida(Processo? Processo, string? Pacote, EtapaDespacho? Etapa);
 
@@ -20,6 +24,34 @@ public static class FluxoNovoDespacho
 
     public const string SemPmvrel =
         "Este processo não tem relatório revisado (.pmvrel). Importe a análise da IA em Processos antes de emitir o despacho.";
+    /// <summary>"Escolher arquivo…" com um arquivo que não é relatório.</summary>
+    public const string ArquivoNaoServe = "Escolha um relatório revisado (.pmvrel) ou o dados.json da análise do kit.";
+
+    /// <summary>O filtro do seletor de "Escolher arquivo…" (as extensões separadas por ";").</summary>
+    public const string FiltroArquivoBase = ".pmvrel;.json";
+
+    /// <summary>O tipo do arquivo escolhido à mão pela extensão; null = não serve.</summary>
+    public static ArquivoBase? TipoDoArquivoBase(string? caminho) =>
+        System.IO.Path.GetExtension(caminho ?? "").ToLowerInvariant() switch
+        {
+            ".pmvrel" => ArquivoBase.Pacote,
+            ".json" => ArquivoBase.DadosJson,
+            _ => null,
+        };
+
+    /// <summary>A lista da caixa "Relatório base": os <c>.pmvrel</c> da pasta do processo e, depois, os escolhidos à mão que ainda não
+    /// estão nela (mesmo caminho sem diferença de maiúsculas). Cada um com <c>Escolhido</c> = veio do "Escolher arquivo…".</summary>
+    public static IReadOnlyList<(string Caminho, bool Escolhido)> RelatoriosDaLista(IEnumerable<RelatorioEncontrado> daPasta, IEnumerable<string> escolhidos)
+    {
+        ArgumentNullException.ThrowIfNull(daPasta);
+        ArgumentNullException.ThrowIfNull(escolhidos);
+        var lista = daPasta.Where(r => r.Tipo == TipoRelatorio.Pacote).Select(r => (r.Caminho, false)).ToList();
+        var vistos = new HashSet<string>(lista.Select(x => Normalizar(x.Caminho)), StringComparer.OrdinalIgnoreCase);
+        foreach (var c in escolhidos)
+            if (vistos.Add(Normalizar(c))) lista.Add((c, true));
+        return lista;
+    }
+
     public const string NaoSalvou =
         "O relatório não pôde ser salvo; o despacho usa sempre a versão gravada. Resolva a gravação e tente de novo.";
 
@@ -94,6 +126,7 @@ public static class FluxoNovoDespacho
         para.DefinirCabecalho("protocolo", de.Protocolo);
         para.DefinirCabecalho("requerente", de.Requerente);
         para.DefinirCabecalho("assunto", de.Assunto);
+        if (de.CamposEditados.Contains("cabecalho:data")) para.DefinirCabecalho("data", de.DataPorExtenso);
         foreach (var i in Enum.GetValues<Intervencao>()) para.DefinirIntervencao(i, de.Intervencoes.Contains(i));
         para.DefinirArea(de.AreaTotal);
         var ids = para.Pendencias.Select(p => p.ItemId).ToHashSet(StringComparer.Ordinal);

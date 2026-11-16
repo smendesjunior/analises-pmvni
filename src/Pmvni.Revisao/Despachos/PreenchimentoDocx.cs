@@ -73,12 +73,12 @@ public static class PreenchimentoDocx
         var vagas = mapa.Todos(PapelParagrafo.Vaga);
         var novos = new List<XElement>();
         var usadas = 0;
-        XElement Vaga(IEnumerable<string> textos)
+        XElement Vaga(IEnumerable<(string Texto, bool Negrito)> textos)
         {
             var p = usadas < vagas.Count ? vagas[usadas] : Clonar(vagas[0]);
             usadas++;
             foreach (var r in p.Elements(W + "r").ToList()) r.Remove();
-            foreach (var texto in textos.Where(x => x.Length > 0)) p.Add(NovoRun(rPrRotulo, texto, false));
+            foreach (var (texto, negrito) in textos.Where(x => x.Texto.Length > 0)) p.Add(NovoRun(rPrRotulo, texto, negrito));
             return p;
         }
 
@@ -88,19 +88,21 @@ public static class PreenchimentoDocx
             var grupo = mapa.Um(PapelParagrafo.Grupo);
             ancora = grupo.ElementsBeforeSelf().Last();
             var primeiro = true;
+            var numero = 0;
             foreach (var g in d.Grupos)
             {
                 var titulo = primeiro ? grupo : Clonar(grupo);
                 primeiro = false;
                 TrocarTexto(titulo, g.Titulo);
                 novos.Add(titulo);
-                foreach (var e in g.Exigencias) novos.Add(Vaga(new[] { e.Texto, e.Fundamento }));
+                // Cada exigência começa pelo número em negrito ("01. "), seguido do texto e do fundamento (correções 2026-11-15).
+                foreach (var e in g.Exigencias) novos.Add(Vaga(new[] { (ConteudoDespacho.Numero(++numero), true), (e.Texto, false), (e.Fundamento, false) }));
             }
             if (primeiro) grupo.Remove();
         }
         else
             ancora = vagas[0].ElementsBeforeSelf().Last();
-        foreach (var c in d.Corpo) novos.Add(Vaga(new[] { c }));
+        foreach (var c in d.Corpo) novos.Add(Vaga(new[] { (c, false) }));
 
         foreach (var p in novos.Concat(vagas).Distinct().Where(p => p.Parent is not null).ToList()) p.Remove();
         ancora.AddAfterSelf(novos);

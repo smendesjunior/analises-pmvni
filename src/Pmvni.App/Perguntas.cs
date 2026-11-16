@@ -15,7 +15,7 @@ public enum RespostaFechar { SalvarComo, SalvarCopia, FecharSemSalvar, Cancelar 
 /// por respostas fixas: nenhuma janela modal fica esperando quem não está olhando.</summary>
 internal interface IPerguntas
 {
-    /// <summary>Seletor de abrir com o filtro <paramref name="extensao"/> (".json", ".pmvrel"); null se cancelado.</summary>
+    /// <summary>Seletor de abrir com o filtro <paramref name="extensao"/> (".json", ".pmvrel"; várias separadas por ";"); null se cancelado.</summary>
     Task<string?> AbrirArquivoAsync(string extensao);
 
     /// <summary>Seletor de abrir com seleção múltipla e qualquer tipo de arquivo (os anexos do Novo relatório); null se cancelado.</summary>
@@ -78,7 +78,7 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
     {
         var seletor = new FileOpenPicker();
         WinRT.Interop.InitializeWithWindow.Initialize(seletor, Janela);
-        seletor.FileTypeFilter.Add(extensao);
+        foreach (var e in extensao.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) seletor.FileTypeFilter.Add(e);
         return (await seletor.PickSingleFileAsync())?.Path;
     }
 

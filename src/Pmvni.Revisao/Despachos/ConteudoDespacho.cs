@@ -48,7 +48,18 @@ public enum EstiloPrevia { Titulo, Rotulo, Destinatario, Grupo, Corpo, Data, Ass
 /// <summary>Um parágrafo da prévia de texto. <see cref="Faltando"/> preenchido = campo a preencher (o texto leva "[preencher: …]", só na tela).</summary>
 /// <see cref="Chave"/>: o campo editável por trás do parágrafo (<c>cabecalho:protocolo|requerente|assunto</c> ou <c>exigencia:&lt;id&gt;</c>), para editar
 /// direto na prévia; <see cref="Valor"/> é o texto do campo (sem rótulo nem fundamento).
-public sealed record ParagrafoPrevia(string Texto, EstiloPrevia Estilo, string? Faltando, string? Chave = null, string? Valor = null);
+/// <see cref="Trechos"/>: o parágrafo em trechos, como no DOCX (negrito do valor, número da exigência); um trecho com <see cref="TrechoPrevia.Chave"/>
+/// é editável clicando nele na folha. <see cref="Modelo"/>: o índice do parágrafo do modelo cuja formatação vale (−1 = o padrão).
+public sealed record ParagrafoPrevia(string Texto, EstiloPrevia Estilo, string? Faltando, string? Chave = null, string? Valor = null,
+    IReadOnlyList<TrechoPrevia>? Trechos = null, int Modelo = -1)
+{
+    /// <summary>Os trechos do parágrafo; sem trechos definidos, o texto todo num trecho só (editável pela <see cref="Chave"/>, se houver).</summary>
+    public IReadOnlyList<TrechoPrevia> TrechosOuTexto => Trechos ?? [new TrechoPrevia(Texto, false, Chave, Faltando, Valor)];
+}
+
+/// <summary>Um trecho de um parágrafo da prévia. <see cref="Chave"/> preenchida = editável na folha (ver <see cref="ConteudoDespacho.AplicarEdicao"/>);
+/// <see cref="Valor"/> é o texto que o editor recebe (sem o "[preencher: …]" nem a pontuação do fundamento); <see cref="Faltando"/> = a preencher.</summary>
+public sealed record TrechoPrevia(string Texto, bool Negrito = false, string? Chave = null, string? Faltando = null, string? Valor = null);
 
 /// <summary>O despacho em edição. Todo texto do usuário passa por <see cref="TextoEditado.Normalizar"/> (texto puro, uma linha).</summary>
 public sealed class RascunhoDespacho
@@ -76,6 +87,10 @@ public sealed class RascunhoDespacho
     public IReadOnlySet<Intervencao> Intervencoes => _intervencoes;
     public string AreaTotal { get; private set; } = "";
 
+    /// <summary>A data por extenso que vai no despacho: a da pasta da etapa ou a escrita na prévia (correções 2026-11-15).</summary>
+    public string DataPorExtenso => _dataEditada ?? Etapas.DataPorExtenso(Data);
+    string? _dataEditada;
+
     /// <summary>Os campos que diferem do que veio do relatório e do modelo: <c>cabecalho:protocolo|requerente|assunto</c> e
     /// <c>exigencia:&lt;id&gt;:texto|fundamento|grupo</c>.</summary>
     public IReadOnlySet<string> CamposEditados
@@ -86,6 +101,7 @@ public sealed class RascunhoDespacho
             if (Protocolo != _protocoloOriginal) s.Add("cabecalho:protocolo");
             if (Requerente != _requerenteOriginal) s.Add("cabecalho:requerente");
             if (Assunto != _assuntoOriginal) s.Add("cabecalho:assunto");
+            if (_dataEditada is not null) s.Add("cabecalho:data");
             foreach (var p in _pendencias)
             {
                 if (p.Texto != p.TextoOriginal) s.Add("exigencia:" + p.ItemId + ":texto");
@@ -104,6 +120,7 @@ public sealed class RascunhoDespacho
             case "protocolo": Protocolo = t; break;
             case "requerente": Requerente = t; break;
             case "assunto": Assunto = t; break;
+            case "data": _dataEditada = t == Etapas.DataPorExtenso(Data) ? null : t; break;
             default: throw new ArgumentException("Campo de cabeçalho desconhecido: " + campo, nameof(campo));
         }
     }
@@ -116,6 +133,13 @@ public sealed class RascunhoDespacho
     public void DefinirFundamento(string itemId, string texto) => Pendencia(itemId).Fundamento = TextoEditado.Normalizar(texto);
 
     public void DefinirGrupo(string itemId, string texto) => Pendencia(itemId).Grupo = TextoEditado.Normalizar(texto);
+
+    /// <summary>Troca o título de um grupo em todas as exigências dele (edição do título na prévia).</summary>
+    public void RenomearGrupo(string antigo, string novo)
+    {
+        var t = TextoEditado.Normalizar(novo);
+        foreach (var p in _pendencias.Where(p => p.Grupo == antigo)) p.Grupo = t;
+    }
 
     public void Marcar(string itemId, bool incluida) => Pendencia(itemId).Incluida = incluida;
 
@@ -173,6 +197,7 @@ public sealed class RascunhoDespacho
         if (Protocolo.Length == 0) f.Add(ConteudoDespacho.FaltaProtocolo);
         if (Requerente.Length == 0) f.Add(ConteudoDespacho.FaltaRequerente);
         if (Assunto.Length == 0) f.Add(ConteudoDespacho.FaltaAssunto);
+        if (DataPorExtenso.Length == 0) f.Add(ConteudoDespacho.FaltaData);
         if (Tipo == TipoDespacho.Correcao)
         {
             var marcadas = _pendencias.Where(p => p.Incluida).ToList();
@@ -211,7 +236,7 @@ public sealed class RascunhoDespacho
         }
         else
             corpo.AddRange(tx.Paragrafos.Select(p => ConteudoDespacho.Resolver(p.Texto, ConteudoDespacho.Intervencoes(_intervencoes), AreaTotal)));
-        return new DespachoFinal(Tipo, Protocolo, Requerente, Assunto, Etapas.DataPorExtenso(Data), grupos, corpo);
+        return new DespachoFinal(Tipo, Protocolo, Requerente, Assunto, DataPorExtenso, grupos, corpo);
     }
 }
 
@@ -220,7 +245,7 @@ public sealed class RascunhoDespacho
 public static class ConteudoDespacho
 {
     internal const string FaltaProtocolo = "Protocolo nº", FaltaRequerente = "Requerente", FaltaAssunto = "Assunto",
-        FaltaExigencia = "Ao menos uma exigência marcada",
+        FaltaExigencia = "Ao menos uma exigência marcada", FaltaData = "Data",
         FaltaIntervencao = "Tipo de obra (obra nova, alteração de obra ou ampliação de obra)",
         FaltaArea = "Área total a construir (m², ex.: 210,52)";
 
@@ -353,10 +378,57 @@ public static class ConteudoDespacho
         return new[] { "O relatório tem " + quantos + " com situação diferente de ATENDE (" + string.Join(", ", pendentes) + "). Emitir a aprovação mesmo assim?" };
     }
 
+
     static string Preencher(string? falta) => "[preencher: " + falta + "]";
 
-    /// <summary>A prévia de texto: os parágrafos na ordem do DOCX (textos do modelo, valores, grupos, exigências, textos fixos, data e assinatura).
-    /// O que falta aparece como "[preencher: …]" com <see cref="ParagrafoPrevia.Faltando"/>.</summary>
+    /// <summary>O número da exigência no despacho ("01. "), em negrito antes do texto (correções 2026-11-15: como os despachos do kit).</summary>
+    public static string Numero(int n) => n.ToString("D2", CultureInfo.InvariantCulture) + ". ";
+
+    /// <summary>As chaves dos trechos editáveis na prévia (correções 2026-11-15).</summary>
+    public const string ChaveIntervencao = "aprovacao:intervencao", ChaveArea = "aprovacao:area";
+
+    /// <summary>Os nomes do tipo de obra, na ordem das caixas.</summary>
+    public static IReadOnlyList<string> NomesDasIntervencoes => NomesIntervencao;
+
+    /// <summary>Aplica ao rascunho a edição de um trecho da prévia: <c>cabecalho:protocolo|requerente|assunto|data</c>,
+    /// <c>grupo:&lt;título atual&gt;</c>, <c>exigencia:&lt;id&gt;[:texto|:fundamento]</c>, <see cref="ChaveArea"/> e <see cref="ChaveIntervencao"/>
+    /// (os nomes do tipo de obra separados por vírgula ou " e ", como aparecem no texto). false = chave desconhecida (nada muda).</summary>
+    public static bool AplicarEdicao(RascunhoDespacho r, string chave, string texto)
+    {
+        ArgumentNullException.ThrowIfNull(r);
+        ArgumentNullException.ThrowIfNull(chave);
+        texto ??= "";
+        var partes = chave.Split(':', 3);
+        switch (partes[0])
+        {
+            case "cabecalho" when partes.Length == 2 && partes[1] is "protocolo" or "requerente" or "assunto" or "data":
+                r.DefinirCabecalho(partes[1], texto);
+                return true;
+            case "grupo" when partes.Length >= 2:
+                r.RenomearGrupo(chave["grupo:".Length..], texto);
+                return true;
+            case "exigencia" when partes.Length >= 2 && r.Pendencias.Any(p => p.ItemId == partes[1]):
+                var campo = partes.Length == 3 ? partes[2] : "texto";
+                if (campo == "fundamento") r.DefinirFundamento(partes[1], texto);
+                else if (campo == "texto") r.DefinirTexto(partes[1], texto);
+                else return false;
+                return true;
+            case "aprovacao" when chave == ChaveArea:
+                r.DefinirArea(texto);
+                return true;
+            case "aprovacao" when chave == ChaveIntervencao:
+                var nomes = texto.Replace(" e ", ",", StringComparison.Ordinal).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                for (var i = 0; i < NomesIntervencao.Length; i++)
+                    r.DefinirIntervencao((Intervencao)i, nomes.Any(n => string.Equals(n, NomesIntervencao[i], StringComparison.OrdinalIgnoreCase)));
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>A prévia: os parágrafos na ordem do DOCX (textos do modelo, valores, grupos, exigências numeradas, textos fixos, data e
+    /// assinatura), em trechos como no DOCX, com o índice do parágrafo do modelo cuja formatação vale. O que falta aparece como
+    /// "[preencher: …]" com <see cref="ParagrafoPrevia.Faltando"/>. Os trechos variáveis levam a chave para editar na folha.</summary>
     public static IReadOnlyList<ParagrafoPrevia> Previa(InfoModelo m, RascunhoDespacho r, TextosFixos tx)
     {
         ArgumentNullException.ThrowIfNull(m);
@@ -366,96 +438,128 @@ public static class ConteudoDespacho
         var antesDoProtocolo = true;
         var depoisDaAssinatura = false;
         var corpoPosto = false;
+        var primeiraVaga = m.Paragrafos.ToList().FindIndex(p => p.Papel == PapelParagrafo.Vaga);
 
-        void Rotulo(string rotulo, string valor, string falta, string chave)
+        void Rotulo(int i, string rotulo, string valor, string falta, string chave)
         {
             var semValor = valor.Length == 0;
-            lista.Add(new ParagrafoPrevia(rotulo + " " + (semValor ? Preencher(falta) : valor), EstiloPrevia.Rotulo, semValor ? falta : null, chave, valor));
+            var mostrado = semValor ? Preencher(falta) : valor;
+            lista.Add(new ParagrafoPrevia(rotulo + " " + mostrado, EstiloPrevia.Rotulo, semValor ? falta : null, chave, valor,
+                [new TrechoPrevia(rotulo + " "), new TrechoPrevia(mostrado, true, chave, semValor ? falta : null, valor)], i));
         }
 
-        foreach (var p in m.Paragrafos)
+        for (var i = 0; i < m.Paragrafos.Count; i++)
         {
+            var p = m.Paragrafos[i];
             switch (p.Papel)
             {
                 case PapelParagrafo.Protocolo:
                     antesDoProtocolo = false;
-                    Rotulo(PreenchimentoDocx.RotuloProtocolo, r.Protocolo, FaltaProtocolo, "cabecalho:protocolo");
+                    Rotulo(i, PreenchimentoDocx.RotuloProtocolo, r.Protocolo, FaltaProtocolo, "cabecalho:protocolo");
                     break;
-                case PapelParagrafo.Requerente: Rotulo(PreenchimentoDocx.RotuloRequerente, r.Requerente, FaltaRequerente, "cabecalho:requerente"); break;
-                case PapelParagrafo.Assunto: Rotulo(PreenchimentoDocx.RotuloAssunto, r.Assunto, FaltaAssunto, "cabecalho:assunto"); break;
-                case PapelParagrafo.Destinatario: lista.Add(new ParagrafoPrevia(p.Texto, EstiloPrevia.Destinatario, null)); break;
-                case PapelParagrafo.Grupo: Exigencias(lista, r, tx); break;
+                case PapelParagrafo.Requerente: Rotulo(i, PreenchimentoDocx.RotuloRequerente, r.Requerente, FaltaRequerente, "cabecalho:requerente"); break;
+                case PapelParagrafo.Assunto: Rotulo(i, PreenchimentoDocx.RotuloAssunto, r.Assunto, FaltaAssunto, "cabecalho:assunto"); break;
+                case PapelParagrafo.Destinatario: lista.Add(new ParagrafoPrevia(p.Texto, EstiloPrevia.Destinatario, null, Modelo: i)); break;
+                case PapelParagrafo.Grupo: Exigencias(lista, r, tx, i, primeiraVaga); break;
                 case PapelParagrafo.Vaga:
                     // As vagas recebem as exigências e o fechamento (correção, já postos no lugar do grupo) ou o corpo da aprovação (na 1ª vaga).
-                    if (r.Tipo == TipoDespacho.Aprovacao && !corpoPosto) CorpoAprovacao(lista, r, tx);
+                    if (r.Tipo == TipoDespacho.Aprovacao && !corpoPosto) CorpoAprovacao(lista, r, tx, i);
                     corpoPosto = true;
                     break;
                 case PapelParagrafo.Data:
-                    lista.Add(new ParagrafoPrevia(p.Texto.Replace(PreenchimentoDocx.MarcaData, Etapas.DataPorExtenso(r.Data), StringComparison.Ordinal),
-                        EstiloPrevia.Data, null));
+                    var corte = p.Texto.IndexOf(PreenchimentoDocx.MarcaData, StringComparison.Ordinal);
+                    var antes = corte < 0 ? p.Texto : p.Texto[..corte];
+                    var depois = corte < 0 ? "" : p.Texto[(corte + PreenchimentoDocx.MarcaData.Length)..];
+                    var data = r.DataPorExtenso;
+                    var semData = data.Length == 0;
+                    var mostrada = semData ? Preencher(FaltaData) : data;
+                    lista.Add(new ParagrafoPrevia(antes + mostrada + depois, EstiloPrevia.Data, semData ? FaltaData : null, "cabecalho:data", data,
+                        [new TrechoPrevia(antes), new TrechoPrevia(mostrada, false, "cabecalho:data", semData ? FaltaData : null, data), new TrechoPrevia(depois)], i));
                     break;
                 case PapelParagrafo.LinhaAssinatura:
                     depoisDaAssinatura = true;
-                    lista.Add(new ParagrafoPrevia(p.Texto, EstiloPrevia.Assinatura, null));
+                    lista.Add(new ParagrafoPrevia(p.Texto, EstiloPrevia.Assinatura, null, Modelo: i));
                     break;
                 default:
                     var estilo = p.Texto.Trim().Length == 0 ? EstiloPrevia.Vazio
                         : depoisDaAssinatura ? EstiloPrevia.Assinatura
                         : antesDoProtocolo ? EstiloPrevia.Titulo : EstiloPrevia.Corpo;
-                    lista.Add(new ParagrafoPrevia(p.Texto, estilo, null));
+                    lista.Add(new ParagrafoPrevia(p.Texto, estilo, null, Modelo: i));
                     break;
             }
         }
         return lista;
     }
 
-    static void Exigencias(List<ParagrafoPrevia> lista, RascunhoDespacho r, TextosFixos tx)
+    static void Exigencias(List<ParagrafoPrevia> lista, RascunhoDespacho r, TextosFixos tx, int iGrupo, int iVaga)
     {
         var marcadas = r.Pendencias.Where(p => p.Incluida).ToList();
-        if (marcadas.Count == 0) lista.Add(new ParagrafoPrevia(Preencher(FaltaExigencia), EstiloPrevia.Corpo, FaltaExigencia));
+        if (marcadas.Count == 0) lista.Add(new ParagrafoPrevia(Preencher(FaltaExigencia), EstiloPrevia.Corpo, FaltaExigencia, Modelo: iVaga));
+        var n = 0;
         foreach (var grupo in marcadas.Select(p => p.Grupo).Distinct(StringComparer.Ordinal))
         {
             var doGrupo = marcadas.Where(p => p.Grupo == grupo).ToList();
+            var chaveGrupo = "grupo:" + grupo;
             if (grupo.Length == 0)
             {
                 var falta = doGrupo[0].Rotulo + ": grupo";
-                lista.Add(new ParagrafoPrevia(Preencher(falta), EstiloPrevia.Grupo, falta));
+                lista.Add(new ParagrafoPrevia(Preencher(falta), EstiloPrevia.Grupo, falta, chaveGrupo, "",
+                    [new TrechoPrevia(Preencher(falta), true, chaveGrupo, falta, "")], iGrupo));
             }
-            else lista.Add(new ParagrafoPrevia(grupo, EstiloPrevia.Grupo, null));
+            else lista.Add(new ParagrafoPrevia(grupo, EstiloPrevia.Grupo, null, chaveGrupo, grupo, [new TrechoPrevia(grupo, true, chaveGrupo, null, grupo)], iGrupo));
             foreach (var p in doGrupo)
             {
+                var numero = Numero(++n);
+                var chave = "exigencia:" + p.ItemId;
                 if (p.Texto.Length == 0)
                 {
                     var falta = p.Rotulo + ": texto da exigência";
-                    lista.Add(new ParagrafoPrevia(Preencher(falta), EstiloPrevia.Corpo, falta, "exigencia:" + p.ItemId, ""));
+                    lista.Add(new ParagrafoPrevia(numero + Preencher(falta), EstiloPrevia.Corpo, falta, chave, "",
+                        [new TrechoPrevia(numero, true), new TrechoPrevia(Preencher(falta), false, chave + ":texto", falta, "")], iVaga));
                     continue;
                 }
                 var e = Exigencia(p.Texto, p.Fundamento);
-                lista.Add(new ParagrafoPrevia(e.Texto + e.Fundamento, EstiloPrevia.Corpo, null, "exigencia:" + p.ItemId, p.Texto));
+                var trechos = new List<TrechoPrevia> { new(numero, true), new(e.Texto, false, chave + ":texto", null, p.Texto) };
+                if (e.Fundamento.Length > 0) trechos.Add(new TrechoPrevia(e.Fundamento, false, chave + ":fundamento", null, p.Fundamento));
+                lista.Add(new ParagrafoPrevia(numero + e.Texto + e.Fundamento, EstiloPrevia.Corpo, null, chave, p.Texto, trechos, iVaga));
             }
         }
-        if (tx.Paragrafos.FirstOrDefault(p => p.Id == "fechamento") is { } f) lista.Add(new ParagrafoPrevia(f.Texto, EstiloPrevia.Corpo, null));
+        if (tx.Paragrafos.FirstOrDefault(p => p.Id == "fechamento") is { } f) lista.Add(new ParagrafoPrevia(f.Texto, EstiloPrevia.Corpo, null, Modelo: iVaga));
     }
 
-    static void CorpoAprovacao(List<ParagrafoPrevia> lista, RascunhoDespacho r, TextosFixos tx)
+    static void CorpoAprovacao(List<ParagrafoPrevia> lista, RascunhoDespacho r, TextosFixos tx, int iVaga)
     {
         var intervencao = Intervencoes(r.Intervencoes);
         var areaOk = AreaValida(r.AreaTotal);
         foreach (var p in tx.Paragrafos)
         {
             string? falta = null;
-            var texto = p.Texto;
-            if (texto.Contains(TextosFixos.LacunaIntervencao, StringComparison.Ordinal) && intervencao.Length == 0)
+            var trechos = new List<TrechoPrevia>();
+            var resto = p.Texto;
+            // Divide o texto fixo nas lacunas; cada lacuna vira um trecho editável (o tipo de obra e a área).
+            while (resto.Length > 0)
             {
-                falta = FaltaIntervencao;
-                texto = texto.Replace(TextosFixos.LacunaIntervencao, Preencher(falta), StringComparison.Ordinal);
+                var iI = resto.IndexOf(TextosFixos.LacunaIntervencao, StringComparison.Ordinal);
+                var iA = resto.IndexOf(TextosFixos.LacunaArea, StringComparison.Ordinal);
+                var proxima = iI < 0 ? iA : iA < 0 ? iI : Math.Min(iI, iA);
+                if (proxima < 0) { trechos.Add(new TrechoPrevia(resto)); break; }
+                if (proxima > 0) trechos.Add(new TrechoPrevia(resto[..proxima]));
+                if (proxima == iI)
+                {
+                    var f = intervencao.Length == 0 ? FaltaIntervencao : null;
+                    falta = f ?? falta;
+                    trechos.Add(new TrechoPrevia(f is null ? intervencao : Preencher(f), false, ChaveIntervencao, f, intervencao));
+                    resto = resto[(proxima + TextosFixos.LacunaIntervencao.Length)..];
+                }
+                else
+                {
+                    var f = areaOk ? null : FaltaArea;
+                    falta = f ?? falta;
+                    trechos.Add(new TrechoPrevia(f is null ? r.AreaTotal : Preencher(f), false, ChaveArea, f, r.AreaTotal));
+                    resto = resto[(proxima + TextosFixos.LacunaArea.Length)..];
+                }
             }
-            if (texto.Contains(TextosFixos.LacunaArea, StringComparison.Ordinal) && !areaOk)
-            {
-                falta = FaltaArea;
-                texto = texto.Replace(TextosFixos.LacunaArea, Preencher(falta), StringComparison.Ordinal);
-            }
-            lista.Add(new ParagrafoPrevia(Resolver(texto, intervencao, r.AreaTotal), EstiloPrevia.Corpo, falta));
+            lista.Add(new ParagrafoPrevia(string.Concat(trechos.Select(t => t.Texto)), EstiloPrevia.Corpo, falta, Trechos: trechos, Modelo: iVaga));
         }
     }
 }

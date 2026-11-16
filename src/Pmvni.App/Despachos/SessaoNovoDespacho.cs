@@ -47,11 +47,15 @@ internal sealed class SessaoNovoDespacho
     public ModeloDespacho? Modelo { get; private set; }
     public InfoModelo? Info { get; private set; }
     public TextosFixos? Textos { get; private set; }
+    /// <summary>A página do modelo (cabeçalho, tarja, rodapé, margens e fontes), lida do DOCX do kit: a prévia é desenhada nela.</summary>
+    public LayoutDespacho? Layout { get; private set; }
 
     public IReadOnlyList<Processo> Processos { get; set; } = [];
     public Processo? Processo { get; private set; }
     /// <summary>Os <c>.pmvrel</c> da pasta do processo (os relatórios base possíveis).</summary>
     public IReadOnlyList<RelatorioEncontrado> Relatorios { get; private set; } = [];
+    /// <summary>Os relatórios escolhidos à mão ("Escolher arquivo…") para este processo: entram na lista depois dos da pasta.</summary>
+    public List<string> RelatoriosEscolhidos { get; } = [];
     public string? CaminhoPacote { get; private set; }
     public PacoteAberto? Pacote { get; private set; }
     /// <summary>A etapa nova (primeira) e as existentes, da de maior número para a de menor.</summary>
@@ -76,20 +80,22 @@ internal sealed class SessaoNovoDespacho
 
     /// <summary>O modelo, a estrutura dele e os textos fixos do tipo, lidos no lugar (síncrono, para <c>Task.Run</c>). Tipo indisponível:
     /// <see cref="InvalidOperationException"/> com o motivo do registro.</summary>
-    public static (ModeloDespacho Modelo, InfoModelo Info, TextosFixos Textos) LerModelo(ModelosDisponiveis m, TipoDespacho t, string raizKit)
+    public static (ModeloDespacho Modelo, InfoModelo Info, TextosFixos Textos, LayoutDespacho Layout) LerModelo(ModelosDisponiveis m, TipoDespacho t, string raizKit)
     {
         if (FluxoNovoDespacho.MotivoDesabilitado(t, m, false) is { } motivo) throw new InvalidOperationException(motivo);
         var modelo = m.Modelos.Single(x => x.Tipo == t);
-        var info = PreenchimentoDocx.LerModelo(File.ReadAllBytes(modelo.Caminho), t);
-        return (modelo, info, TextosFixos.Ler(raizKit, t));
+        var bytes = File.ReadAllBytes(modelo.Caminho);
+        var info = PreenchimentoDocx.LerModelo(bytes, t);
+        return (modelo, info, TextosFixos.Ler(raizKit, t), LayoutDespacho.Ler(bytes));
     }
 
-    public void DefinirModelo((ModeloDespacho Modelo, InfoModelo Info, TextosFixos Textos) m)
+    public void DefinirModelo((ModeloDespacho Modelo, InfoModelo Info, TextosFixos Textos, LayoutDespacho Layout) m)
     {
         Tipo = m.Modelo.Tipo;
         Modelo = m.Modelo;
         Info = m.Info;
         Textos = m.Textos;
+        Layout = m.Layout;
         Rascunho = null;
         AvisosConfirmados.Clear();
         Passo = PassoNovoDespacho.Origem;
@@ -107,6 +113,7 @@ internal sealed class SessaoNovoDespacho
 
     public void DefinirProcesso(Processo p, IReadOnlyList<RelatorioEncontrado> relatorios, IReadOnlyList<EtapaDespacho> etapas, EtapaDespacho etapa)
     {
+        if (Processo != p) RelatoriosEscolhidos.Clear();
         Processo = p;
         Relatorios = relatorios;
         Etapas = etapas;
