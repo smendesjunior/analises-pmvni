@@ -3,17 +3,26 @@ using System.Text.RegularExpressions;
 
 namespace Pmvni.Agentes;
 
-/// <summary>De onde ler as peças. Tudo é injetável (os testes montam pastas inteiras em <c>tests/saida</c>).</summary>
-public sealed record OpcoesLocalizacao(string LocalAppData, string CodexHome, IReadOnlyList<string> Path, string PastaKit, string? CodexEscolhido, string? PythonEscolhido)
+/// <summary>De onde ler as peças. Tudo é injetável (os testes montam pastas inteiras em <c>tests/saida</c>). <paramref name="PastaClaude"/> (a pasta
+/// <c>.claude</c> do Claude Code: plugins e credenciais) e <paramref name="PerfilClaude"/> (o <c>.claude.json</c>) só servem para mostrar a conta e o plugin
+/// analise do Claude em Ajustes; null = não ler (o roteiro e os testes nunca leem a conta de verdade).</summary>
+public sealed record OpcoesLocalizacao(string LocalAppData, string CodexHome, IReadOnlyList<string> Path, string PastaKit, string? CodexEscolhido, string? PythonEscolhido,
+    string? PastaClaude = null, string? PerfilClaude = null)
 {
-    /// <summary>O ambiente real: <c>%LOCALAPPDATA%</c>, <c>CODEX_HOME</c> (ou <c>%USERPROFILE%\.codex</c>) e o <c>PATH</c>.</summary>
+    /// <summary>O ambiente real: <c>%LOCALAPPDATA%</c>, <c>CODEX_HOME</c> (ou <c>%USERPROFILE%\.codex</c>), o <c>PATH</c> e o Claude Code
+    /// (<c>CLAUDE_CONFIG_DIR</c>, ou <c>%USERPROFILE%\.claude</c> e <c>%USERPROFILE%\.claude.json</c>).</summary>
     public static OpcoesLocalizacao DoAmbiente(string pastaKit, string? codex, string? python)
     {
         var home = Environment.GetEnvironmentVariable("CODEX_HOME");
         if (string.IsNullOrWhiteSpace(home))
             home = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
         var path = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(System.IO.Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return new OpcoesLocalizacao(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), home, path, pastaKit, codex, python);
+        var perfil = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var configClaude = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
+        var (pastaClaude, perfilClaude) = string.IsNullOrWhiteSpace(configClaude)
+            ? (System.IO.Path.Combine(perfil, ".claude"), System.IO.Path.Combine(perfil, ".claude.json"))
+            : (configClaude, System.IO.Path.Combine(configClaude, ".claude.json"));
+        return new OpcoesLocalizacao(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), home, path, pastaKit, codex, python, pastaClaude, perfilClaude);
     }
 }
 
@@ -123,7 +132,7 @@ public static class Localizacao
     }
 
     /// <summary>A maior versão (por <see cref="Version"/>, não por texto) entre as subpastas de nome numérico.</summary>
-    static (string? Versao, string? Pasta) MaiorVersao(string pasta)
+    internal static (string? Versao, string? Pasta) MaiorVersao(string pasta)
     {
         try
         {

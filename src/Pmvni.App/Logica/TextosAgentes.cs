@@ -8,10 +8,6 @@ public static class TextosAgentes
 {
     public const string Secao = "Inteligência artificial";
 
-    public const string Introducao =
-        "O editor não faz a análise: ele inicia o ChatGPT (Codex) ou o Claude instalados neste computador, com a configuração, os plugins do kit PMVNI, "
-        + "os programas (QGIS…) e as pastas de rede deles, e importa o relatório no fim.";
-
     public const string UsarConta = "Usar minha conta (login do programa)";
     public const string UsarChave = "Usar chave de API";
     public const string ChaveGuardada = "Chave guardada, protegida pelo Windows para este usuário.";
@@ -54,4 +50,61 @@ public static class TextosAgentes
         achado is not null ? $"{rotulo}: {achado} ({(string.IsNullOrWhiteSpace(escolhido) ? "padrão" : "escolhido")})"
         : string.IsNullOrWhiteSpace(escolhido) ? $"{rotulo}: não encontrado"
         : $"{rotulo}: o programa escolhido não existe mais ({escolhido})";
+
+    // ---------- cartões no padrão do WinStatusBar (correções 2026-11-15) ----------
+
+    /// <summary>O nome no alto do cartão (o programa que o editor inicia).</summary>
+    public static string NomeDoServico(Provedor p) => p == Provedor.ChatGpt ? "Codex (ChatGPT)" : "Claude Code";
+
+    /// <summary>O link da conta embaixo do e-mail.</summary>
+    public static string RotuloConta(Provedor p) => p == Provedor.ChatGpt ? "Conta OpenAI" : "Conta Anthropic";
+
+    public static string EnderecoConta(Provedor p) => p == Provedor.ChatGpt ? "https://chatgpt.com/#settings/Account" : "https://claude.ai/settings/account";
+
+    public const string NaoConectado = "Não conectado";
+    public const string EmailNaoInformado = "e-mail não informado pelo programa";
+    public const string SemSessao = "Nenhuma sessão encontrada neste computador. Clique em Entrar para fazer login no programa.";
+    public const string LoginAberto = "Janela do login aberta. Conclua lá; o cartão se atualiza quando você voltar ao editor.";
+    public const string Configurada = "Configurada";
+    public const string NaoConfigurada = "Não configurada";
+    public const string Encontrado = "Encontrado";
+    public const string NaoEncontrado = "Não encontrado";
+
+    /// <summary>"Entrar" sem sessão; "Sair" com sessão.</summary>
+    public static string AcaoDaConta(ContaLocal c) => c.Conectado ? "Sair" : "Entrar";
+
+    /// <summary>O plano lido do computador; "—" sem sessão.</summary>
+    public static string Assinatura(ContaLocal c) => !c.Conectado ? "—" : c.Assinatura ?? "Não informada";
+
+    /// <summary>O nome grande do bloco da conta (o nome, senão o e-mail, senão "Conectado").</summary>
+    public static string NomeDaConta(ContaLocal c) => !c.Conectado ? NaoConectado : c.Nome ?? c.Email ?? "Conectado";
+
+    /// <summary>A linha do e-mail (vazia quando o e-mail já é o nome ou sem sessão).</summary>
+    public static string EmailDaConta(ContaLocal c) => !c.Conectado ? "" : c.Nome is null ? (c.Email is null ? EmailNaoInformado : "") : c.Email ?? EmailNaoInformado;
+
+    public static string PerguntaSair(Provedor p) => $"Sair do {NomeDoServico(p)}?";
+
+    public const string ExplicacaoSair = "O comando oficial do programa encerra o login neste computador. Outros apps que usam a mesma sessão podem pedir login de novo. "
+        + "A chave de API guardada no editor não muda.";
+
+    /// <summary>Título da linha de um plugin do kit.</summary>
+    public static string TituloPlugin(string plugin) => plugin == PluginsInstalados.AnalisePro ? "Plugin análise pro" : "Plugin analise";
+
+    /// <summary>"No Codex · instalado ou atualizado em 15/11/2026 às 13:50" (ou "· não instalado").</summary>
+    public static string DescricaoPlugin(string onde, PluginInstalado? p) =>
+        p is null ? onde + " · não instalado"
+        : p.Em is { } em ? $"{onde} · instalado ou atualizado em {em.ToLocalTime():dd/MM/yyyy} às {em.ToLocalTime():HH:mm}"
+        : onde + " · data de instalação desconhecida";
+
+    /// <summary>Onde cada plugin mora, na descrição da linha.</summary>
+    public static string OndePlugin(Provedor p, string plugin, bool habilitadoNoCodex) =>
+        p == Provedor.ChatGpt ? (habilitadoNoCodex ? "No Codex, habilitado" : "No Codex, não habilitado")
+        : plugin == PluginsInstalados.AnalisePro ? "No Codex (é o que o Claude usa nas análises)"
+        : "No Claude Code";
+
+    /// <summary>O valor à direita: "Versão 2.5.0" ou "Não instalado".</summary>
+    public static string SeloPlugin(PluginInstalado? p) => p is null ? "Não instalado" : "Versão " + p.Versao;
+
+    /// <summary>O aviso discreto quando a versão mudou desde a última vez que a página foi vista.</summary>
+    public static string AtualizadoDesde(string anterior) => $"Atualizado desde a última vez (antes: {anterior})";
 }

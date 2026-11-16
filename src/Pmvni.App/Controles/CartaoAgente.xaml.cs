@@ -14,6 +14,15 @@ public sealed partial class CartaoAgente : UserControl
     {
         var nome = Provedores.Nome(p);
         Titulo.Text = TextosAgentes.Titulo(p);
+        TextoServico.Text = TextosAgentes.NomeDoServico(p);
+        LogoOpenAi.Visibility = p == Provedor.ChatGpt ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        LogoClaude.Visibility = p == Provedor.Claude ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        LinkConta.Content = TextosAgentes.RotuloConta(p);
+        LinkConta.NavigateUri = new Uri(TextosAgentes.EnderecoConta(p));
+        TituloPrograma.Text = p == Provedor.ChatGpt ? "Programa" : "Programas";
+        TituloPluginAnalise.Text = TextosAgentes.TituloPlugin(PluginsInstalados.Analise);
+        TituloPluginPro.Text = TextosAgentes.TituloPlugin(PluginsInstalados.AnalisePro);
+        LinhaPluginPro.Visibility = p == Provedor.Claude ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         OpcaoConta.GroupName = OpcaoChave.GroupName = "acesso-" + Provedores.Sufixo(p);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(this, nome);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BotaoEscolherPrograma, "Escolher o programa do " + nome);
@@ -23,5 +32,6 @@ public sealed partial class CartaoAgente : UserControl
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BotaoGuardarChave, "Guardar a chave de API do " + nome);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BotaoRemoverChave, "Remover a chave de API do " + nome);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BotaoReverAviso, "Rever o aviso do " + nome);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(LinkConta, TextosAgentes.RotuloConta(p) + " (abre no navegador)");
     }
 }

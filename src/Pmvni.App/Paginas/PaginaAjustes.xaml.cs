@@ -67,7 +67,11 @@ public sealed partial class PaginaAjustes : UserControl
         CategoriaAtual = tag;
         foreach (var (t, pagina) in categorias) pagina.Visibility = t == tag ? Visibility.Visible : Visibility.Collapsed;
         Rolagem.ChangeView(null, 0, null, disableAnimation: true);
+        CategoriaMostrada?.Invoke(tag);
     }
+
+    /// <summary>Uma categoria passou a ser vista (a de Inteligência artificial consulta os agentes sozinha).</summary>
+    internal event Action<string>? CategoriaMostrada;
 
     /// <summary>Linha de cartão: controle à direita ou embaixo, conforme a largura (<see cref="LinhaAjuste"/>).</summary>
     void AoMudarTamanhoDaLinha(object sender, SizeChangedEventArgs e)
