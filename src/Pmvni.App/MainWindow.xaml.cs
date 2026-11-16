@@ -145,6 +145,13 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // ciclo de layout e o editor fechava ao trocar de monitor.
         Raiz.SizeChanged += (_, e) => { var l = e.NewSize.Width; DispatcherQueue.TryEnqueue(() => { if (!fechada) AplicarLargura(l); }); };
         CabecalhoEsquerdo.SizeChanged += (_, _) => DispatcherQueue.TryEnqueue(() => { if (!fechada) AjustarPesquisa(Raiz.ActualWidth); }); // processo aberto/fechado muda o espaço da pesquisa
+        // O resultado da pesquisa só ocupa lugar quando tem texto: vazio, deixava o espaço entre a caixa e Anterior/Próximo maior que o
+        // do outro lado (2026-11-16).
+        TextoPesquisa.RegisterPropertyChangedCallback(TextBlock.TextProperty, (_, _) =>
+        {
+            TextoPesquisa.Visibility = string.IsNullOrEmpty(TextoPesquisa.Text) ? Visibility.Collapsed : Visibility.Visible;
+            DispatcherQueue.TryEnqueue(() => { if (!fechada) AjustarPesquisa(Raiz.ActualWidth); });
+        });
         R.ListaNavegacao.ItemsSource = itensNavegacao;
         R.ListaNavegacao.ItemClick += AoClicarItem;
         R.BotaoMenos.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.ExibirMenos);
