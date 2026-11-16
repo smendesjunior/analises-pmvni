@@ -29,7 +29,7 @@ public sealed class MensagensLegislacaoTestes
         Assert.Equal(MensagensLegislacao.TiposWebLeitor.Order(StringComparer.Ordinal), webLeitor.Order(StringComparer.Ordinal));
         Assert.Equal(MensagensLegislacao.TiposHostParaWeb.Order(StringComparer.Ordinal), host.Union(hostLeitor).Order(StringComparer.Ordinal));
         Assert.Equal(MensagensLegislacao.TiposWebParaHost.Order(StringComparer.Ordinal), web.Union(webLeitor).Order(StringComparer.Ordinal));
-        Assert.Equal(["cancelar", "extrair"], host.Order(StringComparer.Ordinal));
+        Assert.Equal(["cancelar", "extrair", "figuras"], host.Order(StringComparer.Ordinal));
         Assert.Equal(["abrir", "fechar", "irMarcador", "irPagina", "obterSelecao", "procurar", "zoom"], hostLeitor.Order(StringComparer.Ordinal));
         Assert.Equal(["aberto", "atalho", "cspViolacao", "erro", "fechado", "paginaAtual", "paginaMudou", "procurado", "pronto", "selecao",
             "selecaoMudou", "zoomAplicado", "zoomMudou"], webLeitor.Order(StringComparer.Ordinal));

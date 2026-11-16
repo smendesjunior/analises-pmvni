@@ -94,6 +94,70 @@ public sealed class ExtratorPdfJsTestes : IAsyncLifetime
         Assert.Contains("parcelamento do solo", federal.TextoPorPagina[0]);
     }
 
+    // ---- Figuras da leitura padronizada (correções 2026-11-15) ----
+
+    [Fact]
+    public async Task figuras_imagem_imagem_embutida_desenho_e_pagina_inteira_aparecem_no_ponto_certo()
+    {
+        var caminho = Gravar("COM-FIGURAS - FICTICIA.pdf", PdfLegislacaoFicticio.GerarComFiguras());
+        var texto = await extrator.ExtrairAsync(caminho, null, CancellationToken.None);
+        var figuras = await extrator.ExtrairFigurasAsync(caminho, CancellationToken.None);
+
+        Assert.All(figuras, f => Assert.True(f.Dados.Length > 0 && FiguraPdf.AssinaturaConfere(f.Tipo, f.Dados), f.Origem));
+        // Página 1: a imagem (objeto) entre a 2ª e a 3ª linha.
+        var p1 = Assert.Single(figuras, f => f.Pagina == 1);
+        Assert.Equal(OrigemFigura.Imagem, p1.Origem);
+        Assert.Equal(2, p1.Linha);
+        Assert.InRange(p1.Largura, 199, 206);
+        Assert.InRange(p1.Y, (842 - 734.0) / 842 - 0.01, (842 - 730.0) / 842 + 0.01);
+        // Página 2: o desenho (de cima) e a imagem embutida, os dois antes da última linha.
+        var p2 = figuras.Where(f => f.Pagina == 2).ToList();
+        Assert.Equal([OrigemFigura.Desenho, OrigemFigura.Imagem], p2.Select(f => f.Origem));
+        Assert.All(p2, f => Assert.Equal(1, f.Linha));
+        Assert.InRange(p2[1].X, 396 / 595.0, 404 / 595.0);
+        // Página 3: degradê sem caixa conhecida ⇒ a página inteira.
+        var p3 = Assert.Single(figuras, f => f.Pagina == 3);
+        Assert.Equal(OrigemFigura.Pagina, p3.Origem);
+        Assert.Equal((0, 0, 1, 1), (p3.X, p3.Y, p3.W, p3.H));
+
+        // Na leitura padronizada, cada figura entra no ponto certo do texto.
+        var blocos = LeituraPadronizada.Estruturar(texto.TextoPorPagina, figuras);
+        Assert.Equal(
+            ["Epigrafe", "Artigo:Art. 1º", "Figura:Figura da página 1", "Artigo:Art. 2º", "Artigo:Art. 3º", "Figura:Figura da página 2",
+             "Figura:Figura da página 2", "Artigo:Art. 4º", "Artigo:Art. 5º", "Figura:Conteúdo gráfico da página 3"],
+            blocos.Select(b => b.Tipo is TipoBlocoLei.Artigo or TipoBlocoLei.Figura ? $"{b.Tipo}:{b.Rotulo}" : b.Tipo.ToString()));
+        Assert.Empty(extrator.RequisicoesBloqueadas);
+        Assert.Equal(0, extrator.ViolacoesCsp);
+    }
+
+    [Fact]
+    public async Task pdf_sem_figuras_nao_traz_figuras_e_lei_digitalizada_traz_o_desenho()
+    {
+        Assert.Empty(await extrator.ExtrairFigurasAsync(Fixture(Lei), CancellationToken.None));
+        var digitalizada = await extrator.ExtrairFigurasAsync(Fixture("OUTRAS/DIGITALIZADA - FICTICIA.pdf"), CancellationToken.None);
+        Assert.Equal(OrigemFigura.Desenho, Assert.Single(digitalizada).Origem);
+    }
+
+    [Fact]
+    public async Task figuras_de_pdf_com_senha_sao_recusadas()
+    {
+        var e = await Assert.ThrowsAsync<ExtracaoRecusadaException>(() => extrator.ExtrairFigurasAsync(Fixture("OUTRAS/SENHA - FICTICIA.pdf"), CancellationToken.None));
+        Assert.Equal(FalhaExtracao.Senha, e.Falha);
+    }
+
+    [Fact]
+    public void figura_com_assinatura_ou_origem_errada_e_descartada()
+    {
+        static JsonElement J(string json) => JsonDocument.Parse(json).RootElement.Clone();
+        var png = Convert.ToBase64String([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1]);
+        Assert.NotNull(ExtratorPdfJs.LerFigura(1, J($$"""{"linha":0,"x":0,"y":0,"w":1,"h":1,"largura":10,"origem":"imagem","tipo":"image/png","dados":"{{png}}"}""")));
+        Assert.Null(ExtratorPdfJs.LerFigura(1, J($$"""{"linha":0,"x":0,"y":0,"w":1,"h":1,"largura":10,"origem":"imagem","tipo":"image/jpeg","dados":"{{png}}"}""")));
+        Assert.Null(ExtratorPdfJs.LerFigura(1, J($$"""{"linha":0,"x":0,"y":0,"w":1,"h":1,"largura":10,"origem":"outra","tipo":"image/png","dados":"{{png}}"}""")));
+        Assert.Null(ExtratorPdfJs.LerFigura(1, J("""{"linha":0,"x":0,"y":0,"w":1,"h":1,"largura":10,"origem":"imagem","tipo":"image/png","dados":"%%%"}""")));
+        var falhou = ExtratorPdfJs.LerFigura(2, J("""{"linha":3,"x":0,"y":0,"w":1,"h":1,"largura":10,"origem":"falhou","tipo":"","dados":""}"""))!;
+        Assert.Empty(falhou.Dados);
+    }
+
     [Fact]
     public async Task pdf_sem_texto_vem_com_paginas_vazias()
     {

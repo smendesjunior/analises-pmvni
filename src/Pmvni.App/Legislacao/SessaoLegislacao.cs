@@ -223,6 +223,38 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
         }
     }
 
+    /// <summary>As figuras da lei para a leitura padronizada (correções 2026-11-15): as guardadas no acervo ou, na primeira vez, as que o
+    /// extrator lê do PDF (e que ficam guardadas). Null se não foi possível lê-las (sem cópia, extrator indisponível, PDF recusado): a
+    /// leitura segue sem elas e avisa. Na thread da interface (o extrator real é criado nela).</summary>
+    public async Task<IReadOnlyList<FiguraPdf>?> FigurasAsync(string id, CancellationToken ct)
+    {
+        var guardadas = await Task.Run(() => Acervo.Figuras(id), ct);
+        if (guardadas is not null) return guardadas;
+        var caminho = await Task.Run(() => Acervo.CaminhoPdf(id), ct);
+        if (caminho is null) return null;
+        IExtratorPdf real;
+        try { real = await ObterExtratorAsync(); }
+        catch (Exception e) when (e is not (OperationCanceledException or ObjectDisposedException))
+        {
+            RegistroErros.Gravar("legislacao.extrator", e);
+            return null;
+        }
+        if (real is not IExtratorFiguras leitor) return null;
+        IReadOnlyList<FiguraPdf> figuras;
+        try { figuras = await leitor.ExtrairFigurasAsync(caminho, ct); }
+        catch (ExtracaoRecusadaException e)
+        {
+            RegistroErros.Gravar("legislacao.figuras", e);
+            return null;
+        }
+        try { await Task.Run(() => Acervo.GravarFiguras(id, figuras), CancellationToken.None); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException)
+        {
+            RegistroErros.Gravar("legislacao.figuras", e); // mostra agora; na próxima vez lê de novo
+        }
+        return figuras;
+    }
+
     async Task AvisarMudancaAsync()
     {
         Task<IndiceLegislacao>? atual;

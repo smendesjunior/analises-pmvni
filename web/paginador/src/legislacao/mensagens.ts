@@ -15,8 +15,10 @@
 
 export const VERSAO = 1 as const;
 
-export const TIPOS_HOST = ['extrair', 'cancelar'] as const;
-export const TIPOS_WEB = ['pronto', 'progresso', 'textoPagina', 'cspViolacao', 'extraido', 'erro'] as const;
+// Figuras da leitura padronizada (correcoes 2026-11-15): host -> web figuras {url}; web -> host figurasPagina {pagina, figuras}
+// (evento, com `extracao`) e a resposta figurasExtraidas {paginas} ou erro.
+export const TIPOS_HOST = ['extrair', 'cancelar', 'figuras'] as const;
+export const TIPOS_WEB = ['pronto', 'progresso', 'textoPagina', 'cspViolacao', 'extraido', 'erro', 'figurasPagina', 'figurasExtraidas'] as const;
 
 export const TIPOS_HOST_LEITOR = ['abrir', 'fechar', 'irPagina', 'irMarcador', 'zoom', 'procurar', 'obterSelecao'] as const;
 export const TIPOS_WEB_LEITOR = [

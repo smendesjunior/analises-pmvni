@@ -8,8 +8,8 @@ namespace Pmvni.Composicao.Web.Legislacao;
 /// leitor (Tarefa 18).</summary>
 public static class MensagensLegislacao
 {
-    /// <summary>Host → web do extrator: <c>extrair {url}</c> e <c>cancelar {}</c>.</summary>
-    public static readonly FrozenSet<string> TiposHostExtrator = new[] { "extrair", "cancelar" }.ToFrozenSet(StringComparer.Ordinal);
+    /// <summary>Host → web do extrator: <c>extrair {url}</c>, <c>cancelar {}</c> e <c>figuras {url}</c> (correções 2026-11-15).</summary>
+    public static readonly FrozenSet<string> TiposHostExtrator = new[] { "extrair", "cancelar", "figuras" }.ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>Host → web do leitor (Tarefa 18): <c>abrir {url, pagina, termo}</c>, <c>fechar</c>, <c>irPagina {pagina}</c>,
     /// <c>irMarcador {caminho}</c>, <c>zoom {acao}</c>, <c>procurar {termo, passo}</c> e <c>obterSelecao</c>.</summary>
@@ -20,9 +20,10 @@ public static class MensagensLegislacao
     public static readonly FrozenSet<string> TiposHostParaWeb = TiposHostExtrator.Union(TiposHostLeitor).ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>Web → host do extrator: <c>pronto</c>; respostas de <c>extrair</c> (<c>extraido</c> ou <c>erro</c>); eventos <c>progresso</c>,
-    /// <c>textoPagina</c> (id <c>evento-N</c>, com <c>extracao</c> = id do <c>extrair</c>) e <c>cspViolacao</c>.</summary>
+    /// <c>textoPagina</c> (id <c>evento-N</c>, com <c>extracao</c> = id do <c>extrair</c>) e <c>cspViolacao</c>; das figuras, o evento
+    /// <c>figurasPagina</c> e a resposta <c>figurasExtraidas</c>.</summary>
     public static readonly FrozenSet<string> TiposWebExtrator =
-        new[] { "pronto", "progresso", "textoPagina", "cspViolacao", "extraido", "erro" }.ToFrozenSet(StringComparer.Ordinal);
+        new[] { "pronto", "progresso", "textoPagina", "cspViolacao", "extraido", "erro", "figurasPagina", "figurasExtraidas" }.ToFrozenSet(StringComparer.Ordinal);
 
     /// <summary>Web → host do leitor: <c>pronto</c>; respostas <c>aberto</c>, <c>erro</c>, <c>fechado</c>, <c>paginaAtual</c>,
     /// <c>zoomAplicado</c>, <c>procurado</c>, <c>selecao</c>; eventos <c>paginaMudou</c>, <c>selecaoMudou</c>, <c>zoomMudou</c>,
