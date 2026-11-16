@@ -270,8 +270,18 @@ public sealed partial class PaginaNovoDespacho
     {
         if (t.Chave is not { } chave) return;
         var valor = t.Valor ?? "";
-        var painel = new StackPanel { Spacing = 8, Width = 640 };
-        var fly = new Flyout { Content = painel, Placement = FlyoutPlacementMode.Bottom };
+        // O cartão do Flyout tem largura máxima própria (456) e rolagem interna: conteúdo e cartão recebem medidas que combinam e cabem
+        // na janela (antes, um conteúdo de 640 saía cortado à direita, com a rolagem horizontal aparecendo embaixo).
+        var janela = XamlRoot?.Size ?? default;
+        var m = CaixaEdicaoPrevia.Medir(janela.Width, janela.Height);
+        var painel = new StackPanel { Spacing = 8, Width = m.LarguraConteudo };
+        var cartao = new Style(typeof(FlyoutPresenter));
+        if (Application.Current.Resources.TryGetValue("DefaultFlyoutPresenterStyle", out var padrao) && padrao is Style estiloPadrao) cartao.BasedOn = estiloPadrao;
+        cartao.Setters.Add(new Setter(FrameworkElement.MaxWidthProperty, m.LarguraCartao));
+        cartao.Setters.Add(new Setter(ScrollViewer.HorizontalScrollModeProperty, ScrollMode.Disabled));
+        cartao.Setters.Add(new Setter(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Disabled));
+        // Dentro da janela: o cartão não vira janela própria, e o WinUI o encosta na borda quando o clique é perto dela.
+        var fly = new Flyout { Content = painel, Placement = FlyoutPlacementMode.Bottom, FlyoutPresenterStyle = cartao, ShouldConstrainToRootBounds = true };
         if (chave == ConteudoDespacho.ChaveIntervencao)
         {
             painel.Children.Add(new TextBlock { Text = NomeDoCampo(chave), Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
@@ -287,8 +297,14 @@ public sealed partial class PaginaNovoDespacho
         }
         else
         {
-            var caixa = new TextBox { Header = NomeDoCampo(chave), Text = valor, TextWrapping = TextWrapping.Wrap, AcceptsReturn = false, MinHeight = 160, MaxHeight = 400 };
+            // Altura conforme o texto: uma linha para um trecho curto, crescendo com as quebras até o máximo (daí em diante, rolagem vertical).
+            var caixa = new TextBox
+            {
+                Header = NomeDoCampo(chave), Text = valor, TextWrapping = TextWrapping.Wrap, AcceptsReturn = false,
+                MinHeight = m.AlturaMinima, MaxHeight = m.AlturaMaxima, HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
             ScrollViewer.SetVerticalScrollBarVisibility(caixa, ScrollBarVisibility.Auto);
+            ScrollViewer.SetHorizontalScrollBarVisibility(caixa, ScrollBarVisibility.Disabled);
             AutomationProperties.SetName(caixa, NomeDoCampo(chave));
             painel.Children.Add(caixa);
             painel.Children.Add(new TextBlock { Text = "Enter grava; Esc desiste.", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
