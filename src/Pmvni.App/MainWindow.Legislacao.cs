@@ -52,6 +52,7 @@ public sealed partial class MainWindow
     void IniciarLegislacao()
     {
         IniciarLeituraPadronizada();
+        IniciarListaDeLeis();
         P.AbasPainel.SelectionChanged += (_, _) => MostrarVistaDoPainel();
         P.FiltroLeis.TextChanged += (_, _) => MontarListaDeLeis();
         P.ListaLeis.ItemClick += async (_, e) =>
@@ -228,49 +229,6 @@ public sealed partial class MainWindow
             else reabrirAoEntrar = (aberta.Id, paginaLei);
         }
         else leiAberta = atual; // título e esfera novos (a citação usa o título da linha)
-    }
-
-    void MontarListaDeLeis()
-    {
-        if (fechada) return;
-        var grupos = ListaLegislacao.Agrupar(linhasLegislacao, P.FiltroLeis.Text);
-        LeisMostradas = grupos;
-        var lista = P.ListaLeis;
-        lista.Items.Clear();
-        FrameworkElement? aberta = null;
-        foreach (var (grupo, linhas) in grupos)
-        {
-            lista.Items.Add(new TextBlock
-            {
-                Text = grupo, Margin = new Thickness(6, 10, 0, 2), IsHitTestVisible = false,
-                Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"],
-            });
-            foreach (var l in linhas)
-            {
-                var item = new StackPanel { Tag = l.Id, Padding = new Thickness(4, 4, 4, 6), Spacing = 1 };
-                item.Children.Add(new TextBlock { Text = l.Titulo, TextWrapping = TextWrapping.Wrap });
-                item.Children.Add(new TextBlock
-                {
-                    Text = $"{l.Arquivo} · {l.Paginas}", TextWrapping = TextWrapping.Wrap,
-                    Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"],
-                });
-                if (l.Selo is { } selo)
-                    item.Children.Add(new TextBlock
-                    {
-                        Text = selo, Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
-                        Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBrush"],
-                    });
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, l.Titulo);
-                lista.Items.Add(item);
-                if (l.Id == leiAberta?.Id) aberta = item;
-            }
-        }
-        lista.SelectedItem = aberta;
-        var vazia = linhasLegislacao.Count == 0;
-        P.VazioLeis.Visibility = vazia ? Visibility.Visible : Visibility.Collapsed;
-        P.ListaLeis.Visibility = vazia ? Visibility.Collapsed : Visibility.Visible;
-        P.FiltroLeis.IsEnabled = !vazia;
-        P.BotaoAnexar.IsEnabled = !legislacao.Acervo.SomenteLeitura && cancelarAnexo is null;
     }
 
     /// <summary>O filtro da aba Leis (título e nome do arquivo, sem caixa nem acento).</summary>

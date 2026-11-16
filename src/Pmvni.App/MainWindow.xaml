@@ -144,6 +144,7 @@
         <local:PaginaLegislacao x:Name="PaginaDeLegislacao" Visibility="Collapsed"/>
         <local:PaginaAjustes x:Name="PaginaDeAjustes" Visibility="Collapsed"/>
         <local:PaginaSites x:Name="PaginaDeSites" Visibility="Collapsed"/>
+        <local:PaginaImoveis x:Name="PaginaDeImoveis" Visibility="Collapsed"/>
       </Grid>
     </Grid>
   </Grid>

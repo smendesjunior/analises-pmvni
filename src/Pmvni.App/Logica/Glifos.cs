@@ -22,6 +22,8 @@ public static class Glifos
     public const string Editar = "\uE70F";
     public const string Engrenagem = "\uE713";
     public const string Globo = "\uE774";
+    public const string Mapa = "\uE707";
+    public const string Imprimir = "\uE749";
     public const string Voltar = "\uE72B";
     public const string Avancar = "\uE72A";
     public const string Excluir = "\uE74D";

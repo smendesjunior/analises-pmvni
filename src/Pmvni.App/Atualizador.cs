@@ -39,7 +39,9 @@ internal static class Atualizador
     static string? ExeAtual => Environment.ProcessPath is { } p && p.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? p : null;
 
     /// <summary>Executável publicado e carimbado, fora do autoteste.</summary>
+    /// A cópia de desenvolvimento (Aplicativo\ do projeto) não se atualiza: só a cópia de uso, instalada pelo tools\instalar.cmd.
     public static bool Habilitado { get; } = Compilacao is not null && ExeAtual is not null && !Autoteste.Ativo
+        && !Pmvni.Composicao.Web.PastaDados.CopiaDeDesenvolvimento
         && Environment.GetEnvironmentVariable("PMVNI_SEM_ATUALIZACAO") is not "1";
 
     public static EstadoAtualizacao? UltimoEstado { get; private set; }
@@ -83,7 +85,7 @@ internal static class Atualizador
 
     static async Task<EstadoAtualizacao> ExecutarAsync()
     {
-        if (!Habilitado) return Avisar(new(EtapaAtualizacao.Desligada, "Compilação de desenvolvimento: a atualização automática fica desligada."));
+        if (!Habilitado) return Avisar(new(EtapaAtualizacao.Desligada, Pmvni.Composicao.Web.PastaDados.CopiaDeDesenvolvimento ? "Cópia de desenvolvimento (Aplicativo\\ do projeto): não se atualiza. A cópia de uso, instalada pelo tools\\instalar.cmd, se atualiza pelo GitHub." : "Compilação de desenvolvimento: a atualização automática fica desligada."));
         if (compilacaoInstalada is { } ja)
             return Avisar(new(EtapaAtualizacao.Pronta, $"A versão nova (compilação {ja}) já foi instalada. Ela vale ao abrir o editor de novo.", UltimoEstado?.Notas));
         var parcial = Baixado + ".part";

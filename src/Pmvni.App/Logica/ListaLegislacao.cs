@@ -3,6 +3,9 @@ using Pmvni.Legislacao;
 
 namespace Pmvni.App;
 
+/// <summary>O tipo da norma (botões da lista e selo do cartão).</summary>
+public enum TipoNorma { Lei, Decreto, LeiComplementar, NormaTecnica, Outro }
+
 /// <summary>Uma linha da lista de leis anexadas (Ajustes › Legislação e o módulo Legislação): um anexo, com os textos já prontos.</summary>
 public sealed record LinhaAnexo(string Id, string Titulo, Esfera Esfera, string Arquivo, string Tamanho, string Paginas, string AnexadoEm, string? Selo)
 {
@@ -51,6 +54,85 @@ public static class ListaLegislacao
         return Esferas.Ordem
             .Select(e => (Grupo: Esferas.Rotulo(e), Linhas: (IReadOnlyList<LinhaAnexo>)lista.Where(x => x.Esfera == e).ToList()))
             .Where(g => g.Linhas.Count > 0).ToList();
+    }
+
+    // ---- Lista nova da Legislação (2026-11-16): esferas em cartões, tipo da norma, favoritas ----
+
+    /// <summary>O tipo da norma, tirado do título: "Lei Complementar"/"LC" → LC; "Norma Técnica"/"NT" → NT; "Decreto" → Decreto;
+    /// "Lei" → Lei; o resto (portaria, resolução, instrução…) fica em <see cref="TipoNorma.Outro"/> e conta só em "Todas".</summary>
+    public static TipoNorma TipoDoTitulo(string? titulo)
+    {
+        var t = TextoPesquisa.Normalizar(titulo ?? "");
+        if (t.Length == 0) return TipoNorma.Outro;
+        if (t.Contains("lei complementar", StringComparison.Ordinal) || Comeca(t, "lc")) return TipoNorma.LeiComplementar;
+        if (t.Contains("norma tecnica", StringComparison.Ordinal) || Comeca(t, "nt") || Comeca(t, "nbr")) return TipoNorma.NormaTecnica;
+        if (Comeca(t, "decreto")) return TipoNorma.Decreto;
+        if (Comeca(t, "lei")) return TipoNorma.Lei;
+        if (t.Contains("decreto", StringComparison.Ordinal)) return TipoNorma.Decreto;
+        if (System.Text.RegularExpressions.Regex.IsMatch(t, @"\blei\b")) return TipoNorma.Lei;
+        return TipoNorma.Outro;
+    }
+
+    /// <summary>Começa com a palavra inteira (seguida de espaço, número ou pontuação): "lc 70" sim, "lcd" não.</summary>
+    static bool Comeca(string t, string palavra) =>
+        t.StartsWith(palavra, StringComparison.Ordinal) && (t.Length == palavra.Length || !char.IsLetter(t[palavra.Length]));
+
+    public static string RotuloTipo(TipoNorma t) => t switch
+    {
+        TipoNorma.Lei => "Lei",
+        TipoNorma.Decreto => "Decreto",
+        TipoNorma.LeiComplementar => "LC",
+        TipoNorma.NormaTecnica => "NT",
+        _ => "Outra",
+    };
+
+    /// <summary>O rótulo plural do botão de tipo: "Leis", "Decretos", "LC", "NT".</summary>
+    public static string RotuloBotaoTipo(TipoNorma t) => t switch
+    {
+        TipoNorma.Lei => "Leis",
+        TipoNorma.Decreto => "Decretos",
+        _ => RotuloTipo(t),
+    };
+
+    /// <summary>Os tipos com botão, na ordem da tela (depois de "Todas").</summary>
+    public static IReadOnlyList<TipoNorma> TiposComBotao { get; } = [TipoNorma.Lei, TipoNorma.Decreto, TipoNorma.LeiComplementar, TipoNorma.NormaTecnica];
+
+    /// <summary>As esferas com cartão (Outras só conta em "Todas").</summary>
+    public static IReadOnlyList<Esfera> EsferasComCartao { get; } = [Esfera.Federal, Esfera.Estadual, Esfera.Municipal];
+
+    static bool PassaTexto(LinhaAnexo x, string termo) => termo.Length == 0
+        || TextoPesquisa.Normalizar(x.Titulo).Contains(termo, StringComparison.Ordinal)
+        || TextoPesquisa.Normalizar(x.Arquivo).Contains(termo, StringComparison.Ordinal);
+
+    /// <summary>A lista à vista: filtro de texto, esfera (null = todas) e tipo (null = todas), com as favoritas no topo e, dentro de cada
+    /// parte, a ordem das esferas e depois a ordem recebida.</summary>
+    public static IReadOnlyList<LinhaAnexo> Filtrar(IEnumerable<LinhaAnexo> l, string? filtro, Esfera? esfera, TipoNorma? tipo, IReadOnlySet<string> favoritas)
+    {
+        var termo = TextoPesquisa.Normalizar(filtro ?? "");
+        return l.Select((x, i) => (x, i))
+            .Where(p => PassaTexto(p.x, termo) && (esfera is null || p.x.Esfera == esfera) && (tipo is null || TipoDoTitulo(p.x.Titulo) == tipo))
+            .OrderBy(p => favoritas.Contains(p.x.Id) ? 0 : 1)
+            .ThenBy(p => Esferas.Ordem.ToList().IndexOf(p.x.Esfera))
+            .ThenBy(p => p.i)
+            .Select(p => p.x).ToList();
+    }
+
+    /// <summary>Quantas leis em cada esfera com cartão (só o filtro de texto vale).</summary>
+    public static IReadOnlyDictionary<Esfera, int> ContarEsferas(IEnumerable<LinhaAnexo> l, string? filtro)
+    {
+        var termo = TextoPesquisa.Normalizar(filtro ?? "");
+        var lista = l.Where(x => PassaTexto(x, termo)).ToList();
+        return EsferasComCartao.ToDictionary(e => e, e => lista.Count(x => x.Esfera == e));
+    }
+
+    /// <summary>Quantas leis em cada tipo (filtro de texto e esfera valem); a chave null é "Todas".</summary>
+    public static IReadOnlyList<(TipoNorma? Tipo, int Quantidade)> ContarTipos(IEnumerable<LinhaAnexo> l, string? filtro, Esfera? esfera)
+    {
+        var termo = TextoPesquisa.Normalizar(filtro ?? "");
+        var lista = l.Where(x => PassaTexto(x, termo) && (esfera is null || x.Esfera == esfera)).ToList();
+        var r = new List<(TipoNorma?, int)> { (null, lista.Count) };
+        r.AddRange(TiposComBotao.Select(t => ((TipoNorma?)t, lista.Count(x => TipoDoTitulo(x.Titulo) == t))));
+        return r;
     }
 
     /// <summary>Abaixo de 1 MB, "&lt;n&gt; KB" arredondado para cima; senão "12,3 MB" (MB = 1.048.576 bytes, uma casa).</summary>

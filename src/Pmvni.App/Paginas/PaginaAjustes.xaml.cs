@@ -23,6 +23,7 @@ public sealed partial class PaginaAjustes : UserControl
             [CategoriasAjustes.Aparencia] = (CategoriaAparencia, AjudaAparencia),
             [CategoriasAjustes.Relatorios] = (CategoriaRelatorios, AjudaRelatorios),
             [CategoriasAjustes.Pastas] = (CategoriaPastas, AjudaPastas),
+            [CategoriasAjustes.FontesDados] = (CategoriaFontesDados, AjudaFontesDados),
             [CategoriasAjustes.Despachos] = (CategoriaDespachos, AjudaDespachos),
             [CategoriasAjustes.Legislacao] = (CategoriaLegislacao, AjudaLegislacao),
             [CategoriasAjustes.Ia] = (CategoriaIa, AjudaIa),

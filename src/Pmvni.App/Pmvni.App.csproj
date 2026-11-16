@@ -28,6 +28,7 @@
     <ProjectReference Include="..\Pmvni.Revisao\Pmvni.Revisao.csproj" />
     <ProjectReference Include="..\Pmvni.Agentes\Pmvni.Agentes.csproj" />
     <ProjectReference Include="..\Pmvni.Legislacao\Pmvni.Legislacao.csproj" />
+    <ProjectReference Include="..\Pmvni.Imoveis\Pmvni.Imoveis.csproj" />
   </ItemGroup>
   <!-- Carimbo da atualização automática (Atualizador.cs): o tools\build-release.ps1 passa -p:CompilacaoAtualizacao=aaaaMMddHHmmss.
        Sem ele (build de desenvolvimento), a atualização fica desligada. -->

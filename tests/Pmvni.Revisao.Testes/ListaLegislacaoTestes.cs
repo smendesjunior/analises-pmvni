@@ -103,4 +103,42 @@ public class ListaLegislacaoTestes
         var esperado = string.Join("\n", new[] { primeiraLinha }.Concat(lista));
         Assert.Equal(esperado, ListaLegislacao.Resumo(anexados, lista));
     }
+
+    [Theory]
+    [InlineData("Lei nº 6.766/1979", TipoNorma.Lei)]
+    [InlineData("LEI 9.999-2099 - FICTICIA", TipoNorma.Lei)]
+    [InlineData("Decreto nº 5.296/2004", TipoNorma.Decreto)]
+    [InlineData("Lei Complementar nº 70/1990", TipoNorma.LeiComplementar)]
+    [InlineData("LC 70-1990 Código de Obras", TipoNorma.LeiComplementar)]
+    [InlineData("NT 99-2099 - FICTICIA", TipoNorma.NormaTecnica)]
+    [InlineData("Norma Técnica 10 CBMES", TipoNorma.NormaTecnica)]
+    [InlineData("Portaria 12/2020", TipoNorma.Outro)]
+    [InlineData("Lcd qualquer", TipoNorma.Outro)]
+    public void tipo_da_norma_sai_do_titulo(string titulo, TipoNorma esperado) => Assert.Equal(esperado, ListaLegislacao.TipoDoTitulo(titulo));
+
+    [Fact]
+    public void filtro_por_esfera_e_tipo_com_favoritas_no_topo()
+    {
+        var linhas = new[]
+        {
+            A("f1", "Lei nº 1/2000", Esfera.Federal, "a.pdf"),
+            A("f2", "Decreto nº 2/2001", Esfera.Federal, "b.pdf"),
+            A("e1", "NT 01 Estadual", Esfera.Estadual, "c.pdf"),
+            A("m1", "Lei Complementar 70", Esfera.Municipal, "d.pdf"),
+            A("o1", "Portaria 9", Esfera.Outras, "e.pdf"),
+        }.Select(a => ListaLegislacao.Linha(a, EstadoAnexo.Pronto, false, Utc)).ToList();
+        var nenhuma = new HashSet<string>();
+        Assert.Equal(new[] { "f1", "f2", "e1", "m1", "o1" }, ListaLegislacao.Filtrar(linhas, null, null, null, nenhuma).Select(l => l.Id));
+        Assert.Equal(new[] { "f1", "f2" }, ListaLegislacao.Filtrar(linhas, null, Esfera.Federal, null, nenhuma).Select(l => l.Id));
+        Assert.Equal(new[] { "f2" }, ListaLegislacao.Filtrar(linhas, null, Esfera.Federal, TipoNorma.Decreto, nenhuma).Select(l => l.Id));
+        Assert.Equal(new[] { "m1", "f1", "f2", "e1", "o1" }, ListaLegislacao.Filtrar(linhas, null, null, null, new HashSet<string> { "m1" }).Select(l => l.Id));
+        Assert.Equal(new[] { "e1" }, ListaLegislacao.Filtrar(linhas, "estadual", null, null, nenhuma).Select(l => l.Id));
+
+        var esferas = ListaLegislacao.ContarEsferas(linhas, null);
+        Assert.Equal(2, esferas[Esfera.Federal]);
+        Assert.Equal(1, esferas[Esfera.Municipal]);
+        Assert.False(esferas.ContainsKey(Esfera.Outras));
+        var tipos = ListaLegislacao.ContarTipos(linhas, null, Esfera.Federal);
+        Assert.Equal(new (TipoNorma?, int)[] { (null, 2), (TipoNorma.Lei, 1), (TipoNorma.Decreto, 1), (TipoNorma.LeiComplementar, 0), (TipoNorma.NormaTecnica, 0) }, tipos);
+    }
 }

@@ -140,6 +140,12 @@ public static class ComandosApp
     public const string ModuloEssencial = "modulo.essencial";
     public const string ModuloGpi = "modulo.gpi";
     public const string ModuloAlfresco = "modulo.alfresco";
+    public const string ModuloImoveis = "modulo.imoveis";
+    public const string ImoveisConfigurar = "imoveis.configurar";
+    public const string ImoveisRecarregar = "imoveis.recarregar";
+    public const string ImoveisVoltar = "imoveis.voltar";
+    public const string ImoveisSalvarPdf = "imoveis.salvarpdf";
+    public const string ImoveisImprimir = "imoveis.imprimir";
     public const string SiteVoltar = "site.voltar";
     public const string SiteAvancar = "site.avancar";
     public const string SiteAtualizar = "site.atualizar";

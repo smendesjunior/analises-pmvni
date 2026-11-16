@@ -90,7 +90,7 @@ public class FaixasTestes
     public void ajustes_no_trilho_e_comandos_de_pesquisa_tema_recentes_e_comparar()
     {
         // Ajustes é módulo do trilho (embaixo) e tem faixa própria: Arquivo (com Recentes) e Ajuda.
-        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco, Modulo.Ajustes }, Faixas.Disponiveis);
+        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Imoveis, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco, Modulo.Ajustes }, Faixas.Disponiveis);
         Assert.True(Modulos.Embaixo(Modulo.Ajustes));
         Assert.Equal(new[] { ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes },
             Faixas.Para(Modulo.Ajustes).Abas[0].Comandos.Select(c => c.Id));
@@ -130,7 +130,7 @@ public class FaixasTestes
     public void trilho_na_ordem_do_desenho()
     {
         // Relatórios, Despachos, Processos, Legislação (Tarefa 18; desenho §11.4) e, embaixo, Ajustes.
-        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco, Modulo.Ajustes }, Faixas.Disponiveis);
+        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Imoveis, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco, Modulo.Ajustes }, Faixas.Disponiveis);
         Assert.Equal(new[] { Modulo.Ajustes }, Faixas.Disponiveis.Where(Modulos.Embaixo));
     }
 

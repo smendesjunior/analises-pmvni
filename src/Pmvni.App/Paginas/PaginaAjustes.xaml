@@ -242,6 +242,29 @@
             </StackPanel></Border>
           </StackPanel>
 
+          <!-- ===== Fontes de dados (2026-11-16): a pasta QGIS do módulo Imóveis ===== -->
+          <StackPanel x:Name="CategoriaFontesDados" Tag="fontes_dados" Spacing="12" Visibility="Collapsed">
+            <StackPanel Spacing="4"><TextBlock Text="Fontes de dados" Style="{StaticResource PmvniAjusteTituloPagina}"/><TextBlock x:Name="AjudaFontesDados" Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+            <TextBlock Text="Base QGIS" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
+            <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
+              <StackPanel Padding="16,12" Spacing="6">
+                <TextBlock Text="Pasta dos arquivos QGIS" Style="{StaticResource PmvniAjusteTitulo}"/>
+                <TextBlock Style="{StaticResource PmvniAjusteAjuda}" Text="A pasta da base municipal (a que tem o Mapa PDM.qgz, as pastas shapes, 2025_10, SHAPE_LOTEAMENTOS e BASE_CADASTRAL_AUXILIAR). O editor só lê esses arquivos: nunca grava, move nem apaga nada nela."/>
+                <TextBox x:Name="CaixaPastaQgis" x:FieldModifier="internal" IsReadOnly="True" PlaceholderText="Nenhuma pasta escolhida" AutomationProperties.Name="Pasta dos arquivos QGIS"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button x:Name="BotaoEscolherQgis" x:FieldModifier="internal" Content="Selecionar pasta…" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="Selecionar a pasta dos arquivos QGIS"
+                          local:Dicas.Titulo="Selecionar pasta…" local:Dicas.Descricao="Escolhe a pasta da base QGIS municipal que o módulo Imóveis consulta."/>
+                  <Button x:Name="BotaoVerificarQgis" x:FieldModifier="internal" Content="Verificar acesso e arquivos" AutomationProperties.Name="Verificar acesso e arquivos da pasta QGIS"
+                          local:Dicas.Titulo="Verificar acesso e arquivos" local:Dicas.Descricao="Confere se a pasta abre e quais camadas e bases foram encontradas."/>
+                  <Button x:Name="BotaoAbrirQgis" x:FieldModifier="internal" Content="Abrir" AutomationProperties.Name="Abrir a pasta QGIS no Explorador"
+                          local:Dicas.Titulo="Abrir" local:Dicas.Descricao="Abre a pasta QGIS no Explorador de Arquivos."/>
+                </StackPanel>
+                <ProgressBar x:Name="ProgressoQgis" x:FieldModifier="internal" IsIndeterminate="True" Visibility="Collapsed"/>
+                <InfoBar x:Name="ResultadoQgis" x:FieldModifier="internal" IsClosable="True" IsOpen="False"/>
+              </StackPanel>
+            </StackPanel></Border>
+          </StackPanel>
+
           <!-- ===== 5. Despachos e PDF ===== -->
           <StackPanel x:Name="CategoriaDespachos" Tag="despachos" Spacing="12" Visibility="Collapsed">
             <StackPanel Spacing="4"><TextBlock Text="Despachos e PDF" Style="{StaticResource PmvniAjusteTituloPagina}"/><TextBlock x:Name="AjudaDespachos" Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>

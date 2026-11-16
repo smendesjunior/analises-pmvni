@@ -42,7 +42,7 @@
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
 
-      <Grid x:Name="Painel" x:FieldModifier="internal" Width="{StaticResource PmvniLarguraPainel}" Padding="0,2,0,0">
+      <Grid x:Name="Painel" x:FieldModifier="internal" Width="348" Padding="0,2,0,0">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
@@ -54,15 +54,29 @@
         </SelectorBar>
 
         <Grid x:Name="VistaLeis" x:FieldModifier="internal" Grid.Row="1">
+          <!-- Lista nova (2026-11-16): filtro, cartões das esferas (Federal, Estadual, Municipal), botões de tipo e um cartão por lei; a lei
+               aberta mostra, no próprio cartão, os tópicos com os artigos resumidos. Quem monta é a janela (MainWindow.ListaLeis.cs). -->
           <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
-          <TextBox x:Name="FiltroLeis" x:FieldModifier="internal" Margin="8,4,8,6" PlaceholderText="Filtrar por título ou arquivo"
+          <TextBox x:Name="FiltroLeis" x:FieldModifier="internal" Margin="10,6,10,8" PlaceholderText="Filtrar por título, número ou arquivo"
                    AutomationProperties.Name="Filtrar as leis"/>
-          <ListView x:Name="ListaLeis" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" IsItemClickEnabled="True"
-                    Padding="4,0,4,8" AutomationProperties.Name="Leis anexadas"/>
-          <StackPanel x:Name="VazioLeis" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed" Padding="14,8" Spacing="10">
+          <Grid x:Name="CartoesEsferas" x:FieldModifier="internal" Grid.Row="1" Margin="10,0,10,8" ColumnSpacing="6">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+          </Grid>
+          <Grid x:Name="BotoesTipos" x:FieldModifier="internal" Grid.Row="2" Margin="10,0,10,6" ColumnSpacing="4">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="1.15*"/><ColumnDefinition/><ColumnDefinition Width="1.3*"/><ColumnDefinition Width="0.8*"/><ColumnDefinition Width="0.8*"/>
+            </Grid.ColumnDefinitions>
+          </Grid>
+          <ListView x:Name="ListaLeis" x:FieldModifier="internal" Grid.Row="3" SelectionMode="Single" IsItemClickEnabled="True"
+                    Padding="4,2,4,8" AutomationProperties.Name="Leis anexadas" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0"/>
+          <TextBlock x:Name="NenhumaLeiFiltro" x:FieldModifier="internal" Grid.Row="3" Margin="14,12" TextWrapping="Wrap" Visibility="Collapsed"
+                     Style="{StaticResource PmvniSecondaryTextStyle}" Text="Nenhuma lei com este filtro."/>
+          <StackPanel x:Name="VazioLeis" x:FieldModifier="internal" Grid.Row="3" Visibility="Collapsed" Padding="14,8" Spacing="10">
             <ContentPresenter Width="48" Height="48" HorizontalAlignment="Left" ContentTemplate="{StaticResource PmvniIconeLegislacao}" Content="" IsHitTestVisible="False"/>
             <TextBlock TextWrapping="Wrap" Text="Nenhuma lei anexada ainda."/>
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -104,15 +118,9 @@
           </SelectorBarItem>
         </SelectorBar>
         <controls:WebView2 x:Name="Leitor" x:FieldModifier="internal" Grid.Row="1" Opacity="0" AutomationProperties.Name="PDF da lei"/>
-        <Grid x:Name="VistaPadronizada" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed" ColumnSpacing="0">
-          <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-          <Grid Padding="12,8" RowSpacing="6" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
-            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-            <TextBlock Text="Neste documento" Style="{StaticResource PmvniTituloSecao}" FontSize="16"/>
-            <ListView x:Name="SumarioLei" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" IsItemClickEnabled="True"
-                      AutomationProperties.Name="Sumário da lei"/>
-          </Grid>
-          <ScrollViewer x:Name="RolagemPadronizada" x:FieldModifier="internal" Grid.Column="1" VerticalScrollBarVisibility="Auto" Background="White">
+        <!-- 2026-11-16: os tópicos e artigos resumidos saíram da coluna "Neste documento" e ficam no cartão da lei, na lista. -->
+        <Grid x:Name="VistaPadronizada" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed">
+          <ScrollViewer x:Name="RolagemPadronizada" x:FieldModifier="internal" VerticalScrollBarVisibility="Auto" Background="White">
             <StackPanel x:Name="TextoPadronizado" x:FieldModifier="internal" MaxWidth="900" Padding="48,32" Spacing="10" RequestedTheme="Light"/>
           </ScrollViewer>
         </Grid>

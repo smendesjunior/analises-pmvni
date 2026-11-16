@@ -2,7 +2,8 @@ namespace Pmvni.App;
 
 /// <summary>Módulos principais do app, na ordem do trilho (desenho §9). Ajustes fica embaixo.</summary>
 /// Os sistemas da Prefeitura (2026-11-16) vêm depois de Ajustes no enum, para Ctrl+1 … Ctrl+5 e o número de Ajustes não mudarem.
-public enum Modulo { Relatorios, Despachos, Processos, Legislacao, Ajustes, Essencial, Gpi, Alfresco }
+/// Imóveis (consulta à base QGIS, 2026-11-16) também vem no fim do enum, sem atalho.
+public enum Modulo { Relatorios, Despachos, Processos, Legislacao, Ajustes, Essencial, Gpi, Alfresco, Imoveis }
 
 /// <summary>Rótulo, ícone e atalho de cada módulo no trilho. Sem tipos WinUI: compilado também nos testes.</summary>
 public static class Modulos
@@ -17,6 +18,7 @@ public static class Modulos
         Modulo.Essencial => "Essencial",
         Modulo.Gpi => "GPI",
         Modulo.Alfresco => "Alfresco",
+        Modulo.Imoveis => "Imóveis",
         _ => throw new ArgumentOutOfRangeException(nameof(m)),
     };
 
@@ -29,6 +31,7 @@ public static class Modulos
         Modulo.Legislacao => Glifos.Livro,
         Modulo.Ajustes => Glifos.Engrenagem,
         Modulo.Essencial or Modulo.Gpi or Modulo.Alfresco => Glifos.Globo,
+        Modulo.Imoveis => Glifos.Mapa,
         _ => throw new ArgumentOutOfRangeException(nameof(m)),
     };
 
@@ -49,6 +52,7 @@ public static class Modulos
         Modulo.Essencial => ComandosApp.ModuloEssencial,
         Modulo.Gpi => ComandosApp.ModuloGpi,
         Modulo.Alfresco => ComandosApp.ModuloAlfresco,
+        Modulo.Imoveis => ComandosApp.ModuloImoveis,
         _ => throw new ArgumentOutOfRangeException(nameof(m)),
     };
 
@@ -56,7 +60,10 @@ public static class Modulos
     public static Modulo? DoComando(string id) => Enum.GetValues<Modulo>().Select(m => (Modulo?)m).FirstOrDefault(m => Comando(m!.Value) == id);
 
     /// <summary>A dica do item do trilho: "Relatórios (Ctrl+1)".</summary>
-    public static string Dica(Modulo m) => EhSite(m) ? $"{Rotulo(m)}: {Descricao(m)}" : $"{Rotulo(m)} (Ctrl+{Numero(m)})";
+    public static string Dica(Modulo m) => TemAtalho(m) ? $"{Rotulo(m)} (Ctrl+{Numero(m)})" : $"{Rotulo(m)}: {Descricao(m)}";
+
+    /// <summary>Só os cinco primeiros módulos têm Ctrl+1 … Ctrl+5; os sistemas e Imóveis não têm atalho.</summary>
+    public static bool TemAtalho(Modulo m) => (int)m <= (int)Modulo.Ajustes;
 
     /// <summary>Os sistemas da Prefeitura que abrem num navegador dentro do app.</summary>
     public static bool EhSite(Modulo m) => m is Modulo.Essencial or Modulo.Gpi or Modulo.Alfresco;
@@ -75,6 +82,7 @@ public static class Modulos
         Modulo.Essencial => "processos e protocolos (Essencial BPMS)",
         Modulo.Gpi => "gestão pública integrada (GPI)",
         Modulo.Alfresco => "documentos de Obras no Alfresco",
+        Modulo.Imoveis => "consulta de imóveis na base QGIS",
         _ => "",
     };
 

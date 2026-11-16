@@ -189,6 +189,13 @@ public sealed class Ajustes
     /// <summary>A pasta do kit PMVNI escolhida em Ajustes (de onde os modelos de despacho são lidos, no lugar); null = a padrão.</summary>
     public string? PastaKit { get; set; }
 
+    /// <summary>A pasta dos arquivos QGIS (módulo Imóveis, 2026-11-16), escolhida em Ajustes › Fontes de dados. Sem padrão: sem escolha,
+    /// a consulta pede a configuração (nunca procura pastas sozinha).</summary>
+    public string? PastaQgis { get; set; }
+
+    /// <summary>As leis marcadas com a estrela na Legislação (ids dos anexos), na ordem em que foram marcadas.</summary>
+    public List<string> LeisFavoritas { get; } = [];
+
     /// <summary>O kit PMVNI neste computador (<c>%USERPROFILE%\OneDrive\PMVNI\SIDNEY JUNIOR\KIT DE TREINAMENTO DE IA (PMVNI)</c>).</summary>
     public static string PastaKitPadrao { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR", "KIT DE TREINAMENTO DE IA (PMVNI)");
@@ -226,6 +233,10 @@ public sealed class Ajustes
         LerOpcoes(j, a);
         a.PastaProcessos = Texto(j, "pasta_processos");
         a.PastaKit = Texto(j, "pasta_kit");
+        a.PastaQgis = Texto(j, "pasta_qgis");
+        if (j["leis_favoritas"] is JsonArray fav)
+            foreach (var f in fav)
+                if (f is JsonValue fv && fv.TryGetValue<string>(out var id) && id is { Length: > 0 and <= 128 } && !a.LeisFavoritas.Contains(id)) a.LeisFavoritas.Add(id);
         if (j["agentes"] is JsonObject agentes)
             foreach (var p in Enum.GetValues<Provedor>())
                 if (agentes[Provedores.Sufixo(p)] is JsonObject o) LerAgente(o, a.Agentes[p]);
@@ -279,6 +290,8 @@ public sealed class Ajustes
             ["recentes"] = new JsonArray(Recentes.Take(recentesMax).Select(r => (JsonNode)r).ToArray()),
             ["pasta_processos"] = PastaProcessos,
             ["pasta_kit"] = PastaKit,
+            ["pasta_qgis"] = PastaQgis,
+            ["leis_favoritas"] = new JsonArray(LeisFavoritas.Select(f => (JsonNode)f).ToArray()),
             ["agentes"] = new JsonObject(Agentes.Select(par => KeyValuePair.Create(Provedores.Sufixo(par.Key), (JsonNode?)EscreverAgente(par.Value)))),
             ["plugins_vistos"] = new JsonObject(PluginsVistos.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => KeyValuePair.Create(p.Key, (JsonNode?)p.Value))),
             ["execucoes_claude"] = new JsonArray(ExecucoesClaude.Select(e => (JsonNode)new JsonObject { ["processo"] = e.Processo, ["registro"] = e.Registro }).ToArray()),

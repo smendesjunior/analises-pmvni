@@ -1,0 +1,94 @@
+<UserControl x:Class="Pmvni.App.PaginaImoveis"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:controls="using:Microsoft.UI.Xaml.Controls"
+  xmlns:local="using:Pmvni.App">
+  <!-- Módulo Imóveis (2026-11-16): consulta à base QGIS escolhida em Ajustes › Fontes de dados. A pesquisa é uma linha só (Parâmetro ›
+       Condição › valor digitável › lupa); cada resultado tem "Abrir relatório", que mostra o relatório cadastral e territorial (HTML A4)
+       num WebView2 desta página. A pesquisa e os resultados ficam como estavam ao voltar. Quem preenche é a janela (MainWindow.Imoveis.cs). -->
+  <Grid>
+    <!-- ===== Pesquisa ===== -->
+    <Grid x:Name="VistaPesquisa" x:FieldModifier="internal" Padding="24,16,24,12" RowSpacing="12">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <Grid ColumnSpacing="12">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel Spacing="2">
+          <TextBlock Text="Consulta de imóveis" Style="{StaticResource PmvniTituloSecao}" FontSize="22"/>
+          <TextBlock x:Name="TextoPasta" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+        <Button x:Name="BotaoConfigurar" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" Content="Configurar pasta QGIS"
+                local:Dicas.Descricao="Abre Ajustes › Fontes de dados para escolher a pasta dos arquivos QGIS."/>
+      </Grid>
+
+      <!-- Uma linha só: dois ComboBox e um TextBox livre, e a lupa (Enter também pesquisa). -->
+      <Grid Grid.Row="1" ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="2*" MaxWidth="280"/><ColumnDefinition Width="1.3*" MaxWidth="170"/><ColumnDefinition Width="4*"/><ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <ComboBox x:Name="CaixaParametro" x:FieldModifier="internal" HorizontalAlignment="Stretch" PlaceholderText="Parâmetro" AutomationProperties.Name="Parâmetro da pesquisa"/>
+        <ComboBox x:Name="CaixaCondicao" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" AutomationProperties.Name="Condição"/>
+        <TextBox x:Name="CaixaValor" x:FieldModifier="internal" Grid.Column="2" MaxLength="512" PlaceholderText="Digite o valor e tecle Enter" AutomationProperties.Name="Valor da pesquisa"/>
+        <Button x:Name="BotaoPesquisar" x:FieldModifier="internal" Grid.Column="3" Style="{StaticResource AccentButtonStyle}" MinWidth="44"
+                AutomationProperties.Name="Pesquisar" local:Dicas.Titulo="Pesquisar" local:Dicas.Atalho="Enter" local:Dicas.Descricao="Pesquisa no cadastro com o parâmetro, a condição e o valor.">
+          <FontIcon Glyph="&#xE721;" FontSize="16"/>
+        </Button>
+      </Grid>
+
+      <StackPanel Grid.Row="2" Spacing="6">
+        <InfoBar x:Name="Aviso" x:FieldModifier="internal" IsClosable="True" IsOpen="False"/>
+        <ProgressBar x:Name="Progresso" x:FieldModifier="internal" IsIndeterminate="True" Visibility="Collapsed"/>
+        <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"
+                   Text="Escolha um parâmetro e uma condição, digite o valor e tecle Enter."/>
+      </StackPanel>
+
+      <Grid Grid.Row="3" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Grid x:Name="CabecalhoTabela" x:FieldModifier="internal" Padding="12,8" ColumnSpacing="12" Background="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+        <ListView x:Name="ListaResultados" x:FieldModifier="internal" Grid.Row="1" SelectionMode="None" AutomationProperties.Name="Imóveis encontrados">
+          <ListView.ItemContainerStyle>
+            <Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/><Setter Property="MinHeight" Value="0"/></Style>
+          </ListView.ItemContainerStyle>
+        </ListView>
+        <StackPanel x:Name="Vazio" x:FieldModifier="internal" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="460" Padding="16">
+          <ContentPresenter Width="64" Height="64" HorizontalAlignment="Center" ContentTemplate="{StaticResource PmvniIconeImoveis}" Content="" IsHitTestVisible="False"/>
+          <TextBlock x:Name="TextoVazio" x:FieldModifier="internal" TextWrapping="Wrap" TextAlignment="Center"/>
+          <Button x:Name="BotaoConfigurarVazio" x:FieldModifier="internal" HorizontalAlignment="Center" Content="Configurar pasta QGIS" Style="{StaticResource AccentButtonStyle}"/>
+        </StackPanel>
+      </Grid>
+
+      <Grid Grid.Row="4" ColumnSpacing="8">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <TextBlock x:Name="TextoPaginacao" x:FieldModifier="internal" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+        <Button x:Name="BotaoAnterior" x:FieldModifier="internal" Grid.Column="1" Content="Anterior" IsEnabled="False" AutomationProperties.Name="Página anterior dos resultados"/>
+        <Button x:Name="BotaoProxima" x:FieldModifier="internal" Grid.Column="2" Content="Próxima" IsEnabled="False" AutomationProperties.Name="Próxima página dos resultados"/>
+      </Grid>
+    </Grid>
+
+    <!-- ===== Relatório ===== -->
+    <Grid x:Name="VistaRelatorio" x:FieldModifier="internal" Visibility="Collapsed">
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+      <Grid Padding="12,6" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Voltar à pesquisa"
+                local:Dicas.Titulo="Voltar à pesquisa" local:Dicas.Descricao="Volta à pesquisa, com os resultados como estavam.">
+          <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE72B;" FontSize="14"/><TextBlock Text="Pesquisa"/></StackPanel>
+        </Button>
+        <TextBlock x:Name="TituloRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+        <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="2" Content="Imprimir" AutomationProperties.Name="Imprimir o relatório"/>
+        <Button x:Name="BotaoPdf" x:FieldModifier="internal" Grid.Column="3" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="Salvar o relatório em PDF">
+          <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xEA90;" FontSize="14"/><TextBlock Text="Salvar PDF"/></StackPanel>
+        </Button>
+      </Grid>
+      <!-- O WebView2 do relatório é criado por código na primeira abertura, com a vista já visível (criado oculto, ele não desenhava). -->
+      <Grid x:Name="HostLeitor" x:FieldModifier="internal" Grid.Row="1" Background="#E9EDF2"/>
+      <ProgressRing x:Name="ProgressoRelatorio" x:FieldModifier="internal" Grid.Row="1" IsActive="False" Width="40" Height="40"/>
+    </Grid>
+  </Grid>
+</UserControl>

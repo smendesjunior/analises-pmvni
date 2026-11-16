@@ -176,6 +176,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         IniciarAjustes();
         IniciarLegislacaoAjustes();
         IniciarLegislacao();
+        IniciarImoveis();
         IniciarPastas();
         IniciarNovoDespacho();
         IniciarAgentes();
@@ -436,6 +437,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         PaginaDeLegislacao.Visibility = m == Modulo.Legislacao ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeAjustes.Visibility = m == Modulo.Ajustes ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeSites.Visibility = Modulos.EhSite(m) ? Visibility.Visible : Visibility.Collapsed;
+        PaginaDeImoveis.Visibility = m == Modulo.Imoveis ? Visibility.Visible : Visibility.Collapsed;
         if (Modulos.EhSite(m)) Soltar(() => PaginaDeSites.MostrarAsync(m));
         if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes(); AtualizarPaginaDePastas(); AtualizarAgentes(); Soltar(EntrarNaLegislacaoDosAjustesAsync); }
         var f = Faixas.Para(m);
@@ -449,6 +451,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         AtualizarComandos();
         // Na fila (logo depois do comando que trocou de módulo, antes dos seguintes): a lista e o leitor ficam prontos na ordem dos comandos.
         if (m == Modulo.Legislacao) Soltar(() => NaFilaAsync(EntrarNaLegislacaoAsync));
+        if (m == Modulo.Imoveis) Soltar(EntrarEmImoveisAsync);
         if (ajustes.Modulo != m) { ajustes.Modulo = m; SalvarAjustes(); }
     }
 
@@ -560,6 +563,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     void AtualizarComandos()
     {
         if (fechada) return;
+        AtualizarComandosDeImoveis();
         var pronto = documento is not null && !ocupado;
         var temRelatorio = pronto && sessao?.Atual is not null;
         var folhas = temRelatorio && !novoRelatorioAberto;     // a página Novo relatório esconde as folhas: os comandos delas ficam desabilitados

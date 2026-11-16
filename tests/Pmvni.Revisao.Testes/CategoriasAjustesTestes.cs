@@ -9,7 +9,7 @@ public class CategoriasAjustesTestes
     [Fact]
     public void oito_categorias_na_ordem_do_desenho()
     {
-        Assert.Equal(new[] { "Geral", "Aparência", "Relatórios e revisão", "Pastas e kit", "Despachos e PDF", "Legislação", "Inteligência artificial", "Sobre e suporte" },
+        Assert.Equal(new[] { "Geral", "Aparência", "Relatórios e revisão", "Pastas e kit", "Fontes de dados", "Despachos e PDF", "Legislação", "Inteligência artificial", "Sobre e suporte" },
             CategoriasAjustes.Menu.Select(c => c.Titulo));
         Assert.Equal(CategoriasAjustes.Menu.Count, CategoriasAjustes.Menu.Select(c => c.Tag).Distinct().Count());
         Assert.Equal(new[] { CategoriasAjustes.Sobre }, CategoriasAjustes.Menu.Where(c => c.Rodape).Select(c => c.Tag));

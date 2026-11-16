@@ -31,7 +31,7 @@ public static class Faixas
     public static IReadOnlyList<string> OrdemSituacoes { get; } = ["ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA"];
 
     /// <summary>Módulos que já funcionam, na ordem do trilho (Ajustes, se presente, embaixo).</summary>
-    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco, Modulo.Ajustes];
+    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Imoveis, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco, Modulo.Ajustes];
 
     /// <summary>Menu de recentes: <see cref="ComandoFaixa.Itens"/> vazio de propósito; a faixa pede os itens a quem a monta
     /// (<see cref="FaixaDeOpcoes.ItensDinamicos"/>) cada vez que o menu abre, porque eles vêm dos ajustes e dos arquivos que ainda existem.</summary>
@@ -238,6 +238,21 @@ public static class Faixas
     static readonly DefinicaoFaixa SiteGpi = Site(Modulo.Gpi);
     static readonly DefinicaoFaixa SiteAlfresco = Site(Modulo.Alfresco);
 
+    /// <summary>Imóveis (2026-11-16): com um relatório aberto, voltar, PDF e imprimir; sempre, a releitura e a pasta QGIS.</summary>
+    static readonly DefinicaoFaixa Imoveis = new(Modulo.Imoveis,
+    [
+        ArquivoDeModulo,
+        new("Página Inicial",
+        [
+            new(ComandosApp.ImoveisVoltar, "Voltar à pesquisa", Glifos.Voltar),
+            new(ComandosApp.ImoveisSalvarPdf, "Salvar PDF", Glifos.Exportar),
+            new(ComandosApp.ImoveisImprimir, "Imprimir", Glifos.Imprimir),
+            new(ComandosApp.ImoveisRecarregar, "Ler a base de novo", Glifos.Atualizar),
+            new(ComandosApp.ImoveisConfigurar, "Pasta QGIS", Glifos.Pasta),
+        ]),
+        Ajuda,
+    ], AbaPadrao: 1);
+
     static readonly DefinicaoFaixa Ajustes = new(Modulo.Ajustes,
     [
         new("Arquivo",
@@ -260,6 +275,7 @@ public static class Faixas
         Modulo.Essencial => SiteEssencial,
         Modulo.Gpi => SiteGpi,
         Modulo.Alfresco => SiteAlfresco,
+        Modulo.Imoveis => Imoveis,
         _ => throw new ArgumentOutOfRangeException(nameof(m), m, "Módulo ainda sem faixa de opções."),
     };
 

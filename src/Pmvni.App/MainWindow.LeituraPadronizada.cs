@@ -54,7 +54,9 @@ public sealed partial class MainWindow
     const string DicaResumoEditado = "Resumo escrito por você. Clique no lápis para mudar ou voltar ao automático.";
 
     bool leituraPadronizadaLigada;
-    readonly Dictionary<object, FrameworkElement> alvosSumario = [];
+    /// <summary>Os tópicos (Título, Capítulo, Seção) e artigos da lei aberta, com o bloco da folha a que levam: o cartão da lei na lista
+    /// mostra esses itens (2026-11-16, no lugar da coluna "Neste documento").</summary>
+    readonly List<(BlocoLei Bloco, FrameworkElement Alvo)> topicosLei = [];
     readonly Dictionary<string, (TextBlock Folha, TextBlock Sumario, string Automatico)> resumosNaTela = new(StringComparer.Ordinal);
     Dictionary<string, string> resumosEditados = new(StringComparer.Ordinal);
     IReadOnlyList<string>? paginasLeitura;
@@ -63,11 +65,6 @@ public sealed partial class MainWindow
     void IniciarLeituraPadronizada()
     {
         P.ModoLeitura.SelectionChanged += (_, _) => AplicarModoLeitura();
-        P.SumarioLei.ItemClick += (_, e) =>
-        {
-            if (e.ClickedItem is ListViewItem { Tag: FrameworkElement alvo } || (e.ClickedItem is FrameworkElement f && alvosSumario.TryGetValue(f, out alvo!)))
-                alvo.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0, AnimationDesired = true });
-        };
     }
 
     /// <summary>Depois de abrir a lei: estrutura o texto (fora da thread da janela) com as figuras e os resumos guardados e mostra a
@@ -128,8 +125,9 @@ public sealed partial class MainWindow
         P.ModoLeitura.Visibility = Visibility.Collapsed;
         P.VistaPadronizada.Visibility = Visibility.Collapsed;
         P.TextoPadronizado.Children.Clear();
-        P.SumarioLei.Items.Clear();
+        topicosLei.Clear();
         resumosNaTela.Clear();
+        AtualizarTopicosNaLista();
     }
 
     void AplicarModoLeitura()
@@ -143,8 +141,7 @@ public sealed partial class MainWindow
     {
         var t = P.TextoPadronizado;
         t.Children.Clear();
-        P.SumarioLei.Items.Clear();
-        alvosSumario.Clear();
+        topicosLei.Clear();
         resumosNaTela.Clear();
         t.Children.Add(CabecalhoDaFolha());
         // Selos de cima: a esfera, o aviso de que é a leitura do texto do PDF e o andamento das imagens.
@@ -183,36 +180,63 @@ public sealed partial class MainWindow
             };
             t.Children.Add(el);
             if (b.Tipo is TipoBlocoLei.Titulo or TipoBlocoLei.Capitulo or TipoBlocoLei.Secao or TipoBlocoLei.Artigo)
-                P.SumarioLei.Items.Add(ItemDoSumario(b, el));
+                topicosLei.Add((b, el));
         }
         P.RolagemPadronizada.ChangeView(null, 0, null, true);
+        AtualizarTopicosNaLista();
     }
 
-    ListViewItem ItemDoSumario(BlocoLei b, FrameworkElement alvo)
+    /// <summary>Um item dos tópicos no cartão da lei: "Art. 1º" e o resumo (automático em itálico; o escrito pelo usuário, normal), ou
+    /// o título/capítulo/seção em negrito. Clicar leva a folha até o bloco (e mostra a leitura padronizada, se estava no PDF).</summary>
+    Button ItemDoTopico(BlocoLei b, FrameworkElement alvo)
     {
-        var recuo = b.Tipo switch { TipoBlocoLei.Titulo => 0, TipoBlocoLei.Capitulo => 12, TipoBlocoLei.Secao => 24, _ => 28 };
+        var recuo = b.Tipo switch { TipoBlocoLei.Titulo => 0, TipoBlocoLei.Capitulo => 6, TipoBlocoLei.Secao or TipoBlocoLei.Subsecao => 12, _ => 16 };
         FrameworkElement conteudo;
         if (b.Tipo == TipoBlocoLei.Artigo)
         {
-            // "Art. 1º" e, embaixo, o resumo (automático em itálico; o escrito pelo usuário, normal).
-            var rotulo = new TextBlock { Text = b.Rotulo, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
+            var rotulo = new TextBlock { Text = b.Rotulo, FontWeight = FontWeights.SemiBold, FontSize = 12.5, Foreground = CorDoTema("PmvniSeloTipoTexto") };
             var resumo = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis };
             if (Application.Current.Resources.TryGetValue("PmvniSecondaryTextStyle", out var estilo) && estilo is Style s) resumo.Style = s;
             resumo.FontSize = 12;
-            var painel = new StackPanel { Spacing = 1, Children = { rotulo, resumo } };
+            var linha = new Grid { ColumnSpacing = 8 };
+            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(52) });
+            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(resumo, 1);
+            linha.Children.Add(rotulo);
+            linha.Children.Add(resumo);
             if (resumosNaTela.TryGetValue(b.Chave, out var r)) resumosNaTela[b.Chave] = (r.Folha, resumo, r.Automatico);
             AplicarResumo(b.Chave);
-            alvosSumario[painel] = alvo;
-            conteudo = painel;
+            conteudo = linha;
         }
         else
         {
-            var texto = new TextBlock { Text = b.Rotulo + (b.Texto.Length > 0 ? " — " + b.Texto : ""), TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold };
-            alvosSumario[texto] = alvo;
-            conteudo = texto;
+            conteudo = new TextBlock
+            {
+                Text = b.Rotulo + (b.Texto.Length > 0 ? " – " + b.Texto : ""), TextWrapping = TextWrapping.Wrap, MaxLines = 2,
+                TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = FontWeights.SemiBold, FontSize = b.Tipo == TipoBlocoLei.Titulo ? 12.5 : 12,
+                CharacterSpacing = b.Tipo == TipoBlocoLei.Titulo ? 20 : 0,
+            };
         }
-        return new ListViewItem { Tag = alvo, Padding = new Thickness(8 + recuo, 4, 8, 4), MinHeight = 28, Content = conteudo };
+        var botao = new Button
+        {
+            Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(6 + recuo, 3, 6, 3), Margin = new Thickness(0, b.Tipo == TipoBlocoLei.Artigo ? 0 : 4, 0, 0),
+            Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), MinHeight = 26,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, b.Tipo == TipoBlocoLei.Artigo ? b.Rotulo : b.Rotulo + " " + b.Texto);
+        botao.Click += (_, _) =>
+        {
+            if (leituraPadronizadaLigada && !ReferenceEquals(P.ModoLeitura.SelectedItem, P.ModoPadronizado))
+            {
+                P.ModoLeitura.SelectedItem = P.ModoPadronizado;
+                AplicarModoLeitura();
+                P.RolagemPadronizada.UpdateLayout();
+            }
+            alvo.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0, AnimationDesired = true });
+        };
+        return botao;
     }
+
 
     // ---- Peças da folha ----
 

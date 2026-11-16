@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Consulta de imóveis (2026-11-16): leitura somente leitura da base QGIS escolhida em Ajustes (shapefiles e SQLite cadastral),
+       pesquisa, cruzamentos geográficos (NetTopologySuite) e o relatório cadastral/territorial em HTML. Sem UI (net10.0 puro). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier></RuntimeIdentifier>
+    <TargetPlatformMinVersion></TargetPlatformMinVersion>
+    <RootNamespace>Pmvni.Imoveis</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NetTopologySuite" Version="2.6.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+    <InternalsVisibleTo Include="Pmvni.Imoveis.Testes" />
+  </ItemGroup>
+</Project>

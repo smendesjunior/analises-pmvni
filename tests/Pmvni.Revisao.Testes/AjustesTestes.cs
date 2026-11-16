@@ -29,7 +29,11 @@ public class AjustesTestes
         a.MarcasRevisao = false;
         a.Recentes.Add(@"C:\x\a.rpmvni");
         a.PastaProcessos = @"C:\processos";
+        a.PastaQgis = @"C:\base qgis";
+        a.LeisFavoritas.AddRange(["lg_1", "lg_2"]);
         a.Salvar(pasta);
+        Assert.Equal(@"C:\base qgis", Ajustes.Carregar(pasta).PastaQgis);
+        Assert.Equal(new[] { "lg_1", "lg_2" }, Ajustes.Carregar(pasta).LeisFavoritas);
 
         Assert.True(File.Exists(Path.Combine(pasta, "ajustes.json")));
         Assert.Empty(Directory.GetFiles(pasta, "*.tmp"));

@@ -1,10 +1,27 @@
 namespace Pmvni.Composicao.Web;
 
 /// <summary>Pasta de dados do app. Padrão: %LOCALAPPDATA%\EditorRelatoriosPMVNI; a variável
-/// PMVNI_DADOS_DIR troca a raiz (testes e execuções a partir do shell do Claude).</summary>
+/// PMVNI_DADOS_DIR troca a raiz (testes e execuções a partir do shell do Claude). A cópia de desenvolvimento (o .exe em Aplicativo\ do
+/// projeto) usa uma pasta própria, limpa: <c>%LOCALAPPDATA%\EditorRelatoriosPMVNI-Desenvolvimento</c> (2026-11-16).</summary>
 public static class PastaDados
 {
     public const string VariavelAmbiente = "PMVNI_DADOS_DIR";
+    public const string NomePastaDesenvolvimento = "EditorRelatoriosPMVNI-Desenvolvimento";
+
+    /// <summary>O .exe em uso é a cópia de desenvolvimento: está numa pasta cuja pasta-mãe tem a solução do projeto
+    /// (<c>EditorRelatoriosPMVNI.sln</c>). A cópia de uso (instalada em %LOCALAPPDATA%\Programs) nunca é.</summary>
+    public static bool CopiaDeDesenvolvimento { get; } = EhDesenvolvimento(Environment.ProcessPath);
+
+    public static bool EhDesenvolvimento(string? exe)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(exe) || !exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) return false;
+            var mae = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(exe)));
+            return mae is not null && File.Exists(Path.Combine(mae, "EditorRelatoriosPMVNI.sln"));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return false; }
+    }
 
     public static string Raiz
     {
@@ -13,6 +30,7 @@ public static class PastaDados
             var configurada = Environment.GetEnvironmentVariable(VariavelAmbiente);
             if (!string.IsNullOrWhiteSpace(configurada)) return Path.GetFullPath(configurada);
             var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (CopiaDeDesenvolvimento) return Path.Combine(local, NomePastaDesenvolvimento);
             return Path.Combine(local, "EditorRelatoriosPMVNI");
         }
     }
@@ -27,6 +45,7 @@ public static class PastaDados
         {
             var configurada = Environment.GetEnvironmentVariable(VariavelAmbiente);
             if (!string.IsNullOrWhiteSpace(configurada)) return Path.GetFullPath(configurada);
+            if (CopiaDeDesenvolvimento) return Raiz; // a cópia de desenvolvimento não leva nem traz ajustes do usuário
             var pasta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EditorRelatoriosPMVNI");
             Migrar(Raiz, pasta);
             return pasta;
