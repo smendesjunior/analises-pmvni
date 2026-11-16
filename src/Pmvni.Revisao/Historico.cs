@@ -117,6 +117,8 @@ public static class DescricaoHistorico
                 return campo.Nome + " do " + item + (campo.Feminino ? " editada" : " editado");
             case nameof(RestaurarCampo):
                 return campo.Nome + " do " + item + (campo.Feminino ? " restaurada" : " restaurado") + " ao original";
+            case nameof(CriarItem):
+                return p.Item(r.Item ?? "") is null ? "Criado um item novo" : "Criado o " + item + " (item novo)";
             case nameof(Excluir):
                 return "Excluído o " + item;
             case nameof(Restaurar):

@@ -21,6 +21,8 @@ public static class ComandosApp
     public const string InicioSituacaoNaoComprovado = "inicio.situacao.NAO_COMPROVADO";
     public const string InicioSituacaoDivergencia = "inicio.situacao.DIVERGENCIA_INTERNA";
     public const string InicioExcluirRestaurar = "inicio.excluirRestaurar";
+    /// <summary>Novo item (correções 2026-11-16): cria um item de análise logo depois do selecionado (ou no fim).</summary>
+    public const string InicioNovoItem = "inicio.novoItem";
     public const string InicioEditarTexto = "inicio.editarTexto";
     public const string InicioOriginal = "inicio.original";
     public const string InicioRestaurarOriginal = "inicio.restaurarOriginal";

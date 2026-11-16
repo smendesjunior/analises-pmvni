@@ -21,7 +21,8 @@ public sealed record DiferencaItem(
     string? SituacaoRevisada,
     IReadOnlyList<DiferencaCampo> Campos,
     IReadOnlyList<string> CitacoesConvertidas,
-    string? Justificativa = null);
+    string? Justificativa = null,
+    bool Criado = false);
 
 /// <summary>O que mudou numa linha de tabela (<see cref="TabelasRevisao"/>) em relação ao original. <see cref="Campos"/> leva o caminho
 /// do texto em <see cref="DiferencaCampo.Campo"/>; <see cref="SituacaoRevisada"/> null = a situação não foi revista.</summary>
@@ -76,7 +77,7 @@ public static class Comparacao
                 it.Id, p.NumeroAtual(it.Id), it.NumeroOriginal, !it.Incluido,
                 situacaoOriginal, it.Situacao.Revisada, campos,
                 citacoes.Where(c => c.Item == it.Id).Select(c => c.Texto).ToList(),
-                string.IsNullOrWhiteSpace(it.Situacao.Justificativa) ? null : it.Situacao.Justificativa));
+                string.IsNullOrWhiteSpace(it.Situacao.Justificativa) ? null : it.Situacao.Justificativa, it.Criado));
         }
         return lista;
     }
@@ -203,7 +204,8 @@ public static class Comparacao
 
     /// <summary><c>ITEM 03</c>, ou <c>Item excluído (era o 03)</c>.</summary>
     public static string Rotulo(DiferencaItem d) => d.NumeroAtual is { } n
-        ? "ITEM " + n.ToString("D2", CultureInfo.InvariantCulture)
+        ? "ITEM " + n.ToString("D2", CultureInfo.InvariantCulture) + (d.Criado ? " (criado na revisão)" : "")
+        : d.Criado ? "Item criado na revisão e excluído"
         : "Item excluído (era o " + d.NumeroOriginal.ToString("D2", CultureInfo.InvariantCulture) + ")";
 
     /// <summary><c>Situação: Não comprovado → Atende</c>; null quando a situação não foi revista.</summary>

@@ -39,6 +39,7 @@ public static class Glifos
     public const string Marca = "\uE73E";
     public const string Marcadores = "\uE8A4";
     public const string MarcasRevisao = "\uE70B";
+    public const string NovoItem = "\uECC8";
     public const string Ocorrencia = "\uE74A";
     public const string OcorrenciaProxima = "\uE74B";
     public const string Ordenar = "\uE8CB";

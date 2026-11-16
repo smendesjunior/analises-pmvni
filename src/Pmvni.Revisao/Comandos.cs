@@ -28,6 +28,37 @@ public sealed record Restaurar(string Item) : Comando(Item);
 /// <summary>Descarta todas as revisões de texto e de situação do item (a inclusão e a justificativa digitada ficam).</summary>
 public sealed record RestaurarItemOriginal(string Item) : Comando(Item);
 
+/// <summary>Cria um item de análise novo ("Novo item", correções 2026-11-16), logo depois de <see cref="DepoisDe"/> (null = no fim), com
+/// os mesmos campos dos outros (título, situação, verificação técnica, providência, base legal, referência) preenchidos com os textos
+/// de <see cref="ItemNovo"/> para o usuário trocar. <see cref="Item"/> é o id novo (<see cref="IdItem.Novo"/>): quem cria escolhe, para o
+/// registro se reaplicar igual. O item entra na numeração (os seguintes sobem um número) e sai no PDF e no resumo como os outros.</summary>
+public sealed record CriarItem(string Item, string? DepoisDe = null, string Situacao = ItemNovo.SituacaoInicial) : Comando(Item);
+
+/// <summary>Os textos com que um item novo nasce. Enquanto algum estiver lá, a conferência final bloqueia a exportação
+/// (<see cref="ConferenciaRevisao.Erros"/>): um item por preencher não vai para o PDF por engano.</summary>
+public static class ItemNovo
+{
+    /// <summary>FALTA COMPROVAR: o item novo nasce pendente, e o usuário escolhe a situação.</summary>
+    public const string SituacaoInicial = "NAO_COMPROVADO";
+
+    public static IReadOnlyDictionary<string, string> Textos { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["titulo"] = "Novo item",
+        ["verificacao"] = "Descreva aqui a verificação técnica.",
+        ["providencia"] = "Descreva aqui a providência.",
+        ["base_legal"] = "Indique aqui a base legal.",
+        ["referencia"] = "Indique aqui a referência no projeto.",
+    };
+
+    /// <summary>Os campos do item criado que ainda estão com o texto de nascença.</summary>
+    public static IReadOnlyList<string> PorPreencher(ItemRevisao it)
+    {
+        ArgumentNullException.ThrowIfNull(it);
+        if (!it.Criado) return [];
+        return Campos.Editaveis.Where(c => !it.Campos.TryGetValue(c, out var campo) || campo.Revisado is null || campo.Revisado == Textos[c]).ToList();
+    }
+}
+
 /// <summary>Acrescenta uma esquadria (vão) a um ambiente da tabela ILUMINAÇÃO E VENTILAÇÃO (correções 2026-11-16): entra no fim da
 /// lista de vãos do ambiente e passa a ser editada como as outras. <see cref="Item"/> é a linha do ambiente (<c>ambientes/01</c>).</summary>
 public sealed record AcrescentarVao(string Item, string Codigo, string Medidas, string Tipo, string Area) : Comando(Item);
@@ -70,7 +101,10 @@ internal static class Motor
         if (c is Lote lote) return CalcularLote(p, lote);
         if (TabelasRevisao.EhLinha(c.Item)) return MotorLinhas.Calcular(p, c); // linha de tabela (Linhas.cs)
         if (c is ComandoFigura cf) return MotorFiguras.Calcular(p, cf);
+        if (c is CriarItem criar) return CalcularCriacao(p, criar);
         var it = p.Item(c.Item) ?? throw new ComandoRecusadoException("O item não existe no relatório.");
+        if (it.Criado && c is RestaurarCampo or RestaurarItemOriginal)
+            throw new ComandoRecusadoException("Este item foi criado na revisão: não há texto original para restaurar.");
         return c switch
         {
             DefinirSituacao d => CalcularSituacao(it, d),
@@ -90,6 +124,7 @@ internal static class Motor
         if (tipo == nameof(Lote)) { DefinirLote(p, valor); return; }
         if (TabelasRevisao.EhLinha(item)) { MotorLinhas.Definir(p, tipo, item, campo, valor); return; } // linha de tabela (Linhas.cs)
         if (MotorFiguras.EhTipo(tipo)) { MotorFiguras.Definir(p, valor); return; }
+        if (tipo == nameof(CriarItem)) { DefinirCriacao(p, item, valor); return; }
         var it = p.Item(item) ?? throw new InvalidOperationException("O registro cita um item que não existe: " + item);
         switch (tipo)
         {
@@ -118,6 +153,53 @@ internal static class Motor
             default:
                 throw new InvalidOperationException("Tipo de registro desconhecido: " + tipo);
         }
+    }
+
+    // ---------- item novo ----------
+
+    /// <summary>O efeito de criar o item: <c>Antes</c> null, <c>Depois</c> = o item inteiro no formato do projeto.json (com a ordem em
+    /// que entra). Os itens seguintes sobem uma posição ao aplicar e descem ao desfazer (<see cref="DefinirCriacao"/>).</summary>
+    private static Efeito CalcularCriacao(Projeto p, CriarItem c)
+    {
+        if (!IdItem.Valido(c.Item)) throw new ComandoRecusadoException("O id do item novo é inválido.");
+        if (p.Item(c.Item) is not null) throw new ComandoRecusadoException("Já existe um item com este id.");
+        if (!Situacoes.SitItem.Contains(c.Situacao)) throw new ComandoRecusadoException("Situação inválida: " + c.Situacao + ".");
+        int ordem;
+        if (c.DepoisDe is null) ordem = p.Itens.Count == 0 ? 1 : p.Itens.Max(i => i.Ordem) + 1;
+        else ordem = (p.Item(c.DepoisDe) ?? throw new ComandoRecusadoException("O item de referência não existe no relatório.")).Ordem + 1;
+
+        // As mesmas chaves, na mesma ordem, de um item recebido (só as que o editor modela); sem nenhum, a ordem do kit.
+        var chaves = p.Itens.FirstOrDefault(i => !i.Criado)?.Chaves.Where(k => k == "situacao" || Campos.Editaveis.Contains(k)).ToList() ?? new List<string>();
+        foreach (var k in new[] { "titulo", "situacao", "verificacao", "providencia", "base_legal", "referencia" })
+            if (!chaves.Contains(k)) chaves.Add(k);
+        var novo = new ItemRevisao
+        {
+            Id = c.Item,
+            Ordem = ordem,
+            // Depois do último número recebido: nenhuma citação nem nota de figura do original aponta para ele.
+            NumeroOriginal = p.Itens.Count == 0 ? 1 : p.Itens.Max(i => i.NumeroOriginal) + 1,
+            Incluido = true,
+            Criado = true,
+            Chaves = chaves,
+            Situacao = new SituacaoItem { Original = null, Revisada = c.Situacao },
+        };
+        foreach (var nome in Campos.Editaveis) novo.Campos[nome] = new CampoTexto { Ausente = true, Revisado = ItemNovo.Textos[nome] };
+        return new Efeito(nameof(CriarItem), c.Item, null, null, ProjetoJson.EscreverItem(novo));
+    }
+
+    private static void DefinirCriacao(Projeto p, string id, JsonNode? valor)
+    {
+        if (valor is null)
+        {
+            var it = p.Item(id) ?? throw new InvalidOperationException("O registro cita um item que não existe: " + id);
+            p.Itens.Remove(it);
+            foreach (var i in p.Itens.Where(i => i.Ordem > it.Ordem)) i.Ordem--;
+            return;
+        }
+        if (p.Item(id) is not null) throw new InvalidOperationException("O registro cria um item que já existe: " + id);
+        var novo = ProjetoJson.LerItem(valor.AsObject());
+        foreach (var i in p.Itens.Where(i => i.Ordem >= novo.Ordem)) i.Ordem++;
+        p.Itens.Add(novo);
     }
 
     // ---------- lote ----------

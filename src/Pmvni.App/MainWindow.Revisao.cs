@@ -128,6 +128,7 @@ public sealed partial class MainWindow
                 : Task.CompletedTask;
         manipuladores[ComandosApp.InicioExcluirRestaurar] = () =>
             ItemSelecionado is { } it ? AplicarAsync(it.Incluido ? new Excluir(it.Id) : new Restaurar(it.Id)) : Task.CompletedTask;
+        manipuladores[ComandosApp.InicioNovoItem] = NovoItemAsync;
         manipuladores[ComandosApp.InicioEditarTexto] = EditarSelecionadoAsync;
         manipuladores[ComandosApp.InicioOriginal] = () =>
         {
@@ -169,12 +170,13 @@ public sealed partial class MainWindow
         var incluido = it is { Incluido: true } || linha is not null;
         Faixa.Habilitar(ComandosApp.InicioSituacao, editavel && incluido);
         foreach (var c in Faixas.OrdemSituacoes) Faixa.Habilitar(ComandosApp.ComandoDaSituacao(c), editavel && incluido);
+        Faixa.Habilitar(ComandosApp.InicioNovoItem, editavel);
         Faixa.Habilitar(ComandosApp.InicioExcluirRestaurar, editavel && it is not null);
         Faixa.DefinirRotulo(ComandosApp.InicioExcluirRestaurar, it is { Incluido: false } ? "Restaurar item" : "Excluir item");
         Faixa.Habilitar(ComandosApp.InicioEditarTexto, editavel && incluido);
         Faixa.Habilitar(ComandosApp.InicioOriginal, temRelatorio && (it is not null || linha is not null));
         Faixa.Ligar(ComandosApp.InicioOriginal, mostrarOriginal);
-        Faixa.Habilitar(ComandosApp.InicioRestaurarOriginal, editavel && (it is not null && TemRevisao(it)
+        Faixa.Habilitar(ComandosApp.InicioRestaurarOriginal, editavel && (it is { Criado: false } && TemRevisao(it)
             || linha is not null && TabelasRevisao.Revisada(sessao!.Revisao.Projeto, linha)));
         Faixa.Habilitar(ComandosApp.InicioItemAnterior, temRelatorio);
         Faixa.Habilitar(ComandosApp.InicioItemProximo, temRelatorio);
@@ -307,7 +309,9 @@ public sealed partial class MainWindow
         else if (sessao.SomenteLeitura && id is not (ComandosApp.ArquivoSalvarComo or ComandosApp.ArquivoExportarPdf)) motivo = "o relatório está aberto somente para leitura";
         else if (LinhaSelecionada is not null && id == ComandosApp.InicioExcluirRestaurar)
             motivo = "as linhas das tabelas não se excluem; edite os textos ou a situação";
-        else if (ItemSelecionado is null && LinhaSelecionada is null && (id.StartsWith("inicio.", StringComparison.Ordinal) && id is not (ComandosApp.InicioItemAnterior or ComandosApp.InicioItemProximo or ComandosApp.InicioProximoPendente)))
+        else if (ItemSelecionado is { Criado: true } && id == ComandosApp.InicioRestaurarOriginal)
+            motivo = "o item foi criado na revisão e não tem original";
+        else if (ItemSelecionado is null && LinhaSelecionada is null && (id.StartsWith("inicio.", StringComparison.Ordinal) && id is not (ComandosApp.InicioItemAnterior or ComandosApp.InicioItemProximo or ComandosApp.InicioProximoPendente or ComandosApp.InicioNovoItem)))
             motivo = "selecione um item nas folhas ou na lista de seções";
         else if (ItemSelecionado is { Incluido: false } && (id == ComandosApp.InicioEditarTexto || ComandosApp.SituacaoDoComando(id) is not null || id == ComandosApp.InicioSituacao))
             motivo = "o item selecionado está excluído (restaure-o antes)";
@@ -564,6 +568,32 @@ public sealed partial class MainWindow
         await SelecionarAsync(id);
     }
 
+    // ---------- novo item ----------
+
+    /// <summary>O id do último item criado por «Novo item» (o roteiro confere).</summary>
+    internal string? UltimoItemCriado { get; private set; }
+
+    /// <summary>«Novo item» (correções 2026-11-16): cria um item de análise logo depois do item selecionado (sem item selecionado, no
+    /// fim), com os mesmos campos dos outros e os textos de <see cref="ItemNovo"/> para trocar. É um comando como os demais: entra no
+    /// histórico, Desfazer o tira, vai para o .rpmvni, o PDF e o resumo. Depois de criado, fica selecionado, com as Propriedades abertas.</summary>
+    internal async Task NovoItemAsync()
+    {
+        if (sessao is not { Revisao.Projeto: { } p } s) return;
+        if (!Editavel) { AvisarIndisponivel(ComandosApp.InicioNovoItem); return; }
+        string id;
+        using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+            do id = IdItem.Novo(DateTimeOffset.UtcNow, rng); while (p.Item(id) is not null);
+        var depois = ItemSelecionado?.Id;
+        await AplicarAsync(new CriarItem(id, depois));
+        if (!ReferenceEquals(sessao, s) || p.Item(id) is null) return;   // recusado: o aviso já está na tela
+        UltimoItemCriado = id;
+        await TentarAsync(() => SelecionarAsync(id));
+        if (!PropriedadesVisivel) MostrarPropriedades(true);
+        MostrarMensagem(InfoBarSeverity.Success, "Novo item",
+            $"ITEM {p.NumeroAtual(id):00} criado{(depois is null ? " no fim do relatório" : "")}. Preencha o título, a situação e os textos (nas Propriedades ou nas folhas, com F2); "
+            + "enquanto algum estiver por preencher, o PDF não é exportado. Desfazer tira o item.");
+    }
+
     // ---------- edição no A4 ----------
 
     /// <summary>Editar texto / F2: o último campo clicado do item selecionado, ou a verificação.</summary>
@@ -680,6 +710,7 @@ public sealed partial class MainWindow
         menu.Items.Add(situacao);
         menu.Items.Add(ItemDoMenu("Editar texto", Glifos.Editar, ComandosApp.InicioEditarTexto));
         menu.Items.Add(ItemDoMenu(it.Incluido ? "Excluir item" : "Restaurar item", it.Incluido ? Glifos.Excluir : Glifos.Restaurar, ComandosApp.InicioExcluirRestaurar));
+        menu.Items.Add(ItemDoMenu("Novo item abaixo", Glifos.NovoItem, ComandosApp.InicioNovoItem));
         var original = new ToggleMenuFlyoutItem { Text = "Original", IsChecked = mostrarOriginal, IsEnabled = Faixa.Habilitado(ComandosApp.InicioOriginal) };
         original.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioOriginal);
         menu.Items.Add(original);
@@ -779,7 +810,7 @@ public sealed partial class MainWindow
     {
         if (sessao?.Revisao.Projeto is not { } p || p.Item(id) is not { Incluido: false } it) return;
         var painel = new StackPanel { Spacing = 8, MaxWidth = 300 };
-        painel.Children.Add(new TextBlock { Text = $"Item {it.NumeroOriginal:00} excluído", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        painel.Children.Add(new TextBlock { Text = it.Criado ? "Item novo excluído" : $"Item {it.NumeroOriginal:00} excluído", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
         painel.Children.Add(new TextBlock { Text = DadosEfetivos.TextoEfetivo(p, it, "titulo") ?? "(sem título)", TextWrapping = TextWrapping.Wrap });
         var restaurar = new Button { Content = "Restaurar", IsEnabled = Editavel };
         Dicas.Aplicar(restaurar, "Restaurar", "Traz este item excluído de volta para o relatório.");
@@ -961,14 +992,15 @@ public sealed partial class MainWindow
             var linha = new Grid { Tag = x.Id, ColumnSpacing = 8, MinHeight = 32 };
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var tituloExcluido = $"{x.NumeroOriginal:00}  {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}";
+            var numero = x.Criado ? "novo" : x.NumeroOriginal.ToString("00", CultureInfo.InvariantCulture);
+            var tituloExcluido = $"{numero}  {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}";
             var texto = new TextBlock { Text = tituloExcluido, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
             ToolTipService.SetToolTip(texto, tituloExcluido); // M11: o título inteiro na dica
             linha.Children.Add(texto);
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linha, $"Item excluído {x.NumeroOriginal:00}, {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linha, $"Item excluído {numero}, {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}");
             // B6: botão pequeno com borda (sem borda, parecia texto).
             var restaurar = new Button { Content = "Restaurar", IsEnabled = Editavel, Padding = new Thickness(8, 2, 8, 3), VerticalAlignment = VerticalAlignment.Center };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, $"Restaurar o item {x.NumeroOriginal:00}");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, $"Restaurar o item {numero}");
             Dicas.Aplicar(restaurar, "Restaurar", "Traz este item excluído de volta para o relatório.");
             var id = x.Id;
             restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new Restaurar(id)));
@@ -1024,7 +1056,7 @@ public sealed partial class MainWindow
             var editavel = Editavel;
             R.PropVazio.Visibility = Visibility.Collapsed;
             R.PropRolagem.Visibility = Visibility.Visible;
-            R.PropTitulo.Text = p.NumeroAtual(it.Id) is { } n ? $"ITEM {n:00}" : $"Item excluído (era o {it.NumeroOriginal:00})";
+            R.PropTitulo.Text = p.NumeroAtual(it.Id) is { } n ? $"ITEM {n:00}" : it.Criado ? "Item novo excluído" : $"Item excluído (era o {it.NumeroOriginal:00})";
             R.PropId.Text = it.Id;
             R.PropNoPdf.IsChecked = it.Incluido;
             R.PropNoPdf.IsEnabled = editavel;
@@ -1033,13 +1065,14 @@ public sealed partial class MainWindow
             R.PropSituacao.SelectedIndex = efetiva is null ? -1 : Faixas.OrdemSituacoes.ToList().IndexOf(efetiva);
             R.PropSituacao.IsEnabled = editavel && it.Incluido;
             var original = it.Situacao.Original is JsonValue v && v.TryGetValue<string>(out var so) ? so : null;
-            R.PropSituacaoOriginal.Text = "original: " + TextoSituacao(original) + (it.Situacao.Revisada is null ? " (sem revisão)" : " · revisada");
+            R.PropSituacaoOriginal.Text = it.Criado ? "item criado na revisão (sem original)"
+                : "original: " + TextoSituacao(original) + (it.Situacao.Revisada is null ? " (sem revisão)" : " · revisada");
 
             // A justificativa que o usuário está digitando (com o foco na caixa) não é trocada pelo valor gravado do mesmo item.
             var digitando = itemNasPropriedades == it.Id && Raiz.XamlRoot is not null && ReferenceEquals(FocusManager.GetFocusedElement(Raiz.XamlRoot), R.PropJustificativa);
             if (!digitando) R.PropJustificativa.Text = it.Situacao.Justificativa ?? "";
             R.PropJustificativa.IsEnabled = editavel;
-            R.PropJustificativaAviso.Visibility = it.Situacao.Revisada is not null && string.IsNullOrWhiteSpace(it.Situacao.Justificativa) ? Visibility.Visible : Visibility.Collapsed;
+            R.PropJustificativaAviso.Visibility = !it.Criado && it.Situacao.Revisada is not null && string.IsNullOrWhiteSpace(it.Situacao.Justificativa) ? Visibility.Visible : Visibility.Collapsed;
             // Correções 2026-11-16: o botão da IA existe em todo item incluído (antes só com a situação revisada); a justificativa é a
             // instrução. Quando ela (ou a situação) muda depois dos textos, o aviso pede o reajuste — nada dispara sozinho.
             R.PropAjustarTexto.Visibility = it.Incluido ? Visibility.Visible : Visibility.Collapsed;
@@ -1050,7 +1083,7 @@ public sealed partial class MainWindow
             itemNasPropriedades = it.Id;
 
             MontarCampos(p, it, editavel);
-            R.PropRestaurarOriginal.IsEnabled = editavel && TemRevisao(it);
+            R.PropRestaurarOriginal.IsEnabled = editavel && !it.Criado && TemRevisao(it);
 
             R.PropHistorico.Children.Clear();
             var doItem = sessao!.Revisao.HistoricoCompleto.Where(r => r.Item == it.Id).Reverse().ToList();
@@ -1069,7 +1102,7 @@ public sealed partial class MainWindow
         {
             var campo = Campos.Editaveis[k];
             it.Campos.TryGetValue(campo, out var c);
-            var alterado = c?.Revisado is not null;
+            var alterado = c?.Revisado is not null && !it.Criado;   // o item criado não tem original: nada a marcar nem a restaurar
             var bloco = new StackPanel { Spacing = 2 };
 
             var cabecalho = new Grid { ColumnSpacing = 6 };

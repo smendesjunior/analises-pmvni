@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 
 namespace Pmvni.Revisao;
 
-/// <summary><c>projeto.json</c> ↔ <see cref="Projeto"/>. Formato: <c>{versao_esquema, itens[{id, ordem, numero_original, incluido, chaves[],
+/// <summary><c>projeto.json</c> ↔ <see cref="Projeto"/>. Formato: <c>{versao_esquema, itens[{id, ordem, numero_original, incluido, criado?, chaves[],
 /// situacao{original, revisada, justificativa}, campos{nome:{original?, revisado}}, outros{}}], documento{}, linhas?{id:{situacao,
 /// justificativa, campos{caminho: texto}}}, acrescimos?{chave:{…}}}</c> (<c>linhas</c> só com alguma linha de tabela revisada;
 /// <c>acrescimos</c> só com alguma esquadria ou chamada criada pelo usuário);
@@ -44,7 +44,7 @@ public static class ProjetoJson
         }
     }
 
-    private static ItemRevisao LerItem(JsonObject j)
+    internal static ItemRevisao LerItem(JsonObject j)
     {
         var item = new ItemRevisao
         {
@@ -52,6 +52,7 @@ public static class ProjetoJson
             Ordem = j["ordem"]!.GetValue<int>(),
             NumeroOriginal = j["numero_original"]!.GetValue<int>(),
             Incluido = j["incluido"]!.GetValue<bool>(),
+            Criado = j["criado"]?.GetValue<bool>() ?? false,
             Outros = j["outros"]!.AsObject().DeepClone().AsObject(),
         };
         foreach (var c in j["chaves"]!.AsArray()) item.Chaves.Add(c!.GetValue<string>());
@@ -123,7 +124,7 @@ public static class ProjetoJson
         return JsonFiel.Escrever(o);
     }
 
-    private static JsonObject EscreverItem(ItemRevisao i)
+    internal static JsonObject EscreverItem(ItemRevisao i)
     {
         var chaves = new JsonArray();
         foreach (var c in i.Chaves) chaves.Add(c);
@@ -137,7 +138,7 @@ public static class ProjetoJson
             campos[nome] = o;
         }
 
-        return new JsonObject
+        var item = new JsonObject
         {
             ["id"] = i.Id,
             ["ordem"] = i.Ordem,
@@ -153,5 +154,8 @@ public static class ProjetoJson
             ["campos"] = campos,
             ["outros"] = i.Outros.DeepClone(),
         };
+        // Só o item criado pelo usuário leva a marca (os recebidos gravam como antes).
+        if (i.Criado) item["criado"] = true;
+        return item;
     }
 }

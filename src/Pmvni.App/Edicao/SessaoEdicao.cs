@@ -313,7 +313,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
             var seguinte = incluidos.FirstOrDefault(i => i.Ordem > x.Ordem);
             var anterior = incluidos.LastOrDefault(i => i.Ordem < x.Ordem);
             if (seguinte is null && anterior is null) continue;
-            excluidos.Add(new { id = x.Id, rotulo = x.NumeroOriginal.ToString("00"), ancora = (seguinte ?? anterior)!.Id, lado = seguinte is not null ? "antes" : "depois" });
+            excluidos.Add(new { id = x.Id, rotulo = x.Criado ? "novo" : x.NumeroOriginal.ToString("00"), ancora = (seguinte ?? anterior)!.Id, lado = seguinte is not null ? "antes" : "depois" });
         }
         return new { visiveis, alterados, excluidos };
     }

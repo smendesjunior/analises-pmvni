@@ -43,6 +43,10 @@ public sealed class ItemRevisao
     public int Ordem { get; set; }
     public int NumeroOriginal { get; set; }
     public bool Incluido { get; set; } = true;
+    /// <summary>O item foi criado pelo usuário na revisão ("Novo item", correções 2026-11-16): não veio no relatório recebido e não tem
+    /// original — a situação fica em <see cref="SituacaoItem.Revisada"/> (sem exigir justificativa) e cada campo é
+    /// <see cref="CampoTexto.Ausente"/>. <see cref="NumeroOriginal"/> é um número depois do último recebido (não é citado por ninguém).</summary>
+    public bool Criado { get; set; }
     public List<string> Chaves { get; set; } = new();
     public SituacaoItem Situacao { get; set; } = new();
     public Dictionary<string, CampoTexto> Campos { get; set; } = new(StringComparer.Ordinal);
@@ -58,6 +62,7 @@ public sealed class ItemRevisao
             Ordem = Ordem,
             NumeroOriginal = NumeroOriginal,
             Incluido = Incluido,
+            Criado = Criado,
             Chaves = new List<string>(Chaves),
             Situacao = Situacao.Clonar(),
             Campos = campos,

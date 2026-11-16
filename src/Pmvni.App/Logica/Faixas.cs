@@ -89,6 +89,7 @@ public static class Faixas
         [
             new(ComandosApp.InicioSituacao, "Situação", Glifos.Situacao, TipoComando.Menu, OrdemSituacoes
                 .Select(c => new ComandoFaixa(ComandosApp.ComandoDaSituacao(c), Situacoes.Sit[c].Texto, Glifos.SituacaoItem)).ToList()),
+            new(ComandosApp.InicioNovoItem, "Novo item", Glifos.NovoItem),
             new(ComandosApp.InicioExcluirRestaurar, "Excluir item", Glifos.Excluir),
             new(ComandosApp.InicioEditarTexto, "Editar texto", Glifos.Editar),
             new(ComandosApp.InicioOriginal, "Original", Glifos.Original, TipoComando.Alternar),
