@@ -1,6 +1,8 @@
-// Folhas A4: prepara o documento (tira as regras @page do kit, insere folha.css, guarda o fluxo original num contêiner
-// de medida com a largura da área) e compõe folha a folha, escolhendo as quebras como o Chromium (ver fragmentar.ts).
+// Folhas A4: prepara o documento (tira as regras @page do kit, insere folha.css e correcoes.css, guarda o fluxo original
+// num contêiner de medida com a largura da área) e compõe folha a folha, escolhendo as quebras como o Chromium (ver
+// fragmentar.ts).
 
+import correcoesCss from '../correcoes.css';
 import folhaCss from '../folha.css';
 import {
   acabamento, alturaConteudo, alturaUtil, ATR_OCULTO, copiarIntervalo, elementoEm, enumerarPontos, estenderPedacos, resolver, type Ponto,
@@ -19,6 +21,7 @@ export interface RefDoc { seletor: string; indice: number; id: string }
 export interface PedidoCompor { sha256Html: string; refs: RefDoc[]; config: ConfigFolhas; limiteEstabilidadeMs: number | null }
 
 const ID_CSS = 'pmvni-folha-css';
+const ID_CSS_CORRECOES = 'pmvni-correcoes-css';
 const MAX_FOLHAS = 5000;
 const ATR_LARGO = 'data-pmvni-largo';
 
@@ -41,6 +44,11 @@ export function prepararDocumento(): HTMLElement {
   css.id = ID_CSS;
   css.textContent = folhaCss;
   document.head.appendChild(css);
+  // Correções do editor ao modelo (correcoes.css): depois do CSS do kit, que não é tocado; valem na tela e no PDF.
+  const correcoes = document.createElement('style');
+  correcoes.id = ID_CSS_CORRECOES;
+  correcoes.textContent = correcoesCss;
+  document.head.appendChild(correcoes);
 
   const medida = document.createElement('div');
   medida.className = 'folha pmvni-medida';

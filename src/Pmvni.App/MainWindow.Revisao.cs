@@ -739,7 +739,7 @@ public sealed partial class MainWindow
         return i;
     }
 
-    /// <summary>Clique na marca "◦ excl. NN": o título do item excluído e Restaurar.</summary>
+    /// <summary>Clique na marca "ITEM EXCLUÍDO NN": o título do item excluído e Restaurar.</summary>
     void MostrarFlyoutExcluido(string id, Point ponto)
     {
         if (sessao?.Revisao.Projeto is not { } p || p.Item(id) is not { Incluido: false } it) return;

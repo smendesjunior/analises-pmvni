@@ -16,8 +16,11 @@ embutido como texto) embutido em `Pmvni.Composicao.Web`.
   rolagem, atalhos e menu de contexto (Tarefa 7 da Etapa 2).
 - `src/linhas.ts`: linhas das tabelas de indices e de iluminacao e ventilacao (`tr[data-pmvni-linha]`, ids `indices/02`,
   `ambientes/03`) e os `data-campo` dos textos delas (caminho no dados.json da linha), so no DOM da tela.
-- `src/marcas.ts`: marcas de revisao (traco azul nos itens alterados, botao "excl. NN") na camada `#pmvni-camada`, fora das folhas.
+- `src/marcas.ts`: marcas de revisao (traco azul nos itens alterados; etiqueta "ITEM EXCLUIDO NN" e linha vermelha onde o item
+  excluido estava) na camada `#pmvni-camada`, fora das folhas.
 - `folha.css`: geometria da folha A4, da area util, do cabecalho e do rodape (as constantes ficam so aqui).
+- `correcoes.css`: correcoes do editor ao modelo oficial (texto livre em caixa `nowrap` de largura fixa), inseridas depois do
+  `relatorio.css` do kit, que continua byte a byte; onde o texto ja cabia, nada muda (`CorrecoesDoModeloTestes`).
 
 ## Gerar o JS
 

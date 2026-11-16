@@ -693,7 +693,7 @@ internal static class Roteiro
             p["marcas_de_excluido"] = JsonNode.Parse(marcas.GetRawText());
             var textos = marcas.GetProperty("textos").EnumerateArray().Select(x => x.GetString()).ToList();
             p["ok"] = proj.Incluidos.Count == antes - 1 && p["rotulo_do_antigo_06"]?.GetValue<string>() == "ITEM 05"
-                && j.TextoAbaExcluidos == "Excluídos (1)" && j.LinhasExcluidos == 1 && textos.Contains("◦ excl. 05")
+                && j.TextoAbaExcluidos == "Excluídos (1)" && j.LinhasExcluidos == 1 && textos.Contains("ITEM EXCLUÍDO 05")
                 && !marcas.GetProperty("dentroDeFolha").GetBoolean() && j.RotuloExcluirRestaurar == "Restaurar item";
             await CapturarWebAsync(j, Path.Combine(pasta, "15-tela-excluido.png"));
         });
@@ -798,7 +798,7 @@ internal static class Roteiro
             await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
             p["desfeito_o_delete"] = proj.Item(alvo.Id)!.Incluido;
 
-            // Marca "◦ excl. 05": clique abre o flyout com o título e Restaurar.
+            // Marca "ITEM EXCLUÍDO 05": clique abre o flyout com o título e Restaurar.
             var botao = await Js(j, "(() => { const b = document.querySelector('#pmvni-camada .pmvni-marca-excl'); if (!b) return null; b.scrollIntoView({ block: 'center', behavior: 'instant' }); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()");
             var flyout = false;
             if (botao.ValueKind == JsonValueKind.Object)
