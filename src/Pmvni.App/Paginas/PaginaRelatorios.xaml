@@ -22,8 +22,10 @@
                Title="Conflito: o arquivo mudou no disco">
         <InfoBar.Content>
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Button x:Name="BotaoSalvarCopia" x:FieldModifier="internal" Content="Salvar como cópia" Style="{StaticResource AccentButtonStyle}"/>
-            <Button x:Name="BotaoRecarregar" x:FieldModifier="internal" Content="Recarregar"/>
+            <Button x:Name="BotaoSalvarCopia" x:FieldModifier="internal" Content="Salvar como cópia" Style="{StaticResource AccentButtonStyle}"
+                    local:Dicas.Descricao="Grava as suas alterações num arquivo novo, sem mexer no arquivo que mudou no disco."/>
+            <Button x:Name="BotaoRecarregar" x:FieldModifier="internal" Content="Recarregar"
+                    local:Dicas.Descricao="Deixa de lado o que está na tela e abre a versão que está no disco."/>
           </StackPanel>
         </InfoBar.Content>
       </InfoBar>
@@ -32,7 +34,8 @@
                Title="As folhas não mostram a última alteração">
         <InfoBar.Content>
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Button x:Name="BotaoRecompor" x:FieldModifier="internal" Content="Recompor" Style="{StaticResource AccentButtonStyle}"/>
+            <Button x:Name="BotaoRecompor" x:FieldModifier="internal" Content="Recompor" Style="{StaticResource AccentButtonStyle}"
+                    local:Dicas.Descricao="Refaz as folhas com a última alteração; depois disso o PDF pode ser exportado."/>
           </StackPanel>
         </InfoBar.Content>
       </InfoBar>
@@ -104,7 +107,7 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,1,0,0" VerticalAlignment="Top"/>
                 <Button Grid.Column="1" Visibility="{x:Bind ChevronVisivel, Mode=OneWay}" Tag="{x:Bind}" Click="AoClicarChevron"
                         Width="24" Height="24" Padding="0" Margin="0,-2,0,0" VerticalAlignment="Top" Background="Transparent" BorderThickness="0"
-                        AutomationProperties.Name="{x:Bind NomeChevron, Mode=OneWay}" ToolTipService.ToolTip="{x:Bind NomeChevron, Mode=OneWay}">
+                        AutomationProperties.Name="{x:Bind NomeChevron, Mode=OneWay}" local:Dicas.Descricao="Mostra ou esconde os itens desta seção.">
                   <FontIcon Glyph="{x:Bind GlifoChevron, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </Button>
                 <StackPanel Grid.Column="2" Spacing="5" VerticalAlignment="Center">
@@ -173,7 +176,8 @@
             <TextBlock x:Name="PropId" x:FieldModifier="internal" Text="" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"/>
           </StackPanel>
           <Button x:Name="BotaoFecharPropriedades" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniBarraButtonStyle}"
-                  AutomationProperties.Name="Fechar as propriedades" ToolTipService.ToolTip="Fechar (Exibir › Propriedades)" VerticalAlignment="Top">
+                  AutomationProperties.Name="Fechar as propriedades" VerticalAlignment="Top"
+                  local:Dicas.Descricao="Esconde este painel; ele volta em Exibir › Propriedades.">
             <FontIcon Glyph="&#xE711;" FontSize="12"/>
           </Button>
         </Grid>
@@ -196,7 +200,8 @@
                          Text="A situação mudou: a justificativa é exigida para exportar."/>
             </StackPanel>
             <StackPanel x:Name="PropCampos" x:FieldModifier="internal" Spacing="10"/>
-            <Button x:Name="PropRestaurarOriginal" x:FieldModifier="internal" HorizontalAlignment="Left">
+            <Button x:Name="PropRestaurarOriginal" x:FieldModifier="internal" HorizontalAlignment="Left"
+                    local:Dicas.Descricao="Desfaz as edições deste item e volta ao texto original recebido da IA.">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
                 <TextBlock Text="Restaurar original"/>

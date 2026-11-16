@@ -327,6 +327,9 @@ public sealed partial class MainWindow
         // Conta (lida neste computador) e Assinatura.
         c.BotaoConta.Content = TextosAgentes.AcaoDaConta(conta);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(c.BotaoConta, TextosAgentes.AcaoDaConta(conta) + " no " + TextosAgentes.NomeDoServico(p));
+        Dicas.Aplicar(c.BotaoConta, TextosAgentes.AcaoDaConta(conta), conta.Conectado
+            ? "Sai da conta do " + TextosAgentes.NomeDoServico(p) + " neste computador."
+            : "Entra na sua conta do " + TextosAgentes.NomeDoServico(p) + " para o app poder usar a IA.");
         c.TextoNomeConta.Text = TextosAgentes.NomeDaConta(conta);
         c.FotoConta.DisplayName = conta.Conectado ? conta.Nome ?? conta.Email ?? "" : "";
         var email = TextosAgentes.EmailDaConta(conta);

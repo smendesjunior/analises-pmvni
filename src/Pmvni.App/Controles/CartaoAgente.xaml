@@ -85,8 +85,10 @@
         </StackPanel>
         <local:SeloEstado x:Name="SeloPrograma" x:FieldModifier="internal" Grid.Column="2"/>
         <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6">
-          <Button x:Name="BotaoEscolherPrograma" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Escolher programa…"/>
-          <Button x:Name="BotaoProgramaPadrao" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Usar o padrão"/>
+          <Button x:Name="BotaoEscolherPrograma" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Escolher programa…"
+                  local:Dicas.Descricao="Escolhe no computador o programa da IA, se o app não achou o certo."/>
+          <Button x:Name="BotaoProgramaPadrao" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Usar o padrão"
+                  local:Dicas.Descricao="Volta a usar o programa da IA achado sozinho neste computador."/>
         </StackPanel>
       </Grid>
 
@@ -100,7 +102,8 @@
           <TextBlock x:Name="TextoAvisosDoTeste" x:FieldModifier="internal" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
                      Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
         </StackPanel>
-        <Button x:Name="BotaoTestar" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource BotaoPequeno}" Content="Testar" MinWidth="80" VerticalAlignment="Top"/>
+        <Button x:Name="BotaoTestar" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource BotaoPequeno}" Content="Testar" MinWidth="80" VerticalAlignment="Top"
+                local:Dicas.Descricao="Confere de novo se o programa e a conta da IA estão prontos; nada vai à IA."/>
       </Grid>
 
       <!-- Plugin analise (no Codex para o ChatGPT; no Claude Code para o Claude). -->
@@ -147,8 +150,10 @@
           <StackPanel x:Name="PainelChave" x:FieldModifier="internal" Spacing="6" Visibility="Collapsed" Margin="0,4,0,0">
             <PasswordBox x:Name="CaixaChave" x:FieldModifier="internal" PlaceholderText="Cole a chave de API aqui" MaxWidth="420" HorizontalAlignment="Left" MinWidth="280"/>
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button x:Name="BotaoGuardarChave" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Guardar chave"/>
-              <Button x:Name="BotaoRemoverChave" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Remover chave"/>
+              <Button x:Name="BotaoGuardarChave" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Guardar chave"
+                      local:Dicas.Descricao="Guarda a chave de API protegida pelo Windows, só para este usuário."/>
+              <Button x:Name="BotaoRemoverChave" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Remover chave"
+                      local:Dicas.Descricao="Apaga a chave de API guardada neste computador."/>
             </StackPanel>
           </StackPanel>
         </StackPanel>
@@ -162,7 +167,8 @@
           <TextBlock Text="Aviso antes de analisar" Style="{StaticResource TituloLinha}"/>
           <TextBlock x:Name="TextoAviso" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
-        <Button x:Name="BotaoReverAviso" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource BotaoPequeno}" Content="Rever aviso" VerticalAlignment="Top"/>
+        <Button x:Name="BotaoReverAviso" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource BotaoPequeno}" Content="Rever aviso" VerticalAlignment="Top"
+                local:Dicas.Descricao="Mostra de novo o aviso sobre o que é enviado à IA antes de analisar."/>
       </Grid>
     </StackPanel>
   </Border>

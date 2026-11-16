@@ -480,7 +480,7 @@ public sealed partial class MainWindow
         var dica = DicaDaPesquisaDe(Modulo.Legislacao);
         CaixaPesquisa.PlaceholderText = dica;
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CaixaPesquisa, dica);
-        ToolTipService.SetToolTip(CaixaPesquisa, dica + " (Ctrl+F)");
+        AplicarDicaDaPesquisa(null);
     }
 
     /// <summary>O pedido da caixa de pesquisa com a Legislação à vista (na fila de comandos): "Nesta lei" procura no PDF aberto;

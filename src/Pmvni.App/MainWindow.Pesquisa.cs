@@ -54,6 +54,8 @@ public sealed partial class MainWindow
         CaixaPesquisa.KeyDown += AoTeclarNaPesquisa;
         BotaoPesquisaAnterior.Click += async (_, _) => await TentarAsync(() => IrNaPesquisaAsync(-1));
         BotaoPesquisaProxima.Click += async (_, _) => await TentarAsync(() => IrNaPesquisaAsync(+1));
+        Dicas.Aplicar(BotaoPesquisaAnterior, "Ocorrência anterior", "Volta ao resultado anterior da pesquisa.", "Shift+Enter");
+        Dicas.Aplicar(BotaoPesquisaProxima, "Próxima ocorrência", "Vai ao próximo resultado da pesquisa.", "Enter");
         manipuladores[ComandosApp.PesquisaFocar] = () =>
         {
             CaixaPesquisa.Focus(FocusState.Keyboard);
@@ -162,11 +164,26 @@ public sealed partial class MainWindow
         CaixaPesquisa.IsEnabled = habilitada;
         // Desabilitada diz o motivo (auditoria M6), na dica e para o Narrador.
         var motivo = habilitada ? "" : moduloAtual == Modulo.Relatorios ? "Abra um relatório para pesquisar nele." : "Não há o que pesquisar nos Ajustes.";
-        Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(CaixaPesquisa, habilitada ? CaixaPesquisa.PlaceholderText + " (Ctrl+F)" : motivo);
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetHelpText(CaixaPesquisa, motivo);
+        AplicarDicaDaPesquisa(motivo);
         // Anterior e próxima andam pelas ocorrências nas folhas (e, na Legislação, pelas da lei aberta: quem acerta é o contador dela).
         if (moduloAtual == Modulo.Legislacao) return;
         BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = habilitada && moduloAtual == Modulo.Relatorios && pesquisaTotal > 0;
+    }
+
+    /// <summary>A dica da caixa de pesquisa no formato do app: o alvo ("Pesquisar no relatório") com Ctrl+F, o que ela faz no módulo e,
+    /// desabilitada, o motivo (auditoria M6: também para o Narrador, no texto de ajuda).</summary>
+    void AplicarDicaDaPesquisa(string? motivo, Modulo? modulo = null)
+    {
+        var m = modulo ?? moduloAtual;
+        var descricao = m switch
+        {
+            Modulo.Relatorios => "Procura uma palavra ou trecho nas folhas do relatório; Enter vai ao próximo resultado.",
+            Modulo.Processos => "Filtra a lista de processos pelo que você digitar.",
+            Modulo.Despachos => "Filtra a lista de despachos pelo que você digitar.",
+            Modulo.Legislacao => "Procura uma palavra na lei aberta ou em todas, conforme \"Pesquisar em\".",
+            _ => DicasComandos.Descricao(ComandosApp.PesquisaFocar),
+        };
+        Dicas.Aplicar(CaixaPesquisa, CaixaPesquisa.PlaceholderText, descricao, "Ctrl+F", string.IsNullOrEmpty(motivo) ? null : motivo);
     }
 
     /// <summary>Troca o alvo da caixa de pesquisa com o módulo: a dica ("Pesquisar no relatório", "Pesquisar processos", "Pesquisar despachos") e o
@@ -177,7 +194,7 @@ public sealed partial class MainWindow
         var dica = DicaDaPesquisaDe(novo);
         CaixaPesquisa.PlaceholderText = dica;
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CaixaPesquisa, dica);
-        Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(CaixaPesquisa, dica + " (Ctrl+F)");
+        AplicarDicaDaPesquisa(CaixaPesquisa.IsEnabled ? null : Dicas.De(CaixaPesquisa)?.Motivo, novo);
         esperaPesquisa?.Stop();
         definindoPesquisa = true;
         try { CaixaPesquisa.Text = novo == Modulo.Ajustes ? "" : TermoDe(novo); }

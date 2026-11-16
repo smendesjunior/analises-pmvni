@@ -17,9 +17,12 @@
       <InfoBar x:Name="AvisoResultado" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="True">
         <InfoBar.Content>
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Button x:Name="BotaoMostrarRegistroResultado" x:FieldModifier="internal" Content="Mostrar registro"/>
-            <Button x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Continuar a análise" Visibility="Collapsed"/>
-            <Button x:Name="BotaoImportarPendente" x:FieldModifier="internal" Content="Importar relatório" Visibility="Collapsed"/>
+            <Button x:Name="BotaoMostrarRegistroResultado" x:FieldModifier="internal" Content="Mostrar registro"
+                    local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA fez."/>
+            <Button x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Continuar a análise" Visibility="Collapsed"
+                    local:Dicas.Descricao="Retoma a análise que parou, do ponto onde ela ficou."/>
+            <Button x:Name="BotaoImportarPendente" x:FieldModifier="internal" Content="Importar relatório" Visibility="Collapsed"
+                    local:Dicas.Descricao="Traz para o app o relatório da análise que terminou com o editor fechado."/>
           </StackPanel>
         </InfoBar.Content>
       </InfoBar>
@@ -40,8 +43,10 @@
           </Grid.ColumnDefinitions>
           <StackPanel Spacing="4"><TextBlock Text="Novo relatório" Style="{ThemeResource TitleTextBlockStyle}" TextWrapping="Wrap"/><TextBlock Text="Selecione o processo, adicione os anexos e escolha como analisar." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
-            <Button x:Name="BotaoExecucoes" x:FieldModifier="internal" Content="Ver a análise em andamento" Visibility="Collapsed"/>
-            <Button x:Name="BotaoVoltarRelatorio" x:FieldModifier="internal" Content="Voltar ao relatório" Visibility="Collapsed"/>
+            <Button x:Name="BotaoExecucoes" x:FieldModifier="internal" Content="Ver a análise em andamento" Visibility="Collapsed"
+                    local:Dicas.Descricao="Mostra o andamento da análise que a IA está fazendo agora."/>
+            <Button x:Name="BotaoVoltarRelatorio" x:FieldModifier="internal" Content="Voltar ao relatório" Visibility="Collapsed"
+                    local:Dicas.Descricao="Fecha esta tela e volta ao relatório que estava aberto."/>
           </StackPanel>
         </Grid>
 
@@ -59,7 +64,8 @@
           <TextBox x:Name="CaixaFiltro" x:FieldModifier="internal" PlaceholderText="Filtrar por número ou requerente" AutomationProperties.Name="Filtrar processos"/>
           <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" MinWidth="0" PlaceholderText="Escolha o processo"
                     AutomationProperties.Name="Processo"/>
-          <Button x:Name="BotaoCriarProcesso" x:FieldModifier="internal" Grid.Column="2" Content="Criar processo…"/>
+          <Button x:Name="BotaoCriarProcesso" x:FieldModifier="internal" Grid.Column="2" Content="Criar processo…"
+                  local:Dicas.Descricao="Cria a pasta de um processo novo na pasta de processos."/>
         </Grid>
         <TextBlock x:Name="TextoPastaProcesso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
 
@@ -75,7 +81,8 @@
           <StackPanel Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
             <TextBlock x:Name="TextoArraste" x:FieldModifier="internal" Text="Arraste arquivos para cá" HorizontalAlignment="Center"
                        Style="{StaticResource BodyStrongTextBlockStyle}"/>
-            <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar arquivos…" HorizontalAlignment="Center"/>
+            <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar arquivos…" HorizontalAlignment="Center"
+                    local:Dicas.Descricao="Escolhe no computador os arquivos do processo para a IA analisar."/>
             <TextBlock Text="Qualquer tipo de arquivo. Nada é copiado antes de Analisar; a cópia vai para a pasta do processo e o original não muda."
                        Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" HorizontalAlignment="Center"/>
           </StackPanel>
@@ -145,9 +152,12 @@
       </Grid.RowDefinitions>
       <TextBlock x:Name="TextoCabecalho" x:FieldModifier="internal" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap"/>
       <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
-        <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" Content="Cancelar análise"/>
-        <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" Content="Mostrar registro no Explorador"/>
-        <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" Content="Nova análise"/>
+        <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" Content="Cancelar análise"
+                local:Dicas.Descricao="Para a análise da IA; nenhum relatório é criado."/>
+        <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" Content="Mostrar registro no Explorador"
+                local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo."/>
+        <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" Content="Nova análise"
+                local:Dicas.Descricao="Volta ao formulário para pedir outra análise."/>
         <ProgressRing IsActive="True" Width="20" Height="20" VerticalAlignment="Center"/>
       </StackPanel>
       <StackPanel x:Name="PainelClaude" x:FieldModifier="internal" Grid.Row="2" Spacing="6" Visibility="Collapsed">

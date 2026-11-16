@@ -110,6 +110,8 @@ public sealed partial class MainWindow
         R.PropRestaurarOriginal.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioRestaurarOriginal);
         BotaoDesfazer.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.EditarDesfazer);
         BotaoRefazer.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.EditarRefazer);
+        Dicas.AplicarComando(BotaoDesfazer, ComandosApp.EditarDesfazer, "Desfazer");
+        Dicas.AplicarComando(BotaoRefazer, ComandosApp.EditarRefazer, "Refazer");
         R.AvisoDesatualizado.Message = SessaoEdicao.TextoDesatualizada;
         R.BotaoRecompor.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(RecomporDesatualizadaAsync));
         AtualizarPropriedades();
@@ -738,6 +740,7 @@ public sealed partial class MainWindow
         painel.Children.Add(new TextBlock { Text = $"Item {it.NumeroOriginal:00} excluído", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
         painel.Children.Add(new TextBlock { Text = DadosEfetivos.TextoEfetivo(p, it, "titulo") ?? "(sem título)", TextWrapping = TextWrapping.Wrap });
         var restaurar = new Button { Content = "Restaurar", IsEnabled = Editavel };
+        Dicas.Aplicar(restaurar, "Restaurar", "Traz este item excluído de volta para o relatório.");
         var flyout = new Flyout { Content = painel };
         restaurar.Click += async (_, _) => { flyout.Hide(); await TentarAsync(() => AplicarAsync(new Restaurar(id))); };
         painel.Children.Add(restaurar);
@@ -899,6 +902,8 @@ public sealed partial class MainWindow
             b.Content = n > 0 ? $"{FiltroNavegacao.Rotulo(f)}  {n}" : FiltroNavegacao.Rotulo(f);
             b.IsChecked = f == filtroSituacao;
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"Mostrar {FiltroNavegacao.Rotulo(f).ToLowerInvariant()}, {n} itens");
+            var dica = DicasComandos.Livre(FiltroNavegacao.Rotulo(f), DicasComandos.DescricaoFiltro(f));
+            if (Dicas.De(b) != dica) Dicas.Aplicar(b, dica);
         }
     }
 
@@ -921,6 +926,7 @@ public sealed partial class MainWindow
             // B6: botão pequeno com borda (sem borda, parecia texto).
             var restaurar = new Button { Content = "Restaurar", IsEnabled = Editavel, Padding = new Thickness(8, 2, 8, 3), VerticalAlignment = VerticalAlignment.Center };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, $"Restaurar o item {x.NumeroOriginal:00}");
+            Dicas.Aplicar(restaurar, "Restaurar", "Traz este item excluído de volta para o relatório.");
             var id = x.Id;
             restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new Restaurar(id)));
             Grid.SetColumn(restaurar, 1);
@@ -1029,7 +1035,7 @@ public sealed partial class MainWindow
                 // B6: botão pequeno com borda (sem borda, parecia texto).
                 var restaurar = new Button { Content = "Restaurar", IsEnabled = editavel, Padding = new Thickness(8, 1, 8, 2), VerticalAlignment = VerticalAlignment.Center };
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, "Restaurar o campo " + NomesCampos[k]);
-                ToolTipService.SetToolTip(restaurar, "Voltar este campo ao texto original");
+                Dicas.Aplicar(restaurar, "Restaurar", "Volta este campo ao texto original recebido da IA.");
                 var id = it.Id;
                 restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new RestaurarCampo(id, campo)));
                 Grid.SetColumn(restaurar, 2);
@@ -1107,7 +1113,7 @@ public sealed partial class MainWindow
                 cabecalho.Children.Add(marca);
                 var restaurar = new Button { Content = "Restaurar", IsEnabled = editavel, Padding = new Thickness(8, 1, 8, 2), VerticalAlignment = VerticalAlignment.Center };
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, "Restaurar o campo " + nomeCampo);
-                ToolTipService.SetToolTip(restaurar, "Voltar este texto ao original");
+                Dicas.Aplicar(restaurar, "Restaurar", "Volta este texto ao original recebido da IA.");
                 var c = caminho;
                 restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new RestaurarCampo(linha, c)));
                 Grid.SetColumn(restaurar, 2);
