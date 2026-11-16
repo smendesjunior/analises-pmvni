@@ -21,7 +21,8 @@ const ZOOM_MAX = 3;
 const ESPERA_FOLHA_VISIVEL_MS = 120;
 /** Vão mínimo à esquerda: a faixa vermelha das folhas que transbordam fica na margem cinza, nunca fora da janela. */
 export const GOLA_ESQUERDA_PX = 12;
-/** Com as marcas de revisão visíveis (marcas.ts), o botão "◦ excl. NN" também mora na margem cinza: vão maior. */
+/** Com as marcas de revisão visíveis (marcas.ts), o traço azul mora na margem cinza: vão maior. Havendo item excluído,
+ * o vão cresce até caber a etiqueta "ITEM EXCLUÍDO NN" (golaDosExcluidos, em marcas.ts). */
 export const GOLA_COM_MARCAS_PX = 72;
 
 /** CSS só de tela. Tudo dentro de @media screen: a impressão (PDF) nunca vê estas regras. As variáveis --pmvni-zoom,

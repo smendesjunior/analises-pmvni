@@ -299,7 +299,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         return null;
     }
 
-    /// <summary>Marcas de revisão: itens alterados (situação revisada ou campo revisado) e "◦ excl. NN" de cada excluído, ancorado no
+    /// <summary>Marcas de revisão: itens alterados (situação revisada ou campo revisado) e "ITEM EXCLUÍDO NN" de cada excluído, ancorado no
     /// item incluído seguinte (ou no anterior, se não houver seguinte).</summary>
     internal static object Marcas(Projeto p, bool visiveis)
     {

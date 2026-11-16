@@ -15,7 +15,7 @@
 import { ATR_OCULTO } from './fragmentar';
 import type { Manipulador } from './index';
 import { blocoDe, desenvolver, ehCaminho, ehLinha, marcarCamposLinhas, marcarLinhas, pedacosDoBloco } from './linhas';
-import { CSS_MARCAS, desenharMarcas, ID_CAMADA, type EstadoMarcas, type Excluido } from './marcas';
+import { CSS_MARCAS, desenharMarcas, golaDosExcluidos, ID_CAMADA, type EstadoMarcas, type Excluido } from './marcas';
 import type { TipoHost, TipoWeb } from './mensagens';
 import { ErroComposicao } from './plano';
 import { definirGola, GOLA_COM_MARCAS_PX, GOLA_ESQUERDA_PX, rolarAteRef, zoomAtual } from './tela';
@@ -349,8 +349,10 @@ export function registrarEdicao(registrar: Registrar, enviar: Enviar): void {
     if (e.campos) camposMarcados = marcarCampos();
     else desmarcarCampos();
     aplicarSelecao(e.selecao);
-    definirGola(e.marcas.visiveis ? GOLA_COM_MARCAS_PX : GOLA_ESQUERDA_PX);
     const marcasDesenhadas = desenharMarcas(e.marcas, (id, x, y) => evento('excluidoClicado', { id, x, y }));
+    // A margem só cresce além da das marcas quando há etiqueta de excluído para caber (as marcas ficam na camada, que
+    // anda junto com as folhas: mudar a margem depois de desenhar não as desalinha).
+    definirGola(e.marcas.visiveis ? Math.max(GOLA_COM_MARCAS_PX, golaDosExcluidos()) : GOLA_ESQUERDA_PX);
     if (e.ancora) restaurarAncora(e.ancora);
     return { tipo: 'estadoAplicado', dados: { camposMarcados, marcasDesenhadas } };
   });

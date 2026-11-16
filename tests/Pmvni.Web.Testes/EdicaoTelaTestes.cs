@@ -451,7 +451,7 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
         Assert.Equal(0, (await Js("document.querySelectorAll('section.folha .pmvni-marca').length")).GetInt32());
         Assert.Equal(0, (await Js("document.querySelectorAll('section.folha #pmvni-camada').length")).GetInt32());
         Assert.Equal("BODY", (await Js("document.getElementById('pmvni-camada').parentElement.tagName")).GetString());
-        Assert.Equal("◦ excl. 07", (await Js("document.querySelector('#pmvni-camada .pmvni-marca-excl').textContent")).GetString());
+        Assert.Equal("ITEM EXCLUÍDO 07", (await Js("document.querySelector('#pmvni-camada .pmvni-marca-excl').textContent")).GetString());
         var pedacos = (await Js($$"""document.querySelectorAll('section.folha .card[data-ref="{{alterado}}"]').length""")).GetInt32();
         Assert.Equal(pedacos, (await Js("document.querySelectorAll('#pmvni-camada .pmvni-marca-traco').length")).GetInt32());
 
@@ -482,6 +482,27 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
         Assert.True(botao.GetProperty("direita").GetDouble() <= botao.GetProperty("folhaEsq").GetDouble() + 0.01);
         Assert.True(botao.GetProperty("esquerda").GetDouble() >= 0);
 
+        // A linha vermelha atravessa a folha de lado a lado, na altura onde o item excluído estava; fica na camada (fora
+        // das folhas), não recebe cliques e some na impressão junto com a camada.
+        var linha = await Js($$"""
+            (() => {
+              const linhas = document.querySelectorAll('#pmvni-camada .pmvni-marca-linha');
+              const l = linhas[0].getBoundingClientRect(), e = getComputedStyle(linhas[0]);
+              const card = document.querySelector('section.folha .card[data-ref="{{ancora}}"]');
+              const c = card.getBoundingClientRect(), f = card.closest('section.folha').getBoundingClientRect();
+              return { n: linhas.length, centro: l.top + l.height / 2, topoItem: c.top, h: l.height, dEsq: l.left - f.left, dDir: l.right - f.right,
+                       cor: e.backgroundColor, cliques: e.pointerEvents, dentroDeFolha: !!linhas[0].closest('section.folha') };
+            })()
+            """);
+        Assert.Equal(1, linha.GetProperty("n").GetInt32());
+        Assert.InRange(linha.GetProperty("centro").GetDouble() - linha.GetProperty("topoItem").GetDouble(), -2, 2);
+        Assert.InRange(linha.GetProperty("h").GetDouble(), 1.9, 2.1);
+        Assert.InRange(linha.GetProperty("dEsq").GetDouble(), -0.5, 0.5);
+        Assert.InRange(linha.GetProperty("dDir").GetDouble(), -0.5, 0.5);
+        Assert.Equal("rgb(196, 43, 28)", linha.GetProperty("cor").GetString());
+        Assert.Equal("none", linha.GetProperty("cliques").GetString());
+        Assert.False(linha.GetProperty("dentroDeFolha").GetBoolean());
+
         // Nem a medida, nem o texto, nem o PDF mudam.
         Assert.Equal(textoAntes, await tela.Documento.TextoPorFolhaAsync());
         var pdfDepois = await tela.Documento.ImprimirPdfAsync();
@@ -509,10 +530,12 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
             (() => {
               const b = document.querySelector('#pmvni-camada .pmvni-marca-excl').getBoundingClientRect();
               const pedacos = [...document.querySelectorAll('section.folha .card[data-ref="{{a.Ids[6]}}"]')];
-              return { centro: b.top + b.height / 2, base: pedacos[pedacos.length - 1].getBoundingClientRect().bottom };
+              const l = document.querySelector('#pmvni-camada .pmvni-marca-linha').getBoundingClientRect();
+              return { centro: b.top + b.height / 2, linha: l.top + l.height / 2, base: pedacos[pedacos.length - 1].getBoundingClientRect().bottom };
             })()
             """);
         Assert.InRange(base_.GetProperty("centro").GetDouble() - base_.GetProperty("base").GetDouble(), -2, 2);
+        Assert.InRange(base_.GetProperty("linha").GetDouble() - base_.GetProperty("base").GetDouble(), -2, 2);
 
         // Marcas desligadas: a camada some e o estado volta ao de antes.
         Assert.Equal(0, (await EstadoAsync(null, true, Marcas(false, [alterado], [excluido]))).GetProperty("marcasDesenhadas").GetInt32());
@@ -539,7 +562,8 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
                   const alvo = document.querySelector('section.folha .card[data-ref="{{ancora}}"]');
                   const b = document.querySelector('#pmvni-camada .pmvni-marca-excl').getBoundingClientRect();
                   const f = alvo.closest('section.folha').getBoundingClientRect();
-                  return { dTopo: t.top - card.top, dAltura: t.height - card.height, larguraTraco: t.width, direitaTraco: t.right - f.left,
+                  const l = document.querySelector('#pmvni-camada .pmvni-marca-linha').getBoundingClientRect();
+                  return { dLinha: l.top + l.height / 2 - alvo.getBoundingClientRect().top, alturaLinha: l.height, dLinhaEsq: l.left - f.left, dLinhaDir: l.right - f.right, dTopo: t.top - card.top, dAltura: t.height - card.height, larguraTraco: t.width, direitaTraco: t.right - f.left,
                            dCentro: b.top + b.height / 2 - alvo.getBoundingClientRect().top, direitaBotao: b.right - f.left, larguraBotao: b.width, alturaBotao: b.height };
                 })()
                 """);
@@ -548,6 +572,10 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
             Assert.InRange(m.GetProperty("larguraTraco").GetDouble(), 2.9, 3.1); // 3 px de tela em qualquer zoom
             Assert.True(m.GetProperty("direitaTraco").GetDouble() < 0, $"zoom {zoom}: traço dentro da folha");
             Assert.InRange(m.GetProperty("dCentro").GetDouble(), -1.5, 1.5);
+            Assert.InRange(m.GetProperty("dLinha").GetDouble(), -1.5, 1.5);
+            Assert.InRange(m.GetProperty("alturaLinha").GetDouble(), 1.9, 2.1); // 2 px de tela em qualquer zoom
+            Assert.InRange(m.GetProperty("dLinhaEsq").GetDouble(), -0.5, 0.5);
+            Assert.InRange(m.GetProperty("dLinhaDir").GetDouble(), -0.5, 0.5);
             Assert.InRange(m.GetProperty("direitaBotao").GetDouble(), -6.2, -5.8);
             Assert.InRange(m.GetProperty("alturaBotao").GetDouble(), 17.9, 18.1);
             larguraDoBotao ??= m.GetProperty("larguraBotao").GetDouble();
@@ -566,6 +594,14 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
             await Task.Delay(300);
             await EstadoAsync(null, true, Marcas(false));
             Assert.InRange(await EsquerdaDaFolhaAsync(), 11.5, 12.5);
+            await EstadoAsync(null, true, Marcas(true, [a.Ids[0]]));
+            Assert.InRange(await EsquerdaDaFolhaAsync(), 71.5, 72.5);
+            // Com item excluído, a margem cresce até caber a etiqueta "ITEM EXCLUÍDO NN" inteira, sem sair da janela.
+            var excluido = new { id = "it_EXCLUIDO_02", rotulo = "02", ancora = a.Ids[1], lado = "antes" };
+            await EstadoAsync(null, true, Marcas(true, [], [excluido]));
+            var etiqueta = await Js("(() => { const b = document.querySelector('#pmvni-camada .pmvni-marca-excl').getBoundingClientRect(); return { esquerda: b.left, direita: b.right }; })()");
+            Assert.True(etiqueta.GetProperty("esquerda").GetDouble() >= 0, "a etiqueta do excluído deve caber na margem");
+            Assert.True(etiqueta.GetProperty("direita").GetDouble() <= await EsquerdaDaFolhaAsync() + 0.01);
             await EstadoAsync(null, true, Marcas(true, [a.Ids[0]]));
             Assert.InRange(await EsquerdaDaFolhaAsync(), 71.5, 72.5);
             await EstadoAsync(null, true, Marcas(false));

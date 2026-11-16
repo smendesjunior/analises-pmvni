@@ -1349,25 +1349,28 @@ var Paginador = (() => {
   var CLASSE_MARCA = "pmvni-marca";
   var CLASSE_TRACO = "pmvni-marca-traco";
   var CLASSE_EXCLUIDO = "pmvni-marca-excl";
+  var CLASSE_LINHA = "pmvni-marca-linha";
   var TRACO_LARGURA_PX = 3;
   var TRACO_AFASTAMENTO_PX = 12;
   var BOTAO_FOLGA_PX = 6;
   var BOTAO_ALTURA_PX = 18;
+  var LINHA_ESPESSURA_PX = 2;
+  var BOTAO_FOLGA_JANELA_PX = 6;
   var CSS_MARCAS = `
 @media screen {
   #${ID_CAMADA} { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; z-index: 5; pointer-events: none; }
   #${ID_CAMADA} .${CLASSE_TRACO} { position: absolute; width: calc(${TRACO_LARGURA_PX}px / var(--pmvni-zoom, 1)); background: #1a73e8; border-radius: 2px; pointer-events: none; }
   #${ID_CAMADA} .${CLASSE_EXCLUIDO} {
     position: absolute; margin: 0; padding: 0 7px; box-sizing: border-box; height: ${BOTAO_ALTURA_PX}px; white-space: nowrap;
-    font: 600 11px/16px "Segoe UI", system-ui, sans-serif; color: #8a1f11; background: #fff; border: 1px solid #c42b1c; border-radius: 9px;
+    font: 600 11px/16px "Segoe UI", system-ui, sans-serif; letter-spacing: .2px; color: #fff; background: #c42b1c; border: 1px solid #c42b1c; border-radius: 9px;
     cursor: pointer; pointer-events: auto; transform-origin: 0 0; transform: scale(calc(1 / var(--pmvni-zoom, 1))) translateX(-100%);
   }
-  #${ID_CAMADA} .${CLASSE_EXCLUIDO}:hover { background: #fdecea; }
+  #${ID_CAMADA} .${CLASSE_EXCLUIDO}:hover { background: #a32418; border-color: #a32418; }
+  #${ID_CAMADA} .${CLASSE_LINHA} { position: absolute; height: calc(${LINHA_ESPESSURA_PX}px / var(--pmvni-zoom, 1)); background: #c42b1c; pointer-events: none; }
 }
 @media screen and (prefers-color-scheme: dark) {
   #${ID_CAMADA} .${CLASSE_TRACO} { background: #6ea8fe; }
-  #${ID_CAMADA} .${CLASSE_EXCLUIDO} { color: #ffb4a8; background: #2b2b2b; border-color: #e5604f; }
-  #${ID_CAMADA} .${CLASSE_EXCLUIDO}:hover { background: #3a2623; }
+  #${ID_CAMADA} .${CLASSE_EXCLUIDO}:hover { background: #d9483a; border-color: #d9483a; }
 }
 @media print { #${ID_CAMADA} { display: none !important; } }
 `;
@@ -1387,6 +1390,14 @@ var Paginador = (() => {
       document.body.appendChild(c);
     }
     return c;
+  }
+  function golaDosExcluidos() {
+    const botoes = document.querySelectorAll(`#${ID_CAMADA} .${CLASSE_EXCLUIDO}`);
+    let maior = 0;
+    botoes.forEach((b) => {
+      maior = Math.max(maior, b.offsetWidth);
+    });
+    return maior === 0 ? 0 : Math.ceil(maior + BOTAO_FOLGA_PX + BOTAO_FOLGA_JANELA_PX);
   }
   function desenharMarcas(m, aoClicarExcluido) {
     limparMarcas();
@@ -1418,16 +1429,27 @@ var Paginador = (() => {
       const p = e.lado === "antes" ? pedacos[0] : pedacos[pedacos.length - 1];
       const r = p.getBoundingClientRect();
       const folha = p.closest("section.folha").getBoundingClientRect();
-      return [{ e, x: localX(folha.left), y: localY(e.lado === "antes" ? r.top : r.bottom) }];
+      return [{ e, x: localX(folha.left), largura: folha.width / z, y: localY(e.lado === "antes" ? r.top : r.bottom) }];
     }).sort((a, b) => a.y - b.y);
     let ultimo = -Infinity;
-    for (const { e, x, y } of posicoes) {
+    const linhas = /* @__PURE__ */ new Set();
+    for (const { e, x, largura, y } of posicoes) {
+      const chave = `${x.toFixed(1)}|${y.toFixed(1)}`;
+      if (!linhas.has(chave)) {
+        linhas.add(chave);
+        const linha = document.createElement("div");
+        linha.className = `${CLASSE_MARCA} ${CLASSE_LINHA}`;
+        linha.style.left = `${x}px`;
+        linha.style.width = `${largura}px`;
+        linha.style.top = `calc(${y}px - ${LINHA_ESPESSURA_PX / 2}px / var(--pmvni-zoom, 1))`;
+        c.appendChild(linha);
+      }
       const topo = Math.max(y, ultimo + (BOTAO_ALTURA_PX + 2) / z);
       ultimo = topo;
       const b = document.createElement("button");
       b.type = "button";
       b.className = `${CLASSE_MARCA} ${CLASSE_EXCLUIDO}`;
-      b.textContent = `◦ excl. ${e.rotulo}`;
+      b.textContent = `ITEM EXCLUÍDO ${e.rotulo}`;
       b.title = `Item ${e.rotulo} excluído: clique para ver`;
       b.style.left = `calc(${x}px - ${BOTAO_FOLGA_PX}px / var(--pmvni-zoom, 1))`;
       b.style.top = `calc(${topo}px - ${BOTAO_ALTURA_PX / 2}px / var(--pmvni-zoom, 1))`;
@@ -1725,8 +1747,8 @@ ${CSS_MARCAS}`;
       if (e.campos) camposMarcados = marcarCampos();
       else desmarcarCampos();
       aplicarSelecao(e.selecao);
-      definirGola(e.marcas.visiveis ? GOLA_COM_MARCAS_PX : GOLA_ESQUERDA_PX);
       const marcasDesenhadas = desenharMarcas(e.marcas, (id, x, y) => evento("excluidoClicado", { id, x, y }));
+      definirGola(e.marcas.visiveis ? Math.max(GOLA_COM_MARCAS_PX, golaDosExcluidos()) : GOLA_ESQUERDA_PX);
       if (e.ancora) restaurarAncora(e.ancora);
       return { tipo: "estadoAplicado", dados: { camposMarcados, marcasDesenhadas } };
     });
