@@ -141,6 +141,152 @@ public class ShapefileTestes
     }
 }
 
+/// <summary>O mapa de localização portado do kit (mapa_localizacao.py) e o relatório no aspecto do relatório de análise, com uma base
+/// fictícia. Com PMVNI_MAPA_SAIDA apontando para uma pasta, o mapa (.svg) e o relatório (.html) de exemplo ficam gravados nela.</summary>
+public class MapaLocalizacaoTestes : IDisposable
+{
+    readonly string pasta = BaseFicticia.Criar();
+    readonly BaseQgis b;
+
+    public MapaLocalizacaoTestes() => b = BaseQgis.Carregar(pasta);
+
+    public void Dispose()
+    {
+        try { Directory.Delete(pasta, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+    }
+
+    [Fact]
+    public void contas_do_script_do_kit()
+    {
+        Assert.Equal([30], MapaLocalizacao.FaixaApp("30"));
+        Assert.Equal([15, 30], MapaLocalizacao.FaixaApp("1530"));
+        Assert.Equal([15, 30], MapaLocalizacao.FaixaApp("3015"));
+        Assert.Empty(MapaLocalizacao.FaixaApp(null));
+        Assert.Equal("BR-262", MapaLocalizacao.NomeRua("BR 262"));
+        Assert.Equal("Avenida 29 De Julho", MapaLocalizacao.NomeRua("AVENIDA 29 DE JULHO"));
+        Assert.Equal("Av. Pref. Fulano De Tal", MapaLocalizacao.NomeAbreviado("AVENIDA PREFEITO FULANO DE TAL"));
+        Assert.True(MapaLocalizacao.EhRodovia("BR 262"));
+        Assert.True(MapaLocalizacao.EhBr262("BR-262"));
+        Assert.False(MapaLocalizacao.EhRodovia("RUA DAS ACACIAS"));
+        Assert.Equal("Beltrana Modelo", MapaLocalizacao.Curto("BELTRANA DE SOUZA MODELO E SOCIO (A)(S)"));
+        Assert.Equal("Fulano Exemplo", MapaLocalizacao.Curto("FULANO DE TAL EXEMPLO e outros 2"));
+        // A cor da zona é a do kit: md5 do nome, módulo 8 (os valores abaixo saíram do próprio script).
+        Assert.Equal("#DCE6AC", MapaSvg.CorDaZona("ZCN2").Claro);
+        Assert.Equal("#E0D6C4", MapaSvg.CorDaZona("ZRE").Claro);
+        Assert.Equal("#C0E4C8", MapaSvg.CorDaZona("ZEIS").Claro);
+    }
+
+    [Fact]
+    public void mapa_tem_o_enquadramento_as_camadas_o_balao_e_a_legenda_do_kit()
+    {
+        var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4, new OpcoesMapa { AreaDeclarada = 1500, AreaFonte = "matrícula", Endereco = "Rua das Acácias, 120" });
+        Assert.Equal("VERIFIED_LOT", m.Modo);
+        // 16:10, com o centro do lote a 60% da largura e a 58% da altura (a partir do topo).
+        Assert.Equal(1.6, m.Extensao.Width / m.Extensao.Height, 6);
+        Assert.Equal(0.60, (300_115 - m.Extensao.MinX) / m.Extensao.Width, 6);
+        Assert.Equal(0.58, (m.Extensao.MaxY - 7_750_120) / m.Extensao.Height, 6);
+
+        Assert.Equal(["LOTE 4 · QUADRA Q7", "FULANO DE TAL EXEMPLO", "Inscrição " + BaseFicticia.Lote4, "Zona ZCN2 · base 1.200,00 m² · declarada 1.500,00 m²", "APP ATINGE O LOTE", "FAIXA DA BR-262 ATINGE O LOTE"], m.Ficha);
+        Assert.Equal(["lote", "edif", "app", "rio", "dnit", "zona"], m.Legenda.Select(i => i.Tipo));
+        Assert.Equal(["Lote do projeto", "Edificação no lote", "Faixa de APP", "Curso d'água", "Faixas da BR-262", "Zonas do PDM"], m.Legenda.Select(i => i.Texto));
+        Assert.Equal("Córrego Fictício", m.NomeRio);
+        Assert.True(m.AppAtingeLote);
+        Assert.Equal(41.8, m.Br262!.DistanciaEixo);
+        Assert.False(m.Br262.AtingeDominio);
+        Assert.True(m.Br262.AtingeNaoEdificavel);
+        Assert.Equal(1, m.Edificacoes);
+        Assert.Equal(300, m.AreaEdificada);
+        Assert.Equal(25.0, m.DiferencaAreaPct);
+        Assert.Equal("Sede", m.Auc);
+        Assert.Equal([BaseFicticia.Lote3, BaseFicticia.Lote5, BaseFicticia.Lote12], m.Confrontantes.Select(c => c.Inscricao));
+        Assert.Contains("RUA DAS ACACIAS", m.Ruas);
+        Assert.Contains("BR 262", m.Ruas);
+
+        var svg = m.Svg;
+        Assert.StartsWith("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"840\" height=\"525\" viewBox=\"0 0 1680 1050\"", svg);
+        foreach (var t in new[] { ">LOTE 4<", ">ZCN2<", ">ZRE<", ">BR-262<", ">Rua Das Acacias<", ">Córrego Fictício<", ">Beltrana Modelo<", ">Sicrano Teste<", ">APP ATINGE O LOTE<", ">FAIXA DA BR-262 ATINGE O LOTE<", " m<" })
+            Assert.Contains(t, svg);
+        Assert.Contains("stroke=\"#E22D28\" stroke-width=\"8\"", svg);   // lote confirmado: contorno vermelho de 4 px
+        Assert.Contains("fill=\"#5C5650\"", svg);                          // edificação do lote, escura
+        Assert.Contains("stroke=\"#E37400\"", svg);                        // faixas da BR-262
+        Assert.Contains("stroke=\"#78BAF0\"", svg);                        // faixa de APP
+        Assert.Contains("fill=\"#FAD470\"".Replace("fill", "stroke"), svg); // rodovia em amarelo
+        // A ordem do desenho: zonas, edificações, faixas, ruas, água, lotes, lote em vermelho, balão e norte por último.
+        int Pos(string t) => svg.IndexOf(t, StringComparison.Ordinal);
+        Assert.True(Pos("fill=\"#DCE6AC\"") < Pos("stroke=\"#E37400\"") && Pos("stroke=\"#E37400\"") < Pos("stroke=\"#D6CFC3\"") && Pos("stroke=\"#D6CFC3\"") < Pos("stroke=\"#2884DE\""));
+        Assert.True(Pos("stroke=\"#2884DE\"") < Pos("stroke=\"#B2AA9E\"") && Pos("stroke=\"#B2AA9E\"") < Pos("fill-opacity=\".216\"") && Pos("fill-opacity=\".216\"") < Pos("filter=\"url(#sombra)\""));
+
+        var d = m.Dados.ToDictionary(x => x.Rotulo);
+        Assert.Equal(["Identificação", "Áreas e edificação", "Zona e condicionantes", "Cadastro e entorno"], m.Dados.Select(x => x.Grupo).Distinct());
+        Assert.Equal("4 / Q7 — Loteamento Exemplo", d["Lote / quadra"].Valor);
+        Assert.Equal(("DIVERGE", "a", "+25,00% sobre a base"), (d["Diferença"].Chip, d["Diferença"].Alerta, d["Diferença"].Valor));
+        Assert.Equal(("ATINGE O LOTE", "r"), (d["APP / rio"].Chip, d["APP / rio"].Alerta));
+        Assert.StartsWith("Córrego Fictício · calha a ", d["APP / rio"].Valor);
+        Assert.EndsWith(" m · APP de 15 m / 30 m na base", d["APP / rio"].Valor);
+        Assert.Equal("Eixo a 41,8 m · domínio 40 m + 15 m não edificáveis", d["BR-262"].Valor);
+        Assert.Equal("ATINGE O LOTE", d["BR-262"].Chip);
+        Assert.Equal("Sim — AUC Sede", d["AUC"].Valor);
+        Assert.Equal("SEDE", d["Perímetro"].Valor);
+        Assert.Equal("Ativo · Construido · matrícula 9.999", d["Situação"].Valor);
+        Assert.Equal("Loteamento aprovado Loteamento Exemplo", d["Parcelamento"].Valor);
+        Assert.Equal("Lote 3: BELTRANA DE SOUZA MODELO E SOCIO (A)(S) · Lote 5: SICRANO PEREIRA TESTE · Lote 12: sem nome no cadastro", d["Confrontantes"].Valor);
+
+        if (Environment.GetEnvironmentVariable("PMVNI_MAPA_SAIDA") is { Length: > 0 } saida) File.WriteAllText(Path.Combine(saida, "mapa-exemplo.svg"), svg);
+    }
+
+    [Fact]
+    public void sem_nomes_e_com_lote_candidato()
+    {
+        var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4, new OpcoesMapa { Candidato = true, ComDonos = false });
+        Assert.Equal("CANDIDATE_POINT", m.Modo);
+        Assert.Contains("stroke=\"#E22D28\" stroke-width=\"6\"", m.Svg); // identidade a confirmar: traço mais fino
+        Assert.DoesNotContain("FULANO", m.Svg);
+        Assert.DoesNotContain("Beltrana", m.Svg);
+        Assert.DoesNotContain(m.Dados, x => x.Rotulo is "Proprietário" or "Confrontantes");
+        Assert.Throws<ArgumentException>(() => MapaLocalizacao.PorInscricao(b, "99999999999999"));
+    }
+
+    [Fact]
+    public void relatorio_do_imovel_tem_o_aspecto_do_relatorio_de_analise()
+    {
+        var r = Assert.Single(b.Cadastro.PorInscricao(BaseFicticia.Lote4));
+        var a = b.Analisar(r);
+        Assert.True(a.Conclusivo);
+        var html = RelatorioHtml.Gerar(b, a, null, new DateTimeOffset(2026, 11, 16, 10, 0, 0, TimeSpan.Zero));
+        Assert.Contains(RelatorioHtml.CssOficial, html);              // o CSS oficial inteiro, sem alteração
+        Assert.Contains(".lmrow { display: grid;", RelatorioHtml.CssOficial);
+        foreach (var t in new[]
+        {
+            "<h1>RELATÓRIO CADASTRAL<br>E TERRITORIAL</h1>", "<div class=\"band\"><div class=\"proc\">INSCRIÇÃO " + BaseFicticia.Lote4, "<div class=\"name\">FULANO DE TAL EXEMPLO</div>",
+            "<div class=\"ic g\"><h4>LOCALIZAÇÃO</h4>", "<h2>LOCALIZAÇÃO NA BASE MUNICIPAL</h2>", "<span class=\"pill g\"><i></i>LOTE IDENTIFICADO</span>",
+            "<div class=\"lmap\"><img alt=\"Mapa de localização do lote na base municipal\" src=\"data:image/svg+xml;base64,", "<div class=\"lbl\">SITUAÇÃO DO LOTE NA BASE</div>",
+            "<span><i class=\"lk dnit\"></i>Faixas da BR-262</span>", "<div class=\"lficha\"><table class=\"lft\">",
+            "<tr class=\"lfh\"><th colspan=\"2\">Identificação</th></tr>", "<tr class=\"lfh\"><th colspan=\"2\">Cadastro e entorno</th></tr>",
+            "<tr class=\"lfh\"><th colspan=\"2\">Áreas e edificação</th></tr>", "<tr class=\"lfh\"><th colspan=\"2\">Zona e condicionantes</th></tr>",
+            "<i class=\"lchip r\">ATINGE O LOTE</i>", "<i class=\"lchip g\">CONFERE</i>", "<td class=\"lfl\">Área calculada</td><td class=\"lfv\"><b>1.200,00 m²</b>",
+        })
+            Assert.Contains(t, html);
+        // A ficha fica na ordem do molde: Identificação e Cadastro e entorno na primeira tabela; Áreas e Zona na segunda.
+        Assert.True(html.IndexOf(">Cadastro e entorno<", StringComparison.Ordinal) < html.IndexOf(">Áreas e edificação<", StringComparison.Ordinal));
+        Assert.True(html.Length < 1_500_000); // cabe no NavigateToString do WebView2 (limite de 2 MB)
+        if (Environment.GetEnvironmentVariable("PMVNI_MAPA_SAIDA") is { Length: > 0 } saida) File.WriteAllText(Path.Combine(saida, "relatorio-exemplo.html"), html);
+    }
+
+    [Fact]
+    public void sem_lote_desenhado_o_relatorio_sai_sem_mapa_e_diz_por_que()
+    {
+        var r = new RegistroCadastro(9, new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            { ["inscricao_municipal"] = "09090090009001", ["nome_do_contribuinte"] = "PESSOA SEM LOTE", ["situacao"] = "Ativo" });
+        var a = b.Analisar(r);
+        Assert.Equal(VinculoMapa.SemLote, a.Vinculo);
+        var html = RelatorioHtml.Gerar(b, a, null, DateTimeOffset.Now);
+        Assert.DoesNotContain("class=\"lmap\"", html);
+        Assert.Contains("<b>SEM MAPA</b>", html);
+        Assert.Contains("<i class=\"lchip r\">SEM LOTE NO MAPA</i>", html);
+        Assert.Contains("<span class=\"pill r\"><i></i>SEM LOTE NO MAPA</span>", html);
+    }
+}
+
 /// <summary>Com a base real deste computador (pasta QGIS do kit): carrega, pesquisa e gera o relatório de um lote identificado.
 /// Sem a pasta, o teste passa sem fazer nada (outros PCs e a nuvem).</summary>
 public class BaseRealTestes
@@ -159,15 +305,24 @@ public class BaseRealTestes
         Assert.DoesNotContain(b.Cadastro.Campos, c => c.Id == "n_documento");
         Assert.NotNull(b[Camada.Lotes]);
         // Um registro com lote confirmado, de preferência com vizinhos e zona.
-        var r = b.Cadastro.Registros.First(x => b.VinculoRapido(x.InscricaoMunicipal) == VinculoMapa.Confirmado);
+        // PMVNI_INSCRICAO_TESTE escolhe o imóvel (para comparar o mapa com o do script do kit, fora do repositório).
+        var escolhida = Environment.GetEnvironmentVariable("PMVNI_INSCRICAO_TESTE");
+        var r = b.Cadastro.Registros.First(x => escolhida is { Length: > 0 } ? x.InscricaoMunicipal == escolhida : b.VinculoRapido(x.InscricaoMunicipal) == VinculoMapa.Confirmado);
         var p = Pesquisa.Aplicar(b.Cadastro.Registros, b.Cadastro.Campos, new Consulta("inscricao_municipal", Condicao.Igual, r.InscricaoMunicipal));
         Assert.Contains(p.Itens, x => x.LinhaFonte == r.LinhaFonte);
         var a = b.Analisar(r);
         Assert.True(a.Conclusivo);
         Assert.NotEmpty(a.Zonas);
         var html = RelatorioHtml.Gerar(b, a, null, DateTimeOffset.Now);
-        Assert.Contains("<svg", html);
+        Assert.Contains("class=\"lmap\"><img", html);
+        Assert.Contains("class=\"lficha\"", html);
         Assert.Contains(r.InscricaoMunicipal, html);
-        if (Environment.GetEnvironmentVariable("PMVNI_RELATORIO_SAIDA") is { Length: > 0 } saida) File.WriteAllText(saida, html);
+        Assert.True(html.Length < 1_900_000, $"relatório com {html.Length} caracteres: perto do limite do NavigateToString");
+        if (Environment.GetEnvironmentVariable("PMVNI_RELATORIO_SAIDA") is { Length: > 0 } saida)
+        {
+            File.WriteAllText(saida, html);
+            var area = double.TryParse(Environment.GetEnvironmentVariable("PMVNI_AREA_TESTE"), System.Globalization.CultureInfo.InvariantCulture, out var ad) ? ad : (double?)null;
+            File.WriteAllText(Path.ChangeExtension(saida, ".svg"), MapaLocalizacao.PorInscricao(b, r.InscricaoMunicipal, new OpcoesMapa { AreaDeclarada = area, Candidato = area is not null }).Svg);
+        }
     }
 }

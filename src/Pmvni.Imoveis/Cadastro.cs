@@ -31,6 +31,30 @@ public sealed class Cadastro
     public IReadOnlyList<RegistroCadastro> PorInscricao(string inscricao) =>
         porInscricao.TryGetValue(inscricao, out var l) ? l : [];
 
+    Dictionary<string, List<string>>? nomesPorTerreno;
+
+    /// <summary>Os contribuintes (sem repetir, na ordem da inscrição) dos registros vigentes do mesmo terreno: os 11 primeiros dígitos
+    /// da inscrição, como o mapa do kit consulta. Dado pessoal: só para o relatório interno.</summary>
+    public IReadOnlyList<string> NomesDoTerreno(string inscricao)
+    {
+        if (inscricao.Length < 11) return [];
+        var indice = nomesPorTerreno;
+        if (indice is null)
+        {
+            indice = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+            foreach (var r in Registros.Where(r => r.InscricaoMunicipal.Length >= 11).OrderBy(r => r.InscricaoMunicipal, StringComparer.Ordinal))
+            {
+                var nome = r.Contribuinte.Trim();
+                if (nome.Length == 0) continue;
+                var chave = r.InscricaoMunicipal[..11];
+                if (!indice.TryGetValue(chave, out var l)) indice[chave] = l = [];
+                if (!l.Contains(nome)) l.Add(nome);
+            }
+            nomesPorTerreno = indice;
+        }
+        return indice.TryGetValue(inscricao[..11], out var nomes) ? nomes : [];
+    }
+
     public RegistroCadastro? PorLinha(long linha) => Registros.FirstOrDefault(r => r.LinhaFonte == linha);
 
     /// <summary>Colunas que nunca viram parâmetro de pesquisa nem aparecem no relatório (documentos pessoais e chaves internas).</summary>

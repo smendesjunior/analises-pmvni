@@ -66,7 +66,7 @@ public static class Shapefile
         var campos = new List<(string Nome, char Tipo, int Tamanho)>();
         for (var p = 32; p + 32 <= tamCab && b[p] != 0x0D; p += 32)
         {
-            var nome = Encoding.ASCII.GetString(b, p, 11).Split('\0')[0].Trim();
+            var nome = Encoding.Latin1.GetString(b, p, 11).Split('\0')[0].Trim(); // Latin-1: a base tem campo com acento ("Perímetro", na AUC)
             campos.Add((nome, (char)b[p + 11], b[p + 16]));
         }
         var r = new List<Dictionary<string, string?>>(n);
