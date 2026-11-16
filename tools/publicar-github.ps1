@@ -13,6 +13,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+# A saída do git (assuntos dos commits, com acentos) vem em UTF-8: sem isto, o PowerShell 5.1 a lê no código de página do console
+# e as notas da Release saem estragadas.
+[Console]::OutputEncoding = New-Object Text.UTF8Encoding $false
+$OutputEncoding = [Console]::OutputEncoding
 $raiz = Split-Path -Parent $PSScriptRoot
 $repo = 'smendesjunior/analises-pmvni'
 $nomeExe = 'EditorRelatoriosPMVNI.exe'
