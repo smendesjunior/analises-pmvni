@@ -69,8 +69,9 @@ public sealed partial class Trilho : UserControl
                 Style = Estilo("PmvniTrilhoFundoInativoStyle"),
                 Child = conteudo,
             };
-            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 0) };
-            var grade = new Grid();
+            // A barrinha fica DENTRO do fundo arredondado, junto da borda esquerda dele (como no Gmail): a grade tem a largura do fundo.
+            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Visibility = Visibility.Collapsed, Margin = new Thickness(5, 0, 0, 0) };
+            var grade = new Grid { Width = 64, HorizontalAlignment = HorizontalAlignment.Center };
             grade.Children.Add(fundo);
             grade.Children.Add(indicador);
             var botao = new Button
