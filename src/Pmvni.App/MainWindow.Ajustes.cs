@@ -125,6 +125,13 @@ public sealed partial class MainWindow
         p.BotaoRedefinirPerfil.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(RedefinirPerfilSofficeAsync));
         AoAlternar(p.AlternarAbrirPdf, sim => ajustes.DespachoAbrirPdf = sim);
         AoEscolher(p.CaixaEscopo, v => ajustes.LegislacaoEscopo = (string)v);
+        // Grava ao digitar também (antes só ao sair da caixa, e o texto se perdia se a janela fechasse com o cursor nela).
+        p.CaixaPedidoPadrao.TextChanged += (_, _) =>
+        {
+            if (atualizandoAjustes || p.CaixaPedidoPadrao.Text == ajustes.PedidoPadrao) return;
+            ajustes.PedidoPadrao = p.CaixaPedidoPadrao.Text;
+            SalvarAjustes();
+        };
         p.CaixaPedidoPadrao.LostFocus += (_, _) =>
         {
             if (atualizandoAjustes || p.CaixaPedidoPadrao.Text == ajustes.PedidoPadrao) return;

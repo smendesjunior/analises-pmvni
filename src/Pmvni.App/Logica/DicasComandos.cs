@@ -65,7 +65,7 @@ public static class DicasComandos
         [ComandosApp.DespachosNovo] = "Cria um despacho de correção ou de aprovação a partir do relatório revisado.",
         [ComandosApp.DespachosNovoCorrecao] = "Cria um despacho pedindo as correções apontadas no relatório.",
         [ComandosApp.DespachosNovoAprovacao] = "Cria um despacho aprovando o projeto analisado.",
-        [ComandosApp.DespachosAbrir] = "Abre o despacho selecionado no programa padrão do Windows (Word ou leitor de PDF).",
+        [ComandosApp.DespachosAbrir] = "Escolhe um despacho (Word ou PDF) e o abre no programa padrão do Windows.",
         [ComandosApp.DespachosAbrirPdf] = "Abre o PDF do despacho selecionado.",
         [ComandosApp.DespachosGerarPdf] = "Gera o PDF do despacho que ainda só existe em Word.",
         [ComandosApp.DespachosMostrar] = "Abre a pasta do despacho selecionado no Explorador de Arquivos.",

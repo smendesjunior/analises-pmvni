@@ -113,7 +113,12 @@ public sealed partial class MainWindow
         manipuladores[ComandosApp.ProcessosOrdenarData] = () => DefinirOrdemDeProcessos(OrdemProcessos.Data);
         manipuladores[ComandosApp.ProcessosOrdenarRequerente] = () => DefinirOrdemDeProcessos(OrdemProcessos.Requerente);
 
-        manipuladores[ComandosApp.DespachosAbrir] = () => { AbrirNoPrograma(despachoEscolhido?.ArquivoParaAbrir); return Task.CompletedTask; };
+        // «Abrir»: com um despacho escolhido, abre ele; sem escolha (a lista fica oculta), pergunta qual despacho (.docx ou .pdf) abrir.
+        manipuladores[ComandosApp.DespachosAbrir] = async () =>
+        {
+            if (despachoEscolhido?.ArquivoParaAbrir is { } escolhido) { AbrirNoPrograma(escolhido); return; }
+            if (await Perguntas.Atual.AbrirArquivoAsync(".docx;.pdf") is { } arquivo) AbrirNoPrograma(arquivo);
+        };
         manipuladores[ComandosApp.DespachosAbrirPdf] = () => { AbrirNoPrograma(despachoEscolhido?.ArquivoPdf); return Task.CompletedTask; };
         manipuladores[ComandosApp.DespachosMostrar] = () =>
         {
@@ -474,12 +479,8 @@ public sealed partial class MainWindow
             pagina.ListaDespachos.ItemsSource = itens;
             pagina.ListaDespachos.SelectedItem = despachoEscolhido is null ? null
                 : itens.FirstOrDefault(i => i.Linha is { } l && string.Equals(l.Despacho.Pasta, despachoEscolhido.Despacho.Pasta, StringComparison.OrdinalIgnoreCase));
-            // Correção 2026-11-16: sem escolha, o primeiro despacho já vem escolhido (os botões Abrir, Abrir PDF... ficam ativos).
-            if (pagina.ListaDespachos.SelectedItem is null && itens.FirstOrDefault(i => i.EhDespacho) is { Linha: { } primeiro } item)
-            {
-                pagina.ListaDespachos.SelectedItem = item;
-                despachoEscolhido = primeiro;
-            }
+            // Correção 2026-11-16 (2): a lista fica oculta (Despachos só cria), então nada é escolhido sozinho; antes o primeiro
+            // despacho (de outro processo) vinha escolhido e «Abrir» abria ele.
             if (pagina.ListaDespachos.SelectedItem is null) despachoEscolhido = null;
         }
         finally { atualizandoListas = false; }
@@ -718,7 +719,7 @@ public sealed partial class MainWindow
         Faixa.Habilitar(ComandosApp.ProcessosAbrirPasta, processoEscolhido is not null);
         Faixa.Habilitar(ComandosApp.ProcessosAtualizar, true);
         Faixa.Habilitar(ComandosApp.ProcessosAno, processosLidos && !pastaAusente);
-        Faixa.Habilitar(ComandosApp.DespachosAbrir, despachoEscolhido?.ArquivoParaAbrir is not null);
+        Faixa.Habilitar(ComandosApp.DespachosAbrir, true);
         Faixa.Habilitar(ComandosApp.DespachosAbrirPdf, despachoEscolhido?.ArquivoPdf is not null);
         Faixa.Habilitar(ComandosApp.DespachosMostrar, despachoEscolhido is not null);
         Faixa.Habilitar(ComandosApp.DespachosIrAoProcesso, despachoEscolhido?.Despacho.Processo is not null);

@@ -163,7 +163,7 @@ public sealed partial class MainWindow
         var habilitada = moduloAtual switch { Modulo.Relatorios => temRelatorio, Modulo.Processos or Modulo.Despachos or Modulo.Legislacao => true, _ => false };
         CaixaPesquisa.IsEnabled = habilitada;
         // Desabilitada diz o motivo (auditoria M6), na dica e para o Narrador.
-        var motivo = habilitada ? "" : moduloAtual == Modulo.Relatorios ? "Abra um relatório para pesquisar nele." : "Não há o que pesquisar nos Ajustes.";
+        var motivo = habilitada ? "" : moduloAtual == Modulo.Relatorios ? "Abra um relatório para pesquisar nele." : moduloAtual == Modulo.Ajustes ? "Não há o que pesquisar nos Ajustes." : "Não há pesquisa neste módulo.";
         AplicarDicaDaPesquisa(motivo);
         // Anterior e próxima andam pelas ocorrências nas folhas (e, na Legislação, pelas da lei aberta: quem acerta é o contador dela).
         if (moduloAtual == Modulo.Legislacao) return;

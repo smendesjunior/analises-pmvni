@@ -1811,7 +1811,7 @@ internal static class Roteiro
                 var def = Faixas.Para(m);
                 var abas = j.FaixaAtual.Definicao!.Abas.Select(a => a.Nome).ToArray();
                 var abasOk = j.FaixaAtual.Definicao.Modulo == m && abas.SequenceEqual(def.Abas.Select(a => a.Nome));
-                var dicaOk = m == Modulo.Ajustes ? !j.CaixaPesquisaHabilitada : j.DicaDaPesquisa == dicas[m] && j.CaixaPesquisaHabilitada;
+                var dicaOk = !dicas.TryGetValue(m, out var dicaEsperada) ? !j.CaixaPesquisaHabilitada : j.DicaDaPesquisa == dicaEsperada && j.CaixaPesquisaHabilitada;
                 var semManipulador = j.ComandosSemManipulador();
                 var abaAberta = j.FaixaAtual.AbaAtual;
                 var padraoOk = abaAberta == (AbaGuardada(m) ?? def.Abas[def.AbaPadrao].Nome); // a lembrada, ou a padrão (a segunda; em Ajustes, a primeira)
@@ -3652,7 +3652,7 @@ internal static class Roteiro
             var trilho = j.TrilhoAtual.Modulos.Select(Modulos.Rotulo).ToList();
             p["trilho"] = new JsonArray(trilho.Select(t => (JsonNode)t).ToArray());
             // Os rótulos e, auditoria §1.2, o ícone colorido de cada módulo (o template de IconesModulos.xaml, não o glifo de reserva).
-            var trilhoOk = trilho.SequenceEqual(["Relatórios", "Despachos", "Processos", "Legislação", "Ajustes"])
+            var trilhoOk = trilho.SequenceEqual(["Relatórios", "Despachos", "Processos", "Legislação", "Imóveis", "Essencial", "GPI", "Alfresco", "Ajustes"])
                 && j.TrilhoAtual.Modulos.All(j.TrilhoAtual.IconeCarregado);
             await j.MudarModuloAsync(Modulo.Legislacao);
             await EsperarAteAsync(() => Task.FromResult(j.LeitorPdf is not null), 30000);
@@ -3921,7 +3921,10 @@ internal static class Roteiro
             string? VerificacaoFluxo() => DadosEfetivos.TextoEfetivo(sessao.Revisao.Projeto, sessao.Revisao.Projeto.Item(idsFluxo[0])!, "verificacao");
             var abriuA4 = await DigitarAsync(idsFluxo[0], TextoFluxo);
             await TeclaAsync(j, "Enter", "Enter", 13);
-            var editou = abriuA4 && await EsperarAteAsync(() => Task.FromResult(VerificacaoFluxo() == TextoFluxo), 5000) && await EsperarAteAsync(async () => !await EditandoAsync(), 3000);
+            var gravouTexto = abriuA4 && await EsperarAteAsync(() => Task.FromResult(VerificacaoFluxo() == TextoFluxo), 5000);
+            var fechouEdicao = gravouTexto && await EsperarAteAsync(async () => !await EditandoAsync(), 3000);
+            p["edicao_a4"] = new JsonObject { ["abriu"] = abriuA4, ["texto"] = VerificacaoFluxo(), ["fechou"] = fechouEdicao };
+            var editou = fechouEdicao;
             Conf("editou_no_a4", editou);
             await j.AplicarAsync(new DefinirSituacao(idsFluxo[1], "ATENDE"));
             await j.AplicarAsync(new DefinirJustificativa(idsFluxo[1], JustificativaFluxo));
@@ -3989,7 +3992,9 @@ internal static class Roteiro
             var exigencias = desp.Rascunho?.Pendencias.Select(x => "ITEM " + x.Numero.ToString("D2", CultureInfo.InvariantCulture)).ToArray() ?? [];
             p["exigencias"] = new JsonArray(exigencias.Select(x => (JsonNode)x).ToArray());
             p["etapa"] = desp.Etapa?.Nome;
-            Conf("origem_pre_escolhida", desp.Processo?.Numero == 1 && Mesmo(desp.CaminhoPacote, pmvrelFluxo) && desp.Etapa is { Nova: true });
+            // O relatório já está na pasta DESPACHO NN da etapa (regra do kit, 2026-11-16): o despacho reaproveita essa pasta.
+            Conf("origem_pre_escolhida", desp.Processo?.Numero == 1 && Mesmo(desp.CaminhoPacote, pmvrelFluxo) && desp.Etapa is { } etapaFluxo
+                && Mesmo(etapaFluxo.Pasta, Path.GetDirectoryName(pmvrelFluxo)!));
             Conf("exigencias_do_estado_atual", exigencias.SequenceEqual(esperadas) && esperadas.SequenceEqual(["ITEM 03"]));
             await j.GerarEConferirAsync();
             Conf("paginas_para_conferir", desp.Preparacao is { Pdf: not null, Erros.Count: 0 } && j.NovoDespacho.CaixasDasPaginas.Count == desp.Preparacao.Paginas);
@@ -3998,7 +4003,7 @@ internal static class Roteiro
             var reciboDesp = ReciboDespacho.Ler(entrega.Recibo);
             p["despacho"] = new JsonArray(Directory.GetFiles(entrega.Pasta).Select(f => (JsonNode)Path.GetFileName(f)).ToArray());
             Conf("despacho_gravado", marcouTodas && File.Exists(entrega.Docx) && entrega.Pdf is not null && File.Exists(entrega.Pdf) && File.Exists(entrega.Recibo)
-                && Directory.GetFiles(entrega.Pasta).Length == 3 && Mesmo(Path.GetDirectoryName(entrega.Pasta), proc)
+                && Directory.GetFiles(entrega.Pasta, "Despacho_*").Length == 3 && Mesmo(Path.GetDirectoryName(entrega.Pasta), proc)
                 && string.Equals(reciboDesp["relatorio"]?["sha256_pacote"]?.GetValue<string>(), ShaDe(pmvrelFluxo), StringComparison.OrdinalIgnoreCase));
             var escolhidoFluxo = j.DespachoEscolhido?.Despacho;
             Conf("despachos_lista_correcao", j.PaginaDespachosVisivel && escolhidoFluxo is { Tipo: TipoDespacho.Correcao } && Mesmo(escolhidoFluxo.Pasta, entrega.Pasta));
