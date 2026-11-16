@@ -189,6 +189,9 @@ public static class Pacote
         Conferir(projeto.Documento["localizacao"], "Localização");
         if (projeto.Documento["figuras"] is JsonArray figuras)
             for (var i = 0; i < figuras.Count; i++) Conferir(figuras[i], "Figura " + (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        // A camada de edição das figuras (recortes de prancha incluídos) segue a mesma regra.
+        foreach (var f in projeto.Figuras ?? new List<FiguraRevisao>())
+            Conferir(new JsonObject { ["imagem"] = f.Imagem }, "Figura " + f.Id);
     }
 
     private static Manifesto LerManifesto(byte[] bytes)

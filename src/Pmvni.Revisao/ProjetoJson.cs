@@ -20,6 +20,7 @@ public static class ProjetoJson
                 Documento = ((JsonObject)j["documento"]!).DeepClone().AsObject(),
             };
             foreach (var x in j["itens"]!.AsArray()) p.Itens.Add(LerItem(x!.AsObject()));
+            if (j["figuras"] is { } figuras) p.Figuras = CamadaFiguras.Ler(figuras);
             return p;
         }
         catch (Exception e) when (e is NullReferenceException or InvalidOperationException or InvalidCastException or FormatException)
@@ -66,12 +67,15 @@ public static class ProjetoJson
         ArgumentNullException.ThrowIfNull(p);
         var itens = new JsonArray();
         foreach (var i in p.Itens) itens.Add(EscreverItem(i));
-        return JsonFiel.Escrever(new JsonObject
+        var o = new JsonObject
         {
             ["versao_esquema"] = p.VersaoEsquema,
             ["itens"] = itens,
             ["documento"] = p.Documento.DeepClone(),
-        });
+        };
+        // A camada de figuras só existe depois da primeira edição de figura (um projeto sem ela grava como antes).
+        if (p.Figuras is not null) o["figuras"] = CamadaFiguras.Escrever(p.Figuras);
+        return JsonFiel.Escrever(o);
     }
 
     private static JsonObject EscreverItem(ItemRevisao i)

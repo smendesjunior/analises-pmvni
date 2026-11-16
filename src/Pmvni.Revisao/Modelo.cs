@@ -75,11 +75,16 @@ public sealed class Projeto
     /// <summary>O dados.json sem os itens: a chave <c>itens</c> fica no lugar original com <c>[]</c>.</summary>
     public JsonObject Documento { get; set; } = new();
 
+    /// <summary>A camada de edição das figuras (editor de figuras, recortes de prancha). Null = nenhuma figura foi editada: as figuras saem do
+    /// <see cref="Documento"/> como vieram.</summary>
+    public List<FiguraRevisao>? Figuras { get; set; }
+
     public Projeto Clonar() => new()
     {
         VersaoEsquema = VersaoEsquema,
         Itens = Itens.Select(i => i.Clonar()).ToList(),
         Documento = (JsonObject)Documento.DeepClone(),
+        Figuras = Figuras?.Select(f => f.Clonar()).ToList(),
     };
 
     public ItemRevisao? Item(string id) => Itens.FirstOrDefault(i => string.Equals(i.Id, id, StringComparison.Ordinal));

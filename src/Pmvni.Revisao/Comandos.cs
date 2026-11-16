@@ -46,6 +46,7 @@ internal static class Motor
     {
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(c);
+        if (c is ComandoFigura cf) return MotorFiguras.Calcular(p, cf);
         var it = p.Item(c.Item) ?? throw new ComandoRecusadoException("O item não existe no relatório.");
         return c switch
         {
@@ -63,6 +64,7 @@ internal static class Motor
     /// <summary>Põe <paramref name="valor"/> (o "depois" de um registro) no item. <see cref="InvalidOperationException"/> se o item não existe.</summary>
     public static void Definir(Projeto p, string tipo, string item, string? campo, JsonNode? valor)
     {
+        if (MotorFiguras.EhTipo(tipo)) { MotorFiguras.Definir(p, valor); return; }
         var it = p.Item(item) ?? throw new InvalidOperationException("O registro cita um item que não existe: " + item);
         switch (tipo)
         {
