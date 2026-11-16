@@ -388,6 +388,44 @@
           <!-- ===== 8. Sobre e suporte ===== -->
           <StackPanel x:Name="CategoriaSobre" Tag="sobre" Spacing="12" Visibility="Collapsed">
             <StackPanel Spacing="4"><TextBlock Text="Sobre e suporte" Style="{StaticResource PmvniAjusteTituloPagina}"/><TextBlock x:Name="AjudaSobre" Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+            <!-- Atualizações (no padrão de Configurações › Sobre e suporte do WinStatusBar): versão instalada, "Verificar atualizações" com o
+                 estado embaixo, a chave da consulta automática e "O que mudou" (as notas da versão publicada). Quem preenche é
+                 MainWindow.Ajustes.cs (Atualizador). -->
+            <TextBlock Text="Atualizações" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
+            <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
+              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Versão instalada" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel>
+                <TextBlock x:Name="TextoVersaoInstalada" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+              </Grid>
+              <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
+              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Novas versões" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Procura versões novas no GitHub do projeto, baixa, confere e troca o executável sem pedir administrador. A versão nova vale ao abrir o editor de novo." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                  <Button x:Name="BotaoVerificarAtualizacoes" x:FieldModifier="internal" Content="Verificar atualizações" HorizontalAlignment="Stretch"
+                          AutomationProperties.Name="Verificar atualizações"
+                          local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Procura agora uma versão nova do editor no GitHub e a instala se houver."/>
+                  <Button x:Name="BotaoReiniciarAtualizacao" x:FieldModifier="internal" Content="Reiniciar agora" HorizontalAlignment="Stretch" Visibility="Collapsed"
+                          AutomationProperties.Name="Reiniciar o editor na versão nova"
+                          local:Dicas.Titulo="Reiniciar agora" local:Dicas.Descricao="Fecha o editor (gravando o relatório aberto) e o abre de novo na versão nova."/>
+                  <TextBlock x:Name="TextoEstadoAtualizacao" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
+                </StackPanel>
+              </Grid>
+              <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
+              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Atualizar automaticamente" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Procura sozinho a cada 15 minutos enquanto o editor está aberto. Desligado, só pelo botão acima." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                <ToggleSwitch x:Name="AlternarAtualizarSozinho" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Atualizar automaticamente"/>
+              </Grid>
+            </StackPanel></Border>
+            <Expander x:Name="ExpansorOQueMudou" x:FieldModifier="internal" Header="O que mudou" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+              <TextBlock x:Name="TextoOQueMudou" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}"/>
+            </Expander>
+            <TextBlock Text="Suporte" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <StackPanel Padding="16,12" Spacing="6">
                 <TextBlock Text="Versões" Style="{StaticResource PmvniAjusteTitulo}"/>

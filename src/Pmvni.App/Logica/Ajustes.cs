@@ -132,6 +132,8 @@ public sealed class Ajustes
     }
     public bool ConfirmarCancelar { get; set; } = true;
     public bool ConfirmarFechar { get; set; } = true;
+    /// <summary>Ajustes › Sobre e suporte › Atualizações: procurar e instalar versões novas sozinho (a cada 15 min, pelo GitHub).</summary>
+    public bool AtualizarAutomaticamente { get; set; } = true;
 
     /// <summary>O módulo mostrado ao abrir o editor: o lembrado (<see cref="Modulo"/>) com "Último usado", senão o escolhido.</summary>
     public Modulo ModuloAoAbrir() =>
@@ -172,6 +174,7 @@ public sealed class Ajustes
         PedidoPadrao = "";
         ConfirmarCancelar = p.ConfirmarCancelar;
         ConfirmarFechar = p.ConfirmarFechar;
+        AtualizarAutomaticamente = p.AtualizarAutomaticamente;
     }
     /// <summary>A pasta de processos escolhida em Ajustes; null = a padrão (<see cref="PastaProcessosPadrao"/>).</summary>
     public string? PastaProcessos { get; set; }
@@ -298,6 +301,7 @@ public sealed class Ajustes
             ["pedido_padrao"] = PedidoPadrao,
             ["confirmar_cancelar"] = ConfirmarCancelar,
             ["confirmar_fechar"] = ConfirmarFechar,
+            ["atualizar_automaticamente"] = AtualizarAutomaticamente,
         };
         var arquivo = Path.Combine(raizDados, NomeArquivo);
         var tmp = arquivo + ".tmp";
@@ -338,6 +342,7 @@ public sealed class Ajustes
         a.PedidoPadrao = Texto(j, "pedido_padrao") ?? "";
         a.ConfirmarCancelar = Logico(j, "confirmar_cancelar", a.ConfirmarCancelar);
         a.ConfirmarFechar = Logico(j, "confirmar_fechar", a.ConfirmarFechar);
+        a.AtualizarAutomaticamente = Logico(j, "atualizar_automaticamente", a.AtualizarAutomaticamente);
     }
 
     static int? Inteiro(JsonObject j, string nome) => j[nome] is JsonValue v && v.TryGetValue<int>(out var i) ? i : null;

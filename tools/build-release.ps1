@@ -10,6 +10,7 @@
          -> informar o espaço liberado.
   Não apaga web\paginador\node_modules (necessário para refazer o bundle), só os caches dele.
 #>
+param([switch]$SemGitHub)
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
 $projeto = Join-Path $raiz 'src\Pmvni.App\Pmvni.App.csproj'
@@ -32,7 +33,9 @@ if ($LASTEXITCODE -ne 0) { throw "Os testes falharam (código $LASTEXITCODE): ne
 
 # 1. Publicar
 if (Test-Path -LiteralPath $publicacao) { Remove-Item -LiteralPath $publicacao -Recurse -Force }
-& dotnet publish $projeto -c Release -o $publicacao --nologo
+# Carimbo da atualização automática (Atualizador.cs): aaaaMMddHHmmss; os PCs instalam a compilação mais nova publicada no GitHub.
+$compilacao = Get-Date -Format 'yyyyMMddHHmmss'
+& dotnet publish $projeto -c Release -o $publicacao --nologo "-p:CompilacaoAtualizacao=$compilacao"
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish falhou (código $LASTEXITCODE)." }
 
 # 2. A publicação deve ter um único executável (um .pdb é tolerado e descartado)
@@ -102,6 +105,15 @@ Get-ChildItem -LiteralPath $pastaFinal -Force | Where-Object { $_.FullName -ne $
     catch { Write-Host "Em uso (sai no próximo build): $($_.TargetObject)" }
 }
 if ((Get-FileHash -LiteralPath $exeFinal -Algorithm SHA256).Hash -ne $hashFinal) { throw "Arquivo final difere do publicado: $exeFinal" }
+
+# 5a. GitHub (smendesjunior/analises-pmvni): Release com o .exe e o manifesto, para a atualização automática dos outros PCs.
+#     Uma falha aqui não desfaz o build: o .exe novo já está em Aplicativo\ e a publicação pode ser refeita com tools\publicar-github.ps1.
+#     -SemGitHub pula a publicação (por exemplo, sem internet).
+if ($SemGitHub) { Write-Host 'Publicação no GitHub pulada (-SemGitHub).' }
+else {
+    try { & (Join-Path $PSScriptRoot 'publicar-github.ps1') -Exe $exeFinal -Compilacao $compilacao }
+    catch { Write-Warning "O .exe novo está em Aplicativo\, mas a publicação no GitHub ficou pendente: $($_.Exception.Message)" }
+}
 
 # 5b. Limpeza: bin, obj, publicação e temporários dentro do projeto (caminhos conferidos sob $raiz)
 & dotnet build-server shutdown | Out-Null

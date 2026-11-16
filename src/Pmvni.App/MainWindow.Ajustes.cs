@@ -134,6 +134,7 @@ public sealed partial class MainWindow
         };
         AoAlternar(p.AlternarConfirmarCancelar, sim => ajustes.ConfirmarCancelar = sim);
         AoAlternar(p.AlternarConfirmarFechar, sim => ajustes.ConfirmarFechar = sim);
+        IniciarAtualizacoes();
         p.BotaoCopiarVersoes.Click += (_, _) => AreaTransferencia.Copiar(p.TextoVersoes.Text);
         p.BotaoVerAtalhos.Click += async (_, _) => await TentarAsync(MostrarAtalhosAsync);
         p.TextoPastaDados.Text = PastaDados.Raiz;
@@ -204,6 +205,7 @@ public sealed partial class MainWindow
             p.AlternarAbrirPdf.IsOn = ajustes.DespachoAbrirPdf;
             p.AlternarConfirmarCancelar.IsOn = ajustes.ConfirmarCancelar;
             p.AlternarConfirmarFechar.IsOn = ajustes.ConfirmarFechar;
+            p.AlternarAtualizarSozinho.IsOn = ajustes.AtualizarAutomaticamente;
             p.CaixaPedidoPadrao.Text = ajustes.PedidoPadrao;
             AtualizarTextoSoffice();
             // PMVNI_KIT_RAIZ (testes, roteiro) manda no kit: a escolha da página não vale enquanto ela estiver definida.
@@ -312,6 +314,49 @@ public sealed partial class MainWindow
         MostrarMensagem(InfoBarSeverity.Success, "Ajustes restaurados", "As opções voltaram ao padrão.");
         return true;
     }
+
+    // ---------- atualizações (Ajustes › Sobre e suporte, no padrão do WinStatusBar) ----------
+
+    /// <summary>Liga a seção Atualizações ao <see cref="Atualizador"/>: versão instalada, botão, estado, chave automática e "O que mudou".</summary>
+    void IniciarAtualizacoes()
+    {
+        var p = PaginaDeAjustes;
+        p.TextoVersaoInstalada.Text = RegrasAtualizacao.TextoVersao(Atualizador.Versao, Atualizador.Compilacao);
+        p.AlternarAtualizarSozinho.Toggled += (_, _) =>
+        {
+            if (atualizandoAjustes) return;
+            ajustes.AtualizarAutomaticamente = p.AlternarAtualizarSozinho.IsOn;
+            SalvarAjustes();
+        };
+        p.BotaoVerificarAtualizacoes.Click += async (_, _) => await Atualizador.VerificarAsync();
+        p.BotaoReiniciarAtualizacao.Click += (_, _) =>
+        {
+            Atualizador.PedirReabertura();
+            // Fecha pelo mesmo caminho do X da janela (grava e pergunta o que for preciso); desistir de fechar cancela a reabertura em 10 min.
+            PostMessage(WinRT.Interop.WindowNative.GetWindowHandle(this), 0x0010 /* WM_CLOSE */, IntPtr.Zero, IntPtr.Zero);
+        };
+        Atualizador.AutomaticaLigada = () => ajustes.AtualizarAutomaticamente;
+        Atualizador.EstadoMudou += e => DispatcherQueue.TryEnqueue(() => MostrarEstadoAtualizacao(e));
+        MostrarEstadoAtualizacao(Atualizador.UltimoEstado ?? (Atualizador.Habilitado
+            ? new EstadoAtualizacao(EtapaAtualizacao.EmDia, "Ainda não verificado nesta abertura.")
+            : new EstadoAtualizacao(EtapaAtualizacao.Desligada, "Compilação de desenvolvimento: a atualização automática fica desligada.")));
+        Atualizador.Iniciar();
+    }
+
+    void MostrarEstadoAtualizacao(EstadoAtualizacao e)
+    {
+        if (fechada) return;
+        var p = PaginaDeAjustes;
+        p.TextoEstadoAtualizacao.Text = e.Texto;
+        p.BotaoVerificarAtualizacoes.IsEnabled = e.Etapa is EtapaAtualizacao.EmDia or EtapaAtualizacao.Falhou;
+        p.BotaoReiniciarAtualizacao.Visibility = e.Etapa == EtapaAtualizacao.Pronta ? Visibility.Visible : Visibility.Collapsed;
+        p.AlternarAtualizarSozinho.IsEnabled = Atualizador.Habilitado;
+        p.TextoOQueMudou.Text = string.IsNullOrWhiteSpace(e.Notas) ? "As notas aparecem aqui depois da primeira verificação." : e.Notas;
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    static extern bool PostMessage(IntPtr janela, uint mensagem, IntPtr w, IntPtr l);
 
     string TextoDasVersoes()
     {

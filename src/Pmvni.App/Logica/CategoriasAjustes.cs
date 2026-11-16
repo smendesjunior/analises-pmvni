@@ -26,7 +26,7 @@ public static class CategoriasAjustes
         new(Despachos, "Despachos e PDF", "O LibreOffice que gera o PDF dos despachos e o que fazer depois de gravar.", Glifos.Despachos),
         new(Legislacao, "Legislação", "As leis anexadas e como a pesquisa no leitor começa.", Glifos.Livro),
         new(Ia, "Inteligência artificial", "Os agentes locais que fazem a análise e o que o Novo relatório pergunta antes de seguir.", Glifos.Ia),
-        new(Sobre, "Sobre e suporte", "Versões, atalhos, a pasta de dados do editor e a volta ao padrão.", Glifos.Sobre, Rodape: true),
+        new(Sobre, "Sobre e suporte", "Atualizações, versões, atalhos, a pasta de dados do editor e a volta ao padrão.", Glifos.Sobre, Rodape: true),
     ];
 
     /// <summary>A categoria da etiqueta; uma etiqueta desconhecida leva à primeira (Geral).</summary>
