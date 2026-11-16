@@ -72,11 +72,7 @@
         <StackPanel x:Name="PainelFiltros" x:FieldModifier="internal" Grid.Row="1" Spacing="8" Margin="12,4,12,8">
           <TextBox x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar por texto ou situação"
                    AutomationProperties.Name="Pesquisar nas seções e itens"/>
-          <ScrollViewer HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled"
-                        VerticalScrollBarVisibility="Disabled">
-            <StackPanel x:Name="BotoesFiltro" x:FieldModifier="internal" Orientation="Horizontal" Spacing="6"
-                        AutomationProperties.Name="Filtro rápido de apontamentos"/>
-          </ScrollViewer>
+          <local:PainelQuebra x:Name="BotoesFiltro" x:FieldModifier="internal" AutomationProperties.Name="Filtro rápido de apontamentos"/>
         </StackPanel>
         <ListView x:Name="ListaNavegacao" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True"
                   Padding="6,0,6,8" AutomationProperties.Name="Seções e itens do relatório">

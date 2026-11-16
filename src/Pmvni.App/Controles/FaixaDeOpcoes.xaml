@@ -15,7 +15,9 @@
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <!-- Cores tonais do primário (claro, escuro e alto contraste): só o botão primário é um Button dentro desta vaga. -->
-        <ContentControl x:Name="VagaPrimario" Grid.Column="0" VerticalAlignment="Center" IsTabStop="False">
+        <!-- Correções 2026-11-15: os botões da CommandBar (rótulo à direita) ficam 2,5 px abaixo do centro da faixa; o primário desce o
+             mesmo tanto para alinhar ícones e textos na mesma linha (medido nas capturas do roteiro a 150 %). -->
+        <ContentControl x:Name="VagaPrimario" Grid.Column="0" VerticalAlignment="Center" Margin="0,5,0,0" IsTabStop="False">
           <ContentControl.Resources>
             <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
           </ContentControl.Resources>
