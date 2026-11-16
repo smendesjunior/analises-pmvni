@@ -1,7 +1,7 @@
 ﻿<#
   Roteiro da tela (Etapa 2), FORA do pacote do Claude (aberto pelo roteiro.cmd via explorer.exe; o roteiro-e-esperar.ps1 abre e espera).
   Publica o agente falso (tests\AgenteFalso, em tests\saida\agente-falso; faz o papel do codex, do claude e do python nos passos 49 em diante) e roda o executável publicado com tests\corpus\longo.json e --roteiro: o app exercita o shell e o módulo Relatórios (importar para
-  .pmvrel, rolagem, zoom, navegação, exportação, estouro, tema, campos em aberto, pacote mudado, faixa por módulo, reabrir) e o
+  .rpmvni, rolagem, zoom, navegação, exportação, estouro, tema, campos em aberto, pacote mudado, faixa por módulo, reabrir) e o
   resultado vai para docs\roteiro-etapa-2.resultado.json. Pacotes, capturas PNG e PDFs ficam em tests\saida\roteiro (ignorado pelo
   git); dados do app (WebView2, ajustes.json, edicao) em tests\saida\dados-app. Ao terminar grava tests\saida\roteiro-fim.txt.
 #>
