@@ -12,108 +12,14 @@ namespace Pmvni.App;
 /// Quem decide e grava é a janela (<c>MainWindow.NovoDespacho.cs</c>) com a <see cref="SessaoNovoDespacho"/>.</summary>
 public sealed partial class PaginaNovoDespacho : UserControl
 {
-    static readonly FontFamily Verdana = new("Verdana");
-    static readonly SolidColorBrush Preto = new(Colors.Black);
-    static readonly SolidColorBrush Vermelho = new(Windows.UI.Color.FromArgb(255, 0xC4, 0x2B, 0x1C));
-    const string Marca = "[preencher: ";
-
-    IReadOnlyList<ParagrafoPrevia> previa = [];
     readonly List<CheckBox> caixasPaginas = [];
 
     public PaginaNovoDespacho() => InitializeComponent();
-
-    /// <summary>O texto da prévia como está na tela, um parágrafo por linha (o roteiro confere).</summary>
-    internal string TextoDaPrevia => string.Join("\n", previa.Select(p => p.Texto));
-
-    internal IReadOnlyList<ParagrafoPrevia> ParagrafosDaPrevia => previa;
 
     /// <summary>As caixas "Conferi a página N", na ordem das páginas.</summary>
     internal IReadOnlyList<CheckBox> CaixasDasPaginas => caixasPaginas;
 
     internal IReadOnlyList<string> LinhasFaltando { get; private set; } = [];
-
-    /// <summary>Os parágrafos na ordem do DOCX: o que falta aparece como "[preencher: …]" em vermelho (só aqui, nunca no DOCX).</summary>
-    /// <summary>Edição direta na prévia (correções 2026-11-15): a chave do campo (<see cref="ParagrafoPrevia.Chave"/>) e o texto novo.</summary>
-    internal event Action<string, string>? PreviaEditada;
-
-    internal void MostrarPrevia(IReadOnlyList<ParagrafoPrevia> paragrafos)
-    {
-        previa = paragrafos;
-        Previa.Children.Clear();
-        foreach (var p in paragrafos)
-        {
-            var alinhamento = p.Estilo switch
-            {
-                EstiloPrevia.Titulo or EstiloPrevia.Assinatura => TextAlignment.Center,
-                EstiloPrevia.Data => TextAlignment.Right,
-                EstiloPrevia.Corpo => TextAlignment.Justify,
-                _ => TextAlignment.Left,
-            };
-            var peso = p.Estilo is EstiloPrevia.Titulo or EstiloPrevia.Grupo or EstiloPrevia.Destinatario ? FontWeights.Bold : FontWeights.Normal;
-            if (p.Chave is { } chave)
-            {
-                Previa.Children.Add(CampoEditavel(p, chave, alinhamento, peso));
-                continue;
-            }
-            var t = new TextBlock
-            {
-                FontFamily = Verdana, FontSize = 12, Foreground = Preto, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
-                TextAlignment = alinhamento, FontWeight = peso,
-            };
-            if (p.Estilo == EstiloPrevia.Vazio) t.Text = " ";
-            else Trechos(t, p.Texto);
-            Previa.Children.Add(t);
-        }
-    }
-
-    /// <summary>Um campo da prévia que se edita como num editor de texto: sem borda, na fonte da folha; grava ao sair do campo.</summary>
-    FrameworkElement CampoEditavel(ParagrafoPrevia p, string chave, TextAlignment alinhamento, Windows.UI.Text.FontWeight peso)
-    {
-        var valor = p.Valor ?? "";
-        var rotulo = "";
-        if (p.Estilo == EstiloPrevia.Rotulo)
-        {
-            var corte = valor.Length > 0 && p.Texto.EndsWith(valor, StringComparison.Ordinal) ? p.Texto.Length - valor.Length : p.Texto.IndexOf(Marca, StringComparison.Ordinal);
-            rotulo = corte > 0 ? p.Texto[..corte] : "";
-        }
-        var caixa = new TextBox
-        {
-            Text = valor, FontFamily = Verdana, FontSize = 12, Foreground = Preto, TextWrapping = TextWrapping.Wrap, AcceptsReturn = false,
-            TextAlignment = alinhamento, FontWeight = peso, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(2, 0, 2, 0), MinHeight = 0,
-            Background = new SolidColorBrush(Colors.Transparent), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(40, 0, 0, 0)),
-            PlaceholderText = p.Faltando is { } f ? Marca + f + "]" : "",
-            RequestedTheme = ElementTheme.Light,
-        };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(caixa, p.Faltando ?? chave);
-        caixa.LostFocus += (_, _) => { if (caixa.Text != valor) PreviaEditada?.Invoke(chave, caixa.Text); };
-        if (rotulo.Length == 0) return caixa;
-        var g = new Grid { ColumnSpacing = 2 };
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        g.Children.Add(new TextBlock { Text = rotulo, FontFamily = Verdana, FontSize = 12, Foreground = Preto, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
-        Grid.SetColumn(caixa, 1);
-        g.Children.Add(caixa);
-        return g;
-    }
-
-    /// <summary>Divide o texto nos "[preencher: …]" e pinta só esses trechos de vermelho.</summary>
-    static void Trechos(TextBlock t, string texto)
-    {
-        var i = 0;
-        while (i < texto.Length)
-        {
-            var ini = texto.IndexOf(Marca, i, StringComparison.Ordinal);
-            var fim = ini < 0 ? -1 : texto.IndexOf(']', ini);
-            if (ini < 0 || fim < 0)
-            {
-                t.Inlines.Add(new Run { Text = texto[i..] });
-                return;
-            }
-            if (ini > i) t.Inlines.Add(new Run { Text = texto[i..ini] });
-            t.Inlines.Add(new Run { Text = texto[ini..(fim + 1)], Foreground = Vermelho, FontWeight = FontWeights.Bold });
-            i = fim + 1;
-        }
-    }
 
     internal void MostrarFaltando(IReadOnlyList<string> faltando)
     {
@@ -209,7 +115,7 @@ public sealed partial class PaginaNovoDespacho : UserControl
         BotaoGravar.Visibility = conferencia ? Visibility.Visible : Visibility.Collapsed;
         BotaoVoltar.Visibility = conferencia && !soPdf ? Visibility.Visible : Visibility.Collapsed;
         if (passo != PassoNovoDespacho.Conteudo) MostrarFaltando([]);
-        if (passo == PassoNovoDespacho.Origem) { Previa.Children.Clear(); previa = []; BotaoGerar.IsEnabled = false; }
+        if (passo == PassoNovoDespacho.Origem) { LimparFolhas(); BotaoGerar.IsEnabled = false; }
     }
 
     /// <summary>A página limpa, para um despacho novo (ou para o Gerar PDF de um que já existe).</summary>

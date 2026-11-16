@@ -3,8 +3,8 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Pmvni.App">
   <!-- Novo despacho (desenho §10.2–§10.4, §10.7): no módulo Despachos, no lugar da lista enquanto está aberta. Coluna esquerda: passo 1
-       (tipo, processo, relatório base, pasta da etapa) e passo 2 (cabeçalho e exigências, ou tipo de obra e área). Direita: a folha de
-       prévia (texto, não paginação). Passo 3: as páginas do PDF gerado na pasta de trabalho, cada uma com a sua caixa "Conferi". Nada é
+       (tipo, processo, relatório base, pasta da etapa) e passo 2 (cabeçalho e exigências, ou tipo de obra e área). Direita: as folhas
+       A4 da prévia, no modelo do kit, editáveis no texto variável. Passo 3: as páginas do PDF gerado na pasta de trabalho, cada uma com a sua caixa "Conferi". Nada é
        gravado na pasta do processo antes de "Gravar na pasta do processo". Quem liga os controles é a janela (MainWindow.NovoDespacho.cs). -->
   <Grid>
     <Grid.RowDefinitions>
@@ -31,8 +31,18 @@
           <TextBlock Text="1. Origem" Style="{StaticResource BodyStrongTextBlockStyle}"/>
           <ComboBox x:Name="CaixaTipo" x:FieldModifier="internal" Header="Tipo" HorizontalAlignment="Stretch" AutomationProperties.Name="Tipo do despacho"/>
           <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Header="Processo" HorizontalAlignment="Stretch" AutomationProperties.Name="Processo"/>
-          <ComboBox x:Name="CaixaRelatorio" x:FieldModifier="internal" Header="Relatório base (.pmvrel)" HorizontalAlignment="Stretch"
-                    AutomationProperties.Name="Relatório base"/>
+          <!-- Relatório base: os achados na pasta do processo, "Sem relatório" ou um escolhido à mão (.pmvrel de qualquer pasta, ou o
+               dados.json da análise do kit, importado para um .pmvrel novo antes de usar). -->
+          <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <ComboBox x:Name="CaixaRelatorio" x:FieldModifier="internal" Header="Relatório base (.pmvrel)" HorizontalAlignment="Stretch"
+                      AutomationProperties.Name="Relatório base"/>
+            <Button x:Name="BotaoEscolherRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Bottom"
+                    AutomationProperties.Name="Escolher o arquivo do relatório"
+                    ToolTipService.ToolTip="Escolher um relatório (.pmvrel) de qualquer pasta, ou o dados.json da análise">
+              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8E5;" FontSize="14"/><TextBlock Text="Escolher arquivo…"/></StackPanel>
+            </Button>
+          </Grid>
           <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <ComboBox x:Name="CaixaEtapa" x:FieldModifier="internal" Header="Pasta da etapa" HorizontalAlignment="Stretch" AutomationProperties.Name="Pasta da etapa"/>
@@ -42,7 +52,7 @@
             </Button>
           </Grid>
           <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
-                     Text="O relatório é opcional. Anexado, entram só os itens que não atendem; sem ele, escreva as exigências ou peça à IA. A data é a da pasta da etapa."/>
+                     Text="O relatório é opcional. Anexado, entram só os itens que não atendem; sem ele, escreva as exigências ou peça à IA. Um relatório de outra pasta entra pelo Escolher arquivo. A data é a da pasta da etapa."/>
 
           <StackPanel x:Name="PainelConteudo" x:FieldModifier="internal" Spacing="10" Visibility="Collapsed">
             <TextBlock Text="2. Conteúdo" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,8,0,0"/>
@@ -67,11 +77,12 @@
         </StackPanel>
       </ScrollViewer>
 
-      <!-- A folha de prévia: branca, proporção A4, Verdana; atualizada a cada tecla. -->
+      <!-- A prévia no modelo oficial (correções 2026-11-15): uma folha A4 por página, com cabeçalho, tarja e rodapé lidos do DOCX do kit; o
+           texto variável se edita clicando nele na folha. Atualizada a cada mudança. -->
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
         <StackPanel Padding="24" HorizontalAlignment="Center">
           <!-- Instrução para a IA (como o Copilot do Word): modifica o despacho em edição. -->
-          <Border Width="600" Margin="0,0,0,12" Padding="12,4,6,4" CornerRadius="22" BorderThickness="1"
+          <Border Width="794" Margin="0,0,0,12" Padding="12,4,6,4" CornerRadius="22" BorderThickness="1"
                   BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Background="{ThemeResource ControlFillColorDefaultBrush}">
             <Grid ColumnSpacing="6">
               <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -86,11 +97,9 @@
               </Button>
             </Grid>
           </Border>
-          <TextBlock Text="Prévia no modelo oficial: clique no texto para editar (a paginação real é conferida no PDF)" Style="{StaticResource PmvniSecondaryTextStyle}" Margin="0,0,0,8"/>
-          <Border x:Name="Folha" x:FieldModifier="internal" Background="White" Width="600" MinHeight="849" Padding="56,48,56,48"
-                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="2">
-            <StackPanel x:Name="Previa" x:FieldModifier="internal" Spacing="6"/>
-          </Border>
+          <TextBlock Text="Prévia no modelo oficial. Clique no protocolo, requerente, assunto, data, grupos ou exigências para editar; o resto é texto fixo do modelo. As páginas finais são conferidas no PDF."
+                     Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" Width="794" Margin="0,0,0,8"/>
+          <StackPanel x:Name="Folhas" x:FieldModifier="internal" Spacing="16" AutomationProperties.Name="Prévia do despacho"/>
         </StackPanel>
       </ScrollViewer>
     </Grid>

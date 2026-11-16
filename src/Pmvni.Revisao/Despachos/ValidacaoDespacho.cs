@@ -92,6 +92,7 @@ public static class ValidacaoDespacho
             if (!textos.Any(t => t.Contains(d.DataPorExtenso, StringComparison.Ordinal))) erros.Add("O despacho não traz o valor de data.");
 
             var cursor = 0;
+            var numero = 0;
             int Achar(string texto)
             {
                 for (var i = cursor; i < textos.Count; i++)
@@ -104,7 +105,7 @@ public static class ValidacaoDespacho
                 if (titulo >= 0) cursor = titulo + 1;
                 for (var n = 0; n < g.Exigencias.Count; n++)
                 {
-                    var i = titulo < 0 ? -1 : Achar(g.Exigencias[n].Texto + g.Exigencias[n].Fundamento);
+                    var i = titulo < 0 ? -1 : Achar(ConteudoDespacho.Numero(++numero) + g.Exigencias[n].Texto + g.Exigencias[n].Fundamento);
                     if (i < 0) erros.Add("O despacho não traz a exigência " + (n + 1) + " do grupo " + g.Titulo + ".");
                     else cursor = i + 1;
                 }

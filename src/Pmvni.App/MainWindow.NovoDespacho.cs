@@ -96,6 +96,7 @@ public sealed partial class MainWindow
             return Task.CompletedTask;
         }));
         n.BotaoNovaPasta.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(CriarPastaNovaNaVezAsync));
+        n.BotaoEscolherRelatorio.Click += (_, _) => NaOrigem(EscolherRelatorioNaVezAsync);
         n.BotaoAplicarInstrucao.Click += async (_, _) => await AplicarInstrucaoAsync(n.CaixaInstrucao.Text);
         n.CaixaInstrucao.KeyDown += async (_, e) =>
         {
@@ -463,6 +464,42 @@ public sealed partial class MainWindow
         await AguardarNovoDespachoAsync();
     }
 
+    /// <summary>"Escolher arquivo…" do relatório base: o seletor (um <c>.pmvrel</c> de qualquer pasta ou o <c>dados.json</c> da análise).</summary>
+    async Task EscolherRelatorioNaVezAsync()
+    {
+        if (novo is not { SoPdf: false, Processo: not null } s) return;
+        var caminho = await Perguntas.Atual.AbrirArquivoAsync(FluxoNovoDespacho.FiltroArquivoBase);
+        if (caminho is null || !ReferenceEquals(novo, s)) return;
+        await UsarRelatorioEscolhidoAsync(s, caminho);
+    }
+
+    /// <summary>O arquivo escolhido à mão entra na lista e fica escolhido. O <c>dados.json</c> é importado antes, pelo Importador, para um
+    /// <c>.pmvrel</c> novo no lugar que o usuário escolher (nada é gravado na pasta do processo sem ele escolher). true = o rascunho está pronto.</summary>
+    internal async Task<bool> UsarRelatorioEscolhidoAsync(SessaoNovoDespacho s, string caminho)
+    {
+        switch (FluxoNovoDespacho.TipoDoArquivoBase(caminho))
+        {
+            case ArquivoBase.Pacote:
+                break;
+            case ArquivoBase.DadosJson:
+                string? processo = null;
+                try { processo = DadosRelatorio.DeBytes(await File.ReadAllBytesAsync(caminho), "").Processo; }
+                catch (Exception e) when (e is JsonException or IOException) { /* a importação diz o que há de errado */ }
+                var (num, ano) = NomesArquivo.DoProcessoDaCapa(processo);
+                var pmvrel = await Perguntas.Atual.SalvarArquivoAsync(NomesArquivo.Importacao(num, ano), ".pmvrel");
+                if (pmvrel is null || !DestinoNovo(pmvrel) || !await ImportarParaAsync(caminho, pmvrel, abrir: false)) return false;
+                caminho = pmvrel;
+                break;
+            default:
+                MostrarMensagem(InfoBarSeverity.Warning, "Arquivo não serve", FluxoNovoDespacho.ArquivoNaoServe);
+                return false;
+        }
+        if (!ReferenceEquals(novo, s)) return false;
+        if (!s.RelatoriosEscolhidos.Contains(caminho, StringComparer.OrdinalIgnoreCase)) s.RelatoriosEscolhidos.Add(caminho);
+        PreencherOrigem(s);
+        return await CarregarPacoteAsync(s, caminho);
+    }
+
     /// <summary>Roteiro: escolhe o relatório base pelo caminho, como na caixa, e espera a leitura.</summary>
     internal async Task EscolherRelatorioAsync(string caminho)
     {
@@ -488,11 +525,13 @@ public sealed partial class MainWindow
             n.CaixaProcesso.SelectedItem = n.CaixaProcesso.Items.OfType<ComboBoxItem>().FirstOrDefault(i => i.Tag is Processo p && p == s.Processo);
             n.CaixaRelatorio.Items.Clear();
             n.CaixaRelatorio.Items.Add(new ComboBoxItem { Content = "Sem relatório (escrever o despacho)", Tag = "" });
-            foreach (var r in s.Relatorios)
+            foreach (var (caminho, escolhido) in FluxoNovoDespacho.RelatoriosDaLista(s.Relatorios, s.RelatoriosEscolhidos))
                 n.CaixaRelatorio.Items.Add(new ComboBoxItem
                 {
-                    Content = Path.GetFileName(r.Caminho) + (sessao is { } a && string.Equals(a.Caminho, r.Caminho, StringComparison.OrdinalIgnoreCase) ? "  (aberto em Relatórios)" : ""),
-                    Tag = r.Caminho,
+                    Content = Path.GetFileName(caminho)
+                              + (sessao is { } a && string.Equals(a.Caminho, caminho, StringComparison.OrdinalIgnoreCase) ? "  (aberto em Relatórios)"
+                                  : escolhido ? "  (escolhido)" : ""),
+                    Tag = caminho,
                 });
             n.CaixaRelatorio.SelectedItem = n.CaixaRelatorio.Items.OfType<ComboBoxItem>()
                 .FirstOrDefault(i => i.Tag is string c && string.Equals(c, s.CaminhoPacote ?? "", StringComparison.OrdinalIgnoreCase));
@@ -500,7 +539,7 @@ public sealed partial class MainWindow
             foreach (var e in s.Etapas)
                 n.CaixaEtapa.Items.Add(new ComboBoxItem { Content = e.Nome + (e.Nova ? "  (nova)" : ""), Tag = e });
             n.CaixaEtapa.SelectedItem = n.CaixaEtapa.Items.OfType<ComboBoxItem>().FirstOrDefault(i => i.Tag is EtapaDespacho e && e.Nome == s.Etapa?.Nome);
-            n.CaixaProcesso.IsEnabled = n.CaixaRelatorio.IsEnabled = n.CaixaEtapa.IsEnabled = !s.SoPdf;
+            n.CaixaProcesso.IsEnabled = n.CaixaRelatorio.IsEnabled = n.CaixaEtapa.IsEnabled = n.BotaoEscolherRelatorio.IsEnabled = !s.SoPdf;
         }
         finally { preenchendoNovo = false; }
     }
@@ -560,19 +599,18 @@ public sealed partial class MainWindow
     void AtualizarPrevia()
     {
         if (novo is not { } s || fechada) return;
-        N.MostrarPrevia(s.Previa()); // antes do rascunho, o modelo do kit com os campos a preencher (nunca a folha em branco)
+        N.MostrarPrevia(s.Previa(), s.Layout); // antes do rascunho, o modelo do kit com os campos a preencher (nunca a folha em branco)
         if (s.Rascunho is not { } r) return;
         N.MostrarFaltando(r.Faltando());
         N.BotaoGerar.IsEnabled = s.Passo == PassoNovoDespacho.Conteudo && FluxoNovoDespacho.PodeGerar(r) && !s.Preparando;
     }
 
-    /// <summary>Um campo editado direto na prévia vai para o rascunho (cabeçalho ou texto da exigência).</summary>
-    void EditarPelaPrevia(string chave, string texto)
+    /// <summary>Um trecho editado direto na folha vai para o rascunho (<see cref="ConteudoDespacho.AplicarEdicao"/>): cabeçalho, data, título
+    /// de grupo, texto ou fundamento da exigência, tipo de obra e área. O rascunho é o que vai para o DOCX e o PDF.</summary>
+    internal void EditarPelaPrevia(string chave, string texto)
     {
         if (novo is not { Passo: PassoNovoDespacho.Conteudo, Rascunho: { } r } s) return;
-        if (chave.StartsWith("cabecalho:", StringComparison.Ordinal)) r.DefinirCabecalho(chave["cabecalho:".Length..], texto);
-        else if (chave.StartsWith("exigencia:", StringComparison.Ordinal)) r.DefinirTexto(chave["exigencia:".Length..], texto);
-        PreencherConteudo(s);
+        if (ConteudoDespacho.AplicarEdicao(r, chave, texto)) PreencherConteudo(s);
     }
 
     /// <summary>"Nova pasta…": pede o nome e cria a pasta no processo; ela vira a pasta da etapa.</summary>

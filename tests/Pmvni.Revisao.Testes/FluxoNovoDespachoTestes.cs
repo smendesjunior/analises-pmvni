@@ -153,4 +153,29 @@ public sealed class FluxoNovoDespachoTestes
         Assert.Equal(de.Pendencias.Select(p => (p.Texto, p.Fundamento, p.Grupo, p.Incluida)), para.Pendencias.Select(p => (p.Texto, p.Fundamento, p.Grupo, p.Incluida)));
         Assert.Equal(de.CamposEditados, para.CamposEditados);
     }
+
+    [Fact]
+    public void escolha_manual_do_relatorio_base()
+    {
+        // O seletor aceita o .pmvrel (usado como está) e o dados.json da análise (importado antes); o resto não serve.
+        Assert.Equal(ArquivoBase.Pacote, FluxoNovoDespacho.TipoDoArquivoBase(@"D:\outra pasta\Relatorio_0001_2099.PMVREL"));
+        Assert.Equal(ArquivoBase.DadosJson, FluxoNovoDespacho.TipoDoArquivoBase(@"D:\analise\dados.json"));
+        Assert.Null(FluxoNovoDespacho.TipoDoArquivoBase(@"D:\analise\relatorio.pdf"));
+        Assert.Null(FluxoNovoDespacho.TipoDoArquivoBase(null));
+        Assert.Equal(new[] { ".pmvrel", ".json" }, FluxoNovoDespacho.FiltroArquivoBase.Split(';'));
+
+        // A lista: os da pasta do processo e, depois, os escolhidos à mão (sem repetir um que já está nela, nem a análise da IA da pasta).
+        using var pasta = Ambiente.PastaDeTeste("fluxo-escolha-manual");
+        var a = RelatorioFicticio.Arvore(pasta);
+        var daPasta = Relatorios(a.Processo);
+        var fora = Path.Combine(pasta.Caminho, "fora", "Relatorio_0001_2099.pmvrel");
+        Directory.CreateDirectory(Path.GetDirectoryName(fora)!);
+        File.Copy(a.CaminhoPacote, fora);
+        var comPdf = daPasta.Append(new RelatorioEncontrado(Path.Combine(a.Processo.Pasta, "dados.json"), TipoRelatorio.AnaliseIa, DateTime.UtcNow)).ToList();
+
+        var lista = FluxoNovoDespacho.RelatoriosDaLista(comPdf, [fora, a.CaminhoPacote.ToUpperInvariant(), fora]);
+
+        Assert.Equal(new[] { (a.CaminhoPacote, false), (fora, true) }, lista);
+        Assert.Equal(new[] { (a.CaminhoPacote, false) }, FluxoNovoDespacho.RelatoriosDaLista(daPasta, []));
+    }
 }

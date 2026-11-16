@@ -151,8 +151,11 @@ public sealed class PreenchimentoDocxTestes
 
         Assert.Equal(3, meio.Count);
         Assert.All(meio, p => Assert.Equal(pprVaga, PPr(p)));
-        Assert.Equal(new[] { "Exigência fictícia 1", " (Fundamento fictício 1)." }, Runs(meio[0]).Select(r => r.Element(W + "t")!.Value));
-        Assert.Equal(new[] { "Exigência fictícia 2", " (Fundamento fictício 2)." }, Runs(meio[1]).Select(r => r.Element(W + "t")!.Value));
+        Assert.Equal(new[] { "01. ", "Exigência fictícia 1", " (Fundamento fictício 1)." }, Runs(meio[0]).Select(r => r.Element(W + "t")!.Value));
+        Assert.Equal(new[] { "02. ", "Exigência fictícia 2", " (Fundamento fictício 2)." }, Runs(meio[1]).Select(r => r.Element(W + "t")!.Value));
+        // O número vai em negrito; o texto e o fundamento, não (correções 2026-11-15).
+        Assert.NotNull(Runs(meio[0])[0].Element(W + "rPr")?.Element(W + "b"));
+        Assert.Null(Runs(meio[0])[1].Element(W + "rPr")?.Element(W + "b"));
         Assert.Equal(new[] { "Fechamento fictício." }, Runs(meio[2]).Select(r => r.Element(W + "t")!.Value));
         var linha = ps.FindIndex(p => Texto(p).StartsWith("____", StringComparison.Ordinal));
         Assert.Equal("", Texto(ps[linha - 1]));
@@ -182,8 +185,8 @@ public sealed class PreenchimentoDocxTestes
         Assert.Equal(PPr(g1), PPr(g2));
         Assert.Equal(Runs(g1)[0].Element(W + "rPr")!.ToString(), Runs(g2)[0].Element(W + "rPr")!.ToString());
         var textos = ps.Select(Texto).ToList();
-        Assert.Equal(new[] { "GERAL E DOCUMENTAÇÃO", "Exigência fictícia 1 (Fundamento fictício 1).", "Exigência fictícia 2 (Fundamento fictício 2).",
-            "PRANCHA 01", "Exigência fictícia 3 (Fundamento fictício 3).", "Exigência fictícia 4 (Fundamento fictício 4).", "Fechamento fictício." },
+        Assert.Equal(new[] { "GERAL E DOCUMENTAÇÃO", "01. Exigência fictícia 1 (Fundamento fictício 1).", "02. Exigência fictícia 2 (Fundamento fictício 2).",
+            "PRANCHA 01", "03. Exigência fictícia 3 (Fundamento fictício 3).", "04. Exigência fictícia 4 (Fundamento fictício 4).", "Fechamento fictício." },
             textos.Skip(textos.IndexOf("GERAL E DOCUMENTAÇÃO")).Take(7));
     }
 

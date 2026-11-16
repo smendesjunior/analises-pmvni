@@ -284,8 +284,8 @@ public sealed class ConteudoDespachoTestes
         var esperados = new[]
         {
             "INFORMAÇÕES GERAIS", "Protocolo nº: 0001/2099", "Requerente: FULANO DE EXEMPLO (FICTICIO)", "GERAL E DOCUMENTAÇÃO",
-            d.Grupos[0].Exigencias[0].Texto + d.Grupos[0].Exigencias[0].Fundamento,
-            d.Grupos[0].Exigencias[1].Texto + d.Grupos[0].Exigencias[1].Fundamento,
+            "01. " + d.Grupos[0].Exigencias[0].Texto + d.Grupos[0].Exigencias[0].Fundamento,
+            "02. " + d.Grupos[0].Exigencias[1].Texto + d.Grupos[0].Exigencias[1].Fundamento,
             tx.Paragrafos[0].Texto, "Venda Nova do Imigrante/ES, 10 de março de 2099",
         };
         var pos = esperados.Select(e => textos.IndexOf(e)).ToList();
