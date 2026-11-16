@@ -309,6 +309,7 @@ public sealed class AcervoLegislacao
         var a = c.Anexos.FirstOrDefault(x => x.Id == id);
         if (a is null) return null;
         Salvar(c.Anexos.Where(x => x.Id != id));
+        ApagarSilencioso(CaminhoResumos(a.Id));
         return ApagarArquivosDe(a.Sha256) ? null : MensagensAnexo.CopiaEmUso;
     });
 
@@ -329,6 +330,144 @@ public sealed class AcervoLegislacao
                 Salvar(c.Anexos.Select(x => x.Id == id ? x with { Paginas = r.Paginas, PaginasSemTexto = r.PaginasSemTexto } : x));
             return 0;
         });
+    }
+
+    // ---- Leitura padronizada: figuras e resumos dos artigos (correções 2026-11-15) ----
+
+    public const int VersaoFiguras = 1;
+    public const int MaximoResumo = 160;
+    static readonly Regex IdSeguro = new(@"^[A-Za-z0-9_-]{1,80}$", RegexOptions.CultureInvariant);
+
+    string CaminhoFiguras(string sha) => Path.Combine(Pasta, sha + ".figuras.json.gz");
+    string CaminhoResumos(string id) => Path.Combine(Pasta, (IdSeguro.IsMatch(id) ? id : "invalido") + ".resumos.json");
+
+    /// <summary>As figuras guardadas da lei (as da cópia atual do PDF); null se ainda não foram lidas (ou o arquivo não vale) — quem
+    /// chama pede ao extrator e grava com <see cref="GravarFiguras"/>. O PDF nunca muda: as figuras são recortes guardados à parte.</summary>
+    public IReadOnlyList<FiguraPdf>? Figuras(string id) => ComTrava(() =>
+    {
+        var a = Carregar().Anexos.FirstOrDefault(x => x.Id == id);
+        return a is null ? null : LerFiguras(a.Sha256);
+    });
+
+    /// <summary>Guarda as figuras lidas do PDF da lei em <c>&lt;sha&gt;.figuras.json.gz</c> (gravação atômica). Lei inexistente: nada.</summary>
+    public void GravarFiguras(string id, IReadOnlyList<FiguraPdf> figuras)
+    {
+        ArgumentNullException.ThrowIfNull(figuras);
+        ComTrava(() =>
+        {
+            var c = Carregar();
+            ExigirEscrita(c);
+            var a = c.Anexos.FirstOrDefault(x => x.Id == id);
+            if (a is null) return 0;
+            var lista = new JsonArray();
+            foreach (var f in figuras)
+                lista.Add(new JsonObject
+                {
+                    ["pagina"] = f.Pagina, ["linha"] = f.Linha, ["x"] = f.X, ["y"] = f.Y, ["w"] = f.W, ["h"] = f.H,
+                    ["origem"] = f.Origem, ["tipo"] = f.Tipo, ["largura"] = f.Largura, ["dados"] = Convert.ToBase64String(f.Dados),
+                });
+            var raiz = new JsonObject { ["versao_figuras"] = VersaoFiguras, ["sha256"] = a.Sha256, ["leitor"] = Leitor, ["figuras"] = lista };
+            GravarAtomico(CaminhoFiguras(a.Sha256), new UTF8Encoding(false).GetBytes(raiz.ToJsonString(OpcoesIndice)), gzip: true);
+            return 0;
+        });
+    }
+
+    IReadOnlyList<FiguraPdf>? LerFiguras(string sha)
+    {
+        var caminho = CaminhoFiguras(sha);
+        try
+        {
+            if (!File.Exists(caminho)) return null;
+            using var fs = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var gz = new GZipStream(fs, CompressionMode.Decompress);
+            if (JsonNode.Parse(gz) is not JsonObject raiz) return null;
+            if (raiz["versao_figuras"] is not JsonValue v || !v.TryGetValue<int>(out var versao) || versao != VersaoFiguras) return null;
+            if (raiz["sha256"] is not JsonValue s || !s.TryGetValue<string>(out var shaFiguras) || shaFiguras != sha) return null;
+            if (raiz["figuras"] is not JsonArray lista) return null;
+            var r = new List<FiguraPdf>(lista.Count);
+            foreach (var n in lista)
+            {
+                if (n is not JsonObject o) return null;
+                var origem = (string?)o["origem"];
+                var tipo = (string?)o["tipo"] ?? "";
+                if (!OrigemFigura.Valida(origem)) return null;
+                var dados = Convert.FromBase64String((string?)o["dados"] ?? "");
+                if (origem != OrigemFigura.Falhou && (!FiguraPdf.TipoValido(tipo) || !FiguraPdf.AssinaturaConfere(tipo, dados))) return null;
+                r.Add(new FiguraPdf((int)o["pagina"]!, (int)o["linha"]!, (double)o["x"]!, (double)o["y"]!, (double)o["w"]!, (double)o["h"]!,
+                    origem!, tipo, dados, (double)o["largura"]!));
+            }
+            return r;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException
+            or FormatException or InvalidOperationException or NullReferenceException or InvalidCastException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Os resumos de artigo que o usuário escreveu para a lei (chave → texto; a chave é a de
+    /// <see cref="BlocoLei.Chave"/>). Vazio se não há nenhum. Ficam em <c>&lt;id&gt;.resumos.json</c>, valem para as
+    /// versões seguintes da mesma lei (Substituir arquivo…) e saem com ela.</summary>
+    public IReadOnlyDictionary<string, string> Resumos(string id) => ComTrava(() => LerResumos(id));
+
+    /// <summary>Grava (ou, com texto vazio, apaga) o resumo escrito pelo usuário para um artigo. Até <see cref="MaximoResumo"/> caracteres.</summary>
+    public void DefinirResumo(string id, string chave, string? texto)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(chave);
+        var t = System.Text.RegularExpressions.Regex.Replace(texto ?? "", @"\s+", " ").Trim();
+        if (t.Length > MaximoResumo) t = t[..MaximoResumo].TrimEnd();
+        ComTrava(() =>
+        {
+            var c = Carregar();
+            ExigirEscrita(c);
+            Achar(c, id);
+            if (!IdSeguro.IsMatch(id)) throw new ArgumentException("Identificador de lei inválido.", nameof(id));
+            var resumos = new SortedDictionary<string, string>(LerResumos(id).ToDictionary(), StringComparer.Ordinal);
+            if (t.Length == 0) resumos.Remove(chave);
+            else resumos[chave] = t;
+            var caminho = CaminhoResumos(id);
+            if (resumos.Count == 0) { ApagarSilencioso(caminho); return 0; }
+            var objeto = new JsonObject();
+            foreach (var (k, v) in resumos) objeto[k] = v;
+            var raiz = new JsonObject { ["versao"] = 1, ["resumos"] = objeto };
+            GravarAtomico(caminho, new UTF8Encoding(false).GetBytes(raiz.ToJsonString(new System.Text.Json.JsonSerializerOptions
+            {
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, WriteIndented = true,
+            })), gzip: false);
+            return 0;
+        });
+    }
+
+    Dictionary<string, string> LerResumos(string id)
+    {
+        var r = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!IdSeguro.IsMatch(id ?? "")) return r;
+        try
+        {
+            var caminho = CaminhoResumos(id!);
+            if (!File.Exists(caminho)) return r;
+            if (JsonNode.Parse(File.ReadAllText(caminho, Encoding.UTF8)) is not JsonObject raiz || raiz["resumos"] is not JsonObject lista) return r;
+            foreach (var (k, v) in lista)
+                if (v is JsonValue jv && jv.TryGetValue<string>(out var s) && s.Trim().Length > 0) r[k] = s.Trim();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException) { }
+        return r;
+    }
+
+    void GravarAtomico(string destino, byte[] conteudo, bool gzip)
+    {
+        Directory.CreateDirectory(Pasta);
+        var tmp = destino + ".tmp";
+        try
+        {
+            using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                if (gzip) { using var gz = new GZipStream(fs, CompressionLevel.Fastest); gz.Write(conteudo); }
+                else fs.Write(conteudo);
+            }
+            ComRepeticao(() => File.Move(tmp, destino, overwrite: true));
+        }
+        finally { ApagarSilencioso(tmp); }
     }
 
     /// <summary>Apaga de <c>.entrada</c> o que tem mais de um dia (restos de uma queda do app) e os
@@ -518,6 +657,7 @@ public sealed class AcervoLegislacao
     bool ApagarArquivosDe(string sha)
     {
         validadeIndices.Remove(sha);
+        ApagarSilencioso(CaminhoFiguras(sha)); // as figuras da leitura padronizada saem junto (refazê-las é só reabrir a lei)
         if (ApagarComTentativas(CaminhoCopia(sha), 4) & ApagarComTentativas(CaminhoIndice(sha), 4)) return true;
         try { File.WriteAllBytes(MarcaDeExclusao(sha), []); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* sem a marca, só resta o aviso */ }
@@ -536,6 +676,7 @@ public sealed class AcervoLegislacao
             if (!CatalogoLegislacao.EhSha(sha)) continue;
             if (anexos.Any(a => a.Sha256 == sha)) { ApagarSilencioso(marca); continue; }
             validadeIndices.Remove(sha);
+            ApagarSilencioso(CaminhoFiguras(sha));
             if (ApagarComTentativas(CaminhoCopia(sha), 1) & ApagarComTentativas(CaminhoIndice(sha), 1)) ApagarSilencioso(marca);
             else pendentes.Add(sha);
         }
@@ -566,7 +707,8 @@ public sealed class AcervoLegislacao
     }
 
     static bool Transitoria(Exception e) =>
-        e is UnauthorizedAccessException || (e is IOException && (e.HResult & 0xFFFF) is 32 or 33);   // ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION
+        // ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION e, no File.Replace, ERROR_UNABLE_TO_REMOVE_REPLACED (o OneDrive lendo o catálogo).
+        e is UnauthorizedAccessException || (e is IOException && (e.HResult & 0xFFFF) is 32 or 33 or 1175);
 
     static void ApagarSilencioso(string? caminho)
     {

@@ -151,6 +151,71 @@ public static class PdfLegislacaoFicticio
         return pdf.Serializar(trailer);
     }
 
+    /// <summary>Lei fictícia com figuras (correções 2026-11-15), para a leitura padronizada. Página 1: duas linhas de texto, uma imagem
+    /// (objeto de imagem 2×2 RGB, desenhada em 200×100 pt de y 630 a 730) e outra linha em y 600. Página 2: uma linha em y 770, um desenho
+    /// vetorial (triângulo traçado e retângulo azul, de y 500 a 700), uma imagem embutida (BI…EI, 50×50 pt de y 600 a 650, à direita) e a
+    /// última linha em y 470. Página 3: um degradê (sh) sem caixa conhecida ⇒ a página inteira.</summary>
+    public static byte[] GerarComFiguras()
+    {
+        var pdf = new Corpo();
+        var catalogo = pdf.Reservar();
+        var arvore = pdf.Reservar();
+        var fonte = pdf.Reservar();
+        var imagem = pdf.Reservar();
+        var sombra = pdf.Reservar();
+        var paginas = new[] { pdf.Reservar(), pdf.Reservar(), pdf.Reservar() };
+        var conteudos = new[] { pdf.Reservar(), pdf.Reservar(), pdf.Reservar() };
+        pdf.Definir(fonte, Latin("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"));
+        pdf.Definir(imagem, ComFluxo(" /Type /XObject /Subtype /Image /Width 2 /Height 2 /ColorSpace /DeviceRGB /BitsPerComponent 8",
+            [255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 0]));
+        pdf.Definir(sombra, Latin("<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 595 0] /Function << /FunctionType 2 /Domain [0 1] "
+            + "/C0 [1 1 1] /C1 [0.1 0.35 0.6] /N 1 >> /Extend [true true] >>"));
+
+        static void Linha(List<byte> b, double y, string texto)
+        {
+            b.AddRange(Latin($"BT /F1 12 Tf 1 0 0 1 72 {y.ToString(System.Globalization.CultureInfo.InvariantCulture)} Tm ("));
+            b.AddRange(Escapar(texto));
+            b.AddRange(Latin(") Tj ET\n"));
+        }
+
+        var p1 = new List<byte>();
+        Linha(p1, 770, TextosComFiguras[0][0]);
+        Linha(p1, 752, TextosComFiguras[0][1]);
+        p1.AddRange(Latin("q 200 0 0 100 72 630 cm /Im1 Do Q\n"));
+        Linha(p1, 600, TextosComFiguras[0][2]);
+
+        var p2 = new List<byte>();
+        Linha(p2, 770, TextosComFiguras[1][0]);
+        p2.AddRange(Latin("q 0.8 0 0 RG 2 w 72 500 m 300 700 l 300 500 l h S 0 0 1 rg 100 520 80 60 re f Q\n"));
+        p2.AddRange(Latin("q 50 0 0 50 400 600 cm BI /W 2 /H 2 /CS /RGB /BPC 8 ID "));
+        p2.AddRange([0, 128, 0, 0, 128, 0, 0, 128, 0, 0, 128, 0]);
+        p2.AddRange(Latin("\nEI Q\n"));
+        Linha(p2, 470, TextosComFiguras[1][1]);
+
+        var p3 = new List<byte>();
+        Linha(p3, 770, TextosComFiguras[2][0]);
+        p3.AddRange(Latin("q 72 300 450 200 re W n /Sh1 sh Q\n"));
+
+        var corpos = new[] { p1, p2, p3 };
+        for (var i = 0; i < 3; i++)
+        {
+            pdf.Definir(conteudos[i], ComFluxo("", [.. corpos[i]]));
+            pdf.Definir(paginas[i], Latin($"<< /Type /Page /Parent {arvore} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 {fonte} 0 R >> "
+                + $"/XObject << /Im1 {imagem} 0 R >> /Shading << /Sh1 {sombra} 0 R >> >> /Contents {conteudos[i]} 0 R >>"));
+        }
+        pdf.Definir(arvore, Latin($"<< /Type /Pages /Kids [{string.Join(" ", paginas.Select(o => o + " 0 R"))}] /Count 3 >>"));
+        pdf.Definir(catalogo, Latin($"<< /Type /Catalog /Pages {arvore} 0 R >>"));
+        return pdf.Serializar($"/Root {catalogo} 0 R /ID [<00112233445566778899AABBCCDDEEFF><00112233445566778899AABBCCDDEEFF>]");
+    }
+
+    /// <summary>O texto de cada página de <see cref="GerarComFiguras"/>.</summary>
+    public static string[][] TextosComFiguras { get; } =
+    [
+        ["LEI Nº 9.998, DE 3 DE JANEIRO DE 2099 (FICTÍCIA)", "Art. 1º O quadro abaixo mostra o afastamento fictício.", "Art. 2º O texto continua depois da figura."],
+        ["Art. 3º Segue o desenho fictício.", "Art. 4º Fim do desenho fictício."],
+        ["Art. 5º Página com degradê fictício."],
+    ];
+
     static byte[] Latin(string s) => Encoding.Latin1.GetBytes(s);
 
     static byte[] ComFluxo(string dicionarioExtra, byte[] dados)

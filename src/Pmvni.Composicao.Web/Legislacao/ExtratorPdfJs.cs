@@ -12,7 +12,7 @@ namespace Pmvni.Composicao.Web.Legislacao;
 /// do PDF nunca roda e nada sai do host. Uma extração por vez (fila). Criar na thread da interface (ou na thread STA do
 /// <see cref="HostOculto"/>): o contexto de sincronização dela é guardado e todo acesso ao WebView2 passa por ele; os métodos
 /// públicos podem ser chamados de qualquer thread.</summary>
-public sealed class ExtratorPdfJs : IExtratorPdf, IAsyncDisposable
+public sealed class ExtratorPdfJs : IExtratorPdf, IExtratorFiguras, IAsyncDisposable
 {
     const string PaginaExtrator = SegurancaLegislacao.UrlBase + "extrator.html";
     const int MaxRegistros = 200;
@@ -183,6 +183,103 @@ public sealed class ExtratorPdfJs : IExtratorPdf, IAsyncDisposable
             throw new ExtracaoRecusadaException(FalhaExtracao.Falhou, e.Message);
         }
         finally { Ponte.Recebida -= Evento; }
+    }
+
+    // ---- Figuras da leitura padronizada (correções 2026-11-15) ----
+
+    const int MaximoBytesFigura = 12 * 1024 * 1024;
+    const long MaximoBytesFiguras = 150L * 1024 * 1024;
+
+    /// <summary>Lê as figuras do PDF (mensagem <c>figuras</c>; na mesma fila e com o mesmo limite de tempo da extração de texto): para
+    /// cada página, as imagens e desenhos recortados da página desenhada, ou a página inteira quando o conteúdo gráfico não pôde ser
+    /// localizado. Figura com tipo, assinatura ou tamanho fora do esperado é descartada; passado o total de 150 MB, as figuras seguintes
+    /// viram só o aviso (<see cref="OrigemFigura.Falhou"/>). Erros como em <see cref="ExtrairAsync"/>.</summary>
+    public async Task<IReadOnlyList<FiguraPdf>> ExtrairFigurasAsync(string caminhoPdf, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(caminhoPdf);
+        ct.ThrowIfCancellationRequested();
+        if (Inutilizavel) throw new ExtracaoRecusadaException(FalhaExtracao.Falhou, "O leitor de PDF não está mais disponível.");
+        await fila.WaitAsync(ct).ConfigureAwait(false);
+        string? url = null;
+        try
+        {
+            try { url = servidor.RegistrarPdf(caminhoPdf); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                throw new ExtracaoRecusadaException(FalhaExtracao.Falhou, e.Message);
+            }
+            var arquivo = url;
+            return await NaThreadAsync(() => FigurasNaThreadAsync(arquivo, ct), ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (url is not null) servidor.RemoverPdf(url);
+            fila.Release();
+        }
+    }
+
+    async Task<IReadOnlyList<FiguraPdf>> FigurasNaThreadAsync(string url, CancellationToken ct)
+    {
+        var id = Guid.NewGuid().ToString("N");
+        var figuras = new List<FiguraPdf>();
+        var paginasVistas = new HashSet<int>();
+        long total = 0;
+        void Evento(MensagemWeb m)
+        {
+            if (m.Tipo != "figurasPagina" || TextoDe(m.Dados, "extracao") != id) return;
+            if (!m.Dados.TryGetProperty("pagina", out var p) || !p.TryGetInt32(out var pagina) || pagina < 1 || !paginasVistas.Add(pagina)) return;
+            if (!m.Dados.TryGetProperty("figuras", out var lista) || lista.ValueKind != JsonValueKind.Array) return;
+            foreach (var f in lista.EnumerateArray())
+            {
+                if (LerFigura(pagina, f) is not { } figura) continue;
+                if (figura.Dados.Length > 0 && (total += figura.Dados.Length) > MaximoBytesFiguras)
+                    figura = figura with { Origem = OrigemFigura.Falhou, Tipo = "", Dados = [] };
+                figuras.Add(figura);
+            }
+        }
+        Ponte.Recebida += Evento;
+        using var cancelamento = ct.Register(() => _ = EnviarCancelarAsync());
+        try
+        {
+            await Ponte.ChamarComIdAsync(id, "figuras", new { url }, LimiteExtracao, ct);
+            return [.. figuras.OrderBy(f => f.Pagina)];
+        }
+        catch (ErroWebException e)
+        {
+            var falha = e.Codigo switch { "senha" => FalhaExtracao.Senha, "invalido" => FalhaExtracao.Invalido, _ => FalhaExtracao.Falhou };
+            throw new ExtracaoRecusadaException(falha, e.Message);
+        }
+        catch (Exception e) when (e is TimeoutException or InvalidOperationException or ObjectDisposedException)
+        {
+            if (e is TimeoutException) await EnviarCancelarAsync();
+            throw new ExtracaoRecusadaException(FalhaExtracao.Falhou, e.Message);
+        }
+        finally { Ponte.Recebida -= Evento; }
+    }
+
+    /// <summary>Uma figura do evento <c>figurasPagina</c>, conferida (origem, tipo, base64, assinatura e tamanho); null se não vale.</summary>
+    internal static FiguraPdf? LerFigura(int pagina, JsonElement f)
+    {
+        if (f.ValueKind != JsonValueKind.Object) return null;
+        static double Num(JsonElement o, string nome) =>
+            o.TryGetProperty(nome, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var d) && double.IsFinite(d) ? d : double.NaN;
+        var origem = TextoDe(f, "origem");
+        var tipo = TextoDe(f, "tipo");
+        if (!OrigemFigura.Valida(origem)) return null;
+        var (x, y, w, h, largura, linha) = (Num(f, "x"), Num(f, "y"), Num(f, "w"), Num(f, "h"), Num(f, "largura"), Num(f, "linha"));
+        if (new[] { x, y, w, h, largura, linha }.Any(double.IsNaN)) return null;
+        byte[] dados = [];
+        if (origem != OrigemFigura.Falhou)
+        {
+            var base64 = TextoDe(f, "dados");
+            if (!FiguraPdf.TipoValido(tipo) || base64.Length == 0 || base64.Length / 4 * 3 > MaximoBytesFigura) return null;
+            try { dados = Convert.FromBase64String(base64); }
+            catch (FormatException) { return null; }
+            if (!FiguraPdf.AssinaturaConfere(tipo, dados)) return null;
+        }
+        else tipo = "";
+        return new FiguraPdf(pagina, (int)Math.Clamp(linha, 0, int.MaxValue), Math.Clamp(x, 0, 1), Math.Clamp(y, 0, 1), Math.Clamp(w, 0, 1),
+            Math.Clamp(h, 0, 1), origem, tipo, dados, Math.Max(0, largura));
     }
 
     async Task EnviarCancelarAsync()
