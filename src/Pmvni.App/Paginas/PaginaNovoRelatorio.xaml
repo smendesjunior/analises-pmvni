@@ -26,17 +26,23 @@
     </local:AreaDeAvisos>
 
     <!-- Formulário. -->
-    <ScrollViewer x:Name="PainelFormulario" x:FieldModifier="internal" Grid.Row="1" VerticalScrollBarVisibility="Auto">
-      <StackPanel Margin="32,24,32,24" Spacing="16" MaxWidth="1280" HorizontalAlignment="Stretch">
-        <Grid ColumnSpacing="12">
+    <!-- Correções 2026-11-15 (image7): sem rolagem horizontal; a coluna do formulário fica centralizada, com a largura da área visível
+         (no máximo 1080) posta pelo código a cada mudança de tamanho: nada sai da tela, mesmo que um texto peça mais largura. -->
+    <ScrollViewer x:Name="PainelFormulario" x:FieldModifier="internal" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+      <Grid x:Name="ColunaFormulario" x:FieldModifier="internal" Margin="0,24,0,24" HorizontalAlignment="Center">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="0"/></Grid.ColumnDefinitions>
+      <StackPanel Spacing="16">
+        <Grid ColumnSpacing="12" RowSpacing="8">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <StackPanel Spacing="4"><TextBlock Text="Novo relatório" Style="{ThemeResource TitleTextBlockStyle}"/><TextBlock Text="Selecione o processo, adicione os anexos e escolha como analisar." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
-          <Button x:Name="BotaoExecucoes" x:FieldModifier="internal" Grid.Column="1" Content="Ver a análise em andamento" Visibility="Collapsed"/>
-          <Button x:Name="BotaoVoltarRelatorio" x:FieldModifier="internal" Grid.Column="2" Content="Voltar ao relatório" Visibility="Collapsed"/>
+          <StackPanel Spacing="4"><TextBlock Text="Novo relatório" Style="{ThemeResource TitleTextBlockStyle}" TextWrapping="Wrap"/><TextBlock Text="Selecione o processo, adicione os anexos e escolha como analisar." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <Button x:Name="BotaoExecucoes" x:FieldModifier="internal" Content="Ver a análise em andamento" Visibility="Collapsed"/>
+            <Button x:Name="BotaoVoltarRelatorio" x:FieldModifier="internal" Content="Voltar ao relatório" Visibility="Collapsed"/>
+          </StackPanel>
         </Grid>
 
         <Border Style="{StaticResource PmvniCartaoSecao}"><StackPanel Spacing="16">
@@ -46,12 +52,12 @@
             </StackPanel>
         <Grid ColumnSpacing="8">
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="220"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="2*" MaxWidth="240"/>
+            <ColumnDefinition Width="5*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
           <TextBox x:Name="CaixaFiltro" x:FieldModifier="internal" PlaceholderText="Filtrar por número ou requerente" AutomationProperties.Name="Filtrar processos"/>
-          <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" PlaceholderText="Escolha o processo"
+          <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" MinWidth="0" PlaceholderText="Escolha o processo"
                     AutomationProperties.Name="Processo"/>
           <Button x:Name="BotaoCriarProcesso" x:FieldModifier="internal" Grid.Column="2" Content="Criar processo…"/>
         </Grid>
@@ -125,6 +131,7 @@
         </StackPanel></Border>
         <ProgressRing x:Name="AnelPartida" x:FieldModifier="internal" IsActive="False" Width="24" Height="24" HorizontalAlignment="Left"/>
       </StackPanel>
+      </Grid>
     </ScrollViewer>
 
     <!-- Vista da execução. -->

@@ -58,6 +58,9 @@ public sealed class LinhaDetalhe(TipoLinhaDetalhe tipo, string texto, string? in
     public bool NaoEhTitulo => Tipo != TipoLinhaDetalhe.Titulo;
     public bool TemInfo => Info.Length > 0;
 
+    /// <summary>O caminho que dá o ícone do tipo de arquivo na frente da linha; null nos títulos e nas linhas sem arquivo.</summary>
+    public string? CaminhoDoIcone => Selecionavel ? Caminho : null;
+
     /// <summary>O que o Narrador lê na linha: "Grupo Relatórios" nos títulos; o texto e a informação nas outras.</summary>
     public string NomeAcessivel => EhTitulo ? "Grupo " + Texto : TemInfo ? Texto + ", " + Info : Texto;
 

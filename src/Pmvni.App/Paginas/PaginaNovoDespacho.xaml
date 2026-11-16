@@ -25,7 +25,7 @@
         <ColumnDefinition Width="380" MinWidth="300"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
-      <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+      <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
         <StackPanel Padding="20,14,20,20" Spacing="12">
           <TextBlock x:Name="TextoTitulo" x:FieldModifier="internal" Text="Novo despacho" Style="{StaticResource SubtitleTextBlockStyle}"/>
           <TextBlock Text="1. Origem" Style="{StaticResource BodyStrongTextBlockStyle}"/>

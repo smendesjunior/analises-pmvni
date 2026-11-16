@@ -16,6 +16,17 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         CaixaPedido.PlaceholderText = FluxoNovoRelatorio.DicaPedido;
         TextoPedidoClaude.Text = FluxoNovoRelatorio.TextoPedidoClaude;
         TextoArraste.Text = FluxoNovoRelatorio.ArrasteAqui;
+        // Correções 2026-11-15 (image7): a coluna do formulário tem a largura da área visível, menos as margens, até 1080 (centralizada).
+        PainelFormulario.SizeChanged += (_, e) => AjustarLarguraDoFormulario(e.NewSize.Width);
+    }
+
+    /// <summary>Largura da coluna do formulário: a da área visível menos 24 de cada lado, entre 280 e 1080.</summary>
+    internal static double LarguraDoFormulario(double larguraVisivel) => Math.Clamp(larguraVisivel - 48, 280, 1080);
+
+    void AjustarLarguraDoFormulario(double larguraVisivel)
+    {
+        if (double.IsNaN(larguraVisivel) || larguraVisivel <= 0) return;
+        ColunaFormulario.Width = LarguraDoFormulario(larguraVisivel);
     }
 
     /// <summary>Formulário (false) ou vista da execução (true).</summary>

@@ -444,7 +444,7 @@ public sealed partial class MainWindow
             var grade = new Grid { ColumnSpacing = 10, Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(6),
                 Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"] };
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star), MinWidth = 150, MaxWidth = 300 });
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var nome = new StackPanel();
