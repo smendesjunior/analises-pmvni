@@ -250,7 +250,10 @@ public sealed partial class FaixaDeOpcoes : UserControl
     static void PilulaNaLarguraDoTexto(SelectorBarItem aba)
     {
         if (Descendente(aba, "PART_SelectionVisual") is not FrameworkElement pilula || Descendente(aba, "PART_TextVisual") is not FrameworkElement texto) return;
-        if (texto.ActualWidth > 0) pilula.Width = Math.Max(4, texto.ActualWidth / 4);
+        if (texto.ActualWidth <= 0) return;
+        // Só com diferença visível (2026-11-16): frações de pixel ao mudar de monitor não realimentam o layout.
+        var nova = Math.Max(4, Math.Round(texto.ActualWidth / 4));
+        if (double.IsNaN(pilula.Width) || Math.Abs(pilula.Width - nova) >= 1) pilula.Width = nova;
     }
 
     static DependencyObject? Descendente(DependencyObject raiz, string nome)

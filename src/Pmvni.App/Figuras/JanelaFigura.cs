@@ -224,6 +224,7 @@ internal sealed class JanelaFigura : Window
         desfazer.Invoked += async (_, a) => { if (FocoEmTexto()) return; a.Handled = true; await HistoricoAsync(false); };
         var refazer = new KeyboardAccelerator { Key = VirtualKey.Y, Modifiers = VirtualKeyModifiers.Control };
         refazer.Invoked += async (_, a) => { if (FocoEmTexto()) return; a.Handled = true; await HistoricoAsync(true); };
+        raiz.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden; // sem a dica automática "Ctrl+Z" solta sobre a janela
         raiz.KeyboardAccelerators.Add(desfazer);
         raiz.KeyboardAccelerators.Add(refazer);
         Escolher(FerramentaFigura.Selecionar);

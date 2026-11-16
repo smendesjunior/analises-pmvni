@@ -26,7 +26,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     void AjustarLarguraDoFormulario(double larguraVisivel)
     {
         if (double.IsNaN(larguraVisivel) || larguraVisivel <= 0) return;
-        ColunaFormulario.Width = LarguraDoFormulario(larguraVisivel);
+        var nova = Math.Round(LarguraDoFormulario(larguraVisivel));
+        if (double.IsNaN(ColunaFormulario.Width) || Math.Abs(ColunaFormulario.Width - nova) >= 1) ColunaFormulario.Width = nova; // sem realimentar o layout por frações de pixel
+
     }
 
     /// <summary>Formulário (false) ou vista da execução (true).</summary>

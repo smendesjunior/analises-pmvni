@@ -4832,7 +4832,7 @@ internal static class Roteiro
         await File.WriteAllBytesAsync(arquivo, bytes);
     }
 
-    static async Task CapturarXamlAsync(FrameworkElement elemento, string arquivo)
+    internal static async Task CapturarXamlAsync(FrameworkElement elemento, string arquivo)
     {
         // O Mica não entra na captura: fundo sólido do tema só durante a captura, para o texto não sumir.
         var grade = elemento as Microsoft.UI.Xaml.Controls.Grid;

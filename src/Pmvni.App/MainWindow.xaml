@@ -25,13 +25,16 @@
       <!-- Cabeçalho (correções 2026-11-15, image15): brasão | "Análise de Projetos" | o processo aberto em duas linhas ("Proc. NNNN/AAAA"
            maior e em negrito; o requerente embaixo, menor) e o selo do estado de gravação ("Salvo 14:32" com o ✓). -->
       <controls:TitleBar.LeftHeader>
-        <StackPanel x:Name="CabecalhoEsquerdo" Orientation="Horizontal" Spacing="14" Margin="20,6,14,6" VerticalAlignment="Center">
+        <StackPanel x:Name="CabecalhoEsquerdo" Orientation="Horizontal" Spacing="14" Margin="18,0,14,0" VerticalAlignment="Center">
           <!-- Marca da Prefeitura (2026-11-16): o brasão redesenhado em vetor (formas do brasao.png do modelo oficial) e o texto como texto,
-               legível em qualquer escala; a cor do texto segue o tema. -->
-          <StackPanel x:Name="MarcaPrefeitura" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+               legível em qualquer escala; a cor do texto segue o tema. Revisão do cabeçalho (2026-11-16): a tela do desenho passou a ser
+               exatamente a caixa do brasão (antes sobrava tela e uma margem negativa o empurrava para cima e para a esquerda), e o
+               brasão e o texto ficam centrados na altura da barra, no mesmo tamanho de antes. -->
+          <StackPanel x:Name="MarcaPrefeitura" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
                       AutomationProperties.Name="Prefeitura Municipal de Venda Nova do Imigrante">
-            <Viewbox Height="42" VerticalAlignment="Center">
-              <Canvas Width="600" Height="500" Margin="-40,-40,0,0">
+            <Viewbox Height="40" VerticalAlignment="Center" Stretch="Uniform">
+              <Canvas Width="600" Height="480">
+                <Canvas.RenderTransform><TranslateTransform X="-44" Y="-70"/></Canvas.RenderTransform>
                 <Line X1="72" Y1="105" X2="252" Y2="192" Stroke="#A68B6A" StrokeThickness="7"/>
                 <Line X1="616" Y1="105" X2="438" Y2="192" Stroke="#A68B6A" StrokeThickness="7"/>
                 <Ellipse Canvas.Left="62" Canvas.Top="95" Width="20" Height="20" Fill="#A68B6A"/>
@@ -80,48 +83,66 @@
       </controls:TitleBar.LeftHeader>
       <!-- Desfazer e Refazer (com o rótulo sempre à vista) e a pesquisa no relatório (Ctrl+F; Enter = próxima, Shift+Enter = anterior,
            Esc limpa), com Anterior e Próximo também rotulados. -->
-      <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left" VerticalAlignment="Center">
+      <!-- Revisão do cabeçalho (2026-11-16): três grupos alinhados e com a mesma altura (32): Desfazer | Refazer num bloco só; a
+           pesquisa em pílula (cantos redondos, com a lupa); Anterior | Próximo noutro bloco, com o resultado entre a caixa e eles. -->
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left" VerticalAlignment="Center">
         <!-- Novo relatório (desenho §12.7): com uma análise em andamento, o tempo dela ao lado do estado de gravação; clicar abre a vista da execução. -->
-        <Button x:Name="BotaoAnalise" Style="{StaticResource PmvniBarraButtonStyle}" Visibility="Collapsed" Margin="0,0,8,0"
+        <Button x:Name="BotaoAnalise" Style="{StaticResource PmvniBarraButtonStyle}" Visibility="Collapsed"
                 AutomationProperties.Name="Análise em andamento" ToolTipService.ToolTip="Abrir a vista da análise em andamento">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <ProgressRing IsActive="True" Width="14" Height="14"/>
             <TextBlock x:Name="TextoBotaoAnalise" VerticalAlignment="Center"/>
           </StackPanel>
         </Button>
-        <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoCabecalhoStyle}" IsEnabled="False"
-                AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
-            <TextBlock Text="Desfazer" VerticalAlignment="Center"/>
+        <Border x:Name="GrupoHistorico" Style="{StaticResource PmvniGrupoCabecalho}">
+          <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False"
+                    AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
+                <TextBlock Text="Desfazer" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
+            <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False"
+                    AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE7A6;" FontSize="14"/>
+                <TextBlock Text="Refazer" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
           </StackPanel>
-        </Button>
-        <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoCabecalhoStyle}" IsEnabled="False"
-                AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <FontIcon Glyph="&#xE7A6;" FontSize="14"/>
-            <TextBlock Text="Refazer" VerticalAlignment="Center"/>
-          </StackPanel>
-        </Button>
-        <TextBox x:Name="CaixaPesquisa" Width="240" Margin="12,0,0,0" VerticalAlignment="Center" IsEnabled="False"
-                 PlaceholderText="Pesquisar no relatório" AutomationProperties.Name="Pesquisar no relatório"
-                 ToolTipService.ToolTip="Pesquisar no relatório (Ctrl+F)"/>
-        <TextBlock x:Name="TextoPesquisa" Margin="6,0,4,0" VerticalAlignment="Center" TextAlignment="Center"
+        </Border>
+        <Grid VerticalAlignment="Center">
+          <TextBox x:Name="CaixaPesquisa" Width="240" Height="32" MinHeight="32" CornerRadius="16" Padding="36,5,12,6" VerticalAlignment="Center"
+                   IsEnabled="False" PlaceholderText="Pesquisar no relatório" AutomationProperties.Name="Pesquisar no relatório"
+                   ToolTipService.ToolTip="Pesquisar no relatório (Ctrl+F)"/>
+          <FontIcon Glyph="&#xE721;" FontSize="14" Margin="13,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    IsHitTestVisible="False" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+        </Grid>
+        <TextBlock x:Name="TextoPesquisa" VerticalAlignment="Center" TextAlignment="Center"
                    Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.Name="Resultado da pesquisa"/>
-        <Button x:Name="BotaoPesquisaAnterior" Style="{StaticResource PmvniBotaoCabecalhoStyle}" IsEnabled="False"
-                AutomationProperties.Name="Ocorrência anterior" ToolTipService.ToolTip="Ocorrência anterior (Shift+Enter)">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <FontIcon Glyph="&#xE70E;" FontSize="12"/>
-            <TextBlock Text="Anterior" VerticalAlignment="Center"/>
+        <Border x:Name="GrupoOcorrencias" Style="{StaticResource PmvniGrupoCabecalho}">
+          <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="BotaoPesquisaAnterior" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False"
+                    AutomationProperties.Name="Ocorrência anterior" ToolTipService.ToolTip="Ocorrência anterior (Shift+Enter)">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE70E;" FontSize="12"/>
+                <TextBlock Text="Anterior" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
+            <Button x:Name="BotaoPesquisaProxima" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False"
+                    AutomationProperties.Name="Próxima ocorrência" ToolTipService.ToolTip="Próxima ocorrência (Enter)">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="&#xE70D;" FontSize="12"/>
+                <TextBlock Text="Próximo" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
           </StackPanel>
-        </Button>
-        <Button x:Name="BotaoPesquisaProxima" Style="{StaticResource PmvniBotaoCabecalhoStyle}" IsEnabled="False"
-                AutomationProperties.Name="Próxima ocorrência" ToolTipService.ToolTip="Próxima ocorrência (Enter)">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <FontIcon Glyph="&#xE70D;" FontSize="12"/>
-            <TextBlock Text="Próximo" VerticalAlignment="Center"/>
-          </StackPanel>
-        </Button>
+        </Border>
       </StackPanel>
     </controls:TitleBar>
 

@@ -141,8 +141,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         ajustes = CarregarAjustes();
         AplicarTemaDosAjustes();
         Raiz.Loaded += (_, _) => DimensionarJanela();
-        Raiz.SizeChanged += (_, e) => AplicarLargura(e.NewSize.Width);
-        CabecalhoEsquerdo.SizeChanged += (_, _) => AjustarPesquisa(Raiz.ActualWidth); // processo aberto/fechado muda o espaço da pesquisa
+        // Fora da passada de layout (2026-11-16): mexer em larguras dentro do SizeChanged, com a escala do monitor mudando, entrava em
+        // ciclo de layout e o editor fechava ao trocar de monitor.
+        Raiz.SizeChanged += (_, e) => { var l = e.NewSize.Width; DispatcherQueue.TryEnqueue(() => { if (!fechada) AplicarLargura(l); }); };
+        CabecalhoEsquerdo.SizeChanged += (_, _) => DispatcherQueue.TryEnqueue(() => { if (!fechada) AjustarPesquisa(Raiz.ActualWidth); }); // processo aberto/fechado muda o espaço da pesquisa
         R.ListaNavegacao.ItemsSource = itensNavegacao;
         R.ListaNavegacao.ItemClick += AoClicarItem;
         R.BotaoMenos.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.ExibirMenos);
@@ -283,10 +285,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
         if (largura <= 0) return;
         double Largura(FrameworkElement e) => e.Visibility == Visibility.Visible ? e.ActualWidth + e.Margin.Left + e.Margin.Right : 0;
-        var ocupado = Largura(CabecalhoEsquerdo) + Largura(BotaoAnalise) + Largura(BotaoDesfazer) + Largura(BotaoRefazer)
-                      + Largura(TextoPesquisa) + Largura(BotaoPesquisaAnterior) + Largura(BotaoPesquisaProxima);
-        const double botoesDaJanelaEFolgas = 300; // minimizar, maximizar, fechar (área reservada pela TitleBar, ~255 px medidos), espaçamentos e arrasto
-        CaixaPesquisa.Width = Math.Clamp(largura - ocupado - botoesDaJanelaEFolgas - CaixaPesquisa.Margin.Left, 200, 640);
+        var ocupado = Largura(CabecalhoEsquerdo) + Largura(BotaoAnalise) + Largura(GrupoHistorico) + Largura(TextoPesquisa) + Largura(GrupoOcorrencias);
+        const double botoesDaJanelaEFolgas = 310; // minimizar, maximizar, fechar (área reservada pela TitleBar, ~255 px medidos), espaçamentos e arrasto
+        // Só muda com diferença visível: larguras que oscilam frações de pixel entre monitores não refazem o layout sem parar.
+        var nova = Math.Round(Math.Clamp(largura - ocupado - botoesDaJanelaEFolgas, 200, 640));
+        if (Math.Abs(CaixaPesquisa.Width - nova) >= 1) CaixaPesquisa.Width = nova;
     }
 
     /// <summary>Ajustes › Relatórios e revisão › "Painéis ao abrir": com "Lembrar", o painel lateral e as Propriedades como ficaram.</summary>
@@ -350,6 +353,22 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             // As análises do Claude que seguiam quando o editor fechou (desenho §12.7). O roteiro chama no passo dele.
             if (args.Roteiro is null) _ = TentarAsync(RetomarExecucoesClaudeAsync);
             if (args.Roteiro is not null) await Roteiro.ExecutarAsync(this, args);
+            else if (args.Captura is { } pastaCaptura)
+            {
+                // Desenvolvimento: um PNG da janela em cada módulo, e fecha.
+                Directory.CreateDirectory(pastaCaptura);
+                foreach (var m in Faixas.Disponiveis)
+                {
+                    try
+                    {
+                        await MudarModuloAsync(m);
+                        await Task.Delay(900);
+                        await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "janela-" + m.ToString().ToLowerInvariant() + ".png"));
+                    }
+                    catch (Exception e) { RegistroErros.Gravar("captura", e); }
+                }
+                Application.Current.Exit();
+            }
             else if (args.AnexarLeis is { } pastaLeis && Directory.Exists(pastaLeis))
             {
                 await MudarModuloAsync(Modulo.Legislacao);
@@ -519,6 +538,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// mensagem <c>atalho</c>, pelo mesmo mapa. Numa caixa de texto, Delete, Ctrl+Z e Ctrl+Y ficam com ela.</summary>
     void RegistrarAtalhos()
     {
+        // Correção 2026-11-16: com atalhos na raiz, o WinUI cria sozinho uma dica com o primeiro deles ("Ctrl+O"), que aparecia solta
+        // sobre a janela sempre que o ponteiro parava num espaço vazio. As dicas dos botões já mostram cada atalho.
+        Raiz.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
         Raiz.KeyboardAccelerators.Clear();
         foreach (var atalho in Atalhos.Mapa.Keys.Union(Atalhos.MapaLegislacao.Keys, StringComparer.Ordinal))
         {

@@ -59,6 +59,17 @@ try {
     $faixa = if ($anterior) { "$anterior..HEAD" } else { 'HEAD' }
     $notas = @(Nativo git @('log', '--no-merges', '--format=- %s', '-n', '40', $faixa) 'Notas da versão' | ForEach-Object { "$_" }) -join "`n"
     if (-not $notas) { $notas = '- Ajustes internos.' }
+    # 2026-11-16: as notas vêm do CHANGELOG.md (a seção "## <versão>" da versão do Directory.Build.props), escritas para o usuário;
+    # sem a seção, valem os assuntos dos commits, com aviso (cada entrega sobe a versão e ganha a sua seção).
+    $arqMudancas = Join-Path $raiz 'CHANGELOG.md'
+    $doChangelog = $null
+    if (Test-Path -LiteralPath $arqMudancas) {
+        $texto = [IO.File]::ReadAllText($arqMudancas, [Text.Encoding]::UTF8)
+        $m = [regex]::Match($texto, '(?ms)^##\s+' + [regex]::Escape($versao) + '\b[^\r\n]*\r?\n(.*?)(?=^##\s|\z)')
+        if ($m.Success -and $m.Groups[1].Value.Trim()) { $doChangelog = $m.Groups[1].Value.Trim() }
+    }
+    if ($doChangelog) { $notas = $doChangelog }
+    else { Write-Warning "O CHANGELOG.md não tem a seção '## $versao': as notas saem dos assuntos dos commits. Suba a versão e escreva a seção a cada entrega." }
 
     $item = Get-Item -LiteralPath $Exe
     $manifesto = [ordered]@{

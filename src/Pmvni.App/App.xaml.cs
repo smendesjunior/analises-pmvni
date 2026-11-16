@@ -13,6 +13,9 @@ public partial class App : Application
         UnhandledException += (_, e) =>
         {
             RegistroErros.Gravar("Application.UnhandledException", e.Exception);
+            // Trocar a janela de monitor (escala 150 % ⇄ 100 %) pode fazer o WinUI desistir de um layout que não assentou
+            // (LayoutCycleException, 0x802B0014; registros de 2026-11-16): o quadro seguinte se refaz; o editor não fecha por isso.
+            if (e.Exception is Microsoft.UI.Xaml.LayoutCycleException && !Autoteste.Ativo) { e.Handled = true; return; }
             if (Autoteste.Ativo) { Autoteste.GravarErro(e.Exception?.ToString() ?? e.Message); e.Handled = true; Exit(); }
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) => RegistroErros.Gravar("AppDomain.UnhandledException", e.ExceptionObject as Exception);
