@@ -412,3 +412,31 @@ Núcleo (`Pmvni.Legislacao`, `Pmvni.Composicao.Web\Legislacao`, `web\paginador\s
 - **Tela:** `web/paginador/src/linhas.ts` marca `tr[data-pmvni-linha]` e os `data-campo` só no DOM da tela. Dois textos no mesmo elemento
   ("J3 • 2,00 × 1,70 m", "ÁREA: 3,40 m²") são separados por `<pmvni-trecho>` (inline e sem estilo do kit: o CSS do kit faz
   `.vao span { display: block }`, e um `span` ali mudava a medida da tabela).
+
+## Despacho: corpo fora do cabeçalho e fecho inteiro (correções de 16/11/2026)
+
+- **Causa (medida):** nos dois modelos do kit a margem de cima da seção é 1417 twips (70,85 pt = 2,5 cm), mas a faixa do cabeçalho
+  (imagem flutuante `behindDoc`, ancorada no 2º parágrafo do `header1.xml`, 63 pt de altura) vai de 17,0 a 80,0 pt (2,82 cm). Imagem
+  flutuante não empurra o corpo: da 2ª folha em diante a primeira linha começava em 70,8 pt, por cima do brasão (PDF do LibreOffice:
+  linha de 70,8 a 85,4 pt). A 1ª folha só escapava por começar com um parágrafo vazio de 15 pt. No rodapé não havia invasão (o corpo
+  termina em 736 pt; a linha vermelha fica em 741 pt e o endereço começa em 747 pt no PDF).
+- **Correção, só na cópia gerada (o modelo do kit não muda):** `LayoutDespacho.TopoDoCorpoPt` = fim da faixa + 4,5 pt, arredondado
+  para cima em twips (1691 twips = 84,55 pt). `PreenchimentoDocx.Preencher` grava esse valor em `w:pgMar/@w:top` e tira o mesmo tanto
+  do "espaço depois" do parágrafo vazio que abre o corpo (280 → 6 twips): a 1ª folha fica igual à do modelo (título em 112,7 pt antes e
+  depois). A prévia usa as mesmas medidas (`TopoDoCorpoPt`, `AlturaUtilPt`, `Formato(0)`).
+- **Validação:** `ValidacaoDespacho.Comparar` aceita na seção só essa margem de cima (qualquer outro valor continua sendo "Seções,
+  margens… alterados"). O `validate()` do kit compara a seção inteira e apontaria a margem; a V6 de `tools\fidelidade.py` valida então
+  contra uma cópia temporária do modelo só com a margem trocada (o resto tem de continuar igual) e grava `margem_de_cima` no `v6.json`.
+  **Pendência para o kit:** corrigir a margem nos dois modelos (e os sha do `TEMPLATES_OFICIAIS.json`); com isso o editor não muda mais
+  nada na seção (a correção só entra quando a margem é menor que a faixa).
+- **Fecho inteiro na prévia:** o DOCX já tinha "manter com o próximo" da data ao penúltimo parágrafo (o LibreOffice leva o bloco
+  inteiro). A prévia não tinha essa regra (a linha ficava numa folha e o nome na seguinte): o fecho agora é um `RichTextBlock` à parte,
+  posto inteiro no que sobra da última folha do texto ou numa folha nova (`FechoDaPrevia.NaUltimaFolha`). O texto de cada folha fica
+  numa moldura com a altura do corpo; a altura do elemento é a que o texto ocupa. Não conferido na tela pelo construtor.
+- **Teste no PDF real:** `CabecalhoRodapeTestes.no_pdf_o_corpo_fica_entre_o_cabecalho_e_o_rodape` converte pelo `ConversorLibreOffice`
+  (correção de 1 a 60 exigências, o caso em que só o fecho cai na folha seguinte, e aprovação) e mede as palavras de cada página com o
+  PdfPig (só no projeto de testes). Só roda com `PMVNI_TESTES_LIBREOFFICE=1`; perfil temporário em `%USERPROFILE%\.pmvni-fid`, apagado
+  no fim. Medido: corpo a partir de 86,8 pt nas folhas seguintes (faixa até 80,0 pt) e até 713,7 pt (rodapé a partir de 749,6 pt).
+- **Caixa de edição da prévia:** o cartão de um `Flyout` tem largura máxima de 456 DIP e rolagem própria; o conteúdo tinha 640 DIP
+  fixos (cortado à direita, barra horizontal) e a caixa de texto, 160 DIP de altura mínima. `CaixaEdicaoPrevia.Medir` dá a largura do
+  conteúdo e a do cartão juntas, dentro da janela, e a altura de uma linha até 240 DIP.

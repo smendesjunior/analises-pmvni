@@ -41,12 +41,50 @@ public sealed record LayoutDespacho(double LarguraPt, double AlturaPt, double Ma
     /// <summary>Altura da linha simples em relação ao tamanho da fonte (Verdana: ascendente 2059 + descendente 430 sobre 2048).</summary>
     public const double LinhaSimples = 1.2153;
 
-    public double LarguraUtilPt => LarguraPt - MargemEsquerdaPt - MargemDireitaPt;
-    public double AlturaUtilPt => AlturaPt - MargemTopoPt - MargemBaixoPt;
+    /// <summary>Distância mínima entre o fim da faixa do cabeçalho e o começo do corpo, em pontos.</summary>
+    public const double FolgaCabecalhoPt = 4.5;
 
-    /// <summary>A formatação do parágrafo <paramref name="i"/> do corpo (fora da lista: o padrão do modelo).</summary>
-    public FormatoParagrafo Formato(int i) =>
-        i >= 0 && i < Formatos.Count ? Formatos[i] : new FormatoParagrafo(0, 8, 259 / 240.0, "left", TamanhoPt, false, false, false, 0);
+    public double LarguraUtilPt => LarguraPt - MargemEsquerdaPt - MargemDireitaPt;
+
+    /// <summary>A altura do corpo em cada folha: de <see cref="TopoDoCorpoPt"/> até a margem de baixo.</summary>
+    public double AlturaUtilPt => AlturaPt - TopoDoCorpoPt - MargemBaixoPt;
+
+    /// <summary>Onde termina a faixa do cabeçalho (o brasão e as faixas coloridas), a partir do alto da página: o fim mais baixo das imagens do
+    /// cabeçalho que passam pela coluna de texto, começam acima da margem de cima e terminam no terço de cima da página (a tarja lateral fica
+    /// fora da coluna e não conta). Sem imagem assim: 0.</summary>
+    public double FimDoCabecalhoPt => Imagens
+        .Where(i => i.YPt < MargemTopoPt && i.XPt < LarguraPt - MargemDireitaPt && i.XPt + i.LarguraPt > MargemEsquerdaPt && i.YPt + i.AlturaPt <= AlturaPt / 3)
+        .Select(i => i.YPt + i.AlturaPt).DefaultIfEmpty(0).Max();
+
+    /// <summary>Onde o corpo começa em cada folha (correção de 2026-11-16). No modelo do kit a margem de cima (2,5 cm) é menor que o fim da
+    /// faixa do cabeçalho (2,82 cm): a imagem é flutuante e não empurra o texto, e da 2ª folha em diante a primeira linha saía por cima do
+    /// brasão (a 1ª folha só escapa porque começa por um parágrafo vazio). O corpo começa então no maior entre a margem de cima e o fim da
+    /// faixa mais a <see cref="FolgaCabecalhoPt"/>, arredondado para cima em twips; é este o valor gravado na margem do DOCX gerado
+    /// (<see cref="PreenchimentoDocx.Preencher"/>) e usado na prévia.</summary>
+    public double TopoDoCorpoPt
+    {
+        get
+        {
+            var fim = FimDoCabecalhoPt;
+            return fim <= 0 ? MargemTopoPt : Math.Max(MargemTopoPt, Math.Ceiling((fim + FolgaCabecalhoPt) * 20 - 1e-6) / 20.0);
+        }
+    }
+
+    /// <summary>O primeiro parágrafo do corpo do modelo não tem texto (é o espaçador que afasta o título do cabeçalho na 1ª folha).</summary>
+    public bool PrimeiroParagrafoVazio { get; init; }
+
+    /// <summary>O quanto o espaço depois do primeiro parágrafo do corpo diminui para a 1ª folha continuar como no modelo, mesmo com o corpo
+    /// começando mais abaixo: só quando esse parágrafo é vazio (o espaçador do modelo), e no máximo o espaço que ele tem.</summary>
+    public double CompensacaoInicialPt =>
+        PrimeiroParagrafoVazio && Formatos.Count > 0 ? Math.Min(Math.Max(0, TopoDoCorpoPt - MargemTopoPt), Formatos[0].DepoisPt) : 0;
+
+    /// <summary>A formatação do parágrafo <paramref name="i"/> do corpo (fora da lista: o padrão do modelo), como vai para a folha: o
+    /// primeiro já com a <see cref="CompensacaoInicialPt"/> descontada do espaço depois.</summary>
+    public FormatoParagrafo Formato(int i)
+    {
+        if (i < 0 || i >= Formatos.Count) return new FormatoParagrafo(0, 8, 259 / 240.0, "left", TamanhoPt, false, false, false, 0);
+        return i == 0 && CompensacaoInicialPt > 0 ? Formatos[0] with { DepoisPt = Formatos[0].DepoisPt - CompensacaoInicialPt } : Formatos[i];
+    }
 
     static double Twips(string? v, double padrao = 0) =>
         v is not null && double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d / 20.0 : padrao;
@@ -134,7 +172,10 @@ public sealed record LayoutDespacho(double LarguraPt, double AlturaPt, double Ma
                     y += alturas[i];
                 }
             }
-            return new LayoutDespacho(largura, altura, topo, direita, baixo, esquerda, fonte, tamanho, formatos, imagens, linhas, rodape);
+            return new LayoutDespacho(largura, altura, topo, direita, baixo, esquerda, fonte, tamanho, formatos, imagens, linhas, rodape)
+            {
+                PrimeiroParagrafoVazio = corpo.Elements(W + "p").FirstOrDefault() is { } primeiro && PreenchimentoDocx.Texto(primeiro).Trim().Length == 0,
+            };
         }
         catch (Exception ex) when (ex is InvalidDataException or XmlException or IOException)
         {

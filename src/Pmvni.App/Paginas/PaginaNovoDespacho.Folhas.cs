@@ -94,26 +94,64 @@ public sealed partial class PaginaNovoDespacho
         if (layout is not { } l || previa.Count == 0) return;
         var largura = l.LarguraUtilPt * K;
         var altura = l.AlturaUtilPt * K;
-        var corpo = new RichTextBlock
-        {
-            FontFamily = new FontFamily(l.Fonte), FontSize = l.TamanhoPt * K, Foreground = Preto, TextWrapping = TextWrapping.Wrap,
-            IsTextSelectionEnabled = false, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, Width = largura, Height = altura,
-            TextLineBounds = TextLineBounds.Full,
-        };
-        foreach (var p in previa) corpo.Blocks.Add(Paragrafo(p, l));
-        Folhas.Children.Add(Folha(l, corpo, 1));
+        // O fecho (da data à matrícula) não se separa entre folhas, como no DOCX ("manter com o próximo"): é um bloco à parte, posto
+        // inteiro no que sobra da última folha do texto ou, se não couber, numa folha nova (FechoDaPrevia).
+        var iData = previa.ToList().FindIndex(p => p.Estilo == EstiloPrevia.Data);
+        var texto = iData > 0 ? previa.Take(iData).ToList() : previa;
+        var fecho = iData > 0 ? previa.Skip(iData).ToList() : [];
+
+        var corpo = Bloco(l, largura, texto);
+        var folha = Folha(l, Moldura(corpo, largura, altura), 1);
+        Folhas.Children.Add(folha);
         Folhas.UpdateLayout();
         // Cada folha recebe o que não coube na anterior (o RichTextBlock só sabe o que transborda depois de medido).
         FrameworkElement ultimo = corpo;
         while (Folhas.Children.Count < MaximoDeFolhas && Transborda(ultimo))
         {
-            var resto = new RichTextBlockOverflow { Width = largura, Height = altura };
+            var resto = new RichTextBlockOverflow { Width = largura, VerticalAlignment = VerticalAlignment.Top };
             if (ultimo is RichTextBlock r) r.OverflowContentTarget = resto;
             else ((RichTextBlockOverflow)ultimo).OverflowContentTarget = resto;
-            Folhas.Children.Add(Folha(l, resto, Folhas.Children.Count + 1));
+            folha = Folha(l, Moldura(resto, largura, altura), Folhas.Children.Count + 1);
+            Folhas.Children.Add(folha);
             Folhas.UpdateLayout();
             ultimo = resto;
         }
+        if (fecho.Count == 0) return;
+
+        var assinatura = Bloco(l, largura, fecho);
+        assinatura.Measure(new Size(largura, double.PositiveInfinity));
+        // A moldura tem a altura do corpo e o texto fica no alto dela: a altura do elemento é a que o texto ocupa nesta folha.
+        if (FechoDaPrevia.NaUltimaFolha(ultimo.ActualHeight, assinatura.DesiredSize.Height, altura) is { } deslocamento)
+        {
+            Canvas.SetLeft(assinatura, l.MargemEsquerdaPt * K);
+            Canvas.SetTop(assinatura, l.TopoDoCorpoPt * K + deslocamento);
+            var tela = (Canvas)((Border)folha).Child;
+            // Antes das imagens da frente (faixas, tarja), como o corpo.
+            tela.Children.Insert(tela.Children.IndexOf((UIElement)ultimo.Parent) + 1, assinatura);
+        }
+        else if (Folhas.Children.Count < MaximoDeFolhas)
+            Folhas.Children.Add(Folha(l, Moldura(assinatura, largura, altura), Folhas.Children.Count + 1));
+    }
+
+    /// <summary>Um bloco de texto da largura do corpo, com os parágrafos na formatação do modelo; a altura é a do conteúdo.</summary>
+    RichTextBlock Bloco(LayoutDespacho l, double largura, IEnumerable<ParagrafoPrevia> paragrafos)
+    {
+        var b = new RichTextBlock
+        {
+            FontFamily = new FontFamily(l.Fonte), FontSize = l.TamanhoPt * K, Foreground = Preto, TextWrapping = TextWrapping.Wrap,
+            IsTextSelectionEnabled = false, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, Width = largura,
+            TextLineBounds = TextLineBounds.Full, VerticalAlignment = VerticalAlignment.Top,
+        };
+        foreach (var p in paragrafos) b.Blocks.Add(Paragrafo(p, l));
+        return b;
+    }
+
+    /// <summary>A área do corpo numa folha: o texto dentro dela ocupa só a altura das linhas que couberam (o resto transborda).</summary>
+    static Grid Moldura(FrameworkElement texto, double largura, double altura)
+    {
+        var g = new Grid { Width = largura, Height = altura };
+        g.Children.Add(texto);
+        return g;
     }
 
     static bool Transborda(FrameworkElement e) => e switch
@@ -151,7 +189,8 @@ public sealed partial class PaginaNovoDespacho
             c.Children.Add(t);
         }
         Canvas.SetLeft(corpo, l.MargemEsquerdaPt * K);
-        Canvas.SetTop(corpo, l.MargemTopoPt * K);
+        // O corpo começa abaixo da faixa do cabeçalho em toda folha (no modelo do kit a margem de cima é menor que a faixa).
+        Canvas.SetTop(corpo, l.TopoDoCorpoPt * K);
         c.Children.Add(corpo);
         foreach (var i in l.Imagens.Where(i => !i.AtrasDoTexto)) c.Children.Add(Imagem(i));
         // O ponto do clique: a caixa de edição abre ali (o link do trecho não é um elemento com posição própria).
