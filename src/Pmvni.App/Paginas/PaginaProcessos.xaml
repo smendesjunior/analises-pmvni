@@ -3,14 +3,19 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Pmvni.App">
   <UserControl.Resources>
+    <!-- Correções 2026-11-15: na frente de cada arquivo, o ícone do tipo que o Windows associa à extensão (IconeArquivo). -->
     <DataTemplate x:Key="ModeloLinhaDetalhe" x:DataType="local:LinhaDetalhe">
-      <StackPanel Padding="0,5" Spacing="1" AutomationProperties.Name="{x:Bind NomeAcessivel}">
-        <TextBlock Text="{x:Bind Texto}" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                   Visibility="{x:Bind EhTitulo}" Margin="0,8,0,0"/>
-        <TextBlock Text="{x:Bind Texto}" Visibility="{x:Bind NaoEhTitulo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Texto}"/>
-        <TextBlock Text="{x:Bind Info}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind TemInfo}" TextTrimming="CharacterEllipsis"
-                   ToolTipService.ToolTip="{x:Bind Info}"/>
-      </StackPanel>
+      <Grid Padding="0,5" ColumnSpacing="10" AutomationProperties.Name="{x:Bind NomeAcessivel}">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+        <local:IconeArquivo Caminho="{x:Bind CaminhoDoIcone}" VerticalAlignment="Top" Margin="0,1,0,0"/>
+        <StackPanel Grid.Column="1" Spacing="1">
+          <TextBlock Text="{x:Bind Texto}" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                     Visibility="{x:Bind EhTitulo}" Margin="0,8,0,0"/>
+          <TextBlock Text="{x:Bind Texto}" Visibility="{x:Bind NaoEhTitulo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Texto}"/>
+          <TextBlock Text="{x:Bind Info}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind TemInfo}" TextTrimming="CharacterEllipsis"
+                     ToolTipService.ToolTip="{x:Bind Info}"/>
+        </StackPanel>
+      </Grid>
     </DataTemplate>
   </UserControl.Resources>
   <!-- Módulo Processos (desenho §9): a lista de processos da pasta de processos à esquerda (mais recentes primeiro; a pesquisa da barra de

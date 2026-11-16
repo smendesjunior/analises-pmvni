@@ -59,8 +59,31 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// <summary>O título do documento aberto ("Proc. NNNN/AAAA · Requerente"), ou o nome do app sem relatório.</summary>
     internal string TextoTituloAtual => textoTitulo;
     internal string TextoBarraTitulo => TextoMarca.Text;
-    internal string TextoSubtituloBarra => BarraTitulo.Subtitle ?? "";
+    /// <summary>O que o cabeçalho mostra depois da marca: processo, requerente e estado de gravação ("" sem relatório).</summary>
+    internal string TextoSubtituloBarra => string.Join(" · ", new[] { TextoProcesso.Text, TextoRequerente.Text, textoEstado }.Where(x => x.Length > 0));
     internal string TextoComposicaoAtual => R.TextoComposicao.Text;
+    /// <summary>Cabeçalho em duas linhas (correções 2026-11-15): "Proc. NNNN/AAAA" em cima e o requerente embaixo; o texto do selo de gravação.</summary>
+    internal string TextoProcessoCabecalho => TextoProcesso.Text;
+    internal string TextoRequerenteCabecalho => TextoRequerente.Text;
+    internal bool ProcessoEmNegrito => TextoProcesso.FontWeight.Weight > TextoRequerente.FontWeight.Weight && TextoProcesso.FontSize > TextoRequerente.FontSize;
+    internal string TextoSeloGravacao => SeloGravacao.Visibility == Visibility.Visible ? TextoGravacao.Text : "";
+    /// <summary>Os rótulos sempre à vista de Desfazer, Refazer, Anterior e Próximo, na ordem.</summary>
+    internal IReadOnlyList<string> RotulosDoCabecalho =>
+        new[] { BotaoDesfazer, BotaoRefazer, BotaoPesquisaAnterior, BotaoPesquisaProxima }
+            .Select(b => b.Content is Panel { Children: var filhos } ? filhos.OfType<TextBlock>().FirstOrDefault()?.Text ?? "" : "").ToList();
+    /// <summary>Os nomes acessíveis das etiquetas de situação visíveis nas linhas realizadas da lista de seções.</summary>
+    internal IReadOnlyList<string> EtiquetasNaListaDeSecoes()
+    {
+        var nomes = new List<string>();
+        void Visitar(DependencyObject o)
+        {
+            if (o is EtiquetaSituacao { Visibility: Visibility.Visible } e) nomes.Add(Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(e));
+            for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(o); i++) Visitar(Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(o, i));
+        }
+        for (var i = 0; i < R.ListaNavegacao.Items.Count; i++)
+            if (R.ListaNavegacao.ContainerFromIndex(i) is DependencyObject c) Visitar(c);
+        return nomes;
+    }
     internal string TextoFolhaAtual => totalFolhas == 0 ? "" : $"folha {folhaAtual} de {totalFolhas}";
     internal IndicadorAvisos IndicadorLayout => R.IndicadorLayout;
     internal AreaDeAvisos AreaAvisosRelatorios => R.AreaAvisos;
@@ -267,7 +290,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
         Faixa.Compacta = ajustes.FaixaRotulos switch { "sempre" => false, "icones" => true, _ => largura < 1000 };
-        CaixaPesquisa.Width = Math.Clamp(largura * 0.2, 180, 320);
+        // Cabeçalho (correções 2026-11-15): os rótulos de Desfazer, Refazer, Anterior e Próximo ficam sempre; em janelas estreitas some
+        // primeiro o nome "Análise de Projetos" (o brasão fica), depois o processo e a pesquisa encolhem.
+        CaixaPesquisa.Width = Math.Clamp(largura * 0.14, 160, 280);
+        TextoMarca.Visibility = DivisoriaMarca.Visibility = largura < 1600 ? Visibility.Collapsed : Visibility.Visible;
+        BlocoProcesso.MaxWidth = largura < 1250 ? 180 : 300;
     }
 
     /// <summary>Ajustes › Relatórios e revisão › "Painéis ao abrir": com "Lembrar", o painel lateral e as Propriedades como ficaram.</summary>
@@ -776,11 +803,34 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         var titulo = r is null || sessao is null ? null : TituloJanela.De(r.Dados.Processo, r.Dados.Requerente, Path.GetFileNameWithoutExtension(sessao.Caminho));
         textoTitulo = titulo ?? TituloPadrao;
         textoEstado = sessao is null ? "" : EstadoGravacaoTexto.Texto(sessao.Estado, sessao.SalvoEmLocal);
-        // A marca não se repete (auditoria B9): o título da barra é sempre "Editor de Relatórios"; o subtítulo leva o documento e o estado.
-        TextoMarca.Text = TituloDaBarra; // o título fica no TextoMarca (estilo Gmail), não no Title da TitleBar
-        BarraTitulo.Subtitle = titulo is null ? textoEstado : textoEstado.Length == 0 ? titulo : titulo + "  ·  " + textoEstado;
+        // Cabeçalho (correções 2026-11-15): a marca fica sempre "Análise de Projetos"; o processo aberto vai em duas linhas (o número em
+        // cima, maior e em negrito; o requerente embaixo) e o estado de gravação num selo com ícone. O Subtitle da TitleBar não é mais usado.
+        TextoMarca.Text = TituloDaBarra;
+        BarraTitulo.Subtitle = "";
+        var (principal, secundaria) = r is null || sessao is null ? ("", "")
+            : TituloJanela.Linhas(r.Dados.Processo, r.Dados.Requerente, Path.GetFileNameWithoutExtension(sessao.Caminho));
+        TextoProcesso.Text = principal;
+        TextoRequerente.Text = secundaria;
+        TextoRequerente.Visibility = secundaria.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        ToolTipService.SetToolTip(BlocoProcesso, titulo);
+        BlocoProcesso.Visibility = DivisoriaProcesso.Visibility = principal.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        AtualizarSeloGravacao();
         Title = titulo is null ? TituloPadrao : titulo + " — " + TituloPadrao;
         AtualizarComandos();
+    }
+
+    /// <summary>O selo do estado de gravação no cabeçalho: texto ("Salvo 14:32"), ícone e tom (verde, amarelo, vermelho ou neutro).</summary>
+    void AtualizarSeloGravacao()
+    {
+        if (sessao is not { } s || textoEstado.Length == 0) { SeloGravacao.Visibility = Visibility.Collapsed; return; }
+        var tom = EstadoGravacaoTexto.Tom(s.Estado);
+        var nome = tom switch { TomSelo.Sucesso => "Sucesso", TomSelo.Atencao => "Atencao", TomSelo.Erro => "Erro", _ => "Neutro" };
+        SeloGravacao.Style = (Style)Application.Current.Resources["PmvniSelo" + nome];
+        IconeGravacao.Style = (Style)Application.Current.Resources["PmvniIconeSelo" + nome];
+        IconeGravacao.Glyph = EstadoGravacaoTexto.Glifo(s.Estado);
+        TextoGravacao.Text = textoEstado;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SeloGravacao, "Estado de gravação: " + textoEstado);
+        SeloGravacao.Visibility = Visibility.Visible;
     }
 
     /// <summary>Exportar só com o relatório composto sem estouro e sem erros finais (campos [ ] em aberto, conferência da revisão).</summary>

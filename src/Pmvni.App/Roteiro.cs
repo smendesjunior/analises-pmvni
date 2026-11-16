@@ -222,6 +222,15 @@ internal static class Roteiro
             p["titulo_da_barra"] = j.TextoTituloAtual;
             p["titulo_confere"] = j.TextoTituloAtual == tituloEsperado && tituloEsperado.StartsWith("Proc. ", StringComparison.Ordinal);
             p["estado_de_gravacao"] = j.TextoEstadoAtual;
+            // Correções 2026-11-15: cabeçalho com o processo em duas linhas (número em cima, maior e em negrito; requerente embaixo), o selo
+            // "Salvo HH:MM" e os rótulos sempre à vista de Desfazer, Refazer, Anterior e Próximo.
+            var linhasCabecalho = TituloJanela.Linhas(capa["processo"]?.GetValue<string>(), capa["requerente"]?.GetValue<string>(), "longo");
+            p["cabecalho"] = new JsonArray(j.TextoProcessoCabecalho, j.TextoRequerenteCabecalho, j.TextoSeloGravacao);
+            p["cabecalho_rotulos"] = new JsonArray(j.RotulosDoCabecalho.Select(x => (JsonNode)x).ToArray());
+            var cabecalhoOk = j.TextoProcessoCabecalho == linhasCabecalho.Principal && j.TextoRequerenteCabecalho == linhasCabecalho.Secundaria
+                && j.ProcessoEmNegrito && j.TextoSeloGravacao == j.TextoEstadoAtual
+                && j.RotulosDoCabecalho.SequenceEqual(["Desfazer", "Refazer", "Anterior", "Próximo"]);
+            p["cabecalho_confere"] = cabecalhoOk;
             p["composicao"] = j.TextoComposicaoAtual;
             p["itens_na_lista"] = j.Itens.Count;
             p["primeiros_itens"] = new JsonArray(j.Itens.Take(6).Select(i => (JsonNode)$"{i.Rotulo} (f. {i.Folha})").ToArray());
@@ -254,7 +263,7 @@ internal static class Roteiro
             p["atalhos_do_navegador_host_oculto"] = host.Item2;
             var protegido = j.NucleoWeb.Profile.IsInPrivateModeEnabled && host.Item1 && !j.NucleoWeb.Settings.AreBrowserAcceleratorKeysEnabled && !host.Item2;
             p["ok"] = File.Exists(pacoteLongo) && a.Composicao.Folhas > 3 && plano.Estouros.Count == 0 && j.ExportarHabilitado
-                && p["aviso_largura_confere"]!.GetValue<bool>() && p["titulo_confere"]!.GetValue<bool>()
+                && p["aviso_largura_confere"]!.GetValue<bool>() && p["titulo_confere"]!.GetValue<bool>() && cabecalhoOk
                 && j.TextoEstadoAtual.StartsWith("Salvo", StringComparison.Ordinal) && p["estado_do_editor_aplicado"]!.GetValue<bool>()
                 && protegido && faixas == a.Aplicacao.FolhasMarcadas.Count && p["nenhuma_infobar_de_layout"]!.GetValue<bool>()
                 && indicador.Avisos.Count(x => x.Tipo == TipoAvisoLayout.AlemDaBorda) == a.Aplicacao.FolhasQueTransbordamNaLargura.Count
@@ -4264,6 +4273,29 @@ internal static class Roteiro
             var secoes = Nomes(j.ListaDeSecoes);
             var itemComSituacao = j.Itens.FirstOrDefault(i => i.Situacao is not null);
             var situacaoPorExtenso = itemComSituacao is not null && itemComSituacao.NomeAcessivel.Contains(itemComSituacao.TextoSituacao, StringComparison.Ordinal);
+            // Correções 2026-11-15: a situação na lista é a etiqueta do relatório (texto do kit) e é modificável: escolher outra no menu dela
+            // usa o comando da faixa (DefinirSituacao, no histórico) e abre as Propriedades para a justificativa; Desfazer volta.
+            var etiquetas = j.EtiquetasNaListaDeSecoes();
+            p["etiquetas"] = new JsonArray(etiquetas.Take(4).Select(n => (JsonNode)n).ToArray());
+            var etiquetasOk = etiquetas.Count > 0 && etiquetas.All(n => n.StartsWith("Situação: ", StringComparison.Ordinal))
+                && itemComSituacao is not null && etiquetas.Contains(EtiquetasSituacao.NomeAcessivel(itemComSituacao.Situacao));
+            var sessaoLonga = j.Sessao!;
+            var alvo = sessaoLonga.Revisao.Projeto.Incluidos.First(i => i.Situacao.Revisada is null);
+            var antesDaEtiqueta = alvo.Situacao.Original!.GetValue<string>();
+            var novaPelaEtiqueta = Faixas.OrdemSituacoes.First(c => c != antesDaEtiqueta);
+            var registrosAntes = sessaoLonga.Revisao.HistoricoCompleto.Count;
+            var propriedadesAntes = j.PropriedadesVisivel;
+            await j.MudarSituacaoPelaEtiquetaAsync(alvo.Id, novaPelaEtiqueta);
+            var tiposEtiqueta = sessaoLonga.Revisao.HistoricoCompleto.Skip(registrosAntes).Select(r => r.Tipo).ToList();
+            var mudouPelaEtiqueta = alvo.Situacao.Revisada == novaPelaEtiqueta && tiposEtiqueta.SequenceEqual(["DefinirSituacao"])
+                && j.Itens.Any(i => i.Ref == alvo.Id && i.Situacao == novaPelaEtiqueta) && j.PropriedadesVisivel;
+            await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            var desfeitoPelaEtiqueta = alvo.Situacao.Revisada is null;
+            if (!propriedadesAntes && j.PropriedadesVisivel) await j.ExecutarComandoAsync(ComandosApp.ExibirPropriedades);
+            p["etiqueta_muda_a_situacao"] = mudouPelaEtiqueta;
+            p["etiqueta_desfaz"] = desfeitoPelaEtiqueta;
+            etiquetasOk &= mudouPelaEtiqueta && desfeitoPelaEtiqueta;
+            p["etiquetas_ok"] = etiquetasOk;
             // A lista só tem contêineres depois de ter itens e de um layout com a página à vista.
             async Task<List<string>> NomesDepoisDeLer(Microsoft.UI.Xaml.Controls.ListViewBase lista)
             {
@@ -4285,7 +4317,7 @@ internal static class Roteiro
             p["despachos"] = new JsonArray(despachos.Take(4).Select(n => (JsonNode)n).ToArray());
             p["trilho"] = new JsonArray(trilho.Select(n => (JsonNode)n).ToArray());
             p["situacao_por_extenso"] = situacaoPorExtenso;
-            p["ok"] = Bons(secoes) && Bons(processos) && situacaoPorExtenso /* a lista de despachos saiu da tela (correções 2026-11-15) */ && trilho.SequenceEqual(Faixas.Disponiveis.Select(Modulos.Rotulo));
+            p["ok"] = Bons(secoes) && Bons(processos) && situacaoPorExtenso && etiquetasOk /* a lista de despachos saiu da tela (correções 2026-11-15) */ && trilho.SequenceEqual(Faixas.Disponiveis.Select(Modulos.Rotulo));
             await j.MudarModuloAsync(Modulo.Relatorios);
         });
 

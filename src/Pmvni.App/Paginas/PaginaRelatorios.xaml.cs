@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Pmvni.App;
@@ -7,4 +8,12 @@ namespace Pmvni.App;
 public sealed partial class PaginaRelatorios : UserControl
 {
     public PaginaRelatorios() => InitializeComponent();
+
+    /// <summary>Clique na etiqueta de situação de um item da lista de seções: a janela abre o menu das situações junto dela.</summary>
+    internal event Action<ItemNavegacao, FrameworkElement>? EtiquetaClicada;
+
+    void AoClicarEtiqueta(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: ItemNavegacao item } alvo) EtiquetaClicada?.Invoke(item, alvo);
+    }
 }

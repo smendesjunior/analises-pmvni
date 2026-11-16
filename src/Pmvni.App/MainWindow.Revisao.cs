@@ -46,6 +46,8 @@ public sealed partial class MainWindow
     internal IReadOnlyList<string> LinhasHistorico => R.ListaHistorico.ItemsSource as IReadOnlyList<string> ?? [];
     internal string RotuloExcluirRestaurar => Faixa.Rotulo(ComandosApp.InicioExcluirRestaurar);
     internal MenuFlyout? UltimoMenuContexto { get; private set; }
+    /// <summary>O último menu aberto pela etiqueta de situação da lista de seções (o roteiro confere as opções).</summary>
+    internal MenuFlyout? UltimoMenuEtiqueta { get; private set; }
     internal Flyout? UltimoFlyoutExcluido { get; private set; }
     internal int AceleradoresDeTeclado => Raiz.KeyboardAccelerators.Count;
     internal void FocarFolhas() => R.Navegador.Focus(FocusState.Programmatic);
@@ -63,6 +65,7 @@ public sealed partial class MainWindow
     void IniciarRevisao()
     {
         R.AbasPainel.SelectionChanged += (_, _) => MostrarAbaDoPainel();
+        R.EtiquetaClicada += async (item, alvo) => await MostrarMenuDaEtiquetaAsync(item, alvo);
         R.ListaExcluidos.ItemClick += async (_, e) => { if (e.ClickedItem is FrameworkElement { Tag: string id }) await NaFilaAsync(() => TentarAsync(() => SelecionarAsync(id))); };
         R.BotaoFecharPropriedades.Click += (_, _) => MostrarPropriedades(false);
         R.PropNoPdf.Click += async (_, _) =>
@@ -585,6 +588,42 @@ public sealed partial class MainWindow
         menu.Items.Add(propriedades);
         UltimoMenuContexto = menu;
         menu.ShowAt(R.Navegador, new FlyoutShowOptions { Position = ponto });
+    }
+
+    /// <summary>Clique na etiqueta de situação de um item da lista de seções (correções 2026-11-15): seleciona o item e abre, junto da
+    /// etiqueta, o menu das situações (a atual marcada). A escolha segue o mesmo caminho da faixa e do botão direito.</summary>
+    async Task MostrarMenuDaEtiquetaAsync(ItemNavegacao item, FrameworkElement alvo)
+    {
+        if (item.Ref is not { } id || sessao?.Revisao.Projeto.Item(id) is null) return;
+        await NaFilaAsync(() => TentarAsync(() => SelecionarAsync(id)));
+        if (ItemSelecionado is not { } it || it.Id != id) return;
+        var menu = new MenuFlyout { Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
+        var efetiva = SituacaoEfetiva(it);
+        foreach (var c in Faixas.OrdemSituacoes)
+        {
+            var comando = ComandosApp.ComandoDaSituacao(c);
+            var i = new ToggleMenuFlyoutItem { Text = Situacoes.Sit[c].Texto, IsChecked = c == efetiva, IsEnabled = Faixa.Habilitado(comando) };
+            var codigo = c;
+            i.Click += async (_, _) => await MudarSituacaoPelaEtiquetaAsync(id, codigo);
+            menu.Items.Add(i);
+        }
+        UltimoMenuEtiqueta = menu;
+        menu.ShowAt(alvo);
+    }
+
+    /// <summary>A situação escolhida no menu da etiqueta: o comando da faixa (<see cref="DefinirSituacao"/>, com histórico e desfazer).
+    /// Quando a situação muda e falta a justificativa (obrigatória), as Propriedades se abrem com o foco na caixa da justificativa.</summary>
+    internal async Task MudarSituacaoPelaEtiquetaAsync(string itemId, string codigo)
+    {
+        if (selecionado != itemId) await NaFilaAsync(() => TentarAsync(() => SelecionarAsync(itemId)));
+        if (ItemSelecionado is not { } it || it.Id != itemId || SituacaoEfetiva(it) == codigo) return;
+        await ExecutarComandoAsync(ComandosApp.ComandoDaSituacao(codigo));
+        if (ItemSelecionado is { } depois && depois.Id == itemId && depois.Situacao.Revisada is not null
+            && string.IsNullOrWhiteSpace(depois.Situacao.Justificativa) && R.PropJustificativa.IsEnabled)
+        {
+            MostrarPropriedades(true);
+            R.PropJustificativa.Focus(FocusState.Programmatic);
+        }
     }
 
     MenuFlyoutItem ItemDoMenu(string texto, string glifo, string id)

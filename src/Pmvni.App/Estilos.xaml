@@ -6,6 +6,8 @@
 
   <!-- Medidas comuns das páginas (painéis laterais e margens). -->
   <x:Double x:Key="PmvniLarguraPainel">300</x:Double>
+  <!-- Lista de seções da revisão: mais larga para a etiqueta de situação caber ao lado do título (que quebra a linha). -->
+  <x:Double x:Key="PmvniLarguraPainelSecoes">440</x:Double>
   <x:Double x:Key="PmvniLarguraPropriedades">320</x:Double>
   <Thickness x:Key="PmvniMargemPagina">24,16,24,16</Thickness>
 
@@ -29,6 +31,96 @@
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Padding" Value="10,5,10,6"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <!-- Cabeçalho (correções 2026-11-15): botões com fundo sutil e cantos 6 (Desfazer, Refazer, Anterior, Próximo, sempre com rótulo),
+       divisória vertical e o selo do estado de gravação (verde "Salvo", amarelo "Não salvo", vermelho "Conflito", neutro nos outros). -->
+  <Style x:Key="PmvniBotaoCabecalhoStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+    <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Padding" Value="10,5,12,6"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="PmvniDivisoriaCabecalho" TargetType="Border">
+    <Setter Property="Width" Value="1"/>
+    <Setter Property="Height" Value="30"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniSeloGravacao" TargetType="Border">
+    <Setter Property="CornerRadius" Value="13"/>
+    <Setter Property="Padding" Value="9,4,12,5"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+  <Style x:Key="PmvniSeloSucesso" TargetType="Border" BasedOn="{StaticResource PmvniSeloGravacao}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorSuccessBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniSeloAtencao" TargetType="Border" BasedOn="{StaticResource PmvniSeloGravacao}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCautionBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniSeloErro" TargetType="Border" BasedOn="{StaticResource PmvniSeloGravacao}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniSeloNeutro" TargetType="Border" BasedOn="{StaticResource PmvniSeloGravacao}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorNeutralBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniIconeSeloSucesso" TargetType="FontIcon">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorSuccessBrush}"/>
+  </Style>
+  <Style x:Key="PmvniIconeSeloAtencao" TargetType="FontIcon">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}"/>
+  </Style>
+  <Style x:Key="PmvniIconeSeloErro" TargetType="FontIcon">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+  </Style>
+  <Style x:Key="PmvniIconeSeloNeutro" TargetType="FontIcon">
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+  </Style>
+
+  <!-- Etiqueta de situação da lista de seções (a "pill" do relatório): as cores vêm de EtiquetaSituacao (kit, claro e escuro); o
+       modelo só desenha o fundo, a borda e um véu ao passar o mouse ou clicar. -->
+  <Style x:Key="PmvniEtiquetaSituacaoStyle" TargetType="Button">
+    <Setter Property="Padding" Value="7,2,9,3"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="11"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="UseSystemFocusVisuals" Value="True"/>
+    <Setter Property="FocusVisualMargin" Value="-2"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Grid x:Name="Raiz" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="PointerOver">
+                  <VisualState.Setters><Setter Target="Veu.Opacity" Value="1"/></VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Pressed">
+                  <VisualState.Setters>
+                    <Setter Target="Veu.Opacity" Value="1"/>
+                    <Setter Target="Veu.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}"/>
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Disabled"/>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <Border x:Name="Veu" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}"/>
+            <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"
+                              HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <!-- Item do trilho de módulos (como o Gmail): 68 x 66, ícone colorido de 28 px sobre um fundo arredondado 56 x 36 que só aparece no módulo

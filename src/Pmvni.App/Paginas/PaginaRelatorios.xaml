@@ -55,7 +55,7 @@
       </Grid.ColumnDefinitions>
 
       <!-- Painel lateral (recolhível por Exibir › Painel lateral): abas Seções, Excluídos (n) e Histórico. -->
-      <Grid x:Name="PainelNavegacao" x:FieldModifier="internal" Grid.Column="0" Width="{StaticResource PmvniLarguraPainel}" Padding="0,2,0,0">
+      <Grid x:Name="PainelNavegacao" x:FieldModifier="internal" Grid.Column="0" Width="{StaticResource PmvniLarguraPainelSecoes}" Padding="0,2,0,0">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
@@ -76,25 +76,26 @@
           </ListView.ItemContainerStyle>
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:ItemNavegacao">
-              <!-- Nome acessível e dica com o texto inteiro (A3, A4, M10): o Narrador lê "Item 07, Recuos, Não atende, alterado, folha 4". -->
-              <Grid MinHeight="28" ColumnSpacing="6" Padding="0,2,4,2" AutomationProperties.Name="{x:Bind NomeAcessivel}"
+              <!-- Nome acessível e dica com o texto inteiro (A3, A4, M10): o Narrador lê "Item 07, Recuos, Não atende, alterado, folha 4".
+                   Correções 2026-11-15: a situação é a etiqueta do relatório (ATENDE, FALTA COMPROVAR…) à direita do título, que quebra a
+                   linha; clicar na etiqueta abre o menu das situações (o mesmo comando da faixa, com histórico e desfazer). -->
+              <Grid MinHeight="28" ColumnSpacing="6" Padding="0,3,2,3" AutomationProperties.Name="{x:Bind NomeAcessivel}"
                     ToolTipService.ToolTip="{x:Bind Rotulo}">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="3"/>
-                  <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Style="{StaticResource PmvniRailIndicatorStyle}" Visibility="{x:Bind IndicadorVisivel, Mode=OneWay}"/>
-                <Ellipse Grid.Column="1" Width="9" Height="9" Fill="{x:Bind CorSituacao}" Visibility="{x:Bind SituacaoVisivel}" Margin="{x:Bind Recuo}"
-                         Stroke="{ThemeResource CardStrokeColorDefaultBrush}" StrokeThickness="1"
-                         VerticalAlignment="Center" ToolTipService.ToolTip="{x:Bind TextoSituacao}"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind Rotulo}" FontWeight="{x:Bind Peso}" MaxLines="2" TextWrapping="WrapWholeWords"
-                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind Rotulo}" FontWeight="{x:Bind Peso}" Margin="{x:Bind Recuo}" MaxLines="3"
+                           TextWrapping="WrapWholeWords" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                <local:EtiquetaSituacao Grid.Column="2" Situacao="{x:Bind Situacao}" Tag="{x:Bind}" Click="AoClicarEtiqueta"/>
                 <Ellipse Grid.Column="3" Width="6" Height="6" Fill="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind AlteradoVisivel}"
                          VerticalAlignment="Center" ToolTipService.ToolTip="alterado" AutomationProperties.Name="alterado"/>
-                <TextBlock Grid.Column="4" Text="{x:Bind FolhaTexto}" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="4" Text="{x:Bind FolhaTexto}" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
+                           MinWidth="26" TextAlignment="Right"/>
               </Grid>
             </DataTemplate>
           </ListView.ItemTemplate>
