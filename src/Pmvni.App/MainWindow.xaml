@@ -21,7 +21,7 @@
       <!-- Cabeçalho (correções 2026-11-15, image15): brasão | "Análise de Projetos" | o processo aberto em duas linhas ("Proc. NNNN/AAAA"
            maior e em negrito; o requerente embaixo, menor) e o selo do estado de gravação ("Salvo 14:32" com o ✓). -->
       <controls:TitleBar.LeftHeader>
-        <StackPanel Orientation="Horizontal" Spacing="14" Margin="16,2,14,2" VerticalAlignment="Center">
+        <StackPanel x:Name="CabecalhoEsquerdo" Orientation="Horizontal" Spacing="14" Margin="16,2,14,2" VerticalAlignment="Center">
           <Image x:Name="ImagemBrasao" Height="40" VerticalAlignment="Center" Stretch="Uniform"
                  AutomationProperties.Name="Prefeitura Municipal de Venda Nova do Imigrante"/>
           <Border x:Name="DivisoriaMarca" Style="{StaticResource PmvniDivisoriaCabecalho}"/>

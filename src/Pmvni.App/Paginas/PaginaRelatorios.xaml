@@ -15,7 +15,8 @@
     <!-- Avisos (InfoBar) que pedem ação imediata e o resultado das operações (no máximo 2 à vista; o resto em "+n"). Os de layout (largura,
          blocos que não cabem, conteúdo além da borda) vão para o indicador do rodapé; com Ajustes › Aparência › "Faixas no topo", voltam
          para cá (AvisoLargura, AvisoEstouro, AvisoForaDaArea). -->
-    <local:AreaDeAvisos x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0">
+    <!-- Correções 2026-11-15: afastada da borda arredondada da área das páginas (antes encostava no canto e no trilho). -->
+    <local:AreaDeAvisos x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0" Margin="12,10,12,0">
       <!-- Tarefa 10: conflito na gravação (com as duas saídas), somente leitura (trava de outro, perdida, esquema novo) e diário com falha. -->
       <InfoBar x:Name="AvisoConflito" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="False"
                Title="Conflito: o arquivo mudou no disco">

@@ -165,6 +165,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         AplicarTemaDosAjustes();
         Raiz.Loaded += (_, _) => DimensionarJanela();
         Raiz.SizeChanged += (_, e) => AplicarLargura(e.NewSize.Width);
+        CabecalhoEsquerdo.SizeChanged += (_, _) => AjustarPesquisa(Raiz.ActualWidth); // processo aberto/fechado muda o espaço da pesquisa
         R.ListaNavegacao.ItemsSource = itensNavegacao;
         R.ListaNavegacao.ItemClick += AoClicarItem;
         R.BotaoMenos.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.ExibirMenos);
@@ -293,9 +294,22 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Faixa.Compacta = ajustes.FaixaRotulos switch { "sempre" => false, "icones" => true, _ => largura < 1000 };
         // Cabeçalho (correções 2026-11-15): os rótulos de Desfazer, Refazer, Anterior e Próximo ficam sempre; em janelas estreitas some
         // primeiro o nome "Análise de Projetos" (o brasão fica), depois o processo e a pesquisa encolhem.
-        CaixaPesquisa.Width = Math.Clamp(largura * 0.14, 160, 280);
         TextoMarca.Visibility = DivisoriaMarca.Visibility = largura < 1600 ? Visibility.Collapsed : Visibility.Visible;
         BlocoProcesso.MaxWidth = largura < 1250 ? 180 : 300;
+        AjustarPesquisa(largura);
+    }
+
+    /// <summary>Caixa de pesquisa do cabeçalho (correções 2026-11-15): ocupa o espaço que sobra na barra de título, entre 200 e 640 px, e
+    /// acompanha a largura da janela (refeita quando a janela ou o lado esquerdo do cabeçalho muda de tamanho).</summary>
+    void AjustarPesquisa(double largura)
+    {
+        if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
+        if (largura <= 0) return;
+        double Largura(FrameworkElement e) => e.Visibility == Visibility.Visible ? e.ActualWidth + e.Margin.Left + e.Margin.Right : 0;
+        var ocupado = Largura(CabecalhoEsquerdo) + Largura(BotaoAnalise) + Largura(BotaoDesfazer) + Largura(BotaoRefazer)
+                      + Largura(TextoPesquisa) + Largura(BotaoPesquisaAnterior) + Largura(BotaoPesquisaProxima);
+        const double botoesDaJanelaEFolgas = 190; // minimizar, maximizar, fechar, espaçamentos e a área de arrastar
+        CaixaPesquisa.Width = Math.Clamp(largura - ocupado - botoesDaJanelaEFolgas - CaixaPesquisa.Margin.Left, 200, 640);
     }
 
     /// <summary>Ajustes › Relatórios e revisão › "Painéis ao abrir": com "Lembrar", o painel lateral e as Propriedades como ficaram.</summary>
