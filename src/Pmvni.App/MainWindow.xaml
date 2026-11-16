@@ -17,15 +17,15 @@
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <controls:TitleBar x:Name="BarraTitulo" Grid.Row="0" Title="" Subtitle="" Height="60">
+    <controls:TitleBar x:Name="BarraTitulo" Grid.Row="0" Title="" Subtitle="" Height="72">
       <!-- Correções 2026-11-15: o modelo do WinUI fixa a altura interna em TitleBarExpandedHeight (48) e cortava o brasão; 60 aqui. -->
       <controls:TitleBar.Resources>
-        <x:Double x:Key="TitleBarExpandedHeight">60</x:Double>
+        <x:Double x:Key="TitleBarExpandedHeight">72</x:Double>
       </controls:TitleBar.Resources>
       <!-- Cabeçalho (correções 2026-11-15, image15): brasão | "Análise de Projetos" | o processo aberto em duas linhas ("Proc. NNNN/AAAA"
            maior e em negrito; o requerente embaixo, menor) e o selo do estado de gravação ("Salvo 14:32" com o ✓). -->
       <controls:TitleBar.LeftHeader>
-        <StackPanel x:Name="CabecalhoEsquerdo" Orientation="Horizontal" Spacing="14" Margin="18,0,14,0" VerticalAlignment="Center">
+        <StackPanel x:Name="CabecalhoEsquerdo" Orientation="Horizontal" Spacing="14" Margin="14,0,18,0" VerticalAlignment="Center">
           <!-- Marca da Prefeitura (2026-11-16): o brasão redesenhado em vetor (formas do brasao.png do modelo oficial) e o texto como texto,
                legível em qualquer escala; a cor do texto segue o tema. Revisão do cabeçalho (2026-11-16): a tela do desenho passou a ser
                exatamente a caixa do brasão (antes sobrava tela e uma margem negativa o empurrava para cima e para a esquerda), e o
