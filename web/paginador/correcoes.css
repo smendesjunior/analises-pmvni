@@ -1,0 +1,20 @@
+/* Correções do editor ao modelo oficial (embutido no paginador.js e inserido depois do relatorio.css do kit, que fica
+   byte a byte como veio). Só entra aqui o que o modelo desenha errado com texto livre: caixa `white-space: nowrap` de
+   largura fixa cujo texto, quando é maior que o previsto, cobre o vizinho ou sai da folha.
+   REGRA DE OURO: onde o texto já cabia, nada muda (mesmas caixas, mesma paginação, mesma fidelidade com o PDF do kit).
+   Teste: CorrecoesDoModeloTestes (liga e desliga esta folha e compara as caixas no corpus e no dados_modelo.json). */
+
+/* Ficha da Localização (tabelas rótulo | valor): o modelo pressupõe "rótulos curtos" (`.lfl` com nowrap numa coluna de
+   24 %, tabela de layout fixo); um rótulo maior ("INSCRIÇÃO IMOBILIÁRIA", "ÁREA DO LOTE (MATRÍCULA)") era pintado por
+   cima do valor. O rótulo passa a quebrar linha dentro da coluna (e, se for uma palavra só maior que a coluna, quebra
+   dentro da palavra). Sem o padding direito, a coluna dá ao texto os mesmos 8 px que ele já usava sem tocar no valor
+   (o valor tem o próprio padding esquerdo): rótulo que cabia em uma linha continua em uma linha, no mesmo lugar. */
+.lft td.lfl { white-space: normal; overflow-wrap: break-word; padding-right: 0; }
+
+/* Etiqueta do título de seção (`.sec > .tag`: resumo da análise, "ZONA INDICADA: …", etiqueta da iluminação): nowrap e
+   `flex: none`, com texto livre do dados.json (indices.zona, iluminacao.tag). Etiqueta longa espremia o título até o
+   mínimo e depois saía da folha pela direita (o documento inteiro era reduzido, ou a exportação recusada). Agora, só
+   quando o título já está no mínimo, a etiqueta cede e quebra linha. O encolhimento do título pesa um milhão de vezes
+   mais que o da etiqueta: enquanto o título ainda pode encolher, a etiqueta fica na largura inteira, como no kit. */
+.sec > .tag { flex: 0 1 auto; white-space: normal; }
+.sec > div:first-child { flex-shrink: 1000000; }

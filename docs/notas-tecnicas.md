@@ -128,6 +128,28 @@ folha só com o plano. Se o documento não estabiliza no limite (30 s; `limiteEs
 `compor` falha com o código `instavel` (e `folhas_demais` acima de 5000 folhas), nunca devolve plano medido em layout
 instável. `PlanoQuebras.DeJson` recusa versão diferente de 1 e escala fora de [1; 1,5].
 
+### Correções do editor ao modelo (`web/paginador/correcoes.css`, 16/11/2026)
+
+O `relatorio.css` e o `modelo_relatorio.html` continuam byte a byte os do kit (V1 e os testes de fidelidade não mudam). O
+que o modelo desenha errado com texto livre é corrigido numa folha de estilo do próprio editor, embutida no `paginador.js`
+e inserida por `prepararDocumento` depois do CSS do kit (`<style id="pmvni-correcoes-css">`): vale na tela e no PDF, que
+são o mesmo DOM. Regra: **onde o texto já cabia, nada muda** (mesmas caixas, mesma paginação); só muda o caso em que o
+kit pinta texto por cima do vizinho ou para fora da folha. Hoje:
+- **Ficha da Localização** (`.lft td.lfl`): o modelo pressupõe "rótulos curtos" (`nowrap` numa coluna de 24 % de tabela de
+  layout fixo, ~66 px de texto). Rótulo maior ("INSCRIÇÃO IMOBILIÁRIA", "ÁREA DO LOTE (MATRÍCULA)") era pintado sobre o
+  valor, em qualquer relatório, não só no exemplo. Agora quebra linha (e palavra, se uma só não couber); o `padding-right`
+  sai para o rótulo que passava poucos px da coluna sem tocar o valor continuar em uma linha, como no kit.
+- **Etiqueta do título de seção** (`.sec > .tag`, com `indices.zona` e `iluminacao.tag`, texto livre): `nowrap` e
+  `flex: none`; longa, espremia o título e depois saía da folha (documento reduzido ou exportação recusada). Agora cede e
+  quebra linha, mas só depois de o título chegar à largura mínima (o `flex-shrink` do título é 10^6 vezes o da etiqueta).
+- **Deixado como está, de propósito:** a etiqueta de situação (`.pill`, `nowrap`) — texto de lista fechada; a
+  "INFORMAÇÕES DIVERGENTES" transborda a coluna da tabela de índices e reduz o documento (k = 1,0723), igual ao kit e
+  fixado nos golden e na V3; `.confirm b` (texto fixo do modelo) e os rodapés (texto fixo).
+
+`CorrecoesDoModeloTestes` reproduz os dois defeitos e liga/desliga a folha de correção comparando todas as caixas no
+`longo`, no `extremos` e no `dados_modelo.json` (iguais). Um relatório com rótulo longo passa a diferir do PDF do kit nessa
+ficha (o do kit sai com o defeito): é a única diferença intencional.
+
 ## Aplicar o plano, texto por folha e exportação (Tarefa 8)
 
 `DocumentoWeb.AplicarPlanoAsync(plano)` reconstrói as folhas só com o plano, sem medir para decidir e sem mexer na

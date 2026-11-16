@@ -19,6 +19,8 @@ embutido como texto) embutido em `Pmvni.Composicao.Web`.
 - `src/marcas.ts`: marcas de revisao (traco azul nos itens alterados; etiqueta "ITEM EXCLUIDO NN" e linha vermelha onde o item
   excluido estava) na camada `#pmvni-camada`, fora das folhas.
 - `folha.css`: geometria da folha A4, da area util, do cabecalho e do rodape (as constantes ficam so aqui).
+- `correcoes.css`: correcoes do editor ao modelo oficial (texto livre em caixa `nowrap` de largura fixa), inseridas depois do
+  `relatorio.css` do kit, que continua byte a byte; onde o texto ja cabia, nada muda (`CorrecoesDoModeloTestes`).
 
 ## Gerar o JS
 
