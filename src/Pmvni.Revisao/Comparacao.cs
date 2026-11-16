@@ -23,6 +23,16 @@ public sealed record DiferencaItem(
     IReadOnlyList<string> CitacoesConvertidas,
     string? Justificativa = null);
 
+/// <summary>O que mudou numa linha de tabela (<see cref="TabelasRevisao"/>) em relação ao original. <see cref="Campos"/> leva o caminho
+/// do texto em <see cref="DiferencaCampo.Campo"/>; <see cref="SituacaoRevisada"/> null = a situação não foi revista.</summary>
+public sealed record DiferencaLinha(
+    string Linha,
+    string Descricao,
+    string? SituacaoOriginal,
+    string? SituacaoRevisada,
+    IReadOnlyList<DiferencaCampo> Campos,
+    string? Justificativa);
+
 /// <summary>Uma citação "item NN" que a importação converteu em token (desenho §8.5): onde estava, o trecho como veio e o item citado
 /// com a numeração de hoje.</summary>
 public sealed record CitacaoImportada(string Item, int? NumeroDoItem, int NumeroOriginalDoItem, string Campo, string Trecho, string Alvo,
@@ -71,6 +81,22 @@ public static class Comparacao
         return lista;
     }
 
+    /// <summary>As linhas de tabela com alguma revisão (situação ou texto), na ordem em que saem no relatório.</summary>
+    public static IReadOnlyList<DiferencaLinha> DiferencasLinhas(Projeto p)
+    {
+        ArgumentNullException.ThrowIfNull(p);
+        var lista = new List<DiferencaLinha>();
+        foreach (var id in TabelasRevisao.Ids(p))
+        {
+            if (!p.Linhas.TryGetValue(id, out var l) || !l.Revisada) continue;
+            var campos = l.Campos.Select(c => new DiferencaCampo(c.Key, TabelasRevisao.TextoOriginal(p, id, c.Key) ?? "", c.Value)).ToList();
+            lista.Add(new DiferencaLinha(id, TabelasRevisao.Descricao(p, id),
+                l.Situacao is null ? null : TabelasRevisao.SituacaoOriginal(p, id), l.Situacao, campos,
+                string.IsNullOrWhiteSpace(l.Justificativa) ? null : l.Justificativa));
+        }
+        return lista;
+    }
+
     /// <summary>Todas as citações que a importação converteu (do registro <see cref="Importador.TipoHistorico"/> do histórico), em qualquer
     /// item, com ou sem revisão: o item citado aparece com o número de hoje (ou o original, se foi excluído).</summary>
     public static IReadOnlyList<CitacaoImportada> CitacoesImportadas(Projeto p, IReadOnlyList<RegistroHistorico> h)
@@ -99,7 +125,8 @@ public static class Comparacao
     /// <summary>O texto da janela "Comparar com o original": cada item alterado (situação original → revisada, justificativa, cada campo com
     /// o original e o revisado como são impressos, citações convertidas do item) e, à parte, todas as citações que a importação converteu
     /// (inclusive as de itens sem alteração). Texto puro, para a caixa de diálogo; nada é cortado.</summary>
-    public static string Texto(IReadOnlyList<DiferencaItem> diferencas, IReadOnlyList<CitacaoImportada> citacoes)
+    public static string Texto(IReadOnlyList<DiferencaItem> diferencas, IReadOnlyList<CitacaoImportada> citacoes,
+        IReadOnlyList<DiferencaLinha>? linhasTabela = null)
     {
         ArgumentNullException.ThrowIfNull(diferencas);
         ArgumentNullException.ThrowIfNull(citacoes);
@@ -123,6 +150,26 @@ public static class Comparacao
                 linhas.Add("    Revisado: " + c.Revisado);
             }
             foreach (var c in d.CitacoesConvertidas) linhas.Add("  Citação convertida na importação: " + c);
+        }
+        // Linhas das tabelas (índices, iluminação e ventilação): só aparecem quando alguma foi alterada.
+        if (linhasTabela is { Count: > 0 })
+        {
+            linhas.Add("");
+            linhas.Add(linhasTabela.Count == 1 ? "1 linha de tabela alterada:" : linhasTabela.Count + " linhas de tabela alteradas:");
+            foreach (var d in linhasTabela)
+            {
+                linhas.Add("");
+                linhas.Add(d.Descricao);
+                if (d.SituacaoRevisada is not null)
+                    linhas.Add("  Situação: " + ConferenciaRevisao.TextoSituacao(d.SituacaoOriginal) + " → " + ConferenciaRevisao.TextoSituacao(d.SituacaoRevisada));
+                if (d.Justificativa is not null) linhas.Add("  Justificativa: " + d.Justificativa);
+                foreach (var c in d.Campos)
+                {
+                    linhas.Add("  " + TabelasRevisao.NomeDoCampo(c.Campo) + ":");
+                    linhas.Add("    Original: " + c.Original);
+                    linhas.Add("    Revisado: " + c.Revisado);
+                }
+            }
         }
         linhas.Add("");
         linhas.Add("Citações convertidas na importação (" + citacoes.Count.ToString(CultureInfo.InvariantCulture) + "):");

@@ -75,11 +75,15 @@ public sealed class Projeto
     /// <summary>O dados.json sem os itens: a chave <c>itens</c> fica no lugar original com <c>[]</c>.</summary>
     public JsonObject Documento { get; set; } = new();
 
+    /// <summary>As linhas de tabela revisadas (<see cref="TabelasRevisao"/>), por id; o original delas fica no <see cref="Documento"/>.</summary>
+    public SortedDictionary<string, LinhaRevisao> Linhas { get; set; } = new(StringComparer.Ordinal);
+
     public Projeto Clonar() => new()
     {
         VersaoEsquema = VersaoEsquema,
         Itens = Itens.Select(i => i.Clonar()).ToList(),
         Documento = (JsonObject)Documento.DeepClone(),
+        Linhas = new SortedDictionary<string, LinhaRevisao>(Linhas.ToDictionary(l => l.Key, l => l.Value.Clonar()), StringComparer.Ordinal),
     };
 
     public ItemRevisao? Item(string id) => Itens.FirstOrDefault(i => string.Equals(i.Id, id, StringComparison.Ordinal));

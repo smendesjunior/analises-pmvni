@@ -14,6 +14,7 @@
 
 import { ATR_OCULTO } from './fragmentar';
 import type { Manipulador } from './index';
+import { blocoDe, desenvolver, ehCaminho, ehLinha, marcarCamposLinhas, marcarLinhas, pedacosDoBloco } from './linhas';
 import { CSS_MARCAS, desenharMarcas, ID_CAMADA, type EstadoMarcas, type Excluido } from './marcas';
 import type { TipoHost, TipoWeb } from './mensagens';
 import { ErroComposicao } from './plano';
@@ -56,7 +57,8 @@ let contadorEventos = 0;
 
 interface Edicao {
   ref: string;
-  campo: Campo;
+  /** Um dos cinco campos do item, ou o caminho do texto numa linha de tabela (linhas.ts). */
+  campo: string;
   primeiro: HTMLElement;
   demais: HTMLElement[];
   originais: Node[];
@@ -67,8 +69,10 @@ interface Edicao {
 let edicao: Edicao | null = null;
 
 const ehCampo = (v: unknown): v is Campo => typeof v === 'string' && (CAMPOS as readonly string[]).includes(v);
-const pedacosDe = (ref: string): HTMLElement[] =>
-  Array.from(document.querySelectorAll<HTMLElement>(SELETOR_PEDACOS)).filter((e) => e.getAttribute('data-ref') === ref);
+/** Campo válido para o bloco: um dos cinco do item, ou um caminho de texto numa linha de tabela. */
+const campoDoBloco = (ref: string, v: unknown): v is string => (ehLinha(ref) ? ehCaminho(v) : ehCampo(v));
+/** Pedaços de um item (cards) ou de uma linha de tabela (as linhas visíveis), nas folhas. */
+const pedacosDe = (ref: string): HTMLElement[] => pedacosDoBloco(ref);
 
 function garantirCss(): void {
   if (document.getElementById(ID_CSS)) return;
@@ -118,6 +122,7 @@ function marcarCampos(): number {
   for (const card of Array.from(document.querySelectorAll<HTMLElement>(SELETOR_PEDACOS))) {
     for (const [campo, el] of camposDoPedaco(card)) el?.setAttribute(ATR_CAMPO, campo);
   }
+  marcarCamposLinhas(); // linhas das tabelas de índices e de iluminação e ventilação
   return document.querySelectorAll(`section.folha [${ATR_CAMPO}]`).length;
 }
 
@@ -128,7 +133,7 @@ function desmarcarCampos(): void {
     if (el.localName === 'span' && el.getAttribute(ATR_CAMPO) === 'titulo' && pai?.classList.contains('ct')) {
       el.replaceWith(...Array.from(el.childNodes));
       pai.normalize();
-    } else el.removeAttribute(ATR_CAMPO);
+    } else if (!desenvolver(el)) el.removeAttribute(ATR_CAMPO);
   }
 }
 
@@ -139,14 +144,15 @@ function aplicarSelecao(ref: string | null): void {
   if (ref !== null) for (const p of pedacosDe(ref)) p.setAttribute(ATR_SELECIONADO, '');
 }
 
-/** Item (data-ref do card) e campo (data-campo dentro dele) sob um alvo de evento; fora de item, tudo nulo. */
-function localizar(alvo: EventTarget | null): { ref: string | null; campo: Campo | null } {
+/** Item (data-ref do card) ou linha de tabela (data-pmvni-linha) e campo (data-campo dentro dele) sob um alvo de evento; fora
+ * deles, tudo nulo. */
+function localizar(alvo: EventTarget | null): { ref: string | null; campo: string | null } {
   if (!(alvo instanceof Element)) return { ref: null, campo: null };
-  const card = alvo.closest<HTMLElement>(SELETOR_PEDACOS);
-  if (!card) return { ref: null, campo: null };
+  const bloco = blocoDe(alvo);
+  if (!bloco) return { ref: null, campo: null };
   const el = alvo.closest<HTMLElement>(`[${ATR_CAMPO}]`);
-  const campo = el && card.contains(el) ? el.getAttribute(ATR_CAMPO) : null;
-  return { ref: card.getAttribute('data-ref'), campo: ehCampo(campo) ? campo : null };
+  const campo = el && bloco.el.contains(el) ? el.getAttribute(ATR_CAMPO) : null;
+  return { ref: bloco.ref, campo: campoDoBloco(bloco.ref, campo) ? campo : null };
 }
 
 // ---------- edição no A4 ----------
@@ -196,9 +202,9 @@ function restaurarEdicao(): void {
 }
 
 /** Põe o campo em edição: o primeiro pedaço recebe `texto` e fica `plaintext-only`; os outros pedaços do campo ficam ocultos. */
-function iniciarEdicao(ref: string, campo: Campo, texto: string): void {
+function iniciarEdicao(ref: string, campo: string, texto: string): void {
   const pedacos = pedacosDe(ref).flatMap((p) => {
-    const el = p.querySelector<HTMLElement>(`[${ATR_CAMPO}="${campo}"]`);
+    const el = p.querySelector<HTMLElement>(`[${ATR_CAMPO}="${CSS.escape(campo)}"]`);
     return el ? [el] : [];
   });
   const [primeiro, ...demais] = pedacos;
@@ -226,7 +232,7 @@ function iniciarEdicao(ref: string, campo: Campo, texto: string): void {
 const editando = (): Edicao | null => (edicao && !edicao.pendente ? edicao : null);
 
 /** Enter: sai do modo de edição, deixa o texto (puro) à vista até o próximo estado do host e devolve o que vai ao host. */
-function concluirEdicao(): { ref: string; campo: Campo; texto: string } {
+function concluirEdicao(): { ref: string; campo: string; texto: string } {
   const e = edicao!;
   const texto = lerTexto(e.primeiro);
   e.primeiro.removeAttribute('contenteditable');
@@ -235,6 +241,15 @@ function concluirEdicao(): { ref: string; campo: Campo; texto: string } {
   e.primeiro.blur();
   e.pendente = true;
   return { ref: e.ref, campo: e.campo, texto };
+}
+
+/** Rola até a linha de tabela (o primeiro pedaço visível), com folga acima. */
+function rolarAteLinha(ref: string): void {
+  const alvo = pedacosDe(ref)[0];
+  if (!alvo) return;
+  const r = alvo.getBoundingClientRect();
+  if (r.top >= 0 && r.bottom <= window.innerHeight) return;
+  window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 48), behavior: 'instant' });
 }
 
 // ---------- âncora de rolagem ----------
@@ -327,6 +342,7 @@ export function registrarEdicao(registrar: Registrar, enviar: Enviar): void {
       if (!document.contains(edicao.primeiro)) edicao = null;
       else if (edicao.pendente || !e.campos) restaurarEdicao();
     }
+    marcarLinhas(); // as linhas das tabelas se selecionam como os itens, com ou sem os campos marcados
     let camposMarcados = 0;
     if (e.campos) camposMarcados = marcarCampos();
     else desmarcarCampos();
@@ -341,16 +357,20 @@ export function registrarEdicao(registrar: Registrar, enviar: Enviar): void {
     const ref = dados.ref;
     if (ref !== null && typeof ref !== 'string') throw new ErroComposicao('selecao_invalida', 'ref deve ser texto ou nulo.');
     if (typeof dados.rolar !== 'boolean') throw new ErroComposicao('selecao_invalida', 'rolar deve ser verdadeiro ou falso.');
+    if (ref !== null && ehLinha(ref)) marcarLinhas();
     if (ref !== null && pedacosDe(ref).length === 0) throw new ErroComposicao('ref_inexistente', `Nenhuma folha mostra o item "${ref}".`);
     ligar();
     aplicarSelecao(ref);
-    if (ref !== null && dados.rolar) rolarAteRef(ref);
+    if (ref !== null && dados.rolar) {
+      if (ehLinha(ref)) rolarAteLinha(ref);
+      else rolarAteRef(ref);
+    }
     return { tipo: 'selecionado', dados: { ref, campo: null } };
   });
 
   registrar('editarCampo', (dados) => {
-    if (typeof dados.ref !== 'string' || !ehCampo(dados.campo) || typeof dados.texto !== 'string') {
-      throw new ErroComposicao('edicao_invalida', 'editarCampo pede ref (texto), campo (um dos cinco campos) e texto.');
+    if (typeof dados.ref !== 'string' || !campoDoBloco(dados.ref, dados.campo) || typeof dados.texto !== 'string') {
+      throw new ErroComposicao('edicao_invalida', 'editarCampo pede ref (texto), campo (um dos cinco campos, ou o caminho do texto na linha da tabela) e texto.');
     }
     ligar();
     iniciarEdicao(dados.ref, dados.campo, dados.texto);

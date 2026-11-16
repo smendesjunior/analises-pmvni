@@ -202,6 +202,90 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
         Assert.Equal(0, (await Js("[...document.querySelectorAll('section.folha [data-campo]')].filter(e => e.style.visibility !== '').length")).GetInt32());
     }
 
+    // ---------- linhas das tabelas (índices, iluminação e ventilação) ----------
+
+    [Fact]
+    public async Task linhas_das_tabelas_se_selecionam_e_editam_como_os_itens()
+    {
+        using var a = await AbrirAsync("longo");
+        using var ev = new Eventos(tela.Documento);
+        var textoAntes = await TextoPorFolhaNormalizadoAsync();
+        var medidasAntes = await MedidasAsync();
+        await EstadoAsync(null, true);
+
+        // Cada linha tem o id do bloco e da posição; o texto e a medida das folhas não mudam.
+        var ids = await Js("[...new Set([...document.querySelectorAll('section.folha tr[data-pmvni-linha]')].map(e => e.getAttribute('data-pmvni-linha')))].join(',')");
+        Assert.Equal(string.Join(",", Enumerable.Range(1, 6).Select(i => $"indices/{i:00}").Concat(Enumerable.Range(1, 12).Select(i => $"ambientes/{i:00}"))), ids.GetString());
+        Assert.Equal(textoAntes, await TextoPorFolhaNormalizadoAsync());
+        AssertMedidasIguais(medidasAntes, await MedidasAsync());
+
+        string Linha(string id) => $"[...document.querySelectorAll('section.folha tr[data-pmvni-linha=\"{id}\"]')].find(e => !e.closest('[data-pmvni-oculto]'))";
+        async Task<string?> Campo(string id, string campo) =>
+            (await Js($$"""(() => { const e = {{Linha(id)}}.querySelector('[data-campo="{{campo}}"]'); return e ? e.textContent : null; })()""")).GetString();
+        var ind = TabelasRevisao.Original(a.Pacote.Projeto, "indices/02")!;
+        Assert.Equal(ind["calculo"]!.GetValue<string>(), await Campo("indices/02", "calculo"));
+        Assert.Equal(ind["projeto"]!.GetValue<string>(), await Campo("indices/02", "projeto"));
+        Assert.Equal(ind["texto"]!.GetValue<string>(), await Campo("indices/02", "texto"));
+        var amb = TabelasRevisao.Original(a.Pacote.Projeto, "ambientes/03")!;
+        Assert.Equal(amb["vaos"]![1]!["codigo"]!.GetValue<string>(), await Campo("ambientes/03", "vaos/1/codigo"));
+        Assert.Equal(amb["vaos"]![1]!["medidas"]!.GetValue<string>(), await Campo("ambientes/03", "vaos/1/medidas"));
+        Assert.Equal(amb["vaos"]![1]!["area"]!.GetValue<string>(), await Campo("ambientes/03", "vaos/1/area"));
+        Assert.Equal(amb["vaos"]![0]!["sem_area"]!.GetValue<string>(), await Campo("ambientes/03", "vaos/0/sem_area"));
+        Assert.Equal(amb["detalhes"]![1]!.GetValue<string>(), await Campo("ambientes/03", "detalhes/1"));
+        Assert.Equal(amb["minimo"]![0]!["texto"]!.GetValue<string>(), await Campo("ambientes/03", "minimo/0/texto"));
+        Assert.Equal(amb["textos"]![0]!.GetValue<string>(), await Campo("ambientes/03", "textos/0"));
+
+        // Selecionar pelo host: rola até a linha e a contorna.
+        var sel = await tela.Documento.ChamarAsync("selecionar", new { @ref = "indices/02", rolar = true }, Limite);
+        Assert.Equal("indices/02", sel.GetProperty("ref").GetString());
+        Assert.Equal(1, (await Js("document.querySelectorAll('tr[data-pmvni-selecionado]').length")).GetInt32());
+
+        // Clique na célula: selecionado com o ref da linha e o campo; duplo clique pede a edição.
+        var ponto = await Js($$"""(() => { const r = {{Linha("indices/02")}}.querySelector('[data-campo="calculo"]').getClientRects()[0]; return { x: r.left + 10, y: r.top + 6 }; })()""");
+        ev.Descartar();
+        await ClicarAsync(ponto.GetProperty("x").GetDouble(), ponto.GetProperty("y").GetDouble());
+        var m = await ev.ProximoAsync("selecionado");
+        Assert.Equal("indices/02", m.Dados.GetProperty("ref").GetString());
+        Assert.Equal("calculo", m.Dados.GetProperty("campo").GetString());
+        await ClicarAsync(ponto.GetProperty("x").GetDouble(), ponto.GetProperty("y").GetDouble(), 2);
+        var pedido = await ev.ProximoAsync("pedirEdicao");
+        Assert.Equal("indices/02", pedido.Dados.GetProperty("ref").GetString());
+        Assert.Equal("calculo", pedido.Dados.GetProperty("campo").GetString());
+
+        // A etiqueta de situação: a linha, sem campo (o menu de contexto muda a situação).
+        var pilula = await Js($$"""(() => { const r = {{Linha("indices/02")}}.querySelector('.pill').getBoundingClientRect(); return { x: r.left + 4, y: r.top + r.height / 2 }; })()""");
+        ev.Descartar();
+        await ClicarAsync(pilula.GetProperty("x").GetDouble(), pilula.GetProperty("y").GetDouble());
+        var semCampo = await ev.ProximoAsync("selecionado");
+        Assert.Equal("indices/02", semCampo.Dados.GetProperty("ref").GetString());
+        Assert.Equal(JsonValueKind.Null, semCampo.Dados.GetProperty("campo").ValueKind);
+
+        // Edição de parte de um texto ("código • medidas"): só as medidas entram em edição; Enter devolve o texto puro.
+        await tela.Documento.ChamarAsync("editarCampo", new { @ref = "ambientes/03", campo = "vaos/1/medidas", texto = "2,00 × 1,70 m" }, Limite);
+        Assert.Equal(amb["vaos"]![1]!["codigo"]!.GetValue<string>() + " • 2,00 × 1,70 m",
+            (await Js("document.querySelector('[contenteditable]').parentElement.textContent")).GetString());
+        ev.Descartar();
+        await InserirTextoAsync("!");
+        await TeclaAsync("Enter", "Enter", 13);
+        var editar = await ev.ProximoAsync("editar");
+        Assert.Equal("ambientes/03", editar.Dados.GetProperty("ref").GetString());
+        Assert.Equal("vaos/1/medidas", editar.Dados.GetProperty("campo").GetString());
+        Assert.Equal("2,00 × 1,70 m!", editar.Dados.GetProperty("texto").GetString());
+
+        // O host manda o estado de novo (sem aplicar): a tela volta ao original; desmarcar devolve o texto corrido.
+        await EstadoAsync(null, true);
+        Assert.Equal(amb["vaos"]![1]!["medidas"]!.GetValue<string>(), await Campo("ambientes/03", "vaos/1/medidas"));
+        await EstadoAsync(null, false);
+        Assert.Equal(0, (await Js("document.querySelectorAll('[data-campo], [data-pmvni-envolto]').length")).GetInt32());
+        Assert.Equal(textoAntes, await TextoPorFolhaNormalizadoAsync());
+        await Js("window.scrollTo(0, 0); 0"); // as medidas são da janela: volta ao topo, como no começo
+        AssertMedidasIguais(medidasAntes, await MedidasAsync());
+
+        // Campo inválido para a linha: recusado.
+        var ex = await Assert.ThrowsAsync<ErroWebException>(() => tela.Documento.ChamarAsync("editarCampo", new { @ref = "indices/02", campo = "Calculo!", texto = "x" }, Limite));
+        Assert.Equal("edicao_invalida", ex.Codigo);
+    }
+
     [Fact]
     public async Task edicao_do_titulo_mantem_o_prefixo_do_item()
     {

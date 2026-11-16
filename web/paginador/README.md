@@ -14,6 +14,8 @@ embutido como texto) embutido em `Pmvni.Composicao.Web`.
 - `src/tela.ts`: aparencia de tela (fundo cinza, zoom, rolagem, indicador de folha), so em `@media screen`.
 - `src/edicao.ts`: selecao de itens, campos editaveis (`data-campo`, so no DOM da tela), edicao no A4 em texto puro, ancora de
   rolagem, atalhos e menu de contexto (Tarefa 7 da Etapa 2).
+- `src/linhas.ts`: linhas das tabelas de indices e de iluminacao e ventilacao (`tr[data-pmvni-linha]`, ids `indices/02`,
+  `ambientes/03`) e os `data-campo` dos textos delas (caminho no dados.json da linha), so no DOM da tela.
 - `src/marcas.ts`: marcas de revisao (traco azul nos itens alterados, botao "excl. NN") na camada `#pmvni-camada`, fora das folhas.
 - `folha.css`: geometria da folha A4, da area util, do cabecalho e do rodape (as constantes ficam so aqui).
 

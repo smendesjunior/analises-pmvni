@@ -4,7 +4,8 @@ using System.Text.Json.Nodes;
 namespace Pmvni.Revisao;
 
 /// <summary><c>projeto.json</c> ↔ <see cref="Projeto"/>. Formato: <c>{versao_esquema, itens[{id, ordem, numero_original, incluido, chaves[],
-/// situacao{original, revisada, justificativa}, campos{nome:{original?, revisado}}, outros{}}], documento{}}</c>;
+/// situacao{original, revisada, justificativa}, campos{nome:{original?, revisado}}, outros{}}], documento{}, linhas?{id:{situacao,
+/// justificativa, campos{caminho: texto}}}}</c> (<c>linhas</c> só com alguma linha de tabela revisada);
 /// um campo sem <c>original</c> é um campo ausente no original que o usuário criou.</summary>
 public static class ProjetoJson
 {
@@ -20,6 +21,12 @@ public static class ProjetoJson
                 Documento = ((JsonObject)j["documento"]!).DeepClone().AsObject(),
             };
             foreach (var x in j["itens"]!.AsArray()) p.Itens.Add(LerItem(x!.AsObject()));
+            if (j["linhas"] is JsonObject linhas)
+                foreach (var (id, valor) in linhas)
+                {
+                    if (!TabelasRevisao.EhLinha(id)) throw new JsonException("projeto.json inválido: linha de tabela com id inválido: " + id);
+                    p.Linhas[id] = LerLinha(valor!.AsObject());
+                }
             return p;
         }
         catch (Exception e) when (e is NullReferenceException or InvalidOperationException or InvalidCastException or FormatException)
@@ -61,17 +68,41 @@ public static class ProjetoJson
         return item;
     }
 
+    private static LinhaRevisao LerLinha(JsonObject j)
+    {
+        var l = new LinhaRevisao
+        {
+            Situacao = j["situacao"]?.GetValue<string>(),
+            Justificativa = j["justificativa"]?.GetValue<string>(),
+        };
+        foreach (var (caminho, texto) in j["campos"]!.AsObject()) l.Campos[caminho] = texto!.GetValue<string>();
+        return l;
+    }
+
     public static byte[] Escrever(Projeto p)
     {
         ArgumentNullException.ThrowIfNull(p);
         var itens = new JsonArray();
         foreach (var i in p.Itens) itens.Add(EscreverItem(i));
-        return JsonFiel.Escrever(new JsonObject
+        var o = new JsonObject
         {
             ["versao_esquema"] = p.VersaoEsquema,
             ["itens"] = itens,
             ["documento"] = p.Documento.DeepClone(),
-        });
+        };
+        // Linhas de tabela revisadas: a chave só existe quando há alguma (o projeto sem revisão de tabela fica como antes).
+        if (p.Linhas.Count > 0)
+        {
+            var linhas = new JsonObject();
+            foreach (var (id, l) in p.Linhas)
+            {
+                var campos = new JsonObject();
+                foreach (var (caminho, texto) in l.Campos) campos[caminho] = texto;
+                linhas[id] = new JsonObject { ["situacao"] = l.Situacao, ["justificativa"] = l.Justificativa, ["campos"] = campos };
+            }
+            o["linhas"] = linhas;
+        }
+        return JsonFiel.Escrever(o);
     }
 
     private static JsonObject EscreverItem(ItemRevisao i)

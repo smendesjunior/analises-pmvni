@@ -386,3 +386,21 @@ Núcleo (`Pmvni.Legislacao`, `Pmvni.Composicao.Web\Legislacao`, `web\paginador\s
 - "Escolher arquivo…" no relatório base: um `.pmvrel` de qualquer pasta ou o `dados.json` da análise, importado pelo Importador para um
   `.pmvrel` novo onde o usuário escolher. A conferência do processo da capa continua valendo (bloqueio se for de outro processo).
 - Não conferido na tela pelo construtor: o desenho das folhas (fica para o roteiro/conferência humana).
+
+## Linhas das tabelas editáveis (correções de 15/11/2026, frente 5)
+
+- **O que se edita:** cada linha de ÍNDICES URBANÍSTICOS (`indices.linhas`) e de ILUMINAÇÃO E VENTILAÇÃO (`iluminacao.ambientes`) se
+  revisa como um item: os textos da linha (todo texto não vazio do original, menos `icone`, `situacao` e chaves `_…`) e a situação.
+  Cálculos ("711,82 ÷ 44.998,00 × 100") são texto: nada é recalculado. A linha não se exclui nem se reordena.
+- **Id estável:** bloco e posição no original recebido (`indices/02`, `ambientes/03`), o mesmo número que a linha imprime ("ÍNDICE 02").
+  O original nunca muda, então a posição é estável; não há id gravado no `documento` (pacotes antigos abrem sem migração).
+- **Campo = caminho** do texto na linha: `calculo`, `detalhes/0`, `vaos/1/medidas`, `minimo/0/texto`, `textos/2`, `resultado/total`.
+- **Comandos:** os mesmos dos itens (`DefinirSituacao`, `DefinirJustificativa`, `DefinirCampo`, `RestaurarCampo`, `RestaurarItemOriginal`)
+  com o id da linha no lugar do item; `Motor` repassa a `MotorLinhas` (`src/Pmvni.Revisao/Linhas.cs`). Situações da linha são as do kit
+  para tabelas (`CONTA_CONFERE`, `NAO_ATENDE`, `PENDENTE`, `DIVERGENCIA`); a tela usa as de item com o mesmo texto impresso
+  (`TabelasRevisao.SituacaoDeLinha`/`SituacaoDeItem`). Situação mudada sem justificativa é erro da conferência final, como nos itens.
+- **Projeto:** `Projeto.Linhas` guarda só a revisão; `projeto.json` ganha a chave `linhas` só quando há alguma (sem revisão de tabela,
+  o arquivo fica byte a byte como antes). `DadosEfetivos` troca os valores no lugar (mesma ordem de chaves): sem edições, o HTML é o do kit.
+- **Tela:** `web/paginador/src/linhas.ts` marca `tr[data-pmvni-linha]` e os `data-campo` só no DOM da tela. Dois textos no mesmo elemento
+  ("J3 • 2,00 × 1,70 m", "ÁREA: 3,40 m²") são separados por `<pmvni-trecho>` (inline e sem estilo do kit: o CSS do kit faz
+  `.vao span { display: block }`, e um `span` ali mudava a medida da tabela).
