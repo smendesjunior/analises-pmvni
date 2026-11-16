@@ -17,6 +17,13 @@ public partial class App : Application
             // (LayoutCycleException, 0x802B0014; registros de 2026-11-16): o quadro seguinte se refaz; o editor não fecha por isso.
             if (e.Exception is Microsoft.UI.Xaml.LayoutCycleException && !Autoteste.Ativo) { e.Handled = true; return; }
             if (Autoteste.Ativo) { Autoteste.GravarErro(e.Exception?.ToString() ?? e.Message); e.Handled = true; Exit(); }
+            // Auditoria 2026-11-16: fora do autoteste e do roteiro, um erro solto na interface não fecha o editor (o trabalho aberto
+            // se perderia): fica registrado e o usuário é avisado. Falta de memória e pilha estourada seguem fatais.
+            else if (Argumentos.Atual.Roteiro is null && e.Exception is not (OutOfMemoryException or StackOverflowException or AccessViolationException))
+            {
+                e.Handled = true;
+                janela?.AvisarErroInesperado();
+            }
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) => RegistroErros.Gravar("AppDomain.UnhandledException", e.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, e) => RegistroErros.Gravar("TaskScheduler.UnobservedTaskException", e.Exception);

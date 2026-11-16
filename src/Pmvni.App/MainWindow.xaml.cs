@@ -1297,6 +1297,17 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     internal InfoBar InfoMensagemAtual => AvisoDoModulo;
 
+    /// <summary>Erro que ninguém tratou (auditoria 2026-11-16): o editor continua aberto, com o aviso; o detalhe já foi para o registro.
+    /// Avisos repetidos em menos de 5 s não se empilham.</summary>
+    internal void AvisarErroInesperado()
+    {
+        if (fechada || (DateTime.UtcNow - ultimoErroInesperado).TotalSeconds < 5) return;
+        ultimoErroInesperado = DateTime.UtcNow;
+        try { MostrarMensagem(InfoBarSeverity.Error, "Erro inesperado", "A última operação falhou e pode não ter sido concluída. O editor continua aberto; se repetir, veja Ajustes › Sobre e suporte."); }
+        catch (Exception e) { System.Diagnostics.Debug.WriteLine("[erro] " + e.Message); }
+    }
+    DateTime ultimoErroInesperado;
+
     void MostrarMensagem(InfoBarSeverity severidade, string titulo, string mensagem)
     {
         if (fechada) return;
