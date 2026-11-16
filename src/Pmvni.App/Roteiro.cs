@@ -3374,7 +3374,9 @@ internal static class Roteiro
         File.SetAttributes(legNt, File.GetAttributes(legNt) | FileAttributes.ReadOnly); // um original só leitura continua só leitura
         static string ShaLeg(string arquivo) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(arquivo)));
         static Dictionary<string, (string Sha, long Tamanho, DateTime Escrita, FileAttributes Atributos)> FotoLeg(string raiz) =>
-            Directory.GetFiles(raiz, "*", SearchOption.AllDirectories).ToDictionary(f => f, f =>
+            // Correções 2026-11-15: o cache das imagens extraídas do PDF (<sha>.figuras.json.gz) é dado derivado, gravado quando a extração
+            // termina em segundo plano (às vezes durante este passo); não conta como gravação. Qualquer outro arquivo continua conferido.
+            Directory.GetFiles(raiz, "*", SearchOption.AllDirectories).Where(f => !f.EndsWith(".figuras.json.gz", StringComparison.OrdinalIgnoreCase)).ToDictionary(f => f, f =>
             {
                 var i = new FileInfo(f);
                 return (ShaLeg(f), i.Length, i.LastWriteTimeUtc, SemNuvem(i.Attributes));
