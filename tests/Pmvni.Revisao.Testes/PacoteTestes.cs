@@ -46,7 +46,7 @@ public class PacoteTestes
 
     private static string PacoteBom(PastaTeste pasta, string caso = "curto")
     {
-        var caminho = Path.Combine(pasta, "bom.pmvrel");
+        var caminho = Path.Combine(pasta, "bom.rpmvni");
         Pacote.Gravar(caminho, Importar(caso), null);
         return caminho;
     }
@@ -63,7 +63,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-ida");
         var c = Importar("longo");
-        var caminho = Path.Combine(pasta, "relatorio.pmvrel");
+        var caminho = Path.Combine(pasta, "relatorio.rpmvni");
 
         var estado = Pacote.Gravar(caminho, c, null);
         var lido = Pacote.Ler(caminho);
@@ -87,7 +87,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-falha");
         var c = Importar("curto");
-        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var caminho = Path.Combine(pasta, "r.rpmvni");
         var estado = Pacote.Gravar(caminho, c, null);
         var antes = ShaDoArquivo(caminho);
 
@@ -104,7 +104,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-preso");
         var c = Importar("curto");
-        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var caminho = Path.Combine(pasta, "r.rpmvni");
         var estado = Pacote.Gravar(caminho, c, null);
         var antes = File.ReadAllBytes(caminho);
 
@@ -122,7 +122,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-conflito");
         var c = Importar("curto");
-        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var caminho = Path.Combine(pasta, "r.rpmvni");
         var e1 = Pacote.Gravar(caminho, c, null);
 
         var dooutro = c with { Historico = [.. c.Historico, Registro(2)] };
@@ -143,7 +143,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-apareceu");
         var c = Importar("curto");
-        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var caminho = Path.Combine(pasta, "r.rpmvni");
         Pacote.Gravar(caminho, c, null);
         var antes = File.ReadAllBytes(caminho);
 
@@ -156,7 +156,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-bak");
         var c = Importar("curto");
-        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var caminho = Path.Combine(pasta, "r.rpmvni");
         var e1 = Pacote.Gravar(caminho, c, null);
         var primeira = File.ReadAllBytes(caminho);
 
@@ -171,7 +171,7 @@ public class PacoteTestes
     public void tmp_fica_oculto()
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-oculto");
-        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var caminho = Path.Combine(pasta, "r.rpmvni");
         var viu = false;
         Pacote.Gravar(caminho, Importar("curto"), null, () =>
         {
@@ -189,7 +189,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-visivel");
         var c = Importar("curto");
-        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var caminho = Path.Combine(pasta, "r.rpmvni");
 
         var e1 = Pacote.Gravar(caminho, c, null); // File.Move
         Assert.False(File.GetAttributes(caminho).HasFlag(FileAttributes.Hidden));
@@ -203,7 +203,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-pos-troca");
         var c = Importar("curto");
-        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var caminho = Path.Combine(pasta, "r.rpmvni");
         var e1 = Pacote.Gravar(caminho, c, null);
 
         var novo = c with { Historico = [.. c.Historico, Registro(2)] };
@@ -232,7 +232,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-data");
         var c = Importar("curto");
-        var caminho = Path.Combine(pasta, "r.pmvrel");
+        var caminho = Path.Combine(pasta, "r.rpmvni");
         var e1 = Pacote.Gravar(caminho, c, null);
 
         File.SetLastWriteTimeUtc(caminho, File.GetLastWriteTimeUtc(caminho).AddHours(3)); // o OneDrive mexeu só na data
@@ -248,7 +248,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-repetitivo");
         var bom = PacoteBom(pasta);
-        var repetitivo = Path.Combine(pasta, "repetitivo.pmvrel");
+        var repetitivo = Path.Combine(pasta, "repetitivo.rpmvni");
         var linhas = Encoding.UTF8.GetBytes(new string('\n', 900_000)); // 900 KB que comprimem mais de 100 vezes; só linhas em branco
         Reescrever(bom, repetitivo, e =>
         {
@@ -269,7 +269,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-nome");
         var bom = PacoteBom(pasta);
-        var ruim = Path.Combine(pasta, "ruim.pmvrel");
+        var ruim = Path.Combine(pasta, "ruim.rpmvni");
         Reescrever(bom, ruim, e => e.Add((nome, "{}"u8.ToArray())));
 
         Assert.Throws<PacoteInvalidoException>(() => Pacote.Ler(ruim));
@@ -280,7 +280,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-repetida");
         var bom = PacoteBom(pasta);
-        var ruim = Path.Combine(pasta, "ruim.pmvrel");
+        var ruim = Path.Combine(pasta, "ruim.rpmvni");
         Reescrever(bom, ruim, e => e.Add(e[Indice(e, "projeto.json")]));
 
         var ex = Assert.Throws<PacoteInvalidoException>(() => Pacote.Ler(ruim));
@@ -313,7 +313,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-bomba");
         var bom = PacoteBom(pasta);
-        var ruim = Path.Combine(pasta, "ruim.pmvrel");
+        var ruim = Path.Combine(pasta, "ruim.rpmvni");
         Reescrever(bom, ruim, e => e[Indice(e, "historico.jsonl")] = ("historico.jsonl", new byte[20 * 1024 * 1024]));
 
         var ex = Assert.Throws<PacoteInvalidoException>(() => Pacote.Ler(ruim));
@@ -325,7 +325,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-hash");
         var bom = PacoteBom(pasta);
-        var ruim = Path.Combine(pasta, "ruim.pmvrel");
+        var ruim = Path.Combine(pasta, "ruim.rpmvni");
         Reescrever(bom, ruim, e =>
         {
             var i = Indice(e, "projeto.json");
@@ -341,7 +341,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-ausente");
         var bom = PacoteBom(pasta);
-        var ruim = Path.Combine(pasta, "ruim.pmvrel");
+        var ruim = Path.Combine(pasta, "ruim.rpmvni");
         Reescrever(bom, ruim, e => e.RemoveAt(Indice(e, "historico.jsonl")));
 
         Assert.Throws<PacoteInvalidoException>(() => Pacote.Ler(ruim));
@@ -351,7 +351,7 @@ public class PacoteTestes
     public void arquivo_que_nao_e_zip_recusa()
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-naozip");
-        var caminho = Path.Combine(pasta, "x.pmvrel");
+        var caminho = Path.Combine(pasta, "x.rpmvni");
         File.WriteAllText(caminho, "isto nao e um zip");
         Assert.Throws<PacoteInvalidoException>(() => Pacote.Ler(caminho));
     }
@@ -361,7 +361,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-assinatura");
         var bom = PacoteBom(pasta, "longo");
-        var ruim = Path.Combine(pasta, "ruim.pmvrel");
+        var ruim = Path.Combine(pasta, "ruim.rpmvni");
         var lixo = Encoding.UTF8.GetBytes("isto nao e uma imagem");
         var nome = "assets/" + Sha(lixo) + ".png"; // nome = sha dos bytes e manifesto coerente: só a assinatura está errada
         Reescrever(bom, ruim, e =>
@@ -379,7 +379,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-nomeasset");
         var bom = PacoteBom(pasta, "longo");
-        var ruim = Path.Combine(pasta, "ruim.pmvrel");
+        var ruim = Path.Combine(pasta, "ruim.rpmvni");
         Reescrever(bom, ruim, e =>
         {
             var i = e.FindIndex(x => x.Nome.StartsWith("assets/", StringComparison.Ordinal));
@@ -405,7 +405,7 @@ public class PacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("pacote-maior");
         var bom = PacoteBom(pasta);
-        var novo = Path.Combine(pasta, "novo.pmvrel");
+        var novo = Path.Combine(pasta, "novo.rpmvni");
         Reescrever(bom, novo, e =>
         {
             NoManifesto(e, m => m with { VersaoEsquema = "2.0.0" });
@@ -418,7 +418,7 @@ public class PacoteTestes
         Assert.NotEmpty(a.Conteudo.Projeto.Itens);
 
         // Esquema menor que o conhecido não existe: recusa.
-        var velho = Path.Combine(pasta, "velho.pmvrel");
+        var velho = Path.Combine(pasta, "velho.rpmvni");
         Reescrever(bom, velho, e => NoManifesto(e, m => m with { VersaoEsquema = "0.9.0" }));
         Assert.Throws<PacoteInvalidoException>(() => Pacote.Ler(velho));
     }
@@ -437,7 +437,7 @@ public class PacoteTestes
         var bom = PacoteBom(pasta, "longo");
         foreach (var onde in new[] { "localizacao", "figura" })
         {
-            var ruim = Path.Combine(pasta, onde + ".pmvrel");
+            var ruim = Path.Combine(pasta, onde + ".rpmvni");
             Reescrever(bom, ruim, e =>
             {
                 var i = Indice(e, "projeto.json");

@@ -121,7 +121,7 @@ public sealed record ContextoUsuario(string Usuario, Func<DateTimeOffset> Relogi
     }
 }
 
-/// <summary>O que há dentro de um <c>.pmvrel</c>. <see cref="Assets"/>: chave <c>assets/&lt;sha256&gt;.&lt;ext&gt;</c> → bytes da imagem.</summary>
+/// <summary>O que há dentro de um <c>.rpmvni</c>. <see cref="Assets"/>: chave <c>assets/&lt;sha256&gt;.&lt;ext&gt;</c> → bytes da imagem.</summary>
 public sealed record ConteudoPacote(
     Manifesto Manifesto,
     byte[] Recebido,

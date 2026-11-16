@@ -669,7 +669,7 @@ public sealed partial class MainWindow
         return ok;
     }
 
-    /// <summary>O fim da execução, já com a importação (o <c>.pmvrel</c> aberto) ou com o motivo à vista.</summary>
+    /// <summary>O fim da execução, já com a importação (o <c>.rpmvni</c> aberto) ou com o motivo à vista.</summary>
     internal Task<FimAnalise> AguardarAnaliseAsync(ExecucaoEmCurso e) => conclusoes.TryGetValue(e, out var t) ? t : e.Fim;
 
     async Task<FimAnalise> ConcluirAsync(ExecucaoEmCurso e)
@@ -911,8 +911,8 @@ public sealed partial class MainWindow
         PaginaNovoRelatorioVisivel && sessao is null
         && novo is not ({ Passo: PassoNovoDespacho.Conteudo or PassoNovoDespacho.Conferencia } or { Preparando: true } or { Gravando: true });
 
-    /// <summary>Importa o documento que o kit declarou e abre o <c>.pmvrel</c>; só então a pendência sai e o registro recebe o <c>.pmvrel</c>.
-    /// <paramref name="abrirDireto"/> (lido na vez da fila) false ⇒ só cria o <c>.pmvrel</c> e mostra "Relatório pronto" com "Abrir relatório";
+    /// <summary>Importa o documento que o kit declarou e abre o <c>.rpmvni</c>; só então a pendência sai e o registro recebe o <c>.rpmvni</c>.
+    /// <paramref name="abrirDireto"/> (lido na vez da fila) false ⇒ só cria o <c>.rpmvni</c> e mostra "Relatório pronto" com "Abrir relatório";
     /// null = gesto do usuário ("Importar relatório"): abre.</summary>
     async Task<bool> ImportarAsync(ImportacaoPendente imp, Func<bool>? abrirDireto = null)
     {

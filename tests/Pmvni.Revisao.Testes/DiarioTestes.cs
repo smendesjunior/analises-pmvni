@@ -29,7 +29,7 @@ public class DiarioTestes
     public void diario_registra_e_le_na_ordem()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-ordem");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         using var d = Diario.Iniciar(pasta, pacote, "abc");
         var (_, feitos) = Trabalho(Importar(), d);
 
@@ -45,7 +45,7 @@ public class DiarioTestes
     public void linha_truncada_no_fim_e_ignorada()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-truncado");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         using var d = Diario.Iniciar(pasta, pacote, "abc");
         var (_, feitos) = Trabalho(Importar(), d);
         d.Dispose();
@@ -60,7 +60,7 @@ public class DiarioTestes
     public void diario_de_outra_versao_e_marcado()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-versao");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         using var d = Diario.Iniciar(pasta, pacote, "abc");
         Trabalho(Importar(), d);
 
@@ -71,7 +71,7 @@ public class DiarioTestes
     public void diario_sem_registros_ou_inexistente_devolve_null_e_descartar_apaga()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-vazio");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         Assert.Null(Diario.Ler(pasta, pacote, "abc"));
 
         var d = Diario.Iniciar(pasta, pacote, "abc");
@@ -86,7 +86,7 @@ public class DiarioTestes
     public void arquivar_renomeia_para_orfao()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-orfao");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var d = Diario.Iniciar(pasta, pacote, "abc");
         Trabalho(Importar(), d);
         d.Dispose();
@@ -102,7 +102,7 @@ public class DiarioTestes
     public void diario_aplicado_reproduz_a_sessao()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-reproduz");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         using var d = Diario.Iniciar(pasta, pacote, "abc");
         var conteudo = Importar();
         var base0 = ProjetoJson.Escrever(conteudo.Projeto); // o pacote como estava gravado
@@ -121,7 +121,7 @@ public class DiarioTestes
     public void divergencia_com_o_historico_do_pacote_e_visivel()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-diverge");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         using var d = Diario.Iniciar(pasta, pacote, "abc");
         var (_, feitos) = Trabalho(Importar(), d);
         var rec = Diario.Ler(pasta, pacote, "abc")!;
@@ -136,8 +136,8 @@ public class DiarioTestes
     public void caminho_do_diario_e_estavel_e_sem_dados_do_processo()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-caminho");
-        var a = Diario.CaminhoDe(pasta, Path.Combine(pasta, "Processo 123.pmvrel"));
-        var b = Diario.CaminhoDe(pasta, Path.Combine(pasta, "PROCESSO 123.PMVREL"));
+        var a = Diario.CaminhoDe(pasta, Path.Combine(pasta, "Processo 123.rpmvni"));
+        var b = Diario.CaminhoDe(pasta, Path.Combine(pasta, "PROCESSO 123.RPMVNI"));
 
         Assert.Equal(a, b);
         Assert.Matches("^[0-9a-f]{64}\\.jsonl$", Path.GetFileName(a));
@@ -149,7 +149,7 @@ public class DiarioTestes
     public void iniciar_nao_destroi_diario_com_registros()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-iniciar");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var d1 = Diario.Iniciar(pasta, pacote, "abc");
         var (_, feitos) = Trabalho(Importar(), d1);
         d1.Dispose();
@@ -166,7 +166,7 @@ public class DiarioTestes
     public void iniciar_sobre_diario_sem_registros_nao_cria_orfao()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-iniciar-vazio");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         Diario.Iniciar(pasta, pacote, "abc").Dispose();
         Diario.Iniciar(pasta, pacote, "abc").Dispose();
 
@@ -177,7 +177,7 @@ public class DiarioTestes
     public void arquivar_duas_vezes_no_mesmo_segundo_nao_sobrescreve()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-orfao2");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var nomes = new List<string>();
         for (var i = 0; i < 3; i++)
         {

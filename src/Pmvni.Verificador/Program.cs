@@ -58,13 +58,13 @@ internal static class Program
         return 0;
     }
 
-    /// <summary>V5: o caminho que o editor percorre. Importa o dados.json num pacote, grava <c>&lt;saida&gt;.pmvrel</c>, relê, extrai os assets
+    /// <summary>V5: o caminho que o editor percorre. Importa o dados.json num pacote, grava <c>&lt;saida&gt;.rpmvni</c>, relê, extrai os assets
     /// em <c>&lt;saida&gt;-assets\</c> e grava o HTML dos dados efetivos (o projeto relido, sem revisão nenhuma); tem de sair igual ao do kit.</summary>
     static int HtmlViaPacote(Argumentos a, ModeloCarregado modelo)
     {
         var saida = Path.GetFullPath(a.Saida!);
         var semExtensao = Path.Combine(Path.GetDirectoryName(saida)!, Path.GetFileNameWithoutExtension(saida));
-        var caminhoPacote = semExtensao + ".pmvrel";
+        var caminhoPacote = semExtensao + ".rpmvni";
         var pastaAssets = semExtensao + "-assets";
         Directory.CreateDirectory(Path.GetDirectoryName(saida)!);
 

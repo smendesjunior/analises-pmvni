@@ -15,7 +15,7 @@ public enum RespostaFechar { SalvarComo, SalvarCopia, FecharSemSalvar, Cancelar 
 /// por respostas fixas: nenhuma janela modal fica esperando quem não está olhando.</summary>
 internal interface IPerguntas
 {
-    /// <summary>Seletor de abrir com o filtro <paramref name="extensao"/> (".json", ".pmvrel"; várias separadas por ";"); null se cancelado.</summary>
+    /// <summary>Seletor de abrir com o filtro <paramref name="extensao"/> (".json", ".rpmvni"; várias separadas por ";"); null se cancelado.</summary>
     Task<string?> AbrirArquivoAsync(string extensao);
 
     /// <summary>Seletor de abrir com seleção múltipla e qualquer tipo de arquivo (os anexos do Novo relatório); null se cancelado.</summary>
@@ -68,7 +68,8 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
     static readonly IReadOnlyDictionary<string, string> Tipos = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         [".json"] = "Dados do relatório (dados.json)",
-        [".pmvrel"] = "Relatório em revisão (.pmvrel)",
+        [".rpmvni"] = "Relatório em revisão (.rpmvni)",
+        [".pmvrel"] = "Relatório em revisão, formato antigo (.pmvrel)",
         [".pdf"] = "PDF",
     };
 

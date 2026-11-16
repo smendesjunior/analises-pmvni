@@ -40,7 +40,7 @@ public class AutosaveTestes
     public void diario_da_sessao_registra_e_reinicia_so_com_o_cabecalho_depois_de_gravar()
     {
         using var pasta = Ambiente.PastaDeTeste("autosave-reinicia");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         using var d = new DiarioDaSessao(pasta);
         Assert.True(d.Iniciar(pacote, "sha1", []));
@@ -61,7 +61,7 @@ public class AutosaveTestes
     public void comando_aplicado_durante_a_gravacao_fica_no_diario_novo_e_o_antigo_e_guardado()
     {
         using var pasta = Ambiente.PastaDeTeste("autosave-extras");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         using var d = new DiarioDaSessao(pasta);
         d.Iniciar(pacote, "sha1", []);
@@ -81,8 +81,8 @@ public class AutosaveTestes
     public void salvar_como_leva_o_diario_para_o_arquivo_novo()
     {
         using var pasta = Ambiente.PastaDeTeste("autosave-salvar-como");
-        var antigo = Path.Combine(pasta, "a.pmvrel");
-        var novo = Path.Combine(pasta, "b.pmvrel");
+        var antigo = Path.Combine(pasta, "a.rpmvni");
+        var novo = Path.Combine(pasta, "b.rpmvni");
         var (s, _) = Sessao();
         using var d = new DiarioDaSessao(pasta);
         d.Iniciar(antigo, "sha1", []);
@@ -98,24 +98,24 @@ public class AutosaveTestes
     public void somente_leitura_depois_de_gravar_nao_comeca_diario_novo()
     {
         using var pasta = Ambiente.PastaDeTeste("autosave-sem-continuar");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         using var d = new DiarioDaSessao(pasta);
         d.Iniciar(pacote, "sha1", []);
         d.Registrar(Comando(s, "Titulo 1"));
 
-        d.DepoisDeGravar(pacote, Path.Combine(pasta, "copia.pmvrel"), "sha2", [], continuar: false);
+        d.DepoisDeGravar(pacote, Path.Combine(pasta, "copia.rpmvni"), "sha2", [], continuar: false);
 
         Assert.False(d.Ativo);
         Assert.False(File.Exists(Diario.CaminhoDe(pasta, pacote)));
-        Assert.False(File.Exists(Diario.CaminhoDe(pasta, Path.Combine(pasta, "copia.pmvrel"))));
+        Assert.False(File.Exists(Diario.CaminhoDe(pasta, Path.Combine(pasta, "copia.rpmvni"))));
     }
 
     [Fact]
     public void iniciar_com_pendentes_recuperados_grava_os_pendentes_no_diario_novo()
     {
         using var pasta = Ambiente.PastaDeTeste("autosave-pendentes");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         var r1 = Comando(s, "Titulo 1");
         var r2 = Comando(s, "Titulo 2");
@@ -130,8 +130,8 @@ public class AutosaveTestes
     public void fechar_guarda_o_diario_com_trabalho_e_apaga_o_vazio()
     {
         using var pasta = Ambiente.PastaDeTeste("autosave-fechar");
-        var a = Path.Combine(pasta, "a.pmvrel");
-        var b = Path.Combine(pasta, "b.pmvrel");
+        var a = Path.Combine(pasta, "a.rpmvni");
+        var b = Path.Combine(pasta, "b.rpmvni");
         var (s, _) = Sessao();
         using (var d = new DiarioDaSessao(pasta))
         {
@@ -153,7 +153,7 @@ public class AutosaveTestes
     public void dispose_nunca_apaga_o_diario()
     {
         using var pasta = Ambiente.PastaDeTeste("autosave-dispose");
-        var a = Path.Combine(pasta, "a.pmvrel");
+        var a = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         using (var d = new DiarioDaSessao(pasta))
         {
@@ -167,7 +167,7 @@ public class AutosaveTestes
     public void arquivar_guarda_o_diario_como_orfao_e_devolve_o_nome()
     {
         using var pasta = Ambiente.PastaDeTeste("autosave-arquivar");
-        var a = Path.Combine(pasta, "a.pmvrel");
+        var a = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         using var d = new DiarioDaSessao(pasta);
         d.Iniciar(a, "sha1", []);
@@ -189,7 +189,7 @@ public class AutosaveTestes
         var (s, _) = Sessao();
         using var d = new DiarioDaSessao(pasta);
 
-        Assert.False(d.Iniciar(Path.Combine(pasta, "a.pmvrel"), "sha1", []));
+        Assert.False(d.Iniciar(Path.Combine(pasta, "a.rpmvni"), "sha1", []));
         Assert.False(d.Ativo);
         Assert.False(string.IsNullOrWhiteSpace(d.UltimoErro));
         Assert.False(d.Registrar(Comando(s, "Titulo 1")));
@@ -204,7 +204,7 @@ public class AutosaveTestes
         using var pasta = Ambiente.PastaDeTeste("autosave-retentar");
         var bloqueio = Path.Combine(pasta, "recuperacao");
         File.WriteAllText(bloqueio, "um arquivo no lugar da pasta");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         using var d = new DiarioDaSessao(pasta);
         Assert.False(d.Iniciar(pacote, "sha1", []));
@@ -225,7 +225,7 @@ public class AutosaveTestes
         using var pasta = Ambiente.PastaDeTeste("autosave-retentar-depois");
         var bloqueio = Path.Combine(pasta, "recuperacao");
         File.WriteAllText(bloqueio, "um arquivo no lugar da pasta");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         using var d = new DiarioDaSessao(pasta);
 
@@ -296,7 +296,7 @@ public class AutosaveTestes
     public void arquivar_conta_a_idade_do_orfao_a_partir_do_dia_em_que_foi_guardado()
     {
         using var pasta = Ambiente.PastaDeTeste("autosave-orfao-idade");
-        var a = Path.Combine(pasta, "a.pmvrel");
+        var a = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         using var d = new DiarioDaSessao(pasta);
         d.Iniciar(a, "sha1", []);
@@ -335,7 +335,7 @@ public class AutosaveTestes
     public void diario_da_mesma_versao_com_comandos_novos_pergunta_quantos()
     {
         using var pasta = Ambiente.PastaDeTeste("recuperar-pergunta");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s, c) = Sessao();
         using (var d = Diario.Iniciar(pasta, pacote, "sha1"))
         {
@@ -354,7 +354,7 @@ public class AutosaveTestes
     public void diario_de_outra_versao_e_arquivado_sem_aplicar()
     {
         using var pasta = Ambiente.PastaDeTeste("recuperar-outra");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s, c) = Sessao();
         using (var d = Diario.Iniciar(pasta, pacote, "sha1"))
         {
@@ -372,7 +372,7 @@ public class AutosaveTestes
     public void diario_que_diverge_do_historico_do_pacote_e_arquivado_sem_aplicar()
     {
         using var pasta = Ambiente.PastaDeTeste("recuperar-diverge");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s1, c) = Sessao();
         var s2 = new SessaoRevisao(c.Projeto.Clonar(), c.Historico, Ambiente.Contexto("bia"));
         using (var d = Diario.Iniciar(pasta, pacote, "sha1"))
@@ -393,7 +393,7 @@ public class AutosaveTestes
     public void diario_que_ja_esta_todo_no_pacote_nao_pergunta()
     {
         using var pasta = Ambiente.PastaDeTeste("recuperar-ja-gravado");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         using (var d = Diario.Iniciar(pasta, pacote, "sha1"))
         {
@@ -411,7 +411,7 @@ public class AutosaveTestes
     {
         // Queda entre o File.Replace e o recomeço do diário: o diário ficou com o sha antigo, mas tudo o que ele tem já está no arquivo.
         using var pasta = Ambiente.PastaDeTeste("recuperar-queda-na-troca");
-        var pacote = Path.Combine(pasta, "a.pmvrel");
+        var pacote = Path.Combine(pasta, "a.rpmvni");
         var (s, _) = Sessao();
         using (var d = Diario.Iniciar(pasta, pacote, "sha-antes-da-gravacao"))
         {
@@ -471,9 +471,9 @@ public class AutosaveTestes
     [Fact]
     public void salvar_como_no_proprio_arquivo_somente_leitura_ou_em_conflito_e_recusado()
     {
-        var atual = Path.GetFullPath(Path.Combine("x", "Relatorio_0001_2099.pmvrel"));
-        var mesmo = Path.GetFullPath(Path.Combine("x", "RELATORIO_0001_2099.PMVREL")); // o Windows não distingue caixa
-        var outro = Path.GetFullPath(Path.Combine("x", "Relatorio_0001_2099 (2).pmvrel"));
+        var atual = Path.GetFullPath(Path.Combine("x", "Relatorio_0001_2099.rpmvni"));
+        var mesmo = Path.GetFullPath(Path.Combine("x", "RELATORIO_0001_2099.RPMVNI")); // o Windows não distingue caixa
+        var outro = Path.GetFullPath(Path.Combine("x", "Relatorio_0001_2099 (2).rpmvni"));
         const string motivo = "Aberto por maria em PC-OBRAS desde 14:05: somente leitura.";
 
         // Somente leitura (esquema mais novo, trava de outro, trava perdida): por cima do mesmo arquivo, nunca.

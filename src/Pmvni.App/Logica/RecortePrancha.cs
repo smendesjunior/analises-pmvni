@@ -4,7 +4,7 @@ namespace Pmvni.App;
 /// sugerida a partir do nome do arquivo.</summary>
 public static class RecortePrancha
 {
-    /// <summary>A pasta do processo: a do <c>.pmvrel</c> (o relatório fica na pasta do processo), ou a de cima se ele está em <c>.pmvni-ai</c>.</summary>
+    /// <summary>A pasta do processo: a do <c>.rpmvni</c> (o relatório fica na pasta do processo), ou a de cima se ele está em <c>.pmvni-ai</c>.</summary>
     public static string PastaDoProcesso(string pmvrel)
     {
         var d = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(pmvrel))!;

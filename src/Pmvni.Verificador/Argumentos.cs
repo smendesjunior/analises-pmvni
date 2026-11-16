@@ -27,7 +27,7 @@ internal sealed record Argumentos(string Nome, string? Dados, string? Saida, boo
     public const string Uso = """
         Uso: Pmvni.Verificador <comando> ...
           html     <dados.json> <saida.html>  [--instrucoes] [--rascunho] [--via-pacote]   HTML do relatório (como o gerador do kit);
-                                              --via-pacote: importa, grava <saida>.pmvrel, relê e gera o HTML dos dados efetivos
+                                              --via-pacote: importa, grava <saida>.rpmvni, relê e gera o HTML dos dados efetivos
           plano    <dados.json> <saida.json>  [--instrucoes] [--rascunho]   plano de quebras composto no host oculto
           pdf      <dados.json> <saida.pdf>   [--instrucoes] [--rascunho]   exporta o PDF (+ recibo); estouro: recusa, código 3
           texto    <dados.json> <saida.json>  [--instrucoes] [--rascunho]   texto de cada folha da tela (plano aplicado)

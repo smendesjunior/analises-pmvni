@@ -12,7 +12,7 @@ public sealed record InfoTrava(string Maquina, string Usuario, int Pid, DateTime
 /// ou não foi possível travar (<see cref="Erro"/>: pasta sem escrita, disco cheio...; quem chama abre o pacote só para leitura).</summary>
 public sealed record ResultadoTrava(Trava? Adquirida, InfoTrava? Ocupada, string? Erro = null);
 
-/// <summary>Trava de edição do pacote: o arquivo oculto <c>.~nome.pmvrel.lock</c> ao lado dele, renovado a cada <see cref="Batimento"/>.
+/// <summary>Trava de edição do pacote: o arquivo oculto <c>.~nome.rpmvni.lock</c> ao lado dele, renovado a cada <see cref="Batimento"/>.
 /// Uma trava sem batimento há mais de <see cref="Abandono"/>, com batimento mais de <see cref="ToleranciaFuturo"/> no futuro
 /// (relógio errado) ou do mesmo usuário e máquina com o processo já encerrado é considerada abandonada e é retomada.</summary>
 public sealed class Trava : IDisposable

@@ -22,7 +22,7 @@ public sealed class FluxoNovoDespachoTestes
         var processo = Lista(a).First(p => p.Numero == 1);
         var etapa = Path.Combine(processo.Pasta, "DESPACHO 07 - 2099-03-01");
         Directory.CreateDirectory(etapa);
-        var pacote = Path.Combine(etapa, "Relatorio_0001_2099.pmvrel");
+        var pacote = Path.Combine(etapa, "Relatorio_0001_2099.rpmvni");
         File.Copy(a.CaminhoPacote, pacote);
 
         var s = FluxoNovoDespacho.Sugerir(Modulo.Relatorios, null, pacote, Lista(a), Relatorios, Hoje);
@@ -37,7 +37,7 @@ public sealed class FluxoNovoDespachoTestes
     {
         using var pasta = Ambiente.PastaDeTeste("fluxo-relatorio-aberto");
         var a = RelatorioFicticio.Arvore(pasta);
-        var pacote = Path.Combine(a.Raiz, "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "Relatorio_0001_2099.pmvrel");
+        var pacote = Path.Combine(a.Raiz, "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "Relatorio_0001_2099.rpmvni");
         Assert.Equal(a.CaminhoPacote, pacote);
 
         // O selecionado em Processos não conta quando se vem de Relatórios: vale o processo do pacote aberto.
@@ -55,7 +55,7 @@ public sealed class FluxoNovoDespachoTestes
     {
         using var pasta = Ambiente.PastaDeTeste("fluxo-mais-novo");
         var a = RelatorioFicticio.Arvore(pasta);
-        var segundo = Path.Combine(a.Processo.Pasta, "Relatorio_0001_2099_2.pmvrel");
+        var segundo = Path.Combine(a.Processo.Pasta, "Relatorio_0001_2099_2.rpmvni");
         File.Copy(a.CaminhoPacote, segundo);
         File.SetLastWriteTimeUtc(a.CaminhoPacote, new DateTime(2099, 3, 1, 12, 0, 0, DateTimeKind.Utc));
         File.SetLastWriteTimeUtc(segundo, new DateTime(2099, 3, 9, 12, 0, 0, DateTimeKind.Utc));
@@ -78,10 +78,10 @@ public sealed class FluxoNovoDespachoTestes
         Assert.Equal(new OrigemSugerida(null, null, null), FluxoNovoDespacho.Sugerir(Modulo.Despachos, null, null, Lista(a), Relatorios, Hoje));
         Assert.Equal(new OrigemSugerida(null, null, null), FluxoNovoDespacho.Sugerir(Modulo.Relatorios, null, null, Lista(a), Relatorios, Hoje));
         // Pacote aberto fora de qualquer pasta de processo: nada é sugerido (o usuário escolhe o processo).
-        var fora = Path.Combine(pasta, "solto.pmvrel");
+        var fora = Path.Combine(pasta, "solto.rpmvni");
         File.Copy(a.CaminhoPacote, fora);
         Assert.Equal(new OrigemSugerida(null, null, null), FluxoNovoDespacho.Sugerir(Modulo.Relatorios, null, fora, Lista(a), Relatorios, Hoje));
-        // Processo sem .pmvrel: o processo e a etapa vêm, o pacote não.
+        // Processo sem .rpmvni: o processo e a etapa vêm, o pacote não.
         var sem = Lista(a).First(p => p.Numero == 12);
         var s = FluxoNovoDespacho.Sugerir(Modulo.Processos, sem, null, Lista(a), Relatorios, Hoje);
         Assert.Equal(sem, s.Processo);
@@ -176,18 +176,18 @@ public sealed class FluxoNovoDespachoTestes
     [Fact]
     public void escolha_manual_do_relatorio_base()
     {
-        // O seletor aceita o .pmvrel (usado como está) e o dados.json da análise (importado antes); o resto não serve.
+        // O seletor aceita o .rpmvni (usado como está) e o dados.json da análise (importado antes); o resto não serve.
         Assert.Equal(ArquivoBase.Pacote, FluxoNovoDespacho.TipoDoArquivoBase(@"D:\outra pasta\Relatorio_0001_2099.PMVREL"));
         Assert.Equal(ArquivoBase.DadosJson, FluxoNovoDespacho.TipoDoArquivoBase(@"D:\analise\dados.json"));
         Assert.Null(FluxoNovoDespacho.TipoDoArquivoBase(@"D:\analise\relatorio.pdf"));
         Assert.Null(FluxoNovoDespacho.TipoDoArquivoBase(null));
-        Assert.Equal(new[] { ".pmvrel", ".json" }, FluxoNovoDespacho.FiltroArquivoBase.Split(';'));
+        Assert.Equal(new[] { ".rpmvni", ".pmvrel", ".json" }, FluxoNovoDespacho.FiltroArquivoBase.Split(';'));
 
         // A lista: os da pasta do processo e, depois, os escolhidos à mão (sem repetir um que já está nela, nem a análise da IA da pasta).
         using var pasta = Ambiente.PastaDeTeste("fluxo-escolha-manual");
         var a = RelatorioFicticio.Arvore(pasta);
         var daPasta = Relatorios(a.Processo);
-        var fora = Path.Combine(pasta.Caminho, "fora", "Relatorio_0001_2099.pmvrel");
+        var fora = Path.Combine(pasta.Caminho, "fora", "Relatorio_0001_2099.rpmvni");
         Directory.CreateDirectory(Path.GetDirectoryName(fora)!);
         File.Copy(a.CaminhoPacote, fora);
         var comPdf = daPasta.Append(new RelatorioEncontrado(Path.Combine(a.Processo.Pasta, "dados.json"), TipoRelatorio.AnaliseIa, DateTime.UtcNow)).ToList();

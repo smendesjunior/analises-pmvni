@@ -247,7 +247,7 @@ public class LinhasTabelaTestes
         var s = Sessao(c);
         s.Aplicar(new DefinirCampo("indices/01", "projeto", "44.998,00 m²"));
         using var pasta = Ambiente.PastaDeTeste("linhas-pacote");
-        var arquivo = Path.Combine(pasta, "r.pmvrel");
+        var arquivo = Path.Combine(pasta, "r.rpmvni");
         Pacote.Gravar(arquivo, c with { Projeto = s.Projeto.Clonar(), Historico = s.HistoricoCompleto.ToList() }, null);
         var aberto = Pacote.Ler(arquivo).Conteudo;
         Assert.Equal("44.998,00 m²", TabelasRevisao.TextoEfetivo(aberto.Projeto, "indices/01", "projeto"));

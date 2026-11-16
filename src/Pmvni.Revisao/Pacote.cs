@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace Pmvni.Revisao;
 
-/// <summary>O pacote não é um <c>.pmvrel</c> aceitável (ZIP ilegível, entrada proibida, limite estourado, hash ou assinatura que não confere).
+/// <summary>O pacote não é um <c>.rpmvni</c> aceitável (ZIP ilegível, entrada proibida, limite estourado, hash ou assinatura que não confere).
 /// A mensagem é para o usuário, em português.</summary>
 public sealed class PacoteInvalidoException(string mensagem) : Exception(mensagem);
 
@@ -50,7 +50,7 @@ public sealed record LimitesPacote(long PorEntrada = 52_428_800, long Total = 52
 /// <summary>Um pacote lido: o conteúdo, o estado do arquivo no momento da leitura e se só pode ser aberto para leitura (esquema mais novo).</summary>
 public sealed record PacoteAberto(ConteudoPacote Conteudo, EstadoDisco Disco, bool SomenteLeitura, string? MotivoSomenteLeitura);
 
-/// <summary>O <c>.pmvrel</c> (um ZIP): leitura que nunca confia no arquivo e gravação que nunca deixa o pacote antigo pela metade.</summary>
+/// <summary>O <c>.rpmvni</c> (um ZIP): leitura que nunca confia no arquivo e gravação que nunca deixa o pacote antigo pela metade.</summary>
 public static class Pacote
 {
     /// <summary>A razão de compressão só é conferida em entradas acima de 1 MB descomprimido; os limites absolutos valem sempre.</summary>
@@ -78,7 +78,7 @@ public static class Pacote
         }
         catch (Exception e) when (e is InvalidDataException or NotSupportedException or JsonException)
         {
-            throw new PacoteInvalidoException("O arquivo não é um pacote .pmvrel válido: " + e.Message);
+            throw new PacoteInvalidoException("O arquivo não é um pacote .rpmvni válido: " + e.Message);
         }
     }
 
@@ -177,7 +177,7 @@ public static class Pacote
     }
 
     /// <summary>Toda imagem do <c>documento</c> (o mapa da localização e cada figura) tem de ser <c>assets/&lt;sha256&gt;.&lt;ext&gt;</c>, um asset
-    /// que está no pacote: um <c>.pmvrel</c> adulterado com caminho absoluto, de rede (<c>\\host\share\x.png</c>) ou com <c>..</c> nunca chega ao
+    /// que está no pacote: um <c>.rpmvni</c> adulterado com caminho absoluto, de rede (<c>\\host\share\x.png</c>) ou com <c>..</c> nunca chega ao
     /// renderizador (que leria o arquivo do computador ou abriria uma conexão SMB).</summary>
     private static void ConferirImagensDoDocumento(Projeto projeto, IReadOnlyDictionary<string, byte[]> imagens)
     {
@@ -239,8 +239,8 @@ public static class Pacote
         return memoria.ToArray();
     }
 
-    /// <summary>Grava o pacote sem nunca deixar o arquivo antigo pela metade: escreve <c>nome.pmvrel.tmp</c> (oculto) ao lado, confere relendo, e só
-    /// então troca (<c>File.Replace</c>, guardando <c>nome.pmvrel.bak</c>) ou move. Se o destino existe, ele tem de estar igual a
+    /// <summary>Grava o pacote sem nunca deixar o arquivo antigo pela metade: escreve <c>nome.rpmvni.tmp</c> (oculto) ao lado, confere relendo, e só
+    /// então troca (<c>File.Replace</c>, guardando <c>nome.rpmvni.bak</c>) ou move. Se o destino existe, ele tem de estar igual a
     /// <paramref name="esperado"/>, senão <see cref="ConflitoNoDiscoException"/> e nada é trocado. Em qualquer exceção o <c>.tmp</c> é apagado.
     /// <paramref name="antesDeTrocar"/> e <paramref name="depoisDeTrocar"/> são ganchos de teste (depois da conferência e antes da troca; logo
     /// depois da troca). A conferência de conflito compara o conteúdo (sha256 e tamanho), não a data. Depois da troca nada mais pode falhar: o

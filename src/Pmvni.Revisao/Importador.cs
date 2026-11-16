@@ -142,7 +142,7 @@ public static class Importador
                     erros.Add("Caminho de imagem recusado (absoluto, de rede ou fora da pasta do processo): " + rel + ".");
                     return;
                 }
-                // O limite de uma entrada do pacote (50 MB): uma imagem maior nunca entraria no .pmvrel, e não é lida inteira na memória.
+                // O limite de uma entrada do pacote (50 MB): uma imagem maior nunca entraria no .rpmvni, e não é lida inteira na memória.
                 var limite = new LimitesPacote().PorEntrada;
                 if (new FileInfo(arquivo).Length > limite)
                 {

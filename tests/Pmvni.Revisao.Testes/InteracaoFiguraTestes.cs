@@ -101,9 +101,9 @@ public class InteracaoFiguraTestes
             var revisao = Path.Combine(pasta, "PROJETO/REVISÃO 02/ARQ 01-03.pdf");
             foreach (var pdf in new[] { inicial, revisao, Path.Combine(pasta, "DOCUMENTOS/doc.pdf"), Path.Combine(pasta, "DESPACHO/saida.pdf"), Path.Combine(pasta, ".pmvni-ai/analise/relatorio.pdf") })
                 File.WriteAllBytes(pdf, []);
-            var relatorio = Path.Combine(pasta, "RELATORIOS/2026/Relatorio.pmvrel");
+            var relatorio = Path.Combine(pasta, "RELATORIOS/2026/Relatorio.rpmvni");
             Assert.Equal(pasta, RecortePrancha.PastaDoProcesso(relatorio));
-            Assert.Equal(pasta, RecortePrancha.PastaDoProcesso(Path.Combine(pasta, ".pmvni-ai/analise/Relatorio.pmvrel")));
+            Assert.Equal(pasta, RecortePrancha.PastaDoProcesso(Path.Combine(pasta, ".pmvni-ai/analise/Relatorio.rpmvni")));
             var pdfs = RecortePrancha.PdfsDoProcesso(relatorio);
             Assert.Equal(3, pdfs.Count);
             Assert.Equal(Path.GetFullPath(revisao), pdfs[0]);
@@ -192,7 +192,7 @@ public class InteracaoFiguraTestes
                 Directory.CreateDirectory(Path.GetDirectoryName(c)!);
                 File.WriteAllText(c, "");
             }
-            var nomes = RecortePrancha.PdfsDoProcesso(Path.Combine(pasta, "R.pmvrel")).Select(Path.GetFileName).ToArray();
+            var nomes = RecortePrancha.PdfsDoProcesso(Path.Combine(pasta, "R.rpmvni")).Select(Path.GetFileName).ToArray();
             Assert.Equal(new[] { "C.pdf", "B.pdf", "A.pdf", "D.pdf" }, nomes);
         }
         finally { Directory.Delete(pasta, true); }
@@ -202,7 +202,7 @@ public class InteracaoFiguraTestes
     public void pdfs_do_processo_ficticio_vem_da_pasta_projeto()
     {
         var pasta = Path.Combine(Ambiente.Corpus("processos"), "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)");
-        var pdfs = RecortePrancha.PdfsDoProcesso(Path.Combine(pasta, "Relatorio.pmvrel"));
+        var pdfs = RecortePrancha.PdfsDoProcesso(Path.Combine(pasta, "Relatorio.rpmvni"));
         Assert.Equal("ARQ 01-03.pdf", Path.GetFileName(pdfs[0]));
         Assert.DoesNotContain(pdfs, p => p.Contains("DESPACHO", StringComparison.OrdinalIgnoreCase));
     }

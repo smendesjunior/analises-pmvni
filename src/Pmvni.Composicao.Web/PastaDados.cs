@@ -17,6 +17,48 @@ public static class PastaDados
         }
     }
 
+    /// <summary>Dados que acompanham o usuário em outro PC (2026-11-16): <c>%APPDATA%\EditorRelatoriosPMVNI</c> (AppData\Roaming), com o
+    /// ajustes.json e a legislação anexada. O resto (recuperação, sessões, logs, chaves DPAPI, WebView2, LibreOffice) fica em <see cref="Raiz"/>
+    /// (AppData\Local), que é deste computador. Com <c>PMVNI_DADOS_DIR</c> (testes), tudo fica nessa pasta. Na primeira abertura, o que já
+    /// existia no Local é copiado para cá (o original fica).</summary>
+    public static string Itinerante
+    {
+        get
+        {
+            var configurada = Environment.GetEnvironmentVariable(VariavelAmbiente);
+            if (!string.IsNullOrWhiteSpace(configurada)) return Path.GetFullPath(configurada);
+            var pasta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EditorRelatoriosPMVNI");
+            Migrar(Raiz, pasta);
+            return pasta;
+        }
+    }
+
+    static bool migrado;
+
+    static void Migrar(string local, string itinerante)
+    {
+        if (migrado) return;
+        migrado = true;
+        try
+        {
+            Directory.CreateDirectory(itinerante);
+            var ajustes = Path.Combine(local, "ajustes.json");
+            var novo = Path.Combine(itinerante, "ajustes.json");
+            if (File.Exists(ajustes) && !File.Exists(novo)) File.Copy(ajustes, novo);
+            var leis = Path.Combine(local, "legislacao");
+            var leisNovas = Path.Combine(itinerante, "legislacao");
+            if (Directory.Exists(leis) && !Directory.Exists(leisNovas))
+            {
+                foreach (var d in Directory.GetDirectories(leis, "*", SearchOption.AllDirectories))
+                    Directory.CreateDirectory(Path.Combine(leisNovas, Path.GetRelativePath(leis, d)));
+                Directory.CreateDirectory(leisNovas);
+                foreach (var f in Directory.GetFiles(leis, "*", SearchOption.AllDirectories))
+                    File.Copy(f, Path.Combine(leisNovas, Path.GetRelativePath(leis, f)), overwrite: false);
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* sem cópia: o app começa do padrão */ }
+    }
+
     /// <summary>Pasta de dados do usuário do WebView2 (&lt;raiz&gt;\WebView2), criada se faltar.</summary>
     public static string WebView2()
     {

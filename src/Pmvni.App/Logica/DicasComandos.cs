@@ -20,9 +20,9 @@ public static class DicasComandos
     {
         // Arquivo
         [ComandosApp.ArquivoImportar] = "Cria um relatório novo a partir do dados.json da análise feita pela IA.",
-        [ComandosApp.ArquivoAbrir] = "Abre um relatório .pmvrel salvo no computador.",
+        [ComandosApp.ArquivoAbrir] = "Abre um relatório .rpmvni salvo no computador.",
         [ComandosApp.ArquivoRecentes] = "Mostra os relatórios abertos há pouco, para abrir um deles de novo.",
-        [ComandosApp.ArquivoSalvar] = "Grava as alterações do relatório no arquivo .pmvrel.",
+        [ComandosApp.ArquivoSalvar] = "Grava as alterações do relatório no arquivo .rpmvni.",
         [ComandosApp.ArquivoSalvarComo] = "Grava o relatório num arquivo novo, com outro nome ou em outra pasta.",
         [ComandosApp.ArquivoExportarPdf] = "Gera o PDF do relatório, com as mesmas folhas mostradas na tela.",
         [ComandosApp.ArquivoFechar] = "Fecha o relatório aberto.",

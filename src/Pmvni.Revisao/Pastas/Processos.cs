@@ -146,7 +146,7 @@ public static class Processos
             foreach (var d in Directory.EnumerateDirectories(p.Pasta))
                 if (NomeDespacho.IsMatch(Path.GetFileName(d)) && !EhLink(d)) pastasDeRelatorio.Add(d);
             foreach (var pasta in pastasDeRelatorio)
-                foreach (var f in Directory.EnumerateFiles(pasta, "*.pmvrel"))
+                foreach (var f in Directory.EnumerateFiles(pasta, "*.rpmvni").Concat(Directory.EnumerateFiles(pasta, "*.pmvrel")))  // .pmvrel: formato antigo
                 {
                     ct.ThrowIfCancellationRequested();
                     if (EhLink(f)) continue;
@@ -178,7 +178,7 @@ public static class Processos
 
     static bool TemRelatorio(string pasta)
     {
-        try { return Directory.EnumerateFiles(pasta, "*.pmvrel").Any(); }
+        try { return Directory.EnumerateFiles(pasta, "*.rpmvni").Any() || Directory.EnumerateFiles(pasta, "*.pmvrel").Any(); }
         catch (Exception e) when (Ilegivel(e)) { return false; }
     }
 
@@ -209,7 +209,7 @@ public static class Processos
                     avisos.Add($"A pasta {Path.GetFileName(pasta)} não pôde ser lida: {e.Message}");
                 }
                 arquivos.Sort(StringComparer.OrdinalIgnoreCase);
-                // A pasta da etapa que até agora só tem o relatório (o .pmvrel importado, 2026-11-16) ainda não é um despacho.
+                // A pasta da etapa que até agora só tem o relatório (o .rpmvni importado, 2026-11-16) ainda não é um despacho.
                 if (arquivos.Count == 0 && TemRelatorio(pasta)) continue;
                 lista.Add(new Despacho(pasta, int.Parse(m.Groups["n"].Value, CultureInfo.InvariantCulture), data, TipoPeloNome(arquivos), arquivos, p));
             }

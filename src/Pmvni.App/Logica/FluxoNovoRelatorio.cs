@@ -29,7 +29,7 @@ public static class FluxoNovoRelatorio
     public const string ClaudeSoConta = "O análise pro do kit usa somente a conta do Claude (política do kit de 14/11/2026). Em Ajustes › Inteligência artificial, use Usar minha conta.";
 
     /// <summary>Sob "Analisar com o Claude" (desenho §12.5).</summary>
-    public const string TextoPedidoClaude = "O análise pro do kit roda sozinho e não recebe o pedido escrito; ele fica guardado no registro da execução.";
+    public const string TextoPedidoClaude = "O pedido vai para os dois plugins como diretriz complementar (ex.: conferir pendências de despachos anteriores); as etapas da análise não mudam.";
 
     public const string DicaPedido = "Ex.: Analise a reapresentação do projeto e confira as pendências do despacho anterior.";
     public const int MaximoPedido = 20000;
@@ -53,7 +53,7 @@ public static class FluxoNovoRelatorio
 
     public static string AvisoTitulo(Provedor p) => "Analisar com o " + Provedores.Nome(p);
 
-    /// <summary>De Processos: o processo selecionado. De Relatórios: o processo cuja pasta contém o <c>.pmvrel</c> aberto (também numa subpasta dele). Senão, nenhum.</summary>
+    /// <summary>De Processos: o processo selecionado. De Relatórios: o processo cuja pasta contém o <c>.rpmvni</c> aberto (também numa subpasta dele). Senão, nenhum.</summary>
     public static Processo? Sugerir(Modulo origem, Processo? selecionado, string? pacoteAberto, IReadOnlyList<Processo> processos)
     {
         ArgumentNullException.ThrowIfNull(processos);
@@ -176,7 +176,7 @@ public static class FluxoNovoRelatorio
     public const string RelatorioProntoTitulo = "Relatório pronto";
     public const string AbrirRelatorio = "Abrir relatório";
 
-    /// <summary>A análise terminou com o usuário fazendo outra coisa (Ruling FD-I3): o <c>.pmvrel</c> foi criado e nada do que estava aberto mudou.</summary>
+    /// <summary>A análise terminou com o usuário fazendo outra coisa (Ruling FD-I3): o <c>.rpmvni</c> foi criado e nada do que estava aberto mudou.</summary>
     public static string TextoRelatorioPronto(Provedor p, string pmvrel, string? pdf) =>
         $"A análise com o {Provedores.Nome(p)} terminou: {Path.GetFileName(pmvrel)} foi criado em {Path.GetFileName(Path.GetDirectoryName(pmvrel))} e está nos Recentes."
         + (string.IsNullOrWhiteSpace(pdf) ? "" : $" O PDF do kit continua em {pdf}.");

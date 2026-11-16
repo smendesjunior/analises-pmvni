@@ -9,7 +9,7 @@ namespace Pmvni.App;
 
 /// <summary>Módulos Processos e Despachos (Tarefa 13; desenho §9 e §9.1): as pastas de processos lidas em segundo plano (nunca na thread da
 /// interface, e canceladas ao trocar de módulo ou atualizar), a lista de processos com o detalhe do escolhido, a lista de despachos que já
-/// existem e as ações da faixa de cada um. A pasta é só lida: o app só cria nela o <c>.pmvrel</c> de uma importação pedida (nome livre, nunca
+/// existem e as ações da faixa de cada um. A pasta é só lida: o app só cria nela o <c>.rpmvni</c> de uma importação pedida (nome livre, nunca
 /// sobrescreve). Abrir arquivo, mostrar no Explorador e a importação passam pela fila de comandos como todo comando da faixa.</summary>
 public sealed partial class MainWindow
 {
@@ -601,11 +601,11 @@ public sealed partial class MainWindow
     Task ImportarAnaliseDoProcessoAsync() =>
         processoEscolhido is { } p && AnaliseParaImportar() is { Caminho: { } c } ? ImportarAnaliseAsync(p, c) : Task.CompletedTask;
 
-    /// <summary>"Importar análise da IA": o <c>dados*.json</c> do processo vira um <c>.pmvrel</c> novo na pasta do processo, com o nome
-    /// <c>Relatorio_NNNN_AAAA.pmvrel</c> (o do processo; se já existe, <c>_2</c>, <c>_3</c>…: nunca sobrescreve) e abre no módulo Relatórios.</summary>
+    /// <summary>"Importar análise da IA": o <c>dados*.json</c> do processo vira um <c>.rpmvni</c> novo na pasta do processo, com o nome
+    /// <c>Relatorio_NNNN_AAAA.rpmvni</c> (o do processo; se já existe, <c>_2</c>, <c>_3</c>…: nunca sobrescreve) e abre no módulo Relatórios.</summary>
     internal async Task<bool> ImportarAnaliseAsync(Processo p, string json) => await ImportarAnaliseParaAsync(p, json, abrir: true) is not null;
 
-    /// <summary>Como <see cref="ImportarAnaliseAsync"/>; devolve o <c>.pmvrel</c> criado (null = não importou). <paramref name="abrir"/> = false: não abre
+    /// <summary>Como <see cref="ImportarAnaliseAsync"/>; devolve o <c>.rpmvni</c> criado (null = não importou). <paramref name="abrir"/> = false: não abre
     /// (o relatório fica nos Recentes e na pasta do processo).</summary>
     internal async Task<string?> ImportarAnaliseParaAsync(Processo p, string json, bool abrir)
     {
@@ -733,7 +733,7 @@ public sealed partial class MainWindow
         if (ocupado && id is ComandosApp.ProcessosAbrirRelatorio or ComandosApp.ProcessosImportarAnalise) return "aguarde a operação em andamento terminar";
         return id switch
         {
-            ComandosApp.ProcessosAbrirRelatorio => "escolha, na lista da direita, um relatório (.pmvrel) ou uma análise da IA",
+            ComandosApp.ProcessosAbrirRelatorio => "escolha, na lista da direita, um relatório (.rpmvni) ou uma análise da IA",
             ComandosApp.ProcessosImportarAnalise => "este processo não tem análise da IA para importar",
             ComandosApp.ProcessosAbrirArquivo => "escolha, na lista da direita, um arquivo de despacho, de PROJETO ou de DOCUMENTOS",
             ComandosApp.ProcessosAbrirPasta => "escolha um processo na lista",

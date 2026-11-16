@@ -333,7 +333,7 @@ public sealed partial class MainWindow
         PreencherOrigem(s);
         N.MostrarPasso(PassoNovoDespacho.Origem, false);
         N.MostrarBloqueios([]);
-        // Despacho não depende de relatório (correções 2026-11-15): sem .pmvrel, começa em branco com o cabeçalho do processo.
+        // Despacho não depende de relatório (correções 2026-11-15): sem .rpmvni, começa em branco com o cabeçalho do processo.
         if (pacote is null) return MontarSemRelatorio(s);
         return await CarregarPacoteAsync(s, pacote);
     }
@@ -464,7 +464,7 @@ public sealed partial class MainWindow
         await AguardarNovoDespachoAsync();
     }
 
-    /// <summary>"Escolher arquivo…" do relatório base: o seletor (um <c>.pmvrel</c> de qualquer pasta ou o <c>dados.json</c> da análise).</summary>
+    /// <summary>"Escolher arquivo…" do relatório base: o seletor (um <c>.rpmvni</c> de qualquer pasta ou o <c>dados.json</c> da análise).</summary>
     async Task EscolherRelatorioNaVezAsync()
     {
         if (novo is not { SoPdf: false, Processo: not null } s) return;
@@ -474,7 +474,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>O arquivo escolhido à mão entra na lista e fica escolhido. O <c>dados.json</c> é importado antes, pelo Importador, para um
-    /// <c>.pmvrel</c> novo no lugar que o usuário escolher (nada é gravado na pasta do processo sem ele escolher). true = o rascunho está pronto.</summary>
+    /// <c>.rpmvni</c> novo no lugar que o usuário escolher (nada é gravado na pasta do processo sem ele escolher). true = o rascunho está pronto.</summary>
     internal async Task<bool> UsarRelatorioEscolhidoAsync(SessaoNovoDespacho s, string caminho)
     {
         switch (FluxoNovoDespacho.TipoDoArquivoBase(caminho))
@@ -486,7 +486,7 @@ public sealed partial class MainWindow
                 try { processo = DadosRelatorio.DeBytes(await File.ReadAllBytesAsync(caminho), "").Processo; }
                 catch (Exception e) when (e is JsonException or IOException) { /* a importação diz o que há de errado */ }
                 var (num, ano) = NomesArquivo.DoProcessoDaCapa(processo);
-                var pmvrel = await Perguntas.Atual.SalvarArquivoAsync(NomesArquivo.Importacao(num, ano), ".pmvrel");
+                var pmvrel = await Perguntas.Atual.SalvarArquivoAsync(NomesArquivo.Importacao(num, ano), ".rpmvni");
                 if (pmvrel is null || !DestinoNovo(pmvrel) || !await ImportarParaAsync(caminho, pmvrel, abrir: false)) return false;
                 caminho = pmvrel;
                 break;

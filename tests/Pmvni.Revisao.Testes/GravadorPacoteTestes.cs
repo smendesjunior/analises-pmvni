@@ -12,7 +12,7 @@ public class GravadorPacoteTestes
     {
         var json = Ambiente.Corpus("curto.json");
         var c = Importador.Importar(File.ReadAllBytes(json), json, Modelo, Ambiente.Contexto());
-        var caminho = Path.Combine(pasta, "a.pmvrel");
+        var caminho = Path.Combine(pasta, "a.rpmvni");
         var disco = Pacote.Gravar(caminho, c, null);
         return (caminho, new GravadorPacote(caminho, disco), c);
     }
@@ -40,7 +40,7 @@ public class GravadorPacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("gravador-como");
         var (caminho, g, c) = Novo(pasta);
-        var novo = Path.Combine(pasta, "b.pmvrel");
+        var novo = Path.Combine(pasta, "b.rpmvni");
 
         await Task.WhenAll(g.GravarComoAsync(novo, () => c), g.GravarAsync(() => c));
 
@@ -54,7 +54,7 @@ public class GravadorPacoteTestes
     {
         using var pasta = Ambiente.PastaDeTeste("gravador-existe");
         var (_, g, c) = Novo(pasta);
-        var outro = Path.Combine(pasta, "outro.pmvrel");
+        var outro = Path.Combine(pasta, "outro.rpmvni");
         File.WriteAllText(outro, "x");
 
         await Assert.ThrowsAsync<IOException>(() => g.GravarComoAsync(outro, () => c));

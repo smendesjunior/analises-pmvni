@@ -2,7 +2,7 @@ namespace Pmvni.Composicao;
 
 /// <summary>Onde o renderizador (e a importação) leem a imagem de um <c>dados.json</c>: só caminhos relativos à pasta dele. Absoluto
 /// (<c>C:\…</c>, <c>\…</c>, <c>C:x</c>), de rede (<c>\\host\share\…</c>, <c>//host/…</c>), de dispositivo (<c>\\?\…</c>) ou com <c>:</c>
-/// é recusado sempre: um dados.json (ou um <c>.pmvrel</c> adulterado) nunca embute um arquivo qualquer do computador nem faz o Windows
+/// é recusado sempre: um dados.json (ou um <c>.rpmvni</c> adulterado) nunca embute um arquivo qualquer do computador nem faz o Windows
 /// abrir uma conexão SMB. <paramref name="soNaPasta"/> (a pasta de trabalho de um pacote, onde só há <c>assets\</c>): também nada de
 /// <c>..</c>, e o caminho final tem de ficar dentro da pasta. Sem <paramref name="soNaPasta"/> o <c>..</c> relativo é aceito só se o
 /// caminho resolvido ficar DENTRO da pasta do processo (a análise do kit cita o mapa de uma pasta irmã,

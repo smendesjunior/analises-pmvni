@@ -48,7 +48,7 @@ public class DicasComandosTestes
     public void titulo_tem_o_nome_e_o_atalho_do_modulo()
     {
         Assert.Equal("Abrir (Ctrl+O)", DicasComandos.DoComando(ComandosApp.ArquivoAbrir, "Abrir", Modulo.Relatorios).Titulo);
-        Assert.Equal("Abre um relatório .pmvrel salvo no computador.", DicasComandos.DoComando(ComandosApp.ArquivoAbrir, "Abrir", Modulo.Relatorios).Descricao);
+        Assert.Equal("Abre um relatório .rpmvni salvo no computador.", DicasComandos.DoComando(ComandosApp.ArquivoAbrir, "Abrir", Modulo.Relatorios).Descricao);
         // Na Legislação vale o mapa do leitor: Copiar é Ctrl+C; sem atalho, só o nome.
         Assert.Equal("Copiar (Ctrl+C)", DicasComandos.DoComando(ComandosApp.LegislacaoCopiar, "Copiar", Modulo.Legislacao).Titulo);
         Assert.Equal("Conferência", DicasComandos.DoComando(ComandosApp.RevisaoConferencia, "Conferência", Modulo.Relatorios).Titulo);

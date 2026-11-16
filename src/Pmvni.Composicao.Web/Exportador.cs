@@ -31,7 +31,7 @@ public static class Exportador
     /// <summary>Compõe <paramref name="r"/> num host novo e, se <paramref name="planoTela"/> vier, recusa com
     /// <see cref="ExportacaoDivergenteException"/> o que não for o que a tela mostrou (outro HTML, outros inícios de folha ou
     /// outra escala). <paramref name="dados"/>: os bytes exatos que geraram <paramref name="r"/> (sha256 do recibo);
-    /// <paramref name="sha256Pacote"/>, quando vem, entra no recibo (o pacote .pmvrel de onde os dados efetivos saíram).</summary>
+    /// <paramref name="sha256Pacote"/>, quando vem, entra no recibo (o pacote .rpmvni de onde os dados efetivos saíram).</summary>
     static async Task<ResultadoExportacao> ExportarRenderAsync(ResultadoRender r, ConfigFolhas cfg, string caminhoPdf, byte[] dados,
         ModeloCarregado modelo, bool rascunho, PlanoQuebras? planoTela, string? sha256Pacote)
     {
@@ -110,7 +110,7 @@ public static class Exportador
 
     /// <summary>Como a versão por caminho, com os bytes do dados.json já em mãos (o dados.json efetivo gerado do pacote, que não
     /// é um arquivo): <paramref name="caminhoDados"/> só dá a pasta das imagens (não precisa existir). O recibo leva o sha256 de
-    /// <paramref name="bytesDados"/> e, se informado, <c>sha256_pacote</c> (<paramref name="sha256Pacote"/>: o .pmvrel de origem).</summary>
+    /// <paramref name="bytesDados"/> e, se informado, <c>sha256_pacote</c> (<paramref name="sha256Pacote"/>: o .rpmvni de origem).</summary>
     public static async Task<ResultadoExportacao> ExportarFinalAsync(byte[] bytesDados, string caminhoDados, ConfigFolhas cfg, string caminhoPdf,
         PlanoQuebras planoTela, ModeloCarregado? modelo = null, string? sha256Pacote = null)
     {

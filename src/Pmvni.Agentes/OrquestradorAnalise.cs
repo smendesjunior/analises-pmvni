@@ -292,8 +292,17 @@ public sealed class OrquestradorAnalise
         var registro = pe.Registro;
         var pasta = pe.Processo.Pasta;
         var pecas = pe.Pecas;
-        // O modo automático do analise-pro não recebe instruções: o texto fica guardado no registro, como o desenho manda.
         registro.GravarPedido(pe.Texto ?? "");
+        // 2026-11-16: o análise pro (1.6.2+) lê .pmvni-ai\analise-pro\diretrizes.md em cada etapa, como diretriz complementar.
+        // Sem pedido, o arquivo sai (nenhuma diretriz antiga vale para a análise nova).
+        try
+        {
+            var controle = Path.Combine(pasta, ".pmvni-ai", "analise-pro");
+            var diretrizes = Path.Combine(controle, "diretrizes.md");
+            if (string.IsNullOrWhiteSpace(pe.Texto)) File.Delete(diretrizes);
+            else { Directory.CreateDirectory(controle); File.WriteAllText(diretrizes, pe.Texto.Trim() + "\n", new UTF8Encoding(false)); }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         registro.GravarAnexos(pe.Anexos);
 
         var (exe, argsIniciar) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, pecas.ProRuntime!, pasta, "iniciar");

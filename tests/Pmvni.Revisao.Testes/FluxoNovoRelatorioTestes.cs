@@ -21,16 +21,16 @@ public class FluxoNovoRelatorioTestes
     public void sugestao_do_processo()
     {
         Assert.Same(P0012, FluxoNovoRelatorio.Sugerir(Modulo.Processos, P0012, null, Todos));
-        Assert.Null(FluxoNovoRelatorio.Sugerir(Modulo.Processos, null, P0001.Pasta + @"\Relatorio_0001_2099.pmvrel", Todos));
+        Assert.Null(FluxoNovoRelatorio.Sugerir(Modulo.Processos, null, P0001.Pasta + @"\Relatorio_0001_2099.rpmvni", Todos));
 
         // Relatórios: o processo cuja pasta contém o pacote aberto (também numa subpasta), nunca o de nome parecido.
-        Assert.Same(P0001, FluxoNovoRelatorio.Sugerir(Modulo.Relatorios, P0012, P0001.Pasta + @"\Relatorio_0001_2099.pmvrel", Todos));
-        Assert.Same(P0001, FluxoNovoRelatorio.Sugerir(Modulo.Relatorios, null, P0001.Pasta + @"\REVISOES\Relatorio_0001_2099_2.pmvrel", Todos));
-        Assert.Same(P0001Parecido, FluxoNovoRelatorio.Sugerir(Modulo.Relatorios, null, P0001Parecido.Pasta + @"\Relatorio_0001_2099.pmvrel", Todos));
-        Assert.Null(FluxoNovoRelatorio.Sugerir(Modulo.Relatorios, null, @"C:\outro\Relatorio_0001_2099.pmvrel", Todos));
+        Assert.Same(P0001, FluxoNovoRelatorio.Sugerir(Modulo.Relatorios, P0012, P0001.Pasta + @"\Relatorio_0001_2099.rpmvni", Todos));
+        Assert.Same(P0001, FluxoNovoRelatorio.Sugerir(Modulo.Relatorios, null, P0001.Pasta + @"\REVISOES\Relatorio_0001_2099_2.rpmvni", Todos));
+        Assert.Same(P0001Parecido, FluxoNovoRelatorio.Sugerir(Modulo.Relatorios, null, P0001Parecido.Pasta + @"\Relatorio_0001_2099.rpmvni", Todos));
+        Assert.Null(FluxoNovoRelatorio.Sugerir(Modulo.Relatorios, null, @"C:\outro\Relatorio_0001_2099.rpmvni", Todos));
         Assert.Null(FluxoNovoRelatorio.Sugerir(Modulo.Relatorios, null, null, Todos));
 
-        Assert.Null(FluxoNovoRelatorio.Sugerir(Modulo.Despachos, P0012, P0001.Pasta + @"\Relatorio_0001_2099.pmvrel", Todos));
+        Assert.Null(FluxoNovoRelatorio.Sugerir(Modulo.Despachos, P0012, P0001.Pasta + @"\Relatorio_0001_2099.rpmvni", Todos));
         Assert.Null(FluxoNovoRelatorio.Sugerir(Modulo.Ajustes, P0012, null, Todos));
     }
 
@@ -155,12 +155,12 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(DestinoAnexo.ReapresentacaoAtual, comRevisao[^1].Destino);
         Assert.Equal("Projeto — juntar à REVISÃO 02 atual", comRevisao[^1].Rotulo);
 
-        Assert.Equal("O análise pro do kit roda sozinho e não recebe o pedido escrito; ele fica guardado no registro da execução.", FluxoNovoRelatorio.TextoPedidoClaude);
+        Assert.Equal("O pedido vai para os dois plugins como diretriz complementar (ex.: conferir pendências de despachos anteriores); as etapas da análise não mudam.", FluxoNovoRelatorio.TextoPedidoClaude);
         Assert.Equal("planta.pdf não é um arquivo do disco; salve-o numa pasta e anexe de lá.", FluxoNovoRelatorio.ItemSemCaminho("planta.pdf"));
-        Assert.Equal("Relatório da análise com o ChatGPT importado: Relatorio_0001_2099.pmvrel. O PDF do kit continua em C:\\p\\relatorio.pdf.",
-            FluxoNovoRelatorio.TextoImportado(Provedor.ChatGpt, @"C:\p\Relatorio_0001_2099.pmvrel", @"C:\p\relatorio.pdf"));
-        Assert.Equal("Relatório da análise com o Claude importado: Relatorio_0001_2099_2.pmvrel.",
-            FluxoNovoRelatorio.TextoImportado(Provedor.Claude, @"C:\p\Relatorio_0001_2099_2.pmvrel", null));
+        Assert.Equal("Relatório da análise com o ChatGPT importado: Relatorio_0001_2099.rpmvni. O PDF do kit continua em C:\\p\\relatorio.pdf.",
+            FluxoNovoRelatorio.TextoImportado(Provedor.ChatGpt, @"C:\p\Relatorio_0001_2099.rpmvni", @"C:\p\relatorio.pdf"));
+        Assert.Equal("Relatório da análise com o Claude importado: Relatorio_0001_2099_2.rpmvni.",
+            FluxoNovoRelatorio.TextoImportado(Provedor.Claude, @"C:\p\Relatorio_0001_2099_2.rpmvni", null));
         Assert.Equal("A análise com o ChatGPT em 0001/2099 será interrompida.", FluxoNovoRelatorio.TextoFecharChatGpt(P0001));
         Assert.Equal("A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, o resultado é importado.", FluxoNovoRelatorio.TextoFecharClaude);
         Assert.Equal("A análise com o Claude de 0012/2099 terminou.", FluxoNovoRelatorio.TextoClaudeTerminou(P0012));

@@ -274,7 +274,7 @@ public sealed partial class MainWindow
         R.AvisoConflito.IsOpen = true;
     }
 
-    /// <summary>"Salvar como cópia": grava as alterações em "&lt;nome&gt; (cópia AAAA-MM-DD HH-MM).pmvrel" ao lado (sem seletor, sem
+    /// <summary>"Salvar como cópia": grava as alterações em "&lt;nome&gt; (cópia AAAA-MM-DD HH-MM).rpmvni" ao lado (sem seletor, sem
     /// sobrescrever) e passa a editar a cópia; o original fica como o outro programa o deixou.</summary>
     internal Task<bool> SalvarCopiaDeConflitoAsync() => NaFilaAsync(async () =>
     {

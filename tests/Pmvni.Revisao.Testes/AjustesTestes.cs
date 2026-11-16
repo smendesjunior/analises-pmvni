@@ -27,7 +27,7 @@ public class AjustesTestes
         a.Tema = "escuro";
         a.IntervaloAutosaveS = 60;
         a.MarcasRevisao = false;
-        a.Recentes.Add(@"C:\x\a.pmvrel");
+        a.Recentes.Add(@"C:\x\a.rpmvni");
         a.PastaProcessos = @"C:\processos";
         a.Salvar(pasta);
 
@@ -40,7 +40,7 @@ public class AjustesTestes
         Assert.Equal("escuro", b.Tema);
         Assert.Equal(60, b.IntervaloAutosaveS);
         Assert.False(b.MarcasRevisao);
-        Assert.Equal(new[] { @"C:\x\a.pmvrel" }, b.Recentes);
+        Assert.Equal(new[] { @"C:\x\a.rpmvni" }, b.Recentes);
         Assert.Equal(@"C:\processos", b.PastaProcessos);
     }
 
@@ -119,17 +119,17 @@ public class AjustesTestes
     public void recentes_no_maximo_10_sem_repetir()
     {
         var a = new Ajustes();
-        for (var i = 1; i <= 12; i++) a.AdicionarRecente(@"C:\x\r" + i + ".pmvrel");
+        for (var i = 1; i <= 12; i++) a.AdicionarRecente(@"C:\x\r" + i + ".rpmvni");
         Assert.Equal(10, a.Recentes.Count);
-        Assert.Equal(@"C:\x\r12.pmvrel", a.Recentes[0]);
-        Assert.Equal(@"C:\x\r3.pmvrel", a.Recentes[^1]); // r1 e r2 saíram
+        Assert.Equal(@"C:\x\r12.rpmvni", a.Recentes[0]);
+        Assert.Equal(@"C:\x\r3.rpmvni", a.Recentes[^1]); // r1 e r2 saíram
 
         // Repetir (ignorando maiúsculas) leva ao topo, sem duplicar, e guarda o caminho como foi aberto agora.
-        a.AdicionarRecente(@"C:\X\R5.PMVREL");
+        a.AdicionarRecente(@"C:\X\R5.RPMVNI");
         Assert.Equal(10, a.Recentes.Count);
-        Assert.Equal(@"C:\X\R5.PMVREL", a.Recentes[0]);
-        Assert.Single(a.Recentes, r => string.Equals(r, @"C:\x\r5.pmvrel", StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(@"C:\x\r12.pmvrel", a.Recentes[1]);
+        Assert.Equal(@"C:\X\R5.RPMVNI", a.Recentes[0]);
+        Assert.Single(a.Recentes, r => string.Equals(r, @"C:\x\r5.rpmvni", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(@"C:\x\r12.rpmvni", a.Recentes[1]);
 
         // Caminho vazio não entra; os recentes sobrevivem ao salvar e carregar.
         a.AdicionarRecente("  ");
@@ -144,9 +144,9 @@ public class AjustesTestes
     {
         using var pasta = Ambiente.PastaDeTeste("recentes-somem");
         string Criar(string nome) { var c = Path.Combine(pasta, nome); File.WriteAllText(c, "x"); return c; }
-        var a1 = Criar("a.pmvrel");
-        var b = Criar("b.pmvrel");
-        var c = Criar("c.pmvrel");
+        var a1 = Criar("a.rpmvni");
+        var b = Criar("b.rpmvni");
+        var c = Criar("c.rpmvni");
         var a = new Ajustes();
         a.AdicionarRecente(a1);
         a.AdicionarRecente(b);

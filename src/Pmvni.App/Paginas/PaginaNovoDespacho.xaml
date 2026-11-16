@@ -31,15 +31,15 @@
           <TextBlock Text="1. Origem" Style="{StaticResource BodyStrongTextBlockStyle}"/>
           <ComboBox x:Name="CaixaTipo" x:FieldModifier="internal" Header="Tipo" HorizontalAlignment="Stretch" AutomationProperties.Name="Tipo do despacho"/>
           <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Header="Processo" HorizontalAlignment="Stretch" AutomationProperties.Name="Processo"/>
-          <!-- Relatório base: os achados na pasta do processo, "Sem relatório" ou um escolhido à mão (.pmvrel de qualquer pasta, ou o
-               dados.json da análise do kit, importado para um .pmvrel novo antes de usar). -->
+          <!-- Relatório base: os achados na pasta do processo, "Sem relatório" ou um escolhido à mão (.rpmvni de qualquer pasta, ou o
+               dados.json da análise do kit, importado para um .rpmvni novo antes de usar). -->
           <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <ComboBox x:Name="CaixaRelatorio" x:FieldModifier="internal" Header="Relatório base (.pmvrel)" HorizontalAlignment="Stretch"
+            <ComboBox x:Name="CaixaRelatorio" x:FieldModifier="internal" Header="Relatório base (.rpmvni)" HorizontalAlignment="Stretch"
                       AutomationProperties.Name="Relatório base"/>
             <Button x:Name="BotaoEscolherRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Bottom"
                     AutomationProperties.Name="Escolher o arquivo do relatório"
-                    local:Dicas.Titulo="Escolher arquivo…" local:Dicas.Descricao="Usa um relatório (.pmvrel) de qualquer pasta, ou o dados.json da análise.">
+                    local:Dicas.Titulo="Escolher arquivo…" local:Dicas.Descricao="Usa um relatório (.rpmvni) de qualquer pasta, ou o dados.json da análise.">
               <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8E5;" FontSize="14"/><TextBlock Text="Escolher arquivo…"/></StackPanel>
             </Button>
           </Grid>

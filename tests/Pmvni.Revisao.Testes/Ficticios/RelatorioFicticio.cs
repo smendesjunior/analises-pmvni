@@ -3,7 +3,7 @@ using Pmvni.Composicao;
 
 namespace Pmvni.Revisao.Testes;
 
-/// <summary>Uma cópia da árvore fictícia de processos (<c>tests/corpus/processos</c>) com o <c>Relatorio_0001_2099.pmvrel</c> importado do
+/// <summary>Uma cópia da árvore fictícia de processos (<c>tests/corpus/processos</c>) com o <c>Relatorio_0001_2099.rpmvni</c> importado do
 /// <see cref="RelatorioFicticio.Curto"/> na pasta do processo 0001.</summary>
 public sealed record ArvoreFicticia(string Raiz, Processo Processo, string CaminhoPacote, PacoteAberto Pacote);
 

@@ -464,12 +464,12 @@ public sealed partial class MainWindow
 
     void IniciarLegislacaoAjustes()
     {
-        legislacao = new SessaoLegislacao(Path.Combine(PastaDados.Raiz, "legislacao"), CriarExtratorLegislacaoAsync);
+        legislacao = new SessaoLegislacao(Path.Combine(PastaDados.Itinerante, "legislacao"), CriarExtratorLegislacaoAsync);
         legislacao.Mudou += () => DispatcherQueue.TryEnqueue(() => _ = AtualizarListaLegislacaoAsync());
         var a = PaginaDeAjustes;
         a.ListaAnexos.ItemsSource = linhasNaTela;
         // Os manipuladores daqui são async void: nenhuma exceção sai deles (mensagem em português na InfoBar, detalhe no registro).
-        a.BotaoAnexarLegislacao.Click += async (_, _) => await SemDerrubarAsync(AnexarLegislacaoAsync);
+        a.BotaoAnexarLegislacao.Click += async (_, _) => await SemDerrubarAsync(() => AnexarLegislacaoAsync());
         a.BotaoCancelarLegislacao.Click += (_, _) => cancelarAnexo?.Cancel();
         PaginaDeLegislacao.BotaoCancelarAnexo.Click += (_, _) => cancelarAnexo?.Cancel();
         a.TituloEditado = async (id, t) =>
@@ -623,7 +623,7 @@ public sealed partial class MainWindow
     /// <summary>"Anexar PDFs…": o seletor (múltiplo, .pdf) na fila de comandos; a leitura dos arquivos (cópia, sha, PDF.js) corre fora
     /// dela, com a linha de progresso e "Cancelar". No fim, a InfoBar com o resumo exato (<see cref="ListaLegislacao.Resumo"/>), que
     /// também é devolvido ("" se nada foi escolhido ou outra anexação já corre).</summary>
-    internal async Task<string> AnexarLegislacaoAsync()
+    internal async Task<string> AnexarLegislacaoAsync(IReadOnlyList<string>? escolhidos = null)
     {
         IReadOnlyList<string> caminhos = [];
         CancellationTokenSource? cts = null;
@@ -637,7 +637,7 @@ public sealed partial class MainWindow
                 emAndamento = true;
                 return;
             }
-            caminhos = await Perguntas.Atual.AbrirArquivosAsync(".pdf");
+            caminhos = escolhidos ?? await Perguntas.Atual.AbrirArquivosAsync(".pdf");
             if (caminhos.Count == 0) return;
             if (cancelarAnexo is not null)
             {

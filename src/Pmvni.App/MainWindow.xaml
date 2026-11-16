@@ -26,8 +26,39 @@
            maior e em negrito; o requerente embaixo, menor) e o selo do estado de gravação ("Salvo 14:32" com o ✓). -->
       <controls:TitleBar.LeftHeader>
         <StackPanel x:Name="CabecalhoEsquerdo" Orientation="Horizontal" Spacing="14" Margin="20,6,14,6" VerticalAlignment="Center">
-          <Image x:Name="ImagemBrasao" Height="42" VerticalAlignment="Center" Stretch="Uniform"
-                 AutomationProperties.Name="Prefeitura Municipal de Venda Nova do Imigrante"/>
+          <!-- Marca da Prefeitura (2026-11-16): o brasão redesenhado em vetor (formas do brasao.png do modelo oficial) e o texto como texto,
+               legível em qualquer escala; a cor do texto segue o tema. -->
+          <StackPanel x:Name="MarcaPrefeitura" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                      AutomationProperties.Name="Prefeitura Municipal de Venda Nova do Imigrante">
+            <Viewbox Height="46" VerticalAlignment="Center">
+              <Canvas Width="600" Height="500" Margin="-40,-40,0,0">
+                <Line X1="72" Y1="105" X2="252" Y2="192" Stroke="#A68B6A" StrokeThickness="7"/>
+                <Line X1="616" Y1="105" X2="438" Y2="192" Stroke="#A68B6A" StrokeThickness="7"/>
+                <Ellipse Canvas.Left="62" Canvas.Top="95" Width="20" Height="20" Fill="#A68B6A"/>
+                <Ellipse Canvas.Left="606" Canvas.Top="95" Width="20" Height="20" Fill="#A68B6A"/>
+                <Path Fill="#13A54A" Data="M120,130 L158,148 Q125,230 135,300 L100,335 L48,322 Q100,250 120,130 Z"/>
+                <Path Fill="#FFE600" Data="M158,148 L198,168 Q170,250 185,300 L150,358 L100,335 Q130,250 158,148 Z"/>
+                <Path Fill="#F9D5E3" Data="M492,168 L532,148 Q560,250 590,345 L540,360 Q510,300 520,250 Q505,200 492,168 Z"/>
+                <Path Fill="#19AEEF" Data="M532,148 L572,130 Q585,250 640,322 L590,345 Q560,250 532,148 Z"/>
+                <Path Fill="#19AEEF" Data="M250,190 Q345,140 440,190 L432,305 Q420,362 345,398 Q270,362 258,305 Z"/>
+                <Path Fill="#FFE600" Data="M345,292 L128,254 L137,220 Z M345,292 L154,182 L174,154 Z M345,292 L204,123 L232,103 Z M345,292 L270,85 L303,76 Z M345,292 L345,72 L379,75 Z M345,292 L420,85 L452,100 Z M345,292 L486,123 L511,148 Z M345,292 L536,182 L550,213 Z M345,292 L562,254 L565,288 Z">
+                  <Path.Clip><RectangleGeometry Rect="250,140,190,180"/></Path.Clip>
+                </Path>
+                <Ellipse Canvas.Left="315" Canvas.Top="262" Width="60" Height="60" Fill="#FFE600"/>
+                <Path Fill="#A68B6A" Data="M256,318 Q290,282 322,298 Q345,268 372,292 Q405,280 434,318 Q420,365 345,398 Q270,365 256,318 Z"/>
+                <Rectangle Canvas.Left="339" Canvas.Top="116" Width="11" Height="48" Fill="#3A2E2A"/>
+                <Rectangle Canvas.Left="327" Canvas.Top="128" Width="35" Height="9" Fill="#3A2E2A"/>
+                <Path Fill="White" Stroke="#2B2B2B" StrokeThickness="5"
+                      Data="M100,385 Q160,360 232,436 L182,452 Q160,410 125,440 Q95,440 100,385 Z M590,385 Q530,360 458,436 L508,452 Q530,410 565,440 Q595,440 590,385 Z M182,452 Q345,492 508,452 L505,510 Q345,548 185,510 Z"/>
+              </Canvas>
+            </Viewbox>
+            <StackPanel VerticalAlignment="Center" Spacing="-3">
+              <TextBlock Text="Prefeitura Municipal de" FontFamily="Bahnschrift" FontSize="10" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+              <TextBlock Text="VENDA NOVA" FontFamily="Bahnschrift" FontWeight="Bold" FontSize="17" LineHeight="17" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+              <TextBlock Text="DO IMIGRANTE" FontFamily="Bahnschrift" FontWeight="Bold" FontSize="17" LineHeight="17" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+              <TextBlock Text="Estado do Espírito Santo" FontFamily="Bahnschrift" FontSize="10" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+            </StackPanel>
+          </StackPanel>
           <Border x:Name="DivisoriaMarca" Style="{StaticResource PmvniDivisoriaCabecalho}"/>
           <TextBlock x:Name="TextoMarca" Text="Análise de Projetos" FontFamily="Segoe UI Variable Display" FontSize="20" FontWeight="SemiBold"
                      VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>

@@ -124,7 +124,7 @@ public class AjustesOpcoesTestes
     {
         // O ajustes.json da Etapa 2 antes desta rodada: as chaves de sempre, nenhuma das novas.
         using var pasta = Ambiente.PastaDeTeste("ajustes-antigo");
-        var recentes = Enumerable.Range(1, 10).Select(i => $@"C:\r\{i}.pmvrel").ToArray();
+        var recentes = Enumerable.Range(1, 10).Select(i => $@"C:\r\{i}.rpmvni").ToArray();
         File.WriteAllText(Path.Combine(pasta, "ajustes.json"), new JsonObject
         {
             ["modulo"] = "Despachos", ["aba_por_modulo"] = new JsonObject { ["Relatorios"] = "Revisão" }, ["tema"] = "escuro",
@@ -160,12 +160,12 @@ public class AjustesOpcoesTestes
     public void recentes_seguem_o_maximo_escolhido_e_a_lista_se_limpa()
     {
         var a = new Ajustes { RecentesMax = 20 };
-        for (var i = 0; i < 25; i++) a.AdicionarRecente($@"C:\r\{i}.pmvrel");
+        for (var i = 0; i < 25; i++) a.AdicionarRecente($@"C:\r\{i}.rpmvni");
         Assert.Equal(20, a.Recentes.Count);
-        Assert.Equal(@"C:\r\24.pmvrel", a.Recentes[0]);
+        Assert.Equal(@"C:\r\24.rpmvni", a.Recentes[0]);
         a.RecentesMax = 5;
         Assert.Equal(5, a.Recentes.Count);
-        Assert.Equal(@"C:\r\24.pmvrel", a.Recentes[0]);
+        Assert.Equal(@"C:\r\24.rpmvni", a.Recentes[0]);
         a.LimparRecentes();
         Assert.Empty(a.Recentes);
         Assert.Throws<ArgumentOutOfRangeException>(() => a.RecentesMax = 7);
@@ -181,7 +181,7 @@ public class AjustesOpcoesTestes
             ZoomInicial = "pagina", AvisosLayout = "faixas", RecuperacaoDias = 7, PedidoPadrao = "x", ConfirmarFechar = false, LembrarJanela = true,
             Janela = new JanelaGuardada(1, 2, 900, 700, false), Soffice = @"C:\so.exe", RecentesMax = 20,
         };
-        a.Recentes.Add(@"C:\a.pmvrel");
+        a.Recentes.Add(@"C:\a.rpmvni");
         a.Agentes[Provedor.Claude].Modo = ModoAcesso.Chave;
         a.Agentes[Provedor.Claude].AvisoVersao = 1;
         a.ExecucoesClaude.Add(new ExecucaoClaudePendente(@"C:\p", @"C:\p\r"));
@@ -206,7 +206,7 @@ public class AjustesOpcoesTestes
         Assert.Null(a.Soffice);
         Assert.Equal(10, a.RecentesMax);
         // Preservados.
-        Assert.Equal(new[] { @"C:\a.pmvrel" }, a.Recentes);
+        Assert.Equal(new[] { @"C:\a.rpmvni" }, a.Recentes);
         Assert.Equal(ModoAcesso.Chave, a.Agentes[Provedor.Claude].Modo);
         Assert.Equal(1, a.Agentes[Provedor.Claude].AvisoVersao);
         Assert.Single(a.ExecucoesClaude);

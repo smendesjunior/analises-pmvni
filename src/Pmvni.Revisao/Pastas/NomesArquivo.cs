@@ -9,12 +9,12 @@ public static class NomesArquivo
 {
     static readonly Regex Processo = new(@"^\s*(\d{1,6})\s*/\s*(\d{4})\s*$", RegexOptions.CultureInvariant);
 
-    /// <summary><c>Relatorio_98765_2099.pmvrel</c> (número com pelo menos 4 dígitos: <c>Relatorio_0001_2099.pmvrel</c>); sem número ou ano,
-    /// <c>Relatorio.pmvrel</c>.</summary>
+    /// <summary><c>Relatorio_98765_2099.rpmvni</c> (número com pelo menos 4 dígitos: <c>Relatorio_0001_2099.rpmvni</c>); sem número ou ano,
+    /// <c>Relatorio.rpmvni</c>.</summary>
     public static string Importacao(int? numero, int? ano) =>
         numero is { } n && ano is { } a
-            ? string.Create(CultureInfo.InvariantCulture, $"Relatorio_{n:D4}_{a}.pmvrel")
-            : "Relatorio.pmvrel";
+            ? string.Create(CultureInfo.InvariantCulture, $"Relatorio_{n:D4}_{a}.rpmvni")
+            : "Relatorio.rpmvni";
 
     /// <summary><c>"9001/2026"</c> → (9001, 2026); qualquer outra forma (vazio, campo [ ] em aberto) → (null, null).</summary>
     public static (int? Numero, int? Ano) DoProcessoDaCapa(string? processo)
@@ -36,7 +36,7 @@ public static class NomesArquivo
         return caminho;
     }
 
-    /// <summary>Ao lado do pacote: <c>"&lt;nome&gt; (cópia 2026-11-14 14-32).pmvrel"</c> (hora local), sem sobrescrever.</summary>
+    /// <summary>Ao lado do pacote: <c>"&lt;nome&gt; (cópia 2026-11-14 14-32).rpmvni"</c> (hora local), sem sobrescrever.</summary>
     public static string CopiaDeConflito(string pacote, DateTime local)
     {
         var pasta = Path.GetDirectoryName(Path.GetFullPath(pacote))!;

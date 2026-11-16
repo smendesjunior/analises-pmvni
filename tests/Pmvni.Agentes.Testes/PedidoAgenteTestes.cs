@@ -25,7 +25,7 @@ public class PedidoAgenteTestes
             + "Arquivos que o usuário anexou agora, já copiados na pasta do processo pelo Editor de Relatórios PMVNI:\n"
             + @"- PROJETO\INICIAL\planta.pdf (copiado)" + "\n"
             + @"- DOCUMENTOS\req.pdf (já estava no processo)" + "\n"
-            + "Pedido do usuário:\n"
+            + PedidoAgente.CabecalhoDiretrizes + "\n"
             + "Linha 1\nLinha 2\nLinha 3";
         Assert.Equal(esperado, PedidoAgente.Codex(Pasta, P, anexos, "Linha 1\nLinha 2\nLinha 3"));
     }
@@ -44,7 +44,7 @@ public class PedidoAgenteTestes
         var um = new[] { new ArquivoArquivado(@"D:\a.pdf", @"DOCUMENTOS\a.pdf", "aa", 1, false) };
         Assert.Equal(Fixas + "\nArquivos que o usuário anexou agora, já copiados na pasta do processo pelo Editor de Relatórios PMVNI:\n- DOCUMENTOS\\a.pdf (copiado)",
             PedidoAgente.Codex(Pasta, P, um, null));
-        Assert.Equal(Fixas + "\nPedido do usuário:\nconfira o muro",
+        Assert.Equal(Fixas + "\n" + PedidoAgente.CabecalhoDiretrizes + "\nconfira o muro",
             PedidoAgente.Codex(Pasta, P, Array.Empty<ArquivoArquivado>(), "confira o muro"));
     }
 
@@ -53,7 +53,7 @@ public class PedidoAgenteTestes
     {
         var texto = "  com espaços nas pontas  \r\ne \"aspas\" & <html> $analise ";
         var pedido = PedidoAgente.Codex(Pasta, P, Array.Empty<ArquivoArquivado>(), texto);
-        Assert.EndsWith("\nPedido do usuário:\n" + texto, pedido);
+        Assert.EndsWith("\n" + PedidoAgente.CabecalhoDiretrizes + "\n" + texto, pedido);
     }
 
     [Fact]

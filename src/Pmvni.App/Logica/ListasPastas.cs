@@ -211,7 +211,7 @@ public static class ListasPastas
         p is null ? "Sem processo" : NumeroDoProcesso(p) is { } n ? $"{n} · {p.Requerente}" : p.NomePasta;
 
     /// <summary>As linhas do detalhe de um processo: Relatórios, Despachos (cada arquivo) e, se pedido, PROJETO e DOCUMENTOS.
-    /// Um relatório em revisão (.pmvrel) abre no editor; uma análise da IA (<c>dados*.json</c>) vira um .pmvrel novo na pasta do processo.</summary>
+    /// Um relatório em revisão (.rpmvni) abre no editor; uma análise da IA (<c>dados*.json</c>) vira um .rpmvni novo na pasta do processo.</summary>
     public static IReadOnlyList<LinhaDetalhe> Detalhe(DetalheProcesso d, bool mostrarPastas)
     {
         var linhas = new List<LinhaDetalhe>
@@ -246,7 +246,7 @@ public static class ListasPastas
         return linhas;
     }
 
-    /// <summary>Correções 2026-11-15: as linhas do detalhe em três colunas. Relatórios (os .pmvrel, as análises e os RELATORIO_* das pastas de
+    /// <summary>Correções 2026-11-15: as linhas do detalhe em três colunas. Relatórios (os .rpmvni, as análises e os RELATORIO_* das pastas de
     /// despacho), Despachos (os demais arquivos das pastas de despacho) e Projeto (PROJETO e DOCUMENTOS); cada coluna agrupada por data
     /// (a mais nova primeiro), com o título da data como linha não selecionável.</summary>
     public static (List<LinhaDetalhe> Relatorios, List<LinhaDetalhe> Despachos, List<LinhaDetalhe> Projeto) EmColunas(IReadOnlyList<LinhaDetalhe> linhas)

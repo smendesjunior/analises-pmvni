@@ -370,7 +370,7 @@ public sealed class EmissaoDespachoTestes
         Assert.Equal(c.Modelo.Sha256, (string?)r["modelo"]!["sha256"]);
         Assert.Equal(c.Textos.Arquivo, (string?)r["textos_fixos"]!["arquivo"]);
         Assert.Equal(c.Textos.Sha256, (string?)r["textos_fixos"]!["sha256"]);
-        Assert.Equal("Relatorio_0001_2099.pmvrel", (string?)r["relatorio"]!["arquivo"]);
+        Assert.Equal("Relatorio_0001_2099.rpmvni", (string?)r["relatorio"]!["arquivo"]);
         Assert.Equal(DocxFicticio.Sha(File.ReadAllBytes(c.Arvore.CaminhoPacote)), (string?)r["relatorio"]!["sha256_pacote"]);
         Assert.Equal(c.Origem.Sha256DadosEfetivos, (string?)r["relatorio"]!["sha256_dados_efetivos"]);
         Assert.Equal(1, (int)r["processo"]!["numero"]!);

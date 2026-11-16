@@ -73,10 +73,10 @@ public class PastasTestes
         using var t = Ambiente.PastaDeTeste("pastas-pmvrel");
         CopiarArvore(Raiz, t);
         var p = Processos.Listar(t, CancellationToken.None).Itens.Single(x => x.Numero == 1);
-        File.WriteAllText(Path.Combine(p.Pasta, "Relatorio_0001_2099.pmvrel"), "x");
+        File.WriteAllText(Path.Combine(p.Pasta, "Relatorio_0001_2099.rpmvni"), "x");
         var d = Processos.Detalhar(p, CancellationToken.None);
         Assert.Equal(2, d.Relatorios.Count);
-        Assert.Contains(d.Relatorios, r => r.Tipo == TipoRelatorio.Pacote && r.Caminho.EndsWith("Relatorio_0001_2099.pmvrel"));
+        Assert.Contains(d.Relatorios, r => r.Tipo == TipoRelatorio.Pacote && r.Caminho.EndsWith("Relatorio_0001_2099.rpmvni"));
         Assert.Contains(d.Relatorios, r => r.Tipo == TipoRelatorio.AnaliseIa);
         Assert.True(d.Relatorios[0].AlteradoUtc >= d.Relatorios[1].AlteradoUtc);
     }
@@ -91,14 +91,14 @@ public class PastasTestes
         var hoje = new DateOnly(2099, 3, 10);
         var etapa = Etapas.Sugerida(p.Pasta, hoje).Pasta;
         var primeiro = Processos.NomeImportacao(p, null, hoje);
-        Assert.Equal(Path.Combine(etapa, "Relatorio_0001_2099.pmvrel"), primeiro);
+        Assert.Equal(Path.Combine(etapa, "Relatorio_0001_2099.rpmvni"), primeiro);
         File.WriteAllText(primeiro, "x");
-        Assert.Equal(Path.Combine(etapa, "Relatorio_0001_2099_2.pmvrel"), Processos.NomeImportacao(p, null, hoje));
+        Assert.Equal(Path.Combine(etapa, "Relatorio_0001_2099_2.rpmvni"), Processos.NomeImportacao(p, null, hoje));
 
         var fora = Processos.Listar(t, CancellationToken.None).Itens.Single(x => x.Numero is null);
         var etapaFora = Etapas.Sugerida(fora.Pasta, hoje).Pasta;
-        Assert.Equal(Path.Combine(etapaFora, "Relatorio_9001_2026.pmvrel"), Processos.NomeImportacao(fora, "9001/2026", hoje));
-        Assert.Equal(Path.Combine(etapaFora, "Relatorio.pmvrel"), Processos.NomeImportacao(fora, null, hoje));
+        Assert.Equal(Path.Combine(etapaFora, "Relatorio_9001_2026.rpmvni"), Processos.NomeImportacao(fora, "9001/2026", hoje));
+        Assert.Equal(Path.Combine(etapaFora, "Relatorio.rpmvni"), Processos.NomeImportacao(fora, null, hoje));
     }
 
     [Fact]

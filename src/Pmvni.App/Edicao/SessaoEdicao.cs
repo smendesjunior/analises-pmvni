@@ -22,7 +22,7 @@ internal interface ITelaEdicao
 internal sealed record Recomposicao(Preparado Preparado, ResultadoComposicao Composicao, ResultadoAplicacao Aplicacao, DadosRelatorio Dados,
     IReadOnlyList<ItemNavegacao> Navegacao, long Milissegundos);
 
-/// <summary>Um pacote <c>.pmvrel</c> aberto no app: liga <see cref="SessaoRevisao"/> (o projeto e o histórico), o <see cref="Recompositor"/>
+/// <summary>Um pacote <c>.rpmvni</c> aberto no app: liga <see cref="SessaoRevisao"/> (o projeto e o histórico), o <see cref="Recompositor"/>
 /// (pasta de trabalho com as imagens) e a tela. <see cref="RecomporAsync"/>: âncora → preparar → compor no host oculto → carregar e
 /// aplicar na tela → <c>estadoEditor</c> (sempre, num finally: sem ele a página fica parada). <see cref="GravarAsync"/>: grava com
 /// <c>Pacote.Gravar(…, esperado: o disco como foi aberto ou gravado)</c>; mudança no disco vira Conflito e nada é sobrescrito.
@@ -87,7 +87,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
             : TextosGravacao.SomenteLeituraSemTrava(r.Erro ?? "erro desconhecido");
     }
 
-    /// <summary>O <c>.pmvrel</c> no disco.</summary>
+    /// <summary>O <c>.rpmvni</c> no disco.</summary>
     public string Caminho => gravador.Caminho;
 
     /// <summary>O conteúdo como foi lido (manifesto, recebido, imagens); o projeto e o histórico vivos estão em <see cref="Revisao"/>.</summary>
@@ -223,7 +223,7 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         TravaMudou?.Invoke();
     }
 
-    /// <summary>Importa o dados.json do kit para um <c>.pmvrel</c> novo (nunca sobrescreve: se o destino existe, recusa).</summary>
+    /// <summary>Importa o dados.json do kit para um <c>.rpmvni</c> novo (nunca sobrescreve: se o destino existe, recusa).</summary>
     public static Task<EstadoDisco> ImportarAsync(string dadosJson, string pmvrel, ModeloCarregado modelo) => Task.Run(() =>
     {
         var destino = Path.GetFullPath(pmvrel);

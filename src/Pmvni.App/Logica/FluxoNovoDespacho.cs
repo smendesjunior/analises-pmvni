@@ -6,11 +6,11 @@ namespace Pmvni.App;
 /// editável), conferência (as páginas do PDF gerado na pasta de trabalho) e gravado (na pasta do processo).</summary>
 public enum PassoNovoDespacho { Origem, Conteudo, Conferencia, Gravado }
 
-/// <summary>O arquivo escolhido à mão como relatório base: um <c>.pmvrel</c> (usado como está) ou o <c>dados.json</c> da análise do kit
-/// (importado para um <c>.pmvrel</c> novo antes de usar).</summary>
+/// <summary>O arquivo escolhido à mão como relatório base: um <c>.rpmvni</c> (usado como está) ou o <c>dados.json</c> da análise do kit
+/// (importado para um <c>.rpmvni</c> novo antes de usar).</summary>
 public enum ArquivoBase { Pacote, DadosJson }
 
-/// <summary>O que a página já traz escolhido ao abrir: o processo, o relatório base (<c>.pmvrel</c>) e a pasta da etapa. Null = o usuário escolhe.</summary>
+/// <summary>O que a página já traz escolhido ao abrir: o processo, o relatório base (<c>.rpmvni</c>) e a pasta da etapa. Null = o usuário escolhe.</summary>
 public sealed record OrigemSugerida(Processo? Processo, string? Pacote, EtapaDespacho? Etapa);
 
 /// <summary>Lógica do Novo despacho sem tipos WinUI (compilada também nos testes): a origem sugerida pelo módulo de onde se veio, o motivo de um
@@ -23,23 +23,23 @@ public static class FluxoNovoDespacho
     public const string GravandoAguarde = "O despacho está sendo gravado na pasta do processo; tente de novo quando a gravação terminar.";
 
     public const string SemPmvrel =
-        "Este processo não tem relatório revisado (.pmvrel). Importe a análise da IA em Processos antes de emitir o despacho.";
+        "Este processo não tem relatório revisado (.rpmvni). Importe a análise da IA em Processos antes de emitir o despacho.";
     /// <summary>"Escolher arquivo…" com um arquivo que não é relatório.</summary>
-    public const string ArquivoNaoServe = "Escolha um relatório revisado (.pmvrel) ou o dados.json da análise do kit.";
+    public const string ArquivoNaoServe = "Escolha um relatório revisado (.rpmvni) ou o dados.json da análise do kit.";
 
     /// <summary>O filtro do seletor de "Escolher arquivo…" (as extensões separadas por ";").</summary>
-    public const string FiltroArquivoBase = ".pmvrel;.json";
+    public const string FiltroArquivoBase = ".rpmvni;.pmvrel;.json";
 
     /// <summary>O tipo do arquivo escolhido à mão pela extensão; null = não serve.</summary>
     public static ArquivoBase? TipoDoArquivoBase(string? caminho) =>
         System.IO.Path.GetExtension(caminho ?? "").ToLowerInvariant() switch
         {
-            ".pmvrel" => ArquivoBase.Pacote,
+            ".rpmvni" or ".pmvrel" => ArquivoBase.Pacote, // .pmvrel: formato antigo, mesmo conteúdo
             ".json" => ArquivoBase.DadosJson,
             _ => null,
         };
 
-    /// <summary>A lista da caixa "Relatório base": os <c>.pmvrel</c> da pasta do processo e, depois, os escolhidos à mão que ainda não
+    /// <summary>A lista da caixa "Relatório base": os <c>.rpmvni</c> da pasta do processo e, depois, os escolhidos à mão que ainda não
     /// estão nela (mesmo caminho sem diferença de maiúsculas). Cada um com <c>Escolhido</c> = veio do "Escolher arquivo…".</summary>
     public static IReadOnlyList<(string Caminho, bool Escolhido)> RelatoriosDaLista(IEnumerable<RelatorioEncontrado> daPasta, IEnumerable<string> escolhidos)
     {
@@ -56,7 +56,7 @@ public static class FluxoNovoDespacho
         "O relatório não pôde ser salvo; o despacho usa sempre a versão gravada. Resolva a gravação e tente de novo.";
 
     /// <summary>De Relatórios: o processo cuja pasta contém o pacote aberto, e esse pacote. De Processos ou Despachos: o processo selecionado
-    /// e o <c>.pmvrel</c> mais novo dele. A etapa é <see cref="Etapas.Sugerida"/>. Sem contexto (ou pacote fora de qualquer processo): nada.</summary>
+    /// e o <c>.rpmvni</c> mais novo dele. A etapa é <see cref="Etapas.Sugerida"/>. Sem contexto (ou pacote fora de qualquer processo): nada.</summary>
     public static OrigemSugerida Sugerir(Modulo origem, Processo? selecionado, string? pacoteAberto, IReadOnlyList<Processo> processos,
         Func<Processo, IReadOnlyList<RelatorioEncontrado>> relatorios, DateOnly hoje)
     {
@@ -98,7 +98,7 @@ public static class FluxoNovoDespacho
 
     static string Normalizar(string? pasta) => pasta is null ? "" : Path.GetFullPath(pasta).TrimEnd(Path.DirectorySeparatorChar);
 
-    /// <summary>O <c>.pmvrel</c> alterado por último (empate: pelo nome); null se o processo não tem nenhum.</summary>
+    /// <summary>O <c>.rpmvni</c> alterado por último (empate: pelo nome); null se o processo não tem nenhum.</summary>
     public static string? MaisNovo(IEnumerable<RelatorioEncontrado> relatorios) =>
         relatorios.Where(r => r.Tipo == TipoRelatorio.Pacote).OrderByDescending(r => r.AlteradoUtc)
             .ThenBy(r => r.Caminho, StringComparer.OrdinalIgnoreCase).FirstOrDefault()?.Caminho;

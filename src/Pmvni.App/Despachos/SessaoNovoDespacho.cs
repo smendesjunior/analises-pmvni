@@ -12,7 +12,7 @@ namespace Pmvni.App;
 /// <see cref="RascunhoDespacho"/> e a <see cref="EmissaoDespacho"/> (preparar na pasta de trabalho <c>&lt;dados&gt;\despachos\&lt;guid&gt;</c>,
 /// gravar na pasta do processo só depois da conferência das páginas) e desenha as páginas do PDF pelo <c>Windows.Data.Pdf</c>. O que é
 /// lento (leitura do pacote, preparo, gravação) roda em <c>Task.Run</c>; a página é atualizada por quem chama (a janela), na thread da
-/// interface. O kit é só lido; o <c>.pmvrel</c> é lido sem trava e nunca alterado.</summary>
+/// interface. O kit é só lido; o <c>.rpmvni</c> é lido sem trava e nunca alterado.</summary>
 internal sealed class SessaoNovoDespacho
 {
     CancellationTokenSource? preparo;
@@ -52,7 +52,7 @@ internal sealed class SessaoNovoDespacho
 
     public IReadOnlyList<Processo> Processos { get; set; } = [];
     public Processo? Processo { get; private set; }
-    /// <summary>Os <c>.pmvrel</c> da pasta do processo (os relatórios base possíveis).</summary>
+    /// <summary>Os <c>.rpmvni</c> da pasta do processo (os relatórios base possíveis).</summary>
     public IReadOnlyList<RelatorioEncontrado> Relatorios { get; private set; } = [];
     /// <summary>Os relatórios escolhidos à mão ("Escolher arquivo…") para este processo: entram na lista depois dos da pasta.</summary>
     public List<string> RelatoriosEscolhidos { get; } = [];
@@ -101,7 +101,7 @@ internal sealed class SessaoNovoDespacho
         Passo = PassoNovoDespacho.Origem;
     }
 
-    /// <summary>Os <c>.pmvrel</c> e as etapas (a nova primeiro) do processo (síncrono, para <c>Task.Run</c>).</summary>
+    /// <summary>Os <c>.rpmvni</c> e as etapas (a nova primeiro) do processo (síncrono, para <c>Task.Run</c>).</summary>
     public static (IReadOnlyList<RelatorioEncontrado> Relatorios, IReadOnlyList<EtapaDespacho> Etapas, EtapaDespacho Sugerida) LerProcesso(Processo p, DateOnly hoje)
     {
         var relatorios = Pmvni.Revisao.Processos.Detalhar(p, CancellationToken.None).Relatorios.Where(r => r.Tipo == TipoRelatorio.Pacote).ToList();

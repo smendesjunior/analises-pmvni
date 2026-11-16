@@ -18,7 +18,7 @@ namespace Pmvni.App;
 
 /// <summary>Shell do app (desenho §5.5, §9, §9.1): barra de título (ícone, "Proc. NNNN/AAAA · Requerente", estado de gravação), faixa de
 /// opções do módulo (por dados: <see cref="Faixas"/>), trilho de módulos (<see cref="Faixas.Disponiveis"/>) e as páginas, criadas uma vez
-/// e trocadas por Visibility. Módulo Relatórios: o pacote <c>.pmvrel</c> (importar, abrir, salvar, salvar como, exportar, fechar) numa
+/// e trocadas por Visibility. Módulo Relatórios: o pacote <c>.rpmvni</c> (importar, abrir, salvar, salvar como, exportar, fechar) numa
 /// <see cref="SessaoEdicao"/> e as folhas A4 na <see cref="PaginaRelatorios"/>. Nada pesado roda na thread da interface: só os awaits
 /// voltam a ela.</summary>
 public sealed partial class MainWindow : Window, ITelaEdicao
@@ -131,29 +131,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         }
     }
 
-    /// <summary>Brasão da Prefeitura na barra de título: a variante de texto escuro no tema claro e a de texto claro no tema escuro
-    /// (recursos embutidos no executável, sem arquivo ao lado).</summary>
-    private void AplicarBrasao()
-    {
-        var nome = Raiz.ActualTheme == ElementTheme.Dark ? "Pmvni.App.brasao-escuro.png" : "Pmvni.App.brasao-claro.png";
-        try
-        {
-            using var recurso = typeof(MainWindow).Assembly.GetManifestResourceStream(nome);
-            if (recurso is null) return;
-            var fluxo = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-            var escrita = System.IO.WindowsRuntimeStreamExtensions.AsStreamForWrite(fluxo);
-            recurso.CopyTo(escrita);
-            escrita.Flush();
-            fluxo.Seek(0);
-            var imagem = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage();
-            imagem.SetSource(fluxo);
-            ImagemBrasao.Source = imagem;
-        }
-        catch (Exception e)
-        {
-            RegistroErros.Gravar("brasao", e);
-        }
-    }
 
     public MainWindow()
     {
@@ -186,8 +163,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         reajuste.IsRepeating = false;
         reajuste.Tick += async (_, _) => { if (modoZoom != "manual" && sessao?.Atual is not null) await TentarAsync(() => AjustarAsync(modoZoom)); };
         R.AreaCentral.SizeChanged += (_, _) => { if (modoZoom != "manual") reajuste.Start(); };
-        Raiz.ActualThemeChanged += (_, _) => { AplicarTemaWeb(); AplicarBrasao(); };
-        AplicarBrasao();
+        Raiz.ActualThemeChanged += (_, _) => AplicarTemaWeb();
         AplicarIconeDaJanela();
 
         RegistrarManipuladores();
@@ -372,9 +348,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             // As análises do Claude que seguiam quando o editor fechou (desenho §12.7). O roteiro chama no passo dele.
             if (args.Roteiro is null) _ = TentarAsync(RetomarExecucoesClaudeAsync);
             if (args.Roteiro is not null) await Roteiro.ExecutarAsync(this, args);
+            else if (args.AnexarLeis is { } pastaLeis && Directory.Exists(pastaLeis))
+            {
+                await MudarModuloAsync(Modulo.Legislacao);
+                await AnexarLegislacaoAsync(Directory.GetFiles(pastaLeis, "*.pdf", SearchOption.AllDirectories).Order(StringComparer.OrdinalIgnoreCase).ToList());
+            }
             else if (args.Dados is { } arquivo)
             {
-                if (string.Equals(Path.GetExtension(arquivo), ".pmvrel", StringComparison.OrdinalIgnoreCase)) await AbrirPacoteAsync(arquivo);
+                if (Path.GetExtension(arquivo).ToLowerInvariant() is ".rpmvni" or ".pmvrel") await AbrirPacoteAsync(arquivo);
                 else await ImportarComSeletorAsync(arquivo);
             }
         }
@@ -413,13 +394,13 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     static Ajustes CarregarAjustes()
     {
-        try { return Ajustes.Carregar(PastaDados.Raiz); }
+        try { return Ajustes.Carregar(PastaDados.Itinerante); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return new Ajustes(); }
     }
 
     void SalvarAjustes()
     {
-        try { ajustes.Salvar(PastaDados.Raiz); }
+        try { ajustes.Salvar(PastaDados.Itinerante); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { System.Diagnostics.Debug.WriteLine("[ajustes] " + e.Message); }
     }
 
@@ -613,7 +594,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     void IniciarEstadoVazio()
     {
         R.TextoVazio.Definir(Modulo.Relatorios, "Nenhum relatório aberto",
-            "Peça um relatório novo à IA, importe o dados.json do kit (Arquivo › Importar) ou abra um relatório (.pmvrel).",
+            "Peça um relatório novo à IA, importe o dados.json do kit (Arquivo › Importar) ou abra um relatório (.rpmvni).",
             ("Novo relatório", Glifos.Adicionar, ComandosApp.RelatoriosNovo), ("Abrir…", ComandosApp.ArquivoAbrir));
         R.TextoVazio.ComandoEscolhido += async id => await ExecutarComandoAsync(id);
         R.TextoVazio.RecenteEscolhido += async caminho => await AbrirRecenteAsync(caminho);
@@ -635,15 +616,15 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (json is not null) await ImportarComSeletorAsync(json);
     }
 
-    /// <summary>Importar um dados.json escolhido (pelo seletor ou na linha de comando): pergunta onde gravar o <c>.pmvrel</c> novo, com
-    /// o nome <c>Relatorio_NNNN_AAAA.pmvrel</c> do processo da capa.</summary>
+    /// <summary>Importar um dados.json escolhido (pelo seletor ou na linha de comando): pergunta onde gravar o <c>.rpmvni</c> novo, com
+    /// o nome <c>Relatorio_NNNN_AAAA.rpmvni</c> do processo da capa.</summary>
     async Task ImportarComSeletorAsync(string json)
     {
         string? processo = null;
         try { processo = DadosRelatorio.DeBytes(await File.ReadAllBytesAsync(json), "").Processo; }
         catch (Exception e) when (e is JsonException or IOException) { /* a importação diz o que há de errado */ }
         var (n, a) = NomesArquivo.DoProcessoDaCapa(processo);
-        var pmvrel = await Perguntas.Atual.SalvarArquivoAsync(NomesArquivo.Importacao(n, a), ".pmvrel");
+        var pmvrel = await Perguntas.Atual.SalvarArquivoAsync(NomesArquivo.Importacao(n, a), ".rpmvni");
         if (pmvrel is null || !DestinoNovo(pmvrel)) return;
         await ImportarParaAsync(json, pmvrel);
     }
@@ -662,8 +643,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         return false;
     }
 
-    /// <summary>Importa o dados.json do kit para o <c>.pmvrel</c> novo <paramref name="pmvrel"/> (recusa se ele existe) e o abre.
-    /// <paramref name="abrir"/> = false: só cria o <c>.pmvrel</c> (vai para os Recentes; o que está aberto não muda).</summary>
+    /// <summary>Importa o dados.json do kit para o <c>.rpmvni</c> novo <paramref name="pmvrel"/> (recusa se ele existe) e o abre.
+    /// <paramref name="abrir"/> = false: só cria o <c>.rpmvni</c> (vai para os Recentes; o que está aberto não muda).</summary>
     internal async Task<bool> ImportarParaAsync(string json, string pmvrel, bool abrir = true)
     {
         if (ocupado || aplicando || documento is null) { AvisarOcupado(); return false; }
@@ -694,7 +675,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     async Task AbrirPeloSeletorAsync()
     {
-        var arquivo = await Perguntas.Atual.AbrirArquivoAsync(".pmvrel");
+        var arquivo = await Perguntas.Atual.AbrirArquivoAsync(".rpmvni;.pmvrel");
         if (arquivo is not null) await AbrirPacoteAsync(arquivo);
     }
 
@@ -797,7 +778,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (sessao is null) return;
         await ConcluirEdicaoAntesAsync(sessao); // o texto digitado no A4 entra na cópia
         if (sessao is null) return;
-        var destino = await Perguntas.Atual.SalvarArquivoAsync(Path.GetFileName(sessao.Caminho), ".pmvrel");
+        var destino = await Perguntas.Atual.SalvarArquivoAsync(Path.GetFileName(sessao.Caminho), ".rpmvni");
         if (destino is null) return;
         if (sessao.RecusaSalvarComo(destino) is { } recusa)
         {

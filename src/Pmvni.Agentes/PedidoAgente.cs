@@ -9,6 +9,11 @@ public static class PedidoAgente
     public const string PrimeiraLinha =
         "Use $analise para analisar o processo PMVNI desta pasta, com as 28 seções, as referências do índice do kit e o relatório oficial em PDF.";
 
+    /// <summary>Como o pedido digitado entra nos dois plugins (2026-11-16): diretriz complementar, que não muda as etapas da análise.</summary>
+    public const string CabecalhoDiretrizes =
+        "Diretrizes do usuário (complementares: execute todas as etapas e seções da análise normalmente; isto só acrescenta pontos a " +
+        "verificar, por exemplo as pendências dos despachos anteriores, e não substitui, não pula nem encurta nenhuma etapa):";
+
     /// <summary>Linhas separadas por "\n", sem "\n" no fim. As linhas de anexos e de pedido só existem quando há conteúdo; o texto vai como foi digitado.</summary>
     public static string Codex(string pastaProcesso, Processo p, IReadOnlyList<ArquivoArquivado> anexos, string? texto)
     {
@@ -31,7 +36,7 @@ public static class PedidoAgente
         }
         if (!string.IsNullOrWhiteSpace(texto))
         {
-            linhas.Add("Pedido do usuário:");
+            linhas.Add(CabecalhoDiretrizes);
             linhas.Add(texto);
         }
         return string.Join("\n", linhas);
