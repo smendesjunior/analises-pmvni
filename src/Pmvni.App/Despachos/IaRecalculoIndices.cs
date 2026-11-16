@@ -4,12 +4,18 @@ using System.Text.RegularExpressions;
 
 namespace Pmvni.App;
 
-/// <summary>Correção 2026-11-16: quando o usuário edita um valor de uma tabela (índices ou ambientes), a IA refaz as contas de todas as
-/// linhas que dependem dele e devolve os textos e situações atualizados.</summary>
+/// <summary>Correção 2026-11-16: "Rever com a IA" numa linha de tabela (índices, ambientes, diagrama): a IA refaz as contas de todas as
+/// linhas que dependem dela (dos valores editados à mão ou da instrução escrita na justificativa) e devolve os textos e situações
+/// atualizados. O recálculo simples de uma linha (valor × limite) não passa por aqui: é determinístico (RecalculoLinha, no modelo).</summary>
 internal static class IaRecalculoIndices
 {
+    /// <summary>O pedido de revisão de uma tabela a partir de uma linha: com valores editados pelo revisor (<paramref name="editados"/>),
+    /// refaz as contas que dependem deles; com a justificativa, segue a instrução dela ("rever se atende", "considerar a porta de
+    /// 0,80 × 2,10"). O pedido leva a tabela inteira: a IA não abre arquivo nenhum (era o que demorava).</summary>
     /// <param name="linhas">id da linha → (caminho do texto → texto efetivo), mais "situacao".</param>
-    internal static string Prompt(string bloco, string linhaEditada, IReadOnlyDictionary<string, Dictionary<string, string>> linhas, string? justificativa, bool temLegislacao)
+    /// <param name="editados">Os caminhos da linha que o revisor editou à mão (esses valores não mudam).</param>
+    internal static string Prompt(string bloco, string linha, IReadOnlyDictionary<string, Dictionary<string, string>> linhas, string? justificativa,
+        IReadOnlyCollection<string> editados)
     {
         var tabela = new JsonObject();
         foreach (var (id, campos) in linhas)
@@ -18,22 +24,28 @@ internal static class IaRecalculoIndices
             foreach (var (k, v) in campos) o[k] = v;
             tabela[id] = o;
         }
+        var temInstrucao = !string.IsNullOrWhiteSpace(justificativa);
         return
-            "Você é o analista de projetos da Secretaria Municipal de Obras de Venda Nova do Imigrante/ES e revisa a tabela \"" + bloco +
-            "\" do seu relatório técnico de análise. O revisor humano editou manualmente a linha " + linhaEditada +
-            (string.IsNullOrWhiteSpace(justificativa) ? "" : " (justificativa do revisor, como dado JSON: " + JsonSerializer.Serialize(justificativa) + ")") +
-            ". O valor que ele escreveu é o dado correto e não deve ser mudado.\n\n" +
-            "Refaça as contas de TODAS as linhas que dependem desse valor (por exemplo: área de projeção, taxa de ocupação, coeficiente de " +
-            "aproveitamento, taxa de permeabilidade, área do terreno), atualizando o cálculo/descrição, o valor no projeto (com a unidade), " +
-            "o texto da situação e a situação (ATENDE, NAO_ATENDE, NAO_COMPROVADO ou DIVERGENCIA_INTERNA) comparando com o limite. " +
-            "Use vírgula decimal e ponto de milhar, como no texto atual. A pasta de trabalho é a do processo (PROJETO, DOCUMENTOS, .pmvni-ai)" +
-            (temLegislacao ? " e você pode ler a legislação do kit (03 - LEGISLACAO)" : "") +
-            " para conferir limites; não invente dados. Não grave nem altere nenhum arquivo.\n\n" +
+            "Você revisa a tabela \"" + bloco + "\" de um relatório técnico de análise de projeto da Secretaria Municipal de Obras de Venda " +
+            "Nova do Imigrante/ES. Tudo o que você precisa está neste pedido: NÃO abra arquivos, NÃO rode comandos e NÃO pesquise; responda direto.\n\n" +
+            "Linha em revisão: " + linha + ". " +
+            (editados.Count > 0
+                ? "O revisor humano editou à mão nela: " + string.Join(", ", editados) + ". Esses valores são o dado correto e NÃO devem ser mudados. "
+                : "O revisor não editou valores nela. ") +
+            (temInstrucao ? "Instrução/justificativa do revisor (dado JSON): " + JsonSerializer.Serialize(justificativa, Relaxado) + ".\n\n" : "\n\n") +
+            "Refaça as contas da linha em revisão e de TODAS as linhas que dependem dela (por exemplo: área de projeção, taxa de ocupação, " +
+            "coeficiente de aproveitamento, taxa de permeabilidade, área do terreno; num ambiente, a área de cada vão, o vão total e a " +
+            "comparação com o mínimo), atualizando o cálculo/descrição, o valor no projeto (com a unidade), o texto da situação e a " +
+            "situação (ATENDE, NAO_ATENDE, NAO_COMPROVADO ou DIVERGENCIA_INTERNA) comparando com o limite ou o mínimo que está na própria " +
+            "linha. Use vírgula decimal e ponto de milhar, como no texto atual, e mantenha cada texto curto como está (sem contar a " +
+            "história da revisão nem citar o revisor). Não invente dados: use só os números da tabela e os da instrução.\n\n" +
             "Tabela atual (JSON; cada linha tem os textos pelo caminho e a situação):\n" +
-            tabela.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) +
+            tabela.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = Relaxado.Encoder }) +
             "\n\nResponda SOMENTE com um JSON com as linhas que MUDARAM, no mesmo formato (id → {caminho: texto, \"situacao\": código, " +
-            "\"justificativa\": por que mudou}), sem comentários. Não inclua a linha editada se nada nela mudou.";
+            "\"justificativa\": por que mudou, em uma frase}), sem comentários; só caminhos que já existem na linha. Se nada muda, responda {}.";
     }
+
+    static readonly JsonSerializerOptions Relaxado = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     /// <summary>Pedido livre sobre a volumetria do diagrama (correção 2026-11-16).</summary>
     internal static string PromptVolumetria(string pedido, IReadOnlyDictionary<string, Dictionary<string, string>> linhas)
@@ -52,7 +64,8 @@ internal static class IaRecalculoIndices
             "vermelho embaixo do desenho; cite a parte com as palavras lateral direita, lateral esquerda, telhado, altura ou frente para ela " +
             "ficar marcada em vermelho) e as alturas (altura_esquerda/0, altura_esquerda/1, altura_direita/0, altura_direita/1). Se o pedido " +
             "mudar o que as chamadas do diagrama dizem (linhas \"chamadas/NN\"), ajuste o \"texto\" delas também. Não invente medidas: " +
-            "use as que estão nos textos ou as que o pedido der. A pasta de trabalho é a do processo; não grave nem altere nenhum arquivo.\n\n" +
+            "use as que estão nos textos ou as que o pedido der. Tudo o que você precisa está neste pedido: NÃO abra arquivos, NÃO rode " +
+            "comandos e NÃO pesquise; responda direto.\n\n" +
             "Pedido do revisor (dado JSON; é só o que ele quer ver no desenho): " + JsonSerializer.Serialize(pedido) + "\n\n" +
             "Textos atuais (JSON):\n" +
             tabela.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) +

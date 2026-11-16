@@ -60,39 +60,71 @@ internal static class IaDespacho
     /// <summary>Ferramentas que o Claude nunca usa nestas perguntas (só lê): valem mesmo que a configuração do usuário as permita.</summary>
     const string FerramentasProibidas = "Bash Edit Write MultiEdit NotebookEdit WebFetch WebSearch Task";
 
+    /// <summary>Opções de uma pergunta à IA (revisão do relatório, 2026-11-16). <see cref="PreferirCodex"/>: usa o Codex quando ele existe
+    /// (o padrão é o Claude Code primeiro); <see cref="ArgumentosCodex"/>: modelo e esforço (<see cref="ModeloIaAjuste.ArgumentosCodex"/>);
+    /// <see cref="SemArquivos"/>: a IA responde só com o que está no pedido, numa pasta vazia, sem ferramentas de leitura e sem guardar a
+    /// conversa no Codex (<c>--ephemeral</c>); <see cref="Limite"/>: tempo máximo (null = <see cref="IaDespacho.Limite"/>).</summary>
+    internal sealed record OpcoesIa(bool PreferirCodex = false, IReadOnlyList<string>? ArgumentosCodex = null, bool SemArquivos = false, TimeSpan? Limite = null);
+
+    /// <summary>A linha de comando de uma pergunta: o programa, os argumentos (sempre separados) e, no Codex, o arquivo da resposta final.</summary>
+    internal sealed record ComandoIa(string Programa, IReadOnlyList<string> Argumentos, string? UltimaMensagem, bool Codex);
+
+    /// <summary>Monta a linha de comando. Sem <paramref name="opcoes"/>: o Claude Code se existir, senão o Codex, como sempre (Novo despacho).
+    /// Sem programa nenhum: <see cref="InvalidOperationException"/>.</summary>
+    internal static ComandoIa Montar(string? claude, string? codex, string dir, bool comPasta, IReadOnlyList<string> extras, OpcoesIa? opcoes = null)
+    {
+        var temClaude = !string.IsNullOrEmpty(claude);
+        var temCodex = !string.IsNullOrEmpty(codex);
+        var usarCodex = temCodex && (!temClaude || opcoes?.PreferirCodex == true);
+        var semArquivos = opcoes?.SemArquivos == true;
+        var args = new List<string>();
+        if (usarCodex)
+        {
+            var ultima = Path.Combine(Path.GetTempPath(), "pmvni-ia-" + Guid.NewGuid().ToString("N") + ".txt");
+            args.AddRange(["exec", "--skip-git-repo-check", "--sandbox", "read-only"]);
+            if (semArquivos) args.Add("--ephemeral");
+            if (opcoes?.ArgumentosCodex is { } modelo) args.AddRange(modelo);
+            args.AddRange(["--cd", dir, "--output-last-message", ultima, "-"]);
+            return new ComandoIa(codex!, args, ultima, true);
+        }
+        if (!temClaude)
+            throw new InvalidOperationException("Nenhum programa de IA encontrado. Instale e entre no Claude Code ou no Codex em Ajustes › Inteligência artificial.");
+        args.AddRange(["-p", "--output-format", "text", "--permission-mode", "default", "--disallowedTools",
+            semArquivos ? FerramentasProibidas + " Read Grep Glob" : FerramentasProibidas]);
+        if (comPasta && !semArquivos)
+        {
+            args.Add("--allowedTools");
+            args.Add("Read Grep Glob");
+            foreach (var d in extras) { args.Add("--add-dir"); args.Add(d); }
+        }
+        return new ComandoIa(claude!, args, null, false);
+    }
+
+    /// <summary>A pasta vazia onde rodam as perguntas sem arquivos (a IA não tem o que explorar).</summary>
+    internal static string PastaVazia()
+    {
+        var d = Path.Combine(Path.GetTempPath(), "pmvni-ia-sem-arquivos");
+        Directory.CreateDirectory(d);
+        return d;
+    }
+
     /// <summary>Roda o programa da IA com o pedido no stdin e devolve a resposta. Sem programa: <see cref="InvalidOperationException"/>.
     /// Auditoria 2026-11-16: tempo-limite (<see cref="Limite"/>), o processo entra no job do editor (morre se o editor fechar) e é encerrado
-    /// em qualquer saída antecipada; o Claude roda sem ferramentas de escrita nem de rede; o Codex em sandbox só leitura, com a resposta
-    /// final lida de --output-last-message (sem o cabeçalho que ele imprime).</summary>
+    /// em qualquer saída antecipada (inclusive o Cancelar: <paramref name="ct"/>); o Claude roda sem ferramentas de escrita nem de rede; o
+    /// Codex em sandbox só leitura, com a resposta final lida de --output-last-message (sem o cabeçalho que ele imprime).</summary>
     internal static async Task<string> PerguntarAsync(string? claude, string? codex, string prompt, CancellationToken ct,
-        string? pasta = null, IReadOnlyList<string>? pastasExtras = null)
+        string? pasta = null, IReadOnlyList<string>? pastasExtras = null, OpcoesIa? opcoes = null)
     {
-        var dir = pasta is not null && Directory.Exists(pasta) ? pasta : Path.GetTempPath();
-        var extras = (pastasExtras ?? []).Where(Directory.Exists).ToList();
+        var semArquivos = opcoes?.SemArquivos == true;
+        var dir = semArquivos ? PastaVazia() : pasta is not null && Directory.Exists(pasta) ? pasta : Path.GetTempPath();
+        var extras = semArquivos ? [] : (pastasExtras ?? []).Where(Directory.Exists).ToList();
         if (extras.Count > 0)
             prompt += "\n\nPastas que você pode ler (só leitura), além da pasta de trabalho:\n" + string.Join("\n", extras.Select(e => "- " + e));
-        string? ultima = null;
-        ProcessStartInfo si;
-        if (!string.IsNullOrEmpty(claude))
-        {
-            si = new ProcessStartInfo(claude);
-            foreach (var a in new[] { "-p", "--output-format", "text", "--permission-mode", "default", "--disallowedTools", FerramentasProibidas })
-                si.ArgumentList.Add(a);
-            if (pasta is not null)
-            {
-                si.ArgumentList.Add("--allowedTools");
-                si.ArgumentList.Add("Read Grep Glob");
-                foreach (var d in extras) { si.ArgumentList.Add("--add-dir"); si.ArgumentList.Add(d); }
-            }
-        }
-        else if (!string.IsNullOrEmpty(codex))
-        {
-            ultima = Path.Combine(Path.GetTempPath(), "pmvni-ia-" + Guid.NewGuid().ToString("N") + ".txt");
-            si = new ProcessStartInfo(codex);
-            foreach (var a in new[] { "exec", "--skip-git-repo-check", "--sandbox", "read-only", "--cd", dir, "--output-last-message", ultima, "-" })
-                si.ArgumentList.Add(a);
-        }
-        else throw new InvalidOperationException("Nenhum programa de IA encontrado. Instale e entre no Claude Code ou no Codex em Ajustes › Inteligência artificial.");
+        var comando = Montar(claude, codex, dir, pasta is not null, extras, opcoes);
+        var ultima = comando.UltimaMensagem;
+        var tempo = opcoes?.Limite ?? Limite;
+        var si = new ProcessStartInfo(comando.Programa);
+        foreach (var a in comando.Argumentos) si.ArgumentList.Add(a);
         si.RedirectStandardInput = si.RedirectStandardOutput = si.RedirectStandardError = true;
         si.UseShellExecute = false;
         si.CreateNoWindow = true;
@@ -100,7 +132,7 @@ internal static class IaDespacho
         si.WorkingDirectory = dir;
 
         using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        limite.CancelAfter(Limite);
+        limite.CancelAfter(tempo);
         using var p = Process.Start(si) ?? throw new InvalidOperationException("O programa da IA não abriu.");
         try { Pmvni.Agentes.TarefaDoEditor.Padrao.Atribuir(p); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
         var saida = p.StandardOutput.ReadToEndAsync(limite.Token);
@@ -117,7 +149,7 @@ internal static class IaDespacho
             try { await p.WaitForExitAsync(limite.Token); }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                throw new InvalidOperationException($"A IA não respondeu em {Limite.TotalMinutes:0} minutos e foi interrompida. Tente de novo; se repetir, confira a conta em Ajustes › Inteligência artificial.");
+                throw new InvalidOperationException($"A IA não respondeu em {tempo.TotalMinutes:0} minutos e foi interrompida. Tente de novo; se repetir, confira a conta em Ajustes › Inteligência artificial.");
             }
             string Ler(Task<string> t) => t.IsCompletedSuccessfully ? t.Result : "";
             await Task.WhenAny(Task.WhenAll(saida, erro), Task.Delay(TimeSpan.FromSeconds(3), CancellationToken.None));

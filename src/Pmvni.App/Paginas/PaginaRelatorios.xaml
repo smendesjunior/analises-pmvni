@@ -198,20 +198,29 @@
             <StackPanel Spacing="4">
               <TextBlock Text="Justificativa" Style="{StaticResource BodyStrongTextBlockStyle}"/>
               <TextBox x:Name="PropJustificativa" x:FieldModifier="internal" TextWrapping="Wrap" AcceptsReturn="False" MinHeight="56"
-                       PlaceholderText="Por que a situação mudou (Enter aplica)" AutomationProperties.Name="Justificativa"/>
+                       PlaceholderText="Por que a situação mudou, ou o que rever no item (Enter aplica)" AutomationProperties.Name="Justificativa"/>
               <TextBlock x:Name="PropJustificativaAviso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
                          Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed"
                          Text="A situação mudou: a justificativa é exigida para exportar."/>
-              <!-- Correção 2026-11-16: a IA revê a própria conclusão e reescreve o item conforme a situação e a justificativa do usuário. -->
+              <!-- Correções 2026-11-16: a IA reajusta o item inteiro a partir da justificativa (com ou sem mudança de situação), pelo
+                   Codex com o modelo de Ajustes › Inteligência artificial. Enquanto espera: anel, tempo e Cancelar. -->
+              <TextBlock x:Name="PropAjustarAviso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
+                         Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed"/>
               <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
                 <Button x:Name="PropAjustarTexto" x:FieldModifier="internal" Visibility="Collapsed"
-                        local:Dicas.Descricao="A IA relê o projeto e a legislação e reescreve o item conforme a situação escolhida e a justificativa. Dá para desfazer.">
+                        local:Dicas.Descricao="A IA reajusta o item inteiro (verificação, providência, base legal, referência e, se a justificativa pedir, a situação), com o texto curto como o original. Um Desfazer volta tudo.">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <FontIcon Glyph="&#xE945;" FontSize="14"/>
-                    <TextBlock x:Name="PropAjustarRotulo" x:FieldModifier="internal" Text="Ajustar texto com a IA"/>
+                    <TextBlock x:Name="PropAjustarRotulo" x:FieldModifier="internal" Text="Ajustar o item com a IA"/>
                   </StackPanel>
                 </Button>
-                <ProgressRing x:Name="PropAjustarAnel" x:FieldModifier="internal" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
+                <Button x:Name="PropAjustarCancelar" x:FieldModifier="internal" Content="Cancelar" Visibility="Collapsed"
+                        AutomationProperties.Name="Cancelar a consulta à IA"
+                        local:Dicas.Descricao="Interrompe a consulta à IA; nada muda no relatório."/>
+              </StackPanel>
+              <StackPanel x:Name="PropAjustarProgresso" x:FieldModifier="internal" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                <ProgressRing x:Name="PropAjustarAnel" x:FieldModifier="internal" IsActive="False" Width="16" Height="16"/>
+                <TextBlock x:Name="PropAjustarEstado" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
               </StackPanel>
             </StackPanel>
             <StackPanel x:Name="PropCampos" x:FieldModifier="internal" Spacing="10"/>

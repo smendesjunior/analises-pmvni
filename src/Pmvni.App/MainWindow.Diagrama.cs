@@ -68,7 +68,7 @@ public sealed partial class MainWindow
     internal async Task<bool> AjustarVolumetriaComIaAsync(string pedido)
     {
         if (ajustandoComIa || sessao is not { Revisao.Projeto: { } p } s) return false;
-        ajustandoComIa = true;
+        IniciarEsperaIa();
         var ok = true;
         try
         {
@@ -81,12 +81,9 @@ public sealed partial class MainWindow
             d["situacao"] = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(p, id)) ?? "";
             linhas[id] = d;
         }
-        var pastaProcesso = RecortePrancha.PastaDoProcesso(s.Caminho);
         try
         {
-            var pecas = await LerPecasAsync();
-            var saida = await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, IaRecalculoIndices.PromptVolumetria(pedido, linhas),
-                CancellationToken.None, pastaProcesso, []);
+            var saida = await PerguntarNaRevisaoAsync(IaRecalculoIndices.PromptVolumetria(pedido, linhas));
             if (!ReferenceEquals(sessao, s)) return false;
             if (IaRecalculoIndices.Ler(saida, linhas.Keys) is not { } novas)
             {
@@ -111,13 +108,11 @@ public sealed partial class MainWindow
         }
         catch (Exception e)
         {
-            // Auditoria 2026-11-16: nenhum erro da IA (JSON, tempo, rede, processo) derruba o editor; o detalhe vai para o registro.
-            RegistroErros.Gravar("ia", e);
             ok = false;
-            MostrarMensagem(InfoBarSeverity.Error, "IA", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + e.Message);
+            MostrarErroDaIa(e);
         }
         return ok;
         }
-        finally { ajustandoComIa = false; }
+        finally { TerminarEsperaIa(); }
     }
 }

@@ -131,6 +131,11 @@ public sealed class Ajustes
         set => pedidoPadrao = value is null ? "" : value.Length > MaxPedidoPadrao ? value[..MaxPedidoPadrao] : value;
     }
     public bool ConfirmarCancelar { get; set; } = true;
+    /// <summary>Ajustes › Inteligência artificial › Revisão do relatório: o modelo do Codex nas perguntas curtas da revisão
+    /// ("Ajustar o item com a IA", "Rever a tabela com a IA", volumetria). Padrão: Terra 6.1 (<see cref="ModeloIaAjuste.ModeloPadrao"/>).</summary>
+    public string IaAjusteModelo { get; set; } = ModeloIaAjuste.ModeloPadrao;
+    /// <summary>O esforço de raciocínio dessas perguntas. Padrão: baixo (<see cref="ModeloIaAjuste.EsforcoPadrao"/>).</summary>
+    public string IaAjusteEsforco { get; set; } = ModeloIaAjuste.EsforcoPadrao;
     public bool ConfirmarFechar { get; set; } = true;
     /// <summary>Ajustes › Sobre e suporte › Atualizações: procurar e instalar versões novas sozinho (a cada 15 min, pelo GitHub).</summary>
     public bool AtualizarAutomaticamente { get; set; } = true;
@@ -173,6 +178,8 @@ public sealed class Ajustes
         LegislacaoEscopo = p.LegislacaoEscopo;
         PedidoPadrao = "";
         ConfirmarCancelar = p.ConfirmarCancelar;
+        IaAjusteModelo = p.IaAjusteModelo;
+        IaAjusteEsforco = p.IaAjusteEsforco;
         ConfirmarFechar = p.ConfirmarFechar;
         AtualizarAutomaticamente = p.AtualizarAutomaticamente;
     }
@@ -313,6 +320,8 @@ public sealed class Ajustes
             ["legislacao_escopo"] = LegislacaoEscopo,
             ["pedido_padrao"] = PedidoPadrao,
             ["confirmar_cancelar"] = ConfirmarCancelar,
+            ["ia_ajuste_modelo"] = IaAjusteModelo,
+            ["ia_ajuste_esforco"] = IaAjusteEsforco,
             ["confirmar_fechar"] = ConfirmarFechar,
             ["atualizar_automaticamente"] = AtualizarAutomaticamente,
         };
@@ -354,6 +363,8 @@ public sealed class Ajustes
         a.LegislacaoEscopo = Escolha("legislacao_escopo", OpcoesLegislacaoEscopo, a.LegislacaoEscopo);
         a.PedidoPadrao = Texto(j, "pedido_padrao") ?? "";
         a.ConfirmarCancelar = Logico(j, "confirmar_cancelar", a.ConfirmarCancelar);
+        a.IaAjusteModelo = Escolha("ia_ajuste_modelo", ModeloIaAjuste.Modelos.Select(m => m.Valor).ToList(), a.IaAjusteModelo);
+        a.IaAjusteEsforco = Escolha("ia_ajuste_esforco", ModeloIaAjuste.Esforcos.Select(e => e.Valor).ToList(), a.IaAjusteEsforco);
         a.ConfirmarFechar = Logico(j, "confirmar_fechar", a.ConfirmarFechar);
         a.AtualizarAutomaticamente = Logico(j, "atualizar_automaticamente", a.AtualizarAutomaticamente);
     }

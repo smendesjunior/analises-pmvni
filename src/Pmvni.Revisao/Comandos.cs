@@ -28,6 +28,12 @@ public sealed record Restaurar(string Item) : Comando(Item);
 /// <summary>Descarta todas as revisões de texto e de situação do item (a inclusão e a justificativa digitada ficam).</summary>
 public sealed record RestaurarItemOriginal(string Item) : Comando(Item);
 
+/// <summary>Vários comandos aplicados de uma vez, como UMA alteração: um registro no histórico e um passo do Desfazer (correções
+/// 2026-11-16: o ajuste do item pela IA, o recálculo de uma linha de tabela depois de editar o valor). <see cref="Item"/> é o item ou a
+/// linha a que o lote pertence (o histórico dele); <see cref="Descricao"/> é o texto do registro ("Recalculado: …"). Os comandos são
+/// aplicados na ordem, cada um sobre o resultado do anterior; um recusado recusa o lote inteiro; os que não mudam nada ficam de fora.</summary>
+public sealed record Lote(string Item, IReadOnlyList<Comando> Comandos, string Descricao) : Comando(Item);
+
 /// <summary>O comando foi recusado (o texto é a mensagem para o usuário); o projeto não mudou e nada foi registrado.</summary>
 public sealed class ComandoRecusadoException(string mensagem) : Exception(mensagem);
 
@@ -47,6 +53,7 @@ internal static class Motor
     {
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(c);
+        if (c is Lote lote) return CalcularLote(p, lote);
         if (TabelasRevisao.EhLinha(c.Item)) return MotorLinhas.Calcular(p, c); // linha de tabela (Linhas.cs)
         if (c is ComandoFigura cf) return MotorFiguras.Calcular(p, cf);
         var it = p.Item(c.Item) ?? throw new ComandoRecusadoException("O item não existe no relatório.");
@@ -66,6 +73,7 @@ internal static class Motor
     /// <summary>Põe <paramref name="valor"/> (o "depois" de um registro) no item. <see cref="InvalidOperationException"/> se o item não existe.</summary>
     public static void Definir(Projeto p, string tipo, string item, string? campo, JsonNode? valor)
     {
+        if (tipo == nameof(Lote)) { DefinirLote(p, valor); return; }
         if (TabelasRevisao.EhLinha(item)) { MotorLinhas.Definir(p, tipo, item, campo, valor); return; } // linha de tabela (Linhas.cs)
         if (MotorFiguras.EhTipo(tipo)) { MotorFiguras.Definir(p, valor); return; }
         var it = p.Item(item) ?? throw new InvalidOperationException("O registro cita um item que não existe: " + item);
@@ -97,6 +105,43 @@ internal static class Motor
                 throw new InvalidOperationException("Tipo de registro desconhecido: " + tipo);
         }
     }
+
+    // ---------- lote ----------
+
+    /// <summary>O efeito do lote: <c>Antes</c>/<c>Depois</c> = <c>{descricao, passos[{tipo, item, campo, valor}]}</c>; os passos do
+    /// <c>Antes</c> ficam na ordem inversa (desfazer é aplicá-los como estão). Calculado numa cópia: o projeto não muda.</summary>
+    private static Efeito? CalcularLote(Projeto p, Lote l)
+    {
+        if (l.Comandos.Any(c => c is Lote)) throw new ComandoRecusadoException("Um lote não pode conter outro lote.");
+        var copia = p.Clonar();
+        var efeitos = new List<Efeito>();
+        foreach (var c in l.Comandos)
+        {
+            if (Calcular(copia, c) is not { } ef) continue;
+            Definir(copia, ef.Tipo, ef.Item, ef.Campo, ef.Depois);
+            efeitos.Add(ef);
+        }
+        if (efeitos.Count == 0) return null;
+        static JsonNode Passo(Efeito e, JsonNode? valor) =>
+            new JsonObject { ["tipo"] = e.Tipo, ["item"] = e.Item, ["campo"] = e.Campo, ["valor"] = valor?.DeepClone() };
+        var antes = new JsonObject { ["descricao"] = l.Descricao, ["passos"] = new JsonArray(Enumerable.Reverse(efeitos).Select(e => (JsonNode?)Passo(e, e.Antes)).ToArray()) };
+        var depois = new JsonObject { ["descricao"] = l.Descricao, ["passos"] = new JsonArray(efeitos.Select(e => (JsonNode?)Passo(e, e.Depois)).ToArray()) };
+        return new Efeito(nameof(Lote), l.Item, null, antes, depois);
+    }
+
+    private static void DefinirLote(Projeto p, JsonNode? valor)
+    {
+        if (valor?["passos"] is not JsonArray passos) throw new InvalidOperationException("O registro do lote não tem os passos.");
+        foreach (var n in passos)
+        {
+            var o = n as JsonObject ?? throw new InvalidOperationException("Passo inválido no registro do lote.");
+            Definir(p, o["tipo"]!.GetValue<string>(), o["item"]!.GetValue<string>(), o["campo"]?.GetValue<string>(), o["valor"]);
+        }
+    }
+
+    /// <summary>Quantos passos tem o registro de um lote e a descrição dele (para o histórico).</summary>
+    internal static (string Descricao, int Passos) ResumoDoLote(JsonNode? valor) =>
+        (valor?["descricao"] is JsonValue v && v.TryGetValue<string>(out var d) ? d : "", (valor?["passos"] as JsonArray)?.Count ?? 0);
 
     // ---------- situação e justificativa ----------
 
