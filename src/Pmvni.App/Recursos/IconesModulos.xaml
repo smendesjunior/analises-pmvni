@@ -36,6 +36,7 @@
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="#0F5132"/>
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#C3E6CF"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#B2DDC1"/>
+      <SolidColorBrush x:Key="PmvniTonalBorda" Color="#8FCDA6"/>
       <!-- Brilho dos botões coloridos (Controles\Brilho.cs): o verde institucional (SystemAccentColor no claro, Light2 no escuro). -->
       <SolidColorBrush x:Key="PmvniBrilho" Color="#1E7A46"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="#DCE6FB"/>
@@ -47,8 +48,8 @@
       <SolidColorBrush x:Key="PmvniEsferaMunicipalFundo" Color="#FBE8D3"/>
       <SolidColorBrush x:Key="PmvniEsferaMunicipalTexto" Color="#7C3A0E"/>
       <SolidColorBrush x:Key="PmvniEsferaMunicipalBorda" Color="#C8601F"/>
-      <SolidColorBrush x:Key="PmvniSeloTipoFundo" Color="#DCE8F7"/>
-      <SolidColorBrush x:Key="PmvniSeloTipoTexto" Color="#1A5A94"/>
+      <SolidColorBrush x:Key="PmvniSeloTipoFundo" Color="#D4EEDD"/>
+      <SolidColorBrush x:Key="PmvniSeloTipoTexto" Color="#0F5132"/>
       <SolidColorBrush x:Key="PmvniIconeLei" Color="#2470B3"/>
       <SolidColorBrush x:Key="PmvniFavorito" Color="#C98A00"/>
       <!-- Reserva vetorial dos sistemas da Prefeitura (o ícone de verdade é o PNG em Recursos\Modulos). -->
@@ -123,6 +124,7 @@
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="#CFEBD9"/>
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#275E3F"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#2F6E4B"/>
+      <SolidColorBrush x:Key="PmvniTonalBorda" Color="#3F8A61"/>
       <SolidColorBrush x:Key="PmvniBrilho" Color="#5CB983"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="#28326E"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalTexto" Color="#DCE3FF"/>
@@ -133,8 +135,8 @@
       <SolidColorBrush x:Key="PmvniEsferaMunicipalFundo" Color="#5A3414"/>
       <SolidColorBrush x:Key="PmvniEsferaMunicipalTexto" Color="#FFE0C2"/>
       <SolidColorBrush x:Key="PmvniEsferaMunicipalBorda" Color="#E08A45"/>
-      <SolidColorBrush x:Key="PmvniSeloTipoFundo" Color="#1E4E86"/>
-      <SolidColorBrush x:Key="PmvniSeloTipoTexto" Color="#DCEBFF"/>
+      <SolidColorBrush x:Key="PmvniSeloTipoFundo" Color="#1F4D33"/>
+      <SolidColorBrush x:Key="PmvniSeloTipoTexto" Color="#CFEBD9"/>
       <SolidColorBrush x:Key="PmvniIconeLei" Color="#6CA8EC"/>
       <SolidColorBrush x:Key="PmvniFavorito" Color="#F2C43D"/>
       <!-- Reserva vetorial dos sistemas da Prefeitura (o ícone de verdade é o PNG em Recursos\Modulos). -->
@@ -211,6 +213,7 @@
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="{ThemeResource SystemColorButtonTextColor}"/>
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="{ThemeResource SystemColorHighlightColor}"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="{ThemeResource SystemColorHighlightColor}"/>
+      <SolidColorBrush x:Key="PmvniTonalBorda" Color="{ThemeResource SystemColorButtonTextColor}"/>
       <!-- No alto contraste não há brilho (o Brilho também se desliga sozinho). -->
       <SolidColorBrush x:Key="PmvniBrilho" Color="Transparent"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="{ThemeResource SystemColorButtonFaceColor}"/>

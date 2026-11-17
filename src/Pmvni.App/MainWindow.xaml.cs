@@ -145,6 +145,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // ciclo de layout e o editor fechava ao trocar de monitor.
         Raiz.SizeChanged += (_, e) => { var l = e.NewSize.Width; DispatcherQueue.TryEnqueue(() => { if (!fechada) AplicarLargura(l); }); };
         CabecalhoEsquerdo.SizeChanged += (_, _) => DispatcherQueue.TryEnqueue(() => { if (!fechada) AjustarPesquisa(Raiz.ActualWidth); }); // processo aberto/fechado muda o espaço da pesquisa
+        // Os grupos aparecem e somem conforme o módulo: o espaço da caixa é refeito (senão "Próxima" ficava cortado na borda).
+        GrupoOcorrencias.SizeChanged += (_, _) => DispatcherQueue.TryEnqueue(() => { if (!fechada) AjustarPesquisa(Raiz.ActualWidth); });
+        GrupoHistorico.SizeChanged += (_, _) => DispatcherQueue.TryEnqueue(() => { if (!fechada) AjustarPesquisa(Raiz.ActualWidth); });
         // O resultado da pesquisa só ocupa lugar quando tem texto: vazio, deixava o espaço entre a caixa e Anterior/Próximo maior que o
         // do outro lado (2026-11-16).
         TextoPesquisa.RegisterPropertyChangedCallback(TextBlock.TextProperty, (_, _) =>
@@ -304,9 +307,18 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (largura <= 0) return;
         double Largura(FrameworkElement e) => e.Visibility == Visibility.Visible ? e.ActualWidth + e.Margin.Left + e.Margin.Right : 0;
         var ocupado = Largura(CabecalhoEsquerdo) + Largura(BotaoAnalise) + Largura(GrupoHistorico) + Largura(TextoPesquisa) + Largura(GrupoOcorrencias);
-        const double botoesDaJanelaEFolgas = 310; // minimizar, maximizar, fechar (área reservada pela TitleBar, ~255 px medidos), espaçamentos e arrasto
+        const double botoesDaJanelaEFolgas = 340; // minimizar, maximizar, fechar (área reservada pela TitleBar, ~255 px medidos), espaçamentos e arrasto
+        var sobra = largura - ocupado - botoesDaJanelaEFolgas;
+        // Sem espaço para a caixa (2026-11-17: "Próxima" cortado na borda): primeiro os rótulos de Desfazer/Refazer/Anterior/Próxima saem
+        // (ficam os ícones, com a dica e o nome para o Narrador); a caixa ganha o espaço deles.
+        if (sobra < 220 && RotuloProximo.Visibility == Visibility.Visible)
+        {
+            var rotulos = new FrameworkElement[] { RotuloDesfazer, RotuloRefazer, RotuloAnterior, RotuloProximo };
+            sobra += rotulos.Where(r => r.Visibility == Visibility.Visible).Sum(r => r.ActualWidth + 6);
+            foreach (var r in rotulos) r.Visibility = Visibility.Collapsed;
+        }
         // Só muda com diferença visível: larguras que oscilam frações de pixel entre monitores não refazem o layout sem parar.
-        var nova = Math.Round(Math.Clamp(largura - ocupado - botoesDaJanelaEFolgas, 140, 640));
+        var nova = Math.Round(Math.Clamp(sobra, 140, 640));
         if (Math.Abs(CaixaPesquisa.Width - nova) >= 1) CaixaPesquisa.Width = nova;
     }
 

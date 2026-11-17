@@ -194,8 +194,9 @@
   <Style x:Key="PmvniBotaoTonalStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
     <Setter Property="Background" Value="{ThemeResource PmvniTonalFundo}"/>
     <Setter Property="Foreground" Value="{ThemeResource PmvniTonalTexto}"/>
-    <Setter Property="BorderBrush" Value="Transparent"/>
-    <Setter Property="BorderThickness" Value="0"/>
+    <!-- Borda fina verde-clara em todos os botões que brilham (2026-11-17, "padronizar com a borda em volta"). -->
+    <Setter Property="BorderBrush" Value="{ThemeResource PmvniTonalBorda}"/>
+    <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="MinHeight" Value="36"/>
     <Setter Property="Padding" Value="14,0,16,0"/>
     <Setter Property="CornerRadius" Value="8"/>
