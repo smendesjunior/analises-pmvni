@@ -420,7 +420,12 @@ public sealed partial class MainWindow
         automatico = true;
         try
         {
+            // O despacho que já estava em edição só é trocado se o usuário aceitou descartá-lo (SairDoNovoDespachoAsync): com
+            // "Continuar editando" (ou durante a gravação) a página não abriu uma sessão nova, e a correção automática não pode seguir
+            // gerando e indo para a conferência em cima do rascunho antigo.
+            var antes = novo;
             await AbrirNovoDespachoAsync(TipoDespacho.Correcao);
+            if (novo is null || ReferenceEquals(novo, antes)) return false;
             return await ConcluirAutomaticoAsync();
         }
         finally { automatico = false; }
