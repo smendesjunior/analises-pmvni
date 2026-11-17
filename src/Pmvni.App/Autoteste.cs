@@ -19,7 +19,7 @@ internal static class Autoteste
 
     /// <summary>Grava o resultado da primeira navegação. O bloco "legislacao" confere o PDF.js embutido (versão, arquivos, bytes e
     /// sha256 de cada arquivo contra o VERSAO.json); "ok" exige o sha conferido.</summary>
-    public static void GravarSucesso(string versaoWebView2)
+    public static void GravarSucesso(string versaoWebView2, Dictionary<string, object?>? janelas = null, Dictionary<string, object?>? brilho = null)
     {
         var shaOk = RecursosLegislacao.ConferirPdfJs(out var divergentes);
         var legislacao = new Dictionary<string, object?>
@@ -30,15 +30,22 @@ internal static class Autoteste
             ["sha_ok"] = shaOk,
         };
         if (!shaOk) legislacao["divergentes"] = divergentes.Take(20).ToArray();
+        // 1.0.0: as janelas dos sites (window.open, opener, document.write, window.close) também precisam passar.
+        var janelasOk = janelas is null || janelas.TryGetValue("ok", out var j) && j is true;
+        var brilhoOk = brilho is null || brilho.TryGetValue("ok", out var b) && b is true;
         var dados = new Dictionary<string, object?>
         {
-            ["ok"] = shaOk,
+            ["ok"] = shaOk && janelasOk && brilhoOk,
             ["webview2"] = versaoWebView2,
             ["baseDir"] = AppContext.BaseDirectory,
             ["elevado"] = Elevado(),
             ["legislacao"] = legislacao,
         };
+        if (janelas is not null) dados["janelas_dos_sites"] = janelas;
+        if (brilho is not null) dados["brilho_trabalhando"] = brilho;
         if (!shaOk) dados["erro"] = "O PDF.js embutido não confere com o VERSAO.json: " + string.Join(", ", divergentes.Take(5));
+        else if (!janelasOk) dados["erro"] = "As janelas dos sites não passaram no autoteste: " + (janelas!.TryGetValue("erro", out var e) ? e : "veja janelas_dos_sites");
+        else if (!brilhoOk) dados["erro"] = "O brilho \"trabalhando\" não passou no autoteste: " + (brilho!.TryGetValue("erro", out var e2) ? e2 : "veja brilho_trabalhando");
         Gravar(dados);
     }
 

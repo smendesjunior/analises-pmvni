@@ -67,10 +67,16 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal string TextoRequerenteCabecalho => TextoRequerente.Text;
     internal bool ProcessoEmNegrito => TextoProcesso.FontWeight.Weight > TextoRequerente.FontWeight.Weight && TextoProcesso.FontSize > TextoRequerente.FontSize;
     internal string TextoSeloGravacao => SeloGravacao.Visibility == Visibility.Visible ? TextoGravacao.Text : "";
-    /// <summary>Os rótulos sempre à vista de Desfazer, Refazer, Anterior e Próximo, na ordem.</summary>
+    /// <summary>Os nomes de Desfazer, Refazer, Anterior e Próxima, na ordem (1.0.0: Desfazer e Refazer só com ícone; o nome vem do Narrador).</summary>
     internal IReadOnlyList<string> RotulosDoCabecalho =>
         new[] { BotaoDesfazer, BotaoRefazer, BotaoPesquisaAnterior, BotaoPesquisaProxima }
-            .Select(b => b.Content is Panel { Children: var filhos } ? filhos.OfType<TextBlock>().FirstOrDefault()?.Text ?? "" : "").ToList();
+            .Select(b => (b.Content is Panel { Children: var filhos } ? filhos.OfType<TextBlock>().FirstOrDefault()?.Text : null)
+                         ?? Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(b)).ToList();
+    /// <summary>1.0.0: as duas pílulas segmentadas do cabeçalho (cantos = metade da altura) e os botões delas.</summary>
+    internal bool PilulasDoCabecalhoConferem =>
+        new[] { GrupoHistorico, GrupoOcorrencias }.All(g => g.CornerRadius.TopLeft * 2 >= g.Height - 0.5 && g.Child is StackPanel { Children.Count: 3 })
+        && BotaoDesfazer.CornerRadius.TopRight == 0 && BotaoRefazer.CornerRadius.TopLeft == 0
+        && BotaoPesquisaAnterior.CornerRadius.TopRight == 0 && BotaoPesquisaProxima.CornerRadius.TopLeft == 0;
     /// <summary>Os nomes acessíveis das etiquetas de situação visíveis nas linhas realizadas da lista de seções.</summary>
     internal IReadOnlyList<string> EtiquetasNaListaDeSecoes()
     {
@@ -383,9 +389,16 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             ambienteDaTela.TrySetResult(ambiente);
             if (Autoteste.Ativo)
             {
-                R.Navegador.CoreWebView2.NavigationCompleted += (_, e) =>
+                R.Navegador.CoreWebView2.NavigationCompleted += async (_, e) =>
                 {
-                    if (e.IsSuccess) Autoteste.GravarSucesso(ambiente.BrowserVersionString);
+                    if (e.IsSuccess)
+                    {
+                        // 1.0.0: confere também as janelas dos sites (o visualizador de documentos do Essencial), com página fictícia.
+                        var janelas = await AutotesteJanelas.ConferirAsync();
+                        // E o ciclo do brilho "trabalhando" (sem halo ocioso, em página oculta ou depois do fim).
+                        var brilho = await AutotesteBrilho.ConferirAsync();
+                        Autoteste.GravarSucesso(ambiente.BrowserVersionString, janelas, brilho);
+                    }
                     else Autoteste.GravarErro("NavigationCompleted: " + e.WebErrorStatus);
                     Application.Current.Exit();
                 };

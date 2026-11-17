@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Microsoft.Graphics.Canvas;
@@ -23,6 +23,9 @@ public static class Trabalhando
 {
     static readonly ConditionalWeakTable<FrameworkElement, BrilhoArcoIris> brilhos = new();
 
+    /// <summary>O brilho do elemento, se já existe (autoteste).</summary>
+    internal static BrilhoArcoIris? BrilhoDe(FrameworkElement e) => brilhos.TryGetValue(e, out var b) ? b : null;
+
     /// <summary>Liga ou desliga o brilho no contorno do elemento.</summary>
     public static void Definir(FrameworkElement elemento, bool ativo, float canto = 8f)
     {
@@ -31,21 +34,39 @@ public static class Trabalhando
         catch (Exception e) { RegistroErros.Gravar("brilho", e); }
     }
 
-    /// <summary>O quadro "trabalhando" padrão (pílula com o anel circular e o texto centralizados), para montar em código.</summary>
-    public static Border Quadro(string texto) => new()
+    /// <summary>O quadro "trabalhando" padrão (pílula com o anel circular e o texto centralizados), para montar em código.
+    /// 1.0.0: o anel só fica ativo enquanto o quadro está à vista (antes ficava sempre ativo, e o brilho do quadro escondido continuava).</summary>
+    public static Border Quadro(string texto)
     {
-        Visibility = Visibility.Collapsed, CornerRadius = new CornerRadius(24), Padding = new Thickness(24, 10, 24, 10),
-        Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
-        Child = new StackPanel
+        var anel = new ProgressRing { IsActive = false, Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center };
+        var q = new Border
         {
-            Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center,
-            Children =
+            Visibility = Visibility.Collapsed, CornerRadius = new CornerRadius(24), Padding = new Thickness(24, 10, 24, 10),
+            Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+            Child = new StackPanel
             {
-                new ProgressRing { IsActive = true, Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center },
-                new TextBlock { Text = texto, VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center },
+                Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center,
+                Children = { anel, new TextBlock { Text = texto, VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center } },
             },
-        },
-    };
+        };
+        AnelSegueQuadro(q, anel);
+        return q;
+    }
+
+    /// <summary>O anel de um quadro "trabalhando" gira só enquanto o quadro está visível (vale também para quadros do XAML).</summary>
+    public static void AnelSegueQuadro(FrameworkElement quadro, ProgressRing anel)
+    {
+        anel.IsActive = quadro.Visibility == Visibility.Visible;
+        quadro.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => anel.IsActive = quadro.Visibility == Visibility.Visible);
+    }
+
+    /// <summary>Visível de fato: o elemento e todos os ancestrais visíveis (um quadro dentro de uma página recolhida não está à vista).</summary>
+    internal static bool VisivelDeFato(DependencyObject? e)
+    {
+        for (var p = e; p is not null; p = VisualTreeHelper.GetParent(p))
+            if (p is UIElement { Visibility: not Visibility.Visible }) return false;
+        return true;
+    }
 
     // ---------- automático nos indicadores de progresso ----------
 
@@ -61,6 +82,7 @@ public static class Trabalhando
     {
         void Sincronizar()
         {
+            // A visibilidade dos ancestrais é conferida pelo próprio brilho (BrilhoArcoIris vigia a cadeia inteira).
             var trabalhando = c.IsLoaded && c.Visibility == Visibility.Visible && c switch
             {
                 ProgressRing r => r.IsActive,
@@ -151,6 +173,12 @@ sealed class BrilhoArcoIris
 
     public bool Ativo { get => ativo; set { ativo = value; Atualizar(false); } }
 
+    // Estado para o autoteste (1.0.0).
+    internal bool Rodando => rodando;
+    internal bool ContornoVisivel => raiz.IsVisible;
+    internal bool HaloVisivel => raizHalo.IsVisible;
+    internal bool TemCamadaDoHalo => hospedeHalo is not null;
+
     public BrilhoArcoIris(FrameworkElement elemento, float canto)
     {
         this.elemento = elemento; this.canto = canto;
@@ -171,8 +199,41 @@ sealed class BrilhoArcoIris
         elemento.SizeChanged += (_, _) => Atualizar(true);
         elemento.ActualThemeChanged += (_, _) => Cores();
         elemento.LayoutUpdated += (_, _) => { if (raizHalo.IsVisible) Posicionar(); };
-        elemento.Unloaded += (_, _) => Atualizar(false);
+        // 1.0.0: saiu da árvore = apaga e devolve a camada do halo (o Loaded seguinte prende de novo, no lugar novo).
+        elemento.Unloaded += (_, _) => { if (!elemento.IsLoaded) { Atualizar(false); Soltar(); } };
         Cores();
+    }
+
+    // 1.0.0 (correção dos halos que ficavam acesos com o app ocioso): o halo mora num Canvas de um Grid ancestral, fora do quadro; quando o
+    // quadro (ou a página dele) era recolhido, nada avisava o brilho, e o halo em pílula continuava visível e animando. Agora o brilho vigia a
+    // visibilidade do elemento e de todos os ancestrais e só liga com a cadeia inteira visível.
+    readonly List<(UIElement Elemento, long Token)> vigias = [];
+
+    void Vigiar()
+    {
+        Desvigiar();
+        for (var p = (DependencyObject)elemento; p is not null; p = VisualTreeHelper.GetParent(p))
+            if (p is UIElement u) vigias.Add((u, u.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => Atualizar(true))));
+    }
+
+    void Desvigiar()
+    {
+        foreach (var (u, token) in vigias) u.UnregisterPropertyChangedCallback(UIElement.VisibilityProperty, token);
+        vigias.Clear();
+    }
+
+    void Soltar()
+    {
+        if (!preso) return;
+        preso = false;
+        Desvigiar();
+        if (hospedeHalo is { } h)
+        {
+            ElementCompositionPreview.SetElementChildVisual(h, null);
+            (VisualTreeHelper.GetParent(h) as Panel ?? h.Parent as Panel)?.Children.Remove(h);
+            hospedeHalo = null;
+        }
+        posto = new(float.NaN);
     }
 
     bool Escuro => elemento.ActualTheme == ElementTheme.Dark;
@@ -280,6 +341,7 @@ sealed class BrilhoArcoIris
             hospede.Children.Add(hospedeHalo);
             ElementCompositionPreview.SetElementChildVisual(hospedeHalo, raizHalo);
         }
+        Vigiar();
         Atualizar(true);
     }
 
@@ -323,8 +385,16 @@ sealed class BrilhoArcoIris
         return (float)(o * k);
     }
 
+    int quadrosDesdeConferencia;
+
     void AoQuadro(double t)
     {
+        // Rede de segurança (~2 vezes por segundo): se o quadro saiu de vista por um caminho não vigiado, desliga e para o relógio.
+        if (++quadrosDesdeConferencia >= 16)
+        {
+            quadrosDesdeConferencia = 0;
+            if (!elemento.IsLoaded || !Trabalhando.VisivelDeFato(elemento)) { Atualizar(false); return; }
+        }
         foreach (var d in deslizes) d.Pincel.Offset = new Vector2((float)(d.Distancia * RelogioQuadros.Fase(t, d.Segundos)), 0);
         raizBrilho.Opacity = Respiro(t, 7.3, respira.Brilho);
         raizHalo.Opacity = Respiro(t, 9.1, respira.Halo);
@@ -360,7 +430,7 @@ sealed class BrilhoArcoIris
     void Atualizar(bool refazer)
     {
         var t = new Vector2((float)elemento.ActualWidth, (float)elemento.ActualHeight);
-        var ligar = ativo && preso && elemento.IsLoaded && elemento.Visibility == Visibility.Visible && t.X > 20 && t.Y > 10;
+        var ligar = ativo && preso && elemento.IsLoaded && Trabalhando.VisivelDeFato(elemento) && t.X > 20 && t.Y > 10;
         if (!ligar)
         {
             if (rodando)
@@ -409,6 +479,9 @@ static class RelogioQuadros
     [ThreadStatic] static DispatcherQueueTimer? temporizador;
 
     public static double Agora => Tempo.Elapsed.TotalSeconds;
+    /// <summary>Quantas animações estão no relógio desta thread (autoteste: ocioso = 0) e se o temporizador está rodando.</summary>
+    internal static int Quantos => quadros?.Count ?? 0;
+    internal static bool Rodando => temporizador?.IsRunning == true;
     public static double Fase(double t, double s) => s <= 0 ? 0 : t / s - Math.Floor(t / s);
 
     public static void Adicionar(Action<double> q)

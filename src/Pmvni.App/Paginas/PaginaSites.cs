@@ -30,11 +30,16 @@ public sealed partial class PaginaSites : Grid
     readonly Dictionary<Modulo, HashSet<string>> hostsVistos = new();
     Modulo? atual;
     bool cookiesRestaurados;
+    readonly HashSet<Modulo> carregando = [];
+
+    /// <summary>O quadro "Carregando a página…" só aparece se o site À VISTA está carregando.</summary>
+    void MostrarProgresso() => progresso.Visibility = atual is { } a && carregando.Contains(a) ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Muda quando a navegação do site à vista muda (voltar/avançar disponíveis).</summary>
     public event Action? EstadoMudou;
 
-    /// <summary>Uma janela nova pedida pelo site (target=_blank, window.open). Quem trata (o BCI) devolve true; senão abre no mesmo navegador.</summary>
+    /// <summary>Uma janela nova pedida pelo site (target=_blank, window.open). Quem trata devolve true; senão (1.0.0) ela abre numa janela
+    /// auxiliar de verdade (<see cref="JanelaPopupSite"/>), com window.opener e a sessão do site, e a página de origem fica como estava.</summary>
     public Func<Modulo, CoreWebView2NewWindowRequestedEventArgs, bool>? InterceptarJanela { get; set; }
 
     public PaginaSites()
@@ -122,6 +127,7 @@ public sealed partial class PaginaSites : Grid
     {
         atual = m;
         foreach (var (mod, w) in navegadores) w.Visibility = mod == m ? Visibility.Visible : Visibility.Collapsed;
+        MostrarProgresso();
         aviso.IsOpen = false;
         try { await ObterAsync(m); }
         catch (Exception e)
@@ -160,12 +166,15 @@ public sealed partial class PaginaSites : Grid
             core.Settings.IsPasswordAutosaveEnabled = ConfigSites.PreenchimentoDoNavegador;
             core.Settings.IsGeneralAutofillEnabled = ConfigSites.PreenchimentoDoNavegador;
             await LimparPreenchimentoAntigoAsync(core.Profile);
-            core.NavigationStarting += (_, _) => { if (atual == m) progresso.Visibility = Visibility.Visible; };
+            // 1.0.0: o quadro "Carregando" acompanha o site à vista; antes, uma página que terminava de carregar com outro site à vista
+            // deixava o quadro (e o brilho dele) aceso para sempre.
+            core.NavigationStarting += (_, _) => { carregando.Add(m); MostrarProgresso(); };
             core.NavigationCompleted += async (_, e) =>
             {
+                carregando.Remove(m);
+                MostrarProgresso();
                 if (atual == m)
                 {
-                    progresso.Visibility = Visibility.Collapsed;
                     if (!e.IsSuccess && e.WebErrorStatus != CoreWebView2WebErrorStatus.OperationCanceled)
                     {
                         aviso.Title = "A página não abriu";
@@ -185,17 +194,20 @@ public sealed partial class PaginaSites : Grid
                 try { await Task.Delay(2500); await AposMudancaAsync(m, core); }
                 catch (Exception e) { RegistroErros.Gravar("sites.endereco", e); }
             };
-            core.NewWindowRequested += (_, e) =>
+            // 1.0.0: janela nova pedida pelo site = janela auxiliar de verdade (JanelaPopupSite), com window.opener e sessão preservados.
+            // Antes o pedido navegava esta própria página para o endereço do popup, e o visualizador de documentos do Essencial abria cinza.
+            core.NewWindowRequested += (s, e) =>
             {
                 if (InterceptarJanela?.Invoke(m, e) == true) return;
-                e.Handled = true;
-                core.Navigate(e.Uri);   // como uma aba só
+                JanelaPopupSite.Atender(s, e, Modulos.Rotulo(m), ActualTheme, null);
             };
             core.Navigate(Modulos.Endereco(m));
             return core;
         }
         catch
         {
+            carregando.Remove(m);
+            MostrarProgresso();
             navegadores.Remove(m);
             Children.Remove(web);
             try { web.Close(); } catch (Exception) { }
@@ -316,6 +328,7 @@ public sealed partial class PaginaSites : Grid
     {
         renovar.Stop();
         guardar.Stop();
+        JanelaPopupSite.FecharTodas();
         foreach (var (m, w) in navegadores.ToList())
             if (w.CoreWebView2 is { } core && !CofreSites.Saiu(Raiz, m)) await GuardarCookiesAsync(m, core);
     }
