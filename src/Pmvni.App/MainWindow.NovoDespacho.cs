@@ -93,6 +93,7 @@ public sealed partial class MainWindow
         n.CaixaProtocolo.TextChanged += (_, _) => Editar(r => r.DefinirCabecalho("protocolo", n.CaixaProtocolo.Text));
         // Correções 2026-11-15: editar direto na prévia, exigência escrita à mão, pasta nova e instrução para a IA.
         n.PreviaEditada += (chave, texto) => EditarPelaPrevia(chave, texto);
+        n.AjustarTextoComIa = AjustarTextoDaExigenciaAsync;
         n.BotaoAdicionarExigencia.Click += (_, _) => _ = NaFilaAsync(() => TentarAsync(() =>
         {
             if (novo is { Passo: PassoNovoDespacho.Conteudo, Rascunho: { } r } s0) { r.AdicionarExigencia(); PreencherConteudo(s0); }
@@ -683,6 +684,19 @@ public sealed partial class MainWindow
     {
         if (novo is not { Passo: PassoNovoDespacho.Conteudo, Rascunho: { } r } s) return;
         if (ConteudoDespacho.AplicarEdicao(r, chave, texto)) PreencherConteudo(s);
+    }
+
+    /// <summary>"Ajustar com IA" na caixa do texto da exigência: a mesma IA do "Ajustar o item com a IA" (Codex com o modelo e o esforço
+    /// de Ajustes › Inteligência artificial, sem abrir arquivos; sem o Codex, o Claude Code), com o grupo, o título do item e o fundamento
+    /// como contexto. Devolve a resposta crua; a caixa a limpa (<see cref="IaAjusteTexto.Ler"/>) e o usuário confere antes de gravar.</summary>
+    async Task<string> AjustarTextoDaExigenciaAsync(string chave, string texto, CancellationToken ct)
+    {
+        var partes = chave.Split(':', 3);
+        var pendencia = novo?.Rascunho?.Pendencias.FirstOrDefault(p => partes.Length >= 2 && p.ItemId == partes[1]);
+        var prompt = IaAjusteTexto.Prompt(texto, pendencia?.Grupo, pendencia?.Titulo, pendencia?.Fundamento);
+        var pecas = await LerPecasAsync();
+        ct.ThrowIfCancellationRequested();
+        return await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, prompt, ct, null, null, OpcoesIaDaRevisao());
     }
 
     /// <summary>"Nova pasta…": pede o nome e cria a pasta no processo; ela vira a pasta da etapa.</summary>
