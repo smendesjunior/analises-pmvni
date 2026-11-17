@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.6.6
+
+- **Análise em andamento:** o indicador da barra de título virou uma pílula maior, em duas linhas, com cantos redondos e o brilho arco-íris; a pesquisa e os botões ao lado não cortam mais. O brilho não aparece mais em volta de fileiras de botões.
+- **Andamento da análise:** o registro mostra o que o ChatGPT está fazendo em frases ("Consultando a legislação", "Lendo o texto extraído dos documentos"…), com ícone para cada ação; as mensagens do ChatGPT aparecem em destaque.
+- **Continuar a análise:** se o app fechar de repente ou a cota do ChatGPT acabar, a análise pode continuar de onde parou (botão "Continuar a análise", também oferecido ao reabrir o app).
+
 ## 0.6.5
 
 - **Sites da Prefeitura (Essencial, GPI, Alfresco):** o login usado é só o guardado em Ajustes. O navegador do app não preenche mais um usuário antigo que tenha guardado sozinho; sem login guardado, o campo fica vazio.

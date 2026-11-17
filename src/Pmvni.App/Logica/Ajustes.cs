@@ -81,6 +81,10 @@ public sealed class Ajustes
     /// <summary>As análises do Claude em andamento (<c>"execucoes_claude"</c>): ficam aqui do início ao fim, para o editor reaberto acompanhar ou importar.</summary>
     public List<ExecucaoClaudePendente> ExecucoesClaude { get; } = new();
 
+    /// <summary>Análises do ChatGPT iniciadas e ainda não terminadas de vez (2026-11-17): se o editor cair ou a cota acabar, a reabertura oferece
+    /// "Continuar a análise" (sessão do Codex guardada no execucao.json do registro).</summary>
+    public List<ExecucaoClaudePendente> ExecucoesChatGpt { get; } = new();
+
     public Modulo Modulo { get; set; } = Modulo.Relatorios;
     public Dictionary<Modulo, string> AbaPorModulo { get; } = new();
     public string Tema { get; set; } = "sistema";
@@ -369,6 +373,10 @@ public sealed class Ajustes
             foreach (var e in execucoes)
                 if (e is JsonObject eo && Texto(eo, "processo") is { Length: > 0 } processo && Texto(eo, "registro") is { Length: > 0 } registro)
                     a.ExecucoesClaude.Add(new ExecucaoClaudePendente(processo, registro));
+        if (j["execucoes_chatgpt"] is JsonArray execucoesG)
+            foreach (var e in execucoesG)
+                if (e is JsonObject eo && Texto(eo, "processo") is { Length: > 0 } processo && Texto(eo, "registro") is { Length: > 0 } registro)
+                    a.ExecucoesChatGpt.Add(new ExecucaoClaudePendente(processo, registro));
         return a;
     }
 
@@ -423,6 +431,7 @@ public sealed class Ajustes
             ["agentes"] = new JsonObject(Agentes.Select(par => KeyValuePair.Create(Provedores.Sufixo(par.Key), (JsonNode?)EscreverAgente(par.Value)))),
             ["plugins_vistos"] = new JsonObject(PluginsVistos.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => KeyValuePair.Create(p.Key, (JsonNode?)p.Value))),
             ["execucoes_claude"] = new JsonArray(ExecucoesClaude.Select(e => (JsonNode)new JsonObject { ["processo"] = e.Processo, ["registro"] = e.Registro }).ToArray()),
+            ["execucoes_chatgpt"] = new JsonArray(ExecucoesChatGpt.Select(e => (JsonNode)new JsonObject { ["processo"] = e.Processo, ["registro"] = e.Registro }).ToArray()),
             ["abrir_em"] = AbrirEm,
             ["lembrar_janela"] = LembrarJanela,
             ["janela"] = Janela is { } jg ? new JsonObject { ["x"] = jg.X, ["y"] = jg.Y, ["l"] = jg.Largura, ["a"] = jg.Altura, ["max"] = jg.Maximizada } : null,

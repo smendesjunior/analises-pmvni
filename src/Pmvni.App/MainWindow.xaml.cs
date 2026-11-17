@@ -149,6 +149,16 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // Os grupos aparecem e somem conforme o módulo: o espaço da caixa é refeito (senão "Próxima" ficava cortado na borda).
         GrupoOcorrencias.SizeChanged += (_, _) => DispatcherQueue.TryEnqueue(() => { if (!fechada) AjustarPesquisa(Raiz.ActualWidth); });
         GrupoHistorico.SizeChanged += (_, _) => DispatcherQueue.TryEnqueue(() => { if (!fechada) AjustarPesquisa(Raiz.ActualWidth); });
+        // A pílula da análise em andamento (2026-11-17: pesquisa e Anterior/Próxima cortavam na borda) muda de largura a cada minuto e ao
+        // aparecer/sumir: a pesquisa e os rótulos se refazem (AplicarLargura devolve os rótulos quando ela some).
+        BotaoAnalise.SizeChanged += (_, _) => DispatcherQueue.TryEnqueue(() => { if (!fechada) AjustarPesquisa(Raiz.ActualWidth); });
+        BotaoAnalise.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (fechada) return;
+            MolduraAnalise.Visibility = BotaoAnalise.Visibility;
+            Trabalhando.Definir(MolduraAnalise, BotaoAnalise.Visibility == Visibility.Visible, 20f);   // brilho arco-íris na pílula, cantos 20
+            AplicarLargura(Raiz.ActualWidth);
+        }));
         // O resultado da pesquisa só ocupa lugar quando tem texto: vazio, deixava o espaço entre a caixa e Anterior/Próximo maior que o
         // do outro lado (2026-11-16).
         TextoPesquisa.RegisterPropertyChangedCallback(TextBlock.TextProperty, (_, _) =>
@@ -382,8 +392,44 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
             var args = Argumentos.Atual;
             // As análises do Claude que seguiam quando o editor fechou (desenho §12.7). O roteiro chama no passo dele.
-            if (args.Roteiro is null) _ = TentarAsync(RetomarExecucoesClaudeAsync);
+            if (args.Roteiro is null) { _ = TentarAsync(RetomarExecucoesClaudeAsync); _ = TentarAsync(RetomarExecucoesChatGptAsync); }
             if (args.Roteiro is not null) await Roteiro.ExecutarAsync(this, args);
+            else if (Environment.GetEnvironmentVariable("PMVNI_DEMO_ANALISE") == "1")
+            {
+                // Desenvolvimento (2026-11-17): a pílula da análise, o brilho e o log descritivo com linhas de exemplo, para conferir o visual
+                // na janela real (o brilho é do compositor e não sai na captura XAML). Nada é executado.
+                await MudarModuloAsync(Modulo.Relatorios);
+                await NovoRelatorioAsync();
+                TextoBotaoAnalise.Text = "Analisando com o ChatGPT";
+                DetalheBotaoAnalise.Text = "19486/2026 · 12 min";
+                BotaoAnalise.Visibility = Visibility.Visible;
+                string[] comandos =
+                [
+                    @"powershell.exe -Command 'Get-Content \""C:\Users\x\.codex\plugins\cache\pmvni-kit\analise\2.5.0\skills\analise\SKILL.md\""'",
+                    @"powershell.exe -Command 'rg --files -g AGENTS.md -g ""*.pdf"" DOCUMENTOS PROJETO'",
+                    @"powershell.exe -Command 'Get-Content "".pmvni-ai\analise\preparo\texto\4d3c32f7a8fd_p001.txt"" -Encoding UTF8'",
+                    @"powershell.exe -Command '$s=""C:\kit""; python -B ""$s\scripts\kit_pmvni.py"" buscar comercio vagas'",
+                    @"powershell.exe -Command '$s=""C:\kit""; python -B ""$s\scripts\buscar_norma.py"" --lei LC-136-2016 vagas'",
+                    @"powershell.exe -Command '$s=""C:\kit""; python -B ""$s\scripts\mapa_localizacao.py"" --processo 19486'",
+                    @"powershell.exe -Command 'python -B "".pmvni-ai\analise\inspecionar.py""'",
+                    @"powershell.exe -Command 'Get-Content "".pmvni-ai\analise\posicoes_1.json"" -TotalCount 100'",
+                    @"powershell.exe -Command 'python -B "".pmvni-ai\analise\fontes_preparo.py""'",
+                ];
+                var linhasDemo = new System.Collections.ObjectModel.ObservableCollection<string>
+                {
+                    "Mensagem: A pasta contém quatro despachos anteriores. Vou separar esse histórico das três pranchas da revisão 04.",
+                };
+                foreach (var c in comandos) linhasDemo.Add("Ação: " + Pmvni.Agentes.EventosCodex.DescreverComando(c));
+                linhasDemo.Insert(5, "Mensagem: As pranchas mostram dois pavimentos comerciais, com depósitos e 14 vagas.");
+                linhasDemo.Add("Ação: gravou 1 arquivo de trabalho");
+                linhasDemo.Add("Ação: consultou os créditos disponíveis");
+                NR.ListaLinhas.ItemsSource = linhasDemo;
+                NR.MostrarExecucao(true);
+                NR.TextoCabecalho.Text = "Analisando com o ChatGPT · 19486/2026 · 12 min";
+                NR.PainelClaude.Visibility = Visibility.Collapsed;
+                await Task.Delay(500);
+                AplicarLargura(Raiz.ActualWidth);
+            }
             else if (args.Captura is { } pastaCaptura)
             {
                 // Desenvolvimento: um PNG da janela em cada módulo, e fecha.

@@ -82,11 +82,15 @@ public static class Trabalhando
         bool Grande(FrameworkElement e) => janela.Width > 0 && e.ActualWidth * e.ActualHeight > 0.6 * janela.Width * janela.Height;
         FrameworkElement? primeiro = null;
         var p = VisualTreeHelper.GetParent(c) as FrameworkElement;
+        // Indicador numa fileira de botões (Cancelar, Nova análise...): sem brilho — o contorno seria dos botões, não do trabalho.
+        if (p is Panel fileira && fileira.Children.Any(x => x is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase)) return null;
         for (var i = 0; i < 5 && p is not null; i++, p = VisualTreeHelper.GetParent(p) as FrameworkElement)
         {
             if (p is ScrollViewer or ListViewBase || Grande(p)) break;
             primeiro ??= p is Panel or Border ? p : null;
             if (p is InfoBar or Expander) return p;
+            // Indicador dentro de um botão (a pílula da análise na barra de título): quem acende é a moldura em volta dele, chamando Definir.
+            if (p is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase) return null;
             if (p is Border { CornerRadius.TopLeft: > 0 } or Grid { CornerRadius.TopLeft: > 0 } or StackPanel { CornerRadius.TopLeft: > 0 }) return p;
         }
         return primeiro is not null && !Grande(primeiro) ? primeiro : null;

@@ -12,13 +12,17 @@ namespace Pmvni.Agentes;
 /// <summary>Tudo o que uma execução precisa: o provedor, o processo, as peças achadas, o modo de acesso, a pasta de dados do app (onde mora a chave), o texto
 /// digitado, os anexos já arquivados e o registro criado no clique.</summary>
 public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas Pecas, ModoAcesso Modo, string RaizDados, string? Texto,
-    IReadOnlyList<ArquivoArquivado> Anexos, RegistroExecucao Registro);
+    IReadOnlyList<ArquivoArquivado> Anexos, RegistroExecucao Registro)
+{
+    /// <summary>ChatGPT: a sessão do Codex a continuar (<c>codex exec resume</c>) em vez de começar do zero.</summary>
+    public string? RetomarSessao { get; init; }
+}
 
 /// <summary>Uma linha de andamento para a tela (do Codex, ou do <c>auto-log.txt</c> do kit) e/ou a situação mais recente do kit.</summary>
 public sealed record ProgressoAnalise(string? Linha, SituacaoKit? Situacao);
 
 /// <summary><c>Situacao</c>: <c>concluida</c> | <c>falhou</c> | <c>cancelada</c> | <c>sem_resultado</c> | <c>interrompida</c> | <c>acompanhamento_interrompido</c>
-/// (Claude: o editor parou de acompanhar; a análise do kit continua).</summary>
+/// (Claude: o editor parou de acompanhar; a análise do kit continua) | <c>cota_esgotada</c> (ChatGPT: o limite de uso acabou; dá para continuar depois).</summary>
 public sealed record FimAnalise(string Situacao, string? Documento, string? Pdf, string? Mensagem, int? Codigo);
 
 /// <summary>O intermediário (desenho §12.1): inicia o agente instalado neste computador, acompanha, guarda o registro e localiza o resultado que o próprio kit
@@ -212,18 +216,36 @@ public sealed class OrquestradorAnalise
     {
         var registro = pe.Registro;
         var pasta = pe.Processo.Pasta;
-        var pedido = PedidoAgente.Codex(pasta, pe.Processo, pe.Anexos, pe.Texto);
-        registro.GravarPedido(pedido);
-        registro.GravarAnexos(pe.Anexos);
-
-        var (exe, args) = LinhasDeComando.CodexExec(pe.Pecas.Codex!, pasta, Path.Combine(registro.Pasta, "ultima-mensagem.md"));
+        var ultima = Path.Combine(registro.Pasta, "ultima-mensagem.md");
+        string pedido;
+        (string Exe, IReadOnlyList<string> Args) linha;
+        if (pe.RetomarSessao is { } sessao)
+        {
+            // Continuação (2026-11-17): o pedido e os anexos originais ficam como estavam; o Codex recebe só a ordem de seguir.
+            pedido = PedidoAgente.Continuar;
+            linha = LinhasDeComando.CodexRetomar(pe.Pecas.Codex!, sessao, ultima);
+        }
+        else
+        {
+            pedido = PedidoAgente.Codex(pasta, pe.Processo, pe.Anexos, pe.Texto);
+            registro.GravarPedido(pedido);
+            registro.GravarAnexos(pe.Anexos);
+            linha = LinhasDeComando.CodexExec(pe.Pecas.Codex!, pasta, ultima);
+        }
+        var (exe, args) = linha;
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(args).ToList());
-        registro.Atualizar(o => o["entrada_padrao"] = "pedido.md");
+        registro.Atualizar(o =>
+        {
+            o["entrada_padrao"] = pe.RetomarSessao is null ? "pedido.md" : "continuar";
+            if (pe.RetomarSessao is { } s) { o["sessao_codex"] = s; o["continuacoes"] = (o["continuacoes"]?.GetValue<int>() ?? 0) + 1; }
+        });
+        var cota = false;
 
         var redator = new RedatorChave(chave);      // a chave nunca vai para o registro nem para a tela, nem se o agente a repetir
         var canal = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         using var execucao = ExecucaoProcesso.Iniciar(exe, args, pasta, pedido, Ambiente(Provedor.ChatGpt, pe.Modo, chave),
-            linha => canal.Writer.TryWrite(redator.Aplicar(linha)), linha => registro.AcrescentarErro(redator.Aplicar(linha)), TarefaCodex);
+            linha => canal.Writer.TryWrite(redator.Aplicar(linha)),
+            linha => { if (EventosCodex.CotaEsgotada(linha)) cota = true; registro.AcrescentarErro(redator.Aplicar(linha)); }, TarefaCodex);
         using var cancelamento = ct.Register(execucao.Cancelar);
 
         // A saída vai para uma fila sem limite: o agente nunca espera pelo editor (nem pela tela). Um só consumidor grava o saida.jsonl e anuncia.
@@ -239,7 +261,12 @@ public sealed class OrquestradorAnalise
                     try
                     {
                         registro.AcrescentarSaida(linha);
-                        if (EventosCodex.Linha(linha) is { } texto) Anunciar(progresso, new ProgressoAnalise(texto, null));
+                        if (EventosCodex.Sessao(linha) is { } id) { registro.Atualizar(o => o["sessao_codex"] = id); registro.Descarregar(); }
+                        if (EventosCodex.Linha(linha) is { } texto)
+                        {
+                            if (texto.StartsWith("Erro: ", StringComparison.Ordinal) && EventosCodex.CotaEsgotada(texto)) cota = true;
+                            Anunciar(progresso, new ProgressoAnalise(texto, null));
+                        }
                     }
                     catch (Exception e) when (e is not OutOfMemoryException) { Registrar(e); }
                     if (++desdeODescarregar >= 5000) { registro.Descarregar(); desdeODescarregar = 0; }
@@ -256,6 +283,9 @@ public sealed class OrquestradorAnalise
         registro.Descarregar();
 
         if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
+        if (cota)
+            return new FimAnalise("cota_esgotada", null, null,
+                "A cota de uso do ChatGPT acabou no meio da análise. O que já foi feito está guardado: quando a cota voltar, clique em \"Continuar a análise\" e ela segue de onde parou.", codigo);
         if (codigo != 0)
             return new FimAnalise("falhou", null, null, $"O Codex terminou com o código {codigo}. Veja o registro: {registro.Pasta}.", codigo);
 

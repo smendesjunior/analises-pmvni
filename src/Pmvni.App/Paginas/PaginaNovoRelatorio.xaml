@@ -170,16 +170,18 @@
       </StackPanel>
       <ListView x:Name="ListaLinhas" x:FieldModifier="internal" Grid.Row="3" SelectionMode="None" IsItemClickEnabled="False"
                 BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="6"
-                FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.Name="Andamento da análise">
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="4,8"
+                AutomationProperties.Name="Andamento da análise">
         <ListView.ItemContainerStyle>
           <Style TargetType="ListViewItem">
-            <Setter Property="MinHeight" Value="20"/>
-            <Setter Property="Padding" Value="8,1"/>
+            <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
           </Style>
         </ListView.ItemContainerStyle>
         <ListView.ItemTemplate>
           <DataTemplate x:DataType="x:String">
-            <TextBlock Text="{x:Bind}" TextWrapping="NoWrap" IsTextSelectionEnabled="True"/>
+            <local:LinhaAndamento Texto="{x:Bind}"/>
           </DataTemplate>
         </ListView.ItemTemplate>
       </ListView>

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -119,7 +119,7 @@ public partial class OrquestradorTestes
 
         // Progresso: só o que o desenho manda mostrar.
         var linhas = c.Progresso.Linhas();
-        Assert.Equal(new[] { "Mensagem: Lendo o processo", "Comando: python conferir.py", "Arquivos alterados: 2", "texto solto do agente", "Mensagem: Relatório pronto" }, linhas);
+        Assert.Equal(new[] { "Mensagem: Lendo o processo", "Ação: executando a etapa conferir", "Ação: gravou 2 arquivos de trabalho", "texto solto do agente", "Mensagem: Relatório pronto" }, linhas);
 
         // Registro: a saída inteira, a última mensagem, o pedido.
         Assert.Equal(8, Linhas(c.DoRegistro("saida.jsonl")).Length);

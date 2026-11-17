@@ -15,6 +15,11 @@ public static class PedidoAgente
         "verificar, por exemplo as pendências dos despachos anteriores, e não substitui, não pula nem encurta nenhuma etapa):";
 
     /// <summary>Linhas separadas por "\n", sem "\n" no fim. As linhas de anexos e de pedido só existem quando há conteúdo; o texto vai como foi digitado.</summary>
+    /// <summary>A ordem enviada ao continuar uma sessão do Codex que parou (app fechado de repente ou cota esgotada).</summary>
+    public const string Continuar =
+        "A análise anterior foi interrompida (o editor fechou ou a cota de uso acabou). Continue exatamente de onde parou, sem refazer o que já está pronto, " +
+        "seguindo as mesmas instruções do pedido original, até entregar o relatório final.";
+
     public static string Codex(string pastaProcesso, Processo p, IReadOnlyList<ArquivoArquivado> anexos, string? texto)
     {
         var linhas = new List<string> { PrimeiraLinha, "Pasta do processo: " + pastaProcesso };

@@ -184,6 +184,28 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         return e;
     }
 
+    /// <summary>Continua uma análise do ChatGPT que parou (editor fechou de repente ou a cota acabou): <c>codex exec resume</c> com a sessão guardada, no
+    /// mesmo registro.</summary>
+    public async Task<ExecucaoEmCurso> RetomarChatGptAsync(Processo pr, string pastaRegistro, string sessao)
+    {
+        if (EmAndamento(pr.Pasta)) throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
+        var pc = pecas();
+        var m = modo(Provedor.ChatGpt);
+        var (trava, registro) = await Task.Run(() =>
+        {
+            var t = TravaExecucao.Tentar(pr.Pasta, Provedor.ChatGpt) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
+            try { return (t, RegistroExecucao.Abrir(pastaRegistro, pr.Pasta)); }
+            catch { t.Dispose(); throw; }
+        });
+        var orq = orquestrador();
+        var e = new ExecucaoEmCurso(Provedor.ChatGpt, pr, registro, DateTime.UtcNow, pc, null, orq, retomada: true);
+        var progresso = Progresso(e);
+        var pedido = new PedidoExecucao(Provedor.ChatGpt, pr, pc, m, raizDados, null, [], registro) { RetomarSessao = sessao };
+        e.Fim = RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava);
+        execucoes.Add(e);
+        return e;
+    }
+
     ProgressoAgrupado Progresso(ExecucaoEmCurso e) => new(lote => janela.TryEnqueue(() =>
     {
         e.Aplicar(lote);

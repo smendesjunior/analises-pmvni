@@ -9,6 +9,11 @@ public static class LinhasDeComando
     public static (string Exe, IReadOnlyList<string> Args) CodexExec(string codex, string pastaProcesso, string ultimaMensagem) =>
         (codex, new[] { "exec", "--skip-git-repo-check", "--cd", pastaProcesso, "--json", "--output-last-message", ultimaMensagem, "-" });
 
+    /// <summary><c>codex exec resume --skip-git-repo-check --json --output-last-message M SESSAO -</c> (2026-11-17): continua a sessão do Codex de onde parou
+    /// (app fechado de repente ou cota esgotada). O <c>resume</c> não tem <c>--cd</c>: a pasta do processo é a pasta de trabalho do processo filho.</summary>
+    public static (string Exe, IReadOnlyList<string> Args) CodexRetomar(string codex, string sessao, string ultimaMensagem) =>
+        (codex, new[] { "exec", "resume", "--skip-git-repo-check", "--json", "--output-last-message", ultimaMensagem, sessao, "-" });
+
     /// <summary><c>python -B -X utf8 pro_runtime.py --case P iniciar|situacao</c> (com o launcher <c>py.exe</c>, o primeiro argumento é <c>-3</c>).</summary>
     public static (string Exe, IReadOnlyList<string> Args) ProRuntime(string python, bool launcher, string script, string pastaProcesso, string acao)
     {

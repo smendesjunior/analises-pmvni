@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 
 namespace Pmvni.Agentes.Testes;
 
@@ -13,10 +13,10 @@ public class EventosCodexTestes
         yield return new object?[] { "{\"type\":\"turn.started\"}", null };
         yield return new object?[] { "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":1}}", null };
         yield return new object?[] { Item("{\"id\":\"i1\",\"type\":\"agent_message\",\"text\":\"Lendo o processo\"}"), "Mensagem: Lendo o processo" };
-        yield return new object?[] { Item("{\"type\":\"command_execution\",\"command\":\"python conferir.py\",\"status\":\"completed\"}"), "Comando: python conferir.py" };
-        yield return new object?[] { Item("{\"type\":\"file_change\",\"changes\":[{\"path\":\"a\",\"kind\":\"add\"},{\"path\":\"b\",\"kind\":\"update\"}]}"), "Arquivos alterados: 2" };
-        yield return new object?[] { Item("{\"type\":\"file_change\",\"changes\":[]}"), "Arquivos alterados: 0" };
-        yield return new object?[] { Item("{\"type\":\"mcp_tool_call\",\"server\":\"kit\",\"tool\":\"buscar\"}"), "Ferramenta: kit/buscar" };
+        yield return new object?[] { Item("{\"type\":\"command_execution\",\"command\":\"python conferir.py\",\"status\":\"completed\"}"), "Ação: executando a etapa conferir" };
+        yield return new object?[] { Item("{\"type\":\"file_change\",\"changes\":[{\"path\":\"a\",\"kind\":\"add\"},{\"path\":\"b\",\"kind\":\"update\"}]}"), "Ação: gravou 2 arquivos de trabalho" };
+        yield return new object?[] { Item("{\"type\":\"file_change\",\"changes\":[]}"), "Ação: gravou 0 arquivos de trabalho" };
+        yield return new object?[] { Item("{\"type\":\"mcp_tool_call\",\"server\":\"kit\",\"tool\":\"buscar\"}"), "Ação: consultou buscar" };
         yield return new object?[] { Item("{\"type\":\"reasoning\",\"text\":\"pensando\"}"), null };
         yield return new object?[] { "{\"type\":\"item.started\",\"item\":{\"type\":\"command_execution\",\"command\":\"x\"}}", null };
         yield return new object?[] { "{\"type\":\"error\",\"message\":\"sem rede\"}", "Erro: sem rede" };
@@ -28,7 +28,7 @@ public class EventosCodexTestes
         yield return new object?[] { "   ", null };
         yield return new object?[] { "{\"sem_tipo\":true}", null };    // objeto desconhecido
         yield return new object?[] { Item("{\"type\":\"agent_message\"}"), null };    // sem texto: tolerante, nada a mostrar
-        yield return new object?[] { Item("{\"type\":\"mcp_tool_call\",\"tool\":\"so_ferramenta\"}"), "Ferramenta: so_ferramenta" };
+        yield return new object?[] { Item("{\"type\":\"mcp_tool_call\",\"tool\":\"so_ferramenta\"}"), "Ação: consultou so ferramenta" };
     }
 
     [Theory]

@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -2954,7 +2954,7 @@ internal static class Roteiro
             var fim = await Prazo(j.AguardarAnaliseAsync(e), 120);
             p["fim"] = fim.Situacao + (fim.Mensagem is null ? "" : ": " + fim.Mensagem);
             p["titulo_durante"] = titulo;
-            var linhas = e.Linhas.Count >= 3 && e.Linhas.Any(l => l.StartsWith("Mensagem: ", StringComparison.Ordinal)) && e.Linhas.Any(l => l.StartsWith("Comando: ", StringComparison.Ordinal));
+            var linhas = e.Linhas.Count >= 3 && e.Linhas.Any(l => l.StartsWith("Mensagem: ", StringComparison.Ordinal)) && e.Linhas.Any(l => l.StartsWith("Ação: ", StringComparison.Ordinal));
             p["linhas"] = new JsonArray(e.Linhas.Take(10).Select(l => (JsonNode)l).ToArray());
 
             // Os anexos copiados (sha = origem) e a origem intacta.

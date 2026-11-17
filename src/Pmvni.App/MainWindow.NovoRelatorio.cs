@@ -657,6 +657,12 @@ public sealed partial class MainWindow
             ajustes.ExecucoesClaude.Add(new ExecucaoClaudePendente(e.Processo.Pasta, e.Registro.Pasta));
             SalvarAjustes();
         }
+        if (e.Provedor == Provedor.ChatGpt && !ajustes.ExecucoesChatGpt.Any(x => MesmoRegistro(x.Registro, e.Registro.Pasta)))
+        {
+            // Guardada já na partida: se o editor cair, a reabertura oferece continuar de onde parou.
+            ajustes.ExecucoesChatGpt.Add(new ExecucaoClaudePendente(e.Processo.Pasta, e.Registro.Pasta));
+            SalvarAjustes();
+        }
         conclusoes[e] = ConcluirAsync(e);
         if (enviados is not null)
         {
@@ -679,6 +685,14 @@ public sealed partial class MainWindow
     /// <summary>"Continuar a análise" (Claude parado ou interrompido): roda <c>iniciar</c> de novo, que o kit retoma de onde parou.</summary>
     internal Task<ExecucaoEmCurso?> ContinuarAnaliseAsync() => NaFilaAsync(async () =>
     {
+        if (continuarChatGpt is { } cg)
+        {
+            // ChatGPT (2026-11-17): continua a mesma sessão do Codex (codex exec resume), no mesmo registro.
+            continuarChatGpt = null;
+            NR.AvisoResultado.IsOpen = false;
+            await LerPecasAsync();
+            return await PartirAsync(() => sessaoNR.RetomarChatGptAsync(cg.Processo, cg.Registro, cg.Sessao), enviados: null);
+        }
         if (ultimoResultadoNR is not { Provedor: Provedor.Claude } anterior) return null;
         NR.AvisoResultado.IsOpen = false;
         await LerPecasAsync();
@@ -773,22 +787,77 @@ public sealed partial class MainWindow
         var comRelatorio = fim.Situacao == "concluida" && fim.Documento is not null;
         // A análise do Claude sai dos ajustes quando acaba sem relatório; com relatório, só depois de importado (até lá o editor reaberto ainda o oferece).
         if (e.Provedor == Provedor.Claude && !comRelatorio) EsquecerPendenteClaude(e.Registro.Pasta);
+        // ChatGPT: fica nos ajustes só o que dá para continuar (cota esgotada ou falha com a sessão do Codex guardada).
+        string? sessaoCodex = null;
+        if (e.Provedor == Provedor.ChatGpt)
+        {
+            sessaoCodex = fim.Situacao is "cota_esgotada" or "falhou" ? await Task.Run(() => LerSessaoCodex(e.Registro.Pasta)) : null;
+            if (sessaoCodex is null) EsquecerPendenteChatGpt(e.Registro.Pasta);
+        }
         var naVista = ReferenceEquals(execucaoMostrada, e) && PaginaNovoRelatorioVisivel;
         if (ReferenceEquals(execucaoMostrada, e)) MostrarFormularioNR();
         // Ruling FD-I3: o fim em segundo plano nunca troca de módulo nem fecha o que está aberto; abre direto só com o usuário na vista desta execução,
         // sem relatório aberto e sem despacho em edição (conferido na vez da fila). Senão, "Relatório pronto" com "Abrir relatório".
         if (comRelatorio)
             await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf), () => naVista && PodeAbrirSemInterromper);
-        else MostrarResultadoNR(e, fim);
+        else MostrarResultadoNR(e, fim, sessaoCodex);
         AtualizarTituloAnalise();
         AtualizarBotoesNR();
         return fim;
     }
 
+    /// <summary>A análise do ChatGPT a continuar com "Continuar a análise" (fim com cota esgotada/falha, ou achada na reabertura).</summary>
+    sealed record ContinuacaoChatGpt(Processo Processo, string Registro, string Sessao);
+
+    ContinuacaoChatGpt? continuarChatGpt;
+
+    /// <summary>A sessão do Codex guardada no <c>execucao.json</c> do registro; null sem ela.</summary>
+    static string? LerSessaoCodex(string pastaRegistro)
+    {
+        try
+        {
+            var arq = Path.Combine(pastaRegistro, "execucao.json");
+            if (!File.Exists(arq)) return null;
+            return System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(arq, Encoding.UTF8))?["sessao_codex"]?.GetValue<string>() is { Length: > 0 and <= 128 } s ? s : null;
+        }
+        catch (Exception x) when (x is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException) { return null; }
+    }
+
+    void EsquecerPendenteChatGpt(string registro)
+    {
+        if (ajustes.ExecucoesChatGpt.RemoveAll(x => MesmoRegistro(x.Registro, registro)) > 0) SalvarAjustes();
+    }
+
+    /// <summary>Na abertura (2026-11-17): uma análise do ChatGPT que não terminou (o editor caiu ou a cota acabou) é oferecida para continuar de onde parou.</summary>
+    internal async Task RetomarExecucoesChatGptAsync()
+    {
+        foreach (var pend in ajustes.ExecucoesChatGpt.ToList())
+        {
+            if (sessaoNR.EmAndamento(pend.Processo)) continue;
+            var (valido, sessao) = await Task.Run(() =>
+                (RegistroExecucao.MotivoInvalido(pend.Processo, pend.Registro) is null && Directory.Exists(pend.Processo) && Directory.Exists(pend.Registro),
+                 LerSessaoCodex(pend.Registro)));
+            if (!valido || sessao is null) { EsquecerPendenteChatGpt(pend.Registro); continue; }
+            var processo = await ProcessoDaPastaAsync(pend.Processo);
+            continuarChatGpt = new ContinuacaoChatGpt(processo, pend.Registro, sessao);
+            var aviso = NR.AvisoResultado;
+            aviso.Severity = InfoBarSeverity.Warning;
+            aviso.Title = "Uma análise com o ChatGPT ficou pela metade";
+            aviso.Message = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} parou antes do fim (o editor fechou ou a cota acabou). Clique em \"Continuar a análise\" para seguir de onde parou.";
+            NR.BotaoContinuar.Visibility = Visibility.Visible;
+            NR.BotaoImportarPendente.Visibility = Visibility.Collapsed;
+            NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed;
+            aviso.IsOpen = true;
+            if (!PaginaNovoRelatorioVisivel) MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message + " (em Novo relatório)");
+            break;   // uma de cada vez: a próxima aparece na próxima abertura
+        }
+    }
+
     /// <summary>A análise terminou sem relatório: a mensagem exata, "Mostrar registro" e, no Claude parado ou interrompido, "Continuar a análise".</summary>
-    void MostrarResultadoNR(ExecucaoEmCurso e, FimAnalise fim)
+    void MostrarResultadoNR(ExecucaoEmCurso e, FimAnalise fim, string? sessaoCodex = null)
     {
         ultimoResultadoNR = e;
+        continuarChatGpt = sessaoCodex is null ? null : new ContinuacaoChatGpt(e.Processo, e.Registro.Pasta, sessaoCodex);
         var aviso = NR.AvisoResultado;
         var nome = Provedores.Nome(e.Provedor);
         aviso.Severity = fim.Situacao == "cancelada" ? InfoBarSeverity.Informational : InfoBarSeverity.Error;
@@ -796,10 +865,14 @@ public sealed partial class MainWindow
         {
             "cancelada" => $"A análise com o {nome} foi cancelada",
             "interrompida" => $"A análise com o {nome} parou",
+            "cota_esgotada" => $"A cota do {nome} acabou",
             _ => $"A análise com o {nome} não gerou relatório",
         };
-        aviso.Message = fim.Mensagem ?? fim.Situacao;
-        NR.BotaoContinuar.Visibility = e.Provedor == Provedor.Claude && fim.Situacao is "falhou" or "interrompida" ? Visibility.Visible : Visibility.Collapsed;
+        if (fim.Situacao == "cota_esgotada") aviso.Severity = InfoBarSeverity.Warning;
+        aviso.Message = (fim.Mensagem ?? fim.Situacao)
+            + (fim.Situacao == "falhou" && sessaoCodex is not null ? " Você pode clicar em \"Continuar a análise\" para seguir de onde parou." : "");
+        NR.BotaoContinuar.Visibility = (e.Provedor == Provedor.Claude && fim.Situacao is "falhou" or "interrompida") || sessaoCodex is not null
+            ? Visibility.Visible : Visibility.Collapsed;
         NR.BotaoImportarPendente.Visibility = Visibility.Collapsed;
         NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Visible;
         aviso.IsOpen = true;
@@ -825,7 +898,9 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         var titulo = TituloAnalise;
-        TextoBotaoAnalise.Text = titulo ?? "";
+        var corte = titulo?.IndexOf(" · ", StringComparison.Ordinal) ?? -1;
+        TextoBotaoAnalise.Text = corte < 0 ? titulo ?? "" : titulo![..corte];
+        DetalheBotaoAnalise.Text = corte < 0 ? "" : titulo![(corte + 3)..];
         BotaoAnalise.Visibility = titulo is null ? Visibility.Collapsed : Visibility.Visible;
         if (titulo is null) relogioAnalise.Stop(); else if (!relogioAnalise.IsRunning) relogioAnalise.Start();
     }
@@ -848,6 +923,7 @@ public sealed partial class MainWindow
         {
             await sessaoNR.CancelarAsync(e);
             await Task.WhenAny(e.Fim, Task.Delay(TimeSpan.FromSeconds(5)));
+            EsquecerPendenteChatGpt(e.Registro.Pasta);   // cancelada de propósito ao fechar: não é oferecida na reabertura
         }
         var claudes = ativas.Where(e => e.Provedor == Provedor.Claude).ToList();
         if (claudes.Count > 0)

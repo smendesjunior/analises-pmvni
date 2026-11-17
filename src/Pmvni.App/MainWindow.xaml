@@ -86,13 +86,21 @@
            pesquisa em pílula (cantos redondos, com a lupa); Anterior | Próximo noutro bloco, com o resultado entre a caixa e eles. -->
       <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left" VerticalAlignment="Center">
         <!-- Novo relatório (desenho §12.7): com uma análise em andamento, o tempo dela ao lado do estado de gravação; clicar abre a vista da execução. -->
+        <Border x:Name="MolduraAnalise" CornerRadius="20" VerticalAlignment="Center" Visibility="Collapsed">
         <Button x:Name="BotaoAnalise" Style="{StaticResource PmvniBarraButtonStyle}" Visibility="Collapsed"
-                AutomationProperties.Name="Análise em andamento" ToolTipService.ToolTip="Abrir a vista da análise em andamento">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <ProgressRing IsActive="True" Width="14" Height="14"/>
-            <TextBlock x:Name="TextoBotaoAnalise" VerticalAlignment="Center"/>
+                AutomationProperties.Name="Análise em andamento" ToolTipService.ToolTip="Abrir a vista da análise em andamento"
+                Height="40" CornerRadius="20" Padding="16,0,16,0" Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+          <!-- Pílula em duas linhas (2026-11-17, referência: indicador do Codex): "Analisando com o ChatGPT" / "19486/2026 · 0 min". -->
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <ProgressRing IsActive="True" Width="20" Height="20" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock x:Name="TextoBotaoAnalise" FontWeight="SemiBold" LineHeight="18" LineStackingStrategy="BlockLineHeight" HorizontalAlignment="Center" TextAlignment="Center"/>
+              <TextBlock x:Name="DetalheBotaoAnalise" FontSize="12" LineHeight="16" LineStackingStrategy="BlockLineHeight" Opacity="0.75" HorizontalAlignment="Center" TextAlignment="Center"/>
+            </StackPanel>
           </StackPanel>
         </Button>
+        </Border>
         <Border x:Name="GrupoHistorico" Style="{StaticResource PmvniGrupoCabecalho}">
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">
