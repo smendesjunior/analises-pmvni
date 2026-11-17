@@ -3,9 +3,10 @@ using System.Text.Json.Nodes;
 
 namespace Pmvni.Revisao;
 
-/// <summary><c>projeto.json</c> ↔ <see cref="Projeto"/>. Formato: <c>{versao_esquema, itens[{id, ordem, numero_original, incluido, chaves[],
+/// <summary><c>projeto.json</c> ↔ <see cref="Projeto"/>. Formato: <c>{versao_esquema, itens[{id, ordem, numero_original, incluido, criado?, chaves[],
 /// situacao{original, revisada, justificativa}, campos{nome:{original?, revisado}}, outros{}}], documento{}, linhas?{id:{situacao,
-/// justificativa, campos{caminho: texto}}}}</c> (<c>linhas</c> só com alguma linha de tabela revisada);
+/// justificativa, campos{caminho: texto}}}, acrescimos?{chave:{…}}}</c> (<c>linhas</c> só com alguma linha de tabela revisada;
+/// <c>acrescimos</c> só com alguma esquadria ou chamada criada pelo usuário);
 /// um campo sem <c>original</c> é um campo ausente no original que o usuário criou.</summary>
 public static class ProjetoJson
 {
@@ -21,6 +22,13 @@ public static class ProjetoJson
                 Documento = ((JsonObject)j["documento"]!).DeepClone().AsObject(),
             };
             foreach (var x in j["itens"]!.AsArray()) p.Itens.Add(LerItem(x!.AsObject()));
+            // Os acréscimos entram antes das linhas: uma linha revisada pode ser uma linha acrescentada.
+            if (j["acrescimos"] is JsonObject acrescimos)
+                foreach (var (chave, valor) in acrescimos)
+                {
+                    if (!TabelasRevisao.EhChaveDeAcrescimo(chave)) throw new JsonException("projeto.json inválido: acréscimo com chave inválida: " + chave);
+                    p.Acrescimos[chave] = valor!.AsObject().DeepClone().AsObject();
+                }
             if (j["linhas"] is JsonObject linhas)
                 foreach (var (id, valor) in linhas)
                 {
@@ -36,7 +44,7 @@ public static class ProjetoJson
         }
     }
 
-    private static ItemRevisao LerItem(JsonObject j)
+    internal static ItemRevisao LerItem(JsonObject j)
     {
         var item = new ItemRevisao
         {
@@ -44,6 +52,7 @@ public static class ProjetoJson
             Ordem = j["ordem"]!.GetValue<int>(),
             NumeroOriginal = j["numero_original"]!.GetValue<int>(),
             Incluido = j["incluido"]!.GetValue<bool>(),
+            Criado = j["criado"]?.GetValue<bool>() ?? false,
             Outros = j["outros"]!.AsObject().DeepClone().AsObject(),
         };
         foreach (var c in j["chaves"]!.AsArray()) item.Chaves.Add(c!.GetValue<string>());
@@ -103,12 +112,19 @@ public static class ProjetoJson
             }
             o["linhas"] = linhas;
         }
+        // O que o usuário acrescentou às tabelas (esquadrias, chamadas): a chave só existe quando há algum.
+        if (p.Acrescimos.Count > 0)
+        {
+            var acrescimos = new JsonObject();
+            foreach (var (chave, modelo) in p.Acrescimos) acrescimos[chave] = modelo.DeepClone();
+            o["acrescimos"] = acrescimos;
+        }
         // A camada de figuras só existe depois da primeira edição de figura (um projeto sem ela grava como antes).
         if (p.Figuras is not null) o["figuras"] = CamadaFiguras.Escrever(p.Figuras);
         return JsonFiel.Escrever(o);
     }
 
-    private static JsonObject EscreverItem(ItemRevisao i)
+    internal static JsonObject EscreverItem(ItemRevisao i)
     {
         var chaves = new JsonArray();
         foreach (var c in i.Chaves) chaves.Add(c);
@@ -122,7 +138,7 @@ public static class ProjetoJson
             campos[nome] = o;
         }
 
-        return new JsonObject
+        var item = new JsonObject
         {
             ["id"] = i.Id,
             ["ordem"] = i.Ordem,
@@ -138,5 +154,8 @@ public static class ProjetoJson
             ["campos"] = campos,
             ["outros"] = i.Outros.DeepClone(),
         };
+        // Só o item criado pelo usuário leva a marca (os recebidos gravam como antes).
+        if (i.Criado) item["criado"] = true;
+        return item;
     }
 }

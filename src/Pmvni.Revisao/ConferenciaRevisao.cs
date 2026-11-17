@@ -16,6 +16,9 @@ public static class ConferenciaRevisao
         var erros = new List<string>();
         foreach (var it in p.Incluidos)
         {
+            // Item criado na revisão e ainda com os textos de nascença: não sai no PDF por engano.
+            if (ItemNovo.PorPreencher(it) is { Count: > 0 } vazios)
+                erros.Add(Rotulo(p, it) + " (item novo): falta preencher " + string.Join(", ", vazios.Select(c => Comparacao.NomeDoCampo(c).ToLowerInvariant())));
             if (!FaltaJustificativa(it)) continue;
             erros.Add(Rotulo(p, it) + ": a situação mudou de " + TextoSituacao(SituacaoOriginal(it)) + " para " + TextoSituacao(it.Situacao.Revisada)
                       + " sem justificativa");
@@ -30,9 +33,10 @@ public static class ConferenciaRevisao
         return erros;
     }
 
-    /// <summary>Situação revisada (diferente da original) sem justificativa preenchida. Usada também por <see cref="Pendencias"/>.</summary>
+    /// <summary>Situação revisada (diferente da original) sem justificativa preenchida. Usada também por <see cref="Pendencias"/>.
+    /// O item criado pelo usuário não tem original de que diferir: nunca exige justificativa.</summary>
     internal static bool FaltaJustificativa(ItemRevisao it) =>
-        it.Situacao.Revisada is not null && string.IsNullOrWhiteSpace(it.Situacao.Justificativa);
+        !it.Criado && it.Situacao.Revisada is not null && string.IsNullOrWhiteSpace(it.Situacao.Justificativa);
 
     /// <summary>Trechos "item NN"/"itens NN" que ficaram literais nos textos (não viraram citação) e podem ter perdido o sentido porque a
     /// numeração dos itens mudou. Sem mudança de numeração (nenhuma exclusão), não há aviso.</summary>

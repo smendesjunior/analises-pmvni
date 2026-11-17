@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -68,7 +69,7 @@ public sealed partial class MainWindow
     internal async Task<bool> AjustarVolumetriaComIaAsync(string pedido)
     {
         if (ajustandoComIa || sessao is not { Revisao.Projeto: { } p } s) return false;
-        ajustandoComIa = true;
+        IniciarEsperaIa();
         var ok = true;
         try
         {
@@ -81,19 +82,16 @@ public sealed partial class MainWindow
             d["situacao"] = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(p, id)) ?? "";
             linhas[id] = d;
         }
-        var pastaProcesso = RecortePrancha.PastaDoProcesso(s.Caminho);
         try
         {
-            var pecas = await LerPecasAsync();
-            var saida = await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, IaRecalculoIndices.PromptVolumetria(pedido, linhas),
-                CancellationToken.None, pastaProcesso, []);
+            var saida = await PerguntarNaRevisaoAsync(IaRecalculoIndices.PromptVolumetria(pedido, linhas));
             if (!ReferenceEquals(sessao, s)) return false;
             if (IaRecalculoIndices.Ler(saida, linhas.Keys) is not { } novas)
             {
                 MostrarMensagem(InfoBarSeverity.Warning, "Volumetria", "A resposta da IA não veio no formato esperado; nada mudou.");
                 return false;
             }
-            var mudou = 0;
+            var comandos = new List<Comando>();
             foreach (var (id, campos) in novas)
             {
                 if (!linhas.TryGetValue(id, out var antes)) continue;
@@ -102,22 +100,41 @@ public sealed partial class MainWindow
                     if (caminho is "situacao" or "justificativa" || !antes.ContainsKey(caminho) || texto.Trim().Length == 0) continue;
                     if (TextoEditado.Normalizar(texto) == TextoEditado.Normalizar(antes[caminho])) continue;
                     if ((TabelasRevisao.TextoEfetivo(p, id, caminho) ?? "") != antes[caminho]) continue; // editado durante a espera
-                    await TentarAsync(() => AplicarAsync(new DefinirCampo(id, caminho, texto)));
-                    mudou++;
+                    comandos.Add(new DefinirCampo(id, caminho, texto));
                 }
             }
-            MostrarMensagem(InfoBarSeverity.Success, "Volumetria",
-                mudou == 0 ? "A IA não mudou nada na volumetria." : $"A IA ajustou a volumetria ({mudou} {(mudou == 1 ? "texto" : "textos")}). Desfazer volta.");
+            // Correções 2026-11-16: "adicionar que o afastamento frontal de 120 cm não atende" vira uma chamada numerada nova (a 7, depois
+            // da 5 e da 6), com a marca no desenho; antes a IA só podia pôr a frase no destaque vermelho.
+            var chamadas = IaRecalculoIndices.LerNovasChamadas(saida, linhas.Keys);
+            var novasIds = new List<string>();
+            if (chamadas.Count > 0 && TabelasRevisao.ProximaChamada(p) is { } primeira && TabelasRevisao.TentarLer(primeira, out _, out var n))
+                foreach (var c in chamadas)
+                {
+                    var id = TabelasRevisao.Id(TabelasRevisao.Chamadas, n + novasIds.Count);
+                    comandos.Add(new AcrescentarChamada(id, c.Ancora, c.Titulo, c.Texto, c.Situacao));
+                    novasIds.Add(id);
+                }
+            if (comandos.Count == 0)
+            {
+                MostrarMensagem(InfoBarSeverity.Success, "Volumetria", "A IA não mudou nada na volumetria.");
+                return true;
+            }
+            await TentarAsync(() => AplicarAsync(new Lote(TabelasRevisao.Id(TabelasRevisao.Volumetria, 1), comandos, "Volumetria ajustada pela IA")));
+            if (ultimosErros.Count > 0) return false;
+            var textos = comandos.Count(c => c is DefinirCampo);
+            var partes = new List<string>();
+            if (novasIds.Count > 0)
+                partes.Add((novasIds.Count == 1 ? "chamada nova " : "chamadas novas ") + string.Join(", ", novasIds.Select(i => TabelasRevisao.TentarLer(i, out _, out var k) ? k.ToString(CultureInfo.InvariantCulture) : i)));
+            if (textos > 0) partes.Add($"{textos} {(textos == 1 ? "texto" : "textos")}");
+            MostrarMensagem(InfoBarSeverity.Success, "Volumetria", $"A IA ajustou a volumetria ({string.Join("; ", partes)}). Um Desfazer volta tudo.");
         }
         catch (Exception e)
         {
-            // Auditoria 2026-11-16: nenhum erro da IA (JSON, tempo, rede, processo) derruba o editor; o detalhe vai para o registro.
-            RegistroErros.Gravar("ia", e);
             ok = false;
-            MostrarMensagem(InfoBarSeverity.Error, "IA", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + e.Message);
+            MostrarErroDaIa(e);
         }
         return ok;
         }
-        finally { ajustandoComIa = false; }
+        finally { TerminarEsperaIa(); }
     }
 }

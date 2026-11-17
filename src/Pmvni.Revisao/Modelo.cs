@@ -43,6 +43,10 @@ public sealed class ItemRevisao
     public int Ordem { get; set; }
     public int NumeroOriginal { get; set; }
     public bool Incluido { get; set; } = true;
+    /// <summary>O item foi criado pelo usuário na revisão ("Novo item", correções 2026-11-16): não veio no relatório recebido e não tem
+    /// original — a situação fica em <see cref="SituacaoItem.Revisada"/> (sem exigir justificativa) e cada campo é
+    /// <see cref="CampoTexto.Ausente"/>. <see cref="NumeroOriginal"/> é um número depois do último recebido (não é citado por ninguém).</summary>
+    public bool Criado { get; set; }
     public List<string> Chaves { get; set; } = new();
     public SituacaoItem Situacao { get; set; } = new();
     public Dictionary<string, CampoTexto> Campos { get; set; } = new(StringComparer.Ordinal);
@@ -58,6 +62,7 @@ public sealed class ItemRevisao
             Ordem = Ordem,
             NumeroOriginal = NumeroOriginal,
             Incluido = Incluido,
+            Criado = Criado,
             Chaves = new List<string>(Chaves),
             Situacao = Situacao.Clonar(),
             Campos = campos,
@@ -81,8 +86,15 @@ public sealed class Projeto
     /// <see cref="Documento"/> como vieram.</summary>
     public List<FiguraRevisao>? Figuras { get; set; }
 
+    /// <summary>O que o usuário ACRESCENTOU às tabelas (correções 2026-11-16), por chave: uma linha inteira (<c>chamadas/07</c>: uma
+    /// chamada nova do diagrama) ou uma parte de uma linha (<c>ambientes/01/vaos/1</c>: uma esquadria nova do ambiente). O valor é o
+    /// "original" do que foi criado; as edições posteriores ficam em <see cref="Linhas"/>, como nas linhas recebidas. O
+    /// <see cref="Documento"/> nunca muda: os acréscimos só entram no dados.json efetivo (<see cref="TabelasRevisao"/>).</summary>
+    public SortedDictionary<string, JsonObject> Acrescimos { get; set; } = new(StringComparer.Ordinal);
+
     public Projeto Clonar() => new()
     {
+        Acrescimos = new SortedDictionary<string, JsonObject>(Acrescimos.ToDictionary(a => a.Key, a => (JsonObject)a.Value.DeepClone()), StringComparer.Ordinal),
         VersaoEsquema = VersaoEsquema,
         Itens = Itens.Select(i => i.Clonar()).ToList(),
         Documento = (JsonObject)Documento.DeepClone(),

@@ -28,6 +28,57 @@ public sealed record Restaurar(string Item) : Comando(Item);
 /// <summary>Descarta todas as revisões de texto e de situação do item (a inclusão e a justificativa digitada ficam).</summary>
 public sealed record RestaurarItemOriginal(string Item) : Comando(Item);
 
+/// <summary>Cria um item de análise novo ("Novo item", correções 2026-11-16), logo depois de <see cref="DepoisDe"/> (null = no fim), com
+/// os mesmos campos dos outros (título, situação, verificação técnica, providência, base legal, referência) preenchidos com os textos
+/// de <see cref="ItemNovo"/> para o usuário trocar. <see cref="Item"/> é o id novo (<see cref="IdItem.Novo"/>): quem cria escolhe, para o
+/// registro se reaplicar igual. O item entra na numeração (os seguintes sobem um número) e sai no PDF e no resumo como os outros.</summary>
+public sealed record CriarItem(string Item, string? DepoisDe = null, string Situacao = ItemNovo.SituacaoInicial) : Comando(Item);
+
+/// <summary>Os textos com que um item novo nasce. Enquanto algum estiver lá, a conferência final bloqueia a exportação
+/// (<see cref="ConferenciaRevisao.Erros"/>): um item por preencher não vai para o PDF por engano.</summary>
+public static class ItemNovo
+{
+    /// <summary>FALTA COMPROVAR: o item novo nasce pendente, e o usuário escolhe a situação.</summary>
+    public const string SituacaoInicial = "NAO_COMPROVADO";
+
+    public static IReadOnlyDictionary<string, string> Textos { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["titulo"] = "Novo item",
+        ["verificacao"] = "Descreva aqui a verificação técnica.",
+        ["providencia"] = "Descreva aqui a providência.",
+        ["base_legal"] = "Indique aqui a base legal.",
+        ["referencia"] = "Indique aqui a referência no projeto.",
+    };
+
+    /// <summary>Os campos do item criado que ainda estão com o texto de nascença.</summary>
+    public static IReadOnlyList<string> PorPreencher(ItemRevisao it)
+    {
+        ArgumentNullException.ThrowIfNull(it);
+        if (!it.Criado) return [];
+        return Campos.Editaveis.Where(c => !it.Campos.TryGetValue(c, out var campo) || campo.Revisado is null || campo.Revisado == Textos[c]).ToList();
+    }
+}
+
+/// <summary>Acrescenta uma esquadria (vão) a um ambiente da tabela ILUMINAÇÃO E VENTILAÇÃO (correções 2026-11-16): entra no fim da
+/// lista de vãos do ambiente e passa a ser editada como as outras. <see cref="Item"/> é a linha do ambiente (<c>ambientes/01</c>).</summary>
+public sealed record AcrescentarVao(string Item, string Codigo, string Medidas, string Tipo, string Area) : Comando(Item);
+
+/// <summary>Acrescenta uma chamada numerada ao DIAGRAMA DOS ÍNDICES (correções 2026-11-16). <see cref="Item"/> é o id da linha nova
+/// (<see cref="TabelasRevisao.ProximaChamada"/>); <see cref="Ancora"/> diz em que desenho e em que ponto fica a marca com o número
+/// (lote, permeavel, edificacao, lateral: planta; telhado, altura, frente…: volumetria); a situação é a de linha de tabela.</summary>
+public sealed record AcrescentarChamada(string Item, string Ancora, string Titulo, string Texto, string Situacao) : Comando(Item);
+
+/// <summary>Remove algo que o usuário acrescentou: a esquadria <see cref="Campo"/> (<c>vaos/2</c>) do ambiente <see cref="Item"/>, ou,
+/// sem campo, a chamada <see cref="Item"/>. Só o último acréscimo de cada lista (os outros não mudam de posição). O que veio no
+/// relatório recebido nunca é removido.</summary>
+public sealed record RemoverAcrescimo(string Item, string? Campo = null) : Comando(Item);
+
+/// <summary>Vários comandos aplicados de uma vez, como UMA alteração: um registro no histórico e um passo do Desfazer (correções
+/// 2026-11-16: o ajuste do item pela IA, o recálculo de uma linha de tabela depois de editar o valor). <see cref="Item"/> é o item ou a
+/// linha a que o lote pertence (o histórico dele); <see cref="Descricao"/> é o texto do registro ("Recalculado: …"). Os comandos são
+/// aplicados na ordem, cada um sobre o resultado do anterior; um recusado recusa o lote inteiro; os que não mudam nada ficam de fora.</summary>
+public sealed record Lote(string Item, IReadOnlyList<Comando> Comandos, string Descricao) : Comando(Item);
+
 /// <summary>O comando foi recusado (o texto é a mensagem para o usuário); o projeto não mudou e nada foi registrado.</summary>
 public sealed class ComandoRecusadoException(string mensagem) : Exception(mensagem);
 
@@ -47,9 +98,13 @@ internal static class Motor
     {
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(c);
+        if (c is Lote lote) return CalcularLote(p, lote);
         if (TabelasRevisao.EhLinha(c.Item)) return MotorLinhas.Calcular(p, c); // linha de tabela (Linhas.cs)
         if (c is ComandoFigura cf) return MotorFiguras.Calcular(p, cf);
+        if (c is CriarItem criar) return CalcularCriacao(p, criar);
         var it = p.Item(c.Item) ?? throw new ComandoRecusadoException("O item não existe no relatório.");
+        if (it.Criado && c is RestaurarCampo or RestaurarItemOriginal)
+            throw new ComandoRecusadoException("Este item foi criado na revisão: não há texto original para restaurar.");
         return c switch
         {
             DefinirSituacao d => CalcularSituacao(it, d),
@@ -66,8 +121,10 @@ internal static class Motor
     /// <summary>Põe <paramref name="valor"/> (o "depois" de um registro) no item. <see cref="InvalidOperationException"/> se o item não existe.</summary>
     public static void Definir(Projeto p, string tipo, string item, string? campo, JsonNode? valor)
     {
+        if (tipo == nameof(Lote)) { DefinirLote(p, valor); return; }
         if (TabelasRevisao.EhLinha(item)) { MotorLinhas.Definir(p, tipo, item, campo, valor); return; } // linha de tabela (Linhas.cs)
         if (MotorFiguras.EhTipo(tipo)) { MotorFiguras.Definir(p, valor); return; }
+        if (tipo == nameof(CriarItem)) { DefinirCriacao(p, item, valor); return; }
         var it = p.Item(item) ?? throw new InvalidOperationException("O registro cita um item que não existe: " + item);
         switch (tipo)
         {
@@ -97,6 +154,90 @@ internal static class Motor
                 throw new InvalidOperationException("Tipo de registro desconhecido: " + tipo);
         }
     }
+
+    // ---------- item novo ----------
+
+    /// <summary>O efeito de criar o item: <c>Antes</c> null, <c>Depois</c> = o item inteiro no formato do projeto.json (com a ordem em
+    /// que entra). Os itens seguintes sobem uma posição ao aplicar e descem ao desfazer (<see cref="DefinirCriacao"/>).</summary>
+    private static Efeito CalcularCriacao(Projeto p, CriarItem c)
+    {
+        if (!IdItem.Valido(c.Item)) throw new ComandoRecusadoException("O id do item novo é inválido.");
+        if (p.Item(c.Item) is not null) throw new ComandoRecusadoException("Já existe um item com este id.");
+        if (!Situacoes.SitItem.Contains(c.Situacao)) throw new ComandoRecusadoException("Situação inválida: " + c.Situacao + ".");
+        int ordem;
+        if (c.DepoisDe is null) ordem = p.Itens.Count == 0 ? 1 : p.Itens.Max(i => i.Ordem) + 1;
+        else ordem = (p.Item(c.DepoisDe) ?? throw new ComandoRecusadoException("O item de referência não existe no relatório.")).Ordem + 1;
+
+        // As mesmas chaves, na mesma ordem, de um item recebido (só as que o editor modela); sem nenhum, a ordem do kit.
+        var chaves = p.Itens.FirstOrDefault(i => !i.Criado)?.Chaves.Where(k => k == "situacao" || Campos.Editaveis.Contains(k)).ToList() ?? new List<string>();
+        foreach (var k in new[] { "titulo", "situacao", "verificacao", "providencia", "base_legal", "referencia" })
+            if (!chaves.Contains(k)) chaves.Add(k);
+        var novo = new ItemRevisao
+        {
+            Id = c.Item,
+            Ordem = ordem,
+            // Depois do último número recebido: nenhuma citação nem nota de figura do original aponta para ele.
+            NumeroOriginal = p.Itens.Count == 0 ? 1 : p.Itens.Max(i => i.NumeroOriginal) + 1,
+            Incluido = true,
+            Criado = true,
+            Chaves = chaves,
+            Situacao = new SituacaoItem { Original = null, Revisada = c.Situacao },
+        };
+        foreach (var nome in Campos.Editaveis) novo.Campos[nome] = new CampoTexto { Ausente = true, Revisado = ItemNovo.Textos[nome] };
+        return new Efeito(nameof(CriarItem), c.Item, null, null, ProjetoJson.EscreverItem(novo));
+    }
+
+    private static void DefinirCriacao(Projeto p, string id, JsonNode? valor)
+    {
+        if (valor is null)
+        {
+            var it = p.Item(id) ?? throw new InvalidOperationException("O registro cita um item que não existe: " + id);
+            p.Itens.Remove(it);
+            foreach (var i in p.Itens.Where(i => i.Ordem > it.Ordem)) i.Ordem--;
+            return;
+        }
+        if (p.Item(id) is not null) throw new InvalidOperationException("O registro cria um item que já existe: " + id);
+        var novo = ProjetoJson.LerItem(valor.AsObject());
+        foreach (var i in p.Itens.Where(i => i.Ordem >= novo.Ordem)) i.Ordem++;
+        p.Itens.Add(novo);
+    }
+
+    // ---------- lote ----------
+
+    /// <summary>O efeito do lote: <c>Antes</c>/<c>Depois</c> = <c>{descricao, passos[{tipo, item, campo, valor}]}</c>; os passos do
+    /// <c>Antes</c> ficam na ordem inversa (desfazer é aplicá-los como estão). Calculado numa cópia: o projeto não muda.</summary>
+    private static Efeito? CalcularLote(Projeto p, Lote l)
+    {
+        if (l.Comandos.Any(c => c is Lote)) throw new ComandoRecusadoException("Um lote não pode conter outro lote.");
+        var copia = p.Clonar();
+        var efeitos = new List<Efeito>();
+        foreach (var c in l.Comandos)
+        {
+            if (Calcular(copia, c) is not { } ef) continue;
+            Definir(copia, ef.Tipo, ef.Item, ef.Campo, ef.Depois);
+            efeitos.Add(ef);
+        }
+        if (efeitos.Count == 0) return null;
+        static JsonNode Passo(Efeito e, JsonNode? valor) =>
+            new JsonObject { ["tipo"] = e.Tipo, ["item"] = e.Item, ["campo"] = e.Campo, ["valor"] = valor?.DeepClone() };
+        var antes = new JsonObject { ["descricao"] = l.Descricao, ["passos"] = new JsonArray(Enumerable.Reverse(efeitos).Select(e => (JsonNode?)Passo(e, e.Antes)).ToArray()) };
+        var depois = new JsonObject { ["descricao"] = l.Descricao, ["passos"] = new JsonArray(efeitos.Select(e => (JsonNode?)Passo(e, e.Depois)).ToArray()) };
+        return new Efeito(nameof(Lote), l.Item, null, antes, depois);
+    }
+
+    private static void DefinirLote(Projeto p, JsonNode? valor)
+    {
+        if (valor?["passos"] is not JsonArray passos) throw new InvalidOperationException("O registro do lote não tem os passos.");
+        foreach (var n in passos)
+        {
+            var o = n as JsonObject ?? throw new InvalidOperationException("Passo inválido no registro do lote.");
+            Definir(p, o["tipo"]!.GetValue<string>(), o["item"]!.GetValue<string>(), o["campo"]?.GetValue<string>(), o["valor"]);
+        }
+    }
+
+    /// <summary>Quantos passos tem o registro de um lote e a descrição dele (para o histórico).</summary>
+    internal static (string Descricao, int Passos) ResumoDoLote(JsonNode? valor) =>
+        (valor?["descricao"] is JsonValue v && v.TryGetValue<string>(out var d) ? d : "", (valor?["passos"] as JsonArray)?.Count ?? 0);
 
     // ---------- situação e justificativa ----------
 

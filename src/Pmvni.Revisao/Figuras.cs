@@ -287,7 +287,8 @@ public static partial class CamadaFiguras
         }
     }
 
-    static IReadOnlyList<string> IdsPorNumeroOriginal(Projeto p) => p.Itens.OrderBy(i => i.NumeroOriginal).Select(i => i.Id).ToList();
+    // Só os itens recebidos: um item criado na revisão não é citado por nenhuma nota do original.
+    static IReadOnlyList<string> IdsPorNumeroOriginal(Projeto p) => p.Itens.Where(i => !i.Criado).OrderBy(i => i.NumeroOriginal).Select(i => i.Id).ToList();
 
     [GeneratedRegex(@"^\s*(?:item|itens)\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ComecaPorItem();

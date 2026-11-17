@@ -89,6 +89,7 @@ public static class Faixas
         [
             new(ComandosApp.InicioSituacao, "Situação", Glifos.Situacao, TipoComando.Menu, OrdemSituacoes
                 .Select(c => new ComandoFaixa(ComandosApp.ComandoDaSituacao(c), Situacoes.Sit[c].Texto, Glifos.SituacaoItem)).ToList()),
+            new(ComandosApp.InicioNovoItem, "Novo item", Glifos.NovoItem),
             new(ComandosApp.InicioExcluirRestaurar, "Excluir item", Glifos.Excluir),
             new(ComandosApp.InicioEditarTexto, "Editar texto", Glifos.Editar),
             new(ComandosApp.InicioOriginal, "Original", Glifos.Original, TipoComando.Alternar),
@@ -96,6 +97,8 @@ public static class Faixas
             new(ComandosApp.InicioItemAnterior, "Item anterior", Glifos.Anterior),
             new(ComandosApp.InicioItemProximo, "Próximo item", Glifos.Proximo),
             new(ComandosApp.InicioProximoPendente, "Próximo pendente", Glifos.Pendente),
+            // Menu dinâmico: as figuras do relatório (a janela as informa cada vez que o menu abre), como Recentes.
+            new(ComandosApp.FigurasAbrirEditor, "Figuras", Glifos.Figuras, TipoComando.Menu, [], Descricao: "Abrir uma figura no editor de figuras"),
             new(ComandosApp.ArquivoExportarPdf, "Exportar PDF", Glifos.Exportar),
             NovoDespacho,
         ]),

@@ -60,6 +60,8 @@ public sealed partial class MainWindow
         Preencher(p.CaixaAgruparDespachos, TextosAgrupar.Select(x => ((object)x.Valor, x.Texto)));
         Preencher(p.CaixaOrdemDespachos, TextosOrdemDespachos.Select(x => ((object)x.Valor, x.Texto)));
         Preencher(p.CaixaEscopo, TextosEscopo.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaIaModelo, ModeloIaAjuste.Modelos.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaIaEsforco, ModeloIaAjuste.Esforcos.Select(x => ((object)x.Valor, x.Texto)));
 
         // Cada escolha grava na hora (barra "Alterações salvas automaticamente") e vale já onde é lida.
         void AoEscolher(ComboBox c, Action<object> aplicar) => c.SelectionChanged += (_, _) =>
@@ -125,6 +127,8 @@ public sealed partial class MainWindow
         p.BotaoRedefinirPerfil.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(RedefinirPerfilSofficeAsync));
         AoAlternar(p.AlternarAbrirPdf, sim => ajustes.DespachoAbrirPdf = sim);
         AoEscolher(p.CaixaEscopo, v => ajustes.LegislacaoEscopo = (string)v);
+        AoEscolher(p.CaixaIaModelo, v => ajustes.IaAjusteModelo = (string)v);
+        AoEscolher(p.CaixaIaEsforco, v => ajustes.IaAjusteEsforco = (string)v);
         // Grava ao digitar também (antes só ao sair da caixa, e o texto se perdia se a janela fechasse com o cursor nela).
         p.CaixaPedidoPadrao.TextChanged += (_, _) =>
         {
@@ -153,6 +157,7 @@ public sealed partial class MainWindow
         {
             if (menu == ComandosApp.ArquivoRecentes) await AbrirRecenteAsync(valor);
             else if (menu == ComandosApp.ProcessosAno) await DefinirAnoAsync(valor);
+            else if (menu == ComandosApp.FigurasAbrirEditor) AbrirEditorFigura(valor);
         };
         foreach (var t in Ajustes.Temas)
         {
@@ -204,6 +209,8 @@ public sealed partial class MainWindow
             Escolher(p.CaixaAgruparDespachos, ajustes.DespachosAgrupar);
             Escolher(p.CaixaOrdemDespachos, ajustes.DespachosOrdem);
             Escolher(p.CaixaEscopo, ajustes.LegislacaoEscopo);
+            Escolher(p.CaixaIaModelo, ajustes.IaAjusteModelo);
+            Escolher(p.CaixaIaEsforco, ajustes.IaAjusteEsforco);
             p.AlternarJanela.IsOn = ajustes.LembrarJanela;
             p.AlternarMarcas.IsOn = ajustes.MarcasRevisao;
             p.AlternarPaineis.IsOn = ajustes.LembrarPaineis;
@@ -412,6 +419,7 @@ public sealed partial class MainWindow
     IReadOnlyList<(string Texto, string Valor, string Dica)> ItensDoMenuDaFaixa(string menu)
     {
         if (menu == ComandosApp.ProcessosAno) return ItensDoMenuAno();
+        if (menu == ComandosApp.FigurasAbrirEditor) return ItensDoMenuFiguras();
         if (menu != ComandosApp.ArquivoRecentes) return [];
         var lista = ajustes.RecentesExistentes();
         haRecentes = lista.Count > 0;

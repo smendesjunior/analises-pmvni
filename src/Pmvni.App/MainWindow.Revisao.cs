@@ -108,6 +108,7 @@ public sealed partial class MainWindow
             await AplicarJustificativaAsync();
         };
         R.PropAjustarTexto.Click += async (_, _) => await AjustarTextoComIaAsync();
+        R.PropAjustarCancelar.Click += (_, _) => CancelarIa();
         R.PropRestaurarOriginal.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioRestaurarOriginal);
         BotaoDesfazer.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.EditarDesfazer);
         BotaoRefazer.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.EditarRefazer);
@@ -127,6 +128,7 @@ public sealed partial class MainWindow
                 : Task.CompletedTask;
         manipuladores[ComandosApp.InicioExcluirRestaurar] = () =>
             ItemSelecionado is { } it ? AplicarAsync(it.Incluido ? new Excluir(it.Id) : new Restaurar(it.Id)) : Task.CompletedTask;
+        manipuladores[ComandosApp.InicioNovoItem] = NovoItemAsync;
         manipuladores[ComandosApp.InicioEditarTexto] = EditarSelecionadoAsync;
         manipuladores[ComandosApp.InicioOriginal] = () =>
         {
@@ -168,12 +170,13 @@ public sealed partial class MainWindow
         var incluido = it is { Incluido: true } || linha is not null;
         Faixa.Habilitar(ComandosApp.InicioSituacao, editavel && incluido);
         foreach (var c in Faixas.OrdemSituacoes) Faixa.Habilitar(ComandosApp.ComandoDaSituacao(c), editavel && incluido);
+        Faixa.Habilitar(ComandosApp.InicioNovoItem, editavel);
         Faixa.Habilitar(ComandosApp.InicioExcluirRestaurar, editavel && it is not null);
         Faixa.DefinirRotulo(ComandosApp.InicioExcluirRestaurar, it is { Incluido: false } ? "Restaurar item" : "Excluir item");
         Faixa.Habilitar(ComandosApp.InicioEditarTexto, editavel && incluido);
         Faixa.Habilitar(ComandosApp.InicioOriginal, temRelatorio && (it is not null || linha is not null));
         Faixa.Ligar(ComandosApp.InicioOriginal, mostrarOriginal);
-        Faixa.Habilitar(ComandosApp.InicioRestaurarOriginal, editavel && (it is not null && TemRevisao(it)
+        Faixa.Habilitar(ComandosApp.InicioRestaurarOriginal, editavel && (it is { Criado: false } && TemRevisao(it)
             || linha is not null && TabelasRevisao.Revisada(sessao!.Revisao.Projeto, linha)));
         Faixa.Habilitar(ComandosApp.InicioItemAnterior, temRelatorio);
         Faixa.Habilitar(ComandosApp.InicioItemProximo, temRelatorio);
@@ -201,10 +204,41 @@ public sealed partial class MainWindow
     /// "A alteração não foi aplicada" com os erros (também em <see cref="UltimosErros"/>) e nada muda.</summary>
     internal Task AplicarAsync(Comando c) => ExecutarRevisaoAsync(s => s.Revisao.Testar(c), s => s.Revisao.Aplicar(c));
 
-    /// <summary>A edição de um campo pelo host: a mesma rota do <c>editar</c> da página (Enter no A4).</summary>
+    /// <summary>A edição de um campo pelo host: a mesma rota do <c>editar</c> da página (Enter no A4). Numa linha de tabela, o comando
+    /// vem de <see cref="ComandoDeEdicao"/>: a edição do valor (ou do limite) de um índice leva junto o recálculo da situação.</summary>
     internal Task EditarTextoAsync(string itemId, string campo, string texto) =>
-        AplicarAsync(new DefinirCampo(itemId, campo, TabelasRevisao.EhLinha(itemId) && sessao?.Revisao.Projeto is { } pj
-            ? IaRecalculoIndices.CompletarUnidade(texto, TabelasRevisao.TextoOriginal(pj, itemId, campo)) : texto));
+        NaFilaAsync(() => AplicarAsync(sessao?.Revisao.Projeto is { } pj ? ComandoDeEdicao(pj, itemId, campo, texto) : new DefinirCampo(itemId, campo, texto)));
+
+    /// <summary>O que a última edição manual de uma linha de tabela recalculou (ou não conseguiu recalcular): vira o aviso ao fim do comando.</summary>
+    EdicaoDeLinha? avisoRecalculo;
+
+    /// <summary>O último aviso de recálculo mostrado (o roteiro confere).</summary>
+    internal string? UltimoAvisoRecalculo { get; private set; }
+
+    /// <summary>O comando da edição manual de um texto (correções 2026-11-16). Item: <see cref="DefinirCampo"/>. Linha de tabela: o
+    /// número digitado sem unidade ganha a do original e, se o texto é o valor no projeto ou o limite de um índice com critério numérico,
+    /// a situação e o texto da diferença são refeitos pelo editor, sem IA (<see cref="RecalculoLinha.AoEditar"/>), tudo num só Desfazer.
+    /// O critério ilegível não é adivinhado: a edição entra sozinha e o aviso sugere «Rever com a IA».</summary>
+    Comando ComandoDeEdicao(Projeto pj, string itemId, string campo, string texto)
+    {
+        if (!TabelasRevisao.EhLinha(itemId)) return new DefinirCampo(itemId, campo, texto);
+        texto = IaRecalculoIndices.CompletarUnidade(texto, TabelasRevisao.TextoOriginal(pj, itemId, campo));
+        if (!TabelasRevisao.Existe(pj, itemId)) return new DefinirCampo(itemId, campo, texto);
+        var e = RecalculoLinha.AoEditar(pj, itemId, campo, texto);
+        avisoRecalculo = e.Mensagem is null ? null : e;
+        return e.Comando;
+    }
+
+    /// <summary>Depois de um comando: diz o que o editor recalculou (ou por que não recalculou) na linha editada à mão.</summary>
+    void MostrarAvisoDeRecalculo()
+    {
+        if (avisoRecalculo is not { Mensagem: { } texto } e) return;
+        avisoRecalculo = null;
+        if (ultimosErros.Count > 0) return; // a edição foi recusada: o aviso de recusa já está na tela
+        UltimoAvisoRecalculo = texto;
+        if (e.Recalculado) MostrarMensagem(InfoBarSeverity.Success, "Linha recalculada", texto);
+        else MostrarMensagem(InfoBarSeverity.Informational, "Situação não recalculada", texto);
+    }
 
     // ---------- fila de comandos ----------
 
@@ -275,7 +309,9 @@ public sealed partial class MainWindow
         else if (sessao.SomenteLeitura && id is not (ComandosApp.ArquivoSalvarComo or ComandosApp.ArquivoExportarPdf)) motivo = "o relatório está aberto somente para leitura";
         else if (LinhaSelecionada is not null && id == ComandosApp.InicioExcluirRestaurar)
             motivo = "as linhas das tabelas não se excluem; edite os textos ou a situação";
-        else if (ItemSelecionado is null && LinhaSelecionada is null && (id.StartsWith("inicio.", StringComparison.Ordinal) && id is not (ComandosApp.InicioItemAnterior or ComandosApp.InicioItemProximo or ComandosApp.InicioProximoPendente)))
+        else if (ItemSelecionado is { Criado: true } && id == ComandosApp.InicioRestaurarOriginal)
+            motivo = "o item foi criado na revisão e não tem original";
+        else if (ItemSelecionado is null && LinhaSelecionada is null && (id.StartsWith("inicio.", StringComparison.Ordinal) && id is not (ComandosApp.InicioItemAnterior or ComandosApp.InicioItemProximo or ComandosApp.InicioProximoPendente or ComandosApp.InicioNovoItem)))
             motivo = "selecione um item nas folhas ou na lista de seções";
         else if (ItemSelecionado is { Incluido: false } && (id == ComandosApp.InicioEditarTexto || ComandosApp.SituacaoDoComando(id) is not null || id == ComandosApp.InicioSituacao))
             motivo = "o item selecionado está excluído (restaure-o antes)";
@@ -316,11 +352,13 @@ public sealed partial class MainWindow
     {
         if (sessao is not { Atual: not null } s)
         {
+            avisoRecalculo = null;
             MostrarMensagem(InfoBarSeverity.Warning, "A alteração não foi aplicada", "Nenhum relatório aberto.");
             return;
         }
         if (ocupado)
         {
+            avisoRecalculo = null;
             // Abrir, importar ou exportar chamados fora da fila (o roteiro): a alteração não entra e a página volta ao estado do host.
             MostrarMensagem(InfoBarSeverity.Warning, "A alteração não foi aplicada", "Outra operação ainda está em andamento; tente de novo em seguida.");
             await s.EnviarEstadoAsync();
@@ -369,6 +407,7 @@ public sealed partial class MainWindow
             aplicando = false;
             AtualizarPaineis();
             AtualizarComandos();
+            MostrarAvisoDeRecalculo();
         }
     }
 
@@ -385,9 +424,7 @@ public sealed partial class MainWindow
             || !d.TryGetProperty("campo", out var cp) || cp.GetString() is not { } campo
             || !d.TryGetProperty("texto", out var tx) || tx.GetString() is not { } texto)
             return null; // semEdicao
-        if (TabelasRevisao.EhLinha(item) && s.Revisao.Projeto is { } pj)
-            texto = IaRecalculoIndices.CompletarUnidade(texto, TabelasRevisao.TextoOriginal(pj, item, campo));
-        var c = new DefinirCampo(item, campo, texto);
+        var c = ComandoDeEdicao(s.Revisao.Projeto, item, campo, texto);
         try
         {
             var candidato = s.Revisao.Testar(c);
@@ -396,6 +433,7 @@ public sealed partial class MainWindow
         }
         catch (ComandoRecusadoException e) { ultimosErros.Add(e.Message); edicaoRecusada = (item, campo, texto); }
         catch (RecomposicaoRecusadaException e) { ultimosErros.AddRange(e.Erros); edicaoRecusada = (item, campo, texto); }
+        avisoRecalculo = null; // recusada: nada foi recalculado
         return false;
     }
 
@@ -436,6 +474,7 @@ public sealed partial class MainWindow
         {
             AtualizarPaineis();
             AtualizarComandos();
+            MostrarAvisoDeRecalculo();
         }
         return null;
     }
@@ -527,6 +566,32 @@ public sealed partial class MainWindow
             return;
         }
         await SelecionarAsync(id);
+    }
+
+    // ---------- novo item ----------
+
+    /// <summary>O id do último item criado por «Novo item» (o roteiro confere).</summary>
+    internal string? UltimoItemCriado { get; private set; }
+
+    /// <summary>«Novo item» (correções 2026-11-16): cria um item de análise logo depois do item selecionado (sem item selecionado, no
+    /// fim), com os mesmos campos dos outros e os textos de <see cref="ItemNovo"/> para trocar. É um comando como os demais: entra no
+    /// histórico, Desfazer o tira, vai para o .rpmvni, o PDF e o resumo. Depois de criado, fica selecionado, com as Propriedades abertas.</summary>
+    internal async Task NovoItemAsync()
+    {
+        if (sessao is not { Revisao.Projeto: { } p } s) return;
+        if (!Editavel) { AvisarIndisponivel(ComandosApp.InicioNovoItem); return; }
+        string id;
+        using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+            do id = IdItem.Novo(DateTimeOffset.UtcNow, rng); while (p.Item(id) is not null);
+        var depois = ItemSelecionado?.Id;
+        await AplicarAsync(new CriarItem(id, depois));
+        if (!ReferenceEquals(sessao, s) || p.Item(id) is null) return;   // recusado: o aviso já está na tela
+        UltimoItemCriado = id;
+        await TentarAsync(() => SelecionarAsync(id));
+        if (!PropriedadesVisivel) MostrarPropriedades(true);
+        MostrarMensagem(InfoBarSeverity.Success, "Novo item",
+            $"ITEM {p.NumeroAtual(id):00} criado{(depois is null ? " no fim do relatório" : "")}. Preencha o título, a situação e os textos (nas Propriedades ou nas folhas, com F2); "
+            + "enquanto algum estiver por preencher, o PDF não é exportado. Desfazer tira o item.");
     }
 
     // ---------- edição no A4 ----------
@@ -645,6 +710,7 @@ public sealed partial class MainWindow
         menu.Items.Add(situacao);
         menu.Items.Add(ItemDoMenu("Editar texto", Glifos.Editar, ComandosApp.InicioEditarTexto));
         menu.Items.Add(ItemDoMenu(it.Incluido ? "Excluir item" : "Restaurar item", it.Incluido ? Glifos.Excluir : Glifos.Restaurar, ComandosApp.InicioExcluirRestaurar));
+        menu.Items.Add(ItemDoMenu("Novo item abaixo", Glifos.NovoItem, ComandosApp.InicioNovoItem));
         var original = new ToggleMenuFlyoutItem { Text = "Original", IsChecked = mostrarOriginal, IsEnabled = Faixa.Habilitado(ComandosApp.InicioOriginal) };
         original.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioOriginal);
         menu.Items.Add(original);
@@ -744,7 +810,7 @@ public sealed partial class MainWindow
     {
         if (sessao?.Revisao.Projeto is not { } p || p.Item(id) is not { Incluido: false } it) return;
         var painel = new StackPanel { Spacing = 8, MaxWidth = 300 };
-        painel.Children.Add(new TextBlock { Text = $"Item {it.NumeroOriginal:00} excluído", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        painel.Children.Add(new TextBlock { Text = it.Criado ? "Item novo excluído" : $"Item {it.NumeroOriginal:00} excluído", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
         painel.Children.Add(new TextBlock { Text = DadosEfetivos.TextoEfetivo(p, it, "titulo") ?? "(sem título)", TextWrapping = TextWrapping.Wrap });
         var restaurar = new Button { Content = "Restaurar", IsEnabled = Editavel };
         Dicas.Aplicar(restaurar, "Restaurar", "Traz este item excluído de volta para o relatório.");
@@ -926,14 +992,15 @@ public sealed partial class MainWindow
             var linha = new Grid { Tag = x.Id, ColumnSpacing = 8, MinHeight = 32 };
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var tituloExcluido = $"{x.NumeroOriginal:00}  {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}";
+            var numero = x.Criado ? "novo" : x.NumeroOriginal.ToString("00", CultureInfo.InvariantCulture);
+            var tituloExcluido = $"{numero}  {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}";
             var texto = new TextBlock { Text = tituloExcluido, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
             ToolTipService.SetToolTip(texto, tituloExcluido); // M11: o título inteiro na dica
             linha.Children.Add(texto);
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linha, $"Item excluído {x.NumeroOriginal:00}, {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linha, $"Item excluído {numero}, {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}");
             // B6: botão pequeno com borda (sem borda, parecia texto).
             var restaurar = new Button { Content = "Restaurar", IsEnabled = Editavel, Padding = new Thickness(8, 2, 8, 3), VerticalAlignment = VerticalAlignment.Center };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, $"Restaurar o item {x.NumeroOriginal:00}");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, $"Restaurar o item {numero}");
             Dicas.Aplicar(restaurar, "Restaurar", "Traz este item excluído de volta para o relatório.");
             var id = x.Id;
             restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new Restaurar(id)));
@@ -962,207 +1029,6 @@ public sealed partial class MainWindow
         R.ListaHistorico.Visibility = ReferenceEquals(aba, R.AbaHistorico) ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>Propriedades do item selecionado: número e id, No PDF, situação original e revisada, justificativa, os 5 campos (com
-    /// "alterado" e Restaurar por campo; com Original ⇄, o original ao lado), Restaurar original e o histórico do item.</summary>
-    void AtualizarPropriedades()
-    {
-        if (fechada) return;
-        atualizandoPropriedades = true;
-        try
-        {
-            var p = sessao?.Revisao.Projeto;
-            var it = sessao?.Atual is null ? null : ItemSelecionado;
-            if (p is not null && sessao?.Atual is not null && LinhaSelecionada is { } linha)
-            {
-                MontarPropriedadesLinha(p, linha);
-                return;
-            }
-            if (p is null || it is null)
-            {
-                itemNasPropriedades = null;
-                R.PropTitulo.Text = "Propriedades";
-                R.PropId.Text = "";
-                R.PropVazio.Visibility = Visibility.Visible;
-                R.PropRolagem.Visibility = Visibility.Collapsed;
-                return;
-            }
-            var editavel = Editavel;
-            R.PropVazio.Visibility = Visibility.Collapsed;
-            R.PropRolagem.Visibility = Visibility.Visible;
-            R.PropTitulo.Text = p.NumeroAtual(it.Id) is { } n ? $"ITEM {n:00}" : $"Item excluído (era o {it.NumeroOriginal:00})";
-            R.PropId.Text = it.Id;
-            R.PropNoPdf.IsChecked = it.Incluido;
-            R.PropNoPdf.IsEnabled = editavel;
-
-            var efetiva = SituacaoEfetiva(it);
-            R.PropSituacao.SelectedIndex = efetiva is null ? -1 : Faixas.OrdemSituacoes.ToList().IndexOf(efetiva);
-            R.PropSituacao.IsEnabled = editavel && it.Incluido;
-            var original = it.Situacao.Original is JsonValue v && v.TryGetValue<string>(out var so) ? so : null;
-            R.PropSituacaoOriginal.Text = "original: " + TextoSituacao(original) + (it.Situacao.Revisada is null ? " (sem revisão)" : " · revisada");
-
-            // A justificativa que o usuário está digitando (com o foco na caixa) não é trocada pelo valor gravado do mesmo item.
-            var digitando = itemNasPropriedades == it.Id && Raiz.XamlRoot is not null && ReferenceEquals(FocusManager.GetFocusedElement(Raiz.XamlRoot), R.PropJustificativa);
-            if (!digitando) R.PropJustificativa.Text = it.Situacao.Justificativa ?? "";
-            R.PropJustificativa.IsEnabled = editavel;
-            R.PropJustificativaAviso.Visibility = it.Situacao.Revisada is not null && string.IsNullOrWhiteSpace(it.Situacao.Justificativa) ? Visibility.Visible : Visibility.Collapsed;
-            R.PropAjustarTexto.Visibility = it.Situacao.Revisada is not null ? Visibility.Visible : Visibility.Collapsed;
-            R.PropAjustarRotulo.Text = "Ajustar texto com a IA";
-            R.PropAjustarTexto.IsEnabled = editavel && !ajustandoComIa;
-            itemNasPropriedades = it.Id;
-
-            MontarCampos(p, it, editavel);
-            R.PropRestaurarOriginal.IsEnabled = editavel && TemRevisao(it);
-
-            R.PropHistorico.Children.Clear();
-            var doItem = sessao!.Revisao.HistoricoCompleto.Where(r => r.Item == it.Id).Reverse().ToList();
-            if (doItem.Count == 0) R.PropHistorico.Children.Add(new TextBlock { Text = "Sem alterações.", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
-            foreach (var r in doItem)
-                R.PropHistorico.Children.Add(new TextBlock { Text = $"{Hora(r.DataUtc)}  {DescricaoHistorico.Texto(r, p)}", TextWrapping = TextWrapping.Wrap });
-        }
-        finally { atualizandoPropriedades = false; }
-    }
-
-    void MontarCampos(Projeto p, ItemRevisao it, bool editavel)
-    {
-        R.PropCampos.Children.Clear();
-        var secundario = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"];
-        for (var k = 0; k < Campos.Editaveis.Count; k++)
-        {
-            var campo = Campos.Editaveis[k];
-            it.Campos.TryGetValue(campo, out var c);
-            var alterado = c?.Revisado is not null;
-            var bloco = new StackPanel { Spacing = 2 };
-
-            var cabecalho = new Grid { ColumnSpacing = 6 };
-            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            cabecalho.Children.Add(new TextBlock { Text = NomesCampos[k], Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], VerticalAlignment = VerticalAlignment.Center });
-            if (alterado)
-            {
-                var marca = new TextBlock { Text = "alterado", Style = secundario, Foreground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"], VerticalAlignment = VerticalAlignment.Center };
-                Grid.SetColumn(marca, 1);
-                cabecalho.Children.Add(marca);
-                // B6: botão pequeno com borda (sem borda, parecia texto).
-                var restaurar = new Button { Content = "Restaurar", IsEnabled = editavel, Padding = new Thickness(8, 1, 8, 2), VerticalAlignment = VerticalAlignment.Center };
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, "Restaurar o campo " + NomesCampos[k]);
-                Dicas.Aplicar(restaurar, "Restaurar", "Volta este campo ao texto original recebido da IA.");
-                var id = it.Id;
-                restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new RestaurarCampo(id, campo)));
-                Grid.SetColumn(restaurar, 2);
-                cabecalho.Children.Add(restaurar);
-            }
-            bloco.Children.Add(cabecalho);
-
-            var atual = new TextBlock { Text = DadosEfetivos.TextoEfetivo(p, it, campo) ?? "(sem texto)", TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
-            if (!mostrarOriginal) bloco.Children.Add(atual);
-            else
-            {
-                // Original ⇄: revisado e original lado a lado (o original com as citações numeradas como hoje).
-                var lado = new Grid { ColumnSpacing = 10 };
-                lado.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                lado.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                var esquerda = new StackPanel();
-                esquerda.Children.Add(new TextBlock { Text = "Atual", Style = secundario });
-                esquerda.Children.Add(atual);
-                var textoOriginal = c is null || c.Ausente ? "(ausente no original)"
-                    : c.Original is JsonValue ov && ov.TryGetValue<string>(out var os) ? Citacoes.Imprimir(os, id => p.NumeroAtual(id), id => p.Item(id)?.NumeroOriginal)
-                    : "(sem texto)";
-                var direita = new StackPanel();
-                direita.Children.Add(new TextBlock { Text = "Original", Style = secundario });
-                direita.Children.Add(new TextBlock { Text = textoOriginal, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
-                Grid.SetColumn(direita, 1);
-                lado.Children.Add(esquerda);
-                lado.Children.Add(direita);
-                bloco.Children.Add(lado);
-            }
-            R.PropCampos.Children.Add(bloco);
-        }
-    }
-
-    /// <summary>Propriedades de uma linha de tabela: rótulo e nome, situação (original e revisada), justificativa, cada texto da linha
-    /// (com "alterado" e Restaurar; com Original ⇄, o original ao lado), Restaurar original e o histórico da linha. "No PDF" fica marcado
-    /// e desligado: a linha não se exclui.</summary>
-    void MontarPropriedadesLinha(Projeto p, string linha)
-    {
-        var editavel = Editavel;
-        R.PropVazio.Visibility = Visibility.Collapsed;
-        R.PropRolagem.Visibility = Visibility.Visible;
-        R.PropTitulo.Text = TabelasRevisao.Rotulo(linha);
-        R.PropId.Text = TabelasRevisao.TextoEfetivo(p, linha, "nome") is { Length: > 0 } nome ? nome + " · " + linha : linha;
-        R.PropNoPdf.IsChecked = true;
-        R.PropNoPdf.IsEnabled = false;
-
-        var efetiva = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(p, linha));
-        R.PropSituacao.SelectedIndex = efetiva is null ? -1 : Faixas.OrdemSituacoes.ToList().IndexOf(efetiva);
-        R.PropSituacao.IsEnabled = editavel;
-        p.Linhas.TryGetValue(linha, out var rev);
-        R.PropSituacaoOriginal.Text = "original: " + TextoSituacao(TabelasRevisao.SituacaoOriginal(p, linha)) + (rev?.Situacao is null ? " (sem revisão)" : " · revisada");
-
-        var digitando = itemNasPropriedades == linha && Raiz.XamlRoot is not null && ReferenceEquals(FocusManager.GetFocusedElement(Raiz.XamlRoot), R.PropJustificativa);
-        if (!digitando) R.PropJustificativa.Text = rev?.Justificativa ?? "";
-        R.PropJustificativa.IsEnabled = editavel;
-        R.PropJustificativaAviso.Visibility = rev is not null && TabelasRevisao.FaltaJustificativa(rev) ? Visibility.Visible : Visibility.Collapsed;
-        R.PropAjustarTexto.Visibility = rev?.Revisada == true ? Visibility.Visible : Visibility.Collapsed;
-        R.PropAjustarTexto.IsEnabled = editavel && !ajustandoComIa;
-        R.PropAjustarRotulo.Text = "Recalcular a tabela com a IA";
-        itemNasPropriedades = linha;
-
-        R.PropCampos.Children.Clear();
-        var secundario = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"];
-        foreach (var caminho in TabelasRevisao.Caminhos(TabelasRevisao.Original(p, linha)!))
-        {
-            var nomeCampo = TabelasRevisao.NomeDoCampo(caminho);
-            var alterado = rev?.Campos.ContainsKey(caminho) == true;
-            var bloco = new StackPanel { Spacing = 2 };
-            var cabecalho = new Grid { ColumnSpacing = 6 };
-            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            cabecalho.Children.Add(new TextBlock { Text = nomeCampo, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], VerticalAlignment = VerticalAlignment.Center });
-            if (alterado)
-            {
-                var marca = new TextBlock { Text = "alterado", Style = secundario, Foreground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"], VerticalAlignment = VerticalAlignment.Center };
-                Grid.SetColumn(marca, 1);
-                cabecalho.Children.Add(marca);
-                var restaurar = new Button { Content = "Restaurar", IsEnabled = editavel, Padding = new Thickness(8, 1, 8, 2), VerticalAlignment = VerticalAlignment.Center };
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, "Restaurar o campo " + nomeCampo);
-                Dicas.Aplicar(restaurar, "Restaurar", "Volta este texto ao original recebido da IA.");
-                var c = caminho;
-                restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new RestaurarCampo(linha, c)));
-                Grid.SetColumn(restaurar, 2);
-                cabecalho.Children.Add(restaurar);
-            }
-            bloco.Children.Add(cabecalho);
-            var atual = new TextBlock { Text = TabelasRevisao.TextoEfetivo(p, linha, caminho) ?? "", TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
-            if (!mostrarOriginal) bloco.Children.Add(atual);
-            else
-            {
-                var lado = new Grid { ColumnSpacing = 10 };
-                lado.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                lado.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                var esquerda = new StackPanel();
-                esquerda.Children.Add(new TextBlock { Text = "Atual", Style = secundario });
-                esquerda.Children.Add(atual);
-                var direita = new StackPanel();
-                direita.Children.Add(new TextBlock { Text = "Original", Style = secundario });
-                direita.Children.Add(new TextBlock { Text = TabelasRevisao.TextoOriginal(p, linha, caminho) ?? "", TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
-                Grid.SetColumn(direita, 1);
-                lado.Children.Add(esquerda);
-                lado.Children.Add(direita);
-                bloco.Children.Add(lado);
-            }
-            R.PropCampos.Children.Add(bloco);
-        }
-        R.PropRestaurarOriginal.IsEnabled = editavel && rev?.Revisada == true;
-
-        R.PropHistorico.Children.Clear();
-        var daLinha = sessao!.Revisao.HistoricoCompleto.Where(r => r.Item == linha).Reverse().ToList();
-        if (daLinha.Count == 0) R.PropHistorico.Children.Add(new TextBlock { Text = "Sem alterações.", Style = secundario });
-        foreach (var r in daLinha)
-            R.PropHistorico.Children.Add(new TextBlock { Text = $"{Hora(r.DataUtc)}  {DescricaoHistorico.Texto(r, p)}", TextWrapping = TextWrapping.Wrap });
-    }
-
     async Task AplicarJustificativaAsync()
     {
         if (atualizandoPropriedades || itemNasPropriedades is not { } id || sessao?.Revisao.Projeto is not { } p) return;
@@ -1178,79 +1044,191 @@ public sealed partial class MainWindow
         await TentarAsync(() => AplicarAsync(new DefinirJustificativa(id, texto)));
     }
 
-    bool ajustandoComIa;
+    // ---------- IA na revisão (ajustar o item, rever a tabela, volumetria) ----------
 
-    /// <summary>"Ajustar texto com a IA": grava a justificativa digitada, manda à IA o item, a situação escolhida e a justificativa, com
-    /// leitura da pasta do processo e da legislação do kit, e aplica os campos devolvidos como edições comuns (desfazíveis).</summary>
-    async Task AjustarTextoComIaAsync()
+    bool ajustandoComIa;
+    CancellationTokenSource? cancelamentoIa;
+    DispatcherTimer? relogioIa;
+    readonly Stopwatch tempoIa = new();
+    string descricaoIa = "", etapaIa = "";
+    /// <summary>Itens (id + justificativa) que a IA já conferiu sem mudar nada: o aviso "a justificativa mudou" não insiste.</summary>
+    readonly HashSet<string> conferidosPelaIa = new(StringComparer.Ordinal);
+
+    // ---------- acessores do roteiro ----------
+    internal bool AjustandoComIa => ajustandoComIa;
+    internal bool BotaoDaIaVisivel => R.PropAjustarTexto.Visibility == Visibility.Visible;
+    internal string RotuloDoBotaoDaIa => R.PropAjustarRotulo.Text;
+    internal bool AvisoDeReajusteVisivel => R.PropAjustarAviso.Visibility == Visibility.Visible;
+
+    /// <summary>As perguntas curtas da revisão vão ao Codex (app ChatGPT) com o modelo e o esforço de Ajustes › Inteligência artificial
+    /// (padrão: Terra 6.1, baixo — <see cref="ModeloIaAjuste"/>), sem abrir arquivo nenhum: o pedido leva tudo. Sem o Codex, o Claude Code.</summary>
+    IaDespacho.OpcoesIa OpcoesIaDaRevisao() => new(PreferirCodex: true,
+        ArgumentosCodex: ModeloIaAjuste.ArgumentosCodex(ajustes.IaAjusteModelo, ajustes.IaAjusteEsforco), SemArquivos: true, Limite: ModeloIaAjuste.Limite);
+
+    /// <summary>Uma pergunta da revisão à IA. Só vale entre <see cref="IniciarEsperaIa"/> e <see cref="TerminarEsperaIa"/> (o Cancelar a interrompe).</summary>
+    async Task<string> PerguntarNaRevisaoAsync(string prompt)
+    {
+        var ct = cancelamentoIa?.Token ?? CancellationToken.None;
+        var pecas = await LerPecasAsync();
+        descricaoIa = !string.IsNullOrEmpty(pecas.Codex) ? ModeloIaAjuste.Descricao(ajustes.IaAjusteModelo, ajustes.IaAjusteEsforco)
+            : !string.IsNullOrEmpty(pecas.Claude) ? "Claude Code" : "";
+        AtualizarEsperaIa();
+        ct.ThrowIfCancellationRequested();
+        return await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, prompt, ct, null, null, OpcoesIaDaRevisao());
+    }
+
+    /// <summary>Começa a espera: o botão da IA desabilita, aparecem o anel, o tempo ("Consultando a IA (Terra 6.1, esforço baixo)… 0:07")
+    /// e o Cancelar.</summary>
+    void IniciarEsperaIa()
+    {
+        ajustandoComIa = true;
+        cancelamentoIa = new CancellationTokenSource();
+        descricaoIa = etapaIa = "";
+        tempoIa.Restart();
+        if (relogioIa is null)
+        {
+            relogioIa = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            relogioIa.Tick += (_, _) => AtualizarEsperaIa();
+        }
+        relogioIa.Start();
+        AtualizarEsperaIa();
+    }
+
+    void TerminarEsperaIa()
+    {
+        ajustandoComIa = false;
+        relogioIa?.Stop();
+        tempoIa.Stop();
+        cancelamentoIa?.Dispose();
+        cancelamentoIa = null;
+        AtualizarEsperaIa();
+        AtualizarPropriedades();
+    }
+
+    void AtualizarEsperaIa()
+    {
+        if (fechada) return;
+        var vis = ajustandoComIa ? Visibility.Visible : Visibility.Collapsed;
+        R.PropAjustarProgresso.Visibility = vis;
+        R.PropAjustarCancelar.Visibility = vis;
+        R.PropAjustarCancelar.IsEnabled = cancelamentoIa is { IsCancellationRequested: false };
+        R.PropAjustarAnel.IsActive = ajustandoComIa;
+        if (ajustandoComIa) R.PropAjustarTexto.IsEnabled = false;
+        R.PropAjustarEstado.Text = !ajustandoComIa ? ""
+            : (etapaIa.Length > 0 ? etapaIa : "Consultando a IA") + (descricaoIa.Length > 0 ? " (" + descricaoIa + ")" : "") + "… " + ModeloIaAjuste.Tempo(tempoIa.Elapsed);
+    }
+
+    /// <summary>O Cancelar da espera: encerra o programa da IA; nada muda no relatório.</summary>
+    internal void CancelarIa()
+    {
+        try { cancelamentoIa?.Cancel(); } catch (ObjectDisposedException) { }
+        AtualizarEsperaIa();
+    }
+
+    void MostrarErroDaIa(Exception e)
+    {
+        if (e is OperationCanceledException)
+        {
+            MostrarMensagem(InfoBarSeverity.Informational, "IA", "Consulta cancelada; nada mudou.");
+            return;
+        }
+        // Auditoria 2026-11-16: nenhum erro da IA (JSON, tempo, rede, processo) derruba o editor; o detalhe vai para o registro.
+        RegistroErros.Gravar("ia", e);
+        MostrarMensagem(InfoBarSeverity.Error, "IA", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + e.Message);
+    }
+
+    /// <summary>O aviso "A justificativa mudou: reajuste o item" (<see cref="AjustePendente"/>): só avisa; quem dispara a IA é o botão.</summary>
+    bool ReajustePendente(Projeto p, string id, string? justificativa) =>
+        sessao is { } s && AjustePendente.JustificativaMudou(p, s.Revisao.HistoricoCompleto, id)
+        && !conferidosPelaIa.Contains(id + "\n" + TextoEditado.Normalizar(justificativa ?? ""));
+
+    /// <summary>"Ajustar o item com a IA": grava a justificativa digitada e manda à IA o item, a situação e a justificativa (com ou sem
+    /// mudança de situação). A IA reajusta o item inteiro, com cada campo no tamanho do original, e a resposta é conferida
+    /// (<see cref="IaAjusteItem.Problemas"/>): grande demais ou narrando a revisão, volta uma vez para encurtar; se insistir, nada entra.
+    /// O que entra é UMA alteração (um Desfazer): os campos e, se o revisor não fixou a situação e a IA a mudou, a situação.</summary>
+    internal async Task AjustarTextoComIaAsync()
     {
         if (ajustandoComIa || itemNasPropriedades is not { } id) return;
         if (TabelasRevisao.EhLinha(id)) { await RecalcularTabelaComIaAsync(id); return; }
         await AplicarJustificativaAsync();
-        if (sessao is not { Revisao.Projeto: { } p } s || p.Item(id) is not { } it || it.Situacao.Revisada is not { } nova) return;
+        if (sessao is not { Revisao.Projeto: { } p } s || p.Item(id) is not { Incluido: true } it || !Editavel) return;
         var justificativa = it.Situacao.Justificativa ?? "";
         if (justificativa.Trim().Length == 0)
         {
-            MostrarMensagem(InfoBarSeverity.Warning, "Ajustar texto", "Escreva a justificativa antes: é dela que a IA parte.");
+            MostrarMensagem(InfoBarSeverity.Warning, "Ajustar com a IA", "Escreva a justificativa antes: é dela que a IA parte.");
             R.PropJustificativa.Focus(FocusState.Programmatic);
             return;
         }
         var original = it.Situacao.Original is JsonValue v && v.TryGetValue<string>(out var so) ? so : null;
+        var situacao = SituacaoEfetiva(it) ?? "NAO_COMPROVADO";
+        var fixa = it.Situacao.Revisada is not null;
         var campos = Campos.Editaveis.ToDictionary(c => c, c => DadosEfetivos.TextoEfetivo(p, it, c) ?? "");
-        var pastaProcesso = RecortePrancha.PastaDoProcesso(s.Caminho);
-        var extras = new List<string>();
-        var leis = Path.Combine(ajustes.PastaKitEfetiva ?? "", "03 - LEGISLACAO");
-        if (Directory.Exists(leis)) extras.Add(leis);
+        var originais = Campos.Editaveis.ToDictionary(c => c, c =>
+            it.Campos.TryGetValue(c, out var ct) && ct.Original is JsonValue ov && ov.TryGetValue<string>(out var os)
+                ? Citacoes.Imprimir(os, x => p.NumeroAtual(x), x => p.Item(x)?.NumeroOriginal) : "");
+        var limites = IaAjusteItem.Limites(originais, campos);
+        var prompt = IaAjusteItem.Prompt(original, situacao, fixa, justificativa, campos, limites);
 
-        ajustandoComIa = true;
-        R.PropAjustarTexto.IsEnabled = false;
-        R.PropAjustarAnel.Visibility = Visibility.Visible;
-        R.PropAjustarAnel.IsActive = true;
+        IniciarEsperaIa();
         try
         {
-            var pecas = await LerPecasAsync();
-            var prompt = IaAjusteItem.Prompt(TextoSituacao(original), TextoSituacao(nova), justificativa, campos, extras.Count > 0);
-            var saida = await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, prompt, CancellationToken.None, pastaProcesso, extras);
-            if (!ReferenceEquals(sessao, s) || p.Item(id) is null) return;
-            if (IaAjusteItem.Ler(saida) is not { Count: > 0 } novos)
+            var novos = IaAjusteItem.Ler(await PerguntarNaRevisaoAsync(prompt));
+            if (novos is { Count: > 0 } && IaAjusteItem.Problemas(novos, limites) is { Count: > 0 } recusados)
             {
-                MostrarMensagem(InfoBarSeverity.Warning, "Ajustar texto", "A resposta da IA não veio no formato esperado; nada mudou.");
+                // Grande demais ou contando a história da revisão: uma segunda chance, dizendo o que foi recusado.
+                etapaIa = "Pedindo um texto mais curto";
+                novos = IaAjusteItem.Ler(await PerguntarNaRevisaoAsync(IaAjusteItem.PromptCorrecao(prompt, novos, recusados)));
+            }
+            if (!ReferenceEquals(sessao, s) || p.Item(id) is not { } agora) return;
+            if (novos is not { Count: > 0 })
+            {
+                MostrarMensagem(InfoBarSeverity.Warning, "Ajustar com a IA", "A resposta da IA não veio no formato esperado; nada mudou.");
                 return;
             }
-            var mudou = 0;
+            if (IaAjusteItem.Problemas(novos, limites) is { Count: > 0 } problemas)
+            {
+                MostrarMensagem(InfoBarSeverity.Warning, "Ajustar com a IA",
+                    "A IA não manteve o texto curto como o original, mesmo depois de um segundo pedido; nada mudou. " + string.Join("; ", problemas.Take(4)) + ". Tente de novo ou edite o texto à mão.");
+                return;
+            }
+            var comandos = new List<Comando>();
+            var ignorados = 0;
+            var sugerida = novos.TryGetValue("situacao", out var sit) && sit != situacao ? sit : null;
+            if (sugerida is not null && !fixa && SituacaoEfetiva(agora) == situacao) comandos.Add(new DefinirSituacao(id, sugerida));
             foreach (var campo in Campos.Editaveis)
             {
                 if (!novos.TryGetValue(campo, out var texto) || texto.Trim().Length == 0) continue;
                 if (TextoEditado.Normalizar(texto) == TextoEditado.Normalizar(campos[campo])) continue;
-                if (p.Item(id) is not { } atual || (DadosEfetivos.TextoEfetivo(p, atual, campo) ?? "") != campos[campo]) continue; // editado durante a espera
-                await TentarAsync(() => AplicarAsync(new DefinirCampo(id, campo, texto)));
-                mudou++;
+                if ((DadosEfetivos.TextoEfetivo(p, agora, campo) ?? "") != campos[campo]) { ignorados++; continue; } // editado durante a espera
+                comandos.Add(new DefinirCampo(id, campo, texto));
             }
-            MostrarMensagem(InfoBarSeverity.Success, "Ajustar texto",
-                mudou == 0 ? "A IA manteve o texto: nada mudou." : $"A IA reescreveu {mudou} {(mudou == 1 ? "campo" : "campos")}. Confira; Desfazer volta.");
+            if (comandos.Count == 0)
+            {
+                conferidosPelaIa.Add(id + "\n" + TextoEditado.Normalizar(justificativa));
+                MostrarMensagem(InfoBarSeverity.Success, "Ajustar com a IA", "A IA manteve o texto: nada mudou.");
+                return;
+            }
+            await TentarAsync(() => AplicarAsync(new Lote(id, comandos, "Ajustado pela IA")));
+            if (ultimosErros.Count > 0) return; // recusado pela conferência: o aviso já está na tela
+            var textos = comandos.Count(c => c is DefinirCampo);
+            MostrarMensagem(InfoBarSeverity.Success, "Ajustar com a IA",
+                $"A IA reajustou o item ({textos} {(textos == 1 ? "campo" : "campos")}"
+                + (comandos.Any(c => c is DefinirSituacao) ? $"; situação: {TextoSituacao(sugerida)}" : "") + "). Confira; um Desfazer volta tudo."
+                + (sugerida is not null && fixa ? $" A IA sugeriu {TextoSituacao(sugerida)}, mas a situação que você escolheu foi mantida." : "")
+                + (ignorados > 0 ? $" {ignorados} {(ignorados == 1 ? "campo editado" : "campos editados")} por você durante a espera {(ignorados == 1 ? "ficou" : "ficaram")} como estava." : ""));
         }
-        catch (Exception e)
-        {
-            // Auditoria 2026-11-16: nenhum erro da IA (JSON, tempo, rede, processo) derruba o editor; o detalhe vai para o registro.
-            RegistroErros.Gravar("ia", e);
-            MostrarMensagem(InfoBarSeverity.Error, "IA", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + e.Message);
-        }
-        finally
-        {
-            ajustandoComIa = false;
-            R.PropAjustarAnel.IsActive = false;
-            R.PropAjustarAnel.Visibility = Visibility.Collapsed;
-            AtualizarPropriedades();
-        }
+        catch (Exception e) { MostrarErroDaIa(e); }
+        finally { TerminarEsperaIa(); }
     }
 
-    /// <summary>Linha de tabela editada: a IA refaz as contas das outras linhas do mesmo bloco e devolve textos e situações; tudo entra
-    /// como edição comum (desfazível), com a justificativa que a IA deu quando a situação muda.</summary>
-    async Task RecalcularTabelaComIaAsync(string linhaEditada)
+    /// <summary>Linha de tabela: a IA refaz as contas das linhas do mesmo bloco a partir da linha selecionada (editada ou não) e da
+    /// justificativa, e devolve textos e situações; tudo entra como UMA alteração (um Desfazer), com a justificativa que a IA deu quando
+    /// a situação de outra linha muda.</summary>
+    internal async Task RecalcularTabelaComIaAsync(string linhaEditada)
     {
         if (ajustandoComIa) return;
         await AplicarJustificativaAsync();
-        if (sessao is not { Revisao.Projeto: { } p } s || !TabelasRevisao.TentarLer(linhaEditada, out var bloco, out _)) return;
+        if (sessao is not { Revisao.Projeto: { } p } s || !Editavel || !TabelasRevisao.TentarLer(linhaEditada, out var bloco, out _)) return;
         var linhas = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         var blocosJuntos = bloco == TabelasRevisao.Indices
             ? new[] { TabelasRevisao.Indices, TabelasRevisao.Chamadas, TabelasRevisao.Planta, TabelasRevisao.Volumetria }
@@ -1262,68 +1240,120 @@ public sealed partial class MainWindow
             d["situacao"] = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(p, id)) ?? "";
             linhas[id] = d;
         }
-        var pastaProcesso = RecortePrancha.PastaDoProcesso(s.Caminho);
-        var extras = new List<string>();
-        var leis = Path.Combine(ajustes.PastaKitEfetiva ?? "", "03 - LEGISLACAO");
-        if (Directory.Exists(leis)) extras.Add(leis);
+        var editados = p.Linhas.TryGetValue(linhaEditada, out var rev) ? rev.Campos.Keys.ToList() : [];
+        var prompt = IaRecalculoIndices.Prompt(bloco, linhaEditada, linhas, TabelasRevisao.Justificativa(p, linhaEditada), editados);
 
-        ajustandoComIa = true;
-        R.PropAjustarTexto.IsEnabled = false;
-        R.PropAjustarAnel.Visibility = Visibility.Visible;
-        R.PropAjustarAnel.IsActive = true;
+        IniciarEsperaIa();
         try
         {
-            var pecas = await LerPecasAsync();
-            var prompt = IaRecalculoIndices.Prompt(bloco, linhaEditada, linhas, TabelasRevisao.Justificativa(p, linhaEditada), extras.Count > 0);
-            var saida = await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, prompt, CancellationToken.None, pastaProcesso, extras);
+            var saida = await PerguntarNaRevisaoAsync(prompt);
             if (!ReferenceEquals(sessao, s)) return;
             if (IaRecalculoIndices.Ler(saida, linhas.Keys) is not { } novas)
             {
-                MostrarMensagem(InfoBarSeverity.Warning, "Recalcular", "A resposta da IA não veio no formato esperado; nada mudou.");
+                MostrarMensagem(InfoBarSeverity.Warning, "Rever com a IA", "A resposta da IA não veio no formato esperado; nada mudou.");
                 return;
             }
-            var mudou = 0;
-            var ignoradas = 0;
-            foreach (var (id, campos) in novas)
+            var novosVaos = IaRecalculoIndices.LerNovosVaos(saida, linhas.Keys);
+            var ambientes = bloco == TabelasRevisao.Ambientes;
+            var comandos = new List<Comando>();
+            var trabalho = p;            // o projeto como fica com o que já foi aceito (cópias de Testar; o da sessão só muda no fim)
+            int mudou = 0, ignoradas = 0, acrescentadas = 0, contas = 0;
+            foreach (var id in linhas.Keys)
             {
-                if (!linhas.TryGetValue(id, out var antes)) continue;
-                foreach (var (caminho, texto) in campos)
+                novas.TryGetValue(id, out var campos);
+                novosVaos.TryGetValue(id, out var vaos);
+                if (campos is null && vaos is null) continue;
+                var antes = linhas[id];
+                var daLinha = new List<Comando>();
+                var textos = 0;
+                // Esquadrias pedidas na instrução ("adicionar a porta de 80x210"): entram com a área calculada pelo editor.
+                if (ambientes && vaos is not null)
+                    foreach (var (codigo, tipo, medidas) in vaos)
+                    {
+                        try
+                        {
+                            var conta = Esquadrias.Calcular(trabalho, id);
+                            var categoria = Esquadrias.Categoria(codigo, tipo.Length > 0 ? tipo : "Porta");
+                            var usados = (conta?.Esquadrias ?? []).Select(e => e.Codigo)
+                                .Concat(daLinha.OfType<AcrescentarVao>().Select(v => v.Codigo)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                            var cod = codigo.Length > 0 && !usados.Contains(codigo) ? codigo : ProximoCodigoLivre(usados, categoria);
+                            daLinha.Add(Esquadrias.Nova(id, cod, tipo.Length > 0 ? tipo : categoria == CategoriaEsquadria.Janela ? "Janela" : "Porta", medidas));
+                            acrescentadas++;
+                        }
+                        catch (ComandoRecusadoException) { ignoradas++; }
+                    }
+                string? situacaoDaIa = null, motivo = null;
+                foreach (var (caminho, texto) in campos ?? [])
                 {
-                    if (caminho is "situacao" or "justificativa" || !antes.ContainsKey(caminho) || texto.Trim().Length == 0) continue;
-                    if (id == linhaEditada && p.Linhas.TryGetValue(id, out var r) && r.Campos.ContainsKey(caminho)) continue; // o valor do usuário fica
+                    if (caminho == "situacao") { situacaoDaIa = texto; continue; }
+                    if (caminho == "justificativa") { motivo = texto; continue; }
+                    if (!antes.ContainsKey(caminho) || texto.Trim().Length == 0) continue;
+                    // No ambiente, a área de cada vão e o vão total são conta do editor, não da IA.
+                    if (ambientes && (caminho.StartsWith("resultado/", StringComparison.Ordinal) || caminho.EndsWith("/area", StringComparison.Ordinal))) continue;
+                    if (id == linhaEditada && editados.Contains(caminho)) continue; // o valor do usuário fica
                     if (TextoEditado.Normalizar(texto) == TextoEditado.Normalizar(antes[caminho])) continue;
                     // Editado pelo usuário enquanto a IA respondia: a edição dele fica.
                     if ((TabelasRevisao.TextoEfetivo(p, id, caminho) ?? "") != antes[caminho]) { ignoradas++; continue; }
-                    await TentarAsync(() => AplicarAsync(new DefinirCampo(id, caminho, texto)));
-                    mudou++;
+                    daLinha.Add(new DefinirCampo(id, caminho, texto));
+                    textos++;
                 }
-                if (campos.TryGetValue("situacao", out var sit) && antes["situacao"].Length > 0 && TabelasRevisao.SituacaoDeLinha(sit) is { } codigo && sit != antes["situacao"])
+                var editorDecide = false;
+                if (ambientes && daLinha.Count > 0)
                 {
-                    await TentarAsync(() => AplicarAsync(new DefinirSituacao(id, codigo)));
-                    var motivo = campos.TryGetValue("justificativa", out var j) && j.Trim().Length > 0 ? j : "Recalculado depois da edição de " + TabelasRevisao.Rotulo(linhaEditada) + ".";
-                    if (string.IsNullOrWhiteSpace(TabelasRevisao.Justificativa(p, id)))
-                        await TentarAsync(() => AplicarAsync(new DefinirJustificativa(id, "IA: " + motivo)));
-                    mudou++;
+                    // A conta do ambiente (áreas, vão total, mínimo, situação) é refeita pelo editor depois das mudanças da IA.
+                    try
+                    {
+                        var n = daLinha.Count;
+                        daLinha = Esquadrias.Recalcular(trabalho, id, daLinha, "").Comandos.ToList();
+                        editorDecide = Esquadrias.Calcular(trabalho, id)?.Minimo is not null;
+                        if (daLinha.Count > n) contas++;
+                    }
+                    catch (ComandoRecusadoException) { ignoradas++; continue; }
                 }
+                if (!editorDecide && situacaoDaIa is not null && antes["situacao"].Length > 0 && TabelasRevisao.SituacaoDeLinha(situacaoDaIa) is { } codigoSituacao
+                    && situacaoDaIa != antes["situacao"])
+                {
+                    daLinha.Add(new DefinirSituacao(id, codigoSituacao));
+                    if (string.IsNullOrWhiteSpace(TabelasRevisao.Justificativa(p, id)))
+                        daLinha.Add(new DefinirJustificativa(id, "IA: " + (motivo is { } j && j.Trim().Length > 0 ? j : "Recalculado a partir de " + TabelasRevisao.Rotulo(linhaEditada) + ".")));
+                    textos++;
+                }
+                if (daLinha.Count == 0) continue;
+                try
+                {
+                    trabalho = s.Revisao.Testar(new Lote(linhaEditada, [.. comandos, .. daLinha], "Revisto pela IA"));
+                    comandos.AddRange(daLinha);
+                    mudou += textos;
+                }
+                catch (ComandoRecusadoException) { ignoradas++; }
             }
-            MostrarMensagem(InfoBarSeverity.Success, "Recalcular",
-                (mudou == 0 ? "A IA conferiu a tabela a partir de " + TabelasRevisao.Rotulo(linhaEditada) + ": nada mudou."
-                    : $"A IA atualizou {mudou} {(mudou == 1 ? "valor" : "valores")} a partir de {TabelasRevisao.Rotulo(linhaEditada)}. Confira; Desfazer volta.")
-                + (ignoradas > 0 ? $" {ignoradas} {(ignoradas == 1 ? "texto editado" : "textos editados")} por você durante a espera {(ignoradas == 1 ? "ficou" : "ficaram")} como estava." : ""));
+            if (comandos.Count == 0)
+            {
+                conferidosPelaIa.Add(linhaEditada + "\n" + TextoEditado.Normalizar(TabelasRevisao.Justificativa(p, linhaEditada) ?? ""));
+                MostrarMensagem(InfoBarSeverity.Success, "Rever com a IA", "A IA conferiu a tabela a partir de " + TabelasRevisao.Rotulo(linhaEditada) + ": nada mudou."
+                    + (ignoradas > 0 ? $" ({ignoradas} {(ignoradas == 1 ? "sugestão não pôde" : "sugestões não puderam")} ser aplicada{(ignoradas == 1 ? "" : "s")}.)" : ""));
+                return;
+            }
+            await TentarAsync(() => AplicarAsync(new Lote(linhaEditada, comandos, "Revisto pela IA")));
+            if (ultimosErros.Count > 0) return;
+            var partes = new List<string>();
+            if (acrescentadas > 0) partes.Add($"{acrescentadas} {(acrescentadas == 1 ? "esquadria acrescentada" : "esquadrias acrescentadas")}");
+            if (mudou > 0) partes.Add($"{mudou} {(mudou == 1 ? "texto atualizado" : "textos atualizados")}");
+            if (contas > 0) partes.Add("a conta do ambiente refeita pelo editor (área, vão total, mínimo e situação)");
+            MostrarMensagem(InfoBarSeverity.Success, "Rever com a IA",
+                $"Revisão a partir de {TabelasRevisao.Rotulo(linhaEditada)}: {string.Join("; ", partes)}. Confira; um Desfazer volta tudo."
+                + (ignoradas > 0 ? $" {ignoradas} {(ignoradas == 1 ? "mudança não foi aplicada" : "mudanças não foram aplicadas")} (texto editado por você durante a espera ou recusado pela conferência)." : ""));
         }
-        catch (Exception e)
-        {
-            // Auditoria 2026-11-16: nenhum erro da IA (JSON, tempo, rede, processo) derruba o editor; o detalhe vai para o registro.
-            RegistroErros.Gravar("ia", e);
-            MostrarMensagem(InfoBarSeverity.Error, "IA", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + e.Message);
-        }
-        finally
-        {
-            ajustandoComIa = false;
-            R.PropAjustarAnel.IsActive = false;
-            R.PropAjustarAnel.Visibility = Visibility.Collapsed;
-            AtualizarPropriedades();
-        }
+        catch (Exception e) { MostrarErroDaIa(e); }
+        finally { TerminarEsperaIa(); }
+    }
+
+    /// <summary>"P1", "P2"…, "J3": o primeiro código da categoria que ainda não está em uso no ambiente.</summary>
+    static string ProximoCodigoLivre(IReadOnlySet<string> usados, CategoriaEsquadria categoria)
+    {
+        var letra = categoria == CategoriaEsquadria.Porta ? "P" : categoria == CategoriaEsquadria.Janela ? "J" : "V";
+        for (var n = 1; ; n++)
+            if (!usados.Contains(letra + n.ToString(CultureInfo.InvariantCulture))) return letra + n.ToString(CultureInfo.InvariantCulture);
     }
 
     // ---------- auxiliares ----------

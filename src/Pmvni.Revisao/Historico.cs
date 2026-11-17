@@ -100,6 +100,7 @@ public static class DescricaoHistorico
             return (r.Tipo == "desfeito" ? "Desfeito: " : "Refeito: ") + Texto(original, p);
         }
 
+        if (r.Tipo == nameof(Lote)) return TextoDoLote(r, p);
         if (TabelasRevisao.EhLinha(r.Item)) return TextoDaLinha(r);
         var item = Rotulo(r.Item, p);
         (string Nome, bool Feminino) campo = r.Campo is null ? ("campo", false) : NomeDoCampo(r.Campo);
@@ -116,6 +117,8 @@ public static class DescricaoHistorico
                 return campo.Nome + " do " + item + (campo.Feminino ? " editada" : " editado");
             case nameof(RestaurarCampo):
                 return campo.Nome + " do " + item + (campo.Feminino ? " restaurada" : " restaurado") + " ao original";
+            case nameof(CriarItem):
+                return p.Item(r.Item ?? "") is null ? "Criado um item novo" : "Criado o " + item + " (item novo)";
             case nameof(Excluir):
                 return "Excluído o " + item;
             case nameof(Restaurar):
@@ -128,6 +131,20 @@ public static class DescricaoHistorico
             default:
                 return MotorFiguras.Descrever(r.Tipo, r.Item, r.Campo, p) ?? r.Tipo;
         }
+    }
+
+    /// <summary>Um lote: <c>ITEM 02 · Ajustado pela IA (4 alterações)</c>, <c>Índice 05 · Recalculado: … (3 alterações)</c>.</summary>
+    private static string TextoDoLote(RegistroHistorico r, Projeto p)
+    {
+        var (descricao, passos) = Motor.ResumoDoLote(r.Depois);
+        string dono;
+        if (TabelasRevisao.EhLinha(r.Item))
+        {
+            dono = TabelasRevisao.Rotulo(r.Item!);
+            dono = dono[..1] + dono[1..].ToLowerInvariant();
+        }
+        else dono = Rotulo(r.Item, p);
+        return dono + " · " + (descricao.Length > 0 ? descricao : "Várias alterações") + " (" + passos + (passos == 1 ? " alteração)" : " alterações)");
     }
 
     /// <summary>Registro sobre uma linha de tabela: <c>Índice 02 · Situação: FALTA COMPROVAR → ATENDE</c>, <c>Ambiente 03 · Vão 1 — tipo: texto editado</c>.</summary>
@@ -151,6 +168,13 @@ public static class DescricaoHistorico
                 return rotulo + campo + ": texto restaurado ao original";
             case nameof(RestaurarItemOriginal):
                 return rotulo + "linha restaurada ao original";
+            case MotorLinhas.TipoAcrescimo:
+                var modelo = (r.Depois ?? r.Antes)?["modelo"] as JsonObject;
+                string T(string chave) => modelo?[chave] is JsonValue mv && mv.TryGetValue<string>(out var ms) ? ms : "";
+                var acrescentou = r.Depois is not null;
+                return r.Campo is null
+                    ? rotulo + "chamada " + (acrescentou ? "acrescentada" : "removida") + " (" + T("titulo") + ")"
+                    : rotulo + "esquadria " + (acrescentou ? "acrescentada" : "removida") + " (" + T("codigo") + " • " + T("medidas") + ")";
             default:
                 return rotulo + r.Tipo;
         }

@@ -30,6 +30,7 @@ public static class DicasComandos
 
         // Página Inicial (o item selecionado)
         [ComandosApp.InicioSituacao] = "Muda a situação do item selecionado: atende, não atende, não comprovado ou divergência.",
+        [ComandosApp.InicioNovoItem] = "Cria um item novo depois do selecionado (ou no fim), com os mesmos campos para preencher.",
         [ComandosApp.InicioExcluirRestaurar] = "Tira o item selecionado do relatório; num item já excluído, traz ele de volta.",
         [ComandosApp.InicioEditarTexto] = "Edita o texto do item selecionado direto na folha.",
         [ComandosApp.InicioOriginal] = "Mostra o texto original recebido da IA, sem as suas edições.",
@@ -47,6 +48,7 @@ public static class DicasComandos
         // Figuras
         [ComandosApp.FigurasInserirRegiao] = "Recorta uma região de uma prancha do projeto (PDF) e a insere como figura.",
         [ComandosApp.FigurasEditar] = "Abre o editor para pôr setas, regiões e textos na figura selecionada.",
+        [ComandosApp.FigurasAbrirEditor] = "Lista as figuras do relatório; a escolhida abre no editor de setas, regiões e textos.",
         [ComandosApp.FigurasExcluir] = "Tira do relatório a figura selecionada.",
 
         // Exibir (relatório)

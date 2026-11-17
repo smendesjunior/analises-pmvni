@@ -67,9 +67,9 @@ public class FaixasTestes
         var inicio = f.Abas.Single(a => a.Nome == "Página Inicial");
         Assert.Equal(new[]
         {
-            ComandosApp.InicioSituacao, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
+            ComandosApp.InicioSituacao, ComandosApp.InicioNovoItem, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
             ComandosApp.InicioRestaurarOriginal, ComandosApp.InicioItemAnterior, ComandosApp.InicioItemProximo, ComandosApp.InicioProximoPendente,
-            ComandosApp.ArquivoExportarPdf, ComandosApp.DespachosNovo,
+            ComandosApp.FigurasAbrirEditor, ComandosApp.ArquivoExportarPdf, ComandosApp.DespachosNovo,
         }, inicio.Comandos.Select(c => c.Id));
         var situacao = inicio.Comandos[0];
         Assert.Equal(TipoComando.Menu, situacao.Tipo);
