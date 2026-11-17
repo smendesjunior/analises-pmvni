@@ -5,6 +5,9 @@ namespace Pmvni.Revisao.Testes;
 
 /// <summary>Ruling T16-C4: um perfil do LibreOffice só, persistente (o app usa &lt;dados&gt;\lo). O LibreOffice real nunca roda em
 /// <c>dotnet test</c>: um soffice fictício (.cmd) grava o PDF na pasta de saída que recebeu.</summary>
+// EncerrarEmCurso e o mutex são globais: os testes de encerramento não podem
+// matar a conversão real de outra classe nem disputar seu prazo de 1 segundo.
+[Collection("Ambiente")]
 public sealed class PerfilLibreOfficeTestes
 {
     /// <summary>Um "soffice" que pula os argumentos até <c>--outdir</c> e grava um PDF mínimo (≥ 1000 bytes, começando por %PDF-) lá.</summary>
