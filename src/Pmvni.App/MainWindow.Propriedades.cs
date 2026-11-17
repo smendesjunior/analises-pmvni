@@ -377,7 +377,9 @@ public sealed partial class MainWindow
         n.Codigo.Width = 46;
         n.Codigo.MinWidth = 0;
         n.Codigo.MinHeight = 0;
-        n.Codigo.Padding = new Thickness(0, 4, 0, 5);
+        n.Codigo.Height = 32;   // selo, tipo e área numa linha só, centrados na mesma altura (antes cada um tinha a sua)
+        n.Codigo.VerticalContentAlignment = VerticalAlignment.Center;
+        n.Codigo.Padding = new Thickness(0, 5, 0, 0);   // a caixa do WinUI põe o texto no topo: o espaço de cima o centra nos 32
         n.Codigo.TextAlignment = TextAlignment.Center;
         n.Codigo.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         n.Codigo.CornerRadius = new CornerRadius(6);
@@ -391,11 +393,14 @@ public sealed partial class MainWindow
         n.Tipo.MinWidth = 0;
         n.Tipo.BorderThickness = new Thickness(0);
         n.Tipo.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
-        n.Tipo.Padding = new Thickness(6, 4, 6, 5);
+        n.Tipo.Padding = new Thickness(6, 5, 6, 0);
+        n.Tipo.MinHeight = 0;
+        n.Tipo.Height = 32;
+        n.Tipo.VerticalContentAlignment = VerticalAlignment.Center;
         n.Tipo.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         n.Tipo.VerticalAlignment = VerticalAlignment.Center;
 
-        n.Area = new TextBlock { FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, IsTextSelectionEnabled = true };
+        n.Area = new TextBlock { FontSize = 15, LineHeight = 20, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, IsTextSelectionEnabled = true };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(n.Area, $"Área da esquadria {ordinal}");
 
         foreach (var (caixa, parte) in new[] { (n.Codigo, "codigo"), (n.Tipo, "tipo") })
@@ -425,7 +430,7 @@ public sealed partial class MainWindow
         Por(n.Area, 0, 2);
 
         // Medidas: "largura × altura m", com a legenda pequena em cima de cada caixa; alinhadas com o tipo (o selo fica sozinho à esquerda).
-        TextBlock Legenda(string s) => new() { Text = s, FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)res["TextFillColorSecondaryBrush"] };
+        TextBlock Legenda(string s) => CartoesDePainel.Rotulo(s);   // LARGURA / ALTURA em maiúsculas, como os outros rótulos do painel
         TextBlock Sinal(string s) => new() { Text = s, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 7), Foreground = (Microsoft.UI.Xaml.Media.Brush)res["TextFillColorSecondaryBrush"] };
         var medidas = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(6, 0, 0, 0) };
         if (e.Largura is not null)
