@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.6.4
+
+- **Despachos:** os botões "Despacho de correção" e "Despacho de aprovação" da tela inicial não ficam mais cortados.
+- **Sem processo:** o botão libera o modelo na hora para preencher na folha, sem caixa de diálogo; o despacho é gravado em Documentos › Despachos sem processo.
+
 ## 0.6.3
 
 - **Boletim cadastral, "Onde salvar o boletim?":** basta clicar na opção (o processo achado, outro processo, criar novo processo ou só abrir); embaixo fica só "Cancelar".

@@ -51,8 +51,8 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Button x:Name="BotaoNovoProcesso" x:FieldModifier="internal" Content="Novo processo…" HorizontalAlignment="Stretch" AutomationProperties.Name="Criar um processo novo"
                             local:Dicas.Titulo="Novo processo…" local:Dicas.Descricao="Cria a pasta de um processo novo (número, ano e requerente) e já o escolhe para o despacho."/>
-                    <Button x:Name="BotaoSemProcesso" x:FieldModifier="internal" Grid.Column="1" Content="Sem processo…" HorizontalAlignment="Stretch" AutomationProperties.Name="Despacho sem processo vinculado"
-                            local:Dicas.Titulo="Sem processo…" local:Dicas.Descricao="Faz o despacho sem ligar a um processo: escolha a pasta onde ele será gravado e preencha protocolo e requerente na folha."/>
+                    <Button x:Name="BotaoSemProcesso" x:FieldModifier="internal" Grid.Column="1" Content="Sem processo" HorizontalAlignment="Stretch" AutomationProperties.Name="Despacho sem processo vinculado"
+                            local:Dicas.Titulo="Sem processo" local:Dicas.Descricao="Libera o modelo para preencher na folha, sem ligar a um processo; o despacho é gravado em Documentos › Despachos sem processo."/>
                   </Grid>
                 </StackPanel>
                 <Border Style="{StaticResource PmvniPainelSeparador}"/>

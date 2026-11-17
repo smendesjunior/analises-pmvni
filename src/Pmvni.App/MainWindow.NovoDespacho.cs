@@ -509,12 +509,15 @@ public sealed partial class MainWindow
         PreencherOrigem(s);
     }
 
-    /// <summary>"Sem processo…" (2026-11-17, pedido do usuário): o despacho não fica ligado a um processo; o usuário escolhe a pasta onde
-    /// ele será gravado (a etapa DESPACHO nn é criada nela) e preenche protocolo e requerente na folha.</summary>
+    /// <summary>"Sem processo" (2026-11-17, pedido do usuário: "libera o template para edição", sem caixa de diálogo): o despacho não fica
+    /// ligado a um processo; o modelo abre na hora para preencher protocolo, requerente e o resto na folha, e ele é gravado em
+    /// Documentos\Despachos sem processo (a etapa DESPACHO nn é criada lá).</summary>
     async Task DespachoSemProcessoAsync()
     {
-        if (novo is not { SoPdf: false } s || await Perguntas.Atual.EscolherPastaAsync() is not { } pasta) return;
-        var p = new Processo(pasta, Path.GetFileName(pasta.TrimEnd(Path.DirectorySeparatorChar)) + " (sem processo)", null, null, null);
+        if (novo is not { SoPdf: false } s) return;
+        var pasta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Despachos sem processo");
+        Directory.CreateDirectory(pasta);
+        var p = new Processo(pasta, "Sem processo", null, null, null);
         var mesmo = s.Processos.FirstOrDefault(x => string.Equals(x.Pasta, p.Pasta, StringComparison.OrdinalIgnoreCase));
         if (mesmo is null) { s.Processos = s.Processos.Append(p).ToList(); mesmo = p; }
         PreencherOrigem(s);
