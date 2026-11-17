@@ -516,15 +516,20 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
     {
         // URL única por execução: sem ela, o cache de imagens do Chromium entrega a imagem da execução anterior na hora.
         var Url = "https://lenta.pmvni.invalid/lenta.svg?n=" + Guid.NewGuid().ToString("N");
-        html = html.Replace("https://doc.pmvni.invalid/lenta.svg", Url);
+        // Só inicia a requisição depois da navegação e da configuração CDP desta
+        // página. O lazy-load do Chromium não deve decidir quando o teste começa.
+        html = html.Replace("https://doc.pmvni.invalid/lenta.svg", "data:,");
         var svg = Encoding.UTF8.GetBytes("""<svg xmlns="http://www.w3.org/2000/svg" width="750" height="500"><rect width="750" height="500" fill="#89a"/></svg>""");
         var servidas = 0;
+        var requisitada = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task resposta = Task.CompletedTask;
         using var fim = new CancellationTokenSource();
         void Servir(CoreWebView2 sender, CoreWebView2WebResourceRequestedEventArgs e)
         {
             if (e.Request.Uri != Url) return;
             var adiamento = e.GetDeferral();
-            _ = Responder();
+            resposta = Responder();
+            requisitada.TrySetResult();
             async Task Responder()
             {
                 try
@@ -547,6 +552,13 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
         try
         {
             await host.Documento.CarregarAsync(new ResultadoRender(html, [], []), Ambiente.Cfg);
+            await host.ExecutarAsync(async core =>
+            {
+                await core.CallDevToolsProtocolMethodAsync("Page.setBypassCSP", """{"enabled":true}""");
+                await core.ExecuteScriptAsync("const i = document.querySelector('img'); i.loading = 'eager'; i.src = " + JsonSerializer.Serialize(Url));
+                return true;
+            });
+            await requisitada.Task.WaitAsync(TimeSpan.FromSeconds(10));
             var r = await acao();
             if (exigirServida) Assert.True(servidas >= 1, "a imagem não passou pelo manipulador de teste");
             return r;
@@ -556,6 +568,8 @@ public sealed class PaginadorTestes : IClassFixture<PaginadorFixture>
             fim.Cancel();
             await host.ExecutarAsync(async core =>
             {
+                // Nenhum deferral/continuação pode sobreviver ao manipulador.
+                await resposta;
                 await core.CallDevToolsProtocolMethodAsync("Page.setBypassCSP", """{"enabled":false}""");
                 core.WebResourceRequested -= Servir;
                 return true;
