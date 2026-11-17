@@ -90,8 +90,9 @@ public sealed class BaseQgis
             foreach (var f in lotes.Feicoes)
                 if (f.Atributo("InscImob") is { Length: > 0 } i)
                 {
-                    Acrescentar(b.lotesPorInscricao, i, f);
-                    if (Terreno(i) is { } t) Acrescentar(b.lotesPorTerreno, t, f);
+                    // A chave normalizada (2026-11-17): pontos, sufixos e lote com 3 ou 5 dígitos no desenho não impedem a ligação.
+                    Acrescentar(b.lotesPorInscricao, Inscricoes.Normalizar(i) ?? i, f);
+                    if (Inscricoes.Terreno(i) is { } t) Acrescentar(b.lotesPorTerreno, t, f);
                 }
         if (b[Camada.Edificacoes] is { } ed)
             foreach (var f in ed.Feicoes)
@@ -105,22 +106,37 @@ public sealed class BaseQgis
         l.Add(f);
     }
 
-    /// <summary>A ligação do registro com o desenho: inscrição igual (texto, zeros contam); sem ela, um lote só do mesmo terreno.</summary>
+    /// <summary>A ligação do registro com o desenho: inscrição igual (pela chave normalizada de <see cref="Inscricoes"/>; zeros contam);
+    /// sem ela, um lote só do mesmo terreno (distrito, setor, quadra e lote, ignorando a unidade: as unidades de um condomínio caem no lote
+    /// do condomínio).</summary>
     public (VinculoMapa Vinculo, IReadOnlyList<Feicao> Lotes) Vincular(string inscricao)
     {
         if (this[Camada.Lotes] is null) return (VinculoMapa.SemLote, []);
-        if (lotesPorInscricao.TryGetValue(inscricao, out var exatos))
+        if (lotesPorInscricao.TryGetValue(Inscricoes.Normalizar(inscricao) ?? inscricao, out var exatos))
             return exatos.Count == 1 ? (VinculoMapa.Confirmado, exatos) : (VinculoMapa.Ambiguo, exatos);
-        if (Terreno(inscricao) is { } t && lotesPorTerreno.TryGetValue(t, out var mesmos))
+        if (Inscricoes.Terreno(inscricao) is { } t && lotesPorTerreno.TryGetValue(t, out var mesmos))
         {
-            var distintos = mesmos.Select(f => f.Atributo("InscImob")).Distinct(StringComparer.Ordinal).Count();
+            var distintos = mesmos.Select(f => Inscricoes.Normalizar(f.Atributo("InscImob"))).Distinct(StringComparer.Ordinal).Count();
             return distintos == 1 && mesmos.Count == 1 ? (VinculoMapa.MesmoTerreno, mesmos) : (VinculoMapa.Ambiguo, mesmos);
         }
         return (VinculoMapa.SemLote, []);
     }
 
-    /// <summary>O vínculo sem montar a análise (para a coluna da tabela de resultados).</summary>
+    /// <summary>A ligação do registro: a da inscrição; sem lote, a da inscrição anterior do mesmo registro (renumeração no cadastro com o
+    /// desenho ainda no número antigo). Nunca vale como lote confirmado.</summary>
+    public (VinculoMapa Vinculo, IReadOnlyList<Feicao> Lotes) Vincular(RegistroCadastro r)
+    {
+        var v = Vincular(r.InscricaoMunicipal);
+        if (v.Vinculo != VinculoMapa.SemLote || r.Campo("inscricao_municipal_anterior") is not { Length: > 0 } anterior) return v;
+        var pelaAnterior = Vincular(anterior);
+        return pelaAnterior.Vinculo == VinculoMapa.SemLote ? v : (VinculoMapa.InscricaoAnterior, pelaAnterior.Lotes);
+    }
+
+    /// <summary>O vínculo sem montar a análise.</summary>
     public VinculoMapa VinculoRapido(string inscricao) => Vincular(inscricao).Vinculo;
+
+    /// <summary>O vínculo do registro (com a inscrição anterior) sem montar a análise (para a coluna da tabela de resultados).</summary>
+    public VinculoMapa VinculoRapido(RegistroCadastro r) => Vincular(r).Vinculo;
 
     public IReadOnlyList<Feicao> EdificacoesDa(string inscricao) => edificacoesPorInscricao.TryGetValue(inscricao, out var l) ? l : [];
 
@@ -167,7 +183,7 @@ public sealed class AnaliseImovel
     internal static AnaliseImovel Montar(BaseQgis b, RegistroCadastro r, CancellationToken ct)
     {
         var insc = r.InscricaoMunicipal;
-        var (vinculo, lotes) = b.Vincular(insc);
+        var (vinculo, lotes) = b.Vincular(r);
         var naoConsultadas = Enum.GetValues<Camada>().Where(c => b[c] is null).Select(FontesQgis.Rotulo).ToList();
         var unidades = BaseQgis.Terreno(insc) is { } t
             ? b.Cadastro.Registros.Where(x => x.LinhaFonte != r.LinhaFonte && x.InscricaoMunicipal.StartsWith(t, StringComparison.Ordinal)).ToList()

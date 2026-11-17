@@ -179,7 +179,8 @@ public class MapaLocalizacaoTestes : IDisposable
     [Fact]
     public void mapa_tem_o_enquadramento_as_camadas_o_balao_e_a_legenda_do_kit()
     {
-        var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4, new OpcoesMapa { AreaDeclarada = 1500, AreaFonte = "matrícula", Endereco = "Rua das Acácias, 120" });
+        // sem as cotas (2026-11-17), o mapa fica como o do kit
+        var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4, new OpcoesMapa { AreaDeclarada = 1500, AreaFonte = "matrícula", Endereco = "Rua das Acácias, 120", Cotas = false });
         Assert.Equal("VERIFIED_LOT", m.Modo);
         // 16:10, com o centro do lote a 60% da largura e a 58% da altura (a partir do topo).
         Assert.Equal(1.6, m.Extensao.Width / m.Extensao.Height, 6);
@@ -188,7 +189,7 @@ public class MapaLocalizacaoTestes : IDisposable
 
         Assert.Equal(["LOTE 4 · QUADRA Q7", "FULANO DE TAL EXEMPLO", "Inscrição " + BaseFicticia.Lote4, "Zona ZCN2 · base 1.200,00 m² · declarada 1.500,00 m²", "APP ATINGE O LOTE", "FAIXA DA BR-262 ATINGE O LOTE"], m.Ficha);
         Assert.Equal(["lote", "edif", "app", "rio", "dnit", "zona"], m.Legenda.Select(i => i.Tipo));
-        Assert.Equal(["Lote do projeto", "Edificação no lote", "Faixa de APP", "Curso d'água", "Faixas da BR-262", "Zonas do PDM"], m.Legenda.Select(i => i.Texto));
+        Assert.Equal(["Lote do projeto", "Edificação no lote", "Faixa de APP", "Curso d'água", "Faixa de domínio DNIT (40 m do eixo, a confirmar) e não edificável (15 m)", "Zonas do PDM"], m.Legenda.Select(i => i.Texto));
         Assert.Equal("Córrego Fictício", m.NomeRio);
         Assert.True(m.AppAtingeLote);
         Assert.Equal(41.8, m.Br262!.DistanciaEixo);
@@ -235,6 +236,15 @@ public class MapaLocalizacaoTestes : IDisposable
     }
 
     [Fact]
+    public void com_as_cotas_o_mapa_mostra_lados_do_lote_dnit_e_rua()
+    {
+        var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4);
+        foreach (var t in new[] { ">30,00 m<", ">40,00 m<", ">Domínio DNIT 40,00 m<", ">Eixo → terreno 41,79 m<", ">Eixo → alinhamento 10,00 m<", ">LOTE 4<" })
+            Assert.Contains(t, m.Svg);
+        Assert.Contains("<title>Domínio a confirmar no DNIT para o trecho; faixa não edificável: Lei 6.766/1979, art. 4º, III.", m.Svg);
+    }
+
+    [Fact]
     public void sem_nomes_e_com_lote_candidato()
     {
         var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4, new OpcoesMapa { Candidato = true, ComDonos = false });
@@ -260,7 +270,7 @@ public class MapaLocalizacaoTestes : IDisposable
             "<h1>RELATÓRIO CADASTRAL<br>E TERRITORIAL</h1>", "<div class=\"band\"><div class=\"proc\">INSCRIÇÃO " + BaseFicticia.Lote4, "<div class=\"name\">FULANO DE TAL EXEMPLO</div>",
             "<div class=\"ic g\"><h4>LOCALIZAÇÃO</h4>", "<h2>LOCALIZAÇÃO NA BASE MUNICIPAL</h2>", "<span class=\"pill g\"><i></i>LOTE IDENTIFICADO</span>",
             "<div class=\"lmap\"><img alt=\"Mapa de localização do lote na base municipal\" src=\"data:image/svg+xml;base64,", "<div class=\"lbl\">SITUAÇÃO DO LOTE NA BASE</div>",
-            "<span><i class=\"lk dnit\"></i>Faixas da BR-262</span>", "<div class=\"lficha\"><table class=\"lft\">",
+            "<span><i class=\"lk dnit\"></i>Faixa de domínio DNIT (40 m do eixo, a confirmar) e não edificável (15 m)</span>", "<div class=\"lficha\"><table class=\"lft\">",
             "<tr class=\"lfh\"><th colspan=\"2\">Identificação</th></tr>", "<tr class=\"lfh\"><th colspan=\"2\">Cadastro e entorno</th></tr>",
             "<tr class=\"lfh\"><th colspan=\"2\">Áreas e edificação</th></tr>", "<tr class=\"lfh\"><th colspan=\"2\">Zona e condicionantes</th></tr>",
             "<i class=\"lchip r\">ATINGE O LOTE</i>", "<i class=\"lchip g\">CONFERE</i>", "<td class=\"lfl\">Área calculada</td><td class=\"lfv\"><b>1.200,00 m²</b>",

@@ -55,6 +55,26 @@ public sealed class Cadastro
         return indice.TryGetValue(inscricao[..11], out var nomes) ? nomes : [];
     }
 
+    Dictionary<string, List<RegistroCadastro>>? porAnterior;
+
+    /// <summary>Os registros vigentes que têm esta inscrição como inscrição anterior: os que substituíram uma inscrição baixada.</summary>
+    public IReadOnlyList<RegistroCadastro> Sucessoras(string inscricao)
+    {
+        var indice = porAnterior;
+        if (indice is null)
+        {
+            indice = new Dictionary<string, List<RegistroCadastro>>(StringComparer.Ordinal);
+            foreach (var r in Registros)
+                if (Inscricoes.Normalizar(r.Campo("inscricao_municipal_anterior")) is { } a && Inscricoes.Normalizar(r.InscricaoMunicipal) != a)
+                {
+                    if (!indice.TryGetValue(a, out var l)) indice[a] = l = [];
+                    l.Add(r);
+                }
+            porAnterior = indice;
+        }
+        return Inscricoes.Normalizar(inscricao) is { } k && indice.TryGetValue(k, out var s) ? s : [];
+    }
+
     public RegistroCadastro? PorLinha(long linha) => Registros.FirstOrDefault(r => r.LinhaFonte == linha);
 
     /// <summary>Colunas que nunca viram parâmetro de pesquisa nem aparecem no relatório (documentos pessoais e chaves internas).</summary>

@@ -46,7 +46,7 @@ public static class RelatorioHtml
         .rodape { margin-top: 12px; border-top: .6pt solid var(--line); padding-top: 5px; display: flex; justify-content: space-between; color: #637083; font-size: 6.2pt; }
         """;
 
-    public static string Gerar(BaseQgis b, AnaliseImovel a, byte[]? brasao, DateTimeOffset geradoEm)
+    public static string Gerar(BaseQgis b, AnaliseImovel a, byte[]? brasao, DateTimeOffset geradoEm, bool cotas = true)
     {
         var r = a.Registro;
         var s = new StringBuilder();
@@ -58,6 +58,7 @@ public static class RelatorioHtml
         {
             Endereco = Juntar([r.Endereco, r.Bairro], ", "),
             Proprietario = r.Contribuinte.Trim(),
+            Cotas = cotas,
         });
 
         var vinculoTexto = a.Vinculo switch
@@ -65,6 +66,8 @@ public static class RelatorioHtml
             VinculoMapa.Confirmado => "Lote identificado na base pela inscrição municipal (um único polígono).",
             VinculoMapa.MesmoTerreno => "Não há lote com esta inscrição; o desenho mostra o lote do mesmo terreno (mesmos distrito, setor, quadra e lote; outra unidade).",
             VinculoMapa.Ambiguo => $"Há {a.Lotes.Count} polígonos candidatos para esta inscrição: a identificação do lote não é segura.",
+            VinculoMapa.InscricaoAnterior => $"Não há lote com esta inscrição; o desenho mostra o lote da inscrição anterior deste imóvel ({r.Campo("inscricao_municipal_anterior")}). Confira a identificação.",
+            _ when TextosConsulta.Baixada(r) => "Inscrição baixada no cadastro (cancelada, unificada ou desmembrada): não tem lote no desenho atual da base.",
             _ => "Nenhum lote desenhado na base com esta inscrição.",
         };
         var zonaTexto = a.Zonas.Count == 0 ? (a.Lote is null ? "Sem lote no mapa" : "Sem zona na camada")
