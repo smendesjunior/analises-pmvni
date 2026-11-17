@@ -487,6 +487,10 @@ public sealed class EmissaoDespachoTestes
             "--outdir", t + @"\conv", t + @"\conv\copia.docx" }, psi.ArgumentList);
         Assert.Equal(t + @"\conv\tmp", psi.Environment["TEMP"]);
         Assert.Equal(t + @"\conv\tmp", psi.Environment["TMP"]);
+        // Nunca consulta as impressoras do Windows: sem o "Aguardando conexão de impressora…" de uma impressora de rede fora do ar (e sem
+        // os ~50 s de espera por ela a cada conversão).
+        Assert.Equal("1", psi.Environment["SAL_DISABLE_PRINTERLIST"]);
+        Assert.Equal("1", psi.Environment["SAL_DISABLE_DEFAULTPRINTER"]);
         Assert.True(psi.CreateNoWindow);
         Assert.False(psi.UseShellExecute);
         // O app é de janela (sem console): entrada e saídas vão por pipes que o conversor fecha (entrada) e esvazia (saídas, que viram o
