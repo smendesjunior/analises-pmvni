@@ -50,16 +50,13 @@ public sealed partial class EstadoVazio : UserControl
         idSecundario = secundario?.Id;
         if (secundario is { } s)
         {
-            // Com glifo, o secundário é verde como o primário (correção 2026-11-16: "+ Despacho de aprovação").
-            if (glifoSecundario is { } g)
-            {
-                var c2 = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-                c2.Children.Add(new FontIcon { Glyph = g, FontSize = 16 });
-                c2.Children.Add(new TextBlock { Text = s.Rotulo, VerticalAlignment = VerticalAlignment.Center });
-                BotaoSecundario.Content = c2;
-                BotaoSecundario.Style = (Style)BotaoPrimario.Style;
-            }
-            else { BotaoSecundario.Content = s.Rotulo; BotaoSecundario.ClearValue(StyleProperty); }
+            // O secundário segue sempre o padrão do primário (2026-11-17, "botões despadronizados"): mesmo estilo tonal, altura, cantos,
+            // ícone e brilho; sem glifo próprio, o de abrir.
+            var c2 = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            c2.Children.Add(new FontIcon { Glyph = glifoSecundario ?? Glifos.Abrir, FontSize = 16 });
+            c2.Children.Add(new TextBlock { Text = s.Rotulo, VerticalAlignment = VerticalAlignment.Center });
+            BotaoSecundario.Content = c2;
+            BotaoSecundario.Style = (Style)BotaoPrimario.Style;
             AutomationProperties.SetName(BotaoSecundario, s.Rotulo);
             Dicas.AplicarComando(BotaoSecundario, s.Id, s.Rotulo, modulo);
             BotaoSecundario.Visibility = Visibility.Visible;
@@ -85,7 +82,27 @@ public sealed partial class EstadoVazio : UserControl
         ListaRecentes.Children.Clear();
         foreach (var (texto, caminho) in recentes.Take(5))
         {
-            var b = new HyperlinkButton { Content = texto, Padding = new Thickness(0, 3, 0, 3) };
+            // Linha: ícone do relatório na cor de destaque, o nome e, embaixo, a pasta do processo (o caminho inteiro na dica).
+            var pasta = Path.GetFileName(Path.GetDirectoryName(caminho) ?? "") ?? "";
+            var linha = new Grid { ColumnSpacing = 12 };
+            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            linha.Children.Add(new FontIcon { Glyph = Glifos.Relatorio, VerticalAlignment = VerticalAlignment.Center, Style = (Style)Application.Current.Resources["PmvniIconeDestaqueStyle"], FontSize = 20 });
+            var textos = new StackPanel { Spacing = 0, VerticalAlignment = VerticalAlignment.Center };
+            textos.Children.Add(new TextBlock { Text = Path.GetFileName(caminho), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+            if (pasta.Length > 0) textos.Children.Add(new TextBlock { Text = pasta, Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"], Opacity = .7, TextTrimming = TextTrimming.CharacterEllipsis });
+            Grid.SetColumn(textos, 1);
+            linha.Children.Add(textos);
+            var seta = new FontIcon { Glyph = "", FontSize = 12, Opacity = .55, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(seta, 2);
+            linha.Children.Add(seta);
+            var b = new Button
+            {
+                Content = linha, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Padding = new Thickness(10, 8, 12, 8), Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(6),
+            };
             AutomationProperties.SetName(b, "Abrir " + texto);
             Dicas.Aplicar(b, texto, "Abre este relatório aberto há pouco: " + caminho);
             b.Click += (_, _) => RecenteEscolhido?.Invoke(caminho);

@@ -139,6 +139,22 @@ public sealed partial class FaixaDeOpcoes : UserControl
     /// <summary>O ícone de um item de menu: o ✓ (Segoe Fluent E73E) quando marcado, senão o glifo da definição.</summary>
     static FontIcon Icone(bool marcado, string glifo) => new() { Glyph = marcado ? Glifos.Marca : glifo };
 
+    /// <summary>Pinta o ícone na cor do comando (<see cref="CoresIcones"/>), no tema do botão; desabilitado volta ao cinza nativo e em
+    /// alto contraste fica a cor do sistema.</summary>
+    static void Colorir(FontIcon icone, Control dono)
+    {
+        if (CoresIcones.De(icone.Glyph) is not { } par) return;
+        void Aplicar()
+        {
+            if (!dono.IsEnabled || new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast) { icone.ClearValue(IconElement.ForegroundProperty); return; }
+            var c = dono.ActualTheme == ElementTheme.Dark ? par.Escuro : par.Claro;
+            icone.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb((byte)(c >> 24), (byte)(c >> 16), (byte)(c >> 8), (byte)c));
+        }
+        Aplicar();
+        dono.ActualThemeChanged += (_, _) => Aplicar();
+        dono.IsEnabledChanged += (_, _) => Aplicar();
+    }
+
     void PreencherMenuDinamico(string menu, MenuFlyout m)
     {
         m.Items.Clear();
@@ -300,6 +316,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             foreach (var i in itens)
             {
                 var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = Icone(marcados.Contains(i.Id), i.Glifo), IsEnabled = Habilitado(i.Id) };
+                if (mi.Icon is FontIcon fi) Colorir(fi, mi);
                 Dicas.Aplicar(mi, TextoDaDica(i.Id, i.Rotulo));
                 mi.Click += (_, _) => ComandoInvocado?.Invoke(i.Id);
                 menu.Items.Add(mi);
@@ -351,6 +368,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             return t;
         }
         var b = new AppBarButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id) };
+        Colorir(icone, b);
         // Correções 2026-11-15: o estado "rótulo à direita" do WinUI anima a margem do texto para 16/10 (StaticResource, não dá para
         // trocar pelo recurso); o texto sobe 3 px por transformação (a animação não mexe nela) e fica na linha do ícone e do primário.
         b.Loaded += (_, _) => { if (Descendente(b, "TextLabel") is UIElement rotuloTexto) rotuloTexto.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -3 }; };
@@ -371,6 +389,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             foreach (var i in itens)
             {
                 var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = Icone(marcados.Contains(i.Id), i.Glifo), IsEnabled = Habilitado(i.Id) };
+                if (mi.Icon is FontIcon fi) Colorir(fi, mi);
                 // A dica do item: nome, descrição e, desabilitado, o motivo (ex.: por que um tipo de despacho não está disponível).
                 Dicas.Aplicar(mi, TextoDaDica(i.Id, i.Rotulo));
                 mi.Click += (_, _) => ComandoInvocado?.Invoke(i.Id);

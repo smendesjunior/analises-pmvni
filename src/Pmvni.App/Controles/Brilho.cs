@@ -124,6 +124,8 @@ public static class Brilho
             botao.SizeChanged += AoMudarTamanho;
             botao.ActualThemeChanged += AoMudarTema;
             botao.IsEnabledChanged += AoMudarHabilitado;
+            // Botões de ligar e desligar (filtros, pílulas da faixa): só brilham ligados, quando estão na cor de destaque.
+            if (botao is Microsoft.UI.Xaml.Controls.Primitives.ToggleButton tb) { tb.Checked += AoMarcar; tb.Unchecked += AoMarcar; }
             botao.PointerEntered += AoEntrar;
             botao.PointerExited += AoSair;
             botao.PointerCanceled += AoSair;
@@ -145,6 +147,7 @@ public static class Brilho
             botao.SizeChanged -= AoMudarTamanho;
             botao.ActualThemeChanged -= AoMudarTema;
             botao.IsEnabledChanged -= AoMudarHabilitado;
+            if (botao is Microsoft.UI.Xaml.Controls.Primitives.ToggleButton tb) { tb.Checked -= AoMarcar; tb.Unchecked -= AoMarcar; }
             botao.PointerEntered -= AoEntrar;
             botao.PointerExited -= AoSair;
             botao.PointerCanceled -= AoSair;
@@ -158,6 +161,7 @@ public static class Brilho
         void AoMudarTamanho(object s, SizeChangedEventArgs e) => Medir();
         void AoMudarTema(FrameworkElement s, object e) => Aplicar(false);
         void AoMudarHabilitado(object s, DependencyPropertyChangedEventArgs e) { if (!botao.IsEnabled) sobre = pressionado = false; Aplicar(true); }
+        void AoMarcar(object s, RoutedEventArgs e) => Aplicar(true);
         void AoEntrar(object s, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) { sobre = true; Aplicar(true); }
         void AoSair(object s, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) { if (!sobre && !pressionado) return; sobre = pressionado = false; Aplicar(true); }
         void AoPressionar(object s, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e) { if (pressionado) return; pressionado = true; Aplicar(true); }
@@ -208,7 +212,7 @@ public static class Brilho
             if (!ligado) return;
             bool escuro = botao.ActualTheme == ElementTheme.Dark;
             float opacidade, desfoque;
-            if (Acessibilidade.HighContrast || !botao.IsEnabled) { opacidade = 0f; desfoque = 8f; }
+            if (Acessibilidade.HighContrast || !botao.IsEnabled || botao is Microsoft.UI.Xaml.Controls.Primitives.ToggleButton { IsChecked: not true }) { opacidade = 0f; desfoque = 8f; }
             else if (pressionado) { opacidade = escuro ? 0.30f : 0.22f; desfoque = 9f; }
             else if (sobre) { opacidade = escuro ? 0.42f : 0.30f; desfoque = 12f; }  // os valores do WinStatusBar
             else { opacidade = escuro ? 0.22f : 0.15f; desfoque = 8f; }               // repouso: um halo discreto

@@ -21,6 +21,7 @@ public static class Pilulas
         b.Padding = new Thickness(11, 0, 12, 0);
         b.CornerRadius = new CornerRadius(16);
         b.VerticalAlignment = VerticalAlignment.Center;
+        Brilho.SetAtivo(b, true); // ligado (na cor de destaque) ganha o brilho dos botões coloridos
     }
 
     /// <summary>Botão de alternar da faixa: ligado acende na cor de destaque (o AppBarToggleButton nativo só muda um pouco o fundo). As cores
@@ -28,6 +29,7 @@ public static class Pilulas
     public static void Estilizar(AppBarToggleButton b)
     {
         b.CornerRadius = new CornerRadius(16);
+        Brilho.SetAtivo(b, true);
         Aplicar(b);
         b.ActualThemeChanged += (_, _) => Aplicar(b);
     }
