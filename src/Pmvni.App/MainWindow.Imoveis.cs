@@ -23,6 +23,8 @@ public sealed partial class MainWindow
     Consulta? consultaImoveis;
     PaginaResultado? resultadoImoveis;
     string? relatorioAberto;     // inscrição do relatório à vista (null = pesquisa)
+    RegistroCadastro? registroAberto;
+    bool cotasImoveis = true;    // cotas do lote no mapa (botão Cotas do relatório; só na sessão)
     WebView2? leitorImoveis;
     CoreWebView2? CoreImoveis => leitorImoveis?.CoreWebView2;
 
@@ -48,6 +50,8 @@ public sealed partial class MainWindow
             e.Handled = true;
             await PesquisarImoveisAsync(1);
         };
+        I.CaixaValor.TextChanged += (_, _) => AtualizarDicaDeteccao();
+        I.CaixaParametro.SelectionChanged += (_, _) => AtualizarDicaDeteccao();
         I.BotaoAnterior.Click += async (_, _) => { if (consultaImoveis is { } c) await PesquisarImoveisAsync(c.Pagina - 1); };
         I.BotaoProxima.Click += async (_, _) => { if (consultaImoveis is { } c) await PesquisarImoveisAsync(c.Pagina + 1); };
         I.BotaoConfigurar.Click += async (_, _) => await ConfigurarPastaQgisAsync();
@@ -55,6 +59,11 @@ public sealed partial class MainWindow
         I.BotaoVoltar.Click += (_, _) => VoltarAPesquisaDeImoveis();
         I.BotaoPdf.Click += async (_, _) => await SalvarPdfDoImovelAsync();
         I.BotaoImprimir.Click += (_, _) => CoreImoveis?.ShowPrintUI(CoreWebView2PrintDialogKind.Browser);
+        I.BotaoCotas.Click += async (_, _) =>
+        {
+            cotasImoveis = I.BotaoCotas.IsChecked == true; // vale para os próximos relatórios, até fechar o app
+            if (registroAberto is { } r) await AbrirRelatorioDoImovelAsync(r);
+        };
 
         manipuladores[ComandosApp.ImoveisConfigurar] = ConfigurarPastaQgisAsync;
         manipuladores[ComandosApp.ImoveisRecarregar] = () => { InvalidarBaseImoveis(); return EntrarEmImoveisAsync(); };
@@ -146,9 +155,27 @@ public sealed partial class MainWindow
     {
         var anterior = (I.CaixaParametro.SelectedItem as ComboBoxItem)?.Tag as string;
         I.CaixaParametro.Items.Clear();
+        // "Detectar automaticamente" é a primeira opção e o padrão (2026-11-17); as colunas da base vêm depois, como antes.
+        I.CaixaParametro.Items.Add(new ComboBoxItem { Content = DeteccaoPesquisa.RotuloAutomatico, Tag = DeteccaoPesquisa.Automatico });
         foreach (var c in b.Cadastro.Campos) I.CaixaParametro.Items.Add(new ComboBoxItem { Content = c.Rotulo, Tag = c.Id });
-        var alvo = I.CaixaParametro.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == (anterior ?? "inscricao_municipal"));
+        var alvo = I.CaixaParametro.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == (anterior ?? DeteccaoPesquisa.Automatico));
         I.CaixaParametro.SelectedItem = alvo ?? I.CaixaParametro.Items.FirstOrDefault();
+        bairrosImoveis = b.Cadastro.Registros.Select(r => r.Bairro).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        loteamentosImoveis = b.Cadastro.Registros.Select(r => r.Campo("loteamento") ?? "").Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        AtualizarDicaDeteccao();
+    }
+
+    List<string> bairrosImoveis = [], loteamentosImoveis = [];
+
+    bool DetectandoImoveis => (I.CaixaParametro.SelectedItem as ComboBoxItem)?.Tag as string == DeteccaoPesquisa.Automatico;
+
+    /// <summary>Com "Detectar automaticamente": mostra, enquanto o usuário digita, o campo que a pesquisa vai usar.</summary>
+    void AtualizarDicaDeteccao()
+    {
+        var valor = I.CaixaValor.Text;
+        if (!DetectandoImoveis || baseImoveis is not { } b || string.IsNullOrWhiteSpace(valor)) { I.PainelDeteccao.Visibility = Visibility.Collapsed; return; }
+        I.TextoDeteccao.Text = DeteccaoPesquisa.Detectar(valor, b.Cadastro.Campos, bairrosImoveis, loteamentosImoveis).Descricao;
+        I.PainelDeteccao.Visibility = Visibility.Visible;
     }
 
     /// <summary>A pasta mudou (ou "Ler a base de novo"): cancela leitura e pesquisa em curso e esquece a base, a consulta e os resultados.</summary>
@@ -193,41 +220,68 @@ public sealed partial class MainWindow
         I.Progresso.Visibility = Visibility.Visible;
         try
         {
-            var (r, vinculos) = await Task.Run(() =>
+            var (r, selos) = await Task.Run(() =>
             {
                 var p = Pesquisa.Aplicar(b.Cadastro.Registros, b.Cadastro.Campos, consulta, cts.Token);
-                return (p, p.Itens.Select(i => b.VinculoRapido(i.InscricaoMunicipal)).ToList());
+                return (p, p.Itens.Select(i => TextosConsulta.Selo(i, b.VinculoRapido(i),
+                    b.Cadastro.Sucessoras(i.InscricaoMunicipal).Select(s => s.InscricaoMunicipal).FirstOrDefault())).ToList());
             }, cts.Token);
             if (cts.IsCancellationRequested || fechada) return;
             consultaImoveis = consulta;
             resultadoImoveis = r;
-            MostrarResultados(r, vinculos);
+            MostrarResultados(r, selos);
+            if (r.Deteccao is { } dt) { I.TextoDeteccao.Text = dt; I.PainelDeteccao.Visibility = Visibility.Visible; }
         }
         catch (OperationCanceledException) { }
         catch (ArgumentException e) { MostrarAvisoImoveis(InfoBarSeverity.Warning, "Pesquisa não feita", e.Message); }
         finally { if (ReferenceEquals(cancelarPesquisa, cts)) I.Progresso.Visibility = Visibility.Collapsed; }
     }
 
-    void MostrarResultados(PaginaResultado r, IReadOnlyList<VinculoMapa> vinculos)
+    /// <summary>Pesquisa uma inscrição (a que substituiu uma inscrição baixada): Inscrição municipal, Igual.</summary>
+    async Task PesquisarInscricaoAsync(string inscricao)
+    {
+        if (I.CaixaParametro.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == "inscricao_municipal") is { } campo) I.CaixaParametro.SelectedItem = campo;
+        if (I.CaixaCondicao.Items.OfType<ComboBoxItem>().FirstOrDefault(i => i.Tag is Condicao.Igual) is { } igual) I.CaixaCondicao.SelectedItem = igual;
+        I.CaixaValor.Text = inscricao;
+        await PesquisarImoveisAsync(1);
+    }
+
+    void MostrarResultados(PaginaResultado r, IReadOnlyList<SeloVinculo> selos)
     {
         var br = CultureInfo.GetCultureInfo("pt-BR");
         I.ListaResultados.Items.Clear();
         for (var i = 0; i < r.Itens.Count; i++)
         {
             var reg = r.Itens[i];
-            var v = vinculos[i];
+            var sv = selos[i];
             var linha = new Grid { Padding = new Thickness(12, 8, 12, 8), ColumnSpacing = 12, Style = (Style)Application.Current.Resources["PmvniGradeLinhaStyle"], BorderThickness = new Thickness(0, 0, 0, 1) };
             TextBlock T(string? s, bool forte = false) => new() { Text = s ?? "", TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = forte ? FontWeights.SemiBold : FontWeights.Normal, IsTextSelectionEnabled = true };
             var selo = new Border
             {
                 HorizontalAlignment = HorizontalAlignment.Left,
-                Style = (Style)Application.Current.Resources[v == VinculoMapa.Confirmado ? "PmvniSeloStatusSucessoStyle" : v == VinculoMapa.SemLote ? "PmvniSeloStatusErroStyle" : "PmvniSeloStatusAtencaoStyle"],
-                Child = new TextBlock { Text = TextosConsulta.Rotulo(v), FontSize = 12 },
+                Style = (Style)Application.Current.Resources[sv.Tom switch
+                {
+                    TomVinculo.Sucesso or TomVinculo.Neutro => "PmvniSeloStatusSucessoStyle",
+                    TomVinculo.Erro => "PmvniSeloStatusErroStyle",
+                    _ => "PmvniSeloStatusAtencaoStyle",
+                }],
+                Child = new TextBlock { Text = sv.Texto, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis },
             };
+            // Inscrição baixada: selo neutro (cinza), não é erro de ligação com o mapa.
+            if (sv.Tom == TomVinculo.Neutro) selo.Background = (Brush)Application.Current.Resources["SystemFillColorNeutralBackgroundBrush"];
+            ToolTipService.SetToolTip(selo, sv.Dica);
+            FrameworkElement celulaSelo = selo;
+            if (sv.Sucessora is { } suc)
+            {
+                var ver = new HyperlinkButton { Content = "Ver a inscrição atual", Padding = new Thickness(0), FontSize = 12 };
+                ToolTipService.SetToolTip(ver, $"Pesquisa a inscrição {suc}, que substituiu esta.");
+                ver.Click += async (_, _) => await PesquisarInscricaoAsync(suc);
+                celulaSelo = new StackPanel { Spacing = 2, Children = { selo, ver } };
+            }
             var abrir = new Button { Content = "Abrir relatório", HorizontalAlignment = HorizontalAlignment.Stretch };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrir, "Abrir relatório do imóvel " + reg.InscricaoMunicipal);
             abrir.Click += async (_, _) => await AbrirRelatorioDoImovelAsync(reg);
-            MontarLinha(linha, [T(reg.InscricaoMunicipal, true), T(reg.Contribuinte), T(reg.Endereco), T(reg.Bairro), T(reg.Situacao), selo, abrir]);
+            MontarLinha(linha, [T(reg.InscricaoMunicipal, true), T(reg.Contribuinte), T(reg.Endereco), T(reg.Bairro), T(reg.Situacao), celulaSelo, abrir]);
             ToolTipService.SetToolTip(linha.Children[2], reg.Endereco);
             I.ListaResultados.Items.Add(linha);
         }
@@ -280,11 +334,14 @@ public sealed partial class MainWindow
         I.TituloRelatorio.Text = $"Relatório cadastral e territorial • {r.InscricaoMunicipal} • {r.Endereco}";
         I.ProgressoRelatorio.IsActive = true;
         relatorioAberto = r.InscricaoMunicipal;
+        registroAberto = r;
+        I.BotaoCotas.IsChecked = cotasImoveis;
         AtualizarComandosDeImoveis();
         try
         {
             var brasao = Pmvni.Composicao.ModeloOficial.LerArquivo("brasao.png");
-            var html = await Task.Run(() => RelatorioHtml.Gerar(b, b.Analisar(r), brasao, DateTimeOffset.Now));
+            var cotas = cotasImoveis;
+            var html = await Task.Run(() => RelatorioHtml.Gerar(b, b.Analisar(r), brasao, DateTimeOffset.Now, cotas));
             if (relatorioAberto != r.InscricaoMunicipal || fechada) return;
             var core = await GarantirLeitorImoveisAsync();
             core.NavigateToString(html);
@@ -331,6 +388,7 @@ public sealed partial class MainWindow
     void VoltarAPesquisaDeImoveis()
     {
         relatorioAberto = null;
+        registroAberto = null;
         I.VistaRelatorio.Visibility = Visibility.Collapsed;
         I.VistaPesquisa.Visibility = Visibility.Visible;
         AtualizarComandosDeImoveis();

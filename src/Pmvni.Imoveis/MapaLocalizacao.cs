@@ -26,10 +26,15 @@ public sealed record OpcoesMapa
     public double FaixaDominio { get; init; } = MapaLocalizacao.FaixaDominioBr262;
     /// <summary>O nome a mostrar como proprietário do lote; sem ele, o do cadastro do terreno (como no kit).</summary>
     public string? Proprietario { get; init; }
+    /// <summary>As cotas do lote do projeto (2026-11-17): lados do lote, domínio do DNIT e eixo → terreno (BR-262 perto) e largura da rua
+    /// em frente. Desligadas, o mapa fica como antes.</summary>
+    public bool Cotas { get; init; } = true;
 }
 
 public sealed record CursoDagua(string Tipo, double Distancia, IReadOnlyList<int> App, bool AtingeLote, int Feicao, Coordinate? PontoLote, Coordinate? PontoCalha);
-public sealed record FaixaBr262(double DistanciaEixo, double Dominio, double NaoEdificavel, Coordinate? PontoEixo, bool AtingeDominio, bool AtingeNaoEdificavel);
+/// <summary>A BR-262 em relação ao lote. <see cref="PontoEixo"/> e <see cref="PontoLote"/>: o par de pontos mais próximos (eixo e borda do
+/// lote), para as cotas do mapa; nulos quando o eixo cruza o lote.</summary>
+public sealed record FaixaBr262(double DistanciaEixo, double Dominio, double NaoEdificavel, Coordinate? PontoEixo, bool AtingeDominio, bool AtingeNaoEdificavel, Coordinate? PontoLote = null);
 public sealed record VizinhoMapa(string Inscricao, string Lote, string Proprietario);
 
 /// <summary>O que o <c>mapa_localizacao.py</c> devolve: a imagem (aqui em SVG, 840 × 525), a legenda, a ficha e os dados do lote.</summary>
@@ -272,16 +277,42 @@ public static class MapaLocalizacao
 
     public static bool EhBr262(string nome) => nome.Contains("262") && nome.Contains("BR", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Primeiro e último nome, para caber sobre o lote vizinho (sem complementos do cadastro).</summary>
+    /// <summary>O cadastro marca o dono desconhecido com um texto ("PROPRIETARIO NAO IDENTIFICADO"), que não é nome de pessoa.</summary>
+    public static bool SemNome(string nome)
+    {
+        var k = DeteccaoPesquisa.Chave(nome);
+        return k.Contains("NAO IDENTIFICAD", StringComparison.Ordinal) || k.Contains("NAO INFORMAD", StringComparison.Ordinal)
+            || k.Contains("DESCONHECID", StringComparison.Ordinal) || k is "" or "-" or "—";
+    }
+
+    /// <summary>Primeiro e último nome, para caber sobre o lote vizinho (sem complementos do cadastro). O texto do cadastro para dono
+    /// desconhecido vira "Proprietário não identificado" (antes saía "Proprietario Identificad": primeira e última palavra, cortado em 24
+    /// letras, com o sentido trocado). Nome longo é encurtado por palavras inteiras, nunca no meio.</summary>
     public static string Curto(string nome)
     {
+        if (SemNome(nome)) return "Proprietário não identificado";
         var limpo = Regex.Replace(nome.Split(" e outros")[0], @"\(\s*[A-Z]\s*\)|\b(E\s+)?(SOCIOS?|OUTROS?|OUTRA|ESPOLIO DE|ESPÓLIO DE)\b", " ", RegexOptions.IgnoreCase);
         string[] ligacoes = ["E", "DE", "DA", "DO", "DOS", "DAS"];
         var palavras = limpo.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Where(w => !ligacoes.Contains(w.ToUpper(Br))).ToArray();
         if (palavras.Length == 0) palavras = nome.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         var t = Titulo(palavras.Length <= 2 ? string.Join(" ", palavras) : palavras[0] + " " + palavras[^1]);
-        return t.Length > 24 ? t[..24] : t;
+        if (t.Length <= 24) return t;
+        var primeiro = Titulo(palavras[0]);
+        return primeiro.Length <= 24 ? primeiro : primeiro[..23] + "…";
     }
+
+    /// <summary>A forma mais curta do rótulo do vizinho, quando o nome curto não cabe: "Osmar Souza" → "O. Souza";
+    /// "Proprietário não identificado" → "Não identificado".</summary>
+    public static string Abreviado(string curto)
+    {
+        if (curto == "Proprietário não identificado") return "Não identificado";
+        var p = curto.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return p.Length >= 2 && p[0].Length > 1 ? $"{p[0][0]}. {string.Join(" ", p[1..])}" : curto;
+    }
+
+    /// <summary>Corta o texto em palavras inteiras até <paramref name="max"/> letras, com reticências.</summary>
+    internal static string Encurtar(string t, int max) =>
+        t.Length <= max ? t : (t[..max].LastIndexOf(' ') is var i && i > max / 2 ? t[..i] : t[..(max - 1)]).TrimEnd(' ', ',', '(', '-') + "…";
 
     // ───────────────────────── cruzamentos ─────────────────────────
 
@@ -337,7 +368,7 @@ public static class MapaLocalizacao
         var eixos = Em(b, Camada.Logradouros, Expandido(alvo.Bb, raio)).Where(r => r.Tipo == 'L' && EhBr262(r.Campo("NomeLogra"))).ToList();
         if (eixos.Count == 0) return null;
         var (dist, par) = eixos.Select(r => DistanciaLinhaLote(r.Partes, alvo.Partes)).MinBy(t => t.Dist);
-        return new FaixaBr262(Math.Round(dist, 1), dominio, naoEdif, par?.Linha, dist < dominio, dist < dominio + naoEdif);
+        return new FaixaBr262(Math.Round(dist, 1), dominio, naoEdif, par?.Linha, dist < dominio, dist < dominio + naoEdif, par?.Lote);
     }
 
     /// <summary>Edificações da base cujo centro fica dentro do lote do projeto.</summary>
@@ -380,9 +411,11 @@ public static class MapaLocalizacao
     /// <summary>Como o kit: o lote da base pela inscrição imobiliária (só os dígitos contam; havendo mais de um polígono, o maior).</summary>
     public static MapaGerado PorInscricao(BaseQgis b, string inscricao, OpcoesMapa? opcoes = null)
     {
-        var dig = new string(inscricao.Where(char.IsAsciiDigit).ToArray());
+        // a chave normalizada (Inscricoes): "0201041118001" no desenho é a 02010410118001 do cadastro
+        string Chave(string? s) => Inscricoes.Normalizar(s) ?? new string((s ?? "").Where(char.IsAsciiDigit).ToArray());
+        var dig = Chave(inscricao);
         var achados = (b[Camada.Lotes]?.Feicoes ?? []).Where(f => f.Geometria is Polygon or MultiPolygon
-            && new string((f.Atributo("InscImob") ?? "").Where(char.IsAsciiDigit).ToArray()) == dig && dig.Length > 0).ToList();
+            && dig.Length > 0 && Chave(f.Atributo("InscImob")) == dig).ToList();
         if (achados.Count == 0) throw new ArgumentException($"Inscrição {inscricao} não encontrada em Lotes.shp.");
         var alvo = achados.MaxBy(f => Area(De(f).Partes))!;
         return Gerar(b, alvo.Geometria!, [alvo], opcoes);
@@ -406,7 +439,8 @@ public static class MapaLocalizacao
         var bb = alvo.Bb;
         var c = new Coordinate((bb.MinX + bb.MaxX) / 2, (bb.MinY + bb.MaxY) / 2);
         var lado = Math.Max(bb.Width, bb.Height);
-        var larg = new[] { 200.0, lado * 4.0, bb.Width / 0.34, bb.Height / 0.40 * W / H }.Max(); // lote inteiro, com folga
+        // com as cotas, o recorte mínimo cai de 200 para 120 m: o lote fica maior e as cotas dos lados cabem em letra normal
+        var larg = new[] { o.Cotas ? 120.0 : 200.0, lado * 4.0, bb.Width / 0.34, bb.Height / 0.40 * W / H }.Max(); // lote inteiro, com folga
 
         var (cursos, appAtinge, auc, perimetro) = Condicionantes(b, alvo);
         var rio0 = cursos.Count > 0 ? cursos[0] : null;
@@ -456,11 +490,13 @@ public static class MapaLocalizacao
 
         // o balão do lote
         var ficha = new List<string> { "LOTE " + (loteN.Length > 0 ? loteN : "s/ nº") + (quadra.Length > 0 ? $" · QUADRA {quadra}" : ""), $"Inscrição {ins}" };
-        if (proprietario.Length > 0) ficha.Insert(1, proprietario.Length > 44 ? proprietario[..44] : proprietario);
-        var areas = string.Join(" · ", new[] { areaBase is > 0 ? $"base {Num(areaBase.Value)} m²" : "", o.AreaDeclarada is > 0 ? $"declarada {Num(o.AreaDeclarada.Value)} m²" : "" }.Where(x => x.Length > 0));
+        if (proprietario.Length > 0) ficha.Insert(1, Encurtar(proprietario, 44));
+        var areas = string.Join(" · ", new[] { areaBase is > 0 ? $"base {Num(areaBase.Value)} m²" : $"calculada {Num(Area(alvo.Partes))} m²", o.AreaDeclarada is > 0 ? $"declarada {Num(o.AreaDeclarada.Value)} m²" : "" }.Where(x => x.Length > 0));
         ficha.Add(string.Join(" · ", new[] { zona.Length > 0 ? $"Zona {zona}" : "", areas }.Where(x => x.Length > 0)));
         if (appAtinge) ficha.Add("APP ATINGE O LOTE");
-        if (br is { AtingeNaoEdificavel: true }) ficha.Add("FAIXA DA BR-262 ATINGE O LOTE");
+        // como o kit (atinge_dominio / atinge_nao_edificavel): o domínio do DNIT (< 40 m do eixo) é o caso mais grave
+        if (br is { AtingeDominio: true }) ficha.Add("DOMÍNIO DNIT DA BR-262 ATINGE O LOTE");
+        else if (br is { AtingeNaoEdificavel: true }) ficha.Add("FAIXA DA BR-262 ATINGE O LOTE");
 
         var nomeRio = o.NomeRio;
         var nomeInformado = nomeRio.Length > 0;
@@ -477,7 +513,7 @@ public static class MapaLocalizacao
             }
         }
 
-        var (svg, ruas, legenda) = MapaSvg.Desenhar(b, ext, alvo, modo, ficha, rotulos, rio0, nomeRio, br);
+        var (svg, ruas, legenda) = MapaSvg.Desenhar(b, ext, alvo, modo, ficha, rotulos, rio0, nomeRio, br, o.Cotas, o.Cotas, o.Cotas);
 
         double? dif = null;
         if (o.AreaDeclarada is > 0 && (areaBase is > 0 || areaGeo > 0))

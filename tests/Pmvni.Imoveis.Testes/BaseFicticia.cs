@@ -10,6 +10,10 @@ namespace Pmvni.Imoveis.Testes;
 static class BaseFicticia
 {
     public const string Lote4 = "01020030004001", Lote3 = "01020030003001", Lote5 = "01020030005001", Lote12 = "01020030012001";
+    /// <summary>O lote 6 no desenho tem a inscrição com o lote em 3 dígitos (como há na base real); no cadastro, a forma certa.</summary>
+    public const string Lote6 = "01020030006001", Lote6Desenho = "0102003006001";
+    /// <summary>Inscrição baixada (sem lote) e a que a substituiu; e um registro renumerado cujo desenho ainda tem a inscrição anterior.</summary>
+    public const string Baixada = "01020090007001", Sucessora = "01020030008001", Renumerada = "01029990001001";
     const double X0 = 300_000, Y0 = 7_750_000;
 
     static (double, double)[] Ret(double x0, double y0, double x1, double y1) =>
@@ -26,7 +30,8 @@ static class BaseFicticia
 
         Gravar(Path.Combine(shapes, "Lotes.shp"), 5, ["InscImob", "AREA"],
             (Ret(100, 100, 130, 140), [Lote4, "1200.00"]), (Ret(70, 100, 100, 140), [Lote3, "1200.00"]),
-            (Ret(130, 100, 160, 140), [Lote5, "1200.00"]), (Ret(100, 140, 130, 180), [Lote12, "1200.00"]));
+            (Ret(130, 100, 160, 140), [Lote5, "1200.00"]), (Ret(100, 140, 130, 180), [Lote12, "1200.00"]),
+            (Ret(2000, 2000, 2030, 2040), [Lote6Desenho, "1200.00"])); // longe do lote 4; inscrição gravada com o lote em 3 dígitos
         Gravar(Path.Combine(shapes, "Edificacao.shp"), 5, ["InscImob", "area"],
             (Ret(105, 105, 120, 125), [Lote4, "300.00"]), (Ret(75, 110, 90, 130), [Lote3, "300.00"]));
         Gravar(Path.Combine(shapes, "Logradouro.shp"), 3, ["id", "NomeLogra"],
@@ -50,11 +55,15 @@ static class BaseFicticia
             c.CommandText = """
                 CREATE TABLE cadastro_imobiliario (linha_fonte INTEGER, inscricao_municipal TEXT, inscricao_reduzida TEXT, nome_do_contribuinte TEXT,
                     tipo_do_logradouro TEXT, logradouro TEXT, n_metrico TEXT, bairro TEXT, situacao TEXT, ocupacao TEXT, matricula TEXT,
-                    ultilizacao_do_imovel TEXT, area_unidade_m2 TEXT, loteamento TEXT);
+                    ultilizacao_do_imovel TEXT, area_unidade_m2 TEXT, loteamento TEXT, inscricao_municipal_anterior TEXT);
                 INSERT INTO cadastro_imobiliario VALUES
-                    (1, '01020030004001', '4321', 'FULANO DE TAL EXEMPLO', 'RUA', 'DAS ACACIAS', '120', 'CENTRO', 'Ativo', 'CONSTRUIDO', '9.999', 'Residencial', '150.00', 'Loteamento Exemplo'),
-                    (2, '01020030003001', '4320', 'BELTRANA DE SOUZA MODELO E SOCIO (A)(S)', 'RUA', 'DAS ACACIAS', '110', 'CENTRO', 'Ativo', 'CONSTRUIDO', NULL, 'Residencial', '90.00', NULL),
-                    (3, '01020030005001', '4322', 'SICRANO PEREIRA TESTE', 'RUA', 'DAS ACACIAS', '130', 'CENTRO', 'Ativo', 'VAGO', NULL, 'Territorial', NULL, NULL);
+                    (1, '01020030004001', '4321', 'FULANO DE TAL EXEMPLO', 'RUA', 'DAS ACACIAS', '120', 'CENTRO', 'Ativo', 'CONSTRUIDO', '9.999', 'Residencial', '150.00', 'Loteamento Exemplo', NULL),
+                    (2, '01020030003001', '4320', 'BELTRANA DE SOUZA MODELO E SOCIO (A)(S)', 'RUA', 'DAS ACACIAS', '110', 'CENTRO', 'Ativo', 'CONSTRUIDO', NULL, 'Residencial', '90.00', NULL, NULL),
+                    (3, '01020030005001', '4322', 'SICRANO PEREIRA TESTE', 'RUA', 'DAS ACACIAS', '130', 'CENTRO', 'Ativo', 'VAGO', NULL, 'Territorial', NULL, NULL, NULL),
+                    (4, '01020030006001', '4323', 'PROPRIETARIO NAO IDENTIFICADO', 'RUA', 'DAS ACACIAS', '140', 'CENTRO', 'Ativo', 'VAGO', NULL, 'Territorial', NULL, NULL, NULL),
+                    (5, '01020090007001', '4324', 'ANTIGA PESSOA', 'RUA', 'DAS ACACIAS', '150', 'CENTRO', 'Baixado', NULL, NULL, NULL, NULL, NULL, NULL),
+                    (6, '01020030008001', '4325', 'NOVA PESSOA', 'RUA', 'DAS ACACIAS', '150', 'CENTRO', 'Ativo', 'VAGO', NULL, 'Territorial', NULL, NULL, '01020090007001'),
+                    (7, '01029990001001', '4326', 'PESSOA RENUMERADA', 'AVENIDA', 'PREFEITO FULANO DE TAL', '15', 'VILA NOVA', 'Ativo', 'VAGO', NULL, 'Territorial', NULL, 'Loteamento Exemplo', '01020030006001');
                 """;
             c.ExecuteNonQuery();
         }

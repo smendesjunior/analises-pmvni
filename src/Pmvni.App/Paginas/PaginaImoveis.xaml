@@ -42,6 +42,12 @@
       </Grid>
 
       <StackPanel Grid.Row="2" Spacing="6">
+        <!-- Com "Detectar automaticamente": o que a pesquisa vai buscar (ou buscou), para o usuário entender o resultado. -->
+        <StackPanel x:Name="PainelDeteccao" x:FieldModifier="internal" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+          <FontIcon Glyph="&#xE945;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+          <TextBlock x:Name="TextoDeteccao" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"
+                     AutomationProperties.LiveSetting="Polite"/>
+        </StackPanel>
         <InfoBar x:Name="Aviso" x:FieldModifier="internal" IsClosable="True" IsOpen="False"/>
         <ProgressBar x:Name="Progresso" x:FieldModifier="internal" IsIndeterminate="True" Visibility="Collapsed"/>
         <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"
@@ -75,14 +81,19 @@
     <Grid x:Name="VistaRelatorio" x:FieldModifier="internal" Visibility="Collapsed">
       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
       <Grid Padding="12,6" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Voltar à pesquisa"
                 local:Dicas.Titulo="Voltar à pesquisa" local:Dicas.Descricao="Volta à pesquisa, com os resultados como estavam.">
           <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE72B;" FontSize="14"/><TextBlock Text="Pesquisa"/></StackPanel>
         </Button>
         <TextBlock x:Name="TituloRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-        <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="2" Content="Imprimir" AutomationProperties.Name="Imprimir o relatório"/>
-        <Button x:Name="BotaoPdf" x:FieldModifier="internal" Grid.Column="3" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="Salvar o relatório em PDF">
+        <!-- Cotas do lote no mapa (lados, domínio DNIT e eixo → terreno, largura da rua): ligadas por padrão; a escolha vale até fechar o app. -->
+        <ToggleButton x:Name="BotaoCotas" x:FieldModifier="internal" Grid.Column="2" IsChecked="True" AutomationProperties.Name="Cotas no mapa"
+                      local:Dicas.Titulo="Cotas no mapa" local:Dicas.Descricao="Mostra ou esconde as cotas do lote no mapa: lados do lote, faixa de domínio do DNIT e distância do eixo ao terreno (BR-262 perto) e largura da rua em frente, medidas na base.">
+          <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE1D9;" FontSize="14"/><TextBlock Text="Cotas"/></StackPanel>
+        </ToggleButton>
+        <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="3" Content="Imprimir" AutomationProperties.Name="Imprimir o relatório"/>
+        <Button x:Name="BotaoPdf" x:FieldModifier="internal" Grid.Column="4" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="Salvar o relatório em PDF">
           <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xEA90;" FontSize="14"/><TextBlock Text="Salvar PDF"/></StackPanel>
         </Button>
       </Grid>

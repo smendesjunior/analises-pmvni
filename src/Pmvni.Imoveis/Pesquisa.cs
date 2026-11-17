@@ -32,16 +32,42 @@ public static class Pesquisa
     /// <summary>Filtra, ordena (inscrição municipal, depois linha da fonte) e pagina.</summary>
     public static PaginaResultado Aplicar(IEnumerable<RegistroCadastro> registros, IReadOnlyList<CampoPesquisa> campos, Consulta c, CancellationToken ct = default)
     {
-        if (!campos.Any(x => x.Id == c.CampoId)) throw new ArgumentException("Este parâmetro não existe na base carregada.");
+        var automatico = c.CampoId == DeteccaoPesquisa.Automatico;
+        if (!automatico && !campos.Any(x => x.Id == c.CampoId)) throw new ArgumentException("Este parâmetro não existe na base carregada.");
         if (c.Pagina < 1 || c.Tamanho is < 1 or > 200) throw new ArgumentOutOfRangeException(nameof(c));
         if (string.IsNullOrWhiteSpace(c.Valor) || c.Valor.Length > MaximoValor) throw new ArgumentException($"Digite de 1 a {MaximoValor} caracteres.");
-        var achados = new List<RegistroCadastro>();
-        foreach (var r in registros)
+        var lista = registros as IReadOnlyList<RegistroCadastro> ?? registros.ToList();
+        List<RegistroCadastro> achados;
+        string? descricao = null;
+        if (automatico)
         {
-            ct.ThrowIfCancellationRequested();
-            if (Corresponde(r.Campo(c.CampoId), c.Condicao, c.Valor)) achados.Add(r);
+            // "Detectar automaticamente": os campos saem do valor digitado; sem achado, a busca de reserva (e a dela).
+            var bairros = lista.Select(r => r.Bairro).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var loteamentos = lista.Select(r => r.Campo("loteamento") ?? "").Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            Deteccao? d = DeteccaoPesquisa.Detectar(c.Valor, campos, bairros, loteamentos);
+            achados = [];
+            while (d is not null)
+            {
+                descricao = d.Descricao;
+                foreach (var r in lista)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (DeteccaoPesquisa.Atende(r, d, c.Condicao)) achados.Add(r);
+                }
+                if (achados.Count > 0) break;
+                d = d.Reserva;
+            }
+        }
+        else
+        {
+            achados = [];
+            foreach (var r in lista)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (Corresponde(r.Campo(c.CampoId), c.Condicao, c.Valor)) achados.Add(r);
+            }
         }
         var ordenados = achados.OrderBy(x => x.InscricaoMunicipal, StringComparer.Ordinal).ThenBy(x => x.LinhaFonte).ToList();
-        return new(ordenados.Skip((c.Pagina - 1) * c.Tamanho).Take(c.Tamanho).ToList(), ordenados.Count, c.Pagina, c.Tamanho);
+        return new(ordenados.Skip((c.Pagina - 1) * c.Tamanho).Take(c.Tamanho).ToList(), ordenados.Count, c.Pagina, c.Tamanho) { Deteccao = descricao };
     }
 }
