@@ -1166,12 +1166,25 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     async Task ExportarPeloSeletorAsync()
     {
         if (sessao?.Atual is not { } r) return;
+        // Regra do kit (2026-11-17): o PDF fica na pasta do relatório (a DESPACHO NN do processo, onde está o .rpmvni), com o mesmo nome;
+        // no fim o Explorador abre a pasta com o PDF selecionado. Relatório fora de uma pasta conhecida: pergunta onde salvar, como antes.
+        var pastaRelatorio = Path.GetDirectoryName(sessao.Caminho);
+        if (pastaRelatorio is { Length: > 0 } && Directory.Exists(pastaRelatorio))
+        {
+            var destino = Path.Combine(pastaRelatorio, Path.GetFileNameWithoutExtension(sessao.Caminho) + ".pdf");
+            if (File.Exists(destino) && !await Perguntas.Atual.ConfirmarAsync("Substituir o PDF?",
+                    $"Já existe {Path.GetFileName(destino)} na pasta do relatório. Gerar de novo substitui esse arquivo.", "Substituir", "Cancelar", destrutiva: true))
+                return;
+            if ((await ExportarParaAsync(destino)).Ok) AberturaExterna.MostrarNoExplorador(destino);
+            return;
+        }
         var nome = r.Dados.Processo is { } p ? "Relatório " + string.Concat(p.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '-' : c)) : "Relatório";
         var arquivo = await Perguntas.Atual.SalvarArquivoAsync(nome, ".pdf");
         if (arquivo is null) return;
         var ok = (await ExportarParaAsync(arquivo)).Ok;
         // O seletor cria o arquivo vazio; se a exportação não gravou nada, não deixa o zero byte para trás.
         if (!ok) try { if (new FileInfo(arquivo).Length == 0) File.Delete(arquivo); } catch { }
+        else AberturaExterna.MostrarNoExplorador(arquivo);
     }
 
     /// <summary>Exporta o relatório aberto para <paramref name="caminhoPdf"/>: bloqueado com erros finais; avisos (citações a itens

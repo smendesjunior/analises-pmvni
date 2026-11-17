@@ -922,6 +922,8 @@ public sealed partial class MainWindow
         aviso.IsOpen = true;
         // Ajustes › Despachos e PDF › "Abrir o PDF depois de gravar" (padrão: desligado, como sempre).
         if (ajustes.DespachoAbrirPdf && e.Pdf is { } pdfGravado) AbrirNoPrograma(pdfGravado);
+        // Gerar despacho abre a pasta onde ele foi gravado (a DESPACHO NN do processo, regra do kit), com o PDF — ou o Word — selecionado.
+        if ((e.Pdf ?? e.Docx) is { } gravado) AberturaExterna.MostrarNoExplorador(gravado);
         // A lista é relida (a pasta nova, ou o PDF novo, aparecem) e o despacho gravado fica escolhido.
         despachoEscolhido = null;
         tarefaDaLista = CarregarListasAsync(comDespachos: true);
