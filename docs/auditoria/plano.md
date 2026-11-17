@@ -39,8 +39,9 @@ Atualizada em 17/11/2026. Junta:
 | 20 | C | Acompanhamento | Em 1366 × 768 a tabela sumia (I-1). Na 2ª rodada ainda ficavam 1 ou 2 linhas. | Ações no cabeçalho; resumo compacto abaixo de 720 de altura e recolhido sozinho abaixo de 560; tabela com altura mínima; botão "Resumo" lembrado nos Ajustes. | ✅ |
 | 21 | C | Acompanhamento | Painel do processo sobreposto ficava só com o título e os botões no notebook (nova) | Sobreposto, o painel cobre dos avisos até o rodapé. | ✅ |
 | 22 | C | Editor | Folha a 25% em 1366 × 768 (I-2) | Propriedades recolhe sem seleção (e volta ao selecionar item ou linha); a lista de seções estreita e volta ao maximizar; "Ajustar largura" sem rolagem lateral. | ✅ |
-| 23 | C | Trilho | "Acompanhamento" cortado e Ajustes sumindo (I-3) | Trilho mais largo (104), "Acompanhamento de processos" em duas linhas, módulos com rolagem e Ajustes fixo. | ✅ |
+| 23 | C | Trilho | "Acompanhamento" cortado e Ajustes sumindo (I-3) | Trilho mais largo (112), "Acompanhamento de processos" em duas linhas (fonte 11, item mais alto), módulos com rolagem e Ajustes fixo. | ✅ |
 | 24 | I | Acompanhamento | O painel escondia Status e Aprovação (I-5) | Colunas na ordem Nº, Processo, Status, Requerente…; colunas vazias saem (aviso no rodapé); Nº e Processo fixos ao rolar para o lado; painel sobreposto em telas estreitas. | ✅ |
+| 24a | I | Acompanhamento | Status só com uma bolinha de cor, pouco visível (pedido do usuário) | Etiqueta no estilo da ATENDE: pílula com bolinha, texto em maiúsculas e borda da cor do status. | ✅ |
 | 25 | I | Barra de título | Comandos cortados em 1366 px (I-6) | Abaixo de 1300 ficam só os ícones, o selo fica só com o ícone e o requerente sai do cabeçalho (fica na dica). | ✅ |
 | 26 | I | Barra de título | Processo e "Salvo" do relatório apareciam no Novo despacho de outro processo (nova) | Só aparecem no módulo Relatórios. | ✅ |
 | 27 | I | Barra de título / faixa | Controles que não valiam no módulo; duas buscas no Acompanhamento (I-8) | Desfazer/Refazer só em Relatórios, Anterior/Próxima em Relatórios e Legislação, pesquisa escondida onde não há; a pesquisa da barra filtra a planilha; Ajustes sem a aba Arquivo. | ✅ |
@@ -77,6 +78,18 @@ Atualizada em 17/11/2026. Junta:
 | 53 | D | Novo despacho | Caixa da instrução para a IA sem foco visível; espera não bloqueia o Tab | Não feito. | ⏳ |
 | 54 | D | Geral | Tamanhos fixos que cortam com "Tamanho do texto" do Windows acima de 100% | Trilho e cartões passaram para altura mínima; o resto não foi revisto. | ◐ |
 
-## 4. Não verificado nesta entrega
+## 4. Dívida técnica (levantamento rápido; nada bloqueia o uso)
+
+| # | Onde | O que é | Por que não agora | Situação |
+|---|---|---|---|---|
+| 55 | GravadorPlanilha e gravação do relatório | Mesma gravação segura (`.tmp` + conferência + troca) escrita duas vezes | Unir exige um projeto comum entre os dois; o comportamento já é o mesmo e está testado | ⏳ |
+| 56 | MainWindow (Acompanhamento, Propriedades, barra de título) | Larguras de corte (560, 720, 1300, 1400) espalhadas no código | Juntar numa tabela única é refatoração sem efeito visível | ⏳ |
+| 57 | MainWindow.Pesquisa | Visibilidade da pesquisa decidida por módulo com `if`s | Trocar por uma descrição por módulo; funciona como está | ⏳ |
+| 58 | Pilulas, GraficoPizza, ItemNavegacao | Cores fixas em código (já seguem o tema claro/escuro) | Passar para recursos do tema; sem defeito visível hoje | ⏳ |
+| 59 | Acompanhamento | Duas leituras da planilha logo depois de gravar; fila grava uma pendente por vez | Ganho pequeno; a fila precisa continuar simples e segura | ⏳ |
+| 60 | PaginaRelatorios | Um só modelo de item com ramos para Compacta/Confortável | Separar em dois modelos facilitaria ajustes futuros | ⏳ |
+| 61 | PaginaAcompanhamento.xaml | Botões antigos escondidos (Novo, Importar, busca própria) ainda no XAML | Retirar junto com a revisão do item 38 | ⏳ |
+
+## 5. Não verificado nesta entrega
 - Escala do Windows em 175% e dois monitores: não há como simular nesta máquina.
 - Navegação só pelo teclado e o Narrador: implementados pelo código, não percorridos com o leitor de tela.
