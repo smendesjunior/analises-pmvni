@@ -49,6 +49,10 @@ public static class Faixas
     /// <summary>Novo relatório (desenho §12.2): primário de Relatórios e de Processos; em Relatórios também o primeiro de Arquivo.</summary>
     static readonly ComandoFaixa NovoRelatorio = new(ComandosApp.RelatoriosNovo, "Novo relatório", Glifos.Adicionar);
 
+    /// <summary>Imprimir (2026-11-17): em todo módulo que mostra um documento, ao lado da exportação ou da abertura do arquivo. Abre a
+    /// impressão do Edge (impressoras do Windows e "Salvar como PDF"); o que se imprime em cada módulo está em <see cref="ComandosImpressao"/>.</summary>
+    static readonly ComandoFaixa Imprimir = new(ComandosApp.ArquivoImprimir, "Imprimir", Glifos.Imprimir, Descricao: "Imprimir ou salvar como PDF");
+
     /// <summary>Anexar PDFs… (desenho §11.1): o primário da Legislação.</summary>
     static readonly ComandoFaixa AnexarLeis = new(ComandosApp.LegislacaoAnexar, "Anexar PDFs…", Glifos.Anexar);
 
@@ -84,6 +88,7 @@ public static class Faixas
             new(ComandosApp.ArquivoSalvar, "Salvar", Glifos.Salvar),
             new(ComandosApp.ArquivoSalvarComo, "Salvar como", Glifos.SalvarComo),
             new(ComandosApp.ArquivoExportarPdf, "Exportar PDF", Glifos.Exportar),
+            Imprimir,
             new(ComandosApp.ArquivoFechar, "Fechar", Glifos.Fechar),
         ]),
         new("Página Inicial",
@@ -101,6 +106,7 @@ public static class Faixas
             // Menu dinâmico: as figuras do relatório (a janela as informa cada vez que o menu abre), como Recentes.
             new(ComandosApp.FigurasAbrirEditor, "Figuras", Glifos.Figuras, TipoComando.Menu, [], Descricao: "Abrir uma figura no editor de figuras"),
             new(ComandosApp.ArquivoExportarPdf, "Exportar PDF", Glifos.Exportar),
+            Imprimir,
             NovoDespacho,
         ]),
         new("Revisão",
@@ -137,6 +143,7 @@ public static class Faixas
             new(ComandosApp.DespachosAbrir, "Abrir", Glifos.Abrir),
             new(ComandosApp.DespachosAbrirPdf, "Abrir PDF", Glifos.Exportar),
             new(ComandosApp.DespachosGerarPdf, "Gerar PDF", Glifos.Exportar),
+            Imprimir,
             new(ComandosApp.DespachosMostrar, "Mostrar no Explorador", Glifos.Explorador),
             new(ComandosApp.DespachosIrAoProcesso, "Ir ao processo", Glifos.IrPara),
             new(ComandosApp.DespachosAtualizar, "Atualizar lista", Glifos.Atualizar),
@@ -173,6 +180,7 @@ public static class Faixas
             new(ComandosApp.ProcessosImportarAnalise, "Importar análise", Glifos.ImportarAnalise, Descricao: "Importar a análise da IA"),
             NovoDespacho,
             new(ComandosApp.ProcessosAbrirArquivo, "Abrir arquivo", Glifos.AbrirArquivo),
+            Imprimir,
             new(ComandosApp.ProcessosAbrirPasta, "Abrir pasta", Glifos.Explorador, Descricao: "Abrir a pasta no Explorador"),
             new(ComandosApp.ProcessosAtualizar, "Atualizar", Glifos.Atualizar),
             // Menu dinâmico: os anos vêm da pasta de processos (a janela os informa cada vez que o menu abre), como Recentes.
@@ -205,6 +213,7 @@ public static class Faixas
         [
             new(ComandosApp.LegislacaoCopiar, "Copiar", Glifos.Copiar),
             new(ComandosApp.LegislacaoCopiarCitacao, "Copiar citação", Glifos.Citacao),
+            Imprimir,
             new(ComandosApp.LegislacaoPaginaAnterior, "Página anterior", Glifos.Anterior),
             new(ComandosApp.LegislacaoPaginaProxima, "Próxima página", Glifos.Proximo),
             new(ComandosApp.LegislacaoEscopo, "Pesquisar em", Glifos.Pesquisar, TipoComando.Menu,
@@ -235,6 +244,7 @@ public static class Faixas
         new(ComandosApp.SiteAtualizar, "Atualizar", Glifos.Atualizar),
         new(ComandosApp.SiteInicio, "Página inicial", Glifos.Inicio),
         new(ComandosApp.SiteNavegador, "Abrir no navegador", Glifos.AbrirArquivo),
+        Imprimir,
     ]);
 
     static DefinicaoFaixa Site(Modulo m) => new(m, [ArquivoDeModulo, NavegacaoDoSite, Ajuda], AbaPadrao: 1);

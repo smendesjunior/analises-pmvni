@@ -69,7 +69,7 @@ public class FaixasTestes
         {
             ComandosApp.InicioSituacao, ComandosApp.InicioNovoItem, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
             ComandosApp.InicioRestaurarOriginal, ComandosApp.InicioItemAnterior, ComandosApp.InicioItemProximo, ComandosApp.InicioProximoPendente,
-            ComandosApp.FigurasAbrirEditor, ComandosApp.ArquivoExportarPdf, ComandosApp.DespachosNovo,
+            ComandosApp.FigurasAbrirEditor, ComandosApp.ArquivoExportarPdf, ComandosApp.ArquivoImprimir, ComandosApp.DespachosNovo,
         }, inicio.Comandos.Select(c => c.Id));
         var situacao = inicio.Comandos[0];
         Assert.Equal(TipoComando.Menu, situacao.Tipo);
@@ -121,7 +121,10 @@ public class FaixasTestes
             // Mesmo id em duas abas = o mesmo comando: rótulo, ícone, tipo e itens iguais (e um manipulador só, na janela).
             Assert.All(repetidos, g => Assert.All(g, c => Assert.Equal(g.First(), c)));
             if (m == Modulo.Relatorios)
+            {
                 Assert.Equal(2, repetidos.Single(g => g.Key == ComandosApp.ArquivoExportarPdf).Count());
+                Assert.Equal(2, repetidos.Single(g => g.Key == ComandosApp.ArquivoImprimir).Count());
+            }
         }
     }
 
@@ -149,7 +152,7 @@ public class FaixasTestes
         Assert.Equal(new[]
         {
             ComandosApp.ProcessosAbrirRelatorio, ComandosApp.ProcessosImportarAnalise, ComandosApp.DespachosNovo, ComandosApp.ProcessosAbrirArquivo,
-            ComandosApp.ProcessosAbrirPasta, ComandosApp.ProcessosAtualizar, ComandosApp.ProcessosAno,
+            ComandosApp.ArquivoImprimir, ComandosApp.ProcessosAbrirPasta, ComandosApp.ProcessosAtualizar, ComandosApp.ProcessosAno,
         }, inicioP.Comandos.Select(c => c.Id));
         Assert.Equal(TipoComando.Menu, inicioP.Comandos.Single(c => c.Id == ComandosApp.ProcessosAno).Tipo);
         // O menu do ano é dinâmico (os anos vêm da pasta): a definição o deixa vazio, como Recentes.
@@ -165,7 +168,7 @@ public class FaixasTestes
         var inicioD = despachos.Abas.Single(a => a.Nome == "Página Inicial");
         Assert.Equal(new[]
         {
-            ComandosApp.DespachosAbrir, ComandosApp.DespachosAbrirPdf, ComandosApp.DespachosGerarPdf,
+            ComandosApp.DespachosAbrir, ComandosApp.DespachosAbrirPdf, ComandosApp.DespachosGerarPdf, ComandosApp.ArquivoImprimir,
             ComandosApp.DespachosMostrar, ComandosApp.DespachosIrAoProcesso,
             ComandosApp.DespachosAtualizar, ComandosApp.DespachosFiltro, ComandosApp.DespachosDoProcesso,
         }, inicioD.Comandos.Select(c => c.Id));
@@ -355,6 +358,48 @@ public class FaixasTestes
     }
 
     [Fact]
+    public void imprimir_na_faixa_de_todo_modulo_com_documento()
+    {
+        // Pedido de 2026-11-17: botão de imprimir (impressoras e Salvar como PDF) na barra de opções de tudo que mostra documento.
+        Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco },
+            ComandosImpressao.Modulos);
+        foreach (var m in ComFaixa())
+        {
+            var f = Faixas.Para(m);
+            var inicio = f.Abas.SingleOrDefault(a => a.Nome == "Página Inicial")?.Comandos.ToList() ?? [];
+            var imprimir = inicio.FindIndex(c => c.Id == ComandosApp.ArquivoImprimir);
+            if (!ComandosImpressao.Modulos.Contains(m))
+            {
+                Assert.DoesNotContain(Faixas.Comandos(f), c => c.Id == ComandosApp.ArquivoImprimir);
+                continue;
+            }
+            Assert.True(imprimir >= 0, m.ToString());
+            var c = inicio[imprimir];
+            Assert.Equal("Imprimir", c.Rotulo);
+            Assert.Equal(Glifos.Imprimir, c.Glifo);
+            Assert.Equal(TipoComando.Botao, c.Tipo);
+            Assert.Equal("Imprimir ou salvar como PDF", c.TextoCompleto);
+            // Ao lado do comando que gera ou abre o documento.
+            var vizinho = m switch
+            {
+                Modulo.Relatorios => ComandosApp.ArquivoExportarPdf,
+                Modulo.Despachos => ComandosApp.DespachosGerarPdf,
+                Modulo.Processos => ComandosApp.ProcessosAbrirArquivo,
+                Modulo.Legislacao => ComandosApp.LegislacaoCopiarCitacao,
+                _ => ComandosApp.SiteNavegador,
+            };
+            Assert.Equal(vizinho, inicio[imprimir - 1].Id);
+        }
+        // Relatórios: também em Arquivo, depois de Exportar PDF.
+        var arquivo = Faixas.Para(Modulo.Relatorios).Abas[0].Comandos.Select(c => c.Id).ToList();
+        Assert.Equal(arquivo.IndexOf(ComandosApp.ArquivoExportarPdf) + 1, arquivo.IndexOf(ComandosApp.ArquivoImprimir));
+        // Imóveis segue com o seu Imprimir (relatório do imóvel).
+        Assert.Contains(Faixas.Comandos(Faixas.Para(Modulo.Imoveis)), c => c.Id == ComandosApp.ImoveisImprimir);
+        Assert.False(ComandosApp.SoDoRelatorio(ComandosApp.ArquivoImprimir));
+        Assert.NotEqual("", DicasComandos.Descricao(ComandosApp.ArquivoImprimir));
+    }
+
+    [Fact]
     public void modulo_sem_faixa_definida_e_recusado()
     {
         foreach (var m in Enum.GetValues<Modulo>().Except(ComFaixa()))
@@ -378,6 +423,7 @@ public class FaixasTestes
         Assert.Equal(new[]
         {
             ("legislacao.copiar", "Copiar", TipoComando.Botao), ("legislacao.copiarCitacao", "Copiar citação", TipoComando.Botao),
+            ("arquivo.imprimir", "Imprimir", TipoComando.Botao),
             ("legislacao.paginaAnterior", "Página anterior", TipoComando.Botao), ("legislacao.paginaProxima", "Próxima página", TipoComando.Botao),
             ("legislacao.escopo", "Pesquisar em", TipoComando.Menu),
             ("legislacao.ocorrenciaAnterior", "Ocorrência anterior", TipoComando.Botao), ("legislacao.ocorrenciaProxima", "Próxima ocorrência", TipoComando.Botao),

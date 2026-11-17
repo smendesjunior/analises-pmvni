@@ -196,10 +196,11 @@ public sealed class LeitorLegislacaoTestes : IAsyncLifetime
         await Tecla("C", "KeyC", 67, 2 | 8);
         await Tecla("F3", "F3", 114, 0);
         await Tecla("ArrowDown", "ArrowDown", 40, 1);
-        Assert.True(await Esperar(() => Task.FromResult(Eventos("atalho").Count >= 3)), "os atalhos não chegaram");
-        Assert.Equal(["Ctrl+Shift+C", "F3", "Alt+ArrowDown"], Eventos("atalho").Select(e => e.Dados.GetProperty("tecla").GetString()));
+        await Tecla("p", "KeyP", 80, 2); // Imprimir (2026-11-17): o host imprime o PDF inteiro da lei
+        Assert.True(await Esperar(() => Task.FromResult(Eventos("atalho").Count >= 4)), "os atalhos não chegaram");
+        Assert.Equal(["Ctrl+Shift+C", "F3", "Alt+ArrowDown", "Ctrl+P"], Eventos("atalho").Select(e => e.Dados.GetProperty("tecla").GetString()));
         var antes = Eventos("atalho").Count;
-        await Tecla("p", "KeyP", 80, 2);
+        await Tecla("k", "KeyK", 75, 2);
         await Task.Delay(1000);
         Assert.Equal(antes, Eventos("atalho").Count);
         var zoom = Eventos("zoomMudou").Count;

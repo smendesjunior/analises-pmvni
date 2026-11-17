@@ -15,7 +15,7 @@ public class ComandosLegislacaoTestes
     static readonly string[] ComLei =
     [
         ComandosApp.LegislacaoPaginaAnterior, ComandosApp.LegislacaoPaginaProxima, ComandosApp.LegislacaoZoomMenos, ComandosApp.LegislacaoZoomMais,
-        ComandosApp.LegislacaoAjustarLargura, ComandosApp.LegislacaoPaginaInteira, ComandosApp.LegislacaoEscopoLei,
+        ComandosApp.LegislacaoAjustarLargura, ComandosApp.LegislacaoPaginaInteira, ComandosApp.LegislacaoEscopoLei, ComandosApp.ArquivoImprimir,
     ];
 
     static readonly string[] Ocorrencias = [ComandosApp.LegislacaoOcorrenciaAnterior, ComandosApp.LegislacaoOcorrenciaProxima];

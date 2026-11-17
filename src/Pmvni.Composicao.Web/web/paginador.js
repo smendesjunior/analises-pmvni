@@ -1497,6 +1497,8 @@ var Paginador = (() => {
     "Ctrl+0",
     "Ctrl+Plus",
     "Ctrl+Minus",
+    // Imprimir (2026-11-17): o host abre a impressão do PDF do relatório (as folhas sem os recursos do editor).
+    "Ctrl+P",
     // Trilho de módulos (Ctrl+1 … Ctrl+5): valem também com o foco nas folhas.
     "Ctrl+1",
     "Ctrl+2",

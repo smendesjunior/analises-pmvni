@@ -11,6 +11,9 @@ public static class ComandosApp
     public const string ArquivoSalvarComo = "arquivo.salvarComo";
     public const string ArquivoExportarPdf = "arquivo.exportarPdf";
     public const string ArquivoFechar = "arquivo.fechar";
+    /// <summary>Imprimir (2026-11-17): a janela de impressão do Edge (impressoras do Windows e "Salvar como PDF") com o documento à
+    /// vista no módulo: o PDF do relatório, a lei, o arquivo do processo, o despacho ou a página do site (<see cref="ComandosImpressao"/>).</summary>
+    public const string ArquivoImprimir = "arquivo.imprimir";
     /// <summary>Menu com os relatórios abertos há pouco (Tarefa 11); os itens vêm dos ajustes, na hora de abrir o menu.</summary>
     public const string ArquivoRecentes = "arquivo.recentes";
 

@@ -16,9 +16,11 @@ interface WebView2Web {
   addEventListener(tipo: 'message', ouvinte: (e: { data: unknown }) => void): void;
 }
 
-/** Os atalhos que vao ao host (as 10 teclas de Atalhos.MapaLegislacao), com preventDefault. */
+/** Os atalhos que vao ao host (as teclas de Atalhos.MapaLegislacao), com preventDefault. */
 const ATALHOS: ReadonlySet<string> = new Set([
   'Ctrl+F', 'Ctrl+C', 'Ctrl+Shift+C', 'Ctrl+Plus', 'Ctrl+Minus', 'Ctrl+0', 'Alt+ArrowUp', 'Alt+ArrowDown', 'F3', 'Shift+F3',
+  // Imprimir (2026-11-17): o host abre a impressão do PDF da lei (o arquivo inteiro, não as páginas desenhadas pelo leitor).
+  'Ctrl+P',
   // Trilho de módulos (Ctrl+1 … Ctrl+5): valem também com o foco no texto da lei.
   'Ctrl+1', 'Ctrl+2', 'Ctrl+3', 'Ctrl+4', 'Ctrl+5',
 ]);
