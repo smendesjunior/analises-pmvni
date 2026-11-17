@@ -365,10 +365,12 @@ public sealed partial class MainWindow
         c.OpcaoConta.IsChecked = a.Modo == ModoAcesso.Conta;
         c.OpcaoChave.IsChecked = a.Modo == ModoAcesso.Chave;
         var apiProibida = p == Provedor.Claude && !pecas.ApiPermitidaNoKit;
+        // 2026-11-17: no Claude, "Usar chave de API" é o modo Anthropic API do análise pro (1.6.4+); a dica diz o que isso muda ou por que não roda.
+        var dica = p != Provedor.Claude ? "" : apiProibida ? TextosAgentes.ClaudeSoConta : a.Modo == ModoAcesso.Chave ? TextosAgentes.ClaudeModoApi : "";
         c.OpcaoChave.IsEnabled = true;
-        ToolTipService.SetToolTip(c.OpcaoChave, apiProibida ? TextosAgentes.ClaudeSoConta : null);
-        c.TextoDicaChave.Text = apiProibida ? TextosAgentes.ClaudeSoConta : "";
-        c.TextoDicaChave.Visibility = apiProibida ? Visibility.Visible : Visibility.Collapsed;
+        ToolTipService.SetToolTip(c.OpcaoChave, apiProibida ? TextosAgentes.ClaudeSoConta : p == Provedor.Claude ? TextosAgentes.ClaudeModoApi : null);
+        c.TextoDicaChave.Text = dica;
+        c.TextoDicaChave.Visibility = dica.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         c.PainelChave.Visibility = a.Modo == ModoAcesso.Chave ? Visibility.Visible : Visibility.Collapsed;
         var guardada = CofreChaves.Existe(PastaDados.Raiz, p);
         c.TextoChave.Text = guardada ? TextosAgentes.ChaveGuardada : TextosAgentes.SemChave;

@@ -128,16 +128,31 @@ public sealed class OrquestradorAnalise
             if (pecas.ProRuntime is null)
                 return Falha("O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
             if (pecas.Claude is null) return Falha("O Claude Code não foi encontrado neste computador (claude.exe).");
+            // 2026-11-17: modo chave = Anthropic API de fato. Plugin que não aceita a rota explícita: recusa, nunca a conta no lugar.
+            if (pe.Modo == ModoAcesso.Chave && !pecas.ApiPermitidaNoKit) return Falha(ApiNaoSuportada(pecas.VersaoAnalisePro));
         }
         if (pe.Modo == ModoAcesso.Chave && CofreChaves.Ler(pe.RaizDados, pe.Provedor) is null)
             return Falha("Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.");
         return null;
     }
 
-    /// <summary>O modo que a análise usa de fato (2026-11-17): a chave do Claude vale para a Claude API da revisão e dos ajustes; enquanto o
-    /// <c>pro_runtime.py</c> do kit proibir API paga, o análise pro roda pela conta do Claude mesmo com "Usar chave de API" marcado.</summary>
-    public static ModoAcesso ModoEfetivo(Provedor p, ModoAcesso m, Pecas pecas) =>
-        p == Provedor.Claude && m == ModoAcesso.Chave && !pecas.ApiPermitidaNoKit ? ModoAcesso.Conta : m;
+    /// <summary>O modo que a análise usa de fato: sempre o escolhido em Ajustes (2026-11-17, análise pro 1.6.4). Não há mais conversão de "chave" para
+    /// "conta": com um análise pro que não aceita a Anthropic API, o modo chave é recusado (<see cref="ApiNaoSuportada"/>), nunca trocado.</summary>
+    public static ModoAcesso ModoEfetivo(Provedor p, ModoAcesso m, Pecas pecas)
+    {
+        ArgumentNullException.ThrowIfNull(pecas);
+        _ = p;
+        return m;
+    }
+
+    /// <summary>A recusa do modo chave do Claude quando o análise pro instalado não aceita a rota API explícita (anterior à 1.6.4).</summary>
+    public static string ApiNaoSuportada(string? versaoInstalada) =>
+        $"O análise pro instalado ({versaoInstalada ?? "versão desconhecida"}) não aceita a Anthropic API; é preciso o 1.6.4 ou mais novo. "
+        + "Atualize pelo INSTALAR_KIT_PMVNI.cmd (fora do editor) ou escolha Usar minha conta em Ajustes › Inteligência artificial. "
+        + "Nada foi iniciado: a análise não passa para a conta sem a sua escolha.";
+
+    /// <summary>Como o análise pro se autentica no Claude, para o registro: <c>anthropic_api</c> (modo chave) ou <c>conta_claude</c>.</summary>
+    public static string AutenticacaoAnalisePro(ModoAcesso m) => m == ModoAcesso.Chave ? "anthropic_api" : "conta_claude";
 
     static string Usuario()
     {
@@ -169,6 +184,7 @@ public sealed class OrquestradorAnalise
             // 2026-11-16: o plugin do kit e a versão instalada que fizeram a análise (auditável depois).
             o["plugin"] = PluginUsado(pe.Provedor);
             o["versao_do_plugin"] = VersaoDoPlugin(pe.Provedor, pe.Pecas) ?? "não encontrada";
+            if (pe.Provedor == Provedor.Claude) o["autenticacao"] = AutenticacaoAnalisePro(pe.Modo);    // nunca a chave
             o["situacao"] = "em_andamento";
         });
     }
@@ -353,7 +369,8 @@ public sealed class OrquestradorAnalise
         if (iniciada is null || iniciada.Codigo is not ("INICIADA" or "JA_EM_ANDAMENTO"))
             return Falha("O análise pro não partiu: " + PrimeiraLinha(saidaPartida) + ". Veja o registro: " + registro.Pasta + ".", partida.Codigo);
         if (iniciada.Codigo == "JA_EM_ANDAMENTO") log.MostrarOFimDoLog();     // uma análise que já rodava: mostra o que ela já escreveu
-        return await AcompanharAsync(pe, ambiente, redator, log, inicio, progresso, ct).ConfigureAwait(false);
+        // Só a partida precisa da chave (o kit a passa ao processo isolado da análise); "situacao" só lê arquivos e roda sem ela, como na retomada.
+        return await AcompanharAsync(pe, Ambiente(Provedor.Claude, ModoAcesso.Conta, null), redator, log, inicio, progresso, ct).ConfigureAwait(false);
     }
 
     /// <summary>O editor reaberto volta a acompanhar uma análise do Claude que seguiu sozinha (desenho §12.7): só <c>situacao</c> e o <c>auto-log.txt</c>, sem

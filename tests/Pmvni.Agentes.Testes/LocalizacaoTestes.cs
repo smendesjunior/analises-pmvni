@@ -159,7 +159,9 @@ public class LocalizacaoTestes
         var script = Path.Combine(t, "codex-home", "plugins", "cache", "pmvni-kit", "analise-pro", "1.6.1", "skills", "analise-pro", "scripts", "pro_runtime.py");
         Arquivo(script, "if route not in ('conta', 'local'): raise ValueError('API paga desativada no analise-pro.')\n");
         Assert.False(Localizacao.Ler(Opcoes(t)).ApiPermitidaNoKit);
-        Arquivo(script, "if route not in ('conta', 'api'): raise ValueError('rota inválida')\n");
+        Arquivo(script, "if route not in ('conta', 'api'): raise ValueError('rota inválida')\n");      // 1.6.3: sem rota explícita
+        Assert.False(Localizacao.Ler(Opcoes(t)).ApiPermitidaNoKit);
+        Arquivo(script, "ROTA_VAR = 'PMVNI_ANALISE_PRO_ROTA'\n");                                       // 1.6.4+
         Assert.True(Localizacao.Ler(Opcoes(t)).ApiPermitidaNoKit);
     }
 }

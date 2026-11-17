@@ -348,10 +348,12 @@ public partial class OrquestradorTestes
             (await RodarSemPecas("orq-sem-pro", Provedor.Claude, p => p with { ProRuntime = null })).Mensagem);
         Assert.Equal("O Claude Code não foi encontrado neste computador (claude.exe).",
             (await RodarSemPecas("orq-sem-claude", Provedor.Claude, p => p with { Claude = null })).Mensagem);
-        // Kit proíbe API: o modo chave do Claude vira conta (OrquestradorAnalise.ModoEfetivo); o ChatGPT não é afetado.
+        // 2026-11-17: o modo escolhido nunca é trocado. Análise pro que não aceita a API: o modo chave do Claude é recusado sem iniciar nada.
         var proibe = Ambiente.PecasFalsas(Path.GetTempPath());
-        Assert.Equal(ModoAcesso.Conta, OrquestradorAnalise.ModoEfetivo(Provedor.Claude, ModoAcesso.Chave, proibe));
+        Assert.Equal(ModoAcesso.Chave, OrquestradorAnalise.ModoEfetivo(Provedor.Claude, ModoAcesso.Chave, proibe));
         Assert.Equal(ModoAcesso.Chave, OrquestradorAnalise.ModoEfetivo(Provedor.ChatGpt, ModoAcesso.Chave, proibe));
+        Assert.Equal(OrquestradorAnalise.ApiNaoSuportada("1.6.1"),
+            (await RodarSemPecas("orq-claude-chave-sem-api", Provedor.Claude, p => p, ModoAcesso.Chave)).Mensagem);
         // Se o kit passar a permitir API, o modo chave do Claude deixa de ser recusado por esta regra (a chave guardada ainda é exigida).
         Assert.Equal("Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.",
             (await RodarSemPecas("orq-claude-chave-liberada", Provedor.Claude, p => p with { ApiPermitidaNoKit = true }, ModoAcesso.Chave)).Mensagem);
@@ -377,6 +379,48 @@ public partial class OrquestradorTestes
         var arquivo = c.Falso("chamadas.txt");
         if (!File.Exists(arquivo)) return new();
         return File.ReadAllLines(arquivo, Encoding.UTF8).Select(l => l.Split('\t')).Where(p => p[0] == acao).ToList();
+    }
+
+    [Fact]
+    public async Task claude_modo_api_entrega_chave_e_rota_so_na_partida()
+    {
+        // 2026-11-17 (análise pro 1.6.4): modo chave = Anthropic API de fato. A chave e a rota "api" vão só ao "iniciar" (o kit as passa ao processo
+        // isolado da análise); o acompanhamento ("situacao") nunca recebe a chave e declara "conta".
+        using var c = new Cena("orq-claude-api", "claude_ok", Provedor.Claude);
+        c.Pecas = c.Pecas with { ApiPermitidaNoKit = true };
+        using var herdada = new VariavelDeAmbiente("ANTHROPIC_API_KEY", "sk-ant-herdada-nao-usar");
+        using var rota = new VariavelDeAmbiente("PMVNI_ANALISE_PRO_ROTA", "conta");
+        var chave = "sk-ant-teste-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(24));
+        CofreChaves.Guardar(c.RaizDados, Provedor.Claude, chave);
+
+        var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.Claude, ModoAcesso.Chave), c.Progresso, CancellationToken.None), Limite);
+        Assert.Equal("concluida", fim.Situacao);
+
+        var sha8 = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(chave)))[..8];
+        var iniciar = Assert.Single(Chamadas(c, "iniciar"));
+        Assert.Equal(("CHAVE_PRESENTE " + sha8, "api"), (iniciar[2], iniciar[3]));
+        Assert.All(Chamadas(c, "situacao"), s => Assert.Equal(("CHAVE_AUSENTE", "conta"), (s[2], s[3])));
+        var ex = c.Execucao();
+        Assert.Equal(("chave", "anthropic_api"), (ex["modo"]!.GetValue<string>(), ex["autenticacao"]!.GetValue<string>()));
+
+        foreach (var f in Directory.GetFiles(c.Pasta, "*", SearchOption.AllDirectories).Where(f => !f.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase)))
+            Assert.False(CofreChavesTestes.Contem(File.ReadAllBytes(f), chave), "a chave apareceu em " + f);
+    }
+
+    [Fact]
+    public async Task claude_modo_conta_nunca_leva_chave_nem_rota_api()
+    {
+        using var c = new Cena("orq-claude-conta", "claude_ok", Provedor.Claude);
+        c.Pecas = c.Pecas with { ApiPermitidaNoKit = true };
+        using var herdada = new VariavelDeAmbiente("ANTHROPIC_API_KEY", "sk-ant-herdada-nao-usar");
+        using var rota = new VariavelDeAmbiente("PMVNI_ANALISE_PRO_ROTA", "api");
+        CofreChaves.Guardar(c.RaizDados, Provedor.Claude, "sk-ant-guardada-mas-nao-usada");
+
+        var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.Claude, ModoAcesso.Conta), c.Progresso, CancellationToken.None), Limite);
+        Assert.Equal("concluida", fim.Situacao);
+        var iniciar = Assert.Single(Chamadas(c, "iniciar"));
+        Assert.Equal(("CHAVE_AUSENTE", "conta"), (iniciar[2], iniciar[3]));
+        Assert.Equal("conta_claude", c.Execucao()["autenticacao"]!.GetValue<string>());
     }
 
     [Fact]

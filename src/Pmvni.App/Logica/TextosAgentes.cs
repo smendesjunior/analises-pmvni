@@ -17,8 +17,14 @@ public static class TextosAgentes
     public const string NaoTestado = "Ainda não testado. Use Testar para ver a versão do programa e a sessão.";
     public const string Testando = "Testando…";
 
-    /// <summary>Por que "Usar chave de API" fica desabilitado para o Claude enquanto o <c>pro_runtime.py</c> instalado proibir a API paga.</summary>
-    public const string ClaudeSoConta = "A chave vale para a Claude API (revisão, ajustes e resumos em Modelos de IA). O análise pro do kit continua pela conta do Claude (política do kit de 14/11/2026).";
+    /// <summary>A dica do modo chave do Claude quando o análise pro instalado não aceita a Anthropic API (anterior à 1.6.4).</summary>
+    public const string ClaudeSoConta = "O análise pro instalado não aceita a Anthropic API (é preciso o 1.6.4 ou mais novo): com a chave marcada, a análise não é iniciada, "
+        + "nem pela conta. Atualize pelo INSTALAR_KIT_PMVNI.cmd ou use Usar minha conta. A chave continua valendo para a Claude API em Modelos de IA.";
+
+    /// <summary>A dica do modo chave do Claude com um análise pro que aceita a Anthropic API (1.6.4+): o que muda de verdade na análise.</summary>
+    public const string ClaudeModoApi = "Modo Anthropic API: o análise pro usa esta chave, com os créditos e os limites da organização no Anthropic Console, "
+        + "sem usar a cota do Claude Max. Se a API falhar (saldo, chave recusada ou limite de uso), a análise pausa ou para, sem passar para a conta. "
+        + "Modelos e níveis de cada etapa continuam os do plugin.";
 
     public static string Titulo(Provedor p) => p == Provedor.ChatGpt ? "ChatGPT (Codex · plugin analise)" : "Claude (Claude Code · plugin análise pro)";
 
@@ -35,7 +41,7 @@ public static class TextosAgentes
           + "arquivos do processo, usa os programas e as pastas de rede deste computador e envia à OpenAI o pedido e o conteúdo de que precisar, como "
           + "faz no app do ChatGPT. O editor não envia nada por conta própria: ele só inicia o Codex, mostra o andamento e importa o relatório no fim."
         : "Analisar com o Claude inicia o análise pro do kit PMVNI, que roda sozinho numa janela minimizada e chama o Claude Code deste computador "
-          + "com a sua conta do Claude (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os arquivos do processo, usa os programas e as "
+          + "com a sua conta do Claude ou, se escolhida em Ajustes, com a chave da Anthropic API (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os arquivos do processo, usa os programas e as "
           + "pastas de rede deste computador e envia à Anthropic o conteúdo de que precisar. O editor não envia nada por conta própria: ele só dá a "
           + "partida, mostra o andamento e importa o relatório no fim.";
 

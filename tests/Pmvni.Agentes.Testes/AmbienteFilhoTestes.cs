@@ -9,6 +9,7 @@ public class AmbienteFilhoTestes
     {
         ["PATH"] = @"C:\bin", ["USERPROFILE"] = @"C:\Users\x", ["OPENAI_API_KEY"] = "herdada-1", ["CODEX_API_KEY"] = "herdada-2",
         ["ANTHROPIC_API_KEY"] = "herdada-3", ["ANTHROPIC_AUTH_TOKEN"] = "herdada-4", ["AGENTE_FALSO_CENARIO"] = "x.json",
+        ["PMVNI_ANALISE_PRO_ROTA"] = "api",
     };
 
     [Fact]
@@ -30,7 +31,12 @@ public class AmbienteFilhoTestes
     {
         var env = Herdado();
         AmbienteFilho.Aplicar(env, p, ModoAcesso.Conta, null);
-        Assert.Equal(new[] { "AGENTE_FALSO_CENARIO", "PATH", "USERPROFILE" }, env.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray());
+        // A rota herdada nunca passa; no Claude, o editor declara "conta" (análise pro 1.6.4+).
+        var esperadas = p == Provedor.Claude
+            ? new[] { "AGENTE_FALSO_CENARIO", "PATH", "PMVNI_ANALISE_PRO_ROTA", "USERPROFILE" }
+            : new[] { "AGENTE_FALSO_CENARIO", "PATH", "USERPROFILE" };
+        Assert.Equal(esperadas, env.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray());
+        if (p == Provedor.Claude) Assert.Equal("conta", env[PoliticaKit.VariavelRota]);
         Assert.Equal(@"C:\bin", env["PATH"]);
         Assert.Equal(@"C:\Users\x", env["USERPROFILE"]);
     }
@@ -61,6 +67,8 @@ public class AmbienteFilhoTestes
         Assert.False(env2.ContainsKey("CODEX_API_KEY"));
         Assert.False(env2.ContainsKey("OPENAI_API_KEY"));
         Assert.False(env2.ContainsKey("ANTHROPIC_AUTH_TOKEN"));
+        Assert.Equal("api", env2[PoliticaKit.VariavelRota]);             // a rota API vai declarada junto com a chave
+        Assert.False(env.ContainsKey(PoliticaKit.VariavelRota));         // o ChatGPT não recebe a rota do análise pro
     }
 
     [Fact]

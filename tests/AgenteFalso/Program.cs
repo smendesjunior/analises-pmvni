@@ -315,7 +315,8 @@ static class Program
         var pastaFalso = Path.Combine(caso, ".pmvni-ai", "agente-falso");
         Directory.CreateDirectory(pastaFalso);
         File.AppendAllText(Path.Combine(pastaFalso, "chamadas.txt"),
-            acao + "\t" + JsonSerializer.Serialize(args, Opcoes) + "\t" + Chave().Texto + "\n", Utf8);
+            acao + "\t" + JsonSerializer.Serialize(args, Opcoes) + "\t" + Chave().Texto + "\t"
+            + (Environment.GetEnvironmentVariable("PMVNI_ANALISE_PRO_ROTA") ?? "-") + "\n", Utf8);   // a rota que o editor declarou (análise pro 1.6.4+)
 
         try
         {

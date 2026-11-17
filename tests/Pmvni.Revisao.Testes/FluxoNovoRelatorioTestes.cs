@@ -68,8 +68,10 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(SemPython, M(Provedor.Claude, P0001, pecas: nada, modo: ModoAcesso.Chave));
         Assert.Equal(SemPro, M(Provedor.Claude, P0001, pecas: Completas with { ProRuntime = null, Claude = null }, modo: ModoAcesso.Chave));
         Assert.Equal(SemClaude, M(Provedor.Claude, P0001, pecas: Completas with { Claude = null }, modo: ModoAcesso.Chave));
-        Assert.Null(M(Provedor.Claude, P0001, modo: ModoAcesso.Chave, chave: true));    // o kit proíbe API: o análise pro roda pela conta
-        Assert.Null(M(Provedor.Claude, P0001, modo: ModoAcesso.Chave));                 // nem precisa de chave guardada para isso
+        // 2026-11-17: o análise pro instalado não aceita a API (anterior à 1.6.4): o modo chave é recusado, nunca trocado pela conta.
+        Assert.Equal(FluxoNovoRelatorio.ClaudeSoConta, M(Provedor.Claude, P0001, modo: ModoAcesso.Chave, chave: true));
+        Assert.Equal(FluxoNovoRelatorio.ClaudeSoConta, M(Provedor.Claude, P0001, modo: ModoAcesso.Chave));
+        Assert.Null(M(Provedor.Claude, P0001, modo: ModoAcesso.Conta));                 // a conta segue normal com esse plugin
         Assert.Equal(SemChave, M(Provedor.Claude, P0001, pecas: Completas with { ApiPermitidaNoKit = true }, modo: ModoAcesso.Chave));
         Assert.Null(M(Provedor.Claude, P0001, pecas: Completas with { ApiPermitidaNoKit = true }, modo: ModoAcesso.Chave, chave: true));
         Assert.Null(M(Provedor.Claude, P0001, pecas: Completas with { Codex = null, PluginAnaliseHabilitado = false }));
@@ -90,7 +92,7 @@ public class FluxoNovoRelatorioTestes
             + "faz no app do ChatGPT. O editor não envia nada por conta própria: ele só inicia o Codex, mostra o andamento e importa o relatório no fim.",
             FluxoNovoRelatorio.TextoAviso(Provedor.ChatGpt));
         Assert.Equal("Analisar com o Claude inicia o análise pro do kit PMVNI, que roda sozinho numa janela minimizada e chama o Claude Code deste computador "
-            + "com a sua conta do Claude (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os arquivos do processo, usa os programas e as "
+            + "com a sua conta do Claude ou, se escolhida em Ajustes, com a chave da Anthropic API (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os arquivos do processo, usa os programas e as "
             + "pastas de rede deste computador e envia à Anthropic o conteúdo de que precisar. O editor não envia nada por conta própria: ele só dá a "
             + "partida, mostra o andamento e importa o relatório no fim.",
             FluxoNovoRelatorio.TextoAviso(Provedor.Claude));

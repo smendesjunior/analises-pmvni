@@ -26,7 +26,8 @@ public static class FluxoNovoRelatorio
     public const string SemPython = "O Python não foi encontrado neste computador (o análise pro do kit precisa dele).";
     public const string SemAnalisePro = "O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
     public const string SemClaude = "O Claude Code não foi encontrado neste computador (claude.exe).";
-    public const string ClaudeSoConta = "O análise pro do kit usa somente a conta do Claude (política do kit de 14/11/2026). Em Ajustes › Inteligência artificial, use Usar minha conta.";
+    /// <summary>"Analisar com o Claude" desabilitado: modo chave (Anthropic API) com um análise pro que não aceita a rota API (anterior à 1.6.4).</summary>
+    public const string ClaudeSoConta = "O análise pro instalado não aceita a Anthropic API (é preciso o 1.6.4 ou mais novo). Atualize pelo INSTALAR_KIT_PMVNI.cmd ou, em Ajustes › Inteligência artificial, use Usar minha conta.";
 
     /// <summary>Sob "Analisar com o Claude" (desenho §12.5).</summary>
     public const string TextoPedidoClaude = "O pedido vai para os dois plugins como diretriz complementar (ex.: conferir pendências de despachos anteriores); as etapas da análise não mudam.";
@@ -99,6 +100,8 @@ public static class FluxoNovoRelatorio
             if (pecas.ProRuntime is null) return SemAnalisePro;
             if (pecas.Claude is null) return SemClaude;
         }
+        // Modo chave = Anthropic API de fato (2026-11-17): sem plugin que a aceite, não há análise (nunca a conta no lugar).
+        if (p == Provedor.Claude && modo == ModoAcesso.Chave && !pecas.ApiPermitidaNoKit) return ClaudeSoConta;
         if (OrquestradorAnalise.ModoEfetivo(p, modo, pecas) == ModoAcesso.Chave && !chaveGuardada) return SemChave;
         return null;
     }
