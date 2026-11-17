@@ -440,9 +440,8 @@ public sealed partial class MainWindow
     void AtualizarDicaDaPesquisaLegislacao()
     {
         if (moduloAtual != Modulo.Legislacao) return;
-        var dica = DicaDaPesquisaDe(Modulo.Legislacao);
-        CaixaPesquisa.PlaceholderText = dica;
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CaixaPesquisa, dica);
+        // O texto de espera é o da pesquisa geral; o alvo ("Pesquisar nesta lei" / "em todas as leis") fica na dica do módulo.
+        dicaDoModulo = DicaDaPesquisaDe(Modulo.Legislacao);
         AplicarDicaDaPesquisa(null);
     }
 

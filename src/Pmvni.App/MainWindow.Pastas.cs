@@ -46,7 +46,8 @@ public sealed partial class MainWindow
     internal InfoBar MensagemDeDespachos => PaginaDeDespachos.AvisoMensagem;
     internal bool PaginaProcessosVisivel => PaginaDeProcessos.Visibility == Visibility.Visible;
     internal bool PaginaDespachosVisivel => PaginaDeDespachos.Visibility == Visibility.Visible;
-    internal string DicaDaPesquisa => CaixaPesquisa.PlaceholderText;
+    /// <summary>O alvo da pesquisa do módulo ("Pesquisar processos"…); o texto de espera da caixa é o da pesquisa geral.</summary>
+    internal string DicaDaPesquisa => dicaDoModulo;
     internal Processo? ProcessoEscolhido => processoEscolhido;
     internal string PastaProcessosEfetiva => ajustes.PastaProcessosEfetiva;
     internal string? PastaProcessosEscolhida => ajustes.PastaProcessos;
