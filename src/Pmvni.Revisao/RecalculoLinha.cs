@@ -163,62 +163,18 @@ public static partial class RecalculoLinha
     private static partial Regex CitacaoFinal();
 
     /// <summary>A edição manual de <paramref name="campo"/> da linha <paramref name="linha"/>. Só a edição (<see cref="DefinirCampo"/>)
-    /// quando o campo não é o valor nem o limite de uma linha de índice; senão a edição mais o recálculo da situação e do texto da
-    /// diferença, num <see cref="Lote"/>. Nunca lança por causa do texto: o que não se lê fica como está.</summary>
+    /// quando o campo não entra em conta nenhuma; senão a edição mais o recálculo do que depende dela, num <see cref="Lote"/>: num índice,
+    /// o valor, o limite e o cálculo (<see cref="AoEditarIndice"/>); num ambiente, as esquadrias. Nunca lança por causa do texto: o que
+    /// não se lê fica como está.</summary>
     public static EdicaoDeLinha AoEditar(Projeto p, string linha, string campo, string texto)
     {
         ArgumentNullException.ThrowIfNull(p);
         var edicao = new DefinirCampo(linha, campo, texto);
         var simples = new EdicaoDeLinha(edicao, false, false, null);
-        if (TabelasRevisao.TentarLer(linha, out var tabela, out _) && tabela == TabelasRevisao.Ambientes) return AoEditarAmbiente(p, linha, campo, texto, simples);
-        if (campo is not (CampoValor or CampoLimite) || !TabelasRevisao.TentarLer(linha, out var bloco, out _) || bloco != TabelasRevisao.Indices) return simples;
-        if (TabelasRevisao.Original(p, linha) is not { } original || TabelasRevisao.SituacaoEfetiva(p, linha) is not { } situacao) return simples;
-        var caminhos = TabelasRevisao.Caminhos(original);
-        if (!caminhos.Contains(CampoValor) || !caminhos.Contains(CampoLimite)) return simples;
-        var novo = TextoEditado.Normalizar(texto);
-        if (novo.Length == 0 || novo == TabelasRevisao.TextoEfetivo(p, linha, campo)) return simples;   // vazio é recusado adiante; igual não muda nada
-
-        var textoValor = campo == CampoValor ? novo : TabelasRevisao.TextoEfetivo(p, linha, CampoValor) ?? "";
-        var textoLimite = campo == CampoLimite ? novo : TabelasRevisao.TextoEfetivo(p, linha, CampoLimite) ?? "";
-        var rotulo = TabelasRevisao.Rotulo(linha);
-        if (LerMedida(textoValor) is not { } valor || LerCriterio(textoLimite) is not { } criterio || Comparar(valor, criterio) is not var (atende, diferenca))
-            return new EdicaoDeLinha(edicao, false, true,
-                rotulo + ": o texto mudou, mas o editor não conseguiu comparar \"" + textoValor + "\" com \"" + textoLimite +
-                "\"; a situação ficou como estava. Confira-a, ou use «Rever com a IA» nas Propriedades.");
-
-        var novaSituacao = atende ? "CONTA_CONFERE" : "NAO_ATENDE";
-        var comandos = new List<Comando> { edicao };
-        var textoAtual = TabelasRevisao.TextoEfetivo(p, linha, CampoTexto);
-        var mudaTexto = false;
-        if (caminhos.Contains(CampoTexto) && textoAtual is not null)
-        {
-            // Continua não atendendo: a citação "(item NN)" do texto antigo acompanha a nova diferença.
-            var citacao = !atende && CitacaoFinal().Match(textoAtual) is { Success: true } m ? m.Value.TrimEnd() : "";
-            var novoTexto = citacao.Length > 0 ? diferenca.TrimEnd('.') + citacao + "." : diferenca;
-            // O texto só é refeito quando a situação muda ou quando ele já era um texto de diferença (o editor não apaga um texto livre).
-            if (novoTexto != textoAtual && (novaSituacao != situacao || EhTextoDeDiferenca(textoAtual)))
-            {
-                comandos.Add(new DefinirCampo(linha, CampoTexto, novoTexto));
-                mudaTexto = true;
-            }
-        }
-        var mudaSituacao = novaSituacao != situacao;
-        if (mudaSituacao) comandos.Add(new DefinirSituacao(linha, novaSituacao));
-        if (!mudaSituacao && !mudaTexto) return simples;
-
-        // A conferência final exige justificativa quando a situação difere da original: o editor escreve a dele, se o usuário não escreveu.
-        var justificativa = TabelasRevisao.Justificativa(p, linha);
-        var automatica = string.IsNullOrWhiteSpace(justificativa) || justificativa!.StartsWith(MarcaJustificativa, StringComparison.Ordinal);
-        if (automatica)
-        {
-            var volta = novaSituacao == TabelasRevisao.SituacaoOriginal(p, linha);
-            comandos.Add(new DefinirJustificativa(linha, volta ? null : MarcaJustificativa + " no projeto " + textoValor + "; exigido " + textoLimite + "."));
-        }
-        var resumo = "Recalculado: " + textoValor + (atende ? " atende a " : " não atende a ") + textoLimite;
-        var mensagem = rotulo + " recalculado pelo editor (sem IA): " + textoValor + (atende ? " atende a " : " não atende a ") + textoLimite
-                       + (mudaSituacao ? "; situação " + ConferenciaRevisao.TextoSituacao(novaSituacao) : "; a situação continua " + ConferenciaRevisao.TextoSituacao(novaSituacao))
-                       + (mudaTexto ? "; texto: \"" + diferenca + "\"" : "") + ". Um Desfazer volta tudo.";
-        return new EdicaoDeLinha(new Lote(linha, comandos, resumo), true, false, mensagem);
+        if (!TabelasRevisao.TentarLer(linha, out var bloco, out _)) return simples;
+        if (bloco == TabelasRevisao.Ambientes) return AoEditarAmbiente(p, linha, campo, texto, simples);
+        if (bloco != TabelasRevisao.Indices || campo is not (CampoValor or CampoLimite or CampoCalculo)) return simples;
+        return AoEditarIndice(p, linha, campo, texto, simples);
     }
 
     [GeneratedRegex(@"^(vaos/[0-9]+/medidas|minimo/[0-9]+/texto)\z", RegexOptions.CultureInvariant)]
