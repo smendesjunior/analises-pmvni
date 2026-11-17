@@ -12,7 +12,10 @@
     <SatelliteResourceLanguages>pt-BR</SatelliteResourceLanguages>
     <Company>PMVNI</Company>
     <Product>Editor de Relatórios PMVNI</Product>
-    <Version>0.6.8</Version>
+    <Version>1.0.0</Version>
+    <!-- 1.0.0: versão técnica 1.0.0; Windows (4 partes) 1.0.0.0; o usuário vê "1.0" (RegrasAtualizacao.VersaoExibida). -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
     <VersaoWindowsAppSDK>1.8.260921001</VersaoWindowsAppSDK>
   </PropertyGroup>
 </Project>

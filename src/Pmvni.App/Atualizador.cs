@@ -34,6 +34,8 @@ internal static class Atualizador
         .FirstOrDefault(a => a.Key == "CompilacaoAtualizacao")?.Value is { } c && RegrasAtualizacao.CompilacaoValida(c) ? c : null;
 
     public static string Versao { get; } = typeof(Atualizador).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "0.0.0";
+    /// <summary>A versão como o usuário a vê ("1.0" para a 1.0.0).</summary>
+    public static string VersaoExibida => RegrasAtualizacao.VersaoExibida(Versao);
 
     /// <summary>O executável em uso (o .exe único publicado).</summary>
     static string? ExeAtual => Environment.ProcessPath is { } p && p.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? p : null;
@@ -98,12 +100,12 @@ internal static class Atualizador
             {
                 falhasSeguidas = 0;
                 try { if (File.Exists(Baixado)) File.Delete(Baixado); } catch (IOException) { } catch (UnauthorizedAccessException) { }
-                return Avisar(new(EtapaAtualizacao.EmDia, $"Você já tem a versão mais recente ({Versao})", m.Notas));
+                return Avisar(new(EtapaAtualizacao.EmDia, $"Você já tem a versão mais recente ({VersaoExibida})", m.Notas));
             }
             if (!RegrasAtualizacao.Aceitavel(m, Compilacao!))
                 throw new InvalidDataException("A versão encontrada não passou na conferência de segurança e foi ignorada.");
 
-            var rotulo = m.Versao ?? m.Compilacao;
+            var rotulo = m.Versao is { } mv ? RegrasAtualizacao.VersaoExibida(mv) : m.Compilacao;
             Directory.CreateDirectory(Pasta);
             if (!RegrasAtualizacao.PodeReaproveitar(Baixado, m))
             {

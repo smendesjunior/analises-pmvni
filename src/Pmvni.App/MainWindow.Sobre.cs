@@ -19,13 +19,13 @@ public sealed partial class MainWindow
     static string TextoSistema => $"{RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})";
     static string TextoRuntime => $".NET {Environment.Version} · {RuntimeInformation.ProcessArchitecture}";
 
-    /// <summary>"Versão 0.3.0 · compilação 20261117120000 · 17/11/2026 09:00" (sem compilação: "compilação local").</summary>
+    /// <summary>"Versão 1.0 · compilação 20261117120000 · 17/11/2026 09:00" (sem compilação: "compilação local").</summary>
     static string TextoVersaoCompleta()
     {
         var c = Atualizador.Compilacao;
         var quando = c is { Length: 14 } && DateTime.TryParseExact(c, "yyyyMMddHHmmss", CultureInfo.InvariantCulture,
             DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var d) ? $" · {d.ToLocalTime():dd/MM/yyyy HH:mm}" : "";
-        return $"Versão {Atualizador.Versao} · compilação {c ?? "local"}{quando}";
+        return $"Versão {Atualizador.VersaoExibida} · compilação {c ?? "local"}{quando}";
     }
 
     void IniciarSobre()
@@ -37,7 +37,7 @@ public sealed partial class MainWindow
         p.TextoSistema.Text = TextoSistema;
         p.TextoRuntime.Text = TextoRuntime;
         p.LinkContato.Content = EmailContato;
-        p.LinkContato.NavigateUri = new Uri("mailto:" + EmailContato + "?subject=" + Uri.EscapeDataString("Análise de Projetos " + Atualizador.Versao));
+        p.LinkContato.NavigateUri = new Uri("mailto:" + EmailContato + "?subject=" + Uri.EscapeDataString("Análise de Projetos " + Atualizador.VersaoExibida));
         p.TextoVersoes.Text = RelatorioDiagnostico();
         p.BotaoAtualizarDiagnostico.Click += (_, _) => p.TextoVersoes.Text = RelatorioDiagnostico();
         p.BotaoCopiarInformacoes.Click += (_, _) =>

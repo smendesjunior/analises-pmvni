@@ -416,7 +416,9 @@ public sealed partial class MainWindow
         var versao = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0]
             ?? typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "?";
         var webview = R.Navegador.CoreWebView2?.Environment.BrowserVersionString ?? FabricaWebView2.VersaoDisponivel() ?? "ausente";
-        return $"Versão do app: {versao}{Environment.NewLine}Modelo do relatório: rev{ModeloOficial.Revisao}{Environment.NewLine}WebView2: {webview}"
+        // 1.0.0: a versão exibida ("1.0") e, entre parênteses, a técnica ("1.0.0"), que o suporte usa.
+        var exibida = RegrasAtualizacao.VersaoExibida(versao);
+        return $"Versão do app: {(exibida == versao ? versao : $"{exibida} ({versao})")}{Environment.NewLine}Modelo do relatório: rev{ModeloOficial.Revisao}{Environment.NewLine}WebView2: {webview}"
             + $"{Environment.NewLine}PDF.js {RecursosLegislacao.VersaoPdfJs} (Apache-2.0)";
     }
 

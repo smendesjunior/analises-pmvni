@@ -132,7 +132,19 @@ public static class RegrasAtualizacao
         return apagados;
     }
 
-    /// <summary>"2.0.5 · compilação 20261116021306" (ou "compilação de desenvolvimento").</summary>
+    /// <summary>"2.0.5 · compilação 20261116021306" (ou "compilação de desenvolvimento"); a versão sai na forma exibida ("1.0").</summary>
     public static string TextoVersao(string versao, string? compilacao) =>
-        versao + " · " + (CompilacaoValida(compilacao) ? "compilação " + compilacao : "compilação de desenvolvimento");
+        VersaoExibida(versao) + " · " + (CompilacaoValida(compilacao) ? "compilação " + compilacao : "compilação de desenvolvimento");
+
+    /// <summary>A versão como o usuário a vê (1.0.0): sem a terceira parte quando ela é zero ("1.0.0" → "1.0", "1.0.0.0" → "1.0");
+    /// "0.6.8" e "1.2.3" ficam como estão. A versão técnica (manifesto, metadados do .exe, recibos) continua com as três partes.</summary>
+    public static string VersaoExibida(string? versao)
+    {
+        if (string.IsNullOrWhiteSpace(versao)) return "";
+        var partes = versao.Trim().Split('.');
+        if (partes.Length < 2 || !partes.All(p => p.Length > 0 && p.All(char.IsAsciiDigit))) return versao.Trim();
+        var n = partes.Length;
+        while (n > 2 && partes[n - 1].TrimStart('0').Length == 0) n--;
+        return string.Join('.', partes.Take(n));
+    }
 }

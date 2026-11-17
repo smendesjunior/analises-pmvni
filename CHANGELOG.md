@@ -2,8 +2,16 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
-## Em desenvolvimento (não publicado)
+## 1.0.0
 
+Primeira versão 1.0 do Editor de Relatórios PMVNI (o app mostra "Versão 1.0").
+
+- **Visualizador de documentos dos Sites da Prefeitura:** no Essencial (Minha mesa › protocolo › visualizar documento), o documento abre numa janela própria e carrega de verdade: páginas, zoom, imprimir e baixar funcionam, e a página do protocolo continua aberta na janela principal. Antes, o visualizador abria cinza, com campos como {{DATA.DOCUMENTO.NOME}} sem preencher, porque a janela nova do site era aberta no lugar da página do protocolo e perdia a ligação com ela.
+- **Brilho arco-íris só quando há trabalho:** o halo em pílula não fica mais aceso com o app parado (Imóveis, Sites da Prefeitura, temas claro e escuro). Ele apaga ao terminar, cancelar ou dar erro, ao trocar de módulo e quando o quadro sai de vista; a animação e o relógio dela também param, e os cantos dos quadros voltam ao original.
+- **Cabeçalho em pílulas:** Desfazer e Refazer ficam numa pílula só, com ícones e divisória (dicas com Ctrl+Z e Ctrl+Y); Anterior e Próxima ficam em outra pílula, com cantos redondos como a pesquisa. Sem brilho decorativo; segue o destaque do Windows e o tema.
+- **Pesquisa geral em tempo real:** enquanto você digita, a lista abaixo da caixa mostra o que o app tem com o termo, organizada em Arquivos, Processos, Legislação, Configurações, Funções e Módulos, com ícone, categoria, destino e o trecho encontrado em negrito. Agora acha também os documentos das pastas dos processos (DOCUMENTOS, PROJETO e a raiz do processo). Setas escolhem, Enter abre, Esc fecha, clicar fora fecha; sem resultado, um aviso claro.
+- **Filtro de processos do Novo relatório:** "Filtrar por número ou requerente" passou a funcionar com número completo ou parcial ("15004", "1500", "0007"), número com ano em qualquer formato ("15004/2026", "15004-2026", "15.004/2026"), ano sozinho e nome parcial, sem diferença de acentos ou maiúsculas. Mostra quantos processos achou (ou que não achou nenhum), mantém o processo já escolhido e devolve a lista inteira ao limpar. Enter ou ↓ abre a lista filtrada. O mesmo filtro vale na lista de Processos.
+- **Despacho: site da Prefeitura inteiro no rodapé da prévia:** a linha "CEP … CNPJ … - www.vendanova.es.gov.br" saía cortada à direita na prévia. Agora ela quebra em duas linhas como no Word e no PDF, e o rodapé sobe o necessário, sem mudar o texto oficial, a folha A4 ou o corpo do despacho.
 - **Analisar com o Claude pela Anthropic API:** com "Usar chave de API" marcado no cartão do Claude, o análise pro (1.6.4 ou mais novo) usa de fato a chave guardada, com os créditos e limites da organização no Anthropic Console, sem gastar a cota do Claude Max. Com "Usar minha conta", segue pela assinatura do Claude, como antes.
 - **Sem troca automática entre conta e API:** o app não converte mais o modo chave em conta. Se o análise pro instalado não aceitar a API, a análise não começa e o app explica o motivo.
 - **Falhas da API com nome próprio:** saldo insuficiente pausa a análise, chave recusada a interrompe e limite de uso faz a análise esperar e tentar de novo. Em nenhum desses casos ela passa para a conta.

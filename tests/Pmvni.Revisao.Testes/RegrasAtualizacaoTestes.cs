@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using Pmvni.App;
 using Xunit;
 
@@ -89,8 +89,16 @@ public class RegrasAtualizacaoTestes : IDisposable
     [Fact]
     public void Texto_da_versao_e_intervalos()
     {
-        Assert.Equal("0.1.0 · compilação 20261116021306", RegrasAtualizacao.TextoVersao("0.1.0", "20261116021306"));
-        Assert.Equal("0.1.0 · compilação de desenvolvimento", RegrasAtualizacao.TextoVersao("0.1.0", null));
+        Assert.Equal("1.0 · compilação 20261116021306", RegrasAtualizacao.TextoVersao("1.0.0", "20261116021306"));
+        Assert.Equal("0.6.8 · compilação de desenvolvimento", RegrasAtualizacao.TextoVersao("0.6.8", null));
+        // 1.0.0: a versão exibida ao usuário omite a parte final zerada; a técnica não muda.
+        Assert.Equal("1.0", RegrasAtualizacao.VersaoExibida("1.0.0"));
+        Assert.Equal("1.0", RegrasAtualizacao.VersaoExibida("1.0.0.0"));
+        Assert.Equal("1.2.3", RegrasAtualizacao.VersaoExibida("1.2.3"));
+        Assert.Equal("1.1", RegrasAtualizacao.VersaoExibida("1.1.0"));
+        Assert.Equal("2.0", RegrasAtualizacao.VersaoExibida("2.0"));
+        Assert.Equal("", RegrasAtualizacao.VersaoExibida(null));
+        Assert.Equal("dev", RegrasAtualizacao.VersaoExibida("dev"));
         Assert.Equal(TimeSpan.FromMinutes(15), RegrasAtualizacao.ProximaConsulta(2));
         Assert.Equal(TimeSpan.FromHours(6), RegrasAtualizacao.ProximaConsulta(3));
         Assert.StartsWith("https://github.com/smendesjunior/analises-pmvni/releases/latest/download/", RegrasAtualizacao.UrlManifesto);
