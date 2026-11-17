@@ -188,53 +188,118 @@
         <TextBlock x:Name="PropVazio" x:FieldModifier="internal" Grid.Row="1" Margin="16,8" TextWrapping="Wrap"
                    Text="Selecione um item nas folhas ou na lista de seções." Style="{StaticResource PmvniSecondaryTextStyle}"/>
         <ScrollViewer x:Name="PropRolagem" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed">
-          <StackPanel x:Name="PropConteudo" x:FieldModifier="internal" Padding="16,4,16,16" Spacing="12">
-            <CheckBox x:Name="PropNoPdf" x:FieldModifier="internal" Content="No PDF"/>
-            <StackPanel Spacing="4">
-              <TextBlock Text="Situação" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-              <ComboBox x:Name="PropSituacao" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Situação revisada"/>
-              <TextBlock x:Name="PropSituacaoOriginal" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-            </StackPanel>
-            <StackPanel Spacing="4">
-              <TextBlock Text="Justificativa" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-              <TextBox x:Name="PropJustificativa" x:FieldModifier="internal" TextWrapping="Wrap" AcceptsReturn="False" MinHeight="56"
-                       PlaceholderText="Por que a situação mudou, ou o que rever no item (Enter aplica)" AutomationProperties.Name="Justificativa"/>
-              <TextBlock x:Name="PropJustificativaAviso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
-                         Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed"
-                         Text="A situação mudou: a justificativa é exigida para exportar."/>
-              <!-- Correções 2026-11-16: a IA reajusta o item inteiro a partir da justificativa (com ou sem mudança de situação), pelo
-                   Codex com o modelo de Ajustes › Inteligência artificial. Enquanto espera: anel, tempo e Cancelar. -->
-              <TextBlock x:Name="PropAjustarAviso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
-                         Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed"/>
-              <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                <Button x:Name="PropAjustarTexto" x:FieldModifier="internal" Visibility="Collapsed"
-                        local:Dicas.Descricao="A IA reajusta o item inteiro (verificação, providência, base legal, referência e, se a justificativa pedir, a situação), com o texto curto como o original. Um Desfazer volta tudo.">
+          <!-- Correções 2026-11-16: seções em cartões com cabeçalho (Estado, Esquadrias, Conteúdo, Histórico), rótulos pequenos em maiúsculas
+               acima de cada valor e separadores; os estilos (PmvniPainel…, Estilos.xaml) servem também ao painel do Novo despacho. -->
+          <StackPanel x:Name="PropConteudo" x:FieldModifier="internal" Padding="12,4,12,16" Spacing="12">
+
+            <!-- ESTADO: no PDF, situação, justificativa e IA. -->
+            <Border Style="{StaticResource PmvniPainelCartao}">
+              <StackPanel>
+                <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE945;" FontSize="14"/>
-                    <TextBlock x:Name="PropAjustarRotulo" x:FieldModifier="internal" Text="Ajustar o item com a IA"/>
+                    <FontIcon Glyph="&#xE73E;" Style="{StaticResource PmvniPainelCartaoIcone}"/>
+                    <TextBlock Text="ESTADO" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
                   </StackPanel>
-                </Button>
-                <Button x:Name="PropAjustarCancelar" x:FieldModifier="internal" Content="Cancelar" Visibility="Collapsed"
-                        AutomationProperties.Name="Cancelar a consulta à IA"
-                        local:Dicas.Descricao="Interrompe a consulta à IA; nada muda no relatório."/>
+                </Border>
+                <StackPanel Style="{StaticResource PmvniPainelCartaoCorpo}">
+                  <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="NO PDF" Style="{StaticResource PmvniPainelRotulo}"/>
+                    <CheckBox x:Name="PropNoPdf" x:FieldModifier="internal" Grid.Column="1" Content="Sai no relatório" MinWidth="0" MinHeight="28" Padding="6,0,0,0"
+                              AutomationProperties.Name="No PDF"
+                              local:Dicas.Descricao="Desmarcado, o item sai do relatório (continua em Excluídos e pode voltar)."/>
+                  </Grid>
+                  <Border Style="{StaticResource PmvniPainelSeparador}"/>
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="SITUAÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
+                    <ComboBox x:Name="PropSituacao" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Situação revisada"/>
+                    <TextBlock x:Name="PropSituacaoOriginal" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                  <Border Style="{StaticResource PmvniPainelSeparador}"/>
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="JUSTIFICATIVA" Style="{StaticResource PmvniPainelRotulo}"/>
+                    <TextBox x:Name="PropJustificativa" x:FieldModifier="internal" TextWrapping="Wrap" AcceptsReturn="False" MinHeight="56"
+                             PlaceholderText="Por que a situação mudou, ou o que rever no item (Enter aplica)" AutomationProperties.Name="Justificativa"/>
+                    <TextBlock x:Name="PropJustificativaAviso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
+                               Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed"
+                               Text="A situação mudou: a justificativa é exigida para exportar."/>
+                  </StackPanel>
+                  <Border Style="{StaticResource PmvniPainelSeparador}"/>
+                  <!-- A IA reajusta o item inteiro a partir da justificativa (com ou sem mudança de situação), pelo Codex com o modelo de
+                       Ajustes › Inteligência artificial. Enquanto espera: anel, tempo e Cancelar. -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="INTELIGÊNCIA ARTIFICIAL" Style="{StaticResource PmvniPainelRotulo}"/>
+                    <TextBlock x:Name="PropAjustarAviso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
+                               Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed"/>
+                    <local:PainelQuebra Espaco="8" EspacoLinhas="6">
+                      <Button x:Name="PropAjustarTexto" x:FieldModifier="internal" Visibility="Collapsed"
+                              local:Dicas.Descricao="A IA reajusta o item inteiro (verificação, providência, base legal, referência e, se a justificativa pedir, a situação), com o texto curto como o original. Um Desfazer volta tudo.">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <FontIcon Glyph="&#xE945;" FontSize="14"/>
+                          <TextBlock x:Name="PropAjustarRotulo" x:FieldModifier="internal" Text="Ajustar o item com a IA"/>
+                        </StackPanel>
+                      </Button>
+                      <Button x:Name="PropAjustarCancelar" x:FieldModifier="internal" Content="Cancelar" Visibility="Collapsed"
+                              AutomationProperties.Name="Cancelar a consulta à IA"
+                              local:Dicas.Descricao="Interrompe a consulta à IA; nada muda no relatório."/>
+                    </local:PainelQuebra>
+                    <StackPanel x:Name="PropAjustarProgresso" x:FieldModifier="internal" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
+                      <ProgressRing x:Name="PropAjustarAnel" x:FieldModifier="internal" IsActive="False" Width="16" Height="16"/>
+                      <TextBlock x:Name="PropAjustarEstado" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </StackPanel>
+                </StackPanel>
               </StackPanel>
-              <StackPanel x:Name="PropAjustarProgresso" x:FieldModifier="internal" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
-                <ProgressRing x:Name="PropAjustarAnel" x:FieldModifier="internal" IsActive="False" Width="16" Height="16"/>
-                <TextBlock x:Name="PropAjustarEstado" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
+            </Border>
+
+            <!-- ESQUADRIAS (só numa linha de AMBIENTE): janelas e portas com largura × altura editáveis e a conta em tempo real. Montado pela janela. -->
+            <Border x:Name="PropEsquadrias" x:FieldModifier="internal" Style="{StaticResource PmvniPainelCartao}" Visibility="Collapsed">
+              <StackPanel>
+                <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE80F;" Style="{StaticResource PmvniPainelCartaoIcone}"/>
+                    <TextBlock Text="ESQUADRIAS" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
+                  </StackPanel>
+                </Border>
+                <StackPanel x:Name="PropEsquadriasCorpo" x:FieldModifier="internal" Style="{StaticResource PmvniPainelCartaoCorpo}"/>
               </StackPanel>
-            </StackPanel>
-            <StackPanel x:Name="PropCampos" x:FieldModifier="internal" Spacing="10"/>
-            <Button x:Name="PropRestaurarOriginal" x:FieldModifier="internal" HorizontalAlignment="Left"
-                    local:Dicas.Descricao="Desfaz as edições deste item e volta ao texto original recebido da IA.">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
-                <TextBlock Text="Restaurar original"/>
+            </Border>
+
+            <!-- CONTEÚDO: os campos de texto, editáveis aqui mesmo. Montado pela janela. -->
+            <Border Style="{StaticResource PmvniPainelCartao}">
+              <StackPanel>
+                <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE8A5;" Style="{StaticResource PmvniPainelCartaoIcone}"/>
+                    <TextBlock Text="CONTEÚDO" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
+                  </StackPanel>
+                </Border>
+                <StackPanel Style="{StaticResource PmvniPainelCartaoCorpo}">
+                  <StackPanel x:Name="PropCampos" x:FieldModifier="internal" Spacing="12"/>
+                  <Border Style="{StaticResource PmvniPainelSeparador}"/>
+                  <Button x:Name="PropRestaurarOriginal" x:FieldModifier="internal" HorizontalAlignment="Left"
+                          local:Dicas.Descricao="Desfaz as edições deste item e volta ao texto original recebido da IA.">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
+                      <TextBlock Text="Restaurar original"/>
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
               </StackPanel>
-            </Button>
-            <StackPanel Spacing="4">
-              <TextBlock Text="Histórico do item" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-              <StackPanel x:Name="PropHistorico" x:FieldModifier="internal" Spacing="2"/>
-            </StackPanel>
+            </Border>
+
+            <!-- HISTÓRICO do item. -->
+            <Border Style="{StaticResource PmvniPainelCartao}">
+              <StackPanel>
+                <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE81C;" Style="{StaticResource PmvniPainelCartaoIcone}"/>
+                    <TextBlock Text="HISTÓRICO" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
+                  </StackPanel>
+                </Border>
+                <StackPanel x:Name="PropHistorico" x:FieldModifier="internal" Padding="12,10,12,12" Spacing="6"/>
+              </StackPanel>
+            </Border>
           </StackPanel>
         </ScrollViewer>
       </Grid>

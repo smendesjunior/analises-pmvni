@@ -135,6 +135,23 @@ public static partial class Esquadrias
         return (null, null, null);
     }
 
+    /// <summary>O caminho do texto "Mínimo exigido" que traz a conta (piso ÷ divisor = mínimo), para o painel deixar o piso e o
+    /// divisor editáveis; null se nenhum a traz.</summary>
+    public static string? CaminhoDaContaDoMinimo(Projeto p, string ambiente)
+    {
+        ArgumentNullException.ThrowIfNull(p);
+        if (TabelasRevisao.Original(p, ambiente) is not { } original) return null;
+        return TabelasRevisao.Caminhos(original).Where(c => c.StartsWith("minimo/", StringComparison.Ordinal))
+            .FirstOrDefault(c => ContaDoMinimo().IsMatch(TabelasRevisao.TextoEfetivo(p, ambiente, c) ?? ""));
+    }
+
+    /// <summary>"12,00 ÷ 6 = 2,00 m²": o texto da conta do mínimo com o piso e o divisor dados (o mínimo é calculado).</summary>
+    public static string TextoDaContaDoMinimo(decimal piso, decimal divisor) =>
+        Esquadrias_.N(piso) + " ÷ " + divisor.ToString("0.##", Esquadrias_.PtBr) + " = " + Esquadrias_.M2(Math.Round(piso / divisor, 2, MidpointRounding.AwayFromZero));
+
+    /// <summary>"1,50": um número como o painel o mostra numa caixa (duas casas, vírgula).</summary>
+    public static string TextoDoNumero(decimal v) => Esquadrias_.N(v);
+
     /// <summary>A conta do ambiente com os textos de agora. <paramref name="emEdicao"/>: textos que o usuário está digitando no painel
     /// (caminho → texto), que valem no lugar dos gravados — é o cálculo em tempo real, sem gravar nada.</summary>
     public static ContaAmbiente? Calcular(Projeto p, string ambiente, IReadOnlyDictionary<string, string>? emEdicao = null)
