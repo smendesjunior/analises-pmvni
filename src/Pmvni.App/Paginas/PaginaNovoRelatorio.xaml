@@ -19,9 +19,9 @@
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Button x:Name="BotaoMostrarRegistroResultado" x:FieldModifier="internal" Content="Mostrar registro"
                     local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA fez."/>
-            <Button x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Continuar a análise" Visibility="Collapsed"
+            <Button x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Continuar a análise" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}"
                     local:Dicas.Descricao="Retoma a análise que parou, do ponto onde ela ficou."/>
-            <Button x:Name="BotaoImportarPendente" x:FieldModifier="internal" Content="Importar relatório" Visibility="Collapsed"
+            <Button x:Name="BotaoImportarPendente" x:FieldModifier="internal" Content="Importar relatório" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}"
                     local:Dicas.Descricao="Traz para o app o relatório da análise que terminou com o editor fechado."/>
           </StackPanel>
         </InfoBar.Content>

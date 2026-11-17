@@ -52,7 +52,7 @@
             </Button>
           </Grid>
           <!-- Correção automática (2026-11-16): só no tipo Correção; a janela mostra e liga o botão. -->
-          <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" HorizontalAlignment="Stretch" Visibility="Collapsed"
+          <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" HorizontalAlignment="Stretch" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}"
                   AutomationProperties.Name="Criar automaticamente a partir do relatório"
                   local:Dicas.Titulo="Criar automaticamente a partir do relatório"
                   local:Dicas.Descricao="Monta o despacho com todos os itens pendentes do relatório (não atende, falta comprovar e informações divergentes) e vai direto para a conferência.">

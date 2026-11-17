@@ -302,7 +302,7 @@
                 <TextBlock Style="{StaticResource PmvniAjusteAjuda}" Text="Com um certificado escolhido, o PDF de cada despacho sai assinado digitalmente, com a assinatura visível logo acima da linha de assinatura. Sem certificado, o PDF sai como sempre."/>
                 <TextBlock x:Name="TextoAssinatura" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button x:Name="BotaoEscolherCertificado" x:FieldModifier="internal" Content="Escolher arquivo…" AutomationProperties.Name="Escolher o arquivo do certificado digital"
+                  <Button x:Name="BotaoEscolherCertificado" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Escolher arquivo…" AutomationProperties.Name="Escolher o arquivo do certificado digital"
                           local:Dicas.Titulo="Escolher arquivo…" local:Dicas.Descricao="Escolhe o arquivo do certificado digital (.pfx ou .p12)."/>
                   <Button x:Name="BotaoCertificadoWindows" x:FieldModifier="internal" Content="Certificado do Windows…" AutomationProperties.Name="Usar um certificado do repositório do Windows"
                           local:Dicas.Titulo="Certificado do Windows…" local:Dicas.Descricao="Usa um certificado instalado no Windows, em token ou em cartão; a senha é pedida pelo próprio dispositivo."/>
@@ -466,10 +466,10 @@
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Novas versões" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Procura versões novas no GitHub do projeto, baixa, confere e troca o executável sem pedir administrador. A versão nova vale ao abrir o editor de novo." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
-                  <Button x:Name="BotaoVerificarAtualizacoes" x:FieldModifier="internal" Content="Verificar atualizações" HorizontalAlignment="Stretch"
+                  <Button x:Name="BotaoVerificarAtualizacoes" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Verificar atualizações" HorizontalAlignment="Stretch"
                           AutomationProperties.Name="Verificar atualizações"
                           local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Procura agora uma versão nova do editor no GitHub e a instala se houver."/>
-                  <Button x:Name="BotaoReiniciarAtualizacao" x:FieldModifier="internal" Content="Reiniciar agora" HorizontalAlignment="Stretch" Visibility="Collapsed"
+                  <Button x:Name="BotaoReiniciarAtualizacao" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Reiniciar agora" HorizontalAlignment="Stretch" Visibility="Collapsed"
                           AutomationProperties.Name="Reiniciar o editor na versão nova"
                           local:Dicas.Titulo="Reiniciar agora" local:Dicas.Descricao="Fecha o editor (gravando o relatório aberto) e o abre de novo na versão nova."/>
                   <TextBlock x:Name="TextoEstadoAtualizacao" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
