@@ -701,7 +701,9 @@ public sealed partial class MainWindow
         var prompt = IaAjusteTexto.Prompt(texto, pendencia?.Grupo, pendencia?.Titulo, pendencia?.Fundamento);
         var pecas = await LerPecasAsync();
         ct.ThrowIfCancellationRequested();
-        return await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, prompt, ct, null, null, OpcoesIaDaRevisao());
+        // A IA, o modelo e o nível escolhidos em Ajustes › Inteligência artificial › Modelos de IA (2026-11-17).
+        var ia = PrepararIa(pecas, ModeloIaAjuste.Limite);
+        return await IaDespacho.PerguntarAsync(ia.Claude, ia.Codex, prompt, ct, null, null, ia.Opcoes);
     }
 
     /// <summary>"Nova pasta…": pede o nome e cria a pasta no processo; ela vira a pasta da etapa.</summary>
