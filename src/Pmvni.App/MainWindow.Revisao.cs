@@ -1062,21 +1062,18 @@ public sealed partial class MainWindow
     internal string RotuloDoBotaoDaIa => R.PropAjustarRotulo.Text;
     internal bool AvisoDeReajusteVisivel => R.PropAjustarAviso.Visibility == Visibility.Visible;
 
-    /// <summary>As perguntas curtas da revisão vão ao Codex (app ChatGPT) com o modelo e o esforço de Ajustes › Inteligência artificial
-    /// (padrão: Terra 6.1, baixo — <see cref="ModeloIaAjuste"/>), sem abrir arquivo nenhum: o pedido leva tudo. Sem o Codex, o Claude Code.</summary>
-    IaDespacho.OpcoesIa OpcoesIaDaRevisao() => new(PreferirCodex: true,
-        ArgumentosCodex: ModeloIaAjuste.ArgumentosCodex(ajustes.IaAjusteModelo, ajustes.IaAjusteEsforco), SemArquivos: true, Limite: ModeloIaAjuste.Limite);
-
     /// <summary>Uma pergunta da revisão à IA. Só vale entre <see cref="IniciarEsperaIa"/> e <see cref="TerminarEsperaIa"/> (o Cancelar a interrompe).</summary>
     async Task<string> PerguntarNaRevisaoAsync(string prompt)
     {
         var ct = cancelamentoIa?.Token ?? CancellationToken.None;
         var pecas = await LerPecasAsync();
-        descricaoIa = !string.IsNullOrEmpty(pecas.Codex) ? ModeloIaAjuste.Descricao(ajustes.IaAjusteModelo, ajustes.IaAjusteEsforco)
-            : !string.IsNullOrEmpty(pecas.Claude) ? "Claude Code" : "";
+        // A IA, o modelo e o nível de Ajustes › Inteligência artificial › Modelos de IA (2026-11-17; padrão: o Codex com Terra 6.1, baixo),
+        // sem abrir arquivo nenhum: o pedido leva tudo.
+        var ia = PrepararIa(pecas, ModeloIaAjuste.Limite);
+        descricaoIa = ia.Descricao;
         AtualizarEsperaIa();
         ct.ThrowIfCancellationRequested();
-        return await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, prompt, ct, null, null, OpcoesIaDaRevisao());
+        return await IaDespacho.PerguntarAsync(ia.Claude, ia.Codex, prompt, ct, null, null, ia.Opcoes);
     }
 
     /// <summary>Começa a espera: o botão da IA desabilita, aparecem o anel, o tempo ("Consultando a IA (Terra 6.1, esforço baixo)… 0:07")

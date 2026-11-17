@@ -430,6 +430,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                         PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Sobre);
                         await Task.Delay(900);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "ajustes-sobre.png"));
+                        // Ajustes › Inteligência artificial › Modelos de IA (2026-11-17): espera a leitura das peças e das listas e rola até a seção.
+                        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Ia);
+                        await Task.Delay(1500);
+                        try { await tarefaDosAgentes; } catch (Exception e) { System.Diagnostics.Debug.WriteLine("[captura] " + e.Message); }
+                        for (var i = 0; i < 60 && CatalogoDeModelos.Atualizando; i++) await Task.Delay(1000);
+                        PaginaDeAjustes.CaixaIaFonte.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.0, AnimationDesired = false });
+                        await Task.Delay(900);
+                        await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "ajustes-modelos-ia.png"));
                         await Roteiro.CapturarXamlAsync(TrilhoModulos, Path.Combine(pastaCaptura, "trilho.png"));
                         // Erro de gravação com a planilha presa (como aberta no Excel): o aviso fixo das pendentes.
                         await MudarModuloAsync(Modulo.Acompanhamento);
