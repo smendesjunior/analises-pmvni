@@ -338,4 +338,68 @@ public sealed class FluxoNovoDespachoTestes
         }
         Assert.False(string.IsNullOrWhiteSpace(DicasComandos.Descricao(ComandosApp.DespachosNovoCorrecaoAutomatica)));
     }
+
+    // ---------- os três itens do menu Novo despacho (verificação 2026-11-17) ----------
+
+    static InfoModelo InfoAprovacao()
+    {
+        var modelo = RegistroModelos.Ler(Ambiente.ExigirKit()).Modelos.Single(m => m.Tipo == TipoDespacho.Aprovacao);
+        return PreenchimentoDocx.LerModelo(File.ReadAllBytes(modelo.Caminho), TipoDespacho.Aprovacao);
+    }
+
+    [Fact]
+    public void cada_item_do_menu_abre_o_tipo_certo()
+    {
+        Assert.Equal(TipoDespacho.Correcao, ComandosApp.TipoDoNovoDespacho(ComandosApp.DespachosNovoCorrecao));
+        Assert.Equal(TipoDespacho.Correcao, ComandosApp.TipoDoNovoDespacho(ComandosApp.DespachosNovoCorrecaoAutomatica));
+        Assert.Equal(TipoDespacho.Aprovacao, ComandosApp.TipoDoNovoDespacho(ComandosApp.DespachosNovoAprovacao));
+        Assert.Null(ComandosApp.TipoDoNovoDespacho(ComandosApp.DespachosNovo));
+        foreach (var id in new[] { ComandosApp.DespachosNovoCorrecao, ComandosApp.DespachosNovoCorrecaoAutomatica, ComandosApp.DespachosNovoAprovacao })
+            Assert.True(ComandosApp.ValeForaDeDespachos(id));
+        Assert.False(ComandosApp.ValeForaDeDespachos(ComandosApp.DespachosGerarPdf));
+        // Em Relatórios, o menu fica na Página Inicial, na ordem Correção, Correção automática, Aprovação.
+        var inicio = Faixas.Para(Modulo.Relatorios).Abas.Single(a => a.Nome == "Página Inicial");
+        var menu = inicio.Comandos.Single(c => c.Id == ComandosApp.DespachosNovo);
+        Assert.Equal(new[] { ComandosApp.DespachosNovoCorrecao, ComandosApp.DespachosNovoCorrecaoAutomatica, ComandosApp.DespachosNovoAprovacao },
+            menu.Itens!.Select(i => i.Id));
+    }
+
+    [Fact]
+    public void correcao_traz_nao_atende_falta_comprovar_e_divergentes_e_aprovacao_nao_lista_pendencias()
+    {
+        var s = Sessao();
+        var id1 = s.Projeto.Incluidos[0].Id;
+        s.Aplicar(new DefinirSituacao(id1, "DIVERGENCIA_INTERNA"));
+        s.Aplicar(new DefinirJustificativa(id1, "Revisado no teste."));
+
+        var correcao = ConteudoDespacho.Montar(TipoDespacho.Correcao, s.Projeto, InfoCorrecao(), EtapaNova);
+        Assert.Equal(new[] { "DIVERGENCIA_INTERNA", "NAO_COMPROVADO", "NAO_ATENDE" }, correcao.Pendencias.Select(p => p.Situacao));
+        Assert.DoesNotContain(correcao.Pendencias, p => p.Situacao == "ATENDE");
+
+        // A aprovação nunca traz exigências, mesmo com itens pendentes no relatório (eles só viram o aviso de confirmação).
+        var aprovacao = ConteudoDespacho.Montar(TipoDespacho.Aprovacao, s.Projeto, InfoAprovacao(), EtapaNova);
+        Assert.Empty(aprovacao.Pendencias);
+        Assert.Single(ConteudoDespacho.Avisos(TipoDespacho.Aprovacao, s.Projeto));
+    }
+
+    [Fact]
+    public void automatico_com_relatorio_somente_leitura_nao_gera()
+    {
+        using var pasta = Ambiente.PastaDeTeste("fluxo-automatico-somente-leitura");
+        var a = RelatorioFicticio.Arvore(pasta);
+        var s = Sessao();
+        var bloqueios = ConteudoDespacho.Bloqueios(TipoDespacho.Correcao, s.Projeto, a.Processo, somenteLeitura: true);
+        Assert.Contains(bloqueios, b => b.Contains("somente leitura", StringComparison.Ordinal));
+
+        var plano = FluxoNovoDespacho.PlanejarAutomatico(a.Processo, a.CaminhoPacote, bloqueios, null);
+        Assert.Equal(DestinoAutomatico.Bloqueado, plano.Destino);
+    }
+
+    [Fact]
+    public void com_despacho_em_edicao_os_tres_tipos_ficam_desabilitados_com_o_motivo()
+    {
+        var m = new ModelosDisponiveis([], new Dictionary<TipoDespacho, string>());
+        foreach (var t in new[] { TipoDespacho.Correcao, TipoDespacho.Aprovacao })
+            Assert.Equal(FluxoNovoDespacho.Compondo, FluxoNovoDespacho.MotivoDesabilitado(t, m, compondo: true));
+    }
 }
