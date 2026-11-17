@@ -2,6 +2,43 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.5.0
+
+### Despachos
+- **PDF em 2 segundos e sem a janela "Aguardando conexão de impressora":** o LibreOffice não consulta mais a impressora do Windows ao converter o Word em PDF (antes levava cerca de 50 s). O PDF sai igual.
+- **Pasta de hoje:** o despacho vai sempre para a pasta DESPACHO NN com a data do dia. A pasta da análise só é reaproveitada se for de hoje.
+- **Gerar despacho** abre a pasta onde ele foi gravado, com o arquivo selecionado.
+- **Ajustar com IA:** botão novo na caixa "Texto da exigência" para melhorar o texto antes de gravar.
+- **Correção automática:** não continua mais com um rascunho antigo quando você escolhe "Continuar editando".
+
+### Relatórios
+- **Exportar PDF** grava o PDF ao lado do relatório (.rpmvni), na pasta do processo, e abre a pasta com ele selecionado.
+- **Índices urbanísticos:** ao mudar um valor à mão, as contas que dependem dele (taxa, coeficiente, situação, área do lote no diagrama) se refazem na hora; um Desfazer volta tudo.
+- **Diagrama dos índices:** um item pedido para a volumetria vai para a volumetria (lista e desenho), não mais para a planta.
+- **Figuras:** "Adicionar figura…" no menu Figuras abre o PDF do projeto. No editor de figuras, clicar sem arrastar cria a região, os avisos ficam sempre à vista e o app explica quando um número desenhado na imagem não pode ser removido.
+- **Tudo que se clica no relatório** mostra o contorno azul ao passar o mouse, como os itens.
+- **Filtros das seções:** mais compactos, com a bolinha da cor de cada situação.
+
+### Acompanhamento de processos
+- **Colunas:** escolha quais aparecem (botão "Colunas") e mude a largura arrastando a borda do título; o app lembra.
+- **Status e etiquetas** centralizados nas colunas; Status como a etiqueta ATENDE.
+- **Colunas fixas** com a mesma cor da tabela e um traço de separação.
+
+### Imóveis
+- **Mapa sem sobreposição:** rótulos, cartão do lote e cotas procuram lugar livre por prioridade; o que não cabe some.
+- **Cotas:** lados do terreno, faixa de domínio do DNIT (40 m do eixo, a confirmar) e distância do eixo ao terreno, e largura da rua medida na base. Botão "Cotas" para ligar e desligar.
+- **Detectar automaticamente** (padrão) na pesquisa: reconhece inscrição, número, rua, bairro, loteamento ou nome.
+- **"Sem lote no mapa":** inscrições com outro formato ou renumeradas agora acham o lote; inscrições baixadas aparecem em cinza, com o link para a inscrição atual.
+- "Proprietário não identificado" aparece certo (antes saía "Proprietario Identificad").
+
+### Todo o app
+- **Pesquisa na barra de título:** acha ajustes, funções, processos, arquivos, leis e linhas do Acompanhamento.
+- **Modelos de IA** (Ajustes › Inteligência artificial): escolha a IA (Codex, Claude Code ou as APIs), o modelo e o nível de raciocínio usados na revisão e nos ajustes, com "Atualizar lista".
+- **Ícones coloridos** na faixa de opções, pelo que cada comando faz.
+- **Botões coloridos com brilho**, como no WinStatusBar, e botões das telas vazias no mesmo padrão.
+- **Trilho:** a barrinha do módulo ativo não fica mais por cima do texto.
+- **Recentes** em lista com ícone, nome e pasta.
+
 ## 0.4.0
 
 ### Gravação mais segura na planilha de acompanhamento
