@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Pmvni.Agentes;
 using Pmvni.Revisao;
 
@@ -8,7 +8,7 @@ namespace Pmvni.App;
 public sealed record DadosNovoProcesso(int Numero, int Ano, string Requerente);
 
 /// <summary>Em que pé está uma etapa do análise pro na vista da execução.</summary>
-public enum EstadoEtapa { Feita, Agora, Pendente }
+public enum EstadoEtapa { Feita, Agora, Pendente, Erro }
 
 /// <summary>Uma opção da caixa Destino de um anexo.</summary>
 public sealed record OpcaoDestino(DestinoAnexo Destino, string Rotulo);
@@ -44,10 +44,12 @@ public static class FluxoNovoRelatorio
     public const string CancelarClaudeTexto = "O kit guarda o que já foi feito; Continuar a análise retoma de onde parou.";
     public const string CancelarAnalise = "Cancelar análise";
     public const string Voltar = "Voltar";
-    public const string FecharTitulo = "Cancelar a análise e fechar?";
-    public const string FecharSim = "Cancelar análise e fechar";
+    public const string RetomarTitulo = "Retomar a análise?";
+    public const string PedidoContinuar = "Continue a análise deste processo de onde ela parou: aproveite os arquivos de trabalho já gravados na pasta .pmvni-ai e não refaça o que já foi feito.";
+    public const string FecharTitulo = "Pausar a análise e fechar?";
+    public const string FecharSim = "Pausar e fechar";
     public const string FecharNao = "Continuar";
-    public const string TextoFecharClaude = "A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, o resultado é importado.";
+    public const string TextoFecharClaude = "A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, você poderá voltar a acompanhá-la ou retomá-la de onde parou.";
     public const string AvisoSim = "Concordar e analisar";
     public const string AvisoNao = "Cancelar";
 
@@ -180,7 +182,7 @@ public static class FluxoNovoRelatorio
         $"A análise com o {Provedores.Nome(p)} terminou: {Path.GetFileName(pmvrel)} foi criado em {Path.GetFileName(Path.GetDirectoryName(pmvrel))} e está nos Recentes."
         + (string.IsNullOrWhiteSpace(pdf) ? "" : $" O PDF do kit continua em {pdf}.");
 
-    public static string TextoFecharChatGpt(Processo p) => $"A análise com o ChatGPT em {Identificacao(p)} será interrompida.";
+    public static string TextoFecharChatGpt(Processo p) => $"A análise com o ChatGPT em {Identificacao(p)} será pausada. Ao abrir o editor de novo, você poderá retomá-la de onde parou.";
 
     public static string TextoClaudeTerminou(Processo p) => $"A análise com o Claude de {Identificacao(p)} terminou.";
 

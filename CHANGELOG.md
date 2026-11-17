@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.6.8
+
+- **Acompanhamento da análise redesenhado:** resumo no topo (situação, etapa atual e quantas etapas terminaram), as seis etapas com ícones e estados (concluída, em andamento, pendente e erro), atividades em frases naturais com ícone, situação e horário ("Documentos do processo identificados", "Legislação municipal consultada"…), principais descobertas marcadas como preliminares ou verificadas, próxima etapa e uma seção recolhível "Detalhes da execução" com os dados técnicos. Em janela estreita, as colunas se empilham.
+- **Retomar ao reabrir:** ao fechar o app no meio de uma análise do ChatGPT, ela é pausada (não mais cancelada). Ao abrir de novo, o app pergunta se você quer retomar de onde parou e com qual IA: Claude ou ChatGPT. O mesmo vale para uma análise do Claude que parou com o app fechado.
+
 ## 0.6.7
 
 - **Brilho arco-íris:** todo contorno de "trabalhando" agora é uma pílula de cantos redondos, no mesmo padrão da pílula da análise.

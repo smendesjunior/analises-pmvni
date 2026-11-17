@@ -705,7 +705,7 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         execucaoMostrada = e;
-        NR.ListaLinhas.ItemsSource = e.LinhasObservaveis;
+        NR.LigarLinhas(e.LinhasObservaveis);
         NR.MostrarExecucao(true);
         NR.TextoUltimaMensagem.Text = "";
         NR.ExpansorUltimaMensagem.IsExpanded = false;
@@ -716,7 +716,7 @@ public sealed partial class MainWindow
     void MostrarFormularioNR()
     {
         execucaoMostrada = null;
-        NR.ListaLinhas.ItemsSource = null;
+        NR.LigarLinhas(null);
         NR.MostrarExecucao(false);
         AtualizarBotoesNR();
     }
@@ -728,14 +728,27 @@ public sealed partial class MainWindow
         n.TextoCabecalho.Text = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, DateTime.UtcNow - e.InicioUtc) + (e.Retomada ? " (retomada)" : "");
         var claude = e.Provedor == Provedor.Claude;
         n.PainelClaude.Visibility = claude ? Visibility.Visible : Visibility.Collapsed;
-        n.ExpansorUltimaMensagem.Visibility = claude ? Visibility.Collapsed : Visibility.Visible;
+        n.PainelUltimaMensagem.Visibility = claude ? Visibility.Collapsed : Visibility.Visible;
+        var rodando = e.Fim is null || !e.Fim.IsCompleted;
+        string? erro = null;
+        IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas = [];
         if (claude)
         {
             var s = e.Situacao;
-            n.MostrarEtapas(FluxoNovoRelatorio.Etapas(s?.Etapa, s?.Codigo ?? ""));
-            n.TextoRotulo.Text = s is null ? "Iniciando a análise detalhada…" : (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro);
-            n.TextoEventos.Text = string.Join(Environment.NewLine, e.Eventos.TakeLast(5));
+            erro = string.IsNullOrWhiteSpace(s?.Erro) ? null : s!.Erro;
+            etapas = FluxoNovoRelatorio.Etapas(s?.Etapa, s?.Codigo ?? "");
+            // A etapa em que o kit informou erro fica vermelha.
+            if (erro is not null) etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();
+            n.TextoRotulo.Text = s is null ? "Iniciando a análise detalhada…" : $"Situação: {s.Codigo}" + (s.Rotulo is null ? "" : " · " + s.Rotulo) + (erro is null ? "" : Environment.NewLine + "Erro: " + erro);
+            n.TextoEventos.Text = string.Join(Environment.NewLine, e.Eventos.TakeLast(8));
         }
+        else
+        {
+            n.TextoRotulo.Text = $"Provedor: {Provedores.Nome(e.Provedor)} · Registro: {e.Registro.Pasta}";
+            n.TextoEventos.Text = "";
+        }
+        if (!claude && e.Linhas.LastOrDefault() is { } ultima && ultima.StartsWith("Erro: ", StringComparison.Ordinal)) erro = ultima[6..];
+        n.MostrarResumo(rodando, erro, etapas, e.Linhas);
         if (linhasNovas && n.LinhasNoFim()) n.RolarLinhasAoFim();
     }
 
@@ -848,7 +861,16 @@ public sealed partial class MainWindow
             NR.BotaoImportarPendente.Visibility = Visibility.Collapsed;
             NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed;
             aviso.IsOpen = true;
-            if (!PaginaNovoRelatorioVisivel) MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message + " (em Novo relatório)");
+            // 2026-11-17 (pedido do usuário): pergunta na hora se retoma, e com qual IA. "Agora não" deixa o aviso com "Continuar a análise".
+            var escolha = await PerguntarRetomadaAsync(processo, Provedor.ChatGpt);
+            if (escolha == Provedor.ChatGpt) await ContinuarAnaliseAsync();
+            else if (escolha == Provedor.Claude)
+            {
+                continuarChatGpt = null;
+                EsquecerPendenteChatGpt(pend.Registro);
+                await ContinuarComOutraIaAsync(Provedor.Claude, processo);
+            }
+            else if (!PaginaNovoRelatorioVisivel) MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message + " (em Novo relatório)");
             break;   // uma de cada vez: a próxima aparece na próxima abertura
         }
     }
@@ -923,7 +945,10 @@ public sealed partial class MainWindow
         {
             await sessaoNR.CancelarAsync(e);
             await Task.WhenAny(e.Fim, Task.Delay(TimeSpan.FromSeconds(5)));
-            EsquecerPendenteChatGpt(e.Registro.Pasta);   // cancelada de propósito ao fechar: não é oferecida na reabertura
+            // Pausada ao fechar (2026-11-17): fica nos ajustes para a reabertura perguntar se retoma de onde parou (codex exec resume).
+            if (!ajustes.ExecucoesChatGpt.Any(x => MesmoRegistro(x.Registro, e.Registro.Pasta)))
+                ajustes.ExecucoesChatGpt.Add(new ExecucaoClaudePendente(e.Processo.Pasta, e.Registro.Pasta));
+            SalvarAjustes();
         }
         var claudes = ativas.Where(e => e.Provedor == Provedor.Claude).ToList();
         if (claudes.Count > 0)
@@ -996,14 +1021,40 @@ public sealed partial class MainWindow
                     break;
                 default:
                     EsquecerPendenteClaude(pend.Registro);
-                    MostrarMensagem(InfoBarSeverity.Warning, $"A análise com o Claude de {FluxoNovoRelatorio.Identificacao(processo)} parou",
-                        (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro));
+                    var motivo = (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro);
+                    // 2026-11-17: a análise parou com o editor fechado; pergunta se retoma de onde parou, e com qual IA.
+                    if (await PerguntarRetomadaAsync(processo, Provedor.Claude, motivo) is { } ia) await ContinuarComOutraIaAsync(ia, processo);
+                    else MostrarMensagem(InfoBarSeverity.Warning, $"A análise com o Claude de {FluxoNovoRelatorio.Identificacao(processo)} parou", motivo);
                     break;
             }
         }
         AtualizarTituloAnalise();
         AtualizarBotoesNR();
     }
+
+    /// <summary>"Retomar a análise?" na reabertura: continuar com o Claude, com o ChatGPT ou agora não (null). A IA que fazia a análise vem primeiro.</summary>
+    async Task<Provedor?> PerguntarRetomadaAsync(Processo processo, Provedor original, string? motivo = null)
+    {
+        var outra = original == Provedor.Claude ? Provedor.ChatGpt : Provedor.Claude;
+        string[] itens = [$"Continuar com o {Provedores.Nome(original)} (de onde parou)", $"Continuar com o {Provedores.Nome(outra)}", "Agora não"];
+        var texto = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} com o {Provedores.Nome(original)} não terminou"
+                    + (string.IsNullOrWhiteSpace(motivo) ? "" : $" ({motivo.TrimEnd('.')})")
+                    + ". Os arquivos de trabalho já gravados são aproveitados. Qual IA deve continuar?";
+        return await Perguntas.Atual.EscolherNaListaAsync(FluxoNovoRelatorio.RetomarTitulo, texto, itens, 0, "Continuar") switch
+        {
+            0 => original,
+            1 => outra,
+            _ => null,
+        };
+    }
+
+    /// <summary>Uma análise nova no mesmo processo, pedindo à IA que siga do ponto em que a anterior parou (sem anexos novos).</summary>
+    Task<ExecucaoEmCurso?> ContinuarComOutraIaAsync(Provedor p, Processo processo) => NaFilaAsync(async () =>
+    {
+        NR.AvisoResultado.IsOpen = false;
+        await LerPecasAsync();
+        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, [], FluxoNovoRelatorio.PedidoContinuar), enviados: null);
+    });
 
     static bool MesmoRegistro(string a, string b)
     {

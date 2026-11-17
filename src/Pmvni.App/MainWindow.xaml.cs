@@ -423,7 +423,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 linhasDemo.Insert(5, "Mensagem: As pranchas mostram dois pavimentos comerciais, com depósitos e 14 vagas.");
                 linhasDemo.Add("Ação: gravou 1 arquivo de trabalho");
                 linhasDemo.Add("Ação: consultou os créditos disponíveis");
-                NR.ListaLinhas.ItemsSource = linhasDemo;
+                NR.LigarLinhas(linhasDemo);
                 NR.MostrarExecucao(true);
                 NR.TextoCabecalho.Text = "Analisando com o ChatGPT · 19486/2026 · 12 min";
                 NR.PainelClaude.Visibility = Visibility.Collapsed;

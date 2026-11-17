@@ -3151,23 +3151,23 @@ internal static class Roteiro
             p["motivo_no_0001"] = motivo0001;
 
             // Fechar com o ChatGPT rodando: "Continuar" não fecha e a análise segue.
-            perguntas.RespostaPorTitulo["Cancelar a análise e fechar?"] = false;
+            perguntas.RespostaPorTitulo["Pausar a análise e fechar?"] = false;
             var confirmacoes = perguntas.Confirmacoes.Count;
             var podeFechar = await j.PodeFecharComAnalisesAsync();
-            perguntas.RespostaPorTitulo.Remove("Cancelar a análise e fechar?");
-            var perguntaFechar = perguntas.Confirmacoes.Skip(confirmacoes).FirstOrDefault(c => c.Titulo == "Cancelar a análise e fechar?");
-            var naoFechou = !podeFechar && !e.Fim.IsCompleted && perguntaFechar.Texto == "A análise com o ChatGPT em 0001/2099 será interrompida."
+            perguntas.RespostaPorTitulo.Remove("Pausar a análise e fechar?");
+            var perguntaFechar = perguntas.Confirmacoes.Skip(confirmacoes).FirstOrDefault(c => c.Titulo == "Pausar a análise e fechar?");
+            var naoFechou = !podeFechar && !e.Fim.IsCompleted && perguntaFechar.Texto == "A análise com o ChatGPT em 0001/2099 será pausada. Ao abrir o editor de novo, você poderá retomá-la de onde parou."
                 && perguntaFechar.Sim == "Cancelar análise e fechar" && perguntaFechar.Nao == "Continuar";
             // A segunda checagem do fechamento (na fila, depois de um Analisar que estava copiando) só pergunta pelas execuções novas.
             var tratadas = new HashSet<ExecucaoEmCurso>();
-            perguntas.RespostaPorTitulo["Cancelar a análise e fechar?"] = false;
+            perguntas.RespostaPorTitulo["Pausar a análise e fechar?"] = false;
             var antesPrimeira = perguntas.Confirmacoes.Count;
             var fecharPrimeira = await j.PodeFecharComAnalisesAsync(tratadas);
             var perguntouPrimeira = perguntas.Confirmacoes.Count == antesPrimeira + 1;
             tratadas.Add(e);       // "Continuar" não marca; aqui simula a execução já perguntada nesta tentativa de fechar
             var antesSegunda = perguntas.Confirmacoes.Count;
             var fecharSegunda = await j.PodeFecharComAnalisesAsync(tratadas);
-            perguntas.RespostaPorTitulo.Remove("Cancelar a análise e fechar?");
+            perguntas.RespostaPorTitulo.Remove("Pausar a análise e fechar?");
             var segundaSoNovas = !fecharPrimeira && perguntouPrimeira && fecharSegunda && perguntas.Confirmacoes.Count == antesSegunda && !e.Fim.IsCompleted;
             p["segunda_checagem_so_novas"] = segundaSoNovas;
 
@@ -3191,7 +3191,7 @@ internal static class Roteiro
             var pidKit = eC.Situacao?.Pid ?? 0;
             var informados = perguntas.Informados.Count;
             var podeFecharClaude = await j.PodeFecharComAnalisesAsync();
-            var informou = perguntas.Informados.Skip(informados).Any(i => i.Texto == "A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, o resultado é importado.");
+            var informou = perguntas.Informados.Skip(informados).Any(i => i.Texto == "A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, você poderá voltar a acompanhá-la ou retomá-la de onde parou.");
             var pendente = j.ExecucoesClaudePendentes.Count == 1 && j.ExecucoesClaudePendentes[0].Processo == outro;
             await j.PararDeAcompanharClaudeAsync();     // o que o fechamento deixa: a análise do kit segue sozinha
             var seguiuSozinha = pidKit != 0 && Vivo(pidKit) && j.ExecucoesEmCurso.Count == 0 && j.ExecucoesClaudePendentes.Count == 1;
