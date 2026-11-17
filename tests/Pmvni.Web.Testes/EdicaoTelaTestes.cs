@@ -286,6 +286,88 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
         Assert.Equal("edicao_invalida", ex.Codigo);
     }
 
+    // ---------- indicação de clique e de edição ----------
+
+    [Fact]
+    public async Task tudo_o_que_se_clica_mostra_a_indicacao_como_o_item()
+    {
+        using var a = await AbrirAsync("longo");
+        using var ev = new Eventos(tela.Documento);
+        var medidasAntes = await MedidasAsync();
+        await EstadoAsync(null, true);
+        AssertMedidasIguais(medidasAntes, await MedidasAsync());
+
+        const string Estilo = "(e) => { const c = getComputedStyle(e); return c.cursor + '|' + c.outlineStyle + ' ' + c.outlineWidth + ' ' + c.outlineOffset + '|' + c.outlineColor; }";
+        async Task<string> EstiloDe(string seletor) => (await Js($"({Estilo})({seletor})")).GetString()!;
+        async Task MoverAsync(string seletor)
+        {
+            await Js($"{seletor}.scrollIntoView({{ block: 'center', behavior: 'instant' }}); 0");
+            var p = await Js($"(() => {{ const r = {seletor}.getClientRects()[0]; return {{ x: r.left + Math.min(r.width / 2, 20), y: r.top + Math.min(r.height / 2, 5) }}; }})()");
+            await tela.CdpAsync("Input.dispatchMouseEvent", Json(new { type = "mouseMoved", x = p.GetProperty("x").GetDouble(), y = p.GetProperty("y").GetDouble(), button = "none", buttons = 0 }));
+        }
+
+        var card = $"document.querySelector('section.folha .card[data-ref=\"{a.Ids[2]}\"]')";
+        const string Figura = "document.querySelector('section.folha .area .fig[data-ref]')";
+        const string Linha = "[...document.querySelectorAll('section.folha tr[data-pmvni-linha=\"indices/02\"]')].find(e => !e.closest('[data-pmvni-oculto]'))";
+        var celula = $"{Linha}.querySelector('td[data-campo=\"calculo\"]')";
+        const string Volumetria = "document.querySelector('section.folha svg.dg[data-pmvni-clicavel]')";
+        const string Leve = "rgba(26, 115, 232, 0.45)";
+
+        // Seta de clique em todo bloco clicável: item, figura, linha de tabela e o desenho da volumetria.
+        Assert.Equal(1, (await Js("document.querySelectorAll('section.folha svg.dg[data-pmvni-clicavel]').length")).GetInt32());
+        foreach (var s in new[] { card, Figura, Linha, Volumetria })
+            Assert.StartsWith("pointer|", await EstiloDe(s));
+
+        // Sob o mouse: o contorno do item em azul claro (na linha da tabela, por dentro); no campo, o contorno fino arredondado
+        // (na célula, por dentro e sem arredondar).
+        await MoverAsync(Figura);
+        Assert.Equal($"pointer|solid 1px 1px|{Leve}", await EstiloDe(Figura));
+        await MoverAsync(Volumetria);
+        Assert.Equal($"pointer|solid 1px 1px|{Leve}", await EstiloDe(Volumetria));
+        await MoverAsync(celula);
+        Assert.Equal($"pointer|solid 1px -1px|{Leve}", await EstiloDe(Linha));
+        Assert.Equal("solid 1px -2px|0px", (await Js($"(() => {{ const c = getComputedStyle({celula}); return c.outlineStyle + ' ' + c.outlineWidth + ' ' + c.outlineOffset + '|' + c.borderTopLeftRadius; }})()")).GetString());
+        var campo = $"{card}.querySelector('[data-campo=\"verificacao\"]')";
+        await MoverAsync(campo);
+        Assert.Equal("solid 1px 1px|4px", (await Js($"(() => {{ const c = getComputedStyle({campo}); return c.outlineStyle + ' ' + c.outlineWidth + ' ' + c.outlineOffset + '|' + c.borderTopLeftRadius; }})()")).GetString());
+        Assert.Equal($"pointer|solid 1px 1px|{Leve}", await EstiloDe(card));
+        await Js("window.scrollTo(0, 0); 0"); // as medidas são da janela: volta ao topo, como no começo
+        AssertMedidasIguais(medidasAntes, await MedidasAsync()); // nada disso muda a medida
+
+        // Clique na figura: selecionada com o contorno cheio do item (antes, a figura não ganhava contorno nenhum).
+        var figRef = (await Js($"{Figura}.getAttribute('data-ref')")).GetString()!;
+        await MoverAsync(Figura);
+        var pf = await Js($"(() => {{ const r = {Figura}.getBoundingClientRect(); return {{ x: r.left + 20, y: r.top + 8 }}; }})()");
+        ev.Descartar();
+        await ClicarAsync(pf.GetProperty("x").GetDouble(), pf.GetProperty("y").GetDouble());
+        Assert.Equal(figRef, (await ev.ProximoAsync("selecionado")).Dados.GetProperty("ref").GetString());
+        Assert.Equal(1, (await Js("document.querySelectorAll('[data-pmvni-selecionado]').length")).GetInt32());
+        Assert.Equal("pointer|solid 2px 1px|rgb(26, 115, 232)", await EstiloDe(Figura));
+        Assert.Equal(figRef, (await tela.Documento.ChamarAsync("selecionar", new { @ref = figRef, rolar = true }, Limite)).GetProperty("ref").GetString());
+
+        // No PDF e na impressão, nada aparece.
+        await tela.CdpAsync("Emulation.setEmulatedMedia", """{"media":"print"}""");
+        try
+        {
+            Assert.StartsWith("auto|none ", await EstiloDe(Figura));
+            Assert.StartsWith("auto|none ", await EstiloDe(card));
+        }
+        finally { await tela.CdpAsync("Emulation.setEmulatedMedia", """{"media":""}"""); }
+
+        // Durante a edição de um campo, os cliques fora dele não valem: a seta de clique some.
+        await tela.Documento.ChamarAsync("editarCampo", new { @ref = a.Ids[2], campo = "verificacao", texto = "x" }, Limite);
+        Assert.DoesNotContain("pointer", await EstiloDe(Figura));
+        await TeclaAsync("Escape", "Escape", 27);
+        await ev.ProximoAsync("edicaoCancelada");
+        Assert.StartsWith("pointer|", await EstiloDe(Figura));
+
+        // Somente leitura (campos desligados): os blocos continuam selecionáveis, mas nenhum campo se oferece para edição.
+        await EstadoAsync(null, false);
+        Assert.Equal(0, (await Js("document.querySelectorAll('section.folha [data-campo]').length")).GetInt32());
+        Assert.StartsWith("pointer|", await EstiloDe(card));
+        Assert.Empty(tela.Documento.Descartadas);
+    }
+
     [Fact]
     public async Task edicao_do_titulo_mantem_o_prefixo_do_item()
     {

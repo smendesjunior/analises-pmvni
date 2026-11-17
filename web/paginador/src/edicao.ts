@@ -44,10 +44,31 @@ const ATALHOS: ReadonlySet<string> = new Set([
   'Ctrl+1', 'Ctrl+2', 'Ctrl+3', 'Ctrl+4', 'Ctrl+5',
 ]);
 
+/** Outro alvo clicável que não é bloco selecionável (hoje, o desenho da volumetria): ganha a mesma indicação de clique. */
+const ATR_CLICAVEL = 'data-pmvni-clicavel';
+
+// Indicação de clique e de edição, só na tela (@media screen; o PDF e a impressão nunca a mostram, e o HTML exportado não tem
+// estes atributos). Tudo é `outline` (nunca borda ou margem): nada muda a medida nem a paginação.
+//  - Bloco clicável (item, figura, linha de tabela, volumetria): seta de clique e, sob o mouse, o contorno do item em azul claro;
+//    selecionado, o contorno cheio do item (a curva vem do border-radius do próprio bloco no kit).
+//  - Campo editável (data-campo; só existe com a edição ligada, nunca no somente leitura): fundo azul leve e contorno fino e
+//    arredondado colado ao texto; numa célula de tabela, o contorno fica por dentro (não invade a vizinha nem arredonda a célula).
+//  - Durante a edição de um campo os cliques fora dele não valem: a indicação de clique some.
+// Os seletores de :hover vão em :where() (especificidade zero) para a seleção e a edição, declaradas depois, sempre vencerem.
+const AZUL = '26, 115, 232';
+const SEM_EDICAO = `:where(:root:not(:has([${ATR_EDITANDO}])) section.folha .area)`;
+const BLOCOS = `:where(.card[data-ref], .fig[data-ref], [${ATR_CLICAVEL}])`;
+const LINHAS = `:where(tr[data-pmvni-linha])`;
 const CSS_EDICAO = `
 @media screen {
+  ${SEM_EDICAO} :where(.card[data-ref], .fig[data-ref], tr[data-pmvni-linha], [${ATR_CLICAVEL}]) { cursor: pointer; }
+  ${SEM_EDICAO} ${BLOCOS}:hover { outline: 1px solid rgba(${AZUL}, .45); outline-offset: 1px; }
+  ${SEM_EDICAO} ${LINHAS}:hover { outline: 1px solid rgba(${AZUL}, .45); outline-offset: -1px; }
+  ${SEM_EDICAO} :where([${ATR_CAMPO}]):hover {
+    background-color: rgba(${AZUL}, .10); outline: 1px solid rgba(${AZUL}, .55); outline-offset: 1px; border-radius: 4px;
+  }
+  ${SEM_EDICAO} :where(td[${ATR_CAMPO}]):hover { outline-offset: -2px; border-radius: 0; }
   [${ATR_SELECIONADO}] { outline: 2px solid #1a73e8; outline-offset: 1px; }
-  section.folha [${ATR_CAMPO}]:hover { background-color: rgba(26, 115, 232, .10); }
   [${ATR_EDITANDO}] { outline: 2px solid #1a73e8; outline-offset: 1px; background-color: #fff8d6 !important; cursor: text; }
 }
 ${CSS_MARCAS}`;
@@ -73,8 +94,29 @@ let edicao: Edicao | null = null;
 const ehCampo = (v: unknown): v is Campo => typeof v === 'string' && (CAMPOS as readonly string[]).includes(v);
 /** Campo válido para o bloco: um dos cinco do item, ou um caminho de texto numa linha de tabela. */
 const campoDoBloco = (ref: string, v: unknown): v is string => (ehLinha(ref) ? ehCaminho(v) : ehCampo(v));
-/** Pedaços de um item (cards) ou de uma linha de tabela (as linhas visíveis), nas folhas. */
-const pedacosDe = (ref: string): HTMLElement[] => pedacosDoBloco(ref);
+/** Pedaços de um item (cards), de uma linha de tabela (as linhas visíveis) ou de uma figura, nas folhas. A figura entra aqui
+ * (não em pedacosDoBloco, que as marcas de revisão também usam) para a seleção contorná-la como contorna o item. */
+const pedacosDe = (ref: string): HTMLElement[] => {
+  const pedacos = pedacosDoBloco(ref);
+  if (pedacos.length > 0 || ehLinha(ref)) return pedacos;
+  return Array.from(document.querySelectorAll<HTMLElement>(SELETOR_FIGURAS)).filter((e) => e.getAttribute('data-ref') === ref);
+};
+
+/** O desenho da volumetria (svg.dg no painel cujo título diz VOLUMETRIA) sob o alvo, ou null: o clique nele abre o pedido à IA. */
+function volumetriaDe(alvo: EventTarget | null): Element | null {
+  if (!(alvo instanceof Element)) return null;
+  const painel = alvo.closest('.panel');
+  const desenho = alvo.closest('svg.dg');
+  if (!painel || !desenho) return null;
+  return (painel.querySelector('.chip')?.textContent ?? '').toUpperCase().includes('VOLUMETRIA') ? desenho : null;
+}
+
+/** Marca os outros alvos clicáveis das folhas (hoje, os desenhos da volumetria) para a indicação de clique. Idempotente. */
+function marcarClicaveis(): void {
+  for (const svg of Array.from(document.querySelectorAll('section.folha .area .panel svg.dg'))) {
+    if (volumetriaDe(svg)) svg.setAttribute(ATR_CLICAVEL, '');
+  }
+}
 
 function garantirCss(): void {
   if (document.getElementById(ID_CSS)) return;
@@ -345,6 +387,7 @@ export function registrarEdicao(registrar: Registrar, enviar: Enviar): void {
       else if (edicao.pendente || !e.campos) restaurarEdicao();
     }
     marcarLinhas(); // as linhas das tabelas se selecionam como os itens, com ou sem os campos marcados
+    marcarClicaveis();
     let camposMarcados = 0;
     if (e.campos) camposMarcados = marcarCampos();
     else desmarcarCampos();
@@ -402,9 +445,7 @@ export function registrarEdicao(registrar: Registrar, enviar: Enviar): void {
     const { ref, campo } = localizar(e.target);
     aplicarSelecao(ref);
     // Correção 2026-11-16: clique no desenho da volumetria (o painel cujo título diz VOLUMETRIA) abre o pedido à IA no host.
-    const painel = e.target instanceof Element ? e.target.closest('.panel') : null;
-    const volumetria = painel !== null && e.target instanceof Element && e.target.closest('svg.dg') !== null
-      && (painel.querySelector('.chip')?.textContent ?? '').toUpperCase().includes('VOLUMETRIA');
+    const volumetria = volumetriaDe(e.target) !== null;
     evento('selecionado', volumetria ? { ref, campo, volumetria: true, x: e.clientX, y: e.clientY } : { ref, campo });
   });
 
