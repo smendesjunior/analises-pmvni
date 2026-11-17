@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Pmvni.Composicao;
 
 /// <summary>Os dados do profissional que assina despachos e relatórios (2026-11-17, pedido do usuário: "ela é individual de cada profissional";
-/// Ajustes › Despachos e PDF › Profissional responsável). Campo vazio = o texto do modelo continua.</summary>
+/// Ajustes › Despachos e PDF › Profissional responsável). Campo vazio sai em branco (nunca o texto do modelo).</summary>
 public sealed record Profissional(string? Nome, string? Profissao, string? Registro, string? Matricula)
 {
     /// <summary>Os dados em uso neste computador (o app define ao abrir e ao mudar os ajustes); null = os modelos ficam como estão.</summary>
@@ -22,12 +22,7 @@ public sealed record Profissional(string? Nome, string? Profissao, string? Regis
 
     public bool Vazio => NomeLinha is null && ProfissaoLinha is null && RegistroLinha is null && MatriculaLinha is null;
 
-    /// <summary>O cargo do relatório ("ARQUITETO E URBANISTA — CAU/ES A297986-1"), com o que houver de <paramref name="atual"/> para o que faltar.</summary>
-    public string Cargo(string? atual)
-    {
-        var partes = (atual ?? "").Split(" — ", 2);
-        var prof = ProfissaoLinha ?? (partes[0].Trim() is { Length: > 0 } p ? p : null);
-        var reg = RegistroLinha ?? (partes.Length > 1 && partes[1].Trim() is { Length: > 0 } r ? r : null);
-        return string.Join(" — ", new[] { prof, reg }.Where(x => x is not null));
-    }
+    /// <summary>O cargo do relatório ("PROFISSÃO — REGISTRO"), só com o que está nos Ajustes; campo vazio fica de fora (2026-11-17, correção:
+    /// antes completava com o cargo dos dados, que trazia o registro de outro profissional).</summary>
+    public string Cargo() => string.Join(" — ", new[] { ProfissaoLinha, RegistroLinha }.Where(x => x is not null));
 }

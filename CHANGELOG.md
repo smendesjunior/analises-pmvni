@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.6.5
+
+- **Sites da Prefeitura (Essencial, GPI, Alfresco):** o login usado é só o guardado em Ajustes. O navegador do app não preenche mais um usuário antigo que tenha guardado sozinho; sem login guardado, o campo fica vazio.
+- **Despachos e relatórios:** campo do profissional vazio em Ajustes (profissão, registro etc.) sai em branco, sem o texto do modelo.
+
 ## 0.6.4
 
 - **Despachos:** os botões "Despacho de correção" e "Despacho de aprovação" da tela inicial não ficam mais cortados.

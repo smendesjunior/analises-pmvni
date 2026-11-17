@@ -54,15 +54,9 @@ public static class RelatorioRenderer
         var itens = Dados.Lista(Dados.Exigir(d, "itens"));
         ctx["resumo"] = Conferencia.Resumo(itens);
         // O profissional dos Ajustes assina o relatório (2026-11-17); campo vazio = o que veio nos dados.
-        if (Profissional.Atual is { Vazio: false } pro)
-        {
-            var assinatura = Dados.Dict(Dados.Obter(d, "assinatura", new Dictionary<string, object?>()));
-            ctx["assinatura"] = new Dictionary<string, object?>
-            {
-                ["nome"] = pro.NomeLinha ?? Dados.Txt(Dados.Obter(assinatura, "nome", "")),
-                ["cargo"] = pro.Cargo(Dados.Txt(Dados.Obter(assinatura, "cargo", ""))),
-            };
-        }
+        // 2026-11-17 (correção): campo vazio sai em branco, nunca o que veio nos dados (que podem trazer outra pessoa).
+        if (Profissional.Atual is { } pro)
+            ctx["assinatura"] = new Dictionary<string, object?> { ["nome"] = pro.NomeLinha ?? "", ["cargo"] = pro.Cargo() };
 
         var loc = Dados.Obter(d, "localizacao");
         if (PythonTexto.Verdadeiro(loc))

@@ -62,7 +62,8 @@ public static class PreenchimentoDocx
     public static byte[] ComProfissional(byte[] modelo, Pmvni.Composicao.Profissional? p)
     {
         ArgumentNullException.ThrowIfNull(modelo);
-        if (p is null || p.Vazio) return modelo;
+        // 2026-11-17 (correção): com profissional definido, campo vazio sai em branco (nunca o texto do modelo, que traz os dados de outra pessoa).
+        if (p is null) return modelo;
         XDocument doc; string declaracao;
         try { (doc, declaracao) = LerDocumentoComDeclaracao(modelo); }
         catch (ModeloForaDoPadraoException) { return modelo; }
@@ -74,7 +75,8 @@ public static class PreenchimentoDocx
         var mudou = false;
         void Trocar(XElement par, string? novo)
         {
-            if (novo is null || !Runs(par).Any() || Texto(par).Trim() == novo) return;
+            novo ??= "";
+            if (!Runs(par).Any() || Texto(par).Trim() == novo) return;
             TrocarTexto(par, novo);
             mudou = true;
         }

@@ -154,8 +154,11 @@ public sealed partial class PaginaSites : Grid
             await CarregarExtensoesAsync(core.Profile);
             await PrepararPerfilAsync(core);
             core.Settings.AreDevToolsEnabled = false;
-            core.Settings.IsPasswordAutosaveEnabled = true;
-            core.Settings.IsGeneralAutofillEnabled = true;
+            // 2026-11-17 (correção, usuária Izabela): o preenchimento do próprio WebView2 trazia um login antigo ("izabelat") por cima do
+            // login guardado em Ajustes. O único login que o app usa é o de Ajustes (CofreSites); sem ele, o campo fica vazio.
+            core.Settings.IsPasswordAutosaveEnabled = ConfigSites.PreenchimentoDoNavegador;
+            core.Settings.IsGeneralAutofillEnabled = ConfigSites.PreenchimentoDoNavegador;
+            await LimparPreenchimentoAntigoAsync(core.Profile);
             core.NavigationStarting += (_, _) => { if (atual == m) progresso.Visibility = Visibility.Visible; };
             core.NavigationCompleted += async (_, e) =>
             {
@@ -204,6 +207,18 @@ public sealed partial class PaginaSites : Grid
     {
         if (!cookiesRestaurados) { cookiesRestaurados = true; RestaurarCookies(core.CookieManager); }
         return Task.CompletedTask;
+    }
+
+    static Task? preenchimentoLimpo;
+
+    /// <summary>Uma vez por abertura: apaga senhas e dados de formulário que o WebView2 guardou no perfil dos sites (não toca nos cookies).</summary>
+    static Task LimparPreenchimentoAntigoAsync(CoreWebView2Profile perfil) => preenchimentoLimpo ??= LimparAsync(perfil);
+
+    static async Task LimparAsync(CoreWebView2Profile perfil)
+    {
+        if (!ConfigSites.ApagarPreenchimentoGuardado) return;
+        try { await perfil.ClearBrowsingDataAsync(CoreWebView2BrowsingDataKinds.PasswordAutosave | CoreWebView2BrowsingDataKinds.GeneralAutofill); }
+        catch (Exception e) { RegistroErros.Gravar("sites.preenchimento", e); }
     }
 
     static string Host(Modulo m) => new Uri(Modulos.Endereco(m)).Host;
