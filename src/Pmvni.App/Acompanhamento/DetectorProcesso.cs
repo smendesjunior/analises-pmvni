@@ -62,7 +62,7 @@ static class DetectorProcesso
     }
 
     /// <summary>A inscrição do lote da consulta QGIS mais recente da pasta do processo (até 3 níveis).</summary>
-    static string? Inscricao(string pasta)
+    internal static string? Inscricao(string pasta)
     {
         try
         {

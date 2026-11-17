@@ -258,18 +258,15 @@ public sealed partial class MainWindow
     /// <summary>Usar a conta do programa ou a chave de API. O Claude só aceita a chave se o análise pro instalado do kit não a proibir; senão nada muda.</summary>
     internal Task DefinirModoAsync(Provedor p, ModoAcesso m) => NaFilaAsync(() => TentarAsync(async () =>
     {
-        if (p == Provedor.Claude && m == ModoAcesso.Chave && !(await LerPecasAsync()).ApiPermitidaNoKit)
-            mensagensDosAgentes[p] = TextosAgentes.ClaudeSoConta;
-        else
+        await Task.CompletedTask;
+        mensagensDosAgentes.Remove(p);
+        if (ajustes.Agentes[p].Modo != m)
         {
-            mensagensDosAgentes.Remove(p);
-            if (ajustes.Agentes[p].Modo != m)
-            {
-                ajustes.Agentes[p].Modo = m;
-                SalvarAjustes();
-            }
+            ajustes.Agentes[p].Modo = m;
+            SalvarAjustes();
         }
         MostrarAgentes();
+        if (catalogoIa is not null) MostrarModelosIa();   // a Claude API entra/sai da lista de Modelos de IA
     }));
 
     /// <summary>"Escolher programa…" (o <c>codex.exe</c> do ChatGPT; o <c>python.exe</c> do Claude) ou, com null, "Usar o padrão". Um caminho que não termina em
@@ -368,11 +365,11 @@ public sealed partial class MainWindow
         c.OpcaoConta.IsChecked = a.Modo == ModoAcesso.Conta;
         c.OpcaoChave.IsChecked = a.Modo == ModoAcesso.Chave;
         var apiProibida = p == Provedor.Claude && !pecas.ApiPermitidaNoKit;
-        c.OpcaoChave.IsEnabled = !apiProibida;
+        c.OpcaoChave.IsEnabled = true;
         ToolTipService.SetToolTip(c.OpcaoChave, apiProibida ? TextosAgentes.ClaudeSoConta : null);
         c.TextoDicaChave.Text = apiProibida ? TextosAgentes.ClaudeSoConta : "";
         c.TextoDicaChave.Visibility = apiProibida ? Visibility.Visible : Visibility.Collapsed;
-        c.PainelChave.Visibility = a.Modo == ModoAcesso.Chave && !apiProibida ? Visibility.Visible : Visibility.Collapsed;
+        c.PainelChave.Visibility = a.Modo == ModoAcesso.Chave ? Visibility.Visible : Visibility.Collapsed;
         var guardada = CofreChaves.Existe(PastaDados.Raiz, p);
         c.TextoChave.Text = guardada ? TextosAgentes.ChaveGuardada : TextosAgentes.SemChave;
         c.SeloChave.Definir(guardada, guardada ? TextosAgentes.Configurada : TextosAgentes.NaoConfigurada);

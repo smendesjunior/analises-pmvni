@@ -364,10 +364,10 @@ public sealed class Ajustes
     /// "conta" (a opção está desabilitada na tela e nenhuma análise sairia). true = mudou algo e é preciso salvar.</summary>
     public bool NormalizarModos(bool apiClaudePermitida)
     {
-        var claude = Agentes[Provedor.Claude];
-        if (apiClaudePermitida || claude.Modo != ModoAcesso.Chave) return false;
-        claude.Modo = ModoAcesso.Conta;
-        return true;
+        // 2026-11-17: a chave do Claude passou a valer para a Claude API da revisão; o modo escolhido não é mais desfeito (o análise pro usa a
+        // conta enquanto o kit proibir API — OrquestradorAnalise.ModoEfetivo).
+        _ = apiClaudePermitida;
+        return false;
     }
 
     /// <summary>Põe o arquivo no topo dos recentes (sem repetir, ignorando maiúsculas; no máximo <see cref="MaxRecentes"/>).</summary>

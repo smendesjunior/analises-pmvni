@@ -1223,6 +1223,7 @@ var Paginador = (() => {
   var observador = null;
   var temporizador;
   var ultimaFolha = 0;
+  var ajusteVigente = null;
   var folhas = () => Array.from(document.querySelectorAll("section.folha"));
   var raiz = document.documentElement;
   function ativar(enviar2) {
@@ -1233,7 +1234,7 @@ var Paginador = (() => {
     css.textContent = CSS_TELA;
     document.head.appendChild(css);
     window.addEventListener("resize", () => {
-      centralizar();
+      if (!reajustar()) centralizar();
       agendarFolhaVisivel(enviar2);
     });
   }
@@ -1261,7 +1262,21 @@ var Paginador = (() => {
   var zoomAtual = () => zoom;
   function definirGola(px) {
     golaEsquerda = px;
-    if (ativa) centralizar();
+    if (ativa && !reajustar()) centralizar();
+  }
+  function larguraUtil() {
+    return raiz.clientWidth - Math.max(golaEsquerda, MARGEM_AJUSTE_PX) - MARGEM_AJUSTE_PX;
+  }
+  function zoomDoAjuste(modo, maximo) {
+    let alvo = larguraUtil() / LARGURA_FOLHA_PX;
+    if (modo === "pagina") alvo = Math.min(alvo, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
+    else if (maximo !== void 0) alvo = Math.min(alvo, maximo);
+    return limitar(alvo, ZOOM_MIN_AJUSTE);
+  }
+  function reajustar() {
+    if (!ajusteVigente) return false;
+    aplicarZoom(zoomDoAjuste(ajusteVigente.modo, ajusteVigente.maximo));
+    return true;
   }
   function aplicarZoom(novo) {
     const antes = zoom;
@@ -1316,14 +1331,13 @@ var Paginador = (() => {
         lista.forEach((f, i) => f.toggleAttribute(ATR_TRANSBORDA, transbordam.includes(i + 1)));
       }
       const maximo = numeroOpcional(dados.maximo, "maximo");
-      let alvo = zoom;
-      if (ajustar === "largura") {
-        alvo = (raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX;
-        if (maximo !== void 0) alvo = Math.min(alvo, maximo);
-      } else if (ajustar === "pagina") {
-        alvo = Math.min((raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
-      } else if (pedido !== void 0) alvo = pedido;
-      aplicarZoom(limitar(alvo, ajustar ? ZOOM_MIN_AJUSTE : ZOOM_MIN));
+      if (ajustar === "largura" || ajustar === "pagina") {
+        ajusteVigente = { modo: ajustar, maximo };
+        aplicarZoom(zoomDoAjuste(ajustar, maximo));
+      } else {
+        if (pedido !== void 0) ajusteVigente = null;
+        aplicarZoom(limitar(pedido ?? zoom, ZOOM_MIN));
+      }
       observar(enviar2);
       return { tipo: "folhaVisivel", dados: estado() };
     });

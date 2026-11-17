@@ -51,6 +51,8 @@ let golaEsquerda = GOLA_ESQUERDA_PX;
 let observador: IntersectionObserver | null = null;
 let temporizador: number | undefined;
 let ultimaFolha = 0;
+/** O ajuste em vigor (2026-11-17): "largura"/"pagina" acompanham a janela e a gola; null = zoom manual. */
+let ajusteVigente: { modo: 'largura' | 'pagina'; maximo?: number } | null = null;
 
 type Enviar = (tipo: TipoWeb, id: string, dados?: Record<string, unknown>) => void;
 type Registrar = (tipo: TipoHost, manipulador: Manipulador) => void;
@@ -65,7 +67,7 @@ function ativar(enviar: Enviar): void {
   css.id = ID_CSS;
   css.textContent = CSS_TELA;
   document.head.appendChild(css);
-  window.addEventListener('resize', () => { centralizar(); agendarFolhaVisivel(enviar); });
+  window.addEventListener('resize', () => { if (!reajustar()) centralizar(); agendarFolhaVisivel(enviar); });
 }
 
 /** Folha (1 = primeira) que cruza a linha do meio da janela; no vão entre folhas, a mais próxima; 0 se não há folhas. */
@@ -96,7 +98,27 @@ export const zoomAtual = (): number => zoom;
 /** Vão mínimo à esquerda das folhas (px de tela); recentraliza se a tela já está ativa. */
 export function definirGola(px: number): void {
   golaEsquerda = px;
-  if (ativa) centralizar();
+  if (ativa && !reajustar()) centralizar();
+}
+
+/** Largura útil para a folha: a gola da esquerda (marcas e etiquetas de excluído) e a margem da direita ficam de fora,
+ * senão o "Ajustar largura" empurrava a borda direita da folha para fora da janela (2026-11-17). */
+function larguraUtil(): number {
+  return raiz.clientWidth - Math.max(golaEsquerda, MARGEM_AJUSTE_PX) - MARGEM_AJUSTE_PX;
+}
+
+function zoomDoAjuste(modo: 'largura' | 'pagina', maximo?: number): number {
+  let alvo = larguraUtil() / LARGURA_FOLHA_PX;
+  if (modo === 'pagina') alvo = Math.min(alvo, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
+  else if (maximo !== undefined) alvo = Math.min(alvo, maximo); // ex.: abrir em 100 %, ou menos se a janela for estreita
+  return limitar(alvo, ZOOM_MIN_AJUSTE);
+}
+
+/** Com um ajuste em vigor, refaz o zoom para a janela/gola atuais. true = refez. */
+function reajustar(): boolean {
+  if (!ajusteVigente) return false;
+  aplicarZoom(zoomDoAjuste(ajusteVigente.modo, ajusteVigente.maximo));
+  return true;
 }
 
 function aplicarZoom(novo: number): void {
@@ -160,14 +182,13 @@ export function registrarTela(registrar: Registrar, enviar: Enviar): void {
       lista.forEach((f, i) => f.toggleAttribute(ATR_TRANSBORDA, transbordam.includes(i + 1)));
     }
     const maximo = numeroOpcional(dados.maximo, 'maximo');
-    let alvo = zoom;
-    if (ajustar === 'largura') {
-      alvo = (raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX;
-      if (maximo !== undefined) alvo = Math.min(alvo, maximo); // ex.: abrir em 100 %, ou menos se a janela for estreita
-    } else if (ajustar === 'pagina') {
-      alvo = Math.min((raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
-    } else if (pedido !== undefined) alvo = pedido;
-    aplicarZoom(limitar(alvo, ajustar ? ZOOM_MIN_AJUSTE : ZOOM_MIN));
+    if (ajustar === 'largura' || ajustar === 'pagina') {
+      ajusteVigente = { modo: ajustar, maximo };
+      aplicarZoom(zoomDoAjuste(ajustar, maximo));
+    } else {
+      if (pedido !== undefined) ajusteVigente = null;
+      aplicarZoom(limitar(pedido ?? zoom, ZOOM_MIN));
+    }
     observar(enviar);
     return { tipo: 'folhaVisivel', dados: estado() };
   });

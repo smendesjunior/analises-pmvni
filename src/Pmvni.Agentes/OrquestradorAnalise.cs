@@ -64,6 +64,7 @@ public sealed class OrquestradorAnalise
     /// passa a ser deste método, que a solta no fim. null = o método pega a sua.</param>
     public async Task<FimAnalise> ExecutarAsync(PedidoExecucao pe, IProgress<ProgressoAnalise> progresso, CancellationToken ct, TravaExecucao? travaPega = null)
     {
+        pe = pe with { Modo = ModoEfetivo(pe.Provedor, pe.Modo, pe.Pecas) };
         var impedimento = Conferir(pe);
         if (impedimento is not null)
         {
@@ -123,13 +124,16 @@ public sealed class OrquestradorAnalise
             if (pecas.ProRuntime is null)
                 return Falha("O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
             if (pecas.Claude is null) return Falha("O Claude Code não foi encontrado neste computador (claude.exe).");
-            if (pe.Modo == ModoAcesso.Chave && !pecas.ApiPermitidaNoKit)
-                return Falha("O análise pro do kit usa somente a conta do Claude (política do kit de 14/11/2026). Em Ajustes › Inteligência artificial, use Usar minha conta.");
         }
         if (pe.Modo == ModoAcesso.Chave && CofreChaves.Ler(pe.RaizDados, pe.Provedor) is null)
             return Falha("Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.");
         return null;
     }
+
+    /// <summary>O modo que a análise usa de fato (2026-11-17): a chave do Claude vale para a Claude API da revisão e dos ajustes; enquanto o
+    /// <c>pro_runtime.py</c> do kit proibir API paga, o análise pro roda pela conta do Claude mesmo com "Usar chave de API" marcado.</summary>
+    public static ModoAcesso ModoEfetivo(Provedor p, ModoAcesso m, Pecas pecas) =>
+        p == Provedor.Claude && m == ModoAcesso.Chave && !pecas.ApiPermitidaNoKit ? ModoAcesso.Conta : m;
 
     static string Usuario()
     {

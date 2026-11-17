@@ -348,8 +348,10 @@ public partial class OrquestradorTestes
             (await RodarSemPecas("orq-sem-pro", Provedor.Claude, p => p with { ProRuntime = null })).Mensagem);
         Assert.Equal("O Claude Code não foi encontrado neste computador (claude.exe).",
             (await RodarSemPecas("orq-sem-claude", Provedor.Claude, p => p with { Claude = null })).Mensagem);
-        Assert.Equal("O análise pro do kit usa somente a conta do Claude (política do kit de 14/11/2026). Em Ajustes › Inteligência artificial, use Usar minha conta.",
-            (await RodarSemPecas("orq-claude-chave", Provedor.Claude, p => p, ModoAcesso.Chave)).Mensagem);
+        // Kit proíbe API: o modo chave do Claude vira conta (OrquestradorAnalise.ModoEfetivo); o ChatGPT não é afetado.
+        var proibe = Ambiente.PecasFalsas(Path.GetTempPath());
+        Assert.Equal(ModoAcesso.Conta, OrquestradorAnalise.ModoEfetivo(Provedor.Claude, ModoAcesso.Chave, proibe));
+        Assert.Equal(ModoAcesso.Chave, OrquestradorAnalise.ModoEfetivo(Provedor.ChatGpt, ModoAcesso.Chave, proibe));
         // Se o kit passar a permitir API, o modo chave do Claude deixa de ser recusado por esta regra (a chave guardada ainda é exigida).
         Assert.Equal("Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.",
             (await RodarSemPecas("orq-claude-chave-liberada", Provedor.Claude, p => p with { ApiPermitidaNoKit = true }, ModoAcesso.Chave)).Mensagem);

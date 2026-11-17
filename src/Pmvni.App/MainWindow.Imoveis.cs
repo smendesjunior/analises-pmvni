@@ -31,7 +31,7 @@ public sealed partial class MainWindow
     // Larguras das colunas da tabela de resultados (as mesmas no cabeçalho e nas linhas).
     static readonly GridLength[] ColunasImoveis =
     [
-        new(150), new(2, GridUnitType.Star), new(3, GridUnitType.Star), new(1.3, GridUnitType.Star), new(90), new(150), new(136),
+        new(150), new(2, GridUnitType.Star), new(3, GridUnitType.Star), new(1.3, GridUnitType.Star), new(90), new(150), new(330),
     ];
     static readonly string[] TitulosImoveis = ["Inscrição municipal", "Contribuinte", "Endereço", "Bairro", "Situação", "Vínculo com o mapa", ""];
 
@@ -281,7 +281,22 @@ public sealed partial class MainWindow
             var abrir = new Button { Content = "Abrir relatório", HorizontalAlignment = HorizontalAlignment.Stretch };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrir, "Abrir relatório do imóvel " + reg.InscricaoMunicipal);
             abrir.Click += async (_, _) => await AbrirRelatorioDoImovelAsync(reg);
-            MontarLinha(linha, [T(reg.InscricaoMunicipal, true), T(reg.Contribuinte), T(reg.Endereco), T(reg.Bairro), T(reg.Situacao), celulaSelo, abrir]);
+            // 2026-11-17: o Boletim de Cadastro Imobiliário oficial, emitido pelo GPI com a inscrição municipal desta linha.
+            var gerar = new Button { Content = "Gerar boletim cadastral", HorizontalAlignment = HorizontalAlignment.Stretch };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(gerar, "Gerar boletim cadastral do imóvel " + reg.InscricaoMunicipal);
+            ToolTipService.SetToolTip(gerar, "Emite o boletim oficial no GPI para esta inscrição (abre o GPI, pesquisa, confere a ficha e abre o PDF).");
+            gerar.Click += async (_, _) =>
+            {
+                try { await GerarBciDoImovelAsync(reg); }
+                catch (Exception e) { RegistroErros.Gravar("sites.bci", e); MostrarAvisoImoveis(InfoBarSeverity.Error, "Boletim cadastral", e.Message); }
+            };
+            var acoes = new Grid { ColumnSpacing = 8 };
+            acoes.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+            acoes.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(gerar, 1);
+            acoes.Children.Add(abrir);
+            acoes.Children.Add(gerar);
+            MontarLinha(linha, [T(reg.InscricaoMunicipal, true), T(reg.Contribuinte), T(reg.Endereco), T(reg.Bairro), T(reg.Situacao), celulaSelo, acoes]);
             ToolTipService.SetToolTip(linha.Children[2], reg.Endereco);
             I.ListaResultados.Items.Add(linha);
         }
@@ -319,6 +334,8 @@ public sealed partial class MainWindow
     void MostrarAvisoImoveis(InfoBarSeverity s, string titulo, string mensagem)
     {
         I.Aviso.Severity = s;
+        I.Aviso.ActionButton = null;   // os botões do boletim (2026-11-17) só valem para a mensagem dele
+        I.Aviso.Content = null;
         I.Aviso.Title = titulo;
         I.Aviso.Message = mensagem;
         I.Aviso.IsOpen = true;

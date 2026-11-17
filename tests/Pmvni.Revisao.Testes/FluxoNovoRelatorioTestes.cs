@@ -45,7 +45,6 @@ public class FluxoNovoRelatorioTestes
         const string SemPython = "O Python não foi encontrado neste computador (o análise pro do kit precisa dele).";
         const string SemPro = "O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
         const string SemClaude = "O Claude Code não foi encontrado neste computador (claude.exe).";
-        const string SoConta = "O análise pro do kit usa somente a conta do Claude (política do kit de 14/11/2026). Em Ajustes › Inteligência artificial, use Usar minha conta.";
 
         string? M(Provedor p, Processo? pr = null, bool andamento = false, Pecas? pecas = null, ModoAcesso modo = ModoAcesso.Conta, bool chave = false) =>
             FluxoNovoRelatorio.MotivoDesabilitado(p, pr, andamento, pecas ?? Completas, modo, chave);
@@ -69,7 +68,8 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(SemPython, M(Provedor.Claude, P0001, pecas: nada, modo: ModoAcesso.Chave));
         Assert.Equal(SemPro, M(Provedor.Claude, P0001, pecas: Completas with { ProRuntime = null, Claude = null }, modo: ModoAcesso.Chave));
         Assert.Equal(SemClaude, M(Provedor.Claude, P0001, pecas: Completas with { Claude = null }, modo: ModoAcesso.Chave));
-        Assert.Equal(SoConta, M(Provedor.Claude, P0001, modo: ModoAcesso.Chave, chave: true));
+        Assert.Null(M(Provedor.Claude, P0001, modo: ModoAcesso.Chave, chave: true));    // o kit proíbe API: o análise pro roda pela conta
+        Assert.Null(M(Provedor.Claude, P0001, modo: ModoAcesso.Chave));                 // nem precisa de chave guardada para isso
         Assert.Equal(SemChave, M(Provedor.Claude, P0001, pecas: Completas with { ApiPermitidaNoKit = true }, modo: ModoAcesso.Chave));
         Assert.Null(M(Provedor.Claude, P0001, pecas: Completas with { ApiPermitidaNoKit = true }, modo: ModoAcesso.Chave, chave: true));
         Assert.Null(M(Provedor.Claude, P0001, pecas: Completas with { Codex = null, PluginAnaliseHabilitado = false }));

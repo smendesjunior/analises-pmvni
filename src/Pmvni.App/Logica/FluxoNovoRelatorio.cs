@@ -96,9 +96,8 @@ public static class FluxoNovoRelatorio
             if (pecas.Python is null) return SemPython;
             if (pecas.ProRuntime is null) return SemAnalisePro;
             if (pecas.Claude is null) return SemClaude;
-            if (modo == ModoAcesso.Chave && !pecas.ApiPermitidaNoKit) return ClaudeSoConta;
         }
-        if (modo == ModoAcesso.Chave && !chaveGuardada) return SemChave;
+        if (OrquestradorAnalise.ModoEfetivo(p, modo, pecas) == ModoAcesso.Chave && !chaveGuardada) return SemChave;
         return null;
     }
 

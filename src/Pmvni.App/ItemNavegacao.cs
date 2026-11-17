@@ -29,7 +29,7 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
     public int Folha { get; } = folha;
     public string? Ref { get; } = @ref;
     public bool Secao { get; } = secao;
-    public string FolhaTexto => "f. " + Folha;
+    public string FolhaTexto => "FOLHA " + Folha.ToString("00", CultureInfo.InvariantCulture);
     public FontWeight Peso => Secao ? FontWeights.SemiBold : FontWeights.Normal;
     public double TamanhoTitulo => Secao ? 14 : 13;
 

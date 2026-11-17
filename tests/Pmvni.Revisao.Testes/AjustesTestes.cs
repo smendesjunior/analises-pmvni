@@ -276,19 +276,13 @@ public class AjustesKitTestes
     }
 
     [Fact]
-    public void claude_com_chave_guardada_volta_para_a_conta_quando_o_kit_proibe_a_api()
+    public void claude_com_chave_mantem_o_modo_mesmo_quando_o_kit_proibe_a_api()
     {
         var a = new Ajustes();
         a.Agentes[Provedor.Claude].Modo = ModoAcesso.Chave;
-        a.Agentes[Provedor.ChatGpt].Modo = ModoAcesso.Chave;
-
-        Assert.False(a.NormalizarModos(apiClaudePermitida: true));   // o kit permite: nada muda
+        Assert.False(a.NormalizarModos(apiClaudePermitida: true));
+        Assert.False(a.NormalizarModos(apiClaudePermitida: false));   // 2026-11-17: a chave vale para a Claude API; o análise pro usa a conta
         Assert.Equal(ModoAcesso.Chave, a.Agentes[Provedor.Claude].Modo);
-
-        Assert.True(a.NormalizarModos(apiClaudePermitida: false));   // o kit proíbe: só o Claude volta para a conta
-        Assert.Equal(ModoAcesso.Conta, a.Agentes[Provedor.Claude].Modo);
-        Assert.Equal(ModoAcesso.Chave, a.Agentes[Provedor.ChatGpt].Modo);
-        Assert.False(a.NormalizarModos(apiClaudePermitida: false));  // já estava na conta
     }
 
     [Fact]

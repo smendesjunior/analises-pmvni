@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
@@ -5,34 +6,54 @@ using Microsoft.Web.WebView2.Core;
 namespace Pmvni.App;
 
 /// <summary>Os sistemas da Prefeitura na barra lateral (2026-11-16): um navegador por site (WebView2), criado na primeira visita e mantido
-/// enquanto o app está aberto (a sessão e a página continuam ao voltar ao módulo). O perfil é próprio dos sites (separado do relatório) e
-/// fica em <c>%LOCALAPPDATA%\EditorRelatoriosPMVNI\Sites</c>, então o login é lembrado entre aberturas. Uma barra fina de progresso
-/// aparece enquanto a página carrega; uma falha de rede mostra o aviso com o endereço.</summary>
+/// enquanto o app está aberto. O perfil é próprio dos sites (separado do relatório), em <c>&lt;dados&gt;\Sites</c>.
+/// 2026-11-17 — login persistente até o usuário sair (<see cref="CofreSites"/>): os cookies de cada site são guardados a cada página e devolvidos
+/// antes da primeira página (os de sessão viram duradouros); a cada 5 minutos o app renova a sessão dos sites abertos; se mesmo assim o servidor
+/// pedir login e houver usuário e senha guardados, o app entra sozinho. A criação é idempotente (uma tarefa por site; falha libera nova tentativa)
+/// e <see cref="ObterAsync"/> dá o navegador de um site sem trocar o que está à vista (o BCI do GPI usa).</summary>
 public sealed partial class PaginaSites : Grid
 {
+    static readonly Modulo[] Sites = [Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco];
     readonly Dictionary<Modulo, WebView2> navegadores = new();
+    readonly Dictionary<Modulo, Task<CoreWebView2>> criando = new();
+    readonly Dictionary<Modulo, DateTime> ultimoLoginAutomatico = new();
     readonly ProgressBar progresso = new() { IsIndeterminate = true, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Top };
     readonly InfoBar aviso = new() { IsClosable = true, IsOpen = false, Severity = InfoBarSeverity.Warning, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(12) };
+    /// <summary>Estado do BCI (o fluxo roda neste navegador, à vista do usuário).</summary>
+    public InfoBar AvisoBci { get; } = new() { IsClosable = true, IsOpen = false, Severity = InfoBarSeverity.Informational, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(12) };
     static Task<CoreWebView2Environment>? ambiente;
+    readonly DispatcherTimer renovar = new() { Interval = TimeSpan.FromMinutes(5) };
     Modulo? atual;
+    bool cookiesRestaurados;
 
     /// <summary>Muda quando a navegação do site à vista muda (voltar/avançar disponíveis).</summary>
     public event Action? EstadoMudou;
+
+    /// <summary>Uma janela nova pedida pelo site (target=_blank, window.open). Quem trata (o BCI) devolve true; senão abre no mesmo navegador.</summary>
+    public Func<Modulo, CoreWebView2NewWindowRequestedEventArgs, bool>? InterceptarJanela { get; set; }
 
     public PaginaSites()
     {
         Canvas.SetZIndex(progresso, 10);
         Canvas.SetZIndex(aviso, 11);
+        Canvas.SetZIndex(AvisoBci, 12);
         Children.Add(progresso);
         Children.Add(aviso);
+        Children.Add(AvisoBci);
+        renovar.Tick += async (_, _) => await RenovarSessoesAsync();
+        renovar.Start();
     }
 
-    static Task<CoreWebView2Environment> Ambiente() => ambiente ??= CoreWebView2Environment.CreateWithOptionsAsync(
-        string.Empty, Path.Combine(Pmvni.Composicao.Web.PastaDados.Raiz, "Sites"),
-        new CoreWebView2EnvironmentOptions { AreBrowserExtensionsEnabled = true }).AsTask();
+    static string Raiz => Pmvni.Composicao.Web.PastaDados.Raiz;
 
-    /// <summary>Extensões do Edge/Chrome que valem nos sistemas (escolha do usuário, 2026-11-16): o iCloud Senhas (id do Edge e do Chrome).
-    /// O app carrega a versão instalada no navegador, do jeito que ela está; extensão que o WebView2 não aceita só fica de fora (registro).</summary>
+    internal static Task<CoreWebView2Environment> Ambiente()
+    {
+        if (ambiente is { IsFaulted: true } or { IsCanceled: true }) ambiente = null;   // falhou: a próxima visita tenta de novo
+        return ambiente ??= CoreWebView2Environment.CreateWithOptionsAsync(string.Empty, Path.Combine(Raiz, "Sites"),
+            new CoreWebView2EnvironmentOptions { AreBrowserExtensionsEnabled = true }).AsTask();
+    }
+
+    /// <summary>Extensões do Edge/Chrome que valem nos sistemas (escolha do usuário, 2026-11-16): o iCloud Senhas (id do Edge e do Chrome).</summary>
     static readonly string[] Extensoes = ["mfbcdcnpokpoajjciilocoachedjkima", "pejdijmoenmkgeppbflobdenhhabjlaj"];
     static Task? extensoesCarregadas;
 
@@ -54,8 +75,6 @@ public sealed partial class PaginaSites : Grid
                     if (versao is null || !File.Exists(Path.Combine(versao, "manifest.json"))) continue;
                     try
                     {
-                        // A cópia do navegador é carregada como pasta: se o id já está no perfil (de uma abertura anterior), sai e entra de novo
-                        // para valer a versão atual.
                         if (ja.Contains(id)) foreach (var e in await perfil.GetBrowserExtensionsAsync()) if (e.Id == id) await e.RemoveAsync();
                         await perfil.AddBrowserExtensionAsync(versao);
                     }
@@ -73,37 +92,7 @@ public sealed partial class PaginaSites : Grid
         atual = m;
         foreach (var (mod, w) in navegadores) w.Visibility = mod == m ? Visibility.Visible : Visibility.Collapsed;
         aviso.IsOpen = false;
-        if (navegadores.ContainsKey(m)) { EstadoMudou?.Invoke(); return; }
-        var web = new WebView2();
-        navegadores[m] = web;
-        Children.Insert(0, web);
-        try
-        {
-            await web.EnsureCoreWebView2Async(await Ambiente());
-            var core = web.CoreWebView2;
-            await CarregarExtensoesAsync(core.Profile);
-            core.Settings.AreDevToolsEnabled = false;
-            core.NavigationStarting += (_, _) => { if (atual == m) progresso.Visibility = Visibility.Visible; };
-            core.NavigationCompleted += (_, e) =>
-            {
-                if (atual != m) return;
-                progresso.Visibility = Visibility.Collapsed;
-                if (!e.IsSuccess && e.WebErrorStatus != CoreWebView2WebErrorStatus.OperationCanceled)
-                {
-                    aviso.Title = "A página não abriu";
-                    aviso.Message = e.WebErrorStatus == CoreWebView2WebErrorStatus.HostNameNotResolved
-                        ? $"Este computador não encontrou o endereço {new Uri(Modulos.Endereco(m)).Host}: ele só existe na rede da Prefeitura (ou pela VPN). Conecte-se a ela e use Atualizar."
-                        : $"{Modulos.Endereco(m)} não respondeu ({e.WebErrorStatus}). Confira a conexão e use Atualizar.";
-                    aviso.IsOpen = true;
-                }
-                else aviso.IsOpen = false;
-                EstadoMudou?.Invoke();
-            };
-            core.HistoryChanged += (_, _) => { if (atual == m) EstadoMudou?.Invoke(); };
-            // Janelas novas (target=_blank) abrem no mesmo navegador, como uma aba só.
-            core.NewWindowRequested += (_, e) => { e.Handled = true; core.Navigate(e.Uri); };
-            core.Navigate(Modulos.Endereco(m));
-        }
+        try { await ObterAsync(m); }
         catch (Exception e)
         {
             RegistroErros.Gravar("sites", e);
@@ -111,8 +100,188 @@ public sealed partial class PaginaSites : Grid
             aviso.Message = e.Message;
             aviso.IsOpen = true;
         }
+        if (atual == m && navegadores.TryGetValue(m, out var web)) web.Visibility = Visibility.Visible;
         EstadoMudou?.Invoke();
     }
+
+    /// <summary>O navegador pronto do site (cria na primeira vez; uma criação em curso é reaproveitada; uma que falhou é refeita).</summary>
+    public Task<CoreWebView2> ObterAsync(Modulo m)
+    {
+        if (criando.TryGetValue(m, out var t) && !t.IsFaulted && !t.IsCanceled) return t;
+        return criando[m] = CriarAsync(m);
+    }
+
+    async Task<CoreWebView2> CriarAsync(Modulo m)
+    {
+        if (navegadores.Remove(m, out var velho)) { Children.Remove(velho); try { velho.Close(); } catch (Exception) { } }
+        var web = new WebView2 { Visibility = atual == m ? Visibility.Visible : Visibility.Collapsed };
+        navegadores[m] = web;
+        Children.Insert(0, web);
+        try
+        {
+            await web.EnsureCoreWebView2Async(await Ambiente());
+            var core = web.CoreWebView2;
+            await CarregarExtensoesAsync(core.Profile);
+            await PrepararPerfilAsync(core);
+            core.Settings.AreDevToolsEnabled = false;
+            core.Settings.IsPasswordAutosaveEnabled = true;
+            core.Settings.IsGeneralAutofillEnabled = true;
+            core.NavigationStarting += (_, _) => { if (atual == m) progresso.Visibility = Visibility.Visible; };
+            core.NavigationCompleted += async (_, e) =>
+            {
+                if (atual == m)
+                {
+                    progresso.Visibility = Visibility.Collapsed;
+                    if (!e.IsSuccess && e.WebErrorStatus != CoreWebView2WebErrorStatus.OperationCanceled)
+                    {
+                        aviso.Title = "A página não abriu";
+                        aviso.Message = e.WebErrorStatus == CoreWebView2WebErrorStatus.HostNameNotResolved
+                            ? $"Este computador não encontrou o endereço {new Uri(Modulos.Endereco(m)).Host}: ele só existe na rede da Prefeitura (ou pela VPN). Conecte-se a ela e use Atualizar."
+                            : $"{Modulos.Endereco(m)} não respondeu ({e.WebErrorStatus}). Confira a conexão e use Atualizar.";
+                        aviso.IsOpen = true;
+                    }
+                    else aviso.IsOpen = false;
+                    EstadoMudou?.Invoke();
+                }
+                if (e.IsSuccess) { await EntrarSozinhoAsync(m, core); await GuardarCookiesAsync(m, core); }
+            };
+            core.HistoryChanged += (_, _) => { if (atual == m) EstadoMudou?.Invoke(); };
+            core.NewWindowRequested += (_, e) =>
+            {
+                if (InterceptarJanela?.Invoke(m, e) == true) return;
+                e.Handled = true;
+                core.Navigate(e.Uri);   // como uma aba só
+            };
+            core.Navigate(Modulos.Endereco(m));
+            return core;
+        }
+        catch
+        {
+            navegadores.Remove(m);
+            Children.Remove(web);
+            try { web.Close(); } catch (Exception) { }
+            throw;
+        }
+    }
+
+    /// <summary>Uma vez por abertura do app: devolve ao perfil dos sites os cookies guardados (o GPI invisível do boletim também chama).</summary>
+    public Task PrepararPerfilAsync(CoreWebView2 core)
+    {
+        if (!cookiesRestaurados) { cookiesRestaurados = true; RestaurarCookies(core.CookieManager); }
+        return Task.CompletedTask;
+    }
+
+    static string Host(Modulo m) => new Uri(Modulos.Endereco(m)).Host;
+
+    /// <summary>Devolve ao perfil os cookies guardados de cada site (salvo os de quem saiu), como duradouros (10 anos).</summary>
+    void RestaurarCookies(CoreWebView2CookieManager gestor)
+    {
+        foreach (var m in Sites)
+        {
+            if (CofreSites.Saiu(Raiz, m)) continue;
+            foreach (var c in CofreSites.LerCookies(Raiz, m))
+                try
+                {
+                    var k = gestor.CreateCookie(c.Nome, c.Valor, c.Dominio, c.Caminho);
+                    k.IsSecure = c.Seguro;
+                    k.IsHttpOnly = c.SoHttp;
+                    k.SameSite = (CoreWebView2CookieSameSiteKind)c.MesmoSite;
+                    k.Expires = DateTimeOffset.UtcNow.AddYears(10).ToUnixTimeSeconds();
+                    gestor.AddOrUpdateCookie(k);
+                }
+                catch (Exception e) { RegistroErros.Gravar("sites.cookie", e); }
+        }
+    }
+
+    /// <summary>Guarda todos os cookies do site (só depois que o usuário entrou: com campo de senha à vista, nada muda).</summary>
+    async Task GuardarCookiesAsync(Modulo m, CoreWebView2 core)
+    {
+        try
+        {
+            if (await TemSenhaAVistaAsync(core)) return;
+            var host = Host(m);
+            var lista = (await core.CookieManager.GetCookiesAsync(null))
+                .Where(c => CofreSites.DoSite(c.Domain, host))
+                .Select(c => new CookieSite(c.Name, c.Value, c.Domain, c.Path, c.IsSecure, c.IsHttpOnly, (int)c.SameSite)).ToList();
+            if (lista.Count == 0) return;
+            CofreSites.Voltou(Raiz, m);
+            CofreSites.GuardarCookies(Raiz, m, lista);
+        }
+        catch (Exception e) { RegistroErros.Gravar("sites.guardar", e); }
+    }
+
+    static async Task<bool> TemSenhaAVistaAsync(CoreWebView2 core)
+    {
+        try
+        {
+            var r = await core.ExecuteScriptAsync(ScriptsSites.Chamar(ScriptsSites.Login, null));
+            using var d = JsonDocument.Parse(r);
+            return d.RootElement.ValueKind == JsonValueKind.Object && d.RootElement.GetProperty("senha").GetBoolean();
+        }
+        catch (Exception) { return false; }
+    }
+
+    /// <summary>Com campo de senha à vista e login guardado: entra sozinho (no máximo uma vez por minuto, para não insistir num login recusado).</summary>
+    internal async Task<bool> EntrarSozinhoAsync(Modulo m, CoreWebView2 core)
+    {
+        try
+        {
+            if (CofreSites.Saiu(Raiz, m) || CofreSites.LerLogin(Raiz, m) is not { } cred) return false;
+            if (ultimoLoginAutomatico.TryGetValue(m, out var q) && DateTime.UtcNow - q < TimeSpan.FromMinutes(1)) return false;
+            if (!await TemSenhaAVistaAsync(core)) return false;
+            ultimoLoginAutomatico[m] = DateTime.UtcNow;
+            var r = await core.ExecuteScriptAsync(ScriptsSites.Chamar(ScriptsSites.Login, new { usuario = cred.Usuario, senha = cred.Senha }));
+            using var d = JsonDocument.Parse(r);
+            return d.RootElement.ValueKind == JsonValueKind.Object && d.RootElement.GetProperty("enviado").GetBoolean();
+        }
+        catch (Exception e) { RegistroErros.Gravar("sites.login", e); return false; }
+    }
+
+    /// <summary>A cada 5 minutos: renova a sessão dos sites abertos e guarda os cookies (que o servidor pode ter trocado).</summary>
+    async Task RenovarSessoesAsync()
+    {
+        foreach (var (m, w) in navegadores.ToList())
+        {
+            if (w.CoreWebView2 is not { } core || CofreSites.Saiu(Raiz, m)) continue;
+            try
+            {
+                await core.ExecuteScriptAsync(ScriptsSites.Chamar(ScriptsSites.ManterViva, null));
+                if (!await EntrarSozinhoAsync(m, core)) await GuardarCookiesAsync(m, core);
+            }
+            catch (Exception e) { RegistroErros.Gravar("sites.renovar", e); }
+        }
+    }
+
+    /// <summary>Ao fechar o app: guarda os cookies uma última vez.</summary>
+    public async Task GuardarTudoAsync()
+    {
+        renovar.Stop();
+        foreach (var (m, w) in navegadores.ToList())
+            if (w.CoreWebView2 is { } core && !CofreSites.Saiu(Raiz, m)) await GuardarCookiesAsync(m, core);
+    }
+
+    /// <summary>"Sair" (Ajustes): apaga os cookies do site no perfil e no cofre, o login guardado, e volta à página inicial.</summary>
+    public async Task SairAsync(Modulo m)
+    {
+        CofreSites.Sair(Raiz, m);
+        try
+        {
+            CoreWebView2? core = navegadores.TryGetValue(m, out var w) ? w.CoreWebView2 : null;
+            if (core is null && navegadores.Count > 0) core = navegadores.Values.First().CoreWebView2;
+            if (core is null) return;
+            var host = Host(m);
+            foreach (var c in await core.CookieManager.GetCookiesAsync(null))
+                if (CofreSites.DoSite(c.Domain, host)) core.CookieManager.DeleteCookie(c);
+            if (navegadores.TryGetValue(m, out var web) && web.CoreWebView2 is { } dele) dele.Navigate(Modulos.Endereco(m));
+        }
+        catch (Exception e) { RegistroErros.Gravar("sites.sair", e); }
+    }
+
+    /// <summary>Situação para Ajustes: "Conectado (lembrado)", "Saiu" ou "Ainda não entrou".</summary>
+    public static string Situacao(Modulo m) =>
+        CofreSites.Saiu(Raiz, m) ? "Saiu: entre de novo pelo site" :
+        CofreSites.LerCookies(Raiz, m).Count > 0 ? "Login lembrado neste computador" + (CofreSites.TemLogin(Raiz, m) ? " · entra sozinho se o site pedir" : "") :
+        CofreSites.TemLogin(Raiz, m) ? "Entra sozinho com o login guardado" : "Ainda não entrou por aqui";
 
     public void Voltar() { if (Atual is { CanGoBack: true } c) c.GoBack(); }
     public void Avancar() { if (Atual is { CanGoForward: true } c) c.GoForward(); }

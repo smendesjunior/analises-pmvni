@@ -2,6 +2,18 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.6.0
+
+- **Sites da Prefeitura (Essencial, GPI, Alfresco): login que não expira.** Entre uma vez pelo site e o app lembra o acesso até você clicar em **Sair** (Ajustes › Fontes de dados › Sites da Prefeitura). O app mantém a sessão ativa enquanto está aberto e, se você guardar usuário e senha (protegidos pelo Windows), entra sozinho quando o site pedir login de novo.
+- **Imóveis: Gerar boletim cadastral.** Ao lado de "Abrir relatório", cada linha tem o botão que gera o Boletim de Cadastro Imobiliário oficial do GPI direto em PDF, sem abrir o site: o app usa o GPI escondido, com o seu login, pesquisa a inscrição municipal (Igual), confere a ficha em Consulta e recebe o PDF do próprio GPI. O arquivo vai para a pasta **DOCUMENTOS do processo do imóvel** como "BCI - CONTRIBUINTE - inscrição.pdf" e abre numa janela com salvar e imprimir; o aviso traz **Abrir PDF** e **Abrir pasta**.
+  - **Processo do imóvel achado sozinho:** pela inscrição da consulta QGIS da análise (ou o mesmo lote), pelo requerente da pasta e pela inscrição ou pelo nome nos PDFs de DOCUMENTOS e PROJETO (escritura, matrícula, projeto). Empate: você escolhe. Sem processo: o app avisa para criar a pasta do processo e não gera.
+- **"Trabalhando":** o mesmo brilho arco-íris do WinStatusBar aparece no contorno de tudo o que está processando (IA, leituras, pesquisas, o boletim), até o resultado.
+  - **Resiste às atualizações do GPI:** usa só o que aparece na tela do GPI, nunca as chamadas internas do site. Se algo mudar, o aviso diz em que passo parou e oferece **Abrir no GPI**; em Ajustes › Fontes de dados, **Testar o boletim** confere o fluxo inteiro com uma inscrição.
+- **Chave de API do Claude liberada.** "Usar chave de API" vale para a Claude API na revisão, nos ajustes e nos resumos (Modelos de IA). O análise pro do kit continua pela conta do Claude.
+- **Correção:** trocar a "IA da revisão e dos ajustes" fechava o app.
+- **Relatório:** o zoom inicial e o "Ajustar largura" não cortam mais a folha (descontam a margem das etiquetas e se refazem ao redimensionar a janela); a lista de seções começa mais estreita.
+- **Lista de seções:** cada item mostra embaixo do título a etiqueta da situação no mesmo visual do relatório ("● NÃO ATENDE"), "RESULTADO ORIGINAL ALTERADO" quando o item foi mudado e a folha como "FOLHA 01". Só a etiqueta usa as cores da situação; o resto segue as cores do tema.
+
 ## 0.5.1
 
 - **Imóveis:**

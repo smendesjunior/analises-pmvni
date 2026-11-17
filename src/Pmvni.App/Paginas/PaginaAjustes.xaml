@@ -270,6 +270,10 @@
                 <InfoBar x:Name="ResultadoQgis" x:FieldModifier="internal" IsClosable="True" IsOpen="False"/>
               </StackPanel>
             </StackPanel></Border>
+            <!-- Sites da Prefeitura (2026-11-17): login persistente até "Sair"; linhas montadas em MainWindow.Sites.cs. -->
+            <TextBlock Text="Sites da Prefeitura" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
+            <TextBlock Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap" Text="Entre uma vez pelo próprio site (Essencial, GPI, Alfresco): o app guarda o acesso, protegido pelo Windows só para este usuário, e o mantém ativo até você clicar em Sair. Para o caso de o servidor encerrar a sessão por conta própria, guarde também o usuário e a senha: o app entra sozinho quando o site pedir."/>
+            <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel x:Name="PainelSites" x:FieldModifier="internal"/></Border>
             <!-- Acompanhamento de processos (2026-11-17): a planilha padrão que o módulo mostra e atualiza. -->
             <TextBlock Text="Acompanhamento de processos" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>

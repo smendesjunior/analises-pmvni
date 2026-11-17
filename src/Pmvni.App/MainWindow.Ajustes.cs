@@ -129,6 +129,7 @@ public sealed partial class MainWindow
         AoAlternar(p.AlternarDetectarAcompanhamento, sim => ajustes.AcompanhamentoDetectar = sim);
         AoEscolher(p.CaixaEscopo, v => ajustes.LegislacaoEscopo = (string)v);
         IniciarModelosIa();
+        IniciarSites();
         // Grava ao digitar também (antes só ao sair da caixa, e o texto se perdia se a janela fechasse com o cursor nela).
         p.CaixaPedidoPadrao.TextChanged += (_, _) =>
         {

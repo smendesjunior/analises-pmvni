@@ -18,7 +18,7 @@ public static class TextosAgentes
     public const string Testando = "Testando…";
 
     /// <summary>Por que "Usar chave de API" fica desabilitado para o Claude enquanto o <c>pro_runtime.py</c> instalado proibir a API paga.</summary>
-    public const string ClaudeSoConta = "O análise pro do kit usa somente a conta do Claude (política do kit de 14/11/2026).";
+    public const string ClaudeSoConta = "A chave vale para a Claude API (revisão, ajustes e resumos em Modelos de IA). O análise pro do kit continua pela conta do Claude (política do kit de 14/11/2026).";
 
     public static string Titulo(Provedor p) => p == Provedor.ChatGpt ? "ChatGPT (Codex · plugin analise)" : "Claude (Claude Code · plugin análise pro)";
 

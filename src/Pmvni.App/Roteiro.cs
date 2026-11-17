@@ -2623,12 +2623,13 @@ internal static class Roteiro
             p["testar"] = testouChatGpt && testouClaude;
             var consultouSozinho = situacaoSozinha == LinhaChatGpt;
 
-            // (d) Claude + chave de API: desabilitado, com a dica exata; pedir mesmo assim é recusado e nada muda.
-            const string Dica = "O análise pro do kit usa somente a conta do Claude (política do kit de 14/11/2026).";
+            // (d) Claude + chave de API (2026-11-17): habilitado, com a dica de que o análise pro segue pela conta; o modo muda e volta.
             await j.DefinirModoAsync(Provedor.Claude, ModoAcesso.Chave);
-            var claudeSoConta = !claude.OpcaoChave.IsEnabled && Microsoft.UI.Xaml.Controls.ToolTipService.GetToolTip(claude.OpcaoChave) as string == Dica && claude.TextoDicaChave.Text == Dica
-                && j.ModoDoAgente(Provedor.Claude) == ModoAcesso.Conta && j.MensagemDoAgente(Provedor.Claude) == Dica && claude.OpcaoConta.IsChecked == true
+            var claudeSoConta = claude.OpcaoChave.IsEnabled && claude.TextoDicaChave.Text == TextosAgentes.ClaudeSoConta
+                && j.ModoDoAgente(Provedor.Claude) == ModoAcesso.Chave && j.MensagemDoAgente(Provedor.Claude) is null && claude.OpcaoChave.IsChecked == true
                 && chatgpt.OpcaoChave.IsEnabled;
+            await j.DefinirModoAsync(Provedor.Claude, ModoAcesso.Conta);
+            claudeSoConta &= j.ModoDoAgente(Provedor.Claude) == ModoAcesso.Conta;
             p["claude_so_conta"] = claudeSoConta;
 
             // (e) Programa que não existe (ou que não é .exe): mensagem exata e o programa não muda.

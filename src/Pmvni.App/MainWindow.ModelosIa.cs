@@ -89,7 +89,9 @@ public sealed partial class MainWindow
             if (montandoModelosIa || p.CaixaIaFonte.SelectedItem is not ComboBoxItem { Tag: string v } || v == ajustes.IaRevisaoFonte) return;
             ajustes.IaRevisaoFonte = v;
             SalvarAjustes();
-            MostrarModelosIa();
+            // 2026-11-17: remontar a própria caixa dentro do SelectionChanged (com a lista ainda fechando) derrubava o app no WinUI
+            // (COMException 0x80070490). Remonta depois, na fila da janela; a caixa da fonte só é refeita se as opções mudaram.
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, MostrarModelosIa);
         };
         p.BotaoAtualizarModelosIa.Click += async (_, _) => await AtualizarModelosIaAsync();
         // Ao abrir a página de IA: depois de ler as peças, mostra as fontes e, na primeira vez, lê as listas das que ainda não foram lidas.
@@ -141,15 +143,21 @@ public sealed partial class MainWindow
         try
         {
             // A caixa da fonte: "Escolha por mim" e as disponíveis; a escolhida fica mesmo se sumiu (marcada como indisponível).
-            p.CaixaIaFonte.Items.Clear();
-            p.CaixaIaFonte.Items.Add(new ComboBoxItem { Content = "Escolha por mim", Tag = EscolhaIa.Automatico });
+            var opcoes = new List<(string Texto, string Tag)> { ("Escolha por mim", EscolhaIa.Automatico) };
             foreach (var f in FontesIa.Todas)
             {
                 var valor = FontesIa.Valor(f);
-                if (FonteDisponivel(f)) p.CaixaIaFonte.Items.Add(new ComboBoxItem { Content = FontesIa.Nome(f), Tag = valor });
-                else if (valor == ajustes.IaRevisaoFonte) p.CaixaIaFonte.Items.Add(new ComboBoxItem { Content = FontesIa.Nome(f) + " (indisponível)", Tag = valor });
+                if (FonteDisponivel(f)) opcoes.Add((FontesIa.Nome(f), valor));
+                else if (valor == ajustes.IaRevisaoFonte) opcoes.Add((FontesIa.Nome(f) + " (indisponível)", valor));
             }
-            p.CaixaIaFonte.SelectedItem = p.CaixaIaFonte.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == ajustes.IaRevisaoFonte) ?? p.CaixaIaFonte.Items[0];
+            var atuais = p.CaixaIaFonte.Items.OfType<ComboBoxItem>().Select(i => ((i.Content as string) ?? "", (string)i.Tag)).ToList();
+            if (!atuais.SequenceEqual(opcoes))
+            {
+                p.CaixaIaFonte.Items.Clear();
+                foreach (var (texto, tag) in opcoes) p.CaixaIaFonte.Items.Add(new ComboBoxItem { Content = texto, Tag = tag });
+            }
+            var alvo = p.CaixaIaFonte.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == ajustes.IaRevisaoFonte) ?? p.CaixaIaFonte.Items[0];
+            if (!ReferenceEquals(p.CaixaIaFonte.SelectedItem, alvo)) p.CaixaIaFonte.SelectedItem = alvo;
 
             var (usada, substituida) = EscolhaIa.Resolver(ajustes.IaRevisaoFonte, FonteDisponivel);
             p.TextoFonteIa.Text = usada is null
