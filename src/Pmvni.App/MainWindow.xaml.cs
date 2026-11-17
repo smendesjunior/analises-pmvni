@@ -395,6 +395,34 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                     }
                 }
                 catch (Exception e) { RegistroErros.Gravar("captura", e); }
+                // Um relatório de teste (PMVNI_CAPTURA_DADOS = um dados.json) com o painel de Propriedades de um item e de um ambiente.
+                try
+                {
+                    if (Environment.GetEnvironmentVariable("PMVNI_CAPTURA_DADOS") is { Length: > 0 } dadosCaptura && File.Exists(dadosCaptura))
+                    {
+                        await MudarModuloAsync(Modulo.Relatorios);
+                        var pacoteCaptura = Path.Combine(pastaCaptura, "exemplo.rpmvni");
+                        if (File.Exists(pacoteCaptura)) File.Delete(pacoteCaptura);
+                        if (await ImportarParaAsync(dadosCaptura, pacoteCaptura) && sessao is { } sc)
+                        {
+                            await Task.Delay(1500);
+                            var p = sc.Revisao.Projeto;
+                            if (itensNavegacao.FirstOrDefault(i => !i.Secao && i.Ref is not null && p.Item(i.Ref) is not null)?.Ref is { } item)
+                            {
+                                await SelecionarAsync(item);
+                                await Task.Delay(1200);
+                                await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "propriedades-item.png"));
+                            }
+                            if (TabelasRevisao.Ids(p).FirstOrDefault(i => i.Contains("ambiente", StringComparison.OrdinalIgnoreCase)) is { } amb)
+                            {
+                                await SelecionarAsync(amb);
+                                await Task.Delay(1200);
+                                await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "propriedades-ambiente.png"));
+                            }
+                        }
+                    }
+                }
+                catch (Exception e) { RegistroErros.Gravar("captura", e); }
                 Application.Current.Exit();
             }
             else if (args.AnexarLeis is { } pastaLeis && Directory.Exists(pastaLeis))
