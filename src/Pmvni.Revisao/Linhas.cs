@@ -525,7 +525,7 @@ internal static class MotorLinhas
     {
         if (TabelasRevisao.ProximaChamada(p) is not { } proxima) throw new ComandoRecusadoException("O relatório não tem o diagrama dos índices: não há onde pôr a chamada.");
         if (c.Item != proxima) throw new ComandoRecusadoException("A chamada nova tem de ser a " + TabelasRevisao.Rotulo(proxima) + ".");
-        if (!Pmvni.Composicao.Kit.Diagrama.PosPlanta.ContainsKey(c.Ancora) && !Pmvni.Composicao.Kit.Diagrama.PosVolume.ContainsKey(c.Ancora))
+        if (!Pmvni.Composicao.Kit.Diagrama.PosPlanta.ContainsKey(c.Ancora) && !Pmvni.Composicao.Kit.Diagrama.PosVolumeTodas.ContainsKey(c.Ancora))
             throw new ComandoRecusadoException("Âncora desconhecida para a chamada: " + c.Ancora + ".");
         if (!Situacoes.SitIndice.Contains(c.Situacao)) throw new ComandoRecusadoException("Situação inválida para a chamada: " + c.Situacao + ".");
         var modelo = new JsonObject

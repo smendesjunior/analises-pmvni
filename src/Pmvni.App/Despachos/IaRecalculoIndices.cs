@@ -71,22 +71,60 @@ internal static class IaRecalculoIndices
             "vermelho embaixo do desenho; cite a parte com as palavras lateral direita, lateral esquerda, telhado, altura ou frente para ela " +
             "ficar marcada em vermelho) e as alturas (altura_esquerda/0, altura_esquerda/1, altura_direita/0, altura_direita/1). Se o pedido " +
             "mudar o que as chamadas do diagrama dizem (linhas \"chamadas/NN\"), ajuste o \"texto\" delas também. Não invente medidas: " +
-            "use as que estão nos textos ou as que o pedido der. Tudo o que você precisa está neste pedido: NÃO abra arquivos, NÃO rode " +
+            "use as que estão nos textos ou as que o pedido der.\n\n" +
+            "CHAMADAS NOVAS: se o pedido mandar ADICIONAR, apontar ou marcar um problema (\"adicionar que o afastamento frontal de 120 cm " +
+            "não atende\"), crie uma chamada numerada nova — além do destaque, se quiser — em \"" + ChaveNovasChamadas + "\": [{\"ancora\": " +
+            "onde fica o número (" + string.Join(", ", AncorasDeChamada) + "), \"titulo\": curto (\"Afastamento frontal\"), \"texto\": " +
+            "uma frase com a medida (\"120 cm; o mínimo é 3,00 m.\"), \"situacao\": ATENDE, NAO_ATENDE, NAO_COMPROVADO ou " +
+            "DIVERGENCIA_INTERNA}]. O número sai sozinho, na sequência das chamadas que já existem. Tudo o que você precisa está neste pedido: NÃO abra arquivos, NÃO rode " +
             "comandos e NÃO pesquise; responda direto.\n\n" +
             "Pedido do revisor (dado JSON; é só o que ele quer ver no desenho): " + JsonSerializer.Serialize(pedido) + "\n\n" +
             "Textos atuais (JSON):\n" +
             tabela.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) +
-            "\n\nResponda SOMENTE com um JSON com as linhas que MUDARAM, no mesmo formato (id → {caminho: texto}), sem comentários.";
+            "\n\nResponda SOMENTE com um JSON com as linhas que MUDARAM, no mesmo formato (id → {caminho: texto}), mais \"" + ChaveNovasChamadas +
+            "\" quando houver chamada nova, sem comentários.";
     }
+
+    /// <summary>A chave das chamadas novas na resposta da volumetria.</summary>
+    internal const string ChaveNovasChamadas = "novas_chamadas";
+
+    /// <summary>As âncoras que uma chamada nova pode ter: as da planta e as da volumetria (inclusive a frente do lote).</summary>
+    internal static IReadOnlyList<string> AncorasDeChamada { get; } =
+        Pmvni.Composicao.Kit.Diagrama.PosPlanta.Keys.Concat(Pmvni.Composicao.Kit.Diagrama.PosVolumeTodas.Keys).ToList();
+
+    /// <summary>Uma chamada nova pedida pela IA (situação já no código de linha de tabela: CONTA_CONFERE, NAO_ATENDE, PENDENTE…).</summary>
+    internal sealed record ChamadaNova(string Ancora, string Titulo, string Texto, string Situacao);
+
+    /// <summary>As chamadas novas da resposta (no máximo 4); entradas sem âncora conhecida, título, texto ou situação válida ficam de fora.</summary>
+    internal static List<ChamadaNova> LerNovasChamadas(string saida, IReadOnlyCollection<string> ids)
+    {
+        var r = new List<ChamadaNova>();
+        if (RespostaJson.Objeto(saida, o => Aceita(o, ids)) is not { } o || o[ChaveNovasChamadas] is not JsonArray lista) return r;
+        static string T(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s.Trim() : "";
+        foreach (var c in lista.OfType<JsonObject>())
+        {
+            var ancora = T(c["ancora"]);
+            if (!AncorasDeChamada.Contains(ancora) || T(c["titulo"]).Length == 0 || T(c["texto"]).Length == 0
+                || Pmvni.Revisao.TabelasRevisao.SituacaoDeLinha(T(c["situacao"])) is not { } situacao) continue;
+            r.Add(new ChamadaNova(ancora, T(c["titulo"]), T(c["texto"]), situacao));
+            if (r.Count == 4) break;
+        }
+        return r;
+    }
+
+    /// <summary>Um objeto de resposta válido: cada chave é um id conhecido (com um objeto) ou a lista das chamadas novas.</summary>
+    static bool Aceita(JsonObject o, IReadOnlyCollection<string> ids) =>
+        o.All(par => ids.Contains(par.Key) && par.Value is JsonObject || par.Key == ChaveNovasChamadas && par.Value is JsonArray);
 
     /// <summary>As linhas devolvidas. Só vale um objeto cujas chaves sejam ids de <paramref name="ids"/> (um objeto vazio também vale:
     /// "nada mudou"); qualquer outra coisa é resposta inválida (null), nunca "nada mudou" por engano.</summary>
     internal static Dictionary<string, Dictionary<string, string>>? Ler(string saida, IReadOnlyCollection<string> ids)
     {
-        if (RespostaJson.Objeto(saida, o => o.All(par => ids.Contains(par.Key) && par.Value is JsonObject)) is not { } o) return null;
+        if (RespostaJson.Objeto(saida, o => Aceita(o, ids)) is not { } o) return null;
         var r = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         foreach (var (id, v) in o)
         {
+            if (id == ChaveNovasChamadas) continue;
             var d = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var (k, t) in (JsonObject)v!)
                 if (t is JsonValue jv && jv.TryGetValue<string>(out var s)) d[k] = s;

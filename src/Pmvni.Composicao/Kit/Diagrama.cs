@@ -16,6 +16,17 @@ public static class Diagrama
         ["telhado"] = (184, 76), ["altura"] = (274, 150),
     };
 
+    /// <summary>Âncoras da volumetria além das do kit (correções 2026-11-16): as chamadas que o usuário acrescenta na revisão podem marcar
+    /// também a frente do lote (o afastamento frontal, no chão diante da fachada). <see cref="PosVolume"/> continua igual ao kit.</summary>
+    public static IReadOnlyDictionary<string, (int X, int Y)> PosVolumeExtra { get; } = new Dictionary<string, (int X, int Y)>(StringComparer.Ordinal)
+    {
+        ["frente"] = (226, 228),
+    };
+
+    /// <summary>Todas as âncoras da volumetria: as do kit e as extras.</summary>
+    public static IReadOnlyDictionary<string, (int X, int Y)> PosVolumeTodas { get; } =
+        PosVolume.Concat(PosVolumeExtra).ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+
     private static string E(object? t) => Dados.E(t);
 
     private static string Mk(int x, int y, int n) =>
@@ -148,6 +159,7 @@ public static class Diagrama
         {
             ["telhado"] = (184, (int)Math.Round(76 - (H - 120) - (30 - cume))),
             ["altura"] = (274, (int)Math.Round(150 - (H - 120) / 2)),
+            ["frente"] = PosVolumeExtra["frente"],
         };
         var linhas = new[]
         {
@@ -194,7 +206,7 @@ public static class Diagrama
             $"""<text x="36" y="132" class="t7 b" text-anchor="end">{E(Elem(ae, 0))}</text><text x="36" y="143" class="t7" text-anchor="end">{Segundo(ae)}</text>""",
             """<line x1="274" y1="192" x2="274" y2="30" class="dim" marker-start="url(#ar2)" marker-end="url(#ar2)"/>""",
             $"""<text x="281" y="104" class="t7 b" text-anchor="start">{E(Elem(ad, 0))}</text><text x="281" y="115" class="t7" text-anchor="start">{Segundo(ad)}</text>""",
-            Marcadores(marcas, PosVolume),
+            Marcadores(marcas, PosVolumeTodas),
             "</svg>",
         };
         return string.Join("\n", linhas);
@@ -216,7 +228,7 @@ public static class Diagrama
             foreach (var par in Dados.Dict(item)) c[par.Key] = par.Value;
             c["numero"] = (long)n;
             if (a is string s && PosPlanta.ContainsKey(s)) { planta.Add((s, n)); cp.Add(c); }
-            else if (a is string s2 && PosVolume.ContainsKey(s2)) { volume.Add((s2, n)); cv.Add(c); }
+            else if (a is string s2 && PosVolumeTodas.ContainsKey(s2)) { volume.Add((s2, n)); cv.Add(c); }
             else
                 throw new MoldeErro("Âncora desconhecida no diagrama: " + PythonTexto.Repr(a) + " (use " +
                                     string.Join(", ", PosPlanta.Keys.Concat(PosVolume.Keys)) + ")");
