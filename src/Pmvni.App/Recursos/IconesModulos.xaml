@@ -37,6 +37,17 @@
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#C3E6CF"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#B2DDC1"/>
       <SolidColorBrush x:Key="PmvniTonalBorda" Color="#8FCDA6"/>
+      <!-- Botões de destaque (AccentButtonStyle) no mesmo formato do tonal da faixa (2026-11-17, "padronizar todos os botões que
+           brilham"): fundo verde suave, texto verde e borda fina verde-clara. -->
+      <SolidColorBrush x:Key="AccentButtonBackground" Color="#D4EEDD"/>
+      <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#C3E6CF"/>
+      <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#B2DDC1"/>
+      <SolidColorBrush x:Key="AccentButtonForeground" Color="#0F5132"/>
+      <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#0F5132"/>
+      <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#0F5132"/>
+      <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="#8FCDA6"/>
+      <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="#8FCDA6"/>
+      <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="#8FCDA6"/>
       <!-- Brilho dos botões coloridos (Controles\Brilho.cs): o verde institucional (SystemAccentColor no claro, Light2 no escuro). -->
       <SolidColorBrush x:Key="PmvniBrilho" Color="#1E7A46"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="#DCE6FB"/>
@@ -125,6 +136,17 @@
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#275E3F"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#2F6E4B"/>
       <SolidColorBrush x:Key="PmvniTonalBorda" Color="#3F8A61"/>
+      <!-- Botões de destaque (AccentButtonStyle) no mesmo formato do tonal da faixa (2026-11-17, "padronizar todos os botões que
+           brilham"): fundo verde suave, texto verde e borda fina verde-clara. -->
+      <SolidColorBrush x:Key="AccentButtonBackground" Color="#1F4D33"/>
+      <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#275E3F"/>
+      <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#2F6E4B"/>
+      <SolidColorBrush x:Key="AccentButtonForeground" Color="#CFEBD9"/>
+      <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#CFEBD9"/>
+      <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#CFEBD9"/>
+      <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="#3F8A61"/>
+      <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="#3F8A61"/>
+      <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="#3F8A61"/>
       <SolidColorBrush x:Key="PmvniBrilho" Color="#5CB983"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="#28326E"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalTexto" Color="#DCE3FF"/>
