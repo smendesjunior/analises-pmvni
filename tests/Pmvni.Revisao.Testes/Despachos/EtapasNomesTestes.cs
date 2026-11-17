@@ -66,14 +66,20 @@ public sealed class EtapasNomesTestes
         Assert.Equal("DESPACHO 03 - 2099-03-10", s.Nome);
         Assert.True(s.Nova);
 
-        var tres = Path.Combine(a.Processo.Pasta, "DESPACHO 03 - 2099-03-01");
-        Directory.CreateDirectory(tres);
-        File.WriteAllText(Path.Combine(tres, "relatorio.pdf"), "x");
-        s = Etapas.Sugerida(a.Processo.Pasta, Hoje);
-        Assert.Equal(new EtapaDespacho(tres, "DESPACHO 03 - 2099-03-01", 3, new DateOnly(2099, 3, 1), false), s);
-
-        File.WriteAllText(Path.Combine(tres, "despacho_correcao_x.docx"), "x");
+        // Pasta sem despacho mas de outro dia: o despacho de hoje vai para uma nova, com a data de hoje (2026-11-17).
+        var antiga = Path.Combine(a.Processo.Pasta, "DESPACHO 03 - 2099-03-01");
+        Directory.CreateDirectory(antiga);
         Assert.Equal("DESPACHO 04 - 2099-03-10", Etapas.Sugerida(a.Processo.Pasta, Hoje).Nome);
+
+        // Pasta de hoje ainda sem despacho: reutilizada.
+        var hoje = Path.Combine(a.Processo.Pasta, "DESPACHO 04 - 2099-03-10");
+        Directory.CreateDirectory(hoje);
+        File.WriteAllText(Path.Combine(hoje, "relatorio.pdf"), "x");
+        s = Etapas.Sugerida(a.Processo.Pasta, Hoje);
+        Assert.Equal(new EtapaDespacho(hoje, "DESPACHO 04 - 2099-03-10", 4, Hoje, false), s);
+
+        File.WriteAllText(Path.Combine(hoje, "despacho_correcao_x.docx"), "x");
+        Assert.Equal("DESPACHO 05 - 2099-03-10", Etapas.Sugerida(a.Processo.Pasta, Hoje).Nome);
     }
 
     [Fact]

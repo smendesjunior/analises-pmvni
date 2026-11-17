@@ -28,7 +28,17 @@ public sealed class FluxoNovoDespachoTestes
         var s = FluxoNovoDespacho.Sugerir(Modulo.Relatorios, null, pacote, Lista(a), Relatorios, Hoje);
         Assert.Equal(processo.Pasta, s.Processo?.Pasta);
         Assert.Equal(pacote, s.Pacote);
-        Assert.Equal(etapa, s.Etapa?.Pasta);
+        // 2026-11-17: a pasta da análise é de outro dia, então o despacho de hoje vai para uma pasta nova, com a data de hoje.
+        Assert.Equal("DESPACHO 08 - 2099-03-10", s.Etapa?.Nome);
+        Assert.True(s.Etapa!.Nova);
+
+        // Análise feita hoje: o despacho reutiliza a pasta dela.
+        var deHoje = Path.Combine(processo.Pasta, "DESPACHO 08 - 2099-03-10");
+        Directory.CreateDirectory(deHoje);
+        var pacoteHoje = Path.Combine(deHoje, "Relatorio_0001_2099.rpmvni");
+        File.Copy(a.CaminhoPacote, pacoteHoje);
+        s = FluxoNovoDespacho.Sugerir(Modulo.Relatorios, null, pacoteHoje, Lista(a), Relatorios, Hoje);
+        Assert.Equal(deHoje, s.Etapa?.Pasta);
         Assert.False(s.Etapa!.Nova);
     }
 

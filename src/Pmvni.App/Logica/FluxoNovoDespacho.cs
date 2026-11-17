@@ -97,7 +97,8 @@ public static class FluxoNovoDespacho
         {
             var pastaDoPacote = Normalizar(Path.GetDirectoryName(Path.GetFullPath(pacote)));
             var daAnalise = Etapas.Existentes(p.Pasta).FirstOrDefault(e => string.Equals(Normalizar(e.Pasta), pastaDoPacote, StringComparison.OrdinalIgnoreCase));
-            if (daAnalise is not null) return daAnalise;
+            // Só se a pasta é de hoje (2026-11-17): o despacho emitido hoje vai para a pasta de hoje, não para a de uma análise antiga.
+            if (daAnalise is not null && daAnalise.Data == hoje) return daAnalise;
         }
         return Etapas.Sugerida(p.Pasta, hoje);
     }

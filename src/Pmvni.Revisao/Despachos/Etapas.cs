@@ -52,10 +52,10 @@ public static class Etapas
         return lista.OrderByDescending(e => e.Numero).ThenBy(e => e.Nome, StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>A existente de maior número que ainda não tem despacho (nenhum <c>.docx</c>/<c>.pdf</c> que comece por <c>Despacho_</c>, sem
+    /// <summary>A existente de hoje (2026-11-17: o despacho vai sempre para a pasta da data dele) de maior número que ainda não tem despacho (nenhum <c>.docx</c>/<c>.pdf</c> que comece por <c>Despacho_</c>, sem
     /// caixa); se não houver, a <see cref="Nova"/>.</summary>
     public static EtapaDespacho Sugerida(string pastaProcesso, DateOnly hoje) =>
-        Existentes(pastaProcesso).FirstOrDefault(e => !TemDespacho(e.Pasta)) ?? Nova(pastaProcesso, hoje);
+        Existentes(pastaProcesso).FirstOrDefault(e => e.Data == hoje && !TemDespacho(e.Pasta)) ?? Nova(pastaProcesso, hoje);
 
     static bool TemDespacho(string pasta)
     {
