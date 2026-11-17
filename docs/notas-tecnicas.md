@@ -458,3 +458,39 @@ Núcleo (`Pmvni.Legislacao`, `Pmvni.Composicao.Web\Legislacao`, `web\paginador\s
   o rascunho em branco para escrever à mão); relatório que não serve (os bloqueios de sempre, entre eles "Nenhum item incluído tem
   situação diferente de ATENDE…"); item pendente sem providência escrita (fica no passo 2 com a lista do que falta).
 - Não conferido na tela pelo construtor (a lógica está em `FluxoNovoDespachoTestes`; o caminho na janela fica para o roteiro).
+
+## Assinatura digital do PDF do despacho (16/11/2026)
+
+- **Bibliotecas (só licença permissiva, dentro do executável único):** PDFsharp **6.2.4** (MIT; versão fixa `[6.2.4]`: a 6.5.0, a mais
+  nova no NuGet, passou para **AGPL-3.0** — conferido no `.nuspec`; não atualizar sem conferir), `System.Security.Cryptography.Pkcs`
+  10.0.15 (MIT, a assinatura CMS), PdfPig 0.1.16 (Apache-2.0, acha a linha de assinatura no PDF) e
+  `System.Security.Cryptography.ProtectedData` 10.0.14 (DPAPI, a mesma do `Pmvni.Agentes`). iText não é usado. `dotnet publish` do
+  `Pmvni.App` (arquivo único, sem trimming) conferido: as DLLs novas estão no bundle; executável de 98,3 MB.
+- **Assinatura:** `AssinaturaPdf.Assinar` — PKCS#7 destacada (`/Adobe.PPKLite`, `/adbe.pkcs7.detached`), SHA-256, certificado do titular
+  e o resto da cadeia que veio no `.pfx` (nada é buscado na internet), atributos assinados `signing-time` e `signing-certificate-v2`
+  (RFC 5035). O `/ByteRange` cobre o arquivo inteiro menos o `/Contents`. O espaço reservado é calculado sem assinar duas vezes (um token
+  pediria o PIN duas vezes). Sem carimbo de tempo (TSA): a hora é a do computador. Validação no Adobe Reader e no validar.iti.gov.br
+  **não conferida pelo construtor** (exige certificado real ICP-Brasil; os testes usam um autoassinado).
+- **Aparência (posição, tamanho e formato fixos):** o campo fica imediatamente acima da linha de assinatura (a última sequência de ≥ 10
+  traços "_" do PDF, achada pelo PdfPig), com a largura dela (≈ 244 pt no modelo do kit), altura = 0,23 × largura, base 1,5 pt acima do
+  traço, na página em que a linha cair. À esquerda (48,7 % da largura), a logomarca recortada da faixa do cabeçalho do próprio DOCX
+  (recorte medido na imagem do kit: colunas 0,380–0,632, linhas 0,31–1); à direita, em Arial (embutida), "Assinado de forma digital por
+  NOME:CPF" e "Dados: AAAA.MM.DD HH:MM:SS -03'00'", no maior tamanho até 9,5 pt que cabe. O PDFsharp entrega ao desenho da aparência o
+  retângulo na página; o desenho é feito na caixa da própria aparência (origem 0,0) — sem isso o conteúdo saía fora dela (achado no teste).
+- **Emissão:** `EmissaoDespacho.Preparar(..., IAssinadorPdf?, ...)` e `PrepararPdf(...)`: o PDF convertido é assinado antes da
+  conferência; o conferido e gravado é o assinado. Falha da assinatura ⇒ `Preparacao.Erros` (nada pode ser gravado). O recibo ganha
+  `pdf.assinatura_digital` (`assinado_em`, `certificado_sha1`, `certificado_valido_ate`, `pagina`); o titular fica só no PDF, a senha em
+  lugar nenhum. Sem certificado configurado, tudo como antes, e a conferência mostra "Sem assinatura digital (…)".
+- **Ajustes › Despachos e PDF › Assinatura digital:** "Escolher arquivo…" (.pfx/.p12), "Certificado do Windows…" (repositório pessoal:
+  token, cartão ou instalado; o PIN é pedido pelo driver ao assinar), "Conferir" (pede a senha, mostra titular, validade e emissor; nada é
+  assinado), "Remover" e "Lembrar a senha neste computador" (padrão desligado: a senha é pedida a cada assinatura numa `PasswordBox`).
+  Lembrada, vai para `<dados>\segredos\assinatura.dpapi` (`CofreSenhaCertificado`, DPAPI CurrentUser, com a identidade do certificado na
+  entropia: trocar de certificado invalida a senha guardada; senha guardada que não abre mais o arquivo é apagada e pedida de novo). O
+  `ajustes.json` guarda só a origem, o caminho/impressão digital e o booleano.
+- **Senha errada:** "A senha do certificado não confere. Nada foi assinado nem gravado." — o certificado é aberto antes de gerar; com a
+  senha errada ou cancelada, o DOCX nem é preparado. A exceção não carrega a original (nada do arquivo nem da senha vai para registro).
+- **Testes** (`AssinaturaDigitalTestes`, `AjustesAssinaturaTestes`): certificado autoassinado RSA 2048 gerado no teste, titular fictício.
+  A data nos testes é 2031 (o `signing-time` é UTCTime, que só vai até 2049). Com `PMVNI_TESTES_LIBREOFFICE=1`, confere no PDF do
+  LibreOffice (correções de 2, 4 e 60 exigências e aprovação) que a aparência fica na última página, entre a data e a linha, sem cobrir
+  texto, e que a assinatura confere.
+- **Não feito:** carimbo de tempo (TSA) e LTV (PAdES-LTA); conferência na tela do app (o construtor não abre o app).

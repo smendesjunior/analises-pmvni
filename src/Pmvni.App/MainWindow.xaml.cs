@@ -179,6 +179,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         IniciarImoveis();
         IniciarPastas();
         IniciarNovoDespacho();
+        IniciarAssinatura();
         IniciarAgentes();
         IniciarNovoRelatorio();
         Faixa.ComandoInvocado += async id => await ExecutarComandoAsync(id);

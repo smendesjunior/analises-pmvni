@@ -306,6 +306,10 @@ public sealed partial class MainWindow
                 "Restaurar", "Cancelar")) return false;
         var tinhaSoffice = ajustes.Soffice is not null;
         ajustes.RestaurarPadrao();
+        // A assinatura volta a "nenhuma": a senha lembrada do certificado sai do cofre junto.
+        CofreSenhaCertificado.Remover(PastaDados.Raiz);
+        certificadoConferido = null;
+        MostrarAssinaturaNosAjustes();
         SalvarAjustes();
         AplicarTemaDosAjustes();
         ReiniciarAutosave();

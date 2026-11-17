@@ -184,19 +184,20 @@ internal sealed class SessaoNovoDespacho
 
     /// <summary>Passo 3: congela o rascunho e prepara DOCX, validação e PDF numa pasta de trabalho nova. Cancelado (<see cref="Interromper"/>):
     /// a pasta de trabalho é apagada e a <see cref="OperationCanceledException"/> segue.</summary>
-    public async Task<Preparacao> PrepararAsync(IConversorPdf conv)
+    /// <param name="assinador">Com ele (certificado configurado em Ajustes), o PDF sai assinado digitalmente; null = como sempre.</param>
+    public async Task<Preparacao> PrepararAsync(IConversorPdf conv, IAssinadorPdf? assinador = null)
     {
         if (Rascunho is null || Textos is null || Modelo is null) throw new InvalidOperationException("O rascunho do despacho não está pronto.");
         var f = Rascunho.Congelar(Textos);
         var modelo = Modelo;
-        return await PrepararNaPastaAsync((pasta, ct) => EmissaoDespacho.Preparar(f, modelo, pasta, conv, ct), f);
+        return await PrepararNaPastaAsync((pasta, ct) => EmissaoDespacho.Preparar(f, modelo, pasta, conv, assinador, ct), f);
     }
 
-    /// <summary>Gerar PDF: converte uma cópia do DOCX gravado (que tem de conferir com o recibo).</summary>
-    public Task<Preparacao> PrepararPdfAsync(IConversorPdf conv)
+    /// <summary>Gerar PDF: converte uma cópia do DOCX gravado (que tem de conferir com o recibo), assinada como no Novo despacho.</summary>
+    public Task<Preparacao> PrepararPdfAsync(IConversorPdf conv, IAssinadorPdf? assinador = null)
     {
         var docx = DocxGravado ?? throw new InvalidOperationException("Não é um Gerar PDF.");
-        return PrepararNaPastaAsync((pasta, ct) => EmissaoDespacho.PrepararPdf(docx, pasta, conv, ct), null);
+        return PrepararNaPastaAsync((pasta, ct) => EmissaoDespacho.PrepararPdf(docx, pasta, conv, assinador, ct), null);
     }
 
     async Task<Preparacao> PrepararNaPastaAsync(Func<string, CancellationToken, Preparacao> preparar, DespachoFinal? f)

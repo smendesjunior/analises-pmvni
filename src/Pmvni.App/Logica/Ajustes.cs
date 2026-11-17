@@ -121,6 +121,46 @@ public sealed class Ajustes
     /// <summary>O soffice do LibreOffice escolhido em Ajustes; null = o editor acha sozinho.</summary>
     public string? Soffice { get; set; }
     public bool DespachoAbrirPdf { get; set; }
+
+    /// <summary>De onde vem o certificado da assinatura digital dos despachos (Ajustes › Despachos e PDF › Assinatura digital, 2026-11-16):
+    /// <c>nenhuma</c> (padrão: o PDF sai sem assinatura), <c>arquivo</c> (.pfx/.p12, em <see cref="AssinaturaArquivo"/>) ou <c>windows</c>
+    /// (repositório do Windows, token ou cartão; em <see cref="AssinaturaImpressaoDigital"/>). Nenhuma senha fica aqui: a que o usuário
+    /// pede para lembrar vai, cifrada, para o <c>CofreSenhaCertificado</c>.</summary>
+    public string AssinaturaOrigem { get; set; } = "nenhuma";
+    public static readonly IReadOnlyList<string> OpcoesAssinaturaOrigem = ["nenhuma", "arquivo", "windows"];
+    /// <summary>O arquivo do certificado (.pfx ou .p12); só vale com <see cref="AssinaturaOrigem"/> = <c>arquivo</c>.</summary>
+    public string? AssinaturaArquivo { get; set; }
+    /// <summary>A impressão digital (SHA-1) do certificado do repositório do Windows; só vale com <c>windows</c>.</summary>
+    public string? AssinaturaImpressaoDigital { get; set; }
+    /// <summary>Guardar a senha do arquivo, cifrada (DPAPI), para não pedi-la a cada assinatura. Padrão: pedir sempre.</summary>
+    public bool AssinaturaLembrarSenha { get; set; }
+
+    /// <summary>Há um certificado escolhido: os despachos saem assinados.</summary>
+    public bool AssinaturaConfigurada => AssinaturaOrigem switch
+    {
+        "arquivo" => !string.IsNullOrWhiteSpace(AssinaturaArquivo),
+        "windows" => !string.IsNullOrWhiteSpace(AssinaturaImpressaoDigital),
+        _ => false,
+    };
+
+    /// <summary>O que identifica o certificado escolhido (o caminho do arquivo ou a impressão digital): a senha lembrada vale só para ele.</summary>
+    public string AssinaturaIdentidade => AssinaturaOrigem switch
+    {
+        "arquivo" => AssinaturaArquivo ?? "",
+        "windows" => AssinaturaImpressaoDigital ?? "",
+        _ => "",
+    };
+
+    /// <summary>Escolhe o certificado (ou nenhum, com <paramref name="origem"/> = <c>nenhuma</c>); os campos da outra origem são limpos.</summary>
+    public void DefinirAssinatura(string origem, string? valor)
+    {
+        if (!OpcoesAssinaturaOrigem.Contains(origem)) throw new ArgumentOutOfRangeException(nameof(origem), origem, "Origem do certificado desconhecida.");
+        var limpo = string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+        AssinaturaOrigem = limpo is null ? "nenhuma" : origem;
+        AssinaturaArquivo = AssinaturaOrigem == "arquivo" ? limpo : null;
+        AssinaturaImpressaoDigital = AssinaturaOrigem == "windows" ? CertificadoDigital.Limpar(limpo!) : null;
+        if (AssinaturaOrigem != "arquivo") AssinaturaLembrarSenha = false;
+    }
     /// <summary>Alvo da pesquisa ao abrir uma lei: <c>lei</c> (Nesta lei) ou <c>todas</c>.</summary>
     public string LegislacaoEscopo { get; set; } = "lei";
     string pedidoPadrao = "";
@@ -170,6 +210,7 @@ public sealed class Ajustes
         DespachosOrdem = p.DespachosOrdem;
         Soffice = null;
         DespachoAbrirPdf = p.DespachoAbrirPdf;
+        DefinirAssinatura("nenhuma", null);
         LegislacaoEscopo = p.LegislacaoEscopo;
         PedidoPadrao = "";
         ConfirmarCancelar = p.ConfirmarCancelar;
@@ -310,6 +351,11 @@ public sealed class Ajustes
             ["despachos_ordem"] = DespachosOrdem,
             ["soffice"] = Soffice,
             ["despacho_abrir_pdf"] = DespachoAbrirPdf,
+            // Assinatura digital: só de onde vem o certificado. A senha nunca vem para este arquivo.
+            ["assinatura_origem"] = AssinaturaOrigem,
+            ["assinatura_arquivo"] = AssinaturaArquivo,
+            ["assinatura_certificado_sha1"] = AssinaturaImpressaoDigital,
+            ["assinatura_lembrar_senha"] = AssinaturaLembrarSenha,
             ["legislacao_escopo"] = LegislacaoEscopo,
             ["pedido_padrao"] = PedidoPadrao,
             ["confirmar_cancelar"] = ConfirmarCancelar,
@@ -351,6 +397,9 @@ public sealed class Ajustes
         a.DespachosOrdem = Escolha("despachos_ordem", OpcoesDespachosOrdem, a.DespachosOrdem);
         a.Soffice = Texto(j, "soffice") is { } so && !string.IsNullOrWhiteSpace(so) ? so : null;
         a.DespachoAbrirPdf = Logico(j, "despacho_abrir_pdf", a.DespachoAbrirPdf);
+        var origem = Escolha("assinatura_origem", OpcoesAssinaturaOrigem, "nenhuma");
+        a.DefinirAssinatura(origem, origem == "arquivo" ? Texto(j, "assinatura_arquivo") : origem == "windows" ? Texto(j, "assinatura_certificado_sha1") : null);
+        a.AssinaturaLembrarSenha = a.AssinaturaOrigem == "arquivo" && Logico(j, "assinatura_lembrar_senha", false);
         a.LegislacaoEscopo = Escolha("legislacao_escopo", OpcoesLegislacaoEscopo, a.LegislacaoEscopo);
         a.PedidoPadrao = Texto(j, "pedido_padrao") ?? "";
         a.ConfirmarCancelar = Logico(j, "confirmar_cancelar", a.ConfirmarCancelar);

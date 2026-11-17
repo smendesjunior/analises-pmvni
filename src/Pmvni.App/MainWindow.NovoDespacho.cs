@@ -770,8 +770,14 @@ public sealed partial class MainWindow
         if (novo is not { Passo: PassoNovoDespacho.Conteudo, Rascunho: { } r } s || !FluxoNovoDespacho.PodeGerar(r)) return;
         N.AvisoMensagem.IsOpen = false;
         N.LimparConferencia();
-        N.MostrarEspera("Gerando o DOCX e o PDF do despacho…", interromper: true);
-        try { await s.PrepararAsync(Conversor); }
+        // Assinatura digital (2026-11-16): com certificado configurado, a senha é pedida (ou lida do cofre) ANTES de gerar; cancelada ou
+        // errada, nada é gerado nem gravado. Sem certificado, o despacho sai como sempre.
+        var (certificado, desistir) = await PrepararAssinaturaAsync();
+        if (desistir || !ReferenceEquals(novo, s)) { certificado?.Dispose(); return; }
+        using var _ = certificado;
+        var assinador = certificado is null ? null : new AssinadorComCertificado(certificado, AgoraDaAssinatura);
+        N.MostrarEspera(certificado is null ? "Gerando o DOCX e o PDF do despacho…" : "Gerando o DOCX e o PDF do despacho e assinando…", interromper: true);
+        try { await s.PrepararAsync(Conversor, assinador); }
         catch (OperationCanceledException)
         {
             if (ReferenceEquals(novo, s)) { N.MostrarEspera(null, false); MostrarPassoAtual(s); }
@@ -813,7 +819,8 @@ public sealed partial class MainWindow
             AtualizarGravar(s);
             return;
         }
-        n.TextoFontes.Text = "Fontes do PDF: " + string.Join(", ", p.Fontes) + (Conversor.Versao is { } v ? " · " + v : "");
+        n.TextoFontes.Text = "Fontes do PDF: " + string.Join(", ", p.Fontes) + (Conversor.Versao is { } v ? " · " + v : "")
+                             + " · " + TextosAssinatura.NaConferencia(p.Assinatura);
         var escala = Raiz.XamlRoot?.RasterizationScale ?? 1.0;
         IReadOnlyList<Microsoft.UI.Xaml.Media.ImageSource> paginas;
         try { paginas = await s.PaginasAsync((uint)Math.Round(600 * escala)); }
@@ -912,8 +919,16 @@ public sealed partial class MainWindow
         N.MostrarPasso(PassoNovoDespacho.Conferencia, soPdf: true);
         AtualizarPaginasDeDespachos();
         AtualizarComandos();
+        var (certificado, desistir) = await PrepararAssinaturaAsync();
+        if (desistir || !ReferenceEquals(novo, s))
+        {
+            certificado?.Dispose();
+            if (ReferenceEquals(novo, s)) FecharNovoDespacho();
+            return false;
+        }
+        using var _ = certificado;
         N.MostrarEspera("Gerando o PDF do despacho…", interromper: true);
-        try { await s.PrepararPdfAsync(Conversor); }
+        try { await s.PrepararPdfAsync(Conversor, certificado is null ? null : new AssinadorComCertificado(certificado, AgoraDaAssinatura)); }
         catch (OperationCanceledException)
         {
             if (ReferenceEquals(novo, s)) FecharNovoDespacho();

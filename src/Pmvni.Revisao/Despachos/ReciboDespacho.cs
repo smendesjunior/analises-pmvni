@@ -33,14 +33,28 @@ public static class ReciboDespacho
 
     internal static string Utc(DateTimeOffset t) => t.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
-    internal static JsonObject? Pdf(string arquivo, byte[] pdf, int paginas, IReadOnlyList<string> fontes, string? motor) => new()
+    /// <summary>O PDF no recibo. Assinado digitalmente (2026-11-16), leva também <c>assinatura_digital</c>: a hora, a impressão digital e
+    /// a validade do certificado e a página da assinatura visível (o titular fica só no próprio PDF; a senha, em lugar nenhum).</summary>
+    internal static JsonObject? Pdf(string arquivo, byte[] pdf, int paginas, IReadOnlyList<string> fontes, string? motor, AssinaturaAplicada? assinatura = null)
     {
-        ["arquivo"] = Path.GetFileName(arquivo),
-        ["sha256"] = RegistroModelos.Sha(pdf),
-        ["paginas"] = paginas,
-        ["fontes"] = new JsonArray(fontes.Select(f => (JsonNode?)JsonValue.Create(f)).ToArray()),
-        ["motor"] = motor,
-    };
+        var o = new JsonObject
+        {
+            ["arquivo"] = Path.GetFileName(arquivo),
+            ["sha256"] = RegistroModelos.Sha(pdf),
+            ["paginas"] = paginas,
+            ["fontes"] = new JsonArray(fontes.Select(f => (JsonNode?)JsonValue.Create(f)).ToArray()),
+            ["motor"] = motor,
+        };
+        if (assinatura is not null)
+            o["assinatura_digital"] = new JsonObject
+            {
+                ["assinado_em"] = Utc(assinatura.Quando),
+                ["certificado_sha1"] = assinatura.Certificado.ImpressaoDigital,
+                ["certificado_valido_ate"] = assinatura.Certificado.ValidoAte.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["pagina"] = assinatura.Local.Pagina + 1,
+            };
+        return o;
+    }
 
     internal static JsonObject? Conferidas(IReadOnlyList<int> paginas, ContextoUsuario u) => new()
     {

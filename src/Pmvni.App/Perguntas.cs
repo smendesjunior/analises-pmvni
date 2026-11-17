@@ -54,6 +54,14 @@ internal interface IPerguntas
     /// <summary>Fechar com um campo em edição no A4 cujo texto a conferência recusou (<paramref name="motivo"/>): "Voltar à edição" (o
     /// padrão; também Esc) ou "Fechar sem ele". true = fechar sem o texto.</summary>
     Task<bool> FecharSemOTextoAsync(string motivo);
+
+    /// <summary>A senha do certificado digital, numa caixa de senha (os caracteres não aparecem), com a opção "Lembrar neste computador"
+    /// (marcada conforme <paramref name="lembrar"/>); null = cancelou. Quem não está na frente da tela (o roteiro) não tem senha a dar:
+    /// o padrão é cancelar.</summary>
+    Task<RespostaSenha?> PedirSenhaAsync(string titulo, string texto, bool lembrar) => Task.FromResult<RespostaSenha?>(null);
+
+    /// <summary>Escolhe um item de uma lista curta (os certificados do Windows); o índice escolhido, ou null se cancelou. Padrão: cancelar.</summary>
+    Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens) => Task.FromResult<int?>(null);
 }
 
 internal static class Perguntas
@@ -173,6 +181,46 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         };
         caixa.Loaded += (_, _) => caixa.SelectAll();
         return await Mostrar(d) == ContentDialogResult.Primary ? caixa.Text : null;
+    }
+
+    /// <summary>A caixa de senha do certificado (2026-11-16): <see cref="PasswordBox"/> (nunca mostra o que foi digitado, sem botão de
+    /// revelar) e a caixa "Lembrar neste computador". "Assinar" só com alguma senha digitada.</summary>
+    public async Task<RespostaSenha?> PedirSenhaAsync(string titulo, string texto, bool lembrar)
+    {
+        var senha = new PasswordBox { Header = "Senha", PasswordRevealMode = PasswordRevealMode.Hidden, MinWidth = 360 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(senha, "Senha do certificado");
+        var caixa = new CheckBox { Content = "Lembrar neste computador (guardada cifrada, só para este usuário do Windows)", IsChecked = lembrar };
+        var painel = new StackPanel { Spacing = 12 };
+        painel.Children.Add(new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, MaxWidth = 420 });
+        painel.Children.Add(senha);
+        painel.Children.Add(caixa);
+        var d = new ContentDialog
+        {
+            XamlRoot = raiz(), Title = titulo, Content = painel, PrimaryButtonText = "Assinar", CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary, IsPrimaryButtonEnabled = false,
+        };
+        senha.PasswordChanged += (_, _) => d.IsPrimaryButtonEnabled = senha.Password.Length > 0;
+        senha.Loaded += (_, _) => senha.Focus(FocusState.Programmatic);
+        var ok = await Mostrar(d) == ContentDialogResult.Primary && senha.Password.Length > 0;
+        var resposta = ok ? new RespostaSenha(senha.Password, caixa.IsChecked == true) : null;
+        senha.Password = ""; // a caixa não fica com a senha depois de fechada
+        return resposta;
+    }
+
+    public async Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens)
+    {
+        var lista = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 320 };
+        foreach (var i in itens) lista.Items.Add(new TextBlock { Text = i, TextWrapping = TextWrapping.Wrap });
+        var painel = new StackPanel { Spacing = 12, MinWidth = 420 };
+        painel.Children.Add(new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap });
+        painel.Children.Add(lista);
+        var d = new ContentDialog
+        {
+            XamlRoot = raiz(), Title = titulo, Content = painel, PrimaryButtonText = "Usar este", CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary, IsPrimaryButtonEnabled = false,
+        };
+        lista.SelectionChanged += (_, _) => d.IsPrimaryButtonEnabled = lista.SelectedIndex >= 0;
+        return await Mostrar(d) == ContentDialogResult.Primary && lista.SelectedIndex >= 0 ? lista.SelectedIndex : null;
     }
 
     public async Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao, bool destrutiva = true)
