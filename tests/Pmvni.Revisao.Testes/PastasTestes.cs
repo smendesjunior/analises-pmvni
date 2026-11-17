@@ -53,6 +53,34 @@ public class PastasTestes
         Assert.Equal(4, todos.Count(p => Processos.Filtrar(p, "  ")));
     }
 
+    /// <summary>1.0.0: número completo e parcial, com ano e em vários formatos, ano sozinho, nome parcial, acentos, sem resultado.</summary>
+    [Fact]
+    public void filtro_por_numero_ano_e_requerente_em_varios_formatos()
+    {
+        var p = new Processo(@"C:\P\2026\15004 - 2026 - JOSÉ DA SILVA", "15004 - 2026 - JOSÉ DA SILVA", 15004, 2026, "JOSÉ DA SILVA");
+        var q = new Processo(@"C:\P\2025\0007 - 2025 - MARIA ÂNGELA", "0007 - 2025 - MARIA ÂNGELA", 7, 2025, "MARIA ÂNGELA");
+        var fora = new Processo(@"C:\P\outros\pasta antiga 2019", "pasta antiga 2019", null, null, null);
+        Processo[] todos = [p, q, fora];
+        string[] Achar(string termo) => todos.Where(x => Processos.Filtrar(x, termo)).Select(x => x.NomePasta).ToArray();
+        foreach (var termo in new[] { "15004", "1500", "5004", "15004/2026", "15004-2026", "15004 / 2026", "15.004/2026", "15004 2026" })
+            Assert.Equal([p.NomePasta], Achar(termo));
+        Assert.Equal([q.NomePasta], Achar("0007"));
+        Assert.Equal([q.NomePasta], Achar("7/2025"));
+        Assert.Equal([p.NomePasta], Achar("2026"));
+        Assert.Equal([q.NomePasta], Achar("2025"));
+        Assert.Equal([fora.NomePasta], Achar("2019"));
+        Assert.Equal([p.NomePasta], Achar("jose"));
+        Assert.Equal([p.NomePasta], Achar("José da"));
+        Assert.Equal([p.NomePasta], Achar("silva 2026"));
+        Assert.Equal([q.NomePasta], Achar("angela"));
+        Assert.Equal([q.NomePasta], Achar("MARIA ÂNGELA"));
+        Assert.Equal([fora.NomePasta], Achar("antiga"));
+        Assert.Empty(Achar("silva 2025"));
+        Assert.Empty(Achar("99999"));
+        Assert.Empty(Achar("ninguém"));
+        Assert.Equal(3, Achar("").Length);
+    }
+
     [Fact]
     public void detalhe_acha_analise_da_ia_e_despachos()
     {

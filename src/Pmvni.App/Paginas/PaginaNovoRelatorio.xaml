@@ -61,12 +61,16 @@
             <ColumnDefinition Width="5*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <TextBox x:Name="CaixaFiltro" x:FieldModifier="internal" PlaceholderText="Filtrar por número ou requerente" AutomationProperties.Name="Filtrar processos"/>
+          <TextBox x:Name="CaixaFiltro" x:FieldModifier="internal" PlaceholderText="Filtrar por número ou requerente" AutomationProperties.Name="Filtrar processos"
+                   ToolTipService.ToolTip="Número (15004, 15004/2026), ano ou parte do nome do requerente, sem diferença de acento ou maiúsculas. Enter ou ↓ abre a lista filtrada."/>
           <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" MinWidth="0" PlaceholderText="Escolha o processo"
                     AutomationProperties.Name="Processo"/>
           <Button x:Name="BotaoCriarProcesso" x:FieldModifier="internal" Grid.Column="2" Content="Criar processo…"
                   local:Dicas.Descricao="Cria a pasta de um processo novo na pasta de processos."/>
         </Grid>
+        <!-- 1.0.0: o resultado do filtro ("3 processos encontrados", "Nenhum processo encontrado para …"). -->
+        <TextBlock x:Name="TextoFiltroProcessos" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniSecondaryTextStyle}"
+                   TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
         <TextBlock x:Name="TextoPastaProcesso" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
 
         </StackPanel></Border>

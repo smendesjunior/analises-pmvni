@@ -176,26 +176,39 @@ public sealed partial class PaginaNovoDespacho
     {
         var c = new Canvas { Width = l.LarguraPt * K, Height = l.AlturaPt * K, Background = Branco, RequestedTheme = ElementTheme.Light };
         foreach (var i in l.Imagens.Where(i => i.AtrasDoTexto)) c.Children.Add(Imagem(i));
-        foreach (var linha in l.Linhas)
-            c.Children.Add(new Line
-            {
-                X1 = linha.X1Pt * K, Y1 = linha.Y1Pt * K, X2 = linha.X2Pt * K, Y2 = linha.Y2Pt * K, StrokeThickness = linha.EspessuraPt * K,
-                Stroke = new SolidColorBrush(Cor(linha.Cor)), IsHitTestVisible = false,
-            });
+        // 1.0.0 (correção do endereço do site cortado): a última linha do rodapé do modelo ("CEP … CNPJ … - www.vendanova.es.gov.br", Verdana
+        // 10) é mais larga que a área do rodapé; o Word a quebra em duas linhas e sobe o rodapé (que fica preso à distância de baixo), mas a
+        // prévia desenhava cada parágrafo numa linha só, de largura fixa, e cortava o site. Agora cada parágrafo quebra como no Word e o rodapé
+        // é empilhado de baixo para cima com as alturas medidas; a linha vermelha sobe junto. Nenhum texto é escondido nem reduzido.
+        var blocosRodape = new List<(TextBlock Texto, double Altura)>();
         foreach (var r in l.Rodape)
         {
+            var largura = Math.Max(1, (l.LarguraUtilPt - r.RecuoEsquerdoPt) * K);
             var t = new TextBlock
             {
-                FontFamily = new FontFamily(l.Fonte), Foreground = Preto, TextAlignment = Alinhamento(r.Alinhamento), TextWrapping = TextWrapping.NoWrap,
-                Width = (l.LarguraUtilPt - r.RecuoEsquerdoPt) * K, LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
+                FontFamily = new FontFamily(l.Fonte), Foreground = Preto, TextAlignment = Alinhamento(r.Alinhamento), TextWrapping = TextWrapping.Wrap,
+                Width = largura, LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
                 LineHeight = Math.Max(1, r.AlturaPt * K), IsHitTestVisible = false,
             };
             foreach (var trecho in r.Trechos)
                 t.Inlines.Add(new Run { Text = trecho.Texto, FontSize = trecho.TamanhoPt * K, FontWeight = trecho.Negrito ? FontWeights.Bold : FontWeights.Normal });
+            t.Measure(new Size(largura, double.PositiveInfinity));
+            var linhasDoParagrafo = r.Trechos.Count == 0 ? 1 : Math.Max(1, (int)Math.Round(t.DesiredSize.Height / Math.Max(1, r.AlturaPt * K)));
+            blocosRodape.Add((t, linhasDoParagrafo * r.AlturaPt));
             Canvas.SetLeft(t, (l.MargemEsquerdaPt + r.RecuoEsquerdoPt) * K);
-            Canvas.SetTop(t, r.TopoPt * K);
-            c.Children.Add(t);
         }
+        var (topos, subida) = RodapeDespacho.Posicionar(l.Rodape, blocosRodape.Select(b => b.Altura).ToList());
+        for (var i = 0; i < blocosRodape.Count; i++)
+        {
+            Canvas.SetTop(blocosRodape[i].Texto, topos[i] * K);
+            c.Children.Add(blocosRodape[i].Texto);
+        }
+        foreach (var linha in l.Linhas)
+            c.Children.Add(new Line
+            {
+                X1 = linha.X1Pt * K, Y1 = (linha.Y1Pt - subida) * K, X2 = linha.X2Pt * K, Y2 = (linha.Y2Pt - subida) * K, StrokeThickness = linha.EspessuraPt * K,
+                Stroke = new SolidColorBrush(Cor(linha.Cor)), IsHitTestVisible = false,
+            });
         Canvas.SetLeft(corpo, l.MargemEsquerdaPt * K);
         // O corpo começa abaixo da faixa do cabeçalho em toda folha (no modelo do kit a margem de cima é menor que a faixa).
         Canvas.SetTop(corpo, l.TopoDoCorpoPt * K);

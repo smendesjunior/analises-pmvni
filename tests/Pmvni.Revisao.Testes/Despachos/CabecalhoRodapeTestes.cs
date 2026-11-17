@@ -54,6 +54,36 @@ public sealed class CabecalhoRodapeTestes(ITestOutputHelper saida)
         Assert.All(l.Rodape.Where(r => r.Trechos.Count > 0), r => Assert.True(r.TopoPt > fimDoCorpo));
     }
 
+    /// <summary>1.0.0 (site institucional cortado na prévia): o endereço com o site é mais largo que a área do rodapé; o Word o quebra em duas
+    /// linhas e sobe o rodapé. A prévia faz o mesmo (<see cref="Pmvni.App.RodapeDespacho"/>): o texto oficial fica inteiro, o rodapé cresce
+    /// para cima, preso à distância de baixo, e continua abaixo do fim do corpo.</summary>
+    [Theory]
+    [InlineData("Correcao")]
+    [InlineData("Aprovacao")]
+    public void rodape_com_o_site_quebra_e_sobe_sem_cortar_nem_invadir_o_corpo(string tipo)
+    {
+        var l = LayoutDespacho.Ler(PreenchimentoDocxTestes.Modelo(Enum.Parse<TipoDespacho>(tipo)));
+        var textos = l.Rodape.Select(r => string.Concat(r.Trechos.Select(t => t.Texto))).ToList();
+        var comSite = textos.FindIndex(t => t.Contains("www.vendanova.es.gov.br", StringComparison.Ordinal));
+        Assert.True(comSite >= 0, "o modelo do kit traz o site institucional no rodapé");
+        Assert.Contains("CNPJ: 31.723.497/0001/08", textos[comSite], StringComparison.Ordinal);
+
+        // Uma linha por parágrafo: nada muda.
+        var (iguais, semSubida) = Pmvni.App.RodapeDespacho.Posicionar(l.Rodape, l.Rodape.Select(r => r.AlturaPt).ToList());
+        Assert.Equal(0, semSubida);
+        Assert.All(Enumerable.Range(0, l.Rodape.Count), i => Assert.Equal(l.Rodape[i].TopoPt, iguais[i], 6));
+
+        // O parágrafo do site em duas linhas: o rodapé sobe uma linha, o fim fica no mesmo lugar e tudo continua abaixo do corpo.
+        var alturas = l.Rodape.Select((r, i) => i == comSite ? 2 * r.AlturaPt : r.AlturaPt).ToList();
+        var (topos, subida) = Pmvni.App.RodapeDespacho.Posicionar(l.Rodape, alturas);
+        Assert.Equal(l.Rodape[comSite].AlturaPt, subida, 6);
+        Assert.Equal(l.Rodape[^1].TopoPt + l.Rodape[^1].AlturaPt, topos[^1] + alturas[^1], 6);
+        var fimDoCorpo = l.AlturaPt - l.MargemBaixoPt;
+        Assert.All(l.Linhas, x => Assert.True(Math.Min(x.Y1Pt, x.Y2Pt) - subida > fimDoCorpo));
+        Assert.All(Enumerable.Range(0, l.Rodape.Count).Where(i => l.Rodape[i].Trechos.Count > 0), i => Assert.True(topos[i] > fimDoCorpo));
+        Assert.True(topos[comSite] + alturas[comSite] <= l.AlturaPt, "o rodapé não sai da folha A4");
+    }
+
     [Theory]
     [InlineData("Correcao", 2)]
     [InlineData("Correcao", 60)]
@@ -153,6 +183,9 @@ public sealed class CabecalhoRodapeTestes(ITestOutputHelper saida)
             Assert.True(baixo <= l.AlturaPt - l.MargemBaixoPt + 0.5, $"{caso}, página {i + 1}: o corpo desce até {baixo:0.0} pt, dentro do rodapé");
             Assert.True(p.Rodape.Count >= 3);
             Assert.Equal("Prefeitura Municipal de", string.Join(" ", p.Rodape.Take(3).Select(x => x.Texto)));
+            // 1.0.0: o site institucional sai inteiro no rodapé de toda página, dentro da folha (nenhum corte à direita).
+            Assert.Contains(p.Rodape, x => x.Texto.Contains("www.vendanova.es.gov.br", StringComparison.Ordinal));
+            Assert.All(p.Rodape, x => Assert.InRange(x.Esquerda, 0, l.LarguraPt));
             Assert.True(rodape >= baixo + 6, $"{caso}, página {i + 1}: o corpo ({baixo:0.0} pt) encosta no rodapé ({rodape:0.0} pt)");
         }
     }

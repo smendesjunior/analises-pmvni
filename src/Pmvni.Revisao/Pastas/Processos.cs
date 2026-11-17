@@ -119,18 +119,40 @@ public static class Processos
         return sb.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant();
     }
 
-    /// <summary>Termo vazio mostra tudo; só dígitos casa com o número do processo; o resto, com o requerente (ou o nome da pasta).</summary>
+    static readonly Regex PontoDeMilhar = new(@"(?<=\d)\.(?=\d{3}(\D|$))", RegexOptions.CultureInvariant);
+
+    /// <summary>Termo vazio mostra tudo. 1.0.0 (correção do filtro "Filtrar por número ou requerente"): o termo é partido em palavras e
+    /// TODAS precisam casar. Palavra só de dígitos casa com o número (parcial, sem zeros à esquerda: "0007" acha o 7), com o ano ("2026",
+    /// "26") ou com dígitos do requerente; palavra com letras casa com o requerente ou o nome da pasta, sem acento e sem caixa. Assim
+    /// "15004/2026", "15004-2026", "15.004/2026", "15004 2026", "2026", "fulano 2026" e "jose" (para JOSÉ) funcionam. O termo inteiro
+    /// também vale contra o nome da pasta, para quem cola o nome dela.</summary>
     public static bool Filtrar(Processo p, string termo)
     {
-        var t = termo.Trim();
+        var t = Normalizar(PontoDeMilhar.Replace(termo ?? "", "")).Trim();
         if (t.Length == 0) return true;
-        if (t.All(char.IsAsciiDigit) && p.Numero is { } n)
+        var pasta = Normalizar(p.NomePasta);
+        if (pasta.Contains(t, StringComparison.Ordinal)) return true;
+        var requerente = Normalizar(p.Requerente ?? (p.Numero is null ? p.NomePasta : ""));
+        var numero = p.Numero?.ToString(CultureInfo.InvariantCulture);
+        var ano = p.Ano?.ToString(CultureInfo.InvariantCulture);
+        var palavras = Regex.Split(t, @"[^\p{L}\p{Nd}]+").Where(x => x.Length > 0).ToArray();
+        if (palavras.Length == 0) return false;
+        foreach (var w in palavras)
         {
-            var digitos = t.TrimStart('0');
-            if (digitos.Length == 0) digitos = t;
-            if (n.ToString(CultureInfo.InvariantCulture).Contains(digitos, StringComparison.Ordinal)) return true;
+            bool casa;
+            if (w.All(char.IsAsciiDigit))
+            {
+                var semZeros = w.TrimStart('0');
+                if (semZeros.Length == 0) semZeros = "0";
+                casa = (numero is not null && (numero.Contains(semZeros, StringComparison.Ordinal) || numero == w))
+                    || (ano is not null && ano.Contains(w, StringComparison.Ordinal))
+                    || requerente.Contains(w, StringComparison.Ordinal)
+                    || (p.Numero is null && pasta.Contains(w, StringComparison.Ordinal));
+            }
+            else casa = requerente.Contains(w, StringComparison.Ordinal) || pasta.Contains(w, StringComparison.Ordinal);
+            if (!casa) return false;
         }
-        return Normalizar(p.Requerente ?? p.NomePasta).Contains(Normalizar(t), StringComparison.Ordinal);
+        return true;
     }
 
     public static DetalheProcesso Detalhar(Processo p, CancellationToken ct)

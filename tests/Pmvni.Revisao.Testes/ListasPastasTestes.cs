@@ -42,6 +42,39 @@ public class ListasPastasTestes
         Assert.Equal(new[] { 2099, 2098 }, ListasPastas.Anos(Processos()));
     }
 
+    /// <summary>1.0.0: o filtro do Novo relatório › Processo (contagem, nada achado, escolhido preservado, limpar devolve tudo).</summary>
+    [Fact]
+    public void filtro_do_novo_relatorio()
+    {
+        var todos = Processos();
+        var fulano = todos.Single(p => p.Numero == 1);
+        var (itens, unico, texto) = ListasPastas.FiltrarNovoRelatorio(todos, "", null);
+        Assert.Equal(todos.Count, itens.Count);
+        Assert.Null(unico);
+        Assert.Equal("", texto);
+        (itens, unico, texto) = ListasPastas.FiltrarNovoRelatorio(todos, "2099", null);
+        Assert.Equal(2, itens.Count);
+        Assert.Equal("2 processos encontrados. Abra a lista ao lado para escolher.", texto);
+        // Um só, nada escolhido: sugerido.
+        (itens, unico, texto) = ListasPastas.FiltrarNovoRelatorio(todos, "FÚLANO", null);
+        Assert.Same(fulano, unico);
+        Assert.Equal("1 processo encontrado.", texto);
+        // Com um escolhido válido fora do filtro: ele continua na lista (marcado) e não é trocado.
+        var beltrano = todos.Single(p => p.Numero == 12);
+        (itens, unico, _) = ListasPastas.FiltrarNovoRelatorio(todos, "fulano", beltrano);
+        Assert.Null(unico);
+        Assert.Equal([(beltrano, true), (fulano, false)], itens);
+        // Nada achado: aviso claro; o escolhido segue na lista.
+        (itens, _, texto) = ListasPastas.FiltrarNovoRelatorio(todos, "zzz", beltrano);
+        Assert.StartsWith("Nenhum processo encontrado para “zzz”", texto, StringComparison.Ordinal);
+        Assert.Equal([(beltrano, true)], itens);
+        // Limpar o filtro: a lista inteira de volta, com o escolhido no lugar dele.
+        (itens, _, texto) = ListasPastas.FiltrarNovoRelatorio(todos, " ", beltrano);
+        Assert.Equal(todos.Count, itens.Count);
+        Assert.All(itens, i => Assert.False(i.ForaDoFiltro));
+        Assert.Equal("", texto);
+    }
+
     [Fact]
     public void texto_da_linha_do_processo()
     {

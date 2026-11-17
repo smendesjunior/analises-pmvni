@@ -171,6 +171,28 @@ public static class ListasPastas
         };
     }
 
+    /// <summary>Novo relatório › Processo (1.0.0): a lista filtrada e o que mostrar. O escolhido continua na lista mesmo fora do filtro
+    /// (marcado como "escolhido"), para a seleção válida não se perder; com um único processo achado e nenhum escolhido, ele é sugerido
+    /// para escolha. Texto: "" sem filtro; a contagem; ou o aviso de nada encontrado.</summary>
+    public static (IReadOnlyList<(Processo Processo, bool ForaDoFiltro)> Itens, Processo? Unico, string Texto) FiltrarNovoRelatorio(
+        IReadOnlyList<Processo> todos, string termo, Processo? escolhido)
+    {
+        var achados = FiltrarProcessos(todos.Select(p => new LinhaProcesso(p, DateTime.MinValue)), termo ?? "", null, OrdemProcessos.Numero)
+            .Select(l => l.Processo).ToList();
+        var itens = achados.Select(p => (p, false)).ToList();
+        if (escolhido is not null && !achados.Any(p => MesmaPasta(p, escolhido))) itens.Insert(0, (escolhido, true));
+        var filtrando = !string.IsNullOrWhiteSpace(termo);
+        var texto = !filtrando ? ""
+            : achados.Count == 0 ? $"Nenhum processo encontrado para “{termo!.Trim()}”. Confira o número, o ano ou o nome, ou use Criar processo…."
+            : achados.Count == 1 ? "1 processo encontrado."
+            : $"{achados.Count} processos encontrados. Abra a lista ao lado para escolher.";
+        // Só sugere quando nada está escolhido: uma seleção válida nunca é trocada pelo filtro.
+        var unico = filtrando && achados.Count == 1 && escolhido is null ? achados[0] : null;
+        return (itens, unico, texto);
+    }
+
+    static bool MesmaPasta(Processo a, Processo b) => string.Equals(a.Pasta, b.Pasta, StringComparison.OrdinalIgnoreCase);
+
     static string Normalizado(string texto) =>
         string.Concat(texto.Normalize(NormalizationForm.FormD).Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark))
             .ToLowerInvariant();

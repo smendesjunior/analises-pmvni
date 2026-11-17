@@ -1,4 +1,4 @@
-using Pmvni.App;
+﻿using Pmvni.App;
 using Pmvni.Legislacao;
 using Xunit;
 
@@ -58,7 +58,7 @@ public class PesquisaGeralTestes
     public void ajuste_tema_vem_primeiro_e_leva_a_aparencia()
     {
         var grupos = PesquisaGeral.Pesquisar("tema", Catalogo());
-        Assert.Equal("Ajustes", grupos[0].Nome);
+        Assert.Equal("Configurações", grupos[0].Nome);
         var primeiro = grupos[0].Itens[0];
         Assert.Equal("Tema", primeiro.Titulo);
         Assert.Equal("Ajustes › Aparência › Janela", primeiro.Onde);
@@ -112,7 +112,7 @@ public class PesquisaGeralTestes
     }
 
     [Fact]
-    public void processos_por_numero_ano_e_requerente()
+    public void processos_por_numero_ano_e_requerente_sem_acento()
     {
         var p1 = new Processo(@"C:\P\2026\15004 - 2026 - FULANO DE TAL", "15004 - 2026 - FULANO DE TAL", 15004, 2026, "FULANO DE TAL");
         var p2 = new Processo(@"C:\P\2026\0007 - 2026 - JOSÉ CICLANO", "0007 - 2026 - JOSÉ CICLANO", 7, 2026, "JOSÉ CICLANO");
@@ -143,6 +143,49 @@ public class PesquisaGeralTestes
         Assert.Equal(itens[1].Chave, correcao[0].Chave);
         // Os dois ficam no grupo Arquivos.
         Assert.Equal(["Arquivos"], PesquisaGeral.Pesquisar("15004", itens).Select(g => g.Nome));
+    }
+
+    [Fact]
+    public void documentos_das_pastas_do_processo_entram_como_arquivos()
+    {
+        var p = new Processo(@"C:\P\2026\15004 - 2026 - FULANO", "15004 - 2026 - FULANO", 15004, 2026, "FULANO");
+        var itens = PesquisaGeral.DeArquivos(
+        [
+            (Path.Combine(p.Pasta, "DOCUMENTOS", "Matrícula 1234.pdf"), p),
+            (Path.Combine(p.Pasta, "Requerimento.pdf"), p),
+        ]);
+        Assert.All(itens, i => Assert.Equal(TipoResultadoGeral.Documento, i.Tipo));
+        Assert.Equal("Documento · Processo 15004/2026 · DOCUMENTOS", itens[0].Onde);
+        Assert.Equal("Documento · Processo 15004/2026", itens[1].Onde);
+        Assert.Equal("Arquivos", itens[0].Categoria);
+        Assert.Equal(itens[0].Chave, Achados("matricula", itens).Single().Chave);
+    }
+
+    [Fact]
+    public void seis_categorias_na_ordem_pedida()
+    {
+        Assert.Equal(["Arquivos", "Processos", "Legislação", "Configurações", "Funções", "Módulos"], PesquisaGeral.Categorias);
+        Assert.Equal("Módulos", PesquisaGeral.NomeDoGrupo(TipoResultadoGeral.Modulo));
+        Assert.Equal("Funções", PesquisaGeral.NomeDoGrupo(TipoResultadoGeral.Funcao));
+        Assert.Equal("Processos", PesquisaGeral.NomeDoGrupo(TipoResultadoGeral.Acompanhamento));
+        Assert.Equal("Legislação", PesquisaGeral.NomeDoGrupo(TipoResultadoGeral.TrechoDeLei));
+        Assert.Equal("Configurações", PesquisaGeral.NomeDoGrupo(TipoResultadoGeral.Ajuste));
+        // Empate de pontos: Arquivos > Processos > Legislação > Configurações > Funções > Módulos.
+        var itens = new[] { TipoResultadoGeral.Modulo, TipoResultadoGeral.Funcao, TipoResultadoGeral.Ajuste, TipoResultadoGeral.Lei, TipoResultadoGeral.Processo, TipoResultadoGeral.Relatorio }
+            .Select((t, i) => new ItemPesquisaGeral(t, "Beta " + i, "", "", "b" + i)).ToList();
+        Assert.Equal(PesquisaGeral.Categorias, PesquisaGeral.Pesquisar("beta", itens).Select(g => g.Nome));
+    }
+
+    [Fact]
+    public void destaque_do_termo_sem_acento_e_sem_caixa()
+    {
+        var t = PesquisaGeral.Destacar("Pasta da Legislação", "legislacao");
+        Assert.Equal([("Pasta da ", false), ("Legislação", true)], t);
+        Assert.Equal("Pasta da Legislação", string.Concat(t.Select(x => x.Texto)));
+        var dois = PesquisaGeral.Destacar("Salvamento automático", "salv AUTO");
+        Assert.Equal([("Salv", true), ("amento ", false), ("auto", true), ("mático", false)], dois);
+        Assert.Equal([("Zoom", false)], PesquisaGeral.Destacar("Zoom", "tema"));
+        Assert.Equal([("Zoom", false)], PesquisaGeral.Destacar("Zoom", ""));
     }
 
     [Fact]
@@ -184,10 +227,10 @@ public class PesquisaGeralTestes
         var grupos = PesquisaGeral.Pesquisar("alfa", muitos);
         Assert.All(grupos, g => Assert.True(g.Itens.Count <= PesquisaGeral.PorGrupo));
         Assert.True(grupos.Sum(g => g.Itens.Count) <= PesquisaGeral.Total);
-        // Empate de pontos: a ordem fixa (Ajustes antes de Processos); com um igual ao termo, o grupo dele vem primeiro.
-        Assert.Equal(["Ajustes", "Processos"], grupos.Select(g => g.Nome));
-        muitos.Add(new ItemPesquisaGeral(TipoResultadoGeral.Processo, "Alfa", "", "", "igual"));
-        Assert.Equal("Processos", PesquisaGeral.Pesquisar("alfa", muitos)[0].Nome);
+        // Empate de pontos: a ordem fixa (Processos antes de Configurações); com um igual ao termo, o grupo dele vem primeiro.
+        Assert.Equal(["Processos", "Configurações"], grupos.Select(g => g.Nome));
+        muitos.Add(new ItemPesquisaGeral(TipoResultadoGeral.Ajuste, "Alfa", "", "", "igual"));
+        Assert.Equal("Configurações", PesquisaGeral.Pesquisar("alfa", muitos)[0].Nome);
         Assert.Equal("Alfa", PesquisaGeral.Pesquisar("alfa", muitos)[0].Itens[0].Titulo);
         Assert.Equal(30, PesquisaGeral.Pesquisar("alfa", muitos, porGrupo: 100).Sum(g => g.Itens.Count));
     }

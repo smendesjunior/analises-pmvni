@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -328,13 +328,17 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Os relatórios (<c>.rpmvni</c>, <c>.pmvrel</c>) da pasta do processo e das pastas <c>DESPACHO NN</c>, e os despachos (<c>.docx</c>,
-    /// <c>.doc</c>, <c>.pdf</c>) dessas pastas. Só lê nomes (nada é baixado do OneDrive); links e pastas ilegíveis ficam de fora.</summary>
-    static List<(string Caminho, Processo? Processo)> ArquivosDosProcessos(IReadOnlyList<Processo> processos)
+    /// <summary>Os relatórios (<c>.rpmvni</c>, <c>.pmvrel</c>) da pasta do processo e das pastas <c>DESPACHO NN</c>, os despachos (<c>.docx</c>,
+    /// <c>.doc</c>, <c>.pdf</c>) dessas pastas e (1.0.0) os documentos da raiz do processo e das subpastas dele (DOCUMENTOS, PROJETO…, um nível).
+    /// Só lê nomes (nada é baixado do OneDrive); links, arquivos ocultos ou temporários e pastas ilegíveis ficam de fora.</summary>
+    internal static List<(string Caminho, Processo? Processo)> ArquivosDosProcessos(IReadOnlyList<Processo> processos)
     {
         static bool Relatorio(string f) => Path.GetExtension(f).ToLowerInvariant() is ".rpmvni" or ".pmvrel";
         static bool DaEtapa(string f) => Path.GetExtension(f).ToLowerInvariant() is ".rpmvni" or ".pmvrel" or ".docx" or ".doc" or ".pdf";
-        static bool Link(FileSystemInfo i) { try { return i.LinkTarget is not null; } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return true; } }
+        static bool Documento(string f) => !Path.GetFileName(f).StartsWith("~$", StringComparison.Ordinal)
+            && Path.GetExtension(f).ToLowerInvariant() is ".pdf" or ".docx" or ".doc" or ".odt" or ".xlsx" or ".xls" or ".ods" or ".dwg" or ".dxf"
+                or ".jpg" or ".jpeg" or ".png" or ".tif" or ".tiff" or ".txt" or ".rtf" or ".kml" or ".kmz";
+        static bool Link(FileSystemInfo i) { try { return i.LinkTarget is not null || i.Attributes.HasFlag(FileAttributes.Hidden); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return true; } }
         var lista = new List<(string, Processo?)>();
         foreach (var p in processos)
         {
@@ -342,12 +346,16 @@ public sealed partial class MainWindow
             try
             {
                 foreach (var f in Directory.EnumerateFiles(p.Pasta))
-                    if (Relatorio(f) && !Link(new FileInfo(f))) lista.Add((f, p));
-                foreach (var d in Directory.EnumerateDirectories(p.Pasta, "DESPACHO*"))
+                    if ((Relatorio(f) || Documento(f)) && !Link(new FileInfo(f))) lista.Add((f, p));
+                foreach (var d in Directory.EnumerateDirectories(p.Pasta))
                 {
                     if (Link(new DirectoryInfo(d))) continue;
+                    var etapa = Path.GetFileName(d).StartsWith("DESPACHO", StringComparison.OrdinalIgnoreCase);
                     foreach (var f in Directory.EnumerateFiles(d))
-                        if (DaEtapa(f) && !Link(new FileInfo(f))) lista.Add((f, p));
+                    {
+                        if (lista.Count >= MaximoDeArquivos) break;
+                        if ((etapa ? DaEtapa(f) : Documento(f)) && !Link(new FileInfo(f))) lista.Add((f, p));
+                    }
                 }
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException) { /* pasta ilegível: segue */ }
@@ -419,9 +427,10 @@ public sealed partial class MainWindow
             <TextBlock xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" FontSize="12" FontWeight="SemiBold" Margin="10,10,10,4"
                        TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             """);
-        t.Text = texto;
+        // 1.0.0: as categorias em maiúsculas (ARQUIVOS, PROCESSOS, LEGISLAÇÃO, CONFIGURAÇÕES, FUNÇÕES, MÓDULOS).
+        t.Text = vazio ? texto : texto.ToUpper(CultureInfo.GetCultureInfo("pt-BR"));
         if (vazio) { t.FontWeight = Microsoft.UI.Text.FontWeights.Normal; t.Margin = new Thickness(10, 12, 10, 12); }
-        else AutomationProperties.SetHeadingLevel(t, AutomationHeadingLevel.Level2);
+        else { AutomationProperties.SetName(t, texto); AutomationProperties.SetHeadingLevel(t, AutomationHeadingLevel.Level2); }
         return t;
     }
 
@@ -434,8 +443,11 @@ public sealed partial class MainWindow
               <Border x:Name="Marca" Width="3" Height="18" CornerRadius="1.5" Opacity="0" HorizontalAlignment="Left" VerticalAlignment="Center"
                       Background="{ThemeResource AccentFillColorDefaultBrush}"/>
               <Grid Padding="12,6,12,6" ColumnSpacing="12">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <FontIcon x:Name="Icone" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Border Grid.Column="2" VerticalAlignment="Center" CornerRadius="8" Padding="8,1,8,2" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                  <TextBlock x:Name="Categoria" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </Border>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
                   <TextBlock x:Name="Titulo" TextTrimming="CharacterEllipsis" MaxLines="1" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                   <TextBlock x:Name="Onde" FontSize="12" TextTrimming="CharacterEllipsis" MaxLines="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -444,7 +456,11 @@ public sealed partial class MainWindow
             </Grid>
             """);
         ((FontIcon)linha.FindName("Icone")).Glyph = item.Glifo;
-        ((TextBlock)linha.FindName("Titulo")).Text = item.Titulo;
+        // 1.0.0: o trecho que casa com o termo fica em negrito (a cor continua a do tema, claro ou escuro).
+        var titulo = (TextBlock)linha.FindName("Titulo");
+        foreach (var (texto, marcado) in PesquisaGeral.Destacar(item.Titulo, termoGeralMostrado))
+            titulo.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = texto, FontWeight = marcado ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal });
+        ((TextBlock)linha.FindName("Categoria")).Text = item.Categoria;
         ((TextBlock)linha.FindName("Onde")).Text = item.Onde;
         AutomationProperties.SetName(linha, item.NomeAcessivel);
         ToolTipService.SetToolTip(linha, item.NomeAcessivel);
@@ -506,7 +522,8 @@ public sealed partial class MainWindow
                 if (!File.Exists(caminho)) { MostrarMensagem(InfoBarSeverity.Warning, "O relatório não foi encontrado", caminho); return; }
                 await NaFilaAsync(() => TentarAsync(() => AbrirPacoteAsync(caminho)));
                 break;
-            case TipoResultadoGeral.Despacho when item.Dado is string caminho:
+            case TipoResultadoGeral.Despacho or TipoResultadoGeral.Documento when item.Dado is string caminho:
+                if (!File.Exists(caminho)) { MostrarMensagem(InfoBarSeverity.Warning, "O arquivo não foi encontrado", caminho); return; }
                 AbrirNoPrograma(caminho);
                 break;
             case TipoResultadoGeral.Lei when item.Dado is string idLei:

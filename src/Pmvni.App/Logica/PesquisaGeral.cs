@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using Pmvni.Legislacao;
 using Pmvni.Revisao;
@@ -6,7 +6,7 @@ using Pmvni.Revisao;
 namespace Pmvni.App;
 
 /// <summary>O tipo de um resultado da pesquisa geral (a caixa da barra de título): define o grupo, o ícone e o que acontece ao escolher.</summary>
-public enum TipoResultadoGeral { Funcao, Modulo, Ajuste, Processo, Acompanhamento, Relatorio, Despacho, Lei, TrechoDeLei }
+public enum TipoResultadoGeral { Funcao, Modulo, Ajuste, Processo, Acompanhamento, Relatorio, Despacho, Lei, TrechoDeLei, Documento }
 
 /// <summary>Uma linha dos Ajustes como está na tela: a etiqueta da categoria (<see cref="CategoriasAjustes"/>), o grupo, o título, a frase de
 /// ajuda e, para a janela, o elemento que é trazido à vista ao escolher (null nos testes). <see cref="EhGrupo"/>: o título de um grupo de cartões.</summary>
@@ -56,8 +56,11 @@ public sealed class ItemPesquisaGeral
     internal string TudoNormal { get; }
     internal string[] TodasPalavras { get; }
 
-    /// <summary>O nome acessível da linha: "Tema, Ajustes › Aparência › Janela".</summary>
-    public string NomeAcessivel => Onde.Length == 0 ? Titulo : $"{Titulo}, {Onde}";
+    /// <summary>A categoria do item na lista (1.0.0): Arquivos, Processos, Legislação, Configurações, Funções ou Módulos.</summary>
+    public string Categoria => PesquisaGeral.NomeDoGrupo(Tipo);
+
+    /// <summary>O nome acessível da linha: "Tema, Configurações, Ajustes › Aparência › Janela".</summary>
+    public string NomeAcessivel => Onde.Length == 0 ? $"{Titulo}, {Categoria}" : $"{Titulo}, {Categoria}, {Onde}";
 
     public override string ToString() => $"{Tipo}: {Titulo} ({Onde})";
 }
@@ -65,8 +68,8 @@ public sealed class ItemPesquisaGeral
 /// <summary>Um grupo da lista de resultados ("Funções", "Ajustes", "Processos"…), já na ordem de mostrar.</summary>
 public sealed record GrupoPesquisaGeral(string Nome, IReadOnlyList<ItemPesquisaGeral> Itens);
 
-/// <summary>Pesquisa geral da barra de título (2026-11-17): procura em ajustes, funções da faixa, módulos, processos, relatórios, despachos,
-/// leis (título e texto) e processos da planilha do Acompanhamento. Sem acento e sem caixa; cada palavra digitada tem de começar uma palavra do
+/// <summary>Pesquisa geral da barra de título (2026-11-17; categorias e documentos em 1.0.0): procura em ajustes, funções da faixa, módulos,
+/// processos, relatórios, despachos, documentos das pastas dos processos, leis (título e texto) e processos da planilha do Acompanhamento. Sem acento e sem caixa; cada palavra digitada tem de começar uma palavra do
 /// item (ou estar dentro dele, com menos pontos). Ordem: igual &gt; começa com &gt; palavras &gt; contém. No máximo 8 por grupo e 30 ao todo.
 /// Sem tipos WinUI: compilada também nos testes.</summary>
 public static class PesquisaGeral
@@ -127,23 +130,50 @@ public static class PesquisaGeral
         return 0;
     }
 
-    /// <summary>O grupo do tipo e a ordem dos grupos quando empatam.</summary>
+    /// <summary>O grupo do tipo (1.0.0: as seis categorias da lista — Arquivos, Processos, Legislação, Configurações, Funções, Módulos) e a
+    /// ordem dos grupos quando empatam, nessa mesma sequência.</summary>
     public static string NomeDoGrupo(TipoResultadoGeral t) => t switch
     {
-        TipoResultadoGeral.Funcao or TipoResultadoGeral.Modulo => "Funções",
-        TipoResultadoGeral.Ajuste => "Ajustes",
-        TipoResultadoGeral.Processo => "Processos",
-        TipoResultadoGeral.Acompanhamento => "Acompanhamento",
-        TipoResultadoGeral.Relatorio or TipoResultadoGeral.Despacho => "Arquivos",
-        TipoResultadoGeral.Lei => "Leis",
-        TipoResultadoGeral.TrechoDeLei => "Texto das leis",
+        TipoResultadoGeral.Relatorio or TipoResultadoGeral.Despacho or TipoResultadoGeral.Documento => "Arquivos",
+        TipoResultadoGeral.Processo or TipoResultadoGeral.Acompanhamento => "Processos",
+        TipoResultadoGeral.Lei or TipoResultadoGeral.TrechoDeLei => "Legislação",
+        TipoResultadoGeral.Ajuste => "Configurações",
+        TipoResultadoGeral.Funcao => "Funções",
+        TipoResultadoGeral.Modulo => "Módulos",
         _ => "Outros",
     };
 
-    static int OrdemDoGrupo(string nome) => nome switch
+    /// <summary>As categorias, na ordem de desempate.</summary>
+    public static readonly IReadOnlyList<string> Categorias = ["Arquivos", "Processos", "Legislação", "Configurações", "Funções", "Módulos"];
+
+    static int OrdemDoGrupo(string nome)
     {
-        "Funções" => 0, "Ajustes" => 1, "Processos" => 2, "Acompanhamento" => 3, "Arquivos" => 4, "Leis" => 5, "Texto das leis" => 6, _ => 7,
-    };
+        for (var i = 0; i < Categorias.Count; i++) if (Categorias[i] == nome) return i;
+        return Categorias.Count;
+    }
+
+    /// <summary>O título partido em trechos, com os que casam com as palavras do termo marcados (sem acento e sem caixa), para o destaque na
+    /// lista (1.0.0). Sem termo ou sem casamento: o título inteiro, sem destaque.</summary>
+    public static IReadOnlyList<(string Texto, bool Destaque)> Destacar(string titulo, string termo)
+    {
+        var tokens = Palavras(Normalizar(termo).Trim());
+        if (tokens.Length == 0 || titulo.Length == 0) return [(titulo, false)];
+        // O título normalizado letra a letra, lembrando de que letra original veio cada caractere (acentos e caixa não mudam a posição).
+        var norm = new StringBuilder(titulo.Length);
+        var origem = new List<int>(titulo.Length);
+        for (var i = 0; i < titulo.Length; i++)
+            foreach (var c in Normalizar(titulo[i].ToString())) { norm.Append(c); origem.Add(i); }
+        var n = norm.ToString();
+        var marca = new bool[titulo.Length];
+        foreach (var tok in tokens)
+            for (var k = n.IndexOf(tok, StringComparison.Ordinal); k >= 0; k = n.IndexOf(tok, k + 1, StringComparison.Ordinal))
+                for (var j = k; j < k + tok.Length && j < origem.Count; j++) marca[origem[j]] = true;
+        var trechos = new List<(string, bool)>();
+        var ini = 0;
+        for (var i = 1; i <= titulo.Length; i++)
+            if (i == titulo.Length || marca[i] != marca[ini]) { trechos.Add((titulo[ini..i], marca[ini])); ini = i; }
+        return trechos;
+    }
 
     /// <summary>Pesquisa <paramref name="termo"/> nos itens: termo com menos de <see cref="MinimoDoTermo"/> letras não acha nada. Grupos na
     /// ordem do melhor resultado de cada um (empate: Funções, Ajustes, Processos, Acompanhamento, Arquivos, Leis, Texto das leis); dentro do
@@ -276,7 +306,8 @@ public static class PesquisaGeral
         }).ToList();
 
     /// <summary>Arquivos achados nas pastas dos processos: <c>.rpmvni</c>/<c>.pmvrel</c> são relatórios (abrem no editor); <c>.docx</c>,
-    /// <c>.doc</c> e <c>.pdf</c> das pastas <c>DESPACHO NN</c> são despachos (abrem no programa deles). Dado: o caminho.</summary>
+    /// <c>.doc</c> e <c>.pdf</c> das pastas <c>DESPACHO NN</c> são despachos (abrem no programa deles); os demais (1.0.0: DOCUMENTOS,
+    /// PROJETO e a raiz do processo) são documentos, que também abrem no programa deles. Dado: o caminho.</summary>
     public static IReadOnlyList<ItemPesquisaGeral> DeArquivos(IEnumerable<(string Caminho, Processo? Processo)> arquivos) =>
         arquivos.Select(a =>
         {
@@ -285,11 +316,19 @@ public static class PesquisaGeral
             var numero = NumeroDoProcesso(a.Processo);
             var pasta = Path.GetFileName(Path.GetDirectoryName(a.Caminho)) ?? "";
             var doProcesso = numero is not null ? " · Processo " + numero : a.Processo is not null ? " · " + a.Processo.NomePasta : "";
-            var onde = relatorio ? "Relatório" + doProcesso
-                : "Despacho" + doProcesso + (pasta.StartsWith("DESPACHO", StringComparison.OrdinalIgnoreCase) ? " · " + pasta : "");
-            return new ItemPesquisaGeral(relatorio ? TipoResultadoGeral.Relatorio : TipoResultadoGeral.Despacho, Path.GetFileName(a.Caminho), onde,
-                relatorio ? Glifos.Relatorio : Glifos.Despacho, "arquivo:" + a.Caminho.ToUpperInvariant(),
-                [a.Processo?.Requerente, a.Processo?.NomePasta, pasta, relatorio ? "relatório" : "despacho"], a.Caminho);
+            var despacho = !relatorio && (pasta.StartsWith("DESPACHO", StringComparison.OrdinalIgnoreCase) || a.Processo is null);
+            var tipo = relatorio ? TipoResultadoGeral.Relatorio : despacho ? TipoResultadoGeral.Despacho : TipoResultadoGeral.Documento;
+            var naRaiz = a.Processo is not null && string.Equals(Path.GetDirectoryName(a.Caminho), a.Processo.Pasta, StringComparison.OrdinalIgnoreCase);
+            var onde = tipo switch
+            {
+                TipoResultadoGeral.Relatorio => "Relatório" + doProcesso,
+                TipoResultadoGeral.Despacho => "Despacho" + doProcesso + (pasta.StartsWith("DESPACHO", StringComparison.OrdinalIgnoreCase) ? " · " + pasta : ""),
+                _ => "Documento" + doProcesso + (naRaiz ? "" : " · " + pasta),
+            };
+            var glifo = tipo switch { TipoResultadoGeral.Relatorio => Glifos.Relatorio, TipoResultadoGeral.Despacho => Glifos.Despacho, _ => Glifos.Documento };
+            var palavra = tipo switch { TipoResultadoGeral.Relatorio => "relatório", TipoResultadoGeral.Despacho => "despacho", _ => "documento arquivo" };
+            return new ItemPesquisaGeral(tipo, Path.GetFileName(a.Caminho), onde, glifo, "arquivo:" + a.Caminho.ToUpperInvariant(),
+                [a.Processo?.Requerente, a.Processo?.NomePasta, pasta, palavra], a.Caminho);
         }).ToList();
 
     /// <summary>Relatórios abertos há pouco (Arquivo › Recentes). Dado: o caminho.</summary>

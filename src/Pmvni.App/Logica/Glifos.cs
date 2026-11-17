@@ -1,4 +1,4 @@
-namespace Pmvni.App;
+﻿namespace Pmvni.App;
 
 /// <summary>Glifos Segoe Fluent Icons usados na faixa, no trilho e nos menus, com nome (antes eram caracteres de uso privado
 /// literais, invisíveis no editor e no diff). Sem tipos WinUI: compilado também nos testes.</summary>
@@ -57,6 +57,7 @@ public static class Glifos
     public const string Recentes = "\uE81C";
     public const string Relatorio = "\uE8A5";
     public const string Despacho = "\uE715";
+    public const string Documento = "\uE7C3";
     public const string AbrirArquivo = "\uE8A7";
     public const string ImportarAnalise = "\uE896";
     public const string Restaurar = "\uE777";

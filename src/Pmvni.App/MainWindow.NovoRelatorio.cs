@@ -127,6 +127,7 @@ public sealed partial class MainWindow
 
         var n = NR;
         n.CaixaFiltro.TextChanged += (_, _) => PreencherProcessosNR();
+        n.CaixaFiltro.KeyDown += AoTeclarNoFiltroNR;
         n.CaixaProcesso.SelectionChanged += (_, _) =>
         {
             if (!preenchendoNR && n.CaixaProcesso.SelectedItem is ComboBoxItem { Tag: Processo p }) _ = TentarAsync(() => EscolherProcessoNovoRelatorioAsync(p));
@@ -260,23 +261,37 @@ public sealed partial class MainWindow
         if (fechada) return;
         escolher ??= processoNR;
         var n = NR;
-        var linhas = ListasPastas.FiltrarProcessos(processosNR.Select(p => new LinhaProcesso(p, DateTime.MinValue)), n.CaixaFiltro.Text, null, OrdemProcessos.Numero)
-            .Select(l => l.Processo).ToList();
-        // O processo escolhido fica sempre à vista, mesmo fora do filtro: o Analisar parte para ele.
-        if (escolher is not null && !linhas.Any(p => p.Pasta == escolher.Pasta)) linhas.Insert(0, escolher);
+        // 1.0.0: filtro por número, ano e requerente (Processos.Filtrar), com o resultado à vista. O processo escolhido fica sempre na lista,
+        // mesmo fora do filtro (marcado), porque o Analisar parte para ele; limpar o filtro devolve a lista inteira.
+        var (itens, unico, texto) = ListasPastas.FiltrarNovoRelatorio(processosNR, n.CaixaFiltro.Text, escolher);
+        n.TextoFiltroProcessos.Text = texto;
+        n.TextoFiltroProcessos.Visibility = texto.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         preenchendoNR = true;
         try
         {
             n.CaixaProcesso.Items.Clear();
-            foreach (var processo in linhas)
+            foreach (var (processo, fora) in itens)
                 n.CaixaProcesso.Items.Add(new ComboBoxItem
                 {
-                    Content = ListasPastas.NumeroDoProcesso(processo) is { } num ? num + " · " + (processo.Requerente ?? processo.NomePasta) : processo.NomePasta,
+                    Content = (ListasPastas.NumeroDoProcesso(processo) is { } num ? num + " · " + (processo.Requerente ?? processo.NomePasta) : processo.NomePasta)
+                        + (fora ? "  (escolhido)" : ""),
                     Tag = processo,
                 });
             n.CaixaProcesso.SelectedItem = n.CaixaProcesso.Items.OfType<ComboBoxItem>().FirstOrDefault(i => i.Tag is Processo p && escolher is not null && p.Pasta == escolher.Pasta);
         }
         finally { preenchendoNR = false; }
+        // Um único processo achado pelo filtro e nenhum escolhido: passa a ser o escolhido, como se clicado na lista.
+        if (unico is not null && n.CaixaFiltro.FocusState != FocusState.Unfocused)
+            n.CaixaProcesso.SelectedItem = n.CaixaProcesso.Items.OfType<ComboBoxItem>().FirstOrDefault(i => ReferenceEquals(i.Tag, unico));
+    }
+
+    /// <summary>Enter ou ↓ no filtro: abre a lista já filtrada.</summary>
+    void AoTeclarNoFiltroNR(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key is not (Windows.System.VirtualKey.Enter or Windows.System.VirtualKey.Down) || NR.CaixaProcesso.Items.Count == 0) return;
+        e.Handled = true;
+        NR.CaixaProcesso.Focus(FocusState.Keyboard);
+        NR.CaixaProcesso.IsDropDownOpen = true;
     }
 
     /// <summary>O processo da análise: a pasta à vista, os destinos padrão das linhas que o usuário não escolheu e a prévia de novo.</summary>
