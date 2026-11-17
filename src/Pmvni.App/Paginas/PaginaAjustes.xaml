@@ -436,21 +436,27 @@
             <TextBlock Text="Suas IAs" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
             <local:CartaoAgente x:Name="CartaoChatGpt" x:FieldModifier="internal"/>
             <local:CartaoAgente x:Name="CartaoClaude" x:FieldModifier="internal"/>
-            <!-- Revisão do relatório (2026-11-16): o modelo e o esforço das perguntas curtas à IA (ajustar o item, rever a tabela, volumetria). -->
-            <TextBlock Text="Revisão do relatório" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
+            <!-- Modelos de IA (2026-11-17, no padrão do seletor do WinStatusBar): qual IA responde na revisão e nos ajustes, com que modelo e com que
+                 nível de raciocínio. Uma linha por fonte disponível neste computador (montada em MainWindow.ModelosIa.cs); as listas vêm dos apps
+                 ChatGPT e Claude e, nas APIs, da própria API. -->
+            <TextBlock Text="Modelos de IA" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
+            <TextBlock Style="{StaticResource PmvniAjusteAjuda}"
+                       Text="A IA que responde em Rever com a IA, Ajustar o item, esquadrias, volumetria e no resumo do despacho: o modelo e o nível de raciocínio de cada uma. As listas vêm dos apps ChatGPT e Claude deste computador e, nas APIs, da própria API. O Novo relatório continua com os agentes acima."/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Modelo do ajuste de texto" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="O modelo do app ChatGPT (Codex) que ajusta o item e revê as tabelas na revisão. Sem o Codex, vale o Claude Code." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                <ComboBox x:Name="CaixaIaModelo" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Modelo do ajuste de texto"/>
+                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="IA da revisão e dos ajustes" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock x:Name="TextoFonteIa" x:FieldModifier="internal" Text="Escolha por mim: o Codex, se estiver neste computador; senão o Claude Code." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                <ComboBox x:Name="CaixaIaFonte" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="IA da revisão e dos ajustes"/>
               </Grid>
+              <StackPanel x:Name="PainelModelosIa" x:FieldModifier="internal"/>
               <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
-              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Esforço do ajuste de texto" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Baixo responde em segundos; mais esforço demora mais." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                <ComboBox x:Name="CaixaIaEsforco" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Esforço do ajuste de texto"/>
+              <Grid Padding="16,12" ColumnSpacing="12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock x:Name="TextoModelosIa" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" VerticalAlignment="Center"/>
+                <ProgressRing x:Name="AnelModelosIa" x:FieldModifier="internal" Grid.Column="1" Width="16" Height="16" IsActive="False" Visibility="Collapsed"/>
+                <Button x:Name="BotaoAtualizarModelosIa" x:FieldModifier="internal" Grid.Column="2" Content="Atualizar lista" AutomationProperties.Name="Atualizar a lista de modelos de IA"
+                        local:Dicas.Titulo="Atualizar lista" local:Dicas.Descricao="Lê de novo os modelos dos apps ChatGPT e Claude e das APIs com chave guardada. Sem conexão, continua valendo a última lista."/>
               </Grid>
             </StackPanel></Border>
             <TextBlock Text="Novo relatório" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>

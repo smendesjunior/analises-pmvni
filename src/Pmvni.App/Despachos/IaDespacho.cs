@@ -63,8 +63,12 @@ internal static class IaDespacho
     /// <summary>Opções de uma pergunta à IA (revisão do relatório, 2026-11-16). <see cref="PreferirCodex"/>: usa o Codex quando ele existe
     /// (o padrão é o Claude Code primeiro); <see cref="ArgumentosCodex"/>: modelo e esforço (<see cref="ModeloIaAjuste.ArgumentosCodex"/>);
     /// <see cref="SemArquivos"/>: a IA responde só com o que está no pedido, numa pasta vazia, sem ferramentas de leitura e sem guardar a
-    /// conversa no Codex (<c>--ephemeral</c>); <see cref="Limite"/>: tempo máximo (null = <see cref="IaDespacho.Limite"/>).</summary>
-    internal sealed record OpcoesIa(bool PreferirCodex = false, IReadOnlyList<string>? ArgumentosCodex = null, bool SemArquivos = false, TimeSpan? Limite = null);
+    /// conversa no Codex (<c>--ephemeral</c>); <see cref="Limite"/>: tempo máximo (null = <see cref="IaDespacho.Limite"/>).
+    /// Modelos de IA (2026-11-17): <see cref="ArgumentosClaude"/>: modelo e nível no Claude Code (<c>--model</c>/<c>--effort</c>,
+    /// <see cref="EscolhaIa.Argumentos"/>); <see cref="Ambiente"/>: ajusta as variáveis do processo filho (tira as chaves herdadas e, nas
+    /// APIs, põe só a chave da fonte escolhida — <c>AmbienteFilho.Aplicar</c>).</summary>
+    internal sealed record OpcoesIa(bool PreferirCodex = false, IReadOnlyList<string>? ArgumentosCodex = null, bool SemArquivos = false, TimeSpan? Limite = null,
+        IReadOnlyList<string>? ArgumentosClaude = null, Action<IDictionary<string, string?>>? Ambiente = null);
 
     /// <summary>A linha de comando de uma pergunta: o programa, os argumentos (sempre separados) e, no Codex, o arquivo da resposta final.</summary>
     internal sealed record ComandoIa(string Programa, IReadOnlyList<string> Argumentos, string? UltimaMensagem, bool Codex);
@@ -91,6 +95,7 @@ internal static class IaDespacho
             throw new InvalidOperationException("Nenhum programa de IA encontrado. Instale e entre no Claude Code ou no Codex em Ajustes › Inteligência artificial.");
         args.AddRange(["-p", "--output-format", "text", "--permission-mode", "default", "--disallowedTools",
             semArquivos ? FerramentasProibidas + " Read Grep Glob" : FerramentasProibidas]);
+        if (opcoes?.ArgumentosClaude is { } escolha) args.AddRange(escolha);
         if (comPasta && !semArquivos)
         {
             args.Add("--allowedTools");
@@ -130,6 +135,7 @@ internal static class IaDespacho
         si.CreateNoWindow = true;
         si.StandardInputEncoding = si.StandardOutputEncoding = si.StandardErrorEncoding = new UTF8Encoding(false);
         si.WorkingDirectory = dir;
+        opcoes?.Ambiente?.Invoke(si.Environment);
 
         using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limite.CancelAfter(tempo);

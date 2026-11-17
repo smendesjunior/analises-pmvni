@@ -1,8 +1,9 @@
 namespace Pmvni.App;
 
 /// <summary>O modelo e o esforço das perguntas curtas à IA na revisão do relatório ("Ajustar texto com a IA", "Rever a tabela com a IA",
-/// volumetria): o Codex (app ChatGPT) com o Terra 6.1 em esforço baixo. É AQUI que se troca o padrão; o usuário escolhe outro em
-/// Ajustes › Inteligência artificial › Revisão do relatório. Sem o Codex instalado, a pergunta cai no Claude Code, como antes.</summary>
+/// volumetria): o Codex (app ChatGPT) com o Terra 6.1 em esforço baixo. É AQUI que se troca o padrão do Codex. Desde 2026-11-17 a escolha
+/// é feita em Ajustes › Inteligência artificial › Modelos de IA (<see cref="EscolhaIa"/>, <see cref="CatalogoIa"/>); daqui ficam o padrão,
+/// o tempo-limite e a leitura da escolha antiga (<c>ia_ajuste_modelo</c>/<c>ia_ajuste_esforco</c>, migrada por <see cref="EscolhaIa.Migrar"/>).</summary>
 public static class ModeloIaAjuste
 {
     /// <summary>O slug do Terra 6.1 no catálogo do Codex (<c>%USERPROFILE%\.codex\models_cache.json</c>).</summary>

@@ -747,7 +747,9 @@ public sealed partial class MainWindow
         {
             var pecas = await LerPecasAsync();
             var retrato = IaDespacho.Prompt(r, "");
-            var saida = await IaDespacho.PerguntarAsync(pecas.Claude, pecas.Codex, IaDespacho.Prompt(r, instrucao), CancellationToken.None);
+            // A IA e o modelo de Ajustes › Inteligência artificial › Modelos de IA (2026-11-17), com o tempo-limite de sempre do despacho.
+            var ia = PrepararIa(pecas, null);
+            var saida = await IaDespacho.PerguntarAsync(ia.Claude, ia.Codex, IaDespacho.Prompt(r, instrucao), CancellationToken.None, null, null, ia.Opcoes);
             if (!ReferenceEquals(novo, s) || !ReferenceEquals(s.Rascunho, r)) return;
             if (IaDespacho.Prompt(r, "") != retrato)
             {

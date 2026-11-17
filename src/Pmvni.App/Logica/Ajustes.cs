@@ -189,6 +189,12 @@ public sealed class Ajustes
     public string IaAjusteModelo { get; set; } = ModeloIaAjuste.ModeloPadrao;
     /// <summary>O esforço de raciocínio dessas perguntas. Padrão: baixo (<see cref="ModeloIaAjuste.EsforcoPadrao"/>).</summary>
     public string IaAjusteEsforco { get; set; } = ModeloIaAjuste.EsforcoPadrao;
+    /// <summary>Ajustes › Inteligência artificial › Modelos de IA (2026-11-17): a IA da revisão e dos ajustes (<c>ia_revisao_fonte</c>):
+    /// <see cref="EscolhaIa.Automatico"/> ("Escolha por mim") ou uma <see cref="FonteIa"/> (<see cref="FontesIa.Valor"/>).</summary>
+    public string IaRevisaoFonte { get; set; } = EscolhaIa.Automatico;
+    /// <summary>O modelo e o nível escolhidos em cada fonte (<c>ia_modelos</c>). Sem escolha guardada, o padrão (<see cref="EscolhaIa.Padrao"/>);
+    /// o Codex herda a escolha antiga de <c>ia_ajuste_modelo</c>/<c>ia_ajuste_esforco</c>.</summary>
+    public Dictionary<FonteIa, ModeloEscolhido> IaModelos { get; } = FontesIa.Todas.ToDictionary(f => f, EscolhaIa.Padrao);
     public bool ConfirmarFechar { get; set; } = true;
     /// <summary>Ajustes › Sobre e suporte › Atualizações: procurar e instalar versões novas sozinho (a cada 15 min, pelo GitHub).</summary>
     public bool AtualizarAutomaticamente { get; set; } = true;
@@ -243,6 +249,8 @@ public sealed class Ajustes
         ConfirmarCancelar = p.ConfirmarCancelar;
         IaAjusteModelo = p.IaAjusteModelo;
         IaAjusteEsforco = p.IaAjusteEsforco;
+        IaRevisaoFonte = p.IaRevisaoFonte;
+        foreach (var f in FontesIa.Todas) IaModelos[f] = p.IaModelos[f];
         ConfirmarFechar = p.ConfirmarFechar;
         AtualizarAutomaticamente = p.AtualizarAutomaticamente;
     }
@@ -433,6 +441,10 @@ public sealed class Ajustes
             ["confirmar_cancelar"] = ConfirmarCancelar,
             ["ia_ajuste_modelo"] = IaAjusteModelo,
             ["ia_ajuste_esforco"] = IaAjusteEsforco,
+            // Modelos de IA: só o nome do modelo e o nível de cada fonte. Nenhuma chave nem token vem para este arquivo.
+            ["ia_revisao_fonte"] = IaRevisaoFonte,
+            ["ia_modelos"] = new JsonObject(IaModelos.OrderBy(p => p.Key).Select(p => KeyValuePair.Create(FontesIa.Valor(p.Key),
+                (JsonNode?)new JsonObject { ["modelo"] = p.Value.Modelo, ["nivel"] = p.Value.Nivel }))),
             ["confirmar_fechar"] = ConfirmarFechar,
             ["atualizar_automaticamente"] = AtualizarAutomaticamente,
         };
@@ -484,8 +496,28 @@ public sealed class Ajustes
         a.ConfirmarCancelar = Logico(j, "confirmar_cancelar", a.ConfirmarCancelar);
         a.IaAjusteModelo = Escolha("ia_ajuste_modelo", ModeloIaAjuste.Modelos.Select(m => m.Valor).ToList(), a.IaAjusteModelo);
         a.IaAjusteEsforco = Escolha("ia_ajuste_esforco", ModeloIaAjuste.Esforcos.Select(e => e.Valor).ToList(), a.IaAjusteEsforco);
+        a.IaRevisaoFonte = Escolha("ia_revisao_fonte", EscolhaIa.Opcoes, a.IaRevisaoFonte);
+        LerModelosIa(j, a);
         a.ConfirmarFechar = Logico(j, "confirmar_fechar", a.ConfirmarFechar);
         a.AtualizarAutomaticamente = Logico(j, "atualizar_automaticamente", a.AtualizarAutomaticamente);
+    }
+
+    /// <summary><c>ia_modelos</c>: {"codex":{"modelo","nivel"},…}. Modelo ou nível inválido fica vazio (o padrão do app); sem a chave
+    /// (arquivo de antes da 0.5), o Codex vem da escolha antiga (<see cref="EscolhaIa.Migrar"/>) e o resto fica no padrão.</summary>
+    static void LerModelosIa(JsonObject j, Ajustes a)
+    {
+        var codexGuardado = false;
+        if (j["ia_modelos"] is JsonObject modelos)
+            foreach (var f in FontesIa.Todas)
+                if (modelos[FontesIa.Valor(f)] is JsonObject o)
+                {
+                    var modelo = Texto(o, "modelo") is { } m && CatalogoIa.ModeloValido(m) ? m : "";
+                    var nivel = Texto(o, "nivel") is { } n && CatalogoIa.NivelValido(n) ? n : "";
+                    a.IaModelos[f] = new ModeloEscolhido(modelo, nivel);
+                    codexGuardado |= f == FonteIa.Codex;
+                }
+        if (!codexGuardado && (j.ContainsKey("ia_ajuste_modelo") || j.ContainsKey("ia_ajuste_esforco")))
+            a.IaModelos[FonteIa.Codex] = EscolhaIa.Migrar(a.IaAjusteModelo, a.IaAjusteEsforco);
     }
 
     static int? Inteiro(JsonObject j, string nome) => j[nome] is JsonValue v && v.TryGetValue<int>(out var i) ? i : null;

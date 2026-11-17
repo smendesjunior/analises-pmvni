@@ -314,6 +314,7 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         foreach (var p in Enum.GetValues<Provedor>()) MostrarCartao(p);
+        MostrarModelosIa();   // a chave guardada ou o programa achado mudam as fontes de Modelos de IA
     }
 
     void MostrarCartao(Provedor p)
