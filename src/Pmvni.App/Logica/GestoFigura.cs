@@ -49,9 +49,10 @@ public sealed class GestoFigura
         if (m is null) return null;
         if (nova)
         {
+            // Clique sem arrastar (ou arrasto mínimo): região padrão em volta do clique. Antes não fazia nada e parecia que o botão não funcionava.
             var caixa = InteracaoFigura.CaixaDoArrasto(m, inicio, ponto);
-            return caixa[2] - caixa[0] < .005 || caixa[3] - caixa[1] < .005 ? null
-                : new IncluirMarcacao(figura, Marcacao.NovoId(), TiposMarcacao.Regiao, Caixa: caixa);
+            if (caixa[2] - caixa[0] < .005 || caixa[3] - caixa[1] < .005) caixa = InteracaoFigura.CaixaDoClique(m, inicio);
+            return caixa is null ? null : new IncluirMarcacao(figura, Marcacao.NovoId(), TiposMarcacao.Regiao, Caixa: caixa);
         }
         return x is null ? null : InteracaoFigura.ComandoDoArrasto(figura, x,
             InteracaoFigura.Arrastar(m, x, parte, inicio, ponto), parte);

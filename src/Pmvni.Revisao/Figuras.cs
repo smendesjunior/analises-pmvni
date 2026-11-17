@@ -196,6 +196,10 @@ public static partial class CamadaFiguras
         return gravadas.Concat(vetoriais).Select((m, i) => (m, i + 1)).ToList();
     }
 
+    /// <summary>Quantos números ainda cabem na figura (região e seta ocupam um; o texto livre não). Zero: o editor avisa antes de
+    /// tentar, em vez de deixar o comando ser recusado.</summary>
+    public static int VagasNumeradas(FiguraRevisao f) => Math.Max(0, MaximoNumeradas - Numeradas(f).Count);
+
     /// <summary>O número visível de uma marcação (null no texto livre ou se não existe).</summary>
     public static int? Numero(FiguraRevisao f, string marcacao) =>
         Numeradas(f).Where(x => x.Marcacao.Id == marcacao).Select(x => (int?)x.Numero).FirstOrDefault();

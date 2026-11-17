@@ -98,6 +98,28 @@ public sealed class RecomposicaoTestes : IClassFixture<TelaFixture>
     }
 
     [Fact]
+    public void marcacao_nova_em_figura_do_kit_passa_pela_recomposicao_e_sai_dela()
+    {
+        // O caminho do editor de figura (2026-11-17): Testar → Preparar → Aplicar, numa figura do kit com marcações gravadas.
+        var pacote = Importar("longo");
+        var sessao = new SessaoRevisao(pacote.Projeto, pacote.Historico, Contexto());
+        var fig = CamadaFiguras.Inicial(sessao.Projeto)[0].Id;
+        using var rec = new Recompositor(pacote, Modelo);
+        var svgAntes = Regex.Count(rec.Preparar(sessao.Projeto).Render.Html, "data:image/svg\\+xml;base64,");
+
+        var incluir = new IncluirMarcacao(fig, "mk_web", Pmvni.Composicao.Figuras.TiposMarcacao.Regiao, Caixa: [.2, .2, .4, .4], Elemento: "Janela J4");
+        var e = rec.Preparar(sessao.Testar(incluir));
+        Assert.NotNull(sessao.Aplicar(incluir));
+        Assert.Equal(svgAntes + 1, Regex.Count(e.Render.Html, "data:image/svg\\+xml;base64,"));
+
+        var excluir = new ExcluirMarcacao(fig, "mk_web");
+        var depois = rec.Preparar(sessao.Testar(excluir));
+        Assert.NotNull(sessao.Aplicar(excluir));
+        Assert.Equal(svgAntes, Regex.Count(depois.Render.Html, "data:image/svg\\+xml;base64,"));
+        Assert.Null(sessao.Projeto.Figuras!.Single(f => f.Id == fig).Buscar("mk_web"));
+    }
+
+    [Fact]
     public async Task exportar_pacote_grava_sha256_do_pacote_e_dos_dados_efetivos()
     {
         var pacote = Importar("curto");
