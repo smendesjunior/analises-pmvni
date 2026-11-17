@@ -773,7 +773,7 @@ public sealed partial class MainWindow
             ComandosApp.ProcessosAno => "a lista de processos ainda não foi lida",
             ComandosApp.DespachosAbrirPdf => "o despacho escolhido não tem PDF",
             ComandosApp.DespachosDoProcesso => "escolha antes um processo no módulo Processos",
-            ComandosApp.DespachosNovoCorrecao or ComandosApp.DespachosNovoAprovacao => Faixa.Dica(id).TrimEnd('.'),
+            ComandosApp.DespachosNovoCorrecao or ComandosApp.DespachosNovoAprovacao or ComandosApp.DespachosNovoCorrecaoAutomatica => Faixa.Dica(id).TrimEnd('.'),
             ComandosApp.DespachosGerarPdf => novo is not null ? FluxoNovoDespacho.Compondo.TrimEnd('.').ToLowerInvariant()
                 : "escolha um despacho gerado pelo editor que ficou só em Word (DOCX)",
             _ => "escolha um despacho na lista",

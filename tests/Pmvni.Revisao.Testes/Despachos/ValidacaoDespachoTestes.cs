@@ -25,7 +25,7 @@ public sealed class ValidacaoDespachoTestes
         return ms.ToArray();
     }
 
-    static byte[] TrocarXml(byte[] docx, string de, string para) =>
+    internal static byte[] TrocarXml(byte[] docx, string de, string para) =>
         Trocar(docx, "word/document.xml", b =>
         {
             var xml = Encoding.UTF8.GetString(b);
@@ -79,7 +79,7 @@ public sealed class ValidacaoDespachoTestes
     {
         var modelo = PreenchimentoDocxTestes.Modelo(TipoDespacho.Aprovacao);
         var docx = TrocarXml(PreenchimentoDocx.Preencher(modelo, PreenchimentoDocxTestes.Final(TipoDespacho.Aprovacao)),
-            "w:top=\"1417\"", "w:top=\"1418\"");
+            "w:bottom=\"2113\"", "w:bottom=\"2114\""); // a margem de cima o editor corrige (CabecalhoRodapeTestes); as outras não mudam
 
         Assert.Equal(new[] { "Seções, margens, formato, orientação ou vínculos de cabeçalho/rodapé alterados." }, ValidacaoDespacho.Comparar(modelo, docx));
     }

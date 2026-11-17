@@ -12,4 +12,16 @@
   <ItemGroup>
     <ProjectReference Include="..\Pmvni.Composicao\Pmvni.Composicao.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Assinatura digital do PDF do despacho (2026-11-16). Só licenças permissivas:
+         - PDFsharp 6.2.4 (MIT): grava o campo de assinatura e a aparência visível. VERSÃO FIXA DE PROPÓSITO: a partir da 6.5.0 o pacote
+           passou para AGPL-3.0 (conferido no .nuspec); não atualizar sem conferir a licença.
+         - System.Security.Cryptography.Pkcs (MIT, Microsoft): a assinatura PKCS#7/CMS.
+         - PdfPig (Apache-2.0): acha no PDF a linha de assinatura, onde a aparência é ancorada. -->
+    <PackageReference Include="PDFsharp" Version="[6.2.4]" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.15" />
+    <PackageReference Include="PdfPig" Version="0.1.16" />
+    <!-- DPAPI: a senha do certificado que o usuário pede para lembrar (a mesma versão que o Pmvni.Agentes já usa no CofreChaves). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
+  </ItemGroup>
 </Project>

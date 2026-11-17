@@ -70,6 +70,7 @@ public static class PreenchimentoDocx
         TrocarAssunto(mapa.Um(PapelParagrafo.Assunto), d.Assunto);
         TrocarData(mapa.Um(PapelParagrafo.Data), d.DataPorExtenso);
         ManterFechoJunto(mapa.Um(PapelParagrafo.Data));
+        AfastarDoCabecalho(doc, LayoutDespacho.Ler(modelo));
 
         var vagas = mapa.Todos(PapelParagrafo.Vaga);
         var novos = new List<XElement>();
@@ -283,6 +284,42 @@ public static class PreenchimentoDocx
             // ordem do esquema: pStyle vem antes de keepNext
             if (ppr.Element(W + "pStyle") is { } estilo) estilo.AddAfterSelf(k); else ppr.AddFirst(k);
         }
+    }
+
+    static string Twips(double pt) => ((int)Math.Round(pt * 20)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>A margem de cima que o DOCX gerado leva, em twips, quando a do modelo deixa o corpo por cima da faixa do cabeçalho
+    /// (<see cref="LayoutDespacho.TopoDoCorpoPt"/>); null quando a margem do modelo já basta.</summary>
+    internal static string? MargemDeCimaCorrigida(LayoutDespacho l) =>
+        Math.Round(l.TopoDoCorpoPt * 20) > Math.Round(l.MargemTopoPt * 20) ? Twips(l.TopoDoCorpoPt) : null;
+
+    /// <summary>A margem de cima do modelo, em twips, como está escrita no <c>w:pgMar</c>.</summary>
+    internal static string MargemDeCimaDoModelo(LayoutDespacho l) => Twips(l.MargemTopoPt);
+
+    /// <summary>O corpo começa abaixo da faixa do cabeçalho em todas as folhas (correção de 2026-11-16; o defeito é do modelo do kit, que não
+    /// muda: a correção é só na cópia gerada). A margem de cima da seção passa a <see cref="MargemDeCimaCorrigida"/> e o parágrafo vazio que
+    /// abre o corpo perde o mesmo tanto de espaço depois (<see cref="LayoutDespacho.CompensacaoInicialPt"/>), para a 1ª folha ficar igual.</summary>
+    static void AfastarDoCabecalho(XDocument doc, LayoutDespacho l)
+    {
+        if (MargemDeCimaCorrigida(l) is not { } topo) return;
+        var original = MargemDeCimaDoModelo(l);
+        foreach (var mar in doc.Descendants(W + "sectPr").Select(s => s.Element(W + "pgMar")).Where(m => (string?)m?.Attribute(W + "top") == original).ToList())
+            mar!.SetAttributeValue(W + "top", topo);
+
+        if (l.CompensacaoInicialPt <= 0 || doc.Root!.Element(W + "body")!.Elements(W + "p").FirstOrDefault() is not { } primeiro) return;
+        var ppr = primeiro.Element(W + "pPr");
+        if (ppr is null) { ppr = new XElement(W + "pPr"); primeiro.AddFirst(ppr); }
+        var espaco = ppr.Element(W + "spacing");
+        if (espaco is null)
+        {
+            // ordem do esquema: spacing vem depois de pStyle, keepNext, keepLines… e antes de ind, jc e rPr
+            espaco = new XElement(W + "spacing");
+            var antes = ppr.Elements().LastOrDefault(e => e.Name.LocalName is "pStyle" or "keepNext" or "keepLines" or "pageBreakBefore" or "framePr"
+                or "widowControl" or "numPr" or "suppressLineNumbers" or "pBdr" or "shd" or "tabs" or "suppressAutoHyphens" or "kinsoku" or "wordWrap"
+                or "overflowPunct" or "topLinePunct" or "autoSpaceDE" or "autoSpaceDN" or "bidi" or "adjustRightInd" or "snapToGrid");
+            if (antes is null) ppr.AddFirst(espaco); else antes.AddAfterSelf(espaco);
+        }
+        espaco.SetAttributeValue(W + "after", Twips(Math.Max(0, l.Formatos[0].DepoisPt - l.CompensacaoInicialPt)));
     }
 
     static void TrocarData(XElement p, string data)

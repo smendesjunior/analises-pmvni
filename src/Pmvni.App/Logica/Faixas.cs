@@ -42,6 +42,7 @@ public static class Faixas
     static readonly ComandoFaixa NovoDespacho = new(ComandosApp.DespachosNovo, "Novo despacho", Glifos.Editar, TipoComando.Menu,
     [
         new(ComandosApp.DespachosNovoCorrecao, "Correção", ""),
+        new(ComandosApp.DespachosNovoCorrecaoAutomatica, "Correção automática (itens pendentes do relatório)", ""),
         new(ComandosApp.DespachosNovoAprovacao, "Aprovação", ""),
     ]);
 

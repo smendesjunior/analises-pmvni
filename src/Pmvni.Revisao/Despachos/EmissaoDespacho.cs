@@ -8,7 +8,15 @@ namespace Pmvni.Revisao;
 /// <summary>O que foi gerado na pasta de trabalho (nada ainda na pasta do processo). <see cref="Erros"/> ≠ [] impede gravar; sem PDF,
 /// <see cref="SemPdfMotivo"/> (<c>SEM_LIBREOFFICE</c>, <c>CONVERSAO_FALHOU</c>, <c>TEMPO_ESGOTADO</c>, <c>SEM_VERDANA</c>) e a mensagem.</summary>
 public sealed record Preparacao(string PastaTrabalho, byte[] Docx, byte[]? Pdf, int? Paginas, IReadOnlyList<string> Fontes, string? SemPdfMotivo,
-    string? MensagemSemPdf, IReadOnlyList<string> Erros);
+    string? MensagemSemPdf, IReadOnlyList<string> Erros)
+{
+    /// <summary>A assinatura digital aplicada ao <see cref="Pdf"/> (2026-11-16); null = o PDF não foi assinado (sem certificado
+    /// configurado, ou sem PDF).</summary>
+    public AssinaturaAplicada? Assinatura { get; init; }
+}
+
+/// <summary>A assinatura digital que o PDF do despacho recebeu: de quem é o certificado, a hora e onde a aparência visível ficou.</summary>
+public sealed record AssinaturaAplicada(InfoCertificado Certificado, DateTimeOffset Quando, LocalAssinatura Local);
 
 /// <summary>De onde o despacho veio (vai para o recibo).</summary>
 public sealed record OrigemDespacho(Processo Processo, string CaminhoPacote, string Sha256Pacote, string Sha256DadosEfetivos, int HistoricoN,
@@ -26,7 +34,13 @@ public static class EmissaoDespacho
         "O DOCX não é mais o que o editor gravou (não confere com o recibo); o PDF não é gerado por aqui. Gere um novo despacho.";
     const int TentativasDeNome = 100;
 
-    public static Preparacao Preparar(DespachoFinal d, ModeloDespacho m, string pastaTrabalho, IConversorPdf conv, CancellationToken ct)
+    public static Preparacao Preparar(DespachoFinal d, ModeloDespacho m, string pastaTrabalho, IConversorPdf conv, CancellationToken ct) =>
+        Preparar(d, m, pastaTrabalho, conv, null, ct);
+
+    /// <summary>Com <paramref name="assinador"/>, o PDF gerado é assinado digitalmente (assinatura visível acima da linha de assinatura)
+    /// antes da conferência: é o PDF assinado que se confere e que vai para a pasta do processo. Se a assinatura falhar, o motivo vem em
+    /// <see cref="Preparacao.Erros"/> e nada pode ser gravado. Sem PDF (sem LibreOffice, conversão que falhou), nada é assinado.</summary>
+    public static Preparacao Preparar(DespachoFinal d, ModeloDespacho m, string pastaTrabalho, IConversorPdf conv, IAssinadorPdf? assinador, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(d);
         ArgumentNullException.ThrowIfNull(m);
@@ -57,7 +71,7 @@ public static class EmissaoDespacho
         erros = ValidacaoDespacho.Comparar(modelo, relido).Concat(ValidacaoDespacho.Conteudo(modelo, relido, d)).ToList();
         if (erros.Count > 0 || !relido.AsSpan().SequenceEqual(docx)) return Erro(erros.Count > 0 ? erros.ToArray() : new[] { DocxMudou });
 
-        return Converter(pastaTrabalho, caminho, docx, conv, ct);
+        return Converter(pastaTrabalho, caminho, docx, conv, assinador, ct);
     }
 
     static string Trabalho(Exception e) => "Não foi possível gravar o despacho na pasta de trabalho (" + MensagensDeErro.ParaUsuario(e) + ").";
@@ -66,7 +80,7 @@ public static class EmissaoDespacho
     const string DocxMudou = "O DOCX mudou durante a conversão; gere o despacho de novo.";
 
     /// <summary>Converte <paramref name="caminhoDocx"/> e confere: o DOCX não mudou (sha), o PDF abre no leitor mínimo e usa a Verdana.</summary>
-    static Preparacao Converter(string pastaTrabalho, string caminhoDocx, byte[] docx, IConversorPdf conv, CancellationToken ct)
+    static Preparacao Converter(string pastaTrabalho, string caminhoDocx, byte[] docx, IConversorPdf conv, IAssinadorPdf? assinador, CancellationToken ct)
     {
         var sha = RegistroModelos.Sha(docx);
         ResultadoConversao r;
@@ -98,7 +112,22 @@ public static class EmissaoDespacho
         if (!fontes.Any(f => f.StartsWith("Verdana", StringComparison.Ordinal)))
             return SemPdf("SEM_VERDANA", "O PDF saiu sem a fonte Verdana (fontes: " + (fontes.Count == 0 ? "nenhuma" : string.Join(", ", fontes))
                                          + "); será gravado só o DOCX.", fontes);
-        return new Preparacao(pastaTrabalho, docx, r.Pdf, info.Paginas, fontes, null, null, Array.Empty<string>());
+        if (assinador is null) return new Preparacao(pastaTrabalho, docx, r.Pdf, info.Paginas, fontes, null, null, Array.Empty<string>());
+
+        // Assinatura digital: o PDF assinado é o que se confere e o que se grava; se ela falhar, nada pode ser gravado.
+        Preparacao NaoAssinado(string motivo) => new(pastaTrabalho, docx, null, null, fontes, null, null, new[] { motivo });
+        PdfAssinado assinado;
+        try { assinado = assinador.Assinar(r.Pdf, docx, ct); }
+        catch (AssinaturaDigitalException e) { return NaoAssinado(e.Message); }
+        ct.ThrowIfCancellationRequested();
+        InfoPdf depois;
+        try { depois = InfoPdf.Ler(assinado.Pdf); }
+        catch (InvalidDataException e) { return NaoAssinado("O PDF assinado ficou ilegível (" + e.Message.TrimEnd('.') + "); nada foi gravado."); }
+        if (depois.Paginas != info.Paginas) return NaoAssinado("O PDF assinado não tem as mesmas páginas do PDF gerado; nada foi gravado.");
+        return new Preparacao(pastaTrabalho, docx, assinado.Pdf, info.Paginas, fontes, null, null, Array.Empty<string>())
+        {
+            Assinatura = new AssinaturaAplicada(assinado.Certificado, assinado.Quando, assinado.Local),
+        };
     }
 
     static string Falhou(string detalhe) =>
@@ -160,7 +189,7 @@ public static class EmissaoDespacho
                 if (p.Pdf is not null)
                 {
                     Mover(etapa.Pasta, p.Pdf, livres.Pdf, criados, antesDeMover);
-                    pdf = ReciboDespacho.Pdf(livres.Pdf, p.Pdf, p.Paginas!.Value, p.Fontes, motorPdf);
+                    pdf = ReciboDespacho.Pdf(livres.Pdf, p.Pdf, p.Paginas!.Value, p.Fontes, motorPdf, p.Assinatura);
                     conferidas = ReciboDespacho.Conferidas(paginasConferidas!, u);
                 }
                 var recibo = ReciboDespacho.Montar(r, d, m, tx, etapa, o, processo, livres.Docx, p.Docx, pdf, p.Pdf is null ? p.SemPdfMotivo : null,
@@ -213,7 +242,11 @@ public static class EmissaoDespacho
     }
 
     /// <summary>Gerar PDF depois: só para um despacho do editor (com recibo) que ficou sem PDF. Converte uma cópia do DOCX gravado.</summary>
-    public static Preparacao PrepararPdf(string docxGravado, string pastaTrabalho, IConversorPdf conv, CancellationToken ct)
+    public static Preparacao PrepararPdf(string docxGravado, string pastaTrabalho, IConversorPdf conv, CancellationToken ct) =>
+        PrepararPdf(docxGravado, pastaTrabalho, conv, null, ct);
+
+    /// <summary>Com <paramref name="assinador"/>, o PDF sai assinado digitalmente, como em <see cref="Preparar(DespachoFinal, ModeloDespacho, string, IConversorPdf, IAssinadorPdf?, CancellationToken)"/>.</summary>
+    public static Preparacao PrepararPdf(string docxGravado, string pastaTrabalho, IConversorPdf conv, IAssinadorPdf? assinador, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(docxGravado);
         ArgumentNullException.ThrowIfNull(pastaTrabalho);
@@ -231,7 +264,7 @@ public static class EmissaoDespacho
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return Erro(Trabalho(e)); }
         if (!ConfereComRecibo(recibo, docxGravado, bytes)) return Erro(DocxNaoConfere);
-        return Converter(pastaTrabalho, copia, bytes, conv, ct);
+        return Converter(pastaTrabalho, copia, bytes, conv, assinador, ct);
     }
 
     /// <summary>Grava o PDF de <see cref="PrepararPdf"/> ao lado do DOCX (<c>&lt;base&gt;.pdf</c>, sem sobrescrever) e regrava o recibo por
@@ -265,7 +298,7 @@ public static class EmissaoDespacho
         try
         {
             // Dentro do try: uma falha ao montar o recibo (relógio, fontes) também tira o PDF movido agora.
-            recibo["pdf"] = ReciboDespacho.Pdf(caminhoPdf, p.Pdf, p.Paginas!.Value, p.Fontes, motorPdf);
+            recibo["pdf"] = ReciboDespacho.Pdf(caminhoPdf, p.Pdf, p.Paginas!.Value, p.Fontes, motorPdf, p.Assinatura);
             recibo["sem_pdf_motivo"] = null;
             recibo["paginas_conferidas"] = ReciboDespacho.Conferidas(paginasConferidas, u);
             File.WriteAllBytes(tmp, ReciboDespacho.Escrever(recibo));

@@ -13,6 +13,12 @@ public enum ArquivoBase { Pacote, DadosJson }
 /// <summary>O que a página já traz escolhido ao abrir: o processo, o relatório base (<c>.rpmvni</c>) e a pasta da etapa. Null = o usuário escolhe.</summary>
 public sealed record OrigemSugerida(Processo? Processo, string? Pacote, EtapaDespacho? Etapa);
 
+/// <summary>Onde a correção automática para (<see cref="FluxoNovoDespacho.PlanejarAutomatico"/>).</summary>
+public enum DestinoAutomatico { EscolherProcesso, SemRelatorio, Bloqueado, FaltaPreencher, Conferir }
+
+/// <summary>O que a correção automática faz e a mensagem que a página mostra (título e texto).</summary>
+public sealed record PlanoAutomatico(DestinoAutomatico Destino, string Titulo, string Mensagem);
+
 /// <summary>Lógica do Novo despacho sem tipos WinUI (compilada também nos testes): a origem sugerida pelo módulo de onde se veio, o motivo de um
 /// tipo desabilitado e quando se pode gerar e gravar. Nada aqui grava; <see cref="Sugerir"/> só lê pastas (para <c>Task.Run</c>).</summary>
 public static class FluxoNovoDespacho
@@ -112,6 +118,62 @@ public static class FluxoNovoDespacho
         if (m.Indisponiveis.TryGetValue(t, out var motivo)) return motivo;
         return m.Modelos.Any(x => x.Tipo == t) ? null : "O registro de modelos do kit não tem este tipo de despacho.";
     }
+
+    // ---------- correção automática (2026-11-16) ----------
+
+    /// <summary>O rótulo do botão do painel e a dica do item do menu.</summary>
+    public const string RotuloAutomatico = "Criar automaticamente a partir do relatório";
+
+    public const string AutomaticoSemProcesso =
+        "Escolha o processo na lista e clique em \"" + RotuloAutomatico + "\": o despacho é montado com os itens pendentes do relatório mais recente dele.";
+
+    public const string AutomaticoSemRelatorio =
+        "Este processo não tem relatório revisado (.rpmvni), então não há de onde tirar as exigências. Importe a análise da IA em Processos "
+        + "(ou use \"Escolher arquivo…\") e crie de novo; se preferir, escreva as exigências aqui mesmo.";
+
+    public const string AutomaticoBloqueado = "O despacho não foi criado automaticamente: resolva o que está indicado acima e tente de novo.";
+
+    /// <summary>O que a correção automática faz com o que encontrou: para no passo 1 (sem processo, ou relatório que não serve), fica no
+    /// passo 2 (sem relatório, ou falta preencher algo) ou segue direto para a conferência (passo 3).</summary>
+    public static PlanoAutomatico PlanejarAutomatico(Processo? processo, string? pacote, IReadOnlyList<string> bloqueios, RascunhoDespacho? rascunho)
+    {
+        ArgumentNullException.ThrowIfNull(bloqueios);
+        if (processo is null) return new PlanoAutomatico(DestinoAutomatico.EscolherProcesso, "Escolha o processo", AutomaticoSemProcesso);
+        if (pacote is null) return new PlanoAutomatico(DestinoAutomatico.SemRelatorio, "Processo sem relatório", AutomaticoSemRelatorio);
+        // Entre os bloqueios está o de não haver item pendente ("Nenhum item incluído tem situação diferente de ATENDE…").
+        if (bloqueios.Count > 0 || rascunho is null) return new PlanoAutomatico(DestinoAutomatico.Bloqueado, "Despacho não criado", AutomaticoBloqueado);
+        var faltando = rascunho.Faltando();
+        if (faltando.Count > 0)
+            return new PlanoAutomatico(DestinoAutomatico.FaltaPreencher, "Falta preencher",
+                ResumoAutomatico(rascunho) + " Antes de gerar, preencha: " + string.Join("; ", faltando) + ".");
+        return new PlanoAutomatico(DestinoAutomatico.Conferir, "Despacho criado a partir do relatório", ResumoAutomatico(rascunho) + " Confira as páginas antes de gravar.");
+    }
+
+    /// <summary>"3 exigências do relatório: 1 NÃO ATENDE, 1 FALTA COMPROVAR e 1 INFORMAÇÕES DIVERGENTES." (na ordem do kit; só as que há).</summary>
+    public static string ResumoAutomatico(RascunhoDespacho r)
+    {
+        ArgumentNullException.ThrowIfNull(r);
+        var marcadas = r.Pendencias.Where(p => p.Incluida).ToList();
+        var partes = Pmvni.Composicao.Kit.Situacoes.SitItem.Where(s => s != "ATENDE")
+            .Select(s => (Texto: EtiquetasSituacao.Texto(s), Quantas: marcadas.Count(p => p.Situacao == s)))
+            .Where(x => x.Quantas > 0).Select(x => x.Quantas.ToString(System.Globalization.CultureInfo.InvariantCulture) + " " + x.Texto).ToList();
+        var lista = partes.Count <= 1 ? string.Concat(partes) : string.Join(", ", partes.Take(partes.Count - 1)) + " e " + partes[^1];
+        var n = marcadas.Count;
+        return (n == 1 ? "1 exigência do relatório" : n.ToString(System.Globalization.CultureInfo.InvariantCulture) + " exigências do relatório")
+               + (lista.Length == 0 ? "." : ": " + lista + ".");
+    }
+
+    /// <summary>O relatório que a correção automática usa a partir do painel: o que está escolhido na caixa ou, com "Sem relatório", o mais
+    /// novo da pasta do processo; null se o processo não tem nenhum.</summary>
+    public static string? RelatorioDoAutomatico(string? escolhido, IEnumerable<RelatorioEncontrado> daPasta)
+    {
+        ArgumentNullException.ThrowIfNull(daPasta);
+        return string.IsNullOrEmpty(escolhido) ? MaisNovo(daPasta) : escolhido;
+    }
+
+    /// <summary>O rascunho tem trabalho do usuário que a correção automática apagaria (campo editado ou exigência escrita à mão ou pela IA).</summary>
+    public static bool TemEdicoes(RascunhoDespacho? r) =>
+        r is not null && (r.CamposEditados.Count > 0 || r.Pendencias.Any(p => p.ItemId.StartsWith("manual-", StringComparison.Ordinal) || !p.Incluida));
 
     /// <summary>"Gerar e conferir" só sem nada a preencher.</summary>
     public static bool PodeGerar(RascunhoDespacho r)

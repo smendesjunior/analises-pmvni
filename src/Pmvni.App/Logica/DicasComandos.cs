@@ -66,6 +66,7 @@ public static class DicasComandos
         // Despachos
         [ComandosApp.DespachosNovo] = "Cria um despacho de correção ou de aprovação a partir do relatório revisado.",
         [ComandosApp.DespachosNovoCorrecao] = "Cria um despacho pedindo as correções apontadas no relatório.",
+        [ComandosApp.DespachosNovoCorrecaoAutomatica] = "Monta a correção com os itens pendentes do relatório e vai direto para a conferência.",
         [ComandosApp.DespachosNovoAprovacao] = "Cria um despacho aprovando o projeto analisado.",
         [ComandosApp.DespachosAbrir] = "Escolhe um despacho (Word ou PDF) e o abre no programa padrão do Windows.",
         [ComandosApp.DespachosAbrirPdf] = "Abre o PDF do despacho selecionado.",

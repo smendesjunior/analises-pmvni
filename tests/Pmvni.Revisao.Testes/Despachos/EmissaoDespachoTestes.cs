@@ -9,7 +9,7 @@ public sealed class EmissaoDespachoTestes
     static readonly byte[] PdfVerdana = PdfFicticio.Criar(2, "BAAAAA+Verdana", "CAAAAA+Verdana-Bold");
 
     /// <summary>Tudo o que uma emissão precisa, montado sobre a árvore fictícia (kit lido no lugar).</summary>
-    sealed class Cena : IDisposable
+    internal sealed class Cena : IDisposable
     {
         public PastaTeste Pasta { get; }
         public ArvoreFicticia Arvore { get; }

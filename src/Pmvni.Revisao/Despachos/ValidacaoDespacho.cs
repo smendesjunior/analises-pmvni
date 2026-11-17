@@ -34,7 +34,10 @@ public static class ValidacaoDespacho
 
             var secoesFonte = xmlFonte.Descendants(W + "sectPr").Select(Serializar).ToList();
             var secoesSaida = xmlSaida.Descendants(W + "sectPr").Select(Serializar).ToList();
-            if (secoesSaida.Count < secoesFonte.Count || secoesSaida.Any(s => !secoesFonte.Contains(s)))
+            // Única diferença aceita (correção de 2026-11-16): a margem de cima que o editor corrige quando a do modelo deixa o corpo por
+            // cima da faixa do cabeçalho; qualquer outro valor, ou outra mudança na seção, continua sendo erro.
+            var secoesCorrigidas = SecoesComMargemCorrigida(modelo, xmlFonte);
+            if (secoesSaida.Count < secoesFonte.Count || secoesSaida.Any(s => !secoesFonte.Contains(s) && !secoesCorrigidas.Contains(s)))
                 erros.Add("Seções, margens, formato, orientação ou vínculos de cabeçalho/rodapé alterados.");
 
             var tags = new[] { "rFonts", "sz", "szCs" };
@@ -131,6 +134,26 @@ public static class ValidacaoDespacho
             erros.Add("Não foi possível comparar os DOCX: " + e.Message);
         }
         return erros;
+    }
+
+    /// <summary>As seções do modelo como ficam com a margem de cima corrigida (<see cref="PreenchimentoDocx.MargemDeCimaCorrigida"/>);
+    /// vazio quando o modelo não precisa de correção.</summary>
+    static List<string> SecoesComMargemCorrigida(byte[] modelo, XDocument xmlFonte)
+    {
+        LayoutDespacho l;
+        try { l = LayoutDespacho.Ler(modelo); }
+        catch (ModeloForaDoPadraoException) { return []; }
+        if (PreenchimentoDocx.MargemDeCimaCorrigida(l) is not { } topo) return [];
+        var original = PreenchimentoDocx.MargemDeCimaDoModelo(l);
+        var lista = new List<string>();
+        foreach (var mar in xmlFonte.Descendants(W + "sectPr").Select(s => s.Element(W + "pgMar")).Where(m => (string?)m?.Attribute(W + "top") == original).ToList())
+        {
+            // Serializada no próprio documento (mesmas declarações de namespace da seção de saída) e desfeita em seguida.
+            mar!.SetAttributeValue(W + "top", topo);
+            lista.Add(Serializar(mar.Parent));
+            mar.SetAttributeValue(W + "top", original);
+        }
+        return lista;
     }
 
     static bool CabecalhoOuRodape(string nome) =>

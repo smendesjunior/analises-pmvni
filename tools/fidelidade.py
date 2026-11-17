@@ -804,6 +804,37 @@ def casos_v6(filtro: list[str] | None) -> list[dict]:
     return lista
 
 
+MARGEM_DE_CIMA = re.compile(r'(<w:pgMar\b[^>]*?\bw:top=")(\d+)(")')
+CORRECAO_MAXIMA_TWIPS = 567  # 1 cm
+
+
+def modelo_com_a_margem_do_despacho(modelo: Path, docx: Path, copia: Path):
+    """A única diferença de seção que o editor faz de propósito (correção de 2026-11-16): a margem de cima do DOCX gerado passa do fim
+    da faixa do cabeçalho, porque no modelo do kit a margem (2,5 cm) é menor que a faixa (2,82 cm) e o texto saía por cima do brasão da 2ª
+    folha em diante. O validate() do kit compara a seção inteira; por isso o despacho é validado contra uma cópia TEMPORÁRIA do modelo (em
+    <run>, nunca no kit) só com essa margem trocada: todo o resto (seção, cabeçalho, rodapé, estilos, mídia) continua tendo de ser igual
+    ao modelo. Sem diferença de margem, ou com uma diferença fora do esperado (menor que a do modelo ou mais de 1 cm maior), o modelo
+    do kit é usado como está (e o validador aponta a seção). Devolve (modelo a usar, {modelo, despacho} em twips)."""
+    import zipfile
+
+    def topo(z):
+        m = MARGEM_DE_CIMA.search(z.read('word/document.xml').decode('utf-8'))
+        return int(m.group(2)) if m else None
+
+    with zipfile.ZipFile(modelo) as zm, zipfile.ZipFile(docx) as zd:
+        do_modelo, do_despacho = topo(zm), topo(zd)
+        margem = {'modelo': do_modelo, 'despacho': do_despacho}
+        if do_modelo is None or do_despacho is None or not (0 < do_despacho - do_modelo <= CORRECAO_MAXIMA_TWIPS):
+            return modelo, margem
+        with zipfile.ZipFile(copia, 'w', zipfile.ZIP_DEFLATED) as zc:
+            for item in zm.infolist():
+                dados = zm.read(item.filename)
+                if item.filename == 'word/document.xml':
+                    dados = MARGEM_DE_CIMA.sub(lambda m: m.group(1) + str(do_despacho) + m.group(3), dados.decode('utf-8')).encode('utf-8')
+                zc.writestr(item, dados)
+    return copia, margem
+
+
 def executar_v6(filtro: list[str] | None, manter: bool = False) -> int:
     """V6 (Tarefa 15): despacho gerado pelo editor × validador do kit. Temporários em %USERPROFILE%\\.pmvni-fid\\<run>, apagados no fim."""
     kit = raiz_do_kit()
@@ -830,8 +861,10 @@ def executar_v6(filtro: list[str] | None, manter: bool = False) -> int:
                 print(f'  V6 [{c["nome"]}] FALHOU: Pmvni.Verificador despacho saiu com o código {r.returncode}'
                       + ('' if c['local'] else ': ' + (r.stderr or r.stdout)[-600:]))
                 continue
-            erros = validador.validate(modelos[PAPEL_V6[c['tipo']]], docx)
+            modelo, margem = modelo_com_a_margem_do_despacho(modelos[PAPEL_V6[c['tipo']]], docx, run / (c['nome'] + '-modelo.docx'))
+            erros = validador.validate(modelo, docx)
             res['erros_kit'] = erros
+            res['margem_de_cima'] = margem
             res['sha256_docx'] = sha(docx.read_bytes())
             ok &= not erros
             print(f'  V6 [{c["nome"]}] ' + ('OK' if not erros else 'FALHOU: ' + '; '.join(erros)))

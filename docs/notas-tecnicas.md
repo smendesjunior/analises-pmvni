@@ -434,3 +434,85 @@ Núcleo (`Pmvni.Legislacao`, `Pmvni.Composicao.Web\Legislacao`, `web\paginador\s
 - **Tela:** `web/paginador/src/linhas.ts` marca `tr[data-pmvni-linha]` e os `data-campo` só no DOM da tela. Dois textos no mesmo elemento
   ("J3 • 2,00 × 1,70 m", "ÁREA: 3,40 m²") são separados por `<pmvni-trecho>` (inline e sem estilo do kit: o CSS do kit faz
   `.vao span { display: block }`, e um `span` ali mudava a medida da tabela).
+
+## Despacho: corpo fora do cabeçalho e fecho inteiro (correções de 16/11/2026)
+
+- **Causa (medida):** nos dois modelos do kit a margem de cima da seção é 1417 twips (70,85 pt = 2,5 cm), mas a faixa do cabeçalho
+  (imagem flutuante `behindDoc`, ancorada no 2º parágrafo do `header1.xml`, 63 pt de altura) vai de 17,0 a 80,0 pt (2,82 cm). Imagem
+  flutuante não empurra o corpo: da 2ª folha em diante a primeira linha começava em 70,8 pt, por cima do brasão (PDF do LibreOffice:
+  linha de 70,8 a 85,4 pt). A 1ª folha só escapava por começar com um parágrafo vazio de 15 pt. No rodapé não havia invasão (o corpo
+  termina em 736 pt; a linha vermelha fica em 741 pt e o endereço começa em 747 pt no PDF).
+- **Correção, só na cópia gerada (o modelo do kit não muda):** `LayoutDespacho.TopoDoCorpoPt` = fim da faixa + 4,5 pt, arredondado
+  para cima em twips (1691 twips = 84,55 pt). `PreenchimentoDocx.Preencher` grava esse valor em `w:pgMar/@w:top` e tira o mesmo tanto
+  do "espaço depois" do parágrafo vazio que abre o corpo (280 → 6 twips): a 1ª folha fica igual à do modelo (título em 112,7 pt antes e
+  depois). A prévia usa as mesmas medidas (`TopoDoCorpoPt`, `AlturaUtilPt`, `Formato(0)`).
+- **Validação:** `ValidacaoDespacho.Comparar` aceita na seção só essa margem de cima (qualquer outro valor continua sendo "Seções,
+  margens… alterados"). O `validate()` do kit compara a seção inteira e apontaria a margem; a V6 de `tools\fidelidade.py` valida então
+  contra uma cópia temporária do modelo só com a margem trocada (o resto tem de continuar igual) e grava `margem_de_cima` no `v6.json`.
+  **Pendência para o kit:** corrigir a margem nos dois modelos (e os sha do `TEMPLATES_OFICIAIS.json`); com isso o editor não muda mais
+  nada na seção (a correção só entra quando a margem é menor que a faixa).
+- **Fecho inteiro na prévia:** o DOCX já tinha "manter com o próximo" da data ao penúltimo parágrafo (o LibreOffice leva o bloco
+  inteiro). A prévia não tinha essa regra (a linha ficava numa folha e o nome na seguinte): o fecho agora é um `RichTextBlock` à parte,
+  posto inteiro no que sobra da última folha do texto ou numa folha nova (`FechoDaPrevia.NaUltimaFolha`). O texto de cada folha fica
+  numa moldura com a altura do corpo; a altura do elemento é a que o texto ocupa. Não conferido na tela pelo construtor.
+- **Teste no PDF real:** `CabecalhoRodapeTestes.no_pdf_o_corpo_fica_entre_o_cabecalho_e_o_rodape` converte pelo `ConversorLibreOffice`
+  (correção de 1 a 60 exigências, o caso em que só o fecho cai na folha seguinte, e aprovação) e mede as palavras de cada página com o
+  PdfPig (só no projeto de testes). Só roda com `PMVNI_TESTES_LIBREOFFICE=1`; perfil temporário em `%USERPROFILE%\.pmvni-fid`, apagado
+  no fim. Medido: corpo a partir de 86,8 pt nas folhas seguintes (faixa até 80,0 pt) e até 713,7 pt (rodapé a partir de 749,6 pt).
+- **Caixa de edição da prévia:** o cartão de um `Flyout` tem largura máxima de 456 DIP e rolagem própria; o conteúdo tinha 640 DIP
+  fixos (cortado à direita, barra horizontal) e a caixa de texto, 160 DIP de altura mínima. `CaixaEdicaoPrevia.Medir` dá a largura do
+  conteúdo e a do cartão juntas, dentro da janela, e a altura de uma linha até 240 DIP.
+
+## Correção automática a partir do relatório (16/11/2026)
+
+- **Onde:** item "Correção automática (itens pendentes do relatório)" do menu Novo despacho (Relatórios, Processos e Despachos;
+  `despachos.novo.correcaoAutomatica`) e o botão "Criar automaticamente a partir do relatório" do painel Novo despacho (só no tipo
+  Correção). O painel não foi redesenhado: só ganhou o botão.
+- **O que faz:** abre o Novo despacho de correção com a origem de sempre (`FluxoNovoDespacho.Sugerir`: o relatório aberto em Relatórios,
+  ou o `.rpmvni` mais novo do processo escolhido), monta o rascunho com `ConteudoDespacho.Montar` (todos os itens incluídos com situação
+  efetiva diferente de ATENDE — NÃO ATENDE, FALTA COMPROVAR e INFORMAÇÕES DIVERGENTES —, já com as revisões; excluídos ficam de fora;
+  protocolo e requerente da capa, assunto do modelo) e chama o "Gerar e conferir": cai na conferência das páginas. Nada é gravado na
+  pasta do processo antes de "Gravar na pasta do processo". No painel vale o relatório escolhido na caixa (ou, com "Sem relatório", o mais
+  novo); edições já feitas só são trocadas depois de confirmar.
+- **Sem o resumo da IA:** neste caminho o relatório é carregado sem o `IaDespacho.PedidoResumo` (as exigências entram como estão no
+  relatório, e a resposta da IA chegaria com o PDF já gerado).
+- **Quando para antes** (`FluxoNovoDespacho.PlanejarAutomatico`, com a mensagem na página): sem processo; processo sem relatório (fica
+  o rascunho em branco para escrever à mão); relatório que não serve (os bloqueios de sempre, entre eles "Nenhum item incluído tem
+  situação diferente de ATENDE…"); item pendente sem providência escrita (fica no passo 2 com a lista do que falta).
+- Não conferido na tela pelo construtor (a lógica está em `FluxoNovoDespachoTestes`; o caminho na janela fica para o roteiro).
+
+## Assinatura digital do PDF do despacho (16/11/2026)
+
+- **Bibliotecas (só licença permissiva, dentro do executável único):** PDFsharp **6.2.4** (MIT; versão fixa `[6.2.4]`: a 6.5.0, a mais
+  nova no NuGet, passou para **AGPL-3.0** — conferido no `.nuspec`; não atualizar sem conferir), `System.Security.Cryptography.Pkcs`
+  10.0.15 (MIT, a assinatura CMS), PdfPig 0.1.16 (Apache-2.0, acha a linha de assinatura no PDF) e
+  `System.Security.Cryptography.ProtectedData` 10.0.14 (DPAPI, a mesma do `Pmvni.Agentes`). iText não é usado. `dotnet publish` do
+  `Pmvni.App` (arquivo único, sem trimming) conferido: as DLLs novas estão no bundle; executável de 98,3 MB.
+- **Assinatura:** `AssinaturaPdf.Assinar` — PKCS#7 destacada (`/Adobe.PPKLite`, `/adbe.pkcs7.detached`), SHA-256, certificado do titular
+  e o resto da cadeia que veio no `.pfx` (nada é buscado na internet), atributos assinados `signing-time` e `signing-certificate-v2`
+  (RFC 5035). O `/ByteRange` cobre o arquivo inteiro menos o `/Contents`. O espaço reservado é calculado sem assinar duas vezes (um token
+  pediria o PIN duas vezes). Sem carimbo de tempo (TSA): a hora é a do computador. Validação no Adobe Reader e no validar.iti.gov.br
+  **não conferida pelo construtor** (exige certificado real ICP-Brasil; os testes usam um autoassinado).
+- **Aparência (posição, tamanho e formato fixos):** o campo fica imediatamente acima da linha de assinatura (a última sequência de ≥ 10
+  traços "_" do PDF, achada pelo PdfPig), com a largura dela (≈ 244 pt no modelo do kit), altura = 0,23 × largura, base 1,5 pt acima do
+  traço, na página em que a linha cair. À esquerda (48,7 % da largura), a logomarca recortada da faixa do cabeçalho do próprio DOCX
+  (recorte medido na imagem do kit: colunas 0,380–0,632, linhas 0,31–1); à direita, em Arial (embutida), "Assinado de forma digital por
+  NOME:CPF" e "Dados: AAAA.MM.DD HH:MM:SS -03'00'", no maior tamanho até 9,5 pt que cabe. O PDFsharp entrega ao desenho da aparência o
+  retângulo na página; o desenho é feito na caixa da própria aparência (origem 0,0) — sem isso o conteúdo saía fora dela (achado no teste).
+- **Emissão:** `EmissaoDespacho.Preparar(..., IAssinadorPdf?, ...)` e `PrepararPdf(...)`: o PDF convertido é assinado antes da
+  conferência; o conferido e gravado é o assinado. Falha da assinatura ⇒ `Preparacao.Erros` (nada pode ser gravado). O recibo ganha
+  `pdf.assinatura_digital` (`assinado_em`, `certificado_sha1`, `certificado_valido_ate`, `pagina`); o titular fica só no PDF, a senha em
+  lugar nenhum. Sem certificado configurado, tudo como antes, e a conferência mostra "Sem assinatura digital (…)".
+- **Ajustes › Despachos e PDF › Assinatura digital:** "Escolher arquivo…" (.pfx/.p12), "Certificado do Windows…" (repositório pessoal:
+  token, cartão ou instalado; o PIN é pedido pelo driver ao assinar), "Conferir" (pede a senha, mostra titular, validade e emissor; nada é
+  assinado), "Remover" e "Lembrar a senha neste computador" (padrão desligado: a senha é pedida a cada assinatura numa `PasswordBox`).
+  Lembrada, vai para `<dados>\segredos\assinatura.dpapi` (`CofreSenhaCertificado`, DPAPI CurrentUser, com a identidade do certificado na
+  entropia: trocar de certificado invalida a senha guardada; senha guardada que não abre mais o arquivo é apagada e pedida de novo). O
+  `ajustes.json` guarda só a origem, o caminho/impressão digital e o booleano.
+- **Senha errada:** "A senha do certificado não confere. Nada foi assinado nem gravado." — o certificado é aberto antes de gerar; com a
+  senha errada ou cancelada, o DOCX nem é preparado. A exceção não carrega a original (nada do arquivo nem da senha vai para registro).
+- **Testes** (`AssinaturaDigitalTestes`, `AjustesAssinaturaTestes`): certificado autoassinado RSA 2048 gerado no teste, titular fictício.
+  A data nos testes é 2031 (o `signing-time` é UTCTime, que só vai até 2049). Com `PMVNI_TESTES_LIBREOFFICE=1`, confere no PDF do
+  LibreOffice (correções de 2, 4 e 60 exigências e aprovação) que a aparência fica na última página, entre a data e a linha, sem cobrir
+  texto, e que a assinatura confere.
+- **Não feito:** carimbo de tempo (TSA) e LTV (PAdES-LTA); conferência na tela do app (o construtor não abre o app).
