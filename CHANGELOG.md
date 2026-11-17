@@ -32,6 +32,7 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 - "Proprietário não identificado" aparece certo (antes saía "Proprietario Identificad").
 
 ### Todo o app
+- **Imprimir (Ctrl+P)** na faixa de Relatórios, Legislação, Processos, Despachos, Imóveis e dos sites: abre a impressão com a lista de impressoras e a opção "Salvar como PDF". No relatório, sai igual ao PDF exportado.
 - **Pesquisa na barra de título:** acha ajustes, funções, processos, arquivos, leis e linhas do Acompanhamento.
 - **Modelos de IA** (Ajustes › Inteligência artificial): escolha a IA (Codex, Claude Code ou as APIs), o modelo e o nível de raciocínio usados na revisão e nos ajustes, com "Atualizar lista".
 - **Ícones coloridos** na faixa de opções, pelo que cada comando faz.
