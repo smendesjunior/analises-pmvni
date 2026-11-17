@@ -196,7 +196,8 @@ public class EsquadriasTestes
         Assert.False(s.PodeDesfazer);
         Assert.True(TabelasRevisao.EhChaveDeAcrescimo("ambientes/01/vaos/2"));
         Assert.True(TabelasRevisao.EhChaveDeAcrescimo("chamadas/07"));
-        foreach (var k in new[] { "ambientes/01", "indices/07", "ambientes/01/minimo/2", "ambientes/01/vaos/x", "ambientes/01/vaos/1/tipo", "x", "chamadas/7" })
+        Assert.True(TabelasRevisao.EhChaveDeAcrescimo("ambientes/13"));   // ambiente inteiro acrescentado (2026-11-16)
+        foreach (var k in new[] { "indices/07", "ambientes/01/minimo/2", "ambientes/01/vaos/x", "ambientes/01/vaos/1/tipo", "x", "chamadas/7" })
             Assert.False(TabelasRevisao.EhChaveDeAcrescimo(k), k);
         Assert.Throws<System.Text.Json.JsonException>(() => ProjetoJson.Ler(System.Text.Encoding.UTF8.GetBytes(
             "{\"versao_esquema\":\"1\",\"itens\":[],\"documento\":{},\"acrescimos\":{\"indices/09\":{}}}")));

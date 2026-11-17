@@ -245,7 +245,8 @@ public sealed partial class MainWindow
         public TextBox Codigo = null!, Tipo = null!;
         public TextBox? Largura, Altura, Medidas;
         public TextBlock Area = null!;
-        public TextBlock Nota = null!; // embaixo das medidas (ao lado, era cortado na largura do painel)
+        public TextBlock Nota = null!;            // o texto do alerta (embaixo das medidas)
+        public FrameworkElement NotaBloco = null!; // o alerta inteiro (ícone + texto): aparece só quando há o que avisar
     }
 
     readonly List<EsquadriaNoPainel> esquadriasNoPainel = [];
@@ -282,17 +283,19 @@ public sealed partial class MainWindow
             {
                 var doGrupo = conta.Esquadrias.Where(e => e.Categoria == categoria).ToList();
                 if (doGrupo.Count == 0 && categoria == CategoriaEsquadria.Outro) continue;
-                var contagem = CartoesDePainel.Apoio(doGrupo.Count == 0 ? "nenhuma" : doGrupo.Count == 1 ? "1 esquadria" : doGrupo.Count.ToString(CultureInfo.InvariantCulture) + " esquadrias");
-                contagem.VerticalAlignment = VerticalAlignment.Center;
+                // Cabeçalho do grupo: o nome e, colado nele, a quantidade num selo; as esquadrias; e o botão de acrescentar do grupo.
+                var cabecalhoGrupo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
                 var tituloGrupo = CartoesDePainel.Rotulo(titulo);
                 tituloGrupo.VerticalAlignment = VerticalAlignment.Center;
-                corpo.Children.Add(CartoesDePainel.Cabecalho(tituloGrupo, contagem));
-                foreach (var e in doGrupo) corpo.Children.Add(LinhaDaEsquadria(linha, e, editavel, e.Indice == ultimo));
-                corpo.Children.Add(CartoesDePainel.Separador());
-            }
-            if (editavel)
-            {
-                corpo.Children.Add(LinhaDeAdicionar(linha));
+                cabecalhoGrupo.Children.Add(tituloGrupo);
+                var selo = CartoesDePainel.Marca(doGrupo.Count.ToString(CultureInfo.InvariantCulture));
+                selo.VerticalAlignment = VerticalAlignment.Center;
+                cabecalhoGrupo.Children.Add(selo);
+                var grupo = new StackPanel { Spacing = 8 };
+                grupo.Children.Add(cabecalhoGrupo);
+                foreach (var e in doGrupo) grupo.Children.Add(LinhaDaEsquadria(linha, e, editavel, e.Indice == ultimo));
+                if (editavel && categoria != CategoriaEsquadria.Outro) grupo.Children.Add(BotaoAdicionarEsquadria(linha, categoria));
+                corpo.Children.Add(grupo);
                 corpo.Children.Add(CartoesDePainel.Separador());
             }
             // A conta: vão total, mínimo exigido (piso ÷ divisor) e resultado, refeitos a cada tecla.
@@ -326,6 +329,11 @@ public sealed partial class MainWindow
             else corpo.Children.Add(CartoesDePainel.Linha("Mínimo exigido", esqMinimo));
             corpo.Children.Add(CartoesDePainel.Linha("Resultado", esqResultado));
             corpo.Children.Add(esqAviso);
+            if (editavel && TabelasRevisao.ProximoAmbiente(p) is not null)
+            {
+                corpo.Children.Add(CartoesDePainel.Separador());
+                corpo.Children.Add(BotaoNovoAmbiente(conta.Divisor));
+            }
         }
         // Os valores gravados, no lugar (a caixa com o foco fica como está).
         foreach (var n in esquadriasNoPainel)
@@ -355,40 +363,42 @@ public sealed partial class MainWindow
     void AoSairDe(Func<bool> saiuDoGrupo, Func<Task> aplicar) =>
         DispatcherQueue.TryEnqueue(async () => { if (!fechada && saiuDoGrupo()) await aplicar(); });
 
-    /// <summary>A linha de uma esquadria: código e tipo (editáveis), "novo" e Remover (na última acrescentada), e largura × altura
-    /// (editáveis) com a área calculada ao lado.</summary>
+    /// <summary>Uma esquadria (redesenho 2026-11-16): bloco com o código num selo de destaque, o tipo como título e a área à direita, em
+    /// destaque; embaixo, só a largura × altura (caixas compactas com legenda) e, quando preciso, um alerta com ícone. Tudo editável no
+    /// lugar: código, tipo e medidas (a conta se refaz a cada tecla).</summary>
     FrameworkElement LinhaDaEsquadria(string linha, Esquadria e, bool editavel, bool ultima)
     {
+        var res = Application.Current.Resources;
         var n = new EsquadriaNoPainel { Indice = e.Indice };
         var ordinal = (e.Indice + 1).ToString(CultureInfo.InvariantCulture);
+
         n.Codigo = CartoesDePainel.Caixa("", $"Código da esquadria {ordinal}", editavel);
-        n.Codigo.Width = 58;
-        n.Codigo.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         n.Codigo.TextWrapping = TextWrapping.NoWrap;
+        n.Codigo.Width = 46;
+        n.Codigo.MinWidth = 0;
+        n.Codigo.MinHeight = 0;
+        n.Codigo.Padding = new Thickness(0, 4, 0, 5);
+        n.Codigo.TextAlignment = TextAlignment.Center;
+        n.Codigo.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+        n.Codigo.CornerRadius = new CornerRadius(6);
+        n.Codigo.BorderThickness = new Thickness(0);
+        n.Codigo.Background = (Microsoft.UI.Xaml.Media.Brush)res["AccentFillColorDefaultBrush"];
+        n.Codigo.Foreground = (Microsoft.UI.Xaml.Media.Brush)res["TextOnAccentFillColorPrimaryBrush"];
+        n.Codigo.VerticalAlignment = VerticalAlignment.Center;
+
         n.Tipo = CartoesDePainel.Caixa("", $"Tipo da esquadria {ordinal}", editavel);
         n.Tipo.TextWrapping = TextWrapping.NoWrap;
-        var topo = new Grid { ColumnSpacing = 6 };
-        topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        topo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        topo.Children.Add(n.Codigo);
-        Grid.SetColumn(n.Tipo, 1);
-        topo.Children.Add(n.Tipo);
-        if (e.Acrescentada)
-        {
-            var extras = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-            extras.Children.Add(CartoesDePainel.Marca("novo"));
-            if (ultima && editavel)
-            {
-                var remover = CartoesDePainel.BotaoPequeno("Remover", $"Remover a esquadria {ordinal}", "Tira esta esquadria que você acrescentou e refaz a conta. Desfazer a traz de volta.");
-                remover.Click += async (_, _) => await AplicarNasEsquadriasAsync(linha, _ => [new RemoverAcrescimo(linha, "vaos/" + e.Indice.ToString(CultureInfo.InvariantCulture))],
-                    "Esquadria removida: " + e.Codigo);
-                extras.Children.Add(remover);
-            }
-            Grid.SetColumn(extras, 2);
-            topo.Children.Add(extras);
-        }
-        foreach (var (caixa, parte, nome) in new[] { (n.Codigo, "codigo", "Código"), (n.Tipo, "tipo", "Tipo") })
+        n.Tipo.MinWidth = 0;
+        n.Tipo.BorderThickness = new Thickness(0);
+        n.Tipo.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        n.Tipo.Padding = new Thickness(6, 4, 6, 5);
+        n.Tipo.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+        n.Tipo.VerticalAlignment = VerticalAlignment.Center;
+
+        n.Area = new TextBlock { FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, IsTextSelectionEnabled = true };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(n.Area, $"Área da esquadria {ordinal}");
+
+        foreach (var (caixa, parte) in new[] { (n.Codigo, "codigo"), (n.Tipo, "tipo") })
         {
             caixa.KeyDown += async (_, ev) =>
             {
@@ -398,44 +408,39 @@ public sealed partial class MainWindow
             caixa.LostFocus += async (_, _) => await AplicarTextoDaEsquadriaAsync(linha, e.Indice, parte, caixa);
         }
 
-        // Correção 2026-11-16 (pedido do usuário: "não ficou bem organizado"): as medidas em colunas com rótulo — LARGURA (m) × ALTURA (m)
-        // = ÁREA —, as caixas dividindo a largura do painel e a área alinhada à direita; antes ia tudo numa fila que estourava o painel.
-        n.Area = CartoesDePainel.Valor("", forte: true);
-        n.Area.VerticalAlignment = VerticalAlignment.Center;
-        n.Area.HorizontalAlignment = HorizontalAlignment.Right;
-        n.Area.MinWidth = 76;
-        n.Area.TextAlignment = TextAlignment.Right;
-        var medidas = new Grid { ColumnSpacing = 6, RowSpacing = 3 };
-        medidas.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        medidas.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        foreach (var largura in new[] { new GridLength(1, GridUnitType.Star), GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto })
-            medidas.ColumnDefinitions.Add(new ColumnDefinition { Width = largura });
-        void Por(UIElement el, int linhaGrade, int coluna, int vao = 1)
+        var grade = new Grid { ColumnSpacing = 8, RowSpacing = 8 };
+        grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        for (var r = 0; r < 4; r++) grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        void Por(FrameworkElement el, int linhaGrade, int coluna, int vao = 1)
         {
-            Grid.SetRow((FrameworkElement)el, linhaGrade);
-            Grid.SetColumn((FrameworkElement)el, coluna);
-            Grid.SetColumnSpan((FrameworkElement)el, vao);
-            medidas.Children.Add(el);
+            Grid.SetRow(el, linhaGrade);
+            Grid.SetColumn(el, coluna);
+            Grid.SetColumnSpan(el, vao);
+            grade.Children.Add(el);
         }
-        TextBlock Sinal(string s) => new() { Text = s, VerticalAlignment = VerticalAlignment.Center, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
-        var rotuloArea = CartoesDePainel.Rotulo("Área");
-        rotuloArea.HorizontalAlignment = HorizontalAlignment.Right;
-        Por(rotuloArea, 0, 4);
-        Por(n.Area, 1, 4);
+        Por(n.Codigo, 0, 0);
+        Por(n.Tipo, 0, 1);
+        Por(n.Area, 0, 2);
+
+        // Medidas: "largura × altura m", com a legenda pequena em cima de cada caixa; alinhadas com o tipo (o selo fica sozinho à esquerda).
+        TextBlock Legenda(string s) => new() { Text = s, FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)res["TextFillColorSecondaryBrush"] };
+        TextBlock Sinal(string s) => new() { Text = s, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 7), Foreground = (Microsoft.UI.Xaml.Media.Brush)res["TextFillColorSecondaryBrush"] };
+        var medidas = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(6, 0, 0, 0) };
         if (e.Largura is not null)
         {
-            n.Largura = CartoesDePainel.CaixaDeNumero("", $"Largura da esquadria {ordinal}, em metros", editavel);
-            n.Altura = CartoesDePainel.CaixaDeNumero("", $"Altura da esquadria {ordinal}, em metros", editavel);
-            foreach (var c in new[] { n.Largura, n.Altura }) { c.Width = double.NaN; c.HorizontalAlignment = HorizontalAlignment.Stretch; }
-            Por(CartoesDePainel.Rotulo("Largura"), 0, 0);
-            Por(CartoesDePainel.Rotulo("Altura"), 0, 2);
-            Por(n.Largura, 1, 0);
-            Por(Sinal("×"), 1, 1);
-            Por(n.Altura, 1, 2);
-            Por(Sinal("m  ="), 1, 3);
+            n.Largura = CartoesDePainel.CaixaDeNumero("", $"Largura da esquadria {ordinal}, em metros", editavel, 64);
+            n.Altura = CartoesDePainel.CaixaDeNumero("", $"Altura da esquadria {ordinal}, em metros", editavel, 64);
+            StackPanel ComLegenda(string legenda, TextBox caixa) { var s = new StackPanel { Spacing = 2 }; s.Children.Add(Legenda(legenda)); s.Children.Add(caixa); return s; }
+            medidas.Children.Add(ComLegenda("largura", n.Largura));
+            medidas.Children.Add(Sinal("×"));
+            medidas.Children.Add(ComLegenda("altura", n.Altura));
+            medidas.Children.Add(Sinal("m"));
             foreach (var caixa in new[] { n.Largura, n.Altura })
             {
                 caixa.TextChanged += (_, _) => AtualizarContaDasEsquadrias();   // tempo real: nada é gravado enquanto digita
+                caixa.GotFocus += (_, _) => caixa.SelectAll();
                 caixa.KeyDown += async (_, ev) =>
                 {
                     if (ev.Key == Windows.System.VirtualKey.Enter) { ev.Handled = true; await AplicarMedidasAsync(linha, n); }
@@ -449,69 +454,157 @@ public sealed partial class MainWindow
             // Medidas que não são "largura × altura": o texto inteiro, editável (escrito como 0,80 × 2,10 m, vira conta).
             n.Medidas = CartoesDePainel.Caixa("", $"Medidas da esquadria {ordinal}", editavel);
             n.Medidas.PlaceholderText = "largura × altura";
+            n.Medidas.MinWidth = 160;
             var caixa = n.Medidas;
             caixa.KeyDown += async (_, ev) => { if (ev.Key == Windows.System.VirtualKey.Enter) { ev.Handled = true; await AplicarTextoDaEsquadriaAsync(linha, e.Indice, "medidas", caixa); } };
             caixa.LostFocus += async (_, _) => await AplicarTextoDaEsquadriaAsync(linha, e.Indice, "medidas", caixa);
-            Por(CartoesDePainel.Rotulo("Medidas"), 0, 0, 3);
-            Por(caixa, 1, 0, 3);
-            Por(Sinal("="), 1, 3);
+            var s = new StackPanel { Spacing = 2 };
+            s.Children.Add(Legenda("medidas"));
+            s.Children.Add(caixa);
+            medidas.Children.Add(s);
         }
-        n.Nota = new TextBlock { TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
+        Por(medidas, 1, 1, 2);   // as medidas usam também a coluna da área: no painel estreito não cabiam ao lado dela
+
+        if (e.Acrescentada)
+        {
+            var extras = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
+            var marca = CartoesDePainel.Marca("novo");
+            marca.HorizontalAlignment = HorizontalAlignment.Right;
+            extras.Children.Add(marca);
+            if (ultima && editavel)
+            {
+                var remover = CartoesDePainel.BotaoPequeno("Remover", $"Remover a esquadria {ordinal}", "Tira esta esquadria que você acrescentou e refaz a conta. Desfazer a traz de volta.");
+                remover.Click += async (_, _) => await AplicarNasEsquadriasAsync(linha, _ => [new RemoverAcrescimo(linha, "vaos/" + e.Indice.ToString(CultureInfo.InvariantCulture))],
+                    "Esquadria removida: " + e.Codigo);
+                extras.Children.Add(remover);
+            }
+            Por(extras, 3, 1, 2);
+        }
+
+        // Alerta (só quando há): ícone de atenção + texto, na coluna do conteúdo.
+        n.Nota = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = (Microsoft.UI.Xaml.Media.Brush)res["TextFillColorSecondaryBrush"] };
+        var alerta = new Grid { ColumnSpacing = 6, Margin = new Thickness(6, 0, 0, 0), Visibility = Visibility.Collapsed };   // Grid: o texto quebra na largura do bloco
+        alerta.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        alerta.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        alerta.Children.Add(new FontIcon { Glyph = "", FontSize = 12, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0), Foreground = (Microsoft.UI.Xaml.Media.Brush)res["SystemFillColorCautionBrush"] });
+        Grid.SetColumn(n.Nota, 1);
+        alerta.Children.Add(n.Nota);
+        n.NotaBloco = alerta;
+        Por(alerta, 2, 1, 2);
+
         esquadriasNoPainel.Add(n);
-        var conteudo = new StackPanel { Spacing = 10 };
-        conteudo.Children.Add(topo);
-        conteudo.Children.Add(medidas);
-        conteudo.Children.Add(n.Nota);
-        // Cada esquadria num bloco próprio, com fundo e borda discretos: separa uma da outra sem depender de linhas.
         return new Border
         {
-            Child = conteudo,
-            Padding = new Thickness(10, 10, 10, 10),
-            CornerRadius = new CornerRadius(6),
+            Child = grade,
+            Padding = new Thickness(10, 10, 12, 10),
+            CornerRadius = new CornerRadius(8),
             BorderThickness = new Thickness(1),
-            Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorSecondaryBrush"],
-            BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
-            Margin = new Thickness(0, 0, 0, 2),
+            Background = (Microsoft.UI.Xaml.Media.Brush)res["CardBackgroundFillColorSecondaryBrush"],
+            BorderBrush = (Microsoft.UI.Xaml.Media.Brush)res["CardStrokeColorDefaultBrush"],
         };
     }
 
-    /// <summary>"Adicionar esquadria": categoria (janela ou porta), largura × altura e o botão. O código é o próximo livre (J2, P1).</summary>
-    FrameworkElement LinhaDeAdicionar(string linha)
+    /// <summary>"Adicionar janela" / "Adicionar porta" no fim do grupo: cria a esquadria com a medida padrão (janela 1,00 × 1,00 m; porta
+    /// 0,80 × 2,10 m) e põe o cursor na largura dela, para ajustar.</summary>
+    FrameworkElement BotaoAdicionarEsquadria(string linha, CategoriaEsquadria cat)
     {
-        var categoria = new ComboBox { MinWidth = 96 };
-        categoria.Items.Add(new ComboBoxItem { Content = "Porta", Tag = CategoriaEsquadria.Porta });
-        categoria.Items.Add(new ComboBoxItem { Content = "Janela", Tag = CategoriaEsquadria.Janela });
-        categoria.SelectedIndex = 0;
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(categoria, "Categoria da esquadria nova");
-        var largura = CartoesDePainel.CaixaDeNumero("", "Largura da esquadria nova, em metros", true);
-        var altura = CartoesDePainel.CaixaDeNumero("", "Altura da esquadria nova, em metros", true);
-        largura.PlaceholderText = "0,80";
-        altura.PlaceholderText = "2,10";
-        var adicionar = new Button { Content = "Adicionar", Style = (Style)Application.Current.Resources["AccentButtonStyle"] }; // ação principal do bloco: cor de destaque
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(adicionar, "Adicionar esquadria");
-        Dicas.Aplicar(adicionar, "Adicionar esquadria", "Acrescenta a esquadria ao ambiente, calcula a área dela e refaz o vão total e a situação. Dá para desfazer.");
-        async Task Adicionar()
+        var janela = cat == CategoriaEsquadria.Janela;
+        var nome = janela ? "Adicionar janela" : "Adicionar porta";
+        var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        conteudo.Children.Add(new FontIcon { Glyph = "", FontSize = 12 });
+        conteudo.Children.Add(new TextBlock { Text = nome });
+        var b = new Button
         {
-            var cat = categoria.SelectedItem is ComboBoxItem { Tag: CategoriaEsquadria c } ? c : CategoriaEsquadria.Porta;
-            var medidas = largura.Text.Trim() + " × " + altura.Text.Trim();
+            Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center,
+            Padding = new Thickness(10, 6, 10, 7), CornerRadius = new CornerRadius(8),
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"],
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, nome);
+        Dicas.Aplicar(b, nome, janela ? "Acrescenta uma janela de 1,00 × 1,00 m; ajuste as medidas e a conta se refaz. Dá para desfazer."
+            : "Acrescenta uma porta de 0,80 × 2,10 m; ajuste as medidas e a conta se refaz. Dá para desfazer.");
+        b.Click += async (_, _) =>
+        {
+            string? codigo = null;
+            var medidas = janela ? "1,00 × 1,00 m" : "0,80 × 2,10 m";
             var ok = await AplicarNasEsquadriasAsync(linha, conta =>
             {
-                var codigo = Esquadrias.ProximoCodigo(conta.Esquadrias, cat);
-                return [Esquadrias.Nova(linha, codigo, cat == CategoriaEsquadria.Janela ? "Janela" : "Porta", medidas)];
-            }, "Esquadria acrescentada (" + (cat == CategoriaEsquadria.Janela ? "janela" : "porta") + " " + medidas + ")");
-            if (!ok) (Esquadrias.LerMedidas(medidas) is null ? largura : (Control)adicionar).Focus(FocusState.Programmatic);
+                codigo = Esquadrias.ProximoCodigo(conta.Esquadrias, cat);
+                return [Esquadrias.Nova(linha, codigo, janela ? "Janela" : "Porta", medidas)];
+            }, "Esquadria acrescentada (" + (janela ? "janela" : "porta") + " " + medidas + ")");
+            if (ok && codigo is not null)
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (esquadriasNoPainel.LastOrDefault(x => x.Codigo.Text == codigo)?.Largura is { } l) { l.Focus(FocusState.Programmatic); l.SelectAll(); }
+                });
+        };
+        return b;
+    }
+
+    /// <summary>"Adicionar ambiente" (pedido do usuário, 2026-11-16: a conta é por ambiente — janelas + portas do ambiente = vão total):
+    /// abre um formulário curto (nome, área do piso, divisor do mínimo, pavimento), cria a linha nova na tabela de iluminação e a
+    /// seleciona, para acrescentar as janelas e as portas dela. Dá para desfazer.</summary>
+    FrameworkElement BotaoNovoAmbiente(decimal? divisorAtual)
+    {
+        var res = Application.Current.Resources;
+        var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        conteudo.Children.Add(new FontIcon { Glyph = "", FontSize = 13 });
+        conteudo.Children.Add(new TextBlock { Text = "Adicionar ambiente" });
+        var botao = new Button { Content = conteudo, Style = (Style)res["AccentButtonStyle"], HorizontalAlignment = HorizontalAlignment.Stretch };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, "Adicionar ambiente");
+        Dicas.Aplicar(botao, "Adicionar ambiente", "Acrescenta um ambiente à tabela de iluminação e ventilação; depois você põe as janelas e as portas dele e a conta se faz sozinha.");
+
+        TextBox Caixa(string nome, string exemplo) { var c = new TextBox { PlaceholderText = exemplo }; Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(c, nome); return c; }
+        var nomeAmb = Caixa("Nome do ambiente", "ex.: Banheiro social");
+        var piso = Caixa("Área do piso, em metros quadrados", "ex.: 3,50");
+        var divisor = Caixa("Divisor do mínimo", "ex.: 8");
+        divisor.Text = divisorAtual is { } d ? d.ToString("0.##", Formatos.Cultura) : "";
+        var pavimento = Caixa("Pavimento (opcional)", "ex.: Térreo");
+        var erro = new TextBlock { TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed, Foreground = (Microsoft.UI.Xaml.Media.Brush)res["SystemFillColorCriticalBrush"] };
+        var criar = new Button { Content = "Adicionar", Style = (Style)res["AccentButtonStyle"], HorizontalAlignment = HorizontalAlignment.Right };
+        var linhaPisoDivisor = new Grid { ColumnSpacing = 8 };
+        linhaPisoDivisor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        linhaPisoDivisor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var campoPiso = CartoesDePainel.Campo("Área do piso (m²)", piso);
+        var campoDivisor = CartoesDePainel.Campo("Divisor", divisor);
+        Grid.SetColumn(campoDivisor, 1);
+        linhaPisoDivisor.Children.Add(campoPiso);
+        linhaPisoDivisor.Children.Add(campoDivisor);
+        var formulario = new StackPanel { Spacing = 12, Width = 300 };
+        formulario.Children.Add(new TextBlock { Text = "Novo ambiente", Style = (Style)res["BodyStrongTextBlockStyle"] });
+        formulario.Children.Add(CartoesDePainel.Campo("Nome", nomeAmb));
+        formulario.Children.Add(linhaPisoDivisor);
+        formulario.Children.Add(CartoesDePainel.Campo("Pavimento", pavimento));
+        formulario.Children.Add(CartoesDePainel.Apoio("Mínimo exigido = área do piso ÷ divisor. Depois de criar, acrescente as janelas e as portas."));
+        formulario.Children.Add(erro);
+        formulario.Children.Add(criar);
+        var flyout = new Flyout { Content = formulario, Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Left };
+        botao.Flyout = flyout;
+        flyout.Opened += (_, _) => { erro.Visibility = Visibility.Collapsed; nomeAmb.Focus(FocusState.Programmatic); };
+
+        async Task Criar()
+        {
+            void Erro(string texto) { erro.Text = texto; erro.Visibility = Visibility.Visible; }
+            if (nomeAmb.Text.Trim().Length == 0) { Erro("Escreva o nome do ambiente."); nomeAmb.Focus(FocusState.Programmatic); return; }
+            if (RecalculoLinha.LerNumero(piso.Text) is not var (areaPiso, _) || areaPiso <= 0) { Erro("A área do piso tem de ser um número (por exemplo, 3,50)."); piso.Focus(FocusState.Programmatic); return; }
+            if (RecalculoLinha.LerNumero(divisor.Text) is not var (div, _) || div <= 0) { Erro("O divisor tem de ser um número maior que zero (por exemplo, 8)."); divisor.Focus(FocusState.Programmatic); return; }
+            if (!Editavel || sessao is not { } s) return;
+            string? criado = null;
+            await TentarAsync(() => NaFilaAsync(async () =>
+            {
+                if (!ReferenceEquals(sessao, s) || TabelasRevisao.ProximoAmbiente(s.Revisao.Projeto) is not { } id) return;
+                await AplicarAsync(new AcrescentarAmbiente(id, nomeAmb.Text, areaPiso, div, pavimento.Text));
+                if (ultimosErros.Count == 0 && TabelasRevisao.Existe(s.Revisao.Projeto, id)) criado = id;
+            }));
+            if (criado is null) return;
+            flyout.Hide();
+            nomeAmb.Text = piso.Text = pavimento.Text = "";
+            await TentarAsync(() => SelecionarAsync(criado));
+            MostrarMensagem(InfoBarSeverity.Success, "Novo ambiente", TabelasRevisao.Rotulo(criado) + " acrescentado. Agora adicione as janelas e as portas dele; um Desfazer o tira.");
         }
-        adicionar.Click += async (_, _) => await Adicionar();
-        foreach (var caixa in new[] { largura, altura })
-            caixa.KeyDown += async (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; await Adicionar(); } };
-        var linhaDeMedidas = new PainelQuebra { Espaco = 6, EspacoLinhas = 6 };
-        linhaDeMedidas.Children.Add(categoria);
-        linhaDeMedidas.Children.Add(largura);
-        linhaDeMedidas.Children.Add(new TextBlock { Text = "×", Margin = new Thickness(0, 6, 0, 0) });
-        linhaDeMedidas.Children.Add(altura);
-        linhaDeMedidas.Children.Add(new TextBlock { Text = "m", Margin = new Thickness(0, 6, 0, 0) });
-        linhaDeMedidas.Children.Add(adicionar);
-        return CartoesDePainel.Campo("Adicionar esquadria", linhaDeMedidas);
+        criar.Click += async (_, _) => await Criar();
+        foreach (var c in new[] { nomeAmb, piso, divisor, pavimento })
+            c.KeyDown += async (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; await Criar(); } };
+        return botao;
     }
 
     /// <summary>"1,50 × 1,20" das caixas de uma esquadria; null se alguma não é número (a conta mostra "—").</summary>
@@ -553,7 +646,7 @@ public sealed partial class MainWindow
             n.Area.Text = e.Area is { } a ? Esquadrias.TextoArea(a) : "—";
             var semArea = e.Area is not null && !e.TemCampoDeArea;
             n.Nota.Text = semArea ? "Fora da conta: o relatório não traz a área desta esquadria." : "";
-            n.Nota.Visibility = semArea ? Visibility.Visible : Visibility.Collapsed;
+            n.NotaBloco.Visibility = semArea ? Visibility.Visible : Visibility.Collapsed;
         }
         esqTotal.Text = conta.TextoTotal;
         esqConta!.Text = conta.TextoConta == "—" ? "Nenhuma esquadria com área." : conta.TextoConta;

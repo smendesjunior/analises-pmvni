@@ -68,6 +68,11 @@ public sealed record AcrescentarVao(string Item, string Codigo, string Medidas, 
 /// (lote, permeavel, edificacao, lateral: planta; telhado, altura, frente…: volumetria); a situação é a de linha de tabela.</summary>
 public sealed record AcrescentarChamada(string Item, string Ancora, string Titulo, string Texto, string Situacao) : Comando(Item);
 
+/// <summary>Acrescenta um ambiente à tabela ILUMINAÇÃO E VENTILAÇÃO (pedido do usuário, 2026-11-16: "você adiciona um ambiente e pode
+/// pôr janelas e portas"). <see cref="Item"/> é o id da linha nova (<see cref="TabelasRevisao.ProximoAmbiente"/>); entra sem esquadrias,
+/// com o mínimo exigido = área do piso ÷ divisor e a situação "falta comprovar" até ganhar as esquadrias (cada uma refaz a conta).</summary>
+public sealed record AcrescentarAmbiente(string Item, string Nome, decimal Piso, decimal Divisor, string Pavimento) : Comando(Item);
+
 /// <summary>Remove algo que o usuário acrescentou: a esquadria <see cref="Campo"/> (<c>vaos/2</c>) do ambiente <see cref="Item"/>, ou,
 /// sem campo, a chamada <see cref="Item"/>. Só o último acréscimo de cada lista (os outros não mudam de posição). O que veio no
 /// relatório recebido nunca é removido.</summary>

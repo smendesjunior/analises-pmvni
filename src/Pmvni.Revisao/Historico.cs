@@ -172,7 +172,9 @@ public static class DescricaoHistorico
                 var modelo = (r.Depois ?? r.Antes)?["modelo"] as JsonObject;
                 string T(string chave) => modelo?[chave] is JsonValue mv && mv.TryGetValue<string>(out var ms) ? ms : "";
                 var acrescentou = r.Depois is not null;
-                return r.Campo is null
+                return r.Campo is null && modelo?.ContainsKey("vaos") == true
+                    ? rotulo + "ambiente " + (acrescentou ? "acrescentado" : "removido") + " (" + T("nome") + ")"
+                    : r.Campo is null
                     ? rotulo + "chamada " + (acrescentou ? "acrescentada" : "removida") + " (" + T("titulo") + ")"
                     : rotulo + "esquadria " + (acrescentou ? "acrescentada" : "removida") + " (" + T("codigo") + " • " + T("medidas") + ")";
             default:

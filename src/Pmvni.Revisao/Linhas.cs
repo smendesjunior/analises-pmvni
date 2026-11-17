@@ -148,7 +148,7 @@ public static class TabelasRevisao
         if (!TentarLer(id, out var bloco, out _)) return false;
         if (segunda < 0)
         {
-            if (bloco != Chamadas) return false;   // só as chamadas do diagrama se acrescentam como linha
+            if (bloco != Chamadas && bloco != Ambientes) return false;   // só chamadas do diagrama e ambientes se acrescentam como linha
             linha = id;
             return true;
         }
@@ -201,6 +201,17 @@ public static class TabelasRevisao
         var n = lista.Count + 1;
         while (p.Acrescimos.ContainsKey(Id(Chamadas, n))) n++;
         return Id(Chamadas, n);
+    }
+
+    /// <summary>O id do próximo ambiente da tabela de iluminação (o seguinte ao último, com os acrescentados); null se o relatório não
+    /// tem a tabela.</summary>
+    public static string? ProximoAmbiente(Projeto p)
+    {
+        ArgumentNullException.ThrowIfNull(p);
+        if (Lista(p.Documento, Ambientes) is not { } lista) return null;
+        var n = lista.Count + 1;
+        while (p.Acrescimos.ContainsKey(Id(Ambientes, n))) n++;
+        return Id(Ambientes, n);
     }
 
     /// <summary>Quantos vãos (esquadrias) o ambiente tem agora, com os acrescentados.</summary>
@@ -450,6 +461,7 @@ internal static class MotorLinhas
         {
             case AcrescentarVao v: return CalcularVao(p, v);
             case AcrescentarChamada ch: return CalcularChamada(p, ch);
+            case AcrescentarAmbiente am: return CalcularAmbiente(p, am);
             case RemoverAcrescimo rm: return CalcularRemocao(p, rm);
         }
         var original = TabelasRevisao.Original(p, c.Item) ?? throw new ComandoRecusadoException("A linha não existe na tabela do relatório.");
@@ -538,6 +550,41 @@ internal static class MotorLinhas
         return new Efeito(TipoAcrescimo, c.Item, null, null, new JsonObject { ["modelo"] = modelo });
     }
 
+    private static Efeito CalcularAmbiente(Projeto p, AcrescentarAmbiente a)
+    {
+        if (TabelasRevisao.ProximoAmbiente(p) is not { } proximo) throw new ComandoRecusadoException("O relatório não tem a tabela de iluminação e ventilação: não há onde pôr o ambiente.");
+        if (a.Item != proximo) throw new ComandoRecusadoException("O ambiente novo tem de ser o " + TabelasRevisao.Rotulo(proximo) + ".");
+        if (a.Piso <= 0) throw new ComandoRecusadoException("A área do piso tem de ser maior que zero.");
+        if (a.Divisor <= 0) throw new ComandoRecusadoException("O divisor do mínimo tem de ser maior que zero.");
+        var nome = Limpo(a.Nome, "Nome do ambiente");
+        var detalhes = new JsonArray { "piso " + Esquadrias.TextoArea(a.Piso) };
+        if (TextoEditado.Normalizar(a.Pavimento ?? "") is { Length: > 0 } pav) detalhes.Add(pav);
+        var modelo = new JsonObject
+        {
+            ["icone"] = IconeDoAmbiente(nome),
+            ["nome"] = nome,
+            ["detalhes"] = detalhes,
+            ["situacao"] = "PENDENTE",
+            ["vaos"] = new JsonArray(),
+            ["minimo"] = new JsonArray { new JsonObject { ["texto"] = Esquadrias.TextoDaContaDoMinimo(a.Piso, a.Divisor), ["destaque"] = true } },
+            ["situacao_titulo"] = "Conferência por ambiente",
+            ["textos"] = new JsonArray { "Ambiente acrescentado na revisão." },
+            ["resultado"] = new JsonObject { ["total"] = "—", ["conta"] = "Sem esquadrias.", ["comparacao"] = "Acrescente as janelas e as portas." },
+        };
+        return new Efeito(TipoAcrescimo, a.Item, null, null, new JsonObject { ["modelo"] = modelo });
+    }
+
+    /// <summary>O ícone do kit pelo nome do ambiente (o mesmo vocabulário das linhas recebidas).</summary>
+    private static string IconeDoAmbiente(string nome)
+    {
+        var n = new string(nome.Normalize(System.Text.NormalizationForm.FormD)
+            .Where(ch => CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark).ToArray()).ToLowerInvariant();
+        if (n.Contains("banh") || n.Contains("wc") || n.Contains("lavabo") || n.Contains("sanit")) return "wc";
+        if (n.Contains("cozinha") || n.Contains("servico") || n.Contains("lavand") || n.Contains("copa")) return "wash";
+        if (n.Contains("quarto") || n.Contains("dormit") || n.Contains("suite")) return "bed";
+        return "sun";
+    }
+
     /// <summary>Só o último acréscimo de uma lista se remove (os índices dos outros não mudam). O que estava revisado nele vai no
     /// registro, para o Desfazer devolver.</summary>
     private static Efeito CalcularRemocao(Projeto p, RemoverAcrescimo r)
@@ -548,8 +595,12 @@ internal static class MotorLinhas
         var revisao = new JsonObject();
         if (string.IsNullOrEmpty(r.Campo))
         {
-            if (TabelasRevisao.ProximaChamada(p) is not { } proxima || !TabelasRevisao.TentarLer(proxima, out var b, out var n) || r.Item != TabelasRevisao.Id(b, n - 1))
-                throw new ComandoRecusadoException("Remova antes as chamadas acrescentadas depois desta.");
+            var ambiente = TabelasRevisao.TentarLer(r.Item, out var blocoDoItem, out _) && blocoDoItem == TabelasRevisao.Ambientes;
+            var proximaDoBloco = ambiente ? TabelasRevisao.ProximoAmbiente(p) : TabelasRevisao.ProximaChamada(p);
+            if (proximaDoBloco is not { } proxima || !TabelasRevisao.TentarLer(proxima, out var b, out var n) || r.Item != TabelasRevisao.Id(b, n - 1))
+                throw new ComandoRecusadoException(ambiente ? "Remova antes os ambientes acrescentados depois deste." : "Remova antes as chamadas acrescentadas depois desta.");
+            if (ambiente && TabelasRevisao.Vaos(p, r.Item) > 0)
+                throw new ComandoRecusadoException("Remova antes as esquadrias deste ambiente.");
             if (rev is not null)
             {
                 revisao["situacao"] = rev.Situacao;
