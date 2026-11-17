@@ -23,21 +23,32 @@ public static class Pilulas
         b.VerticalAlignment = VerticalAlignment.Center;
     }
 
-    /// <summary>Botão de alternar da faixa: ligado acende na cor de destaque (o AppBarToggleButton nativo só muda um pouco o fundo).</summary>
+    /// <summary>Botão de alternar da faixa: ligado acende na cor de destaque (o AppBarToggleButton nativo só muda um pouco o fundo). As cores
+    /// seguem o tema do botão (claro ou escuro do app), não o do Windows, e são refeitas quando o tema muda (auditoria 2026-11-17).</summary>
     public static void Estilizar(AppBarToggleButton b)
     {
         b.CornerRadius = new CornerRadius(16);
-        var r = b.Resources;
-        r["AppBarToggleButtonBackgroundChecked"] = Recurso("AccentFillColorDefaultBrush");
-        r["AppBarToggleButtonBackgroundCheckedPointerOver"] = Recurso("AccentFillColorSecondaryBrush");
-        r["AppBarToggleButtonBackgroundCheckedPressed"] = Recurso("AccentFillColorTertiaryBrush");
-        r["AppBarToggleButtonForegroundChecked"] = Recurso("TextOnAccentFillColorPrimaryBrush");
-        r["AppBarToggleButtonForegroundCheckedPointerOver"] = Recurso("TextOnAccentFillColorPrimaryBrush");
-        r["AppBarToggleButtonForegroundCheckedPressed"] = Recurso("TextOnAccentFillColorSecondaryBrush");
-        r["AppBarToggleButtonBorderBrushChecked"] = Recurso("AccentFillColorDefaultBrush");
-        r["AppBarToggleButtonBorderBrushCheckedPointerOver"] = Recurso("AccentFillColorSecondaryBrush");
-        r["AppBarToggleButtonBorderBrushCheckedPressed"] = Recurso("AccentFillColorTertiaryBrush");
+        Aplicar(b);
+        b.ActualThemeChanged += (_, _) => Aplicar(b);
     }
 
-    static object Recurso(string chave) => Application.Current.Resources.TryGetValue(chave, out var v) ? v : DependencyProperty.UnsetValue;
-}
+    /// <summary>O verde institucional de App.xaml (SystemAccentColor*): no claro, o Dark1; no escuro, o Light2, como o WinUI faz com o destaque.</summary>
+    static void Aplicar(AppBarToggleButton b)
+    {
+        var escuro = b.ActualTheme == ElementTheme.Dark;
+        var fundo = escuro ? Cor(0x5C, 0xB9, 0x83) : Cor(0x17, 0x66, 0x3A);
+        var texto = escuro ? Cor(0x00, 0x00, 0x00) : Cor(0xFF, 0xFF, 0xFF);
+        var r = b.Resources;
+        r["AppBarToggleButtonBackgroundChecked"] = Pincel(fundo, 1);
+        r["AppBarToggleButtonBackgroundCheckedPointerOver"] = Pincel(fundo, .9);
+        r["AppBarToggleButtonBackgroundCheckedPressed"] = Pincel(fundo, .8);
+        r["AppBarToggleButtonForegroundChecked"] = Pincel(texto, 1);
+        r["AppBarToggleButtonForegroundCheckedPointerOver"] = Pincel(texto, 1);
+        r["AppBarToggleButtonForegroundCheckedPressed"] = Pincel(texto, .8);
+        r["AppBarToggleButtonBorderBrushChecked"] = Pincel(fundo, 1);
+        r["AppBarToggleButtonBorderBrushCheckedPointerOver"] = Pincel(fundo, .9);
+        r["AppBarToggleButtonBorderBrushCheckedPressed"] = Pincel(fundo, .8);
+    }
+
+    static Windows.UI.Color Cor(byte r, byte g, byte b) => Windows.UI.Color.FromArgb(255, r, g, b);
+    static Microsoft.UI.Xaml.Media.SolidColorBrush Pincel(Windows.UI.Color c, double opacidade) => new(c) { Opacity = opacidade };}

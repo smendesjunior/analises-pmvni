@@ -9,6 +9,15 @@
         <ResourceDictionary Source="Recursos/IconesModulos.xaml"/>
         <ResourceDictionary Source="Estilos.xaml"/>
       </ResourceDictionary.MergedDictionaries>
+      <!-- Auditoria de interface (2026-11-17): a cor de destaque do app é o verde institucional (o mesmo do "Novo relatório"), não a cor
+           de destaque do Windows (que deixava botões, chips e selos marrons no claro e mostarda no escuro, parecendo "atenção"). -->
+      <Color x:Key="SystemAccentColor">#1E7A46</Color>
+      <Color x:Key="SystemAccentColorLight1">#2E9B5E</Color>
+      <Color x:Key="SystemAccentColorLight2">#5CB983</Color>
+      <Color x:Key="SystemAccentColorLight3">#8FD3AB</Color>
+      <Color x:Key="SystemAccentColorDark1">#17663A</Color>
+      <Color x:Key="SystemAccentColorDark2">#11522E</Color>
+      <Color x:Key="SystemAccentColorDark3">#0B3D22</Color>
     </ResourceDictionary>
   </Application.Resources>
 </Application>

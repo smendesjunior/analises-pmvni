@@ -94,6 +94,10 @@ public sealed class PlanilhaLida
 {
     public required string Caminho { get; init; }
     public required string Aba { get; init; }
+    /// <summary>Todas as abas da pasta de trabalho, na ordem do arquivo.</summary>
+    public IReadOnlyList<string> Abas { get; init; } = [];
+    /// <summary>A aba pedida não existe mais (renomeada ou apagada no Excel): esta é a primeira, só para mostrar.</summary>
+    public bool AbaPedidaAusente { get; init; }
     public string Titulo { get; init; } = "";
     public string Subtitulo { get; init; } = "";
     public required IReadOnlyList<Coluna> Colunas { get; init; }

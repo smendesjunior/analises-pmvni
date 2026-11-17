@@ -74,8 +74,7 @@ public sealed partial class PaginaNovoDespacho : UserControl
             PainelExigencias.Children.Add(new Border
             {
                 Child = cartao, Padding = new Thickness(12), CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1),
-                BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
-                Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+                Style = (Style)Application.Current.Resources["PmvniCartaoStyle"], // segue o tema do app (auditoria 2026-11-17)
             });
         }
     }
@@ -124,7 +123,7 @@ public sealed partial class PaginaNovoDespacho : UserControl
     internal void Reiniciar(string titulo)
     {
         TextoTitulo.Text = titulo;
-        TextoTituloConferencia.Text = "3. Conferência";
+        TextoTituloConferencia.Text = "3 · Conferência";
         AvisoBloqueio.IsOpen = false;
         AvisoMensagem.IsOpen = false;
         LimparConferencia();

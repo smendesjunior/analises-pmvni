@@ -90,7 +90,7 @@ internal sealed class JanelaPrancha : Window
 
     void Montar()
     {
-        raiz.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        raiz.Style = (Style)Application.Current.Resources["PmvniFundoJanelaStyle"]; // segue o RequestedTheme da janela, não o do Windows
         raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         raiz.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -151,7 +151,7 @@ internal sealed class JanelaPrancha : Window
         camada.Children.Add(selecao);
         superficie.Children.Add(camada);
         rolagem.Content = superficie;
-        rolagem.Background = (Brush)Application.Current.Resources["SolidBackgroundFillColorBaseBrush"];
+        rolagem.Style = (Style)Application.Current.Resources["PmvniRolagemFundoStyle"];
         Grid.SetRow(rolagem, 2);
         raiz.Children.Add(rolagem);
 

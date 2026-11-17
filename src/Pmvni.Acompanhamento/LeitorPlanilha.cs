@@ -11,19 +11,23 @@ public static class LeitorPlanilha
 {
     static readonly XNamespace S = PacoteXlsx.S;
 
-    public static PlanilhaLida Ler(string caminho)
+    /// <summary>Lê a aba <paramref name="aba"/> pelo nome (null = a primeira). Se a aba pedida não existe mais, lê a primeira e marca
+    /// <see cref="PlanilhaLida.AbaPedidaAusente"/> (quem chama avisa; a gravação recusa).</summary>
+    public static PlanilhaLida Ler(string caminho, string? aba = null)
     {
         using var fs = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         var ms = new MemoryStream();
         fs.CopyTo(ms);
         ms.Position = 0;
         using var zip = new ZipArchive(ms, ZipArchiveMode.Read);
-        return Ler(new PacoteXlsx(zip), caminho);
+        return Ler(new PacoteXlsx(zip), caminho, aba);
     }
 
-    internal static PlanilhaLida Ler(PacoteXlsx p, string caminho)
+    internal static PlanilhaLida Ler(PacoteXlsx p, string caminho, string? abaPedida = null)
     {
-        var (aba, parte) = p.Abas[0];
+        var escolhida = abaPedida is null ? -1 : p.Abas.ToList().FindIndex(a => a.Nome == abaPedida);
+        var (aba, parte) = p.Abas[Math.Max(0, escolhida)];
+        var ausente = abaPedida is not null && escolhida < 0;
         var doc = p.Ler(parte) ?? throw new InvalidDataException($"A aba \"{aba}\" não pôde ser lida.");
         var dados = doc.Root!.Element(S + "sheetData") ?? throw new InvalidDataException($"A aba \"{aba}\" está vazia.");
 
@@ -62,7 +66,7 @@ public static class LeitorPlanilha
             (colIni, colFim) = (titulos.Min(), titulos.Max());
         }
 
-        var listas = Listas(p, doc, celulas);
+        var listas = Listas(p, doc, celulas, parte);
         var regras = Regras(p, doc);
         var ultima = Math.Max(fimTabela, celulas.Keys.DefaultIfEmpty(cab).Max());
 
@@ -115,7 +119,8 @@ public static class LeitorPlanilha
 
         var lida = new PlanilhaLida
         {
-            Caminho = caminho, Aba = aba, Colunas = colunas, Linhas = linhas, LinhaCabecalho = cab,
+            Caminho = caminho, Aba = aba, AbaPedidaAusente = ausente, Abas = p.Abas.Select(a => a.Nome).ToList(),
+            Colunas = colunas, Linhas = linhas, LinhaCabecalho = cab,
             Titulo = textos.ElementAtOrDefault(0) ?? "", Subtitulo = textos.ElementAtOrDefault(1) ?? "",
         };
         foreach (var l in linhas) l.Dono = lida;
@@ -140,7 +145,7 @@ public static class LeitorPlanilha
     sealed record Lista(IReadOnlyList<string> Opcoes, bool Data);
 
     /// <summary>A validação de dados por coluna: listas (literais ou intervalos, inclusive de outra aba) e datas.</summary>
-    static Dictionary<int, Lista> Listas(PacoteXlsx p, XDocument doc, Dictionary<int, Dictionary<int, (Celula Valor, int Estilo)>> celulas)
+    static Dictionary<int, Lista> Listas(PacoteXlsx p, XDocument doc, Dictionary<int, Dictionary<int, (Celula Valor, int Estilo)>> celulas, string parteAtual)
     {
         var r = new Dictionary<int, Lista>();
         void Registrar(string? tipo, string? formula, string? sqref)
@@ -148,7 +153,7 @@ public static class LeitorPlanilha
             if (sqref is null) return;
             Lista? l = tipo switch
             {
-                "list" when formula is not null => new Lista(Opcoes(p, formula, celulas), false),
+                "list" when formula is not null => new Lista(Opcoes(p, formula, celulas, parteAtual), false),
                 "date" => new Lista([], true),
                 _ => null,
             };
@@ -162,7 +167,7 @@ public static class LeitorPlanilha
         return r;
     }
 
-    static IReadOnlyList<string> Opcoes(PacoteXlsx p, string formula, Dictionary<int, Dictionary<int, (Celula Valor, int Estilo)>> celulas)
+    static IReadOnlyList<string> Opcoes(PacoteXlsx p, string formula, Dictionary<int, Dictionary<int, (Celula Valor, int Estilo)>> celulas, string parteAtual)
     {
         var f = formula.Trim();
         if (f.StartsWith('"')) return f.Trim('"').Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
@@ -170,7 +175,7 @@ public static class LeitorPlanilha
         var m = Regex.Match(f, @"^(?:'?(?<aba>[^'!]+)'?!)?\$?(?<c1>[A-Z]+)\$?(?<l1>\d+)(?::\$?(?<c2>[A-Z]+)\$?(?<l2>\d+))?$");
         if (!m.Success) return [];
         var dados = celulas;
-        if (m.Groups["aba"].Success && p.Abas.FirstOrDefault(a => a.Nome == m.Groups["aba"].Value) is { Caminho.Length: > 0 } outra && outra != p.Abas[0])
+        if (m.Groups["aba"].Success && p.Abas.FirstOrDefault(a => a.Nome == m.Groups["aba"].Value) is { Caminho.Length: > 0 } outra && outra.Caminho != parteAtual)
         {
             dados = [];
             foreach (var row in p.Ler(outra.Caminho)?.Root!.Element(S + "sheetData")?.Elements(S + "row") ?? [])

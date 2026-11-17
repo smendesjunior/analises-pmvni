@@ -20,7 +20,7 @@
       <Grid ColumnSpacing="12">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel Spacing="2">
-          <TextBlock Text="Consulta de imóveis" Style="{StaticResource PmvniTituloSecao}" FontSize="22"/>
+          <TextBlock Text="Consulta de imóveis" Style="{StaticResource PmvniTituloPaginaStyle}"/>
           <TextBlock x:Name="TextoPasta" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
         </StackPanel>
         <Button x:Name="BotaoConfigurar" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" Content="Configurar pasta QGIS"

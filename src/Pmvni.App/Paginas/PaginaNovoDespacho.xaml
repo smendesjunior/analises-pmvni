@@ -29,7 +29,7 @@
         <!-- Padronizado com o painel Propriedades (2026-11-16): cartões ORIGEM e CONTEÚDO, rótulo pequeno em maiúsculas acima de cada
              campo e separadores (estilos PmvniPainel…, Estilos.xaml); a ação principal de cada cartão na cor de destaque. -->
         <StackPanel Padding="16,14,16,20" Spacing="12">
-          <TextBlock x:Name="TextoTitulo" x:FieldModifier="internal" Text="Novo despacho" Style="{StaticResource SubtitleTextBlockStyle}" Margin="4,0,0,0"/>
+          <TextBlock x:Name="TextoTitulo" x:FieldModifier="internal" Text="Novo despacho" Style="{StaticResource PmvniTituloPaginaStyle}" Margin="4,0,0,0"/>
 
           <Border Style="{StaticResource PmvniPainelCartao}">
             <StackPanel>
@@ -52,7 +52,7 @@
                 <!-- Relatório base: os achados na pasta do processo, "Sem relatório" ou um escolhido à mão (.rpmvni de qualquer pasta, ou o
                      dados.json da análise do kit, importado para um .rpmvni novo antes de usar). -->
                 <StackPanel Spacing="4">
-                  <TextBlock Text="RELATÓRIO BASE (.RPMVNI)" Style="{StaticResource PmvniPainelRotulo}"/>
+                  <TextBlock Text="RELATÓRIO BASE" Style="{StaticResource PmvniPainelRotulo}"/>
                   <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <ComboBox x:Name="CaixaRelatorio" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Relatório base"/>
@@ -165,7 +165,7 @@
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
       <StackPanel Grid.Row="0" Padding="20,12,20,6" Spacing="8">
-        <TextBlock x:Name="TextoTituloConferencia" x:FieldModifier="internal" Text="3. Conferência" Style="{StaticResource SubtitleTextBlockStyle}"/>
+        <TextBlock x:Name="TextoTituloConferencia" x:FieldModifier="internal" Text="3 · Conferência" Style="{StaticResource SubtitleTextBlockStyle}"/>
         <InfoBar x:Name="AvisoErros" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="False" Title="O despacho gerado não passou na validação"/>
         <InfoBar x:Name="AvisoSemPdf" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="Sem PDF"/>
         <TextBlock x:Name="TextoFontes" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
@@ -185,8 +185,8 @@
       <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" Padding="24"
                   Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" CornerRadius="8">
         <ProgressRing x:Name="Anel" x:FieldModifier="internal" IsActive="False" Width="32" Height="32"/>
-        <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" HorizontalAlignment="Center"/>
-        <Button x:Name="BotaoInterromper" x:FieldModifier="internal" Content="Cancelar" HorizontalAlignment="Center"
+        <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" HorizontalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
+        <Button x:Name="BotaoInterromper" x:FieldModifier="internal" Content="Cancelar geração" HorizontalAlignment="Center"
                 local:Dicas.Descricao="Interrompe a geração e apaga a pasta de trabalho."/>
       </StackPanel>
     </Grid>
@@ -208,7 +208,7 @@
                 local:Dicas.Descricao="Volta para a edição do despacho, antes de gravar."/>
         <Button x:Name="BotaoGerar" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" IsEnabled="False"
                 AutomationProperties.Name="Gerar e conferir"
-                local:Dicas.Descricao="Gera o DOCX e o PDF do despacho e mostra as páginas para conferir.">
+                local:Dicas.Descricao="Gera o documento Word e o PDF do despacho e mostra as páginas para conferir.">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Text="Gerar e conferir"/>
             <FontIcon Glyph="&#xE72A;" FontSize="12"/>

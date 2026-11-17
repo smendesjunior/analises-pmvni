@@ -27,7 +27,7 @@ public sealed partial class IconeArquivo : Grid
         Height = 20;
         VerticalAlignment = VerticalAlignment.Center;
         Visibility = Visibility.Collapsed; // sem caminho (títulos), nada aparece
-        reserva.Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        reserva.Style = (Style)Application.Current.Resources["PmvniIconeSecundarioStyle"]; // segue o tema do app (auditoria 2026-11-17)
         Children.Add(imagem);
         Children.Add(reserva);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(this, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);

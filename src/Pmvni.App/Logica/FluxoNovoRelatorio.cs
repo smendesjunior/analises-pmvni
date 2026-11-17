@@ -48,7 +48,7 @@ public static class FluxoNovoRelatorio
     public const string FecharSim = "Cancelar análise e fechar";
     public const string FecharNao = "Continuar";
     public const string TextoFecharClaude = "A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, o resultado é importado.";
-    public const string AvisoSim = "Concordo e analisar";
+    public const string AvisoSim = "Concordar e analisar";
     public const string AvisoNao = "Cancelar";
 
     public static string AvisoTitulo(Provedor p) => "Analisar com o " + Provedores.Nome(p);

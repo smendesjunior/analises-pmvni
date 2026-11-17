@@ -2098,7 +2098,7 @@ internal static class Roteiro
             var n = j.NovoDespacho;
             p["mensagem"] = n.AvisoSemPdf.Message;
             var avisoOk = s.Passo == PassoNovoDespacho.Conferencia && n.AvisoSemPdf.IsOpen && n.AvisoSemPdf.Message == semPdf
-                && n.BotaoGravar.Content as string == "Gravar só o DOCX" && n.BotaoGravar.IsEnabled && n.CaixasDasPaginas.Count == 0;
+                && n.BotaoGravar.Content as string == "Gravar só o Word (.docx)" && n.BotaoGravar.IsEnabled && n.CaixasDasPaginas.Count == 0;
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "38-janela-xaml-sem-libreoffice.png"));
             var e = await j.GravarDespachoAsync() ?? throw new InvalidOperationException("não gravou: " + j.InfoMensagemAtual.Message);
             Anotar(e);
@@ -2946,7 +2946,7 @@ internal static class Roteiro
             var confirmacoes = perguntas.Confirmacoes.Count;
             j.Orquestrador = Orq("ok");
             var e = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException("não partiu: " + j.InfoMensagemAtual.Message);
-            var avisos = perguntas.Confirmacoes.Skip(confirmacoes).Count(c => c.Titulo == "Analisar com o ChatGPT" && c.Sim == "Concordo e analisar" && c.Texto == FluxoNovoRelatorio.TextoAviso(Provedor.ChatGpt));
+            var avisos = perguntas.Confirmacoes.Skip(confirmacoes).Count(c => c.Titulo == "Analisar com o ChatGPT" && c.Sim == "Concordar e analisar" && c.Texto == FluxoNovoRelatorio.TextoAviso(Provedor.ChatGpt));
             var avisoGravado = JsonNode.Parse(File.ReadAllText(Path.Combine(PastaDados.Raiz, Ajustes.NomeArquivo)))?["agentes"]?["chatgpt"]?["aviso_versao"]?.GetValue<int>() == 1;
             var titulo = j.TituloAnalise ?? "";
             var vista = j.ExecucaoMostrada == e && j.NovoRelatorio.VistaDaExecucao && j.BotaoDoTituloVisivel;

@@ -2,6 +2,56 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.4.0
+
+### Gravação mais segura na planilha de acompanhamento
+- **Planilha aberta no Excel:** a alteração não se perde mais. Ela fica guardada e aparece no aviso "aguardando gravação". O app grava sozinho quando a planilha for liberada, ou na hora em "Gravar agora", e isso vale mesmo que o editor seja fechado e aberto de novo.
+- **Gravação segura:** a planilha é gravada num arquivo temporário, conferida e só então trocada. Uma falha no meio nunca deixa o arquivo pela metade.
+- **Excluir processo:** não estraga mais as fórmulas da planilha (como "Dias sem atualização").
+- **Preenchimento automático:** nunca grava por cima do que alguém digitou enquanto ele buscava.
+- **Editar processo:** não regrava em maiúsculas os campos que você não mexeu e não muda a data à toa.
+- **Aba da planilha:** é escolhida pelo nome e lembrada. Mudar a ordem das abas no Excel não troca mais a aba.
+- **Cópias de segurança:** ficam numa pasta por planilha e nunca se sobrescrevem.
+
+### Acompanhamento de processos
+- **No notebook (1366 × 768):** o resumo fica compacto e se recolhe sozinho para a tabela aparecer, e o painel do processo abre por cima com a altura toda. O botão "Resumo" lembra a sua escolha.
+- **Tabela:** Status logo depois do Processo, Nº e Processo fixos ao rolar para o lado, e colunas sem nenhum dado fora da tabela (avisadas no rodapé).
+- **Resumo:** a pizza tem cores mais distintas, cada status tem a sua bolinha de cor e status sem processos saem do resumo.
+- **Nomes e pesquisa:** os nomes aparecem iguais na tabela e no painel ("Enviado ao Requerente"). A pesquisa da barra de título filtra a planilha.
+- **Teclado:** Enter edita, Delete exclui e a tecla Menu abre o menu do processo.
+- **Comandos:** "Novo processo" é o botão principal da faixa, e "Escolher planilha…" tem um nome só.
+
+### Interface
+- **Trilho:** mais largo, com "Acompanhamento de processos" inteiro em duas linhas. Os módulos rolam em janelas baixas, e Ajustes fica sempre à vista.
+- **Cor de destaque:** o verde institucional em todo o app, nos dois temas, no lugar da cor do Windows.
+- **Barra de título:**
+  - mostra só o que vale em cada módulo;
+  - o processo aberto e o "Salvo" só aparecem em Relatórios;
+  - em telas estreitas, os botões ficam só com o ícone.
+- **Editor:**
+  - em janelas estreitas, o painel Propriedades recolhe quando nada está selecionado;
+  - "Ajustar largura" não deixa mais rolagem lateral;
+  - a lista de seções mostra uma linha por item; Ajustes › Relatórios e revisão › "Lista de seções" escolhe entre Compacta e Confortável.
+- **Novo relatório:**
+  - os anexos de um compactado aparecem agrupados;
+  - o destino aparece inteiro;
+  - "Cancelar abertura" para a abertura de um compactado grande;
+  - o compactado com nomes repetidos é aceito.
+- **Tema:** as cores seguem o tema escolhido no app, mesmo quando é diferente do tema do Windows.
+- **Textos mais claros:**
+  - "Importar análise da IA…";
+  - "21 folhas";
+  - avisos da IA que dizem o que aconteceu;
+  - "Substituir" ao trocar o despacho pelo relatório;
+  - "Gravar só o Word (.docx)";
+  - "Atualizar/Copiar diagnóstico".
+- **Leitor de tela:** a recuperação de alterações não descarta mais com Esc, e o leitor de tela anuncia o estado de gravação e as mensagens que mudam.
+
+### Fica para depois
+- Trocar os cartões e as etiquetas antigos pelos estilos novos em todas as telas.
+- Foco visível na caixa de instrução da IA do Novo despacho.
+- Revisar os tamanhos fixos com o "Tamanho do texto" do Windows acima de 100%.
+
 ## 0.3.0
 
 ### Acompanhamento de processos (novo módulo no trilho)

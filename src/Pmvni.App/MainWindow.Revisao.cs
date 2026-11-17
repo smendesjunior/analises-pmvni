@@ -835,6 +835,8 @@ public sealed partial class MainWindow
 
     void MostrarPropriedades(bool visivel)
     {
+        propriedadesRecolhidasSozinhas = false; // a escolha do usuário manda
+        propriedadesPedidasSemSelecao = visivel;
         R.PainelPropriedades.Visibility = visivel ? Visibility.Visible : Visibility.Collapsed;
         Faixa.Ligar(ComandosApp.ExibirPropriedades, visivel);
         LembrarPaineis();
@@ -1129,12 +1131,12 @@ public sealed partial class MainWindow
     {
         if (e is OperationCanceledException)
         {
-            MostrarMensagem(InfoBarSeverity.Informational, "IA", "Consulta cancelada; nada mudou.");
+            MostrarMensagem(InfoBarSeverity.Informational, "Consulta à IA cancelada", "Nada mudou no item.");
             return;
         }
         // Auditoria 2026-11-16: nenhum erro da IA (JSON, tempo, rede, processo) derruba o editor; o detalhe vai para o registro.
         RegistroErros.Gravar("ia", e);
-        MostrarMensagem(InfoBarSeverity.Error, "IA", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + e.Message);
+        MostrarMensagem(InfoBarSeverity.Error, "A IA não respondeu", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + Erro(e));
     }
 
     /// <summary>O aviso "A justificativa mudou: reajuste o item" (<see cref="AjustePendente"/>): só avisa; quem dispara a IA é o botão.</summary>

@@ -32,6 +32,27 @@ public sealed partial class EtiquetaSituacao : Button
         ActualThemeChanged += (_, _) => Aplicar();
     }
 
+    public static readonly DependencyProperty CompactaProperty = DependencyProperty.Register(
+        nameof(Compacta), typeof(bool), typeof(EtiquetaSituacao), new PropertyMetadata(false, (d, _) => ((EtiquetaSituacao)d).Aplicar()));
+
+    /// <summary>Só a bolinha colorida (lista de seções em uma linha, auditoria de interface 2026-11-17); o nome da situação fica na dica e
+    /// no Narrador, e clicar continua abrindo o menu das situações.</summary>
+    public bool Compacta
+    {
+        get => (bool)GetValue(CompactaProperty);
+        set => SetValue(CompactaProperty, value);
+    }
+
+    public static readonly DependencyProperty MostrarProperty = DependencyProperty.Register(
+        nameof(Mostrar), typeof(bool), typeof(EtiquetaSituacao), new PropertyMetadata(true, (d, _) => ((EtiquetaSituacao)d).Aplicar()));
+
+    /// <summary>false esconde a etiqueta mesmo com situação (a lista de seções escolhe entre a bolinha e a etiqueta inteira).</summary>
+    public bool Mostrar
+    {
+        get => (bool)GetValue(MostrarProperty);
+        set => SetValue(MostrarProperty, value);
+    }
+
     /// <summary>Código da situação (ATENDE, NAO_ATENDE…), como em <see cref="Pmvni.Composicao.Kit.Situacoes.Sit"/>.</summary>
     public string? Situacao
     {
@@ -43,7 +64,7 @@ public sealed partial class EtiquetaSituacao : Button
     {
         texto.Text = EtiquetasSituacao.Texto(Situacao);
         AutomationProperties.SetName(this, EtiquetasSituacao.NomeAcessivel(Situacao));
-        if (EtiquetasSituacao.Cores(Situacao, ActualTheme == ElementTheme.Dark) is not { } c)
+        if (!Mostrar || EtiquetasSituacao.Cores(Situacao, ActualTheme == ElementTheme.Dark) is not { } c)
         {
             Visibility = Visibility.Collapsed;
             return;
@@ -51,8 +72,11 @@ public sealed partial class EtiquetaSituacao : Button
         Visibility = Visibility.Visible;
         var dica = DicasComandos.Livre("Situação: " + texto.Text, "Clique para mudar a situação deste item.");
         if (Dicas.De(this) != dica) Dicas.Aplicar(this, dica);
-        Background = Pincel(c.Fundo);
-        BorderBrush = Pincel(c.Borda);
+        texto.Visibility = Compacta ? Visibility.Collapsed : Visibility.Visible;
+        ponto.Width = ponto.Height = Compacta ? 10 : 7;
+        Background = Compacta ? new SolidColorBrush(Microsoft.UI.Colors.Transparent) : Pincel(c.Fundo);
+        BorderBrush = Compacta ? new SolidColorBrush(Microsoft.UI.Colors.Transparent) : Pincel(c.Borda);
+        if (Compacta) Padding = new Thickness(4); else ClearValue(PaddingProperty);
         texto.Foreground = Pincel(c.Texto);
         ponto.Fill = Pincel(c.Ponto);
     }

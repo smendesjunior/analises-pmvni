@@ -76,7 +76,7 @@ public sealed class PlanilhaTestes : IDisposable
         Assert.Equal("FINALIZADO", l.Status);
         Assert.Equal(new DateTime(2026, 11, 17), l.Atualizacao);
         Assert.Equal(alvo.Texto(ChaveColuna.Requerente), l.Texto(ChaveColuna.Requerente));
-        Assert.Single(Directory.GetFiles(Path.Combine(pasta, "copias")));
+        Assert.Single(Directory.GetFiles(GravadorPlanilha.PastaDasCopias(arquivo, Path.Combine(pasta, "copias"))));
         // Estilos, tabela e a validação de dados ficam iguais.
         var partesDepois = Partes(arquivo);
         Assert.Equal(partesAntes["xl/styles.xml"], partesDepois["xl/styles.xml"]);
@@ -153,6 +153,118 @@ public sealed class PlanilhaTestes : IDisposable
         var semAutor = DadosDoProcesso.DaCapa(Encoding.UTF8.GetBytes("""{"capa":{"quadros":[{"titulo":"AUTORIA","destaque":"Não informado"}]}}"""), "x");
         Assert.True(semAutor.Vazia);
         Assert.Equal("01060200304001", DadosDoProcesso.InscricaoDaConsulta(Encoding.UTF8.GetBytes("""{"lote_candidato":"01060200304001"}""")));
+    }
+
+    [Fact]
+    public void Formula_nao_desloca_nomes_de_funcao_e_anda_colunas()
+    {
+        Assert.Equal("LOG10(H30)+DEC2BIN(A30)", GravadorPlanilha.Deslocar("LOG10(H9)+DEC2BIN(A9)", 9, 30));
+        Assert.Equal("I30+$B$2+C$9", GravadorPlanilha.Deslocar("H30+$B$2+B$9", 30, 30, colunas: 1));
+        Assert.Equal("Listas!A12", GravadorPlanilha.Deslocar("Listas!A3", 1, 10));
+    }
+
+    [Fact]
+    public void Preenchimento_automatico_nao_troca_o_que_ja_esta_na_celula()
+    {
+        var antes = LeitorPlanilha.Ler(arquivo);
+        var obs = antes.Coluna(ChaveColuna.Observacao)!.Indice;
+        var local = antes.Coluna(ChaveColuna.Local)!.Indice;
+        var cheia = antes.Linhas.First(l => l.Texto(ChaveColuna.Local).Length > 0);
+        var vazia = antes.Linhas.First(l => l.Texto(ChaveColuna.Local).Length == 0);
+        GravadorPlanilha.Gravar(arquivo, [
+            new Alteracao(cheia.Linha, cheia.Processo, new Dictionary<int, ValorNovo> { [local] = new(Texto: "DETECTADO") }, SomenteSeVazias: true),
+            new Alteracao(vazia.Linha, vazia.Processo, new Dictionary<int, ValorNovo> { [local] = new(Texto: "DETECTADO"), [obs] = new(Texto: "X") }, SomenteSeVazias: true),
+        ]);
+        var depois = LeitorPlanilha.Ler(arquivo);
+        Assert.Equal(cheia.Texto(ChaveColuna.Local), depois.Linhas.Single(l => l.Linha == cheia.Linha).Texto(ChaveColuna.Local));
+        Assert.Equal("DETECTADO", depois.Linhas.Single(l => l.Linha == vazia.Linha).Texto(ChaveColuna.Local));
+    }
+
+    [Fact]
+    public void Excluir_mantem_as_formulas_da_linha_e_o_excel_nao_perde_a_mestra()
+    {
+        var antes = LeitorPlanilha.Ler(arquivo);
+        var dias = antes.Coluna(ChaveColuna.DiasSemAtualizacao)!.Indice;
+        var a = antes.Linhas[0];
+        var formulaAntes = a.Celula(dias).Formula;
+        GravadorPlanilha.Gravar(arquivo, [new Alteracao(a.Linha, a.Processo, new Dictionary<int, ValorNovo>(), Excluir: true)]);
+        using var zip = ZipFile.OpenRead(arquivo);
+        var aba = XDocument.Load(zip.GetEntry("xl/worksheets/sheet1.xml")!.Open());
+        XNamespace s = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        var cel = aba.Descendants(s + "c").Single(c => (string?)c.Attribute("r") == Planilha.Letra(dias) + a.Linha);
+        Assert.NotNull(cel.Element(s + "f"));
+        // Toda fórmula compartilhada vazia ainda tem a mestra (mesmo si, com texto).
+        var mestras = aba.Descendants(s + "f").Where(f => (string?)f.Attribute("t") == "shared" && f.Value.Length > 0).Select(f => (string?)f.Attribute("si")).ToHashSet();
+        Assert.All(aba.Descendants(s + "f").Where(f => (string?)f.Attribute("t") == "shared" && f.Value.Length == 0), f => Assert.Contains((string?)f.Attribute("si"), mestras));
+        Assert.NotNull(formulaAntes);
+    }
+
+    [Fact]
+    public void Gravar_na_mestra_compartilhada_da_formula_propria_as_outras_linhas()
+    {
+        // Monta uma coluna com fórmula compartilhada (mestra na 1ª linha) e escreve um valor por cima da mestra.
+        var lida = LeitorPlanilha.Ler(arquivo);
+        var obs = lida.Coluna(ChaveColuna.Observacao)!.Indice;
+        var l1 = lida.Linhas[0].Linha;
+        var l2 = lida.Linhas[1].Linha;
+        using (var zip = ZipFile.Open(arquivo, ZipArchiveMode.Update))
+        {
+            var e = zip.GetEntry("xl/worksheets/sheet1.xml")!;
+            XDocument aba;
+            using (var r = e.Open()) aba = XDocument.Load(r);
+            XNamespace s = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+            XElement Cel(int linha) => aba.Descendants(s + "c").Single(c => (string?)c.Attribute("r") == Planilha.Letra(obs) + linha);
+            foreach (var c in new[] { Cel(l1), Cel(l2) }) { c.Elements().Remove(); c.Attribute("t")?.Remove(); }
+            Cel(l1).Add(new XElement(s + "f", new XAttribute("t", "shared"), new XAttribute("ref", $"{Planilha.Letra(obs)}{l1}:{Planilha.Letra(obs)}{l2}"), new XAttribute("si", "77"), $"B{l1}&\"\""));
+            Cel(l2).Add(new XElement(s + "f", new XAttribute("t", "shared"), new XAttribute("si", "77")));
+            e.Delete();
+            using var w = zip.CreateEntry("xl/worksheets/sheet1.xml").Open();
+            aba.Save(w);
+        }
+        var linha1 = LeitorPlanilha.Ler(arquivo).Linhas.First(x => x.Linha == l1);
+        GravadorPlanilha.Gravar(arquivo, [new Alteracao(l1, linha1.Processo, new Dictionary<int, ValorNovo> { [obs] = new(Texto: "TEXTO") })]);
+        using var z2 = ZipFile.OpenRead(arquivo);
+        var depois = XDocument.Load(z2.GetEntry("xl/worksheets/sheet1.xml")!.Open());
+        XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        var f2 = depois.Descendants(ns + "c").Single(c => (string?)c.Attribute("r") == Planilha.Letra(obs) + l2).Element(ns + "f")!;
+        Assert.Equal($"B{l2}&\"\"", f2.Value);
+        Assert.Null(f2.Attribute("si"));
+    }
+
+    [Fact]
+    public void Aba_escolhida_pelo_nome_e_ausente_e_recusada_na_gravacao()
+    {
+        var p = LeitorPlanilha.Ler(arquivo, "2026");
+        Assert.Equal("2026", p.Aba);
+        Assert.False(p.AbaPedidaAusente);
+        Assert.Contains("2026", p.Abas);
+        var ausente = LeitorPlanilha.Ler(arquivo, "1999");
+        Assert.True(ausente.AbaPedidaAusente);
+        Assert.Throws<ConflitoPlanilhaException>(() => GravadorPlanilha.Gravar(arquivo, [new Alteracao(null, null, new Dictionary<int, ValorNovo>())], aba: "1999"));
+    }
+
+    [Fact]
+    public void Gravacao_nao_deixa_temporario_e_guarda_copias_por_planilha_sem_sobrescrever()
+    {
+        var copias = Path.Combine(pasta, "copias");
+        var p = LeitorPlanilha.Ler(arquivo);
+        var obs = p.Coluna(ChaveColuna.Observacao)!.Indice;
+        for (var i = 0; i < 3; i++)
+            GravadorPlanilha.Gravar(arquivo, [new Alteracao(p.Linhas[0].Linha, p.Linhas[0].Processo, new Dictionary<int, ValorNovo> { [obs] = new(Texto: "V" + i) })], copias);
+        Assert.Empty(Directory.GetFiles(pasta, "*.tmp", new EnumerationOptions { AttributesToSkip = 0 }));
+        var sub = GravadorPlanilha.PastaDasCopias(arquivo, copias);
+        Assert.Equal(3, Directory.GetFiles(sub, "*.xlsx").Length);
+        Assert.Equal("V2", LeitorPlanilha.Ler(arquivo).Linhas[0].Texto(ChaveColuna.Observacao));
+    }
+
+    [Fact]
+    public void Planilha_em_uso_nao_muda_nada_e_nao_deixa_temporario()
+    {
+        var bytes = File.ReadAllBytes(arquivo);
+        using (new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.Read))
+            Assert.Throws<PlanilhaEmUsoException>(() => GravadorPlanilha.Gravar(arquivo, [new Alteracao(null, null, new Dictionary<int, ValorNovo>())]));
+        Assert.Equal(bytes, File.ReadAllBytes(arquivo));
+        Assert.Empty(Directory.GetFiles(pasta, "*.tmp", new EnumerationOptions { AttributesToSkip = 0 }));
     }
 
     static Dictionary<string, string> Partes(string arquivo)

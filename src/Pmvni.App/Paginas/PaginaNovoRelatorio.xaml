@@ -41,7 +41,7 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <StackPanel Spacing="4"><TextBlock Text="Novo relatório" Style="{ThemeResource TitleTextBlockStyle}" TextWrapping="Wrap"/><TextBlock Text="Selecione o processo, adicione os anexos e escolha como analisar." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
+          <StackPanel Spacing="4"><TextBlock Text="Novo relatório" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock Text="Selecione o processo, adicione os anexos e escolha como analisar." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
             <Button x:Name="BotaoExecucoes" x:FieldModifier="internal" Content="Ver a análise em andamento" Visibility="Collapsed"
                     local:Dicas.Descricao="Mostra o andamento da análise que a IA está fazendo agora."/>
@@ -83,12 +83,15 @@
                        Style="{StaticResource BodyStrongTextBlockStyle}"/>
             <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar arquivos…" HorizontalAlignment="Center"
                     local:Dicas.Descricao="Escolhe no computador os arquivos do processo para a IA analisar."/>
+            <!-- Abrindo um compactado grande: dá para parar (auditoria de interface 2026-11-17). -->
+            <Button x:Name="BotaoCancelarAbertura" x:FieldModifier="internal" Content="Cancelar abertura" HorizontalAlignment="Center" Visibility="Collapsed"
+                    local:Dicas.Descricao="Para de abrir o compactado; nada dele entra como anexo."/>
             <TextBlock Text="Qualquer tipo de arquivo; .zip, .rar e .7z são abertos e cada arquivo de dentro entra como anexo. Nada é copiado antes de Analisar; a cópia vai para a pasta do processo e o original não muda."
                        Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" HorizontalAlignment="Center"/>
           </StackPanel>
         </Border>
         <StackPanel x:Name="ListaAnexos" x:FieldModifier="internal" Spacing="6"/>
-        <TextBlock x:Name="TextoRecusas" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed"
+        <TextBlock x:Name="TextoRecusas" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.LiveSetting="Assertive"
                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
 
         </StackPanel></Border>
@@ -162,7 +165,7 @@
       </StackPanel>
       <StackPanel x:Name="PainelClaude" x:FieldModifier="internal" Grid.Row="2" Spacing="6" Visibility="Collapsed">
         <StackPanel x:Name="PainelEtapas" x:FieldModifier="internal" Orientation="Horizontal" Spacing="16"/>
-        <TextBlock x:Name="TextoRotulo" x:FieldModifier="internal" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
+        <TextBlock x:Name="TextoRotulo" x:FieldModifier="internal" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
         <TextBlock x:Name="TextoEventos" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" MaxLines="6"/>
       </StackPanel>
       <ListView x:Name="ListaLinhas" x:FieldModifier="internal" Grid.Row="3" SelectionMode="None" IsItemClickEnabled="False"

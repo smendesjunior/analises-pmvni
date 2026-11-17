@@ -34,13 +34,16 @@ public static class Compactados
     /// <summary>A pasta temporária dos compactados abertos (<c>%TEMP%\PmvniAnexos</c>).</summary>
     public static string PastaTemporaria() => Path.Combine(Path.GetTempPath(), "PmvniAnexos");
 
-    /// <summary>Apaga as pastas de extração mais velhas que <paramref name="idade"/> (de sessões que fecharam sem limpar).</summary>
-    public static void LimparAntigos(TimeSpan idade)
+    /// <summary>Apaga as pastas de extração mais velhas que <paramref name="idade"/> (de sessões que fecharam sem limpar). A pasta
+    /// <paramref name="exceto"/> (a da sessão aberta, com anexos ainda na lista) nunca é apagada, por mais velha que seja.</summary>
+    public static void LimparAntigos(TimeSpan idade, string? exceto = null)
     {
         var raiz = PastaTemporaria();
         if (!Directory.Exists(raiz)) return;
+        var manter = exceto is null ? null : Path.GetFullPath(exceto).TrimEnd(Path.DirectorySeparatorChar);
         foreach (var d in Directory.EnumerateDirectories(raiz))
         {
+            if (manter is not null && string.Equals(Path.GetFullPath(d).TrimEnd(Path.DirectorySeparatorChar), manter, StringComparison.OrdinalIgnoreCase)) continue;
             try { if (DateTime.UtcNow - Directory.GetLastWriteTimeUtc(d) > idade) Directory.Delete(d, recursive: true); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         }
@@ -84,6 +87,7 @@ public static class Compactados
                     continue;
                 }
                 catch (InvalidDataException e) { avisos.Add($"{nomeExibido}: {interno} não pôde ser aberto ({e.Message}); vai como está."); }
+                catch (IOException e) { avisos.Add($"{nomeExibido}: {interno} não pôde ser aberto ({MensagensDeErro.Traduzir(e).TrimEnd('.')}); vai como está."); }
             }
             total += info.Length;
             if (total > LimiteBytes) throw new InvalidDataException($"{nomeExibido} passa de 4 GB descompactado; descompacte à mão e anexe os arquivos.");
@@ -104,6 +108,7 @@ public static class Compactados
             using var arquivo = ZipFile.Open(zip, ZipArchiveMode.Read, Encoding.GetEncoding(850));
             long total = 0;
             var n = 0;
+            var buffer = new byte[1 << 20];
             foreach (var e in arquivo.Entries)
             {
                 ct.ThrowIfCancellationRequested();
@@ -111,11 +116,25 @@ public static class Compactados
                 var alvo = Path.GetFullPath(Path.Combine(destino, e.FullName.Replace('\\', '/').TrimStart('/')));
                 if (!alvo.StartsWith(raiz, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException($"{nomeExibido} tem um caminho que sai da pasta ({e.FullName}); por segurança não foi aberto.");
-                total += e.Length;
-                if (total > LimiteBytes) throw new InvalidDataException($"{nomeExibido} passa de 4 GB descompactado; descompacte à mão e anexe os arquivos.");
                 if (++n > LimiteArquivos) throw new InvalidDataException($"{nomeExibido} tem mais de {LimiteArquivos} arquivos; descompacte à mão e anexe só os do processo.");
                 Directory.CreateDirectory(Path.GetDirectoryName(alvo)!);
-                e.ExtractToFile(alvo, overwrite: false);
+                // Mesmo nome duas vezes (ou só diferente na caixa, no Windows): o segundo vira "nome (2).ext", como na regra do kit.
+                for (var k = 2; File.Exists(alvo) || Directory.Exists(alvo); k++)
+                    alvo = Path.Combine(Path.GetDirectoryName(alvo)!, $"{Path.GetFileNameWithoutExtension(e.Name)} ({k}){Path.GetExtension(e.Name)}");
+                // O limite conta os bytes de fato escritos (o tamanho declarado na entrada pode estar errado).
+                using (var origem = e.Open())
+                using (var saida = new FileStream(alvo, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    int lidos;
+                    while ((lidos = origem.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        total += lidos;
+                        if (total > LimiteBytes) throw new InvalidDataException($"{nomeExibido} passa de 4 GB descompactado; descompacte à mão e anexe os arquivos.");
+                        saida.Write(buffer, 0, lidos);
+                    }
+                }
+                try { File.SetLastWriteTime(alvo, e.LastWriteTime.DateTime); } catch (ArgumentOutOfRangeException) { }
             }
         }
         catch (InvalidDataException e) when (!e.Message.StartsWith(nomeExibido, StringComparison.Ordinal))
@@ -144,7 +163,33 @@ public static class Compactados
         {
             using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
             limite.CancelAfter(TimeSpan.FromMinutes(10));
-            p.WaitForExitAsync(limite.Token).GetAwaiter().GetResult();
+            // O tar.exe não tem limite de tamanho: a pasta é medida a cada segundo enquanto ele extrai, e passou de 4 GB ou de 3.000
+            // arquivos, o tar é parado na hora (sem encher o disco do %TEMP%).
+            var fim = p.WaitForExitAsync(limite.Token);
+            while (!fim.Wait(TimeSpan.FromSeconds(3))) // a cada 3 s: percorrer a pasta toda a cada segundo pesava com milhares de arquivos
+            {
+                long bytes = 0;
+                var n = 0;
+                try
+                {
+                    foreach (var f in new DirectoryInfo(destino).EnumerateFiles("*", SearchOption.AllDirectories)) { bytes += f.Length; n++; }
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { continue; }
+                if (bytes > LimiteBytes || n > LimiteArquivos)
+                {
+                    try { p.Kill(true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                    throw new InvalidDataException(bytes > LimiteBytes
+                        ? $"{nomeExibido} passa de 4 GB descompactado; descompacte à mão e anexe os arquivos."
+                        : $"{nomeExibido} tem mais de {LimiteArquivos} arquivos; descompacte à mão e anexe só os do processo.");
+                }
+            }
+            fim.GetAwaiter().GetResult();
+        }
+        catch (AggregateException e) when (e.InnerException is OperationCanceledException)
+        {
+            try { p.Kill(true); } catch (Exception x) when (x is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            ct.ThrowIfCancellationRequested();
+            throw new InvalidDataException($"{nomeExibido} demorou demais para abrir; descompacte à mão e anexe os arquivos.");
         }
         catch (OperationCanceledException)
         {

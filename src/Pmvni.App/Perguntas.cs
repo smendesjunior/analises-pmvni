@@ -137,7 +137,14 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
             DefaultButton = ContentDialogButton.Primary,
             IsPrimaryButtonEnabled = false,
         };
-        void Conferir() => d.IsPrimaryButtonEnabled = FluxoNovoRelatorio.LerNovoProcesso(numero.Text, ano.Text, requerente.Text, anoAtual) is not null;
+        // "Criar" desabilitado diz por quê (auditoria de textos).
+        var motivo = new TextBlock { Text = "Preencha o número, o ano (4 dígitos) e o requerente para criar.", TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
+        painel.Children.Add(motivo);
+        void Conferir()
+        {
+            d.IsPrimaryButtonEnabled = FluxoNovoRelatorio.LerNovoProcesso(numero.Text, ano.Text, requerente.Text, anoAtual) is not null;
+            motivo.Visibility = d.IsPrimaryButtonEnabled ? Visibility.Collapsed : Visibility.Visible;
+        }
         numero.TextChanged += (_, _) => Conferir();
         ano.TextChanged += (_, _) => Conferir();
         requerente.TextChanged += (_, _) => Conferir();
@@ -256,9 +263,14 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
     {
         var quando = ultimo.ToLocalTime().ToString("dd/MM/yyyy 'às' HH:mm", Formatos.Cultura);
         var texto = (comandos == 1 ? "Há 1 alteração" : $"Há {comandos} alterações")
-            + $" que não chegou ao arquivo (a última em {quando}). Recuperar refaz essas alterações; descartar abre o arquivo como está gravado.";
-        var r = await Mostrar(Dialogo("Recuperar alterações não gravadas?", texto, "Recuperar", "Descartar"));
-        return r == ContentDialogResult.Primary ? RespostaRecuperacao.Recuperar : RespostaRecuperacao.Descartar;
+            + (comandos == 1 ? " que não chegou" : " que não chegaram") + $" ao arquivo (a última em {quando}). Recuperar refaz essas alterações; Descartar abre o arquivo como está gravado e guarda essas alterações na pasta de recuperação.";
+        // Auditoria de acessibilidade: Esc (ou fechar o diálogo sem querer) não descarta; só o botão "Descartar" descarta.
+        var d = Dialogo("Recuperar alterações não gravadas?", texto, "Recuperar", "Descartar");
+        d.CloseButtonText = "";
+        d.SecondaryButtonText = "Descartar";
+        d.DefaultButton = ContentDialogButton.Primary;
+        var r = await Mostrar(d);
+        return r == ContentDialogResult.Secondary ? RespostaRecuperacao.Descartar : RespostaRecuperacao.Recuperar;
     }
 
     public async Task<RespostaFechar> FecharSemGravarAsync(string motivo, bool conflito)

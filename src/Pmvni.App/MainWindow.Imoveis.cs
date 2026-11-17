@@ -216,12 +216,12 @@ public sealed partial class MainWindow
         {
             var reg = r.Itens[i];
             var v = vinculos[i];
-            var linha = new Grid { Padding = new Thickness(12, 8, 12, 8), ColumnSpacing = 12, BorderBrush = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"], BorderThickness = new Thickness(0, 0, 0, 1) };
+            var linha = new Grid { Padding = new Thickness(12, 8, 12, 8), ColumnSpacing = 12, Style = (Style)Application.Current.Resources["PmvniGradeLinhaStyle"], BorderThickness = new Thickness(0, 0, 0, 1) };
             TextBlock T(string? s, bool forte = false) => new() { Text = s ?? "", TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = forte ? FontWeights.SemiBold : FontWeights.Normal, IsTextSelectionEnabled = true };
             var selo = new Border
             {
-                CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 2, 8, 3), HorizontalAlignment = HorizontalAlignment.Left,
-                Background = (Brush)Application.Current.Resources[v == VinculoMapa.Confirmado ? "SystemFillColorSuccessBackgroundBrush" : v == VinculoMapa.SemLote ? "SystemFillColorCriticalBackgroundBrush" : "SystemFillColorCautionBackgroundBrush"],
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Style = (Style)Application.Current.Resources[v == VinculoMapa.Confirmado ? "PmvniSeloStatusSucessoStyle" : v == VinculoMapa.SemLote ? "PmvniSeloStatusErroStyle" : "PmvniSeloStatusAtencaoStyle"],
                 Child = new TextBlock { Text = TextosConsulta.Rotulo(v), FontSize = 12 },
             };
             var abrir = new Button { Content = "Abrir relatório", HorizontalAlignment = HorizontalAlignment.Stretch };

@@ -401,7 +401,8 @@ public sealed partial class MainWindow
         MostrarPassoAtual(s);
         // Relatório anexado: a IA resume as exigências (só o que não atende) sozinha, se houver programa de IA e o ajuste estiver ligado.
         // Na correção automática não: entram as exigências como estão no relatório, e o despacho segue para a conferência.
-        if (s.Tipo == TipoDespacho.Correcao && !automatico && Perguntas.Atual is PerguntasDaJanela) _ = AplicarInstrucaoAsync(IaDespacho.PedidoResumo);
+        // Trocou o relatório com texto já escrito (manual ou editado): esse texto foi trazido e o resumo automático não passa por cima dele.
+        if (s.Tipo == TipoDespacho.Correcao && !automatico && !s.TrouxeEdicoes && Perguntas.Atual is PerguntasDaJanela) _ = AplicarInstrucaoAsync(IaDespacho.PedidoResumo);
         return true;
     }
 
@@ -430,8 +431,8 @@ public sealed partial class MainWindow
     {
         if (novo is not { SoPdf: false, Tipo: TipoDespacho.Correcao } s || s.Passo == PassoNovoDespacho.Conferencia || s.Preparando) return;
         if (s.Processo is not null && FluxoNovoDespacho.TemEdicoes(s.Rascunho)
-            && !await Perguntas.Atual.ConfirmarAsync("Criar o despacho automaticamente?",
-                "As exigências e os campos que você já editou neste despacho serão trocados pelos do relatório.", "Criar", "Continuar editando", destrutiva: false))
+            && !await Perguntas.Atual.ConfirmarAsync("Substituir o despacho pelo relatório?",
+                "As exigências e os campos que você já editou neste despacho serão trocados pelos do relatório.", "Substituir", "Continuar editando", destrutiva: true))
             return;
         if (!ReferenceEquals(novo, s)) return;
         automatico = true;
@@ -691,9 +692,21 @@ public sealed partial class MainWindow
         var sugestao = Pmvni.Revisao.Etapas.Nova(processo.Pasta, Hoje()).Nome;
         var nome = await Perguntas.Atual.PedirTextoAsync("Nova pasta do despacho", "Nome da pasta dentro do processo:", sugestao);
         if (string.IsNullOrWhiteSpace(nome) || !ReferenceEquals(novo, s)) return;
-        nome = string.Concat(nome.Trim().Split(Path.GetInvalidFileNameChars()));
-        var pasta = Path.Combine(processo.Pasta, nome);
-        Directory.CreateDirectory(pasta);
+        nome = string.Concat(nome.Trim().Split(Path.GetInvalidFileNameChars())).Trim().TrimEnd('.', ' ');
+        // "." e ".." (e um nome que só tinha caracteres proibidos) apontariam para a pasta do processo ou para fora dela.
+        var raizProcesso = Path.GetFullPath(processo.Pasta).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var pasta = nome.Length == 0 ? "" : Path.GetFullPath(Path.Combine(processo.Pasta, nome));
+        if (nome.Length == 0 || nome.Trim('.').Length == 0 || !pasta.StartsWith(raizProcesso, StringComparison.OrdinalIgnoreCase))
+        {
+            MostrarMensagem(InfoBarSeverity.Warning, "Nome de pasta inválido", "Escreva um nome de pasta (por exemplo, a data do despacho); ele não pode ser vazio, \".\" nem \"..\".");
+            return;
+        }
+        try { Directory.CreateDirectory(pasta); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            MostrarMensagem(InfoBarSeverity.Error, "A pasta não foi criada", Erro(e));
+            return;
+        }
         var etapa = new EtapaDespacho(pasta, nome, s.Etapa?.Numero ?? 1, Hoje(), false);
         var (relatorios, etapas, _) = await Task.Run(() => SessaoNovoDespacho.LerProcesso(processo, Hoje()));
         var lista = etapas.Any(e => e.Nome == nome) ? etapas : etapas.Append(etapa).ToList();
@@ -719,17 +732,17 @@ public sealed partial class MainWindow
             if (!ReferenceEquals(novo, s) || !ReferenceEquals(s.Rascunho, r)) return;
             if (IaDespacho.Prompt(r, "") != retrato)
             {
-                MostrarMensagem(InfoBarSeverity.Warning, "IA", "O despacho foi editado enquanto a IA respondia; a resposta foi descartada para não apagar a sua edição. Aplique a instrução de novo.");
+                MostrarMensagem(InfoBarSeverity.Warning, "Resposta da IA descartada", "O despacho foi editado enquanto a IA respondia; a resposta foi descartada para não apagar a sua edição. Aplique a instrução de novo.");
                 return;
             }
             if (IaDespacho.Ler(saida) is not { } resp)
             {
-                MostrarMensagem(InfoBarSeverity.Warning, "IA", "A resposta da IA não veio no formato esperado; nada mudou.");
+                MostrarMensagem(InfoBarSeverity.Warning, "A IA não alterou o despacho", "A resposta da IA não veio no formato esperado; nada mudou.");
                 return;
             }
             if (r.Tipo == TipoDespacho.Correcao && resp.Exigencias.Count == 0 && r.Pendencias.Any(x => x.Incluida))
             {
-                MostrarMensagem(InfoBarSeverity.Warning, "IA", "A IA devolveu o despacho sem nenhuma exigência; nada mudou. Reescreva a instrução se a ideia era tirar todas.");
+                MostrarMensagem(InfoBarSeverity.Warning, "A IA não alterou o despacho", "A IA devolveu o despacho sem nenhuma exigência; nada mudou. Reescreva a instrução se a ideia era tirar todas.");
                 return;
             }
             if (resp.Protocolo is { Length: > 0 } pr) r.DefinirCabecalho("protocolo", pr);
@@ -743,7 +756,7 @@ public sealed partial class MainWindow
         {
             // Auditoria 2026-11-16: nenhum erro da IA (JSON, tempo, rede, processo) derruba o editor; o detalhe vai para o registro.
             RegistroErros.Gravar("ia", e);
-            MostrarMensagem(InfoBarSeverity.Error, "IA", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + e.Message);
+            MostrarMensagem(InfoBarSeverity.Error, "A IA não respondeu", e is InvalidOperationException or IOException ? e.Message : "A chamada à IA falhou: " + Erro(e));
         }
         finally
         {
@@ -776,7 +789,7 @@ public sealed partial class MainWindow
         if (desistir || !ReferenceEquals(novo, s)) { certificado?.Dispose(); return; }
         using var _ = certificado;
         var assinador = certificado is null ? null : new AssinadorComCertificado(certificado, AgoraDaAssinatura);
-        N.MostrarEspera(certificado is null ? "Gerando o DOCX e o PDF do despacho…" : "Gerando o DOCX e o PDF do despacho e assinando…", interromper: true);
+        N.MostrarEspera(certificado is null ? "Gerando o documento Word e o PDF do despacho…" : "Gerando o documento Word e o PDF do despacho e assinando…", interromper: true);
         try { await s.PrepararAsync(Conversor, assinador); }
         catch (OperationCanceledException)
         {
@@ -803,7 +816,7 @@ public sealed partial class MainWindow
         var n = N;
         n.LimparConferencia();
         n.MostrarPasso(PassoNovoDespacho.Conferencia, s.SoPdf);
-        n.TextoTituloConferencia.Text = s.SoPdf ? "Gerar PDF · " + Path.GetFileName(s.DocxGravado) : "3. Conferência";
+        n.TextoTituloConferencia.Text = s.SoPdf ? "Gerar PDF · " + Path.GetFileName(s.DocxGravado) : "3 · Conferência";
         if (p.Erros.Count > 0)
         {
             n.AvisoErros.Message = string.Join(Environment.NewLine, p.Erros);
@@ -815,7 +828,7 @@ public sealed partial class MainWindow
         {
             n.AvisoSemPdf.Message = p.MensagemSemPdf ?? "";
             n.AvisoSemPdf.IsOpen = true;
-            if (!s.SoPdf) n.BotaoGravar.Content = "Gravar só o DOCX";
+            if (!s.SoPdf) n.BotaoGravar.Content = "Gravar só o Word (.docx)";
             AtualizarGravar(s);
             return;
         }

@@ -1318,10 +1318,11 @@ var Paginador = (() => {
       const maximo = numeroOpcional(dados.maximo, "maximo");
       let alvo = zoom;
       if (ajustar === "largura") {
-        alvo = (raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX;
+        // A margem das marcas de revisão (gola) empurra a folha para a direita: o ajuste conta com ela, para não sobrar rolagem lateral.
+        alvo = Math.min(raiz.clientWidth - 2 * MARGEM_AJUSTE_PX, raiz.clientWidth - golaEsquerda - MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX;
         if (maximo !== void 0) alvo = Math.min(alvo, maximo);
       } else if (ajustar === "pagina") {
-        alvo = Math.min((raiz.clientWidth - 2 * MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
+        alvo = Math.min(Math.min(raiz.clientWidth - 2 * MARGEM_AJUSTE_PX, raiz.clientWidth - golaEsquerda - MARGEM_AJUSTE_PX) / LARGURA_FOLHA_PX, (raiz.clientHeight - 2 * MARGEM_AJUSTE_PX) / ALTURA_FOLHA_PX);
       } else if (pedido !== void 0) alvo = pedido;
       aplicarZoom(limitar(alvo, ajustar ? ZOOM_MIN_AJUSTE : ZOOM_MIN));
       observar(enviar2);

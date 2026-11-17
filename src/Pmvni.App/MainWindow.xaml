@@ -67,16 +67,15 @@
                      VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
           <Border x:Name="DivisoriaProcesso" Style="{StaticResource PmvniDivisoriaCabecalho}" Visibility="Collapsed"/>
           <StackPanel x:Name="BlocoProcesso" VerticalAlignment="Center" Spacing="0" MaxWidth="300" Visibility="Collapsed">
-            <TextBlock x:Name="TextoProcesso" FontSize="15" FontWeight="Bold" TextTrimming="CharacterEllipsis" MaxLines="1"
-                       AutomationProperties.Name="Processo aberto"/>
+            <TextBlock x:Name="TextoProcesso" FontSize="15" FontWeight="Bold" TextTrimming="CharacterEllipsis" MaxLines="1"/>
             <TextBlock x:Name="TextoRequerente" FontSize="12" FontWeight="Normal" TextTrimming="CharacterEllipsis" MaxLines="1"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.Name="Requerente"/>
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
           </StackPanel>
           <Border x:Name="SeloGravacao" Style="{StaticResource PmvniSeloSucesso}" Visibility="Collapsed" VerticalAlignment="Center"
                   AutomationProperties.Name="Estado de gravação">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <FontIcon x:Name="IconeGravacao" Glyph="&#xE930;" FontSize="14" VerticalAlignment="Center" Style="{StaticResource PmvniIconeSeloSucesso}"/>
-              <TextBlock x:Name="TextoGravacao" VerticalAlignment="Center" FontSize="13"/>
+              <TextBlock x:Name="TextoGravacao" VerticalAlignment="Center" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
             </StackPanel>
           </Border>
         </StackPanel>
@@ -101,7 +100,7 @@
                     AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
-                <TextBlock Text="Desfazer" VerticalAlignment="Center"/>
+                <TextBlock x:Name="RotuloDesfazer" Text="Desfazer" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
@@ -109,7 +108,7 @@
                     AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <FontIcon Glyph="&#xE7A6;" FontSize="14"/>
-                <TextBlock Text="Refazer" VerticalAlignment="Center"/>
+                <TextBlock x:Name="RotuloRefazer" Text="Refazer" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
           </StackPanel>
@@ -118,7 +117,7 @@
           <TextBox x:Name="CaixaPesquisa" Width="240" Height="32" MinHeight="32" CornerRadius="16" Padding="36,5,12,6" VerticalAlignment="Center"
                    IsEnabled="False" PlaceholderText="Pesquisar no relatório" AutomationProperties.Name="Pesquisar no relatório"
                    ToolTipService.ToolTip="Pesquisar no relatório (Ctrl+F)"/>
-          <FontIcon Glyph="&#xE721;" FontSize="14" Margin="13,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+          <FontIcon x:Name="IconePesquisa" Glyph="&#xE721;" FontSize="14" Margin="13,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
                     IsHitTestVisible="False" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
         </Grid>
         <TextBlock x:Name="TextoPesquisa" VerticalAlignment="Center" TextAlignment="Center" Visibility="Collapsed"
@@ -130,7 +129,7 @@
                     AutomationProperties.Name="Ocorrência anterior" ToolTipService.ToolTip="Ocorrência anterior (Shift+Enter)">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <FontIcon Glyph="&#xE70E;" FontSize="12"/>
-                <TextBlock Text="Anterior" VerticalAlignment="Center"/>
+                <TextBlock x:Name="RotuloAnterior" Text="Anterior" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
@@ -138,7 +137,7 @@
                     AutomationProperties.Name="Próxima ocorrência" ToolTipService.ToolTip="Próxima ocorrência (Enter)">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <FontIcon Glyph="&#xE70D;" FontSize="12"/>
-                <TextBlock Text="Próximo" VerticalAlignment="Center"/>
+                <TextBlock x:Name="RotuloProximo" Text="Próxima" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
           </StackPanel>
@@ -146,11 +145,11 @@
       </StackPanel>
     </controls:TitleBar>
 
-    <local:FaixaDeOpcoes x:Name="Faixa" Grid.Row="1" Margin="72,0,0,0"/>
+    <local:FaixaDeOpcoes x:Name="Faixa" Grid.Row="1" Margin="112,0,0,0"/>
 
     <Grid Grid.Row="2">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="72"/>
+        <ColumnDefinition Width="112"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
       <local:Trilho x:Name="TrilhoModulos" Grid.Column="0"/>

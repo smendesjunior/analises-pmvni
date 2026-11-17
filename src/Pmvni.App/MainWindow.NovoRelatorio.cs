@@ -376,17 +376,33 @@ public sealed partial class MainWindow
             {
                 if (!Compactados.EhCompactado(c) || !File.Exists(c)) { lista.Add(c); continue; }
                 NR.TextoArraste.Text = "Abrindo " + Path.GetFileName(c) + "…";
+                // Compactado grande pode levar minutos: "Cancelar abertura" para a extração (nada dele entra como anexo).
+                using var cancelar = new CancellationTokenSource();
+                void AoCancelar(object s, RoutedEventArgs a) => cancelar.Cancel();
+                NR.BotaoCancelarAbertura.Click += AoCancelar;
+                NR.BotaoCancelarAbertura.Visibility = Visibility.Visible;
                 try
                 {
-                    var r = await Task.Run(() => { Compactados.LimparAntigos(TimeSpan.FromDays(1)); return Compactados.Extrair(c, pastaCompactadosNR, CancellationToken.None); });
+                    var sessaoNR = pastaCompactadosNR;
+                    var token = cancelar.Token;
+                    var r = await Task.Run(() => { Compactados.LimparAntigos(TimeSpan.FromDays(1), exceto: sessaoNR); return Compactados.Extrair(c, sessaoNR, token); });
                     foreach (var a in r.Arquivos) { lista.Add(a.Caminho); deCompactado[Path.GetFullPath(a.Caminho)] = a; }
                     avisosCompactados.AddRange(r.Avisos);
                     if (r.Arquivos.Count > 0) abertos.Add($"{Path.GetFileName(c)} ({r.Arquivos.Count} {(r.Arquivos.Count == 1 ? "arquivo" : "arquivos")})");
                 }
+                catch (OperationCanceledException)
+                {
+                    avisosCompactados.Add($"A abertura de {Path.GetFileName(c)} foi cancelada; nenhum arquivo dele entrou.");
+                }
                 catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException)
                 {
                     RegistroErros.Gravar("anexo.compactado", e);
-                    avisosCompactados.Add(e is InvalidDataException ? e.Message : $"{Path.GetFileName(c)} não pôde ser aberto: {e.Message.TrimEnd('.')}.");
+                    avisosCompactados.Add(e is InvalidDataException ? e.Message : $"{Path.GetFileName(c)} não pôde ser aberto: {Erro(e).TrimEnd('.')}.");
+                }
+                finally
+                {
+                    NR.BotaoCancelarAbertura.Click -= AoCancelar;
+                    NR.BotaoCancelarAbertura.Visibility = Visibility.Collapsed;
                 }
             }
             NR.TextoArraste.Text = FluxoNovoRelatorio.ArrasteAqui;
@@ -484,36 +500,48 @@ public sealed partial class MainWindow
         var lista = NR.ListaAnexos;
         lista.Children.Clear();
         var opcoes = FluxoNovoRelatorio.OpcoesDestino(revisaoAtualNR);
+        // Sem processo, um aviso só no topo (antes, "Escolha o processo." se repetia em cada linha) e a coluna do destino final some.
+        var semProcesso = processoNR is null && anexosNR.Count > 0;
+        if (semProcesso)
+            lista.Children.Add(new TextBlock { Text = "Escolha o processo no passo 1 para ver onde cada arquivo será gravado.", TextWrapping = TextWrapping.Wrap,
+                Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], Margin = new Thickness(2, 0, 0, 2) });
+        string? grupoAtual = null;
         for (var i = 0; i < anexosNR.Count; i++)
         {
             var a = anexosNR[i];
+            // Os arquivos de um mesmo compactado ficam juntos, com um título ("Envio do requerente.zip · 4 arquivos").
+            if (a.Compactado is { } zip && zip != grupoAtual)
+            {
+                var qtd = anexosNR.Skip(i).TakeWhile(x => x.Compactado == zip).Count(); // só a sequência deste compactado
+                lista.Children.Add(new TextBlock { Text = $"{zip} · {qtd} {(qtd == 1 ? "arquivo" : "arquivos")}", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Margin = new Thickness(2, 6, 0, 0) });
+            }
+            grupoAtual = a.Compactado;
             var grade = new Grid { ColumnSpacing = 10, Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(6),
-                Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"] };
+                Style = (Style)Application.Current.Resources["PmvniGradeCartaoStyle"] };
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star), MinWidth = 150, MaxWidth = 300 });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star), MinWidth = 240, MaxWidth = 340 });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = semProcesso ? new GridLength(0) : new GridLength(3, GridUnitType.Star) });
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var nome = new StackPanel();
             nome.Children.Add(new TextBlock { Text = a.Nome, TextTrimming = TextTrimming.CharacterEllipsis });
             var detalhe = ListasPastas.TextoDoTamanho(a.Tamanho);
-            if (a.Compactado is not null)
-            {
-                var pastaInterna = a.Interno is { } dentro && dentro.Contains('/') ? " › " + dentro[..dentro.LastIndexOf('/')].Replace("/", " › ") : "";
-                detalhe = "de " + a.Compactado + pastaInterna + " · " + detalhe;
-            }
+            if (a.Compactado is not null && a.Interno is { } dentro && dentro.Contains('/'))
+                detalhe = "pasta " + dentro[..dentro.LastIndexOf('/')].Replace("/", " › ") + " · " + detalhe;
             nome.Children.Add(new TextBlock { Text = detalhe, TextTrimming = TextTrimming.CharacterEllipsis, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
             grade.Children.Add(nome);
             var caixa = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Center };
             AutomationPropertiesNome(caixa, "Destino de " + a.Nome);
             foreach (var o in opcoes) caixa.Items.Add(new ComboBoxItem { Content = o.Rotulo, Tag = o.Destino });
             caixa.SelectedItem = caixa.Items.OfType<ComboBoxItem>().FirstOrDefault(x => x.Tag is DestinoAnexo d && d == a.Destino);
+            if (caixa.SelectedItem is ComboBoxItem { Content: string rotuloDestino }) ToolTipService.SetToolTip(caixa, rotuloDestino);
             caixa.SelectionChanged += (_, _) => { if (caixa.SelectedItem is ComboBoxItem { Tag: DestinoAnexo d } && d != a.Destino) DefinirDestino(a, d); };
             Grid.SetColumn(caixa, 1);
             grade.Children.Add(caixa);
-            var previa = new TextBlock { Text = a.Previa, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = true };
+            var previa = new TextBlock { Text = semProcesso ? "" : a.Previa, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = true };
             Grid.SetColumn(previa, 2);
             grade.Children.Add(previa);
-            var remover = new Button { Content = "Remover da lista", VerticalAlignment = VerticalAlignment.Center };
+            var remover = new Button { Content = new FontIcon { Glyph = Glifos.Excluir, FontSize = 14 }, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(10, 7, 10, 7) };
+            AutomationPropertiesNome(remover, "Remover " + a.Nome + " da lista");
             remover.Click += (_, _) => RemoverAnexo(a);
             Dicas.Aplicar(remover, "Remover da lista", "Tira este arquivo da análise; o arquivo continua no computador.");
             Grid.SetColumn(remover, 3);
@@ -547,7 +575,8 @@ public sealed partial class MainWindow
             texto.Visibility = motivo is null ? Visibility.Collapsed : Visibility.Visible;
             // 2026-11-16: a versão instalada do plugin que vai fazer a análise, sempre à vista (também gravada no execucao.json).
             var versao = Pmvni.Agentes.OrquestradorAnalise.VersaoDoPlugin(p, pecasAgentes);
-            var rotulo = (p == Provedor.ChatGpt ? "Codex · plugin " : "Claude Code · plugin ") + Pmvni.Agentes.OrquestradorAnalise.PluginUsado(p)
+            var rotulo = (p == Provedor.ChatGpt ? "Pelo Codex · " : "Pelo Claude Code · ") + "kit "
+                + Pmvni.Agentes.OrquestradorAnalise.PluginUsado(p).Replace("analise", "análise", StringComparison.Ordinal)
                 + " " + (versao is not null ? "v" + versao : ReferenceEquals(pecasAgentes, PecasNaoLidas) ? "(verificando versão…)" : "(versão não encontrada)");
             var vaga = p == Provedor.ChatGpt ? NR.TextoPluginChatGpt : NR.TextoPluginClaude;
             if (vaga.Text != rotulo) vaga.Text = rotulo;
@@ -681,7 +710,7 @@ public sealed partial class MainWindow
         {
             var s = e.Situacao;
             n.MostrarEtapas(FluxoNovoRelatorio.Etapas(s?.Etapa, s?.Codigo ?? ""));
-            n.TextoRotulo.Text = s is null ? "Dando a partida no análise pro…" : (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro);
+            n.TextoRotulo.Text = s is null ? "Iniciando a análise detalhada…" : (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro);
             n.TextoEventos.Text = string.Join(Environment.NewLine, e.Eventos.TakeLast(5));
         }
         if (linhasNovas && n.LinhasNoFim()) n.RolarLinhasAoFim();

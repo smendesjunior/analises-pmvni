@@ -165,13 +165,13 @@ public sealed partial class MainWindow
                 Background = CorDoTema("PmvniSeloTipoFundo"), CornerRadius = new CornerRadius(10), Padding = new Thickness(9, 1, 9, 2), VerticalAlignment = VerticalAlignment.Center,
                 Child = new TextBlock { Text = ListaLegislacao.RotuloTipo(tipo), FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = CorDoTema("PmvniSeloTipoTexto") },
             });
-            meta.Children.Add(new Border { Width = 1, Height = 14, Background = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"], VerticalAlignment = VerticalAlignment.Center });
+            meta.Children.Add(new Border { Width = 1, Height = 14, Style = (Style)Application.Current.Resources["PmvniDivisoriaVerticalStyle"], VerticalAlignment = VerticalAlignment.Center });
         }
         meta.Children.Add(new FontIcon { Glyph = "", FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
         meta.Children.Add(new TextBlock { Text = l.Paginas, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
         if (l.Selo is { } selo)
         {
-            var aviso = new FontIcon { Glyph = "", FontSize = 14, Foreground = (Brush)Application.Current.Resources["SystemFillColorCautionBrush"], VerticalAlignment = VerticalAlignment.Center };
+            var aviso = new FontIcon { Glyph = "", FontSize = 14, Style = (Style)Application.Current.Resources["PmvniIconeAtencaoStyle"], VerticalAlignment = VerticalAlignment.Center };
             ToolTipService.SetToolTip(aviso, selo);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(aviso, selo);
             meta.Children.Add(aviso);
@@ -200,7 +200,7 @@ public sealed partial class MainWindow
 
         if (aberta)
         {
-            var topicos = new StackPanel { Spacing = 0, Margin = new Thickness(0, 8, 6, 0), BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"], BorderThickness = new Thickness(2, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
+            var topicos = new StackPanel { Spacing = 0, Margin = new Thickness(0, 8, 6, 0), Style = (Style)Application.Current.Resources["PmvniPilhaContornoStyle"], BorderThickness = new Thickness(2, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
             Grid.SetRow(topicos, 1);
             Grid.SetColumn(topicos, 0);
             Grid.SetColumnSpan(topicos, 3);

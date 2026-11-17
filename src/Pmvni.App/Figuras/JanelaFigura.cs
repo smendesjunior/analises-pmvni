@@ -94,7 +94,7 @@ internal sealed class JanelaFigura : Window
 
     void Montar()
     {
-        raiz.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        raiz.Style = (Style)Application.Current.Resources["PmvniFundoJanelaStyle"]; // segue o RequestedTheme da janela, não o do Windows
         raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         raiz.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -154,7 +154,7 @@ internal sealed class JanelaFigura : Window
         superficie.Children.Add(imagem);
         superficie.Children.Add(camada);
         rolagem.Content = superficie;
-        rolagem.Background = (Brush)Application.Current.Resources["SolidBackgroundFillColorBaseBrush"];
+        rolagem.Style = (Style)Application.Current.Resources["PmvniRolagemFundoStyle"];
         Grid.SetRow(rolagem, 1);
         raiz.Children.Add(rolagem);
         // As alças têm tamanho fixo na tela: redesenha ao terminar uma mudança de zoom.

@@ -19,6 +19,7 @@ public sealed partial class GraficoPizza : Grid
     {
         Children.Add(tela);
         SizeChanged += (_, _) => Desenhar();
+        ActualThemeChanged += (_, _) => Desenhar();
     }
 
     public void Mostrar(IReadOnlyList<Fatia> f)
@@ -35,10 +36,12 @@ public sealed partial class GraficoPizza : Grid
         var total = fatias.Sum(f => f.Valor);
         var c = new Point(ActualWidth / 2, ActualHeight / 2);
         var r = lado / 2 - 2;
-        var contorno = Application.Current.Resources.TryGetValue("CardBackgroundFillColorDefaultBrush", out var b) && b is Brush br ? br : new SolidColorBrush(Microsoft.UI.Colors.White);
+        // Contorno entre as fatias na cor do cartão do tema do gráfico (claro ou escuro do app), não do Windows (auditoria 2026-11-17).
+        var escuro = ActualTheme == ElementTheme.Dark;
+        var contorno = new SolidColorBrush(escuro ? Windows.UI.Color.FromArgb(255, 0x2B, 0x2B, 0x2B) : Microsoft.UI.Colors.White);
         if (total == 0)
         {
-            var vazio = new Ellipse { Width = 2 * r, Height = 2 * r, Fill = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"] };
+            var vazio = new Ellipse { Width = 2 * r, Height = 2 * r, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(0x26, 0x80, 0x80, 0x80)) };
             Canvas.SetLeft(vazio, c.X - r);
             Canvas.SetTop(vazio, c.Y - r);
             ToolTipService.SetToolTip(vazio, "Nenhum processo");

@@ -54,6 +54,37 @@ public sealed class CompactadosTestes : IDisposable
     }
 
     [Fact]
+    public void zip_com_nomes_repetidos_abre_tudo_e_renomeia_o_segundo()
+    {
+        var zip = Zip("repetidos.zip", ("Planta.pdf", "a"), ("planta.pdf", "b"), ("PROJETO/Corte.pdf", "c"));
+
+        var r = Compactados.Extrair(zip, Path.Combine(pasta, "saida"), CancellationToken.None);
+
+        Assert.Equal(3, r.Arquivos.Count);
+        Assert.Contains(r.Arquivos, a => Path.GetFileName(a.Caminho) == "planta (2).pdf");
+        Assert.Equal(["a", "b"], r.Arquivos.Where(a => a.Caminho.Contains("lanta", StringComparison.Ordinal)).Select(a => File.ReadAllText(a.Caminho)).Order().ToList());
+    }
+
+    [Fact]
+    public void limpar_antigos_nunca_apaga_a_pasta_da_sessao_aberta()
+    {
+        var raiz = Compactados.PastaTemporaria();
+        var sessao = Path.Combine(raiz, "teste-sessao-" + Guid.NewGuid().ToString("N"));
+        var velha = Path.Combine(raiz, "teste-velha-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sessao);
+        Directory.CreateDirectory(velha);
+        Directory.SetLastWriteTimeUtc(sessao, DateTime.UtcNow.AddDays(-3));
+        Directory.SetLastWriteTimeUtc(velha, DateTime.UtcNow.AddDays(-3));
+        try
+        {
+            Compactados.LimparAntigos(TimeSpan.FromDays(1), exceto: sessao + Path.DirectorySeparatorChar);
+            Assert.True(Directory.Exists(sessao));
+            Assert.False(Directory.Exists(velha));
+        }
+        finally { if (Directory.Exists(sessao)) Directory.Delete(sessao, true); }
+    }
+
+    [Fact]
     public void zip_com_caminho_que_sai_da_pasta_e_recusado()
     {
         var zip = Zip("malicioso.zip", ("../../fora.txt", "x"));

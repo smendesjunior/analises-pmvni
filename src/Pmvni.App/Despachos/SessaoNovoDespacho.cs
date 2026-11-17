@@ -114,6 +114,7 @@ internal sealed class SessaoNovoDespacho
     public void DefinirProcesso(Processo p, IReadOnlyList<RelatorioEncontrado> relatorios, IReadOnlyList<EtapaDespacho> etapas, EtapaDespacho etapa)
     {
         if (Processo != p) RelatoriosEscolhidos.Clear();
+        rascunhoAnterior = null; // outro processo: o texto do anterior não serve
         Processo = p;
         Relatorios = relatorios;
         Etapas = etapas;
@@ -132,19 +133,52 @@ internal sealed class SessaoNovoDespacho
         CaminhoPacote = caminho;
         Pacote = pacote;
         Bloqueios = bloqueios;
+        if (Rascunho is not null) rascunhoAnterior = Rascunho;
         Rascunho = null;
         AvisosConfirmados.Clear();
         Passo = PassoNovoDespacho.Origem;
     }
 
-    /// <summary>Monta o rascunho (passo 2) a partir do pacote gravado e da etapa.</summary>
+    /// <summary>O rascunho que estava na tela antes de trocar o relatório base, o tipo ou "Sem relatório" (mesmo processo): o que foi
+    /// escrito passa para o rascunho novo em <see cref="Montar"/>.</summary>
+    RascunhoDespacho? rascunhoAnterior;
+
+    /// <summary>O último <see cref="Montar"/> trouxe texto que o usuário escreveu: o resumo automático da IA não roda (trocaria esse texto).</summary>
+    public bool TrouxeEdicoes { get; private set; }
+
+    /// <summary>Monta o rascunho (passo 2) a partir do pacote gravado e da etapa. Se havia um rascunho do mesmo processo (troca de relatório,
+    /// de tipo ou "Sem relatório"), o que já foi editado passa para o novo: cabeçalho, as exigências do mesmo item e as escritas à mão
+    /// (sem relatório, todas as exigências do anterior ficam).</summary>
     public void Montar()
     {
         if (Info is null || Etapa is null) throw new InvalidOperationException("Escolha o processo e a pasta da etapa.");
         // Sem relatório (correções 2026-11-15): o despacho começa só com o cabeçalho do processo; com relatório, só os itens que não atendem.
-        Rascunho = Pacote is null
+        var novo = Pacote is null
             ? ConteudoDespacho.MontarEmBranco(Tipo, Info, Etapa.Data, ProtocoloDoProcesso(), Processo?.Requerente ?? "")
             : ConteudoDespacho.Montar(Tipo, Pacote.Conteudo.Projeto, Info, Etapa);
+        TrouxeEdicoes = false;
+        if ((Rascunho ?? rascunhoAnterior) is { } antes)
+        {
+            TrouxeEdicoes = FluxoNovoDespacho.TemEdicoes(antes);
+            if (antes.Tipo != novo.Tipo)
+            {
+                // Outro tipo de despacho: o cabeçalho digitado continua valendo.
+                novo.DefinirCabecalho("protocolo", antes.Protocolo);
+                novo.DefinirCabecalho("requerente", antes.Requerente);
+            }
+            else
+            {
+                var ids = novo.Pendencias.Select(p => p.ItemId).ToHashSet(StringComparer.Ordinal);
+                foreach (var p in antes.Pendencias.Where(p => !ids.Contains(p.ItemId) && (Pacote is null || p.ItemId.StartsWith("manual-", StringComparison.Ordinal))))
+                {
+                    var id = novo.AdicionarExigencia(p.Texto, p.Fundamento, p.Grupo);
+                    novo.Marcar(id, p.Incluida);
+                }
+                FluxoNovoDespacho.TransferirEdicoes(antes, novo);
+            }
+        }
+        rascunhoAnterior = null;
+        Rascunho = novo;
         Passo = PassoNovoDespacho.Conteudo;
     }
 
@@ -175,6 +209,7 @@ internal sealed class SessaoNovoDespacho
     /// <summary>Volta a não ter relatório base (o despacho segue com o que já foi escrito à mão).</summary>
     public void SemRelatorio()
     {
+        if (Rascunho is not null) rascunhoAnterior = Rascunho;
         CaminhoPacote = null;
         Pacote = null;
         Bloqueios = [];

@@ -148,6 +148,13 @@
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Lista de seções" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Compacta: uma linha por item, com a situação numa bolinha. Confortável: título em até duas linhas e a situação escrita embaixo." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                <ComboBox x:Name="CaixaListaSecoes" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Lista de seções"/>
+              </Grid>
+              <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
+              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Marcas de revisão" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Mostra nas folhas o que foi alterado (o mesmo que Revisão › Marcas de revisão)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ToggleSwitch x:Name="AlternarMarcas" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Marcas de revisão"/>
               </Grid>
@@ -491,13 +498,13 @@
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Novas versões" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Procura versões novas no GitHub do projeto, baixa, confere e troca o executável sem pedir administrador. A versão nova vale ao abrir o editor de novo." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
-                  <Button x:Name="BotaoVerificarAtualizacoes" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Verificar atualizações" HorizontalAlignment="Stretch"
+                  <Button x:Name="BotaoVerificarAtualizacoes" x:FieldModifier="internal" Content="Verificar atualizações" HorizontalAlignment="Stretch"
                           AutomationProperties.Name="Verificar atualizações"
                           local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Procura agora uma versão nova do editor no GitHub e a instala se houver."/>
                   <Button x:Name="BotaoReiniciarAtualizacao" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Reiniciar agora" HorizontalAlignment="Stretch" Visibility="Collapsed"
                           AutomationProperties.Name="Reiniciar o editor na versão nova"
                           local:Dicas.Titulo="Reiniciar agora" local:Dicas.Descricao="Fecha o editor (gravando o relatório aberto) e o abre de novo na versão nova."/>
-                  <TextBlock x:Name="TextoEstadoAtualizacao" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
+                  <TextBlock x:Name="TextoEstadoAtualizacao" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}" AutomationProperties.LiveSetting="Polite"/>
                 </StackPanel>
               </Grid>
               <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
@@ -519,7 +526,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Contato" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Dúvidas, sugestões e relatos de problemas." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                <HyperlinkButton x:Name="LinkContato" x:FieldModifier="internal" Grid.Column="1" Padding="0" VerticalAlignment="Center" AutomationProperties.Name="Mandar e-mail ao desenvolvedor"/>
+                <HyperlinkButton x:Name="LinkContato" x:FieldModifier="internal" Grid.Column="1" Padding="0" VerticalAlignment="Center" AutomationProperties.Name="Enviar e-mail ao desenvolvedor"/>
               </Grid>
               <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
@@ -559,10 +566,10 @@
                 <TextBlock Style="{StaticResource PmvniAjusteAjuda}" Text="Consulte as versões, as pastas e o estado atual do editor para investigar um problema."/>
                 <TextBlock Style="{StaticResource PmvniAjusteAjuda}" Text="O relatório pode conter nomes de processos e caminhos locais. Revise antes de compartilhar."/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button x:Name="BotaoAtualizarDiagnostico" x:FieldModifier="internal" Content="Atualizar relatório"
-                          local:Dicas.Titulo="Atualizar relatório" local:Dicas.Descricao="Lê de novo as versões, as pastas e o uso de memória do editor."/>
-                  <Button x:Name="BotaoCopiarVersoes" x:FieldModifier="internal" Content="Copiar relatório" AutomationProperties.Name="Copiar o relatório de diagnóstico"
-                          local:Dicas.Titulo="Copiar relatório" local:Dicas.Descricao="Copia o relatório de diagnóstico, para mandar ao suporte."/>
+                  <Button x:Name="BotaoAtualizarDiagnostico" x:FieldModifier="internal" Content="Atualizar diagnóstico"
+                          local:Dicas.Titulo="Atualizar diagnóstico" local:Dicas.Descricao="Lê de novo as versões, as pastas e o uso de memória do editor."/>
+                  <Button x:Name="BotaoCopiarVersoes" x:FieldModifier="internal" Content="Copiar diagnóstico" AutomationProperties.Name="Copiar o relatório de diagnóstico"
+                          local:Dicas.Titulo="Copiar diagnóstico" local:Dicas.Descricao="Copia o relatório de diagnóstico, para mandar ao suporte."/>
                 </StackPanel>
                 <Border CornerRadius="6" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                   <ScrollViewer MaxHeight="320" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Padding="14,10">

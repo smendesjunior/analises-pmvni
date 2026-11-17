@@ -14,8 +14,9 @@ public sealed record ValorNovo(string? Texto = null, DateTime? Data = null, doub
 
 /// <summary>Uma mudança numa linha: <see cref="Linha"/> null = processo novo (vai para a primeira linha livre da tabela).
 /// <see cref="ProcessoEsperado"/> confere que a linha ainda é daquele processo (a planilha pode ter mudado no Excel); se não for, a linha
-/// é procurada pelo número do processo. <see cref="Excluir"/> apaga os valores da linha (os estilos ficam).</summary>
-public sealed record Alteracao(int? Linha, string? ProcessoEsperado, IReadOnlyDictionary<int, ValorNovo> Valores, bool Excluir = false);
+/// é procurada pelo número do processo. <see cref="Excluir"/> apaga os valores da linha (os estilos e as fórmulas ficam).
+/// <see cref="SomenteSeVazias"/> (preenchimento automático): cada valor só entra se a célula ainda estiver vazia na hora de gravar.</summary>
+public sealed record Alteracao(int? Linha, string? ProcessoEsperado, IReadOnlyDictionary<int, ValorNovo> Valores, bool Excluir = false, bool SomenteSeVazias = false);
 
 /// <summary>A planilha está aberta (travada) em outro programa, normalmente o Excel.</summary>
 public sealed class PlanilhaEmUsoException(string mensagem, Exception interna) : IOException(mensagem, interna);
@@ -24,55 +25,113 @@ public sealed class PlanilhaEmUsoException(string mensagem, Exception interna) :
 public sealed class ConflitoPlanilhaException(string mensagem) : Exception(mensagem);
 
 /// <summary>Grava as mudanças do app na planilha, mexendo só nas células alteradas: formatação condicional, validações, tabela, fórmulas,
-/// imagens e o restante do pacote ficam como estão. Antes de gravar, guarda uma cópia do arquivo em <c>pastaCopias</c> (as 15 últimas).
-/// O arquivo é aberto exclusivo: aberto no Excel, a gravação falha com <see cref="PlanilhaEmUsoException"/> e nada muda.</summary>
+/// imagens e o restante do pacote ficam como estão. Antes de gravar, guarda uma cópia do arquivo em <c>pastaCopias</c> (as 15 últimas
+/// de cada planilha). O arquivo é aberto exclusivo: aberto no Excel, a gravação falha com <see cref="PlanilhaEmUsoException"/> e nada muda.
+/// A versão nova é escrita num <c>.tmp</c> ao lado, conferida relendo e só então trocada (<c>File.Replace</c>), como o pacote do relatório:
+/// uma falha no meio nunca deixa a planilha pela metade.</summary>
 public static class GravadorPlanilha
 {
     static readonly XNamespace S = PacoteXlsx.S;
+    const string MsgEmUso = "A planilha está aberta em outro programa (provavelmente o Excel). Feche-a e tente de novo.";
 
-    /// <summary>Aplica as alterações e devolve a linha de cada uma (na ordem recebida).</summary>
-    public static IReadOnlyList<int> Gravar(string caminho, IReadOnlyList<Alteracao> alteracoes, string? pastaCopias = null, DateTime? hoje = null)
+    /// <summary>Aplica as alterações na aba <paramref name="aba"/> (null = a primeira) e devolve a linha de cada uma (na ordem recebida).</summary>
+    public static IReadOnlyList<int> Gravar(string caminho, IReadOnlyList<Alteracao> alteracoes, string? pastaCopias = null, DateTime? hoje = null, string? aba = null)
     {
         FileStream fs;
         try { fs = new FileStream(caminho, FileMode.Open, FileAccess.ReadWrite, FileShare.None); }
         catch (IOException e) when (e is not FileNotFoundException and not DirectoryNotFoundException)
         {
-            throw new PlanilhaEmUsoException("A planilha está aberta em outro programa (provavelmente o Excel). Feche-a e tente de novo.", e);
+            throw new PlanilhaEmUsoException(MsgEmUso, e);
         }
-        using (fs)
+        var pastaPlanilha = Path.GetDirectoryName(Path.GetFullPath(caminho))!;
+        var tmp = Path.Combine(pastaPlanilha, "~" + Path.GetFileName(caminho) + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp");
+        ApagarTemporariosVelhos(pastaPlanilha, Path.GetFileName(caminho));
+        try
         {
-            var original = new byte[fs.Length];
-            fs.ReadExactly(original);
-            if (pastaCopias is not null) GuardarCopia(caminho, original, pastaCopias);
-
-            var ms = new MemoryStream();
-            ms.Write(original);
-            ms.Position = 0;
             List<int> linhas;
-            using (var zip = new ZipArchive(ms, ZipArchiveMode.Update, leaveOpen: true))
-                linhas = Aplicar(new PacoteXlsx(zip), alteracoes, hoje ?? DateTime.Today);
-            fs.Position = 0;
-            fs.SetLength(0);
-            ms.Position = 0;
-            ms.CopyTo(fs);
-            fs.Flush(true);
+            using (fs)
+            {
+                var original = new byte[fs.Length];
+                fs.ReadExactly(original);
+
+                var ms = new MemoryStream();
+                ms.Write(original);
+                ms.Position = 0;
+                using (var zip = new ZipArchive(ms, ZipArchiveMode.Update, leaveOpen: true))
+                    linhas = Aplicar(new PacoteXlsx(zip), alteracoes, hoje ?? DateTime.Today, aba);
+                // A cópia só depois de as alterações caberem na planilha: uma gravação que falha (e é tentada de novo a cada 15 s) não
+                // enche a pasta das cópias com o mesmo arquivo nem empurra o histórico bom para fora das 15.
+                if (pastaCopias is not null) GuardarCopia(caminho, original, pastaCopias);
+
+                using (var saida = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    File.SetAttributes(tmp, FileAttributes.Hidden);
+                    ms.Position = 0;
+                    ms.CopyTo(saida);
+                    saida.Flush(true);
+                }
+                // Confere relendo o .tmp: tem de abrir como planilha, com a mesma aba e as mesmas linhas de processo que a gravação deixou.
+                using (var conf = new ZipArchive(new FileStream(tmp, FileMode.Open, FileAccess.Read, FileShare.Read), ZipArchiveMode.Read))
+                    LeitorPlanilha.Ler(new PacoteXlsx(conf), caminho, aba);
+            }
+            // O arquivo só é solto aqui; outro programa pode pegá-lo nesse instante: aí é "em uso" e nada mudou.
+            File.SetAttributes(tmp, FileAttributes.Normal);
+            try { File.Replace(tmp, caminho, null, ignoreMetadataErrors: true); }
+            catch (IOException e) when (e is not FileNotFoundException and not DirectoryNotFoundException)
+            {
+                throw new PlanilhaEmUsoException(MsgEmUso, e);
+            }
             return linhas;
+        }
+        finally
+        {
+            try { if (File.Exists(tmp)) { File.SetAttributes(tmp, FileAttributes.Normal); File.Delete(tmp); } }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
     }
 
-    static void GuardarCopia(string caminho, byte[] bytes, string pasta)
+    /// <summary>Temporários de gravações que não terminaram (o editor caiu entre escrever o .tmp e a troca), com mais de 1 hora: saem.</summary>
+    static void ApagarTemporariosVelhos(string pasta, string nome)
     {
+        try
+        {
+            foreach (var f in new DirectoryInfo(pasta).GetFiles("~" + nome + ".*.tmp"))
+                if (DateTime.UtcNow - f.LastWriteTimeUtc > TimeSpan.FromHours(1))
+                    try { f.Attributes = FileAttributes.Normal; f.Delete(); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+    }
+
+    /// <summary>A pasta das cópias de uma planilha: uma subpasta por arquivo (nome + resumo do caminho), para a limpeza não misturar planilhas.</summary>
+    public static string PastaDasCopias(string caminho, string pastaCopias)
+    {
+        var resumo = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(caminho).ToUpperInvariant())))[..8];
+        return Path.Combine(pastaCopias, Path.GetFileNameWithoutExtension(caminho) + " " + resumo);
+    }
+
+    static void GuardarCopia(string caminho, byte[] bytes, string pastaCopias)
+    {
+        var pasta = PastaDasCopias(caminho, pastaCopias);
         Directory.CreateDirectory(pasta);
-        var nome = Path.GetFileNameWithoutExtension(caminho) + " " + DateTime.Now.ToString("yyyy-MM-dd HHmmss", CultureInfo.InvariantCulture) + ".xlsx";
-        File.WriteAllBytes(Path.Combine(pasta, nome), bytes);
-        foreach (var velho in new DirectoryInfo(pasta).GetFiles("*.xlsx").OrderByDescending(f => f.LastWriteTimeUtc).Skip(15))
+        // Milissegundos e, se ainda assim o nome existir, um contador: uma cópia nunca sobrescreve outra.
+        var baseNome = Path.GetFileNameWithoutExtension(caminho) + " " + DateTime.Now.ToString("yyyy-MM-dd HHmmss-fff", CultureInfo.InvariantCulture);
+        var destino = Path.Combine(pasta, baseNome + ".xlsx");
+        for (var k = 2; File.Exists(destino); k++) destino = Path.Combine(pasta, $"{baseNome} ({k}).xlsx");
+        using (var f = new FileStream(destino, FileMode.CreateNew, FileAccess.Write, FileShare.None)) f.Write(bytes);
+        foreach (var velho in new DirectoryInfo(pasta).GetFiles("*.xlsx").OrderByDescending(f => f.CreationTimeUtc).ThenByDescending(f => f.Name, StringComparer.Ordinal).Skip(15))
+            try { velho.Delete(); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        // As cópias da versão 0.3.0 ficavam soltas na raiz da pasta das cópias: seguem a mesma regra (as 15 mais novas ficam).
+        foreach (var velho in new DirectoryInfo(pastaCopias).GetFiles("*.xlsx").OrderByDescending(f => f.LastWriteTimeUtc).Skip(15))
             try { velho.Delete(); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 
-    internal static List<int> Aplicar(PacoteXlsx p, IReadOnlyList<Alteracao> alteracoes, DateTime hoje)
+    internal static List<int> Aplicar(PacoteXlsx p, IReadOnlyList<Alteracao> alteracoes, DateTime hoje, string? aba = null)
     {
-        var lida = LeitorPlanilha.Ler(p, "");
-        var parte = p.Abas[0].Caminho;
+        var lida = LeitorPlanilha.Ler(p, "", aba);
+        if (aba is not null && lida.AbaPedidaAusente)
+            throw new ConflitoPlanilhaException($"A aba \"{aba}\" não está mais na planilha (ela mudou fora do app). Recarregue e tente de novo.");
+        var parte = p.Abas.First(a => a.Nome == lida.Aba).Caminho;
         var doc = p.Ler(parte)!;
         var dados = doc.Root!.Element(S + "sheetData")!;
         var colProcesso = lida.Coluna(ChaveColuna.Processo)!.Indice;
@@ -109,12 +168,21 @@ public static class GravadorPlanilha
             var row = Linha(dados, linha, Linha(dados, modelo, null));
             if (a.Excluir)
             {
-                foreach (var c in colunas) Escrever(row, linha, c, ValorNovo.Vazio, null);
+                // As fórmulas ficam (a linha volta a ser "livre", só com fórmula): apagar a mestra de uma fórmula compartilhada estragaria a coluna.
+                foreach (var c in colunas)
+                    if (Celula(row, linha, c)?.Element(S + "f") is null) Escrever(row, linha, c, ValorNovo.Vazio, null);
                 ocupadas.Remove(linha);
             }
             else
             {
-                foreach (var (c, v) in a.Valores) Escrever(row, linha, c, v, Celula(Linha(dados, modelo, null), modelo, c));
+                var atual = lida.Linhas.FirstOrDefault(x => x.Linha == linha);
+                foreach (var (c, v) in a.Valores)
+                {
+                    // Preenchimento automático: o que já está na célula na hora de gravar (digitado no Excel ou no app) nunca é trocado.
+                    if (a.SomenteSeVazias && atual?.Celula(c) is { } existe && (existe.Texto.Trim().Length > 0 || existe.Numero is not null)) continue;
+                    DesfazerMestra(dados, Celula(row, linha, c));
+                    Escrever(row, linha, c, v, Celula(Linha(dados, modelo, null), modelo, c));
+                }
                 // Linha nova: as fórmulas da linha-modelo (ex.: dias sem atualização) vêm junto, com as referências na linha nova.
                 if (a.Linha is null)
                     foreach (var c in colunas.Where(c => !a.Valores.ContainsKey(c)))
@@ -198,18 +266,35 @@ public static class GravadorPlanilha
         var si = (string?)f.Attribute("si");
         var mestra = dados.Descendants(S + "f").FirstOrDefault(x => (string?)x.Attribute("t") == "shared" && (string?)x.Attribute("si") == si && x.Value.Length > 0);
         if (mestra is null) return null;
-        var linhaMestra = Planilha.Referencia((string)mestra.Parent!.Attribute("r")!).Linha;
-        return Deslocar(mestra.Value, linhaMestra, r);
+        var (colMestra, linhaMestra) = Planilha.Referencia((string)mestra.Parent!.Attribute("r")!);
+        return Deslocar(mestra.Value, linhaMestra, r, c - colMestra);
     }
 
-    /// <summary>As referências relativas à linha <paramref name="de"/> passam para a linha <paramref name="para"/> (as com $ ficam).</summary>
-    internal static string Deslocar(string formula, int de, int para) =>
-        Regex.Replace(formula, @"""[^""]*""|(\$?)([A-Z]{1,3})(\$?)(\d+)\b", m =>
+    /// <summary>As referências relativas à linha <paramref name="de"/> passam para a linha <paramref name="para"/> e andam
+    /// <paramref name="colunas"/> colunas (as partes com $ ficam). Nomes de função como LOG10( e DEC2BIN( não são referências.</summary>
+    internal static string Deslocar(string formula, int de, int para, int colunas = 0) =>
+        Regex.Replace(formula, @"""[^""]*""|(?<![A-Za-z0-9_.])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Za-z0-9_(])", m =>
         {
-            if (m.Value.StartsWith('"') || m.Groups[3].Value == "$") return m.Value;
+            if (m.Value.StartsWith('"')) return m.Value;
+            var col = m.Groups[1].Value == "$" || colunas == 0 ? m.Groups[2].Value : Planilha.Letra(Planilha.Indice(m.Groups[2].Value) + colunas);
             var linha = int.Parse(m.Groups[4].Value, CultureInfo.InvariantCulture);
-            return m.Groups[1].Value + m.Groups[2].Value + (linha + para - de).ToString(CultureInfo.InvariantCulture);
+            var novaLinha = m.Groups[3].Value == "$" ? linha : linha + para - de;
+            return m.Groups[1].Value + col + m.Groups[3].Value + novaLinha.ToString(CultureInfo.InvariantCulture);
         });
+
+    /// <summary>Antes de a célula mestra de uma fórmula compartilhada receber outro valor, cada célula do grupo passa a ter a própria fórmula
+    /// (deslocada a partir da mestra); sem isso, as outras linhas ficariam apontando para uma mestra que não existe e o Excel "repararia" o arquivo.</summary>
+    static void DesfazerMestra(XElement dados, XElement? cel)
+    {
+        if (cel?.Element(S + "f") is not { } f || (string?)f.Attribute("t") != "shared" || f.Value.Length == 0) return;
+        var si = (string?)f.Attribute("si");
+        var (cm, lm) = Planilha.Referencia((string)cel.Attribute("r")!);
+        foreach (var dep in dados.Descendants(S + "f").Where(x => x != f && (string?)x.Attribute("t") == "shared" && (string?)x.Attribute("si") == si && x.Value.Length == 0).ToList())
+        {
+            var (cd, ld) = Planilha.Referencia((string)dep.Parent!.Attribute("r")!);
+            dep.ReplaceWith(new XElement(S + "f", Deslocar(f.Value, lm, ld, cd - cm)));
+        }
+    }
 
     /// <summary>A tabela, a formatação condicional e as validações que terminavam na última linha da tabela passam a ir até a nova.</summary>
     static void EstenderAte(PacoteXlsx p, string parte, XDocument doc, int fimAntigo, int fimNovo)

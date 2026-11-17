@@ -19,11 +19,11 @@ public class FaixasTestes
         {
             var f = Faixas.Para(m);
             Assert.Equal(m, f.Modulo);
-            Assert.Equal("Arquivo", f.Abas[0].Nome);
+            if (m != Modulo.Ajustes) Assert.Equal("Arquivo", f.Abas[0].Nome); // Ajustes não abre relatórios: só a Ajuda (2026-11-17)
             Assert.Equal("Ajuda", f.Abas[^1].Nome);
             Assert.All(f.Abas, a => Assert.NotEmpty(a.Comandos));
         }
-        Assert.Equal(new[] { "Arquivo", "Ajuda" }, Faixas.Para(Modulo.Ajustes).Abas.Select(a => a.Nome));
+        Assert.Equal(new[] { "Ajuda" }, Faixas.Para(Modulo.Ajustes).Abas.Select(a => a.Nome));
         Assert.Equal(new[] { "Arquivo", "Página Inicial", "Revisão", "Figuras", "Exibir", "Ajuda" }, Faixas.Para(Modulo.Relatorios).Abas.Select(a => a.Nome));
     }
 
@@ -89,11 +89,10 @@ public class FaixasTestes
     [Fact]
     public void ajustes_no_trilho_e_comandos_de_pesquisa_tema_recentes_e_comparar()
     {
-        // Ajustes é módulo do trilho (embaixo) e tem faixa própria: Arquivo (com Recentes) e Ajuda.
+        // Ajustes é módulo do trilho (embaixo) e tem faixa própria, só com a Ajuda (auditoria de interface 2026-11-17: a aba Arquivo confundia).
         Assert.Equal(new[] { Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Acompanhamento, Modulo.Imoveis, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco, Modulo.Ajustes }, Faixas.Disponiveis);
         Assert.True(Modulos.Embaixo(Modulo.Ajustes));
-        Assert.Equal(new[] { ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes },
-            Faixas.Para(Modulo.Ajustes).Abas[0].Comandos.Select(c => c.Id));
+        Assert.Equal(new[] { ComandosApp.AjudaAtalhos, ComandosApp.AjudaSobre }, Faixas.Para(Modulo.Ajustes).Abas[0].Comandos.Select(c => c.Id));
 
         var arquivo = Faixas.Para(Modulo.Relatorios).Abas.Single(a => a.Nome == "Arquivo");
         var recentes = arquivo.Comandos.Single(c => c.Id == ComandosApp.ArquivoRecentes);
@@ -141,7 +140,7 @@ public class FaixasTestes
         Assert.Equal(new[] { "Arquivo", "Página Inicial", "Revisão", "Figuras", "Exibir", "Ajuda" }, Abas(Modulo.Relatorios));
         Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, Abas(Modulo.Despachos));
         Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, Abas(Modulo.Processos));
-        Assert.Equal(new[] { "Arquivo", "Ajuda" }, Abas(Modulo.Ajustes));
+        Assert.Equal(new[] { "Ajuda" }, Abas(Modulo.Ajustes));
         Assert.Equal(new[] { "Arquivo", "Página Inicial", "Exibir", "Ajuda" }, Abas(Modulo.Legislacao));
 
         // Processos (desenho §9.1).
@@ -374,7 +373,7 @@ public class FaixasTestes
         Assert.Equal(new[]
         {
             ("legislacao.gerenciar", "Gerenciar anexos", TipoComando.Botao),
-            ("arquivo.importar", "Importar dados.json", TipoComando.Botao), ("arquivo.abrir", "Abrir", TipoComando.Botao), ("arquivo.recentes", "Recentes", TipoComando.Menu),
+            ("arquivo.importar", "Importar análise da IA…", TipoComando.Botao), ("arquivo.abrir", "Abrir", TipoComando.Botao), ("arquivo.recentes", "Recentes", TipoComando.Menu),
         }, Linhas(f.Abas[0]));
         Assert.Equal(new[]
         {

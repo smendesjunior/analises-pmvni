@@ -31,6 +31,50 @@ public sealed partial class MainWindow
 
     bool TemFoco(Control? c) => c is not null && Raiz.XamlRoot is not null && ReferenceEquals(FocusManager.GetFocusedElement(Raiz.XamlRoot), c);
 
+    /// <summary>O painel Propriedades foi recolhido pelo app (janela estreita, nada selecionado), não pelo usuário: volta sozinho na seleção.</summary>
+    bool propriedadesRecolhidasSozinhas;
+    /// <summary>O usuário abriu o painel sem nada selecionado: o app não o recolhe de novo até a próxima seleção.</summary>
+    bool propriedadesPedidasSemSelecao;
+
+    /// <summary>A largura da lista de seções antes de o app a estreitar (null = não estreitou): volta quando a janela fica larga de novo.</summary>
+    double? larguraNavegacaoAntes;
+
+    /// <summary>Há um item ou uma linha de tabela (ambiente, área) selecionada nas folhas.</summary>
+    bool HaSelecaoNasPropriedades => sessao?.Atual is not null && (ItemSelecionado is not null || LinhaSelecionada is not null);
+
+    /// <summary>Auditoria de interface (2026-11-17): em janelas estreitas (notebook 1366 px) o painel Propriedades aberto e vazio deixava a
+    /// folha a 25%. Sem nada selecionado ele recolhe; ao selecionar um item ou uma linha, volta (se o usuário o deixou ligado). A lista de
+    /// seções também estreita (no máximo 30% da janela) e volta à largura de antes quando a janela fica larga.</summary>
+    void AjustarPropriedadesALargura()
+    {
+        var largura = Raiz.ActualWidth;
+        if (largura <= 0) return;
+        var estreita = largura < 1400;
+        var teto = Math.Max(280, Math.Round(largura * 0.3));
+        if (estreita && R.PainelNavegacao.Width > teto)
+        {
+            larguraNavegacaoAntes ??= R.PainelNavegacao.Width;
+            R.PainelNavegacao.Width = teto;
+        }
+        else if (!estreita && larguraNavegacaoAntes is { } antes)
+        {
+            R.PainelNavegacao.Width = antes;
+            larguraNavegacaoAntes = null;
+        }
+        var temSelecao = HaSelecaoNasPropriedades;
+        if (temSelecao) propriedadesPedidasSemSelecao = false;
+        if (!temSelecao && estreita && !propriedadesPedidasSemSelecao && R.PainelPropriedades.Visibility == Visibility.Visible)
+        {
+            R.PainelPropriedades.Visibility = Visibility.Collapsed;
+            propriedadesRecolhidasSozinhas = true;
+        }
+        else if (propriedadesRecolhidasSozinhas && (temSelecao || !estreita))
+        {
+            R.PainelPropriedades.Visibility = Visibility.Visible;
+            propriedadesRecolhidasSozinhas = false;
+        }
+    }
+
     /// <summary>Propriedades do item ou da linha selecionada.</summary>
     void AtualizarPropriedades()
     {
@@ -40,6 +84,7 @@ public sealed partial class MainWindow
         {
             var p = sessao?.Revisao.Projeto;
             var it = sessao?.Atual is null ? null : ItemSelecionado;
+            AjustarPropriedadesALargura(); // antes do retorno da linha de tabela: escolher um ambiente também reabre o painel
             if (p is not null && sessao?.Atual is not null && LinhaSelecionada is { } linha)
             {
                 MontarPropriedadesLinha(p, linha);
@@ -60,7 +105,9 @@ public sealed partial class MainWindow
             R.PropVazio.Visibility = Visibility.Collapsed;
             R.PropRolagem.Visibility = Visibility.Visible;
             R.PropTitulo.Text = p.NumeroAtual(it.Id) is { } n ? $"ITEM {n:00}" : it.Criado ? "Item novo excluído" : $"Item excluído (era o {it.NumeroOriginal:00})";
-            R.PropId.Text = it.Criado ? "criado na revisão · " + it.Id : it.Id;
+            // O código interno do item só na dica (auditoria de interface: "it_01M7…" à vista não dizia nada ao analista).
+            R.PropId.Text = it.Criado ? "criado na revisão" : "";
+            ToolTipService.SetToolTip(R.PropTitulo, "Código interno: " + it.Id);
             R.PropNoPdf.IsChecked = it.Incluido;
             R.PropNoPdf.IsEnabled = editavel;
 
@@ -522,7 +569,7 @@ public sealed partial class MainWindow
         {
             Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center,
             Padding = new Thickness(10, 6, 10, 7), CornerRadius = new CornerRadius(8),
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"],
+            Style = (Style)Application.Current.Resources["PmvniBotaoTextoDestaqueStyle"],
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, nome);
         Dicas.Aplicar(b, nome, janela ? "Acrescenta uma janela de 1,00 × 1,00 m; ajuste as medidas e a conta se refaz. Dá para desfazer."

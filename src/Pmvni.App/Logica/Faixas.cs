@@ -62,7 +62,7 @@ public static class Faixas
     /// levam ao módulo Relatórios.</summary>
     static readonly AbaFaixa ArquivoDeModulo = new("Arquivo",
     [
-        new(ComandosApp.ArquivoImportar, "Importar dados.json", Glifos.Importar),
+        new(ComandosApp.ArquivoImportar, "Importar análise da IA…", Glifos.Importar),
         new(ComandosApp.ArquivoAbrir, "Abrir", Glifos.Abrir),
         RecentesMenu,
     ]);
@@ -79,7 +79,7 @@ public static class Faixas
     [
         new("Arquivo",
         [
-            new(ComandosApp.ArquivoImportar, "Importar dados.json", Glifos.Importar),
+            new(ComandosApp.ArquivoImportar, "Importar análise da IA…", Glifos.Importar),
             RecentesMenu,
             new(ComandosApp.ArquivoSalvar, "Salvar", Glifos.Salvar),
             new(ComandosApp.ArquivoSalvarComo, "Salvar como", Glifos.SalvarComo),
@@ -197,7 +197,7 @@ public static class Faixas
         new("Arquivo",
         [
             new(ComandosApp.LegislacaoGerenciar, "Gerenciar anexos", Glifos.Gerenciar),
-            new(ComandosApp.ArquivoImportar, "Importar dados.json", Glifos.Importar),
+            new(ComandosApp.ArquivoImportar, "Importar análise da IA…", Glifos.Importar),
             new(ComandosApp.ArquivoAbrir, "Abrir", Glifos.Abrir),
             RecentesMenu,
         ]),
@@ -263,26 +263,20 @@ public static class Faixas
         ArquivoDeModulo,
         new("Página Inicial",
         [
-            new(ComandosApp.AcompanhamentoNovo, "Novo processo", Glifos.Adicionar),
             new(ComandosApp.AcompanhamentoEditar, "Editar processo", Glifos.Editar),
             new(ComandosApp.AcompanhamentoExcluir, "Excluir processo", Glifos.Excluir),
             new(ComandosApp.AcompanhamentoDetectar, "Detectar local e autor", Glifos.Conferir),
             new(ComandosApp.AcompanhamentoRecarregar, "Ler a planilha de novo", Glifos.Atualizar),
             new(ComandosApp.AcompanhamentoAbrirExcel, "Abrir no Excel", Glifos.Abrir),
-            new(ComandosApp.AcompanhamentoImportar, "Importar planilha", Glifos.Importar),
+            new(ComandosApp.AcompanhamentoImportar, "Escolher planilha…", Glifos.Importar),
             new(ComandosApp.AcompanhamentoConfigurar, "Local da planilha", Glifos.Pasta),
         ]),
         Ajuda,
-    ], AbaPadrao: 1);
+    ], AbaPadrao: 1, Primario: new(ComandosApp.AcompanhamentoNovo, "Novo processo", Glifos.Adicionar));
 
+    /// <summary>Ajustes não abre relatórios: só a Ajuda (auditoria de interface, 2026-11-17: a aba Arquivo aqui confundia).</summary>
     static readonly DefinicaoFaixa Ajustes = new(Modulo.Ajustes,
     [
-        new("Arquivo",
-        [
-            new(ComandosApp.ArquivoImportar, "Importar dados.json", Glifos.Importar),
-            new(ComandosApp.ArquivoAbrir, "Abrir", Glifos.Abrir),
-            RecentesMenu,
-        ]),
         Ajuda,
     ], AbaPadrao: 0);
 

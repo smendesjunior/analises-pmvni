@@ -10,13 +10,15 @@
     <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
     <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
   </UserControl.Resources>
-  <Grid x:Name="Raiz" Width="72" Padding="0,4,0,8" XYFocusKeyboardNavigation="Enabled" TabFocusNavigation="Once">
+  <Grid x:Name="Raiz" Width="112" Padding="0,4,0,8" XYFocusKeyboardNavigation="Enabled" TabFocusNavigation="Once">
     <Grid.RowDefinitions>
-      <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
-    <StackPanel x:Name="Cima" Grid.Row="0" Spacing="2" XYFocusKeyboardNavigation="Enabled"/>
-    <StackPanel x:Name="Baixo" Grid.Row="2" Spacing="2" XYFocusKeyboardNavigation="Enabled"/>
+    <!-- Correção 2026-11-17 (auditoria de interface): em janelas baixas os módulos rolam; Ajustes fica sempre à vista no pé. -->
+    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto" HorizontalScrollMode="Disabled" IsTabStop="False">
+      <StackPanel x:Name="Cima" Spacing="2" VerticalAlignment="Top" XYFocusKeyboardNavigation="Enabled"/>
+    </ScrollViewer>
+    <StackPanel x:Name="Baixo" Grid.Row="1" Spacing="2" Margin="0,6,0,0" XYFocusKeyboardNavigation="Enabled"/>
   </Grid>
 </UserControl>

@@ -55,6 +55,7 @@ public sealed partial class MainWindow
         Preencher(p.CaixaRotulosFaixa, TextosRotulos.Select(x => ((object)x.Valor, x.Texto)));
         Preencher(p.CaixaAvisosLayout, TextosAvisos.Select(x => ((object)x.Valor, x.Texto)));
         Preencher(p.CaixaZoomInicial, TextosZoom.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaListaSecoes, new (object Valor, string Texto)[] { ("compacta", "Compacta"), ("confortavel", "Confortável") });
         Preencher(p.CaixaRecuperacao, new[] { 7, 30, 90 }.Select(d => ((object)d, d + " dias")));
         Preencher(p.CaixaOrdemProcessos, TextosOrdemProcessos.Select(x => ((object)x.Valor, x.Texto)));
         Preencher(p.CaixaAgruparDespachos, TextosAgrupar.Select(x => ((object)x.Valor, x.Texto)));
@@ -102,6 +103,7 @@ public sealed partial class MainWindow
             if (sessao?.Atual is { } r) MostrarRecomposicao(r);
         });
         AoEscolher(p.CaixaZoomInicial, v => ajustes.ZoomInicial = (string)v);
+        AoEscolher(p.CaixaListaSecoes, v => { ajustes.ListaSecoes = (string)v; ItemNavegacao.Compacta = ajustes.ListaSecoes == "compacta"; MontarSecoes(); });
         // Marcas de revisão: o mesmo que Revisão › Marcas de revisão (a faixa e a página andam juntas).
         p.AlternarMarcas.Toggled += async (_, _) =>
         {
@@ -146,7 +148,7 @@ public sealed partial class MainWindow
         AoAlternar(p.AlternarConfirmarCancelar, sim => ajustes.ConfirmarCancelar = sim);
         AoAlternar(p.AlternarConfirmarFechar, sim => ajustes.ConfirmarFechar = sim);
         IniciarAtualizacoes();
-        p.BotaoCopiarVersoes.Click += (_, _) => AreaTransferencia.Copiar(p.TextoVersoes.Text);
+        p.BotaoCopiarVersoes.Click += (_, _) => { AreaTransferencia.Copiar(p.TextoVersoes.Text); ToolTipService.SetToolTip(p.BotaoCopiarVersoes, "Diagnóstico copiado."); Microsoft.UI.Xaml.Automation.Peers.FrameworkElementAutomationPeer.FromElement(p.BotaoCopiarVersoes)?.RaiseNotificationEvent(Microsoft.UI.Xaml.Automation.Peers.AutomationNotificationKind.ActionCompleted, Microsoft.UI.Xaml.Automation.Peers.AutomationNotificationProcessing.ImportantMostRecent, "Diagnóstico copiado.", "copiado"); p.BotaoCopiarVersoes.Content = "Copiado"; };
         p.BotaoVerAtalhos.Click += async (_, _) => await TentarAsync(MostrarAtalhosAsync);
         p.TextoPastaDados.Text = PastaDados.Raiz;
         p.BotaoAbrirPastaDados.Click += (_, _) => AbrirPastaDosAjustes(PastaDados.Raiz);
@@ -205,6 +207,8 @@ public sealed partial class MainWindow
             Escolher(p.CaixaRotulosFaixa, ajustes.FaixaRotulos);
             Escolher(p.CaixaAvisosLayout, ajustes.AvisosLayout);
             Escolher(p.CaixaZoomInicial, ajustes.ZoomInicial);
+            Escolher(p.CaixaListaSecoes, ajustes.ListaSecoes);
+            ItemNavegacao.Compacta = ajustes.ListaSecoes == "compacta";
             Escolher(p.CaixaRecuperacao, ajustes.RecuperacaoDias);
             Escolher(p.CaixaOrdemProcessos, ajustes.ProcessosOrdem);
             Escolher(p.CaixaAgruparDespachos, ajustes.DespachosAgrupar);
@@ -311,7 +315,7 @@ public sealed partial class MainWindow
     internal async Task<bool> RestaurarAjustesAsync()
     {
         if (!await Perguntas.Atual.ConfirmarAsync("Restaurar os ajustes?",
-                "Todas as opções voltam ao padrão. As chaves de API, as leis anexadas e os arquivos recentes continuam como estão.",
+                "Todas as opções voltam ao padrão, inclusive a pasta de processos, a pasta do kit e a assinatura digital escolhida. As chaves de API, as leis anexadas e os arquivos recentes continuam como estão.",
                 "Restaurar", "Cancelar")) return false;
         var tinhaSoffice = ajustes.Soffice is not null;
         ajustes.RestaurarPadrao();

@@ -285,7 +285,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // primeiro o nome "Análise de Projetos" (o brasão fica), depois o processo e a pesquisa encolhem.
         TextoMarca.Visibility = DivisoriaMarca.Visibility = largura < 1600 ? Visibility.Collapsed : Visibility.Visible;
         BlocoProcesso.MaxWidth = largura < 1250 ? 180 : 300;
+        // Auditoria de interface (2026-11-17): em 1366 px a 125% os rótulos cortavam ("Próxim", "Pes"); abaixo de 1300 ficam só os
+        // ícones (a dica e o Narrador continuam com o nome).
+        RotuloDesfazer.Visibility = RotuloRefazer.Visibility = RotuloAnterior.Visibility = RotuloProximo.Visibility =
+            largura < 1300 ? Visibility.Collapsed : Visibility.Visible;
+        // Ainda mais estreita: o selo fica só com o ícone (o texto vai na dica) e o requerente sai do cabeçalho (fica na dica do processo).
+        TextoGravacao.Visibility = largura < 1300 ? Visibility.Collapsed : Visibility.Visible;
         AjustarPesquisa(largura);
+        if (sessao is not null) AjustarPropriedadesALargura();
     }
 
     /// <summary>Caixa de pesquisa do cabeçalho (correções 2026-11-15): ocupa o espaço que sobra na barra de título, entre 200 e 640 px, e
@@ -298,7 +305,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         var ocupado = Largura(CabecalhoEsquerdo) + Largura(BotaoAnalise) + Largura(GrupoHistorico) + Largura(TextoPesquisa) + Largura(GrupoOcorrencias);
         const double botoesDaJanelaEFolgas = 310; // minimizar, maximizar, fechar (área reservada pela TitleBar, ~255 px medidos), espaçamentos e arrasto
         // Só muda com diferença visível: larguras que oscilam frações de pixel entre monitores não refazem o layout sem parar.
-        var nova = Math.Round(Math.Clamp(largura - ocupado - botoesDaJanelaEFolgas, 200, 640));
+        var nova = Math.Round(Math.Clamp(largura - ocupado - botoesDaJanelaEFolgas, 140, 640));
         if (Math.Abs(CaixaPesquisa.Width - nova) >= 1) CaixaPesquisa.Width = nova;
     }
 
@@ -423,6 +430,26 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                         PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Sobre);
                         await Task.Delay(900);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "ajustes-sobre.png"));
+                        await Roteiro.CapturarXamlAsync(TrilhoModulos, Path.Combine(pastaCaptura, "trilho.png"));
+                        // Erro de gravação com a planilha presa (como aberta no Excel): o aviso fixo das pendentes.
+                        await MudarModuloAsync(Modulo.Acompanhamento);
+                        if (planilha?.Linhas.FirstOrDefault() is { } primeira && planilha.Coluna(Pmvni.Acompanhamento.ChaveColuna.Status) is { } colStatus)
+                        {
+                            using (new FileStream(copia, FileMode.Open, FileAccess.Read, FileShare.Read))
+                            {
+                                await MudarCampoAsync(primeira, colStatus, colStatus.Opcoes.LastOrDefault() ?? "ARQUIVADO");
+                                await Task.Delay(900);
+                                await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "acompanhamento-pendentes.png"));
+                            }
+                            await GravarPendentesAsync(manual: true);
+                            await Task.Delay(900);
+                            await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "acompanhamento-pendentes-gravadas.png"));
+                            // Diálogo (fica fora da árvore da janela): marca no disco para quem captura a tela inteira.
+                            _ = EditarProcessoAsync(planilha.Linhas.FirstOrDefault());
+                            await Task.Delay(1500);
+                            File.WriteAllText(Path.Combine(pastaCaptura, "dialogo-pronto.txt"), "editar");
+                            await Task.Delay(5000);
+                        }
                     }
                 }
                 catch (Exception e) { RegistroErros.Gravar("captura", e); }
@@ -468,6 +495,15 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                             await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "novo-relatorio-compactado.png"));
                         }
                     }
+                }
+                catch (Exception e) { RegistroErros.Gravar("captura", e); }
+                // Novo despacho de correção (com a pasta de processos do ajuste, se houver).
+                try
+                {
+                    await MudarModuloAsync(Modulo.Despachos);
+                    await AbrirNovoDespachoAsync(TipoDespacho.Correcao);
+                    await Task.Delay(2500);
+                    await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "novo-despacho.png"));
                 }
                 catch (Exception e) { RegistroErros.Gravar("captura", e); }
                 Application.Current.Exit();
@@ -970,10 +1006,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             : TituloJanela.Linhas(r.Dados.Processo, r.Dados.Requerente, Path.GetFileNameWithoutExtension(sessao.Caminho));
         TextoProcesso.Text = principal;
         TextoRequerente.Text = secundaria;
-        TextoRequerente.Visibility = secundaria.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        TextoRequerente.Visibility = secundaria.Length == 0 || Raiz.ActualWidth is > 0 and < 1300 ? Visibility.Collapsed : Visibility.Visible;
         if (titulo is null) ToolTipService.SetToolTip(BlocoProcesso, null);
         else Dicas.Aplicar(BlocoProcesso, titulo, "O processo e o requerente do relatório aberto.");
-        BlocoProcesso.Visibility = DivisoriaProcesso.Visibility = principal.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(TextoProcesso, principal.Length == 0 ? "" : "Processo aberto: " + principal);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(TextoRequerente, secundaria.Length == 0 ? "" : "Requerente: " + secundaria);
         AtualizarSeloGravacao();
         Title = titulo is null ? TituloPadrao : titulo + " — " + TituloPadrao;
         AtualizarComandos();
@@ -991,7 +1028,16 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         TextoGravacao.Text = textoEstado;
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SeloGravacao, "Estado de gravação: " + textoEstado);
         Dicas.Aplicar(SeloGravacao, textoEstado, "Mostra se as alterações do relatório já estão gravadas no arquivo; Ctrl+S salva.");
-        SeloGravacao.Visibility = Visibility.Visible;
+        SeloGravacao.Visibility = moduloAtual == Modulo.Relatorios ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Auditoria de interface (2026-11-17): o processo aberto e o selo "Salvo" são do relatório: só aparecem no módulo Relatórios (no
+    /// Novo despacho de outro processo, o "Proc. 9001/2026 · Salvo" no topo confundia).</summary>
+    void AtualizarCabecalhoDoModulo()
+    {
+        var noRelatorio = moduloAtual == Modulo.Relatorios && TextoProcesso.Text.Length > 0;
+        BlocoProcesso.Visibility = DivisoriaProcesso.Visibility = noRelatorio ? Visibility.Visible : Visibility.Collapsed;
+        SeloGravacao.Visibility = sessao is not null && textoEstado.Length > 0 && moduloAtual == Modulo.Relatorios ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>Exportar só com o relatório composto sem estouro e sem erros finais (campos [ ] em aberto, conferência da revisão).</summary>
@@ -1005,7 +1051,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         var plano = r.Composicao.Plano;
         var estouros = plano.Estouros.Count;
         R.TextoComposicao.Text = estouros == 0
-            ? $"Composto: {r.Composicao.Folhas} folhas"
+            ? $"{r.Composicao.Folhas} folhas"
             : estouros == 1 ? "1 bloco excede a página" : $"{estouros} blocos excedem a página";
         if (r.Preparado.ErrosFinais.Count > 0) R.TextoComposicao.Text += " · " + DescreverRascunho(r.Preparado.ErrosFinais);
 

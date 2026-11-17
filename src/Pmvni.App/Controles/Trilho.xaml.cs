@@ -60,21 +60,23 @@ public sealed partial class Trilho : UserControl
             var conteudo = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Spacing = 2 };
             var vagaIcone = new Grid { Width = 28, Height = 28, HorizontalAlignment = HorizontalAlignment.Center };
             vagaIcone.Children.Add((UIElement?)icone ?? new FontIcon { Glyph = Pmvni.App.Modulos.Glifo(m), FontSize = 20 });
-            var rotulo = new TextBlock { Text = Pmvni.App.Modulos.Rotulo(m), Style = Estilo("PmvniTrilhoRotuloStyle") };
-            // Rótulo longo ("Acompanhamento", 2026-11-17): letra menor para caber inteiro na largura do trilho.
-            if (rotulo.Text.Length > 11) rotulo.FontSize = 9.5;
+            // Rótulo longo ("Acompanhamento") não cabia numa linha e aparecia cortado ("ompanhamer"): vai em duas linhas ("Acompanha-" /
+            // "mento"), com o trilho mais largo (112) e o item um pouco mais alto; o nome inteiro fica na dica e no Narrador.
+            var rotulo = new TextBlock { Text = RotuloNoTrilho(m), Style = Estilo("PmvniTrilhoRotuloStyle"), TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 104, LineHeight = 15, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
+            var duasLinhas = rotulo.Text.Contains('\n');
+            if (duasLinhas) rotulo.FontSize = 11; // duas linhas: um pouco menor, para não encostar na barrinha do módulo ativo
             conteudo.Children.Add(vagaIcone);
             conteudo.Children.Add(rotulo);
             var fundo = new Border
             {
-                Width = 64, Height = 60, CornerRadius = new CornerRadius(8),
+                Width = 104, Height = duasLinhas ? 76 : 60, CornerRadius = new CornerRadius(8),
                 HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 Style = Estilo("PmvniTrilhoFundoInativoStyle"),
                 Child = conteudo,
             };
             // A barrinha fica DENTRO do fundo arredondado, junto da borda esquerda dele (como no Gmail): a grade tem a largura do fundo.
             var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Visibility = Visibility.Collapsed, Margin = new Thickness(5, 0, 0, 0) };
-            var grade = new Grid { Width = 64, HorizontalAlignment = HorizontalAlignment.Center };
+            var grade = new Grid { Width = 104, HorizontalAlignment = HorizontalAlignment.Center };
             grade.Children.Add(fundo);
             grade.Children.Add(indicador);
             var botao = new Button
@@ -101,6 +103,9 @@ public sealed partial class Trilho : UserControl
     }
 
     static FrameworkElement? CriarIcone(Modulo m) => NovoIcone(m, 28);
+
+    /// <summary>O rótulo na largura do item do trilho (104): "Acompanhamento de processos" em duas linhas; os outros ficam como são.</summary>
+    internal static string RotuloNoTrilho(Modulo m) => m == Modulo.Acompanhamento ? "Acompanhamento\nde processos" : Pmvni.App.Modulos.Rotulo(m);
 
     /// <summary>O ícone colorido do módulo (o DataTemplate do dicionário, materializado com LoadContent: um Viewbox), <paramref name="lado"/> x
     /// <paramref name="lado"/>; null se o template não existe. As cores são ThemeResource e seguem o tema do lugar onde o ícone fica.</summary>

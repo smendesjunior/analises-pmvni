@@ -47,6 +47,8 @@ public sealed partial class MainWindow
             esperaPesquisa.Stop();
             // Processos e Despachos: filtro da lista, em memória (nada de esperar a digitação assentar).
             if (moduloAtual is Modulo.Processos or Modulo.Despachos) { AplicarTermoDeLista(CaixaPesquisa.Text); return; }
+            // Acompanhamento (auditoria 2026-11-17): a pesquisa da barra é a busca da tabela (antes eram duas caixas).
+            if (moduloAtual == Modulo.Acompanhamento) { Ac.CaixaBusca.Text = CaixaPesquisa.Text; return; }
             // Vazio limpa na hora; o resto espera a digitação assentar (cada letra não refaz a busca no relatório inteiro).
             if (CaixaPesquisa.Text.Length == 0) _ = TentarAsync(() => PesquisarAsync("", 0));
             else esperaPesquisa.Start();
@@ -107,6 +109,7 @@ public sealed partial class MainWindow
     {
         // Processos e Despachos filtram as listas (a pesquisa nas folhas não tem o que fazer aqui): só confere o texto "N de M".
         if (moduloAtual is Modulo.Processos or Modulo.Despachos) { AtualizarTextoDaPesquisaDeLista(); return; }
+        if (moduloAtual == Modulo.Acompanhamento) { Ac.CaixaBusca.Text = termo; return; }
         // Legislação: "Nesta lei" (PDFFindController do leitor) ou "Em todas as leis" (índice do app), pelo menu "Pesquisar em".
         if (moduloAtual == Modulo.Legislacao) { await PesquisarNaLegislacaoAsync(termo, passo); return; }
         if (documento is null || sessao?.Atual is null || moduloAtual != Modulo.Relatorios)
@@ -148,8 +151,8 @@ public sealed partial class MainWindow
         termosPesquisa[Modulo.Relatorios] = "";
         pesquisaTotal = pesquisaAtual = 0;
         pesquisaRef = null;
-        // Com Processos ou Despachos à vista, a caixa é do filtro deles: não se mexe nela.
-        if (moduloAtual is Modulo.Processos or Modulo.Despachos) return;
+        // Com Processos, Despachos ou o Acompanhamento à vista, a caixa é do filtro deles: não se mexe nela.
+        if (moduloAtual is Modulo.Processos or Modulo.Despachos or Modulo.Acompanhamento) return;
         definindoPesquisa = true;
         try { CaixaPesquisa.Text = ""; }
         finally { definindoPesquisa = false; }
@@ -160,8 +163,16 @@ public sealed partial class MainWindow
     {
         // Relatórios: o texto das folhas (precisa de um relatório aberto); Processos e Despachos: o filtro da lista; Legislação: a lei
         // aberta ou todas as leis; Ajustes: nada.
-        var habilitada = moduloAtual switch { Modulo.Relatorios => temRelatorio, Modulo.Processos or Modulo.Despachos or Modulo.Legislacao => true, _ => false };
+        var habilitada = moduloAtual switch { Modulo.Relatorios => temRelatorio, Modulo.Processos or Modulo.Despachos or Modulo.Legislacao or Modulo.Acompanhamento => true, _ => false };
         CaixaPesquisa.IsEnabled = habilitada;
+        // Auditoria de interface (2026-11-17): o cabeçalho só mostra o que vale no módulo. Desfazer/Refazer são do relatório; Anterior e
+        // Próximo andam pelas ocorrências do relatório e da lei; a pesquisa some onde não há o que pesquisar (Ajustes, Imóveis, sites).
+        var comPesquisa = moduloAtual is Modulo.Relatorios or Modulo.Processos or Modulo.Despachos or Modulo.Legislacao or Modulo.Acompanhamento;
+        GrupoHistorico.Visibility = moduloAtual == Modulo.Relatorios ? Visibility.Visible : Visibility.Collapsed;
+        GrupoOcorrencias.Visibility = moduloAtual is Modulo.Relatorios or Modulo.Legislacao ? Visibility.Visible : Visibility.Collapsed;
+        CaixaPesquisa.Visibility = IconePesquisa.Visibility = comPesquisa ? Visibility.Visible : Visibility.Collapsed;
+        if (!comPesquisa) TextoPesquisa.Visibility = Visibility.Collapsed;
+        AtualizarCabecalhoDoModulo();
         // Desabilitada diz o motivo (auditoria M6), na dica e para o Narrador.
         var motivo = habilitada ? "" : moduloAtual == Modulo.Relatorios ? "Abra um relatório para pesquisar nele." : moduloAtual == Modulo.Ajustes ? "Não há o que pesquisar nos Ajustes." : "Não há pesquisa neste módulo.";
         AplicarDicaDaPesquisa(motivo);
@@ -209,6 +220,7 @@ public sealed partial class MainWindow
     {
         Modulo.Processos => "Pesquisar processos",
         Modulo.Despachos => "Pesquisar despachos",
+        Modulo.Acompanhamento => "Pesquisar na planilha",
         Modulo.Legislacao => escopoTodas || leiAberta is null ? "Pesquisar em todas as leis" : "Pesquisar nesta lei",
         _ => "Pesquisar no relatório",
     };

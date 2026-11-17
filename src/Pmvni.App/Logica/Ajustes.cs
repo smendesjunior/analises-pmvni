@@ -218,6 +218,8 @@ public sealed class Ajustes
         FaixaRotulos = p.FaixaRotulos;
         AvisosLayout = p.AvisosLayout;
         ZoomInicial = p.ZoomInicial;
+        ListaSecoes = p.ListaSecoes;
+        AcompanhamentoResumo = p.AcompanhamentoResumo;
         LembrarPaineis = p.LembrarPaineis;
         PainelLateral = p.PainelLateral;
         PainelPropriedades = p.PainelPropriedades;
@@ -263,6 +265,18 @@ public sealed class Ajustes
     /// pelo "Importar planilha" do módulo. Tudo o que muda no app é gravado nela.</summary>
     public string? PlanilhaAcompanhamento { get; set; }
 
+    /// <summary>A aba da planilha de acompanhamento que o app mostra e grava (pelo nome; null = a primeira). Guardada na primeira leitura,
+    /// para que reordenar as abas no Excel não troque a aba sem aviso.</summary>
+    public string? PlanilhaAba { get; set; }
+
+    /// <summary>O resumo por status do Acompanhamento aparece (o botão "Resumo"); lembrado entre um uso e outro.</summary>
+    public bool AcompanhamentoResumo { get; set; } = true;
+
+    /// <summary>A lista de seções do editor: "compacta" (uma linha por item, a situação como bolinha) ou "confortavel" (título em até
+    /// duas linhas e a etiqueta da situação embaixo).</summary>
+    public string ListaSecoes { get; set; } = "compacta";
+    public static readonly IReadOnlyList<string> OpcoesListaSecoes = ["compacta", "confortavel"];
+
     /// <summary>As leis marcadas com a estrela na Legislação (ids dos anexos), na ordem em que foram marcadas.</summary>
     public List<string> LeisFavoritas { get; } = [];
 
@@ -305,6 +319,9 @@ public sealed class Ajustes
         a.PastaKit = Texto(j, "pasta_kit");
         a.PastaQgis = Texto(j, "pasta_qgis");
         a.PlanilhaAcompanhamento = Texto(j, "planilha_acompanhamento");
+        a.PlanilhaAba = Texto(j, "planilha_aba");
+        if (j["acompanhamento_resumo"] is JsonValue jr && jr.TryGetValue<bool>(out var resumo)) a.AcompanhamentoResumo = resumo;
+        if (Texto(j, "lista_secoes") is { } ls && OpcoesListaSecoes.Contains(ls)) a.ListaSecoes = ls;
         if (j["leis_favoritas"] is JsonArray fav)
             foreach (var f in fav)
                 if (f is JsonValue fv && fv.TryGetValue<string>(out var id) && id is { Length: > 0 and <= 128 } && !a.LeisFavoritas.Contains(id)) a.LeisFavoritas.Add(id);
@@ -363,6 +380,9 @@ public sealed class Ajustes
             ["pasta_kit"] = PastaKit,
             ["pasta_qgis"] = PastaQgis,
             ["planilha_acompanhamento"] = PlanilhaAcompanhamento,
+            ["planilha_aba"] = PlanilhaAba,
+            ["acompanhamento_resumo"] = AcompanhamentoResumo,
+            ["lista_secoes"] = ListaSecoes,
             ["leis_favoritas"] = new JsonArray(LeisFavoritas.Select(f => (JsonNode)f).ToArray()),
             ["agentes"] = new JsonObject(Agentes.Select(par => KeyValuePair.Create(Provedores.Sufixo(par.Key), (JsonNode?)EscreverAgente(par.Value)))),
             ["plugins_vistos"] = new JsonObject(PluginsVistos.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => KeyValuePair.Create(p.Key, (JsonNode?)p.Value))),

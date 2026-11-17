@@ -152,8 +152,8 @@
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderBrush" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="Width" Value="68"/>
-    <Setter Property="Height" Value="64"/>
+    <Setter Property="Width" Value="108"/>
+    <Setter Property="MinHeight" Value="64"/>
     <Setter Property="Padding" Value="0"/>
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="FocusVisualMargin" Value="-2"/>
@@ -179,7 +179,7 @@
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="HorizontalAlignment" Value="Center"/>
     <Setter Property="Margin" Value="0,0,0,0"/>
-    <Setter Property="MaxLines" Value="1"/>
+    <Setter Property="MaxLines" Value="2"/>
     <Setter Property="TextWrapping" Value="NoWrap"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
   </Style>
@@ -356,5 +356,79 @@
   <Style x:Key="PmvniPainelResultadoNeutro" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+  </Style>
+  <!-- Auditoria de interface (2026-11-17): cores aplicadas em código passam por estilos (o {ThemeResource} do setter segue o tema do app;
+       um pincel lido de Application.Current.Resources seguiria o tema do Windows). -->
+  <Style x:Key="PmvniTextoDestaqueStyle" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style x:Key="PmvniIconeDestaqueStyle" TargetType="FontIcon">
+    <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+  <Style x:Key="PmvniTextoErroStyle" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style x:Key="PmvniIconeSecundarioStyle" TargetType="FontIcon">
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+  </Style>
+  <Style x:Key="PmvniIconeAtencaoStyle" TargetType="FontIcon">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}"/>
+  </Style>
+  <Style x:Key="PmvniBlocoCampoStyle" TargetType="StackPanel">
+    <Setter Property="Spacing" Value="4"/>
+    <Setter Property="Padding" Value="0,10,0,10"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+  </Style>
+  <Style x:Key="PmvniCartaoStyle" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="16,12"/>
+  </Style>
+  <Style x:Key="PmvniCartaoCompactoStyle" TargetType="Border" BasedOn="{StaticResource PmvniCartaoStyle}">
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Padding" Value="10,6"/>
+  </Style>
+  <Style x:Key="PmvniSeloStatusSucessoStyle" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorSuccessBackgroundBrush}"/>
+    <Setter Property="CornerRadius" Value="11"/>
+    <Setter Property="Padding" Value="8,2,10,3"/>
+  </Style>
+  <Style x:Key="PmvniSeloStatusErroStyle" TargetType="Border" BasedOn="{StaticResource PmvniSeloStatusSucessoStyle}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
+  </Style>
+  <Style x:Key="PmvniSeloStatusAtencaoStyle" TargetType="Border" BasedOn="{StaticResource PmvniSeloStatusSucessoStyle}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCautionBackgroundBrush}"/>
+  </Style>
+  <Style x:Key="PmvniFundoJanelaStyle" TargetType="Grid">
+    <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorBaseBrush}"/>
+  </Style>
+  <Style x:Key="PmvniTituloPaginaStyle" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
+    <Setter Property="FontSize" Value="24"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style x:Key="PmvniGradeLinhaStyle" TargetType="Grid">
+    <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniGradeCartaoStyle" TargetType="Grid">
+    <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniRolagemFundoStyle" TargetType="ScrollViewer">
+    <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorBaseBrush}"/>
+  </Style>
+  <Style x:Key="PmvniDivisoriaVerticalStyle" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniPilhaContornoStyle" TargetType="StackPanel">
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniBotaoTextoDestaqueStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+    <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
   </Style>
 </ResourceDictionary>

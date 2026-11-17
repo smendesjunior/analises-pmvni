@@ -39,12 +39,23 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
     public string Titulo => !Secao && NumeroETitulo.Match(Rotulo) is { Success: true } m ? m.Groups[2].Value.Trim() : Rotulo;
     public Visibility NumeroVisivel => Secao ? Visibility.Collapsed : Visibility.Visible;
 
+    /// <summary>Ajustes › Relatórios e revisão › "Lista de seções" (auditoria de interface 2026-11-17): compacta = uma linha por item, a
+    /// situação como bolinha antes do título; confortável = título em até duas linhas e a etiqueta da situação embaixo (como antes).
+    /// A lista é remontada a cada filtro ou troca do ajuste, e os itens leem o valor na hora.</summary>
+    public static bool Compacta { get; set; } = true;
+    public bool ListaCompacta => Compacta;
+    public bool ListaConfortavel => !Compacta;
+    public int LinhasTitulo => Compacta ? 1 : 2;
+    public TextWrapping QuebraTitulo => Compacta ? TextWrapping.NoWrap : TextWrapping.WrapWholeWords;
+
     /// <summary>A barra fina à esquerda: o item selecionado ou, sem seleção na lista, o da folha que está na tela.</summary>
     public Visibility IndicadorVisivel => atual || selecionado ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Fundo um pouco mais claro no item selecionado (como no Explorador de Arquivos).</summary>
-    public Brush FundoLinha => selecionado && Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var b) && b is Brush pincel
-        ? pincel : new SolidColorBrush(Colors.Transparent);
+    /// O cinza translúcido serve nos dois temas (antes o pincel vinha do tema do Windows e sumia quando o app usava o outro tema).
+    public Brush FundoLinha => selecionado ? FundoSelecionado : new SolidColorBrush(Colors.Transparent);
+
+    static readonly SolidColorBrush FundoSelecionado = new(Windows.UI.Color.FromArgb(0x26, 0x80, 0x80, 0x80));
 
     /// <summary>Nas seções: quantos itens passam no filtro atual (o contador ao lado do título).</summary>
     public int Contagem
