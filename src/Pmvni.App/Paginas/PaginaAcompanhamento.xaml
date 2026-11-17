@@ -146,7 +146,13 @@
     <StackPanel Grid.Row="2" Spacing="6">
       <InfoBar x:Name="AvisoPendentes" x:FieldModifier="internal" Severity="Error" IsClosable="False" IsOpen="False"/>
       <InfoBar x:Name="Aviso" x:FieldModifier="internal" IsClosable="True" IsOpen="False"/>
-      <ProgressBar x:Name="Progresso" x:FieldModifier="internal" IsIndeterminate="True" Visibility="Collapsed"/>
+      <Border x:Name="Progresso" x:FieldModifier="internal" Visibility="Collapsed" CornerRadius="24" Padding="24,10"
+              Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+          <ProgressRing IsActive="True" Width="20" Height="20" VerticalAlignment="Center"/>
+          <TextBlock Text="Carregando…" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+        </StackPanel>
+      </Border>
     </StackPanel>
 
     <!-- Tabela e painel do processo -->

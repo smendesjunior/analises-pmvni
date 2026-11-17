@@ -31,6 +31,22 @@ public static class Trabalhando
         catch (Exception e) { RegistroErros.Gravar("brilho", e); }
     }
 
+    /// <summary>O quadro "trabalhando" padrão (pílula com o anel circular e o texto centralizados), para montar em código.</summary>
+    public static Border Quadro(string texto) => new()
+    {
+        Visibility = Visibility.Collapsed, CornerRadius = new CornerRadius(24), Padding = new Thickness(24, 10, 24, 10),
+        Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
+        Child = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center,
+            Children =
+            {
+                new ProgressRing { IsActive = true, Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center },
+                new TextBlock { Text = texto, VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center },
+            },
+        },
+    };
+
     // ---------- automático nos indicadores de progresso ----------
 
     public static readonly DependencyProperty AutomaticoProperty = DependencyProperty.RegisterAttached(
@@ -197,7 +213,7 @@ sealed class BrilhoArcoIris
     {
         var escala = (float)(elemento.XamlRoot?.RasterizationScale ?? 1.0);
         if (mascaraFeita.Tamanho == t && mascaraFeita.Escala == escala) return;
-        var k = Math.Min(canto, (t.Y - 1) / 2);
+        var k = Pilula(t);
         try
         {
             Contorno(mascaraBrilho, t, escala, new Vector2(0.5f), t - new Vector2(1f), k, TracoBrilho, Desfoque);
@@ -314,6 +330,30 @@ sealed class BrilhoArcoIris
         raizHalo.Opacity = Respiro(t, 9.1, respira.Halo);
     }
 
+    /// <summary>Padrão único (2026-11-17, pedido do usuário): todo contorno arco-íris é uma pílula, cantos totalmente circulares, como a
+    /// pílula da análise na barra de título.</summary>
+    static float Pilula(Vector2 t) => Math.Max(0, (t.Y - 1) / 2);
+
+    CornerRadius? cantoOriginal;
+
+    /// <summary>Enquanto brilha, o próprio quadro também fica em pílula, para o fundo e a borda dele acompanharem o contorno.</summary>
+    void Arredondar(bool pilula)
+    {
+        if (pilula)
+        {
+            var r = new CornerRadius(Math.Max(0, (elemento.ActualHeight) / 2));
+            cantoOriginal ??= Canto;
+            Canto = r;
+        }
+        else if (cantoOriginal is { } o) { Canto = o; cantoOriginal = null; }
+    }
+
+    CornerRadius Canto
+    {
+        get => elemento switch { Border b => b.CornerRadius, Control c => c.CornerRadius, Grid g => g.CornerRadius, StackPanel s => s.CornerRadius, _ => default };
+        set { switch (elemento) { case Border b: b.CornerRadius = value; break; case Control c: c.CornerRadius = value; break; case Grid g: g.CornerRadius = value; break; case StackPanel s: s.CornerRadius = value; break; } }
+    }
+
     static readonly Windows.UI.ViewManagement.UISettings Ui = new();
     static bool AnimacoesLigadas { get { try { return Ui.AnimationsEnabled; } catch (Exception) { return true; } } }
 
@@ -331,11 +371,13 @@ sealed class BrilhoArcoIris
             }
             raiz.IsVisible = false;
             raizHalo.IsVisible = false;
+            Arredondar(false);
             return;
         }
         if (rodando && !refazer && t == tamanho) return;
         tamanho = t;
-        var k = Math.Min(canto, (t.Y - 1) / 2);
+        var k = Pilula(t);
+        Arredondar(true);
         raiz.Size = t; raizBrilho.Size = t; raizLinha.Size = t;
         geometria.Offset = new Vector2(0.5f);
         geometria.Size = t - new Vector2(1f);

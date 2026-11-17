@@ -266,7 +266,13 @@
                   <Button x:Name="BotaoAbrirQgis" x:FieldModifier="internal" Content="Abrir" AutomationProperties.Name="Abrir a pasta QGIS no Explorador"
                           local:Dicas.Titulo="Abrir" local:Dicas.Descricao="Abre a pasta QGIS no Explorador de Arquivos."/>
                 </StackPanel>
-                <ProgressBar x:Name="ProgressoQgis" x:FieldModifier="internal" IsIndeterminate="True" Visibility="Collapsed"/>
+                <Border x:Name="ProgressoQgis" x:FieldModifier="internal" Visibility="Collapsed" CornerRadius="24" Padding="24,10"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                  <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                    <ProgressRing IsActive="True" Width="20" Height="20" VerticalAlignment="Center"/>
+                    <TextBlock Text="Verificando a pasta QGIS…" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+                  </StackPanel>
+                </Border>
                 <InfoBar x:Name="ResultadoQgis" x:FieldModifier="internal" IsClosable="True" IsOpen="False"/>
               </StackPanel>
             </StackPanel></Border>

@@ -17,7 +17,8 @@ public sealed partial class PaginaSites : Grid
     readonly Dictionary<Modulo, WebView2> navegadores = new();
     readonly Dictionary<Modulo, Task<CoreWebView2>> criando = new();
     readonly Dictionary<Modulo, DateTime> ultimoLoginAutomatico = new();
-    readonly ProgressBar progresso = new() { IsIndeterminate = true, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Top };
+    readonly Border progresso = Pilula();
+    static Border Pilula() { var q = Trabalhando.Quadro("Carregando a página…"); q.VerticalAlignment = VerticalAlignment.Top; q.HorizontalAlignment = HorizontalAlignment.Center; q.Margin = new Thickness(12); return q; }
     readonly InfoBar aviso = new() { IsClosable = true, IsOpen = false, Severity = InfoBarSeverity.Warning, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(12) };
     /// <summary>Estado do BCI (o fluxo roda neste navegador, à vista do usuário).</summary>
     public InfoBar AvisoBci { get; } = new() { IsClosable = true, IsOpen = false, Severity = InfoBarSeverity.Informational, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(12) };

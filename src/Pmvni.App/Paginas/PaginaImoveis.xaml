@@ -49,7 +49,15 @@
                      AutomationProperties.LiveSetting="Polite"/>
         </StackPanel>
         <InfoBar x:Name="Aviso" x:FieldModifier="internal" IsClosable="True" IsOpen="False"/>
-        <ProgressBar x:Name="Progresso" x:FieldModifier="internal" IsIndeterminate="True" Visibility="Collapsed"/>
+        <!-- Quadro "trabalhando" no padrão da pílula da análise (2026-11-17): cantos circulares, barra e texto centralizados. -->
+        <Border x:Name="Progresso" x:FieldModifier="internal" Visibility="Collapsed" CornerRadius="24" Padding="24,10"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+            <ProgressRing IsActive="True" Width="20" Height="20" VerticalAlignment="Center"/>
+            <TextBlock x:Name="TextoProgresso" x:FieldModifier="internal" Text="Pesquisando…" TextAlignment="Center" VerticalAlignment="Center"
+                       Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"/>
+          </StackPanel>
+        </Border>
         <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"
                    Text="Escolha um parâmetro e uma condição, digite o valor e tecle Enter."/>
       </StackPanel>

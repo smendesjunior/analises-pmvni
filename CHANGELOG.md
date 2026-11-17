@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.6.7
+
+- **Brilho arco-íris:** todo contorno de "trabalhando" agora é uma pílula de cantos redondos, no mesmo padrão da pílula da análise.
+- **Indicadores de carregamento:** as barras que corriam de um lado a outro viraram uma pílula com o anel giratório e o texto centralizado (Imóveis, Acompanhamento, pasta QGIS em Ajustes, Sites e janela da prancha).
+
 ## 0.6.6
 
 - **Análise em andamento:** o indicador da barra de título virou uma pílula maior, em duas linhas, com cantos redondos e o brilho arco-íris; a pesquisa e os botões ao lado não cortam mais. O brilho não aparece mais em volta de fileiras de botões.

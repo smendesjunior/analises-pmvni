@@ -114,10 +114,11 @@ public sealed partial class MainWindow
     {
         if (carregandoBase is { IsCompleted: false } emCurso) return emCurso;
         var ct = cancelarBase.Token;
+        I.TextoProgresso.Text = "Lendo a base QGIS…";
         I.Progresso.Visibility = Visibility.Visible;
         I.Aviso.IsOpen = false;
         MostrarVazioImoveis("Lendo a base QGIS…", configurar: false);
-        var progresso = new Progress<string>(t => { if (!fechada) I.TextoContagem.Text = t; });
+        var progresso = new Progress<string>(t => { if (!fechada) I.TextoProgresso.Text = t; });
         return carregandoBase = CarregarAsync();
 
         async Task<BaseQgis?> CarregarAsync()
@@ -217,6 +218,7 @@ public sealed partial class MainWindow
         cancelarPesquisa?.Cancel();
         var cts = cancelarPesquisa = new CancellationTokenSource();
         var consulta = new Consulta(campo, condicao, valor.Trim(), Math.Max(1, pagina), 50);
+        I.TextoProgresso.Text = "Pesquisando…";
         I.Progresso.Visibility = Visibility.Visible;
         try
         {

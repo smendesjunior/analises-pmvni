@@ -49,7 +49,7 @@ internal sealed class JanelaPrancha : Window
     readonly Button cancelar = new() { Content = "Cancelar" };
     readonly TextBlock estado = new() { TextWrapping = TextWrapping.Wrap, Opacity = .8, VerticalAlignment = VerticalAlignment.Center };
     readonly InfoBar aviso = new() { Severity = InfoBarSeverity.Warning, IsClosable = true };
-    readonly ProgressBar progresso = new() { IsIndeterminate = true, Visibility = Visibility.Collapsed };
+    readonly Border progresso = Trabalhando.Quadro("Trabalhando…");
     readonly Viewbox previa = new() { Stretch = Stretch.Uniform, MaxHeight = 240, Visibility = Visibility.Collapsed };
     readonly TextBlock orientacao = new() { Text = "Arraste sobre a página para selecionar a região da figura.", TextWrapping = TextWrapping.Wrap };
     readonly AppBarButton limpar = new() { Icon = new SymbolIcon(Symbol.Clear), Label = "Limpar recorte" };
