@@ -31,8 +31,11 @@ public class ChamadaNovaTestes
         Assert.NotNull(textos);
         Assert.Equal("Afastamento de frente de 120 cm não atende.", textos["volumetria/01"]["destaque"]);
         Assert.False(textos.ContainsKey("novas_chamadas"));
-        var c = Assert.Single(IaRecalculoIndices.LerNovasChamadas(saida, ids));   // âncora desconhecida, título vazio e situação inválida ficam de fora
-        Assert.Equal(new IaRecalculoIndices.ChamadaNova("frente", "Afastamento frontal", "120 cm; o mínimo é 3,00 m.", "NAO_ATENDE"), c);
+        // Título vazio e situação inválida ficam de fora; a âncora desconhecida fica (o editor escolhe um ponto livre na vista).
+        var lidas = IaRecalculoIndices.LerNovasChamadas(saida, ids);
+        Assert.Equal(2, lidas.Count);
+        Assert.Equal(new IaRecalculoIndices.ChamadaNova("frente", "Afastamento frontal", "120 cm; o mínimo é 3,00 m.", "NAO_ATENDE", "volumetria"), lidas[0]);
+        Assert.Equal("porão", lidas[1].Ancora);
         Assert.Equal("CONTA_CONFERE", IaRecalculoIndices.LerNovasChamadas(saida.Replace("\"NAO_ATENDE\"}", "\"ATENDE\"}"), ids)[0].Situacao);
         Assert.Null(IaRecalculoIndices.Ler("{\"outra\": []}", ids));
 
@@ -41,6 +44,67 @@ public class ChamadaNovaTestes
         Assert.Contains("novas_chamadas", pedido);
         Assert.Contains("frente", pedido);
         Assert.Contains("NÃO abra arquivos", pedido);
+        Assert.Contains("\"vista\"", pedido);
+        Assert.Contains("lateral_direita", pedido);
+    }
+
+    /// <summary>Correção 2026-11-17 (o caso do usuário): "Afastamento do muro" pedido na volumetria. A IA devolveu a âncora "lateral"
+    /// (que é da planta) e a chamada 7 foi para a lista da PLANTA, com a marca no desenho da planta; a volumetria não mudou.</summary>
+    [Fact]
+    public void chamada_pedida_na_volumetria_com_ancora_da_planta_fica_na_volumetria()
+    {
+        var ids = new[] { "volumetria/01", "chamadas/05", "chamadas/06" };
+        // Resposta sem "vista" (como a do caso real): vale a do desenho em que o pedido foi feito.
+        var saida = """
+            {"novas_chamadas": [{"ancora": "lateral", "titulo": "Afastamento do muro", "texto": "Afastamento de 100 cm indicado como incorreto.", "situacao": "NAO_ATENDE"}]}
+            """;
+        var nova = Assert.Single(IaRecalculoIndices.LerNovasChamadas(saida, ids));
+        Assert.Equal("volumetria", nova.Vista);
+        // Com "vista" explícita, a IA manda; vista inválida descarta a entrada.
+        Assert.Equal("planta", IaRecalculoIndices.LerNovasChamadas(saida.Replace("{\"ancora\"", "{\"vista\": \"planta\", \"ancora\""), ids)[0].Vista);
+        Assert.Empty(IaRecalculoIndices.LerNovasChamadas(saida.Replace("{\"ancora\"", "{\"vista\": \"fachada\", \"ancora\""), ids));
+
+        var c = Importar();
+        var s = new SessaoRevisao(c.Projeto, c.Historico, Ambiente.Contexto());
+        s.Aplicar(new Lote("volumetria/01", [new AcrescentarChamada("chamadas/07", nova.Ancora, nova.Titulo, nova.Texto, nova.Situacao, nova.Vista)], "Volumetria ajustada pela IA"));
+        var linha = TabelasRevisao.Original(s.Projeto, "chamadas/07")!;
+        Assert.Equal("volumetria", (string?)linha["vista"]);
+        Assert.Equal("lateral_direita", (string?)linha["ancora"]);   // a "lateral" da planta vira a equivalente na volumetria
+        Assert.DoesNotContain("vista", TabelasRevisao.Caminhos(linha));   // a vista não é texto editável
+
+        using var pasta = Ambiente.PastaDeTeste("chamada-vista");
+        c.ExtrairAssets(pasta);
+        var render = RelatorioRenderer.Renderizar(DadosEfetivos.Gerar(s.Projeto).Json, Path.Combine(pasta, "dados.json"), new OpcoesRender(false, true), Modelo);
+        Assert.True(render.Ok, string.Join("; ", render.Erros));
+        var html = render.Html;
+        // A chamada 7 está na lista da volumetria (depois da 6), não na da planta.
+        var listaPlanta = html.IndexOf("<div class=\"chip\">PLANTA DO TERRENO", StringComparison.Ordinal);
+        var listaVolume = html.IndexOf("<div class=\"chip\">VOLUMETRIA DA EDIFICA", StringComparison.Ordinal);
+        var item7 = html.IndexOf("<b>Afastamento do muro</b>", StringComparison.Ordinal);
+        Assert.True(listaPlanta >= 0 && listaVolume > listaPlanta && item7 > listaVolume, $"planta {listaPlanta}, volumetria {listaVolume}, item 7 {item7}");
+        // A marca 7 no desenho da volumetria, no ponto da lateral direita.
+        var (x, y) = Pmvni.Composicao.Kit.Diagrama.PosVolumeExtra["lateral_direita"];
+        var marca = html.IndexOf($"<circle cx=\"{x}\" cy=\"{y}\" r=\"8.5\"/><text x=\"{x}\"", StringComparison.Ordinal);
+        Assert.True(marca > listaVolume, "a marca 7 tem de estar no desenho da volumetria");
+    }
+
+    [Fact]
+    public void chamada_sem_ancora_ganha_um_ponto_livre_da_vista()
+    {
+        var c = Importar();
+        var s = new SessaoRevisao(c.Projeto, c.Historico, Ambiente.Contexto());
+        s.Aplicar(new Lote("volumetria/01",
+        [
+            new AcrescentarChamada("chamadas/07", "", "A", "X", "NAO_ATENDE", "volumetria"),
+            new AcrescentarChamada("chamadas/08", "", "B", "Y", "NAO_ATENDE", "volumetria"),
+            new AcrescentarChamada("chamadas/09", "", "C", "Z", "PENDENTE", "planta"),
+        ], "x"));
+        Assert.Equal("lateral_direita", (string?)TabelasRevisao.Original(s.Projeto, "chamadas/07")!["ancora"]);
+        Assert.Equal("lateral_esquerda", (string?)TabelasRevisao.Original(s.Projeto, "chamadas/08")!["ancora"]);   // a direita já está ocupada
+        Assert.Equal("planta", (string?)TabelasRevisao.Original(s.Projeto, "chamadas/09")!["vista"]);
+        Assert.True(Pmvni.Composicao.Kit.Diagrama.PosPlanta.ContainsKey((string)TabelasRevisao.Original(s.Projeto, "chamadas/09")!["ancora"]!));
+        // Vista desconhecida é recusada.
+        Assert.Throws<ComandoRecusadoException>(() => s.Aplicar(new AcrescentarChamada("chamadas/10", "lote", "T", "X", "NAO_ATENDE", "fachada")));
     }
 
     [Fact]

@@ -50,8 +50,9 @@ public static class TabelasRevisao
         ["pavimentos"] = "2", ["telhado"] = "duas águas", ["destaque"] = "nenhum",
     };
 
-    /// <summary>Chaves da linha que não são texto editável (o ícone e a situação, que tem comando próprio).</summary>
-    private static readonly HashSet<string> NaoEditaveis = new(StringComparer.Ordinal) { "icone", "situacao", "ancora" };
+    /// <summary>Chaves da linha que não são texto editável (o ícone e a situação, que tem comando próprio; a âncora e a vista de uma
+    /// chamada do diagrama, que dizem onde fica a marca).</summary>
+    private static readonly HashSet<string> NaoEditaveis = new(StringComparer.Ordinal) { "icone", "situacao", "ancora", "vista" };
 
     /// <summary>Campo de texto que a tecla F2 edita quando nenhum foi clicado.</summary>
     public static string CampoPadrao(string id) => Bloco(id) == Ambientes ? "nome" : "calculo";
@@ -537,17 +538,43 @@ internal static class MotorLinhas
     {
         if (TabelasRevisao.ProximaChamada(p) is not { } proxima) throw new ComandoRecusadoException("O relatório não tem o diagrama dos índices: não há onde pôr a chamada.");
         if (c.Item != proxima) throw new ComandoRecusadoException("A chamada nova tem de ser a " + TabelasRevisao.Rotulo(proxima) + ".");
-        if (!Pmvni.Composicao.Kit.Diagrama.PosPlanta.ContainsKey(c.Ancora) && !Pmvni.Composicao.Kit.Diagrama.PosVolumeTodas.ContainsKey(c.Ancora))
-            throw new ComandoRecusadoException("Âncora desconhecida para a chamada: " + c.Ancora + ".");
+        // Correção 2026-11-17: a chamada nova leva a vista (planta ou volumetria) explícita; a coluna e o desenho seguem a vista, e a
+        // âncora é resolvida dentro dela (a pedida, a equivalente ou um ponto livre). Sem vista, a âncora diz a vista, como no kit.
+        string vista, ancora;
+        if (c.Vista is not null)
+        {
+            vista = Diagrama.NormalizarVista(c.Vista) ?? throw new ComandoRecusadoException("Vista desconhecida para a chamada: " + c.Vista + " (use planta ou volumetria).");
+            ancora = Diagrama.ResolverAncora(vista, c.Ancora, AncorasUsadas(p, vista));
+        }
+        else
+        {
+            vista = Diagrama.VistaDaAncora(c.Ancora) ?? throw new ComandoRecusadoException("Âncora desconhecida para a chamada: " + c.Ancora + ".");
+            ancora = c.Ancora;
+        }
         if (!Situacoes.SitIndice.Contains(c.Situacao)) throw new ComandoRecusadoException("Situação inválida para a chamada: " + c.Situacao + ".");
         var modelo = new JsonObject
         {
-            ["ancora"] = c.Ancora,
+            ["ancora"] = ancora,
+            ["vista"] = vista,
             ["titulo"] = Limpo(c.Titulo, "Título da chamada"),
             ["situacao"] = c.Situacao,
             ["texto"] = Limpo(c.Texto, "Texto da chamada"),
         };
         return new Efeito(TipoAcrescimo, c.Item, null, null, new JsonObject { ["modelo"] = modelo });
+    }
+
+    /// <summary>As âncoras já ocupadas na vista pelas chamadas que existem (as recebidas e as acrescentadas).</summary>
+    private static List<string> AncorasUsadas(Projeto p, string vista)
+    {
+        var r = new List<string>();
+        foreach (var id in TabelasRevisao.Ids(p))
+        {
+            if (!TabelasRevisao.TentarLer(id, out var bloco, out _) || bloco != TabelasRevisao.Chamadas || TabelasRevisao.Original(p, id) is not { } l) continue;
+            var a = l["ancora"] is JsonValue va && va.TryGetValue<string>(out var sa) ? sa : null;
+            var v = l["vista"] is JsonValue vv && vv.TryGetValue<string>(out var sv) ? Diagrama.NormalizarVista(sv) : Diagrama.VistaDaAncora(a);
+            if (v == vista && a is not null) r.Add(a);
+        }
+        return r;
     }
 
     private static Efeito CalcularAmbiente(Projeto p, AcrescentarAmbiente a)
