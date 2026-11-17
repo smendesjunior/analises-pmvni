@@ -62,9 +62,15 @@ public sealed partial class Trilho : UserControl
             vagaIcone.Children.Add((UIElement?)icone ?? new FontIcon { Glyph = Pmvni.App.Modulos.Glifo(m), FontSize = 20 });
             // Rótulo longo ("Acompanhamento") não cabia numa linha e aparecia cortado ("ompanhamer"): vai em duas linhas ("Acompanha-" /
             // "mento"), com o trilho mais largo (112) e o item um pouco mais alto; o nome inteiro fica na dica e no Narrador.
-            var rotulo = new TextBlock { Text = RotuloNoTrilho(m), Style = Estilo("PmvniTrilhoRotuloStyle"), TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 104, LineHeight = 15, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
+            var rotulo = new TextBlock { Text = RotuloNoTrilho(m), Style = Estilo("PmvniTrilhoRotuloStyle"), TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 92, LineHeight = 15, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
             var duasLinhas = rotulo.Text.Contains('\n');
-            if (duasLinhas) rotulo.FontSize = 11; // duas linhas: um pouco menor, para não encostar na barrinha do módulo ativo
+            if (duasLinhas)
+            {
+                // Duas linhas: "Acompanhamento" quase enche o item e a barrinha do módulo ativo (na borda esquerda) ficava por cima da
+                // primeira letra (2026-11-17). Fonte um pouco menor e o texto deslocado para a direita, livre da barrinha.
+                rotulo.FontSize = 10.5;
+                conteudo.Margin = new Thickness(8, 0, 0, 0);
+            }
             conteudo.Children.Add(vagaIcone);
             conteudo.Children.Add(rotulo);
             var fundo = new Border
@@ -75,7 +81,7 @@ public sealed partial class Trilho : UserControl
                 Child = conteudo,
             };
             // A barrinha fica DENTRO do fundo arredondado, junto da borda esquerda dele (como no Gmail): a grade tem a largura do fundo.
-            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Visibility = Visibility.Collapsed, Margin = new Thickness(5, 0, 0, 0) };
+            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Visibility = Visibility.Collapsed, Margin = new Thickness(4, 0, 0, 0) };
             var grade = new Grid { Width = 104, HorizontalAlignment = HorizontalAlignment.Center };
             grade.Children.Add(fundo);
             grade.Children.Add(indicador);

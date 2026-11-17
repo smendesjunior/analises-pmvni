@@ -8,8 +8,21 @@
   <Grid x:Name="RaizPagina" x:FieldModifier="internal" Padding="24,16,24,8" RowSpacing="12">
     <Grid.Resources>
       <!-- Fundo das colunas fixas (Nº e Processo) quando a tabela rola para o lado: segue o tema do app (lido daqui, nunca do Application). -->
+      <!-- Colunas fixas ao rolar para o lado: três camadas que repetem as da tabela (fundo da página + cartão + faixa do título), para a
+           parte fixa ter exatamente a mesma cor do resto (antes ficava um bloco mais escuro, 2026-11-17). A última coluna fixa ganha um
+           traço à direita, que separa o que está parado do que rola. -->
       <Style x:Key="PmvniCelulaFixaStyle" TargetType="Border">
-        <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorBaseBrush}"/>
+        <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorQuarternaryBrush}"/>
+      </Style>
+      <Style x:Key="PmvniCelulaFixaBordaStyle" TargetType="Border" BasedOn="{StaticResource PmvniCelulaFixaStyle}">
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,0"/>
+      </Style>
+      <Style x:Key="PmvniCelulaFixaCartaoStyle" TargetType="Border">
+        <Setter Property="Background" Value="Transparent"/>
+      </Style>
+      <Style x:Key="PmvniCelulaFixaTituloStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
       </Style>
     </Grid.Resources>
     <Grid.RowDefinitions>
@@ -43,6 +56,14 @@
               <StackPanel x:Name="PainelFiltros" x:FieldModifier="internal" Spacing="4" MinWidth="260"/>
             </ScrollViewer>
           </Flyout>
+        </DropDownButton.Flyout>
+      </DropDownButton>
+      <!-- Escolher as colunas da tabela (pedido do usuário, 2026-11-17); a lista é montada pelo código a cada leitura da planilha. -->
+      <DropDownButton x:Name="BotaoColunas" x:FieldModifier="internal" AutomationProperties.Name="Colunas da tabela"
+                      local:Dicas.Titulo="Colunas" local:Dicas.Descricao="Escolha as colunas que aparecem na tabela. Para mudar a largura, arraste a borda do título da coluna.">
+        <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8A9;" FontSize="14"/><TextBlock x:Name="TextoColunas" x:FieldModifier="internal" Text="Colunas"/></StackPanel>
+        <DropDownButton.Flyout>
+          <MenuFlyout x:Name="MenuColunas" x:FieldModifier="internal" Placement="Bottom"/>
         </DropDownButton.Flyout>
       </DropDownButton>
         <ComboBox x:Name="CaixaAba" x:FieldModifier="internal" VerticalAlignment="Center" MinWidth="140" Visibility="Collapsed"
@@ -131,7 +152,7 @@
     <!-- Tabela e painel do processo -->
     <Grid x:Name="GradeTabela" x:FieldModifier="internal" Grid.Row="3" ColumnSpacing="12">
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="ColunaPainel" x:FieldModifier="internal" Width="0"/></Grid.ColumnDefinitions>
-      <Border CornerRadius="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+      <Border CornerRadius="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Background="{ThemeResource SolidBackgroundFillColorQuarternaryBrush}">
         <Grid>
           <ScrollViewer x:Name="RolagemTabela" x:FieldModifier="internal" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Visible"
                         VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" IsTabStop="False">

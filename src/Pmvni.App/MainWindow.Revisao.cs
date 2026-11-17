@@ -958,6 +958,11 @@ public sealed partial class MainWindow
         {
             var b = new ToggleButton { Tag = f, IsChecked = f == filtroSituacao };
             Pilulas.Estilizar(b); // o filtro escolhido acende na cor de destaque, como no WinStatusBar
+            // Mais compactos (2026-11-17): os cinco cabem em duas linhas no painel, sem sobra solta numa terceira.
+            b.Height = 28;
+            b.Padding = new Thickness(9, 0, 10, 0);
+            b.CornerRadius = new CornerRadius(14);
+            b.ActualThemeChanged += (_, _) => AtualizarBotoesFiltro(contagensFiltro);
             var filtro = f;
             b.Click += (_, _) =>
             {
@@ -969,14 +974,29 @@ public sealed partial class MainWindow
         AtualizarBotoesFiltro(FiltroNavegacao.Ordem.ToDictionary(f => f, _ => 0));
     }
 
+    IReadOnlyDictionary<FiltroSituacao, int> contagensFiltro = new Dictionary<FiltroSituacao, int>();
+
+    /// <summary>Cada botão: bolinha na cor da situação (a mesma da etiqueta do relatório), o nome e a contagem em segundo plano — dá para
+    /// ler a situação pela cor antes do texto (2026-11-17: "essa apresentação visual precisa melhorar").</summary>
     void AtualizarBotoesFiltro(IReadOnlyDictionary<FiltroSituacao, int> contagens)
     {
+        contagensFiltro = contagens;
         foreach (var b in R.BotoesFiltro.Children.OfType<ToggleButton>())
         {
             if (b.Tag is not FiltroSituacao f) continue;
             var n = contagens.TryGetValue(f, out var c) ? c : 0;
-            b.Content = n > 0 ? $"{FiltroNavegacao.Rotulo(f)}  {n}" : FiltroNavegacao.Rotulo(f);
-            b.IsChecked = f == filtroSituacao;
+            var ligado = f == filtroSituacao;
+            var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+            if (EtiquetasSituacao.CoresDaClasse(FiltroNavegacao.Classe(f), b.ActualTheme == ElementTheme.Dark) is { } cores)
+                conteudo.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
+                {
+                    Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center,
+                    Fill = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb((byte)(cores.Ponto >> 24), (byte)(cores.Ponto >> 16), (byte)(cores.Ponto >> 8), (byte)cores.Ponto)),
+                });
+            conteudo.Children.Add(new TextBlock { Text = FiltroNavegacao.Rotulo(f), FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center });
+            if (n > 0) conteudo.Children.Add(new TextBlock { Text = n.ToString(CultureInfo.InvariantCulture), FontSize = 12.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Opacity = ligado ? 1 : .7, VerticalAlignment = VerticalAlignment.Center });
+            b.Content = conteudo;
+            b.IsChecked = ligado;
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"Mostrar {FiltroNavegacao.Rotulo(f).ToLowerInvariant()}, {n} itens");
             var dica = DicasComandos.Livre(FiltroNavegacao.Rotulo(f), DicasComandos.DescricaoFiltro(f));
             if (Dicas.De(b) != dica) Dicas.Aplicar(b, dica);

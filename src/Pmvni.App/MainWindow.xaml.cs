@@ -420,6 +420,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                         await EntrarNoAcompanhamentoAsync();
                         await Task.Delay(1500);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "acompanhamento.png"));
+                        // Tabela rolada para o lado: as colunas fixas (Nº e Processo) com a mesma cor do resto e o traço de separação.
+                        PaginaDeAcompanhamento.RolagemTabela.ChangeView(260, null, null, disableAnimation: true);
+                        await Task.Delay(700);
+                        await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "acompanhamento-rolada.png"));
+                        PaginaDeAcompanhamento.RolagemTabela.ChangeView(0, null, null, disableAnimation: true);
                         if (PaginaDeAcompanhamento.Lista.Items.Count > 0) PaginaDeAcompanhamento.Lista.SelectedIndex = 0;
                         await Task.Delay(900);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "acompanhamento-painel.png"));

@@ -37,7 +37,11 @@ public static class EtiquetasSituacao
 
     /// <summary>Cores da etiqueta no tema pedido; null sem situação ou com código desconhecido.</summary>
     public static CoresEtiqueta? Cores(string? codigo, bool escuro) =>
-        Classe(codigo) is { } c && (escuro ? Escuro : Claro).TryGetValue(c, out var cores) ? cores : null;
+        Classe(codigo) is { } c ? CoresDaClasse(c, escuro) : null;
+
+    /// <summary>Cores pela classe do kit (g, a, o, r) — usadas também nos botões do filtro rápido; null para classe desconhecida.</summary>
+    public static CoresEtiqueta? CoresDaClasse(string? classe, bool escuro) =>
+        classe is not null && (escuro ? Escuro : Claro).TryGetValue(classe, out var cores) ? cores : null;
 
     /// <summary>Nome acessível do botão da etiqueta: "Situação: FALTA COMPROVAR. Mudar a situação".</summary>
     public static string NomeAcessivel(string? codigo) => Texto(codigo) is { Length: > 0 } t ? $"Situação: {t}. Mudar a situação" : "";

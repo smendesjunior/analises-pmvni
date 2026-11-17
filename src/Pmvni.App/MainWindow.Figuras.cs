@@ -44,7 +44,8 @@ public sealed partial class MainWindow : IHostFiguras
         Faixa.Habilitar(ComandosApp.FigurasInserirRegiao, editavel);
         Faixa.Habilitar(ComandosApp.FigurasEditar, temRelatorio && figuraSelecionada is not null);
         Faixa.Habilitar(ComandosApp.FigurasExcluir, editavel && figuraSelecionada is not null);
-        Faixa.Habilitar(ComandosApp.FigurasAbrirEditor, temRelatorio && sessao?.Revisao.Projeto is { } p && FigurasDoMenu(p).Count > 0);
+        // Com relatório editável o menu sempre tem ao menos "Adicionar figura…".
+        Faixa.Habilitar(ComandosApp.FigurasAbrirEditor, temRelatorio && (editavel || sessao?.Revisao.Projeto is { } p && FigurasDoMenu(p).Count > 0));
     }
 
     /// <summary>As figuras incluídas, na ordem do relatório: (id, "Figura N — título").</summary>
@@ -55,10 +56,17 @@ public sealed partial class MainWindow : IHostFiguras
     IReadOnlyList<(string Texto, string Valor, string Dica)> ItensDoMenuFiguras()
     {
         if (sessao?.Atual is null) return [];
-        return FigurasDoMenu(sessao.Revisao.Projeto)
+        var itens = FigurasDoMenu(sessao.Revisao.Projeto)
             .Select(f => ((f.Id == figuraSelecionada ? "✓ " : "") + f.Texto, f.Id, "Abre esta figura no editor de figuras."))
             .ToList();
+        // No fim do menu (pedido do usuário, 2026-11-17): adicionar uma figura nova abrindo o PDF do projeto (a mesma janela de
+        // "Inserir região da prancha"); entra depois da figura selecionada, ou no fim.
+        if (Editavel) itens.Add(("＋ Adicionar figura…", ValorAdicionarFigura, "Abre o PDF do projeto para recortar uma região e inseri-la como figura nova."));
+        return itens;
     }
+
+    /// <summary>Valor do item "Adicionar figura…" no menu Figuras (não é id de figura).</summary>
+    const string ValorAdicionarFigura = "\u0001adicionar";
 
     /// <summary>O id da figura incluída com esse data-ref (null se o ref não é de figura).</summary>
     string? FiguraDoRef(string? @ref)

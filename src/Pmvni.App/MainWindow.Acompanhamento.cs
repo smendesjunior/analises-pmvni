@@ -44,7 +44,17 @@ public sealed partial class MainWindow
 
     static string PastaCopiasPlanilha => Path.Combine(PastaDados.Raiz, "acompanhamento", "copias");
 
-    static double Largura(Coluna c) => c.Chave switch
+    /// <summary>A largura da coluna: a que o usuário arrastou (lembrada nos Ajustes) ou a padrão.</summary>
+    double Largura(Coluna c) => ajustes.AcompanhamentoLarguras.TryGetValue(ChaveColunaAjustes(c), out var w) ? w : LarguraPadrao(c);
+
+    /// <summary>Como a coluna é lembrada nos Ajustes: pelo título normalizado (o mesmo em qualquer aba ou cópia da planilha).</summary>
+    static string ChaveColunaAjustes(Coluna c) => Planilha.Normal(c.Titulo);
+
+    /// <summary>Colunas de etiqueta (status, aprovação, prioridade, dias, listas com cores): conteúdo e título centralizados.</summary>
+    static bool Centralizada(Coluna c) => c.Chave is ChaveColuna.Status or ChaveColuna.Aprovacao or ChaveColuna.Prioridade or ChaveColuna.DiasSemAtualizacao
+        || (c.Chave == ChaveColuna.Outra && c.Tipo == TipoColuna.Lista);
+
+    static double LarguraPadrao(Coluna c) => c.Chave switch
     {
         ChaveColuna.Numero => 56,
         ChaveColuna.DataInicial or ChaveColuna.Recebido or ChaveColuna.Atualizacao => 112,
@@ -450,8 +460,11 @@ public sealed partial class MainWindow
         };
         var vazias = p.Linhas.Count == 0 ? [] : p.Colunas.Where(c => c.Chave is not (ChaveColuna.Processo or ChaveColuna.Status or ChaveColuna.Requerente)
             && p.Linhas.All(l => p.TextoDe(l, c).Length == 0)).ToList();
-        colunasVisiveis = p.Colunas.Except(vazias).OrderBy(Peso).ThenBy(c => c.Indice).ToList();
+        // Colunas que o usuário tirou pelo botão "Colunas" (o Processo fica sempre: é por ele que a linha é achada).
+        var ocultas = p.Colunas.Where(c => c.Chave != ChaveColuna.Processo && ajustes.AcompanhamentoColunasOcultas.Contains(ChaveColunaAjustes(c))).ToList();
+        colunasVisiveis = p.Colunas.Except(vazias).Except(ocultas).OrderBy(Peso).ThenBy(c => c.Indice).ToList();
         colunasEscondidas = vazias.Select(c => c.Titulo).ToList();
+        MontarMenuColunas(p, vazias);
         ColunasFixas = colunasVisiveis.TakeWhile(c => c.Chave is ChaveColuna.Numero or ChaveColuna.Processo).Count();
     }
 
@@ -505,15 +518,21 @@ public sealed partial class MainWindow
     int ColunasFixas;
     double ultimoDeslocamento = -1;
 
-    Border CelulaFixa(FrameworkElement conteudo, int coluna, Thickness padding)
+    /// <summary>Célula fixa em três camadas (fundo da página › cartão › faixa do título), que repetem as da tabela: rolada, a parte fixa
+    /// tem a mesma cor do resto. <paramref name="titulo"/> = célula do cabeçalho (ganha a terceira camada).</summary>
+    Border CelulaFixa(FrameworkElement conteudo, int coluna, Thickness padding, bool titulo = false)
     {
+        // Cobre o espaço entre colunas (10) com folga de 1 px de cada lado: em 125/150 % de escala sobrava uma fresta por onde aparecia
+        // o texto das colunas que passam por baixo.
+        // A primeira coluna cobre também a margem da linha dentro da lista (uns 4 px): por ali apareciam pedaços das etiquetas de status.
+        var esquerda = coluna == 0 ? padding.Left + (titulo ? 0 : 6) : 6;
+        var interno = new Border { Child = conteudo, Padding = new Thickness(esquerda, padding.Top, 6, padding.Bottom), Tag = titulo };
         var b = new Border
         {
-            Child = conteudo,
-            // Cobre o espaço entre colunas e o recuo da linha, para o conteúdo das outras colunas não aparecer por baixo ao rolar.
-            Margin = new Thickness(coluna == 0 ? -padding.Left : -5, -padding.Top, -5, -padding.Bottom),
-            Padding = new Thickness(coluna == 0 ? padding.Left : 5, padding.Top, 5, padding.Bottom),
+            Child = new Border { Child = interno },
+            Margin = new Thickness(-esquerda, -padding.Top, -6, -padding.Bottom),
             RenderTransform = new TranslateTransform(),
+            Tag = coluna,
         };
         Canvas.SetZIndex(b, 2);
         celulasFixas.Add(b);
@@ -526,12 +545,28 @@ public sealed partial class MainWindow
         var x = Ac.RolagemTabela.HorizontalOffset;
         if (soSeMudou && x == ultimoDeslocamento) return;
         ultimoDeslocamento = x;
-        var estilo = x > 0.5 ? (Style)Ac.RaizPagina.Resources["PmvniCelulaFixaStyle"] : null;
-        foreach (var b in celulasFixas)
+        var rolada = x > 0.5;
+        var r = Ac.RaizPagina.Resources;
+        Style? Estilo(string chave) => rolada ? (Style)r[chave] : null;
+        void Por(Border b, Style? s)
+        {
+            if (ReferenceEquals(b.Style, s)) return;
+            b.Style = s;
+            if (s is null) { b.ClearValue(Border.BackgroundProperty); b.ClearValue(Border.BorderBrushProperty); b.ClearValue(Border.BorderThicknessProperty); }
+        }
+        // As do cabeçalho vêm direto da grade do título: na lista elas se perdiam ao redesenhar as linhas e o título fixo ficava
+        // parado enquanto as linhas andavam (2026-11-17).
+        var cabecalho = Ac.CabecalhoTabela.Children.OfType<Border>().Where(b => b.Tag is int);
+        foreach (var b in celulasFixas.Where(c => !ReferenceEquals(c.Parent, Ac.CabecalhoTabela)).Concat(cabecalho))
         {
             if (b.RenderTransform is TranslateTransform t) t.X = x;
-            if (estilo is null) { b.Style = null; b.ClearValue(Border.BackgroundProperty); }
-            else if (!ReferenceEquals(b.Style, estilo)) b.Style = estilo;
+            var ultima = b.Tag is int col && col == ColunasFixas - 1;
+            Por(b, Estilo(ultima ? "PmvniCelulaFixaBordaStyle" : "PmvniCelulaFixaStyle"));
+            if (b.Child is Border cartao)
+            {
+                Por(cartao, Estilo("PmvniCelulaFixaCartaoStyle"));
+                if (cartao.Child is Border { Tag: true } faixa) Por(faixa, Estilo("PmvniCelulaFixaTituloStyle"));
+            }
         }
     }
 
@@ -559,7 +594,7 @@ public sealed partial class MainWindow
             var painel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             painel.Children.Add(new TextBlock { Text = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
             if (ativa) painel.Children.Add(new FontIcon { Glyph = ordemDecrescente ? "" : "", FontSize = 11 });
-            var b = new Button { Content = painel, Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(0, 10, 0, 10), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left };
+            var b = new Button { Content = painel, Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(0, 10, 0, 10), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = Centralizada(c) ? HorizontalAlignment.Center : HorizontalAlignment.Left };
             // O sentido da ordem não fica só no ícone: o nome e a dica dizem (Narrador).
             var nomeCol = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo;
             var dicaOrdem = ativa ? $"{nomeCol}, em ordem {(ordemDecrescente ? "decrescente" : "crescente")}. Clique para a ordem {(ordemDecrescente ? "crescente" : "decrescente")}." : $"Ordenar por {nomeCol}";
@@ -575,11 +610,89 @@ public sealed partial class MainWindow
                 MontarCabecalho();
                 PreencherLista();
             };
-            FrameworkElement celula = i < ColunasFixas ? CelulaFixa(b, i, g.Padding) : b;
+            // Alça de largura na borda direita do título (pedido do usuário, 2026-11-17: colunas redimensionáveis, como no Excel).
+            var indice = i;
+            var alca = new AlcaColuna { LarguraAtual = () => g.ColumnDefinitions[indice].Width.Value, Margin = new Thickness(0, 0, -11, 0) };
+            ToolTipService.SetToolTip(alca, "Arraste para mudar a largura; dois cliques voltam ao padrão");
+            alca.Mudando += w => AplicarLargura(indice, w);
+            alca.Mudou += w => { ajustes.AcompanhamentoLarguras[ChaveColunaAjustes(col)] = w; SalvarAjustes(); AplicarLargura(indice, w); };
+            alca.Restaurar += () => { ajustes.AcompanhamentoLarguras.Remove(ChaveColunaAjustes(col)); SalvarAjustes(); AplicarLargura(indice, LarguraPadrao(col)); };
+            var titulo = new Grid();
+            titulo.Children.Add(b);
+            titulo.Children.Add(alca);
+            Canvas.SetZIndex(alca, 1);
+            FrameworkElement celula = i < ColunasFixas ? CelulaFixa(titulo, i, g.Padding, titulo: true) : titulo;
             Grid.SetColumn(celula, i++);
             g.Children.Add(celula);
         }
         FixarColunas();
+    }
+
+    /// <summary>Muda a largura da coluna <paramref name="indice"/> no título e em todas as linhas já desenhadas, sem refazer a tabela
+    /// (o arraste fica liso); a largura total da tabela acompanha.</summary>
+    void AplicarLargura(int indice, double largura)
+    {
+        if (indice >= Ac.CabecalhoTabela.ColumnDefinitions.Count) return;
+        var antes = Ac.CabecalhoTabela.ColumnDefinitions[indice].Width.Value;
+        if (Math.Abs(antes - largura) < 0.5) return;
+        var nova = new GridLength(largura);
+        Ac.CabecalhoTabela.ColumnDefinitions[indice].Width = nova;
+        var total = Ac.Tabela.Width + largura - antes;
+        Ac.Tabela.Width = total;
+        foreach (var item in Ac.Lista.Items)
+            if (item is Grid linha && indice < linha.ColumnDefinitions.Count)
+            {
+                linha.ColumnDefinitions[indice].Width = nova;
+                linha.Width = total - 8;
+            }
+    }
+
+    // ---------- escolher as colunas (botão "Colunas") ----------
+
+    /// <summary>Uma marca por coluna da planilha: desmarcar tira a coluna da tabela (lembrado nos Ajustes). Processo não sai; colunas
+    /// vazias em todos os processos ficam desativadas ("sem dados"). No fim, "Mostrar todas" e "Larguras padrão".</summary>
+    void MontarMenuColunas(PlanilhaLida p, IReadOnlyCollection<Coluna> vazias)
+    {
+        var menu = Ac.MenuColunas;
+        menu.Items.Clear();
+        foreach (var c in p.Colunas)
+        {
+            var nome = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo;
+            var vazia = vazias.Contains(c);
+            var item = new ToggleMenuFlyoutItem
+            {
+                Text = vazia ? nome + " (sem dados)" : nome,
+                IsChecked = !vazia && !ajustes.AcompanhamentoColunasOcultas.Contains(ChaveColunaAjustes(c)),
+                IsEnabled = !vazia && c.Chave != ChaveColuna.Processo,
+            };
+            var col = c;
+            item.Click += (_, _) =>
+            {
+                var chave = ChaveColunaAjustes(col);
+                ajustes.AcompanhamentoColunasOcultas.Remove(chave);
+                if (!item.IsChecked) ajustes.AcompanhamentoColunasOcultas.Add(chave);
+                SalvarAjustes();
+                RefazerTabela();
+            };
+            menu.Items.Add(item);
+        }
+        menu.Items.Add(new MenuFlyoutSeparator());
+        var todas = new MenuFlyoutItem { Text = "Mostrar todas", Icon = new FontIcon { Glyph = "\uE890" }, IsEnabled = ajustes.AcompanhamentoColunasOcultas.Count > 0 };
+        todas.Click += (_, _) => { ajustes.AcompanhamentoColunasOcultas.Clear(); SalvarAjustes(); RefazerTabela(); };
+        menu.Items.Add(todas);
+        var padrao = new MenuFlyoutItem { Text = "Larguras padrão", Icon = new FontIcon { Glyph = "\uE72C" }, IsEnabled = ajustes.AcompanhamentoLarguras.Count > 0 };
+        padrao.Click += (_, _) => { ajustes.AcompanhamentoLarguras.Clear(); SalvarAjustes(); RefazerTabela(); };
+        menu.Items.Add(padrao);
+        var ocultas = p.Colunas.Count(c => !vazias.Contains(c) && c.Chave != ChaveColuna.Processo && ajustes.AcompanhamentoColunasOcultas.Contains(ChaveColunaAjustes(c)));
+        Ac.TextoColunas.Text = ocultas == 0 ? "Colunas" : $"Colunas ({ocultas} oculta{(ocultas == 1 ? "" : "s")})";
+    }
+
+    void RefazerTabela()
+    {
+        if (planilha is not { } p) return;
+        CalcularColunasVisiveis(p);
+        MontarCabecalho();
+        PreencherLista();
     }
 
     bool PassaNoFiltro(LinhaAc l)
@@ -674,6 +787,11 @@ public sealed partial class MainWindow
                 el = new TextBlock { Text = texto, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = false };
             else el = TextoCelula(texto);
             el.VerticalAlignment = VerticalAlignment.Center;
+            if (Centralizada(c))
+            {
+                el.HorizontalAlignment = HorizontalAlignment.Center;
+                if (el is TextBlock tb) tb.TextAlignment = TextAlignment.Center;
+            }
             FrameworkElement celula = i < ColunasFixas ? CelulaFixa(el, i, g.Padding) : el;
             Grid.SetColumn(celula, i++);
             g.Children.Add(celula);

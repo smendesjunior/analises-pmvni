@@ -160,6 +160,7 @@ public sealed partial class MainWindow
         {
             if (menu == ComandosApp.ArquivoRecentes) await AbrirRecenteAsync(valor);
             else if (menu == ComandosApp.ProcessosAno) await DefinirAnoAsync(valor);
+            else if (menu == ComandosApp.FigurasAbrirEditor && valor == ValorAdicionarFigura) AbrirRecortePrancha(figuraSelecionada);
             else if (menu == ComandosApp.FigurasAbrirEditor) AbrirEditorFigura(valor);
         };
         foreach (var t in Ajustes.Temas)
