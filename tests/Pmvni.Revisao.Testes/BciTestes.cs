@@ -144,7 +144,13 @@ public class BciTestes
         };
         var socios = VinculoBci.Socios(campos, campos["nome_do_contribuinte"]);
         Assert.Equal(["BELTRANA SOUZA"], socios);
-        const string I = "01030300413001";
+        // A coluna real da base QGIS: nomes com CPF/CNPJ, separados por vírgula.
+        var reais = VinculoBci.Socios(new Dictionary<string, string?>
+        {
+            ["vinculos"] = "FULANO DE TAL SILVA 00000000191, BELTRANA SOUZA LIMA 00000000272, IMOBILIARIA EXEMPLO LTDA  00.000.000/0001-91",
+        }, campos["nome_do_contribuinte"]);
+        Assert.Equal(["BELTRANA SOUZA LIMA", "IMOBILIARIA EXEMPLO LTDA"], reais);
+        const string I = "09090090009001";
         var n = VinculoBci.Pontuar(I, campos["nome_do_contribuinte"], socios, P("g", "Beltrana Souza"));
         Assert.Equal(VinculoBci.Requerente, n.Nota);
         Assert.Contains("sócio", n.Motivo);

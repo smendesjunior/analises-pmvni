@@ -314,6 +314,9 @@ public sealed class Ajustes
         Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ") is { } env && !string.IsNullOrWhiteSpace(env) ? env
         : string.IsNullOrWhiteSpace(PastaKit) ? PastaKitPadrao : PastaKit;
 
+    /// <summary>Chaves que o app deixou de usar de propósito: saem do arquivo na próxima gravação (as desconhecidas, não).</summary>
+    static readonly HashSet<string> Aposentadas = new(StringComparer.Ordinal) { "pasta_legislacao" };
+
     public static Ajustes Carregar(string raizDados)
     {
         var arquivo = Path.Combine(raizDados, NomeArquivo);
@@ -462,6 +465,22 @@ public sealed class Ajustes
             ["atualizar_automaticamente"] = AtualizarAutomaticamente,
         };
         var arquivo = Path.Combine(raizDados, NomeArquivo);
+        // Persistência entre versões (2026-11-17, pedido do usuário: "as atualizações estão fazendo perder alguns dados"): chaves que esta
+        // versão não conhece (gravadas por outra mais nova ou mais velha) continuam no arquivo; e, na primeira gravação de cada versão, o
+        // arquivo anterior fica como ajustes.anterior.json.
+        try
+        {
+            if (File.Exists(arquivo) && JsonNode.Parse(File.ReadAllText(arquivo)) is JsonObject antigo)
+            {
+                foreach (var (chave, valor) in antigo.ToList())
+                    if (!j.ContainsKey(chave) && chave != "versao_gravada" && !Aposentadas.Contains(chave)) j[chave] = valor?.DeepClone();
+                var versao = typeof(Ajustes).Assembly.GetName().Version?.ToString() ?? "";
+                if (Texto(antigo, "versao_gravada") != versao)
+                    File.Copy(arquivo, Path.Combine(raizDados, "ajustes.anterior.json"), overwrite: true);
+            }
+        }
+        catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException) { }
+        j["versao_gravada"] = typeof(Ajustes).Assembly.GetName().Version?.ToString();
         var tmp = arquivo + ".tmp";
         File.WriteAllText(tmp, j.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
         File.Move(tmp, arquivo, overwrite: true);

@@ -82,6 +82,8 @@ public sealed partial class MainWindow
         {
             if (!preenchendoNovo && n.CaixaProcesso.SelectedItem is ComboBoxItem { Tag: Processo p }) NaOrigem(() => TrocarProcessoNaVezAsync(p));
         };
+        n.BotaoNovoProcesso.Click += (_, _) => NaOrigem(NovoProcessoNoDespachoAsync);
+        n.BotaoSemProcesso.Click += (_, _) => NaOrigem(DespachoSemProcessoAsync);
         n.CaixaRelatorio.SelectionChanged += (_, _) =>
         {
             if (!preenchendoNovo && n.CaixaRelatorio.SelectedItem is ComboBoxItem { Tag: string c }) NaOrigem(() => TrocarRelatorioNaVezAsync(c));
@@ -494,6 +496,30 @@ public sealed partial class MainWindow
         s.DefinirModelo(modelo);
         if (s.CaminhoPacote is { } c) await CarregarPacoteAsync(s, c);
         else MostrarPassoAtual(s);
+    }
+
+    /// <summary>"Novo processo…" no Novo despacho (2026-11-17, pedido do usuário): cria a pasta e já a escolhe.</summary>
+    async Task NovoProcessoNoDespachoAsync()
+    {
+        if (novo is not { SoPdf: false } s || await CriarPastaProcessoAsync() is not { } p) return;
+        var mesmo = s.Processos.FirstOrDefault(x => string.Equals(x.Pasta, p.Pasta, StringComparison.OrdinalIgnoreCase));
+        if (mesmo is null) { s.Processos = s.Processos.Append(p).ToList(); mesmo = p; }
+        PreencherOrigem(s);
+        await TrocarProcessoNaVezAsync(mesmo);
+        PreencherOrigem(s);
+    }
+
+    /// <summary>"Sem processo…" (2026-11-17, pedido do usuário): o despacho não fica ligado a um processo; o usuário escolhe a pasta onde
+    /// ele será gravado (a etapa DESPACHO nn é criada nela) e preenche protocolo e requerente na folha.</summary>
+    async Task DespachoSemProcessoAsync()
+    {
+        if (novo is not { SoPdf: false } s || await Perguntas.Atual.EscolherPastaAsync() is not { } pasta) return;
+        var p = new Processo(pasta, Path.GetFileName(pasta.TrimEnd(Path.DirectorySeparatorChar)) + " (sem processo)", null, null, null);
+        var mesmo = s.Processos.FirstOrDefault(x => string.Equals(x.Pasta, p.Pasta, StringComparison.OrdinalIgnoreCase));
+        if (mesmo is null) { s.Processos = s.Processos.Append(p).ToList(); mesmo = p; }
+        PreencherOrigem(s);
+        await TrocarProcessoNaVezAsync(mesmo);
+        PreencherOrigem(s);
     }
 
     async Task TrocarProcessoNaVezAsync(Processo p)

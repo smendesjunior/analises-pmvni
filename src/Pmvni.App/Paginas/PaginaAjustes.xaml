@@ -334,10 +334,15 @@
             <TextBlock Text="Profissional responsável" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel Padding="16,12" Spacing="8">
               <TextBlock Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap" Text="O nome e os dados que aparecem abaixo da linha de assinatura dos despachos e no fim dos relatórios gerados. Campo vazio mantém o texto do modelo."/>
-              <TextBox x:Name="CaixaProfissionalNome" x:FieldModifier="internal" Header="Nome" PlaceholderText="ex.: SIDNEY AUGUSTO MENDES JUNIOR" AutomationProperties.Name="Nome do profissional"/>
+              <TextBox x:Name="CaixaProfissionalNome" x:FieldModifier="internal" Header="Nome" PlaceholderText="ex.: FULANO DE TAL" AutomationProperties.Name="Nome do profissional"/>
               <TextBox x:Name="CaixaProfissionalProfissao" x:FieldModifier="internal" Header="Profissão" PlaceholderText="ex.: ARQUITETO E URBANISTA" AutomationProperties.Name="Profissão"/>
-              <TextBox x:Name="CaixaProfissionalRegistro" x:FieldModifier="internal" Header="Registro profissional" PlaceholderText="ex.: CAU/ES A297986-1" AutomationProperties.Name="Registro profissional (CAU ou CREA)"/>
-              <TextBox x:Name="CaixaProfissionalMatricula" x:FieldModifier="internal" Header="Matrícula" PlaceholderText="ex.: 969744" AutomationProperties.Name="Matrícula"/>
+              <TextBox x:Name="CaixaProfissionalRegistro" x:FieldModifier="internal" Header="Registro profissional" PlaceholderText="ex.: CAU/ES A000000-0" AutomationProperties.Name="Registro profissional (CAU ou CREA)"/>
+              <TextBox x:Name="CaixaProfissionalMatricula" x:FieldModifier="internal" Header="Matrícula" PlaceholderText="ex.: 123456" AutomationProperties.Name="Matrícula"/>
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button x:Name="BotaoSalvarProfissional" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Salvar dados" AutomationProperties.Name="Salvar os dados do profissional"
+                        local:Dicas.Titulo="Salvar dados" local:Dicas.Descricao="Grava nome, profissão, registro e matrícula; valem a partir do próximo despacho e relatório."/>
+                <TextBlock x:Name="TextoProfissionalSalvo" x:FieldModifier="internal" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteAjuda}"/>
+              </StackPanel>
             </StackPanel></Border>
             <!-- Assinatura digital (2026-11-16): o certificado que assina o PDF dos despachos. A senha nunca aparece aqui nem vai para o ajustes.json. -->
             <TextBlock Text="Assinatura digital" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>

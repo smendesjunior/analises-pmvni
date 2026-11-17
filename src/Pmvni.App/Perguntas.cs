@@ -66,7 +66,8 @@ internal interface IPerguntas
     /// <summary>Escolhe um item de uma lista curta (os certificados do Windows); o índice escolhido, ou null se cancelou. Padrão: cancelar.</summary>
     Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens) => Task.FromResult<int?>(null);
 
-    /// <summary>Como a outra, já com o item <paramref name="selecionado"/> marcado (Enter confirma) e o texto do botão principal.</summary>
+    /// <summary>Como a outra, já com o item <paramref name="selecionado"/> marcado (Enter confirma) e o texto do botão principal;
+    /// <paramref name="botao"/> vazio = sem botão principal, o clique no item escolhe.</summary>
     Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens, int selecionado, string botao) => EscolherNaListaAsync(titulo, texto, itens);
 }
 
@@ -238,6 +239,17 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         };
         lista.SelectionChanged += (_, _) => d.IsPrimaryButtonEnabled = lista.SelectedIndex >= 0;
         if (selecionado >= 0 && selecionado < itens.Count) lista.SelectedIndex = selecionado;
+        if (botao.Length == 0)
+        {
+            // Sem botão principal (2026-11-17, pedido do usuário): clicar no item já é a escolha; só "Cancelar" fica embaixo.
+            d.PrimaryButtonText = "";
+            int? clicado = null;
+            lista.SelectionMode = ListViewSelectionMode.None;
+            lista.IsItemClickEnabled = true;
+            lista.ItemClick += (_, e) => { clicado = lista.Items.IndexOf(e.ClickedItem); d.Hide(); };
+            await Mostrar(d);
+            return clicado is >= 0 ? clicado : null;
+        }
         return await Mostrar(d) == ContentDialogResult.Primary && lista.SelectedIndex >= 0 ? lista.SelectedIndex : null;
     }
 

@@ -188,6 +188,14 @@ public sealed class RascunhoDespacho
         else _intervencoes.Remove(i);
     }
 
+    /// <summary>Tipo de obra digitado à mão (além dos três de marcar); "" = nenhum.</summary>
+    public string IntervencaoManual { get; private set; } = "";
+
+    public void DefinirIntervencaoManual(string? texto) => IntervencaoManual = TextoEditado.Normalizar(texto ?? "");
+
+    /// <summary>O tipo de obra como entra no texto: os marcados e o digitado.</summary>
+    public string TextoIntervencao => ConteudoDespacho.Intervencoes(_intervencoes, IntervencaoManual);
+
     public void DefinirArea(string texto) => AreaTotal = TextoEditado.Normalizar(texto);
 
     /// <summary>O que o usuário ainda precisa preencher, na ordem da tela; vazio = pode gerar.</summary>
@@ -210,7 +218,7 @@ public sealed class RascunhoDespacho
         }
         else
         {
-            if (_intervencoes.Count == 0) f.Add(ConteudoDespacho.FaltaIntervencao);
+            if (_intervencoes.Count == 0 && IntervencaoManual.Length == 0) f.Add(ConteudoDespacho.FaltaIntervencao);
             if (!ConteudoDespacho.AreaValida(AreaTotal)) f.Add(ConteudoDespacho.FaltaArea);
         }
         return f;
@@ -235,7 +243,7 @@ public sealed class RascunhoDespacho
             corpo.Add(tx.Paragrafos.Single(p => p.Id == "fechamento").Texto);
         }
         else
-            corpo.AddRange(tx.Paragrafos.Select(p => ConteudoDespacho.Resolver(p.Texto, ConteudoDespacho.Intervencoes(_intervencoes), AreaTotal)));
+            corpo.AddRange(tx.Paragrafos.Select(p => ConteudoDespacho.Resolver(p.Texto, TextoIntervencao, AreaTotal)));
         return new DespachoFinal(Tipo, Protocolo, Requerente, Assunto, DataPorExtenso, grupos, corpo);
     }
 }
@@ -255,10 +263,14 @@ public static class ConteudoDespacho
 
     static readonly string[] NomesIntervencao = { "obra nova", "alteração de obra", "ampliação de obra" };
 
-    public static string Intervencoes(IEnumerable<Intervencao> i)
+    public static string Intervencoes(IEnumerable<Intervencao> i) => Intervencoes(i, null);
+
+    /// <summary>Com <paramref name="manual"/> (o tipo digitado à mão) no fim da lista.</summary>
+    public static string Intervencoes(IEnumerable<Intervencao> i, string? manual)
     {
         ArgumentNullException.ThrowIfNull(i);
         var nomes = i.Distinct().Order().Select(x => NomesIntervencao[(int)x]).ToList();
+        if (!string.IsNullOrWhiteSpace(manual)) nomes.Add(manual.Trim());
         return nomes.Count switch
         {
             0 => "",
@@ -420,6 +432,8 @@ public static class ConteudoDespacho
                 var nomes = texto.Replace(" e ", ",", StringComparison.Ordinal).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
                 for (var i = 0; i < NomesIntervencao.Length; i++)
                     r.DefinirIntervencao((Intervencao)i, nomes.Any(n => string.Equals(n, NomesIntervencao[i], StringComparison.OrdinalIgnoreCase)));
+                // O que não é um dos três tipos é o tipo digitado à mão (2026-11-17, "opção manual").
+                r.DefinirIntervencaoManual(string.Join(", ", nomes.Where(n => !NomesIntervencao.Contains(n, StringComparer.OrdinalIgnoreCase))));
                 return true;
             default:
                 return false;
@@ -529,7 +543,7 @@ public static class ConteudoDespacho
 
     static void CorpoAprovacao(List<ParagrafoPrevia> lista, RascunhoDespacho r, TextosFixos tx, int iVaga)
     {
-        var intervencao = Intervencoes(r.Intervencoes);
+        var intervencao = r.TextoIntervencao;
         var areaOk = AreaValida(r.AreaTotal);
         foreach (var p in tx.Paragrafos)
         {

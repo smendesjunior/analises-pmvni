@@ -157,7 +157,20 @@ public sealed partial class MainWindow
                 definir(string.IsNullOrWhiteSpace(caixa.Text) ? null : caixa.Text.Trim());
                 Pmvni.Composicao.Profissional.Atual = ajustes.Profissional;
                 SalvarAjustes();
+                p.TextoProfissionalSalvo.Text = "";
             };
+        // "Salvar dados" (pedido do usuário): grava na hora e confirma (os campos também gravam sozinhos ao digitar).
+        p.BotaoSalvarProfissional.Click += (_, _) =>
+        {
+            string? Valor(TextBox c) => string.IsNullOrWhiteSpace(c.Text) ? null : c.Text.Trim();
+            ajustes.ProfissionalNome = Valor(p.CaixaProfissionalNome);
+            ajustes.ProfissionalProfissao = Valor(p.CaixaProfissionalProfissao);
+            ajustes.ProfissionalRegistro = Valor(p.CaixaProfissionalRegistro);
+            ajustes.ProfissionalMatricula = Valor(p.CaixaProfissionalMatricula);
+            Pmvni.Composicao.Profissional.Atual = ajustes.Profissional;
+            SalvarAjustes();
+            p.TextoProfissionalSalvo.Text = "Dados salvos. Valem a partir do próximo despacho e relatório.";
+        };
         AoAlternar(p.AlternarConfirmarCancelar, sim => ajustes.ConfirmarCancelar = sim);
         AoAlternar(p.AlternarConfirmarFechar, sim => ajustes.ConfirmarFechar = sim);
         IniciarAtualizacoes();

@@ -206,6 +206,7 @@ public static class FluxoNovoDespacho
         para.DefinirCabecalho("assunto", de.Assunto);
         if (de.CamposEditados.Contains("cabecalho:data")) para.DefinirCabecalho("data", de.DataPorExtenso);
         foreach (var i in Enum.GetValues<Intervencao>()) para.DefinirIntervencao(i, de.Intervencoes.Contains(i));
+        para.DefinirIntervencaoManual(de.IntervencaoManual);
         para.DefinirArea(de.AreaTotal);
         var ids = para.Pendencias.Select(p => p.ItemId).ToHashSet(StringComparer.Ordinal);
         var ordem = de.Pendencias.Where(p => ids.Contains(p.ItemId)).ToList();

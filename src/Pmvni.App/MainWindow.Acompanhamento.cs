@@ -432,11 +432,20 @@ public sealed partial class MainWindow
             Ac.BlocoAprovacao.Children.Add(new TextBlock { Text = aprov.Titulo.ToUpperInvariant(), Style = (Style)Application.Current.Resources["PmvniPainelRotulo"] });
             foreach (var (valor, n) in p.Contagem(ChaveColuna.Aprovacao))
             {
-                var linha = new Grid { ColumnSpacing = 10 };
+                // Etiquetas da mesma largura, texto centrado, e o número centrado na altura delas (correção de alinhamento, 2026-11-17).
+                var linha = new Grid { ColumnSpacing = 10, Margin = new Thickness(0, 2, 0, 2) };
                 linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                linha.Children.Add(Etiqueta(valor, aprov.CorDe(valor, null), 11));
-                var num = new TextBlock { Text = n.ToString(CultureInfo.InvariantCulture), FontSize = 20, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+                linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+                var tag = Etiqueta(valor, aprov.CorDe(valor, null), 11);
+                tag.VerticalAlignment = VerticalAlignment.Center;
+                if (tag is Border { Child: TextBlock tt } borda)
+                {
+                    borda.Width = 128;
+                    tt.TextAlignment = TextAlignment.Center;
+                    tt.HorizontalAlignment = HorizontalAlignment.Center;
+                }
+                linha.Children.Add(tag);
+                var num = new TextBlock { Text = n.ToString(CultureInfo.InvariantCulture), FontSize = 20, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, LineHeight = 22, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
                 Grid.SetColumn(num, 1);
                 linha.Children.Add(num);
                 Ac.BlocoAprovacao.Children.Add(linha);

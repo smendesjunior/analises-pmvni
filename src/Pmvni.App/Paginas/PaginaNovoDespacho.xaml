@@ -47,6 +47,13 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="PROCESSO" Style="{StaticResource PmvniPainelRotulo}"/>
                   <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Processo"/>
+                  <Grid ColumnSpacing="6" Margin="0,6,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Button x:Name="BotaoNovoProcesso" x:FieldModifier="internal" Content="Novo processo…" HorizontalAlignment="Stretch" AutomationProperties.Name="Criar um processo novo"
+                            local:Dicas.Titulo="Novo processo…" local:Dicas.Descricao="Cria a pasta de um processo novo (número, ano e requerente) e já o escolhe para o despacho."/>
+                    <Button x:Name="BotaoSemProcesso" x:FieldModifier="internal" Grid.Column="1" Content="Sem processo…" HorizontalAlignment="Stretch" AutomationProperties.Name="Despacho sem processo vinculado"
+                            local:Dicas.Titulo="Sem processo…" local:Dicas.Descricao="Faz o despacho sem ligar a um processo: escolha a pasta onde ele será gravado e preencha protocolo e requerente na folha."/>
+                  </Grid>
                 </StackPanel>
                 <Border Style="{StaticResource PmvniPainelSeparador}"/>
                 <!-- Relatório base: os achados na pasta do processo, "Sem relatório" ou um escolhido à mão (.rpmvni de qualquer pasta, ou o
@@ -145,6 +152,7 @@
                        AutomationProperties.Name="Instrução para a IA modificar o despacho"/>
               <ProgressRing x:Name="AnelInstrucao" x:FieldModifier="internal" Grid.Column="2" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
               <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource AccentButtonStyle}" CornerRadius="16"
+                      Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0" VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                       AutomationProperties.Name="Aplicar a instrução" local:Dicas.Titulo="Pedir à IA" local:Dicas.Atalho="Enter"
                       local:Dicas.Descricao="Manda a instrução escrita ao lado para a IA mudar o despacho.">
                 <FontIcon Glyph="&#xE724;" FontSize="14"/>

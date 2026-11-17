@@ -63,10 +63,11 @@ public static class VinculoBci
         {
             if (string.IsNullOrWhiteSpace(v) || k.Equals("nome_do_contribuinte", StringComparison.OrdinalIgnoreCase)) continue;
             var n = k.ToLowerInvariant();
-            if (!(n.Contains("socio") || n.Contains("propriet") || n.Contains("compromiss") || n.Contains("nomes") || n.Contains("razoes") || n.Contains("titular"))) continue;
-            foreach (var parte in Regex.Split(v, @"[;|/,\r\n]+"))
+            // "vinculos" (base QGIS, conferido em 17/11/2026): "FULANO DE TAL SILVA 00000000191, BELTRANA DE SOUZA LIMA 00000000272".
+            if (!(n.Contains("vinculo") || n.Contains("socio") || n.Contains("propriet") || n.Contains("compromiss") || n.Contains("nomes") || n.Contains("razoes") || n.Contains("titular"))) continue;
+            foreach (var parte in Regex.Split(v, @"[;|,\r\n]+"))
             {
-                var nome = parte.Trim();
+                var nome = Regex.Replace(parte, @"\b\d[\d./\-]{7,}\d\b", " ").Trim();   // sem CPF/CNPJ
                 if (Palavras(nome).Count < 2 || NomesBatem(nome, contribuinte) || r.Any(x => NomesBatem(x, nome))) continue;
                 r.Add(nome);
             }

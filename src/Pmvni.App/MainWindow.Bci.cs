@@ -185,7 +185,7 @@ public sealed partial class MainWindow
         var texto = candidatos.Count > 0
             ? "Processo achado para " + ChaveBci.Estrita(insc) + " (" + quem + "). Confirme onde salvar o boletim, na pasta DOCUMENTOS."
             : "Nenhum processo achado para " + ChaveBci.Estrita(insc) + " (" + quem + "). Escolha uma pasta de processo ou crie um processo novo.";
-        var escolha = await Perguntas.Atual.EscolherNaListaAsync("Onde salvar o boletim?", texto, itens, candidatos.Count > 0 ? 0 : iNovo, "Salvar aqui");
+        var escolha = await Perguntas.Atual.EscolherNaListaAsync("Onde salvar o boletim?", texto, itens, -1, "");
         string? pasta = null;
         if (escolha is { } k && k < candidatos.Count) pasta = candidatos[k].Processo.Pasta;
         else if (escolha == iOutro) pasta = await Perguntas.Atual.EscolherPastaAsync();

@@ -336,9 +336,19 @@ public sealed partial class PaginaNovoDespacho
             var caixas = ConteudoDespacho.NomesDasIntervencoes
                 .Select(n => new CheckBox { Content = n, IsChecked = marcadas.Contains(n, StringComparer.OrdinalIgnoreCase) }).ToList();
             foreach (var c in caixas) painel.Children.Add(c);
+            // Opção manual (2026-11-17, pedido do usuário): outro tipo de obra, digitado.
+            var outro = new TextBox
+            {
+                Header = "Outro (digitar)", PlaceholderText = "ex.: regularização de obra",
+                Text = string.Join(", ", marcadas.Where(n => !ConteudoDespacho.NomesDasIntervencoes.Contains(n, StringComparer.OrdinalIgnoreCase))),
+            };
+            AutomationProperties.SetName(outro, "Outro tipo de obra");
+            outro.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; fly.Hide(); } };
+            painel.Children.Add(outro);
             fly.Closed += (_, _) =>
             {
-                var novo = string.Join(", ", caixas.Where(c => c.IsChecked == true).Select(c => (string)c.Content));
+                var novo = string.Join(", ", caixas.Where(c => c.IsChecked == true).Select(c => (string)c.Content)
+                    .Concat(string.IsNullOrWhiteSpace(outro.Text) ? [] : [outro.Text.Trim().Replace(" e ", ", ", StringComparison.Ordinal)]));
                 if (!string.Equals(novo, valor, StringComparison.Ordinal)) PreviaEditada?.Invoke(chave, novo);
             };
         }

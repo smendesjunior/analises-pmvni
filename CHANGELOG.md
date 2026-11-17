@@ -2,6 +2,17 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.6.3
+
+- **Boletim cadastral, "Onde salvar o boletim?":** basta clicar na opção (o processo achado, outro processo, criar novo processo ou só abrir); embaixo fica só "Cancelar".
+- **Sócios achados de verdade:** os nomes vêm dos vínculos do cadastro (ex.: "FULANO DE TAL, BELTRANA DE TAL"), sem o CPF/CNPJ; antes a busca por sócios não encontrava nenhum.
+- **Profissional responsável:** os exemplos dos campos agora são fictícios, e há o botão **Salvar dados** (que confirma a gravação).
+- **Novo despacho:** embaixo de "Processo", os botões **Novo processo…** (cria a pasta e já a escolhe) e **Sem processo…** (o despacho não fica ligado a um processo: você escolhe a pasta onde ele será gravado e preenche protocolo e requerente na folha).
+- **Tipo de obra:** além de obra nova, alteração e ampliação, o campo **Outro (digitar)** aceita qualquer tipo (ex.: regularização de obra).
+- **Pedir à IA (despacho):** o botão de enviar volta a ser um círculo perfeito.
+- **Acompanhamento:** as etiquetas de "Status da aprovação" ficam com a mesma largura, alinhadas com os números.
+- **Atualizações não perdem ajustes:** opções gravadas por outra versão do editor continuam no arquivo, e a cada versão nova fica uma cópia do arquivo anterior (ajustes.anterior.json).
+
 ## 0.6.2
 
 - **Ajustes › Despachos e PDF › Profissional responsável:** nome, profissão, registro (CAU/CREA) e matrícula de quem assina. Preenchendo, o bloco abaixo da linha de assinatura dos despachos e a assinatura no fim dos relatórios gerados passam a usar esses dados (cada profissional no seu computador); campo vazio mantém o texto do modelo.
