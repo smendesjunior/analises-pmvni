@@ -1,6 +1,7 @@
 <ResourceDictionary
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Pmvni.App">
   <!-- Estilos Fluent do app. As cores próprias (ícones dos módulos, fundo do item ativo do trilho, botão tonal) ficam em
        Recursos\IconesModulos.xaml, com uma versão para o tema claro, o escuro e o alto contraste. -->
 
@@ -200,6 +201,8 @@
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
+    <!-- Brilho verde em volta, como os botões do WinStatusBar (Controles\Brilho.cs); o AccentButtonStyle recebe o mesmo na abertura. -->
+    <Setter Property="local:Brilho.Ativo" Value="True"/>
   </Style>
 
   <!-- Cartões dos Ajustes (no padrão do WinStatusBar): grupo com fundo de cartão, borda e raio 8; linha = título + ajuda à esquerda e
