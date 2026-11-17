@@ -65,9 +65,9 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
     {
         var host = new HostOculto(larguraPx, alturaPx);
         host.thread.Start();
-        await host.prontoJanela.Task.ConfigureAwait(false);
         try
         {
+            await host.prontoJanela.Task.ConfigureAwait(false);
             await host.ExecutarNaStaAsync(async () =>
             {
                 // Mesma fábrica do controle XAML do app: mesmas opções de ambiente e controller InPrivate (nada do relatório no perfil).
@@ -127,6 +127,7 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
 
         contexto!.Post(async _ =>
         {
+            if (tcs.Task.IsCompleted) return;
             try { tcs.TrySetResult(await acao()); }
             catch (Exception e) { tcs.TrySetException(e); }
         }, null);
@@ -211,22 +212,26 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
         if (contexto is null || hwnd == IntPtr.Zero) return;
         contexto.Post(_ =>
         {
-            try { documento?.Desanexar(); } catch { }
-            try { controller?.Close(); } catch { }
+            try { documento?.Desanexar(); } catch (Exception e) { ErroInterno(e); }
+            try { controller?.Close(); } catch (Exception e) { ErroInterno(e); }
             controller = null;
             contexto.Fechar();
             DestroyWindow(hwnd);
+            hwnd = IntPtr.Zero;
             PostQuitMessage(0);
         }, null);
-        if (Thread.CurrentThread != thread) thread.Join(TimeSpan.FromSeconds(10));
+        if (Thread.CurrentThread != thread && !thread.Join(TimeSpan.FromSeconds(10)))
+            throw new TimeoutException("A thread STA do HostOculto não encerrou em 10 s.");
+        if (UltimoErroInterno is { } erro) throw new InvalidOperationException("Falha ao encerrar o HostOculto.", erro);
     }
 
     void LoopSta()
     {
+        var instancia = GetModuleHandle(null);
+        var nomeClasse = "PmvniHostOculto_" + Guid.NewGuid().ToString("N");
+        bool registrada = false;
         try
         {
-            var instancia = GetModuleHandle(null);
-            var nomeClasse = "PmvniHostOculto_" + Environment.ProcessId + "_" + Environment.CurrentManagedThreadId;
             wndProc = ProcessarMensagem;
             var classe = new WNDCLASSEX
             {
@@ -236,23 +241,43 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
                 lpszClassName = nomeClasse,
             };
             if (RegisterClassEx(ref classe) == 0) throw new InvalidOperationException("RegisterClassEx falhou: " + Marshal.GetLastWin32Error());
+            registrada = true;
             // Janela popup nunca mostrada (sem WS_VISIBLE): pai real para o controller do WebView2.
             hwnd = CreateWindowEx(0, nomeClasse, "Pmvni HostOculto", WS_POPUP, 0, 0, larguraPx, alturaPx, IntPtr.Zero, IntPtr.Zero, instancia, IntPtr.Zero);
             if (hwnd == IntPtr.Zero) throw new InvalidOperationException("CreateWindowEx falhou: " + Marshal.GetLastWin32Error());
             contexto = new ContextoSta(hwnd);
             SynchronizationContext.SetSynchronizationContext(contexto);
+            prontoJanela.TrySetResult();
+            int resultado;
+            while ((resultado = GetMessage(out var msg, IntPtr.Zero, 0, 0)) > 0)
+            {
+                // Trabalhos gerenciados fora do WndProc: WebView2 não deve ser fechado
+                // dentro de um callback nativo nem de um despacho Win32 aninhado.
+                if (msg.hwnd != hwnd || msg.message != WM_APP_EXECUTAR)
+                {
+                    TranslateMessage(ref msg);
+                    DispatchMessage(ref msg);
+                }
+                // Um loop nativo aninhado pode consumir a notificação. A fila é
+                // conferida também depois de voltar de qualquer despacho nativo.
+                contexto.Drenar(ErroInterno);
+            }
+            if (resultado < 0) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
         }
         catch (Exception e)
         {
             prontoJanela.TrySetException(e);
-            return;
+            falha = e;
+            ErroInterno(e);
         }
-        prontoJanela.TrySetResult();
-
-        while (GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
+        finally
         {
-            TranslateMessage(ref msg);
-            DispatchMessage(ref msg);
+            contexto?.Fechar();
+            if (hwnd != IntPtr.Zero) { DestroyWindow(hwnd); hwnd = IntPtr.Zero; }
+            if (registrada && !UnregisterClass(nomeClasse, instancia))
+                ErroInterno(new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()));
+            // O ponteiro nativo não mantém o delegate gerenciado vivo.
+            GC.KeepAlive(wndProc);
         }
     }
 
@@ -260,7 +285,7 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
     {
         if (mensagem == WM_APP_EXECUTAR)
         {
-            contexto?.Drenar(ErroInterno);
+            // A fila é drenada apenas pelo loop externo, nunca em despachos aninhados.
             return IntPtr.Zero;
         }
         return DefWindowProc(janela, mensagem, wParam, lParam);
@@ -328,8 +353,10 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
         public IntPtr wParam, lParam;
         public uint time;
         public int ptX, ptY;
+        public uint lPrivate;
     }
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool UnregisterClass(string nome, IntPtr instancia);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern ushort RegisterClassEx(ref WNDCLASSEX classe);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     static extern IntPtr CreateWindowEx(uint exStyle, string className, string windowName, uint style, int x, int y, int w, int h, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr param);
@@ -337,8 +364,8 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
     [DllImport("user32.dll")] static extern bool DestroyWindow(IntPtr hwnd);
     [DllImport("user32.dll")] static extern void PostQuitMessage(int code);
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
-    [DllImport("user32.dll")] static extern int GetMessage(out MSG msg, IntPtr hwnd, uint min, uint max);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern int GetMessage(out MSG msg, IntPtr hwnd, uint min, uint max);
     [DllImport("user32.dll")] static extern bool TranslateMessage(ref MSG msg);
-    [DllImport("user32.dll")] static extern IntPtr DispatchMessage(ref MSG msg);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr DispatchMessage(ref MSG msg);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern IntPtr GetModuleHandle(string? name);
 }

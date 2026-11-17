@@ -29,6 +29,7 @@ public static class CofreSites
 
     static void Gravar(string arquivo, byte[] claro)
     {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("DPAPI exige Windows.");
         Directory.CreateDirectory(Path.GetDirectoryName(arquivo)!);
         try
         {
@@ -42,6 +43,7 @@ public static class CofreSites
 
     static T? Ler<T>(string arquivo) where T : class
     {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("DPAPI exige Windows.");
         try
         {
             if (!File.Exists(arquivo)) return null;

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -306,7 +306,11 @@ public partial class OrquestradorTestes
     {
         var real = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenAI", "Codex", "bin", "x", "codex.exe");
         Assert.Equal(Path.GetDirectoryName(Ambiente.AgenteFalso), ExecucaoProcesso.SomenteExecutaveisEm);
-        var antes = Process.GetProcesses().Count(p => p.ProcessName.Equals("codex", StringComparison.OrdinalIgnoreCase));
+        // Observa apenas partidas feitas pelo código sob teste; processos externos podem encerrar.
+        var iniciados = new List<string>();
+        ExecucaoProcesso.AoIniciar = iniciados.Add;
+        try
+        {
 
         var e = Assert.Throws<InvalidOperationException>(() => ExecucaoProcesso.Iniciar(real, new[] { "--version" }, Ambiente.PastaTestes, null, _ => { }, _ => { }, _ => { }));
         Assert.Equal("Programa fora da pasta permitida: " + real, e.Message);
@@ -317,7 +321,9 @@ public partial class OrquestradorTestes
         var subida = Path.Combine(Path.GetDirectoryName(Ambiente.AgenteFalso)!, "..", "..", "..", "..", "..", "Windows", "System32", "cmd.exe");
         Assert.Throws<InvalidOperationException>(() => ExecucaoProcesso.Iniciar(subida, new[] { "/c", "exit" }, Ambiente.PastaTestes, null, _ => { }, _ => { }, _ => { }));
 
-        Assert.Equal(antes, Process.GetProcesses().Count(p => p.ProcessName.Equals("codex", StringComparison.OrdinalIgnoreCase)));
+        Assert.Empty(iniciados);
+        }
+        finally { ExecucaoProcesso.AoIniciar = null; }
     }
 
     static async Task<FimAnalise> RodarSemPecas(string nome, Provedor p, Func<Pecas, Pecas> mudar, ModoAcesso modo = ModoAcesso.Conta)

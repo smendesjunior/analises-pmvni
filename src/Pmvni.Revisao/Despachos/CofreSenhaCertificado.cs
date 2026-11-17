@@ -19,6 +19,7 @@ public static class CofreSenhaCertificado
     /// <summary>Protege e grava (arquivo novo ao lado, depois troca). Senha vazia ⇒ <see cref="ArgumentException"/>.</summary>
     public static void Guardar(string raizDados, string certificado, string senha)
     {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("DPAPI exige Windows.");
         ArgumentNullException.ThrowIfNull(raizDados);
         if (string.IsNullOrEmpty(senha)) throw new ArgumentException("A senha não pode ser vazia.", nameof(senha));
         var destino = Arquivo(raizDados);
@@ -55,6 +56,7 @@ public static class CofreSenhaCertificado
     /// outro certificado ⇒ null.</summary>
     public static string? Ler(string raizDados, string certificado)
     {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("DPAPI exige Windows.");
         try
         {
             var arquivo = Arquivo(raizDados);

@@ -24,10 +24,11 @@ function Registrar([Parameter(ValueFromPipeline = $true)][string]$linha) {
     throw "Não consegui gravar no log: $log"
   }
 }
-$netTemp = Join-Path $env:TEMP '.net'
+# Extração exclusiva: não remove a extração do editor em uso.
+$netTemp = Join-Path $saida ('extracao-autoteste-' + [Guid]::NewGuid().ToString('N'))
+$env:DOTNET_BUNDLE_EXTRACT_BASE_DIR = $netTemp
 "TEMP=$env:TEMP" | Set-Content $log -Encoding utf8
 $pastaApp = Join-Path $netTemp ([IO.Path]::GetFileNameWithoutExtension($exe))
-if (Test-Path -LiteralPath $pastaApp) { Remove-Item -LiteralPath $pastaApp -Recurse -Force; "apagado: $pastaApp" | Registrar }
 foreach ($rodada in 1, 2) {
   $json = if ($rodada -eq 1) { Join-Path $saida 'autoteste.json' } else { Join-Path $saida 'autoteste-2.json' }
   if (Test-Path -LiteralPath $json) { Remove-Item -LiteralPath $json -Force }

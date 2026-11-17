@@ -26,6 +26,18 @@ $linkFixo = "https://github.com/$repo/releases/latest/download/$nomeManifesto"
 
 if ($Compilacao -notmatch '^\d{14}$') { throw "Compilação inválida: $Compilacao" }
 if (-not (Test-Path -LiteralPath $Exe)) { throw "Executável não encontrado: $Exe" }
+# Não publica executável avulso, antigo ou alterado depois dos testes/autotestes.
+$comprovante = Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($Exe))) 'build-validada.json'
+if (-not (Test-Path -LiteralPath $comprovante)) { throw 'Sem build-validada.json: execute tools\build-release.ps1 -SemGitHub antes de publicar.' }
+$v = Get-Content -LiteralPath $comprovante -Raw -Encoding UTF8 | ConvertFrom-Json
+$commitAtual = & git -C $raiz rev-parse HEAD
+if ($LASTEXITCODE -ne 0 -or -not $v.Commit -or $v.Commit -ne $commitAtual) { throw 'O commit atual difere da build validada. Refaça a build antes de publicar.' }
+$alteracoes = & git -C $raiz status --porcelain --untracked-files=no
+if ($LASTEXITCODE -ne 0 -or $alteracoes) { throw 'Há alterações sem commit. Grave o commit e refaça a build antes de publicar.' }
+if ($v.Compilacao -ne $Compilacao -or $v.Autoteste -ne $true -or [int]$v.Testes -le 0 -or
+    $v.Sha256 -ne (Get-FileHash -LiteralPath $Exe -Algorithm SHA256).Hash) {
+    throw 'O executável/compilação não corresponde à build validada. Nada foi publicado.'
+}
 $gh = (Get-Command gh -ErrorAction SilentlyContinue).Source
 if (-not $gh) { $gh = @("$env:ProgramFiles\GitHub CLI\gh.exe", "$env:LOCALAPPDATA\Programs\GitHub CLI\gh.exe") | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1 }
 if (-not $gh) { throw 'GitHub CLI (gh) não encontrado.' }

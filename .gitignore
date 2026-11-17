@@ -10,6 +10,7 @@ tests/saida/
 # em %USERPROFILE%/.pmvni-fid/<run>/, apagado no fim; em tests/saida ficam só os JSON de contagens e hashes.
 Aplicativo/*.pdb
 Aplicativo/*.exe
+Aplicativo/build-validada.json
 
 desktop.ini
 tools/instalar-resultado.txt

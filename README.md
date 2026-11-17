@@ -61,7 +61,8 @@ Aplicativo do Windows para a análise de projetos da Secretaria Municipal de Obr
 
 ## Para quem desenvolve
 
-- **Código:** `src` (WinUI 3, .NET 10). **Testes:** `tests`, com `dotnet test EditorRelatoriosPMVNI.sln`.
-- **Build da versão:** `tools\build-release.ps1`, que gera o executável, publica a Release e limpa os builds anteriores.
+- **Código:** `src` (WinUI 3, .NET 10). **Testes:** `tests`, com `dotnet test EditorRelatoriosPMVNI.sln -c Release -p:Platform=x64`. Os projetos portáveis usam `net10.0` sem RID; os testes Web herdam `win-x64`.
+- **Build e publicação:** `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\build-release.ps1`. Executa os sete projetos sequencialmente, exige TRX válido sem falhas e testa o executável duas vezes antes de publicar no GitHub. Não repete automaticamente testes reprovados. `-SemGitHub` gera somente a build local; `-SemLimpeza` preserva os intermediários para auditoria. Para incluir os testes opcionais do LibreOffice instalado, defina `$env:PMVNI_TESTES_LIBREOFFICE='1'` antes de executar.
+- **Reenvio de build validada:** `$v = Get-Content '.\Aplicativo\build-validada.json' -Raw | ConvertFrom-Json; & .\tools\publicar-github.ps1 -Exe '.\Aplicativo\Editor de Relatorios PMVNI.exe' -Compilacao $v.Compilacao`. O script exige o comprovante da build e confere o SHA-256 antes de criar a etiqueta e a Release. Uma compilação já publicada não é reenviada.
 - **Notas técnicas:** [docs/notas-tecnicas.md](docs/notas-tecnicas.md). **Auditoria e pendências:** [docs/auditoria/plano.md](docs/auditoria/plano.md).
 - **Telas para conferência:** o modo de captura (`tools\capturar-janela.cmd`, aberto pelo Explorador) grava um PNG de cada tela em `tests\saida\captura`.

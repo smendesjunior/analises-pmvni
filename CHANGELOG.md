@@ -6,6 +6,7 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 Primeira versão 1.0 do Editor de Relatórios PMVNI (o app mostra "Versão 1.0").
 
+- **Estabilidade e publicação:** encerramento mais seguro do visualizador em segundo plano e validação de cada projeto de testes antes de distribuir uma atualização. A publicação confere que o executável corresponde à build aprovada.
 - **Visualizador de documentos dos Sites da Prefeitura:** no Essencial (Minha mesa › protocolo › visualizar documento), o documento abre numa janela própria e carrega de verdade: páginas, zoom, imprimir e baixar funcionam, e a página do protocolo continua aberta na janela principal. Antes, o visualizador abria cinza, com campos como {{DATA.DOCUMENTO.NOME}} sem preencher, porque a janela nova do site era aberta no lugar da página do protocolo e perdia a ligação com ela.
 - **Brilho arco-íris só quando há trabalho:** o halo em pílula não fica mais aceso com o app parado (Imóveis, Sites da Prefeitura, temas claro e escuro). Ele apaga ao terminar, cancelar ou dar erro, ao trocar de módulo e quando o quadro sai de vista; a animação e o relógio dela também param, e os cantos dos quadros voltam ao original.
 - **Cabeçalho em pílulas:** Desfazer e Refazer ficam numa pílula só, com ícones e divisória (dicas com Ctrl+Z e Ctrl+Y); Anterior e Próxima ficam em outra pílula, com cantos redondos como a pesquisa. Sem brilho decorativo; segue o destaque do Windows e o tema.

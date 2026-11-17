@@ -10,7 +10,7 @@
          -> informar o espaço liberado.
   Não apaga web\paginador\node_modules (necessário para refazer o bundle), só os caches dele.
 #>
-param([switch]$SemGitHub)
+param([switch]$SemGitHub, [switch]$SemLimpeza)
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
 $projeto = Join-Path $raiz 'src\Pmvni.App\Pmvni.App.csproj'
@@ -28,23 +28,33 @@ function Tamanho([string]$caminho) {
 $saida = Join-Path $raiz 'tests\saida'
 New-Item -ItemType Directory -Force -Path $saida | Out-Null
 $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados'
-# Um projeto de teste por vez (-m:1): em paralelo, os testes de processos (soffice fictício, AgenteFalso) estouram os limites de tempo.
-& dotnet test (Join-Path $raiz 'EditorRelatoriosPMVNI.sln') -c Release --nologo -m:1
-if ($LASTEXITCODE -ne 0) {
-    # Alguns testes medem tempo (LibreOffice, PDF.js, paginador) e falham à toa com o PC ocupado. Cada projeto de teste roda de novo, uma vez;
-    # um defeito de verdade falha nas duas e continua bloqueando a publicação (2026-11-16).
-    Write-Warning 'Algum teste falhou; cada projeto de teste roda mais uma vez antes de desistir.'
-    foreach ($p in Get-ChildItem (Join-Path $raiz 'tests') -Filter 'Pmvni.*.Testes.csproj' -Recurse) {
-        & dotnet test $p.FullName -c Release --nologo --no-build
-        if ($LASTEXITCODE -ne 0) { throw "Os testes de $($p.BaseName) falharam duas vezes (código $LASTEXITCODE): nenhuma versão foi publicada." }
+$commitFonte = & git -C $raiz rev-parse HEAD
+if ($LASTEXITCODE -ne 0) { throw 'Não foi possível identificar o commit da build.' }
+# A solução mapeia Release para x64. Executar projetos com a mesma plataforma evita
+# procurar bin/Release depois de compilar em bin/x64/Release. Sem retry: toda falha bloqueia.
+$projetosTeste = @(Get-ChildItem (Join-Path $raiz 'tests') -Filter 'Pmvni.*.Testes.csproj' -Recurse | Sort-Object FullName)
+if ($projetosTeste.Count -eq 0) { throw 'Nenhum projeto de teste encontrado.' }
+$falhasTeste = @()
+foreach ($p in $projetosTeste) {
+    Write-Host "Testando $($p.BaseName) (Release/x64)..."
+    $trx = Join-Path $saida "resultados\$($p.BaseName).trx"
+    if (Test-Path -LiteralPath $trx) { Remove-Item -LiteralPath $trx -Force }
+    & dotnet test $p.FullName -c Release "-p:Platform=x64" --nologo "-m:1" --logger "trx;LogFileName=$($p.BaseName).trx" --results-directory (Join-Path $saida 'resultados')
+    $codigoTeste = $LASTEXITCODE
+    if ($codigoTeste -ne 0) { $falhasTeste += "$($p.BaseName) (código $codigoTeste)"; continue }
+    if (-not (Test-Path -LiteralPath $trx)) { $falhasTeste += "$($p.BaseName) (sem TRX)"; continue }
+    $resultadoTeste = ([xml](Get-Content -LiteralPath $trx -Raw)).TestRun.ResultSummary
+    if ($resultadoTeste.outcome -ne 'Completed' -or [int]$resultadoTeste.Counters.executed -eq 0 -or [int]$resultadoTeste.Counters.failed -ne 0) {
+        $falhasTeste += "$($p.BaseName) (resultado TRX inválido)"
     }
 }
+if ($falhasTeste.Count) { throw "Testes reprovados: $($falhasTeste -join ', '). Nenhuma versão foi publicada." }
 
 # 1. Publicar
 if (Test-Path -LiteralPath $publicacao) { Remove-Item -LiteralPath $publicacao -Recurse -Force }
 # Carimbo da atualização automática (Atualizador.cs): aaaaMMddHHmmss; os PCs instalam a compilação mais nova publicada no GitHub.
 $compilacao = Get-Date -Format 'yyyyMMddHHmmss'
-& dotnet publish $projeto -c Release -o $publicacao --nologo "-p:CompilacaoAtualizacao=$compilacao"
+& dotnet publish $projeto -c Release "-p:Platform=x64" -r win-x64 -o $publicacao --nologo "-p:CompilacaoAtualizacao=$compilacao"
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish falhou (código $LASTEXITCODE)." }
 
 # 2. A publicação deve ter um único executável (um .pdb é tolerado e descartado)
@@ -115,6 +125,10 @@ Get-ChildItem -LiteralPath $pastaFinal -Force | Where-Object { $_.FullName -ne $
 }
 if ((Get-FileHash -LiteralPath $exeFinal -Algorithm SHA256).Hash -ne $hashFinal) { throw "Arquivo final difere do publicado: $exeFinal" }
 
+# Evidência vinculada ao arquivo efetivamente testado, exigida também na publicação manual.
+$validacao = [ordered]@{ Compilacao = $compilacao; Sha256 = $hashFinal; Commit = $commitFonte; Testes = $projetosTeste.Count; Autoteste = $true }
+$validacao | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $pastaFinal 'build-validada.json') -Encoding UTF8
+
 # 5a. GitHub (smendesjunior/analises-pmvni): Release com o .exe e o manifesto, para a atualização automática dos outros PCs.
 #     Uma falha aqui não desfaz o build: o .exe novo já está em Aplicativo\ e a publicação pode ser refeita com tools\publicar-github.ps1.
 #     -SemGitHub pula a publicação (por exemplo, sem internet).
@@ -122,6 +136,11 @@ if ($SemGitHub) { Write-Host 'Publicação no GitHub pulada (-SemGitHub).' }
 else {
     try { & (Join-Path $PSScriptRoot 'publicar-github.ps1') -Exe $exeFinal -Compilacao $compilacao }
     catch { Write-Warning "O .exe novo está em Aplicativo\, mas a publicação no GitHub ficou pendente: $($_.Exception.Message)" }
+}
+
+if ($SemLimpeza) {
+    Write-Host "Executável validado: $exeFinal (compilação $compilacao, SHA-256 $hashFinal). Intermediários preservados para auditoria (-SemLimpeza)."
+    return
 }
 
 # 5b. Limpeza: bin, obj, publicação e temporários dentro do projeto (caminhos conferidos sob $raiz)
