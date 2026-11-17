@@ -215,6 +215,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             PararTemporizadores();
             relogioAnalise.Stop();
             cancelarAnexo?.Cancel(); // a anexação em andamento para (o arquivo em processamento não entra)
+            if (pastaCompactadosNR is { } tmpCompactados) try { Directory.Delete(tmpCompactados, recursive: true); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { } // compactados abertos no Novo relatório
             cancelarReindexacao.Cancel();
             // O leitor e o extrator da legislação (controller oculto sobre esta janela) saem antes da janela.
             try { _ = leitorPdf?.DisposeAsync().AsTask(); } catch { }
@@ -420,6 +421,22 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                                 await Task.Delay(1200);
                                 await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "propriedades-ambiente.png"));
                             }
+                        }
+                    }
+                }
+                catch (Exception e) { RegistroErros.Gravar("captura", e); }
+                // Novo relatório com um compactado anexado (PMVNI_CAPTURA_COMPACTADO = um .zip/.rar/.7z).
+                try
+                {
+                    if (Environment.GetEnvironmentVariable("PMVNI_CAPTURA_COMPACTADO") is { Length: > 0 } compactado && File.Exists(compactado))
+                    {
+                        await MudarModuloAsync(Modulo.Relatorios);
+                        if (await NovoRelatorioAsync())
+                        {
+                            await AguardarNovoRelatorioAsync();
+                            await SoltarArquivosAsync([compactado]);
+                            await Task.Delay(1500);
+                            await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "novo-relatorio-compactado.png"));
                         }
                     }
                 }

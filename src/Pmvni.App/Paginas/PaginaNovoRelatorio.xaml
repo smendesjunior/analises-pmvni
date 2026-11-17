@@ -83,7 +83,7 @@
                        Style="{StaticResource BodyStrongTextBlockStyle}"/>
             <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar arquivos…" HorizontalAlignment="Center"
                     local:Dicas.Descricao="Escolhe no computador os arquivos do processo para a IA analisar."/>
-            <TextBlock Text="Qualquer tipo de arquivo. Nada é copiado antes de Analisar; a cópia vai para a pasta do processo e o original não muda."
+            <TextBlock Text="Qualquer tipo de arquivo; .zip, .rar e .7z são abertos e cada arquivo de dentro entra como anexo. Nada é copiado antes de Analisar; a cópia vai para a pasta do processo e o original não muda."
                        Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" HorizontalAlignment="Center"/>
           </StackPanel>
         </Border>

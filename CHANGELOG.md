@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.2.1
+
+- Novo relatório aceita arquivos compactados (.zip, .rar e .7z): o editor abre o arquivo e cada arquivo de dentro entra como anexo, com o destino pela regra do kit (matrícula, RRT/ART, requerimento, certidões e outros documentos em DOCUMENTOS; pranchas, DWG e o resto no projeto). Cada linha mostra de qual compactado e pasta o arquivo veio, e o destino continua podendo ser trocado. Compactado com senha, corrompido ou grande demais (mais de 4 GB ou 3.000 arquivos) é avisado e fica de fora.
+
 ## 0.2.0
 
 ### Janela e cabeçalho

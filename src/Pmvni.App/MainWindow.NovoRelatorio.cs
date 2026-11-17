@@ -23,9 +23,12 @@ public sealed partial class MainWindow
     internal sealed record ImportacaoPendente(Provedor Provedor, Processo Processo, string Registro, string? Documento, string? Pdf);
 
     /// <summary>Uma linha da lista de anexos (nada é gravado antes de Analisar).</summary>
-    sealed class AnexoNovo(string origem, long tamanho, DestinoAnexo destino)
+    sealed class AnexoNovo(string origem, long tamanho, DestinoAnexo destino, string? compactado = null, string? interno = null)
     {
         public string Origem { get; } = origem;
+        /// <summary>O compactado de onde o arquivo saiu (.zip, .rar, .7z) e o caminho dentro dele; null num anexo comum.</summary>
+        public string? Compactado { get; } = compactado;
+        public string? Interno { get; } = interno;
         public string Nome => Path.GetFileName(Origem);
         public long Tamanho { get; } = tamanho;
         public DestinoAnexo Destino { get; set; } = destino;
@@ -42,6 +45,8 @@ public sealed partial class MainWindow
     string? revisaoAtualNR;
     readonly List<AnexoNovo> anexosNR = [];
     readonly List<string> recusasNR = [];
+    /// <summary>A pasta temporária desta janela onde os compactados anexados são abertos (apagada ao fechar; sobras de mais de 1 dia, ao abrir outro).</summary>
+    string? pastaCompactadosNR;
     readonly Dictionary<ExecucaoEmCurso, Task<FimAnalise>> conclusoes = new();
     readonly List<ImportacaoPendente> importacoesPendentes = [];
     Task tarefaListaNR = Task.CompletedTask, tarefaPreviaNR = Task.CompletedTask;
@@ -358,6 +363,36 @@ public sealed partial class MainWindow
     /// o resto vira uma linha com o destino padrão do processo. Nada é gravado.</summary>
     async Task AdicionarAnexosAsync(IReadOnlyList<string> caminhos, IReadOnlyList<string> recusasDeFora)
     {
+        // Compactados (.zip, .rar, .7z; pedido do usuário, 2026-11-16): o kit não descompacta, então o editor abre o arquivo numa pasta
+        // temporária e cada arquivo de dentro entra como um anexo comum, com o destino sugerido pela regra do kit (documento ou projeto).
+        var deCompactado = new Dictionary<string, ArquivoExtraido>(StringComparer.OrdinalIgnoreCase);
+        var avisosCompactados = new List<string>();
+        var abertos = new List<string>();
+        if (caminhos.Any(c => Compactados.EhCompactado(c) && File.Exists(c)))
+        {
+            pastaCompactadosNR ??= Path.Combine(Compactados.PastaTemporaria(), Guid.NewGuid().ToString("N"));
+            var lista = new List<string>();
+            foreach (var c in caminhos)
+            {
+                if (!Compactados.EhCompactado(c) || !File.Exists(c)) { lista.Add(c); continue; }
+                NR.TextoArraste.Text = "Abrindo " + Path.GetFileName(c) + "…";
+                try
+                {
+                    var r = await Task.Run(() => { Compactados.LimparAntigos(TimeSpan.FromDays(1)); return Compactados.Extrair(c, pastaCompactadosNR, CancellationToken.None); });
+                    foreach (var a in r.Arquivos) { lista.Add(a.Caminho); deCompactado[Path.GetFullPath(a.Caminho)] = a; }
+                    avisosCompactados.AddRange(r.Avisos);
+                    if (r.Arquivos.Count > 0) abertos.Add($"{Path.GetFileName(c)} ({r.Arquivos.Count} {(r.Arquivos.Count == 1 ? "arquivo" : "arquivos")})");
+                }
+                catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException)
+                {
+                    RegistroErros.Gravar("anexo.compactado", e);
+                    avisosCompactados.Add(e is InvalidDataException ? e.Message : $"{Path.GetFileName(c)} não pôde ser aberto: {e.Message.TrimEnd('.')}.");
+                }
+            }
+            NR.TextoArraste.Text = FluxoNovoRelatorio.ArrasteAqui;
+            caminhos = lista;
+            recusasDeFora = [.. recusasDeFora, .. avisosCompactados];
+        }
         var novos = new List<string>();
         foreach (var c in caminhos)
         {
@@ -387,8 +422,17 @@ public sealed partial class MainWindow
         {
             if (recusa is not null) { recusasNR.Add(recusa); continue; }
             if (anexosNR.Any(a => string.Equals(a.Origem, origem, StringComparison.OrdinalIgnoreCase))) continue;
-            anexosNR.Add(new AnexoNovo(origem, tamanho, padrao));
+            if (deCompactado.TryGetValue(origem, out var x))
+            {
+                var sugerido = Compactados.SugerirDestino(x.Interno, padrao);
+                // Documento sugerido fica escolhido (trocar de processo não o leva para o projeto); projeto segue o padrão do processo.
+                anexosNR.Add(new AnexoNovo(origem, tamanho, sugerido, x.Compactado, x.Interno) { Escolhido = sugerido == DestinoAnexo.Documento });
+            }
+            else anexosNR.Add(new AnexoNovo(origem, tamanho, padrao));
         }
+        if (abertos.Count > 0)
+            MostrarMensagem(InfoBarSeverity.Informational, "Compactado aberto",
+                string.Join("; ", abertos) + ". Cada arquivo entrou como anexo, com o destino pela regra do kit (documentos em DOCUMENTOS, o resto no projeto); confira e troque na linha se precisar.");
         NR.TextoRecusas.Text = string.Join(Environment.NewLine, recusasNR);
         NR.TextoRecusas.Visibility = recusasNR.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         await AtualizarPreviaNRAsync();
@@ -451,7 +495,13 @@ public sealed partial class MainWindow
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var nome = new StackPanel();
             nome.Children.Add(new TextBlock { Text = a.Nome, TextTrimming = TextTrimming.CharacterEllipsis });
-            nome.Children.Add(new TextBlock { Text = ListasPastas.TextoDoTamanho(a.Tamanho), Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
+            var detalhe = ListasPastas.TextoDoTamanho(a.Tamanho);
+            if (a.Compactado is not null)
+            {
+                var pastaInterna = a.Interno is { } dentro && dentro.Contains('/') ? " › " + dentro[..dentro.LastIndexOf('/')].Replace("/", " › ") : "";
+                detalhe = "de " + a.Compactado + pastaInterna + " · " + detalhe;
+            }
+            nome.Children.Add(new TextBlock { Text = detalhe, TextTrimming = TextTrimming.CharacterEllipsis, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
             grade.Children.Add(nome);
             var caixa = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Center };
             AutomationPropertiesNome(caixa, "Destino de " + a.Nome);
