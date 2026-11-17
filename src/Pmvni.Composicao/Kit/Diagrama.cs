@@ -21,19 +21,99 @@ public static class Diagrama
     public static IReadOnlyDictionary<string, (int X, int Y)> PosVolumeExtra { get; } = new Dictionary<string, (int X, int Y)>(StringComparer.Ordinal)
     {
         ["frente"] = (226, 228),
+        // Correção 2026-11-17: afastamentos laterais (muro, divisa) no chão ao lado do prédio, um de cada lado.
+        ["lateral_direita"] = (288, 199),
+        ["lateral_esquerda"] = (60, 208),
     };
 
     /// <summary>Todas as âncoras da volumetria: as do kit e as extras.</summary>
     public static IReadOnlyDictionary<string, (int X, int Y)> PosVolumeTodas { get; } =
         PosVolume.Concat(PosVolumeExtra).ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
 
+    // ---------- vista de cada chamada (correção 2026-11-17) ----------
+    // Antes, o desenho e a coluna de uma chamada saíam só da âncora: uma chamada pedida na volumetria ("afastamento do muro") com a
+    // âncora "lateral" (que é da planta) ia para a coluna da PLANTA, com a marca no desenho da planta. Agora a chamada acrescentada
+    // leva a "vista" explícita (planta ou volumetria); a coluna e o desenho seguem a vista, e a âncora é resolvida dentro dela.
+
+    public const string VistaPlanta = "planta";
+    public const string VistaVolumetria = "volumetria";
+
+    /// <summary>"planta"/"volumetria" (aceita variações: "Planta do terreno", "volume", "VOLUMETRIA DA EDIFICAÇÃO"); null se não é vista.</summary>
+    public static string? NormalizarVista(object? vista)
+    {
+        if (vista is not string s) return null;
+        var t = s.Trim().ToLowerInvariant();
+        if (t.StartsWith("planta", StringComparison.Ordinal)) return VistaPlanta;
+        if (t.StartsWith("volum", StringComparison.Ordinal)) return VistaVolumetria;
+        return null;
+    }
+
+    /// <summary>As posições das âncoras da vista.</summary>
+    public static IReadOnlyDictionary<string, (int X, int Y)> Posicoes(string vista) =>
+        vista == VistaPlanta ? PosPlanta : PosVolumeTodas;
+
+    /// <summary>A vista de uma âncora pelo nome (o comportamento do kit, para as chamadas sem vista); null se desconhecida.</summary>
+    public static string? VistaDaAncora(string? ancora) =>
+        ancora is null ? null : PosPlanta.ContainsKey(ancora) ? VistaPlanta : PosVolumeTodas.ContainsKey(ancora) ? VistaVolumetria : null;
+
+    /// <summary>Âncoras de outra vista (ou nomes próximos) que têm equivalente nesta vista.</summary>
+    private static readonly Dictionary<(string Vista, string Ancora), string> Equivalentes = new()
+    {
+        [(VistaVolumetria, "lateral")] = "lateral_direita",
+        [(VistaVolumetria, "lateral_dir")] = "lateral_direita",
+        [(VistaVolumetria, "direita")] = "lateral_direita",
+        [(VistaVolumetria, "esquerda")] = "lateral_esquerda",
+        [(VistaVolumetria, "beiral")] = "telhado",
+        [(VistaVolumetria, "cobertura")] = "telhado",
+        [(VistaVolumetria, "edificacao")] = "altura",
+        [(VistaVolumetria, "lote")] = "frente",
+        [(VistaPlanta, "lateral_direita")] = "lateral",
+        [(VistaPlanta, "lateral_esquerda")] = "lateral",
+        [(VistaPlanta, "telhado")] = "edificacao",
+        [(VistaPlanta, "altura")] = "edificacao",
+        [(VistaPlanta, "frente")] = "lote",
+    };
+
+    /// <summary>Ordem em que se procura um ponto livre quando a âncora pedida não serve na vista.</summary>
+    private static readonly Dictionary<string, string[]> OrdemLivre = new(StringComparer.Ordinal)
+    {
+        [VistaPlanta] = ["lateral", "lote", "edificacao", "permeavel"],
+        [VistaVolumetria] = ["lateral_direita", "lateral_esquerda", "frente", "altura", "telhado"],
+    };
+
+    /// <summary>A âncora da chamada dentro da <paramref name="vista"/>: a pedida, se é dessa vista; senão a equivalente nela ("lateral"
+    /// na volumetria = "lateral_direita"); senão o primeiro ponto da vista que nenhuma outra chamada (<paramref name="usadas"/>) ocupa;
+    /// se todos estão ocupados, o primeiro (a marca repetida sai deslocada).</summary>
+    public static string ResolverAncora(string vista, string? ancora, IEnumerable<string> usadas)
+    {
+        var pos = Posicoes(vista);
+        var a = (ancora ?? "").Trim().ToLowerInvariant();
+        if (pos.ContainsKey(a)) return a;
+        if (Equivalentes.TryGetValue((vista, a), out var eq)) return eq;
+        var ocupadas = new HashSet<string>(usadas, StringComparer.Ordinal);
+        var ordem = OrdemLivre[vista];
+        return ordem.FirstOrDefault(o => !ocupadas.Contains(o)) ?? ordem[0];
+    }
+
     private static string E(object? t) => Dados.E(t);
 
     private static string Mk(int x, int y, int n) =>
         $"""<g class="mk"><circle cx="{x}" cy="{y}" r="8.5"/><text x="{x}" y="{PythonTexto.Str(y + 3.2)}">{n}</text></g>""";
 
-    private static string Marcadores(IEnumerable<(string Ancora, int Numero)> marcas, IReadOnlyDictionary<string, (int X, int Y)> pos) =>
-        string.Concat(marcas.Select(m => Mk(pos[m.Ancora].X, pos[m.Ancora].Y, m.Numero)));
+    /// <summary>As marcas numeradas; duas chamadas no mesmo ponto não se cobrem: a repetida sai 20 px ao lado.</summary>
+    private static string Marcadores(IEnumerable<(string Ancora, int Numero)> marcas, IReadOnlyDictionary<string, (int X, int Y)> pos)
+    {
+        var vezes = new Dictionary<string, int>(StringComparer.Ordinal);
+        var sb = new System.Text.StringBuilder();
+        foreach (var m in marcas)
+        {
+            vezes.TryGetValue(m.Ancora, out var k);
+            vezes[m.Ancora] = k + 1;
+            var (x, y) = pos[m.Ancora];
+            sb.Append(Mk(x + 20 * k, y, m.Numero));
+        }
+        return sb.ToString();
+    }
 
     private static object? Elem(object? lista, int i)
     {
@@ -155,11 +235,10 @@ public static class Diagrama
         var aviso = temDestaque
             ? $"""<text x="150" y="314" class="t7 b" style="fill:#C03535" text-anchor="middle">{E(destaque)}</text>"""
             : "";
-        var posMarcas = new Dictionary<string, (int X, int Y)>(StringComparer.Ordinal)
+        var posMarcas = new Dictionary<string, (int X, int Y)>(PosVolumeExtra, StringComparer.Ordinal)
         {
             ["telhado"] = (184, (int)Math.Round(76 - (H - 120) - (30 - cume))),
             ["altura"] = (274, (int)Math.Round(150 - (H - 120) / 2)),
-            ["frente"] = PosVolumeExtra["frente"],
         };
         var linhas = new[]
         {
@@ -227,7 +306,17 @@ public static class Diagrama
             var c = new Dictionary<string, object?>();
             foreach (var par in Dados.Dict(item)) c[par.Key] = par.Value;
             c["numero"] = (long)n;
-            if (a is string s && PosPlanta.ContainsKey(s)) { planta.Add((s, n)); cp.Add(c); }
+            // Chamada com vista explícita (as acrescentadas na revisão): a vista manda na coluna e no desenho; a âncora vale dentro dela.
+            if (NormalizarVista(Dados.Obter(item, "vista")) is { } vista)
+            {
+                var marcas = vista == VistaPlanta ? planta : volume;
+                var ancora = ResolverAncora(vista, a as string, marcas.Select(m => m.Item1));
+                c["ancora"] = ancora;
+                c["vista"] = vista;
+                marcas.Add((ancora, n));
+                (vista == VistaPlanta ? cp : cv).Add(c);
+            }
+            else if (a is string s && PosPlanta.ContainsKey(s)) { planta.Add((s, n)); cp.Add(c); }
             else if (a is string s2 && PosVolumeTodas.ContainsKey(s2)) { volume.Add((s2, n)); cv.Add(c); }
             else
                 throw new MoldeErro("Âncora desconhecida no diagrama: " + PythonTexto.Repr(a) + " (use " +

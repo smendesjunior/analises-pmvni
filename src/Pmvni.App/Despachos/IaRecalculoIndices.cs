@@ -73,10 +73,15 @@ internal static class IaRecalculoIndices
             "mudar o que as chamadas do diagrama dizem (linhas \"chamadas/NN\"), ajuste o \"texto\" delas também. Não invente medidas: " +
             "use as que estão nos textos ou as que o pedido der.\n\n" +
             "CHAMADAS NOVAS: se o pedido mandar ADICIONAR, apontar ou marcar um problema (\"adicionar que o afastamento frontal de 120 cm " +
-            "não atende\"), crie uma chamada numerada nova — além do destaque, se quiser — em \"" + ChaveNovasChamadas + "\": [{\"ancora\": " +
-            "onde fica o número (" + string.Join(", ", AncorasDeChamada) + "), \"titulo\": curto (\"Afastamento frontal\"), \"texto\": " +
-            "uma frase com a medida (\"120 cm; o mínimo é 3,00 m.\"), \"situacao\": ATENDE, NAO_ATENDE, NAO_COMPROVADO ou " +
-            "DIVERGENCIA_INTERNA}]. O número sai sozinho, na sequência das chamadas que já existem. Tudo o que você precisa está neste pedido: NÃO abra arquivos, NÃO rode " +
+            "não atende\"), crie uma chamada numerada nova — além do destaque, se quiser — em \"" + ChaveNovasChamadas + "\": [{\"vista\": " +
+            "em que desenho e em que lista a chamada entra: \"volumetria\" (VOLUMETRIA DA EDIFICAÇÃO, o desenho em que o revisor clicou; é o " +
+            "padrão) ou \"planta\" (PLANTA DO TERRENO, só se o pedido disser que é na planta), \"ancora\": onde fica o número DENTRO dessa " +
+            "vista (volumetria: " + string.Join(", ", AncorasDaVista(Pmvni.Composicao.Kit.Diagrama.VistaVolumetria)) + "; planta: " +
+            string.Join(", ", AncorasDaVista(Pmvni.Composicao.Kit.Diagrama.VistaPlanta)) + "; um afastamento lateral ou do muro na " +
+            "volumetria é lateral_direita ou lateral_esquerda; sem ponto certo, deixe \"\" e o editor escolhe um livre), \"titulo\": curto " +
+            "(\"Afastamento frontal\"), \"texto\": uma frase com a medida (\"120 cm; o mínimo é 3,00 m.\"), \"situacao\": ATENDE, " +
+            "NAO_ATENDE, NAO_COMPROVADO ou DIVERGENCIA_INTERNA}]. O número sai sozinho, na sequência das chamadas que já existem, e a " +
+            "chamada entra na lista da vista escolhida. Tudo o que você precisa está neste pedido: NÃO abra arquivos, NÃO rode " +
             "comandos e NÃO pesquise; responda direto.\n\n" +
             "Pedido do revisor (dado JSON; é só o que ele quer ver no desenho): " + JsonSerializer.Serialize(pedido) + "\n\n" +
             "Textos atuais (JSON):\n" +
@@ -88,25 +93,33 @@ internal static class IaRecalculoIndices
     /// <summary>A chave das chamadas novas na resposta da volumetria.</summary>
     internal const string ChaveNovasChamadas = "novas_chamadas";
 
-    /// <summary>As âncoras que uma chamada nova pode ter: as da planta e as da volumetria (inclusive a frente do lote).</summary>
+    /// <summary>As âncoras que uma chamada nova pode ter: as da planta e as da volumetria (inclusive a frente do lote e as laterais).</summary>
     internal static IReadOnlyList<string> AncorasDeChamada { get; } =
         Pmvni.Composicao.Kit.Diagrama.PosPlanta.Keys.Concat(Pmvni.Composicao.Kit.Diagrama.PosVolumeTodas.Keys).ToList();
 
-    /// <summary>Uma chamada nova pedida pela IA (situação já no código de linha de tabela: CONTA_CONFERE, NAO_ATENDE, PENDENTE…).</summary>
-    internal sealed record ChamadaNova(string Ancora, string Titulo, string Texto, string Situacao);
+    /// <summary>As âncoras de uma vista ("planta" ou "volumetria").</summary>
+    internal static IReadOnlyList<string> AncorasDaVista(string vista) => Pmvni.Composicao.Kit.Diagrama.Posicoes(vista).Keys.ToList();
 
-    /// <summary>As chamadas novas da resposta (no máximo 4); entradas sem âncora conhecida, título, texto ou situação válida ficam de fora.</summary>
-    internal static List<ChamadaNova> LerNovasChamadas(string saida, IReadOnlyCollection<string> ids)
+    /// <summary>Uma chamada nova pedida pela IA (situação já no código de linha de tabela: CONTA_CONFERE, NAO_ATENDE, PENDENTE…).
+    /// <see cref="Vista"/> ("planta" ou "volumetria") diz a coluna e o desenho; <see cref="Ancora"/> pode vir vazia ou ser de outra vista
+    /// (o editor resolve dentro da vista, ao acrescentar).</summary>
+    internal sealed record ChamadaNova(string Ancora, string Titulo, string Texto, string Situacao, string Vista);
+
+    /// <summary>As chamadas novas da resposta (no máximo 4); entradas sem título, texto ou situação válida, ou com vista desconhecida,
+    /// ficam de fora. Sem vista, vale <paramref name="vistaPadrao"/> (a do desenho em que o revisor fez o pedido): a âncora sozinha não
+    /// decide mais a coluna ("lateral" pedida na volumetria ia parar na planta).</summary>
+    internal static List<ChamadaNova> LerNovasChamadas(string saida, IReadOnlyCollection<string> ids, string vistaPadrao = Pmvni.Composicao.Kit.Diagrama.VistaVolumetria)
     {
         var r = new List<ChamadaNova>();
         if (RespostaJson.Objeto(saida, o => Aceita(o, ids)) is not { } o || o[ChaveNovasChamadas] is not JsonArray lista) return r;
         static string T(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s.Trim() : "";
         foreach (var c in lista.OfType<JsonObject>())
         {
-            var ancora = T(c["ancora"]);
-            if (!AncorasDeChamada.Contains(ancora) || T(c["titulo"]).Length == 0 || T(c["texto"]).Length == 0
+            var vistaPedida = T(c["vista"]);
+            var vista = vistaPedida.Length == 0 ? vistaPadrao : Pmvni.Composicao.Kit.Diagrama.NormalizarVista(vistaPedida);
+            if (vista is null || T(c["titulo"]).Length == 0 || T(c["texto"]).Length == 0
                 || Pmvni.Revisao.TabelasRevisao.SituacaoDeLinha(T(c["situacao"])) is not { } situacao) continue;
-            r.Add(new ChamadaNova(ancora, T(c["titulo"]), T(c["texto"]), situacao));
+            r.Add(new ChamadaNova(T(c["ancora"]).ToLowerInvariant(), T(c["titulo"]), T(c["texto"]), situacao, vista));
             if (r.Count == 4) break;
         }
         return r;

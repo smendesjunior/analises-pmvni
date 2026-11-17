@@ -104,14 +104,15 @@ public sealed partial class MainWindow
                 }
             }
             // Correções 2026-11-16: "adicionar que o afastamento frontal de 120 cm não atende" vira uma chamada numerada nova (a 7, depois
-            // da 5 e da 6), com a marca no desenho; antes a IA só podia pôr a frase no destaque vermelho.
+            // da 5 e da 6), com a marca no desenho; antes a IA só podia pôr a frase no destaque vermelho. Correção 2026-11-17: a chamada
+            // leva a vista (volumetria, por padrão: o pedido veio do desenho da volumetria), e é ela que decide a coluna e o desenho.
             var chamadas = IaRecalculoIndices.LerNovasChamadas(saida, linhas.Keys);
             var novasIds = new List<string>();
             if (chamadas.Count > 0 && TabelasRevisao.ProximaChamada(p) is { } primeira && TabelasRevisao.TentarLer(primeira, out _, out var n))
                 foreach (var c in chamadas)
                 {
                     var id = TabelasRevisao.Id(TabelasRevisao.Chamadas, n + novasIds.Count);
-                    comandos.Add(new AcrescentarChamada(id, c.Ancora, c.Titulo, c.Texto, c.Situacao));
+                    comandos.Add(new AcrescentarChamada(id, c.Ancora, c.Titulo, c.Texto, c.Situacao, c.Vista));
                     novasIds.Add(id);
                 }
             if (comandos.Count == 0)

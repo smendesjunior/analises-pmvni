@@ -65,8 +65,10 @@ public sealed record AcrescentarVao(string Item, string Codigo, string Medidas, 
 
 /// <summary>Acrescenta uma chamada numerada ao DIAGRAMA DOS ÍNDICES (correções 2026-11-16). <see cref="Item"/> é o id da linha nova
 /// (<see cref="TabelasRevisao.ProximaChamada"/>); <see cref="Ancora"/> diz em que desenho e em que ponto fica a marca com o número
-/// (lote, permeavel, edificacao, lateral: planta; telhado, altura, frente…: volumetria); a situação é a de linha de tabela.</summary>
-public sealed record AcrescentarChamada(string Item, string Ancora, string Titulo, string Texto, string Situacao) : Comando(Item);
+/// (lote, permeavel, edificacao, lateral: planta; telhado, altura, frente, lateral_direita…: volumetria); a situação é a de linha de
+/// tabela. <see cref="Vista"/> (correção 2026-11-17: "planta" ou "volumetria") diz em que desenho e em que coluna a chamada entra; com
+/// ela, a âncora vale dentro da vista (uma da outra vista vira a equivalente ou um ponto livre). Sem vista, vale a da âncora.</summary>
+public sealed record AcrescentarChamada(string Item, string Ancora, string Titulo, string Texto, string Situacao, string? Vista = null) : Comando(Item);
 
 /// <summary>Acrescenta um ambiente à tabela ILUMINAÇÃO E VENTILAÇÃO (pedido do usuário, 2026-11-16: "você adiciona um ambiente e pode
 /// pôr janelas e portas"). <see cref="Item"/> é o id da linha nova (<see cref="TabelasRevisao.ProximoAmbiente"/>); entra sem esquadrias,
