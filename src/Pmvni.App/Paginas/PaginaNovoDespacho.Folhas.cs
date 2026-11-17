@@ -46,6 +46,14 @@ public sealed partial class PaginaNovoDespacho
     /// (ver <see cref="ConteudoDespacho.AplicarEdicao"/>).</summary>
     internal event Action<string, string>? PreviaEditada;
 
+    /// <summary>"Ajustar com IA" na caixa do texto da exigência: recebe a chave do trecho e o texto atual e devolve o texto melhorado
+    /// (a janela liga à IA da revisão; ver <see cref="IaAjusteTexto"/>). null = o botão não aparece.</summary>
+    internal Func<string, string, CancellationToken, Task<string>>? AjustarTextoComIa { get; set; }
+
+    /// <summary>O texto de uma exigência (não o fundamento nem o título do grupo): só ele ganha o "Ajustar com IA".</summary>
+    static bool EhTextoDeExigencia(string chave) =>
+        chave.StartsWith("exigencia:", StringComparison.Ordinal) && !chave.EndsWith(":fundamento", StringComparison.Ordinal);
+
     /// <summary>O texto da prévia como está na tela, um parágrafo por linha (o roteiro confere).</summary>
     internal string TextoDaPrevia => string.Join("\n", previa.Select(p => p.Texto));
 
@@ -351,13 +359,110 @@ public sealed partial class PaginaNovoDespacho
             caixa.KeyDown += (_, e) =>
             {
                 if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; fly.Hide(); }
-                else if (e.Key == Windows.System.VirtualKey.Escape) desistiu = true;
             };
+            // Esc desiste de qualquer ponto do cartão (também com o foco no botão da IA), não só da caixa.
+            painel.AddHandler(KeyDownEvent, new KeyEventHandler((_, e) =>
+            {
+                if (e.Key == Windows.System.VirtualKey.Escape) desistiu = true;
+            }), true);
+            Action? cancelarIa = null;
+            if (AjustarTextoComIa is { } ajustar && EhTextoDeExigencia(chave)) cancelarIa = AdicionarAjusteComIa(painel, caixa, chave, ajustar);
             fly.Opened += (_, _) => { caixa.Focus(FocusState.Programmatic); caixa.SelectAll(); };
-            fly.Closed += (_, _) => { if (!desistiu && caixa.Text != valor) PreviaEditada?.Invoke(chave, caixa.Text); };
+            fly.Closed += (_, _) =>
+            {
+                cancelarIa?.Invoke(); // fechou com a IA ainda trabalhando: encerra o programa; a resposta não entra mais
+
+                if (!desistiu && caixa.Text != valor) PreviaEditada?.Invoke(chave, caixa.Text);
+            };
         }
         if (ultimoToque is { } toque) fly.ShowAt(toque.Folha, new FlyoutShowOptions { Position = toque.Ponto });
         else fly.ShowAt(Folhas);
         ultimoToque = null;
+    }
+
+    /// <summary>O "Ajustar com IA" logo abaixo da caixa: manda o texto à IA e põe a resposta na caixa, selecionada (Enter grava;
+    /// Ctrl+Z ou Esc desfaz). Enquanto espera: anel, "Ajustando…" e o botão vira "Cancelar". O erro aparece ali mesmo, em português.
+    /// Devolve o que cancela a espera (ao fechar o cartão).</summary>
+    Action AdicionarAjusteComIa(StackPanel painel, TextBox caixa, string chave, Func<string, string, CancellationToken, Task<string>> ajustar)
+    {
+        const string Rotulo = "Ajustar com IA", Dica = "A IA deixa o texto mais claro e formal, com o mesmo sentido e sem fatos novos. " +
+            "O resultado entra na caixa, selecionado: Enter grava; Ctrl+Z ou Esc desfaz.";
+        var rotulo = new TextBlock { Text = Rotulo };
+        var botao = new Button
+        {
+            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new FontIcon { Glyph = "", FontSize = 14 }, rotulo } },
+        };
+        AutomationProperties.SetName(botao, Rotulo);
+        Dicas.Aplicar(botao, Rotulo, Dica);
+        var anel = new ProgressRing { IsActive = false, Width = 16, Height = 16, Visibility = Visibility.Collapsed };
+        var estado = new TextBlock
+        {
+            Text = "Ajustando…", VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed,
+            Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"],
+        };
+        var linha = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { botao, anel, estado } };
+        var erro = new TextBlock { Visibility = Visibility.Collapsed, Style = (Style)Application.Current.Resources["PmvniTextoErroStyle"] };
+        var depois = painel.Children.IndexOf(caixa) + 1;
+        painel.Children.Insert(depois, linha);
+        painel.Children.Insert(depois + 1, erro);
+
+        CancellationTokenSource? espera = null;
+        void Esperando(bool sim)
+        {
+            anel.IsActive = sim;
+            anel.Visibility = estado.Visibility = sim ? Visibility.Visible : Visibility.Collapsed;
+            rotulo.Text = sim ? "Cancelar" : Rotulo;
+            AutomationProperties.SetName(botao, sim ? "Cancelar o ajuste com IA" : Rotulo);
+            caixa.IsReadOnly = sim; // a resposta substitui o texto: nada de editar no meio da espera
+        }
+        botao.Click += async (_, _) =>
+        {
+            if (espera is { } atual) { atual.Cancel(); return; }
+            var texto = caixa.Text;
+            if (texto.Trim().Length == 0)
+            {
+                erro.Text = "Escreva o texto da exigência antes de pedir o ajuste.";
+                erro.Visibility = Visibility.Visible;
+                return;
+            }
+            erro.Visibility = Visibility.Collapsed;
+            using var cts = new CancellationTokenSource();
+            espera = cts;
+            Esperando(true);
+            try
+            {
+                var novo = IaAjusteTexto.Ler(await ajustar(chave, texto, cts.Token));
+                cts.Token.ThrowIfCancellationRequested();
+                if (novo is null)
+                {
+                    erro.Text = "A IA não devolveu texto; nada mudou.";
+                    erro.Visibility = Visibility.Visible;
+                    return;
+                }
+                Esperando(false);
+                // Pela seleção (e não por Text): a troca entra no Desfazer da caixa, e o Ctrl+Z volta o texto anterior.
+                caixa.Focus(FocusState.Programmatic);
+                caixa.SelectAll();
+                caixa.SelectedText = novo;
+                caixa.Select(0, caixa.Text.Length);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception e)
+            {
+                // As falhas do programa da IA já vêm em português (IaDespacho); as demais passam pela tradução (e vão para o registro).
+                var motivo = MensagensDeErro.ParaUsuario(e);
+                erro.Text = (e is InvalidOperationException ? motivo : "A chamada à IA falhou: " + motivo) + (motivo.EndsWith('.') ? "" : ".");
+                erro.Visibility = Visibility.Visible;
+            }
+            finally
+            {
+                espera = null;
+                Esperando(false);
+            }
+        };
+        return () =>
+        {
+            try { espera?.Cancel(); } catch (ObjectDisposedException) { }
+        };
     }
 }
