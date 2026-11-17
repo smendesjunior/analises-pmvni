@@ -48,6 +48,7 @@ public static class DicasComandos
         // Figuras
         [ComandosApp.FigurasInserirRegiao] = "Recorta uma região de uma prancha do projeto (PDF) e a insere como figura.",
         [ComandosApp.FigurasEditar] = "Abre o editor para pôr setas, regiões e textos na figura selecionada.",
+        [ComandosApp.FigurasAbrirEditor] = "Lista as figuras do relatório; a escolhida abre no editor de setas, regiões e textos.",
         [ComandosApp.FigurasExcluir] = "Tira do relatório a figura selecionada.",
 
         // Exibir (relatório)

@@ -44,6 +44,20 @@ public sealed partial class MainWindow : IHostFiguras
         Faixa.Habilitar(ComandosApp.FigurasInserirRegiao, editavel);
         Faixa.Habilitar(ComandosApp.FigurasEditar, temRelatorio && figuraSelecionada is not null);
         Faixa.Habilitar(ComandosApp.FigurasExcluir, editavel && figuraSelecionada is not null);
+        Faixa.Habilitar(ComandosApp.FigurasAbrirEditor, temRelatorio && sessao?.Revisao.Projeto is { } p && FigurasDoMenu(p).Count > 0);
+    }
+
+    /// <summary>As figuras incluídas, na ordem do relatório: (id, "Figura N — título").</summary>
+    static IReadOnlyList<(string Id, string Texto)> FigurasDoMenu(Projeto p) =>
+        MenuFiguras.Itens((p.Figuras ?? CamadaFiguras.Inicial(p)).Where(f => f.Incluida).Select(f => (f.Id, (string?)f.TextoBase("titulo"))).ToList());
+
+    /// <summary>Os itens de Página Inicial › Figuras ▾ (correções 2026-11-16): cada figura incluída; a selecionada nas folhas vem marcada.</summary>
+    IReadOnlyList<(string Texto, string Valor, string Dica)> ItensDoMenuFiguras()
+    {
+        if (sessao?.Atual is null) return [];
+        return FigurasDoMenu(sessao.Revisao.Projeto)
+            .Select(f => ((f.Id == figuraSelecionada ? "✓ " : "") + f.Texto, f.Id, "Abre esta figura no editor de figuras."))
+            .ToList();
     }
 
     /// <summary>O id da figura incluída com esse data-ref (null se o ref não é de figura).</summary>

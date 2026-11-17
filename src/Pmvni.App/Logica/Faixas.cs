@@ -97,6 +97,8 @@ public static class Faixas
             new(ComandosApp.InicioItemAnterior, "Item anterior", Glifos.Anterior),
             new(ComandosApp.InicioItemProximo, "Próximo item", Glifos.Proximo),
             new(ComandosApp.InicioProximoPendente, "Próximo pendente", Glifos.Pendente),
+            // Menu dinâmico: as figuras do relatório (a janela as informa cada vez que o menu abre), como Recentes.
+            new(ComandosApp.FigurasAbrirEditor, "Figuras", Glifos.Figuras, TipoComando.Menu, [], Descricao: "Abrir uma figura no editor de figuras"),
             new(ComandosApp.ArquivoExportarPdf, "Exportar PDF", Glifos.Exportar),
             NovoDespacho,
         ]),
