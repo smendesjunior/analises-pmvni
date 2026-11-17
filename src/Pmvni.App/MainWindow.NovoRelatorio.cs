@@ -52,6 +52,13 @@ public sealed partial class MainWindow
     Task tarefaListaNR = Task.CompletedTask, tarefaPreviaNR = Task.CompletedTask;
     int sequenciaPreviaNR;
     DispatcherQueueTimer relogioAnalise = null!;
+    /// <summary>Estados da pílula da análise no cabeçalho (redesign 2026-11-17). Inativa = sem análise (a pílula some).</summary>
+    internal enum EstadoPilulaAnalise { Inativa, EmAndamento, Concluida, Pausada, Erro }
+    EstadoPilulaAnalise estadoPilula;
+    /// <summary>O fim mais recente, mostrado na pílula até o usuário clicar nela ou outra análise começar (a concluída sai sozinha).</summary>
+    (EstadoPilulaAnalise Estado, string Detalhe, string? Mensagem)? fimNaPilula;
+    DispatcherQueueTimer? relogioFimPilula;
+    internal EstadoPilulaAnalise EstadoDaPilulaAnalise => estadoPilula;
 
     PaginaNovoRelatorio NR => PaginaDeNovoRelatorio;
 
@@ -74,7 +81,8 @@ public sealed partial class MainWindow
     internal bool BotaoAnaliseHabilitado(Provedor p) => (p == Provedor.ChatGpt ? NR.BotaoChatGpt : NR.BotaoClaude).IsEnabled;
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);
     internal void EsquecerAviso(Provedor p) { ajustes.Agentes[p].AvisoVersao = null; ajustes.Agentes[p].AvisoEm = null; SalvarAjustes(); }
-    internal bool BotaoDoTituloVisivel => BotaoAnalise.Visibility == Visibility.Visible;
+    /// <summary>A pílula do título mostra uma análise em andamento (o fim fica um tempo na pílula, mas como concluída, pausada ou com erro).</summary>
+    internal bool BotaoDoTituloVisivel => BotaoAnalise.Visibility == Visibility.Visible && estadoPilula == EstadoPilulaAnalise.EmAndamento;
 
     /// <summary>Roteiro: começa sem análises do Claude pendentes de uma rodada anterior.</summary>
     internal void EsquecerExecucoesClaude()
@@ -142,6 +150,15 @@ public sealed partial class MainWindow
         n.ExpansorUltimaMensagem.Expanding += async (_, _) => { if (execucaoMostrada is { } e) await MostrarUltimaMensagemAsync(e); };
         BotaoAnalise.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(async () =>
         {
+            if (estadoPilula is EstadoPilulaAnalise.Concluida or EstadoPilulaAnalise.Pausada or EstadoPilulaAnalise.Erro)
+            {
+                // A análise já terminou: a pílula sai; pausada ou com erro, abre o Novo relatório, onde estão o motivo e "Continuar a análise".
+                var estado = estadoPilula;
+                fimNaPilula = null;
+                AtualizarTituloAnalise();
+                if (estado != EstadoPilulaAnalise.Concluida) await AbrirNovoRelatorioNaVezAsync();
+                return;
+            }
             if (sessaoNR.Execucoes.FirstOrDefault(e => !e.Abandonada) is not { } e) return;
             if (!await AbrirNovoRelatorioNaVezAsync()) return;
             MostrarExecucaoNR(e);
@@ -811,6 +828,7 @@ public sealed partial class MainWindow
         if (ReferenceEquals(execucaoMostrada, e)) MostrarFormularioNR();
         // Ruling FD-I3: o fim em segundo plano nunca troca de módulo nem fecha o que está aberto; abre direto só com o usuário na vista desta execução,
         // sem relatório aberto e sem despacho em edição (conferido na vez da fila). Senão, "Relatório pronto" com "Abrir relatório".
+        RegistrarFimNaPilula(e, fim);
         if (comRelatorio)
             await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf), () => naVista && PodeAbrirSemInterromper);
         else MostrarResultadoNR(e, fim, sessaoCodex);
@@ -920,11 +938,93 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         var titulo = TituloAnalise;
-        var corte = titulo?.IndexOf(" · ", StringComparison.Ordinal) ?? -1;
-        TextoBotaoAnalise.Text = corte < 0 ? titulo ?? "" : titulo![..corte];
-        DetalheBotaoAnalise.Text = corte < 0 ? "" : titulo![(corte + 3)..];
-        BotaoAnalise.Visibility = titulo is null ? Visibility.Collapsed : Visibility.Visible;
-        if (titulo is null) relogioAnalise.Stop(); else if (!relogioAnalise.IsRunning) relogioAnalise.Start();
+        if (titulo is not null)
+        {
+            // Em andamento: o texto vem do serviço ("Analisando com o Claude · 19486/2026 · 13 min"), em duas linhas.
+            fimNaPilula = null;
+            relogioFimPilula?.Stop();
+            var corte = titulo.IndexOf(" · ", StringComparison.Ordinal);
+            MostrarPilulaAnalise(EstadoPilulaAnalise.EmAndamento, corte < 0 ? titulo : titulo[..corte], corte < 0 ? "" : titulo[(corte + 3)..], null);
+            if (!relogioAnalise.IsRunning) relogioAnalise.Start();
+            return;
+        }
+        relogioAnalise.Stop();
+        if (fimNaPilula is { } f)
+            MostrarPilulaAnalise(f.Estado, f.Estado switch
+            {
+                EstadoPilulaAnalise.Concluida => "Análise concluída",
+                EstadoPilulaAnalise.Pausada => "Análise pausada",
+                _ => "Análise com erro",
+            }, f.Detalhe, f.Mensagem);
+        else MostrarPilulaAnalise(EstadoPilulaAnalise.Inativa, "", "", null);
+    }
+
+    /// <summary>O fim da execução na pílula (redesign 2026-11-17), com o processo e o tempo que ela levou. Cancelada não fica: a pílula some.</summary>
+    void RegistrarFimNaPilula(ExecucaoEmCurso e, FimAnalise fim)
+    {
+        EstadoPilulaAnalise? estado = fim.Situacao switch
+        {
+            "concluida" when fim.Documento is not null => EstadoPilulaAnalise.Concluida,
+            "concluida" => EstadoPilulaAnalise.Erro,   // terminou sem relatório para importar (o motivo fica no Novo relatório)
+            "interrompida" or "cota_esgotada" => EstadoPilulaAnalise.Pausada,
+            "falhou" or "sem_resultado" => EstadoPilulaAnalise.Erro,
+            _ => null,
+        };
+        if (estado is null) { fimNaPilula = null; return; }
+        var titulo = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, DateTime.UtcNow - e.InicioUtc);
+        var corte = titulo.IndexOf(" · ", StringComparison.Ordinal);
+        fimNaPilula = (estado.Value, corte < 0 ? FluxoNovoRelatorio.Identificacao(e.Processo) : titulo[(corte + 3)..], fim.Mensagem);
+        // A concluída sai sozinha depois de um minuto (o relatório já foi aberto ou oferecido em "Relatório pronto").
+        relogioFimPilula?.Stop();
+        if (estado != EstadoPilulaAnalise.Concluida) return;
+        relogioFimPilula ??= DispatcherQueue.GetForCurrentThread().CreateTimer();
+        relogioFimPilula.Interval = TimeSpan.FromMinutes(1);
+        relogioFimPilula.IsRepeating = false;
+        relogioFimPilula.Tick -= AoVencerFimPilula;
+        relogioFimPilula.Tick += AoVencerFimPilula;
+        relogioFimPilula.Start();
+    }
+
+    void AoVencerFimPilula(DispatcherQueueTimer t, object o)
+    {
+        if (fimNaPilula is { Estado: EstadoPilulaAnalise.Concluida }) { fimNaPilula = null; AtualizarTituloAnalise(); }
+    }
+
+    /// <summary>Pinta a pílula: o anel (na cor de destaque do Windows) gira só em andamento; nos outros estados, o ícone do estado na cor
+    /// semântica do tema (sucesso, atenção, crítico). O texto completo vai na dica e no nome para o Narrador.</summary>
+    void MostrarPilulaAnalise(EstadoPilulaAnalise estado, string principal, string detalhe, string? mensagem)
+    {
+        estadoPilula = estado;
+        TextoBotaoAnalise.Text = principal;
+        DetalheBotaoAnalise.Text = detalhe;
+        DetalheBotaoAnalise.Visibility = detalhe.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        var emAndamento = estado == EstadoPilulaAnalise.EmAndamento;
+        AnelAnalise.IsActive = emAndamento;
+        AnelAnalise.Visibility = emAndamento ? Visibility.Visible : Visibility.Collapsed;
+        static Visibility Se(bool v) => v ? Visibility.Visible : Visibility.Collapsed;
+        IconeAnaliseConcluida.Visibility = Se(estado == EstadoPilulaAnalise.Concluida);
+        IconeAnalisePausada.Visibility = Se(estado == EstadoPilulaAnalise.Pausada);
+        IconeAnaliseErro.Visibility = Se(estado == EstadoPilulaAnalise.Erro);
+        // Em andamento, o contorno na cor de destaque; nos outros estados, a borda neutra do tema.
+        ContornoAnalise.Visibility = Se(emAndamento);
+        BordaAnalise.Visibility = Se(!emAndamento);
+        var nome = estado switch
+        {
+            EstadoPilulaAnalise.EmAndamento => "Análise em andamento",
+            EstadoPilulaAnalise.Concluida => "Análise concluída",
+            EstadoPilulaAnalise.Pausada => "Análise pausada",
+            EstadoPilulaAnalise.Erro => "Análise com erro",
+            _ => "Análise",
+        };
+        var descricao = estado switch
+        {
+            EstadoPilulaAnalise.EmAndamento => $"{principal} · {detalhe}. Abre a tela que acompanha a análise que a IA está fazendo agora.",
+            EstadoPilulaAnalise.Concluida => $"{detalhe}. Clique para dispensar.",
+            _ => $"{detalhe}. {mensagem ?? ""} Clique para ver o resultado no Novo relatório.".Replace("  ", " ", StringComparison.Ordinal),
+        };
+        Dicas.Aplicar(BotaoAnalise, nome, descricao);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BotaoAnalise, estado == EstadoPilulaAnalise.Inativa ? nome : $"{nome}: {principal}, {detalhe}");
+        BotaoAnalise.Visibility = estado == EstadoPilulaAnalise.Inativa ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // ---------- fechar e reabrir ----------

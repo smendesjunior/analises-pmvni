@@ -74,7 +74,7 @@ public static class PesquisaGeral
     public const int MinimoDoTermo = 2;
     public const int PorGrupo = 8;
     public const int Total = 30;
-    public const string Placeholder = "Pesquisar no app (ajustes, funções, arquivos, leis…)";
+    public const string Placeholder = "Pesquisar arquivos, funções, leis e configurações...";
     public const string NomeAcessivel = "Pesquisar no app";
 
     // ---------- comparação ----------

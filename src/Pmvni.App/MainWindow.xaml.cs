@@ -155,8 +155,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         BotaoAnalise.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => DispatcherQueue.TryEnqueue(() =>
         {
             if (fechada) return;
-            MolduraAnalise.Visibility = BotaoAnalise.Visibility;
-            Trabalhando.Definir(MolduraAnalise, BotaoAnalise.Visibility == Visibility.Visible, 20f);   // brilho arco-íris na pílula, cantos 20
+            MolduraAnalise.Visibility = BotaoAnalise.Visibility;   // sem brilho colorido (redesign 2026-11-17): o destaque é o AccentColor
             AplicarLargura(Raiz.ActualWidth);
         }));
         // O resultado da pesquisa só ocupa lugar quando tem texto: vazio, deixava o espaço entre a caixa e Anterior/Próximo maior que o
@@ -296,14 +295,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
         Faixa.Compacta = ajustes.FaixaRotulos switch { "sempre" => false, "icones" => true, _ => largura < 1000 };
-        // Cabeçalho (correções 2026-11-15): os rótulos de Desfazer, Refazer, Anterior e Próximo ficam sempre; em janelas estreitas some
-        // primeiro o nome "Análise de Projetos" (o brasão fica), depois o processo e a pesquisa encolhem.
-        TextoMarca.Visibility = DivisoriaMarca.Visibility = largura < 1600 ? Visibility.Collapsed : Visibility.Visible;
+        // Redesign do cabeçalho (2026-11-17): o título fica enquanto der; AjustarPesquisa encolhe antes a pesquisa, depois os rótulos de
+        // Anterior/Próxima, os textos da pílula da análise e, por último, o título (o brasão nunca sai).
+        TextoMarca.Visibility = DivisoriaMarca.Visibility = Visibility.Visible;
+        TextosAnalise.Visibility = Visibility.Visible;
         BlocoProcesso.MaxWidth = largura < 1250 ? 180 : 300;
         // Auditoria de interface (2026-11-17): em 1366 px a 125% os rótulos cortavam ("Próxim", "Pes"); abaixo de 1300 ficam só os
         // ícones (a dica e o Narrador continuam com o nome).
-        RotuloDesfazer.Visibility = RotuloRefazer.Visibility = RotuloAnterior.Visibility = RotuloProximo.Visibility =
-            largura < 1300 ? Visibility.Collapsed : Visibility.Visible;
+        RotuloAnterior.Visibility = RotuloProximo.Visibility = largura < 1300 ? Visibility.Collapsed : Visibility.Visible;
         // Ainda mais estreita: o selo fica só com o ícone (o texto vai na dica) e o requerente sai do cabeçalho (fica na dica do processo).
         TextoGravacao.Visibility = largura < 1300 ? Visibility.Collapsed : Visibility.Visible;
         AjustarPesquisa(largura);
@@ -317,16 +316,27 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
         if (largura <= 0) return;
         double Largura(FrameworkElement e) => e.Visibility == Visibility.Visible ? e.ActualWidth + e.Margin.Left + e.Margin.Right : 0;
-        var ocupado = Largura(CabecalhoEsquerdo) + Largura(BotaoAnalise) + Largura(GrupoHistorico) + Largura(TextoPesquisa) + Largura(GrupoOcorrencias);
-        const double botoesDaJanelaEFolgas = 340; // minimizar, maximizar, fechar (área reservada pela TitleBar, ~255 px medidos), espaçamentos e arrasto
+        var ocupado = Largura(CabecalhoEsquerdo) + Largura(MolduraAnalise) + Largura(GrupoHistorico) + Largura(TextoPesquisa) + Largura(GrupoOcorrencias);
+        const double botoesDaJanelaEFolgas = 350; // minimizar, maximizar, fechar (área reservada pela TitleBar, ~255 px medidos), espaçamentos e arrasto
         var sobra = largura - ocupado - botoesDaJanelaEFolgas;
-        // Sem espaço para a caixa (2026-11-17: "Próxima" cortado na borda): primeiro os rótulos de Desfazer/Refazer/Anterior/Próxima saem
-        // (ficam os ícones, com a dica e o nome para o Narrador); a caixa ganha o espaço deles.
+        // Sem espaço para a caixa (2026-11-17: "Próxima" cortado na borda): primeiro os rótulos de Anterior/Próxima saem (ficam os ícones,
+        // com a dica e o nome para o Narrador); depois os textos da pílula da análise (fica o anel, com o texto na dica); por último o
+        // título "Análise de Projetos" (o brasão fica). A caixa ganha o espaço de cada um.
         if (sobra < 220 && RotuloProximo.Visibility == Visibility.Visible)
         {
-            var rotulos = new FrameworkElement[] { RotuloDesfazer, RotuloRefazer, RotuloAnterior, RotuloProximo };
-            sobra += rotulos.Where(r => r.Visibility == Visibility.Visible).Sum(r => r.ActualWidth + 6);
+            var rotulos = new FrameworkElement[] { RotuloAnterior, RotuloProximo };
+            sobra += rotulos.Where(r => r.Visibility == Visibility.Visible).Sum(r => r.ActualWidth + 8);
             foreach (var r in rotulos) r.Visibility = Visibility.Collapsed;
+        }
+        if (sobra < 180 && MolduraAnalise.Visibility == Visibility.Visible && TextosAnalise.Visibility == Visibility.Visible)
+        {
+            sobra += TextosAnalise.ActualWidth + 12;
+            TextosAnalise.Visibility = Visibility.Collapsed;
+        }
+        if (sobra < 160 && TextoMarca.Visibility == Visibility.Visible)
+        {
+            sobra += TextoMarca.ActualWidth + DivisoriaMarca.ActualWidth + 28;
+            TextoMarca.Visibility = DivisoriaMarca.Visibility = Visibility.Collapsed;
         }
         // Só muda com diferença visível: larguras que oscilam frações de pixel entre monitores não refazem o layout sem parar.
         var nova = Math.Round(Math.Clamp(sobra, 140, 640));
@@ -400,9 +410,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 // na janela real (o brilho é do compositor e não sai na captura XAML). Nada é executado.
                 await MudarModuloAsync(Modulo.Relatorios);
                 await NovoRelatorioAsync();
-                TextoBotaoAnalise.Text = "Analisando com o ChatGPT";
-                DetalheBotaoAnalise.Text = "19486/2026 · 12 min";
-                BotaoAnalise.Visibility = Visibility.Visible;
+                MostrarPilulaAnalise(EstadoPilulaAnalise.EmAndamento, "Analisando com o ChatGPT", "19486/2026 · 12 min", null);
                 string[] comandos =
                 [
                     @"powershell.exe -Command 'Get-Content \""C:\Users\x\.codex\plugins\cache\pmvni-kit\analise\2.5.0\skills\analise\SKILL.md\""'",
