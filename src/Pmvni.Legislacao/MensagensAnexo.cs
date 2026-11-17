@@ -51,4 +51,8 @@ public static class MensagensAnexo
 }
 
 /// <summary>Recusa com a mensagem já pronta para o usuário.</summary>
-public sealed class AnexoRecusadoException(string mensagem, Exception? causa = null) : Exception(mensagem, causa);
+/// <summary><see cref="Repetido"/>: a lei já está anexada (mesmo conteúdo); ao anexar, ela é ignorada em vez de recusada (2026-11-17).</summary>
+public sealed class AnexoRecusadoException(string mensagem, Exception? causa = null, bool repetido = false) : Exception(mensagem, causa)
+{
+    public bool Repetido { get; } = repetido;
+}

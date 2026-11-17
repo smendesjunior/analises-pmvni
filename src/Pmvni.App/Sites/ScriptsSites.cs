@@ -28,13 +28,15 @@ static class ScriptsSites
     public const string Login = "a => {" + Base + """
           const senhas = todos('input[type=password]');
           if (senhas.length === 0) return { senha: false, enviado: false };
-          if (!a || !a.usuario) return { senha: true, enviado: false };
+          if (!a || !a.senha) return { senha: true, enviado: false };
           const s = senhas[0];
           const campos = todos('input:not([type=hidden]):not([type=password]):not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button])');
           const antes = campos.filter(c => c.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING);
           const u = antes[antes.length - 1];
-          if (!u) return { senha: true, enviado: false };
-          escrever(u, a.usuario); escrever(s, a.senha);
+          // Usuário guardado: escreve; sem ele, só segue se o campo já tem usuário (o site ou o navegador preencheram).
+          if (a.usuario) { if (!u) return { senha: true, enviado: false }; escrever(u, a.usuario); }
+          else if (u && !u.value) return { senha: true, enviado: false };
+          escrever(s, a.senha);
           for (const c of todos('input[type=checkbox]')) { const l = txt(c.closest('label') || c.parentElement).toLowerCase(); if (/lembr|manter|remember|conectado/.test(l) && !c.checked) clicar(c); }
           const f = s.form;
           const botao = (f ? todos('button, input[type=submit]', f) : []).find(b => b.type === 'submit' || /entrar|acessar|login|logar|ok/i.test(txt(b) || b.value))

@@ -23,6 +23,10 @@ public sealed partial class PaginaSites : Grid
     public InfoBar AvisoBci { get; } = new() { IsClosable = true, IsOpen = false, Severity = InfoBarSeverity.Informational, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(12) };
     static Task<CoreWebView2Environment>? ambiente;
     readonly DispatcherTimer renovar = new() { Interval = TimeSpan.FromMinutes(5) };
+    // 2026-11-17 (correção): os sites de página única (Essencial, GPI) entram sem nova navegação; os cookies são guardados também a cada
+    // minuto e logo depois de cada mudança de endereço, e de todos os domínios por onde o site passou (o login pode estar em outro).
+    readonly DispatcherTimer guardar = new() { Interval = TimeSpan.FromMinutes(1) };
+    readonly Dictionary<Modulo, HashSet<string>> hostsVistos = new();
     Modulo? atual;
     bool cookiesRestaurados;
 
@@ -42,6 +46,32 @@ public sealed partial class PaginaSites : Grid
         Children.Add(AvisoBci);
         renovar.Tick += async (_, _) => await RenovarSessoesAsync();
         renovar.Start();
+        guardar.Tick += async (_, _) => { foreach (var (m, w) in navegadores.ToList()) if (w.CoreWebView2 is { } c && !CofreSites.Saiu(Raiz, m)) await GuardarCookiesAsync(m, c); };
+        guardar.Start();
+    }
+
+    HashSet<string> Hosts(Modulo m)
+    {
+        if (!hostsVistos.TryGetValue(m, out var s)) hostsVistos[m] = s = new(StringComparer.OrdinalIgnoreCase) { Host(m) };
+        return s;
+    }
+
+    void Visto(Modulo m, CoreWebView2 core)
+    {
+        if (Uri.TryCreate(core.Source, UriKind.Absolute, out var u) && u.Scheme.StartsWith("http", StringComparison.Ordinal)) Hosts(m).Add(u.Host);
+    }
+
+    /// <summary>Depois de cada página ou mudança de endereço: tenta entrar (o formulário dos sites de página única aparece depois do
+    /// carregamento) e guarda os cookies.</summary>
+    async Task AposMudancaAsync(Modulo m, CoreWebView2 core)
+    {
+        Visto(m, core);
+        foreach (var espera in new[] { 0, 1500, 4000 })
+        {
+            if (espera > 0) await Task.Delay(espera);
+            if (await EntrarSozinhoAsync(m, core)) return;
+        }
+        await GuardarCookiesAsync(m, core);
     }
 
     static string Raiz => Pmvni.Composicao.Web.PastaDados.Raiz;
@@ -143,9 +173,14 @@ public sealed partial class PaginaSites : Grid
                     else aviso.IsOpen = false;
                     EstadoMudou?.Invoke();
                 }
-                if (e.IsSuccess) { await EntrarSozinhoAsync(m, core); await GuardarCookiesAsync(m, core); }
+                if (e.IsSuccess) await AposMudancaAsync(m, core);
             };
             core.HistoryChanged += (_, _) => { if (atual == m) EstadoMudou?.Invoke(); };
+            core.SourceChanged += async (_, _) =>
+            {
+                try { await Task.Delay(2500); await AposMudancaAsync(m, core); }
+                catch (Exception e) { RegistroErros.Gravar("sites.endereco", e); }
+            };
             core.NewWindowRequested += (_, e) =>
             {
                 if (InterceptarJanela?.Invoke(m, e) == true) return;
@@ -199,9 +234,10 @@ public sealed partial class PaginaSites : Grid
         try
         {
             if (await TemSenhaAVistaAsync(core)) return;
-            var host = Host(m);
+            Visto(m, core);
+            var hosts = Hosts(m).ToList();
             var lista = (await core.CookieManager.GetCookiesAsync(null))
-                .Where(c => CofreSites.DoSite(c.Domain, host))
+                .Where(c => hosts.Any(h => CofreSites.DoSite(c.Domain, h)))
                 .Select(c => new CookieSite(c.Name, c.Value, c.Domain, c.Path, c.IsSecure, c.IsHttpOnly, (int)c.SameSite)).ToList();
             if (lista.Count == 0) return;
             CofreSites.Voltou(Raiz, m);
@@ -237,6 +273,13 @@ public sealed partial class PaginaSites : Grid
         catch (Exception e) { RegistroErros.Gravar("sites.login", e); return false; }
     }
 
+    /// <summary>Logo depois de "Guardar login": se o site já está aberto pedindo senha, entra.</summary>
+    public async Task EntrarAgoraAsync(Modulo m)
+    {
+        ultimoLoginAutomatico.Remove(m);
+        if (navegadores.TryGetValue(m, out var w) && w.CoreWebView2 is { } core) await AposMudancaAsync(m, core);
+    }
+
     /// <summary>A cada 5 minutos: renova a sessão dos sites abertos e guarda os cookies (que o servidor pode ter trocado).</summary>
     async Task RenovarSessoesAsync()
     {
@@ -256,6 +299,7 @@ public sealed partial class PaginaSites : Grid
     public async Task GuardarTudoAsync()
     {
         renovar.Stop();
+        guardar.Stop();
         foreach (var (m, w) in navegadores.ToList())
             if (w.CoreWebView2 is { } core && !CofreSites.Saiu(Raiz, m)) await GuardarCookiesAsync(m, core);
     }
@@ -269,9 +313,9 @@ public sealed partial class PaginaSites : Grid
             CoreWebView2? core = navegadores.TryGetValue(m, out var w) ? w.CoreWebView2 : null;
             if (core is null && navegadores.Count > 0) core = navegadores.Values.First().CoreWebView2;
             if (core is null) return;
-            var host = Host(m);
+            var hosts = Hosts(m).ToList();
             foreach (var c in await core.CookieManager.GetCookiesAsync(null))
-                if (CofreSites.DoSite(c.Domain, host)) core.CookieManager.DeleteCookie(c);
+                if (hosts.Any(h => CofreSites.DoSite(c.Domain, h))) core.CookieManager.DeleteCookie(c);
             if (navegadores.TryGetValue(m, out var web) && web.CoreWebView2 is { } dele) dele.Navigate(Modulos.Endereco(m));
         }
         catch (Exception e) { RegistroErros.Gravar("sites.sair", e); }

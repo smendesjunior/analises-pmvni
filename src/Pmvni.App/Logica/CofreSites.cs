@@ -59,8 +59,9 @@ public static class CofreSites
 
     public static void GuardarLogin(string raiz, Modulo m, CredencialSite c)
     {
-        if (string.IsNullOrWhiteSpace(c.Usuario) || string.IsNullOrEmpty(c.Senha)) throw new ArgumentException("Informe o usuário e a senha.");
-        Gravar(ArquivoLogin(raiz, m), JsonSerializer.SerializeToUtf8Bytes(c with { Usuario = c.Usuario.Trim() }, Json));
+        // O usuário é opcional (2026-11-17, correção): sem ele, o app preenche só a senha (o site ou o navegador já trazem o usuário).
+        if (string.IsNullOrEmpty(c.Senha)) throw new ArgumentException("Informe a senha.");
+        Gravar(ArquivoLogin(raiz, m), JsonSerializer.SerializeToUtf8Bytes(c with { Usuario = (c.Usuario ?? "").Trim() }, Json));
     }
 
     public static CredencialSite? LerLogin(string raiz, Modulo m) => Ler<CredencialSite>(ArquivoLogin(raiz, m));

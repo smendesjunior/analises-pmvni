@@ -45,7 +45,7 @@ public sealed partial class MainWindow
             var sair = new Button { Content = "Sair" };
             ToolTipService.SetToolTip(sair, "Apaga o login lembrado e o guardado deste site neste computador. Só volta a lembrar quando você entrar de novo.");
             void Atualizar() => situacao.Text = PaginaSites.Situacao(m);
-            guardar.Click += (_, _) =>
+            guardar.Click += async (_, _) =>
             {
                 try
                 {
@@ -55,6 +55,9 @@ public sealed partial class MainWindow
                 }
                 catch (Exception e) { situacao.Text = e.Message; return; }
                 Atualizar();
+                situacao.Text += " · login guardado";
+                // Site já aberto na tela de login: entra agora.
+                await PaginaDeSites.EntrarAgoraAsync(m);
             };
             abrir.Click += async (_, _) => { CofreSites.Voltou(PastaDados.Raiz, m); await MudarModuloAsync(m); };
             sair.Click += async (_, _) =>

@@ -5,6 +5,8 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 ## 0.6.1
 
 - **Correção do brilho "Trabalhando":** o arco-íris fica só no contorno; antes cobria o botão, o balão ou a barra inteira.
+- **Sites da Prefeitura: o login agora fica guardado de verdade.** O app guarda a sessão também no Essencial e no GPI (que mudam de tela sem recarregar), a cada minuto e de todos os endereços por onde o site passa. Com login guardado, entra sozinho mesmo quando a tela de login aparece um pouco depois de a página abrir; o usuário é mesmo opcional (basta a senha, se o site já traz o usuário), e "Guardar login" já entra no site aberto.
+- **Legislação: leis repetidas são ignoradas.** Ao anexar, um PDF com o mesmo nome (ou título) de uma lei já anexada, ou com o mesmo conteúdo, é pulado sem erro; o aviso diz quantas foram ignoradas.
 
 ## 0.6.0
 

@@ -675,8 +675,8 @@ public sealed partial class MainWindow
         try
         {
             var progresso = new Progress<ProgressoAnexo>(p => MostrarProgressoLegislacao("Anexando", p));
-            var (anexados, recusas) = await legislacao.AnexarAsync(caminhos, progresso, cts.Token);
-            var resumo = ListaLegislacao.Resumo(anexados.Count, recusas);
+            var (anexados, recusas, ignorados) = await legislacao.AnexarContandoAsync(caminhos, progresso, cts.Token);
+            var resumo = ListaLegislacao.Resumo(anexados.Count, recusas, ignorados);
             var cancelado = cts.IsCancellationRequested;
             if (cancelado) resumo += "\nAnexação cancelada: o arquivo em andamento não entrou.";
             // Cancelar não é erro: aviso neutro (só as recusas pedem atenção).

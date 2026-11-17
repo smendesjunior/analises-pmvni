@@ -104,6 +104,13 @@ public class ListaLegislacaoTestes
         Assert.Equal(esperado, ListaLegislacao.Resumo(anexados, lista));
     }
 
+    [Fact]
+    public void resumo_conta_as_leis_ja_anexadas_como_ignoradas()
+    {
+        Assert.Equal("Nenhum PDF anexado (1 já estava anexado e foi ignorado).", ListaLegislacao.Resumo(0, [], 1));
+        Assert.Equal("2 PDFs anexados (3 já estavam anexados e foram ignorados).", ListaLegislacao.Resumo(2, [], 3));
+    }
+
     [Theory]
     [InlineData("Lei nº 6.766/1979", TipoNorma.Lei)]
     [InlineData("LEI 9.999-2099 - FICTICIA", TipoNorma.Lei)]

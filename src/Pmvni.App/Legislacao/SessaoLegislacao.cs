@@ -75,17 +75,36 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
     public async Task<(IReadOnlyList<Anexo> Anexados, IReadOnlyList<string> Recusas)> AnexarAsync(
         IReadOnlyList<string> caminhos, IProgress<ProgressoAnexo>? p, CancellationToken ct)
     {
+        var (a, r, _) = await AnexarContandoAsync(caminhos, p, ct);
+        return (a, r);
+    }
+
+    /// <summary>Como <see cref="AnexarAsync"/>, e conta as leis ignoradas (2026-11-17, pedido do usuário): um PDF com o mesmo nome de
+    /// arquivo ou o mesmo título de uma lei já anexada (sem caixa nem acento), repetido na própria seleção, ou com o mesmo conteúdo (sha256)
+    /// de uma já anexada é pulado sem erro.</summary>
+    public async Task<(IReadOnlyList<Anexo> Anexados, IReadOnlyList<string> Recusas, int Ignorados)> AnexarContandoAsync(
+        IReadOnlyList<string> caminhos, IProgress<ProgressoAnexo>? p, CancellationToken ct)
+    {
         var anexados = new List<Anexo>();
         var recusas = new List<string>();
+        var ignorados = 0;
         // Cancelar enquanto espera a reindexação em segundo plano não é erro: nada foi feito, a lista volta vazia.
         try { await operacao.WaitAsync(ct); }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return (anexados, recusas); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return (anexados, recusas, 0); }
         try
         {
+            static string Chave(string s) => TextoPesquisa.Normalizar(Path.GetFileNameWithoutExtension(s.Trim())).Trim();
+            var nomes = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var x in await Task.Run(() => Acervo.Listar()))
+            {
+                nomes.Add(Chave(x.ArquivoOriginal));
+                nomes.Add(Chave(x.Titulo + ".pdf"));
+            }
             foreach (var caminho in caminhos)
             {
                 if (ct.IsCancellationRequested) break;
                 var nome = Path.GetFileName(caminho);
+                if (!nomes.Add(Chave(nome))) { ignorados++; continue; }
                 p?.Report(new ProgressoAnexo(nome, 0, 0));
                 (Entrada Entrada, ResultadoExtracao Resultado)? r = null;
                 try
@@ -94,6 +113,7 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
                     var pronto = r.Value;
                     anexados.Add(await Task.Run(() => Acervo.Confirmar(pronto.Entrada, pronto.Resultado)));
                 }
+                catch (AnexoRecusadoException e) when (e.Repetido) { ignorados++; }
                 catch (AnexoRecusadoException e) { recusas.Add(e.Message); }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -107,7 +127,7 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
         }
         finally { operacao.Release(); }
         if (anexados.Count > 0) await AvisarMudancaAsync();
-        return (anexados, recusas);
+        return (anexados, recusas, ignorados);
     }
 
     public const string NaoEstaMaisAnexada = "Esta lei não está mais anexada.";

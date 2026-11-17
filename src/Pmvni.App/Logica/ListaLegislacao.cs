@@ -153,10 +153,12 @@ public static class ListaLegislacao
     }
 
     /// <summary>"2 PDFs anexados." / "1 PDF anexado." / "Nenhum PDF anexado; 1 recusado:" / "1 PDF anexado; 4 recusados:", seguido de
-    /// uma linha por recusa (separadas por "\n").</summary>
-    public static string Resumo(int anexados, IReadOnlyList<string> recusas)
+    /// uma linha por recusa (separadas por "\n").
+    /// <paramref name="ignorados"/> (2026-11-17): leis que já estavam anexadas (mesmo nome ou mesmo conteúdo), puladas sem erro.</summary>
+    public static string Resumo(int anexados, IReadOnlyList<string> recusas, int ignorados = 0)
     {
         var parte = anexados switch { 0 => "Nenhum PDF anexado", 1 => "1 PDF anexado", _ => $"{anexados} PDFs anexados" };
+        if (ignorados > 0) parte += ignorados == 1 ? " (1 já estava anexado e foi ignorado)" : $" ({ignorados} já estavam anexados e foram ignorados)";
         if (recusas.Count == 0) return parte + ".";
         var linhas = new List<string> { parte + "; " + (recusas.Count == 1 ? "1 recusado:" : $"{recusas.Count} recusados:") };
         linhas.AddRange(recusas);

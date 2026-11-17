@@ -183,7 +183,7 @@ public sealed class AcervoLegislacao
                     var igual = c.Anexos.FirstOrDefault(a => a.Sha256 == sha);
                     if (igual is null) return 0;
                     if (substituiId is not null && igual.Id == substituiId) throw new AnexoRecusadoException(MensagensAnexo.Igual);
-                    throw new AnexoRecusadoException(MensagensAnexo.Repetido(nome, igual.Titulo));
+                    throw new AnexoRecusadoException(MensagensAnexo.Repetido(nome, igual.Titulo), repetido: true);
                 });
                 return new Entrada(destino, sha, total, nome, Esferas.Sugerir(caminhoOriginal), substituiId);
             }
@@ -210,7 +210,7 @@ public sealed class AcervoLegislacao
             if (igual is not null)
             {
                 ApagarEntrada(e);
-                throw new AnexoRecusadoException(MensagensAnexo.Repetido(e.NomeOriginal, igual.Titulo));
+                throw new AnexoRecusadoException(MensagensAnexo.Repetido(e.NomeOriginal, igual.Titulo), repetido: true);
             }
             var anexo = new Anexo(novoId(), e.Sha256, TituloInicial(e.NomeOriginal), e.EsferaSugerida, e.NomeOriginal, e.Tamanho,
                 r.Paginas, r.PaginasSemTexto, Agora(), null);
