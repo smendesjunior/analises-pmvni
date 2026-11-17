@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Acompanhamento de processos (2026-11-17): leitura e gravação da planilha padrão (.xlsx) direto no XML do pacote, mexendo só nas
+       células alteradas (formatação condicional, listas, tabela, fórmulas e imagens ficam como estão). Sem UI (net10.0 puro). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier></RuntimeIdentifier>
+    <TargetPlatformMinVersion></TargetPlatformMinVersion>
+    <RootNamespace>Pmvni.Acompanhamento</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pmvni.Acompanhamento.Testes" />
+  </ItemGroup>
+</Project>

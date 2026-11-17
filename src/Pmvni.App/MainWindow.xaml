@@ -166,6 +166,7 @@
         <local:PaginaAjustes x:Name="PaginaDeAjustes" Visibility="Collapsed"/>
         <local:PaginaSites x:Name="PaginaDeSites" Visibility="Collapsed"/>
         <local:PaginaImoveis x:Name="PaginaDeImoveis" Visibility="Collapsed"/>
+        <local:PaginaAcompanhamento x:Name="PaginaDeAcompanhamento" Visibility="Collapsed"/>
       </Grid>
     </Grid>
   </Grid>

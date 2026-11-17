@@ -80,6 +80,16 @@
       <Ellipse Canvas.Left="13.6" Canvas.Top="6.6" Width="2.8" Height="2.8" Fill="White"/>
     </Canvas></Viewbox>
   </DataTemplate>
+  <!-- Acompanhamento de processos (2026-11-17): prancheta com gráfico de pizza. -->
+  <DataTemplate x:Key="PmvniIconeAcompanhamento">
+    <Viewbox Stretch="Uniform"><Canvas Width="24" Height="24">
+      <Rectangle Canvas.Left="4" Canvas.Top="3" Width="16" Height="19" RadiusX="2.5" RadiusY="2.5" Fill="#1689D6"/>
+      <Rectangle Canvas.Left="8.5" Canvas.Top="1.5" Width="7" Height="3.5" RadiusX="1.2" RadiusY="1.2" Fill="#0E5E96"/>
+      <Ellipse Canvas.Left="7" Canvas.Top="8" Width="10" Height="10" Fill="White"/>
+      <Path Fill="#F2C230" Data="M12,13 L12,8 A5,5 0 0 1 17,13 Z"/>
+      <Path Fill="#1E8E4E" Data="M12,13 L17,13 A5,5 0 0 1 9.2,17.1 Z"/>
+    </Canvas></Viewbox>
+  </DataTemplate>
 </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
       <LinearGradientBrush x:Key="PmvniGradAzul" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#4BA0F4" Offset="0"/><GradientStop Color="#1366D6" Offset="1"/></LinearGradientBrush>
@@ -153,6 +163,16 @@
       <Path Fill="#3FAE6E" Data="M3,6 L8,4 L14,6 L20,4 V18 L14,20 L8,18 L3,20 Z"/>
       <Path Fill="#D93A2B" Data="M15,4 A4,4 0 0 1 19,8 C19,11 15,15 15,15 C15,15 11,11 11,8 A4,4 0 0 1 15,4 Z"/>
       <Ellipse Canvas.Left="13.6" Canvas.Top="6.6" Width="2.8" Height="2.8" Fill="White"/>
+    </Canvas></Viewbox>
+  </DataTemplate>
+  <!-- Acompanhamento de processos (2026-11-17): prancheta com gráfico de pizza. -->
+  <DataTemplate x:Key="PmvniIconeAcompanhamento">
+    <Viewbox Stretch="Uniform"><Canvas Width="24" Height="24">
+      <Rectangle Canvas.Left="4" Canvas.Top="3" Width="16" Height="19" RadiusX="2.5" RadiusY="2.5" Fill="#1689D6"/>
+      <Rectangle Canvas.Left="8.5" Canvas.Top="1.5" Width="7" Height="3.5" RadiusX="1.2" RadiusY="1.2" Fill="#0E5E96"/>
+      <Ellipse Canvas.Left="7" Canvas.Top="8" Width="10" Height="10" Fill="White"/>
+      <Path Fill="#F2C230" Data="M12,13 L12,8 A5,5 0 0 1 17,13 Z"/>
+      <Path Fill="#1E8E4E" Data="M12,13 L17,13 A5,5 0 0 1 9.2,17.1 Z"/>
     </Canvas></Viewbox>
   </DataTemplate>
 </ResourceDictionary>
@@ -230,6 +250,16 @@
       <Path Fill="#3FAE6E" Data="M3,6 L8,4 L14,6 L20,4 V18 L14,20 L8,18 L3,20 Z"/>
       <Path Fill="#D93A2B" Data="M15,4 A4,4 0 0 1 19,8 C19,11 15,15 15,15 C15,15 11,11 11,8 A4,4 0 0 1 15,4 Z"/>
       <Ellipse Canvas.Left="13.6" Canvas.Top="6.6" Width="2.8" Height="2.8" Fill="White"/>
+    </Canvas></Viewbox>
+  </DataTemplate>
+  <!-- Acompanhamento de processos (2026-11-17): prancheta com gráfico de pizza. -->
+  <DataTemplate x:Key="PmvniIconeAcompanhamento">
+    <Viewbox Stretch="Uniform"><Canvas Width="24" Height="24">
+      <Rectangle Canvas.Left="4" Canvas.Top="3" Width="16" Height="19" RadiusX="2.5" RadiusY="2.5" Fill="#1689D6"/>
+      <Rectangle Canvas.Left="8.5" Canvas.Top="1.5" Width="7" Height="3.5" RadiusX="1.2" RadiusY="1.2" Fill="#0E5E96"/>
+      <Ellipse Canvas.Left="7" Canvas.Top="8" Width="10" Height="10" Fill="White"/>
+      <Path Fill="#F2C230" Data="M12,13 L12,8 A5,5 0 0 1 17,13 Z"/>
+      <Path Fill="#1E8E4E" Data="M12,13 L17,13 A5,5 0 0 1 9.2,17.1 Z"/>
     </Canvas></Viewbox>
   </DataTemplate>
 </ResourceDictionary>
@@ -321,6 +351,16 @@
       <Path Fill="#3FAE6E" Data="M3,6 L8,4 L14,6 L20,4 V18 L14,20 L8,18 L3,20 Z"/>
       <Path Fill="#D93A2B" Data="M15,4 A4,4 0 0 1 19,8 C19,11 15,15 15,15 C15,15 11,11 11,8 A4,4 0 0 1 15,4 Z"/>
       <Ellipse Canvas.Left="13.6" Canvas.Top="6.6" Width="2.8" Height="2.8" Fill="White"/>
+    </Canvas></Viewbox>
+  </DataTemplate>
+  <!-- Acompanhamento de processos (2026-11-17): prancheta com gráfico de pizza. -->
+  <DataTemplate x:Key="PmvniIconeAcompanhamento">
+    <Viewbox Stretch="Uniform"><Canvas Width="24" Height="24">
+      <Rectangle Canvas.Left="4" Canvas.Top="3" Width="16" Height="19" RadiusX="2.5" RadiusY="2.5" Fill="#1689D6"/>
+      <Rectangle Canvas.Left="8.5" Canvas.Top="1.5" Width="7" Height="3.5" RadiusX="1.2" RadiusY="1.2" Fill="#0E5E96"/>
+      <Ellipse Canvas.Left="7" Canvas.Top="8" Width="10" Height="10" Fill="White"/>
+      <Path Fill="#F2C230" Data="M12,13 L12,8 A5,5 0 0 1 17,13 Z"/>
+      <Path Fill="#1E8E4E" Data="M12,13 L17,13 A5,5 0 0 1 9.2,17.1 Z"/>
     </Canvas></Viewbox>
   </DataTemplate>
 </ResourceDictionary>

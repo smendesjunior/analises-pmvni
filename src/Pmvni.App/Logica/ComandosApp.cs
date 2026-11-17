@@ -156,6 +156,15 @@ public static class ComandosApp
     public const string ImoveisVoltar = "imoveis.voltar";
     public const string ImoveisSalvarPdf = "imoveis.salvarpdf";
     public const string ImoveisImprimir = "imoveis.imprimir";
+    public const string ModuloAcompanhamento = "modulo.acompanhamento";
+    public const string AcompanhamentoNovo = "acompanhamento.novo";
+    public const string AcompanhamentoEditar = "acompanhamento.editar";
+    public const string AcompanhamentoExcluir = "acompanhamento.excluir";
+    public const string AcompanhamentoRecarregar = "acompanhamento.recarregar";
+    public const string AcompanhamentoAbrirExcel = "acompanhamento.abrirexcel";
+    public const string AcompanhamentoImportar = "acompanhamento.importar";
+    public const string AcompanhamentoDetectar = "acompanhamento.detectar";
+    public const string AcompanhamentoConfigurar = "acompanhamento.configurar";
     public const string SiteVoltar = "site.voltar";
     public const string SiteAvancar = "site.avancar";
     public const string SiteAtualizar = "site.atualizar";

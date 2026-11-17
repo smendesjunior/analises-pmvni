@@ -29,6 +29,7 @@
     <ProjectReference Include="..\Pmvni.Agentes\Pmvni.Agentes.csproj" />
     <ProjectReference Include="..\Pmvni.Legislacao\Pmvni.Legislacao.csproj" />
     <ProjectReference Include="..\Pmvni.Imoveis\Pmvni.Imoveis.csproj" />
+    <ProjectReference Include="..\Pmvni.Acompanhamento\Pmvni.Acompanhamento.csproj" />
   </ItemGroup>
   <!-- Carimbo da atualização automática (Atualizador.cs): o tools\build-release.ps1 passa -p:CompilacaoAtualizacao=aaaaMMddHHmmss.
        Sem ele (build de desenvolvimento), a atualização fica desligada. -->
@@ -38,5 +39,7 @@
   <ItemGroup>
     <!-- Ícones dos módulos (pacote Fluent de 2026-11-16), 64 e 128 px: o trilho e as telas vazias escolhem pelo tamanho. -->
     <EmbeddedResource Include="Recursos\Modulos\*.png" LogicalName="Pmvni.App.modulos.%(Filename)%(Extension)" />
+    <!-- O ícone do app no cartão "Sobre" dos Ajustes (2026-11-17). -->
+    <EmbeddedResource Include="Recursos\icone-app.png" LogicalName="Pmvni.App.icone-app.png" />
   </ItemGroup>
 </Project>

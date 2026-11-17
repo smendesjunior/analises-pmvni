@@ -2,8 +2,8 @@ namespace Pmvni.App;
 
 /// <summary>Módulos principais do app, na ordem do trilho (desenho §9). Ajustes fica embaixo.</summary>
 /// Os sistemas da Prefeitura (2026-11-16) vêm depois de Ajustes no enum, para Ctrl+1 … Ctrl+5 e o número de Ajustes não mudarem.
-/// Imóveis (consulta à base QGIS, 2026-11-16) também vem no fim do enum, sem atalho.
-public enum Modulo { Relatorios, Despachos, Processos, Legislacao, Ajustes, Essencial, Gpi, Alfresco, Imoveis }
+/// Imóveis (consulta à base QGIS, 2026-11-16) e Acompanhamento de processos (2026-11-17) também vêm no fim do enum, sem atalho.
+public enum Modulo { Relatorios, Despachos, Processos, Legislacao, Ajustes, Essencial, Gpi, Alfresco, Imoveis, Acompanhamento }
 
 /// <summary>Rótulo, ícone e atalho de cada módulo no trilho. Sem tipos WinUI: compilado também nos testes.</summary>
 public static class Modulos
@@ -19,6 +19,7 @@ public static class Modulos
         Modulo.Gpi => "GPI",
         Modulo.Alfresco => "Alfresco",
         Modulo.Imoveis => "Imóveis",
+        Modulo.Acompanhamento => "Acompanhamento",
         _ => throw new ArgumentOutOfRangeException(nameof(m)),
     };
 
@@ -32,6 +33,7 @@ public static class Modulos
         Modulo.Ajustes => Glifos.Engrenagem,
         Modulo.Essencial or Modulo.Gpi or Modulo.Alfresco => Glifos.Globo,
         Modulo.Imoveis => Glifos.Mapa,
+        Modulo.Acompanhamento => Glifos.Grafico,
         _ => throw new ArgumentOutOfRangeException(nameof(m)),
     };
 
@@ -53,6 +55,7 @@ public static class Modulos
         Modulo.Gpi => ComandosApp.ModuloGpi,
         Modulo.Alfresco => ComandosApp.ModuloAlfresco,
         Modulo.Imoveis => ComandosApp.ModuloImoveis,
+        Modulo.Acompanhamento => ComandosApp.ModuloAcompanhamento,
         _ => throw new ArgumentOutOfRangeException(nameof(m)),
     };
 
@@ -83,6 +86,7 @@ public static class Modulos
         Modulo.Gpi => "gestão pública integrada (GPI)",
         Modulo.Alfresco => "documentos de Obras no Alfresco",
         Modulo.Imoveis => "consulta de imóveis na base QGIS",
+        Modulo.Acompanhamento => "acompanhamento de processos (planilha de tramitação)",
         _ => "",
     };
 

@@ -24,6 +24,7 @@ public static class Glifos
     public const string Figuras = "\uEB9F";
     public const string Globo = "\uE774";
     public const string Mapa = "\uE707";
+    public const string Grafico = "\uEB05";
     public const string Imprimir = "\uE749";
     public const string Voltar = "\uE72B";
     public const string Avancar = "\uE72A";

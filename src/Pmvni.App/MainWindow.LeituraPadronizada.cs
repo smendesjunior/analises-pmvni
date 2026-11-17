@@ -182,6 +182,7 @@ public sealed partial class MainWindow
             if (b.Tipo is TipoBlocoLei.Titulo or TipoBlocoLei.Capitulo or TipoBlocoLei.Secao or TipoBlocoLei.Artigo)
                 topicosLei.Add((b, el));
         }
+        MenuTexto.Aplicar(t);
         P.RolagemPadronizada.ChangeView(null, 0, null, true);
         AtualizarTopicosNaLista();
     }

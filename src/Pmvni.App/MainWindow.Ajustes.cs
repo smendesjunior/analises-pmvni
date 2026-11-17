@@ -126,6 +126,7 @@ public sealed partial class MainWindow
         p.BotaoSofficeAutomatico.Click += (_, _) => DefinirSoffice(null);
         p.BotaoRedefinirPerfil.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(RedefinirPerfilSofficeAsync));
         AoAlternar(p.AlternarAbrirPdf, sim => ajustes.DespachoAbrirPdf = sim);
+        AoAlternar(p.AlternarDetectarAcompanhamento, sim => ajustes.AcompanhamentoDetectar = sim);
         AoEscolher(p.CaixaEscopo, v => ajustes.LegislacaoEscopo = (string)v);
         AoEscolher(p.CaixaIaModelo, v => ajustes.IaAjusteModelo = (string)v);
         AoEscolher(p.CaixaIaEsforco, v => ajustes.IaAjusteEsforco = (string)v);
@@ -167,7 +168,7 @@ public sealed partial class MainWindow
         manipuladores[ComandosApp.RevisaoComparar] = CompararAsync;
         Activated += (_, e) => { if (e.WindowActivationState != WindowActivationState.Deactivated) AtualizarRecentes(); };
         p.TextoPastaRecuperacao.Text = Path.Combine(PastaDados.Raiz, "recuperacao");
-        p.TextoVersoes.Text = TextoDasVersoes();
+        IniciarSobre();
         SincronizarAjustes();
         AtualizarRecentes();
     }
@@ -215,6 +216,7 @@ public sealed partial class MainWindow
             p.AlternarMarcas.IsOn = ajustes.MarcasRevisao;
             p.AlternarPaineis.IsOn = ajustes.LembrarPaineis;
             p.AlternarAbrirPdf.IsOn = ajustes.DespachoAbrirPdf;
+            p.AlternarDetectarAcompanhamento.IsOn = ajustes.AcompanhamentoDetectar;
             p.AlternarConfirmarCancelar.IsOn = ajustes.ConfirmarCancelar;
             p.AlternarConfirmarFechar.IsOn = ajustes.ConfirmarFechar;
             p.AlternarAtualizarSozinho.IsOn = ajustes.AtualizarAutomaticamente;

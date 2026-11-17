@@ -132,6 +132,8 @@ public sealed class Ajustes
     /// <summary>O soffice do LibreOffice escolhido em Ajustes; null = o editor acha sozinho.</summary>
     public string? Soffice { get; set; }
     public bool DespachoAbrirPdf { get; set; }
+    /// <summary>Acompanhamento de processos: preencher sozinho o local e o autor do projeto vazios (relatórios, consulta QGIS, pranchas).</summary>
+    public bool AcompanhamentoDetectar { get; set; } = true;
 
     /// <summary>De onde vem o certificado da assinatura digital dos despachos (Ajustes › Despachos e PDF › Assinatura digital, 2026-11-16):
     /// <c>nenhuma</c> (padrão: o PDF sai sem assinatura), <c>arquivo</c> (.pfx/.p12, em <see cref="AssinaturaArquivo"/>) ou <c>windows</c>
@@ -230,6 +232,7 @@ public sealed class Ajustes
         ArquivosDecrescente = p.ArquivosDecrescente;
         Soffice = null;
         DespachoAbrirPdf = p.DespachoAbrirPdf;
+        AcompanhamentoDetectar = p.AcompanhamentoDetectar;
         DefinirAssinatura("nenhuma", null);
         LegislacaoEscopo = p.LegislacaoEscopo;
         PedidoPadrao = "";
@@ -255,6 +258,10 @@ public sealed class Ajustes
     /// <summary>A pasta dos arquivos QGIS (módulo Imóveis, 2026-11-16), escolhida em Ajustes › Fontes de dados. Sem padrão: sem escolha,
     /// a consulta pede a configuração (nunca procura pastas sozinha).</summary>
     public string? PastaQgis { get; set; }
+
+    /// <summary>A planilha de acompanhamento de processos (.xlsx no modelo padrão, 2026-11-17), escolhida em Ajustes › Fontes de dados ou
+    /// pelo "Importar planilha" do módulo. Tudo o que muda no app é gravado nela.</summary>
+    public string? PlanilhaAcompanhamento { get; set; }
 
     /// <summary>As leis marcadas com a estrela na Legislação (ids dos anexos), na ordem em que foram marcadas.</summary>
     public List<string> LeisFavoritas { get; } = [];
@@ -297,6 +304,7 @@ public sealed class Ajustes
         a.PastaProcessos = Texto(j, "pasta_processos");
         a.PastaKit = Texto(j, "pasta_kit");
         a.PastaQgis = Texto(j, "pasta_qgis");
+        a.PlanilhaAcompanhamento = Texto(j, "planilha_acompanhamento");
         if (j["leis_favoritas"] is JsonArray fav)
             foreach (var f in fav)
                 if (f is JsonValue fv && fv.TryGetValue<string>(out var id) && id is { Length: > 0 and <= 128 } && !a.LeisFavoritas.Contains(id)) a.LeisFavoritas.Add(id);
@@ -354,6 +362,7 @@ public sealed class Ajustes
             ["pasta_processos"] = PastaProcessos,
             ["pasta_kit"] = PastaKit,
             ["pasta_qgis"] = PastaQgis,
+            ["planilha_acompanhamento"] = PlanilhaAcompanhamento,
             ["leis_favoritas"] = new JsonArray(LeisFavoritas.Select(f => (JsonNode)f).ToArray()),
             ["agentes"] = new JsonObject(Agentes.Select(par => KeyValuePair.Create(Provedores.Sufixo(par.Key), (JsonNode?)EscreverAgente(par.Value)))),
             ["plugins_vistos"] = new JsonObject(PluginsVistos.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => KeyValuePair.Create(p.Key, (JsonNode?)p.Value))),
@@ -377,6 +386,7 @@ public sealed class Ajustes
             ["arquivos_decrescente"] = ArquivosDecrescente,
             ["soffice"] = Soffice,
             ["despacho_abrir_pdf"] = DespachoAbrirPdf,
+            ["acompanhamento_detectar"] = AcompanhamentoDetectar,
             // Assinatura digital: só de onde vem o certificado. A senha nunca vem para este arquivo.
             ["assinatura_origem"] = AssinaturaOrigem,
             ["assinatura_arquivo"] = AssinaturaArquivo,
@@ -429,6 +439,7 @@ public sealed class Ajustes
         a.ArquivosDecrescente = Logico(j, "arquivos_decrescente", a.ArquivosDecrescente);
         a.Soffice = Texto(j, "soffice") is { } so && !string.IsNullOrWhiteSpace(so) ? so : null;
         a.DespachoAbrirPdf = Logico(j, "despacho_abrir_pdf", a.DespachoAbrirPdf);
+        a.AcompanhamentoDetectar = Logico(j, "acompanhamento_detectar", a.AcompanhamentoDetectar);
         var origem = Escolha("assinatura_origem", OpcoesAssinaturaOrigem, "nenhuma");
         a.DefinirAssinatura(origem, origem == "arquivo" ? Texto(j, "assinatura_arquivo") : origem == "windows" ? Texto(j, "assinatura_certificado_sha1") : null);
         a.AssinaturaLembrarSenha = a.AssinaturaOrigem == "arquivo" && Logico(j, "assinatura_lembrar_senha", false);

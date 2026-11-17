@@ -24,11 +24,11 @@ public static class CategoriasAjustes
         new(Aparencia, "Aparência", "Tema da janela, rótulos da faixa e onde aparecem os avisos de layout.", Glifos.Tema),
         new(Relatorios, "Relatórios e revisão", "Zoom, marcas de revisão, painéis, salvamento automático e recuperação.", Glifos.Relatorio),
         new(Pastas, "Pastas e kit", "Onde ficam os processos e o kit PMVNI, e como as listas de Processos e Despachos abrem.", Glifos.Pasta),
-        new(FontesDados, "Fontes de dados", "A pasta dos arquivos QGIS que o módulo Imóveis consulta (cadastro, lotes, zoneamento e hidrografia).", Glifos.Mapa),
+        new(FontesDados, "Fontes de dados", "A pasta QGIS do módulo Imóveis e a planilha do Acompanhamento de processos.", Glifos.Mapa),
         new(Despachos, "Despachos e PDF", "O LibreOffice que gera o PDF dos despachos e o que fazer depois de gravar.", Glifos.Despachos),
         new(Legislacao, "Legislação", "As leis anexadas e como a pesquisa no leitor começa.", Glifos.Livro),
         new(Ia, "Inteligência artificial", "Os agentes locais que fazem a análise e o que o Novo relatório pergunta antes de seguir.", Glifos.Ia),
-        new(Sobre, "Sobre e suporte", "Atualizações, versões, atalhos, a pasta de dados do editor e a volta ao padrão.", Glifos.Sobre, Rodape: true),
+        new(Sobre, "Sobre e suporte", "Atualizações, ajuda para relatar um problema, diagnóstico e informações sobre o editor.", Glifos.Sobre, Rodape: true),
     ];
 
     /// <summary>A categoria da etiqueta; uma etiqueta desconhecida leva à primeira (Geral).</summary>

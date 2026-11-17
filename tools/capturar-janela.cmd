@@ -4,5 +4,6 @@ set PMVNI_DADOS_DIR=%~dp0..\tests\saida\dados-captura
 set PMVNI_CAPTURA_PROCESSO=%1
 set PMVNI_CAPTURA_COMPACTADO=%~dp0..\tests\saida\Envio do requerente.zip
 set PMVNI_CAPTURA_DADOS=%~dp0..\tests\corpus\longo.json
+set PMVNI_CAPTURA_PLANILHA=%~dp0..\tests\Pmvni.Acompanhamento.Testes\Amostras\acompanhamento-ficticio.xlsx
 start "" /wait "%~dp0..\src\Pmvni.App\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Pmvni.App.exe" --captura "%~dp0..\tests\saida\captura"
 echo fim> "%~dp0..\tests\saida\captura-fim.txt"

@@ -1,0 +1,1023 @@
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
+using Microsoft.UI;
+using Microsoft.UI.Text;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Media;
+using Pmvni.Acompanhamento;
+using Pmvni.Composicao.Web;
+using Pmvni.Revisao;
+using Windows.UI;
+using LinhaAc = Pmvni.Acompanhamento.LinhaProcesso;
+using Coluna = Pmvni.Acompanhamento.Coluna;
+using Celula = Pmvni.Acompanhamento.Celula;
+
+namespace Pmvni.App;
+
+/// <summary>Módulo Acompanhamento de processos (2026-11-17): a planilha padrão (Ajustes › Fontes de dados) é lida fora da thread da janela e
+/// mostrada com todas as colunas, as listas e as cores da formatação condicional dela; o cabeçalho tem o resumo por status (clicar filtra)
+/// e o gráfico de pizza do andamento. Tudo o que muda aqui (novo, edição, status, exclusão, local e autor detectados) é gravado na
+/// planilha, mexendo só nas células alteradas, com uma cópia de segurança antes. Mudou no Excel: a página relê sozinha.</summary>
+public sealed partial class MainWindow
+{
+    PaginaAcompanhamento Ac => PaginaDeAcompanhamento;
+    PlanilhaLida? planilha;
+    LinhaAc? linhaEscolhida;
+    ChaveColuna? ordemChave = ChaveColuna.Processo;
+    int ordemIndice = -1;
+    bool ordemDecrescente;
+    readonly HashSet<string> filtroStatus = new(StringComparer.Ordinal);
+    readonly HashSet<string> filtroPrioridade = new(StringComparer.Ordinal);
+    readonly HashSet<string> filtroAprovacao = new(StringComparer.Ordinal);
+    readonly HashSet<string> filtroProfissional = new(StringComparer.Ordinal);
+    readonly Dictionary<string, List<(ChaveColuna Campo, string Fonte)>> detectados = new(StringComparer.OrdinalIgnoreCase);
+    readonly HashSet<string> planilhasJaDetectadas = new(StringComparer.OrdinalIgnoreCase);
+    FileSystemWatcher? vigiaPlanilha;
+    DateTime gravouPlanilhaEm;
+    bool gravandoPlanilha;
+    DispatcherTimer? releituraPlanilha;
+    List<LinhaAc> processosNaTela = [];
+
+    static string PastaCopiasPlanilha => Path.Combine(PastaDados.Raiz, "acompanhamento", "copias");
+
+    static double Largura(Coluna c) => c.Chave switch
+    {
+        ChaveColuna.Numero => 56,
+        ChaveColuna.DataInicial or ChaveColuna.Recebido or ChaveColuna.Atualizacao => 112,
+        ChaveColuna.Prioridade => 100,
+        ChaveColuna.Processo => 118,
+        ChaveColuna.Requerente => 250,
+        ChaveColuna.Local => 240,
+        ChaveColuna.Status => 210,
+        ChaveColuna.Aprovacao => 150,
+        ChaveColuna.Profissional => 170,
+        ChaveColuna.DiasSemAtualizacao => 104,
+        ChaveColuna.Observacao => 340,
+        _ => 110,
+    };
+
+    void IniciarAcompanhamento()
+    {
+        Ac.IconeTitulo.Content = Trilho.NovoIcone(Modulo.Acompanhamento, 40);
+        Ac.IconeVazio.Content = Trilho.NovoIcone(Modulo.Acompanhamento, 64);
+        Ac.BotaoNovo.Click += async (_, _) => await NovoProcessoNaPlanilhaAsync();
+        Ac.BotaoImportar.Click += async (_, _) => await ImportarPlanilhaAsync();
+        Ac.BotaoEscolherVazio.Click += async (_, _) => await ImportarPlanilhaAsync();
+        Ac.BotaoAjustesVazio.Click += async (_, _) => await ConfigurarPlanilhaAsync();
+        Ac.MenuAbrirExcel.Click += (_, _) => AbrirPlanilhaNoExcel();
+        Ac.MenuExportarCsv.Click += async (_, _) => await ExportarCsvAsync();
+        Ac.MenuCopiarLista.Click += (_, _) => { AreaTransferencia.Copiar(TextoDaLista('\t')); MostrarAvisoAcompanhamento(InfoBarSeverity.Success, "Lista copiada", "Cole no Excel ou no e-mail."); };
+        Ac.BotaoEditar.Click += async (_, _) => await EditarProcessoAsync(linhaEscolhida);
+        Ac.BotaoFecharPainel.Click += (_, _) => { Ac.Lista.SelectedItem = null; MostrarPainel(null); };
+        Ac.BotaoAbrirPasta.Click += (_, _) => AbrirPastaDoProcesso(linhaEscolhida);
+        Ac.CaixaBusca.TextChanged += (_, _) => PreencherLista();
+        Ac.Lista.SelectionChanged += (_, _) =>
+        {
+            if (Ac.Lista.SelectedItem is FrameworkElement { Tag: LinhaAc l }) MostrarPainel(l);
+            AtualizarComandosDoAcompanhamento();
+        };
+        Ac.Lista.DoubleTapped += async (_, _) => { if (linhaEscolhida is { } l) await EditarProcessoAsync(l); };
+        Ac.ActualThemeChanged += (_, _) => { if (planilha is not null) MostrarPlanilha(); };
+
+        manipuladores[ComandosApp.AcompanhamentoNovo] = NovoProcessoNaPlanilhaAsync;
+        manipuladores[ComandosApp.AcompanhamentoEditar] = () => EditarProcessoAsync(linhaEscolhida);
+        manipuladores[ComandosApp.AcompanhamentoExcluir] = () => ExcluirProcessoAsync(linhaEscolhida);
+        manipuladores[ComandosApp.AcompanhamentoRecarregar] = () => CarregarPlanilhaAsync();
+        manipuladores[ComandosApp.AcompanhamentoAbrirExcel] = () => { AbrirPlanilhaNoExcel(); return Task.CompletedTask; };
+        manipuladores[ComandosApp.AcompanhamentoImportar] = ImportarPlanilhaAsync;
+        manipuladores[ComandosApp.AcompanhamentoDetectar] = () => DetectarLocalEAutorAsync(manual: true);
+        manipuladores[ComandosApp.AcompanhamentoConfigurar] = ConfigurarPlanilhaAsync;
+
+        // Ajustes › Fontes de dados
+        var a = PaginaDeAjustes;
+        a.BotaoEscolherPlanilha.Click += async (_, _) => await EscolherPlanilhaAsync(depoisAbrir: false);
+        a.BotaoVerificarPlanilha.Click += async (_, _) => await VerificarPlanilhaAsync();
+        a.BotaoAbrirPlanilha.Click += (_, _) => AbrirPlanilhaNoExcel();
+        AtualizarAjustesPlanilha();
+    }
+
+    // ---------- entrar, carregar ----------
+
+    async Task EntrarNoAcompanhamentoAsync()
+    {
+        AtualizarComandosDoAcompanhamento();
+        if (string.IsNullOrWhiteSpace(ajustes.PlanilhaAcompanhamento))
+        {
+            MostrarVazioAcompanhamento("Escolha a planilha de acompanhamento de processos (o .xlsx no modelo padrão). Ela também pode ser escolhida em Ajustes › Fontes de dados.");
+            return;
+        }
+        if (planilha is null || !string.Equals(planilha.Caminho, ajustes.PlanilhaAcompanhamento, StringComparison.OrdinalIgnoreCase)) await CarregarPlanilhaAsync();
+        else MostrarPlanilha();
+        if (ajustes.AcompanhamentoDetectar && planilha is not null && planilhasJaDetectadas.Add(planilha.Caminho)) await DetectarLocalEAutorAsync(manual: false);
+    }
+
+    async Task CarregarPlanilhaAsync()
+    {
+        var caminho = ajustes.PlanilhaAcompanhamento;
+        if (string.IsNullOrWhiteSpace(caminho)) { MostrarVazioAcompanhamento("Nenhuma planilha escolhida."); return; }
+        Ac.Progresso.Visibility = Visibility.Visible;
+        try
+        {
+            planilha = await Task.Run(() => LeitorPlanilha.Ler(caminho));
+            Ac.Aviso.IsOpen = Ac.Aviso.Severity == InfoBarSeverity.Error ? false : Ac.Aviso.IsOpen;
+            VigiarPlanilha(caminho);
+            MostrarPlanilha();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or System.Xml.XmlException)
+        {
+            planilha = null;
+            MostrarVazioAcompanhamento("A planilha não pôde ser lida: " + e.Message);
+        }
+        finally
+        {
+            Ac.Progresso.Visibility = Visibility.Collapsed;
+            AtualizarComandosDoAcompanhamento();
+        }
+    }
+
+    /// <summary>A planilha mudou no disco (Excel, OneDrive): relê 1,5 s depois do último aviso; as gravações do próprio app não contam.</summary>
+    void VigiarPlanilha(string caminho)
+    {
+        if (vigiaPlanilha is not null && string.Equals(Path.Combine(vigiaPlanilha.Path, vigiaPlanilha.Filter), caminho, StringComparison.OrdinalIgnoreCase)) return;
+        vigiaPlanilha?.Dispose();
+        vigiaPlanilha = null;
+        try
+        {
+            var w = new FileSystemWatcher(Path.GetDirectoryName(caminho)!, Path.GetFileName(caminho)) { NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName };
+            void Mudou(object? _, FileSystemEventArgs __) => DispatcherQueue.TryEnqueue(() =>
+            {
+                if (gravandoPlanilha || (DateTime.UtcNow - gravouPlanilhaEm).TotalSeconds < 4) return;
+                releituraPlanilha ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+                releituraPlanilha.Stop();
+                releituraPlanilha.Tick -= Reler;
+                releituraPlanilha.Tick += Reler;
+                releituraPlanilha.Start();
+            });
+            w.Changed += Mudou;
+            w.Renamed += (s, e) => Mudou(s, e);
+            w.Created += Mudou;
+            w.EnableRaisingEvents = true;
+            vigiaPlanilha = w;
+        }
+        catch (Exception e) when (e is IOException or ArgumentException or UnauthorizedAccessException) { }
+    }
+
+    void Reler(object? s, object e)
+    {
+        releituraPlanilha?.Stop();
+        if (!gravandoPlanilha) Soltar(CarregarPlanilhaAsync);
+    }
+
+    void MostrarVazioAcompanhamento(string texto)
+    {
+        Ac.Vazio.Visibility = Visibility.Visible;
+        Ac.RolagemTabela.Visibility = Visibility.Collapsed;
+        Ac.Resumo.Visibility = Visibility.Collapsed;
+        Ac.TextoVazio.Text = texto;
+        Ac.TextoSubtitulo.Text = "Controle de tramitação";
+        Ac.Rodape.Text = "";
+        MostrarPainel(null);
+    }
+
+    // ---------- desenhar ----------
+
+    bool Escuro => Ac.ActualTheme == ElementTheme.Dark;
+
+    static Color? Hex(string? h)
+    {
+        if (h is null || h.Length != 7) return null;
+        return Color.FromArgb(255, Convert.ToByte(h[1..3], 16), Convert.ToByte(h[3..5], 16), Convert.ToByte(h[5..7], 16));
+    }
+
+    static Color Misturar(Color a, Color b, double t) =>
+        Color.FromArgb(255, (byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
+
+    /// <summary>As cores de uma etiqueta: no tema claro, as da planilha (fundo claro, texto escuro); no escuro, invertidas.</summary>
+    (Brush Fundo, Brush Texto)? CoresEtiqueta(Cor? c)
+    {
+        var fundo = Hex(c?.Fundo);
+        var texto = Hex(c?.Texto);
+        if (fundo is null && texto is null) return null;
+        var f = fundo ?? Misturar(texto!.Value, Colors.White, .85);
+        var t = texto ?? Misturar(fundo!.Value, Colors.Black, .7);
+        return Escuro
+            ? (new SolidColorBrush(Misturar(t, Colors.Black, .1)), new SolidColorBrush(f))
+            : (new SolidColorBrush(f), new SolidColorBrush(t));
+    }
+
+    /// <summary>A cor da fatia e da barrinha do cartão: o meio entre o fundo e o texto da regra (lê bem nos dois temas).</summary>
+    Brush CorDaFatia(Cor? c, int i)
+    {
+        var fundo = Hex(c?.Fundo);
+        var texto = Hex(c?.Texto);
+        if (fundo is { } f && texto is { } t) return new SolidColorBrush(Misturar(f, t, .55));
+        if (texto is { } t2) return new SolidColorBrush(t2);
+        Color[] reserva = [Color.FromArgb(255, 0x5B, 0x8D, 0xD9), Color.FromArgb(255, 0xE0, 0x8E, 0x45), Color.FromArgb(255, 0x6B, 0xB3, 0x6B), Color.FromArgb(255, 0x9B, 0x7B, 0xD0), Color.FromArgb(255, 0x8A, 0x8A, 0x8A)];
+        return new SolidColorBrush(reserva[i % reserva.Length]);
+    }
+
+    FrameworkElement Etiqueta(string texto, Cor? c, double tamanho = 12)
+    {
+        if (CoresEtiqueta(c) is not { } cores) return TextoCelula(texto);
+        return new Border
+        {
+            Background = cores.Fundo, CornerRadius = new CornerRadius(11), Padding = new Thickness(10, 3, 10, 4), HorizontalAlignment = HorizontalAlignment.Left,
+            Child = new TextBlock { Text = texto, Foreground = cores.Texto, FontSize = tamanho, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis },
+        };
+    }
+
+    static TextBlock TextoCelula(string texto, bool apagado = false)
+    {
+        var t = new TextBlock { Text = texto.Length == 0 ? "—" : texto, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.Wrap, MaxLines = 2, VerticalAlignment = VerticalAlignment.Center };
+        if (texto.Length == 0 || apagado) t.Opacity = .55;
+        if (texto.Length > 28) ToolTipService.SetToolTip(t, texto);
+        return t;
+    }
+
+    static readonly HashSet<string> Minusculas = new(StringComparer.Ordinal) { "da", "de", "do", "das", "dos", "e", "em", "na", "no", "a", "o" };
+
+    /// <summary>"POLICIA CIENTIFICA DO ESTADO" → "Policia Cientifica do Estado" (só para a tela; a planilha fica como está).</summary>
+    static string Titulo(string s)
+    {
+        if (s.Length == 0 || s.Any(char.IsLower)) return s;
+        var pt = new CultureInfo("pt-BR");
+        var palavras = s.ToLower(pt).Split(' ');
+        for (var i = 0; i < palavras.Length; i++)
+        {
+            var w = palavras[i];
+            if (w.Length == 0 || (i > 0 && Minusculas.Contains(w))) continue;
+            if (w.Length <= 3 && w.Contains('.')) { palavras[i] = w.ToUpper(pt); continue; } // "a.s.s." e siglas com ponto
+            palavras[i] = char.ToUpper(w[0], pt) + w[1..];
+        }
+        return string.Join(' ', palavras);
+    }
+
+    void MostrarPlanilha()
+    {
+        if (planilha is not { } p) return;
+        Ac.Vazio.Visibility = Visibility.Collapsed;
+        Ac.RolagemTabela.Visibility = Visibility.Visible;
+        Ac.Resumo.Visibility = Visibility.Visible;
+        var partes = new[] { p.Subtitulo.Length > 0 ? p.Subtitulo : "Controle de tramitação", p.Aba }.Where(x => x.Length > 0);
+        Ac.TextoSubtitulo.Text = string.Join(" • ", partes);
+        ToolTipService.SetToolTip(Ac.TextoSubtitulo, p.Titulo.Length > 0 ? p.Titulo : null);
+        MostrarResumo();
+        MontarCabecalho();
+        MontarFiltros();
+        PreencherLista();
+    }
+
+    void MostrarResumo()
+    {
+        var p = planilha!;
+        var status = p.Coluna(ChaveColuna.Status);
+        var cont = p.Contagem(ChaveColuna.Status);
+        Ac.CartoesStatus.Items.Clear();
+        var fatias = new List<GraficoPizza.Fatia>();
+        var i = 0;
+        foreach (var (valor, n) in cont)
+        {
+            var cor = status?.CorDe(valor, null);
+            var corFatia = CorDaFatia(cor, i++);
+            fatias.Add(new GraficoPizza.Fatia(valor, n, corFatia));
+            var ativo = filtroStatus.Contains(Planilha.Normal(valor));
+            var conteudo = new StackPanel { Spacing = 2, Width = 112 };
+            conteudo.Children.Add(new TextBlock { Text = valor, FontSize = 11, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, MaxLines = 2, Height = 30, Opacity = .85, TextAlignment = TextAlignment.Center });
+            conteudo.Children.Add(new TextBlock { Text = n.ToString(CultureInfo.InvariantCulture), FontSize = 26, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center });
+            var barra = new Border { Height = 4, CornerRadius = new CornerRadius(2), Background = corFatia, Margin = new Thickness(8, 4, 8, 0) };
+            conteudo.Children.Add(barra);
+            var b = new ToggleButton { Content = conteudo, IsChecked = ativo, Padding = new Thickness(6, 8, 6, 8), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            var chave = Planilha.Normal(valor);
+            b.Click += (_, _) =>
+            {
+                if (!filtroStatus.Remove(chave)) filtroStatus.Add(chave);
+                MostrarResumo();
+                MontarFiltros();
+                PreencherLista();
+            };
+            ToolTipService.SetToolTip(b, ativo ? $"Mostrar todos os status" : $"Mostrar só {valor}");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"{valor}: {n} processos");
+            Ac.CartoesStatus.Items.Add(b);
+        }
+        Ac.Pizza.Mostrar(fatias);
+
+        Ac.BlocoAprovacao.Children.Clear();
+        var aprov = p.Coluna(ChaveColuna.Aprovacao);
+        if (aprov is not null)
+        {
+            Ac.BlocoAprovacao.Children.Add(new TextBlock { Text = aprov.Titulo.ToUpperInvariant(), Style = (Style)Application.Current.Resources["PmvniPainelRotulo"] });
+            foreach (var (valor, n) in p.Contagem(ChaveColuna.Aprovacao))
+            {
+                var linha = new Grid { ColumnSpacing = 10 };
+                linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                linha.Children.Add(Etiqueta(valor, aprov.CorDe(valor, null), 11));
+                var num = new TextBlock { Text = n.ToString(CultureInfo.InvariantCulture), FontSize = 20, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(num, 1);
+                linha.Children.Add(num);
+                Ac.BlocoAprovacao.Children.Add(linha);
+            }
+            var semAprov = p.Linhas.Count(l => l.Aprovacao.Length == 0);
+            Ac.BlocoAprovacao.Children.Add(new TextBlock { Text = $"Sem decisão: {semAprov}", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
+        }
+    }
+
+    IReadOnlyList<Coluna> ColunasVisiveis => planilha?.Colunas ?? [];
+
+    void DefinirColunas(Grid g)
+    {
+        g.ColumnDefinitions.Clear();
+        foreach (var c in ColunasVisiveis) g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Largura(c)) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
+        g.ColumnSpacing = 10;
+    }
+
+    double LarguraDaTabela => ColunasVisiveis.Sum(Largura) + 48 + 10 * ColunasVisiveis.Count + 24 + 8;
+
+    void MontarCabecalho()
+    {
+        var g = Ac.CabecalhoTabela;
+        g.Children.Clear();
+        DefinirColunas(g);
+        Ac.Tabela.Width = LarguraDaTabela;
+        var i = 0;
+        foreach (var c in ColunasVisiveis)
+        {
+            var ativa = c.Chave != ChaveColuna.Outra ? ordemChave == c.Chave : ordemIndice == c.Indice;
+            var painel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            painel.Children.Add(new TextBlock { Text = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+            if (ativa) painel.Children.Add(new FontIcon { Glyph = ordemDecrescente ? "" : "", FontSize = 11 });
+            var b = new Button { Content = painel, Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(0, 10, 0, 10), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left };
+            ToolTipService.SetToolTip(b, $"Ordenar por {c.Titulo}");
+            var col = c;
+            b.Click += (_, _) =>
+            {
+                var mesma = col.Chave != ChaveColuna.Outra ? ordemChave == col.Chave : ordemIndice == col.Indice;
+                ordemDecrescente = mesma && !ordemDecrescente;
+                ordemChave = col.Chave != ChaveColuna.Outra ? col.Chave : null;
+                ordemIndice = col.Chave == ChaveColuna.Outra ? col.Indice : -1;
+                MontarCabecalho();
+                PreencherLista();
+            };
+            Grid.SetColumn(b, i++);
+            g.Children.Add(b);
+        }
+    }
+
+    bool PassaNoFiltro(LinhaAc l)
+    {
+        if (filtroStatus.Count > 0 && !filtroStatus.Contains(Planilha.Normal(l.Status))) return false;
+        if (filtroPrioridade.Count > 0 && !filtroPrioridade.Contains(Planilha.Normal(l.Texto(ChaveColuna.Prioridade)))) return false;
+        if (filtroAprovacao.Count > 0 && !filtroAprovacao.Contains(Planilha.Normal(l.Aprovacao))) return false;
+        if (filtroProfissional.Count > 0 && !filtroProfissional.Contains(Planilha.Normal(l.Texto(ChaveColuna.Profissional)))) return false;
+        var busca = Planilha.Normal(Ac.CaixaBusca.Text);
+        if (busca.Length == 0) return true;
+        return planilha!.Colunas.Any(c => Planilha.Normal(planilha.TextoDe(l, c)).Contains(busca, StringComparison.Ordinal))
+            || Planilha.Normal(l.ProcessoNormalizado).Contains(busca.Replace(" ", ""), StringComparison.Ordinal);
+    }
+
+    IComparable Chave(LinhaAc l)
+    {
+        var c = ordemChave is { } k ? planilha!.Coluna(k) : planilha!.Colunas.FirstOrDefault(x => x.Indice == ordemIndice);
+        if (c is null) return l.Linha;
+        if (c.Chave == ChaveColuna.Processo)
+        {
+            var m = Regex.Match(l.ProcessoNormalizado, @"^(\d+)/(\d{4})");
+            return m.Success ? long.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture) * 1_000_000 + long.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) : long.MaxValue;
+        }
+        if (c.Chave == ChaveColuna.DiasSemAtualizacao) return l.Dias(DateTime.Today) ?? int.MinValue;
+        if (c.Tipo == TipoColuna.Data) return Planilha.ComoData(l.Celula(c.Indice)) ?? DateTime.MinValue;
+        if (c.Tipo == TipoColuna.Numero) return l.Celula(c.Indice).Numero ?? double.MinValue;
+        if (c.Tipo == TipoColuna.Lista && c.Opcoes.Count > 0)
+        {
+            var i = c.Opcoes.Select(Planilha.Normal).ToList().IndexOf(Planilha.Normal(l.Celula(c.Indice).Texto));
+            return i < 0 ? int.MaxValue : i;
+        }
+        return Planilha.Normal(planilha.TextoDe(l, c));
+    }
+
+    void PreencherLista()
+    {
+        if (planilha is not { } p) return;
+        var filtrados = p.Linhas.Where(PassaNoFiltro);
+        processosNaTela = (ordemDecrescente ? filtrados.OrderByDescending(Chave) : filtrados.OrderBy(Chave)).ThenBy(l => l.Linha).ToList();
+        var escolhido = linhaEscolhida?.ProcessoNormalizado;
+        Ac.Lista.Items.Clear();
+        FrameworkElement? reescolher = null;
+        foreach (var l in processosNaTela)
+        {
+            var linha = LinhaDaTabela(l);
+            Ac.Lista.Items.Add(linha);
+            if (escolhido is not null && string.Equals(l.ProcessoNormalizado, escolhido, StringComparison.OrdinalIgnoreCase)) reescolher = linha;
+        }
+        if (reescolher is not null) Ac.Lista.SelectedItem = reescolher;
+        else MostrarPainel(null);
+        var filtros = filtroStatus.Count + filtroPrioridade.Count + filtroAprovacao.Count + filtroProfissional.Count;
+        Ac.TextoFiltrar.Text = filtros == 0 ? "Filtrar" : $"Filtrar ({filtros})";
+        var ultima = p.Linhas.Select(l => l.Atualizacao).Where(d => d is not null).DefaultIfEmpty(null).Max();
+        var mostrando = processosNaTela.Count == p.Linhas.Count ? $"{p.Linhas.Count} processos" : $"{processosNaTela.Count} de {p.Linhas.Count} processos";
+        Ac.Rodape.Text = mostrando + (ultima is { } u ? $"  •  Última atualização {u:dd/MM/yyyy}" : "") + $"  •  {Path.GetFileName(p.Caminho)} (aba {p.Aba}), lida às {p.LidoEm:HH:mm}";
+        if (processosNaTela.Count == 0 && p.Linhas.Count > 0)
+        {
+            Ac.Rodape.Text = "Nenhum processo com esses filtros  •  " + Ac.Rodape.Text;
+        }
+    }
+
+    FrameworkElement LinhaDaTabela(LinhaAc l)
+    {
+        var p = planilha!;
+        var g = new Grid { Padding = new Thickness(12, 6, 12, 6), MinHeight = 52, Tag = l, Width = LarguraDaTabela - 8 };
+        DefinirColunas(g);
+        var i = 0;
+        foreach (var c in ColunasVisiveis)
+        {
+            var texto = p.TextoDe(l, c);
+            FrameworkElement el;
+            if (texto.Length > 0 && (c.Tipo == TipoColuna.Lista || c.Chave is ChaveColuna.Status or ChaveColuna.Aprovacao or ChaveColuna.Prioridade or ChaveColuna.DiasSemAtualizacao)
+                && c.CorDe(texto, double.TryParse(texto, NumberStyles.Float, CultureInfo.InvariantCulture, out var n) ? n : null) is { } cor)
+                el = Etiqueta(c.Chave == ChaveColuna.DiasSemAtualizacao ? texto + (texto == "1" ? " dia" : " dias") : c.Chave == ChaveColuna.Prioridade ? Titulo(texto) : texto, cor);
+            else if (c.Chave == ChaveColuna.DiasSemAtualizacao && texto.Length > 0)
+                el = TextoCelula(texto + (texto == "1" ? " dia" : " dias"));
+            else if (c.Chave is ChaveColuna.Requerente or ChaveColuna.Profissional or ChaveColuna.Local)
+                el = TextoCelula(Titulo(texto));
+            else if (c.Chave == ChaveColuna.Processo)
+                el = new TextBlock { Text = texto, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = false };
+            else el = TextoCelula(texto);
+            el.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(el, i++);
+            g.Children.Add(el);
+        }
+        var mais = new Button { Content = new FontIcon { Glyph = "", FontSize = 14 }, Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(8, 6, 8, 6), VerticalAlignment = VerticalAlignment.Center };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(mais, "Mais ações do processo " + l.Processo);
+        ToolTipService.SetToolTip(mais, "Mais ações");
+        mais.Flyout = MenuDoProcesso(l);
+        Grid.SetColumn(mais, i);
+        g.Children.Add(mais);
+        g.ContextFlyout = MenuDoProcesso(l);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(g, $"Processo {l.Processo}, {l.Texto(ChaveColuna.Requerente)}, {l.Status}");
+        return g;
+    }
+
+    MenuFlyout MenuDoProcesso(LinhaAc l)
+    {
+        var m = new MenuFlyout();
+        var editar = new MenuFlyoutItem { Text = "Editar processo…", Icon = new FontIcon { Glyph = Glifos.Editar } };
+        editar.Click += async (_, _) => await EditarProcessoAsync(l);
+        m.Items.Add(editar);
+        void Submenu(ChaveColuna k, string titulo)
+        {
+            if (planilha?.Coluna(k) is not { } c) return;
+            var sub = new MenuFlyoutSubItem { Text = titulo };
+            foreach (var op in planilha.Opcoes(k).Concat(k == ChaveColuna.Aprovacao ? [""] : []))
+            {
+                var item = new ToggleMenuFlyoutItem { Text = op.Length == 0 ? "Sem decisão" : op, IsChecked = string.Equals(Planilha.Normal(l.Texto(k)), Planilha.Normal(op), StringComparison.Ordinal) };
+                var valor = op;
+                item.Click += async (_, _) => await MudarCampoAsync(l, c, valor);
+                sub.Items.Add(item);
+            }
+            m.Items.Add(sub);
+        }
+        Submenu(ChaveColuna.Status, "Mudar status");
+        Submenu(ChaveColuna.Aprovacao, "Aprovação");
+        Submenu(ChaveColuna.Prioridade, "Prioridade");
+        m.Items.Add(new MenuFlyoutSeparator());
+        var pasta = new MenuFlyoutItem { Text = "Abrir a pasta do processo", Icon = new FontIcon { Glyph = Glifos.Pasta } };
+        pasta.Click += (_, _) => AbrirPastaDoProcesso(l);
+        m.Items.Add(pasta);
+        var copiar = new MenuFlyoutItem { Text = "Copiar o número", Icon = new FontIcon { Glyph = Glifos.Copiar } };
+        copiar.Click += (_, _) => AreaTransferencia.Copiar(l.ProcessoNormalizado);
+        m.Items.Add(copiar);
+        m.Items.Add(new MenuFlyoutSeparator());
+        var excluir = new MenuFlyoutItem { Text = "Excluir da planilha…", Icon = new FontIcon { Glyph = Glifos.Excluir } };
+        excluir.Click += async (_, _) => await ExcluirProcessoAsync(l);
+        m.Items.Add(excluir);
+        return m;
+    }
+
+    void MontarFiltros()
+    {
+        if (planilha is not { } p) return;
+        var painel = Ac.PainelFiltros;
+        painel.Children.Clear();
+        void Grupo(string titulo, IEnumerable<string> opcoes, HashSet<string> marcados)
+        {
+            var lista = opcoes.Where(o => o.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (lista.Count == 0) return;
+            painel.Children.Add(new TextBlock { Text = titulo.ToUpperInvariant(), Style = (Style)Application.Current.Resources["PmvniPainelRotulo"], Margin = new Thickness(0, painel.Children.Count == 0 ? 0 : 10, 0, 2) });
+            foreach (var o in lista)
+            {
+                var chave = Planilha.Normal(o);
+                var cb = new CheckBox { Content = o, IsChecked = marcados.Contains(chave), MinHeight = 28, Padding = new Thickness(6, 4, 0, 4) };
+                cb.Checked += (_, _) => { marcados.Add(chave); MostrarResumo(); PreencherLista(); };
+                cb.Unchecked += (_, _) => { marcados.Remove(chave); MostrarResumo(); PreencherLista(); };
+                painel.Children.Add(cb);
+            }
+        }
+        Grupo("Status", p.Opcoes(ChaveColuna.Status), filtroStatus);
+        Grupo("Prioridade", p.Opcoes(ChaveColuna.Prioridade), filtroPrioridade);
+        Grupo("Aprovação", p.Opcoes(ChaveColuna.Aprovacao), filtroAprovacao);
+        Grupo("Profissional", p.Linhas.Select(l => l.Texto(ChaveColuna.Profissional)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase), filtroProfissional);
+        var limpar = new Button { Content = "Limpar filtros", Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Stretch };
+        limpar.Click += (_, _) =>
+        {
+            filtroStatus.Clear(); filtroPrioridade.Clear(); filtroAprovacao.Clear(); filtroProfissional.Clear();
+            Ac.CaixaBusca.Text = "";
+            MostrarResumo();
+            MontarFiltros();
+            PreencherLista();
+        };
+        painel.Children.Add(limpar);
+    }
+
+    void MostrarPainel(LinhaAc? l)
+    {
+        linhaEscolhida = l;
+        Ac.Painel.Visibility = l is null ? Visibility.Collapsed : Visibility.Visible;
+        Ac.ColunaPainel.Width = l is null ? new GridLength(0) : new GridLength(340);
+        AtualizarComandosDoAcompanhamento();
+        if (l is null || planilha is not { } p) return;
+        Ac.TituloPainel.Text = "Processo " + l.Processo;
+        var campos = Ac.CamposPainel;
+        campos.Children.Clear();
+        detectados.TryGetValue(l.ProcessoNormalizado, out var achados);
+        foreach (var c in p.Colunas.Where(c => c.Chave != ChaveColuna.Processo))
+        {
+            var texto = p.TextoDe(l, c);
+            if (c.Chave == ChaveColuna.DiasSemAtualizacao && texto.Length > 0) texto += texto == "1" ? " dia" : " dias";
+            var bloco = new StackPanel { Spacing = 4, Padding = new Thickness(0, 10, 0, 10), BorderBrush = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"], BorderThickness = new Thickness(0, 0, 0, 1) };
+            bloco.Children.Add(new TextBlock { Text = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo, Style = (Style)Application.Current.Resources["PmvniPainelRotulo"] });
+            if (texto.Length > 0 && (c.Tipo == TipoColuna.Lista || c.Chave == ChaveColuna.DiasSemAtualizacao) && c.CorDe(p.TextoDe(l, c), l.Dias(DateTime.Today)) is { } cor)
+                bloco.Children.Add(Etiqueta(texto, cor, 13));
+            else
+                bloco.Children.Add(new TextBlock { Text = texto.Length == 0 ? "—" : texto, Style = (Style)Application.Current.Resources["PmvniPainelValor"], Opacity = texto.Length == 0 ? .55 : 1 });
+            if (achados?.FirstOrDefault(x => x.Campo == c.Chave) is { Fonte: { } fonte })
+            {
+                var nota = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                nota.Children.Add(new FontIcon { Glyph = "", FontSize = 12, Foreground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"] });
+                nota.Children.Add(new TextBlock { Text = "Preenchido sozinho: " + fonte, FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"] });
+                bloco.Children.Add(nota);
+            }
+            campos.Children.Add(bloco);
+        }
+        MenuTexto.Aplicar(campos);
+    }
+
+    void AtualizarComandosDoAcompanhamento()
+    {
+        var tem = !string.IsNullOrWhiteSpace(ajustes.PlanilhaAcompanhamento);
+        var lida = planilha is not null;
+        Faixa.Habilitar(ComandosApp.AcompanhamentoNovo, lida);
+        Faixa.Habilitar(ComandosApp.AcompanhamentoEditar, lida && linhaEscolhida is not null);
+        Faixa.Habilitar(ComandosApp.AcompanhamentoExcluir, lida && linhaEscolhida is not null);
+        Faixa.Habilitar(ComandosApp.AcompanhamentoDetectar, lida && !string.IsNullOrWhiteSpace(ajustes.PastaProcessos));
+        Faixa.Habilitar(ComandosApp.AcompanhamentoRecarregar, tem);
+        Faixa.Habilitar(ComandosApp.AcompanhamentoAbrirExcel, tem);
+        Faixa.Habilitar(ComandosApp.AcompanhamentoImportar, true);
+        Faixa.Habilitar(ComandosApp.AcompanhamentoConfigurar, true);
+        Ac.BotaoNovo.IsEnabled = lida;
+        Ac.BotaoExportar.IsEnabled = lida;
+        Ac.BotaoFiltrar.IsEnabled = lida;
+    }
+
+    void MostrarAvisoAcompanhamento(InfoBarSeverity s, string titulo, string mensagem, ButtonBase? acao = null)
+    {
+        var b = Ac.Aviso;
+        b.Severity = s;
+        b.Title = titulo;
+        b.Message = mensagem;
+        b.ActionButton = acao;
+        b.IsOpen = true;
+    }
+
+    // ---------- gravar na planilha ----------
+
+    /// <summary>Grava na planilha e relê. Aberta no Excel: aviso com "Tentar de novo" (nada se perde: as mudanças ficam no aviso).</summary>
+    async Task<IReadOnlyList<int>?> GravarNaPlanilhaAsync(IReadOnlyList<Alteracao> alteracoes, string sucesso)
+    {
+        if (ajustes.PlanilhaAcompanhamento is not { } caminho || alteracoes.Count == 0) return null;
+        Ac.Progresso.Visibility = Visibility.Visible;
+        gravandoPlanilha = true;
+        try
+        {
+            var linhas = await Task.Run(() => GravadorPlanilha.Gravar(caminho, alteracoes, PastaCopiasPlanilha));
+            gravouPlanilhaEm = DateTime.UtcNow;
+            planilha = await Task.Run(() => LeitorPlanilha.Ler(caminho));
+            MostrarPlanilha();
+            MostrarAvisoAcompanhamento(InfoBarSeverity.Success, sucesso, $"Gravado na planilha às {DateTime.Now:HH:mm}.");
+            return linhas;
+        }
+        catch (PlanilhaEmUsoException e)
+        {
+            var tentar = new Button { Content = "Tentar de novo" };
+            tentar.Click += async (_, _) => { Ac.Aviso.IsOpen = false; await GravarNaPlanilhaAsync(alteracoes, sucesso); };
+            MostrarAvisoAcompanhamento(InfoBarSeverity.Error, "A planilha não foi gravada", e.Message, tentar);
+        }
+        catch (ConflitoPlanilhaException e)
+        {
+            MostrarAvisoAcompanhamento(InfoBarSeverity.Warning, "A planilha mudou fora do app", e.Message);
+            await CarregarPlanilhaAsync();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or System.Xml.XmlException)
+        {
+            MostrarAvisoAcompanhamento(InfoBarSeverity.Error, "A planilha não foi gravada", e.Message);
+        }
+        finally
+        {
+            gravandoPlanilha = false;
+            gravouPlanilhaEm = DateTime.UtcNow;
+            Ac.Progresso.Visibility = Visibility.Collapsed;
+        }
+        return null;
+    }
+
+    /// <summary>Mudar status, aprovação ou prioridade pelo menu: a data de atualização vira hoje.</summary>
+    async Task MudarCampoAsync(LinhaAc l, Coluna c, string valor)
+    {
+        var valores = new Dictionary<int, ValorNovo> { [c.Indice] = valor.Length == 0 ? ValorNovo.Vazio : new ValorNovo(Texto: valor) };
+        if (c.Chave != ChaveColuna.Prioridade && planilha?.Coluna(ChaveColuna.Atualizacao) is { } at) valores[at.Indice] = new ValorNovo(Data: DateTime.Today);
+        await GravarNaPlanilhaAsync([new Alteracao(l.Linha, l.Processo, valores)], $"{c.Titulo} de {l.Processo}: {(valor.Length == 0 ? "sem decisão" : valor)}");
+    }
+
+    async Task ExcluirProcessoAsync(LinhaAc? l)
+    {
+        if (l is null) return;
+        if (!await Perguntas.Atual.ConfirmarAsync("Excluir da planilha?", $"O processo {l.Processo} ({l.Texto(ChaveColuna.Requerente)}) sai da planilha. Os estilos da linha ficam; uma cópia da planilha de antes vai para a pasta de dados do editor.", "Excluir", "Cancelar")) return;
+        linhaEscolhida = null;
+        await GravarNaPlanilhaAsync([new Alteracao(l.Linha, l.Processo, new Dictionary<int, ValorNovo>(), Excluir: true)], $"Processo {l.Processo} excluído da planilha");
+    }
+
+    async Task NovoProcessoNaPlanilhaAsync()
+    {
+        if (planilha is null) { await ImportarPlanilhaAsync(); return; }
+        await EditarProcessoAsync(null);
+    }
+
+    /// <summary>O formulário do processo (todas as colunas, menos as calculadas). <paramref name="l"/> null = processo novo.</summary>
+    async Task EditarProcessoAsync(LinhaAc? l)
+    {
+        if (planilha is not { } p) return;
+        var novo = l is null;
+        var pt = new CultureInfo("pt-BR");
+        var form = new Grid { ColumnSpacing = 16, RowSpacing = 12, Width = 620 };
+        form.ColumnDefinitions.Add(new ColumnDefinition());
+        form.ColumnDefinitions.Add(new ColumnDefinition());
+        var leitores = new List<(Coluna C, Func<ValorNovo> Valor, ValorNovo Antes)>();
+        var pos = 0;
+        CheckBox? hoje = null;
+
+        foreach (var c in p.Colunas.Where(c => c.Tipo != TipoColuna.Calculada))
+        {
+            var cel = l?.Celula(c.Indice) ?? Celula.Vazia;
+            var textoAtual = l is null ? "" : p.TextoDe(l, c);
+            FrameworkElement campo;
+            Func<ValorNovo> ler;
+            ValorNovo antes;
+            var rotulo = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo;
+            switch (c.Tipo)
+            {
+                case TipoColuna.Data:
+                {
+                    var data = Planilha.ComoData(cel);
+                    if (novo && c.Chave == ChaveColuna.DataInicial) data = DateTime.Now;
+                    if (novo && c.Chave == ChaveColuna.Atualizacao) data = DateTime.Today;
+                    var dp = new CalendarDatePicker { Header = rotulo, Date = data, DateFormat = "{day.integer(2)}/{month.integer(2)}/{year.full}", HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "dd/mm/aaaa", Language = "pt-BR" };
+                    var original = data;
+                    antes = original is { } o ? new ValorNovo(Data: o) : ValorNovo.Vazio;
+                    ler = () =>
+                    {
+                        if (dp.Date is not { } d) return ValorNovo.Vazio;
+                        // A hora da data inicial (ex.: 15:02) fica se o dia não mudou.
+                        if (original is { } o2 && o2.Date == d.Date) return new ValorNovo(Data: o2);
+                        return new ValorNovo(Data: d.Date);
+                    };
+                    campo = dp;
+                    break;
+                }
+                case TipoColuna.Lista:
+                {
+                    var cb = new ComboBox { Header = rotulo, IsEditable = true, HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = c.Opcoes.Concat(c.Chave == ChaveColuna.Aprovacao ? [""] : []).ToList() };
+                    var inicial = textoAtual;
+                    if (novo && c.Chave == ChaveColuna.Status) inicial = c.Opcoes.FirstOrDefault(o => Planilha.Normal(o) == "aguardando analise") ?? c.Opcoes.FirstOrDefault() ?? "";
+                    if (novo && c.Chave == ChaveColuna.Prioridade) inicial = c.Opcoes.FirstOrDefault() ?? "";
+                    cb.Text = inicial;
+                    cb.SelectedItem = c.Opcoes.FirstOrDefault(o => Planilha.Normal(o) == Planilha.Normal(inicial));
+                    antes = textoAtual.Length == 0 ? ValorNovo.Vazio : new ValorNovo(Texto: textoAtual);
+                    ler = () => { var t = (cb.SelectedItem as string ?? cb.Text ?? "").Trim(); return t.Length == 0 ? ValorNovo.Vazio : new ValorNovo(Texto: t.ToUpper(pt)); };
+                    campo = cb;
+                    break;
+                }
+                case TipoColuna.Numero:
+                {
+                    var inicial = textoAtual;
+                    if (novo && c.Chave == ChaveColuna.Numero)
+                        inicial = ((int)(p.Linhas.Select(x => x.Celula(c.Indice).Numero ?? 0).DefaultIfEmpty(0).Max() + 1)).ToString(CultureInfo.InvariantCulture);
+                    var tb = new TextBox { Header = rotulo, Text = inicial, InputScope = new Microsoft.UI.Xaml.Input.InputScope { Names = { new Microsoft.UI.Xaml.Input.InputScopeName(Microsoft.UI.Xaml.Input.InputScopeNameValue.Number) } } };
+                    antes = cel.Numero is { } n ? new ValorNovo(Numero: n) : textoAtual.Length == 0 ? ValorNovo.Vazio : new ValorNovo(Texto: textoAtual);
+                    ler = () =>
+                    {
+                        var t = tb.Text.Trim();
+                        if (t.Length == 0) return ValorNovo.Vazio;
+                        return double.TryParse(t.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? new ValorNovo(Numero: v) : new ValorNovo(Texto: t);
+                    };
+                    campo = tb;
+                    break;
+                }
+                default:
+                {
+                    var longo = c.Chave is ChaveColuna.Observacao or ChaveColuna.Local or ChaveColuna.Requerente;
+                    var tb = new TextBox { Header = rotulo, Text = textoAtual, TextWrapping = longo ? TextWrapping.Wrap : TextWrapping.NoWrap, AcceptsReturn = false };
+                    if (c.Chave == ChaveColuna.Processo) tb.PlaceholderText = "00000/" + DateTime.Today.Year;
+                    antes = textoAtual.Length == 0 ? ValorNovo.Vazio : new ValorNovo(Texto: textoAtual);
+                    var maiusculas = c.Chave is ChaveColuna.Requerente or ChaveColuna.Local or ChaveColuna.Profissional or ChaveColuna.Observacao;
+                    ler = () => { var t = tb.Text.Trim(); return t.Length == 0 ? ValorNovo.Vazio : new ValorNovo(Texto: maiusculas ? t.ToUpper(pt) : t); };
+                    campo = tb;
+                    if (detectados.TryGetValue(l?.ProcessoNormalizado ?? "", out var ach) && ach.FirstOrDefault(x => x.Campo == c.Chave) is { Fonte: { } f })
+                        ToolTipService.SetToolTip(tb, "Preenchido sozinho: " + f);
+                    break;
+                }
+            }
+            var largo = c.Chave is ChaveColuna.Observacao or ChaveColuna.Requerente or ChaveColuna.Local;
+            if (largo && pos % 2 == 1) pos++;
+            var linhaGrade = pos / 2;
+            while (form.RowDefinitions.Count <= linhaGrade) form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Grid.SetRow(campo, linhaGrade);
+            Grid.SetColumn(campo, pos % 2);
+            if (largo) { Grid.SetColumnSpan(campo, 2); pos += 2; } else pos++;
+            form.Children.Add(campo);
+            leitores.Add((c, ler, antes));
+        }
+        if (!novo && p.Coluna(ChaveColuna.Atualizacao) is not null)
+        {
+            hoje = new CheckBox { Content = "Ao gravar, a data de Atualização passa a ser hoje", IsChecked = true };
+            if (pos % 2 == 1) pos++;
+            form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Grid.SetRow(hoje, pos / 2);
+            Grid.SetColumnSpan(hoje, 2);
+            form.Children.Add(hoje);
+        }
+        var erro = new TextBlock { Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"], TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        var conteudo = new StackPanel { Spacing = 12 };
+        conteudo.Children.Add(form);
+        conteudo.Children.Add(erro);
+        var dlg = new ContentDialog
+        {
+            XamlRoot = Raiz.XamlRoot, Title = novo ? "Novo processo" : "Editar processo " + l!.Processo,
+            Content = new ScrollViewer { Content = conteudo, MaxHeight = 560, Padding = new Thickness(0, 0, 14, 0) },
+            PrimaryButtonText = "Gravar na planilha", CloseButtonText = "Cancelar", DefaultButton = ContentDialogButton.Primary,
+            RequestedTheme = Raiz.ActualTheme,
+        };
+        dlg.Resources["ContentDialogMaxWidth"] = 760.0;
+        Dictionary<int, ValorNovo>? mudancas = null;
+        dlg.PrimaryButtonClick += (_, e) =>
+        {
+            var valores = leitores.ToDictionary(x => x.C.Indice, x => x.Valor());
+            var proc = p.Coluna(ChaveColuna.Processo)!;
+            var numero = valores.TryGetValue(proc.Indice, out var vp) ? Planilha.ProcessoNormal(vp.Texto ?? "") : "";
+            string? problema = null;
+            if (numero.Length == 0) problema = "Informe o número do processo.";
+            else if (p.Linhas.Any(x => x != l && string.Equals(x.ProcessoNormalizado, numero, StringComparison.OrdinalIgnoreCase))) problema = $"O processo {numero} já está na planilha.";
+            if (problema is not null)
+            {
+                erro.Text = problema;
+                erro.Visibility = Visibility.Visible;
+                e.Cancel = true;
+                return;
+            }
+            mudancas = new Dictionary<int, ValorNovo>();
+            foreach (var (c, _, antes) in leitores)
+            {
+                var v = valores[c.Indice];
+                if (novo ? !v.EhVazio : v != antes) mudancas[c.Indice] = v;
+            }
+            if (!novo && hoje?.IsChecked == true && mudancas.Count > 0 && p.Coluna(ChaveColuna.Atualizacao) is { } at && !mudancas.ContainsKey(at.Indice))
+                mudancas[at.Indice] = new ValorNovo(Data: DateTime.Today);
+        };
+        if (await dlg.ShowAsync() != ContentDialogResult.Primary || mudancas is null) return;
+        if (mudancas.Count == 0) { MostrarAvisoAcompanhamento(InfoBarSeverity.Informational, "Nada mudou", "A planilha ficou como estava."); return; }
+        var numeroFinal = mudancas.TryGetValue(p.Coluna(ChaveColuna.Processo)!.Indice, out var np) ? np.Texto : l?.Processo;
+        await GravarNaPlanilhaAsync([new Alteracao(l?.Linha, l?.Processo, mudancas)], novo ? $"Processo {numeroFinal} acrescentado" : $"Processo {numeroFinal} atualizado");
+        if (novo && planilha?.Linhas.FirstOrDefault(x => string.Equals(x.ProcessoNormalizado, Planilha.ProcessoNormal(numeroFinal ?? ""), StringComparison.OrdinalIgnoreCase)) is { } criado)
+        {
+            linhaEscolhida = criado;
+            PreencherLista();
+            if (ajustes.AcompanhamentoDetectar) await DetectarLocalEAutorAsync(manual: false, so: criado.ProcessoNormalizado);
+        }
+    }
+
+    // ---------- planilha: escolher, importar, abrir, exportar ----------
+
+    async Task ConfigurarPlanilhaAsync()
+    {
+        await MudarModuloAsync(Modulo.Ajustes);
+        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.FontesDados);
+    }
+
+    async Task ImportarPlanilhaAsync() => await EscolherPlanilhaAsync(depoisAbrir: true);
+
+    async Task EscolherPlanilhaAsync(bool depoisAbrir)
+    {
+        var arquivo = await Perguntas.Atual.AbrirArquivoAsync(".xlsx;.xlsm");
+        if (arquivo is null) return;
+        PlanilhaLida lida;
+        try { lida = await Task.Run(() => LeitorPlanilha.Ler(arquivo)); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or System.Xml.XmlException)
+        {
+            MostrarResultadoPlanilha(InfoBarSeverity.Error, "Essa planilha não segue o modelo padrão", e.Message);
+            if (depoisAbrir) MostrarAvisoAcompanhamento(InfoBarSeverity.Error, "Essa planilha não segue o modelo padrão", e.Message);
+            return;
+        }
+        var anterior = ajustes.PlanilhaAcompanhamento;
+        ajustes.PlanilhaAcompanhamento = arquivo;
+        try { ajustes.Salvar(PastaDados.Itinerante); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            ajustes.PlanilhaAcompanhamento = anterior;
+            MostrarResultadoPlanilha(InfoBarSeverity.Error, "A escolha não foi salva", e.Message);
+            return;
+        }
+        planilha = lida;
+        detectados.Clear();
+        filtroStatus.Clear(); filtroPrioridade.Clear(); filtroAprovacao.Clear(); filtroProfissional.Clear();
+        VigiarPlanilha(arquivo);
+        AtualizarAjustesPlanilha();
+        MostrarResultadoPlanilha(InfoBarSeverity.Success, "Planilha pronta", ResumoDaPlanilha(lida));
+        if (depoisAbrir)
+        {
+            if (moduloAtual != Modulo.Acompanhamento) await MudarModuloAsync(Modulo.Acompanhamento);
+            else await EntrarNoAcompanhamentoAsync();
+            MostrarAvisoAcompanhamento(InfoBarSeverity.Success, "Planilha importada", ResumoDaPlanilha(lida));
+        }
+    }
+
+    static string ResumoDaPlanilha(PlanilhaLida p) =>
+        $"{p.Linhas.Count} processos na aba {p.Aba}; {p.Colunas.Count} colunas ({string.Join(", ", p.Colunas.Select(c => c.Titulo))}); "
+        + $"{p.Colunas.Count(c => c.Opcoes.Count > 0)} listas e {p.Colunas.Sum(c => c.Regras.Count)} regras de cor.";
+
+    async Task VerificarPlanilhaAsync()
+    {
+        if (ajustes.PlanilhaAcompanhamento is not { } arquivo) return;
+        try
+        {
+            var lida = await Task.Run(() => LeitorPlanilha.Ler(arquivo));
+            MostrarResultadoPlanilha(InfoBarSeverity.Success, "Planilha acessível", ResumoDaPlanilha(lida));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or System.Xml.XmlException)
+        {
+            MostrarResultadoPlanilha(InfoBarSeverity.Error, "A planilha não pôde ser lida", e.Message);
+        }
+    }
+
+    void AtualizarAjustesPlanilha()
+    {
+        var a = PaginaDeAjustes;
+        a.CaixaPlanilhaAcompanhamento.Text = ajustes.PlanilhaAcompanhamento ?? "";
+        a.BotaoVerificarPlanilha.IsEnabled = a.BotaoAbrirPlanilha.IsEnabled = !string.IsNullOrWhiteSpace(ajustes.PlanilhaAcompanhamento);
+    }
+
+    void MostrarResultadoPlanilha(InfoBarSeverity s, string titulo, string mensagem)
+    {
+        var b = PaginaDeAjustes.ResultadoPlanilha;
+        b.Severity = s;
+        b.Title = titulo;
+        b.Message = mensagem;
+        b.IsOpen = true;
+    }
+
+    void AbrirPlanilhaNoExcel()
+    {
+        if (ajustes.PlanilhaAcompanhamento is not { } arquivo) return;
+        if (!AberturaExterna.Abrir(arquivo, out var motivo))
+            MostrarAvisoAcompanhamento(InfoBarSeverity.Error, "A planilha não abriu", motivo ?? arquivo);
+    }
+
+    string TextoDaLista(char separador)
+    {
+        if (planilha is not { } p) return "";
+        var sb = new StringBuilder();
+        string Campo(string s) => separador == ';' && (s.Contains(';') || s.Contains('"') || s.Contains('\n')) ? "\"" + s.Replace("\"", "\"\"") + "\"" : s.Replace('\t', ' ').Replace('\n', ' ');
+        sb.AppendLine(string.Join(separador, p.Colunas.Select(c => Campo(c.Titulo))));
+        foreach (var l in processosNaTela) sb.AppendLine(string.Join(separador, p.Colunas.Select(c => Campo(p.TextoDe(l, c)))));
+        return sb.ToString();
+    }
+
+    async Task ExportarCsvAsync()
+    {
+        if (planilha is null) return;
+        var destino = await Perguntas.Atual.SalvarArquivoAsync("Acompanhamento de processos " + DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), ".csv");
+        if (destino is null) return;
+        try
+        {
+            await File.WriteAllTextAsync(destino, TextoDaLista(';'), new UTF8Encoding(true));
+            MostrarAvisoAcompanhamento(InfoBarSeverity.Success, "Lista exportada", destino);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { MostrarAvisoAcompanhamento(InfoBarSeverity.Error, "A lista não foi exportada", e.Message); }
+    }
+
+    // ---------- pasta do processo e detecção de local e autor ----------
+
+    static (int Numero, int Ano)? NumeroAno(string processo)
+    {
+        var m = Regex.Match(Planilha.ProcessoNormal(processo), @"^0*(\d{1,6})/(\d{4})");
+        return m.Success ? (int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)) : null;
+    }
+
+    async Task<IReadOnlyList<Processo>> PastasDeProcessoAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ajustes.PastaProcessos)) return [];
+        var raiz = ajustes.PastaProcessos;
+        try { return (await Task.Run(() => Processos.Listar(raiz, CancellationToken.None))).Itens; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return []; }
+    }
+
+    async void AbrirPastaDoProcesso(LinhaAc? l)
+    {
+        if (l is null) return;
+        if (string.IsNullOrWhiteSpace(ajustes.PastaProcessos))
+        {
+            MostrarAvisoAcompanhamento(InfoBarSeverity.Warning, "Sem pasta de processos", "Escolha a pasta de processos em Ajustes › Pastas e kit.");
+            return;
+        }
+        var na = NumeroAno(l.Processo);
+        var pasta = na is { } x ? (await PastasDeProcessoAsync()).FirstOrDefault(p => p.Numero == x.Numero && p.Ano == x.Ano) : null;
+        if (pasta is null) MostrarAvisoAcompanhamento(InfoBarSeverity.Warning, "Pasta não encontrada", $"Não há pasta do processo {l.Processo} em {ajustes.PastaProcessos}.");
+        else AberturaExterna.AbrirPasta(pasta.Pasta);
+    }
+
+    /// <summary>Preenche o Local e o Profissional (autor do projeto) vazios: primeiro o relatório analisado mais recente (capa: LOCALIZAÇÃO e
+    /// AUTORIA), depois a consulta QGIS do processo (inscrição → endereço no cadastro do módulo Imóveis) e, por fim, o carimbo das pranchas.
+    /// Só células vazias: o que foi digitado nunca é trocado. <paramref name="manual"/>: carrega a base QGIS se preciso e sempre avisa.</summary>
+    async Task DetectarLocalEAutorAsync(bool manual, string? so = null)
+    {
+        if (planilha is not { } p) return;
+        var colLocal = p.Coluna(ChaveColuna.Local);
+        var colAutor = p.Coluna(ChaveColuna.Profissional);
+        if (colLocal is null && colAutor is null) return;
+        if (string.IsNullOrWhiteSpace(ajustes.PastaProcessos))
+        {
+            if (manual) MostrarAvisoAcompanhamento(InfoBarSeverity.Warning, "Sem pasta de processos", "Para achar local e autor, escolha a pasta de processos em Ajustes › Pastas e kit.");
+            return;
+        }
+        var alvos = p.Linhas.Where(l => so is null || string.Equals(l.ProcessoNormalizado, so, StringComparison.OrdinalIgnoreCase))
+            .Where(l => (colLocal is not null && l.Texto(ChaveColuna.Local).Length == 0) || (colAutor is not null && l.Texto(ChaveColuna.Profissional).Length == 0)).ToList();
+        if (alvos.Count == 0)
+        {
+            if (manual) MostrarAvisoAcompanhamento(InfoBarSeverity.Informational, "Nada a preencher", "Todos os processos já têm local e profissional.");
+            return;
+        }
+        Ac.Progresso.Visibility = Visibility.Visible;
+        try
+        {
+            var pastas = await PastasDeProcessoAsync();
+            Imoveis.BaseQgis? baseQgis = baseImoveis;
+            if (baseQgis is null && manual && !string.IsNullOrWhiteSpace(ajustes.PastaQgis)) baseQgis = await CarregarBaseAsync(ajustes.PastaQgis);
+            var achados = await Task.Run(() =>
+            {
+                var r = new List<(LinhaAc L, Descoberta D)>();
+                foreach (var l in alvos)
+                {
+                    if (NumeroAno(l.Processo) is not { } na || pastas.FirstOrDefault(x => x.Numero == na.Numero && x.Ano == na.Ano) is not { } pasta) continue;
+                    var d = DetectorProcesso.Descobrir(pasta, baseQgis);
+                    if (!d.Vazia) r.Add((l, d));
+                }
+                return r;
+            });
+            var alteracoes = new List<Alteracao>();
+            var notas = new List<(string Processo, ChaveColuna Campo, string Fonte)>();
+            foreach (var (l, d) in achados)
+            {
+                var v = new Dictionary<int, ValorNovo>();
+                if (colLocal is not null && l.Texto(ChaveColuna.Local).Length == 0 && !string.IsNullOrWhiteSpace(d.Local))
+                {
+                    v[colLocal.Indice] = new ValorNovo(Texto: DadosDoProcesso.ParaPlanilha(d.Local));
+                    notas.Add((l.ProcessoNormalizado, ChaveColuna.Local, d.FonteLocal ?? ""));
+                }
+                if (colAutor is not null && l.Texto(ChaveColuna.Profissional).Length == 0 && !string.IsNullOrWhiteSpace(d.Autor))
+                {
+                    v[colAutor.Indice] = new ValorNovo(Texto: DadosDoProcesso.ParaPlanilha(d.Autor));
+                    notas.Add((l.ProcessoNormalizado, ChaveColuna.Profissional, d.FonteAutor ?? ""));
+                }
+                if (v.Count > 0) alteracoes.Add(new Alteracao(l.Linha, l.Processo, v));
+            }
+            if (alteracoes.Count == 0)
+            {
+                if (manual) MostrarAvisoAcompanhamento(InfoBarSeverity.Informational, "Nada encontrado", $"Procurei em {alvos.Count} processos (relatórios, consulta QGIS e pranchas) e não achei local nem autor novos."
+                    + (baseQgis is null && !string.IsNullOrWhiteSpace(ajustes.PastaQgis) ? "" : string.IsNullOrWhiteSpace(ajustes.PastaQgis) ? " Sem a pasta QGIS em Ajustes, a consulta ao cadastro fica de fora." : ""));
+                return;
+            }
+            if (await GravarNaPlanilhaAsync(alteracoes, $"Local e autor preenchidos em {alteracoes.Count} {(alteracoes.Count == 1 ? "processo" : "processos")}") is not null)
+            {
+                foreach (var (proc, campo, fonte) in notas)
+                {
+                    if (!detectados.TryGetValue(proc, out var lista)) detectados[proc] = lista = [];
+                    lista.RemoveAll(x => x.Campo == campo);
+                    lista.Add((campo, fonte));
+                }
+                if (linhaEscolhida is { } e) MostrarPainel(planilha?.Linhas.FirstOrDefault(x => x.Linha == e.Linha));
+            }
+        }
+        finally { Ac.Progresso.Visibility = Visibility.Collapsed; }
+    }
+}

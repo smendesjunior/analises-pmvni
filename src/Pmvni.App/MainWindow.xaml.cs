@@ -186,6 +186,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         IniciarLegislacaoAjustes();
         IniciarLegislacao();
         IniciarImoveis();
+        IniciarAcompanhamento();
         IniciarPastas();
         IniciarNovoDespacho();
         IniciarAssinatura();
@@ -397,6 +398,34 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                     }
                 }
                 catch (Exception e) { RegistroErros.Gravar("captura", e); }
+                // Acompanhamento de processos com uma planilha de teste (PMVNI_CAPTURA_PLANILHA = um .xlsx; uma cópia é usada) e o processo
+                // escolhido no painel; depois Ajustes › Fontes de dados e Sobre e suporte.
+                try
+                {
+                    if (Environment.GetEnvironmentVariable("PMVNI_CAPTURA_PLANILHA") is { Length: > 0 } xlsx && File.Exists(xlsx))
+                    {
+                        var copia = Path.Combine(pastaCaptura, "acompanhamento.xlsx");
+                        File.Copy(xlsx, copia, true);
+                        ajustes.PlanilhaAcompanhamento = copia;
+                        ajustes.AcompanhamentoDetectar = false;
+                        planilha = null;
+                        await MudarModuloAsync(Modulo.Acompanhamento);
+                        await EntrarNoAcompanhamentoAsync();
+                        await Task.Delay(1500);
+                        await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "acompanhamento.png"));
+                        if (PaginaDeAcompanhamento.Lista.Items.Count > 0) PaginaDeAcompanhamento.Lista.SelectedIndex = 0;
+                        await Task.Delay(900);
+                        await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "acompanhamento-painel.png"));
+                        await MudarModuloAsync(Modulo.Ajustes);
+                        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.FontesDados);
+                        await Task.Delay(900);
+                        await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "ajustes-fontes.png"));
+                        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Sobre);
+                        await Task.Delay(900);
+                        await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "ajustes-sobre.png"));
+                    }
+                }
+                catch (Exception e) { RegistroErros.Gravar("captura", e); }
                 // Um relatório de teste (PMVNI_CAPTURA_DADOS = um dados.json) com o painel de Propriedades de um item e de um ambiente.
                 try
                 {
@@ -531,8 +560,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         PaginaDeAjustes.Visibility = m == Modulo.Ajustes ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeSites.Visibility = Modulos.EhSite(m) ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeImoveis.Visibility = m == Modulo.Imoveis ? Visibility.Visible : Visibility.Collapsed;
+        PaginaDeAcompanhamento.Visibility = m == Modulo.Acompanhamento ? Visibility.Visible : Visibility.Collapsed;
         if (Modulos.EhSite(m)) Soltar(() => PaginaDeSites.MostrarAsync(m));
-        if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = TextoDasVersoes(); AtualizarPaginaDePastas(); AtualizarAgentes(); Soltar(EntrarNaLegislacaoDosAjustesAsync); }
+        if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = RelatorioDiagnostico(); AtualizarPaginaDePastas(); AtualizarAgentes(); Soltar(EntrarNaLegislacaoDosAjustesAsync); }
         var f = Faixas.Para(m);
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
         Faixa.Montar(f, Faixas.IndiceDaAba(f, aba));
@@ -545,6 +575,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // Na fila (logo depois do comando que trocou de módulo, antes dos seguintes): a lista e o leitor ficam prontos na ordem dos comandos.
         if (m == Modulo.Legislacao) Soltar(() => NaFilaAsync(EntrarNaLegislacaoAsync));
         if (m == Modulo.Imoveis) Soltar(EntrarEmImoveisAsync);
+        if (m == Modulo.Acompanhamento) Soltar(EntrarNoAcompanhamentoAsync);
         if (ajustes.Modulo != m) { ajustes.Modulo = m; SalvarAjustes(); }
     }
 
@@ -660,6 +691,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (fechada) return;
         AtualizarComandosDeImoveis();
+        AtualizarComandosDoAcompanhamento();
         var pronto = documento is not null && !ocupado;
         var temRelatorio = pronto && sessao?.Atual is not null;
         var folhas = temRelatorio && !novoRelatorioAberto;     // a página Novo relatório esconde as folhas: os comandos delas ficam desabilitados
@@ -1293,26 +1325,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         return MostrarDialogoAsync("Atalhos de teclado", lista);
     }
 
-    Task MostrarSobreAsync()
+    /// <summary>Ajuda › Sobre: leva a Ajustes › Sobre e suporte (2026-11-17, como o WinStatusBar).</summary>
+    async Task MostrarSobreAsync()
     {
-        var painel = new StackPanel { Spacing = 12 };
-        painel.Children.Add(new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
-            Text = $"Análise de Projetos – PMVNI{Environment.NewLine}{Environment.NewLine}" + TextoDasVersoes(),
-        });
-        // O leitor da legislação usa o PDF.js (Apache-2.0): a licença vai junto, como o pacote pede.
-        var licenca = Pmvni.Legislacao.RecursosLegislacao.Ler("pdfjs/LICENSE") is { } b ? System.Text.Encoding.UTF8.GetString(b) : "";
-        if (licenca.Length > 0)
-        {
-            painel.Children.Add(new TextBlock { Text = "Licença do PDF.js", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
-            painel.Children.Add(new ScrollViewer
-            {
-                MaxHeight = 220,
-                Content = new TextBlock { Text = licenca, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, FontSize = 12 },
-            });
-        }
-        return MostrarDialogoAsync("Sobre", painel);
+        await MudarModuloAsync(Modulo.Ajustes);
+        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Sobre);
     }
 
     async Task MostrarDialogoAsync(string titulo, UIElement conteudo)

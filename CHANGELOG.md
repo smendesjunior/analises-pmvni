@@ -2,6 +2,26 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.3.0
+
+### Acompanhamento de processos (novo módulo no trilho)
+- Página nova que mostra a planilha padrão de acompanhamento (ACOMPANHAMENTO DE PROCESSOS) com todas as colunas: Nº, datas, prioridade, processo, requerente, local, atualização, status, aprovação, profissional, dias sem atualização, observação e as demais.
+- As listas (status, prioridade, aprovação) e as cores da formatação condicional vêm da própria planilha; os dias sem atualização são calculados como no Excel, com as mesmas faixas de cor.
+- Cabeçalho de resumo com a contagem de cada status (clicar filtra) e gráfico de pizza do andamento, mais a contagem de aprovados e não aprovados.
+- Novo processo, editar (todas as colunas), mudar status/aprovação/prioridade pelo menu "…", excluir, filtrar, buscar, ordenar por qualquer coluna e painel lateral com os dados do processo.
+- Tudo o que muda no app é gravado na planilha, mexendo só nas células alteradas (formatação, listas, tabela, fórmulas e brasão continuam iguais). Antes de gravar, uma cópia de segurança vai para a pasta de dados do editor. Com a planilha aberta no Excel, o app avisa e oferece "Tentar de novo".
+- Mudou a planilha no Excel: a página relê sozinha.
+- Local e autor do projeto (Profissional) preenchidos sozinhos quando estão vazios: do relatório analisado (capa: Localização e Autoria), da consulta QGIS do processo (endereço no cadastro) e do carimbo das pranchas. Nunca troca o que foi digitado; o painel mostra de onde veio.
+- Importar outra planilha no mesmo modelo, abrir no Excel e exportar a lista filtrada em CSV.
+- Ajustes › Fontes de dados: escolher, verificar e abrir a planilha, e ligar/desligar o preenchimento automático.
+
+### Ajustes › Sobre e suporte
+- Página no padrão do WinStatusBar: Atualizações, Suporte (contato, copiar informações, abrir pasta de dados), Diagnóstico (relatório com versões, pastas e memória, com Atualizar e Copiar) e Sobre (versão e compilação, desenvolvedor, sistema, runtime e créditos). Ajuda › Sobre abre esta página.
+
+### Correções
+- Mapa de localização: a etiqueta vermelha "LOTE nº" sai de cima do lote e fica encostada nele, fora da projeção.
+- Leitura padronizada da legislação: o menu do botão direito no texto segue o padrão dos menus do app (Copiar, Copiar parágrafo, Selecionar tudo).
+
 ## 0.2.1
 
 - Novo relatório aceita arquivos compactados (.zip, .rar e .7z): o editor abre o arquivo e cada arquivo de dentro entra como anexo, com o destino pela regra do kit (matrícula, RRT/ART, requerimento, certidões e outros documentos em DOCUMENTOS; pranchas, DWG e o resto no projeto). Cada linha mostra de qual compactado e pasta o arquivo veio, e o destino continua podendo ser trocado. Compactado com senha, corrompido ou grande demais (mais de 4 GB ou 3.000 arquivos) é avisado e fica de fora.

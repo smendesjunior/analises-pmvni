@@ -31,7 +31,7 @@ public static class Faixas
     public static IReadOnlyList<string> OrdemSituacoes { get; } = ["ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA"];
 
     /// <summary>Módulos que já funcionam, na ordem do trilho (Ajustes, se presente, embaixo).</summary>
-    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Imoveis, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco, Modulo.Ajustes];
+    public static IReadOnlyList<Modulo> Disponiveis { get; } = [Modulo.Relatorios, Modulo.Despachos, Modulo.Processos, Modulo.Legislacao, Modulo.Acompanhamento, Modulo.Imoveis, Modulo.Essencial, Modulo.Gpi, Modulo.Alfresco, Modulo.Ajustes];
 
     /// <summary>Menu de recentes: <see cref="ComandoFaixa.Itens"/> vazio de propósito; a faixa pede os itens a quem a monta
     /// (<see cref="FaixaDeOpcoes.ItensDinamicos"/>) cada vez que o menu abre, porque eles vêm dos ajustes e dos arquivos que ainda existem.</summary>
@@ -257,6 +257,24 @@ public static class Faixas
         Ajuda,
     ], AbaPadrao: 1);
 
+    /// <summary>Acompanhamento de processos (2026-11-17): a planilha de tramitação.</summary>
+    static readonly DefinicaoFaixa Acompanhamento = new(Modulo.Acompanhamento,
+    [
+        ArquivoDeModulo,
+        new("Página Inicial",
+        [
+            new(ComandosApp.AcompanhamentoNovo, "Novo processo", Glifos.Adicionar),
+            new(ComandosApp.AcompanhamentoEditar, "Editar processo", Glifos.Editar),
+            new(ComandosApp.AcompanhamentoExcluir, "Excluir processo", Glifos.Excluir),
+            new(ComandosApp.AcompanhamentoDetectar, "Detectar local e autor", Glifos.Conferir),
+            new(ComandosApp.AcompanhamentoRecarregar, "Ler a planilha de novo", Glifos.Atualizar),
+            new(ComandosApp.AcompanhamentoAbrirExcel, "Abrir no Excel", Glifos.Abrir),
+            new(ComandosApp.AcompanhamentoImportar, "Importar planilha", Glifos.Importar),
+            new(ComandosApp.AcompanhamentoConfigurar, "Local da planilha", Glifos.Pasta),
+        ]),
+        Ajuda,
+    ], AbaPadrao: 1);
+
     static readonly DefinicaoFaixa Ajustes = new(Modulo.Ajustes,
     [
         new("Arquivo",
@@ -280,6 +298,7 @@ public static class Faixas
         Modulo.Gpi => SiteGpi,
         Modulo.Alfresco => SiteAlfresco,
         Modulo.Imoveis => Imoveis,
+        Modulo.Acompanhamento => Acompanhamento,
         _ => throw new ArgumentOutOfRangeException(nameof(m), m, "Módulo ainda sem faixa de opções."),
     };
 

@@ -61,6 +61,8 @@ public sealed partial class Trilho : UserControl
             var vagaIcone = new Grid { Width = 28, Height = 28, HorizontalAlignment = HorizontalAlignment.Center };
             vagaIcone.Children.Add((UIElement?)icone ?? new FontIcon { Glyph = Pmvni.App.Modulos.Glifo(m), FontSize = 20 });
             var rotulo = new TextBlock { Text = Pmvni.App.Modulos.Rotulo(m), Style = Estilo("PmvniTrilhoRotuloStyle") };
+            // Rótulo longo ("Acompanhamento", 2026-11-17): letra menor para caber inteiro na largura do trilho.
+            if (rotulo.Text.Length > 11) rotulo.FontSize = 9.5;
             conteudo.Children.Add(vagaIcone);
             conteudo.Children.Add(rotulo);
             var fundo = new Border

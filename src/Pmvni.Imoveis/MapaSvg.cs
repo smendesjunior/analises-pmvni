@@ -276,10 +276,12 @@ public static class MapaSvg
         }
         var centroLote = T(MapaLocalizacao.Centro(alvo.Partes));
         var tLote = ficha.Count > 0 ? ficha[0].Split(" · ")[0] : "";
+        var posLote = centroLote;
         if (ficha.Count > 0) // o lugar da etiqueta "LOTE nº" (desenhada por último) fica reservado
         {
             var (w, cima, baixo) = Letras.Medir(tLote, 19 * S, true);
-            colocadas.Add(CaixaGirada(centroLote, w + 30 * S, cima + baixo + 20 * S, 0));
+            posLote = PosicaoEtiquetaLote(alvo.Partes.SelectMany(a => a).Select(T).ToList(), centroLote, w + 30 * S, cima + baixo + 20 * S, lw, lh, colocadas);
+            colocadas.Add(CaixaGirada(posLote, w + 30 * S, cima + baixo + 20 * S, 0));
         }
         const double margem = 0.08;
         var vis = new Envelope(ext.MinX + ext.Width * margem, ext.MaxX - ext.Width * margem, ext.MinY + ext.Height * margem, ext.MaxY - ext.Height * margem);
@@ -380,7 +382,7 @@ public static class MapaSvg
             s.Append($"<text x=\"{N(p.X)}\" y=\"{N(y + cima)}\" font-size=\"{15 * S}\" text-anchor=\"middle\" fill=\"{Texto}\" stroke=\"#FFFFFF\" stroke-width=\"{2 * (3 * S / 2 + 1)}\" stroke-linejoin=\"round\" paint-order=\"stroke\">{Html.E(nome)}</text>");
         }
         // etiqueta do número do lote do projeto
-        if (ficha.Count > 0) Etiqueta(centroLote, tLote, 19 * S, true, "#FFFFFF", Vermelho, [], 0);
+        if (ficha.Count > 0) Etiqueta(posLote, tLote, 19 * S, true, "#FFFFFF", Vermelho, [], 0);
 
         // escala gráfica e balão do lote (no canto livre mais próximo), com a linha de chamada até a borda do lote
         var ptsLote = alvo.Partes.SelectMany(a => a).Select(T).ToList();
@@ -428,6 +430,26 @@ public static class MapaSvg
     }
 
     static Ret Envolvente(P[] p) => new(p.Min(v => v.X), p.Min(v => v.Y), p.Max(v => v.X), p.Max(v => v.Y));
+
+    /// <summary>Onde fica a etiqueta vermelha "LOTE nº" (2026-11-17): fora da projeção do lote, encostada nele (abaixo, acima, à direita,
+    /// à esquerda e nos cantos), para não cobrir o desenho. Prefere um lugar que caiba na imagem e não cubra os nomes já postos; sem
+    /// nenhum, volta ao centro do lote.</summary>
+    static P PosicaoEtiquetaLote(IReadOnlyList<P> ptsLote, P centro, double w, double h, double lw, double lh, IReadOnlyList<P[]> postas)
+    {
+        if (ptsLote.Count == 0) return centro;
+        double x0 = ptsLote.Min(p => p.X), y0 = ptsLote.Min(p => p.Y), x1 = ptsLote.Max(p => p.X), y1 = ptsLote.Max(p => p.Y);
+        var folga = 6.0 * S;
+        var candidatos = new[]
+        {
+            new P(centro.X, y1 + folga + h / 2), new P(centro.X, y0 - folga - h / 2),
+            new P(x1 + folga + w / 2, centro.Y), new P(x0 - folga - w / 2, centro.Y),
+            new P(x1 + folga + w / 2, y1 + folga + h / 2), new P(x0 - folga - w / 2, y1 + folga + h / 2),
+            new P(x1 + folga + w / 2, y0 - folga - h / 2), new P(x0 - folga - w / 2, y0 - folga - h / 2),
+        };
+        bool Cabe(P c) => c.X - w / 2 >= 2 && c.X + w / 2 <= lw - 2 && c.Y - h / 2 >= 2 && c.Y + h / 2 <= lh - 2;
+        var cabem = candidatos.Where(Cabe).ToList();
+        return cabem.FirstOrDefault(c => !postas.Any(o => Sobrepoe(CaixaGirada(c, w, h, 0), o)), cabem.Count > 0 ? cabem[0] : centro);
+    }
 
     static double Sobre(double x, double y, double larg, double alt, Ret r) =>
         Math.Max(0, Math.Min(x + larg, r.X1) - Math.Max(x, r.X0)) * Math.Max(0, Math.Min(y + alt, r.Y1) - Math.Max(y, r.Y0));
