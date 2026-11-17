@@ -41,7 +41,8 @@ public static class Shapefile
         return File.ReadAllText(prj).TrimStart().StartsWith("GEOGCS", StringComparison.OrdinalIgnoreCase);
     }
 
-    static Encoding Codificacao(string caminhoShp)
+    /// <summary>A codificação declarada no .cpg (null sem .cpg ou com nome desconhecido).</summary>
+    static Encoding? Codificacao(string caminhoShp)
     {
         var cpg = Path.ChangeExtension(caminhoShp, ".cpg");
         if (File.Exists(cpg))
@@ -52,12 +53,71 @@ public static class Shapefile
                 try { return Encoding.GetEncoding(cp); } catch (ArgumentException) { } catch (NotSupportedException) { }
             if (nome.StartsWith("ISO", StringComparison.OrdinalIgnoreCase)) return Encoding.Latin1;
         }
-        return Encoding.GetEncoding(1252); // sem .cpg: o padrão do ArcGIS/QGIS no Windows em português
+        return null;
+    }
+
+    static readonly UTF8Encoding Utf8Estrito = new(false, true);
+
+    /// <summary>A codificação do texto do .dbf (2026-11-17): o .cpg nem sempre diz a verdade e às vezes falta (o Logradouro.dbf da base é
+    /// UTF-8 sem .cpg e saía "JOÃƒO"). Se todo texto com acento é UTF-8 válido, é UTF-8 (texto Windows-1252 com acento quase nunca forma
+    /// UTF-8 válido); se algum não é, é o do .cpg, quando não for UTF-8, ou Windows-1252 (o padrão do ArcGIS/QGIS no Windows em português).
+    /// Uma sequência UTF-8 cortada no fim do campo (largura fixa) não conta contra.</summary>
+    internal static Encoding DetectarCodificacao(IEnumerable<byte[]> valores, Encoding? declarada)
+    {
+        int validos = 0, invalidos = 0;
+        foreach (var v in valores)
+        {
+            if (!v.Any(x => x >= 0x80)) continue;
+            if (Utf8Valido(v)) validos++; else invalidos++;
+        }
+        if (validos > 0 && invalidos == 0) return new UTF8Encoding(false);
+        if (declarada is UTF8Encoding && invalidos > 0) return Encoding.GetEncoding(1252);
+        return declarada ?? Encoding.GetEncoding(1252);
+    }
+
+    static bool Utf8Valido(byte[] v)
+    {
+        var n = v.Length;
+        // tira uma sequência incompleta no fim (o campo de largura fixa pode cortar o caractere ao meio)
+        for (var k = 1; k <= 3 && n - k >= 0; k++)
+        {
+            var b = v[n - k];
+            if (b < 0x80) break;
+            if (b >= 0xC0) { var precisa = b >= 0xF0 ? 4 : b >= 0xE0 ? 3 : 2; if (precisa > k) n -= k; break; }
+        }
+        try { Utf8Estrito.GetString(v, 0, n); return true; }
+        catch (DecoderFallbackException) { return false; }
+    }
+
+    /// <summary>Conserta texto UTF-8 que já veio lido como Windows-1252/Latin-1 ("JOÃƒO" → "JOÃO", "ALTOÃ‰" → "ALTOÉ"): só quando há
+    /// um "Ã"/"Â" seguido de um caractere de continuação e a volta dá UTF-8 válido; senão, o texto fica como está.</summary>
+    public static string Reparar(string s)
+    {
+        if (s.Length < 2 || s.IndexOfAny(['Ã', 'Â']) < 0) return s;
+        var cp1252 = Encoding.GetEncoding(1252, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+        var achou = false;
+        for (var i = 0; i + 1 < s.Length && !achou; i++)
+            if (s[i] is 'Ã' or 'Â' && Byte1252(s[i + 1]) is >= 0x80 and <= 0xBF) achou = true;
+        if (!achou) return s;
+        try
+        {
+            var bytes = new byte[s.Length];
+            for (var i = 0; i < s.Length; i++) bytes[i] = Byte1252(s[i]) ?? throw new DecoderFallbackException();
+            return Utf8Estrito.GetString(bytes);
+        }
+        catch (Exception e) when (e is DecoderFallbackException or EncoderFallbackException) { return s; }
+
+        byte? Byte1252(char c)
+        {
+            if (c < 0x80 || (c >= 0xA0 && c <= 0xFF)) return (byte)c;
+            try { var b = cp1252.GetBytes([c]); return b.Length == 1 ? b[0] : null; }
+            catch (EncoderFallbackException) { return c is >= '\u0080' and <= '\u009F' ? (byte)c : null; } // 0x81, 0x8D, 0x8F, 0x90, 0x9D
+        }
     }
 
     // ---------- .dbf ----------
 
-    internal static List<Dictionary<string, string?>> LerDbf(string caminho, Encoding cod)
+    internal static List<Dictionary<string, string?>> LerDbf(string caminho, Encoding? declarada)
     {
         var b = File.ReadAllBytes(caminho);
         var n = BinaryPrimitives.ReadInt32LittleEndian(b.AsSpan(4));
@@ -69,6 +129,19 @@ public static class Shapefile
             var nome = Encoding.Latin1.GetString(b, p, 11).Split('\0')[0].Trim(); // Latin-1: a base tem campo com acento ("Perímetro", na AUC)
             campos.Add((nome, (char)b[p + 11], b[p + 16]));
         }
+        var valoresTexto = new List<byte[]>();
+        for (var i = 0; i < n; i++)
+        {
+            var o = tamCab + i * tamReg;
+            if (o + tamReg > b.Length) break;
+            var p = o + 1;
+            foreach (var (_, tipo, tam) in campos)
+            {
+                if (tipo is 'C' or 'M') valoresTexto.Add(b.AsSpan(p, tam).TrimEnd((byte)' ').TrimEnd((byte)0).ToArray());
+                p += tam;
+            }
+        }
+        var cod = DetectarCodificacao(valoresTexto, declarada);
         var r = new List<Dictionary<string, string?>>(n);
         for (var i = 0; i < n; i++)
         {
@@ -78,7 +151,7 @@ public static class Shapefile
             var p = o + 1; // o primeiro byte marca registro excluído
             foreach (var (nome, tipo, tam) in campos)
             {
-                var s = cod.GetString(b, p, tam).Trim().TrimEnd('\0').Trim();
+                var s = Reparar(cod.GetString(b, p, tam).Trim().TrimEnd('\0').Trim().TrimEnd('\uFFFD'));
                 p += tam;
                 if (tipo is 'N' or 'F' && s.Length > 0 && s.All(c => c is '*' or ' ')) s = "";
                 d[nome] = s.Length == 0 ? null : s;
