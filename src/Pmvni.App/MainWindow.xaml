@@ -120,16 +120,22 @@
                 BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"/>
         </Grid>
         </Border>
-        <StackPanel x:Name="GrupoHistorico" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoIconeCabecalhoStyle}" IsEnabled="False"
-                  AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
-            <FontIcon Glyph="&#xE7A7;" FontSize="16"/>
-          </Button>
-          <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoIconeCabecalhoStyle}" IsEnabled="False"
-                  AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
-            <FontIcon Glyph="&#xE7A6;" FontSize="16"/>
-          </Button>
-        </StackPanel>
+        <!-- 1.0.0: Desfazer | Refazer numa pílula segmentada só (uma moldura, cantos totalmente redondos, divisória central), como a
+             pesquisa; só ícones Fluent, o nome e o atalho ficam na dica e no Narrador. -->
+        <Border x:Name="GrupoHistorico" Style="{StaticResource PmvniGrupoCabecalho}">
+          <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoIconeCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
+                    Padding="2,0,0,0" AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
+              <FontIcon Glyph="&#xE7A7;" FontSize="16"/>
+            </Button>
+            <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
+            <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoIconeCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
+                    Padding="0,0,2,0" AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
+              <FontIcon Glyph="&#xE7A6;" FontSize="16"/>
+            </Button>
+          </StackPanel>
+        </Border>
         <Grid VerticalAlignment="Center">
           <!-- Pesquisa geral (2026-11-17): além do módulo à vista, acha ajustes, funções, arquivos e leis (lista abaixo da caixa). TextBox nativo
                em pílula: a borda de foco é a do tema (cor de destaque do Windows). -->
@@ -144,7 +150,7 @@
         <Border x:Name="GrupoOcorrencias" Style="{StaticResource PmvniGrupoCabecalho}">
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">
-            <Button x:Name="BotaoPesquisaAnterior" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="7,0,0,7"
+            <Button x:Name="BotaoPesquisaAnterior" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
                     AutomationProperties.Name="Ocorrência anterior" ToolTipService.ToolTip="Ocorrência anterior (Shift+Enter)">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <FontIcon Glyph="&#xE76B;" FontSize="12" VerticalAlignment="Center"/>
@@ -152,8 +158,8 @@
               </StackPanel>
             </Button>
             <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
-            <Button x:Name="BotaoPesquisaProxima" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="0,7,7,0"
-                    Padding="14,0,12,1" AutomationProperties.Name="Próxima ocorrência" ToolTipService.ToolTip="Próxima ocorrência (Enter)">
+            <Button x:Name="BotaoPesquisaProxima" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
+                    Padding="14,0,16,1" AutomationProperties.Name="Próxima ocorrência" ToolTipService.ToolTip="Próxima ocorrência (Enter)">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock x:Name="RotuloProximo" Text="Próxima" VerticalAlignment="Center"/>
                 <FontIcon Glyph="&#xE76C;" FontSize="12" VerticalAlignment="Center"/>

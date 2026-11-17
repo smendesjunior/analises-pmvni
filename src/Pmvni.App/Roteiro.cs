@@ -229,7 +229,7 @@ internal static class Roteiro
             p["cabecalho_rotulos"] = new JsonArray(j.RotulosDoCabecalho.Select(x => (JsonNode)x).ToArray());
             var cabecalhoOk = j.TextoProcessoCabecalho == linhasCabecalho.Principal && j.TextoRequerenteCabecalho == linhasCabecalho.Secundaria
                 && j.ProcessoEmNegrito && j.TextoSeloGravacao == j.TextoEstadoAtual
-                && j.RotulosDoCabecalho.SequenceEqual(["Desfazer", "Refazer", "Anterior", "Próximo"]);
+                && j.RotulosDoCabecalho.SequenceEqual(["Desfazer", "Refazer", "Anterior", "Próxima"]) && j.PilulasDoCabecalhoConferem;
             p["cabecalho_confere"] = cabecalhoOk;
             p["composicao"] = j.TextoComposicaoAtual;
             p["itens_na_lista"] = j.Itens.Count;
