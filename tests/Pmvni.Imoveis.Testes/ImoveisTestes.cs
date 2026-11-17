@@ -181,15 +181,26 @@ public class MapaLocalizacaoTestes : IDisposable
     {
         // sem as cotas (2026-11-17), o mapa fica como o do kit
         var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4, new OpcoesMapa { AreaDeclarada = 1500, AreaFonte = "matrícula", Endereco = "Rua das Acácias, 120", Cotas = false });
+        if (Environment.GetEnvironmentVariable("PMVNI_MAPA_SAIDA") is { Length: > 0 } saida) File.WriteAllText(Path.Combine(saida, "mapa-exemplo.svg"), m.Svg); // antes das conferências, para ver o mapa mesmo quando uma falha
         Assert.Equal("VERIFIED_LOT", m.Modo);
-        // 16:10, com o centro do lote a 60% da largura e a 58% da altura (a partir do topo).
-        Assert.Equal(1.6, m.Extensao.Width / m.Extensao.Height, 6);
-        Assert.Equal(0.60, (300_115 - m.Extensao.MinX) / m.Extensao.Width, 6);
-        Assert.Equal(0.58, (m.Extensao.MaxY - 7_750_120) / m.Extensao.Height, 6);
+        // O kit (mapa_localizacao.py) desenha 840 × 525 (16:10). O mapa do módulo Imóveis é 4:3 de propósito, por decisão do usuário
+        // (2026-11-17): 840 × 630, na largura toda do relatório. O enquadramento segue o do kit (lote a 60% da largura e a 58% da altura,
+        // largura mínima de 200 m sem as cotas), com os pontos obrigatórios (eixo da BR-262 e calha do curso d'água a até 100 m) a pelo
+        // menos 8% da borda; quando esses pontos abririam demais o recorte com o lote fixo a 60% / 58%, o lote e os pontos são enquadrados
+        // juntos, centrados (o recorte mais estreito, com o lote maior). Por isso aqui se confere o conteúdo, não a posição exata.
+        Assert.Equal(4.0 / 3.0, m.Extensao.Width / m.Extensao.Height, 6);
+        Assert.Equal(840.0 / 630.0, (double)MapaLocalizacao.Largura / MapaLocalizacao.Altura, 6);
+        Assert.True(m.Extensao.Width >= 200);
+        var obrigatorios = new[] { m.Br262?.PontoEixo, m.CursosDagua.FirstOrDefault()?.PontoCalha }.OfType<NetTopologySuite.Geometries.Coordinate>().ToList();
+        Assert.NotEmpty(obrigatorios);
+        double Folga(NetTopologySuite.Geometries.Coordinate p) => Math.Min(
+            Math.Min(p.X - m.Extensao.MinX, m.Extensao.MaxX - p.X) / m.Extensao.Width, Math.Min(p.Y - m.Extensao.MinY, m.Extensao.MaxY - p.Y) / m.Extensao.Height);
+        Assert.All(obrigatorios, p => Assert.True(Folga(p) >= 0.08 - 1e-9));
+        Assert.True(Folga(new NetTopologySuite.Geometries.Coordinate(300_115, 7_750_120)) >= 0.08); // o lote (centro) bem dentro do recorte
 
         Assert.Equal(["LOTE 4 · QUADRA Q7", "FULANO DE TAL EXEMPLO", "Inscrição " + BaseFicticia.Lote4, "Zona ZCN2 · base 1.200,00 m² · declarada 1.500,00 m²", "APP ATINGE O LOTE", "FAIXA DA BR-262 ATINGE O LOTE"], m.Ficha);
         Assert.Equal(["lote", "edif", "app", "rio", "dnit", "zona"], m.Legenda.Select(i => i.Tipo));
-        Assert.Equal(["Lote do projeto", "Edificação no lote", "Faixa de APP", "Curso d'água", "Faixa de domínio DNIT (40 m do eixo, a confirmar) e não edificável (15 m)", "Zonas do PDM"], m.Legenda.Select(i => i.Texto));
+        Assert.Equal(["Lote do projeto", "Edificação no lote", "Faixa de APP", "Curso d'água", "Domínio DNIT 40 m (a confirmar) + 15 m não edificáveis", "Zonas do PDM"], m.Legenda.Select(i => i.Texto));
         Assert.Equal("Córrego Fictício", m.NomeRio);
         Assert.True(m.AppAtingeLote);
         Assert.Equal(41.8, m.Br262!.DistanciaEixo);
@@ -204,9 +215,12 @@ public class MapaLocalizacaoTestes : IDisposable
         Assert.Contains("BR 262", m.Ruas);
 
         var svg = m.Svg;
-        Assert.StartsWith("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"840\" height=\"525\" viewBox=\"0 0 1680 1050\"", svg);
-        foreach (var t in new[] { ">LOTE 4<", ">ZCN2<", ">ZRE<", ">BR-262<", ">Rua Das Acacias<", ">Córrego Fictício<", ">Beltrana Modelo<", ">Sicrano Teste<", ">APP ATINGE O LOTE<", ">FAIXA DA BR-262 ATINGE O LOTE<", " m<" })
+        // a mesma grade dobrada do kit (o dobro do tamanho final), agora 4:3
+        Assert.StartsWith("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"840\" height=\"630\" viewBox=\"0 0 1680 1260\"", svg);
+        foreach (var t in new[] { ">LOTE 4<", ">ZCN2<", ">ZRE<", ">BR-262<", ">Rua Das Acacias<", ">Córrego Fictício<", ">Sicrano Teste<", ">APP ATINGE O LOTE<", ">FAIXA DA BR-262 ATINGE O LOTE<", " m<" })
             Assert.Contains(t, svg);
+        // os nomes dos vizinhos têm a prioridade mais baixa (depois das cotas, das ruas e dos números): sem lugar, ficam ocultos
+        Assert.Empty(VerificadorSvg.Sobreposicoes(svg));
         Assert.Contains("stroke=\"#E22D28\" stroke-width=\"8\"", svg);   // lote confirmado: contorno vermelho de 4 px
         Assert.Contains("fill=\"#5C5650\"", svg);                          // edificação do lote, escura
         Assert.Contains("stroke=\"#E37400\"", svg);                        // faixas da BR-262
@@ -232,13 +246,13 @@ public class MapaLocalizacaoTestes : IDisposable
         Assert.Equal("Loteamento aprovado Loteamento Exemplo", d["Parcelamento"].Valor);
         Assert.Equal("Lote 3: BELTRANA DE SOUZA MODELO E SOCIO (A)(S) · Lote 5: SICRANO PEREIRA TESTE · Lote 12: sem nome no cadastro", d["Confrontantes"].Valor);
 
-        if (Environment.GetEnvironmentVariable("PMVNI_MAPA_SAIDA") is { Length: > 0 } saida) File.WriteAllText(Path.Combine(saida, "mapa-exemplo.svg"), svg);
     }
 
     [Fact]
     public void com_as_cotas_o_mapa_mostra_lados_do_lote_dnit_e_rua()
     {
         var m = MapaLocalizacao.PorInscricao(b, BaseFicticia.Lote4);
+        if (Environment.GetEnvironmentVariable("PMVNI_MAPA_SAIDA") is { Length: > 0 } saida) File.WriteAllText(Path.Combine(saida, "mapa-exemplo-cotas.svg"), m.Svg);
         foreach (var t in new[] { ">30,00 m<", ">40,00 m<", ">Domínio DNIT 40,00 m<", ">Eixo → terreno 41,79 m<", ">Eixo → alinhamento 10,00 m<", ">LOTE 4<" })
             Assert.Contains(t, m.Svg);
         Assert.Contains("<title>Domínio a confirmar no DNIT para o trecho; faixa não edificável: Lei 6.766/1979, art. 4º, III.", m.Svg);
@@ -269,13 +283,16 @@ public class MapaLocalizacaoTestes : IDisposable
         {
             "<h1>RELATÓRIO CADASTRAL<br>E TERRITORIAL</h1>", "<div class=\"band\"><div class=\"proc\">INSCRIÇÃO " + BaseFicticia.Lote4, "<div class=\"name\">FULANO DE TAL EXEMPLO</div>",
             "<div class=\"ic g\"><h4>LOCALIZAÇÃO</h4>", "<h2>LOCALIZAÇÃO NA BASE MUNICIPAL</h2>", "<span class=\"pill g\"><i></i>LOTE IDENTIFICADO</span>",
-            "<div class=\"lmap\"><img alt=\"Mapa de localização do lote na base municipal\" src=\"data:image/svg+xml;base64,", "<div class=\"lbl\">SITUAÇÃO DO LOTE NA BASE</div>",
-            "<span><i class=\"lk dnit\"></i>Faixa de domínio DNIT (40 m do eixo, a confirmar) e não edificável (15 m)</span>", "<div class=\"lficha\"><table class=\"lft\">",
+            "<div class=\"lmapa\"><div class=\"lmap\"><img alt=\"Mapa de localização do lote na base municipal\" src=\"data:image/svg+xml;base64,", "<div class=\"lbl\">SITUAÇÃO DO LOTE NA BASE</div>",
+            "<span><i class=\"lk dnit\"></i>Domínio DNIT 40 m (a confirmar) + 15 m não edificáveis</span>", "<div class=\"lficha\"><table class=\"lft\">",
             "<tr class=\"lfh\"><th colspan=\"2\">Identificação</th></tr>", "<tr class=\"lfh\"><th colspan=\"2\">Cadastro e entorno</th></tr>",
             "<tr class=\"lfh\"><th colspan=\"2\">Áreas e edificação</th></tr>", "<tr class=\"lfh\"><th colspan=\"2\">Zona e condicionantes</th></tr>",
             "<i class=\"lchip r\">ATINGE O LOTE</i>", "<i class=\"lchip g\">CONFERE</i>", "<td class=\"lfl\">Área calculada</td><td class=\"lfv\"><b>1.200,00 m²</b>",
         })
             Assert.Contains(t, html);
+        // A legenda fica numa linha logo abaixo do mapa (2026-11-17), antes da situação do lote.
+        Assert.Matches("<div class=\"lmap\"><img [^>]+></div><div class=\"lleg\"><span><i class=\"lk lote\"></i>", html);
+        Assert.True(html.IndexOf("class=\"lleg\"", StringComparison.Ordinal) < html.IndexOf("SITUAÇÃO DO LOTE NA BASE", StringComparison.Ordinal));
         // A ficha fica na ordem do molde: Identificação e Cadastro e entorno na primeira tabela; Áreas e Zona na segunda.
         Assert.True(html.IndexOf(">Cadastro e entorno<", StringComparison.Ordinal) < html.IndexOf(">Áreas e edificação<", StringComparison.Ordinal));
         Assert.True(html.Length < 1_500_000); // cabe no NavigateToString do WebView2 (limite de 2 MB)
@@ -304,6 +321,29 @@ public class BaseRealTestes
     static readonly string Pasta = Environment.GetEnvironmentVariable("PMVNI_QGIS_TESTE") ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR", "KIT DE TREINAMENTO DE IA (PMVNI)",
         "05 - GEOPROCESSAMENTO (QGIS, LOTEAMENTOS, ZONEAMENTO)", "2 - QGIS");
+
+    /// <summary>Auditoria do mapa na base real (2026-11-17): lotes junto da BR-262, de curso d'água e de quadra densa, mais uma amostra
+    /// fixa; em nenhum mapa um texto cobre outro, e as cotas pedidas aparecem (lados do lote; BR-262 e rio a até 100 m).</summary>
+    [Fact]
+    public void mapas_da_base_real_sem_sobreposicao_e_com_as_cotas()
+    {
+        if (!Directory.Exists(Pasta)) return;
+        var b = BaseQgis.Carregar(Pasta);
+        var lotes = b[Camada.Lotes]!.Feicoes.Where(f => f.Geometria is not null && (f.Atributo("InscImob") ?? "").Length > 0).ToList();
+        var escolhidos = new[] { "01020020052001", "01011180077001", "02010140105001", "02010350290001", "01030360204001", "02010080056001", "01020440279001" }
+            .Select(i => lotes.FirstOrDefault(l => l.Atributo("InscImob") == i)).OfType<Feicao>()
+            .Concat(lotes.Where((_, i) => i % Math.Max(1, lotes.Count / 12) == 0).Take(12)).ToList();
+        var falhas = new List<string>();
+        foreach (var l in escolhidos)
+        {
+            var m = MapaLocalizacao.Gerar(b, l.Geometria!, [l]);
+            var ins = l.Atributo("InscImob");
+            falhas.AddRange(VerificadorSvg.Sobreposicoes(m.Svg).Select(x => $"{ins}: {x}"));
+            if (m.Br262 is { DistanciaEixo: > 0 and <= MapaLocalizacao.DistanciaCotas, PontoEixo: not null } && !m.Svg.Contains(">Eixo → terreno ")) falhas.Add($"{ins}: sem a cota da BR-262");
+            if (m.CursosDagua.FirstOrDefault() is { Distancia: > 0 and <= MapaLocalizacao.DistanciaCotas, PontoCalha: not null } && !m.Svg.Contains(">Rio → terreno ")) falhas.Add($"{ins}: sem a cota do rio");
+        }
+        Assert.Empty(falhas);
+    }
 
     [Fact]
     public void carrega_pesquisa_e_gera_relatorio()

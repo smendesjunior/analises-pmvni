@@ -37,7 +37,7 @@ public sealed record CursoDagua(string Tipo, double Distancia, IReadOnlyList<int
 public sealed record FaixaBr262(double DistanciaEixo, double Dominio, double NaoEdificavel, Coordinate? PontoEixo, bool AtingeDominio, bool AtingeNaoEdificavel, Coordinate? PontoLote = null);
 public sealed record VizinhoMapa(string Inscricao, string Lote, string Proprietario);
 
-/// <summary>O que o <c>mapa_localizacao.py</c> devolve: a imagem (aqui em SVG, 840 × 525), a legenda, a ficha e os dados do lote.</summary>
+/// <summary>O que o <c>mapa_localizacao.py</c> devolve: a imagem (aqui em SVG, 840 × 630, 4:3; o kit usa 840 × 525), a legenda, a ficha e os dados do lote.</summary>
 public sealed class MapaGerado
 {
     public required string Svg { get; init; }
@@ -92,7 +92,11 @@ public static class MapaLocalizacao
     public const string Crs = "EPSG:31984 — SIRGAS 2000 / UTM 24S";
     public const double FaixaDominioBr262 = 40.0;   // DNIT: distância a partir do eixo (a confirmar com o DNIT para o trecho)
     public const double FaixaNaoEdificavel = 15.0;  // Lei 6.766/1979, art. 4º, III (redutível por lei municipal até 5 m)
-    public const int Largura = 840, Altura = 525;
+    // 4:3 por decisão do usuário (2026-11-17): o kit desenha 840 × 525 (16:10); aqui o mapa ocupa a largura toda do relatório e fica
+    // mais alto, com o mesmo enquadramento (centro do lote a 60% / 58%, larguras mínimas) e o recorte seguindo a proporção 4:3.
+    public const int Largura = 840, Altura = 630;
+    /// <summary>Até esta distância (m) do lote, o eixo da BR-262 e a calha do curso d'água entram no recorte, com as suas cotas.</summary>
+    public const double DistanciaCotas = 100;
     public const string GrupoId = "Identificação", GrupoAreas = "Áreas e edificação", GrupoZona = "Zona e condicionantes", GrupoCadastro = "Cadastro e entorno";
 
     static readonly CultureInfo Br = CultureInfo.GetCultureInfo("pt-BR");
@@ -446,8 +450,10 @@ public static class MapaLocalizacao
         var rio0 = cursos.Count > 0 ? cursos[0] : null;
         var br = FaixaDaBr262(b, alvo, o.FaixaDominio);
         var ver = new List<Coordinate>();
-        if (br is { DistanciaEixo: <= 120, PontoEixo: { } pe }) ver.Add(pe);            // eixo da rodovia e faixas
-        if (rio0 is { Distancia: <= 120, PontoCalha: { } pc }) ver.Add(pc);
+        // os pontos obrigatórios (2026-11-17): o eixo da BR-262 e a calha do curso d'água a até 100 m do lote, para as cotas aparecerem
+        if (br is { DistanciaEixo: <= DistanciaCotas, PontoEixo: { } pe }) ver.Add(pe);
+        if (rio0 is { Distancia: <= DistanciaCotas, PontoCalha: { } pc }) ver.Add(pc);
+        var minima = larg;
         foreach (var p in ver) // cada ponto obrigatório dentro do recorte, a 8% da borda
         {
             double dx = p.X - c.X, dy = p.Y - c.Y;
@@ -457,6 +463,22 @@ public static class MapaLocalizacao
         }
         var alt = larg * H / W;
         var ext = new Envelope(c.X - fx * larg, c.X + (1 - fx) * larg, c.Y - (1 - fy) * alt, c.Y + fy * alt);
+        if (ver.Count > 0)
+        {
+            // Com o lote fixo a 60% / 58%, um ponto do lado curto abre muito o recorte e o lote fica pequeno (sem lugar para as cotas dos
+            // lados). Alternativa: enquadrar o lote e os pontos juntos, centrados, a 8% da borda; fica a que der o recorte mais estreito.
+            var u = bb.Copy();
+            foreach (var p in ver) u.ExpandToInclude(p);
+            var largU = Math.Max(minima, Math.Max(u.Width / .84, u.Height / .84 * W / H));
+            if (largU < larg)
+            {
+                // o lote fica o mais perto possível da posição do kit (60% / 58%), desde que o lote e os pontos caibam a 8% da borda
+                var altU = largU * H / W;
+                var x0 = Math.Max(u.MaxX + .08 * largU - largU, Math.Min(c.X - fx * largU, u.MinX - .08 * largU));
+                var y1 = Math.Max(u.MaxY + .08 * altU, Math.Min(c.Y + fy * altU, u.MinY - .08 * altU + altU));
+                ext = new Envelope(x0, x0 + largU, y1 - altU, y1);
+            }
+        }
 
         var ins = alvo.Campo("InscImob");
         var somaAreas = feicoes.Sum(f => Numero(f.Atributo("AREA")) ?? 0);

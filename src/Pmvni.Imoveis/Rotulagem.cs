@@ -172,9 +172,9 @@ public static class Rotulagem
     /// às bordas, puxado para dentro da tela) e, por último, uma grade na tela inteira. Ordem: o que não cobre nada de
     /// <paramref name="proibidos"/> (o lote com a folga, a etiqueta do lote, a escala, a rosa dos ventos); depois o que cobre menos
     /// <paramref name="rotulos"/>; depois os lados do lote antes da grade; depois o mais perto do lote. O balão sempre fica dentro da tela
-    /// (se couber nela).</summary>
+    /// (se couber nela). <paramref name="pesos"/>: quanto pesa cobrir cada rótulo (um nome de rua pesa mais que um número de lote).</summary>
     public static (Caixa Caixa, LadoBalao Lado) EscolherBalao(Caixa alvo, double largura, double altura, double telaL, double telaA,
-        IReadOnlyList<Caixa> proibidos, IReadOnlyList<PontoTela[]> rotulos, double folga, double margem)
+        IReadOnlyList<Caixa> proibidos, IReadOnlyList<PontoTela[]> rotulos, double folga, double margem, IReadOnlyList<double>? pesos = null)
     {
         double Cx(double x) => Math.Clamp(x, margem, Math.Max(margem, telaL - largura - margem));
         double Cy(double y) => Math.Clamp(y, margem, Math.Max(margem, telaA - altura - margem));
@@ -198,7 +198,7 @@ public static class Rotulagem
 
         var alvoComFolga = alvo.Expandida(folga - 1e-6);
         double Duro(Caixa c) => proibidos.Sum(c.AreaComum) + c.AreaComum(alvoComFolga);
-        int Leves(Caixa c) { var p = c.Contorno(); return rotulos.Count(r => Sobrepoe(p, r)); }
+        double Leves(Caixa c) { var p = c.Contorno(); return rotulos.Select((r, i) => Sobrepoe(p, r) ? pesos?[i] ?? 1 : 0).Sum(); }
         double Dist(Caixa c) { var m = c.Centro; return Math.Sqrt((m.X - cen.X) * (m.X - cen.X) + (m.Y - cen.Y) * (m.Y - cen.Y)); }
         var melhor = cands.OrderBy(c => Duro(c.C)).ThenBy(c => Leves(c.C)).ThenBy(c => c.Ordem == 4 ? 1 : 0).ThenBy(c => Dist(c.C)).ThenBy(c => c.Ordem).First();
         return (melhor.C, melhor.Lado);

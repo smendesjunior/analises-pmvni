@@ -11,7 +11,8 @@ static class Html
 
 /// <summary>O relatório cadastral e territorial de um imóvel em HTML A4, com o aspecto do relatório técnico de análise do kit: usa o CSS
 /// oficial do modelo (rev. 10, embutido sem alteração) e as mesmas peças — capa com a faixa de identificação e os quatro quadros, o bloco
-/// LOCALIZAÇÃO NA BASE MUNICIPAL (o mapa do kit, a coluna de situação, legenda, observações e fonte) e a ficha em duas colunas com os
+/// LOCALIZAÇÃO NA BASE MUNICIPAL (o mapa do kit, aqui 4:3 na largura toda, com a legenda numa linha abaixo; situação, observações e
+/// fonte embaixo) e a ficha em duas colunas com os
 /// grupos Identificação, Cadastro e entorno, Áreas e edificação e Zona e condicionantes, com as etiquetas. Depois vêm os quadros próprios
 /// da consulta (confrontantes, geometria, cadastro completo, fontes e ressalvas), nas tabelas do mesmo modelo. Só o que a base mostra: sem
 /// índices urbanísticos, sem documentos pessoais, com as ressalvas de método.</summary>
@@ -43,6 +44,16 @@ public static class RelatorioHtml
         .cabp { display: block; width: 100%; height: auto; margin-bottom: 5mm; }
         .tb td.n, .tb th.n { text-align: right; white-space: nowrap; }
         .rf b { overflow-wrap: anywhere; }
+        .locblk { break-inside: auto; } .locblk > .sec { break-after: avoid; }
+        .lmapa { break-inside: avoid; margin-top: 2px; }
+        @media print { .lmapa .lmap { width: fit-content; max-width: 100%; margin: 0 auto; } .lmapa .lmap img { width: auto; max-width: 100%; max-height: 128mm; } }
+        .lmapa .lmap { border-radius: 8px; }
+        .lmapa .lleg { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 9px; margin: 4px 0 0; font-size: 6.1pt; line-height: 1.2; }
+        .lmapa .lleg span { gap: 4px; white-space: nowrap; }
+        .lmapa .lk { width: 12px; height: 8px; border-radius: 2px; }
+        .lmapa .lk.rio { height: 3px; }
+        .locblk > .lside { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 12px; margin-top: 6px; break-inside: avoid; }
+        .locblk > .lside .src { grid-column: 1 / -1; margin-top: 2px; padding-top: 0; }
         .rodape { margin-top: 12px; border-top: .6pt solid var(--line); padding-top: 5px; display: flex; justify-content: space-between; color: #637083; font-size: 6.2pt; }
         """;
 
@@ -94,13 +105,14 @@ public static class RelatorioHtml
         s.Append($"<span class=\"pill {(a.Conclusivo ? "g" : a.Lote is null ? "r" : "a")}\"><i></i>{Html.E(TextosConsulta.Rotulo(a.Vinculo).ToUpper(Br))}</span></div>");
         if (mapa is not null)
         {
-            s.Append($"<div class=\"lmrow\"><div class=\"lmap\"><img alt=\"Mapa de localização do lote na base municipal\" src=\"{mapa.SvgUri()}\"></div><div class=\"lside\">");
-            s.Append($"<div class=\"lbl\">SITUAÇÃO DO LOTE NA BASE</div><p>{Html.E(vinculoTexto)}{(a.Conclusivo ? "" : " Zona, APP e confrontantes ficam só como informação.")}</p>");
-            s.Append("<div class=\"lbl\">LEGENDA</div><div class=\"lleg\">");
+            // o mapa 4:3 na largura toda (2026-11-17), a legenda numa linha logo abaixo dele e, embaixo, a situação, as observações e a fonte
+            s.Append($"<div class=\"lmapa\"><div class=\"lmap\"><img alt=\"Mapa de localização do lote na base municipal\" src=\"{mapa.SvgUri()}\"></div><div class=\"lleg\">");
             foreach (var i in mapa.Legenda) s.Append($"<span><i class=\"lk {i.Tipo}\"></i>{Html.E(i.Texto)}</span>");
-            s.Append("</div><div class=\"lbl\">OBSERVAÇÕES DA CONSULTA</div>");
-            s.Append("<p>Distâncias medidas até o eixo do curso d'água e da rodovia, não até a margem. A edificação é a projeção desenhada na base, não a área construída.</p>");
-            s.Append($"<div class=\"src\">FONTE: Base municipal: {Html.E(string.Join(", ", mapa.Camadas))}; cadastro imobiliário vigente; {Html.E(MapaLocalizacao.Crs)}.</div></div></div>");
+            s.Append("</div></div><div class=\"lside\"><div>");
+            s.Append($"<div class=\"lbl\">SITUAÇÃO DO LOTE NA BASE</div><p>{Html.E(vinculoTexto)}{(a.Conclusivo ? "" : " Zona, APP e confrontantes ficam só como informação.")}</p></div>");
+            s.Append("<div><div class=\"lbl\">OBSERVAÇÕES DA CONSULTA</div>");
+            s.Append("<p>Distâncias medidas até o eixo do curso d'água e da rodovia, não até a margem. A edificação é a projeção desenhada na base, não a área construída.</p></div>");
+            s.Append($"<div class=\"src\">FONTE: Base municipal: {Html.E(string.Join(", ", mapa.Camadas))}; cadastro imobiliário vigente; {Html.E(MapaLocalizacao.Crs)}.</div></div>");
         }
         else s.Append("<div class=\"note\"><span class=\"bang\">!</span><b>SEM MAPA</b><em></em><span>Sem lote desenhado para esta inscrição: o mapa e os cruzamentos geográficos não podem ser feitos. Confirme a inscrição ou a localização com os documentos do processo.</span></div>");
         Ficha(s, DadosDaFicha(a, mapa));
