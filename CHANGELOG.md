@@ -2,6 +2,13 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## Em desenvolvimento (não publicado)
+
+- **Analisar com o Claude pela Anthropic API:** com "Usar chave de API" marcado no cartão do Claude, o análise pro (1.6.4 ou mais novo) usa de fato a chave guardada, com os créditos e limites da organização no Anthropic Console, sem gastar a cota do Claude Max. Com "Usar minha conta", segue pela assinatura do Claude, como antes.
+- **Sem troca automática entre conta e API:** o app não converte mais o modo chave em conta. Se o análise pro instalado não aceitar a API, a análise não começa e o app explica o motivo.
+- **Falhas da API com nome próprio:** saldo insuficiente pausa a análise, chave recusada a interrompe e limite de uso faz a análise esperar e tentar de novo. Em nenhum desses casos ela passa para a conta.
+- A chave vai só para a partida da análise; o acompanhamento roda sem ela. O registro da execução informa a autenticação usada (conta ou API), nunca a chave.
+
 ## 0.6.8
 
 - **Acompanhamento da análise redesenhado:** resumo no topo (situação, etapa atual e quantas etapas terminaram), as seis etapas com ícones e estados (concluída, em andamento, pendente e erro), atividades em frases naturais com ícone, situação e horário ("Documentos do processo identificados", "Legislação municipal consultada"…), principais descobertas marcadas como preliminares ou verificadas, próxima etapa e uma seção recolhível "Detalhes da execução" com os dados técnicos. Em janela estreita, as colunas se empilham.
