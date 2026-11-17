@@ -21,8 +21,9 @@ public interface IConversorPdf
 
 /// <summary>O LibreOffice, como o kit (<c>programas_pmvni.py docx-pdf</c>, desenho §10.7): <c>soffice.com --headless --convert-to pdf</c> sobre
 /// uma <b>cópia</b> do DOCX, com <c>TEMP</c>/<c>TMP</c> na pasta de trabalho, sem janela e com prazo. O Word nunca é usado. Perfil próprio do
-/// editor (Ruling T16-C4): <c>raizPerfil</c> (o app usa <c>&lt;dados&gt;\lo</c>), um só e persistente, criado na primeira conversão (a
-/// inicialização de um perfil novo leva perto de um minuto); sem ele, um perfil novo na pasta de trabalho a cada conversão.</summary>
+/// editor (Ruling T16-C4): <c>raizPerfil</c> (o app usa <c>&lt;dados&gt;\lo</c>), um só e persistente, criado na primeira conversão (um perfil
+/// novo leva ~4 s a mais); sem ele, um perfil novo na pasta de trabalho a cada conversão. As impressoras do Windows nunca são consultadas
+/// (<see cref="SemImpressoras"/>).</summary>
 public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = null, string? raizPerfil = null) : IConversorPdf
 {
     const int TamanhoMinimoPdf = 1000;
@@ -131,8 +132,16 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
         var tmp = temp ?? Path.Combine(pastaConv, "tmp");
         psi.Environment["TEMP"] = tmp;
         psi.Environment["TMP"] = tmp;
+        foreach (var v in SemImpressoras) psi.Environment[v] = "1";
         return psi;
     }
+
+    /// <summary>O LibreOffice nunca consulta as impressoras do Windows (2026-11-17). Sem isto, o soffice pede ao spooler a impressora padrão
+    /// e a lista de filas (vcl/source/gdi/print.cxx: <c>GetDefaultPrinterName</c> e <c>ImplInitPrnQueueList</c>); com uma impressora de rede
+    /// ou WSD fora do ar como padrão, o Windows mostra "Aguardando conexão de impressora…" e cada conversão levava ~50 s (medido neste PC,
+    /// com a OBR-Sede). Com as duas variáveis, o vcl não chama o spooler: a fila fica vazia e o documento usa a "impressora de tela"
+    /// (<c>ImplInitDisplay</c>). O PDF sai igual pixel a pixel (modelos do kit comparados) e a conversão cai para ~1,7 s.</summary>
+    internal static readonly string[] SemImpressoras = ["SAL_DISABLE_PRINTERLIST", "SAL_DISABLE_DEFAULTPRINTER"];
 
     /// <summary>O soffice desta conversão (null fora dela): <see cref="EncerrarEmCurso"/> o encerra de fora (o app fechando).</summary>
     static Process? emCurso;
