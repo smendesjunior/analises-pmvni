@@ -28,6 +28,9 @@ internal interface IPerguntas
     /// <summary>"Criar processo": número, ano do protocolo e requerente ("Criar" só com os três válidos); null se cancelado.</summary>
     Task<DadosNovoProcesso?> PedirNovoProcessoAsync();
 
+    /// <summary>"Criar processo" com o requerente já preenchido (o boletim cadastral sugere o contribuinte). Padrão: a pergunta sem sugestão.</summary>
+    Task<DadosNovoProcesso?> PedirNovoProcessoAsync(string requerente) => PedirNovoProcessoAsync();
+
     /// <summary>Seletor de salvar com o nome sugerido; null se cancelado.</summary>
     Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao);
 
@@ -62,6 +65,9 @@ internal interface IPerguntas
 
     /// <summary>Escolhe um item de uma lista curta (os certificados do Windows); o índice escolhido, ou null se cancelou. Padrão: cancelar.</summary>
     Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens) => Task.FromResult<int?>(null);
+
+    /// <summary>Como a outra, já com o item <paramref name="selecionado"/> marcado (Enter confirma) e o texto do botão principal.</summary>
+    Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens, int selecionado, string botao) => EscolherNaListaAsync(titulo, texto, itens);
 }
 
 internal static class Perguntas
@@ -111,12 +117,14 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         return arquivos.Select(a => a.Path).Where(c => !string.IsNullOrEmpty(c)).ToList();
     }
 
-    public async Task<DadosNovoProcesso?> PedirNovoProcessoAsync()
+    public Task<DadosNovoProcesso?> PedirNovoProcessoAsync() => PedirNovoProcessoAsync("");
+
+    public async Task<DadosNovoProcesso?> PedirNovoProcessoAsync(string sugestao)
     {
         var anoAtual = DateTime.Now.Year;
         var numero = new TextBox { Header = "Número do processo", PlaceholderText = "ex.: 123", MaxLength = 6, InputScope = Numerico() };
         var ano = new TextBox { Header = "Ano do protocolo", Text = anoAtual.ToString(CultureInfo.InvariantCulture), MaxLength = 4, InputScope = Numerico() };
-        var requerente = new TextBox { Header = "Requerente", PlaceholderText = "Nome do requerente" };
+        var requerente = new TextBox { Header = "Requerente", PlaceholderText = "Nome do requerente", Text = sugestao ?? "" };
         var painel = new StackPanel { Spacing = 10, MinWidth = 360 };
         painel.Children.Add(numero);
         painel.Children.Add(ano);
@@ -214,7 +222,9 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         return resposta;
     }
 
-    public async Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens)
+    public Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens) => EscolherNaListaAsync(titulo, texto, itens, -1, "Usar este");
+
+    public async Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens, int selecionado, string botao)
     {
         var lista = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 320 };
         foreach (var i in itens) lista.Items.Add(new TextBlock { Text = i, TextWrapping = TextWrapping.Wrap });
@@ -223,10 +233,11 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         painel.Children.Add(lista);
         var d = new ContentDialog
         {
-            XamlRoot = raiz(), Title = titulo, Content = painel, PrimaryButtonText = "Usar este", CloseButtonText = "Cancelar",
+            XamlRoot = raiz(), Title = titulo, Content = painel, PrimaryButtonText = botao, CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Primary, IsPrimaryButtonEnabled = false,
         };
         lista.SelectionChanged += (_, _) => d.IsPrimaryButtonEnabled = lista.SelectedIndex >= 0;
+        if (selecionado >= 0 && selecionado < itens.Count) lista.SelectedIndex = selecionado;
         return await Mostrar(d) == ContentDialogResult.Primary && lista.SelectedIndex >= 0 ? lista.SelectedIndex : null;
     }
 

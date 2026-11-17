@@ -289,9 +289,11 @@ public sealed partial class MainWindow
     /// <summary>"Criar processo…" (desenho §12.3): a pasta nova (ou a existente, com o aviso) passa a ser a escolhida. null = cancelado ou recusado.</summary>
     internal Task<Processo?> CriarProcessoAsync() => NaFilaAsync(CriarProcessoNaVezAsync);
 
-    async Task<Processo?> CriarProcessoNaVezAsync()
+    /// <summary>Pergunta número, ano e requerente (sugerido) e cria a pasta do processo (ou usa a existente). null = cancelado ou recusado.
+    /// Usado pelo "Criar processo…", pelo "Novo processo" de Processos e Imóveis e pelo boletim cadastral (2026-11-17).</summary>
+    internal async Task<Processo?> CriarPastaProcessoAsync(string? requerente = null)
     {
-        var dados = await Perguntas.Atual.PedirNovoProcessoAsync();
+        var dados = await Perguntas.Atual.PedirNovoProcessoAsync(requerente ?? "");
         if (dados is null) return null;
         var raiz = ajustes.PastaProcessosEfetiva;
         Processo p;
@@ -305,6 +307,13 @@ public sealed partial class MainWindow
         if (criado) MostrarMensagem(InfoBarSeverity.Success, "Processo criado", p.Pasta);
         else MostrarMensagem(InfoBarSeverity.Informational, "O processo já existe", FluxoNovoRelatorio.TextoProcessoExiste(dados.Numero, dados.Ano, p.Pasta));
         processosLidos = false;   // Processos lê a pasta de novo na próxima visita
+        return p;
+    }
+
+    async Task<Processo?> CriarProcessoNaVezAsync()
+    {
+        if (await CriarPastaProcessoAsync() is not { } p) return null;
+        var raiz = ajustes.PastaProcessosEfetiva;
         var lista = await Task.Run(() => Processos.Listar(raiz, CancellationToken.None).Itens);
         processosNR = lista.Any(x => string.Equals(x.Pasta, p.Pasta, StringComparison.OrdinalIgnoreCase)) ? lista : lista.Append(p).ToList();
         var escolhido = Mesmo(p) ?? p;

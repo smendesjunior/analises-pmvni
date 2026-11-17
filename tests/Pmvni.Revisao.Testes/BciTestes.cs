@@ -134,6 +134,24 @@ public class BciTestes
     }
 
     [Fact]
+    public void socios_do_cadastro_tambem_ligam_o_processo()
+    {
+        var campos = new Dictionary<string, string?>
+        {
+            ["nome_do_contribuinte"] = "FULANO DE TAL SILVA E SOCIO (A)(S)",
+            ["nomes_razoes_encontrados"] = "FULANO DE TAL SILVA; BELTRANA SOUZA | beltrana souza",
+            ["logradouro"] = "RUA SAO BRAZ",
+        };
+        var socios = VinculoBci.Socios(campos, campos["nome_do_contribuinte"]);
+        Assert.Equal(["BELTRANA SOUZA"], socios);
+        const string I = "01030300413001";
+        var n = VinculoBci.Pontuar(I, campos["nome_do_contribuinte"], socios, P("g", "Beltrana Souza"));
+        Assert.Equal(VinculoBci.Requerente, n.Nota);
+        Assert.Contains("sócio", n.Motivo);
+        Assert.Equal(VinculoBci.NomeNoPdf, VinculoBci.Pontuar(I, campos["nome_do_contribuinte"], socios, P("h", "X Y", texto: "outorgada BELTRANA SOUZA, brasileira")).Nota);
+    }
+
+    [Fact]
     public void escolha_unica_empate_e_nenhum()
     {
         var a = new NotaProcesso(P("a", null).Processo, 100, ""); var b = new NotaProcesso(P("b", null).Processo, 50, "");

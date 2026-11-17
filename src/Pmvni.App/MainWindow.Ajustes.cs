@@ -143,6 +143,21 @@ public sealed partial class MainWindow
             ajustes.PedidoPadrao = p.CaixaPedidoPadrao.Text;
             SalvarAjustes();
         };
+        // Profissional responsável (2026-11-17): grava a cada letra e já vale para o próximo despacho e relatório.
+        foreach (var (caixa, definir) in new (TextBox, Action<string?>)[]
+        {
+            (p.CaixaProfissionalNome, v => ajustes.ProfissionalNome = v),
+            (p.CaixaProfissionalProfissao, v => ajustes.ProfissionalProfissao = v),
+            (p.CaixaProfissionalRegistro, v => ajustes.ProfissionalRegistro = v),
+            (p.CaixaProfissionalMatricula, v => ajustes.ProfissionalMatricula = v),
+        })
+            caixa.TextChanged += (_, _) =>
+            {
+                if (atualizandoAjustes) return;
+                definir(string.IsNullOrWhiteSpace(caixa.Text) ? null : caixa.Text.Trim());
+                Pmvni.Composicao.Profissional.Atual = ajustes.Profissional;
+                SalvarAjustes();
+            };
         AoAlternar(p.AlternarConfirmarCancelar, sim => ajustes.ConfirmarCancelar = sim);
         AoAlternar(p.AlternarConfirmarFechar, sim => ajustes.ConfirmarFechar = sim);
         IniciarAtualizacoes();
@@ -223,6 +238,11 @@ public sealed partial class MainWindow
             p.AlternarConfirmarFechar.IsOn = ajustes.ConfirmarFechar;
             p.AlternarAtualizarSozinho.IsOn = ajustes.AtualizarAutomaticamente;
             p.CaixaPedidoPadrao.Text = ajustes.PedidoPadrao;
+            p.CaixaProfissionalNome.Text = ajustes.ProfissionalNome ?? "";
+            p.CaixaProfissionalProfissao.Text = ajustes.ProfissionalProfissao ?? "";
+            p.CaixaProfissionalRegistro.Text = ajustes.ProfissionalRegistro ?? "";
+            p.CaixaProfissionalMatricula.Text = ajustes.ProfissionalMatricula ?? "";
+            Pmvni.Composicao.Profissional.Atual = ajustes.Profissional;
             AtualizarTextoSoffice();
             // PMVNI_KIT_RAIZ (testes, roteiro) manda no kit: a escolha da página não vale enquanto ela estiver definida.
             var env = Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ");

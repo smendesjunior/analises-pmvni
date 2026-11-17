@@ -2,6 +2,14 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.6.2
+
+- **Ajustes › Despachos e PDF › Profissional responsável:** nome, profissão, registro (CAU/CREA) e matrícula de quem assina. Preenchendo, o bloco abaixo da linha de assinatura dos despachos e a assinatura no fim dos relatórios gerados passam a usar esses dados (cada profissional no seu computador); campo vazio mantém o texto do modelo.
+- **Novo processo** também na faixa de **Imóveis** e de **Processos**: cria a pasta do processo (número, ano e requerente) com DOCUMENTOS e PROJETO.
+- **Boletim cadastral: você confirma onde salvar.** Antes de gerar, o app mostra o processo achado (já marcado) e os outros prováveis, com o motivo de cada um; dá para escolher **Outro processo…** (qualquer pasta) ou **Criar novo processo…** (com o contribuinte já preenchido como requerente).
+  - **Sócios também contam:** quando o imóvel é "FULANO E SÓCIO (A)(S)", os nomes dos sócios do cadastro entram na busca do processo (requerente da pasta e nomes nos documentos).
+  - **Só abrir, sem salvar:** a mesma janela tem a opção de só abrir o boletim, sem ligar a nenhum processo (fica numa cópia temporária).
+
 ## 0.6.1
 
 - **Correção do brilho "Trabalhando":** o arco-íris fica só no contorno; antes cobria o botão, o balão ou a barra inteira.

@@ -148,6 +148,15 @@ public sealed class Ajustes
     /// <summary>Guardar a senha do arquivo, cifrada (DPAPI), para não pedi-la a cada assinatura. Padrão: pedir sempre.</summary>
     public bool AssinaturaLembrarSenha { get; set; }
 
+    /// <summary>Profissional responsável (2026-11-17): nome, profissão, registro (CAU/CREA) e matrícula que assinam despachos e relatórios.
+    /// Vazios = o texto dos modelos do kit.</summary>
+    public string? ProfissionalNome { get; set; }
+    public string? ProfissionalProfissao { get; set; }
+    public string? ProfissionalRegistro { get; set; }
+    public string? ProfissionalMatricula { get; set; }
+
+    public Pmvni.Composicao.Profissional Profissional => new(ProfissionalNome, ProfissionalProfissao, ProfissionalRegistro, ProfissionalMatricula);
+
     /// <summary>Há um certificado escolhido: os despachos saem assinados.</summary>
     public bool AssinaturaConfigurada => AssinaturaOrigem switch
     {
@@ -436,6 +445,10 @@ public sealed class Ajustes
             ["assinatura_arquivo"] = AssinaturaArquivo,
             ["assinatura_certificado_sha1"] = AssinaturaImpressaoDigital,
             ["assinatura_lembrar_senha"] = AssinaturaLembrarSenha,
+            ["profissional_nome"] = ProfissionalNome,
+            ["profissional_profissao"] = ProfissionalProfissao,
+            ["profissional_registro"] = ProfissionalRegistro,
+            ["profissional_matricula"] = ProfissionalMatricula,
             ["legislacao_escopo"] = LegislacaoEscopo,
             ["pedido_padrao"] = PedidoPadrao,
             ["confirmar_cancelar"] = ConfirmarCancelar,
@@ -491,6 +504,10 @@ public sealed class Ajustes
         var origem = Escolha("assinatura_origem", OpcoesAssinaturaOrigem, "nenhuma");
         a.DefinirAssinatura(origem, origem == "arquivo" ? Texto(j, "assinatura_arquivo") : origem == "windows" ? Texto(j, "assinatura_certificado_sha1") : null);
         a.AssinaturaLembrarSenha = a.AssinaturaOrigem == "arquivo" && Logico(j, "assinatura_lembrar_senha", false);
+        a.ProfissionalNome = Texto(j, "profissional_nome");
+        a.ProfissionalProfissao = Texto(j, "profissional_profissao");
+        a.ProfissionalRegistro = Texto(j, "profissional_registro");
+        a.ProfissionalMatricula = Texto(j, "profissional_matricula");
         a.LegislacaoEscopo = Escolha("legislacao_escopo", OpcoesLegislacaoEscopo, a.LegislacaoEscopo);
         a.PedidoPadrao = Texto(j, "pedido_padrao") ?? "";
         a.ConfirmarCancelar = Logico(j, "confirmar_cancelar", a.ConfirmarCancelar);

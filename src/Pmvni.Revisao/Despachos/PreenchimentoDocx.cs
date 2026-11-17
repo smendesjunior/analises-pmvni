@@ -56,6 +56,41 @@ public static class PreenchimentoDocx
         return new InfoModelo(t, textoAssunto, grupo, mapa.Todos(PapelParagrafo.Vaga).Count, paragrafos);
     }
 
+    /// <summary>O modelo com o bloco de assinatura do profissional dos Ajustes (2026-11-17): depois da linha "____", o parágrafo com
+    /// "MATRÍCULA" vira a matrícula, o com CAU/CREA o registro, o primeiro dos outros o nome e o seguinte a profissão. Só o texto muda (a
+    /// formatação do primeiro run fica); campo vazio mantém o do modelo. Sem profissional (ou modelo fora do padrão): os mesmos bytes.</summary>
+    public static byte[] ComProfissional(byte[] modelo, Pmvni.Composicao.Profissional? p)
+    {
+        ArgumentNullException.ThrowIfNull(modelo);
+        if (p is null || p.Vazio) return modelo;
+        XDocument doc; string declaracao;
+        try { (doc, declaracao) = LerDocumentoComDeclaracao(modelo); }
+        catch (ModeloForaDoPadraoException) { return modelo; }
+        var corpo = doc.Root?.Element(W + "body");
+        if (corpo is null) return modelo;
+        var ps = corpo.Elements(W + "p").ToList();
+        var linha = ps.FindIndex(x => Texto(x).Trim() is { Length: >= 10 } t && t.All(c => c == '_'));
+        if (linha < 0) return modelo;
+        var mudou = false;
+        void Trocar(XElement par, string? novo)
+        {
+            if (novo is null || !Runs(par).Any() || Texto(par).Trim() == novo) return;
+            TrocarTexto(par, novo);
+            mudou = true;
+        }
+        var livres = new List<XElement>();
+        foreach (var par in ps.Skip(linha + 1).Where(x => Texto(x).Trim().Length > 0))
+        {
+            var t = Texto(par).Trim().ToUpperInvariant();
+            if (t.StartsWith("MATR", StringComparison.Ordinal)) Trocar(par, p.MatriculaLinha);
+            else if (System.Text.RegularExpressions.Regex.IsMatch(t, @"\b(CAU|CREA|CFT|CRT)\b")) Trocar(par, p.RegistroLinha);
+            else livres.Add(par);
+        }
+        if (livres.Count > 0) Trocar(livres[0], p.NomeLinha);
+        if (livres.Count > 1) Trocar(livres[1], p.ProfissaoLinha);
+        return mudou ? GravarDocx(modelo, declaracao + doc.Root!.ToString(SaveOptions.DisableFormatting)) : modelo;
+    }
+
     public static byte[] Preencher(byte[] modelo, DespachoFinal d)
     {
         ArgumentNullException.ThrowIfNull(modelo);

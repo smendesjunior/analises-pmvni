@@ -93,6 +93,7 @@ public static class DicasComandos
         [ComandosApp.ProcessosAbrirArquivo] = "Abre o arquivo selecionado no programa padrão do Windows.",
         [ComandosApp.ProcessosAbrirPasta] = "Abre a pasta do processo selecionado no Explorador de Arquivos.",
         [ComandosApp.ProcessosAtualizar] = "Lê de novo a pasta de processos e atualiza a lista.",
+        [ComandosApp.ProcessosNovo] = "Cria a pasta de um processo novo (número, ano e requerente), com DOCUMENTOS e PROJETO.",
         [ComandosApp.ProcessosAno] = "Mostra os processos de outro ano.",
         [ComandosApp.ProcessosOrdenar] = "Muda a ordem da lista de processos.",
         [ComandosApp.ProcessosOrdenarNumero] = "Ordena os processos pelo número.",

@@ -139,6 +139,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         SetTitleBar(BarraTitulo);
         Perguntas.Atual = new PerguntasDaJanela(this, () => Raiz.XamlRoot);
         ajustes = CarregarAjustes();
+        Pmvni.Composicao.Profissional.Atual = ajustes.Profissional;   // assinatura de despachos e relatórios (Ajustes)
         AplicarTemaDosAjustes();
         Raiz.Loaded += (_, _) => DimensionarJanela();
         // Fora da passada de layout (2026-11-16): mexer em larguras dentro do SizeChanged, com a escala do monitor mudando, entrava em

@@ -77,13 +77,16 @@ public sealed partial class MainWindow
         }
         // Antes de ir ao GPI: a pasta do processo deste imóvel (o BCI sempre vai para DOCUMENTOS do processo; sem processo, não gera).
         MostrarAvisoBci(InfoBarSeverity.Informational, "Procurando o processo deste imóvel…", emCurso: true);
-        var documentos = await PastaDoProcessoDoImovelAsync(reg);
-        if (documentos is null) return;
+        var (seguir, documentos) = await PastaDoProcessoDoImovelAsync(reg);
+        if (!seguir) return;
         var r = await ExecutarBciAsync(reg.InscricaoMunicipal, m => MostrarAvisoBci(InfoBarSeverity.Informational, m, emCurso: true));
         if (r.Estado == EstadoBci.Aberto && r.Pdf is { } pdf)
         {
-            var arquivo = GravarBoletim(documentos, reg.InscricaoMunicipal, reg.Contribuinte, pdf);
-            MostrarAvisoBci(InfoBarSeverity.Success, ChaveBci.Texto(r) + " Gravado em " + arquivo, emCurso: false, arquivo: arquivo);
+            // Sem processo ("Só abrir, sem salvar"): o PDF vai para uma pasta temporária do app e só é aberto.
+            var semVinculo = documentos is null;
+            var pasta = documentos ?? Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "PMVNI-Boletins")).FullName;
+            var arquivo = GravarBoletim(pasta, reg.InscricaoMunicipal, reg.Contribuinte, pdf);
+            MostrarAvisoBci(InfoBarSeverity.Success, ChaveBci.Texto(r) + (semVinculo ? " Aberto sem salvar em processo (cópia temporária)." : " Gravado em " + arquivo), emCurso: false, arquivo: arquivo);
             AbrirBoletim(arquivo, reg.InscricaoMunicipal);
             return;
         }
@@ -149,43 +152,53 @@ public sealed partial class MainWindow
 
     /// <summary>A pasta DOCUMENTOS do processo do imóvel (<see cref="VinculoBci"/>): pistas rápidas primeiro (inscrição da consulta QGIS da
     /// análise, requerente da pasta); sem inscrição exata, lê também os PDFs de DOCUMENTOS e PROJETO (escritura, matrícula, projeto). Empate:
-    /// o usuário escolhe. Nenhuma pista: aviso para criar a pasta do processo, e null (nada é gerado).</summary>
-    async Task<string?> PastaDoProcessoDoImovelAsync(RegistroCadastro reg)
+    /// o usuário escolhe. Nenhuma pista: aviso para criar a pasta do processo, e (false, null): nada é gerado.
+    /// 2026-11-17: devolve (seguir, pasta); "Só abrir, sem salvar em processo" = (true, null).</summary>
+    async Task<(bool Seguir, string? Documentos)> PastaDoProcessoDoImovelAsync(RegistroCadastro reg)
     {
         void Aviso(string m) => MostrarAvisoBci(InfoBarSeverity.Warning, m, emCurso: false, irParaProcessos: true);
         if (string.IsNullOrWhiteSpace(ajustes.PastaProcessos) || !Directory.Exists(ajustes.PastaProcessos))
         {
             Aviso("Escolha a pasta dos processos em Ajustes antes de gerar o boletim: ele é salvo na pasta DOCUMENTOS do processo do imóvel.");
-            return null;
+            return (false, null);
         }
         var processos = await PastasDeProcessoAsync();
         var insc = reg.InscricaoMunicipal;
+        var socios = VinculoBci.Socios(reg.Campos, reg.Contribuinte);
         var pistas = await Task.Run(() => processos.Select(p => new PistasProcesso(p, DetectorProcesso.Inscricao(p.Pasta), null)).ToList());
-        var notas = pistas.Select(p => VinculoBci.Pontuar(insc, reg.Contribuinte, p)).ToList();
-        var (escolhido, empate) = VinculoBci.Escolher(notas);
+        var notas = pistas.Select(p => VinculoBci.Pontuar(insc, reg.Contribuinte, socios, p)).ToList();
+        var (escolhido, _) = VinculoBci.Escolher(notas);
         if (escolhido is not { Nota: >= VinculoBci.InscricaoExata })
         {
             MostrarAvisoBci(InfoBarSeverity.Informational, "Procurando o processo deste imóvel nos documentos (escritura, matrícula, projeto)…", emCurso: true);
             pistas = await Task.Run(() => pistas.Select(p => p with { TextoPdfs = TextoDosPdfs(p.Processo.Pasta) }).ToList());
-            notas = pistas.Select(p => VinculoBci.Pontuar(insc, reg.Contribuinte, p)).ToList();
-            (escolhido, empate) = VinculoBci.Escolher(notas);
+            notas = pistas.Select(p => VinculoBci.Pontuar(insc, reg.Contribuinte, socios, p)).ToList();
         }
-        if (escolhido is null && empate.Count > 1)
+
+        // Sempre confirma onde salvar (2026-11-17, pedido do usuário): o processo achado (marcado), os outros prováveis, outra pasta ou um processo novo.
+        var candidatos = notas.Where(n => n.Nota > 0).OrderByDescending(n => n.Nota).ThenBy(n => n.Processo.NomePasta, StringComparer.CurrentCultureIgnoreCase).Take(6).ToList();
+        var itens = candidatos.Select(n => n.Processo.NomePasta + "  (" + n.Motivo + ")").ToList();
+        var iOutro = itens.Count; itens.Add("Outro processo… (escolher a pasta)");
+        var iNovo = itens.Count; itens.Add("Criar novo processo…");
+        var iSoAbrir = itens.Count; itens.Add("Só abrir o boletim, sem salvar em processo");
+        var quem = reg.Contribuinte + (socios.Count > 0 ? " · sócios: " + string.Join(", ", socios) : "");
+        var texto = candidatos.Count > 0
+            ? "Processo achado para " + ChaveBci.Estrita(insc) + " (" + quem + "). Confirme onde salvar o boletim, na pasta DOCUMENTOS."
+            : "Nenhum processo achado para " + ChaveBci.Estrita(insc) + " (" + quem + "). Escolha uma pasta de processo ou crie um processo novo.";
+        var escolha = await Perguntas.Atual.EscolherNaListaAsync("Onde salvar o boletim?", texto, itens, candidatos.Count > 0 ? 0 : iNovo, "Salvar aqui");
+        string? pasta = null;
+        if (escolha is { } k && k < candidatos.Count) pasta = candidatos[k].Processo.Pasta;
+        else if (escolha == iOutro) pasta = await Perguntas.Atual.EscolherPastaAsync();
+        else if (escolha == iNovo) pasta = (await CriarPastaProcessoAsync(reg.Contribuinte))?.Pasta;
+        else if (escolha == iSoAbrir) return (true, null);
+        if (pasta is null)
         {
-            var i = await Perguntas.Atual.EscolherNaListaAsync("Em qual processo salvar o boletim?",
-                "Mais de um processo parece ser deste imóvel (" + ChaveBci.Estrita(insc) + "). Escolha onde salvar.",
-                empate.Select(n => n.Processo.NomePasta + "  (" + n.Motivo + ")").ToList());
-            if (i is not { } k) { MostrarAvisoBci(InfoBarSeverity.Informational, "Boletim não gerado: nenhum processo escolhido.", emCurso: false); return null; }
-            escolhido = empate[k];
+            MostrarAvisoBci(InfoBarSeverity.Informational, "Boletim não gerado: nenhuma pasta escolhida.", emCurso: false);
+            return (false, null);
         }
-        if (escolhido is null)
-        {
-            Aviso("Não há pasta de processo para este imóvel (" + ChaveBci.Estrita(insc) + " · " + reg.Contribuinte + "). Crie a pasta do processo em Processos e gere o boletim de novo.");
-            return null;
-        }
-        var documentos = Path.Combine(escolhido.Processo.Pasta, "DOCUMENTOS");
+        var documentos = Path.Combine(pasta, "DOCUMENTOS");
         Directory.CreateDirectory(documentos);
-        return documentos;
+        return (true, documentos);
     }
 
     static readonly Dictionary<(string, DateTime), string> textosLidos = new();

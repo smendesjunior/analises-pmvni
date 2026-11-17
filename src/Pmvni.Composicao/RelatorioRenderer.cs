@@ -53,6 +53,16 @@ public static class RelatorioRenderer
         ctx["cabecalho_svg"] = new Seguro(Cabecalho.CabecalhoUri(Dados.Txt(Dados.Obter(config, "orgao", Cabecalho.OrgaoPadrao)), m.Brasao));
         var itens = Dados.Lista(Dados.Exigir(d, "itens"));
         ctx["resumo"] = Conferencia.Resumo(itens);
+        // O profissional dos Ajustes assina o relatório (2026-11-17); campo vazio = o que veio nos dados.
+        if (Profissional.Atual is { Vazio: false } pro)
+        {
+            var assinatura = Dados.Dict(Dados.Obter(d, "assinatura", new Dictionary<string, object?>()));
+            ctx["assinatura"] = new Dictionary<string, object?>
+            {
+                ["nome"] = pro.NomeLinha ?? Dados.Txt(Dados.Obter(assinatura, "nome", "")),
+                ["cargo"] = pro.Cargo(Dados.Txt(Dados.Obter(assinatura, "cargo", ""))),
+            };
+        }
 
         var loc = Dados.Obter(d, "localizacao");
         if (PythonTexto.Verdadeiro(loc))

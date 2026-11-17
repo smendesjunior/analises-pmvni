@@ -18,8 +18,13 @@ public static class VinculoBci
 {
     public const int InscricaoExata = 100, MesmoLote = 60, Requerente = 50, InscricaoNoPdf = 90, NomeNoPdf = 30;
 
-    public static NotaProcesso Pontuar(string inscricao, string? contribuinte, PistasProcesso p)
+    public static NotaProcesso Pontuar(string inscricao, string? contribuinte, PistasProcesso p) => Pontuar(inscricao, contribuinte, [], p);
+
+    /// <summary>Com os sócios (2026-11-17, pedido do usuário: "precisa ver o nome dos sócios também"): o requerente ou os documentos podem ter o
+    /// nome de um sócio, não o do contribuinte ("FULANO E SÓCIO (A)(S)").</summary>
+    public static NotaProcesso Pontuar(string inscricao, string? contribuinte, IReadOnlyList<string> socios, PistasProcesso p)
     {
+        var nomes = new[] { contribuinte }.Concat(socios).Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
         var alvo = Normalizar(inscricao);
         var nota = 0;
         var motivos = new List<string>();
@@ -31,10 +36,11 @@ public static class VinculoBci
             else if (daAnalise[..11] == alvo[..11]) Somar(MesmoLote, "mesmo lote da análise");
         }
         if (NomesBatem(p.Processo.Requerente, contribuinte)) Somar(Requerente, "requerente");
+        else if (socios.FirstOrDefault(s => NomesBatem(p.Processo.Requerente, s)) is { } socio) Somar(Requerente, "requerente é o sócio " + socio.Trim());
         if (p.TextoPdfs is { Length: > 0 } texto)
         {
             if (alvo is not null && InscricaoNoTexto(texto, alvo)) Somar(InscricaoNoPdf, "inscrição nos documentos");
-            else if (NomeNoTexto(texto, contribuinte)) Somar(NomeNoPdf, "nome nos documentos");
+            else if (nomes.Any(n => NomeNoTexto(texto, n))) Somar(NomeNoPdf, "nome nos documentos");
         }
         return new NotaProcesso(p.Processo, nota, string.Join(", ", motivos));
     }
@@ -46,6 +52,26 @@ public static class VinculoBci
         if (com.Count == 0) return (null, []);
         var topo = com.Where(n => n.Nota == com[0].Nota).ToList();
         return topo.Count == 1 ? (topo[0], []) : (null, topo);
+    }
+
+    /// <summary>Os sócios e demais nomes ligados ao imóvel no cadastro: colunas com nome de pessoa ("nomes_razoes_encontrados", "socios",
+    /// "proprietarios"…), separadas por ";", "|", "/", "," ou quebra de linha. Sem o contribuinte, sem repetidos, só nomes de 2+ palavras.</summary>
+    public static IReadOnlyList<string> Socios(IReadOnlyDictionary<string, string?> campos, string? contribuinte)
+    {
+        var r = new List<string>();
+        foreach (var (k, v) in campos)
+        {
+            if (string.IsNullOrWhiteSpace(v) || k.Equals("nome_do_contribuinte", StringComparison.OrdinalIgnoreCase)) continue;
+            var n = k.ToLowerInvariant();
+            if (!(n.Contains("socio") || n.Contains("propriet") || n.Contains("compromiss") || n.Contains("nomes") || n.Contains("razoes") || n.Contains("titular"))) continue;
+            foreach (var parte in Regex.Split(v, @"[;|/,\r\n]+"))
+            {
+                var nome = parte.Trim();
+                if (Palavras(nome).Count < 2 || NomesBatem(nome, contribuinte) || r.Any(x => NomesBatem(x, nome))) continue;
+                r.Add(nome);
+            }
+        }
+        return r;
     }
 
     /// <summary>A mesma forma de 14 dígitos de Pmvni.Imoveis.Inscricoes.Normalizar (copiada: este arquivo também compila nos testes, sem Imóveis).</summary>

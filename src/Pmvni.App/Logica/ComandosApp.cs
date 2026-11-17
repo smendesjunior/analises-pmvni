@@ -56,6 +56,8 @@ public static class ComandosApp
     public const string ProcessosAbrirArquivo = "processos.abrirArquivo";
     public const string ProcessosAbrirPasta = "processos.abrirPasta";
     public const string ProcessosAtualizar = "processos.atualizar";
+    /// <summary>Novo processo (2026-11-17): a pasta do processo, na faixa de Processos e de Imóveis.</summary>
+    public const string ProcessosNovo = "processos.novo";
     public const string ProcessosAno = "processos.ano";
     public const string ProcessosOrdenar = "processos.ordenar";
     public const string ProcessosOrdenarNumero = "processos.ordenar.numero";

@@ -49,6 +49,9 @@ public static class Faixas
     /// <summary>Novo relatório (desenho §12.2): primário de Relatórios e de Processos; em Relatórios também o primeiro de Arquivo.</summary>
     static readonly ComandoFaixa NovoRelatorio = new(ComandosApp.RelatoriosNovo, "Novo relatório", Glifos.Adicionar);
 
+    /// <summary>Novo processo (2026-11-17, pedido do usuário): secundário de Processos e primário de Imóveis.</summary>
+    static readonly ComandoFaixa NovoProcesso = new(ComandosApp.ProcessosNovo, "Novo processo", Glifos.Adicionar);
+
     /// <summary>Imprimir (2026-11-17): em todo módulo que mostra um documento, ao lado da exportação ou da abertura do arquivo. Abre a
     /// impressão do Edge (impressoras do Windows e "Salvar como PDF"); o que se imprime em cada módulo está em <see cref="ComandosImpressao"/>.</summary>
     static readonly ComandoFaixa Imprimir = new(ComandosApp.ArquivoImprimir, "Imprimir", Glifos.Imprimir, Descricao: "Imprimir ou salvar como PDF");
@@ -196,7 +199,7 @@ public static class Faixas
             ]),
         ]),
         Ajuda,
-    ], AbaPadrao: 1, Primario: NovoRelatorio);
+    ], AbaPadrao: 1, Primario: NovoRelatorio, Secundario: NovoProcesso);
 
     /// <summary>Legislação (desenho §11.5): o leitor dos PDFs anexados. Comandos que dependem de uma lei aberta, de seleção ou de
     /// marcadores ficam desabilitados sem eles (<see cref="ComandosLegislacao.Habilitados"/>).</summary>
@@ -265,7 +268,7 @@ public static class Faixas
             new(ComandosApp.ImoveisConfigurar, "Pasta QGIS", Glifos.Pasta),
         ]),
         Ajuda,
-    ], AbaPadrao: 1);
+    ], AbaPadrao: 1, Primario: NovoProcesso);
 
     /// <summary>Acompanhamento de processos (2026-11-17): a planilha de tramitação.</summary>
     static readonly DefinicaoFaixa Acompanhamento = new(Modulo.Acompanhamento,

@@ -115,6 +115,11 @@ public sealed partial class MainWindow
         };
         // A leitura corre em segundo plano e não prende a fila de comandos (Salvar, por exemplo, não espera uma pasta grande).
         manipuladores[ComandosApp.ProcessosAtualizar] = () => { tarefaDaLista = CarregarListasAsync(comDespachos: false); return Task.CompletedTask; };
+        // Novo processo (Processos e Imóveis, 2026-11-17): cria a pasta; em Processos a lista é lida de novo.
+        manipuladores[ComandosApp.ProcessosNovo] = async () =>
+        {
+            if (await CriarPastaProcessoAsync() is not null && moduloAtual == Modulo.Processos) tarefaDaLista = CarregarListasAsync(comDespachos: false);
+        };
         manipuladores[ComandosApp.ProcessosOrdenarNumero] = () => DefinirOrdemDeProcessos(OrdemProcessos.Numero);
         manipuladores[ComandosApp.ProcessosOrdenarData] = () => DefinirOrdemDeProcessos(OrdemProcessos.Data);
         manipuladores[ComandosApp.ProcessosOrdenarRequerente] = () => DefinirOrdemDeProcessos(OrdemProcessos.Requerente);
