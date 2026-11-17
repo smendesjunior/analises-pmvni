@@ -130,6 +130,29 @@ public static class InteracaoFigura
         return [Math.Clamp(Math.Min(ax, bx), 0, 1), Math.Clamp(Math.Min(ay, by), 0, 1), Math.Clamp(Math.Max(ax, bx), 0, 1), Math.Clamp(Math.Max(ay, by), 0, 1)];
     }
 
+    /// <summary>O ponto está sobre a imagem (e não nas margens laterais, onde ficam os números)?</summary>
+    public static bool DentroDaImagem(MedidasFigura m, Ponto p)
+    {
+        ArgumentNullException.ThrowIfNull(m);
+        var (nx, ny) = m.ParaNormalizado(p);
+        return nx is >= 0 and <= 1 && ny is >= 0 and <= 1;
+    }
+
+    /// <summary>A região de um clique sem arrasto com "Marcar região": um quadrado (na tela) de 12% do lado menor da imagem, no mínimo
+    /// 24 px, centrado no clique e empurrado para dentro da imagem. Null fora da imagem.</summary>
+    public static double[]? CaixaDoClique(MedidasFigura m, Ponto p)
+    {
+        ArgumentNullException.ThrowIfNull(m);
+        if (!DentroDaImagem(m, p)) return null;
+        var (nx, ny) = m.ParaNormalizado(p);
+        var lado = Math.Max(24, Math.Min(m.LarguraImagem, m.AlturaImagem) * .12);
+        var w = Math.Min(1, lado / m.LarguraImagem);
+        var h = Math.Min(1, lado / m.AlturaImagem);
+        var x0 = Math.Clamp(nx - w / 2, 0, 1 - w);
+        var y0 = Math.Clamp(ny - h / 2, 0, 1 - h);
+        return [x0, y0, x0 + w, y0 + h];
+    }
+
     static bool Igual(double[]? a, double[]? b) =>
         a is null ? b is null : b is not null && a.Length == b.Length && a.Zip(b).All(z => Math.Abs(z.First - z.Second) < 1e-6);
 

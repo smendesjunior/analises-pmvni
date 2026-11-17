@@ -26,16 +26,48 @@ public class InteracaoFiguraTestes
     }
 
     [Fact]
-    public void cancelar_ou_clicar_sem_arrastar_nao_inclui_regiao()
+    public void cancelar_nao_inclui_regiao()
     {
+        var gesto = new GestoFigura();
+        gesto.IniciarRegiao(M, M.ParaPixel(.2, .3));
+        gesto.Cancelar();
+        Assert.Null(gesto.Concluir("fig", M.ParaPixel(.6, .7)));
+    }
+
+    [Fact]
+    public void clicar_sem_arrastar_inclui_regiao_padrao_em_volta_do_clique()
+    {
+        // Correção 2026-11-17: com "Marcar região", um clique simples (sem arrastar) não fazia nada além de uma frase no rodapé.
         var gesto = new GestoFigura();
         var ponto = M.ParaPixel(.2, .3);
         gesto.IniciarRegiao(M, ponto);
-        gesto.Cancelar();
-        Assert.Null(gesto.Concluir("fig", M.ParaPixel(.6, .7)));
-        gesto.IniciarRegiao(M, ponto);
-        Assert.Null(gesto.Concluir("fig", ponto));
+        var c = Assert.IsType<IncluirMarcacao>(gesto.Concluir("fig", ponto));
+        Assert.Equal(TiposMarcacao.Regiao, c.Tipo);
+        var caixa = c.Caixa!;
+        Assert.Equal(.2, (caixa[0] + caixa[2]) / 2, 6);
+        Assert.Equal(.3, (caixa[1] + caixa[3]) / 2, 6);
+        // quadrada na tela (mesmo lado em pixels) e grande o bastante para a conferência do comando (0,5% de cada lado)
+        Assert.Equal((caixa[2] - caixa[0]) * M.LarguraImagem, (caixa[3] - caixa[1]) * M.AlturaImagem, 6);
+        Assert.True(caixa[2] - caixa[0] > .005 && caixa[3] - caixa[1] > .005);
     }
+
+    [Fact]
+    public void regiao_do_clique_no_canto_fica_dentro_da_imagem()
+    {
+        var c = InteracaoFigura.CaixaDoClique(M, M.ParaPixel(0, 1))!;
+        Assert.Equal(0, c[0], 9);
+        Assert.Equal(1, c[3], 9);
+        Assert.True(c[2] > 0 && c[1] < 1);
+        Assert.Null(InteracaoFigura.CaixaDoClique(M, new Ponto(M.Margem / 2.0, 10))); // na margem do número: fora da imagem
+    }
+
+    [Theory]
+    [InlineData(.5, .5, true)]
+    [InlineData(0, 0, true)]
+    [InlineData(-.01, .5, false)]
+    [InlineData(.5, 1.01, false)]
+    public void dentro_da_imagem(double nx, double ny, bool esperado) =>
+        Assert.Equal(esperado, InteracaoFigura.DentroDaImagem(M, M.ParaPixel(nx, ny)));
 
     [Fact]
     public void mover_e_redimensionar_concluem_com_a_posicao_da_soltura()

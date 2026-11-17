@@ -165,6 +165,42 @@ public class FigurasTestes
     }
 
     [Fact]
+    public void vagas_de_numero_contam_as_gravadas_e_as_novas()
+    {
+        var s = Sessao(Importar("extremos")); // 6 notas gravadas: nenhuma vaga
+        Assert.Equal(0, CamadaFiguras.VagasNumeradas(CamadaFiguras.Inicial(s.Projeto)[0]));
+        var l = Sessao(Importar("longo")); // 2 gravadas
+        var fig = PrimeiraFigura(l);
+        Assert.Equal(4, CamadaFiguras.VagasNumeradas(CamadaFiguras.Inicial(l.Projeto)[0]));
+        l.Aplicar(new IncluirMarcacao(fig, "mk_1", TiposMarcacao.Seta, Alvo: [.5, .5]));
+        l.Aplicar(new IncluirMarcacao(fig, "mk_t", TiposMarcacao.Texto, Posicao: [.5, .5], Texto: "nota"));
+        Assert.Equal(3, CamadaFiguras.VagasNumeradas(l.Projeto.Figuras!.Single(x => x.Id == fig))); // o texto livre não ocupa número
+    }
+
+    [Fact]
+    public void figura_do_kit_marcacao_nova_entra_e_sai_e_a_gravada_continua()
+    {
+        // O caso relatado (2026-11-17): figura do kit com marcações gravadas; a nova (por cima) inclui e remove; a gravada não sai.
+        var s = Sessao(Importar("longo"));
+        var fig = PrimeiraFigura(s);
+        var gravadas = CamadaFiguras.Inicial(s.Projeto)[0].Marcacoes.Select(m => m.Id).ToList();
+        s.Aplicar(new IncluirMarcacao(fig, "mk_n", TiposMarcacao.Regiao, Caixa: [.1, .1, .3, .3]));
+        var f = s.Projeto.Figuras!.Single(x => x.Id == fig);
+        Assert.Contains(CamadaFiguras.Desenho(f), d => d.Id == "mk_n"); // desenhada pelo editor (a gravada não)
+        Assert.DoesNotContain(CamadaFiguras.Desenho(f), d => gravadas.Contains(d.Id!));
+
+        Assert.NotNull(s.Aplicar(new ExcluirMarcacao(fig, "mk_n")));
+        f = s.Projeto.Figuras!.Single(x => x.Id == fig);
+        Assert.Null(f.Buscar("mk_n"));
+        Assert.Equal(gravadas, f.Marcacoes.Select(m => m.Id).ToList());
+        Assert.Null(FigurasEfetivas(s.Projeto)[0]!["marcacoes"]); // sem marcações novas: a figura volta a ser a imagem do kit
+        Assert.Equal(2, FigurasEfetivas(s.Projeto)[0]!["notas"]!.AsArray().Count);
+
+        var e = Assert.Throws<ComandoRecusadoException>(() => s.Aplicar(new ExcluirMarcacao(fig, gravadas[0])));
+        Assert.Contains("gravada na imagem", e.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void excluir_e_restaurar_figura()
     {
         var s = Sessao(Importar("longo"));

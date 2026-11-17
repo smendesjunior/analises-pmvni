@@ -50,6 +50,8 @@ internal sealed class JanelaFigura : Window
     readonly TextBox caixaTexto = new() { Header = "Solução ou o que foi conferido", AcceptsReturn = false, TextWrapping = TextWrapping.Wrap };
     readonly ListView listaItens = new() { SelectionMode = ListViewSelectionMode.Multiple, MaxHeight = 220, Header = "Itens ligados a esta marcação" };
     readonly Button botaoRemover = new() { Content = "Remover marcação" };
+    // Um botão desabilitado não mostra dica: o motivo de não poder remover fica escrito embaixo dele.
+    readonly TextBlock motivoRemover = new() { TextWrapping = TextWrapping.Wrap, Opacity = .8, Visibility = Visibility.Collapsed };
     readonly TextBlock estado = new() { Opacity = .8, TextWrapping = TextWrapping.Wrap };
     readonly AppBarButton botaoDesfazer = new() { Icon = new SymbolIcon(Symbol.Undo), Label = "Desfazer" };
     readonly AppBarButton botaoRefazer = new() { Icon = new SymbolIcon(Symbol.Redo), Label = "Refazer" };
@@ -154,6 +156,9 @@ internal sealed class JanelaFigura : Window
         superficie.Children.Add(imagem);
         superficie.Children.Add(camada);
         rolagem.Content = superficie;
+        // Focável: o clique na imagem tira o foco das caixas de texto (grava o que foi digitado) e deixa o Del chegar ao editor.
+        rolagem.IsTabStop = true;
+        rolagem.UseSystemFocusVisuals = false;
         rolagem.Style = (Style)Application.Current.Resources["PmvniRolagemFundoStyle"];
         Grid.SetRow(rolagem, 1);
         raiz.Children.Add(rolagem);
@@ -172,7 +177,6 @@ internal sealed class JanelaFigura : Window
         // Painel lateral
         var painel = new StackPanel { Spacing = 10, Padding = new Thickness(14) };
         painel.Children.Add(avisoGravadas);
-        painel.Children.Add(avisoErro);
         painel.Children.Add(caixaPrancha);
         painel.Children.Add(caixaTitulo);
         painel.Children.Add(caixaFonte);
@@ -198,6 +202,7 @@ internal sealed class JanelaFigura : Window
         painelMarcacao.Children.Add(caixaTexto);
         painelMarcacao.Children.Add(listaItens);
         painelMarcacao.Children.Add(botaoRemover);
+        painelMarcacao.Children.Add(motivoRemover);
         LigarLegenda(caixaElemento, elemento: true);
         LigarLegenda(caixaTexto, elemento: false);
         listaItens.SelectionChanged += async (_, _) =>
@@ -209,15 +214,29 @@ internal sealed class JanelaFigura : Window
         botaoRemover.Click += async (_, _) => { if (selecionada is { } s) await AplicarAsync(new ExcluirMarcacao(figuraId, s)); };
         painel.Children.Add(painelMarcacao);
         var lateral = new ScrollViewer { Content = painel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        // A recusa fica fixa no alto da coluna, fora da rolagem: dentro dela, ficava escondida quando o painel estava rolado até o
+        // "Remover marcação" e a alteração parecia simplesmente não acontecer.
+        var coluna = new Grid();
+        coluna.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        coluna.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        avisoErro.Margin = new Thickness(14, 10, 14, 0);
+        coluna.Children.Add(avisoErro);
         Grid.SetRow(lateral, 1);
-        Grid.SetColumn(lateral, 1);
-        raiz.Children.Add(lateral);
+        coluna.Children.Add(lateral);
+        Grid.SetRow(coluna, 1);
+        Grid.SetColumn(coluna, 1);
+        raiz.Children.Add(coluna);
 
         // Teclado: Delete remove; Esc volta a Selecionar; Ctrl+Z / Ctrl+Y.
         raiz.KeyDown += async (_, e) =>
         {
             if (FocoEmTexto()) return;
-            if (e.Key == VirtualKey.Delete && selecionada is { } s && figura?.Buscar(s) is { Gravada: false } && !sessao.SomenteLeitura) { e.Handled = true; await AplicarAsync(new ExcluirMarcacao(figuraId, s)); }
+            if (e.Key == VirtualKey.Delete && selecionada is { } s && figura?.Buscar(s) is { } m && !sessao.SomenteLeitura)
+            {
+                e.Handled = true;
+                if (m.Gravada) estado.Text = TextoGravadaNaoSai;
+                else await AplicarAsync(new ExcluirMarcacao(figuraId, s));
+            }
             else if (e.Key == VirtualKey.Escape) { e.Handled = true; Escolher(FerramentaFigura.Selecionar); }
         };
         var desfazer = new KeyboardAccelerator { Key = VirtualKey.Z, Modifiers = VirtualKeyModifiers.Control };
@@ -255,14 +274,39 @@ internal sealed class JanelaFigura : Window
         CancelarArrasto();
         ferramenta = f;
         foreach (var (k, b) in botoes) b.IsChecked = k == f;
+        if (f is FerramentaFigura.Regiao or FerramentaFigura.Seta && SemVagaDeNumero()) return;
         estado.Text = f switch
         {
-            FerramentaFigura.Regiao => "Marcar região: arraste um retângulo sobre o elemento.",
+            FerramentaFigura.Regiao => "Marcar região: arraste um retângulo sobre o elemento (ou clique nele para uma região padrão).",
             FerramentaFigura.Seta => "Seta: clique no ponto a indicar.",
             FerramentaFigura.Texto => "Texto: clique onde o texto deve ficar.",
             FerramentaFigura.Remover => "Remover: clique na marcação a tirar.",
             _ => "Selecionar: clique numa marcação; arraste o número, a caixa, os cantos ou a ponta da seta.",
         };
+    }
+
+    const string TextoGravadaNaoSai = "Esta marcação está desenhada na imagem recebida do kit: o número não sai do desenho, por isso não pode ser removida "
+        + "nem movida. A legenda e os itens ligados continuam editáveis. Para refazer as marcações desta figura, use \"Inserir região da prancha\" "
+        + "(o recorte vem limpo), marque de novo e exclua esta figura.";
+
+    /// <summary>A figura já tem os 6 números do kit: avisa (fixo, no alto do painel) em vez de deixar o gesto ser recusado sem explicação.</summary>
+    bool SemVagaDeNumero()
+    {
+        if (figura is null || CamadaFiguras.VagasNumeradas(figura) > 0) return false;
+        var max = CamadaFiguras.MaximoNumeradas.ToString(CultureInfo.InvariantCulture);
+        Avisar("Esta figura já tem " + max + " números",
+            "O kit aceita no máximo " + max + " números por figura. Remova uma marcação nova, use Texto (não tem número) ou faça um recorte "
+            + "de detalhe com \"Inserir região da prancha\".");
+        return true;
+    }
+
+    /// <summary>Mostra o aviso fixo no alto do painel e repete o texto no rodapé.</summary>
+    void Avisar(string titulo, string mensagem)
+    {
+        avisoErro.Title = titulo;
+        avisoErro.Message = mensagem;
+        avisoErro.IsOpen = true;
+        estado.Text = titulo + ": " + mensagem;
     }
 
     void LigarTextoFigura(TextBox caixa, string campo)
@@ -341,8 +385,8 @@ internal sealed class JanelaFigura : Window
         var gravadas = figura.Marcacoes.Count(m => m.Gravada);
         avisoGravadas.IsOpen = gravadas > 0;
         avisoGravadas.Message = gravadas == 1
-            ? "O número 1 veio desenhado na imagem pelo kit: só a legenda dele é editável. As marcações novas ficam numa camada por cima e podem ser movidas, redimensionadas e removidas."
-            : "Os números 1 a " + gravadas.ToString(CultureInfo.InvariantCulture) + " vieram desenhados na imagem pelo kit: só as legendas deles são editáveis. As marcações novas ficam numa camada por cima e podem ser movidas, redimensionadas e removidas.";
+            ? "O número 1 veio desenhado na imagem pelo kit: não sai nem se move; só a legenda dele é editável. As marcações novas (Marcar região, Seta, Texto) ficam numa camada por cima e podem ser movidas, redimensionadas e removidas."
+            : "Os números 1 a " + gravadas.ToString(CultureInfo.InvariantCulture) + " vieram desenhados na imagem pelo kit: não saem nem se movem; só as legendas deles são editáveis. As marcações novas (Marcar região, Seta, Texto) ficam numa camada por cima e podem ser movidas, redimensionadas e removidas.";
         preenchendo = true;
         try
         {
@@ -457,6 +501,8 @@ internal sealed class JanelaFigura : Window
             botaoRemover.IsEnabled = !m.Gravada && !sessao.SomenteLeitura;
             Dicas.Aplicar(botaoRemover, "Remover marcação", "Tira esta marcação da figura.", "Del",
                 m.Gravada ? "O número está desenhado na imagem recebida e não sai dela." : null);
+            motivoRemover.Text = m.Gravada ? TextoGravadaNaoSai : "";
+            motivoRemover.Visibility = m.Gravada ? Visibility.Visible : Visibility.Collapsed;
             listaItens.Items.Clear();
             if (m.Numerada)
             {
@@ -614,11 +660,18 @@ internal sealed class JanelaFigura : Window
         if (medidas is not { } m || figura is not { Incluida: true } || aplicando || sessao.SomenteLeitura) return;
         if (!e.GetCurrentPoint(camada).Properties.IsLeftButtonPressed) return;
         e.Handled = true;
+        rolagem.Focus(FocusState.Pointer);
         CancelarArrasto();
         var p = PontoDe(e);
         var (nx, ny) = m.ParaNormalizado(p);
-        var dentro = nx is >= 0 and <= 1 && ny is >= 0 and <= 1;
+        var dentro = InteracaoFigura.DentroDaImagem(m, p);
         var tolerancia = 12 / Escala;
+        if (ferramenta is FerramentaFigura.Regiao or FerramentaFigura.Seta or FerramentaFigura.Texto && !dentro)
+        {
+            estado.Text = "Clique sobre a imagem: as faixas dos lados são as margens onde ficam os números.";
+            return;
+        }
+        if (ferramenta is FerramentaFigura.Regiao or FerramentaFigura.Seta && SemVagaDeNumero()) return;
         switch (ferramenta)
         {
             case FerramentaFigura.Selecionar:
@@ -626,6 +679,8 @@ internal sealed class JanelaFigura : Window
                 var acerto = InteracaoFigura.Acertar(m, CamadaFiguras.Desenho(figura), p, selecionada, tolerancia);
                 selecionada = acerto?.Marcacao;
                 SincronizarLista();
+                if (acerto is null && figura.TemGravadas)
+                    estado.Text = "Os números desenhados na imagem pelo kit não se selecionam na imagem: escolha-os na lista Marcações, ao lado.";
                 if (acerto is not null && CamadaFiguras.Desenho(figura).FirstOrDefault(x => x.Id == acerto.Marcacao) is { } x)
                 {
                     gesto.IniciarArrasto(m, x, acerto.Alca, p);
@@ -687,7 +742,7 @@ internal sealed class JanelaFigura : Window
         Desenhar();
         if (comando is null)
         {
-            if (nova) estado.Text = "Arraste um retângulo maior para marcar a região.";
+            if (nova) estado.Text = "Marque a região sobre a imagem (arraste ou clique no elemento).";
             return;
         }
         if (await AplicarAsync(comando) && comando is IncluirMarcacao incluir) Selecionar(incluir.Marcacao);
@@ -741,16 +796,13 @@ internal sealed class JanelaFigura : Window
         {
             if (fechada || host.Sessao != sessao || sessao.SomenteLeitura) return false;
             var erros = await host.AplicarFiguraAsync(c);
-            avisoErro.Title = "A alteração não foi aplicada";
-            avisoErro.IsOpen = erros.Count > 0;
-            avisoErro.Message = string.Join(Environment.NewLine, erros);
+            if (erros.Count > 0) Avisar("A alteração não foi aplicada", string.Join(Environment.NewLine, erros));
+            else avisoErro.IsOpen = false;
             return erros.Count == 0;
         }
         catch (Exception e)
         {
-            avisoErro.Title = "A alteração não foi aplicada";
-            avisoErro.Message = e.Message;
-            avisoErro.IsOpen = true;
+            Avisar("A alteração não foi aplicada", e.Message);
             return false;
         }
         finally
@@ -776,9 +828,7 @@ internal sealed class JanelaFigura : Window
         }
         catch (Exception e)
         {
-            avisoErro.Title = refazer ? "Não foi possível refazer" : "Não foi possível desfazer";
-            avisoErro.Message = e.Message;
-            avisoErro.IsOpen = true;
+            Avisar(refazer ? "Não foi possível refazer" : "Não foi possível desfazer", e.Message);
         }
         finally
         {
