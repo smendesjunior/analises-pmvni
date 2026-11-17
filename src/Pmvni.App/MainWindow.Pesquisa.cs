@@ -21,6 +21,11 @@ public sealed partial class MainWindow
     bool definindoPesquisa;
     int pesquisaTotal, pesquisaAtual;
     string? pesquisaRef;
+    /// <summary>A pesquisa do módulo à vista vale (folhas com relatório aberto, listas, planilha, leis). A caixa em si fica sempre habilitada:
+    /// a pesquisa geral (<see cref="IniciarPesquisaGeral"/>) vale em todo módulo.</summary>
+    bool pesquisaDoModuloHabilitada;
+    /// <summary>O alvo da pesquisa do módulo ("Pesquisar no relatório", "Pesquisar processos"…): vai na dica; o texto de espera é o da pesquisa geral.</summary>
+    string dicaDoModulo = "Pesquisar no relatório";
 
     // ---------- acessores do roteiro ----------
     internal string TermoPesquisa => CaixaPesquisa.Text;
@@ -28,7 +33,8 @@ public sealed partial class MainWindow
     internal int PesquisaTotal => pesquisaTotal;
     internal int PesquisaAtual => pesquisaAtual;
     internal string? PesquisaRef => pesquisaRef;
-    internal bool CaixaPesquisaHabilitada => CaixaPesquisa.IsEnabled;
+    /// <summary>A pesquisa do módulo vale (a caixa fica sempre habilitada para a pesquisa geral).</summary>
+    internal bool CaixaPesquisaHabilitada => pesquisaDoModuloHabilitada;
     internal bool CaixaPesquisaComFoco => Raiz.XamlRoot is not null && ReferenceEquals(FocusManager.GetFocusedElement(Raiz.XamlRoot), CaixaPesquisa);
 
     void IniciarPesquisa()
@@ -45,6 +51,9 @@ public sealed partial class MainWindow
         {
             if (definindoPesquisa) return;
             esperaPesquisa.Stop();
+            // A lista da pesquisa geral (ajustes, funções, arquivos, leis…) acompanha a digitação em qualquer módulo.
+            AgendarPesquisaGeral();
+            if (!pesquisaDoModuloHabilitada) return;
             // Processos e Despachos: filtro da lista, em memória (nada de esperar a digitação assentar).
             if (moduloAtual is Modulo.Processos or Modulo.Despachos) { AplicarTermoDeLista(CaixaPesquisa.Text); return; }
             // Acompanhamento (auditoria 2026-11-17): a pesquisa da barra é a busca da tabela (antes eram duas caixas).
@@ -62,12 +71,16 @@ public sealed partial class MainWindow
         {
             CaixaPesquisa.Focus(FocusState.Keyboard);
             CaixaPesquisa.SelectAll();
+            if (CaixaPesquisa.Text.Trim().Length >= PesquisaGeral.MinimoDoTermo) AgendarPesquisaGeral(); // a lista volta com o termo que ficou
             return Task.CompletedTask;
         };
+        IniciarPesquisaGeral();
     }
 
     async void AoTeclarNaPesquisa(object sender, KeyRoutedEventArgs e)
     {
+        // Sem pesquisa no módulo (Ajustes, Imóveis, sites, Relatórios sem relatório), Enter só vale na lista da pesquisa geral.
+        if (e.Key == VirtualKey.Enter && !pesquisaDoModuloHabilitada) { e.Handled = true; return; }
         if (e.Key == VirtualKey.Enter)
         {
             e.Handled = true;
@@ -163,18 +176,20 @@ public sealed partial class MainWindow
     {
         // Relatórios: o texto das folhas (precisa de um relatório aberto); Processos e Despachos: o filtro da lista; Legislação: a lei
         // aberta ou todas as leis; Ajustes: nada.
-        var habilitada = moduloAtual switch { Modulo.Relatorios => temRelatorio, Modulo.Processos or Modulo.Despachos or Modulo.Legislacao or Modulo.Acompanhamento => true, _ => false };
-        CaixaPesquisa.IsEnabled = habilitada;
+        var habilitada = moduloAtual switch { Modulo.Relatorios => temRelatorio, _ => TemPesquisaPropria(moduloAtual) };
+        pesquisaDoModuloHabilitada = habilitada;
+        // Pesquisa geral (2026-11-17): a caixa fica sempre à vista e habilitada (ajustes, funções, arquivos e leis valem em todo módulo).
+        CaixaPesquisa.IsEnabled = true;
         // Auditoria de interface (2026-11-17): o cabeçalho só mostra o que vale no módulo. Desfazer/Refazer são do relatório; Anterior e
-        // Próximo andam pelas ocorrências do relatório e da lei; a pesquisa some onde não há o que pesquisar (Ajustes, Imóveis, sites).
-        var comPesquisa = moduloAtual is Modulo.Relatorios or Modulo.Processos or Modulo.Despachos or Modulo.Legislacao or Modulo.Acompanhamento;
+        // Próximo andam pelas ocorrências do relatório e da lei; o "N de M" só onde o módulo tem pesquisa própria.
+        var comPesquisa = TemPesquisaPropria(moduloAtual);
         GrupoHistorico.Visibility = moduloAtual == Modulo.Relatorios ? Visibility.Visible : Visibility.Collapsed;
         GrupoOcorrencias.Visibility = moduloAtual is Modulo.Relatorios or Modulo.Legislacao ? Visibility.Visible : Visibility.Collapsed;
-        CaixaPesquisa.Visibility = IconePesquisa.Visibility = comPesquisa ? Visibility.Visible : Visibility.Collapsed;
+        CaixaPesquisa.Visibility = IconePesquisa.Visibility = Visibility.Visible;
         if (!comPesquisa) TextoPesquisa.Visibility = Visibility.Collapsed;
         AtualizarCabecalhoDoModulo();
-        // Desabilitada diz o motivo (auditoria M6), na dica e para o Narrador.
-        var motivo = habilitada ? "" : moduloAtual == Modulo.Relatorios ? "Abra um relatório para pesquisar nele." : moduloAtual == Modulo.Ajustes ? "Não há o que pesquisar nos Ajustes." : "Não há pesquisa neste módulo.";
+        // Sem pesquisa no módulo, a dica diz o motivo (auditoria M6) e que a caixa ainda acha o resto do app.
+        var motivo = habilitada ? "" : moduloAtual == Modulo.Relatorios ? "Abra um relatório para pesquisar nas folhas dele." : "";
         AplicarDicaDaPesquisa(motivo);
         // Anterior e próxima andam pelas ocorrências nas folhas (e, na Legislação, pelas da lei aberta: quem acerta é o contador dela).
         if (moduloAtual == Modulo.Legislacao) return;
@@ -186,29 +201,36 @@ public sealed partial class MainWindow
     void AplicarDicaDaPesquisa(string? motivo, Modulo? modulo = null)
     {
         var m = modulo ?? moduloAtual;
-        var descricao = m switch
+        var doModulo = m switch
         {
-            Modulo.Relatorios => "Procura uma palavra ou trecho nas folhas do relatório; Enter vai ao próximo resultado.",
-            Modulo.Processos => "Filtra a lista de processos pelo que você digitar.",
-            Modulo.Despachos => "Filtra a lista de despachos pelo que você digitar.",
-            Modulo.Legislacao => "Procura uma palavra na lei aberta ou em todas, conforme \"Pesquisar em\".",
-            _ => DicasComandos.Descricao(ComandosApp.PesquisaFocar),
+            Modulo.Relatorios => "Procura também nas folhas do relatório; Enter vai ao próximo resultado.",
+            Modulo.Processos => "Também filtra a lista de processos.",
+            Modulo.Despachos => "Também filtra a lista de despachos.",
+            Modulo.Acompanhamento => "Também filtra a tabela da planilha.",
+            Modulo.Legislacao => "Procura também na lei aberta ou em todas, conforme \"Pesquisar em\".",
+            _ => "Enter abre o primeiro resultado.",
         };
-        Dicas.Aplicar(CaixaPesquisa, CaixaPesquisa.PlaceholderText, descricao, "Ctrl+F", string.IsNullOrEmpty(motivo) ? null : motivo);
+        const string geral = "Mostra ajustes, funções, processos, relatórios, despachos e leis com o termo; ↑↓ escolhem, Enter abre, Esc fecha.";
+        Dicas.Aplicar(CaixaPesquisa, PesquisaGeral.NomeAcessivel, $"{geral} {doModulo}", "Ctrl+F", string.IsNullOrEmpty(motivo) ? null : motivo);
     }
+
+    /// <summary>Os módulos com pesquisa própria na caixa (Relatórios só com um relatório aberto).</summary>
+    static bool TemPesquisaPropria(Modulo m) => m is Modulo.Relatorios or Modulo.Processos or Modulo.Despachos or Modulo.Legislacao or Modulo.Acompanhamento;
 
     /// <summary>Troca o alvo da caixa de pesquisa com o módulo: a dica ("Pesquisar no relatório", "Pesquisar processos", "Pesquisar despachos") e o
     /// termo, que cada módulo guarda para si (voltar a um módulo traz o termo de antes).</summary>
     void TrocarPesquisaDeModulo(Modulo anterior, Modulo novo)
     {
-        if (anterior != novo) termosPesquisa[anterior] = CaixaPesquisa.Text;
-        var dica = DicaDaPesquisaDe(novo);
-        CaixaPesquisa.PlaceholderText = dica;
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CaixaPesquisa, dica);
-        AplicarDicaDaPesquisa(CaixaPesquisa.IsEnabled ? null : Dicas.De(CaixaPesquisa)?.Motivo, novo);
+        if (anterior != novo) termosPesquisa[anterior] = TemPesquisaPropria(anterior) ? CaixaPesquisa.Text : "";
+        // O texto de espera é sempre o da pesquisa geral; o alvo do módulo fica guardado (dica e roteiro).
+        dicaDoModulo = DicaDaPesquisaDe(novo);
+        CaixaPesquisa.PlaceholderText = PesquisaGeral.Placeholder;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CaixaPesquisa, PesquisaGeral.NomeAcessivel);
+        AplicarDicaDaPesquisa(null, novo); // o motivo (Relatórios sem relatório) vem de AtualizarPesquisaHabilitada
         esperaPesquisa?.Stop();
+        FecharPesquisaGeral();
         definindoPesquisa = true;
-        try { CaixaPesquisa.Text = novo == Modulo.Ajustes ? "" : TermoDe(novo); }
+        try { CaixaPesquisa.Text = TemPesquisaPropria(novo) ? TermoDe(novo) : ""; }
         finally { definindoPesquisa = false; }
         if (novo == Modulo.Relatorios) MostrarResultadoDaPesquisa(pesquisaTotal, pesquisaAtual, pesquisaRef, TermoDe(Modulo.Relatorios));
         else TextoPesquisa.Text = "";

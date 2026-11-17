@@ -336,7 +336,7 @@ public sealed partial class MainWindow
         [ComandosApp.EditarDesfazer] = "Desfazer",
         [ComandosApp.EditarRefazer] = "Refazer",
         [ComandosApp.JanelaRegioes] = "Alternar entre faixa, painel, folhas e propriedades",
-        [ComandosApp.PesquisaFocar] = "Pesquisar no relatório",
+        [ComandosApp.PesquisaFocar] = "Pesquisar no app (ajustes, funções, arquivos, leis)",
         [ComandosApp.InicioItemAnterior] = "Item anterior",
         [ComandosApp.InicioItemProximo] = "Próximo item",
         [ComandosApp.InicioExcluirRestaurar] = "Excluir ou restaurar o item",
