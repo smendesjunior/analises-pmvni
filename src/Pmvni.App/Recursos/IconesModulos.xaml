@@ -236,6 +236,15 @@
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="{ThemeResource SystemColorHighlightColor}"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="{ThemeResource SystemColorHighlightColor}"/>
       <SolidColorBrush x:Key="PmvniTonalBorda" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="AccentButtonBackground" Color="{ThemeResource SystemColorButtonFaceColor}"/>
+      <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}"/>
+      <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}"/>
+      <SolidColorBrush x:Key="AccentButtonForeground" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}"/>
+      <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="{ThemeResource SystemColorHighlightTextColor}"/>
+      <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}"/>
+      <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="{ThemeResource SystemColorHighlightTextColor}"/>
       <!-- No alto contraste não há brilho (o Brilho também se desliga sozinho). -->
       <SolidColorBrush x:Key="PmvniBrilho" Color="Transparent"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="{ThemeResource SystemColorButtonFaceColor}"/>
