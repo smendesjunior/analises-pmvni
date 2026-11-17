@@ -36,6 +36,8 @@
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="#0F5132"/>
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#C3E6CF"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#B2DDC1"/>
+      <!-- Brilho dos botões coloridos (Controles\Brilho.cs): o verde institucional (SystemAccentColor no claro, Light2 no escuro). -->
+      <SolidColorBrush x:Key="PmvniBrilho" Color="#1E7A46"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="#DCE6FB"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalTexto" Color="#1E3A8A"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalBorda" Color="#4F6BED"/>
@@ -121,6 +123,7 @@
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="#CFEBD9"/>
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#275E3F"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#2F6E4B"/>
+      <SolidColorBrush x:Key="PmvniBrilho" Color="#5CB983"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="#28326E"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalTexto" Color="#DCE3FF"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalBorda" Color="#8B9BFF"/>
@@ -208,6 +211,8 @@
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="{ThemeResource SystemColorButtonTextColor}"/>
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="{ThemeResource SystemColorHighlightColor}"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="{ThemeResource SystemColorHighlightColor}"/>
+      <!-- No alto contraste não há brilho (o Brilho também se desliga sozinho). -->
+      <SolidColorBrush x:Key="PmvniBrilho" Color="Transparent"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="{ThemeResource SystemColorButtonFaceColor}"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalTexto" Color="{ThemeResource SystemColorButtonTextColor}"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalBorda" Color="{ThemeResource SystemColorHighlightColor}"/>

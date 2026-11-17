@@ -321,6 +321,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         b.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         b.VerticalAlignment = VerticalAlignment.Center;
         b.IsEnabled = Habilitado(c.Id);
+        Brilho.SetAtivo(b, true); // o brilho dos botões coloridos (Controles\Brilho.cs)
         AutomationProperties.SetName(b, c.Descricao ?? rotulo);
         Dicas.Aplicar(b, TextoDaDica(c.Id));
         return b;

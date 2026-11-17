@@ -33,6 +33,9 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        // Botões coloridos com brilho (como os do WinStatusBar): o AccentButtonStyle ganha o setter antes da primeira janela usá-lo
+        // (no construtor do App os recursos ainda não podem ser lidos: 0x8000FFFF).
+        Brilho.LigarNoDestaque(this);
         janela = new MainWindow();
         janela.Activate();
     }
