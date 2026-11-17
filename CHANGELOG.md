@@ -2,6 +2,17 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.5.1
+
+- **Imóveis:**
+  - **Mapa maior:** formato 4:3 e largura total, com a legenda numa linha logo abaixo.
+  - **Cotas sempre visíveis no lote escolhido:** lados do terreno, rio e APP ("Rio → terreno · APP"), DNIT e largura da rua, sem nada sobreposto. Conferido em 19 lotes reais.
+  - **Nomes de rua com acento certo:** "Rua João Minete", "Altoé"; antes saía "JOÃƒO".
+- **Botões:** todos os coloridos têm o mesmo formato, com fundo verde suave, borda fina e brilho.
+- **Barra de título:** "Anterior / Próxima" não corta mais em telas menores.
+- **Legislação:** o selo do tipo de lei ("Decreto", "Lei"…) fica em verde.
+- **IA:** login vencido do Claude Code ou do Codex agora aparece com uma mensagem clara, dizendo o que fazer.
+- **Kit PMVNI:** o PDF dos despachos feito pelo script do kit também não espera mais a impressora (de cerca de 55 s para 5 s).
 ## 0.5.0
 
 ### Despachos
