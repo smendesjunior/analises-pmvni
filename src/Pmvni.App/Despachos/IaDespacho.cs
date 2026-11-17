@@ -166,6 +166,10 @@ internal static class IaDespacho
                 if (motivo.Length == 0) motivo = Ler(saida).Trim();
                 if (motivo.Length > 600) motivo = "…" + motivo[^600..];
                 if (motivo.Length == 0) motivo = $"o programa terminou com o código {p.ExitCode} sem explicar o motivo ({Path.GetFileName(si.FileName)}). Confira se você entrou na conta em Ajustes › Inteligência artificial.";
+                // Login vencido (2026-11-17, visto no Claude Code: "Failed to authenticate: OAuth session expired"): diz o que fazer.
+                if (LoginVencido(motivo))
+                    throw new InvalidOperationException($"O login do {(si.FileName.Contains("codex", StringComparison.OrdinalIgnoreCase) ? "Codex" : "Claude Code")} venceu. "
+                        + "Entre de novo em Ajustes › Inteligência artificial (botão Entrar no cartão dele) ou escolha outra IA em Modelos de IA.");
                 throw new InvalidOperationException("A IA respondeu com erro: " + motivo);
             }
             if (ultima is not null && File.Exists(ultima))
@@ -181,6 +185,12 @@ internal static class IaDespacho
             if (ultima is not null) try { File.Delete(ultima); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }
+
+    /// <summary>A saída do programa diz que o login venceu ou não existe (Claude Code: "Failed to authenticate", "OAuth session expired",
+    /// "Not logged in"; Codex: "401 Unauthorized", "Please login").</summary>
+    internal static bool LoginVencido(string motivo) =>
+        new[] { "Failed to authenticate", "OAuth session expired", "Not logged in", "401 Unauthorized", "Please login", "please log in" }
+            .Any(t => motivo.Contains(t, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>Acha o objeto JSON da resposta da IA (auditoria 2026-11-16): primeiro os blocos cercados por ```json, depois cada objeto

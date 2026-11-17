@@ -313,4 +313,10 @@ public class IaRevisaoTestes
         s.Aplicar(new Lote("ambientes/01", [new DefinirCampo("ambientes/01", "textos/0", "Revisto.")], "Revisto pela IA"));
         Assert.False(AjustePendente.JustificativaMudou(s.Projeto, s.HistoricoCompleto, "ambientes/01"));
     }
-}
+
+    [Theory]
+    [InlineData("Failed to authenticate: OAuth session expired and could not be refreshed", true)]
+    [InlineData("Not logged in · Please run /login", true)]
+    [InlineData("stream error: 401 Unauthorized", true)]
+    [InlineData("rate limit reached, try again later", false)]
+    public void login_vencido_vira_mensagem_clara(string saida, bool vencido) => Assert.Equal(vencido, IaDespacho.LoginVencido(saida));}
