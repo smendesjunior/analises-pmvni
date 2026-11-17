@@ -107,10 +107,10 @@ sealed class BrilhoArcoIris
     static Color Lavar(Color c, double q) => Color.FromArgb(255, (byte)(c.R + (255 - c.R) * q), (byte)(c.G + (255 - c.G) * q), (byte)(c.B + (255 - c.B) * q));
     // Um pouco mais forte que na barra do WinStatusBar: aqui o brilho aparece sobre cartões, não sobre o fundo translúcido da barra.
     static float OpacidadeBrilho(bool escuro) => escuro ? 0.32f : 0.4f;
-    static float OpacidadeLinha(bool escuro) => escuro ? 0.55f : 0.7f;
+    static float OpacidadeLinha(bool escuro) => escuro ? 0.85f : 0.95f;
     static float OpacidadeHalo(bool escuro) => escuro ? 0.4f : 0.5f;
 
-    const float Desfoque = 5f, TracoBrilho = 13f, Linha = 1.2f;
+    const float Desfoque = 5f, TracoBrilho = 13f, Linha = 1.5f;
     const float HaloMargem = 9f, HaloDesfoque = 2.1f, HaloTraco = 1.2f, HaloCresce = 0.6f;
     const float PixelsPorSegundo = 156f;
 
@@ -142,7 +142,7 @@ sealed class BrilhoArcoIris
         raizLinha.Children.InsertAtTop(Traco(geometria, pincelLinha, Linha));
         raiz = c.CreateLayerVisual();
         raiz.IsVisible = false;
-        raiz.Children.InsertAtTop(raizBrilho);
+        // Só o contorno (pedido do usuário, 2026-11-17): o brilho desfocado para dentro cobria botões, balões e barras inteiros.
         raiz.Children.InsertAtTop(raizLinha);
         raizHalo = Mascarado(pincelHalo, out mascaraHalo);
         raizHalo.IsVisible = false;

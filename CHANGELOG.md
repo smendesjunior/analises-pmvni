@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 0.6.1
+
+- **Correção do brilho "Trabalhando":** o arco-íris fica só no contorno; antes cobria o botão, o balão ou a barra inteira.
+
 ## 0.6.0
 
 - **Sites da Prefeitura (Essencial, GPI, Alfresco): login que não expira.** Entre uma vez pelo site e o app lembra o acesso até você clicar em **Sair** (Ajustes › Fontes de dados › Sites da Prefeitura). O app mantém a sessão ativa enquanto está aberto e, se você guardar usuário e senha (protegidos pelo Windows), entra sozinho quando o site pedir login de novo.
