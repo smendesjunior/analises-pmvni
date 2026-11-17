@@ -68,6 +68,8 @@ var ATALHOS = /* @__PURE__ */ new Set([
   "Alt+ArrowDown",
   "F3",
   "Shift+F3",
+  // Imprimir (2026-11-17): o host abre a impressão do PDF da lei (o arquivo inteiro, não as páginas desenhadas pelo leitor).
+  "Ctrl+P",
   // Trilho de módulos (Ctrl+1 … Ctrl+5): valem também com o foco no texto da lei.
   "Ctrl+1",
   "Ctrl+2",

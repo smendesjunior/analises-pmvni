@@ -665,7 +665,7 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
         {
             ("Ctrl+O", "o", "KeyO", 79, 2), ("Ctrl+I", "i", "KeyI", 73, 2), ("Ctrl+S", "s", "KeyS", 83, 2),
             ("Ctrl+Shift+S", "S", "KeyS", 83, 10), ("Ctrl+E", "e", "KeyE", 69, 2), ("Ctrl+Z", "z", "KeyZ", 90, 2),
-            ("Ctrl+Y", "y", "KeyY", 89, 2), ("Ctrl+F", "f", "KeyF", 70, 2),
+            ("Ctrl+Y", "y", "KeyY", 89, 2), ("Ctrl+F", "f", "KeyF", 70, 2), ("Ctrl+P", "p", "KeyP", 80, 2),
             ("Alt+ArrowUp", "ArrowUp", "ArrowUp", 38, 1), ("Alt+ArrowDown", "ArrowDown", "ArrowDown", 40, 1),
             ("Delete", "Delete", "Delete", 46, 0), ("F2", "F2", "F2", 113, 0), ("F6", "F6", "F6", 117, 0),
             ("Ctrl+0", "0", "Digit0", 48, 2), ("Ctrl+Plus", "=", "Equal", 187, 2), ("Ctrl+Plus", "+", "Equal", 187, 10),
@@ -684,7 +684,7 @@ public sealed class EdicaoTelaTestes : IClassFixture<TelaFixture>
 
         // Fora da lista: nada vai ao host e o navegador segue seu caminho.
         ev.Descartar();
-        await TeclaAsync("p", "KeyP", 80, 2);
+        await TeclaAsync("k", "KeyK", 75, 2);
         await TeclaAsync("a", "KeyA", 65, 0);
         await TeclaAsync("Delete", "Delete", 46, 2);
         Assert.False(await ev.HouveAsync("atalho", 1000));

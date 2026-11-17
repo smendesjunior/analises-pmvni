@@ -298,6 +298,13 @@ public sealed partial class MainWindow
     {
         var rotulo = RotuloDoComando(id);
         string motivo;
+        if (id == ComandosApp.ArquivoImprimir)
+        {
+            // Imprimir vale em vários módulos: o motivo é o do módulo à vista (a dica do botão desabilitado).
+            var porque = Faixa.Dica(id).Trim().TrimEnd('.');
+            MostrarMensagem(InfoBarSeverity.Informational, "Comando indisponível", $"«{rotulo}» não está disponível agora: {(porque.Length > 0 ? char.ToLowerInvariant(porque[0]) + porque[1..] : "não há documento para imprimir")}.");
+            return;
+        }
         if (id.StartsWith("processos.", StringComparison.Ordinal) || id.StartsWith("despachos.", StringComparison.Ordinal))
         {
             MostrarMensagem(InfoBarSeverity.Informational, "Comando indisponível", $"«{rotulo}» não está disponível agora: {MotivoIndisponivelDasPastas(id)}.");
@@ -340,6 +347,7 @@ public sealed partial class MainWindow
         [ComandosApp.InicioItemAnterior] = "Item anterior",
         [ComandosApp.InicioItemProximo] = "Próximo item",
         [ComandosApp.InicioExcluirRestaurar] = "Excluir ou restaurar o item",
+        [ComandosApp.ArquivoImprimir] = "Imprimir ou salvar como PDF",
     };
 
     /// <summary><paramref name="testar"/>: o projeto como ficaria (null = não precisa testar: desfazer e refazer voltam a estados que já

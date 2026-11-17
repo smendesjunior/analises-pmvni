@@ -24,16 +24,17 @@ public class AtalhosTestes
             .ToHashSet(StringComparer.Ordinal);
 
     [Fact]
-    public void atalhos_sao_as_21_teclas_da_ponte()
+    public void atalhos_sao_as_22_teclas_da_ponte()
     {
         var ponte = TeclasDaPonte();
-        Assert.Equal(21, ponte.Count);
+        Assert.Equal(22, ponte.Count);
         Assert.Equal(ponte.Order(StringComparer.Ordinal), Atalhos.Mapa.Keys.Order(StringComparer.Ordinal));
         Assert.Equal(ComandosApp.ArquivoAbrir, Atalhos.Comando("Ctrl+O"));
         Assert.Equal(ComandosApp.InicioExcluirRestaurar, Atalhos.Comando("Delete"));
         Assert.Equal(ComandosApp.InicioItemProximo, Atalhos.Comando("Alt+ArrowDown"));
         Assert.Equal(ComandosApp.PesquisaFocar, Atalhos.Comando("Ctrl+F"));
-        Assert.Null(Atalhos.Comando("Ctrl+P"));
+        Assert.Equal(ComandosApp.ArquivoImprimir, Atalhos.Comando("Ctrl+P"));
+        Assert.Null(Atalhos.Comando("Ctrl+Shift+P"));
         Assert.Null(Atalhos.Comando("ctrl+o"));
     }
 
@@ -69,7 +70,7 @@ public class AtalhosTestes
     public void atalhos_da_legislacao_sao_os_do_leitor()
     {
         var leitor = TeclasDoLeitor();
-        Assert.Equal(15, leitor.Count);
+        Assert.Equal(16, leitor.Count);
         Assert.Equal(leitor.Order(StringComparer.Ordinal), Atalhos.MapaLegislacao.Keys.Order(StringComparer.Ordinal));
         var faixa = Faixas.Comandos(Faixas.Para(Modulo.Legislacao)).Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
         Assert.All(Atalhos.MapaLegislacao.Values, id => Assert.True(faixa.Contains(id) || id == ComandosApp.PesquisaFocar || Modulos.DoComando(id) is not null, id));
@@ -81,7 +82,7 @@ public class AtalhosTestes
     [Fact]
     public void atalhos_do_relatorio_nao_mudam()
     {
-        Assert.Equal(21, Atalhos.Mapa.Count);
+        Assert.Equal(22, Atalhos.Mapa.Count);
         Assert.Equal(ComandosApp.ExibirLargura, Atalhos.Comando("Ctrl+0", Modulo.Relatorios));
         Assert.Equal(ComandosApp.LegislacaoAjustarLargura, Atalhos.Comando("Ctrl+0", Modulo.Legislacao));
         Assert.Equal(ComandosApp.InicioItemProximo, Atalhos.Comando("Alt+ArrowDown", Modulo.Relatorios));
@@ -89,5 +90,23 @@ public class AtalhosTestes
         Assert.Null(Atalhos.Comando("Ctrl+C", Modulo.Relatorios));
         Assert.Null(Atalhos.Comando("Delete", Modulo.Legislacao));
         Assert.Equal(ComandosApp.PesquisaFocar, Atalhos.Comando("Ctrl+F", Modulo.Despachos));
+    }
+
+    [Fact]
+    public void ctrl_p_imprime_em_todo_modulo_com_documento()
+    {
+        // Imprimir (2026-11-17): Ctrl+P é o Imprimir do módulo; em Imóveis, o Imprimir do relatório do imóvel.
+        foreach (var m in ComandosImpressao.Modulos)
+        {
+            Assert.Equal(ComandosApp.ArquivoImprimir, Atalhos.Comando("Ctrl+P", m));
+            Assert.Equal("Ctrl+P", Atalhos.Tecla(ComandosApp.ArquivoImprimir, m));
+        }
+        Assert.Equal(ComandosApp.ImoveisImprimir, Atalhos.Comando("Ctrl+P", Modulo.Imoveis));
+        Assert.Equal("Ctrl+P", Atalhos.Tecla(ComandosApp.ImoveisImprimir, Modulo.Imoveis));
+        Assert.Null(Atalhos.Tecla(ComandosApp.ArquivoImprimir, Modulo.Imoveis));
+        // O resto do mapa de Imóveis é o de sempre.
+        Assert.Equal(Atalhos.Mapa.Keys.Order(StringComparer.Ordinal), Atalhos.MapaImoveis.Keys.Order(StringComparer.Ordinal));
+        Assert.All(Atalhos.MapaImoveis.Where(p => p.Key != "Ctrl+P"), p => Assert.Equal(Atalhos.Mapa[p.Key], p.Value));
+        Assert.Equal(ComandosApp.ArquivoImprimir, Atalhos.Comando("Ctrl+P", Modulo.Legislacao));
     }
 }

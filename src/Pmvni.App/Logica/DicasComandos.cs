@@ -26,6 +26,7 @@ public static class DicasComandos
         [ComandosApp.ArquivoSalvarComo] = "Grava o relatório num arquivo novo, com outro nome ou em outra pasta.",
         [ComandosApp.ArquivoExportarPdf] = "Gera o PDF do relatório, com as mesmas folhas mostradas na tela.",
         [ComandosApp.ArquivoFechar] = "Fecha o relatório aberto.",
+        [ComandosApp.ArquivoImprimir] = "Abre a impressão com a lista de impressoras e a opção Salvar como PDF.",
         [ComandosApp.RelatoriosNovo] = "Pede a uma IA a análise de um processo e monta o relatório dela.",
 
         // Página Inicial (o item selecionado)

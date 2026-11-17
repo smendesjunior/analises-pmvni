@@ -8,7 +8,8 @@ public static class ComandosLegislacao
     public const string DicaSemSelecao = "Selecione um trecho do texto.";
 
     /// <summary>Sempre: Gerenciar anexos, Importar, Abrir, Recentes, Pesquisar em ▾ (com "Em todas as leis") e Lista de leis; Anexar PDFs…
-    /// fora do catálogo só leitura. Com uma lei aberta: páginas, os 4 de escala e "Nesta lei"; as ocorrências se ela tem texto, Marcadores
+    /// fora do catálogo só leitura. Com uma lei aberta: páginas, os 4 de escala, "Nesta lei" e
+    /// Imprimir (a janela o habilita por <see cref="ComandosImpressao"/>, que vale para todos os módulos); as ocorrências se ela tem texto, Marcadores
     /// se ela tem marcadores, Copiar e Copiar citação com texto selecionado.</summary>
     public static IReadOnlySet<string> Habilitados(bool leiAberta, bool temTexto, bool temSelecao, bool temMarcadores, bool somenteLeitura, bool emTodas = false)
     {
@@ -22,7 +23,7 @@ public static class ComandosLegislacao
         h.UnionWith([
             ComandosApp.LegislacaoPaginaAnterior, ComandosApp.LegislacaoPaginaProxima,
             ComandosApp.LegislacaoZoomMenos, ComandosApp.LegislacaoZoomMais, ComandosApp.LegislacaoAjustarLargura, ComandosApp.LegislacaoPaginaInteira,
-            ComandosApp.LegislacaoEscopoLei,
+            ComandosApp.LegislacaoEscopoLei, ComandosApp.ArquivoImprimir,
         ]);
         // "Em todas as leis" a pesquisa lista os resultados: as ocorrências (F3) são só da pesquisa "Nesta lei".
         if (temTexto && !emTodas) h.UnionWith([ComandosApp.LegislacaoOcorrenciaAnterior, ComandosApp.LegislacaoOcorrenciaProxima]);

@@ -178,6 +178,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         RegistrarManipuladores();
         RegistrarManipuladoresRevisao();
         RegistrarManipuladoresFiguras();
+        RegistrarManipuladoresImpressao();
         IniciarRevisao();
         RegistrarAtalhos();
         IniciarGravacao();
@@ -757,6 +758,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         AtualizarComandosNovoDespacho();
         AtualizarComandosNovoRelatorio();
         AtualizarComandosLegislacao();
+        AtualizarComandosDeImpressao(pronto, temRelatorio, PodeExportar(sessao?.Atual) && !desatualizada, desatualizada ? SessaoEdicao.TextoDesatualizada : null);
         R.BotaoMenos.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMenos);
         R.BotaoMais.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMais);
         R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = temRelatorio;
@@ -1162,9 +1164,12 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     }
 
     /// <summary>Exporta o relatório aberto para <paramref name="caminhoPdf"/>: bloqueado com erros finais; avisos (citações a itens
-    /// excluídos) pedem confirmação; recusa se o pacote mudou no disco. Devolve o resultado ou o motivo da recusa (também num InfoBar).</summary>
-    internal async Task<(bool Ok, ResultadoExportacao? Resultado, string? Erro, Exception? Excecao)> ExportarParaAsync(string caminhoPdf)
+    /// excluídos) pedem confirmação; recusa se o pacote mudou no disco. Devolve o resultado ou o motivo da recusa (também num InfoBar).
+    /// <paramref name="paraImprimir"/> (Imprimir, 2026-11-17): o mesmo PDF, num arquivo temporário; os textos falam de impressão e não há
+    /// aviso de "PDF exportado" (a janela de impressão abre em seguida).</summary>
+    internal async Task<(bool Ok, ResultadoExportacao? Resultado, string? Erro, Exception? Excecao)> ExportarParaAsync(string caminhoPdf, bool paraImprimir = false)
     {
+        var recusada = paraImprimir ? "Impressão recusada" : "Exportação recusada";
         if (sessao?.Atual is null) return (false, null, "Nenhum relatório aberto.", null);
         if (ocupado || aplicando) { AvisarOcupado(); return (false, null, "A janela está ocupada.", null); }
         // O campo em edição no A4 entra antes (como o Enter): o PDF sai com o texto digitado.
@@ -1173,7 +1178,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (sessao.Desatualizada)
         {
             var desatualizada = new ExportacaoDivergenteException(SessaoEdicao.TextoDesatualizada);
-            MostrarMensagem(InfoBarSeverity.Error, "Exportação recusada", desatualizada.Message);
+            MostrarMensagem(InfoBarSeverity.Error, recusada, desatualizada.Message);
             return (false, null, desatualizada.Message, desatualizada);
         }
         // Alterações que o arquivo não tem e não pode receber agora (trava perdida, conflito): o PDF viria da memória e o recibo levaria
@@ -1182,14 +1187,15 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         {
             var semGravar = new ExportacaoDivergenteException(TextosGravacao.ExportarSemGravar(sessao.Estado == EstadoGravacao.Conflito));
             if (sessao.Estado == EstadoGravacao.Conflito) MostrarConflito();
-            MostrarMensagem(InfoBarSeverity.Error, "Exportação recusada", semGravar.Message);
+            MostrarMensagem(InfoBarSeverity.Error, recusada, semGravar.Message);
             return (false, null, semGravar.Message, semGravar);
         }
         var avisos = r.Preparado.AvisosExportacao;
         if (r.Preparado.ErrosFinais.Count == 0 && avisos.Count > 0
-            && !await Perguntas.Atual.ConfirmarAsync("Exportar com avisos?", string.Join(Environment.NewLine, avisos), "Exportar", "Cancelar", destrutiva: false))
-            return (false, null, "Exportação cancelada.", null);
-        Ocupar("Exportando o PDF…");
+            && !await Perguntas.Atual.ConfirmarAsync(paraImprimir ? "Imprimir com avisos?" : "Exportar com avisos?", string.Join(Environment.NewLine, avisos),
+                paraImprimir ? "Imprimir" : "Exportar", "Cancelar", destrutiva: false))
+            return (false, null, paraImprimir ? "Impressão cancelada." : "Exportação cancelada.", null);
+        Ocupar(paraImprimir ? "Preparando a impressão…" : "Exportando o PDF…");
         R.AvisoMensagem.IsOpen = false;
         try
         {
@@ -1197,29 +1203,29 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             // Com um salvamento automático em curso, espera ele (a gravação vai na fila do gravador): o disco e o "esperado" batem.
             if (sessao.Estado is EstadoGravacao.NaoSalvo or EstadoGravacao.Salvando) await sessao.GravarAsync();
             var x = await sessao.ExportarAsync(caminhoPdf);
-            MostrarMensagem(InfoBarSeverity.Success, "PDF exportado", $"{x.Folhas} folhas em {x.CaminhoPdf}. Recibo: {Path.GetFileName(x.CaminhoRecibo)}.");
+            if (!paraImprimir) MostrarMensagem(InfoBarSeverity.Success, "PDF exportado", $"{x.Folhas} folhas em {x.CaminhoPdf}. Recibo: {Path.GetFileName(x.CaminhoRecibo)}.");
             return (true, x, null, null);
         }
         catch (ConflitoNoDiscoException e)
         {
             MostrarConflito();
-            MostrarMensagem(InfoBarSeverity.Error, "Exportação recusada", ExportacaoDivergenteException.ArquivoMudou);
+            MostrarMensagem(InfoBarSeverity.Error, recusada, ExportacaoDivergenteException.ArquivoMudou);
             return (false, null, ExportacaoDivergenteException.ArquivoMudou, e);
         }
         catch (ConferenciaFinalException e)
         {
-            MostrarMensagem(InfoBarSeverity.Error, "Exportação bloqueada: o relatório ainda não está completo", string.Join(Environment.NewLine, e.Erros));
+            MostrarMensagem(InfoBarSeverity.Error, (paraImprimir ? "Impressão bloqueada" : "Exportação bloqueada") + ": o relatório ainda não está completo", string.Join(Environment.NewLine, e.Erros));
             return (false, null, e.Message, e);
         }
         catch (Exception e) when (e is ExportacaoRecusadaException or ExportacaoDivergenteException)
         {
-            MostrarMensagem(InfoBarSeverity.Error, "Exportação recusada", e.Message);
+            MostrarMensagem(InfoBarSeverity.Error, recusada, e.Message);
             return (false, null, e.Message, e);
         }
         catch (Exception e)
         {
             var texto = Erro(e);
-            MostrarMensagem(InfoBarSeverity.Error, "Não foi possível exportar o PDF", texto);
+            MostrarMensagem(InfoBarSeverity.Error, paraImprimir ? "Não foi possível preparar a impressão" : "Não foi possível exportar o PDF", texto);
             return (false, null, texto, e);
         }
         finally { Liberar(); }
