@@ -5,6 +5,23 @@ namespace Pmvni.Revisao.Testes;
 /// <summary>Leitura de processos: o que a Tarefa 19 acrescenta (relatorio_dados*.json do kit em <c>.pmvni-ai</c>).</summary>
 public class ProcessosTestes
 {
+    [Theory]
+    [InlineData("PROC. 00042 - 2026 - PESSOA FICTICIA", 42)]
+    [InlineData("procc.   1234567_2026 - PESSOA FICTICIA", 1234567)]
+    public void reconhece_prefixo_e_numero_sem_renomear_a_pasta(string nome, int numero)
+    {
+        using var temp = Ambiente.PastaDeTeste("processo-com-prefixo");
+        var caminho = Path.Combine(temp, "2026", nome);
+        Directory.CreateDirectory(caminho);
+
+        var processo = Assert.Single(Processos.Listar(temp, CancellationToken.None).Itens);
+        Assert.Equal(numero, processo.Numero);
+        Assert.Equal(2026, processo.Ano);
+        Assert.Equal("PESSOA FICTICIA", processo.Requerente);
+        Assert.Equal(caminho, processo.Pasta);
+        Assert.False(CriacaoProcesso.Criar(temp, numero, 2026, "PESSOA FICTICIA").Criado);
+    }
+
     static void CopiarArvore(string origem, string destino)
     {
         Directory.CreateDirectory(destino);

@@ -27,17 +27,19 @@ public class GeminiTestes
     }
 
     [Theory]
-    // etapa, conta Ultra, API com créditos, API gratuita
-    [InlineData("prepare", "gemini-4-hydrogen-high", "gemini-4-hydrogen-high", "gemini-4-hydrogen-high")]
-    [InlineData("analyze", "gemini-4-carbon-high", "gemini-4-carbon-high", "gemini-4-hydrogen-xhigh")]
-    [InlineData("technical_audit", "gemini-4-carbon-high", "gemini-4-carbon-high", "gemini-4-hydrogen-xhigh")]
-    [InlineData("produce", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-medium")]
-    [InlineData("audit", "gemini-4-argon-high", "gemini-4-argon-high", "gemini-4-hydrogen-xhigh")]
-    [InlineData("final_review", "gemini-4-carbon-high", "gemini-4-carbon-high", "gemini-4-hydrogen-xhigh")]
-    public void matriz_das_seis_etapas_nos_tres_perfis(string etapa, string conta, string creditos, string gratuita)
+    [InlineData("prepare", "gemini-3.8-flash-low", "gemini-4-hydrogen-medium", "gemini-3.8-flash-low")]
+    [InlineData("analyze", "gemini-3.8-flash-medium", "gemini-4-hydrogen-high", "gemini-4-carbon-medium")]
+    [InlineData("technical_audit", "gemini-3.8-flash-medium", "gemini-4-hydrogen-high", "gemini-4-argon-medium")]
+    [InlineData("produce", "gemini-3.8-flash-medium", "gemini-4-hydrogen-medium", "gemini-3.8-flash-medium")]
+    [InlineData("audit", "gemini-3.8-flash-medium", "gemini-3.1-pro-high", "gemini-4-carbon-medium")]
+    [InlineData("final_review", "gemini-3.8-flash-medium", "gemini-4-hydrogen-high", "gemini-3.8-flash-medium")]
+    public void matriz_das_seis_etapas_por_rota(string etapa, string agy, string web, string api)
     {
-        string Id(PerfilGemini p) => MatrizGemini.Etapas(p).Single(e => e.Etapa == etapa).IdRuntime;
-        Assert.Equal((conta, creditos, gratuita), (Id(PerfilGemini.ContaUltra), Id(PerfilGemini.ApiCreditos), Id(PerfilGemini.ApiGratuita)));
+        foreach (var perfil in Enum.GetValues<PerfilGemini>())
+        {
+            var id = MatrizGemini.Etapas(perfil).Single(e => e.Etapa == etapa).IdRuntime;
+            Assert.Equal(perfil == PerfilGemini.ContaGemini ? web : perfil == PerfilGemini.ApiCreditos ? api : agy, id);
+        }
     }
 
     [Fact]
@@ -49,12 +51,7 @@ public class GeminiTestes
             Assert.Equal(Etapas, etapas.Select(e => e.Etapa));
             Assert.Equal(SituacaoAnalisePro.Etapas, etapas.Select(e => e.Etapa));
             Assert.All(etapas, e => Assert.Contains(e.Esforco, MatrizGemini.Esforcos(e.Modelo)));
-            Assert.All(etapas, e => Assert.NotEqual("low", e.Esforco));      // nenhuma etapa roda em low
         }
-        Assert.DoesNotContain("xhigh", MatrizGemini.Esforcos(MatrizGemini.Carbon));
-        Assert.DoesNotContain("xhigh", MatrizGemini.Esforcos(MatrizGemini.Argon));
-        Assert.Contains("xhigh", MatrizGemini.Esforcos(MatrizGemini.Hydrogen));
-        Assert.All(MatrizGemini.Etapas(PerfilGemini.ApiGratuita), e => Assert.Equal(MatrizGemini.Hydrogen, e.Modelo));     // a camada gratuita só tem o Hydrogen
         Assert.True(MatrizGemini.EtapaDeMerito("analyze") && MatrizGemini.EtapaDeMerito("technical_audit") && !MatrizGemini.EtapaDeMerito("audit"));
         Assert.Equal((2400, 131072), (MatrizGemini.TimeoutContaSegundos, MatrizGemini.MaxSaidaApi));
     }
@@ -244,21 +241,21 @@ public class GeminiTestes
     // ------------------------------------------------------------------ o "Testar"
 
     const string ListaDoAgy = "Fetching available models...\n"
-        + "gemini-4-carbon-medium\tGemini 4 Carbon (Medium)\ngemini-4-carbon-high\tGemini 4 Carbon (High)\ngemini-4-argon-high\tGemini 4 Argon (High)\n"
-        + "gemini-4-hydrogen-high\tGemini 4 Hydrogen (High)\ngemini-4-hydrogen-xhigh\tGemini 4 Hydrogen (XHigh)\ngemini-4-hydrogen-medium\tGemini 4 Hydrogen (Medium)\n";
+        + "gemini-3.8-flash-low\tGemini 3.8 Flash (Low)\n"
+        + "gemini-3.8-flash-medium\tGemini 3.8 Flash (Medium)\n"
+        + "gemini-3.8-flash-high\tGemini 3.8 Flash (High)\n";
 
     [Fact]
     public void modelos_do_agy_e_etapas_sem_modelo()
     {
         var ids = DiagnosticoGemini.ModelosDoAgy(ListaDoAgy);
-        Assert.Equal(6, ids.Count);
+        Assert.Equal(3, ids.Count);
         Assert.DoesNotContain(ids, i => i.Contains(' '));
-        foreach (var perfil in Enum.GetValues<PerfilGemini>()) Assert.Empty(DiagnosticoGemini.EtapasSemModelo(perfil, ids));
+        foreach (var perfil in Enum.GetValues<PerfilGemini>().Where(p => p is PerfilGemini.ContaUltra or PerfilGemini.ApiGratuita)) Assert.Empty(DiagnosticoGemini.EtapasSemModelo(perfil, ids));
 
-        // Sem o Argon high, só a auditoria cruzada dos perfis pagos fica sem modelo; o perfil gratuito (só Hydrogen) continua inteiro.
-        var semArgon = ids.Where(i => !i.StartsWith("gemini-4-argon", StringComparison.Ordinal)).ToList();
-        Assert.Equal(new[] { "Auditoria cruzada (gemini-4-argon high)" }, DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ContaUltra, semArgon));
-        Assert.Empty(DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ApiGratuita, semArgon));
+        var semLow = ids.Where(i => i != "gemini-3.8-flash-low").ToList();
+        Assert.Single(DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ContaUltra, semLow));
+        Assert.Single(DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ApiGratuita, semLow));
         Assert.Empty(DiagnosticoGemini.ModelosDoAgy("Fetching available models...\n"));       // sem login: lista vazia
         Assert.Equal("1.5.10", DiagnosticoGemini.VersaoAgy("1.5.10\n"));
         Assert.Null(DiagnosticoGemini.VersaoAgy("sem versão"));
@@ -272,8 +269,8 @@ public class GeminiTestes
             + "{\"name\":\"models/text-embedding-9\",\"supportedGenerationMethods\":[\"embedContent\"]}]}";
         var modelos = DiagnosticoGemini.ModelosDaApi(corpo);
         Assert.Equal(new[] { "gemini-4-hydrogen", "gemini-4-carbon" }, modelos);
-        Assert.Equal(new[] { "Auditoria cruzada (gemini-4-argon)" }, DiagnosticoGemini.EtapasSemModeloNaApi(PerfilGemini.ApiCreditos, modelos));
-        Assert.Empty(DiagnosticoGemini.EtapasSemModeloNaApi(PerfilGemini.ApiGratuita, modelos));
+        Assert.Equal(4, DiagnosticoGemini.EtapasSemModeloNaApi(PerfilGemini.ApiCreditos, modelos).Count);
+        Assert.Equal(6, DiagnosticoGemini.EtapasSemModeloNaApi(PerfilGemini.ApiGratuita, modelos).Count);
         Assert.Empty(DiagnosticoGemini.ModelosDaApi("não é json"));
 
         Assert.StartsWith("chave recusada pelo Google", DiagnosticoGemini.MensagemDaRecusa(HttpStatusCode.BadRequest, "{\"error\":{\"message\":\"API key not valid.\",\"status\":\"INVALID_ARGUMENT\",\"details\":[{\"reason\":\"API_KEY_INVALID\"}]}}"));
@@ -308,11 +305,11 @@ public class GeminiTestes
         const string chave = "gemini-ficticia-chave-ficticia-de-teste-0123456789";
         try
         {
-            var aceita = new RespostaFixa(HttpStatusCode.OK, "{\"models\":[{\"name\":\"models/gemini-4-hydrogen\"}]}");
+            var aceita = new RespostaFixa(HttpStatusCode.OK, "{\"models\":[{\"name\":\"models/gemini-3.8-flash\"}]}");
             DiagnosticoGemini.Manipulador = aceita;
             var r = await DiagnosticoGemini.ConferirChaveAsync(chave, CancellationToken.None);
             Assert.True(r.Aceita);
-            Assert.Equal(new[] { "gemini-4-hydrogen" }, r.Modelos);
+            Assert.Equal(new[] { "gemini-3.8-flash" }, r.Modelos);
             Assert.Equal(chave, aceita.ChaveNoCabecalho);                                         // só no cabeçalho…
             Assert.DoesNotContain(chave, aceita.Pedido!.RequestUri!.ToString());                  // …nunca no endereço
             Assert.DoesNotContain(chave, r.Mensagem);
@@ -351,18 +348,15 @@ public class GeminiTestes
 
         try
         {
-            DiagnosticoGemini.Manipulador = new RespostaFixa(HttpStatusCode.OK, "{\"models\":[{\"name\":\"models/gemini-4-hydrogen\"}]}");
+            DiagnosticoGemini.Manipulador = new RespostaFixa(HttpStatusCode.OK, "{\"models\":[{\"name\":\"models/gemini-3.8-flash\"}]}");
             var gratuita = await Diagnostico.TestarAsync(Provedor.Gemini, nada, ModoAcesso.Chave, true, CancellationToken.None, PerfilGemini.ApiGratuita, "gemini-ficticia-ficticia");
             Assert.EndsWith("chave aceita pelo Google", gratuita.Linha);
             Assert.Contains(gratuita.Avisos, a => a.StartsWith("API gratuita: só para testes com processos fictícios", StringComparison.Ordinal));
-            Assert.DoesNotContain(gratuita.Avisos, a => a.StartsWith("A chave não lista o modelo", StringComparison.Ordinal));     // o gratuito só usa o Hydrogen
+            Assert.DoesNotContain(gratuita.Avisos, a => a.StartsWith("A chave não lista o modelo", StringComparison.Ordinal));
             Assert.DoesNotContain("gemini-ficticia-ficticia", gratuita.Linha + string.Join("", gratuita.Avisos));
 
-            // A mesma chave no perfil com créditos: faltam o Carbon e o Argon na lista da chave, e o aviso diz as etapas.
             var creditos = await Diagnostico.TestarAsync(Provedor.Gemini, nada, ModoAcesso.Chave, true, CancellationToken.None, PerfilGemini.ApiCreditos, "gemini-ficticia-ficticia");
-            var falta = Assert.Single(creditos.Avisos, a => a.StartsWith("A chave não lista o modelo", StringComparison.Ordinal));
-            Assert.Contains("Análise (gemini-4-carbon)", falta);
-            Assert.Contains("Auditoria cruzada (gemini-4-argon)", falta);
+            Assert.Contains(creditos.Avisos, a => a.StartsWith("A chave não lista o modelo", StringComparison.Ordinal));
         }
         finally { DiagnosticoGemini.Manipulador = null; }
     }
@@ -378,7 +372,7 @@ public class GeminiTestes
         {
             o["versoes"] = new System.Text.Json.Nodes.JsonArray("1.5.10", "Python 3.14.0");
             if (caso == "sem_login") o["login"] = "nao";
-            else o["modelos_agy"] = new System.Text.Json.Nodes.JsonArray("gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-carbon-high");     // sem o Argon
+            else o["modelos_agy"] = new System.Text.Json.Nodes.JsonArray("gemini-3.8-flash-high", "gemini-3.8-flash-medium");
         });
         using var v = new VariavelDeAmbiente("AGENTE_FALSO_CENARIO", cenario);
         var pecas = new Pecas(null, null, Ambiente.AgenteFalso, false, null, null, null, false, null, false)
@@ -392,7 +386,7 @@ public class GeminiTestes
         Assert.Equal(conectado, r.ContaConectada);
         Assert.Contains("O kit tem o análise Google 1.0.1; instalado 1.0.0. Atualize pelo INSTALAR_KIT_PMVNI.cmd.", r.Avisos);
         if (conectado)
-            Assert.Contains("A conta não oferece o modelo e o nível de: Auditoria cruzada (gemini-4-argon high). A análise não começa sem eles (nenhum outro modelo é usado no lugar).", r.Avisos);
+            Assert.Contains(r.Avisos, a => a.StartsWith("A conta não oferece", StringComparison.Ordinal) && a.Contains("gemini-3.8-flash low"));
         else Assert.DoesNotContain(r.Avisos, a => a.StartsWith("A conta não oferece", StringComparison.Ordinal));
     }
 

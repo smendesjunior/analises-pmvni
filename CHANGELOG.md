@@ -2,6 +2,15 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.1.2
+
+- A assinatura visível dos novos despachos integra o conteúdo imprimível do PDF, inclusive quando a impressão omite anotações.
+
+- Os controles do cabeçalho recebem cliques em uma região interativa que acompanha a escala da janela.
+- O número do processo pode ser digitado sem limite no campo. A lista reconhece pastas com prefixos PROC. e PROCC.
+- Adicionar exigência abre uma caixa de texto com confirmação e cancelamento.
+- O acompanhamento mostra segundos no primeiro minuto e volta a usar o contorno arco-íris durante a análise.
+
 ## 1.1.1
 
 - O cartão Gemini Web reconhece a sessão da Conta Google e mostra o e-mail quando o site o informa.

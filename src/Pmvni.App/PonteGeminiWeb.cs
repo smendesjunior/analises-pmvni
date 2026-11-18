@@ -153,9 +153,15 @@ internal sealed class PonteGeminiWeb : IDisposable
         var nivel = pedido.GetProperty("effort").GetString();
         var prompt = pedido.GetProperty("prompt").GetString();
         var segundos = Math.Clamp(pedido.GetProperty("timeout_s").GetInt32(), 1, 3600);
+        var rotulo = (modelo, nivel) switch
+        {
+            ("gemini-4-hydrogen", "medium") => @"(?:gemini\s*)?4\s+hydrogen",
+            ("gemini-4-hydrogen", "high") => @"(?:gemini\s*)?4\s+hydrogen\s+thinking",
+            ("gemini-3.1-pro", "high") => @"(?:gemini\s*)?3\.1\s+pro",
+            _ => null,
+        };
         if (id is null || !Regex.IsMatch(id, @"^gemini-web-[a-f0-9]{12}$") || string.IsNullOrWhiteSpace(prompt)
-            || modelo is not ("gemini-4-hydrogen" or "gemini-4-argon" or "gemini-4-carbon")
-            || nivel is not ("low" or "medium" or "high"))
+            || rotulo is null)
             throw new InvalidOperationException("Pedido inválido para o Gemini Web.");
 
         using var prazo = CancellationTokenSource.CreateLinkedTokenSource(fechamento);
@@ -179,22 +185,10 @@ internal sealed class PonteGeminiWeb : IDisposable
                 sessao = id;
             }
 
-            var nome = modelo.Split('-')[^1];
-            var rotuloNivel = nivel switch
-            {
-                "high" => "^(high|alto|alta)$",
-                "medium" => "^(medium|médio|média)$",
-                _ => "^(low|baixo|baixa)$"
-            };
-            var seletor = """vis("button,[role=button]").find(e => /abrir seletor de modo|open mode selector|seletor de modelo|model selector/i.test(label(e)))""";
             await AguardarCliqueAsync("abrir seletor de modo|open mode selector|seletor de modelo|model selector",
                 "button,[role=button]", ct);
-            await SelecionarAsync("(?:^|[\\r\\n])(?:(?:gemini(?: 4)?|4) )?" + nome + "(?:$|[\\r\\n])", ct,
-                $"O Gemini Web não oferece {modelo} para seleção nesta conta. O modo Gemini Auto não garante esse modelo.");
-            if (!(await LerAsync("const b = " + seletor + "; if (b?.getAttribute('aria-expanded') !== 'true') b?.click(); return !!b;")).GetBoolean())
-                throw new InvalidOperationException("O seletor de raciocínio do Gemini não está disponível.");
-            await AguardarCliqueAsync("^(nível de raciocínio|thinking level)$", "[role=menuitem],button", ct);
-            await SelecionarAsync(rotuloNivel, ct);
+            await SelecionarAsync(@"(?:^|[\r\n])\s*" + rotulo + @"(?:\s*[·•].*)?\s*(?:$|[\r\n])", ct,
+                $"O Gemini Web não oferece {modelo} ({nivel}) para seleção nesta conta.");
 
             var antes = (await LerAsync("""return document.querySelectorAll("model-response").length;""")).GetInt32();
             var inseriu = await LerAsync("""
@@ -242,12 +236,9 @@ internal sealed class PonteGeminiWeb : IDisposable
                 var observado = string.Join(" ", prova.EnumerateArray().Select(e => e.GetString()));
                 if (observado.Contains("flash-lite", StringComparison.OrdinalIgnoreCase))
                     return new { erro = "RESOURCE_EXHAUSTED 429: o Gemini respondeu com Flash-Lite." };
-                if (!Regex.IsMatch(observado, $@"\b{nome}\b", RegexOptions.IgnoreCase))
-                    throw new InvalidOperationException("O modelo efetivamente usado pelo Gemini não pôde ser confirmado.");
-                var badge = await LerAsync("return label(" + seletor + " || document.body);");
-                var nivelObservado = rotuloNivel.TrimStart('^').TrimEnd('$');
-                if (!Regex.IsMatch(observado + " " + badge.GetString(), $@"\b{nivelObservado}\b", RegexOptions.IgnoreCase))
-                    throw new InvalidOperationException("O nível de raciocínio usado pelo Gemini não pôde ser confirmado.");
+                var sufixo = nivel == "medium" ? @"(?![ \t]+thinking\b)" : "";
+                if (!Regex.IsMatch(observado, $@"\b{rotulo}\b{sufixo}", RegexOptions.IgnoreCase))
+                    throw new InvalidOperationException("O modo efetivamente usado pelo Gemini não pôde ser confirmado.");
                 return new { modelo, nivel, texto = r.GetProperty("texto").GetString() };
             }
         }

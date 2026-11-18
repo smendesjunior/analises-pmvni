@@ -96,10 +96,14 @@ public sealed partial class MainWindow
         // Correções 2026-11-15: editar direto na prévia, exigência escrita à mão, pasta nova e instrução para a IA.
         n.PreviaEditada += (chave, texto) => EditarPelaPrevia(chave, texto);
         n.AjustarTextoComIa = AjustarTextoDaExigenciaAsync;
-        n.BotaoAdicionarExigencia.Click += (_, _) => _ = NaFilaAsync(() => TentarAsync(() =>
+        n.BotaoAdicionarExigencia.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(async () =>
         {
-            if (novo is { Passo: PassoNovoDespacho.Conteudo, Rascunho: { } r } s0) { r.AdicionarExigencia(); PreencherConteudo(s0); }
-            return Task.CompletedTask;
+            if (novo is not { Passo: PassoNovoDespacho.Conteudo, Rascunho: { } r } sessaoAtual) return;
+            var texto = await Perguntas.Atual.PedirTextoAsync("Adicionar exigência", "Texto da exigência", "");
+            if (string.IsNullOrWhiteSpace(texto) || !ReferenceEquals(novo, sessaoAtual)) return;
+            r.AdicionarExigencia(texto.Trim());
+            MontarExigencias(sessaoAtual);
+            AtualizarPrevia();
         }));
         n.BotaoNovaPasta.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(CriarPastaNovaNaVezAsync));
         n.BotaoEscolherRelatorio.Click += (_, _) => NaOrigem(EscolherRelatorioNaVezAsync);

@@ -34,7 +34,7 @@ public static class Processos
     const int NiveisMaximos = 3;
 
     static readonly Regex PastaAno = new(@"^\d{4}$", RegexOptions.CultureInvariant);
-    static readonly Regex NomeProcesso = new(@"^(?<num>\d{1,6})\s*-\s*(?<ano>\d{4})\s+-\s+(?<req>.+)$", RegexOptions.CultureInvariant);
+    static readonly Regex NomeProcesso = new(@"^\s*(?:PROCC?\.?\s*)?(?<num>[0-9]{1,7})\s*[-_/]\s*(?<ano>[0-9]{4})\s*-\s*(?<req>\S.*)$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     static readonly Regex NomeDespacho = new(@"^DESPACHO\s+(?<n>\d{1,3})\s+-\s+(?<data>\d{4}-\d{2}-\d{2})$",
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     static readonly string[] ExtensoesDespacho = { ".docx", ".doc", ".pdf" };

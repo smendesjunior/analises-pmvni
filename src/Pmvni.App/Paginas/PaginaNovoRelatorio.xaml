@@ -300,13 +300,13 @@
                   <FontIcon Glyph="&#xE713;" FontSize="18" VerticalAlignment="Center"/>
                   <StackPanel Grid.Column="1">
                     <TextBlock Text="Detalhes da execução" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                    <TextBlock Text="Situação do kit, eventos técnicos e última mensagem da IA." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                    <TextBlock Text="Etapas da análise e última mensagem da IA." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
                   </StackPanel>
                 </Grid>
               </Expander.Header>
               <StackPanel Spacing="10">
-                <TextBlock x:Name="TextoRotulo" x:FieldModifier="internal" FontFamily="Cascadia Mono, Consolas" FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                <TextBlock x:Name="TextoEventos" x:FieldModifier="internal" FontFamily="Cascadia Mono, Consolas" FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                <TextBlock x:Name="TextoRotulo" x:FieldModifier="internal" FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+                <TextBlock x:Name="TextoEventos" x:FieldModifier="internal" FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <StackPanel x:Name="PainelUltimaMensagem" x:FieldModifier="internal" Spacing="4">
                   <TextBlock Text="Última mensagem do ChatGPT" Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="12"/>

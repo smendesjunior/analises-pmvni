@@ -137,9 +137,12 @@ public static class FluxoNovoRelatorio
     public static string TituloExecucao(Provedor p, Processo pr, TimeSpan decorrido)
     {
         var minutos = Math.Max(0, (long)Math.Floor(decorrido.TotalMinutes));
-        var tempo = minutos < 60
-            ? minutos.ToString(CultureInfo.InvariantCulture) + " min"
-            : string.Create(CultureInfo.InvariantCulture, $"{minutos / 60} h {minutos % 60:D2} min");
+        var tempo = minutos switch
+        {
+            0 => string.Create(CultureInfo.InvariantCulture, $"{Math.Max(0, (int)decorrido.TotalSeconds)} s"),
+            < 60 => string.Create(CultureInfo.InvariantCulture, $"{minutos} min"),
+            _ => string.Create(CultureInfo.InvariantCulture, $"{minutos / 60} h {minutos % 60:D2} min"),
+        };
         return $"Analisando com o {Provedores.Nome(p)} · {Identificacao(pr)} · {tempo}";
     }
 
@@ -218,18 +221,17 @@ public static class FluxoNovoRelatorio
     public static string TextoProcessoExiste(int numero, int ano, string pasta) =>
         string.Create(CultureInfo.InvariantCulture, $"O processo {numero:D4}/{ano} já existe: {pasta}.");
 
-    /// <summary>Os campos do diálogo "Criar processo": número de 1 a 6 dígitos (≥ 1), ano de 4 dígitos entre 1990 e o ano atual + 1 e requerente não vazio.
+    /// <summary>Os campos do diálogo "Criar processo": número positivo aceito pelo kit, ano de 4 dígitos entre 1990 e o ano atual + 1 e requerente não vazio.
     /// null = "Criar" fica desabilitado.</summary>
     public static DadosNovoProcesso? LerNovoProcesso(string numero, string ano, string requerente, int anoAtual)
     {
         numero = (numero ?? "").Trim();
         ano = (ano ?? "").Trim();
         requerente = (requerente ?? "").Trim();
-        if (numero.Length is < 1 or > 6 || !numero.All(char.IsAsciiDigit)) return null;
+        if (!int.TryParse(numero, NumberStyles.None, CultureInfo.InvariantCulture, out var n)) return null;
         if (ano.Length != 4 || !ano.All(char.IsAsciiDigit)) return null;
-        var n = int.Parse(numero, CultureInfo.InvariantCulture);
         var a = int.Parse(ano, CultureInfo.InvariantCulture);
-        if (n < 1 || a < 1990 || a > anoAtual + 1 || requerente.Length == 0) return null;
+        if (n is < 1 or > 9999999 || a < 1990 || a > anoAtual + 1 || requerente.Length == 0) return null;
         return new DadosNovoProcesso(n, a, requerente);
     }
 }

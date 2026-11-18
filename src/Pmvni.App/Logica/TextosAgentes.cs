@@ -57,7 +57,7 @@ public static class TextosAgentes
 
     public static string PerfilFixadoTexto(PerfilGemini fixado, PerfilGemini? escolhido) =>
         $"A análise deste processo com o Gemini começou em \"{MatrizGemini.Nome(fixado)}\" e segue nesse perfil até o fim; em Ajustes está "
-        + (escolhido is { } e ? $"\"{MatrizGemini.Nome(e)}\"" : "sem perfil escolhido") + ". Modo, modelos e cobrança não mudam no meio de uma análise. Continuar no perfil original?";
+        + (escolhido is { } e ? $"\"{MatrizGemini.Nome(e)}\"" : "sem perfil escolhido") + ". As próximas etapas usarão a seleção atual. Confirma a troca?";
 
     public static string Titulo(Provedor p) => p switch
     {

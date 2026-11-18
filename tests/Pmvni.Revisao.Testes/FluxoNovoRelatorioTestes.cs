@@ -62,9 +62,9 @@ public class FluxoNovoRelatorioTestes
             Assert.Equal(p, TextosAgentes.PerfilDoIndice(TextosAgentes.IndiceDoPerfil(p)));
         Assert.Equal(0, TextosAgentes.IndiceDoPerfil(PerfilGemini.ContaUltra));       // a conta não é perfil de chave
         Assert.Equal("Escolha o perfil da chave para ver os modelos de cada etapa.", TextosAgentes.MatrizDoGemini(ModoAcesso.Chave, null));
-        Assert.Equal("Conta Google (plano Ultra) — Preparo: hydrogen high · Análise: carbon high · Auditoria técnica: carbon high · Produção do relatório: hydrogen medium · "
-            + "Auditoria cruzada: argon high · Revisão final: carbon high.", TextosAgentes.MatrizDoGemini(ModoAcesso.Conta, PerfilGemini.ApiGratuita));
-        Assert.Contains("Análise: hydrogen xhigh", TextosAgentes.MatrizDoGemini(ModoAcesso.Chave, PerfilGemini.ApiGratuita));
+        Assert.Equal("Conta Google (plano Ultra) — Preparo: gemini-3.8-flash low · Análise: gemini-3.8-flash medium · Auditoria técnica: gemini-3.8-flash medium · Produção do relatório: gemini-3.8-flash medium · "
+            + "Auditoria cruzada: gemini-3.8-flash medium · Revisão final: gemini-3.8-flash medium.", TextosAgentes.MatrizDoGemini(ModoAcesso.Conta, PerfilGemini.ApiGratuita));
+        Assert.Contains("Análise: gemini-3.8-flash medium", TextosAgentes.MatrizDoGemini(ModoAcesso.Chave, PerfilGemini.ApiGratuita));
         Assert.Equal("A análise com o Gemini de 0001/2099 terminou.", FluxoNovoRelatorio.TextoKitTerminou(Provedor.Gemini, P0001));
         Assert.Equal(FluxoNovoRelatorio.TextoKitTerminou(Provedor.Claude, P0001), FluxoNovoRelatorio.TextoClaudeTerminou(P0001));
     }
@@ -153,14 +153,14 @@ public class FluxoNovoRelatorioTestes
     [Fact]
     public void titulo_da_execucao()
     {
-        Assert.Equal("Analisando com o ChatGPT · 0001/2099 · 0 min", FluxoNovoRelatorio.TituloExecucao(Provedor.ChatGpt, P0001, TimeSpan.Zero));
+        Assert.Equal("Analisando com o ChatGPT · 0001/2099 · 0 s", FluxoNovoRelatorio.TituloExecucao(Provedor.ChatGpt, P0001, TimeSpan.Zero));
         Assert.Equal("Analisando com o ChatGPT · 0001/2099 · 12 min", FluxoNovoRelatorio.TituloExecucao(Provedor.ChatGpt, P0001, TimeSpan.FromSeconds(12 * 60 + 59)));
         Assert.Equal("Analisando com o ChatGPT · 0001/2099 · 2 h 05 min", FluxoNovoRelatorio.TituloExecucao(Provedor.ChatGpt, P0001, TimeSpan.FromMinutes(125)));
         Assert.Equal("Analisando com o Claude · 0012/2099 · 1 h 00 min", FluxoNovoRelatorio.TituloExecucao(Provedor.Claude, P0012, TimeSpan.FromMinutes(60)));
         Assert.Equal("Analisando com o Claude · 0012/2099 · 59 min", FluxoNovoRelatorio.TituloExecucao(Provedor.Claude, P0012, TimeSpan.FromMinutes(59.9)));
         var foraDoPadrao = new Processo(@"C:\p\2099\pasta fora do padrao", "pasta fora do padrao", null, null, null);
         Assert.Equal("Analisando com o Claude · pasta fora do padrao · 3 min", FluxoNovoRelatorio.TituloExecucao(Provedor.Claude, foraDoPadrao, TimeSpan.FromMinutes(3)));
-        Assert.Equal("Analisando com o Claude · 0012/2099 · 0 min", FluxoNovoRelatorio.TituloExecucao(Provedor.Claude, P0012, TimeSpan.FromSeconds(-5)));   // relógio que voltou
+        Assert.Equal("Analisando com o Claude · 0012/2099 · 0 s", FluxoNovoRelatorio.TituloExecucao(Provedor.Claude, P0012, TimeSpan.FromSeconds(-5)));   // relógio que voltou
     }
 
     [Fact]
@@ -231,9 +231,10 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(new DadosNovoProcesso(9998, 2099, "Fulána de Tál"), FluxoNovoRelatorio.LerNovoProcesso(" 9998 ", "2099", " Fulána de Tál ", 2098));
         Assert.Equal(new DadosNovoProcesso(123456, 2027, "X"), FluxoNovoRelatorio.LerNovoProcesso("123456", "2027", "X", 2026));    // ano atual + 1
         Assert.Equal(new DadosNovoProcesso(1, 1990, "X"), FluxoNovoRelatorio.LerNovoProcesso("1", "1990", "X", 2026));
+        Assert.Equal(new DadosNovoProcesso(1234567, 2026, "X"), FluxoNovoRelatorio.LerNovoProcesso("1234567", "2026", "X", 2026));
         foreach (var (n, a, r) in new[]
         {
-            ("", "2026", "X"), ("0", "2026", "X"), ("1234567", "2026", "X"), ("12a", "2026", "X"), ("-1", "2026", "X"),
+            ("", "2026", "X"), ("0", "2026", "X"), ("12345678", "2026", "X"), ("12a", "2026", "X"), ("-1", "2026", "X"),
             ("1", "1989", "X"), ("1", "2028", "X"), ("1", "26", "X"), ("1", "20266", "X"), ("1", "2026", "  "), ("1", "2026", ""),
         })
             Assert.Null(FluxoNovoRelatorio.LerNovoProcesso(n, a, r, 2026));

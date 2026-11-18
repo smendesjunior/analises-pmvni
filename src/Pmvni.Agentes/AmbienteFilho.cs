@@ -5,12 +5,14 @@ namespace Pmvni.Agentes;
 /// Gemini: rota e perfil do análise Google vão declarados só quando há perfil (partida e conferência); sem perfil (leitura da situação) nada é declarado.</summary>
 public static class AmbienteFilho
 {
+    const string TrocarGoogle = "PMVNI_ANALISE_GOOGLE_TROCAR";
+
     static readonly string[] Declaradas =
     {
-        PoliticaKit.VariavelRota, PoliticaKit.VariavelRotaGoogle, PoliticaKit.VariavelPerfilGoogle, PoliticaKit.VariavelFicticioGoogle,
+        PoliticaKit.VariavelRota, PoliticaKit.VariavelRotaGoogle, PoliticaKit.VariavelPerfilGoogle, PoliticaKit.VariavelFicticioGoogle, TrocarGoogle,
     };
 
-    public static void Aplicar(IDictionary<string, string?> env, Provedor p, ModoAcesso m, string? chave, PerfilGemini? perfil = null, bool ficticio = false)
+    public static void Aplicar(IDictionary<string, string?> env, Provedor p, ModoAcesso m, string? chave, PerfilGemini? perfil = null, bool ficticio = false, bool trocarGemini = false)
     {
         if (m == ModoAcesso.Chave && string.IsNullOrWhiteSpace(chave))
             throw new ArgumentException("O modo chave de API precisa de uma chave.", nameof(chave));
@@ -26,6 +28,7 @@ public static class AmbienteFilho
         {
             env[PoliticaKit.VariavelRotaGoogle] = MatrizGemini.Rota(g);
             env[PoliticaKit.VariavelPerfilGoogle] = MatrizGemini.Codigo(g);
+            if (trocarGemini) env[TrocarGoogle] = "1";
             if (g == PerfilGemini.ApiGratuita && ficticio) env[PoliticaKit.VariavelFicticioGoogle] = "1";
         }
     }

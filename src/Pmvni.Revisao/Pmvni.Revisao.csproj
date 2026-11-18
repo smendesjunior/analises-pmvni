@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Pmvni.Revisao.Testes" />
+    <EmbeddedResource Include="Despachos/Modelos/CarimboAprovado.pdf" LogicalName="Pmvni.CarimboAprovado.pdf" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Pmvni.Composicao\Pmvni.Composicao.csproj" />

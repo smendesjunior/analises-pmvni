@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Input;
+using Windows.Graphics;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -143,6 +145,13 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(BarraTitulo);
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        BarraTitulo.Loaded += (_, _) =>
+        {
+            BarraTitulo.XamlRoot.Changed += (_, _) => AtualizarMargensDaBarraDeTitulo();
+            AtualizarMargensDaBarraDeTitulo();
+        };
+        BarraTitulo.LayoutUpdated += (_, _) => AtualizarRegioesDaBarraDeTitulo();
         Perguntas.Atual = new PerguntasDaJanela(this, () => Raiz.XamlRoot);
         ajustes = CarregarAjustes();
         Pmvni.Composicao.Profissional.Atual = ajustes.Profissional;   // assinatura de despachos e relatórios (Ajustes)
@@ -317,13 +326,52 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     /// <summary>Caixa de pesquisa do cabeçalho (correções 2026-11-15): ocupa o espaço que sobra na barra de título, entre 200 e 640 px, e
     /// acompanha a largura da janela (refeita quando a janela ou o lado esquerdo do cabeçalho muda de tamanho).</summary>
+    void AtualizarMargensDaBarraDeTitulo()
+    {
+        if (fechada || BarraTitulo.XamlRoot is not { } raiz) return;
+        var escala = raiz.RasterizationScale;
+        MargemSistemaEsquerda.Width = new GridLength(AppWindow.TitleBar.LeftInset / escala);
+        MargemSistemaDireita.Width = new GridLength(AppWindow.TitleBar.RightInset / escala);
+        AjustarPesquisa(Raiz.ActualWidth);
+    }
+
+    RectInt32[] regioesInterativas = [];
+    FrameworkElement[]? controlesDaBarraDeTitulo;
+
+    void AtualizarRegioesDaBarraDeTitulo()
+    {
+        if (fechada || BarraTitulo.XamlRoot is not { } raiz) return;
+        var escala = raiz.RasterizationScale;
+        var direita = (int)Math.Floor(BarraTitulo.ActualWidth * escala) - AppWindow.TitleBar.RightInset;
+        var esquerda = AppWindow.TitleBar.LeftInset;
+        if (direita <= esquerda) return;
+
+        controlesDaBarraDeTitulo ??= [BotaoAnalise, BotaoDesfazer, BotaoRefazer, CaixaPesquisa,
+            BotaoPesquisaAnterior, BotaoPesquisaProxima];
+        var regioes = new List<RectInt32>(controlesDaBarraDeTitulo.Length);
+        foreach (var controle in controlesDaBarraDeTitulo)
+        {
+            if (controle.Visibility != Visibility.Visible || controle.ActualWidth <= 0 || controle.ActualHeight <= 0) continue;
+            var origem = controle.TransformToVisual(Raiz).TransformPoint(new Windows.Foundation.Point());
+            var x = Math.Max(esquerda, (int)Math.Floor(origem.X * escala));
+            var y = (int)Math.Floor(origem.Y * escala);
+            var fimX = Math.Min(direita, (int)Math.Ceiling((origem.X + controle.ActualWidth) * escala));
+            var fimY = (int)Math.Ceiling((origem.Y + controle.ActualHeight) * escala);
+            if (fimX > x && fimY > y) regioes.Add(new RectInt32(x, y, fimX - x, fimY - y));
+        }
+        if (regioesInterativas.SequenceEqual(regioes)) return;
+        regioesInterativas = regioes.ToArray();
+        InputNonClientPointerSource.GetForWindowId(AppWindow.Id)
+            .SetRegionRects(NonClientRegionKind.Passthrough, regioesInterativas);
+    }
+
     void AjustarPesquisa(double largura)
     {
         if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
         if (largura <= 0) return;
         double Largura(FrameworkElement e) => e.Visibility == Visibility.Visible ? e.ActualWidth + e.Margin.Left + e.Margin.Right : 0;
         var ocupado = Largura(CabecalhoEsquerdo) + Largura(MolduraAnalise) + Largura(GrupoHistorico) + Largura(TextoPesquisa) + Largura(GrupoOcorrencias);
-        const double botoesDaJanelaEFolgas = 350; // minimizar, maximizar, fechar (área reservada pela TitleBar, ~255 px medidos), espaçamentos e arrasto
+        var botoesDaJanelaEFolgas = MargemSistemaEsquerda.Width.Value + MargemSistemaDireita.Width.Value + 84;
         var sobra = largura - ocupado - botoesDaJanelaEFolgas;
         // Sem espaço para a caixa (2026-11-17: "Próxima" cortado na borda): primeiro os rótulos de Anterior/Próxima saem (ficam os ícones,
         // com a dica e o nome para o Narrador); depois os textos da pílula da análise (fica o anel, com o texto na dica); por último o
@@ -1096,7 +1144,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // Cabeçalho (correções 2026-11-15): a marca fica sempre "Análise de Projetos"; o processo aberto vai em duas linhas (o número em
         // cima, maior e em negrito; o requerente embaixo) e o estado de gravação num selo com ícone. O Subtitle da TitleBar não é mais usado.
         TextoMarca.Text = TituloDaBarra;
-        BarraTitulo.Subtitle = "";
         var (principal, secundaria) = r is null || sessao is null ? ("", "")
             : TituloJanela.Linhas(r.Dados.Processo, r.Dados.Requerente, Path.GetFileNameWithoutExtension(sessao.Caminho));
         TextoProcesso.Text = principal;

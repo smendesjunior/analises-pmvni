@@ -99,35 +99,36 @@ public sealed partial class MainWindow
 
     /// <summary>Gemini: o perfil desta análise e a confirmação do que ele exige. Numa retomada vale o perfil em que a análise começou (com a sua confirmação
     /// quando difere do de Ajustes); o perfil gratuito pede, a cada partida, a declaração de que o processo é fictício. Ok false = nada parte.</summary>
-    async Task<(bool Ok, PerfilGemini? Perfil, bool Ficticio)> ResolverPerfilGeminiAsync(Processo processo)
+    async Task<(bool Ok, PerfilGemini? Perfil, bool Ficticio, bool Trocar)> ResolverPerfilGeminiAsync(Processo processo)
     {
         var escolhido = PerfilDoGemini;
         var fixado = await Task.Run(() => GeminiFixado.Ler(processo.Pasta));
-        var perfil = fixado ?? escolhido;
+        var perfil = escolhido;
         if (perfil is not { } pf)
         {
             MostrarMensagem(InfoBarSeverity.Warning, "Não é possível analisar agora", FluxoNovoRelatorio.SemPerfilApi);
-            return (false, null, false);
+            return (false, null, false, false);
         }
-        if (fixado is { } fx && fx != escolhido
-            && !await Perguntas.Atual.ConfirmarAsync(TextosAgentes.PerfilFixadoTitulo, TextosAgentes.PerfilFixadoTexto(fx, escolhido), "Continuar no perfil original", "Cancelar", destrutiva: false))
-            return (false, null, false);
+        var trocar = fixado is { } && fixado != pf;
+        if (trocar && fixado is { } anterior
+            && !await Perguntas.Atual.ConfirmarAsync("Trocar o modo desta análise?", TextosAgentes.PerfilFixadoTexto(anterior, pf), "Usar o modo selecionado", "Cancelar", destrutiva: false))
+            return (false, null, false, false);
         var ficticio = false;
         if (pf == PerfilGemini.ApiGratuita)
         {
             ficticio = await Perguntas.Atual.ConfirmarAsync(TextosAgentes.FicticioTitulo, TextosAgentes.FicticioTexto, TextosAgentes.FicticioSim, "Cancelar", destrutiva: false);
-            if (!ficticio) return (false, null, false);
+            if (!ficticio) return (false, null, false, false);
         }
-        return (true, pf, ficticio);
+        return (true, pf, ficticio, trocar);
     }
 
     /// <summary>A partida de uma análise pelo provedor; no Gemini, com o perfil resolvido antes (null = o usuário não confirmou e nada parte).</summary>
     async Task<ExecucaoEmCurso?> AnalisarComPerfilAsync(Provedor p, Processo processo, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto, IReadOnlyList<AnexoNovo>? enviados)
     {
         if (p != Provedor.Gemini) return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto), enviados);
-        var (ok, perfil, ficticio) = await ResolverPerfilGeminiAsync(processo);
+        var (ok, perfil, ficticio, trocar) = await ResolverPerfilGeminiAsync(processo);
         if (!ok) return null;
-        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio), enviados);
+        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar), enviados);
     }
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);
     internal void EsquecerAviso(Provedor p) { ajustes.Agentes[p].AvisoVersao = null; ajustes.Agentes[p].AvisoEm = null; SalvarAjustes(); }
@@ -218,12 +219,12 @@ public sealed partial class MainWindow
         Dicas.Aplicar(BotaoAnalise, "Análise em andamento", "Abre a tela que acompanha a análise que a IA está fazendo agora.");
 
         relogioAnalise = DispatcherQueue.GetForCurrentThread().CreateTimer();
-        relogioAnalise.Interval = TimeSpan.FromSeconds(30);
+        relogioAnalise.Interval = TimeSpan.FromSeconds(1);
         relogioAnalise.IsRepeating = true;
         relogioAnalise.Tick += (_, _) =>
         {
             AtualizarTituloAnalise();
-            if (execucaoMostrada is { } e) RenderizarExecucao(e, linhasNovas: false);
+            if (execucaoMostrada is { Fim.IsCompleted: false } e) AtualizarRelogioDaExecucao(e);
         };
         AtualizarBotoesNR();
     }
@@ -812,11 +813,17 @@ public sealed partial class MainWindow
         AtualizarBotoesNR();
     }
 
+    void AtualizarRelogioDaExecucao(ExecucaoEmCurso e)
+    {
+        NR.TextoCabecalho.Text = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, DateTime.UtcNow - e.InicioUtc)
+            + (e.Retomada ? " (retomada)" : "");
+    }
+
     void RenderizarExecucao(ExecucaoEmCurso e, bool linhasNovas)
     {
         if (fechada) return;
         var n = NR;
-        n.TextoCabecalho.Text = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, DateTime.UtcNow - e.InicioUtc) + (e.Retomada ? " (retomada)" : "");
+        AtualizarRelogioDaExecucao(e);
         var claude = Provedores.PeloKit(e.Provedor);     // Claude e Gemini: o kit informa a etapa
         n.PainelClaude.Visibility = claude ? Visibility.Visible : Visibility.Collapsed;
         n.PainelUltimaMensagem.Visibility = claude ? Visibility.Collapsed : Visibility.Visible;
@@ -831,7 +838,14 @@ public sealed partial class MainWindow
             // A etapa em que o kit informou erro fica vermelha.
             if (erro is not null) etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();
             n.TextoRotulo.Text = s is null ? "Iniciando a análise detalhada…" : $"Situação: {s.Codigo}" + (s.Rotulo is null ? "" : " · " + s.Rotulo) + (erro is null ? "" : Environment.NewLine + "Erro: " + erro);
-            n.TextoEventos.Text = string.Join(Environment.NewLine, e.Eventos.TakeLast(8));
+            n.TextoEventos.Text = string.Join(Environment.NewLine, etapas.Select(x => $"{x.Nome} · {x.Estado switch
+            {
+                EstadoEtapa.Feita => "Concluída · 100%",
+                EstadoEtapa.Agora when rodando => "Em andamento · progresso indeterminado",
+                EstadoEtapa.Agora => "Interrompida",
+                EstadoEtapa.Erro => "Com erro",
+                _ => "Pendente",
+            }}"));
         }
         else
         {
@@ -896,7 +910,7 @@ public sealed partial class MainWindow
         string? sessaoCodex = null;
         if (e.Provedor == Provedor.ChatGpt)
         {
-            sessaoCodex = fim.Situacao is "cota_esgotada" or "falhou" ? await Task.Run(() => LerSessaoCodex(e.Registro.Pasta)) : null;
+            sessaoCodex = fim.Situacao is "cota_esgotada" or "falhou" or "cancelada" ? await Task.Run(() => LerSessaoCodex(e.Registro.Pasta)) : null;
             if (sessaoCodex is null) EsquecerPendenteChatGpt(e.Registro.Pasta);
         }
         var naVista = ReferenceEquals(execucaoMostrada, e) && PaginaNovoRelatorioVisivel;
@@ -986,7 +1000,7 @@ public sealed partial class MainWindow
         if (fim.Situacao == "cota_esgotada") aviso.Severity = InfoBarSeverity.Warning;
         aviso.Message = (fim.Mensagem ?? fim.Situacao)
             + (fim.Situacao == "falhou" && sessaoCodex is not null ? " Você pode clicar em \"Continuar a análise\" para seguir de onde parou." : "");
-        NR.BotaoContinuar.Visibility = (Provedores.PeloKit(e.Provedor) && fim.Situacao is "falhou" or "interrompida") || sessaoCodex is not null
+        NR.BotaoContinuar.Visibility = (Provedores.PeloKit(e.Provedor) && fim.Situacao is "falhou" or "interrompida" or "cota_esgotada" or "cancelada") || sessaoCodex is not null
             ? Visibility.Visible : Visibility.Collapsed;
         NR.BotaoImportarPendente.Visibility = Visibility.Collapsed;
         NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Visible;
@@ -1080,9 +1094,7 @@ public sealed partial class MainWindow
         IconeAnaliseConcluida.Visibility = Se(estado == EstadoPilulaAnalise.Concluida);
         IconeAnalisePausada.Visibility = Se(estado == EstadoPilulaAnalise.Pausada);
         IconeAnaliseErro.Visibility = Se(estado == EstadoPilulaAnalise.Erro);
-        // Em andamento, o contorno na cor de destaque; nos outros estados, a borda neutra do tema.
-        ContornoAnalise.Visibility = Se(emAndamento);
-        BordaAnalise.Visibility = Se(!emAndamento);
+        Trabalhando.Definir(BordaAnalise, emAndamento, canto: 21f);
         var nome = estado switch
         {
             EstadoPilulaAnalise.EmAndamento => "Análise em andamento",

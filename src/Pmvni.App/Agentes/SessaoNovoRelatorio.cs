@@ -114,10 +114,10 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
     /// é ele que define o modo (conta ou chave), nunca o contrário.</param>
     /// <param name="ficticio">Só o Gemini, perfil gratuito: o usuário confirmou no clique que o processo é fictício.</param>
     public async Task<ExecucaoEmCurso?> AnalisarAsync(Provedor p, Processo pr, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto,
-        PerfilGemini? perfilGemini = null, bool ficticio = false)
+        PerfilGemini? perfilGemini = null, bool ficticio = false, bool trocarGemini = false)
     {
         var pc = pecas();
-        var m = p == Provedor.Gemini && perfilGemini is { } fixado ? MatrizGemini.Modo(fixado) : modo(p);
+        var m = modo(p);
         if (p != Provedor.Gemini) { perfilGemini = null; ficticio = false; }
         var chaveGuardada = m == ModoAcesso.Chave && CofreChaves.Existe(raizDados, p);
         if (FluxoNovoRelatorio.MotivoDesabilitado(p, pr, EmAndamento(pr.Pasta), pc, m, chaveGuardada, perfilGemini) is { } motivo) throw new AnaliseRecusadaException(motivo);
@@ -156,7 +156,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var orq = orquestrador();
         var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false) { Recusas = recusas };
         var progresso = Progresso(e);
-        var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro) { Perfil = perfilGemini, Ficticio = ficticio };
+        var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro) { Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini };
         e.Fim = RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava);
         execucoes.Add(e);
         return e;

@@ -69,6 +69,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     readonly System.Collections.ObjectModel.ObservableCollection<ItemAtividade> atividades = [];
     System.Collections.ObjectModel.ObservableCollection<string>? origem;
     bool emCurso = true;
+    (string Nome, EstadoEtapa Estado)[] etapasMostradas = [];
+    bool animandoEtapas;
 
     /// <summary>Liga a lista de atividades às linhas da execução (null = desliga). As linhas que já existiam entram sem horário;
     /// as que chegam depois, com o horário da chegada.</summary>
@@ -133,7 +135,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         SeloAoVivo.Visibility = rodando && !falhou ? Visibility.Visible : Visibility.Collapsed;
         BotaoCancelarAnalise.Visibility = rodando ? Visibility.Visible : Visibility.Collapsed;
 
-        if (etapas.Count > 0) MostrarEtapas(etapas);
+        MostrarEtapas(etapas, rodando && !falhou);
 
         // Descobertas: o que a IA relatou; verificadas depois da auditoria cruzada (as cinco primeiras etapas feitas).
         var lista = linhas.ToList();
@@ -181,8 +183,12 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     /// <summary>As seis etapas em linha: concluída (verde ✓), em andamento (acento ▶), erro (vermelho !) ou pendente (cinza, ícone da etapa),
     /// ligadas por um traço cheio entre as concluídas e tracejado nas pendentes.</summary>
-    internal void MostrarEtapas(IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas)
+    internal void MostrarEtapas(IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, bool animar)
     {
+        var podeAnimar = animar && new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+        if (podeAnimar == animandoEtapas && etapasMostradas.SequenceEqual(etapas)) return;
+        etapasMostradas = etapas.ToArray();
+        animandoEtapas = podeAnimar;
         PainelEtapas.Children.Clear();
         PainelEtapas.ColumnDefinitions.Clear();
         for (var i = 0; i < etapas.Count; i++)
@@ -202,9 +208,25 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 // (largura de 2 colunas: cada centro fica a 1/4 da borda; 22 = raio do círculo + folga)
                 var faixa = new Grid();
                 faixa.Children.Add(linha);
+                ProgressBar? progresso = null;
+                if (estado == EstadoEtapa.Agora && podeAnimar)
+                {
+                    progresso = new ProgressBar
+                    {
+                        IsIndeterminate = true, Height = 3, VerticalAlignment = VerticalAlignment.Top,
+                    };
+                    Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(progresso, "Progresso indeterminado de " + nome);
+                    faixa.Children.Add(progresso);
+                }
                 Grid.SetColumn(faixa, i);
                 Grid.SetColumnSpan(faixa, 2);
-                faixa.SizeChanged += (_, e) => { var w = e.NewSize.Width; linha.Margin = new Thickness(w / 4 + 22, 17, w / 4 + 22, 0); };
+                faixa.SizeChanged += (_, e) =>
+                {
+                    var w = e.NewSize.Width;
+                    var margem = new Thickness(w / 4 + 22, 17, w / 4 + 22, 0);
+                    linha.Margin = margem;
+                    if (progresso is not null) progresso.Margin = margem;
+                };
                 PainelEtapas.Children.Add(faixa);
             }
 
@@ -221,7 +243,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 BorderThickness = new Thickness(estado == EstadoEtapa.Pendente ? 1 : 0), BorderBrush = Recurso("ControlStrongStrokeColorDefaultBrush"),
                 Child = new FontIcon { Glyph = glifo, FontSize = 15, Foreground = Recurso(frente) },
             };
-            var situacao = estado switch { EstadoEtapa.Feita => "Concluída", EstadoEtapa.Agora => "Em andamento", EstadoEtapa.Erro => "Com erro", _ => "Pendente" };
+            var situacao = estado switch { EstadoEtapa.Feita => "Concluída · 100%", EstadoEtapa.Agora => animar ? "Em andamento" : "Interrompida", EstadoEtapa.Erro => "Com erro", _ => "Pendente" };
             var bloco = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Center };
             bloco.Children.Add(circulo);
             bloco.Children.Add(new TextBlock

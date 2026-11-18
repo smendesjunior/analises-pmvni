@@ -20,6 +20,7 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
     /// <summary>Gemini: o perfil (conta Ultra, API com créditos ou API gratuita) fixado para a análise inteira; null nos outros provedores e na leitura
     /// da situação.</summary>
     public PerfilGemini? Perfil { get; init; }
+    public bool TrocarGemini { get; init; }
 
     /// <summary>Gemini, perfil gratuito: o usuário declarou no clique que o processo é fictício (o plugin recusa a partida sem essa declaração).</summary>
     public bool Ficticio { get; init; }
@@ -62,11 +63,11 @@ public sealed class OrquestradorAnalise
 
     // ------------------------------------------------------------------ comum
 
-    Action<IDictionary<string, string?>> Ambiente(Provedor p, ModoAcesso modo, string? chave, PerfilGemini? perfil = null, bool ficticio = false) => env =>
+    Action<IDictionary<string, string?>> Ambiente(Provedor p, ModoAcesso modo, string? chave, PerfilGemini? perfil = null, bool ficticio = false, bool trocarGemini = false) => env =>
     {
         if (AmbienteExtra is not null)
             foreach (var (k, v) in AmbienteExtra) env[k] = v;
-        AmbienteFilho.Aplicar(env, p, modo, chave, perfil, ficticio);
+        AmbienteFilho.Aplicar(env, p, modo, chave, perfil, ficticio, trocarGemini);
     };
 
     static FimAnalise Falha(string mensagem, int? codigo = null) => new("falhou", null, null, mensagem, codigo);
@@ -401,7 +402,7 @@ public sealed class OrquestradorAnalise
 
         var (exe, argsIniciar) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, runtime, pasta, "iniciar");
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(argsIniciar).ToList());
-        var ambiente = Ambiente(p, pe.Modo, chave, pe.Perfil, pe.Ficticio);
+        var ambiente = Ambiente(p, pe.Modo, chave, pe.Perfil, pe.Ficticio, pe.TrocarGemini);
 
         var redator = new RedatorChave(chave);
         var log = new LeitorLog(Path.Combine(pasta, ResultadoAnalise.PastaControle(p), "auto-log.txt"));

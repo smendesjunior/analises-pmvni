@@ -121,6 +121,24 @@ public sealed class AssinaturaDigitalTestes
     static CertificadoAberto Abrir(PastaTeste pasta, byte[]? pfx = null, string senha = AssinaturaFicticia.Senha) =>
         CertificadoDigital.AbrirArquivo(AssinaturaFicticia.GravarPfx(pasta, pfx ?? AssinaturaFicticia.Pfx()), senha);
 
+    [Fact]
+    public void assinatura_permanece_no_conteudo_impresso_sem_anotacoes()
+    {
+        using var pasta = Ambiente.PastaDeTeste("assinatura-impressa");
+        using var certificado = Abrir(pasta, AssinaturaFicticia.Pfx(de: Quando.AddDays(-1), ate: Quando.AddDays(1)));
+        var entrada = AssinaturaFicticia.Pdf();
+        var resultado = AssinaturaPdf.Assinar(entrada.Bytes, certificado, Quando, null);
+        using var doc = UglyToad.PdfPig.PdfDocument.Open(resultado.Pdf);
+        var pagina = doc.GetPage(resultado.Local.Pagina + 1);
+        Assert.Contains("Assinado de forma digital", pagina.Text);
+        Assert.Contains("FULANO", pagina.Text);
+        Assert.DoesNotContain("Assinado de forma digital", doc.GetPage(1).Text);
+        var (bytes, assinatura, _) = AssinaturaFicticia.Extrair(resultado.Pdf);
+        var cms = new SignedCms(new ContentInfo(bytes), detached: true);
+        cms.Decode(assinatura);
+        cms.CheckSignature(verifySignatureOnly: true);
+    }
+
     // ---------- o certificado ----------
 
     [Fact]
@@ -230,6 +248,29 @@ public sealed class AssinaturaDigitalTestes
         Assert.Contains(InfoPdf.Fontes(a.Pdf), f => f.StartsWith("Verdana", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Carimbo_preserva_peticao_data_e_observacoes_selecionaveis()
+    {
+        using var pasta = Ambiente.PastaDeTeste("carimbo-aprovado");
+        using var c = Abrir(pasta, AssinaturaFicticia.Pfx(de: Quando.AddDays(-1), ate: Quando.AddYears(1)));
+        var original = AssinaturaFicticia.Pdf(1, comLinha: false);
+        var selecionadas = new[] { ObservacaoPrancha.Predefinidas[1], ObservacaoPrancha.Predefinidas[6],
+            new ObservacaoPrancha("Exemplo de observação.", "Referência fictícia.") };
+        var a = CarimboAprovado.Aplicar(original.Bytes, 0, 12, 12, "TESTE-42", c, Quando,
+            selecionadas, new PdfSharp.Drawing.XRect(15, 230, 450, 240));
+        using var pdf = UglyToad.PdfPig.PdfDocument.Open(a.Pdf);
+        var texto = string.Join(" ", pdf.GetPage(1).GetWords().Select(p => p.Text));
+        Assert.Contains("TESTE-42", texto);
+        Assert.Contains(Quando.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture), texto);
+        Assert.Contains("OBSERVAÇÕES:", texto);
+        Assert.Contains("cisterna", ObservacaoPrancha.Predefinidas[3].Texto);
+        Assert.DoesNotContain("cisterna", texto);
+        Assert.Contains("Exemplo", texto);
+        var (conteudo, der, _) = AssinaturaFicticia.Extrair(a.Pdf);
+        var cms = new SignedCms(new ContentInfo(conteudo), detached: true);
+        cms.Decode(der);
+        cms.CheckSignature(verifySignatureOnly: true);
+    }
     [Theory]
     [InlineData(1, 300)]
     [InlineData(2, 180)]
@@ -470,7 +511,11 @@ public sealed class AssinaturaDigitalTestes
                 Assert.InRange(local.YPt - linha.Top, 0.5, 3);
                 Assert.True(local.YPt + local.AlturaPt < data.Bottom - 2, "a assinatura visível encosta na data");
                 // Nenhum texto da página fica debaixo da assinatura visível.
-                Assert.DoesNotContain(palavras, w => w.BoundingBox.Right > local.XPt && w.BoundingBox.Left < local.XPt + local.LarguraPt
+                var original = EmissaoDespacho.Preparar(PreenchimentoDocxTestes.Final(tipo, exigencias), modelos.Single(m => m.Tipo == tipo),
+                    Path.Combine(raiz, "original" + n), conv, CancellationToken.None);
+                Assert.Empty(original.Erros);
+                using var semAssinatura = UglyToad.PdfPig.PdfDocument.Open(original.Pdf!);
+                Assert.DoesNotContain(semAssinatura.GetPage(local.Pagina + 1).GetWords(), w => w.BoundingBox.Right > local.XPt && w.BoundingBox.Left < local.XPt + local.LarguraPt
                     && w.BoundingBox.Top > local.YPt && w.BoundingBox.Bottom < local.YPt + local.AlturaPt);
                 // O nome continua logo abaixo da linha.
                 Assert.Contains(palavras, w => w.Text == "SIDNEY" && w.BoundingBox.Top < linha.Bottom);

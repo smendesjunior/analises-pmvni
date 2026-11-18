@@ -17,6 +17,8 @@ public sealed record EtapaGemini(string Etapa, string Modelo, string Esforco)
 public static class MatrizGemini
 {
     public const string Hydrogen = "gemini-4-hydrogen";
+    public const string Flash = "gemini-3.8-flash";
+    public const string Pro = "gemini-3.1-pro";
     public const string Carbon = "gemini-4-carbon";
     public const string Argon = "gemini-4-argon";
 
@@ -26,24 +28,39 @@ public static class MatrizGemini
     /// <summary>Limite de saída pedido pela API nas etapas de mérito. O <c>agy</c> não expõe esse parâmetro: o plugin registra o pedido e que não foi aplicado.</summary>
     public const int MaxSaidaApi = 131072;
 
-    static readonly EtapaGemini[] Pagos =
+    static readonly EtapaGemini[] Antigravity =
     {
-        new("prepare", Hydrogen, "high"), new("analyze", Carbon, "high"), new("technical_audit", Carbon, "high"),
-        new("produce", Hydrogen, "medium"), new("audit", Argon, "high"), new("final_review", Carbon, "high"),
+        new("prepare", Flash, "low"), new("analyze", Flash, "medium"), new("technical_audit", Flash, "medium"),
+        new("produce", Flash, "medium"), new("audit", Flash, "medium"), new("final_review", Flash, "medium"),
     };
 
-    static readonly EtapaGemini[] Gratuito =
+    static readonly EtapaGemini[] ApiCreditos =
     {
-        new("prepare", Hydrogen, "high"), new("analyze", Hydrogen, "xhigh"), new("technical_audit", Hydrogen, "xhigh"),
-        new("produce", Hydrogen, "medium"), new("audit", Hydrogen, "xhigh"), new("final_review", Hydrogen, "xhigh"),
+        new("prepare", Flash, "low"), new("analyze", Carbon, "medium"), new("technical_audit", Argon, "medium"),
+        new("produce", Flash, "medium"), new("audit", Carbon, "medium"), new("final_review", Flash, "medium"),
     };
 
-    /// <summary>As seis etapas, na ordem do controlador do kit.</summary>
-    public static IReadOnlyList<EtapaGemini> Etapas(PerfilGemini perfil) => perfil == PerfilGemini.ApiGratuita ? Gratuito : Pagos;
+    static readonly EtapaGemini[] Web =
+    {
+        new("prepare", Hydrogen, "medium"), new("analyze", Hydrogen, "high"), new("technical_audit", Hydrogen, "high"),
+        new("produce", Hydrogen, "medium"), new("audit", Pro, "high"), new("final_review", Hydrogen, "high"),
+    };
 
-    /// <summary>Os níveis que cada modelo aceita no runtime (conferido em <c>agy models</c>, 1.5.10): Carbon e Argon até <c>high</c>; Hydrogen até <c>xhigh</c>.</summary>
-    public static IReadOnlyList<string> Esforcos(string modelo) =>
-        modelo == Hydrogen ? new[] { "low", "medium", "high", "xhigh" } : new[] { "low", "medium", "high" };
+    public static IReadOnlyList<EtapaGemini> Etapas(PerfilGemini perfil) => perfil switch
+    {
+        PerfilGemini.ContaGemini => Web,
+        PerfilGemini.ApiCreditos => ApiCreditos,
+        _ => Antigravity,
+    };
+
+    public static IReadOnlyList<string> Esforcos(string modelo) => modelo switch
+    {
+        Flash => new[] { "low", "medium", "high" },
+        Hydrogen => new[] { "medium", "high" },
+        Pro => new[] { "high" },
+        Carbon or Argon => new[] { "medium" },
+        _ => Array.Empty<string>(),
+    };
 
     /// <summary>As etapas de mérito, que recebem o tempo e a saída estendidos.</summary>
     public static bool EtapaDeMerito(string etapa) => etapa is "analyze" or "technical_audit";

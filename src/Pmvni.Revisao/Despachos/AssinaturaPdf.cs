@@ -133,21 +133,38 @@ public static class AssinaturaPdf
         ArgumentNullException.ThrowIfNull(pdf);
         ArgumentNullException.ThrowIfNull(certificado);
         if (CertificadoDigital.Problema(certificado.Certificado, quando) is { } problema) throw new AssinaturaDigitalException(problema);
-        var local = Localizar(pdf);
+        return AssinarNoLocal(pdf, certificado, quando, logo, Localizar(pdf), "Despacho da Secretaria Municipal de Obras");
+    }
+
+    internal static PdfAssinado AssinarNoLocal(byte[] pdf, CertificadoAberto certificado, DateTimeOffset quando,
+        LogoAssinatura? logo, LocalAssinatura local, string motivo)
+    {
+        if (CertificadoDigital.Problema(certificado.Certificado, quando) is { } problema)
+            throw new AssinaturaDigitalException(problema);
         var info = certificado.Info;
         PrepararFontes();
         try
         {
             using var doc = PdfReader.Open(new MemoryStream(pdf, writable: false), PdfDocumentOpenMode.Modify);
             if (local.Pagina >= doc.PageCount) throw new AssinaturaDigitalException(SemLinha);
+            var pagina = doc.Pages[local.Pagina];
+            var aparencia = new Aparencia(Frases(info.Titular, quando), logo);
+            // A impressão pode omitir widgets. O conteúdo visível entra no documento antes do cálculo do CMS.
+            using (var gfx = XGraphics.FromPdfPage(pagina, XGraphicsPdfPageOptions.Append))
+            {
+                gfx.TranslateTransform(local.XPt, pagina.Height.Point - local.YPt - local.AlturaPt);
+                var area = new XRect(0, 0, local.LarguraPt, local.AlturaPt);
+                gfx.IntersectClip(area);
+                aparencia.DrawAppearance(gfx, area);
+            }
             var opcoes = new DigitalSignatureOptions
             {
-                Reason = "Despacho da Secretaria Municipal de Obras",
+                Reason = motivo,
                 Location = "Venda Nova do Imigrante/ES",
                 AppName = "Editor de Relatórios PMVNI",
                 PageIndex = local.Pagina,
                 Rectangle = new XRect(local.XPt, local.YPt, local.LarguraPt, local.AlturaPt),
-                AppearanceHandler = new Aparencia(Frases(info.Titular, quando), logo),
+                AppearanceHandler = aparencia,
             };
             DigitalSignatureHandler.ForDocument(doc, new Assinante(certificado, quando), opcoes);
             using var saida = new MemoryStream();

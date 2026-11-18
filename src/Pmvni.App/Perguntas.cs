@@ -123,7 +123,7 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
     public async Task<DadosNovoProcesso?> PedirNovoProcessoAsync(string sugestao)
     {
         var anoAtual = DateTime.Now.Year;
-        var numero = new TextBox { Header = "Número do processo", PlaceholderText = "ex.: 123", MaxLength = 6, InputScope = Numerico() };
+        var numero = new TextBox { Header = "Número do processo", PlaceholderText = "ex.: 123" };
         var ano = new TextBox { Header = "Ano do protocolo", Text = anoAtual.ToString(CultureInfo.InvariantCulture), MaxLength = 4, InputScope = Numerico() };
         var requerente = new TextBox { Header = "Requerente", PlaceholderText = "Nome do requerente", Text = sugestao ?? "" };
         var painel = new StackPanel { Spacing = 10, MinWidth = 360 };
