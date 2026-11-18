@@ -775,6 +775,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         manipuladores[ComandosApp.ArquivoAbrir] = AbrirPeloSeletorAsync;
         manipuladores[ComandosApp.ArquivoSalvar] = SalvarAsync;
         manipuladores[ComandosApp.ArquivoSalvarComo] = SalvarComoAsync;
+        manipuladores[ComandosApp.EmitirProcessoAprovado] = EmitirProcessoAprovadoAsync;
         manipuladores[ComandosApp.ArquivoExportarPdf] = ExportarPeloSeletorAsync;
         manipuladores[ComandosApp.ArquivoFechar] = async () => await FecharSessaoAsync();
         manipuladores[ComandosApp.ExibirMenos] = DiminuirAsync;

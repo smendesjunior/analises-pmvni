@@ -64,12 +64,40 @@ public sealed partial class MainWindow
             case Modulo.Relatorios: await ImprimirRelatorioAsync(); break;
             case Modulo.Legislacao: await ImprimirLeiAsync(); break;
             case Modulo.Processos: await ImprimirArquivoAsync(entradaEscolhida?.Caminho); break;
-            case Modulo.Despachos: await ImprimirArquivoAsync(PdfDoDespachoParaImprimir()); break;
+            case Modulo.Despachos: await ImprimirDespachoAsync(); break;
             case var m when Modulos.EhSite(m):
                 if (PaginaDeSites.Atual is not { } site) return;
                 if (AberturaExterna.Simular) { AberturaExterna.Registradas.Add("imprimir: " + site.Source); return; }
                 site.ShowPrintUI(CoreWebView2PrintDialogKind.Browser);
                 break;
+        }
+    }
+
+    async Task ImprimirDespachoAsync()
+    {
+        var caminho = PdfDoDespachoParaImprimir();
+        if (caminho is null || !File.Exists(caminho) || AberturaExterna.Simular)
+        {
+            await ImprimirArquivoAsync(caminho);
+            return;
+        }
+        var via = await Task.Run(() => ImpressaoDespacho.PrepararCopia(File.ReadAllBytes(caminho)));
+        if (via is null)
+        {
+            await ImprimirArquivoAsync(caminho);
+            return;
+        }
+        var pasta = NovaPastaDeImpressao();
+        try
+        {
+            var arquivo = Path.Combine(pasta, Path.GetFileName(caminho));
+            await File.WriteAllBytesAsync(arquivo, via);
+            await AbrirJanelaImpressaoAsync(arquivo, "Via de impressão — " + Path.GetFileNameWithoutExtension(caminho), pasta);
+        }
+        catch
+        {
+            ApagarPastaDeImpressao(pasta);
+            throw;
         }
     }
 

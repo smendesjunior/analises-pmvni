@@ -9,6 +9,7 @@ public static class ComandosApp
     public const string ArquivoAbrir = "arquivo.abrir";
     public const string ArquivoSalvar = "arquivo.salvar";
     public const string ArquivoSalvarComo = "arquivo.salvarComo";
+    public const string EmitirProcessoAprovado = "relatorios.emitirProcessoAprovado";
     public const string ArquivoExportarPdf = "arquivo.exportarPdf";
     public const string ArquivoFechar = "arquivo.fechar";
     /// <summary>Imprimir (2026-11-17): a janela de impressão do Edge (impressoras do Windows e "Salvar como PDF") com o documento à

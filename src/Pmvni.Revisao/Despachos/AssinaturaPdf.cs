@@ -137,7 +137,7 @@ public static class AssinaturaPdf
     }
 
     internal static PdfAssinado AssinarNoLocal(byte[] pdf, CertificadoAberto certificado, DateTimeOffset quando,
-        LogoAssinatura? logo, LocalAssinatura local, string motivo)
+        LogoAssinatura? logo, LocalAssinatura local, string motivo, bool vistoNaPagina = false)
     {
         if (CertificadoDigital.Problema(certificado.Certificado, quando) is { } problema)
             throw new AssinaturaDigitalException(problema);
@@ -150,6 +150,7 @@ public static class AssinaturaPdf
             var pagina = doc.Pages[local.Pagina];
             var aparencia = new Aparencia(Frases(info.Titular, quando), logo);
             // A impressão pode omitir widgets. O conteúdo visível entra no documento antes do cálculo do CMS.
+            if (!vistoNaPagina)
             using (var gfx = XGraphics.FromPdfPage(pagina, XGraphicsPdfPageOptions.Append))
             {
                 gfx.TranslateTransform(local.XPt, pagina.Height.Point - local.YPt - local.AlturaPt);
@@ -164,7 +165,7 @@ public static class AssinaturaPdf
                 AppName = "Editor de Relatórios PMVNI",
                 PageIndex = local.Pagina,
                 Rectangle = new XRect(local.XPt, local.YPt, local.LarguraPt, local.AlturaPt),
-                AppearanceHandler = aparencia,
+                AppearanceHandler = vistoNaPagina ? null : aparencia,
             };
             DigitalSignatureHandler.ForDocument(doc, new Assinante(certificado, quando), opcoes);
             using var saida = new MemoryStream();
@@ -235,7 +236,7 @@ public static class AssinaturaPdf
     }
 
     /// <summary><c>SigningCertificateV2</c> (RFC 5035) com o SHA-256 do certificado do titular: liga a assinatura a este certificado.</summary>
-    static byte[] CertificadoAssinanteV2(X509Certificate2 c)
+    internal static byte[] CertificadoAssinanteV2(X509Certificate2 c)
     {
         var w = new AsnWriter(AsnEncodingRules.DER);
         using (w.PushSequence())      // SigningCertificateV2
@@ -249,6 +250,9 @@ public static class AssinaturaPdf
 
     /// <summary>Desenha a aparência no retângulo do campo: a logomarca à esquerda (inteira, sem deformar, centrada na altura) e o texto
     /// à direita, com o maior tamanho de letra (até 9,5 pt) em que todas as linhas cabem.</summary>
+    internal static void DesenharVisto(XGraphics gfx, XRect area, string titular, DateTimeOffset hora) =>
+        new Aparencia(Frases(titular, hora), null).DrawAppearance(gfx, area);
+
     sealed class Aparencia(IReadOnlyList<string> frases, LogoAssinatura? logo) : IAnnotationAppearanceHandler
     {
         const string Fonte = "Arial";

@@ -249,6 +249,73 @@ public sealed class AssinaturaDigitalTestes
     }
 
     [Fact]
+    public void Via_de_impressao_incorpora_widget_antigo_sem_modificar_o_arquivo()
+    {
+        using var pasta = Ambiente.PastaDeTeste("impressao-legado");
+        using var c = Abrir(pasta, AssinaturaFicticia.Pfx(de: Quando.AddDays(-1), ate: Quando.AddYears(1)));
+        var novo = AssinaturaPdf.Assinar(AssinaturaFicticia.Pdf().Bytes, c, Quando, null);
+        Assert.Null(ImpressaoDespacho.PrepararCopia(novo.Pdf));
+        // A estrutura antiga s� cont�m a apar�ncia no widget. Remover a �ltima camada
+        // de p�gina reproduz essa condi��o, preservando o XObject e suas fontes.
+        using var documento = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(novo.Pdf), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Modify);
+        var conteudos = documento.Pages[novo.Local.Pagina].Contents.Elements;
+        conteudos.RemoveAt(conteudos.Count - 1);
+        using var memoria = new MemoryStream();
+        documento.Save(memoria);
+        var antigo = memoria.ToArray();
+        var sha = SHA256.HashData(antigo);
+        var via = ImpressaoDespacho.PrepararCopia(antigo);
+        Assert.NotNull(via);
+        Assert.Equal(sha, SHA256.HashData(antigo));
+        using var pdf = UglyToad.PdfPig.PdfDocument.Open(via);
+        Assert.Contains("Assinado de forma digital", string.Join(" ", pdf.GetPage(novo.Local.Pagina + 1).GetWords().Select(p => p.Text)));
+        Assert.Null(ImpressaoDespacho.PrepararCopia(via));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(90)]
+    [InlineData(180)]
+    [InlineData(270)]
+    public void Certificacao_no_limite_da_folha_mantem_integridade(int giro)
+    {
+        using var pasta = Ambiente.PastaDeTeste("certificacao-prancha");
+        using var c = Abrir(pasta, AssinaturaFicticia.Pfx(de: Quando.AddDays(-1), ate: Quando.AddYears(1)));
+        var basePdf = AssinaturaFicticia.Pdf(2, comLinha: false).Bytes;
+        using var entrada = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(basePdf), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Modify);
+        var ultima = entrada.Pages[1];
+        ultima.Rotate = giro;
+        ultima.CropBox = new PdfSharp.Pdf.PdfRectangle(new PdfSharp.Drawing.XRect(15, 25, 500, 700));
+        ultima.Elements.SetReal("/UserUnit", 2);
+        using var memoria = new MemoryStream();
+        entrada.Save(memoria);
+        var visto = CarimboAprovado.Aplicar(memoria.ToArray(), 1, 10, 10, "TESTE", c, Quando);
+        var bytes = CertificacaoPrancha.Certificar(visto, Quando, c, c.Certificado);
+        using var resultado = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(bytes), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+        var sig = resultado.Internals.Catalog.Elements.GetDictionary("/Perms")!.Elements.GetDictionary("/DocMDP")!;
+        Assert.Equal("/ETSI.CAdES.detached", sig.Elements.GetName("/SubFilter"));
+        Assert.Equal(1, sig.Elements.GetArray("/Reference")!.Elements.GetDictionary(0)!.Elements.GetDictionary("/TransformParams")!.Elements.GetInteger("/P"));
+        var campo = resultado.Pages[1].Elements.GetArray("/Annots")!.Elements.GetDictionary(0)!;
+        var rect = campo.Elements.GetRectangle("/Rect");
+        var esperado = giro switch { 0 => (405,25,515,42), 90 => (498,615,515,725), 180 => (15,708,125,725), _ => (15,25,32,135) };
+        Assert.Equal(esperado, ((int)rect.X1,(int)rect.Y1,(int)rect.X2,(int)rect.Y2));
+        var range = sig.Elements.GetArray("/ByteRange")!.Elements;
+        var primeiro = range.GetInteger(1);
+        var segundo = range.GetInteger(2);
+        Assert.Equal(bytes.Length, segundo + range.GetInteger(3));
+        var conteudo = bytes[..primeiro].Concat(bytes[segundo..]).ToArray();
+        var der = Convert.FromHexString(System.Text.Encoding.ASCII.GetString(bytes[(primeiro + 1)..(segundo - 1)]));
+        var cms = new SignedCms(new ContentInfo(conteudo), true);
+        cms.Decode(der);
+        cms.CheckSignature(true);
+        conteudo[10] ^= 1;
+        var adulterado = new SignedCms(new ContentInfo(conteudo), true);
+        adulterado.Decode(der);
+        Assert.ThrowsAny<CryptographicException>(() => adulterado.CheckSignature(true));
+        if (Environment.GetEnvironmentVariable("PMVNI_TESTES_GUARDAR_PDF") is { Length: > 0 } dest && Directory.Exists(dest))
+            File.WriteAllBytes(Path.Combine(dest, $"certificado-ficticio-{giro}.pdf"), bytes);
+    }
+    [Fact]
     public void Carimbo_preserva_peticao_data_e_observacoes_selecionaveis()
     {
         using var pasta = Ambiente.PastaDeTeste("carimbo-aprovado");

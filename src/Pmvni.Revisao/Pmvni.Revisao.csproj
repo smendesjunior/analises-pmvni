@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Pmvni.Revisao.Testes" />
+    <EmbeddedResource Include="Despachos/Modelos/PMVNI-Emissao-Local.cer" LogicalName="Pmvni.CertificadoEmissaoLocal.cer" />
     <EmbeddedResource Include="Despachos/Modelos/CarimboAprovado.pdf" LogicalName="Pmvni.CarimboAprovado.pdf" />
   </ItemGroup>
   <ItemGroup>

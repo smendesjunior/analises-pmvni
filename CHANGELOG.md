@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.0
+
+- Em Relatórios, “Emitir Processo Aprovado” abre a seleção de pranchas, a colocação do carimbo e a escolha das observações. A emissão preenche petição e data e usa a assinatura configurada do analista.
+- A certificação de emissão local fica no limite inferior direito da última página. O PDF inclui a via assinada pelo analista. O certificado público acompanha o aplicativo.
+- A impressão dos despachos antigos com o campo de assinatura do Editor prepara uma via temporária imprimível.
+
 ## 1.1.2
 
 - A assinatura visível dos novos despachos integra o conteúdo imprimível do PDF, inclusive quando a impressão omite anotações.
