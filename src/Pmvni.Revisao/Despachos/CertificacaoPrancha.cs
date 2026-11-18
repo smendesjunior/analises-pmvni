@@ -22,6 +22,33 @@ public static class CertificacaoPrancha
         return X509CertificateLoader.LoadCertificate(bytes.ToArray());
     }
 
+    public const string PacoteRede = @"Z:\Engenharia\KIT DE TREINAMENTO DE IA (PMVNI)\Certificado de emissão\PMVNI-Emissao.pfx";
+
+    public static bool DisponivelNesteWindows()
+    {
+        using var publico = CertificadoPublico();
+        try
+        {
+            using var instalado = CertificadoDigital.AbrirDoWindows(publico.Thumbprint);
+            return instalado.Certificado.RawData.AsSpan().SequenceEqual(publico.RawData);
+        }
+        catch (AssinaturaDigitalException) { return false; }
+    }
+
+    public static void InstalarNesteWindows(string senha)
+    {
+        using var publico = CertificadoPublico();
+        var pacote = File.ReadAllBytes(PacoteRede);
+        using var teste = X509CertificateLoader.LoadPkcs12(pacote, senha, X509KeyStorageFlags.EphemeralKeySet);
+        if (!teste.RawData.AsSpan().SequenceEqual(publico.RawData) || CertificadoDigital.Problema(teste, DateTimeOffset.Now) is not null)
+            throw new AssinaturaDigitalException("O pacote do kit não corresponde ao certificado de emissão válido do aplicativo.");
+        using var certificado = X509CertificateLoader.LoadPkcs12(pacote, senha,
+            X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet);
+        using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        store.Open(OpenFlags.ReadWrite);
+        store.Add(certificado);
+    }
+
     public static byte[] Emitir(PdfAssinado visto, DateTimeOffset agora)
     {
         using var publico = CertificadoPublico();

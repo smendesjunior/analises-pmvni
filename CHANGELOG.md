@@ -5,7 +5,7 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 ## 1.2.0
 
 - Em Relatórios, “Emitir Processo Aprovado” abre a seleção de pranchas, a colocação do carimbo e a escolha das observações. A emissão preenche petição e data e usa a assinatura configurada do analista.
-- A certificação de emissão local fica no limite inferior direito da última página. O PDF inclui a via assinada pelo analista. O certificado público acompanha o aplicativo.
+- A certificação de emissão local fica no limite inferior direito da última página. O PDF inclui a via assinada pelo analista. O certificado público acompanha o aplicativo. Nos demais PCs, a primeira emissão instala a chave pelo pacote protegido da Engenharia e pede a senha de inscrição.
 - A impressão dos despachos antigos com o campo de assinatura do Editor prepara uma via temporária imprimível.
 
 ## 1.1.2

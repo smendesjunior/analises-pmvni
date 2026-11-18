@@ -20,6 +20,23 @@ public sealed partial class MainWindow
         }
         var arquivos = await Perguntas.Atual.AbrirArquivosAsync(".pdf");
         if (arquivos.Count == 0) return;
+        if (!CertificacaoPrancha.DisponivelNesteWindows())
+        {
+            if (!File.Exists(CertificacaoPrancha.PacoteRede))
+            {
+                MostrarMensagem(InfoBarSeverity.Warning, "Certificado institucional", "Conecte este PC à rede da Engenharia para acessar o pacote de inscrição do kit PMVNI.");
+                return;
+            }
+            var pedido = await Perguntas.Atual.PedirSenhaAsync("Habilitar emissão neste Windows",
+                "Informe a senha de inscrição fornecida pela Engenharia. A chave será instalada no repositório pessoal deste usuário.", false);
+            if (pedido is null) return;
+            try { await Task.Run(() => CertificacaoPrancha.InstalarNesteWindows(pedido.Senha)); }
+            catch (System.Security.Cryptography.CryptographicException)
+            {
+                MostrarMensagem(InfoBarSeverity.Error, "Inscrição do certificado", "A senha ou o pacote do kit não pôde ser validado.");
+                return;
+            }
+        }
         var pasta = await Perguntas.Atual.EscolherPastaAsync();
         if (pasta is null) return;
         var marcacoes = new List<(string Nome, string Destino, byte[] Original, MarcacaoAprovacao Marca, bool Substituir)>();
