@@ -2,6 +2,29 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.1.0
+
+Terceira IA no Novo relatório: **Analisar com o Gemini** (o app mostra "Versão 1.1"). O ChatGPT e o Claude continuam como estavam.
+
+- **Analisar com o Gemini:** terceiro botão em Novo relatório › Analisar, ao lado do ChatGPT e do Claude. Usa o mesmo processo, os mesmos anexos e o mesmo pedido, mostra as seis etapas e o andamento, pode ser cancelado, continua de onde parou e abre o relatório no fim, como os outros dois.
+- **Plugin análise Google (kit PMVNI):** a análise é feita pelo plugin novo do kit, `analise-google` 1.0.0, com as mesmas seis etapas, as 28 seções, as evidências, os quatro validadores e o PDF oficial do análise pro. Ele roda pelo Antigravity CLI (`agy`) do Google, que lê os arquivos e roda as ferramentas neste computador. Instale ou atualize o kit pelo `INSTALAR_KIT_PMVNI.cmd`.
+- **Cartão Gemini em Ajustes › Inteligência artificial:** escolha **Conta Google** (login do Antigravity, cota do plano) ou **Chave de API do Google AI Studio**. A chave fica guardada protegida pelo Windows, só para o seu usuário, e nunca aparece na tela, em registros ou no `ajustes.json`. "Testar" confere o Antigravity, o login, o plugin, o Python e, no modo chave, a própria chave na API do Google (sem gerar texto nem gastar cota).
+- **Perfil da chave escolhido por você:** o Google não informa pela chave se o projeto tem créditos. Com a chave, você escolhe **API com créditos** ou **API gratuita**. A gratuita só serve para processos fictícios (o Google pode usar o conteúdo enviado para melhorar os produtos dele) e pede essa confirmação a cada análise. O plano Google AI Ultra não inclui sozinho créditos pagos da API.
+- **Modelos e níveis por etapa:** o plugin escolhe sozinho, e o cartão mostra a lista do perfil em uso.
+
+  | Etapa | Conta Google e API com créditos | API gratuita (só testes fictícios) |
+  |---|---|---|
+  | Preparo | Gemini 4 Hydrogen, high | Hydrogen, high |
+  | Análise | Gemini 4 Carbon, high | Hydrogen, xhigh |
+  | Auditoria técnica | Gemini 4 Carbon, high | Hydrogen, xhigh |
+  | Produção do relatório | Gemini 4 Hydrogen, medium | Hydrogen, medium |
+  | Auditoria cruzada | Gemini 4 Argon, high | Hydrogen, xhigh |
+  | Revisão final | Gemini 4 Carbon, high | Hydrogen, xhigh |
+
+- **Conferência antes de começar:** o app confere o Antigravity, a autenticação e o modelo e o nível de cada etapa. Se faltar algum, a análise não começa e a mensagem diz o perfil e a etapa.
+- **Sem troca automática:** modo, perfil, modelo e nível ficam fixos do início ao fim da análise, inclusive na retomada. Se a cota acabar, a chave for recusada ou um modelo ficar indisponível, a análise pausa ou para com o motivo e a etapa, guarda o que já foi feito e continua depois com "Continuar a análise", sem repetir as etapas concluídas. Nenhuma etapa é rebaixada para um nível menor.
+- **O que ainda depende de confirmação com a sua conta ou chave:** a partida, a leitura de arquivos, a gravação e a execução dos scripts do kit pela Conta Google foram conferidas neste computador com o Antigravity 1.5.10. Uma análise completa de seis etapas pelo Gemini e o modo chave de API ainda não foram executados com credenciais reais; foram testados com respostas simuladas. O limite de saída de 131.072 tokens das etapas de análise e auditoria técnica não é aplicado: o Antigravity não oferece esse ajuste (o limite de tempo de 2.400 s dessas etapas, pela conta, é aplicado).
+
 ## 1.0.0
 
 Primeira versão 1.0 do Editor de Relatórios PMVNI (o app mostra "Versão 1.0").

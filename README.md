@@ -3,7 +3,7 @@
 Aplicativo do Windows para a análise de projetos da Secretaria Municipal de Obras de Venda Nova do Imigrante/ES. Nele o analista:
 
 - abre e revisa os relatórios técnicos de análise;
-- pede análises à IA com os anexos do processo;
+- pede análises à IA (ChatGPT, Claude ou Gemini) com os anexos do processo;
 - emite despachos de correção e de aprovação;
 - consulta a legislação e os imóveis da base QGIS;
 - acompanha a tramitação dos processos na planilha padrão.
