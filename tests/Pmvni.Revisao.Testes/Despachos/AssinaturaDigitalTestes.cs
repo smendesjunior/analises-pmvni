@@ -291,13 +291,22 @@ public sealed class AssinaturaDigitalTestes
         entrada.Save(memoria);
         var visto = CarimboAprovado.Aplicar(memoria.ToArray(), 1, 10, 10, "TESTE", c, Quando);
         var bytes = CertificacaoPrancha.Certificar(visto, Quando, c, c.Certificado);
+        using var leitura = UglyToad.PdfPig.PdfDocument.Open(bytes);
+        Assert.All(leitura.GetPages(), p =>
+        {
+            Assert.Contains($"ASSINATURA DIGITAL, {Quando:dd/MM/yyyy HH:mm:ss}", p.Text);
+            Assert.Contains($"PROJETO APROVADO EM {Quando:dd/MM/yyyy}.", p.Text);
+            Assert.Contains("NÃO DEVE SER DESCARACTERIZADO", p.Text);
+            Assert.Contains("OU ADULTERADO APÓS APROVADO.", p.Text);
+            Assert.Contains(p.GetImages(), imagem => imagem.WidthInSamples == 1771 && imagem.HeightInSamples == 578);
+        });
         using var resultado = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(bytes), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
         var sig = resultado.Internals.Catalog.Elements.GetDictionary("/Perms")!.Elements.GetDictionary("/DocMDP")!;
         Assert.Equal("/ETSI.CAdES.detached", sig.Elements.GetName("/SubFilter"));
         Assert.Equal(1, sig.Elements.GetArray("/Reference")!.Elements.GetDictionary(0)!.Elements.GetDictionary("/TransformParams")!.Elements.GetInteger("/P"));
         var campo = resultado.Pages[1].Elements.GetArray("/Annots")!.Elements.GetDictionary(0)!;
         var rect = campo.Elements.GetRectangle("/Rect");
-        var esperado = giro switch { 0 => (405,25,515,42), 90 => (498,615,515,725), 180 => (15,708,125,725), _ => (15,25,32,135) };
+        var esperado = giro switch { 0 => (335,25,515,39), 90 => (501,545,515,725), 180 => (15,711,195,725), _ => (15,25,29,205) };
         Assert.Equal(esperado, ((int)rect.X1,(int)rect.Y1,(int)rect.X2,(int)rect.Y2));
         var range = sig.Elements.GetArray("/ByteRange")!.Elements;
         var primeiro = range.GetInteger(1);
@@ -323,10 +332,20 @@ public sealed class AssinaturaDigitalTestes
         var bytes = AssinaturaFicticia.Pdf(2, comLinha: false).Bytes;
         for (int pagina = 0; pagina < 2; pagina++)
             bytes = CarimboAprovado.Desenhar(bytes, pagina, 12, 12, "TESTE-42", c, Quando);
+        for (int pagina = 0; pagina < 2; pagina++)
+        {
+            var folha = CarimboAprovado.DimensoesVisiveis(bytes)[pagina];
+            bytes = CarimboAprovado.Desenhar(bytes, pagina, 0, 0, "TESTE-42", c, Quando,
+                [new ObservacaoPrancha($"Nota individual {pagina + 1}", "")],
+                new PdfSharp.Drawing.XRect(20, 240, folha.Largura - 20, folha.Altura - 240), incluirCarimbo: false);
+        }
         var assinado = CarimboAprovado.Assinar(bytes, 1, c, Quando);
         using var pdf = UglyToad.PdfPig.PdfDocument.Open(assinado.Pdf);
         foreach (var pagina in pdf.GetPages())
-            Assert.Contains("TESTE-42", pagina.Text);
+        {
+            Assert.Equal(2, pagina.Text.Split("TESTE-42").Length);
+            Assert.Contains($"Nota individual {pagina.Number}", string.Join(" ", pagina.GetWords().Select(p => p.Text)));
+        }
         var (conteudo, der, _) = AssinaturaFicticia.Extrair(assinado.Pdf);
         var cms = new SignedCms(new ContentInfo(conteudo), detached: true);
         cms.Decode(der);
@@ -359,7 +378,7 @@ public sealed class AssinaturaDigitalTestes
     }
 
     [Fact]
-    public void Carimbo_preserva_peticao_data_e_observacoes_selecionaveis()
+    public void Carimbo_deixa_data_em_branco_e_preserva_peticao_e_observacoes()
     {
         using var pasta = Ambiente.PastaDeTeste("carimbo-aprovado");
         using var c = Abrir(pasta, AssinaturaFicticia.Pfx(de: Quando.AddDays(-1), ate: Quando.AddYears(1)));
@@ -376,7 +395,7 @@ public sealed class AssinaturaDigitalTestes
         using var pdf = UglyToad.PdfPig.PdfDocument.Open(a.Pdf);
         var texto = string.Join(" ", pdf.GetPage(1).GetWords().Select(p => p.Text));
         Assert.Contains("TESTE-42", texto);
-        Assert.Contains(Quando.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture), texto);
+        Assert.DoesNotContain(Quando.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture), texto);
         Assert.Contains("OBSERVAÇÕES:", texto);
         Assert.Contains("cisterna", ObservacaoPrancha.Predefinidas[3].Texto);
         Assert.DoesNotContain("cisterna", texto);

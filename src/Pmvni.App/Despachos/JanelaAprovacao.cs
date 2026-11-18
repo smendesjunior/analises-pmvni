@@ -9,7 +9,7 @@ using Windows.Storage.Streams;
 
 namespace Pmvni.App;
 
-internal sealed record MarcacaoAprovacao(int Pagina, double X, double Y, PdfSharp.Drawing.XRect? Bloco, IReadOnlyList<ObservacaoPrancha> Observacoes);
+internal sealed record MarcacaoAprovacao(int Pagina, bool TemCarimbo, double X, double Y, PdfSharp.Drawing.XRect? Bloco, IReadOnlyList<ObservacaoPrancha> Observacoes);
 
 internal sealed class JanelaAprovacao : Window
 {
@@ -65,7 +65,7 @@ internal sealed class JanelaAprovacao : Window
                 revisao.TrySetResult(incluir);
                 Close();
             }
-            Acao("Adicionar outro carimbo", () => { Finalizar(true); return Task.CompletedTask; });
+            Acao("Adicionar carimbo ou observações", () => { Finalizar(true); return Task.CompletedTask; });
             Acao("Aceitar esta prancha", () => { Finalizar(false); return Task.CompletedTask; });
             Closed += (_, _) => revisao.TrySetResult(null);
         }
@@ -83,10 +83,16 @@ internal sealed class JanelaAprovacao : Window
             barra.Children.Add(estado);
             confirmar.Click += (_, _) =>
             {
-                if (paginaSelo < 0 || escolhidas.Count != 0 && paginaNotas != paginaSelo) return;
+                if (!confirmar.IsEnabled) return;
+                var tamanho = dimensoes[indice];
+                var larguraNotas = Math.Min(420 / DipPorPonto, tamanho.Largura);
+                var topoNotas = ny / DipPorPonto;
                 var area = escolhidas.Count == 0 ? (PdfSharp.Drawing.XRect?)null :
-                    new PdfSharp.Drawing.XRect(nx / DipPorPonto, ny / DipPorPonto, notas.Width / DipPorPonto, (folha.Height - ny) / DipPorPonto);
-                fim.TrySetResult(new MarcacaoAprovacao(paginaSelo, x / DipPorPonto, y / DipPorPonto, area, escolhidas.ToArray()));
+                    new PdfSharp.Drawing.XRect(Math.Clamp(nx / DipPorPonto, 0, tamanho.Largura - larguraNotas),
+                        topoNotas, larguraNotas, tamanho.Altura - topoNotas);
+                fim.TrySetResult(new MarcacaoAprovacao(indice, paginaSelo == indice,
+                    Math.Clamp(x / DipPorPonto, 0, Math.Max(0, tamanho.Largura - CarimboAprovado.LarguraPt)),
+                    Math.Clamp(y / DipPorPonto, 0, Math.Max(0, tamanho.Altura - CarimboAprovado.AlturaPt)), area, escolhidas.ToArray()));
                 Close();
             };
         }
@@ -122,7 +128,9 @@ internal sealed class JanelaAprovacao : Window
         if (largura > folha.Width || carimbo && selo.Height > folha.Height) return;
         elemento.Width = largura;
         px = Math.Clamp(px, 0, folha.Width - largura);
-        py = Math.Clamp(py, 0, Math.Max(0, folha.Height - (carimbo ? selo.Height : notas.ActualHeight)));
+        elemento.Visibility = Visibility.Visible;
+        if (!carimbo) notas.Measure(new Windows.Foundation.Size(largura, double.PositiveInfinity));
+        py = Math.Clamp(py, 0, Math.Max(0, folha.Height - (carimbo ? selo.Height : notas.DesiredSize.Height)));
         Canvas.SetLeft(elemento, px); Canvas.SetTop(elemento, py); elemento.Visibility = Visibility.Visible;
         if (!aceita) return;
         if (carimbo) { x = px; y = py; paginaSelo = indice; }
@@ -136,7 +144,8 @@ internal sealed class JanelaAprovacao : Window
         selo.Visibility = paginaSelo == indice ? Visibility.Visible : Visibility.Collapsed;
         notas.Visibility = paginaNotas == indice ? Visibility.Visible : Visibility.Collapsed;
         Canvas.SetLeft(selo, x); Canvas.SetTop(selo, y); Canvas.SetLeft(notas, nx); Canvas.SetTop(notas, ny);
-        confirmar.IsEnabled = !carregando && paginaSelo == indice && (escolhidas.Count == 0 || paginaNotas == indice);
+        confirmar.IsEnabled = !carregando && (paginaSelo == indice || paginaNotas == indice)
+            && (paginaSelo < 0 || paginaSelo == indice) && (escolhidas.Count == 0 || paginaNotas == indice);
         estado.Text = $"Página {indice + 1} de {pdf?.PageCount}";
     }
 

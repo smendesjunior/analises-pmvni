@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Microsoft.Graphics.Canvas;
@@ -226,6 +226,9 @@ sealed class BrilhoArcoIris
     {
         if (!preso) return;
         preso = false;
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) Ui.AnimationsEnabledChanged -= AoMudarAnimacoes;
+        if (raizObservada is not null) raizObservada.Changed -= AoMudarRaiz;
+        raizObservada = null;
         Desvigiar();
         if (hospedeHalo is { } h)
         {
@@ -237,6 +240,15 @@ sealed class BrilhoArcoIris
     }
 
     bool Escuro => elemento.ActualTheme == ElementTheme.Dark;
+
+    XamlRoot? raizObservada;
+    void AoMudarRaiz(XamlRoot sender, XamlRootChangedEventArgs args)
+    {
+        if (rodando && mascaraFeita.Escala != (float)sender.RasterizationScale) Atualizar(true);
+    }
+
+    void AoMudarAnimacoes(Windows.UI.ViewManagement.UISettings sender, object args) =>
+        elemento.DispatcherQueue.TryEnqueue(() => Atualizar(true));
 
     static CompositionGraphicsDevice? grafico;
 
@@ -270,9 +282,14 @@ sealed class BrilhoArcoIris
         return s;
     }
 
-    void DesenharMascaras(Vector2 t)
+    internal (int Largura, int Altura) ConferirMascara(float escala)
     {
-        var escala = (float)(elemento.XamlRoot?.RasterizationScale ?? 1.0);
+        DesenharMascaras(tamanho, escala);
+        return (mascaraBrilho.SizeInt32.Width, mascaraBrilho.SizeInt32.Height);
+    }
+
+    void DesenharMascaras(Vector2 t, float escala)
+    {
         if (mascaraFeita.Tamanho == t && mascaraFeita.Escala == escala) return;
         var k = Pilula(t);
         try
@@ -341,6 +358,9 @@ sealed class BrilhoArcoIris
             hospede.Children.Add(hospedeHalo);
             ElementCompositionPreview.SetElementChildVisual(hospedeHalo, raizHalo);
         }
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) Ui.AnimationsEnabledChanged += AoMudarAnimacoes;
+        raizObservada = elemento.XamlRoot;
+        if (raizObservada is not null) raizObservada.Changed += AoMudarRaiz;
         Vigiar();
         Atualizar(true);
     }
@@ -453,7 +473,7 @@ sealed class BrilhoArcoIris
         geometria.Size = t - new Vector2(1f);
         geometria.CornerRadius = new Vector2(k);
         raizHalo.Size = t + new Vector2(2 * HaloMargem);
-        DesenharMascaras(t);
+        DesenharMascaras(t, (float)(elemento.XamlRoot?.RasterizationScale ?? 1));
         var periodo = Math.Max(240f, t.X * 2);
         deslizes.Clear();
         Deslizar(pincelLinha, 0, periodo, 1, 1.00f);
@@ -465,7 +485,11 @@ sealed class BrilhoArcoIris
         raiz.IsVisible = true;
         rodando = true;
         if (AnimacoesLigadas) RelogioQuadros.Adicionar(quadro ??= AoQuadro);
-        else AoQuadro(0);   // animações do Windows desligadas: o contorno aparece parado
+        else
+        {
+            if (quadro is not null) RelogioQuadros.Remover(quadro);
+            AoQuadro(0);
+        }
     }
 }
 

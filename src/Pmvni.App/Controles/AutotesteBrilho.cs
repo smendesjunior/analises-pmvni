@@ -39,6 +39,24 @@ internal static class AutotesteBrilho
             await Assentar();
             r["trabalhando_com_brilho"] = Aceso();
             r["halo_por_fora"] = Trabalhando.BrilhoDe(quadro)?.HaloVisivel == true;
+            foreach (var tema in new[] { ElementTheme.Dark, ElementTheme.Light })
+            {
+                raiz.RequestedTheme = tema;
+                await Assentar();
+                r["contorno_" + tema] = quadro.ActualTheme == tema && Aceso();
+            }
+            r["escala_windows"] = raiz.XamlRoot.RasterizationScale;
+            var movimento = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+            r["preferencia_de_movimento_respeitada"] = movimento == (RelogioQuadros.Quantos > relogioAntes);
+            r["modo_movimento"] = movimento ? "animado" : "estático";
+            var brilho = Trabalhando.BrilhoDe(quadro)!;
+            foreach (var escala in new[] { 1f, 1.5f, 2f })
+            {
+                var pixels = brilho.ConferirMascara(escala);
+                r[$"mascara_{escala * 100:0}"] = pixels == ((int)Math.Ceiling((float)quadro.ActualWidth * escala),
+                    (int)Math.Ceiling((float)quadro.ActualHeight * escala));
+            }
+            brilho.ConferirMascara((float)raiz.XamlRoot.RasterizationScale);
             quadro.Visibility = Visibility.Collapsed;        // terminou (ou cancelou, ou deu erro: o mesmo caminho)
             await Assentar();
             r["fim_apaga"] = Apagado();
@@ -57,6 +75,27 @@ internal static class AutotesteBrilho
             await Assentar();
             r["saiu_da_arvore_apaga"] = Apagado() && Trabalhando.BrilhoDe(quadro)?.TemCamadaDoHalo != true;
             r["camadas_que_sobraram"] = pagina.Children.Count;
+            var painel = new PaginaNovoRelatorio();
+            janela.Content = painel;
+            painel.MostrarExecucao(true);
+            var linhas = new System.Collections.ObjectModel.ObservableCollection<string>(
+                Enumerable.Range(1, 80).Select(i => $"Atividade fictícia {i}"));
+            painel.LigarLinhas(linhas);
+            var achados = Enumerable.Range(1, 40).Select(i => new AchadoExecucao($"{i:000}", 1, $"Item {i}", "ATENDE", false)).ToList();
+            painel.MostrarAchados(achados);
+            await Assentar();
+            painel.ColunaLateral.ChangeView(null, 160, null, true);
+            await Assentar();
+            var item = (Border)painel.ListaDescobertas.Children[2];
+            var texto = (TextBlock)((Grid)item.Child).Children[1];
+            var recebeuFoco = texto.Focus(FocusState.Programmatic);
+            await Assentar();
+            var antes = painel.ColunaLateral.VerticalOffset;
+            linhas.Add("Novo evento fictício");
+            painel.MostrarAchados([.. achados, new("999", 1, "Novo achado", "ATENDE", false)]);
+            await Assentar();
+            r["foco_preservado"] = recebeuFoco && ReferenceEquals(texto, Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(painel.XamlRoot));
+            r["rolagem_preservada"] = antes > 0 && Math.Abs(painel.ColunaLateral.VerticalOffset - antes) < 1;
             r["ok"] = r.Where(x => x.Key != "ok" && x.Value is bool).All(x => x.Value is true) && pagina.Children.Count == 0;
         }
         catch (Exception e) { r["erro"] = e.GetType().Name + ": " + e.Message; }

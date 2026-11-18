@@ -113,8 +113,11 @@ public static class CertificacaoPrancha
         const string faixa = "[0 1999999991 1999999992 1999999993]";
         sig.Elements["/Contents"] = new PdfLiteral(marcador);
         sig.Elements["/ByteRange"] = new PdfLiteral(faixa);
+        var logo = CarregarLogo(doc);
+        for (var i = 0; i < doc.PageCount - 1; i++)
+            AparenciaNoCanto(doc, doc.Pages[i], agora, logo);
         var pagina = doc.Pages[doc.PageCount - 1];
-        var rect = AparenciaNoCanto(doc, pagina, agora);
+        var rect = AparenciaNoCanto(doc, pagina, agora, logo);
         var widget = new PdfDictionary(doc);
         doc.Internals.AddObject(widget);
         widget.Elements.SetName("/Type", "/Annot");
@@ -162,7 +165,26 @@ public static class CertificacaoPrancha
         return pos;
     }
 
-    internal static PdfRectangle AparenciaNoCanto(PdfDocument doc, PdfPage pagina, DateTimeOffset agora)
+    static PdfDictionary CarregarLogo(PdfDocument doc)
+    {
+        using var recurso = typeof(CertificacaoPrancha).Assembly.GetManifestResourceStream("Pmvni.LogoAssinatura.jpg")
+            ?? throw new InvalidOperationException("Logo da assinatura institucional ausente.");
+        using var dados = new MemoryStream();
+        recurso.CopyTo(dados);
+        var logo = new PdfDictionary(doc);
+        doc.Internals.AddObject(logo);
+        logo.Elements.SetName("/Type", "/XObject");
+        logo.Elements.SetName("/Subtype", "/Image");
+        logo.Elements.SetName("/Filter", "/DCTDecode");
+        logo.Elements.SetName("/ColorSpace", "/DeviceRGB");
+        logo.Elements.SetInteger("/BitsPerComponent", 8);
+        logo.Elements.SetInteger("/Width", 1771);
+        logo.Elements.SetInteger("/Height", 578);
+        logo.CreateStream(dados.ToArray());
+        return logo;
+    }
+
+    static PdfRectangle AparenciaNoCanto(PdfDocument doc, PdfPage pagina, DateTimeOffset agora, PdfDictionary logo)
     {
         var media = pagina.MediaBox;
         var crop = pagina.Elements.ContainsKey("/CropBox") ? pagina.CropBox : media;
@@ -174,10 +196,10 @@ public static class CertificacaoPrancha
         var unidade = pagina.Elements.ContainsKey("/UserUnit") ? pagina.Elements.GetReal("/UserUnit") : 1;
         var giro = (pagina.Rotate % 360 + 360) % 360;
         if (!double.IsFinite(unidade) || unidade <= 0 || r <= l || t <= b || giro % 90 != 0)
-            throw new AssinaturaDigitalException("Geometria inválida na última página.");
-        var escala = Math.Min(1 / unidade, Math.Min((giro % 180 == 0 ? r-l : t-b)/220, (giro % 180 == 0 ? t-b : r-l)/34));
-        var w = 220 * escala;
-        var h = 34 * escala;
+            throw new AssinaturaDigitalException("Geometria inválida na página.");
+        var escala = Math.Min(1 / unidade, Math.Min((giro % 180 == 0 ? r-l : t-b)/360, (giro % 180 == 0 ? t-b : r-l)/28));
+        var w = 360 * escala;
+        var h = 28 * escala;
         var (a, c, d, e, x, y) = giro switch
         {
             0 => (escala, 0d, 0d, escala, r-w, b),
@@ -194,8 +216,11 @@ public static class CertificacaoPrancha
         if (fontes is null) pagina.Resources.Elements["/Font"] = fontes = new PdfDictionary(doc);
         string id = "/PMVNI" + Guid.NewGuid().ToString("N");
         fontes.Elements[id] = fonte;
-        var desenho = FormattableString.Invariant($"q {a:0.########} {c:0.########} {d:0.########} {e:0.########} {x:0.########} {y:0.########} cm 1 g 0 0 220 34 re f 0 g BT {id} 8 Tf 3 22 Td (Prefeitura Municipal de Venda Nova do Imigrante) Tj 0 -12 Td (Assinatura digital - {agora:dd/MM/yyyy HH:mm zzz}) Tj ET Q");
-        pagina.Contents.AppendContent().CreateStream(Encoding.ASCII.GetBytes(desenho));
+        var objetos = pagina.Resources.Elements.GetDictionary("/XObject");
+        if (objetos is null) pagina.Resources.Elements["/XObject"] = objetos = new PdfDictionary(doc);
+        objetos.Elements[id] = logo.Reference!;
+        var desenho = FormattableString.Invariant($"q {a:0.########} {c:0.########} {d:0.########} {e:0.########} {x:0.########} {y:0.########} cm 1 g 0 0 360 28 re f q 65 0 0 21.21 2 3.395 cm {id} Do Q 0 g BT {id} 7 Tf 72 16 Td (ASSINATURA DIGITAL, {agora:dd/MM/yyyy HH:mm:ss}. PROJETO APROVADO EM {agora:dd/MM/yyyy}.) Tj 0 -8 Td (NÃO DEVE SER DESCARACTERIZADO OU ADULTERADO APÓS APROVADO.) Tj ET Q");
+        pagina.Contents.AppendContent().CreateStream(Encoding.Latin1.GetBytes(desenho));
         return giro switch
         {
             0 => new PdfRectangle(new PdfSharp.Drawing.XRect(r-w, b, w, h)),

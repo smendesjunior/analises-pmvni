@@ -39,8 +39,9 @@ public static class CarimboAprovado
 
     public static byte[] Desenhar(byte[] prancha, int pagina, double x, double y, string peticao,
         CertificadoAberto analista, DateTimeOffset emissao,
-        IReadOnlyList<ObservacaoPrancha>? observacoes = null, XRect? areaObservacoes = null)
+        IReadOnlyList<ObservacaoPrancha>? observacoes = null, XRect? areaObservacoes = null, bool incluirCarimbo = true)
     {
+        if (!incluirCarimbo && observacoes is not { Count: > 0 }) throw new ArgumentException("Selecione um carimbo ou observações.");
         ArgumentException.ThrowIfNullOrWhiteSpace(peticao);
         ArgumentNullException.ThrowIfNull(analista);
         using var entrada = new MemoryStream(prancha, writable: false);
@@ -51,8 +52,8 @@ public static class CarimboAprovado
             doc.Internals.Catalog.Elements.GetDictionary("/AcroForm")?.Elements.GetInteger("/SigFlags") > 0)
             throw new ArgumentException("Esta entrada já contém assinatura digital. Selecione a prancha original sem assinatura.");
         var geometria = new GeometriaPrancha(folha);
-        if (!double.IsFinite(x) || !double.IsFinite(y) || x < 0 || y < 0 ||
-            x + LarguraPt - geometria.Largura > 1e-8 || y + AlturaPt - geometria.Altura > 1e-8)
+        if (incluirCarimbo && (!double.IsFinite(x) || !double.IsFinite(y) || x < 0 || y < 0 ||
+            x + LarguraPt - geometria.Largura > 1e-8 || y + AlturaPt - geometria.Altura > 1e-8))
             throw new ArgumentOutOfRangeException(nameof(x), "O carimbo deve caber por inteiro na prancha.");
         AssinaturaPdf.PrepararFontes();
         using var arte = typeof(CarimboAprovado).Assembly.GetManifestResourceStream("Pmvni.CarimboAprovado.pdf")
@@ -76,21 +77,23 @@ public static class CarimboAprovado
                     throw new ArgumentException("Escolha um espaço para as observações dentro da prancha.");
                 ObservacaoPrancha.Desenhar(gfx, bloco, observacoes);
             }
-            gfx.DrawImage(modelo, x, y, LarguraPt, AlturaPt);
-            void Preencher(XRect area, string texto)
+            if (incluirCarimbo)
             {
-                gfx.DrawRectangle(XBrushes.White, area);
-                var fonte = new XFont("Arial", 8);
-                var largura = gfx.MeasureString(texto, fonte).Width;
-                if (largura > area.Width) fonte = new XFont("Arial", 8 * area.Width / largura);
-                gfx.DrawString(texto, fonte, XBrushes.Black, area, XStringFormats.Center);
+                gfx.DrawImage(modelo, x, y, LarguraPt, AlturaPt);
+                void Preencher(XRect area, string texto)
+                {
+                    gfx.DrawRectangle(XBrushes.White, area);
+                    var fonte = new XFont("Arial", 8);
+                    var largura = gfx.MeasureString(texto, fonte).Width;
+                    if (largura > area.Width) fonte = new XFont("Arial", 8 * area.Width / largura);
+                    gfx.DrawString(texto, fonte, XBrushes.Black, area, XStringFormats.Center);
+                }
+                Preencher(Area(740, 398, 395, 66), peticao.Trim());
+                gfx.TranslateTransform(visto.X, visto.Y);
+                var interior = new XRect(0, 0, visto.Width, visto.Height);
+                gfx.IntersectClip(interior);
+                AssinaturaPdf.DesenharVisto(gfx, interior, analista.Info.Titular, emissao);
             }
-            Preencher(Area(155, 398, 350, 66), emissao.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture));
-            Preencher(Area(740, 398, 395, 66), peticao.Trim());
-            gfx.TranslateTransform(visto.X, visto.Y);
-            var interior = new XRect(0, 0, visto.Width, visto.Height);
-            gfx.IntersectClip(interior);
-            AssinaturaPdf.DesenharVisto(gfx, interior, analista.Info.Titular, emissao);
         }
         var forma = new PdfDictionary(doc);
         doc.Internals.AddObject(forma);

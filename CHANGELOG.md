@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.4
+
+- Pranchas aceitam observações por folha e mantêm o campo de data do carimbo livre. A assinatura institucional em duas linhas acompanha a logo em todas as páginas.
+- O acompanhamento preserva a posição de leitura e respeita as preferências de animação.
+
 ## 1.2.3
 
 - A emissão preserva a área visível de pranchas que chegam sem recorte ou com recorte zerado. A leitura do nome do arquivo reconhece também “Peticao” sem acentos.

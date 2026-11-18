@@ -58,7 +58,7 @@ public sealed partial class MainWindow
                 }
                 pagina = marca.Pagina;
                 desenhada = await Task.Run(() => CarimboAprovado.Desenhar(desenhada, pagina, marca.X, marca.Y, peticao,
-                    analista, agora, marca.Observacoes, marca.Bloco));
+                    analista, agora, marca.Observacoes, marca.Bloco, marca.TemCarimbo));
                 quantidade++;
                 var escolha = await JanelaAprovacao.RevisarAsync(desenhada, nome, pagina, TemaAtual);
                 if (escolha is null) return;
@@ -81,7 +81,7 @@ public sealed partial class MainWindow
             if (substituir && !await Perguntas.Atual.ConfirmarAsync("Substituir a cópia aprovada?", destino, "Substituir", "Cancelar")) return;
             marcacoes.Add((nome, destino, revisada.Desenhada, revisada.Pagina, revisada.Quantidade, revisada.Peticao, substituir));
         }
-        var resumo = string.Join(Environment.NewLine, marcacoes.Select(i => $"{i.Nome} · petição {i.Peticao} · {i.Quantidade} carimbo(s)"));
+        var resumo = string.Join(Environment.NewLine, marcacoes.Select(i => $"{i.Nome} · petição {i.Peticao} · {i.Quantidade} marcação(ões)"));
         if (!await Perguntas.Atual.ConfirmarAsync("Emitir as pranchas aprovadas?", $"{pasta}\n\n{resumo}", "Emitir", "Cancelar", false)) return;
         var preparadas = new List<(string Temporario, string Destino, bool Substituir)>();
         try

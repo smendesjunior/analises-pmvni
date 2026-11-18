@@ -162,9 +162,17 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var situacoes = Pmvni.Composicao.Kit.Situacoes.Sit;
         TextoTotais.Text = string.Join("   ·   ", Pmvni.Composicao.Kit.Situacoes.SitItem.Select(
             chave => $"{situacoes[chave].Texto}: {achados.Count(a => a.Situacao == chave)}"));
-        ListaDescobertas.Children.Clear();
-        foreach (var a in achados)
-            ListaDescobertas.Children.Add(CartaoDescoberta(new($"{a.Id} · {a.Titulo} · {situacoes[a.Situacao].Texto}", a.Verificado)));
+        for (var i = 0; i < achados.Count; i++)
+        {
+            var a = achados[i];
+            if (i < ListaDescobertas.Children.Count && ListaDescobertas.Children[i] is Border existente && Equals(existente.Tag, a)) continue;
+            var cartao = CartaoDescoberta(new($"{a.Id} · {a.Titulo} · {situacoes[a.Situacao].Texto}", a.Verificado));
+            cartao.Tag = a;
+            if (i < ListaDescobertas.Children.Count) ListaDescobertas.Children.RemoveAt(i);
+            ListaDescobertas.Children.Insert(i, cartao);
+        }
+        while (ListaDescobertas.Children.Count > achados.Count)
+            ListaDescobertas.Children.RemoveAt(ListaDescobertas.Children.Count - 1);
         TextoSemDescobertas.Visibility = achados.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
