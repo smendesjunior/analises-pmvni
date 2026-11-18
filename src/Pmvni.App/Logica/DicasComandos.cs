@@ -24,6 +24,7 @@ public static class DicasComandos
         [ComandosApp.ArquivoRecentes] = "Mostra os relatórios abertos há pouco, para abrir um deles de novo.",
         [ComandosApp.ArquivoSalvar] = "Grava as alterações do relatório no arquivo .rpmvni.",
         [ComandosApp.ArquivoSalvarComo] = "Grava o relatório num arquivo novo, com outro nome ou em outra pasta.",
+        [ComandosApp.EmitirProcessoAprovado] = "Carimba e assina cópias das pranchas selecionadas.",
         [ComandosApp.ArquivoExportarPdf] = "Gera o PDF do relatório, com as mesmas folhas mostradas na tela.",
         [ComandosApp.ArquivoFechar] = "Fecha o relatório aberto.",
         [ComandosApp.ArquivoImprimir] = "Abre a impressão com a lista de impressoras e a opção Salvar como PDF.",

@@ -69,7 +69,7 @@ public class FaixasTestes
         {
             ComandosApp.InicioSituacao, ComandosApp.InicioNovoItem, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
             ComandosApp.InicioRestaurarOriginal, ComandosApp.InicioItemAnterior, ComandosApp.InicioItemProximo, ComandosApp.InicioProximoPendente,
-            ComandosApp.FigurasAbrirEditor, ComandosApp.ArquivoExportarPdf, ComandosApp.ArquivoImprimir, ComandosApp.DespachosNovo,
+            ComandosApp.FigurasAbrirEditor, ComandosApp.EmitirProcessoAprovado, ComandosApp.ArquivoExportarPdf, ComandosApp.ArquivoImprimir, ComandosApp.DespachosNovo,
         }, inicio.Comandos.Select(c => c.Id));
         var situacao = inicio.Comandos[0];
         Assert.Equal(TipoComando.Menu, situacao.Tipo);
