@@ -10,7 +10,7 @@
          -> informar o espaço liberado.
   Não apaga web\paginador\node_modules (necessário para refazer o bundle), só os caches dele.
 #>
-param([switch]$SemGitHub, [switch]$SemLimpeza)
+param([switch]$SemGitHub, [switch]$SemLimpeza, [switch]$SomenteLoginGemini)
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
 $projeto = Join-Path $raiz 'src\Pmvni.App\Pmvni.App.csproj'
@@ -33,13 +33,16 @@ if ($LASTEXITCODE -ne 0) { throw 'Não foi possível identificar o commit da bui
 # A solução mapeia Release para x64. Executar projetos com a mesma plataforma evita
 # procurar bin/Release depois de compilar em bin/x64/Release. Sem retry: toda falha bloqueia.
 $projetosTeste = @(Get-ChildItem (Join-Path $raiz 'tests') -Filter 'Pmvni.*.Testes.csproj' -Recurse | Sort-Object FullName)
+if ($SomenteLoginGemini) { $projetosTeste = @($projetosTeste | Where-Object BaseName -eq "Pmvni.Agentes.Testes") }
 if ($projetosTeste.Count -eq 0) { throw 'Nenhum projeto de teste encontrado.' }
 $falhasTeste = @()
 foreach ($p in $projetosTeste) {
     Write-Host "Testando $($p.BaseName) (Release/x64)..."
     $trx = Join-Path $saida "resultados\$($p.BaseName).trx"
     if (Test-Path -LiteralPath $trx) { Remove-Item -LiteralPath $trx -Force }
-    & dotnet test $p.FullName -c Release "-p:Platform=x64" --nologo "-m:1" --logger "trx;LogFileName=$($p.BaseName).trx" --results-directory (Join-Path $saida 'resultados')
+    $filtro = @()
+    if ($SomenteLoginGemini) { $filtro = @('--filter', 'FullyQualifiedName~Gemini|FullyQualifiedName~ContasEPlugins') }
+    & dotnet test $p.FullName @filtro -c Release "-p:Platform=x64" --nologo "-m:1" --logger "trx;LogFileName=$($p.BaseName).trx" --results-directory (Join-Path $saida 'resultados')
     $codigoTeste = $LASTEXITCODE
     if ($codigoTeste -ne 0) { $falhasTeste += "$($p.BaseName) (código $codigoTeste)"; continue }
     if (-not (Test-Path -LiteralPath $trx)) { $falhasTeste += "$($p.BaseName) (sem TRX)"; continue }

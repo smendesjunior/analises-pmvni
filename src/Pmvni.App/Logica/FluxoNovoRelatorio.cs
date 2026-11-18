@@ -105,7 +105,7 @@ public static class FluxoNovoRelatorio
         {
             if (pecas.Python is null) return SemPythonGoogle;
             if (pecas.GoogleRuntime is null) return SemAnaliseGoogle;
-            if (pecas.Agy is null) return SemAgy;
+            if (modo != ModoAcesso.ContaGemini && pecas.Agy is null) return SemAgy;
             if (modo == ModoAcesso.Chave && perfilGemini is not (PerfilGemini.ApiCreditos or PerfilGemini.ApiGratuita)) return SemPerfilApi;
         }
         else

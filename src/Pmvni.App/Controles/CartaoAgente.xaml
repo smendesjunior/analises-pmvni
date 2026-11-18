@@ -149,6 +149,7 @@
         <local:SeloEstado x:Name="SeloChave" x:FieldModifier="internal" Grid.Column="2"/>
         <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Spacing="4">
           <!-- RadioButton soltos (e não o RadioButtons): o Click só vem do usuário, nunca da marcação feita pelo código. -->
+          <RadioButton x:Name="OpcaoContaGemini" x:FieldModifier="internal" Content="Conta Google (login do Gemini, cota do plano)" Visibility="Collapsed"/>
           <RadioButton x:Name="OpcaoConta" x:FieldModifier="internal" Content="Usar minha conta (login do programa)"/>
           <RadioButton x:Name="OpcaoChave" x:FieldModifier="internal" Content="Usar chave de API (guardada protegida pelo Windows, só neste usuário)"/>
           <TextBlock x:Name="TextoDicaChave" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" Visibility="Collapsed"/>

@@ -104,7 +104,9 @@ public static class DiagnosticoGemini
         var perfil = MatrizGemini.PerfilDoModo(modo, perfilApi);
 
         IReadOnlyList<string>? ids = null;
-        if (pecas.Agy is null) partes.Add("Antigravity CLI (agy) não encontrado");
+        if (modo == ModoAcesso.ContaGemini)
+            partes.Add("Gemini Web: sessão e modelos precisam ser verificados pela ponte do editor");
+        else if (pecas.Agy is null) partes.Add("Antigravity CLI (agy) não encontrado");
         else
         {
             var versao = await Rodar(LinhasDeComando.AgyVersao(pecas.Agy), Diagnostico.LimiteComando, ct).ConfigureAwait(false);
@@ -150,7 +152,7 @@ public static class DiagnosticoGemini
             if (ids is { Count: > 0 } && EtapasSemModelo(PerfilGemini.ContaUltra, ids) is { Count: > 0 } faltas)
                 avisos.Add("A conta não oferece o modelo e o nível de: " + string.Join(", ", faltas) + ". A análise não começa sem eles (nenhum outro modelo é usado no lugar).");
         }
-        else
+        else if (modo == ModoAcesso.Chave)
         {
             if (chave is null) partes.Add("nenhuma chave guardada");
             else

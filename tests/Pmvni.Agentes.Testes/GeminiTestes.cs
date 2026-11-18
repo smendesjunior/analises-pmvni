@@ -85,7 +85,7 @@ public class GeminiTestes
         if (!File.Exists(arquivo)) Assert.Fail("Plugin analise-google ausente do kit: " + arquivo + " (defina PMVNI_KIT_RAIZ)");
         var doKit = MatrizGemini.LerDoKit(File.ReadAllText(arquivo, Encoding.UTF8));
         Assert.NotNull(doKit);
-        Assert.Equal(3, doKit!.Count);
+        Assert.Equal(Enum.GetValues<PerfilGemini>().Length, doKit!.Count);
         foreach (var perfil in Enum.GetValues<PerfilGemini>())
             Assert.Equal(MatrizGemini.Etapas(perfil), doKit[MatrizGemini.Codigo(perfil)]);
     }
@@ -98,6 +98,21 @@ public class GeminiTestes
         Assert.Null(MatrizGemini.LerDoKit("{\"perfis\":{\"conta_ultra\":{\"prepare\":[\"gemini-4-hydrogen\"]}}}"));
         var ok = MatrizGemini.LerDoKit("{\"perfis\":{\"conta_ultra\":{\"prepare\":[\"gemini-4-hydrogen\",\"high\"]}}}");
         Assert.Equal(new EtapaGemini("prepare", "gemini-4-hydrogen", "high"), Assert.Single(ok!["conta_ultra"]));
+    }
+
+    [Fact]
+    public void conta_gemini_usa_web_sem_chave_de_api()
+    {
+        var perfil = MatrizGemini.PerfilDoModo(ModoAcesso.ContaGemini, PerfilGemini.ApiCreditos);
+        Assert.Equal(PerfilGemini.ContaGemini, perfil);
+        Assert.Null(MatrizGemini.PerfilDoModo(ModoAcesso.Chave, perfil));
+
+        var env = Herdado();
+        AmbienteFilho.Aplicar(env, Provedor.Gemini, ModoAcesso.ContaGemini, null, perfil);
+        Assert.Equal("web", env["PMVNI_ANALISE_GOOGLE_ROTA"]);
+        Assert.Equal("conta_gemini", env["PMVNI_ANALISE_GOOGLE_PERFIL"]);
+        Assert.DoesNotContain("GEMINI_API_KEY", env.Keys);
+        Assert.DoesNotContain("GOOGLE_API_KEY", env.Keys);
     }
 
     // ------------------------------------------------------------------ ambiente do processo filho

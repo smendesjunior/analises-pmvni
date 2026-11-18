@@ -30,12 +30,13 @@ public sealed partial class CartaoAgente : UserControl
         {
             // O Python do Gemini é o mesmo escolhido no cartão do Claude; o Antigravity é achado sozinho.
             PainelBotoesPrograma.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+            OpcaoContaGemini.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
             OpcaoConta.Content = "Conta Google (login do Antigravity, cota do plano)";
             OpcaoChave.Content = "Chave de API do Google AI Studio (guardada protegida pelo Windows, só neste usuário)";
             foreach (var opcao in TextosAgentes.OpcoesPerfilGemini) CaixaPerfil.Items.Add(opcao);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CaixaPerfil, "Perfil da chave do Gemini");
         }
-        OpcaoConta.GroupName = OpcaoChave.GroupName = "acesso-" + Provedores.Sufixo(p);
+        OpcaoContaGemini.GroupName = OpcaoConta.GroupName = OpcaoChave.GroupName = "acesso-" + Provedores.Sufixo(p);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(this, nome);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BotaoEscolherPrograma, "Escolher o programa do " + nome);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(BotaoProgramaPadrao, "Usar o programa padrão do " + nome);

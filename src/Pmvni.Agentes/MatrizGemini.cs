@@ -2,10 +2,9 @@ using System.Text.Json;
 
 namespace Pmvni.Agentes;
 
-/// <summary>O perfil de execução do análise Google, fixo do início ao fim de cada análise: a conta Google (plano Ultra, pelo login do Antigravity), a chave
-/// do Google AI Studio com créditos (camada paga) ou a chave gratuita (só testes com dados fictícios: a camada gratuita pode usar o conteúdo para melhorar
-/// os produtos do Google).</summary>
-public enum PerfilGemini { ContaUltra, ApiCreditos, ApiGratuita }
+/// <summary>O perfil de execução do análise Google, fixo do início ao fim de cada análise: a conta Google pelo Antigravity (plano Ultra), a conta Google
+/// pelo login do Gemini (cota do plano), a chave do Google AI Studio com créditos (camada paga) ou a chave gratuita (só testes com dados fictícios).</summary>
+public enum PerfilGemini { ContaUltra, ApiCreditos, ApiGratuita, ContaGemini }
 
 /// <summary>Uma etapa da matriz: o modelo, o nível de raciocínio e o identificador que o runtime (<c>agy</c>) aceita e informa (<c>modelo-nível</c>).</summary>
 public sealed record EtapaGemini(string Etapa, string Modelo, string Esforco)
@@ -51,30 +50,43 @@ public static class MatrizGemini
 
     public static string Codigo(PerfilGemini p) => p switch
     {
-        PerfilGemini.ContaUltra => "conta_ultra", PerfilGemini.ApiCreditos => "api_creditos", _ => "api_gratuita",
+        PerfilGemini.ContaUltra => "conta_ultra", PerfilGemini.ContaGemini => "conta_gemini", PerfilGemini.ApiCreditos => "api_creditos", _ => "api_gratuita",
     };
 
     public static PerfilGemini? DoCodigo(string? codigo) => codigo switch
     {
-        "conta_ultra" => PerfilGemini.ContaUltra, "api_creditos" => PerfilGemini.ApiCreditos, "api_gratuita" => PerfilGemini.ApiGratuita, _ => null,
+        "conta_ultra" => PerfilGemini.ContaUltra, "conta_gemini" => PerfilGemini.ContaGemini, "api_creditos" => PerfilGemini.ApiCreditos, "api_gratuita" => PerfilGemini.ApiGratuita, _ => null,
     };
 
     public static string Nome(PerfilGemini p) => p switch
     {
         PerfilGemini.ContaUltra => "Conta Google (plano Ultra)",
+        PerfilGemini.ContaGemini => "Conta Google (login do Gemini)",
         PerfilGemini.ApiCreditos => "API com créditos (Google AI Studio)",
         _ => "API gratuita (só testes fictícios)",
     };
 
-    /// <summary>A rota que o perfil usa: <c>conta</c> ou <c>api</c>.</summary>
-    public static string Rota(PerfilGemini p) => p == PerfilGemini.ContaUltra ? "conta" : "api";
+    /// <summary>A rota que o perfil usa: <c>conta</c> (Antigravity), <c>web</c> (login do Gemini) ou <c>api</c>.</summary>
+    public static string Rota(PerfilGemini p) => p switch
+    {
+        PerfilGemini.ContaUltra => "conta",
+        PerfilGemini.ContaGemini => "web",
+        _ => "api",
+    };
 
-    public static ModoAcesso Modo(PerfilGemini p) => p == PerfilGemini.ContaUltra ? ModoAcesso.Conta : ModoAcesso.Chave;
+    public static ModoAcesso Modo(PerfilGemini p) => p switch
+    {
+        PerfilGemini.ContaUltra => ModoAcesso.Conta,
+        PerfilGemini.ContaGemini => ModoAcesso.ContaGemini,
+        _ => ModoAcesso.Chave,
+    };
 
-    /// <summary>O perfil que vale para o modo escolhido: conta ⇒ sempre a conta Ultra; chave ⇒ o perfil de API escolhido (null = ainda não escolhido,
+    /// <summary>O perfil que vale para o modo escolhido: conta ⇒ conta Ultra; conta Gemini ⇒ login do Gemini; chave ⇒ o perfil de API escolhido (null = ainda não escolhido,
     /// e o editor pede a escolha: o plano de uma chave não é dedutível e nada é presumido).</summary>
     public static PerfilGemini? PerfilDoModo(ModoAcesso modo, PerfilGemini? perfilApi) =>
-        modo == ModoAcesso.Conta ? PerfilGemini.ContaUltra : perfilApi is PerfilGemini.ApiCreditos or PerfilGemini.ApiGratuita ? perfilApi : null;
+        modo == ModoAcesso.Conta ? PerfilGemini.ContaUltra
+        : modo == ModoAcesso.ContaGemini ? PerfilGemini.ContaGemini
+        : perfilApi is PerfilGemini.ApiCreditos or PerfilGemini.ApiGratuita ? perfilApi : null;
 
     /// <summary>"Preparo: Hydrogen high · Análise: Carbon high · …", para a tela.</summary>
     public static string Resumo(PerfilGemini p) =>

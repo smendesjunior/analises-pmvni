@@ -4,8 +4,8 @@ namespace Pmvni.Agentes;
 /// (analise-google do kit, pelo Antigravity CLI <c>agy</c>).</summary>
 public enum Provedor { ChatGpt, Claude, Gemini }
 
-/// <summary>Como o programa se autentica: pelo login dele (<c>Conta</c>) ou por chave de API entregue só como variável do processo filho.</summary>
-public enum ModoAcesso { Conta, Chave }
+/// <summary>Como o programa se autentica: pelo login dele (<c>Conta</c>), pela conta Google no Gemini Web (<c>ContaGemini</c>) ou por chave de API entregue só como variável do processo filho.</summary>
+public enum ModoAcesso { Conta, Chave, ContaGemini }
 
 public static class Provedores
 {

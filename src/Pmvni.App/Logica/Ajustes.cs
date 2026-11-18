@@ -370,7 +370,7 @@ public sealed class Ajustes
                 if (f is JsonValue fv && fv.TryGetValue<string>(out var id) && id is { Length: > 0 and <= 128 } && !a.LeisFavoritas.Contains(id)) a.LeisFavoritas.Add(id);
         if (j["agentes"] is JsonObject agentes)
             foreach (var p in Enum.GetValues<Provedor>())
-                if (agentes[Provedores.Sufixo(p)] is JsonObject o) LerAgente(o, a.Agentes[p]);
+                if (agentes[Provedores.Sufixo(p)] is JsonObject o) LerAgente(o, a.Agentes[p], p);
         if (j["plugins_vistos"] is JsonObject vistos)
             foreach (var (chave, valor) in vistos)
                 if (valor is JsonValue vv && vv.TryGetValue<string>(out var versao) && versao is { Length: > 0 and <= 64 } && chave.Length <= 64) a.PluginsVistos[chave] = versao;
@@ -573,10 +573,15 @@ public sealed class Ajustes
     static int? Inteiro(JsonObject j, string nome) => j[nome] is JsonValue v && v.TryGetValue<int>(out var i) ? i : null;
 
     // Só valores conhecidos entram; qualquer outra coisa fica no padrão. Nenhuma chave de API é lida nem escrita aqui.
-    static void LerAgente(JsonObject o, AjustesAgente a)
+    static void LerAgente(JsonObject o, AjustesAgente a, Provedor p)
     {
         if (Texto(o, "modo") is { } m)
-            a.Modo = m == "chave" ? ModoAcesso.Chave : ModoAcesso.Conta;
+            a.Modo = m switch
+            {
+                "chave" => ModoAcesso.Chave,
+                "conta_gemini" when p == Provedor.Gemini => ModoAcesso.ContaGemini,
+                _ => ModoAcesso.Conta,
+            };
         a.Executavel = Texto(o, "executavel") is { } e && !string.IsNullOrWhiteSpace(e) ? e : null;
         if (o["aviso_versao"] is JsonValue v && v.TryGetValue<int>(out var versao) && versao > 0) a.AvisoVersao = versao;
         if (Texto(o, "aviso_em") is { } em && DateTimeOffset.TryParse(em, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var quando)) a.AvisoEm = quando;
@@ -587,7 +592,7 @@ public sealed class Ajustes
     {
         var o = new JsonObject
         {
-            ["modo"] = a.Modo == ModoAcesso.Chave ? "chave" : "conta",
+            ["modo"] = a.Modo switch { ModoAcesso.Chave => "chave", ModoAcesso.ContaGemini => "conta_gemini", _ => "conta" },
             ["executavel"] = a.Executavel,
             ["aviso_versao"] = a.AvisoVersao,
             ["aviso_em"] = a.AvisoEm?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),

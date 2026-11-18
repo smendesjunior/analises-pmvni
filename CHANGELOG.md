@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.1.1
+
+- O cartão Gemini Web reconhece a sessão da Conta Google e mostra o e-mail quando o site o informa.
+- Fechar a janela do Gemini mantém a sessão disponível enquanto o editor estiver aberto.
+- A análise pelo Gemini Web depende dos modelos e níveis exigidos pelo perfil do kit. O editor informa quando o modelo necessário está indisponível.
+
 ## 1.1.0
 
 Terceira IA no Novo relatório: **Analisar com o Gemini** (o app mostra "Versão 1.1"). O ChatGPT e o Claude continuam como estavam.

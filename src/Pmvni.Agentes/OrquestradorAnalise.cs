@@ -133,7 +133,7 @@ public sealed class OrquestradorAnalise
         {
             if (pecas.Python is null) return Falha("O Python não foi encontrado neste computador (o análise Google do kit precisa dele).");
             if (pecas.GoogleRuntime is null) return Falha(SemAnaliseGoogle);
-            if (pecas.Agy is null) return Falha(SemAgy);
+            if (pe.Modo != ModoAcesso.ContaGemini && pecas.Agy is null) return Falha(SemAgy);
             if (pe.Perfil is not { } perfil)
                 return Falha(pe.Modo == ModoAcesso.Chave ? SemPerfilApi : "O perfil do Gemini não foi informado. Nada foi iniciado.");
             if (MatrizGemini.Modo(perfil) != pe.Modo)
@@ -174,7 +174,12 @@ public sealed class OrquestradorAnalise
     public static string AutenticacaoAnalisePro(ModoAcesso m) => m == ModoAcesso.Chave ? "anthropic_api" : "conta_claude";
 
     /// <summary>Como o análise Google se autentica, para o registro: <c>gemini_api</c> (chave do Google AI Studio) ou <c>conta_google</c> (login do Antigravity).</summary>
-    public static string AutenticacaoAnaliseGoogle(ModoAcesso m) => m == ModoAcesso.Chave ? "gemini_api" : "conta_google";
+    public static string AutenticacaoAnaliseGoogle(ModoAcesso m) => m switch
+    {
+        ModoAcesso.Chave => "gemini_api",
+        ModoAcesso.ContaGemini => "gemini_web",
+        _ => "conta_google",
+    };
 
     public const string SemAnaliseGoogle = "O plugin análise Google do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
     public const string SemAgy = "O Antigravity CLI (agy.exe) não foi encontrado neste computador. Instale-o pelo instalador oficial do Google Antigravity e entre na conta Google.";
@@ -205,7 +210,7 @@ public sealed class OrquestradorAnalise
         pe.Registro.Atualizar(o =>
         {
             o["provedor"] = Provedores.Sufixo(pe.Provedor);
-            o["modo"] = pe.Modo == ModoAcesso.Chave ? "chave" : "conta";    // nunca a chave
+            o["modo"] = pe.Modo switch { ModoAcesso.Chave => "chave", ModoAcesso.ContaGemini => "conta_gemini", _ => "conta" };    // nunca a chave
             o["programa"] = programa;
             o["linha_de_comando"] = new JsonArray(linha.Select(a => (JsonNode?)JsonValue.Create(a)).ToArray());
             o["processo"] = pe.Processo.Pasta;
@@ -236,7 +241,7 @@ public sealed class OrquestradorAnalise
             {
                 if (aviso is not null) o["aviso_registro"] = aviso;
                 o["provedor"] ??= Provedores.Sufixo(pe.Provedor);
-                o["modo"] ??= pe.Modo == ModoAcesso.Chave ? "chave" : "conta";
+                o["modo"] ??= pe.Modo switch { ModoAcesso.Chave => "chave", ModoAcesso.ContaGemini => "conta_gemini", _ => "conta" };
                 o["inicio"] ??= inicio.ToString("o", CultureInfo.InvariantCulture);
                 o["fim"] = DateTimeOffset.UtcNow.ToString("o", CultureInfo.InvariantCulture);
                 o["situacao"] = fim.Situacao;

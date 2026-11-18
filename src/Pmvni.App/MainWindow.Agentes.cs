@@ -42,11 +42,17 @@ public sealed partial class MainWindow
 
     /// <summary>O que o último "Testar" do Gemini disse do login do Antigravity (conta Google): true, false ou null (ainda não testado ou não foi possível saber).</summary>
     bool? contaGeminiConectada;
+    Window? janelaLoginGemini;
+    bool sessaoGeminiWebConectada;
+    string? emailGeminiWeb;
     bool mostrandoAgentes;
 
     /// <summary>A conta que o cartão mostra: a lida do disco (ChatGPT e Claude) ou, no Gemini, o que o último teste viu do login do Antigravity.</summary>
     ContaLocal ContaDoCartao(Provedor p) =>
-        p == Provedor.Gemini ? (contaGeminiConectada == true ? new ContaLocal(true, null, null, null) : ContaLocal.Nenhuma) : infoLocal.Conta(p);
+        p == Provedor.Gemini
+            ? ((ModoDoAgente(p) == ModoAcesso.ContaGemini ? sessaoGeminiWebConectada : contaGeminiConectada == true)
+                ? new ContaLocal(true, null, ModoDoAgente(p) == ModoAcesso.ContaGemini ? emailGeminiWeb : null, null) : ContaLocal.Nenhuma)
+            : infoLocal.Conta(p);
 
     internal PerfilGemini? PerfilApiDoGemini => ajustes.Agentes[Provedor.Gemini].PerfilApi;
 
@@ -70,7 +76,7 @@ public sealed partial class MainWindow
             var cartoes = Enum.GetValues<Provedor>().Select(CartaoDoAgente).ToList();
             var gemini = CartaoDoAgente(Provedor.Gemini);
             var cartoesOk = cartoes.Distinct().Count() == 3 && gemini.CaixaPerfil.Items.Count == TextosAgentes.OpcoesPerfilGemini.Count
-                && gemini.TextoServico.Text == TextosAgentes.NomeDoServico(Provedor.Gemini);
+                && (gemini.TextoServico.Text == TextosAgentes.NomeDoServico(Provedor.Gemini) || gemini.TextoServico.Text == "Gemini Web");
             d["cartoes"] = cartoes.Count;
             d["perfis_do_gemini"] = gemini.CaixaPerfil.Items.Count;
             d["matriz"] = Enum.GetValues<PerfilGemini>().ToDictionary(p => MatrizGemini.Codigo(p), p => MatrizGemini.Etapas(p).Select(e => e.IdRuntime).ToArray());
@@ -144,6 +150,11 @@ public sealed partial class MainWindow
     {
         if (p == Provedor.Gemini)
         {
+            if (ajustes.Agentes[p].Modo == ModoAcesso.ContaGemini)
+            {
+                await AbrirLoginGeminiAsync();
+                return;
+            }
             // O Antigravity não tem comando de login/logout fora da tela dele: abre o agy (pede o login do Google se não houver; /logout sai).
             if (!AbrirLogin(pecasAgentes.Agy, "agy", "")) return;
             notasDasContas[p] = TextosAgentes.GeminiLoginAberto;
@@ -159,6 +170,81 @@ public sealed partial class MainWindow
         notasDasContas[p] = TextosAgentes.LoginAberto;
         testarAoVoltar.Add(p);
         MostrarAgentes();
+    }
+
+    async Task AbrirLoginGeminiAsync()
+    {
+        if (janelaLoginGemini is { } aberta)
+        {
+            aberta.AppWindow.Show();
+            aberta.Activate();
+            return;
+        }
+
+        var web = new WebView2();
+        var janela = new Window { Title = "Conta Google · Gemini", Content = web };
+        janelaLoginGemini = janela;
+        PonteGeminiWeb? ponte = null;
+        var timer = janela.DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromSeconds(2);
+        bool conferindo = false;
+        timer.Tick += async (_, _) =>
+        {
+            if (conferindo || ponte is null) return;
+            conferindo = true;
+            try
+            {
+                bool conectada = await ponte.ConectadoAsync();
+                var email = conectada ? await ponte.EmailDaContaAsync() : null;
+                if (janelaLoginGemini != janela || (sessaoGeminiWebConectada == conectada && emailGeminiWeb == email)) return;
+                emailGeminiWeb = email;
+                sessaoGeminiWebConectada = conectada;
+                MostrarAgentes();
+            }
+            catch (Exception e) when (e is InvalidOperationException or System.Runtime.InteropServices.COMException or System.Text.Json.JsonException) { }
+            finally { conferindo = false; }
+        };
+        bool encerrando = false;
+        void EncerrarComEditor(object sender, WindowEventArgs args)
+        {
+            encerrando = true;
+            if (janelaLoginGemini == janela) janela.Close();
+        }
+        Closed += EncerrarComEditor;
+        janela.AppWindow.Closing += (_, args) =>
+        {
+            if (encerrando) return;
+            args.Cancel = true;
+            janela.AppWindow.Hide();
+        };
+        janela.Closed += (_, _) =>
+        {
+            Closed -= EncerrarComEditor;
+            timer.Stop();
+            janelaLoginGemini = null;
+            sessaoGeminiWebConectada = false;
+            emailGeminiWeb = null;
+            ponte?.Dispose();
+            web.Close();
+            MostrarAgentes();
+        };
+        try
+        {
+            janela.Activate();
+            var pasta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "EditorRelatoriosPMVNI", "GoogleWeb", "Profile");
+            await web.EnsureCoreWebView2Async(await FabricaWebView2.CriarAmbienteAsync(pasta));
+            if (janelaLoginGemini != janela) return;
+            web.Source = new Uri("https://gemini.google.com/app");
+            ponte = new PonteGeminiWeb(web, Path.GetDirectoryName(pasta)!);
+            timer.Start();
+        }
+        catch
+        {
+            encerrando = true;
+            if (janelaLoginGemini == janela) janela.Close();
+            throw;
+        }
     }
 
     void IniciarAgentes()
@@ -185,6 +271,7 @@ public sealed partial class MainWindow
                 if (await Perguntas.Atual.AbrirArquivoAsync(".exe") is { } caminho) await EscolherProgramaAsync(p, caminho);
             }));
             c.BotaoProgramaPadrao.Click += async (_, _) => await EscolherProgramaAsync(p, null);
+            c.OpcaoContaGemini.Click += async (_, _) => await DefinirModoAsync(p, ModoAcesso.ContaGemini);
             c.OpcaoConta.Click += async (_, _) => await DefinirModoAsync(p, ModoAcesso.Conta);
             c.OpcaoChave.Click += async (_, _) => await DefinirModoAsync(p, ModoAcesso.Chave);
             c.BotaoGuardarChave.Click += async (_, _) => await GuardarChaveAsync(p, c.CaixaChave.Password);
@@ -332,7 +419,7 @@ public sealed partial class MainWindow
         {
             ajustes.Agentes[p].Modo = m;
             SalvarAjustes();
-            if (p == Provedor.Gemini) { situacaoDosAgentes.Remove(p); avisosDosAgentes.Remove(p); }     // o teste anterior valia para o outro modo
+            if (p == Provedor.Gemini) { contaGeminiConectada = null; situacaoDosAgentes.Remove(p); avisosDosAgentes.Remove(p); }     // o teste anterior valia para o outro modo
         }
         MostrarAgentes();
         AtualizarBotoesNR();     // o modo muda o motivo do botão Analisar (chave guardada, perfil do Gemini)
@@ -344,7 +431,7 @@ public sealed partial class MainWindow
     {
         await Task.CompletedTask;
         var a = ajustes.Agentes[Provedor.Gemini];
-        if (perfil is PerfilGemini.ContaUltra) perfil = null;     // a conta não é perfil de chave
+        if (perfil is not (PerfilGemini.ApiCreditos or PerfilGemini.ApiGratuita)) perfil = null;     // a conta não é perfil de chave
         if (a.PerfilApi == perfil) return;
         a.PerfilApi = perfil;
         SalvarAjustes();
@@ -411,17 +498,22 @@ public sealed partial class MainWindow
         var gemini = p == Provedor.Gemini;
 
         // Conta (lida neste computador) e Assinatura.
-        c.BotaoConta.Content = TextosAgentes.AcaoDaConta(conta);
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(c.BotaoConta, TextosAgentes.AcaoDaConta(conta) + " no " + TextosAgentes.NomeDoServico(p));
-        Dicas.Aplicar(c.BotaoConta, TextosAgentes.AcaoDaConta(conta), conta.Conectado
+        bool contaWeb = gemini && a.Modo == ModoAcesso.ContaGemini;
+        var servico = contaWeb ? "Gemini Web" : TextosAgentes.NomeDoServico(p);
+        var acao = contaWeb && conta.Conectado ? "Abrir" : TextosAgentes.AcaoDaConta(conta);
+        c.TextoServico.Text = servico;
+        c.BotaoConta.Content = acao;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(c.BotaoConta, acao + " no " + servico);
+        Dicas.Aplicar(c.BotaoConta, acao, contaWeb ? "Abre a janela da Conta Google no Gemini Web." : conta.Conectado
             ? "Sai da conta do " + TextosAgentes.NomeDoServico(p) + " neste computador."
             : "Entra na sua conta do " + TextosAgentes.NomeDoServico(p) + " para o app poder usar a IA.");
-        c.TextoNomeConta.Text = TextosAgentes.NomeDaConta(conta);
+        c.TextoNomeConta.Text = contaWeb && conta.Conectado ? "Conectado" : TextosAgentes.NomeDaConta(conta);
         c.FotoConta.DisplayName = conta.Conectado ? conta.Nome ?? conta.Email ?? "" : "";
-        var email = TextosAgentes.EmailDaConta(conta);
+        var email = contaWeb ? conta.Email ?? "" : TextosAgentes.EmailDaConta(conta);
         c.TextoEmailConta.Text = email;
         c.TextoEmailConta.Visibility = email.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         var nota = notasDasContas.TryGetValue(p, out var n) ? n : conta.Conectado ? ""
+            : contaWeb ? "Abra a janela do Gemini para conferir a sessão da Conta Google."
             : gemini && contaGeminiConectada is null ? TextosAgentes.GeminiContaNaoVerificada : TextosAgentes.SemSessao;
         c.TextoNotaConta.Text = nota;
         c.TextoNotaConta.Visibility = nota.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -462,11 +554,17 @@ public sealed partial class MainWindow
         c.TextoAvisosDoTeste.Visibility = avisos.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         c.BotaoTestar.IsEnabled = !testandoAgentes.Contains(p);
 
+        c.OpcaoContaGemini.IsChecked = a.Modo == ModoAcesso.ContaGemini;
         c.OpcaoConta.IsChecked = a.Modo == ModoAcesso.Conta;
         c.OpcaoChave.IsChecked = a.Modo == ModoAcesso.Chave;
         var apiProibida = p == Provedor.Claude && !pecas.ApiPermitidaNoKit;
         // 2026-11-17: no Claude, "Usar chave de API" é o modo Anthropic API do análise pro (1.6.4+); a dica diz o que isso muda ou por que não roda.
-        var dica = gemini ? (a.Modo == ModoAcesso.Chave ? TextosAgentes.GeminiModoApi : TextosAgentes.GeminiModoConta)
+        var dica = gemini ? (a.Modo switch
+        {
+            ModoAcesso.Chave => TextosAgentes.GeminiModoApi,
+            ModoAcesso.ContaGemini => "Use Entrar para abrir o Gemini. Fechar a janela do Gemini mantém a sessão disponível enquanto o editor estiver aberto.",
+            _ => TextosAgentes.GeminiModoConta,
+        })
             : p != Provedor.Claude ? "" : apiProibida ? TextosAgentes.ClaudeSoConta : a.Modo == ModoAcesso.Chave ? TextosAgentes.ClaudeModoApi : "";
         c.OpcaoChave.IsEnabled = true;
         ToolTipService.SetToolTip(c.OpcaoChave, gemini ? TextosAgentes.GeminiModoApi : apiProibida ? TextosAgentes.ClaudeSoConta : p == Provedor.Claude ? TextosAgentes.ClaudeModoApi : null);
