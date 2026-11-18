@@ -14,6 +14,7 @@ public static class PluginsInstalados
 {
     public const string Analise = "analise";
     public const string AnalisePro = "analise-pro";
+    public const string AnaliseGoogle = "analise-google";
 
     /// <summary>O plugin no cache do Codex (pasta do kit <c>pmvni-kit</c>); null = não instalado.</summary>
     public static PluginInstalado? NoCodex(string codexHome, string plugin)

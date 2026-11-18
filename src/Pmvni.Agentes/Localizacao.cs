@@ -37,7 +37,21 @@ public sealed record Pecas(
     string? VersaoAnaliseProKit,
     bool PluginAnaliseHabilitado,
     string? VersaoPluginAnalise,
-    bool ApiPermitidaNoKit);
+    bool ApiPermitidaNoKit)
+{
+    /// <summary>O Antigravity CLI (<c>agy.exe</c>), que executa o análise Google pela conta Google ou pela chave do Google AI Studio.</summary>
+    public string? Agy { get; init; }
+
+    /// <summary>O <c>google_runtime.py</c> do análise Google instalado no Codex (a maior versão, se conhece a rota explícita).</summary>
+    public string? GoogleRuntime { get; init; }
+
+    public string? VersaoAnaliseGoogle { get; init; }
+
+    public string? VersaoAnaliseGoogleKit { get; init; }
+
+    /// <summary>O controlador do kit que o provedor usa: análise pro (Claude) ou análise Google (Gemini); null para o ChatGPT ou se não instalado.</summary>
+    public string? RuntimeDoKit(Provedor p) => p switch { Provedor.Claude => ProRuntime, Provedor.Gemini => GoogleRuntime, _ => null };
+}
 
 /// <summary>Onde estão o Codex, o Claude Code, o Python e as peças do kit (desenho §12.4–§12.5). Só lê; nada falha: peça ilegível é peça ausente.</summary>
 public static class Localizacao
@@ -69,7 +83,20 @@ public static class Localizacao
         }
 
         var (versaoPlugin, _) = MaiorVersao(Path.Combine(cacheKit, "analise"));
-        return new Pecas(codex, claude, python, launcher, proRuntime, versaoPro, VersaoDoKit(o), PluginHabilitado(o.CodexHome), versaoPlugin, apiPermitida);
+
+        var (versaoGoogle, pastaGoogle) = MaiorVersao(Path.Combine(cacheKit, PluginsInstalados.AnaliseGoogle));
+        string? googleRuntime = null;
+        if (pastaGoogle is not null)
+        {
+            var script = Path.Combine(pastaGoogle, "skills", PluginsInstalados.AnaliseGoogle, "scripts", "google_runtime.py");
+            try { if (File.Exists(script) && PoliticaKit.RuntimeGoogleValido(File.ReadAllText(script))) googleRuntime = script; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        }
+
+        return new Pecas(codex, claude, python, launcher, proRuntime, versaoPro, VersaoDoKit(o), PluginHabilitado(o.CodexHome), versaoPlugin, apiPermitida)
+        {
+            Agy = AcharAgy(o), GoogleRuntime = googleRuntime, VersaoAnaliseGoogle = versaoGoogle, VersaoAnaliseGoogleKit = VersaoDoKit(o, PluginsInstalados.AnaliseGoogle),
+        };
     }
 
     static bool EhExe(string caminho) => caminho.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
@@ -114,6 +141,18 @@ public static class Localizacao
         return NoPath(o, "codex.exe");
     }
 
+    /// <summary>O <c>agy.exe</c> do instalador oficial (<c>%LOCALAPPDATA%\agy\bin</c>); senão o do PATH.</summary>
+    static string? AcharAgy(OpcoesLocalizacao o)
+    {
+        try
+        {
+            var local = Path.Combine(o.LocalAppData, "agy", "bin", "agy.exe");
+            if (File.Exists(local)) return local;
+        }
+        catch (ArgumentException) { }
+        return NoPath(o, "agy.exe");
+    }
+
     static bool EhAtalhoDaLoja(string dir) =>
         dir.TrimEnd('\\', '/').EndsWith(Path.Combine("Microsoft", "WindowsApps"), StringComparison.OrdinalIgnoreCase);
 
@@ -147,9 +186,9 @@ public static class Localizacao
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return (null, null); }
     }
 
-    static string? VersaoDoKit(OpcoesLocalizacao o)
+    static string? VersaoDoKit(OpcoesLocalizacao o, string plugin = PluginsInstalados.AnalisePro)
     {
-        var json = Path.Combine(o.PastaKit, "01 - PLUGINS", "plugins", "analise-pro", ".codex-plugin", "plugin.json");
+        var json = Path.Combine(o.PastaKit, "01 - PLUGINS", "plugins", plugin, ".codex-plugin", "plugin.json");
         try
         {
             if (!File.Exists(json)) return null;

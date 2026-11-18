@@ -28,15 +28,64 @@ public sealed partial class MainWindow
 
     /// <summary>O que a página de IA mostra além das peças (correções 2026-11-15): a conta lida neste computador (nunca o token) e os plugins do kit.</summary>
     internal sealed record InfoLocalAgentes(ContaLocal ContaChatGpt, ContaLocal ContaClaude, PluginInstalado? AnaliseNoCodex, PluginInstalado? AnaliseNoClaude,
-        PluginInstalado? AnaliseProNoCodex)
+        PluginInstalado? AnaliseProNoCodex, PluginInstalado? AnaliseGoogleNoCodex = null)
     {
         public static readonly InfoLocalAgentes Vazia = new(ContaLocal.Nenhuma, ContaLocal.Nenhuma, null, null, null);
 
-        public ContaLocal Conta(Provedor p) => p == Provedor.ChatGpt ? ContaChatGpt : ContaClaude;
+        /// <summary>A conta lida do disco. O Gemini não tem arquivo de conta que o editor leia: o login do Antigravity só é conferido pelo "Testar".</summary>
+        public ContaLocal Conta(Provedor p) => p switch { Provedor.ChatGpt => ContaChatGpt, Provedor.Claude => ContaClaude, _ => ContaLocal.Nenhuma };
 
         public static InfoLocalAgentes Ler(OpcoesLocalizacao o) => new(ContasLocais.Ler(Provedor.ChatGpt, o), ContasLocais.Ler(Provedor.Claude, o),
             PluginsInstalados.NoCodex(o.CodexHome, PluginsInstalados.Analise), PluginsInstalados.NoClaude(o.PastaClaude, PluginsInstalados.Analise),
-            PluginsInstalados.NoCodex(o.CodexHome, PluginsInstalados.AnalisePro));
+            PluginsInstalados.NoCodex(o.CodexHome, PluginsInstalados.AnalisePro), PluginsInstalados.NoCodex(o.CodexHome, PluginsInstalados.AnaliseGoogle));
+    }
+
+    /// <summary>O que o último "Testar" do Gemini disse do login do Antigravity (conta Google): true, false ou null (ainda não testado ou não foi possível saber).</summary>
+    bool? contaGeminiConectada;
+    bool mostrandoAgentes;
+
+    /// <summary>A conta que o cartão mostra: a lida do disco (ChatGPT e Claude) ou, no Gemini, o que o último teste viu do login do Antigravity.</summary>
+    ContaLocal ContaDoCartao(Provedor p) =>
+        p == Provedor.Gemini ? (contaGeminiConectada == true ? new ContaLocal(true, null, null, null) : ContaLocal.Nenhuma) : infoLocal.Conta(p);
+
+    internal PerfilGemini? PerfilApiDoGemini => ajustes.Agentes[Provedor.Gemini].PerfilApi;
+
+    /// <summary>O perfil do Gemini que vale agora em Ajustes (conta ⇒ conta Ultra; chave ⇒ o perfil escolhido, ou null).</summary>
+    internal PerfilGemini? PerfilDoGemini => MatrizGemini.PerfilDoModo(ajustes.Agentes[Provedor.Gemini].Modo, ajustes.Agentes[Provedor.Gemini].PerfilApi);
+
+    /// <summary>Autoteste do executável (1.1.0): os três provedores estão de fato na janela publicada — os três botões "Analisar com o …" em Novo
+    /// relatório, cada um ligado ao seu provedor, e os três cartões em Ajustes › Inteligência artificial, com o perfil da chave e a matriz no do Gemini.
+    /// Só olha a tela montada: não inicia análise, não roda programa e não fala com a rede.</summary>
+    internal Dictionary<string, object?> AutotesteDosAgentes()
+    {
+        var d = new Dictionary<string, object?>();
+        try
+        {
+            var botoes = Enum.GetValues<Provedor>().ToDictionary(p => Provedores.Sufixo(p), p => BotaoDoProvedor(p));
+            var rotulos = Enum.GetValues<Provedor>().ToDictionary(p => Provedores.Sufixo(p), p =>
+                (BotaoDoProvedor(p).Content as StackPanel)?.Children.OfType<TextBlock>().FirstOrDefault()?.Text);
+            d["botoes"] = rotulos;
+            var botoesOk = botoes.Values.Distinct().Count() == 3
+                && rotulos.All(r => r.Value == "Analisar com o " + Provedores.Nome(Enum.GetValues<Provedor>().Single(p => Provedores.Sufixo(p) == r.Key)));
+            var cartoes = Enum.GetValues<Provedor>().Select(CartaoDoAgente).ToList();
+            var gemini = CartaoDoAgente(Provedor.Gemini);
+            var cartoesOk = cartoes.Distinct().Count() == 3 && gemini.CaixaPerfil.Items.Count == TextosAgentes.OpcoesPerfilGemini.Count
+                && gemini.TextoServico.Text == TextosAgentes.NomeDoServico(Provedor.Gemini);
+            d["cartoes"] = cartoes.Count;
+            d["perfis_do_gemini"] = gemini.CaixaPerfil.Items.Count;
+            d["matriz"] = Enum.GetValues<PerfilGemini>().ToDictionary(p => MatrizGemini.Codigo(p), p => MatrizGemini.Etapas(p).Select(e => e.IdRuntime).ToArray());
+            var matrizOk = Enum.GetValues<PerfilGemini>().All(p => MatrizGemini.Etapas(p).Count == SituacaoAnalisePro.Etapas.Count);
+            d["ok"] = botoesOk && cartoesOk && matrizOk;
+            if (!botoesOk) d["erro"] = "os três botões Analisar não estão na página Novo relatório";
+            else if (!cartoesOk) d["erro"] = "o cartão do Gemini não está completo em Ajustes";
+            else if (!matrizOk) d["erro"] = "a matriz do Gemini não tem as seis etapas";
+        }
+        catch (Exception e)
+        {
+            d["ok"] = false;
+            d["erro"] = e.GetType().Name + ": " + e.Message;
+        }
+        return d;
     }
 
     // ---------- acessores do roteiro ----------
@@ -53,7 +102,8 @@ public sealed partial class MainWindow
     /// <summary>A página de IA está à vista (Ajustes aberto nessa categoria): ler as peças ali também testa sozinho e registra as versões dos plugins.</summary>
     bool IaVisivel => PaginaAjustesVisivel && PaginaDeAjustes.CategoriaAtual == CategoriasAjustes.Ia;
 
-    internal CartaoAgente CartaoDoAgente(Provedor p) => p == Provedor.ChatGpt ? PaginaDeAjustes.CartaoChatGpt : PaginaDeAjustes.CartaoClaude;
+    internal CartaoAgente CartaoDoAgente(Provedor p) =>
+        p switch { Provedor.ChatGpt => PaginaDeAjustes.CartaoChatGpt, Provedor.Claude => PaginaDeAjustes.CartaoClaude, _ => PaginaDeAjustes.CartaoGemini };
 
     /// <summary>A linha de situação do cartão (a do último "Testar", ou "Ainda não testado…").</summary>
     internal string LinhaSituacaoAgente(Provedor p) => situacaoDosAgentes.TryGetValue(p, out var s) ? s : TextosAgentes.NaoTestado;
@@ -92,6 +142,15 @@ public sealed partial class MainWindow
     /// <summary>O link Entrar/Sair do alto do cartão: sem sessão, abre o login; com sessão, pergunta e abre o logout oficial do programa.</summary>
     async Task EntrarOuSairAsync(Provedor p)
     {
+        if (p == Provedor.Gemini)
+        {
+            // O Antigravity não tem comando de login/logout fora da tela dele: abre o agy (pede o login do Google se não houver; /logout sai).
+            if (!AbrirLogin(pecasAgentes.Agy, "agy", "")) return;
+            notasDasContas[p] = TextosAgentes.GeminiLoginAberto;
+            testarAoVoltar.Add(p);
+            MostrarAgentes();
+            return;
+        }
         var sair = infoLocal.Conta(p).Conectado;
         if (sair && !await Perguntas.Atual.ConfirmarAsync(TextosAgentes.PerguntaSair(p), TextosAgentes.ExplicacaoSair, "Sair", "Cancelar")) return;
         var (exe, nome) = p == Provedor.ChatGpt ? (pecasAgentes.Codex, "codex") : (pecasAgentes.Claude, "claude");
@@ -131,6 +190,8 @@ public sealed partial class MainWindow
             c.BotaoGuardarChave.Click += async (_, _) => await GuardarChaveAsync(p, c.CaixaChave.Password);
             c.BotaoRemoverChave.Click += async (_, _) => await RemoverChaveAsync(p);
             c.BotaoReverAviso.Click += async (_, _) => await ReverAvisoAsync(p);
+            if (p == Provedor.Gemini)
+                c.CaixaPerfil.SelectionChanged += async (_, _) => { if (!mostrandoAgentes) await DefinirPerfilGeminiAsync(TextosAgentes.PerfilDoIndice(c.CaixaPerfil.SelectedIndex)); };
         }
         MostrarAgentes();
     }
@@ -160,6 +221,7 @@ public sealed partial class MainWindow
         var mudou = acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.ChatGpt, PluginsInstalados.Analise), infoLocal.AnaliseNoCodex?.Versao);
         mudou |= acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.Claude, PluginsInstalados.Analise), infoLocal.AnaliseNoClaude?.Versao);
         mudou |= acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.Claude, PluginsInstalados.AnalisePro), infoLocal.AnaliseProNoCodex?.Versao);
+        mudou |= acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.Gemini, PluginsInstalados.AnaliseGoogle), infoLocal.AnaliseGoogleNoCodex?.Versao);
         if (mudou) SalvarAjustes();
     }
 
@@ -204,7 +266,11 @@ public sealed partial class MainWindow
         try
         {
             var pecas = await LerPecasAsync();
-            resultado = await Diagnostico.TestarAsync(p, pecas, ajustes.Agentes[p].Modo, CofreChaves.Existe(PastaDados.Raiz, p), CancellationToken.None);
+            // Gemini, modo chave: a chave sai do cofre só para a conferência na API do Google (lista de modelos); nunca vai para a tela nem para o registro.
+            var chaveGemini = p == Provedor.Gemini && ajustes.Agentes[p].Modo == ModoAcesso.Chave ? await Task.Run(() => CofreChaves.Ler(PastaDados.Raiz, p)) : null;
+            resultado = await Diagnostico.TestarAsync(p, pecas, ajustes.Agentes[p].Modo, CofreChaves.Existe(PastaDados.Raiz, p), CancellationToken.None,
+                ajustes.Agentes[p].PerfilApi, chaveGemini);
+            if (p == Provedor.Gemini && ajustes.Agentes[p].Modo == ModoAcesso.Conta) contaGeminiConectada = resultado.ContaConectada;
         }
         catch (Exception e) { resultado = new SituacaoProvedor("Não foi possível testar: " + Erro(e), []); }
         finally
@@ -240,6 +306,7 @@ public sealed partial class MainWindow
         }
         finally { caixa.Password = ""; }    // a chave nunca fica na caixa, qualquer que seja a falha
         MostrarAgentes();
+        AtualizarBotoesNR();     // a chave guardada habilita (ou explica) o botão Analisar do provedor
         return Task.CompletedTask;
     }));
 
@@ -253,6 +320,7 @@ public sealed partial class MainWindow
             mensagensDosAgentes.Remove(p);
         }
         MostrarAgentes();
+        AtualizarBotoesNR();
     }));
 
     /// <summary>Usar a conta do programa ou a chave de API. O Claude só aceita a chave se o análise pro instalado do kit não a proibir; senão nada muda.</summary>
@@ -264,9 +332,26 @@ public sealed partial class MainWindow
         {
             ajustes.Agentes[p].Modo = m;
             SalvarAjustes();
+            if (p == Provedor.Gemini) { situacaoDosAgentes.Remove(p); avisosDosAgentes.Remove(p); }     // o teste anterior valia para o outro modo
         }
         MostrarAgentes();
+        AtualizarBotoesNR();     // o modo muda o motivo do botão Analisar (chave guardada, perfil do Gemini)
         if (catalogoIa is not null) MostrarModelosIa();   // a Claude API entra/sai da lista de Modelos de IA
+    }));
+
+    /// <summary>Gemini, modo chave: o perfil da chave (com créditos ou gratuita). Só muda por escolha do usuário; null = "Escolha o perfil…".</summary>
+    internal Task DefinirPerfilGeminiAsync(PerfilGemini? perfil) => NaFilaAsync(() => TentarAsync(async () =>
+    {
+        await Task.CompletedTask;
+        var a = ajustes.Agentes[Provedor.Gemini];
+        if (perfil is PerfilGemini.ContaUltra) perfil = null;     // a conta não é perfil de chave
+        if (a.PerfilApi == perfil) return;
+        a.PerfilApi = perfil;
+        SalvarAjustes();
+        situacaoDosAgentes.Remove(Provedor.Gemini);     // o teste anterior valia para o outro perfil
+        avisosDosAgentes.Remove(Provedor.Gemini);
+        MostrarAgentes();
+        AtualizarBotoesNR();
     }));
 
     /// <summary>"Escolher programa…" (o <c>codex.exe</c> do ChatGPT; o <c>python.exe</c> do Claude) ou, com null, "Usar o padrão". Um caminho que não termina em
@@ -310,7 +395,9 @@ public sealed partial class MainWindow
     void MostrarAgentes()
     {
         if (fechada) return;
-        foreach (var p in Enum.GetValues<Provedor>()) MostrarCartao(p);
+        mostrandoAgentes = true;     // marcar a caixa do perfil pelo código não é uma escolha do usuário
+        try { foreach (var p in Enum.GetValues<Provedor>()) MostrarCartao(p); }
+        finally { mostrandoAgentes = false; }
         MostrarModelosIa();   // a chave guardada ou o programa achado mudam as fontes de Modelos de IA
     }
 
@@ -320,7 +407,8 @@ public sealed partial class MainWindow
         var a = ajustes.Agentes[p];
         var pecas = pecasAgentes;
 
-        var conta = infoLocal.Conta(p);
+        var conta = ContaDoCartao(p);
+        var gemini = p == Provedor.Gemini;
 
         // Conta (lida neste computador) e Assinatura.
         c.BotaoConta.Content = TextosAgentes.AcaoDaConta(conta);
@@ -333,21 +421,33 @@ public sealed partial class MainWindow
         var email = TextosAgentes.EmailDaConta(conta);
         c.TextoEmailConta.Text = email;
         c.TextoEmailConta.Visibility = email.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        var nota = notasDasContas.TryGetValue(p, out var n) ? n : conta.Conectado ? "" : TextosAgentes.SemSessao;
+        var nota = notasDasContas.TryGetValue(p, out var n) ? n : conta.Conectado ? ""
+            : gemini && contaGeminiConectada is null ? TextosAgentes.GeminiContaNaoVerificada : TextosAgentes.SemSessao;
         c.TextoNotaConta.Text = nota;
         c.TextoNotaConta.Visibility = nota.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         c.TextoAssinatura.Text = TextosAgentes.Assinatura(conta);
 
         // Plugins do kit: versão, data e o aviso quando mudou desde a última vez.
-        MostrarPlugin(c.TextoPluginAnalise, c.SeloPluginAnalise, c.TextoPluginAnaliseNovo, p, PluginsInstalados.Analise,
-            p == Provedor.ChatGpt ? infoLocal.AnaliseNoCodex : infoLocal.AnaliseNoClaude, pecas.PluginAnaliseHabilitado);
+        if (!gemini)
+            MostrarPlugin(c.TextoPluginAnalise, c.SeloPluginAnalise, c.TextoPluginAnaliseNovo, p, PluginsInstalados.Analise,
+                p == Provedor.ChatGpt ? infoLocal.AnaliseNoCodex : infoLocal.AnaliseNoClaude, pecas.PluginAnaliseHabilitado);
         if (p == Provedor.Claude)
             MostrarPlugin(c.TextoPluginPro, c.SeloPluginPro, c.TextoPluginProNovo, p, PluginsInstalados.AnalisePro, infoLocal.AnaliseProNoCodex, pecas.PluginAnaliseHabilitado);
+        if (gemini)
+            MostrarPlugin(c.TextoPluginPro, c.SeloPluginPro, c.TextoPluginProNovo, p, PluginsInstalados.AnaliseGoogle, infoLocal.AnaliseGoogleNoCodex, pecas.PluginAnaliseHabilitado);
 
-        var achado = p == Provedor.ChatGpt ? pecas.Codex is not null : pecas.Python is not null && pecas.Claude is not null;
+        var achado = p switch
+        {
+            Provedor.ChatGpt => pecas.Codex is not null,
+            Provedor.Claude => pecas.Python is not null && pecas.Claude is not null,
+            _ => pecas.Python is not null && pecas.Agy is not null,
+        };
         c.SeloPrograma.Definir(achado, achado ? TextosAgentes.Encontrado : TextosAgentes.NaoEncontrado);
         c.TextoPrograma.Text = p == Provedor.ChatGpt
             ? TextosAgentes.LinhaDoPrograma("Codex", pecas.Codex, a.Executavel)
+            : gemini
+            ? TextosAgentes.LinhaDoPrograma("Python", pecas.Python, ajustes.Agentes[Provedor.Claude].Executavel) + (pecas.PythonPeloLauncher ? " (pelo py.exe -3)" : "")
+              + Environment.NewLine + "Antigravity CLI (agy): " + (pecas.Agy ?? "não encontrado")
             : TextosAgentes.LinhaDoPrograma("Python", pecas.Python, a.Executavel) + (pecas.PythonPeloLauncher ? " (pelo py.exe -3)" : "")
               + Environment.NewLine + "Claude Code: " + (pecas.Claude ?? "não encontrado");
         c.BotaoProgramaPadrao.IsEnabled = !string.IsNullOrWhiteSpace(a.Executavel);
@@ -366,9 +466,19 @@ public sealed partial class MainWindow
         c.OpcaoChave.IsChecked = a.Modo == ModoAcesso.Chave;
         var apiProibida = p == Provedor.Claude && !pecas.ApiPermitidaNoKit;
         // 2026-11-17: no Claude, "Usar chave de API" é o modo Anthropic API do análise pro (1.6.4+); a dica diz o que isso muda ou por que não roda.
-        var dica = p != Provedor.Claude ? "" : apiProibida ? TextosAgentes.ClaudeSoConta : a.Modo == ModoAcesso.Chave ? TextosAgentes.ClaudeModoApi : "";
+        var dica = gemini ? (a.Modo == ModoAcesso.Chave ? TextosAgentes.GeminiModoApi : TextosAgentes.GeminiModoConta)
+            : p != Provedor.Claude ? "" : apiProibida ? TextosAgentes.ClaudeSoConta : a.Modo == ModoAcesso.Chave ? TextosAgentes.ClaudeModoApi : "";
         c.OpcaoChave.IsEnabled = true;
-        ToolTipService.SetToolTip(c.OpcaoChave, apiProibida ? TextosAgentes.ClaudeSoConta : p == Provedor.Claude ? TextosAgentes.ClaudeModoApi : null);
+        ToolTipService.SetToolTip(c.OpcaoChave, gemini ? TextosAgentes.GeminiModoApi : apiProibida ? TextosAgentes.ClaudeSoConta : p == Provedor.Claude ? TextosAgentes.ClaudeModoApi : null);
+        if (gemini)
+        {
+            // O perfil da chave (só no modo chave) e os modelos de cada etapa no perfil que vale agora.
+            c.PainelPerfil.Visibility = a.Modo == ModoAcesso.Chave ? Visibility.Visible : Visibility.Collapsed;
+            var indice = TextosAgentes.IndiceDoPerfil(a.PerfilApi);
+            if (c.CaixaPerfil.SelectedIndex != indice) c.CaixaPerfil.SelectedIndex = indice;
+            c.TextoMatriz.Text = TextosAgentes.MatrizDoGemini(a.Modo, a.PerfilApi);
+            c.TextoMatriz.Visibility = Visibility.Visible;
+        }
         c.TextoDicaChave.Text = dica;
         c.TextoDicaChave.Visibility = dica.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         c.PainelChave.Visibility = a.Modo == ModoAcesso.Chave ? Visibility.Visible : Visibility.Collapsed;

@@ -460,6 +460,7 @@
             <TextBlock Text="Suas IAs" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
             <local:CartaoAgente x:Name="CartaoChatGpt" x:FieldModifier="internal"/>
             <local:CartaoAgente x:Name="CartaoClaude" x:FieldModifier="internal"/>
+            <local:CartaoAgente x:Name="CartaoGemini" x:FieldModifier="internal"/>
             <!-- Modelos de IA (2026-11-17, no padrão do seletor do WinStatusBar): qual IA responde na revisão e nos ajustes, com que modelo e com que
                  nível de raciocínio. Uma linha por fonte disponível neste computador (montada em MainWindow.ModelosIa.cs); as listas vêm dos apps
                  ChatGPT e Claude e, nas APIs, da própria API. -->

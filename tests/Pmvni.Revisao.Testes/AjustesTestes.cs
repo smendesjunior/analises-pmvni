@@ -207,11 +207,12 @@ public class AjustesKitTestes
     {
         using var pasta = Ambiente.PastaDeTeste("ajustes-agentes");
 
-        // Padrão: os dois agentes existem, na conta, sem programa escolhido e sem aviso aceito.
+        // Padrão: os três agentes existem, na conta, sem programa escolhido, sem aviso aceito e sem perfil de chave.
         var a = Ajustes.Carregar(pasta);
-        Assert.Equal(2, a.Agentes.Count);
-        foreach (var p in new[] { Provedor.ChatGpt, Provedor.Claude })
+        Assert.Equal(3, a.Agentes.Count);
+        foreach (var p in Enum.GetValues<Provedor>())
         {
+            Assert.Null(a.Agentes[p].PerfilApi);
             Assert.Equal(ModoAcesso.Conta, a.Agentes[p].Modo);
             Assert.Null(a.Agentes[p].Executavel);
             Assert.Null(a.Agentes[p].AvisoVersao);
@@ -243,6 +244,39 @@ public class AjustesKitTestes
         Assert.Equal(@"C:\Python\python.exe", b.Agentes[Provedor.Claude].Executavel);
         Assert.False(b.Agentes[Provedor.Claude].AvisoAceito);
 
+        // Gemini: o modo e o perfil da chave ficam guardados; o perfil só aparece no arquivo de quem o tem, e os outros dois agentes não mudam.
+        Assert.Equal("conta", (string?)j["agentes"]!["gemini"]!["modo"]);
+        Assert.Null(j["agentes"]!["gemini"]!["perfil_api"]);
+        Assert.False(j["agentes"]!["chatgpt"]!.AsObject().ContainsKey("perfil_api"));
+        Assert.False(j["agentes"]!["gemini"]!.AsObject().ContainsKey("perfil_api"));
+        foreach (var (perfil, codigo) in new[] { (PerfilGemini.ApiCreditos, "api_creditos"), (PerfilGemini.ApiGratuita, "api_gratuita") })
+        {
+            b.Agentes[Provedor.Gemini].Modo = ModoAcesso.Chave;
+            b.Agentes[Provedor.Gemini].PerfilApi = perfil;
+            b.Salvar(pasta);
+            var jg = JsonNode.Parse(File.ReadAllText(Path.Combine(pasta, "ajustes.json")))!["agentes"]!;
+            Assert.Equal(("chave", codigo), ((string?)jg["gemini"]!["modo"], (string?)jg["gemini"]!["perfil_api"]));
+            Assert.Equal("chave", (string?)jg["chatgpt"]!["modo"]);
+            Assert.Equal("conta", (string?)jg["claude"]!["modo"]);
+            var g = Ajustes.Carregar(pasta);
+            Assert.Equal((ModoAcesso.Chave, perfil), (g.Agentes[Provedor.Gemini].Modo, g.Agentes[Provedor.Gemini].PerfilApi!.Value));
+            Assert.Equal(ModoAcesso.Chave, g.Agentes[Provedor.ChatGpt].Modo);
+            Assert.Null(g.Agentes[Provedor.ChatGpt].PerfilApi);
+        }
+        // Voltar para a conta não apaga o perfil escolhido (a escolha do usuário continua lá para quando ele voltar à chave).
+        b.Agentes[Provedor.Gemini].Modo = ModoAcesso.Conta;
+        b.Salvar(pasta);
+        var deVolta = Ajustes.Carregar(pasta);
+        Assert.Equal((ModoAcesso.Conta, PerfilGemini.ApiGratuita), (deVolta.Agentes[Provedor.Gemini].Modo, deVolta.Agentes[Provedor.Gemini].PerfilApi!.Value));
+        // Um perfil desconhecido, ou o da conta no lugar do da chave, não é aceito do arquivo.
+        foreach (var invalido in new[] { "conta_ultra", "premium", "" })
+        {
+            File.WriteAllText(Path.Combine(pasta, "ajustes.json"), "{ \"agentes\": { \"gemini\": { \"modo\": \"chave\", \"perfil_api\": \"" + invalido + "\" } } }");
+            var gi = Ajustes.Carregar(pasta);
+            Assert.Equal(ModoAcesso.Chave, gi.Agentes[Provedor.Gemini].Modo);
+            Assert.Null(gi.Agentes[Provedor.Gemini].PerfilApi);
+        }
+
         // Aviso de uma versão anterior pede o aceite de novo.
         b.Agentes[Provedor.ChatGpt].AvisoVersao = Ajustes.VersaoAviso - 1;
         Assert.False(b.Agentes[Provedor.ChatGpt].AvisoAceito);
@@ -252,7 +286,7 @@ public class AjustesKitTestes
             "{ \"tema\": \"escuro\", \"agentes\": { \"chatgpt\": { \"modo\": \"x\", \"executavel\": \"  \", \"aviso_versao\": \"um\", \"aviso_em\": \"ontem\" }, \"claude\": 7 } }");
         var c = Ajustes.Carregar(pasta);
         Assert.Equal("escuro", c.Tema);
-        foreach (var p in new[] { Provedor.ChatGpt, Provedor.Claude })
+        foreach (var p in Enum.GetValues<Provedor>())
         {
             Assert.Equal(ModoAcesso.Conta, c.Agentes[p].Modo);
             Assert.Null(c.Agentes[p].Executavel);

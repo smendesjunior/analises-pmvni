@@ -15,7 +15,59 @@ public class FluxoNovoRelatorioTestes
     static readonly IReadOnlyList<Processo> Todos = [P0012, P0001Parecido, P0001];
 
     /// <summary>Todas as peças achadas, plugin habilitado, API do Claude proibida pelo kit (como hoje).</summary>
-    static readonly Pecas Completas = new(@"C:\x\codex.exe", @"C:\x\claude.exe", @"C:\x\python.exe", false, @"C:\x\pro_runtime.py", "1.6.1", "1.6.1", true, "2.4.0", false);
+    static readonly Pecas Completas = new(@"C:\x\codex.exe", @"C:\x\claude.exe", @"C:\x\python.exe", false, @"C:\x\pro_runtime.py", "1.6.1", "1.6.1", true, "2.4.0", false)
+    {
+        Agy = @"C:\x\agy.exe", GoogleRuntime = @"C:\x\google_runtime.py", VersaoAnaliseGoogle = "1.0.0", VersaoAnaliseGoogleKit = "1.0.0",
+    };
+
+    [Fact]
+    public void motivo_do_botao_do_gemini()
+    {
+        const string SemPython = "O Python não foi encontrado neste computador (o análise Google do kit precisa dele).";
+        const string SemPlugin = "O plugin análise Google do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
+        const string SemChave = "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.";
+        string? M(Pecas pecas, ModoAcesso modo = ModoAcesso.Conta, bool chave = false, PerfilGemini? perfil = PerfilGemini.ContaUltra) =>
+            FluxoNovoRelatorio.MotivoDesabilitado(Provedor.Gemini, P0001, false, pecas, modo, chave, perfil);
+
+        // Conta: Python, plugin e Antigravity, nessa ordem; as peças do ChatGPT e do Claude não importam.
+        Assert.Null(M(Completas));
+        Assert.Null(M(Completas with { Codex = null, Claude = null, ProRuntime = null, PluginAnaliseHabilitado = false }));
+        Assert.Equal(SemPython, M(Completas with { Python = null, GoogleRuntime = null, Agy = null }));
+        Assert.Equal(SemPlugin, M(Completas with { GoogleRuntime = null, Agy = null }));
+        Assert.Equal(FluxoNovoRelatorio.SemAgy, M(Completas with { Agy = null }));
+
+        // Chave: primeiro o perfil (o plano da chave não é presumido), depois a chave guardada.
+        Assert.Equal(FluxoNovoRelatorio.SemPerfilApi, M(Completas, ModoAcesso.Chave, chave: true, perfil: null));
+        Assert.Equal(FluxoNovoRelatorio.SemPerfilApi, M(Completas, ModoAcesso.Chave, chave: true, perfil: PerfilGemini.ContaUltra));
+        Assert.Equal(SemChave, M(Completas, ModoAcesso.Chave, chave: false, perfil: PerfilGemini.ApiCreditos));
+        Assert.Null(M(Completas, ModoAcesso.Chave, chave: true, perfil: PerfilGemini.ApiCreditos));
+        Assert.Null(M(Completas, ModoAcesso.Chave, chave: true, perfil: PerfilGemini.ApiGratuita));
+
+        // As peças do Gemini não desabilitam os outros dois botões.
+        var semGemini = Completas with { Agy = null, GoogleRuntime = null };
+        Assert.Null(FluxoNovoRelatorio.MotivoDesabilitado(Provedor.ChatGpt, P0001, false, semGemini, ModoAcesso.Conta, false));
+        Assert.Null(FluxoNovoRelatorio.MotivoDesabilitado(Provedor.Claude, P0001, false, semGemini, ModoAcesso.Conta, false));
+
+        // Textos do terceiro botão e do cartão.
+        Assert.Equal("Analisar com o Gemini", FluxoNovoRelatorio.AvisoTitulo(Provedor.Gemini));
+        Assert.StartsWith("Analisar com o Gemini inicia o análise Google do kit PMVNI", FluxoNovoRelatorio.TextoAviso(Provedor.Gemini));
+        Assert.Equal("Gemini (Antigravity · plugin análise Google)", TextosAgentes.Titulo(Provedor.Gemini));
+        Assert.Equal("Plugin análise Google", TextosAgentes.TituloPlugin(PluginsInstalados.AnaliseGoogle));
+        Assert.Equal("Plugin análise pro", TextosAgentes.TituloPlugin(PluginsInstalados.AnalisePro));
+        Assert.Equal("Plugin analise", TextosAgentes.TituloPlugin(PluginsInstalados.Analise));
+        Assert.Equal("ChatGPT (Codex · plugin analise)", TextosAgentes.Titulo(Provedor.ChatGpt));
+        Assert.Equal("Claude (Claude Code · plugin análise pro)", TextosAgentes.Titulo(Provedor.Claude));
+        Assert.Equal(3, TextosAgentes.OpcoesPerfilGemini.Count);
+        foreach (var p in new PerfilGemini?[] { null, PerfilGemini.ApiCreditos, PerfilGemini.ApiGratuita })
+            Assert.Equal(p, TextosAgentes.PerfilDoIndice(TextosAgentes.IndiceDoPerfil(p)));
+        Assert.Equal(0, TextosAgentes.IndiceDoPerfil(PerfilGemini.ContaUltra));       // a conta não é perfil de chave
+        Assert.Equal("Escolha o perfil da chave para ver os modelos de cada etapa.", TextosAgentes.MatrizDoGemini(ModoAcesso.Chave, null));
+        Assert.Equal("Conta Google (plano Ultra) — Preparo: hydrogen high · Análise: carbon high · Auditoria técnica: carbon high · Produção do relatório: hydrogen medium · "
+            + "Auditoria cruzada: argon high · Revisão final: carbon high.", TextosAgentes.MatrizDoGemini(ModoAcesso.Conta, PerfilGemini.ApiGratuita));
+        Assert.Contains("Análise: hydrogen xhigh", TextosAgentes.MatrizDoGemini(ModoAcesso.Chave, PerfilGemini.ApiGratuita));
+        Assert.Equal("A análise com o Gemini de 0001/2099 terminou.", FluxoNovoRelatorio.TextoKitTerminou(Provedor.Gemini, P0001));
+        Assert.Equal(FluxoNovoRelatorio.TextoKitTerminou(Provedor.Claude, P0001), FluxoNovoRelatorio.TextoClaudeTerminou(P0001));
+    }
 
     [Fact]
     public void sugestao_do_processo()

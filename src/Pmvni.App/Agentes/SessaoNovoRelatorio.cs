@@ -110,12 +110,17 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
 
     /// <summary>Trava → registro → anexos copiados → <c>pedido.md</c>/<c>anexos.json</c> → partida. Recusa antes da partida (peça faltando, execução no processo,
     /// falha ao copiar): <see cref="AnaliseRecusadaException"/> ou a exceção do disco, com a trava solta e nada iniciado.</summary>
-    public async Task<ExecucaoEmCurso?> AnalisarAsync(Provedor p, Processo pr, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto)
+    /// <param name="perfilGemini">Só o Gemini: o perfil fixado para esta análise (o escolhido em Ajustes ou, numa retomada, o que a análise já tinha);
+    /// é ele que define o modo (conta ou chave), nunca o contrário.</param>
+    /// <param name="ficticio">Só o Gemini, perfil gratuito: o usuário confirmou no clique que o processo é fictício.</param>
+    public async Task<ExecucaoEmCurso?> AnalisarAsync(Provedor p, Processo pr, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto,
+        PerfilGemini? perfilGemini = null, bool ficticio = false)
     {
         var pc = pecas();
-        var m = modo(p);
+        var m = p == Provedor.Gemini && perfilGemini is { } fixado ? MatrizGemini.Modo(fixado) : modo(p);
+        if (p != Provedor.Gemini) { perfilGemini = null; ficticio = false; }
         var chaveGuardada = m == ModoAcesso.Chave && CofreChaves.Existe(raizDados, p);
-        if (FluxoNovoRelatorio.MotivoDesabilitado(p, pr, EmAndamento(pr.Pasta), pc, m, chaveGuardada) is { } motivo) throw new AnaliseRecusadaException(motivo);
+        if (FluxoNovoRelatorio.MotivoDesabilitado(p, pr, EmAndamento(pr.Pasta), pc, m, chaveGuardada, perfilGemini) is { } motivo) throw new AnaliseRecusadaException(motivo);
         texto = string.IsNullOrWhiteSpace(texto) ? null : texto;
 
         var (trava, registro, arquivados, recusas) = await Task.Run(() =>
@@ -151,20 +156,21 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var orq = orquestrador();
         var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false) { Recusas = recusas };
         var progresso = Progresso(e);
-        var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro);
+        var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro) { Perfil = perfilGemini, Ficticio = ficticio };
         e.Fim = RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava);
         execucoes.Add(e);
         return e;
     }
 
     /// <summary>Volta a acompanhar uma análise do Claude que seguiu sozinha (editor reaberto): só <c>situacao</c> e o log, com o registro original.</summary>
-    public async Task<ExecucaoEmCurso> RetomarClaudeAsync(Processo pr, string pastaRegistro, DateTimeOffset inicio)
+    /// <param name="ia">O provedor do kit dono do registro: Claude (análise pro) ou Gemini (análise Google).</param>
+    public async Task<ExecucaoEmCurso> RetomarClaudeAsync(Processo pr, string pastaRegistro, DateTimeOffset inicio, Provedor ia = Provedor.Claude)
     {
         if (EmAndamento(pr.Pasta)) throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
         var pc = pecas();
         var (trava, registro, texto) = await Task.Run(() =>
         {
-            var t = TravaExecucao.Tentar(pr.Pasta, Provedor.Claude) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
+            var t = TravaExecucao.Tentar(pr.Pasta, ia) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
             try
             {
                 var r = RegistroExecucao.Abrir(pastaRegistro, pr.Pasta);   // recusa um registro fora de <processo>\.pmvni-ai\editor
@@ -176,9 +182,9 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
             catch { t.Dispose(); throw; }
         });
         var orq = orquestrador();
-        var e = new ExecucaoEmCurso(Provedor.Claude, pr, registro, inicio.UtcDateTime, pc, texto, orq, retomada: true);
+        var e = new ExecucaoEmCurso(ia, pr, registro, inicio.UtcDateTime, pc, texto, orq, retomada: true);
         var progresso = Progresso(e);
-        var pedidoExecucao = new PedidoExecucao(Provedor.Claude, pr, pc, ModoAcesso.Conta, raizDados, texto, [], registro);
+        var pedidoExecucao = new PedidoExecucao(ia, pr, pc, ModoAcesso.Conta, raizDados, texto, [], registro);
         e.Fim = RodarAsync(() => orq.AcompanharClaudeAsync(pedidoExecucao, inicio, progresso, e.Cancelamento.Token), progresso, trava);
         execucoes.Add(e);
         return e;
@@ -231,7 +237,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
             e.Cancelamento.Cancel();
             return true;
         }
-        return await e.Orquestrador.CancelarClaudeAsync(e.Processo.Pasta, e.Pecas);
+        return await e.Orquestrador.CancelarClaudeAsync(e.Processo.Pasta, e.Pecas, e.Provedor);
     }
 
     /// <summary>A janela fechou (rede de segurança do desenho §12.7): toda execução do ChatGPT é cancelada (a árvore do Codex sai; o job do editor cobre uma

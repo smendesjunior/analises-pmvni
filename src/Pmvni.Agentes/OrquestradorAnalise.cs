@@ -16,6 +16,13 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
 {
     /// <summary>ChatGPT: a sessão do Codex a continuar (<c>codex exec resume</c>) em vez de começar do zero.</summary>
     public string? RetomarSessao { get; init; }
+
+    /// <summary>Gemini: o perfil (conta Ultra, API com créditos ou API gratuita) fixado para a análise inteira; null nos outros provedores e na leitura
+    /// da situação.</summary>
+    public PerfilGemini? Perfil { get; init; }
+
+    /// <summary>Gemini, perfil gratuito: o usuário declarou no clique que o processo é fictício (o plugin recusa a partida sem essa declaração).</summary>
+    public bool Ficticio { get; init; }
 }
 
 /// <summary>Uma linha de andamento para a tela (do Codex, ou do <c>auto-log.txt</c> do kit) e/ou a situação mais recente do kit.</summary>
@@ -55,11 +62,11 @@ public sealed class OrquestradorAnalise
 
     // ------------------------------------------------------------------ comum
 
-    Action<IDictionary<string, string?>> Ambiente(Provedor p, ModoAcesso modo, string? chave) => env =>
+    Action<IDictionary<string, string?>> Ambiente(Provedor p, ModoAcesso modo, string? chave, PerfilGemini? perfil = null, bool ficticio = false) => env =>
     {
         if (AmbienteExtra is not null)
             foreach (var (k, v) in AmbienteExtra) env[k] = v;
-        AmbienteFilho.Aplicar(env, p, modo, chave);
+        AmbienteFilho.Aplicar(env, p, modo, chave, perfil, ficticio);
     };
 
     static FimAnalise Falha(string mensagem, int? codigo = null) => new("falhou", null, null, mensagem, codigo);
@@ -94,7 +101,7 @@ public sealed class OrquestradorAnalise
         {
             fim = pe.Provedor == Provedor.ChatGpt
                 ? await ExecutarChatGptAsync(pe, chave, inicio, progresso, ct).ConfigureAwait(false)
-                : await ExecutarClaudeAsync(pe, chave, inicio, progresso, ct).ConfigureAwait(false);
+                : await ExecutarPeloKitAsync(pe, chave, inicio, progresso, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -121,6 +128,18 @@ public sealed class OrquestradorAnalise
                 return Falha("O Codex não foi encontrado neste computador. Instale o app do ChatGPT/Codex ou escolha o programa em Ajustes › Inteligência artificial.");
             if (!pecas.PluginAnaliseHabilitado)
                 return Falha("O plugin analise do kit PMVNI não está habilitado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
+        }
+        else if (pe.Provedor == Provedor.Gemini)
+        {
+            if (pecas.Python is null) return Falha("O Python não foi encontrado neste computador (o análise Google do kit precisa dele).");
+            if (pecas.GoogleRuntime is null) return Falha(SemAnaliseGoogle);
+            if (pecas.Agy is null) return Falha(SemAgy);
+            if (pe.Perfil is not { } perfil)
+                return Falha(pe.Modo == ModoAcesso.Chave ? SemPerfilApi : "O perfil do Gemini não foi informado. Nada foi iniciado.");
+            if (MatrizGemini.Modo(perfil) != pe.Modo)
+                return Falha("O perfil do Gemini (" + MatrizGemini.Nome(perfil) + ") não corresponde ao modo escolhido. Nada foi iniciado: a análise não troca de modo sozinha.");
+            if (perfil == PerfilGemini.ApiGratuita && !pe.Ficticio)
+                return Falha("O perfil API gratuita só roda testes com dados fictícios e precisa da sua confirmação no clique. Nada foi iniciado.");
         }
         else
         {
@@ -154,6 +173,17 @@ public sealed class OrquestradorAnalise
     /// <summary>Como o análise pro se autentica no Claude, para o registro: <c>anthropic_api</c> (modo chave) ou <c>conta_claude</c>.</summary>
     public static string AutenticacaoAnalisePro(ModoAcesso m) => m == ModoAcesso.Chave ? "anthropic_api" : "conta_claude";
 
+    /// <summary>Como o análise Google se autentica, para o registro: <c>gemini_api</c> (chave do Google AI Studio) ou <c>conta_google</c> (login do Antigravity).</summary>
+    public static string AutenticacaoAnaliseGoogle(ModoAcesso m) => m == ModoAcesso.Chave ? "gemini_api" : "conta_google";
+
+    public const string SemAnaliseGoogle = "O plugin análise Google do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
+    public const string SemAgy = "O Antigravity CLI (agy.exe) não foi encontrado neste computador. Instale-o pelo instalador oficial do Google Antigravity e entre na conta Google.";
+    public const string SemPerfilApi = "Escolha o perfil da chave do Gemini em Ajustes › Inteligência artificial: API com créditos ou API gratuita (só testes fictícios). "
+        + "O plano de uma chave não pode ser deduzido, e o editor não presume nenhum.";
+
+    /// <summary>O nome do plugin do kit nas mensagens: "análise pro" (Claude) ou "análise Google" (Gemini).</summary>
+    public static string NomeDoKit(Provedor p) => p == Provedor.Gemini ? "análise Google" : "análise pro";
+
     static string Usuario()
     {
         try { return Environment.UserName; }
@@ -161,10 +191,11 @@ public sealed class OrquestradorAnalise
     }
 
     /// <summary>O plugin do kit que cada provedor usa: ChatGPT (Codex) = analise; Claude = análise pro.</summary>
-    public static string PluginUsado(Provedor p) => p == Provedor.ChatGpt ? "analise" : "análise pro";
+    public static string PluginUsado(Provedor p) => p switch { Provedor.ChatGpt => "analise", Provedor.Claude => "análise pro", _ => "análise Google" };
 
     /// <summary>A versão instalada desse plugin (a maior no cache de plugins do Codex); null se não foi achada.</summary>
-    public static string? VersaoDoPlugin(Provedor p, Pecas? pecas) => p == Provedor.ChatGpt ? pecas?.VersaoPluginAnalise : pecas?.VersaoAnalisePro;
+    public static string? VersaoDoPlugin(Provedor p, Pecas? pecas) =>
+        p switch { Provedor.ChatGpt => pecas?.VersaoPluginAnalise, Provedor.Claude => pecas?.VersaoAnalisePro, _ => pecas?.VersaoAnaliseGoogle };
 
     static string VersaoEditor() =>
         Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? typeof(OrquestradorAnalise).Assembly.GetName().Version?.ToString() ?? "";
@@ -185,6 +216,11 @@ public sealed class OrquestradorAnalise
             o["plugin"] = PluginUsado(pe.Provedor);
             o["versao_do_plugin"] = VersaoDoPlugin(pe.Provedor, pe.Pecas) ?? "não encontrada";
             if (pe.Provedor == Provedor.Claude) o["autenticacao"] = AutenticacaoAnalisePro(pe.Modo);    // nunca a chave
+            if (pe.Provedor == Provedor.Gemini)
+            {
+                o["autenticacao"] = AutenticacaoAnaliseGoogle(pe.Modo);    // nunca a chave
+                o["perfil"] = pe.Perfil is { } perfil ? MatrizGemini.Codigo(perfil) : null;
+            }
             o["situacao"] = "em_andamento";
         });
     }
@@ -337,17 +373,20 @@ public sealed class OrquestradorAnalise
 
     // ------------------------------------------------------------------ Claude (análise pro)
 
-    async Task<FimAnalise> ExecutarClaudeAsync(PedidoExecucao pe, string? chave, DateTimeOffset inicio, IProgress<ProgressoAnalise> progresso, CancellationToken ct)
+    async Task<FimAnalise> ExecutarPeloKitAsync(PedidoExecucao pe, string? chave, DateTimeOffset inicio, IProgress<ProgressoAnalise> progresso, CancellationToken ct)
     {
         var registro = pe.Registro;
         var pasta = pe.Processo.Pasta;
         var pecas = pe.Pecas;
+        var p = pe.Provedor;
+        var nomeKit = NomeDoKit(p);
+        var runtime = pecas.RuntimeDoKit(p)!;
         registro.GravarPedido(pe.Texto ?? "");
         // 2026-11-16: o análise pro (1.6.2+) lê .pmvni-ai\analise-pro\diretrizes.md em cada etapa, como diretriz complementar.
         // Sem pedido, o arquivo sai (nenhuma diretriz antiga vale para a análise nova).
         try
         {
-            var controle = Path.Combine(pasta, ".pmvni-ai", "analise-pro");
+            var controle = Path.Combine(pasta, ResultadoAnalise.PastaControle(p));
             var diretrizes = Path.Combine(controle, "diretrizes.md");
             if (string.IsNullOrWhiteSpace(pe.Texto)) File.Delete(diretrizes);
             else { Directory.CreateDirectory(controle); File.WriteAllText(diretrizes, pe.Texto.Trim() + "\n", new UTF8Encoding(false)); }
@@ -355,22 +394,53 @@ public sealed class OrquestradorAnalise
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         registro.GravarAnexos(pe.Anexos);
 
-        var (exe, argsIniciar) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, pecas.ProRuntime!, pasta, "iniciar");
+        var (exe, argsIniciar) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, runtime, pasta, "iniciar");
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(argsIniciar).ToList());
-        var ambiente = Ambiente(Provedor.Claude, pe.Modo, chave);
+        var ambiente = Ambiente(p, pe.Modo, chave, pe.Perfil, pe.Ficticio);
 
         var redator = new RedatorChave(chave);
-        var log = new LeitorLog(Path.Combine(pasta, ResultadoAnalise.PastaControle(Provedor.Claude), "auto-log.txt"));
+        var log = new LeitorLog(Path.Combine(pasta, ResultadoAnalise.PastaControle(p), "auto-log.txt"));
         log.IgnorarOQueJaHa();      // o kit acrescenta ao log: só o que vier depois da partida é desta execução
+
+        if (p == Provedor.Gemini && await ConferirGeminiAsync(pe, ambiente, redator, ct).ConfigureAwait(false) is { } impedimento) return impedimento;
 
         var partida = await ExecucaoProcesso.RodarAsync(exe, argsIniciar, pasta, ambiente, LimiteIniciar, ct).ConfigureAwait(false);
         var saidaPartida = redator.Aplicar(partida.Saida);
         var iniciada = partida.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(saidaPartida)) : null;
         if (iniciada is null || iniciada.Codigo is not ("INICIADA" or "JA_EM_ANDAMENTO"))
-            return Falha("O análise pro não partiu: " + PrimeiraLinha(saidaPartida) + ". Veja o registro: " + registro.Pasta + ".", partida.Codigo);
+            return Falha($"O {nomeKit} não partiu: " + PrimeiraLinha(saidaPartida) + ". Veja o registro: " + registro.Pasta + ".", partida.Codigo);
         if (iniciada.Codigo == "JA_EM_ANDAMENTO") log.MostrarOFimDoLog();     // uma análise que já rodava: mostra o que ela já escreveu
         // Só a partida precisa da chave (o kit a passa ao processo isolado da análise); "situacao" só lê arquivos e roda sem ela, como na retomada.
-        return await AcompanharAsync(pe, Ambiente(Provedor.Claude, ModoAcesso.Conta, null), redator, log, inicio, progresso, ct).ConfigureAwait(false);
+        return await AcompanharAsync(pe, Ambiente(p, ModoAcesso.Conta, null), redator, log, inicio, progresso, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Gemini, antes da partida: o plugin confere (sem gerar texto nem gastar cota) o runtime, a autenticação do modo escolhido e o modelo e o nível
+    /// de cada uma das seis etapas do perfil. Faltando qualquer um, nada é iniciado e a mensagem diz o perfil e a etapa. null = pode partir.</summary>
+    async Task<FimAnalise?> ConferirGeminiAsync(PedidoExecucao pe, Action<IDictionary<string, string?>> ambiente, RedatorChave redator, CancellationToken ct)
+    {
+        var pecas = pe.Pecas;
+        var (exe, args) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, pecas.GoogleRuntime!, pe.Processo.Pasta, "conferir");
+        var r = await ExecucaoProcesso.RodarAsync(exe, args, pe.Processo.Pasta, ambiente, LimiteIniciar, ct).ConfigureAwait(false);
+        var saida = redator.Aplicar(r.Saida);
+        pe.Registro.Atualizar(o => o["conferencia_gemini"] = Compactar(DoPrimeiroJson(saida)));
+        if (r.Codigo == 0) return null;
+        return Falha(MensagemDaConferencia(saida, pe.Perfil) + " Nada foi iniciado e nenhum outro modo, modelo ou perfil foi usado.", r.Codigo);
+    }
+
+    /// <summary>O que a conferência do análise Google recusou, em uma frase: as <c>faltas</c> do JSON (perfil, etapa e modelo) ou a primeira linha da saída.</summary>
+    public static string MensagemDaConferencia(string saida, PerfilGemini? perfil)
+    {
+        var nome = perfil is { } pf ? MatrizGemini.Nome(pf) : "perfil não informado";
+        try
+        {
+            if (JsonNode.Parse(DoPrimeiroJson(saida)) is JsonObject o && o["faltas"] is JsonArray faltas)
+            {
+                var itens = faltas.Select(f => f is JsonValue v && v.TryGetValue<string>(out var s) ? s.Trim().TrimEnd('.') : null).Where(s => !string.IsNullOrEmpty(s)).Take(6).ToList();
+                if (itens.Count > 0) return $"O Gemini não está pronto para a análise ({nome}): " + string.Join("; ", itens) + ".";
+            }
+        }
+        catch (JsonException) { }
+        return $"O análise Google recusou a partida ({nome}): " + PrimeiraLinha(saida) + ".";
     }
 
     /// <summary>O editor reaberto volta a acompanhar uma análise do Claude que seguiu sozinha (desenho §12.7): só <c>situacao</c> e o <c>auto-log.txt</c>, sem
@@ -379,14 +449,14 @@ public sealed class OrquestradorAnalise
     public async Task<FimAnalise> AcompanharClaudeAsync(PedidoExecucao pe, DateTimeOffset inicio, IProgress<ProgressoAnalise> progresso, CancellationToken ct)
     {
         FimAnalise fim;
-        if (pe.Pecas.Python is null || pe.Pecas.ProRuntime is null)
-            fim = Falha(pe.Pecas.Python is null ? "O Python não foi encontrado neste computador (o análise pro do kit precisa dele)."
-                : "O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
+        if (pe.Pecas.Python is null || pe.Pecas.RuntimeDoKit(pe.Provedor) is null)
+            fim = Falha(pe.Pecas.Python is null ? $"O Python não foi encontrado neste computador (o {NomeDoKit(pe.Provedor)} do kit precisa dele)."
+                : $"O plugin {NomeDoKit(pe.Provedor)} do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
         else
         {
-            var log = new LeitorLog(Path.Combine(pe.Processo.Pasta, ResultadoAnalise.PastaControle(Provedor.Claude), "auto-log.txt"));
+            var log = new LeitorLog(Path.Combine(pe.Processo.Pasta, ResultadoAnalise.PastaControle(pe.Provedor), "auto-log.txt"));
             log.MostrarOFimDoLog();
-            try { fim = await AcompanharAsync(pe, Ambiente(Provedor.Claude, ModoAcesso.Conta, null), new RedatorChave(null), log, inicio, progresso, ct).ConfigureAwait(false); }
+            try { fim = await AcompanharAsync(pe, Ambiente(pe.Provedor, ModoAcesso.Conta, null), new RedatorChave(null), log, inicio, progresso, ct).ConfigureAwait(false); }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 fim = new FimAnalise(AcompanhamentoInterrompido, null, null, "O acompanhamento foi interrompido; a análise do kit continua sozinha na janela minimizada.", null);
@@ -401,13 +471,13 @@ public sealed class OrquestradorAnalise
     }
 
     /// <summary>Uma leitura da situação do análise pro (<c>situacao</c>, só leitura); null se as peças faltam ou a resposta não é legível.</summary>
-    public async Task<SituacaoKit?> SituacaoClaudeAsync(string pastaProcesso, Pecas pecas)
+    public async Task<SituacaoKit?> SituacaoClaudeAsync(string pastaProcesso, Pecas pecas, Provedor p = Provedor.Claude)
     {
-        if (pecas.Python is null || pecas.ProRuntime is null) return null;
-        var (exe, args) = LinhasDeComando.ProRuntime(pecas.Python, pecas.PythonPeloLauncher, pecas.ProRuntime, pastaProcesso, "situacao");
+        if (pecas.Python is null || pecas.RuntimeDoKit(p) is not { } runtime) return null;
+        var (exe, args) = LinhasDeComando.ProRuntime(pecas.Python, pecas.PythonPeloLauncher, runtime, pastaProcesso, "situacao");
         try
         {
-            var r = await ExecucaoProcesso.RodarAsync(exe, args, pastaProcesso, Ambiente(Provedor.Claude, ModoAcesso.Conta, null), LimiteSituacao, CancellationToken.None).ConfigureAwait(false);
+            var r = await ExecucaoProcesso.RodarAsync(exe, args, pastaProcesso, Ambiente(p, ModoAcesso.Conta, null), LimiteSituacao, CancellationToken.None).ConfigureAwait(false);
             if (r.Codigo != 0) return null;
             var s = SituacaoAnalisePro.Ler(DoPrimeiroJson(r.Saida));
             return s.Codigo.Length == 0 ? null : s;
@@ -421,7 +491,7 @@ public sealed class OrquestradorAnalise
         var registro = pe.Registro;
         var pasta = pe.Processo.Pasta;
         var pecas = pe.Pecas;
-        var (exe, argsSituacao) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, pecas.ProRuntime!, pasta, "situacao");
+        var (exe, argsSituacao) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, pecas.RuntimeDoKit(pe.Provedor)!, pasta, "situacao");
         var relogio = Stopwatch.StartNew();
         TimeSpan? ultimaSituacao = null;
         string? chaveAnterior = null;
@@ -442,7 +512,7 @@ public sealed class OrquestradorAnalise
                 if (situacao is null || situacao.Codigo.Length == 0)
                 {
                     if (++falhasSeguidas >= FalhasSeguidasDaSituacao)
-                        return Falha("Não foi possível ler a situação do análise pro: " + PrimeiraLinha(saidaSituacao) + ". Veja o registro: " + registro.Pasta + ".", r.Codigo);
+                        return Falha($"Não foi possível ler a situação do {NomeDoKit(pe.Provedor)}: " + PrimeiraLinha(saidaSituacao) + ". Veja o registro: " + registro.Pasta + ".", r.Codigo);
                 }
                 else
                 {
@@ -473,7 +543,7 @@ public sealed class OrquestradorAnalise
         switch (s.Codigo)
         {
             case "CONCLUIDO":
-                var r = ResultadoAnalise.Localizar(pe.Processo.Pasta, Provedor.Claude, inicio.UtcDateTime, pe.Registro.Pasta);
+                var r = ResultadoAnalise.Localizar(pe.Processo.Pasta, pe.Provedor, inicio.UtcDateTime, pe.Registro.Pasta);
                 return r.Documento is null
                     ? new FimAnalise("sem_resultado", null, null, r.Motivo, null)
                     : new FimAnalise("concluida", r.Documento, r.Pdf ?? ResultadoAnalise.PdfDentro(pe.Processo.Pasta, s.Pdf), null, null);
@@ -508,12 +578,12 @@ public sealed class OrquestradorAnalise
 
     /// <summary>Cancelar a análise do kit (desenho §12.5): encerra a árvore do <c>pid</c> informado pelo <c>situacao</c>, só se estiver vivo, se for um Python
     /// (<c>python*.exe</c>, <c>py.exe</c> ou o programa escolhido) e se tiver começado depois de <c>inicio</c> − 1 min. Devolve false se algo não conferir.</summary>
-    public async Task<bool> CancelarClaudeAsync(string pastaProcesso, Pecas pecas)
+    public async Task<bool> CancelarClaudeAsync(string pastaProcesso, Pecas pecas, Provedor p = Provedor.Claude)
     {
-        if (pecas.Python is null || pecas.ProRuntime is null) return false;
-        var (exe, args) = LinhasDeComando.ProRuntime(pecas.Python, pecas.PythonPeloLauncher, pecas.ProRuntime, pastaProcesso, "situacao");
+        if (pecas.Python is null || pecas.RuntimeDoKit(p) is not { } runtime) return false;
+        var (exe, args) = LinhasDeComando.ProRuntime(pecas.Python, pecas.PythonPeloLauncher, runtime, pastaProcesso, "situacao");
         (int Codigo, string Saida) r;
-        try { r = await ExecucaoProcesso.RodarAsync(exe, args, pastaProcesso, Ambiente(Provedor.Claude, ModoAcesso.Conta, null), LimiteSituacao, CancellationToken.None).ConfigureAwait(false); }
+        try { r = await ExecucaoProcesso.RodarAsync(exe, args, pastaProcesso, Ambiente(p, ModoAcesso.Conta, null), LimiteSituacao, CancellationToken.None).ConfigureAwait(false); }
         catch (Exception e) when (e is IOException or InvalidOperationException or System.ComponentModel.Win32Exception) { return false; }
         if (r.Codigo != 0) return false;
 

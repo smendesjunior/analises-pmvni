@@ -2547,6 +2547,11 @@ internal static class Roteiro
             var scripts = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-pro", "1.6.1", "skills", "analise-pro", "scripts");
             Directory.CreateDirectory(scripts);
             File.WriteAllText(Path.Combine(scripts, "pro_runtime.py"), "# pro_runtime.py fictício do roteiro\nraise ValueError('API paga desativada no analise-pro.')\n");
+            // 1.1.0 (Gemini): o mesmo agente falso faz o papel do agy.exe (no PATH do roteiro) e do google_runtime.py do análise Google.
+            File.Copy(agenteFalso, Path.Combine(agenteFalsoPasta, "agy.exe"), overwrite: true);
+            var scriptsGoogle = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-google", "1.0.0", "skills", "analise-google", "scripts");
+            Directory.CreateDirectory(scriptsGoogle);
+            File.WriteAllText(Path.Combine(scriptsGoogle, "google_runtime.py"), "# google_runtime.py fictício do roteiro\nROTA_VAR = 'PMVNI_ANALISE_GOOGLE_ROTA'\n");
             File.WriteAllText(configCodex, ConfigHabilitado);
             j.OpcoesAgentes = () => new OpcoesLocalizacao(Path.Combine(pasta, "local-app-data"), codexHome, [agenteFalsoPasta], j.PastaKitEfetiva,
                 j.ProgramaEscolhidoDoAgente(Provedor.ChatGpt) ?? agenteFalso, j.ProgramaEscolhidoDoAgente(Provedor.Claude) ?? agenteFalso);
@@ -3126,6 +3131,153 @@ internal static class Roteiro
             p["ok"] = textoSob && aviso && pendenteDurante && linhaIniciar && situacoes >= 2 && linhasDoLog > 0 && registro && importado && semPendente && etapas && objecoes && continuou;
         });
 
+        // 1.1.0: o terceiro botão, de ponta a ponta na tela, com o agente falso no papel do análise Google (conferência, partida, etapas, importação),
+        // o perfil da chave escolhido à mão, a confirmação do processo fictício e a pausa por cota com "Continuar a análise" da etapa pendente.
+        await Passo("54b_novo_relatorio_gemini", async p =>
+        {
+            await PrepararNovoRelatorioAsync();
+            await SemRelatorioAbertoAsync();
+            var processo = P0001();
+            string[] Col(string linha) => linha.Split('\t');
+            await j.DefinirModoAsync(Provedor.Gemini, ModoAcesso.Conta);
+            await j.DefinirPerfilGeminiAsync(null);
+            await j.NovoRelatorioAsync();
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
+            var n = j.NovoRelatorio;
+            var botao = (n.BotaoGemini.Content as StackPanel)?.Children.OfType<TextBlock>().FirstOrDefault()?.Text == "Analisar com o Gemini"
+                && j.BotaoAnaliseHabilitado(Provedor.Gemini) && j.BotaoAnaliseHabilitado(Provedor.ChatGpt) && j.BotaoAnaliseHabilitado(Provedor.Claude)
+                && n.TextoPluginGemini.Text == "Pelo Antigravity · kit análise Google v1.0.0" && n.TextoPerfilGemini.Text == "Perfil: Conta Google (plano Ultra)";
+            p["rotulo_do_botao"] = n.TextoPluginGemini.Text;
+
+            // Conta Google: aviso na primeira vez, conferência antes da partida, as etapas na tela e o relatório importado.
+            j.PedidoTexto = "Diretriz fictícia para o Gemini.";
+            j.EsquecerAviso(Provedor.Gemini);
+            var conferirAntes = Chamadas(processo, "conferir").Length;
+            var iniciarAntes = Chamadas(processo, "iniciar").Length;
+            var confirmacoes = perguntas.Confirmacoes.Count;
+            j.Orquestrador = Orq("claude_ok");
+            var e = await j.AnalisarAsync(Provedor.Gemini) ?? throw new InvalidOperationException("não partiu: " + j.InfoMensagemAtual.Message);
+            var aviso = perguntas.Confirmacoes.Skip(confirmacoes).Count(c => c.Titulo == "Analisar com o Gemini" && c.Texto == FluxoNovoRelatorio.TextoAviso(Provedor.Gemini)) == 1;
+            var pendenteDurante = j.ExecucoesClaudePendentes.Count == 1;
+            var etapasVistas = new List<string>();
+            var painelDasEtapas = false;
+            while (!e.Fim.IsCompleted)
+            {
+                if (e.Situacao?.Etapa is { } et && (etapasVistas.Count == 0 || etapasVistas[^1] != et)) etapasVistas.Add(et);
+                painelDasEtapas |= ReferenceEquals(j.ExecucaoMostrada, e) && n.PainelClaude.Visibility == Visibility.Visible;
+                await Esperar(100);
+            }
+            var fim = await Prazo(j.AguardarAnaliseAsync(e), 120);
+            p["fim"] = fim.Situacao + (fim.Mensagem is null ? "" : ": " + fim.Mensagem);
+            p["etapas_vistas"] = new JsonArray(etapasVistas.Select(x => (JsonNode)x).ToArray());
+            var conferir = Chamadas(processo, "conferir").Skip(conferirAntes).Select(Col).ToArray();
+            var iniciar = Chamadas(processo, "iniciar").Skip(iniciarAntes).Select(Col).ToArray();
+            var googleRuntime = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-google", "1.0.0", "skills", "analise-google", "scripts", "google_runtime.py");
+            var partida = conferir.Length == 1 && iniciar.Length == 1
+                && new[] { conferir[0], iniciar[0] }.All(c => c[2] == "CHAVE_AUSENTE" && c[3] == "conta" && c[4] == "conta_ultra" && c[5] == "-")
+                && JsonNode.Parse(iniciar[0][1])!.AsArray().Select(a => a!.GetValue<string>()).SequenceEqual(["-B", "-X", "utf8", googleRuntime, "--case", processo, "iniciar"]);
+            var execucao = JsonNode.Parse(File.ReadAllText(Path.Combine(e.Registro.Pasta, "execucao.json"), System.Text.Encoding.UTF8))!;
+            var registro = (string?)execucao["provedor"] == "gemini" && (string?)execucao["autenticacao"] == "conta_google" && (string?)execucao["perfil"] == "conta_ultra"
+                && (string?)execucao["plugin"] == "análise Google" && (string?)execucao["versao_do_plugin"] == "1.0.0"
+                && File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "analise-google", "diretrizes.md"), System.Text.Encoding.UTF8).Trim() == "Diretriz fictícia para o Gemini.";
+            var s = j.Sessao;
+            var importado = fim.Situacao == "concluida" && s is not null && NaEtapa(s.Caminho, processo)
+                && fim.Documento == Path.Combine(processo, ".pmvni-ai", "analise-google", "relatorio_dados.json") && j.FolhasVisiveis
+                && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Gemini, s.Caminho, fim.Pdf);
+            p["infobar"] = j.InfoMensagem.Message;
+            var semPendente = j.ExecucoesClaudePendentes.Count == 0;
+            var etapas = etapasVistas.Count >= 2 && etapasVistas[0] is "prepare" or "analyze" && etapasVistas[^1] == "final_review" && painelDasEtapas;
+
+            // Chave: sem perfil escolhido o botão explica; com o perfil, pede a chave; nada é presumido nem trocado.
+            await SemRelatorioAbertoAsync();
+            await j.NovoRelatorioAsync();
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
+            await j.DefinirModoAsync(Provedor.Gemini, ModoAcesso.Chave);
+            var cartao = j.CartaoDoAgente(Provedor.Gemini);
+            var semPerfil = j.MotivoBotao(Provedor.Gemini) == FluxoNovoRelatorio.SemPerfilApi && !j.BotaoAnaliseHabilitado(Provedor.Gemini)
+                && cartao.PainelPerfil.Visibility == Visibility.Visible && cartao.CaixaPerfil.SelectedIndex == 0 && n.TextoPerfilGemini.Text == "Perfil da chave não escolhido"
+                && j.BotaoAnaliseHabilitado(Provedor.ChatGpt) && j.BotaoAnaliseHabilitado(Provedor.Claude);
+            await j.DefinirPerfilGeminiAsync(PerfilGemini.ApiGratuita);
+            var semChave = j.MotivoBotao(Provedor.Gemini) == "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta." && cartao.CaixaPerfil.SelectedIndex == 2
+                && cartao.TextoMatriz.Text.Contains("Análise: hydrogen xhigh", StringComparison.Ordinal);
+            var chave = "gemini-ficticia-roteiro-" + Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+            await j.GuardarChaveAsync(Provedor.Gemini, chave);
+            var comChave = j.MotivoBotao(Provedor.Gemini) is null && j.BotaoAnaliseHabilitado(Provedor.Gemini) && cartao.CaixaChave.Password.Length == 0;
+            bool gratuitaRecusada, gratuitaAceita;
+            try
+            {
+                // API gratuita: sem a confirmação de processo fictício, nada parte; com ela, a chave e o perfil vão só à conferência e à partida.
+                iniciarAntes = Chamadas(processo, "iniciar").Length;
+                confirmacoes = perguntas.Confirmacoes.Count;
+                perguntas.Confirmar = false;
+                var recusada = await j.AnalisarAsync(Provedor.Gemini);
+                gratuitaRecusada = recusada is null && Chamadas(processo, "iniciar").Length == iniciarAntes
+                    && perguntas.Confirmacoes.Skip(confirmacoes).Count(c => c.Titulo == TextosAgentes.FicticioTitulo && c.Texto == TextosAgentes.FicticioTexto) == 1;
+                perguntas.Confirmar = true;
+                j.Orquestrador = Orq("claude_ok");
+                var eApi = await j.AnalisarAsync(Provedor.Gemini) ?? throw new InvalidOperationException("API gratuita não partiu: " + j.InfoMensagemAtual.Message);
+                var fimApi = await Prazo(j.AguardarAnaliseAsync(eApi), 120);
+                var iniciarApi = Chamadas(processo, "iniciar").Skip(iniciarAntes).Select(Col).ToArray();
+                var sha8 = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(chave)))[..8];
+                var execucaoApi = JsonNode.Parse(File.ReadAllText(Path.Combine(eApi.Registro.Pasta, "execucao.json"), System.Text.Encoding.UTF8))!;
+                gratuitaAceita = fimApi.Situacao == "concluida" && iniciarApi.Length == 1 && iniciarApi[0][2] == "CHAVE_PRESENTE " + sha8 && iniciarApi[0][3] == "api"
+                    && iniciarApi[0][4] == "api_gratuita" && iniciarApi[0][5] == "1" && (string?)execucaoApi["autenticacao"] == "gemini_api" && (string?)execucaoApi["perfil"] == "api_gratuita"
+                    && Chamadas(processo, "situacao").Select(Col).Where(c => c.Length > 4).All(c => c[2] == "CHAVE_AUSENTE")
+                    && !File.ReadAllText(Path.Combine(eApi.Registro.Pasta, "execucao.json"), System.Text.Encoding.UTF8).Contains(chave, StringComparison.Ordinal)
+                    && !File.ReadAllText(Path.Combine(PastaDados.Raiz, "ajustes.json"), System.Text.Encoding.UTF8).Contains(chave, StringComparison.Ordinal);
+                p["api_gratuita"] = fimApi.Situacao + (fimApi.Mensagem is null ? "" : ": " + fimApi.Mensagem);
+            }
+            finally
+            {
+                perguntas.Confirmar = true;
+                CofreChaves.Remover(PastaDados.Raiz, Provedor.Gemini);
+                await j.DefinirModoAsync(Provedor.Gemini, ModoAcesso.Conta);
+            }
+            var perfilGuardado = j.PerfilApiDoGemini == PerfilGemini.ApiGratuita && j.PerfilDoGemini == PerfilGemini.ContaUltra;     // a escolha fica; a conta volta a valer
+
+            // Pausa por cota numa etapa: o motivo do plugin fica à vista com "Continuar a análise", que retoma da etapa pendente.
+            await SemRelatorioAbertoAsync();
+            await j.NovoRelatorioAsync();
+            var outro = P0012();
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == outro));
+            var cenarioPausa = Path.Combine(pasta, "gemini-pausa.json");
+            File.WriteAllText(cenarioPausa, new JsonObject
+            {
+                ["relatorio"] = Path.Combine(corpus, "agentes", "relatorio_dados_0001.json"),
+                ["auto"] = new JsonObject { ["etapa_ms"] = 200, ["final"] = "CONCLUIDO", ["pausar_na_etapa"] = "audit", ["motivo"] = "cota_conta", ["erro"] = "Cota da conta Google esgotada na etapa audit." },
+            }.ToJsonString(), new System.Text.UTF8Encoding(false));
+            OrquestradorAnalise OrqPausa() => new()
+            {
+                IntervaloSituacao = TimeSpan.FromMilliseconds(200), IntervaloLog = TimeSpan.FromMilliseconds(200),
+                AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = cenarioPausa },
+            };
+            j.Orquestrador = OrqPausa();
+            var ePausa = await j.AnalisarAsync(Provedor.Gemini) ?? throw new InvalidOperationException("não partiu: " + j.InfoMensagemAtual.Message);
+            var fimPausa = await Prazo(j.AguardarAnaliseAsync(ePausa), 120);
+            var infoPausa = n.AvisoResultado;
+            string[] Feitas() => File.Exists(Path.Combine(outro, ".pmvni-ai", "agente-falso", "etapas.txt")) ? File.ReadAllLines(Path.Combine(outro, ".pmvni-ai", "agente-falso", "etapas.txt")) : [];
+            var pausou = fimPausa.Situacao == "interrompida" && infoPausa.IsOpen && infoPausa.Title == "A análise com o Gemini parou"
+                && infoPausa.Message.EndsWith("Cota da conta Google esgotada na etapa audit.", StringComparison.Ordinal)
+                && n.BotaoContinuar.Visibility == Visibility.Visible && Feitas().SequenceEqual(["prepare", "analyze", "technical_audit", "produce"]);
+            p["pausa"] = infoPausa.Message;
+            j.Orquestrador = OrqPausa();
+            var eCont = await j.ContinuarAnaliseAsync() ?? throw new InvalidOperationException("Continuar não partiu: " + j.InfoMensagemAtual.Message);
+            var fimCont = await Prazo(j.AguardarAnaliseAsync(eCont), 120);
+            var retomou = fimCont.Situacao == "concluida" && eCont.Provedor == Provedor.Gemini
+                && Feitas().SequenceEqual(["prepare", "analyze", "technical_audit", "produce", "audit", "final_review"])      // cada etapa uma vez: nada concluído se repete
+                && Chamadas(outro, "iniciar").Select(Col).All(c => c[3] == "conta" && c[4] == "conta_ultra");
+            p["retomada"] = fimCont.Situacao + (fimCont.Mensagem is null ? "" : ": " + fimCont.Mensagem);
+            await SemRelatorioAbertoAsync();
+            p["partes"] = new JsonObject
+            {
+                ["botao"] = botao, ["aviso"] = aviso, ["pendente_durante"] = pendenteDurante, ["partida"] = partida, ["registro"] = registro, ["importado"] = importado,
+                ["sem_pendente"] = semPendente, ["etapas"] = etapas, ["sem_perfil"] = semPerfil, ["sem_chave"] = semChave, ["com_chave"] = comChave,
+                ["gratuita_recusada"] = gratuitaRecusada, ["gratuita_aceita"] = gratuitaAceita, ["perfil_guardado"] = perfilGuardado, ["pausou"] = pausou, ["retomou"] = retomou,
+            };
+            p["ok"] = botao && aviso && pendenteDurante && partida && registro && importado && semPendente && etapas && semPerfil && semChave && comChave
+                && gratuitaRecusada && gratuitaAceita && perfilGuardado && pausou && retomou;
+        });
+
         await Passo("55_novo_relatorio_segundo_plano_e_cancelar", async p =>
         {
             await PrepararNovoRelatorioAsync();
@@ -3340,7 +3492,8 @@ internal static class Roteiro
                 var partes = relativo.Split(Path.DirectorySeparatorChar);
                 var nome = partes[^1];
                 if (relativo.Contains(@"\.pmvni-ai\editor\", StringComparison.OrdinalIgnoreCase) || relativo.Contains(@"\.pmvni-ai\agente-falso\", StringComparison.OrdinalIgnoreCase)
-                    || relativo.Contains(@"\.pmvni-ai\analise\", StringComparison.OrdinalIgnoreCase) || relativo.Contains(@"\.pmvni-ai\analise-pro\", StringComparison.OrdinalIgnoreCase))
+                    || relativo.Contains(@"\.pmvni-ai\analise\", StringComparison.OrdinalIgnoreCase) || relativo.Contains(@"\.pmvni-ai\analise-pro\", StringComparison.OrdinalIgnoreCase)
+                    || relativo.Contains(@"\.pmvni-ai\analise-google\", StringComparison.OrdinalIgnoreCase))     // 1.1.0: a pasta de controle do análise Google (passo 54b)
                     return true;
                 // Os .rpmvni importados no 0001 e no 0012 (e o .bak de uma gravação) e a trava do relatório aberto.
                 if (nome.StartsWith("Relatorio_0001_2099", StringComparison.Ordinal) || nome.StartsWith("Relatorio_0012_2099", StringComparison.Ordinal)) return true;

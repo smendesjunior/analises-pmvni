@@ -4,7 +4,11 @@ using System.Text.RegularExpressions;
 namespace Pmvni.Agentes;
 
 /// <summary>O que "Testar" mostra em Ajustes: a linha de situação do provedor e os avisos.</summary>
-public sealed record SituacaoProvedor(string Linha, IReadOnlyList<string> Avisos);
+public sealed record SituacaoProvedor(string Linha, IReadOnlyList<string> Avisos)
+{
+    /// <summary>Gemini, modo conta: o login do Antigravity respondeu com modelos (true), sem modelos (false) ou não foi possível saber (null).</summary>
+    public bool? ContaConectada { get; init; }
+}
 
 /// <summary>"Testar" (desenho §12.8): só comandos locais de cada programa (<c>--version</c>, <c>login status</c>, <c>auth status</c>), 15 s cada, nunca um pedido ao
 /// modelo (não gasta cota). A sessão só informa: login desconhecido não bloqueia a análise.</summary>
@@ -28,7 +32,7 @@ public static class Diagnostico
     public static string? VersaoPython(string saida) => Python.Match(saida) is { Success: true } m ? m.Groups[1].Value : null;
 
     /// <summary>A primeira linha não vazia (até 200 caracteres), para "não verificado: …".</summary>
-    static string PrimeiraLinha(string saida)
+    internal static string PrimeiraLinha(string saida)
     {
         var linha = saida.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
         if (linha is null) return "sem resposta";
@@ -69,8 +73,12 @@ public static class Diagnostico
         catch (JsonException) { return null; }
     }
 
-    public static async Task<SituacaoProvedor> TestarAsync(Provedor p, Pecas pecas, ModoAcesso modo, bool chaveGuardada, CancellationToken ct)
+    /// <param name="perfilGemini">Gemini, modo chave: o perfil de API escolhido (null = ainda não escolhido).</param>
+    /// <param name="chaveGemini">Gemini, modo chave: a chave lida do cofre por quem chama, só para a conferência na API do Google; nunca é mostrada.</param>
+    public static async Task<SituacaoProvedor> TestarAsync(Provedor p, Pecas pecas, ModoAcesso modo, bool chaveGuardada, CancellationToken ct,
+        PerfilGemini? perfilGemini = null, string? chaveGemini = null)
     {
+        if (p == Provedor.Gemini) return await DiagnosticoGemini.TestarAsync(pecas, modo, perfilGemini, modo == ModoAcesso.Chave ? chaveGemini : null, ct);
         var avisos = new List<string>();
         var linha = p == Provedor.ChatGpt ? await ChatGptAsync(pecas, ct) : await ClaudeAsync(pecas, avisos, ct);
         if (modo == ModoAcesso.Chave && chaveGuardada)

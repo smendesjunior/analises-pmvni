@@ -113,12 +113,13 @@
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="4" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Analisar" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-        <!-- Os dois agentes com o mesmo peso (tonal, B7): não competem com o primário da faixa. -->
+        <!-- Os três agentes com o mesmo peso (tonal, B7): não competem com o primário da faixa. -->
         <Grid ColumnSpacing="16">
           <Grid.Resources>
             <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
           </Grid.Resources>
           <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="*"/>
           </Grid.ColumnDefinitions>
@@ -140,6 +141,16 @@
             </Button>
             <TextBlock x:Name="TextoPedidoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
             <TextBlock x:Name="TextoMotivoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="6">
+            <Button x:Name="BotaoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="12,8">
+              <StackPanel>
+                <TextBlock Text="Analisar com o Gemini" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                <TextBlock x:Name="TextoPluginGemini" x:FieldModifier="internal" Text="Antigravity · plugin análise Google" FontSize="12" Opacity="0.85"/>
+              </StackPanel>
+            </Button>
+            <TextBlock x:Name="TextoPerfilGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="TextoMotivoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
           </StackPanel>
         </Grid>
         </StackPanel></Border>

@@ -10,6 +10,18 @@ $raiz = Split-Path -Parent $PSScriptRoot
 $exe = Join-Path $raiz 'Aplicativo\Editor de Relatorios PMVNI.exe'
 $saida = Join-Path $raiz 'tests\saida'
 New-Item -ItemType Directory -Force -Path $saida | Out-Null
+# Pré-validação (1.1.0): tests/saida/roteiro-alvo.txt aponta outro .exe a testar (uma publicação ainda não entregue), como o autoteste-alvo.txt do
+# build (o explorer.exe não repassa argumentos). Sem o arquivo, o roteiro usa o executável entregue em Aplicativo\. O arquivo é lido uma vez e apagado.
+$alvo = Join-Path $saida 'roteiro-alvo.txt'
+if (Test-Path -LiteralPath $alvo) {
+    $indicado = ([System.IO.File]::ReadAllText($alvo, [System.Text.Encoding]::UTF8)).Trim()
+    Remove-Item -LiteralPath $alvo -Force
+    if ($indicado -and (Test-Path -LiteralPath $indicado)) { $exe = $indicado }
+    else {
+        "roteiro: o executável indicado em roteiro-alvo.txt não existe ($indicado); o app não foi aberto." | Set-Content (Join-Path $saida 'roteiro-fim.txt') -Encoding utf8
+        exit 1
+    }
+}
 $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados-app'
 $pasta = Join-Path $saida 'roteiro'
 $resultado = Join-Path $pasta 'resultado.json'

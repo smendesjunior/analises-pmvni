@@ -26,6 +26,12 @@ public static class FluxoNovoRelatorio
     public const string SemPython = "O Python não foi encontrado neste computador (o análise pro do kit precisa dele).";
     public const string SemAnalisePro = "O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
     public const string SemClaude = "O Claude Code não foi encontrado neste computador (claude.exe).";
+    public const string SemPythonGoogle = "O Python não foi encontrado neste computador (o análise Google do kit precisa dele).";
+    public const string SemAnaliseGoogle = OrquestradorAnalise.SemAnaliseGoogle;
+    public const string SemAgy = OrquestradorAnalise.SemAgy;
+    public const string SemPerfilApi = OrquestradorAnalise.SemPerfilApi;
+    public const string CancelarGeminiTitulo = "Cancelar a análise com o Gemini?";
+    public const string TextoFecharGemini = "A análise com o Gemini continua sozinha, fora do editor. Ao abrir o editor de novo, você poderá voltar a acompanhá-la ou retomá-la de onde parou.";
     /// <summary>"Analisar com o Claude" desabilitado: modo chave (Anthropic API) com um análise pro que não aceita a rota API (anterior à 1.6.4).</summary>
     public const string ClaudeSoConta = "O análise pro instalado não aceita a Anthropic API (é preciso o 1.6.4 ou mais novo). Atualize pelo INSTALAR_KIT_PMVNI.cmd ou, em Ajustes › Inteligência artificial, use Usar minha conta.";
 
@@ -84,7 +90,8 @@ public static class FluxoNovoRelatorio
 
     /// <summary>Por que o botão do provedor está desabilitado (desenho §12.11, nesta ordem: processo, execução em andamento, programa(s), plugin, modo/chave);
     /// null = pode analisar. As peças de um provedor não contam para o outro.</summary>
-    public static string? MotivoDesabilitado(Provedor p, Processo? processo, bool emAndamento, Pecas pecas, ModoAcesso modo, bool chaveGuardada)
+    /// <param name="perfilGemini">Só o Gemini: o perfil que vale para o modo (<see cref="MatrizGemini.PerfilDoModo"/>); null no modo chave = perfil não escolhido.</param>
+    public static string? MotivoDesabilitado(Provedor p, Processo? processo, bool emAndamento, Pecas pecas, ModoAcesso modo, bool chaveGuardada, PerfilGemini? perfilGemini = null)
     {
         ArgumentNullException.ThrowIfNull(pecas);
         if (processo is null) return EscolhaOProcesso;
@@ -93,6 +100,13 @@ public static class FluxoNovoRelatorio
         {
             if (pecas.Codex is null) return SemCodex;
             if (!pecas.PluginAnaliseHabilitado) return SemPlugin;
+        }
+        else if (p == Provedor.Gemini)
+        {
+            if (pecas.Python is null) return SemPythonGoogle;
+            if (pecas.GoogleRuntime is null) return SemAnaliseGoogle;
+            if (pecas.Agy is null) return SemAgy;
+            if (modo == ModoAcesso.Chave && perfilGemini is not (PerfilGemini.ApiCreditos or PerfilGemini.ApiGratuita)) return SemPerfilApi;
         }
         else
         {
@@ -187,11 +201,14 @@ public static class FluxoNovoRelatorio
 
     public static string TextoFecharChatGpt(Processo p) => $"A análise com o ChatGPT em {Identificacao(p)} será pausada. Ao abrir o editor de novo, você poderá retomá-la de onde parou.";
 
-    public static string TextoClaudeTerminou(Processo p) => $"A análise com o Claude de {Identificacao(p)} terminou.";
+    public static string TextoClaudeTerminou(Processo p) => TextoKitTerminou(Provedor.Claude, p);
+
+    /// <summary>A análise do kit (Claude ou Gemini) terminou com o editor fechado.</summary>
+    public static string TextoKitTerminou(Provedor ia, Processo p) => $"A análise com o {Provedores.Nome(ia)} de {Identificacao(p)} terminou.";
 
     /// <summary>O <c>execucao.json</c> do registro não tem a hora de início: sem ela não há como saber se o resultado do kit é desta análise.</summary>
-    public static string TextoSemInicio(Processo p, string registro) =>
-        $"O registro da análise com o Claude de {Identificacao(p)} não tem a hora de início (execucao.json em {registro}); o editor não a acompanha nem importa "
+    public static string TextoSemInicio(Processo p, string registro, Provedor ia = Provedor.Claude) =>
+        $"O registro da análise com o {Provedores.Nome(ia)} de {Identificacao(p)} não tem a hora de início (execucao.json em {registro}); o editor não a acompanha nem importa "
         + "o resultado sem ela. Quando o kit terminar, importe pelo módulo Processos › Importar análise da IA.";
 
     /// <summary>A importação do relatório que o kit declarou não aconteceu (falhou ou foi cancelada): "Importar relatório" tenta de novo.</summary>

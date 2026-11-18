@@ -46,6 +46,11 @@
           <Path Fill="#D97757" Width="24" Height="24"
                 Data="F1 M 13.04,13.21 L 23.01,14.10 L 23.17,13.01 L 13.33,11.13 Z M 12.30,13.57 L 19.23,18.34 L 19.90,17.48 L 13.59,11.91 Z M 11.48,13.51 L 15.54,22.22 L 16.56,21.81 L 13.42,12.72 Z M 10.79,13.04 L 10.17,21.03 L 11.26,21.19 L 12.87,13.33 Z M 10.43,12.30 L 4.79,20.33 L 5.66,21.01 L 12.09,13.59 Z M 10.49,11.48 L 2.71,15.16 L 3.12,16.18 L 11.28,13.42 Z M 10.96,10.79 L 1.58,9.98 L 1.43,11.07 L 10.67,12.87 Z M 11.70,10.43 L 4.93,5.78 L 4.25,6.65 L 10.41,12.09 Z M 12.52,10.49 L 8.31,1.41 L 7.29,1.82 L 10.58,11.28 Z M 13.21,10.96 L 13.88,2.57 L 12.79,2.42 L 11.13,10.67 Z M 13.57,11.70 L 18.84,4.14 L 17.97,3.47 L 11.91,10.41 Z M 13.51,12.52 L 20.55,9.14 L 20.14,8.12 L 12.72,10.58 Z M 9.6,12 A 2.4,2.4 0 1 1 14.4,12 A 2.4,2.4 0 1 1 9.6,12 Z"/>
         </Viewbox>
+        <!-- Estrela de quatro pontas do Gemini, no azul do Google, desenhada aqui: fica igual nos dois temas. -->
+        <Viewbox x:Name="LogoGemini" Width="24" Height="24" VerticalAlignment="Center" Visibility="Collapsed">
+          <Path Fill="#4285F4" Width="24" Height="24"
+                Data="F1 M 12,1 C 12.6,7 17,11.4 23,12 C 17,12.6 12.6,17 12,23 C 11.4,17 7,12.6 1,12 C 7,11.4 11.4,7 12,1 Z"/>
+        </Viewbox>
         <TextBlock x:Name="TextoServico" x:FieldModifier="internal" Grid.Column="1" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
         <!-- Margem negativa: o texto de Entrar/Sair termina na mesma borda dos valores das linhas, sem perder a área de foco. -->
         <HyperlinkButton x:Name="BotaoConta" x:FieldModifier="internal" Grid.Column="2" FontSize="14" Padding="8,4" Margin="0,0,-8,0" VerticalAlignment="Center"/>
@@ -84,7 +89,7 @@
                      Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
         </StackPanel>
         <local:SeloEstado x:Name="SeloPrograma" x:FieldModifier="internal" Grid.Column="2"/>
-        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6">
+        <StackPanel x:Name="PainelBotoesPrograma" x:FieldModifier="internal" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6">
           <Button x:Name="BotaoEscolherPrograma" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Escolher programa…"
                   local:Dicas.Descricao="Escolhe no computador o programa da IA, se o app não achou o certo."/>
           <Button x:Name="BotaoProgramaPadrao" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Usar o padrão"
@@ -107,7 +112,7 @@
       </Grid>
 
       <!-- Plugin analise (no Codex para o ChatGPT; no Claude Code para o Claude). -->
-      <Grid Style="{StaticResource LinhaCartao}">
+      <Grid x:Name="LinhaPluginAnalise" x:FieldModifier="internal" Style="{StaticResource LinhaCartao}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <FontIcon Glyph="&#xEA86;" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
@@ -147,6 +152,13 @@
           <RadioButton x:Name="OpcaoConta" x:FieldModifier="internal" Content="Usar minha conta (login do programa)"/>
           <RadioButton x:Name="OpcaoChave" x:FieldModifier="internal" Content="Usar chave de API (guardada protegida pelo Windows, só neste usuário)"/>
           <TextBlock x:Name="TextoDicaChave" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" Visibility="Collapsed"/>
+          <!-- Só o Gemini, modo chave: o perfil da chave (com créditos ou gratuita). O plano de uma chave não é dedutível: o usuário escolhe. -->
+          <StackPanel x:Name="PainelPerfil" x:FieldModifier="internal" Spacing="4" Visibility="Collapsed" Margin="0,4,0,0">
+            <ComboBox x:Name="CaixaPerfil" x:FieldModifier="internal" Header="Perfil da chave" MinWidth="280" MaxWidth="420" HorizontalAlignment="Left"
+                      local:Dicas.Descricao="Diz se a chave do Google AI Studio tem créditos (camada paga) ou é gratuita. A gratuita só serve para processos fictícios."/>
+          </StackPanel>
+          <!-- Só o Gemini: o modelo e o nível de cada uma das seis etapas no perfil que vale agora. -->
+          <TextBlock x:Name="TextoMatriz" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" Visibility="Collapsed" IsTextSelectionEnabled="True"/>
           <StackPanel x:Name="PainelChave" x:FieldModifier="internal" Spacing="6" Visibility="Collapsed" Margin="0,4,0,0">
             <PasswordBox x:Name="CaixaChave" x:FieldModifier="internal" PlaceholderText="Cole a chave de API aqui" MaxWidth="420" HorizontalAlignment="Left" MinWidth="280"/>
             <StackPanel Orientation="Horizontal" Spacing="6">

@@ -13,7 +13,10 @@ public static class ResultadoAnalise
     static readonly TimeSpan Tolerancia = TimeSpan.FromSeconds(2);
 
     /// <summary>A pasta de controle do kit dentro do processo: <c>.pmvni-ai\analise</c> (ChatGPT) ou <c>.pmvni-ai\analise-pro</c> (Claude).</summary>
-    public static string PastaControle(Provedor p) => p == Provedor.ChatGpt ? @".pmvni-ai\analise" : @".pmvni-ai\analise-pro";
+    public static string PastaControle(Provedor p) => p switch
+    {
+        Provedor.ChatGpt => @".pmvni-ai\analise", Provedor.Claude => @".pmvni-ai\analise-pro", _ => @".pmvni-ai\analise-google",
+    };
 
     public static Resultado Localizar(string pastaProcesso, Provedor p, DateTime inicioUtc, string pastaRegistro)
     {

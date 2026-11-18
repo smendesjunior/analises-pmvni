@@ -21,7 +21,8 @@ public class AmbienteFilhoTestes
         Assert.Equal("claude", Provedores.Sufixo(Provedor.Claude));
         Assert.Equal("CODEX_API_KEY", Provedores.VariavelChave(Provedor.ChatGpt));
         Assert.Equal("ANTHROPIC_API_KEY", Provedores.VariavelChave(Provedor.Claude));
-        Assert.Equal(new[] { "OPENAI_API_KEY", "CODEX_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN" }, Provedores.VariaveisRemovidas);
+        // 1.1.0: as chaves do Google também nunca são herdadas (terceiro provedor, Gemini); as quatro de antes continuam na lista.
+        Assert.Equal(new[] { "OPENAI_API_KEY", "CODEX_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY", "GOOGLE_API_KEY" }, Provedores.VariaveisRemovidas);
     }
 
     [Theory]

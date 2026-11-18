@@ -11,6 +11,15 @@ public static class PoliticaKit
 
     /// <summary>True só se o <c>pro_runtime.py</c> NÃO contém "API paga desativada" e conhece a rota explícita (<see cref="VariavelRota"/>, 1.6.4+). Um runtime
     /// sem nenhuma das duas marcas (o 1.6.3, que deduzia a rota pela chave) não é usado no modo API: o editor recusa em vez de arriscar a troca de modo.</summary>
+    /// <summary>Análise Google: a rota (<c>conta</c> ou <c>api</c>), o perfil (<see cref="MatrizGemini.Codigo"/>) e a declaração de que o processo é fictício
+    /// (exigida pelo perfil gratuito). O plugin recusa a partida sem rota e perfil coerentes: nunca há troca de modo, modelo ou cobrança sem escolha.</summary>
+    public const string VariavelRotaGoogle = "PMVNI_ANALISE_GOOGLE_ROTA";
+    public const string VariavelPerfilGoogle = "PMVNI_ANALISE_GOOGLE_PERFIL";
+    public const string VariavelFicticioGoogle = "PMVNI_ANALISE_GOOGLE_FICTICIO";
+
+    /// <summary>O <c>google_runtime.py</c> instalado conhece a rota explícita (a marca do contrato com o editor).</summary>
+    public static bool RuntimeGoogleValido(string textoGoogleRuntime) => textoGoogleRuntime.Contains(VariavelRotaGoogle, StringComparison.Ordinal);
+
     public static bool ApiPermitida(string textoProRuntime) =>
         !textoProRuntime.Contains(AncoraApiDesativada, StringComparison.Ordinal) && textoProRuntime.Contains(VariavelRota, StringComparison.Ordinal);
 }

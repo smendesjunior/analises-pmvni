@@ -34,6 +34,7 @@ static class Program
             if (Array.IndexOf(args, "--version") >= 0 || Array.IndexOf(args, "-V") >= 0) return Versao();
             if (args.Length == 2 && args[0] == "login" && args[1] == "status") return LoginStatus();
             if (args.Length == 2 && args[0] == "auth" && args[1] == "status") return AuthStatus();
+            if (args[^1] == "models") return ModelosAgy();
             return Uso();
         }
         finally { saida.Flush(); }
@@ -68,7 +69,7 @@ static class Program
     /// <summary>"CHAVE_PRESENTE &lt;8 hex do sha256&gt;" ou "CHAVE_AUSENTE"; devolve também o nome da variável.</summary>
     static (string Texto, string? Variavel) Chave()
     {
-        foreach (var nome in new[] { "CODEX_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_AUTH_TOKEN" })
+        foreach (var nome in new[] { "CODEX_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY", "GOOGLE_API_KEY" })
         {
             var v = Environment.GetEnvironmentVariable(nome);
             if (!string.IsNullOrEmpty(v)) return ("CHAVE_PRESENTE " + Sha8(v), nome);
@@ -92,6 +93,18 @@ static class Program
     }
 
     static bool Logado() => Texto(cenario["login"], "sim") != "nao";
+
+    /// <summary>O papel do <c>agy models</c> (Antigravity): a lista "id&lt;tab&gt;nome" do cenário (<c>modelos_agy</c>), ou os seis identificadores da
+    /// matriz do Gemini; sem login, só o cabeçalho (lista vazia, como o agy de verdade).</summary>
+    static int ModelosAgy()
+    {
+        saida.WriteLine("Fetching available models...");
+        if (!Logado()) return 0;
+        string[] padrao = { "gemini-4-hydrogen-high", "gemini-4-hydrogen-xhigh", "gemini-4-hydrogen-medium", "gemini-4-carbon-high", "gemini-4-argon-high" };
+        var ids = cenario["modelos_agy"] is JsonArray a ? a.Select(x => x?.GetValue<string>() ?? "").ToArray() : padrao;
+        foreach (var id in ids) saida.WriteLine(id + "\t" + id);
+        return 0;
+    }
 
     static int LoginStatus()
     {
@@ -311,20 +324,25 @@ static class Program
         var i = Array.IndexOf(args, "--case");
         var caso = args[i + 1];
         var acao = args.Length > i + 2 ? args[i + 2] : "";
-        var controle = Path.Combine(caso, ".pmvni-ai", "analise-pro");
+        // O mesmo programa faz o papel do análise Google (google_runtime.py): outra pasta de controle, a rota e o perfil declarados pelo editor.
+        var google = args.Any(a => a.EndsWith("google_runtime.py", StringComparison.OrdinalIgnoreCase) || a == "--google");
+        var controle = Path.Combine(caso, ".pmvni-ai", google ? "analise-google" : "analise-pro");
         var pastaFalso = Path.Combine(caso, ".pmvni-ai", "agente-falso");
         Directory.CreateDirectory(pastaFalso);
         File.AppendAllText(Path.Combine(pastaFalso, "chamadas.txt"),
             acao + "\t" + JsonSerializer.Serialize(args, Opcoes) + "\t" + Chave().Texto + "\t"
-            + (Environment.GetEnvironmentVariable("PMVNI_ANALISE_PRO_ROTA") ?? "-") + "\n", Utf8);   // a rota que o editor declarou (análise pro 1.6.4+)
+            + (Environment.GetEnvironmentVariable(google ? "PMVNI_ANALISE_GOOGLE_ROTA" : "PMVNI_ANALISE_PRO_ROTA") ?? "-")   // a rota que o editor declarou
+            + (google ? "\t" + (Environment.GetEnvironmentVariable("PMVNI_ANALISE_GOOGLE_PERFIL") ?? "-") + "\t" + (Environment.GetEnvironmentVariable("PMVNI_ANALISE_GOOGLE_FICTICIO") ?? "-") : "")
+            + "\n", Utf8);
 
         try
         {
             switch (acao)
             {
-                case "iniciar": return Iniciar(caso, controle);
+                case "iniciar": return Iniciar(caso, controle, google);
                 case "situacao": return Situacao(caso, controle);
-                case "auto": return Auto(caso, controle, Pai(args));
+                case "auto": return Auto(caso, controle, Pai(args), google);
+                case "conferir" when google: return Conferir();
                 default: return Uso();
             }
         }
@@ -354,7 +372,18 @@ static class Program
     /// <summary>O arquivo que o auto grava ao subir (o pid dele): é o que o iniciar espera antes de responder.</summary>
     static string MarcaDoAuto(string controle) => Path.Combine(controle, "auto-subiu.txt");
 
-    static int Iniciar(string caso, string controle)
+    /// <summary>A conferência do análise Google antes da partida: o cenário diz o código e o JSON (<c>conferir</c>); sem ele, tudo disponível.</summary>
+    static int Conferir()
+    {
+        var c = cenario["conferir"] as JsonObject;
+        var resposta = c?["saida"]?.DeepClone() as JsonObject ?? new JsonObject { ["ok"] = true, ["faltas"] = new JsonArray() };
+        resposta["modo"] ??= Environment.GetEnvironmentVariable("PMVNI_ANALISE_GOOGLE_ROTA");
+        resposta["perfil"] ??= Environment.GetEnvironmentVariable("PMVNI_ANALISE_GOOGLE_PERFIL");
+        saida.WriteLine(resposta.ToJsonString(Opcoes));
+        return Inteiro(c?["codigo"], 0);
+    }
+
+    static int Iniciar(string caso, string controle, bool google = false)
     {
         var atual = LerStatus(controle);
         var situacaoAtual = Texto(atual?["situacao"], "");
@@ -365,6 +394,12 @@ static class Program
         }
         var inicio = Agora();
         var status = new JsonObject { ["case"] = caso, ["situacao"] = "INICIANDO", ["pid"] = null, ["inicio"] = inicio };
+        if (google)
+        {
+            // Como o plugin: o modo e o perfil declarados na partida ficam no status e valem para o trabalho inteiro.
+            status["modo"] = Environment.GetEnvironmentVariable("PMVNI_ANALISE_GOOGLE_ROTA");
+            status["perfil"] = Environment.GetEnvironmentVariable("PMVNI_ANALISE_GOOGLE_PERFIL");
+        }
         Evento(status, "Partida pedida pela conversa");
         GravarStatus(controle, status);
 
@@ -380,7 +415,7 @@ static class Program
             {
                 UseShellExecute = true,
                 WindowStyle = ProcessWindowStyle.Hidden,
-                Arguments = "--case \"" + caso + "\" auto --pai " + Environment.ProcessId,
+                Arguments = "--case \"" + caso + "\" auto --pai " + Environment.ProcessId + (google ? " --google" : ""),
             };
             var filho = Process.Start(psi);
             DiagnosticoDaPartida(caso, "tentativa " + tentativa + ": filho pid=" + (filho?.Id.ToString() ?? "nenhum"));
@@ -449,7 +484,7 @@ static class Program
         return i >= 0 && i + 1 < args.Length && int.TryParse(args[i + 1], out var pid) ? pid : 0;
     }
 
-    static int Auto(string caso, string controle, int pai)
+    static int Auto(string caso, string controle, int pai, bool google = false)
     {
         // Confirma a subida ao iniciar e espera ele sair (no máximo 15 s) antes de gravar qualquer status.
         Directory.CreateDirectory(controle);
@@ -465,14 +500,47 @@ static class Program
         GravarStatus(controle, status);
         AcrescentarLog(controle, "[" + Agora() + "] análise iniciada");
 
+        // Análise Google: os pontos de controle por etapa (engine_state.json, com o modo e o perfil fixados) e a pausa de uma etapa pelo cenário
+        // (auto.pausar_na_etapa, só na primeira passagem): a partida seguinte continua da etapa pendente, sem refazer as concluídas.
+        var estadoArq = Path.Combine(controle, "engine_state.json");
+        JsonObject? estado = null;
+        if (google)
+        {
+            try { estado = File.Exists(estadoArq) ? JsonNode.Parse(File.ReadAllText(estadoArq, Utf8)) as JsonObject : null; } catch (JsonException) { }
+            estado ??= new JsonObject { ["modo"] = status["modo"]?.DeepClone(), ["perfil"] = status["perfil"]?.DeepClone(), ["stages"] = new JsonObject() };
+            status["modo"] = estado["modo"]?.DeepClone();
+            status["perfil"] = estado["perfil"]?.DeepClone();
+            GravarJson(estadoArq, estado);
+        }
+        var pausar = Texto(auto["pausar_na_etapa"], "");
+        var marcaPausa = Path.Combine(controle, "pausou.txt");
+
         foreach (var etapa in Etapas)
         {
+            if (estado?["stages"] is JsonObject feitas && Texto(feitas[etapa]?["status"], "") == "EXECUTED") continue;    // já concluída numa passagem anterior
             status["etapa"] = etapa;
             Evento(status, "Etapa " + etapa);
             GravarStatus(controle, status);
             AcrescentarLog(controle, "[" + Agora() + "] etapa " + etapa);
+            if (google && etapa == pausar && !File.Exists(marcaPausa))
+            {
+                File.WriteAllText(marcaPausa, etapa, Utf8);
+                status["situacao"] = Texto(auto["pausa_situacao"], "PAUSADO_COTA");
+                status["motivo"] = Texto(auto["motivo"], "cota_conta");
+                status["erro"] = Texto(auto["erro"], "Cota esgotada na etapa " + etapa + ".");
+                status["fim"] = Agora();
+                GravarStatus(controle, status);
+                AcrescentarLog(controle, "[" + Agora() + "] pausa na etapa " + etapa);
+                return 0;
+            }
             if (etapa == parar) Dormir(Inteiro(auto["dormir_ms"], 60000));
             else Dormir(etapaMs);
+            if (google)
+            {
+                File.AppendAllText(Path.Combine(caso, ".pmvni-ai", "agente-falso", "etapas.txt"), etapa + "\n", Utf8);
+                ((JsonObject)estado!["stages"]!)[etapa] = new JsonObject { ["status"] = "EXECUTED" };
+                GravarJson(estadoArq, estado);
+            }
         }
 
         var final = Texto(auto["final"], "CONCLUIDO");

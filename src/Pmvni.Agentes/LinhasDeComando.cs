@@ -17,12 +17,17 @@ public static class LinhasDeComando
     /// <summary><c>python -B -X utf8 pro_runtime.py --case P iniciar|situacao</c> (com o launcher <c>py.exe</c>, o primeiro argumento é <c>-3</c>).</summary>
     public static (string Exe, IReadOnlyList<string> Args) ProRuntime(string python, bool launcher, string script, string pastaProcesso, string acao)
     {
-        if (acao is not ("iniciar" or "situacao")) throw new ArgumentException("Ação desconhecida do análise pro: " + acao, nameof(acao));
+        if (acao is not ("iniciar" or "situacao" or "conferir")) throw new ArgumentException("Ação desconhecida do análise pro: " + acao, nameof(acao));
         var args = new List<string>();
         if (launcher) args.Add("-3");
         args.AddRange(new[] { "-B", "-X", "utf8", script, "--case", pastaProcesso, acao });
         return (python, args);
     }
+
+    /// <summary><c>agy --version</c> e <c>agy models</c> (a lista "id&lt;tab&gt;nome" da conta; não gera texto nem gasta cota).</summary>
+    public static (string Exe, IReadOnlyList<string> Args) AgyVersao(string agy) => (agy, new[] { "--version" });
+
+    public static (string Exe, IReadOnlyList<string> Args) AgyModelos(string agy) => (agy, new[] { "models" });
 
     public static (string Exe, IReadOnlyList<string> Args) CodexVersao(string codex) => (codex, new[] { "--version" });
 

@@ -6,7 +6,7 @@ using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
-/// <summary>Ajustes de um agente local (ChatGPT ou Claude), sem nenhum segredo: a chave de API fica só no <c>CofreChaves</c> (DPAPI), nunca aqui.</summary>
+/// <summary>Ajustes de um agente local (ChatGPT, Claude ou Gemini), sem nenhum segredo: a chave de API fica só no <c>CofreChaves</c> (DPAPI), nunca aqui.</summary>
 public sealed class AjustesAgente
 {
     /// <summary>Entra pela conta do programa (padrão) ou pela chave de API guardada.</summary>
@@ -23,6 +23,10 @@ public sealed class AjustesAgente
 
     /// <summary>O aviso vigente já foi aceito (texto novo, com versão maior, pede de novo).</summary>
     public bool AvisoAceito => AvisoVersao is { } v && v >= Ajustes.VersaoAviso;
+
+    /// <summary>Só o Gemini, modo chave: o perfil da chave do Google AI Studio (com créditos ou gratuita). null = ainda não escolhido; o editor pede a
+    /// escolha e nunca presume o plano de uma chave.</summary>
+    public PerfilGemini? PerfilApi { get; set; }
 }
 
 /// <summary>Uma análise do Claude que seguia quando o editor fechou (desenho §12.7): a pasta do processo e a do registro da execução
@@ -66,11 +70,12 @@ public sealed class Ajustes
     /// <summary>A versão do texto do aviso dos agentes (desenho §12.8): texto novo pede o aceite de novo.</summary>
     public const int VersaoAviso = 1;
 
-    /// <summary>Os ajustes dos dois agentes locais (sempre os dois, com o padrão no que faltar).</summary>
+    /// <summary>Os ajustes dos três agentes locais (sempre os três, com o padrão no que faltar).</summary>
     public IReadOnlyDictionary<Provedor, AjustesAgente> Agentes { get; } = new Dictionary<Provedor, AjustesAgente>
     {
         [Provedor.ChatGpt] = new(),
         [Provedor.Claude] = new(),
+        [Provedor.Gemini] = new(),
     };
 
     /// <summary>A última versão vista de cada plugin do kit em Ajustes › Inteligência artificial (<c>"plugins_vistos"</c>; chave
@@ -575,15 +580,21 @@ public sealed class Ajustes
         a.Executavel = Texto(o, "executavel") is { } e && !string.IsNullOrWhiteSpace(e) ? e : null;
         if (o["aviso_versao"] is JsonValue v && v.TryGetValue<int>(out var versao) && versao > 0) a.AvisoVersao = versao;
         if (Texto(o, "aviso_em") is { } em && DateTimeOffset.TryParse(em, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var quando)) a.AvisoEm = quando;
+        if (MatrizGemini.DoCodigo(Texto(o, "perfil_api")) is PerfilGemini.ApiCreditos or PerfilGemini.ApiGratuita) a.PerfilApi = MatrizGemini.DoCodigo(Texto(o, "perfil_api"));
     }
 
-    static JsonObject EscreverAgente(AjustesAgente a) => new()
+    static JsonObject EscreverAgente(AjustesAgente a)
     {
-        ["modo"] = a.Modo == ModoAcesso.Chave ? "chave" : "conta",
-        ["executavel"] = a.Executavel,
-        ["aviso_versao"] = a.AvisoVersao,
-        ["aviso_em"] = a.AvisoEm?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
-    };
+        var o = new JsonObject
+        {
+            ["modo"] = a.Modo == ModoAcesso.Chave ? "chave" : "conta",
+            ["executavel"] = a.Executavel,
+            ["aviso_versao"] = a.AvisoVersao,
+            ["aviso_em"] = a.AvisoEm?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture),
+        };
+        if (a.PerfilApi is { } perfil) o["perfil_api"] = MatrizGemini.Codigo(perfil);     // só o Gemini tem; nos outros a chave nem aparece
+        return o;
+    }
 
     static string? Texto(JsonObject j, string nome) => j[nome] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 }
