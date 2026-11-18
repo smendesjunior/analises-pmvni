@@ -144,7 +144,7 @@ public static class ListasPastas
 
     /// <summary>"0012/2099"; null se o nome da pasta não segue o padrão.</summary>
     public static string? NumeroDoProcesso(Processo p) =>
-        p.Numero is { } n && p.Ano is { } a ? string.Create(CultureInfo.InvariantCulture, $"{n:D4}/{a}") : null;
+        p.Protocolo;
 
     public static string TextoDoTipo(TipoDespacho t) => t switch
     {

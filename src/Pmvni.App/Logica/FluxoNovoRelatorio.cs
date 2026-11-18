@@ -5,7 +5,10 @@ using Pmvni.Revisao;
 namespace Pmvni.App;
 
 /// <summary>O que "Criar processo…" pede (desenho §12.3): número, ano do protocolo e requerente, já conferidos.</summary>
-public sealed record DadosNovoProcesso(int Numero, int Ano, string Requerente);
+public sealed record DadosNovoProcesso(string Numero, int Ano, string Requerente)
+{
+    public DadosNovoProcesso(int numero, int ano, string requerente) : this(numero.ToString(CultureInfo.InvariantCulture), ano, requerente) { }
+}
 
 /// <summary>Em que pé está uma etapa do análise pro na vista da execução.</summary>
 public enum EstadoEtapa { Feita, Agora, Pendente, Erro }
@@ -221,6 +224,8 @@ public static class FluxoNovoRelatorio
     public static string TextoProcessoExiste(int numero, int ano, string pasta) =>
         string.Create(CultureInfo.InvariantCulture, $"O processo {numero:D4}/{ano} já existe: {pasta}.");
 
+    public static string TextoProcessoExiste(string numero, int ano, string pasta) => $"O processo {numero}/{ano} já existe: {pasta}.";
+
     /// <summary>Os campos do diálogo "Criar processo": número positivo aceito pelo kit, ano de 4 dígitos entre 1990 e o ano atual + 1 e requerente não vazio.
     /// null = "Criar" fica desabilitado.</summary>
     public static DadosNovoProcesso? LerNovoProcesso(string numero, string ano, string requerente, int anoAtual)
@@ -228,10 +233,10 @@ public static class FluxoNovoRelatorio
         numero = (numero ?? "").Trim();
         ano = (ano ?? "").Trim();
         requerente = (requerente ?? "").Trim();
-        if (!int.TryParse(numero, NumberStyles.None, CultureInfo.InvariantCulture, out var n)) return null;
+        if (numero.Length == 0) return null;
         if (ano.Length != 4 || !ano.All(char.IsAsciiDigit)) return null;
         var a = int.Parse(ano, CultureInfo.InvariantCulture);
-        if (n is < 1 or > 9999999 || a < 1990 || a > anoAtual + 1 || requerente.Length == 0) return null;
-        return new DadosNovoProcesso(n, a, requerente);
+        if (a < 1990 || a > anoAtual + 1 || requerente.Length == 0) return null;
+        return new DadosNovoProcesso(numero, a, requerente);
     }
 }

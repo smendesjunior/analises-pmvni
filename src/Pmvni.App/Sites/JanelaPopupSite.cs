@@ -16,7 +16,7 @@ namespace Pmvni.App;
 internal sealed class JanelaPopupSite : Window
 {
     static readonly List<JanelaPopupSite> abertas = [];
-    readonly WebView2 web = new();
+    readonly WebView2 web = new() { AllowDrop = true };
     readonly string rotuloSite;
     bool fechada;
 

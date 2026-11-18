@@ -366,7 +366,12 @@ public static class ConteudoDespacho
         var itens = Itens(p, out var doc);
         var capa = Texto((doc["capa"] as JsonObject)?["processo"]);
         var lido = ProcessoDaCapa(capa);
-        if (lido is null)
+        if (processo.Numero is null && processo.Protocolo is { } protocolo)
+        {
+            if (!string.Equals(capa?.Trim(), protocolo, StringComparison.OrdinalIgnoreCase))
+                b.Add($"O processo da capa ({capa}) difere do processo da pasta ({protocolo}).");
+        }
+        else if (lido is null)
             b.Add("O processo da capa (" + capa + ") não está no formato número/ano; confira o relatório.");
         else if (processo.Numero is { } n && processo.Ano is { } a && (lido.Value.Numero != n || lido.Value.Ano != a))
             b.Add("O processo da capa (" + capa + ") não é o da pasta ("

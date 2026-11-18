@@ -2,6 +2,13 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.1
+
+- A busca do Editor exibe resultados abaixo do campo desde a primeira letra, inclusive quando nenhum relatório está aberto.
+- O indicador “Compondo as folhas…” mantém o anel e a mensagem dentro da borda colorida.
+- Emitir Processo Aprovado abre o seletor de PDFs diretamente. A prévia mostra o visto do analista e permite adicionar outros carimbos antes da assinatura.
+- A criação de processos aceita identificadores com letras e zeros iniciais. Os navegadores internos do portal passam a aceitar arraste de arquivos.
+
 ## 1.2.0
 
 - Em Relatórios, “Emitir Processo Aprovado” abre a seleção de pranchas, a colocação do carimbo e a escolha das observações. A emissão preenche petição e data e usa a assinatura configurada do analista.

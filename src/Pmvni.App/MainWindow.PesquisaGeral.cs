@@ -30,7 +30,6 @@ public sealed partial class MainWindow
 
     DispatcherQueueTimer esperaGeral = null!;
     CancellationTokenSource? pesquisaGeralCts;
-    Popup popupGeral = null!;
     Border molduraGeral = null!;
     StackPanel listaGeral = null!;
     ScrollViewer rolagemGeral = null!;
@@ -52,8 +51,16 @@ public sealed partial class MainWindow
     Task leituraDasLeisGeral = Task.CompletedTask;
 
     // ---------- acessores do roteiro ----------
-    internal bool ListaGeralAberta => popupGeral?.IsOpen == true;
+    internal bool ListaGeralAberta => molduraGeral?.Visibility == Visibility.Visible;
     internal IReadOnlyList<ItemPesquisaGeral> ResultadosGerais => linhasGeral.Select(l => l.Item).ToList();
+
+    internal bool ResultadosVisiveisPara(string termo)
+    {
+        if (!ListaGeralAberta || termoGeralMostrado != termo || linhasGeral.Count == 0 || molduraGeral.ActualHeight <= 0) return false;
+        var topo = molduraGeral.TransformToVisual(Raiz).TransformPoint(default).Y;
+        var baseCaixa = CaixaPesquisa.TransformToVisual(Raiz).TransformPoint(new Windows.Foundation.Point(0, CaixaPesquisa.ActualHeight)).Y;
+        return topo >= baseCaixa && topo < Raiz.ActualHeight;
+    }
 
     void IniciarPesquisaGeral()
     {
@@ -76,7 +83,7 @@ public sealed partial class MainWindow
         // Clique fora da caixa e da lista fecha a lista (inclusive em área que não recebe foco).
         Raiz.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, e) =>
         {
-            if (!popupGeral.IsOpen || e.OriginalSource is not DependencyObject o) return;
+            if (!ListaGeralAberta || e.OriginalSource is not DependencyObject o) return;
             if (DentroDe(o, molduraGeral) || DentroDe(o, CaixaPesquisa)) return;
             FecharPesquisaGeral();
         }), handledEventsToo: true);
@@ -115,8 +122,13 @@ public sealed partial class MainWindow
         rodapeGeral = (TextBlock)molduraGeral.FindName("Rodape");
         molduraGeral.Shadow = new ThemeShadow();
         molduraGeral.Translation = new System.Numerics.Vector3(0, 0, 32);
-        popupGeral = new Popup { Child = molduraGeral, IsLightDismissEnabled = false, ShouldConstrainToRootBounds = true };
-        if (CaixaPesquisa.Parent is Panel grade) grade.Children.Add(popupGeral);
+        molduraGeral.Visibility = Visibility.Collapsed;
+        molduraGeral.HorizontalAlignment = HorizontalAlignment.Left;
+        molduraGeral.VerticalAlignment = VerticalAlignment.Top;
+        Grid.SetRowSpan(molduraGeral, Raiz.RowDefinitions.Count);
+        Canvas.SetZIndex(molduraGeral, 100);
+        Raiz.Children.Add(molduraGeral);
+        Raiz.SizeChanged += (_, _) => { if (ListaGeralAberta) PosicionarListaGeral(); };
     }
 
     // ---------- digitação e teclado ----------
@@ -136,7 +148,7 @@ public sealed partial class MainWindow
 
     void AoTeclarNaPesquisaGeral(object sender, KeyRoutedEventArgs e)
     {
-        if (!popupGeral.IsOpen)
+        if (!ListaGeralAberta)
         {
             // ↓ com termo e a lista fechada: abre de novo.
             if (e.Key == VirtualKey.Down && CaixaPesquisa.Text.Trim().Length >= PesquisaGeral.MinimoDoTermo)
@@ -208,8 +220,8 @@ public sealed partial class MainWindow
 
     void FecharPesquisaGeral()
     {
-        if (popupGeral is null || !popupGeral.IsOpen) return;
-        popupGeral.IsOpen = false;
+        if (!ListaGeralAberta) return;
+        molduraGeral.Visibility = Visibility.Collapsed;
         selecionadoGeral = -1;
         pressionandoLinhaGeral = false;
     }
@@ -380,7 +392,7 @@ public sealed partial class MainWindow
     {
         if (fechada || CaixaPesquisa.Text.Trim() != termo) return;
         var chaveAntes = selecionadoGeral >= 0 && selecionadoGeral < linhasGeral.Count ? linhasGeral[selecionadoGeral].Item.Chave : null;
-        var mesmoTermo = termo == termoGeralMostrado && popupGeral.IsOpen;
+        var mesmoTermo = termo == termoGeralMostrado && ListaGeralAberta;
         termoGeralMostrado = termo;
         listaGeral.Children.Clear();
         linhasGeral.Clear();
@@ -412,13 +424,21 @@ public sealed partial class MainWindow
     void AbrirListaGeral()
     {
         molduraGeral.RequestedTheme = Raiz.ActualTheme;
-        // Abaixo da barra de título: o que fica sobre ela é área de arrastar a janela (o clique não chegaria à lista).
-        var topo = 0.0;
-        try { topo = CaixaPesquisa.TransformToVisual(BarraTitulo).TransformPoint(new Windows.Foundation.Point(0, 0)).Y; }
-        catch (ArgumentException) { }
-        popupGeral.HorizontalOffset = 0;
-        popupGeral.VerticalOffset = Math.Max(CaixaPesquisa.ActualHeight + 4, BarraTitulo.ActualHeight - topo + 2);
-        if (!popupGeral.IsOpen) { rolagemGeral.ChangeView(null, 0, null, disableAnimation: true); popupGeral.IsOpen = true; }
+        PosicionarListaGeral();
+        if (!ListaGeralAberta)
+        {
+            rolagemGeral.ChangeView(null, 0, null, disableAnimation: true);
+            molduraGeral.Visibility = Visibility.Visible;
+        }
+    }
+
+    void PosicionarListaGeral()
+    {
+        var canto = CaixaPesquisa.TransformToVisual(Raiz).TransformPoint(new Windows.Foundation.Point(0, CaixaPesquisa.ActualHeight));
+        var topo = Math.Max(canto.Y + 4, BarraTitulo.ActualHeight + 2);
+        molduraGeral.Width = Math.Min(480, Raiz.ActualWidth);
+        molduraGeral.MaxHeight = Math.Max(0, Raiz.ActualHeight - topo);
+        molduraGeral.Margin = new Thickness(Math.Clamp(canto.X, 0, Raiz.ActualWidth - molduraGeral.Width), topo, 0, 0);
     }
 
     static FrameworkElement CabecalhoGeral(string texto, bool vazio = false)

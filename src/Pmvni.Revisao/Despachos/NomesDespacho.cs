@@ -12,11 +12,14 @@ public static class NomesDespacho
     const int MaximoNome = 60;
     internal const string ExtensaoRecibo = ".recibo-editor.json";
 
-    public static string Base(TipoDespacho t, int numero, int ano, string requerente)
+    public static string Base(TipoDespacho t, int numero, int ano, string requerente) =>
+        Base(t, numero.ToString(CultureInfo.InvariantCulture), ano, requerente);
+
+    public static string Base(TipoDespacho t, string numero, int ano, string requerente)
     {
         ArgumentNullException.ThrowIfNull(requerente);
         var nome = Nome(requerente);
-        var b = string.Create(CultureInfo.InvariantCulture, $"Despacho_{RegistroModelos.NomeNoArquivo(t)}_{numero}_{ano}");
+        var b = string.Create(CultureInfo.InvariantCulture, $"Despacho_{RegistroModelos.NomeNoArquivo(t)}_{CriacaoProcesso.Componente(numero)}_{ano}");
         return nome.Length > 0 ? b + "_" + nome : b;
     }
 

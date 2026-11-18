@@ -7,7 +7,12 @@ namespace Pmvni.Revisao;
 /// <summary>Resultado de uma leitura de pastas: os itens achados e os avisos (pasta ou arquivo ilegível não derruba a leitura).</summary>
 public sealed record Leitura<T>(IReadOnlyList<T> Itens, IReadOnlyList<string> Avisos);
 
-public sealed record Processo(string Pasta, string NomePasta, int? Numero, int? Ano, string? Requerente);
+public sealed record Processo(string Pasta, string NomePasta, int? Numero, int? Ano, string? Requerente)
+{
+    public string? Identificador { get; init; }
+    public string? Protocolo => Ano is { } ano && (Identificador ?? Numero?.ToString("D4", CultureInfo.InvariantCulture)) is { } id
+        ? $"{id}/{ano}" : null;
+}
 
 public sealed record ArquivoEncontrado(string Caminho, string Relativo, long Tamanho, DateTime AlteradoUtc);
 
@@ -34,7 +39,7 @@ public static class Processos
     const int NiveisMaximos = 3;
 
     static readonly Regex PastaAno = new(@"^\d{4}$", RegexOptions.CultureInvariant);
-    static readonly Regex NomeProcesso = new(@"^\s*(?:PROCC?\.?\s*)?(?<num>[0-9]{1,7})\s*[-_/]\s*(?<ano>[0-9]{4})\s*-\s*(?<req>\S.*)$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    static readonly Regex NomeProcesso = new(@"^\s*(?:FINALIZADO\s*-\s*)?(?:PROCC?(?:\s*\.\s*|\s+|(?=\d)))?(?<num>[\p{L}\p{Nd}][\p{L}\p{Nd}._-]*)\s*[-_/]\s*(?<ano>[0-9]{4})\s*-\s*(?<req>\S.*)$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     static readonly Regex NomeDespacho = new(@"^DESPACHO\s+(?<n>\d{1,3})\s+-\s+(?<data>\d{4}-\d{2}-\d{2})$",
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     static readonly string[] ExtensoesDespacho = { ".docx", ".doc", ".pdf" };
@@ -100,14 +105,24 @@ public static class Processos
         return new Leitura<Processo>(itens, avisos);
     }
 
-    static Processo Interpretar(string pasta)
+    internal static Processo Interpretar(string pasta)
     {
         var nome = Path.GetFileName(pasta);
         var m = NomeProcesso.Match(nome);
-        return m.Success
-            ? new Processo(pasta, nome, int.Parse(m.Groups["num"].Value, CultureInfo.InvariantCulture),
-                int.Parse(m.Groups["ano"].Value, CultureInfo.InvariantCulture), m.Groups["req"].Value.Trim())
-            : new Processo(pasta, nome, null, null, null);
+        if (!m.Success) return new Processo(pasta, nome, null, null, null);
+        var id = m.Groups["num"].Value;
+        if (id.StartsWith("PMVNI-ID-", StringComparison.Ordinal))
+        {
+            var arquivo = Path.Combine(pasta, CriacaoProcesso.ArquivoIdentificador);
+            if (File.Exists(arquivo) && !EhLink(arquivo))
+            {
+                var original = File.ReadAllText(arquivo);
+                if (CriacaoProcesso.Componente(original) == id) id = original;
+            }
+        }
+        int? numero = int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? n : null;
+        return new Processo(pasta, nome, numero, int.Parse(m.Groups["ano"].Value, CultureInfo.InvariantCulture), m.Groups["req"].Value.Trim())
+        { Identificador = id };
     }
 
     /// <summary>Minúsculas e sem acentos, para comparar o que o usuário digita.</summary>
@@ -131,7 +146,7 @@ public static class Processos
         var t = Normalizar(PontoDeMilhar.Replace(termo ?? "", "")).Trim();
         if (t.Length == 0) return true;
         var pasta = Normalizar(p.NomePasta);
-        if (pasta.Contains(t, StringComparison.Ordinal)) return true;
+        if (pasta.Contains(t, StringComparison.Ordinal) || p.Protocolo is { } protocolo && Normalizar(protocolo).Contains(t, StringComparison.Ordinal)) return true;
         var requerente = Normalizar(p.Requerente ?? (p.Numero is null ? p.NomePasta : ""));
         var numero = p.Numero?.ToString(CultureInfo.InvariantCulture);
         var ano = p.Ano?.ToString(CultureInfo.InvariantCulture);

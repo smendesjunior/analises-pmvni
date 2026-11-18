@@ -161,11 +161,14 @@
       <!-- Centro: o relatório inteiro, em folhas A4 empilhadas (a página web desenha as folhas sobre o fundo cinza). -->
       <Grid Grid.Column="1" x:Name="AreaCentral" x:FieldModifier="internal">
         <controls:WebView2 x:Name="Navegador" x:FieldModifier="internal"/>
-        <Grid x:Name="Espera" x:FieldModifier="internal" Visibility="Collapsed" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" Opacity="0.94">
-          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14">
-            <ProgressRing x:Name="Anel" x:FieldModifier="internal" IsActive="False" Width="48" Height="48"/>
-            <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" HorizontalAlignment="Center"/>
-          </StackPanel>
+        <Grid x:Name="Espera" x:FieldModifier="internal" Canvas.ZIndex="10" Visibility="Collapsed" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
+          <Border HorizontalAlignment="Center" VerticalAlignment="Center" Padding="22,10"
+                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="22">
+            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <ProgressRing x:Name="Anel" x:FieldModifier="internal" IsActive="False" Width="24" Height="24"/>
+              <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
         </Grid>
         <!-- Nada aberto (M5): ícone do módulo, Novo relatório, Abrir e os recentes. -->
         <local:EstadoVazio x:Name="TextoVazio" x:FieldModifier="internal"/>

@@ -151,7 +151,7 @@ public sealed partial class PaginaSites : Grid
     async Task<CoreWebView2> CriarAsync(Modulo m)
     {
         if (navegadores.Remove(m, out var velho)) { Children.Remove(velho); try { velho.Close(); } catch (Exception) { } }
-        var web = new WebView2 { Visibility = atual == m ? Visibility.Visible : Visibility.Collapsed };
+        var web = new WebView2 { AllowDrop = true, Visibility = atual == m ? Visibility.Visible : Visibility.Collapsed };
         navegadores[m] = web;
         Children.Insert(0, web);
         try

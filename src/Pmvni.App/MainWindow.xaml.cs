@@ -1546,7 +1546,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     // ---------- estado da janela ----------
 
-    void Ocupar(string texto)
+    internal void Ocupar(string texto)
     {
         if (fechada) return;
         ocupado = true;
@@ -1556,7 +1556,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         AtualizarComandos();
     }
 
-    void Liberar()
+    internal void Liberar()
     {
         if (fechada) return;
         ocupado = false;

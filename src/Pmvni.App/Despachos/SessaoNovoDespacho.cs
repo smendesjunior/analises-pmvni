@@ -202,7 +202,7 @@ internal sealed class SessaoNovoDespacho
             : [];
 
     string ProtocoloDoProcesso() =>
-        Processo is { Numero: { } n, Ano: { } a } ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{n:D4}/{a}") : "";
+        Processo?.Protocolo ?? "";
 
     public void AtualizarEtapas(IReadOnlyList<EtapaDespacho> etapas) => Etapas = etapas;
 

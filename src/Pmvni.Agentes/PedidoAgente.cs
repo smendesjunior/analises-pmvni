@@ -25,9 +25,9 @@ public static class PedidoAgente
         var linhas = new List<string> { PrimeiraLinha, "Pasta do processo: " + pastaProcesso };
 
         string identificacao;
-        if (p.Numero is { } n && p.Ano is { } a)
+        if (p.Protocolo is { } protocolo)
         {
-            identificacao = string.Create(CultureInfo.InvariantCulture, $"{n:D4}/{a}");
+            identificacao = protocolo;
             if (!string.IsNullOrWhiteSpace(p.Requerente)) identificacao += " — " + p.Requerente;
         }
         else identificacao = p.NomePasta;

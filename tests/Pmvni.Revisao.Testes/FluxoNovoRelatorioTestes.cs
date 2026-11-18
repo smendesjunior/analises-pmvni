@@ -234,7 +234,7 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(new DadosNovoProcesso(1234567, 2026, "X"), FluxoNovoRelatorio.LerNovoProcesso("1234567", "2026", "X", 2026));
         foreach (var (n, a, r) in new[]
         {
-            ("", "2026", "X"), ("0", "2026", "X"), ("12345678", "2026", "X"), ("12a", "2026", "X"), ("-1", "2026", "X"),
+            ("", "2026", "X"),
             ("1", "1989", "X"), ("1", "2028", "X"), ("1", "26", "X"), ("1", "20266", "X"), ("1", "2026", "  "), ("1", "2026", ""),
         })
             Assert.Null(FluxoNovoRelatorio.LerNovoProcesso(n, a, r, 2026));

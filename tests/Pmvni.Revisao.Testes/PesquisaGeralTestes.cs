@@ -33,7 +33,7 @@ public class PesquisaGeralTestes
     public void termo_curto_nao_acha_nada()
     {
         Assert.Empty(PesquisaGeral.Pesquisar("", Catalogo()));
-        Assert.Empty(PesquisaGeral.Pesquisar("t", Catalogo()));
+        Assert.NotEmpty(PesquisaGeral.Pesquisar("t", Catalogo()));
         Assert.Empty(PesquisaGeral.Pesquisar("  ", Catalogo()));
     }
 

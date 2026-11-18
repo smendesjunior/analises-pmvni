@@ -5,6 +5,20 @@ namespace Pmvni.Revisao.Testes;
 /// <summary>Criar processo (Tarefa 19, desenho §12.3): como o <c>criar</c> do pasta_processo.py do kit.</summary>
 public class CriacaoProcessoTestes
 {
+    [Theory]
+    [InlineData("001AB", "001AB/2026")]
+    [InlineData("../../001:A", "../../001:A/2026")]
+    public void Identificador_reabre_e_identifica_a_prancha(string id, string protocolo)
+    {
+        using var t = Ambiente.PastaDeTeste("proc-identificador");
+        var (p, _) = CriacaoProcesso.Criar(t, id, 2026, "Teste");
+        var relido = Assert.Single(Processos.Listar(t, CancellationToken.None).Itens);
+        Assert.Equal(protocolo, relido.Protocolo);
+        Assert.True(Processos.Filtrar(relido, id));
+        Assert.Equal(protocolo, PeticaoDaPrancha.Identificar(Path.Combine(p.Pasta, "DOCUMENTOS", "Folha.pdf")));
+        Assert.Equal(p.Pasta, CriacaoProcesso.Criar(t, id, 2026, "Outro").Processo.Pasta);
+    }
+
     [Fact]
     public void criar_processo_como_o_kit()
     {

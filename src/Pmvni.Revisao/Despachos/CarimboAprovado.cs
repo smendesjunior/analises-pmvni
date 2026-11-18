@@ -16,6 +16,20 @@ public static class CarimboAprovado
         CertificadoAberto analista, DateTimeOffset emissao,
         IReadOnlyList<ObservacaoPrancha>? observacoes = null, XRect? areaObservacoes = null)
     {
+        var desenhada = Desenhar(prancha, pagina, x, y, peticao, analista, emissao, observacoes, areaObservacoes);
+        return Assinar(desenhada, pagina, analista, emissao);
+    }
+
+    public static PdfAssinado Assinar(byte[] desenhada, int pagina, CertificadoAberto analista, DateTimeOffset emissao)
+    {
+        var local = new LocalAssinatura(pagina, 0, 0, 0, 0);
+        return AssinaturaPdf.AssinarNoLocal(desenhada, analista, emissao, null, local, "Visto do Analista Técnico", vistoNaPagina: true);
+    }
+
+    public static byte[] Desenhar(byte[] prancha, int pagina, double x, double y, string peticao,
+        CertificadoAberto analista, DateTimeOffset emissao,
+        IReadOnlyList<ObservacaoPrancha>? observacoes = null, XRect? areaObservacoes = null)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(peticao);
         ArgumentNullException.ThrowIfNull(analista);
         using var entrada = new MemoryStream(prancha, writable: false);
@@ -80,9 +94,8 @@ public static class CarimboAprovado
         var nome = "/Carimbo" + Guid.NewGuid().ToString("N");
         objetos.Elements[nome] = forma.Reference!;
         folha.Contents.AppendContent().CreateStream(Encoding.ASCII.GetBytes($"q {geometria.Matriz()} cm {nome} Do Q"));
-        var local = new LocalAssinatura(pagina, 0, 0, 0, 0);
         using var saida = new MemoryStream();
         doc.Save(saida);
-        return AssinaturaPdf.AssinarNoLocal(saida.ToArray(), analista, emissao, null, local, "Visto do Analista Técnico", vistoNaPagina: true);
+        return saida.ToArray();
     }
 }

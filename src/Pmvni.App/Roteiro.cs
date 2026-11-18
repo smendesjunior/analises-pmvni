@@ -205,6 +205,43 @@ internal static class Roteiro
             Registrar("fim " + nome + (p["ok"]?.GetValue<bool>() == true ? " ok" : " FALHOU"));
         }
 
+        await Passo("rotulo_de_composicao", async p =>
+        {
+            j.Ocupar("Compondo as folhas…");
+            try
+            {
+                await Task.Delay(220);
+                var pagina = j.ElementoRaiz.FindName("Relatorios") as Microsoft.UI.Xaml.FrameworkElement;
+                var espera = (Microsoft.UI.Xaml.Controls.Grid)pagina!.FindName("Espera");
+                var borda = (Microsoft.UI.Xaml.Controls.Border)espera.Children[0];
+                var texto = (Microsoft.UI.Xaml.Controls.TextBlock)pagina.FindName("TextoEspera");
+                var anel = (Microsoft.UI.Xaml.Controls.ProgressRing)pagina.FindName("Anel");
+                var pos = texto.TransformToVisual(borda).TransformPoint(default);
+                var anelPos = anel.TransformToVisual(borda).TransformPoint(default);
+                p["indicador_e_texto_inteiros"] = anelPos.X >= 0 && anelPos.Y >= 0
+                    && anelPos.Y + anel.ActualHeight <= borda.ActualHeight && anelPos.X + anel.ActualWidth <= pos.X
+                    && pos.Y >= 0 && pos.Y + texto.ActualHeight <= borda.ActualHeight && pos.X + texto.ActualWidth <= borda.ActualWidth;
+                p["ok"] = p["indicador_e_texto_inteiros"]!.GetValue<bool>() && borda.ActualHeight > 0;
+            }
+            finally { j.Liberar(); }
+        });
+
+        await Passo("busca_ao_digitar_sem_relatorio", async p =>
+        {
+            var raiz = j.ElementoRaiz;
+            var caixa = (Microsoft.UI.Xaml.Controls.TextBox)raiz.FindName("CaixaPesquisa");
+            caixa.Focus(Microsoft.UI.Xaml.FocusState.Keyboard);
+            foreach (var termo in new[] { "l", "le", "lei" })
+            {
+                caixa.Text = termo;
+                bool visivel = await EsperarAteAsync(() => Task.FromResult(j.ResultadosVisiveisPara(termo)), 5000);
+                p[termo] = visivel;
+            }
+            caixa.Text = "";
+            p["fechou"] = await EsperarAteAsync(() => Task.FromResult(!j.ListaGeralAberta), 2000);
+            p["ok"] = p.All(item => item.Value?.GetValue<bool>() == true);
+        });
+
         await Passo("1_importar_longo", async p =>
         {
             if (!await j.ImportarParaAsync(dadosLongo, pacoteLongo)) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);

@@ -164,10 +164,14 @@ public static class EmissaoDespacho
         if (p.Erros.Count > 0) throw new InvalidOperationException(string.Join(" ", p.Erros));
         if (p.Pdf is not null) ExigirPaginas(p.Paginas ?? 0, paginasConferidas);
 
-        var processo = o.Processo.Numero is { } n && o.Processo.Ano is { } a ? (n, a)
-            : ConteudoDespacho.ProcessoDaCapa(d.Protocolo) ?? throw new InvalidOperationException(
+        var lido = ConteudoDespacho.ProcessoDaCapa(d.Protocolo);
+        var numero = o.Processo.Identificador ?? (o.Processo.Numero ?? lido?.Numero)?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var ano = o.Processo.Ano ?? lido?.Ano;
+        if (numero is null || ano is null) throw new InvalidOperationException(
                 "O processo da capa (" + d.Protocolo + ") não está no formato número/ano; confira o relatório.");
-        var nomeBase = NomesDespacho.Base(d.Tipo, processo.Item1, processo.Item2, d.Requerente);
+        var nomeBase = o.Processo.Numero is { } legado
+            ? NomesDespacho.Base(d.Tipo, legado, ano.Value, d.Requerente)
+            : NomesDespacho.Base(d.Tipo, numero, ano.Value, d.Requerente);
 
         var criouPasta = false;
         if (etapa.Nova)
@@ -193,7 +197,7 @@ public static class EmissaoDespacho
                     pdf = ReciboDespacho.Pdf(livres.Pdf, p.Pdf, p.Paginas!.Value, p.Fontes, motorPdf, p.Assinatura);
                     conferidas = ReciboDespacho.Conferidas(paginasConferidas!, u);
                 }
-                var recibo = ReciboDespacho.Montar(r, d, m, tx, etapa, o, processo, livres.Docx, p.Docx, pdf, p.Pdf is null ? p.SemPdfMotivo : null,
+                var recibo = ReciboDespacho.Montar(r, d, m, tx, etapa, o, (numero, ano.Value), livres.Docx, p.Docx, pdf, p.Pdf is null ? p.SemPdfMotivo : null,
                     conferidas, u);
                 Mover(etapa.Pasta, ReciboDespacho.Escrever(recibo), livres.Recibo, criados, antesDeMover);
             }

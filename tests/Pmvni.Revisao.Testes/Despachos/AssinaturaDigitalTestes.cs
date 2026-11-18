@@ -316,6 +316,24 @@ public sealed class AssinaturaDigitalTestes
             File.WriteAllBytes(Path.Combine(dest, $"certificado-ficticio-{giro}.pdf"), bytes);
     }
     [Fact]
+    public void Assinatura_preserva_as_marcas_de_duas_paginas()
+    {
+        using var pasta = Ambiente.PastaDeTeste("carimbo-multiplo");
+        using var c = Abrir(pasta, AssinaturaFicticia.Pfx(de: Quando.AddDays(-1), ate: Quando.AddYears(1)));
+        var bytes = AssinaturaFicticia.Pdf(2, comLinha: false).Bytes;
+        for (int pagina = 0; pagina < 2; pagina++)
+            bytes = CarimboAprovado.Desenhar(bytes, pagina, 12, 12, "TESTE-42", c, Quando);
+        var assinado = CarimboAprovado.Assinar(bytes, 1, c, Quando);
+        using var pdf = UglyToad.PdfPig.PdfDocument.Open(assinado.Pdf);
+        foreach (var pagina in pdf.GetPages())
+            Assert.Contains("TESTE-42", pagina.Text);
+        var (conteudo, der, _) = AssinaturaFicticia.Extrair(assinado.Pdf);
+        var cms = new SignedCms(new ContentInfo(conteudo), detached: true);
+        cms.Decode(der);
+        cms.CheckSignature(verifySignatureOnly: true);
+    }
+
+    [Fact]
     public void Carimbo_preserva_peticao_data_e_observacoes_selecionaveis()
     {
         using var pasta = Ambiente.PastaDeTeste("carimbo-aprovado");

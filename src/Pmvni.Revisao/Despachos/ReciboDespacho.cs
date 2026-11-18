@@ -64,7 +64,7 @@ public static class ReciboDespacho
     };
 
     internal static JsonObject Montar(RascunhoDespacho r, DespachoFinal d, ModeloDespacho m, TextosFixos tx, EtapaDespacho etapa, OrigemDespacho o,
-        (int Numero, int Ano) processo, string docx, byte[] bytesDocx, JsonObject? pdf, string? semPdfMotivo, JsonObject? conferidas, ContextoUsuario u)
+        (string Numero, int Ano) processo, string docx, byte[] bytesDocx, JsonObject? pdf, string? semPdfMotivo, JsonObject? conferidas, ContextoUsuario u)
     {
         var agora = Utc(u.Relogio());
         return new JsonObject
@@ -82,7 +82,7 @@ public static class ReciboDespacho
                 ["sha256_dados_efetivos"] = o.Sha256DadosEfetivos,
                 ["historico_n"] = o.HistoricoN,
             },
-            ["processo"] = new JsonObject { ["numero"] = processo.Numero, ["ano"] = processo.Ano, ["pasta"] = o.Processo.NomePasta },
+            ["processo"] = new JsonObject { ["numero"] = int.TryParse(processo.Numero, out var n) ? JsonValue.Create(n) : JsonValue.Create(processo.Numero), ["identificador"] = processo.Numero, ["ano"] = processo.Ano, ["pasta"] = o.Processo.NomePasta },
             ["etapa"] = new JsonObject
             {
                 ["pasta"] = etapa.Nome,

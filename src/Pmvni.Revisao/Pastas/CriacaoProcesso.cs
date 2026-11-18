@@ -36,11 +36,32 @@ public static class CriacaoProcesso
     public static (Processo Processo, bool Criado) Criar(string raiz, int numero, int ano, string requerente)
     {
         if (numero < 1 || numero > 9999999) throw new ArgumentException("Informe o número do processo.", nameof(numero));
+        return Criar(raiz, numero.ToString(CultureInfo.InvariantCulture), ano, requerente);
+    }
+
+    internal const string ArquivoIdentificador = ".pmvni-identificador.txt";
+
+    internal static string Componente(string id)
+    {
+        if (id.Length <= 120 && !id.StartsWith("PMVNI-ID-", StringComparison.OrdinalIgnoreCase)
+            && Regex.IsMatch(id, @"^[\p{L}\p{Nd}][\p{L}\p{Nd}._-]*\z", RegexOptions.CultureInvariant))
+            return id;
+        var hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(id));
+        return "PMVNI-ID-" + Convert.ToHexString(hash);
+    }
+
+    public static (Processo Processo, bool Criado) Criar(string raiz, string identificador, int ano, string requerente)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identificador);
+        identificador = identificador.Trim();
         if (ano is < 1900 or > 2099) throw new ArgumentException("Informe o ano do protocolo (ex.: 2026).", nameof(ano));
         if (!Directory.Exists(raiz)) throw new DirectoryNotFoundException("A pasta de processos não foi encontrada: " + raiz);
         var nome = NomeRequerente(requerente);
 
-        var existentes = Processos.Listar(raiz, CancellationToken.None).Itens.Where(p => EhDoProcesso(p, numero, ano)).ToList();
+        var numerico = int.TryParse(identificador, NumberStyles.None, CultureInfo.InvariantCulture, out var numero);
+        var existentes = Processos.Listar(raiz, CancellationToken.None).Itens.Where(p =>
+            (p.Ano == ano && string.Equals(p.Identificador, identificador, StringComparison.OrdinalIgnoreCase))
+            || (numerico && EhDoProcesso(p, numero, ano))).ToList();
         // Como o kit: primeiro a pasta do ano do protocolo; se não houver, qualquer ano.
         var anoTexto = ano.ToString(CultureInfo.InvariantCulture);
         var existente = existentes.FirstOrDefault(p => Path.GetFileName(Path.GetDirectoryName(p.Pasta)) == anoTexto) ?? existentes.FirstOrDefault();
@@ -50,9 +71,24 @@ public static class CriacaoProcesso
         if (Directory.Exists(pastaAno) && new DirectoryInfo(pastaAno).LinkTarget is not null)
             throw new IOException($"A pasta {anoTexto} é um atalho (link); o editor não cria processos nela.");
 
-        var pasta = Path.Combine(raiz, anoTexto, string.Create(CultureInfo.InvariantCulture, $"{numero} - {ano} - {nome}"));
+        var componente = Componente(identificador);
+        var pasta = Path.Combine(raiz, anoTexto, string.Create(CultureInfo.InvariantCulture, $"{componente} - {ano} - {nome}"));
+        Directory.CreateDirectory(pasta);
+        if (Processos.EhLink(pasta)) throw new IOException("A pasta do processo é um link.");
+        if (componente != identificador)
+        {
+            var arquivo = Path.Combine(pasta, ArquivoIdentificador);
+            var temp = Path.Combine(pasta, Guid.NewGuid().ToString("N") + ".tmp");
+            try
+            {
+                File.WriteAllText(temp, identificador);
+                try { File.Move(temp, arquivo); }
+                catch (IOException) when (File.Exists(arquivo) && !Processos.EhLink(arquivo) && File.ReadAllText(arquivo) == identificador) { }
+            }
+            finally { File.Delete(temp); }
+        }
         Directory.CreateDirectory(Path.Combine(pasta, "DOCUMENTOS"));
         Directory.CreateDirectory(Path.Combine(pasta, "PROJETO", "INICIAL"));
-        return (new Processo(pasta, Path.GetFileName(pasta), numero, ano, nome), true);
+        return (new Processo(pasta, Path.GetFileName(pasta), numerico ? numero : null, ano, nome) { Identificador = identificador }, true);
     }
 }

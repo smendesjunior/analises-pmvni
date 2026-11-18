@@ -74,7 +74,7 @@ public sealed record GrupoPesquisaGeral(string Nome, IReadOnlyList<ItemPesquisaG
 /// Sem tipos WinUI: compilada também nos testes.</summary>
 public static class PesquisaGeral
 {
-    public const int MinimoDoTermo = 2;
+    public const int MinimoDoTermo = 1;
     public const int PorGrupo = 8;
     public const int Total = 30;
     public const string Placeholder = "Pesquisar arquivos, funções, leis e configurações...";

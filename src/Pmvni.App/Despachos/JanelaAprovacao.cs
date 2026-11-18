@@ -32,7 +32,7 @@ internal sealed class JanelaAprovacao : Window
     readonly Button confirmar = new() { Content = "Confirmar prancha", IsEnabled = false };
     const double DipPorPonto = 96d / 72;
 
-    JanelaAprovacao(string nome, ElementTheme tema)
+    JanelaAprovacao(string nome, ElementTheme tema, TaskCompletionSource<bool?>? revisao = null)
     {
         Title = "Emitir Processo Aprovado — " + nome;
         raiz.RequestedTheme = tema;
@@ -57,24 +57,38 @@ internal sealed class JanelaAprovacao : Window
         Acao("Próxima", () => ExibirAsync(indice + 1));
         Acao("−", () => { vista.ChangeView(null, null, Math.Max(.1f, vista.ZoomFactor / 1.25f)); return Task.CompletedTask; });
         Acao("+", () => { vista.ChangeView(null, null, Math.Min(5, vista.ZoomFactor * 1.25f)); return Task.CompletedTask; });
-        Acao("Carimbo Aprovado", () => { modo = Colocacao.Selo; return Task.CompletedTask; });
-        Acao("Adicionar observações", EscolherNotasAsync);
-        Acao("Desfazer", () =>
+        if (revisao is not null)
         {
-            if (paginaNotas == indice) { paginaNotas = -1; escolhidas.Clear(); }
-            else if (paginaSelo == indice) paginaSelo = -1;
-            modo = Colocacao.Nenhuma; Atualizar(); return Task.CompletedTask;
-        });
-        barra.Children.Add(confirmar);
-        barra.Children.Add(estado);
-        confirmar.Click += (_, _) =>
+            void Finalizar(bool incluir)
+            {
+                revisao.TrySetResult(incluir);
+                Close();
+            }
+            Acao("Adicionar outro carimbo", () => { Finalizar(true); return Task.CompletedTask; });
+            Acao("Aceitar esta prancha", () => { Finalizar(false); return Task.CompletedTask; });
+            Closed += (_, _) => revisao.TrySetResult(null);
+        }
+        else
         {
-            if (paginaSelo < 0 || escolhidas.Count != 0 && paginaNotas != paginaSelo) return;
-            var area = escolhidas.Count == 0 ? (PdfSharp.Drawing.XRect?)null :
-                new PdfSharp.Drawing.XRect(nx / DipPorPonto, ny / DipPorPonto, notas.Width / DipPorPonto, (folha.Height - ny) / DipPorPonto);
-            fim.TrySetResult(new MarcacaoAprovacao(paginaSelo, x / DipPorPonto, y / DipPorPonto, area, escolhidas.ToArray()));
-            Close();
-        };
+            Acao("Carimbo Aprovado", () => { modo = Colocacao.Selo; return Task.CompletedTask; });
+            Acao("Adicionar observações", EscolherNotasAsync);
+            Acao("Desfazer", () =>
+            {
+                if (paginaNotas == indice) { paginaNotas = -1; escolhidas.Clear(); }
+                else if (paginaSelo == indice) paginaSelo = -1;
+                modo = Colocacao.Nenhuma; Atualizar(); return Task.CompletedTask;
+            });
+            barra.Children.Add(confirmar);
+            barra.Children.Add(estado);
+            confirmar.Click += (_, _) =>
+            {
+                if (paginaSelo < 0 || escolhidas.Count != 0 && paginaNotas != paginaSelo) return;
+                var area = escolhidas.Count == 0 ? (PdfSharp.Drawing.XRect?)null :
+                    new PdfSharp.Drawing.XRect(nx / DipPorPonto, ny / DipPorPonto, notas.Width / DipPorPonto, (folha.Height - ny) / DipPorPonto);
+                fim.TrySetResult(new MarcacaoAprovacao(paginaSelo, x / DipPorPonto, y / DipPorPonto, area, escolhidas.ToArray()));
+                Close();
+            };
+        }
         var esc = new Microsoft.UI.Xaml.Input.KeyboardAccelerator { Key = Windows.System.VirtualKey.Escape };
         esc.Invoked += (_, a) => { modo = Colocacao.Nenhuma; Atualizar(); a.Handled = true; };
         raiz.KeyboardAccelerators.Add(esc);
@@ -165,6 +179,21 @@ internal sealed class JanelaAprovacao : Window
             vista.ChangeView(0, 0, (float)Math.Clamp(Math.Min(1050 / p.Size.Width, 720 / p.Size.Height), .1, 1));
         }
         finally { carregando = false; Atualizar(); }
+    }
+
+    public static async Task<bool?> RevisarAsync(byte[] bytes, string nome, int pagina, ElementTheme tema)
+    {
+        var revisao = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var janela = new JanelaAprovacao(nome, tema, revisao);
+        janela.Activate();
+        try
+        {
+            using var stream = new MemoryStream(bytes).AsRandomAccessStream();
+            janela.pdf = await PdfDocument.LoadFromStreamAsync(stream);
+            await janela.ExibirAsync(pagina);
+            return await revisao.Task;
+        }
+        catch { janela.Close(); throw; }
     }
 
     public static async Task<MarcacaoAprovacao?> SelecionarAsync(byte[] bytes, string nome, ElementTheme tema)
