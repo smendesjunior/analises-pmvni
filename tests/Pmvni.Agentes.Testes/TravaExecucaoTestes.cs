@@ -8,6 +8,35 @@ public class TravaExecucaoTestes
 {
     static string Lock(string pasta) => Path.Combine(pasta, ".pmvni-ai", "editor", "execucao.lock");
 
+    sealed class TempoSimulado : TimeProvider
+    {
+        public long Ticks;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => Ticks;
+    }
+
+    [Fact]
+    public void Retomada_exclui_pausa_mesmo_apos_reabrir_o_registro()
+    {
+        using var teste = Ambiente.PastaDeTeste("tempo-retomada");
+        var pasta = Ambiente.NovoProcesso(teste).Pasta;
+        var tempo = new TempoSimulado();
+        string caminho;
+        using (var registro = RegistroExecucao.Criar(pasta, Provedor.ChatGpt, DateTime.Now))
+        {
+            caminho = registro.Pasta;
+            var relogio = new RelogioAnalise(registro.TempoAtivoGravado, tempo);
+            tempo.Ticks += TimeSpan.FromMinutes(2).Ticks;
+            relogio.Parar();
+            tempo.Ticks += TimeSpan.FromHours(4).Ticks;
+            registro.GravarTempoAtivo(relogio.TempoAtivo);
+        }
+        using var retomado = RegistroExecucao.Abrir(caminho, pasta);
+        var segundo = new RelogioAnalise(retomado.TempoAtivoGravado, tempo);
+        tempo.Ticks += TimeSpan.FromMinutes(3).Ticks;
+        Assert.Equal(TimeSpan.FromMinutes(5), segundo.TempoAtivo);
+    }
+
     [Fact]
     public void uma_execucao_por_processo()
     {
@@ -105,6 +134,12 @@ public class TravaExecucaoTestes
             new Pmvni.Revisao.ArquivoArquivado(@"D:\a\planta.pdf", @"PROJETO\INICIAL\planta.pdf", "abc", 10, false),
             new Pmvni.Revisao.ArquivoArquivado(@"D:\a\req.pdf", @"DOCUMENTOS\req.pdf", "def", 20, true),
         });
+        using (var retomado = RegistroExecucao.Abrir(r.Pasta, pasta))
+        {
+            retomado.GravarPedido("");
+            retomado.GravarAnexos([]);
+        }
+        Assert.Equal("Pedido com acentuação: ção\nsegunda linha", File.ReadAllText(Path.Combine(r.Pasta, "pedido.md")));
         var anexos = JsonNode.Parse(File.ReadAllText(Path.Combine(r.Pasta, "anexos.json")))!.AsArray();
         Assert.Equal(2, anexos.Count);
         Assert.Equal(("planta.pdf", @"PROJETO\INICIAL\planta.pdf", "abc", 10L, "COPIADO"),

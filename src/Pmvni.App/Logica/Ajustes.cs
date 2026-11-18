@@ -201,6 +201,7 @@ public sealed class Ajustes
         get => pedidoPadrao;
         set => pedidoPadrao = value is null ? "" : value.Length > MaxPedidoPadrao ? value[..MaxPedidoPadrao] : value;
     }
+    public string RotaCodex { get; set; } = "herdar";
     public bool ConfirmarCancelar { get; set; } = true;
     /// <summary>Ajustes › Inteligência artificial › Revisão do relatório: o modelo do Codex nas perguntas curtas da revisão
     /// ("Ajustar o item com a IA", "Rever a tabela com a IA", volumetria). Padrão: Terra 6.1 (<see cref="ModeloIaAjuste.ModeloPadrao"/>).</summary>
@@ -264,6 +265,7 @@ public sealed class Ajustes
         DefinirAssinatura("nenhuma", null);
         LegislacaoEscopo = p.LegislacaoEscopo;
         PedidoPadrao = "";
+        RotaCodex = p.RotaCodex;
         ConfirmarCancelar = p.ConfirmarCancelar;
         IaAjusteModelo = p.IaAjusteModelo;
         IaAjusteEsforco = p.IaAjusteEsforco;
@@ -468,6 +470,7 @@ public sealed class Ajustes
             ["profissional_matricula"] = ProfissionalMatricula,
             ["legislacao_escopo"] = LegislacaoEscopo,
             ["pedido_padrao"] = PedidoPadrao,
+            ["rota_codex"] = RotaCodex,
             ["confirmar_cancelar"] = ConfirmarCancelar,
             ["ia_ajuste_modelo"] = IaAjusteModelo,
             ["ia_ajuste_esforco"] = IaAjusteEsforco,
@@ -543,6 +546,7 @@ public sealed class Ajustes
         a.ProfissionalMatricula = Texto(j, "profissional_matricula");
         a.LegislacaoEscopo = Escolha("legislacao_escopo", OpcoesLegislacaoEscopo, a.LegislacaoEscopo);
         a.PedidoPadrao = Texto(j, "pedido_padrao") ?? "";
+        a.RotaCodex = Escolha("rota_codex", ["herdar", "openai", "codex-lb"], a.RotaCodex);
         a.ConfirmarCancelar = Logico(j, "confirmar_cancelar", a.ConfirmarCancelar);
         a.IaAjusteModelo = Escolha("ia_ajuste_modelo", ModeloIaAjuste.Modelos.Select(m => m.Valor).ToList(), a.IaAjusteModelo);
         a.IaAjusteEsforco = Escolha("ia_ajuste_esforco", ModeloIaAjuste.Esforcos.Select(e => e.Valor).ToList(), a.IaAjusteEsforco);

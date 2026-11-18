@@ -11,6 +11,17 @@ public static class CarimboAprovado
     public const double LarguraPt = 92 * 72 / 25.4;
     public const double AlturaPt = LarguraPt * 896 / 1200;
 
+    public static (double Largura, double Altura)[] DimensoesVisiveis(byte[] prancha)
+    {
+        using var entrada = new MemoryStream(prancha, writable: false);
+        using var documento = PdfReader.Open(entrada, PdfDocumentOpenMode.Import);
+        return Enumerable.Range(0, documento.PageCount).Select(indice =>
+        {
+            var geometria = new GeometriaPrancha(documento.Pages[indice]);
+            return (geometria.Largura, geometria.Altura);
+        }).ToArray();
+    }
+
     // Coordenadas em pontos, a partir do canto superior esquerdo da folha.
     public static PdfAssinado Aplicar(byte[] prancha, int pagina, double x, double y, string peticao,
         CertificadoAberto analista, DateTimeOffset emissao,
@@ -41,7 +52,7 @@ public static class CarimboAprovado
             throw new ArgumentException("Esta entrada já contém assinatura digital. Selecione a prancha original sem assinatura.");
         var geometria = new GeometriaPrancha(folha);
         if (!double.IsFinite(x) || !double.IsFinite(y) || x < 0 || y < 0 ||
-            x + LarguraPt > geometria.Largura || y + AlturaPt > geometria.Altura)
+            x + LarguraPt - geometria.Largura > 1e-8 || y + AlturaPt - geometria.Altura > 1e-8)
             throw new ArgumentOutOfRangeException(nameof(x), "O carimbo deve caber por inteiro na prancha.");
         AssinaturaPdf.PrepararFontes();
         using var arte = typeof(CarimboAprovado).Assembly.GetManifestResourceStream("Pmvni.CarimboAprovado.pdf")
@@ -61,7 +72,7 @@ public static class CarimboAprovado
                 if (areaObservacoes is not { } bloco || !double.IsFinite(bloco.X) || !double.IsFinite(bloco.Y)
                     || !double.IsFinite(bloco.Width) || !double.IsFinite(bloco.Height)
                     || bloco.X < 0 || bloco.Y < 0 || bloco.Width <= 0 || bloco.Height <= 0
-                    || bloco.Right > geometria.Largura || bloco.Bottom > geometria.Altura)
+                    || bloco.Right - geometria.Largura > 1e-8 || bloco.Bottom - geometria.Altura > 1e-8)
                     throw new ArgumentException("Escolha um espaço para as observações dentro da prancha.");
                 ObservacaoPrancha.Desenhar(gfx, bloco, observacoes);
             }

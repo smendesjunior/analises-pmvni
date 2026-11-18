@@ -487,6 +487,11 @@
             <TextBlock Text="Novo relatório" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <StackPanel Padding="16,12" Spacing="6">
+                <ComboBox x:Name="CaixaRotaCodex" x:FieldModifier="internal" Header="Rota da conta Codex" AutomationProperties.Name="Rota da conta Codex">
+                  <ComboBoxItem Tag="herdar" Content="Usar configuração do Codex neste PC"/>
+                  <ComboBoxItem Tag="openai" Content="Conectar diretamente à OpenAI"/>
+                  <ComboBoxItem Tag="codex-lb" Content="Usar Codex-LB configurado neste PC"/>
+                </ComboBox>
                 <TextBlock Text="Pedido padrão" Style="{StaticResource PmvniAjusteTitulo}"/>
                 <TextBlock Text="Texto que já vem na caixa do Novo relatório (até 2000 caracteres). Vazio: a caixa começa vazia, com a dica de sempre." Style="{StaticResource PmvniAjusteAjuda}"/>
                 <TextBox x:Name="CaixaPedidoPadrao" x:FieldModifier="internal" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" MaxHeight="200"

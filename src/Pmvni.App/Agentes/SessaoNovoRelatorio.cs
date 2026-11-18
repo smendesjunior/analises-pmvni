@@ -27,6 +27,7 @@ public sealed class ExecucaoEmCurso
         Processo = processo;
         Registro = registro;
         InicioUtc = inicioUtc;
+        relogio = new RelogioAnalise(registro.TempoAtivoGravado, TimeProvider.System);
         Pecas = pecas;
         Texto = texto;
         Orquestrador = orquestrador;
@@ -37,6 +38,40 @@ public sealed class ExecucaoEmCurso
     public Processo Processo { get; }
     public RegistroExecucao Registro { get; }
     public DateTime InicioUtc { get; }
+
+    readonly RelogioAnalise relogio;
+    internal TimeSpan TempoAtivo => relogio.TempoAtivo;
+
+    internal async Task<FimAnalise> AcompanharTempoAsync(Func<Task<FimAnalise>> executar)
+    {
+        using var cancelar = new CancellationTokenSource();
+        var gravacao = GravarPeriodicamenteAsync(cancelar.Token);
+        try { return await executar(); }
+        finally
+        {
+            relogio.Parar();
+            cancelar.Cancel();
+            await gravacao;
+            await Task.Run(GravarTempo);
+        }
+    }
+
+    async Task GravarPeriodicamenteAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
+                GravarTempo();
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
+
+    void GravarTempo()
+    {
+        try { Registro.GravarTempoAtivo(TempoAtivo); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { RegistroErros.Gravar("analise.tempo", e); }
+    }
 
     /// <summary>As últimas 2.000 linhas de andamento (do Codex, ou do <c>auto-log.txt</c> do kit), na thread da janela.</summary>
     public IReadOnlyList<string> Linhas => linhas;
@@ -57,6 +92,7 @@ public sealed class ExecucaoEmCurso
 
     /// <summary>O editor reaberto voltou a acompanhar uma análise do Claude que seguiu sozinha.</summary>
     public bool Retomada { get; }
+    internal bool PausaSolicitada { get; set; }
 
     internal CancellationTokenSource Cancelamento { get; } = new();
 
@@ -89,7 +125,7 @@ public sealed class ExecucaoEmCurso
 /// <summary>Liga a página Novo relatório ao serviço da Tarefa 19 (desenho §12.2–§12.7): trava do processo, registro, anexos copiados pela regra do kit,
 /// <c>pedido.md</c>/<c>anexos.json</c> e a partida pelo <see cref="OrquestradorAnalise"/>. O andamento chega agrupado (<see cref="ProgressoAgrupado"/>, no máximo
 /// 10 vezes por segundo) e passa à thread da janela. Nada aqui analisa: o agente instalado no computador faz tudo.</summary>
-internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<OrquestradorAnalise> orquestrador, Func<Pecas> pecas, Func<Provedor, ModoAcesso> modo, string raizDados)
+internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<OrquestradorAnalise> orquestrador, Func<Pecas> pecas, Func<Provedor, ModoAcesso> modo, string raizDados, Func<string>? rotaCodex = null)
 {
     readonly List<ExecucaoEmCurso> execucoes = [];
     volatile bool encerrada;
@@ -114,7 +150,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
     /// é ele que define o modo (conta ou chave), nunca o contrário.</param>
     /// <param name="ficticio">Só o Gemini, perfil gratuito: o usuário confirmou no clique que o processo é fictício.</param>
     public async Task<ExecucaoEmCurso?> AnalisarAsync(Provedor p, Processo pr, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto,
-        PerfilGemini? perfilGemini = null, bool ficticio = false, bool trocarGemini = false)
+        PerfilGemini? perfilGemini = null, bool ficticio = false, bool trocarGemini = false, string? registroAnterior = null)
     {
         var pc = pecas();
         var m = modo(p);
@@ -129,7 +165,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
             try
             {
                 var plano = Arquivamento.Planejar(pr.Pasta, anexos);
-                var reg = RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now);
+                var reg = registroAnterior is null ? RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now) : RegistroExecucao.Abrir(registroAnterior, pr.Pasta);
                 IReadOnlyList<ArquivoArquivado> feitos;
                 try { feitos = Arquivamento.Arquivar(pr.Pasta, plano, CancellationToken.None); }
                 catch (Exception x) when (x is IOException or UnauthorizedAccessException && plano.Any(i => i.Recusa is null && !i.JaEstava))
@@ -156,8 +192,8 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var orq = orquestrador();
         var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false) { Recusas = recusas };
         var progresso = Progresso(e);
-        var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro) { Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini };
-        e.Fim = RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava);
+        var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro) { RotaCodex = rotaCodex?.Invoke(), Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini };
+        e.Fim = e.AcompanharTempoAsync(() => RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava));
         execucoes.Add(e);
         return e;
     }
@@ -185,7 +221,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var e = new ExecucaoEmCurso(ia, pr, registro, inicio.UtcDateTime, pc, texto, orq, retomada: true);
         var progresso = Progresso(e);
         var pedidoExecucao = new PedidoExecucao(ia, pr, pc, ModoAcesso.Conta, raizDados, texto, [], registro);
-        e.Fim = RodarAsync(() => orq.AcompanharClaudeAsync(pedidoExecucao, inicio, progresso, e.Cancelamento.Token), progresso, trava);
+        e.Fim = e.AcompanharTempoAsync(() => RodarAsync(() => orq.AcompanharClaudeAsync(pedidoExecucao, inicio, progresso, e.Cancelamento.Token), progresso, trava));
         execucoes.Add(e);
         return e;
     }
@@ -206,8 +242,8 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var orq = orquestrador();
         var e = new ExecucaoEmCurso(Provedor.ChatGpt, pr, registro, DateTime.UtcNow, pc, null, orq, retomada: true);
         var progresso = Progresso(e);
-        var pedido = new PedidoExecucao(Provedor.ChatGpt, pr, pc, m, raizDados, null, [], registro) { RetomarSessao = sessao };
-        e.Fim = RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava);
+        var pedido = new PedidoExecucao(Provedor.ChatGpt, pr, pc, m, raizDados, null, [], registro) { RotaCodex = rotaCodex?.Invoke(), RetomarSessao = sessao };
+        e.Fim = e.AcompanharTempoAsync(() => RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava));
         execucoes.Add(e);
         return e;
     }

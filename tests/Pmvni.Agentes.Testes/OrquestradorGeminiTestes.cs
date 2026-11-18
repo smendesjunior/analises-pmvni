@@ -78,7 +78,7 @@ public partial class OrquestradorTestes
         var etapas = c.Progresso.Todos().SelectMany(p => p.Situacao?.Eventos ?? []).Where(e => e.StartsWith("Etapa ", StringComparison.Ordinal)).Select(e => e[6..]).Distinct().ToList();
         foreach (var etapa in SituacaoAnalisePro.Etapas) Assert.Contains(etapa, etapas);
         Assert.Equal(SituacaoAnalisePro.Etapas, File.ReadAllLines(c.Falso("etapas.txt"), Encoding.UTF8));
-        Assert.Equal(texto + "\n", File.ReadAllText(Path.Combine(c.Controle("analise-google"), "diretrizes.md")));
+        Assert.Equal(texto + "\n" + c.Registro.InstrucoesProgresso(), File.ReadAllText(Path.Combine(c.Controle("analise-google"), "diretrizes.md")));
 
         // Registro: provedor, modo, autenticação e perfil (nunca a chave), o plugin e a versão, e a conferência.
         var ex = c.Execucao();

@@ -123,12 +123,12 @@ public sealed partial class MainWindow
     }
 
     /// <summary>A partida de uma análise pelo provedor; no Gemini, com o perfil resolvido antes (null = o usuário não confirmou e nada parte).</summary>
-    async Task<ExecucaoEmCurso?> AnalisarComPerfilAsync(Provedor p, Processo processo, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto, IReadOnlyList<AnexoNovo>? enviados)
+    async Task<ExecucaoEmCurso?> AnalisarComPerfilAsync(Provedor p, Processo processo, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto, IReadOnlyList<AnexoNovo>? enviados, string? registroAnterior = null)
     {
-        if (p != Provedor.Gemini) return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto), enviados);
+        if (p != Provedor.Gemini) return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior), enviados);
         var (ok, perfil, ficticio, trocar) = await ResolverPerfilGeminiAsync(processo);
         if (!ok) return null;
-        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar), enviados);
+        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior), enviados);
     }
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);
     internal void EsquecerAviso(Provedor p) { ajustes.Agentes[p].AvisoVersao = null; ajustes.Agentes[p].AvisoEm = null; SalvarAjustes(); }
@@ -172,7 +172,7 @@ public sealed partial class MainWindow
 
     void IniciarNovoRelatorio()
     {
-        sessaoNR = new SessaoNovoRelatorio(DispatcherQueue.GetForCurrentThread(), () => Orquestrador, () => pecasAgentes, p => ajustes.Agentes[p].Modo, PastaDados.Raiz);
+        sessaoNR = new SessaoNovoRelatorio(DispatcherQueue.GetForCurrentThread(), () => Orquestrador, () => pecasAgentes, p => ajustes.Agentes[p].Modo, PastaDados.Raiz, () => ajustes.RotaCodex);
         sessaoNR.Atualizada += e => { if (ReferenceEquals(e, execucaoMostrada)) RenderizarExecucao(e, linhasNovas: true); };
         manipuladores[ComandosApp.RelatoriosNovo] = async () => await AbrirNovoRelatorioNaVezAsync();
 
@@ -195,10 +195,25 @@ public sealed partial class MainWindow
         n.BotaoVoltarRelatorio.Click += (_, _) => FecharPaginaNovoRelatorio();
         n.BotaoExecucoes.Click += (_, _) => { if (sessaoNR.Execucoes.FirstOrDefault(e => !e.Abandonada) is { } e) MostrarExecucaoNR(e); };
         n.BotaoNovaAnalise.Click += (_, _) => MostrarFormularioNR();
+        n.BotaoPausarAnalise.Click += async (_, _) =>
+        {
+            if (execucaoMostrada is not { } e || e.PausaSolicitada) return;
+            await TentarAsync(async () =>
+            {
+                e.PausaSolicitada = true;
+                try
+                {
+                    if (await sessaoNR.CancelarAsync(e)) return;
+                    MostrarMensagem(InfoBarSeverity.Warning, "A pausa não foi confirmada", "O controlador pode já ter terminado a execução.");
+                }
+                catch { e.PausaSolicitada = false; throw; }
+                e.PausaSolicitada = false;
+            });
+        };
         n.BotaoCancelarAnalise.Click += async (_, _) => { if (execucaoMostrada is { } e) await TentarAsync(async () => await CancelarAnaliseAsync(e)); };
         n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
         n.BotaoMostrarRegistroResultado.Click += (_, _) => { if (ultimoResultadoNR is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
-        n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await ContinuarAnaliseAsync());
+        n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await EscolherContinuacaoAsync());
         n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
         n.ExpansorUltimaMensagem.Expanding += async (_, _) => { if (execucaoMostrada is { } e) await MostrarUltimaMensagemAsync(e); };
         BotaoAnalise.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(async () =>
@@ -224,7 +239,11 @@ public sealed partial class MainWindow
         relogioAnalise.Tick += (_, _) =>
         {
             AtualizarTituloAnalise();
-            if (execucaoMostrada is { Fim.IsCompleted: false } e) AtualizarRelogioDaExecucao(e);
+            if (execucaoMostrada is { Fim.IsCompleted: false } e)
+            {
+                AtualizarRelogioDaExecucao(e);
+                _ = AtualizarAchadosAsync(e);
+            }
         };
         AtualizarBotoesNR();
     }
@@ -742,6 +761,8 @@ public sealed partial class MainWindow
             AtualizarBotoesNR();
         }
         if (e is null) return null;
+        if (Provedores.PeloKit(e.Provedor)) EsquecerPendenteChatGpt(e.Registro.Pasta);
+        else EsquecerPendenteClaude(e.Registro.Pasta);
         if (Provedores.PeloKit(e.Provedor) && !ajustes.ExecucoesClaude.Any(x => string.Equals(x.Registro, e.Registro.Pasta, StringComparison.OrdinalIgnoreCase)))
         {
             // Claude e Gemini (controladores do kit, que seguem sozinhos) ficam na mesma lista; o provedor de cada um está no execucao.json do registro.
@@ -773,22 +794,39 @@ public sealed partial class MainWindow
         return e;
     }
 
+    async Task EscolherContinuacaoAsync()
+    {
+        var processo = continuarChatGpt?.Processo ?? ultimoResultadoNR?.Processo;
+        var registro = continuarChatGpt?.Registro ?? ultimoResultadoNR?.Registro.Pasta;
+        var original = continuarChatGpt is null ? ultimoResultadoNR?.Provedor : Provedor.ChatGpt;
+        if (processo is null || registro is null || original is null) return;
+        var escolha = await PerguntarRetomadaAsync(processo, original.Value);
+        if (escolha is null) return;
+        if (escolha == original && (continuarChatGpt is not null || Provedores.PeloKit(original.Value)))
+            await ContinuarAnaliseAsync();
+        else
+            await ContinuarComOutraIaAsync(escolha.Value, processo, registro);
+    }
+
     /// <summary>"Continuar a análise" (Claude parado ou interrompido): roda <c>iniciar</c> de novo, que o kit retoma de onde parou.</summary>
     internal Task<ExecucaoEmCurso?> ContinuarAnaliseAsync() => NaFilaAsync(async () =>
     {
         if (continuarChatGpt is { } cg)
         {
             // ChatGPT (2026-11-17): continua a mesma sessão do Codex (codex exec resume), no mesmo registro.
-            continuarChatGpt = null;
             NR.AvisoResultado.IsOpen = false;
             await LerPecasAsync();
-            return await PartirAsync(() => sessaoNR.RetomarChatGptAsync(cg.Processo, cg.Registro, cg.Sessao), enviados: null);
+            var iniciada = cg.Sessao is { } sessao
+                ? await PartirAsync(async () => await sessaoNR.RetomarChatGptAsync(cg.Processo, cg.Registro, sessao), enviados: null)
+                : await AnalisarComPerfilAsync(Provedor.ChatGpt, cg.Processo, [], FluxoNovoRelatorio.PedidoContinuar, null, cg.Registro);
+            if (iniciada is not null) continuarChatGpt = null;
+            return iniciada;
         }
         if (ultimoResultadoNR is not { } anterior || !Provedores.PeloKit(anterior.Provedor)) return null;
         NR.AvisoResultado.IsOpen = false;
         await LerPecasAsync();
         // Gemini: a retomada segue no perfil em que a análise começou (o plugin continua da etapa pendente, sem refazer as concluídas).
-        return await AnalisarComPerfilAsync(anterior.Provedor, anterior.Processo, [], anterior.Texto, enviados: null);
+        return await AnalisarComPerfilAsync(anterior.Provedor, anterior.Processo, [], anterior.Texto, enviados: null, registroAnterior: anterior.Registro.Pasta);
     });
 
     // ---------- vista da execução ----------
@@ -797,6 +835,9 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         execucaoMostrada = e;
+        NR.MostrarAchados([]);
+        NR.MostrarProgresso(null);
+        _ = AtualizarAchadosAsync(e);
         NR.LigarLinhas(e.LinhasObservaveis);
         NR.MostrarExecucao(true);
         NR.TextoUltimaMensagem.Text = "";
@@ -813,9 +854,31 @@ public sealed partial class MainWindow
         AtualizarBotoesNR();
     }
 
+    bool lendoAchados;
+    async Task AtualizarAchadosAsync(ExecucaoEmCurso e)
+    {
+        if (lendoAchados) return;
+        lendoAchados = true;
+        try
+        {
+            var achados = await Task.Run(() => AchadosExecucao.Ler(e.Registro.PastaProgresso, e.Processo.Pasta));
+            if (!fechada && ReferenceEquals(e, execucaoMostrada))
+            {
+                NR.MostrarAchados(achados.Itens);
+                var etapa = e.Situacao?.Etapa;
+                var progresso = etapa is null
+                    ? SituacaoAnalisePro.Etapas.Select(chave => achados.Etapas.GetValueOrDefault(chave)).LastOrDefault(p => p is not null)
+                    : achados.Etapas.GetValueOrDefault(etapa);
+                NR.MostrarProgresso(progresso);
+            }
+        }
+        catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RegistroErros.Gravar("analise.achados", x); }
+        finally { lendoAchados = false; }
+    }
+
     void AtualizarRelogioDaExecucao(ExecucaoEmCurso e)
     {
-        NR.TextoCabecalho.Text = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, DateTime.UtcNow - e.InicioUtc)
+        NR.TextoCabecalho.Text = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, e.TempoAtivo)
             + (e.Retomada ? " (retomada)" : "");
     }
 
@@ -905,13 +968,13 @@ public sealed partial class MainWindow
         if (e.Abandonada) { AtualizarTituloAnalise(); AtualizarBotoesNR(); return fim; }
         var comRelatorio = fim.Situacao == "concluida" && fim.Documento is not null;
         // A análise do Claude sai dos ajustes quando acaba sem relatório; com relatório, só depois de importado (até lá o editor reaberto ainda o oferece).
-        if (Provedores.PeloKit(e.Provedor) && !comRelatorio) EsquecerPendenteClaude(e.Registro.Pasta);
+        if (Provedores.PeloKit(e.Provedor) && !comRelatorio && !e.PausaSolicitada) EsquecerPendenteClaude(e.Registro.Pasta);
         // ChatGPT: fica nos ajustes só o que dá para continuar (cota esgotada ou falha com a sessão do Codex guardada).
         string? sessaoCodex = null;
         if (e.Provedor == Provedor.ChatGpt)
         {
             sessaoCodex = fim.Situacao is "cota_esgotada" or "falhou" or "cancelada" ? await Task.Run(() => LerSessaoCodex(e.Registro.Pasta)) : null;
-            if (sessaoCodex is null) EsquecerPendenteChatGpt(e.Registro.Pasta);
+            if (sessaoCodex is null && !e.PausaSolicitada) EsquecerPendenteChatGpt(e.Registro.Pasta);
         }
         var naVista = ReferenceEquals(execucaoMostrada, e) && PaginaNovoRelatorioVisivel;
         if (ReferenceEquals(execucaoMostrada, e)) MostrarFormularioNR();
@@ -927,7 +990,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>A análise do ChatGPT a continuar com "Continuar a análise" (fim com cota esgotada/falha, ou achada na reabertura).</summary>
-    sealed record ContinuacaoChatGpt(Processo Processo, string Registro, string Sessao);
+    sealed record ContinuacaoChatGpt(Processo Processo, string Registro, string? Sessao);
 
     ContinuacaoChatGpt? continuarChatGpt;
 
@@ -957,7 +1020,7 @@ public sealed partial class MainWindow
             var (valido, sessao) = await Task.Run(() =>
                 (RegistroExecucao.MotivoInvalido(pend.Processo, pend.Registro) is null && Directory.Exists(pend.Processo) && Directory.Exists(pend.Registro),
                  LerSessaoCodex(pend.Registro)));
-            if (!valido || sessao is null) { EsquecerPendenteChatGpt(pend.Registro); continue; }
+            if (!valido) { EsquecerPendenteChatGpt(pend.Registro); continue; }
             var processo = await ProcessoDaPastaAsync(pend.Processo);
             continuarChatGpt = new ContinuacaoChatGpt(processo, pend.Registro, sessao);
             var aviso = NR.AvisoResultado;
@@ -971,11 +1034,9 @@ public sealed partial class MainWindow
             // 2026-11-17 (pedido do usuário): pergunta na hora se retoma, e com qual IA. "Agora não" deixa o aviso com "Continuar a análise".
             var escolha = await PerguntarRetomadaAsync(processo, Provedor.ChatGpt);
             if (escolha == Provedor.ChatGpt) await ContinuarAnaliseAsync();
-            else if (escolha == Provedor.Claude)
+            else if (escolha is { } alternativa)
             {
-                continuarChatGpt = null;
-                EsquecerPendenteChatGpt(pend.Registro);
-                await ContinuarComOutraIaAsync(Provedor.Claude, processo);
+                if (await ContinuarComOutraIaAsync(alternativa, processo, pend.Registro) is not null) continuarChatGpt = null;
             }
             else if (!PaginaNovoRelatorioVisivel) MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message + " (em Novo relatório)");
             break;   // uma de cada vez: a próxima aparece na próxima abertura
@@ -1000,8 +1061,14 @@ public sealed partial class MainWindow
         if (fim.Situacao == "cota_esgotada") aviso.Severity = InfoBarSeverity.Warning;
         aviso.Message = (fim.Mensagem ?? fim.Situacao)
             + (fim.Situacao == "falhou" && sessaoCodex is not null ? " Você pode clicar em \"Continuar a análise\" para seguir de onde parou." : "");
-        NR.BotaoContinuar.Visibility = (Provedores.PeloKit(e.Provedor) && fim.Situacao is "falhou" or "interrompida" or "cota_esgotada" or "cancelada") || sessaoCodex is not null
+        NR.BotaoContinuar.Visibility = e.PausaSolicitada || (Provedores.PeloKit(e.Provedor) && fim.Situacao is "falhou" or "interrompida" or "cota_esgotada" or "cancelada") || sessaoCodex is not null
             ? Visibility.Visible : Visibility.Collapsed;
+        if (e.PausaSolicitada && NR.BotaoContinuar.Visibility == Visibility.Visible)
+        {
+            aviso.Severity = InfoBarSeverity.Informational;
+            aviso.Title = $"Análise com {nome} pausada";
+            aviso.Message = "O tempo ativo foi guardado. Retome a análise para continuar.";
+        }
         NR.BotaoImportarPendente.Visibility = Visibility.Collapsed;
         NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Visible;
         aviso.IsOpen = true;
@@ -1018,7 +1085,7 @@ public sealed partial class MainWindow
             var ativas = sessaoNR.Execucoes.Where(e => !e.Abandonada).ToList();
             if (ativas.Count == 0) return null;
             var e = ativas[0];
-            return FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, DateTime.UtcNow - e.InicioUtc)
+            return FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, e.TempoAtivo)
                    + (ativas.Count > 1 ? " +" + (ativas.Count - 1).ToString(CultureInfo.InvariantCulture) : "");
         }
     }
@@ -1060,7 +1127,7 @@ public sealed partial class MainWindow
             _ => null,
         };
         if (estado is null) { fimNaPilula = null; return; }
-        var titulo = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, DateTime.UtcNow - e.InicioUtc);
+        var titulo = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, e.TempoAtivo);
         var corte = titulo.IndexOf(" · ", StringComparison.Ordinal);
         fimNaPilula = (estado.Value, corte < 0 ? FluxoNovoRelatorio.Identificacao(e.Processo) : titulo[(corte + 3)..], fim.Mensagem);
         // A concluída sai sozinha depois de um minuto (o relatório já foi aberto ou oferecido em "Relatório pronto").
@@ -1210,10 +1277,9 @@ public sealed partial class MainWindow
                     }
                     break;
                 default:
-                    EsquecerPendenteClaude(pend.Registro);
                     var motivo = (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro);
                     // 2026-11-17: a análise parou com o editor fechado; pergunta se retoma de onde parou, e com qual IA.
-                    if (await PerguntarRetomadaAsync(processo, ia, motivo) is { } outraIa) await ContinuarComOutraIaAsync(outraIa, processo);
+                    if (await PerguntarRetomadaAsync(processo, ia, motivo) is { } outraIa) await ContinuarComOutraIaAsync(outraIa, processo, pend.Registro);
                     else MostrarMensagem(InfoBarSeverity.Warning, $"A análise com o {nomeIa} de {FluxoNovoRelatorio.Identificacao(processo)} parou", motivo);
                     break;
             }
@@ -1225,40 +1291,21 @@ public sealed partial class MainWindow
     /// <summary>"Retomar a análise?" na reabertura: continuar com o Claude, com o ChatGPT ou agora não (null). A IA que fazia a análise vem primeiro.</summary>
     async Task<Provedor?> PerguntarRetomadaAsync(Processo processo, Provedor original, string? motivo = null)
     {
-        // Gemini: a troca de IA é sempre uma escolha explícita do usuário aqui; nada troca sozinho.
-        if (original == Provedor.Gemini)
-        {
-            string[] opcoes = ["Continuar com o Gemini (de onde parou, no mesmo perfil)", "Continuar com o Claude", "Continuar com o ChatGPT", "Agora não"];
-            var pergunta = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} com o Gemini não terminou"
-                           + (string.IsNullOrWhiteSpace(motivo) ? "" : $" ({motivo.TrimEnd('.')})")
-                           + ". As etapas já concluídas ficam guardadas. Qual IA deve continuar?";
-            return await Perguntas.Atual.EscolherNaListaAsync(FluxoNovoRelatorio.RetomarTitulo, pergunta, opcoes, 0, "Continuar") switch
-            {
-                0 => Provedor.Gemini,
-                1 => Provedor.Claude,
-                2 => Provedor.ChatGpt,
-                _ => null,
-            };
-        }
-        var outra = original == Provedor.Claude ? Provedor.ChatGpt : Provedor.Claude;
-        string[] itens = [$"Continuar com o {Provedores.Nome(original)} (de onde parou)", $"Continuar com o {Provedores.Nome(outra)}", "Agora não"];
-        var texto = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} com o {Provedores.Nome(original)} não terminou"
-                    + (string.IsNullOrWhiteSpace(motivo) ? "" : $" ({motivo.TrimEnd('.')})")
-                    + ". Os arquivos de trabalho já gravados são aproveitados. Qual IA deve continuar?";
-        return await Perguntas.Atual.EscolherNaListaAsync(FluxoNovoRelatorio.RetomarTitulo, texto, itens, 0, "Continuar") switch
-        {
-            0 => original,
-            1 => outra,
-            _ => null,
-        };
+        var provedores = new[] { original }.Concat(new[] { Provedor.ChatGpt, Provedor.Claude, Provedor.Gemini }.Where(p => p != original)).ToArray();
+        var itens = provedores.Select(p => $"Continuar com o {Provedores.Nome(p)}").Append("Agora não").ToArray();
+        var texto = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} com o {Provedores.Nome(original)} parou"
+            + (string.IsNullOrWhiteSpace(motivo) ? "." : $": {motivo}")
+            + " Qual IA deve continuar a partir da última etapa válida?";
+        var indice = await Perguntas.Atual.EscolherNaListaAsync(FluxoNovoRelatorio.RetomarTitulo, texto, itens, 0, "Continuar");
+        return indice is >= 0 and < 3 ? provedores[(int)indice] : null;
     }
 
     /// <summary>Uma análise nova no mesmo processo, pedindo à IA que siga do ponto em que a anterior parou (sem anexos novos).</summary>
-    Task<ExecucaoEmCurso?> ContinuarComOutraIaAsync(Provedor p, Processo processo) => NaFilaAsync(async () =>
+    Task<ExecucaoEmCurso?> ContinuarComOutraIaAsync(Provedor p, Processo processo, string pastaRegistro) => NaFilaAsync(async () =>
     {
         NR.AvisoResultado.IsOpen = false;
         await LerPecasAsync();
-        return await AnalisarComPerfilAsync(p, processo, [], FluxoNovoRelatorio.PedidoContinuar, enviados: null);
+        return await AnalisarComPerfilAsync(p, processo, [], FluxoNovoRelatorio.PedidoContinuar, enviados: null, registroAnterior: pastaRegistro);
     });
 
     static bool MesmoRegistro(string a, string b)

@@ -133,17 +133,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             : temAtual ? $"Etapa atual: {atual.x.Nome} · {feitas} de {etapas.Count} concluídas"
             : $"Preparando · {feitas} de {etapas.Count} concluídas";
         SeloAoVivo.Visibility = rodando && !falhou ? Visibility.Visible : Visibility.Collapsed;
-        BotaoCancelarAnalise.Visibility = rodando ? Visibility.Visible : Visibility.Collapsed;
+        BotaoPausarAnalise.Visibility = BotaoCancelarAnalise.Visibility = rodando ? Visibility.Visible : Visibility.Collapsed;
 
         MostrarEtapas(etapas, rodando && !falhou);
-
-        // Descobertas: o que a IA relatou; verificadas depois da auditoria cruzada (as cinco primeiras etapas feitas).
-        var lista = linhas.ToList();
-        var verificadas = etapas.Count >= 5 && etapas.Take(5).All(x => x.Estado == EstadoEtapa.Feita);
-        var descobertas = Atividades.Descobertas(lista, verificadas);
-        ListaDescobertas.Children.Clear();
-        foreach (var d in descobertas) ListaDescobertas.Children.Add(CartaoDescoberta(d));
-        TextoSemDescobertas.Visibility = descobertas.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         var proxima = temAtual && atual.i + 1 < etapas.Count ? etapas[atual.i + 1].Nome : null;
         TextoResumo.Text = falhou ? "A execução encontrou um problema." : concluida ? "Relatório pronto para importar." : rodando ? "Projeto em análise." : "A análise não está mais rodando.";
@@ -153,6 +145,27 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             : etapas.Count == 0 ? "As atividades aparecem à esquerda conforme a IA trabalha."
             : "Última etapa em andamento.";
         CartaoProximaEtapa.BorderBrush = Recurso(falhou ? "SystemFillColorCriticalBrush" : "AccentFillColorDefaultBrush");
+    }
+
+    internal void MostrarProgresso(ProgressoEtapa? progresso)
+    {
+        TextoProgressoItens.Text = progresso is null ? "" :
+            $"{Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(progresso.Etapa)} · {progresso.Avaliados} de {progresso.Total} itens avaliados";
+        TextoProgressoItens.Visibility = progresso is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    IReadOnlyList<AchadoExecucao>? achadosExibidos;
+    internal void MostrarAchados(IReadOnlyList<AchadoExecucao> achados)
+    {
+        if (achadosExibidos is not null && achadosExibidos.SequenceEqual(achados)) return;
+        achadosExibidos = achados;
+        var situacoes = Pmvni.Composicao.Kit.Situacoes.Sit;
+        TextoTotais.Text = string.Join("   ·   ", Pmvni.Composicao.Kit.Situacoes.SitItem.Select(
+            chave => $"{situacoes[chave].Texto}: {achados.Count(a => a.Situacao == chave)}"));
+        ListaDescobertas.Children.Clear();
+        foreach (var a in achados)
+            ListaDescobertas.Children.Add(CartaoDescoberta(new($"{a.Id} · {a.Titulo} · {situacoes[a.Situacao].Texto}", a.Verificado)));
+        TextoSemDescobertas.Visibility = achados.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     static Border CartaoDescoberta(DescobertaAnalise d)
@@ -268,11 +281,13 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var estreita = largura < 1000;
         GradeConteudo.ColumnDefinitions[1].Width = estreita ? new GridLength(0) : new GridLength(10, GridUnitType.Star);
         GradeConteudo.ColumnSpacing = estreita ? 0 : 12;
-        GradeConteudo.RowDefinitions[1].Height = estreita ? GridLength.Auto : new GridLength(0);
+        GradeConteudo.RowDefinitions[1].Height = estreita ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
         Grid.SetColumn(ColunaLateral, estreita ? 0 : 1);
         Grid.SetRow(ColunaLateral, estreita ? 1 : 0);
-        CartaoAtividades.MinHeight = estreita ? 320 : 0;
-        BotoesExecucao.Orientation = largura < 760 ? Orientation.Vertical : Orientation.Horizontal;
+        Grid.SetRow(BotoesExecucao, estreita ? 1 : 0);
+        Grid.SetColumn(BotoesExecucao, estreita ? 0 : 2);
+        Grid.SetColumnSpan(BotoesExecucao, estreita ? 3 : 1);
+        BotoesExecucao.Orientation = largura < 540 ? Orientation.Vertical : Orientation.Horizontal;
     }
 
     static Brush Recurso(string chave) => (Brush)Application.Current.Resources[chave];

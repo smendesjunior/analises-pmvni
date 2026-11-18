@@ -171,6 +171,7 @@ public sealed partial class MainWindow
             SalvarAjustes();
             p.TextoProfissionalSalvo.Text = "Dados salvos. Valem a partir do próximo despacho e relatório.";
         };
+        AoEscolher(p.CaixaRotaCodex, valor => ajustes.RotaCodex = (string)valor);
         AoAlternar(p.AlternarConfirmarCancelar, sim => ajustes.ConfirmarCancelar = sim);
         AoAlternar(p.AlternarConfirmarFechar, sim => ajustes.ConfirmarFechar = sim);
         IniciarAtualizacoes();
@@ -227,6 +228,7 @@ public sealed partial class MainWindow
                 foreach (var item in c.Items.OfType<ComboBoxItem>())
                     if (Equals(item.Tag, valor)) { c.SelectedItem = item; return; }
             }
+            Escolher(p.CaixaRotaCodex, ajustes.RotaCodex);
             Escolher(p.CaixaTema, ajustes.Tema);
             Escolher(p.CaixaIntervalo, ajustes.IntervaloAutosaveS);
             Escolher(p.CaixaAbrirEm, ajustes.AbrirEm);

@@ -133,7 +133,7 @@ public partial class OrquestradorTestes
         var esperado = LinhasDeComando.CodexExec(Ambiente.AgenteFalso, c.Processo.Pasta, c.DoRegistro("ultima-mensagem.md"));
         Assert.Equal(esperado.Args, recebido["argv"]!.AsArray().Select(x => x!.GetValue<string>()).ToList());
         Assert.Equal(c.Processo.Pasta, recebido["cwd"]!.GetValue<string>());
-        Assert.Equal(pedidoEsperado, recebido["entrada"]!.GetValue<string>());
+        Assert.Equal(pedidoEsperado + "\n" + c.Registro.InstrucoesProgresso(), recebido["entrada"]!.GetValue<string>());
         Assert.Equal("CHAVE_AUSENTE", recebido["chave"]!.GetValue<string>());
 
         // execucao.json.

@@ -166,6 +166,7 @@ public static class CertificacaoPrancha
     {
         var media = pagina.MediaBox;
         var crop = pagina.Elements.ContainsKey("/CropBox") ? pagina.CropBox : media;
+        if (crop.IsZero) crop = media;
         var l = Math.Max(media.X1, crop.X1);
         var b = Math.Max(media.Y1, crop.Y1);
         var r = Math.Min(media.X2, crop.X2);

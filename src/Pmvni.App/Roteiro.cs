@@ -158,7 +158,8 @@ internal static class Roteiro
         var programasIniciados = new List<string>();
         TravaDeProgramas.AoIniciar = c => { lock (programasIniciados) programasIniciados.Add(c); };
         // As chaves falsas que os passos 50 e 53 sorteiam (e o valor herdado do 53): o passo 64 confere que nenhuma ficou em tests\saida.
-        var chavesDoRoteiro = new List<string> { "falsa-herdada" };
+        var chaveHerdada = "herdada-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
+        var chavesDoRoteiro = new List<string> { chaveHerdada };
         var copiaProcessos = Path.Combine(pasta, "processos");
         if (Directory.Exists(copiaProcessos)) ApagarArvore(copiaProcessos);
         CopiarArvore(Path.Combine(corpus, "processos"), copiaProcessos);
@@ -803,7 +804,7 @@ internal static class Roteiro
             var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
             var proj = s.Revisao.Projeto;
             var alvo = proj.Incluidos[9];
-            // Botão direito (CDP) sobre o ITEM 10: menuContexto → MenuFlyout com 5 entradas.
+            // Botão direito (CDP) sobre o ITEM 10: menuContexto → MenuFlyout com as ações do item.
             await CliqueAsync(j, await PontoDoCampoAsync(j, alvo.Id, "titulo"), botao: "right");
             var abriu = await EsperarAteAsync(() => Task.FromResult(j.UltimoMenuContexto is { IsOpen: true }), 3000);
             var menu = j.UltimoMenuContexto;
@@ -814,7 +815,9 @@ internal static class Roteiro
                 Microsoft.UI.Xaml.Controls.MenuFlyoutItem mi => mi.Text,
                 _ => i.GetType().Name,
             })).ToArray());
-            var entradas = menu?.Items.Count ?? 0;
+            var acoesEsperadas = new[] { "Situação ▸", "Editar texto", "Excluir item", "Novo item abaixo", "Original", "Propriedades" };
+            var acoesDoItem = ((JsonArray)p["menu_entradas"]!).Select(item => item!.GetValue<string>()).ToHashSet();
+            var entradasConferem = acoesEsperadas.All(acoesDoItem.Contains);
             menu?.Hide();
             p["selecionado_pelo_menu"] = j.Selecionado == alvo.Id;
             await Esperar(300);
@@ -880,7 +883,7 @@ internal static class Roteiro
             var voltou = await EsperarAteAsync(() => Task.FromResult(j.ModuloAtual == Modulo.Relatorios && j.TrilhoAtual.Ativo == Modulo.Relatorios), 5000);
             p["ctrl_3_da_pagina_leva_a_processos"] = foiAProcessos;
             p["ctrl_1_volta_a_relatorios"] = voltou;
-            p["ok"] = abriu && entradas == 5 && j.Selecionado is not null && excluiu && foi && proj.Item(alvo.Id)!.Incluido && flyout
+            p["ok"] = abriu && entradasConferem && j.Selecionado is not null && excluiu && foi && proj.Item(alvo.Id)!.Incluido && flyout
                 && filtra && semMarcas && comMarcas && chaveDosAjustesAcompanha && recolheu && j.PropriedadesVisivel && sem.Count == 0 && j.ComandosSemManipulador().Count == 0
                 && foiAProcessos && voltou;
         });
@@ -1837,6 +1840,7 @@ internal static class Roteiro
             var dicas = new Dictionary<Modulo, string>
             {
                 [Modulo.Relatorios] = "Pesquisar no relatório", [Modulo.Despachos] = "Pesquisar despachos", [Modulo.Processos] = "Pesquisar processos",
+                [Modulo.Acompanhamento] = "Pesquisar na planilha",
                 [Modulo.Legislacao] = "Pesquisar em todas as leis", // nenhuma lei aberta (Tarefa 18)
             };
             var linhas = new JsonArray();
@@ -3023,7 +3027,7 @@ internal static class Roteiro
             var recebido = Recebido(processo);
             var argv = recebido["argv"]!.AsArray().Select(a => a!.GetValue<string>()).ToArray();
             var linhaExata = argv.SequenceEqual(["exec", "--skip-git-repo-check", "--cd", processo, "--json", "--output-last-message", Path.Combine(reg, "ultima-mensagem.md"), "-"])
-                && string.Equals(recebido["cwd"]!.GetValue<string>().TrimEnd('\\'), processo, StringComparison.OrdinalIgnoreCase) && recebido["entrada"]!.GetValue<string>() == pedidoEsperado;
+                && string.Equals(recebido["cwd"]!.GetValue<string>().TrimEnd('\\'), processo, StringComparison.OrdinalIgnoreCase) && recebido["entrada"]!.GetValue<string>() == pedidoEsperado + "\n" + e.Registro.InstrucoesProgresso();
             p["linha_de_comando_exata"] = linhaExata;
 
             // O relatório importado e aberto em Relatórios, com a InfoBar exata.
@@ -3066,7 +3070,7 @@ internal static class Roteiro
             var processo = P0001();
             await j.NovoRelatorioAsync();
             await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
-            Environment.SetEnvironmentVariable("OPENAI_API_KEY", "falsa-herdada");
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", chaveHerdada);
             var chave = "chave-falsa-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));   // aleatória, nunca vai para o resultado
             chavesDoRoteiro.Add(chave);
             try
@@ -3086,7 +3090,7 @@ internal static class Roteiro
 
                 // Nenhuma ocorrência da chave nem do valor herdado em tests\saida (o .dpapi é o cofre e fica de fora).
                 var saidaDeTestes = Path.GetFullPath(Path.Combine(pasta, ".."));
-                var trechos = TrechosDaChave(chave).Concat(TrechosDaChave("falsa-herdada")).ToList();
+                var trechos = TrechosDaChave(chave).Concat(TrechosDaChave(chaveHerdada)).ToList();
                 var varredura = VarrerChave([saidaDeTestes], trechos, ignorar: a => a.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase));
                 p["arquivos_varridos"] = varredura.Lidos;
                 p["arquivos_trancados_pulados"] = varredura.Ilegiveis;
@@ -3216,7 +3220,8 @@ internal static class Roteiro
             var execucao = JsonNode.Parse(File.ReadAllText(Path.Combine(e.Registro.Pasta, "execucao.json"), System.Text.Encoding.UTF8))!;
             var registro = (string?)execucao["provedor"] == "gemini" && (string?)execucao["autenticacao"] == "conta_google" && (string?)execucao["perfil"] == "conta_ultra"
                 && (string?)execucao["plugin"] == "análise Google" && (string?)execucao["versao_do_plugin"] == "1.0.0"
-                && File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "analise-google", "diretrizes.md"), System.Text.Encoding.UTF8).Trim() == "Diretriz fictícia para o Gemini.";
+                && File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "analise-google", "diretrizes.md"), System.Text.Encoding.UTF8)
+                    == "Diretriz fictícia para o Gemini.\n" + e.Registro.InstrucoesProgresso();
             var s = j.Sessao;
             var importado = fim.Situacao == "concluida" && s is not null && NaEtapa(s.Caminho, processo)
                 && fim.Documento == Path.Combine(processo, ".pmvni-ai", "analise-google", "relatorio_dados.json") && j.FolhasVisiveis
@@ -3236,7 +3241,7 @@ internal static class Roteiro
                 && j.BotaoAnaliseHabilitado(Provedor.ChatGpt) && j.BotaoAnaliseHabilitado(Provedor.Claude);
             await j.DefinirPerfilGeminiAsync(PerfilGemini.ApiGratuita);
             var semChave = j.MotivoBotao(Provedor.Gemini) == "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta." && cartao.CaixaPerfil.SelectedIndex == 2
-                && cartao.TextoMatriz.Text.Contains("Análise: hydrogen xhigh", StringComparison.Ordinal);
+                && cartao.TextoMatriz.Text == TextosAgentes.MatrizDoGemini(ModoAcesso.Chave, PerfilGemini.ApiGratuita);
             var chave = "gemini-ficticia-roteiro-" + Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
             await j.GuardarChaveAsync(Provedor.Gemini, chave);
             var comChave = j.MotivoBotao(Provedor.Gemini) is null && j.BotaoAnaliseHabilitado(Provedor.Gemini) && cartao.CaixaChave.Password.Length == 0;
@@ -3346,7 +3351,7 @@ internal static class Roteiro
             perguntas.RespostaPorTitulo.Remove("Pausar a análise e fechar?");
             var perguntaFechar = perguntas.Confirmacoes.Skip(confirmacoes).FirstOrDefault(c => c.Titulo == "Pausar a análise e fechar?");
             var naoFechou = !podeFechar && !e.Fim.IsCompleted && perguntaFechar.Texto == "A análise com o ChatGPT em 0001/2099 será pausada. Ao abrir o editor de novo, você poderá retomá-la de onde parou."
-                && perguntaFechar.Sim == "Cancelar análise e fechar" && perguntaFechar.Nao == "Continuar";
+                && perguntaFechar.Sim == FluxoNovoRelatorio.FecharSim && perguntaFechar.Nao == "Continuar";
             // A segunda checagem do fechamento (na fila, depois de um Analisar que estava copiando) só pergunta pelas execuções novas.
             var tratadas = new HashSet<ExecucaoEmCurso>();
             perguntas.RespostaPorTitulo["Pausar a análise e fechar?"] = false;
@@ -3488,7 +3493,7 @@ internal static class Roteiro
             {
                 var (e, fim) = await AnalisarAteOFimAsync(Provedor.ChatGpt, cenario);
                 var info = j.NovoRelatorio.AvisoResultado;
-                var ok = conferir(e, fim) && info.IsOpen && info.Message == fim.Mensagem && Pmvrels(processo).Length == pmvrelAntes;
+                var ok = conferir(e, fim) && info.IsOpen && info.Message == fim.Mensagem + (cenario == "falha" && j.NovoRelatorio.BotaoContinuar.Visibility == Visibility.Visible ? " Você pode clicar em \"Continuar a análise\" para seguir de onde parou." : "") && Pmvrels(processo).Length == pmvrelAntes;
                 resultados[cenario] = (ok ? "" : "FALHOU · ") + fim.Situacao + ": " + fim.Mensagem;
                 tudo &= ok;
             }
@@ -3692,7 +3697,7 @@ internal static class Roteiro
             p["resumo"] = resumo;
             var linhas = j.LinhasLegislacaoAjustes;
             p["linhas"] = LinhasEmJson(linhas);
-            const string Esperado = "1 PDF anexado; 4 recusados:\n“LEI 9.999-2099 - FICTICIA.pdf” já está anexado como “LEI 9.999-2099 - FICTICIA”.\n“NAO-E-PDF - FICTICIA.pdf” não é um arquivo PDF.\n“SENHA - FICTICIA.pdf” está protegido por senha e não pode ser aberto pelo editor. Anexe uma cópia sem senha.\n“CORROMPIDO - FICTICIA.pdf” não pôde ser lido como PDF (arquivo danificado ou incompleto).";
+            const string Esperado = "1 PDF anexado (1 já estava anexado e foi ignorado); 3 recusados:\n“NAO-E-PDF - FICTICIA.pdf” não é um arquivo PDF.\n“SENHA - FICTICIA.pdf” está protegido por senha e não pode ser aberto pelo editor. Anexe uma cópia sem senha.\n“CORROMPIDO - FICTICIA.pdf” não pôde ser lido como PDF (arquivo danificado ou incompleto).";
             var digital = LinhaDe("DIGITALIZADA - FICTICIA");
             p["ok"] = resumo == Esperado && naLegislacao && linhas.Count == 3 && digital is { Esfera: Esfera.Outras, Paginas: "1 página", Selo: "Sem texto pesquisável" }
                 && CopiasLeg().Count == 3 && EntradasLeg() == 0 && j.AvisoLegislacaoAjustes.Severity == Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning
@@ -3843,7 +3848,7 @@ internal static class Roteiro
             var trilho = j.TrilhoAtual.Modulos.Select(Modulos.Rotulo).ToList();
             p["trilho"] = new JsonArray(trilho.Select(t => (JsonNode)t).ToArray());
             // Os rótulos e, auditoria §1.2, o ícone colorido de cada módulo (o template de IconesModulos.xaml, não o glifo de reserva).
-            var trilhoOk = trilho.SequenceEqual(["Relatórios", "Despachos", "Processos", "Legislação", "Imóveis", "Essencial", "GPI", "Alfresco", "Ajustes"])
+            var trilhoOk = trilho.SequenceEqual(Faixas.Disponiveis.Select(Modulos.Rotulo))
                 && j.TrilhoAtual.Modulos.All(j.TrilhoAtual.IconeCarregado);
             await j.MudarModuloAsync(Modulo.Legislacao);
             await EsperarAteAsync(() => Task.FromResult(j.LeitorPdf is not null), 30000);

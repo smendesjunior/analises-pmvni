@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.2
+
+- A prévia e a emissão de pranchas usam a mesma área da folha para posicionar as observações. A certificação aceita páginas com caixa de recorte zerada.
+- O acompanhamento da análise mostra achados por item, contadores e progresso por etapa. A retomada recupera o tempo ativo e permite escolher a IA.
+- Os ajustes do ChatGPT incluem a rota Codex-LB para o modo conta.
+
 ## 1.2.1
 
 - A busca do Editor exibe resultados abaixo do campo desde a primeira letra, inclusive quando nenhum relatório está aberto.

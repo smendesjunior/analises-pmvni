@@ -56,7 +56,12 @@ public sealed class RegistroExecucao : IDisposable
 
     const long DescarregarAcima = 4L * 1024 * 1024;
 
-    RegistroExecucao(string pasta) => Pasta = pasta;
+    readonly bool reaberto;
+    RegistroExecucao(string pasta, bool reaberto = false)
+    {
+        Pasta = pasta;
+        this.reaberto = reaberto;
+    }
 
     public string Pasta { get; }
 
@@ -83,7 +88,7 @@ public sealed class RegistroExecucao : IDisposable
     {
         if (MotivoInvalido(pastaProcesso, pasta) is { } motivo) throw new InvalidOperationException(motivo);
         if (!Directory.Exists(pasta)) throw new DirectoryNotFoundException("A pasta do registro da execução não existe: " + pasta);
-        var r = new RegistroExecucao(Path.GetFullPath(pasta));
+        var r = new RegistroExecucao(Path.GetFullPath(pasta), reaberto: true);
         try
         {
             if (JsonNode.Parse(File.ReadAllText(Caminho(pasta, "execucao.json"))) is JsonObject antes)
@@ -124,11 +129,16 @@ public sealed class RegistroExecucao : IDisposable
     static string Caminho(string pasta, string nome) => Path.Combine(pasta, nome);
 
     /// <summary><c>pedido.md</c>: o pedido exato, UTF-8 sem BOM.</summary>
-    public void GravarPedido(string texto) => File.WriteAllText(Caminho(Pasta, "pedido.md"), texto, Utf8);
+    public void GravarPedido(string texto)
+    {
+        var arquivo = Caminho(Pasta, "pedido.md");
+        if (!reaberto || !File.Exists(arquivo)) File.WriteAllText(arquivo, texto, Utf8);
+    }
 
     /// <summary><c>anexos.json</c>: por anexo, o nome de origem, o destino relativo, o sha256, o tamanho e <c>COPIADO</c> ou <c>JA_ARQUIVADO</c>.</summary>
     public void GravarAnexos(IReadOnlyList<ArquivoArquivado> anexos)
     {
+        if (reaberto && File.Exists(Caminho(Pasta, "anexos.json"))) return;
         var lista = new JsonArray();
         foreach (var a in anexos)
             lista.Add(new JsonObject
@@ -141,6 +151,30 @@ public sealed class RegistroExecucao : IDisposable
             });
         File.WriteAllText(Caminho(Pasta, "anexos.json"), lista.ToJsonString(Opcoes), Utf8);
     }
+
+    public string PastaProgresso => Path.Combine(Pasta, "progresso");
+    public string InstrucoesProgresso()
+    {
+        Directory.CreateDirectory(PastaProgresso);
+        return $"Para acompanhamento no Editor, grave em {PastaProgresso} um JSON por evento, com nome único e extensão .json. " +
+            "Ao avaliar ou revisar cada item, inclua item_id estável, sequencia inteira crescente por item, titulo e situacao " +
+            "(ATENDE, NAO_ATENDE, NAO_COMPROVADO ou DIVERGENCIA_INTERNA). Após auditoria individual, inclua evidencia_verificacao " +
+            "com caminho relativo ao processo e sha256_verificacao da prova da revisão. Preserve os eventos anteriores. " +
+            "Para progresso mensurável inclua etapa (prepare, analyze, technical_audit, produce, audit ou final_review), avaliados e total. Grave um evento no início de cada etapa e atualize após cada item avaliado, com sequencia_etapa inteira crescente dentro da etapa. Use os mesmos identificadores e situações no relatório final.";
+    }
+
+    public TimeSpan TempoAtivoGravado
+    {
+        get
+        {
+            lock (trava)
+                return execucao["tempo_ativo_ticks"] is JsonValue v && v.TryGetValue<long>(out var ticks) && ticks >= 0
+                    ? TimeSpan.FromTicks(ticks) : TimeSpan.Zero;
+        }
+    }
+
+    public void GravarTempoAtivo(TimeSpan tempo) =>
+        Atualizar(dados => dados["tempo_ativo_ticks"] = Math.Max(TempoAtivoGravado.Ticks, tempo.Ticks));
 
     /// <summary>Muda o <c>execucao.json</c> e o grava de forma atômica (arquivo novo ao lado, depois troca): quem lê nunca vê JSON pela metade.</summary>
     public void Atualizar(Action<JsonObject> mudar)

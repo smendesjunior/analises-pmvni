@@ -23,6 +23,7 @@ internal sealed class JanelaAprovacao : Window
     readonly TaskCompletionSource<MarcacaoAprovacao?> fim = new(TaskCreationOptions.RunContinuationsAsynchronously);
     readonly List<ObservacaoPrancha> personalizadas = [];
     List<ObservacaoPrancha> escolhidas = [];
+    (double Largura, double Altura)[] dimensoes = [];
     PdfDocument? pdf;
     int indice, paginaSelo = -1, paginaNotas = -1;
     double x, y, nx, ny;
@@ -174,7 +175,10 @@ internal sealed class JanelaAprovacao : Window
             await p.RenderToStreamAsync(buffer, new PdfPageRenderOptions { DestinationWidth = largura });
             buffer.Seek(0);
             var imagem = new BitmapImage(); await imagem.SetSourceAsync(buffer);
-            folha.Width = pagina.Width = p.Size.Width; folha.Height = pagina.Height = p.Size.Height;
+            var tamanho = dimensoes[nova];
+            folha.Width = pagina.Width = tamanho.Largura * DipPorPonto;
+            folha.Height = pagina.Height = tamanho.Altura * DipPorPonto;
+            pagina.Stretch = Stretch.Fill;
             pagina.Source = imagem; indice = nova; modo = Colocacao.Nenhuma;
             vista.ChangeView(0, 0, (float)Math.Clamp(Math.Min(1050 / p.Size.Width, 720 / p.Size.Height), .1, 1));
         }
@@ -189,6 +193,7 @@ internal sealed class JanelaAprovacao : Window
         try
         {
             using var stream = new MemoryStream(bytes).AsRandomAccessStream();
+            janela.dimensoes = await Task.Run(() => CarimboAprovado.DimensoesVisiveis(bytes));
             janela.pdf = await PdfDocument.LoadFromStreamAsync(stream);
             await janela.ExibirAsync(pagina);
             return await revisao.Task;
@@ -203,6 +208,7 @@ internal sealed class JanelaAprovacao : Window
         try
         {
             using var stream = new MemoryStream(bytes).AsRandomAccessStream();
+            janela.dimensoes = await Task.Run(() => CarimboAprovado.DimensoesVisiveis(bytes));
             janela.pdf = await PdfDocument.LoadFromStreamAsync(stream);
             using var arte = typeof(CarimboAprovado).Assembly.GetManifestResourceStream("Pmvni.CarimboAprovado.pdf")!;
             using var copia = new MemoryStream(); arte.CopyTo(copia); copia.Position = 0;

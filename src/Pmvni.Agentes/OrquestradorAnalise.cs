@@ -15,6 +15,7 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
     IReadOnlyList<ArquivoArquivado> Anexos, RegistroExecucao Registro)
 {
     /// <summary>ChatGPT: a sessão do Codex a continuar (<c>codex exec resume</c>) em vez de começar do zero.</summary>
+    public string? RotaCodex { get; init; }
     public string? RetomarSessao { get; init; }
 
     /// <summary>Gemini: o perfil (conta Ultra, API com créditos ou API gratuita) fixado para a análise inteira; null nos outros provedores e na leitura
@@ -63,11 +64,16 @@ public sealed class OrquestradorAnalise
 
     // ------------------------------------------------------------------ comum
 
-    Action<IDictionary<string, string?>> Ambiente(Provedor p, ModoAcesso modo, string? chave, PerfilGemini? perfil = null, bool ficticio = false, bool trocarGemini = false) => env =>
+    Action<IDictionary<string, string?>> Ambiente(Provedor p, ModoAcesso modo, string? chave, PerfilGemini? perfil = null, bool ficticio = false, bool trocarGemini = false, RegistroExecucao? registro = null) => env =>
     {
         if (AmbienteExtra is not null)
             foreach (var (k, v) in AmbienteExtra) env[k] = v;
         AmbienteFilho.Aplicar(env, p, modo, chave, perfil, ficticio, trocarGemini);
+        if (registro is not null)
+        {
+            env["PMVNI_EXECUCAO_PASTA"] = registro.Pasta;
+            env["PMVNI_EXECUCAO_ID"] = Path.GetFileName(registro.Pasta);
+        }
     };
 
     static FimAnalise Falha(string mensagem, int? codigo = null) => new("falhou", null, null, mensagem, codigo);
@@ -290,7 +296,10 @@ public sealed class OrquestradorAnalise
             registro.GravarAnexos(pe.Anexos);
             linha = LinhasDeComando.CodexExec(pe.Pecas.Codex!, pasta, ultima);
         }
+        pedido += "\n" + registro.InstrucoesProgresso();
         var (exe, args) = linha;
+        if (pe.Modo == ModoAcesso.Conta && pe.RotaCodex is "openai" or "codex-lb")
+            args = ["-c", $"model_provider=\"{pe.RotaCodex}\"", .. args];
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(args).ToList());
         registro.Atualizar(o =>
         {
@@ -301,7 +310,7 @@ public sealed class OrquestradorAnalise
 
         var redator = new RedatorChave(chave);      // a chave nunca vai para o registro nem para a tela, nem se o agente a repetir
         var canal = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
-        using var execucao = ExecucaoProcesso.Iniciar(exe, args, pasta, pedido, Ambiente(Provedor.ChatGpt, pe.Modo, chave),
+        using var execucao = ExecucaoProcesso.Iniciar(exe, args, pasta, pedido, Ambiente(Provedor.ChatGpt, pe.Modo, chave, registro: registro),
             linha => canal.Writer.TryWrite(redator.Aplicar(linha)),
             linha => { if (EventosCodex.CotaEsgotada(linha)) cota = true; registro.AcrescentarErro(redator.Aplicar(linha)); }, TarefaCodex);
         using var cancelamento = ct.Register(execucao.Cancelar);
@@ -394,15 +403,15 @@ public sealed class OrquestradorAnalise
         {
             var controle = Path.Combine(pasta, ResultadoAnalise.PastaControle(p));
             var diretrizes = Path.Combine(controle, "diretrizes.md");
-            if (string.IsNullOrWhiteSpace(pe.Texto)) File.Delete(diretrizes);
-            else { Directory.CreateDirectory(controle); File.WriteAllText(diretrizes, pe.Texto.Trim() + "\n", new UTF8Encoding(false)); }
+            Directory.CreateDirectory(controle);
+            File.WriteAllText(diretrizes, (pe.Texto ?? "").Trim() + "\n" + registro.InstrucoesProgresso(), new UTF8Encoding(false));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         registro.GravarAnexos(pe.Anexos);
 
         var (exe, argsIniciar) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, runtime, pasta, "iniciar");
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(argsIniciar).ToList());
-        var ambiente = Ambiente(p, pe.Modo, chave, pe.Perfil, pe.Ficticio, pe.TrocarGemini);
+        var ambiente = Ambiente(p, pe.Modo, chave, pe.Perfil, pe.Ficticio, pe.TrocarGemini, registro);
 
         var redator = new RedatorChave(chave);
         var log = new LeitorLog(Path.Combine(pasta, ResultadoAnalise.PastaControle(p), "auto-log.txt"));

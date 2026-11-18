@@ -333,6 +333,31 @@ public sealed class AssinaturaDigitalTestes
         cms.CheckSignature(verifySignatureOnly: true);
     }
 
+    [Theory]
+    [InlineData("001AB", false)]
+    [InlineData("00042", false)]
+    [InlineData("9876", true)]
+    public void Identificador_da_criacao_ou_pasta_legada_ate_o_pdf_emitido(string id, bool legado)
+    {
+        using var pasta = Ambiente.PastaDeTeste("id-ate-emissao");
+        if (legado) Directory.CreateDirectory(Path.Combine(pasta, "2026", id + "-2026 - TESTE"));
+        var (processo, criado) = CriacaoProcesso.Criar(pasta, id, 2026, "Teste");
+        Assert.Equal(!legado, criado);
+        var reaberto = Assert.Single(Processos.Listar(pasta, CancellationToken.None).Itens);
+        Assert.Equal(processo.Pasta, reaberto.Pasta);
+        Assert.True(Processos.Filtrar(reaberto, id));
+        var original = Path.Combine(reaberto.Pasta, "Prancha.pdf");
+        File.WriteAllBytes(original, AssinaturaFicticia.Pdf(1, comLinha: false).Bytes);
+        var peticao = PeticaoDaPrancha.Identificar(original);
+        Assert.Equal(id + "/2026", peticao);
+        using var c = Abrir(pasta, AssinaturaFicticia.Pfx(de: Quando.AddDays(-1), ate: Quando.AddYears(1)));
+        var visto = CarimboAprovado.Aplicar(File.ReadAllBytes(original), 0, 10, 10, peticao!, c, Quando);
+        var destino = Path.Combine(reaberto.Pasta, "Prancha - Aprovado.pdf");
+        File.WriteAllBytes(destino, CertificacaoPrancha.Certificar(visto, Quando, c, c.Certificado));
+        using var pdf = UglyToad.PdfPig.PdfDocument.Open(destino);
+        Assert.Contains(id + "/2026", pdf.GetPage(1).Text);
+    }
+
     [Fact]
     public void Carimbo_preserva_peticao_data_e_observacoes_selecionaveis()
     {
@@ -341,8 +366,9 @@ public sealed class AssinaturaDigitalTestes
         var original = AssinaturaFicticia.Pdf(1, comLinha: false);
         var selecionadas = new[] { ObservacaoPrancha.Predefinidas[1], ObservacaoPrancha.Predefinidas[6],
             new ObservacaoPrancha("Exemplo de observação.", "Referência fictícia.") };
+        var tamanho = Assert.Single(CarimboAprovado.DimensoesVisiveis(original.Bytes));
         var a = CarimboAprovado.Aplicar(original.Bytes, 0, 12, 12, "TESTE-42", c, Quando,
-            selecionadas, new PdfSharp.Drawing.XRect(15, 230, 450, 240));
+            selecionadas, new PdfSharp.Drawing.XRect(15, 230, tamanho.Largura - 15, Math.BitIncrement(tamanho.Altura) - 230));
         using var pdf = UglyToad.PdfPig.PdfDocument.Open(a.Pdf);
         var texto = string.Join(" ", pdf.GetPage(1).GetWords().Select(p => p.Text));
         Assert.Contains("TESTE-42", texto);
