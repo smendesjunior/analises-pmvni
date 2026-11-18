@@ -369,6 +369,10 @@ public sealed class AssinaturaDigitalTestes
         var tamanho = Assert.Single(CarimboAprovado.DimensoesVisiveis(original.Bytes));
         var a = CarimboAprovado.Aplicar(original.Bytes, 0, 12, 12, "TESTE-42", c, Quando,
             selecionadas, new PdfSharp.Drawing.XRect(15, 230, tamanho.Largura - 15, Math.BitIncrement(tamanho.Altura) - 230));
+        using var certificado = new MemoryStream(CertificacaoPrancha.Certificar(a, Quando, c, c.Certificado));
+        using var conferido = PdfSharp.Pdf.IO.PdfReader.Open(certificado, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+        Assert.False(conferido.Pages[0].CropBox.IsZero);
+        Assert.Equal("001AB/2099", PeticaoDaPrancha.Identificar(Path.Combine(pasta, "Peticao 001AB-2099 - ENSAIO.pdf")));
         using var pdf = UglyToad.PdfPig.PdfDocument.Open(a.Pdf);
         var texto = string.Join(" ", pdf.GetPage(1).GetWords().Select(p => p.Text));
         Assert.Contains("TESTE-42", texto);

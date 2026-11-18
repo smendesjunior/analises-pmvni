@@ -13,8 +13,9 @@ internal sealed class GeometriaPrancha
     public GeometriaPrancha(PdfPage folha)
     {
         var media = folha.MediaBox;
-        var crop = folha.CropBox;
-        if (crop.IsEmpty) crop = media;
+        var crop = folha.Elements.ContainsKey("/CropBox") ? folha.CropBox : media;
+        if (crop.IsZero) crop = media;
+        folha.CropBox = crop;
         esquerda = Math.Max(media.X1, crop.X1);
         baseY = Math.Max(media.Y1, crop.Y1);
         direita = Math.Min(media.X2, crop.X2);

@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.3
+
+- A emissão preserva a área visível de pranchas que chegam sem recorte ou com recorte zerado. A leitura do nome do arquivo reconhece também “Peticao” sem acentos.
+
 ## 1.2.2
 
 - A prévia e a emissão de pranchas usam a mesma área da folha para posicionar as observações. A certificação aceita páginas com caixa de recorte zerada.

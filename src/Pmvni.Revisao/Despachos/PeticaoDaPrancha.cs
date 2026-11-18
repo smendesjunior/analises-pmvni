@@ -5,7 +5,7 @@ namespace Pmvni.Revisao;
 public static class PeticaoDaPrancha
 {
     static readonly Regex Identificador = new(
-        @"^\s*(?:(?:PROCC?\.?|PROCESSO|PETIÇÃO)\s*)?(?<n>[\p{L}\p{Nd}][\p{L}\p{Nd}._-]*)\s*[-_]\s*(?<ano>(?:19|20)[0-9]{2})(?=\s*-|\s*$)",
+        @"^\s*(?:(?:PROCC?\.?|PROCESSO|PETI[ÇC][ÃA]O)\s*)?(?<n>[\p{L}\p{Nd}][\p{L}\p{Nd}._-]*)\s*[-_]\s*(?<ano>(?:19|20)[0-9]{2})(?=\s*-|\s*$)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     public static string? Identificar(string caminho)

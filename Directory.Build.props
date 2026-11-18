@@ -12,10 +12,10 @@
     <SatelliteResourceLanguages>pt-BR</SatelliteResourceLanguages>
     <Company>PMVNI</Company>
     <Product>Editor de Relatórios PMVNI</Product>
-    <Version>1.2.2</Version>
+    <Version>1.2.3</Version>
     <!-- 1.1.0 (Analisar com o Gemini): versão técnica 1.1.0; Windows (4 partes) 1.1.0.0; o usuário vê "1.1" (RegrasAtualizacao.VersaoExibida). -->
-    <AssemblyVersion>1.2.2.0</AssemblyVersion>
-    <FileVersion>1.2.2.0</FileVersion>
+    <AssemblyVersion>1.2.3.0</AssemblyVersion>
+    <FileVersion>1.2.3.0</FileVersion>
     <VersaoWindowsAppSDK>1.8.260921001</VersaoWindowsAppSDK>
   </PropertyGroup>
 </Project>
