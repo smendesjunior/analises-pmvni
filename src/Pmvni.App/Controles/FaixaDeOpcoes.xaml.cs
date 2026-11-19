@@ -338,11 +338,11 @@ public sealed partial class FaixaDeOpcoes : UserControl
         }
         // Forma do botão tonal (as cores vêm dos recursos da vaga: claro, escuro e alto contraste).
         b.Tag = c.Id;
-        b.MinHeight = 32;
+        b.Height = 36;
         b.Padding = new Thickness(12, 0, 14, 0);
         b.CornerRadius = new CornerRadius(8);
         b.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-        b.VerticalAlignment = VerticalAlignment.Stretch;
+        b.VerticalAlignment = VerticalAlignment.Center;
         b.VerticalContentAlignment = VerticalAlignment.Center;
         b.IsEnabled = Habilitado(c.Id);
         Brilho.SetAtivo(b, true); // o brilho dos botões coloridos (Controles\Brilho.cs)

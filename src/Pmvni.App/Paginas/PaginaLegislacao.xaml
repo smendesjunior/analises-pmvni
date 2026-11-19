@@ -166,7 +166,9 @@
       <TextBlock x:Name="TextoEscala" x:FieldModifier="internal" Grid.Column="7" MinWidth="48" TextAlignment="Center" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
     </Grid>
     <Grid x:Name="Consulta" Grid.RowSpan="3" Visibility="Collapsed" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" RowDefinitions="Auto,Auto,*">
-      <CommandBar DefaultLabelPosition="Right" IsDynamicOverflowEnabled="True">
+      <Border Margin="8,2,8,6" Padding="6" CornerRadius="8" BorderThickness="1"
+              Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+        <CommandBar DefaultLabelPosition="Right" HorizontalAlignment="Left" Background="Transparent" IsDynamicOverflowEnabled="True">
         <AppBarButton x:Name="VoltarPortal" Label="Voltar" Icon="Back" Click="VoltarNaConsulta"/>
         <AppBarButton x:Name="AvancarPortal" Label="Avançar" Icon="Forward" Click="AvancarNaConsulta"/>
         <AppBarButton x:Name="PararPortal" Label="Parar" Icon="Stop" Click="PararConsulta"/>
@@ -174,7 +176,8 @@
         <AppBarButton Label="Início" Icon="Home" Click="InicioConsulta"/>
         <AppBarButton x:Name="SalvarPortal" Label="Salvar PDF" Icon="Save" Click="SalvarConsulta"/>
         <AppBarButton Label="Voltar à biblioteca" Icon="Library" Click="FecharConsulta"/>
-      </CommandBar>
+        </CommandBar>
+      </Border>
       <TextBlock Grid.Row="1" x:Name="EstadoPortal" TextWrapping="Wrap" Visibility="Collapsed"/>
       <WebView2 Grid.Row="2" x:Name="Portal" AutomationProperties.Name="Leis.org"/>
     </Grid>

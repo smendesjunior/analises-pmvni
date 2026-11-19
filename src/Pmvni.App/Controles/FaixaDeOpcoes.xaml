@@ -25,7 +25,7 @@
                     Background="Transparent" OverflowButtonVisibility="Auto">
           <CommandBar.Resources>
             <x:Double x:Key="AppBarButtonContentHeight">16</x:Double>
-            <Thickness x:Key="AppBarButtonInnerBorderMargin">2,4,2,4</Thickness>
+            <Thickness x:Key="AppBarButtonInnerBorderMargin">2,2,2,2</Thickness>
             <x:Double x:Key="AppBarThemeCompactHeight">40</x:Double>
             <!-- Correções 2026-11-15: no modelo do WinUI o ícone e o rótulo (rótulo à direita) têm margem 16 em cima e 10 embaixo e ficam
                  3 px abaixo do centro do botão (o fundo ao passar o mouse aparecia acima do texto); aqui, 13 e 13. -->

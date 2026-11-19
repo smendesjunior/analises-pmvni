@@ -11,7 +11,7 @@ using Pmvni.Acompanhamento;
 using Pmvni.Composicao.Web;
 using Pmvni.Revisao;
 using Windows.UI;
-using Windows.ApplicationModel.DataTransfer;
+using Rect = Windows.Foundation.Rect;
 using LinhaAc = Pmvni.Acompanhamento.LinhaProcesso;
 using Coluna = Pmvni.Acompanhamento.Coluna;
 using Celula = Pmvni.Acompanhamento.Celula;
@@ -607,14 +607,14 @@ public sealed partial class MainWindow
             var painel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             painel.Children.Add(new TextBlock { Text = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
             if (ativa) painel.Children.Add(new FontIcon { Glyph = ordemDecrescente ? "" : "", FontSize = 11 });
-            var b = new Button { Content = painel, Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(0, 10, 0, 10), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = Centralizada(c) ? HorizontalAlignment.Center : HorizontalAlignment.Left };
+            var b = new CabecalhoMovel { Content = painel, Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(0, 10, 0, 10), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = Centralizada(c) ? HorizontalAlignment.Center : HorizontalAlignment.Left };
             // O sentido da ordem não fica só no ícone: o nome e a dica dizem (Narrador).
             var nomeCol = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo;
             var dicaOrdem = ativa ? $"{nomeCol}, em ordem {(ordemDecrescente ? "decrescente" : "crescente")}. Clique para a ordem {(ordemDecrescente ? "crescente" : "decrescente")}." : $"Ordenar por {nomeCol}";
             ToolTipService.SetToolTip(b, dicaOrdem);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, dicaOrdem);
             var col = c;
-            b.Click += (_, _) =>
+            void OrdenarColuna()
             {
                 var mesma = col.Chave != ChaveColuna.Outra ? ordemChave == col.Chave : ordemIndice == col.Indice;
                 ordemDecrescente = mesma && !ordemDecrescente;
@@ -622,7 +622,9 @@ public sealed partial class MainWindow
                 ordemIndice = col.Chave == ChaveColuna.Outra ? col.Indice : -1;
                 MontarCabecalho();
                 PreencherLista();
-            };
+            }
+            b.Click += (_, _) => OrdenarColuna();
+            b.CliqueDoPonteiro += OrdenarColuna;
             // Alça de largura na borda direita do título (pedido do usuário, 2026-11-17: colunas redimensionáveis, como no Excel).
             ConfigurarMovimento(b, col, i);
             var indice = i;
@@ -642,27 +644,18 @@ public sealed partial class MainWindow
         FixarColunas();
     }
 
-    /// <summary>Muda a largura da coluna <paramref name="indice"/> no título e em todas as linhas já desenhadas, sem refazer a tabela
-    /// (o arraste fica liso); a largura total da tabela acompanha.</summary>
-    private const string FormatoColuna = "PMVNI.Acompanhamento.Coluna";
-
-    void ConfigurarMovimento(Button botao, Coluna coluna, int indice)
+    void ConfigurarMovimento(CabecalhoMovel botao, Coluna coluna, int indice)
     {
-        botao.CanDrag = true;
-        botao.AllowDrop = true;
-        botao.DragStarting += (_, e) =>
+        botao.SoltouColuna += ponto =>
         {
-            e.Data.SetData(FormatoColuna, ChaveColunaAjustes(coluna));
-            e.Data.RequestedOperation = DataPackageOperation.Move;
-        };
-        botao.DragOver += (_, e) =>
-        {
-            if (e.DataView.Contains(FormatoColuna)) e.AcceptedOperation = DataPackageOperation.Move;
-        };
-        botao.Drop += async (_, e) =>
-        {
-            if (!e.DataView.Contains(FormatoColuna)) return;
-            if (await e.DataView.GetDataAsync(FormatoColuna) is string origem) MoverColuna(origem, indice);
+            // As colunas fixadas ficam sobre as demais durante a rolagem.
+            foreach (var celula in Ac.CabecalhoTabela.Children.OfType<FrameworkElement>().OrderByDescending(c => Canvas.GetZIndex(c)))
+            {
+                var limites = celula.TransformToVisual(null).TransformBounds(new Rect(0, 0, celula.ActualWidth, celula.ActualHeight));
+                if (!limites.Contains(ponto)) continue;
+                MoverColuna(ChaveColunaAjustes(coluna), Grid.GetColumn(celula));
+                break;
+            }
         };
         var menu = new MenuFlyout();
         foreach (var (texto, alvo) in new[] { ("Mover para a esquerda", indice - 1), ("Mover para a direita", indice + 1) })
