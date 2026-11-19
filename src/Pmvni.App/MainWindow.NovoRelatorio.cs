@@ -942,14 +942,7 @@ public sealed partial class MainWindow
             // A etapa em que o kit informou erro fica vermelha.
             if (erro is not null) etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();
             n.TextoRotulo.Text = s is null ? "Iniciando a análise detalhada…" : $"Situação: {s.Codigo}" + (s.Rotulo is null ? "" : " · " + s.Rotulo) + (erro is null ? "" : Environment.NewLine + "Erro: " + erro);
-            n.TextoEventos.Text = string.Join(Environment.NewLine, etapas.Select(x => $"{x.Nome} · {x.Estado switch
-            {
-                EstadoEtapa.Feita => "Concluída · 100%",
-                EstadoEtapa.Agora when rodando => "Em andamento · progresso indeterminado",
-                EstadoEtapa.Agora => "Interrompida",
-                EstadoEtapa.Erro => "Com erro",
-                _ => "Pendente",
-            }}"));
+            n.TextoEventos.Text = string.Join(Environment.NewLine, etapas.Select(x => $"{x.Nome} · {n.RotuloEtapa(x.Nome, x.Estado, rodando)}"));
         }
         else
         {

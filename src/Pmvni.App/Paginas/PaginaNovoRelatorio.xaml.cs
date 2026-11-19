@@ -1,6 +1,7 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 
 namespace Pmvni.App;
 
@@ -216,6 +217,32 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         return new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 8, 10, 8), Background = Recurso("SubtleFillColorSecondaryBrush"), Child = g };
     }
 
+    int PercentualEtapa(string nome, EstadoEtapa estado)
+    {
+        if (estado == EstadoEtapa.Feita) return 100;
+        if (estado == EstadoEtapa.Pendente) return 0;
+        if (ProgressoAtual is { Total: > 0 } p && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(p.Etapa) == nome)
+            return Math.Clamp((int)Math.Round(100.0 * p.Avaliados / p.Total), 1, 99);
+        return 1; // Início registrado, ainda sem contagem de itens.
+    }
+
+    internal string RotuloEtapa(string nome, EstadoEtapa estado, bool ativa)
+    {
+        var status = estado switch { EstadoEtapa.Feita => "Concluída", EstadoEtapa.Agora => ativa ? "Em andamento" : "Interrompida",
+            EstadoEtapa.Erro => "Com erro", _ => "Pendente" };
+        var estimado = estado is EstadoEtapa.Agora or EstadoEtapa.Erro ? " estimado" : "";
+        return $"{status} · {PercentualEtapa(nome, estado)}%{estimado}";
+    }
+
+    static readonly string[] DescricoesEtapas = [
+        "Identificar as pranchas e os documentos do processo e organizar o material para a leitura técnica.",
+        "Conferir o projeto item por item e registrar a evidência que sustenta cada conclusão.",
+        "Revisar os cálculos, as referências e as pendências identificadas na análise técnica.",
+        "Organizar as constatações por seção e redigir o relatório com as evidências e exigências correspondentes.",
+        "Comparar as conclusões das seções entre si e com os documentos para identificar divergências.",
+        "Conferir a versão consolidada do relatório e verificar o arquivo final para entrega."
+    ];
+
     static readonly string[] GlifosEtapas = ["", "", "", "", "", ""];
 
     /// <summary>As seis etapas em linha: concluída (verde ✓), em andamento (acento ▶), erro (vermelho !) ou pendente (cinza, ícone da etapa),
@@ -229,18 +256,14 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         etapasMostradas = etapas.ToArray();
         animandoEtapas = podeAnimar;
         var feitas = etapas.Count(e => e.Estado == EstadoEtapa.Feita);
-        var fracao = ProgressoAtual is { Total: > 0 } itens && etapas.Any(e => e.Estado == EstadoEtapa.Agora
-            && e.Nome == Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(itens.Etapa)) ? Math.Clamp((double)itens.Avaliados / itens.Total, 0, 1) : 0;
-        var proporcao = (feitas + fracao) / Math.Max(1, etapas.Count);
+        var proporcao = etapas.Sum(e => PercentualEtapa(e.Nome, e.Estado)) / (100.0 * Math.Max(1, etapas.Count));
         BarraResumoEtapas.IsIndeterminate = animar && etapas.Count == 0;
         BarraResumoEtapas.Value = 100 * proporcao;
         BarraResumoEtapas.Visibility = etapas.Count > 0 || animar ? Visibility.Visible : Visibility.Collapsed;
-        Trabalhando.Definir(PainelClaude, animar && feitas < etapas.Count, (float)PainelClaude.CornerRadius.TopLeft,
-            proporcao);
         ProgressoAtividades.Value = 100 * proporcao;
         ProgressoAtividades.Visibility = etapas.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         ContagemAtividades.Text = etapas.Count == 0 ? "Aguardando as etapas da análise."
-            : $"{feitas} de {etapas.Count} etapas concluídas · {100 * proporcao:0}%";
+            : $"{feitas} de {etapas.Count} etapas concluídas · {100 * proporcao:0.#}% geral";
         EtapasAtividades.Children.Clear();
         PainelEtapas.Children.Clear();
         PainelEtapas.ColumnDefinitions.Clear();
@@ -248,8 +271,6 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         {
             PainelEtapas.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var (nome, estado) = etapas[i];
-            double? percentual = estado == EstadoEtapa.Agora && ProgressoAtual is { Total: > 0 } p && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(p.Etapa) == nome
-                ? Math.Clamp(100.0 * p.Avaliados / p.Total, 0, 100) : null;
             if (i < etapas.Count - 1)
             {
                 var seguinteFeita = estado == EstadoEtapa.Feita;
@@ -263,16 +284,24 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 // (largura de 2 colunas: cada centro fica a 1/4 da borda; 22 = raio do círculo + folga)
                 var faixa = new Grid();
                 faixa.Children.Add(linha);
-                ProgressBar? progresso = null;
-                if (estado == EstadoEtapa.Agora && (podeAnimar || percentual.HasValue))
+                Border? progresso = null;
+                if (estado == EstadoEtapa.Agora && animar)
                 {
-                    progresso = new ProgressBar
-                    {
-                        Style = (Style)Application.Current.Resources["DefaultProgressBarStyle"],
-                        IsIndeterminate = !percentual.HasValue, Value = percentual ?? 0, Height = 3, VerticalAlignment = VerticalAlignment.Top,
-                    };
-                    Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(progresso, percentual.HasValue ? $"{nome} · {percentual:0}%" : "Progresso indeterminado de " + nome);
+                    var escala = new ScaleTransform { ScaleX = 0.45 };
+                    progresso = new Border { Height = 2, VerticalAlignment = VerticalAlignment.Top,
+                        Background = Recurso("AccentFillColorDefaultBrush"), RenderTransform = escala };
                     faixa.Children.Add(progresso);
+                    if (podeAnimar)
+                    {
+                        var pulso = new DoubleAnimation { From = 0, To = 0.9, Duration = TimeSpan.FromSeconds(1.8),
+                            RepeatBehavior = RepeatBehavior.Forever };
+                        Storyboard.SetTarget(pulso, escala);
+                        Storyboard.SetTargetProperty(pulso, "ScaleX");
+                        var movimento = new Storyboard();
+                        movimento.Children.Add(pulso);
+                        faixa.Loaded += (_, _) => movimento.Begin();
+                        faixa.Unloaded += (_, _) => movimento.Stop();
+                    }
                 }
                 Grid.SetColumn(faixa, i);
                 Grid.SetColumnSpan(faixa, 2);
@@ -299,9 +328,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 BorderThickness = new Thickness(estado == EstadoEtapa.Pendente ? 1 : 0), BorderBrush = Recurso("ControlStrongStrokeColorDefaultBrush"),
                 Child = new FontIcon { Glyph = glifo, FontSize = 15, Foreground = Recurso(frente) },
             };
-            var situacao = estado switch { EstadoEtapa.Feita => "Concluída · 100%", EstadoEtapa.Agora => animar ? "Em andamento" : "Interrompida", EstadoEtapa.Erro => "Com erro", _ => "Pendente" };
+            var situacao = RotuloEtapa(nome, estado, animar);
             var bloco = new StackPanel { Spacing = 1, HorizontalAlignment = HorizontalAlignment.Center };
-            if (percentual.HasValue) situacao += $" · {percentual:0}%";
             var linhaResumo = new Grid { ColumnSpacing = 8, MinHeight = 23 };
             linhaResumo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
             linhaResumo.ColumnDefinitions.Add(new ColumnDefinition());
@@ -314,10 +342,17 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             }
             else marcador = new FontIcon { Glyph = estado == EstadoEtapa.Pendente ? "\uEA3A" : glifo, FontSize = 14 };
             linhaResumo.Children.Add(marcador);
-            var rotulo = new TextBlock { Text = nome, FontSize = 13, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
-            Grid.SetColumn(rotulo, 1);
-            linhaResumo.Children.Add(rotulo);
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linhaResumo, nome + " · " + situacao);
+            var textos = new StackPanel { Spacing = 2 };
+            textos.Children.Add(new TextBlock { Text = $"{nome}  ·  {situacao}", FontSize = 13,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextAlignment = TextAlignment.Left, TextWrapping = TextWrapping.Wrap });
+            var descricao = DescricoesEtapas[i];
+            if (ProgressoAtual is { Total: > 0 } contagem && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(contagem.Etapa) == nome)
+                descricao += $" Itens avaliados nesta etapa: {contagem.Avaliados} de {contagem.Total}.";
+            textos.Children.Add(new TextBlock { Text = descricao, FontSize = 12, TextAlignment = TextAlignment.Left,
+                Foreground = Recurso("TextFillColorSecondaryBrush"), TextWrapping = TextWrapping.Wrap });
+            Grid.SetColumn(textos, 1);
+            linhaResumo.Children.Add(textos);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linhaResumo, $"{nome}. {situacao}. {descricao}");
             EtapasAtividades.Children.Add(linhaResumo);
             var dica = new TextBlock { Text = nome + " · " + situacao, TextWrapping = TextWrapping.Wrap };
             var botao = new Button

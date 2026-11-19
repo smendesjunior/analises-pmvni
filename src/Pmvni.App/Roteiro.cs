@@ -3271,12 +3271,11 @@ internal static class Roteiro
             var pendenteDurante = j.ExecucoesClaudePendentes.Count == 1;
             var etapasVistas = new List<string>();
             var painelDasEtapas = false;
-            var fasesDoHalo = new HashSet<double>();
+            var painelSemHalo = true;
             while (!e.Fim.IsCompleted)
             {
                 if (e.Situacao?.Etapa is { } et && (etapasVistas.Count == 0 || etapasVistas[^1] != et)) etapasVistas.Add(et);
-                if (Trabalhando.BrilhoDe(n.PainelClaude) is { ContornoVisivel: true, HaloVisivel: true, Progresso: { } fase })
-                    fasesDoHalo.Add(fase);
+                painelSemHalo &= Trabalhando.BrilhoDe(n.PainelClaude) is not { HaloVisivel: true };
                 painelDasEtapas |= ReferenceEquals(j.ExecucaoMostrada, e) && n.PainelClaude.Visibility == Visibility.Visible;
                 await Esperar(100);
             }
@@ -3300,8 +3299,8 @@ internal static class Roteiro
                 && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Gemini, s.Caminho, fim.Pdf);
             p["infobar"] = j.InfoMensagem.Message;
             var semPendente = j.ExecucoesClaudePendentes.Count == 0;
-            var etapas = etapasVistas.Count >= 2 && etapasVistas[0] is "prepare" or "analyze" && etapasVistas[^1] == "final_review" && painelDasEtapas && fasesDoHalo.Count >= 2;
-            p["posicoes_do_halo_no_contorno"] = fasesDoHalo.Count;
+            var etapas = etapasVistas.Count >= 2 && etapasVistas[0] is "prepare" or "analyze" && etapasVistas[^1] == "final_review" && painelDasEtapas && painelSemHalo;
+            p["etapas_sem_halo"] = painelSemHalo;
 
             // Chave: sem perfil escolhido o botão explica; com o perfil, pede a chave; nada é presumido nem trocado.
             await SemRelatorioAbertoAsync();
@@ -4818,7 +4817,7 @@ internal static class Roteiro
             monitor.MostrarResumo(true, null, [], []);
             p["percentuais"] = valores;
             p["ok"] = monitor.BarraResumoEtapas.IsIndeterminate && valores.Select(x => x!.GetValue<double>())
-                .Zip(new[] { 0d, 100d / 3, 250d / 6, 100d }).All(par => Math.Abs(par.First - par.Second) < 0.01);
+                .Zip(new[] { 0d, 201d / 6, 250d / 6, 100d }).All(par => Math.Abs(par.First - par.Second) < 0.01);
             monitor.MostrarResumo(false, null, [], []);
             monitor.MostrarProgresso(null);
             return Task.CompletedTask;
