@@ -84,10 +84,10 @@ public sealed partial class Trilho : UserControl
                 Child = conteudo,
             };
             // A barrinha fica DENTRO do fundo arredondado, junto da borda esquerda dele (como no Gmail): a grade tem a largura do fundo.
-            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Height = 24, Visibility = Visibility.Collapsed, Margin = new Thickness(4, 0, 0, 0) };
+            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Height = double.NaN, VerticalAlignment = VerticalAlignment.Stretch, Visibility = Visibility.Collapsed, Margin = new Thickness(3, 2, 0, 2), IsHitTestVisible = false };
             var grade = new Grid { Width = 114, HorizontalAlignment = HorizontalAlignment.Center };
             grade.Children.Add(fundo);
-            faixaIcone.Children.Add(indicador);
+            grade.Children.Add(indicador);
             var botao = new Button
             {
                 Width = 118,

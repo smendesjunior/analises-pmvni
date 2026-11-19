@@ -14,6 +14,9 @@ public sealed partial class MainWindow : IHostFiguras
     JanelaPrancha? janelaPrancha;
 
     // ---------- acessores do roteiro ----------
+    internal JanelaFigura? EditorDeFigura => janelaFigura;
+    internal FrameworkElement? ConteudoEditorFigura => janelaFigura?.Content as FrameworkElement;
+    internal JanelaPrancha? JanelaDeRecorte => janelaPrancha;
     internal string? FiguraSelecionada => figuraSelecionada;
     internal bool EditorFiguraAberto => janelaFigura is not null;
     internal void FecharEditorFigura() => janelaFigura?.Close();

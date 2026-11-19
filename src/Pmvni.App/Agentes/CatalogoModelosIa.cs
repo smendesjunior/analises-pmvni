@@ -22,7 +22,7 @@ internal sealed class CatalogoModelosIa
 
     readonly string raizDados;
     readonly Func<string> codexHome;
-    readonly Dictionary<FonteIa, ListaModelos> listas = new();
+    readonly System.Collections.Concurrent.ConcurrentDictionary<FonteIa, ListaModelos> listas = new();
     readonly SemaphoreSlim atualizando = new(1, 1);
     bool carregado;
 
@@ -41,7 +41,10 @@ internal sealed class CatalogoModelosIa
     internal ListaModelos Lista(FonteIa f)
     {
         Carregar();
-        var lista = listas.TryGetValue(f, out var l) ? l : f == FonteIa.Codex ? LerCatalogoDoCodex() ?? CatalogoIa.Reserva(f) : CatalogoIa.Reserva(f);
+        listas.TryGetValue(f, out var guardada);
+        var local = f == FonteIa.Codex ? LerCatalogoDoCodex() : null;
+        var lista = local is not null && (guardada is null || local.LidaEm >= guardada.LidaEm)
+            ? local : guardada ?? local ?? CatalogoIa.Reserva(f);
         if (f != FonteIa.Codex) return lista;
         var (modelo, nivel, _) = LerConfigCodex();
         return lista with { ModeloDoApp = modelo ?? lista.ModeloDoApp, NivelDoApp = nivel ?? lista.NivelDoApp };
@@ -107,7 +110,7 @@ internal sealed class CatalogoModelosIa
                 try
                 {
                     var lida = await LerAgoraAsync(f, pecas, ct);
-                    if (lida is { Modelos.Count: > 0 }) lock (listas) listas[f] = lida;
+                    if (lida is { Modelos.Count: > 0 }) listas[f] = lida;
                     else lock (falhas) falhas[f] = "a lista veio vazia";
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested) { lock (falhas) falhas[f] = "não respondeu a tempo"; }

@@ -231,6 +231,9 @@ internal static class Roteiro
         {
             var raiz = j.ElementoRaiz;
             var caixa = (Microsoft.UI.Xaml.Controls.TextBox)raiz.FindName("CaixaPesquisa");
+            var atalho = (TextBlock)raiz.FindName("AtalhoPesquisa");
+            var inicioAtalho = atalho.TransformToVisual(caixa).TransformPoint(new Windows.Foundation.Point()).X;
+            p["campo_separado_do_atalho"] = atalho.Visibility == Visibility.Collapsed || caixa.ActualWidth <= inicioAtalho;
             caixa.Focus(Microsoft.UI.Xaml.FocusState.Keyboard);
             foreach (var termo in new[] { "l", "le", "lei" })
             {
@@ -308,6 +311,9 @@ internal static class Roteiro
                 && indicador.Visivel == (indicador.Avisos.Count > 0) && !indicador.Critico;
             await Esperar(600);
             await CapturarWebAsync(j, Path.Combine(pasta, "01-tela-100.png"));
+            var desalinhamento = j.FaixaAtual.DesalinhamentoOriginal();
+            p["desalinhamento_original_dip"] = desalinhamento;
+            if (desalinhamento > .5) throw new InvalidOperationException("O botão Original difere dos vizinhos na barra.");
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "01-janela-xaml.png"));
         });
 
@@ -317,7 +323,7 @@ internal static class Roteiro
                 (() => { const f = [...document.querySelectorAll('section.folha')];
                   const tops = f.map(x => x.getBoundingClientRect().top + scrollY);
                   const passos = tops.slice(1).map((t, i) => t - tops[i]);
-                  return { folhas: f.length, passoMin: Math.min(...passos), passoMax: Math.max(...passos), passoEsperado: (297 + 8) * 96 / 25.4,
+                  return { zoom: Number(getComputedStyle(document.documentElement).getPropertyValue('--pmvni-zoom')) || 1, folhas: f.length, passoMin: Math.min(...passos), passoMax: Math.max(...passos), passoEsperado: (297 + 8) * 96 / 25.4,
                            rolagemTotal: document.documentElement.scrollHeight, janela: document.documentElement.clientHeight,
                            fundoDaPagina: getComputedStyle(document.documentElement).backgroundColor, fundoDaFolha: getComputedStyle(f[0]).backgroundColor,
                            sombraDaFolha: getComputedStyle(f[0]).boxShadow, devicePixelRatio, topos: tops.slice(0, 3) }; })()
@@ -326,8 +332,9 @@ internal static class Roteiro
             var n = g.GetProperty("folhas").GetInt32();
             // Correções 2026-11-15: com o painel de seções mais largo, a folha abre ajustada à largura (zoom < 100 %); o passo na tela é
             // (297 + 8) mm vezes o zoom (o zoom é um scale() nas folhas).
-            var passo = g.GetProperty("passoEsperado").GetDouble() * j.Zoom;
-            p["zoom"] = j.Zoom;
+            var zoomMedido = g.GetProperty("zoom").GetDouble();
+            var passo = g.GetProperty("passoEsperado").GetDouble() * zoomMedido;
+            p["zoom"] = zoomMedido;
             var continuo = Math.Abs(g.GetProperty("passoMin").GetDouble() - passo) < 1 && Math.Abs(g.GetProperty("passoMax").GetDouble() - passo) < 1;
             var visitas = new JsonArray();
             var coerente = true;
@@ -365,6 +372,13 @@ internal static class Roteiro
             }
             foreach (var z in new[] { 0.5, 2.0, 3.0, 1.0 }) { await j.ZoomAsync(new { zoom = z }, "manual"); await Confere("definirZoom " + z); }
             await j.ZoomAsync(new { zoom = 1.0 }, "manual");
+            var controleZoom = ((PaginaRelatorios)j.ElementoRaiz.FindName("Relatorios")).ControleZoom;
+            foreach (var percentual in new[] { 50, 300, 135 })
+            {
+                controleZoom.Value = percentual;
+                await Confere($"controle deslizante {percentual}%");
+                igual &= Math.Abs(j.Zoom * 100 - percentual) < 0.01;
+            }
             // Rodapé (botões) e faixa (aba Exibir): os mesmos comandos.
             foreach (var botao in new[] { j.BotoesZoom[1], j.BotoesZoom[1], j.BotoesZoom[0], j.BotoesZoom[2], j.BotoesZoom[3] })
             {
@@ -1535,11 +1549,66 @@ internal static class Roteiro
             p["desfazer_volta_ao_kit"] = voltou;
             p["erros"] = new JsonArray(j.UltimosErros.Select(e => (JsonNode)e).ToArray());
             p["ok"] = j.EditorFiguraAberto && numero == 3 && (bool)p["figura_virou_svg"]! && (bool)p["legenda_nas_folhas"]! && (bool)p["comparar_lista_a_figura"]! && voltou;
+            if (j.ConteudoEditorFigura is { } editor)
+                await CapturarXamlAsync(editor, Path.Combine(pasta, "29b-editor-figura.png"));
             j.FecharEditorFigura();
             // Inserir região da prancha: a janela tem de abrir (correção 2026-11-16: o zoom mínimo 0,05 derrubava a janela na montagem).
             await j.ExecutarComandoAsync(ComandosApp.FigurasInserirRegiao);
             p["recorte_abriu"] = j.RecortePranchaAberto;
             p["ok"] = (bool)p["ok"]! && j.RecortePranchaAberto;
+            if (j.JanelaDeRecorte is { Content: FrameworkElement recorte } janela)
+            {
+                await EsperarAteAsync(() => Task.FromResult(recorte.ActualWidth > 0 && janela.ProntaParaEscolher), 5000);
+                await CapturarXamlAsync(recorte, Path.Combine(pasta, "29b-recorte-prancha.png"));
+                var pdfPrancha = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_PRANCHA") ?? Path.Combine(pasta, "longo.pdf");
+                perguntas.ArquivoParaAbrir = pdfPrancha;
+                Invocar(janela.EscolherPdf);
+                if (!await EsperarAteAsync(() => Task.FromResult(janela.PaginaPronta && perguntas.ArquivoParaAbrir is null), 15000))
+                    throw new InvalidOperationException("O PDF de teste não abriu para recorte.");
+                ((IInvokeProvider)new AppBarButtonAutomationPeer(janela.SelecionarPagina).GetPattern(PatternInterface.Invoke)).Invoke();
+                if (!await EsperarAteAsync(() => Task.FromResult(janela.InserirRecorte.IsEnabled), 5000))
+                    throw new InvalidOperationException("Selecionar a página não habilitou a inserção.");
+                janela.SelecionarRegiao(.12, .18, .46, .54);
+                Invocar(janela.InserirRecorte);
+                var inserida = await EsperarAteAsync(() => Task.FromResult(j.EditorFiguraAberto && !j.RecortePranchaAberto), 30000);
+                p["recorte_inserido"] = inserida;
+                p["ok"] = (bool)p["ok"]! && inserida;
+                if (inserida)
+                {
+                    var nova = s.Revisao.Projeto.Figuras!.Single(f => f.Incluida && f.Id.StartsWith("fig_", StringComparison.Ordinal) && f.Recorte?["pdf"]?.ToString() == Path.GetFileName(pdfPrancha)).Id;
+                    var editorReal = j.EditorDeFigura!;
+                    var idRegiao = await editorReal.ConferirMarcacoesAsync();
+                    await CapturarXamlAsync((FrameworkElement)editorReal.Content, Path.Combine(pasta, "29b-prancha-marcada.png"));
+                    j.FecharEditorFigura();
+                    double[] caixaMovida = [.35, .25, .55, .45];
+                    var copia = Path.Combine(pasta, "figura-conferida.rpmvni");
+                    perguntas.ArquivoParaSalvar = copia;
+                    await j.ExecutarComandoAsync(ComandosApp.ArquivoSalvarComo);
+                    if (!await j.AbrirPacoteAsync(copia)) throw new InvalidOperationException("Falha ao reabrir o relatório com o recorte.");
+                    var salva = j.Sessao!.Revisao.Projeto.Figuras!.Single(f => f.Id == nova);
+                    using var pacoteConferido = System.IO.Compression.ZipFile.OpenRead(copia);
+                    using var recurso = pacoteConferido.GetEntry(salva.Imagem)!.Open();
+                    var cabecalhoPng = new byte[24];
+                    recurso.ReadExactly(cabecalhoPng);
+                    var larguraPng = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(cabecalhoPng.AsSpan(16, 4));
+                    var alturaPng = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(cabecalhoPng.AsSpan(20, 4));
+                    p["resolucao_real_200_dpi"] = larguraPng == (int)salva.Recorte!["largura_px"]! && alturaPng == (int)salva.Recorte["altura_px"]!;
+                    var regiao = salva.Buscar(idRegiao);
+                    var exportacao = await j.ExportarParaAsync(Path.Combine(pasta, "figura-conferida.pdf"));
+                    var folhasComRecorte = await j.Documento!.TextoPorFolhaAsync();
+                    var persistiu = regiao?.Caixa is { Length: 4 } caixa && caixa.Zip(caixaMovida).All(par => Math.Abs(par.First - par.Second) < .0001)
+                        && salva.Buscar("seta_recorte")?.Elemento == "Segundo ponto" && regiao.Texto == "Legenda de conferência"
+                        && salva.Buscar("texto_recorte")?.Texto == "Texto de conferência"
+                        && folhasComRecorte.Any(t => t.Contains("Legenda de conferência", StringComparison.Ordinal))
+                        && !j.Sessao.Atual!.Preparado.Render.Html.Contains("<span class=\"ids\">()</span>", StringComparison.Ordinal);
+                    p["recorte_reaberto_com_texto_legenda_e_regiao_movida"] = persistiu;
+                    p["ok"] = (bool)p["ok"]! && persistiu && exportacao.Item1 && (bool)p["resolucao_real_200_dpi"]!;
+                    await j.AbrirPacoteAsync(pacoteLongo);
+                    var marca = await JanelaAprovacao.ConferirNoRoteiroAsync(await File.ReadAllBytesAsync(pdfPrancha), pasta);
+                    p["aprovacao_navegacao_zoom_carimbo_confirmado"] = marca;
+                    p["ok"] = (bool)p["ok"]! && marca;
+                }
+            }
             j.FecharRecortePrancha();
             static int Ocorrencias(string texto, string trecho) => (texto.Length - texto.Replace(trecho, "", StringComparison.Ordinal).Length) / trecho.Length;
         });
@@ -2009,7 +2078,7 @@ internal static class Roteiro
             var s = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página Novo despacho não abriu: " + j.InfoMensagemAtual.Message);
             var origemOk = j.ModuloAtual == Modulo.Despachos && j.PaginaNovoDespachoVisivel && !j.PaginaDespachosVisivel && s.Passo == PassoNovoDespacho.Conteudo
                 && s.Processo?.Numero == 1 && Mesmo(s.CaminhoPacote, pmvrelD) && s.Etapa is { Nome: "DESPACHO 03 - 2099-03-10", Nova: true }
-                && !j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoCorrecao);
+                && j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoAprovacao);
             var exigencias = s.Rascunho!.Pendencias.Select(x => "ITEM " + x.Numero.ToString("D2", CultureInfo.InvariantCulture)).ToArray();
             p["exigencias"] = new JsonArray(exigencias.Select(x => (JsonNode)x).ToArray());
             var previa = j.NovoDespacho.TextoDaPrevia;
@@ -3202,9 +3271,12 @@ internal static class Roteiro
             var pendenteDurante = j.ExecucoesClaudePendentes.Count == 1;
             var etapasVistas = new List<string>();
             var painelDasEtapas = false;
+            var fasesDoHalo = new HashSet<double>();
             while (!e.Fim.IsCompleted)
             {
                 if (e.Situacao?.Etapa is { } et && (etapasVistas.Count == 0 || etapasVistas[^1] != et)) etapasVistas.Add(et);
+                if (Trabalhando.BrilhoDe(n.PainelClaude) is { ContornoVisivel: true, HaloVisivel: true, Progresso: { } fase })
+                    fasesDoHalo.Add(fase);
                 painelDasEtapas |= ReferenceEquals(j.ExecucaoMostrada, e) && n.PainelClaude.Visibility == Visibility.Visible;
                 await Esperar(100);
             }
@@ -3228,7 +3300,8 @@ internal static class Roteiro
                 && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Gemini, s.Caminho, fim.Pdf);
             p["infobar"] = j.InfoMensagem.Message;
             var semPendente = j.ExecucoesClaudePendentes.Count == 0;
-            var etapas = etapasVistas.Count >= 2 && etapasVistas[0] is "prepare" or "analyze" && etapasVistas[^1] == "final_review" && painelDasEtapas;
+            var etapas = etapasVistas.Count >= 2 && etapasVistas[0] is "prepare" or "analyze" && etapasVistas[^1] == "final_review" && painelDasEtapas && fasesDoHalo.Count >= 2;
+            p["posicoes_do_halo_no_contorno"] = fasesDoHalo.Count;
 
             // Chave: sem perfil escolhido o botão explica; com o perfil, pede a chave; nada é presumido nem trocado.
             await SemRelatorioAbertoAsync();
@@ -4721,6 +4794,107 @@ internal static class Roteiro
             p["comandos_sem_manipulador"] = new JsonArray(j.ComandosSemManipulador().Select(c => (JsonNode)c).ToArray());
             p["ok"] = tudoOk && j.ComandosSemManipulador().Count == 0;
             await j.MudarModuloAsync(Modulo.Relatorios);
+        });
+
+        await Passo("progresso_visivel_das_seis_etapas", p =>
+        {
+            var monitor = (PaginaNovoRelatorio)j.ElementoRaiz.FindName("PaginaDeNovoRelatorio");
+            var valores = new JsonArray();
+            var nome = SituacaoAnalisePro.NomeEtapa("documental");
+            (string Nome, EstadoEtapa Estado)[] etapas = Enumerable.Range(0, 6)
+                .Select(i => (i == 2 ? nome : $"Etapa {i + 1}", EstadoEtapa.Pendente)).ToArray();
+            monitor.MostrarProgresso(null);
+            monitor.MostrarResumo(true, null, etapas, []);
+            valores.Add(monitor.BarraResumoEtapas.Value);
+            etapas[0].Estado = etapas[1].Estado = EstadoEtapa.Feita;
+            etapas[2].Estado = EstadoEtapa.Agora;
+            monitor.MostrarResumo(true, null, etapas, []);
+            valores.Add(monitor.BarraResumoEtapas.Value);
+            monitor.MostrarProgresso(new ProgressoEtapa("documental", 1, 5, 10));
+            valores.Add(monitor.BarraResumoEtapas.Value);
+            for (var i = 0; i < etapas.Length; i++) etapas[i].Estado = EstadoEtapa.Feita;
+            monitor.MostrarResumo(false, null, etapas, []);
+            valores.Add(monitor.BarraResumoEtapas.Value);
+            monitor.MostrarResumo(true, null, [], []);
+            p["percentuais"] = valores;
+            p["ok"] = monitor.BarraResumoEtapas.IsIndeterminate && valores.Select(x => x!.GetValue<double>())
+                .Zip(new[] { 0d, 100d / 3, 250d / 6, 100d }).All(par => Math.Abs(par.First - par.Second) < 0.01);
+            monitor.MostrarResumo(false, null, [], []);
+            monitor.MostrarProgresso(null);
+            return Task.CompletedTask;
+        });
+
+        await Passo("historico_das_paginas", async p =>
+        {
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.MudarModuloAsync(Modulo.Legislacao);
+            await j.MudarModuloAsync(Modulo.Ajustes);
+            var voltar = (Button)j.ElementoRaiz.FindName("BotaoPesquisaAnterior");
+            var avancar = (Button)j.ElementoRaiz.FindName("BotaoPesquisaProxima");
+            Invocar(voltar);
+            var voltou = await EsperarAteAsync(() => Task.FromResult(j.ModuloAtual == Modulo.Legislacao && avancar.IsEnabled), 5000);
+            Invocar(avancar);
+            var avancou = await EsperarAteAsync(() => Task.FromResult(j.ModuloAtual == Modulo.Ajustes && voltar.IsEnabled), 5000);
+            Invocar(voltar);
+            await EsperarAteAsync(() => Task.FromResult(j.ModuloAtual == Modulo.Legislacao && avancar.IsEnabled), 5000);
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            p["ok"] = voltou && avancou && !avancar.IsEnabled;
+        });
+
+        await Passo("70_estabilidade_do_cabecalho", async p =>
+        {
+            var raiz = j.ElementoRaiz;
+            var campo = (FrameworkElement)raiz.FindName("MolduraPesquisa");
+            var busca = (TextBlock)raiz.FindName("TextoPesquisa");
+            var analise = (FrameworkElement)raiz.FindName("MolduraAnalise");
+            var botao = (FrameworkElement)raiz.FindName("BotaoAnalise");
+            var antes = j.AppWindow.Size;
+            var escala = raiz.XamlRoot?.RasterizationScale ?? throw new InvalidOperationException("A janela não está montada.");
+            var amostras = new JsonArray();
+            var recuos = new List<double>();
+            var desviosLaterais = new List<double>();
+            var folgas = new List<double>();
+            var moldura = (FrameworkElement)raiz.FindName("MolduraBarras");
+            var paginas = (FrameworkElement)raiz.FindName("AreaPaginas");
+            var relatorios = (PaginaRelatorios)raiz.FindName("Relatorios");
+            var barras = new[] { paginas, (FrameworkElement)relatorios.FindName("CorpoRelatorio"),
+                (FrameworkElement)relatorios.FindName("BarraRodape"), relatorios.AreaAvisos };
+            var alturas = new List<double>();
+            try
+            {
+                foreach (var largura in new[] { 1000, 1280, 1550 })
+                {
+                    j.AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(largura * escala), antes.Height));
+                    foreach (var ativo in new[] { false, true })
+                    {
+                        busca.Text = ativo ? "1 de 10" : "";
+                        analise.Visibility = botao.Visibility = ativo ? Visibility.Visible : Visibility.Collapsed;
+                        await Esperar(250);
+                        var centros = new[] { campo, (FrameworkElement)raiz.FindName("GrupoHistorico"), (FrameworkElement)raiz.FindName("GrupoOcorrencias") }
+                            .Select(e => e.TransformToVisual(raiz).TransformPoint(new Windows.Foundation.Point()).Y + e.ActualHeight / 2).ToArray();
+                        alturas.AddRange(centros);
+                        var extremidade = j.FaixaAtual.TransformToVisual(raiz).TransformPoint(new Windows.Foundation.Point(j.FaixaAtual.ActualWidth, 0)).X;
+                        recuos.Add(raiz.ActualWidth - extremidade);
+                        var origem = moldura.TransformToVisual(raiz).TransformPoint(new Windows.Foundation.Point()).X;
+                        folgas.Add(extremidade - j.FaixaAtual.ActualWidth - origem);
+                        folgas.Add(origem + moldura.ActualWidth - extremidade);
+                        foreach (var barra in barras)
+                        {
+                            var cantoPagina = barra.TransformToVisual(raiz).TransformPoint(new Windows.Foundation.Point());
+                            desviosLaterais.Add(Math.Abs(cantoPagina.X + barra.ActualWidth - extremidade));
+                            desviosLaterais.Add(Math.Abs(cantoPagina.X - (extremidade - j.FaixaAtual.ActualWidth)));
+                        }
+                        amostras.Add(new JsonObject { ["largura"] = raiz.ActualWidth, ["indicador"] = ativo, ["centro_y"] = centros[0], ["largura_pesquisa"] = campo.ActualWidth });
+                    }
+                }
+                p["amostras"] = amostras;
+                p["deslocamento_vertical_dip"] = alturas.Max() - alturas.Min();
+                p["recuo_direito_barra_dip"] = recuos.Min();
+                p["desalinhamento_lateral_dip"] = desviosLaterais.Max();
+                p["folga_entre_camadas_dip"] = folgas.Min();
+                p["ok"] = folgas.All(v => Math.Abs(v - 8) < 1) && desviosLaterais.Max() < 1 && alturas.Max() - alturas.Min() < 1 && recuos.All(valor => Math.Abs(valor - 13) < 1);
+            }
+            finally { j.AppWindow.Resize(antes); }
         });
 
         await j.FecharSessaoAsync();

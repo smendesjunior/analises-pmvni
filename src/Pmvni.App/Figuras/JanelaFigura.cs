@@ -32,6 +32,8 @@ internal sealed class JanelaFigura : Window
     readonly string figuraId;
 
     // ---------- controles ----------
+    readonly TextBlock tituloPrancha = PainelPrancha.Titulo("");
+    readonly TextBlock modoAtual = PainelPrancha.Titulo("Selecionar");
     readonly Grid raiz = new();
     readonly ScrollViewer rolagem = new() { ZoomMode = ZoomMode.Enabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MinZoomFactor = .1f, MaxZoomFactor = 8 };
     readonly Grid superficie = new() { Background = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
@@ -52,7 +54,7 @@ internal sealed class JanelaFigura : Window
     readonly Button botaoRemover = new() { Content = "Remover marcação" };
     // Um botão desabilitado não mostra dica: o motivo de não poder remover fica escrito embaixo dele.
     readonly TextBlock motivoRemover = new() { TextWrapping = TextWrapping.Wrap, Opacity = .8, Visibility = Visibility.Collapsed };
-    readonly TextBlock estado = new() { Opacity = .8, TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock estado = new() { HorizontalAlignment = HorizontalAlignment.Left, TextAlignment = TextAlignment.Left, Opacity = .8, TextWrapping = TextWrapping.Wrap };
     readonly AppBarButton botaoDesfazer = new() { Icon = new SymbolIcon(Symbol.Undo), Label = "Desfazer" };
     readonly AppBarButton botaoRefazer = new() { Icon = new SymbolIcon(Symbol.Redo), Label = "Refazer" };
     readonly AppBarButton botaoInserir = new() { Icon = new SymbolIcon(Symbol.Add), Label = "Inserir região da prancha" };
@@ -83,11 +85,37 @@ internal sealed class JanelaFigura : Window
         raiz.RequestedTheme = host.TemaAtual;
         sessao.Revisao.Registrado += AoRegistrar;
         Closed += (_, _) => { fechada = true; sessao.Revisao.Registrado -= AoRegistrar; };
-        try { AppWindow.Resize(new Windows.Graphics.SizeInt32(1400, 900)); } catch (Exception) { /* tamanho inicial é só conveniência */ }
+        raiz.Loaded += (_, _) => PainelPrancha.Dimensionar(this);
         Atualizar();
     }
 
     /// <summary>Id da figura editada.</summary>
+    internal async Task<string> ConferirMarcacoesAsync()
+    {
+        var m = medidas ?? throw new InvalidOperationException("A imagem da prancha ainda não está carregada.");
+        Escolher(FerramentaFigura.Regiao);
+        gesto.IniciarRegiao(m, m.ParaPixel(.10, .15));
+        var criar = (IncluirMarcacao)gesto.Concluir(figuraId, m.ParaPixel(.30, .35))!;
+        if (!await AplicarAsync(criar)) throw new InvalidOperationException("A região não foi inserida.");
+        Selecionar(criar.Marcacao);
+        Escolher(FerramentaFigura.Selecionar);
+        var marca = MarcasAtuais().Single(x => x.Id == criar.Marcacao);
+        gesto.IniciarArrasto(m, marca, AlcaFigura.Caixa, m.ParaPixel(.20, .25));
+        var destino = m.ParaPixel(.45, .35);
+        gesto.Mover(destino);
+        if (!await AplicarAsync(gesto.Concluir(figuraId, destino)!)) throw new InvalidOperationException("A região não se moveu.");
+        await AplicarAsync(new DefinirLegenda(figuraId, criar.Marcacao, "Detalhe da prancha", "Legenda de conferência"));
+        Escolher(FerramentaFigura.Seta);
+        await AplicarAsync(new IncluirMarcacao(figuraId, "seta_recorte", TiposMarcacao.Seta, Alvo: [.75, .40], Elemento: "Segundo ponto"));
+        Escolher(FerramentaFigura.Texto);
+        await AplicarAsync(new IncluirMarcacao(figuraId, "texto_recorte", TiposMarcacao.Texto, Posicao: [.65, .68], Texto: "Texto de conferência"));
+        Escolher(FerramentaFigura.Selecionar);
+        if (!camada.Children.OfType<Microsoft.UI.Xaml.Shapes.Path>().Any(p => p.Tag as string == "hachura")
+            || camada.Children.OfType<Grid>().Count(g => g.Children.OfType<Ellipse>().Any()) != 2)
+            throw new InvalidOperationException("A prévia não contém a hachura e os dois números.");
+        return criar.Marcacao;
+    }
+
     public string Figura => figuraId;
     internal bool PertenceASessao(SessaoEdicao atual) => sessao == atual;
 
@@ -104,12 +132,12 @@ internal sealed class JanelaFigura : Window
         raiz.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var colunaDetalhes = new ColumnDefinition();
         raiz.ColumnDefinitions.Add(colunaDetalhes);
-        raiz.SizeChanged += (_, e) => colunaDetalhes.Width = new GridLength(Math.Clamp(e.NewSize.Width * .30, 220, 360));
+        raiz.SizeChanged += (_, e) => colunaDetalhes.Width = new GridLength(Math.Clamp(e.NewSize.Width * .25, 220, 400));
 
         // Barra de ferramentas
         // Uma barra só, em grupos: origem (nova figura do PDF) | ferramentas de marcação | histórico | zoom | Concluir.
         // "Remover" deixou de ser ferramenta: a marcação selecionada sai pelo botão do painel ou pela tecla Del (eram três caminhos).
-        var cabecalho = new Grid();
+        var cabecalho = new Grid { Padding = new Thickness(12, 6, 4, 6) };
         cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var barra = new CommandBar { DefaultLabelPosition = CommandBarDefaultLabelPosition.Right, IsDynamicOverflowEnabled = true, HorizontalAlignment = HorizontalAlignment.Left };
@@ -163,8 +191,16 @@ internal sealed class JanelaFigura : Window
         rolagem.IsTabStop = true;
         rolagem.UseSystemFocusVisuals = false;
         rolagem.Style = (Style)Application.Current.Resources["PmvniRolagemFundoStyle"];
-        Grid.SetRow(rolagem, 1);
-        raiz.Children.Add(rolagem);
+        var faixaPrancha = new Grid { ColumnSpacing = 12 };
+        faixaPrancha.ColumnDefinitions.Add(new ColumnDefinition());
+        faixaPrancha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        faixaPrancha.Children.Add(tituloPrancha);
+        Grid.SetColumn(modoAtual, 1);
+        faixaPrancha.Children.Add(modoAtual);
+        var desenho = PainelPrancha.Quadro(faixaPrancha, rolagem, Symbol.Crop);
+        desenho.Margin = new Thickness(12, 12, 6, 12);
+        Grid.SetRow(desenho, 1);
+        raiz.Children.Add(desenho);
         // As alças têm tamanho fixo na tela: redesenha ao terminar uma mudança de zoom.
         rolagem.ViewChanged += (_, e) =>
         {
@@ -178,9 +214,9 @@ internal sealed class JanelaFigura : Window
         camada.PointerCaptureLost += (_, _) => { if (gesto.Ativo) CancelarArrasto(); };
 
         // Painel lateral
-        var painel = new StackPanel { Spacing = 8, Padding = new Thickness(12) };
+        var painel = new StackPanel { Spacing = 12, Padding = new Thickness(16) };
         painel.Children.Add(avisoGravadas);
-        painel.Children.Add(new TextBlock { Text = "Dados da figura", Style = (Style)Application.Current.Resources["PmvniTituloSecao"] });
+        painel.Children.Add(new TextBlock { Text = "DADOS DA FIGURA", HorizontalAlignment = HorizontalAlignment.Left, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
         painel.Children.Add(caixaPrancha);
         painel.Children.Add(caixaTitulo);
         painel.Children.Add(caixaFonte);
@@ -217,15 +253,19 @@ internal sealed class JanelaFigura : Window
         };
         botaoRemover.Click += async (_, _) => { if (selecionada is { } s) await AplicarAsync(new ExcluirMarcacao(figuraId, s)); };
         painel.Children.Add(painelMarcacao);
-        var lateral = new ScrollViewer { Content = painel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        var lateral = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         // A recusa fica fixa no alto da coluna, fora da rolagem: dentro dela, ficava escondida quando o painel estava rolado até o
         // "Remover marcação" e a alteração parecia simplesmente não acontecer.
-        var coluna = new Grid { Style = (Style)Application.Current.Resources["PmvniPainelLateral"], Margin = new Thickness(6, 4, 8, 4) };
+        var coluna = new Grid { Style = (Style)Application.Current.Resources["PmvniPainelLateral"], Margin = new Thickness(6, 12, 12, 12) };
         coluna.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         coluna.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         avisoErro.Margin = new Thickness(14, 10, 14, 0);
         coluna.Children.Add(avisoErro);
         Grid.SetRow(lateral, 1);
+        var detalhes = new Expander { Header = "Dados e marcações", IsExpanded = true,
+            HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = painel };
+        lateral.Content = detalhes;
         coluna.Children.Add(lateral);
         Grid.SetRow(coluna, 1);
         Grid.SetColumn(coluna, 1);
@@ -278,6 +318,7 @@ internal sealed class JanelaFigura : Window
     {
         CancelarArrasto();
         ferramenta = f;
+        modoAtual.Text = botoes.TryGetValue(f, out var botao) ? botao.Label : f.ToString();
         foreach (var (k, b) in botoes) b.IsChecked = k == f;
         if (f is FerramentaFigura.Regiao or FerramentaFigura.Seta && SemVagaDeNumero()) return;
         estado.Text = f switch
@@ -371,6 +412,7 @@ internal sealed class JanelaFigura : Window
             avisoGravadas.IsOpen = false;
             return;
         }
+        tituloPrancha.Text = string.Join("   ·   ", new[] { figura.TextoBase("prancha"), figura.TextoBase("titulo") }.Where(t => !string.IsNullOrWhiteSpace(t)));
         Title = MotorFigurasRotulo(p) + " — editar marcações";
         try
         {
@@ -554,11 +596,33 @@ internal sealed class JanelaFigura : Window
             var r = new Rectangle
             {
                 Width = c.X1 - c.X0, Height = c.Y1 - c.Y0, RadiusX = f.RaioCaixa, RadiusY = f.RaioCaixa,
-                Fill = new SolidColorBrush(Color.FromArgb(46, 0xC0, 0, 0)), Stroke = vermelho, StrokeThickness = m.Traco,
+                Fill = new SolidColorBrush(Color.FromArgb(26, 0xC0, 0, 0)),
             };
             Canvas.SetLeft(r, c.X0);
             Canvas.SetTop(r, c.Y0);
             camada.Children.Add(r);
+            var linhas = new PathGeometry();
+            // Mesmo padrão do SVG impresso. Cada diagonal tem y - x constante nas coordenadas da figura.
+            var passo = 9 * Math.Sqrt(2);
+            for (var k = Math.Ceiling((c.Y0 - c.X1) / passo); k * passo < c.Y1 - c.X0; k++)
+            {
+                var delta = k * passo;
+                var inicio = Math.Max(c.X0, c.Y0 - delta);
+                var fim = Math.Min(c.X1, c.Y1 - delta);
+                var diagonal = new PathFigure { StartPoint = new(inicio, inicio + delta), IsFilled = false };
+                diagonal.Segments.Add(new LineSegment { Point = new(fim, fim + delta) });
+                linhas.Figures.Add(diagonal);
+            }
+            camada.Children.Add(new Microsoft.UI.Xaml.Shapes.Path { Data = linhas, Stroke = vermelho, Opacity = .27,
+                StrokeThickness = 1, IsHitTestVisible = false, Tag = "hachura" });
+            foreach (var (cor, largura) in new[] { (branco, m.Halo), (vermelho, m.Traco) })
+            {
+                var contorno = new Rectangle { Width = r.Width, Height = r.Height, RadiusX = r.RadiusX, RadiusY = r.RadiusY,
+                    Stroke = cor, StrokeThickness = largura, IsHitTestVisible = false };
+                Canvas.SetLeft(contorno, c.X0);
+                Canvas.SetTop(contorno, c.Y0);
+                camada.Children.Add(contorno);
+            }
         }
         foreach (var (cor, largura, abertura) in new[] { (branco, (double)m.Halo, .42), (vermelho, (double)m.Traco, .32) })
         {

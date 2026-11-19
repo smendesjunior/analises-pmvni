@@ -68,7 +68,7 @@ internal interface IPerguntas
 
     /// <summary>Como a outra, já com o item <paramref name="selecionado"/> marcado (Enter confirma) e o texto do botão principal;
     /// <paramref name="botao"/> vazio = sem botão principal, o clique no item escolhe.</summary>
-    Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens, int selecionado, string botao) => EscolherNaListaAsync(titulo, texto, itens);
+    Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens, int selecionado, string botao, string secundario = "") => EscolherNaListaAsync(titulo, texto, itens);
 }
 
 internal static class Perguntas
@@ -225,7 +225,7 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
 
     public Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens) => EscolherNaListaAsync(titulo, texto, itens, -1, "Usar este");
 
-    public async Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens, int selecionado, string botao)
+    public async Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens, int selecionado, string botao, string secundario = "")
     {
         var lista = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 320 };
         foreach (var i in itens) lista.Items.Add(new TextBlock { Text = i, TextWrapping = TextWrapping.Wrap });
@@ -234,7 +234,7 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         painel.Children.Add(lista);
         var d = new ContentDialog
         {
-            XamlRoot = raiz(), Title = titulo, Content = painel, PrimaryButtonText = botao, CloseButtonText = "Cancelar",
+            XamlRoot = raiz(), Title = titulo, Content = painel, PrimaryButtonText = botao, SecondaryButtonText = secundario, CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Primary, IsPrimaryButtonEnabled = false,
         };
         lista.SelectionChanged += (_, _) => d.IsPrimaryButtonEnabled = lista.SelectedIndex >= 0;
@@ -250,7 +250,9 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
             await Mostrar(d);
             return clicado is >= 0 ? clicado : null;
         }
-        return await Mostrar(d) == ContentDialogResult.Primary && lista.SelectedIndex >= 0 ? lista.SelectedIndex : null;
+        var resultado = await Mostrar(d);
+        if (resultado == ContentDialogResult.Secondary) return itens.Count;
+        return resultado == ContentDialogResult.Primary && lista.SelectedIndex >= 0 ? lista.SelectedIndex : null;
     }
 
     public async Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao, bool destrutiva = true)

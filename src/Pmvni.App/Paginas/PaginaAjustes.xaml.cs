@@ -77,8 +77,10 @@ public sealed partial class PaginaAjustes : UserControl
         while (painel.RowDefinitions.Count > linhas) painel.RowDefinitions.RemoveAt(painel.RowDefinitions.Count - 1);
         for (int i = 0; i < painel.Children.Count; i++)
         {
-            Grid.SetRow((FrameworkElement)painel.Children[i], i / colunas);
-            Grid.SetColumn((FrameworkElement)painel.Children[i], i % colunas);
+            var cartao = (FrameworkElement)painel.Children[i];
+            cartao.VerticalAlignment = VerticalAlignment.Top;
+            Grid.SetRow(cartao, i / colunas);
+            Grid.SetColumn(cartao, i % colunas);
         }
     }
 

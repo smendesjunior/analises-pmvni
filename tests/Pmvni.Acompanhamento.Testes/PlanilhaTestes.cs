@@ -20,6 +20,22 @@ public sealed class PlanilhaTestes : IDisposable
 
     public void Dispose() { try { Directory.Delete(pasta, true); } catch (IOException) { } }
 
+    [Theory]
+    [InlineData("$AB$9")]
+    [InlineData("$AB9")]
+    [InlineData("AB$9")]
+    public void Le_referencias_absolutas_e_mistas(string endereco)
+    {
+        Assert.Equal((27, 9), Planilha.Referencia(endereco));
+    }
+
+    [Fact]
+    public void Copiar_formula_preserva_nomes_de_abas_e_colunas_de_tabela()
+    {
+        var formula = "'2026 A1'!B9+ABC1!C9+Tabela1[A1]";
+        Assert.Equal("'2026 A1'!B10+ABC1!C10+Tabela1[A1]", GravadorPlanilha.Deslocar(formula, 9, 10));
+    }
+
     [Fact]
     public void Le_colunas_listas_e_cores_da_planilha()
     {

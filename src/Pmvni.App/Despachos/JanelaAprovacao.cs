@@ -1,4 +1,8 @@
 using Microsoft.UI;
+using Microsoft.UI.Input;
+using Microsoft.UI.Xaml.Input;
+using Windows.Foundation;
+using Windows.System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -14,12 +18,26 @@ internal sealed record MarcacaoAprovacao(int Pagina, bool TemCarimbo, double X, 
 internal sealed class JanelaAprovacao : Window
 {
     readonly Grid raiz = new();
-    readonly Canvas folha = new();
+    sealed partial class FolhaInterativa : Canvas
+    {
+        readonly InputSystemCursor mao = InputSystemCursor.Create(InputSystemCursorShape.Hand);
+        readonly InputSystemCursor mira = InputSystemCursor.Create(InputSystemCursorShape.Cross);
+        internal void MostrarMao(bool navegar) => ProtectedCursor = navegar ? mao : mira;
+    }
+
+    readonly FolhaInterativa folha = new();
+    uint? ponteiroDeArraste;
+    Point inicioArraste;
+    double inicioHorizontal, inicioVertical;
     readonly Image pagina = new();
     readonly Image selo = new() { IsHitTestVisible = false, Opacity = .9, Visibility = Visibility.Collapsed };
     readonly TextBlock notas = new() { IsHitTestVisible = false, TextWrapping = TextWrapping.Wrap, Foreground = new SolidColorBrush(Colors.Black), Visibility = Visibility.Collapsed };
     readonly ScrollViewer vista = new() { ZoomMode = ZoomMode.Enabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MinZoomFactor = .1f, MaxZoomFactor = 5 };
     readonly TextBlock estado = new() { VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock orientacao = new() { TextAlignment = TextAlignment.Left, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock zoom = PainelPrancha.Titulo("100%");
+    readonly Button anterior, proxima;
+    readonly bool apenasRevisao;
     readonly TaskCompletionSource<MarcacaoAprovacao?> fim = new(TaskCreationOptions.RunContinuationsAsynchronously);
     readonly List<ObservacaoPrancha> personalizadas = [];
     List<ObservacaoPrancha> escolhidas = [];
@@ -39,13 +57,24 @@ internal sealed class JanelaAprovacao : Window
         Title = "Emitir Processo Aprovado — " + nome;
         raiz.RequestedTheme = tema;
         Content = raiz;
+        apenasRevisao = revisao is not null;
+        raiz.Style = (Style)Application.Current.Resources["PmvniFundoJanelaStyle"];
         raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         raiz.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        var barra = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(8) };
-        raiz.Children.Add(barra);
+        raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var topo = new Grid { Padding = new Thickness(16, 8, 16, 8), ColumnSpacing = 12 };
+        topo.ColumnDefinitions.Add(new ColumnDefinition());
+        topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var barra = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var ferramentas = new ScrollViewer { Content = barra, HorizontalScrollMode = ScrollMode.Enabled,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollMode = ScrollMode.Disabled, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        topo.Children.Add(ferramentas);
+        Grid.SetColumn(estado, 1);
+        topo.Children.Add(estado);
+        raiz.Children.Add(topo);
         Button Acao(string nomeBotao, Func<Task> executar)
         {
-            var botao = new Button { Content = nomeBotao };
+            var botao = new Button { Content = nomeBotao, MinHeight = 38 };
             botao.Click += async (_, _) =>
             {
                 if (carregando) return;
@@ -55,9 +84,10 @@ internal sealed class JanelaAprovacao : Window
             barra.Children.Add(botao);
             return botao;
         }
-        Acao("Anterior", () => ExibirAsync(indice - 1));
-        Acao("Próxima", () => ExibirAsync(indice + 1));
+        anterior = Acao("←  Anterior", () => ExibirAsync(indice - 1));
+        proxima = Acao("Próxima  →", () => ExibirAsync(indice + 1));
         Acao("−", () => { vista.ChangeView(null, null, Math.Max(.1f, vista.ZoomFactor / 1.25f)); return Task.CompletedTask; });
+        barra.Children.Add(zoom);
         Acao("+", () => { vista.ChangeView(null, null, Math.Min(5, vista.ZoomFactor * 1.25f)); return Task.CompletedTask; });
         if (revisao is not null)
         {
@@ -72,7 +102,7 @@ internal sealed class JanelaAprovacao : Window
         }
         else
         {
-            Acao("Carimbo Aprovado", () => { modo = Colocacao.Selo; return Task.CompletedTask; });
+            Acao("Carimbo aprovado", () => { modo = Colocacao.Selo; Atualizar(); return Task.CompletedTask; }).Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"];
             Acao("Adicionar observações", EscolherNotasAsync);
             Acao("Desfazer", () =>
             {
@@ -81,7 +111,7 @@ internal sealed class JanelaAprovacao : Window
                 modo = Colocacao.Nenhuma; Atualizar(); return Task.CompletedTask;
             });
             barra.Children.Add(confirmar);
-            barra.Children.Add(estado);
+            confirmar.MinHeight = 38;
             confirmar.Click += (_, _) =>
             {
                 if (!confirmar.IsEnabled) return;
@@ -104,21 +134,82 @@ internal sealed class JanelaAprovacao : Window
         folha.Background = new SolidColorBrush(Colors.White);
         folha.Children.Add(pagina); folha.Children.Add(selo); folha.Children.Add(notas);
         vista.Content = folha;
-        Grid.SetRow(vista, 1); raiz.Children.Add(vista);
+        vista.HorizontalContentAlignment = HorizontalAlignment.Center;
+        vista.VerticalContentAlignment = VerticalAlignment.Center;
+        vista.Style = (Style)Application.Current.Resources["PmvniRolagemFundoStyle"];
+        vista.ViewChanged += (_, _) => zoom.Text = vista.ZoomFactor.ToString("P0");
+        var quadro = PainelPrancha.Quadro(PainelPrancha.Titulo("PRANCHA ARQUITETÔNICA     ·     Visualização do PDF original"), vista, Symbol.Document);
+        quadro.Margin = new Thickness(12);
+        Grid.SetRow(quadro, 1);
+        raiz.Children.Add(quadro);
+        orientacao.Margin = new Thickness(20, 8, 20, 12);
+        Grid.SetRow(orientacao, 2);
+        raiz.Children.Add(orientacao);
         selo.Width = CarimboAprovado.LarguraPt * DipPorPonto; selo.Height = CarimboAprovado.AlturaPt * DipPorPonto;
+        folha.PointerWheelChanged += (_, e) =>
+        {
+            if (!e.KeyModifiers.HasFlag(VirtualKeyModifiers.Shift) || carregando || pagina.Source is null) return;
+            var ponto = e.GetCurrentPoint(folha);
+            ZoomNoPonto(ponto.Position, e.GetCurrentPoint(vista).Position, ponto.Properties.MouseWheelDelta);
+            e.Handled = true;
+        };
         folha.PointerMoved += (_, e) =>
         {
-            var p = e.GetCurrentPoint(folha).Position;
-            if (modo != Colocacao.Nenhuma) Posicionar(p.X, p.Y, false);
+            if (ponteiroDeArraste == e.Pointer.PointerId)
+            {
+                ArrastarAte(e.GetCurrentPoint(vista).Position);
+                e.Handled = true;
+            }
+            else if (modo != Colocacao.Nenhuma && !carregando)
+            {
+                var p = e.GetCurrentPoint(folha).Position;
+                Posicionar(p.X, p.Y, false);
+            }
         };
         folha.PointerPressed += (_, e) =>
         {
             var p = e.GetCurrentPoint(folha);
-            if (modo == Colocacao.Nenhuma || !p.Properties.IsLeftButtonPressed) return;
-            Posicionar(p.Position.X, p.Position.Y, true); e.Handled = true;
+            if (!p.Properties.IsLeftButtonPressed || carregando || pagina.Source is null) return;
+            if (modo != Colocacao.Nenhuma) Posicionar(p.Position.X, p.Position.Y, true);
+            else if (e.Pointer.PointerDeviceType == PointerDeviceType.Mouse && folha.CapturePointer(e.Pointer))
+            {
+                ponteiroDeArraste = e.Pointer.PointerId;
+                IniciarArraste(e.GetCurrentPoint(vista).Position);
+            }
+            else return;
+            e.Handled = true;
         };
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(1350, 900));
+        folha.PointerReleased += (_, e) =>
+        {
+            if (ponteiroDeArraste != e.Pointer.PointerId) return;
+            ArrastarAte(e.GetCurrentPoint(vista).Position);
+            ponteiroDeArraste = null;
+            folha.ReleasePointerCapture(e.Pointer);
+            e.Handled = true;
+        };
+        folha.PointerCaptureLost += (_, e) => { if (ponteiroDeArraste == e.Pointer.PointerId) ponteiroDeArraste = null; };
+        folha.PointerCanceled += (_, e) => { if (ponteiroDeArraste == e.Pointer.PointerId) ponteiroDeArraste = null; };
+        raiz.Loaded += (_, _) => PainelPrancha.Dimensionar(this);
+        Atualizar();
     }
+
+    void ZoomNoPonto(Point naFolha, Point naVista, int delta)
+    {
+        var fator = (float)Math.Clamp(vista.ZoomFactor * Math.Pow(1.25, delta / 120.0), vista.MinZoomFactor, vista.MaxZoomFactor);
+        var horizontal = Math.Clamp(naFolha.X * fator - naVista.X, 0, Math.Max(0, folha.Width * fator - vista.ViewportWidth));
+        var vertical = Math.Clamp(naFolha.Y * fator - naVista.Y, 0, Math.Max(0, folha.Height * fator - vista.ViewportHeight));
+        vista.ChangeView(horizontal, vertical, fator, disableAnimation: true);
+    }
+
+    void IniciarArraste(Point ponto)
+    {
+        inicioArraste = ponto;
+        inicioHorizontal = vista.HorizontalOffset;
+        inicioVertical = vista.VerticalOffset;
+    }
+
+    void ArrastarAte(Point ponto) => vista.ChangeView(inicioHorizontal + inicioArraste.X - ponto.X,
+        inicioVertical + inicioArraste.Y - ponto.Y, null, disableAnimation: true);
 
     void Posicionar(double px, double py, bool aceita)
     {
@@ -142,12 +233,23 @@ internal sealed class JanelaAprovacao : Window
 
     void Atualizar()
     {
+        folha.MostrarMao(modo == Colocacao.Nenhuma);
         selo.Visibility = paginaSelo == indice ? Visibility.Visible : Visibility.Collapsed;
         notas.Visibility = paginaNotas == indice ? Visibility.Visible : Visibility.Collapsed;
         Canvas.SetLeft(selo, x); Canvas.SetTop(selo, y); Canvas.SetLeft(notas, nx); Canvas.SetTop(notas, ny);
         confirmar.IsEnabled = !carregando && (paginaSelo == indice || paginaNotas == indice)
             && (paginaSelo < 0 || paginaSelo == indice) && (escolhidas.Count == 0 || paginaNotas == indice);
-        estado.Text = $"Página {indice + 1} de {pdf?.PageCount}";
+        anterior.IsEnabled = !carregando && indice > 0;
+        proxima.IsEnabled = !carregando && pdf is not null && indice + 1 < pdf.PageCount;
+        estado.Text = pdf is null ? "Carregando…" : $"Página {indice + 1} de {pdf.PageCount}";
+        orientacao.Text = modo switch
+        {
+            Colocacao.Selo => "Clique na prancha para posicionar o carimbo de aprovação.",
+            Colocacao.Notas => "Clique na prancha para posicionar as observações.",
+            _ when apenasRevisao => "Confira a prancha e escolha se deseja acrescentar uma marcação.",
+            _ when confirmar.IsEnabled => "Prancha preparada para confirmação.",
+            _ => "Arraste para mover a prancha. Use Shift + roda para ampliar ou reduzir. Selecione o carimbo ou as observações para posicioná-los.",
+        };
     }
 
     async Task EscolherNotasAsync()
@@ -190,7 +292,7 @@ internal sealed class JanelaAprovacao : Window
             folha.Height = pagina.Height = tamanho.Altura * DipPorPonto;
             pagina.Stretch = Stretch.Fill;
             pagina.Source = imagem; indice = nova; modo = Colocacao.Nenhuma;
-            vista.ChangeView(0, 0, (float)Math.Clamp(Math.Min(1050 / p.Size.Width, 720 / p.Size.Height), .1, 1));
+            vista.ChangeView(0, 0, (float)Math.Clamp(Math.Min(Math.Max(1, vista.ActualWidth - 24) / folha.Width, Math.Max(1, vista.ActualHeight - 24) / folha.Height), .1, 1));
         }
         finally { carregando = false; Atualizar(); }
     }
@@ -211,7 +313,41 @@ internal sealed class JanelaAprovacao : Window
         catch { janela.Close(); throw; }
     }
 
-    public static async Task<MarcacaoAprovacao?> SelecionarAsync(byte[] bytes, string nome, ElementTheme tema)
+    internal static async Task<bool> ConferirNoRoteiroAsync(byte[] bytes, string pasta)
+    {
+        var resultado = await SelecionarAsync(bytes, "Prancha de teste.pdf", ElementTheme.Light, async janela =>
+        {
+            if (janela.pdf!.PageCount < 2) throw new InvalidOperationException("O teste de navegação precisa de duas páginas.");
+            await janela.ExibirAsync(1);
+            if (!janela.anterior.IsEnabled || janela.indice != 1) throw new InvalidOperationException("A navegação não mudou a página.");
+            await janela.ExibirAsync(0);
+            await Roteiro.CapturarXamlAsync(janela.raiz, Path.Combine(pasta, "29b-emissao.png"));
+            var fator = janela.vista.ZoomFactor;
+            var centro = new Point(janela.folha.Width / 2, janela.folha.Height / 2);
+            var ponteiro = new Point(janela.vista.ViewportWidth / 2, janela.vista.ViewportHeight / 2);
+            janela.ZoomNoPonto(centro, ponteiro, 360);
+            await Task.Delay(150);
+            if (janela.vista.ZoomFactor <= fator || janela.confirmar.IsEnabled) throw new InvalidOperationException("Falha no zoom ou na confirmação inicial.");
+            janela.IniciarArraste(ponteiro);
+            var xAntes = janela.vista.HorizontalOffset;
+            var yAntes = janela.vista.VerticalOffset;
+            janela.ArrastarAte(new Point(ponteiro.X - 30, ponteiro.Y - 20));
+            await Task.Delay(150);
+            if (janela.vista.HorizontalOffset <= xAntes && janela.vista.VerticalOffset <= yAntes)
+                throw new InvalidOperationException("O arraste não deslocou a prancha ampliada.");
+            janela.ZoomNoPonto(centro, ponteiro, -120);
+            await Task.Delay(150);
+            janela.modo = Colocacao.Selo;
+            janela.Posicionar(45, 55, true);
+            if (!janela.confirmar.IsEnabled) throw new InvalidOperationException("O carimbo não habilitou a confirmação.");
+            var peer = new Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer(janela.confirmar);
+            ((Microsoft.UI.Xaml.Automation.Provider.IInvokeProvider)peer.GetPattern(Microsoft.UI.Xaml.Automation.Peers.PatternInterface.Invoke)).Invoke();
+        });
+        return resultado is { Pagina: 0, TemCarimbo: true } && Math.Abs(resultado.X - 45 / DipPorPonto) < .01;
+    }
+
+    public static async Task<MarcacaoAprovacao?> SelecionarAsync(byte[] bytes, string nome, ElementTheme tema,
+        Func<JanelaAprovacao, Task>? aoCarregar = null)
     {
         var janela = new JanelaAprovacao(nome, tema);
         janela.Activate();
@@ -229,6 +365,7 @@ internal sealed class JanelaAprovacao : Window
             await pag.RenderToStreamAsync(imagem, new PdfPageRenderOptions { DestinationWidth = 700 });
             imagem.Seek(0); var bmp = new BitmapImage(); await bmp.SetSourceAsync(imagem); janela.selo.Source = bmp;
             await janela.ExibirAsync(0);
+            if (aoCarregar is not null) await aoCarregar(janela);
             return await janela.fim.Task;
         }
         catch { janela.Close(); throw; }

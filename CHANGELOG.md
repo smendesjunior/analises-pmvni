@@ -2,6 +2,13 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 2.1.1
+
+- Descarte análises interrompidas diretamente no diálogo de retomada.
+- Abra o aplicativo Claude em Ajustes e receba listas atualizadas de modelos de IA automaticamente.
+- Os cartões de Ajustes acompanham o conteúdo. A ponte local do Gemini tenta outra porta quando a primeira está indisponível.
+- O relatório ganhou controle de zoom, navegação por histórico e melhorias nas figuras, nos despachos e no alinhamento das barras.
+
 ## 2.0.0
 
 - Novo ícone de prancha técnica com lupa e trilho de módulos mais compacto.

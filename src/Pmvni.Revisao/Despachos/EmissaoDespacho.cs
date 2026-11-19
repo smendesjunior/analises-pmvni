@@ -54,7 +54,7 @@ public static class EmissaoDespacho
         try { modelo = File.ReadAllBytes(m.Caminho); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return Erro(ModeloMudou); }
         if (!string.Equals(RegistroModelos.Sha(modelo), m.Sha256, StringComparison.OrdinalIgnoreCase)) return Erro(ModeloMudou);
-        modelo = PreenchimentoDocx.ComProfissional(TimbreVetorial.Aplicar(modelo), Pmvni.Composicao.Profissional.Atual);   // assinatura do profissional dos Ajustes
+        modelo = PreenchimentoDocx.ComProfissional(modelo, Pmvni.Composicao.Profissional.Atual);   // assinatura do profissional dos Ajustes
 
         var docx = PreenchimentoDocx.Preencher(modelo, d);
         var erros = ValidacaoDespacho.Comparar(modelo, docx).Concat(ValidacaoDespacho.Conteudo(modelo, docx, d)).ToList();

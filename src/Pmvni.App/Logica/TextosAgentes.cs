@@ -102,7 +102,7 @@ public static class TextosAgentes
     // ---------- cartões no padrão do WinStatusBar (correções 2026-11-15) ----------
 
     /// <summary>O nome no alto do cartão (o programa que o editor inicia).</summary>
-    public static string NomeDoServico(Provedor p) => p switch { Provedor.ChatGpt => "Codex (ChatGPT)", Provedor.Claude => "Claude Code", _ => "Antigravity (Gemini)" };
+    public static string NomeDoServico(Provedor p) => p switch { Provedor.ChatGpt => "Codex (ChatGPT)", Provedor.Claude => "Claude", _ => "Antigravity (Gemini)" };
 
     /// <summary>O link da conta embaixo do e-mail.</summary>
     public static string RotuloConta(Provedor p) => p switch { Provedor.ChatGpt => "Conta OpenAI", Provedor.Claude => "Conta Anthropic", _ => "Conta Google" };

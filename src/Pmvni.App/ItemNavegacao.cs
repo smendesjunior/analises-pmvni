@@ -29,6 +29,16 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
     public int Folha { get; } = folha;
     public string? Ref { get; } = @ref;
     public bool Secao { get; } = secao;
+    public string IconeSecao => Rotulo.Contains("localiza", StringComparison.OrdinalIgnoreCase) ? "\uE707" : "\uE8A5";
+    public Visibility IconeSecaoVisivel => Secao && Contagem == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Brush CorSituacao
+    {
+        get
+        {
+            var argb = EtiquetasSituacao.Cores(Situacao, false)?.Ponto ?? 0;
+            return new SolidColorBrush(Windows.UI.Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb));
+        }
+    }
     public string FolhaTexto => "FOLHA " + Folha.ToString("00", CultureInfo.InvariantCulture);
     public FontWeight Peso => Secao ? FontWeights.SemiBold : FontWeights.Normal;
     public double TamanhoTitulo => Secao ? 14 : 13;
@@ -43,8 +53,7 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
     /// situação como bolinha antes do título; confortável = título em até duas linhas e a etiqueta da situação embaixo (como antes).
     /// A lista é remontada a cada filtro ou troca do ajuste, e os itens leem o valor na hora.</summary>
     public static bool Compacta { get; set; } = true;
-    public bool ListaCompacta => Compacta;
-    public bool ListaConfortavel => !Compacta;
+    public int OrdemNoFiltro { get; set; }
     public int LinhasTitulo => Compacta ? 1 : 2;
     public TextWrapping QuebraTitulo => Compacta ? TextWrapping.NoWrap : TextWrapping.WrapWholeWords;
 
@@ -61,7 +70,7 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
     public int Contagem
     {
         get => contagem;
-        set { if (contagem == value) return; contagem = value; Avisar(nameof(Contagem), nameof(ContagemTexto), nameof(ContagemVisivel), nameof(ChevronVisivel)); }
+        set { if (contagem == value) return; contagem = value; Avisar(nameof(Contagem), nameof(ContagemTexto), nameof(ContagemVisivel), nameof(ChevronVisivel), nameof(IconeSecaoVisivel)); }
     }
 
     public string ContagemTexto => Contagem.ToString(CultureInfo.InvariantCulture);

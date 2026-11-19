@@ -15,6 +15,7 @@
   <ItemGroup>
     <!-- Gerado por web/paginador (npm run build) e commitado: dotnet build não precisa de Node. -->
     <EmbeddedResource Include="web\paginador.js" LogicalName="paginador.js" />
+    <InternalsVisibleTo Include="Pmvni.Verificador" />
     <InternalsVisibleTo Include="Pmvni.Web.Testes" />
   </ItemGroup>
 </Project>

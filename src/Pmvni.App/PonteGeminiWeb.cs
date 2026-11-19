@@ -9,35 +9,43 @@ namespace Pmvni.App;
 internal sealed class PonteGeminiWeb : IDisposable
 {
     readonly WebView2 web;
-    readonly HttpListener servidor = new();
+    readonly HttpListener servidor;
     readonly CancellationTokenSource encerramento = new();
     readonly string token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     readonly string arquivo;
     string? sessao;
     int ocupado;
+    int fechada;
 
     public PonteGeminiWeb(WebView2 web, string pasta)
     {
         this.web = web;
         arquivo = Path.Combine(pasta, "ponte-web.json");
+        int porta;
+        for (var tentativa = 1; ; tentativa++)
+        {
+            porta = RandomNumberGenerator.GetInt32(49152, 65536);
+            servidor = new HttpListener();
+            servidor.Prefixes.Add($"http://127.0.0.1:{porta}/");
+            try { servidor.Start(); }
+            catch (HttpListenerException ex)
+            {
+                servidor.Close();
+                if (tentativa < 5) continue;
+                encerramento.Dispose();
+                throw new IOException("Não foi possível abrir a conexão local do Gemini. " + ex.Message, ex);
+            }
+            break;
+        }
         try
         {
-            for (var tentativa = 0; ; tentativa++)
+            var temporario = arquivo + "." + Guid.NewGuid().ToString("N");
+            try
             {
-                int porta = RandomNumberGenerator.GetInt32(49152, 65536);
-                servidor.Prefixes.Clear();
-                servidor.Prefixes.Add($"http://127.0.0.1:{porta}/");
-                try { servidor.Start(); }
-                catch (HttpListenerException) when (tentativa < 4) { continue; }
-                var temporario = arquivo + "." + Guid.NewGuid().ToString("N");
-                try
-                {
-                    File.WriteAllText(temporario, JsonSerializer.Serialize(new { port = porta, token }));
-                    File.Move(temporario, arquivo, true);
-                }
-                finally { File.Delete(temporario); }
-                break;
+                File.WriteAllText(temporario, JsonSerializer.Serialize(new { port = porta, token }));
+                File.Move(temporario, arquivo, true);
             }
+            finally { File.Delete(temporario); }
             _ = Task.Run(ReceberAsync);
         }
         catch
@@ -108,6 +116,7 @@ internal sealed class PonteGeminiWeb : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref fechada, 1) != 0) return;
         encerramento.Cancel();
         servidor.Close();
         // Se outra instância abriu uma ponte depois desta, preserve o descritor dela.

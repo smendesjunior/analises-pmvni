@@ -177,6 +177,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     {
         ligado[id] = sim;
         if (alternaveis.TryGetValue(id, out var t)) t.IsChecked = sim;
+        if (id == ComandosApp.InicioOriginal && visiveis.TryGetValue(id, out var original)) IndicarOriginal(original, sim);
     }
 
     /// <summary>O texto dinâmico do comando (ex.: por que ele está desabilitado). A dica mostra sempre nome, atalho e a descrição de
@@ -355,6 +356,38 @@ public sealed partial class FaixaDeOpcoes : UserControl
     string? AtalhoLegivel(string id) =>
         Atalhos.Tecla(id, definicao?.Modulo ?? Modulo.Relatorios) is { } tecla ? Atalhos.Legivel(tecla) : null;
 
+    static void IndicarOriginal(AppBarButton botao, bool ativo)
+    {
+        if (botao.Icon is FontIcon icone) icone.Glyph = ativo ? Glifos.Marca : Glifos.Original;
+        AutomationProperties.SetItemStatus(botao, ativo ? "Exibindo o original" : "Exibindo a revisão");
+    }
+
+    internal double DesalinhamentoOriginal()
+    {
+        var comandos = new[] { ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal, ComandosApp.InicioRestaurarOriginal };
+        var medidas = comandos.Select(id =>
+        {
+            var botao = visiveis[id];
+            var texto = (FrameworkElement)Descendente(botao, "TextLabel")!;
+            var y = texto.TransformToVisual(Barra).TransformPoint(new Windows.Foundation.Point()).Y;
+            var topo = botao.TransformToVisual(Barra).TransformPoint(new Windows.Foundation.Point()).Y;
+            var icone = (FrameworkElement)botao.Icon;
+            var yIcone = icone.TransformToVisual(Barra).TransformPoint(new Windows.Foundation.Point()).Y;
+            return (y, topo, botao.ActualHeight, yIcone);
+        }).ToArray();
+        return new[] { medidas.Max(x => x.y) - medidas.Min(x => x.y), medidas.Max(x => x.topo) - medidas.Min(x => x.topo),
+            medidas.Max(x => x.ActualHeight) - medidas.Min(x => x.ActualHeight), medidas.Max(x => x.yIcone) - medidas.Min(x => x.yIcone) }.Max();
+    }
+
+    static void AlinharRotulo(Control controle)
+    {
+        controle.Loaded += (_, _) =>
+        {
+            if (Descendente(controle, "TextLabel") is UIElement texto)
+                texto.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -3 };
+        };
+    }
+
     ICommandBarElement Botao(ComandoFaixa c)
     {
         var icone = new FontIcon { Glyph = c.Glifo };
@@ -363,12 +396,12 @@ public sealed partial class FaixaDeOpcoes : UserControl
         var dica = TextoDaDica(c.Id);
         // O nome acessível é o texto completo (o rótulo pode ter sido encurtado para caber na faixa).
         var nome = rotulos.ContainsKey(c.Id) ? rotulo : c.Descricao ?? rotulo;
-        if (c.Tipo == TipoComando.Alternar)
+        if (c.Tipo == TipoComando.Alternar && c.Id != ComandosApp.InicioOriginal)
         {
             var t = new AppBarToggleButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id), IsChecked = ligado.TryGetValue(c.Id, out var l) && l };
             AutomationProperties.SetName(t, nome);
             t.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
-            Pilulas.Estilizar(t); // ligado acende na cor de destaque, como no WinStatusBar
+            Pilulas.Estilizar(t);
             Dicas.Aplicar(t, dica);
             t.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);
             alternaveis[c.Id] = t;
@@ -378,7 +411,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         Colorir(icone, b);
         // Correções 2026-11-15: o estado "rótulo à direita" do WinUI anima a margem do texto para 16/10 (StaticResource, não dá para
         // trocar pelo recurso); o texto sobe 3 px por transformação (a animação não mexe nela) e fica na linha do ícone e do primário.
-        b.Loaded += (_, _) => { if (Descendente(b, "TextLabel") is UIElement rotuloTexto) rotuloTexto.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -3 }; };
+        AlinharRotulo(b);
         if (atalho is not null) b.KeyboardAcceleratorTextOverride = atalho;
         // A dica automática do atalho (só "Ctrl+O") não pode tomar o lugar da dica do app, que já traz o atalho no título.
         b.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
@@ -406,6 +439,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             b.Flyout = menu;
         }
         else b.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);
+        if (c.Id == ComandosApp.InicioOriginal) IndicarOriginal(b, Ligado(c.Id));
         visiveis[c.Id] = b;
         return b;
     }

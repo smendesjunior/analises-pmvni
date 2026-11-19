@@ -27,7 +27,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 {
     const string TituloPadrao = "Análise de Projetos – PMVNI";
     /// <summary>O título fixo da barra (a marca é o brasão ao lado); o documento aberto vai no subtítulo.</summary>
-    const string TituloDaBarra = "Análise de Projetos";
     static readonly double[] PassosZoom = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
     static readonly TimeSpan LimiteTela = TimeSpan.FromSeconds(15);
 
@@ -42,6 +41,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     Modulo moduloAtual = Modulo.Relatorios;
     bool ocupado, fechada, fecharDeVez, fechando;
     double zoom = 1;
+    bool sincronizandoZoom, enviandoZoom;
+    double? zoomSolicitado;
     string modoZoom = "manual"; // manual | largura | pagina
     int folhaAtual, totalFolhas;
     bool mudandoCaixaFolha;
@@ -60,7 +61,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal string TextoEstadoAtual => textoEstado;
     /// <summary>O título do documento aberto ("Proc. NNNN/AAAA · Requerente"), ou o nome do app sem relatório.</summary>
     internal string TextoTituloAtual => textoTitulo;
-    internal string TextoBarraTitulo => TextoMarca.Text;
     /// <summary>O que o cabeçalho mostra depois da marca: processo, requerente e estado de gravação ("" sem relatório).</summary>
     internal string TextoSubtituloBarra => string.Join(" · ", new[] { TextoProcesso.Text, TextoRequerente.Text, textoEstado }.Where(x => x.Length > 0));
     internal string TextoComposicaoAtual => R.TextoComposicao.Text;
@@ -132,6 +132,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(BarraTitulo);
+        MolduraPesquisa.Tapped += (_, _) => CaixaPesquisa.Focus(FocusState.Pointer);
         CaixaPesquisa.GotFocus += (_, _) => MolduraPesquisa.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
         CaixaPesquisa.LostFocus += (_, _) => MolduraPesquisa.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
@@ -171,6 +172,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         });
         R.ListaNavegacao.ItemsSource = itensNavegacao;
         R.ListaNavegacao.ItemClick += AoClicarItem;
+        R.ControleZoom.ValueChanged += (_, e) =>
+        {
+            if (!sincronizandoZoom && R.ControleZoom.IsEnabled)
+            {
+                zoomSolicitado = e.NewValue / 100;
+                if (!enviandoZoom) Soltar(AplicarZoomDoControleAsync);
+            }
+        };
         R.BotaoMenos.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.ExibirMenos);
         R.BotaoMais.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.ExibirMais);
         R.BotaoLargura.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.ExibirLargura);
@@ -304,16 +313,17 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
         Faixa.Compacta = ajustes.FaixaRotulos switch { "sempre" => false, "icones" => true, _ => largura < 1000 };
-        // Redesign do cabeçalho (2026-11-17): o título fica enquanto der; AjustarPesquisa encolhe antes a pesquisa, depois os rótulos de
-        // Anterior/Próxima, os textos da pílula da análise e, por último, o título (o brasão nunca sai).
-        TextoMarca.Visibility = DivisoriaMarca.Visibility = Visibility.Visible;
+        MarcaPrefeitura.MaxWidth = largura < 1100 ? 369.6 : 488.4;
         TextosAnalise.Visibility = Visibility.Visible;
         BlocoProcesso.MaxWidth = largura < 1250 ? 180 : 300;
         // Auditoria de interface (2026-11-17): em 1366 px a 125% os rótulos cortavam ("Próxim", "Pes"); abaixo de 1300 ficam só os
         // ícones (a dica e o Narrador continuam com o nome).
         RotuloAnterior.Visibility = RotuloProximo.Visibility = largura < 1300 ? Visibility.Collapsed : Visibility.Visible;
         // Ainda mais estreita: o selo fica só com o ícone (o texto vai na dica) e o requerente sai do cabeçalho (fica na dica do processo).
-        TextoGravacao.Visibility = largura < 1300 ? Visibility.Collapsed : Visibility.Visible;
+        var seloCompacto = largura < 1300;
+        TextoGravacao.Visibility = seloCompacto ? Visibility.Collapsed : Visibility.Visible;
+        SeloGravacao.Width = seloCompacto ? 32 : double.NaN;
+        SeloGravacao.Padding = seloCompacto ? new Thickness(0) : new Thickness(10, 0, 10, 0);
         AjustarPesquisa(largura);
         if (sessao is not null) AjustarPropriedadesALargura();
     }
@@ -340,7 +350,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         var esquerda = AppWindow.TitleBar.LeftInset;
         if (direita <= esquerda) return;
 
-        controlesDaBarraDeTitulo ??= [BotaoAnalise, BotaoDesfazer, BotaoRefazer, CaixaPesquisa,
+        controlesDaBarraDeTitulo ??= [BotaoAnalise, BotaoDesfazer, BotaoRefazer, MolduraPesquisa,
             BotaoPesquisaAnterior, BotaoPesquisaProxima];
         var regioes = new List<RectInt32>(controlesDaBarraDeTitulo.Length);
         foreach (var controle in controlesDaBarraDeTitulo)
@@ -365,12 +375,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (largura <= 0) return;
         RotuloDesfazer.Visibility = RotuloRefazer.Visibility = largura >= 1240 ? Visibility.Visible : Visibility.Collapsed;
         double Largura(FrameworkElement e) => e.Visibility == Visibility.Visible ? e.ActualWidth + e.Margin.Left + e.Margin.Right : 0;
-        var ocupado = Largura(CabecalhoEsquerdo) + Largura(MolduraAnalise) + Largura(GrupoHistorico) + Largura(TextoPesquisa) + Largura(GrupoOcorrencias);
+        var ocupado = Largura(CabecalhoEsquerdo) + Largura(MolduraAnalise) + Largura(GrupoHistorico) + Largura(GrupoOcorrencias);
         var botoesDaJanelaEFolgas = MargemSistemaEsquerda.Width.Value + MargemSistemaDireita.Width.Value + 84;
         var sobra = largura - ocupado - botoesDaJanelaEFolgas;
         // Sem espaço para a caixa (2026-11-17: "Próxima" cortado na borda): primeiro os rótulos de Anterior/Próxima saem (ficam os ícones,
-        // com a dica e o nome para o Narrador); depois os textos da pílula da análise (fica o anel, com o texto na dica); por último o
-        // título "Análise de Projetos" (o brasão fica). A caixa ganha o espaço de cada um.
+        // com a dica e o nome para o Narrador); depois os textos da pílula da análise (fica o anel, com o texto na dica); a caixa de pesquisa usa o espaço liberado.
         if (sobra < 220 && RotuloProximo.Visibility == Visibility.Visible)
         {
             var rotulos = new FrameworkElement[] { RotuloAnterior, RotuloProximo };
@@ -382,16 +391,15 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             sobra += TextosAnalise.ActualWidth + 12;
             TextosAnalise.Visibility = Visibility.Collapsed;
         }
-        if (sobra < 160 && TextoMarca.Visibility == Visibility.Visible)
-        {
-            sobra += TextoMarca.ActualWidth + DivisoriaMarca.ActualWidth + 28;
-            TextoMarca.Visibility = DivisoriaMarca.Visibility = Visibility.Collapsed;
-        }
+        var analiseCompacta = TextosAnalise.Visibility == Visibility.Collapsed;
+        BotaoAnalise.Width = analiseCompacta ? 32 : double.NaN;
+        BotaoAnalise.MinWidth = analiseCompacta ? 32 : 0;
+        BotaoAnalise.Height = analiseCompacta ? 32 : 42;
+        BotaoAnalise.Padding = analiseCompacta ? new Thickness(0) : new Thickness(12, 0, 12, 0);
         // Só muda com diferença visível: larguras que oscilam frações de pixel entre monitores não refazem o layout sem parar.
         var nova = Math.Round(Math.Clamp(sobra, 140, 640));
         AtalhoPesquisa.Visibility = nova >= 300 ? Visibility.Visible : Visibility.Collapsed;
-        CaixaPesquisa.Padding = new Thickness(32, 3, nova >= 300 ? 58 : 8, 3);
-        if (Math.Abs(CaixaPesquisa.Width - nova) >= 1) CaixaPesquisa.Width = nova;
+        if (Math.Abs(MolduraPesquisa.Width - nova) >= 1) MolduraPesquisa.Width = nova;
     }
 
     /// <summary>Ajustes › Relatórios e revisão › "Painéis ao abrir": com "Lembrar", o painel lateral e as Propriedades como ficaram.</summary>
@@ -743,7 +751,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         var anterior = moduloAtual;
         moduloAtual = m;
-        AreaPaginas.BorderThickness = m == Modulo.Relatorios ? new Thickness(0) : new Thickness(1, 1, 0, 0);
+
         AtualizarPaginasDeRelatorios();
         AtualizarPaginasDeDespachos();
         PaginaDeProcessos.Visibility = m == Modulo.Processos ? Visibility.Visible : Visibility.Collapsed;
@@ -767,6 +775,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (m == Modulo.Legislacao) Soltar(() => NaFilaAsync(EntrarNaLegislacaoAsync));
         if (m == Modulo.Imoveis) Soltar(EntrarEmImoveisAsync);
         if (m == Modulo.Acompanhamento) Soltar(EntrarNoAcompanhamentoAsync);
+        RegistrarPaginaVisitada();
         if (ajustes.Modulo != m) { ajustes.Modulo = m; SalvarAjustes(); }
     }
 
@@ -914,6 +923,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         AtualizarComandosNovoRelatorio();
         AtualizarComandosLegislacao();
         AtualizarComandosDeImpressao(pronto, temRelatorio, PodeExportar(sessao?.Atual) && !desatualizada, desatualizada ? SessaoEdicao.TextoDesatualizada : null);
+        R.ControleZoom.IsEnabled = folhas;
         R.BotaoMenos.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMenos);
         R.BotaoMais.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMais);
         R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = temRelatorio;
@@ -1157,7 +1167,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         textoEstado = sessao is null ? "" : EstadoGravacaoTexto.Texto(sessao.Estado, sessao.SalvoEmLocal);
         // Cabeçalho (correções 2026-11-15): a marca fica sempre "Análise de Projetos"; o processo aberto vai em duas linhas (o número em
         // cima, maior e em negrito; o requerente embaixo) e o estado de gravação num selo com ícone. O Subtitle da TitleBar não é mais usado.
-        TextoMarca.Text = TituloDaBarra;
         var (principal, secundaria) = r is null || sessao is null ? ("", "")
             : TituloJanela.Linhas(r.Dados.Processo, r.Dados.Requerente, Path.GetFileNameWithoutExtension(sessao.Caminho));
         TextoProcesso.Text = principal;
@@ -1438,6 +1447,20 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         return ZoomAsync(new { zoom = PassosZoom.LastOrDefault(p => p < zoom - 0.001, PassosZoom[0]) }, "manual");
     }
 
+    async Task AplicarZoomDoControleAsync()
+    {
+        enviandoZoom = true;
+        try
+        {
+            while (zoomSolicitado is { } valor)
+            {
+                zoomSolicitado = null;
+                await ZoomAsync(new { zoom = valor }, "manual");
+            }
+        }
+        finally { enviandoZoom = false; }
+    }
+
     Task AjustarAsync(string modo) => ZoomAsync(new { ajustar = modo }, modo);
 
     /// <summary>Manda o zoom à página web (transform: scale; nunca recompõe) e atualiza o rodapé com a resposta.</summary>
@@ -1489,6 +1512,12 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (d.TryGetProperty("zoom", out var z) && z.ValueKind == JsonValueKind.Number)
         {
             zoom = z.GetDouble();
+            if (!enviandoZoom)
+            {
+                sincronizandoZoom = true;
+                try { R.ControleZoom.Value = zoom * 100; }
+                finally { sincronizandoZoom = false; }
+            }
             R.TextoZoom.Text = Math.Round(zoom * 100).ToString("0", CultureInfo.InvariantCulture) + " %";
             AtualizarComandos();
         }

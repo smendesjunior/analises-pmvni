@@ -134,7 +134,6 @@ public static class GravadorPlanilha
         var parte = p.Abas.First(a => a.Nome == lida.Aba).Caminho;
         var doc = p.Ler(parte)!;
         var dados = doc.Root!.Element(S + "sheetData")!;
-        var colProcesso = lida.Coluna(ChaveColuna.Processo)!.Indice;
         var (_, _, fimTabela) = LeitorPlanilha.IntervaloDaTabela(p, parte, lida.LinhaCabecalho);
         var colunas = lida.Colunas.Select(c => c.Indice).ToList();
         var ocupadas = lida.Linhas.Select(l => l.Linha).ToHashSet();
@@ -149,10 +148,11 @@ public static class GravadorPlanilha
                 linha = l;
                 if (a.ProcessoEsperado is { } esperado)
                 {
+                    var processoEsperado = Planilha.ProcessoNormal(esperado);
                     var atual = lida.Linhas.FirstOrDefault(x => x.Linha == l)?.ProcessoNormalizado;
-                    if (!string.Equals(atual, Planilha.ProcessoNormal(esperado), StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(atual, processoEsperado, StringComparison.OrdinalIgnoreCase))
                     {
-                        var achada = lida.Linhas.FirstOrDefault(x => string.Equals(x.ProcessoNormalizado, Planilha.ProcessoNormal(esperado), StringComparison.OrdinalIgnoreCase))
+                        var achada = lida.Linhas.FirstOrDefault(x => string.Equals(x.ProcessoNormalizado, processoEsperado, StringComparison.OrdinalIgnoreCase))
                             ?? throw new ConflitoPlanilhaException($"O processo {esperado} não está mais na planilha (ela mudou fora do app). Recarregue e tente de novo.");
                         linha = achada.Linha;
                     }
@@ -273,9 +273,9 @@ public static class GravadorPlanilha
     /// <summary>As referências relativas à linha <paramref name="de"/> passam para a linha <paramref name="para"/> e andam
     /// <paramref name="colunas"/> colunas (as partes com $ ficam). Nomes de função como LOG10( e DEC2BIN( não são referências.</summary>
     internal static string Deslocar(string formula, int de, int para, int colunas = 0) =>
-        Regex.Replace(formula, @"""[^""]*""|(?<![A-Za-z0-9_.])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Za-z0-9_(])", m =>
+        Regex.Replace(formula, @"""[^""]*""|'(?:[^']|'')*'|\[[^\]]*\]|(?<![A-Za-z0-9_.])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Za-z0-9_(!])", m =>
         {
-            if (m.Value.StartsWith('"')) return m.Value;
+            if (!m.Groups[2].Success) return m.Value;
             var col = m.Groups[1].Value == "$" || colunas == 0 ? m.Groups[2].Value : Planilha.Letra(Planilha.Indice(m.Groups[2].Value) + colunas);
             var linha = int.Parse(m.Groups[4].Value, CultureInfo.InvariantCulture);
             var novaLinha = m.Groups[3].Value == "$" ? linha : linha + para - de;

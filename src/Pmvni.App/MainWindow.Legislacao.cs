@@ -466,7 +466,6 @@ public sealed partial class MainWindow
         if (termo.Length > 0 && !leiAberta.TemTexto)
         {
             TextoPesquisa.Text = "Este PDF não tem texto pesquisável.";
-            BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = false;
             return TextoPesquisa.Text;
         }
         var r = await leitorPdf.ProcurarAsync(termo, passo);
@@ -480,7 +479,6 @@ public sealed partial class MainWindow
         if (r.Pagina is { } p) { paginaLei = p; AtualizarRodapeLegislacao(); }
         TextoPesquisa.Text = termo.Length == 0 ? "" : r.Total == 0 ? "Nenhuma ocorrência"
             : $"{r.Atual.ToString(CultureInfo.InvariantCulture)} de {r.Total.ToString(CultureInfo.InvariantCulture)}";
-        BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = r.Total > 0;
     }
 
     /// <summary>Pesquisa em todas as leis anexadas (índice em memória, sem caixa nem acento): a aba Resultados com "N resultados em K
@@ -491,7 +489,6 @@ public sealed partial class MainWindow
     {
         var vazia = new Pesquisa([], 0, 0);
         TextoPesquisa.Text = "";
-        BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = false;
         var normalizado = Pmvni.Legislacao.TextoPesquisa.Normalizar(termo);
         if (normalizado.Length == 0)
         {

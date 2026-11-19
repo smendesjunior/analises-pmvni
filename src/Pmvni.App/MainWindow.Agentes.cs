@@ -162,11 +162,18 @@ public sealed partial class MainWindow
             MostrarAgentes();
             return;
         }
+        if (p == Provedor.Claude)
+        {
+            bool abriu = await Windows.System.Launcher.LaunchUriAsync(new Uri("claude://"),
+                new Windows.System.LauncherOptions { TargetApplicationPackageFamilyName = "AnthropicPBC.Claude_fnn82j28hfe8t" });
+            notasDasContas[p] = abriu ? "Gerencie sua conta no aplicativo Claude." : "O Windows não encontrou o aplicativo Claude.";
+            if (abriu) testarAoVoltar.Add(p);
+            MostrarAgentes();
+            return;
+        }
         var sair = infoLocal.Conta(p).Conectado;
         if (sair && !await Perguntas.Atual.ConfirmarAsync(TextosAgentes.PerguntaSair(p), TextosAgentes.ExplicacaoSair, "Sair", "Cancelar")) return;
-        var (exe, nome) = p == Provedor.ChatGpt ? (pecasAgentes.Codex, "codex") : (pecasAgentes.Claude, "claude");
-        var argumento = p == Provedor.ChatGpt ? (sair ? "logout" : "login") : (sair ? "/logout" : "/login");
-        if (!AbrirLogin(exe, nome, argumento)) return;
+        if (!AbrirLogin(pecasAgentes.Codex, "codex", sair ? "logout" : "login")) return;
         notasDasContas[p] = TextosAgentes.LoginAberto;
         testarAoVoltar.Add(p);
         MostrarAgentes();
@@ -501,19 +508,20 @@ public sealed partial class MainWindow
         // Conta (lida neste computador) e Assinatura.
         bool contaWeb = gemini && a.Modo == ModoAcesso.ContaGemini;
         var servico = contaWeb ? "Gemini Web" : TextosAgentes.NomeDoServico(p);
-        var acao = contaWeb && conta.Conectado ? "Abrir" : TextosAgentes.AcaoDaConta(conta);
+        var acao = p == Provedor.Claude ? "Abrir Claude" : contaWeb && conta.Conectado ? "Abrir" : TextosAgentes.AcaoDaConta(conta);
         c.TextoServico.Text = servico;
         c.BotaoConta.Content = acao;
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(c.BotaoConta, acao + " no " + servico);
-        Dicas.Aplicar(c.BotaoConta, acao, contaWeb ? "Abre a janela da Conta Google no Gemini Web." : conta.Conectado
+        Dicas.Aplicar(c.BotaoConta, acao, p == Provedor.Claude ? "Abre o aplicativo Claude para gerenciar sua conta." : contaWeb ? "Abre a janela da Conta Google no Gemini Web." : conta.Conectado
             ? "Sai da conta do " + TextosAgentes.NomeDoServico(p) + " neste computador."
             : "Entra na sua conta do " + TextosAgentes.NomeDoServico(p) + " para o app poder usar a IA.");
-        c.TextoNomeConta.Text = contaWeb && conta.Conectado ? "Conectado" : TextosAgentes.NomeDaConta(conta);
+        c.TextoNomeConta.Text = p == Provedor.Claude && !conta.Conectado ? "Conta gerenciada no Claude" : contaWeb && conta.Conectado ? "Conectado" : TextosAgentes.NomeDaConta(conta);
         c.FotoConta.DisplayName = conta.Conectado ? conta.Nome ?? conta.Email ?? "" : "";
         var email = contaWeb ? conta.Email ?? "" : TextosAgentes.EmailDaConta(conta);
         c.TextoEmailConta.Text = email;
         c.TextoEmailConta.Visibility = email.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         var nota = notasDasContas.TryGetValue(p, out var n) ? n : conta.Conectado ? ""
+            : p == Provedor.Claude ? "Consulte a sessão no aplicativo Claude."
             : contaWeb ? "Abra a janela do Gemini para conferir a sessão da Conta Google."
             : gemini && contaGeminiConectada is null ? TextosAgentes.GeminiContaNaoVerificada : TextosAgentes.SemSessao;
         c.TextoNotaConta.Text = nota;
@@ -542,7 +550,7 @@ public sealed partial class MainWindow
             ? TextosAgentes.LinhaDoPrograma("Python", pecas.Python, ajustes.Agentes[Provedor.Claude].Executavel) + (pecas.PythonPeloLauncher ? " (pelo py.exe -3)" : "")
               + Environment.NewLine + "Antigravity CLI (agy): " + (pecas.Agy ?? "não encontrado")
             : TextosAgentes.LinhaDoPrograma("Python", pecas.Python, a.Executavel) + (pecas.PythonPeloLauncher ? " (pelo py.exe -3)" : "")
-              + Environment.NewLine + "Claude Code: " + (pecas.Claude ?? "não encontrado");
+              + Environment.NewLine + "Executor do kit (Claude Code): " + (pecas.Claude ?? "não encontrado");
         c.BotaoProgramaPadrao.IsEnabled = !string.IsNullOrWhiteSpace(a.Executavel);
 
         var mensagem = MensagemDoAgente(p);

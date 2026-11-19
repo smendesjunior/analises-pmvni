@@ -26,7 +26,7 @@ public static class LinhaAjuste
             Grid.SetColumn(filho, estreita ? 0 : 1);
             Grid.SetRow(filho, estreita ? 1 : 0);
             if (filho is ComboBox or TextBox) filho.HorizontalAlignment = HorizontalAlignment.Stretch;
-            else if (filho is ToggleSwitch or Button) filho.HorizontalAlignment = estreita ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+            else if (filho is ToggleSwitch or Button) filho.HorizontalAlignment = HorizontalAlignment.Right;
         }
     }
 

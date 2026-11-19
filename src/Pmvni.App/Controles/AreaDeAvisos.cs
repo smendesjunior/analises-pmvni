@@ -24,9 +24,11 @@ public sealed partial class AreaDeAvisos : StackPanel
     readonly List<InfoBar> ligadas = [];
     bool expandida;
 
+    public Thickness RecuoAberto { get; set; } = new Thickness(12);
+
     public AreaDeAvisos()
     {
-        Spacing = 1;
+        Spacing = 8;
         mais.Click += (_, _) => { expandida = !expandida; Reorganizar(); };
         Loaded += (_, _) => Ligar();
     }
@@ -71,6 +73,7 @@ public sealed partial class AreaDeAvisos : StackPanel
     void Reorganizar()
     {
         var abertas = ligadas.Where(i => i.IsOpen).ToList();
+        Padding = abertas.Count > 0 ? RecuoAberto : new Thickness(0);
         var escondidas = expandida ? 0 : Math.Max(0, abertas.Count - MaxVisiveis);
         if (escondidas == 0 && abertas.Count <= MaxVisiveis) expandida = false;
         for (var i = 0; i < ligadas.Count; i++)

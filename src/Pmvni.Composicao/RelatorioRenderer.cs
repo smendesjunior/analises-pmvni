@@ -67,18 +67,20 @@ public static class RelatorioRenderer
         }
 
         var figuras = Dados.Lista(Dados.Obter(d, "figuras", new List<object?>()));
+        var temMarcacoesEditaveis = false;
         ctx["figuras"] = figuras.Select(f =>
         {
             var nova = new Dictionary<string, object?>();
             foreach (var par in Dados.Dict(f)) nova[par.Key] = par.Value;
-            nova["imagem_uri"] = DataUriPng(baseDir, Dados.Exigir(f, "imagem"), estrito);
             // Marcações editáveis (Etapa 4, editor de figuras): a figura sai como SVG (imagem base + camada de marcações). Sem a chave
             // "marcacoes" (o dados.json do kit), nada muda: o HTML é o do kit byte a byte.
             if (Dados.Obter(f, "marcacoes") is { } marcacoes && Figuras.SvgFigura.DoDados(marcacoes) is { Count: > 0 } marcas)
             {
+                temMarcacoesEditaveis = true;
                 try { nova["imagem_uri"] = new Seguro(Figuras.SvgFigura.DataUri(LerImagem(baseDir, Dados.Exigir(f, "imagem"), estrito), marcas)); }
                 catch (InvalidOperationException e) { throw new MoldeErro(e.Message); }
             }
+            else nova["imagem_uri"] = DataUriPng(baseDir, Dados.Exigir(f, "imagem"), estrito);
             return (object?)nova;
         }).ToList();
 
@@ -86,6 +88,8 @@ public static class RelatorioRenderer
         if (PythonTexto.Verdadeiro(diagrama)) ctx["diagrama"] = Diagrama.MontarDiagrama(Dados.Dict(diagrama));
 
         var html = Molde.Compilar(NovasLinhas(m.Html)).Renderizar(ctx, Filtros.Todos);
+        if (temMarcacoesEditaveis)
+            html = html.Replace(" <span class=\"ids\">()</span>", "", StringComparison.Ordinal);
         return new ResultadoRender(html, erros, MontarRefs(html, itens, figuras));
     }
 

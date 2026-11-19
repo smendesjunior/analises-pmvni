@@ -14,7 +14,7 @@ public sealed partial class MainWindow
     CatalogoModelosIa? catalogoIa;
     bool montandoModelosIa;
     readonly Dictionary<FonteIa, string> falhasModelosIa = new();
-    readonly HashSet<FonteIa> lidasNestaSessao = new();
+    bool atualizandoModelosIa;
 
     CatalogoModelosIa CatalogoDeModelos => catalogoIa ??= new CatalogoModelosIa(PastaDados.Raiz, () =>
         OpcoesAgentes is null ? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex") : OpcoesAgentes().CodexHome);
@@ -94,24 +94,28 @@ public sealed partial class MainWindow
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, MostrarModelosIa);
         };
         p.BotaoAtualizarModelosIa.Click += async (_, _) => await AtualizarModelosIaAsync();
-        // Ao abrir a página de IA: depois de ler as peças, mostra as fontes e, na primeira vez, lê as listas das que ainda não foram lidas.
+        var relogio = DispatcherQueue.CreateTimer();
+        relogio.Interval = TimeSpan.FromMinutes(15);
+        relogio.Tick += async (_, _) => { if (IaVisivel) await AtualizarModelosIaAsync(); };
+        relogio.Start();
+        Closed += (_, _) => relogio.Stop();
         p.CategoriaMostrada += async tag =>
         {
             if (tag != CategoriasAjustes.Ia) return;
             try { await tarefaDosAgentes; } catch (Exception e) { System.Diagnostics.Debug.WriteLine("[modelos] " + e.Message); }
             MostrarModelosIa();
-            var naoLidas = FontesIa.Todas.Where(f => FonteDisponivel(f) && !CatalogoDeModelos.JaLida(f) && !lidasNestaSessao.Contains(f)).ToList();
-            if (naoLidas.Count > 0) await AtualizarModelosIaAsync(naoLidas);
+            if (IaVisivel) await AtualizarModelosIaAsync();
         };
     }
 
     /// <summary>"Atualizar lista" (ou a primeira leitura): roda fora da thread da janela; quem não responde fica com a lista anterior.</summary>
     async Task AtualizarModelosIaAsync(IReadOnlyCollection<FonteIa>? fontes = null)
     {
-        if (CatalogoDeModelos.Atualizando) return;
+        if (fechada || atualizandoModelosIa) return;
         fontes ??= FontesIa.Todas.Where(FonteDisponivel).ToList();
         if (fontes.Count == 0) { MostrarModelosIa(); return; }
         var p = PaginaDeAjustes;
+        atualizandoModelosIa = true;
         p.BotaoAtualizarModelosIa.IsEnabled = false;
         p.AnelModelosIa.IsActive = true;
         p.AnelModelosIa.Visibility = Visibility.Visible;
@@ -120,12 +124,13 @@ public sealed partial class MainWindow
         {
             var pecas = pecasAgentes;
             var falhas = await Task.Run(() => CatalogoDeModelos.AtualizarAsync(pecas, fontes, CancellationToken.None));
-            foreach (var f in fontes) { falhasModelosIa.Remove(f); lidasNestaSessao.Add(f); }
+            foreach (var f in fontes) falhasModelosIa.Remove(f);
             foreach (var (f, motivo) in falhas) falhasModelosIa[f] = motivo;
         }
         catch (Exception e) { System.Diagnostics.Debug.WriteLine("[modelos] " + e.Message); }
         finally
         {
+            atualizandoModelosIa = false;
             p.BotaoAtualizarModelosIa.IsEnabled = true;
             p.AnelModelosIa.IsActive = false;
             p.AnelModelosIa.Visibility = Visibility.Collapsed;
@@ -196,8 +201,8 @@ public sealed partial class MainWindow
         linha.SizeChanged += (s, e) => LinhaAjuste.Ajustar((Grid)s, e.NewSize.Width);
 
         var textos = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
-        textos.Children.Add(new TextBlock { Text = FontesIa.Nome(f) + (emUso ? " — em uso" : ""), Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
-        textos.Children.Add(new TextBlock { Text = OrigemDaLista(f, lista), Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] });
+        textos.Children.Add(new TextBlock { TextAlignment = TextAlignment.Left, Text = FontesIa.Nome(f) + (emUso ? " — em uso" : ""), Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
+        textos.Children.Add(new TextBlock { TextAlignment = TextAlignment.Left, Text = OrigemDaLista(f, lista), Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] });
         linha.Children.Add(textos);
 
         var caixas = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Center };

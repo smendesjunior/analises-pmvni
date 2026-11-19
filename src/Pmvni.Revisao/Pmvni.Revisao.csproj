@@ -7,7 +7,6 @@
     <RootNamespace>Pmvni.Revisao</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Despachos/Modelos/Timbre-*.svg" LogicalName="Pmvni.%(Filename)%(Extension)" />
     <InternalsVisibleTo Include="Pmvni.Revisao.Testes" />
     <EmbeddedResource Include="Despachos/Modelos/LogoAssinatura.jpg" LogicalName="Pmvni.LogoAssinatura.jpg" />
     <EmbeddedResource Include="Despachos/Modelos/PMVNI-Emissao-Local.cer" LogicalName="Pmvni.CertificadoEmissaoLocal.cer" />

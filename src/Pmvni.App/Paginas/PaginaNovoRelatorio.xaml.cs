@@ -132,10 +132,11 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         TituloStatus.Text = falhou ? "Análise com problema" : concluida ? "Análise concluída" : rodando ? "Análise em andamento" : "Análise parada";
         IconeStatus.Glyph = falhou ? "" : concluida ? "" : "";
         FundoIconeStatus.Background = Recurso(falhou ? "SystemFillColorCriticalBrush" : concluida ? "SystemFillColorSuccessBrush" : "AccentFillColorDefaultBrush");
-        PontoEtapa.Fill = Recurso(falhou ? "SystemFillColorCriticalBrush" : concluida ? "SystemFillColorSuccessBrush" : "AccentFillColorDefaultBrush");
         TextoEtapaAtual.Text = etapas.Count == 0 ? (rodando ? "Etapa atual: análise documental" : "Execução encerrada")
             : concluida ? $"{etapas.Count} de {etapas.Count} etapas concluídas"
             : temAtual ? $"Etapa atual: {atual.x.Nome} · {feitas} de {etapas.Count} concluídas"
+            : falhou ? $"Interrompida · {feitas} de {etapas.Count} concluídas"
+            : !rodando ? $"Parada · {feitas} de {etapas.Count} concluídas"
             : $"Preparando · {feitas} de {etapas.Count} concluídas";
         SeloAoVivo.Visibility = rodando && !falhou ? Visibility.Visible : Visibility.Collapsed;
         BotaoPausarAnalise.Visibility = BotaoCancelarAnalise.Visibility = rodando ? Visibility.Visible : Visibility.Collapsed;
@@ -226,6 +227,15 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         progressoDesenhado = ProgressoAtual;
         etapasMostradas = etapas.ToArray();
         animandoEtapas = podeAnimar;
+        var feitas = etapas.Count(e => e.Estado == EstadoEtapa.Feita);
+        var fracao = ProgressoAtual is { Total: > 0 } itens && etapas.Any(e => e.Estado == EstadoEtapa.Agora
+            && e.Nome == Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(itens.Etapa)) ? Math.Clamp((double)itens.Avaliados / itens.Total, 0, 1) : 0;
+        var proporcao = (feitas + fracao) / Math.Max(1, etapas.Count);
+        BarraResumoEtapas.IsIndeterminate = animar && etapas.Count == 0;
+        BarraResumoEtapas.Value = 100 * proporcao;
+        BarraResumoEtapas.Visibility = etapas.Count > 0 || animar ? Visibility.Visible : Visibility.Collapsed;
+        Trabalhando.Definir(PainelClaude, animar && feitas < etapas.Count, (float)PainelClaude.CornerRadius.TopLeft,
+            proporcao);
         PainelEtapas.Children.Clear();
         PainelEtapas.ColumnDefinitions.Clear();
         for (var i = 0; i < etapas.Count; i++)
@@ -252,6 +262,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 {
                     progresso = new ProgressBar
                     {
+                        Style = (Style)Application.Current.Resources["DefaultProgressBarStyle"],
                         IsIndeterminate = !percentual.HasValue, Value = percentual ?? 0, Height = 3, VerticalAlignment = VerticalAlignment.Top,
                     };
                     Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(progresso, percentual.HasValue ? $"{nome} · {percentual:0}%" : "Progresso indeterminado de " + nome);

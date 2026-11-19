@@ -42,7 +42,7 @@
     <!-- Ícones dos módulos (pacote Fluent de 2026-11-16), 64 e 128 px: o trilho e as telas vazias escolhem pelo tamanho. -->
     <EmbeddedResource Include="Recursos\Modulos\*.png" LogicalName="Pmvni.App.modulos.%(Filename)%(Extension)" />
     <!-- O ícone do app no cartão "Sobre" dos Ajustes (2026-11-17). -->
-    <Content Include="Recursos\Provedores\*.svg;Recursos\app.ico" CopyToOutputDirectory="PreserveNewest"/>
+    <Content Include="Recursos\Provedores\*.svg;Recursos\cabecalho-pmvni*.svg;Recursos\app.ico" CopyToOutputDirectory="PreserveNewest"/>
     <EmbeddedResource Include="Recursos\icone-app.png" LogicalName="Pmvni.App.icone-app.png" />
   </ItemGroup>
 </Project>

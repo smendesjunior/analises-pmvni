@@ -26,6 +26,14 @@ public class DiarioTestes
     }
 
     [Fact]
+    public void recuperacao_detecta_divergencia_mesmo_quando_a_primeira_copia_coincide()
+    {
+        var registro = new RegistroHistorico(1, DateTimeOffset.UtcNow, "ana", "editar", null, null, null, null, null);
+        var rec = new Recuperacao([registro], registro.DataUtc, true);
+        Assert.Equal([1], rec.Divergencias([registro, registro with { Usuario = "outro" }]));
+    }
+
+    [Fact]
     public void diario_registra_e_le_na_ordem()
     {
         using var pasta = Ambiente.PastaDeTeste("diario-ordem");

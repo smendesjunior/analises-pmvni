@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Microsoft.Web.WebView2.Core;
 using Pmvni.Composicao;
 using Pmvni.Composicao.Web;
 
@@ -23,18 +22,12 @@ internal static class AutotesteFalhas
         using (var host = await HostOculto.IniciarAsync(pasta))
         {
             falhas += await Caso("navegacao presa -> TimeoutException em ~3 s", typeof(TimeoutException), TimeSpan.FromSeconds(8),
-                async () =>
+                () => host.ExecutarAsync(async wv =>
                 {
-                    // Requisições ao documento ficam presas para sempre (deferral nunca concluído): a navegação nunca termina.
-                    var adiados = new List<Windows.Foundation.Deferral>();
-                    await host.ExecutarAsync(wv =>
-                    {
-                        wv.WebResourceRequested += (_, e) => { if (e.Request.Uri.Contains("documento.html")) adiados.Add(e.GetDeferral()); };
-                        return Task.FromResult(true);
-                    });
-                    await host.Documento.CarregarAsync(DocumentoSimples("<p>ok</p>"), Cfg, TimeSpan.FromSeconds(3));
-                    return adiados.Count;
-                });
+                    // Simula uma navegação sem eventos de conclusão no mesmo caminho de espera usado pelo documento.
+                    await HostOculto.NavegarAsync(wv, () => { }, TimeSpan.FromSeconds(3));
+                    return true;
+                }));
 
             falhas += await Caso("acao que nunca termina -> TimeoutException em ~2 s", typeof(TimeoutException), TimeSpan.FromSeconds(6),
                 () => host.ExecutarAsync<bool>(async _ => { await Task.Delay(Timeout.Infinite); return true; }, TimeSpan.FromSeconds(2)));

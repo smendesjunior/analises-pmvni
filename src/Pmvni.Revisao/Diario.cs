@@ -15,8 +15,15 @@ public sealed record Recuperacao(IReadOnlyList<RegistroHistorico> Registros, Dat
     public IReadOnlyList<int> Divergencias(IReadOnlyList<RegistroHistorico> historicoDoPacote)
     {
         ArgumentNullException.ThrowIfNull(historicoDoPacote);
-        var porN = historicoDoPacote.GroupBy(r => r.N).ToDictionary(g => g.Key, g => HistoricoJsonl.Linha(g.First()));
-        return Registros.Where(r => porN.TryGetValue(r.N, out var l) && l != HistoricoJsonl.Linha(r)).Select(r => r.N).ToList();
+        var porN = historicoDoPacote.ToLookup(r => r.N);
+        var divergentes = new List<int>();
+        foreach (var registro in Registros)
+        {
+            if (!porN.Contains(registro.N)) continue;
+            var linha = HistoricoJsonl.Linha(registro);
+            if (porN[registro.N].Any(r => HistoricoJsonl.Linha(r) != linha)) divergentes.Add(registro.N);
+        }
+        return divergentes;
     }
 }
 

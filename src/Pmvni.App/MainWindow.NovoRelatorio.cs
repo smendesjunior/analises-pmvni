@@ -272,6 +272,7 @@ public sealed partial class MainWindow
         if (moduloAtual != Modulo.Relatorios) return false;
         novoRelatorioAberto = true;
         AtualizarPaginasDeRelatorios();
+        RegistrarPaginaVisitada();
         AtualizarComandos();
         // Com execução em andamento, a página abre na vista dela (a do processo sugerido, se houver; senão a mais antiga).
         var emCurso = sessaoNR.Execucoes.Where(e => !e.Abandonada).ToList();
@@ -291,6 +292,7 @@ public sealed partial class MainWindow
         if (!novoRelatorioAberto) return;
         novoRelatorioAberto = false;
         AtualizarPaginasDeRelatorios();
+        RegistrarPaginaVisitada();
         AtualizarComandos();
     }
 
@@ -803,7 +805,7 @@ public sealed partial class MainWindow
         var registro = continuarChatGpt?.Registro ?? ultimoResultadoNR?.Registro.Pasta;
         var original = continuarChatGpt is null ? ultimoResultadoNR?.Provedor : Provedor.ChatGpt;
         if (processo is null || registro is null || original is null) return;
-        var escolha = await PerguntarRetomadaAsync(processo, original.Value);
+        var (escolha, _) = await PerguntarRetomadaAsync(processo, registro, original.Value);
         if (escolha is null) return;
         if (escolha == original && (continuarChatGpt is not null || Provedores.PeloKit(original.Value)))
             await ContinuarAnaliseAsync();
@@ -817,12 +819,20 @@ public sealed partial class MainWindow
         if (registro is null) return;
         var processo = continuarChatGpt?.Processo ?? ultimoResultadoNR?.Processo;
         if (processo is null) return;
+        DescartarAnalisePendente(processo, registro);
+    }
+
+    void DescartarAnalisePendente(Processo processo, string registro)
+    {
         using var historico = RegistroExecucao.Abrir(registro, processo.Pasta);
         historico.Atualizar(o => o["situacao"] = "descartada");
         EsquecerPendenteChatGpt(registro);
         EsquecerPendenteClaude(registro);
-        continuarChatGpt = null;
-        ultimoResultadoNR = null;
+        bool chat = continuarChatGpt is { } cg && MesmoRegistro(cg.Registro, registro);
+        bool resultado = ultimoResultadoNR is { } r && MesmoRegistro(r.Registro.Pasta, registro);
+        if (chat) continuarChatGpt = null;
+        if (resultado) ultimoResultadoNR = null;
+        if (!chat && !resultado) return;
         NR.BotaoContinuar.Visibility = Visibility.Collapsed;
         NR.AvisoResultado.IsOpen = false;
     }
@@ -1053,7 +1063,8 @@ public sealed partial class MainWindow
             NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed;
             aviso.IsOpen = true;
             // 2026-11-17 (pedido do usuário): pergunta na hora se retoma, e com qual IA. "Agora não" deixa o aviso com "Continuar a análise".
-            var escolha = await PerguntarRetomadaAsync(processo, Provedor.ChatGpt);
+            var (escolha, descartada) = await PerguntarRetomadaAsync(processo, pend.Registro, Provedor.ChatGpt);
+            if (descartada) continue;
             if (escolha == Provedor.ChatGpt) await ContinuarAnaliseAsync();
             else if (escolha is { } alternativa)
             {
@@ -1300,7 +1311,9 @@ public sealed partial class MainWindow
                 default:
                     var motivo = (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro);
                     // 2026-11-17: a análise parou com o editor fechado; pergunta se retoma de onde parou, e com qual IA.
-                    if (await PerguntarRetomadaAsync(processo, ia, motivo) is { } outraIa) await ContinuarComOutraIaAsync(outraIa, processo, pend.Registro);
+                    var (escolha, descartada) = await PerguntarRetomadaAsync(processo, pend.Registro, ia, motivo);
+                    if (descartada) break;
+                    if (escolha is { } outraIa) await ContinuarComOutraIaAsync(outraIa, processo, pend.Registro);
                     else MostrarMensagem(InfoBarSeverity.Warning, $"A análise com o {nomeIa} de {FluxoNovoRelatorio.Identificacao(processo)} parou", motivo);
                     break;
             }
@@ -1310,15 +1323,20 @@ public sealed partial class MainWindow
     }
 
     /// <summary>"Retomar a análise?" na reabertura: continuar com o Claude, com o ChatGPT ou agora não (null). A IA que fazia a análise vem primeiro.</summary>
-    async Task<Provedor?> PerguntarRetomadaAsync(Processo processo, Provedor original, string? motivo = null)
+    async Task<(Provedor? Ia, bool Descartada)> PerguntarRetomadaAsync(Processo processo, string registro, Provedor original, string? motivo = null)
     {
         var provedores = new[] { original }.Concat(new[] { Provedor.ChatGpt, Provedor.Claude, Provedor.Gemini }.Where(p => p != original)).ToArray();
         var itens = provedores.Select(p => $"Continuar com o {Provedores.Nome(p)}").Append("Agora não").ToArray();
         var texto = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} com o {Provedores.Nome(original)} parou"
             + (string.IsNullOrWhiteSpace(motivo) ? "." : $": {motivo}")
             + " Qual IA deve continuar a partir da última etapa válida?";
-        var indice = await Perguntas.Atual.EscolherNaListaAsync(FluxoNovoRelatorio.RetomarTitulo, texto, itens, 0, "Continuar");
-        return indice is >= 0 and < 3 ? provedores[(int)indice] : null;
+        var indice = await Perguntas.Atual.EscolherNaListaAsync(FluxoNovoRelatorio.RetomarTitulo, texto, itens, 0, "Continuar", "Descartar análise");
+        if (indice == itens.Length)
+        {
+            DescartarAnalisePendente(processo, registro);
+            return (null, true);
+        }
+        return (indice is int i && i >= 0 && i < provedores.Length ? provedores[i] : null, false);
     }
 
     /// <summary>Uma análise nova no mesmo processo, pedindo à IA que siga do ponto em que a anterior parou (sem anexos novos).</summary>

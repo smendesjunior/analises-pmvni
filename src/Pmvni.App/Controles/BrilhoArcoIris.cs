@@ -27,10 +27,15 @@ public static class Trabalhando
     internal static BrilhoArcoIris? BrilhoDe(FrameworkElement e) => brilhos.TryGetValue(e, out var b) ? b : null;
 
     /// <summary>Liga ou desliga o brilho no contorno do elemento.</summary>
-    public static void Definir(FrameworkElement elemento, bool ativo, float canto = 8f)
+    public static void Definir(FrameworkElement elemento, bool ativo, float canto = 8f, double? progresso = null)
     {
         if (!ativo && !brilhos.TryGetValue(elemento, out _)) return;
-        try { brilhos.GetValue(elemento, e => new BrilhoArcoIris(e, canto)).Ativo = ativo; }
+        try
+        {
+            var brilho = brilhos.GetValue(elemento, e => new BrilhoArcoIris(e, canto));
+            brilho.Progresso = progresso;
+            brilho.Ativo = ativo;
+        }
         catch (Exception e) { RegistroErros.Gravar("brilho", e); }
     }
 
@@ -171,6 +176,7 @@ sealed class BrilhoArcoIris
     Vector2 tamanho;
     (Vector2 Tamanho, float Escala) mascaraFeita = (new(float.NaN), float.NaN);
 
+    internal double? Progresso { get; set; }
     public bool Ativo { get => ativo; set { ativo = value; Atualizar(false); } }
 
     // Estado para o autoteste (1.0.0).
@@ -415,7 +421,18 @@ sealed class BrilhoArcoIris
             quadrosDesdeConferencia = 0;
             if (!elemento.IsLoaded || !Trabalhando.VisivelDeFato(elemento)) { Atualizar(false); return; }
         }
-        foreach (var d in deslizes) d.Pincel.Offset = new Vector2((float)(d.Distancia * RelogioQuadros.Fase(t, d.Segundos)), 0);
+        if (Progresso is { } progresso)
+        {
+            // O eixo gira com a etapa e os itens concluídos. A caixa inteira continua contornada.
+            var angulo = (float)(Math.Tau * (progresso + RelogioQuadros.Fase(t, 16)));
+            var raio = new Vector2(MathF.Cos(angulo), MathF.Sin(angulo)) * tamanho / 2;
+            var centro = tamanho / 2;
+            pincelLinha.StartPoint = centro - raio;
+            pincelLinha.EndPoint = centro + raio;
+            pincelHalo.StartPoint = pincelLinha.StartPoint + new Vector2(HaloMargem);
+            pincelHalo.EndPoint = pincelLinha.EndPoint + new Vector2(HaloMargem);
+        }
+        else foreach (var d in deslizes) d.Pincel.Offset = new Vector2((float)(d.Distancia * RelogioQuadros.Fase(t, d.Segundos)), 0);
         raizBrilho.Opacity = Respiro(t, 7.3, respira.Brilho);
         raizHalo.Opacity = Respiro(t, 9.1, respira.Halo);
     }

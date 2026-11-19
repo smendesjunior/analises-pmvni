@@ -146,7 +146,7 @@ public sealed class CabecalhoRodapeTestes(ITestOutputHelper saida)
 
     sealed record PaginaMedida(double FimDaFaixa, IReadOnlyList<Palavra> Corpo, IReadOnlyList<Palavra> Rodape);
 
-    /// <summary>As palavras de cada página, com as medidas a partir do alto (em pontos): a faixa do cabeçalho é a imagem da largura da página;
+    /// <summary>As palavras de cada página, com as medidas a partir do alto (em pontos): a faixa do cabeçalho é a imagem ou o desenho vetorial da largura da página;
     /// o rodapé é o que começa abaixo da margem de baixo do modelo.</summary>
     static List<PaginaMedida> Medir(byte[] pdf, LayoutDespacho l)
     {
@@ -155,7 +155,10 @@ public sealed class CabecalhoRodapeTestes(ITestOutputHelper saida)
         foreach (var pg in doc.GetPages())
         {
             var h = pg.Height;
-            var faixa = pg.GetImages().Where(i => i.BoundingBox.Width > pg.Width * 0.8).Select(i => h - i.BoundingBox.Bottom).DefaultIfEmpty(0).Max();
+            var elementos = pg.GetImages().Select(i => i.BoundingBox)
+                .Concat(pg.Paths.Where(p => p.IsFilled).Select(p => p.GetBoundingRectangle()).OfType<UglyToad.PdfPig.Core.PdfRectangle>());
+            var faixa = elementos.Where(r => r.Width > pg.Width * 0.8 && r.Bottom > h / 2)
+                .Select(r => h - r.Bottom).DefaultIfEmpty(0).Max();
             var palavras = pg.GetWords().Where(w => w.Text.Trim().Length > 0)
                 .Select(w => new Palavra(w.Text, h - w.BoundingBox.Top, h - w.BoundingBox.Bottom, w.BoundingBox.Left)).ToList();
             var limite = l.AlturaPt - l.MargemBaixoPt;

@@ -937,6 +937,7 @@ public sealed partial class MainWindow
         var entradas = navegacaoCompleta.Select(i => new EntradaNavegacao(i.Rotulo, i.Secao, i.Situacao, i.Alterado)).ToList();
         var r = FiltroNavegacao.Aplicar(entradas, filtroSituacao, R.CaixaFiltroSecoes.Text, somenteAlterados, secoesRecolhidas);
         itensNavegacao.Clear();
+        var totalItensVisiveis = 0;
         foreach (var k in r.Visiveis)
         {
             var i = navegacaoCompleta[k];
@@ -946,8 +947,10 @@ public sealed partial class MainWindow
                 i.Recolhida = secoesRecolhidas.Contains(i.Rotulo);
             }
             i.Selecionado = i.Ref is not null && i.Ref == selecionado;
+            i.OrdemNoFiltro = i.Situacao is null ? 0 : ++totalItensVisiveis;
             itensNavegacao.Add(i);
         }
+        R.TotalItensFiltrados = totalItensVisiveis;
         AtualizarBotoesFiltro(r.ItensPorFiltro);
         if (folhaAtual > 0) MarcarItemAtual(folhaAtual);
     }

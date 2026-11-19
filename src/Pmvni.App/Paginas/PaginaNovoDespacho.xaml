@@ -137,14 +137,6 @@
                         AutomationProperties.Name="Criar automaticamente a partir do relatório"
                         local:Dicas.Titulo="Criar automaticamente a partir do relatório"
                         local:Dicas.Descricao="Monta o despacho com todos os itens pendentes do relatório (não atende, falta comprovar e informações divergentes) e vai direto para a conferência.">
-                  <Button.Resources>
-                    <StaticResource x:Key="AccentButtonBackground" ResourceKey="AccentFillColorDefaultBrush"/>
-                    <StaticResource x:Key="AccentButtonBackgroundPointerOver" ResourceKey="AccentFillColorSecondaryBrush"/>
-                    <StaticResource x:Key="AccentButtonBackgroundPressed" ResourceKey="AccentFillColorTertiaryBrush"/>
-                    <StaticResource x:Key="AccentButtonForeground" ResourceKey="TextOnAccentFillColorPrimaryBrush"/>
-                    <StaticResource x:Key="AccentButtonForegroundPointerOver" ResourceKey="TextOnAccentFillColorPrimaryBrush"/>
-                    <StaticResource x:Key="AccentButtonForegroundPressed" ResourceKey="TextOnAccentFillColorPrimaryBrush"/>
-                  </Button.Resources>
                   <StackPanel Orientation="Horizontal" Spacing="6"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="13.95" Height="19"><Path Canvas.Left="-75.53" Canvas.Top="-18.5" Fill="{Binding Foreground, ElementName=BotaoAutomatico}" Data="F0 M89.06,26.77 C89.26,26.84 89.41,27.01 89.46,27.22 C89.51,27.43 89.45,27.65 89.31,27.8 L80.44,37.3 C80.25,37.51 79.94,37.56 79.69,37.43 C79.44,37.3 79.3,37.03 79.35,36.75 L80.51,30.94 L75.95,29.23 C75.75,29.16 75.6,28.99 75.55,28.78 C75.5,28.57 75.56,28.35 75.71,28.2 L84.58,18.7 C84.77,18.49 85.08,18.44 85.33,18.57 C85.58,18.7 85.71,18.97 85.66,19.25 L84.5,25.06 L89.06,26.77 Z M81.03,34.81 L81.86,30.66 C81.92,30.36 81.75,30.05 81.46,29.94 L77.28,28.37 L83.98,21.19 L83.15,25.34 C83.09,25.64 83.26,25.95 83.55,26.06 L87.73,27.63 L81.03,34.81 Z"/></Canvas></Viewbox><TextBlock Text="Criar automaticamente a partir do relatório" TextWrapping="Wrap"/></StackPanel>
                 </Button>
         </Border></Grid>

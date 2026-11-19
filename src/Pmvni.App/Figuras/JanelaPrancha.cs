@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
 using Pmvni.Revisao;
 using Windows.Data.Pdf;
+using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.UI;
@@ -32,22 +33,25 @@ internal sealed class JanelaPrancha : Window
     readonly SessaoEdicao sessao;
     readonly string? depoisDe;
 
+    readonly Grid vazio = PainelPrancha.Cartao();
+    readonly Button abrirNoCentro = new() { Content = "Escolher arquivo PDF",
+        Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"], HorizontalAlignment = HorizontalAlignment.Center };
     readonly Grid raiz = new();
     readonly ComboBox arquivos = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Escolha o PDF das pranchas" };
     readonly Button escolher = new() { Content = "Escolher arquivo…" };
     readonly AppBarButton anterior = new() { Icon = new SymbolIcon(Symbol.Back), Label = "Página anterior" };
     readonly AppBarButton proxima = new() { Icon = new SymbolIcon(Symbol.Forward), Label = "Próxima página" };
-    readonly TextBlock textoPagina = new() { VerticalAlignment = VerticalAlignment.Center, MinWidth = 120, TextAlignment = TextAlignment.Center };
+    readonly TextBlock textoPagina = new() { VerticalAlignment = VerticalAlignment.Center, Text = "Nenhuma página", TextAlignment = TextAlignment.Left };
     readonly ScrollViewer rolagem = new() { ZoomMode = ZoomMode.Enabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MinZoomFactor = .1f, MaxZoomFactor = 8 }; // o WinUI recusa mínimo abaixo de 0,1 (a janela não abria)
     readonly Grid superficie = new() { Background = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     readonly Image pagina = new() { Stretch = Stretch.Fill };
     readonly Canvas camada = new() { Background = new SolidColorBrush(Colors.Transparent) };
     readonly Rectangle selecao = new() { Stroke = new SolidColorBrush(Color.FromArgb(255, 0, 0x67, 0xC0)), StrokeThickness = 2, StrokeDashArray = { 5, 3 }, Fill = new SolidColorBrush(Color.FromArgb(40, 0, 0x67, 0xC0)), Visibility = Visibility.Collapsed };
-    readonly TextBox caixaPrancha = new() { Header = "Prancha" };
+    readonly TextBox caixaPrancha = new() { Header = "Prancha", PlaceholderText = "Ex.: ARQ 01/04" };
     readonly TextBox caixaTitulo = new() { Header = "Título da figura", Text = "Recorte da prancha", TextWrapping = TextWrapping.Wrap };
     readonly Button inserir = new() { Content = "Inserir no relatório", IsEnabled = false };
     readonly Button cancelar = new() { Content = "Cancelar" };
-    readonly TextBlock estado = new() { TextWrapping = TextWrapping.Wrap, Opacity = .8, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock estado = new() { TextAlignment = TextAlignment.Left, HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, Opacity = .8, VerticalAlignment = VerticalAlignment.Center };
     readonly InfoBar aviso = new() { Severity = InfoBarSeverity.Warning, IsClosable = true };
     readonly Border progresso = Trabalhando.Quadro("Trabalhando…");
     readonly Viewbox previa = new() { Stretch = Stretch.Uniform, MaxHeight = 240, Visibility = Visibility.Collapsed };
@@ -55,7 +59,7 @@ internal sealed class JanelaPrancha : Window
     readonly AppBarButton limpar = new() { Icon = new SymbolIcon(Symbol.Clear), Label = "Limpar recorte" };
     readonly AppBarButton selecionarTudo = new() { Icon = new SymbolIcon(Symbol.SelectAll), Label = "Selecionar página" };
     readonly TextBlock textoZoom = new() { Text = "100%", VerticalAlignment = VerticalAlignment.Center };
-    readonly CommandBar ferramentas = new() { DefaultLabelPosition = CommandBarDefaultLabelPosition.Right, IsDynamicOverflowEnabled = true };
+    readonly CommandBar ferramentas = new() { HorizontalAlignment = HorizontalAlignment.Left, DefaultLabelPosition = CommandBarDefaultLabelPosition.Right, IsDynamicOverflowEnabled = true };
 
     PdfDocument? documento;
     string? caminhoPdf;
@@ -78,11 +82,12 @@ internal sealed class JanelaPrancha : Window
         Montar();
         Content = raiz;
         raiz.RequestedTheme = host.TemaAtual;
-        try { AppWindow.Resize(new Windows.Graphics.SizeInt32(1400, 950)); } catch (Exception) { /* conveniência */ }
+
         raiz.Loaded += async (_, _) =>
         {
             if (iniciada) return;
             iniciada = true;
+            PainelPrancha.Dimensionar(this);
             await PreencherArquivosAsync();
         };
         Closed += (_, _) => { fechada = true; documento = null; };
@@ -100,14 +105,16 @@ internal sealed class JanelaPrancha : Window
         raiz.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var colunaDetalhes = new ColumnDefinition();
         raiz.ColumnDefinitions.Add(colunaDetalhes);
-        raiz.SizeChanged += (_, e) => colunaDetalhes.Width = new GridLength(Math.Clamp(e.NewSize.Width * .28, 210, 320));
+        raiz.SizeChanged += (_, e) => colunaDetalhes.Width = new GridLength(Math.Clamp(e.NewSize.Width * .26, 210, 400));
         var topo = new StackPanel { Spacing = 4 };
-        var arquivoLinha = new Grid { ColumnSpacing = 8, Margin = new Thickness(12, 12, 12, 4) };
+        var arquivoLinha = new Grid { ColumnSpacing = 8, Margin = new Thickness(16, 2, 16, 8) };
         arquivoLinha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         arquivoLinha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         arquivoLinha.Children.Add(arquivos);
         Grid.SetColumn(escolher, 1);
         arquivoLinha.Children.Add(escolher);
+        topo.Children.Add(new TextBlock { Text = "PDF DAS PRANCHAS", Margin = new Thickness(16, 10, 16, 0),
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] });
         topo.Children.Add(arquivoLinha);
         ferramentas.PrimaryCommands.Add(anterior);
         ferramentas.PrimaryCommands.Add(proxima);
@@ -131,16 +138,18 @@ internal sealed class JanelaPrancha : Window
         mais.Click += (_, _) => rolagem.ChangeView(null, null, Math.Min(rolagem.MaxZoomFactor, rolagem.ZoomFactor * 1.25f));
         ajustar.Click += (_, _) => AjustarZoom();
         ferramentas.PrimaryCommands.Add(menos);
+        ferramentas.PrimaryCommands.Add(new AppBarElementContainer { Content = textoZoom, VerticalContentAlignment = VerticalAlignment.Center });
         ferramentas.PrimaryCommands.Add(mais);
         ferramentas.PrimaryCommands.Add(ajustar);
         ferramentas.PrimaryCommands.Add(new AppBarSeparator());
-        ferramentas.PrimaryCommands.Add(selecionarTudo);
-        ferramentas.PrimaryCommands.Add(limpar);
+        ferramentas.SecondaryCommands.Add(selecionarTudo);
+        ferramentas.SecondaryCommands.Add(limpar);
         var leitura = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(12, 0, 8, 0) };
         leitura.Children.Add(textoPagina);
-        leitura.Children.Add(textoZoom);
+
         ferramentas.Content = leitura;
         topo.Children.Add(ferramentas);
+        progresso.Margin = new Thickness(16, 6, 16, 6);
         topo.Children.Add(progresso);
         Grid.SetColumnSpan(topo, 2);
         raiz.Children.Add(topo);
@@ -155,20 +164,41 @@ internal sealed class JanelaPrancha : Window
         superficie.Children.Add(camada);
         rolagem.Content = superficie;
         rolagem.Style = (Style)Application.Current.Resources["PmvniRolagemFundoStyle"];
-        Grid.SetRow(rolagem, 2);
-        raiz.Children.Add(rolagem);
+        var area = new Grid();
+        area.Children.Add(rolagem);
+        vazio.HorizontalAlignment = HorizontalAlignment.Center;
+        vazio.VerticalAlignment = VerticalAlignment.Center;
+        vazio.MaxWidth = 520;
+        vazio.Margin = new Thickness(12);
+        vazio.Padding = new Thickness(24);
+        var mensagem = new StackPanel { Spacing = 16 };
+        mensagem.Children.Add(new SymbolIcon(Symbol.Document));
+        mensagem.Children.Add(new TextBlock { Text = "Nenhum PDF carregado", TextAlignment = TextAlignment.Center,
+            Style = (Style)Application.Current.Resources["SubtitleTextBlockStyle"] });
+        mensagem.Children.Add(new TextBlock { Text = "Selecione o PDF das pranchas ou escolha um arquivo do computador para visualizar as páginas.",
+            TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center });
+        mensagem.Children.Add(abrirNoCentro);
+        abrirNoCentro.Click += async (_, _) => await EscolherArquivoAsync();
+        vazio.Children.Add(mensagem);
+        area.Children.Add(vazio);
+        var desenho = PainelPrancha.Quadro(PainelPrancha.Titulo("PRÉ-VISUALIZAÇÃO DA PRANCHA"), area, Symbol.Crop);
+        desenho.Margin = new Thickness(12, 12, 6, 12);
+        Grid.SetRow(desenho, 2);
+        raiz.Children.Add(desenho);
 
-        var lateral = new StackPanel { Spacing = 10, Padding = new Thickness(12) };
-        lateral.Children.Add(new TextBlock { Text = "Nova figura", Style = (Style)Application.Current.Resources["SubtitleTextBlockStyle"] });
+        var lateral = new StackPanel { Spacing = 14, Padding = new Thickness(16) };
+        lateral.Children.Add(new TextBlock { Text = "IDENTIFICAÇÃO", Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] });
         lateral.Children.Add(caixaPrancha);
         lateral.Children.Add(caixaTitulo);
         lateral.Children.Add(new TextBlock { Text = "Prévia do recorte", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
         lateral.Children.Add(orientacao);
         lateral.Children.Add(previa);
         var painel = new ScrollViewer { Content = lateral, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        Grid.SetRow(painel, 2);
-        Grid.SetColumn(painel, 1);
-        raiz.Children.Add(painel);
+        var dados = PainelPrancha.Quadro(PainelPrancha.Titulo("Nova figura"), painel, Symbol.Crop);
+        dados.Margin = new Thickness(6, 12, 12, 12);
+        Grid.SetRow(dados, 2);
+        Grid.SetColumn(dados, 1);
+        raiz.Children.Add(dados);
         var rodape = new Grid { ColumnSpacing = 16, Padding = new Thickness(12) };
         rodape.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         rodape.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -192,10 +222,7 @@ internal sealed class JanelaPrancha : Window
         limpar.Click += (_, _) => LimparRecorte();
         selecionarTudo.Click += (_, _) =>
         {
-            inicio = new Windows.Foundation.Point(0, 0);
-            AtualizarSelecao(new Windows.Foundation.Point(camada.Width, camada.Height));
-            inicio = null;
-            ConferirRecorte();
+            SelecionarRegiao(0, 0, 1, 1);
         };
         rolagem.ViewChanged += (_, _) =>
         {
@@ -240,7 +267,8 @@ internal sealed class JanelaPrancha : Window
     {
         if (fechada) return;
         var livre = !ocupado && !escolhendo && SessaoValida;
-        arquivos.IsEnabled = escolher.IsEnabled = livre;
+        arquivos.IsEnabled = escolher.IsEnabled = abrirNoCentro.IsEnabled = livre;
+        vazio.Visibility = documento is null && !ocupado ? Visibility.Visible : Visibility.Collapsed;
         ferramentas.IsEnabled = livre && documento is not null;
         selecionarTudo.IsEnabled = livre && paginaPronta;
         anterior.IsEnabled = livre && documento is not null && indicePagina > 0;
@@ -250,6 +278,20 @@ internal sealed class JanelaPrancha : Window
         caixaPrancha.IsEnabled = caixaTitulo.IsEnabled = livre;
         progresso.Visibility = ocupado ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    internal void SelecionarRegiao(double esquerda, double topo, double direita, double baseRegiao)
+    {
+        inicio = new Windows.Foundation.Point(esquerda * camada.Width, topo * camada.Height);
+        AtualizarSelecao(new Windows.Foundation.Point(direita * camada.Width, baseRegiao * camada.Height));
+        inicio = null;
+        ConferirRecorte();
+    }
+
+    internal Button EscolherPdf => escolher;
+    internal Button InserirRecorte => inserir;
+    internal AppBarButton SelecionarPagina => selecionarTudo;
+    internal bool ProntaParaEscolher => iniciada && escolher.IsEnabled;
+    internal bool PaginaPronta => paginaPronta && !ocupado;
 
     internal bool PertenceASessao(SessaoEdicao atual) => sessao == atual;
 
@@ -480,13 +522,7 @@ internal sealed class JanelaPrancha : Window
             using var fluxo = new InMemoryRandomAccessStream();
             // O recurso do relatório é PNG, inclusive quando o renderizador do Windows usa outro formato por padrão.
             await p.RenderToStreamAsync(fluxo, new PdfPageRenderOptions { BitmapEncoderId = Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, SourceRect = fonte, DestinationWidth = largura, DestinationHeight = altura });
-            var png = new byte[fluxo.Size];
-            fluxo.Seek(0);
-            using (var leitor = new DataReader(fluxo.GetInputStreamAt(0)))
-            {
-                await leitor.LoadAsync((uint)fluxo.Size);
-                leitor.ReadBytes(png);
-            }
+            var png = await CodificarRecorteAsync(fluxo, largura, altura);
             if (!SessaoValida) return;
             var chave = sessao.AdicionarImagem(png);
             var origem = new JsonObject
@@ -525,6 +561,26 @@ internal sealed class JanelaPrancha : Window
             ocupado = false;
             AtualizarControles();
         }
+    }
+
+    // O renderizador de PDF pode multiplicar DestinationWidth/Height pela escala de exibição do Windows.
+    // O recurso do relatório precisa das dimensões físicas calculadas a 200 dpi em qualquer monitor.
+    static async Task<byte[]> CodificarRecorteAsync(InMemoryRandomAccessStream render, uint largura, uint altura)
+    {
+        render.Seek(0);
+        var decoder = await BitmapDecoder.CreateAsync(render);
+        var pixels = await decoder.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Straight,
+            new BitmapTransform { ScaledWidth = largura, ScaledHeight = altura, InterpolationMode = BitmapInterpolationMode.Fant },
+            ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
+        using var saida = new InMemoryRandomAccessStream();
+        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, saida);
+        encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Straight, largura, altura, DpiRecorte, DpiRecorte, pixels.DetachPixelData());
+        await encoder.FlushAsync();
+        using var leitor = new DataReader(saida.GetInputStreamAt(0));
+        var bytes = new byte[checked((int)saida.Size)];
+        await leitor.LoadAsync((uint)bytes.Length);
+        leitor.ReadBytes(bytes);
+        return bytes;
     }
 
     static JsonNode Pt(double dip) => JsonValue.Create(Math.Round(dip * 72 / 96, 2))!;

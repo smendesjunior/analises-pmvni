@@ -29,6 +29,7 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
     CoreWebView2Controller? controller;
     volatile bool descartado;
     volatile Exception? falha;
+    Exception? erroEncerramento;
 
     /// <summary>O host não serve mais: foi descartado ou um processo do WebView2 caiu (quem o usa deve criar outro).</summary>
     public bool Inutilizavel => descartado || falha is not null;
@@ -140,7 +141,7 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
     internal static Task NavegarParaUrlAsync(CoreWebView2 webView, string url, TimeSpan? tempoLimite = null) =>
         NavegarAsync(webView, () => webView.Navigate(url), tempoLimite);
 
-    static async Task NavegarAsync(CoreWebView2 webView, Action navegar, TimeSpan? tempoLimite)
+    internal static async Task NavegarAsync(CoreWebView2 webView, Action navegar, TimeSpan? tempoLimite)
     {
         var limite = tempoLimite ?? TempoLimiteNavegacaoPadrao;
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -183,6 +184,7 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
     void ErroInterno(Exception e)
     {
         UltimoErroInterno = e;
+        if (descartado) erroEncerramento ??= e;
         FalharPendentes(new InvalidOperationException("Erro inesperado na thread STA do HostOculto.", e));
     }
 
@@ -222,7 +224,7 @@ public sealed class HostOculto : IDisposable, IAsyncDisposable
         }, null);
         if (Thread.CurrentThread != thread && !thread.Join(TimeSpan.FromSeconds(10)))
             throw new TimeoutException("A thread STA do HostOculto não encerrou em 10 s.");
-        if (UltimoErroInterno is { } erro) throw new InvalidOperationException("Falha ao encerrar o HostOculto.", erro);
+        if (erroEncerramento is { } erro) throw new InvalidOperationException("Falha ao encerrar o HostOculto.", erro);
     }
 
     void LoopSta()

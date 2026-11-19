@@ -227,6 +227,7 @@ public sealed partial class MainWindow
         var despachos = moduloAtual == Modulo.Despachos;
         PaginaDeDespachos.Visibility = despachos && novo is null ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeNovoDespacho.Visibility = despachos && novo is not null ? Visibility.Visible : Visibility.Collapsed;
+        if (despachos) RegistrarPaginaVisitada();
     }
 
     // ---------- Gerar PDF: o despacho escolhido ----------

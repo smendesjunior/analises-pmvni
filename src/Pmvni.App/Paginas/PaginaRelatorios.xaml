@@ -5,7 +5,7 @@
   xmlns:local="using:Pmvni.App">
   <!-- Módulo Relatórios: avisos, painel lateral (Seções | Excluídos | Histórico), as folhas A4 (WebView2, criado uma vez),
        Propriedades do item selecionado e o rodapé (zoom, folha X de Y). -->
-  <Grid>
+  <Grid Padding="0,12">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
@@ -16,7 +16,7 @@
          blocos que não cabem, conteúdo além da borda) vão para o indicador do rodapé; com Ajustes › Aparência › "Faixas no topo", voltam
          para cá (AvisoLargura, AvisoEstouro, AvisoForaDaArea). -->
     <!-- Correções 2026-11-15: afastada da borda arredondada da área das páginas (antes encostava no canto e no trilho). -->
-    <local:AreaDeAvisos x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0" Margin="12,0,12,0">
+    <local:AreaDeAvisos RecuoAberto="0,0,0,12" x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0">
       <!-- Tarefa 10: conflito na gravação (com as duas saídas), somente leitura (trava de outro, perdida, esquema novo) e diário com falha. -->
       <InfoBar x:Name="AvisoConflito" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="False"
                Title="Conflito: o arquivo mudou no disco">
@@ -51,7 +51,7 @@
       <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
     </local:AreaDeAvisos>
 
-    <Grid Grid.Row="1">
+    <Grid x:Name="CorpoRelatorio" Grid.Row="1" ColumnSpacing="8">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="*"/>
@@ -59,15 +59,16 @@
       </Grid.ColumnDefinitions>
 
       <!-- Painel lateral (recolhível por Exibir › Painel lateral): abas Seções, Excluídos (n) e Histórico. -->
-      <Grid x:Name="PainelNavegacao" x:FieldModifier="internal" Grid.Column="0" Width="{StaticResource PmvniLarguraPainelSecoes}" Style="{StaticResource PmvniPainelLateral}" Padding="0,2,0,0">
+      <Grid x:Name="PainelNavegacao" x:FieldModifier="internal" Grid.Column="0" Width="{StaticResource PmvniLarguraPainelSecoes}" Style="{StaticResource PmvniPainelLateral}" Padding="0,4,0,4">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <!-- Arrastar a borda muda a largura do painel (correção 2026-11-16). -->
         <local:AlcaDeLargura Borda="Right"/>
-        <SelectorBar x:Name="AbasPainel" x:FieldModifier="internal" Grid.Row="0" Margin="8,0,8,2">
+        <SelectorBar x:Name="AbasPainel" x:FieldModifier="internal" Grid.Row="0" Margin="12,0,12,2">
           <SelectorBarItem x:Name="AbaSecoes" x:FieldModifier="internal" Text="Seções" IsSelected="True"/>
           <SelectorBarItem x:Name="AbaExcluidos" x:FieldModifier="internal" Text="Excluídos (0)"/>
           <SelectorBarItem x:Name="AbaHistorico" x:FieldModifier="internal" Text="Histórico"/>
@@ -75,11 +76,13 @@
         <!-- Painel de navegação (correções 2026-11-15): pesquisa por texto ou situação e filtro rápido dos apontamentos. Os botões do
              filtro são montados pela janela (FiltroNavegacao.Ordem), com a contagem de cada situação. -->
         <StackPanel x:Name="PainelFiltros" x:FieldModifier="internal" Grid.Row="1" Spacing="8" Margin="12,4,12,8">
-          <TextBlock Text="BUSCA" Style="{StaticResource PmvniPainelRotulo}"/>
-          <Grid><TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar por texto ou situação"
+          <TextBlock Text="Seções do relatório" Style="{StaticResource PmvniTituloSecao}" TextAlignment="Left"/>
+          <TextBlock Text="Navegue pelas folhas e exigências da análise" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+          <Grid><TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar seção ou item"
                    AutomationProperties.Name="Pesquisar nas seções e itens"/><FontIcon Glyph="&#xE721;" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0" FontSize="15"/></Grid>
-          <TextBlock Text="FILTRAR POR SITUAÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
+          <Expander Header="Filtrar por situação" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
           <Grid ColumnDefinitions="*,*,*,*,*,*" RowDefinitions="Auto,Auto" RowSpacing="5" ColumnSpacing="4" x:Name="BotoesFiltro" x:FieldModifier="internal" AutomationProperties.Name="Filtro rápido de apontamentos"/>
+          </Expander>
         </StackPanel>
         <ListView x:Name="ListaNavegacao" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True"
                   Padding="6,0,6,8" AutomationProperties.Name="Seções e itens do relatório">
@@ -97,17 +100,17 @@
                    Correções 2026-11-15 (painel de navegação): número numa coluna própria, título em até duas linhas e a etiqueta de
                    situação embaixo dele; a folha numa coluna fixa à direita; o item selecionado com fundo mais claro e barra fina; as
                    seções com seta para recolher e o contador de itens. Clicar na etiqueta abre o menu das situações. -->
-              <Grid MinHeight="30" ColumnSpacing="8" Padding="0,5,6,5" CornerRadius="4" Background="{x:Bind FundoLinha, Mode=OneWay}"
+              <Grid MinHeight="40" ColumnSpacing="5" Padding="0,6,8,6" CornerRadius="9" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Background="{x:Bind FundoLinha, Mode=OneWay}"
                     AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Rotulo}">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="3"/>
                   <ColumnDefinition Width="24"/>
-                  <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="54"/>
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Style="{StaticResource PmvniRailIndicatorStyle}" Visibility="{x:Bind IndicadorVisivel, Mode=OneWay}"/>
+                <Border Grid.Column="0" VerticalAlignment="Stretch" Margin="0,4" CornerRadius="2" Background="{x:Bind CorSituacao}" Visibility="{x:Bind SituacaoVisivel}"/>
+                <FontIcon Grid.Column="1" Glyph="{x:Bind IconeSecao}" Visibility="{x:Bind IconeSecaoVisivel, Mode=OneWay}" FontSize="15"/>
                 <TextBlock Grid.Column="1" Text="{x:Bind Numero}" Visibility="{x:Bind NumeroVisivel}" FontSize="12"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,1,0,0" VerticalAlignment="Top"/>
                 <Button Grid.Column="1" Visibility="{x:Bind ChevronVisivel, Mode=OneWay}" Tag="{x:Bind}" Click="AoClicarChevron"
@@ -115,19 +118,15 @@
                         AutomationProperties.Name="{x:Bind NomeChevron, Mode=OneWay}" local:Dicas.Descricao="Mostra ou esconde os itens desta seção.">
                   <FontIcon Glyph="{x:Bind GlifoChevron, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </Button>
-                <!-- Auditoria de interface (2026-11-17): uma linha por item; a situação vira a bolinha antes do título (o nome na dica; clicar
-                     muda a situação), para caber o dobro de itens na lista. -->
-                <local:EtiquetaSituacao Grid.Column="2" Compacta="True" Situacao="{x:Bind Situacao}" Tag="{x:Bind}" Click="AoClicarEtiqueta"
-                                        VerticalAlignment="Center" Margin="-4,-4,0,-4" Mostrar="{x:Bind ListaCompacta}"/>
-                <StackPanel Grid.Column="3" Spacing="5" VerticalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="{x:Bind Titulo}" FontWeight="{x:Bind Peso}" FontSize="{x:Bind TamanhoTitulo}" MaxLines="{x:Bind LinhasTitulo}"
+                <StackPanel Grid.Column="2" Spacing="5" VerticalAlignment="Center">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                    <TextBlock TextAlignment="Left" Text="{x:Bind Titulo}" FontWeight="{x:Bind Peso}" FontSize="{x:Bind TamanhoTitulo}" MaxLines="{x:Bind LinhasTitulo}"
                                TextWrapping="{x:Bind QuebraTitulo}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                    <Border Visibility="{x:Bind ContagemVisivel, Mode=OneWay}" CornerRadius="9" Padding="7,0,7,1" VerticalAlignment="Center"
+                    <Border Grid.Column="1" Visibility="{x:Bind ContagemVisivel, Mode=OneWay}" CornerRadius="9" Padding="7,0,7,1" VerticalAlignment="Center"
                             Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                       <TextBlock Text="{x:Bind ContagemTexto, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </Border>
-                  </StackPanel>
+                  </Grid>
                   <!-- 2026-11-17 (pedido do usuário): embaixo do título, a etiqueta da situação no visual do relatório e, se o item mudou,
                        "RESULTADO ORIGINAL ALTERADO" (cor de destaque do app, não vermelho: vermelho é só da situação). -->
                   <StackPanel Orientation="Horizontal" Spacing="8">
@@ -137,13 +136,17 @@
                                ToolTipService.ToolTip="O resultado original deste item foi alterado na revisão."/>
                   </StackPanel>
                 </StackPanel>
-                <TextBlock Grid.Column="5" Text="{x:Bind FolhaTexto}" FontSize="10.5" FontWeight="SemiBold" CharacterSpacing="30"
+                <TextBlock Grid.Column="3" Text="{x:Bind FolhaTexto}" FontSize="10.5" FontWeight="SemiBold" CharacterSpacing="30"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            VerticalAlignment="Top" Margin="0,2,0,0" TextAlignment="Right" HorizontalAlignment="Right"/>
               </Grid>
             </DataTemplate>
           </ListView.ItemTemplate>
         </ListView>
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Padding="12,8" ColumnSpacing="6" Visibility="{Binding Visibility, ElementName=ListaNavegacao}">
+          <TextBlock x:Name="ContagemNavegacao" TextAlignment="Left" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+          <Button x:Name="MaisItens" Grid.Column="1" Content="Mais itens" Click="AvancarNavegacao"/>
+        </Grid>
         <!-- Excluídos: cada linha com o número original, o título e Restaurar (as linhas são montadas pela janela). -->
         <ListView x:Name="ListaExcluidos" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True"
                   Padding="6,0,6,8" Visibility="Collapsed" AutomationProperties.Name="Itens excluídos"/>
@@ -183,16 +186,17 @@
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
+          <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <!-- Arrastar a borda muda a largura do painel (correção 2026-11-16). -->
         <local:AlcaDeLargura Borda="Left"/>
-        <Grid Grid.Row="0" Padding="16,10,8,6" ColumnSpacing="8">
+        <Grid Grid.Row="0" Padding="12" ColumnSpacing="8">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
           <StackPanel>
-            <TextBlock TextAlignment="Center" x:Name="PropTitulo" x:FieldModifier="internal" Text="Propriedades" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBlock TextAlignment="Left" x:Name="PropTitulo" x:FieldModifier="internal" Text="Propriedades" Style="{StaticResource SubtitleTextBlockStyle}"/>
             <TextBlock x:Name="PropId" x:FieldModifier="internal" Text="" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"/>
           </StackPanel>
           <Button x:Name="BotaoFecharPropriedades" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniBarraButtonStyle}"
@@ -323,7 +327,7 @@
 
     <!-- Rodapé (o mesmo padrão da Legislação, M4): zoom com ícones e atalhos na dica, o indicador de layout (A2), a situação da composição e
          "Folha n de M" com caixa para ir direto à folha. -->
-    <Grid Grid.Row="2" MinHeight="44" Padding="12,4" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+    <Grid x:Name="BarraRodape" Grid.Row="2" MinHeight="44" Padding="12,4" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="Auto"/>
@@ -335,6 +339,9 @@
                 ToolTipService.ToolTip="Abra um relatório para mudar o zoom." IsEnabled="False">
           <FontIcon Glyph="&#xE71F;" FontSize="14"/>
         </Button>
+        <Slider x:Name="ControleZoom" x:FieldModifier="internal" Width="104" Minimum="50" Maximum="300" Value="100"
+                StepFrequency="1" SmallChange="1" LargeChange="10" VerticalAlignment="Center" IsEnabled="False"
+                AutomationProperties.Name="Zoom do relatório em porcentagem" ToolTipService.ToolTip="Arraste para ajustar o zoom do relatório"/>
         <TextBlock x:Name="TextoZoom" x:FieldModifier="internal" Text="100 %" Width="52" TextAlignment="Center" VerticalAlignment="Center"/>
         <Button x:Name="BotaoMais" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Aumentar o zoom"
                 ToolTipService.ToolTip="Abra um relatório para mudar o zoom." IsEnabled="False">

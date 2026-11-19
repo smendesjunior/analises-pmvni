@@ -13,7 +13,7 @@ v3    PDF do editor × PDF do gerador do kit (mesmo dados.json): mesmo número d
       (cabeçalho, área útil e rodapé) e diferença visual por página. Grava tests/saida/v3.json.
 v4    V1, V2 e V3 sobre todos os casos (corpus + dados_modelo --instrucoes + casos locais). O caso `estouro` não tem PDF:
       verifica só que a exportação é recusada (código 3, nada gravado). Grava v1/v2/v3.json e v4.json.
-v5    Dados efetivos × kit, via pacote: `Pmvni.Verificador html --via-pacote` importa o dados.json num .pmvrel, grava, relê,
+v5    Dados efetivos × kit, via pacote: `Pmvni.Verificador html --via-pacote` importa o dados.json num .rpmvni, grava, relê,
       extrai os assets e gera o HTML a partir do projeto relido (sem nenhuma revisão); tem de ser igual, byte a byte, ao
       HTML do gerador do kit (como a V1). Mesmos casos da V4. Grava tests/saida/v5.json só com
       {caso, igual, sha256_kit, sha256_editor}.
@@ -504,7 +504,7 @@ def caso_v5(ex: Execucao, c: dict) -> dict:
     html_kit = ex.pdf_kit(c).with_suffix('.html')
     html_ed = ex.pasta(c) / 'editor-v5.html'
     r = ex.verificador(c, 'html', html_ed, '--via-pacote')
-    if r.returncode != 0 or not html_ed.is_file() or not html_ed.with_suffix('.pmvrel').is_file():
+    if r.returncode != 0 or not html_ed.is_file() or not html_ed.with_suffix('.rpmvni').is_file():
         raise RuntimeError(ex.falha(c, 'Pmvni.Verificador html --via-pacote', r))
     a, b = html_kit.read_bytes(), html_ed.read_bytes()
     res.update(sha256_kit=sha(a), sha256_editor=sha(b), igual=(a == b))

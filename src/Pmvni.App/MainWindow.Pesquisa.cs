@@ -63,10 +63,11 @@ public sealed partial class MainWindow
             else esperaPesquisa.Start();
         };
         CaixaPesquisa.KeyDown += AoTeclarNaPesquisa;
-        BotaoPesquisaAnterior.Click += async (_, _) => await TentarAsync(() => IrNaPesquisaAsync(-1));
-        BotaoPesquisaProxima.Click += async (_, _) => await TentarAsync(() => IrNaPesquisaAsync(+1));
-        Dicas.Aplicar(BotaoPesquisaAnterior, "Ocorrência anterior", "Volta ao resultado anterior da pesquisa.", "Shift+Enter");
-        Dicas.Aplicar(BotaoPesquisaProxima, "Próxima ocorrência", "Vai ao próximo resultado da pesquisa.", "Enter");
+        BotaoPesquisaAnterior.Click += async (_, _) => await TentarAsync(() => PercorrerPaginasAsync(-1));
+        BotaoPesquisaProxima.Click += async (_, _) => await TentarAsync(() => PercorrerPaginasAsync(1));
+        Dicas.Aplicar(BotaoPesquisaAnterior, "Página anterior", "Volta para a página visitada anteriormente.");
+        Dicas.Aplicar(BotaoPesquisaProxima, "Próxima página", "Avança pelo histórico de páginas.");
+        PaginaDeAjustes.CategoriaMostrada += _ => RegistrarPaginaVisitada();
         manipuladores[ComandosApp.PesquisaFocar] = () =>
         {
             CaixaPesquisa.Focus(FocusState.Keyboard);
@@ -146,7 +147,6 @@ public sealed partial class MainWindow
         pesquisaAtual = atual;
         pesquisaRef = @ref;
         TextoPesquisa.Text = termo.Length == 0 ? "" : total == 0 ? "Nenhum resultado" : $"{atual.ToString(CultureInfo.InvariantCulture)} de {total.ToString(CultureInfo.InvariantCulture)}";
-        BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = total > 0;
     }
 
     /// <summary>Depois de recompor, as folhas são outras: refaz o realce com o termo da caixa (a ocorrência atual não muda e a tela não rola).</summary>
@@ -187,9 +187,6 @@ public sealed partial class MainWindow
         // Sem pesquisa no módulo, a dica diz o motivo (auditoria M6) e que a caixa ainda acha o resto do app.
         var motivo = habilitada ? "" : moduloAtual == Modulo.Relatorios ? "Abra um relatório para pesquisar nas folhas dele." : "";
         AplicarDicaDaPesquisa(motivo);
-        // Anterior e próxima andam pelas ocorrências nas folhas (e, na Legislação, pelas da lei aberta: quem acerta é o contador dela).
-        if (moduloAtual == Modulo.Legislacao) return;
-        BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = habilitada && moduloAtual == Modulo.Relatorios && pesquisaTotal > 0;
     }
 
     /// <summary>A dica da caixa de pesquisa no formato do app: o alvo ("Pesquisar no relatório") com Ctrl+F, o que ela faz no módulo e,
@@ -230,7 +227,6 @@ public sealed partial class MainWindow
         finally { definindoPesquisa = false; }
         if (novo == Modulo.Relatorios) MostrarResultadoDaPesquisa(pesquisaTotal, pesquisaAtual, pesquisaRef, TermoDe(Modulo.Relatorios));
         else TextoPesquisa.Text = "";
-        if (novo == Modulo.Legislacao) BotaoPesquisaAnterior.IsEnabled = BotaoPesquisaProxima.IsEnabled = false;
     }
 
     /// <summary>A dica da caixa no módulo: na Legislação ela segue "Pesquisar em" ("Pesquisar nesta lei" / "Pesquisar em todas as leis").</summary>

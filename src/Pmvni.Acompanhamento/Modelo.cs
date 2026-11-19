@@ -129,7 +129,9 @@ public sealed class PlanilhaLida
     public IReadOnlyList<(string Valor, int Quantidade)> Contagem(ChaveColuna k)
     {
         var ops = Opcoes(k);
-        return ops.Select(o => (o, Linhas.Count(l => string.Equals(Planilha.Normal(l.Texto(k)), Planilha.Normal(o), StringComparison.Ordinal)))).ToList();
+        if (ops.Count == 0) return [];
+        var totais = Linhas.CountBy(l => Planilha.Normal(l.Texto(k)), StringComparer.Ordinal).ToDictionary();
+        return ops.Select(o => (o, totais.GetValueOrDefault(Planilha.Normal(o)))).ToList();
     }
 }
 
@@ -153,9 +155,11 @@ public static class Planilha
     /// <summary>"B12" → (1, 12).</summary>
     public static (int Coluna, int Linha) Referencia(string r)
     {
-        var i = 0;
+        var inicio = r.StartsWith('$') ? 1 : 0;
+        var i = inicio;
         while (i < r.Length && char.IsAsciiLetter(r[i])) i++;
-        return (Indice(r[..i].Replace("$", "")), int.Parse(r[i..].Replace("$", ""), CultureInfo.InvariantCulture));
+        var linha = i < r.Length && r[i] == '$' ? i + 1 : i;
+        return (Indice(r[inicio..i]), int.Parse(r.AsSpan(linha), CultureInfo.InvariantCulture));
     }
 
     /// <summary>Sem acento, minúsculas, espaços simples (inclusive o espaço duro).</summary>

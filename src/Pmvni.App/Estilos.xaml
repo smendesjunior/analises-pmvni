@@ -25,7 +25,7 @@
   <Thickness x:Key="PmvniMargemPagina">24,16,24,16</Thickness>
 
   <Style x:Key="PmvniSecondaryTextStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
   </Style>
@@ -234,13 +234,13 @@
   <!-- Cartões dos Ajustes (no padrão do WinStatusBar): grupo com fundo de cartão, borda e raio 8; linha = título + ajuda à esquerda e
        o controle numa coluna de 240 à direita (empilha abaixo de 540 px: LinhaAjuste). -->
   <Style x:Key="PmvniAjusteTituloPagina" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="24"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
   </Style>
   <Style x:Key="PmvniAjusteAjuda" TargetType="TextBlock">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="LineHeight" Value="18"/>
@@ -248,12 +248,12 @@
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
   </Style>
   <Style x:Key="PmvniAjusteTitulo" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
   </Style>
   <Style x:Key="PmvniAjusteGrupoTitulo" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Margin" Value="0,10,0,0"/>
@@ -288,7 +288,7 @@
     <Setter Property="Padding" Value="24"/>
   </Style>
   <Style x:Key="PmvniTituloSecao" TargetType="TextBlock">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="FontSize" Value="20"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
@@ -309,7 +309,7 @@
     <Setter Property="Foreground" Value="{ThemeResource PmvniTonalTexto}"/>
   </Style>
   <Style x:Key="PmvniTextoAjuda" TargetType="TextBlock">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -339,7 +339,7 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniPainelCartaoTitulo" TargetType="TextBlock">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="CharacterSpacing" Value="40"/>
@@ -350,7 +350,7 @@
     <Setter Property="Spacing" Value="10"/>
   </Style>
   <Style x:Key="PmvniPainelRotulo" TargetType="TextBlock">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="CharacterSpacing" Value="60"/>
@@ -359,13 +359,13 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniPainelValor" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="IsTextSelectionEnabled" Value="True"/>
   </Style>
   <Style x:Key="PmvniPainelValorForte" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="IsTextSelectionEnabled" Value="True"/>
@@ -473,7 +473,7 @@
     <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorBaseBrush}"/>
   </Style>
   <Style x:Key="PmvniTituloPaginaStyle" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
-    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="24"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
