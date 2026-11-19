@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.16
+
+- A consulta de legislação usa diretamente a pesquisa e os filtros do Leis.org dentro do Editor.
+
 ## 1.2.15
 
 - No Acompanhamento, arraste os títulos para mover colunas ou use o menu de contexto. O menu Colunas permite incluir campos sem dados e restaurar a ordem.

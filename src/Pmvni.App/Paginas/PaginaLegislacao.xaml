@@ -171,22 +171,11 @@
         <AppBarButton x:Name="AvancarPortal" Label="Avançar" Icon="Forward" Click="AvancarNaConsulta"/>
         <AppBarButton x:Name="PararPortal" Label="Parar" Icon="Stop" Click="PararConsulta"/>
         <AppBarButton Label="Atualizar" Icon="Refresh" Click="AtualizarConsulta"/>
-        <AppBarButton Label="Escolher acervo" Icon="Home" Click="InicioConsulta"/>
+        <AppBarButton Label="Início" Icon="Home" Click="InicioConsulta"/>
         <AppBarButton x:Name="SalvarPortal" Label="Salvar PDF" Icon="Save" Click="SalvarConsulta"/>
         <AppBarButton Label="Voltar à biblioteca" Icon="Library" Click="FecharConsulta"/>
       </CommandBar>
-      <StackPanel Grid.Row="1" Margin="12,4" Spacing="4">
-        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
-          <ComboBox x:Name="EsferaPortal" Header="Acervo" SelectedIndex="0" SelectionChanged="MudarEsfera">
-            <x:String>Municipal</x:String><x:String>Estadual</x:String><x:String>Federal</x:String>
-          </ComboBox>
-          <ComboBox x:Name="UfPortal" Grid.Column="1" Header="UF" PlaceholderText="UF"/>
-          <TextBox x:Name="CidadePortal" Grid.Column="2" Header="Município" PlaceholderText="Nome do município"/>
-          <Button Grid.Column="3" VerticalAlignment="Bottom" Content="Abrir acervo" Click="AbrirAcervo"/>
-        </Grid>
-        <AutoSuggestBox x:Name="TermoPortal" PlaceholderText="Pesquisar por número ou assunto no acervo selecionado" QueryIcon="Find" QuerySubmitted="PesquisarPortal"/>
-        <TextBlock x:Name="EstadoPortal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-      </StackPanel>
+      <TextBlock Grid.Row="1" x:Name="EstadoPortal" TextWrapping="Wrap" Visibility="Collapsed"/>
       <WebView2 Grid.Row="2" x:Name="Portal" AutomationProperties.Name="Leis.org"/>
     </Grid>
   </Grid>
