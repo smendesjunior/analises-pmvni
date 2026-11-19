@@ -167,13 +167,23 @@
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="Auto"/>
-        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/><RowDefinition Height="*"/>
       </Grid.RowDefinitions>
 
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+        <Border CornerRadius="10" Padding="10" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
+          <FontIcon Glyph="&#xE99A;" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <TextBlock Text="Monitor de análise" Style="{StaticResource PmvniTituloPaginaStyle}"/>
+          <TextBlock Text="Execução da IA, atividades e descobertas em tempo real." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+        </StackPanel>
+        <TextBlock Grid.Column="2" x:Name="ProcessoMonitor" x:FieldModifier="internal" MaxWidth="220" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+      </Grid>
       <!-- 1. Resumo. -->
-      <Border Style="{StaticResource PmvniCartaoSecao}" Padding="16,14">
+      <Border Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="16,14">
         <Grid ColumnSpacing="16" RowSpacing="6">
-          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
@@ -187,17 +197,9 @@
             <TextBlock x:Name="TituloStatus" x:FieldModifier="internal" Text="Análise em andamento" Style="{StaticResource SubtitleTextBlockStyle}"
                        AutomationProperties.LiveSetting="Polite"/>
             <TextBlock x:Name="TextoProgressoItens" TextWrapping="Wrap" Visibility="Collapsed"/>
-            <TextBlock x:Name="TextoTotais" TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+
             <TextBlock x:Name="TextoCabecalho" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-            <StackPanel x:Name="ResumoEtapa" Spacing="6" Margin="0,4,0,0">
-              <Border x:Name="PilulaEtapa" x:FieldModifier="internal" CornerRadius="12" Padding="10,3" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                <Grid ColumnSpacing="6"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                  <Ellipse x:Name="PontoEtapa" x:FieldModifier="internal" Width="8" Height="8" Fill="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center"/>
-                  <TextBlock x:Name="TextoEtapaAtual" x:FieldModifier="internal" FontSize="12" Grid.Column="1" TextWrapping="Wrap"/>
-                </Grid>
-              </Border>
-              <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            </StackPanel>
+
           </StackPanel>
           <StackPanel x:Name="BotoesExecucao" x:FieldModifier="internal" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
             <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
@@ -206,22 +208,37 @@
             <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE710;" FontSize="14"/><TextBlock Text="Nova análise"/></StackPanel>
             </Button>
-            <Button x:Name="BotaoPausarAnalise" x:FieldModifier="internal" Content="Pausar análise"
+            <Button Style="{StaticResource PmvniBotaoTonalStyle}" x:Name="BotaoPausarAnalise" x:FieldModifier="internal" Content="Pausar análise"
                     local:Dicas.Descricao="Interrompe a execução e preserva o progresso disponível para retomada."/>
             <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" local:Dicas.Descricao="Para a análise da IA; nenhum relatório é criado.">
               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE711;" FontSize="14"/><TextBlock Text="Cancelar análise"/></StackPanel>
             </Button>
           </StackPanel>
+            <StackPanel Grid.Row="2" Grid.ColumnSpan="3" x:Name="ResumoEtapa" Spacing="6" Margin="0,4,0,0">
+              <Border x:Name="PilulaEtapa" x:FieldModifier="internal" CornerRadius="12" Padding="10,3" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                <Grid ColumnSpacing="6"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <Ellipse x:Name="PontoEtapa" x:FieldModifier="internal" Width="8" Height="8" Fill="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center"/>
+                  <TextBlock x:Name="TextoEtapaAtual" x:FieldModifier="internal" FontSize="12" Grid.Column="1" TextWrapping="Wrap"/>
+                </Grid>
+              </Border>
+              <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+          <Grid Grid.Row="3" Grid.ColumnSpan="3" ColumnDefinitions="*,*,*,*" ColumnSpacing="8" Margin="0,4,0,0">
+            <Border Grid.Column="0" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock Text="Atende" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock x:Name="TotalAtende" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
+            <Border Grid.Column="1" Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock Text="Não atende" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock x:Name="TotalNaoAtende" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
+            <Border Grid.Column="2" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock Text="Falta comprovar" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock x:Name="TotalComprovar" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
+            <Border Grid.Column="3" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock Text="Informações divergentes" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock x:Name="TotalDivergentes" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
+          </Grid>
         </Grid>
       </Border>
 
       <!-- 2. Etapas (só no Claude, que informa a etapa). -->
-      <Border x:Name="PainelClaude" x:FieldModifier="internal" Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="12,14" Visibility="Collapsed">
+      <Border x:Name="PainelClaude" x:FieldModifier="internal" Grid.Row="2" Style="{StaticResource PmvniCartaoSecao}" Padding="12,14" Visibility="Collapsed">
         <Grid x:Name="PainelEtapas" x:FieldModifier="internal" AutomationProperties.Name="Etapas da análise"/>
       </Border>
 
       <!-- 3. Atividades | descobertas, próxima etapa e detalhes. -->
-      <Grid x:Name="GradeConteudo" x:FieldModifier="internal" Grid.Row="2" ColumnSpacing="12" RowSpacing="12">
+      <Grid x:Name="GradeConteudo" x:FieldModifier="internal" Grid.Row="3" ColumnSpacing="12" RowSpacing="12">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="11*"/>
           <ColumnDefinition Width="10*"/>

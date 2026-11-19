@@ -70,7 +70,7 @@
                   AutomationProperties.Name="Aba da planilha" local:Dicas.Descricao="A aba da planilha que o app mostra e onde grava."/>
         <!-- Resumo recolhível (auditoria 2026-11-17): em telas baixas ele fica compacto sozinho, para a tabela nunca sumir. -->
         <Grid>
-          <ToggleButton x:Name="BotaoResumo" x:FieldModifier="internal" IsChecked="True" AutomationProperties.Name="Resumo por status"
+          <ToggleButton local:Brilho.Ativo="True" x:Name="BotaoResumo" x:FieldModifier="internal" IsChecked="True" AutomationProperties.Name="Resumo por status"
                       local:Dicas.Titulo="Resumo" local:Dicas.Descricao="Mostra ou esconde o resumo por status (a pizza e os cartões).">
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE9D2;" FontSize="14"/><TextBlock Text="Resumo"/></StackPanel>
         </ToggleButton>

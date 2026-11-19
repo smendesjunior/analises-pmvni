@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.20
+
+- O Monitor de análise reúne processo, etapa, atividades e descobertas, com quatro contadores atualizados pelos achados da execução. O Resumo do Acompanhamento usa o brilho dos botões ativos.
+
 ## 1.2.19
 
 - Novo relatório e ajustes de revisão se adaptam à largura da janela. Revisados o cabeçalho, o painel de despacho, os filtros e os acervos de processos, legislação e imóveis. Acompanhamento ganhou uma faixa própria de título e ações.

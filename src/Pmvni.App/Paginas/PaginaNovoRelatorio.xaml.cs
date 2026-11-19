@@ -165,8 +165,11 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         if (achadosExibidos is not null && achadosExibidos.SequenceEqual(achados)) return;
         achadosExibidos = achados;
         var situacoes = Pmvni.Composicao.Kit.Situacoes.Sit;
-        TextoTotais.Text = string.Join("   ·   ", Pmvni.Composicao.Kit.Situacoes.SitItem.Select(
-            chave => $"{situacoes[chave].Texto}: {achados.Count(a => a.Situacao == chave)}"));
+        int Total(string chave) => achados.Count(a => situacoes[a.Situacao].Texto == situacoes[chave].Texto);
+        TotalAtende.Text = Total("ATENDE").ToString();
+        TotalNaoAtende.Text = Total("NAO_ATENDE").ToString();
+        TotalComprovar.Text = Total("NAO_COMPROVADO").ToString();
+        TotalDivergentes.Text = Total("DIVERGENCIA_INTERNA").ToString();
         for (var i = 0; i < achados.Count; i++)
         {
             var a = achados[i];

@@ -878,6 +878,7 @@ public sealed partial class MainWindow
 
     void AtualizarRelogioDaExecucao(ExecucaoEmCurso e)
     {
+        NR.ProcessoMonitor.Text = "Processo " + FluxoNovoRelatorio.Identificacao(e.Processo);
         NR.TextoCabecalho.Text = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, e.TempoAtivo)
             + (e.Retomada ? " (retomada)" : "");
     }
