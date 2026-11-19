@@ -6,7 +6,7 @@ public static class Glifos
 {
     public const string Abrir = "\uE8E5";
     public const string Adicionar = "\uE710";
-    public const string Ajustar = "\uE9A6";
+    public const string Ajustar = "\uE745";
     public const string Alterados = "\uE71C";
     public const string Anexar = "\uE723";
     public const string Anterior = "\uE70E";
@@ -46,8 +46,8 @@ public static class Glifos
     public const string OcorrenciaProxima = "\uE74B";
     public const string Ordenar = "\uE8CB";
     public const string Original = "\uE8AB";
-    public const string PaginaInteira = "\uE7B8";
-    public const string PaginaInteiraLei = "\uE740";
+    public const string PaginaInteira = "\uE9A6";
+
     public const string Painel = "\uE8A0";
     public const string Pasta = "\uE8B7";
     public const string Pendente = "\uE7C1";
@@ -58,7 +58,7 @@ public static class Glifos
     public const string Relatorio = "\uE8A5";
     public const string Despacho = "\uE715";
     public const string Documento = "\uE7C3";
-    public const string AbrirArquivo = "\uE8A7";
+    public const string AbrirEmOutraJanela = "\uE8A7";
     public const string ImportarAnalise = "\uE896";
     public const string Restaurar = "\uE777";
     public const string Desfazer = "\uE7A7";

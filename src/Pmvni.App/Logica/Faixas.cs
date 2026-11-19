@@ -184,7 +184,7 @@ public static class Faixas
             new(ComandosApp.ProcessosAbrirRelatorio, "Abrir relatório", Glifos.Abrir),
             new(ComandosApp.ProcessosImportarAnalise, "Importar análise", Glifos.ImportarAnalise, Descricao: "Importar a análise da IA"),
             NovoDespacho,
-            new(ComandosApp.ProcessosAbrirArquivo, "Abrir arquivo", Glifos.AbrirArquivo),
+            new(ComandosApp.ProcessosAbrirArquivo, "Abrir arquivo", Glifos.Abrir),
             Imprimir,
             new(ComandosApp.ProcessosAbrirPasta, "Abrir pasta", Glifos.Explorador, Descricao: "Abrir a pasta no Explorador"),
             new(ComandosApp.ProcessosAtualizar, "Atualizar", Glifos.Atualizar),
@@ -234,7 +234,7 @@ public static class Faixas
             new(ComandosApp.LegislacaoZoomMenos, "Diminuir", Glifos.Diminuir),
             new(ComandosApp.LegislacaoZoomMais, "Aumentar", Glifos.Aumentar),
             new(ComandosApp.LegislacaoAjustarLargura, "Ajustar largura", Glifos.Ajustar),
-            new(ComandosApp.LegislacaoPaginaInteira, "Página inteira", Glifos.PaginaInteiraLei),
+            new(ComandosApp.LegislacaoPaginaInteira, "Página inteira", Glifos.PaginaInteira),
             new(ComandosApp.LegislacaoMarcadores, "Marcadores", Glifos.Marcadores, TipoComando.Alternar),
             new(ComandosApp.LegislacaoLista, "Lista de leis", Glifos.Lista, TipoComando.Alternar),
         ]),
@@ -248,7 +248,7 @@ public static class Faixas
         new(ComandosApp.SiteAvancar, "Avançar", Glifos.Avancar),
         new(ComandosApp.SiteAtualizar, "Atualizar", Glifos.Atualizar),
         new(ComandosApp.SiteInicio, "Página inicial", Glifos.Inicio),
-        new(ComandosApp.SiteNavegador, "Abrir no navegador", Glifos.AbrirArquivo),
+        new(ComandosApp.SiteNavegador, "Abrir no navegador", Glifos.AbrirEmOutraJanela),
         Imprimir,
     ]);
 

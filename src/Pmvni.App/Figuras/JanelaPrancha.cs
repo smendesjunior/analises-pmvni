@@ -111,7 +111,7 @@ internal sealed class JanelaPrancha : Window
         ferramentas.PrimaryCommands.Add(new AppBarSeparator());
         var menos = new AppBarButton { Icon = new SymbolIcon(Symbol.ZoomOut), Label = "Diminuir" };
         var mais = new AppBarButton { Icon = new SymbolIcon(Symbol.ZoomIn), Label = "Aumentar" };
-        var ajustar = new AppBarButton { Icon = new SymbolIcon(Symbol.FullScreen), Label = "Página inteira" };
+        var ajustar = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.PaginaInteira }, Label = "Página inteira" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(menos, "Diminuir");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(mais, "Aumentar");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(anterior, "Página anterior");

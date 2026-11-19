@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.6
+
+- Relatórios, Legislação e Pranchas usam o mesmo símbolo Fluent para enquadrar a página. Ajustar largura, abrir arquivo e abrir no navegador têm símbolos distintos. O ícone de Acompanhamento fica centralizado no trilho.
+
 ## 1.2.5
 
 - As ações principais usam o mesmo brilho e os mesmos cantos nas páginas e janelas auxiliares. Os títulos dos Ajustes acompanham os demais módulos, e os controles compactos do painel ganharam espaço.

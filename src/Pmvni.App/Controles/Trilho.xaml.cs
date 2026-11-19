@@ -69,7 +69,7 @@ public sealed partial class Trilho : UserControl
                 // Duas linhas: "Acompanhamento" quase enche o item e a barrinha do módulo ativo (na borda esquerda) ficava por cima da
                 // primeira letra (2026-11-17). Fonte um pouco menor e o texto deslocado para a direita, livre da barrinha.
                 rotulo.FontSize = 10.5;
-                conteudo.Margin = new Thickness(8, 0, 0, 0);
+                rotulo.Margin = new Thickness(8, 0, 0, 0);
             }
             conteudo.Children.Add(vagaIcone);
             conteudo.Children.Add(rotulo);

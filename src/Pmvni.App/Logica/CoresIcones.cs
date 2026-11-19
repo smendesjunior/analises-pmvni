@@ -19,7 +19,7 @@ public static class CoresIcones
     {
         [Glifos.Excluir] = Vermelho, [Glifos.Pendente] = Vermelho,
         [Glifos.Adicionar] = Verde, [Glifos.NovoItem] = Verde, [Glifos.Conferir] = Verde, [Glifos.Situacao] = Verde,
-        [Glifos.Salvar] = Azul, [Glifos.SalvarComo] = Azul, [Glifos.Editar] = Azul, [Glifos.Abrir] = Azul, [Glifos.AbrirArquivo] = Azul,
+        [Glifos.Salvar] = Azul, [Glifos.SalvarComo] = Azul, [Glifos.Editar] = Azul, [Glifos.Abrir] = Azul, [Glifos.AbrirEmOutraJanela] = Azul,
         [Glifos.Copiar] = Azul, [Glifos.Citacao] = Azul, [Glifos.Propriedades] = Azul, [Glifos.Importar] = Azul,
         [Glifos.ImportarAnalise] = Azul, [Glifos.Anexar] = Azul, [Glifos.IrPara] = Azul, [Glifos.Inicio] = Azul, [Glifos.Despacho] = Azul,
         [Glifos.Explorador] = Ambar, [Glifos.Pasta] = Ambar, [Glifos.Recentes] = Ambar, [Glifos.Ano] = Ambar,
