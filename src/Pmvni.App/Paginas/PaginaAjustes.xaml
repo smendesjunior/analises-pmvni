@@ -88,8 +88,8 @@
               <FontIcon Glyph="&#xE80F;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Ao abrir" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -99,7 +99,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -109,7 +109,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-            </Grid>
+            </local:PainelCartoesAjustes>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Arquivos" Style="{StaticResource PmvniTituloSecao}"/>
@@ -134,8 +134,8 @@
               <FontIcon Glyph="&#xE737;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Janela" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -145,7 +145,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -155,7 +155,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -165,50 +165,50 @@
                   </Grid>
                 </StackPanel>
               </Border>
-            </Grid>
+            </local:PainelCartoesAjustes>
           </StackPanel>
 
           <!-- ===== 3. Relatórios e revisão ===== -->
           <StackPanel x:Name="CategoriaRelatorios" Tag="relatorios" Spacing="12" Visibility="Collapsed">
             <StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="20" Height="18.46"><Path Canvas.Left="-0" Canvas.Top="-9.27" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M2.31,9.27 L17.69,9.27 C18.96,9.27 20,10.31 20,11.58 L20,22.35 C20,23.62 18.96,24.65 17.69,24.65 L2.31,24.65 C1.04,24.65 0,23.62 0,22.35 L0,11.58 C0,10.31 1.04,9.27 2.31,9.27 Z M18.46,22.35 C18.46,22.78 18.12,23.12 17.69,23.12 L2.31,23.12 C1.88,23.12 1.54,22.78 1.54,22.35 L1.54,11.58 C1.54,11.15 1.88,10.81 2.31,10.81 L17.69,10.81 C18.12,10.81 18.46,11.15 18.46,11.58 L18.46,22.35 Z"/><Path Canvas.Left="-0" Canvas.Top="-9.27" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M13.85,26.96 C13.85,27.39 13.51,27.73 13.08,27.73 L6.92,27.73 C6.49,27.73 6.15,27.39 6.15,26.96 C6.15,26.53 6.49,26.19 6.92,26.19 L13.08,26.19 C13.51,26.19 13.85,26.53 13.85,26.96 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Tela" Style="{StaticResource PmvniTituloSecao}"/></StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-<Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+<Border Style="{StaticResource PmvniAjusteGrupo}">
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="17" Height="17"><Path Canvas.Left="-8.5" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M25.5,9.27 L25.5,13.91 C25.5,14.34 25.16,14.68 24.73,14.68 C24.3,14.68 23.95,14.34 23.95,13.91 L23.95,11.14 L19.86,15.23 C19.56,15.53 19.07,15.53 18.77,15.23 C18.47,14.93 18.47,14.44 18.77,14.14 L22.86,10.05 L20.09,10.05 C19.66,10.05 19.32,9.7 19.32,9.27 C19.32,8.84 19.66,8.5 20.09,8.5 L24.73,8.5 C25.16,8.5 25.5,8.84 25.5,9.27 Z"/><Path Canvas.Left="-8.5" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M10.05,22.86 L14.14,18.77 C14.44,18.47 14.93,18.47 15.23,18.77 C15.53,19.07 15.53,19.56 15.23,19.86 L11.14,23.95 L13.91,23.95 C14.34,23.95 14.68,24.3 14.68,24.73 C14.68,25.16 14.34,25.5 13.91,25.5 L9.27,25.5 C8.84,25.5 8.5,25.16 8.5,24.73 L8.5,20.09 C8.5,19.66 8.84,19.32 9.27,19.32 C9.7,19.32 10.05,19.66 10.05,20.09 L10.05,22.86 Z"/><Path Canvas.Left="-8.5" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M23.95,20.09 C23.95,19.66 24.3,19.32 24.73,19.32 C25.16,19.32 25.5,19.66 25.5,20.09 L25.5,24.73 C25.5,25.16 25.16,25.5 24.73,25.5 L20.09,25.5 C19.66,25.5 19.32,25.16 19.32,24.73 C19.32,24.3 19.66,23.95 20.09,23.95 L22.86,23.95 L18.77,19.86 C18.47,19.56 18.47,19.07 18.77,18.77 C19.07,18.47 19.56,18.47 19.86,18.77 L23.95,22.86 L23.95,20.09 Z"/><Path Canvas.Left="-8.5" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M13.91,10.05 L11.14,10.05 L15.23,14.14 C15.53,14.44 15.53,14.93 15.23,15.23 C14.93,15.53 14.44,15.53 14.14,15.23 L10.05,11.14 L10.05,13.91 C10.05,14.34 9.7,14.68 9.27,14.68 C8.84,14.68 8.5,14.34 8.5,13.91 L8.5,9.27 C8.5,8.84 8.84,8.5 9.27,8.5 L13.91,8.5 C14.34,8.5 14.68,8.84 14.68,9.27 C14.68,9.7 14.34,10.05 13.91,10.05 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Zoom ao abrir" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="Como as folhas aparecem ao abrir um relatório." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ComboBox x:Name="CaixaZoomInicial" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Zoom ao abrir"/>
               </Grid></Border>
-<Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+<Border Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="18" Height="14.25"><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M12.5,11.01 C12.5,10.6 12.84,10.26 13.25,10.26 L25.25,10.26 C25.66,10.26 26,10.6 26,11.01 C26,11.42 25.66,11.76 25.25,11.76 L13.25,11.76 C12.84,11.76 12.5,11.42 12.5,11.01 Z"/><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M13.25,16.26 L25.25,16.26 C25.66,16.26 26,16.6 26,17.01 C26,17.42 25.66,17.76 25.25,17.76 L13.25,17.76 C12.84,17.76 12.5,17.42 12.5,17.01 C12.5,16.6 12.84,16.26 13.25,16.26 Z"/><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M13.25,22.26 L25.25,22.26 C25.66,22.26 26,22.6 26,23.01 C26,23.42 25.66,23.76 25.25,23.76 L13.25,23.76 C12.84,23.76 12.5,23.42 12.5,23.01 C12.5,22.6 12.84,22.26 13.25,22.26 Z"/><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M8,11.01 C8,10.39 8.5,9.88 9.12,9.88 C9.74,9.88 10.25,10.39 10.25,11.01 C10.25,11.63 9.74,12.13 9.12,12.13 C8.5,12.13 8,11.63 8,11.01 Z"/><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M8,17.01 C8,16.39 8.5,15.88 9.12,15.88 C9.74,15.88 10.25,16.39 10.25,17.01 C10.25,17.63 9.74,18.13 9.12,18.13 C8.5,18.13 8,17.63 8,17.01 Z"/><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M8,23.01 C8,22.39 8.5,21.88 9.12,21.88 C9.74,21.88 10.25,22.39 10.25,23.01 C10.25,23.63 9.74,24.13 9.12,24.13 C8.5,24.13 8,23.63 8,23.01 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Lista de seções" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="Compacta: uma linha por item, com a situação numa bolinha. Confortável: título em até duas linhas e a situação escrita embaixo." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ComboBox x:Name="CaixaListaSecoes" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Lista de seções"/>
               </Grid></Border>
-<Border Grid.Row="1" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+<Border Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="18" Height="18"><Path Canvas.Left="-8" Canvas.Top="-8" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M21.56,8.42 L25.58,12.44 C26.14,13 26.14,13.92 25.58,14.48 L15.5,24.56 L24.56,24.56 C24.96,24.56 25.28,24.88 25.28,25.28 C25.28,25.68 24.96,26 24.56,26 L9.44,26 C8.64,26 8,25.36 8,24.56 L8,20.54 C8,20.16 8.16,19.79 8.43,19.52 L19.52,8.42 C20.08,7.86 21,7.86 21.56,8.42 Z M17.36,12.62 L18.87,14.12 L11.24,21.74 L9.74,20.24 L17.36,12.62 Z M9.44,24.56 L9.44,21.98 L12.03,24.56 L9.44,24.56 Z M13.76,24.26 L12.26,22.76 L19.88,15.14 L21.39,16.64 L13.76,24.26 Z M22.4,15.62 L18.38,11.6 L20.54,9.44 L24.56,13.46 L22.4,15.62 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Marcas de revisão" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="Mostra nas folhas o que foi alterado (o mesmo que Revisão › Marcas de revisão)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ToggleSwitch x:Name="AlternarMarcas" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Marcas de revisão"/>
               </Grid></Border>
-<Border Grid.Row="1" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+<Border Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="18" Height="15.24"><Path Canvas.Left="-8" Canvas.Top="-9.38" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M9.38,9.38 L24.62,9.38 C25.39,9.38 26,10 26,10.77 L26,23.23 C26,24 25.39,24.62 24.62,24.62 L9.38,24.62 C8.61,24.62 8,24 8,23.23 L8,10.77 C8,10 8.61,9.38 9.38,9.38 Z M9.38,19.08 L10.77,19.08 C11.15,19.08 11.46,18.76 11.46,18.38 C11.46,18 11.15,17.69 10.77,17.69 L9.38,17.69 L9.38,16.31 L10.77,16.31 C11.15,16.31 11.46,16 11.46,15.62 C11.46,15.24 11.15,14.92 10.77,14.92 L9.38,14.92 L9.38,13.54 L10.77,13.54 C11.15,13.54 11.46,13.23 11.46,12.85 C11.46,12.47 11.15,12.15 10.77,12.15 L9.38,12.15 L9.38,10.77 L12.85,10.77 L12.85,23.23 L9.38,23.23 L9.38,19.08 Z M24.62,23.23 L14.23,23.23 L14.23,10.77 L24.62,10.77 L24.62,23.23 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Painéis ao abrir" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="Seções e Propriedades como ficaram da última vez; desligado, os dois abrem à vista." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ToggleSwitch x:Name="AlternarPaineis" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" OnContent="Lembrar" OffContent="Desativado" VerticalAlignment="Center" AutomationProperties.Name="Lembrar os painéis ao abrir"/>
               </Grid>
             </Border>
-</Grid>
+</local:PainelCartoesAjustes>
             <StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="20" Height="20"><Path Canvas.Left="-0" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M15.83,8.99 L19.51,12.67 C19.82,12.98 20,13.4 20,13.84 L20,26.83 C20,27.75 19.25,28.5 18.33,28.5 L1.67,28.5 C0.75,28.5 0,27.75 0,26.83 L0,10.17 C0,9.25 0.75,8.5 1.67,8.5 L14.66,8.5 C15.1,8.5 15.52,8.68 15.83,8.99 Z M14.17,26.83 L5.83,26.83 L5.83,21 L14.17,21 L14.17,26.83 Z M18.33,26.83 L15.83,26.83 L15.83,21 C15.83,20.08 15.09,19.33 14.17,19.33 L5.83,19.33 C4.91,19.33 4.17,20.08 4.17,21 L4.17,26.83 L1.67,26.83 L1.67,10.17 L14.66,10.17 L18.33,13.84 L18.33,26.83 Z"/><Path Canvas.Left="-0" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M13.33,12.67 C13.33,13.13 12.96,13.5 12.5,13.5 L6.67,13.5 C6.21,13.5 5.83,13.13 5.83,12.67 C5.83,12.21 6.21,11.83 6.67,11.83 L12.5,11.83 C12.96,11.83 13.33,12.21 13.33,12.67 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Gravação" Style="{StaticResource PmvniTituloSecao}"/></StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-<Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+<Border Style="{StaticResource PmvniAjusteGrupo}">
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="18" Height="18"><Path Canvas.Left="-9" Canvas.Top="-9" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M23.25,9.44 L26.56,12.75 C26.84,13.03 27,13.41 27,13.81 L27,25.5 C27,26.33 26.33,27 25.5,27 L10.5,27 C9.67,27 9,26.33 9,25.5 L9,10.5 C9,9.67 9.67,9 10.5,9 L22.19,9 C22.59,9 22.97,9.16 23.25,9.44 Z M21.75,25.5 L14.25,25.5 L14.25,20.25 L21.75,20.25 L21.75,25.5 Z M25.5,25.5 L23.25,25.5 L23.25,20.25 C23.25,19.42 22.58,18.75 21.75,18.75 L14.25,18.75 C13.42,18.75 12.75,19.42 12.75,20.25 L12.75,25.5 L10.5,25.5 L10.5,10.5 L22.19,10.5 L25.5,13.81 L25.5,25.5 Z"/><Path Canvas.Left="-9" Canvas.Top="-9" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M21,12.75 C21,13.16 20.66,13.5 20.25,13.5 L15,13.5 C14.59,13.5 14.25,13.16 14.25,12.75 C14.25,12.34 14.59,12 15,12 L20.25,12 C20.66,12 21,12.34 21,12.75 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Salvamento automático" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="O relatório é gravado sozinho depois deste tempo sem alterações (e também ao trocar de arquivo e ao fechar)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ComboBox x:Name="CaixaIntervalo" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Intervalo do salvamento automático"/>
               </Grid></Border>
-<Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+<Border Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center">
@@ -223,7 +223,7 @@
                 </StackPanel>
               </Grid>
             </Border>
-</Grid>
+</local:PainelCartoesAjustes>
           </StackPanel>
 
           <!-- ===== 4. Pastas e kit ===== -->
@@ -232,8 +232,8 @@
               <FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Pastas" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <StackPanel Padding="16,12" Spacing="6">
                     <TextBlock TextAlignment="Left" Text="Pasta de processos" Style="{StaticResource PmvniAjusteTitulo}"/>
@@ -251,7 +251,7 @@
                   </StackPanel>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <StackPanel Padding="16,12" Spacing="6">
                     <TextBlock TextAlignment="Left" Text="Pasta do kit PMVNI" Style="{StaticResource PmvniAjusteTitulo}"/>
@@ -270,13 +270,13 @@
                   </StackPanel>
                 </StackPanel>
               </Border>
-            </Grid>
+            </local:PainelCartoesAjustes>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <FontIcon Glyph="&#xE8FD;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Listas ao abrir" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -286,7 +286,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -299,7 +299,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-            </Grid>
+            </local:PainelCartoesAjustes>
           </StackPanel>
 
           <!-- ===== Fontes de dados (2026-11-16): a pasta QGIS do módulo Imóveis ===== -->
@@ -343,8 +343,8 @@
               <FontIcon Glyph="&#xEB05;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Acompanhamento de processos" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <StackPanel Padding="16,12" Spacing="6">
                     <TextBlock TextAlignment="Left" Text="Planilha de acompanhamento" Style="{StaticResource PmvniAjusteTitulo}"/>
@@ -362,7 +362,7 @@
                   </StackPanel>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -372,7 +372,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-            </Grid>
+            </local:PainelCartoesAjustes>
           </StackPanel>
 
           <!-- ===== 5. Despachos e PDF ===== -->
@@ -416,12 +416,12 @@
             </StackPanel>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel Padding="16,12" Spacing="8">
               <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap" Text="O nome e os dados que aparecem abaixo da linha de assinatura dos despachos e no fim dos relatórios gerados. Campo vazio mantém o texto do modelo."/>
-              <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-                <TextBox Grid.Row="0" Grid.Column="0" x:Name="CaixaProfissionalNome" x:FieldModifier="internal" Header="Nome" PlaceholderText="ex.: FULANO DE TAL" AutomationProperties.Name="Nome do profissional"/>
-                <TextBox Grid.Row="0" Grid.Column="1" x:Name="CaixaProfissionalProfissao" x:FieldModifier="internal" Header="Profissão" PlaceholderText="ex.: ARQUITETO E URBANISTA" AutomationProperties.Name="Profissão"/>
-                <TextBox Grid.Row="1" Grid.Column="0" x:Name="CaixaProfissionalRegistro" x:FieldModifier="internal" Header="Registro profissional" PlaceholderText="ex.: CAU/ES A000000-0" AutomationProperties.Name="Registro profissional (CAU ou CREA)"/>
-                <TextBox Grid.Row="1" Grid.Column="1" x:Name="CaixaProfissionalMatricula" x:FieldModifier="internal" Header="Matrícula" PlaceholderText="ex.: 123456" AutomationProperties.Name="Matrícula"/>
-              </Grid>
+              <local:PainelCartoesAjustes>
+                <TextBox x:Name="CaixaProfissionalNome" x:FieldModifier="internal" Header="Nome" PlaceholderText="ex.: FULANO DE TAL" AutomationProperties.Name="Nome do profissional"/>
+                <TextBox x:Name="CaixaProfissionalProfissao" x:FieldModifier="internal" Header="Profissão" PlaceholderText="ex.: ARQUITETO E URBANISTA" AutomationProperties.Name="Profissão"/>
+                <TextBox x:Name="CaixaProfissionalRegistro" x:FieldModifier="internal" Header="Registro profissional" PlaceholderText="ex.: CAU/ES A000000-0" AutomationProperties.Name="Registro profissional (CAU ou CREA)"/>
+                <TextBox x:Name="CaixaProfissionalMatricula" x:FieldModifier="internal" Header="Matrícula" PlaceholderText="ex.: 123456" AutomationProperties.Name="Matrícula"/>
+              </local:PainelCartoesAjustes>
               <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
                 <Button x:Name="BotaoSalvarProfissional" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Salvar dados" AutomationProperties.Name="Salvar os dados do profissional"
                         local:Dicas.Titulo="Salvar dados" local:Dicas.Descricao="Grava nome, profissão, registro e matrícula; valem a partir do próximo despacho e relatório."/>
@@ -543,11 +543,11 @@
               <FontIcon Glyph="&#xE99A;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Suas IAs" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <local:CartaoAgente Grid.Row="0" Grid.Column="0" x:Name="CartaoChatGpt" x:FieldModifier="internal"/>
-              <local:CartaoAgente Grid.Row="0" Grid.Column="1" x:Name="CartaoClaude" x:FieldModifier="internal"/>
-              <local:CartaoAgente Grid.Row="1" Grid.Column="0" x:Name="CartaoGemini" x:FieldModifier="internal"/>
-            </Grid>
+            <local:PainelCartoesAjustes>
+              <local:CartaoAgente x:Name="CartaoChatGpt" x:FieldModifier="internal"/>
+              <local:CartaoAgente x:Name="CartaoClaude" x:FieldModifier="internal"/>
+              <local:CartaoAgente x:Name="CartaoGemini" x:FieldModifier="internal"/>
+            </local:PainelCartoesAjustes>
             <!-- Modelos de IA (2026-11-17, no padrão do seletor do WinStatusBar): qual IA responde na revisão e nos ajustes, com que modelo e com que
                  nível de raciocínio. Uma linha por fonte disponível neste computador (montada em MainWindow.ModelosIa.cs); as listas vêm dos apps
                  ChatGPT e Claude e, nas APIs, da própria API. -->
@@ -557,8 +557,8 @@
             </StackPanel>
             <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}"
                        Text="A IA que responde em Rever com a IA, Ajustar o item, esquadrias, volumetria e no resumo do despacho: o modelo e o nível de raciocínio de cada uma. As listas vêm dos apps ChatGPT e Claude deste computador e, nas APIs, da própria API. O Novo relatório continua com os agentes acima."/>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -569,7 +569,7 @@
                   <StackPanel x:Name="PainelModelosIa" x:FieldModifier="internal"/>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Padding="16,12" ColumnSpacing="12">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -580,13 +580,13 @@
                   </Grid>
                 </StackPanel>
               </Border>
-            </Grid>
+            </local:PainelCartoesAjustes>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <FontIcon Glyph="&#xE7C3;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Novo relatório" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <StackPanel Padding="16,12" Spacing="6">
                     <ComboBox x:Name="CaixaRotaCodex" x:FieldModifier="internal" Header="Rota da conta Codex" AutomationProperties.Name="Rota da conta Codex">
@@ -601,7 +601,7 @@
                   </StackPanel>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -611,7 +611,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -621,7 +621,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-            </Grid>
+            </local:PainelCartoesAjustes>
           </StackPanel>
 
           <!-- ===== 8. Sobre e suporte ===== -->
@@ -633,8 +633,8 @@
               <FontIcon Glyph="&#xE72C;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Atualizações" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -644,7 +644,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -662,7 +662,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -672,7 +672,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-            </Grid>
+            </local:PainelCartoesAjustes>
             <Expander x:Name="ExpansorOQueMudou" x:FieldModifier="internal" Header="O que mudou" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
               <TextBlock TextAlignment="Left" x:Name="TextoOQueMudou" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}"/>
             </Expander>
@@ -682,8 +682,8 @@
               <FontIcon Glyph="&#xE897;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Suporte" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -693,7 +693,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -709,7 +709,7 @@
                   <TextBlock TextAlignment="Left" x:Name="TextoCopiado" x:FieldModifier="internal" Margin="16,0,16,12" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}"/>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -720,7 +720,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -732,7 +732,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-            </Grid>
+            </local:PainelCartoesAjustes>
 
             <StackPanel Orientation="Horizontal" Spacing="8">
               <FontIcon Glyph="&#xE9D9;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
@@ -772,8 +772,8 @@
                 </StackPanel>
               </Grid>
             </Border>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -783,7 +783,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -793,7 +793,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -803,7 +803,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -813,7 +813,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -823,9 +823,9 @@
                   </Grid>
                 </StackPanel>
               </Border>
-            </Grid>
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
-              <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+            </local:PainelCartoesAjustes>
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -835,7 +835,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -845,7 +845,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -856,7 +856,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-              <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}">
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -866,7 +866,7 @@
                   </Grid>
                 </StackPanel>
               </Border>
-            </Grid>
+            </local:PainelCartoesAjustes>
           </StackPanel>
           </Grid>
         </StackPanel>

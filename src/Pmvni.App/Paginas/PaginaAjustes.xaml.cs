@@ -66,24 +66,6 @@ public sealed partial class PaginaAjustes : UserControl
     internal event Action<string>? CategoriaMostrada;
 
     /// <summary>Linha de cartão: controle à direita ou embaixo, conforme a largura (<see cref="LinhaAjuste"/>).</summary>
-    private void AoDimensionarCartoes(object sender, SizeChangedEventArgs e)
-    {
-        var painel = (Grid)sender;
-        int colunas = e.NewSize.Width >= 820 ? 2 : 1;
-        painel.ColumnSpacing = colunas == 2 ? 10 : 0;
-        painel.ColumnDefinitions[1].Width = new GridLength(colunas - 1, GridUnitType.Star);
-        int linhas = (painel.Children.Count + colunas - 1) / colunas;
-        while (painel.RowDefinitions.Count < linhas) painel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        while (painel.RowDefinitions.Count > linhas) painel.RowDefinitions.RemoveAt(painel.RowDefinitions.Count - 1);
-        for (int i = 0; i < painel.Children.Count; i++)
-        {
-            var cartao = (FrameworkElement)painel.Children[i];
-            cartao.VerticalAlignment = VerticalAlignment.Top;
-            Grid.SetRow(cartao, i / colunas);
-            Grid.SetColumn(cartao, i % colunas);
-        }
-    }
-
     void AoMudarTamanhoDaLinha(object sender, SizeChangedEventArgs e)
     {
         if (sender is Grid linha) LinhaAjuste.Ajustar(linha, e.NewSize.Width);
