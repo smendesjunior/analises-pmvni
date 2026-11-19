@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.15
+
+- No Acompanhamento, arraste os títulos para mover colunas ou use o menu de contexto. O menu Colunas permite incluir campos sem dados e restaurar a ordem.
+
 ## 1.2.14
 
 - A faixa de comandos usa margem interna de 6 DIP em todos os lados.

@@ -246,6 +246,8 @@ public sealed class Ajustes
         ListaSecoes = p.ListaSecoes;
         AcompanhamentoResumo = p.AcompanhamentoResumo;
         AcompanhamentoLarguras.Clear();
+        AcompanhamentoColunasOrdem.Clear();
+        AcompanhamentoColunasExibidas.Clear();
         AcompanhamentoColunasOcultas.Clear();
         LembrarPaineis = p.LembrarPaineis;
         PainelLateral = p.PainelLateral;
@@ -306,6 +308,8 @@ public sealed class Ajustes
     public Dictionary<string, double> AcompanhamentoLarguras { get; } = new(StringComparer.Ordinal);
 
     /// <summary>Colunas do Acompanhamento que o usuário tirou da tabela (título normalizado); continuam no formulário e na planilha.</summary>
+    public List<string> AcompanhamentoColunasOrdem { get; } = [];
+    public List<string> AcompanhamentoColunasExibidas { get; } = [];
     public List<string> AcompanhamentoColunasOcultas { get; } = [];
 
     /// <summary>A lista de seções do editor: "compacta" (uma linha por item, a situação como bolinha) ou "confortavel" (título em até
@@ -363,6 +367,12 @@ public sealed class Ajustes
         if (j["acompanhamento_larguras"] is JsonObject larg)
             foreach (var (k, v) in larg)
                 if (k is { Length: > 0 and <= 128 } && v is JsonValue lv && lv.TryGetValue<double>(out var w) && w is >= 40 and <= 1200) a.AcompanhamentoLarguras[k] = w;
+        if (j["acompanhamento_colunas_ordem"] is JsonArray ordem)
+            foreach (var valor in ordem.OfType<JsonValue>())
+                if (valor.TryGetValue<string>(out var chave) && chave is { Length: > 0 and <= 128 } && !a.AcompanhamentoColunasOrdem.Contains(chave)) a.AcompanhamentoColunasOrdem.Add(chave);
+        if (j["acompanhamento_colunas_exibidas"] is JsonArray exibidas)
+            foreach (var valor in exibidas.OfType<JsonValue>())
+                if (valor.TryGetValue<string>(out var chave) && chave is { Length: > 0 and <= 128 } && !a.AcompanhamentoColunasExibidas.Contains(chave)) a.AcompanhamentoColunasExibidas.Add(chave);
         if (j["acompanhamento_colunas_ocultas"] is JsonArray ocultas)
             foreach (var o in ocultas)
                 if (o is JsonValue ov && ov.TryGetValue<string>(out var oculta) && oculta is { Length: > 0 and <= 128 } && !a.AcompanhamentoColunasOcultas.Contains(oculta)) a.AcompanhamentoColunasOcultas.Add(oculta);
@@ -432,6 +442,8 @@ public sealed class Ajustes
             ["planilha_aba"] = PlanilhaAba,
             ["acompanhamento_resumo"] = AcompanhamentoResumo,
             ["acompanhamento_larguras"] = new JsonObject(AcompanhamentoLarguras.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => KeyValuePair.Create(p.Key, (JsonNode?)Math.Round(p.Value)))),
+            ["acompanhamento_colunas_ordem"] = new JsonArray(AcompanhamentoColunasOrdem.Select(c => (JsonNode)c).ToArray()),
+            ["acompanhamento_colunas_exibidas"] = new JsonArray(AcompanhamentoColunasExibidas.Select(c => (JsonNode)c).ToArray()),
             ["acompanhamento_colunas_ocultas"] = new JsonArray(AcompanhamentoColunasOcultas.Select(c => (JsonNode)c).ToArray()),
             ["lista_secoes"] = ListaSecoes,
             ["leis_favoritas"] = new JsonArray(LeisFavoritas.Select(f => (JsonNode)f).ToArray()),

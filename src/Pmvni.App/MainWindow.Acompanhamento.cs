@@ -11,6 +11,7 @@ using Pmvni.Acompanhamento;
 using Pmvni.Composicao.Web;
 using Pmvni.Revisao;
 using Windows.UI;
+using Windows.ApplicationModel.DataTransfer;
 using LinhaAc = Pmvni.Acompanhamento.LinhaProcesso;
 using Coluna = Pmvni.Acompanhamento.Coluna;
 using Celula = Pmvni.Acompanhamento.Celula;
@@ -472,8 +473,10 @@ public sealed partial class MainWindow
             && p.Linhas.All(l => p.TextoDe(l, c).Length == 0)).ToList();
         // Colunas que o usuário tirou pelo botão "Colunas" (o Processo fica sempre: é por ele que a linha é achada).
         var ocultas = p.Colunas.Where(c => c.Chave != ChaveColuna.Processo && ajustes.AcompanhamentoColunasOcultas.Contains(ChaveColunaAjustes(c))).ToList();
-        colunasVisiveis = p.Colunas.Except(vazias).Except(ocultas).OrderBy(Peso).ThenBy(c => c.Indice).ToList();
-        colunasEscondidas = vazias.Select(c => c.Titulo).ToList();
+        int Ordem(Coluna c) => ajustes.AcompanhamentoColunasOrdem.IndexOf(ChaveColunaAjustes(c)) is var i && i >= 0 ? i : int.MaxValue;
+        colunasVisiveis = p.Colunas.Where(c => !vazias.Contains(c) || ajustes.AcompanhamentoColunasExibidas.Contains(ChaveColunaAjustes(c)))
+            .Except(ocultas).OrderBy(Ordem).ThenBy(Peso).ThenBy(c => c.Indice).ToList();
+        colunasEscondidas = vazias.Except(colunasVisiveis).Select(c => c.Titulo).ToList();
         MontarMenuColunas(p, vazias);
         ColunasFixas = colunasVisiveis.TakeWhile(c => c.Chave is ChaveColuna.Numero or ChaveColuna.Processo).Count();
     }
@@ -621,6 +624,7 @@ public sealed partial class MainWindow
                 PreencherLista();
             };
             // Alça de largura na borda direita do título (pedido do usuário, 2026-11-17: colunas redimensionáveis, como no Excel).
+            ConfigurarMovimento(b, col, i);
             var indice = i;
             var alca = new AlcaColuna { LarguraAtual = () => g.ColumnDefinitions[indice].Width.Value, Margin = new Thickness(0, 0, -11, 0) };
             ToolTipService.SetToolTip(alca, "Arraste para mudar a largura; dois cliques voltam ao padrão");
@@ -640,6 +644,50 @@ public sealed partial class MainWindow
 
     /// <summary>Muda a largura da coluna <paramref name="indice"/> no título e em todas as linhas já desenhadas, sem refazer a tabela
     /// (o arraste fica liso); a largura total da tabela acompanha.</summary>
+    private const string FormatoColuna = "PMVNI.Acompanhamento.Coluna";
+
+    void ConfigurarMovimento(Button botao, Coluna coluna, int indice)
+    {
+        botao.CanDrag = true;
+        botao.AllowDrop = true;
+        botao.DragStarting += (_, e) =>
+        {
+            e.Data.SetData(FormatoColuna, ChaveColunaAjustes(coluna));
+            e.Data.RequestedOperation = DataPackageOperation.Move;
+        };
+        botao.DragOver += (_, e) =>
+        {
+            if (e.DataView.Contains(FormatoColuna)) e.AcceptedOperation = DataPackageOperation.Move;
+        };
+        botao.Drop += async (_, e) =>
+        {
+            if (!e.DataView.Contains(FormatoColuna)) return;
+            if (await e.DataView.GetDataAsync(FormatoColuna) is string origem) MoverColuna(origem, indice);
+        };
+        var menu = new MenuFlyout();
+        foreach (var (texto, alvo) in new[] { ("Mover para a esquerda", indice - 1), ("Mover para a direita", indice + 1) })
+        {
+            var item = new MenuFlyoutItem { Text = texto, IsEnabled = alvo >= 0 && alvo < ColunasVisiveis.Count };
+            item.Click += (_, _) => MoverColuna(ChaveColunaAjustes(coluna), alvo);
+            menu.Items.Add(item);
+        }
+        botao.ContextFlyout = menu;
+    }
+
+    void MoverColuna(string chave, int destino)
+    {
+        var ordem = ColunasVisiveis.Select(ChaveColunaAjustes).ToList();
+        if (destino < 0 || destino >= ordem.Count || ordem[destino] == chave || !ordem.Remove(chave)) return;
+        ordem.Insert(destino, chave);
+        var salvas = ajustes.AcompanhamentoColunasOrdem;
+        var remanescentes = salvas.Except(ordem).ToList();
+        salvas.Clear();
+        salvas.AddRange(ordem);
+        salvas.AddRange(remanescentes);
+        SalvarAjustes();
+        RefazerTabela();
+    }
+
     void AplicarLargura(int indice, double largura)
     {
         if (indice >= Ac.CabecalhoTabela.ColumnDefinitions.Count) return;
@@ -672,14 +720,16 @@ public sealed partial class MainWindow
             var item = new ToggleMenuFlyoutItem
             {
                 Text = vazia ? nome + " (sem dados)" : nome,
-                IsChecked = !vazia && !ajustes.AcompanhamentoColunasOcultas.Contains(ChaveColunaAjustes(c)),
-                IsEnabled = !vazia && c.Chave != ChaveColuna.Processo,
+                IsChecked = ColunasVisiveis.Contains(c),
+                IsEnabled = c.Chave != ChaveColuna.Processo,
             };
             var col = c;
             item.Click += (_, _) =>
             {
                 var chave = ChaveColunaAjustes(col);
                 ajustes.AcompanhamentoColunasOcultas.Remove(chave);
+                ajustes.AcompanhamentoColunasExibidas.Remove(chave);
+                if (item.IsChecked) ajustes.AcompanhamentoColunasExibidas.Add(chave);
                 if (!item.IsChecked) ajustes.AcompanhamentoColunasOcultas.Add(chave);
                 SalvarAjustes();
                 RefazerTabela();
@@ -687,12 +737,15 @@ public sealed partial class MainWindow
             menu.Items.Add(item);
         }
         menu.Items.Add(new MenuFlyoutSeparator());
-        var todas = new MenuFlyoutItem { Text = "Mostrar todas", Icon = new FontIcon { Glyph = "\uE890" }, IsEnabled = ajustes.AcompanhamentoColunasOcultas.Count > 0 };
-        todas.Click += (_, _) => { ajustes.AcompanhamentoColunasOcultas.Clear(); SalvarAjustes(); RefazerTabela(); };
+        var todas = new MenuFlyoutItem { Text = "Mostrar todas", Icon = new FontIcon { Glyph = "\uE890" }, IsEnabled = ColunasVisiveis.Count < p.Colunas.Count };
+        todas.Click += (_, _) => { ajustes.AcompanhamentoColunasExibidas.Clear(); ajustes.AcompanhamentoColunasExibidas.AddRange(p.Colunas.Select(ChaveColunaAjustes)); ajustes.AcompanhamentoColunasOcultas.Clear(); SalvarAjustes(); RefazerTabela(); };
         menu.Items.Add(todas);
         var padrao = new MenuFlyoutItem { Text = "Larguras padrão", Icon = new FontIcon { Glyph = "\uE72C" }, IsEnabled = ajustes.AcompanhamentoLarguras.Count > 0 };
         padrao.Click += (_, _) => { ajustes.AcompanhamentoLarguras.Clear(); SalvarAjustes(); RefazerTabela(); };
         menu.Items.Add(padrao);
+        var restaurar = new MenuFlyoutItem { Text = "Ordem padrão", IsEnabled = ajustes.AcompanhamentoColunasOrdem.Count > 0 };
+        restaurar.Click += (_, _) => { ajustes.AcompanhamentoColunasOrdem.Clear(); SalvarAjustes(); RefazerTabela(); };
+        menu.Items.Add(restaurar);
         var ocultas = p.Colunas.Count(c => !vazias.Contains(c) && c.Chave != ChaveColuna.Processo && ajustes.AcompanhamentoColunasOcultas.Contains(ChaveColunaAjustes(c)));
         Ac.TextoColunas.Text = ocultas == 0 ? "Colunas" : $"Colunas ({ocultas} oculta{(ocultas == 1 ? "" : "s")})";
     }
