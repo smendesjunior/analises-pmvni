@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.9
+
+- A consulta ao Leis.org permite escolher o acervo de qualquer região do Brasil.
+
 ## 1.2.8
 
 - Descrições nos três botões de análise, alinhamento das abas, edição do texto dos despachos e troca entre correção e aprovação. A Legislação ganhou consulta ao portal Leis.org.

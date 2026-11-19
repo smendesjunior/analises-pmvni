@@ -10,10 +10,10 @@ public sealed partial class PaginaLegislacao
     {
         var termo = new TextBox { Header = "Número, assunto ou palavra-chave", PlaceholderText = "Ex.: plano diretor" };
         var buscar = new Button { Content = "Pesquisar" };
-        var aviso = new TextBlock { Text = "Consulte a legislação de Venda Nova do Imigrante (ES) no Leis.org.", TextWrapping = TextWrapping.Wrap };
-        var resultados = new ListView { MaxHeight = 310, IsItemClickEnabled = true, SelectionMode = ListViewSelectionMode.None };
-        var fonte = new WebView2 { Height = 310, Visibility = Visibility.Collapsed };
-        var mostrar = new ToggleSwitch { Header = "Página do Leis.org", OnContent = "Visível", OffContent = "Oculta" };
+        var aviso = new TextBlock { Text = "Escolha o acervo no portal. Depois, pesquise por número ou assunto.", TextWrapping = TextWrapping.Wrap };
+        var resultados = new ListView { Visibility = Visibility.Collapsed, MaxHeight = 310, IsItemClickEnabled = true, SelectionMode = ListViewSelectionMode.None };
+        var fonte = new WebView2 { Height = 310 };
+        var mostrar = new ToggleSwitch { IsOn = true, Header = "Selecionar acervo ou ler norma no Leis.org", OnContent = "Visível", OffContent = "Oculta" };
         mostrar.Toggled += (_, _) => {
             fonte.Visibility = mostrar.IsOn ? Visibility.Visible : Visibility.Collapsed;
             resultados.Visibility = mostrar.IsOn ? Visibility.Collapsed : Visibility.Visible;
@@ -23,17 +23,40 @@ public sealed partial class PaginaLegislacao
         var dialogo = new ContentDialog { Title = "Consultar outras leis", XamlRoot = XamlRoot, Content = new ScrollViewer { Content = painel }, CloseButtonText = "Fechar" };
         using var vida = new CancellationTokenSource();
         var token = vida.Token;
+        Uri? acervo = null;
+        fonte.Source = new Uri("https://leis.org/");
+        fonte.NavigationCompleted += (_, e) =>
+        {
+            if (!e.IsSuccess || fonte.Source is not { Host: "leis.org" } atual) return;
+            var partes = atual.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            int tamanho = partes.FirstOrDefault() switch
+            {
+                "municipais" when partes.Length >= 3 => 3,
+                "estaduais" or "institucionais" when partes.Length >= 2 => 2,
+                "federais" => 1,
+                _ => 0
+            };
+            if (tamanho > 0)
+                acervo = new Uri("https://leis.org/" + string.Join("/", partes.Take(tamanho)) + "/");
+            else acervo = null;
+        };
         async void Pesquisar(object? origem, RoutedEventArgs evento)
         {
             if (!buscar.IsEnabled || string.IsNullOrWhiteSpace(termo.Text)) return;
-            var uri = new Uri("https://leis.org/municipais/es/venda-nova-do-imigrante/busca?termo=" + Uri.EscapeDataString(termo.Text.Trim()));
+            if (acervo is null)
+            {
+                mostrar.IsOn = true;
+                aviso.Text = "Selecione no portal o município, estado ou acervo que deseja consultar.";
+                return;
+            }
+            var uri = new Uri(acervo, "busca?termo=" + Uri.EscapeDataString(termo.Text.Trim()));
             buscar.IsEnabled = false;
             resultados.Items.Clear();
             mostrar.IsOn = false;
             aviso.Text = "Consultando o Leis.org…";
             try
             {
-                await fonte.EnsureCoreWebView2Async(await PaginaSites.Ambiente());
+                await fonte.EnsureCoreWebView2Async();
                 token.ThrowIfCancellationRequested();
                 var navegou = new TaskCompletionSource<bool>();
                 void Pronta(WebView2 w, Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e) => navegou.TrySetResult(e.IsSuccess);
