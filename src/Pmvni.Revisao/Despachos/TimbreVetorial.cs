@@ -4,7 +4,7 @@ using System.Xml.Linq;
 
 namespace Pmvni.Revisao;
 
-internal static class TimbreVetorial
+public static class TimbreVetorial
 {
     public static byte[] Aplicar(byte[] modelo)
     {

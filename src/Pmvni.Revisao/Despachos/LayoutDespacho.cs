@@ -99,7 +99,7 @@ public sealed record LayoutDespacho(double LarguraPt, double AlturaPt, double Ma
     }
 
     /// <summary>Lê a página do modelo. Partes que faltam ficam de fora (sem imagem, sem rodapé); o corpo falta: <see cref="ModeloForaDoPadraoException"/>.</summary>
-    public static LayoutDespacho Ler(byte[] docx)
+    public static LayoutDespacho Ler(byte[] docx, bool preferirPng = false)
     {
         ArgumentNullException.ThrowIfNull(docx);
         try
@@ -145,7 +145,7 @@ public sealed record LayoutDespacho(double LarguraPt, double AlturaPt, double Ma
                 foreach (var p in hdr.Root!.Elements(W + "p"))
                 {
                     foreach (var ancora in p.Descendants(WP + "anchor"))
-                        if (Imagem(zip, ancora, relsCab, esquerda, topo, y) is { } img) imagens.Add(img);
+                        if (Imagem(zip, ancora, relsCab, esquerda, topo, y, preferirPng) is { } img) imagens.Add(img);
                     y += AlturaLinha(p, estiloCab, tamanho);
                 }
             }
@@ -259,12 +259,15 @@ public sealed record LayoutDespacho(double LarguraPt, double AlturaPt, double Ma
             Twips((string?)ppr?.Element(W + "ind")?.Attribute(W + "left")));
     }
 
-    static ImagemPagina? Imagem(ZipArchive zip, XElement ancora, Dictionary<string, string> rels, double margemEsq, double margemTopo, double yParagrafo)
+    static ImagemPagina? Imagem(ZipArchive zip, XElement ancora, Dictionary<string, string> rels, double margemEsq, double margemTopo, double yParagrafo, bool preferirPng)
     {
         var blip = ancora.Descendants(A + "blip").FirstOrDefault();
         var id = (string?)blip?.Attribute(R + "embed");
         if (id is null || !rels.TryGetValue(id, out var alvo)) return null;
-        var bytes = Bytes(zip, "word/" + alvo.TrimStart('/'));
+        var caminho = "word/" + alvo.TrimStart('/');
+        var bytes = preferirPng && caminho.EndsWith(".svg")
+            ? Bytes(zip, Path.ChangeExtension(caminho, ".png")) ?? Bytes(zip, caminho)
+            : Bytes(zip, caminho);
         if (bytes is null) return null;
         var ext = ancora.Element(WP + "extent");
         var (w, h) = (Emu((string?)ext?.Attribute("cx")), Emu((string?)ext?.Attribute("cy")));

@@ -63,7 +63,6 @@ public static class PreenchimentoDocx
     {
         ArgumentNullException.ThrowIfNull(modelo);
         // 2026-11-17 (correção): com profissional definido, campo vazio sai em branco (nunca o texto do modelo, que traz os dados de outra pessoa).
-        modelo = TimbreVetorial.Aplicar(modelo);
         if (p is null) return modelo;
         XDocument doc; string declaracao;
         try { (doc, declaracao) = LerDocumentoComDeclaracao(modelo); }

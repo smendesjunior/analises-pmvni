@@ -84,7 +84,7 @@ internal sealed class SessaoNovoDespacho
     {
         if (FluxoNovoDespacho.MotivoDesabilitado(t, m, false) is { } motivo) throw new InvalidOperationException(motivo);
         var modelo = m.Modelos.Single(x => x.Tipo == t);
-        var bytes = PreenchimentoDocx.ComProfissional(File.ReadAllBytes(modelo.Caminho), Pmvni.Composicao.Profissional.Atual);
+        var bytes = PreenchimentoDocx.ComProfissional(TimbreVetorial.Aplicar(File.ReadAllBytes(modelo.Caminho)), Pmvni.Composicao.Profissional.Atual);
         var info = PreenchimentoDocx.LerModelo(bytes, t);
         return (modelo, info, TextosFixos.Ler(raizKit, t), LayoutDespacho.Ler(bytes));
     }

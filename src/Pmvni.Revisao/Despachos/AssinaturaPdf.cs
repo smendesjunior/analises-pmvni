@@ -76,7 +76,7 @@ public static class AssinaturaPdf
     {
         try
         {
-            var l = LayoutDespacho.Ler(docx);
+            var l = LayoutDespacho.Ler(docx, preferirPng: true);
             var faixa = l.Imagens.Where(i => i.LarguraPt > l.LarguraPt * 0.8 && i.AlturaPt < l.AlturaPt / 4).OrderBy(i => i.YPt).FirstOrDefault();
             return faixa is null ? null : new LogoAssinatura(faixa.Bytes, LogoEsquerda, LogoTopo, LogoDireita, LogoBaixo);
         }
