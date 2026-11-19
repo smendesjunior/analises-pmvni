@@ -279,6 +279,7 @@ public sealed partial class PaginaNovoDespacho
     Paragraph Paragrafo(ParagrafoPrevia p, LayoutDespacho l)
     {
         var f = l.Formato(p.Modelo);
+        if (p.Estilo == EstiloPrevia.Data) f = f with { AntesPt = PreenchimentoDocx.EspacoAntesDaDataPt };
         var par = new Paragraph
         {
             FontSize = f.TamanhoPt * K, TextAlignment = Alinhamento(f.Alinhamento),

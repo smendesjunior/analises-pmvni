@@ -344,8 +344,14 @@ public static class PreenchimentoDocx
             mar!.SetAttributeValue(W + "top", topo);
 
         if (l.CompensacaoInicialPt <= 0 || doc.Root!.Element(W + "body")!.Elements(W + "p").FirstOrDefault() is not { } primeiro) return;
-        var ppr = primeiro.Element(W + "pPr");
-        if (ppr is null) { ppr = new XElement(W + "pPr"); primeiro.AddFirst(ppr); }
+        var espaco = Espacamento(primeiro);
+        espaco.SetAttributeValue(W + "after", Twips(Math.Max(0, l.Formatos[0].DepoisPt - l.CompensacaoInicialPt)));
+    }
+
+    static XElement Espacamento(XElement paragrafo)
+    {
+        var ppr = paragrafo.Element(W + "pPr");
+        if (ppr is null) { ppr = new XElement(W + "pPr"); paragrafo.AddFirst(ppr); }
         var espaco = ppr.Element(W + "spacing");
         if (espaco is null)
         {
@@ -356,11 +362,17 @@ public static class PreenchimentoDocx
                 or "overflowPunct" or "topLinePunct" or "autoSpaceDE" or "autoSpaceDN" or "bidi" or "adjustRightInd" or "snapToGrid");
             if (antes is null) ppr.AddFirst(espaco); else antes.AddAfterSelf(espaco);
         }
-        espaco.SetAttributeValue(W + "after", Twips(Math.Max(0, l.Formatos[0].DepoisPt - l.CompensacaoInicialPt)));
+        return espaco;
     }
+
+    public const double EspacoAntesDaDataPt = 18;
 
     static void TrocarData(XElement p, string data)
     {
+        var espaco = Espacamento(p);
+        espaco.SetAttributeValue(W + "before", Twips(EspacoAntesDaDataPt));
+        espaco.SetAttributeValue(W + "beforeLines", null);
+        espaco.SetAttributeValue(W + "beforeAutospacing", "0");
         foreach (var t in p.Descendants(W + "t"))
             if (t.Value.Contains(MarcaData, StringComparison.Ordinal))
             {

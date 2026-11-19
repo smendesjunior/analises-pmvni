@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.11
+
+- A data dos despachos tem mais espaço acima na prévia, no Word e no PDF.
+
 ## 1.2.10
 
 - Senhas dos sites e chaves de API já guardadas aparecem com caracteres ocultos nos Ajustes.
