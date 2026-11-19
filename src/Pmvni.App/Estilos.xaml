@@ -5,6 +5,11 @@
   <!-- Estilos Fluent do app. As cores próprias (ícones dos módulos, fundo do item ativo do trilho, botão tonal) ficam em
        Recursos\IconesModulos.xaml, com uma versão para o tema claro, o escuro e o alto contraste. -->
 
+  <Style x:Key="PmvniSuperficieElevada" TargetType="FrameworkElement">
+    <Setter Property="Shadow"><Setter.Value><ThemeShadow/></Setter.Value></Setter>
+    <Setter Property="local:Elevacao.Altura" Value="8"/>
+  </Style>
+
   <Style TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
     <Setter Property="TextAlignment" Value="Center"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
@@ -258,7 +263,7 @@
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Margin" Value="0,10,0,0"/>
   </Style>
-  <Style x:Key="PmvniAjusteGrupo" TargetType="Border">
+  <Style x:Key="PmvniAjusteGrupo" TargetType="Border" BasedOn="{StaticResource PmvniSuperficieElevada}">
     <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
     <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
@@ -280,7 +285,7 @@
     <Setter Property="MinWidth" Value="0"/>
   </Style>
   <!-- Cartões de seção numerados (correções 2026-11-15, modelo NovoRelatorioPage.xaml): usados em Novo relatório, Novo despacho e Ajustes. -->
-  <Style x:Key="PmvniCartaoSecao" TargetType="Border">
+  <Style x:Key="PmvniCartaoSecao" TargetType="Border" BasedOn="{StaticResource PmvniSuperficieElevada}">
     <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
     <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
@@ -496,7 +501,7 @@
   <Style x:Key="PmvniBotaoTextoDestaqueStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
     <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
   </Style>
-  <Style x:Key="PmvniPainelLateral" TargetType="Grid">
+  <Style x:Key="PmvniPainelLateral" TargetType="Grid" BasedOn="{StaticResource PmvniSuperficieElevada}">
     <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
     <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>

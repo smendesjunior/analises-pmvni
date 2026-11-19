@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 2.1.2
+
+- A faixa de comandos, os cartões de seção e os painéis laterais ganharam uma sombra suave que os destaca do fundo.
+
 ## 2.1.1
 
 - Descarte análises interrompidas diretamente no diálogo de retomada.

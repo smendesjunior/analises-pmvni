@@ -6,7 +6,7 @@
   <!-- Correções 2026-11-15 (como o Outlook): abas compactas e, embaixo, os comandos numa faixa arredondada só, sem espaço vazio. -->
   <StackPanel Padding="0,0,0,6" Spacing="2">
     <SelectorBar Margin="0" x:Name="Abas" SelectionChanged="AoMudarAba" Padding="0" MinHeight="36"/>
-    <Border CornerRadius="8" Padding="8,4" Background="{ThemeResource LayerFillColorDefaultBrush}"
+    <Border Style="{StaticResource PmvniSuperficieElevada}" CornerRadius="8" Padding="8,4" Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
       <Grid>
         <Grid.ColumnDefinitions>
