@@ -48,14 +48,16 @@
       <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
     </local:AreaDeAvisos>
 
-    <Grid Grid.Row="1" ColumnSpacing="12" Padding="12,8">
+    <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="12" ColumnSpacing="12" Padding="16,12">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="380" MinWidth="260"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
+      <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Padding="14,10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="10"><PathIcon Width="16" Height="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M23.41,14.19 L30.8,14.19 C31.74,14.19 32.5,14.95 32.5,15.89 L32.5,25.35 C32.5,26.24 31.78,26.96 30.89,26.96 L29.09,26.96 L29.09,28.76 C29.09,29.65 28.37,30.37 27.48,30.37 L11.2,30.37 C10.26,30.37 9.5,29.61 9.5,28.67 L9.5,16.74 C9.5,15.8 10.26,15.04 11.2,15.04 L12.91,15.04 L12.91,13.33 C12.91,12.39 13.67,11.63 14.61,11.63 L19.44,11.63 C19.81,11.63 20.17,11.75 20.46,11.97 L23.41,14.19 Z M27.39,28.67 L11.2,28.67 L11.2,16.74 L16.03,16.74 L19.21,19.13 C19.36,19.24 19.54,19.3 19.72,19.3 L27.39,19.3 L27.39,28.67 Z M30.8,25.26 L29.09,25.26 L29.09,19.3 C29.09,18.36 28.33,17.59 27.39,17.59 L20.01,17.59 L17.05,15.38 C16.76,15.16 16.4,15.04 16.03,15.04 L14.61,15.04 L14.61,13.33 L19.44,13.33 L22.62,15.72 C22.77,15.83 22.95,15.89 23.13,15.89 L30.8,15.89 L30.8,25.26 Z"/><StackPanel Grid.Column="1"><TextBlock Text="Acervo de processos" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock Text="Gestão de documentos e histórico" Style="{StaticResource PmvniSecondaryTextStyle}"/></StackPanel><TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Text, ElementName=TextoContagem}"/></Grid>
+
 
       <!-- Lista de processos. -->
-      <Grid Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10">
+      <Grid Grid.Row="1" Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
@@ -65,7 +67,7 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <StackPanel Spacing="2"><TextBlock Text="Acervo de processos" Style="{StaticResource PmvniTituloSecao}"/><TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
+          <StackPanel Spacing="2"><TextBlock Text="Processos" Style="{StaticResource PmvniTituloSecao}"/><TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
                      TextTrimming="CharacterEllipsis" AutomationProperties.Name="Quantidade de processos"/>
             <TextBox x:Name="FiltroAcervo" x:FieldModifier="internal" PlaceholderText="Número ou nome do processo" AutomationProperties.Name="Filtrar processos"/>
           </StackPanel>
@@ -98,7 +100,7 @@
       </Grid>
 
       <!-- Detalhe do processo escolhido. -->
-      <Grid Grid.Column="1">
+      <Grid Grid.Row="1" Grid.Column="1">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
@@ -117,7 +119,7 @@
             <DropDownButton x:Name="BotaoClassificar" x:FieldModifier="internal" AutomationProperties.Name="Classificar"
                             local:Dicas.Descricao="Ordena os arquivos do processo por nome, data ou tipo, em ordem crescente ou decrescente.">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <FontIcon Glyph="&#xE8CB;" FontSize="14"/>
+                <PathIcon Width="16" Height="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M19.06,23.85 C19.2,23.99 19.27,24.17 19.27,24.36 C19.27,24.55 19.2,24.74 19.06,24.88 L16.15,27.79 C16.01,27.93 15.83,28 15.64,28 C15.45,28 15.26,27.93 15.12,27.79 L12.21,24.88 C11.93,24.6 11.93,24.13 12.21,23.85 C12.49,23.57 12.96,23.57 13.24,23.85 L14.91,25.52 L14.91,12.73 C14.91,12.33 15.24,12 15.64,12 C16.04,12 16.36,12.33 16.36,12.73 L16.36,25.52 L18.03,23.85 C18.17,23.71 18.36,23.64 18.55,23.64 C18.74,23.64 18.92,23.71 19.06,23.85 Z M24.88,12.21 L27.79,15.12 C28.07,15.4 28.07,15.87 27.79,16.15 C27.51,16.43 27.04,16.43 26.76,16.15 L25.09,14.48 L25.09,27.27 C25.09,27.67 24.76,28 24.36,28 C23.96,28 23.64,27.67 23.64,27.27 L23.64,14.48 L21.97,16.15 C21.69,16.43 21.22,16.43 20.94,16.15 C20.66,15.87 20.66,15.4 20.94,15.12 L23.85,12.21 C23.99,12.07 24.17,12 24.36,12 C24.55,12 24.74,12.07 24.88,12.21 Z"/>
                 <TextBlock Text="Classificar"/>
               </StackPanel>
               <DropDownButton.Flyout>
@@ -134,7 +136,7 @@
             <DropDownButton x:Name="BotaoAgrupar" x:FieldModifier="internal" AutomationProperties.Name="Agrupar"
                             local:Dicas.Descricao="Junta os arquivos do processo por etapa ou pasta, por tipo de arquivo ou por data.">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <FontIcon Glyph="&#xF168;" FontSize="14"/>
+                <PathIcon Width="16" Height="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M17.5,14.67 C17.5,14.3 17.8,14 18.17,14 L28.83,14 C29.2,14 29.5,14.3 29.5,14.67 C29.5,15.04 29.2,15.33 28.83,15.33 L18.17,15.33 C17.8,15.33 17.5,15.04 17.5,14.67 Z M18.17,19.33 L28.83,19.33 C29.2,19.33 29.5,19.63 29.5,20 C29.5,20.37 29.2,20.67 28.83,20.67 L18.17,20.67 C17.8,20.67 17.5,20.37 17.5,20 C17.5,19.63 17.8,19.33 18.17,19.33 Z M18.17,24.67 L28.83,24.67 C29.2,24.67 29.5,24.96 29.5,25.33 C29.5,25.7 29.2,26 28.83,26 L18.17,26 C17.8,26 17.5,25.7 17.5,25.33 C17.5,24.96 17.8,24.67 18.17,24.67 Z M13.5,14.67 C13.5,14.12 13.95,13.67 14.5,13.67 C15.05,13.67 15.5,14.12 15.5,14.67 C15.5,15.22 15.05,15.67 14.5,15.67 C13.95,15.67 13.5,15.22 13.5,14.67 Z M13.5,20 C13.5,19.45 13.95,19 14.5,19 C15.05,19 15.5,19.45 15.5,20 C15.5,20.55 15.05,21 14.5,21 C13.95,21 13.5,20.55 13.5,20 Z M13.5,25.33 C13.5,24.78 13.95,24.33 14.5,24.33 C15.05,24.33 15.5,24.78 15.5,25.33 C15.5,25.88 15.05,26.33 14.5,26.33 C13.95,26.33 13.5,25.88 13.5,25.33 Z"/>
                 <TextBlock Text="Agrupar"/>
               </StackPanel>
               <DropDownButton.Flyout>
@@ -150,7 +152,7 @@
             <DropDownButton x:Name="BotaoVisualizar" x:FieldModifier="internal" AutomationProperties.Name="Visualizar"
                             local:Dicas.Descricao="Mostra os arquivos do processo em lista (três colunas) ou em miniaturas, com a prévia de cada arquivo.">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <FontIcon Glyph="&#xECA5;" FontSize="14"/>
+                <PathIcon Width="16" Height="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M16.95,12 L21.32,12 C22.12,12 22.77,12.65 22.77,13.45 L22.77,17.82 C22.77,18.62 22.12,19.27 21.32,19.27 L16.95,19.27 C16.15,19.27 15.5,18.62 15.5,17.82 L15.5,13.45 C15.5,12.65 16.15,12 16.95,12 Z M21.32,17.82 L16.95,17.82 L16.95,13.45 L21.32,13.45 L21.32,17.82 Z M25.68,12 L30.05,12 C30.85,12 31.5,12.65 31.5,13.45 L31.5,17.82 C31.5,18.62 30.85,19.27 30.05,19.27 L25.68,19.27 C24.88,19.27 24.23,18.62 24.23,17.82 L24.23,13.45 C24.23,12.65 24.88,12 25.68,12 Z M30.05,17.82 L25.68,17.82 L25.68,13.45 L30.05,13.45 L30.05,17.82 Z M16.95,20.73 L21.32,20.73 C22.12,20.73 22.77,21.38 22.77,22.18 L22.77,26.55 C22.77,27.35 22.12,28 21.32,28 L16.95,28 C16.15,28 15.5,27.35 15.5,26.55 L15.5,22.18 C15.5,21.38 16.15,20.73 16.95,20.73 Z M21.32,26.55 L16.95,26.55 L16.95,22.18 L21.32,22.18 L21.32,26.55 Z M25.68,20.73 L30.05,20.73 C30.85,20.73 31.5,21.38 31.5,22.18 L31.5,26.55 C31.5,27.35 30.85,28 30.05,28 L25.68,28 C24.88,28 24.23,27.35 24.23,26.55 L24.23,22.18 C24.23,21.38 24.88,20.73 25.68,20.73 Z M30.05,26.55 L25.68,26.55 L25.68,22.18 L30.05,22.18 L30.05,26.55 Z"/>
                 <TextBlock Text="Visualizar"/>
               </StackPanel>
               <DropDownButton.Flyout>
@@ -173,19 +175,19 @@
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="0">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE9F9;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Relatórios" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalRelatorios" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
+              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Width="16" Height="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M10.75,4.71 L15.86,9.83 C16,9.97 16.08,10.16 16.08,10.35 L16.08,22.04 C16.08,22.85 15.43,23.5 14.62,23.5 L1.46,23.5 C0.65,23.5 0,22.85 0,22.04 L0,5.96 C0,5.15 0.65,4.5 1.46,4.5 L10.23,4.5 C10.42,4.5 10.61,4.57 10.75,4.71 Z M10.96,6.99 L13.58,9.62 L10.96,9.62 L10.96,6.99 Z M14.62,22.04 L1.46,22.04 L1.46,5.96 L9.5,5.96 L9.5,10.35 C9.5,10.75 9.83,11.08 10.23,11.08 L14.62,11.08 L14.62,22.04 Z M11.69,14.73 C11.69,15.13 11.36,15.46 10.96,15.46 L5.12,15.46 C4.72,15.46 4.39,15.13 4.39,14.73 C4.39,14.33 4.72,14 5.12,14 L10.96,14 C11.36,14 11.69,14.33 11.69,14.73 Z M11.69,17.65 C11.69,18.05 11.36,18.38 10.96,18.38 L5.12,18.38 C4.72,18.38 4.39,18.05 4.39,17.65 C4.39,17.25 4.72,16.92 5.12,16.92 L10.96,16.92 C11.36,16.92 11.69,17.25 11.69,17.65 Z"/><TextBlock Text="Relatórios" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalRelatorios" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
               <ListView x:Name="ColunaRelatorios" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Relatórios"/>
             </Grid>
           </Border>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="1">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE70F;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Despachos" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalDespachos" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
+              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Width="16" Height="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M15.74,4.73 L18.78,7.77 C18.92,7.91 19,8.11 19,8.31 C19,8.51 18.92,8.7 18.78,8.84 L9.66,17.96 C9.52,18.1 9.32,18.19 9.12,18.19 L6.08,18.19 C5.66,18.19 5.32,17.85 5.32,17.43 L5.32,14.39 C5.32,14.19 5.41,13.99 5.55,13.85 L14.67,4.73 C14.81,4.59 15,4.5 15.2,4.5 C15.4,4.5 15.6,4.59 15.74,4.73 Z M8.81,16.67 L6.84,16.67 L6.84,14.7 L12.92,8.62 L14.89,10.59 L8.81,16.67 Z M15.96,9.51 L14,7.55 L15.2,6.34 L17.17,8.31 L15.96,9.51 Z M18.24,14.39 L18.24,21.99 C18.24,22.83 17.56,23.5 16.72,23.5 L1.52,23.5 C0.68,23.5 0,22.83 0,21.99 L0,6.79 C0,5.95 0.68,5.27 1.52,5.27 L9.12,5.27 C9.54,5.27 9.88,5.61 9.88,6.03 C9.88,6.45 9.54,6.79 9.12,6.79 L1.52,6.79 L1.52,21.99 L16.72,21.99 L16.72,14.39 C16.72,13.97 17.06,13.63 17.48,13.63 C17.9,13.63 18.24,13.97 18.24,14.39 Z"/><TextBlock Text="Despachos" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalDespachos" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
               <ListView x:Name="ColunaDespachos" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Despachos"/>
             </Grid>
           </Border>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="2">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Projeto e documentos" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalProjeto" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
+              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><PathIcon Width="16" Height="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M4.75,8.57 L18.32,8.57 C18.69,8.57 19,8.88 19,9.25 L19,20.79 C19,21.16 18.69,21.46 18.32,21.46 L2.71,21.46 C1.21,21.46 0,20.25 0,18.75 L0,9.25 C0,7.75 1.21,6.54 2.71,6.54 L4.07,6.54 C4.44,6.54 4.75,6.84 4.75,7.21 L4.75,8.57 Z M1.36,9.25 C1.36,8.5 1.96,7.89 2.71,7.89 L3.39,7.89 L3.39,16.04 L2.71,16.04 C2.23,16.04 1.77,16.16 1.36,16.4 L1.36,9.25 Z M17.64,20.11 L2.71,20.11 C1.96,20.11 1.36,19.5 1.36,18.75 C1.36,18 1.96,17.39 2.71,17.39 L4.07,17.39 C4.44,17.39 4.75,17.08 4.75,16.71 L4.75,9.93 L17.64,9.93 L17.64,20.11 Z M6.79,16.04 C6.79,15.67 7.09,15.36 7.46,15.36 L8.82,15.36 L8.82,14 L7.46,14 C7.09,14 6.79,13.69 6.79,13.32 C6.79,12.95 7.09,12.64 7.46,12.64 L8.82,12.64 L8.82,11.96 C8.82,11.59 9.13,11.29 9.5,11.29 C9.87,11.29 10.18,11.59 10.18,11.96 L10.18,12.64 L12.21,12.64 L12.21,11.96 C12.21,11.59 12.52,11.29 12.89,11.29 C13.26,11.29 13.57,11.59 13.57,11.96 L13.57,12.64 L14.93,12.64 C15.3,12.64 15.61,12.95 15.61,13.32 C15.61,13.69 15.3,14 14.93,14 L13.57,14 L13.57,15.36 L14.93,15.36 C15.3,15.36 15.61,15.67 15.61,16.04 C15.61,16.41 15.3,16.71 14.93,16.71 L13.57,16.71 L13.57,17.39 C13.57,17.76 13.26,18.07 12.89,18.07 C12.52,18.07 12.21,17.76 12.21,17.39 L12.21,16.71 L10.18,16.71 L10.18,17.39 C10.18,17.76 9.87,18.07 9.5,18.07 C9.13,18.07 8.82,17.76 8.82,17.39 L8.82,16.71 L7.46,16.71 C7.09,16.71 6.79,16.41 6.79,16.04 Z M10.18,14 L12.21,14 L12.21,15.36 L10.18,15.36 L10.18,14 Z"/><TextBlock Text="Projeto e documentos" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalProjeto" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
               <ListView x:Name="ColunaProjeto" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Projeto e documentos"/>
             </Grid>
           </Border>
