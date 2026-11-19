@@ -37,7 +37,7 @@ public sealed partial class PaginaNovoDespacho
 
     IReadOnlyList<ParagrafoPrevia> previa = [];
     LayoutDespacho? layout;
-    readonly Dictionary<byte[], BitmapImage> bitmaps = new(ReferenceEqualityComparer.Instance);
+    readonly Dictionary<byte[], ImageSource> bitmaps = new(ReferenceEqualityComparer.Instance);
     (UIElement Folha, Point Ponto)? ultimoToque;
     bool redesenhoPendente;
     bool vigiando;
@@ -238,23 +238,24 @@ public sealed partial class PaginaNovoDespacho
         return moldura;
     }
 
-    BitmapImage Bitmap(byte[] bytes)
+    ImageSource Bitmap(byte[] bytes)
     {
         if (bitmaps.TryGetValue(bytes, out var b)) return b;
-        b = new BitmapImage();
+        b = bytes.AsSpan().StartsWith("<svg"u8) ? new SvgImageSource() : new BitmapImage();
         bitmaps[bytes] = b;
         _ = CarregarAsync(b, bytes);
         return b;
     }
 
-    static async Task CarregarAsync(BitmapImage b, byte[] bytes)
+    static async Task CarregarAsync(ImageSource b, byte[] bytes)
     {
         try
         {
             using var s = new InMemoryRandomAccessStream();
             await s.WriteAsync(bytes.AsBuffer());
             s.Seek(0);
-            await b.SetSourceAsync(s);
+            if (b is SvgImageSource svg) await svg.SetSourceAsync(s);
+            else await ((BitmapImage)b).SetSourceAsync(s);
         }
         catch (Exception e) when (e is COMException or ArgumentException or IOException) { /* sem a imagem, a folha segue sem ela */ }
     }
