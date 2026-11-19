@@ -100,6 +100,7 @@ public sealed partial class MainWindow
             b.Resources["ButtonBackgroundPressed"] = fundo;
             b.Resources["ButtonBorderBrushPointerOver"] = borda;
             b.Resources["ButtonBorderBrushPressed"] = borda;
+            Brilho.SetAtivo(b, true);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"{Esferas.Rotulo(e)}: {contagem[e]} leis{(escolhida ? ", filtro ligado" : "")}");
             ToolTipService.SetToolTip(b, escolhida ? $"Mostrando só as leis da esfera {Esferas.Rotulo(e).ToLowerInvariant()}. Clique de novo para ver todas." : $"Mostrar só as leis da esfera {Esferas.Rotulo(e).ToLowerInvariant()}.");
             var esfera = e;

@@ -411,6 +411,7 @@ public sealed partial class MainWindow
                 conteudo = pilha;
             }
             var b = new ToggleButton { Content = conteudo, IsChecked = ativo, Padding = compacto ? new Thickness(10, 4, 10, 4) : new Thickness(6, 8, 6, 8), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            Brilho.SetAtivo(b, true);
             var chave = Planilha.Normal(valor);
             b.Click += (_, _) =>
             {

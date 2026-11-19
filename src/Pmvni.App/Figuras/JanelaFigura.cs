@@ -262,6 +262,7 @@ internal sealed class JanelaFigura : Window
     void Botao(CommandBar barra, FerramentaFigura f, string glifo, string texto, string dica)
     {
         var b = new AppBarToggleButton { Icon = new FontIcon { Glyph = glifo }, Label = texto };
+        Pilulas.Estilizar(b);
         Dicas.Aplicar(b, texto, dica.EndsWith('.') ? dica : dica + ".");
         AutomationNome(b, texto);
         b.Click += (_, _) => Escolher(f);

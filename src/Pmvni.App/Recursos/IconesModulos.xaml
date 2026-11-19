@@ -48,6 +48,24 @@
       <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="#8FCDA6"/>
       <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="#8FCDA6"/>
       <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="#8FCDA6"/>
+      <StaticResource x:Key="ToggleButtonBackgroundChecked" ResourceKey="AccentButtonBackground"/>
+      <StaticResource x:Key="ToggleButtonBackgroundCheckedPointerOver" ResourceKey="AccentButtonBackgroundPointerOver"/>
+      <StaticResource x:Key="ToggleButtonBackgroundCheckedPressed" ResourceKey="AccentButtonBackgroundPressed"/>
+      <StaticResource x:Key="ToggleButtonForegroundChecked" ResourceKey="AccentButtonForeground"/>
+      <StaticResource x:Key="ToggleButtonForegroundCheckedPointerOver" ResourceKey="AccentButtonForegroundPointerOver"/>
+      <StaticResource x:Key="ToggleButtonForegroundCheckedPressed" ResourceKey="AccentButtonForegroundPressed"/>
+      <StaticResource x:Key="ToggleButtonBorderBrushChecked" ResourceKey="AccentButtonBorderBrush"/>
+      <StaticResource x:Key="ToggleButtonBorderBrushCheckedPointerOver" ResourceKey="AccentButtonBorderBrushPointerOver"/>
+      <StaticResource x:Key="ToggleButtonBorderBrushCheckedPressed" ResourceKey="AccentButtonBorderBrushPressed"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundChecked" ResourceKey="AccentButtonBackground"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPointerOver" ResourceKey="AccentButtonBackgroundPointerOver"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPressed" ResourceKey="AccentButtonBackgroundPressed"/>
+      <StaticResource x:Key="AppBarToggleButtonForegroundChecked" ResourceKey="AccentButtonForeground"/>
+      <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPointerOver" ResourceKey="AccentButtonForegroundPointerOver"/>
+      <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPressed" ResourceKey="AccentButtonForegroundPressed"/>
+      <StaticResource x:Key="AppBarToggleButtonBorderBrushChecked" ResourceKey="AccentButtonBorderBrush"/>
+      <StaticResource x:Key="AppBarToggleButtonBorderBrushCheckedPointerOver" ResourceKey="AccentButtonBorderBrushPointerOver"/>
+      <StaticResource x:Key="AppBarToggleButtonBorderBrushCheckedPressed" ResourceKey="AccentButtonBorderBrushPressed"/>
       <!-- Brilho dos botões coloridos (Controles\Brilho.cs): o verde institucional (SystemAccentColor no claro, Light2 no escuro). -->
       <SolidColorBrush x:Key="PmvniBrilho" Color="#1E7A46"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="#DCE6FB"/>
@@ -147,6 +165,24 @@
       <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="#3F8A61"/>
       <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="#3F8A61"/>
       <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="#3F8A61"/>
+      <StaticResource x:Key="ToggleButtonBackgroundChecked" ResourceKey="AccentButtonBackground"/>
+      <StaticResource x:Key="ToggleButtonBackgroundCheckedPointerOver" ResourceKey="AccentButtonBackgroundPointerOver"/>
+      <StaticResource x:Key="ToggleButtonBackgroundCheckedPressed" ResourceKey="AccentButtonBackgroundPressed"/>
+      <StaticResource x:Key="ToggleButtonForegroundChecked" ResourceKey="AccentButtonForeground"/>
+      <StaticResource x:Key="ToggleButtonForegroundCheckedPointerOver" ResourceKey="AccentButtonForegroundPointerOver"/>
+      <StaticResource x:Key="ToggleButtonForegroundCheckedPressed" ResourceKey="AccentButtonForegroundPressed"/>
+      <StaticResource x:Key="ToggleButtonBorderBrushChecked" ResourceKey="AccentButtonBorderBrush"/>
+      <StaticResource x:Key="ToggleButtonBorderBrushCheckedPointerOver" ResourceKey="AccentButtonBorderBrushPointerOver"/>
+      <StaticResource x:Key="ToggleButtonBorderBrushCheckedPressed" ResourceKey="AccentButtonBorderBrushPressed"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundChecked" ResourceKey="AccentButtonBackground"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPointerOver" ResourceKey="AccentButtonBackgroundPointerOver"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPressed" ResourceKey="AccentButtonBackgroundPressed"/>
+      <StaticResource x:Key="AppBarToggleButtonForegroundChecked" ResourceKey="AccentButtonForeground"/>
+      <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPointerOver" ResourceKey="AccentButtonForegroundPointerOver"/>
+      <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPressed" ResourceKey="AccentButtonForegroundPressed"/>
+      <StaticResource x:Key="AppBarToggleButtonBorderBrushChecked" ResourceKey="AccentButtonBorderBrush"/>
+      <StaticResource x:Key="AppBarToggleButtonBorderBrushCheckedPointerOver" ResourceKey="AccentButtonBorderBrushPointerOver"/>
+      <StaticResource x:Key="AppBarToggleButtonBorderBrushCheckedPressed" ResourceKey="AccentButtonBorderBrushPressed"/>
       <SolidColorBrush x:Key="PmvniBrilho" Color="#5CB983"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="#28326E"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalTexto" Color="#DCE3FF"/>
@@ -245,6 +281,24 @@
       <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="{ThemeResource SystemColorButtonTextColor}"/>
       <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="{ThemeResource SystemColorHighlightTextColor}"/>
       <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="{ThemeResource SystemColorHighlightTextColor}"/>
+      <StaticResource x:Key="ToggleButtonBackgroundChecked" ResourceKey="AccentButtonBackground"/>
+      <StaticResource x:Key="ToggleButtonBackgroundCheckedPointerOver" ResourceKey="AccentButtonBackgroundPointerOver"/>
+      <StaticResource x:Key="ToggleButtonBackgroundCheckedPressed" ResourceKey="AccentButtonBackgroundPressed"/>
+      <StaticResource x:Key="ToggleButtonForegroundChecked" ResourceKey="AccentButtonForeground"/>
+      <StaticResource x:Key="ToggleButtonForegroundCheckedPointerOver" ResourceKey="AccentButtonForegroundPointerOver"/>
+      <StaticResource x:Key="ToggleButtonForegroundCheckedPressed" ResourceKey="AccentButtonForegroundPressed"/>
+      <StaticResource x:Key="ToggleButtonBorderBrushChecked" ResourceKey="AccentButtonBorderBrush"/>
+      <StaticResource x:Key="ToggleButtonBorderBrushCheckedPointerOver" ResourceKey="AccentButtonBorderBrushPointerOver"/>
+      <StaticResource x:Key="ToggleButtonBorderBrushCheckedPressed" ResourceKey="AccentButtonBorderBrushPressed"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundChecked" ResourceKey="AccentButtonBackground"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPointerOver" ResourceKey="AccentButtonBackgroundPointerOver"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPressed" ResourceKey="AccentButtonBackgroundPressed"/>
+      <StaticResource x:Key="AppBarToggleButtonForegroundChecked" ResourceKey="AccentButtonForeground"/>
+      <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPointerOver" ResourceKey="AccentButtonForegroundPointerOver"/>
+      <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPressed" ResourceKey="AccentButtonForegroundPressed"/>
+      <StaticResource x:Key="AppBarToggleButtonBorderBrushChecked" ResourceKey="AccentButtonBorderBrush"/>
+      <StaticResource x:Key="AppBarToggleButtonBorderBrushCheckedPointerOver" ResourceKey="AccentButtonBorderBrushPointerOver"/>
+      <StaticResource x:Key="AppBarToggleButtonBorderBrushCheckedPressed" ResourceKey="AccentButtonBorderBrushPressed"/>
       <!-- No alto contraste não há brilho (o Brilho também se desliga sozinho). -->
       <SolidColorBrush x:Key="PmvniBrilho" Color="Transparent"/>
       <SolidColorBrush x:Key="PmvniEsferaFederalFundo" Color="{ThemeResource SystemColorButtonFaceColor}"/>

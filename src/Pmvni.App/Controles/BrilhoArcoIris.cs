@@ -291,7 +291,7 @@ sealed class BrilhoArcoIris
     void DesenharMascaras(Vector2 t, float escala)
     {
         if (mascaraFeita.Tamanho == t && mascaraFeita.Escala == escala) return;
-        var k = Pilula(t);
+        var k = RaioDoContorno(t);
         try
         {
             Contorno(mascaraBrilho, t, escala, new Vector2(0.5f), t - new Vector2(1f), k, TracoBrilho, Desfoque);
@@ -420,29 +420,8 @@ sealed class BrilhoArcoIris
         raizHalo.Opacity = Respiro(t, 9.1, respira.Halo);
     }
 
-    /// <summary>Padrão único (2026-11-17, pedido do usuário): todo contorno arco-íris é uma pílula, cantos totalmente circulares, como a
-    /// pílula da análise na barra de título.</summary>
-    static float Pilula(Vector2 t) => Math.Max(0, (t.Y - 1) / 2);
-
-    CornerRadius? cantoOriginal;
-
-    /// <summary>Enquanto brilha, o próprio quadro também fica em pílula, para o fundo e a borda dele acompanharem o contorno.</summary>
-    void Arredondar(bool pilula)
-    {
-        if (pilula)
-        {
-            var r = new CornerRadius(Math.Max(0, (elemento.ActualHeight) / 2));
-            cantoOriginal ??= Canto;
-            Canto = r;
-        }
-        else if (cantoOriginal is { } o) { Canto = o; cantoOriginal = null; }
-    }
-
-    CornerRadius Canto
-    {
-        get => elemento switch { Border b => b.CornerRadius, Control c => c.CornerRadius, Grid g => g.CornerRadius, StackPanel s => s.CornerRadius, _ => default };
-        set { switch (elemento) { case Border b: b.CornerRadius = value; break; case Control c: c.CornerRadius = value; break; case Grid g: g.CornerRadius = value; break; case StackPanel s: s.CornerRadius = value; break; } }
-    }
+    float RaioDoContorno(Vector2 tamanho) =>
+        Math.Max(0, Math.Min(canto, Math.Min(tamanho.X, tamanho.Y) / 2) - 0.5f);
 
     static readonly Windows.UI.ViewManagement.UISettings Ui = new();
     static bool AnimacoesLigadas { get { try { return Ui.AnimationsEnabled; } catch (Exception) { return true; } } }
@@ -461,13 +440,11 @@ sealed class BrilhoArcoIris
             }
             raiz.IsVisible = false;
             raizHalo.IsVisible = false;
-            Arredondar(false);
             return;
         }
         if (rodando && !refazer && t == tamanho) return;
         tamanho = t;
-        var k = Pilula(t);
-        Arredondar(true);
+        var k = RaioDoContorno(t);
         raiz.Size = t; raizBrilho.Size = t; raizLinha.Size = t;
         geometria.Offset = new Vector2(0.5f);
         geometria.Size = t - new Vector2(1f);

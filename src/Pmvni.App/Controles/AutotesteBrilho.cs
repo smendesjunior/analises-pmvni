@@ -38,6 +38,7 @@ internal static class AutotesteBrilho
             quadro.Visibility = Visibility.Visible;          // começou a carregar
             await Assentar();
             r["trabalhando_com_brilho"] = Aceso();
+            r["cantos_preservados_durante_trabalho"] = quadro.CornerRadius == cantoOriginal;
             r["halo_por_fora"] = Trabalhando.BrilhoDe(quadro)?.HaloVisivel == true;
             foreach (var tema in new[] { ElementTheme.Dark, ElementTheme.Light })
             {

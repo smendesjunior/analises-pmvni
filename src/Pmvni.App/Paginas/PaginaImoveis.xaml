@@ -96,7 +96,7 @@
         </Button>
         <TextBlock x:Name="TituloRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
         <!-- Cotas do lote no mapa (lados, domínio DNIT e eixo → terreno, largura da rua): ligadas por padrão; a escolha vale até fechar o app. -->
-        <ToggleButton x:Name="BotaoCotas" x:FieldModifier="internal" Grid.Column="2" IsChecked="True" AutomationProperties.Name="Cotas no mapa"
+        <ToggleButton local:Brilho.Ativo="True" x:Name="BotaoCotas" x:FieldModifier="internal" Grid.Column="2" IsChecked="True" AutomationProperties.Name="Cotas no mapa"
                       local:Dicas.Titulo="Cotas no mapa" local:Dicas.Descricao="Mostra ou esconde as cotas do lote no mapa: lados do lote, faixa de domínio do DNIT e distância do eixo ao terreno (BR-262 perto) e largura da rua em frente, medidas na base.">
           <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE1D9;" FontSize="14"/><TextBlock Text="Cotas"/></StackPanel>
         </ToggleButton>
