@@ -4,6 +4,8 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 ## 2.2.0
 
+- Atividades da análise mostra a porcentagem das etapas concluídas e dos itens avaliados enquanto aguarda a estimativa da IA. O quadro usa texto e ícones, sem a barra verde e o contorno arco-íris.
+
 - Recentes inclui as análises por processo e situação. Retomar análise permanece visível em Novo relatório e recupera o registro e as evidências da execução. A rota escolhida para o Codex também vale para as etapas técnicas do kit atualizado.
 
 - O Monitor de análise mostra o tempo decorrido e a previsão de término em selos verdes. A IA informa a previsão e os percentuais estimados de cada etapa e da análise completa.

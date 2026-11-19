@@ -352,7 +352,6 @@
             </Grid>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
               <StackPanel Spacing="4" Margin="0,0,8,0">
-                <ProgressBar x:Name="ProgressoAtividades" Height="4"/>
                 <TextBlock TextAlignment="Left" HorizontalAlignment="Left" x:Name="ContagemAtividades" Text="Aguardando as etapas da análise." FontSize="12"/>
                 <StackPanel x:Name="EtapasAtividades" Spacing="8"/>
               </StackPanel>

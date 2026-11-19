@@ -238,9 +238,12 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             EstadoEtapa.Erro => "Com erro", _ => "Pendente" };
         if (estado == EstadoEtapa.Feita) return status + " · 100%";
         if (estado == EstadoEtapa.Pendente) return status;
-        return EstimativaAtual is { Etapa: { } etapa, PercentualEtapa: { } percentual }
-               && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(etapa) == nome
-            ? $"{status} · {percentual:0.#}% estimado pela IA" : status;
+        if (EstimativaAtual is { Etapa: { } etapa, PercentualEtapa: { } percentual }
+               && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(etapa) == nome)
+            return $"{status} · {percentual:0.#}% estimado pela IA";
+        if (ProgressoAtual is { Total: > 0 } itens && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(itens.Etapa) == nome)
+            return $"{status} · {Math.Clamp(100d * itens.Avaliados / itens.Total, 0, 100):0.#}% dos itens avaliados";
+        return status;
     }
 
     static readonly string[] DescricoesEtapas = [
@@ -268,16 +271,14 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         animandoEtapas = podeAnimar;
         var feitas = etapas.Count(e => e.Estado == EstadoEtapa.Feita);
         var concluiu = etapas.Count > 0 && feitas == etapas.Count;
-        var percentual = concluiu ? 100d : EstimativaAtual?.PercentualGeral;
+        double? percentualPorEtapas = etapas.Count > 0 ? 100d * feitas / etapas.Count : null;
+        var percentual = concluiu ? 100d : EstimativaAtual?.PercentualGeral ?? percentualPorEtapas;
         BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
         BarraResumoEtapas.Value = percentual ?? 0;
         BarraResumoEtapas.Visibility = etapas.Count > 0 || animar ? Visibility.Visible : Visibility.Collapsed;
-        ProgressoAtividades.IsIndeterminate = animar && percentual is null;
-        ProgressoAtividades.Value = percentual ?? 0;
-        ProgressoAtividades.Visibility = etapas.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         var contagemEtapas = etapas.Count == 0 ? "Aguardando as etapas da análise." : $"{feitas} de {etapas.Count} etapas concluídas";
         ContagemAtividades.Text = percentual is { } valor
-            ? $"{contagemEtapas} · {valor:0.#}% geral" + (concluiu ? "" : " estimado pela IA")
+            ? $"{contagemEtapas} · {valor:0.#}% geral" + (concluiu ? "" : EstimativaAtual?.PercentualGeral is not null ? " estimado pela IA" : " pelas etapas concluídas")
             : contagemEtapas + (animar ? " · Aguardando estimativa da IA" : "");
         EtapasAtividades.Children.Clear();
         PainelEtapas.Children.Clear();
