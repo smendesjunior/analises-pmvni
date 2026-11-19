@@ -171,7 +171,7 @@ internal sealed class JanelaPrancha : Window
         rodape.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         rodape.Children.Add(estado);
         var acoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        inserir.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        inserir.Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"];
         inserir.VerticalAlignment = cancelar.VerticalAlignment = VerticalAlignment.Bottom;
         acoes.Children.Add(inserir);
         acoes.Children.Add(cancelar);

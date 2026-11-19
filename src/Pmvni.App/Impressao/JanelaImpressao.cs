@@ -54,7 +54,7 @@ internal sealed class JanelaImpressao : Window
         barra.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         estado.Text = "Abrindo " + titulo + "…";
         barra.Children.Add(estado);
-        botaoImprimir.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        botaoImprimir.Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"];
         Dicas.Aplicar(botaoImprimir, "Imprimir (Ctrl+P)", "Abre a impressão com a lista de impressoras e a opção Salvar como PDF.");
         botaoImprimir.Click += (_, _) => MostrarImpressao();
         Grid.SetColumn(botaoImprimir, 1);

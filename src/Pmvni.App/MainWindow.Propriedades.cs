@@ -601,7 +601,7 @@ public sealed partial class MainWindow
         var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         conteudo.Children.Add(new FontIcon { Glyph = "", FontSize = 13 });
         conteudo.Children.Add(new TextBlock { Text = "Adicionar ambiente" });
-        var botao = new Button { Content = conteudo, Style = (Style)res["AccentButtonStyle"], HorizontalAlignment = HorizontalAlignment.Stretch };
+        var botao = new Button { Content = conteudo, Style = (Style)res["PmvniBotaoPrimarioStyle"], HorizontalAlignment = HorizontalAlignment.Stretch };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, "Adicionar ambiente");
         Dicas.Aplicar(botao, "Adicionar ambiente", "Acrescenta um ambiente à tabela de iluminação e ventilação; depois você põe as janelas e as portas dele e a conta se faz sozinha.");
 
@@ -612,7 +612,7 @@ public sealed partial class MainWindow
         divisor.Text = divisorAtual is { } d ? d.ToString("0.##", Formatos.Cultura) : "";
         var pavimento = Caixa("Pavimento (opcional)", "ex.: Térreo");
         var erro = new TextBlock { TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed, Foreground = (Microsoft.UI.Xaml.Media.Brush)res["SystemFillColorCriticalBrush"] };
-        var criar = new Button { Content = "Adicionar", Style = (Style)res["AccentButtonStyle"], HorizontalAlignment = HorizontalAlignment.Right };
+        var criar = new Button { Content = "Adicionar", Style = (Style)res["PmvniBotaoPrimarioStyle"], HorizontalAlignment = HorizontalAlignment.Right };
         var linhaPisoDivisor = new Grid { ColumnSpacing = 8 };
         linhaPisoDivisor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         linhaPisoDivisor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });

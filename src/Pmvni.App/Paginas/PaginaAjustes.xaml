@@ -259,7 +259,7 @@
                 <TextBlock Style="{StaticResource PmvniAjusteAjuda}" Text="A pasta da base municipal (a que tem o Mapa PDM.qgz, as pastas shapes, 2025_10, SHAPE_LOTEAMENTOS e BASE_CADASTRAL_AUXILIAR). O editor só lê esses arquivos: nunca grava, move nem apaga nada nela."/>
                 <TextBox x:Name="CaixaPastaQgis" x:FieldModifier="internal" IsReadOnly="True" PlaceholderText="Nenhuma pasta escolhida" AutomationProperties.Name="Pasta dos arquivos QGIS"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button x:Name="BotaoEscolherQgis" x:FieldModifier="internal" Content="Selecionar pasta…" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="Selecionar a pasta dos arquivos QGIS"
+                  <Button x:Name="BotaoEscolherQgis" x:FieldModifier="internal" Content="Selecionar pasta…" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Selecionar a pasta dos arquivos QGIS"
                           local:Dicas.Titulo="Selecionar pasta…" local:Dicas.Descricao="Escolhe a pasta da base QGIS municipal que o módulo Imóveis consulta."/>
                   <Button x:Name="BotaoVerificarQgis" x:FieldModifier="internal" Content="Verificar acesso e arquivos" AutomationProperties.Name="Verificar acesso e arquivos da pasta QGIS"
                           local:Dicas.Titulo="Verificar acesso e arquivos" local:Dicas.Descricao="Confere se a pasta abre e quais camadas e bases foram encontradas."/>
@@ -288,7 +288,7 @@
                 <TextBlock Style="{StaticResource PmvniAjusteAjuda}" Text="A planilha do Excel no modelo padrão (ACOMPANHAMENTO DE PROCESSOS). O módulo Acompanhamento mostra todas as colunas dela, com as listas e as cores configuradas, e grava nela tudo o que você muda no app. Antes de cada gravação, uma cópia de segurança vai para a pasta de dados do editor."/>
                 <TextBox x:Name="CaixaPlanilhaAcompanhamento" x:FieldModifier="internal" IsReadOnly="True" PlaceholderText="Nenhuma planilha escolhida" AutomationProperties.Name="Planilha de acompanhamento de processos"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button x:Name="BotaoEscolherPlanilha" x:FieldModifier="internal" Content="Selecionar planilha…" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="Selecionar a planilha de acompanhamento"
+                  <Button x:Name="BotaoEscolherPlanilha" x:FieldModifier="internal" Content="Selecionar planilha…" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Selecionar a planilha de acompanhamento"
                           local:Dicas.Titulo="Selecionar planilha…" local:Dicas.Descricao="Escolhe a planilha .xlsx do acompanhamento de processos."/>
                   <Button x:Name="BotaoVerificarPlanilha" x:FieldModifier="internal" Content="Verificar" AutomationProperties.Name="Verificar a planilha de acompanhamento"
                           local:Dicas.Titulo="Verificar" local:Dicas.Descricao="Lê a planilha e mostra as colunas, listas e processos encontrados."/>
@@ -345,7 +345,7 @@
               <TextBox x:Name="CaixaProfissionalRegistro" x:FieldModifier="internal" Header="Registro profissional" PlaceholderText="ex.: CAU/ES A000000-0" AutomationProperties.Name="Registro profissional (CAU ou CREA)"/>
               <TextBox x:Name="CaixaProfissionalMatricula" x:FieldModifier="internal" Header="Matrícula" PlaceholderText="ex.: 123456" AutomationProperties.Name="Matrícula"/>
               <StackPanel Orientation="Horizontal" Spacing="10">
-                <Button x:Name="BotaoSalvarProfissional" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Salvar dados" AutomationProperties.Name="Salvar os dados do profissional"
+                <Button x:Name="BotaoSalvarProfissional" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Salvar dados" AutomationProperties.Name="Salvar os dados do profissional"
                         local:Dicas.Titulo="Salvar dados" local:Dicas.Descricao="Grava nome, profissão, registro e matrícula; valem a partir do próximo despacho e relatório."/>
                 <TextBlock x:Name="TextoProfissionalSalvo" x:FieldModifier="internal" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteAjuda}"/>
               </StackPanel>
@@ -358,7 +358,7 @@
                 <TextBlock Style="{StaticResource PmvniAjusteAjuda}" Text="Com um certificado escolhido, o PDF de cada despacho sai assinado digitalmente, com a assinatura visível logo acima da linha de assinatura. Sem certificado, o PDF sai como sempre."/>
                 <TextBlock x:Name="TextoAssinatura" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button x:Name="BotaoEscolherCertificado" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Escolher arquivo…" AutomationProperties.Name="Escolher o arquivo do certificado digital"
+                  <Button x:Name="BotaoEscolherCertificado" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Escolher arquivo…" AutomationProperties.Name="Escolher o arquivo do certificado digital"
                           local:Dicas.Titulo="Escolher arquivo…" local:Dicas.Descricao="Escolhe o arquivo do certificado digital (.pfx ou .p12)."/>
                   <Button x:Name="BotaoCertificadoWindows" x:FieldModifier="internal" Content="Certificado do Windows…" AutomationProperties.Name="Usar um certificado do repositório do Windows"
                           local:Dicas.Titulo="Certificado do Windows…" local:Dicas.Descricao="Usa um certificado instalado no Windows, em token ou em cartão; a senha é pedida pelo próprio dispositivo."/>
@@ -537,7 +537,7 @@
                   <Button x:Name="BotaoVerificarAtualizacoes" x:FieldModifier="internal" Content="Verificar atualizações" HorizontalAlignment="Stretch"
                           AutomationProperties.Name="Verificar atualizações"
                           local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Procura agora uma versão nova do editor no GitHub e a instala se houver."/>
-                  <Button x:Name="BotaoReiniciarAtualizacao" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" Content="Reiniciar agora" HorizontalAlignment="Stretch" Visibility="Collapsed"
+                  <Button x:Name="BotaoReiniciarAtualizacao" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Reiniciar agora" HorizontalAlignment="Stretch" Visibility="Collapsed"
                           AutomationProperties.Name="Reiniciar o editor na versão nova"
                           local:Dicas.Titulo="Reiniciar agora" local:Dicas.Descricao="Fecha o editor (gravando o relatório aberto) e o abre de novo na versão nova."/>
                   <TextBlock x:Name="TextoEstadoAtualizacao" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}" AutomationProperties.LiveSetting="Polite"/>

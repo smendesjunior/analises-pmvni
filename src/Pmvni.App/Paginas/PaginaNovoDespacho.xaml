@@ -29,7 +29,7 @@
         <!-- Padronizado com o painel Propriedades (2026-11-16): cartões ORIGEM e CONTEÚDO, rótulo pequeno em maiúsculas acima de cada
              campo e separadores (estilos PmvniPainel…, Estilos.xaml); a ação principal de cada cartão na cor de destaque. -->
         <StackPanel Padding="16,14,16,20" Spacing="12">
-          <TextBlock x:Name="TextoTitulo" x:FieldModifier="internal" Text="Novo despacho" Style="{StaticResource PmvniTituloPaginaStyle}" Margin="4,0,0,0"/>
+          <TextBlock x:Name="TextoTitulo" x:FieldModifier="internal" Text="Novo despacho" Style="{StaticResource PmvniTituloPaginaStyle}"/>
 
           <Border Style="{StaticResource PmvniPainelCartao}">
             <StackPanel>
@@ -84,7 +84,7 @@
                 <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
                            Text="O relatório é opcional. Anexado, entram só os itens que não atendem; sem ele, escreva as exigências ou peça à IA. Um relatório de outra pasta entra pelo Escolher. A data é a da pasta da etapa."/>
                 <!-- Correção automática (2026-11-16): só no tipo Correção; a janela mostra e liga o botão. -->
-                <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" HorizontalAlignment="Stretch" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}"
+                <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" HorizontalAlignment="Stretch" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                         AutomationProperties.Name="Criar automaticamente a partir do relatório"
                         local:Dicas.Titulo="Criar automaticamente a partir do relatório"
                         local:Dicas.Descricao="Monta o despacho com todos os itens pendentes do relatório (não atende, falta comprovar e informações divergentes) e vai direto para a conferência.">
@@ -151,7 +151,7 @@
                        TextWrapping="Wrap" PlaceholderText="Descreva o que mudar no despacho (ex.: junte os itens de cotas; cite o art. 12 da LC 70)"
                        AutomationProperties.Name="Instrução para a IA modificar o despacho"/>
               <ProgressRing x:Name="AnelInstrucao" x:FieldModifier="internal" Grid.Column="2" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
-              <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource AccentButtonStyle}" CornerRadius="16"
+              <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniBotaoPrimarioStyle}" CornerRadius="16"
                       Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0" VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                       AutomationProperties.Name="Aplicar a instrução" local:Dicas.Titulo="Pedir à IA" local:Dicas.Atalho="Enter"
                       local:Dicas.Descricao="Manda a instrução escrita ao lado para a IA mudar o despacho.">
@@ -214,7 +214,7 @@
                 local:Dicas.Descricao="Fecha o novo despacho sem gravar nada."/>
         <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Content="Voltar e editar" Visibility="Collapsed"
                 local:Dicas.Descricao="Volta para a edição do despacho, antes de gravar."/>
-        <Button x:Name="BotaoGerar" x:FieldModifier="internal" Style="{StaticResource AccentButtonStyle}" IsEnabled="False"
+        <Button x:Name="BotaoGerar" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" IsEnabled="False"
                 AutomationProperties.Name="Gerar e conferir"
                 local:Dicas.Descricao="Gera o documento Word e o PDF do despacho e mostra as páginas para conferir.">
           <StackPanel Orientation="Horizontal" Spacing="8">
@@ -222,7 +222,7 @@
             <FontIcon Glyph="&#xE72A;" FontSize="12"/>
           </StackPanel>
         </Button>
-        <Button x:Name="BotaoGravar" x:FieldModifier="internal" Content="Gravar na pasta do processo" Style="{StaticResource AccentButtonStyle}"
+        <Button x:Name="BotaoGravar" x:FieldModifier="internal" Content="Gravar na pasta do processo" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                 IsEnabled="False" Visibility="Collapsed"
                 local:Dicas.Descricao="Grava o despacho conferido na pasta da etapa do processo."/>
       </StackPanel>

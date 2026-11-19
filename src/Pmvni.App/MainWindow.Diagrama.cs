@@ -31,7 +31,7 @@ public sealed partial class MainWindow
             Text = "O desenho continua o mesmo; mudam os pavimentos, o telhado, as alturas e o destaque em vermelho. Desfazer volta.",
             Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], TextWrapping = TextWrapping.Wrap,
         });
-        var aplicar = new Button { Content = "Aplicar", Style = (Style)Application.Current.Resources["AccentButtonStyle"], IsEnabled = Editavel };
+        var aplicar = new Button { Content = "Aplicar", Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"], IsEnabled = Editavel };
         var anel = new ProgressRing { IsActive = false, Width = 18, Height = 18, Visibility = Visibility.Collapsed };
         var linhaBotoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { aplicar, anel } };
         painel.Children.Add(linhaBotoes);

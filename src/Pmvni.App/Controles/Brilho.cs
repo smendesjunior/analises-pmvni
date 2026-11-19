@@ -18,8 +18,7 @@ namespace Pmvni.App;
 /// Em repouso, um halo discreto; ao passar o mouse, a intensidade do WinStatusBar (0,30 no claro, 0,42 no escuro, desfoque 12);
 /// pressionado, um pouco menos; desabilitado, nada. Transições só com "Efeitos de animação" do Windows ligados; no Alto Contraste não
 /// há brilho. A cor vem de <c>PmvniBrilho</c> (IconesModulos.xaml: claro, escuro e alto contraste), pelo tema do botão.
-/// Uso: <c>local:Brilho.Ativo="True"</c> num setter de estilo (PmvniBotaoTonalStyle) ou <see cref="SetAtivo"/>; o AccentButtonStyle
-/// do WinUI recebe o setter uma vez, na abertura do app (<see cref="LigarNoDestaque"/>).
+/// Usado pelos estilos dos botões de destaque e pelos controles de seleção.
 /// </summary>
 public static class Brilho
 {
@@ -31,17 +30,6 @@ public static class Brilho
 
     static readonly DependencyProperty EstadoProperty = DependencyProperty.RegisterAttached(
         "Estado", typeof(object), typeof(Brilho), new PropertyMetadata(null));
-
-    /// <summary>Põe o brilho em todo botão com o AccentButtonStyle do WinUI (o estilo ainda não foi usado: aceita um setter a mais).</summary>
-    public static void LigarNoDestaque(Application app)
-    {
-        try
-        {
-            if (app.Resources.TryGetValue("AccentButtonStyle", out var e) && e is Style s && !s.IsSealed)
-                s.Setters.Add(new Setter(AtivoProperty, true));
-        }
-        catch (Exception ex) { RegistroErros.Gravar("Brilho no AccentButtonStyle", ex); }
-    }
 
     // Margem em volta do botão onde o brilho pode aparecer (o desfoque máximo é 12: o halo some antes dela).
     const float Margem = 24f;

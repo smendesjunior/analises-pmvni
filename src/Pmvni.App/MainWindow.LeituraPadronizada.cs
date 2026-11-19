@@ -465,7 +465,7 @@ public sealed partial class MainWindow
             AcceptsReturn = false,
         };
         var salvar = new Button { Content = "Salvar" };
-        if (Application.Current.Resources.TryGetValue("AccentButtonStyle", out var estilo) && estilo is Style s) salvar.Style = s;
+        if (Application.Current.Resources.TryGetValue("PmvniBotaoPrimarioStyle", out var estilo) && estilo is Style s) salvar.Style = s;
         var automatico = new Button { Content = "Voltar ao automático" };
         Dicas.Aplicar(salvar, "Salvar", "Guarda o seu resumo deste artigo com os dados da lei.");
         Dicas.Aplicar(automatico, "Voltar ao automático", "Apaga o seu resumo e volta a usar o tirado do texto do artigo.");

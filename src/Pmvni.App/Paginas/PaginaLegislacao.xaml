@@ -80,7 +80,7 @@
             <ContentPresenter Width="48" Height="48" HorizontalAlignment="Left" ContentTemplate="{StaticResource PmvniIconeLegislacao}" Content="" IsHitTestVisible="False"/>
             <TextBlock TextWrapping="Wrap" Text="Nenhuma lei anexada ainda."/>
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar PDFs…" Style="{StaticResource AccentButtonStyle}"
+              <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar PDFs…" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                       local:Dicas.Descricao="Acrescenta leis em PDF à biblioteca de legislação do app."/>
               <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Gerenciar anexos"
                       local:Dicas.Descricao="Abre os ajustes da Legislação para renomear, reler ou tirar leis anexadas."/>

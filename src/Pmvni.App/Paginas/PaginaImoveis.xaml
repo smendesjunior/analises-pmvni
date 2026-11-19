@@ -35,7 +35,7 @@
         <ComboBox x:Name="CaixaParametro" x:FieldModifier="internal" HorizontalAlignment="Stretch" PlaceholderText="Parâmetro" AutomationProperties.Name="Parâmetro da pesquisa"/>
         <ComboBox x:Name="CaixaCondicao" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" AutomationProperties.Name="Condição"/>
         <TextBox x:Name="CaixaValor" x:FieldModifier="internal" Grid.Column="2" MaxLength="512" PlaceholderText="Digite o valor e tecle Enter" AutomationProperties.Name="Valor da pesquisa"/>
-        <Button x:Name="BotaoPesquisar" x:FieldModifier="internal" Grid.Column="3" Style="{StaticResource AccentButtonStyle}" MinWidth="44"
+        <Button x:Name="BotaoPesquisar" x:FieldModifier="internal" Grid.Column="3" Style="{StaticResource PmvniBotaoPrimarioStyle}" MinWidth="44"
                 AutomationProperties.Name="Pesquisar" local:Dicas.Titulo="Pesquisar" local:Dicas.Atalho="Enter" local:Dicas.Descricao="Pesquisa no cadastro com o parâmetro, a condição e o valor.">
           <FontIcon Glyph="&#xE721;" FontSize="16"/>
         </Button>
@@ -73,7 +73,7 @@
         <StackPanel x:Name="Vazio" x:FieldModifier="internal" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="460" Padding="16">
           <ContentPresenter Width="64" Height="64" HorizontalAlignment="Center" ContentTemplate="{StaticResource PmvniIconeImoveis}" Content="" IsHitTestVisible="False"/>
           <TextBlock x:Name="TextoVazio" x:FieldModifier="internal" TextWrapping="Wrap" TextAlignment="Center"/>
-          <Button x:Name="BotaoConfigurarVazio" x:FieldModifier="internal" HorizontalAlignment="Center" Content="Configurar pasta QGIS" Style="{StaticResource AccentButtonStyle}"/>
+          <Button x:Name="BotaoConfigurarVazio" x:FieldModifier="internal" HorizontalAlignment="Center" Content="Configurar pasta QGIS" Style="{StaticResource PmvniBotaoPrimarioStyle}"/>
         </StackPanel>
       </Grid>
 
@@ -101,7 +101,7 @@
           <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE1D9;" FontSize="14"/><TextBlock Text="Cotas"/></StackPanel>
         </ToggleButton>
         <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="3" Content="Imprimir" AutomationProperties.Name="Imprimir o relatório"/>
-        <Button x:Name="BotaoPdf" x:FieldModifier="internal" Grid.Column="4" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="Salvar o relatório em PDF">
+        <Button x:Name="BotaoPdf" x:FieldModifier="internal" Grid.Column="4" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Salvar o relatório em PDF">
           <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xEA90;" FontSize="14"/><TextBlock Text="Salvar PDF"/></StackPanel>
         </Button>
       </Grid>

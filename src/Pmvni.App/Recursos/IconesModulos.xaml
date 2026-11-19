@@ -37,7 +37,7 @@
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#C3E6CF"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#B2DDC1"/>
       <SolidColorBrush x:Key="PmvniTonalBorda" Color="#8FCDA6"/>
-      <!-- Botões de destaque (AccentButtonStyle) no mesmo formato do tonal da faixa (2026-11-17, "padronizar todos os botões que
+      <!-- Botões de destaque (PmvniBotaoPrimarioStyle) no mesmo formato do tonal da faixa (2026-11-17, "padronizar todos os botões que
            brilham"): fundo verde suave, texto verde e borda fina verde-clara. -->
       <SolidColorBrush x:Key="AccentButtonBackground" Color="#D4EEDD"/>
       <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#C3E6CF"/>
@@ -136,7 +136,7 @@
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#275E3F"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#2F6E4B"/>
       <SolidColorBrush x:Key="PmvniTonalBorda" Color="#3F8A61"/>
-      <!-- Botões de destaque (AccentButtonStyle) no mesmo formato do tonal da faixa (2026-11-17, "padronizar todos os botões que
+      <!-- Botões de destaque (PmvniBotaoPrimarioStyle) no mesmo formato do tonal da faixa (2026-11-17, "padronizar todos os botões que
            brilham"): fundo verde suave, texto verde e borda fina verde-clara. -->
       <SolidColorBrush x:Key="AccentButtonBackground" Color="#1F4D33"/>
       <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#275E3F"/>

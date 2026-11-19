@@ -215,6 +215,13 @@
     <Setter Property="FontWeight" Value="Normal"/>
   </Style>
 
+  <Style x:Key="PmvniBotaoPrimarioStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+    <Setter Property="local:Brilho.Ativo" Value="True"/>
+    <Setter Property="MinHeight" Value="36"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+
   <!-- Botão primário tonal (como "Novo email"): verde claro do brasão, cantos 8, altura 36. As cores de "sobre" e "pressionado"
        vêm de PmvniCoresTonais (dicionário de recursos posto em volta do botão: ButtonBackgroundPointerOver etc.). -->
   <Style x:Key="PmvniBotaoTonalStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
@@ -228,13 +235,14 @@
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
-    <!-- Brilho verde em volta, como os botões do WinStatusBar (Controles\Brilho.cs); o AccentButtonStyle recebe o mesmo na abertura. -->
+    <!-- Brilho verde em volta, como os botões do WinStatusBar (Controles\Brilho.cs). -->
     <Setter Property="local:Brilho.Ativo" Value="True"/>
   </Style>
 
   <!-- Cartões dos Ajustes (no padrão do WinStatusBar): grupo com fundo de cartão, borda e raio 8; linha = título + ajuda à esquerda e
        o controle numa coluna de 240 à direita (empilha abaixo de 540 px: LinhaAjuste). -->
-  <Style x:Key="PmvniAjusteTituloPagina" TargetType="TextBlock" BasedOn="{StaticResource TitleTextBlockStyle}">
+  <Style x:Key="PmvniAjusteTituloPagina" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
+    <Setter Property="FontSize" Value="24"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
   </Style>
   <Style x:Key="PmvniAjusteAjuda" TargetType="TextBlock">
@@ -326,7 +334,7 @@
   <Style x:Key="PmvniPainelCartaoTitulo" TargetType="TextBlock">
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
-    <Setter Property="CharacterSpacing" Value="80"/>
+    <Setter Property="CharacterSpacing" Value="40"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniPainelCartaoCorpo" TargetType="StackPanel">
@@ -334,7 +342,7 @@
     <Setter Property="Spacing" Value="10"/>
   </Style>
   <Style x:Key="PmvniPainelRotulo" TargetType="TextBlock">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="CharacterSpacing" Value="60"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -369,9 +377,9 @@
   </Style>
   <!-- Botão pequeno de um campo do painel ("Restaurar", "Remover"). -->
   <Style x:Key="PmvniPainelBotaoPequeno" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
-    <Setter Property="Padding" Value="8,1,8,2"/>
+    <Setter Property="Padding" Value="10,3,10,3"/>
     <Setter Property="FontSize" Value="12"/>
-    <Setter Property="MinHeight" Value="24"/>
+    <Setter Property="MinHeight" Value="32"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <!-- O resultado de uma conta no painel (esquadrias): atende, não atende, sem como comparar. -->

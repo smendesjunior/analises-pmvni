@@ -139,7 +139,7 @@ internal sealed class JanelaFigura : Window
         barra.PrimaryCommands.Add(new AppBarElementContainer { Content = textoZoom, VerticalContentAlignment = VerticalAlignment.Center });
         barra.PrimaryCommands.Add(mais);
         barra.PrimaryCommands.Add(ajustar);
-        var concluir = new Button { Content = "Concluir", Style = (Style)Application.Current.Resources["AccentButtonStyle"], Margin = new Thickness(8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+        var concluir = new Button { Content = "Concluir", Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"], Margin = new Thickness(8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
         Dicas.Aplicar(concluir, "Concluir", "Fecha o editor. Cada alteração já foi aplicada ao relatório; desfaça com Ctrl+Z na janela principal.");
         concluir.Click += (_, _) => Close();
         Grid.SetColumn(concluir, 1);

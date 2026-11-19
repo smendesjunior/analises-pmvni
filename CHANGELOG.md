@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.5
+
+- As ações principais usam o mesmo brilho e os mesmos cantos nas páginas e janelas auxiliares. Os títulos dos Ajustes acompanham os demais módulos, e os controles compactos do painel ganharam espaço.
+
 ## 1.2.4
 
 - Pranchas aceitam observações por folha e mantêm o campo de data do carimbo livre. A assinatura institucional em duas linhas acompanha a logo em todas as páginas.

@@ -118,9 +118,9 @@ public sealed partial class MainWindow
         if (arquivo is not null)
         {
             // Sucesso: "Abrir PDF" e "Abrir pasta" (pedido do usuário), mesmo com o PDF já aberto.
-            var abrirPdf = new Button { Content = Rotulo("", "Abrir PDF"), Style = (Style)Application.Current.Resources["AccentButtonStyle"] };
+            var abrirPdf = new Button { Content = Rotulo("", "Abrir PDF"), Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"] };
             abrirPdf.Click += (_, _) => AbrirBoletim(arquivo, Path.GetFileNameWithoutExtension(arquivo));
-            var abrirPasta = new Button { Content = Rotulo("", "Abrir pasta"), Style = (Style)Application.Current.Resources["AccentButtonStyle"] };
+            var abrirPasta = new Button { Content = Rotulo("", "Abrir pasta") };
             abrirPasta.Click += (_, _) =>
             {
                 try { System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + arquivo + "\""); }
