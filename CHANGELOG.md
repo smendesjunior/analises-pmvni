@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.14
+
+- A faixa de comandos usa margem interna de 6 DIP em todos os lados.
+
 ## 1.2.13
 
 - Consultar outras leis abre o portal no módulo Legislação, com seleção de acervo, navegação e ações de PDF na interface do Editor.
