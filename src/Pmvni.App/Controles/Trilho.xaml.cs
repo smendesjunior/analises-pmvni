@@ -58,43 +58,25 @@ public sealed partial class Trilho : UserControl
             var icone = CriarIcone(m);
             // Como o Gmail (correções 2026-11-15): o fundo arredondado cobre o ícone e o rótulo juntos; a barrinha fica na borda esquerda.
             var conteudo = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Spacing = 5 };
-            var vagaIcone = new Grid { Width = 34, Height = 34, CornerRadius = new CornerRadius(9), HorizontalAlignment = HorizontalAlignment.Center };
-            var cor = m switch
-            {
-                Modulo.Processos => Windows.UI.Color.FromArgb(40, 235, 155, 24),
-                Modulo.Despachos or Modulo.Gpi => Windows.UI.Color.FromArgb(40, 150, 100, 220),
-                Modulo.Imoveis or Modulo.Legislacao => Windows.UI.Color.FromArgb(40, 35, 175, 128),
-                _ => Windows.UI.Color.FromArgb(40, 50, 150, 225),
-            };
-            vagaIcone.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(cor);
-            vagaIcone.Children.Add((UIElement?)icone ?? new FontIcon { Glyph = Pmvni.App.Modulos.Glifo(m), FontSize = 20 });
-            // Rótulo longo ("Acompanhamento") não cabia numa linha e aparecia cortado ("ompanhamer"): vai em duas linhas ("Acompanha-" /
-            // "mento"), com o trilho mais largo (112) e o item um pouco mais alto; o nome inteiro fica na dica e no Narrador.
-            var rotulo = new TextBlock { Text = RotuloNoTrilho(m), Style = Estilo("PmvniTrilhoRotuloStyle"), TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 92, LineHeight = 15, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
+            var rotulo = new TextBlock { Text = RotuloNoTrilho(m), Style = Estilo("PmvniTrilhoRotuloStyle"), TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 126, LineHeight = 15, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
             var duasLinhas = rotulo.Text.Contains('\n');
-            if (duasLinhas)
-            {
-                // Duas linhas: "Acompanhamento" quase enche o item e a barrinha do módulo ativo (na borda esquerda) ficava por cima da
-                // primeira letra (2026-11-17). Fonte um pouco menor e o texto deslocado para a direita, livre da barrinha.
-                rotulo.FontSize = 10.5;
-                rotulo.Margin = new Thickness(0);
-            }
-            conteudo.Children.Add(vagaIcone);
+            conteudo.Children.Add(icone);
             conteudo.Children.Add(rotulo);
             var fundo = new Border
             {
-                Width = 104, Height = duasLinhas ? 84 : 68, CornerRadius = new CornerRadius(8),
+                Width = 138, Height = duasLinhas ? 88 : 78, CornerRadius = new CornerRadius(8),
                 HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 Style = Estilo("PmvniTrilhoFundoInativoStyle"),
                 Child = conteudo,
             };
             // A barrinha fica DENTRO do fundo arredondado, junto da borda esquerda dele (como no Gmail): a grade tem a largura do fundo.
             var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Height = 30, Visibility = Visibility.Collapsed, Margin = new Thickness(4, 0, 0, 0) };
-            var grade = new Grid { Width = 104, HorizontalAlignment = HorizontalAlignment.Center };
+            var grade = new Grid { Width = 138, HorizontalAlignment = HorizontalAlignment.Center };
             grade.Children.Add(fundo);
             grade.Children.Add(indicador);
             var botao = new Button
             {
+                Width = 142,
                 Content = grade,
                 Style = Estilo("PmvniTrilhoItemStyle"),
                 Tag = m,
@@ -116,7 +98,7 @@ public sealed partial class Trilho : UserControl
         if (atual is { } a) Marcar(a);
     }
 
-    static FrameworkElement? CriarIcone(Modulo m) => NovoIcone(m, 23);
+    FrameworkElement CriarIcone(Modulo m) => (FrameworkElement)((DataTemplate)Resources["IconeTrilho" + m]).LoadContent();
 
     /// <summary>O rótulo na largura do item do trilho (104): "Acompanhamento de processos" em duas linhas; os outros ficam como são.</summary>
     internal static string RotuloNoTrilho(Modulo m) => m == Modulo.Acompanhamento ? "Acompanhamento\nde processos" : Pmvni.App.Modulos.Rotulo(m);

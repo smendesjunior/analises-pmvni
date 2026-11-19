@@ -173,11 +173,11 @@
       </StackPanel>
     </Grid>
 
-    <local:FaixaDeOpcoes x:Name="Faixa" Grid.Row="1" Margin="112,0,0,0"/>
+    <local:FaixaDeOpcoes x:Name="Faixa" Grid.Row="1" Margin="152,0,0,0"/>
 
     <Grid Grid.Row="2">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="112"/>
+        <ColumnDefinition Width="152"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
       <local:Trilho x:Name="TrilhoModulos" Grid.Column="0"/>
