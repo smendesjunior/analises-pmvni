@@ -18,7 +18,7 @@ public sealed partial class PainelQuebra : Panel
         {
             filho.Measure(new Size(disponivel.Width, double.PositiveInfinity));
             var d = filho.DesiredSize;
-            if (x > 0 && x + d.Width > disponivel.Width)
+            if (x > 0 && x + d.Width > disponivel.Width + 0.5)
             {
                 y += alturaLinha + EspacoLinhas;
                 x = 0;
@@ -28,7 +28,7 @@ public sealed partial class PainelQuebra : Panel
             alturaLinha = Math.Max(alturaLinha, d.Height);
             larguraMax = Math.Max(larguraMax, x - Espaco);
         }
-        var largura = double.IsInfinity(disponivel.Width) ? larguraMax : Math.Min(larguraMax, disponivel.Width);
+        var largura = Math.Min(Math.Ceiling(larguraMax), disponivel.Width);
         return new Size(largura, Children.Count == 0 ? 0 : y + alturaLinha);
     }
 
@@ -38,7 +38,7 @@ public sealed partial class PainelQuebra : Panel
         foreach (var filho in Children)
         {
             var d = filho.DesiredSize;
-            if (x > 0 && x + d.Width > final.Width)
+            if (x > 0 && x + d.Width > final.Width + 0.5)
             {
                 y += alturaLinha + EspacoLinhas;
                 x = 0;
