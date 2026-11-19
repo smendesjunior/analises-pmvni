@@ -43,7 +43,7 @@
     <EmbeddedResource Include="Recursos\Modulos\*.png" LogicalName="Pmvni.App.modulos.%(Filename)%(Extension)" />
     <!-- O ícone do app no cartão "Sobre" dos Ajustes (2026-11-17). -->
     <Content Include="Recursos\Provedores\*.svg;Recursos\cabecalho-pmvni*.svg;Recursos\app.ico" CopyToOutputDirectory="PreserveNewest"/>
-    <EmbeddedResource Include="MotorPdf\requirements.lock;MotorPdf\uv.json;MotorPdf\instalar.ps1" LogicalName="motor.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="MotorPdf\requirements.lock;MotorPdf\uv.json;MotorPdf\instalar.ps1;MotorPdf\primeira-abertura.ps1" LogicalName="motor.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Recursos\icone-app.png" LogicalName="Pmvni.App.icone-app.png" />
   </ItemGroup>
 </Project>

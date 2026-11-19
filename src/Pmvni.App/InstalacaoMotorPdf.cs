@@ -16,7 +16,7 @@ internal static class InstalacaoMotorPdf
             var baseLocal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PMVNI", "MotorPdf");
             var pasta = Path.Combine(baseLocal, "bootstrap", assembly.ManifestModule.ModuleVersionId.ToString());
             Directory.CreateDirectory(pasta);
-            foreach (var nome in new[] { "uv.json", "requirements.lock", "instalar.ps1" })
+            foreach (var nome in new[] { "uv.json", "requirements.lock", "instalar.ps1", "primeira-abertura.ps1" })
             {
                 var destino = Path.Combine(pasta, nome);
                 if (File.Exists(destino)) continue;
@@ -33,7 +33,7 @@ internal static class InstalacaoMotorPdf
             {
                 UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true
             };
-            foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(pasta, "instalar.ps1") })
+            foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(pasta, "primeira-abertura.ps1") })
                 inicio.ArgumentList.Add(arg);
             using var instalador = Process.Start(inicio)!;
             var erro = await instalador.StandardError.ReadToEndAsync();

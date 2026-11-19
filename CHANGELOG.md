@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 2.1.6
+
+- A primeira abertura instala os plugins de análise no perfil do usuário e prepara Docling MCP e PyMuPDF. A instalação incompleta é retomada na abertura seguinte.
+
 ## 2.1.5
 
 - O monitor reúne as etapas em um resumo compacto e exibe o registro em Detalhes da execução. Os contadores reconhecem eventos UTF-8 gravados pelo PowerShell.
