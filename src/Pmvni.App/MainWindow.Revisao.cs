@@ -962,14 +962,20 @@ public sealed partial class MainWindow
     void MontarBotoesFiltro()
     {
         R.BotoesFiltro.Children.Clear();
-        foreach (var f in FiltroNavegacao.Ordem)
+        FiltroSituacao[] ordemVisual = [FiltroSituacao.Todos, FiltroSituacao.Atende, FiltroSituacao.NaoAtende, FiltroSituacao.Divergentes, FiltroSituacao.FaltaComprovar];
+        for (int i = 0; i < ordemVisual.Length; i++)
         {
+            var f = ordemVisual[i];
             var b = new ToggleButton { Tag = f, IsChecked = f == filtroSituacao };
             Pilulas.Estilizar(b); // o filtro escolhido acende na cor de destaque, como no WinStatusBar
             // Mais compactos (2026-11-17): os cinco cabem em duas linhas no painel, sem sobra solta numa terceira.
-            b.Height = 28;
-            b.Padding = new Thickness(9, 0, 10, 0);
-            b.CornerRadius = new CornerRadius(14);
+            Grid.SetRow(b, i / 3);
+            Grid.SetColumn(b, i < 3 ? i * 2 : (i - 3) * 3);
+            Grid.SetColumnSpan(b, i < 3 ? 2 : 3);
+            b.HorizontalAlignment = HorizontalAlignment.Stretch;
+            b.Height = 34;
+            b.Padding = new Thickness(3, 0, 3, 0);
+            b.CornerRadius = new CornerRadius(8);
             b.ActualThemeChanged += (_, _) => AtualizarBotoesFiltro(contagensFiltro);
             var filtro = f;
             b.Click += (_, _) =>
@@ -995,6 +1001,7 @@ public sealed partial class MainWindow
             var n = contagens.TryGetValue(f, out var c) ? c : 0;
             var ligado = f == filtroSituacao;
             var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+            if (ligado && f == FiltroSituacao.Todos) conteudo.Children.Add(new FontIcon { Glyph = "\uE73E", FontSize = 12 });
             if (EtiquetasSituacao.CoresDaClasse(FiltroNavegacao.Classe(f), b.ActualTheme == ElementTheme.Dark) is { } cores)
                 conteudo.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
                 {

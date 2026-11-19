@@ -63,9 +63,10 @@
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
-    <NavigationView x:Name="Menu" x:FieldModifier="internal" PaneDisplayMode="Left" PaneTitle="Configurações" OpenPaneLength="228" CompactPaneLength="48"
+    <NavigationView x:Name="Menu" x:FieldModifier="internal" PaneDisplayMode="Left" OpenPaneLength="228" CompactPaneLength="48"
                     IsSettingsVisible="False" IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False"
                     SelectionChanged="AoEscolherCategoria" AutomationProperties.Name="Categorias dos ajustes">
+      <NavigationView.PaneHeader><Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Padding="12,8"><FontIcon Glyph="&#xE713;" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/><StackPanel Grid.Column="1"><TextBlock Text="Configurações" Style="{StaticResource BodyStrongTextBlockStyle}"/><TextBlock Text="Preferências do editor" Style="{StaticResource CaptionTextBlockStyle}"/></StackPanel></Grid></NavigationView.PaneHeader>
       <ScrollViewer x:Name="Rolagem" x:FieldModifier="internal" Padding="48,8,40,24" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
         <!-- Conteúdo alinhado à esquerda, logo depois do menu, até 1000 px (como as Configurações do Windows e o WinStatusBar). -->
         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="1000"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -136,7 +137,7 @@
           <!-- ===== 3. Relatórios e revisão ===== -->
           <StackPanel x:Name="CategoriaRelatorios" Tag="relatorios" Spacing="12" Visibility="Collapsed">
             <StackPanel Spacing="4"><TextBlock Text="Relatórios e revisão" Style="{StaticResource PmvniAjusteTituloPagina}"/><TextBlock x:Name="AjudaRelatorios" Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-            <TextBlock Text="Tela" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
+            <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE7F4;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Tela" Style="{StaticResource PmvniTituloSecao}"/></StackPanel>
             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
 <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
@@ -165,7 +166,7 @@
               </Grid>
             </Border>
 </Grid>
-            <TextBlock Text="Gravação" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
+            <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE74E;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Gravação" Style="{StaticResource PmvniTituloSecao}"/></StackPanel>
             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
 <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">

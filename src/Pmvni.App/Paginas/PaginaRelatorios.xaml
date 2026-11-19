@@ -79,7 +79,7 @@
           <TextBox MinHeight="36" x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar por texto ou situação"
                    AutomationProperties.Name="Pesquisar nas seções e itens"/>
           <TextBlock Text="FILTRAR POR SITUAÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
-          <local:PainelQuebra x:Name="BotoesFiltro" x:FieldModifier="internal" AutomationProperties.Name="Filtro rápido de apontamentos"/>
+          <Grid ColumnDefinitions="*,*,*,*,*,*" RowDefinitions="Auto,Auto" RowSpacing="5" ColumnSpacing="4" x:Name="BotoesFiltro" x:FieldModifier="internal" AutomationProperties.Name="Filtro rápido de apontamentos"/>
         </StackPanel>
         <ListView x:Name="ListaNavegacao" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True"
                   Padding="6,0,6,8" AutomationProperties.Name="Seções e itens do relatório">

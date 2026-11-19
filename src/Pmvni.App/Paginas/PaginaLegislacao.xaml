@@ -36,13 +36,14 @@
       </Grid>
     </local:AreaDeAvisos>
 
-    <Grid Grid.Row="1" Margin="8" ColumnSpacing="10">
+    <Grid Grid.Row="1" Margin="8" ColumnSpacing="10" RowDefinitions="Auto,*" RowSpacing="8">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
 
-      <Grid x:Name="Painel" x:FieldModifier="internal" Width="348" Padding="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10">
+      <Grid Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" Padding="12,6"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8F1;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Acervo de legislação" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock Grid.Column="1" x:Name="TotalAcervo" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/></Grid>
+      <Grid Grid.Row="1" x:Name="Painel" x:FieldModifier="internal" Width="348" Padding="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
@@ -106,7 +107,7 @@
         </Grid>
       </Grid>
 
-      <Grid Grid.Column="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10">
+      <Grid Grid.Row="1" Grid.Column="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
         <!-- Correções 2026-11-15: leitura padronizada (processador interno do texto da lei) ou o PDF original. -->
         <SelectorBar x:Name="ModoLeitura" x:FieldModifier="internal" Margin="12,6,12,0" Visibility="Collapsed">

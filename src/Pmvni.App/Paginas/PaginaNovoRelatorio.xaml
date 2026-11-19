@@ -43,6 +43,7 @@
           </Grid.ColumnDefinitions>
           <StackPanel Spacing="4"><TextBlock Text="Novo relatório" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock Text="Selecione o processo, adicione os anexos e escolha como analisar." Style="{StaticResource PmvniTextoAjuda}"/></StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <Border Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" CornerRadius="8" Padding="8,4"><TextBlock Text="4 etapas"/></Border>
             <Button x:Name="BotaoExecucoes" x:FieldModifier="internal" Content="Ver a análise em andamento" Visibility="Collapsed"
                     local:Dicas.Descricao="Mostra o andamento da análise que a IA está fazendo agora."/>
             <Button x:Name="BotaoVoltarRelatorio" x:FieldModifier="internal" Content="Voltar ao relatório" Visibility="Collapsed"
@@ -81,10 +82,11 @@
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="2" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Anexos" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-        <Border x:Name="AreaAnexos" x:FieldModifier="internal" AllowDrop="True" MinHeight="72" Padding="12" CornerRadius="8"
+        <Border x:Name="AreaAnexos" x:FieldModifier="internal" AllowDrop="True" MinHeight="112" Padding="12" CornerRadius="8"
                 BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
                 Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-          <StackPanel Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <Grid><Rectangle RadiusX="8" RadiusY="8" Stroke="{ThemeResource PmvniTonalBorda}" StrokeDashArray="4,3" IsHitTestVisible="False"/><StackPanel Margin="12" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <FontIcon Glyph="&#xE898;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
             <TextBlock x:Name="TextoArraste" x:FieldModifier="internal" Text="Arraste arquivos para cá" HorizontalAlignment="Center"
                        Style="{StaticResource BodyStrongTextBlockStyle}"/>
             <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar arquivos…" HorizontalAlignment="Center"
@@ -94,7 +96,7 @@
                     local:Dicas.Descricao="Para de abrir o compactado; nada dele entra como anexo."/>
             <TextBlock Text="Qualquer tipo de arquivo; .zip, .rar e .7z são abertos e cada arquivo de dentro entra como anexo. Nada é copiado antes de Analisar; a cópia vai para a pasta do processo e o original não muda."
                        Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" HorizontalAlignment="Center"/>
-          </StackPanel>
+          </StackPanel></Grid>
         </Border>
         <StackPanel x:Name="ListaAnexos" x:FieldModifier="internal" Spacing="6"/>
         <TextBlock x:Name="TextoRecusas" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.LiveSetting="Assertive"
@@ -123,35 +125,29 @@
           </StackPanel.Resources>
 
           <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="12"><StackPanel Spacing="6">
-            <Button x:Name="BotaoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="12,8">
-              <StackPanel>
-                <TextBlock Text="Analisar com o ChatGPT" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                <TextBlock x:Name="TextoPluginChatGpt" x:FieldModifier="internal" Text="Codex · plugin analise" FontSize="12" Opacity="0.85"/>
-              </StackPanel>
-            </Button>
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><Border CornerRadius="8" Padding="8" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"><FontIcon Glyph="&#xE945;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/></Border><StackPanel Grid.Column="1"><TextBlock Text="ChatGPT" Style="{StaticResource PmvniTituloSecao}"/><TextBlock x:Name="TextoPluginChatGpt" x:FieldModifier="internal" Text="Codex · plugin analise" FontSize="12" Opacity="0.85"/></StackPanel></Grid>
             <TextBlock Text="O ChatGPT analisa o processo pelo Codex. No campo “Pedido”, indique o que precisa de atenção, como um item apontado no despacho anterior." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
             <TextBlock x:Name="TextoMotivoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            <Button x:Name="BotaoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="12,8">
+              <TextBlock Text="Analisar com ChatGPT"/>
+            </Button>
           </StackPanel></Border>
           <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="12"><StackPanel Spacing="6">
-            <Button x:Name="BotaoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="12,8">
-              <StackPanel>
-                <TextBlock Text="Analisar com o Claude" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                <TextBlock x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Claude Code · plugin análise pro" FontSize="12" Opacity="0.85"/>
-              </StackPanel>
-            </Button>
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><Border CornerRadius="8" Padding="8" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"><FontIcon Glyph="&#xEA38;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/></Border><StackPanel Grid.Column="1"><TextBlock Text="Claude" Style="{StaticResource PmvniTituloSecao}"/><TextBlock x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Claude Code · plugin análise pro" FontSize="12" Opacity="0.85"/></StackPanel></Grid>
             <TextBlock x:Name="TextoPedidoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
             <TextBlock x:Name="TextoMotivoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            <Button x:Name="BotaoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="12,8">
+              <TextBlock Text="Analisar com Claude"/>
+            </Button>
           </StackPanel></Border>
           <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="12"><StackPanel Spacing="6">
-            <Button x:Name="BotaoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="12,8">
-              <StackPanel>
-                <TextBlock Text="Analisar com o Gemini" Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                <TextBlock x:Name="TextoPluginGemini" x:FieldModifier="internal" Text="Antigravity · plugin análise Google" FontSize="12" Opacity="0.85"/>
-              </StackPanel>
-            </Button>
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><Border CornerRadius="8" Padding="8" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"><FontIcon Glyph="&#xE734;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/></Border><StackPanel Grid.Column="1"><TextBlock Text="Gemini" Style="{StaticResource PmvniTituloSecao}"/><TextBlock x:Name="TextoPluginGemini" x:FieldModifier="internal" Text="Antigravity · plugin análise Google" FontSize="12" Opacity="0.85"/></StackPanel></Grid>
             <TextBlock Text="O Gemini analisa o processo com o perfil indicado abaixo. Use o campo “Pedido” para destacar uma questão que deve ser conferida na análise." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
             <TextBlock x:Name="TextoPerfilGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
             <TextBlock x:Name="TextoMotivoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            <Button x:Name="BotaoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="12,8">
+              <TextBlock Text="Analisar com Gemini"/>
+            </Button>
           </StackPanel></Border>
         </StackPanel>
         </StackPanel></Border>

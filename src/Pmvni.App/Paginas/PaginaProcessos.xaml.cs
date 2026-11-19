@@ -197,6 +197,14 @@ public sealed partial class PaginaProcessos : UserControl
                 fonteDaGrade = null;
                 gruposDaGrade = [];
                 var (rel, desp, proj) = OrganizacaoArquivos.EmColunas(linhas ?? [], exibicao, hoje);
+                static string Contagem(IEnumerable<ItemArquivo> itens)
+                {
+                    var total = itens.Count(item => item.Selecionavel);
+                    return total == 1 ? "1 arquivo" : $"{total} arquivos";
+                }
+                TotalRelatorios.Text = Contagem(rel);
+                TotalDespachos.Text = Contagem(desp);
+                TotalProjeto.Text = Contagem(proj);
                 ColunaRelatorios.ItemsSource = rel;
                 ColunaDespachos.ItemsSource = desp;
                 ColunaProjeto.ItemsSource = proj;

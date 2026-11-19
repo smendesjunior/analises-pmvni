@@ -158,14 +158,14 @@
         <Border x:Name="GrupoHistorico" Style="{StaticResource PmvniGrupoCabecalho}">
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">
-            <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoIconeCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
-                    Padding="2,0,0,0" AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
-              <FontIcon Glyph="&#xE7A7;" FontSize="16"/>
+            <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
+                    Padding="10,0" AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
+              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE7A7;" FontSize="16"/><TextBlock x:Name="RotuloDesfazer" Text="Desfazer"/></StackPanel>
             </Button>
             <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
-            <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoIconeCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
-                    Padding="0,0,2,0" AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
-              <FontIcon Glyph="&#xE7A6;" FontSize="16"/>
+            <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
+                    Padding="10,0" AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
+              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE7A6;" FontSize="16"/><TextBlock x:Name="RotuloRefazer" Text="Refazer"/></StackPanel>
             </Button>
           </StackPanel>
         </Border>

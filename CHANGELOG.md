@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.22
+
+- Barra lateral com ícones sobre fundos coloridos, indicador de seleção ampliado e divisória de Ajustes.
+- Revisão do cabeçalho, filtros, Novo despacho, Novo relatório, acervos de processos e legislação, Imóveis e Configurações.
+
 ## 1.2.21
 
 - O monitor mantém as seis etapas conectadas. Cada botão apresenta o estado da etapa e a porcentagem quando a análise informa quantos itens já foram avaliados.

@@ -369,6 +369,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
         if (largura <= 0) return;
+        RotuloDesfazer.Visibility = RotuloRefazer.Visibility = largura >= 1240 ? Visibility.Visible : Visibility.Collapsed;
         double Largura(FrameworkElement e) => e.Visibility == Visibility.Visible ? e.ActualWidth + e.Margin.Left + e.Margin.Right : 0;
         var ocupado = Largura(CabecalhoEsquerdo) + Largura(MolduraAnalise) + Largura(GrupoHistorico) + Largura(TextoPesquisa) + Largura(GrupoOcorrencias);
         var botoesDaJanelaEFolgas = MargemSistemaEsquerda.Width.Value + MargemSistemaDireita.Width.Value + 84;

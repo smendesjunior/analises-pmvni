@@ -173,19 +173,19 @@
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="0">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-              <TextBlock Text="Relatórios" Style="{StaticResource PmvniTituloSecao}" FontSize="16" Margin="8,4"/>
+              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE9F9;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Relatórios" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalRelatorios" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
               <ListView x:Name="ColunaRelatorios" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Relatórios"/>
             </Grid>
           </Border>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="1">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-              <TextBlock Text="Despachos" Style="{StaticResource PmvniTituloSecao}" FontSize="16" Margin="8,4"/>
+              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE70F;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Despachos" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalDespachos" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
               <ListView x:Name="ColunaDespachos" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Despachos"/>
             </Grid>
           </Border>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="2">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-              <TextBlock Text="Projeto e documentos" Style="{StaticResource PmvniTituloSecao}" FontSize="16" Margin="8,4"/>
+              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Projeto e documentos" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalProjeto" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
               <ListView x:Name="ColunaProjeto" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Projeto e documentos"/>
             </Grid>
           </Border>

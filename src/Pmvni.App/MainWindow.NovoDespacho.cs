@@ -127,7 +127,9 @@ public sealed partial class MainWindow
         n.BotaoInterromper.Click += (_, _) => novo?.Interromper(); // fora da fila: o preparo que ele interrompe está na vez
         n.BotaoVoltar.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(() => { VoltarParaEdicao(); return Task.CompletedTask; }));
         n.BotaoGravar.Click += async (_, _) => await GravarDespachoAsync();
-        n.BotaoCancelar.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(() => { FecharNovoDespacho(); return Task.CompletedTask; }));
+        Task FecharPainel() => NaFilaAsync(() => TentarAsync(() => { FecharNovoDespacho(); return Task.CompletedTask; }));
+        n.BotaoCancelar.Click += async (_, _) => await FecharPainel();
+        n.FecharOrigem.Click += async (_, _) => await FecharPainel();
         n.BotaoMarcarTodas.Click += (_, _) => { foreach (var c in n.CaixasDasPaginas) c.IsChecked = true; };
 
         var d = PaginaDeDespachos;

@@ -192,6 +192,7 @@ public sealed partial class MainWindow
         I.ListaResultados.Items.Clear();
         I.CaixaParametro.Items.Clear();
         I.TextoPaginacao.Text = "";
+        I.ResumoVinculos.Visibility = Visibility.Collapsed;
         I.BotaoAnterior.IsEnabled = I.BotaoProxima.IsEnabled = false;
         VoltarAPesquisaDeImoveis();
     }
@@ -251,6 +252,8 @@ public sealed partial class MainWindow
     void MostrarResultados(PaginaResultado r, IReadOnlyList<SeloVinculo> selos)
     {
         var br = CultureInfo.GetCultureInfo("pt-BR");
+        I.ResumoVinculos.Text = "Nesta página · " + string.Join("   ·   ", selos.GroupBy(s => s.Texto).Select(g => $"{g.Count()} {g.Key}"));
+        I.ResumoVinculos.Visibility = selos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         I.ListaResultados.Items.Clear();
         for (var i = 0; i < r.Itens.Count; i++)
         {
