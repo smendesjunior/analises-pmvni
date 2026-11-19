@@ -70,7 +70,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             foreach (var a in f.Abas)
         {
             var itemAba = new SelectorBarItem { Text = a.Nome, Tag = a.Nome };
-            itemAba.SizeChanged += (_, _) => PilulaNaLarguraDoTexto(itemAba);
+            AjustarIndicador(itemAba);
             Abas.Items.Add(itemAba);
         }
             Abas.SelectedItem = Abas.Items[Math.Clamp(aba, 0, f.Abas.Count - 1)];
@@ -263,6 +263,12 @@ public sealed partial class FaixaDeOpcoes : UserControl
     /// menu (Novo despacho ▾). Habilitado, dica e rótulo guardados por id valem para ele como para os da barra.</summary>
     /// <summary>Correções 2026-11-15: o traço da aba selecionada ocupa a largura do texto (o modelo do WinUI tem um traço de 4 px que a
     /// seleção estica 4 vezes, ScaleX = 4, a partir do centro): a largura do traço passa a ser 1/4 da largura do texto da aba.</summary>
+    internal static void AjustarIndicador(SelectorBarItem aba)
+    {
+        aba.Loaded += (_, _) => PilulaNaLarguraDoTexto(aba);
+        aba.SizeChanged += (_, _) => PilulaNaLarguraDoTexto(aba);
+    }
+
     static void PilulaNaLarguraDoTexto(SelectorBarItem aba)
     {
         if (Descendente(aba, "PART_SelectionVisual") is not FrameworkElement pilula || Descendente(aba, "PART_TextVisual") is not FrameworkElement texto) return;

@@ -3119,7 +3119,7 @@ internal static class Roteiro
             var processo = P0001();
             await j.NovoRelatorioAsync();
             await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
-            var textoSob = j.NovoRelatorio.TextoPedidoClaude.Text == "O pedido vai para os dois plugins como diretriz complementar (ex.: conferir pendências de despachos anteriores); as etapas da análise não mudam.";
+            var textoSob = j.NovoRelatorio.TextoPedidoClaude.Text == "O análise-pro usa o Claude para analisar o processo. No campo “Pedido”, você pode indicar algo que merece atenção, como uma pendência de despacho anterior. A análise segue as etapas habituais.";
             await j.SoltarArquivosAsync([claudeAnexo]);
             await j.AguardarNovoRelatorioAsync();
             j.PedidoTexto = "Pedido guardado só no registro.";

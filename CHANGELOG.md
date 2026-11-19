@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.8
+
+- Descrições nos três botões de análise, alinhamento das abas, edição do texto dos despachos e troca entre correção e aprovação. A Legislação ganhou consulta ao portal Leis.org.
+
 ## 1.2.7
 
 - As ferramentas de marcação e os filtros selecionados usam o verde suave do Editor. A borda animada das etapas acompanha os cantos do cartão durante toda a execução.

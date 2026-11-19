@@ -7,7 +7,12 @@ namespace Pmvni.App;
 /// leitor nunca é recriado).</summary>
 public sealed partial class PaginaLegislacao : UserControl
 {
-    public PaginaLegislacao() => InitializeComponent();
+    public PaginaLegislacao()
+    {
+        InitializeComponent();
+        foreach (var aba in AbasPainel.Items) FaixaDeOpcoes.AjustarIndicador(aba);
+        foreach (var aba in ModoLeitura.Items) FaixaDeOpcoes.AjustarIndicador(aba);
+    }
 }
 
 /// <summary>Um marcador na árvore: o título como texto puro (com "(link externo)" quando é um link para fora) e o caminho na

@@ -87,18 +87,22 @@ public sealed class EdicaoNaPreviaTestes
     }
 
     [Fact]
-    public void textos_fixos_do_modelo_nao_tem_chave()
+    public void fechamento_editavel_preserva_rotulos_e_numeracao()
     {
         var kit = Ambiente.ExigirKit();
         var t = TipoDespacho.Correcao;
         var info = ConteudoDespachoTestes.Info(t);
         var tx = TextosFixos.Ler(kit, t);
-        var previa = ConteudoDespacho.Previa(info, Montar(t), tx);
+        var r = Montar(t);
+        var previa = ConteudoDespacho.Previa(info, r, tx);
 
         foreach (var p in previa.Where(p => p.Estilo is EstiloPrevia.Titulo or EstiloPrevia.Destinatario or EstiloPrevia.Assinatura or EstiloPrevia.Vazio))
             Assert.All(p.TrechosOuTexto, x => Assert.Null(x.Chave));
         var fechamento = previa.Single(p => p.Texto == tx.Paragrafos.Single(x => x.Id == "fechamento").Texto);
-        Assert.All(fechamento.TrechosOuTexto, x => Assert.Null(x.Chave));
+        var chave = Assert.Single(fechamento.TrechosOuTexto).Chave!;
+        Assert.True(ConteudoDespacho.AplicarEdicao(r, chave, "Fechamento revisado."));
+        Assert.Contains(ConteudoDespacho.Previa(info, r, tx), p => p.Texto == "Fechamento revisado.");
+        Assert.Contains("Fechamento revisado.", r.Congelar(tx).Corpo);
         // O rótulo é fixo; só o valor se edita. O número da exigência é fixo e em negrito.
         var protocolo = previa.Single(p => p.Estilo == EstiloPrevia.Rotulo && p.Texto.StartsWith("Protocolo", StringComparison.Ordinal));
         Assert.Null(protocolo.TrechosOuTexto[0].Chave);

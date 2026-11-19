@@ -209,7 +209,7 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(DestinoAnexo.ReapresentacaoAtual, comRevisao[^1].Destino);
         Assert.Equal("Projeto — juntar à REVISÃO 02 atual", comRevisao[^1].Rotulo);
 
-        Assert.Equal("O pedido vai para os dois plugins como diretriz complementar (ex.: conferir pendências de despachos anteriores); as etapas da análise não mudam.", FluxoNovoRelatorio.TextoPedidoClaude);
+        Assert.Equal("O análise-pro usa o Claude para analisar o processo. No campo “Pedido”, você pode indicar algo que merece atenção, como uma pendência de despacho anterior. A análise segue as etapas habituais.", FluxoNovoRelatorio.TextoPedidoClaude);
         Assert.Equal("planta.pdf não é um arquivo do disco; salve-o numa pasta e anexe de lá.", FluxoNovoRelatorio.ItemSemCaminho("planta.pdf"));
         Assert.Equal("Relatório da análise com o ChatGPT importado: Relatorio_0001_2099.rpmvni. O PDF do kit continua em C:\\p\\relatorio.pdf.",
             FluxoNovoRelatorio.TextoImportado(Provedor.ChatGpt, @"C:\p\Relatorio_0001_2099.rpmvni", @"C:\p\relatorio.pdf"));

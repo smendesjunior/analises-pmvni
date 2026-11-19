@@ -201,6 +201,7 @@ public static class FluxoNovoDespacho
         ArgumentNullException.ThrowIfNull(de);
         ArgumentNullException.ThrowIfNull(para);
         if (de.Tipo != para.Tipo) return;
+        foreach (var (chave, valor) in de.TextosDoCorpo) para.EditarTrechoDoCorpo(chave, valor);
         para.DefinirCabecalho("protocolo", de.Protocolo);
         para.DefinirCabecalho("requerente", de.Requerente);
         para.DefinirCabecalho("assunto", de.Assunto);

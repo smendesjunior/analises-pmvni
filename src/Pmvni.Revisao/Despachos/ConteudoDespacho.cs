@@ -85,6 +85,32 @@ public sealed class RascunhoDespacho
     public DateOnly Data { get; }
     public IReadOnlyList<PendenciaDespacho> Pendencias => _pendencias;
     public IReadOnlySet<Intervencao> Intervencoes => _intervencoes;
+    readonly Dictionary<string, string> textosDoCorpo = new(StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, string> TextosDoCorpo => textosDoCorpo;
+    public void EditarTrechoDoCorpo(string chave, string texto) => textosDoCorpo[chave] = TextoEditado.Normalizar(texto);
+
+    internal IReadOnlyList<TrechoPrevia> TrechosDoCorpo(ParagrafoFixo paragrafo)
+    {
+        var partes = Regex.Split(paragrafo.Texto, @"(\{intervencao\}|\{area\})");
+        var trechos = new List<TrechoPrevia>();
+        for (var i = 0; i < partes.Length; i++)
+        {
+            var original = partes[i];
+            if (original.Length == 0) continue;
+            if (original is TextosFixos.LacunaIntervencao or TextosFixos.LacunaArea)
+            {
+                trechos.Add(new TrechoPrevia(original));
+                continue;
+            }
+            var chave = $"corpo:{paragrafo.Id}:{i}";
+            var valor = textosDoCorpo.GetValueOrDefault(chave, original.Trim());
+            var texto = (char.IsWhiteSpace(original[0]) ? " " : "") + valor
+                + (char.IsWhiteSpace(original[^1]) ? " " : "");
+            trechos.Add(new TrechoPrevia(texto, Chave: chave, Valor: valor));
+        }
+        return trechos;
+    }
+
     public string AreaTotal { get; private set; } = "";
 
     /// <summary>A data por extenso que vai no despacho: a da pasta da etapa ou a escrita na prévia (correções 2026-11-15).</summary>
@@ -101,6 +127,7 @@ public sealed class RascunhoDespacho
             if (Protocolo != _protocoloOriginal) s.Add("cabecalho:protocolo");
             if (Requerente != _requerenteOriginal) s.Add("cabecalho:requerente");
             if (Assunto != _assuntoOriginal) s.Add("cabecalho:assunto");
+            s.UnionWith(textosDoCorpo.Keys);
             if (_dataEditada is not null) s.Add("cabecalho:data");
             foreach (var p in _pendencias)
             {
@@ -240,10 +267,11 @@ public sealed class RascunhoDespacho
             foreach (var titulo in marcadas.Select(p => p.Grupo).Distinct(StringComparer.Ordinal))
                 grupos.Add(new GrupoFinal(titulo,
                     marcadas.Where(p => p.Grupo == titulo).Select(p => ConteudoDespacho.Exigencia(p.Texto, p.Fundamento)).ToList()));
-            corpo.Add(tx.Paragrafos.Single(p => p.Id == "fechamento").Texto);
+
         }
-        else
-            corpo.AddRange(tx.Paragrafos.Select(p => ConteudoDespacho.Resolver(p.Texto, TextoIntervencao, AreaTotal)));
+        foreach (var p in tx.Paragrafos)
+            corpo.Add(string.Concat(TrechosDoCorpo(p).Select(t => t.Chave is null
+                ? ConteudoDespacho.Resolver(t.Texto, TextoIntervencao, AreaTotal) : t.Texto)));
         return new DespachoFinal(Tipo, Protocolo, Requerente, Assunto, DataPorExtenso, grupos, corpo);
     }
 }
@@ -418,6 +446,9 @@ public static class ConteudoDespacho
         var partes = chave.Split(':', 3);
         switch (partes[0])
         {
+            case "corpo" when partes.Length == 3:
+                r.EditarTrechoDoCorpo(chave, texto);
+                return true;
             case "cabecalho" when partes.Length == 2 && partes[1] is "protocolo" or "requerente" or "assunto" or "data":
                 r.DefinirCabecalho(partes[1], texto);
                 return true;
@@ -543,7 +574,11 @@ public static class ConteudoDespacho
                 lista.Add(new ParagrafoPrevia(numero + e.Texto + e.Fundamento, EstiloPrevia.Corpo, null, chave, p.Texto, trechos, iVaga));
             }
         }
-        if (tx.Paragrafos.FirstOrDefault(p => p.Id == "fechamento") is { } f) lista.Add(new ParagrafoPrevia(f.Texto, EstiloPrevia.Corpo, null, Modelo: iVaga));
+        if (tx.Paragrafos.FirstOrDefault(p => p.Id == "fechamento") is { } f)
+        {
+            var trechos = r.TrechosDoCorpo(f);
+            lista.Add(new ParagrafoPrevia(string.Concat(trechos.Select(t => t.Texto)), EstiloPrevia.Corpo, null, Trechos: trechos, Modelo: iVaga));
+        }
     }
 
     static void CorpoAprovacao(List<ParagrafoPrevia> lista, RascunhoDespacho r, TextosFixos tx, int iVaga)
@@ -554,28 +589,20 @@ public static class ConteudoDespacho
         {
             string? falta = null;
             var trechos = new List<TrechoPrevia>();
-            var resto = p.Texto;
-            // Divide o texto fixo nas lacunas; cada lacuna vira um trecho editável (o tipo de obra e a área).
-            while (resto.Length > 0)
+            foreach (var trecho in r.TrechosDoCorpo(p))
             {
-                var iI = resto.IndexOf(TextosFixos.LacunaIntervencao, StringComparison.Ordinal);
-                var iA = resto.IndexOf(TextosFixos.LacunaArea, StringComparison.Ordinal);
-                var proxima = iI < 0 ? iA : iA < 0 ? iI : Math.Min(iI, iA);
-                if (proxima < 0) { trechos.Add(new TrechoPrevia(resto)); break; }
-                if (proxima > 0) trechos.Add(new TrechoPrevia(resto[..proxima]));
-                if (proxima == iI)
+                if (trecho.Chave is not null) { trechos.Add(trecho); continue; }
+                if (trecho.Texto == TextosFixos.LacunaIntervencao)
                 {
                     var f = intervencao.Length == 0 ? FaltaIntervencao : null;
                     falta = f ?? falta;
                     trechos.Add(new TrechoPrevia(f is null ? intervencao : Preencher(f), false, ChaveIntervencao, f, intervencao));
-                    resto = resto[(proxima + TextosFixos.LacunaIntervencao.Length)..];
                 }
                 else
                 {
                     var f = areaOk ? null : FaltaArea;
                     falta = f ?? falta;
                     trechos.Add(new TrechoPrevia(f is null ? r.AreaTotal : Preencher(f), false, ChaveArea, f, r.AreaTotal));
-                    resto = resto[(proxima + TextosFixos.LacunaArea.Length)..];
                 }
             }
             lista.Add(new ParagrafoPrevia(string.Concat(trechos.Select(t => t.Texto)), EstiloPrevia.Corpo, falta, Trechos: trechos, Modelo: iVaga));

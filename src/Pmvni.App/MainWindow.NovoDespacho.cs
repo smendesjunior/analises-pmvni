@@ -206,11 +206,11 @@ public sealed partial class MainWindow
     void AtualizarComandosNovoDespacho()
     {
         var compondo = novo is not null;
-        Faixa.Habilitar(ComandosApp.DespachosNovo, !compondo);
+        Faixa.Habilitar(ComandosApp.DespachosNovo, novo is not { Gravando: true });
         foreach (var (id, t) in new[] { (ComandosApp.DespachosNovoCorrecao, TipoDespacho.Correcao), (ComandosApp.DespachosNovoCorrecaoAutomatica, TipoDespacho.Correcao),
                      (ComandosApp.DespachosNovoAprovacao, TipoDespacho.Aprovacao) })
         {
-            var motivo = modelos is { } m ? FluxoNovoDespacho.MotivoDesabilitado(t, m, compondo) : compondo ? FluxoNovoDespacho.Compondo : "Lendo os modelos do kit…";
+            var motivo = modelos is { } m ? FluxoNovoDespacho.MotivoDesabilitado(t, m, novo is { Gravando: true }) : "Lendo os modelos do kit…";
             Faixa.Habilitar(id, motivo is null);
             Faixa.DefinirDica(id, motivo ?? (ComandosApp.EhCorrecaoAutomatica(id)
                 ? "Despacho de correção com todos os itens pendentes do relatório mais recente do processo, direto para a conferência"
@@ -275,6 +275,12 @@ public sealed partial class MainWindow
     /// passo 2. true = o rascunho está pronto para editar; false = a página ficou no passo 1 (o motivo à vista) ou não abriu.</summary>
     async Task<bool> AbrirNovoDespachoAsync(TipoDespacho t)
     {
+        if (!automatico && novo is { SoPdf: false, Preparando: false, Gravando: false } atual
+            && atual.Passo != PassoNovoDespacho.Conferencia && atual.Tipo != t)
+        {
+            await TrocarTipoNaVezAsync(t);
+            return atual.Tipo == t && atual.Rascunho is not null;
+        }
         if (!await SairDoNovoDespachoAsync()) return false;
         var kit = ajustes.PastaKitEfetiva;
         kitLido = kit;
@@ -499,7 +505,8 @@ public sealed partial class MainWindow
         if (!ReferenceEquals(novo, s)) return;
         s.DefinirModelo(modelo);
         if (s.CaminhoPacote is { } c) await CarregarPacoteAsync(s, c);
-        else MostrarPassoAtual(s);
+        else if (s.Etapa is not null) MontarSemRelatorio(s);
+        else { PreencherOrigem(s); MostrarPassoAtual(s); }
     }
 
     /// <summary>"Novo processo…" no Novo despacho (2026-11-17, pedido do usuário): cria a pasta e já a escolhe.</summary>

@@ -5,7 +5,7 @@
        seguido dos comandos da aba (CommandBar, rótulo à direita do ícone). -->
   <!-- Correções 2026-11-15 (como o Outlook): abas compactas e, embaixo, os comandos numa faixa arredondada só, sem espaço vazio. -->
   <StackPanel Padding="8,0,12,6" Spacing="2">
-    <SelectorBar x:Name="Abas" SelectionChanged="AoMudarAba" Padding="0" MinHeight="36"/>
+    <SelectorBar Margin="5,0,0,0" x:Name="Abas" SelectionChanged="AoMudarAba" Padding="0" MinHeight="36"/>
     <Border CornerRadius="8" Padding="4,2" Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
       <Grid ColumnSpacing="4">

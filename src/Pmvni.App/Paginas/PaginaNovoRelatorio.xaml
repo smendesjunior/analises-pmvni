@@ -130,6 +130,7 @@
                 <TextBlock x:Name="TextoPluginChatGpt" x:FieldModifier="internal" Text="Codex · plugin analise" FontSize="12" Opacity="0.85"/>
               </StackPanel>
             </Button>
+            <TextBlock Text="O ChatGPT analisa o processo pelo Codex. No campo “Pedido”, indique o que precisa de atenção, como um item apontado no despacho anterior." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
             <TextBlock x:Name="TextoMotivoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
           </StackPanel>
           <StackPanel Grid.Column="1" Spacing="6">
@@ -149,6 +150,7 @@
                 <TextBlock x:Name="TextoPluginGemini" x:FieldModifier="internal" Text="Antigravity · plugin análise Google" FontSize="12" Opacity="0.85"/>
               </StackPanel>
             </Button>
+            <TextBlock Text="O Gemini analisa o processo com o perfil indicado abaixo. Use o campo “Pedido” para destacar uma questão que deve ser conferida na análise." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
             <TextBlock x:Name="TextoPerfilGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
             <TextBlock x:Name="TextoMotivoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
           </StackPanel>

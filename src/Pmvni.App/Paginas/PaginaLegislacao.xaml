@@ -143,6 +143,7 @@
         <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
+      <Button Grid.Column="5" Content="Consultar outras leis" HorizontalAlignment="Left" Style="{StaticResource PmvniBarraButtonStyle}" Click="ConsultarOutrasLeis"/>
       <Button x:Name="BotaoZoomMenos" x:FieldModifier="internal" Grid.Column="6" Style="{StaticResource PmvniBarraButtonStyle}" IsEnabled="False"
               AutomationProperties.Name="Diminuir o zoom" local:Dicas.Atalho="Ctrl+−" local:Dicas.Descricao="Diminui o zoom da lei.">
         <FontIcon Glyph="&#xE71F;" FontSize="14"/>

@@ -39,7 +39,7 @@ public static class FluxoNovoRelatorio
     public const string ClaudeSoConta = "O análise pro instalado não aceita a Anthropic API (é preciso o 1.6.4 ou mais novo). Atualize pelo INSTALAR_KIT_PMVNI.cmd ou, em Ajustes › Inteligência artificial, use Usar minha conta.";
 
     /// <summary>Sob "Analisar com o Claude" (desenho §12.5).</summary>
-    public const string TextoPedidoClaude = "O pedido vai para os dois plugins como diretriz complementar (ex.: conferir pendências de despachos anteriores); as etapas da análise não mudam.";
+    public const string TextoPedidoClaude = "O análise-pro usa o Claude para analisar o processo. No campo “Pedido”, você pode indicar algo que merece atenção, como uma pendência de despacho anterior. A análise segue as etapas habituais.";
 
     public const string DicaPedido = "Ex.: Analise a reapresentação do projeto e confira as pendências do despacho anterior.";
     public const int MaximoPedido = 20000;

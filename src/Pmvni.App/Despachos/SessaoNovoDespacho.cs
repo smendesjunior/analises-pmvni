@@ -91,6 +91,7 @@ internal sealed class SessaoNovoDespacho
 
     public void DefinirModelo((ModeloDespacho Modelo, InfoModelo Info, TextosFixos Textos, LayoutDespacho Layout) m)
     {
+        if (Rascunho is not null) rascunhoAnterior = Rascunho;
         Tipo = m.Modelo.Tipo;
         Modelo = m.Modelo;
         Info = m.Info;

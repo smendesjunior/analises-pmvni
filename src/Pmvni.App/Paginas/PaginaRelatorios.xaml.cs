@@ -7,7 +7,11 @@ namespace Pmvni.App;
 /// elementos <c>internal</c>. É criada uma vez e trocada por Visibility: o WebView2 nunca é recriado.</summary>
 public sealed partial class PaginaRelatorios : UserControl
 {
-    public PaginaRelatorios() => InitializeComponent();
+    public PaginaRelatorios()
+    {
+        InitializeComponent();
+        foreach (var aba in AbasPainel.Items) FaixaDeOpcoes.AjustarIndicador(aba);
+    }
 
     /// <summary>Clique na etiqueta de situação de um item da lista de seções: a janela abre o menu das situações junto dela.</summary>
     internal event Action<ItemNavegacao, FrameworkElement>? EtiquetaClicada;

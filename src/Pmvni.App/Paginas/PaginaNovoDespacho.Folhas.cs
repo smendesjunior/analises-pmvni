@@ -320,6 +320,7 @@ public sealed partial class PaginaNovoDespacho
         "cabecalho:data" => "Data (por extenso)",
         ConteudoDespacho.ChaveIntervencao => "Tipo de obra",
         ConteudoDespacho.ChaveArea => "Área total a construir (m², ex.: 210,52)",
+        _ when chave.StartsWith("corpo:", StringComparison.Ordinal) => "Texto do despacho",
         _ when chave.StartsWith("grupo:", StringComparison.Ordinal) => "Título do grupo",
         _ when chave.EndsWith(":fundamento", StringComparison.Ordinal) => "Fundamento",
         _ => "Texto da exigência",
