@@ -390,6 +390,28 @@ public sealed partial class MainWindow
             try { p.ResumoInstalacaoPlugins.Text = await Task.Run(InstalacaoMotorPdf.ConferirAsync); }
             finally { p.BotaoInstalarPlugins.IsEnabled = true; }
         };
+        p.BotaoAtualizarKit.Click += async (_, _) =>
+        {
+            p.BotaoAtualizarKit.IsEnabled = false;
+            try
+            {
+                var inicio = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "schtasks.exe"))
+                {
+                    UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true
+                };
+                inicio.ArgumentList.Add("/Run");
+                inicio.ArgumentList.Add("/TN");
+                inicio.ArgumentList.Add(@"\PMVNI\Atualizar kit");
+                using var tarefa = System.Diagnostics.Process.Start(inicio) ?? throw new IOException("O Agendador de Tarefas não abriu.");
+                var erro = await tarefa.StandardError.ReadToEndAsync();
+                await tarefa.WaitForExitAsync();
+                p.ResumoInstalacaoPlugins.Text = tarefa.ExitCode == 0
+                    ? "Atualização do kit solicitada. O instalador executa em segundo plano."
+                    : $"O Windows não conseguiu iniciar a tarefa Atualizar kit. {erro.Trim()}";
+            }
+            catch (Exception e) { p.ResumoInstalacaoPlugins.Text = $"Falha ao solicitar a atualização do kit. {e.Message}"; }
+            finally { p.BotaoAtualizarKit.IsEnabled = true; }
+        };
         p.BotaoVerificarAtualizacoes.Click += async (_, _) => await Atualizador.VerificarAsync();
         p.BotaoReiniciarAtualizacao.Click += (_, _) =>
         {

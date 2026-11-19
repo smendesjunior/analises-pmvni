@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 2.1.10
+
+- Em Ajustes, o botão Atualizar kit PMVNI inicia a atualização manual do kit pela tarefa instalada no computador.
+
 ## 2.1.8
 
 - O instalador de plugins encontra o Codex instalado pela Microsoft Store mesmo quando o Editor é aberto sem o Codex no PATH.

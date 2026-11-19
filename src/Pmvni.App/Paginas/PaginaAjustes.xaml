@@ -655,6 +655,8 @@
                               AutomationProperties.Name="Verificar atualizações"
                               local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Procura agora uma versão nova do editor no GitHub e a instala se houver."/>
                       <Button x:Name="BotaoInstalarPlugins" x:FieldModifier="internal" Content="Instalar ou atualizar plugins" HorizontalAlignment="Stretch"/>
+                      <Button x:Name="BotaoAtualizarKit" x:FieldModifier="internal" Content="Atualizar kit PMVNI" HorizontalAlignment="Stretch"
+                              local:Dicas.Titulo="Atualizar kit PMVNI" local:Dicas.Descricao="Executa agora a atualização do kit configurada neste computador."/>
                       <TextBlock x:Name="ResumoInstalacaoPlugins" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" AutomationProperties.LiveSetting="Polite"/>
                       <Button x:Name="BotaoReiniciarAtualizacao" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Reiniciar agora" HorizontalAlignment="Stretch" Visibility="Collapsed"
                               AutomationProperties.Name="Reiniciar o editor na versão nova"
