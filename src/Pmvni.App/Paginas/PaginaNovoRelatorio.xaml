@@ -60,7 +60,7 @@
         <Grid x:Name="GradeEtapas" ColumnSpacing="0" RowSpacing="12" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
         <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
         <Border Grid.Row="0" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><StackPanel Spacing="7">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="1" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Processo" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
@@ -91,7 +91,7 @@
 
         </StackPanel></Border>
         <Border Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><StackPanel Spacing="7">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="2" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Anexos" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
@@ -118,7 +118,7 @@
 
         </StackPanel></Border>
         <Border Grid.Row="2" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><Grid RowDefinitions="Auto,*" RowSpacing="7">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="3" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Pedido para a IA" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
@@ -128,7 +128,7 @@
         </Grid></Border>
         </Grid>
         <Border x:Name="CartaoEscolhaAgente" Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><StackPanel Spacing="7">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="8">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="4" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Analisar" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
