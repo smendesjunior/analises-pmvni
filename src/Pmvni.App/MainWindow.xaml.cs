@@ -495,7 +495,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 NR.LigarLinhas(linhasDemo);
                 NR.MostrarExecucao(true);
                 NR.TextoCabecalho.Text = "Analisando com o ChatGPT · 19486/2026 · 12 min";
-                NR.PainelClaude.Visibility = Visibility.Collapsed;
+                NR.PainelClaude.Visibility = Visibility.Visible;
+                NR.ProcessoMonitor.Text = "Processo 19486/2026";
+                NR.MostrarEtapas(FluxoNovoRelatorio.Etapas("analyze", ""), true);
+                NR.MostrarProgresso(new ProgressoEtapa("analyze", 1, 4, 10));
                 await Task.Delay(500);
                 AplicarLargura(Raiz.ActualWidth);
             }

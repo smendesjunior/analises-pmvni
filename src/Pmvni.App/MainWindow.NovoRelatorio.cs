@@ -889,7 +889,7 @@ public sealed partial class MainWindow
         var n = NR;
         AtualizarRelogioDaExecucao(e);
         var claude = Provedores.PeloKit(e.Provedor);     // Claude e Gemini: o kit informa a etapa
-        n.PainelClaude.Visibility = claude ? Visibility.Visible : Visibility.Collapsed;
+        n.PainelClaude.Visibility = Visibility.Visible;
         n.PainelUltimaMensagem.Visibility = claude ? Visibility.Collapsed : Visibility.Visible;
         var rodando = e.Fim is null || !e.Fim.IsCompleted;
         string? erro = null;
@@ -913,6 +913,7 @@ public sealed partial class MainWindow
         }
         else
         {
+            etapas = FluxoNovoRelatorio.Etapas(n.ProgressoAtual?.Etapa, "");
             n.TextoRotulo.Text = $"Provedor: {Provedores.Nome(e.Provedor)} · Registro: {e.Registro.Pasta}";
             n.TextoEventos.Text = "";
         }

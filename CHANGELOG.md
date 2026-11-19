@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.21
+
+- O monitor mantém as seis etapas conectadas. Cada botão apresenta o estado da etapa e a porcentagem quando a análise informa quantos itens já foram avaliados.
+
 ## 1.2.20
 
 - O Monitor de análise reúne processo, etapa, atividades e descobertas, com quatro contadores atualizados pelos achados da execução. O Resumo do Acompanhamento usa o brilho dos botões ativos.

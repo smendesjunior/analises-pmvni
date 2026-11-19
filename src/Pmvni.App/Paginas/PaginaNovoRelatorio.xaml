@@ -234,7 +234,12 @@
 
       <!-- 2. Etapas (só no Claude, que informa a etapa). -->
       <Border x:Name="PainelClaude" x:FieldModifier="internal" Grid.Row="2" Style="{StaticResource PmvniCartaoSecao}" Padding="12,14" Visibility="Collapsed">
-        <Grid x:Name="PainelEtapas" x:FieldModifier="internal" AutomationProperties.Name="Etapas da análise"/>
+        <StackPanel Spacing="8">
+          <TextBlock Text="Etapas da análise" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled">
+            <Grid x:Name="PainelEtapas" x:FieldModifier="internal" MinWidth="620" AutomationProperties.Name="Etapas da análise"/>
+          </ScrollViewer>
+        </StackPanel>
       </Border>
 
       <!-- 3. Atividades | descobertas, próxima etapa e detalhes. -->

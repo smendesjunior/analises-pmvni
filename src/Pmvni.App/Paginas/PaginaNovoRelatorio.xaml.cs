@@ -152,11 +152,17 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         CartaoProximaEtapa.BorderBrush = Recurso(falhou ? "SystemFillColorCriticalBrush" : "AccentFillColorDefaultBrush");
     }
 
+    internal ProgressoEtapa? ProgressoAtual { get; private set; }
+    private ProgressoEtapa? progressoDesenhado;
+    private bool execucaoAtivaNaBarra;
+
     internal void MostrarProgresso(ProgressoEtapa? progresso)
     {
+        ProgressoAtual = progresso;
         TextoProgressoItens.Text = progresso is null ? "" :
             $"{Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(progresso.Etapa)} · {progresso.Avaliados} de {progresso.Total} itens avaliados";
         TextoProgressoItens.Visibility = progresso is null ? Visibility.Collapsed : Visibility.Visible;
+        MostrarEtapas(etapasMostradas, execucaoAtivaNaBarra);
     }
 
     IReadOnlyList<AchadoExecucao>? achadosExibidos;
@@ -215,7 +221,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     internal void MostrarEtapas(IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, bool animar)
     {
         var podeAnimar = animar && new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
-        if (podeAnimar == animandoEtapas && etapasMostradas.SequenceEqual(etapas)) return;
+        if (podeAnimar == animandoEtapas && execucaoAtivaNaBarra == animar && progressoDesenhado == ProgressoAtual && etapasMostradas.SequenceEqual(etapas)) return;
+        execucaoAtivaNaBarra = animar;
+        progressoDesenhado = ProgressoAtual;
         etapasMostradas = etapas.ToArray();
         animandoEtapas = podeAnimar;
         PainelEtapas.Children.Clear();
@@ -224,6 +232,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         {
             PainelEtapas.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var (nome, estado) = etapas[i];
+            double? percentual = estado == EstadoEtapa.Agora && ProgressoAtual is { Total: > 0 } p && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(p.Etapa) == nome
+                ? Math.Clamp(100.0 * p.Avaliados / p.Total, 0, 100) : null;
             if (i < etapas.Count - 1)
             {
                 var seguinteFeita = estado == EstadoEtapa.Feita;
@@ -238,13 +248,13 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 var faixa = new Grid();
                 faixa.Children.Add(linha);
                 ProgressBar? progresso = null;
-                if (estado == EstadoEtapa.Agora && podeAnimar)
+                if (estado == EstadoEtapa.Agora && (podeAnimar || percentual.HasValue))
                 {
                     progresso = new ProgressBar
                     {
-                        IsIndeterminate = true, Height = 3, VerticalAlignment = VerticalAlignment.Top,
+                        IsIndeterminate = !percentual.HasValue, Value = percentual ?? 0, Height = 3, VerticalAlignment = VerticalAlignment.Top,
                     };
-                    Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(progresso, "Progresso indeterminado de " + nome);
+                    Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(progresso, percentual.HasValue ? $"{nome} · {percentual:0}%" : "Progresso indeterminado de " + nome);
                     faixa.Children.Add(progresso);
                 }
                 Grid.SetColumn(faixa, i);
@@ -274,7 +284,16 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             };
             var situacao = estado switch { EstadoEtapa.Feita => "Concluída · 100%", EstadoEtapa.Agora => animar ? "Em andamento" : "Interrompida", EstadoEtapa.Erro => "Com erro", _ => "Pendente" };
             var bloco = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Center };
-            bloco.Children.Add(circulo);
+            if (percentual.HasValue) situacao += $" · {percentual:0}%";
+            var dica = new TextBlock { Text = nome + " · " + situacao, TextWrapping = TextWrapping.Wrap };
+            var botao = new Button
+            {
+                Content = circulo, Padding = new Thickness(0), CornerRadius = new CornerRadius(18),
+                BorderThickness = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Center,
+                Flyout = new Flyout { Content = dica }
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, dica.Text);
+            bloco.Children.Add(botao);
             bloco.Children.Add(new TextBlock
             {
                 Text = nome, HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
