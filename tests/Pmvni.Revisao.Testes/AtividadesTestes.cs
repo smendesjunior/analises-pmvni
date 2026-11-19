@@ -44,6 +44,22 @@ public class AtividadesTestes
         Assert.All(d, x => Assert.False(x.Verificada));
     }
 
+    [Theory]
+    [InlineData("etapa prepare", "Preparação dos documentos")]
+    [InlineData("etapa analyze", "Análise do projeto")]
+    [InlineData("etapa technical_audit", "Conferência técnica")]
+    [InlineData("Etapa produce: modelo nível medium", "Elaboração do relatório")]
+    [InlineData("etapa audit", "Conferência do relatório")]
+    [InlineData("pausa na etapa final_review", "Revisão final")]
+    [InlineData("fim: CONCLUIDO", "Análise concluída")]
+    [InlineData("análise iniciada", "Análise iniciada")]
+    public void Eventos_do_kit_usam_titulo_legivel_e_horario_do_evento(string evento, string titulo)
+    {
+        var a = Atividades.DaLinha("[2026-11-18T19:59:35] " + evento, DateTime.Today);
+        Assert.Equal(titulo, a.Titulo);
+        Assert.Equal("19:59", a.HoraTexto);
+    }
+
     [Fact]
     public void Horario_so_quando_disponivel()
     {

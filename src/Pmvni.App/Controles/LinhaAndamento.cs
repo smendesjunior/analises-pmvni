@@ -83,8 +83,8 @@ public sealed class LinhaAndamento : Grid
         titulo.Text = a.Titulo;
         detalhe.Text = a.Detalhe ?? "";
         detalhe.Visibility = string.IsNullOrEmpty(a.Detalhe) ? Visibility.Collapsed : Visibility.Visible;
-        detalhe.TextWrapping = mensagem || erro ? TextWrapping.Wrap : TextWrapping.NoWrap;
-        detalhe.TextTrimming = mensagem || erro ? TextTrimming.None : TextTrimming.CharacterEllipsis;
+        detalhe.TextWrapping = TextWrapping.Wrap;
+        detalhe.TextTrimming = TextTrimming.None;
         detalhe.Foreground = erro ? Recurso("SystemFillColorCriticalBrush") : mensagem ? Recurso("TextFillColorPrimaryBrush") : Recurso("TextFillColorSecondaryBrush");
         hora.Text = a.HoraTexto;
         hora.Foreground = Recurso("TextFillColorSecondaryBrush");

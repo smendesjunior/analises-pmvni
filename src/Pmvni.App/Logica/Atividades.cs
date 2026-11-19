@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Pmvni.App;
 
 /// <summary>Tipo de uma linha do andamento: ação do agente, mensagem dele (texto que ele escreveu), erro ou texto solto.</summary>
@@ -20,6 +22,36 @@ public static class Atividades
     public static Atividade DaLinha(string? linha, DateTime? hora = null)
     {
         var t = (linha ?? "").Trim();
+        var fimData = t.IndexOf(']');
+        if (t.StartsWith('[') && fimData > 1 && DateTimeOffset.TryParseExact(t[1..fimData],
+            ["yyyy-MM-dd'T'HH:mm:ssK", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK"], CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeLocal, out var instante))
+        {
+            hora = instante.LocalDateTime;
+            t = t[(fimData + 1)..].TrimStart();
+        }
+
+        if (t.StartsWith("etapa ", StringComparison.OrdinalIgnoreCase))
+            return DaEtapa(t[6..], hora, pausada: false);
+        if (t.StartsWith("pausa na etapa ", StringComparison.OrdinalIgnoreCase))
+            return DaEtapa(t[15..], hora, pausada: true);
+        if (t.StartsWith("fim: ", StringComparison.OrdinalIgnoreCase))
+        {
+            var titulo = t[5..].Trim().ToUpperInvariant() switch
+            {
+                "CONCLUIDO" => "Análise concluída",
+                "FALHOU" => "Falha na análise",
+                "OBJECOES" => "A revisão identificou pendências",
+                "PAUSADO_COTA" => "Análise pausada até a renovação da cota",
+                "INTERROMPIDA" => "Análise interrompida",
+                "NAO_PARTIU" => "A análise não iniciou",
+                "CANCELADO" => "Análise cancelada",
+                _ => "Execução encerrada",
+            };
+            var erro = titulo is "Falha na análise" or "A análise não iniciou";
+            return new(erro ? TipoAtividade.Erro : TipoAtividade.Texto, titulo, null, erro ? "" : "", hora);
+        }
+
         if (t.StartsWith("Mensagem: ", StringComparison.Ordinal))
             return new(TipoAtividade.Mensagem, "Observação da IA", Maiuscula(t[10..]), "", hora);
         if (t.StartsWith("Erro: ", StringComparison.Ordinal))
@@ -30,6 +62,33 @@ public static class Atividades
             return new(TipoAtividade.Acao, titulo, detalhe, glifo, hora);
         }
         return new(TipoAtividade.Texto, Maiuscula(t), null, "", hora);
+    }
+
+    static Atividade DaEtapa(string registro, DateTime? hora, bool pausada)
+    {
+        var partes = registro.Trim().Split([' ', ':'], 2, StringSplitOptions.TrimEntries);
+        var (titulo, detalhe) = partes[0].ToLowerInvariant() switch
+        {
+            "prepare" => ("Preparação dos documentos", "Organização dos arquivos que serão usados na análise."),
+            "analyze" => ("Análise do projeto", "Exame dos documentos e das pranchas do processo."),
+            "technical_audit" => ("Conferência técnica", "Revisão dos achados e das evidências que os sustentam."),
+            "produce" => ("Elaboração do relatório", "Organização dos resultados no relatório técnico."),
+            "audit" => ("Conferência do relatório", "Comparação do relatório com os resultados da análise."),
+            "final_review" => ("Revisão final", "Última conferência do relatório e das pendências."),
+            _ => ("Etapa da análise", "Atualização do andamento do processo."),
+        };
+        var estado = partes.Length == 2 ? partes[1] : "";
+        var falha = estado.StartsWith("falhou", StringComparison.OrdinalIgnoreCase) || estado == "FAILED";
+        detalhe = pausada ? "A execução foi pausada nesta etapa." : estado switch
+        {
+            "EXECUTED" => "Etapa concluída.",
+            "OBJECTIONS" => "A revisão identificou pontos que precisam de correção.",
+            "CANCELLED" => "Etapa cancelada.",
+            _ when falha => estado.Contains("nova tentativa", StringComparison.OrdinalIgnoreCase)
+                ? "A etapa falhou e será tentada novamente." : "A etapa falhou.",
+            _ => detalhe,
+        };
+        return new(falha ? TipoAtividade.Erro : TipoAtividade.Acao, titulo, detalhe, falha ? "" : "", hora);
     }
 
     /// <summary>Título natural, detalhe e ícone de uma ação (as descrições vêm de EventosCodex.DescreverComando).</summary>

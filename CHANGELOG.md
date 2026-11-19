@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.7
+
+- A lista de atividades explica as seis etapas da análise em português e exibe o horário do evento uma única vez. Pausas, falhas e conclusão também têm mensagens próprias.
+
 ## 1.2.6
 
 - Relatórios, Legislação e Pranchas usam o mesmo símbolo Fluent para enquadrar a página. Ajustar largura, abrir arquivo e abrir no navegador têm símbolos distintos. O ícone de Acompanhamento fica centralizado no trilho.
