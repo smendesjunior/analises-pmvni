@@ -16,7 +16,6 @@ public static class Atalhos
         ["Ctrl+P"] = ComandosApp.ArquivoImprimir,
         ["Ctrl+Z"] = ComandosApp.EditarDesfazer,
         ["Ctrl+Y"] = ComandosApp.EditarRefazer,
-        ["Ctrl+K"] = ComandosApp.PesquisaFocar,
         ["Ctrl+F"] = ComandosApp.PesquisaFocar,
         ["Alt+ArrowUp"] = ComandosApp.InicioItemAnterior,
         ["Alt+ArrowDown"] = ComandosApp.InicioItemProximo,
@@ -36,7 +35,6 @@ public static class Atalhos
     /// <summary>Os atalhos do leitor da Legislação (desenho §11.4): exatamente as 16 teclas que <c>leitor.ts</c> repassa ao host (as do leitor e Ctrl+1 … Ctrl+5 do trilho).</summary>
     public static IReadOnlyDictionary<string, string> MapaLegislacao { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["Ctrl+K"] = ComandosApp.PesquisaFocar,
         ["Ctrl+F"] = ComandosApp.PesquisaFocar,
         ["Ctrl+C"] = ComandosApp.LegislacaoCopiar,
         ["Ctrl+Shift+C"] = ComandosApp.LegislacaoCopiarCitacao,
@@ -68,12 +66,12 @@ public static class Atalhos
     };
 
     /// <summary>O comando da tecla no módulo <paramref name="m"/>, ou null.</summary>
-    public static string? Comando(string tecla, Modulo m) => MapaDe(m).TryGetValue(tecla, out var id) ? id : null;
+    public static string? Comando(string tecla, Modulo m) => MapaDe(m).TryGetValue(tecla == "Ctrl+K" ? "Ctrl+F" : tecla, out var id) ? id : null;
 
     static readonly Dictionary<string, string> PorComando = Mapa.ToDictionary(p => p.Value, p => p.Key, StringComparer.Ordinal);
 
     /// <summary>O comando da tecla canônica, ou null se ela não é atalho do app.</summary>
-    public static string? Comando(string tecla) => Mapa.TryGetValue(tecla, out var id) ? id : null;
+    public static string? Comando(string tecla) => Mapa.TryGetValue(tecla == "Ctrl+K" ? "Ctrl+F" : tecla, out var id) ? id : null;
 
     /// <summary>A tecla canônica do comando (para dicas e para a lista de atalhos), ou null se ele não tem atalho.</summary>
     public static string? Tecla(string id) => PorComando.TryGetValue(id, out var t) ? t : null;

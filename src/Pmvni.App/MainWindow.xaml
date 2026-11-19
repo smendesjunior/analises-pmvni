@@ -144,9 +144,10 @@
         <Grid VerticalAlignment="Center">
           <!-- Pesquisa geral (2026-11-17): além do módulo à vista, acha ajustes, funções, arquivos e leis (lista abaixo da caixa). TextBox nativo
                em pílula: a borda de foco é a do tema (cor de destaque do Windows). -->
-          <TextBox x:Name="CaixaPesquisa" Width="340" Height="36" MinHeight="36" CornerRadius="18" Padding="40,7,14,7" VerticalAlignment="Center"
+          <TextBox x:Name="CaixaPesquisa" Width="340" Height="36" MinHeight="36" CornerRadius="10" Padding="36,6,58,6" VerticalAlignment="Center"
                    PlaceholderText="Pesquisar arquivos, funções, leis e configurações..." AutomationProperties.Name="Pesquisar no app"
                    ToolTipService.ToolTip="Pesquisar no app (Ctrl+F)"/>
+          <TextBlock Text="Ctrl + K" Margin="0,0,10,0" VerticalAlignment="Center" HorizontalAlignment="Right" IsHitTestVisible="False" Style="{StaticResource CaptionTextBlockStyle}"/>
           <FontIcon x:Name="IconePesquisa" Glyph="&#xE721;" FontSize="15" Margin="15,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
                     IsHitTestVisible="False" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
         </Grid>

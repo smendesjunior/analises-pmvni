@@ -826,7 +826,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         // sobre a janela sempre que o ponteiro parava num espaço vazio. As dicas dos botões já mostram cada atalho.
         Raiz.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
         Raiz.KeyboardAccelerators.Clear();
-        foreach (var atalho in Atalhos.Mapa.Keys.Union(Atalhos.MapaLegislacao.Keys, StringComparer.Ordinal))
+        foreach (var atalho in Atalhos.Mapa.Keys.Union(Atalhos.MapaLegislacao.Keys, StringComparer.Ordinal).Append("Ctrl+K"))
         {
             foreach (var (mods, tecla) in Teclas(atalho))
             {
