@@ -16,6 +16,7 @@ public static class Atalhos
         ["Ctrl+P"] = ComandosApp.ArquivoImprimir,
         ["Ctrl+Z"] = ComandosApp.EditarDesfazer,
         ["Ctrl+Y"] = ComandosApp.EditarRefazer,
+        ["Ctrl+K"] = ComandosApp.PesquisaFocar,
         ["Ctrl+F"] = ComandosApp.PesquisaFocar,
         ["Alt+ArrowUp"] = ComandosApp.InicioItemAnterior,
         ["Alt+ArrowDown"] = ComandosApp.InicioItemProximo,
@@ -35,6 +36,7 @@ public static class Atalhos
     /// <summary>Os atalhos do leitor da Legislação (desenho §11.4): exatamente as 16 teclas que <c>leitor.ts</c> repassa ao host (as do leitor e Ctrl+1 … Ctrl+5 do trilho).</summary>
     public static IReadOnlyDictionary<string, string> MapaLegislacao { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        ["Ctrl+K"] = ComandosApp.PesquisaFocar,
         ["Ctrl+F"] = ComandosApp.PesquisaFocar,
         ["Ctrl+C"] = ComandosApp.LegislacaoCopiar,
         ["Ctrl+Shift+C"] = ComandosApp.LegislacaoCopiarCitacao,

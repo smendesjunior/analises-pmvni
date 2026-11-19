@@ -23,13 +23,14 @@
     <Grid x:Name="PainelEdicao" x:FieldModifier="internal" Grid.Row="1">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="380" MinWidth="300"/>
+        <ColumnDefinition Width="420" MinWidth="300"/>
       </Grid.ColumnDefinitions>
       <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
         <!-- Padronizado com o painel Propriedades (2026-11-16): cartões ORIGEM e CONTEÚDO, rótulo pequeno em maiúsculas acima de cada
              campo e separadores (estilos PmvniPainel…, Estilos.xaml); a ação principal de cada cartão na cor de destaque. -->
         <StackPanel Padding="16,14,16,20" Spacing="12">
           <TextBlock x:Name="TextoTitulo" x:FieldModifier="internal" Text="Novo despacho" Style="{StaticResource PmvniTituloPaginaStyle}"/>
+          <TextBlock Text="Defina a origem e os documentos de referência." Style="{StaticResource PmvniTextoAjuda}"/>
 
           <Border Style="{StaticResource PmvniPainelCartao}">
             <StackPanel>
@@ -59,6 +60,7 @@
                 <!-- Relatório base: os achados na pasta do processo, "Sem relatório" ou um escolhido à mão (.rpmvni de qualquer pasta, ou o
                      dados.json da análise do kit, importado para um .rpmvni novo antes de usar). -->
                 <StackPanel Spacing="4">
+                  <TextBlock Text="DOCUMENTOS DE REFERÊNCIA" Style="{StaticResource PmvniPainelRotulo}"/>
                   <TextBlock Text="RELATÓRIO BASE" Style="{StaticResource PmvniPainelRotulo}"/>
                   <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>

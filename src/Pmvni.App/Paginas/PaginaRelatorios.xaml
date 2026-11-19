@@ -75,8 +75,10 @@
         <!-- Painel de navegação (correções 2026-11-15): pesquisa por texto ou situação e filtro rápido dos apontamentos. Os botões do
              filtro são montados pela janela (FiltroNavegacao.Ordem), com a contagem de cada situação. -->
         <StackPanel x:Name="PainelFiltros" x:FieldModifier="internal" Grid.Row="1" Spacing="8" Margin="12,4,12,8">
-          <TextBox x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar por texto ou situação"
+          <TextBlock Text="BUSCA" Style="{StaticResource PmvniPainelRotulo}"/>
+          <TextBox MinHeight="36" x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar por texto ou situação"
                    AutomationProperties.Name="Pesquisar nas seções e itens"/>
+          <TextBlock Text="FILTRAR POR SITUAÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
           <local:PainelQuebra x:Name="BotoesFiltro" x:FieldModifier="internal" AutomationProperties.Name="Filtro rápido de apontamentos"/>
         </StackPanel>
         <ListView x:Name="ListaNavegacao" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True"

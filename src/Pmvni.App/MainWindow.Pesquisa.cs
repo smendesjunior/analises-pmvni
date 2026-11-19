@@ -211,7 +211,7 @@ public sealed partial class MainWindow
             _ => "Enter abre o primeiro resultado.",
         };
         const string geral = "Mostra ajustes, funções, processos, relatórios, despachos e leis com o termo; ↑↓ escolhem, Enter abre, Esc fecha.";
-        Dicas.Aplicar(CaixaPesquisa, PesquisaGeral.NomeAcessivel, $"{geral} {doModulo}", "Ctrl+F", string.IsNullOrEmpty(motivo) ? null : motivo);
+        Dicas.Aplicar(CaixaPesquisa, PesquisaGeral.NomeAcessivel, $"{geral} {doModulo}", "Ctrl+F / Ctrl+K", string.IsNullOrEmpty(motivo) ? null : motivo);
     }
 
     /// <summary>Os módulos com pesquisa própria na caixa (Relatórios só com um relatório aberto).</summary>

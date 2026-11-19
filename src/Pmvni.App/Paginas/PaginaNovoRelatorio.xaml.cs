@@ -28,6 +28,11 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         if (double.IsNaN(larguraVisivel) || larguraVisivel <= 0) return;
         var nova = Math.Round(LarguraDoFormulario(larguraVisivel));
+        bool ampla = nova >= 940;
+        GradeEtapas.ColumnSpacing = ampla ? 16 : 0;
+        GradeEtapas.ColumnDefinitions[1].Width = ampla ? new GridLength(nova * .33) : new GridLength(0);
+        Grid.SetRow(CartaoEscolhaAgente, ampla ? 0 : 1);
+        Grid.SetColumn(CartaoEscolhaAgente, ampla ? 1 : 0);
         if (double.IsNaN(ColunaFormulario.Width) || Math.Abs(ColunaFormulario.Width - nova) >= 1) ColunaFormulario.Width = nova; // sem realimentar o layout por frações de pixel
 
     }

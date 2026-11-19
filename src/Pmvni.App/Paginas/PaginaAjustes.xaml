@@ -63,7 +63,7 @@
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
-    <NavigationView x:Name="Menu" x:FieldModifier="internal" PaneDisplayMode="Left" OpenPaneLength="220" CompactPaneLength="48"
+    <NavigationView x:Name="Menu" x:FieldModifier="internal" PaneDisplayMode="Left" PaneTitle="Configurações" OpenPaneLength="228" CompactPaneLength="48"
                     IsSettingsVisible="False" IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False"
                     SelectionChanged="AoEscolherCategoria" AutomationProperties.Name="Categorias dos ajustes">
       <ScrollViewer x:Name="Rolagem" x:FieldModifier="internal" Padding="48,8,40,24" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
@@ -137,45 +137,44 @@
           <StackPanel x:Name="CategoriaRelatorios" Tag="relatorios" Spacing="12" Visibility="Collapsed">
             <StackPanel Spacing="4"><TextBlock Text="Relatórios e revisão" Style="{StaticResource PmvniAjusteTituloPagina}"/><TextBlock x:Name="AjudaRelatorios" Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
             <TextBlock Text="Tela" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
-            <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
+<Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Zoom ao abrir" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Como as folhas aparecem ao abrir um relatório." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ComboBox x:Name="CaixaZoomInicial" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Zoom ao abrir"/>
-              </Grid>
-              <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
-              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+              </Grid></Border>
+<Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Lista de seções" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Compacta: uma linha por item, com a situação numa bolinha. Confortável: título em até duas linhas e a situação escrita embaixo." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ComboBox x:Name="CaixaListaSecoes" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Lista de seções"/>
-              </Grid>
-              <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
-              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+              </Grid></Border>
+<Border Grid.Row="1" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Marcas de revisão" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Mostra nas folhas o que foi alterado (o mesmo que Revisão › Marcas de revisão)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ToggleSwitch x:Name="AlternarMarcas" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Marcas de revisão"/>
-              </Grid>
-              <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
-              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+              </Grid></Border>
+<Border Grid.Row="1" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Painéis ao abrir" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="Seções e Propriedades como ficaram da última vez; desligado, os dois abrem à vista." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ToggleSwitch x:Name="AlternarPaineis" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" OnContent="Lembrar" OffContent="Desativado" VerticalAlignment="Center" AutomationProperties.Name="Lembrar os painéis ao abrir"/>
               </Grid>
-            </StackPanel></Border>
+            </Border>
+</Grid>
             <TextBlock Text="Gravação" Style="{StaticResource PmvniAjusteGrupoTitulo}"/>
-            <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto" ColumnSpacing="10" RowSpacing="10" SizeChanged="AoDimensionarCartoes">
+<Border Grid.Row="0" Grid.Column="0" Style="{StaticResource PmvniAjusteGrupo}">
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="Salvamento automático" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock Text="O relatório é gravado sozinho depois deste tempo sem alterações (e também ao trocar de arquivo e ao fechar)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ComboBox x:Name="CaixaIntervalo" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Intervalo do salvamento automático"/>
-              </Grid>
-              <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
-              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+              </Grid></Border>
+<Border Grid.Row="0" Grid.Column="1" Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Spacing="3" VerticalAlignment="Center">
@@ -189,7 +188,8 @@
                           local:Dicas.Titulo="Abrir pasta" local:Dicas.Descricao="Abre no Explorador a pasta onde ficam as cópias de recuperação."/>
                 </StackPanel>
               </Grid>
-            </StackPanel></Border>
+            </Border>
+</Grid>
           </StackPanel>
 
           <!-- ===== 4. Pastas e kit ===== -->

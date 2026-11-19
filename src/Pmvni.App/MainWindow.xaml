@@ -118,31 +118,7 @@
         </Border>
         <!-- 1.0.0: Desfazer | Refazer numa pílula segmentada só (uma moldura, cantos totalmente redondos, divisória central), como a
              pesquisa; só ícones Fluent, o nome e o atalho ficam na dica e no Narrador. -->
-        <Border x:Name="GrupoHistorico" Style="{StaticResource PmvniGrupoCabecalho}">
-          <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
-          <StackPanel Orientation="Horizontal">
-            <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoIconeCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
-                    Padding="2,0,0,0" AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
-              <FontIcon Glyph="&#xE7A7;" FontSize="16"/>
-            </Button>
-            <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
-            <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoIconeCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
-                    Padding="0,0,2,0" AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
-              <FontIcon Glyph="&#xE7A6;" FontSize="16"/>
-            </Button>
-          </StackPanel>
-        </Border>
-        <Grid VerticalAlignment="Center">
-          <!-- Pesquisa geral (2026-11-17): além do módulo à vista, acha ajustes, funções, arquivos e leis (lista abaixo da caixa). TextBox nativo
-               em pílula: a borda de foco é a do tema (cor de destaque do Windows). -->
-          <TextBox x:Name="CaixaPesquisa" Width="340" Height="36" MinHeight="36" CornerRadius="18" Padding="40,7,14,7" VerticalAlignment="Center"
-                   PlaceholderText="Pesquisar arquivos, funções, leis e configurações..." AutomationProperties.Name="Pesquisar no app"
-                   ToolTipService.ToolTip="Pesquisar no app (Ctrl+F)"/>
-          <FontIcon x:Name="IconePesquisa" Glyph="&#xE721;" FontSize="15" Margin="15,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
-                    IsHitTestVisible="False" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
-        </Grid>
-        <TextBlock x:Name="TextoPesquisa" VerticalAlignment="Center" TextAlignment="Center" Visibility="Collapsed"
-                   Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.Name="Resultado da pesquisa"/>
+        <StackPanel Visibility="{Binding Visibility, ElementName=GrupoOcorrencias}" Spacing="3" VerticalAlignment="Center"><TextBlock Text="NAVEGAÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
         <Border x:Name="GrupoOcorrencias" Style="{StaticResource PmvniGrupoCabecalho}">
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">
@@ -163,6 +139,36 @@
             </Button>
           </StackPanel>
         </Border>
+        </StackPanel>
+        <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="PESQUISA GLOBAL" Style="{StaticResource PmvniPainelRotulo}"/>
+        <Grid VerticalAlignment="Center">
+          <!-- Pesquisa geral (2026-11-17): além do módulo à vista, acha ajustes, funções, arquivos e leis (lista abaixo da caixa). TextBox nativo
+               em pílula: a borda de foco é a do tema (cor de destaque do Windows). -->
+          <TextBox x:Name="CaixaPesquisa" Width="340" Height="36" MinHeight="36" CornerRadius="18" Padding="40,7,14,7" VerticalAlignment="Center"
+                   PlaceholderText="Pesquisar arquivos, funções, leis e configurações..." AutomationProperties.Name="Pesquisar no app"
+                   ToolTipService.ToolTip="Pesquisar no app (Ctrl+F)"/>
+          <FontIcon x:Name="IconePesquisa" Glyph="&#xE721;" FontSize="15" Margin="15,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    IsHitTestVisible="False" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+        </Grid>
+        <TextBlock x:Name="TextoPesquisa" VerticalAlignment="Center" TextAlignment="Center" Visibility="Collapsed"
+                   Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.Name="Resultado da pesquisa"/>
+        </StackPanel>
+        <StackPanel Visibility="{Binding Visibility, ElementName=GrupoHistorico}" Spacing="3" VerticalAlignment="Center"><TextBlock Text="EDIÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
+        <Border x:Name="GrupoHistorico" Style="{StaticResource PmvniGrupoCabecalho}">
+          <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
+          <StackPanel Orientation="Horizontal">
+            <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoIconeCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
+                    Padding="2,0,0,0" AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
+              <FontIcon Glyph="&#xE7A7;" FontSize="16"/>
+            </Button>
+            <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
+            <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoIconeCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
+                    Padding="0,0,2,0" AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
+              <FontIcon Glyph="&#xE7A6;" FontSize="16"/>
+            </Button>
+          </StackPanel>
+        </Border>
+        </StackPanel>
       </StackPanel>
     </Grid>
 

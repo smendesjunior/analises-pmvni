@@ -74,6 +74,11 @@ public sealed partial class MainWindow
         var despachos = PaginaDeDespachos;
         // Ajustes › Pastas e kit › "Listas ao abrir": ordem e pastas de Processos, agrupar e ordenar Despachos (Exibir muda até fechar).
         AplicarListasDosAjustes();
+        processos.FiltroAcervo.TextChanged += (_, _) =>
+        {
+            if (moduloAtual == Modulo.Processos && processos.FiltroAcervo.Text != TermoDe(Modulo.Processos))
+                CaixaPesquisa.Text = processos.FiltroAcervo.Text;
+        };
         processos.ListaProcessos.SelectionChanged += (_, _) =>
         {
             if (atualizandoListas) return;
@@ -450,6 +455,7 @@ public sealed partial class MainWindow
         if (fechada) return;
         var pagina = PaginaDeProcessos;
         var termo = TermoDe(Modulo.Processos);
+        if (pagina.FiltroAcervo.Text != termo) pagina.FiltroAcervo.Text = termo;
         var mostradas = ListasPastas.FiltrarProcessos(linhasProcessos, termo, anoProcessos, ordemProcessos);
         atualizandoListas = true;
         try

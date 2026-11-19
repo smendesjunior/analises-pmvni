@@ -34,7 +34,7 @@
     </Grid.RowDefinitions>
 
     <!-- Título -->
-    <Grid ColumnSpacing="14">
+    <Grid ColumnSpacing="14" Padding="16,12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10">
       <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <!-- A aba da planilha (só aparece com mais de uma): escolhida pelo nome e lembrada, para reordenar as abas no Excel não trocar a aba. -->
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -69,36 +69,8 @@
         <ComboBox x:Name="CaixaAba" x:FieldModifier="internal" VerticalAlignment="Center" MinWidth="140" Visibility="Collapsed"
                   AutomationProperties.Name="Aba da planilha" local:Dicas.Descricao="A aba da planilha que o app mostra e onde grava."/>
         <!-- Resumo recolhível (auditoria 2026-11-17): em telas baixas ele fica compacto sozinho, para a tabela nunca sumir. -->
-        <!-- Ligado, o "Resumo" fica discreto (cinza), não verde: ele mostra/esconde, não é a ação principal da tela. -->
         <Grid>
-          <Grid.Resources>
-            <ResourceDictionary>
-              <ResourceDictionary.ThemeDictionaries>
-                <ResourceDictionary x:Key="Default">
-                  <StaticResource x:Key="ToggleButtonBackgroundChecked" ResourceKey="SubtleFillColorSecondaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonBackgroundCheckedPointerOver" ResourceKey="SubtleFillColorTertiaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonBackgroundCheckedPressed" ResourceKey="SubtleFillColorTertiaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonForegroundChecked" ResourceKey="TextFillColorPrimaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonForegroundCheckedPointerOver" ResourceKey="TextFillColorPrimaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonForegroundCheckedPressed" ResourceKey="TextFillColorSecondaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonBorderBrushChecked" ResourceKey="ControlStrokeColorDefaultBrush"/>
-                  <StaticResource x:Key="ToggleButtonBorderBrushCheckedPointerOver" ResourceKey="ControlStrokeColorDefaultBrush"/>
-                  <StaticResource x:Key="ToggleButtonBorderBrushCheckedPressed" ResourceKey="ControlStrokeColorDefaultBrush"/>
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="Light">
-                  <StaticResource x:Key="ToggleButtonBackgroundChecked" ResourceKey="SubtleFillColorSecondaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonBackgroundCheckedPointerOver" ResourceKey="SubtleFillColorTertiaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonBackgroundCheckedPressed" ResourceKey="SubtleFillColorTertiaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonForegroundChecked" ResourceKey="TextFillColorPrimaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonForegroundCheckedPointerOver" ResourceKey="TextFillColorPrimaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonForegroundCheckedPressed" ResourceKey="TextFillColorSecondaryBrush"/>
-                  <StaticResource x:Key="ToggleButtonBorderBrushChecked" ResourceKey="ControlStrokeColorDefaultBrush"/>
-                  <StaticResource x:Key="ToggleButtonBorderBrushCheckedPointerOver" ResourceKey="ControlStrokeColorDefaultBrush"/>
-                  <StaticResource x:Key="ToggleButtonBorderBrushCheckedPressed" ResourceKey="ControlStrokeColorDefaultBrush"/>
-                </ResourceDictionary>
-              </ResourceDictionary.ThemeDictionaries>
-            </ResourceDictionary>
-          </Grid.Resources>          <ToggleButton x:Name="BotaoResumo" x:FieldModifier="internal" IsChecked="True" AutomationProperties.Name="Resumo por status"
+          <ToggleButton x:Name="BotaoResumo" x:FieldModifier="internal" IsChecked="True" AutomationProperties.Name="Resumo por status"
                       local:Dicas.Titulo="Resumo" local:Dicas.Descricao="Mostra ou esconde o resumo por status (a pizza e os cartões).">
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE9D2;" FontSize="14"/><TextBlock Text="Resumo"/></StackPanel>
         </ToggleButton>
