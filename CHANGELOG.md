@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 2.1.8
+
+- O instalador de plugins encontra o Codex instalado pela Microsoft Store mesmo quando o Editor é aberto sem o Codex no PATH.
+
 ## 2.1.7
 
 - Em Ajustes, o botão Instalar ou atualizar plugins prepara os quatro motores de PDF para uso local, registra as ferramentas no Codex e no Claude instalado e mostra o resultado por componente. A instalação usa o perfil do usuário.

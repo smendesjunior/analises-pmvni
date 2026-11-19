@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $base = Join-Path $env:LOCALAPPDATA 'PMVNI\MotorPdf'
 [IO.Directory]::CreateDirectory($base) | Out-Null
 $estado = [ordered]@{'Blueprint Pipeline'='PENDENTE';'FYP-Floorplan'='PENDENTE';'Docling MCP 3.5.0'='PENDENTE';'PyMuPDF 2.1'='PENDENTE'}
@@ -27,18 +27,29 @@ try {
     $catalogo = Join-Path $kit '01 - PLUGINS'
     $servidor = Join-Path $base 'mcp_pmvni.py'
     Copy-Item (Join-Path $PSScriptRoot 'mcp_pmvni.py') $servidor -Force
-    $codex = Get-Command codex.exe -ErrorAction SilentlyContinue
+    $codex = (Get-Command codex.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+    if (!$codex) {
+        $pacote = Get-AppxPackage -Name OpenAI.Codex -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($pacote.InstallLocation) {
+            $cli = Join-Path $pacote.InstallLocation 'app\resources\codex.exe'
+            if (Test-Path -LiteralPath $cli -PathType Leaf) { $codex = $cli }
+        }
+    }
+    if (!$codex) {
+        $codex = (Get-ChildItem "$env:LOCALAPPDATA\OpenAI\Codex\bin\*\codex.exe" -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+    }
     if (!$codex) {$estado['Codex']='AUSENTE'} else {
         try {
-            & $codex.Source plugin marketplace add $catalogo | Out-Null
+            & $codex plugin marketplace add $catalogo | Out-Null
             if ($LASTEXITCODE) { throw 'Catalogo Codex' }
             foreach($n in 'analise','analise-pro','analise-google'){
                 $estado["Codex / $n"]='PENDENTE'
-                $r = & $codex.Source plugin add "$n@pmvni-kit" --json |ConvertFrom-Json
+                $r = & $codex plugin add "$n@pmvni-kit" --json |ConvertFrom-Json
                 if($LASTEXITCODE -or !$r.version){throw "Plugin $n"}
                 $estado["Codex / $n"]="INSTALADO $($r.version)"
             }
-            & $codex.Source mcp add pmvni-pdf -- $python -I $servidor | Out-Null
+            & $codex mcp add pmvni-pdf -- $python -I $servidor | Out-Null
             if($LASTEXITCODE){throw 'MCP Codex'}
             $estado['Codex / ferramentas PDF']='CONFIGURADO'
         } catch { $erros += $_.Exception.Message }
