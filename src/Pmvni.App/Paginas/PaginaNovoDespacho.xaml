@@ -25,7 +25,7 @@
         <ColumnDefinition Width="*"/>
         <ColumnDefinition Width="420" MinWidth="300"/>
       </Grid.ColumnDefinitions>
-      <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
+      <Grid Grid.Column="1" RowDefinitions="*,Auto"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
         <!-- Padronizado com o painel Propriedades (2026-11-16): cartões ORIGEM e CONTEÚDO, rótulo pequeno em maiúsculas acima de cada
              campo e separadores (estilos PmvniPainel…, Estilos.xaml); a ação principal de cada cartão na cor de destaque. -->
         <StackPanel Padding="16,14,16,20" Spacing="12">
@@ -85,13 +85,7 @@
                 </StackPanel>
                 <Border Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" CornerRadius="8" Padding="12"><StackPanel Spacing="6"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE946;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Como funciona" Style="{StaticResource PmvniTituloSecao}"/></StackPanel>                <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
                            Text="O relatório é opcional. Anexado, entram só os itens que não atendem; sem ele, escreva as exigências ou peça à IA. Um relatório de outra pasta entra pelo Escolher. A data é a da pasta da etapa."/></StackPanel></Border>
-                <!-- Correção automática (2026-11-16): só no tipo Correção; a janela mostra e liga o botão. -->
-                <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" HorizontalAlignment="Stretch" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}"
-                        AutomationProperties.Name="Criar automaticamente a partir do relatório"
-                        local:Dicas.Titulo="Criar automaticamente a partir do relatório"
-                        local:Dicas.Descricao="Monta o despacho com todos os itens pendentes do relatório (não atende, falta comprovar e informações divergentes) e vai direto para a conferência.">
-                  <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Width="16" Height="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M89.06,26.77 C89.26,26.84 89.41,27.01 89.46,27.22 C89.51,27.43 89.45,27.65 89.31,27.8 L80.44,37.3 C80.25,37.51 79.94,37.56 79.69,37.43 C79.44,37.3 79.3,37.03 79.35,36.75 L80.51,30.94 L75.95,29.23 C75.75,29.16 75.6,28.99 75.55,28.78 C75.5,28.57 75.56,28.35 75.71,28.2 L84.58,18.7 C84.77,18.49 85.08,18.44 85.33,18.57 C85.58,18.7 85.71,18.97 85.66,19.25 L84.5,25.06 L89.06,26.77 Z M81.03,34.81 L81.86,30.66 C81.92,30.36 81.75,30.05 81.46,29.94 L77.28,28.37 L83.98,21.19 L83.15,25.34 C83.09,25.64 83.26,25.95 83.55,26.06 L87.73,27.63 L81.03,34.81 Z"/><TextBlock Text="Criar automaticamente a partir do relatório" TextWrapping="Wrap"/></StackPanel>
-                </Button>
+
               </StackPanel>
             </StackPanel>
           </Border>
@@ -138,6 +132,14 @@
           </Border>
         </StackPanel>
       </ScrollViewer>
+        <Border Grid.Row="1" Padding="16,8" Visibility="{Binding Visibility, ElementName=BotaoAutomatico}">                <!-- Correção automática (2026-11-16): só no tipo Correção; a janela mostra e liga o botão. -->
+                <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" HorizontalAlignment="Stretch" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+                        AutomationProperties.Name="Criar automaticamente a partir do relatório"
+                        local:Dicas.Titulo="Criar automaticamente a partir do relatório"
+                        local:Dicas.Descricao="Monta o despacho com todos os itens pendentes do relatório (não atende, falta comprovar e informações divergentes) e vai direto para a conferência.">
+                  <StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Width="16" Height="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M89.06,26.77 C89.26,26.84 89.41,27.01 89.46,27.22 C89.51,27.43 89.45,27.65 89.31,27.8 L80.44,37.3 C80.25,37.51 79.94,37.56 79.69,37.43 C79.44,37.3 79.3,37.03 79.35,36.75 L80.51,30.94 L75.95,29.23 C75.75,29.16 75.6,28.99 75.55,28.78 C75.5,28.57 75.56,28.35 75.71,28.2 L84.58,18.7 C84.77,18.49 85.08,18.44 85.33,18.57 C85.58,18.7 85.71,18.97 85.66,19.25 L84.5,25.06 L89.06,26.77 Z M81.03,34.81 L81.86,30.66 C81.92,30.36 81.75,30.05 81.46,29.94 L77.28,28.37 L83.98,21.19 L83.15,25.34 C83.09,25.64 83.26,25.95 83.55,26.06 L87.73,27.63 L81.03,34.81 Z"/><TextBlock Text="Criar automaticamente a partir do relatório" TextWrapping="Wrap"/></StackPanel>
+                </Button>
+        </Border></Grid>
 
       <!-- A prévia no modelo oficial (correções 2026-11-15): uma folha A4 por página, com cabeçalho, tarja e rodapé lidos do DOCX do kit; o
            texto variável se edita clicando nele na folha. Atualizada a cada mudança. -->

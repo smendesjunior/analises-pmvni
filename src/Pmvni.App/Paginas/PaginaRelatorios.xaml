@@ -76,8 +76,8 @@
              filtro são montados pela janela (FiltroNavegacao.Ordem), com a contagem de cada situação. -->
         <StackPanel x:Name="PainelFiltros" x:FieldModifier="internal" Grid.Row="1" Spacing="8" Margin="12,4,12,8">
           <TextBlock Text="BUSCA" Style="{StaticResource PmvniPainelRotulo}"/>
-          <TextBox MinHeight="36" x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar por texto ou situação"
-                   AutomationProperties.Name="Pesquisar nas seções e itens"/>
+          <Grid><TextBox Padding="36,6,10,6" CornerRadius="8" MinHeight="36" x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar por texto ou situação"
+                   AutomationProperties.Name="Pesquisar nas seções e itens"/><FontIcon Glyph="&#xE721;" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0" FontSize="15"/></Grid>
           <TextBlock Text="FILTRAR POR SITUAÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
           <Grid ColumnDefinitions="*,*,*,*,*,*" RowDefinitions="Auto,Auto" RowSpacing="5" ColumnSpacing="4" x:Name="BotoesFiltro" x:FieldModifier="internal" AutomationProperties.Name="Filtro rápido de apontamentos"/>
         </StackPanel>

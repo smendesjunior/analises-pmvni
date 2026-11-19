@@ -252,7 +252,24 @@ public sealed partial class MainWindow
     void MostrarResultados(PaginaResultado r, IReadOnlyList<SeloVinculo> selos)
     {
         var br = CultureInfo.GetCultureInfo("pt-BR");
-        I.ResumoVinculos.Text = "Nesta página · " + string.Join("   ·   ", selos.GroupBy(s => s.Texto).Select(g => $"{g.Count()} {g.Key}"));
+        I.ResumoVinculos.Children.Clear();
+        foreach (var grupo in selos.GroupBy(selo => (selo.Texto, selo.Tom)))
+        {
+            var fundo = grupo.Key.Tom switch
+            {
+                TomVinculo.Sucesso => "SystemFillColorSuccessBackgroundBrush",
+                TomVinculo.Neutro => "SystemFillColorNeutralBackgroundBrush",
+                TomVinculo.Erro => "SystemFillColorCriticalBackgroundBrush",
+                _ => "SystemFillColorCautionBackgroundBrush",
+            };
+            I.ResumoVinculos.Children.Add(new Border
+            {
+                Background = (Brush)Application.Current.Resources[fundo],
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(10, 4, 10, 4),
+                Child = new TextBlock { Text = $"{grupo.Count()} · {grupo.Key.Texto}", FontSize = 12 },
+            });
+        }
         I.ResumoVinculos.Visibility = selos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         I.ListaResultados.Items.Clear();
         for (var i = 0; i < r.Itens.Count; i++)
