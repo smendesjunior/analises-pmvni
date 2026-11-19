@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 2.1.4
+
+- O Editor informa ao ChatGPT o alcance do uso de dados pessoais no processo selecionado, inclusive ao continuar uma análise. Quando a execução termina sem entregar o relatório, o Editor mostra a mensagem final do executor.
+
 ## 2.1.3
 
 - Em Ajustes, os cartões passam a ocupar o espaço disponível sob o cartão anterior de cada coluna. Em janelas estreitas, as opções ficam em uma única coluna.

@@ -26,7 +26,18 @@ public static class ResultadoAnalise
         {
             info = new FileInfo(delivery);
             if (!info.Exists || info.LastWriteTimeUtc < inicioUtc - Tolerancia)
+            {
+                var ultima = Path.Combine(pastaRegistro, "ultima-mensagem.md");
+                if (p == Provedor.ChatGpt && File.Exists(ultima) && File.GetLastWriteTimeUtc(ultima) >= inicioUtc - Tolerancia)
+                {
+                    using var leitor = File.OpenText(ultima);
+                    var trecho = new char[2000];
+                    var mensagem = new string(trecho, 0, leitor.ReadBlock(trecho, 0, trecho.Length)).Trim();
+                    if (mensagem.Length > 0)
+                        return Falha($"A análise terminou sem relatório. Mensagem do executor: {mensagem}");
+                }
                 return Falha($"A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: {pastaRegistro}.");
+            }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {

@@ -11,7 +11,7 @@ public class PedidoAgenteTestes
     const string Fixas =
         "Use $analise para analisar o processo PMVNI desta pasta, com as 28 seções, as referências do índice do kit e o relatório oficial em PDF.\n"
         + "Pasta do processo: " + Pasta + "\n"
-        + "Processo: 0001/2099 — FULANO DE EXEMPLO (FICTICIO)";
+        + "Processo: 0001/2099 — FULANO DE EXEMPLO (FICTICIO)\n" + PedidoAgente.TratamentoDoProcesso;
 
     [Fact]
     public void pedido_do_codex_exato()

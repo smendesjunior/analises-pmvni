@@ -16,9 +16,11 @@ public static class PedidoAgente
 
     /// <summary>Linhas separadas por "\n", sem "\n" no fim. As linhas de anexos e de pedido só existem quando há conteúdo; o texto vai como foi digitado.</summary>
     /// <summary>A ordem enviada ao continuar uma sessão do Codex que parou (app fechado de repente ou cota esgotada).</summary>
+    public const string TratamentoDoProcesso = "Na análise iniciada pelo usuário no Editor de Relatórios com ChatGPT, o Codex e as sessões técnicas do plugin analise podem tratar na OpenAI os dados pessoais necessários das peças do processo selecionado, inclusive nomes em caminhos, arquivos e pranchas. A autorização vale somente para essa análise. Preservar o sigilo do cadastro municipal, de outros processos e de dados sem relação com o pedido. Não publicar dados do processo, enviá-los a conectores adicionais ou gravá-los na memória da IA.";
+
     public const string Continuar =
         "A análise anterior foi interrompida (o editor fechou ou a cota de uso acabou). Continue exatamente de onde parou, sem refazer o que já está pronto, " +
-        "seguindo as mesmas instruções do pedido original, até entregar o relatório final.";
+        "seguindo as mesmas instruções do pedido original, até entregar o relatório final.\n" + TratamentoDoProcesso;
 
     public static string Codex(string pastaProcesso, Processo p, IReadOnlyList<ArquivoArquivado> anexos, string? texto)
     {
@@ -32,6 +34,7 @@ public static class PedidoAgente
         }
         else identificacao = p.NomePasta;
         linhas.Add("Processo: " + identificacao);
+        linhas.Add(TratamentoDoProcesso);
 
         if (anexos.Count > 0)
         {
