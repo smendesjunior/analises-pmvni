@@ -4,6 +4,8 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 ## 2.2.0
 
+- Recentes inclui as análises por processo e situação. Retomar análise permanece visível em Novo relatório e recupera o registro e as evidências da execução. A rota escolhida para o Codex também vale para as etapas técnicas do kit atualizado.
+
 - O Monitor de análise mostra o tempo decorrido e a previsão de término em selos verdes. A IA informa a previsão e os percentuais estimados de cada etapa e da análise completa.
 - O Windows avisa quando um relatório fica pronto, uma exportação termina, um despacho é gravado ou pranchas aprovadas são emitidas. Também informa falhas importantes, interrupções, cota esgotada e atualizações prontas.
 - Os rótulos de situação do monitor ganharam texto maior, larguras ajustadas e cantos arredondados. Os ícones das ações do monitor ficaram verdes e os comandos das abas Revisão e Exibir foram alinhados.

@@ -789,6 +789,7 @@ public sealed partial class MainWindow
             SalvarAjustes();
         }
         conclusoes[e] = ConcluirAsync(e);
+        _ = CarregarHistoricoAsync();
         if (enviados is not null)
         {
             // Os anexos enviados já estão na pasta do processo: saem da lista (o processo, o pedido e o que foi posto durante a cópia ficam).
@@ -812,13 +813,17 @@ public sealed partial class MainWindow
         var processo = continuarChatGpt?.Processo ?? ultimoResultadoNR?.Processo;
         var registro = continuarChatGpt?.Registro ?? ultimoResultadoNR?.Registro.Pasta;
         var original = continuarChatGpt is null ? ultimoResultadoNR?.Provedor : Provedor.ChatGpt;
-        if (processo is null || registro is null || original is null) return;
+        if (processo is null || registro is null || original is null || NR.BotaoDescartar.Visibility != Visibility.Visible)
+        {
+            await EscolherHistoricoPendenteAsync();
+            return;
+        }
         var (escolha, _) = await PerguntarRetomadaAsync(processo, registro, original.Value);
         if (escolha is null) return;
         var iniciada = escolha == original && (continuarChatGpt is not null || Provedores.PeloKit(original.Value))
             ? await ContinuarAnaliseAsync()
             : await ContinuarComOutraIaAsync(escolha.Value, processo, registro);
-        if (iniciada is not null) NR.BotaoContinuar.Visibility = Visibility.Collapsed;
+        if (iniciada is not null) NR.BotaoDescartar.Visibility = Visibility.Collapsed;
     }
 
     void DescartarAnalisePendente()
@@ -836,12 +841,13 @@ public sealed partial class MainWindow
         historico.Atualizar(o => o["situacao"] = "descartada");
         EsquecerPendenteChatGpt(registro);
         EsquecerPendenteClaude(registro);
+        _ = CarregarHistoricoAsync();
         bool chat = continuarChatGpt is { } cg && MesmoRegistro(cg.Registro, registro);
         bool resultado = ultimoResultadoNR is { } r && MesmoRegistro(r.Registro.Pasta, registro);
         if (chat) continuarChatGpt = null;
         if (resultado) ultimoResultadoNR = null;
         if (!chat && !resultado) return;
-        NR.BotaoContinuar.Visibility = Visibility.Collapsed;
+        NR.BotaoDescartar.Visibility = Visibility.Collapsed;
         NR.AvisoResultado.IsOpen = false;
     }
 
@@ -1015,8 +1021,8 @@ public sealed partial class MainWindow
         string? sessaoCodex = null;
         if (e.Provedor == Provedor.ChatGpt)
         {
-            sessaoCodex = fim.Situacao is "cota_esgotada" or "falhou" or "cancelada" ? await Task.Run(() => LerSessaoCodex(e.Registro.Pasta)) : null;
-            if (sessaoCodex is null && !e.PausaSolicitada) EsquecerPendenteChatGpt(e.Registro.Pasta);
+            sessaoCodex = fim.Situacao is "cota_esgotada" or "falhou" or "cancelada" or "sem_resultado" or "interrompida" ? await Task.Run(() => LerSessaoCodex(e.Registro.Pasta)) : null;
+            if (comRelatorio || (sessaoCodex is null && !e.PausaSolicitada && fim.Situacao != "sem_resultado")) EsquecerPendenteChatGpt(e.Registro.Pasta);
         }
         var naVista = ReferenceEquals(execucaoMostrada, e) && PaginaNovoRelatorioVisivel;
         if (ReferenceEquals(execucaoMostrada, e)) MostrarFormularioNR();
@@ -1048,6 +1054,7 @@ public sealed partial class MainWindow
         }
         AtualizarTituloAnalise();
         AtualizarBotoesNR();
+        await CarregarHistoricoAsync();
         return fim;
     }
 
@@ -1076,9 +1083,24 @@ public sealed partial class MainWindow
     /// <summary>Na abertura (2026-11-17): uma análise do ChatGPT que não terminou (o editor caiu ou a cota acabou) é oferecida para continuar de onde parou.</summary>
     internal async Task RetomarExecucoesChatGptAsync()
     {
+        await CarregarHistoricoAsync();
+        if (fechada) return;
+        var anterior = historicoAnalises.DistinctBy(h => h.Processo.Pasta, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(h => string.Equals(h.Usuario, Environment.UserName, StringComparison.OrdinalIgnoreCase) && h.Provedor == Provedor.ChatGpt && h.Situacao == "sem_resultado"
+            && h.Sessao is not null && File.Exists(Path.Combine(h.Registro, "continuidade.json")));
+        if (anterior is not null && !ajustes.ExecucoesChatGpt.Any(p => MesmoRegistro(p.Registro, anterior.Registro)))
+        {
+            ajustes.ExecucoesChatGpt.Insert(0, new ExecucaoClaudePendente(anterior.Processo.Pasta, anterior.Registro));
+            SalvarAjustes();
+        }
         foreach (var pend in ajustes.ExecucoesChatGpt.ToList())
         {
             if (sessaoNR.EmAndamento(pend.Processo)) continue;
+            if (historicoAnalises.FirstOrDefault(h => MesmoRegistro(h.Registro, pend.Registro))?.Situacao is "concluida" or "descartada")
+            {
+                EsquecerPendenteChatGpt(pend.Registro);
+                continue;
+            }
             var (valido, sessao) = await Task.Run(() =>
                 (RegistroExecucao.MotivoInvalido(pend.Processo, pend.Registro) is null && Directory.Exists(pend.Processo) && Directory.Exists(pend.Registro),
                  LerSessaoCodex(pend.Registro)));
@@ -1088,9 +1110,9 @@ public sealed partial class MainWindow
             var aviso = NR.AvisoResultado;
             aviso.Severity = InfoBarSeverity.Warning;
             aviso.Title = "Uma análise com o ChatGPT ficou pela metade";
-            aviso.Message = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} parou antes do fim (o editor fechou ou a cota acabou). Clique em \"Continuar a análise\" para seguir de onde parou.";
+            aviso.Message = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} parou antes da entrega. Clique em \"Retomar análise\" para seguir de onde parou.";
             if (fechada) return;
-            NR.BotaoContinuar.Visibility = Visibility.Visible;
+            NR.BotaoDescartar.Visibility = Visibility.Visible;
             NR.BotaoImportarPendente.Visibility = Visibility.Collapsed;
             NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed;
             aviso.IsOpen = true;
@@ -1125,9 +1147,9 @@ public sealed partial class MainWindow
         if (fim.Situacao == "cota_esgotada") aviso.Severity = InfoBarSeverity.Warning;
         aviso.Message = (fim.Mensagem ?? fim.Situacao)
             + (fim.Situacao == "falhou" && sessaoCodex is not null ? " Você pode clicar em \"Continuar a análise\" para seguir de onde parou." : "");
-        NR.BotaoContinuar.Visibility = e.PausaSolicitada || (Provedores.PeloKit(e.Provedor) && fim.Situacao is "falhou" or "interrompida" or "cota_esgotada" or "cancelada") || sessaoCodex is not null
+        NR.BotaoDescartar.Visibility = e.PausaSolicitada || (Provedores.PeloKit(e.Provedor) && fim.Situacao is "falhou" or "interrompida" or "cota_esgotada" or "cancelada") || sessaoCodex is not null
             ? Visibility.Visible : Visibility.Collapsed;
-        if (e.PausaSolicitada && NR.BotaoContinuar.Visibility == Visibility.Visible)
+        if (e.PausaSolicitada && NR.BotaoDescartar.Visibility == Visibility.Visible)
         {
             aviso.Severity = InfoBarSeverity.Informational;
             aviso.Title = $"Análise com {nome} pausada";
@@ -1336,6 +1358,7 @@ public sealed partial class MainWindow
                     {
                         var e = await sessaoNR.RetomarClaudeAsync(processo, pend.Registro, inicio, ia);
                         conclusoes[e] = ConcluirAsync(e);
+        _ = CarregarHistoricoAsync();
                     }
                     catch (Exception x) when (x is AnaliseRecusadaException or IOException or UnauthorizedAccessException or InvalidOperationException)
                     {
@@ -1403,7 +1426,7 @@ public sealed partial class MainWindow
         aviso.Title = severidade == InfoBarSeverity.Success ? "Análise concluída" : "O relatório não foi importado";
         aviso.Message = mensagem;
         NR.BotaoImportarPendente.Visibility = Visibility.Visible;
-        NR.BotaoContinuar.Visibility = Visibility.Collapsed;
+        NR.BotaoDescartar.Visibility = Visibility.Collapsed;
         NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed;
         aviso.IsOpen = true;
         if (!PaginaNovoRelatorioVisivel)

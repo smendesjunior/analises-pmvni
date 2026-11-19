@@ -27,10 +27,10 @@
       </InfoBar>
     </local:AreaDeAvisos>
 
-    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,4" Visibility="{Binding Visibility, ElementName=BotaoContinuar}">
-            <Button x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Retomar análise" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,4">
+            <Button x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Retomar análise" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                     local:Dicas.Descricao="Retoma a análise que parou, do ponto onde ela ficou."/>
-            <Button x:Name="BotaoDescartar" x:FieldModifier="internal" Content="Descartar análise" Visibility="{Binding Visibility, ElementName=BotaoContinuar}"
+            <Button x:Name="BotaoDescartar" x:FieldModifier="internal" Content="Descartar análise" Visibility="Collapsed"
                     local:Dicas.Descricao="Remove esta análise da lista de retomada e conserva os arquivos do processo."/>
     </StackPanel>
 

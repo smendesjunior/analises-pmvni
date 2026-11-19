@@ -109,6 +109,13 @@ public sealed class OrquestradorAnalise
             fim = pe.Provedor == Provedor.ChatGpt
                 ? await ExecutarChatGptAsync(pe, chave, inicio, progresso, ct).ConfigureAwait(false)
                 : await ExecutarPeloKitAsync(pe, chave, inicio, progresso, ct).ConfigureAwait(false);
+            if (fim.Situacao == "cota_esgotada" && pe.Provedor == Provedor.ChatGpt && pe.Modo == ModoAcesso.Conta && pe.RotaCodex == "codex-lb")
+            {
+                ct.ThrowIfCancellationRequested();
+                var sessao = AnaliseHistorica.Ler(pe.Processo, pe.Registro.Pasta)?.Sessao ?? pe.RetomarSessao;
+                Anunciar(progresso, new ProgressoAnalise("Retomando pelo Codex-LB com a conta disponível.", null));
+                fim = await ExecutarChatGptAsync(pe with { RetomarSessao = sessao }, chave, inicio, progresso, ct).ConfigureAwait(false);
+            }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -303,6 +310,7 @@ public sealed class OrquestradorAnalise
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(args).ToList());
         registro.Atualizar(o =>
         {
+            o["rota_codex_tecnica"] = pe.Modo == ModoAcesso.Conta ? pe.RotaCodex ?? "herdar" : "openai";
             o["entrada_padrao"] = pe.RetomarSessao is null ? "pedido.md" : "continuar";
             if (pe.RetomarSessao is { } s) { o["sessao_codex"] = s; o["continuacoes"] = (o["continuacoes"]?.GetValue<int>() ?? 0) + 1; }
         });
@@ -350,16 +358,15 @@ public sealed class OrquestradorAnalise
         registro.Descarregar();
 
         if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
+        var r = codigo == 0 ? ResultadoAnalise.Localizar(pasta, Provedor.ChatGpt, inicio.UtcDateTime, registro.Pasta) : null;
+        if (r?.Documento is not null) return new FimAnalise("concluida", r.Documento, r.Pdf, null, codigo);
         if (cota)
             return new FimAnalise("cota_esgotada", null, null,
                 "A cota de uso do ChatGPT acabou no meio da análise. O que já foi feito está guardado: quando a cota voltar, clique em \"Continuar a análise\" e ela segue de onde parou.", codigo);
         if (codigo != 0)
             return new FimAnalise("falhou", null, null, $"O Codex terminou com o código {codigo}. Veja o registro: {registro.Pasta}.", codigo);
 
-        var r = ResultadoAnalise.Localizar(pasta, Provedor.ChatGpt, inicio.UtcDateTime, registro.Pasta);
-        return r.Documento is null
-            ? new FimAnalise("sem_resultado", null, null, r.Motivo, codigo)
-            : new FimAnalise("concluida", r.Documento, r.Pdf, null, codigo);
+        return new FimAnalise("sem_resultado", null, null, r?.Motivo, codigo);
     }
 
     /// <summary>Tira a chave de um arquivo que o agente escreveu dentro do registro (até 20 MB; o que passar disso é cortado, com aviso).</summary>

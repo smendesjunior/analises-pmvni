@@ -491,7 +491,7 @@ public sealed partial class MainWindow
         try { existentes = await Task.Run(() => lista.Where(File.Exists).ToList()); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return; }
         if (fechada || geracao != geracaoRecentes) return;
-        haRecentes = existentes.Count > 0;
+        haRecentes = existentes.Count > 0 || historicoAnalises.Count > 0;
         // A tela vazia de Relatórios (M5) mostra os 5 mais recentes que ainda existem.
         R.TextoVazio.DefinirRecentes(existentes.Take(5).Select(c => (Path.GetFileName(c), c)).ToList());
         AtualizarComandos();
@@ -503,16 +503,17 @@ public sealed partial class MainWindow
         if (menu == ComandosApp.FigurasAbrirEditor) return ItensDoMenuFiguras();
         if (menu != ComandosApp.ArquivoRecentes) return [];
         var lista = ajustes.RecentesExistentes();
-        haRecentes = lista.Count > 0;
-        return lista.Select(c =>
+        haRecentes = lista.Count > 0 || historicoAnalises.Count > 0;
+        return historicoAnalises.Select(h => (h.Identificacao, h.Registro, h.Registro)).Concat(lista.Where(c => !historicoAnalises.Any(h => string.Equals(h.Pacote, c, StringComparison.OrdinalIgnoreCase))).Select(c =>
         {
             var pasta = Path.GetFileName(Path.GetDirectoryName(c)) ?? "";
             return (pasta.Length == 0 ? Path.GetFileName(c) : Path.GetFileName(c) + "  ·  " + pasta, c, c);
-        }).ToList();
+        })).ToList();
     }
 
     /// <summary>Arquivo › Recentes: abre o relatório escolhido (na fila de comandos, como Abrir); se ele sumiu, avisa.</summary>
-    internal Task AbrirRecenteAsync(string caminho) => NaFilaAsync(() => TentarAsync(async () =>
+    internal Task AbrirRecenteAsync(string caminho) => historicoAnalises.FirstOrDefault(h => MesmoRegistro(h.Registro, caminho)) is { } item
+        ? TentarAsync(() => AbrirHistoricoAsync(item)) : NaFilaAsync(() => TentarAsync(async () =>
     {
         if (!File.Exists(caminho))
         {
