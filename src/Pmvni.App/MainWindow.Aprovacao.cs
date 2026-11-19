@@ -99,10 +99,18 @@ public sealed partial class MainWindow
             }
             foreach (var item in preparadas) File.Move(item.Temporario, item.Destino, item.Substituir);
         }
+        catch
+        {
+            NotificacoesWindows.Mostrar("Emissão de pranchas interrompida", "Confira a mensagem no Editor e os arquivos na pasta de destino.");
+            throw;
+        }
         finally
         {
             foreach (var item in preparadas) File.Delete(item.Temporario);
         }
         MostrarMensagem(InfoBarSeverity.Success, "Processo aprovado", $"{preparadas.Count} PDF(s) emitido(s) em {pasta}.");
+        NotificacoesWindows.Mostrar("Pranchas aprovadas emitidas", preparadas.Count == 1
+            ? "A prancha aprovada foi gravada em PDF."
+            : $"{preparadas.Count} pranchas aprovadas foram gravadas em PDF.");
     }
 }

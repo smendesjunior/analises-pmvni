@@ -19,6 +19,7 @@ internal sealed record Argumentos(string? Dados, string? Roteiro, string? Anexar
             if (args[i] == "--anexar-leis") { if (i + 1 < args.Length) leis = Path.GetFullPath(args[++i]); continue; }
             if (args[i] == "--captura") { if (i + 1 < args.Length) captura = Path.GetFullPath(args[++i]); continue; }
             if (args[i] == "--roteiro") { if (i + 1 < args.Length) roteiro = Path.GetFullPath(args[++i]); continue; }
+            if (args[i].Equals("-Embedding", StringComparison.OrdinalIgnoreCase)) continue; // ativação COM de notificações
             if (!args[i].StartsWith("--", StringComparison.Ordinal) && dados is null) dados = Path.GetFullPath(args[i]);
         }
         return Atual = new Argumentos(dados, roteiro, leis, captura);

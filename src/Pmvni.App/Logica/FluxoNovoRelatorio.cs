@@ -137,16 +137,28 @@ public static class FluxoNovoRelatorio
     public static string Identificacao(Processo p) => ListasPastas.NumeroDoProcesso(p) ?? p.NomePasta;
 
     /// <summary>"Analisando com o ChatGPT · 0001/2099 · 12 min"; a partir de 60 min, "2 h 05 min".</summary>
-    public static string TituloExecucao(Provedor p, Processo pr, TimeSpan decorrido)
+    public static string TituloExecucao(Provedor p, Processo pr, TimeSpan decorrido) =>
+        $"{TituloExecucao(p, pr)} · {TempoLegivel(decorrido)}";
+
+    public static string TituloExecucao(Provedor p, Processo pr) => $"Analisando com o {Provedores.Nome(p)} · {Identificacao(pr)}";
+
+    internal static string TempoLegivel(TimeSpan decorrido)
     {
         var minutos = Math.Max(0, (long)Math.Floor(decorrido.TotalMinutes));
-        var tempo = minutos switch
+        return minutos switch
         {
             0 => string.Create(CultureInfo.InvariantCulture, $"{Math.Max(0, (int)decorrido.TotalSeconds)} s"),
             < 60 => string.Create(CultureInfo.InvariantCulture, $"{minutos} min"),
             _ => string.Create(CultureInfo.InvariantCulture, $"{minutos / 60} h {minutos % 60:D2} min"),
         };
-        return $"Analisando com o {Provedores.Nome(p)} · {Identificacao(pr)} · {tempo}";
+    }
+
+    internal static string TextoEstimativa(DateTimeOffset? termino, DateTimeOffset agora)
+    {
+        if (termino is not { } hora) return "Aguardando estimativa da IA";
+        if (hora <= agora) return "Aguardando nova estimativa da IA";
+        var formato = hora.Date == agora.Date ? "HH:mm" : "dd/MM HH:mm";
+        return $"Término estimado · {hora.ToString(formato, CultureInfo.InvariantCulture)} ({TempoLegivel(hora - agora)} restantes)";
     }
 
     /// <summary>As seis etapas do controlador do kit com o nome em português e o estado: antes da atual, feitas; a atual, agora; depois, pendentes.

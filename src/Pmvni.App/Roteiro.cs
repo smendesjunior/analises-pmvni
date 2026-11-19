@@ -610,6 +610,41 @@ internal static class Roteiro
                 && p["painel_alterna"]!.GetValue<bool>();
         });
 
+        await Passo("faixas_e_rotulos_do_monitor", async p =>
+        {
+            var faixa = j.FaixaAtual;
+            string[] comandos = [ComandosApp.ExibirLargura, ComandosApp.ExibirPagina, ComandosApp.ExibirPainel,
+                ComandosApp.ExibirPropriedades, ComandosApp.RevisaoMarcas, ComandosApp.RevisaoSomenteAlterados];
+            var habilitadosNasFolhas = comandos.All(faixa.Habilitado);
+            await j.NovoRelatorioAsync();
+            var monitor = (PaginaNovoRelatorio)j.ElementoRaiz.FindName("PaginaDeNovoRelatorio");
+            try
+            {
+                faixa.EscolherAba("Revisão");
+                var indisponiveisNoMonitor = comandos.All(id => !faixa.Habilitado(id) && faixa.Dica(id).Contains("Volte às folhas"));
+                monitor.MostrarExecucao(true);
+                monitor.MostrarResumo(true, null, [("Preparo", EstadoEtapa.Agora), ("Análise", EstadoEtapa.Pendente)], []);
+                var agora = DateTimeOffset.Now;
+                monitor.MostrarEstimativa(new EstimativaAnalise("prepare", 47.5, 12.8, agora.AddMinutes(18)));
+                monitor.MostrarRelogios(TimeSpan.FromMinutes(7), agora);
+                await Esperar(250);
+                await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "monitor-rotulos-revisao.png"));
+                faixa.EscolherAba("Exibir");
+                await Esperar(250);
+                await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "monitor-rotulos-exibir.png"));
+                p["ok"] = habilitadosNasFolhas && indisponiveisNoMonitor;
+            }
+            finally
+            {
+                monitor.MostrarResumo(false, null, [], []);
+                monitor.MostrarEstimativa(null);
+                monitor.MostrarExecucao(false);
+                Invocar(monitor.BotaoVoltarRelatorio);
+                await EsperarAteAsync(() => Task.FromResult(j.FolhasVisiveis), 3000);
+                faixa.EscolherAba("Página Inicial");
+            }
+        });
+
         await Passo("11_reabrir_pacote", async p =>
         {
             if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou");
@@ -4799,7 +4834,7 @@ internal static class Roteiro
         {
             var monitor = (PaginaNovoRelatorio)j.ElementoRaiz.FindName("PaginaDeNovoRelatorio");
             var valores = new JsonArray();
-            var nome = SituacaoAnalisePro.NomeEtapa("documental");
+            var nome = SituacaoAnalisePro.NomeEtapa("technical_audit");
             (string Nome, EstadoEtapa Estado)[] etapas = Enumerable.Range(0, 6)
                 .Select(i => (i == 2 ? nome : $"Etapa {i + 1}", EstadoEtapa.Pendente)).ToArray();
             monitor.MostrarProgresso(null);
@@ -4809,15 +4844,21 @@ internal static class Roteiro
             etapas[2].Estado = EstadoEtapa.Agora;
             monitor.MostrarResumo(true, null, etapas, []);
             valores.Add(monitor.BarraResumoEtapas.Value);
-            monitor.MostrarProgresso(new ProgressoEtapa("documental", 1, 5, 10));
+            monitor.MostrarProgresso(new ProgressoEtapa("technical_audit", 1, 5, 10));
             valores.Add(monitor.BarraResumoEtapas.Value);
+            var aguardou = monitor.BarraResumoEtapas.IsIndeterminate
+                && monitor.RotuloEtapa(nome, EstadoEtapa.Agora, true) == "Em andamento";
+            monitor.MostrarEstimativa(new EstimativaAnalise("technical_audit", 72.4, 48.6, null));
+            valores.Add(monitor.BarraResumoEtapas.Value);
+            var rotuloDaIa = monitor.RotuloEtapa(nome, EstadoEtapa.Agora, true).Contains("estimado pela IA");
             for (var i = 0; i < etapas.Length; i++) etapas[i].Estado = EstadoEtapa.Feita;
             monitor.MostrarResumo(false, null, etapas, []);
             valores.Add(monitor.BarraResumoEtapas.Value);
+            monitor.MostrarEstimativa(null);
             monitor.MostrarResumo(true, null, [], []);
             p["percentuais"] = valores;
-            p["ok"] = monitor.BarraResumoEtapas.IsIndeterminate && valores.Select(x => x!.GetValue<double>())
-                .Zip(new[] { 0d, 201d / 6, 250d / 6, 100d }).All(par => Math.Abs(par.First - par.Second) < 0.01);
+            p["ok"] = aguardou && rotuloDaIa && monitor.BarraResumoEtapas.IsIndeterminate && valores.Select(x => x!.GetValue<double>())
+                .Zip(new[] { 0d, 0d, 0d, 48.6, 100d }).All(par => Math.Abs(par.First - par.Second) < 0.01);
             monitor.MostrarResumo(false, null, [], []);
             monitor.MostrarProgresso(null);
             return Task.CompletedTask;

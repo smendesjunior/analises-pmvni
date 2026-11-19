@@ -8,6 +8,28 @@ namespace Pmvni.Revisao.Testes;
 public class AchadosExecucaoTestes
 {
     [Fact]
+    public void Le_estimativa_da_ia_e_descarta_a_da_execucao_anterior()
+    {
+        using var pasta = Ambiente.PastaDeTeste("estimativa-analise");
+        string raiz = pasta;
+        var arquivo = Path.Combine(raiz, Pmvni.Agentes.RegistroExecucao.ArquivoEstimativa);
+        var inicio = new DateTime(2026, 11, 19, 12, 0, 0, DateTimeKind.Utc);
+        File.WriteAllText(arquivo, """
+            {"etapa":"analyze","percentual_etapa":0,"percentual_geral":20.5,"termino_estimado_utc":"2026-11-19T12:40:00Z"}
+            """);
+        File.SetLastWriteTimeUtc(arquivo, inicio.AddMinutes(10));
+        Assert.Equal(new EstimativaAnalise("analyze", 0, 20.5, new DateTimeOffset(inicio.AddMinutes(40))),
+            AchadosExecucao.Ler(raiz, raiz, inicio).Estimativa);
+        Assert.Null(AchadosExecucao.Ler(raiz, raiz, inicio.AddMinutes(20)).Estimativa);
+
+        File.WriteAllText(arquivo, """
+            {"etapa":"inexistente","percentual_etapa":10,"percentual_geral":100,"termino_estimado_utc":"ontem"}
+            """);
+        File.SetLastWriteTimeUtc(arquivo, inicio.AddMinutes(12));
+        Assert.Equal(new EstimativaAnalise(null, null, null, null), AchadosExecucao.Ler(raiz, raiz, inicio).Estimativa);
+    }
+
+    [Fact]
     public void Recupera_contagem_por_etapa_sem_duplicar_eventos_ou_exigir_achado()
     {
         using var pasta = Ambiente.PastaDeTeste("contagem-etapas");

@@ -157,7 +157,22 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     internal ProgressoEtapa? ProgressoAtual { get; private set; }
     private ProgressoEtapa? progressoDesenhado;
+    internal EstimativaAnalise? EstimativaAtual { get; private set; }
+    private EstimativaAnalise? estimativaDesenhada;
     private bool execucaoAtivaNaBarra;
+
+    internal void MostrarEstimativa(EstimativaAnalise? estimativa)
+    {
+        if (EstimativaAtual == estimativa) return;
+        EstimativaAtual = estimativa;
+        MostrarEtapas(etapasMostradas, execucaoAtivaNaBarra);
+    }
+
+    internal void MostrarRelogios(TimeSpan decorrido, DateTimeOffset agora)
+    {
+        TextoTempoDecorrido.Text = "Decorrido · " + FluxoNovoRelatorio.TempoLegivel(decorrido);
+        TextoTempoEstimado.Text = FluxoNovoRelatorio.TextoEstimativa(EstimativaAtual?.Termino?.ToLocalTime(), agora);
+    }
 
     internal void MostrarProgresso(ProgressoEtapa? progresso)
     {
@@ -217,21 +232,15 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         return new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 8, 10, 8), Background = Recurso("SubtleFillColorSecondaryBrush"), Child = g };
     }
 
-    int PercentualEtapa(string nome, EstadoEtapa estado)
-    {
-        if (estado == EstadoEtapa.Feita) return 100;
-        if (estado == EstadoEtapa.Pendente) return 0;
-        if (ProgressoAtual is { Total: > 0 } p && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(p.Etapa) == nome)
-            return Math.Clamp((int)Math.Round(100.0 * p.Avaliados / p.Total), 1, 99);
-        return 1; // Início registrado, ainda sem contagem de itens.
-    }
-
     internal string RotuloEtapa(string nome, EstadoEtapa estado, bool ativa)
     {
         var status = estado switch { EstadoEtapa.Feita => "Concluída", EstadoEtapa.Agora => ativa ? "Em andamento" : "Interrompida",
             EstadoEtapa.Erro => "Com erro", _ => "Pendente" };
-        var estimado = estado is EstadoEtapa.Agora or EstadoEtapa.Erro ? " estimado" : "";
-        return $"{status} · {PercentualEtapa(nome, estado)}%{estimado}";
+        if (estado == EstadoEtapa.Feita) return status + " · 100%";
+        if (estado == EstadoEtapa.Pendente) return status;
+        return EstimativaAtual is { Etapa: { } etapa, PercentualEtapa: { } percentual }
+               && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(etapa) == nome
+            ? $"{status} · {percentual:0.#}% estimado pela IA" : status;
     }
 
     static readonly string[] DescricoesEtapas = [
@@ -250,20 +259,26 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     internal void MostrarEtapas(IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, bool animar)
     {
         var podeAnimar = animar && new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
-        if (podeAnimar == animandoEtapas && execucaoAtivaNaBarra == animar && progressoDesenhado == ProgressoAtual && etapasMostradas.SequenceEqual(etapas)) return;
+        if (podeAnimar == animandoEtapas && execucaoAtivaNaBarra == animar && progressoDesenhado == ProgressoAtual
+            && estimativaDesenhada == EstimativaAtual && etapasMostradas.SequenceEqual(etapas)) return;
         execucaoAtivaNaBarra = animar;
         progressoDesenhado = ProgressoAtual;
+        estimativaDesenhada = EstimativaAtual;
         etapasMostradas = etapas.ToArray();
         animandoEtapas = podeAnimar;
         var feitas = etapas.Count(e => e.Estado == EstadoEtapa.Feita);
-        var proporcao = etapas.Sum(e => PercentualEtapa(e.Nome, e.Estado)) / (100.0 * Math.Max(1, etapas.Count));
-        BarraResumoEtapas.IsIndeterminate = animar && etapas.Count == 0;
-        BarraResumoEtapas.Value = 100 * proporcao;
+        var concluiu = etapas.Count > 0 && feitas == etapas.Count;
+        var percentual = concluiu ? 100d : EstimativaAtual?.PercentualGeral;
+        BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
+        BarraResumoEtapas.Value = percentual ?? 0;
         BarraResumoEtapas.Visibility = etapas.Count > 0 || animar ? Visibility.Visible : Visibility.Collapsed;
-        ProgressoAtividades.Value = 100 * proporcao;
+        ProgressoAtividades.IsIndeterminate = animar && percentual is null;
+        ProgressoAtividades.Value = percentual ?? 0;
         ProgressoAtividades.Visibility = etapas.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        ContagemAtividades.Text = etapas.Count == 0 ? "Aguardando as etapas da análise."
-            : $"{feitas} de {etapas.Count} etapas concluídas · {100 * proporcao:0.#}% geral";
+        var contagemEtapas = etapas.Count == 0 ? "Aguardando as etapas da análise." : $"{feitas} de {etapas.Count} etapas concluídas";
+        ContagemAtividades.Text = percentual is { } valor
+            ? $"{contagemEtapas} · {valor:0.#}% geral" + (concluiu ? "" : " estimado pela IA")
+            : contagemEtapas + (animar ? " · Aguardando estimativa da IA" : "");
         EtapasAtividades.Children.Clear();
         PainelEtapas.Children.Clear();
         PainelEtapas.ColumnDefinitions.Clear();
@@ -371,6 +386,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             bloco.Children.Add(new TextBlock
             {
                 Text = situacao, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
                 Foreground = Recurso(estado switch { EstadoEtapa.Agora => "AccentTextFillColorPrimaryBrush", EstadoEtapa.Erro => "SystemFillColorCriticalBrush", _ => "TextFillColorSecondaryBrush" }),
             });
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(bloco, $"{nome}: {situacao}");

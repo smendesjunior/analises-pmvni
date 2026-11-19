@@ -427,6 +427,8 @@ public sealed partial class MainWindow
         Atualizador.Iniciar();
     }
 
+    bool notificouAtualizacaoPronta;
+
     void MostrarEstadoAtualizacao(EstadoAtualizacao e)
     {
         if (fechada) return;
@@ -436,6 +438,11 @@ public sealed partial class MainWindow
         p.BotaoReiniciarAtualizacao.Visibility = e.Etapa == EtapaAtualizacao.Pronta ? Visibility.Visible : Visibility.Collapsed;
         p.AlternarAtualizarSozinho.IsEnabled = Atualizador.Habilitado;
         p.TextoOQueMudou.Text = string.IsNullOrWhiteSpace(e.Notas) ? "As notas aparecem aqui depois da primeira verificação." : e.Notas;
+        if (e.Etapa == EtapaAtualizacao.Pronta && !notificouAtualizacaoPronta)
+        {
+            notificouAtualizacaoPronta = true;
+            NotificacoesWindows.Mostrar("Atualização do Editor pronta", "A nova versão será usada na próxima abertura do Editor.");
+        }
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]

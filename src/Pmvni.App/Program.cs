@@ -17,6 +17,7 @@ internal static class Program
             SynchronizationContext.SetSynchronizationContext(new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread()));
             _ = new App();
         });
+        NotificacoesWindows.Encerrar();
         // Depois de o Windows.Data.Pdf desenhar páginas neste processo (passo 3 do Novo despacho), o driver de vídeo da Intel
         // (igd10um64xe.dll) fica girando a 100% na descarga das DLLs e o processo nunca termina (visto no roteiro da Tarefa 16: uma thread
         // só, dentro do driver, depois de tudo gravado). Quando o laço de mensagens acaba, tudo já foi gravado e fechado: o processo sai

@@ -33,7 +33,17 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        janela = new MainWindow();
-        janela.Activate();
+        var principal = janela = new MainWindow();
+        var fila = principal.DispatcherQueue;
+        principal.Closed += (_, _) => janela = null;
+        NotificacoesWindows.Registrar(() => fila.TryEnqueue(() =>
+        {
+            if (janela is null) return;
+            if (principal.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter
+                { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized } apresentador)
+                apresentador.Restore();
+            principal.Activate();
+        }));
+        principal.Activate();
     }
 }

@@ -77,6 +77,7 @@ public sealed partial class MainWindow
     async Task DescartarSessaoAsync(SessaoEdicao s)
     {
         if (ReferenceEquals(sessao, s)) sessao = null;
+        if (ReferenceEquals(falhaSalvamentoNotificada, s)) falhaSalvamentoNotificada = null;
         DesligarSessao(s);
         Reiniciar();
         await s.DisposeAsync();
@@ -162,6 +163,8 @@ public sealed partial class MainWindow
     /// <paramref name="concluirEdicao"/>: um campo em edição no A4 entra antes (como o Enter); o salvamento automático não o fecha.</summary>
     internal Task<bool> GravarAgoraAsync(bool concluirEdicao = true) => NaFilaAsync(() => GravarNaVezAsync(concluirEdicao));
 
+    SessaoEdicao? falhaSalvamentoNotificada;
+
     async Task<bool> GravarNaVezAsync(bool concluirEdicao = true)
     {
         if (sessao is not { } s) return false;
@@ -175,15 +178,29 @@ public sealed partial class MainWindow
         {
             await s.GravarAsync();
             if (ReferenceEquals(sessao, s)) R.AvisoConflito.IsOpen = false;
+            if (s.Estado == EstadoGravacao.Salvo) falhaSalvamentoNotificada = null;
             return s.Estado == EstadoGravacao.Salvo;
         }
-        catch (ConflitoNoDiscoException) { MostrarConflito(); return false; }
+        catch (ConflitoNoDiscoException)
+        {
+            MostrarConflito();
+            AvisarFalhaSalvamento(s, "O arquivo mudou no disco. Abra o Editor para escolher como preservar as alterações.");
+            return false;
+        }
         catch (Exception e)
         {
             MostrarMensagem(InfoBarSeverity.Error, "Não foi possível salvar", Erro(e) + ". O arquivo no disco não foi alterado"
                 + (s.DiarioAtivo ? "; as alterações continuam guardadas no diário de recuperação e o salvamento será tentado de novo." : "."));
+            AvisarFalhaSalvamento(s, "Abra o Editor para conferir o erro e as opções de salvamento.");
             return false;
         }
+    }
+
+    void AvisarFalhaSalvamento(SessaoEdicao s, string texto)
+    {
+        if (ReferenceEquals(falhaSalvamentoNotificada, s)) return;
+        falhaSalvamentoNotificada = s;
+        NotificacoesWindows.Mostrar("O relatório não pôde ser salvo", texto);
     }
 
     // ---------- trava ----------

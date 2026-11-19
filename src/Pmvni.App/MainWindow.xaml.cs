@@ -499,11 +499,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 linhasDemo.Add("Ação: consultou os créditos disponíveis");
                 NR.LigarLinhas(linhasDemo);
                 NR.MostrarExecucao(true);
-                NR.TextoCabecalho.Text = "Analisando com o ChatGPT · 19486/2026 · 12 min";
+                NR.TextoCabecalho.Text = "Analisando com o ChatGPT · 19486/2026";
                 NR.PainelClaude.Visibility = Visibility.Visible;
                 NR.ProcessoMonitor.Text = "Processo 19486/2026";
                 NR.MostrarEtapas(FluxoNovoRelatorio.Etapas("analyze", ""), true);
                 NR.MostrarProgresso(new ProgressoEtapa("analyze", 1, 4, 10));
+                var agora = DateTimeOffset.Now;
+                NR.MostrarEstimativa(new EstimativaAnalise("analyze", 34.5, 27.8, agora.AddMinutes(14)));
+                NR.MostrarRelogios(TimeSpan.FromMinutes(12), agora);
                 await Task.Delay(500);
                 AplicarLargura(Raiz.ActualWidth);
             }
@@ -916,6 +919,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         Faixa.Habilitar(ComandosApp.ExibirMais, folhas && zoom < PassosZoom[^1] - 0.001);
         Faixa.Habilitar(ComandosApp.ExibirLargura, folhas);
         Faixa.Habilitar(ComandosApp.ExibirPagina, folhas);
+        Faixa.Habilitar(ComandosApp.ExibirPainel, !novoRelatorioAberto);
+        Faixa.Habilitar(ComandosApp.ExibirPropriedades, !novoRelatorioAberto);
         Faixa.Ligar(ComandosApp.ExibirPainel, PainelVisivel);
         AtualizarComandosRevisao(folhas);
         AtualizarComandosPastas(pronto);
@@ -926,12 +931,25 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         R.ControleZoom.IsEnabled = folhas;
         R.BotaoMenos.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMenos);
         R.BotaoMais.IsEnabled = Faixa.Habilitado(ComandosApp.ExibirMais);
-        R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = temRelatorio;
+        R.BotaoLargura.IsEnabled = R.BotaoPagina.IsEnabled = folhas;
         // Desabilitado diz o motivo (M6); habilitado, o atalho.
-        DicaDoRodape(R.BotaoMenos, ComandosApp.ExibirMenos, "Diminuir o zoom", temRelatorio ? null : "Abra um relatório para mudar o zoom.");
-        DicaDoRodape(R.BotaoMais, ComandosApp.ExibirMais, "Aumentar o zoom", temRelatorio ? null : "Abra um relatório para mudar o zoom.");
-        DicaDoRodape(R.BotaoLargura, ComandosApp.ExibirLargura, "Ajustar largura", temRelatorio ? null : "Abra um relatório para ajustar a largura.");
-        DicaDoRodape(R.BotaoPagina, ComandosApp.ExibirPagina, "Página inteira", temRelatorio ? null : "Abra um relatório para ver a página inteira.");
+        const string voltarAsFolhas = "Volte às folhas do relatório para usar este comando.";
+        var motivoFolhas = novoRelatorioAberto ? voltarAsFolhas
+            : ocupado ? "Aguarde a operação em andamento terminar."
+            : !temRelatorio ? "Abra ou importe um relatório para usar este comando." : null;
+        var motivoMenos = motivoFolhas ?? (R.BotaoMenos.IsEnabled ? null : "O zoom já está no mínimo.");
+        var motivoMais = motivoFolhas ?? (R.BotaoMais.IsEnabled ? null : "O zoom já está no máximo.");
+        Faixa.DefinirDica(ComandosApp.ExibirMenos, motivoMenos ?? "");
+        Faixa.DefinirDica(ComandosApp.ExibirMais, motivoMais ?? "");
+        foreach (var id in new[] { ComandosApp.ExibirLargura, ComandosApp.ExibirPagina,
+            ComandosApp.RevisaoMarcas, ComandosApp.RevisaoSomenteAlterados })
+            Faixa.DefinirDica(id, motivoFolhas ?? "");
+        Faixa.DefinirDica(ComandosApp.ExibirPainel, voltarAsFolhas);
+        Faixa.DefinirDica(ComandosApp.ExibirPropriedades, voltarAsFolhas);
+        DicaDoRodape(R.BotaoMenos, ComandosApp.ExibirMenos, "Diminuir o zoom", motivoMenos);
+        DicaDoRodape(R.BotaoMais, ComandosApp.ExibirMais, "Aumentar o zoom", motivoMais);
+        DicaDoRodape(R.BotaoLargura, ComandosApp.ExibirLargura, "Ajustar largura", motivoFolhas);
+        DicaDoRodape(R.BotaoPagina, ComandosApp.ExibirPagina, "Página inteira", motivoFolhas);
     }
 
     /// <summary>A dica de um botão do rodapé (o mesmo comando da faixa): só refeita quando muda.</summary>
@@ -1346,6 +1364,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal async Task<(bool Ok, ResultadoExportacao? Resultado, string? Erro, Exception? Excecao)> ExportarParaAsync(string caminhoPdf, bool paraImprimir = false)
     {
         var recusada = paraImprimir ? "Impressão recusada" : "Exportação recusada";
+        void AvisarFalhaNaExportacao() => NotificacoesWindows.Mostrar(
+            paraImprimir ? "A impressão não pôde ser preparada" : "A exportação do PDF não foi concluída",
+            "Abra o Editor para conferir o motivo e as opções para tentar novamente.");
+
         if (sessao?.Atual is null) return (false, null, "Nenhum relatório aberto.", null);
         if (ocupado || aplicando) { AvisarOcupado(); return (false, null, "A janela está ocupada.", null); }
         // O campo em edição no A4 entra antes (como o Enter): o PDF sai com o texto digitado.
@@ -1355,6 +1377,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         {
             var desatualizada = new ExportacaoDivergenteException(SessaoEdicao.TextoDesatualizada);
             MostrarMensagem(InfoBarSeverity.Error, recusada, desatualizada.Message);
+            AvisarFalhaNaExportacao();
             return (false, null, desatualizada.Message, desatualizada);
         }
         // Alterações que o arquivo não tem e não pode receber agora (trava perdida, conflito): o PDF viria da memória e o recibo levaria
@@ -1364,6 +1387,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             var semGravar = new ExportacaoDivergenteException(TextosGravacao.ExportarSemGravar(sessao.Estado == EstadoGravacao.Conflito));
             if (sessao.Estado == EstadoGravacao.Conflito) MostrarConflito();
             MostrarMensagem(InfoBarSeverity.Error, recusada, semGravar.Message);
+            AvisarFalhaNaExportacao();
             return (false, null, semGravar.Message, semGravar);
         }
         var avisos = r.Preparado.AvisosExportacao;
@@ -1379,29 +1403,39 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             // Com um salvamento automático em curso, espera ele (a gravação vai na fila do gravador): o disco e o "esperado" batem.
             if (sessao.Estado is EstadoGravacao.NaoSalvo or EstadoGravacao.Salvando) await sessao.GravarAsync();
             var x = await sessao.ExportarAsync(caminhoPdf);
-            if (!paraImprimir) MostrarMensagem(InfoBarSeverity.Success, "PDF exportado", $"{x.Folhas} folhas em {x.CaminhoPdf}. Recibo: {Path.GetFileName(x.CaminhoRecibo)}.");
+            if (!paraImprimir)
+            {
+                MostrarMensagem(InfoBarSeverity.Success, "PDF exportado", $"{x.Folhas} folhas em {x.CaminhoPdf}. Recibo: {Path.GetFileName(x.CaminhoRecibo)}.");
+                NotificacoesWindows.Mostrar("Exportação concluída", x.Folhas == 1
+                    ? "O PDF de 1 folha e o recibo foram gravados."
+                    : $"O PDF de {x.Folhas} folhas e o recibo foram gravados.");
+            }
             return (true, x, null, null);
         }
         catch (ConflitoNoDiscoException e)
         {
             MostrarConflito();
             MostrarMensagem(InfoBarSeverity.Error, recusada, ExportacaoDivergenteException.ArquivoMudou);
+            AvisarFalhaNaExportacao();
             return (false, null, ExportacaoDivergenteException.ArquivoMudou, e);
         }
         catch (ConferenciaFinalException e)
         {
             MostrarMensagem(InfoBarSeverity.Error, (paraImprimir ? "Impressão bloqueada" : "Exportação bloqueada") + ": o relatório ainda não está completo", string.Join(Environment.NewLine, e.Erros));
+            AvisarFalhaNaExportacao();
             return (false, null, e.Message, e);
         }
         catch (Exception e) when (e is ExportacaoRecusadaException or ExportacaoDivergenteException)
         {
             MostrarMensagem(InfoBarSeverity.Error, recusada, e.Message);
+            AvisarFalhaNaExportacao();
             return (false, null, e.Message, e);
         }
         catch (Exception e)
         {
             var texto = Erro(e);
             MostrarMensagem(InfoBarSeverity.Error, paraImprimir ? "Não foi possível preparar a impressão" : "Não foi possível exportar o PDF", texto);
+            AvisarFalhaNaExportacao();
             return (false, null, texto, e);
         }
         finally { Liberar(); }

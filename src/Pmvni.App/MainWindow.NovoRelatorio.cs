@@ -759,11 +759,13 @@ public sealed partial class MainWindow
         catch (CopiaInterrompidaException x)
         {
             MostrarMensagem(InfoBarSeverity.Error, "A análise não foi iniciada", FluxoNovoRelatorio.TextoCopiaInterrompida(Erro(x.InnerException!), x.Pasta));
+            NotificacoesWindows.Mostrar("A análise não foi iniciada", "A preparação dos anexos foi interrompida. Confira o aviso no Editor.");
             return null;
         }
         catch (Exception x)
         {
             MostrarMensagem(InfoBarSeverity.Error, "A análise não foi iniciada", Erro(x) + ". Nada foi iniciado.");
+            NotificacoesWindows.Mostrar("A análise não foi iniciada", "Abra o Editor para conferir a falha de inicialização.");
             return null;
         }
         finally
@@ -871,6 +873,7 @@ public sealed partial class MainWindow
         execucaoMostrada = e;
         NR.BotaoEvidenciasPdf.Visibility = Visibility.Collapsed;
         NR.MostrarAchados([]);
+        NR.MostrarEstimativa(null);
         NR.MostrarProgresso(null);
         _ = AtualizarAchadosAsync(e);
         NR.LigarLinhas(e.LinhasObservaveis);
@@ -896,11 +899,13 @@ public sealed partial class MainWindow
         lendoAchados = true;
         try
         {
-            var achados = await Task.Run(() => AchadosExecucao.Ler(e.Registro.PastaProgresso, e.Processo.Pasta));
+            var achados = await Task.Run(() => AchadosExecucao.Ler(e.Registro.PastaProgresso, e.Processo.Pasta, e.InicioUtc));
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
             {
                 NR.BotaoEvidenciasPdf.Visibility = Directory.Exists(Path.Combine(e.Processo.Pasta, ".pmvni-ai", "cache-pdf")) ? Visibility.Visible : Visibility.Collapsed;
                 NR.MostrarAchados(achados.Itens);
+                var mudouEstimativa = NR.EstimativaAtual != achados.Estimativa;
+                NR.MostrarEstimativa(achados.Estimativa);
                 var etapa = e.Situacao?.Etapa;
                 var progresso = etapa is null
                     ? SituacaoAnalisePro.Etapas.Select(chave => achados.Etapas.GetValueOrDefault(chave)).LastOrDefault(p => p is not null)
@@ -910,6 +915,7 @@ public sealed partial class MainWindow
                     NR.MostrarProgresso(progresso);
                     RenderizarExecucao(e, linhasNovas: false);
                 }
+                else if (mudouEstimativa) RenderizarExecucao(e, linhasNovas: false);
             }
         }
         catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RegistroErros.Gravar("analise.achados", x); }
@@ -919,8 +925,9 @@ public sealed partial class MainWindow
     void AtualizarRelogioDaExecucao(ExecucaoEmCurso e)
     {
         NR.ProcessoMonitor.Text = "Processo " + FluxoNovoRelatorio.Identificacao(e.Processo);
-        NR.TextoCabecalho.Text = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo, e.TempoAtivo)
+        NR.TextoCabecalho.Text = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo)
             + (e.Retomada ? " (retomada)" : "");
+        NR.MostrarRelogios(e.TempoAtivo, DateTimeOffset.Now);
     }
 
     void RenderizarExecucao(ExecucaoEmCurso e, bool linhasNovas)
@@ -938,7 +945,7 @@ public sealed partial class MainWindow
         {
             var s = e.Situacao;
             erro = string.IsNullOrWhiteSpace(s?.Erro) ? null : s!.Erro;
-            etapas = FluxoNovoRelatorio.Etapas(s?.Etapa ?? n.ProgressoAtual?.Etapa, s?.Codigo ?? "");
+            etapas = FluxoNovoRelatorio.Etapas(s?.Etapa ?? n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa, s?.Codigo ?? "");
             // A etapa em que o kit informou erro fica vermelha.
             if (erro is not null) etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();
             n.TextoRotulo.Text = s is null ? "Iniciando a análise detalhada…" : $"Situação: {s.Codigo}" + (s.Rotulo is null ? "" : " · " + s.Rotulo) + (erro is null ? "" : Environment.NewLine + "Erro: " + erro);
@@ -946,7 +953,7 @@ public sealed partial class MainWindow
         }
         else
         {
-            etapas = FluxoNovoRelatorio.Etapas(n.ProgressoAtual?.Etapa, "");
+            etapas = FluxoNovoRelatorio.Etapas(n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa, "");
             n.TextoRotulo.Text = $"Provedor: {Provedores.Nome(e.Provedor)} · Registro: {e.Registro.Pasta}";
             n.TextoEventos.Text = "";
         }
@@ -1017,8 +1024,28 @@ public sealed partial class MainWindow
         // sem relatório aberto e sem despacho em edição (conferido na vez da fila). Senão, "Relatório pronto" com "Abrir relatório".
         RegistrarFimNaPilula(e, fim);
         if (comRelatorio)
-            await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf), () => naVista && PodeAbrirSemInterromper);
-        else MostrarResultadoNR(e, fim, sessaoCodex);
+        {
+            var importado = await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf),
+                () => naVista && PodeAbrirSemInterromper);
+            if (!fechada)
+                NotificacoesWindows.Mostrar(importado ? "Relatório pronto" : "Relatório aguardando importação",
+                    importado ? "A análise foi concluída e o relatório está disponível para revisão."
+                        : "A análise terminou. Abra o Editor para tentar importar o relatório novamente.");
+        }
+        else
+        {
+            MostrarResultadoNR(e, fim, sessaoCodex);
+            if (!e.PausaSolicitada && fim.Situacao != "cancelada")
+            {
+                var titulo = fim.Situacao switch
+                {
+                    "interrompida" => "Análise interrompida",
+                    "cota_esgotada" => "Cota da IA esgotada",
+                    _ => "A análise não gerou relatório",
+                };
+                NotificacoesWindows.Mostrar(titulo, "Abra o Editor para conferir o registro e as opções de retomada.");
+            }
+        }
         AtualizarTituloAnalise();
         AtualizarBotoesNR();
         return fim;
@@ -1294,6 +1321,8 @@ public sealed partial class MainWindow
                     if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, pend.Registro)))
                         importacoesPendentes.Add(new ImportacaoPendente(ia, processo, pend.Registro, null, null));
                     MostrarImportacaoPendente(processo, FluxoNovoRelatorio.TextoKitTerminou(ia, processo), InfoBarSeverity.Success);
+                    NotificacoesWindows.Mostrar("Relatório aguardando importação",
+                        "A análise terminou com o Editor fechado. Use Importar relatório para revisar o resultado.");
                     break;
                 case "EM_ANDAMENTO" or "AGUARDANDO_COTA" or "INICIANDO":
                     if (await Task.Run(() => LerInicio(pend.Registro)) is not { } inicio)

@@ -30,8 +30,11 @@
             <!-- Correções 2026-11-15: no modelo do WinUI o ícone e o rótulo (rótulo à direita) têm margem 16 em cima e 10 embaixo e ficam
                  3 px abaixo do centro do botão (o fundo ao passar o mouse aparecia acima do texto); aqui, 13 e 13. -->
             <Thickness x:Key="AppBarButtonContentViewboxMargin">8,9,0,9</Thickness>
-            <Thickness x:Key="AppBarButtonTextLabelOnRightMargin">6,9,8,9</Thickness>
-            <Thickness x:Key="AppBarToggleButtonTextLabelOnRightMargin">6,9,8,9</Thickness>
+            <!-- O botão comum usa a margem estática do WinUI (16/10). A mesma margem vertical nos alternadores
+                 mantém o ícone e o texto dos dois tipos na mesma linha. -->
+            <Thickness x:Key="AppBarToggleButtonTextLabelOnRightMargin">8,16,12,10</Thickness>
+            <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedDisabled" ResourceKey="AppBarToggleButtonBackgroundDisabled"/>
+            <StaticResource x:Key="AppBarToggleButtonForegroundCheckedDisabled" ResourceKey="AppBarToggleButtonForegroundDisabled"/>
           </CommandBar.Resources>
         </CommandBar>
       </Grid>

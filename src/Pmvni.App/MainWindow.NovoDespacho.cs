@@ -950,6 +950,7 @@ public sealed partial class MainWindow
             if (ReferenceEquals(novo, s)) N.MostrarEspera(null, false);
             MostrarMensagem(InfoBarSeverity.Error, "O despacho não foi gravado",
                 Erro(x) + ". Nada desta gravação ficou na pasta do processo.");
+            NotificacoesWindows.Mostrar("O despacho não foi gravado", "Abra o Editor para conferir o motivo e tentar a gravação novamente.");
             if (ReferenceEquals(novo, s)) AtualizarGravar(s);
             return null;
         }
@@ -963,6 +964,8 @@ public sealed partial class MainWindow
         aviso.Message = $"{arquivos} arquivos em {e.Pasta}. Recibo: {Path.GetFileName(e.Recibo)}.";
         PaginaDeDespachos.BotaoAbrirPdfGravado.Visibility = e.Pdf is null ? Visibility.Collapsed : Visibility.Visible;
         aviso.IsOpen = true;
+        NotificacoesWindows.Mostrar(s.SoPdf ? "PDF do despacho gravado" : "Despacho gravado",
+            "Os arquivos gerados estão disponíveis na pasta de despacho do processo.");
         // Ajustes › Despachos e PDF › "Abrir o PDF depois de gravar" (padrão: desligado, como sempre).
         if (ajustes.DespachoAbrirPdf && e.Pdf is { } pdfGravado) AbrirNoPrograma(pdfGravado);
         // Gerar despacho abre a pasta onde ele foi gravado (a DESPACHO NN do processo, regra do kit), com o PDF — ou o Word — selecionado.

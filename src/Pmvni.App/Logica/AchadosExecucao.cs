@@ -7,15 +7,17 @@ namespace Pmvni.App;
 internal sealed record AchadoExecucao(string Id, long Sequencia, string Titulo, string Situacao, bool Verificado);
 
 internal sealed record ProgressoEtapa(string Etapa, long Sequencia, int Avaliados, int Total);
-internal sealed record PainelAchados(List<AchadoExecucao> Itens, Dictionary<string, ProgressoEtapa> Etapas);
+internal sealed record EstimativaAnalise(string? Etapa, double? PercentualEtapa, double? PercentualGeral, DateTimeOffset? Termino);
+internal sealed record PainelAchados(List<AchadoExecucao> Itens, Dictionary<string, ProgressoEtapa> Etapas, EstimativaAnalise? Estimativa);
 
 internal static class AchadosExecucao
 {
-    public static PainelAchados Ler(string pasta, string processo)
+    public static PainelAchados Ler(string pasta, string processo, DateTime inicioUtc = default)
     {
         var ultimos = new Dictionary<string, AchadoExecucao>(StringComparer.Ordinal);
         var etapas = new Dictionary<string, ProgressoEtapa>(StringComparer.Ordinal);
-        if (!Directory.Exists(pasta) || new DirectoryInfo(pasta).LinkTarget is not null) return new([], etapas);
+        EstimativaAnalise? estimativa = null;
+        if (!Directory.Exists(pasta) || new DirectoryInfo(pasta).LinkTarget is not null) return new([], etapas, null);
         foreach (var arquivo in new DirectoryInfo(pasta).EnumerateFiles("*.json").OrderBy(f => f.Name, StringComparer.Ordinal))
         {
             try
@@ -25,6 +27,21 @@ internal static class AchadosExecucao
                 var e = doc.RootElement;
                 string? Texto(string nome) => e.TryGetProperty(nome, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
                 if (e.ValueKind != JsonValueKind.Object) continue;
+                if (arquivo.Name.Equals(Pmvni.Agentes.RegistroExecucao.ArquivoEstimativa, StringComparison.OrdinalIgnoreCase))
+                {
+                    var escrita = arquivo.LastWriteTimeUtc;
+                    if (escrita >= inicioUtc)
+                    {
+                        var idEtapa = Texto("etapa");
+                        var etapaValida = idEtapa is not null && Pmvni.Agentes.SituacaoAnalisePro.Etapas.Contains(idEtapa);
+                        var termino = e.TryGetProperty("termino_estimado_utc", out var data) && data.ValueKind == JsonValueKind.String
+                            && data.TryGetDateTimeOffset(out var hora) && hora.Offset == TimeSpan.Zero && hora > escrita
+                            ? (DateTimeOffset?)hora : null;
+                        estimativa = new(etapaValida ? idEtapa : null, etapaValida ? Percentual(e, "percentual_etapa") : null,
+                            Percentual(e, "percentual_geral"), termino);
+                    }
+                    continue;
+                }
                 if (Texto("etapa") is { } etapa && Pmvni.Agentes.SituacaoAnalisePro.Etapas.Contains(etapa)
                     && e.TryGetProperty("avaliados", out var a) && a.ValueKind == JsonValueKind.Number && a.TryGetInt32(out var avaliados)
                     && e.TryGetProperty("total", out var t) && t.ValueKind == JsonValueKind.Number && t.TryGetInt32(out var total)
@@ -46,8 +63,12 @@ internal static class AchadosExecucao
             }
             catch (Exception erro) when (erro is IOException or UnauthorizedAccessException or JsonException or ArgumentException) { }
         }
-        return new(ultimos.Values.OrderBy(a => a.Id, StringComparer.Ordinal).ToList(), etapas);
+        return new(ultimos.Values.OrderBy(a => a.Id, StringComparer.Ordinal).ToList(), etapas, estimativa);
     }
+
+    static double? Percentual(JsonElement dados, string chave) =>
+        dados.TryGetProperty(chave, out var valor) && valor.ValueKind == JsonValueKind.Number
+        && valor.TryGetDouble(out var numero) && numero is >= 0 and <= 99.9 ? numero : null;
 
     static bool ConferirProva(string processo, string? relativo, string? hash)
     {
