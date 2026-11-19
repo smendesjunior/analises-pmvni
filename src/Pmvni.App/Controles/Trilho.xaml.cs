@@ -18,7 +18,19 @@ public sealed partial class Trilho : UserControl
     readonly HashSet<Modulo> pressionados = new();
     Modulo? atual;
 
-    public Trilho() => InitializeComponent();
+    public Trilho()
+    {
+        InitializeComponent();
+        SizeChanged += (_, _) => AjustarAlturaDosItens();
+    }
+
+    void AjustarAlturaDosItens()
+    {
+        if (itens.Count == 0 || ActualHeight <= 0) return;
+        var altura = Math.Clamp(Math.Floor((ActualHeight - 48) / itens.Count), 64, 94);
+        foreach (var (modulo, item) in itens)
+            item.Fundo.Height = modulo == Modulo.Acompanhamento ? altura + 8 : altura;
+    }
 
     public event Action<Modulo>? ModuloEscolhido;
 
@@ -95,6 +107,7 @@ public sealed partial class Trilho : UserControl
             (Pmvni.App.Modulos.Embaixo(m) ? Baixo : Cima).Children.Add(botao);
             itens[m] = new Item(botao, fundo, indicador, rotulo, icone);
         }
+        AjustarAlturaDosItens();
         if (atual is { } a) Marcar(a);
     }
 
