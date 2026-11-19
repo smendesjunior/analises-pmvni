@@ -144,7 +144,8 @@ public static class RegrasAtualizacao
         var partes = versao.Trim().Split('.');
         if (partes.Length < 2 || !partes.All(p => p.Length > 0 && p.All(char.IsAsciiDigit))) return versao.Trim();
         var n = partes.Length;
-        while (n > 2 && partes[n - 1].TrimStart('0').Length == 0) n--;
+        var minimo = int.TryParse(partes[0], out var principal) && principal >= 2 ? 3 : 2;
+        while (n > minimo && partes[n - 1].TrimStart('0').Length == 0) n--;
         return string.Join('.', partes.Take(n));
     }
 }

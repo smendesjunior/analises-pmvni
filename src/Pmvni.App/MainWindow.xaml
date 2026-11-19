@@ -9,14 +9,14 @@
   </Window.SystemBackdrop>
 
   <!-- Shell: barra de título (ícone, título, estado de gravação), faixa de opções do módulo, trilho de módulos e as páginas. -->
-  <Grid x:Name="Raiz">
+  <Grid x:Name="Raiz" ColumnDefinitions="Auto,*">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <Grid x:Name="BarraTitulo" Grid.Row="0" Height="72" Background="Transparent">
+    <Grid x:Name="BarraTitulo" Grid.Row="0" Grid.ColumnSpan="2" Height="64" Background="Transparent">
       <Grid.ColumnDefinitions>
         <ColumnDefinition x:Name="MargemSistemaEsquerda" Width="0"/>
         <ColumnDefinition Width="Auto"/>
@@ -144,10 +144,10 @@
         <Grid VerticalAlignment="Center">
           <!-- Pesquisa geral (2026-11-17): além do módulo à vista, acha ajustes, funções, arquivos e leis (lista abaixo da caixa). TextBox nativo
                em pílula: a borda de foco é a do tema (cor de destaque do Windows). -->
-          <TextBox x:Name="CaixaPesquisa" Width="340" Height="36" MinHeight="36" CornerRadius="10" Padding="36,6,58,6" VerticalAlignment="Center"
+          <TextBox x:Name="CaixaPesquisa" Width="340" Height="32" MinHeight="32" CornerRadius="8" Padding="32,3,58,3" VerticalAlignment="Center"
                    PlaceholderText="Pesquisar arquivos, funções, leis e configurações..." AutomationProperties.Name="Pesquisar no app"
                    ToolTipService.ToolTip="Pesquisar no app (Ctrl+F)"/>
-          <TextBlock Text="Ctrl + K" Margin="0,0,10,0" VerticalAlignment="Center" HorizontalAlignment="Right" IsHitTestVisible="False" Style="{StaticResource CaptionTextBlockStyle}"/>
+          <TextBlock x:Name="AtalhoPesquisa" Text="Ctrl + K" Margin="0,0,10,0" VerticalAlignment="Center" HorizontalAlignment="Right" IsHitTestVisible="False" Style="{StaticResource CaptionTextBlockStyle}"/>
           <FontIcon x:Name="IconePesquisa" Glyph="&#xE721;" FontSize="15" Margin="15,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
                     IsHitTestVisible="False" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
         </Grid>
@@ -173,28 +173,22 @@
       </StackPanel>
     </Grid>
 
-    <local:FaixaDeOpcoes x:Name="Faixa" Grid.Row="1" Margin="152,0,0,0"/>
+    <local:FaixaDeOpcoes x:Name="Faixa" Grid.Row="1" Grid.Column="1"/>
 
-    <Grid Grid.Row="2">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="152"/>
-        <ColumnDefinition Width="*"/>
-      </Grid.ColumnDefinitions>
-      <local:Trilho x:Name="TrilhoModulos" Grid.Column="0"/>
-      <!-- Páginas dos módulos: criadas uma vez e trocadas por Visibility (o WebView2 nunca é recriado). -->
-      <Grid x:Name="AreaPaginas" Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8,0,0,0"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
-        <local:PaginaRelatorios x:Name="Relatorios"/>
-        <local:PaginaNovoRelatorio x:Name="PaginaDeNovoRelatorio" Visibility="Collapsed"/>
-        <local:PaginaDespachos x:Name="PaginaDeDespachos" Visibility="Collapsed"/>
-        <local:PaginaNovoDespacho x:Name="PaginaDeNovoDespacho" Visibility="Collapsed"/>
-        <local:PaginaProcessos x:Name="PaginaDeProcessos" Visibility="Collapsed"/>
-        <local:PaginaLegislacao x:Name="PaginaDeLegislacao" Visibility="Collapsed"/>
-        <local:PaginaAjustes x:Name="PaginaDeAjustes" Visibility="Collapsed"/>
-        <local:PaginaSites x:Name="PaginaDeSites" Visibility="Collapsed"/>
-        <local:PaginaImoveis x:Name="PaginaDeImoveis" Visibility="Collapsed"/>
-        <local:PaginaAcompanhamento x:Name="PaginaDeAcompanhamento" Visibility="Collapsed"/>
-      </Grid>
+    <local:Trilho x:Name="TrilhoModulos" Grid.Row="2" Grid.Column="0"/>
+    <!-- Páginas dos módulos: criadas uma vez e trocadas por Visibility (o WebView2 nunca é recriado). -->
+    <Grid x:Name="AreaPaginas" Grid.Row="2" Grid.Column="1" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8,0,0,0"
+          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,1,0,0">
+      <local:PaginaRelatorios x:Name="Relatorios"/>
+      <local:PaginaNovoRelatorio x:Name="PaginaDeNovoRelatorio" Visibility="Collapsed"/>
+      <local:PaginaDespachos x:Name="PaginaDeDespachos" Visibility="Collapsed"/>
+      <local:PaginaNovoDespacho x:Name="PaginaDeNovoDespacho" Visibility="Collapsed"/>
+      <local:PaginaProcessos x:Name="PaginaDeProcessos" Visibility="Collapsed"/>
+      <local:PaginaLegislacao x:Name="PaginaDeLegislacao" Visibility="Collapsed"/>
+      <local:PaginaAjustes x:Name="PaginaDeAjustes" Visibility="Collapsed"/>
+      <local:PaginaSites x:Name="PaginaDeSites" Visibility="Collapsed"/>
+      <local:PaginaImoveis x:Name="PaginaDeImoveis" Visibility="Collapsed"/>
+      <local:PaginaAcompanhamento x:Name="PaginaDeAcompanhamento" Visibility="Collapsed"/>
     </Grid>
   </Grid>
 </Window>

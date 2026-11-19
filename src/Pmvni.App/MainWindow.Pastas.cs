@@ -262,6 +262,7 @@ public sealed partial class MainWindow
         }
         finally { atualizandoListas = false; }
         PaginaDeProcessos.TextoTituloDetalhe.Text = "";
+        PaginaDeProcessos.MostrarProtocolo(null);
         PaginaDeProcessos.TextoPastaDetalhe.Text = "";
         PaginaDeProcessos.TextoSemProcesso.Text = "Escolha um processo na lista.";
         PaginaDeProcessos.TextoSemProcesso.Visibility = Visibility.Visible;
@@ -407,6 +408,7 @@ public sealed partial class MainWindow
         entradaEscolhida = null;
         detalheAtual = null;
         pagina.TextoTituloDetalhe.Text = p.Requerente ?? p.NomePasta;
+        pagina.MostrarProtocolo(p.Protocolo);
         pagina.TextoPastaDetalhe.Text = p.Pasta;
         pagina.ListaDetalhe.ItemsSource = null;
         pagina.TextoSemProcesso.Text = "Lendo o processo…";
@@ -484,6 +486,7 @@ public sealed partial class MainWindow
             if (processoEscolhido is null)
             {
                 pagina.TextoTituloDetalhe.Text = "";
+                pagina.MostrarProtocolo(null);
                 pagina.TextoPastaDetalhe.Text = "";
                 pagina.ListaDetalhe.ItemsSource = null;
                 pagina.TextoSemProcesso.Text = "Escolha um processo na lista.";
@@ -493,6 +496,7 @@ public sealed partial class MainWindow
             else if (detalheAtual is { } d && string.Equals(d.Processo.Pasta, processoEscolhido.Pasta, StringComparison.OrdinalIgnoreCase))
             {
                 pagina.TextoTituloDetalhe.Text = d.Processo.Requerente ?? d.Processo.NomePasta;
+                pagina.MostrarProtocolo(d.Processo.Protocolo);
                 pagina.TextoPastaDetalhe.Text = d.Processo.Pasta;
                 pagina.ListaDetalhe.ItemsSource = ListasPastas.Detalhe(d, true) /* a coluna Projeto e documentos lista sempre PROJETO e DOCUMENTOS */;
                 pagina.TextoSemProcesso.Visibility = Visibility.Collapsed;

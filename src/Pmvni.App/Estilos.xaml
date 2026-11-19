@@ -63,7 +63,7 @@
     <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="18"/>
-    <Setter Property="Height" Value="36"/>
+    <Setter Property="Height" Value="32"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniBotaoGrupoCabecalhoStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
@@ -184,7 +184,7 @@
     <Setter Property="BorderBrush" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Width" Value="108"/>
-    <Setter Property="MinHeight" Value="64"/>
+    <Setter Property="MinHeight" Value="54"/>
     <Setter Property="Padding" Value="0"/>
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="FocusVisualMargin" Value="-2"/>
@@ -472,5 +472,22 @@
   </Style>
   <Style x:Key="PmvniBotaoTextoDestaqueStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
     <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+  </Style>
+  <Style x:Key="PmvniPainelLateral" TargetType="Grid">
+    <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="10"/>
+  </Style>
+  <Style x:Key="PmvniCampoPesquisa" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+    <Setter Property="Padding" Value="32,4,8,4"/>
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="CornerRadius" Value="8"/>
+  </Style>
+  <Style x:Key="PmvniCartaoStatus" TargetType="ToggleButton" BasedOn="{StaticResource DefaultToggleButtonStyle}">
+    <Setter Property="Background" Value="{ThemeResource PmvniSuperficieSuave}"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
   </Style>
 </ResourceDictionary>

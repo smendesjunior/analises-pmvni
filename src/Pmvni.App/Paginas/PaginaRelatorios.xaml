@@ -59,7 +59,7 @@
       </Grid.ColumnDefinitions>
 
       <!-- Painel lateral (recolhível por Exibir › Painel lateral): abas Seções, Excluídos (n) e Histórico. -->
-      <Grid x:Name="PainelNavegacao" x:FieldModifier="internal" Grid.Column="0" Width="{StaticResource PmvniLarguraPainelSecoes}" Padding="0,2,0,0">
+      <Grid x:Name="PainelNavegacao" x:FieldModifier="internal" Grid.Column="0" Width="{StaticResource PmvniLarguraPainelSecoes}" Style="{StaticResource PmvniPainelLateral}" Padding="0,2,0,0">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
@@ -76,7 +76,7 @@
              filtro são montados pela janela (FiltroNavegacao.Ordem), com a contagem de cada situação. -->
         <StackPanel x:Name="PainelFiltros" x:FieldModifier="internal" Grid.Row="1" Spacing="8" Margin="12,4,12,8">
           <TextBlock Text="BUSCA" Style="{StaticResource PmvniPainelRotulo}"/>
-          <Grid><TextBox Padding="36,6,10,6" CornerRadius="8" MinHeight="36" x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar por texto ou situação"
+          <Grid><TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar por texto ou situação"
                    AutomationProperties.Name="Pesquisar nas seções e itens"/><FontIcon Glyph="&#xE721;" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0" FontSize="15"/></Grid>
           <TextBlock Text="FILTRAR POR SITUAÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
           <Grid ColumnDefinitions="*,*,*,*,*,*" RowDefinitions="Auto,Auto" RowSpacing="5" ColumnSpacing="4" x:Name="BotoesFiltro" x:FieldModifier="internal" AutomationProperties.Name="Filtro rápido de apontamentos"/>
@@ -179,7 +179,7 @@
       <!-- Propriedades do item selecionado (recolhível por Exibir › Propriedades). O original aparece aqui, lado a lado com o
            revisado (Original ⇄), nunca nas folhas. As partes que dependem do item (campos, histórico) são montadas pela janela. -->
       <Grid x:Name="PainelPropriedades" x:FieldModifier="internal" Grid.Column="2" Width="{StaticResource PmvniLarguraPropriedades}"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
+            Style="{StaticResource PmvniPainelLateral}">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>

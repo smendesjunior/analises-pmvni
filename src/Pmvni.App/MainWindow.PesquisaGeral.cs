@@ -125,6 +125,7 @@ public sealed partial class MainWindow
         molduraGeral.Visibility = Visibility.Collapsed;
         molduraGeral.HorizontalAlignment = HorizontalAlignment.Left;
         molduraGeral.VerticalAlignment = VerticalAlignment.Top;
+        Grid.SetColumnSpan(molduraGeral, Raiz.ColumnDefinitions.Count);
         Grid.SetRowSpan(molduraGeral, Raiz.RowDefinitions.Count);
         Canvas.SetZIndex(molduraGeral, 100);
         Raiz.Children.Add(molduraGeral);

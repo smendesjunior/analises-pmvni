@@ -27,9 +27,9 @@ public sealed partial class Trilho : UserControl
     void AjustarAlturaDosItens()
     {
         if (itens.Count == 0 || ActualHeight <= 0) return;
-        var altura = Math.Clamp(Math.Floor((ActualHeight - 48) / itens.Count), 64, 94);
+        var altura = Math.Clamp(Math.Floor((ActualHeight - 48) / itens.Count), 54, 68);
         foreach (var (modulo, item) in itens)
-            item.Fundo.Height = modulo == Modulo.Acompanhamento ? altura + 8 : altura;
+            item.Fundo.Height = modulo == Modulo.Acompanhamento ? altura + 12 : altura;
     }
 
     public event Action<Modulo>? ModuloEscolhido;
@@ -69,26 +69,26 @@ public sealed partial class Trilho : UserControl
         {
             var icone = CriarIcone(m);
             // Como o Gmail (correções 2026-11-15): o fundo arredondado cobre o ícone e o rótulo juntos; a barrinha fica na borda esquerda.
-            var conteudo = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Spacing = 5 };
-            var rotulo = new TextBlock { Text = RotuloNoTrilho(m), Style = Estilo("PmvniTrilhoRotuloStyle"), TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 126, LineHeight = 15, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
+            var conteudo = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Spacing = 3 };
+            var rotulo = new TextBlock { Text = RotuloNoTrilho(m), Style = Estilo("PmvniTrilhoRotuloStyle"), TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 110, LineHeight = 15, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
             var duasLinhas = rotulo.Text.Contains('\n');
             conteudo.Children.Add(icone);
             conteudo.Children.Add(rotulo);
             var fundo = new Border
             {
-                Width = 138, Height = duasLinhas ? 88 : 78, CornerRadius = new CornerRadius(8),
+                Width = 114, Height = duasLinhas ? 72 : 60, CornerRadius = new CornerRadius(8),
                 HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 Style = Estilo("PmvniTrilhoFundoInativoStyle"),
                 Child = conteudo,
             };
             // A barrinha fica DENTRO do fundo arredondado, junto da borda esquerda dele (como no Gmail): a grade tem a largura do fundo.
-            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Height = 30, Visibility = Visibility.Collapsed, Margin = new Thickness(4, 0, 0, 0) };
-            var grade = new Grid { Width = 138, HorizontalAlignment = HorizontalAlignment.Center };
+            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Height = 24, Visibility = Visibility.Collapsed, Margin = new Thickness(4, 0, 0, 0) };
+            var grade = new Grid { Width = 114, HorizontalAlignment = HorizontalAlignment.Center };
             grade.Children.Add(fundo);
             grade.Children.Add(indicador);
             var botao = new Button
             {
-                Width = 142,
+                Width = 118,
                 Content = grade,
                 Style = Estilo("PmvniTrilhoItemStyle"),
                 Tag = m,

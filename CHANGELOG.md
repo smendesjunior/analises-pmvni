@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 2.0.0
+
+- Novo ícone de prancha técnica com lupa e trilho de módulos mais compacto.
+- Faixa de ferramentas alinhada às páginas, campos de pesquisa padronizados e configurações organizadas em cartões adaptáveis à largura da janela.
+- Acompanhamento de processos com barra de andamento por status, resumo da aprovação, pesquisa local e atalhos de filtro e ordenação.
+
 ## 1.2.22
 
 - Barra lateral com ícones sobre fundos coloridos, indicador de seleção ampliado e divisória de Ajustes.

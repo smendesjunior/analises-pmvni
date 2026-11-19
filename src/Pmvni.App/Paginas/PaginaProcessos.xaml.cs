@@ -56,6 +56,20 @@ public sealed partial class PaginaProcessos : UserControl
     IReadOnlyList<GrupoMiniaturas> gruposDaGrade = [];
     CollectionViewSource? fonteDaGrade;
 
+    void AoDimensionarDetalhe(object sender, SizeChangedEventArgs e)
+    {
+        bool estreito = e.NewSize.Width < 850;
+        Grid.SetRow(BarraExibicao, estreito ? 1 : 0);
+        Grid.SetColumn(BarraExibicao, estreito ? 0 : 1);
+        ((Grid)sender).RowSpacing = estreito ? 6 : 0;
+    }
+
+    internal void MostrarProtocolo(string? protocolo)
+    {
+        TextoProtocolo.Text = protocolo ?? "";
+        SeloProtocolo.Visibility = string.IsNullOrEmpty(protocolo) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     public PaginaProcessos()
     {
         InitializeComponent();

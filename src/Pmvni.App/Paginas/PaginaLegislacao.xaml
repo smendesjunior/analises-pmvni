@@ -43,7 +43,7 @@
       </Grid.ColumnDefinitions>
 
       <Grid Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" Padding="12,6"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="22.08" Height="23"><Path Canvas.Left="-9.96" Canvas.Top="-9.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M28.18,10.96 L32,29.11 C32.21,30.1 31.58,31.08 30.59,31.3 L25.2,32.45 C25.07,32.48 24.94,32.5 24.81,32.5 C23.94,32.5 23.19,31.88 23.02,31.03 L19.2,12.88 C18.99,11.89 19.62,10.91 20.61,10.69 L26,9.54 C26.48,9.44 26.98,9.52 27.39,9.79 C27.8,10.06 28.08,10.48 28.18,10.96 Z M21,12.5 C21,12.49 21,12.49 21,12.49 L26.38,11.34 L26.77,13.17 L21.38,14.32 L21,12.5 Z M21.76,16.12 L27.15,14.96 L27.53,16.79 L22.15,17.95 L21.76,16.12 Z M22.52,19.75 L27.91,18.59 L29.44,25.87 L24.05,27.02 L22.52,19.75 Z M30.2,29.5 L24.82,30.65 L24.44,28.82 L29.82,27.66 L30.2,29.49 C30.2,29.5 30.2,29.5 30.2,29.5 Z"/><Path Canvas.Left="-9.96" Canvas.Top="-9.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M11.8,10.41 L17.32,10.41 C18.34,10.41 19.16,11.23 19.16,12.25 L19.16,30.65 C19.16,31.67 18.34,32.5 17.32,32.5 L11.8,32.5 C10.78,32.5 9.96,31.67 9.96,30.65 L9.96,12.25 C9.96,11.23 10.78,10.41 11.8,10.41 Z M11.8,12.25 L17.32,12.25 L17.32,14.09 L11.8,14.09 L11.8,12.25 Z M11.8,15.93 L17.32,15.93 L17.32,26.97 L11.8,26.97 L11.8,15.93 Z M17.32,30.65 L11.8,30.65 L11.8,28.81 L17.32,28.81 L17.32,30.65 Z"/></Canvas></Viewbox><TextBlock Text="Acervo de legislação" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock Grid.Column="1" x:Name="TotalAcervo" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/></Grid>
-      <Grid Grid.Row="1" x:Name="Painel" x:FieldModifier="internal" Width="348" Padding="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10">
+      <Grid Grid.Row="1" x:Name="Painel" x:FieldModifier="internal" Width="320" Padding="4" Style="{StaticResource PmvniPainelLateral}">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
@@ -63,8 +63,11 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
-          <TextBox x:Name="FiltroLeis" x:FieldModifier="internal" Margin="10,6,10,8" PlaceholderText="Filtrar por título, número ou arquivo"
+          <Grid Margin="10,6,10,8">
+            <TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="FiltroLeis" x:FieldModifier="internal" PlaceholderText="Filtrar por título, número ou arquivo"
                    AutomationProperties.Name="Filtrar as leis"/>
+            <FontIcon Glyph="&#xE721;" FontSize="15" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+          </Grid>
           <Grid x:Name="CartoesEsferas" x:FieldModifier="internal" Grid.Row="1" Margin="10,0,10,8" ColumnSpacing="6">
             <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
           </Grid>

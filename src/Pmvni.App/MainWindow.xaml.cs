@@ -395,6 +395,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         }
         // Só muda com diferença visível: larguras que oscilam frações de pixel entre monitores não refazem o layout sem parar.
         var nova = Math.Round(Math.Clamp(sobra, 140, 640));
+        AtalhoPesquisa.Visibility = nova >= 300 ? Visibility.Visible : Visibility.Collapsed;
+        CaixaPesquisa.Padding = new Thickness(32, 3, nova >= 300 ? 58 : 8, 3);
         if (Math.Abs(CaixaPesquisa.Width - nova) >= 1) CaixaPesquisa.Width = nova;
     }
 
@@ -516,6 +518,13 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "janela-" + m.ToString().ToLowerInvariant() + ".png"));
                     }
                     catch (Exception e) { RegistroErros.Gravar("captura", e); }
+                }
+                await MudarModuloAsync(Modulo.Ajustes);
+                foreach (var categoria in CategoriasAjustes.Menu)
+                {
+                    PaginaDeAjustes.MostrarCategoria(categoria.Tag);
+                    await Task.Delay(250);
+                    await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, $"config-{categoria.Tag}.png"));
                 }
                 // A página de um processo, em Lista e em Miniaturas (o processo cujo nome começa por PMVNI_CAPTURA_PROCESSO, ou o primeiro).
                 try

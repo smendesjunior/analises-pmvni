@@ -20,7 +20,7 @@ namespace Pmvni.App;
 
 /// <summary>Módulo Acompanhamento de processos (2026-11-17): a planilha padrão (Ajustes › Fontes de dados) é lida fora da thread da janela e
 /// mostrada com todas as colunas, as listas e as cores da formatação condicional dela; o cabeçalho tem o resumo por status (clicar filtra)
-/// e o gráfico de pizza do andamento. Tudo o que muda aqui (novo, edição, status, exclusão, local e autor detectados) é gravado na
+/// e o gráfico de barras do andamento. Tudo o que muda aqui (novo, edição, status, exclusão, local e autor detectados) é gravado na
 /// planilha, mexendo só nas células alteradas, com uma cópia de segurança antes. Mudou no Excel: a página relê sozinha.</summary>
 public sealed partial class MainWindow
 {
@@ -82,7 +82,6 @@ public sealed partial class MainWindow
         }), true);
         Ac.AddHandler(UIElement.PointerReleasedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => EncerrarArraste()), true);
         Ac.Unloaded += (_, _) => EncerrarArraste();
-        Ac.IconeTitulo.Content = Trilho.NovoIcone(Modulo.Acompanhamento, 40);
         Ac.IconeVazio.Content = Trilho.NovoIcone(Modulo.Acompanhamento, 64);
         Ac.BotaoEscolherVazio.Click += async (_, _) => await ImportarPlanilhaAsync();
         Ac.BotaoAjustesVazio.Click += async (_, _) => await ConfigurarPlanilhaAsync();
@@ -247,6 +246,7 @@ public sealed partial class MainWindow
 
     void MostrarVazioAcompanhamento(string texto)
     {
+        Ac.BarraBusca.Visibility = Visibility.Collapsed;
         Ac.Vazio.Visibility = Visibility.Visible;
         Ac.RolagemTabela.Visibility = Visibility.Collapsed;
         Ac.Resumo.Visibility = Visibility.Collapsed;
@@ -361,6 +361,7 @@ public sealed partial class MainWindow
     void MostrarPlanilha()
     {
         if (planilha is not { } p) return;
+        Ac.BarraBusca.Visibility = Visibility.Visible;
         Ac.Vazio.Visibility = Visibility.Collapsed;
         Ac.RolagemTabela.Visibility = Visibility.Visible;
         CalcularColunasVisiveis(p);
@@ -384,21 +385,28 @@ public sealed partial class MainWindow
         var p = planilha!;
         var compacto = ResumoCompacto;
         resumoCompactoMostrado = compacto;
-        Ac.Pizza.Visibility = compacto ? Visibility.Collapsed : Visibility.Visible;
-        Ac.BlocoAprovacao.Visibility = compacto ? Visibility.Collapsed : Visibility.Visible;
-        Ac.Resumo.Padding = compacto ? new Thickness(12, 8, 12, 8) : new Thickness(16, 12, 16, 12);
+        Ac.CartaoAprovacao.Visibility = p.Coluna(ChaveColuna.Aprovacao) is null ? Visibility.Collapsed : Visibility.Visible;
+        Ac.BarraAndamento.Children.Clear();
+        Ac.BarraAndamento.ColumnDefinitions.Clear();
+        Ac.TotalResumo.Text = p.Linhas.Count == 1 ? "1 processo" : $"{p.Linhas.Count} processos";
         var status = p.Coluna(ChaveColuna.Status);
         var cont = p.Contagem(ChaveColuna.Status);
-        Ac.CartoesStatus.Items.Clear();
-        var fatias = new List<GraficoPizza.Fatia>();
+        Ac.CartoesStatus.Children.Clear();
         var i = 0;
         foreach (var (valor, n) in cont)
         {
             var cor = status?.CorDe(valor, null);
             var corFatia = CorDaFatia(cor, i++);
-            fatias.Add(new GraficoPizza.Fatia(valor, n, corFatia));
+            if (n > 0)
+            {
+                var segmento = new Border { Background = corFatia };
+                Grid.SetColumn(segmento, Ac.BarraAndamento.ColumnDefinitions.Count);
+                Ac.BarraAndamento.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(n, GridUnitType.Star) });
+                Ac.BarraAndamento.Children.Add(segmento);
+                ToolTipService.SetToolTip(segmento, $"{valor}: {n}");
+            }
             var ativo = filtroStatus.Contains(Planilha.Normal(valor));
-            // Status sem processo não ocupa cartão (a não ser que esteja no filtro); o total aparece na dica da pizza.
+            // Status sem processo não ocupa cartão (a não ser que esteja no filtro); a barra representa as contagens positivas.
             if (n == 0 && !ativo) continue;
             var bolinha = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 10, Height = 10, Fill = corFatia, VerticalAlignment = VerticalAlignment.Center };
             FrameworkElement conteudo;
@@ -412,15 +420,15 @@ public sealed partial class MainWindow
             }
             else
             {
-                var pilha = new StackPanel { Spacing = 2, Width = 112 };
-                var titulo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Center, Height = 30 };
+                var pilha = new StackPanel { Spacing = 4 };
+                var titulo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Left, Height = 30 };
                 titulo.Children.Add(bolinha);
                 titulo.Children.Add(new TextBlock { Text = Titulo(valor), FontSize = 12, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, MaxLines = 2, MaxWidth = 90, Opacity = .85, VerticalAlignment = VerticalAlignment.Center });
                 pilha.Children.Add(titulo);
-                pilha.Children.Add(new TextBlock { Text = n.ToString(CultureInfo.InvariantCulture), FontSize = 26, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center });
+                pilha.Children.Add(new TextBlock { Text = n.ToString(CultureInfo.InvariantCulture), FontSize = 22, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Left });
                 conteudo = pilha;
             }
-            var b = new ToggleButton { Content = conteudo, IsChecked = ativo, Padding = compacto ? new Thickness(10, 4, 10, 4) : new Thickness(6, 8, 6, 8), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            var b = new ToggleButton { Style = (Style)Application.Current.Resources["PmvniCartaoStatus"], Content = conteudo, IsChecked = ativo, Padding = compacto ? new Thickness(10, 4, 10, 4) : new Thickness(10, 8, 10, 8) };
             Brilho.SetAtivo(b, true);
             var chave = Planilha.Normal(valor);
             b.Click += (_, _) =>
@@ -432,38 +440,39 @@ public sealed partial class MainWindow
             };
             ToolTipService.SetToolTip(b, ativo ? $"Mostrar todos os status" : $"Mostrar só {valor}");
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"{valor}: {n} processos");
-            Ac.CartoesStatus.Items.Add(b);
+            Ac.CartoesStatus.Children.Add(b);
         }
-        Ac.Pizza.Mostrar(fatias);
 
+
+        Ac.DistribuirCartoes();
         Ac.BlocoAprovacao.Children.Clear();
         var aprov = p.Coluna(ChaveColuna.Aprovacao);
         if (aprov is not null)
         {
-            Ac.BlocoAprovacao.Children.Add(new TextBlock { Text = aprov.Titulo.ToUpperInvariant(), Style = (Style)Application.Current.Resources["PmvniPainelRotulo"] });
             foreach (var (valor, n) in p.Contagem(ChaveColuna.Aprovacao))
-            {
-                // Etiquetas da mesma largura, texto centrado, e o número centrado na altura delas (correção de alinhamento, 2026-11-17).
-                var linha = new Grid { ColumnSpacing = 10, Margin = new Thickness(0, 2, 0, 2) };
-                linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-                var tag = Etiqueta(valor, aprov.CorDe(valor, null), 11);
-                tag.VerticalAlignment = VerticalAlignment.Center;
-                if (tag is Border { Child: TextBlock tt } borda)
-                {
-                    borda.Width = 128;
-                    tt.TextAlignment = TextAlignment.Center;
-                    tt.HorizontalAlignment = HorizontalAlignment.Center;
-                }
-                linha.Children.Add(tag);
-                var num = new TextBlock { Text = n.ToString(CultureInfo.InvariantCulture), FontSize = 20, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, LineHeight = 22, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
-                Grid.SetColumn(num, 1);
-                linha.Children.Add(num);
-                Ac.BlocoAprovacao.Children.Add(linha);
-            }
-            var semAprov = p.Linhas.Count(l => l.Aprovacao.Length == 0);
-            Ac.BlocoAprovacao.Children.Add(new TextBlock { Text = $"Sem decisão: {semAprov}", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
+                AdicionarAprovacao(valor, n, aprov.CorDe(valor, null));
+            AdicionarAprovacao("Sem decisão", p.Linhas.Count(l => string.IsNullOrWhiteSpace(l.Aprovacao)), null);
         }
+    }
+
+    void AdicionarAprovacao(string titulo, int total, Cor? cor)
+    {
+        var cores = CoresEtiqueta(cor);
+        var linha = new Grid { ColumnSpacing = 8, Padding = new Thickness(10, 3, 10, 3), CornerRadius = new CornerRadius(6),
+            Background = cores?.Fundo ?? (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"] };
+        linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        linha.ColumnDefinitions.Add(new ColumnDefinition());
+        linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var marca = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 7, Height = 7, Fill = cores?.Texto ?? (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] };
+        var nome = new TextBlock { Text = titulo, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        var numero = new TextBlock { Text = total.ToString(CultureInfo.InvariantCulture), FontSize = 18, FontWeight = FontWeights.SemiBold };
+        if (cores.HasValue) nome.Foreground = numero.Foreground = cores.Value.Texto;
+        Grid.SetColumn(nome, 1);
+        Grid.SetColumn(numero, 2);
+        linha.Children.Add(marca);
+        linha.Children.Add(nome);
+        linha.Children.Add(numero);
+        Ac.BlocoAprovacao.Children.Add(linha);
     }
 
     /// <summary>As colunas da tabela (auditoria de interface 2026-11-17): Nº, Processo e Status primeiro (o Status não some com o painel
@@ -604,6 +613,8 @@ public sealed partial class MainWindow
 
     void MontarCabecalho()
     {
+        Ac.MenuOrdenacao.Items.Clear();
+        Ac.Ordenacao.Content = "Ordenar";
         var g = Ac.CabecalhoTabela;
         celulasFixas.RemoveAll(b => ReferenceEquals(b.Parent, g));
         g.Children.Clear();
@@ -632,6 +643,10 @@ public sealed partial class MainWindow
                 MontarCabecalho();
                 PreencherLista();
             }
+            var opcao = new ToggleMenuFlyoutItem { Text = nomeCol, IsChecked = ativa };
+            opcao.Click += (_, _) => OrdenarColuna();
+            Ac.MenuOrdenacao.Items.Add(opcao);
+            if (ativa) Ac.Ordenacao.Content = $"Ordenar: {Titulo(nomeCol)}";
             b.Click += (_, _) => OrdenarColuna();
             var superficie = new CabecalhoMovel();
             superficie.CliqueDoPonteiro += OrdenarColuna;
@@ -865,6 +880,14 @@ public sealed partial class MainWindow
         if (reescolher is not null) Ac.Lista.SelectedItem = reescolher;
         else MostrarPainel(null);
         var filtros = filtroStatus.Count + filtroPrioridade.Count + filtroAprovacao.Count + filtroProfissional.Count;
+        Ac.StatusRapido.Content = filtroStatus.Count switch
+        {
+            0 => "Todos os status",
+            1 => Titulo(p.Opcoes(ChaveColuna.Status).FirstOrDefault(v => filtroStatus.Contains(Planilha.Normal(v))) ?? filtroStatus.First()),
+            _ => $"{filtroStatus.Count} status",
+        };
+        foreach (var item in Ac.MenuStatusRapido.Items.OfType<ToggleMenuFlyoutItem>())
+            item.IsChecked = ReferenceEquals(item, Ac.MenuStatusRapido.Items[0]) ? filtroStatus.Count == 0 : filtroStatus.Contains(Planilha.Normal(item.Text));
         Ac.TextoFiltrar.Text = filtros == 0 ? "Filtrar" : $"Filtrar ({filtros})";
         var ultima = p.Linhas.Select(l => l.Atualizacao).Where(d => d is not null).DefaultIfEmpty(null).Max();
         static string Processos(int n) => n == 1 ? "1 processo" : $"{n} processos";
@@ -985,6 +1008,24 @@ public sealed partial class MainWindow
                 cb.Unchecked += (_, _) => { marcados.Remove(chave); MostrarResumo(); PreencherLista(); };
                 painel.Children.Add(cb);
             }
+        }
+        Ac.MenuStatusRapido.Items.Clear();
+        void SelecionarStatus(string? valor)
+        {
+            filtroStatus.Clear();
+            if (valor is not null) filtroStatus.Add(Planilha.Normal(valor));
+            MostrarResumo();
+            MontarFiltros();
+            PreencherLista();
+        }
+        var todos = new ToggleMenuFlyoutItem { Text = "Todos os status", IsChecked = filtroStatus.Count == 0 };
+        todos.Click += (_, _) => SelecionarStatus(null);
+        Ac.MenuStatusRapido.Items.Add(todos);
+        foreach (var valor in p.Opcoes(ChaveColuna.Status))
+        {
+            var opcao = new ToggleMenuFlyoutItem { Text = Titulo(valor), IsChecked = filtroStatus.Contains(Planilha.Normal(valor)) };
+            opcao.Click += (_, _) => SelecionarStatus(valor);
+            Ac.MenuStatusRapido.Items.Add(opcao);
         }
         Grupo("Status", p.Opcoes(ChaveColuna.Status), filtroStatus);
         Grupo("Prioridade", p.Opcoes(ChaveColuna.Prioridade), filtroPrioridade);

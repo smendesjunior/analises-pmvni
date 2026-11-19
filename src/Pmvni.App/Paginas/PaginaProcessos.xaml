@@ -50,14 +50,14 @@
 
     <Grid Grid.Row="1" RowDefinitions="Auto,*" RowSpacing="12" ColumnSpacing="12" Padding="16,12">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="380" MinWidth="260"/>
+        <ColumnDefinition Width="284" MinWidth="240"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
       <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Padding="14,10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="10"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="23" Height="18.74"><Path Canvas.Left="-9.5" Canvas.Top="-11.63" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M23.41,14.19 L30.8,14.19 C31.74,14.19 32.5,14.95 32.5,15.89 L32.5,25.35 C32.5,26.24 31.78,26.96 30.89,26.96 L29.09,26.96 L29.09,28.76 C29.09,29.65 28.37,30.37 27.48,30.37 L11.2,30.37 C10.26,30.37 9.5,29.61 9.5,28.67 L9.5,16.74 C9.5,15.8 10.26,15.04 11.2,15.04 L12.91,15.04 L12.91,13.33 C12.91,12.39 13.67,11.63 14.61,11.63 L19.44,11.63 C19.81,11.63 20.17,11.75 20.46,11.97 L23.41,14.19 Z M27.39,28.67 L11.2,28.67 L11.2,16.74 L16.03,16.74 L19.21,19.13 C19.36,19.24 19.54,19.3 19.72,19.3 L27.39,19.3 L27.39,28.67 Z M30.8,25.26 L29.09,25.26 L29.09,19.3 C29.09,18.36 28.33,17.59 27.39,17.59 L20.01,17.59 L17.05,15.38 C16.76,15.16 16.4,15.04 16.03,15.04 L14.61,15.04 L14.61,13.33 L19.44,13.33 L22.62,15.72 C22.77,15.83 22.95,15.89 23.13,15.89 L30.8,15.89 L30.8,25.26 Z"/></Canvas></Viewbox><StackPanel Grid.Column="1"><TextBlock Text="Acervo de processos" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock Text="Gestão de documentos e histórico" Style="{StaticResource PmvniSecondaryTextStyle}"/></StackPanel><TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Text, ElementName=TextoContagem}"/></Grid>
 
 
       <!-- Lista de processos. -->
-      <Grid Grid.Row="1" Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10">
+      <Grid Grid.Row="1" Grid.Column="0" Style="{StaticResource PmvniPainelLateral}">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
@@ -69,7 +69,10 @@
           </Grid.ColumnDefinitions>
           <StackPanel Spacing="2"><TextBlock Text="Processos" Style="{StaticResource PmvniTituloSecao}"/><TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
                      TextTrimming="CharacterEllipsis" AutomationProperties.Name="Quantidade de processos"/>
-            <TextBox x:Name="FiltroAcervo" x:FieldModifier="internal" PlaceholderText="Número ou nome do processo" AutomationProperties.Name="Filtrar processos"/>
+            <Grid>
+              <TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="FiltroAcervo" x:FieldModifier="internal" PlaceholderText="Número ou nome do processo" AutomationProperties.Name="Filtrar processos"/>
+              <FontIcon Glyph="&#xE721;" FontSize="15" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+            </Grid>
           </StackPanel>
           <ProgressRing x:Name="Anel" x:FieldModifier="internal" Grid.Column="1" IsActive="False" Width="18" Height="18"/>
         </Grid>
@@ -79,9 +82,9 @@
             <DataTemplate x:DataType="local:LinhaProcesso">
               <Grid Padding="0,8" ColumnSpacing="12" AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Titulo}">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Border Width="36" Height="36" CornerRadius="18" Background="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center">
+                <Border Width="36" Height="36" CornerRadius="18" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" VerticalAlignment="Center">
                   <TextBlock Text="{x:Bind Iniciais}" FontWeight="SemiBold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"
-                             Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                             Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
                 </Border>
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                   <TextBlock Text="{x:Bind Titulo}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
@@ -105,17 +108,22 @@
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Grid Grid.Row="0" Padding="20,10,16,6" ColumnSpacing="12">
+        <Grid Grid.Row="0" SizeChanged="AoDimensionarDetalhe" RowDefinitions="Auto,Auto" Padding="12,8" ColumnSpacing="12">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <StackPanel>
-            <TextBlock x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{ThemeResource TitleTextBlockStyle}" TextTrimming="CharacterEllipsis"
+            <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Left" ColumnSpacing="10">
+              <TextBlock x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{ThemeResource TitleTextBlockStyle}" TextTrimming="CharacterEllipsis"
                        ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+              <Border x:Name="SeloProtocolo" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="8,2" CornerRadius="6" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" Visibility="Collapsed">
+                <TextBlock x:Name="TextoProtocolo" Style="{StaticResource CaptionTextBlockStyle}"/>
+              </Border>
+            </Grid>
             <TextBlock x:Name="TextoPastaDetalhe" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"
                        TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
           </StackPanel>
           <!-- 2026-11-16: como os arquivos do processo aparecem (como "Classificar" e "Visualizar" do Explorador). A escolha fica
                lembrada nos Ajustes; a janela guarda (MainWindow.Pastas.cs). -->
-          <StackPanel x:Name="BarraExibicao" x:FieldModifier="internal" Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Bottom">
+          <local:PainelQuebra x:Name="BarraExibicao" x:FieldModifier="internal" Grid.Column="1" Espaco="6" VerticalAlignment="Bottom">
             <DropDownButton x:Name="BotaoClassificar" x:FieldModifier="internal" AutomationProperties.Name="Classificar"
                             local:Dicas.Descricao="Ordena os arquivos do processo por nome, data ou tipo, em ordem crescente ou decrescente.">
               <StackPanel Orientation="Horizontal" Spacing="6">
@@ -166,12 +174,15 @@
                 </MenuFlyout>
               </DropDownButton.Flyout>
             </DropDownButton>
-          </StackPanel>
+          </local:PainelQuebra>
         </Grid>
         <!-- Modo Lista (correções 2026-11-15): três colunas (Relatórios, Despachos, Projeto), cada uma agrupada e ordenada pela escolha
              de Agrupar e Classificar. A ListaDetalhe guarda a seleção (os comandos e o roteiro leem dela) e fica fora da tela; as colunas
              mostram as mesmas linhas. -->
-        <Grid x:Name="GradeColunas" x:FieldModifier="internal" Grid.Row="1" Padding="12,0,12,8" ColumnSpacing="12">
+        <ScrollViewer Grid.Row="1" Visibility="{Binding Visibility, ElementName=GradeColunas}"
+                      HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto" HorizontalContentAlignment="Stretch"
+                      VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled" VerticalContentAlignment="Stretch">
+          <Grid x:Name="GradeColunas" x:FieldModifier="internal" MinWidth="750" ColumnSpacing="12">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="0">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -191,10 +202,11 @@
               <ListView x:Name="ColunaProjeto" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Projeto e documentos"/>
             </Grid>
           </Border>
-        </Grid>
+          </Grid>
+        </ScrollViewer>
         <!-- Modo Miniaturas (2026-11-16): no lugar das três colunas, uma grade só, como o Explorador em "ícones grandes": todos os
              arquivos do processo com a prévia, em grupos que se recolhem pelo cabeçalho. A grade só cria os blocos que estão na tela. -->
-        <Border x:Name="CartaoMiniaturas" x:FieldModifier="internal" Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="8" Margin="12,0,12,8"
+        <Border x:Name="CartaoMiniaturas" x:FieldModifier="internal" Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="8" Margin="0"
                 Visibility="Collapsed">
           <Grid>
             <GridView x:Name="GradeMiniaturas" x:FieldModifier="internal" SelectionMode="Single" IsItemClickEnabled="False" Padding="4,0,4,4"

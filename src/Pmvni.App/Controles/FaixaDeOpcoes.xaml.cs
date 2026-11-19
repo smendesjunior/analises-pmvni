@@ -338,8 +338,8 @@ public sealed partial class FaixaDeOpcoes : UserControl
         }
         // Forma do botão tonal (as cores vêm dos recursos da vaga: claro, escuro e alto contraste).
         b.Tag = c.Id;
-        b.Height = 36;
-        b.Padding = new Thickness(12, 0, 14, 0);
+        b.Height = 32;
+        b.Padding = new Thickness(10, 0, 10, 0);
         b.CornerRadius = new CornerRadius(8);
         b.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         b.VerticalAlignment = VerticalAlignment.Center;

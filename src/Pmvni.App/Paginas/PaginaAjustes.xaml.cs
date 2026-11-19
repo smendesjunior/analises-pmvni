@@ -17,26 +17,14 @@ public sealed partial class PaginaAjustes : UserControl
     {
         InitializeComponent();
         // O menu sai de CategoriasAjustes.Menu (a ordem é testada); "Sobre e suporte" vai para o rodapé, como no WinStatusBar.
-        var paginas = new Dictionary<string, (StackPanel Pagina, TextBlock Ajuda)>(StringComparer.Ordinal)
-        {
-            [CategoriasAjustes.Geral] = (CategoriaGeral, AjudaGeral),
-            [CategoriasAjustes.Aparencia] = (CategoriaAparencia, AjudaAparencia),
-            [CategoriasAjustes.Relatorios] = (CategoriaRelatorios, AjudaRelatorios),
-            [CategoriasAjustes.Pastas] = (CategoriaPastas, AjudaPastas),
-            [CategoriasAjustes.FontesDados] = (CategoriaFontesDados, AjudaFontesDados),
-            [CategoriasAjustes.Despachos] = (CategoriaDespachos, AjudaDespachos),
-            [CategoriasAjustes.Legislacao] = (CategoriaLegislacao, AjudaLegislacao),
-            [CategoriasAjustes.Ia] = (CategoriaIa, AjudaIa),
-            [CategoriasAjustes.Sobre] = (CategoriaSobre, AjudaSobre),
-        };
+        foreach (var pagina in Paginas.Children.OfType<StackPanel>())
+            categorias.Add((string)pagina.Tag, pagina);
         foreach (var c in CategoriasAjustes.Menu)
         {
             var item = new NavigationViewItem { Content = c.Titulo, Tag = c.Tag, Icon = new FontIcon { Glyph = c.Glifo } };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, c.Titulo);
             (c.Rodape ? Menu.FooterMenuItems : Menu.MenuItems).Add(item);
             itensMenu[c.Tag] = item;
-            categorias[c.Tag] = paginas[c.Tag].Pagina;
-            paginas[c.Tag].Ajuda.Text = c.Ajuda;
         }
         Menu.SelectedItem = itensMenu[CategoriasAjustes.Geral];
         // Menu só com ícones abaixo de 860 px (como o WinStatusBar).
@@ -65,6 +53,9 @@ public sealed partial class PaginaAjustes : UserControl
 
     void Trocar(string tag)
     {
+        var categoria = CategoriasAjustes.De(tag);
+        TituloCategoria.Text = categoria.Titulo;
+        DescricaoCategoria.Text = categoria.Ajuda;
         CategoriaAtual = tag;
         foreach (var (t, pagina) in categorias) pagina.Visibility = t == tag ? Visibility.Visible : Visibility.Collapsed;
         Rolagem.ChangeView(null, 0, null, disableAnimation: true);

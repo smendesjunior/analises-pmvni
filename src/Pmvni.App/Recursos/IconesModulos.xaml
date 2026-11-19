@@ -30,7 +30,8 @@
       <SolidColorBrush x:Key="PmvniIconeFolha" Color="#FFFFFF"/>
       <SolidColorBrush x:Key="PmvniIconeAco" Color="#5E7389"/>
       <SolidColorBrush x:Key="PmvniIconeBranco" Color="#FFFFFF"/>
-      <SolidColorBrush x:Key="PmvniTrilhoSelecionado" Color="#14000000"/>
+      <SolidColorBrush x:Key="PmvniSuperficieSuave" Color="#F6F9F6"/>
+      <SolidColorBrush x:Key="PmvniTrilhoSelecionado" Color="#E5F1E9"/>
       <SolidColorBrush x:Key="PmvniTrilhoSelecionadoBorda" Color="Transparent"/>
       <SolidColorBrush x:Key="PmvniTonalFundo" Color="#D4EEDD"/>
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="#0F5132"/>
@@ -147,7 +148,8 @@
       <SolidColorBrush x:Key="PmvniIconeFolha" Color="#E9EEF2"/>
       <SolidColorBrush x:Key="PmvniIconeAco" Color="#A9BCCF"/>
       <SolidColorBrush x:Key="PmvniIconeBranco" Color="#FFFFFF"/>
-      <SolidColorBrush x:Key="PmvniTrilhoSelecionado" Color="#33FFFFFF"/>
+      <SolidColorBrush x:Key="PmvniSuperficieSuave" Color="#202A26"/>
+      <SolidColorBrush x:Key="PmvniTrilhoSelecionado" Color="#284535"/>
       <SolidColorBrush x:Key="PmvniTrilhoSelecionadoBorda" Color="Transparent"/>
       <SolidColorBrush x:Key="PmvniTonalFundo" Color="#1F4D33"/>
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="#CFEBD9"/>
@@ -265,6 +267,7 @@
       <SolidColorBrush x:Key="PmvniIconeBranco" Color="{ThemeResource SystemColorButtonFaceColor}"/>
       <!-- Ativo em alto contraste (revisão I5): o fundo continua o dos botões (o ícone, na cor do texto dos botões, mantém o contraste do
            sistema) e o destaque é a borda na cor de seleção, além da barrinha. -->
+      <SolidColorBrush x:Key="PmvniSuperficieSuave" Color="{ThemeResource SystemColorButtonFaceColor}"/>
       <SolidColorBrush x:Key="PmvniTrilhoSelecionado" Color="{ThemeResource SystemColorButtonFaceColor}"/>
       <SolidColorBrush x:Key="PmvniTrilhoSelecionadoBorda" Color="{ThemeResource SystemColorHighlightColor}"/>
       <SolidColorBrush x:Key="PmvniTonalFundo" Color="{ThemeResource SystemColorButtonFaceColor}"/>

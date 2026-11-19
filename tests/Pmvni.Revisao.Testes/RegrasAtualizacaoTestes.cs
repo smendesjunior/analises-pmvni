@@ -96,6 +96,7 @@ public class RegrasAtualizacaoTestes : IDisposable
         Assert.Equal("1.0", RegrasAtualizacao.VersaoExibida("1.0.0.0"));
         Assert.Equal("1.2.3", RegrasAtualizacao.VersaoExibida("1.2.3"));
         Assert.Equal("1.1", RegrasAtualizacao.VersaoExibida("1.1.0"));
+        Assert.Equal("2.0.0", RegrasAtualizacao.VersaoExibida("2.0.0.0"));
         Assert.Equal("2.0", RegrasAtualizacao.VersaoExibida("2.0"));
         Assert.Equal("", RegrasAtualizacao.VersaoExibida(null));
         Assert.Equal("dev", RegrasAtualizacao.VersaoExibida("dev"));

@@ -4,11 +4,11 @@
   <!-- Faixa de opções: abas (SelectorBar) e, embaixo, o botão primário tonal do módulo (o mesmo em todas as abas, como "Novo email")
        seguido dos comandos da aba (CommandBar, rótulo à direita do ícone). -->
   <!-- Correções 2026-11-15 (como o Outlook): abas compactas e, embaixo, os comandos numa faixa arredondada só, sem espaço vazio. -->
-  <StackPanel Padding="8,0,8,6" Spacing="2">
-    <SelectorBar Margin="5,0,0,0" x:Name="Abas" SelectionChanged="AoMudarAba" Padding="0" MinHeight="36"/>
-    <Border CornerRadius="8" Padding="6" Background="{ThemeResource LayerFillColorDefaultBrush}"
+  <StackPanel Padding="0,0,0,6" Spacing="2">
+    <SelectorBar Margin="0" x:Name="Abas" SelectionChanged="AoMudarAba" Padding="0" MinHeight="36"/>
+    <Border CornerRadius="8" Padding="4,2" Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-      <Grid ColumnSpacing="4">
+      <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="Auto"/>
@@ -20,18 +20,18 @@
             <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
           </ContentControl.Resources>
         </ContentControl>
-        <Border Grid.Column="1" Width="1" Margin="4,8" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+        <Border Grid.Column="1" Visibility="{Binding Visibility, ElementName=VagaPrimario}" Width="1" Margin="6,6" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
         <CommandBar x:Name="Barra" Grid.Column="2" DefaultLabelPosition="Right" HorizontalAlignment="Left" IsDynamicOverflowEnabled="True"
                     Background="Transparent" OverflowButtonVisibility="Auto">
           <CommandBar.Resources>
             <x:Double x:Key="AppBarButtonContentHeight">16</x:Double>
             <Thickness x:Key="AppBarButtonInnerBorderMargin">2,2,2,2</Thickness>
-            <x:Double x:Key="AppBarThemeCompactHeight">40</x:Double>
+            <x:Double x:Key="AppBarThemeCompactHeight">34</x:Double>
             <!-- Correções 2026-11-15: no modelo do WinUI o ícone e o rótulo (rótulo à direita) têm margem 16 em cima e 10 embaixo e ficam
                  3 px abaixo do centro do botão (o fundo ao passar o mouse aparecia acima do texto); aqui, 13 e 13. -->
-            <Thickness x:Key="AppBarButtonContentViewboxMargin">12,13,0,13</Thickness>
-            <Thickness x:Key="AppBarButtonTextLabelOnRightMargin">8,13,12,13</Thickness>
-            <Thickness x:Key="AppBarToggleButtonTextLabelOnRightMargin">8,13,12,13</Thickness>
+            <Thickness x:Key="AppBarButtonContentViewboxMargin">8,9,0,9</Thickness>
+            <Thickness x:Key="AppBarButtonTextLabelOnRightMargin">6,9,8,9</Thickness>
+            <Thickness x:Key="AppBarToggleButtonTextLabelOnRightMargin">6,9,8,9</Thickness>
           </CommandBar.Resources>
         </CommandBar>
       </Grid>
