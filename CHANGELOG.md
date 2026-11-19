@@ -2,6 +2,13 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 2.1.5
+
+- O monitor reúne as etapas em um resumo compacto e exibe o registro em Detalhes da execução. Os contadores reconhecem eventos UTF-8 gravados pelo PowerShell.
+- Retomar e descartar a análise ficam acessíveis mesmo depois de fechar o aviso. A pesquisa, a seleção de processos com o mouse e os comandos da faixa receberam ajustes.
+- O destinatário pode ser editado na prévia dos despachos de aprovação e de correção.
+- O Editor prepara automaticamente o ambiente local de extração de PDFs e permite abrir as evidências por página no monitor.
+
 ## 2.1.4
 
 - O Editor informa ao ChatGPT o alcance do uso de dados pessoais no processo selecionado, inclusive ao continuar uma análise. Quando a execução termina sem entregar o relatório, o Editor mostra a mensagem final do executor.

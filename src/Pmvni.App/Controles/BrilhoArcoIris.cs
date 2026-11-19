@@ -421,10 +421,10 @@ sealed class BrilhoArcoIris
             quadrosDesdeConferencia = 0;
             if (!elemento.IsLoaded || !Trabalhando.VisivelDeFato(elemento)) { Atualizar(false); return; }
         }
-        if (Progresso is { } progresso)
+        if (Progresso.HasValue)
         {
-            // O eixo gira com a etapa e os itens concluídos. A caixa inteira continua contornada.
-            var angulo = (float)(Math.Tau * (progresso + RelogioQuadros.Fase(t, 16)));
+            // O relógio mantém o giro contínuo durante as atualizações do progresso.
+            var angulo = (float)(Math.Tau * RelogioQuadros.Fase(t, 16));
             var raio = new Vector2(MathF.Cos(angulo), MathF.Sin(angulo)) * tamanho / 2;
             var centro = tamanho / 2;
             pincelLinha.StartPoint = centro - raio;

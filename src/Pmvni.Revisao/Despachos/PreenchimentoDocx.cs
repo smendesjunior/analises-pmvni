@@ -104,6 +104,7 @@ public static class PreenchimentoDocx
         var rPrRotulo = Runs(protocolo).First().Element(W + "rPr");
         AcrescentarValor(protocolo, d.Protocolo);
         AcrescentarValor(mapa.Um(PapelParagrafo.Requerente), d.Requerente);
+        if (d.Destinatario is { } destinatario) TrocarTexto(mapa.Um(PapelParagrafo.Destinatario), destinatario);
         TrocarAssunto(mapa.Um(PapelParagrafo.Assunto), d.Assunto);
         TrocarData(mapa.Um(PapelParagrafo.Data), d.DataPorExtenso);
         ManterFechoJunto(mapa.Um(PapelParagrafo.Data));

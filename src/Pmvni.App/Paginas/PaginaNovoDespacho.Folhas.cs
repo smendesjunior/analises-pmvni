@@ -319,6 +319,7 @@ public sealed partial class PaginaNovoDespacho
         "cabecalho:protocolo" => "Protocolo nº",
         "cabecalho:requerente" => "Requerente",
         "cabecalho:assunto" => "Assunto",
+        "cabecalho:destinatario" => "Destinatário",
         "cabecalho:data" => "Data (por extenso)",
         ConteudoDespacho.ChaveIntervencao => "Tipo de obra",
         ConteudoDespacho.ChaveArea => "Área total a construir (m², ex.: 210,52)",

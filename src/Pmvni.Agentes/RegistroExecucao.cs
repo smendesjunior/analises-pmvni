@@ -216,7 +216,7 @@ public sealed class RegistroExecucao : IDisposable
     {
         Directory.CreateDirectory(PastaProgresso);
         return $"Para acompanhamento no Editor, grave em {PastaProgresso} um JSON por evento, com nome único e extensão .json. " +
-            "Ao avaliar ou revisar cada item, inclua item_id estável, sequencia inteira crescente por item, titulo e situacao " +
+            "Grave os eventos junto com a operação técnica que produz o resultado. Para um lote, grave vários arquivos na mesma chamada local, assim que o lote terminar. Evite uma chamada ao modelo ou ao shell só para atualizar o painel por item. Ao avaliar ou revisar cada item, inclua item_id estável, sequencia inteira crescente por item, titulo e situacao " +
             "(ATENDE, NAO_ATENDE, NAO_COMPROVADO ou DIVERGENCIA_INTERNA). Após auditoria individual, inclua evidencia_verificacao " +
             "com caminho relativo ao processo e sha256_verificacao da prova da revisão. Preserve os eventos anteriores. " +
             "Para progresso mensurável inclua etapa (prepare, analyze, technical_audit, produce, audit ou final_review), avaliados e total. Grave um evento no início de cada etapa e atualize após cada item avaliado, com sequencia_etapa inteira crescente dentro da etapa. Use os mesmos identificadores e situações no relatório final.";

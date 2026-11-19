@@ -41,7 +41,7 @@ public sealed record GrupoFinal(string Titulo, IReadOnlyList<ExigenciaFinal> Exi
 
 /// <summary>O despacho congelado: o que vai para o DOCX. <see cref="Corpo"/>: aprovação = os 4 parágrafos fixos resolvidos; correção = o fechamento.</summary>
 public sealed record DespachoFinal(TipoDespacho Tipo, string Protocolo, string Requerente, string Assunto, string DataPorExtenso,
-    IReadOnlyList<GrupoFinal> Grupos, IReadOnlyList<string> Corpo);
+    IReadOnlyList<GrupoFinal> Grupos, IReadOnlyList<string> Corpo, string? Destinatario = null);
 
 public enum EstiloPrevia { Titulo, Rotulo, Destinatario, Grupo, Corpo, Data, Assinatura, Vazio }
 
@@ -82,6 +82,7 @@ public sealed class RascunhoDespacho
     public string Protocolo { get; private set; }
     public string Requerente { get; private set; }
     public string Assunto { get; private set; }
+    public string? Destinatario { get; private set; }
     public DateOnly Data { get; }
     public IReadOnlyList<PendenciaDespacho> Pendencias => _pendencias;
     public IReadOnlySet<Intervencao> Intervencoes => _intervencoes;
@@ -126,6 +127,7 @@ public sealed class RascunhoDespacho
             var s = new SortedSet<string>(StringComparer.Ordinal);
             if (Protocolo != _protocoloOriginal) s.Add("cabecalho:protocolo");
             if (Requerente != _requerenteOriginal) s.Add("cabecalho:requerente");
+            if (Destinatario is not null) s.Add("cabecalho:destinatario");
             if (Assunto != _assuntoOriginal) s.Add("cabecalho:assunto");
             s.UnionWith(textosDoCorpo.Keys);
             if (_dataEditada is not null) s.Add("cabecalho:data");
@@ -147,6 +149,7 @@ public sealed class RascunhoDespacho
             case "protocolo": Protocolo = t; break;
             case "requerente": Requerente = t; break;
             case "assunto": Assunto = t; break;
+            case "destinatario": Destinatario = t; break;
             case "data": _dataEditada = t == Etapas.DataPorExtenso(Data) ? null : t; break;
             default: throw new ArgumentException("Campo de cabeçalho desconhecido: " + campo, nameof(campo));
         }
@@ -272,7 +275,7 @@ public sealed class RascunhoDespacho
         foreach (var p in tx.Paragrafos)
             corpo.Add(string.Concat(TrechosDoCorpo(p).Select(t => t.Chave is null
                 ? ConteudoDespacho.Resolver(t.Texto, TextoIntervencao, AreaTotal) : t.Texto)));
-        return new DespachoFinal(Tipo, Protocolo, Requerente, Assunto, DataPorExtenso, grupos, corpo);
+        return new DespachoFinal(Tipo, Protocolo, Requerente, Assunto, DataPorExtenso, grupos, corpo, Destinatario);
     }
 }
 
@@ -449,7 +452,7 @@ public static class ConteudoDespacho
             case "corpo" when partes.Length == 3:
                 r.EditarTrechoDoCorpo(chave, texto);
                 return true;
-            case "cabecalho" when partes.Length == 2 && partes[1] is "protocolo" or "requerente" or "assunto" or "data":
+            case "cabecalho" when partes.Length == 2 && partes[1] is "protocolo" or "requerente" or "assunto" or "destinatario" or "data":
                 r.DefinirCabecalho(partes[1], texto);
                 return true;
             case "grupo" when partes.Length >= 2:
@@ -509,7 +512,10 @@ public static class ConteudoDespacho
                     break;
                 case PapelParagrafo.Requerente: Rotulo(i, PreenchimentoDocx.RotuloRequerente, r.Requerente, FaltaRequerente, "cabecalho:requerente"); break;
                 case PapelParagrafo.Assunto: Rotulo(i, PreenchimentoDocx.RotuloAssunto, r.Assunto, FaltaAssunto, "cabecalho:assunto"); break;
-                case PapelParagrafo.Destinatario: lista.Add(new ParagrafoPrevia(p.Texto, EstiloPrevia.Destinatario, null, Modelo: i)); break;
+                case PapelParagrafo.Destinatario:
+                    var destinatario = r.Destinatario ?? p.Texto;
+                    lista.Add(new ParagrafoPrevia(destinatario, EstiloPrevia.Destinatario, null, "cabecalho:destinatario", destinatario, Modelo: i));
+                    break;
                 case PapelParagrafo.Grupo: Exigencias(lista, r, tx, i, primeiraVaga); break;
                 case PapelParagrafo.Vaga:
                     // As vagas recebem as exigências e o fechamento (correção, já postos no lugar do grupo) ou o corpo da aprovação (na 1ª vaga).

@@ -77,7 +77,8 @@
           <ProgressRing x:Name="Anel" x:FieldModifier="internal" Grid.Column="1" IsActive="False" Width="18" Height="18"/>
         </Grid>
         <ListView x:Name="ListaProcessos" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" Padding="6,0,6,8"
-                  AutomationProperties.Name="Processos">
+                  PointerMoved="AoMoverSobreProcessos" PointerExited="AoSairDosProcessos"
+                  PointerPressed="AoSairDosProcessos" KeyDown="AoUsarTecladoNosProcessos" AutomationProperties.Name="Processos">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:LinhaProcesso">
               <Grid Padding="0,8" ColumnSpacing="12" AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Titulo}">

@@ -14,7 +14,7 @@ public class AchadosExecucaoTestes
         string raiz = pasta;
         void Evento(string nome, string etapa, int seq, int avaliados, int total) =>
             File.WriteAllText(Path.Combine(raiz, nome + ".json"),
-                JsonSerializer.Serialize(new { etapa, sequencia_etapa = seq, avaliados, total }));
+                JsonSerializer.Serialize(new { etapa, sequencia_etapa = seq, avaliados, total }), new System.Text.UTF8Encoding(seq == 3));
         Evento("a", "analyze", 3, 2, 5);
         Evento("b", "analyze", 2, 1, 4);
         Evento("c", "analyze", 4, 8, 5);

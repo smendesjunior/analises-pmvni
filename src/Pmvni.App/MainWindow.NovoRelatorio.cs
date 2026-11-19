@@ -220,6 +220,12 @@ public sealed partial class MainWindow
             });
         };
         n.BotaoCancelarAnalise.Click += async (_, _) => { if (execucaoMostrada is { } e) await TentarAsync(async () => await CancelarAnaliseAsync(e)); };
+        n.BotaoEvidenciasPdf.Click += (_, _) =>
+        {
+            if (execucaoMostrada is not { } e) return;
+            var pasta = Path.Combine(e.Processo.Pasta, ".pmvni-ai", "cache-pdf");
+            if (Directory.Exists(pasta)) AberturaExterna.MostrarNoExplorador(pasta);
+        };
         n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
         n.BotaoMostrarRegistroResultado.Click += (_, _) => { if (ultimoResultadoNR is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
         n.BotaoDescartar.Click += async (_, _) => await TentarAsync(() => { DescartarAnalisePendente(); return Task.CompletedTask; });
@@ -807,10 +813,10 @@ public sealed partial class MainWindow
         if (processo is null || registro is null || original is null) return;
         var (escolha, _) = await PerguntarRetomadaAsync(processo, registro, original.Value);
         if (escolha is null) return;
-        if (escolha == original && (continuarChatGpt is not null || Provedores.PeloKit(original.Value)))
-            await ContinuarAnaliseAsync();
-        else
-            await ContinuarComOutraIaAsync(escolha.Value, processo, registro);
+        var iniciada = escolha == original && (continuarChatGpt is not null || Provedores.PeloKit(original.Value))
+            ? await ContinuarAnaliseAsync()
+            : await ContinuarComOutraIaAsync(escolha.Value, processo, registro);
+        if (iniciada is not null) NR.BotaoContinuar.Visibility = Visibility.Collapsed;
     }
 
     void DescartarAnalisePendente()
@@ -863,6 +869,7 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         execucaoMostrada = e;
+        NR.BotaoEvidenciasPdf.Visibility = Visibility.Collapsed;
         NR.MostrarAchados([]);
         NR.MostrarProgresso(null);
         _ = AtualizarAchadosAsync(e);
@@ -892,12 +899,17 @@ public sealed partial class MainWindow
             var achados = await Task.Run(() => AchadosExecucao.Ler(e.Registro.PastaProgresso, e.Processo.Pasta));
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
             {
+                NR.BotaoEvidenciasPdf.Visibility = Directory.Exists(Path.Combine(e.Processo.Pasta, ".pmvni-ai", "cache-pdf")) ? Visibility.Visible : Visibility.Collapsed;
                 NR.MostrarAchados(achados.Itens);
                 var etapa = e.Situacao?.Etapa;
                 var progresso = etapa is null
                     ? SituacaoAnalisePro.Etapas.Select(chave => achados.Etapas.GetValueOrDefault(chave)).LastOrDefault(p => p is not null)
                     : achados.Etapas.GetValueOrDefault(etapa);
-                NR.MostrarProgresso(progresso);
+                if (NR.ProgressoAtual != progresso)
+                {
+                    NR.MostrarProgresso(progresso);
+                    RenderizarExecucao(e, linhasNovas: false);
+                }
             }
         }
         catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RegistroErros.Gravar("analise.achados", x); }
@@ -926,7 +938,7 @@ public sealed partial class MainWindow
         {
             var s = e.Situacao;
             erro = string.IsNullOrWhiteSpace(s?.Erro) ? null : s!.Erro;
-            etapas = FluxoNovoRelatorio.Etapas(s?.Etapa, s?.Codigo ?? "");
+            etapas = FluxoNovoRelatorio.Etapas(s?.Etapa ?? n.ProgressoAtual?.Etapa, s?.Codigo ?? "");
             // A etapa em que o kit informou erro fica vermelha.
             if (erro is not null) etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();
             n.TextoRotulo.Text = s is null ? "Iniciando a análise detalhada…" : $"Situação: {s.Codigo}" + (s.Rotulo is null ? "" : " · " + s.Rotulo) + (erro is null ? "" : Environment.NewLine + "Erro: " + erro);
@@ -1193,7 +1205,7 @@ public sealed partial class MainWindow
         IconeAnaliseConcluida.Visibility = Se(estado == EstadoPilulaAnalise.Concluida);
         IconeAnalisePausada.Visibility = Se(estado == EstadoPilulaAnalise.Pausada);
         IconeAnaliseErro.Visibility = Se(estado == EstadoPilulaAnalise.Erro);
-        Trabalhando.Definir(BordaAnalise, emAndamento, canto: 21f);
+
         var nome = estado switch
         {
             EstadoPilulaAnalise.EmAndamento => "Análise em andamento",

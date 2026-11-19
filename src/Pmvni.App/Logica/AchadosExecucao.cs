@@ -21,7 +21,7 @@ internal static class AchadosExecucao
             try
             {
                 if (arquivo.LinkTarget is not null || arquivo.Length > 128 * 1024) continue;
-                using var doc = JsonDocument.Parse(File.ReadAllBytes(arquivo.FullName));
+                using var doc = JsonDocument.Parse(File.ReadAllText(arquivo.FullName));
                 var e = doc.RootElement;
                 string? Texto(string nome) => e.TryGetProperty(nome, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
                 if (e.ValueKind != JsonValueKind.Object) continue;

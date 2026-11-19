@@ -402,6 +402,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             AutomationProperties.SetName(t, nome);
             t.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
             Pilulas.Estilizar(t);
+            AlinharRotulo(t);
             Dicas.Aplicar(t, dica);
             t.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);
             alternaveis[c.Id] = t;

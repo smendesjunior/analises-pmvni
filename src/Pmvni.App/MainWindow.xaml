@@ -72,7 +72,7 @@
                 Height="42" CornerRadius="21" Padding="12,0,18,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
             <Grid Width="24" Height="24" VerticalAlignment="Center">
-              <ProgressRing x:Name="AnelAnalise" IsActive="False" Width="22" Height="22" Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+              <ProgressRing x:Name="AnelAnalise" local:Trabalhando.Automatico="False" IsActive="False" Width="22" Height="22" Foreground="{ThemeResource SystemFillColorSuccessBrush}"
                             AutomationProperties.AccessibilityView="Raw"/>
               <FontIcon x:Name="IconeAnaliseConcluida" Glyph="&#xE930;" FontSize="18" Visibility="Collapsed"
                         Foreground="{ThemeResource SystemFillColorSuccessBrush}" AutomationProperties.AccessibilityView="Raw"/>
@@ -123,9 +123,9 @@
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <!-- Pesquisa geral (2026-11-17): além do módulo à vista, acha ajustes, funções, arquivos e leis (lista abaixo da caixa). TextBox nativo
                em pílula: a borda de foco é a do tema (cor de destaque do Windows). -->
-          <TextBox x:Name="CaixaPesquisa" Background="Transparent" BorderThickness="0" Height="30" MinHeight="30" CornerRadius="16" Padding="32,3,8,3" VerticalAlignment="Center"
+          <TextBox x:Name="CaixaPesquisa" TextAlignment="Center" VerticalContentAlignment="Center" Background="Transparent" BorderThickness="0" Height="30" MinHeight="30" CornerRadius="16" Padding="32,3,8,3" VerticalAlignment="Center"
                    PlaceholderText="Pesquisar arquivos, funções, leis e configurações..." AutomationProperties.Name="Pesquisar no app"
-                   ToolTipService.ToolTip="Pesquisar no app (Ctrl+F)">
+                   ToolTipService.ToolTip="Pesquisar no app (Ctrl+K)">
             <TextBox.Resources>
               <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
               <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>

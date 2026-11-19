@@ -28,6 +28,5 @@ public static class Pilulas
     public static void Estilizar(AppBarToggleButton b)
     {
         b.CornerRadius = new CornerRadius(8);
-        Brilho.SetAtivo(b, true);
     }
 }

@@ -33,8 +33,8 @@ public sealed class LinhaAndamento : Grid
     readonly FontIcon simbolo = new() { FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     readonly ProgressRing anel = new() { Width = 20, Height = 20, IsActive = false, Visibility = Visibility.Collapsed };
     readonly Rectangle trilho = new() { Width = 2, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, -6, 0, -6) };
-    readonly Border cartao = new() { CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 8, 12, 8), BorderThickness = new Thickness(1) };
-    readonly Border fundoIcone = new() { Width = 32, Height = 32, CornerRadius = new CornerRadius(6), VerticalAlignment = VerticalAlignment.Top };
+    readonly Border cartao = new() { CornerRadius = new CornerRadius(6), Padding = new Thickness(6, 3, 8, 3), BorderThickness = new Thickness(1) };
+    readonly Border fundoIcone = new() { Width = 24, Height = 24, CornerRadius = new CornerRadius(6), VerticalAlignment = VerticalAlignment.Top };
     readonly FontIcon icone = new() { FontSize = 16 };
     readonly TextBlock titulo = new() { FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
     readonly TextBlock detalhe = new() { FontSize = 12, IsTextSelectionEnabled = true };
@@ -42,10 +42,11 @@ public sealed class LinhaAndamento : Grid
 
     public LinhaAndamento()
     {
+        Trabalhando.SetAutomatico(anel, false);
         ColumnSpacing = 10;
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Margin = new Thickness(0, 3, 0, 3);
+        Margin = new Thickness(0, 1, 0, 1);
 
         Children.Add(trilho);
         marcador.Children.Add(circulo);

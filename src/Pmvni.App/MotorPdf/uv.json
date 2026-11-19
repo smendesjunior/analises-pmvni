@@ -1,0 +1,6 @@
+{
+  "url": "https://files.pythonhosted.org/packages/dd/ef/ceeabf3631117f7354787d9fb1ffe943899e59ed4b887a696ed547e47e76/uv-0.13.9-py3-none-win_amd64.whl",
+  "sha256": "6a44b2ed8111d2f60d2b92627c5dccda3f7ed7570b18ce115e569cd68c28246b",
+  "exe_sha256": "7e6349bc24cfc7249f892c41298e4371826a19008c3cbcfe13eacd08ac398470",
+  "entry": "uv-0.13.9.data/scripts/uv.exe"
+}

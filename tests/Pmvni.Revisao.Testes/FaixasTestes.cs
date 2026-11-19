@@ -69,7 +69,7 @@ public class FaixasTestes
         {
             ComandosApp.InicioSituacao, ComandosApp.InicioNovoItem, ComandosApp.InicioExcluirRestaurar, ComandosApp.InicioEditarTexto, ComandosApp.InicioOriginal,
             ComandosApp.InicioRestaurarOriginal, ComandosApp.InicioItemAnterior, ComandosApp.InicioItemProximo, ComandosApp.InicioProximoPendente,
-            ComandosApp.FigurasAbrirEditor, ComandosApp.EmitirProcessoAprovado, ComandosApp.ArquivoExportarPdf, ComandosApp.ArquivoImprimir, ComandosApp.DespachosNovo,
+            ComandosApp.FigurasAbrirEditor, ComandosApp.DespachosNovo,
         }, inicio.Comandos.Select(c => c.Id));
         var situacao = inicio.Comandos[0];
         Assert.Equal(TipoComando.Menu, situacao.Tipo);
@@ -122,8 +122,8 @@ public class FaixasTestes
             Assert.All(repetidos, g => Assert.All(g, c => Assert.Equal(g.First(), c)));
             if (m == Modulo.Relatorios)
             {
-                Assert.Equal(2, repetidos.Single(g => g.Key == ComandosApp.ArquivoExportarPdf).Count());
-                Assert.Equal(2, repetidos.Single(g => g.Key == ComandosApp.ArquivoImprimir).Count());
+                Assert.Single(Faixas.Comandos(Faixas.Para(m)), c => c.Id == ComandosApp.ArquivoExportarPdf);
+                Assert.Single(Faixas.Comandos(Faixas.Para(m)), c => c.Id == ComandosApp.ArquivoImprimir);
             }
         }
     }
@@ -366,7 +366,8 @@ public class FaixasTestes
         foreach (var m in ComFaixa())
         {
             var f = Faixas.Para(m);
-            var inicio = f.Abas.SingleOrDefault(a => a.Nome == "Página Inicial")?.Comandos.ToList() ?? [];
+            var aba = m == Modulo.Relatorios ? "Arquivo" : "Página Inicial";
+            var inicio = f.Abas.SingleOrDefault(a => a.Nome == aba)?.Comandos.ToList() ?? [];
             var imprimir = inicio.FindIndex(c => c.Id == ComandosApp.ArquivoImprimir);
             if (!ComandosImpressao.Modulos.Contains(m))
             {

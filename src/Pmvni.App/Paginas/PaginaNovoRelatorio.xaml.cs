@@ -144,11 +144,12 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         MostrarEtapas(etapas, rodando && !falhou);
 
         var proxima = temAtual && atual.i + 1 < etapas.Count ? etapas[atual.i + 1].Nome : null;
-        TextoResumo.Text = falhou ? "A execução encontrou um problema." : concluida ? "Relatório pronto para importar." : rodando ? "Projeto em análise." : "A análise não está mais rodando.";
+        TextoResumo.Text = falhou ? "A execução encontrou um problema." : concluida ? "Relatório pronto para importar." : rodando ? (temAtual ? atual.x.Nome : "Aguardando registro da etapa.") : "A análise não está mais rodando.";
         TextoProximaEtapa.Text = falhou ? erro!.Trim()
             : concluida ? "Todas as etapas terminaram."
+            : !rodando ? "Execução encerrada."
+            : !temAtual ? "Aguardando confirmação de progresso."
             : proxima is not null ? $"Próxima etapa: {proxima}."
-            : etapas.Count == 0 ? "As atividades aparecem à esquerda conforme a IA trabalha."
             : "Última etapa em andamento.";
         CartaoProximaEtapa.BorderBrush = Recurso(falhou ? "SystemFillColorCriticalBrush" : "AccentFillColorDefaultBrush");
     }
@@ -236,6 +237,11 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         BarraResumoEtapas.Visibility = etapas.Count > 0 || animar ? Visibility.Visible : Visibility.Collapsed;
         Trabalhando.Definir(PainelClaude, animar && feitas < etapas.Count, (float)PainelClaude.CornerRadius.TopLeft,
             proporcao);
+        ProgressoAtividades.Value = 100 * proporcao;
+        ProgressoAtividades.Visibility = etapas.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        ContagemAtividades.Text = etapas.Count == 0 ? "Aguardando as etapas da análise."
+            : $"{feitas} de {etapas.Count} etapas concluídas · {100 * proporcao:0}%";
+        EtapasAtividades.Children.Clear();
         PainelEtapas.Children.Clear();
         PainelEtapas.ColumnDefinitions.Clear();
         for (var i = 0; i < etapas.Count; i++)
@@ -273,7 +279,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 faixa.SizeChanged += (_, e) =>
                 {
                     var w = e.NewSize.Width;
-                    var margem = new Thickness(w / 4 + 22, 17, w / 4 + 22, 0);
+                    var margem = new Thickness(w / 4 + 15, 12, w / 4 + 15, 0);
                     linha.Margin = margem;
                     if (progresso is not null) progresso.Margin = margem;
                 };
@@ -289,17 +295,34 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             };
             var circulo = new Border
             {
-                Width = 36, Height = 36, CornerRadius = new CornerRadius(18), HorizontalAlignment = HorizontalAlignment.Center, Background = Recurso(fundo),
+                Width = 24, Height = 24, CornerRadius = new CornerRadius(18), HorizontalAlignment = HorizontalAlignment.Center, Background = Recurso(fundo),
                 BorderThickness = new Thickness(estado == EstadoEtapa.Pendente ? 1 : 0), BorderBrush = Recurso("ControlStrongStrokeColorDefaultBrush"),
                 Child = new FontIcon { Glyph = glifo, FontSize = 15, Foreground = Recurso(frente) },
             };
             var situacao = estado switch { EstadoEtapa.Feita => "Concluída · 100%", EstadoEtapa.Agora => animar ? "Em andamento" : "Interrompida", EstadoEtapa.Erro => "Com erro", _ => "Pendente" };
-            var bloco = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Center };
+            var bloco = new StackPanel { Spacing = 1, HorizontalAlignment = HorizontalAlignment.Center };
             if (percentual.HasValue) situacao += $" · {percentual:0}%";
+            var linhaResumo = new Grid { ColumnSpacing = 8, MinHeight = 23 };
+            linhaResumo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+            linhaResumo.ColumnDefinitions.Add(new ColumnDefinition());
+            FrameworkElement marcador;
+            if (estado == EstadoEtapa.Agora && animar)
+            {
+                var anel = new ProgressRing { Width = 16, Height = 16, MinWidth = 0, MinHeight = 0, IsActive = true };
+                Trabalhando.SetAutomatico(anel, false);
+                marcador = anel;
+            }
+            else marcador = new FontIcon { Glyph = estado == EstadoEtapa.Pendente ? "\uEA3A" : glifo, FontSize = 14 };
+            linhaResumo.Children.Add(marcador);
+            var rotulo = new TextBlock { Text = nome, FontSize = 13, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(rotulo, 1);
+            linhaResumo.Children.Add(rotulo);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linhaResumo, nome + " · " + situacao);
+            EtapasAtividades.Children.Add(linhaResumo);
             var dica = new TextBlock { Text = nome + " · " + situacao, TextWrapping = TextWrapping.Wrap };
             var botao = new Button
             {
-                Content = circulo, Padding = new Thickness(0), CornerRadius = new CornerRadius(18),
+                Content = circulo, MinHeight = 24, MinWidth = 24, Padding = new Thickness(0), CornerRadius = new CornerRadius(18),
                 BorderThickness = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Center,
                 Flyout = new Flyout { Content = dica }
             };
@@ -307,7 +330,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             bloco.Children.Add(botao);
             bloco.Children.Add(new TextBlock
             {
-                Text = nome, HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
+                Text = nome, HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0),
                 FontWeight = estado == EstadoEtapa.Pendente ? Microsoft.UI.Text.FontWeights.Normal : Microsoft.UI.Text.FontWeights.SemiBold,
             });
             bloco.Children.Add(new TextBlock

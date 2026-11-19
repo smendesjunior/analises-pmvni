@@ -96,8 +96,11 @@ public sealed class EdicaoNaPreviaTestes
         var r = Montar(t);
         var previa = ConteudoDespacho.Previa(info, r, tx);
 
-        foreach (var p in previa.Where(p => p.Estilo is EstiloPrevia.Titulo or EstiloPrevia.Destinatario or EstiloPrevia.Assinatura or EstiloPrevia.Vazio))
+        foreach (var p in previa.Where(p => p.Estilo is EstiloPrevia.Titulo or EstiloPrevia.Assinatura or EstiloPrevia.Vazio))
             Assert.All(p.TrechosOuTexto, x => Assert.Null(x.Chave));
+        var destino = previa.Single(p => p.Estilo == EstiloPrevia.Destinatario);
+        Assert.True(ConteudoDespacho.AplicarEdicao(r, destino.Chave!, "AO SETOR TÉCNICO:"));
+        Assert.Equal("AO SETOR TÉCNICO:", r.Congelar(tx).Destinatario);
         var fechamento = previa.Single(p => p.Texto == tx.Paragrafos.Single(x => x.Id == "fechamento").Texto);
         var chave = Assert.Single(fechamento.TrechosOuTexto).Chave!;
         Assert.True(ConteudoDespacho.AplicarEdicao(r, chave, "Fechamento revisado."));

@@ -47,6 +47,40 @@ public sealed class GrupoMiniaturas : List<object>
 /// (<see cref="OrganizacaoArquivos"/>). Nos dois modos a escolha de um arquivo é a da <c>ListaDetalhe</c>, que fica fora da tela.</para></summary>
 public sealed partial class PaginaProcessos : UserControl
 {
+    readonly DispatcherTimer esperaDoMouse = new() { Interval = TimeSpan.FromMilliseconds(300) };
+    Windows.Foundation.Point pontoNaLista;
+    LinhaProcesso? processoSobMouse;
+
+    void AoMoverSobreProcessos(object sender, PointerRoutedEventArgs e)
+    {
+        esperaDoMouse.Stop();
+        processoSobMouse = null;
+        if (e.Pointer.PointerDeviceType != Microsoft.UI.Input.PointerDeviceType.Mouse ||
+            e.OriginalSource is not DependencyObject origem) return;
+        var ponto = e.GetCurrentPoint(ListaProcessos);
+        while (origem is not ListViewItem && origem != ListaProcessos && VisualTreeHelper.GetParent(origem) is { } pai) origem = pai;
+        if (ponto.IsInContact || origem is not ListViewItem item ||
+            ListaProcessos.ItemFromContainer(item) is not LinhaProcesso linha || Equals(ListaProcessos.SelectedItem, linha)) return;
+        pontoNaLista = ponto.Position;
+        processoSobMouse = linha;
+        esperaDoMouse.Start();
+    }
+
+    void SelecionarProcessoSobMouse(object? sender, object e)
+    {
+        esperaDoMouse.Stop();
+        var linha = processoSobMouse;
+        processoSobMouse = null;
+        if (linha is null || !ListaProcessos.IsLoaded || !Trabalhando.VisivelDeFato(ListaProcessos) ||
+            ListaProcessos.ContainerFromItem(linha) is not ListViewItem item) return;
+        var local = ListaProcessos.TransformToVisual(item).TransformPoint(pontoNaLista);
+        if (local.X >= 0 && local.Y >= 0 && local.X < item.ActualWidth && local.Y < item.ActualHeight)
+            ListaProcessos.SelectedItem = linha;
+    }
+
+    void AoSairDosProcessos(object sender, PointerRoutedEventArgs e) => esperaDoMouse.Stop();
+    void AoUsarTecladoNosProcessos(object sender, KeyRoutedEventArgs e) => esperaDoMouse.Stop();
+
     bool sincronizando;
     ExibicaoArquivos exibicao = ExibicaoArquivos.Padrao;
     bool miniaturas;
@@ -73,6 +107,7 @@ public sealed partial class PaginaProcessos : UserControl
     public PaginaProcessos()
     {
         InitializeComponent();
+        esperaDoMouse.Tick += SelecionarProcessoSobMouse;
         // A frase da tela vazia acompanha o texto que a janela escreve em TextoListaVazia.
         TextoListaVazia.RegisterPropertyChangedCallback(TextBlock.TextProperty, (_, _) => Vazio.DefinirFrase(TextoListaVazia.Text));
         // As linhas do detalhe vão para as colunas (ou para a grade); a escolha numa delas é a escolha da ListaDetalhe.
