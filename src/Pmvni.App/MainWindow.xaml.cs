@@ -743,6 +743,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         var anterior = moduloAtual;
         moduloAtual = m;
+        AreaPaginas.BorderThickness = m == Modulo.Relatorios ? new Thickness(0) : new Thickness(1, 1, 0, 0);
         AtualizarPaginasDeRelatorios();
         AtualizarPaginasDeDespachos();
         PaginaDeProcessos.Visibility = m == Modulo.Processos ? Visibility.Visible : Visibility.Collapsed;

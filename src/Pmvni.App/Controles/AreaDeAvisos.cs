@@ -77,7 +77,7 @@ public sealed partial class AreaDeAvisos : StackPanel
         {
             var info = ligadas[i];
             var pos = abertas.IndexOf(info);
-            info.Visibility = pos < 0 || expandida || pos < MaxVisiveis ? Visibility.Visible : Visibility.Collapsed;
+            info.Visibility = info.IsOpen && (expandida || pos < MaxVisiveis) ? Visibility.Visible : Visibility.Collapsed;
         }
         if (abertas.Count > MaxVisiveis)
         {
