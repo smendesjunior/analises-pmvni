@@ -4,6 +4,8 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 ## 1.2.7
 
+- Desfazer, Refazer, Anterior e Próxima ganham brilho verde ao passar o ponteiro.
+
 - A lista de atividades explica as seis etapas da análise em português e exibe o horário do evento uma única vez. Pausas, falhas e conclusão também têm mensagens próprias.
 
 ## 1.2.6

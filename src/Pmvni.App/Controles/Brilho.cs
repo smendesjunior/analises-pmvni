@@ -28,6 +28,12 @@ public static class Brilho
     public static bool GetAtivo(DependencyObject d) => (bool)d.GetValue(AtivoProperty);
     public static void SetAtivo(DependencyObject d, bool valor) => d.SetValue(AtivoProperty, valor);
 
+    public static readonly DependencyProperty SomenteAoApontarProperty = DependencyProperty.RegisterAttached(
+        "SomenteAoApontar", typeof(bool), typeof(Brilho), new PropertyMetadata(false));
+
+    public static bool GetSomenteAoApontar(DependencyObject d) => (bool)d.GetValue(SomenteAoApontarProperty);
+    public static void SetSomenteAoApontar(DependencyObject d, bool valor) => d.SetValue(SomenteAoApontarProperty, valor);
+
     static readonly DependencyProperty EstadoProperty = DependencyProperty.RegisterAttached(
         "Estado", typeof(object), typeof(Brilho), new PropertyMetadata(null));
 
@@ -203,6 +209,7 @@ public static class Brilho
             if (Acessibilidade.HighContrast || !botao.IsEnabled || botao is Microsoft.UI.Xaml.Controls.Primitives.ToggleButton { IsChecked: not true }) { opacidade = 0f; desfoque = 8f; }
             else if (pressionado) { opacidade = escuro ? 0.30f : 0.22f; desfoque = 9f; }
             else if (sobre) { opacidade = escuro ? 0.42f : 0.30f; desfoque = 12f; }  // os valores do WinStatusBar
+            else if (GetSomenteAoApontar(botao)) { opacidade = 0f; desfoque = 8f; }
             else { opacidade = escuro ? 0.22f : 0.15f; desfoque = 8f; }               // repouso: um halo discreto
             sombra.Color = Cor();
 

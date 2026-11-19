@@ -67,6 +67,8 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniBotaoGrupoCabecalhoStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+    <Setter Property="local:Brilho.SomenteAoApontar" Value="True"/>
+    <Setter Property="local:Brilho.Ativo" Value="True"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="CornerRadius" Value="7"/>
@@ -76,6 +78,8 @@
   <!-- Desfazer e Refazer (2026-11-17): botões de ícone (seta curva), quadrados de 40×36 com cantos 8; o nome e o atalho ficam na dica. -->
   <!-- 1.0.0: dentro da pílula de Desfazer | Refazer (a moldura é do grupo): fundo transparente, sem borda, 42 de largura. -->
   <Style x:Key="PmvniBotaoIconeCabecalhoStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+    <Setter Property="local:Brilho.SomenteAoApontar" Value="True"/>
+    <Setter Property="local:Brilho.Ativo" Value="True"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="CornerRadius" Value="17"/>

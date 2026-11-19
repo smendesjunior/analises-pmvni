@@ -82,8 +82,7 @@
       <!-- Desfazer e Refazer (ícones) e a pesquisa (Ctrl+F; Enter = próxima, Shift+Enter = anterior, Esc limpa), com Anterior | Próxima
            rotulados (só os ícones em janelas estreitas; o nome fica na dica e no Narrador). -->
       <!-- Redesign do cabeçalho (2026-11-17, referência visual do usuário): identidade | estado da análise | Desfazer, Refazer | pesquisa |
-           Anterior | Próxima, todos centrados na altura da barra, com 12 entre os grupos. Sem brilho colorido: o destaque é o AccentColor do
-           Windows (anel de progresso e borda da pílula), o resto usa as superfícies e bordas do tema. -->
+           Anterior | Próxima, todos centrados na altura da barra, com 12 entre os grupos. Os segmentos habilitados ganham brilho ao passar o ponteiro. -->
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Left" VerticalAlignment="Center">
         <!-- Novo relatório (desenho §12.7): o estado da análise (em andamento, concluída, pausada, com erro; sem análise, some). Clicar abre a
              vista da execução (ou o resultado, quando ela já terminou). Texto principal e secundário (processo · tempo) com reticências. -->
