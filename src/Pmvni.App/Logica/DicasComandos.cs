@@ -102,6 +102,7 @@ public static class DicasComandos
         [ComandosApp.ProcessosOrdenarRequerente] = "Ordena os processos pelo nome do requerente, em ordem alfabética.",
 
         // Legislação
+        [ComandosApp.LegislacaoConsultar] = "Pesquisa e lê normas no portal Leis.org.",
         [ComandosApp.LegislacaoAnexar] = "Acrescenta leis em PDF à biblioteca de legislação do app.",
         [ComandosApp.LegislacaoGerenciar] = "Abre os ajustes da Legislação para renomear, reler ou tirar leis anexadas.",
         [ComandosApp.LegislacaoCopiar] = "Copia o trecho selecionado da lei.",

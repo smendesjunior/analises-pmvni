@@ -80,6 +80,7 @@ public sealed partial class MainWindow
         };
 
         // Anexar PDFs… pela faixa: o seletor entra na fila, a leitura dos arquivos corre fora dela (como o botão dos Ajustes).
+        manipuladores[ComandosApp.LegislacaoConsultar] = P.AbrirConsultaAsync;
         manipuladores[ComandosApp.LegislacaoAnexar] = () => { DispatcherQueue.TryEnqueue(() => _ = AnexarLegislacaoAsync()); return Task.CompletedTask; };
         manipuladores[ComandosApp.LegislacaoGerenciar] = GerenciarAnexosAsync;
         manipuladores[ComandosApp.LegislacaoCopiar] = CopiarSelecaoNaVezAsync;

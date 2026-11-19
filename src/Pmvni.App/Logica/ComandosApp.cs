@@ -112,6 +112,7 @@ public static class ComandosApp
     public const string RelatoriosNovo = "relatorios.novo";
 
     // Legislação (Tarefa 18; desenho §11.5): o leitor dos PDFs anexados.
+    public const string LegislacaoConsultar = "legislacao.consultar";
     public const string LegislacaoAnexar = "legislacao.anexar";
     public const string LegislacaoGerenciar = "legislacao.gerenciar";
     public const string LegislacaoCopiar = "legislacao.copiar";

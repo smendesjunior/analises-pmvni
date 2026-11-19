@@ -15,7 +15,7 @@ public static class ComandosLegislacao
     {
         var h = new HashSet<string>(StringComparer.Ordinal)
         {
-            ComandosApp.LegislacaoGerenciar, ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes,
+            ComandosApp.LegislacaoConsultar, ComandosApp.LegislacaoGerenciar, ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes,
             ComandosApp.LegislacaoEscopo, ComandosApp.LegislacaoEscopoTodas, ComandosApp.LegislacaoLista,
         };
         if (!somenteLeitura) h.Add(ComandosApp.LegislacaoAnexar);

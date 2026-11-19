@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.13
+
+- Consultar outras leis abre o portal no módulo Legislação, com seleção de acervo, navegação e ações de PDF na interface do Editor.
+
 ## 1.2.12
 
 - Cabeçalho, rodapé e faixa lateral dos despachos usam artes vetoriais.

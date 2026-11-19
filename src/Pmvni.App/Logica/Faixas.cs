@@ -239,7 +239,7 @@ public static class Faixas
             new(ComandosApp.LegislacaoLista, "Lista de leis", Glifos.Lista, TipoComando.Alternar),
         ]),
         Ajuda,
-    ], AbaPadrao: 1, Primario: AnexarLeis);
+    ], AbaPadrao: 1, Primario: AnexarLeis, Secundario: new(ComandosApp.LegislacaoConsultar, "Consultar outras leis", Glifos.Pesquisar));
 
     /// <summary>Os sistemas da Prefeitura (2026-11-16): a navegação básica do navegador embutido.</summary>
     static readonly AbaFaixa NavegacaoDoSite = new("Página Inicial",

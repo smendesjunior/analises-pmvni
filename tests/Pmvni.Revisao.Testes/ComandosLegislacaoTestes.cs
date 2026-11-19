@@ -8,7 +8,7 @@ public class ComandosLegislacaoTestes
 {
     static readonly string[] Sempre =
     [
-        ComandosApp.LegislacaoGerenciar, ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes,
+        ComandosApp.LegislacaoConsultar, ComandosApp.LegislacaoGerenciar, ComandosApp.ArquivoImportar, ComandosApp.ArquivoAbrir, ComandosApp.ArquivoRecentes,
         ComandosApp.LegislacaoEscopo, ComandosApp.LegislacaoEscopoTodas, ComandosApp.LegislacaoLista,
     ];
 
