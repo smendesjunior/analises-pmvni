@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.10
+
+- Senhas dos sites e chaves de API já guardadas aparecem com caracteres ocultos nos Ajustes.
+
 ## 1.2.9
 
 - A consulta ao Leis.org permite escolher o acervo de qualquer região do Brasil.

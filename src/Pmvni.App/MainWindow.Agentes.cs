@@ -375,6 +375,7 @@ public sealed partial class MainWindow
     internal Task GuardarChaveAsync(Provedor p, string chave) => NaFilaAsync(() => TentarAsync(() =>
     {
         var caixa = CartaoDoAgente(p).CaixaChave;
+        if (chave.Length == 0 && CofreChaves.Existe(PastaDados.Raiz, p)) return Task.CompletedTask;
         try
         {
             if (string.IsNullOrWhiteSpace(chave)) mensagensDosAgentes[p] = TextosAgentes.ChaveVazia;
@@ -581,6 +582,7 @@ public sealed partial class MainWindow
         c.TextoDicaChave.Visibility = dica.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         c.PainelChave.Visibility = a.Modo == ModoAcesso.Chave ? Visibility.Visible : Visibility.Collapsed;
         var guardada = CofreChaves.Existe(PastaDados.Raiz, p);
+        c.CaixaChave.PlaceholderText = guardada ? "••••••••" : "Cole a chave de API aqui";
         c.TextoChave.Text = guardada ? TextosAgentes.ChaveGuardada : TextosAgentes.SemChave;
         c.SeloChave.Definir(guardada, guardada ? TextosAgentes.Configurada : TextosAgentes.NaoConfigurada);
         c.BotaoRemoverChave.IsEnabled = guardada;

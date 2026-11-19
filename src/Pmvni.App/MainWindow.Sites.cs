@@ -44,11 +44,17 @@ public sealed partial class MainWindow
             var abrir = new Button { Content = "Abrir para entrar" };
             var sair = new Button { Content = "Sair" };
             ToolTipService.SetToolTip(sair, "Apaga o login lembrado e o guardado deste site neste computador. Só volta a lembrar quando você entrar de novo.");
-            void Atualizar() => situacao.Text = PaginaSites.Situacao(m);
+            void Atualizar()
+            {
+                situacao.Text = PaginaSites.Situacao(m);
+                senha.PlaceholderText = CofreSites.TemLogin(PastaDados.Raiz, m) ? "••••••••" : "Senha";
+            }
+            Atualizar();
             guardar.Click += async (_, _) =>
             {
                 try
                 {
+                    if (senha.Password.Length == 0 && CofreSites.TemLogin(PastaDados.Raiz, m)) return;
                     CofreSites.GuardarLogin(PastaDados.Raiz, m, new CredencialSite(usuario.Text, senha.Password));
                     CofreSites.Voltou(PastaDados.Raiz, m);
                     senha.Password = "";
