@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 1.2.18
+
+- No Acompanhamento, o título e os dados da coluna acompanham o ponteiro, e as colunas vizinhas abrem espaço durante o arraste. A faixa de ações e os campos da pesquisa de imóveis usam altura intermediária.
+
 ## 1.2.17
 
 - Arraste os títulos para mover colunas no Acompanhamento. Os controles de navegação do Leis.org ficam em uma segunda faixa arredondada.

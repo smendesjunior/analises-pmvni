@@ -73,6 +73,15 @@ public sealed partial class MainWindow
 
     void IniciarAcompanhamento()
     {
+        Ac.AddHandler(UIElement.PointerMovedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+        {
+            if (origemMovimento == null) return;
+            var ponto = e.GetCurrentPoint(null);
+            if (!ponto.Properties.IsLeftButtonPressed) EncerrarArraste();
+            else MostrarArraste(ponto.Position.X);
+        }), true);
+        Ac.AddHandler(UIElement.PointerReleasedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => EncerrarArraste()), true);
+        Ac.Unloaded += (_, _) => EncerrarArraste();
         Ac.IconeTitulo.Content = Trilho.NovoIcone(Modulo.Acompanhamento, 40);
         Ac.IconeVazio.Content = Trilho.NovoIcone(Modulo.Acompanhamento, 64);
         Ac.BotaoEscolherVazio.Click += async (_, _) => await ImportarPlanilhaAsync();
@@ -607,7 +616,7 @@ public sealed partial class MainWindow
             var painel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             painel.Children.Add(new TextBlock { Text = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
             if (ativa) painel.Children.Add(new FontIcon { Glyph = ordemDecrescente ? "" : "", FontSize = 11 });
-            var b = new CabecalhoMovel { Content = painel, Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(0, 10, 0, 10), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = Centralizada(c) ? HorizontalAlignment.Center : HorizontalAlignment.Left };
+            var b = new Button { Content = painel, Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(0, 10, 0, 10), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = Centralizada(c) ? HorizontalAlignment.Center : HorizontalAlignment.Left };
             // O sentido da ordem não fica só no ícone: o nome e a dica dizem (Narrador).
             var nomeCol = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo;
             var dicaOrdem = ativa ? $"{nomeCol}, em ordem {(ordemDecrescente ? "decrescente" : "crescente")}. Clique para a ordem {(ordemDecrescente ? "crescente" : "decrescente")}." : $"Ordenar por {nomeCol}";
@@ -624,9 +633,11 @@ public sealed partial class MainWindow
                 PreencherLista();
             }
             b.Click += (_, _) => OrdenarColuna();
-            b.CliqueDoPonteiro += OrdenarColuna;
+            var superficie = new CabecalhoMovel();
+            superficie.CliqueDoPonteiro += OrdenarColuna;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(superficie, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
             // Alça de largura na borda direita do título (pedido do usuário, 2026-11-17: colunas redimensionáveis, como no Excel).
-            ConfigurarMovimento(b, col, i);
+            ConfigurarMovimento(superficie, b, col, i);
             var indice = i;
             var alca = new AlcaColuna { LarguraAtual = () => g.ColumnDefinitions[indice].Width.Value, Margin = new Thickness(0, 0, -11, 0) };
             ToolTipService.SetToolTip(alca, "Arraste para mudar a largura; dois cliques voltam ao padrão");
@@ -635,6 +646,7 @@ public sealed partial class MainWindow
             alca.Restaurar += () => { ajustes.AcompanhamentoLarguras.Remove(ChaveColunaAjustes(col)); SalvarAjustes(); AplicarLargura(indice, LarguraPadrao(col)); };
             var titulo = new Grid();
             titulo.Children.Add(b);
+            titulo.Children.Add(superficie);
             titulo.Children.Add(alca);
             Canvas.SetZIndex(alca, 1);
             FrameworkElement celula = i < ColunasFixas ? CelulaFixa(titulo, i, g.Padding, titulo: true) : titulo;
@@ -644,18 +656,68 @@ public sealed partial class MainWindow
         FixarColunas();
     }
 
-    void ConfigurarMovimento(CabecalhoMovel botao, Coluna coluna, int indice)
+    (string Chave, int Indice, double X)? origemMovimento;
+    readonly List<(FrameworkElement Celula, int Coluna, int Camada)> celulasEmMovimento = [];
+    readonly List<(int Coluna, Rect Limites, int Camada)> destinosMovimento = [];
+
+    void EncerrarArraste()
     {
-        botao.SoltouColuna += ponto =>
+        foreach (var (celula, _, camada) in celulasEmMovimento)
         {
-            // As colunas fixadas ficam sobre as demais durante a rolagem.
+            celula.Translation = default;
+            Canvas.SetZIndex(celula, camada);
+        }
+        celulasEmMovimento.Clear();
+        destinosMovimento.Clear();
+        origemMovimento = null;
+    }
+
+    void MostrarArraste(double x)
+    {
+        if (origemMovimento is not { } origem || (celulasEmMovimento.Count == 0 && Math.Abs(x - origem.X) < 5)) return;
+        if (celulasEmMovimento.Count == 0)
+        {
+            foreach (var linha in Ac.Lista.Items.OfType<Grid>().Prepend(Ac.CabecalhoTabela))
+                foreach (var celula in linha.Children.OfType<FrameworkElement>())
+                {
+                    var coluna = Grid.GetColumn(celula);
+                    if (coluna >= ColunasVisiveis.Count) continue;
+                    var camada = Canvas.GetZIndex(celula);
+                    celulasEmMovimento.Add((celula, coluna, camada));
+                    if (coluna == origem.Indice) Canvas.SetZIndex(celula, 4);
+                }
+        }
+        var destino = destinosMovimento.FirstOrDefault(d => x >= d.Limites.Left && x <= d.Limites.Right);
+        var alvo = destino.Limites.Width > 0 ? destino.Coluna : origem.Indice;
+        float largura = (float)(Ac.CabecalhoTabela.ColumnDefinitions[origem.Indice].ActualWidth + Ac.CabecalhoTabela.ColumnSpacing);
+        foreach (var (celula, coluna, _) in celulasEmMovimento)
+        {
+            float deslocamento = coluna == origem.Indice ? (float)(x - origem.X)
+                : coluna > origem.Indice && coluna <= alvo ? -largura
+                : coluna < origem.Indice && coluna >= alvo ? largura : 0;
+            celula.Translation = new System.Numerics.Vector3(deslocamento, 0, 0);
+        }
+    }
+
+    void ConfigurarMovimento(CabecalhoMovel superficie, Button botao, Coluna coluna, int indice)
+    {
+        superficie.InicioDoArraste += ponto =>
+        {
+            EncerrarArraste();
+            origemMovimento = (ChaveColunaAjustes(coluna), indice, ponto.X);
             foreach (var celula in Ac.CabecalhoTabela.Children.OfType<FrameworkElement>().OrderByDescending(c => Canvas.GetZIndex(c)))
             {
                 var limites = celula.TransformToVisual(null).TransformBounds(new Rect(0, 0, celula.ActualWidth, celula.ActualHeight));
-                if (!limites.Contains(ponto)) continue;
-                MoverColuna(ChaveColunaAjustes(coluna), Grid.GetColumn(celula));
-                break;
+                destinosMovimento.Add((Grid.GetColumn(celula), limites, Canvas.GetZIndex(celula)));
             }
+        };
+        superficie.SoltouColuna += ponto =>
+        {
+            var origem = origemMovimento;
+            var alvo = destinosMovimento.FirstOrDefault(d => d.Limites.Contains(ponto));
+            EncerrarArraste();
+            if (origem is { } inicio && Math.Abs(inicio.X - ponto.X) >= 5 && alvo.Limites.Width > 0)
+                MoverColuna(inicio.Chave, alvo.Coluna);
         };
         var menu = new MenuFlyout();
         foreach (var (texto, alvo) in new[] { ("Mover para a esquerda", indice - 1), ("Mover para a direita", indice + 1) })
@@ -665,6 +727,8 @@ public sealed partial class MainWindow
             menu.Items.Add(item);
         }
         botao.ContextFlyout = menu;
+        superficie.ContextFlyout = menu;
+        ToolTipService.SetToolTip(superficie, "Clique para ordenar ou arraste o título para mover a coluna.");
     }
 
     void MoverColuna(string chave, int destino)
