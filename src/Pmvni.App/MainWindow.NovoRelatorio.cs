@@ -879,7 +879,7 @@ public sealed partial class MainWindow
         execucaoMostrada = e;
         NR.BotaoEvidenciasPdf.Visibility = Visibility.Collapsed;
         NR.MostrarAchados([]);
-        NR.MostrarEstimativa(null);
+        NR.ReiniciarEstimativa();
         NR.MostrarProgresso(null);
         _ = AtualizarAchadosAsync(e);
         NR.LigarLinhas(e.LinhasObservaveis);
@@ -940,7 +940,6 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         var n = NR;
-        AtualizarRelogioDaExecucao(e);
         var claude = Provedores.PeloKit(e.Provedor);     // Claude e Gemini: o kit informa a etapa
         n.PainelClaude.Visibility = Visibility.Visible;
         n.PainelUltimaMensagem.Visibility = claude ? Visibility.Collapsed : Visibility.Visible;
@@ -965,6 +964,7 @@ public sealed partial class MainWindow
         }
         if (!claude && e.Linhas.LastOrDefault() is { } ultima && ultima.StartsWith("Erro: ", StringComparison.Ordinal)) erro = ultima[6..];
         n.MostrarResumo(rodando, erro, etapas, e.Linhas);
+        AtualizarRelogioDaExecucao(e);
         if (linhasNovas && n.LinhasNoFim()) n.RolarLinhasAoFim();
     }
 

@@ -160,6 +160,13 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     internal EstimativaAnalise? EstimativaAtual { get; private set; }
     private EstimativaAnalise? estimativaDesenhada;
     private bool execucaoAtivaNaBarra;
+    private (double Percentual, TimeSpan DuracaoAtiva)? previsaoPeloRitmo;
+
+    internal void ReiniciarEstimativa()
+    {
+        previsaoPeloRitmo = null;
+        MostrarEstimativa(null);
+    }
 
     internal void MostrarEstimativa(EstimativaAnalise? estimativa)
     {
@@ -170,8 +177,19 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     internal void MostrarRelogios(TimeSpan decorrido, DateTimeOffset agora)
     {
-        TextoTempoDecorrido.Text = "Decorrido · " + FluxoNovoRelatorio.TempoLegivel(decorrido);
-        TextoTempoEstimado.Text = FluxoNovoRelatorio.TextoEstimativa(EstimativaAtual?.Termino?.ToLocalTime(), agora);
+        TextoTempoDecorrido.Text = "Decorrido · " + FluxoNovoRelatorio.TempoLegivel(decorrido, incluirSegundos: true);
+        TimeSpan? restantePeloRitmo = null;
+        if (execucaoAtivaNaBarra && decorrido > TimeSpan.Zero &&
+            EstimativaAtual?.PercentualGeral is double percentual and >= 1 and < 100)
+        {
+            // Usa o tempo ativo acumulado e mantém a previsão até o progresso mudar.
+            var duracaoEmSegundos = decorrido.TotalSeconds * 100 / percentual;
+            if (previsaoPeloRitmo?.Percentual != percentual && duracaoEmSegundos < (DateTimeOffset.MaxValue - agora).TotalSeconds)
+                previsaoPeloRitmo = (percentual, TimeSpan.FromSeconds(duracaoEmSegundos));
+            if (previsaoPeloRitmo is { } previsao && previsao.Percentual == percentual)
+                restantePeloRitmo = previsao.DuracaoAtiva - decorrido;
+        }
+        TextoTempoEstimado.Text = FluxoNovoRelatorio.TextoEstimativa(EstimativaAtual?.Termino?.ToLocalTime(), agora, restantePeloRitmo);
     }
 
     internal void MostrarProgresso(ProgressoEtapa? progresso)
@@ -396,19 +414,27 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         }
     }
 
-    /// <summary>Abaixo de 1000 px, a coluna lateral desce para baixo das atividades.</summary>
+    /// <summary>Empilha os cartões quando a largura disponível não comporta as três colunas.</summary>
     internal void AjustarColunasExecucao(double largura)
     {
-        var estreita = largura < 1000;
-        GradeConteudo.ColumnDefinitions[1].Width = estreita ? new GridLength(0) : new GridLength(10, GridUnitType.Star);
-        GradeConteudo.ColumnSpacing = estreita ? 0 : 12;
-        GradeConteudo.RowDefinitions[1].Height = estreita ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        var ampla = largura >= 1080;
+        var estreita = largura < 760;
+        GradeConteudo.ColumnDefinitions[1].Width = estreita ? new GridLength(0) : new GridLength(11, GridUnitType.Star);
+        GradeConteudo.ColumnDefinitions[2].Width = ampla ? new GridLength(8, GridUnitType.Star) : new GridLength(0);
+        GradeConteudo.RowDefinitions[1].Height = ampla ? new GridLength(0) : new GridLength(estreita ? 1 : 2, GridUnitType.Star);
+        GradeConteudo.RowDefinitions[2].Height = estreita ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
         Grid.SetColumn(ColunaLateral, estreita ? 0 : 1);
         Grid.SetRow(ColunaLateral, estreita ? 1 : 0);
-        Grid.SetRow(BotoesExecucao, estreita ? 1 : 0);
-        Grid.SetColumn(BotoesExecucao, estreita ? 0 : 2);
-        Grid.SetColumnSpan(BotoesExecucao, estreita ? 3 : 1);
-        BotoesExecucao.Orientation = largura < 540 ? Orientation.Vertical : Orientation.Horizontal;
+        ColunaLateral.Margin = estreita ? new Thickness(0, 8, 0, 0) : new Thickness(8, 0, 0, 0);
+        Grid.SetColumn(ColunaDetalhes, ampla ? 2 : 0);
+        Grid.SetColumnSpan(ColunaDetalhes, ampla || estreita ? 1 : 2);
+        Grid.SetRow(ColunaDetalhes, ampla ? 0 : estreita ? 2 : 1);
+        ColunaDetalhes.Margin = ampla ? new Thickness(8, 0, 0, 0) : new Thickness(0, 8, 0, 0);
+
+        var botoesEmbaixo = largura < 920;
+        Grid.SetRow(BotoesExecucao, botoesEmbaixo ? 1 : 0);
+        Grid.SetColumn(BotoesExecucao, botoesEmbaixo ? 0 : 2);
+        Grid.SetColumnSpan(BotoesExecucao, botoesEmbaixo ? 3 : 1);
     }
 
     static Brush Recurso(string chave) => (Brush)Application.Current.Resources[chave];

@@ -142,23 +142,29 @@ public static class FluxoNovoRelatorio
 
     public static string TituloExecucao(Provedor p, Processo pr) => $"Analisando com o {Provedores.Nome(p)} · {Identificacao(pr)}";
 
-    internal static string TempoLegivel(TimeSpan decorrido)
+    internal static string TempoLegivel(TimeSpan decorrido, bool incluirSegundos = false)
     {
-        var minutos = Math.Max(0, (long)Math.Floor(decorrido.TotalMinutes));
+        var segundos = Math.Max(0, (long)decorrido.TotalSeconds);
+        var minutos = segundos / 60;
+        var sufixo = incluirSegundos ? string.Create(CultureInfo.InvariantCulture, $" {segundos % 60:D2} s") : "";
         return minutos switch
         {
-            0 => string.Create(CultureInfo.InvariantCulture, $"{Math.Max(0, (int)decorrido.TotalSeconds)} s"),
-            < 60 => string.Create(CultureInfo.InvariantCulture, $"{minutos} min"),
-            _ => string.Create(CultureInfo.InvariantCulture, $"{minutos / 60} h {minutos % 60:D2} min"),
+            0 => string.Create(CultureInfo.InvariantCulture, $"{segundos} s"),
+            < 60 => string.Create(CultureInfo.InvariantCulture, $"{minutos} min{sufixo}"),
+            _ => string.Create(CultureInfo.InvariantCulture, $"{minutos / 60} h {minutos % 60:D2} min{sufixo}"),
         };
     }
 
-    internal static string TextoEstimativa(DateTimeOffset? termino, DateTimeOffset agora)
+    internal static string TextoEstimativa(DateTimeOffset? termino, DateTimeOffset agora, TimeSpan? restantePeloRitmo = null)
     {
+        var peloRitmo = termino is null || termino <= agora;
+        if (peloRitmo && restantePeloRitmo is { } restante && restante > TimeSpan.Zero)
+            termino = agora.Add(restante);
         if (termino is not { } hora) return "Aguardando estimativa da IA";
         if (hora <= agora) return "Aguardando nova estimativa da IA";
         var formato = hora.Date == agora.Date ? "HH:mm" : "dd/MM HH:mm";
-        return $"Término estimado · {hora.ToString(formato, CultureInfo.InvariantCulture)} ({TempoLegivel(hora - agora)} restantes)";
+        var rotulo = peloRitmo ? "Término aproximado pelo ritmo" : "Término estimado";
+        return $"{rotulo} · {hora.ToString(formato, CultureInfo.InvariantCulture)} ({TempoLegivel(hora - agora)} restantes)";
     }
 
     /// <summary>As seis etapas do controlador do kit com o nome em português e o estado: antes da atual, feitas; a atual, agora; depois, pendentes.

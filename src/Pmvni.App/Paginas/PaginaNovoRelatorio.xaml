@@ -170,138 +170,140 @@
       </Grid>
     </ScrollViewer>
 
-    <!-- Vista da execução (redesenho 2026-11-17): resumo no topo, etapas, atividades em linguagem natural (à esquerda), descobertas, próxima etapa e
-         "Detalhes da execução" recolhíveis (à direita). Abaixo de 1000 px as colunas se empilham (AjustarColunasExecucao). -->
-    <Grid x:Name="PainelExecucao" x:FieldModifier="internal" Grid.Row="2" Visibility="Collapsed" Padding="20,16,20,16" RowSpacing="12">
+    <!-- Faixa do monitor e três colunas de conteúdo com rolagem independente. -->
+    <Grid x:Name="PainelExecucao" x:FieldModifier="internal" Grid.Row="2" Visibility="Collapsed" Padding="16,8,16,12" RowSpacing="6">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="Auto"/><RowDefinition Height="*"/>
       </Grid.RowDefinitions>
 
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-        <Border CornerRadius="10" Padding="10" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
-          <FontIcon Glyph="&#xE99A;" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+        <Border CornerRadius="8" Padding="6" VerticalAlignment="Center" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
+          <FontIcon Glyph="&#xE99A;" FontSize="18" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-          <TextBlock Text="Monitor de análise" Style="{StaticResource PmvniTituloPaginaStyle}"/>
+          <TextBlock Text="Monitor de análise" Style="{StaticResource PmvniTituloPaginaStyle}" FontSize="20"/>
           <TextBlock Text="Execução da IA, atividades e descobertas em tempo real." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
         </StackPanel>
-        <TextBlock TextAlignment="Center" Grid.Column="2" x:Name="ProcessoMonitor" x:FieldModifier="internal" MaxWidth="220" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+        <TextBlock TextAlignment="Right" Grid.Column="2" x:Name="ProcessoMonitor" x:FieldModifier="internal" MaxWidth="160" VerticalAlignment="Center" TextWrapping="Wrap" Style="{StaticResource BodyStrongTextBlockStyle}"/>
       </Grid>
       <!-- 1. Resumo. -->
-      <Border Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="12,8">
-        <Grid ColumnSpacing="16" RowSpacing="6">
+      <Border Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="10,6">
+        <Grid ColumnSpacing="8">
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <Border x:Name="FundoIconeStatus" x:FieldModifier="internal" Width="38" Height="38" CornerRadius="10" VerticalAlignment="Top"
+          <Border x:Name="FundoIconeStatus" x:FieldModifier="internal" Width="30" Height="30" CornerRadius="8" VerticalAlignment="Center"
                   Background="{ThemeResource AccentFillColorDefaultBrush}">
-            <FontIcon x:Name="IconeStatus" x:FieldModifier="internal" Glyph="&#xE9F5;" FontSize="24" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+            <FontIcon x:Name="IconeStatus" x:FieldModifier="internal" Glyph="&#xE9F5;" FontSize="18" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
           </Border>
-          <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-            <TextBlock TextAlignment="Left" x:Name="TituloStatus" x:FieldModifier="internal" Text="Análise em andamento" Style="{StaticResource SubtitleTextBlockStyle}"
+          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <TextBlock TextAlignment="Left" x:Name="TituloStatus" x:FieldModifier="internal" Text="Análise em andamento"
+                       Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="17" TextWrapping="Wrap"
                        AutomationProperties.LiveSetting="Polite"/>
-            <TextBlock TextAlignment="Left" x:Name="TextoProgressoItens" TextWrapping="Wrap" Visibility="Collapsed"/>
-
-            <TextBlock x:Name="TextoCabecalho" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-            <local:PainelQuebra Espaco="8" EspacoLinhas="4" Margin="0,3,0,0">
-              <local:PainelQuebra.Resources>
-                <Style x:Key="SeloRelogio" TargetType="Border">
-                  <Setter Property="Background" Value="{ThemeResource PmvniTonalFundo}"/>
-                  <Setter Property="BorderBrush" Value="{ThemeResource PmvniTonalBorda}"/>
-                  <Setter Property="BorderThickness" Value="1"/>
-                  <Setter Property="CornerRadius" Value="8"/>
-                  <Setter Property="Padding" Value="8,3"/>
-                </Style>
-                <Style x:Key="TextoRelogio" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
-                  <Setter Property="Foreground" Value="{ThemeResource PmvniTonalTexto}"/>
-                  <Setter Property="TextWrapping" Value="Wrap"/>
-                </Style>
-              </local:PainelQuebra.Resources>
-              <Border Style="{StaticResource SeloRelogio}">
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
-                  <FontIcon Glyph="&#xE916;" FontSize="14" Foreground="{ThemeResource PmvniTonalTexto}"/>
-                  <TextBlock Grid.Column="1" x:Name="TextoTempoDecorrido" Style="{StaticResource TextoRelogio}"/>
-                </Grid>
-              </Border>
-              <Border Style="{StaticResource SeloRelogio}">
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
-                  <FontIcon Glyph="&#xE787;" FontSize="14" Foreground="{ThemeResource PmvniTonalTexto}"/>
-                  <TextBlock Grid.Column="1" x:Name="TextoTempoEstimado" Style="{StaticResource TextoRelogio}"/>
-                </Grid>
-              </Border>
+            <local:PainelQuebra Espaco="12" EspacoLinhas="0">
+              <TextBlock x:Name="TextoCabecalho" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+              <TextBlock x:Name="TextoProgressoItens" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" Visibility="Collapsed"/>
             </local:PainelQuebra>
           </StackPanel>
-          <StackPanel x:Name="BotoesExecucao" x:FieldModifier="internal" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-             <StackPanel.Resources>
-               <Style TargetType="FontIcon">
-                 <Setter Property="FontSize" Value="14"/>
-                 <Setter Property="Foreground" Value="{ThemeResource PmvniTonalTexto}"/>
-               </Style>
-             </StackPanel.Resources>
+          <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="2" Espaco="6" EspacoLinhas="4" Margin="0,3" VerticalAlignment="Center">
+            <local:PainelQuebra.Resources>
+              <ResourceDictionary>
+                <ResourceDictionary.MergedDictionaries>
+                  <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
+                </ResourceDictionary.MergedDictionaries>
+                <Style TargetType="Button" BasedOn="{StaticResource PmvniBotaoTonalStyle}">
+                  <Setter Property="MinHeight" Value="30"/>
+                  <Setter Property="Padding" Value="9,2"/>
+                </Style>
+                <Style TargetType="FontIcon">
+                  <Setter Property="FontSize" Value="14"/>
+                </Style>
+              </ResourceDictionary>
+            </local:PainelQuebra.Resources>
             <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE838;"/><TextBlock Text="Registro"/></StackPanel>
             </Button>
             <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE710;"/><TextBlock Text="Nova análise"/></StackPanel>
             </Button>
-             <Button Style="{StaticResource PmvniBotaoTonalStyle}" x:Name="BotaoPausarAnalise" x:FieldModifier="internal"
-                     local:Dicas.Descricao="Interrompe a execução e preserva o progresso disponível para retomada.">
+            <Button x:Name="BotaoPausarAnalise" x:FieldModifier="internal"
+                    local:Dicas.Descricao="Interrompe a execução e preserva o progresso disponível para retomada.">
                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE769;"/><TextBlock Text="Pausar análise"/></StackPanel>
-             </Button>
+            </Button>
             <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" local:Dicas.Descricao="Para a análise da IA; nenhum relatório é criado.">
                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE711;"/><TextBlock Text="Cancelar análise"/></StackPanel>
             </Button>
-          </StackPanel>
+          </local:PainelQuebra>
             <Grid Grid.Row="2" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto"
-                  ColumnSpacing="12" RowSpacing="6" Margin="0,4,0,0">
+                  ColumnSpacing="8" RowSpacing="1" Margin="0,3,0,0">
               <TextBlock x:Name="TextoEtapaAtual" x:FieldModifier="internal" TextAlignment="Left" FontSize="12" TextWrapping="Wrap"/>
               <TextBlock Grid.Column="1" x:Name="TextoContagem" x:FieldModifier="internal" FontSize="12"
                          VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
               <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" x:Name="BarraResumoEtapas" x:FieldModifier="internal" Minimum="0" Maximum="100" Height="6"
                            Style="{StaticResource DefaultProgressBarStyle}" AutomationProperties.Name="Progresso da análise"/>
             </Grid>
-          <local:PainelQuebra Grid.Row="3" Grid.ColumnSpan="3" Espaco="8" EspacoLinhas="6" Margin="0,2,0,0">
+          <local:PainelQuebra Grid.Row="3" Grid.ColumnSpan="3" Espaco="6" EspacoLinhas="4" Margin="0,3,0,0">
             <local:PainelQuebra.Resources>
-              <Style x:Key="CartaoTotal" TargetType="Border">
-                <Setter Property="MinWidth" Value="25"/>
-                <Setter Property="MinHeight" Value="25"/>
-                <Setter Property="Padding" Value="9,1"/>
+              <Style x:Key="IndicadorMonitor" TargetType="Border">
+                <Setter Property="MinHeight" Value="22"/>
+                <Setter Property="Padding" Value="6,1"/>
                 <Setter Property="CornerRadius" Value="6"/>
               </Style>
+              <Style x:Key="SeloRelogio" TargetType="Border" BasedOn="{StaticResource IndicadorMonitor}">
+                <Setter Property="Background" Value="{ThemeResource PmvniTonalFundo}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource PmvniTonalBorda}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+              </Style>
               <Style x:Key="RotuloTotal" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="16"/>
+                <Setter Property="FontSize" Value="12"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
                 <Setter Property="TextWrapping" Value="Wrap"/>
               </Style>
               <Style x:Key="NumeroTotal" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
-                <Setter Property="FontSize" Value="18"/>
+                <Setter Property="FontSize" Value="13"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
               </Style>
+              <Style x:Key="TextoRelogio" TargetType="TextBlock" BasedOn="{StaticResource RotuloTotal}">
+                <Setter Property="Foreground" Value="{ThemeResource PmvniTonalTexto}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+              </Style>
             </local:PainelQuebra.Resources>
-            <Border Style="{StaticResource CartaoTotal}" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
+            <Border Style="{StaticResource SeloRelogio}">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
+                <FontIcon Glyph="&#xE916;" FontSize="13" Foreground="{ThemeResource PmvniTonalTexto}"/>
+                <TextBlock Grid.Column="1" x:Name="TextoTempoDecorrido" Style="{StaticResource TextoRelogio}"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource SeloRelogio}">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
+                <FontIcon Glyph="&#xE787;" FontSize="13" Foreground="{ThemeResource PmvniTonalTexto}"/>
+                <TextBlock Grid.Column="1" x:Name="TextoTempoEstimado" Style="{StaticResource TextoRelogio}"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource IndicadorMonitor}" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <TextBlock Text="Atende" Style="{StaticResource RotuloTotal}"/>
                 <TextBlock Grid.Column="1" x:Name="TotalAtende" Text="0" Style="{StaticResource NumeroTotal}"/>
               </Grid>
             </Border>
-            <Border Style="{StaticResource CartaoTotal}" Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}">
+            <Border Style="{StaticResource IndicadorMonitor}" Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <TextBlock Text="Não atende" Style="{StaticResource RotuloTotal}"/>
                 <TextBlock Grid.Column="1" x:Name="TotalNaoAtende" Text="0" Style="{StaticResource NumeroTotal}"/>
               </Grid>
             </Border>
-            <Border Style="{StaticResource CartaoTotal}" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}">
+            <Border Style="{StaticResource IndicadorMonitor}" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <TextBlock Text="Falta comprovar" Style="{StaticResource RotuloTotal}"/>
                 <TextBlock Grid.Column="1" x:Name="TotalComprovar" Text="0" Style="{StaticResource NumeroTotal}"/>
               </Grid>
             </Border>
-            <Border Style="{StaticResource CartaoTotal}" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+            <Border Style="{StaticResource IndicadorMonitor}" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                 <TextBlock Text="Informações divergentes" Style="{StaticResource RotuloTotal}"/>
                 <TextBlock Grid.Column="1" x:Name="TotalDivergentes" Text="0" Style="{StaticResource NumeroTotal}"/>
@@ -312,8 +314,8 @@
       </Border>
 
       <!-- 2. Etapas (só no Claude, que informa a etapa). -->
-      <Border x:Name="PainelClaude" x:FieldModifier="internal" Grid.Row="2" Padding="10,6" Visibility="Collapsed">
-        <StackPanel Spacing="8">
+      <Border x:Name="PainelClaude" x:FieldModifier="internal" Grid.Row="2" Padding="6,0" Visibility="Collapsed">
+        <StackPanel Spacing="2">
           <TextBlock TextAlignment="Left" Text="Etapas da análise" Style="{StaticResource BodyStrongTextBlockStyle}"/>
           <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled">
             <Grid x:Name="PainelEtapas" x:FieldModifier="internal" MinWidth="620" AutomationProperties.Name="Etapas da análise"/>
@@ -321,18 +323,20 @@
         </StackPanel>
       </Border>
 
-      <!-- 3. Atividades | descobertas, próxima etapa e detalhes. -->
-      <Grid x:Name="GradeConteudo" x:FieldModifier="internal" Grid.Row="3" ColumnSpacing="12" RowSpacing="12">
+      <!-- Atividades | descobertas | próxima etapa e detalhes. -->
+      <Grid x:Name="GradeConteudo" Grid.Row="3">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="11*"/>
-          <ColumnDefinition Width="10*"/>
+          <ColumnDefinition Width="11*"/>
+          <ColumnDefinition Width="8*"/>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
           <RowDefinition Height="*"/>
-          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="0"/>
+          <RowDefinition Height="0"/>
         </Grid.RowDefinitions>
 
-        <Border x:Name="CartaoAtividades" x:FieldModifier="internal" Style="{StaticResource PmvniCartaoSecao}" Padding="16,14,8,8">
+        <Border x:Name="CartaoAtividades" Style="{StaticResource PmvniCartaoSecao}" Padding="12,10,8,8">
           <Grid RowSpacing="10">
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
             <Grid ColumnSpacing="12" Margin="0,0,8,0">
@@ -352,15 +356,14 @@
             </Grid>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
               <StackPanel Spacing="4" Margin="0,0,8,0">
-                <TextBlock TextAlignment="Left" HorizontalAlignment="Left" x:Name="ContagemAtividades" Text="Aguardando as etapas da análise." FontSize="12"/>
+                <TextBlock TextAlignment="Left" x:Name="ContagemAtividades" Text="Aguardando as etapas da análise." FontSize="12" TextWrapping="Wrap"/>
                 <StackPanel x:Name="EtapasAtividades" Spacing="8"/>
               </StackPanel>
             </ScrollViewer>
           </Grid>
         </Border>
 
-        <ScrollViewer x:Name="ColunaLateral" x:FieldModifier="internal" Grid.Column="1" VerticalScrollBarVisibility="Auto">
-          <StackPanel Spacing="12">
+        <ScrollViewer x:Name="ColunaLateral" x:FieldModifier="internal" Grid.Column="1" Margin="8,0,0,0" VerticalScrollBarVisibility="Auto">
             <!-- 4. Principais descobertas. -->
             <Border Style="{StaticResource PmvniCartaoSecao}" Padding="12,8">
               <StackPanel Spacing="10">
@@ -374,10 +377,13 @@
                 </Grid>
                 <StackPanel x:Name="ListaDescobertas" x:FieldModifier="internal" Spacing="8"/>
                 <TextBlock x:Name="TextoSemDescobertas" x:FieldModifier="internal" Text="A IA ainda não relatou descobertas."
-                           Style="{StaticResource PmvniSecondaryTextStyle}"/>
+                           Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
               </StackPanel>
             </Border>
+        </ScrollViewer>
 
+        <ScrollViewer x:Name="ColunaDetalhes" Grid.Column="2" Margin="8,0,0,0" VerticalScrollBarVisibility="Auto">
+          <StackPanel Spacing="8">
             <!-- Resumo e próxima etapa. -->
             <Border x:Name="CartaoProximaEtapa" x:FieldModifier="internal" CornerRadius="8" Padding="16,12" BorderThickness="1"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}">
