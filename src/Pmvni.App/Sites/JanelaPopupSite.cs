@@ -26,6 +26,7 @@ internal sealed class JanelaPopupSite : Window
     JanelaPopupSite(string rotuloSite, ElementTheme tema, CoreWebView2WindowFeatures? f)
     {
         this.rotuloSite = rotuloSite;
+        MainWindow.AplicarIconeDaJanela(this);
         Title = rotuloSite;
         var raiz = new Grid { RequestedTheme = tema };
         raiz.Children.Add(web);

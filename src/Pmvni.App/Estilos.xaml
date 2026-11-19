@@ -5,6 +5,18 @@
   <!-- Estilos Fluent do app. As cores próprias (ícones dos módulos, fundo do item ativo do trilho, botão tonal) ficam em
        Recursos\IconesModulos.xaml, com uma versão para o tema claro, o escuro e o alto contraste. -->
 
+  <Style TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+    <Setter Property="TextAlignment" Value="Left"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
   <!-- Medidas comuns das páginas (painéis laterais e margens). -->
   <x:Double x:Key="PmvniLarguraPainel">300</x:Double>
   <!-- Lista de seções da revisão: mais larga para a etiqueta de situação caber ao lado do título (que quebra a linha). -->
@@ -13,6 +25,8 @@
   <Thickness x:Key="PmvniMargemPagina">24,16,24,16</Thickness>
 
   <Style x:Key="PmvniSecondaryTextStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
   </Style>
 
@@ -43,21 +57,6 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
 
-  <!-- Cabeçalho (correções 2026-11-15): botões com fundo sutil e cantos 6 (Desfazer, Refazer, Anterior, Próximo, sempre com rótulo),
-       divisória vertical e o selo do estado de gravação (verde "Salvo", amarelo "Não salvo", vermelho "Conflito", neutro nos outros). -->
-  <Style x:Key="PmvniBotaoCabecalhoStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
-    <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="CornerRadius" Value="6"/>
-    <Setter Property="Padding" Value="10,5,12,6"/>
-    <Setter Property="VerticalAlignment" Value="Center"/>
-  </Style>
-  <!-- Revisão do cabeçalho (2026-11-16): botões vizinhos num bloco só (Desfazer | Refazer; Anterior | Próximo), com 32 de altura,
-       como a caixa de pesquisa em pílula. -->
-  <!-- Redesign do cabeçalho (2026-11-17): Anterior | Próxima em controle segmentado de cantos 8 (os botões arredondam só as pontas,
-       no XAML), 36 de altura, como os botões de ícone de Desfazer e Refazer e a pesquisa; superfície neutra e borda discreta do tema. -->
-  <!-- 1.0.0: as duas pílulas segmentadas (Desfazer | Refazer e Anterior | Próxima) acompanham a pesquisa: 36 de altura e cantos 18 (metade
-       da altura, totalmente redondos); os botões de dentro arredondam só as pontas (17 = 18 menos a borda de 1). -->
   <Style x:Key="PmvniGrupoCabecalho" TargetType="Border">
     <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}"/>
     <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
@@ -74,21 +73,6 @@
     <Setter Property="CornerRadius" Value="7"/>
     <Setter Property="Padding" Value="12,0,14,1"/>
     <Setter Property="VerticalAlignment" Value="Stretch"/>
-  </Style>
-  <!-- Desfazer e Refazer (2026-11-17): botões de ícone (seta curva), quadrados de 40×36 com cantos 8; o nome e o atalho ficam na dica. -->
-  <!-- 1.0.0: dentro da pílula de Desfazer | Refazer (a moldura é do grupo): fundo transparente, sem borda, 42 de largura. -->
-  <Style x:Key="PmvniBotaoIconeCabecalhoStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
-    <Setter Property="local:Brilho.SomenteAoApontar" Value="True"/>
-    <Setter Property="local:Brilho.Ativo" Value="True"/>
-    <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="CornerRadius" Value="17"/>
-    <Setter Property="Width" Value="42"/>
-    <Setter Property="Height" Value="34"/>
-    <Setter Property="Padding" Value="0"/>
-    <Setter Property="HorizontalContentAlignment" Value="Center"/>
-    <Setter Property="VerticalContentAlignment" Value="Center"/>
-    <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniDivisoriaGrupoCabecalho" TargetType="Border">
     <Setter Property="Width" Value="1"/>
@@ -161,13 +145,13 @@
                 <VisualState x:Name="Pressed">
                   <VisualState.Setters>
                     <Setter Target="Veu.Opacity" Value="1"/>
-                    <Setter Target="Veu.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}"/>
+                    <Setter Target="Veu.Background" Value="{ThemeResource PmvniTonalFundoPressionado}"/>
                   </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="Disabled"/>
               </VisualStateGroup>
             </VisualStateManager.VisualStateGroups>
-            <Border x:Name="Veu" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}"/>
+            <Border x:Name="Veu" Background="{ThemeResource PmvniTonalFundoSobre}" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}"/>
             <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"
                               HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
           </Grid>
@@ -201,12 +185,14 @@
     <Setter Property="BorderThickness" Value="2"/>
   </Style>
   <Style x:Key="PmvniTrilhoFundoSobreStyle" TargetType="Border">
-    <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+    <Setter Property="Background" Value="{ThemeResource PmvniTonalFundoSobre}"/>
   </Style>
   <Style x:Key="PmvniTrilhoFundoPressionadoStyle" TargetType="Border">
-    <Setter Property="Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}"/>
+    <Setter Property="Background" Value="{ThemeResource PmvniTonalFundoPressionado}"/>
   </Style>
   <Style x:Key="PmvniTrilhoRotuloStyle" TargetType="TextBlock">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="HorizontalAlignment" Value="Center"/>
     <Setter Property="Margin" Value="0,0,0,0"/>
@@ -215,6 +201,8 @@
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
   </Style>
   <Style x:Key="PmvniTrilhoRotuloAtivoStyle" TargetType="TextBlock" BasedOn="{StaticResource PmvniTrilhoRotuloStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
     <Setter Property="FontWeight" Value="Normal"/>
   </Style>
@@ -246,19 +234,27 @@
   <!-- Cartões dos Ajustes (no padrão do WinStatusBar): grupo com fundo de cartão, borda e raio 8; linha = título + ajuda à esquerda e
        o controle numa coluna de 240 à direita (empilha abaixo de 540 px: LinhaAjuste). -->
   <Style x:Key="PmvniAjusteTituloPagina" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="24"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
   </Style>
   <Style x:Key="PmvniAjusteAjuda" TargetType="TextBlock">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="LineHeight" Value="18"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
   </Style>
   <Style x:Key="PmvniAjusteTitulo" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
   </Style>
   <Style x:Key="PmvniAjusteGrupoTitulo" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Margin" Value="0,10,0,0"/>
   </Style>
@@ -273,6 +269,7 @@
     <Setter Property="Background" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
   </Style>
   <Style x:Key="PmvniAjusteEscolha" TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
     <Setter Property="HorizontalAlignment" Value="Stretch"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
   </Style>
@@ -291,23 +288,29 @@
     <Setter Property="Padding" Value="24"/>
   </Style>
   <Style x:Key="PmvniTituloSecao" TargetType="TextBlock">
+    <Setter Property="TextAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="20"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniSeloPasso" TargetType="Border">
-    <Setter Property="Width" Value="32"/>
-    <Setter Property="Height" Value="32"/>
-    <Setter Property="CornerRadius" Value="16"/>
-    <Setter Property="Background" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Width" Value="24"/>
+    <Setter Property="Height" Value="24"/>
+    <Setter Property="CornerRadius" Value="7"/>
+    <Setter Property="Background" Value="{ThemeResource PmvniTonalFundo}"/>
   </Style>
   <Style x:Key="PmvniNumeroPasso" TargetType="TextBlock">
+    <Setter Property="TextAlignment" Value="Center"/>
     <Setter Property="HorizontalAlignment" Value="Center"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="FontSize" Value="13"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
-    <Setter Property="Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+    <Setter Property="Foreground" Value="{ThemeResource PmvniTonalTexto}"/>
   </Style>
   <Style x:Key="PmvniTextoAjuda" TargetType="TextBlock">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
   </Style>
@@ -336,6 +339,7 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniPainelCartaoTitulo" TargetType="TextBlock">
+    <Setter Property="TextAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="CharacterSpacing" Value="40"/>
@@ -346,6 +350,7 @@
     <Setter Property="Spacing" Value="10"/>
   </Style>
   <Style x:Key="PmvniPainelRotulo" TargetType="TextBlock">
+    <Setter Property="TextAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="CharacterSpacing" Value="60"/>
@@ -354,10 +359,14 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniPainelValor" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="IsTextSelectionEnabled" Value="True"/>
   </Style>
   <Style x:Key="PmvniPainelValorForte" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="IsTextSelectionEnabled" Value="True"/>
   </Style>
@@ -376,6 +385,8 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniPainelMarcaTexto" TargetType="TextBlock">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="11"/>
     <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
   </Style>
@@ -388,20 +399,28 @@
   </Style>
   <!-- O resultado de uma conta no painel (esquadrias): atende, não atende, sem como comparar. -->
   <Style x:Key="PmvniPainelResultadoOk" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Foreground" Value="{ThemeResource SystemFillColorSuccessBrush}"/>
   </Style>
   <Style x:Key="PmvniPainelResultadoErro" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
   </Style>
   <Style x:Key="PmvniPainelResultadoNeutro" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
   </Style>
   <!-- Auditoria de interface (2026-11-17): cores aplicadas em código passam por estilos (o {ThemeResource} do setter segue o tema do app;
        um pincel lido de Application.Current.Resources seguiria o tema do Windows). -->
   <Style x:Key="PmvniTextoDestaqueStyle" TargetType="TextBlock">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
@@ -411,6 +430,8 @@
     <Setter Property="FontSize" Value="12"/>
   </Style>
   <Style x:Key="PmvniTextoErroStyle" TargetType="TextBlock">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
   </Style>
@@ -452,6 +473,8 @@
     <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorBaseBrush}"/>
   </Style>
   <Style x:Key="PmvniTituloPaginaStyle" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="FontSize" Value="24"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
   </Style>
@@ -480,6 +503,8 @@
     <Setter Property="CornerRadius" Value="10"/>
   </Style>
   <Style x:Key="PmvniCampoPesquisa" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+    <Setter Property="TextAlignment" Value="Left"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
     <Setter Property="Padding" Value="32,4,8,4"/>
     <Setter Property="MinHeight" Value="32"/>
     <Setter Property="CornerRadius" Value="8"/>

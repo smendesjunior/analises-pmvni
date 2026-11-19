@@ -8,5 +8,5 @@ public static class ConfigSites
     public const bool PreenchimentoDoNavegador = false;
 
     /// <summary>Ao abrir, apaga do perfil dos sites as senhas e os formulários que o navegador guardou. Os cookies (login lembrado) ficam.</summary>
-    public const bool ApagarPreenchimentoGuardado = true;
+    public static bool ApagarPreenchimentoGuardado => true;
 }

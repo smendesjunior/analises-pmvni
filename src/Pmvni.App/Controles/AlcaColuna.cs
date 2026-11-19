@@ -13,9 +13,6 @@ internal sealed class AlcaColuna : Grid
     double inicioX, inicioLargura;
     bool arrastando;
 
-    /// <summary>A largura que a coluna tem agora (lida no começo de cada arraste).</summary>
-    public required Func<double> LarguraAtual { get; init; }
-
     /// <summary>Durante o arraste, a cada movimento (a largura nova, já dentro dos limites).</summary>
     public event Action<double>? Mudando;
 
@@ -27,7 +24,7 @@ internal sealed class AlcaColuna : Grid
 
     public const double Minima = 48, Maxima = 900;
 
-    public AlcaColuna()
+    public AlcaColuna(Func<double> larguraAtual)
     {
         Width = 12;
         HorizontalAlignment = HorizontalAlignment.Right;
@@ -41,7 +38,7 @@ internal sealed class AlcaColuna : Grid
             if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
             arrastando = CapturePointer(e.Pointer);
             inicioX = e.GetCurrentPoint(null).Position.X;
-            inicioLargura = LarguraAtual();
+            inicioLargura = larguraAtual();
             e.Handled = true;
         };
         PointerMoved += (_, e) =>

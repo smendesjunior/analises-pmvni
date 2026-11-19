@@ -65,6 +65,65 @@ public sealed class RegistroExecucao : IDisposable
 
     public string Pasta { get; }
 
+    public string PedidoOriginal()
+    {
+        var pedido = File.ReadAllText(Caminho(Pasta, "pedido.md"), Utf8);
+        if (!pedido.StartsWith(PedidoAgente.PrimeiraLinha + "\n", StringComparison.Ordinal)) return pedido;
+        var separador = "\n" + PedidoAgente.CabecalhoDiretrizes + "\n";
+        var inicio = pedido.IndexOf(separador, StringComparison.Ordinal);
+        return inicio < 0 ? "" : pedido[(inicio + separador.Length)..];
+    }
+
+    // O kit valida as provas, as etapas e os critérios antes de restaurar o manifesto.
+    // Selecionar aqui o mesmo registro conserva os objetos de evidência endereçados por hash.
+    public static RegistroExecucao? BuscarInterrompida(Processo alvo, string? pedido, IReadOnlyList<ArquivoArquivado> anexos)
+    {
+        var processo = alvo.Pasta;
+        var editor = Path.Combine(processo, ".pmvni-ai", "editor");
+        if (!Directory.Exists(editor)) return null;
+        foreach (var pasta in Directory.GetDirectories(editor).OrderDescending(StringComparer.Ordinal))
+        {
+            if (MotivoInvalido(processo, pasta) is not null) continue;
+            try
+            {
+                using var anterior = Abrir(pasta, processo);
+                var estado = anterior.execucao["situacao"]?.GetValue<string>();
+                if (estado is not ("interrompida" or "cota_esgotada" or "falhou" or "em_andamento" or "cancelada")) return null;
+                if (anterior.PedidoOriginal().Trim() != (pedido ?? "").Trim()) return null;
+                var manifesto = JsonNode.Parse(File.ReadAllText(Caminho(pasta, "continuidade.json")));
+                if (manifesto?["execution"]?.GetValue<string>() != Path.GetFileName(pasta)
+                    || manifesto["stages"] is not JsonObject etapas || etapas.Count == 0
+                    || manifesto["inputs"] is not JsonArray entradas || entradas.Count == 0) return null;
+                var hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var raiz = Path.GetFullPath(processo).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                foreach (var entrada in entradas)
+                {
+                    if (entrada is not JsonArray { Count: 2 } par || par[0] is null || par[1] is null) return null;
+                    var caminho = Path.GetFullPath(par[0]!.GetValue<string>());
+                    if (!caminho.StartsWith(raiz, StringComparison.OrdinalIgnoreCase)) return null;
+                    var esperado = par[1]!.GetValue<string>();
+                    using var arquivo = File.OpenRead(caminho);
+                    if (!Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(arquivo)).Equals(esperado, StringComparison.OrdinalIgnoreCase)) return null;
+                    hashes[caminho] = esperado;
+                }
+                var detalhe = Processos.Detalhar(alvo, CancellationToken.None);
+                if (detalhe.Avisos.Count != 0) return null;
+                var inicio = anterior.execucao["inicio"]?.GetValue<string>();
+                DateTimeOffset.TryParse(inicio, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var partida);
+                if (detalhe.Projeto.Concat(detalhe.Documentos).Any(a => !hashes.ContainsKey(a.Caminho)
+                    && (a.AlteradoUtc >= partida.UtcDateTime || File.GetCreationTimeUtc(a.Caminho) >= partida.UtcDateTime))) return null;
+                if (anexos.Any(a => !hashes.TryGetValue(Path.GetFullPath(Path.Combine(processo, a.Relativo)), out var hash)
+                    || !hash.Equals(a.Sha256, StringComparison.OrdinalIgnoreCase))) return null;
+                return Abrir(pasta, processo);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or ArgumentException)
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
     /// <summary>Cria a pasta (e as de cima). Se o nome já existe (mesmo segundo), usa <c>_2</c>, <c>_3</c>…</summary>
     public static RegistroExecucao Criar(string pastaProcesso, Provedor p, DateTime agoraLocal)
     {

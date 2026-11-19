@@ -73,6 +73,7 @@ internal sealed class JanelaPrancha : Window
         this.host = host;
         this.sessao = sessao;
         this.depoisDe = depoisDe;
+        MainWindow.AplicarIconeDaJanela(this);
         Title = "Inserir região da prancha — Editor de Relatórios PMVNI";
         Montar();
         Content = raiz;
@@ -97,7 +98,9 @@ internal sealed class JanelaPrancha : Window
         raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         raiz.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        raiz.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(320) });
+        var colunaDetalhes = new ColumnDefinition();
+        raiz.ColumnDefinitions.Add(colunaDetalhes);
+        raiz.SizeChanged += (_, e) => colunaDetalhes.Width = new GridLength(Math.Clamp(e.NewSize.Width * .28, 210, 320));
         var topo = new StackPanel { Spacing = 4 };
         var arquivoLinha = new Grid { ColumnSpacing = 8, Margin = new Thickness(12, 12, 12, 4) };
         arquivoLinha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -155,7 +158,7 @@ internal sealed class JanelaPrancha : Window
         Grid.SetRow(rolagem, 2);
         raiz.Children.Add(rolagem);
 
-        var lateral = new StackPanel { Spacing = 16, Padding = new Thickness(16) };
+        var lateral = new StackPanel { Spacing = 10, Padding = new Thickness(12) };
         lateral.Children.Add(new TextBlock { Text = "Nova figura", Style = (Style)Application.Current.Resources["SubtitleTextBlockStyle"] });
         lateral.Children.Add(caixaPrancha);
         lateral.Children.Add(caixaTitulo);
@@ -475,8 +478,8 @@ internal sealed class JanelaPrancha : Window
             var largura = medidas.PixelsLargura;
             var altura = medidas.PixelsAltura;
             using var fluxo = new InMemoryRandomAccessStream();
-            // Sem BitmapEncoderId: PNG (sem perdas).
-            await p.RenderToStreamAsync(fluxo, new PdfPageRenderOptions { SourceRect = fonte, DestinationWidth = largura, DestinationHeight = altura });
+            // O recurso do relatório é PNG, inclusive quando o renderizador do Windows usa outro formato por padrão.
+            await p.RenderToStreamAsync(fluxo, new PdfPageRenderOptions { BitmapEncoderId = Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, SourceRect = fonte, DestinationWidth = largura, DestinationHeight = altura });
             var png = new byte[fluxo.Size];
             fluxo.Seek(0);
             using (var leitor = new DataReader(fluxo.GetInputStreamAt(0)))

@@ -21,7 +21,7 @@
                   VerticalAlignment="Center" Visibility="Collapsed">
     <StackPanel Orientation="Horizontal" Spacing="6">
       <FontIcon x:Name="Icone" Glyph="&#xE7BA;" FontSize="14" Style="{StaticResource IconeNormal}"/>
-      <TextBlock x:Name="Texto" x:FieldModifier="internal" VerticalAlignment="Center" Style="{StaticResource TextoNormal}"/>
+      <TextBlock TextAlignment="Center" x:Name="Texto" x:FieldModifier="internal" VerticalAlignment="Center" Style="{StaticResource TextoNormal}"/>
     </StackPanel>
     <DropDownButton.Flyout>
       <Flyout x:Name="Lista" Placement="TopEdgeAlignedLeft">

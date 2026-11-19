@@ -165,13 +165,17 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
             try
             {
                 var plano = Arquivamento.Planejar(pr.Pasta, anexos);
-                var reg = registroAnterior is null ? RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now) : RegistroExecucao.Abrir(registroAnterior, pr.Pasta);
                 IReadOnlyList<ArquivoArquivado> feitos;
                 try { feitos = Arquivamento.Arquivar(pr.Pasta, plano, CancellationToken.None); }
                 catch (Exception x) when (x is IOException or UnauthorizedAccessException && plano.Any(i => i.Recusa is null && !i.JaEstava))
                 {
                     throw new CopiaInterrompidaException(pr.Pasta, x);
                 }
+                var reg = registroAnterior is null
+                    ? RegistroExecucao.BuscarInterrompida(pr, texto, feitos) ?? RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now)
+                    : RegistroExecucao.Abrir(registroAnterior, pr.Pasta);
+                if (registroAnterior is not null && texto == FluxoNovoRelatorio.PedidoContinuar && File.Exists(Path.Combine(reg.Pasta, "pedido.md")))
+                    texto = reg.PedidoOriginal();
                 reg.GravarPedido(p == Provedor.ChatGpt ? PedidoAgente.Codex(pr.Pasta, pr, feitos, texto) : texto ?? "");
                 reg.GravarAnexos(feitos);
                 return (t, reg, feitos, plano.Where(i => i.Recusa is not null).Select(i => i.Recusa!).ToList());

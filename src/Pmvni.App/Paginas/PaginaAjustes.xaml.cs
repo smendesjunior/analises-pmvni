@@ -102,7 +102,7 @@ public sealed partial class PaginaAjustes : UserControl
     /// <summary>"Excluir" de uma linha (id).</summary>
     internal event Action<string>? ExcluirPedido;
 
-    public static int IndiceDaEsfera(Esfera e) => Esferas.Ordem.ToList().IndexOf(e);
+    public static int IndiceDaEsfera(Esfera e) => Esferas.Indice(e);
 
     public static Visibility VisivelSe(string? texto) => string.IsNullOrEmpty(texto) ? Visibility.Collapsed : Visibility.Visible;
 

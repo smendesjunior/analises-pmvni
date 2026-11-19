@@ -8,7 +8,9 @@ public enum Esfera { Federal, Estadual, Municipal, Outras }
 
 public static class Esferas
 {
-    public static IReadOnlyList<Esfera> Ordem { get; } = [Esfera.Federal, Esfera.Estadual, Esfera.Municipal, Esfera.Outras];
+    static readonly Esfera[] ordenadas = [Esfera.Federal, Esfera.Estadual, Esfera.Municipal, Esfera.Outras];
+    public static IReadOnlyList<Esfera> Ordem { get; } = Array.AsReadOnly(ordenadas);
+    public static int Indice(Esfera esfera) => Array.IndexOf(ordenadas, esfera);
 
     public static string Rotulo(Esfera e) => e switch
     {

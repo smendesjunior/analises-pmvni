@@ -73,7 +73,7 @@
       <Grid Style="{StaticResource LinhaCartao}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <FontIcon Glyph="&#xE8C7;" Style="{StaticResource IconeLinha}"/>
-        <TextBlock Grid.Column="1" Text="Assinatura" Style="{StaticResource TituloLinha}"/>
+        <TextBlock TextAlignment="Center" Grid.Column="1" Text="Assinatura" Style="{StaticResource TituloLinha}"/>
         <TextBlock x:Name="TextoAssinatura" x:FieldModifier="internal" Grid.Column="2" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
       </Grid>
 
@@ -83,7 +83,7 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <FontIcon Glyph="&#xE943;" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock x:Name="TituloPrograma" x:FieldModifier="internal" Text="Programa" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Center" x:Name="TituloPrograma" x:FieldModifier="internal" Text="Programa" Style="{StaticResource TituloLinha}"/>
           <TextBlock x:Name="TextoPrograma" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
           <TextBlock x:Name="TextoMensagem" x:FieldModifier="internal" TextWrapping="Wrap" FontSize="12" Visibility="Collapsed"
                      Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
@@ -102,7 +102,7 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <FontIcon Glyph="&#xE9D9;" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock Text="Situação" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Center" Text="Situação" Style="{StaticResource TituloLinha}"/>
           <TextBlock x:Name="TextoSituacao" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
           <TextBlock x:Name="TextoAvisosDoTeste" x:FieldModifier="internal" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
                      Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
@@ -116,7 +116,7 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <FontIcon Glyph="&#xEA86;" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock x:Name="TituloPluginAnalise" x:FieldModifier="internal" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Center" x:Name="TituloPluginAnalise" x:FieldModifier="internal" Style="{StaticResource TituloLinha}"/>
           <TextBlock x:Name="TextoPluginAnalise" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
           <TextBlock x:Name="TextoPluginAnaliseNovo" x:FieldModifier="internal" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
@@ -129,7 +129,7 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <FontIcon Glyph="&#xEA86;" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock x:Name="TituloPluginPro" x:FieldModifier="internal" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Center" x:Name="TituloPluginPro" x:FieldModifier="internal" Style="{StaticResource TituloLinha}"/>
           <TextBlock x:Name="TextoPluginPro" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
           <TextBlock x:Name="TextoPluginProNovo" x:FieldModifier="internal" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
@@ -143,7 +143,7 @@
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <FontIcon Glyph="&#xE192;" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock Text="Chave de API" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Center" Text="Chave de API" Style="{StaticResource TituloLinha}"/>
           <TextBlock x:Name="TextoChave" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
         <local:SeloEstado x:Name="SeloChave" x:FieldModifier="internal" Grid.Column="2"/>
@@ -177,7 +177,7 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <FontIcon Glyph="&#xE946;" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock Text="Aviso antes de analisar" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Center" Text="Aviso antes de analisar" Style="{StaticResource TituloLinha}"/>
           <TextBlock x:Name="TextoAviso" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
         <Button x:Name="BotaoReverAviso" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource BotaoPequeno}" Content="Rever aviso" VerticalAlignment="Top"

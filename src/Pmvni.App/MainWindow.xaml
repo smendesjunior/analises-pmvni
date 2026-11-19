@@ -91,7 +91,7 @@
         <Grid>
         <Button x:Name="BotaoAnalise" Style="{StaticResource PmvniBarraButtonStyle}" Visibility="Collapsed"
                 AutomationProperties.Name="Análise em andamento" ToolTipService.ToolTip="Abrir a vista da análise em andamento"
-                Height="42" CornerRadius="21" Padding="12,0,18,0" HorizontalContentAlignment="Left" VerticalContentAlignment="Center">
+                Height="42" CornerRadius="21" Padding="12,0,18,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
             <Grid Width="24" Height="24" VerticalAlignment="Center">
               <ProgressRing x:Name="AnelAnalise" IsActive="False" Width="22" Height="22" Foreground="{ThemeResource SystemFillColorSuccessBrush}"
@@ -118,7 +118,7 @@
         </Border>
         <!-- 1.0.0: Desfazer | Refazer numa pílula segmentada só (uma moldura, cantos totalmente redondos, divisória central), como a
              pesquisa; só ícones Fluent, o nome e o atalho ficam na dica e no Narrador. -->
-        <StackPanel Visibility="{Binding Visibility, ElementName=GrupoOcorrencias}" Spacing="3" VerticalAlignment="Center"><TextBlock Text="NAVEGAÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
+        <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="NAVEGAÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
         <Border x:Name="GrupoOcorrencias" Style="{StaticResource PmvniGrupoCabecalho}">
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">
@@ -141,20 +141,26 @@
         </Border>
         </StackPanel>
         <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="PESQUISA GLOBAL" Style="{StaticResource PmvniPainelRotulo}"/>
-        <Grid VerticalAlignment="Center">
+        <Grid x:Name="MolduraPesquisa" CornerRadius="16" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" Background="{ThemeResource ControlFillColorDefaultBrush}" VerticalAlignment="Center">
           <!-- Pesquisa geral (2026-11-17): além do módulo à vista, acha ajustes, funções, arquivos e leis (lista abaixo da caixa). TextBox nativo
                em pílula: a borda de foco é a do tema (cor de destaque do Windows). -->
-          <TextBox x:Name="CaixaPesquisa" Width="340" Height="32" MinHeight="32" CornerRadius="8" Padding="32,3,58,3" VerticalAlignment="Center"
+          <TextBox x:Name="CaixaPesquisa" Background="Transparent" BorderThickness="0" Width="340" Height="30" MinHeight="30" CornerRadius="16" Padding="32,3,58,3" VerticalAlignment="Center"
                    PlaceholderText="Pesquisar arquivos, funções, leis e configurações..." AutomationProperties.Name="Pesquisar no app"
-                   ToolTipService.ToolTip="Pesquisar no app (Ctrl+F)"/>
-          <TextBlock x:Name="AtalhoPesquisa" Text="Ctrl + K" Margin="0,0,10,0" VerticalAlignment="Center" HorizontalAlignment="Right" IsHitTestVisible="False" Style="{StaticResource CaptionTextBlockStyle}"/>
+                   ToolTipService.ToolTip="Pesquisar no app (Ctrl+F)">
+            <TextBox.Resources>
+              <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+              <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+              <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+            </TextBox.Resources>
+          </TextBox>
+          <TextBlock TextAlignment="Center" x:Name="AtalhoPesquisa" Text="Ctrl + K" Margin="0,0,10,0" VerticalAlignment="Center" HorizontalAlignment="Right" IsHitTestVisible="False" Style="{StaticResource CaptionTextBlockStyle}"/>
           <FontIcon x:Name="IconePesquisa" Glyph="&#xE721;" FontSize="15" Margin="15,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
                     IsHitTestVisible="False" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
         </Grid>
         <TextBlock x:Name="TextoPesquisa" VerticalAlignment="Center" TextAlignment="Center" Visibility="Collapsed"
                    Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.Name="Resultado da pesquisa"/>
         </StackPanel>
-        <StackPanel Visibility="{Binding Visibility, ElementName=GrupoHistorico}" Spacing="3" VerticalAlignment="Center"><TextBlock Text="EDIÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
+        <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock Text="EDIÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
         <Border x:Name="GrupoHistorico" Style="{StaticResource PmvniGrupoCabecalho}">
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">

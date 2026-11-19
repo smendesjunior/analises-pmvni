@@ -185,7 +185,7 @@
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
       <StackPanel Grid.Row="0" Padding="20,12,20,6" Spacing="8">
-        <TextBlock x:Name="TextoTituloConferencia" x:FieldModifier="internal" Text="3 · Conferência" Style="{StaticResource SubtitleTextBlockStyle}"/>
+        <TextBlock TextAlignment="Center" x:Name="TextoTituloConferencia" x:FieldModifier="internal" Text="3 · Conferência" Style="{StaticResource SubtitleTextBlockStyle}"/>
         <InfoBar x:Name="AvisoErros" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="False" Title="O despacho gerado não passou na validação"/>
         <InfoBar x:Name="AvisoSemPdf" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="Sem PDF"/>
         <TextBlock x:Name="TextoFontes" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
@@ -218,7 +218,7 @@
         <ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
       <StackPanel x:Name="PainelFaltando" x:FieldModifier="internal" Grid.Column="0" Spacing="2" VerticalAlignment="Center" Visibility="Collapsed">
-        <TextBlock Text="Falta preencher:" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+        <TextBlock TextAlignment="Center" Text="Falta preencher:" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
         <TextBlock x:Name="TextoFaltando" x:FieldModifier="internal" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">

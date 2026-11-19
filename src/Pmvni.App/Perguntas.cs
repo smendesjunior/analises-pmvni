@@ -266,7 +266,12 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
     async Task<ContentDialogResult> Mostrar(ContentDialog d)
     {
         await umDialogo.WaitAsync();
-        try { return await d.ShowAsync(); }
+        try
+        {
+            if (raiz() is not { } atual) return ContentDialogResult.None;
+            d.XamlRoot = atual;
+            return await d.ShowAsync();
+        }
         finally { umDialogo.Release(); }
     }
 

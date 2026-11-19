@@ -76,6 +76,7 @@ internal sealed class JanelaFigura : Window
         this.host = host;
         this.sessao = sessao;
         this.figuraId = figuraId;
+        MainWindow.AplicarIconeDaJanela(this);
         Title = "Editar figura — Editor de Relatórios PMVNI";
         Montar();
         Content = raiz;
@@ -101,7 +102,9 @@ internal sealed class JanelaFigura : Window
         raiz.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         raiz.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        raiz.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360) });
+        var colunaDetalhes = new ColumnDefinition();
+        raiz.ColumnDefinitions.Add(colunaDetalhes);
+        raiz.SizeChanged += (_, e) => colunaDetalhes.Width = new GridLength(Math.Clamp(e.NewSize.Width * .30, 220, 360));
 
         // Barra de ferramentas
         // Uma barra só, em grupos: origem (nova figura do PDF) | ferramentas de marcação | histórico | zoom | Concluir.
@@ -175,8 +178,9 @@ internal sealed class JanelaFigura : Window
         camada.PointerCaptureLost += (_, _) => { if (gesto.Ativo) CancelarArrasto(); };
 
         // Painel lateral
-        var painel = new StackPanel { Spacing = 10, Padding = new Thickness(14) };
+        var painel = new StackPanel { Spacing = 8, Padding = new Thickness(12) };
         painel.Children.Add(avisoGravadas);
+        painel.Children.Add(new TextBlock { Text = "Dados da figura", Style = (Style)Application.Current.Resources["PmvniTituloSecao"] });
         painel.Children.Add(caixaPrancha);
         painel.Children.Add(caixaTitulo);
         painel.Children.Add(caixaFonte);
@@ -216,7 +220,7 @@ internal sealed class JanelaFigura : Window
         var lateral = new ScrollViewer { Content = painel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         // A recusa fica fixa no alto da coluna, fora da rolagem: dentro dela, ficava escondida quando o painel estava rolado até o
         // "Remover marcação" e a alteração parecia simplesmente não acontecer.
-        var coluna = new Grid();
+        var coluna = new Grid { Style = (Style)Application.Current.Resources["PmvniPainelLateral"], Margin = new Thickness(6, 4, 8, 4) };
         coluna.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         coluna.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         avisoErro.Margin = new Thickness(14, 10, 14, 0);

@@ -121,30 +121,19 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     internal Trilho TrilhoAtual => TrilhoModulos;
     internal bool PainelVisivel => R.PainelNavegacao.Visibility == Visibility.Visible;
 
-    [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-    static extern uint ExtractIconExW(string arquivo, int indice, out IntPtr grande, out IntPtr pequeno, uint quantos);
-
-    /// <summary>Ícone do app (Recursos\app.ico, embutido no executável) também na janela e na barra de tarefas.</summary>
-    private void AplicarIconeDaJanela()
+    internal static void AplicarIconeDaJanela(Window janela)
     {
-        try
-        {
-            var exe = Environment.ProcessPath;
-            if (exe is null || ExtractIconExW(exe, 0, out var grande, out _, 1) == 0 || grande == IntPtr.Zero) return;
-            AppWindow.SetIcon(Microsoft.UI.Win32Interop.GetIconIdFromIcon(grande));
-        }
-        catch (Exception e)
-        {
-            RegistroErros.Gravar("icone", e);
-        }
+        try { janela.AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Recursos", "app.ico")); }
+        catch (Exception e) { RegistroErros.Gravar("icone", e); }
     }
-
 
     public MainWindow()
     {
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(BarraTitulo);
+        CaixaPesquisa.GotFocus += (_, _) => MolduraPesquisa.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+        CaixaPesquisa.LostFocus += (_, _) => MolduraPesquisa.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         BarraTitulo.Loaded += (_, _) =>
         {
@@ -201,7 +190,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         reajuste.Tick += async (_, _) => { if (modoZoom != "manual" && sessao?.Atual is not null) await TentarAsync(() => AjustarAsync(modoZoom)); };
         R.AreaCentral.SizeChanged += (_, _) => { if (modoZoom != "manual") reajuste.Start(); };
         Raiz.ActualThemeChanged += (_, _) => AplicarTemaWeb();
-        AplicarIconeDaJanela();
+        AplicarIconeDaJanela(this);
 
         RegistrarManipuladores();
         RegistrarManipuladoresRevisao();
@@ -253,7 +242,12 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             try { documento?.Dispose(); } catch { }
             try { hostComposicao?.Dispose(); } catch { }
         };
-        _ = IniciarAsync();
+        Raiz.Loaded += AoCarregar;
+        void AoCarregar(object sender, RoutedEventArgs e)
+        {
+            Raiz.Loaded -= AoCarregar;
+            _ = IniciarAsync();
+        }
     }
 
     // ---------- inicialização ----------
@@ -514,6 +508,11 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                     try
                     {
                         await MudarModuloAsync(m);
+                        if (m == Modulo.Imoveis && Environment.GetEnvironmentVariable("PMVNI_CAPTURA_CONSULTA") is { Length: > 0 } consulta)
+                        {
+                            I.CaixaValor.Text = consulta;
+                            await PesquisarImoveisAsync(1);
+                        }
                         await Task.Delay(900);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "janela-" + m.ToString().ToLowerInvariant() + ".png"));
                     }

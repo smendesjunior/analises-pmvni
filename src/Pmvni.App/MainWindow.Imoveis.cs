@@ -31,9 +31,9 @@ public sealed partial class MainWindow
     // Larguras das colunas da tabela de resultados (as mesmas no cabeçalho e nas linhas).
     static readonly GridLength[] ColunasImoveis =
     [
-        new(150), new(2, GridUnitType.Star), new(3, GridUnitType.Star), new(1.3, GridUnitType.Star), new(90), new(150), new(330),
+        new(122), new(2, GridUnitType.Star), new(3, GridUnitType.Star), new(1.3, GridUnitType.Star), new(68), new(124), new(208),
     ];
-    static readonly string[] TitulosImoveis = ["Inscrição municipal", "Contribuinte", "Endereço", "Bairro", "Situação", "Vínculo com o mapa", ""];
+    static readonly string[] TitulosImoveis = ["Inscrição municipal", "Contribuinte", "Endereço", "Bairro", "Situação", "Vínculo com o mapa", "Ações"];
 
     internal string? PastaQgisAtual => ajustes.PastaQgis;
     internal BaseQgis? BaseImoveis => baseImoveis;
@@ -42,7 +42,7 @@ public sealed partial class MainWindow
     {
         foreach (var c in TextosConsulta.Condicoes) I.CaixaCondicao.Items.Add(new ComboBoxItem { Content = TextosConsulta.Rotulo(c), Tag = c });
         I.CaixaCondicao.SelectedIndex = 0;
-        MontarLinha(I.CabecalhoTabela, TitulosImoveis.Select(t => (FrameworkElement)new TextBlock { Text = t, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis }).ToArray());
+        MontarLinha(I.CabecalhoTabela, TitulosImoveis.Select(t => (FrameworkElement)new TextBlock { Text = t.ToUpperInvariant(), FontSize = 11, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis }).ToArray());
         I.BotaoPesquisar.Click += async (_, _) => await PesquisarImoveisAsync(1);
         I.CaixaValor.KeyDown += async (_, e) =>
         {
@@ -100,7 +100,8 @@ public sealed partial class MainWindow
     {
         AtualizarComandosDeImoveis();
         var pasta = ajustes.PastaQgis;
-        I.TextoPasta.Text = string.IsNullOrWhiteSpace(pasta) ? "Nenhuma pasta QGIS configurada." : "Base QGIS: " + pasta;
+        I.TextoPasta.Text = string.IsNullOrWhiteSpace(pasta) ? "Nenhuma pasta QGIS configurada." : "Fonte de dados: pasta QGIS configurada";
+        ToolTipService.SetToolTip(I.TextoPasta, pasta);
         if (string.IsNullOrWhiteSpace(pasta))
         {
             MostrarVazioImoveis("Escolha a pasta dos arquivos QGIS em Ajustes › Fontes de dados para começar a pesquisar.", configurar: true);
@@ -277,10 +278,10 @@ public sealed partial class MainWindow
             var reg = r.Itens[i];
             var sv = selos[i];
             var linha = new Grid { Padding = new Thickness(12, 8, 12, 8), ColumnSpacing = 12, Style = (Style)Application.Current.Resources["PmvniGradeLinhaStyle"], BorderThickness = new Thickness(0, 0, 0, 1) };
-            TextBlock T(string? s, bool forte = false) => new() { Text = s ?? "", TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = forte ? FontWeights.SemiBold : FontWeights.Normal, IsTextSelectionEnabled = true };
+            TextBlock T(string? s, bool forte = false) => new() { Text = s ?? "", FontSize = 13, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = forte ? FontWeights.SemiBold : FontWeights.Normal, IsTextSelectionEnabled = true };
             var selo = new Border
             {
-                HorizontalAlignment = HorizontalAlignment.Left,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
                 Style = (Style)Application.Current.Resources[sv.Tom switch
                 {
                     TomVinculo.Sucesso or TomVinculo.Neutro => "PmvniSeloStatusSucessoStyle",
@@ -300,11 +301,11 @@ public sealed partial class MainWindow
                 ver.Click += async (_, _) => await PesquisarInscricaoAsync(suc);
                 celulaSelo = new StackPanel { Spacing = 2, Children = { selo, ver } };
             }
-            var abrir = new Button { Content = "Abrir relatório", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var abrir = new Button { Content = "Relatório", FontSize = 12, HorizontalAlignment = HorizontalAlignment.Stretch };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrir, "Abrir relatório do imóvel " + reg.InscricaoMunicipal);
             abrir.Click += async (_, _) => await AbrirRelatorioDoImovelAsync(reg);
             // 2026-11-17: o Boletim de Cadastro Imobiliário oficial, emitido pelo GPI com a inscrição municipal desta linha.
-            var gerar = new Button { Content = "Gerar boletim cadastral", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var gerar = new Button { Content = "Boletim cadastral", FontSize = 12, Style = (Style)Application.Current.Resources["PmvniBotaoTonalStyle"], HorizontalAlignment = HorizontalAlignment.Stretch };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(gerar, "Gerar boletim cadastral do imóvel " + reg.InscricaoMunicipal);
             ToolTipService.SetToolTip(gerar, "Emite o boletim oficial no GPI para esta inscrição (abre o GPI, pesquisa, confere a ficha e abre o PDF).");
             gerar.Click += async (_, _) =>
@@ -313,7 +314,7 @@ public sealed partial class MainWindow
                 catch (Exception e) { RegistroErros.Gravar("sites.bci", e); MostrarAvisoImoveis(InfoBarSeverity.Error, "Boletim cadastral", e.Message); }
             };
             var acoes = new Grid { ColumnSpacing = 8 };
-            acoes.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+            acoes.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(76) });
             acoes.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             Grid.SetColumn(gerar, 1);
             acoes.Children.Add(abrir);

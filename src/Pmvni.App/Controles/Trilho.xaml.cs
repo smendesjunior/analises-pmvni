@@ -72,7 +72,9 @@ public sealed partial class Trilho : UserControl
             var conteudo = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Spacing = 3 };
             var rotulo = new TextBlock { Text = RotuloNoTrilho(m), Style = Estilo("PmvniTrilhoRotuloStyle"), TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 110, LineHeight = 15, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
             var duasLinhas = rotulo.Text.Contains('\n');
-            conteudo.Children.Add(icone);
+            var faixaIcone = new Grid { Width = 114 };
+            faixaIcone.Children.Add(icone);
+            conteudo.Children.Add(faixaIcone);
             conteudo.Children.Add(rotulo);
             var fundo = new Border
             {
@@ -85,7 +87,7 @@ public sealed partial class Trilho : UserControl
             var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Height = 24, Visibility = Visibility.Collapsed, Margin = new Thickness(4, 0, 0, 0) };
             var grade = new Grid { Width = 114, HorizontalAlignment = HorizontalAlignment.Center };
             grade.Children.Add(fundo);
-            grade.Children.Add(indicador);
+            faixaIcone.Children.Add(indicador);
             var botao = new Button
             {
                 Width = 118,
@@ -182,10 +184,9 @@ public sealed partial class Trilho : UserControl
     void Pintar(Modulo m)
     {
         if (!itens.TryGetValue(m, out var i)) return;
-        var chave = m == atual ? "PmvniTrilhoFundoAtivoStyle"
-            : pressionados.Contains(m) ? "PmvniTrilhoFundoPressionadoStyle"
+        var chave = pressionados.Contains(m) ? "PmvniTrilhoFundoPressionadoStyle"
             : sob.Contains(m) ? "PmvniTrilhoFundoSobreStyle"
-            : "PmvniTrilhoFundoInativoStyle";
+            : m == atual ? "PmvniTrilhoFundoAtivoStyle" : "PmvniTrilhoFundoInativoStyle";
         var estilo = Estilo(chave);
         if (i.Fundo.Style != estilo) i.Fundo.Style = estilo;
     }

@@ -426,8 +426,8 @@ public sealed partial class MainWindow
         n.Codigo.MinHeight = 0;
         n.Codigo.Height = 32;   // selo, tipo e área numa linha só, centrados na mesma altura (antes cada um tinha a sua)
         n.Codigo.VerticalContentAlignment = VerticalAlignment.Center;
-        n.Codigo.Padding = new Thickness(0, 5, 0, 0);   // a caixa do WinUI põe o texto no topo: o espaço de cima o centra nos 32
-        n.Codigo.TextAlignment = TextAlignment.Center;
+        n.Codigo.Padding = new Thickness(5, 5, 0, 0);   // a caixa do WinUI põe o texto no topo: o espaço de cima o centra nos 32
+        n.Codigo.TextAlignment = TextAlignment.Left;
         n.Codigo.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         n.Codigo.CornerRadius = new CornerRadius(6);
         n.Codigo.BorderThickness = new Thickness(0);

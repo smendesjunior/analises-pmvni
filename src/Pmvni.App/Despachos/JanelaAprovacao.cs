@@ -35,6 +35,7 @@ internal sealed class JanelaAprovacao : Window
 
     JanelaAprovacao(string nome, ElementTheme tema, TaskCompletionSource<bool?>? revisao = null)
     {
+        MainWindow.AplicarIconeDaJanela(this);
         Title = "Emitir Processo Aprovado — " + nome;
         raiz.RequestedTheme = tema;
         Content = raiz;

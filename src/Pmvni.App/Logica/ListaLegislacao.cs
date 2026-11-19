@@ -112,7 +112,7 @@ public static class ListaLegislacao
         return l.Select((x, i) => (x, i))
             .Where(p => PassaTexto(p.x, termo) && (esfera is null || p.x.Esfera == esfera) && (tipo is null || TipoDoTitulo(p.x.Titulo) == tipo))
             .OrderBy(p => favoritas.Contains(p.x.Id) ? 0 : 1)
-            .ThenBy(p => Esferas.Ordem.ToList().IndexOf(p.x.Esfera))
+            .ThenBy(p => Esferas.Indice(p.x.Esfera))
             .ThenBy(p => p.i)
             .Select(p => p.x).ToList();
     }

@@ -83,12 +83,12 @@
           <StackPanel x:Name="VazioLeis" x:FieldModifier="internal" Grid.Row="3" Visibility="Collapsed" Padding="14,8" Spacing="10">
             <ContentPresenter Width="48" Height="48" HorizontalAlignment="Left" ContentTemplate="{StaticResource PmvniIconeLegislacao}" Content="" IsHitTestVisible="False"/>
             <TextBlock TextWrapping="Wrap" Text="Nenhuma lei anexada ainda."/>
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar PDFs…" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+              <Button MinHeight="36" HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar PDFs…" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                       local:Dicas.Descricao="Acrescenta leis em PDF à biblioteca de legislação do app."/>
-              <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Gerenciar anexos"
+              <Button Grid.Column="1" MinHeight="36" CornerRadius="8" HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Gerenciar anexos"
                       local:Dicas.Descricao="Abre os ajustes da Legislação para renomear, reler ou tirar leis anexadas."/>
-            </StackPanel>
+            </Grid>
           </StackPanel>
         </Grid>
 
@@ -101,7 +101,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
-          <TextBlock x:Name="TextoResultados" x:FieldModifier="internal" Margin="12,6,12,4" TextWrapping="Wrap"
+          <TextBlock TextAlignment="Center" x:Name="TextoResultados" x:FieldModifier="internal" Margin="12,6,12,4" TextWrapping="Wrap"
                      Style="{StaticResource BodyStrongTextBlockStyle}"/>
           <TextBlock x:Name="AvisoResultados" x:FieldModifier="internal" Grid.Row="1" Margin="12,0,12,6" TextWrapping="Wrap" Visibility="Collapsed"
                      Style="{StaticResource PmvniSecondaryTextStyle}"/>

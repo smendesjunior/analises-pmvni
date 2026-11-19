@@ -25,6 +25,7 @@ internal sealed class JanelaImpressao : Window
         this.arquivo = arquivo;
         this.pastaTemporaria = pastaTemporaria;
         endereco = new Uri(arquivo);
+        MainWindow.AplicarIconeDaJanela(this);
         Title = "Imprimir — " + titulo;
         Montar(titulo);
         Content = raiz;

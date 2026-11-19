@@ -180,11 +180,7 @@ public sealed partial class MainWindow
         pesquisaDoModuloHabilitada = habilitada;
         // Pesquisa geral (2026-11-17): a caixa fica sempre à vista e habilitada (ajustes, funções, arquivos e leis valem em todo módulo).
         CaixaPesquisa.IsEnabled = true;
-        // Auditoria de interface (2026-11-17): o cabeçalho só mostra o que vale no módulo. Desfazer/Refazer são do relatório; Anterior e
-        // Próximo andam pelas ocorrências do relatório e da lei; o "N de M" só onde o módulo tem pesquisa própria.
         var comPesquisa = TemPesquisaPropria(moduloAtual);
-        GrupoHistorico.Visibility = moduloAtual == Modulo.Relatorios ? Visibility.Visible : Visibility.Collapsed;
-        GrupoOcorrencias.Visibility = moduloAtual is Modulo.Relatorios or Modulo.Legislacao ? Visibility.Visible : Visibility.Collapsed;
         CaixaPesquisa.Visibility = IconePesquisa.Visibility = Visibility.Visible;
         if (!comPesquisa) TextoPesquisa.Visibility = Visibility.Collapsed;
         AtualizarCabecalhoDoModulo();

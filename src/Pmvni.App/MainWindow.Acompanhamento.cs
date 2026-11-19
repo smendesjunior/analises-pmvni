@@ -654,7 +654,7 @@ public sealed partial class MainWindow
             // Alça de largura na borda direita do título (pedido do usuário, 2026-11-17: colunas redimensionáveis, como no Excel).
             ConfigurarMovimento(superficie, b, col, i);
             var indice = i;
-            var alca = new AlcaColuna { LarguraAtual = () => g.ColumnDefinitions[indice].Width.Value, Margin = new Thickness(0, 0, -11, 0) };
+            var alca = new AlcaColuna(() => g.ColumnDefinitions[indice].Width.Value) { Margin = new Thickness(0, 0, -11, 0) };
             ToolTipService.SetToolTip(alca, "Arraste para mudar a largura; dois cliques voltam ao padrão");
             alca.Mudando += w => AplicarLargura(indice, w);
             alca.Mudou += w => { ajustes.AcompanhamentoLarguras[ChaveColunaAjustes(col)] = w; SalvarAjustes(); AplicarLargura(indice, w); };
@@ -1080,21 +1080,12 @@ public sealed partial class MainWindow
         Ac.ColunaPainel.Width = aberto && !sobreposto ? new GridLength(340) : new GridLength(0);
         // Sobreposto, o painel sai da área da tabela e cobre da faixa dos avisos até o rodapé (no notebook a área da tabela é baixa demais
         // e o painel ficava só com o título e os botões).
-        var destino = sobreposto ? Ac.RaizPagina : Ac.GradeTabela;
-        if (!ReferenceEquals(Ac.Painel.Parent, destino))
-        {
-            (Ac.Painel.Parent as Panel)?.Children.Remove(Ac.Painel);
-            destino.Children.Add(Ac.Painel);
-        }
-        Grid.SetRow(Ac.Painel, sobreposto ? 1 : 0);
+        Grid.SetRow(Ac.Painel, sobreposto ? 1 : 3);
         Grid.SetRowSpan(Ac.Painel, sobreposto ? 3 : 1);
         Canvas.SetZIndex(Ac.Painel, sobreposto ? 10 : 0);
-        Grid.SetColumn(Ac.Painel, sobreposto ? 0 : 1);
-        Grid.SetColumnSpan(Ac.Painel, 1);
-        Ac.Painel.Width = sobreposto ? 340 : double.NaN;
-        Ac.Painel.HorizontalAlignment = sobreposto ? HorizontalAlignment.Right : HorizontalAlignment.Stretch;
         Ac.Painel.Translation = sobreposto ? new System.Numerics.Vector3(0, 0, 32) : default;
-        Ac.Painel.Shadow = sobreposto ? new ThemeShadow() : null;
+        if (sobreposto) Ac.Painel.Shadow ??= new ThemeShadow();
+        else Ac.Painel.Shadow = null;
     }
 
     void AtualizarComandosDoAcompanhamento()

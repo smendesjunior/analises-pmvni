@@ -35,14 +35,24 @@
       <SolidColorBrush x:Key="PmvniTrilhoSelecionadoBorda" Color="Transparent"/>
       <SolidColorBrush x:Key="PmvniTonalFundo" Color="#D4EEDD"/>
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="#0F5132"/>
-      <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#C3E6CF"/>
-      <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#B2DDC1"/>
+      <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#97D3B2"/>
+      <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#77BF97"/>
       <SolidColorBrush x:Key="PmvniTonalBorda" Color="#8FCDA6"/>
       <!-- Botões de destaque (PmvniBotaoPrimarioStyle) no mesmo formato do tonal da faixa (2026-11-17, "padronizar todos os botões que
            brilham"): fundo verde suave, texto verde e borda fina verde-clara. -->
+      <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="HyperlinkButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="SubtleButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="ToggleButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="AppBarButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="DropDownButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="RepeatButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="ComboBoxBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="SplitButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
       <SolidColorBrush x:Key="AccentButtonBackground" Color="#D4EEDD"/>
-      <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#C3E6CF"/>
-      <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#B2DDC1"/>
+      <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#97D3B2"/>
+      <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#77BF97"/>
       <SolidColorBrush x:Key="AccentButtonForeground" Color="#0F5132"/>
       <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#0F5132"/>
       <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#0F5132"/>
@@ -153,13 +163,23 @@
       <SolidColorBrush x:Key="PmvniTrilhoSelecionadoBorda" Color="Transparent"/>
       <SolidColorBrush x:Key="PmvniTonalFundo" Color="#1F4D33"/>
       <SolidColorBrush x:Key="PmvniTonalTexto" Color="#CFEBD9"/>
-      <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#275E3F"/>
+      <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="#326D51"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="#2F6E4B"/>
       <SolidColorBrush x:Key="PmvniTonalBorda" Color="#3F8A61"/>
       <!-- Botões de destaque (PmvniBotaoPrimarioStyle) no mesmo formato do tonal da faixa (2026-11-17, "padronizar todos os botões que
            brilham"): fundo verde suave, texto verde e borda fina verde-clara. -->
+      <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="HyperlinkButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="SubtleButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="ToggleButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="AppBarButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="DropDownButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="RepeatButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="ComboBoxBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
+      <StaticResource x:Key="SplitButtonBackgroundPointerOver" ResourceKey="PmvniTonalFundoSobre"/>
       <SolidColorBrush x:Key="AccentButtonBackground" Color="#1F4D33"/>
-      <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#275E3F"/>
+      <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#326D51"/>
       <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#2F6E4B"/>
       <SolidColorBrush x:Key="AccentButtonForeground" Color="#CFEBD9"/>
       <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#CFEBD9"/>
@@ -275,6 +295,16 @@
       <SolidColorBrush x:Key="PmvniTonalFundoSobre" Color="{ThemeResource SystemColorHighlightColor}"/>
       <SolidColorBrush x:Key="PmvniTonalFundoPressionado" Color="{ThemeResource SystemColorHighlightColor}"/>
       <SolidColorBrush x:Key="PmvniTonalBorda" Color="{ThemeResource SystemColorButtonTextColor}"/>
+      <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush"/>
+      <StaticResource x:Key="HyperlinkButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush"/>
+      <StaticResource x:Key="SubtleButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush"/>
+      <StaticResource x:Key="ToggleButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush"/>
+      <StaticResource x:Key="AppBarButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush"/>
+      <StaticResource x:Key="AppBarToggleButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush"/>
+      <StaticResource x:Key="DropDownButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush"/>
+      <StaticResource x:Key="RepeatButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush"/>
+      <StaticResource x:Key="ComboBoxBackgroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush"/>
+      <StaticResource x:Key="SplitButtonBackgroundPointerOver" ResourceKey="SystemColorHighlightTextColorBrush"/>
       <SolidColorBrush x:Key="AccentButtonBackground" Color="{ThemeResource SystemColorButtonFaceColor}"/>
       <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}"/>
       <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}"/>

@@ -51,7 +51,7 @@
       <ListView.ItemTemplate>
         <DataTemplate x:DataType="local:ItemDespacho">
           <StackPanel Padding="0,5" Spacing="1" AutomationProperties.Name="{x:Bind NomeAcessivel}">
-            <TextBlock Text="{x:Bind Titulo}" Style="{StaticResource BodyStrongTextBlockStyle}" Visibility="{x:Bind EhGrupo}" Margin="0,8,0,0"/>
+            <TextBlock TextAlignment="Center" Text="{x:Bind Titulo}" Style="{StaticResource BodyStrongTextBlockStyle}" Visibility="{x:Bind EhGrupo}" Margin="0,8,0,0"/>
             <TextBlock Text="{x:Bind Titulo}" Visibility="{x:Bind EhDespacho}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Titulo}"/>
             <TextBlock Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind EhDespacho}" TextTrimming="CharacterEllipsis"
                        ToolTipService.ToolTip="{x:Bind Detalhe}"/>

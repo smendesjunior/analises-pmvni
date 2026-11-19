@@ -177,8 +177,17 @@ public sealed partial class MainWindow
         manipuladores[ComandosApp.RelatoriosNovo] = async () => await AbrirNovoRelatorioNaVezAsync();
 
         var n = NR;
-        n.CaixaFiltro.TextChanged += (_, _) => PreencherProcessosNR();
-        n.CaixaFiltro.KeyDown += AoTeclarNoFiltroNR;
+        n.CaixaFiltro.TextChanged += (_, e) =>
+        {
+            PreencherProcessosNR();
+            n.CaixaFiltro.IsSuggestionListOpen = e.Reason == AutoSuggestionBoxTextChangeReason.UserInput
+                && n.CaixaFiltro.ItemsSource is SugestaoProcesso[] { Length: > 0 } && n.CaixaFiltro.Text.Trim().Length > 0;
+        };
+        n.CaixaFiltro.QuerySubmitted += async (_, e) =>
+        {
+            if (e.ChosenSuggestion is SugestaoProcesso selecionada)
+                await TentarAsync(() => EscolherProcessoNovoRelatorioAsync(selecionada.Processo));
+        };
         n.CaixaProcesso.SelectionChanged += (_, _) =>
         {
             if (!preenchendoNR && n.CaixaProcesso.SelectedItem is ComboBoxItem { Tag: Processo p }) _ = TentarAsync(() => EscolherProcessoNovoRelatorioAsync(p));
@@ -213,6 +222,7 @@ public sealed partial class MainWindow
         n.BotaoCancelarAnalise.Click += async (_, _) => { if (execucaoMostrada is { } e) await TentarAsync(async () => await CancelarAnaliseAsync(e)); };
         n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
         n.BotaoMostrarRegistroResultado.Click += (_, _) => { if (ultimoResultadoNR is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
+        n.BotaoDescartar.Click += async (_, _) => await TentarAsync(() => { DescartarAnalisePendente(); return Task.CompletedTask; });
         n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await EscolherContinuacaoAsync());
         n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
         n.ExpansorUltimaMensagem.Expanding += async (_, _) => { if (execucaoMostrada is { } e) await MostrarUltimaMensagemAsync(e); };
@@ -335,6 +345,8 @@ public sealed partial class MainWindow
         // 1.0.0: filtro por número, ano e requerente (Processos.Filtrar), com o resultado à vista. O processo escolhido fica sempre na lista,
         // mesmo fora do filtro (marcado), porque o Analisar parte para ele; limpar o filtro devolve a lista inteira.
         var (itens, unico, texto) = ListasPastas.FiltrarNovoRelatorio(processosNR, n.CaixaFiltro.Text, escolher);
+        n.CaixaFiltro.ItemsSource = itens.Where(i => !i.ForaDoFiltro)
+            .Select(i => new SugestaoProcesso(i.Processo)).ToArray();
         n.TextoFiltroProcessos.Text = texto;
         n.TextoFiltroProcessos.Visibility = texto.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         preenchendoNR = true;
@@ -354,15 +366,6 @@ public sealed partial class MainWindow
         // Um único processo achado pelo filtro e nenhum escolhido: passa a ser o escolhido, como se clicado na lista.
         if (unico is not null && n.CaixaFiltro.FocusState != FocusState.Unfocused)
             n.CaixaProcesso.SelectedItem = n.CaixaProcesso.Items.OfType<ComboBoxItem>().FirstOrDefault(i => ReferenceEquals(i.Tag, unico));
-    }
-
-    /// <summary>Enter ou ↓ no filtro: abre a lista já filtrada.</summary>
-    void AoTeclarNoFiltroNR(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
-    {
-        if (e.Key is not (Windows.System.VirtualKey.Enter or Windows.System.VirtualKey.Down) || NR.CaixaProcesso.Items.Count == 0) return;
-        e.Handled = true;
-        NR.CaixaProcesso.Focus(FocusState.Keyboard);
-        NR.CaixaProcesso.IsDropDownOpen = true;
     }
 
     /// <summary>O processo da análise: a pasta à vista, os destinos padrão das linhas que o usuário não escolheu e a prévia de novo.</summary>
@@ -808,7 +811,22 @@ public sealed partial class MainWindow
             await ContinuarComOutraIaAsync(escolha.Value, processo, registro);
     }
 
-    /// <summary>"Continuar a análise" (Claude parado ou interrompido): roda <c>iniciar</c> de novo, que o kit retoma de onde parou.</summary>
+    void DescartarAnalisePendente()
+    {
+        var registro = continuarChatGpt?.Registro ?? ultimoResultadoNR?.Registro.Pasta;
+        if (registro is null) return;
+        var processo = continuarChatGpt?.Processo ?? ultimoResultadoNR?.Processo;
+        if (processo is null) return;
+        using var historico = RegistroExecucao.Abrir(registro, processo.Pasta);
+        historico.Atualizar(o => o["situacao"] = "descartada");
+        EsquecerPendenteChatGpt(registro);
+        EsquecerPendenteClaude(registro);
+        continuarChatGpt = null;
+        ultimoResultadoNR = null;
+        NR.BotaoContinuar.Visibility = Visibility.Collapsed;
+        NR.AvisoResultado.IsOpen = false;
+    }
+
     internal Task<ExecucaoEmCurso?> ContinuarAnaliseAsync() => NaFilaAsync(async () =>
     {
         if (continuarChatGpt is { } cg)
@@ -1029,6 +1047,7 @@ public sealed partial class MainWindow
             aviso.Severity = InfoBarSeverity.Warning;
             aviso.Title = "Uma análise com o ChatGPT ficou pela metade";
             aviso.Message = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} parou antes do fim (o editor fechou ou a cota acabou). Clique em \"Continuar a análise\" para seguir de onde parou.";
+            if (fechada) return;
             NR.BotaoContinuar.Visibility = Visibility.Visible;
             NR.BotaoImportarPendente.Visibility = Visibility.Collapsed;
             NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed;
@@ -1457,4 +1476,9 @@ public sealed partial class MainWindow
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException) { return null; }
     }
+}
+
+internal sealed record SugestaoProcesso(Processo Processo)
+{
+    public string Rotulo => Processo.Protocolo is { } numero ? numero + " · " + (Processo.Requerente ?? Processo.NomePasta) : Processo.NomePasta;
 }

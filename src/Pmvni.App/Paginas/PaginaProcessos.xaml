@@ -10,10 +10,10 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
         <local:IconeArquivo Caminho="{x:Bind Caminho}" VerticalAlignment="Top" Margin="0,1,0,0"/>
         <StackPanel Grid.Column="1" Spacing="1">
-          <TextBlock Text="{x:Bind Texto}" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+          <TextBlock TextAlignment="Left" Text="{x:Bind Texto}" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                      Visibility="{x:Bind EhTitulo}" Margin="0,8,0,0"/>
-          <TextBlock Text="{x:Bind Texto}" Visibility="{x:Bind NaoEhTitulo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Texto}"/>
-          <TextBlock Text="{x:Bind Info}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind TemInfo}" TextTrimming="CharacterEllipsis"
+          <TextBlock TextAlignment="Left" Text="{x:Bind Texto}" Visibility="{x:Bind NaoEhTitulo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Texto}"/>
+          <TextBlock TextAlignment="Left" Text="{x:Bind Info}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind TemInfo}" TextTrimming="CharacterEllipsis"
                      ToolTipService.ToolTip="{x:Bind Info}"/>
         </StackPanel>
       </Grid>
@@ -53,7 +53,7 @@
         <ColumnDefinition Width="284" MinWidth="240"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
-      <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Padding="14,10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="10"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="23" Height="18.74"><Path Canvas.Left="-9.5" Canvas.Top="-11.63" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M23.41,14.19 L30.8,14.19 C31.74,14.19 32.5,14.95 32.5,15.89 L32.5,25.35 C32.5,26.24 31.78,26.96 30.89,26.96 L29.09,26.96 L29.09,28.76 C29.09,29.65 28.37,30.37 27.48,30.37 L11.2,30.37 C10.26,30.37 9.5,29.61 9.5,28.67 L9.5,16.74 C9.5,15.8 10.26,15.04 11.2,15.04 L12.91,15.04 L12.91,13.33 C12.91,12.39 13.67,11.63 14.61,11.63 L19.44,11.63 C19.81,11.63 20.17,11.75 20.46,11.97 L23.41,14.19 Z M27.39,28.67 L11.2,28.67 L11.2,16.74 L16.03,16.74 L19.21,19.13 C19.36,19.24 19.54,19.3 19.72,19.3 L27.39,19.3 L27.39,28.67 Z M30.8,25.26 L29.09,25.26 L29.09,19.3 C29.09,18.36 28.33,17.59 27.39,17.59 L20.01,17.59 L17.05,15.38 C16.76,15.16 16.4,15.04 16.03,15.04 L14.61,15.04 L14.61,13.33 L19.44,13.33 L22.62,15.72 C22.77,15.83 22.95,15.89 23.13,15.89 L30.8,15.89 L30.8,25.26 Z"/></Canvas></Viewbox><StackPanel Grid.Column="1"><TextBlock Text="Acervo de processos" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock Text="Gestão de documentos e histórico" Style="{StaticResource PmvniSecondaryTextStyle}"/></StackPanel><TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Text, ElementName=TextoContagem}"/></Grid>
+      <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Padding="14,10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="10"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="23" Height="18.74"><Path Canvas.Left="-9.5" Canvas.Top="-11.63" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M23.41,14.19 L30.8,14.19 C31.74,14.19 32.5,14.95 32.5,15.89 L32.5,25.35 C32.5,26.24 31.78,26.96 30.89,26.96 L29.09,26.96 L29.09,28.76 C29.09,29.65 28.37,30.37 27.48,30.37 L11.2,30.37 C10.26,30.37 9.5,29.61 9.5,28.67 L9.5,16.74 C9.5,15.8 10.26,15.04 11.2,15.04 L12.91,15.04 L12.91,13.33 C12.91,12.39 13.67,11.63 14.61,11.63 L19.44,11.63 C19.81,11.63 20.17,11.75 20.46,11.97 L23.41,14.19 Z M27.39,28.67 L11.2,28.67 L11.2,16.74 L16.03,16.74 L19.21,19.13 C19.36,19.24 19.54,19.3 19.72,19.3 L27.39,19.3 L27.39,28.67 Z M30.8,25.26 L29.09,25.26 L29.09,19.3 C29.09,18.36 28.33,17.59 27.39,17.59 L20.01,17.59 L17.05,15.38 C16.76,15.16 16.4,15.04 16.03,15.04 L14.61,15.04 L14.61,13.33 L19.44,13.33 L22.62,15.72 C22.77,15.83 22.95,15.89 23.13,15.89 L30.8,15.89 L30.8,25.26 Z"/></Canvas></Viewbox><StackPanel Grid.Column="1"><TextBlock TextAlignment="Left" Text="Acervo de processos" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock TextAlignment="Left" Text="Gestão de documentos e histórico" Style="{StaticResource PmvniSecondaryTextStyle}"/></StackPanel><TextBlock TextAlignment="Left" Grid.Column="2" VerticalAlignment="Center" Text="{Binding Text, ElementName=TextoContagem}"/></Grid>
 
 
       <!-- Lista de processos. -->
@@ -67,10 +67,10 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <StackPanel Spacing="2"><TextBlock Text="Processos" Style="{StaticResource PmvniTituloSecao}"/><TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
+          <StackPanel Spacing="2"><TextBlock TextAlignment="Left" Text="Processos" Style="{StaticResource PmvniTituloSecao}"/><TextBlock TextAlignment="Left" x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
                      TextTrimming="CharacterEllipsis" AutomationProperties.Name="Quantidade de processos"/>
             <Grid>
-              <TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="FiltroAcervo" x:FieldModifier="internal" PlaceholderText="Número ou nome do processo" AutomationProperties.Name="Filtrar processos"/>
+              <TextBox TextAlignment="Left" Style="{StaticResource PmvniCampoPesquisa}" x:Name="FiltroAcervo" x:FieldModifier="internal" PlaceholderText="Número ou nome do processo" AutomationProperties.Name="Filtrar processos"/>
               <FontIcon Glyph="&#xE721;" FontSize="15" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
             </Grid>
           </StackPanel>
@@ -87,8 +87,8 @@
                              Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
                 </Border>
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                  <TextBlock Text="{x:Bind Titulo}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                  <TextBlock Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock TextAlignment="Left" Text="{x:Bind Titulo}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock TextAlignment="Left" Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
               </Grid>
             </DataTemplate>
@@ -98,7 +98,7 @@
              TextoListaVazia (guardado fora da tela); a frase e a visibilidade da tela vazia seguem esse texto. -->
         <local:EstadoVazio x:Name="Vazio" x:FieldModifier="internal" Grid.Row="1" Visibility="{Binding Visibility, ElementName=TextoListaVazia}"/>
         <Border Grid.Row="1" Visibility="Collapsed">
-          <TextBlock x:Name="TextoListaVazia" x:FieldModifier="internal" Visibility="Collapsed"/>
+          <TextBlock TextAlignment="Left" x:Name="TextoListaVazia" x:FieldModifier="internal" Visibility="Collapsed"/>
         </Border>
       </Grid>
 
@@ -112,13 +112,13 @@
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <StackPanel>
             <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Left" ColumnSpacing="10">
-              <TextBlock x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{ThemeResource TitleTextBlockStyle}" TextTrimming="CharacterEllipsis"
+              <TextBlock TextAlignment="Left" x:Name="TextoTituloDetalhe" x:FieldModifier="internal" Style="{ThemeResource TitleTextBlockStyle}" TextTrimming="CharacterEllipsis"
                        ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
               <Border x:Name="SeloProtocolo" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="8,2" CornerRadius="6" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" Visibility="Collapsed">
-                <TextBlock x:Name="TextoProtocolo" Style="{StaticResource CaptionTextBlockStyle}"/>
+                <TextBlock TextAlignment="Center" x:Name="TextoProtocolo" Style="{StaticResource CaptionTextBlockStyle}"/>
               </Border>
             </Grid>
-            <TextBlock x:Name="TextoPastaDetalhe" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"
+            <TextBlock TextAlignment="Left" x:Name="TextoPastaDetalhe" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"
                        TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
           </StackPanel>
           <!-- 2026-11-16: como os arquivos do processo aparecem (como "Classificar" e "Visualizar" do Explorador). A escolha fica
@@ -179,31 +179,27 @@
         <!-- Modo Lista (correções 2026-11-15): três colunas (Relatórios, Despachos, Projeto), cada uma agrupada e ordenada pela escolha
              de Agrupar e Classificar. A ListaDetalhe guarda a seleção (os comandos e o roteiro leem dela) e fica fora da tela; as colunas
              mostram as mesmas linhas. -->
-        <ScrollViewer Grid.Row="1" Visibility="{Binding Visibility, ElementName=GradeColunas}"
-                      HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto" HorizontalContentAlignment="Stretch"
-                      VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled" VerticalContentAlignment="Stretch">
-          <Grid x:Name="GradeColunas" x:FieldModifier="internal" MinWidth="750" ColumnSpacing="12">
+        <Grid Grid.Row="1" x:Name="GradeColunas" x:FieldModifier="internal" ColumnSpacing="12">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="0">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="16.08" Height="19"><Path Canvas.Left="-0" Canvas.Top="-4.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M10.75,4.71 L15.86,9.83 C16,9.97 16.08,10.16 16.08,10.35 L16.08,22.04 C16.08,22.85 15.43,23.5 14.62,23.5 L1.46,23.5 C0.65,23.5 0,22.85 0,22.04 L0,5.96 C0,5.15 0.65,4.5 1.46,4.5 L10.23,4.5 C10.42,4.5 10.61,4.57 10.75,4.71 Z M10.96,6.99 L13.58,9.62 L10.96,9.62 L10.96,6.99 Z M14.62,22.04 L1.46,22.04 L1.46,5.96 L9.5,5.96 L9.5,10.35 C9.5,10.75 9.83,11.08 10.23,11.08 L14.62,11.08 L14.62,22.04 Z"/><Path Canvas.Left="-0" Canvas.Top="-4.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M11.69,14.73 C11.69,15.13 11.36,15.46 10.96,15.46 L5.12,15.46 C4.72,15.46 4.39,15.13 4.39,14.73 C4.39,14.33 4.72,14 5.12,14 L10.96,14 C11.36,14 11.69,14.33 11.69,14.73 Z"/><Path Canvas.Left="-0" Canvas.Top="-4.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M11.69,17.65 C11.69,18.05 11.36,18.38 10.96,18.38 L5.12,18.38 C4.72,18.38 4.39,18.05 4.39,17.65 C4.39,17.25 4.72,16.92 5.12,16.92 L10.96,16.92 C11.36,16.92 11.69,17.25 11.69,17.65 Z"/></Canvas></Viewbox><TextBlock Text="Relatórios" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalRelatorios" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
+              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="4"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="16.08" Height="19"><Path Canvas.Left="-0" Canvas.Top="-4.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M10.75,4.71 L15.86,9.83 C16,9.97 16.08,10.16 16.08,10.35 L16.08,22.04 C16.08,22.85 15.43,23.5 14.62,23.5 L1.46,23.5 C0.65,23.5 0,22.85 0,22.04 L0,5.96 C0,5.15 0.65,4.5 1.46,4.5 L10.23,4.5 C10.42,4.5 10.61,4.57 10.75,4.71 Z M10.96,6.99 L13.58,9.62 L10.96,9.62 L10.96,6.99 Z M14.62,22.04 L1.46,22.04 L1.46,5.96 L9.5,5.96 L9.5,10.35 C9.5,10.75 9.83,11.08 10.23,11.08 L14.62,11.08 L14.62,22.04 Z"/><Path Canvas.Left="-0" Canvas.Top="-4.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M11.69,14.73 C11.69,15.13 11.36,15.46 10.96,15.46 L5.12,15.46 C4.72,15.46 4.39,15.13 4.39,14.73 C4.39,14.33 4.72,14 5.12,14 L10.96,14 C11.36,14 11.69,14.33 11.69,14.73 Z"/><Path Canvas.Left="-0" Canvas.Top="-4.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M11.69,17.65 C11.69,18.05 11.36,18.38 10.96,18.38 L5.12,18.38 C4.72,18.38 4.39,18.05 4.39,17.65 C4.39,17.25 4.72,16.92 5.12,16.92 L10.96,16.92 C11.36,16.92 11.69,17.25 11.69,17.65 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Grid.Column="1" Text="Relatórios" TextWrapping="Wrap" Style="{StaticResource PmvniTituloSecao}"/></Grid><TextBlock TextAlignment="Center" x:Name="TotalRelatorios" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
               <ListView x:Name="ColunaRelatorios" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Relatórios"/>
             </Grid>
           </Border>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="1">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="19" Height="19"><Path Canvas.Left="-0" Canvas.Top="-4.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M15.74,4.73 L18.78,7.77 C18.92,7.91 19,8.11 19,8.31 C19,8.51 18.92,8.7 18.78,8.84 L9.66,17.96 C9.52,18.1 9.32,18.19 9.12,18.19 L6.08,18.19 C5.66,18.19 5.32,17.85 5.32,17.43 L5.32,14.39 C5.32,14.19 5.41,13.99 5.55,13.85 L14.67,4.73 C14.81,4.59 15,4.5 15.2,4.5 C15.4,4.5 15.6,4.59 15.74,4.73 Z M8.81,16.67 L6.84,16.67 L6.84,14.7 L12.92,8.62 L14.89,10.59 L8.81,16.67 Z M15.96,9.51 L14,7.55 L15.2,6.34 L17.17,8.31 L15.96,9.51 Z"/><Path Canvas.Left="-0" Canvas.Top="-4.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M18.24,14.39 L18.24,21.99 C18.24,22.83 17.56,23.5 16.72,23.5 L1.52,23.5 C0.68,23.5 0,22.83 0,21.99 L0,6.79 C0,5.95 0.68,5.27 1.52,5.27 L9.12,5.27 C9.54,5.27 9.88,5.61 9.88,6.03 C9.88,6.45 9.54,6.79 9.12,6.79 L1.52,6.79 L1.52,21.99 L16.72,21.99 L16.72,14.39 C16.72,13.97 17.06,13.63 17.48,13.63 C17.9,13.63 18.24,13.97 18.24,14.39 Z"/></Canvas></Viewbox><TextBlock Text="Despachos" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalDespachos" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
+              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="4"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="19" Height="19"><Path Canvas.Left="-0" Canvas.Top="-4.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M15.74,4.73 L18.78,7.77 C18.92,7.91 19,8.11 19,8.31 C19,8.51 18.92,8.7 18.78,8.84 L9.66,17.96 C9.52,18.1 9.32,18.19 9.12,18.19 L6.08,18.19 C5.66,18.19 5.32,17.85 5.32,17.43 L5.32,14.39 C5.32,14.19 5.41,13.99 5.55,13.85 L14.67,4.73 C14.81,4.59 15,4.5 15.2,4.5 C15.4,4.5 15.6,4.59 15.74,4.73 Z M8.81,16.67 L6.84,16.67 L6.84,14.7 L12.92,8.62 L14.89,10.59 L8.81,16.67 Z M15.96,9.51 L14,7.55 L15.2,6.34 L17.17,8.31 L15.96,9.51 Z"/><Path Canvas.Left="-0" Canvas.Top="-4.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M18.24,14.39 L18.24,21.99 C18.24,22.83 17.56,23.5 16.72,23.5 L1.52,23.5 C0.68,23.5 0,22.83 0,21.99 L0,6.79 C0,5.95 0.68,5.27 1.52,5.27 L9.12,5.27 C9.54,5.27 9.88,5.61 9.88,6.03 C9.88,6.45 9.54,6.79 9.12,6.79 L1.52,6.79 L1.52,21.99 L16.72,21.99 L16.72,14.39 C16.72,13.97 17.06,13.63 17.48,13.63 C17.9,13.63 18.24,13.97 18.24,14.39 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Grid.Column="1" Text="Despachos" TextWrapping="Wrap" Style="{StaticResource PmvniTituloSecao}"/></Grid><TextBlock TextAlignment="Center" x:Name="TotalDespachos" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
               <ListView x:Name="ColunaDespachos" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Despachos"/>
             </Grid>
           </Border>
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="8" Grid.Column="2">
             <Grid RowSpacing="4"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="19" Height="14.92"><Path Canvas.Left="-0" Canvas.Top="-6.54" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M4.75,8.57 L18.32,8.57 C18.69,8.57 19,8.88 19,9.25 L19,20.79 C19,21.16 18.69,21.46 18.32,21.46 L2.71,21.46 C1.21,21.46 0,20.25 0,18.75 L0,9.25 C0,7.75 1.21,6.54 2.71,6.54 L4.07,6.54 C4.44,6.54 4.75,6.84 4.75,7.21 L4.75,8.57 Z M1.36,9.25 C1.36,8.5 1.96,7.89 2.71,7.89 L3.39,7.89 L3.39,16.04 L2.71,16.04 C2.23,16.04 1.77,16.16 1.36,16.4 L1.36,9.25 Z M17.64,20.11 L2.71,20.11 C1.96,20.11 1.36,19.5 1.36,18.75 C1.36,18 1.96,17.39 2.71,17.39 L4.07,17.39 C4.44,17.39 4.75,17.08 4.75,16.71 L4.75,9.93 L17.64,9.93 L17.64,20.11 Z"/><Path Canvas.Left="-0" Canvas.Top="-6.54" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M6.79,16.04 C6.79,15.67 7.09,15.36 7.46,15.36 L8.82,15.36 L8.82,14 L7.46,14 C7.09,14 6.79,13.69 6.79,13.32 C6.79,12.95 7.09,12.64 7.46,12.64 L8.82,12.64 L8.82,11.96 C8.82,11.59 9.13,11.29 9.5,11.29 C9.87,11.29 10.18,11.59 10.18,11.96 L10.18,12.64 L12.21,12.64 L12.21,11.96 C12.21,11.59 12.52,11.29 12.89,11.29 C13.26,11.29 13.57,11.59 13.57,11.96 L13.57,12.64 L14.93,12.64 C15.3,12.64 15.61,12.95 15.61,13.32 C15.61,13.69 15.3,14 14.93,14 L13.57,14 L13.57,15.36 L14.93,15.36 C15.3,15.36 15.61,15.67 15.61,16.04 C15.61,16.41 15.3,16.71 14.93,16.71 L13.57,16.71 L13.57,17.39 C13.57,17.76 13.26,18.07 12.89,18.07 C12.52,18.07 12.21,17.76 12.21,17.39 L12.21,16.71 L10.18,16.71 L10.18,17.39 C10.18,17.76 9.87,18.07 9.5,18.07 C9.13,18.07 8.82,17.76 8.82,17.39 L8.82,16.71 L7.46,16.71 C7.09,16.71 6.79,16.41 6.79,16.04 Z M10.18,14 L12.21,14 L12.21,15.36 L10.18,15.36 L10.18,14 Z"/></Canvas></Viewbox><TextBlock Text="Projeto e documentos" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock x:Name="TotalProjeto" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
+              <Grid ColumnDefinitions="*,Auto" Margin="6,4"><Grid ColumnDefinitions="Auto,*" ColumnSpacing="4"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="19" Height="14.92"><Path Canvas.Left="-0" Canvas.Top="-6.54" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M4.75,8.57 L18.32,8.57 C18.69,8.57 19,8.88 19,9.25 L19,20.79 C19,21.16 18.69,21.46 18.32,21.46 L2.71,21.46 C1.21,21.46 0,20.25 0,18.75 L0,9.25 C0,7.75 1.21,6.54 2.71,6.54 L4.07,6.54 C4.44,6.54 4.75,6.84 4.75,7.21 L4.75,8.57 Z M1.36,9.25 C1.36,8.5 1.96,7.89 2.71,7.89 L3.39,7.89 L3.39,16.04 L2.71,16.04 C2.23,16.04 1.77,16.16 1.36,16.4 L1.36,9.25 Z M17.64,20.11 L2.71,20.11 C1.96,20.11 1.36,19.5 1.36,18.75 C1.36,18 1.96,17.39 2.71,17.39 L4.07,17.39 C4.44,17.39 4.75,17.08 4.75,16.71 L4.75,9.93 L17.64,9.93 L17.64,20.11 Z"/><Path Canvas.Left="-0" Canvas.Top="-6.54" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M6.79,16.04 C6.79,15.67 7.09,15.36 7.46,15.36 L8.82,15.36 L8.82,14 L7.46,14 C7.09,14 6.79,13.69 6.79,13.32 C6.79,12.95 7.09,12.64 7.46,12.64 L8.82,12.64 L8.82,11.96 C8.82,11.59 9.13,11.29 9.5,11.29 C9.87,11.29 10.18,11.59 10.18,11.96 L10.18,12.64 L12.21,12.64 L12.21,11.96 C12.21,11.59 12.52,11.29 12.89,11.29 C13.26,11.29 13.57,11.59 13.57,11.96 L13.57,12.64 L14.93,12.64 C15.3,12.64 15.61,12.95 15.61,13.32 C15.61,13.69 15.3,14 14.93,14 L13.57,14 L13.57,15.36 L14.93,15.36 C15.3,15.36 15.61,15.67 15.61,16.04 C15.61,16.41 15.3,16.71 14.93,16.71 L13.57,16.71 L13.57,17.39 C13.57,17.76 13.26,18.07 12.89,18.07 C12.52,18.07 12.21,17.76 12.21,17.39 L12.21,16.71 L10.18,16.71 L10.18,17.39 C10.18,17.76 9.87,18.07 9.5,18.07 C9.13,18.07 8.82,17.76 8.82,17.39 L8.82,16.71 L7.46,16.71 C7.09,16.71 6.79,16.41 6.79,16.04 Z M10.18,14 L12.21,14 L12.21,15.36 L10.18,15.36 L10.18,14 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Grid.Column="1" Text="Projeto e documentos" TextWrapping="Wrap" Style="{StaticResource PmvniTituloSecao}"/></Grid><TextBlock TextAlignment="Center" x:Name="TotalProjeto" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"/></Grid>
               <ListView x:Name="ColunaProjeto" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" ItemTemplate="{StaticResource ModeloLinhaDetalhe}" AutomationProperties.Name="Projeto e documentos"/>
             </Grid>
           </Border>
           </Grid>
-        </ScrollViewer>
         <!-- Modo Miniaturas (2026-11-16): no lugar das três colunas, uma grade só, como o Explorador em "ícones grandes": todos os
              arquivos do processo com a prévia, em grupos que se recolhem pelo cabeçalho. A grade só cria os blocos que estão na tela. -->
         <Border x:Name="CartaoMiniaturas" x:FieldModifier="internal" Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="8" Margin="0"
@@ -225,8 +221,8 @@
                               AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Dica}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                           <FontIcon Glyph="{x:Bind Glifo}" FontSize="10" VerticalAlignment="Center"/>
-                          <TextBlock Text="{x:Bind Titulo}" FontSize="15" VerticalAlignment="Center"/>
-                          <TextBlock Text="{x:Bind Contagem}" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
+                          <TextBlock TextAlignment="Left" Text="{x:Bind Titulo}" FontSize="15" VerticalAlignment="Center"/>
+                          <TextBlock TextAlignment="Left" Text="{x:Bind Contagem}" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
                         </StackPanel>
                       </Button>
                     </DataTemplate>
@@ -234,7 +230,7 @@
                 </GroupStyle>
               </GridView.GroupStyle>
             </GridView>
-            <TextBlock x:Name="TextoSemMiniaturas" x:FieldModifier="internal" Margin="12,8" Text="Nenhum arquivo neste processo."
+            <TextBlock TextAlignment="Left" x:Name="TextoSemMiniaturas" x:FieldModifier="internal" Margin="12,8" Text="Nenhum arquivo neste processo."
                        Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="Collapsed"/>
           </Grid>
         </Border>
@@ -243,9 +239,9 @@
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:LinhaDetalhe">
               <StackPanel Padding="0,5" Spacing="1" AutomationProperties.Name="{x:Bind NomeAcessivel}">
-                <TextBlock Text="{x:Bind Texto}" Style="{StaticResource BodyStrongTextBlockStyle}" Visibility="{x:Bind EhTitulo}" Margin="0,8,0,0"/>
-                <TextBlock Text="{x:Bind Texto}" Visibility="{x:Bind NaoEhTitulo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Texto}"/>
-                <TextBlock Text="{x:Bind Info}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind TemInfo}" TextTrimming="CharacterEllipsis"
+                <TextBlock TextAlignment="Left" Text="{x:Bind Texto}" Style="{StaticResource BodyStrongTextBlockStyle}" Visibility="{x:Bind EhTitulo}" Margin="0,8,0,0"/>
+                <TextBlock TextAlignment="Left" Text="{x:Bind Texto}" Visibility="{x:Bind NaoEhTitulo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Texto}"/>
+                <TextBlock TextAlignment="Left" Text="{x:Bind Info}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind TemInfo}" TextTrimming="CharacterEllipsis"
                            ToolTipService.ToolTip="{x:Bind Info}"/>
               </StackPanel>
             </DataTemplate>

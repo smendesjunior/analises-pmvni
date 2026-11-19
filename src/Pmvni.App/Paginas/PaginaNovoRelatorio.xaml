@@ -21,6 +21,8 @@
                     local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA fez."/>
             <Button x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Retomar análise" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                     local:Dicas.Descricao="Retoma a análise que parou, do ponto onde ela ficou."/>
+            <Button x:Name="BotaoDescartar" x:FieldModifier="internal" Content="Descartar análise" Visibility="{Binding Visibility, ElementName=BotaoContinuar}"
+                    local:Dicas.Descricao="Remove esta análise da lista de retomada e conserva os arquivos do processo."/>
             <Button x:Name="BotaoImportarPendente" x:FieldModifier="internal" Content="Importar relatório" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                     local:Dicas.Descricao="Traz para o app o relatório da análise que terminou com o editor fechado."/>
           </StackPanel>
@@ -52,9 +54,9 @@
         </Grid>
 
         <Grid x:Name="GradeEtapas" ColumnSpacing="0" RowSpacing="12" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
-        <StackPanel Spacing="12">
-        <Border Style="{StaticResource PmvniCartaoSecao}" Padding="20,14,20,16"><StackPanel Spacing="10">
-            <StackPanel Orientation="Horizontal" Spacing="12">
+        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+        <Border Grid.Row="0" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><StackPanel Spacing="7">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="1" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Processo" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
@@ -64,11 +66,15 @@
             <ColumnDefinition Width="5*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <Grid>
-            <TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="CaixaFiltro" x:FieldModifier="internal" PlaceholderText="Filtrar por número ou requerente" AutomationProperties.Name="Filtrar processos"
-                   ToolTipService.ToolTip="Número (15004, 15004/2026), ano ou parte do nome do requerente, sem diferença de acento ou maiúsculas. Enter ou ↓ abre a lista filtrada."/>
-            <FontIcon Glyph="&#xE721;" FontSize="15" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
-          </Grid>
+          <AutoSuggestBox x:Name="CaixaFiltro" x:FieldModifier="internal" PlaceholderText="Número ou requerente"
+                          AutomationProperties.Name="Filtrar processos" UpdateTextOnSelect="False"
+                          ToolTipService.ToolTip="Digite o número, o ano ou parte do nome e escolha o processo na lista de sugestões.">
+            <AutoSuggestBox.ItemTemplate>
+              <DataTemplate x:DataType="local:SugestaoProcesso">
+                <TextBlock TextAlignment="Left" Text="{x:Bind Rotulo}" TextWrapping="Wrap"/>
+              </DataTemplate>
+            </AutoSuggestBox.ItemTemplate>
+          </AutoSuggestBox>
           <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" MinWidth="0" PlaceholderText="Escolha o processo"
                     AutomationProperties.Name="Processo"/>
           <Button x:Name="BotaoCriarProcesso" x:FieldModifier="internal" Grid.Column="2" Content="Criar processo…"
@@ -80,17 +86,17 @@
         <TextBlock x:Name="TextoPastaProcesso" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
 
         </StackPanel></Border>
-        <Border Style="{StaticResource PmvniCartaoSecao}" Padding="20,14,20,16"><StackPanel Spacing="10">
-            <StackPanel Orientation="Horizontal" Spacing="12">
+        <Border Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><StackPanel Spacing="7">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="2" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Anexos" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-        <Border x:Name="AreaAnexos" x:FieldModifier="internal" AllowDrop="True" MinHeight="100" CornerRadius="8"
+        <Border x:Name="AreaAnexos" x:FieldModifier="internal" AllowDrop="True" MinHeight="76" CornerRadius="8"
                 BorderThickness="0"
                 Background="{ThemeResource PmvniSuperficieSuave}">
-          <Grid><Rectangle RadiusX="8" RadiusY="8" Stroke="{ThemeResource PmvniTonalBorda}" StrokeDashArray="4,3" IsHitTestVisible="False"/><StackPanel Margin="12" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <Grid><Rectangle RadiusX="8" RadiusY="8" Stroke="{ThemeResource PmvniTonalBorda}" StrokeDashArray="4,3" IsHitTestVisible="False"/><StackPanel Margin="8" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="24.01" Height="17.6"><Path Canvas.Left="-281" Canvas.Top="-4.2" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M298.04,16.77 L296.2,14.93 L296.2,21 C296.2,21.44 295.84,21.8 295.4,21.8 C294.96,21.8 294.6,21.44 294.6,21 L294.6,14.93 L292.77,16.77 C292.46,17.08 291.95,17.08 291.64,16.77 C291.33,16.46 291.33,15.94 291.64,15.63 L294.84,12.43 C294.99,12.28 295.19,12.2 295.4,12.2 C295.61,12.2 295.82,12.28 295.97,12.43 L299.17,15.63 C299.48,15.94 299.48,16.46 299.17,16.77 C298.86,17.08 298.35,17.08 298.04,16.77 Z"/><Path Canvas.Left="-281" Canvas.Top="-4.2" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M288.33,9.07 C289.82,6.09 292.87,4.2 296.2,4.2 C300.37,4.2 303.97,7.12 304.82,11.2 C305.67,15.28 303.54,19.39 299.72,21.06 C299.62,21.1 299.51,21.13 299.4,21.13 C299.02,21.13 298.7,20.87 298.62,20.5 C298.54,20.13 298.73,19.75 299.08,19.6 C302.38,18.16 304.1,14.51 303.13,11.05 C302.16,7.59 298.78,5.38 295.22,5.87 C291.66,6.36 289.01,9.4 289.01,13 C289.01,13.44 288.65,13.8 288.21,13.8 C287.77,13.8 287.41,13.44 287.41,13 C287.41,12.19 287.51,11.39 287.73,10.61 C287.62,10.6 287.52,10.6 287.41,10.6 C284.76,10.6 282.61,12.75 282.61,15.4 C282.61,18.05 284.76,20.2 287.41,20.2 L291.4,20.2 C291.84,20.2 292.2,20.56 292.2,21 C292.2,21.44 291.84,21.8 291.4,21.8 L287.41,21.8 C285.01,21.8 282.81,20.46 281.71,18.33 C280.61,16.2 280.81,13.63 282.2,11.68 C283.59,9.73 285.96,8.72 288.33,9.07 Z"/></Canvas></Viewbox>
-            <TextBlock x:Name="TextoArraste" x:FieldModifier="internal" Text="Arraste arquivos para cá" HorizontalAlignment="Center"
+            <TextBlock TextAlignment="Center" x:Name="TextoArraste" x:FieldModifier="internal" Text="Arraste arquivos para cá" HorizontalAlignment="Center"
                        Style="{StaticResource BodyStrongTextBlockStyle}"/>
             <Button x:Name="BotaoAnexar" x:FieldModifier="internal" Content="Anexar arquivos…" HorizontalAlignment="Center"
                     local:Dicas.Descricao="Escolhe no computador os arquivos do processo para a IA analisar."/>
@@ -107,50 +113,48 @@
                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
 
         </StackPanel></Border>
-        <Border Style="{StaticResource PmvniCartaoSecao}" Padding="20,14,20,16"><StackPanel Spacing="10">
-            <StackPanel Orientation="Horizontal" Spacing="12">
+        <Border Grid.Row="2" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><Grid RowDefinitions="Auto,*" RowSpacing="7">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="3" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Pedido para a IA" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-        <TextBox x:Name="CaixaPedido" x:FieldModifier="internal" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="320"
+        <TextBox Grid.Row="1" x:Name="CaixaPedido" x:FieldModifier="internal" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" MaxHeight="320"
                  MaxLength="20000" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Pedido para a IA"/>
 
-        </StackPanel></Border>
-        </StackPanel>
-        <Border x:Name="CartaoEscolhaAgente" Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="20,14,20,16"><StackPanel Spacing="10">
-            <StackPanel Orientation="Horizontal" Spacing="12">
+        </Grid></Border>
+        </Grid>
+        <Border x:Name="CartaoEscolhaAgente" Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="14,10"><StackPanel Spacing="7">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
               <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="4" Style="{StaticResource PmvniNumeroPasso}"/></Border>
               <TextBlock Text="Analisar" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <TextBlock Text="Escolha a ferramenta que fará a análise." Style="{StaticResource PmvniSecondaryTextStyle}"/>
+            <TextBlock Visibility="Collapsed" Text="Escolha a ferramenta que fará a análise." Style="{StaticResource PmvniSecondaryTextStyle}"/>
         <!-- Os três agentes com o mesmo peso (tonal, B7): não competem com o primário da faixa. -->
-        <StackPanel Spacing="12">
+        <StackPanel Spacing="6">
           <StackPanel.Resources>
             <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
           </StackPanel.Resources>
 
-          <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="12"><StackPanel Spacing="6">
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><Border CornerRadius="8" Padding="8" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="19" Height="19"><Path Canvas.Left="-9.5" Canvas.Top="-9.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M20.15,17.85 L24.37,19.41 L24.37,19.42 C24.88,19.61 25.23,20.09 25.23,20.64 C25.23,21.19 24.88,21.67 24.37,21.86 L20.15,23.42 L18.58,27.65 C18.39,28.16 17.91,28.5 17.36,28.5 C16.81,28.5 16.33,28.16 16.14,27.65 L14.58,23.42 L10.35,21.85 C9.84,21.66 9.5,21.18 9.5,20.63 C9.5,20.08 9.84,19.6 10.35,19.41 L14.58,17.85 L16.15,13.63 C16.34,13.12 16.82,12.77 17.37,12.77 C17.92,12.77 18.4,13.12 18.59,13.63 L20.15,17.85 Z M19.41,22.29 C19.23,22.36 19.09,22.5 19.02,22.68 L17.36,27.17 L15.71,22.68 C15.64,22.5 15.5,22.36 15.32,22.29 L10.83,20.64 L15.32,18.98 C15.5,18.91 15.64,18.77 15.71,18.59 L17.36,14.1 L19.02,18.59 C19.09,18.77 19.23,18.91 19.41,18.98 L23.9,20.64 L19.41,22.29 Z"/><Path Canvas.Left="-9.5" Canvas.Top="-9.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M19.98,12.12 C19.98,11.76 20.28,11.47 20.64,11.47 L21.95,11.47 L21.95,10.16 C21.95,9.8 22.24,9.5 22.6,9.5 C22.96,9.5 23.26,9.8 23.26,10.16 L23.26,11.47 L24.57,11.47 C24.93,11.47 25.22,11.76 25.22,12.12 C25.22,12.48 24.93,12.78 24.57,12.78 L23.26,12.78 L23.26,14.09 C23.26,14.45 22.96,14.74 22.6,14.74 C22.24,14.74 21.95,14.45 21.95,14.09 L21.95,12.78 L20.64,12.78 C20.28,12.78 19.98,12.48 19.98,12.12 Z"/><Path Canvas.Left="-9.5" Canvas.Top="-9.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M28.5,16.05 C28.5,16.41 28.2,16.71 27.84,16.71 L27.19,16.71 L27.19,17.36 C27.19,17.72 26.89,18.02 26.53,18.02 C26.17,18.02 25.88,17.72 25.88,17.36 L25.88,16.71 L25.22,16.71 C24.86,16.71 24.57,16.41 24.57,16.05 C24.57,15.69 24.86,15.4 25.22,15.4 L25.88,15.4 L25.88,14.74 C25.88,14.38 26.17,14.09 26.53,14.09 C26.89,14.09 27.19,14.38 27.19,14.74 L27.19,15.4 L27.84,15.4 C28.2,15.4 28.5,15.69 28.5,16.05 Z"/></Canvas></Viewbox></Border><StackPanel Grid.Column="1"><TextBlock Text="ChatGPT" Style="{StaticResource PmvniTituloSecao}"/><TextBlock x:Name="TextoPluginChatGpt" x:FieldModifier="internal" Text="Codex · plugin analise" FontSize="12" Opacity="0.85"/></StackPanel></Grid>
-            <TextBlock Text="O ChatGPT analisa o processo pelo Codex. No campo “Pedido”, indique o que precisa de atenção, como um item apontado no despacho anterior." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-            <TextBlock x:Name="TextoMotivoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-            <Button x:Name="BotaoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="10,4">
+          <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="10,8"><StackPanel Spacing="4">
+            <Grid ColumnDefinitions="32,*" ColumnSpacing="10"><Border Width="32" Height="32" VerticalAlignment="Center" CornerRadius="5" Background="#FFFFFF" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"><Image Width="22" Height="22" Source="ms-appx:///Recursos/Provedores/openai.svg" AutomationProperties.AccessibilityView="Raw"/></Border><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="ChatGPT" Style="{StaticResource PmvniTituloSecao}"/><TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginChatGpt" x:FieldModifier="internal" Text="Codex · plugin analise" FontSize="12" Opacity="0.85"/></StackPanel></Grid>
+            <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoMotivoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            <Button x:Name="BotaoChatGpt" ToolTipService.ToolTip="O ChatGPT analisa o processo pelo Codex. No campo “Pedido”, indique o que precisa de atenção, como um item apontado no despacho anterior." AutomationProperties.HelpText="O ChatGPT analisa o processo pelo Codex. No campo “Pedido”, indique o que precisa de atenção, como um item apontado no despacho anterior." x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="10,4">
               <StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="14" Height="14"><Canvas Width="13.34" Height="15"><Path Canvas.Left="-82.83" Canvas.Top="-11.5" Fill="{Binding Foreground, ElementName=BotaoChatGpt}" Data="F0 M87.58,20.39 C87.72,19.44 88.53,18.72 89.5,18.72 C90.47,18.72 91.28,19.44 91.42,20.39 C91.56,21.34 90.99,22.25 90.06,22.53 L90.06,23.72 C90.06,24.03 89.81,24.28 89.5,24.28 C89.19,24.28 88.94,24.03 88.94,23.72 L88.94,22.53 C88.01,22.25 87.44,21.34 87.58,20.39 Z M89.5,21.5 C89.04,21.5 88.67,21.13 88.67,20.67 C88.67,20.21 89.04,19.83 89.5,19.83 C89.96,19.83 90.33,20.21 90.33,20.67 C90.33,21.13 89.96,21.5 89.5,21.5 Z"/><Path Canvas.Left="-82.83" Canvas.Top="-11.5" Fill="{Binding Foreground, ElementName=BotaoChatGpt}" Data="F0 M92.83,16.5 L95.06,16.5 C95.67,16.5 96.17,17 96.17,17.61 L96.17,25.39 C96.17,26 95.67,26.5 95.06,26.5 L83.94,26.5 C83.33,26.5 82.83,26 82.83,25.39 L82.83,17.61 C82.83,17 83.33,16.5 83.94,16.5 L86.17,16.5 L86.17,14.83 C86.17,12.99 87.66,11.5 89.5,11.5 C91.34,11.5 92.83,12.99 92.83,14.83 L92.83,16.5 Z M87.28,14.83 C87.28,13.6 88.27,12.61 89.5,12.61 C90.73,12.61 91.72,13.6 91.72,14.83 L91.72,16.5 L87.28,16.5 L87.28,14.83 Z M95.06,25.39 L83.94,25.39 L83.94,17.61 L95.06,17.61 L95.06,25.39 Z"/></Canvas></Viewbox><TextBlock Text="Analisar com o ChatGPT"/></StackPanel>
             </Button>
           </StackPanel></Border>
-          <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="12"><StackPanel Spacing="6">
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><Border CornerRadius="8" Padding="8" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="17.44" Height="19"><Path Canvas.Left="-10.28" Canvas.Top="-9.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M27.6,24.16 C27.49,24.34 27.31,24.47 27.11,24.52 C26.91,24.57 26.69,24.54 26.51,24.43 L19.79,20.4 L19.79,27.71 C19.79,28.15 19.44,28.5 19,28.5 C18.56,28.5 18.21,28.15 18.21,27.71 L18.21,20.4 L11.49,24.43 C11.25,24.58 10.94,24.59 10.69,24.45 C10.44,24.31 10.28,24.05 10.28,23.76 C10.28,23.47 10.43,23.21 10.68,23.07 L17.46,19 L10.68,14.93 C10.43,14.79 10.28,14.53 10.28,14.24 C10.28,13.95 10.44,13.69 10.69,13.55 C10.94,13.41 11.25,13.42 11.49,13.57 L18.21,17.6 L18.21,10.29 C18.21,9.85 18.56,9.5 19,9.5 C19.44,9.5 19.79,9.85 19.79,10.29 L19.79,17.6 L26.51,13.57 C26.75,13.42 27.06,13.41 27.31,13.55 C27.56,13.69 27.72,13.95 27.72,14.24 C27.72,14.53 27.57,14.79 27.32,14.93 L20.54,19 L27.32,23.07 C27.7,23.29 27.82,23.78 27.6,24.16 Z"/></Canvas></Viewbox></Border><StackPanel Grid.Column="1"><TextBlock Text="Claude" Style="{StaticResource PmvniTituloSecao}"/><TextBlock x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Claude Code · plugin análise pro" FontSize="12" Opacity="0.85"/></StackPanel></Grid>
-            <TextBlock x:Name="TextoPedidoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-            <TextBlock x:Name="TextoMotivoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-            <Button x:Name="BotaoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="10,4">
+          <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="10,8"><StackPanel Spacing="4">
+            <Grid ColumnDefinitions="32,*" ColumnSpacing="10"><Border Width="32" Height="32" VerticalAlignment="Center" CornerRadius="5" Background="#FFFFFF" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"><Image Width="22" Height="22" Source="ms-appx:///Recursos/Provedores/claude-color.svg" AutomationProperties.AccessibilityView="Raw"/></Border><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="Claude" Style="{StaticResource PmvniTituloSecao}"/><TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginClaude" x:FieldModifier="internal" Text="Claude Code · plugin análise pro" FontSize="12" Opacity="0.85"/></StackPanel></Grid>
+            <TextBlock Visibility="Collapsed" x:Name="TextoPedidoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoMotivoClaude" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            <Button x:Name="BotaoClaude" ToolTipService.ToolTip="{Binding Text, ElementName=TextoPedidoClaude}" AutomationProperties.HelpText="{Binding Text, ElementName=TextoPedidoClaude}" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="10,4">
               <StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="14" Height="14"><Canvas Width="13.34" Height="15"><Path Canvas.Left="-86.83" Canvas.Top="-11.5" Fill="{Binding Foreground, ElementName=BotaoClaude}" Data="F0 M91.58,20.39 C91.72,19.44 92.53,18.72 93.5,18.72 C94.47,18.72 95.28,19.44 95.42,20.39 C95.56,21.34 94.99,22.25 94.06,22.53 L94.06,23.72 C94.06,24.03 93.81,24.28 93.5,24.28 C93.19,24.28 92.94,24.03 92.94,23.72 L92.94,22.53 C92.01,22.25 91.44,21.34 91.58,20.39 Z M93.5,21.5 C93.04,21.5 92.67,21.13 92.67,20.67 C92.67,20.21 93.04,19.83 93.5,19.83 C93.96,19.83 94.33,20.21 94.33,20.67 C94.33,21.13 93.96,21.5 93.5,21.5 Z"/><Path Canvas.Left="-86.83" Canvas.Top="-11.5" Fill="{Binding Foreground, ElementName=BotaoClaude}" Data="F0 M96.83,16.5 L99.06,16.5 C99.67,16.5 100.17,17 100.17,17.61 L100.17,25.39 C100.17,26 99.67,26.5 99.06,26.5 L87.94,26.5 C87.33,26.5 86.83,26 86.83,25.39 L86.83,17.61 C86.83,17 87.33,16.5 87.94,16.5 L90.17,16.5 L90.17,14.83 C90.17,12.99 91.66,11.5 93.5,11.5 C95.34,11.5 96.83,12.99 96.83,14.83 L96.83,16.5 Z M91.28,14.83 C91.28,13.6 92.27,12.61 93.5,12.61 C94.73,12.61 95.72,13.6 95.72,14.83 L95.72,16.5 L91.28,16.5 L91.28,14.83 Z M99.06,25.39 L87.94,25.39 L87.94,17.61 L99.06,17.61 L99.06,25.39 Z"/></Canvas></Viewbox><TextBlock Text="Analisar com o Claude"/></StackPanel>
             </Button>
           </StackPanel></Border>
-          <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="12"><StackPanel Spacing="6">
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"><Border CornerRadius="8" Padding="8" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="19" Height="19"><Path Canvas.Left="-9.5" Canvas.Top="-9.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M22.23,15.77 L27.61,17.73 C28.14,17.93 28.5,18.43 28.5,19 C28.5,19.57 28.14,20.07 27.61,20.27 L22.23,22.23 L20.27,27.61 C20.07,28.14 19.57,28.5 19,28.5 C18.43,28.5 17.93,28.14 17.73,27.61 L15.77,22.23 L10.39,20.27 C9.86,20.07 9.5,19.57 9.5,19 C9.5,18.43 9.86,17.93 10.39,17.73 L15.77,15.77 L17.73,10.39 C17.93,9.86 18.43,9.5 19,9.5 C19.57,9.5 20.07,9.86 20.27,10.39 L22.23,15.77 Z M21.47,21.06 C21.28,21.13 21.13,21.28 21.06,21.47 L19,27.14 L16.94,21.47 C16.87,21.28 16.72,21.13 16.53,21.06 L10.86,19 L16.53,16.94 C16.72,16.87 16.87,16.72 16.94,16.53 L19,10.86 L21.06,16.53 C21.13,16.72 21.28,16.87 21.47,16.94 L27.14,19 L21.47,21.06 Z"/></Canvas></Viewbox></Border><StackPanel Grid.Column="1"><TextBlock Text="Gemini" Style="{StaticResource PmvniTituloSecao}"/><TextBlock x:Name="TextoPluginGemini" x:FieldModifier="internal" Text="Antigravity · plugin análise Google" FontSize="12" Opacity="0.85"/></StackPanel></Grid>
-            <TextBlock Text="O Gemini analisa o processo com o perfil indicado abaixo. Use o campo “Pedido” para destacar uma questão que deve ser conferida na análise." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-            <TextBlock x:Name="TextoPerfilGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-            <TextBlock x:Name="TextoMotivoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-            <Button x:Name="BotaoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="10,4">
+          <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="10" Padding="10,8"><StackPanel Spacing="4">
+            <Grid ColumnDefinitions="32,*" ColumnSpacing="10"><Border Width="32" Height="32" VerticalAlignment="Center" CornerRadius="5" Background="#FFFFFF" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"><Image Width="22" Height="22" Source="ms-appx:///Recursos/Provedores/gemini-color.svg" AutomationProperties.AccessibilityView="Raw"/></Border><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="Gemini" Style="{StaticResource PmvniTituloSecao}"/><TextBlock TextAlignment="Left" TextWrapping="Wrap" x:Name="TextoPluginGemini" x:FieldModifier="internal" Text="Antigravity · plugin análise Google" FontSize="12" Opacity="0.85"/></StackPanel></Grid>
+            <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoPerfilGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoMotivoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+            <Button x:Name="BotaoGemini" ToolTipService.ToolTip="O Gemini analisa o processo com o perfil indicado abaixo. Use o campo “Pedido” para destacar uma questão que deve ser conferida na análise." AutomationProperties.HelpText="O Gemini analisa o processo com o perfil indicado abaixo. Use o campo “Pedido” para destacar uma questão que deve ser conferida na análise." x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" HorizontalAlignment="Stretch" Padding="10,4">
               <StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="14" Height="14"><Canvas Width="13.34" Height="15"><Path Canvas.Left="-86.83" Canvas.Top="-11.5" Fill="{Binding Foreground, ElementName=BotaoGemini}" Data="F0 M91.58,20.39 C91.72,19.44 92.53,18.72 93.5,18.72 C94.47,18.72 95.28,19.44 95.42,20.39 C95.56,21.34 94.99,22.25 94.06,22.53 L94.06,23.72 C94.06,24.03 93.81,24.28 93.5,24.28 C93.19,24.28 92.94,24.03 92.94,23.72 L92.94,22.53 C92.01,22.25 91.44,21.34 91.58,20.39 Z M93.5,21.5 C93.04,21.5 92.67,21.13 92.67,20.67 C92.67,20.21 93.04,19.83 93.5,19.83 C93.96,19.83 94.33,20.21 94.33,20.67 C94.33,21.13 93.96,21.5 93.5,21.5 Z"/><Path Canvas.Left="-86.83" Canvas.Top="-11.5" Fill="{Binding Foreground, ElementName=BotaoGemini}" Data="F0 M96.83,16.5 L99.06,16.5 C99.67,16.5 100.17,17 100.17,17.61 L100.17,25.39 C100.17,26 99.67,26.5 99.06,26.5 L87.94,26.5 C87.33,26.5 86.83,26 86.83,25.39 L86.83,17.61 C86.83,17 87.33,16.5 87.94,16.5 L90.17,16.5 L90.17,14.83 C90.17,12.99 91.66,11.5 93.5,11.5 C95.34,11.5 96.83,12.99 96.83,14.83 L96.83,16.5 Z M91.28,14.83 C91.28,13.6 92.27,12.61 93.5,12.61 C94.73,12.61 95.72,13.6 95.72,14.83 L95.72,16.5 L91.28,16.5 L91.28,14.83 Z M99.06,25.39 L87.94,25.39 L87.94,17.61 L99.06,17.61 L99.06,25.39 Z"/></Canvas></Viewbox><TextBlock Text="Analisar com o Gemini"/></StackPanel>
             </Button>
           </StackPanel></Border>
@@ -179,7 +183,7 @@
           <TextBlock Text="Monitor de análise" Style="{StaticResource PmvniTituloPaginaStyle}"/>
           <TextBlock Text="Execução da IA, atividades e descobertas em tempo real." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
         </StackPanel>
-        <TextBlock Grid.Column="2" x:Name="ProcessoMonitor" x:FieldModifier="internal" MaxWidth="220" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+        <TextBlock TextAlignment="Center" Grid.Column="2" x:Name="ProcessoMonitor" x:FieldModifier="internal" MaxWidth="220" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Style="{StaticResource BodyStrongTextBlockStyle}"/>
       </Grid>
       <!-- 1. Resumo. -->
       <Border Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="16,14">
@@ -195,7 +199,7 @@
             <FontIcon x:Name="IconeStatus" x:FieldModifier="internal" Glyph="&#xE9F5;" FontSize="24" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
           </Border>
           <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-            <TextBlock x:Name="TituloStatus" x:FieldModifier="internal" Text="Análise em andamento" Style="{StaticResource SubtitleTextBlockStyle}"
+            <TextBlock TextAlignment="Center" x:Name="TituloStatus" x:FieldModifier="internal" Text="Análise em andamento" Style="{StaticResource SubtitleTextBlockStyle}"
                        AutomationProperties.LiveSetting="Polite"/>
             <TextBlock x:Name="TextoProgressoItens" TextWrapping="Wrap" Visibility="Collapsed"/>
 
@@ -225,10 +229,10 @@
               <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
           <Grid Grid.Row="3" Grid.ColumnSpan="3" ColumnDefinitions="*,*,*,*" ColumnSpacing="8" Margin="0,4,0,0">
-            <Border Grid.Column="0" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock Text="Atende" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock x:Name="TotalAtende" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
-            <Border Grid.Column="1" Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock Text="Não atende" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock x:Name="TotalNaoAtende" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
-            <Border Grid.Column="2" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock Text="Falta comprovar" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock x:Name="TotalComprovar" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
-            <Border Grid.Column="3" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock Text="Informações divergentes" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock x:Name="TotalDivergentes" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
+            <Border Grid.Column="0" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock TextAlignment="Center" Text="Atende" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock TextAlignment="Center" x:Name="TotalAtende" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
+            <Border Grid.Column="1" Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock TextAlignment="Center" Text="Não atende" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock TextAlignment="Center" x:Name="TotalNaoAtende" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
+            <Border Grid.Column="2" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock TextAlignment="Center" Text="Falta comprovar" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock TextAlignment="Center" x:Name="TotalComprovar" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
+            <Border Grid.Column="3" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Padding="10,6" CornerRadius="8"><StackPanel><TextBlock TextAlignment="Center" Text="Informações divergentes" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"/><TextBlock TextAlignment="Center" x:Name="TotalDivergentes" Text="0" Style="{StaticResource SubtitleTextBlockStyle}"/></StackPanel></Border>
           </Grid>
         </Grid>
       </Border>
@@ -236,7 +240,7 @@
       <!-- 2. Etapas (só no Claude, que informa a etapa). -->
       <Border x:Name="PainelClaude" x:FieldModifier="internal" Grid.Row="2" Style="{StaticResource PmvniCartaoSecao}" Padding="12,14" Visibility="Collapsed">
         <StackPanel Spacing="8">
-          <TextBlock Text="Etapas da análise" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+          <TextBlock TextAlignment="Center" Text="Etapas da análise" Style="{StaticResource BodyStrongTextBlockStyle}"/>
           <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled">
             <Grid x:Name="PainelEtapas" x:FieldModifier="internal" MinWidth="620" AutomationProperties.Name="Etapas da análise"/>
           </ScrollViewer>
@@ -261,7 +265,7 @@
               <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
               <FontIcon Glyph="&#xE8FD;" FontSize="20" VerticalAlignment="Center"/>
               <StackPanel Grid.Column="1">
-                <TextBlock Text="Atividades da análise" Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="16"/>
+                <TextBlock TextAlignment="Center" Text="Atividades da análise" Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="16"/>
                 <TextBlock Text="Acompanhe as etapas em ordem de execução." Style="{StaticResource PmvniSecondaryTextStyle}"/>
               </StackPanel>
               <Border x:Name="SeloAoVivo" x:FieldModifier="internal" Grid.Column="2" CornerRadius="12" Padding="10,3" VerticalAlignment="Center"
@@ -299,7 +303,7 @@
                   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <FontIcon Glyph="&#xE1D3;" FontSize="20" VerticalAlignment="Center"/>
                   <StackPanel Grid.Column="1">
-                    <TextBlock Text="Principais descobertas" Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="16"/>
+                    <TextBlock TextAlignment="Center" Text="Principais descobertas" Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="16"/>
                     <TextBlock Text="Preliminares até a auditoria cruzada; depois, verificadas." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
                   </StackPanel>
                 </Grid>
@@ -316,7 +320,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <FontIcon Glyph="&#xE72A;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1">
-                  <TextBlock x:Name="TextoResumo" x:FieldModifier="internal" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
+                  <TextBlock TextAlignment="Center" x:Name="TextoResumo" x:FieldModifier="internal" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap"/>
                   <TextBlock x:Name="TextoProximaEtapa" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
                 </StackPanel>
               </Grid>
@@ -329,7 +333,7 @@
                   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <FontIcon Glyph="&#xE713;" FontSize="18" VerticalAlignment="Center"/>
                   <StackPanel Grid.Column="1">
-                    <TextBlock Text="Detalhes da execução" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <TextBlock TextAlignment="Center" Text="Detalhes da execução" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                     <TextBlock Text="Etapas da análise e última mensagem da IA." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
                   </StackPanel>
                 </Grid>
@@ -339,7 +343,7 @@
                 <TextBlock x:Name="TextoEventos" x:FieldModifier="internal" FontSize="13" TextWrapping="Wrap" IsTextSelectionEnabled="True"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <StackPanel x:Name="PainelUltimaMensagem" x:FieldModifier="internal" Spacing="4">
-                  <TextBlock Text="Última mensagem do ChatGPT" Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="12"/>
+                  <TextBlock TextAlignment="Center" Text="Última mensagem do ChatGPT" Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="12"/>
                   <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto">
                     <TextBlock x:Name="TextoUltimaMensagem" x:FieldModifier="internal" FontSize="12" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
                   </ScrollViewer>
