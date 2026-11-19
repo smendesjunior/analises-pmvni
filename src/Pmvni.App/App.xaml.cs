@@ -35,6 +35,5 @@ public partial class App : Application
     {
         janela = new MainWindow();
         janela.Activate();
-        if (!Autoteste.Ativo && Argumentos.Atual.Roteiro is null) _ = Task.Run(InstalacaoMotorPdf.ConferirAsync);
     }
 }

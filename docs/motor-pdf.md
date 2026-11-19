@@ -6,10 +6,8 @@ Docling MCP 3.5.0 (MIT) roda pelo conversor local do pacote, isolado em subproce
 
 O índice de cada preparo aponta para evidências em .pmvni-ai/cache-pdf no processo. As saídas de geometria usam pontos PDF e mantêm a escala real pendente de calibração. O Docling recebe apenas recortes de páginas selecionadas para OCR, memoriais e quadros. Os JSON completos ficam no disco. O monitor abre a pasta no painel de detalhes.
 
-## Executores experimentais
+## Motores de visão e instalação por usuário
 
-Blueprint Pipeline e FYP-Floorplan ficam pendentes de autorização para distribuição do código e dos pesos. As referências examinadas foram ASorceror/blueprint_pipeline no commit 98268f108a2cb813c8279c7aaf99f3631df7874f e REIkd/FYP-Floorplan no commit 628e1eae5a63974bbebfe6ebef8efa52fc7727ce. Um integrador autorizado pode registrar um executável Windows de cada ferramenta em adaptadores.json, na pasta do motor, com as chaves blueprint e fyp-floorplan. Cada entrada contém executavel (caminho absoluto) e sha256 do executável. O adaptador chama o programa com --pdf, --pagina (base 1) e --saida. O programa precisa devolver um objeto JSON com sha256 do PDF, pagina e evidências localizáveis. O integrador responde pela validação das dependências e dos pesos que seu executável carregar. A execução tem limite de 120 segundos. As hipóteses permanecem pendentes de conferência.
+No Editor 2.1.7, em Ajustes > Sobre e suporte, use Instalar ou atualizar plugins. No kit, configurar-plugins.ps1 executa a mesma operação sem elevação. O resultado fica em %LOCALAPPDATA%/PMVNI/MotorPdf/resumo-instalacao.txt. Reinicie o cliente de IA para carregar as ferramentas MCP. O catálogo Claude Code oferece analise; os três perfis do kit são distribuídos pelo catálogo Codex.
 
-## Distribuição
-
-Entregar a versão do Editor com os recursos MotorPdf incorporados e atualizar a fonte dos plugins e o instalador do kit. Conferir nos PCs de destino o runtime.txt, um preparo de PDF e o acesso às evidências. A execução em um PC sem internet desde a primeira instalação depende de pré-provisionamento dos pacotes e modelos.
+Blueprint e os pesos de segmentação FYP são obtidos diretamente das fontes de origem em cada estação, com revisão e SHA-256 fixados. O kit disponibiliza o instalador e os adaptadores. O motor Blueprint identifica regiões vetoriais candidatas; o FYP executa U-Net em CPU com cinco classes e preserva a máscara da página. As saídas não comprovam sozinhas dimensões ou conformidade. Uma primeira instalação requer internet.

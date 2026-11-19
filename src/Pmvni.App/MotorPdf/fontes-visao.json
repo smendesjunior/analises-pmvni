@@ -1,0 +1,12 @@
+[
+  {
+    "nome": "blueprint.zip",
+    "url": "https://codeload.github.com/ASorceror/blueprint_pipeline/zip/98268f108a2cb813c8279c7aaf99f3631df7874f",
+    "sha256": "cf2ef5232cbd26169dba7bbc0bbcc3fc33012dde4dc0293a46a1ea5dd009001a"
+  },
+  {
+    "nome": "fyp-unet.pth",
+    "url": "https://raw.githubusercontent.com/REIkd/FYP-Floorplan/628e1eae5a63974bbebfe6ebef8efa52fc7727ce/models/segmentation/best_model.pth",
+    "sha256": "49d60b64efb5b9ade2aa2d5ad5f78f6a03d89bdbe7737c52fe909b3f33068a89"
+  }
+]

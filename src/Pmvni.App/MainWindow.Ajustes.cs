@@ -383,6 +383,13 @@ public sealed partial class MainWindow
             ajustes.AtualizarAutomaticamente = p.AlternarAtualizarSozinho.IsOn;
             SalvarAjustes();
         };
+        p.BotaoInstalarPlugins.Click += async (_, _) =>
+        {
+            p.BotaoInstalarPlugins.IsEnabled = false;
+            p.ResumoInstalacaoPlugins.Text = "Instalando plugins para este usuário…";
+            try { p.ResumoInstalacaoPlugins.Text = await Task.Run(InstalacaoMotorPdf.ConferirAsync); }
+            finally { p.BotaoInstalarPlugins.IsEnabled = true; }
+        };
         p.BotaoVerificarAtualizacoes.Click += async (_, _) => await Atualizador.VerificarAsync();
         p.BotaoReiniciarAtualizacao.Click += (_, _) =>
         {

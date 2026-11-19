@@ -654,6 +654,8 @@
                       <Button x:Name="BotaoVerificarAtualizacoes" x:FieldModifier="internal" Content="Verificar atualizações" HorizontalAlignment="Stretch"
                               AutomationProperties.Name="Verificar atualizações"
                               local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Procura agora uma versão nova do editor no GitHub e a instala se houver."/>
+                      <Button x:Name="BotaoInstalarPlugins" x:FieldModifier="internal" Content="Instalar ou atualizar plugins" HorizontalAlignment="Stretch"/>
+                      <TextBlock x:Name="ResumoInstalacaoPlugins" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" AutomationProperties.LiveSetting="Polite"/>
                       <Button x:Name="BotaoReiniciarAtualizacao" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Reiniciar agora" HorizontalAlignment="Stretch" Visibility="Collapsed"
                               AutomationProperties.Name="Reiniciar o editor na versão nova"
                               local:Dicas.Titulo="Reiniciar agora" local:Dicas.Descricao="Fecha o editor (gravando o relatório aberto) e o abre de novo na versão nova."/>

@@ -6,7 +6,7 @@ namespace Pmvni.App;
 
 internal static class InstalacaoMotorPdf
 {
-    internal static async Task ConferirAsync()
+    internal static async Task<string> ConferirAsync()
     {
         try
         {
@@ -16,7 +16,7 @@ internal static class InstalacaoMotorPdf
             var baseLocal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PMVNI", "MotorPdf");
             var pasta = Path.Combine(baseLocal, "bootstrap", assembly.ManifestModule.ModuleVersionId.ToString());
             Directory.CreateDirectory(pasta);
-            foreach (var nome in new[] { "uv.json", "requirements.lock", "instalar.ps1", "primeira-abertura.ps1" })
+            foreach (var nome in assembly.GetManifestResourceNames().Where(n => n.StartsWith("motor.", StringComparison.Ordinal)).Select(n => n[6..]))
             {
                 var destino = Path.Combine(pasta, nome);
                 if (File.Exists(destino)) continue;
@@ -33,14 +33,18 @@ internal static class InstalacaoMotorPdf
             {
                 UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true
             };
-            foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(pasta, "primeira-abertura.ps1") })
+            foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(pasta, "configurar-plugins.ps1") })
                 inicio.ArgumentList.Add(arg);
+            var inicioUtc = DateTime.UtcNow;
             using var instalador = Process.Start(inicio)!;
             var erro = await instalador.StandardError.ReadToEndAsync();
             await instalador.WaitForExitAsync();
+            var resumo = Path.Combine(baseLocal, "resumo-instalacao.txt");
+            if (File.Exists(resumo) && File.GetLastWriteTimeUtc(resumo) >= inicioUtc) return await File.ReadAllTextAsync(resumo);
             if (instalador.ExitCode != 0)
                 throw new IOException($"Instalação do motor PDF {versao}: {erro}");
+            return "Instalação encerrada sem resumo.";
         }
-        catch (Exception e) { RegistroErros.Gravar("motor.pdf.instalacao", e); }
+        catch (Exception e) { RegistroErros.Gravar("motor.pdf.instalacao", e); return "Falha na instalação: " + e.Message; }
     }
 }

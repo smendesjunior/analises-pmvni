@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 2.1.7
+
+- Em Ajustes, o botão Instalar ou atualizar plugins prepara os quatro motores de PDF para uso local, registra as ferramentas no Codex e no Claude instalado e mostra o resultado por componente. A instalação usa o perfil do usuário.
+
 ## 2.1.6
 
 - A primeira abertura instala os plugins de análise no perfil do usuário e prepara Docling MCP e PyMuPDF. A instalação incompleta é retomada na abertura seguinte.
