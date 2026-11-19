@@ -123,7 +123,7 @@
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <!-- Pesquisa geral (2026-11-17): além do módulo à vista, acha ajustes, funções, arquivos e leis (lista abaixo da caixa). TextBox nativo
                em pílula: a borda de foco é a do tema (cor de destaque do Windows). -->
-          <TextBox x:Name="CaixaPesquisa" TextAlignment="Center" VerticalContentAlignment="Center" Background="Transparent" BorderThickness="0" Height="30" MinHeight="30" CornerRadius="16" Padding="32,3,8,3" VerticalAlignment="Center"
+          <TextBox x:Name="CaixaPesquisa" TextAlignment="Left" VerticalContentAlignment="Center" Background="Transparent" BorderThickness="0" Height="30" MinHeight="30" CornerRadius="16" Padding="32,3,8,3" VerticalAlignment="Center"
                    PlaceholderText="Pesquisar arquivos, funções, leis e configurações..." AutomationProperties.Name="Pesquisar no app"
                    ToolTipService.ToolTip="Pesquisar no app (Ctrl+K)">
             <TextBox.Resources>
