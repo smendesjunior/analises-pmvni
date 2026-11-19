@@ -83,7 +83,7 @@ public class PaginaIaTestes
         Assert.Equal("Conta OpenAI", TextosAgentes.RotuloConta(Provedor.ChatGpt));
         Assert.Equal("Conta Anthropic", TextosAgentes.RotuloConta(Provedor.Claude));
         Assert.StartsWith("https://", TextosAgentes.EnderecoConta(Provedor.Claude));
-        Assert.Equal("Sair do Claude Code?", TextosAgentes.PerguntaSair(Provedor.Claude));
+        Assert.Equal("Sair do Claude?", TextosAgentes.PerguntaSair(Provedor.Claude));
     }
 
     [Fact]
