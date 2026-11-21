@@ -360,7 +360,8 @@ public static class ModelosDaAnalise
 
     /// <summary>A tabela que vai ao controlador e os avisos. Uma célula do ajuste cujo modelo não está mais na lista conferida do provedor usa o padrão do
     /// kit (aviso "trocado"); o padrão do kit que também não está na lista só gera aviso (o kit tenta e, se o provedor recusar, a etapa para sem trocar de
-    /// modelo). As células de etapas de programa não entram. Todas as rotas vão no arquivo; os avisos dizem a rota.</summary>
+    /// modelo). As etapas de programa (<c>executor: programa</c> no <c>etapas.json</c>: hoje o preparo e a produção) não têm modelo: não entram na tabela, e uma célula
+    /// delas num ajuste local antigo é ignorada com aviso (o kit também a ignora). Todas as rotas vão no arquivo; os avisos dizem a rota.</summary>
     public static TabelaEfetiva Efetiva(TabelaModelosKit kit, AjusteModelos ajuste, IReadOnlyList<EtapaModelos> etapas, Func<ColunaModelos, ListaDaRota?> listas)
     {
         var celulas = new Dictionary<(string, string, string), CelulaModelos>();
@@ -368,6 +369,9 @@ public static class ModelosDaAnalise
         foreach (var col in kit.Colunas)
         {
             var lista = listas(col);
+            foreach (var etapa in etapas.Where(e => e.Programa))
+                if (ajuste.Celulas.ContainsKey((col.Rota, col.Perfil, etapa.Id)))
+                    avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: o ajuste local deste computador tem modelo para uma etapa que agora roda por programa, sem IA; esse ajuste foi ignorado."));
             foreach (var etapa in etapas.Where(e => !e.Programa))
             {
                 if (kit.Celula(col, etapa.Id) is not { } padrao) continue;
@@ -476,7 +480,7 @@ public static class ModelosDaAnalise
     }
 
     /// <summary>Por que o ajuste não pode ser publicado sobre a tabela do kit mestre (lista vazia = pode): célula de rota, perfil ou etapa que o kit mestre
-    /// não tem; modelo que não aparece mais na lista conferida do provedor; nível que o modelo não aceita.</summary>
+    /// não tem (célula de etapa de programa não conta: é ignorada); modelo que não aparece mais na lista conferida do provedor; nível que o modelo não aceita.</summary>
     public static IReadOnlyList<string> ProblemasParaPublicar(TabelaModelosKit mestre, AjusteModelos a, IReadOnlyList<EtapaModelos> etapas, Func<ColunaModelos, ListaDaRota?> listas)
     {
         var problemas = new List<string>();
@@ -484,12 +488,12 @@ public static class ModelosDaAnalise
         {
             var col = mestre.Colunas.FirstOrDefault(x => x.Rota == rota && x.Perfil == perfil);
             var nome = etapas.FirstOrDefault(e => e.Id == etapaId)?.Nome ?? etapaId;
+            if (etapas.FirstOrDefault(e => e.Id == etapaId) is { Programa: true }) continue;   // etapa de programa: o ajuste antigo é ignorado (aviso na aba), não publicado nem bloqueia
             if (col is null || mestre.Celula(col, etapaId) is null)
             {
                 problemas.Add($"a tabela do kit mestre não tem {nome} em {rota}/{perfil}");
                 continue;
             }
-            if (etapas.FirstOrDefault(e => e.Id == etapaId) is { Programa: true }) { problemas.Add($"{col.Titulo}, {nome}: a etapa roda por programa, sem modelo"); continue; }
             if (!CatalogoIa.ModeloValido(c.Modelo) || !mestre.Niveis.Contains(c.Nivel)) { problemas.Add($"{col.Titulo}, {nome}: modelo ou nível inválido ({c.Modelo}, {c.Nivel})"); continue; }
             var lista = listas(col);
             if (Falta(lista, c.Modelo)) problemas.Add($"{col.Titulo}, {nome}: o modelo {c.Modelo} não aparece mais na lista {lista!.Fonte}");

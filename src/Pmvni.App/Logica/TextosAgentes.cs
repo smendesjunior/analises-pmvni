@@ -44,7 +44,7 @@ public static class TextosAgentes
 
     public static PerfilGemini? PerfilDoIndice(int i) => i switch { 1 => PerfilGemini.ApiCreditos, 2 => PerfilGemini.ApiGratuita, _ => null };
 
-    /// <summary>Os modelos e níveis das seis etapas no perfil que vale agora (ou o pedido de escolha do perfil).</summary>
+    /// <summary>Os modelos e níveis das etapas de IA no perfil que vale agora (ou o pedido de escolha do perfil).</summary>
     public static string MatrizDoGemini(ModoAcesso modo, PerfilGemini? perfilApi) =>
         MatrizGemini.PerfilDoModo(modo, perfilApi) is { } p ? MatrizGemini.Nome(p) + " — " + MatrizGemini.Resumo(p) + "." : "Escolha o perfil da chave para ver os modelos de cada etapa.";
 

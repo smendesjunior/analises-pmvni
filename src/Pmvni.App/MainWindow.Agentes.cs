@@ -85,11 +85,11 @@ public sealed partial class MainWindow
             d["cartoes"] = cartoes.Count;
             d["perfis_do_gemini"] = gemini.CaixaPerfil.Items.Count;
             d["matriz"] = Enum.GetValues<PerfilGemini>().ToDictionary(p => MatrizGemini.Codigo(p), p => MatrizGemini.Etapas(p).Select(e => e.IdRuntime).ToArray());
-            var matrizOk = Enum.GetValues<PerfilGemini>().All(p => MatrizGemini.Etapas(p).Count == SituacaoAnalisePro.Etapas.Count);
+            var matrizOk = Enum.GetValues<PerfilGemini>().All(p => MatrizGemini.Etapas(p).Count == 4 && MatrizGemini.Etapas(p).All(e => e.Etapa is not ("prepare" or "produce")));
             d["ok"] = botoesOk && cartoesOk && matrizOk;
             if (!botoesOk) d["erro"] = "os três botões Analisar não estão na página Novo relatório";
             else if (!cartoesOk) d["erro"] = "o cartão do Gemini não está completo em Ajustes";
-            else if (!matrizOk) d["erro"] = "a matriz do Gemini não tem as seis etapas";
+            else if (!matrizOk) d["erro"] = "a matriz do Gemini não tem as quatro etapas de IA (preparo e produção são de programa)";
         }
         catch (Exception e)
         {

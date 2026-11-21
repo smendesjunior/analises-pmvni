@@ -732,7 +732,7 @@ public sealed class OrquestradorAnalise
     }
 
     /// <summary>Gemini, antes da partida: o plugin confere (sem gerar texto nem gastar cota) o runtime, a autenticação do modo escolhido e o modelo e o nível
-    /// de cada uma das seis etapas do perfil. Faltando qualquer um, nada é iniciado e a mensagem diz o perfil e a etapa. null = pode partir.</summary>
+    /// de cada etapa de IA do perfil. Faltando qualquer um, nada é iniciado e a mensagem diz o perfil e a etapa. null = pode partir.</summary>
     async Task<FimAnalise?> ConferirGeminiAsync(PedidoExecucao pe, Action<IDictionary<string, string?>> ambiente, RedatorChave redator, CancellationToken ct)
     {
         var pecas = pe.Pecas;

@@ -5282,14 +5282,15 @@ internal static class Roteiro
         await Passo("modelos_da_analise", async p =>
         {
             // Tarefa 19: Ajustes › Inteligência artificial › Modelos da análise. A tabela e o etapas.json são fictícios, no plugin analise do CODEX_HOME do
-            // roteiro; o ajuste vai para a pasta de dados do roteiro (tests\saida), nunca para a de verdade. Confere a grade (6 etapas × 3 colunas, modelo e
-            // nível em cada célula), uma troca de modelo pela caixa (o ajuste local guarda só ela) e "Restaurar padrão do kit" (o ajuste some).
+            // roteiro; o ajuste vai para a pasta de dados do roteiro (tests\saida), nunca para a de verdade. Confere a grade (as 4 etapas de IA × 3 colunas, modelo e
+            // nível em cada célula; preparo e produção são de programa, como no analise 4.0.0: linha "programa", sem célula), uma troca de modelo pela caixa (o ajuste local guarda só ela) e "Restaurar padrão do kit" (o ajuste some).
             await PrepararAgentesAsync();
             var refs = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "references");
             Directory.CreateDirectory(refs);
             string[] ids = ["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"];
+            string[] iaIds = ["analyze", "technical_audit", "audit", "final_review"];
             string Celulas(Func<string, (string Modelo, string Nivel)> c) =>
-                string.Join(",", ids.Select(id => $"\"{id}\":{{\"modelo\":\"{c(id).Modelo}\",\"nivel\":\"{c(id).Nivel}\"}}"));
+                string.Join(",", iaIds.Select(id => $"\"{id}\":{{\"modelo\":\"{c(id).Modelo}\",\"nivel\":\"{c(id).Nivel}\"}}"));
             var tecnica = (string id) => id is "analyze" or "technical_audit";
             await File.WriteAllTextAsync(Path.Combine(refs, TabelaDeModelos.NomeNoKit), "{\"versao\":1,\"niveis\":[\"baixo\",\"medio\",\"alto\"],"
                 + "\"equivalencia\":{\"baixo\":\"low\",\"medio\":\"medium\",\"alto\":\"high\"},\"etapas_tecnicas\":[\"analyze\",\"technical_audit\"],"
@@ -5300,7 +5301,8 @@ internal static class Roteiro
                 + "\"perfis\":{\"conta_ultra\":{\"nome\":\"Conta Antigravity\",\"etapas\":{" + Celulas(_ => ("gemini-3.8-flash", "medio")) + "}}}}}}");
             await File.WriteAllTextAsync(Path.Combine(refs, "etapas.json"), "{\"versao\":1,\"ordem\":[" + string.Join(",", ids.Select(i => "\"" + i + "\"")) + "],\"etapas\":{"
                 + string.Join(",", ids.Select(i => "\"" + i + "\":" + (i == "audit"
-                    ? "{\"executor\":\"ia\",\"opcional\":true,\"ligada_por_rota\":{\"codex\":true,\"claude\":true,\"gemini\":true}}" : "{\"executor\":\"ia\"}"))) + "}}");
+                    ? "{\"executor\":\"ia\",\"opcional\":true,\"ligada_por_rota\":{\"codex\":true,\"claude\":true,\"gemini\":true}}"
+                    : i is "prepare" or "produce" ? "{\"executor\":\"programa\"}" : "{\"executor\":\"ia\"}"))) + "}}");
             var local = ModelosDaAnalise.ArquivoLocal(PastaDados.Raiz);
             if (File.Exists(local)) File.Delete(local);
             // Um computador que não é o do kit mestre (sem instalacao.json): o botão "Publicar como padrão do kit" fica escondido.
@@ -5314,7 +5316,7 @@ internal static class Roteiro
                 await Esperar(800);
                 var grade = pag.PainelModelosAnalise.Children.OfType<Grid>().FirstOrDefault();
                 var caixas = grade?.Children.OfType<StackPanel>().SelectMany(s => s.Children.OfType<ComboBox>()).ToList() ?? [];
-                var gradeOk = grade is not null && caixas.Count == ids.Length * 3 * 2;
+                var gradeOk = grade is not null && caixas.Count == iaIds.Length * 3 * 2;
                 pag.PainelModelosAnalise.StartBringIntoView();
                 await Esperar(300);
                 await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "modelos-da-analise-xaml.png"));
