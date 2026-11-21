@@ -648,7 +648,7 @@
                 <StackPanel>
                   <StackPanel Padding="16,12" Spacing="3">
                     <TextBlock TextAlignment="Left" Text="Auditoria cruzada" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock TextAlignment="Left" Text="A auditoria por um segundo modelo, antes da montagem do relatório. Ligada por padrão nas três rotas; desligada, a análise vai da auditoria técnica direto à montagem." TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
+                    <TextBlock TextAlignment="Left" Text="A auditoria por uma sessão independente da IA (o modelo pode ser o mesmo), antes da montagem do relatório. Ligada por padrão nas três rotas; desligada, a análise vai da auditoria técnica direto à montagem." TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
                   </StackPanel>
                   <StackPanel x:Name="PainelAuditoriaCruzada" x:FieldModifier="internal"/>
                 </StackPanel>

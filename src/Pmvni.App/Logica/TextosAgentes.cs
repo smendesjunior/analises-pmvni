@@ -24,7 +24,7 @@ public static class TextosAgentes
     /// <summary>A dica do modo chave do Claude com um análise pro que aceita a Anthropic API (1.6.4+): o que muda de verdade na análise.</summary>
     public const string ClaudeModoApi = "Modo Anthropic API: a rota Claude do plugin analise usa esta chave, com os créditos e os limites da organização no Anthropic Console, "
         + "sem usar a cota do Claude Max. Se a API falhar (saldo, chave recusada ou limite de uso), a análise pausa ou para, sem passar para a conta. "
-        + "Modelos e níveis de cada etapa continuam os do plugin.";
+        + "Os modelos e níveis de cada etapa são os de Ajustes › Inteligência artificial › Modelos da análise (o padrão do kit, com o ajuste deste computador).";
 
     /// <summary>A dica do modo chave do Gemini: o que a chave do Google AI Studio muda na análise e por que o perfil é escolhido à mão.</summary>
     public const string GeminiModoApi = "Modo Gemini API: a rota Gemini do plugin analise usa esta chave do Google AI Studio pelo Antigravity CLI, sem usar a cota da conta Google. "
@@ -79,9 +79,9 @@ public static class TextosAgentes
           + "o Google pode usar esse conteúdo para melhorar os produtos dele: por isso ela só serve para processos fictícios. O editor não envia nada por "
           + "conta própria: ele só dá a partida, mostra o andamento e importa o relatório no fim."
         : p == Provedor.ChatGpt
-        ? "Analisar com o ChatGPT inicia o Codex instalado neste computador, com a sua configuração e o plugin analise do kit PMVNI. O Codex lê os "
-          + "arquivos do processo, usa os programas e as pastas de rede deste computador e envia à OpenAI o pedido e o conteúdo de que precisar, como "
-          + "faz no app do ChatGPT. O editor não envia nada por conta própria: ele só inicia o Codex, mostra o andamento e importa o relatório no fim."
+        ? "Analisar com o ChatGPT inicia a rota ChatGPT do plugin analise do kit PMVNI, que roda sozinha pelo Python e chama o Codex instalado neste computador, "
+          + "com a sua configuração. O Codex lê os arquivos do processo, usa os programas e as pastas de rede deste computador e envia à OpenAI o conteúdo "
+          + "de que precisar, como faz no app do ChatGPT. O editor não envia nada por conta própria: ele só dá a partida, mostra o andamento e importa o relatório no fim."
         : "Analisar com o Claude inicia a rota Claude do plugin analise do kit PMVNI, que roda sozinha numa janela minimizada e chama o Claude Code deste computador "
           + "com a sua conta do Claude ou, se escolhida em Ajustes, com a chave da Anthropic API (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os arquivos do processo, usa os programas e as "
           + "pastas de rede deste computador e envia à Anthropic o conteúdo de que precisar. O editor não envia nada por conta própria: ele só dá a "

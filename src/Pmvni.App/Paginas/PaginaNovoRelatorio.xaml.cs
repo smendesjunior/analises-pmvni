@@ -444,7 +444,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             var posicaoDaDescricao = PosicaoNaOrdemPadrao(nome);
             var descricao = posicaoDaDescricao >= 0 ? DescricoesEtapas[Math.Min(posicaoDaDescricao, DescricoesEtapas.Length - 1)] : DescricaoDeEtapaDesconhecida;
             if (ProgressoAtual is { Total: > 0 } contagem && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(contagem.Etapa) == nome)
-                descricao += $" Itens avaliados nesta etapa: {contagem.Avaliados} de {contagem.Total}.";
+                descricao += contagem.Secoes ? $" Seções com resultado nesta etapa: {contagem.Avaliados} de {contagem.Total}."
+                    : $" Itens avaliados nesta etapa: {contagem.Avaliados} de {contagem.Total}.";
             textos.Children.Add(new TextBlock { Text = descricao, FontSize = 12, TextAlignment = TextAlignment.Left,
                 Foreground = Recurso("TextFillColorSecondaryBrush"), TextWrapping = TextWrapping.Wrap });
             Grid.SetColumn(textos, 1);

@@ -35,10 +35,19 @@ public static partial class ReferenciasCruzadas
     [GeneratedRegex("[0-9]{1,3}", RegexOptions.CultureInvariant)]
     private static partial Regex Numero();
 
+    const string Marcas = @"(?<![\p{L}])(?:NBR|ABNT|ISO|Lei|LC|Anexo|Decreto|Resolu[çc][ãa]o|Portaria|NT|IT|Instru[çc][ãa]o\s+T[ée]cnica|Norma)(?![\p{L}])";
+
     // Marca de norma na frase: a citação é da norma, não do relatório.
-    [GeneratedRegex(@"(?<![\p{L}])(?:NBR|ABNT|ISO|Lei|LC|Anexo|Decreto|Resolu[çc][ãa]o|Portaria|NT|IT|Instru[çc][ãa]o\s+T[ée]cnica|Norma)(?![\p{L}])",
-        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    [GeneratedRegex(Marcas, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex MarcaDeNorma();
+
+    // Marca de norma colada antes de um parêntese, só com a designação no meio ("NBR 9050 (", "ABNT NBR 9050:2020 ("): o parêntese é da norma.
+    [GeneratedRegex(Marcas + @"[\s\p{N}.:/\-–]*$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex NormaColadaAoFim();
+
+    // Parêntese aberto logo depois da citação que começa com a marca de norma ("Figura 75 (NBR 9050)").
+    [GeneratedRegex(@"^\s*\(\s*" + Marcas, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex ParenteseDeNorma();
 
     // Fim de frase: ponto/ponto e vírgula seguido de espaço, quebra de linha ou parêntese (o "." de "6.6.4" não conta).
     [GeneratedRegex(@"[.;!?](?=\s)|[\r\n()]", RegexOptions.CultureInvariant)]
@@ -47,15 +56,19 @@ public static partial class ReferenciasCruzadas
     const int AlcanceNorma = 60;
 
     /// <summary>A citação em [<paramref name="indice"/>, +<paramref name="comprimento"/>) está na mesma frase que uma marca de norma (até
-    /// <see cref="AlcanceNorma"/> caracteres antes ou depois)?</summary>
+    /// <see cref="AlcanceNorma"/> caracteres antes ou depois)? O parêntese aberto logo depois da norma ("conforme NBR 9050 (Figura 75)",
+    /// "NBR 9050:2020 (item 6.6.4, Figura 75)") ou logo depois da citação com a norma dentro ("Figura 75 (NBR 9050)") não separa a frase.</summary>
     internal static bool DeNorma(string texto, int indice, int comprimento)
     {
         var inicio = Math.Max(0, indice - AlcanceNorma);
         var antes = texto[inicio..indice];
         var cortes = FimDeFrase().Matches(antes);
-        if (cortes.Count > 0) antes = antes[(cortes[^1].Index + cortes[^1].Length)..];
+        var k = cortes.Count - 1;
+        while (k >= 0 && cortes[k].Value == "(" && NormaColadaAoFim().IsMatch(antes[..cortes[k].Index])) k--;
+        if (k >= 0) antes = antes[(cortes[k].Index + cortes[k].Length)..];
         var fim = Math.Min(texto.Length, indice + comprimento + AlcanceNorma);
         var depois = texto[(indice + comprimento)..fim];
+        if (ParenteseDeNorma().IsMatch(depois)) return true;
         if (FimDeFrase().Match(depois) is { Success: true } c) depois = depois[..c.Index];
         return MarcaDeNorma().IsMatch(antes) || MarcaDeNorma().IsMatch(depois);
     }

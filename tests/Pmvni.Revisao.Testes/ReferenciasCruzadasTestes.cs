@@ -112,6 +112,30 @@ public class ReferenciasCruzadasTestes
         Assert.Single(ReferenciasCruzadas.Quebradas(s.Projeto));
     }
 
+    /// <summary>Revisão final (minor da T16): o parêntese logo depois da norma não separa a frase; a figura dentro dele é da norma.</summary>
+    [Theory]
+    [InlineData("A rampa está conforme NBR 9050 (Figura 75).")]
+    [InlineData("Inclinação conforme NBR 9050:2020 (item 6.6.4, Figura 75).")]
+    [InlineData("Corrimão em duas alturas, ver ABNT NBR 9050:2020 (6.9.2, Figuras 75 e 76).")]
+    [InlineData("A rampa segue a Figura 75 (NBR 9050).")]
+    public void figura_entre_parenteses_depois_da_norma_nao_bloqueia(string verificacao)
+    {
+        var s = Sessao();
+        s.Aplicar(new DefinirCampo(Id(s, 1), "verificacao", verificacao));
+        Assert.Empty(ReferenciasCruzadas.Quebradas(s.Projeto));
+    }
+
+    /// <summary>O parêntese continua separando a frase quando não vem colado à norma: a figura do relatório que não existe bloqueia.</summary>
+    [Theory]
+    [InlineData("Conforme a NBR 9050, a rampa atende (Figura 75).")]
+    [InlineData("Ver a planta (Figura 75); NBR 9050 citada no item.")]
+    public void parentese_longe_da_norma_continua_separando(string verificacao)
+    {
+        var s = Sessao();
+        s.Aplicar(new DefinirCampo(Id(s, 1), "verificacao", verificacao));
+        Assert.Contains("ANÁLISE · ITEM 01 (campo verificacao): cita a Figura 75, que não existe no relatório", ReferenciasCruzadas.Quebradas(s.Projeto));
+    }
+
     [Fact]
     public void contradicao_que_veio_do_kit_nao_bloqueia_por_edicao_so_de_outro_texto()
     {

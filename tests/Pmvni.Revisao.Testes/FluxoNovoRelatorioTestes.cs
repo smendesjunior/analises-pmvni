@@ -155,9 +155,9 @@ public class FluxoNovoRelatorioTestes
         Assert.True(FluxoNovoRelatorio.PrecisaAviso(new AjustesAgente { AvisoVersao = 1 }, versaoAtual: 2));
         Assert.False(FluxoNovoRelatorio.PrecisaAviso(new AjustesAgente { AvisoVersao = 2 }, versaoAtual: 2));
 
-        Assert.Equal("Analisar com o ChatGPT inicia o Codex instalado neste computador, com a sua configuração e o plugin analise do kit PMVNI. O Codex lê os "
-            + "arquivos do processo, usa os programas e as pastas de rede deste computador e envia à OpenAI o pedido e o conteúdo de que precisar, como "
-            + "faz no app do ChatGPT. O editor não envia nada por conta própria: ele só inicia o Codex, mostra o andamento e importa o relatório no fim.",
+        Assert.Equal("Analisar com o ChatGPT inicia a rota ChatGPT do plugin analise do kit PMVNI, que roda sozinha pelo Python e chama o Codex instalado neste computador, "
+            + "com a sua configuração. O Codex lê os arquivos do processo, usa os programas e as pastas de rede deste computador e envia à OpenAI o conteúdo "
+            + "de que precisar, como faz no app do ChatGPT. O editor não envia nada por conta própria: ele só dá a partida, mostra o andamento e importa o relatório no fim.",
             FluxoNovoRelatorio.TextoAviso(Provedor.ChatGpt));
         Assert.Equal("Analisar com o Claude inicia a rota Claude do plugin analise do kit PMVNI, que roda sozinha numa janela minimizada e chama o Claude Code deste computador "
             + "com a sua conta do Claude ou, se escolhida em Ajustes, com a chave da Anthropic API (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os arquivos do processo, usa os programas e as "

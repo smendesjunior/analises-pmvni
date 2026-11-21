@@ -38,7 +38,8 @@ internal interface IPerguntas
     Task<string?> EscolherPastaAsync();
 
     /// <summary>Pede um texto curto (nome de pasta etc.); null = cancelou.</summary>
-    Task<string?> PedirTextoAsync(string titulo, string rotulo, string sugestao);
+    /// <summary><paramref name="botao"/>: o texto do botão principal ("Criar" por padrão; "Responder" numa decisão da análise sem opções).</summary>
+    Task<string?> PedirTextoAsync(string titulo, string rotulo, string sugestao, string botao = "Criar");
 
     /// <summary>Confirmação de dois botões. <paramref name="destrutiva"/> (descartar, excluir, cancelar, fechar sem salvar): Enter escolhe "não";
     /// nas outras (consentimento, "Exportar", "Emitir mesmo assim") Enter aciona o botão principal (decisão do controlador sobre o FD-I3).</summary>
@@ -191,12 +192,12 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
 
     /// <summary>Destrutiva (descartar, cancelar a análise, excluir, fechar): Enter escolhe "não" (Ruling FD-I3), nunca a ação. Não destrutiva
     /// (consentimento, exportar, emitir): Enter aciona o botão principal.</summary>
-    public async Task<string?> PedirTextoAsync(string titulo, string rotulo, string sugestao)
+    public async Task<string?> PedirTextoAsync(string titulo, string rotulo, string sugestao, string botao = "Criar")
     {
         var caixa = new TextBox { Header = rotulo, Text = sugestao, MinWidth = 360 };
         var d = new ContentDialog
         {
-            XamlRoot = raiz(), Title = titulo, Content = caixa, PrimaryButtonText = "Criar", CloseButtonText = "Cancelar",
+            XamlRoot = raiz(), Title = titulo, Content = caixa, PrimaryButtonText = botao, CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Primary,
         };
         caixa.Loaded += (_, _) => caixa.SelectAll();
