@@ -68,7 +68,7 @@
                 Background="{ThemeResource ControlFillColorDefaultBrush}">
         <Grid>
         <Button x:Name="BotaoAnalise" Style="{StaticResource PmvniBarraButtonStyle}" Visibility="Collapsed"
-                AutomationProperties.Name="Análise em andamento" ToolTipService.ToolTip="Abrir a vista da análise em andamento"
+                AutomationProperties.Name="Análise em andamento" local:Dicas.Titulo="Análise em andamento" local:Dicas.Descricao="Abre a vista da análise em andamento."
                 Height="42" CornerRadius="21" Padding="12,0,18,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
             <Grid Width="24" Height="24" VerticalAlignment="Center">
@@ -144,12 +144,12 @@
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">
             <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
-                    Padding="10,0" AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
+                    Padding="10,0" AutomationProperties.Name="Desfazer" local:Dicas.Titulo="Desfazer" local:Dicas.Atalho="Ctrl+Z">
               <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE7A7;" FontSize="16"/><TextBlock x:Name="RotuloDesfazer" Text="Desfazer"/></StackPanel>
             </Button>
             <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
             <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
-                    Padding="10,0" AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
+                    Padding="10,0" AutomationProperties.Name="Refazer" local:Dicas.Titulo="Refazer" local:Dicas.Atalho="Ctrl+Y">
               <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE7A6;" FontSize="16"/><TextBlock x:Name="RotuloRefazer" Text="Refazer"/></StackPanel>
             </Button>
           </StackPanel>

@@ -67,7 +67,7 @@
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <StackPanel Spacing="2"><TextBlock TextAlignment="Left" Text="Processos" Style="{StaticResource PmvniTituloSecao}"/><TextBlock TextAlignment="Left" x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
+          <StackPanel Spacing="2"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/><TextBlock TextAlignment="Left" Text="Processos" Style="{StaticResource PmvniTituloSecao}"/></StackPanel><TextBlock TextAlignment="Left" x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
                      TextTrimming="CharacterEllipsis" AutomationProperties.Name="Quantidade de processos"/>
             <Grid>
               <TextBox TextAlignment="Left" Style="{StaticResource PmvniCampoPesquisa}" x:Name="FiltroAcervo" x:FieldModifier="internal" PlaceholderText="Número ou nome do processo" AutomationProperties.Name="Filtrar processos"/>

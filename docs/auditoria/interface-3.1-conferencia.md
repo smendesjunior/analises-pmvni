@@ -19,9 +19,13 @@ Data: 21/11/2026 · método: leitura estática de todo o XAML (`src/Pmvni.App`, 
 | Diálogos com botão padrão | 8 de 9 tinham `DefaultButton`. Corrigido: "Adicionar observações" (`Despachos/JanelaAprovacao.cs`) agora tem `Aplicar` como padrão (Enter). |
 | Botões montados em C# | 37 criados sem estilo, no padrão Fluent (como os secundários dos Ajustes); os principais recebem estilo onde são criados. Sem divergência encontrada. |
 
-## Pendências sugeridas (não aplicadas)
+## Aplicado depois da conferência
 
-1. Trocar o `ToolTip` cru dos 11 botões por `Dicas.Titulo`/`Dicas.Descricao`, para a dica ter o mesmo formato em todo o app.
-2. Ícone tonal ao lado dos títulos de seção das outras páginas, como nos Ajustes (muda a aparência; depende de aprovação).
-3. Botão de fechar do Novo despacho: ícone ainda na cor de destaque; no Acompanhamento é a cor do texto.
-4. Conferir no Windows o trilho no tema escuro e no alto contraste.
+1. Dicas no formato padrão (`Dicas`) em vez do `ToolTip` simples: botão da análise, Desfazer (Ctrl+Z), Refazer (Ctrl+Y), os quatro botões de zoom da folha e os três agentes do Novo relatório. Desfazer, Refazer e zoom já recebiam a dica completa pelo C#; o XAML agora começa no mesmo formato.
+2. Ícone tonal ao lado dos títulos de seção que não tinham: "Seções do relatório" e "Processos" (as outras páginas já tinham ícone; o Novo relatório mantém os passos numerados).
+3. Botão de fechar do Novo despacho: ícone na cor do texto, como no Acompanhamento.
+
+## Ainda por conferir no Windows
+
+- Trilho de módulos no tema escuro e no alto contraste (fundos pastel com cor fixa). Não alterado sem ver.
+- Todas as mudanças acima: compilação e aparência.

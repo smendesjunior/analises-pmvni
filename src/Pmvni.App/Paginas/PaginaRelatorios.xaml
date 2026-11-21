@@ -76,7 +76,7 @@
         <!-- Painel de navegação (correções 2026-11-15): pesquisa por texto ou situação e filtro rápido dos apontamentos. Os botões do
              filtro são montados pela janela (FiltroNavegacao.Ordem), com a contagem de cada situação. -->
         <StackPanel x:Name="PainelFiltros" x:FieldModifier="internal" Grid.Row="1" Spacing="8" Margin="12,4,12,8">
-          <TextBlock Text="Seções do relatório" Style="{StaticResource PmvniTituloSecao}" TextAlignment="Left"/>
+          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8FD;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Seções do relatório" Style="{StaticResource PmvniTituloSecao}" TextAlignment="Left"/></StackPanel>
           <TextBlock Text="Navegue pelas folhas e exigências da análise" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
           <Grid><TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar seção ou item"
                    AutomationProperties.Name="Pesquisar nas seções e itens"/><FontIcon Glyph="&#xE721;" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0" FontSize="15"/></Grid>
@@ -346,7 +346,7 @@
       </Grid.ColumnDefinitions>
       <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
         <Button x:Name="BotaoMenos" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Diminuir o zoom"
-                ToolTipService.ToolTip="Abra um relatório para mudar o zoom." IsEnabled="False">
+                local:Dicas.Descricao="Abra um relatório para mudar o zoom." IsEnabled="False">
           <FontIcon Glyph="&#xE71F;" FontSize="14"/>
         </Button>
         <Slider x:Name="ControleZoom" x:FieldModifier="internal" Width="104" Minimum="50" Maximum="300" Value="100"
@@ -354,13 +354,13 @@
                 AutomationProperties.Name="Zoom do relatório em porcentagem" ToolTipService.ToolTip="Arraste para ajustar o zoom do relatório"/>
         <TextBlock x:Name="TextoZoom" x:FieldModifier="internal" Text="100 %" Width="52" TextAlignment="Center" VerticalAlignment="Center"/>
         <Button x:Name="BotaoMais" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Aumentar o zoom"
-                ToolTipService.ToolTip="Abra um relatório para mudar o zoom." IsEnabled="False">
+                local:Dicas.Descricao="Abra um relatório para mudar o zoom." IsEnabled="False">
           <FontIcon Glyph="&#xE8A3;" FontSize="14"/>
         </Button>
         <Button x:Name="BotaoLargura" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" Content="Ajustar largura" Margin="10,0,0,0"
-                ToolTipService.ToolTip="Abra um relatório para ajustar a largura." IsEnabled="False"/>
+                local:Dicas.Descricao="Abra um relatório para ajustar a largura." IsEnabled="False"/>
         <Button x:Name="BotaoPagina" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" Content="Página inteira"
-                ToolTipService.ToolTip="Abra um relatório para ver a página inteira." IsEnabled="False"/>
+                local:Dicas.Descricao="Abra um relatório para ver a página inteira." IsEnabled="False"/>
       </StackPanel>
       <local:IndicadorAvisos x:Name="IndicadorLayout" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center"/>
       <TextBlock x:Name="TextoComposicao" x:FieldModifier="internal" Grid.Column="2" Text="" Style="{StaticResource PmvniSecondaryTextStyle}"
