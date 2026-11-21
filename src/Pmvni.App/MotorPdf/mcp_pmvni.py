@@ -5,13 +5,13 @@ from pathlib import Path
 import subprocess
 import json
 from mcp.server.mcpserver import MCPServer
-import pymupdf
 
 server = MCPServer("Ferramentas PDF PMVNI")
 base = Path(os.environ["LOCALAPPDATA"]) / "PMVNI/MotorPdf"
 
 
 def pagina(pdf, numero):
+    import pymupdf
     p = Path(pdf).resolve(strict=True)
     if p.suffix.lower() != ".pdf":
         raise ValueError("Escolha um PDF")
@@ -30,7 +30,7 @@ def visao(nome, pdf, numero):
         destino = Path(f.name)
     try:
         subprocess.run([str(py),"-I",str(py.parents[1]/"visao.py"),nome,str(p),str(numero),str(destino)],
-                       check=True,timeout=120,stdout=subprocess.DEVNULL)
+                       stdin=subprocess.DEVNULL,check=True,timeout=120,stdout=subprocess.DEVNULL)
         return {"pagina": numero,"arquivo": str(destino),"verificacao":"pendente"}
     except Exception:
         destino.unlink(missing_ok=True)
@@ -52,6 +52,7 @@ def fyp_floorplan(pdf: str, numero: int) -> dict:
 @server.tool()
 def pymupdf_pagina(pdf: str, numero: int) -> dict:
     """Consulta texto e dimensões da página em pontos PDF."""
+    import pymupdf
     with pymupdf.open(pagina(pdf,numero)) as doc:
         pg=doc[numero-1]
         return {"pagina":numero,"texto":pg.get_text()[:12000],"dimensoes_pt":list(pg.rect)}
@@ -60,6 +61,7 @@ def pymupdf_pagina(pdf: str, numero: int) -> dict:
 @server.tool()
 def docling_pagina(pdf: str, numero: int) -> dict:
     """Extrai o documento estruturado de uma página com o conversor local Docling MCP."""
+    import pymupdf
     from docling_mcp.tools.converters.local import LocalDocumentConverter
     from docling_mcp.shared import local_document_cache
     saida = base / "resultados"

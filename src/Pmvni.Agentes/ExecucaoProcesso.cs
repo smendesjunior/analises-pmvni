@@ -35,14 +35,15 @@ public sealed class ExecucaoProcesso : IDisposable
         set => TravaDeProgramas.AoIniciar = value;
     }
 
-    readonly Process processo;
+    readonly ProcessoInterno programa;
+    Process processo => programa.Processo;
     readonly Task<int> fim;
     int cancelado;
     int descartado;
 
-    ExecucaoProcesso(Process processo, Task<int> fim)
+    ExecucaoProcesso(ProcessoInterno programa, Task<int> fim)
     {
-        this.processo = processo;
+        this.programa = programa;
         this.fim = fim;
         Pid = processo.Id;
     }
@@ -56,7 +57,7 @@ public sealed class ExecucaoProcesso : IDisposable
 
     /// <param name="tarefa">O job em que o processo entra logo depois de partir (o Codex: encerrado junto com o editor); null = nenhum.</param>
     public static ExecucaoProcesso Iniciar(string exe, IReadOnlyList<string> args, string pastaTrabalho, string? entrada,
-        Action<IDictionary<string, string?>> ambiente, Action<string> aoLerSaida, Action<string> aoLerErro, TarefaDoEditor? tarefa = null)
+        Action<IDictionary<string, string?>> ambiente, Action<string> aoLerSaida, Action<string> aoLerErro, TarefaDoEditor? tarefa = null, GrupoDeProcessos? operacao = null)
     {
         var psi = new ProcessStartInfo(exe)
         {
@@ -73,18 +74,18 @@ public sealed class ExecucaoProcesso : IDisposable
         foreach (var a in args) psi.ArgumentList.Add(a);
         ambiente(psi.Environment);
 
-        var p = TravaDeProgramas.Iniciar(psi) ?? throw new InvalidOperationException("Não foi possível iniciar o programa: " + exe);
-        // Os filhos que ele criar daqui em diante também ficam no job (um neto criado no primeiro instante, antes desta linha, escapa: o Kill da árvore cobre o cancelamento).
-        var naTarefa = tarefa?.Atribuir(p) ?? false;
+        var programa = ProcessoInterno.Iniciar(psi, tarefa, operacao);
+        var p = programa.Processo;
+        var naTarefa = tarefa?.Contem(p) ?? false;
 
         // As saídas já estão sendo lidas antes de escrever a entrada: um agente que escreve muito antes de ler tudo não trava o editor.
         var sinal = new Sinal();
-        var lerSaida = Task.Run(() => Bombear(p.StandardOutput, aoLerSaida, sinal));
-        var lerErro = Task.Run(() => Bombear(p.StandardError, aoLerErro, sinal));
+        var lerSaida = Task.Run(() => Bombear(programa.StandardOutput, aoLerSaida, sinal));
+        var lerErro = Task.Run(() => Bombear(programa.StandardError, aoLerErro, sinal));
         try
         {
-            if (entrada is not null) p.StandardInput.Write(entrada);
-            p.StandardInput.Close();
+            if (entrada is not null) programa.StandardInput.Write(entrada);
+            programa.StandardInput.Close();
         }
         catch (IOException) { /* o programa já fechou a entrada (não precisava dela); o código de saída diz o resto */ }
 
@@ -98,7 +99,7 @@ public sealed class ExecucaoProcesso : IDisposable
             try { return p.ExitCode; }
             catch (Exception e) when (e is InvalidOperationException or ObjectDisposedException) { return -1; }
         });
-        return new ExecucaoProcesso(p, fim) { NaTarefa = naTarefa };
+        return new ExecucaoProcesso(programa, fim) { NaTarefa = naTarefa };
     }
 
     /// <summary>true se o processo entrou no job pedido em <see cref="Iniciar"/>.</summary>
@@ -170,19 +171,19 @@ public sealed class ExecucaoProcesso : IDisposable
         if (Interlocked.Exchange(ref descartado, 1) == 1) return;
         try { if (!processo.HasExited) Cancelar(); }
         catch (InvalidOperationException) { }
-        processo.Dispose();
+        programa.Dispose();
     }
 
     /// <summary>Roda um comando curto (diagnóstico) e devolve o código e a saída (padrão e de erro juntas). Passou do limite ⇒ mata a árvore e devolve
     /// <c>(-1, "não respondeu em N s")</c>. Cancelar mata a árvore e lança <see cref="OperationCanceledException"/>.</summary>
     public static async Task<(int Codigo, string Saida)> RodarAsync(string exe, IReadOnlyList<string> args, string pastaTrabalho,
-        Action<IDictionary<string, string?>> ambiente, TimeSpan limite, CancellationToken ct)
+        Action<IDictionary<string, string?>> ambiente, TimeSpan limite, CancellationToken ct, GrupoDeProcessos? operacao = null)
     {
         ct.ThrowIfCancellationRequested();
         var saida = new StringBuilder();
         // Comandos curtos: no máximo 256 KB de saída guardados (o resto é lido e descartado).
         void Acrescentar(string l) { lock (saida) if (saida.Length < 256 * 1024) saida.AppendLine(l); }
-        using var execucao = Iniciar(exe, args, pastaTrabalho, null, ambiente, Acrescentar, Acrescentar);
+        using var execucao = Iniciar(exe, args, pastaTrabalho, null, ambiente, Acrescentar, Acrescentar, operacao: operacao);
         using var cancelamento = ct.Register(execucao.Cancelar);
         var primeira = await Task.WhenAny(execucao.Fim, Task.Delay(limite, CancellationToken.None)).ConfigureAwait(false);
         if (ct.IsCancellationRequested)

@@ -314,7 +314,7 @@ public sealed partial class MainWindow
     internal async Task CarregarListasAsync(bool comDespachos)
     {
         CancelarLeituras();
-        var origem = new CancellationTokenSource();
+        using var origem = new CancellationTokenSource();
         leituraDaLista = origem;
         var ct = origem.Token;
         var raiz = ajustes.PastaProcessosEfetiva;
@@ -396,9 +396,7 @@ public sealed partial class MainWindow
     async Task CarregarDetalheAsync(Processo? p)
     {
         leituraDoDetalhe?.Cancel();
-        var origem = new CancellationTokenSource();
-        leituraDoDetalhe = origem;
-        var ct = origem.Token;
+        leituraDoDetalhe = null;
         var pagina = PaginaDeProcessos;
         if (p is null)
         {
@@ -414,6 +412,8 @@ public sealed partial class MainWindow
         pagina.TextoSemProcesso.Text = "Lendo o processo…";
         pagina.TextoSemProcesso.Visibility = Visibility.Visible;
         AtualizarComandos();
+        using var origem = leituraDoDetalhe = new CancellationTokenSource();
+        var ct = origem.Token;
         try
         {
             var d = await Task.Run(() => Processos.Detalhar(p, ct), ct);
@@ -429,6 +429,7 @@ public sealed partial class MainWindow
             pagina.TextoSemProcesso.Text = "O processo não pôde ser lido.";
             MostrarAvisoDeLeitura("Não foi possível ler o processo", Erro(e));
         }
+        finally { if (ReferenceEquals(leituraDoDetalhe, origem)) leituraDoDetalhe = null; }
     }
 
     void MostrarAvisoDeLeitura(string titulo, string mensagem)

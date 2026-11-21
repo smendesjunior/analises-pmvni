@@ -4,7 +4,7 @@ using Xunit;
 namespace Pmvni.Revisao.Testes;
 
 /// <summary>Tarefa 16: a primeira abertura (instalação incompleta → <c>primeira-abertura.ps1</c> fora do Editor, por <c>.cmd</c> +
-/// <c>explorer.exe</c>) e o botão "Atualizar kit PMVNI" com análise em andamento. Nada é iniciado de verdade: o lançador é falso.</summary>
+/// <c>explorer.exe</c>) e o botão "Atualizar todos" com análise em andamento. Nada é iniciado de verdade: o lançador é falso.</summary>
 public sealed class PrimeiraAberturaTestes : IDisposable
 {
     readonly string pasta = Path.Combine(Path.GetTempPath(), "pmvni-primeira-" + Guid.NewGuid().ToString("N"));
@@ -20,6 +20,18 @@ public sealed class PrimeiraAberturaTestes : IDisposable
     const string Completo = "Blueprint Pipeline    INSTALADO\r\nFYP-Floorplan    INSTALADO\r\nDocling MCP 3.5.0    INSTALADO\r\nPyMuPDF 2.1    INSTALADO\r\n"
         + "Codex / analise    INSTALADO 4.0.0\r\nCodex / ferramentas PDF    CONFIGURADO\r\nClaude Code    AUSENTE\r\n";
 
+    [Fact]
+    public void ResumoPosteriorSuperaFalhaDaPrimeiraAbertura()
+    {
+        var log = Path.Combine(pasta, "primeira-abertura.log");
+        var resumo = Path.Combine(pasta, "resumo-instalacao.txt");
+        File.WriteAllText(log, "FALHA    Using Python");
+        File.WriteAllText(resumo, Completo);
+        File.SetLastWriteTimeUtc(log, DateTime.UtcNow.AddMinutes(-20));
+        Assert.Equal(resumo, PrimeiraAbertura.RegistroMaisRecente(pasta));
+        File.SetLastWriteTimeUtc(resumo, DateTime.UtcNow.AddHours(-1));
+        Assert.Equal(log, PrimeiraAbertura.RegistroMaisRecente(pasta));
+    }
     [Fact]
     public void PrimeiraAbertura_Chamada()
     {
@@ -80,22 +92,7 @@ public sealed class PrimeiraAberturaTestes : IDisposable
         Assert.Empty(AtualizacaoKit.ChatGptEmAndamento([pendente]));
     }
 
-    [Fact]
-    public async Task AtualizarKit_ComAnaliseAtiva()
-    {
-        var iniciou = 0;
-        Task<string> Iniciar() { iniciou++; return Task.FromResult("Atualização do kit solicitada."); }
-
-        var texto = await AtualizacaoKit.SolicitarAsync(["19486-2026"], Iniciar);
-        Assert.Equal(0, iniciou);
-        Assert.Equal(AtualizacaoKit.AvisoAnaliseEmAndamento(["19486-2026"]), texto);
-        Assert.Contains("análise em andamento (19486-2026)", texto);
-
-        Assert.Equal("Atualização do kit solicitada.", await AtualizacaoKit.SolicitarAsync([], Iniciar));
-        Assert.Equal(1, iniciou);
-    }
-
-    /// <summary>Revisão final I2: o botão "Instalar ou atualizar plugins" recusa com análise em andamento, como o "Atualizar kit".</summary>
+    /// <summary>Revisão final I2: o botão "Reparar instalação" recusa com análise em andamento, como o "Atualizar kit".</summary>
     [Fact]
     public async Task InstalarPlugins_ComAnaliseAtiva()
     {

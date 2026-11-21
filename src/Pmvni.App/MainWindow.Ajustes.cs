@@ -32,7 +32,7 @@ public sealed partial class MainWindow
 
     /// <summary>As caixas de escolha da página: cada opção tem o texto e o valor guardado em ajustes.json.</summary>
     static readonly (string Valor, string Texto)[] TextosAbrirEm =
-        [("ultimo", "Último usado"), ("Relatorios", "Relatórios"), ("Despachos", "Despachos"), ("Processos", "Processos"), ("Legislacao", "Legislação")];
+        [("ultimo", "Último usado"), ("Relatorios", "Relatórios"), ("Despachos", "Despachos"), ("Processos", "Processos"), ("Legislacao", "Legislação"), ("Imoveis", "Imóveis"), ("Acompanhamento", "Acompanhamento")];
     static readonly (string Valor, string Texto)[] TextosRotulos = [("automatico", "Automático"), ("sempre", "Sempre"), ("icones", "Só ícones")];
     static readonly (string Valor, string Texto)[] TextosAvisos = [("indicador", "Indicador no rodapé"), ("faixas", "Faixas no topo")];
     static readonly (string Valor, string Texto)[] TextosZoom = [("largura", "Ajustar largura"), ("pagina", "Página inteira"), ("100", "100 %")];
@@ -384,39 +384,19 @@ public sealed partial class MainWindow
             ajustes.AtualizarAutomaticamente = p.AlternarAtualizarSozinho.IsOn;
             SalvarAjustes();
         };
-        p.BotaoInstalarPlugins.Click += async (_, _) =>
+        p.BotaoRepararInstalacao.Click += async (_, _) =>
         {
-            p.BotaoInstalarPlugins.IsEnabled = false;
-            p.ResumoInstalacaoPlugins.Text = "Instalando plugins para este usuário…";
+            p.BotaoRepararInstalacao.IsEnabled = false;
+            p.TextoResultadoComponentes.Text = "Instalando plugins para este usuário…";
             // Revisão final I2 (erro 15): o script reinstala o plugin analise; com análise em andamento, avisa e não instala.
-            try { p.ResumoInstalacaoPlugins.Text = await AtualizacaoKit.InstalarPluginsAsync(ProcessosComAnaliseEmAndamento(), () => Task.Run(InstalacaoMotorPdf.ConferirAsync)); }
-            finally { p.BotaoInstalarPlugins.IsEnabled = true; }
-        };
-        p.BotaoAtualizarKit.Click += async (_, _) =>
-        {
-            p.BotaoAtualizarKit.IsEnabled = false;
             try
             {
-                // Tarefa 16 (erro 15): com análise em andamento no Editor, avisa e não inicia a atualização.
-                p.ResumoInstalacaoPlugins.Text = await AtualizacaoKit.SolicitarAsync(ProcessosComAnaliseEmAndamento(), async () =>
-                {
-                    var inicio = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "schtasks.exe"))
-                    {
-                        UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true
-                    };
-                    inicio.ArgumentList.Add("/Run");
-                    inicio.ArgumentList.Add("/TN");
-                    inicio.ArgumentList.Add(@"\PMVNI\Atualizar kit");
-                    using var tarefa = TravaDeProgramas.Iniciar(inicio) ?? throw new IOException("O Agendador de Tarefas não abriu.");
-                    var erro = await tarefa.StandardError.ReadToEndAsync();
-                    await tarefa.WaitForExitAsync();
-                    return tarefa.ExitCode == 0
-                        ? "Atualização do kit solicitada. O instalador executa em segundo plano."
-                        : $"O Windows não conseguiu iniciar a tarefa Atualizar kit. {erro.Trim()}";
-                });
+                var origens = OrigensDoKitDoComputador();
+                p.TextoResultadoComponentes.Text = await AtualizacaoKit.InstalarPluginsAsync(ProcessosComAnaliseEmAndamento(),
+                    () => Task.Run(() => InstalacaoMotorPdf.ConferirAsync(ComponentesDoKit.FonteDoKit(origens).KitLocal)));
             }
-            catch (Exception e) { p.ResumoInstalacaoPlugins.Text = $"Falha ao solicitar a atualização do kit. {e.Message}"; }
-            finally { p.BotaoAtualizarKit.IsEnabled = true; }
+            catch (Exception e) { p.TextoResultadoComponentes.Text = "Falha ao reparar a instalação. " + e.Message; }
+            finally { p.BotaoRepararInstalacao.IsEnabled = true; }
         };
         p.BotaoVerificarAtualizacoes.Click += async (_, _) => await Atualizador.VerificarAsync();
         p.BotaoReiniciarAtualizacao.Click += (_, _) =>
@@ -426,7 +406,14 @@ public sealed partial class MainWindow
             PostMessage(WinRT.Interop.WindowNative.GetWindowHandle(this), 0x0010 /* WM_CLOSE */, IntPtr.Zero, IntPtr.Zero);
         };
         Atualizador.AutomaticaLigada = () => ajustes.AtualizarAutomaticamente;
-        Atualizador.EstadoMudou += e => DispatcherQueue.TryEnqueue(() => MostrarEstadoAtualizacao(e));
+        void EstadoMudou(EstadoAtualizacao e) => DispatcherQueue.TryEnqueue(() => MostrarEstadoAtualizacao(e));
+        Atualizador.EstadoMudou += EstadoMudou;
+        Closed += (_, _) =>
+        {
+            Atualizador.Agendar(false);
+            Atualizador.EstadoMudou -= EstadoMudou;
+            Atualizador.AutomaticaLigada = () => false;
+        };
         MostrarEstadoAtualizacao(Atualizador.UltimoEstado ?? (Atualizador.Habilitado
             ? new EstadoAtualizacao(EtapaAtualizacao.EmDia, "Ainda não verificado nesta abertura.")
             : new EstadoAtualizacao(EtapaAtualizacao.Desligada, "Compilação de desenvolvimento: a atualização automática fica desligada.")));
@@ -481,12 +468,11 @@ public sealed partial class MainWindow
                 UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true
             };
             foreach (var a in new[] { "/Query", "/TN", @"\PMVNI\Atualizar kit" }) inicio.ArgumentList.Add(a);
-            using var consulta = TravaDeProgramas.Iniciar(inicio);
-            if (consulta is null) return null;
+            using var consulta = ProcessoInterno.Iniciar(inicio);
             _ = consulta.StandardOutput.ReadToEnd();
             _ = consulta.StandardError.ReadToEnd();
-            if (!consulta.WaitForExit(5000)) return null;
-            return consulta.ExitCode switch { 0 => true, 1 => false, _ => null };
+            if (!consulta.Processo.WaitForExit(5000)) return null;
+            return consulta.Processo.ExitCode switch { 0 => true, 1 => false, _ => null };
         }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { return null; }
     }
@@ -748,7 +734,10 @@ public sealed partial class MainWindow
         a.EsferaEscolhida += async (id, e) => await SemDerrubarAsync(() => DefinirEsferaAnexoAsync(id, e));
         a.SubstituirPedido += async id => await SemDerrubarAsync(() => SubstituirAnexoAsync(id));
         a.ExcluirPedido += async id => await SemDerrubarAsync(() => ExcluirAnexoAsync(id));
-        _ = AtualizarListaLegislacaoAsync();
+        a.CategoriaMostrada += tag =>
+        {
+            if (tag == CategoriasAjustes.Legislacao && PaginaAjustesVisivel) Soltar(EntrarNaLegislacaoDosAjustesAsync);
+        };
     }
 
     /// <summary>O extrator real (PDF.js num WebView2 oculto e InPrivate sobre esta janela, no ambiente da tela), criado na thread da

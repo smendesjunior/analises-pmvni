@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Pmvni.Agentes;
 using Pmvni.Revisao;
 
@@ -34,7 +34,6 @@ public static class FluxoNovoRelatorio
     public const string SemAgy = OrquestradorAnalise.SemAgy;
     public const string SemPerfilApi = OrquestradorAnalise.SemPerfilApi;
     public const string CancelarGeminiTitulo = "Cancelar a análise com o Gemini?";
-    public const string TextoFecharGemini = "A análise com o Gemini continua sozinha, fora do editor. Ao abrir o editor de novo, você poderá voltar a acompanhá-la ou retomá-la de onde parou.";
     /// <summary>"Analisar com o Claude" desabilitado: modo chave (Anthropic API) com um análise pro que não aceita a rota API (anterior à 1.6.4).</summary>
     public const string ClaudeSoConta = "A rota Claude do plugin analise instalado não aceita a Anthropic API (é preciso o 1.6.4 ou mais novo). Atualize pelo INSTALAR_KIT_PMVNI.cmd ou, em Ajustes › Inteligência artificial, use Usar minha conta.";
 
@@ -59,7 +58,6 @@ public static class FluxoNovoRelatorio
     public const string FecharTitulo = "Pausar a análise e fechar?";
     public const string FecharSim = "Pausar e fechar";
     public const string FecharNao = "Continuar";
-    public const string TextoFecharClaude = "A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, você poderá voltar a acompanhá-la ou retomá-la de onde parou.";
     public const string AvisoSim = "Concordar e analisar";
     public const string AvisoNao = "Cancelar";
 
@@ -252,7 +250,7 @@ public static class FluxoNovoRelatorio
         $"A análise com o {Provedores.Nome(p)} terminou: {Path.GetFileName(pmvrel)} foi criado em {Path.GetFileName(Path.GetDirectoryName(pmvrel))} e está nos Recentes."
         + (string.IsNullOrWhiteSpace(pdf) ? "" : $" O PDF do kit continua em {pdf}.");
 
-    public static string TextoFecharChatGpt(Processo p) => $"A análise com o ChatGPT em {Identificacao(p)} será pausada. Ao abrir o editor de novo, você poderá retomá-la de onde parou.";
+    public static string TextoFechar(Provedor provedor, Processo p) => $"A análise com o {Provedores.Nome(provedor)} em {Identificacao(p)} será pausada. Ao abrir o editor de novo, você poderá retomá-la de onde parou.";
 
     public static string TextoClaudeTerminou(Processo p) => TextoKitTerminou(Provedor.Claude, p);
 

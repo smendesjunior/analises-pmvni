@@ -75,7 +75,7 @@ public sealed class PerfilLibreOfficeTestes
     /// <summary>Um "soffice" que deixa um filho vivo segurando os canais de saída depois de sair (como um soffice.bin que não larga os pipes):
     /// o filho (um <c>ping</c> de uns 7 s) só grava <c>fim.txt</c> se chegar ao fim, então o arquivo ausente prova que a árvore foi encerrada.
     /// Com <paramref name="sucesso"/>, grava o PDF e sai com 0; sem, sai com 1 sem PDF.</summary>
-    static string SofficeComFilhoPreso(string pasta, bool sucesso)
+    static string SofficeComFilhoPreso(string pasta, bool sucesso, bool esperar = false)
     {
         var cmd = Path.Combine(pasta, "soffice-preso.cmd");
         var fim = Path.Combine(pasta, "fim.txt");
@@ -90,8 +90,9 @@ public sealed class PerfilLibreOfficeTestes
             :saida
             start "" /b cmd /c "ping -n 8 127.0.0.1 & echo fim> "__FIM__""
             __PDF__
+            __ESPERA__
             exit /b __CODIGO__
-            """.Replace("__FIM__", fim, StringComparison.Ordinal).Replace("__PDF__", pdf, StringComparison.Ordinal)
+            """.Replace("__ESPERA__", esperar ? "ping -n 8 127.0.0.1 > nul" : "rem terminou", StringComparison.Ordinal).Replace("__FIM__", fim, StringComparison.Ordinal).Replace("__PDF__", pdf, StringComparison.Ordinal)
                .Replace("__CODIGO__", sucesso ? "0" : "1", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal));
         return cmd;
     }
@@ -128,7 +129,7 @@ public sealed class PerfilLibreOfficeTestes
     public void cancelar_com_o_filho_preso_encerra_a_arvore_e_solta_o_mutex()
     {
         using var pasta = Ambiente.PastaDeTeste("perfil-filho-cancela");
-        var conv = new ConversorLibreOffice(SofficeComFilhoPreso(pasta, true), TimeSpan.FromMinutes(5), Path.Combine(pasta, "lo"));
+        var conv = new ConversorLibreOffice(SofficeComFilhoPreso(pasta, true, esperar: true), TimeSpan.FromMinutes(5), Path.Combine(pasta, "lo"));
         var docx = Path.Combine(pasta, "despacho.docx");
         File.WriteAllBytes(docx, [1, 2, 3]);
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));

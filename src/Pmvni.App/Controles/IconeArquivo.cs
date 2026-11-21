@@ -16,7 +16,7 @@ public sealed partial class IconeArquivo : Grid
         nameof(Caminho), typeof(string), typeof(IconeArquivo), new PropertyMetadata(null, (d, _) => ((IconeArquivo)d).Aplicar()));
 
     // Por extensão: a imagem do Windows, ou null quando ele não deu ícone (fica o glifo). Só na thread da interface.
-    static readonly Dictionary<string, ImageSource?> Cache = new(StringComparer.Ordinal);
+    static readonly CacheDeIcones<ImageSource?> Cache = new(128);
 
     readonly Image imagem = new() { Stretch = Stretch.Uniform };
     readonly FontIcon reserva = new() { FontSize = 16, Visibility = Visibility.Collapsed };
@@ -46,11 +46,7 @@ public sealed partial class IconeArquivo : Grid
         if (string.IsNullOrWhiteSpace(c)) { Visibility = Visibility.Collapsed; return; }
         Visibility = Visibility.Visible;
         var chave = TiposArquivo.Chave(c);
-        if (!Cache.TryGetValue(chave, out var fonte))
-        {
-            fonte = DoWindows(chave);
-            Cache[chave] = fonte;
-        }
+        var fonte = Cache.Obter(chave, DoWindows);
         imagem.Source = fonte;
         imagem.Visibility = fonte is null ? Visibility.Collapsed : Visibility.Visible;
         reserva.Glyph = TiposArquivo.GlifoReserva(chave);

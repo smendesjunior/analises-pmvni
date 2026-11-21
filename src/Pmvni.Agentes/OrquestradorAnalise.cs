@@ -161,10 +161,7 @@ public sealed class OrquestradorAnalise
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // Claude: o editor só parou de acompanhar (fechou); a análise do kit segue, então o registro nunca diz "cancelada".
-            fim = pe.Provedor == Provedor.ChatGpt
-                ? new FimAnalise("cancelada", null, null, "A análise foi cancelada.", null)
-                : new FimAnalise(AcompanhamentoInterrompido, null, null, "O acompanhamento foi interrompido; a análise do kit continua sozinha na janela minimizada.", null);
+            fim = new FimAnalise("cancelada", null, null, "A análise foi cancelada.", null);
         }
         catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
@@ -712,9 +709,11 @@ public sealed class OrquestradorAnalise
 
         if (p == Provedor.Gemini && await ConferirGeminiAsync(pe, ambiente, redator, ct).ConfigureAwait(false) is { } impedimento) return impedimento;
 
+        // O controlador de partida sai antes da análise. O grupo acompanha toda a operação.
+        using var grupo = OperatingSystem.IsWindows() ? new GrupoDeProcessos() : null;
         for (var partidas = 1; ; partidas++)
         {
-            var partida = await ExecucaoProcesso.RodarAsync(exe, argsIniciar, pasta, ambiente, LimiteIniciar, ct).ConfigureAwait(false);
+            var partida = await ExecucaoProcesso.RodarAsync(exe, argsIniciar, pasta, ambiente, LimiteIniciar, ct, grupo).ConfigureAwait(false);
             var saidaPartida = redator.Aplicar(partida.Saida);
             var iniciada = partida.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(saidaPartida)) : null;
             if (iniciada is null || iniciada.Codigo is not ("INICIADA" or "JA_EM_ANDAMENTO"))

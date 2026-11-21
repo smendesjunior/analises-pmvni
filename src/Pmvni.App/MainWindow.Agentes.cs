@@ -136,12 +136,19 @@ public sealed partial class MainWindow
 
     /// <summary>Entrar/Sair (correções 2026-11-15): abre o login (ou o logout) do programa numa janela de console própria (o login é interativo e abre o
     /// navegador). Ao voltar ao editor, o cartão relê a conta e testa de novo.</summary>
+    static async Task AguardarConsoleAsync(ProcessoInterno console)
+    {
+        using (console) await console.Processo.WaitForExitAsync();
+    }
+
     bool AbrirLogin(string? exe, string nome, string argumento)
     {
         try
         {
             var programa = string.IsNullOrEmpty(exe) ? nome : "\"" + exe + "\"";
-            TravaDeProgramas.Iniciar(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/k " + programa + " " + argumento) { UseShellExecute = true })?.Dispose();
+            var inicio = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"), "/c " + programa + " " + argumento);
+            var console = ProcessoInterno.Iniciar(inicio, consoleInterativo: true);
+            _ = AguardarConsoleAsync(console);
             return true;
         }
         catch (Exception ex)
@@ -200,7 +207,14 @@ public sealed partial class MainWindow
         janelaLoginGemini = janela;
         PonteGeminiWeb? ponte = null;
         var timer = janela.DispatcherQueue.CreateTimer();
-        timer.Interval = TimeSpan.FromSeconds(2);
+        timer.Interval = TimeSpan.FromSeconds(10);
+        bool visivel = false;
+        janela.Activated += (_, e) =>
+        {
+            visivel = e.WindowActivationState != WindowActivationState.Deactivated;
+            if (visivel && ponte is not null) timer.Start();
+            else timer.Stop();
+        };
         bool conferindo = false;
         timer.Tick += async (_, _) =>
         {
@@ -251,7 +265,7 @@ public sealed partial class MainWindow
             if (janelaLoginGemini != janela) return;
             web.Source = new Uri("https://gemini.google.com/app");
             ponte = new PonteGeminiWeb(web, Path.GetDirectoryName(pasta)!);
-            timer.Start();
+            if (visivel) timer.Start();
         }
         catch
         {

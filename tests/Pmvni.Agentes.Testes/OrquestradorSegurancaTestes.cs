@@ -118,7 +118,7 @@ public partial class OrquestradorTestes
         Assert.Equal("concluida", fim.Situacao);
         Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(20), "o Fim esperou " + relogio.Elapsed);
         var filho = Json(c.Falso("pids.json"))["filho"]!.GetValue<int>();
-        Assert.True(Ambiente.Vivo(filho), "o neto devia estar vivo, segurando o canal (senão o teste não prova nada)");
+        Assert.True(Ambiente.EsperarAte(() => !Ambiente.Vivo(filho), TimeSpan.FromSeconds(5)), "o neto ficou vivo depois do fim");
         Assert.False(Ambiente.Vivo(Json(c.Falso("pids.json"))["pai"]!.GetValue<int>()));
     }
 

@@ -38,12 +38,13 @@ public partial class App : Application
         principal.Closed += (_, _) => janela = null;
         NotificacoesWindows.Registrar(() => fila.TryEnqueue(() =>
         {
-            if (janela is null) return;
-            if (principal.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter
+            if (janela is not { } aberta) return;
+            if (aberta.AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter
                 { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized } apresentador)
                 apresentador.Restore();
-            principal.Activate();
+            aberta.Activate();
         }));
         principal.Activate();
+        if (!Autoteste.Ativo && Argumentos.Atual.Roteiro is null) _ = Task.Run(InstalacaoMotorPdf.LimparAsync);
     }
 }

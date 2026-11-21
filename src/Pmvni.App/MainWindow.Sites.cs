@@ -32,9 +32,10 @@ public sealed partial class MainWindow
         foreach (var m in SitesDaPrefeitura)
         {
             var linha = new StackPanel { Padding = new Thickness(16, 12, 16, 12), Spacing = 6 };
-            linha.Children.Add(new TextBlock { TextAlignment = TextAlignment.Left, Text = Modulos.Rotulo(m), Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
+            var descricao = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+            descricao.Children.Add(new TextBlock { TextAlignment = TextAlignment.Left, Text = Modulos.Rotulo(m), Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
             var situacao = new TextBlock { TextAlignment = TextAlignment.Left, Text = PaginaSites.Situacao(m), Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] };
-            linha.Children.Add(situacao);
+            descricao.Children.Add(situacao);
             var usuario = new TextBox { PlaceholderText = "Usuário (opcional)", HorizontalAlignment = HorizontalAlignment.Stretch };
             var senha = new PasswordBox { PlaceholderText = "Senha", HorizontalAlignment = HorizontalAlignment.Stretch };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(usuario, "Usuário do " + Modulos.Rotulo(m));
@@ -74,23 +75,26 @@ public sealed partial class MainWindow
                 await PaginaDeSites.SairAsync(m);
                 Atualizar();
             };
-            var credenciais = new Grid { ColumnSpacing = 8 };
-            credenciais.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            credenciais.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            credenciais.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            Grid.SetColumn(senha, 1);
-            Grid.SetColumn(guardar, 2);
-            credenciais.Children.Add(usuario);
-            credenciais.Children.Add(senha);
-            credenciais.Children.Add(guardar);
+            var acoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { abrir, sair } };
+            linha.Children.Add(new LinhaComAcoes { Children = { descricao, acoes } });
+
+            var credenciais = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { usuario, senha, guardar } };
+            usuario.MaxWidth = senha.MaxWidth = 280;
+            usuario.HorizontalAlignment = senha.HorizontalAlignment = HorizontalAlignment.Left;
+            credenciais.SizeChanged += (_, e) =>
+            {
+                var larguraCampo = (e.NewSize.Width - guardar.ActualWidth - 16) / 2;
+                var empilhar = larguraCampo < 150;
+                credenciais.Orientation = empilhar ? Orientation.Vertical : Orientation.Horizontal;
+                usuario.Width = senha.Width = Math.Clamp(empilhar ? e.NewSize.Width : larguraCampo, 0, 280);
+            };
             linha.Children.Add(credenciais);
-            linha.Children.Add(new StackPanel { HorizontalAlignment = HorizontalAlignment.Right, Orientation = Orientation.Horizontal, Spacing = 8, Children = { abrir, sair } });
             if (m == Modulo.Gpi)
             {
                 // Conferir o boletim antes de precisar (se o GPI mudar, diz em que passo parou). Nada é gravado.
-                var insc = new TextBox { PlaceholderText = "Inscrição municipal (14 algarismos)", Width = 260 };
+                var insc = new TextBox { PlaceholderText = "Inscrição municipal (14 algarismos)", Width = 220 };
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(insc, "Inscrição para testar o boletim");
-                var testar = new Button { Content = "Testar o boletim" };
+                var testar = new Button { Content = "Testar" };
                 ToolTipService.SetToolTip(testar, "Gera o boletim desta inscrição no GPI, sem gravar, e mostra se cada passo funcionou.");
                 var saida = new TextBlock { TextAlignment = TextAlignment.Left, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], TextWrapping = TextWrapping.Wrap };
                 testar.Click += async (_, _) =>
@@ -100,7 +104,11 @@ public sealed partial class MainWindow
                     catch (Exception e) { RegistroErros.Gravar("sites.bci.teste", e); saida.Text = e.Message; }
                     finally { testar.IsEnabled = true; Atualizar(); }
                 };
-                linha.Children.Add(new StackPanel { HorizontalAlignment = HorizontalAlignment.Right, Orientation = Orientation.Horizontal, Spacing = 8, Children = { insc, testar } });
+                var descricaoTeste = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+                descricaoTeste.Children.Add(new TextBlock { Text = "Testar o boletim do GPI", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
+                descricaoTeste.Children.Add(new TextBlock { Text = "Confere se o app consegue abrir o boletim de um imóvel.", Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] });
+                var acoesTeste = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { insc, testar } };
+                linha.Children.Add(new LinhaComAcoes { Children = { descricaoTeste, acoesTeste } });
                 linha.Children.Add(saida);
             }
             if (painel.Children.Count > 0) painel.Children.Add(new Border { Style = (Style)Application.Current.Resources["PmvniAjusteDivisoria"] });

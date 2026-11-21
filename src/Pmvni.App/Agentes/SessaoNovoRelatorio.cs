@@ -84,6 +84,7 @@ public sealed class ExecucaoEmCurso
     /// <summary>Os eventos do kit, como o <c>situacao</c> os informou (só Claude).</summary>
     public IReadOnlyList<string> Eventos => Situacao?.Eventos ?? [];
 
+    internal Task<FimAnalise>? Conclusao { get; set; }
     public Task<FimAnalise> Fim { get; internal set; } = null!;
 
     public Pecas Pecas { get; }
@@ -283,20 +284,12 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         return await e.Orquestrador.CancelarClaudeAsync(e.Processo.Pasta, e.Pecas, e.Provedor);
     }
 
-    /// <summary>A janela fechou (rede de segurança do desenho §12.7): toda execução do ChatGPT é cancelada (a árvore do Codex sai; o job do editor cobre uma
-    /// queda) e nenhuma análise parte depois disto, nem uma que ainda copiava os anexos. O Claude segue a regra de sempre (continua sozinho).</summary>
+    /// <summary>Cancela as execuções ativas e impede a partida de análises que ainda estavam copiando anexos.</summary>
     public void Encerrar()
     {
         encerrada = true;
-        foreach (var e in execucoes.Where(e => e.Provedor == Provedor.ChatGpt).ToList())
+        foreach (var e in execucoes.ToList())
             try { e.Cancelamento.Cancel(); }
             catch (ObjectDisposedException) { }
-    }
-
-    /// <summary>Fechar o editor com o Claude rodando: só para de acompanhar (a análise do kit continua; o editor reaberto a retoma).</summary>
-    public void PararDeAcompanhar(ExecucaoEmCurso e)
-    {
-        e.Abandonada = true;
-        e.Cancelamento.Cancel();
     }
 }

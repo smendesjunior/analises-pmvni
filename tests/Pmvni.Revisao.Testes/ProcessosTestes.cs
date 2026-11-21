@@ -6,6 +6,30 @@ namespace Pmvni.Revisao.Testes;
 public class ProcessosTestes
 {
     [Theory]
+    [InlineData("POLICIA CIENTIFICA DO ESTADO - 19774-2026", "POLICIA CIENTIFICA DO ESTADO")]
+    [InlineData("POLICIA CIENTIFICA DO ESTADO 19774/2026", "POLICIA CIENTIFICA DO ESTADO")]
+    [InlineData("19774/2026 POLICIA CIENTIFICA", "POLICIA CIENTIFICA")]
+    [InlineData("PROC 19774 2026 - JOAO DA SILVA", "JOAO DA SILVA")]
+    [InlineData("Processo nº 19774-2026 - Joao da Silva", "Joao da Silva")]
+    [InlineData("2026-19774 - JOAO DA SILVA", "JOAO DA SILVA")]
+    [InlineData("JOAO DA SILVA (19774-26)", "JOAO DA SILVA")]
+    [InlineData("JOAO DA SILVA - 19774", "JOAO DA SILVA")]
+    [InlineData("POLICIA 19774 CIENTIFICA", "POLICIA CIENTIFICA")]
+    [InlineData("CONSTRUTORA 3 IRMAOS - 19774", "CONSTRUTORA 3 IRMAOS")]
+    public void le_protocolo_em_nome_livre(string nome, string requerente)
+    {
+        var processo = Processos.InterpretarNome("pasta", nome, "2026");
+        Assert.Equal("19774/2026", processo.Protocolo);
+        Assert.Equal(requerente, processo.Requerente);
+    }
+
+    [Theory]
+    [InlineData("2026")]
+    [InlineData("CONSTRUTORA 3 IRMAOS")]
+    [InlineData("PROCESSO - REQUERENTE")]
+    public void nome_sem_protocolo(string nome) =>
+        Assert.Null(Processos.InterpretarNome("pasta", nome, "2026").Protocolo);
+    [Theory]
     [InlineData("PROC. 00042 - 2026 - PESSOA FICTICIA", 42)]
     [InlineData("procc.   1234567_2026 - PESSOA FICTICIA", 1234567)]
     public void reconhece_prefixo_e_numero_sem_renomear_a_pasta(string nome, int numero)

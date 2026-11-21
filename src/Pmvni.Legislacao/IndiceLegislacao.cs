@@ -56,6 +56,12 @@ public sealed class IndiceLegislacao
         }
     }
 
+    public IReadOnlySet<string> LeisComTexto(string filtro)
+    {
+        var termo = TextoPesquisa.Normalizar(filtro);
+        return itens.Where(i => termo.Length > 0 && i.Texto.Normalizados.Any(p => p.Contains(termo, StringComparison.Ordinal)))
+            .Select(i => i.Anexo.Id).ToHashSet(StringComparer.Ordinal);
+    }
     /// <summary>Termo normalizado com menos de 2 caracteres ⇒ vazio. Um resultado por página com ocorrência, na ordem esfera,
     /// título, página; no máximo <paramref name="max"/> resultados, com o total real em <see cref="Pesquisa.Total"/>.</summary>
     public Pesquisa Pesquisar(string termo, int max = 200)

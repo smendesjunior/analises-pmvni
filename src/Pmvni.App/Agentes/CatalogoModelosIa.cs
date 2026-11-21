@@ -204,8 +204,7 @@ internal sealed class CatalogoModelosIa
         AmbienteFilho.Aplicar(si.Environment, Provedor.ChatGpt, ModoAcesso.Conta, null);
         using var tempo = CancellationTokenSource.CreateLinkedTokenSource(ct);
         tempo.CancelAfter(limite);
-        using var p = TravaDeProgramas.Iniciar(si) ?? throw new InvalidOperationException("o programa não abriu");
-        try { TarefaDoEditor.Padrao.Atribuir(p); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+        using var p = ProcessoInterno.Iniciar(si);
         try
         {
             _ = p.StandardError.ReadToEndAsync(tempo.Token);
@@ -218,7 +217,7 @@ internal sealed class CatalogoModelosIa
             if (basta is null)
             {
                 var tudo = p.StandardOutput.ReadToEndAsync(tempo.Token);
-                await p.WaitForExitAsync(tempo.Token);
+                await p.Processo.WaitForExitAsync(tempo.Token);
                 return await tudo;
             }
             // Modo conversa (Claude Code): lê linha a linha até a resposta que interessa e encerra o programa.
@@ -228,7 +227,7 @@ internal sealed class CatalogoModelosIa
         }
         finally
         {
-            try { if (!p.HasExited) p.Kill(entireProcessTree: true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            try { if (!p.Processo.HasExited) p.Processo.Kill(entireProcessTree: true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
         }
     }
 

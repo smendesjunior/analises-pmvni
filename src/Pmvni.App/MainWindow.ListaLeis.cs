@@ -14,6 +14,15 @@ namespace Pmvni.App;
 /// texto já indexado da lei (nada muda no catálogo); as favoritas ficam nos ajustes e sobem para o topo.</summary>
 public sealed partial class MainWindow
 {
+    IndiceLegislacao? indiceDaLista;
+    async Task CarregarIndiceDaListaAsync()
+    {
+        var carregado = await legislacao.IndiceAsync();
+        if (ReferenceEquals(carregado, indiceDaLista)) return;
+        indiceDaLista = carregado;
+        MontarListaDeLeis();
+    }
+
     Esfera? esferaDaLista;
     TipoNorma? tipoDaLista;
     /// <summary>A ementa de cada lei, pelo sha do PDF (vazio = a lei não tem ementa reconhecível).</summary>
@@ -42,10 +51,11 @@ public sealed partial class MainWindow
         if (fechada) return;
         var favoritas = ajustes.LeisFavoritas.ToHashSet(StringComparer.Ordinal);
         var filtro = P.FiltroLeis.Text;
-        var linhas = ListaLegislacao.Filtrar(linhasLegislacao, filtro, esferaDaLista, tipoDaLista, favoritas);
+        var conteudo = string.IsNullOrWhiteSpace(filtro) ? null : indiceDaLista?.LeisComTexto(filtro);
+        var linhas = ListaLegislacao.Filtrar(linhasLegislacao, filtro, esferaDaLista, tipoDaLista, favoritas, conteudo);
         LeisMostradas = ListaLegislacao.Agrupar(linhas, null);
-        MontarCartoesEsferas(filtro);
-        MontarBotoesTipos(filtro);
+        MontarCartoesEsferas(filtro, conteudo);
+        MontarBotoesTipos(filtro, conteudo);
 
         var lista = P.ListaLeis;
         lista.Items.Clear();
@@ -72,9 +82,9 @@ public sealed partial class MainWindow
 
     // ---------- cabeçalho: esferas e tipos ----------
 
-    void MontarCartoesEsferas(string filtro)
+    void MontarCartoesEsferas(string filtro, IReadOnlySet<string>? idsNoConteudo)
     {
-        var contagem = ListaLegislacao.ContarEsferas(linhasLegislacao, filtro);
+        var contagem = ListaLegislacao.ContarEsferas(linhasLegislacao, filtro, idsNoConteudo);
         var grade = P.CartoesEsferas;
         grade.Children.Clear();
         var coluna = 0;
@@ -109,12 +119,12 @@ public sealed partial class MainWindow
         }
     }
 
-    void MontarBotoesTipos(string filtro)
+    void MontarBotoesTipos(string filtro, IReadOnlySet<string>? idsNoConteudo)
     {
         var grade = P.BotoesTipos;
         grade.Children.Clear();
         var coluna = 0;
-        foreach (var (tipo, quantidade) in ListaLegislacao.ContarTipos(linhasLegislacao, filtro, esferaDaLista))
+        foreach (var (tipo, quantidade) in ListaLegislacao.ContarTipos(linhasLegislacao, filtro, esferaDaLista, idsNoConteudo))
         {
             var rotulo = tipo is { } t ? ListaLegislacao.RotuloBotaoTipo(t) : "Todas";
             var conteudo = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };

@@ -14,6 +14,15 @@ public class ListaLegislacaoTestes
     static Anexo A(string id, string titulo, Esfera e, string arquivo, long tamanho = 1834, int paginas = 3, int[]? semTexto = null) =>
         new(id, new string('a', 64), titulo, e, arquivo, tamanho, paginas, semTexto ?? [], Quando, null);
 
+    [Fact]
+    public void rampa_no_conteudo_inclui_decreto_na_lista_e_nos_contadores()
+    {
+        LinhaAnexo[] leis = [new("decreto", "Decreto 5.296", Esfera.Federal, "acessibilidade.pdf", "", "", "", null)];
+        var conteudo = new HashSet<string> { "decreto" };
+        Assert.Single(ListaLegislacao.Filtrar(leis, "rampa", null, null, new HashSet<string>(), conteudo));
+        Assert.Equal(1, ListaLegislacao.ContarEsferas(leis, "rampa", conteudo)[Esfera.Federal]);
+        Assert.Contains((TipoNorma.Decreto, 1), ListaLegislacao.ContarTipos(leis, "rampa", null, conteudo));
+    }
     [Theory]
     [InlineData(1834, "2 KB")]
     [InlineData(1_048_576, "1,0 MB")]

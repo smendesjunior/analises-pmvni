@@ -156,7 +156,7 @@ public static class Compactados
         if (!File.Exists(tar)) throw new InvalidDataException($"{nomeExibido}: este Windows não tem o tar.exe para abrir {Path.GetExtension(compactado)}; descompacte à mão e anexe os arquivos.");
         var si = new ProcessStartInfo(tar) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true, StandardErrorEncoding = Encoding.UTF8 };
         foreach (var a in new[] { "-x", "-f", compactado, "-C", destino }) si.ArgumentList.Add(a);
-        using var p = TravaDeProgramas.Iniciar(si) ?? throw new InvalidDataException($"{nomeExibido} não pôde ser aberto (o tar.exe não iniciou).");
+        using var p = ProcessoInterno.Iniciar(si);
         var erro = p.StandardError.ReadToEndAsync(CancellationToken.None);
         _ = p.StandardOutput.ReadToEndAsync(CancellationToken.None);
         try
@@ -165,7 +165,7 @@ public static class Compactados
             limite.CancelAfter(TimeSpan.FromMinutes(10));
             // O tar.exe não tem limite de tamanho: a pasta é medida a cada segundo enquanto ele extrai, e passou de 4 GB ou de 3.000
             // arquivos, o tar é parado na hora (sem encher o disco do %TEMP%).
-            var fim = p.WaitForExitAsync(limite.Token);
+            var fim = p.Processo.WaitForExitAsync(limite.Token);
             while (!fim.Wait(TimeSpan.FromSeconds(3))) // a cada 3 s: percorrer a pasta toda a cada segundo pesava com milhares de arquivos
             {
                 long bytes = 0;
@@ -177,7 +177,7 @@ public static class Compactados
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException) { continue; }
                 if (bytes > LimiteBytes || n > LimiteArquivos)
                 {
-                    try { p.Kill(true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                    try { p.Processo.Kill(true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
                     throw new InvalidDataException(bytes > LimiteBytes
                         ? $"{nomeExibido} passa de 4 GB descompactado; descompacte à mão e anexe os arquivos."
                         : $"{nomeExibido} tem mais de {LimiteArquivos} arquivos; descompacte à mão e anexe só os do processo.");
@@ -187,17 +187,17 @@ public static class Compactados
         }
         catch (AggregateException e) when (e.InnerException is OperationCanceledException)
         {
-            try { p.Kill(true); } catch (Exception x) when (x is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            try { p.Processo.Kill(true); } catch (Exception x) when (x is InvalidOperationException or System.ComponentModel.Win32Exception) { }
             ct.ThrowIfCancellationRequested();
             throw new InvalidDataException($"{nomeExibido} demorou demais para abrir; descompacte à mão e anexe os arquivos.");
         }
         catch (OperationCanceledException)
         {
-            try { p.Kill(true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            try { p.Processo.Kill(true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
             ct.ThrowIfCancellationRequested();
             throw new InvalidDataException($"{nomeExibido} demorou demais para abrir; descompacte à mão e anexe os arquivos.");
         }
-        if (p.ExitCode == 0) return;
+        if (p.Processo.ExitCode == 0) return;
         var texto = erro.Wait(TimeSpan.FromSeconds(2)) ? erro.Result : "";
         var temArquivo = Directory.EnumerateFiles(destino, "*", SearchOption.AllDirectories).Any();
         if (Regex.IsMatch(texto, "passphrase|password|encrypt", RegexOptions.IgnoreCase))

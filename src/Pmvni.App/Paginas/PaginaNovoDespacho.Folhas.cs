@@ -82,6 +82,8 @@ public sealed partial class PaginaNovoDespacho
     void LimparFolhas()
     {
         previa = [];
+        layout = null;
+        bitmaps.Clear();
         Folhas.Children.Clear();
     }
 

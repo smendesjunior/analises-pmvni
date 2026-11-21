@@ -164,7 +164,7 @@ public sealed class ComponentesDoKitTestes : IDisposable
         Assert.Contains("-File \"" + Path.Combine(Scripts, ComponentesDoKit.Script) + "\" -Componente analise", cmd);
         Assert.DoesNotContain("motores", cmd);
         Assert.DoesNotContain(ComponentesDoKit.InstaladorDoKit, cmd);
-        Assert.Equal("Atualização iniciada fora do Editor: a análise no Codex e no Claude Code (o mesmo plugin). Quando terminar, clique em Verificar atualizações.", texto);
+        Assert.Equal("Atualização iniciada fora do Editor: a análise no Codex e no Claude Code (o mesmo plugin). Quando terminar, clique em Verificar atualizações no cartão Plugins e ferramentas.", texto);
 
         // "Atualizar todos": o INSTALAR_KIT_PMVNI.cmd atualizar do kit deste computador.
         chamadas.Clear();

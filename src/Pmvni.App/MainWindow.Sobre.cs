@@ -39,7 +39,10 @@ public sealed partial class MainWindow
         p.LinkContato.Content = EmailContato;
         if (Argumentos.Atual.Roteiro is null)
             p.LinkContato.NavigateUri = new Uri("mailto:" + EmailContato + "?subject=" + Uri.EscapeDataString("Análise de Projetos " + Atualizador.VersaoExibida));
-        p.TextoVersoes.Text = RelatorioDiagnostico();
+        p.CategoriaMostrada += tag =>
+        {
+            if (tag == CategoriasAjustes.Sobre && PaginaAjustesVisivel) p.TextoVersoes.Text = RelatorioDiagnostico();
+        };
         p.BotaoAtualizarDiagnostico.Click += (_, _) => p.TextoVersoes.Text = RelatorioDiagnostico();
         p.BotaoCopiarInformacoes.Click += (_, _) =>
         {
@@ -95,8 +98,8 @@ public sealed partial class MainWindow
         {
             using var recurso = typeof(MainWindow).Assembly.GetManifestResourceStream("Pmvni.App.icone-app.png");
             if (recurso is null) return null;
-            var fluxo = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-            var escrita = System.IO.WindowsRuntimeStreamExtensions.AsStreamForWrite(fluxo);
+            using var fluxo = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            using var escrita = System.IO.WindowsRuntimeStreamExtensions.AsStreamForWrite(fluxo);
             recurso.CopyTo(escrita);
             escrita.Flush();
             fluxo.Seek(0);

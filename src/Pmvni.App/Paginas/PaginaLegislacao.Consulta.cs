@@ -88,6 +88,8 @@ public sealed partial class PaginaLegislacao
 
     private void VoltarNaConsulta(object s, RoutedEventArgs e) { if (Portal.CanGoBack) Portal.GoBack(); }
     private void AvancarNaConsulta(object s, RoutedEventArgs e) { if (Portal.CanGoForward) Portal.GoForward(); }
+    internal void FecharPortal() => Portal.Close();
+
     private void PararConsulta(object s, RoutedEventArgs e) => Portal.CoreWebView2?.Stop();
     private async void AtualizarConsulta(object s, RoutedEventArgs e) { if (portalPronto) Portal.Reload(); else await AbrirConsultaAsync(); }
     private void InicioConsulta(object s, RoutedEventArgs e) { if (portalPronto) Portal.Source = new Uri("https://leis.org/"); }

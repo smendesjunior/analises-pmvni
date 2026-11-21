@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -3695,32 +3695,19 @@ internal static class Roteiro
                 && Pmvrels(processo).Length == pmvrelAntes && !File.Exists(Path.Combine(processo, ".pmvni-ai", "editor", "execucao.lock"));
             p["chatgpt_cancelado"] = cancelado;
 
-            // Claude lento no 0012: fechar só informa, a análise fica nos ajustes; reaberto, volta a acompanhar; cancelar encerra o pid do kit.
+            // Fechar pausa o Claude, preserva a retomada e encerra o processo do kit.
             j.Orquestrador = Orq("claude_lento");
             var eC = await j.AnalisarAsync(Provedor.Claude) ?? throw new InvalidOperationException("Claude não partiu: " + j.InfoMensagemAtual.Message);
             await EsperarAteAsync(() => Task.FromResult(eC.Situacao?.Codigo == "EM_ANDAMENTO" && eC.Situacao.Pid is not null), 60000);
             var pidKit = eC.Situacao?.Pid ?? 0;
-            var informados = perguntas.Informados.Count;
+            var antesDeFechar = perguntas.Confirmacoes.Count;
             var podeFecharClaude = await j.PodeFecharComAnalisesAsync();
-            var informou = perguntas.Informados.Skip(informados).Any(i => i.Texto == "A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, você poderá voltar a acompanhá-la ou retomá-la de onde parou.");
+            await Prazo(j.AguardarAnaliseAsync(eC), 30);
+            var confirmou = perguntas.Confirmacoes.Skip(antesDeFechar).Any(c => c.Titulo == FluxoNovoRelatorio.FecharTitulo);
             var pendente = j.ExecucoesClaudePendentes.Count == 1 && j.ExecucoesClaudePendentes[0].Processo == outro;
-            await j.PararDeAcompanharClaudeAsync();     // o que o fechamento deixa: a análise do kit segue sozinha
-            var seguiuSozinha = pidKit != 0 && Vivo(pidKit) && j.ExecucoesEmCurso.Count == 0 && j.ExecucoesClaudePendentes.Count == 1;
-            await j.RetomarExecucoesClaudeAsync();
-            var retomada = j.ExecucoesEmCurso.SingleOrDefault();
-            var voltou = retomada is { Retomada: true, Provedor: Provedor.Claude } && retomada.Processo.Pasta == outro;
-            p["fechar_com_claude"] = new JsonObject { ["pode_fechar"] = podeFecharClaude, ["informou"] = informou, ["pendente"] = pendente, ["seguiu_sozinha"] = seguiuSozinha, ["retomada"] = voltou };
-            var claudeCancelado = false;
-            if (retomada is not null)
-            {
-                await EsperarAteAsync(() => Task.FromResult(retomada.Situacao?.Codigo == "EM_ANDAMENTO"), 30000);
-                var ok = await j.CancelarAnaliseAsync(retomada);
-                var fimC = await Prazo(j.AguardarAnaliseAsync(retomada), 60);
-                var info = j.NovoRelatorio.AvisoResultado;
-                p["claude_cancelado"] = fimC.Situacao + ": " + fimC.Mensagem;
-                claudeCancelado = ok && !Vivo(pidKit) && fimC.Situacao == "interrompida" && info.IsOpen && info.Message.StartsWith("interrompida", StringComparison.Ordinal)
-                    && j.NovoRelatorio.BotaoContinuar.Visibility == Visibility.Visible && j.ExecucoesClaudePendentes.Count == 0;
-            }
+            var encerrou = pidKit != 0 && await EsperarAteAsync(() => Task.FromResult(!Vivo(pidKit)), 5000);
+            p["fechar_com_claude"] = new JsonObject { ["pode_fechar"] = podeFecharClaude, ["confirmou"] = confirmou, ["pendente"] = pendente, ["encerrou"] = encerrou };
+            j.DescartarAnalisePendente();
             // (d) Ajustes editados à mão: um registro fora de <processo>\.pmvni-ai\editor é descartado com o motivo, e nada é gravado nele.
             var foraDoEditor = Path.Combine(pasta, "registro-falso");
             Directory.CreateDirectory(foraDoEditor);
@@ -3746,8 +3733,9 @@ internal static class Roteiro
             };
             var eD = await j.AnalisarAsync(Provedor.Claude) ?? throw new InvalidOperationException("Claude não partiu: " + j.InfoMensagemAtual.Message);
             await EsperarAteAsync(() => Task.FromResult(eD.Situacao?.Codigo == "EM_ANDAMENTO"), 60000);
-            await j.PodeFecharComAnalisesAsync();
-            await j.PararDeAcompanharClaudeAsync();
+            // Simula um registro concluído ainda sem importação, como o de uma versão anterior.
+            eD.Abandonada = true;
+            await Prazo(j.AguardarAnaliseAsync(eD), 60);
             var statusKit = Path.Combine(outro, ".pmvni-ai", "analise-pro", "auto-status.json");
             await EsperarAteAsync(() =>
             {
@@ -3788,7 +3776,7 @@ internal static class Roteiro
                 ["oferecido"] = oferecido, ["digitou"] = digitou, ["cancelada_fica"] = ficou, ["importou_na_segunda"] = importouRetomada, ["infobar"] = j.InfoMensagem.Message,
             };
             p["ok"] = segue && motivo0001 == "Já há uma análise em andamento neste processo." && motivo0012 is null && naoFechou && segundaSoNovas && cancelado
-                && podeFecharClaude && informou && pendente && seguiuSozinha && voltou && claudeCancelado && descartou && oferecido && digitou && ficou && importouRetomada;
+                && podeFecharClaude && confirmou && pendente && encerrou && descartou && oferecido && digitou && ficou && importouRetomada;
         });
 
         await Passo("56_novo_relatorio_falhas", async p =>
@@ -5311,7 +5299,20 @@ internal static class Roteiro
                 await Esperar(300);
                 var l = j.LeituraDoKitAtual ?? throw new InvalidOperationException("o cartão não leu os componentes");
                 LinhaComponente Linha(string id) => l.Linhas.Single(x => x.Componente.Id == id);
-                var cartao = pag.ListaComponentesKit.Children.Count == ComponentesDoKit.Lista.Count && l.FonteAcessivel
+                var painelPastas = pag.CartoesDasPastas;
+                painelPastas.UpdateLayout();
+                var processos = (FrameworkElement)painelPastas.Children[0];
+                var kit = (FrameworkElement)painelPastas.Children[1];
+                var origem = new Windows.Foundation.Point(0, 0);
+                var topo = processos.TransformToVisual(painelPastas).TransformPoint(origem);
+                var seguinte = kit.TransformToVisual(painelPastas).TransformPoint(origem);
+                var linhaInteira = painelPastas.ActualWidth > 0 && Math.Abs(topo.X - seguinte.X) < 1
+                    && Math.Abs(processos.ActualWidth - painelPastas.ActualWidth) < 1
+                    && Math.Abs(kit.ActualWidth - painelPastas.ActualWidth) < 1
+                    && Math.Abs(seguinte.Y - topo.Y - processos.ActualHeight - painelPastas.Spacing) < 1;
+                var cartao = linhaInteira && pag.BotaoRepararInstalacao.Content as string == "Reparar instalação"
+                    && ReferenceEquals(pag.BotaoRepararInstalacao.Parent, pag.BotaoAtualizarTodosComponentes.Parent)
+                    && pag.ListaComponentesKit.Children.Count == ComponentesDoKit.Lista.Count && l.FonteAcessivel
                     && Linha("analise-codex").Situacao == SituacaoComponente.AtualizacaoDisponivel && Linha("analise-codex").TextoVersoes == "Instalada: 4.0.0 · disponível: 4.1.0"
                     && Linha("analise-claude").Situacao == SituacaoComponente.Ausente && Linha("pmvni-pdf").Situacao == SituacaoComponente.EmDia
                     && Linha("pymupdf").Situacao == SituacaoComponente.EmDia && Linha("fyp").Situacao == SituacaoComponente.EmDia
@@ -5378,11 +5379,11 @@ internal static class Roteiro
                 await j.AtualizarPecasNovoRelatorioAsync();
                 await j.MudarModuloAsync(Modulo.Ajustes);
                 var pag = j.AjustesPagina;
-                pag.MostrarCategoria(CategoriasAjustes.Ia);
+                pag.MostrarCategoria(CategoriasAjustes.Modelos);
                 await Esperar(800);
                 var grade = pag.PainelModelosAnalise.Children.OfType<Grid>().FirstOrDefault();
-                var caixas = grade?.Children.OfType<StackPanel>().SelectMany(s => s.Children.OfType<ComboBox>()).ToList() ?? [];
-                var gradeOk = grade is not null && caixas.Count == iaIds.Length * 3 * 2;
+                var caixas = grade?.Children.OfType<Grid>().SelectMany(s => s.Children.OfType<ComboBox>()).ToList() ?? [];
+                var gradeOk = grade is not null && caixas.Count == iaIds.Length * 2;
                 pag.PainelModelosAnalise.StartBringIntoView();
                 await Esperar(300);
                 await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "modelos-da-analise-xaml.png"));

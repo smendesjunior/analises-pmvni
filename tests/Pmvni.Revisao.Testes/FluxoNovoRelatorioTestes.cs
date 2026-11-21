@@ -255,8 +255,8 @@ public class FluxoNovoRelatorioTestes
             FluxoNovoRelatorio.TextoImportado(Provedor.ChatGpt, @"C:\p\Relatorio_0001_2099.rpmvni", @"C:\p\relatorio.pdf"));
         Assert.Equal("Relatório da análise com o Claude importado: Relatorio_0001_2099_2.rpmvni.",
             FluxoNovoRelatorio.TextoImportado(Provedor.Claude, @"C:\p\Relatorio_0001_2099_2.rpmvni", null));
-        Assert.Equal("A análise com o ChatGPT em 0001/2099 será pausada. Ao abrir o editor de novo, você poderá retomá-la de onde parou.", FluxoNovoRelatorio.TextoFecharChatGpt(P0001));
-        Assert.Equal("A análise com o Claude continua sozinha na janela minimizada do kit. Ao abrir o editor de novo, você poderá voltar a acompanhá-la ou retomá-la de onde parou.", FluxoNovoRelatorio.TextoFecharClaude);
+        Assert.Equal("A análise com o ChatGPT em 0001/2099 será pausada. Ao abrir o editor de novo, você poderá retomá-la de onde parou.", FluxoNovoRelatorio.TextoFechar(Provedor.ChatGpt, P0001));
+        Assert.Contains("Claude em 0001/2099 será pausada", FluxoNovoRelatorio.TextoFechar(Provedor.Claude, P0001));
         Assert.Equal("A análise com o Claude de 0012/2099 terminou.", FluxoNovoRelatorio.TextoClaudeTerminou(P0012));
         Assert.Equal("O registro da análise com o Claude de 0012/2099 não tem a hora de início (execucao.json em C:\\r); o editor não a acompanha nem importa "
             + "o resultado sem ela. Quando o kit terminar, importe pelo módulo Processos › Importar análise da IA.", FluxoNovoRelatorio.TextoSemInicio(P0012, @"C:\r"));

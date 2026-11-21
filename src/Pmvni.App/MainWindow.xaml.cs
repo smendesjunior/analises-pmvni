@@ -229,11 +229,31 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         AplicarPaineisDosAjustes();
         AppWindow.Changed += (_, e) => { if (e.DidSizeChange || e.DidPositionChange || e.DidPresenterChange) GuardarRetanguloDaJanela(); };
 
+        Activated += (_, e) =>
+        {
+            if (fechada) return;
+            janelaAtiva = e.WindowActivationState != WindowActivationState.Deactivated;
+            if (!janelaAtiva) PararVigiaPlanilha();
+            else if (moduloAtual == Modulo.Acompanhamento && Ac.Progresso.Visibility != Visibility.Visible)
+                Soltar(EntrarNoAcompanhamentoAsync);
+            SincronizarRelogioRevisao();
+            Atualizador.Agendar(janelaAtiva);
+            RelogioQuadros.Pausar(!janelaAtiva);
+            PaginaDeSites.AtivarPeriodicos(janelaAtiva && Modulos.EhSite(moduloAtual));
+            if (janelaAtiva) AtualizarRegioesDaBarraDeTitulo();
+            if (janelaAtiva) AtualizarTituloAnalise();
+            else relogioAnalise.Stop();
+        };
         AppWindow.Closing += AoFecharJanela;
         Closed += (_, _) =>
         {
             GuardarJanelaNosAjustes();
             fechada = true;
+            fimDaOperacao?.TrySetResult();
+            cancelarBase?.Cancel();
+            cancelarPesquisa?.Cancel();
+            PararVigiaPlanilha();
+            ProcessoInterno.EncerrarSessao();
             sessaoNR.Encerrar();      // nenhum Codex fica sem dono (nem um que ainda ia partir)
             leituraDaLista?.Cancel(); // a leitura das pastas de processos em segundo plano para junto com a janela
             leituraDoDetalhe?.Cancel();
@@ -249,13 +269,19 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             try { _ = leitorPdf?.DisposeAsync().AsTask(); } catch { }
             try { _ = legislacao.DisposeAsync().AsTask(); } catch { }
             try { documento?.Dispose(); } catch { }
+            try { gpiOculto?.Close(); } catch { }
+            try { leitorImoveis?.Close(); } catch { }
+            try { R.Navegador.Close(); } catch { }
+            try { P.Leitor.Close(); } catch { }
+            try { P.FecharPortal(); } catch { }
+            PaginaDeSites.FecharNavegadores();
             try { hostComposicao?.Dispose(); } catch { }
         };
         Raiz.Loaded += AoCarregar;
         void AoCarregar(object sender, RoutedEventArgs e)
         {
             Raiz.Loaded -= AoCarregar;
-            _ = IniciarAsync();
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => _ = IniciarAsync());
         }
     }
 
@@ -344,7 +370,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     void AtualizarRegioesDaBarraDeTitulo()
     {
-        if (fechada || BarraTitulo.XamlRoot is not { } raiz) return;
+        if (!janelaAtiva || fechada || BarraTitulo.XamlRoot is not { } raiz) return;
         var escala = raiz.RasterizationScale;
         var direita = (int)Math.Floor(BarraTitulo.ActualWidth * escala) - AppWindow.TitleBar.RightInset;
         var esquerda = AppWindow.TitleBar.LeftInset;
@@ -594,8 +620,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                         PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Sobre);
                         await Task.Delay(900);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "ajustes-sobre.png"));
-                        // Ajustes › Inteligência artificial › Modelos de IA (2026-11-17): espera a leitura das peças e das listas e rola até a seção.
-                        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Ia);
+                        // Ajustes › Modelos da análise › Modelos de IA (2026-11-17): espera a leitura das peças e das listas e rola até a seção.
+                        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Modelos);
                         await Task.Delay(1500);
                         try { await tarefaDosAgentes; } catch (Exception e) { System.Diagnostics.Debug.WriteLine("[captura] " + e.Message); }
                         for (var i = 0; i < 60 && CatalogoDeModelos.Atualizando; i++) await Task.Delay(1000);
@@ -757,10 +783,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         if (m != moduloAtual || Faixa.Definicao?.Modulo != m) MontarModulo(m);
     }
 
+    bool janelaAtiva;
+
     void MontarModulo(Modulo m)
     {
         var anterior = moduloAtual;
         moduloAtual = m;
+        if (m != Modulo.Acompanhamento) PararVigiaPlanilha();
+        PaginaDeSites.AtivarPeriodicos(janelaAtiva && Modulos.EhSite(m));
 
         AtualizarPaginasDeRelatorios();
         AtualizarPaginasDeDespachos();
@@ -771,7 +801,13 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         PaginaDeImoveis.Visibility = m == Modulo.Imoveis ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeAcompanhamento.Visibility = m == Modulo.Acompanhamento ? Visibility.Visible : Visibility.Collapsed;
         if (Modulos.EhSite(m) && TravaDeProgramas.Permitidos is null) Soltar(() => PaginaDeSites.MostrarAsync(m));
-        if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = RelatorioDiagnostico(); AtualizarPaginaDePastas(); AtualizarAgentes(); Soltar(EntrarNaLegislacaoDosAjustesAsync); }
+        if (m == Modulo.Ajustes)
+        {
+            if (PaginaDeAjustes.CategoriaAtual == CategoriasAjustes.Sobre) PaginaDeAjustes.TextoVersoes.Text = RelatorioDiagnostico();
+            AtualizarPaginaDePastas();
+            if (IaVisivel) AtualizarAgentes();
+            if (PaginaDeAjustes.CategoriaAtual == CategoriasAjustes.Legislacao) Soltar(EntrarNaLegislacaoDosAjustesAsync);
+        }
         var f = Faixas.Para(m);
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
         Faixa.Montar(f, Faixas.IndiceDaAba(f, aba));
@@ -1140,7 +1176,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             var fechar = await NaFilaAsync(async () =>
             {
                 // Abrir, importar ou exportar chamados fora da fila (linha de comando, roteiro): termina antes.
-                while (ocupado && !fechada) await Task.Delay(100);
+                while (ocupado && !fechada) await (fimDaOperacao ??= new(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
                 // Um despacho em edição (passo 2 ou 3) pergunta antes de ser descartado; nada dele foi gravado na pasta do processo.
                 if (!await SairDoNovoDespachoAsync()) return false;
                 // Uma análise que partiu enquanto a janela esperava a vez (o Analisar copiava os anexos) pergunta agora, como as outras.
@@ -1629,6 +1665,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     // ---------- estado da janela ----------
 
+    TaskCompletionSource? fimDaOperacao;
+
     internal void Ocupar(string texto)
     {
         if (fechada) return;
@@ -1643,6 +1681,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (fechada) return;
         ocupado = false;
+        fimDaOperacao?.TrySetResult();
+        fimDaOperacao = null;
         R.Anel.IsActive = false;
         R.Espera.Visibility = Visibility.Collapsed;
         AtualizarComandos();

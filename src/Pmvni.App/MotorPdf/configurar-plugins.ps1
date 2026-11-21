@@ -1,8 +1,9 @@
-﻿# -Componente (Tarefa 21, cartao 'Plugins e ferramentas' dos Ajustes): so uma parte. analise = o plugin no Codex e no Claude Code;
+# -Componente (Tarefa 21, cartao 'Plugins e ferramentas' dos Ajustes): so uma parte. analise = o plugin no Codex e no Claude Code;
 # motores = PyMuPDF, Docling, Blueprint e FYP (instalam juntos); pmvni-pdf = o servidor de PDF e o registro dele nos programas.
-# Sem -Componente, tudo (primeira abertura e botao 'Instalar ou atualizar plugins'). Uma parte so mantem no resumo as linhas das outras.
-param([ValidateSet('','analise','motores','pmvni-pdf')][string]$Componente = '')
+# Sem -Componente, tudo (primeira abertura e botao 'Reparar instalação'). Uma parte so mantem no resumo as linhas das outras.
+param([ValidateSet('','analise','motores','pmvni-pdf')][string]$Componente = '', [string]$KitLocal = '')
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'nativo.ps1')
 $tudo = -not $Componente
 $fazMotores = $tudo -or $Componente -eq 'motores'
 $fazPlugin = $tudo -or $Componente -eq 'analise'
@@ -26,11 +27,11 @@ try {
     if ($fazMotores) { try {
         & (Join-Path $PSScriptRoot 'instalar.ps1')
         $python = [IO.File]::ReadAllText((Join-Path $base 'runtime.txt'))
-        & $python -I -c "import pymupdf;assert pymupdf.VersionBind=='2.1'"
-        if ($LASTEXITCODE) { throw 'PyMuPDF indisponivel' }
+        Invocar-Nativo $python @('-I', '-c', "import pymupdf;assert pymupdf.VersionBind=='2.1'")
+
         $estado['PyMuPDF 2.1']='INSTALADO'
-        & $python -I -c "from importlib.metadata import version;from docling_mcp.tools.converters.local import LOCAL_CONVERSION_AVAILABLE;assert LOCAL_CONVERSION_AVAILABLE and version('docling-mcp')=='3.5.0'"
-        if ($LASTEXITCODE) { throw 'Docling indisponivel' }
+        Invocar-Nativo $python @('-I', '-c', "from importlib.metadata import version;from docling_mcp.tools.converters.local import LOCAL_CONVERSION_AVAILABLE;assert LOCAL_CONVERSION_AVAILABLE and version('docling-mcp')=='3.5.0'")
+
         $estado['Docling MCP 3.5.0']='INSTALADO'
         & (Join-Path $PSScriptRoot 'instalar-visao.ps1') | ForEach-Object {
             if ($_ -eq 'blueprint INSTALADO') {$estado['Blueprint Pipeline']='INSTALADO'}
@@ -41,7 +42,7 @@ try {
     if (!$python -and (Test-Path -LiteralPath $runtime)) { $python = [IO.File]::ReadAllText($runtime) }
     if ($fazServidor -and !$fazMotores -and !$python) { $erros += 'MCP sem motor PDF: atualize os motores de PDF primeiro'; $fazServidor = $false }
     $cfg = Join-Path $env:USERPROFILE '.codex\pmvni-kit.json'
-    $kit = if (Test-Path $cfg) {(Get-Content $cfg -Raw -Encoding UTF8|ConvertFrom-Json).kit_root}
+    $kit = if ($KitLocal) { $KitLocal } elseif (Test-Path $cfg) {(Get-Content $cfg -Raw -Encoding UTF8|ConvertFrom-Json).kit_root}
     if (!$kit) {$kit='\\srv-fileserver.PMVNI.PREF\pmvni\Obras\Engenharia\KIT DE TREINAMENTO DE IA (PMVNI)'}
     $catalogo = Join-Path $kit '01 - PLUGINS'
     $servidor = Join-Path $base 'mcp_pmvni.py'
@@ -61,17 +62,17 @@ try {
     if ($codex) { $estado.Remove('Codex') }
     if (!$codex) {$estado['Codex']='AUSENTE'} elseif ($fazPlugin -or $fazServidor) {
         try {
-            & $codex plugin marketplace add $catalogo | Out-Null
-            if ($LASTEXITCODE) { throw 'Catalogo Codex' }
+            Invocar-Nativo $codex @('plugin', 'marketplace', 'add', $catalogo) | Out-Null
+
             foreach($n in @(if ($fazPlugin) {'analise'})){
                 $estado["Codex / $n"]='PENDENTE'
-                $r = & $codex plugin add "$n@pmvni-kit" --json |ConvertFrom-Json
-                if($LASTEXITCODE -or !$r.version){throw "Plugin $n"}
+                $r = Invocar-Nativo $codex @('plugin', 'add', "$n@pmvni-kit", '--json') |ConvertFrom-Json
+                if(!$r.version){throw "Plugin $n"}
                 $estado["Codex / $n"]="INSTALADO $($r.version)"
             }
             if ($fazServidor) {
-                & $codex mcp add pmvni-pdf -- $python -I $servidor | Out-Null
-                if($LASTEXITCODE){throw 'MCP Codex'}
+                Invocar-Nativo $codex @('mcp', 'add', 'pmvni-pdf', '--', $python, '-I', $servidor) | Out-Null
+
                 $estado['Codex / ferramentas PDF']='CONFIGURADO'
             }
         } catch { $erros += $_.Exception.Message }
@@ -81,21 +82,21 @@ try {
     if (!$claude) { $estado['Claude Code']='AUSENTE' } elseif ($fazPlugin -or $fazServidor) {
         try {
             $mk=(Get-Content (Join-Path $catalogo '.claude-plugin\marketplace.json') -Raw|ConvertFrom-Json).name
-            & $claude.Source plugin marketplace add $catalogo --scope user | Out-Null
-            if($LASTEXITCODE){ & $claude.Source plugin marketplace update $mk | Out-Null; if($LASTEXITCODE){throw 'Catalogo Claude'} }
+            try { Invocar-Nativo $claude.Source @('plugin', 'marketplace', 'add', $catalogo, '--scope', 'user') | Out-Null
+            } catch { Invocar-Nativo $claude.Source @('plugin', 'marketplace', 'update', $mk) | Out-Null }
             if ($fazPlugin) {
-                & $claude.Source plugin install "analise@$mk" --scope user | Out-Null
-                if($LASTEXITCODE){throw 'Plugin Claude'}
-                & $claude.Source plugin update "analise@$mk" --scope user | Out-Null
-                if($LASTEXITCODE){throw 'Atualizacao Claude'}
+                Invocar-Nativo $claude.Source @('plugin', 'install', "analise@$mk", '--scope', 'user') | Out-Null
+
+                Invocar-Nativo $claude.Source @('plugin', 'update', "analise@$mk", '--scope', 'user') | Out-Null
+
                 $estado['Claude Code / analise']='INSTALADO'
             }
             if ($fazServidor) {
-                $existente = (& $claude.Source mcp get pmvni-pdf | Out-String)
+                $existente = try { Invocar-Nativo $claude.Source @('mcp', 'get', 'pmvni-pdf') | Out-String } catch { '' }
                 if ($existente -notlike "*$python*" -or $existente -notlike "*$servidor*") {
-                    if($existente -match 'Scope: User') { & $claude.Source mcp remove --scope user pmvni-pdf | Out-Null }
-                    & $claude.Source mcp add --scope user --transport stdio pmvni-pdf -- $python -I $servidor | Out-Null
-                    if($LASTEXITCODE){throw 'MCP Claude Code'}
+                    if($existente -match 'Scope: User') { Invocar-Nativo $claude.Source @('mcp', 'remove', '--scope', 'user', 'pmvni-pdf') | Out-Null }
+                    Invocar-Nativo $claude.Source @('mcp', 'add', '--scope', 'user', '--transport', 'stdio', 'pmvni-pdf', '--', $python, '-I', $servidor) | Out-Null
+
                 }
                 $estado['Claude Code / ferramentas PDF']='CONFIGURADO'
             }
@@ -119,6 +120,7 @@ try {
     $linhas = @($estado.Keys | ForEach-Object {"$_    $($estado[$_])"})
     $linhas += @($erros | ForEach-Object {"FALHA    $_"})
     [IO.File]::WriteAllLines($resumo,[string[]]$linhas,[Text.Encoding]::UTF8)
+    if ($fazMotores) { & (Join-Path $PSScriptRoot 'limpar.ps1') }
     $linhas | Write-Output
     if($erros.Count){throw 'Instalacao com pendencias. Consulte resumo-instalacao.txt.'}
 } finally {if($entrou){$mutex.ReleaseMutex()};$mutex.Dispose()}

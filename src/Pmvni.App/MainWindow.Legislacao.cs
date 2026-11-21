@@ -218,6 +218,7 @@ public sealed partial class MainWindow
     partial void LinhasLegislacaoMudaram(IReadOnlyList<Anexo> anexos)
     {
         anexosDoModulo = anexos;
+        if (anexos.Count > 0) _ = TentarAsync(CarregarIndiceDaListaAsync);
         P.TotalAcervo.Text = anexos.Count == 1 ? "1 documento" : $"{anexos.Count} documentos";
         MontarListaDeLeis();
         if (leiAberta is not { } aberta) return;

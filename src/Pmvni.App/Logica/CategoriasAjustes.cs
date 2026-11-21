@@ -4,7 +4,7 @@ namespace Pmvni.App;
 /// no rodapé do menu (como "Sobre e suporte" no WinStatusBar).</summary>
 public sealed record CategoriaAjustes(string Tag, string Titulo, string Ajuda, string Glifo, bool Rodape = false);
 
-/// <summary>As 9 categorias dos Ajustes, na ordem do menu (auditoria da interface, §3.2–3.3; como <c>SettingsNavigation.Menu</c> do
+/// <summary>As categorias dos Ajustes, na ordem do menu (auditoria da interface, §3.2–3.3; como <c>SettingsNavigation.Menu</c> do
 /// WinStatusBar). Sem tipos WinUI: compilado também nos testes.</summary>
 public static class CategoriasAjustes
 {
@@ -16,6 +16,7 @@ public static class CategoriasAjustes
     public const string Despachos = "despachos";
     public const string Legislacao = "legislacao";
     public const string Ia = "ia";
+    public const string Modelos = "modelos";
     public const string Sobre = "sobre";
 
     public static IReadOnlyList<CategoriaAjustes> Menu { get; } =
@@ -28,6 +29,7 @@ public static class CategoriasAjustes
         new(Despachos, "Despachos e PDF", "O LibreOffice que gera o PDF dos despachos e o que fazer depois de gravar.", Glifos.Despachos),
         new(Legislacao, "Legislação", "As leis anexadas e como a pesquisa no leitor começa.", Glifos.Livro),
         new(Ia, "Inteligência artificial", "Os agentes locais que fazem a análise e o que o Novo relatório pergunta antes de seguir.", Glifos.Ia),
+        new(Modelos, "Modelos da análise", "Defina o modelo e o raciocínio de cada etapa do Novo relatório.", Glifos.Ia),
         new(Sobre, "Sobre e suporte", "Atualizações, ajuda para relatar um problema, diagnóstico e informações sobre o editor.", Glifos.Sobre, Rodape: true),
     ];
 

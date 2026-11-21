@@ -18,7 +18,7 @@ public sealed partial class PaginaRelatorios : UserControl
 
     void AtualizarRodape()
     {
-        if (ListaNavegacao.ItemsPanelRoot is not ItemsStackPanel painel || ListaNavegacao.Visibility != Visibility.Visible) return;
+        if (Visibility != Visibility.Visible || ListaNavegacao.ItemsPanelRoot is not ItemsStackPanel painel || ListaNavegacao.Visibility != Visibility.Visible) return;
         var total = ListaNavegacao.Items.Count;
         var ultimo = Math.Min(total, painel.LastVisibleIndex + 1);
         int primeiroItem = 0, ultimoItem = 0;

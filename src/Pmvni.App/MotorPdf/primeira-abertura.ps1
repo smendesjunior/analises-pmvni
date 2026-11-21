@@ -1,6 +1,6 @@
 # Primeira abertura do Editor (ou instalacao incompleta). O Editor grava primeira-abertura.cmd ao lado deste script e o abre com o
 # explorer.exe, fora do processo do Editor, com o token do usuario interativo (Tarefa 16).
-# Faz o mesmo que o botao 'Instalar ou atualizar plugins' dos Ajustes: configurar-plugins.ps1 instala o motor PDF, os plugins PMVNI
+# Faz o mesmo que o botao 'Reparar instalação' dos Ajustes: configurar-plugins.ps1 instala o motor PDF, os plugins PMVNI
 # do Codex e do Claude Code e as ferramentas PDF, e grava resumo-instalacao.txt, que o Editor confere na proxima abertura.
 # O log (primeira-abertura.log) e todo em UTF-8.
 $ErrorActionPreference = 'Stop'

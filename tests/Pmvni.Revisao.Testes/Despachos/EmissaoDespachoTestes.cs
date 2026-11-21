@@ -515,8 +515,9 @@ public sealed class EmissaoDespachoTestes
         var curta = ConversorLibreOffice.CaminhoCurto(funda);
         Assert.True(curta.Length <= funda.Length);
         Assert.True(Directory.Exists(curta));
-        Assert.Equal(new DirectoryInfo(funda).FullName, new DirectoryInfo(Path.GetFullPath(curta)).FullName, ignoreCase: true, ignoreLineEndingDifferences: false,
-            ignoreWhiteSpaceDifferences: false);
+        // O Windows pode preservar a grafia 8.3 em FullName. Confere a identidade pelo mesmo arquivo.
+        File.WriteAllText(Path.Combine(funda, "conferencia.txt"), "perfil de teste");
+        Assert.Equal("perfil de teste", File.ReadAllText(Path.Combine(curta, "conferencia.txt")));
         // Pasta que não existe: o caminho como veio.
         var inexistente = Path.Combine(pasta, "nao existe");
         Assert.Equal(inexistente, ConversorLibreOffice.CaminhoCurto(inexistente));

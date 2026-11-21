@@ -57,6 +57,8 @@ public sealed partial class PaginaAjustes : UserControl
         TituloCategoria.Text = categoria.Titulo;
         DescricaoCategoria.Text = categoria.Ajuda;
         CategoriaAtual = tag;
+        TrilhaModelos.Visibility = BotaoRestaurarModelos.Visibility = tag == CategoriasAjustes.Modelos ? Visibility.Visible : Visibility.Collapsed;
+        EstadoSalvoCategoria.Visibility = tag == CategoriasAjustes.Modelos ? Visibility.Collapsed : Visibility.Visible;
         foreach (var (t, pagina) in categorias) pagina.Visibility = t == tag ? Visibility.Visible : Visibility.Collapsed;
         Rolagem.ChangeView(null, 0, null, disableAnimation: true);
         CategoriaMostrada?.Invoke(tag);

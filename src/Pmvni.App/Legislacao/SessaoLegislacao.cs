@@ -317,7 +317,14 @@ internal sealed class SessaoLegislacao : IAsyncDisposable
     {
         Task<IndiceLegislacao>? atual;
         lock (trava) atual = indice;
-        try { if (atual is { IsCompletedSuccessfully: true }) await Task.Run(() => atual.Result.Atualizar(Acervo)); }
+        try
+        {
+            if (atual is not null)
+            {
+                var carregado = await atual;
+                await Task.Run(() => carregado.Atualizar(Acervo));
+            }
+        }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException)
         {
             // O índice fica com o que tinha; a próxima mudança tenta de novo. A gravação já valeu.

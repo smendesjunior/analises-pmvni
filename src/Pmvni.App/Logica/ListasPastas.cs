@@ -34,7 +34,7 @@ public sealed class LinhaProcesso(Processo processo, DateTime alteradoUtc)
         }
     }
 
-    /// <summary>"Processo 0012/2099" ou, fora do padrão de nome, "Nome da pasta fora do padrão".</summary>
+    /// <summary>"Processo 0012/2099" ou, se o nome não contém protocolo, "Nome da pasta fora do padrão".</summary>
     public string Detalhe => ListasPastas.NumeroDoProcesso(Processo) is { } n ? "Processo " + n : "Nome da pasta fora do padrão";
 
     /// <summary>O que o Narrador lê na linha (auditoria A3): o requerente e o processo.</summary>

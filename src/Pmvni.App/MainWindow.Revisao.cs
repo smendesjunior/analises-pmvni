@@ -1129,8 +1129,14 @@ public sealed partial class MainWindow
             relogioIa = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             relogioIa.Tick += (_, _) => AtualizarEsperaIa();
         }
-        relogioIa.Start();
+        if (janelaAtiva && R.Visibility == Visibility.Visible) relogioIa.Start();
         AtualizarEsperaIa();
+    }
+
+    void SincronizarRelogioRevisao()
+    {
+        if (ajustandoComIa && janelaAtiva && R.Visibility == Visibility.Visible) relogioIa?.Start();
+        else relogioIa?.Stop();
     }
 
     void TerminarEsperaIa()

@@ -93,18 +93,14 @@ public sealed partial class MainWindow
             // (COMException 0x80070490). Remonta depois, na fila da janela; a caixa da fonte só é refeita se as opções mudaram.
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, MostrarModelosIa);
         };
-        p.BotaoAtualizarModelosIa.Click += async (_, _) => await AtualizarModelosIaAsync();
-        var relogio = DispatcherQueue.CreateTimer();
-        relogio.Interval = TimeSpan.FromMinutes(15);
-        relogio.Tick += async (_, _) => { if (IaVisivel) await AtualizarModelosIaAsync(); };
-        relogio.Start();
-        Closed += (_, _) => relogio.Stop();
+
+        // A entrada na categoria e o botão "Atualizar lista" já atualizam o catálogo; sem relógio em segundo plano.
         p.CategoriaMostrada += async tag =>
         {
-            if (tag != CategoriasAjustes.Ia) return;
+            if (tag != CategoriasAjustes.Modelos) return;
             try { await tarefaDosAgentes; } catch (Exception e) { System.Diagnostics.Debug.WriteLine("[modelos] " + e.Message); }
             MostrarModelosIa();
-            if (IaVisivel) await AtualizarModelosIaAsync();
+            if (PaginaAjustesVisivel && p.CategoriaAtual == CategoriasAjustes.Modelos) await AtualizarModelosIaAsync();
         };
     }
 
@@ -135,7 +131,11 @@ public sealed partial class MainWindow
             p.AnelModelosIa.IsActive = false;
             p.AnelModelosIa.Visibility = Visibility.Collapsed;
         }
-        if (!fechada) MostrarModelosIa();
+        if (!fechada)
+        {
+            MostrarModelosIa();
+            if (p.CategoriaAtual == CategoriasAjustes.Modelos) MostrarModelosDaAnalise();
+        }
     }
 
     /// <summary>Monta a seção de acordo com os ajustes, as peças e as listas: a caixa da fonte, uma linha (modelo e nível) por fonte disponível e

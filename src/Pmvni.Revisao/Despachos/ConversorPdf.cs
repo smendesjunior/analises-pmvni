@@ -251,12 +251,12 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
 
     ResultadoConversao Executar(string copia, string conv, string perfil, string temp, string? arquivoPid, CancellationToken ct)
     {
-        Process? p;
-        try { p = TravaDeProgramas.Iniciar(Preparar(soffice!, copia, conv, perfil, temp)); }
+        ProcessoInterno programa;
+        try { programa = ProcessoInterno.Iniciar(Preparar(soffice!, copia, conv, perfil, temp)); }
         catch (Win32Exception e) { return new ResultadoConversao(null, "CONVERSAO_FALHOU", e.Message); }
-        if (p is null) return new ResultadoConversao(null, "CONVERSAO_FALHOU", "o processo não abriu");
-        using (p)
+        using (programa)
         {
+            var p = programa.Processo;
             Volatile.Write(ref emCurso, p);
             try
             {
@@ -264,12 +264,13 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
                     try { File.WriteAllText(arquivoPid, p.Id.ToString(CultureInfo.InvariantCulture) + ";" + p.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture)); }
                     catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception) { }
                 var mensagens = new System.Collections.Concurrent.ConcurrentQueue<string>();
-                void Guardar(object _, DataReceivedEventArgs e) { if (!string.IsNullOrWhiteSpace(e.Data) && mensagens.Count < 20) mensagens.Enqueue(e.Data.Trim()); }
-                p.OutputDataReceived += Guardar;
-                p.ErrorDataReceived += Guardar;
-                p.BeginOutputReadLine();
-                p.BeginErrorReadLine();
-                try { p.StandardInput.Close(); }
+                async Task Guardar(StreamReader leitor)
+                {
+                    while (await leitor.ReadLineAsync().ConfigureAwait(false) is { } linha)
+                        if (!string.IsNullOrWhiteSpace(linha) && mensagens.Count < 20) mensagens.Enqueue(linha.Trim());
+                }
+                var drenar = Task.WhenAll(Guardar(programa.StandardOutput), Guardar(programa.StandardError));
+                try { programa.StandardInput.Close(); }
                 catch (IOException) { /* o processo já saiu */ }
                 var relogio = Stopwatch.StartNew();
                 while (!p.WaitForExit(250))
@@ -285,7 +286,6 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
                 }
                 // Saiu: espera também as saídas redirecionadas terminarem de chegar (sem argumento), no sucesso e na falha, mas só o que
                 // resta do limite (e com o cancelamento): um soffice.bin filho que segure os canais não pode prender o mutex do perfil.
-                var drenar = Task.Run(() => p.WaitForExit());
                 bool preso;
                 try { preso = !drenar.Wait(RestoDoLimite(relogio.Elapsed), ct); }
                 catch (OperationCanceledException)

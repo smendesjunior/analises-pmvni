@@ -280,12 +280,11 @@ public partial class OrquestradorTestes
     }
 
     [Fact]
-    public async Task gemini_parar_de_acompanhar_deixa_a_analise_seguir_e_o_editor_volta_a_acompanhar()
+    public async Task gemini_cancelar_encerra_trabalhador_do_kit()
     {
         using var c = CenaGemini("orq-gemini-seguir", o => o["auto"] = new JsonObject { ["etapa_ms"] = 700, ["final"] = "CONCLUIDO" });
         try
         {
-            var inicio = DateTimeOffset.UtcNow;
             using var cts = new CancellationTokenSource();
             var seguindo = c.Orq().ExecutarAsync(PedidoGemini(c, PerfilGemini.ContaUltra), c.Progresso, cts.Token);
             Assert.True(Ambiente.EsperarAte(() =>
@@ -293,15 +292,11 @@ public partial class OrquestradorTestes
                 try { return SituacaoAnalisePro.Ler(File.ReadAllText(StatusGoogle(c))).Codigo == "EM_ANDAMENTO"; }
                 catch (IOException) { return false; }
             }, TimeSpan.FromSeconds(60)));
+            var pid = SituacaoAnalisePro.Ler(File.ReadAllText(StatusGoogle(c))).Pid!.Value;
             cts.Cancel();
             var fim = await Ambiente.Com(seguindo, TimeSpan.FromSeconds(15));
-            Assert.Equal("acompanhamento_interrompido", fim.Situacao);          // nunca "cancelada": o kit segue sozinho
-
-            // O editor reaberto volta a acompanhar pelo registro (sem outra partida) e recebe o relatório.
-            var pedido = c.Pedido(Provedor.Gemini);
-            var fim2 = await Ambiente.Com(c.Orq().AcompanharClaudeAsync(pedido, inicio, new Coletor(), CancellationToken.None), Limite);
-            Assert.Equal("concluida", fim2.Situacao);
-            Assert.Equal(Path.Combine(c.Controle("analise-google"), "relatorio_dados.json"), fim2.Documento);
+            Assert.Equal("cancelada", fim.Situacao);
+            Assert.True(Ambiente.EsperarAte(() => !Ambiente.Vivo(pid), TimeSpan.FromSeconds(5)));
             Assert.Single(Chamadas(c, "iniciar"));
             Assert.Single(Chamadas(c, "auto"));
         }

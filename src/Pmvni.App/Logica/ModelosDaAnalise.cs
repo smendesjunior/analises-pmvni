@@ -541,11 +541,11 @@ public static class ModelosDaAnalise
         si.Environment.Remove(TabelaDeModelos.Variavel);
         try
         {
-            using var p = TravaDeProgramas.Iniciar(si) ?? throw new InvalidOperationException("o Python não abriu");
+            using var p = ProcessoInterno.Iniciar(si);
             var saida = p.StandardOutput.ReadToEndAsync();
             var erro = p.StandardError.ReadToEndAsync();
-            if (!p.WaitForExit(60_000)) { try { p.Kill(true); } catch (InvalidOperationException) { } return "a conferência do kit não terminou em 60 s"; }
-            if (p.ExitCode == 0) return null;
+            if (!p.Processo.WaitForExit(60_000)) { try { p.Processo.Kill(true); } catch (InvalidOperationException) { } return "a conferência do kit não terminou em 60 s"; }
+            if (p.Processo.ExitCode == 0) return null;
             var texto = saida.Result.Trim();
             return texto.Length > 0 ? texto : "a conferência do kit falhou (" + erro.Result.Trim().Split('\n').LastOrDefault()?.Trim() + ")";
         }

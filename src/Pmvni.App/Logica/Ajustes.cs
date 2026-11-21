@@ -53,7 +53,7 @@ public sealed class Ajustes
     public static readonly IReadOnlyList<int> OpcoesRecentes = [5, 10, 20];
 
     // Opções da tela de Ajustes (auditoria da interface, §3.3). Cada lista tem o padrão primeiro: o comportamento de antes desta rodada.
-    public static readonly IReadOnlyList<string> OpcoesAbrirEm = ["ultimo", nameof(Modulo.Relatorios), nameof(Modulo.Despachos), nameof(Modulo.Processos), nameof(Modulo.Legislacao)];
+    public static readonly IReadOnlyList<string> OpcoesAbrirEm = ["ultimo", nameof(Modulo.Relatorios), nameof(Modulo.Despachos), nameof(Modulo.Processos), nameof(Modulo.Legislacao), nameof(Modulo.Imoveis), nameof(Modulo.Acompanhamento)];
     public static readonly IReadOnlyList<string> OpcoesFaixaRotulos = ["automatico", "sempre", "icones"];
     public static readonly IReadOnlyList<string> OpcoesZoomInicial = ["largura", "pagina", "100"];
     public static readonly IReadOnlyList<int> OpcoesRecuperacaoDias = [30, 7, 90];
@@ -79,7 +79,7 @@ public sealed class Ajustes
     };
 
     /// <summary>A última versão vista de cada plugin do kit em Ajustes › Inteligência artificial (<c>"plugins_vistos"</c>; chave
-    /// <c>chatgpt.analise</c>, <c>claude.analise</c>, <c>claude.analise-pro</c>): quando a instalada muda, o cartão avisa "Atualizado desde a última vez".
+    /// <c>chatgpt.analise</c>, <c>claude.analise</c>): quando a instalada muda, o cartão avisa "Atualizado desde a última vez".
     /// "Restaurar os ajustes" não a apaga (não é uma opção).</summary>
     public Dictionary<string, string> PluginsVistos { get; } = new(StringComparer.Ordinal);
 

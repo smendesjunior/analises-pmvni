@@ -47,7 +47,6 @@ public sealed partial class MainWindow
     readonly List<string> recusasNR = [];
     /// <summary>A pasta temporária desta janela onde os compactados anexados são abertos (apagada ao fechar; sobras de mais de 1 dia, ao abrir outro).</summary>
     string? pastaCompactadosNR;
-    readonly Dictionary<ExecucaoEmCurso, Task<FimAnalise>> conclusoes = new();
     readonly List<ImportacaoPendente> importacoesPendentes = [];
     Task tarefaListaNR = Task.CompletedTask, tarefaPreviaNR = Task.CompletedTask;
     int sequenciaPreviaNR;
@@ -263,7 +262,7 @@ public sealed partial class MainWindow
         relogioAnalise.Tick += (_, _) =>
         {
             AtualizarTituloAnalise();
-            if (execucaoMostrada is { Fim.IsCompleted: false } e)
+            if (PaginaNovoRelatorioVisivel && execucaoMostrada is { Fim.IsCompleted: false } e)
             {
                 AtualizarRelogioDaExecucao(e);
                 _ = AtualizarAchadosAsync(e);
@@ -316,6 +315,7 @@ public sealed partial class MainWindow
         if (fechada) return;
         var relatorios = moduloAtual == Modulo.Relatorios;
         R.Visibility = relatorios && !novoRelatorioAberto ? Visibility.Visible : Visibility.Collapsed;
+        SincronizarRelogioRevisao();
         NR.Visibility = relatorios && novoRelatorioAberto ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -795,7 +795,7 @@ public sealed partial class MainWindow
             ajustes.ExecucoesChatGpt.Add(new ExecucaoClaudePendente(e.Processo.Pasta, e.Registro.Pasta));
             SalvarAjustes();
         }
-        conclusoes[e] = ConcluirAsync(e);
+        e.Conclusao = ConcluirAsync(e);
         _ = CarregarHistoricoAsync();
         if (enviados is not null)
         {
@@ -833,7 +833,7 @@ public sealed partial class MainWindow
         if (iniciada is not null) NR.BotaoDescartar.Visibility = Visibility.Collapsed;
     }
 
-    void DescartarAnalisePendente()
+    internal void DescartarAnalisePendente()
     {
         var registro = continuarChatGpt?.Registro ?? ultimoResultadoNR?.Registro.Pasta;
         if (registro is null) return;
@@ -1087,7 +1087,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>O fim da execução, já com a importação (o <c>.rpmvni</c> aberto) ou com o motivo à vista.</summary>
-    internal Task<FimAnalise> AguardarAnaliseAsync(ExecucaoEmCurso e) => conclusoes.TryGetValue(e, out var t) ? t : e.Fim;
+    internal Task<FimAnalise> AguardarAnaliseAsync(ExecucaoEmCurso e) => e.Conclusao ?? e.Fim;
 
     async Task<FimAnalise> ConcluirAsync(ExecucaoEmCurso e)
     {
@@ -1096,8 +1096,9 @@ public sealed partial class MainWindow
         FimAnalise fim;
         try { fim = await e.Fim; }
         catch (Exception x) { fim = new FimAnalise("falhou", null, null, "A análise não pôde ser executada: " + Erro(x) + ". Veja o registro: " + e.Registro.Pasta + ".", null); }
-        if (fechada) return fim;
         sessaoNR.Remover(e);
+        e.Cancelamento.Dispose();
+        if (fechada) return fim;
         if (e.Abandonada) { AtualizarTituloAnalise(); AtualizarBotoesNR(); return fim; }
         var comRelatorio = fim.Situacao == "concluida" && fim.Documento is not null;
         // A análise do Claude sai dos ajustes quando acaba sem relatório; com relatório, só depois de importado (até lá o editor reaberto ainda o oferece).
@@ -1279,7 +1280,7 @@ public sealed partial class MainWindow
             relogioFimPilula?.Stop();
             var corte = titulo.IndexOf(" · ", StringComparison.Ordinal);
             MostrarPilulaAnalise(EstadoPilulaAnalise.EmAndamento, corte < 0 ? titulo : titulo[..corte], corte < 0 ? "" : titulo[(corte + 3)..], null);
-            if (!relogioAnalise.IsRunning) relogioAnalise.Start();
+            if (janelaAtiva && !relogioAnalise.IsRunning) relogioAnalise.Start();
             return;
         }
         relogioAnalise.Stop();
@@ -1361,16 +1362,15 @@ public sealed partial class MainWindow
 
     // ---------- fechar e reabrir ----------
 
-    /// <summary>Antes do fechamento de sempre (desenho §12.7): ChatGPT ⇒ "Cancelar a análise e fechar?" (Continuar ⇒ não fecha; sim ⇒ cancela e espera até 5 s);
-    /// Claude ⇒ só informa (a análise segue na janela do kit e fica nos ajustes para a retomada). true = pode fechar.</summary>
+    /// <summary>Confirma a pausa das análises, guarda a retomada e encerra os processos pertencentes à sessão.</summary>
     /// <param name="tratadas">As execuções já perguntadas/informadas neste fechamento (a segunda checagem, na fila, só olha as novas).</param>
     internal async Task<bool> PodeFecharComAnalisesAsync(HashSet<ExecucaoEmCurso>? tratadas = null)
     {
         var ativas = sessaoNR.Execucoes.Where(e => !e.Abandonada && tratadas?.Contains(e) != true).ToList();
-        foreach (var e in ativas.Where(e => e.Provedor == Provedor.ChatGpt))
+        foreach (var e in ativas)
         {
             // Ajustes › Inteligência artificial › "Avisar ao fechar…" desligado: fecha e cancela sem perguntar.
-            if (ajustes.ConfirmarFechar && !await Perguntas.Atual.ConfirmarAsync(FluxoNovoRelatorio.FecharTitulo, FluxoNovoRelatorio.TextoFecharChatGpt(e.Processo), FluxoNovoRelatorio.FecharSim, FluxoNovoRelatorio.FecharNao))
+            if (ajustes.ConfirmarFechar && !await Perguntas.Atual.ConfirmarAsync(FluxoNovoRelatorio.FecharTitulo, FluxoNovoRelatorio.TextoFechar(e.Provedor, e.Processo), FluxoNovoRelatorio.FecharSim, FluxoNovoRelatorio.FecharNao))
                 return false;
         }
         foreach (var e in ativas.Where(e => e.Provedor == Provedor.ChatGpt))
@@ -1388,23 +1388,16 @@ public sealed partial class MainWindow
             foreach (var e in claudes.Where(e => !ajustes.ExecucoesClaude.Any(x => string.Equals(x.Registro, e.Registro.Pasta, StringComparison.OrdinalIgnoreCase))))
                 ajustes.ExecucoesClaude.Add(new ExecucaoClaudePendente(e.Processo.Pasta, e.Registro.Pasta));
             SalvarAjustes();
-            if (claudes.Any(e => e.Provedor == Provedor.Claude)) await Perguntas.Atual.InformarAsync("A análise com o Claude continua", FluxoNovoRelatorio.TextoFecharClaude);
-            if (claudes.Any(e => e.Provedor == Provedor.Gemini)) await Perguntas.Atual.InformarAsync("A análise com o Gemini continua", FluxoNovoRelatorio.TextoFecharGemini);
+            foreach (var e in claudes)
+            {
+                e.PausaSolicitada = true;
+                await sessaoNR.CancelarAsync(e);
+                if (!e.Fim.IsCompleted) e.Cancelamento.Cancel();
+                await Task.WhenAny(e.Fim, Task.Delay(TimeSpan.FromSeconds(5)));
+            }
         }
         tratadas?.UnionWith(ativas);
         return true;
-    }
-
-    /// <summary>O que o fechamento faz com o Claude que segue (o roteiro chama, sem fechar a janela): para de acompanhar; a análise do kit continua.</summary>
-    internal async Task PararDeAcompanharClaudeAsync()
-    {
-        foreach (var e in sessaoNR.Execucoes.Where(e => Provedores.PeloKit(e.Provedor) && !e.Abandonada).ToList())
-        {
-            sessaoNR.PararDeAcompanhar(e);
-            try { await AguardarAnaliseAsync(e); } catch (Exception x) { System.Diagnostics.Debug.WriteLine("[claude] " + x.Message); }
-        }
-        if (execucaoMostrada is { Abandonada: true }) MostrarFormularioNR();
-        AtualizarTituloAnalise();
     }
 
     /// <summary>Na abertura (desenho §12.7): a situação de cada análise do Claude que seguia quando o editor fechou. Ainda em andamento ⇒ volta a acompanhar;
@@ -1449,7 +1442,7 @@ public sealed partial class MainWindow
                     try
                     {
                         var e = await sessaoNR.RetomarClaudeAsync(processo, pend.Registro, inicio, ia);
-                        conclusoes[e] = ConcluirAsync(e);
+                        e.Conclusao = ConcluirAsync(e);
         _ = CarregarHistoricoAsync();
                     }
                     catch (Exception x) when (x is AnaliseRecusadaException or IOException or UnauthorizedAccessException or InvalidOperationException)

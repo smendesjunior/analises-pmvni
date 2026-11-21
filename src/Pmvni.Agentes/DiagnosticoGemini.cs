@@ -45,6 +45,8 @@ public static class DiagnosticoGemini
         (etapas ?? MatrizGemini.Etapas(perfil)).Where(e => !modelosDaApi.Contains(e.Modelo, StringComparer.OrdinalIgnoreCase))
             .Select(e => $"{SituacaoAnalisePro.NomeEtapa(e.Etapa)} ({e.Modelo})").Distinct().ToList();
 
+    static readonly HttpClient Cliente = new() { Timeout = TimeSpan.FromSeconds(15) };
+
     /// <summary>Confere a chave na API do Google: aceita ou recusada, com a frase que diz o que fazer. A chave vai só no cabeçalho <c>x-goog-api-key</c>.</summary>
     public static async Task<ChaveGemini> ConferirChaveAsync(string chave, CancellationToken ct)
     {
@@ -52,8 +54,8 @@ public static class DiagnosticoGemini
             return new ChaveGemini(false, "a consulta à API está desabilitada durante a conferência", []);
         try
         {
-            using var http = Manipulador is null ? new HttpClient() : new HttpClient(Manipulador, disposeHandler: false);
-            http.Timeout = TimeSpan.FromSeconds(15);
+            using var clienteTeste = Manipulador is { } teste ? new HttpClient(teste, disposeHandler: false) { Timeout = Cliente.Timeout } : null;
+            var http = clienteTeste ?? Cliente;
             using var pedido = new HttpRequestMessage(HttpMethod.Get, EnderecoModelos);
             pedido.Headers.Add("x-goog-api-key", chave);
             using var resposta = await http.SendAsync(pedido, ct).ConfigureAwait(false);

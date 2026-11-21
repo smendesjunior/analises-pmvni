@@ -14,15 +14,19 @@ public partial class OrquestradorTestes
         var orq = c.Orq();
         using (var cts = new CancellationTokenSource())
         {
-            var seguindo = orq.ExecutarAsync(c.Pedido(Provedor.Claude, texto: "pedido"), c.Progresso, cts.Token);
+            // Uma execução legítima mantém seu próprio grupo. O segundo monitor representa um registro de versão anterior.
+            var dona = orq.ExecutarAsync(c.Pedido(Provedor.Claude, texto: "pedido"), c.Progresso, CancellationToken.None);
             var status = Path.Combine(c.Controle("analise-pro"), "auto-status.json");
             Assert.True(Ambiente.EsperarAte(() =>
             {
                 try { return SituacaoAnalisePro.Ler(File.ReadAllText(status)).Codigo == "EM_ANDAMENTO"; }
                 catch (IOException) { return false; }
             }, TimeSpan.FromSeconds(60)), "a análise do kit não passou a EM_ANDAMENTO" + Diagnostico(c));
-            cts.Cancel();     // o editor "fechou": parar de acompanhar não encerra o kit
-            Assert.Equal("acompanhamento_interrompido", (await Ambiente.Com(seguindo, TimeSpan.FromSeconds(15))).Situacao);
+            var inicioAnterior = DateTimeOffset.Parse(c.Execucao()["inicio"]!.GetValue<string>(), System.Globalization.CultureInfo.InvariantCulture);
+            var monitor = orq.AcompanharClaudeAsync(c.Pedido(Provedor.Claude), inicioAnterior, new Coletor(), cts.Token);
+            cts.Cancel();
+            Assert.Equal("acompanhamento_interrompido", (await Ambiente.Com(monitor, TimeSpan.FromSeconds(15))).Situacao);
+            Assert.Equal("concluida", (await Ambiente.Com(dona, Limite)).Situacao);
         }
 
         // A situação, só lida (um "situacao" e nenhum "iniciar" novo).

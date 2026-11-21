@@ -2,7 +2,7 @@
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Pmvni.App">
-  <!-- Módulo Ajustes (desenho §9, §10.10, §12.8; auditoria da interface §3): no padrão do WinStatusBar, um menu de 8 categorias
+  <!-- Módulo Ajustes (desenho §9, §10.10, §12.8; auditoria da interface §3): no padrão do WinStatusBar, um menu de categorias
        (CategoriasAjustes.Menu; "Sobre e suporte" no rodapé) e, em cada página, título, frase de ajuda e grupos de cartões. Cada linha tem o
        título e a ajuda à esquerda e o controle numa coluna de 240 à direita (empilha abaixo de 540 px: LinhaAjuste). Tudo grava na hora
        (barra "Alterações salvas automaticamente"). Quem preenche e reage é a janela (MainWindow.Ajustes.cs e as outras partes). -->
@@ -31,21 +31,18 @@
         </ComboBox>
         <TextBlock TextAlignment="Left" Grid.Row="1" Grid.ColumnSpan="2" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniSecondaryTextStyle}"
                    Text="{x:Bind Detalhe}"/>
-        <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="8">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
-          </Grid.ColumnDefinitions>
+        <local:LinhaComAcoes Grid.Row="2" Grid.ColumnSpan="2">
           <Border VerticalAlignment="Center" HorizontalAlignment="Left" Padding="8,2" CornerRadius="4"
-                  Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" Visibility="{x:Bind local:PaginaAjustes.VisivelSe(Selo)}">
+                    Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" Visibility="{x:Bind local:PaginaAjustes.VisivelSe(Selo)}">
             <TextBlock TextAlignment="Left" Text="{x:Bind Selo}" Style="{StaticResource CaptionTextBlockStyle}"/>
           </Border>
-          <Button Grid.Column="1" Content="Substituir arquivo…" Click="AoSubstituir" AutomationProperties.Name="Substituir o arquivo desta lei"
-                  local:Dicas.Titulo="Substituir arquivo…" local:Dicas.Descricao="Troca o PDF desta lei por outro arquivo escolhido no computador."/>
-          <Button Grid.Column="2" Content="Excluir" Click="AoExcluir" AutomationProperties.Name="Excluir esta lei"
-                  local:Dicas.Titulo="Excluir" local:Dicas.Descricao="Tira esta lei da biblioteca do app; o PDF original não é apagado."/>
-        </Grid>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Substituir arquivo…" Click="AoSubstituir" AutomationProperties.Name="Substituir o arquivo desta lei"
+                      local:Dicas.Titulo="Substituir arquivo…" local:Dicas.Descricao="Troca o PDF desta lei por outro arquivo escolhido no computador."/>
+            <Button Content="Excluir" Click="AoExcluir" AutomationProperties.Name="Excluir esta lei"
+                      local:Dicas.Titulo="Excluir" local:Dicas.Descricao="Tira esta lei da biblioteca do app; o PDF original não é apagado."/>
+          </StackPanel>
+        </local:LinhaComAcoes>
       </Grid>
     </DataTemplate>
 
@@ -71,15 +68,20 @@
         <!-- Conteúdo alinhado à esquerda, logo depois do menu, até 1000 px (como as Configurações do Windows e o WinStatusBar). -->
         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="1280"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel Spacing="16">
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <local:LinhaComAcoes>
             <StackPanel Spacing="4">
+              <TextBlock x:Name="TrilhaModelos" Text="Configurações › Modelos da análise" Style="{StaticResource PmvniAjusteAjuda}" Visibility="Collapsed"/>
               <TextBlock TextAlignment="Left" x:Name="TituloCategoria" Style="{StaticResource PmvniAjusteTituloPagina}"/>
               <TextBlock TextAlignment="Left" x:Name="DescricaoCategoria" Style="{StaticResource PmvniAjusteAjuda}"/>
             </StackPanel>
-            <Border Grid.Column="1" Padding="10,4" CornerRadius="8" VerticalAlignment="Top" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
-              <TextBlock TextAlignment="Left" Text="{Binding Text, ElementName=TextoSalvo}" Style="{StaticResource CaptionTextBlockStyle}"/>
-            </Border>
-          </Grid>
+            <Grid>
+              <Button x:Name="BotaoRestaurarModelos" x:FieldModifier="internal" Visibility="Collapsed" VerticalAlignment="Center" Content="Restaurar padrões" AutomationProperties.Name="Restaurar o padrão do kit nos modelos da análise"
+                        local:Dicas.Titulo="Restaurar padrão do kit" local:Dicas.Descricao="Apaga o ajuste deste computador: os modelos, os níveis, as regras e a auditoria cruzada voltam ao padrão do kit."/>
+              <Border x:Name="EstadoSalvoCategoria" Padding="10,4" CornerRadius="8" VerticalAlignment="Top" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
+                <TextBlock TextAlignment="Left" Text="{Binding Text, ElementName=TextoSalvo}" Style="{StaticResource CaptionTextBlockStyle}"/>
+              </Border>
+            </Grid>
+          </local:LinhaComAcoes>
           <Grid x:Name="Paginas">
 
           <!-- ===== 1. Geral ===== -->
@@ -115,16 +117,14 @@
               <TextBlock TextAlignment="Left" Text="Arquivos" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
-              <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+              <local:LinhaComAcoes Margin="16,12">
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Arquivos recentes" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Quantos aparecem em Arquivo › Recentes." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                   <ComboBox x:Name="CaixaRecentes" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteEscolha}" AutomationProperties.Name="Quantidade de arquivos recentes"/>
                   <Button x:Name="BotaoLimparRecentes" x:FieldModifier="internal" Content="Limpar lista" HorizontalAlignment="Right" AutomationProperties.Name="Limpar a lista de recentes"
-                          local:Dicas.Titulo="Limpar lista" local:Dicas.Descricao="Esvazia a lista de relatórios recentes; os arquivos não são apagados."/>
+                            local:Dicas.Titulo="Limpar lista" local:Dicas.Descricao="Esvazia a lista de relatórios recentes; os arquivos não são apagados."/>
                 </StackPanel>
-              </Grid>
+              </local:LinhaComAcoes>
             </StackPanel></Border>
           </StackPanel>
 
@@ -208,20 +208,18 @@
                 <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="18" Height="18"><Path Canvas.Left="-9" Canvas.Top="-9" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M23.25,9.44 L26.56,12.75 C26.84,13.03 27,13.41 27,13.81 L27,25.5 C27,26.33 26.33,27 25.5,27 L10.5,27 C9.67,27 9,26.33 9,25.5 L9,10.5 C9,9.67 9.67,9 10.5,9 L22.19,9 C22.59,9 22.97,9.16 23.25,9.44 Z M21.75,25.5 L14.25,25.5 L14.25,20.25 L21.75,20.25 L21.75,25.5 Z M25.5,25.5 L23.25,25.5 L23.25,20.25 C23.25,19.42 22.58,18.75 21.75,18.75 L14.25,18.75 C13.42,18.75 12.75,19.42 12.75,20.25 L12.75,25.5 L10.5,25.5 L10.5,10.5 L22.19,10.5 L25.5,13.81 L25.5,25.5 Z"/><Path Canvas.Left="-9" Canvas.Top="-9" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M21,12.75 C21,13.16 20.66,13.5 20.25,13.5 L15,13.5 C14.59,13.5 14.25,13.16 14.25,12.75 C14.25,12.34 14.59,12 15,12 L20.25,12 C20.66,12 21,12.34 21,12.75 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Salvamento automático" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="O relatório é gravado sozinho depois deste tempo sem alterações (e também ao trocar de arquivo e ao fechar)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ComboBox x:Name="CaixaIntervalo" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Intervalo do salvamento automático"/>
               </Grid></Border>
-<Border Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+<Border Style="{StaticResource PmvniAjusteGrupo}"><local:LinhaComAcoes Margin="16,12">
                 <StackPanel Spacing="3" VerticalAlignment="Center">
                   <StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="19.01" Height="18.24"><Path Canvas.Left="-8.5" Canvas.Top="-8.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M19.15,13.44 L19.15,17.57 L22.58,19.63 C22.94,19.85 23.06,20.31 22.84,20.67 C22.62,21.03 22.16,21.15 21.8,20.93 L18,18.65 C17.77,18.51 17.63,18.27 17.63,18 L17.63,13.44 C17.63,13.02 17.97,12.68 18.39,12.68 C18.81,12.68 19.15,13.02 19.15,13.44 Z"/><Path Canvas.Left="-8.5" Canvas.Top="-8.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M11.93,11.55 C13.64,9.83 15.97,8.87 18.39,8.88 C22.49,8.88 26.07,11.61 27.17,15.56 C28.27,19.51 26.6,23.69 23.09,25.81 C19.58,27.93 15.1,27.44 12.12,24.63 C11.81,24.34 11.8,23.87 12.09,23.56 C12.38,23.25 12.86,23.24 13.17,23.53 C16.2,26.39 20.97,26.27 23.86,23.27 C26.75,20.27 26.69,15.49 23.71,12.57 C20.73,9.65 15.96,9.67 13.01,12.62 C12.24,13.4 11.56,14.16 10.88,14.96 L13.07,14.96 C13.49,14.96 13.83,15.3 13.83,15.72 C13.83,16.14 13.49,16.48 13.07,16.48 L9.27,16.48 C8.85,16.48 8.5,16.14 8.5,15.72 L8.5,11.92 C8.5,11.5 8.85,11.16 9.27,11.16 C9.69,11.16 10.03,11.5 10.03,11.92 L10.03,13.63 C10.63,12.93 11.24,12.25 11.93,11.55 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Recuperação" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel>
                   <TextBlock TextAlignment="Left" Text="As alterações ainda não gravadas ficam aqui, para o caso de uma queda. O que ficou guardado há mais tempo que isto sai sozinho." Style="{StaticResource PmvniAjusteAjuda}"/>
                   <TextBlock TextAlignment="Left" x:Name="TextoPastaRecuperacao" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                   <ComboBox x:Name="CaixaRecuperacao" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteEscolha}" Header="Guardar por" AutomationProperties.Name="Guardar a recuperação por"/>
                   <Button x:Name="BotaoAbrirRecuperacao" x:FieldModifier="internal" Content="Abrir pasta" HorizontalAlignment="Right" AutomationProperties.Name="Abrir a pasta de recuperação"
                           local:Dicas.Titulo="Abrir pasta" local:Dicas.Descricao="Abre no Explorador a pasta onde ficam as cópias de recuperação."/>
                 </StackPanel>
-              </Grid>
+              </local:LinhaComAcoes>
             </Border>
 </local:PainelCartoesAjustes>
           </StackPanel>
@@ -232,21 +230,25 @@
               <FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Pastas" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <local:PainelCartoesAjustes>
+            <local:PainelCartoesAjustes x:Name="CartoesDasPastas" x:FieldModifier="internal">
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <StackPanel Padding="16,12" Spacing="6">
-                    <TextBlock TextAlignment="Left" Text="Pasta de processos" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="É a pasta que os módulos Processos e Despachos leem (uma subpasta por ano, e dentro dela uma pasta por processo). O editor só lê essa pasta: nunca move, renomeia nem apaga nada nela."/>
-                    <TextBlock TextAlignment="Left" x:Name="TextoPastaProcessos" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                      <Button x:Name="BotaoAbrirPastaProcessos" x:FieldModifier="internal" Content="Abrir" AutomationProperties.Name="Abrir a pasta de processos no Explorador"
-                              local:Dicas.Titulo="Abrir" local:Dicas.Descricao="Abre a pasta de processos no Explorador de Arquivos."/>
-                      <Button x:Name="BotaoEscolherPasta" x:FieldModifier="internal" Content="Alterar…" AutomationProperties.Name="Escolher a pasta de processos"
-                              local:Dicas.Titulo="Alterar…" local:Dicas.Descricao="Escolhe outra pasta onde ficam os processos da Secretaria."/>
-                      <Button x:Name="BotaoPastaPadrao" x:FieldModifier="internal" Content="Padrão" AutomationProperties.Name="Usar a pasta de processos padrão"
-                              local:Dicas.Titulo="Padrão" local:Dicas.Descricao="Volta a usar a pasta de processos padrão."/>
-                    </StackPanel>
+                    <local:LinhaComAcoes>
+                      <StackPanel Spacing="4" VerticalAlignment="Center">
+                        <TextBlock TextAlignment="Left" Text="Pasta de processos" Style="{StaticResource PmvniAjusteTitulo}"/>
+                        <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="É a pasta que os módulos Processos e Despachos leem (uma subpasta por ano, e dentro dela uma pasta por processo). O editor só lê essa pasta: nunca move, renomeia nem apaga nada nela."/>
+                      </StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <Button x:Name="BotaoAbrirPastaProcessos" x:FieldModifier="internal" Content="Abrir" AutomationProperties.Name="Abrir a pasta de processos no Explorador"
+                                  local:Dicas.Titulo="Abrir" local:Dicas.Descricao="Abre a pasta de processos no Explorador de Arquivos."/>
+                        <Button x:Name="BotaoEscolherPasta" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Alterar…" AutomationProperties.Name="Escolher a pasta de processos"
+                                  local:Dicas.Titulo="Alterar…" local:Dicas.Descricao="Escolhe outra pasta onde ficam os processos da Secretaria."/>
+                        <Button x:Name="BotaoPastaPadrao" x:FieldModifier="internal" Content="Padrão" AutomationProperties.Name="Usar a pasta de processos padrão"
+                                  local:Dicas.Titulo="Padrão" local:Dicas.Descricao="Volta a usar a pasta de processos padrão."/>
+                      </StackPanel>
+                    </local:LinhaComAcoes>
+                    <TextBlock TextAlignment="Left" x:Name="TextoPastaProcessos" ToolTipService.ToolTip="{Binding Text, ElementName=TextoPastaProcessos}" x:FieldModifier="internal" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
                     <TextBlock TextAlignment="Left" x:Name="TextoAvisoPasta" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
                   </StackPanel>
                 </StackPanel>
@@ -254,17 +256,21 @@
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <StackPanel Padding="16,12" Spacing="6">
-                    <TextBlock TextAlignment="Left" Text="Pasta do kit PMVNI" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="De onde o Novo despacho lê os modelos oficiais (pelo registro TEMPLATES_OFICIAIS.json) e os textos fixos. O editor só lê o kit: nada é copiado nem gravado nele."/>
-                    <TextBlock TextAlignment="Left" x:Name="TextoPastaKit" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                      <Button x:Name="BotaoAbrirPastaKit" x:FieldModifier="internal" Content="Abrir" AutomationProperties.Name="Abrir a pasta do kit no Explorador"
-                              local:Dicas.Titulo="Abrir" local:Dicas.Descricao="Abre a pasta do kit PMVNI no Explorador de Arquivos."/>
-                      <Button x:Name="BotaoEscolherKit" x:FieldModifier="internal" Content="Alterar…" AutomationProperties.Name="Escolher a pasta do kit PMVNI"
-                              local:Dicas.Titulo="Alterar…" local:Dicas.Descricao="Escolhe outra pasta do kit PMVNI (modelos, plugins e regras)."/>
-                      <Button x:Name="BotaoKitPadrao" x:FieldModifier="internal" Content="Padrão" AutomationProperties.Name="Usar a pasta do kit padrão"
-                              local:Dicas.Titulo="Padrão" local:Dicas.Descricao="Volta a usar a pasta do kit PMVNI padrão."/>
-                    </StackPanel>
+                    <local:LinhaComAcoes>
+                      <StackPanel Spacing="4" VerticalAlignment="Center">
+                        <TextBlock TextAlignment="Left" Text="Pasta do kit PMVNI" Style="{StaticResource PmvniAjusteTitulo}"/>
+                        <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="De onde o Novo despacho lê os modelos oficiais (pelo registro TEMPLATES_OFICIAIS.json) e os textos fixos. O editor só lê o kit: nada é copiado nem gravado nele."/>
+                      </StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <Button x:Name="BotaoAbrirPastaKit" x:FieldModifier="internal" Content="Abrir" AutomationProperties.Name="Abrir a pasta do kit no Explorador"
+                                  local:Dicas.Titulo="Abrir" local:Dicas.Descricao="Abre a pasta do kit PMVNI no Explorador de Arquivos."/>
+                        <Button x:Name="BotaoEscolherKit" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Alterar…" AutomationProperties.Name="Escolher a pasta do kit PMVNI"
+                                  local:Dicas.Titulo="Alterar…" local:Dicas.Descricao="Escolhe outra pasta do kit PMVNI (modelos, plugins e regras)."/>
+                        <Button x:Name="BotaoKitPadrao" x:FieldModifier="internal" Content="Padrão" AutomationProperties.Name="Usar a pasta do kit padrão"
+                                  local:Dicas.Titulo="Padrão" local:Dicas.Descricao="Volta a usar a pasta do kit PMVNI padrão."/>
+                      </StackPanel>
+                    </local:LinhaComAcoes>
+                    <TextBlock TextAlignment="Left" x:Name="TextoPastaKit" ToolTipService.ToolTip="{Binding Text, ElementName=TextoPastaKit}" x:FieldModifier="internal" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
                     <TextBlock TextAlignment="Left" x:Name="TextoAvisoKitAmbiente" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
                     <TextBlock TextAlignment="Left" x:Name="TextoModelos" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}"/>
                   </StackPanel>
@@ -281,19 +287,23 @@
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
-                  <StackPanel Padding="16,12" Spacing="6">
-                    <TextBlock TextAlignment="Left" Text="Componentes do kit PMVNI" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="O plugin de análise, o servidor de PDF e os motores de PDF instalados neste computador, com a versão de cada um. As atualizações rodam fora do Editor, pelo Windows, e não começam com uma análise em andamento."/>
-                    <TextBlock TextAlignment="Left" x:Name="TextoFonteComponentes" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}"/>
-                  </StackPanel>
+                  <local:LinhaComAcoes Margin="16,12">
+                    <StackPanel VerticalAlignment="Center" Spacing="6">
+                      <TextBlock TextAlignment="Left" Text="Componentes do kit PMVNI" Style="{StaticResource PmvniAjusteTitulo}"/>
+                      <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="O plugin de análise, o servidor de PDF e os motores de PDF instalados neste computador, com a versão de cada um. As atualizações rodam fora do Editor, pelo Windows, e não começam com uma análise em andamento."/>
+                      <TextBlock TextAlignment="Left" x:Name="TextoFonteComponentes" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                      <Button x:Name="BotaoVerificarComponentes" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Verificar atualizações" AutomationProperties.Name="Verificar atualizações dos plugins e ferramentas"
+                                local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Lê de novo as versões instaladas neste computador e as disponíveis na fonte do kit."/>
+                      <Button x:Name="BotaoRepararInstalacao" x:FieldModifier="internal" Content="Reparar instalação" AutomationProperties.Name="Reparar instalação dos plugins e ferramentas" local:Dicas.Titulo="Reparar instalação" local:Dicas.Descricao="Reinstala todos os componentes usando a cópia local do kit PMVNI."/>
+                      <Button x:Name="BotaoAtualizarTodosComponentes" x:FieldModifier="internal" Content="Atualizar todos" AutomationProperties.Name="Atualizar todos os plugins e ferramentas"
+                                local:Dicas.Titulo="Atualizar todos" local:Dicas.Descricao="Roda o instalador do kit (INSTALAR_KIT_PMVNI.cmd atualizar) fora do Editor: copia da fonte o que mudou e reinstala o que for preciso."/>
+                    </StackPanel>
+                  </local:LinhaComAcoes>
                   <StackPanel x:Name="ListaComponentesKit" x:FieldModifier="internal" AutomationProperties.Name="Componentes do kit PMVNI"/>
                   <StackPanel Padding="16,12" Spacing="8">
-                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                      <Button x:Name="BotaoVerificarComponentes" x:FieldModifier="internal" Content="Verificar atualizações" AutomationProperties.Name="Verificar atualizações dos plugins e ferramentas"
-                              local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Lê de novo as versões instaladas neste computador e as disponíveis na fonte do kit."/>
-                      <Button x:Name="BotaoAtualizarTodosComponentes" x:FieldModifier="internal" Content="Atualizar todos" AutomationProperties.Name="Atualizar todos os plugins e ferramentas"
-                              local:Dicas.Titulo="Atualizar todos" local:Dicas.Descricao="Roda o instalador do kit (INSTALAR_KIT_PMVNI.cmd atualizar) fora do Editor: copia da fonte o que mudou e reinstala o que for preciso."/>
-                    </StackPanel>
+
                     <TextBlock TextAlignment="Left" x:Name="TextoResultadoComponentes" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" AutomationProperties.LiveSetting="Polite"/>
                     <TextBlock TextAlignment="Left" x:Name="TextoTarefaKit" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}"/>
                   </StackPanel>
@@ -317,15 +327,13 @@
               </Border>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
-                  <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                  <local:LinhaComAcoes Margin="16,12">
                     <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Despachos: agrupar e ordenar" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Como a lista de despachos abre." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                    <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                       <ComboBox x:Name="CaixaAgruparDespachos" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteEscolha}" AutomationProperties.Name="Agrupar os despachos"/>
                       <ComboBox x:Name="CaixaOrdemDespachos" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteEscolha}" AutomationProperties.Name="Ordem dos despachos"/>
                     </StackPanel>
-                  </Grid>
+                  </local:LinhaComAcoes>
                 </StackPanel>
               </Border>
             </local:PainelCartoesAjustes>
@@ -339,17 +347,21 @@
             </StackPanel>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <StackPanel Padding="16,12" Spacing="6">
-                <TextBlock TextAlignment="Left" Text="Pasta dos arquivos QGIS" Style="{StaticResource PmvniAjusteTitulo}"/>
-                <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="A pasta da base municipal (a que tem o Mapa PDM.qgz, as pastas shapes, 2025_10, SHAPE_LOTEAMENTOS e BASE_CADASTRAL_AUXILIAR). O editor só lê esses arquivos: nunca grava, move nem apaga nada nela."/>
-                <TextBox x:Name="CaixaPastaQgis" x:FieldModifier="internal" IsReadOnly="True" PlaceholderText="Nenhuma pasta escolhida" AutomationProperties.Name="Pasta dos arquivos QGIS"/>
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                  <Button x:Name="BotaoEscolherQgis" x:FieldModifier="internal" Content="Selecionar pasta…" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Selecionar a pasta dos arquivos QGIS"
-                          local:Dicas.Titulo="Selecionar pasta…" local:Dicas.Descricao="Escolhe a pasta da base QGIS municipal que o módulo Imóveis consulta."/>
-                  <Button x:Name="BotaoVerificarQgis" x:FieldModifier="internal" Content="Verificar acesso e arquivos" AutomationProperties.Name="Verificar acesso e arquivos da pasta QGIS"
-                          local:Dicas.Titulo="Verificar acesso e arquivos" local:Dicas.Descricao="Confere se a pasta abre e quais camadas e bases foram encontradas."/>
-                  <Button x:Name="BotaoAbrirQgis" x:FieldModifier="internal" Content="Abrir" AutomationProperties.Name="Abrir a pasta QGIS no Explorador"
-                          local:Dicas.Titulo="Abrir" local:Dicas.Descricao="Abre a pasta QGIS no Explorador de Arquivos."/>
-                </StackPanel>
+                <local:LinhaComAcoes>
+                  <StackPanel Spacing="4" VerticalAlignment="Center">
+                    <TextBlock TextAlignment="Left" Text="Pasta dos arquivos QGIS" Style="{StaticResource PmvniAjusteTitulo}"/>
+                    <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="A pasta da base municipal (a que tem o Mapa PDM.qgz, as pastas shapes, 2025_10, SHAPE_LOTEAMENTOS e BASE_CADASTRAL_AUXILIAR). O editor só lê esses arquivos: nunca grava, move nem apaga nada nela."/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button x:Name="BotaoEscolherQgis" x:FieldModifier="internal" Content="Selecionar pasta…" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Selecionar a pasta dos arquivos QGIS"
+                              local:Dicas.Titulo="Selecionar pasta…" local:Dicas.Descricao="Escolhe a pasta da base QGIS municipal que o módulo Imóveis consulta."/>
+                    <Button x:Name="BotaoVerificarQgis" x:FieldModifier="internal" Content="Verificar acesso e arquivos" AutomationProperties.Name="Verificar acesso e arquivos da pasta QGIS"
+                              local:Dicas.Titulo="Verificar acesso e arquivos" local:Dicas.Descricao="Confere se a pasta abre e quais camadas e bases foram encontradas."/>
+                    <Button x:Name="BotaoAbrirQgis" x:FieldModifier="internal" Content="Abrir" AutomationProperties.Name="Abrir a pasta QGIS no Explorador"
+                              local:Dicas.Titulo="Abrir" local:Dicas.Descricao="Abre a pasta QGIS no Explorador de Arquivos."/>
+                  </StackPanel>
+                </local:LinhaComAcoes>
+                <TextBlock x:Name="CaixaPastaQgis" ToolTipService.ToolTip="{Binding Text, ElementName=CaixaPastaQgis}" x:FieldModifier="internal" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}" AutomationProperties.Name="Pasta dos arquivos QGIS"/>
                 <Border x:Name="ProgressoQgis" x:FieldModifier="internal" Visibility="Collapsed" CornerRadius="24" Padding="24,10"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                   <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left">
@@ -376,17 +388,21 @@
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <StackPanel Padding="16,12" Spacing="6">
-                    <TextBlock TextAlignment="Left" Text="Planilha de acompanhamento" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="A planilha do Excel no modelo padrão (ACOMPANHAMENTO DE PROCESSOS). O módulo Acompanhamento mostra todas as colunas dela, com as listas e as cores configuradas, e grava nela tudo o que você muda no app. Antes de cada gravação, uma cópia de segurança vai para a pasta de dados do editor."/>
-                    <TextBox x:Name="CaixaPlanilhaAcompanhamento" x:FieldModifier="internal" IsReadOnly="True" PlaceholderText="Nenhuma planilha escolhida" AutomationProperties.Name="Planilha de acompanhamento de processos"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                      <Button x:Name="BotaoEscolherPlanilha" x:FieldModifier="internal" Content="Selecionar planilha…" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Selecionar a planilha de acompanhamento"
-                              local:Dicas.Titulo="Selecionar planilha…" local:Dicas.Descricao="Escolhe a planilha .xlsx do acompanhamento de processos."/>
-                      <Button x:Name="BotaoVerificarPlanilha" x:FieldModifier="internal" Content="Verificar" AutomationProperties.Name="Verificar a planilha de acompanhamento"
-                              local:Dicas.Titulo="Verificar" local:Dicas.Descricao="Lê a planilha e mostra as colunas, listas e processos encontrados."/>
-                      <Button x:Name="BotaoAbrirPlanilha" x:FieldModifier="internal" Content="Abrir no Excel" AutomationProperties.Name="Abrir a planilha no Excel"
-                              local:Dicas.Titulo="Abrir no Excel" local:Dicas.Descricao="Abre a planilha de acompanhamento no Excel."/>
-                    </StackPanel>
+                    <local:LinhaComAcoes>
+                      <StackPanel Spacing="4" VerticalAlignment="Center">
+                        <TextBlock TextAlignment="Left" Text="Planilha de acompanhamento" Style="{StaticResource PmvniAjusteTitulo}"/>
+                        <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="A planilha do Excel no modelo padrão (ACOMPANHAMENTO DE PROCESSOS). O módulo Acompanhamento mostra todas as colunas dela, com as listas e as cores configuradas, e grava nela tudo o que você muda no app. Antes de cada gravação, uma cópia de segurança vai para a pasta de dados do editor."/>
+                      </StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <Button x:Name="BotaoEscolherPlanilha" x:FieldModifier="internal" Content="Selecionar planilha…" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Selecionar a planilha de acompanhamento"
+                                  local:Dicas.Titulo="Selecionar planilha…" local:Dicas.Descricao="Escolhe a planilha .xlsx do acompanhamento de processos."/>
+                        <Button x:Name="BotaoVerificarPlanilha" x:FieldModifier="internal" Content="Verificar" AutomationProperties.Name="Verificar a planilha de acompanhamento"
+                                  local:Dicas.Titulo="Verificar" local:Dicas.Descricao="Lê a planilha e mostra as colunas, listas e processos encontrados."/>
+                        <Button x:Name="BotaoAbrirPlanilha" x:FieldModifier="internal" Content="Abrir no Excel" AutomationProperties.Name="Abrir a planilha no Excel"
+                                  local:Dicas.Titulo="Abrir no Excel" local:Dicas.Descricao="Abre a planilha de acompanhamento no Excel."/>
+                      </StackPanel>
+                    </local:LinhaComAcoes>
+                    <TextBlock x:Name="CaixaPlanilhaAcompanhamento" ToolTipService.ToolTip="{Binding Text, ElementName=CaixaPlanilhaAcompanhamento}" x:FieldModifier="internal" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}" AutomationProperties.Name="Planilha de acompanhamento de processos"/>
                     <InfoBar x:Name="ResultadoPlanilha" x:FieldModifier="internal" IsClosable="True" IsOpen="False"/>
                   </StackPanel>
                 </StackPanel>
@@ -412,17 +428,21 @@
             </StackPanel>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <StackPanel Padding="16,12" Spacing="6">
-                <TextBlock TextAlignment="Left" Text="LibreOffice" Style="{StaticResource PmvniAjusteTitulo}"/>
-                <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="Gera o PDF dos despachos (sobre uma cópia do DOCX; o Word nunca é usado). Sem ele, sai só o DOCX."/>
-                <TextBlock TextAlignment="Left" x:Name="TextoSoffice" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                  <Button x:Name="BotaoTestarSoffice" x:FieldModifier="internal" Content="Testar" AutomationProperties.Name="Testar o LibreOffice"
-                          local:Dicas.Titulo="Testar" local:Dicas.Descricao="Confere se o LibreOffice abre e converte para PDF neste computador."/>
-                  <Button x:Name="BotaoEscolherSoffice" x:FieldModifier="internal" Content="Escolher…" AutomationProperties.Name="Escolher o programa do LibreOffice"
-                          local:Dicas.Titulo="Escolher…" local:Dicas.Descricao="Escolhe no computador o programa do LibreOffice (soffice.exe)."/>
-                  <Button x:Name="BotaoSofficeAutomatico" x:FieldModifier="internal" Content="Procurar automaticamente" AutomationProperties.Name="Achar o LibreOffice sozinho"
-                          local:Dicas.Titulo="Procurar automaticamente" local:Dicas.Descricao="Volta a procurar o LibreOffice instalado (desfaz uma escolha manual)."/>
-                </StackPanel>
+                <local:LinhaComAcoes>
+                  <StackPanel Spacing="4" VerticalAlignment="Center">
+                    <TextBlock TextAlignment="Left" Text="LibreOffice" Style="{StaticResource PmvniAjusteTitulo}"/>
+                    <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="Gera o PDF dos despachos (sobre uma cópia do DOCX; o Word nunca é usado). Sem ele, sai só o DOCX."/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button x:Name="BotaoTestarSoffice" x:FieldModifier="internal" Content="Testar" AutomationProperties.Name="Testar o LibreOffice"
+                              local:Dicas.Titulo="Testar" local:Dicas.Descricao="Confere se o LibreOffice abre e converte para PDF neste computador."/>
+                    <Button x:Name="BotaoEscolherSoffice" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Escolher…" AutomationProperties.Name="Escolher o programa do LibreOffice"
+                              local:Dicas.Titulo="Escolher…" local:Dicas.Descricao="Escolhe no computador o programa do LibreOffice (soffice.exe)."/>
+                    <Button x:Name="BotaoSofficeAutomatico" x:FieldModifier="internal" Content="Procurar automaticamente" AutomationProperties.Name="Achar o LibreOffice sozinho"
+                              local:Dicas.Titulo="Procurar automaticamente" local:Dicas.Descricao="Volta a procurar o LibreOffice instalado (desfaz uma escolha manual)."/>
+                  </StackPanel>
+                </local:LinhaComAcoes>
+                <TextBlock TextAlignment="Left" x:Name="TextoSoffice" ToolTipService.ToolTip="{Binding Text, ElementName=TextoSoffice}" x:FieldModifier="internal" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
                 <TextBlock TextAlignment="Left" x:Name="TextoTesteSoffice" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}"/>
               </StackPanel>
             </StackPanel></Border>
@@ -444,18 +464,18 @@
               <TextBlock TextAlignment="Left" Text="Profissional responsável" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel Padding="16,12" Spacing="8">
-              <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap" Text="O nome e os dados que aparecem abaixo da linha de assinatura dos despachos e no fim dos relatórios gerados. Campo vazio mantém o texto do modelo."/>
-              <local:PainelCartoesAjustes>
-                <TextBox x:Name="CaixaProfissionalNome" x:FieldModifier="internal" Header="Nome" PlaceholderText="ex.: FULANO DE TAL" AutomationProperties.Name="Nome do profissional"/>
-                <TextBox x:Name="CaixaProfissionalProfissao" x:FieldModifier="internal" Header="Profissão" PlaceholderText="ex.: ARQUITETO E URBANISTA" AutomationProperties.Name="Profissão"/>
-                <TextBox x:Name="CaixaProfissionalRegistro" x:FieldModifier="internal" Header="Registro profissional" PlaceholderText="ex.: CAU/ES A000000-0" AutomationProperties.Name="Registro profissional (CAU ou CREA)"/>
-                <TextBox x:Name="CaixaProfissionalMatricula" x:FieldModifier="internal" Header="Matrícula" PlaceholderText="ex.: 123456" AutomationProperties.Name="Matrícula"/>
-              </local:PainelCartoesAjustes>
-              <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+              <local:LinhaComAcoes>
+                <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap" Text="O nome e os dados que aparecem abaixo da linha de assinatura dos despachos e no fim dos relatórios gerados. Campo vazio mantém o texto do modelo."/>
                 <Button x:Name="BotaoSalvarProfissional" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Salvar dados" AutomationProperties.Name="Salvar os dados do profissional"
-                        local:Dicas.Titulo="Salvar dados" local:Dicas.Descricao="Grava nome, profissão, registro e matrícula; valem a partir do próximo despacho e relatório."/>
+                          local:Dicas.Titulo="Salvar dados" local:Dicas.Descricao="Grava nome, profissão, registro e matrícula; valem a partir do próximo despacho e relatório."/>
+              </local:LinhaComAcoes>
+              <local:PainelCartoesAjustes>
+                <TextBox x:Name="CaixaProfissionalNome" MaxWidth="360" HorizontalAlignment="Left" MinWidth="200" x:FieldModifier="internal" Header="Nome" PlaceholderText="ex.: FULANO DE TAL" AutomationProperties.Name="Nome do profissional"/>
+                <TextBox x:Name="CaixaProfissionalProfissao" MaxWidth="360" HorizontalAlignment="Left" MinWidth="200" x:FieldModifier="internal" Header="Profissão" PlaceholderText="ex.: ARQUITETO E URBANISTA" AutomationProperties.Name="Profissão"/>
+                <TextBox x:Name="CaixaProfissionalRegistro" MaxWidth="360" HorizontalAlignment="Left" MinWidth="200" x:FieldModifier="internal" Header="Registro profissional" PlaceholderText="ex.: CAU/ES A000000-0" AutomationProperties.Name="Registro profissional (CAU ou CREA)"/>
+                <TextBox x:Name="CaixaProfissionalMatricula" MaxWidth="360" HorizontalAlignment="Left" MinWidth="200" x:FieldModifier="internal" Header="Matrícula" PlaceholderText="ex.: 123456" AutomationProperties.Name="Matrícula"/>
+              </local:PainelCartoesAjustes>
                 <TextBlock TextAlignment="Left" x:Name="TextoProfissionalSalvo" x:FieldModifier="internal" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteAjuda}"/>
-              </StackPanel>
             </StackPanel></Border>
             <!-- Assinatura digital (2026-11-16): o certificado que assina o PDF dos despachos. A senha nunca aparece aqui nem vai para o ajustes.json. -->
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -464,21 +484,23 @@
             </StackPanel>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <StackPanel Padding="16,12" Spacing="6">
-                <TextBlock TextAlignment="Left" Text="Certificado digital" Style="{StaticResource PmvniAjusteTitulo}"/>
-                <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="Com um certificado escolhido, o PDF de cada despacho sai assinado digitalmente, com a assinatura visível logo acima da linha de assinatura. Sem certificado, o PDF sai como sempre."/>
-                <TextBlock TextAlignment="Left" x:Name="TextoAssinatura" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                  <Button x:Name="BotaoEscolherCertificado" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Escolher arquivo…" AutomationProperties.Name="Escolher o arquivo do certificado digital"
-                          local:Dicas.Titulo="Escolher arquivo…" local:Dicas.Descricao="Escolhe o arquivo do certificado digital (.pfx ou .p12)."/>
-                  <Button x:Name="BotaoCertificadoWindows" x:FieldModifier="internal" Content="Certificado do Windows…" AutomationProperties.Name="Usar um certificado do repositório do Windows"
-                          local:Dicas.Titulo="Certificado do Windows…" local:Dicas.Descricao="Usa um certificado instalado no Windows, em token ou em cartão; a senha é pedida pelo próprio dispositivo."/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                  <Button x:Name="BotaoConferirCertificado" x:FieldModifier="internal" Content="Conferir" AutomationProperties.Name="Conferir o certificado digital"
-                          local:Dicas.Titulo="Conferir" local:Dicas.Descricao="Pede a senha e mostra o titular e a validade do certificado; nada é assinado."/>
-                  <Button x:Name="BotaoRemoverCertificado" x:FieldModifier="internal" Content="Remover" AutomationProperties.Name="Deixar de assinar os despachos"
-                          local:Dicas.Titulo="Remover" local:Dicas.Descricao="Deixa de assinar os despachos e apaga a senha lembrada; o arquivo do certificado não é apagado."/>
-                </StackPanel>
+                <local:LinhaComAcoes>
+                  <StackPanel Spacing="4" VerticalAlignment="Center">
+                    <TextBlock TextAlignment="Left" Text="Certificado digital" Style="{StaticResource PmvniAjusteTitulo}"/>
+                    <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="Com um certificado escolhido, o PDF de cada despacho sai assinado digitalmente, com a assinatura visível logo acima da linha de assinatura. Sem certificado, o PDF sai como sempre."/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button x:Name="BotaoEscolherCertificado" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Escolher arquivo…" AutomationProperties.Name="Escolher o arquivo do certificado digital"
+                              local:Dicas.Titulo="Escolher arquivo…" local:Dicas.Descricao="Escolhe o arquivo do certificado digital (.pfx ou .p12)."/>
+                    <Button x:Name="BotaoCertificadoWindows" x:FieldModifier="internal" Content="Certificado do Windows…" AutomationProperties.Name="Usar um certificado do repositório do Windows"
+                              local:Dicas.Titulo="Certificado do Windows…" local:Dicas.Descricao="Usa um certificado instalado no Windows, em token ou em cartão; a senha é pedida pelo próprio dispositivo."/>
+                    <Button x:Name="BotaoConferirCertificado" x:FieldModifier="internal" Content="Conferir" AutomationProperties.Name="Conferir o certificado digital"
+                              local:Dicas.Titulo="Conferir" local:Dicas.Descricao="Pede a senha e mostra o titular e a validade do certificado; nada é assinado."/>
+                    <Button x:Name="BotaoRemoverCertificado" x:FieldModifier="internal" Content="Remover" AutomationProperties.Name="Deixar de assinar os despachos"
+                              local:Dicas.Titulo="Remover" local:Dicas.Descricao="Deixa de assinar os despachos e apaga a senha lembrada; o arquivo do certificado não é apagado."/>
+                  </StackPanel>
+                </local:LinhaComAcoes>
+                <TextBlock TextAlignment="Left" x:Name="TextoAssinatura" ToolTipService.ToolTip="{Binding Text, ElementName=TextoAssinatura}" x:FieldModifier="internal" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
                 <TextBlock TextAlignment="Left" x:Name="TextoConferenciaCertificado" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
               </StackPanel>
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
@@ -490,11 +512,15 @@
             </StackPanel></Border>
             <Expander Header="Avançado" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
               <StackPanel Spacing="6">
-                <TextBlock TextAlignment="Left" Text="Perfil do LibreOffice" Style="{StaticResource PmvniAjusteTitulo}"/>
-                <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="O editor usa um perfil próprio do LibreOffice. Se a conversão para PDF travar sempre, apague o perfil: o próximo PDF demora perto de um minuto, enquanto ele é criado de novo."/>
-                <TextBlock TextAlignment="Left" x:Name="TextoPerfilSoffice" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
-                <Button x:Name="BotaoRedefinirPerfil" x:FieldModifier="internal" Content="Redefinir perfil" AutomationProperties.Name="Redefinir o perfil do LibreOffice"
-                        local:Dicas.Titulo="Redefinir perfil" local:Dicas.Descricao="Apaga o perfil do LibreOffice usado pelo editor; use se a conversão para PDF travar."/>
+                <local:LinhaComAcoes>
+                  <StackPanel Spacing="4" VerticalAlignment="Center">
+                    <TextBlock TextAlignment="Left" Text="Perfil do LibreOffice" Style="{StaticResource PmvniAjusteTitulo}"/>
+                    <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="O editor usa um perfil próprio do LibreOffice. Se a conversão para PDF travar sempre, apague o perfil: o próximo PDF demora perto de um minuto, enquanto ele é criado de novo."/>
+                    <TextBlock TextAlignment="Left" x:Name="TextoPerfilSoffice" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
+                  </StackPanel>
+                  <Button x:Name="BotaoRedefinirPerfil" x:FieldModifier="internal" Content="Redefinir perfil" AutomationProperties.Name="Redefinir o perfil do LibreOffice"
+                            local:Dicas.Titulo="Redefinir perfil" local:Dicas.Descricao="Apaga o perfil do LibreOffice usado pelo editor; use se a conversão para PDF travar."/>
+                </local:LinhaComAcoes>
               </StackPanel>
             </Expander>
           </StackPanel>
@@ -516,25 +542,29 @@
             <!-- Leis anexadas (desenho §11.1): uma linha por anexo (título e esfera editáveis, arquivo, tamanho, páginas, data, selo,
                  Substituir arquivo… e Excluir). "Anexar PDFs…" fica sempre à mão (também com a lista vazia). -->
             <Border Style="{StaticResource PmvniAjusteGrupo}" Padding="16,12"><StackPanel x:Name="SecaoLegislacao" x:FieldModifier="internal" Spacing="8">
-              <TextBlock TextAlignment="Left" Text="Leis anexadas" Style="{StaticResource PmvniTituloSecao}"/>
-              <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}"
-                         Text="Anexe os PDFs das leis que você consulta. O editor guarda uma cópia de cada um na pasta de dados dele e nunca altera o arquivo original. Nada é enviado para fora do computador."/>
-              <TextBlock TextAlignment="Left" x:Name="TextoTotalLegislacao" x:FieldModifier="internal" TextWrapping="Wrap"/>
-              <TextBlock TextAlignment="Left" x:Name="TextoSomenteLeituraLegislacao" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed"
-                         Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
-              <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                <StackPanel.Resources>
-                  <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
-                </StackPanel.Resources>
-                <Button x:Name="BotaoAnexarLegislacao" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}"
-                        AutomationProperties.Name="Anexar PDFs das leis"
-                        local:Dicas.Titulo="Anexar PDFs…" local:Dicas.Descricao="Acrescenta leis em PDF à biblioteca; o editor guarda uma cópia e não muda o original.">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE723;" FontSize="16"/>
-                    <TextBlock TextAlignment="Left" Text="Anexar PDFs…"/>
-                  </StackPanel>
-                </Button>
-              </StackPanel>
+              <local:LinhaComAcoes>
+                <StackPanel Spacing="4" VerticalAlignment="Center">
+                  <TextBlock TextAlignment="Left" Text="Leis anexadas" Style="{StaticResource PmvniTituloSecao}"/>
+                  <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}"
+                            Text="Anexe os PDFs das leis que você consulta. O editor guarda uma cópia de cada um na pasta de dados dele e nunca altera o arquivo original. Nada é enviado para fora do computador."/>
+                  <TextBlock TextAlignment="Left" x:Name="TextoTotalLegislacao" x:FieldModifier="internal" TextWrapping="Wrap"/>
+                  <TextBlock TextAlignment="Left" x:Name="TextoSomenteLeituraLegislacao" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed"
+                            Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                  <StackPanel.Resources>
+                    <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
+                  </StackPanel.Resources>
+                  <Button x:Name="BotaoAnexarLegislacao" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}"
+                            AutomationProperties.Name="Anexar PDFs das leis"
+                            local:Dicas.Titulo="Anexar PDFs…" local:Dicas.Descricao="Acrescenta leis em PDF à biblioteca; o editor guarda uma cópia e não muda o original.">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <FontIcon Glyph="&#xE723;" FontSize="16"/>
+                      <TextBlock TextAlignment="Left" Text="Anexar PDFs…"/>
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+              </local:LinhaComAcoes>
               <Grid x:Name="ProgressoLegislacao" x:FieldModifier="internal" ColumnSpacing="12" Visibility="Collapsed">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*"/>
@@ -542,7 +572,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Spacing="4" VerticalAlignment="Center">
                   <TextBlock TextAlignment="Left" x:Name="TextoProgressoLegislacao" x:FieldModifier="internal" TextWrapping="Wrap"/>
-                  <ProgressBar x:Name="BarraProgressoLegislacao" x:FieldModifier="internal" IsIndeterminate="True"/>
+                  <ProgressBar local:Trabalhando.Automatico="False" x:Name="BarraProgressoLegislacao" x:FieldModifier="internal" IsIndeterminate="True"/>
                 </StackPanel>
                 <Button x:Name="BotaoCancelarLegislacao" x:FieldModifier="internal" Grid.Column="1" Content="Cancelar"
                         AutomationProperties.Name="Cancelar a anexação"
@@ -577,48 +607,64 @@
               <local:CartaoAgente x:Name="CartaoClaude" x:FieldModifier="internal"/>
               <local:CartaoAgente x:Name="CartaoGemini" x:FieldModifier="internal"/>
             </local:PainelCartoesAjustes>
-            <!-- Modelos de IA (2026-11-17, no padrão do seletor do WinStatusBar): qual IA responde na revisão e nos ajustes, com que modelo e com que
-                 nível de raciocínio. Uma linha por fonte disponível neste computador (montada em MainWindow.ModelosIa.cs); as listas vêm dos apps
-                 ChatGPT e Claude e, nas APIs, da própria API. -->
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE713;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Modelos de IA" Style="{StaticResource PmvniTituloSecao}"/>
+              <FontIcon Glyph="&#xE7C3;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
+              <TextBlock TextAlignment="Left" Text="Novo relatório" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}"
-                       Text="A IA que responde quando você pede: Rever com a IA (com uma instrução escrita), Ajustar o item, esquadrias, volumetria e a instrução do despacho: o modelo e o nível de raciocínio de cada uma. As listas vêm dos apps ChatGPT e Claude deste computador e, nas APIs, da própria API. O Novo relatório continua com os agentes acima."/>
             <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
+                <StackPanel>
+                  <StackPanel Padding="16,12" Spacing="6">
+                    <local:LinhaComAcoes>
+                      <TextBlock Text="Rota da conta Codex" Style="{StaticResource PmvniAjusteTitulo}" VerticalAlignment="Center"/>
+                      <ComboBox x:Name="CaixaRotaCodex" x:FieldModifier="internal" AutomationProperties.Name="Rota da conta Codex">
+                        <ComboBoxItem Tag="herdar" Content="Usar configuração do Codex neste PC"/>
+                        <ComboBoxItem Tag="openai" Content="Conectar diretamente à OpenAI"/>
+                        <ComboBoxItem Tag="codex-lb" Content="Usar Codex-LB configurado neste PC"/>
+                      </ComboBox>
+                    </local:LinhaComAcoes>
+                    <local:LinhaComAcoes>
+                      <StackPanel VerticalAlignment="Center" Spacing="4">
+                        <TextBlock TextAlignment="Left" Text="Pedido padrão" Style="{StaticResource PmvniAjusteTitulo}"/>
+                        <TextBlock TextAlignment="Left" Text="Texto que já vem na caixa do Novo relatório (até 2000 caracteres). Vazio: a caixa começa vazia, com a dica de sempre." Style="{StaticResource PmvniAjusteAjuda}"/>
+                      </StackPanel>
+                      <TextBox x:Name="CaixaPedidoPadrao" x:FieldModifier="internal" AcceptsReturn="True" TextWrapping="Wrap" Width="360" MinHeight="72" MaxHeight="200"
+                                MaxLength="2000" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Pedido padrão para a IA"/>
+                    </local:LinhaComAcoes>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="IA da revisão e dos ajustes" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" x:Name="TextoFonteIa" x:FieldModifier="internal" Text="Escolha por mim: o Codex, se estiver neste computador; senão o Claude Code." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                    <ComboBox x:Name="CaixaIaFonte" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="IA da revisão e dos ajustes"/>
+                    <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Confirmar antes de cancelar uma análise" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Pergunta antes de parar uma análise em andamento." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                    <ToggleSwitch x:Name="AlternarConfirmarCancelar" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Confirmar antes de cancelar uma análise"/>
                   </Grid>
-                  <StackPanel x:Name="PainelModelosIa" x:FieldModifier="internal"/>
                 </StackPanel>
               </Border>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
-                  <Grid Padding="16,12" ColumnSpacing="12">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock TextAlignment="Left" x:Name="TextoModelosIa" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" VerticalAlignment="Center"/>
-                    <ProgressRing x:Name="AnelModelosIa" x:FieldModifier="internal" Grid.Column="1" Width="16" Height="16" IsActive="False" Visibility="Collapsed"/>
-                    <Button x:Name="BotaoAtualizarModelosIa" x:FieldModifier="internal" Grid.Column="2" Content="Atualizar lista" AutomationProperties.Name="Atualizar a lista de modelos de IA"
-                            local:Dicas.Titulo="Atualizar lista" local:Dicas.Descricao="Lê de novo os modelos dos apps ChatGPT e Claude e das APIs com chave guardada. Sem conexão, continua valendo a última lista."/>
+                  <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Avisar ao fechar com análise do ChatGPT em andamento" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Desligado, fechar a janela encerra a análise do ChatGPT sem perguntar (a do Claude continua sozinha, como sempre)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                    <ToggleSwitch x:Name="AlternarConfirmarFechar" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Avisar ao fechar com análise do ChatGPT em andamento"/>
                   </Grid>
                 </StackPanel>
               </Border>
             </local:PainelCartoesAjustes>
-            <!-- Modelos da análise (Tarefa 19): o modelo e o nível de cada etapa da análise, por rota e perfil. O padrão vem do kit instalado
-                 (references\modelos-por-rota.json, igual em todos os computadores); o ajuste fica só neste computador. A grade é montada em
-                 MainWindow.ModelosDaAnalise.cs, com as etapas do etapas.json do kit e as listas de modelos dos provedores. -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE9D9;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Modelos da análise" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
-            <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap"
-                       Text="O modelo e o nível de raciocínio de cada etapa do Novo relatório, em cada rota. O padrão vem do kit PMVNI e vale em todos os computadores; o que você mudar aqui vale só neste computador. As listas de modelos vêm dos apps e das APIs de cada IA (atualizadas ao abrir esta página e antes de cada análise)."/>
+          </StackPanel>
+
+          <!-- ===== 8. Sobre e suporte ===== -->
+          <StackPanel x:Name="CategoriaModelos" Tag="modelos" Spacing="12" Visibility="Collapsed">
+            <InfoBar Severity="Informational" IsClosable="False" IsOpen="True" Message="Personalização local. Os padrões do kit PMVNI são compartilhados; as alterações aqui valem somente para este computador."/>
+            <local:LinhaComAcoes>
+              <TextBlock Text="ROTAS DE EXECUÇÃO" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteTitulo}"/>
+              <Button x:Name="BotaoAtualizarModelosIa" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Atualizar lista" AutomationProperties.Name="Atualizar a lista de modelos de IA"
+                        local:Dicas.Titulo="Atualizar lista" local:Dicas.Descricao="Consulta os modelos disponíveis nos aplicativos e nas APIs configuradas, incluindo a rota Gemini. Se a consulta falhar, mantém a última lista."/>
+            </local:LinhaComAcoes>
             <InfoBar x:Name="AvisoModelosAnalise" x:FieldModifier="internal" Severity="Warning" IsClosable="False" IsOpen="False" Title="Confira os modelos da análise"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}">
               <ScrollViewer HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
@@ -655,59 +701,45 @@
               </Border>
             </local:PainelCartoesAjustes>
             <Border Style="{StaticResource PmvniAjusteGrupo}">
-              <Grid Padding="16,12" ColumnSpacing="12" RowSpacing="8">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <local:LinhaComAcoes Margin="16,12">
                 <TextBlock TextAlignment="Left" x:Name="TextoModelosAnalise" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                <Button x:Name="BotaoRestaurarModelos" x:FieldModifier="internal" Grid.Column="1" Content="Restaurar padrão do kit" AutomationProperties.Name="Restaurar o padrão do kit nos modelos da análise"
-                        local:Dicas.Titulo="Restaurar padrão do kit" local:Dicas.Descricao="Apaga o ajuste deste computador: os modelos, os níveis, as regras e a auditoria cruzada voltam ao padrão do kit."/>
-                <Button x:Name="BotaoPublicarModelos" x:FieldModifier="internal" Grid.Column="2" Content="Publicar como padrão do kit" Visibility="Collapsed" AutomationProperties.Name="Publicar a tabela de modelos como padrão do kit"
-                        local:Dicas.Titulo="Publicar como padrão do kit" local:Dicas.Descricao="Só no computador do kit mestre: grava esta tabela no kit e roda o instalador (manter) fora do Editor. A atualização automática leva a tabela aos outros computadores."/>
-              </Grid>
+                <Button x:Name="BotaoPublicarModelos" x:FieldModifier="internal" Content="Publicar como padrão do kit" Visibility="Collapsed" AutomationProperties.Name="Publicar a tabela de modelos como padrão do kit"
+                          local:Dicas.Titulo="Publicar como padrão do kit" local:Dicas.Descricao="Só no computador do kit mestre: grava esta tabela no kit e roda o instalador (manter) fora do Editor. A atualização automática leva a tabela aos outros computadores."/>
+              </local:LinhaComAcoes>
             </Border>
+            <!-- Modelos de IA (2026-11-17, no padrão do seletor do WinStatusBar): qual IA responde na revisão e nos ajustes, com que modelo e com que
+                 nível de raciocínio. Uma linha por fonte disponível neste computador (montada em MainWindow.ModelosIa.cs); as listas vêm dos apps
+                 ChatGPT e Claude e, nas APIs, da própria API. -->
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE7C3;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Novo relatório" Style="{StaticResource PmvniTituloSecao}"/>
+              <FontIcon Glyph="&#xE713;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
+              <TextBlock TextAlignment="Left" Text="Modelos de IA" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
+            <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}"
+                       Text="A IA que responde quando você pede: Rever com a IA (com uma instrução escrita), Ajustar o item, esquadrias, volumetria e a instrução do despacho: o modelo e o nível de raciocínio de cada uma. As listas vêm dos apps ChatGPT e Claude deste computador e, nas APIs, da própria API. As etapas do Novo relatório usam os modelos da rota selecionada."/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
-                  <StackPanel Padding="16,12" Spacing="6">
-                    <ComboBox x:Name="CaixaRotaCodex" x:FieldModifier="internal" Header="Rota da conta Codex" AutomationProperties.Name="Rota da conta Codex">
-                      <ComboBoxItem Tag="herdar" Content="Usar configuração do Codex neste PC"/>
-                      <ComboBoxItem Tag="openai" Content="Conectar diretamente à OpenAI"/>
-                      <ComboBoxItem Tag="codex-lb" Content="Usar Codex-LB configurado neste PC"/>
-                    </ComboBox>
-                    <TextBlock TextAlignment="Left" Text="Pedido padrão" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock TextAlignment="Left" Text="Texto que já vem na caixa do Novo relatório (até 2000 caracteres). Vazio: a caixa começa vazia, com a dica de sempre." Style="{StaticResource PmvniAjusteAjuda}"/>
-                    <TextBox x:Name="CaixaPedidoPadrao" x:FieldModifier="internal" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" MaxHeight="200"
-                             MaxLength="2000" ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Pedido padrão para a IA"/>
-                  </StackPanel>
-                </StackPanel>
-              </Border>
-              <Border Style="{StaticResource PmvniAjusteGrupo}">
-                <StackPanel>
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Confirmar antes de cancelar uma análise" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Pergunta antes de parar uma análise em andamento." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                    <ToggleSwitch x:Name="AlternarConfirmarCancelar" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Confirmar antes de cancelar uma análise"/>
+                    <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="IA da revisão e dos ajustes" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" x:Name="TextoFonteIa" x:FieldModifier="internal" Text="Escolha por mim: o Codex, se estiver neste computador; senão o Claude Code." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                    <ComboBox x:Name="CaixaIaFonte" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="IA da revisão e dos ajustes"/>
                   </Grid>
+                  <StackPanel x:Name="PainelModelosIa" x:FieldModifier="internal"/>
                 </StackPanel>
               </Border>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
-                  <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Avisar ao fechar com análise do ChatGPT em andamento" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Desligado, fechar a janela encerra a análise do ChatGPT sem perguntar (a do Claude continua sozinha, como sempre)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                    <ToggleSwitch x:Name="AlternarConfirmarFechar" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Avisar ao fechar com análise do ChatGPT em andamento"/>
+                  <Grid Padding="16,12" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock TextAlignment="Left" x:Name="TextoModelosIa" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" VerticalAlignment="Center"/>
+                    <ProgressRing x:Name="AnelModelosIa" x:FieldModifier="internal" Grid.Column="1" Width="16" Height="16" IsActive="False" Visibility="Collapsed"/>
+
                   </Grid>
                 </StackPanel>
               </Border>
             </local:PainelCartoesAjustes>
           </StackPanel>
-
-          <!-- ===== 8. Sobre e suporte ===== -->
           <StackPanel x:Name="CategoriaSobre" Tag="sobre" Spacing="12" Visibility="Collapsed">
             <!-- Atualizações (no padrão de Configurações › Sobre e suporte do WinStatusBar): versão instalada, "Verificar atualizações" com o
                  estado embaixo, a chave da consulta automática e "O que mudou" (as notas da versão publicada). Quem preenche é
@@ -729,24 +761,18 @@
               </Border>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
-                  <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                  <local:LinhaComAcoes Margin="16,12">
                     <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Novas versões" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Procura versões novas no GitHub do projeto, baixa, confere e troca o executável sem pedir administrador. A versão nova vale ao abrir o editor de novo." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                    <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                       <Button x:Name="BotaoVerificarAtualizacoes" x:FieldModifier="internal" Content="Verificar atualizações" HorizontalAlignment="Stretch"
-                              AutomationProperties.Name="Verificar atualizações"
-                              local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Procura agora uma versão nova do editor no GitHub e a instala se houver."/>
-                      <Button x:Name="BotaoInstalarPlugins" x:FieldModifier="internal" Content="Instalar ou atualizar plugins" HorizontalAlignment="Stretch"/>
-                      <Button x:Name="BotaoAtualizarKit" x:FieldModifier="internal" Content="Atualizar kit PMVNI" HorizontalAlignment="Stretch"
-                              local:Dicas.Titulo="Atualizar kit PMVNI" local:Dicas.Descricao="Executa agora a atualização do kit configurada neste computador."/>
-                      <TextBlock x:Name="ResumoInstalacaoPlugins" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" AutomationProperties.LiveSetting="Polite"/>
+                                AutomationProperties.Name="Verificar atualizações"
+                                local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Procura agora uma versão nova do editor no GitHub e a instala se houver."/>
                       <Button x:Name="BotaoReiniciarAtualizacao" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Reiniciar agora" HorizontalAlignment="Stretch" Visibility="Collapsed"
-                              AutomationProperties.Name="Reiniciar o editor na versão nova"
-                              local:Dicas.Titulo="Reiniciar agora" local:Dicas.Descricao="Fecha o editor (gravando o relatório aberto) e o abre de novo na versão nova."/>
+                                AutomationProperties.Name="Reiniciar o editor na versão nova"
+                                local:Dicas.Titulo="Reiniciar agora" local:Dicas.Descricao="Fecha o editor (gravando o relatório aberto) e o abre de novo na versão nova."/>
                       <TextBlock TextAlignment="Left" x:Name="TextoEstadoAtualizacao" x:FieldModifier="internal" TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}" AutomationProperties.LiveSetting="Polite"/>
                     </StackPanel>
-                  </Grid>
+                  </local:LinhaComAcoes>
                 </StackPanel>
               </Border>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
@@ -782,17 +808,15 @@
               </Border>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
-                  <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                  <local:LinhaComAcoes Margin="16,12">
                     <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Relatar um problema" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Copie a versão e o sistema para enviar junto do relato, ou abra a pasta de dados com o registro de erros do editor." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
-                    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                      <Button x:Name="BotaoCopiarInformacoes" x:FieldModifier="internal" Content="Copiar informações" HorizontalAlignment="Stretch"
-                              local:Dicas.Titulo="Copiar informações" local:Dicas.Descricao="Copia a versão, o sistema e as pastas do editor para colar no relato."/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <Button x:Name="BotaoCopiarInformacoes" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Copiar informações" HorizontalAlignment="Stretch"
+                                local:Dicas.Titulo="Copiar informações" local:Dicas.Descricao="Copia a versão, o sistema e as pastas do editor para colar no relato."/>
                       <Button x:Name="BotaoAbrirPastaDados" x:FieldModifier="internal" Content="Abrir pasta de dados" HorizontalAlignment="Stretch" AutomationProperties.Name="Abrir a pasta de dados no Explorador"
-                              local:Dicas.Titulo="Abrir pasta de dados" local:Dicas.Descricao="Abre no Explorador a pasta de dados do editor (ajustes, leis, recuperação, erros)."/>
+                                local:Dicas.Titulo="Abrir pasta de dados" local:Dicas.Descricao="Abre no Explorador a pasta de dados do editor (ajustes, leis, recuperação, erros)."/>
                     </StackPanel>
-                  </Grid>
+                  </local:LinhaComAcoes>
                   <TextBlock TextAlignment="Left" x:Name="TextoCopiado" x:FieldModifier="internal" Margin="16,0,16,12" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}"/>
                 </StackPanel>
               </Border>
@@ -827,14 +851,18 @@
             </StackPanel>
             <Border Style="{StaticResource PmvniAjusteGrupo}">
               <StackPanel Padding="16,12" Spacing="10">
-                <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="Consulte as versões, as pastas e o estado atual do editor para investigar um problema."/>
-                <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="O relatório pode conter nomes de processos e caminhos locais. Revise antes de compartilhar."/>
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                  <Button x:Name="BotaoAtualizarDiagnostico" x:FieldModifier="internal" Content="Atualizar diagnóstico"
-                          local:Dicas.Titulo="Atualizar diagnóstico" local:Dicas.Descricao="Lê de novo as versões, as pastas e o uso de memória do editor."/>
-                  <Button x:Name="BotaoCopiarVersoes" x:FieldModifier="internal" Content="Copiar diagnóstico" AutomationProperties.Name="Copiar o relatório de diagnóstico"
-                          local:Dicas.Titulo="Copiar diagnóstico" local:Dicas.Descricao="Copia o relatório de diagnóstico, para mandar ao suporte."/>
+              <local:LinhaComAcoes>
+                <StackPanel Spacing="4" VerticalAlignment="Center">
+                  <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="Consulte as versões, as pastas e o estado atual do editor para investigar um problema."/>
+                  <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="O relatório pode conter nomes de processos e caminhos locais. Revise antes de compartilhar."/>
                 </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                  <Button x:Name="BotaoAtualizarDiagnostico" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Atualizar diagnóstico"
+                            local:Dicas.Titulo="Atualizar diagnóstico" local:Dicas.Descricao="Lê de novo as versões, as pastas e o uso de memória do editor."/>
+                  <Button x:Name="BotaoCopiarVersoes" x:FieldModifier="internal" Content="Copiar diagnóstico" AutomationProperties.Name="Copiar o relatório de diagnóstico"
+                            local:Dicas.Titulo="Copiar diagnóstico" local:Dicas.Descricao="Copia o relatório de diagnóstico, para mandar ao suporte."/>
+                </StackPanel>
+              </local:LinhaComAcoes>
                 <Border CornerRadius="6" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                   <ScrollViewer MaxHeight="320" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Padding="14,10">
                     <TextBlock TextAlignment="Left" x:Name="TextoVersoes" x:FieldModifier="internal" FontFamily="Cascadia Mono, Consolas" FontSize="12.5" IsTextSelectionEnabled="True" TextWrapping="NoWrap"/>

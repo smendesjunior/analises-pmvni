@@ -12,6 +12,30 @@ public sealed class ColecaoTravaDeProgramas;
 public class TravaDeProgramasTestes
 {
     [Fact]
+    public async Task SaidaDoPaiEncerraFilhoQueMantemCanalAberto()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var inicio = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"))
+        {
+            CreateNoWindow = true, UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true
+        };
+        inicio.ArgumentList.Add("-NoProfile");
+        inicio.ArgumentList.Add("-Command");
+        inicio.ArgumentList.Add("$null = [Console]::ReadLine(); $p = Start-Process ping.exe -ArgumentList '-t','127.0.0.1' -WindowStyle Hidden -PassThru; $p.Id; $null = [Console]::ReadLine()");
+        using var pai = ProcessoInterno.Iniciar(inicio);
+        await pai.StandardInput.WriteLineAsync("iniciar");
+        var pid = int.Parse((await pai.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(15)))!);
+        using var filho = Process.GetProcessById(pid);
+        try
+        {
+            pai.StandardInput.Close();
+            await filho.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(pai.Processo.HasExited);
+        }
+        finally { if (!filho.HasExited) filho.Kill(true); }
+    }
+
+    [Fact]
     public void lista_aceita_a_pasta_e_o_programa_exato_e_recusa_o_resto()
     {
         using var pasta = Ambiente.PastaDeTeste("trava-programas");

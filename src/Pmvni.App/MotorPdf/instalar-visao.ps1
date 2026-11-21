@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'nativo.ps1')
 $base = Join-Path $env:LOCALAPPDATA 'PMVNI\MotorPdf'
 $fontes = Join-Path $base 'fontes'
 [IO.Directory]::CreateDirectory($fontes) | Out-Null
@@ -8,11 +9,11 @@ $python = Join-Path $venv 'Scripts\python.exe'
 $uv = Join-Path $base 'uv-0.13.9.exe'
 $env:UV_PYTHON_INSTALL_DIR = Join-Path $base 'python'
 if (!(Test-Path $python)) {
-    & $uv venv --managed-python --python 3.11.14 $venv
-    if ($LASTEXITCODE) { throw 'Falha no ambiente de visao' }
+    Invocar-Nativo $uv @('venv', '--quiet', '--managed-python', '--python', '3.11.14', $venv)
+
 }
-& $uv pip sync --python $python --default-index https://pypi.org/simple --only-binary :all: --require-hashes $lock
-if ($LASTEXITCODE) { throw 'Dependencias de visao incompletas' }
+Invocar-Nativo $uv @('pip', 'sync', '--quiet', '--python', $python, '--default-index', 'https://pypi.org/simple', '--only-binary', ':all:', '--require-hashes', $lock)
+
 foreach ($item in (Get-Content (Join-Path $PSScriptRoot 'fontes-visao.json') -Raw | ConvertFrom-Json)) {
     $arq = Join-Path $fontes $item.nome
     if (!(Test-Path $arq) -or (Get-FileHash $arq).Hash -ne $item.sha256) {
@@ -24,8 +25,8 @@ foreach ($item in (Get-Content (Join-Path $PSScriptRoot 'fontes-visao.json') -Ra
         } finally { if(Test-Path $tmp){Remove-Item -LiteralPath $tmp} }
     }
     if ($item.nome -eq 'blueprint.zip') {
-        & $python -I -c 'import pathlib,sys,zipfile;z=zipfile.ZipFile(sys.argv[1]);z.extractall(sys.argv[2],[n for n in z.namelist() if chr(47)+chr(115)+chr(114)+chr(99)+chr(47) in n and n.endswith(chr(46)+chr(112)+chr(121))])' $arq $fontes
-        if ($LASTEXITCODE) { throw 'Falha ao preparar Blueprint' }
+        Invocar-Nativo $python @('-I', '-c', 'import pathlib,sys,zipfile;z=zipfile.ZipFile(sys.argv[1]);z.extractall(sys.argv[2],[n for n in z.namelist() if chr(47)+chr(115)+chr(114)+chr(99)+chr(47) in n and n.endswith(chr(46)+chr(112)+chr(121))])', $arq, $fontes)
+
     }
 }
 $runner = Join-Path $venv 'visao.py'
@@ -34,12 +35,12 @@ $teste = Join-Path $env:TEMP ([guid]::NewGuid().ToString())
 [IO.Directory]::CreateDirectory($teste) | Out-Null
 try {
     $pdf = Join-Path $teste 'teste.pdf'
-    & $python -I -c 'import pymupdf,sys; d=pymupdf.open();p=d.new_page();p.draw_rect((40,40,300,300));d.save(sys.argv[1])' $pdf
-    if ($LASTEXITCODE) { throw 'Falha no PDF sintetico' }
+    Invocar-Nativo $python @('-I', '-c', 'import pymupdf,sys; d=pymupdf.open();p=d.new_page();p.draw_rect((40,40,300,300));d.save(sys.argv[1])', $pdf)
+
     foreach ($nome in 'blueprint','fyp-floorplan') {
         $json = Join-Path $teste "$nome.json"
-        & $python -I $runner $nome $pdf 1 $json
-        if ($LASTEXITCODE -or !(Test-Path $json)) { throw "Falha no teste: $nome" }
+        Invocar-Nativo $python @('-I', $runner, $nome, $pdf, '1', $json)
+        if (!(Test-Path $json)) { throw "Falha no teste: $nome" }
         Write-Output "$nome INSTALADO"
     }
     [IO.File]::WriteAllText((Join-Path $base 'visao-runtime.txt'),$python)

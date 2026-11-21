@@ -54,6 +54,7 @@ public sealed partial class MainWindow
         catch
         {
             pai.Children.Remove(web);
+            web.Close();
             gpiOculto = null;
             throw;
         }
@@ -270,6 +271,7 @@ public sealed partial class MainWindow
             var janela = new Window { Title = "Boletim cadastral " + inscricao };
             var web = new WebView2();
             janela.Content = web;
+            janela.Closed += (_, _) => web.Close();
             janela.AppWindow.Resize(new Windows.Graphics.SizeInt32(1000, 1100));
             janela.Activate();
             await web.EnsureCoreWebView2Async(await PaginaSites.Ambiente());
@@ -278,7 +280,7 @@ public sealed partial class MainWindow
         catch (Exception e)
         {
             RegistroErros.Gravar("sites.bci.abrir", e);
-            try { TravaDeProgramas.Iniciar(new System.Diagnostics.ProcessStartInfo(arquivo) { UseShellExecute = true }); }
+            try { TravaDeProgramas.Iniciar(new System.Diagnostics.ProcessStartInfo(arquivo) { UseShellExecute = true })?.Dispose(); }
             catch (Exception ex) { RegistroErros.Gravar("sites.bci.abrir2", ex); }
         }
     }

@@ -168,7 +168,7 @@ public static class ComponentesDoKit
         string? versaoNoKitLocal = null;
         try { versaoNoKitLocal = await Task.Run(() => VersaoDoPlugin(kitLocal, PluginsInstalados.Analise)).WaitAsync(EsperaDaFonte); }
         catch (TimeoutException) { }
-        var resumo = await Task.Run(() => LerTexto(Path.Combine(o.PastaMotorPdf, "resumo-instalacao.txt")));
+        var resumo = await Task.Run(() => LerTexto(PrimeiraAbertura.RegistroMaisRecente(o.PastaMotorPdf)));
         var linhasResumo = LinhasDoResumo(resumo);
         var falhas = (resumo ?? "").Split('\n').Select(l => l.Trim().TrimStart('﻿')).Where(l => l.StartsWith("FALHA", StringComparison.Ordinal))
             .Select(l => l["FALHA".Length..].Trim()).ToList();
@@ -336,8 +336,8 @@ public static class ComponentesDoKit
         File.WriteAllText(cmd, texto, PrimeiraAbertura.CodificacaoDoConsole());
         iniciar(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), cmd);
         return parte is null
-            ? "Atualização de todo o kit iniciada fora do Editor (INSTALAR_KIT_PMVNI.cmd atualizar). Quando terminar, clique em Verificar atualizações."
-            : "Atualização iniciada fora do Editor: " + NomeDaParte(parte) + ". Quando terminar, clique em Verificar atualizações.";
+            ? "Atualização de todo o kit iniciada fora do Editor (INSTALAR_KIT_PMVNI.cmd atualizar). Quando terminar, clique em Verificar atualizações no cartão Plugins e ferramentas."
+            : "Atualização iniciada fora do Editor: " + NomeDaParte(parte) + ". Quando terminar, clique em Verificar atualizações no cartão Plugins e ferramentas.";
     }
 
     /// <summary>O botão "Atualizar" de uma linha (ou "Atualizar todos", com <paramref name="linha"/> null). Uma linha que só se atualiza com o kit

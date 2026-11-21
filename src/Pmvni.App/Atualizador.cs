@@ -60,19 +60,38 @@ internal static class Atualizador
     {
         if (ExeAtual is { } exe && Path.GetDirectoryName(exe) is { } pasta) RegrasAtualizacao.LimparAntigos(pasta);
         if (!Habilitado) return;
-        _ = Task.Run(async () =>
+        relogio = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().CreateTimer();
+        relogio.IsRepeating = false;
+        proxima = DateTimeOffset.UtcNow + RegrasAtualizacao.PrimeiraConsulta;
+        relogio.Tick += async (_, _) =>
         {
-            await Task.Delay(RegrasAtualizacao.PrimeiraConsulta);
-            while (true)
+            consultando = true;
+            try
             {
-                if (AutomaticaLigada())
-                {
-                    var e = await VerificarAsync();
-                    if (e.Etapa == EtapaAtualizacao.Pronta) return; // já trocado: vale na próxima abertura
-                }
-                await Task.Delay(RegrasAtualizacao.ProximaConsulta(falhasSeguidas));
+                if (AutomaticaLigada()) await VerificarAsync();
             }
-        });
+            finally
+            {
+                consultando = false;
+                proxima = DateTimeOffset.UtcNow + RegrasAtualizacao.ProximaConsulta(falhasSeguidas);
+                Agendar(ativa);
+            }
+        };
+    }
+
+    static Microsoft.UI.Dispatching.DispatcherQueueTimer? relogio;
+    static DateTimeOffset proxima;
+    static bool ativa, consultando;
+
+    public static void Agendar(bool janelaAtiva)
+    {
+        ativa = janelaAtiva;
+        if (relogio is null) return;
+        relogio.Stop();
+        if (!ativa || consultando || UltimoEstado?.Etapa == EtapaAtualizacao.Pronta) return;
+        var restante = proxima - DateTimeOffset.UtcNow;
+        relogio.Interval = restante > TimeSpan.Zero ? restante : TimeSpan.FromSeconds(1);
+        relogio.Start();
     }
 
     /// <summary>Consulta agora (botão "Verificar atualizações" ou automática). Se já houver uma em andamento, devolve a mesma.</summary>
@@ -139,7 +158,7 @@ internal static class Atualizador
     public static void ReabrirSePedido()
     {
         if (reabrirPedidoEm is not { } quando || DateTimeOffset.UtcNow - quando > TimeSpan.FromMinutes(10) || ExeAtual is not { } exe) return;
-        try { TravaDeProgramas.Iniciar(new ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(exe) }); }
+        try { TravaDeProgramas.Iniciar(new ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(exe) })?.Dispose(); }
         catch (Exception e) { RegistroErros.Gravar("atualizacao.reabrir", e); }
     }
 

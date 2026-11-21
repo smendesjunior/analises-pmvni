@@ -7,8 +7,8 @@ using Pmvni.Composicao.Web;
 
 namespace Pmvni.App;
 
-/// <summary>Tarefa 19: Ajustes › Inteligência artificial › Modelos da análise. A grade (linhas = etapas do <c>etapas.json</c> do kit; colunas = rotas e perfis
-/// da tabela do kit; cada célula = modelo + nível), as regras, a auditoria cruzada por rota, "Restaurar padrão do kit" e, no computador do kit mestre,
+/// <summary>Tarefa 19: Ajustes › Modelos da análise. A grade (linhas = etapas do <c>etapas.json</c> do kit, para a rota e o perfil selecionados
+/// na tabela do kit, com modelo e nível por etapa), as regras, a auditoria cruzada por rota, "Restaurar padrão do kit" e, no computador do kit mestre,
 /// "Publicar como padrão do kit". A lógica fica em <see cref="ModelosDaAnalise"/>; aqui só a tela. O ajuste é gravado direto em
 /// <c>%LOCALAPPDATA%\EditorRelatoriosPMVNI</c> (<see cref="PastaDados.Raiz"/>; o Editor não é MSIX: não há redirecionamento de pasta). O Recriar PC
 /// guarda o arquivo por um passo próprio do <c>recriar.json</c>.</summary>
@@ -16,6 +16,7 @@ public sealed partial class MainWindow
 {
     AjusteModelos? ajusteModelos;
     bool montandoModelosAnalise;
+    ColunaModelos? rotaEmEdicao;
 
     /// <summary>Opções da caixa da cota baixa: (rótulo, fração; null = não desce).</summary>
     static readonly (string Texto, double? Valor)[] OpcoesCotaBaixa =
@@ -109,18 +110,6 @@ public sealed partial class MainWindow
     }
 
     /// <summary>De onde vem a lista de cada coluna, para a linha abaixo da grade (o Gemini Web diz que não lista modelos).</summary>
-    string OrigemDasListas(TabelaModelosKit kit)
-    {
-        var partes = new List<string>();
-        foreach (var col in kit.Colunas)
-        {
-            var l = ListaDaRotaAgora(col, kit);
-            var quando = col.Rota == "gemini" && listasGemini.TryGetValue(ModelosDaAnalise.GrupoGemini(col.Perfil), out var g) ? ", lida às " + g.Em.ToString("HH:mm", CultureInfo.InvariantCulture) : "";
-            partes.Add(col.Titulo + ": lista " + (l?.Fonte ?? "não lida") + quando);
-        }
-        return "Listas de modelos — " + string.Join("; ", partes) + "." + (falhaListaGemini is { } f ? " Gemini: não foi possível ler a lista agora (" + f + "); vale a anterior." : "");
-    }
-
     void IniciarModelosDaAnalise()
     {
         var p = PaginaDeAjustes;
@@ -153,11 +142,11 @@ public sealed partial class MainWindow
         // Correção 1: a lista do Gemini é lida pela rota Gemini do kit ao abrir esta página e em "Atualizar lista", como as outras.
         p.CategoriaMostrada += async tag =>
         {
-            if (tag != CategoriasAjustes.Ia) return;
+            if (tag != CategoriasAjustes.Modelos) return;
             await AtualizarListaGeminiAsync();
             MostrarModelosDaAnalise();
         };
-        p.BotaoAtualizarModelosIa.Click += async (_, _) => { await AtualizarListaGeminiAsync(); MostrarModelosDaAnalise(); };
+        p.BotaoAtualizarModelosIa.Click += async (_, _) => { await Task.WhenAll(AtualizarModelosIaAsync(), AtualizarListaGeminiAsync()); MostrarModelosDaAnalise(); };
     }
 
     static bool Igual(double? a, double? b) => a is null ? b is null : b is not null && Math.Abs(a.Value - b.Value) < 1e-9;
@@ -205,8 +194,32 @@ public sealed partial class MainWindow
                 return;
             }
             var a = AjusteDosModelos;
-            p.PainelModelosAnalise.Children.Add(GradeDosModelos(kit, etapas, a));
-            p.PainelModelosAnalise.Children.Add(new TextBlock { Text = OrigemDasListas(kit), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0),
+            if (kit.Colunas.Count == 0) return;
+            var selecionada = kit.Colunas.FirstOrDefault(c => c == rotaEmEdicao) ?? kit.Colunas[0];
+            var cartoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            foreach (var coluna in kit.Colunas)
+            {
+                var partes = coluna.Titulo.Split(" · ", 2, StringSplitOptions.None);
+                var perfil = partes.Length == 2 ? partes[1] : coluna.Rota switch
+                {
+                    "gemini" => coluna.Perfil,
+                    _ when FonteDaRota(coluna.Rota) is FonteIa.Codex or FonteIa.ClaudeCode => "Aplicativo",
+                    _ => "API"
+                };
+                var botao = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
+                {
+                    Content = partes[0] + "\n" + perfil,
+                    IsChecked = coluna == selecionada, MinHeight = 60, MinWidth = 112
+                };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, "Configurar " + coluna.Titulo);
+                botao.Click += (_, _) => { rotaEmEdicao = coluna; MostrarModelosDaAnalise(); };
+                cartoes.Children.Add(botao);
+            }
+            p.PainelModelosAnalise.Children.Add(cartoes);
+            p.PainelModelosAnalise.Children.Add(new TextBlock { Text = selecionada.Titulo, Margin = new Thickness(0, 12, 0, 0),
+                Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
+            p.PainelModelosAnalise.Children.Add(GradeDosModelos(kit, etapas, a, selecionada));
+            p.PainelModelosAnalise.Children.Add(new TextBlock { Text = $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte}, atualizados ao abrir a página e antes de cada análise. Aplicação imediata." + (selecionada.Rota == "gemini" && falhaListaGemini is { } falha ? " A última consulta falhou. " + falha : ""), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0),
                 Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], MaxWidth = 1100, HorizontalAlignment = HorizontalAlignment.Left });
 
             p.AlternarSobeObjecao.IsOn = a.SobePorObjecao ?? kit.SobePorObjecao;
@@ -256,51 +269,61 @@ public sealed partial class MainWindow
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
     }
 
-    /// <summary>A grade: a primeira coluna com as etapas; uma coluna por rota/perfil, com a caixa do modelo e a do nível em cada célula.</summary>
-    Grid GradeDosModelos(TabelaModelosKit kit, IReadOnlyList<EtapaModelos> etapas, AjusteModelos a)
+    Grid GradeDosModelos(TabelaModelosKit kit, IReadOnlyList<EtapaModelos> etapas, AjusteModelos a, ColunaModelos rota)
     {
-        var grade = new Grid { ColumnSpacing = 12, RowSpacing = 10 };
-        grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-        foreach (var _ in kit.Colunas) grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
-        grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        var ajuda = (Style)Application.Current.Resources["PmvniAjusteAjuda"];
-        var titulo = (Style)Application.Current.Resources["PmvniAjusteTitulo"];
-        for (var c = 0; c < kit.Colunas.Count; c++)
+        var grade = new Grid { ColumnSpacing = 16, RowSpacing = 12, Margin = new Thickness(0, 16, 0, 0) };
+        foreach (var largura in new[] { 280, 250, 165 })
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(largura) });
+        void Adicionar(FrameworkElement controle, int linha, int coluna)
         {
-            var cab = new TextBlock { Text = kit.Colunas[c].Titulo, Style = titulo, TextWrapping = TextWrapping.Wrap };
-            Grid.SetColumn(cab, c + 1);
-            grade.Children.Add(cab);
+            Grid.SetRow(controle, linha);
+            Grid.SetColumn(controle, coluna);
+            grade.Children.Add(controle);
         }
-        var listas = kit.Colunas.ToDictionary(c => c, c => ListaDaRotaAgora(c, kit));
-        for (var l = 0; l < etapas.Count; l++)
+        grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var cab = new[] { "Etapas do processamento", "Modelo", "Raciocínio" };
+        for (var i = 0; i < cab.Length; i++) Adicionar(new TextBlock { Text = cab[i], Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] }, 0, i);
+        var lista = ListaDaRotaAgora(rota, kit) ?? new ListaDaRota([], false, "do provedor");
+        var estiloCartao = (Style)Application.Current.Resources["PmvniAjusteGrupo"];
+        for (var i = 0; i < etapas.Count; i++)
         {
-            var etapa = etapas[l];
+            var etapa = etapas[i];
             grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var nome = new TextBlock { Text = etapa.Nome, Style = titulo, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
-            Grid.SetRow(nome, l + 1);
-            grade.Children.Add(nome);
-            for (var c = 0; c < kit.Colunas.Count; c++)
+            var fundo = new Border { Style = estiloCartao, MinHeight = 64, IsHitTestVisible = false };
+            Grid.SetColumnSpan(fundo, 3);
+            Adicionar(fundo, i + 1, 0);
+            var descricao = etapa.Id switch
             {
-                var col = kit.Colunas[c];
-                FrameworkElement celula;
-                if (etapa.Programa) celula = new TextBlock { Text = "programa (sem IA)", Style = ajuda, VerticalAlignment = VerticalAlignment.Center };
-                else if (kit.Celula(col, etapa.Id) is not { } padrao) celula = new TextBlock { Text = "—", Style = ajuda };
-                else celula = CelulaDaGrade(kit, col, etapa, padrao, a, listas[col] ?? new ListaDaRota([], false, "do provedor"));
-                Grid.SetRow(celula, l + 1);
-                Grid.SetColumn(celula, c + 1);
-                grade.Children.Add(celula);
+                "prepare" => "Organização inicial das peças", "analyze" => "Interpretação técnica dos projetos",
+                "technical_audit" => "Conferência das conclusões técnicas", "audit" => "Validação em sessão independente",
+                "produce" => "Montagem e formatação do documento", "final_review" => "Consistência do relatório final", _ => ""
+            };
+            Adicionar(new TextBlock { Text = $"{i + 1:00}   {etapa.Nome}\n{descricao}", Margin = new Thickness(12, 6, 0, 6), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap }, i + 1, 0);
+            if (!etapa.Programa && kit.Celula(rota, etapa.Id) is { } padrao)
+            {
+                var celula = CelulaDaGrade(kit, rota, etapa, padrao, a, lista);
+                Grid.SetColumnSpan(celula, 2);
+                Adicionar(celula, i + 1, 1);
+            }
+            else
+            {
+                Adicionar(new Button { Content = etapa.Programa ? "Executado pelo programa (sem IA)" : "Indisponível", IsEnabled = false }, i + 1, 1);
+                Adicionar(new Button { Content = "Não se aplica", IsEnabled = false }, i + 1, 2);
             }
         }
         return grade;
     }
-
     FrameworkElement CelulaDaGrade(TabelaModelosKit kit, ColunaModelos col, EtapaModelos etapa, CelulaModelos padrao, AjusteModelos a, ListaDaRota lista)
     {
         var atual = a.Celulas.GetValueOrDefault((col.Rota, col.Perfil, etapa.Id));
         var vale = atual ?? padrao;
-        var painel = new StackPanel { Spacing = 4 };
-        var caixaModelo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-        var caixaNivel = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+        var painel = new Grid { ColumnSpacing = 16, RowSpacing = 4, VerticalAlignment = VerticalAlignment.Center };
+        painel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
+        painel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(165) });
+        painel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        painel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var caixaModelo = new ComboBox { Width = 250, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var caixaNivel = new ComboBox { Width = 165, HorizontalAlignment = HorizontalAlignment.Stretch };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(caixaModelo, "Modelo de " + etapa.Nome + " em " + col.Titulo);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(caixaNivel, "Nível de " + etapa.Nome + " em " + col.Titulo);
         foreach (var (id, texto) in ModelosDaAnalise.OpcoesDeModelo(lista, padrao, atual)) caixaModelo.Items.Add(new ComboBoxItem { Content = texto, Tag = id });
@@ -330,10 +353,16 @@ public sealed partial class MainWindow
         caixaModelo.SelectionChanged += (_, _) => Aplicar();
         caixaNivel.SelectionChanged += (_, _) => Aplicar();
         painel.Children.Add(caixaModelo);
+        Grid.SetColumn(caixaNivel, 1);
         painel.Children.Add(caixaNivel);
         if (atual is not null)
-            painel.Children.Add(new TextBlock { Text = "• ajuste deste computador (padrão: " + padrao.Modelo + ", " + ModelosDaAnalise.NomeDoNivel(padrao.Nivel).ToLowerInvariant() + ")",
-                Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], TextWrapping = TextWrapping.Wrap });
+        {
+            var legenda = new TextBlock { Text = "• ajuste deste computador (padrão: " + padrao.Modelo + ", " + ModelosDaAnalise.NomeDoNivel(padrao.Nivel).ToLowerInvariant() + ")",
+                Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], TextWrapping = TextWrapping.Wrap };
+            Grid.SetRow(legenda, 1);
+            Grid.SetColumnSpan(legenda, 2);
+            painel.Children.Add(legenda);
+        }
         return painel;
     }
 

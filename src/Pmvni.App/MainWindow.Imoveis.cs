@@ -19,7 +19,7 @@ public sealed partial class MainWindow
     PaginaImoveis I => PaginaDeImoveis;
     BaseQgis? baseImoveis;
     Task<BaseQgis?>? carregandoBase;
-    CancellationTokenSource cancelarBase = new();
+    CancellationTokenSource? cancelarBase;
     CancellationTokenSource? cancelarPesquisa;
     Consulta? consultaImoveis;
     PaginaResultado? resultadoImoveis;
@@ -115,7 +115,8 @@ public sealed partial class MainWindow
     Task<BaseQgis?> CarregarBaseAsync(string pasta)
     {
         if (carregandoBase is { IsCompleted: false } emCurso) return emCurso;
-        var ct = cancelarBase.Token;
+        var origem = cancelarBase = new CancellationTokenSource();
+        var ct = origem.Token;
         I.TextoProgresso.Text = "Lendo a base QGIS…";
         I.Progresso.Visibility = Visibility.Visible;
         I.Aviso.IsOpen = false;
@@ -148,7 +149,12 @@ public sealed partial class MainWindow
             }
             finally
             {
-                if (!fechada) I.Progresso.Visibility = Visibility.Collapsed;
+                if (ReferenceEquals(cancelarBase, origem))
+                {
+                    cancelarBase = null;
+                    if (!fechada) I.Progresso.Visibility = Visibility.Collapsed;
+                }
+                origem.Dispose();
                 AtualizarComandosDeImoveis();
             }
         }
@@ -184,8 +190,8 @@ public sealed partial class MainWindow
     /// <summary>A pasta mudou (ou "Ler a base de novo"): cancela leitura e pesquisa em curso e esquece a base, a consulta e os resultados.</summary>
     void InvalidarBaseImoveis()
     {
-        cancelarBase.Cancel();
-        cancelarBase = new CancellationTokenSource();
+        cancelarBase?.Cancel();
+        cancelarBase = null;
         cancelarPesquisa?.Cancel();
         carregandoBase = null;
         baseImoveis = null;
@@ -239,7 +245,15 @@ public sealed partial class MainWindow
         }
         catch (OperationCanceledException) { }
         catch (ArgumentException e) { MostrarAvisoImoveis(InfoBarSeverity.Warning, "Pesquisa não feita", e.Message); }
-        finally { if (ReferenceEquals(cancelarPesquisa, cts)) I.Progresso.Visibility = Visibility.Collapsed; }
+        finally
+        {
+            if (ReferenceEquals(cancelarPesquisa, cts))
+            {
+                cancelarPesquisa = null;
+                if (!fechada) I.Progresso.Visibility = Visibility.Collapsed;
+            }
+            cts.Dispose();
+        }
     }
 
     /// <summary>Pesquisa uma inscrição (a que substituiu uma inscrição baixada): Inscrição municipal, Igual.</summary>
@@ -404,7 +418,8 @@ public sealed partial class MainWindow
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(web, "Relatório do imóvel");
         I.HostLeitor.Children.Add(web);
         I.HostLeitor.UpdateLayout();
-        await web.EnsureCoreWebView2Async(ambiente, FabricaWebView2.OpcoesController(ambiente));
+        try { await web.EnsureCoreWebView2Async(ambiente, FabricaWebView2.OpcoesController(ambiente)); }
+        catch { I.HostLeitor.Children.Remove(web); web.Close(); throw; }
         leitorImoveis = web;
         var core = web.CoreWebView2!;
         core.Settings.AreDevToolsEnabled = false;
@@ -431,6 +446,12 @@ public sealed partial class MainWindow
     {
         relatorioAberto = null;
         registroAberto = null;
+        if (leitorImoveis is { } leitor)
+        {
+            leitorImoveis = null;
+            I.HostLeitor.Children.Remove(leitor);
+            leitor.Close();
+        }
         I.VistaRelatorio.Visibility = Visibility.Collapsed;
         I.VistaPesquisa.Visibility = Visibility.Visible;
         AtualizarComandosDeImoveis();

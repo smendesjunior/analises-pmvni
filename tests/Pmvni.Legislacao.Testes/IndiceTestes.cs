@@ -111,6 +111,7 @@ public sealed class IndiceTestes : IDisposable
         var nt = c.Anexar(Cenario.Nt);
         var indice = IndiceLegislacao.Carregar(c.Acervo, CancellationToken.None);
 
+        Assert.Contains(lei.Id, indice.LeisComTexto("OCUPACAO"));
         var r = indice.Pesquisar("AFASTAMENTO");
         Assert.Equal(4, r.Total);
         Assert.Equal(2, r.Leis);

@@ -171,12 +171,13 @@ public sealed partial class MainWindow
     async Task EntrarNoAcompanhamentoAsync()
     {
         AtualizarComandosDoAcompanhamento();
+        if (janelaAtiva && pendentesPlanilha.Count > 0) tentarPendentes?.Start();
         if (string.IsNullOrWhiteSpace(ajustes.PlanilhaAcompanhamento))
         {
             MostrarVazioAcompanhamento("Escolha a planilha de acompanhamento de processos (o .xlsx no modelo padrão). Ela também pode ser escolhida em Ajustes › Fontes de dados.");
             return;
         }
-        if (planilha is null || !string.Equals(planilha.Caminho, ajustes.PlanilhaAcompanhamento, StringComparison.OrdinalIgnoreCase)) await CarregarPlanilhaAsync();
+        if (vigiaPlanilha is null || planilha is null || !string.Equals(planilha.Caminho, ajustes.PlanilhaAcompanhamento, StringComparison.OrdinalIgnoreCase)) await CarregarPlanilhaAsync();
         else MostrarPlanilha();
         if (ajustes.AcompanhamentoDetectar && planilha is not null && planilhasJaDetectadas.Add(planilha.Caminho)) await DetectarLocalEAutorAsync(manual: false);
     }
@@ -212,8 +213,17 @@ public sealed partial class MainWindow
     }
 
     /// <summary>A planilha mudou no disco (Excel, OneDrive): relê 1,5 s depois do último aviso; as gravações do próprio app não contam.</summary>
+    void PararVigiaPlanilha()
+    {
+        vigiaPlanilha?.Dispose();
+        vigiaPlanilha = null;
+        releituraPlanilha?.Stop();
+        tentarPendentes?.Stop();
+    }
+
     void VigiarPlanilha(string caminho)
     {
+        if (fechada || !janelaAtiva || moduloAtual != Modulo.Acompanhamento) return;
         if (vigiaPlanilha is not null && string.Equals(Path.Combine(vigiaPlanilha.Path, vigiaPlanilha.Filter), caminho, StringComparison.OrdinalIgnoreCase)) return;
         vigiaPlanilha?.Dispose();
         vigiaPlanilha = null;
@@ -222,7 +232,7 @@ public sealed partial class MainWindow
             var w = new FileSystemWatcher(Path.GetDirectoryName(caminho)!, Path.GetFileName(caminho)) { NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName };
             void Mudou(object? _, FileSystemEventArgs __) => DispatcherQueue.TryEnqueue(() =>
             {
-                if (gravandoPlanilha || (DateTime.UtcNow - gravouPlanilhaEm).TotalSeconds < 4) return;
+                if (vigiaPlanilha != w || gravandoPlanilha || (DateTime.UtcNow - gravouPlanilhaEm).TotalSeconds < 4) return;
                 releituraPlanilha ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
                 releituraPlanilha.Stop();
                 releituraPlanilha.Tick -= Reler;
@@ -1246,8 +1256,8 @@ public sealed partial class MainWindow
         b.Severity = InfoBarSeverity.Warning;
         b.Title = n == 1 ? "1 alteração aguardando gravação" : $"{n} alterações aguardando gravação";
         b.Message = (motivoPendentes is { } motivo
-                ? "A planilha não pôde ser gravada (" + motivo.TrimEnd('.') + "). O app tenta de novo a cada 15 segundos."
-                : "A planilha está aberta em outro programa (provavelmente o Excel). Feche-a: o app grava sozinho em até 15 segundos.")
+                ? "A planilha não pôde ser gravada (" + motivo.TrimEnd('.') + "). O app tenta de novo a cada 15 segundos com o Acompanhamento em foco."
+                : "A planilha está aberta em outro programa (provavelmente o Excel). Feche-a e volte ao Acompanhamento para gravar automaticamente.")
             + " As alterações estão guardadas; até lá a tabela mostra os valores de antes. Aguardando: "
             + string.Join("; ", pendentesPlanilha.Select(x => x.Descricao).Take(3)) + (n > 3 ? "…" : ".");
         var tentar = new Button { Content = "Gravar agora" };
@@ -1259,7 +1269,7 @@ public sealed partial class MainWindow
             tentarPendentes = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
             tentarPendentes.Tick += async (_, _) => { if (!gravandoPlanilha && pendentesPlanilha.Count > 0) await GravarPendentesAsync(manual: false); };
         }
-        tentarPendentes.Start();
+        if (janelaAtiva && moduloAtual == Modulo.Acompanhamento) tentarPendentes.Start();
     }
 
     /// <summary>A fila de pendentes vai para o disco (sobrevive a fechar o editor), com a planilha e a aba de cada uma.</summary>

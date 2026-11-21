@@ -51,9 +51,43 @@ public sealed partial class PaginaSites : Grid
         Children.Add(aviso);
         Children.Add(AvisoBci);
         renovar.Tick += async (_, _) => await RenovarSessoesAsync();
-        renovar.Start();
-        guardar.Tick += async (_, _) => { foreach (var (m, w) in navegadores.ToList()) if (w.CoreWebView2 is { } c && !CofreSites.Saiu(Raiz, m)) await GuardarCookiesAsync(m, c); };
-        guardar.Start();
+        guardar.Tick += async (_, _) =>
+        {
+            if (atual is { } m && Atual is { } c && !CofreSites.Saiu(Raiz, m)) await GuardarCookiesAsync(m, c);
+        };
+    }
+
+    bool emFoco;
+
+    internal void AtivarPeriodicos(bool ativo)
+    {
+        emFoco = ativo;
+        AjustarMemoria();
+        if (ativo) { renovar.Start(); guardar.Start(); }
+        else { renovar.Stop(); guardar.Stop(); }
+    }
+
+    void AjustarMemoria()
+    {
+        foreach (var (modulo, web) in navegadores)
+        {
+            if (web.CoreWebView2 is not { } core) continue;
+            try
+            {
+                core.MemoryUsageTargetLevel = emFoco && modulo == atual
+                    ? CoreWebView2MemoryUsageTargetLevel.Normal : CoreWebView2MemoryUsageTargetLevel.Low;
+            }
+            catch (NotImplementedException) { } // Runtime anterior a essa opção.
+        }
+    }
+
+    internal void FecharNavegadores()
+    {
+        AtivarPeriodicos(false);
+        foreach (var web in navegadores.Values.ToArray())
+            try { web.Close(); } catch (Exception e) { RegistroErros.Gravar("sites.fechar", e); }
+        criando.Clear();
+        navegadores.Clear();
     }
 
     HashSet<string> Hosts(Modulo m)
@@ -126,6 +160,7 @@ public sealed partial class PaginaSites : Grid
     public async Task MostrarAsync(Modulo m)
     {
         atual = m;
+        AjustarMemoria();
         foreach (var (mod, w) in navegadores) w.Visibility = mod == m ? Visibility.Visible : Visibility.Collapsed;
         MostrarProgresso();
         aviso.IsOpen = false;
@@ -158,6 +193,7 @@ public sealed partial class PaginaSites : Grid
         {
             await web.EnsureCoreWebView2Async(await Ambiente());
             var core = web.CoreWebView2;
+            AjustarMemoria();
             await CarregarExtensoesAsync(core.Profile);
             await PrepararPerfilAsync(core);
             core.Settings.AreDevToolsEnabled = false;
@@ -313,7 +349,7 @@ public sealed partial class PaginaSites : Grid
     {
         foreach (var (m, w) in navegadores.ToList())
         {
-            if (w.CoreWebView2 is not { } core || CofreSites.Saiu(Raiz, m)) continue;
+            if (m != atual || w.CoreWebView2 is not { } core || CofreSites.Saiu(Raiz, m)) continue;
             try
             {
                 await core.ExecuteScriptAsync(ScriptsSites.Chamar(ScriptsSites.ManterViva, null));

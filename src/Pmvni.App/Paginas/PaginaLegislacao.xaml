@@ -64,7 +64,7 @@
             <RowDefinition Height="*"/>
           </Grid.RowDefinitions>
           <Grid Margin="10,6,10,8">
-            <TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="FiltroLeis" x:FieldModifier="internal" PlaceholderText="Filtrar por título, número ou arquivo"
+            <TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="FiltroLeis" x:FieldModifier="internal" PlaceholderText="Filtrar por título, arquivo ou conteúdo"
                    AutomationProperties.Name="Filtrar as leis"/>
             <FontIcon Glyph="&#xE721;" FontSize="15" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
           </Grid>

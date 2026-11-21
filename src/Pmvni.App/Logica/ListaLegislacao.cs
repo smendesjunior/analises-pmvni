@@ -100,17 +100,17 @@ public static class ListaLegislacao
     /// <summary>As esferas com cartão (Outras só conta em "Todas").</summary>
     public static IReadOnlyList<Esfera> EsferasComCartao { get; } = [Esfera.Federal, Esfera.Estadual, Esfera.Municipal];
 
-    static bool PassaTexto(LinhaAnexo x, string termo) => termo.Length == 0
+    static bool PassaTexto(LinhaAnexo x, string termo, IReadOnlySet<string>? conteudo) => termo.Length == 0 || conteudo?.Contains(x.Id) == true
         || TextoPesquisa.Normalizar(x.Titulo).Contains(termo, StringComparison.Ordinal)
         || TextoPesquisa.Normalizar(x.Arquivo).Contains(termo, StringComparison.Ordinal);
 
     /// <summary>A lista à vista: filtro de texto, esfera (null = todas) e tipo (null = todas), com as favoritas no topo e, dentro de cada
     /// parte, a ordem das esferas e depois a ordem recebida.</summary>
-    public static IReadOnlyList<LinhaAnexo> Filtrar(IEnumerable<LinhaAnexo> l, string? filtro, Esfera? esfera, TipoNorma? tipo, IReadOnlySet<string> favoritas)
+    public static IReadOnlyList<LinhaAnexo> Filtrar(IEnumerable<LinhaAnexo> l, string? filtro, Esfera? esfera, TipoNorma? tipo, IReadOnlySet<string> favoritas, IReadOnlySet<string>? conteudo = null)
     {
         var termo = TextoPesquisa.Normalizar(filtro ?? "");
         return l.Select((x, i) => (x, i))
-            .Where(p => PassaTexto(p.x, termo) && (esfera is null || p.x.Esfera == esfera) && (tipo is null || TipoDoTitulo(p.x.Titulo) == tipo))
+            .Where(p => PassaTexto(p.x, termo, conteudo) && (esfera is null || p.x.Esfera == esfera) && (tipo is null || TipoDoTitulo(p.x.Titulo) == tipo))
             .OrderBy(p => favoritas.Contains(p.x.Id) ? 0 : 1)
             .ThenBy(p => Esferas.Indice(p.x.Esfera))
             .ThenBy(p => p.i)
@@ -118,18 +118,18 @@ public static class ListaLegislacao
     }
 
     /// <summary>Quantas leis em cada esfera com cartão (só o filtro de texto vale).</summary>
-    public static IReadOnlyDictionary<Esfera, int> ContarEsferas(IEnumerable<LinhaAnexo> l, string? filtro)
+    public static IReadOnlyDictionary<Esfera, int> ContarEsferas(IEnumerable<LinhaAnexo> l, string? filtro, IReadOnlySet<string>? conteudo = null)
     {
         var termo = TextoPesquisa.Normalizar(filtro ?? "");
-        var lista = l.Where(x => PassaTexto(x, termo)).ToList();
+        var lista = l.Where(x => PassaTexto(x, termo, conteudo)).ToList();
         return EsferasComCartao.ToDictionary(e => e, e => lista.Count(x => x.Esfera == e));
     }
 
     /// <summary>Quantas leis em cada tipo (filtro de texto e esfera valem); a chave null é "Todas".</summary>
-    public static IReadOnlyList<(TipoNorma? Tipo, int Quantidade)> ContarTipos(IEnumerable<LinhaAnexo> l, string? filtro, Esfera? esfera)
+    public static IReadOnlyList<(TipoNorma? Tipo, int Quantidade)> ContarTipos(IEnumerable<LinhaAnexo> l, string? filtro, Esfera? esfera, IReadOnlySet<string>? conteudo = null)
     {
         var termo = TextoPesquisa.Normalizar(filtro ?? "");
-        var lista = l.Where(x => PassaTexto(x, termo) && (esfera is null || x.Esfera == esfera)).ToList();
+        var lista = l.Where(x => PassaTexto(x, termo, conteudo) && (esfera is null || x.Esfera == esfera)).ToList();
         var r = new List<(TipoNorma?, int)> { (null, lista.Count) };
         r.AddRange(TiposComBotao.Select(t => ((TipoNorma?)t, lista.Count(x => TipoDoTitulo(x.Titulo) == t))));
         return r;

@@ -137,8 +137,7 @@ internal static class IaDespacho
 
         using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limite.CancelAfter(tempo);
-        using var p = TravaDeProgramas.Iniciar(si) ?? throw new InvalidOperationException("O programa da IA não abriu.");
-        try { Pmvni.Agentes.TarefaDoEditor.Padrao.Atribuir(p); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+        using var p = ProcessoInterno.Iniciar(si);
         var saida = p.StandardOutput.ReadToEndAsync(limite.Token);
         var erro = p.StandardError.ReadToEndAsync(limite.Token);
         try
@@ -150,20 +149,20 @@ internal static class IaDespacho
                 p.StandardInput.Close();
             }
             catch (IOException) { }
-            try { await p.WaitForExitAsync(limite.Token); }
+            try { await p.Processo.WaitForExitAsync(limite.Token); }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
                 throw new InvalidOperationException($"A IA não respondeu em {tempo.TotalMinutes:0} minutos e foi interrompida. Tente de novo; se repetir, confira a conta em Ajustes › Inteligência artificial.");
             }
             string Ler(Task<string> t) => t.IsCompletedSuccessfully ? t.Result : "";
             await Task.WhenAny(Task.WhenAll(saida, erro), Task.Delay(TimeSpan.FromSeconds(3), CancellationToken.None));
-            if (p.ExitCode != 0)
+            if (p.Processo.ExitCode != 0)
             {
                 // O Claude Code em -p costuma escrever o motivo na saída comum, não na de erro: mostra o que vier, senão o código.
                 var motivo = Ler(erro).Trim();
                 if (motivo.Length == 0) motivo = Ler(saida).Trim();
                 if (motivo.Length > 600) motivo = "…" + motivo[^600..];
-                if (motivo.Length == 0) motivo = $"o programa terminou com o código {p.ExitCode} sem explicar o motivo ({Path.GetFileName(si.FileName)}). Confira se você entrou na conta em Ajustes › Inteligência artificial.";
+                if (motivo.Length == 0) motivo = $"o programa terminou com o código {p.Processo.ExitCode} sem explicar o motivo ({Path.GetFileName(si.FileName)}). Confira se você entrou na conta em Ajustes › Inteligência artificial.";
                 // Login vencido (2026-11-17, visto no Claude Code: "Failed to authenticate: OAuth session expired"): diz o que fazer.
                 if (LoginVencido(motivo))
                     throw new InvalidOperationException($"O login do {(si.FileName.Contains("codex", StringComparison.OrdinalIgnoreCase) ? "Codex" : "Claude Code")} venceu. "
@@ -179,7 +178,7 @@ internal static class IaDespacho
         }
         finally
         {
-            try { if (!p.HasExited) p.Kill(true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            try { if (!p.Processo.HasExited) p.Processo.Kill(true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
             if (ultima is not null) try { File.Delete(ultima); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }

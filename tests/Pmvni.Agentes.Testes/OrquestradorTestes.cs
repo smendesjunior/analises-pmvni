@@ -545,7 +545,8 @@ public partial class OrquestradorTestes
         using var c = new Cena("orq-claude-ja", "ja_em_andamento", Provedor.Claude);
         var (exe, args) = LinhasDeComando.ProRuntime(Ambiente.AgenteFalso, false, c.Pecas.ProRuntime!, c.Processo.Pasta, "iniciar");
         // Uma análise já está rodando (partida de antes, por fora do orquestrador).
-        var antes = await ExecucaoProcesso.RodarAsync(exe, args, c.Processo.Pasta, env => env["AGENTE_FALSO_CENARIO"] = c.Cenario, TimeSpan.FromSeconds(30), CancellationToken.None);
+        using var anterior = new GrupoDeProcessos();
+        var antes = await ExecucaoProcesso.RodarAsync(exe, args, c.Processo.Pasta, env => env["AGENTE_FALSO_CENARIO"] = c.Cenario, TimeSpan.FromSeconds(30), CancellationToken.None, anterior);
         Assert.Equal(0, antes.Codigo);
         Assert.Contains("INICIADA", antes.Saida);
         Assert.True(Ambiente.EsperarAte(() =>
@@ -628,7 +629,7 @@ public partial class OrquestradorTestes
     }
 
     [Fact]
-    public async Task claude_parar_de_acompanhar_nao_encerra_a_analise_do_kit()
+    public async Task claude_cancelar_encerra_a_arvore_da_analise_do_kit()
     {
         using var c = new Cena("orq-claude-parar", "claude_lento", Provedor.Claude);
         using var cts = new CancellationTokenSource();
@@ -643,10 +644,9 @@ public partial class OrquestradorTestes
 
         cts.Cancel();
         var fim = await Ambiente.Com(seguindo, TimeSpan.FromSeconds(15));
-        Assert.Equal("acompanhamento_interrompido", fim.Situacao);
-        Assert.Equal("acompanhamento_interrompido", c.Execucao()["situacao"]!.GetValue<string>());      // nunca "cancelada": a análise do kit segue
-        Assert.True(Ambiente.Vivo(pid), "a análise do kit roda sozinha: parar de acompanhar não a encerra");
+        Assert.Equal("cancelada", fim.Situacao);
+        Assert.Equal("cancelada", c.Execucao()["situacao"]!.GetValue<string>());
+        Assert.True(Ambiente.EsperarAte(() => !Ambiente.Vivo(pid), TimeSpan.FromSeconds(5)));
         Assert.False(TravaExecucao.EmAndamento(c.Processo.Pasta));
-        Process.GetProcessById(pid).Kill(true);
     }
 }

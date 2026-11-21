@@ -45,7 +45,25 @@ internal static class InstalacaoMotorPdf
         return s is null ? null : Convert.ToHexString(SHA256.HashData(s));
     }
 
-    internal static async Task<string> ConferirAsync()
+    internal static async Task LimparAsync()
+    {
+        try
+        {
+            var pasta = await ExtrairAsync();
+            var inicio = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"))
+            {
+                UseShellExecute = false, CreateNoWindow = true
+            };
+            foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File",
+                Path.Combine(pasta, "limpar.ps1"), "-EditorAberto", Environment.ProcessPath ?? "" })
+                inicio.ArgumentList.Add(arg);
+            using var processo = TravaDeProgramas.Iniciar(inicio)!;
+            await processo.WaitForExitAsync();
+        }
+        catch (Exception e) { RegistroErros.Gravar("motor.pdf.limpeza", e); }
+    }
+
+    internal static async Task<string> ConferirAsync(string kitLocal)
     {
         try
         {
@@ -59,12 +77,14 @@ internal static class InstalacaoMotorPdf
             };
             foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(pasta, "configurar-plugins.ps1") })
                 inicio.ArgumentList.Add(arg);
+            inicio.ArgumentList.Add("-KitLocal");
+            inicio.ArgumentList.Add(kitLocal);
             var inicioUtc = DateTime.UtcNow;
-            using var instalador = TravaDeProgramas.Iniciar(inicio)!;
+            using var instalador = ProcessoInterno.Iniciar(inicio);
             var erro = await instalador.StandardError.ReadToEndAsync();
-            await instalador.WaitForExitAsync();
+            await instalador.Processo.WaitForExitAsync();
             if (File.Exists(Resumo) && File.GetLastWriteTimeUtc(Resumo) >= inicioUtc) return await File.ReadAllTextAsync(Resumo);
-            if (instalador.ExitCode != 0)
+            if (instalador.Processo.ExitCode != 0)
                 throw new IOException($"Instalação do motor PDF {versao}: {erro}");
             return "Instalação encerrada sem resumo.";
         }
@@ -78,7 +98,8 @@ internal static class InstalacaoMotorPdf
     {
         try
         {
-            var resumo = File.Exists(Resumo) ? await File.ReadAllTextAsync(Resumo) : null;
+            var registro = PrimeiraAbertura.RegistroMaisRecente(BaseLocal);
+            var resumo = File.Exists(registro) ? await File.ReadAllTextAsync(registro) : null;
             if (!PrimeiraAbertura.Incompleta(resumo)) return false;
             DateTime? ultima = File.Exists(Tentativa) ? File.GetLastWriteTimeUtc(Tentativa) : null;
             var agora = DateTime.UtcNow;

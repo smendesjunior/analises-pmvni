@@ -2,6 +2,23 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.1.0
+
+- Os cartões dos Ajustes ocupam a linha inteira. As ações ficam agrupadas ao lado da descrição e descem juntas em janelas estreitas. Os caminhos de pastas têm dica com o endereço completo.
+- Sites da Prefeitura: Abrir para entrar e Sair ficam no cabeçalho de cada site, usuário e senha lado a lado com Guardar login, e o teste do boletim do GPI ganhou linha própria com explicação.
+- O cartão Plugins e ferramentas reúne a atualização do kit e o reparo da instalação. Em Sobre e suporte ficam as atualizações do Editor.
+- A busca na aba Leis encontra termos no conteúdo indexado dos PDFs e inclui essas leis nos contadores.
+- Imóveis e Acompanhamento também podem ser escolhidos como módulo inicial.
+- Modelos da análise ganhou uma categoria nos Ajustes, com escolha de rota e de modelo e raciocínio por etapa.
+- O cartão Leis anexadas usa a borda comum dos Ajustes mesmo durante a preparação dos PDFs.
+- A lista de processos reconhece número, ano e requerente em pastas com nomes livres e aproveita o ano da pasta superior.
+- Corrigido o falso erro de instalação do Blueprint e do FYP: avisos informativos do instalador não contam mais como falha, e o cartão mostra o registro de instalação mais recente.
+- O servidor de PDF (pmvni-pdf) carrega o PyMuPDF só na primeira ferramenta que o usa e encerra seus processos quando a sessão fecha.
+- O Editor limpa sozinho, em segundo plano, ambientes antigos do motor de PDF, itens removidos há mais de 14 dias e sobras de atualização, sem tocar no ambiente em uso nem nos seus dados. O que foi apagado fica registrado em limpeza.log.
+- Menos trabalho em segundo plano: animações, sites, planilha e consultas de modelos de IA param quando a janela perde o foco ou a página fica oculta.
+- Menos memória: cache de ícones limitado e visualizadores, prévias e análises concluídas liberados quando não estão em uso.
+- Processos internos (Codex, Claude, Gemini, motor de PDF, LibreOffice e scripts) e seus descendentes são encerrados ao concluir, ao cancelar e ao fechar o Editor.
+
 ## 3.0.0
 
 Esta versão muda como a IA é usada na análise: ela faz só o que exige julgamento técnico, e o programa faz o resto. O resultado é menos sessões, menos texto enviado a cada uma, menos consumo de cota e menos espera, sem tirar nenhuma conferência.

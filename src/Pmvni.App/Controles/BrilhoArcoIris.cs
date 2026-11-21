@@ -88,7 +88,7 @@ public static class Trabalhando
         void Sincronizar()
         {
             // A visibilidade dos ancestrais é conferida pelo próprio brilho (BrilhoArcoIris vigia a cadeia inteira).
-            var trabalhando = c.IsLoaded && c.Visibility == Visibility.Visible && c switch
+            var trabalhando = GetAutomatico(c) && c.IsLoaded && c.Visibility == Visibility.Visible && c switch
             {
                 ProgressRing r => r.IsActive,
                 ProgressBar b => b.IsIndeterminate,
@@ -496,6 +496,15 @@ static class RelogioQuadros
     [ThreadStatic] static List<Action<double>>? quadros;
     [ThreadStatic] static DispatcherQueueTimer? temporizador;
 
+    [ThreadStatic] static bool pausado;
+
+    internal static void Pausar(bool pausa)
+    {
+        pausado = pausa;
+        if (pausa) temporizador?.Stop();
+        else if (Quantos > 0) temporizador?.Start();
+    }
+
     public static double Agora => Tempo.Elapsed.TotalSeconds;
     /// <summary>Quantas animações estão no relógio desta thread (autoteste: ocioso = 0) e se o temporizador está rodando.</summary>
     internal static int Quantos => quadros?.Count ?? 0;
@@ -514,7 +523,7 @@ static class RelogioQuadros
             temporizador.IsRepeating = true;
             temporizador.Tick += (_, _) => { var t = Agora; foreach (var f in lista.ToArray()) f(t); };
         }
-        if (temporizador is { IsRunning: false }) temporizador.Start();
+        if (!pausado && temporizador is { IsRunning: false }) temporizador.Start();
         q(Agora);
     }
 

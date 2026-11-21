@@ -6,7 +6,7 @@ namespace Pmvni.App;
 /// <summary>Tarefa 16: na abertura do Editor, se a instalação do motor PDF e dos plugins está incompleta, inicia o
 /// <c>primeira-abertura.ps1</c> fora do Editor, pelo Windows: grava um <c>.cmd</c> ao lado do script e o abre com o <c>explorer.exe</c>
 /// (regra do usuário para tudo o que grava em AppData/HKCU ou instala). A instalação completa não inicia nada.
-/// <para>"Incompleta" é a mesma conferência que o botão "Instalar ou atualizar plugins" mostra: o <c>resumo-instalacao.txt</c> (uma linha
+/// <para>"Incompleta" é a mesma conferência que o botão "Reparar instalação" mostra: o <c>resumo-instalacao.txt</c> (uma linha
 /// por componente, <c>"&lt;componente&gt;    &lt;ESTADO&gt;"</c>, e <c>"FALHA    &lt;mensagem&gt;"</c>) não existe, está vazio, ou tem um
 /// componente PENDENTE, uma FALHA, ou um plugin de análise instalado abaixo da versão mínima do Editor (<see cref="PoliticaKit.VersoesMinimas"/>).
 /// AUSENTE (Codex ou Claude Code não instalados) não conta: o instalador não instala esses programas e abriria a cada início sem resolver nada.</para>
@@ -18,6 +18,13 @@ public static class PrimeiraAbertura
     public const string Script = "primeira-abertura.ps1";
     public const string Cmd = "primeira-abertura.cmd";
 
+    internal static string RegistroMaisRecente(string pasta)
+    {
+        var resumo = Path.Combine(pasta, "resumo-instalacao.txt");
+        var log = Path.Combine(pasta, "primeira-abertura.log");
+        return File.Exists(log) && (!File.Exists(resumo) || File.GetLastWriteTimeUtc(log) > File.GetLastWriteTimeUtc(resumo))
+            && new FileInfo(log).Length > 0 ? log : resumo;
+    }
     /// <summary>O resumo diz que falta instalar algo (ou não há resumo: nunca instalou).</summary>
     public static bool Incompleta(string? resumo)
     {
@@ -93,7 +100,7 @@ public static class PrimeiraAbertura
     }
 }
 
-/// <summary>Tarefa 16 (erro 15 do diagnóstico 19486): o botão "Atualizar kit PMVNI" não inicia a atualização com uma análise em andamento
+/// <summary>Tarefa 16 (erro 15 do diagnóstico 19486): o botão "Atualizar todos" não inicia a atualização com uma análise em andamento
 /// no Editor (o kit trocado no meio obriga a revalidar e refazer etapas). Avisa e não inicia nada; sem análise, chama <c>iniciar</c>.</summary>
 public static class AtualizacaoKit
 {
@@ -105,23 +112,13 @@ public static class AtualizacaoKit
         (processos.Count == 1 ? "Há uma análise em andamento (" + processos[0] + ")" : "Há análises em andamento (" + string.Join(", ", processos) + ")")
         + ". O kit não foi atualizado: trocá-lo no meio da análise obriga a refazer etapas. Atualize quando a análise terminar.";
 
-    /// <summary><paramref name="analisesEmAndamento"/>: os processos com análise em andamento no Editor (vazio = nenhuma). Devolve o texto
-    /// para o resumo dos Ajustes.</summary>
-    public static async Task<string> SolicitarAsync(IReadOnlyList<string> analisesEmAndamento, Func<Task<string>> iniciar)
-    {
-        ArgumentNullException.ThrowIfNull(analisesEmAndamento);
-        ArgumentNullException.ThrowIfNull(iniciar);
-        if (analisesEmAndamento.Count > 0) return AvisoAnaliseEmAndamento(analisesEmAndamento);
-        return await iniciar();
-    }
-
-    /// <summary>Revisão final I2: o aviso do botão "Instalar ou atualizar plugins" com análise em andamento (o mesmo bloqueio do "Atualizar kit").</summary>
+    /// <summary>Revisão final I2: o aviso do botão "Reparar instalação" com análise em andamento (o mesmo bloqueio do "Atualizar kit").</summary>
     public static string AvisoPluginsComAnalise(IReadOnlyList<string> processos) =>
         (processos.Count == 1 ? "Há uma análise em andamento (" + processos[0] + ")" : "Há análises em andamento (" + string.Join(", ", processos) + ")")
         + ". Os plugins não foram instalados nem atualizados: trocar o plugin analise no meio da análise obriga a refazer etapas. "
         + "Instale quando a análise terminar.";
 
-    /// <summary>Revisão final I2: o botão "Instalar ou atualizar plugins" roda o <c>configurar-plugins.ps1</c> inteiro (inclusive o plugin analise);
+    /// <summary>Revisão final I2: o botão "Reparar instalação" roda o <c>configurar-plugins.ps1</c> inteiro (inclusive o plugin analise);
     /// com análise em andamento no Editor, avisa e não chama <paramref name="instalar"/>.</summary>
     public static async Task<string> InstalarPluginsAsync(IReadOnlyList<string> analisesEmAndamento, Func<Task<string>> instalar)
     {

@@ -107,9 +107,36 @@ public static class Processos
 
     internal static Processo Interpretar(string pasta)
     {
-        var nome = Path.GetFileName(pasta);
+        return InterpretarNome(pasta, Path.GetFileName(pasta), Path.GetFileName(Path.GetDirectoryName(pasta)));
+    }
+
+    internal static Processo InterpretarNome(string pasta, string nome, string? anoPasta)
+    {
         var m = NomeProcesso.Match(nome);
-        if (!m.Success) return new Processo(pasta, nome, null, null, null);
+        if (!m.Success)
+        {
+            var livre = Regex.Replace(nome, @"^\s*FINALIZADO\s*-\s*", "", RegexOptions.IgnoreCase);
+            var par = Regex.Match(livre, @"(?<!\w)(?:(?<ano>(?:19|20)\d{2})\s*[-_/]\s*(?<num>\d+)|(?<num>\d+)\s*(?:[-_/]|\s)\s*(?<ano>(?:19|20)\d{2}|\d{2}))(?!\w)");
+            if (!par.Success)
+                par = Regex.Match(livre, @"(?:^|(?<=-))\s*(?<num>\d+)\s*$|^\s*(?<num>\d+)\s*-");
+            // Um número longo e isolado também pode aparecer entre palavras. Um ano ou um algarismo do nome comercial não basta.
+            if (!par.Success)
+            {
+                var candidatos = Regex.Matches(livre, @"(?<!\w)\d{4,}(?!\w)")
+                    .Where(c => int.TryParse(c.Value, out var n) && n is < 1900 or > 2099).ToList();
+                if (candidatos.Count == 1) par = candidatos[0];
+            }
+            var idLivre = par.Groups["num"].Success ? par.Groups["num"].Value : par.Value;
+            var anoLivre = par.Groups["ano"].Value;
+            if (!int.TryParse(idLivre, out var numeroLivre) || anoLivre.Length == 0 && numeroLivre is >= 1900 and <= 2099)
+                return new Processo(pasta, nome, null, null, null);
+            if (anoLivre.Length == 0) anoLivre = anoPasta ?? "";
+            else if (anoLivre.Length == 2) anoLivre = (anoPasta?.Length == 4 ? anoPasta[..2] : "20") + anoLivre;
+            var antes = Regex.Replace(livre[..par.Index], @"\b(?:processo|proc\.?)\s*(?:n[º°o]\.?\s*)?$", "", RegexOptions.IgnoreCase);
+            var requerente = string.Join(" ", new[] { antes, livre[(par.Index + par.Length)..] }
+                .Select(p => p.Trim(' ', '-', '_', '(', ')')).Where(p => p.Length > 0));
+            return new Processo(pasta, nome, numeroLivre, int.TryParse(anoLivre, out var ano) ? ano : null, requerente) { Identificador = idLivre };
+        }
         var id = m.Groups["num"].Value;
         if (id.StartsWith("PMVNI-ID-", StringComparison.Ordinal))
         {

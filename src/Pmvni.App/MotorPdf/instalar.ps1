@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'nativo.ps1')
 $base = Join-Path $env:LOCALAPPDATA 'PMVNI\MotorPdf'
 [IO.Directory]::CreateDirectory($base) | Out-Null
 $mutex = [Threading.Mutex]::new($false,'Local\PMVNI-MotorPdf')
@@ -11,8 +12,10 @@ try {
     $python = Join-Path $venv 'Scripts\python.exe'
     $pointer = Join-Path $base 'runtime.txt'
     if ((Test-Path $pointer) -and ([IO.File]::ReadAllText($pointer) -eq $python) -and (Test-Path $python)) {
-        & $python -I -c 'import pymupdf, docling_mcp, mcp'
-        if ($LASTEXITCODE -eq 0) { return }
+        try {
+            Invocar-Nativo $python @('-I', '-c', 'import pymupdf, docling_mcp, mcp')
+            return
+        } catch { Write-Verbose $_ }
     }
     $spec = Get-Content -Raw (Join-Path $PSScriptRoot 'uv.json') | ConvertFrom-Json
     $uv = Join-Path $base 'uv-0.13.9.exe'
@@ -28,13 +31,13 @@ try {
     }
     $env:UV_PYTHON_INSTALL_DIR = Join-Path $base 'python'
     if (!(Test-Path $python)) {
-        & $uv venv --managed-python --python 3.11.14 $venv
-        if ($LASTEXITCODE) { throw 'Falha ao preparar Python 3.11' }
+        Invocar-Nativo $uv @('venv', '--quiet', '--managed-python', '--python', '3.11.14', $venv)
+
     }
-    & $uv pip sync --python $python --default-index https://pypi.org/simple --only-binary :all: --require-hashes $lock
-    if ($LASTEXITCODE) { throw 'Falha ao instalar dependencias' }
-    & $python -I -c 'import pymupdf, docling_mcp, mcp'
-    if ($LASTEXITCODE) { throw 'Falha na verificacao do ambiente' }
+    Invocar-Nativo $uv @('pip', 'sync', '--quiet', '--python', $python, '--default-index', 'https://pypi.org/simple', '--only-binary', ':all:', '--require-hashes', $lock)
+
+    Invocar-Nativo $python @('-I', '-c', 'import pymupdf, docling_mcp, mcp')
+
     $tmp = "$pointer.new"
     [IO.File]::WriteAllText($tmp,$python)
     if (Test-Path $pointer) { [IO.File]::Replace($tmp,$pointer,($pointer + ".anterior")) } else { [IO.File]::Move($tmp,$pointer) }
