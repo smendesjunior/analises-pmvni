@@ -26,7 +26,7 @@ public class FluxoNovoRelatorioTestes
     public void motivo_do_botao_do_gemini()
     {
         const string SemPython = "O Python não foi encontrado neste computador (o análise Google do kit precisa dele).";
-        const string SemPlugin = "O plugin análise Google do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
+        const string SemPlugin = "A rota Gemini do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
         const string SemChave = "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.";
         string? M(Pecas pecas, ModoAcesso modo = ModoAcesso.Conta, bool chave = false, PerfilGemini? perfil = PerfilGemini.ContaUltra) =>
             FluxoNovoRelatorio.MotivoDesabilitado(Provedor.Gemini, P0001, false, pecas, modo, chave, perfil);
@@ -59,12 +59,12 @@ public class FluxoNovoRelatorioTestes
         // Textos do terceiro botão e do cartão.
         Assert.Equal("Analisar com o Gemini", FluxoNovoRelatorio.AvisoTitulo(Provedor.Gemini));
         Assert.StartsWith("Analisar com o Gemini inicia o análise Google do kit PMVNI", FluxoNovoRelatorio.TextoAviso(Provedor.Gemini));
-        Assert.Equal("Gemini (Antigravity · plugin análise Google)", TextosAgentes.Titulo(Provedor.Gemini));
-        Assert.Equal("Plugin análise Google", TextosAgentes.TituloPlugin(PluginsInstalados.AnaliseGoogle));
-        Assert.Equal("Plugin análise pro", TextosAgentes.TituloPlugin(PluginsInstalados.AnalisePro));
-        Assert.Equal("Plugin analise", TextosAgentes.TituloPlugin(PluginsInstalados.Analise));
-        Assert.Equal("ChatGPT (Codex · plugin analise)", TextosAgentes.Titulo(Provedor.ChatGpt));
-        Assert.Equal("Claude (Claude Code · plugin análise pro)", TextosAgentes.Titulo(Provedor.Claude));
+        Assert.Equal("Gemini (Antigravity · análise, rota Gemini)", TextosAgentes.Titulo(Provedor.Gemini));
+        Assert.Equal("Análise — rota Gemini", TextosAgentes.TituloPlugin(PluginsInstalados.AnaliseGoogle));
+        Assert.Equal("Análise — rota Claude", TextosAgentes.TituloPlugin(PluginsInstalados.AnalisePro));
+        Assert.Equal("Análise — rota ChatGPT", TextosAgentes.TituloPlugin(PluginsInstalados.Analise));
+        Assert.Equal("ChatGPT (Codex · análise, rota ChatGPT)", TextosAgentes.Titulo(Provedor.ChatGpt));
+        Assert.Equal("Claude (Claude Code · análise, rota Claude)", TextosAgentes.Titulo(Provedor.Claude));
         Assert.Equal(3, TextosAgentes.OpcoesPerfilGemini.Count);
         foreach (var p in new PerfilGemini?[] { null, PerfilGemini.ApiCreditos, PerfilGemini.ApiGratuita })
             Assert.Equal(p, TextosAgentes.PerfilDoIndice(TextosAgentes.IndiceDoPerfil(p)));
@@ -103,7 +103,7 @@ public class FluxoNovoRelatorioTestes
         const string SemPlugin = "O plugin analise do kit PMVNI não está habilitado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
         const string SemChave = "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.";
         const string SemPython = "O Python não foi encontrado neste computador (o análise pro do kit precisa dele).";
-        const string SemPro = "O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
+        const string SemPro = "A rota Claude do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
         const string SemClaude = "O Claude Code não foi encontrado neste computador (claude.exe).";
 
         string? M(Provedor p, Processo? pr = null, bool andamento = false, Pecas? pecas = null, ModoAcesso modo = ModoAcesso.Conta, bool chave = false) =>

@@ -89,8 +89,8 @@ public class PaginaIaTestes
     [Fact]
     public void textos_dos_plugins()
     {
-        Assert.Equal("Plugin analise", TextosAgentes.TituloPlugin(PluginsInstalados.Analise));
-        Assert.Equal("Plugin análise pro", TextosAgentes.TituloPlugin(PluginsInstalados.AnalisePro));
+        Assert.Equal("Análise — rota ChatGPT", TextosAgentes.TituloPlugin(PluginsInstalados.Analise));
+        Assert.Equal("Análise — rota Claude", TextosAgentes.TituloPlugin(PluginsInstalados.AnalisePro));
         Assert.Equal("No Codex, habilitado", TextosAgentes.OndePlugin(Provedor.ChatGpt, PluginsInstalados.Analise, true));
         Assert.Equal("No Codex, não habilitado", TextosAgentes.OndePlugin(Provedor.ChatGpt, PluginsInstalados.Analise, false));
         Assert.Equal("No Claude Code", TextosAgentes.OndePlugin(Provedor.Claude, PluginsInstalados.Analise, true));

@@ -77,7 +77,8 @@ public static class PrimeiraAbertura
         return true;
     }
 
-    static Encoding CodificacaoDoConsole()
+    /// <summary>A página OEM do console (o cmd.exe lê o .cmd nela); também usada pelo cartão Plugins e ferramentas (<see cref="ComponentesDoKit"/>).</summary>
+    internal static Encoding CodificacaoDoConsole()
     {
         try
         {

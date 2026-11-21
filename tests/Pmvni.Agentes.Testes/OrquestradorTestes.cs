@@ -418,7 +418,7 @@ public partial class OrquestradorTestes
 
         Assert.Equal("O Python não foi encontrado neste computador (o análise pro do kit precisa dele).",
             (await RodarSemPecas("orq-sem-python", Provedor.Claude, p => p with { Python = null })).Mensagem);
-        Assert.Equal("O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).",
+        Assert.Equal("A rota Claude do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).",
             (await RodarSemPecas("orq-sem-pro", Provedor.Claude, p => p with { ProRuntime = null })).Mensagem);
         Assert.Equal("O Claude Code não foi encontrado neste computador (claude.exe).",
             (await RodarSemPecas("orq-sem-claude", Provedor.Claude, p => p with { Claude = null })).Mensagem);

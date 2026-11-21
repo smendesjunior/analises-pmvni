@@ -339,7 +339,7 @@ public class GeminiTestes
         var nada = new Pecas(null, null, null, false, null, null, null, false, null, false);
 
         var conta = await Diagnostico.TestarAsync(Provedor.Gemini, nada, ModoAcesso.Conta, false, CancellationToken.None);
-        Assert.Equal("Antigravity CLI (agy) não encontrado · análise Google não instalado no Codex · Python não encontrado", conta.Linha);
+        Assert.Equal("Antigravity CLI (agy) não encontrado · Análise — rota Gemini não instalada no Codex · Python não encontrado", conta.Linha);
         Assert.Null(conta.ContaConectada);
         Assert.Empty(conta.Avisos);
 
@@ -384,9 +384,9 @@ public class GeminiTestes
 
         var r = await Diagnostico.TestarAsync(Provedor.Gemini, pecas, ModoAcesso.Conta, false, CancellationToken.None);
 
-        Assert.Equal("Antigravity CLI 1.5.10 · " + sessao + " · análise Google 1.0.0 (kit: 1.0.1) · Python 3.14.0", r.Linha);
+        Assert.Equal("Antigravity CLI 1.5.10 · " + sessao + " · Análise — rota Gemini 1.0.0 (kit: 1.0.1) · Python 3.14.0", r.Linha);
         Assert.Equal(conectado, r.ContaConectada);
-        Assert.Contains("O kit tem o análise Google 1.0.1; instalado 1.0.0. Atualize pelo INSTALAR_KIT_PMVNI.cmd.", r.Avisos);
+        Assert.Contains("O kit tem o plugin analise 1.0.1; instalado 1.0.0. Atualize pelo INSTALAR_KIT_PMVNI.cmd.", r.Avisos);
         if (conectado)
             Assert.Contains(r.Avisos, a => a.StartsWith("A conta não oferece", StringComparison.Ordinal) && a.Contains("gemini-3.8-flash low"));
         else Assert.DoesNotContain(r.Avisos, a => a.StartsWith("A conta não oferece", StringComparison.Ordinal));

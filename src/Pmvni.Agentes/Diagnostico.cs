@@ -122,12 +122,12 @@ public static class Diagnostico
             }
         }
 
-        if (pecas.ProRuntime is null) partes.Add("análise pro não instalado no Codex");
+        if (pecas.ProRuntime is null) partes.Add("Análise — rota Claude não instalada no Codex");
         else
         {
-            partes.Add($"análise pro {pecas.VersaoAnalisePro} (kit: {pecas.VersaoAnaliseProKit ?? "não encontrado"})");
+            partes.Add($"Análise — rota Claude {pecas.VersaoAnalisePro} (kit: {pecas.VersaoAnaliseProKit ?? "não encontrado"})");
             if (Version.TryParse(pecas.VersaoAnaliseProKit, out var doKit) && Version.TryParse(pecas.VersaoAnalisePro, out var instalada) && doKit > instalada)
-                avisos.Add($"O kit tem o análise pro {pecas.VersaoAnaliseProKit}; instalado {pecas.VersaoAnalisePro}. Atualize pelo INSTALAR_KIT_PMVNI.cmd.");
+                avisos.Add($"O kit tem o plugin analise {pecas.VersaoAnaliseProKit}; instalado {pecas.VersaoAnalisePro}. Atualize pelo INSTALAR_KIT_PMVNI.cmd.");
         }
 
         if (pecas.Python is null) partes.Add("Python não encontrado");

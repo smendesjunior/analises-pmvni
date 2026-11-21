@@ -2773,7 +2773,7 @@ internal static class Roteiro
             await Esperar(300);
             var situacaoSozinha = chatgpt.TextoSituacao.Text;
             var secao = j.PaginaAjustesVisivel && pag.CategoriaAtual == CategoriasAjustes.Ia && pag.TituloAgentes.Text == "Inteligência artificial";
-            var cartoes = chatgpt.Titulo.Text == "ChatGPT (Codex · plugin analise)" && claude.Titulo.Text == "Claude (Claude Code · plugin análise pro)"
+            var cartoes = chatgpt.Titulo.Text == "ChatGPT (Codex · análise, rota ChatGPT)" && claude.Titulo.Text == "Claude (Claude Code · análise, rota Claude)"
                 && chatgpt.TextoServico.Text == "Codex (ChatGPT)" && claude.TextoServico.Text == "Claude Code"
                 && chatgpt.ActualHeight > 0 && claude.ActualHeight > 0 && chatgpt.BotaoTestar.IsEnabled && claude.BotaoTestar.IsEnabled
                 && chatgpt.OpcaoConta.IsChecked == true && claude.OpcaoConta.IsChecked == true && chatgpt.OpcaoConta.Content as string == "Usar minha conta (login do programa)"
@@ -2809,7 +2809,7 @@ internal static class Roteiro
                 && rChatGpt.Avisos.Count == 0 && chatgpt.BotaoTestar.IsEnabled;
             var versaoDoKit = LerVersaoDoKit(j.PastaKitEfetiva) ?? "não encontrado";
             var rClaude = await j.TestarAgenteAsync(Provedor.Claude);
-            var linhaClaude = $"Claude Code 2.9.0 · conectado com a conta do Claude · análise pro 4.0.0 (kit: {versaoDoKit}) · Python 3.14.0";
+            var linhaClaude = $"Claude Code 2.9.0 · conectado com a conta do Claude · Análise — rota Claude 4.0.0 (kit: {versaoDoKit}) · Python 3.14.0";
             var testouClaude = rClaude.Linha == linhaClaude && claude.TextoSituacao.Text == linhaClaude;
             p["linha_chatgpt"] = rChatGpt.Linha;
             p["linha_claude"] = rClaude.Linha;
@@ -3342,7 +3342,7 @@ internal static class Roteiro
             var n = j.NovoRelatorio;
             var botao = (n.BotaoGemini.Content as StackPanel)?.Children.OfType<TextBlock>().FirstOrDefault()?.Text == "Analisar com o Gemini"
                 && j.BotaoAnaliseHabilitado(Provedor.Gemini) && j.BotaoAnaliseHabilitado(Provedor.ChatGpt) && j.BotaoAnaliseHabilitado(Provedor.Claude)
-                && n.TextoPluginGemini.Text == "Pelo Antigravity · kit análise Google v4.0.0" && n.TextoPerfilGemini.Text == "Perfil: Conta Google (plano Ultra)";
+                && n.TextoPluginGemini.Text == "Pelo Antigravity · Análise — rota Gemini v4.0.0" && n.TextoPerfilGemini.Text == "Perfil: Conta Google (plano Ultra)";
             p["rotulo_do_botao"] = n.TextoPluginGemini.Text;
 
             // Conta Google: aviso na primeira vez, conferência antes da partida, as etapas na tela e o relatório importado.
@@ -5097,6 +5097,74 @@ internal static class Roteiro
                 p["ok"] = rotulo == "Rever (sem IA)" && reviu && semIa && desfez && rotuloComInstrucao == "Rever (sem IA)" && opcaoComIa;
             }
             finally { File.Delete(json); }
+        });
+
+        await Passo("plugins_e_ferramentas", async p =>
+        {
+            // Tarefa 21: o cartão "Plugins e ferramentas" (Ajustes › Pastas e kit). As pastas lidas são fictícias (Codex, resumo do motor PDF,
+            // fonte e cópia do kit, estado.json do instalador) e o lançador é falso: nenhum .cmd é aberto de verdade. A fonte tem o analise 4.1.0 e o
+            // Codex o 4.0.0 (atualização disponível); o "Atualizar" da linha grava o .cmd só do analise; "Atualizar todos" grava o do instalador do kit.
+            var raiz = Path.Combine(pasta, "kit-componentes");
+            string Em(string nome) { var d = Path.Combine(raiz, nome); Directory.CreateDirectory(d); return d; }
+            var (codexHome, motor, pmvni, kitLocal, fonte, scripts) = (Em("codex"), Em("MotorPdf"), Em("PMVNI"), Em("KIT"), Em("fonte"), Em("bootstrap"));
+            foreach (var kit in new[] { fonte, kitLocal })
+            {
+                var d = Directory.CreateDirectory(Path.Combine(kit, "01 - PLUGINS", "plugins", "analise", ".codex-plugin")).FullName;
+                await File.WriteAllTextAsync(Path.Combine(d, "plugin.json"), "{\"name\":\"analise\",\"version\":\"4.1.0\"}");
+            }
+            await File.WriteAllTextAsync(Path.Combine(kitLocal, ComponentesDoKit.InstaladorDoKit), "rem fictício");
+            Directory.CreateDirectory(Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0"));
+            await File.WriteAllTextAsync(Path.Combine(codexHome, "pmvni-kit.json"), new JsonObject { ["kit_root"] = kitLocal, ["fonte"] = fonte }.ToJsonString());
+            await File.WriteAllTextAsync(Path.Combine(motor, "resumo-instalacao.txt"),
+                "Blueprint Pipeline    INSTALADO\r\nFYP-Floorplan    INSTALADO\r\nDocling MCP 3.5.0    INSTALADO\r\nPyMuPDF 2.1    INSTALADO\r\nCodex / analise    INSTALADO 4.0.0\r\n");
+            await File.WriteAllTextAsync(Path.Combine(motor, "mcp_pmvni.py"), "# servidor fictício");
+            await File.WriteAllTextAsync(Path.Combine(pmvni, "estado.json"), "{\"modo\":\"atualizar\",\"atualizado\":\"2026-11-21T10:15:00\",\"situacao\":\"CONCLUIDO\"}");
+            await File.WriteAllTextAsync(Path.Combine(scripts, ComponentesDoKit.Script), "# fictício");
+            var lancados = new List<(string Programa, string Cmd)>();
+            j.OrigensDoKitDoRoteiro = new OrigensDoKit(codexHome, null, motor, pmvni, kitLocal, ComponentesDoKit.HashDe(Path.Combine(motor, "mcp_pmvni.py")));
+            j.PastaScriptsDoKitDoRoteiro = scripts;
+            j.LancadorDoKit = (programa, cmd) => lancados.Add((programa, cmd));
+            try
+            {
+                await j.MudarModuloAsync(Modulo.Ajustes);
+                var pag = j.AjustesPagina;
+                pag.MostrarCategoria(CategoriasAjustes.Pastas);
+                await j.VerificarComponentesAsync();
+                await Esperar(300);
+                var l = j.LeituraDoKitAtual ?? throw new InvalidOperationException("o cartão não leu os componentes");
+                LinhaComponente Linha(string id) => l.Linhas.Single(x => x.Componente.Id == id);
+                var cartao = pag.ListaComponentesKit.Children.Count == ComponentesDoKit.Lista.Count && l.FonteAcessivel
+                    && Linha("analise-codex").Situacao == SituacaoComponente.AtualizacaoDisponivel && Linha("analise-codex").TextoVersoes == "Instalada: 4.0.0 · disponível: 4.1.0"
+                    && Linha("analise-claude").Situacao == SituacaoComponente.Ausente && Linha("pmvni-pdf").Situacao == SituacaoComponente.EmDia
+                    && Linha("pymupdf").Situacao == SituacaoComponente.EmDia && Linha("fyp").Situacao == SituacaoComponente.EmDia
+                    && !l.Linhas.Any(x => x.Componente.Nome.Contains("espacho", StringComparison.Ordinal))
+                    && pag.TextoTarefaKit.Text.StartsWith("Última execução do instalador do kit: 21/11/2026 às 10:15 (atualizar) · concluída sem pendências.", StringComparison.Ordinal);
+                pag.ListaComponentesKit.StartBringIntoView();
+                await Esperar(300);
+                await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "plugins-e-ferramentas-xaml.png"));
+
+                ((IInvokeProvider)new ButtonAutomationPeer(j.BotoesDosComponentes["analise-codex"]).GetPattern(PatternInterface.Invoke)).Invoke();
+                await Esperar(500);
+                var umSo = lancados.Count == 1 && Path.GetFileName(lancados[0].Programa).Equals("explorer.exe", StringComparison.OrdinalIgnoreCase)
+                    && lancados[0].Cmd == Path.Combine(scripts, ComponentesDoKit.CmdDe("analise"))
+                    && File.ReadAllText(lancados[0].Cmd).Contains("\" -Componente analise", StringComparison.Ordinal)
+                    && pag.TextoResultadoComponentes.Text.StartsWith("Atualização de Análise no Codex iniciada fora do Editor.", StringComparison.Ordinal);
+                ((IInvokeProvider)new ButtonAutomationPeer(pag.BotaoAtualizarTodosComponentes).GetPattern(PatternInterface.Invoke)).Invoke();
+                await Esperar(500);
+                var todos = lancados.Count == 2 && lancados[1].Cmd == Path.Combine(scripts, ComponentesDoKit.CmdTodos)
+                    && File.ReadAllText(lancados[1].Cmd).Contains("\\" + ComponentesDoKit.InstaladorDoKit + "\" atualizar", StringComparison.Ordinal);
+                p["resultado"] = pag.TextoResultadoComponentes.Text;
+                p["linhas"] = new JsonArray(l.Linhas.Select(x => (JsonNode)(x.Componente.Nome + ": " + x.TextoSituacao + " (" + x.TextoVersoes + ")")).ToArray());
+                p["conferencias"] = new JsonObject { ["cartao"] = cartao, ["atualizar_um_so"] = umSo, ["atualizar_todos"] = todos };
+                p["ok"] = cartao && umSo && todos;
+            }
+            finally
+            {
+                j.OrigensDoKitDoRoteiro = null;
+                j.PastaScriptsDoKitDoRoteiro = null;
+                j.LancadorDoKit = null;
+                try { Directory.Delete(raiz, true); } catch (IOException) { }
+            }
         });
 
         await j.FecharSessaoAsync();

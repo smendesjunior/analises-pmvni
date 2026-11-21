@@ -131,12 +131,12 @@ public static class DiagnosticoGemini
             }
         }
 
-        if (pecas.GoogleRuntime is null) partes.Add("análise Google não instalado no Codex");
+        if (pecas.GoogleRuntime is null) partes.Add("Análise — rota Gemini não instalada no Codex");
         else
         {
-            partes.Add($"análise Google {pecas.VersaoAnaliseGoogle} (kit: {pecas.VersaoAnaliseGoogleKit ?? "não encontrado"})");
+            partes.Add($"Análise — rota Gemini {pecas.VersaoAnaliseGoogle} (kit: {pecas.VersaoAnaliseGoogleKit ?? "não encontrado"})");
             if (Version.TryParse(pecas.VersaoAnaliseGoogleKit, out var doKit) && Version.TryParse(pecas.VersaoAnaliseGoogle, out var instalada) && doKit > instalada)
-                avisos.Add($"O kit tem o análise Google {pecas.VersaoAnaliseGoogleKit}; instalado {pecas.VersaoAnaliseGoogle}. Atualize pelo INSTALAR_KIT_PMVNI.cmd.");
+                avisos.Add($"O kit tem o plugin analise {pecas.VersaoAnaliseGoogleKit}; instalado {pecas.VersaoAnaliseGoogle}. Atualize pelo INSTALAR_KIT_PMVNI.cmd.");
         }
 
         if (pecas.Python is null) partes.Add("Python não encontrado");

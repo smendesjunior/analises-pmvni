@@ -699,9 +699,8 @@ public sealed partial class MainWindow
             texto.Visibility = motivo is null ? Visibility.Collapsed : Visibility.Visible;
             // 2026-11-16: a versão instalada do plugin que vai fazer a análise, sempre à vista (também gravada no execucao.json).
             var versao = Pmvni.Agentes.OrquestradorAnalise.VersaoDoPlugin(p, pecasAgentes);
-            var rotulo = (p switch { Provedor.ChatGpt => "Pelo Codex · ", Provedor.Claude => "Pelo Claude Code · ", _ => "Pelo Antigravity · " }) + "kit "
-                + Pmvni.Agentes.OrquestradorAnalise.PluginUsado(p).Replace("analise", "análise", StringComparison.Ordinal)
-                + " " + (versao is not null ? "v" + versao : ReferenceEquals(pecasAgentes, PecasNaoLidas) ? "(verificando versão…)" : "(versão não encontrada)");
+            var rotulo = (p switch { Provedor.ChatGpt => "Pelo Codex · ", Provedor.Claude => "Pelo Claude Code · ", _ => "Pelo Antigravity · " })
+                + TextosAgentes.NomeDaRota(p) + " " + (versao is not null ? "v" + versao : ReferenceEquals(pecasAgentes, PecasNaoLidas) ? "(verificando versão…)" : "(versão não encontrada)");
             var vaga = p switch { Provedor.ChatGpt => NR.TextoPluginChatGpt, Provedor.Claude => NR.TextoPluginClaude, _ => NR.TextoPluginGemini };
             if (vaga.Text != rotulo) vaga.Text = rotulo;
             if (p == Provedor.Gemini)

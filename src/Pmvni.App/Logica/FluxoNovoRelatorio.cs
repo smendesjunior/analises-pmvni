@@ -27,7 +27,7 @@ public static class FluxoNovoRelatorio
     public const string SemPlugin = "O plugin analise do kit PMVNI não está habilitado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
     public const string SemChave = "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.";
     public const string SemPython = "O Python não foi encontrado neste computador (o análise pro do kit precisa dele).";
-    public const string SemAnalisePro = "O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
+    public const string SemAnalisePro = "A rota Claude do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
     public const string SemClaude = "O Claude Code não foi encontrado neste computador (claude.exe).";
     public const string SemPythonGoogle = "O Python não foi encontrado neste computador (o análise Google do kit precisa dele).";
     public const string SemAnaliseGoogle = OrquestradorAnalise.SemAnaliseGoogle;

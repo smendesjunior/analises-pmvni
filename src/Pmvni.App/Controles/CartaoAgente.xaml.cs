@@ -21,8 +21,9 @@ public sealed partial class CartaoAgente : UserControl
         LinkConta.Content = TextosAgentes.RotuloConta(p);
         LinkConta.NavigateUri = new Uri(TextosAgentes.EnderecoConta(p));
         TituloPrograma.Text = p == Provedor.ChatGpt ? "Programa" : "Programas";
-        TituloPluginAnalise.Text = TextosAgentes.TituloPlugin(PluginsInstalados.Analise);
-        // A segunda linha de plugin é a do controlador do kit: análise pro (Claude) ou análise Google (Gemini, que não usa o plugin analise).
+        // A primeira linha é o plugin analise onde o programa o registra (Codex no ChatGPT, Claude Code no Claude); a segunda, a rota do kit que a
+        // análise do Claude ou do Gemini roda pelo Codex (Tarefa 21: nomes de rota no lugar de "análise pro"/"análise Google").
+        TituloPluginAnalise.Text = p == Provedor.Claude ? TextosAgentes.TituloPluginNoClaudeCode : TextosAgentes.TituloPlugin(PluginsInstalados.Analise);
         TituloPluginPro.Text = TextosAgentes.TituloPlugin(p == Provedor.Gemini ? PluginsInstalados.AnaliseGoogle : PluginsInstalados.AnalisePro);
         LinhaPluginPro.Visibility = Provedores.PeloKit(p) ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         LinhaPluginAnalise.Visibility = p == Provedor.Gemini ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;

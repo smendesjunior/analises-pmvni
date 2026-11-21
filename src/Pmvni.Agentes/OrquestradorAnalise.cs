@@ -180,7 +180,7 @@ public sealed class OrquestradorAnalise
             // Tarefa 18: um analise anterior ao 4.0.0 não tem o controlador da rota (rotas\claude): pede a atualização do kit, não "não instalado".
             if (pecas.VersaoAnalisePro is not null && PoliticaKit.PluginDesatualizado(Provedor.Claude, pecas.VersaoAnalisePro) is { } kitAntigo) return Falha(kitAntigo);
             if (pecas.ProRuntime is null)
-                return Falha("O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
+                return Falha("A rota Claude do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
             if (pecas.Claude is null) return Falha("O Claude Code não foi encontrado neste computador (claude.exe).");
             if (PoliticaKit.PluginDesatualizado(Provedor.Claude, pecas.VersaoAnalisePro) is { } antigo) return Falha(antigo);
             // 2026-11-17: modo chave = Anthropic API de fato. Plugin que não aceita a rota explícita: recusa, nunca a conta no lugar.
@@ -224,7 +224,7 @@ public sealed class OrquestradorAnalise
         $"Atualize o kit PMVNI (analise {PoliticaKit.VersoesMinimas[Provedor.ChatGpt].Minima.ToString(3)} ou mais novo): o controlador executar_analise_62.py "
         + $"não foi encontrado no analise instalado ({versao ?? "versão desconhecida"}). Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor). Nada foi iniciado.";
 
-    public const string SemAnaliseGoogle = "O plugin análise Google do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
+    public const string SemAnaliseGoogle = "A rota Gemini do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
     public const string SemAgy = "O Antigravity CLI (agy.exe) não foi encontrado neste computador. Instale-o pelo instalador oficial do Google Antigravity e entre na conta Google.";
     public const string SemPerfilApi = "Escolha o perfil da chave do Gemini em Ajustes › Inteligência artificial: API com créditos ou API gratuita (só testes fictícios). "
         + "O plano de uma chave não pode ser deduzido, e o editor não presume nenhum.";

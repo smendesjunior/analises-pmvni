@@ -6,7 +6,7 @@ namespace Pmvni.App;
 
 internal static class InstalacaoMotorPdf
 {
-    static string BaseLocal => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PMVNI", "MotorPdf");
+    internal static string BaseLocal => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PMVNI", "MotorPdf");
 
     /// <summary>O resumo que o <c>configurar-plugins.ps1</c> grava (uma linha por componente); null se ainda não existe.</summary>
     static string Resumo => Path.Combine(BaseLocal, "resumo-instalacao.txt");
@@ -16,7 +16,7 @@ internal static class InstalacaoMotorPdf
 
     /// <summary>Extrai os scripts embutidos (<c>MotorPdf\*</c>) para <c>%LOCALAPPDATA%\PMVNI\MotorPdf\bootstrap\&lt;compilação&gt;</c> e devolve a pasta.
     /// O Editor não é empacotado (MSIX): a pasta é a real do usuário, não virtualizada.</summary>
-    static async Task<string> ExtrairAsync()
+    internal static async Task<string> ExtrairAsync()
     {
         var assembly = typeof(InstalacaoMotorPdf).Assembly;
         var pasta = Path.Combine(BaseLocal, "bootstrap", assembly.ManifestModule.ModuleVersionId.ToString());
@@ -35,6 +35,13 @@ internal static class InstalacaoMotorPdf
             finally { File.Delete(temp); }
         }
         return pasta;
+    }
+
+    /// <summary>Tarefa 21: SHA-256 do <c>mcp_pmvni.py</c> que este Editor traz (o cartão Plugins e ferramentas compara com o instalado).</summary>
+    internal static string? HashDoServidorPdf()
+    {
+        using var s = typeof(InstalacaoMotorPdf).Assembly.GetManifestResourceStream("motor.mcp_pmvni.py");
+        return s is null ? null : Convert.ToHexString(SHA256.HashData(s));
     }
 
     internal static async Task<string> ConferirAsync()

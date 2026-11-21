@@ -23,7 +23,7 @@ public static class CategoriasAjustes
         new(Geral, "Geral", "Como o editor abre e o que ele lembra entre um uso e outro.", Glifos.Inicio),
         new(Aparencia, "Aparência", "Tema da janela, rótulos da faixa e onde aparecem os avisos de layout.", Glifos.Tema),
         new(Relatorios, "Relatórios e revisão", "Zoom, marcas de revisão, painéis, salvamento automático e recuperação.", Glifos.Relatorio),
-        new(Pastas, "Pastas e kit", "Onde ficam os processos e o kit PMVNI, e como as listas de Processos e Despachos abrem.", Glifos.Pasta),
+        new(Pastas, "Pastas e kit", "Onde ficam os processos e o kit PMVNI, os plugins e ferramentas do kit e como as listas de Processos e Despachos abrem.", Glifos.Pasta),
         new(FontesDados, "Fontes de dados", "A pasta QGIS do módulo Imóveis e a planilha do Acompanhamento de processos.", Glifos.Mapa),
         new(Despachos, "Despachos e PDF", "O LibreOffice que gera o PDF dos despachos e o que fazer depois de gravar.", Glifos.Despachos),
         new(Legislacao, "Legislação", "As leis anexadas e como a pesquisa no leitor começa.", Glifos.Livro),

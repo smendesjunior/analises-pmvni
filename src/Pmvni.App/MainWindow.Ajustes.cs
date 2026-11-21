@@ -429,6 +429,126 @@ public sealed partial class MainWindow
             ? new EstadoAtualizacao(EtapaAtualizacao.EmDia, "Ainda não verificado nesta abertura.")
             : new EstadoAtualizacao(EtapaAtualizacao.Desligada, "Compilação de desenvolvimento: a atualização automática fica desligada.")));
         Atualizador.Iniciar();
+        IniciarComponentesDoKit();
+    }
+
+    // ---------- Plugins e ferramentas (Tarefa 21; Ajustes › Pastas e kit) ----------
+
+    /// <summary>O roteiro troca as pastas lidas (fictícias), a pasta onde o <c>.cmd</c> é gravado e o lançador (nada é aberto de verdade).</summary>
+    internal OrigensDoKit? OrigensDoKitDoRoteiro { get; set; }
+    internal string? PastaScriptsDoKitDoRoteiro { get; set; }
+    internal Action<string, string>? LancadorDoKit { get; set; }
+    /// <summary>A última leitura mostrada no cartão (null = ainda não lido).</summary>
+    internal LeituraDoKit? LeituraDoKitAtual { get; private set; }
+    /// <summary>O botão "Atualizar" de cada componente (pelo <see cref="ComponenteDoKit.Id"/>), para o roteiro.</summary>
+    internal IReadOnlyDictionary<string, Button> BotoesDosComponentes => botoesDosComponentes;
+    readonly Dictionary<string, Button> botoesDosComponentes = new(StringComparer.Ordinal);
+    int geracaoComponentes;
+
+    void IniciarComponentesDoKit()
+    {
+        var p = PaginaDeAjustes;
+        p.BotaoVerificarComponentes.Click += async (_, _) => await VerificarComponentesAsync();
+        p.BotaoAtualizarTodosComponentes.Click += async (_, _) => await AtualizarComponenteAsync(null);
+        // A fonte do kit pode ser uma pasta de rede: só lê quando a página Pastas e kit é vista (e pelo botão).
+        p.CategoriaMostrada += tag => { if (tag == CategoriasAjustes.Pastas && PaginaAjustesVisivel) _ = VerificarComponentesAsync(); };
+    }
+
+    OrigensDoKit OrigensDoKitDoComputador()
+    {
+        if (OrigensDoKitDoRoteiro is { } r) return r;
+        var o = Pmvni.Agentes.OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, null, null);
+        var pmvni = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PMVNI");
+        return new OrigensDoKit(o.CodexHome, o.PastaClaude, InstalacaoMotorPdf.BaseLocal, pmvni, ajustes.PastaKitEfetiva, InstalacaoMotorPdf.HashDoServidorPdf());
+    }
+
+    /// <summary>"Verificar atualizações": lê as versões (sem travar a janela; a fonte fora do alcance não é erro) e remonta as linhas.</summary>
+    internal async Task VerificarComponentesAsync()
+    {
+        if (fechada) return;
+        var p = PaginaDeAjustes;
+        var geracao = ++geracaoComponentes;
+        p.BotaoVerificarComponentes.IsEnabled = false;
+        p.TextoResultadoComponentes.Text = "Verificando as versões…";
+        try
+        {
+            var leitura = await ComponentesDoKit.LerAsync(OrigensDoKitDoComputador());
+            if (fechada || geracao != geracaoComponentes) return;
+            LeituraDoKitAtual = leitura;
+            MostrarComponentes(leitura);
+            p.TextoResultadoComponentes.Text = "Verificado às " + DateTime.Now.ToString("HH:mm", CultureInfo.InvariantCulture) + ".";
+        }
+        catch (Exception e)
+        {
+            RegistroErros.Gravar("kit.componentes", e);
+            if (geracao == geracaoComponentes) p.TextoResultadoComponentes.Text = "Não foi possível verificar os componentes. " + e.Message;
+        }
+        finally { if (geracao == geracaoComponentes) p.BotaoVerificarComponentes.IsEnabled = true; }
+    }
+
+    void MostrarComponentes(LeituraDoKit leitura)
+    {
+        var p = PaginaDeAjustes;
+        var recursos = Application.Current.Resources;
+        p.TextoFonteComponentes.Text = leitura.TextoFonte;
+        p.TextoTarefaKit.Text = leitura.TextoTarefa;
+        p.ListaComponentesKit.Children.Clear();
+        botoesDosComponentes.Clear();
+        foreach (var linha in leitura.Linhas)
+        {
+            var grade = new Grid { Padding = new Thickness(16, 10, 16, 10), ColumnSpacing = 16, BorderThickness = new Thickness(0, 1, 0, 0) };
+            if (recursos.TryGetValue("CardStrokeColorDefaultBrush", out var borda) && borda is Microsoft.UI.Xaml.Media.Brush pincel) grade.BorderBrush = pincel;
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var textos = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+            textos.Children.Add(new TextBlock { Text = linha.Componente.Nome, TextWrapping = TextWrapping.Wrap, Style = (Style)recursos["PmvniAjusteTitulo"] });
+            textos.Children.Add(new TextBlock { Text = linha.TextoVersoes, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Style = (Style)recursos["PmvniAjusteAjuda"] });
+            textos.Children.Add(new TextBlock { Text = linha.Detalhe, TextWrapping = TextWrapping.Wrap, Style = (Style)recursos["PmvniAjusteAjuda"] });
+            grade.Children.Add(textos);
+            var acoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+            var selo = new SeloEstado();
+            selo.Definir(linha.Situacao == SituacaoComponente.EmDia, linha.TextoSituacao);
+            acoes.Children.Add(selo);
+            var botao = new Button { Content = linha.TextoBotao };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, "Atualizar " + linha.Componente.Nome + (linha.SoPeloTodos ? " (atualiza todo o kit)" : ""));
+            Dicas.Aplicar(botao, linha.TextoBotao, linha.SoPeloTodos
+                ? "Este componente só se atualiza junto com o kit: roda o Atualizar todos, fora do Editor."
+                : "Atualiza só " + linha.Componente.Nome + ", fora do Editor.");
+            botao.Click += async (_, _) => await AtualizarComponenteAsync(linha);
+            acoes.Children.Add(botao);
+            Grid.SetColumn(acoes, 1);
+            grade.Children.Add(acoes);
+            p.ListaComponentesKit.Children.Add(grade);
+            botoesDosComponentes[linha.Componente.Id] = botao;
+        }
+    }
+
+    /// <summary>"Atualizar" de uma linha (ou "Atualizar todos", com <paramref name="linha"/> null): grava o <c>.cmd</c> e o abre pelo
+    /// <c>explorer.exe</c>, fora do Editor. Com análise em andamento, só avisa.</summary>
+    internal async Task AtualizarComponenteAsync(LinhaComponente? linha)
+    {
+        var p = PaginaDeAjustes;
+        p.BotaoAtualizarTodosComponentes.IsEnabled = false;
+        try
+        {
+            var pasta = PastaScriptsDoKitDoRoteiro ?? await InstalacaoMotorPdf.ExtrairAsync();
+            var kit = LeituraDoKitAtual?.KitLocal ?? ComponentesDoKit.FonteDoKit(OrigensDoKitDoComputador()).KitLocal;
+            p.TextoResultadoComponentes.Text = ComponentesDoKit.Atualizar(linha, ProcessosComAnaliseEmAndamento(), pasta, kit, LancadorDoKit ?? AbrirPeloWindows);
+        }
+        catch (Exception e)
+        {
+            RegistroErros.Gravar("kit.componentes.atualizar", e);
+            p.TextoResultadoComponentes.Text = "Não foi possível iniciar a atualização. " + e.Message;
+        }
+        finally { p.BotaoAtualizarTodosComponentes.IsEnabled = true; }
+    }
+
+    /// <summary>O lançador de verdade: o <c>explorer.exe</c> abre o <c>.cmd</c> fora do processo do Editor.</summary>
+    static void AbrirPeloWindows(string programa, string argumento)
+    {
+        var inicio = new System.Diagnostics.ProcessStartInfo(programa) { UseShellExecute = false };
+        inicio.ArgumentList.Add(argumento);
+        using var _ = System.Diagnostics.Process.Start(inicio);
     }
 
     /// <summary>Os processos com análise em andamento no Editor: as execuções da página Novo relatório que ainda não terminaram e as do

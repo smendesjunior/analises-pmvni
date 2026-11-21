@@ -124,7 +124,7 @@
         <local:SeloEstado x:Name="SeloPluginAnalise" x:FieldModifier="internal" Grid.Column="2"/>
       </Grid>
 
-      <!-- Plugin análise pro no Codex (só no cartão do Claude: é o que a análise do Claude usa). -->
+      <!-- Rota Claude (ou Gemini) do plugin analise no Codex (só nos cartões do Claude e do Gemini: é o que a análise deles usa). -->
       <Grid x:Name="LinhaPluginPro" x:FieldModifier="internal" Style="{StaticResource LinhaCartao}" Visibility="Collapsed">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <FontIcon Glyph="&#xEA86;" Style="{StaticResource IconeLinha}"/>

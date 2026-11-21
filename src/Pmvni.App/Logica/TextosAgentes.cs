@@ -61,11 +61,11 @@ public static class TextosAgentes
 
     public static string Titulo(Provedor p) => p switch
     {
-        Provedor.ChatGpt => "ChatGPT (Codex · plugin analise)", Provedor.Claude => "Claude (Claude Code · plugin análise pro)", _ => "Gemini (Antigravity · plugin análise Google)",
+        Provedor.ChatGpt => "ChatGPT (Codex · análise, rota ChatGPT)", Provedor.Claude => "Claude (Claude Code · análise, rota Claude)", _ => "Gemini (Antigravity · análise, rota Gemini)",
     };
 
     /// <summary>O que "Escolher programa…" escolhe em cada cartão.</summary>
-    public static string RotuloPrograma(Provedor p) => p switch { Provedor.ChatGpt => "Codex", Provedor.Claude => "Python (usado pelo análise pro)", _ => "Python (usado pelo análise Google)" };
+    public static string RotuloPrograma(Provedor p) => p switch { Provedor.ChatGpt => "Codex", Provedor.Claude => "Python (usado pela rota Claude)", _ => "Python (usado pela rota Gemini)" };
 
     public static string PerguntaRemover(Provedor p) => $"Remover a chave de API do {Provedores.Nome(p)}?";
 
@@ -142,9 +142,16 @@ public static class TextosAgentes
     public const string ExplicacaoSair = "O comando oficial do programa encerra o login neste computador. Outros apps que usam a mesma sessão podem pedir login de novo. "
         + "A chave de API guardada no editor não muda.";
 
-    /// <summary>Título da linha de um plugin do kit.</summary>
+    /// <summary>O nome da rota do plugin analise (Tarefa 18: um só plugin, três rotas) que o provedor usa: "Análise — rota Claude".</summary>
+    public static string NomeDaRota(Provedor p) => "Análise — rota " + Provedores.Nome(p);
+
+    /// <summary>Título da linha de um plugin do kit (Tarefa 21): o nome da rota. <c>analise-pro</c>/<c>analise-google</c> são só os nomes antigos das rotas
+    /// Claude e Gemini (e das pastas de controle).</summary>
     public static string TituloPlugin(string plugin) =>
-        plugin == PluginsInstalados.AnalisePro ? "Plugin análise pro" : plugin == PluginsInstalados.AnaliseGoogle ? "Plugin análise Google" : "Plugin analise";
+        NomeDaRota(plugin == PluginsInstalados.AnalisePro ? Provedor.Claude : plugin == PluginsInstalados.AnaliseGoogle ? Provedor.Gemini : Provedor.ChatGpt);
+
+    /// <summary>A linha do plugin analise no cartão do Claude: o registro no Claude Code (o mesmo plugin, instalado pelo Claude Code).</summary>
+    public const string TituloPluginNoClaudeCode = "Análise — registro no Claude Code";
 
     /// <summary>"No Codex · instalado ou atualizado em 15/11/2026 às 13:50" (ou "· não instalado").</summary>
     public static string DescricaoPlugin(string onde, PluginInstalado? p) =>
