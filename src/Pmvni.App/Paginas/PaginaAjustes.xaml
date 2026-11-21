@@ -660,16 +660,28 @@
           <!-- ===== 8. Sobre e suporte ===== -->
           <StackPanel x:Name="CategoriaModelos" Tag="modelos" Spacing="12" Visibility="Collapsed">
             <InfoBar Severity="Informational" IsClosable="False" IsOpen="True" Message="Personalização local. Os padrões do kit PMVNI são compartilhados; as alterações aqui valem somente para este computador."/>
-            <local:LinhaComAcoes>
-              <TextBlock Text="ROTAS DE EXECUÇÃO" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteTitulo}"/>
-              <Button x:Name="BotaoAtualizarModelosIa" Style="{StaticResource PmvniBotaoPrimarioStyle}" x:FieldModifier="internal" Content="Atualizar lista" AutomationProperties.Name="Atualizar a lista de modelos de IA"
-                        local:Dicas.Titulo="Atualizar lista" local:Dicas.Descricao="Consulta os modelos disponíveis nos aplicativos e nas APIs configuradas, incluindo a rota Gemini. Se a consulta falhar, mantém a última lista."/>
-            </local:LinhaComAcoes>
+            <TextBlock Text="ROTAS DE EXECUÇÃO" Style="{StaticResource PmvniAjusteTitulo}"/>
             <InfoBar x:Name="AvisoModelosAnalise" x:FieldModifier="internal" Severity="Warning" IsClosable="False" IsOpen="False" Title="Confira os modelos da análise"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}">
-              <ScrollViewer HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
-                <StackPanel x:Name="PainelModelosAnalise" x:FieldModifier="internal" Padding="16,12" AutomationProperties.Name="Modelos e níveis de cada etapa por rota"/>
-              </ScrollViewer>
+              <StackPanel Padding="16,12" Spacing="12">
+                <Grid x:Name="CartoesRotas" x:FieldModifier="internal" ColumnSpacing="6" RowSpacing="6"/>
+                <Grid ColumnSpacing="12">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <TextBlock x:Name="TituloRota" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}" VerticalAlignment="Center"/>
+                  <Button Grid.Column="1" x:Name="BotaoAtualizarModelosIa" x:FieldModifier="internal" AutomationProperties.Name="Atualizar a lista de modelos de IA"
+                          local:Dicas.Titulo="Atualizar lista" local:Dicas.Descricao="Consulta os modelos disponíveis nos aplicativos e nas APIs configuradas, incluindo a rota Gemini. Se a consulta falhar, mantém a última lista.">
+                    <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xE72C;" FontSize="16"/><TextBlock Text="Atualizar lista"/></StackPanel>
+                  </Button>
+                </Grid>
+                <ScrollViewer HorizontalContentAlignment="Stretch" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
+                  <StackPanel x:Name="PainelModelosAnalise" x:FieldModifier="internal" AutomationProperties.Name="Modelos e níveis de cada etapa por rota"/>
+                </ScrollViewer>
+                <Grid x:Name="RodapeModelos" x:FieldModifier="internal" ColumnSpacing="12">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <TextBlock x:Name="OrigemModelos" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap"/>
+                  <TextBlock Grid.Column="1" Text="Aplicação imediata" Style="{StaticResource PmvniAjusteAjuda}"/>
+                </Grid>
+              </StackPanel>
             </Border>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">

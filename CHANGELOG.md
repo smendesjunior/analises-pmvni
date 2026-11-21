@@ -2,6 +2,15 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.1.1
+
+- A tabela de etapas ocupa a largura do cartão, com números em selos e descrições alinhadas à esquerda.
+- Os campos de modelo e raciocínio mostram nomes curtos, com detalhes nas dicas.
+- Os cartões das rotas têm a mesma largura e se reorganizam conforme o espaço disponível.
+- O botão Atualizar lista acompanha o título da rota e ganhou um ícone de atualização.
+- O rodapé mostra a origem dos modelos à esquerda e a aplicação imediata à direita.
+- No teste do GPI, o campo mostra “Inscrição municipal” e a dica informa os 14 algarismos.
+
 ## 3.1.0
 
 - Os cartões dos Ajustes ocupam a linha inteira. As ações ficam agrupadas ao lado da descrição e descem juntas em janelas estreitas. Os caminhos de pastas têm dica com o endereço completo.

@@ -217,7 +217,9 @@ public sealed partial class MainWindow
         Dicas.Aplicar(caixaNivel, "Raciocínio", "Quanto o modelo pensa antes de responder: mais nível, resposta mais cuidadosa e mais demorada.");
 
         var nomeDoApp = lista.Modelo(lista.ModeloDoApp)?.Nome ?? lista.ModeloDoApp;
-        caixaModelo.Items.Add(new ComboBoxItem { Content = "Padrão do app" + (nomeDoApp is null ? "" : " (" + nomeDoApp + ")"), Tag = "" });
+        var itemPadrao = new ComboBoxItem { Content = "Padrão do app", Tag = "" };
+        if (nomeDoApp is not null) ToolTipService.SetToolTip(itemPadrao, nomeDoApp);
+        caixaModelo.Items.Add(itemPadrao);
         foreach (var m in lista.Modelos) caixaModelo.Items.Add(new ComboBoxItem { Content = m.Nome, Tag = m.Id });
         if (escolha.Modelo.Length > 0 && lista.Modelo(escolha.Modelo) is null)
             caixaModelo.Items.Add(new ComboBoxItem { Content = escolha.Modelo + " (fora da lista)", Tag = escolha.Modelo });
@@ -229,7 +231,9 @@ public sealed partial class MainWindow
             var niveis = modelo?.Niveis ?? (modeloId.Length == 0 ? [] : CatalogoIa.NiveisConhecidos.Where(n => n is "low" or "medium" or "high").ToList());
             var padrao = modeloId.Length == 0 ? lista.NivelDoApp ?? modelo?.NivelPadrao : modelo?.NivelPadrao;
             caixaNivel.Items.Clear();
-            caixaNivel.Items.Add(new ComboBoxItem { Content = "Padrão" + (padrao is null ? "" : " (" + CatalogoIa.NomeNivel(padrao) + ")"), Tag = "" });
+            var nivelPadrao = new ComboBoxItem { Content = "Padrão", Tag = "" };
+            if (padrao is not null) ToolTipService.SetToolTip(nivelPadrao, CatalogoIa.NomeNivel(padrao));
+            caixaNivel.Items.Add(nivelPadrao);
             foreach (var n in niveis) caixaNivel.Items.Add(new ComboBoxItem { Content = CatalogoIa.NomeNivel(n), Tag = n });
             caixaNivel.SelectedItem = caixaNivel.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == nivel) ?? caixaNivel.Items[0];
             caixaNivel.IsEnabled = niveis.Count > 0;

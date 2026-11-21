@@ -92,7 +92,8 @@ public sealed partial class MainWindow
             if (m == Modulo.Gpi)
             {
                 // Conferir o boletim antes de precisar (se o GPI mudar, diz em que passo parou). Nada é gravado.
-                var insc = new TextBox { PlaceholderText = "Inscrição municipal (14 algarismos)", Width = 220 };
+                var insc = new TextBox { PlaceholderText = "Inscrição municipal", Width = 220 };
+                ToolTipService.SetToolTip(insc, "Informe os 14 algarismos da inscrição municipal.");
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(insc, "Inscrição para testar o boletim");
                 var testar = new Button { Content = "Testar" };
                 ToolTipService.SetToolTip(testar, "Gera o boletim desta inscrição no GPI, sem gravar, e mostra se cada passo funcionou.");

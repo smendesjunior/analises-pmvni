@@ -113,6 +113,7 @@ public sealed partial class MainWindow
     void IniciarModelosDaAnalise()
     {
         var p = PaginaDeAjustes;
+        p.CartoesRotas.SizeChanged += (_, e) => DistribuirCartoes(p.CartoesRotas, e.NewSize.Width);
         foreach (var (texto, _) in OpcoesCotaBaixa) p.CaixaCotaBaixa.Items.Add(new ComboBoxItem { Content = texto });
         p.AlternarSobeObjecao.Toggled += (_, _) =>
         {
@@ -149,6 +150,23 @@ public sealed partial class MainWindow
         p.BotaoAtualizarModelosIa.Click += async (_, _) => { await Task.WhenAll(AtualizarModelosIaAsync(), AtualizarListaGeminiAsync()); MostrarModelosDaAnalise(); };
     }
 
+    static void DistribuirCartoes(Grid grade, double largura)
+    {
+        var total = grade.Children.Count;
+        var colunas = Math.Min(total, Math.Max(1, (int)((largura + 6) / 134)));
+        if (colunas == 0) return;
+        grade.ColumnDefinitions.Clear();
+        grade.RowDefinitions.Clear();
+        for (var i = 0; i < colunas; i++) grade.ColumnDefinitions.Add(new ColumnDefinition());
+        for (var i = 0; i < total; i++)
+        {
+            if (i % colunas == 0) grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var cartao = (FrameworkElement)grade.Children[i];
+            Grid.SetRow(cartao, i / colunas);
+            Grid.SetColumn(cartao, i % colunas);
+        }
+    }
+
     static bool Igual(double? a, double? b) => a is null ? b is null : b is not null && Math.Abs(a.Value - b.Value) < 1e-9;
 
     void GravarAjusteDosModelos(string texto)
@@ -179,6 +197,9 @@ public sealed partial class MainWindow
         {
             p.PainelModelosAnalise.Children.Clear();
             p.PainelAuditoriaCruzada.Children.Clear();
+            p.CartoesRotas.Children.Clear();
+            p.TituloRota.Text = "";
+            p.RodapeModelos.Visibility = Visibility.Collapsed;
             var habilitado = kit is not null;
             p.AlternarSobeObjecao.IsEnabled = p.CaixaCotaBaixa.IsEnabled = p.BotaoRestaurarModelos.IsEnabled = habilitado;
             if (kit is null)
@@ -196,7 +217,6 @@ public sealed partial class MainWindow
             var a = AjusteDosModelos;
             if (kit.Colunas.Count == 0) return;
             var selecionada = kit.Colunas.FirstOrDefault(c => c == rotaEmEdicao) ?? kit.Colunas[0];
-            var cartoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             foreach (var coluna in kit.Colunas)
             {
                 var partes = coluna.Titulo.Split(" · ", 2, StringSplitOptions.None);
@@ -208,19 +228,20 @@ public sealed partial class MainWindow
                 };
                 var botao = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
                 {
-                    Content = partes[0] + "\n" + perfil,
-                    IsChecked = coluna == selecionada, MinHeight = 60, MinWidth = 112
+                    Content = new TextBlock { Text = partes[0] + "\n" + perfil, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap },
+                    HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Center,
+                    IsChecked = coluna == selecionada, MinHeight = 60
                 };
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, "Configurar " + coluna.Titulo);
                 botao.Click += (_, _) => { rotaEmEdicao = coluna; MostrarModelosDaAnalise(); };
-                cartoes.Children.Add(botao);
+                p.CartoesRotas.Children.Add(botao);
             }
-            p.PainelModelosAnalise.Children.Add(cartoes);
-            p.PainelModelosAnalise.Children.Add(new TextBlock { Text = selecionada.Titulo, Margin = new Thickness(0, 12, 0, 0),
-                Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
+            DistribuirCartoes(p.CartoesRotas, p.CartoesRotas.ActualWidth);
+            p.TituloRota.Text = selecionada.Titulo;
             p.PainelModelosAnalise.Children.Add(GradeDosModelos(kit, etapas, a, selecionada));
-            p.PainelModelosAnalise.Children.Add(new TextBlock { Text = $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte}, atualizados ao abrir a página e antes de cada análise. Aplicação imediata." + (selecionada.Rota == "gemini" && falhaListaGemini is { } falha ? " A última consulta falhou. " + falha : ""), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0),
-                Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], MaxWidth = 1100, HorizontalAlignment = HorizontalAlignment.Left });
+            p.OrigemModelos.Text = $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte} e atualizados ao abrir a página e antes de cada análise." + (selecionada.Rota == "gemini" && falhaListaGemini is { } falha ? " A última consulta falhou. " + falha : "");
+            p.RodapeModelos.Visibility = Visibility.Visible;
 
             p.AlternarSobeObjecao.IsOn = a.SobePorObjecao ?? kit.SobePorObjecao;
             var desce = a.TrocaDescePorCota ? a.DescePorCota : kit.DescePorCota;
@@ -272,7 +293,8 @@ public sealed partial class MainWindow
     Grid GradeDosModelos(TabelaModelosKit kit, IReadOnlyList<EtapaModelos> etapas, AjusteModelos a, ColunaModelos rota)
     {
         var grade = new Grid { ColumnSpacing = 16, RowSpacing = 12, Margin = new Thickness(0, 16, 0, 0) };
-        foreach (var largura in new[] { 280, 250, 165 })
+        grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 180 });
+        foreach (var largura in new[] { 320, 200 })
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(largura) });
         void Adicionar(FrameworkElement controle, int linha, int coluna)
         {
@@ -298,7 +320,18 @@ public sealed partial class MainWindow
                 "technical_audit" => "Conferência das conclusões técnicas", "audit" => "Validação em sessão independente",
                 "produce" => "Montagem e formatação do documento", "final_review" => "Consistência do relatório final", _ => ""
             };
-            Adicionar(new TextBlock { Text = $"{i + 1:00}   {etapa.Nome}\n{descricao}", Margin = new Thickness(12, 6, 0, 6), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap }, i + 1, 0);
+            var bloco = new Grid { ColumnSpacing = 10, Margin = new Thickness(12, 6, 0, 6), VerticalAlignment = VerticalAlignment.Center };
+            bloco.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            bloco.ColumnDefinitions.Add(new ColumnDefinition());
+            var selo = new Border { Style = estiloCartao, Padding = new Thickness(5, 2, 5, 2), VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = $"{i + 1:00}" } };
+            bloco.Children.Add(selo);
+            var textos = new StackPanel { HorizontalAlignment = HorizontalAlignment.Left };
+            textos.Children.Add(new TextBlock { Text = etapa.Nome, TextAlignment = TextAlignment.Left, TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
+            textos.Children.Add(new TextBlock { Text = descricao, TextAlignment = TextAlignment.Left, TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] });
+            Grid.SetColumn(textos, 1);
+            bloco.Children.Add(textos);
+            Adicionar(bloco, i + 1, 0);
             if (!etapa.Programa && kit.Celula(rota, etapa.Id) is { } padrao)
             {
                 var celula = CelulaDaGrade(kit, rota, etapa, padrao, a, lista);
@@ -318,21 +351,35 @@ public sealed partial class MainWindow
         var atual = a.Celulas.GetValueOrDefault((col.Rota, col.Perfil, etapa.Id));
         var vale = atual ?? padrao;
         var painel = new Grid { ColumnSpacing = 16, RowSpacing = 4, VerticalAlignment = VerticalAlignment.Center };
-        painel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
-        painel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(165) });
+        painel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(320) });
+        painel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
         painel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         painel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        var caixaModelo = new ComboBox { Width = 250, HorizontalAlignment = HorizontalAlignment.Stretch };
-        var caixaNivel = new ComboBox { Width = 165, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var caixaModelo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left };
+        var caixaNivel = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(caixaModelo, "Modelo de " + etapa.Nome + " em " + col.Titulo);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(caixaNivel, "Nível de " + etapa.Nome + " em " + col.Titulo);
-        foreach (var (id, texto) in ModelosDaAnalise.OpcoesDeModelo(lista, padrao, atual)) caixaModelo.Items.Add(new ComboBoxItem { Content = texto, Tag = id });
+        foreach (var (id, texto) in ModelosDaAnalise.OpcoesDeModelo(lista, padrao, atual))
+        {
+            var nome = lista.Modelos.FirstOrDefault(m => m.Id == id)?.Nome ?? id;
+            var item = new ComboBoxItem { Content = nome, Tag = id };
+            ToolTipService.SetToolTip(item, texto);
+            caixaModelo.Items.Add(item);
+            if (id == vale.Modelo) ToolTipService.SetToolTip(caixaModelo, texto);
+        }
         caixaModelo.SelectedItem = caixaModelo.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == vale.Modelo);
         void Niveis(string modelo, string nivel)
         {
             caixaNivel.Items.Clear();
             foreach (var n in ModelosDaAnalise.NiveisDoModelo(kit, lista, modelo))
-                caixaNivel.Items.Add(new ComboBoxItem { Content = ModelosDaAnalise.NomeDoNivel(n) + (n == padrao.Nivel && modelo == padrao.Modelo ? " (padrão)" : ""), Tag = n });
+            {
+                var nome = ModelosDaAnalise.NomeDoNivel(n);
+                var dica = nome + (n == padrao.Nivel && modelo == padrao.Modelo ? " (padrão)" : "");
+                var item = new ComboBoxItem { Content = nome, Tag = n };
+                ToolTipService.SetToolTip(item, dica);
+                caixaNivel.Items.Add(item);
+                if (n == nivel) ToolTipService.SetToolTip(caixaNivel, dica);
+            }
             caixaNivel.SelectedItem = caixaNivel.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == nivel) ?? caixaNivel.Items.OfType<ComboBoxItem>().FirstOrDefault();
         }
         Niveis(vale.Modelo, vale.Nivel);
