@@ -14,10 +14,12 @@ public class FluxoNovoRelatorioTestes
     static readonly Processo P0001Parecido = new(Arvore + @"\2099\0001 - 2099 - FULANO", "0001 - 2099 - FULANO", 1, 2099, "FULANO");
     static readonly IReadOnlyList<Processo> Todos = [P0012, P0001Parecido, P0001];
 
-    /// <summary>Todas as peças achadas, plugin habilitado, API do Claude proibida pelo kit (como hoje).</summary>
-    static readonly Pecas Completas = new(@"C:\x\codex.exe", @"C:\x\claude.exe", @"C:\x\python.exe", false, @"C:\x\pro_runtime.py", "1.6.1", "1.6.1", true, "2.4.0", false)
+    /// <summary>Todas as peças achadas, plugin habilitado, API do Claude proibida pelo kit (como hoje); plugins nas versões mínimas do Editor 2.3.0
+    /// (analise 3.1.0 com o controlador executar_analise_62.py, analise-pro 2.1.0, analise-google 2.1.0).</summary>
+    static readonly Pecas Completas = new(@"C:\x\codex.exe", @"C:\x\claude.exe", @"C:\x\python.exe", false, @"C:\x\pro_runtime.py", "2.1.0", "2.1.0", true, "3.1.0", false)
     {
-        Agy = @"C:\x\agy.exe", GoogleRuntime = @"C:\x\google_runtime.py", VersaoAnaliseGoogle = "1.0.0", VersaoAnaliseGoogleKit = "1.0.0",
+        Agy = @"C:\x\agy.exe", GoogleRuntime = @"C:\x\google_runtime.py", VersaoAnaliseGoogle = "2.1.0", VersaoAnaliseGoogleKit = "2.1.0",
+        Analise62 = @"C:\x\executar_analise_62.py",
     };
 
     [Fact]
@@ -35,6 +37,10 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(SemPython, M(Completas with { Python = null, GoogleRuntime = null, Agy = null }));
         Assert.Equal(SemPlugin, M(Completas with { GoogleRuntime = null, Agy = null }));
         Assert.Equal(FluxoNovoRelatorio.SemAgy, M(Completas with { Agy = null }));
+        // Tarefa 12: o análise Google abaixo da versão mínima desabilita o botão com o componente a atualizar (e versão desconhecida conta como antiga).
+        Assert.StartsWith("Atualize o kit PMVNI (analise-google 2.1.0 ou mais novo)", M(Completas with { VersaoAnaliseGoogle = "2.0.1" }));
+        Assert.StartsWith("Atualize o kit PMVNI (analise-google 2.1.0 ou mais novo)", M(Completas with { VersaoAnaliseGoogle = null }));
+        Assert.Null(M(Completas with { VersaoAnaliseGoogle = "2.10.0" }));
 
         // Chave: primeiro o perfil (o plano da chave não é presumido), depois a chave guardada.
         Assert.Equal(FluxoNovoRelatorio.SemPerfilApi, M(Completas, ModoAcesso.Chave, chave: true, perfil: null));
@@ -114,7 +120,12 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(SemPlugin, M(Provedor.ChatGpt, P0001, pecas: Completas with { PluginAnaliseHabilitado = false }, modo: ModoAcesso.Chave));
         Assert.Equal(SemChave, M(Provedor.ChatGpt, P0001, modo: ModoAcesso.Chave));
         Assert.Null(M(Provedor.ChatGpt, P0001, modo: ModoAcesso.Chave, chave: true));
-        Assert.Null(M(Provedor.ChatGpt, P0001, pecas: Completas with { Python = null, ProRuntime = null, Claude = null }));   // as peças do Claude não importam
+        Assert.Null(M(Provedor.ChatGpt, P0001, pecas: Completas with { ProRuntime = null, Claude = null, VersaoAnalisePro = "1.0.0" }));   // as peças do Claude não importam
+        // Tarefa 12: o Editor roda o controlador do analise com o Python deste computador; o analise precisa ser 3.1.0+ e ter o executar_analise_62.py.
+        Assert.Equal(OrquestradorAnalise.SemPythonAnalise, M(Provedor.ChatGpt, P0001, pecas: Completas with { Python = null }));
+        Assert.StartsWith("Atualize o kit PMVNI (analise 3.1.0 ou mais novo)", M(Provedor.ChatGpt, P0001, pecas: Completas with { VersaoPluginAnalise = "3.0.1" }));
+        Assert.Contains("3.0.1", M(Provedor.ChatGpt, P0001, pecas: Completas with { VersaoPluginAnalise = "3.0.1" }));
+        Assert.StartsWith("Atualize o kit PMVNI (analise 3.1.0 ou mais novo)", M(Provedor.ChatGpt, P0001, pecas: Completas with { Analise62 = null }));
 
         // Claude: Python, análise pro, Claude Code e o modo, nessa ordem.
         Assert.Equal(SemPython, M(Provedor.Claude, P0001, pecas: nada, modo: ModoAcesso.Chave));
@@ -126,7 +137,9 @@ public class FluxoNovoRelatorioTestes
         Assert.Null(M(Provedor.Claude, P0001, modo: ModoAcesso.Conta));                 // a conta segue normal com esse plugin
         Assert.Equal(SemChave, M(Provedor.Claude, P0001, pecas: Completas with { ApiPermitidaNoKit = true }, modo: ModoAcesso.Chave));
         Assert.Null(M(Provedor.Claude, P0001, pecas: Completas with { ApiPermitidaNoKit = true }, modo: ModoAcesso.Chave, chave: true));
-        Assert.Null(M(Provedor.Claude, P0001, pecas: Completas with { Codex = null, PluginAnaliseHabilitado = false }));
+        Assert.Null(M(Provedor.Claude, P0001, pecas: Completas with { Codex = null, PluginAnaliseHabilitado = false, VersaoPluginAnalise = "1.0.0" }));
+        // Tarefa 12: análise pro abaixo da versão mínima (também no modo conta).
+        Assert.StartsWith("Atualize o kit PMVNI (analise-pro 2.1.0 ou mais novo)", M(Provedor.Claude, P0001, pecas: Completas with { VersaoAnalisePro = "2.0.1" }));
     }
 
     [Fact]

@@ -179,6 +179,13 @@ public partial class OrquestradorTestes
             Directory.CreateDirectory(antes.Controle("analise"));
             File.WriteAllText(Path.Combine(antes.Controle("analise"), "engine_state.json"), "{\"version\":1}");
             Assert.False(OrquestradorAnalise.PodeRetomarChatGpt(antes.Processo.Pasta, antes.Registro.Pasta));
+            // Uma FALHA ou NAO_PARTIU deste registro (ou uma linha que não é do contrato) não prova que o controle é dele: o kit pode ter falhado antes de criá-lo.
+            antes.Registro.AcrescentarSituacao("{\"situacao\":\"FALHA\",\"etapa\":\"prepare\",\"retomar_em_utc\":null,\"motivo\":\"Controle existente.\",\"decisao\":null}");
+            antes.Registro.AcrescentarSituacao("{\"situacao\":\"NAO_PARTIU\",\"etapa\":null,\"motivo\":\"x\"}");
+            antes.Registro.AcrescentarSituacao("{\"situacao\":\"QUALQUER\"}");
+            antes.Registro.Descarregar();
+            Assert.False(OrquestradorAnalise.PodeRetomarChatGpt(antes.Processo.Pasta, antes.Registro.Pasta));
+            File.Delete(Path.Combine(antes.Registro.Pasta, "situacoes.jsonl"));
             Assert.Equal("concluida", (await Ambiente.Com(antes.Orq().ExecutarAsync(antes.Pedido(Provedor.ChatGpt) with { Retomar = true }, antes.Progresso,
                 CancellationToken.None), Limite)).Situacao);
             Assert.Contains("--inputs", Argv(Assert.Single(Chamadas(antes, "analise62"))));

@@ -484,7 +484,8 @@ public sealed class OrquestradorAnalise
 
     /// <summary>Minor 1 da revisão: o ChatGPT só continua sem <c>--inputs</c> quando o controle do analise existe E este registro já conversou com o kit — há
     /// uma situação do contrato no <c>situacoes.jsonl</c> do registro, ou o <c>continuidade.json</c> do registro é desta execução. Uma reanálise cuja primeira
-    /// chamada falhou antes de o kit criar o controle novo não retoma a análise anterior.</summary>
+    /// chamada falhou antes de o kit criar o controle novo não retoma a análise anterior. Só contam as situações que o kit dá depois de ter o controle
+    /// (<c>ETAPA_OK</c>, <c>AGUARDANDO_COTA</c>, <c>DECISAO</c>, <c>ENTREGUE</c>); <c>FALHA</c>, <c>NAO_PARTIU</c> e o que não for do contrato não provam nada.</summary>
     public static bool PodeRetomarChatGpt(string pastaProcesso, string pastaRegistro)
     {
         if (!File.Exists(Path.Combine(pastaProcesso, ResultadoAnalise.PastaControle(Provedor.ChatGpt), "engine_state.json"))) return false;
@@ -495,7 +496,8 @@ public sealed class OrquestradorAnalise
                 using (var fs = new FileStream(situacoes, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
                 using (var leitor = new StreamReader(fs))
                     for (var linha = leitor.ReadLine(); linha is not null; linha = leitor.ReadLine())
-                        if (SituacaoAnalise62.Ler(linha).Situacao.Length > 0) return true;
+                        if (SituacaoAnalise62.Ler(linha).Situacao is SituacaoAnalise62.EtapaOk or SituacaoAnalise62.AguardandoCota
+                            or SituacaoAnalise62.PedeDecisao or SituacaoAnalise62.Entregue) return true;
             var continuidade = Path.Combine(pastaRegistro, "continuidade.json");
             return File.Exists(continuidade) && JsonNode.Parse(File.ReadAllText(continuidade))?["execution"] is JsonValue v
                 && v.TryGetValue<string>(out var execucao) && execucao == Path.GetFileName(Path.GetFullPath(pastaRegistro).TrimEnd(Path.DirectorySeparatorChar));
