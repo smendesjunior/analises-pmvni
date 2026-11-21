@@ -395,19 +395,23 @@ public sealed partial class MainWindow
             p.BotaoAtualizarKit.IsEnabled = false;
             try
             {
-                var inicio = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "schtasks.exe"))
+                // Tarefa 16 (erro 15): com análise em andamento no Editor, avisa e não inicia a atualização.
+                p.ResumoInstalacaoPlugins.Text = await AtualizacaoKit.SolicitarAsync(ProcessosComAnaliseEmAndamento(), async () =>
                 {
-                    UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true
-                };
-                inicio.ArgumentList.Add("/Run");
-                inicio.ArgumentList.Add("/TN");
-                inicio.ArgumentList.Add(@"\PMVNI\Atualizar kit");
-                using var tarefa = System.Diagnostics.Process.Start(inicio) ?? throw new IOException("O Agendador de Tarefas não abriu.");
-                var erro = await tarefa.StandardError.ReadToEndAsync();
-                await tarefa.WaitForExitAsync();
-                p.ResumoInstalacaoPlugins.Text = tarefa.ExitCode == 0
-                    ? "Atualização do kit solicitada. O instalador executa em segundo plano."
-                    : $"O Windows não conseguiu iniciar a tarefa Atualizar kit. {erro.Trim()}";
+                    var inicio = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "schtasks.exe"))
+                    {
+                        UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true
+                    };
+                    inicio.ArgumentList.Add("/Run");
+                    inicio.ArgumentList.Add("/TN");
+                    inicio.ArgumentList.Add(@"\PMVNI\Atualizar kit");
+                    using var tarefa = System.Diagnostics.Process.Start(inicio) ?? throw new IOException("O Agendador de Tarefas não abriu.");
+                    var erro = await tarefa.StandardError.ReadToEndAsync();
+                    await tarefa.WaitForExitAsync();
+                    return tarefa.ExitCode == 0
+                        ? "Atualização do kit solicitada. O instalador executa em segundo plano."
+                        : $"O Windows não conseguiu iniciar a tarefa Atualizar kit. {erro.Trim()}";
+                });
             }
             catch (Exception e) { p.ResumoInstalacaoPlugins.Text = $"Falha ao solicitar a atualização do kit. {e.Message}"; }
             finally { p.BotaoAtualizarKit.IsEnabled = true; }
@@ -425,6 +429,17 @@ public sealed partial class MainWindow
             ? new EstadoAtualizacao(EtapaAtualizacao.EmDia, "Ainda não verificado nesta abertura.")
             : new EstadoAtualizacao(EtapaAtualizacao.Desligada, "Compilação de desenvolvimento: a atualização automática fica desligada.")));
         Atualizador.Iniciar();
+    }
+
+    /// <summary>Os processos com análise em andamento no Editor: as execuções da página Novo relatório que ainda não terminaram e as do
+    /// Claude e do ChatGPT que o Editor acompanha (<c>execucoes_claude</c>/<c>execucoes_chatgpt</c>, que ficam lá do início ao fim). Só lê; não muda nenhuma execução.</summary>
+    IReadOnlyList<string> ProcessosComAnaliseEmAndamento()
+    {
+        var nomes = new List<string>();
+        if (sessaoNR is not null)
+            nomes.AddRange(sessaoNR.Execucoes.Where(e => e.Fim is not { IsCompleted: true }).Select(e => e.Processo.NomePasta));
+        nomes.AddRange(ajustes.ExecucoesClaude.Concat(ajustes.ExecucoesChatGpt).Select(e => Path.GetFileName(Path.TrimEndingDirectorySeparator(e.Processo))));
+        return nomes.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     bool notificouAtualizacaoPronta;

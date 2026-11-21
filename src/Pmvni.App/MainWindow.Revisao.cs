@@ -850,14 +850,15 @@ public sealed partial class MainWindow
         LembrarPaineis();
     }
 
-    /// <summary>A Conferência: erros finais (bloqueiam a exportação), citações a itens excluídos e citações literais que a numeração
-    /// pode ter mudado (só avisam).</summary>
+    /// <summary>A Conferência: erros finais (bloqueiam a exportação, inclusive referências quebradas e situações contraditórias) e citações
+    /// literais que a numeração pode ter mudado (só avisam).</summary>
     internal string TextoConferencia()
     {
         if (sessao?.Atual is not { } r) return "Nenhum relatório aberto.";
         var p = sessao.Revisao.Projeto;
         var erros = r.Preparado.ErrosFinais.Distinct().ToList();
-        var avisos = ConferenciaRevisao.CitacoesAExcluidos(p).Concat(ConferenciaRevisao.Avisos(p)).Distinct().ToList();
+        // Tarefa 16: as citações a itens excluídos agora estão nos erros (ReferenciasCruzadas); aqui ficam só os avisos.
+        var avisos = ConferenciaRevisao.Avisos(p).Distinct().ToList();
         var sb = new StringBuilder();
         if (erros.Count == 0 && avisos.Count == 0) return "Nada a conferir: o relatório pode ser exportado.";
         sb.AppendLine(erros.Count == 0 ? "Nenhum erro: o relatório pode ser exportado." : $"Erros que bloqueiam a exportação ({erros.Count}):");

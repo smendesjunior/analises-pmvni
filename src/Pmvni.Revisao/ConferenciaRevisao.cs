@@ -5,8 +5,10 @@ using Pmvni.Composicao.Kit;
 namespace Pmvni.Revisao;
 
 /// <summary>A conferência final da revisão (a que o editor faz antes de exportar; a do kit sobre o dados.json efetivo é outra):
-/// <see cref="Erros"/> bloqueiam, <see cref="Avisos"/> e <see cref="CitacoesAExcluidos"/> só avisam. Só os itens incluídos contam
-/// e a numeração nas mensagens é a de agora (a que o relatório imprime).</summary>
+/// <see cref="Erros"/> bloqueiam (desde a Tarefa 16, também as referências a item ou figura excluídos e as situações contraditórias
+/// entre linha de tabela e item, ver <see cref="ReferenciasCruzadas"/>); <see cref="Avisos"/> só avisam. <see cref="CitacoesAExcluidos"/>
+/// continua descrevendo as citações a excluídos no formato antigo, mas elas agora também bloqueiam pelos <see cref="Erros"/>. Só os itens
+/// incluídos contam e a numeração nas mensagens é a de agora (a que o relatório imprime).</summary>
 public static class ConferenciaRevisao
 {
     /// <summary>Situação mudada sem justificativa: <c>"ITEM 03: a situação mudou de FALTA COMPROVAR para ATENDE sem justificativa"</c>.</summary>
@@ -30,6 +32,9 @@ public static class ConferenciaRevisao
             erros.Add(TabelasRevisao.Rotulo(id) + ": a situação mudou de " + TextoSituacao(TabelasRevisao.SituacaoOriginal(p, id)) + " para "
                       + TextoSituacao(l.Situacao) + " sem justificativa");
         }
+        // Tarefa 16: referências quebradas e situações contraditórias depois da edição.
+        erros.AddRange(ReferenciasCruzadas.Quebradas(p));
+        erros.AddRange(ReferenciasCruzadas.Contraditorias(p));
         return erros;
     }
 
@@ -87,7 +92,7 @@ public static class ConferenciaRevisao
         p.Incluidos.Any(i => p.NumeroAtual(i.Id) != i.NumeroOriginal);
 
     /// <summary>Os textos guardados (com tokens de citação) dos campos de texto do item, na ordem dos campos editáveis.</summary>
-    private static IEnumerable<(string Campo, string Texto)> TextosDoItem(ItemRevisao it)
+    internal static IEnumerable<(string Campo, string Texto)> TextosDoItem(ItemRevisao it)
     {
         foreach (var nome in Campos.Editaveis)
         {
@@ -97,10 +102,10 @@ public static class ConferenciaRevisao
         }
     }
 
-    private static string Rotulo(Projeto p, ItemRevisao it) =>
+    internal static string Rotulo(Projeto p, ItemRevisao it) =>
         "ITEM " + (p.NumeroAtual(it.Id) ?? it.NumeroOriginal).ToString("D2", CultureInfo.InvariantCulture);
 
-    private static string? SituacaoOriginal(ItemRevisao it) =>
+    internal static string? SituacaoOriginal(ItemRevisao it) =>
         it.Situacao.Original is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
     internal static string TextoSituacao(string? codigo) =>

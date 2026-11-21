@@ -469,6 +469,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             var args = Argumentos.Atual;
             // As análises do Claude que seguiam quando o editor fechou (desenho §12.7). O roteiro chama no passo dele.
             if (args.Roteiro is null) { _ = TentarAsync(RetomarExecucoesClaudeAsync); _ = TentarAsync(RetomarExecucoesChatGptAsync); }
+            // Tarefa 16: instalação do motor PDF e dos plugins incompleta → primeira-abertura.ps1 fora do Editor (.cmd + explorer.exe).
+            if (args.Roteiro is null) _ = Task.Run(InstalacaoMotorPdf.PrimeiraAberturaAsync);
             if (args.Roteiro is not null) await Roteiro.ExecutarAsync(this, args);
             else if (Environment.GetEnvironmentVariable("PMVNI_DEMO_ANALISE") == "1")
             {
