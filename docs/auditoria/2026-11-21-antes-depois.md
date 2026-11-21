@@ -169,7 +169,7 @@ Onde está o instalador da 2.2.0:
 
 Passo a passo:
 
-1. Se for usar a cópia local, guarde antes uma cópia do `Aplicativo\Editor de Relatorios PMVNI.exe` em outra pasta (o `build-release` da 2.3.0 a substitui).
+1. Se for usar a cópia local, guarde antes uma cópia do `Aplicativo\Editor de Relatorios PMVNI.exe` em outra pasta (o `build-release` da 3.0.0 a substitui).
 2. Gere o executável da 2.2.0 pelo código: crie uma pasta de trabalho na etiqueta (`git worktree add <pasta> build-20261119164841`), e nela rode
    `tools\build-release.ps1 -SemGitHub` (o script roda os testes, publica, confere o executável e limpa os builds). O resultado fica em `Aplicativo\` dessa pasta.
    Alternativa sem compilar: baixe o `EditorRelatoriosPMVNI.exe` da Release `build-20261119164841` (o instalador `tools\instalar.cmd` só baixa a Release mais recente).
