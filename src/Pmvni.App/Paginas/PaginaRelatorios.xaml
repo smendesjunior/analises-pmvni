@@ -145,7 +145,7 @@
         </ListView>
         <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Padding="12,8" ColumnSpacing="6" Visibility="{Binding Visibility, ElementName=ListaNavegacao}">
           <TextBlock x:Name="ContagemNavegacao" TextAlignment="Left" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-          <Button x:Name="MaisItens" Grid.Column="1" Content="Mais itens" Click="AvancarNavegacao"/>
+          <Button x:Name="MaisItens" Grid.Column="1" Content="Mais itens" Click="AvancarNavegacao" AutomationProperties.Name="Mostrar mais itens" local:Dicas.Titulo="Mais itens" local:Dicas.Descricao="Rola a lista de seções até os próximos itens."/>
         </Grid>
         <!-- Excluídos: cada linha com o número original, o título e Restaurar (as linhas são montadas pela janela). -->
         <ListView x:Name="ListaExcluidos" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True"

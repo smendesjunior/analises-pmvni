@@ -183,7 +183,7 @@
           <FontIcon Glyph="&#xE99A;" FontSize="18" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-          <TextBlock Text="Monitor de análise" Style="{StaticResource PmvniTituloPaginaStyle}" FontSize="20"/>
+          <TextBlock Text="Monitor de análise" Style="{StaticResource PmvniTituloSecao}"/>
           <TextBlock Text="Execução da IA, atividades e descobertas em tempo real." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
         </StackPanel>
         <TextBlock TextAlignment="Right" Grid.Column="2" x:Name="ProcessoMonitor" x:FieldModifier="internal" MaxWidth="160" VerticalAlignment="Center" TextWrapping="Wrap" Style="{StaticResource BodyStrongTextBlockStyle}"/>

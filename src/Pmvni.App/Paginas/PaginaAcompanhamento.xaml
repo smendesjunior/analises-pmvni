@@ -166,14 +166,14 @@
           <!-- Planilha sem processos, ou nenhum com os filtros: a frase fica na área da tabela (antes só aparecia no rodapé). -->
           <StackPanel x:Name="SemResultado" x:FieldModifier="internal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Margin="0,48,0,0" Visibility="Collapsed">
             <TextBlock x:Name="TextoSemResultado" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" FontSize="14" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="420"/>
-            <Button x:Name="BotaoLimparFiltros" x:FieldModifier="internal" Content="Limpar filtros" HorizontalAlignment="Center"/>
+            <Button x:Name="BotaoLimparFiltros" x:FieldModifier="internal" Content="Limpar filtros" AutomationProperties.Name="Limpar os filtros" local:Dicas.Titulo="Limpar filtros" local:Dicas.Descricao="Tira a pesquisa e os filtros e mostra todos os processos da planilha." HorizontalAlignment="Center"/>
           </StackPanel>
           <StackPanel x:Name="Vazio" x:FieldModifier="internal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="480" Padding="16" Visibility="Collapsed">
             <ContentPresenter x:Name="IconeVazio" x:FieldModifier="internal" Width="64" Height="64" HorizontalAlignment="Center" IsHitTestVisible="False"/>
             <TextBlock x:Name="TextoVazio" x:FieldModifier="internal" TextWrapping="Wrap" TextAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
             <StackPanel x:Name="AcoesVazio" x:FieldModifier="internal" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-              <Button x:Name="BotaoEscolherVazio" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Escolher planilha…"/>
-              <Button x:Name="BotaoAjustesVazio" x:FieldModifier="internal" Content="Abrir Ajustes"/>
+              <Button x:Name="BotaoEscolherVazio" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Escolher planilha…" AutomationProperties.Name="Escolher a planilha de acompanhamento" local:Dicas.Titulo="Escolher planilha…" local:Dicas.Descricao="Escolhe no computador a planilha do Excel com os processos."/>
+              <Button x:Name="BotaoAjustesVazio" x:FieldModifier="internal" Content="Abrir Ajustes" local:Dicas.Titulo="Abrir Ajustes" local:Dicas.Descricao="Abre os Ajustes na categoria das fontes de dados, onde a planilha é escolhida."/>
             </StackPanel>
           </StackPanel>
         </Grid>
@@ -189,7 +189,7 @@
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
           <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <TextBlock x:Name="TituloPainel" x:FieldModifier="internal" Style="{StaticResource PmvniTituloSecao}" FontSize="20" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+            <TextBlock x:Name="TituloPainel" x:FieldModifier="internal" Style="{StaticResource PmvniTituloSecao}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
             <Button x:Name="BotaoFecharPainel" x:FieldModifier="internal" Grid.Column="1" Background="Transparent" BorderThickness="0" Padding="9" MinWidth="36" MinHeight="36"
                     AutomationProperties.Name="Fechar o painel do processo" local:Dicas.Descricao="Fecha o painel do processo.">
               <FontIcon Glyph="&#xE711;" FontSize="14"/>
@@ -199,7 +199,7 @@
             <StackPanel x:Name="CamposPainel" x:FieldModifier="internal" Spacing="0" Padding="0,0,8,0"/>
           </ScrollViewer>
           <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
-            <Button x:Name="BotaoEditar" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Editar processo">
+            <Button x:Name="BotaoEditar" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Editar processo" local:Dicas.Titulo="Editar processo" local:Dicas.Descricao="Abre o formulário com os dados deste processo.">
               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE70F;" FontSize="14"/><TextBlock Text="Editar processo"/></StackPanel>
             </Button>
             <Button x:Name="BotaoAbrirPasta" x:FieldModifier="internal" AutomationProperties.Name="Abrir em Processos"

@@ -78,15 +78,15 @@
         <StackPanel x:Name="Vazio" x:FieldModifier="internal" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="460" Padding="16">
           <ContentPresenter Width="64" Height="64" HorizontalAlignment="Center" ContentTemplate="{StaticResource PmvniIconeImoveis}" Content="" IsHitTestVisible="False"/>
           <TextBlock x:Name="TextoVazio" x:FieldModifier="internal" TextWrapping="Wrap" TextAlignment="Center"/>
-          <Button x:Name="BotaoConfigurarVazio" x:FieldModifier="internal" HorizontalAlignment="Center" Content="Configurar pasta QGIS" Style="{StaticResource PmvniBotaoPrimarioStyle}"/>
+          <Button x:Name="BotaoConfigurarVazio" x:FieldModifier="internal" HorizontalAlignment="Center" Content="Configurar pasta QGIS" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Configurar a pasta QGIS" local:Dicas.Titulo="Configurar pasta QGIS" local:Dicas.Descricao="Escolhe a pasta com os arquivos do QGIS usados na consulta de imóveis."/>
         </StackPanel>
       </Grid>
 
       <Grid Grid.Row="4" ColumnSpacing="8">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <TextBlock x:Name="TextoPaginacao" x:FieldModifier="internal" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-        <Button x:Name="BotaoAnterior" x:FieldModifier="internal" Grid.Column="1" Content="Anterior" IsEnabled="False" AutomationProperties.Name="Página anterior dos resultados"/>
-        <Button x:Name="BotaoProxima" x:FieldModifier="internal" Grid.Column="2" Content="Próxima" IsEnabled="False" AutomationProperties.Name="Próxima página dos resultados"/>
+        <Button x:Name="BotaoAnterior" x:FieldModifier="internal" Grid.Column="1" Content="Anterior" IsEnabled="False" AutomationProperties.Name="Página anterior dos resultados" local:Dicas.Titulo="Anterior" local:Dicas.Descricao="Mostra a página anterior dos resultados."/>
+        <Button x:Name="BotaoProxima" x:FieldModifier="internal" Grid.Column="2" Content="Próxima" IsEnabled="False" AutomationProperties.Name="Próxima página dos resultados" local:Dicas.Titulo="Próxima" local:Dicas.Descricao="Mostra a próxima página dos resultados."/>
       </Grid>
     </Grid>
 
@@ -105,8 +105,8 @@
                       local:Dicas.Titulo="Cotas no mapa" local:Dicas.Descricao="Mostra ou esconde as cotas do lote no mapa: lados do lote, faixa de domínio do DNIT e distância do eixo ao terreno (BR-262 perto) e largura da rua em frente, medidas na base.">
           <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE1D9;" FontSize="14"/><TextBlock Text="Cotas"/></StackPanel>
         </ToggleButton>
-        <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="3" Content="Imprimir" AutomationProperties.Name="Imprimir o relatório"/>
-        <Button x:Name="BotaoPdf" x:FieldModifier="internal" Grid.Column="4" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Salvar o relatório em PDF">
+        <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="3" Content="Imprimir" AutomationProperties.Name="Imprimir o relatório" local:Dicas.Titulo="Imprimir" local:Dicas.Descricao="Abre a impressão do relatório do imóvel."/>
+        <Button x:Name="BotaoPdf" x:FieldModifier="internal" Grid.Column="4" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Salvar o relatório em PDF" local:Dicas.Titulo="Salvar PDF" local:Dicas.Descricao="Salva o relatório do imóvel em um arquivo PDF.">
           <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xEA90;" FontSize="14"/><TextBlock Text="Salvar PDF"/></StackPanel>
         </Button>
       </Grid>
