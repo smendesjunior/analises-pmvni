@@ -159,7 +159,7 @@ public sealed partial class MainWindow
                 if (AberturaExterna.Simular) { AberturaExterna.Registradas.Add("imprimir: " + caminho); return; }
                 try
                 {
-                    Process.Start(new ProcessStartInfo(caminho) { UseShellExecute = true, Verb = "print" })?.Dispose();
+                    TravaDeProgramas.Iniciar(new ProcessStartInfo(caminho) { UseShellExecute = true, Verb = "print" })?.Dispose();
                     MostrarMensagem(InfoBarSeverity.Informational, "Enviado para a impressora", $"«{nome}» foi para a impressora padrão do Windows.");
                 }
                 catch (Exception e) when (e is Win32Exception or InvalidOperationException)

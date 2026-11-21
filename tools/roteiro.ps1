@@ -23,6 +23,8 @@ if (Test-Path -LiteralPath $alvo) {
     }
 }
 $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados-app'
+$env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--disable-background-networking --proxy-server=127.0.0.1:9'
 $pasta = Join-Path $saida 'roteiro'
 $resultado = Join-Path $pasta 'resultado.json'
 $final = Join-Path $raiz 'docs\roteiro-etapa-2.resultado.json'
@@ -31,19 +33,11 @@ if (Test-Path -LiteralPath $resultado) { Remove-Item -LiteralPath $resultado -Fo
 # Agente falso (Tarefa 19, passos 49 e 50 em diante): faz o papel do codex.exe, do claude.exe e do python.exe, sem rede e sem IA. O roteiro NUNCA toca o
 # codex nem o claude de verdade (ExecucaoProcesso.SomenteExecutaveisEm recusa qualquer programa fora desta pasta).
 $agenteFalso = Join-Path $saida 'agente-falso'
-& dotnet publish (Join-Path $raiz 'tests\AgenteFalso\AgenteFalso.csproj') -c Release -o $agenteFalso --nologo | Out-Null
+$cacheNuget = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path $env:USERPROFILE '.nuget\packages' }
+& dotnet publish (Join-Path $raiz 'tests\AgenteFalso\AgenteFalso.csproj') -c Release -o $agenteFalso --nologo "-p:RestoreSources=$cacheNuget" -p:NuGetAudit=false --artifacts-path (Join-Path $saida 'build-agente-falso') | Out-Null
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $agenteFalso 'AgenteFalso.exe'))) {
     "roteiro: o agente falso não foi publicado (dotnet publish, código $LASTEXITCODE); o app não foi aberto." | Set-Content (Join-Path $saida 'roteiro-fim.txt') -Encoding utf8
     exit 1
-}
-# Tarefa 14: o publish deixa bin\ e obj\ no projeto do agente falso; só a cópia publicada em tests\saida\agente-falso é usada. Apaga as duas (só
-# esses caminhos, conferidos sob tests\AgenteFalso), para o roteiro não deixar nada fora de tests\saida.
-$projetoFalso = Join-Path $raiz 'tests\AgenteFalso'
-foreach ($d in 'bin', 'obj') {
-    $alvo = Join-Path $projetoFalso $d
-    if ((Test-Path -LiteralPath $alvo) -and ([IO.Path]::GetFullPath($alvo)).StartsWith([IO.Path]::GetFullPath($projetoFalso) + '\', [StringComparison]::OrdinalIgnoreCase)) {
-        Remove-Item -LiteralPath $alvo -Recurse -Force
-    }
 }
 $p = Start-Process -FilePath $exe -ArgumentList ('"' + (Join-Path $raiz 'tests\corpus\longo.json') + '"'), '--roteiro', ('"' + $resultado + '"') -PassThru -Wait
 # O app só grava na pasta do JSON de saída (tests\saida\roteiro); o resultado é copiado para docs\ aqui sem nada do computador (o

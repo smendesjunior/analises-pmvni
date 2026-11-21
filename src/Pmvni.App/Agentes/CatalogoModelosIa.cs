@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using Pmvni.Agentes;
 using Pmvni.Composicao.Web;
+using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
@@ -177,6 +178,8 @@ internal sealed class CatalogoModelosIa
 
     static async Task<string> PedirAsync(HttpRequestMessage pedido, CancellationToken ct)
     {
+        if (TravaDeProgramas.Permitidos is not null)
+            throw new InvalidOperationException("A consulta à API está desabilitada durante a conferência.");
         using var resposta = await Http.SendAsync(pedido, ct);
         var corpo = await resposta.Content.ReadAsStringAsync(ct);
         if (!resposta.IsSuccessStatusCode)
@@ -201,7 +204,7 @@ internal sealed class CatalogoModelosIa
         AmbienteFilho.Aplicar(si.Environment, Provedor.ChatGpt, ModoAcesso.Conta, null);
         using var tempo = CancellationTokenSource.CreateLinkedTokenSource(ct);
         tempo.CancelAfter(limite);
-        using var p = Process.Start(si) ?? throw new InvalidOperationException("o programa não abriu");
+        using var p = TravaDeProgramas.Iniciar(si) ?? throw new InvalidOperationException("o programa não abriu");
         try { TarefaDoEditor.Padrao.Atribuir(p); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
         try
         {

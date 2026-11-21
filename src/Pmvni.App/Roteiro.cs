@@ -141,6 +141,30 @@ internal sealed class ConversorMedido(IConversorPdf real) : IConversorPdf
 /// independente: falha num não impede os seguintes.</summary>
 internal static class Roteiro
 {
+    static readonly List<string> programasIniciados = [];
+    static string pastaDoAgenteFalso = null!;
+    static string? sofficeDoRoteiro;
+    static IReadOnlyList<string> programasPermitidos = [];
+
+    internal static void TravarProgramas(string resultado)
+    {
+        var saida = Path.GetDirectoryName(Path.GetDirectoryName(resultado)!)!;
+        pastaDoAgenteFalso = Path.Combine(saida, "agente-falso");
+        Environment.SetEnvironmentVariable(PastaDados.VariavelAmbiente, Path.Combine(saida, "dados-app"));
+        sofficeDoRoteiro = ConversorLibreOffice.Localizar() is { } so ? Path.GetFullPath(so) : null;
+        programasPermitidos = sofficeDoRoteiro is null ? [pastaDoAgenteFalso] : [pastaDoAgenteFalso, sofficeDoRoteiro];
+        TravaDeProgramas.Permitidos = programasPermitidos;
+        TravaDeProgramas.AoIniciar = c => { lock (programasIniciados) programasIniciados.Add(c); };
+    }
+
+    internal static OpcoesLocalizacao OpcoesDosAgentes(string resultado, string kit, string? codex, string? python)
+    {
+        var pasta = Path.GetDirectoryName(resultado)!;
+        var agenteFalso = Path.Combine(pastaDoAgenteFalso, "AgenteFalso.exe");
+        return new OpcoesLocalizacao(Path.Combine(pasta, "local-app-data"), Path.Combine(pasta, "codex-home"), [pastaDoAgenteFalso],
+            kit, codex ?? agenteFalso, python ?? agenteFalso);
+    }
+
     public static async Task ExecutarAsync(MainWindow j, Argumentos args)
     {
         var dadosLongo = args.Dados ?? throw new InvalidOperationException("--roteiro pede também o caminho do dados.json (tests\\corpus\\longo.json).");
@@ -161,11 +185,6 @@ internal static class Roteiro
         // (a pasta tests\saida\agente-falso) e o soffice do LibreOffice dos despachos (o programa exato que o editor acha) podem partir; cada
         // programa que partiu fica listado no resultado (programas_iniciados), o LibreOffice inclusive.
         var inicioDoRoteiro = DateTime.UtcNow;
-        var pastaDoAgenteFalso = Path.GetFullPath(Path.Combine(pasta, "..", "agente-falso"));
-        var sofficeDoRoteiro = ConversorLibreOffice.Localizar() is { } so ? Path.GetFullPath(so) : null;
-        TravaDeProgramas.Permitidos = sofficeDoRoteiro is null ? [pastaDoAgenteFalso] : [pastaDoAgenteFalso, sofficeDoRoteiro];
-        var programasIniciados = new List<string>();
-        TravaDeProgramas.AoIniciar = c => { lock (programasIniciados) programasIniciados.Add(c); };
         // As chaves falsas que os passos 50 e 53 sorteiam (e o valor herdado do 53): o passo 64 confere que nenhuma ficou em tests\saida.
         var chaveHerdada = "herdada-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16));
         var chavesDoRoteiro = new List<string> { chaveHerdada };
@@ -2854,8 +2873,6 @@ internal static class Roteiro
             Directory.CreateDirectory(scriptsGoogle);
             File.WriteAllText(Path.Combine(scriptsGoogle, "google_runtime.py"), "# google_runtime.py fictício do roteiro\nROTA_VAR = 'PMVNI_ANALISE_GOOGLE_ROTA'\n");
             File.WriteAllText(configCodex, ConfigHabilitado);
-            j.OpcoesAgentes = () => new OpcoesLocalizacao(Path.Combine(pasta, "local-app-data"), codexHome, [agenteFalsoPasta], j.PastaKitEfetiva,
-                j.ProgramaEscolhidoDoAgente(Provedor.ChatGpt) ?? agenteFalso, j.ProgramaEscolhidoDoAgente(Provedor.Claude) ?? agenteFalso);
             // Estado de partida: conta, programa padrão, sem chave (um roteiro anterior que caiu no meio não deixa nada).
             foreach (var pv in Enum.GetValues<Provedor>())
             {
@@ -4562,8 +4579,7 @@ internal static class Roteiro
             lock (programasIniciados) iniciadosAgora = programasIniciados.ToArray();
             // Só o agente falso e o soffice permitido partiram (o despacho deste passo converte com o LibreOffice: ele aparece na lista).
             Conf("so_programas_permitidos_iniciados", iniciadosAgora.Length > 0 && ExecucaoProcesso.SomenteExecutaveisEm == pastaDoAgenteFalso
-                && iniciadosAgora.All(c => c.StartsWith(pastaDoAgenteFalso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                                           || string.Equals(c, sofficeDoRoteiro, StringComparison.OrdinalIgnoreCase))
+                && iniciadosAgora.All(c => TravaDeProgramas.Permitido(c, programasPermitidos))
                 && (sofficeDoRoteiro is null || iniciadosAgora.Any(c => string.Equals(c, sofficeDoRoteiro, StringComparison.OrdinalIgnoreCase))));
             p["conferencias"] = conf;
             try { await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "64-fluxo-completo.png")); } catch (Exception e) { p["captura"] = e.Message; }
@@ -5349,16 +5365,18 @@ internal static class Roteiro
         await j.FecharSessaoAsync();
         string[] iniciados;
         lock (programasIniciados) iniciados = programasIniciados.ToArray();
+        var foraDosPermitidos = iniciados.Count(c => !TravaDeProgramas.Permitido(c, programasPermitidos));
         saida["programas_iniciados"] = new JsonObject
         {
             ["programas"] = new JsonArray(iniciados
                 .Select(c => c.StartsWith(pastaDoAgenteFalso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ? Path.GetRelativePath(pastaDoAgenteFalso, c) : c)
                 .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).Select(c => (JsonNode)c).ToArray()),
-            ["permitidos"] = new JsonArray((TravaDeProgramas.Permitidos ?? []).Select(c => (JsonNode)c).ToArray()),
+            ["permitidos"] = new JsonArray(programasPermitidos.Select(c => (JsonNode)c).ToArray()),
             ["inicios"] = iniciados.Length,
-            // O LibreOffice dos despachos (passos 44 e 64) conta aqui: a trava vale para ele também.
-            ["fora_do_agente_falso"] = TravaDeProgramas.ForaDe(iniciados, pastaDoAgenteFalso),
+            ["libreoffice"] = iniciados.Count(c => string.Equals(c, sofficeDoRoteiro, StringComparison.OrdinalIgnoreCase)),
+            ["fora_do_agente_falso"] = foraDosPermitidos,
         };
+        if (foraDosPermitidos > 0 || TravaDeProgramas.Permitidos != programasPermitidos) falhas.Add("programas_iniciados");
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
         saida["ok"] = falhas.Count == 0;

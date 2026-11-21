@@ -407,7 +407,7 @@ public sealed partial class MainWindow
                     inicio.ArgumentList.Add("/Run");
                     inicio.ArgumentList.Add("/TN");
                     inicio.ArgumentList.Add(@"\PMVNI\Atualizar kit");
-                    using var tarefa = System.Diagnostics.Process.Start(inicio) ?? throw new IOException("O Agendador de Tarefas não abriu.");
+                    using var tarefa = TravaDeProgramas.Iniciar(inicio) ?? throw new IOException("O Agendador de Tarefas não abriu.");
                     var erro = await tarefa.StandardError.ReadToEndAsync();
                     await tarefa.WaitForExitAsync();
                     return tarefa.ExitCode == 0
@@ -459,6 +459,12 @@ public sealed partial class MainWindow
     OrigensDoKit OrigensDoKitDoComputador()
     {
         if (OrigensDoKitDoRoteiro is { } r) return r;
+        if (Argumentos.Atual.Roteiro is not null)
+        {
+            var oRoteiro = OpcoesAgentes();
+            return new OrigensDoKit(oRoteiro.CodexHome, null, oRoteiro.LocalAppData, oRoteiro.LocalAppData,
+                ajustes.PastaKitEfetiva, "", () => null);
+        }
         var o = Pmvni.Agentes.OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, null, null);
         var pmvni = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PMVNI");
         return new OrigensDoKit(o.CodexHome, o.PastaClaude, InstalacaoMotorPdf.BaseLocal, pmvni, ajustes.PastaKitEfetiva, InstalacaoMotorPdf.HashDoServidorPdf(),
@@ -475,7 +481,7 @@ public sealed partial class MainWindow
                 UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true
             };
             foreach (var a in new[] { "/Query", "/TN", @"\PMVNI\Atualizar kit" }) inicio.ArgumentList.Add(a);
-            using var consulta = System.Diagnostics.Process.Start(inicio);
+            using var consulta = TravaDeProgramas.Iniciar(inicio);
             if (consulta is null) return null;
             _ = consulta.StandardOutput.ReadToEnd();
             _ = consulta.StandardError.ReadToEnd();
@@ -577,7 +583,7 @@ public sealed partial class MainWindow
     {
         var inicio = new System.Diagnostics.ProcessStartInfo(programa) { UseShellExecute = false };
         inicio.ArgumentList.Add(argumento);
-        using var _ = System.Diagnostics.Process.Start(inicio);
+        using var _ = TravaDeProgramas.Iniciar(inicio);
     }
 
     /// <summary>Os processos com análise em andamento no Editor: as execuções da página Novo relatório que ainda não terminaram e as do

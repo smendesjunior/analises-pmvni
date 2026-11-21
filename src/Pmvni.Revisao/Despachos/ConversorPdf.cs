@@ -252,11 +252,9 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
     ResultadoConversao Executar(string copia, string conv, string perfil, string temp, string? arquivoPid, CancellationToken ct)
     {
         Process? p;
-        TravaDeProgramas.Conferir(soffice!);        // no roteiro, só o soffice permitido; fora dele, nada muda
-        try { p = Process.Start(Preparar(soffice!, copia, conv, perfil, temp)); }
+        try { p = TravaDeProgramas.Iniciar(Preparar(soffice!, copia, conv, perfil, temp)); }
         catch (Win32Exception e) { return new ResultadoConversao(null, "CONVERSAO_FALHOU", e.Message); }
         if (p is null) return new ResultadoConversao(null, "CONVERSAO_FALHOU", "o processo não abriu");
-        TravaDeProgramas.Iniciou(soffice!);
         using (p)
         {
             Volatile.Write(ref emCurso, p);

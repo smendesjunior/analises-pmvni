@@ -23,7 +23,7 @@ internal static class AberturaExterna
         if (Simular) { Registradas.Add(caminho); return true; }
         try
         {
-            Process.Start(new ProcessStartInfo(caminho) { UseShellExecute = true })?.Dispose();
+            TravaDeProgramas.Iniciar(new ProcessStartInfo(caminho) { UseShellExecute = true })?.Dispose();
             return true;
         }
         catch (Exception e) when (e is Win32Exception or InvalidOperationException or IOException)
@@ -39,7 +39,7 @@ internal static class AberturaExterna
     public static void AbrirPasta(string pasta)
     {
         if (Simular) { Registradas.Add("pasta: " + pasta); return; }
-        try { Process.Start(new ProcessStartInfo("explorer.exe") { Arguments = "\"" + pasta + "\"", UseShellExecute = false })?.Dispose(); }
+        try { TravaDeProgramas.Iniciar(new ProcessStartInfo("explorer.exe") { Arguments = "\"" + pasta + "\"", UseShellExecute = false })?.Dispose(); }
         catch (Exception e) when (e is Win32Exception or InvalidOperationException) { Debug.WriteLine("[explorador] " + e.Message); }
     }
 
@@ -49,7 +49,7 @@ internal static class AberturaExterna
         try
         {
             // O Explorador lê "/select,<caminho>" como um argumento só; as aspas protegem os espaços do caminho.
-            Process.Start(new ProcessStartInfo("explorer.exe") { Arguments = "/select,\"" + caminho + "\"", UseShellExecute = false })?.Dispose();
+            TravaDeProgramas.Iniciar(new ProcessStartInfo("explorer.exe") { Arguments = "/select,\"" + caminho + "\"", UseShellExecute = false })?.Dispose();
         }
         catch (Exception e) when (e is Win32Exception or InvalidOperationException)
         {

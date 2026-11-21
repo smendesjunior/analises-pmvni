@@ -37,7 +37,8 @@ public sealed partial class MainWindow
         p.TextoSistema.Text = TextoSistema;
         p.TextoRuntime.Text = TextoRuntime;
         p.LinkContato.Content = EmailContato;
-        p.LinkContato.NavigateUri = new Uri("mailto:" + EmailContato + "?subject=" + Uri.EscapeDataString("Análise de Projetos " + Atualizador.VersaoExibida));
+        if (Argumentos.Atual.Roteiro is null)
+            p.LinkContato.NavigateUri = new Uri("mailto:" + EmailContato + "?subject=" + Uri.EscapeDataString("Análise de Projetos " + Atualizador.VersaoExibida));
         p.TextoVersoes.Text = RelatorioDiagnostico();
         p.BotaoAtualizarDiagnostico.Click += (_, _) => p.TextoVersoes.Text = RelatorioDiagnostico();
         p.BotaoCopiarInformacoes.Click += (_, _) =>

@@ -19,7 +19,7 @@ public sealed partial class CartaoAgente : UserControl
         LogoClaude.Visibility = p == Provedor.Claude ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         LogoGemini.Visibility = p == Provedor.Gemini ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         LinkConta.Content = TextosAgentes.RotuloConta(p);
-        LinkConta.NavigateUri = new Uri(TextosAgentes.EnderecoConta(p));
+        if (Argumentos.Atual.Roteiro is null) LinkConta.NavigateUri = new Uri(TextosAgentes.EnderecoConta(p));
         TituloPrograma.Text = p == Provedor.ChatGpt ? "Programa" : "Programas";
         // A primeira linha é o plugin analise onde o programa o registra (Codex no ChatGPT, Claude Code no Claude); a segunda, a rota do kit que a
         // análise do Claude ou do Gemini roda pelo Codex (Tarefa 21: nomes de rota no lugar de "análise pro"/"análise Google").

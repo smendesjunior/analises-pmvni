@@ -1,9 +1,9 @@
+using System.Diagnostics;
+using Pmvni.Agentes;
 using Xunit;
 
 namespace Pmvni.Revisao.Testes;
 
-/// <summary>A trava do roteiro vale para todo programa que o editor inicia: o agente (pasta do agente falso) e o LibreOffice do despacho (o soffice
-/// exato). O que ela recusa nunca parte nem entra na lista; o soffice permitido entra e conta como "fora do agente falso".</summary>
 /// <summary>A trava é global: estes testes rodam sozinhos (nenhum outro teste inicia um soffice fictício enquanto a lista está ligada).</summary>
 [CollectionDefinition("TravaDeProgramas", DisableParallelization = true)]
 public sealed class ColecaoTravaDeProgramas;
@@ -25,6 +25,7 @@ public class TravaDeProgramasTestes
             Assert.Throws<InvalidOperationException>(() => TravaDeProgramas.Conferir(Path.Combine(pasta, "LibreOffice", "program", "soffice.exe")));
             Assert.Throws<InvalidOperationException>(() => TravaDeProgramas.Conferir(falso + "-irmao\\x.exe"));
             Assert.Throws<InvalidOperationException>(() => TravaDeProgramas.Conferir(Path.Combine(Environment.SystemDirectory, "whoami.exe")));
+            Assert.Throws<InvalidOperationException>(() => TravaDeProgramas.Conferir("claude.exe"));
         }
         finally { TravaDeProgramas.Permitidos = null; }
     }
@@ -52,11 +53,44 @@ public class TravaDeProgramasTestes
     }
 
     [Fact]
-    public void o_soffice_iniciado_conta_fora_do_agente_falso()
+    public async Task partida_direta_e_catalogo_gemini_recusam_executores_fora_da_lista()
+    {
+        using var pasta = Ambiente.PastaDeTeste("trava-catalogos");
+        var falso = Path.Combine(pasta, "agente-falso");
+        var claude = Path.Combine(pasta, "claude.exe");
+        var agy = Path.Combine(pasta, "agy.exe");
+        var permitidosAntes = TravaDeProgramas.Permitidos;
+        var auditoriaAntes = TravaDeProgramas.AoIniciar;
+        var vistos = new List<string>();
+        ExecucaoProcesso.SomenteExecutaveisEm = falso;
+        TravaDeProgramas.AoIniciar = vistos.Add;
+        try
+        {
+            var erroClaude = Assert.Throws<InvalidOperationException>(() => TravaDeProgramas.Iniciar(new ProcessStartInfo(claude)));
+            Assert.EndsWith(claude, erroClaude.Message);
+            var pecas = new Pecas(null, null, Path.Combine(falso, "python.exe"), false, null, null, null, false, null, false)
+                { GoogleRuntime = Path.Combine(pasta, "google_runtime.py"), Agy = agy };
+            var erroAgy = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                ModelosDoGemini.LerAsync(pecas, PerfilGemini.ContaUltra, null, pasta, CancellationToken.None));
+            Assert.EndsWith(agy, erroAgy.Message);
+            Assert.Empty(vistos);
+        }
+        finally
+        {
+            TravaDeProgramas.Permitidos = permitidosAntes;
+            TravaDeProgramas.AoIniciar = auditoriaAntes;
+        }
+    }
+
+    [Fact]
+    public void a_auditoria_aceita_o_soffice_exato_e_as_copias_do_agente()
     {
         var falso = @"C:\repo\tests\saida\agente-falso";
-        var iniciados = new[] { falso + @"\AgenteFalso.exe", falso + @"\AgenteFalso.exe", @"C:\Program Files\LibreOffice\program\soffice.com" };
-        Assert.Equal(1, TravaDeProgramas.ForaDe(iniciados, falso));
-        Assert.Equal(0, TravaDeProgramas.ForaDe(iniciados.Take(2), falso));
+        var soffice = @"C:\Program Files\LibreOffice\program\soffice.com";
+        string[] permitidos = [falso, soffice];
+        Assert.All(new[] { falso + @"\AgenteFalso.exe", falso + @"\claude.exe", falso + @"\agy.exe", soffice },
+            caminho => Assert.True(TravaDeProgramas.Permitido(caminho, permitidos)));
+        Assert.False(TravaDeProgramas.Permitido(@"C:\real\agy.exe", permitidos));
+        Assert.False(TravaDeProgramas.Permitido(@"C:\real\claude.exe", permitidos));
     }
 }

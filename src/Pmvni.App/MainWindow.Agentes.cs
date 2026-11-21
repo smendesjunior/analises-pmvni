@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Pmvni.Agentes;
 using Pmvni.Composicao.Web;
+using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
@@ -140,7 +141,7 @@ public sealed partial class MainWindow
         try
         {
             var programa = string.IsNullOrEmpty(exe) ? nome : "\"" + exe + "\"";
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/k " + programa + " " + argumento) { UseShellExecute = true })?.Dispose();
+            TravaDeProgramas.Iniciar(new System.Diagnostics.ProcessStartInfo("cmd.exe", "/k " + programa + " " + argumento) { UseShellExecute = true })?.Dispose();
             return true;
         }
         catch (Exception ex)
@@ -153,6 +154,7 @@ public sealed partial class MainWindow
     /// <summary>O link Entrar/Sair do alto do cartão: sem sessão, abre o login; com sessão, pergunta e abre o logout oficial do programa.</summary>
     async Task EntrarOuSairAsync(Provedor p)
     {
+        if (TravaDeProgramas.Permitidos is not null) return;
         if (p == Provedor.Gemini)
         {
             if (ajustes.Agentes[p].Modo == ModoAcesso.ContaGemini)
@@ -261,7 +263,9 @@ public sealed partial class MainWindow
 
     void IniciarAgentes()
     {
-        OpcoesAgentes = () => OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, ajustes.Agentes[Provedor.ChatGpt].Executavel, ajustes.Agentes[Provedor.Claude].Executavel);
+        OpcoesAgentes = () => Argumentos.Atual.Roteiro is { } roteiro
+            ? Roteiro.OpcoesDosAgentes(roteiro, ajustes.PastaKitEfetiva, ajustes.Agentes[Provedor.ChatGpt].Executavel, ajustes.Agentes[Provedor.Claude].Executavel)
+            : OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, ajustes.Agentes[Provedor.ChatGpt].Executavel, ajustes.Agentes[Provedor.Claude].Executavel);
         // A página de IA se consulta sozinha ao ser vista (sem clicar em Testar); ao voltar de um Entrar/Sair, relê a conta e testa aquele agente de novo.
         PaginaDeAjustes.CategoriaMostrada += tag => { if (tag == CategoriasAjustes.Ia && PaginaAjustesVisivel) AtualizarAgentes(); };
         Activated += (_, e) =>

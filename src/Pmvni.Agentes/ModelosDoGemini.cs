@@ -1,3 +1,5 @@
+using Pmvni.Revisao;
+
 namespace Pmvni.Agentes;
 
 /// <summary>Tarefa 19 (correção 1): a lista de modelos que o Gemini oferece agora, pela própria rota Gemini do kit (<c>google_runtime.py --case P modelos</c>,
@@ -15,12 +17,20 @@ public static class ModelosDoGemini
     {
         ArgumentNullException.ThrowIfNull(pecas);
         if (pecas.Python is null || pecas.GoogleRuntime is null) return (null, "a rota Gemini do kit não está instalada neste computador");
+        const string AgyExe = "PMVNI_AGY_EXE";
+        string? agy = null;
+        if (perfil == PerfilGemini.ContaUltra && TravaDeProgramas.Permitidos is not null)
+        {
+            agy = extra?.GetValueOrDefault(AgyExe) ?? pecas.Agy ?? "agy.exe";
+            TravaDeProgramas.Conferir(agy);
+        }
         var (exe, args) = LinhasDeComando.ProRuntime(pecas.Python, pecas.PythonPeloLauncher, pecas.GoogleRuntime, pastaTrabalho, "modelos");
         // Na API gratuita, o kit exige a declaração de processo fictício: listar modelos não envia conteúdo nenhum.
         void Ambiente(IDictionary<string, string?> env)
         {
             if (extra is not null)
                 foreach (var (k, v) in extra) env[k] = v;
+            if (agy is not null) env[AgyExe] = agy;
             AmbienteFilho.Aplicar(env, Provedor.Gemini, MatrizGemini.Modo(perfil), chave, perfil, ficticio: perfil == PerfilGemini.ApiGratuita);
             env.Remove(TabelaDeModelos.Variavel);
         }

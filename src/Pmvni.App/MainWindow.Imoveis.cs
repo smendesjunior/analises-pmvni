@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.Web.WebView2.Core;
 using Pmvni.Composicao.Web;
 using Pmvni.Imoveis;
+using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
@@ -413,7 +414,8 @@ public sealed partial class MainWindow
         {
             if (e.Uri.StartsWith("data:", StringComparison.Ordinal) || e.Uri.StartsWith("about:", StringComparison.Ordinal)) return;
             e.Cancel = true;
-            if (Uri.TryCreate(e.Uri, UriKind.Absolute, out var u) && u.Scheme is "http" or "https") _ = Windows.System.Launcher.LaunchUriAsync(u);
+            if (TravaDeProgramas.Permitidos is null && Uri.TryCreate(e.Uri, UriKind.Absolute, out var u) && u.Scheme is "http" or "https")
+                _ = Windows.System.Launcher.LaunchUriAsync(u);
         };
         core.NewWindowRequested += (_, e) => e.Handled = true;
         core.NavigationCompleted += (_, e) =>

@@ -4,6 +4,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Pmvni.Agentes;
+using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
@@ -540,7 +541,7 @@ public static class ModelosDaAnalise
         si.Environment.Remove(TabelaDeModelos.Variavel);
         try
         {
-            using var p = System.Diagnostics.Process.Start(si) ?? throw new InvalidOperationException("o Python não abriu");
+            using var p = TravaDeProgramas.Iniciar(si) ?? throw new InvalidOperationException("o Python não abriu");
             var saida = p.StandardOutput.ReadToEndAsync();
             var erro = p.StandardError.ReadToEndAsync();
             if (!p.WaitForExit(60_000)) { try { p.Kill(true); } catch (InvalidOperationException) { } return "a conferência do kit não terminou em 60 s"; }

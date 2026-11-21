@@ -58,7 +58,6 @@ public sealed class ExecucaoProcesso : IDisposable
     public static ExecucaoProcesso Iniciar(string exe, IReadOnlyList<string> args, string pastaTrabalho, string? entrada,
         Action<IDictionary<string, string?>> ambiente, Action<string> aoLerSaida, Action<string> aoLerErro, TarefaDoEditor? tarefa = null)
     {
-        TravaDeProgramas.Conferir(exe);
         var psi = new ProcessStartInfo(exe)
         {
             WorkingDirectory = pastaTrabalho,
@@ -74,13 +73,7 @@ public sealed class ExecucaoProcesso : IDisposable
         foreach (var a in args) psi.ArgumentList.Add(a);
         ambiente(psi.Environment);
 
-        var p = new Process { StartInfo = psi };
-        if (!p.Start())
-        {
-            p.Dispose();
-            throw new InvalidOperationException("Não foi possível iniciar o programa: " + exe);
-        }
-        TravaDeProgramas.Iniciou(exe);
+        var p = TravaDeProgramas.Iniciar(psi) ?? throw new InvalidOperationException("Não foi possível iniciar o programa: " + exe);
         // Os filhos que ele criar daqui em diante também ficam no job (um neto criado no primeiro instante, antes desta linha, escapa: o Kill da árvore cobre o cancelamento).
         var naTarefa = tarefa?.Atribuir(p) ?? false;
 

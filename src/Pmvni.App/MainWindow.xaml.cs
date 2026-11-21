@@ -770,7 +770,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         PaginaDeSites.Visibility = Modulos.EhSite(m) ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeImoveis.Visibility = m == Modulo.Imoveis ? Visibility.Visible : Visibility.Collapsed;
         PaginaDeAcompanhamento.Visibility = m == Modulo.Acompanhamento ? Visibility.Visible : Visibility.Collapsed;
-        if (Modulos.EhSite(m)) Soltar(() => PaginaDeSites.MostrarAsync(m));
+        if (Modulos.EhSite(m) && TravaDeProgramas.Permitidos is null) Soltar(() => PaginaDeSites.MostrarAsync(m));
         if (m == Modulo.Ajustes) { PaginaDeAjustes.TextoVersoes.Text = RelatorioDiagnostico(); AtualizarPaginaDePastas(); AtualizarAgentes(); Soltar(EntrarNaLegislacaoDosAjustesAsync); }
         var f = Faixas.Para(m);
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
@@ -798,7 +798,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         manipuladores[ComandosApp.SiteInicio] = () => { PaginaDeSites.Inicio(); return Task.CompletedTask; };
         manipuladores[ComandosApp.SiteNavegador] = () =>
         {
-            if (PaginaDeSites.EnderecoAtual is { } u && Uri.TryCreate(u, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+            if (TravaDeProgramas.Permitidos is null && PaginaDeSites.EnderecoAtual is { } u && Uri.TryCreate(u, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
                 _ = Windows.System.Launcher.LaunchUriAsync(uri);
             return Task.CompletedTask;
         };

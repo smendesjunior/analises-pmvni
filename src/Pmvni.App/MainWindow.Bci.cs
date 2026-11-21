@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 using Pmvni.Imoveis;
+using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
@@ -123,7 +124,7 @@ public sealed partial class MainWindow
             var abrirPasta = new Button { Content = Rotulo("", "Abrir pasta") };
             abrirPasta.Click += (_, _) =>
             {
-                try { System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + arquivo + "\""); }
+                try { TravaDeProgramas.Iniciar(new System.Diagnostics.ProcessStartInfo("explorer.exe", "/select,\"" + arquivo + "\""))?.Dispose(); }
                 catch (Exception e) { RegistroErros.Gravar("sites.bci.pasta", e); }
             };
             I.Aviso.ActionButton = null;
@@ -277,7 +278,7 @@ public sealed partial class MainWindow
         catch (Exception e)
         {
             RegistroErros.Gravar("sites.bci.abrir", e);
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(arquivo) { UseShellExecute = true }); }
+            try { TravaDeProgramas.Iniciar(new System.Diagnostics.ProcessStartInfo(arquivo) { UseShellExecute = true }); }
             catch (Exception ex) { RegistroErros.Gravar("sites.bci.abrir2", ex); }
         }
     }

@@ -156,7 +156,7 @@ public static class Compactados
         if (!File.Exists(tar)) throw new InvalidDataException($"{nomeExibido}: este Windows não tem o tar.exe para abrir {Path.GetExtension(compactado)}; descompacte à mão e anexe os arquivos.");
         var si = new ProcessStartInfo(tar) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true, StandardErrorEncoding = Encoding.UTF8 };
         foreach (var a in new[] { "-x", "-f", compactado, "-C", destino }) si.ArgumentList.Add(a);
-        using var p = Process.Start(si) ?? throw new InvalidDataException($"{nomeExibido} não pôde ser aberto (o tar.exe não iniciou).");
+        using var p = TravaDeProgramas.Iniciar(si) ?? throw new InvalidDataException($"{nomeExibido} não pôde ser aberto (o tar.exe não iniciou).");
         var erro = p.StandardError.ReadToEndAsync(CancellationToken.None);
         _ = p.StandardOutput.ReadToEndAsync(CancellationToken.None);
         try

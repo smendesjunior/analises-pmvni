@@ -11,6 +11,7 @@ internal static class Program
     {
         Autoteste.Configurar(args);
         Argumentos.Ler(args);
+        if (Argumentos.Atual.Roteiro is { } roteiro) Roteiro.TravarProgramas(roteiro);
         WinRT.ComWrappersSupport.InitializeComWrappers();
         Application.Start(parametros =>
         {

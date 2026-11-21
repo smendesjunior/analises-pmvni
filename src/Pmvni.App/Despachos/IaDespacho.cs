@@ -137,7 +137,7 @@ internal static class IaDespacho
 
         using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limite.CancelAfter(tempo);
-        using var p = Process.Start(si) ?? throw new InvalidOperationException("O programa da IA não abriu.");
+        using var p = TravaDeProgramas.Iniciar(si) ?? throw new InvalidOperationException("O programa da IA não abriu.");
         try { Pmvni.Agentes.TarefaDoEditor.Padrao.Atribuir(p); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
         var saida = p.StandardOutput.ReadToEndAsync(limite.Token);
         var erro = p.StandardError.ReadToEndAsync(limite.Token);

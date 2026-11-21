@@ -48,6 +48,8 @@ public static class DiagnosticoGemini
     /// <summary>Confere a chave na API do Google: aceita ou recusada, com a frase que diz o que fazer. A chave vai só no cabeçalho <c>x-goog-api-key</c>.</summary>
     public static async Task<ChaveGemini> ConferirChaveAsync(string chave, CancellationToken ct)
     {
+        if (Manipulador is null && Pmvni.Revisao.TravaDeProgramas.Permitidos is not null)
+            return new ChaveGemini(false, "a consulta à API está desabilitada durante a conferência", []);
         try
         {
             using var http = Manipulador is null ? new HttpClient() : new HttpClient(Manipulador, disposeHandler: false);

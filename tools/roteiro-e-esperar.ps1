@@ -2,7 +2,7 @@
   Roda o roteiro da tela FORA do pacote do Claude e espera o resultado.
   Uso: powershell -NoProfile -ExecutionPolicy Bypass -File tools\roteiro-e-esperar.ps1
   Apaga tests\saida\roteiro-fim.txt, abre tools\roteiro.cmd pelo explorer.exe, espera até 20 min (o passo 64 soma uma conversão do LibreOffice) pelo roteiro-fim.txt, lê
-  docs\roteiro-etapa-2.resultado.json, imprime as falhas e sai com código 0 só com "ok": true.
+  docs\roteiro-etapa-2.resultado.json, imprime as falhas e sai com código 0 só com "ok": true e zero programas fora da lista.
 #>
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
@@ -31,4 +31,6 @@ foreach ($f in $falhas) {
     if ($passo.excecao) { Write-Host "  $f -> $($passo.excecao)" }
 }
 Write-Host "ok: $($r.ok)"
-if ($r.ok -eq $true) { exit 0 } else { exit 1 }
+$fora = $r.programas_iniciados.fora_do_agente_falso
+Write-Host "fora_do_agente_falso: $fora"
+if ($r.ok -eq $true -and $null -ne $fora -and $fora -eq 0) { exit 0 } else { exit 1 }

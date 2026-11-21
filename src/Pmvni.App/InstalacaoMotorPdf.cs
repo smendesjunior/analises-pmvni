@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Cryptography;
+using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
@@ -59,7 +60,7 @@ internal static class InstalacaoMotorPdf
             foreach (var arg in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(pasta, "configurar-plugins.ps1") })
                 inicio.ArgumentList.Add(arg);
             var inicioUtc = DateTime.UtcNow;
-            using var instalador = Process.Start(inicio)!;
+            using var instalador = TravaDeProgramas.Iniciar(inicio)!;
             var erro = await instalador.StandardError.ReadToEndAsync();
             await instalador.WaitForExitAsync();
             if (File.Exists(Resumo) && File.GetLastWriteTimeUtc(Resumo) >= inicioUtc) return await File.ReadAllTextAsync(Resumo);
@@ -86,7 +87,7 @@ internal static class InstalacaoMotorPdf
             {
                 var inicio = new ProcessStartInfo(programa) { UseShellExecute = false };
                 inicio.ArgumentList.Add(argumento);
-                using var _ = Process.Start(inicio);
+                using var _ = TravaDeProgramas.Iniciar(inicio);
             }, agora, ultima, analisesEmAndamento);
             if (iniciou) await File.WriteAllTextAsync(Tentativa, agora.ToString("o", System.Globalization.CultureInfo.InvariantCulture));
             return iniciou;
