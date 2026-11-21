@@ -6,7 +6,8 @@ namespace Pmvni.Composicao.Web;
 /// <summary>O que um <see cref="Projeto"/> vira para a tela e para a exportação. <see cref="Dados"/>: o dados.json efetivo (sha256 do
 /// recibo); <see cref="Render"/>: em rascunho (a tela abre com campos [ ] em aberto), com os refs dos cards trocados pelos ids
 /// estáveis dos itens; <see cref="ErrosFinais"/>: a conferência do kit sem rascunho mais a da revisão (vazia = pode exportar);
-/// <see cref="AvisosExportacao"/>: citações a itens excluídos, que só avisam.</summary>
+/// <see cref="AvisosExportacao"/>: o que só avisa ao exportar (desde a Tarefa 16, "Figura N" literal que mudou de número; as citações a
+/// item ou figura excluídos agora estão nos <see cref="ErrosFinais"/> e bloqueiam).</summary>
 public sealed record Preparado(byte[] Dados, string CaminhoDados, ResultadoRender Render, ConfigFolhas Config,
     IReadOnlyList<string> ErrosFinais, IReadOnlyList<string> AvisosExportacao);
 
@@ -53,7 +54,7 @@ public sealed class Recompositor : IDisposable
         erros.AddRange(ConferenciaRevisao.Erros(p));
         // A conferência do kit e a da revisão podem repetir uma mensagem: cada uma aparece uma vez.
         return new Preparado(gerado.Json, caminho, render, ConfigFolhas.PadraoDeBytes(modelo, gerado.Json), erros.Distinct(StringComparer.Ordinal).ToList(),
-            ConferenciaRevisao.CitacoesAExcluidos(p));
+            ReferenciasCruzadas.FigurasRenumeradas(p));
     }
 
     /// <summary>Carrega o render no documento do <paramref name="host"/> (de composição: fixa a mídia de impressão) e compõe as folhas.</summary>

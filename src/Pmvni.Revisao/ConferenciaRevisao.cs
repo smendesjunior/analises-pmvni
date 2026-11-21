@@ -48,7 +48,8 @@ public static class ConferenciaRevisao
     public static IReadOnlyList<string> Avisos(Projeto p)
     {
         ArgumentNullException.ThrowIfNull(p);
-        var avisos = new List<string>();
+        // Tarefa 16: "Figura N" literal do kit que agora aponta para outro número (independe da numeração dos itens).
+        var avisos = new List<string>(ReferenciasCruzadas.FigurasRenumeradas(p));
         if (!NumeracaoMudou(p)) return avisos;
 
         foreach (var it in p.Incluidos)

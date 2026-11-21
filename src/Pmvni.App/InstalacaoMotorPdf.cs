@@ -11,6 +11,9 @@ internal static class InstalacaoMotorPdf
     /// <summary>O resumo que o <c>configurar-plugins.ps1</c> grava (uma linha por componente); null se ainda não existe.</summary>
     static string Resumo => Path.Combine(BaseLocal, "resumo-instalacao.txt");
 
+    /// <summary>Quando a primeira abertura foi iniciada pela última vez (data do arquivo): falha persistente tenta de novo a cada 6 h, não a cada início.</summary>
+    static string Tentativa => Path.Combine(BaseLocal, "primeira-abertura.tentativa");
+
     /// <summary>Extrai os scripts embutidos (<c>MotorPdf\*</c>) para <c>%LOCALAPPDATA%\PMVNI\MotorPdf\bootstrap\&lt;compilação&gt;</c> e devolve a pasta.
     /// O Editor não é empacotado (MSIX): a pasta é a real do usuário, não virtualizada.</summary>
     static async Task<string> ExtrairAsync()
@@ -69,13 +72,17 @@ internal static class InstalacaoMotorPdf
         {
             var resumo = File.Exists(Resumo) ? await File.ReadAllTextAsync(Resumo) : null;
             if (!PrimeiraAbertura.Incompleta(resumo)) return false;
+            DateTime? ultima = File.Exists(Tentativa) ? File.GetLastWriteTimeUtc(Tentativa) : null;
+            var agora = DateTime.UtcNow;
             var pasta = await ExtrairAsync();
-            return PrimeiraAbertura.Conferir(resumo, pasta, (programa, argumento) =>
+            var iniciou = PrimeiraAbertura.Conferir(resumo, pasta, (programa, argumento) =>
             {
                 var inicio = new ProcessStartInfo(programa) { UseShellExecute = false };
                 inicio.ArgumentList.Add(argumento);
                 using var _ = Process.Start(inicio);
-            });
+            }, agora, ultima);
+            if (iniciou) await File.WriteAllTextAsync(Tentativa, agora.ToString("o", System.Globalization.CultureInfo.InvariantCulture));
+            return iniciou;
         }
         catch (Exception e) { RegistroErros.Gravar("motor.pdf.primeira-abertura", e); return false; }
     }

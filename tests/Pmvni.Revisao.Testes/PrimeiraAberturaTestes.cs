@@ -18,7 +18,7 @@ public sealed class PrimeiraAberturaTestes : IDisposable
     public void Dispose() { try { Directory.Delete(pasta, true); } catch (IOException) { } }
 
     const string Completo = "Blueprint Pipeline    INSTALADO\r\nFYP-Floorplan    INSTALADO\r\nDocling MCP 3.5.0    INSTALADO\r\nPyMuPDF 2.1    INSTALADO\r\n"
-        + "Codex / analise    INSTALADO 3.1.0\r\nCodex / ferramentas PDF    CONFIGURADO\r\nClaude Code    AUSENTE\r\n";
+        + "Codex / analise    INSTALADO 3.1.0\r\nCodex / analise-pro    INSTALADO 2.1.0\r\nCodex / ferramentas PDF    CONFIGURADO\r\nClaude Code    AUSENTE\r\n";
 
     [Fact]
     public void PrimeiraAbertura_Chamada()
@@ -27,10 +27,12 @@ public sealed class PrimeiraAberturaTestes : IDisposable
         void Iniciar(string programa, string argumento) => chamadas.Add((programa, argumento));
 
         // Incompleta: sem resumo, componente pendente ou falha → inicia o .cmd pelo explorer.exe.
-        foreach (var resumo in new[] { null, "", "Blueprint Pipeline    PENDENTE\r\nPyMuPDF 2.1    INSTALADO\r\n", Completo + "FALHA    Plugin analise\r\n" })
+        // Plugin de análise abaixo do mínimo do Editor (analise 3.1.0) também é incompleta.
+        foreach (var resumo in new[] { null, "", "Blueprint Pipeline    PENDENTE\r\nPyMuPDF 2.1    INSTALADO\r\n", Completo + "FALHA    Plugin analise\r\n",
+                     Completo.Replace("INSTALADO 3.1.0", "INSTALADO 3.0.1", StringComparison.Ordinal) })
         {
             chamadas.Clear();
-            Assert.True(PrimeiraAbertura.Conferir(resumo, pasta, Iniciar));
+            Assert.True(PrimeiraAbertura.Conferir(resumo, pasta, Iniciar, Agora, null));
             var (programa, argumento) = Assert.Single(chamadas);
             Assert.Equal("explorer.exe", Path.GetFileName(programa), ignoreCase: true);
             Assert.Equal(Path.Combine(pasta, PrimeiraAbertura.Cmd), argumento);
@@ -42,9 +44,27 @@ public sealed class PrimeiraAberturaTestes : IDisposable
 
         // Completa (AUSENTE não conta: o instalador não instala o Claude Code): não inicia nada nem grava o .cmd.
         chamadas.Clear();
-        Assert.False(PrimeiraAbertura.Conferir("﻿" + Completo, pasta, Iniciar));
+        Assert.False(PrimeiraAbertura.Conferir("\uFEFF" + Completo, pasta, Iniciar, Agora, null));
         Assert.Empty(chamadas);
         Assert.False(File.Exists(Path.Combine(pasta, PrimeiraAbertura.Cmd)));
+    }
+
+    static readonly DateTime Agora = new(2026, 11, 21, 15, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public void PrimeiraAbertura_falha_persistente_tenta_no_maximo_a_cada_6_horas()
+    {
+        var chamadas = 0;
+        void Iniciar(string programa, string argumento) => chamadas++;
+        const string Falhou = "PyMuPDF 2.1    INSTALADO\r\nFALHA    Docling indisponivel\r\n";
+
+        Assert.False(PrimeiraAbertura.Conferir(Falhou, pasta, Iniciar, Agora, Agora.AddHours(-1)));
+        Assert.False(PrimeiraAbertura.Conferir(Falhou, pasta, Iniciar, Agora, Agora.AddHours(-5.9)));
+        Assert.Equal(0, chamadas);
+        Assert.True(PrimeiraAbertura.Conferir(Falhou, pasta, Iniciar, Agora, Agora.AddHours(-6)));
+        // Relógio que voltou (tentativa "no futuro"): não trava para sempre.
+        Assert.True(PrimeiraAbertura.Conferir(Falhou, pasta, Iniciar, Agora, Agora.AddHours(3)));
+        Assert.Equal(2, chamadas);
     }
 
     [Fact]

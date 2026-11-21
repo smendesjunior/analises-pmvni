@@ -93,4 +93,59 @@ public class ReferenciasCruzadasTestes
         Assert.Equal("ÍNDICES URBANÍSTICOS · ÍNDICE 02 está ATENDE e cita ANÁLISE · ITEM 04, que está NÃO ATENDE: as situações se contradizem",
             Assert.Single(ReferenciasCruzadas.Contraditorias(s.Projeto)));
     }
+    [Fact]
+    public void citacao_de_norma_nao_e_referencia_do_relatorio()
+    {
+        var s = Sessao();
+        var id1 = Id(s, 1);
+        // Base legal com figura de norma (8 figuras no relatório): não bloqueia.
+        s.Aplicar(new DefinirCampo(id1, "base_legal", "ABNT NBR 9050:2020, 6.6.4, Figura 75."));
+        // Em outro campo, "Figura N" com a norma na mesma frase também não.
+        s.Aplicar(new DefinirCampo(id1, "verificacao", "A rampa segue a Figura 75 da NBR 9050."));
+        // Linha de tabela com "item 12 do Anexo VI" e "Anexo VI, item 99": são da lei, não do relatório.
+        s.Aplicar(new DefinirCampo("indices/02", "texto", "Limite do item 12 do Anexo VI; ver Anexo VI, item 99."));
+        Assert.Empty(ReferenciasCruzadas.Quebradas(s.Projeto));
+        Assert.Empty(ReferenciasCruzadas.Contraditorias(s.Projeto));
+
+        // Sem norma por perto, a figura que não existe continua bloqueando.
+        s.Aplicar(new DefinirCampo(id1, "verificacao", "Ver a Figura 75."));
+        Assert.Single(ReferenciasCruzadas.Quebradas(s.Projeto));
+    }
+
+    [Fact]
+    public void contradicao_que_veio_do_kit_nao_bloqueia_por_edicao_so_de_outro_texto()
+    {
+        var caminho = Ambiente.Corpus("longo.json");
+        var dados = JsonFiel.Ler(File.ReadAllBytes(caminho));
+        // O kit já mandou a linha NÃO ATENDE citando o item 04 (ATENDE).
+        dados["indices"]!["linhas"]![1]!["texto"] = "Faltam 0,20 m (item 04).";
+        var c = Importador.Importar(JsonFiel.Escrever(dados), caminho, Modelo, Ambiente.Contexto());
+        var s = new SessaoRevisao(c.Projeto, c.Historico, Ambiente.Contexto());
+        Assert.Empty(ReferenciasCruzadas.Contraditorias(s.Projeto));
+
+        // Editar só o cálculo da linha (a citação e as situações não mudam): continua sem bloquear.
+        s.Aplicar(new DefinirCampo("indices/02", "calculo", "188,00 ÷ 480,00 × 100 = 39%"));
+        Assert.True(TabelasRevisao.Revisada(s.Projeto, "indices/02"));
+        Assert.Empty(ReferenciasCruzadas.Contraditorias(s.Projeto));
+
+        // Revisar a situação do item (o par) volta a conferir.
+        s.Aplicar(new DefinirSituacao(Id(s, 4), "ATENDE"));   // igual à original: não é revisão
+        Assert.Empty(ReferenciasCruzadas.Contraditorias(s.Projeto));
+        s.Aplicar(new DefinirSituacao("indices/02", "PENDENTE"));
+        s.Aplicar(new DefinirSituacao("indices/02", "NAO_ATENDE")); // de volta à original
+        Assert.Empty(ReferenciasCruzadas.Contraditorias(s.Projeto));
+    }
+
+    [Fact]
+    public void figura_literal_do_kit_renumerada_so_avisa()
+    {
+        var s = Sessao();
+        var figuras = CamadaFiguras.Inicial(s.Projeto);
+        // O item 02 cita a "Figura 3"; excluir a figura 1 faz a antiga 3 virar a 2.
+        s.Aplicar(new ExcluirFigura(figuras[0].Id));
+        var aviso = Assert.Single(ReferenciasCruzadas.FigurasRenumeradas(s.Projeto), a => a.StartsWith("ANÁLISE · ITEM 02 ", StringComparison.Ordinal));
+        Assert.Equal("ANÁLISE · ITEM 02 (campo referencia) cita \"Figura 3\", que agora é a Figura 2: confira o número", aviso);
+        Assert.Contains(aviso, ConferenciaRevisao.Avisos(s.Projeto));
+        Assert.DoesNotContain(aviso, ConferenciaRevisao.Erros(s.Projeto));
+    }
 }

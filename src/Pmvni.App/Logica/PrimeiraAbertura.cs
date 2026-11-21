@@ -1,4 +1,5 @@
 using System.Text;
+using Pmvni.Agentes;
 
 namespace Pmvni.App;
 
@@ -7,8 +8,10 @@ namespace Pmvni.App;
 /// (regra do usuário para tudo o que grava em AppData/HKCU ou instala). A instalação completa não inicia nada.
 /// <para>"Incompleta" é a mesma conferência que o botão "Instalar ou atualizar plugins" mostra: o <c>resumo-instalacao.txt</c> (uma linha
 /// por componente, <c>"&lt;componente&gt;    &lt;ESTADO&gt;"</c>, e <c>"FALHA    &lt;mensagem&gt;"</c>) não existe, está vazio, ou tem um
-/// componente PENDENTE ou uma FALHA. AUSENTE (Codex ou Claude Code não instalados) não conta: o instalador não instala esses programas
-/// e abriria a cada início sem resolver nada.</para>
+/// componente PENDENTE, uma FALHA, ou um plugin de análise instalado abaixo da versão mínima do Editor (<see cref="PoliticaKit.VersoesMinimas"/>).
+/// AUSENTE (Codex ou Claude Code não instalados) não conta: o instalador não instala esses programas e abriria a cada início sem resolver nada.</para>
+/// <para>Uma falha que persiste não reinstala tudo a cada abertura: depois de uma tentativa, a próxima só sai passadas
+/// <see cref="IntervaloEntreTentativas"/>.</para>
 /// Sem tipos WinUI: os testes rodam sem abrir nada (o lançador é injetado).</summary>
 public static class PrimeiraAbertura
 {
@@ -27,7 +30,23 @@ public static class PrimeiraAbertura
             // O estado é a última coluna (o nome do componente pode ter espaços: "Docling MCP 3.5.0    INSTALADO").
             var colunas = linha.Split("    ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (colunas.Length >= 2 && colunas[^1].StartsWith("PENDENTE", StringComparison.Ordinal)) return true;
+            if (colunas.Length >= 2 && PluginAbaixoDoMinimo(colunas[0], colunas[^1])) return true;
         }
+        return false;
+    }
+
+    /// <summary>Tempo mínimo entre duas tentativas da primeira abertura (falha persistente não reinstala a cada início).</summary>
+    public static readonly TimeSpan IntervaloEntreTentativas = TimeSpan.FromHours(6);
+
+    /// <summary>"Codex / analise" + "INSTALADO 3.0.1": plugin de análise com versão abaixo da mínima do Editor.</summary>
+    static bool PluginAbaixoDoMinimo(string componente, string estado)
+    {
+        var barra = componente.LastIndexOf('/');
+        if (barra < 0 || !estado.StartsWith("INSTALADO ", StringComparison.Ordinal)) return false;
+        var plugin = componente[(barra + 1)..].Trim();
+        foreach (var (nome, minima) in PoliticaKit.VersoesMinimas.Values)
+            if (string.Equals(nome, plugin, StringComparison.OrdinalIgnoreCase))
+                return !(Version.TryParse(estado["INSTALADO ".Length..].Trim().Split('-', '+')[0], out var v) && v >= minima);
         return false;
     }
 
@@ -40,12 +59,15 @@ public static class PrimeiraAbertura
 
     /// <summary>Confere o <paramref name="resumo"/> e, se incompleto, grava <c>primeira-abertura.cmd</c> em <paramref name="pastaScripts"/>
     /// (onde o <c>primeira-abertura.ps1</c> já foi extraído) e chama <paramref name="iniciar"/>(programa, argumento) com o
-    /// <c>explorer.exe</c> e o caminho do <c>.cmd</c>. true = iniciou.</summary>
-    public static bool Conferir(string? resumo, string pastaScripts, Action<string, string> iniciar)
+    /// <c>explorer.exe</c> e o caminho do <c>.cmd</c>. <paramref name="ultimaTentativaUtc"/>: quando a anterior foi iniciada (null = nunca);
+    /// menos de <see cref="IntervaloEntreTentativas"/> antes de <paramref name="agoraUtc"/> não inicia de novo. true = iniciou (quem chama
+    /// guarda <paramref name="agoraUtc"/> como a última tentativa).</summary>
+    public static bool Conferir(string? resumo, string pastaScripts, Action<string, string> iniciar, DateTime agoraUtc, DateTime? ultimaTentativaUtc)
     {
         ArgumentNullException.ThrowIfNull(pastaScripts);
         ArgumentNullException.ThrowIfNull(iniciar);
         if (!Incompleta(resumo)) return false;
+        if (ultimaTentativaUtc is { } ultima && agoraUtc - ultima < IntervaloEntreTentativas && agoraUtc >= ultima) return false;
         var script = Path.Combine(pastaScripts, Script);
         if (!File.Exists(script)) throw new FileNotFoundException("O script da primeira abertura não foi extraído.", script);
         var cmd = Path.Combine(pastaScripts, Cmd);

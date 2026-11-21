@@ -71,6 +71,15 @@ public static partial class Citacoes
         });
     }
 
+    /// <summary>As citações "item NN" que a regra de conversão reconhece, com a posição no texto (início e comprimento do trecho) e o
+    /// número citado. Não converte nada (Tarefa 16: a conferência de "item NN" literal nas linhas de tabela).</summary>
+    internal static IReadOnlyList<(int Indice, int Comprimento, int Numero)> Ocorrencias(string texto)
+    {
+        ArgumentNullException.ThrowIfNull(texto);
+        return Inequivoca().Matches(texto)
+            .Select(m => (m.Index, m.Length, int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture))).ToList();
+    }
+
     /// <summary>Os ids citados pelos tokens do texto, na ordem em que aparecem (um por ocorrência).</summary>
     internal static IReadOnlyList<string> Alvos(string texto)
     {
