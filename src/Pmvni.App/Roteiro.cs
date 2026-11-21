@@ -178,7 +178,7 @@ internal static class Roteiro
         // Pacotes de rodadas anteriores (só os do roteiro, só nesta pasta), com travas, cópias de conflito e diários de recuperação
         // (na pasta de dados do roteiro, tests\saida\dados-app): a importação nunca sobrescreve e nada de antes vira "recuperação".
         var recuperacao = Path.Combine(PastaDados.Raiz, "recuperacao");
-        foreach (var nome in new[] { "longo", "estouro", "curto-colchetes", "curto-muda", "curto-auto", "recentes-a", "recentes-b", "curto-citacoes", "onda1" })
+        foreach (var nome in new[] { "longo", "estouro", "curto-colchetes", "curto-muda", "curto-auto", "recentes-a", "recentes-b", "curto-citacoes", "onda1", "rever-sem-ia" })
         {
             var arquivos = Directory.GetFiles(pasta, nome + ".rpmvni*").Concat(Directory.GetFiles(pasta, ".~" + nome + ".rpmvni*"))
                 .Concat(Directory.GetFiles(pasta, nome + " (cópia *")).Concat(Directory.GetFiles(pasta, ".~" + nome + " (cópia *")).ToList();
@@ -2179,6 +2179,38 @@ internal static class Roteiro
                 ["nada_antes_de_gravar"] = nadaAntes, ["marcar_todas"] = marcou, ["tres_arquivos_validados"] = arquivosOk, ["lista_com_o_novo"] = listaOk, ["abrir_pdf"] = abriuPdf,
             };
             p["ok"] = habilitado && origemOk && exigenciasOk && previaOk && pdfOk && nadaAntes && marcou && arquivosOk && listaOk && abriuPdf;
+        });
+
+        await Passo("36b_correcao_sem_ia", async p =>
+        {
+            // Tarefa 15: o Novo despacho de correção com relatório monta as exigências em código (ResumoExigencias), sem IA, e diz isso;
+            // a caixa de instrução ("Pedir à IA") continua à mão, mas nada é pedido sozinho.
+            Exigir();
+            await j.MudarModuloAsync(Modulo.Despachos);
+            await j.AguardarLeiturasAsync();
+            j.FaixaAtual.EscolherAba("Página Inicial");
+            await Esperar(250);
+            int iniciadosAntes;
+            lock (programasIniciados) iniciadosAntes = programasIniciados.Count;
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+            await j.AguardarNovoDespachoAsync();
+            var s = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página não abriu: " + j.InfoMensagemAtual.Message);
+            var r = s.Rascunho ?? throw new InvalidOperationException("o rascunho não foi montado");
+            var esperadas = s.Pacote is { } pac ? ResumoExigencias.Pendentes(ResumoExigencias.DoProjeto(pac.Conteudo.Projeto)) : [];
+            p["exigencias"] = new JsonArray(r.Pendencias.Select(x => (JsonNode)("ITEM " + x.Numero.ToString("D2", CultureInfo.InvariantCulture) + ": " + x.Texto)).ToArray());
+            var exigenciasOk = esperadas.Count > 0 && r.Pendencias.Select(x => (x.ItemId, x.Texto, x.Fundamento)).SequenceEqual(esperadas.Select(x => (x.Id, x.Texto, x.Fundamento)))
+                && r.Pendencias.All(x => !x.Editada);
+            var aviso = j.InfoMensagemAtual;
+            p["aviso"] = aviso.Title + " · " + aviso.Message;
+            var avisoOk = aviso.IsOpen && aviso.Title == FluxoNovoDespacho.TituloExigenciasSemIa && aviso.Message == FluxoNovoDespacho.ExigenciasSemIa(r);
+            await Esperar(500);
+            int iniciadosDepois;
+            lock (programasIniciados) iniciadosDepois = programasIniciados.Count;
+            var n = j.NovoDespacho;
+            var semIa = iniciadosDepois == iniciadosAntes && !n.AnelInstrucao.IsActive && n.BotaoAplicarInstrucao.Visibility == Visibility.Visible;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "36b-janela-xaml-correcao-sem-ia.png"));
+            p["conferencias"] = new JsonObject { ["exigencias_do_relatorio"] = exigenciasOk, ["aviso_sem_ia"] = avisoOk, ["nenhuma_ia_chamada"] = semIa };
+            p["ok"] = exigenciasOk && avisoOk && semIa;
         });
 
         await Passo("37_novo_despacho_aprovacao", async p =>
@@ -5009,6 +5041,60 @@ internal static class Roteiro
                 p["ok"] = folgas.All(v => Math.Abs(v - 8) < 1) && desviosLaterais.Max() < 1 && alturas.Max() - alturas.Min() < 1 && recuos.All(valor => Math.Abs(valor - 13) < 1);
             }
             finally { j.AppWindow.Resize(antes); }
+        });
+
+        await Passo("rever_tabela_sem_ia", async p =>
+        {
+            // Tarefa 15: "Rever" numa tabela de índices é conta do editor, sem IA: a TO de 240,01 ÷ 300,00 escrita "80,0%" (ATENDE) passa a
+            // NÃO ATENDE (a conta exata é 80,0033%), o aviso mostra o valor de antes e o de agora, e um Desfazer volta tudo. Com uma instrução
+            // digitada na justificativa, o botão passa a ser "Rever com a IA" (não é clicado aqui).
+            const string To = "indices/02";
+            var json = Path.Combine(pasta, "rever-sem-ia.json");
+            var no = JsonNode.Parse(await File.ReadAllTextAsync(dadosLongo))!;
+            var to = no["indices"]!["linhas"]![1]!.AsObject();
+            to["icone"] = "to";
+            to["nome"] = "Taxa de ocupação";
+            to["calculo"] = "240,01 ÷ 300,00 × 100 = 80,0%";
+            to["projeto"] = "80,0%";
+            to["limite"] = "≤ 80%";
+            to["situacao"] = "CONTA_CONFERE";
+            to["texto"] = "Dentro do limite.";
+            await File.WriteAllTextAsync(json, no.ToJsonString());
+            try
+            {
+                if (!await j.ImportarParaAsync(json, Path.Combine(pasta, "rever-sem-ia.rpmvni"))) throw new InvalidOperationException("não importou: " + j.InfoMensagem.Message);
+                var s = j.Sessao ?? throw new InvalidOperationException("nenhum relatório aberto");
+                await j.SelecionarAsync(To);
+                var rotulo = j.RotuloDoBotaoDaIa;
+                var antes = ProjetoJson.Escrever(s.Revisao.Projeto);
+                int iniciadosAntes;
+                lock (programasIniciados) iniciadosAntes = programasIniciados.Count;
+                await j.AjustarTextoComIaAsync();
+                var aviso = j.InfoMensagemAtual;
+                p["aviso"] = aviso.Title + " · " + aviso.Message;
+                var reviu = TabelasRevisao.SituacaoEfetiva(s.Revisao.Projeto, To) == "NAO_ATENDE" && TabelasRevisao.TextoEfetivo(s.Revisao.Projeto, To, "projeto") == "80,003%"
+                    && aviso.IsOpen && aviso.Title == "Rever" && aviso.Message.StartsWith("Revisto pelo editor, sem IA: ", StringComparison.Ordinal)
+                    && aviso.Message.Contains("ÍNDICE 02 — No projeto: 80,0% → 80,003%", StringComparison.Ordinal)
+                    && aviso.Message.Contains("ÍNDICE 02 — situação: ATENDE → NÃO ATENDE", StringComparison.Ordinal);
+                int iniciadosDepois;
+                lock (programasIniciados) iniciadosDepois = programasIniciados.Count;
+                var semIa = iniciadosDepois == iniciadosAntes && !j.AjustandoComIa;
+                await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "rever-sem-ia-janela-xaml.png"));
+                await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+                var desfez = ProjetoJson.Escrever(s.Revisao.Projeto) == antes;
+                await j.AplicarAsync(new DefinirJustificativa(To, "Considerar a projeção de 230,00 m² da prancha 02."));
+                await j.SelecionarAsync(To);
+                var rotuloComInstrucao = j.RotuloDoBotaoDaIa;
+                await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+                p["rotulos"] = rotulo + " / " + rotuloComInstrucao;
+                p["conferencias"] = new JsonObject
+                {
+                    ["rotulo_sem_ia"] = rotulo == "Rever (sem IA)", ["reviu_com_antes_e_depois"] = reviu, ["nenhuma_ia_chamada"] = semIa, ["um_desfazer"] = desfez,
+                    ["instrucao_pede_ia"] = rotuloComInstrucao == "Rever com a IA",
+                };
+                p["ok"] = rotulo == "Rever (sem IA)" && reviu && semIa && desfez && rotuloComInstrucao == "Rever com a IA";
+            }
+            finally { File.Delete(json); }
         });
 
         await j.FecharSessaoAsync();

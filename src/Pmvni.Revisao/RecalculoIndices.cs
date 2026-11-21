@@ -151,11 +151,11 @@ public static partial class RecalculoLinha
         {
             if (propria.Estado == Estado.Ilegivel)
                 return new EdicaoDeLinha(simples.Comando, false, true,
-                    rotulo + ": " + ilegivel + "; a situação ficou como estava. Confira-a, ou use «Rever com a IA» nas Propriedades.");
+                    rotulo + ": " + ilegivel + "; a situação ficou como estava. Confira-a, ou escreva na justificativa o que rever e use «Rever com a IA» nas Propriedades.");
             if (propria.Estado == Estado.Mantida && propria.Divergente && soAEdicao)
                 return new EdicaoDeLinha(simples.Comando, false, false,
                     rotulo + ": o valor no projeto (" + propria.TextoValor + ") continua diferente do resultado da conta no cálculo; a situação continua "
-                    + ConferenciaRevisao.TextoSituacao(propria.Situacao) + ". Confira-a, ou use «Rever com a IA» nas Propriedades.");
+                    + ConferenciaRevisao.TextoSituacao(propria.Situacao) + ". Confira-a, ou escreva na justificativa o que rever e use «Rever com a IA» nas Propriedades.");
             if (soAEdicao) return simples;
             if (propria.Estado == Estado.Calculada)
                 return new EdicaoDeLinha(new Lote(linha, comandos, ResumoDaComparacao(propria)), true, false,
@@ -218,11 +218,15 @@ public static partial class RecalculoLinha
         var caminhos = TabelasRevisao.Original(p, linha) is { } o ? TabelasRevisao.Caminhos(o) : [];
         if (situacao is null || !caminhos.Contains(CampoValor) || !caminhos.Contains(CampoLimite))
             return new Avaliacao(Estado.SemCriterio, textoValor, textoLimite, false, "", situacao, false, false, false);
-        if (LerMedida(textoValor) is not { } valor || LerCriterio(textoLimite) is not { } criterio || Comparar(valor, criterio) is not var (atende, diferenca))
+        if (LerMedida(textoValor) is not { } valor || LerCriterio(textoLimite) is not { } criterio || Comparar(valor, criterio) is not var (atendeEscrito, _))
             return new Avaliacao(Estado.Ilegivel, textoValor, textoLimite, false, "", situacao, false, false, false);
 
         var conta = ContaIndice.Ler(pl.Texto(linha, CampoCalculo));
         var divergente = conta is not null && valor.Unidade == conta.Resultado.Unidade && !conta.ConcordaCom(valor);
+        // Tarefa 15 (casos-ouro do kit): o "No projeto" que é o resultado da conta compara pelo valor EXATO da conta, sem arredondar a
+        // favor, como o calcular_indices.py: 240,01 ÷ 300,00 × 100 = 80,0033% não atende TO ≤ 80%, mesmo escrito "80,0%".
+        var exata = conta is not null && valor.Unidade == conta.Resultado.Unidade && !divergente;
+        var (atende, diferenca) = exata ? Comparar(valor with { Valor = conta!.Calcular() }, criterio)!.Value : Comparar(valor, criterio)!.Value;
         var mantem = situacao switch
         {
             "DIVERGENCIA" => divergente || !direta && conta is null,   // a divergência é juízo da análise enquanto os números não batem
@@ -230,6 +234,19 @@ public static partial class RecalculoLinha
             _ => !direta && divergente,
         };
         if (mantem) return new Avaliacao(Estado.Mantida, textoValor, textoLimite, atende, diferenca, situacao, false, false, divergente);
+
+        // O número escrito parece estar do outro lado do limite ("80,0%" ao lado de "≤ 80%" com a conta em 80,0033%): o "No projeto" e o
+        // resultado da conta ganham as casas precisas para mostrar o que a conta dá, como o br_fiel do kit ("80,003%"). Não quando o próprio
+        // usuário acabou de escrever o valor ou o limite desta linha (direta): o texto dele fica; a situação e a diferença dizem o que a conta dá.
+        if (exata && !direta && atendeEscrito != atende)
+        {
+            var exato = conta!.Calcular();
+            var casas = Math.Max(valor.Casas, 2);
+            while (casas < 10 && Comparar(new Medida(Math.Round(exato, casas, MidpointRounding.AwayFromZero), valor.Unidade, casas), criterio)?.Atende != atende) casas++;
+            var numero = Formatar(Math.Round(exato, casas, MidpointRounding.AwayFromZero), casas, "");
+            if (TrocarNumero(textoValor, valor.Valor, valor.Casas, null, numero) is { } novoValor && pl.Definir(linha, CampoValor, novoValor)) textoValor = novoValor;
+            if (pl.Texto(linha, CampoCalculo) is { } calculo) pl.Definir(linha, CampoCalculo, conta.ComResultado(calculo, numero));
+        }
 
         var novaSituacao = atende ? "CONTA_CONFERE" : "NAO_ATENDE";
         var textoAtual = pl.Texto(linha, CampoTexto);
@@ -396,4 +413,204 @@ public static partial class RecalculoLinha
     /// <summary>A conta da linha, como veio no relatório, divide pela área do lote (é uma taxa ou coeficiente sobre o terreno).</summary>
     static bool UsaAreaDoLote(Projeto p, string linha) =>
         AreaDoLoteOriginal(p) is { } area && ContaIndice.Ler(TabelasRevisao.TextoOriginal(p, linha, CampoCalculo)) is { } c && c.Divisor.Valor == area;
+}
+
+/// <summary>Uma mudança do "Rever" sem IA: a linha, o nome do que mudou ("No projeto", "situação") e o valor de antes e o de agora.</summary>
+public sealed record ValorRevisto(string Linha, string Campo, string Antes, string Depois);
+
+/// <summary>O resultado do "Rever" sem IA: o <see cref="Lote"/> (um Desfazer; null = nada a mudar), as mudanças com os valores anteriores
+/// e os novos, e a mensagem para a tela.</summary>
+public sealed record RevisaoDaTabela(Lote? Lote, IReadOnlyList<ValorRevisto> Mudancas, string Mensagem);
+
+public static partial class RecalculoLinha
+{
+    /// <summary>A descrição do "Rever" sem IA no histórico.</summary>
+    public const string DescricaoRever = "Revisto pelo editor (sem IA)";
+
+    /// <summary>As tabelas que o editor revê sozinho (Tarefa 15): ÍNDICES URBANÍSTICOS e as esquadrias dos ambientes. O diagrama
+    /// (chamadas, planta, volumetria) não tem conta: lá o "Rever" continua sendo com a IA.</summary>
+    public static bool ReveSemIa(string linha) =>
+        TabelasRevisao.TentarLer(linha, out var bloco, out _) && bloco is TabelasRevisao.Indices or TabelasRevisao.Ambientes;
+
+    /// <summary>O "Rever" de uma linha de tabela vai à IA? Só sob comando (Tarefa 15): numa tabela sem conta, ou quando o revisor digitou uma
+    /// instrução livre na justificativa que ainda não foi atendida (<paramref name="justificativaPendente"/>). A justificativa escrita pelo
+    /// próprio editor ("Recalculado pelo editor: …") não é instrução.</summary>
+    public static bool PrecisaDaIa(string linha, string? justificativa, bool justificativaPendente)
+    {
+        ArgumentNullException.ThrowIfNull(linha);
+        if (!ReveSemIa(linha)) return true;
+        return justificativaPendente && !string.IsNullOrWhiteSpace(justificativa)
+               && !justificativa.TrimStart().StartsWith(MarcaJustificativa, StringComparison.Ordinal);
+    }
+
+    /// <summary>"Rever" sem IA (Tarefa 15) a tabela da linha <paramref name="linha"/>, inteira: nos índices, cada conta do "Cálculo /
+    /// descrição" é refeita, o "No projeto" que era o resultado dela acompanha e a situação numérica é comparada de novo com o limite (pelo
+    /// valor exato da conta, como o kit); FALTA COMPROVAR e INFORMAÇÕES DIVERGENTES ficam enquanto os números não mudarem. Nos ambientes, a
+    /// conta das esquadrias (<see cref="Esquadrias.Recalcular"/>). Tudo num <see cref="Lote"/> (um Desfazer), com as mudanças de antes e de agora.</summary>
+    public static RevisaoDaTabela Rever(Projeto p, string linha)
+    {
+        ArgumentNullException.ThrowIfNull(p);
+        if (!TabelasRevisao.TentarLer(linha, out var bloco, out _) || !ReveSemIa(linha))
+            throw new ArgumentException("O editor só revê sem IA as tabelas de índices e de esquadrias.", nameof(linha));
+        var comandos = new List<Comando>();
+        var ids = TabelasRevisao.Ids(p).Where(i => TabelasRevisao.TentarLer(i, out var b, out _) && b == bloco).ToList();
+        if (bloco == TabelasRevisao.Indices)
+        {
+            var pl = new Plano(p);
+            foreach (var id in ids)
+            {
+                if (pl.Texto(id, CampoCalculo) is { } calculo && ContaIndice.Ler(calculo) is { } conta && !conta.ResultadoConfere)
+                {
+                    var refeito = conta.Refazer(calculo);
+                    pl.Definir(id, CampoCalculo, refeito);
+                    SeguirResultado(pl, id, conta, ContaIndice.Ler(refeito)!);
+                }
+                Reavaliar(pl, id, direta: false);
+            }
+            foreach (var l in pl.Linhas.ToList()) DiagramaAcompanha(pl, l);
+            comandos.AddRange(pl.Comandos());
+        }
+        else
+            foreach (var id in ids) comandos.AddRange(Esquadrias.Recalcular(p, id, [], DescricaoRever).Comandos);
+
+        var mudancas = new List<ValorRevisto>();
+        foreach (var c in comandos)
+        {
+            if (c is DefinirCampo dc)
+                mudancas.Add(new ValorRevisto(dc.Item, TabelasRevisao.NomeDoCampo(dc.Campo), TabelasRevisao.TextoEfetivo(p, dc.Item, dc.Campo) ?? "", dc.Texto));
+            else if (c is DefinirSituacao ds)
+                mudancas.Add(new ValorRevisto(ds.Item, "situação", ConferenciaRevisao.TextoSituacao(TabelasRevisao.SituacaoEfetiva(p, ds.Item)),
+                    ConferenciaRevisao.TextoSituacao(ds.Situacao)));
+        }
+        if (comandos.Count == 0)
+            return new RevisaoDaTabela(null, [], "Revisto pelo editor, sem IA: as contas da tabela conferem com os números dela; nada mudou.");
+        const int Mostradas = 8;
+        var lista = string.Join("; ", mudancas.Take(Mostradas).Select(m => TabelasRevisao.Rotulo(m.Linha) + " — " + m.Campo + ": " + m.Antes + " → " + m.Depois));
+        if (mudancas.Count > Mostradas) lista += "; e mais " + (mudancas.Count - Mostradas).ToString(CultureInfo.InvariantCulture);
+        var mensagem = "Revisto pelo editor, sem IA: " + (lista.Length > 0 ? lista : "justificativa do editor atualizada") + ". Um Desfazer volta tudo.";
+        return new RevisaoDaTabela(new Lote(linha, comandos, DescricaoRever), mudancas, mensagem);
+    }
+}
+
+/// <summary>Os índices urbanísticos a partir dos operandos (Tarefa 15): a mesma conta do calcular_indices.py do kit para a taxa de
+/// ocupação, o coeficiente de aproveitamento e a taxa de permeabilidade, com os limites da zona no Anexo VI do PDM
+/// (references/anexo-vi-zonas.json do kit). A comparação usa o valor exato, sem arredondar a favor; só a exibição é arredondada, e com as
+/// casas precisas para o número não parecer do outro lado do limite. Os casos-ouro do kit (casos-ouro.json) conferem que o C# e o Python dão
+/// o mesmo resultado. Lote, pavimentos e afastamentos não estão aqui: não têm conta de divisão (o editor os compara pelo texto da linha).</summary>
+public static class RecalculoIndices
+{
+    static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
+
+    /// <summary>Uma linha calculada, com os textos como o kit os escreve na tabela e o valor exato (null = falta operando: PENDENTE).</summary>
+    public sealed record IndiceCalculado(string Icone, string Nome, string Situacao, decimal? Valor, string Calculo, string Projeto, string Limite, string Texto);
+
+    sealed record Taxa(string Icone, string Nome, string Limite, string Operando, string Rotulo, string NomeOperando, bool Maximo, bool Percentual);
+
+    static readonly Taxa[] Taxas =
+    [
+        new("to", "Taxa de ocupação (TO)", "to_max", "area_projecao", "projeção", "área de projeção", true, true),
+        new("ca", "Coeficiente de aproveitamento (CA)", "ca_max", "area_computavel", "área computável", "área computável", true, false),
+        new("tp", "Taxa de permeabilidade (TP)", "tp_min", "area_permeavel", "área permeável", "área permeável", false, true),
+    ];
+
+    static string Chave(string? texto) => new((texto ?? "").ToUpperInvariant().Where(c => c is >= 'A' and <= 'Z' or >= '0' and <= '9').ToArray());
+
+    /// <summary>O código da zona como o Anexo VI o escreve ("zrc 1" → "ZRC-1"). Zona fora do anexo: <see cref="ArgumentException"/>, e nada é calculado.</summary>
+    public static string ZonaCanonica(JsonObject anexo, string zona)
+    {
+        ArgumentNullException.ThrowIfNull(anexo);
+        var zonas = anexo["zonas"] as JsonObject ?? throw new ArgumentException("O Anexo VI não tem a lista de zonas.", nameof(anexo));
+        var alvo = Chave(zona);
+        foreach (var (codigo, _) in zonas)
+            if (Chave(codigo) == alvo) return codigo;
+        throw new ArgumentException("A zona \"" + zona + "\" não consta do Anexo VI do PDM; nenhum índice foi calculado.", nameof(zona));
+    }
+
+    /// <summary>TO, CA e TP da zona com os operandos (<c>area_terreno</c>, <c>area_projecao</c>, <c>area_computavel</c>,
+    /// <c>area_permeavel</c> e, opcional, <c>declarados</c> {to, ca, tp} do quadro de áreas), na ordem do kit.</summary>
+    public static IReadOnlyList<IndiceCalculado> Calcular(JsonObject anexo, string zona, JsonObject operandos)
+    {
+        ArgumentNullException.ThrowIfNull(operandos);
+        var z = (JsonObject)anexo["zonas"]![ZonaCanonica(anexo, zona)]!;
+        var declarados = operandos["declarados"] as JsonObject;
+        return Taxas.Select(t =>
+        {
+            var limite = Numero(z[t.Limite]?["valor"], t.Limite) ?? throw new ArgumentException("A zona não tem o limite " + t.Limite + ".", nameof(anexo));
+            return CalcularTaxa(t, Numero(operandos[t.Operando], t.Operando), Numero(operandos["area_terreno"], "area_terreno"), limite,
+                Numero(declarados?[t.Icone], "declarados." + t.Icone));
+        }).ToList();
+    }
+
+    static decimal? Numero(JsonNode? n, string nome)
+    {
+        if (n is null) return null;
+        if (n is JsonValue v && v.TryGetValue<decimal>(out var d) && d >= 0) return d;
+        throw new ArgumentException(nome + " deve ser número (ou ausente quando não comprovado).", nameof(n));
+    }
+
+    static IndiceCalculado CalcularTaxa(Taxa t, decimal? operando, decimal? terreno, decimal limite, decimal? declarado)
+    {
+        var unidade = t.Percentual ? "%" : "";
+        var limiteTexto = (t.Percentual && limite == decimal.Truncate(limite) ? Br(limite, 0) : Br(limite, 2)) + unidade;
+        var limiteLinha = (t.Maximo ? "≤ " : "≥ ") + limiteTexto;
+        var faltando = new List<string>();
+        if (operando is null) faltando.Add(t.NomeOperando);
+        if (terreno is not { } area || area == 0m) faltando.Add("área do terreno");
+        if (faltando.Count > 0)
+            return new IndiceCalculado(t.Icone, t.Nome, "PENDENTE", null,
+                t.Rotulo + " ÷ área do terreno" + (t.Percentual ? " × 100" : "") + ": dado faltante",
+                declarado is { } d0 ? Br(d0, 2) + unidade : "—", limiteLinha, "Falta comprovar: " + string.Join(", ", faltando) + ".");
+
+        var valor = operando!.Value / terreno!.Value * (t.Percentual ? 100m : 1m);
+        bool Atende(decimal x) => t.Maximo ? x <= limite : x >= limite;
+        var ok = Atende(valor);
+        var (texto, fiel) = Fiel(valor, Atende);
+        var txt = texto + unidade + (fiel ? "" : valor > limite ? " (acima do limite)" : " (abaixo do limite)");
+        var calculo = BrOperando(operando.Value) + " ÷ " + BrOperando(terreno.Value) + (t.Percentual ? " × 100" : "") + " = " + txt;
+        string? declaradoTexto = null;
+        var divergente = false;
+        if (declarado is { } d)
+        {
+            var (td, fd) = Fiel(d, Atende);
+            declaradoTexto = td + unidade + (fd ? "" : d > limite ? " (acima do limite)" : " (abaixo do limite)");
+            divergente = Br(d, 2) != Br(valor, 2) || Atende(d) != ok;
+        }
+        var motivos = new List<string>();
+        if (!ok)
+            motivos.Add(texto + unidade + (t.Maximo ? " acima do máximo" : " abaixo do mínimo") + " de " + limiteTexto
+                        + (fiel ? "" : " (diferença menor que 0,0000000001)") + ".");
+        if (divergente) motivos.Add("O quadro declara " + declaradoTexto + "; a conta dá " + txt + ".");
+        var situacao = !ok ? "NAO_ATENDE" : divergente ? "DIVERGENCIA" : "CONTA_CONFERE";
+        return new IndiceCalculado(t.Icone, t.Nome, situacao, valor, calculo, !ok || declaradoTexto is null ? txt : declaradoTexto, limiteLinha,
+            string.Join(" ", motivos));
+    }
+
+    /// <summary>"1.234,56": arredondamento meio para cima, ponto de milhar, vírgula decimal (o <c>br</c> do kit).</summary>
+    static string Br(decimal v, int casas) =>
+        Math.Round(v, casas, MidpointRounding.AwayFromZero).ToString("N" + casas.ToString(CultureInfo.InvariantCulture), PtBr);
+
+    /// <summary>O operando como foi informado: 2 casas, ou as precisas para não alterar o número (até 10) — o <c>br_operando</c> do kit.</summary>
+    static string BrOperando(decimal v)
+    {
+        for (var n = 2; n <= 10; n++)
+            if (Math.Round(v, n, MidpointRounding.AwayFromZero) == v) return Br(v, n);
+        return Enxuto(Br(v, 10));
+    }
+
+    /// <summary>As menores casas (de 2 a 10) em que o número arredondado fica do mesmo lado do limite que o exato — o <c>_fiel</c> do kit;
+    /// fiel = false quando nem 10 casas mostram a diferença.</summary>
+    static (string Texto, bool Fiel) Fiel(decimal v, Func<decimal, bool> atende)
+    {
+        for (var n = 2; n <= 10; n++)
+            if (atende(Math.Round(v, n, MidpointRounding.AwayFromZero)) == atende(v)) return (Br(v, n), true);
+        return (Enxuto(Br(v, 10)), false);
+    }
+
+    static string Enxuto(string texto)
+    {
+        var i = texto.LastIndexOf(',');
+        if (i < 0) return texto;
+        var dec = texto[(i + 1)..].TrimEnd('0');
+        return texto[..i] + "," + dec.PadRight(2, '0');
+    }
 }

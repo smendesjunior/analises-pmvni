@@ -1,0 +1,33 @@
+{
+  "versao": 1,
+  "atualizado_em": "2026-11-13",
+  "aviso": "Catálogo de verificações aplicadas por scripts/conferir_projeto.py ao modelo estruturado do projeto. Os limites citam a norma do kit (texto compilado); conferir vigência e exceções no texto antes de concluir. O script só aponta CANDIDATOS: cada um é confirmado no original e na norma, com contraprova, antes de virar achado.",
+  "tabela_art127": {
+    "fonte": "LC 70/1990, art. 127, tabela (texto compilado do kit); valores mínimos para pé-direito de até 3,00 m (acima disso, +10% por metro, art. 127)",
+    "sala":      {"area": 9.0, "largura": 2.5, "pe_direito": 2.6, "porta": 0.8, "iluminacao": "1/5"},
+    "dormitorio": {"area": 9.0, "largura": 2.5, "pe_direito": 2.6, "porta": 0.7, "iluminacao": "1/5"},
+    "cozinha":   {"area": 6.0, "largura": 2.0, "pe_direito": 2.4, "porta": 0.8, "iluminacao": "1/8"},
+    "copa":      {"area": 5.0, "largura": 2.0, "pe_direito": 2.4, "porta": 0.7, "iluminacao": "1/8"},
+    "banheiro":  {"area": 2.7, "largura": 1.2, "pe_direito": 2.4, "porta": 0.6, "iluminacao": "1/8"},
+    "hall":      {"pe_direito": 2.4, "iluminacao": "1/10"},
+    "circulacao": {"pe_direito": 2.4, "iluminacao": "1/10"}
+  },
+  "regras": [
+    {"id": "R01", "tema": "Comunicação entre ambientes", "regra": "Cozinha ou copa não pode ter comunicação direta (porta ou vão) com dormitório ou instalação sanitária.", "fonte": "LC 70/1990, art. 127, § 5º", "gravidade": "NAO_ATENDE"},
+    {"id": "R02", "tema": "Comunicação entre ambientes", "regra": "Garagem não pode ter comunicação direta com dormitório.", "fonte": "LC 70/1990, art. 140, § 5º", "gravidade": "NAO_ATENDE"},
+    {"id": "R03", "tema": "Portas", "regra": "Largura mínima da porta de cada ambiente: sala 0,80; dormitório 0,70; cozinha 0,80; copa 0,70; banheiro 0,60 m.", "fonte": "LC 70/1990, art. 127, tabela", "gravidade": "NAO_ATENDE"},
+    {"id": "R04", "tema": "Portas", "regra": "Altura mínima das portas: 2,10 m.", "fonte": "LC 70/1990, art. 127, § 3º", "gravidade": "NAO_ATENDE"},
+    {"id": "R05", "tema": "Dimensões", "regra": "Área e largura mínimas por ambiente (tabela do art. 127); banheiro só com vaso e lavatório: 1,50 m² e 1,00 m (§ 2º); copa unida à cozinha por vão sem fechamento: 8,00 m² juntas (§ 4º); habitação com um só dormitório: 12,00 m² (art. 128).", "fonte": "LC 70/1990, arts. 127 e 128", "gravidade": "NAO_ATENDE"},
+    {"id": "R06", "tema": "Dimensões", "regra": "Pé-direito mínimo por ambiente (tabela do art. 127; garagem 2,50 m, art. 140, § 2º).", "fonte": "LC 70/1990, arts. 127 e 140", "gravidade": "NAO_ATENDE"},
+    {"id": "R07", "tema": "Iluminação e ventilação", "regra": "Profundidade do compartimento medida a partir da abertura ≤ 3 × pé-direito.", "fonte": "LC 70/1990, art. 93", "gravidade": "NAO_ATENDE"},
+    {"id": "R08", "tema": "Iluminação e ventilação", "regra": "Todo compartimento (exceto corredor e caixa de escada) precisa de abertura para logradouro ou espaço livre do lote.", "fonte": "LC 70/1990, art. 87", "gravidade": "NAO_ATENDE"},
+    {"id": "R09", "tema": "Aberturas e divisas", "regra": "Não pode haver abertura em parede sobre a divisa ou a menos de 1,50 m dela.", "fonte": "LC 70/1990, art. 88", "gravidade": "NAO_ATENDE"},
+    {"id": "R10", "tema": "Aberturas e divisas", "regra": "Aberturas de compartimentos de longa permanência de unidades diferentes, confrontantes no mesmo terreno: distância mínima de 3,00 m.", "fonte": "LC 70/1990, art. 89", "gravidade": "NAO_ATENDE"},
+    {"id": "R11", "tema": "Iluminação e ventilação", "regra": "Dormitório precisa de ventilação permanente (veneziana nas folhas ou sobre a janela).", "fonte": "LC 70/1990, art. 92", "gravidade": "NAO_COMPROVADO"},
+    {"id": "R12", "tema": "Cotas", "regra": "Cadeia de cotas: a soma das parciais, no mesmo alinhamento e entre os mesmos extremos, deve fechar com a cota total (tolerância de 1 cm).", "fonte": "Coerência interna do projeto (checklist, seção 7)", "gravidade": "DIVERGENCIA_INTERNA"},
+    {"id": "R13", "tema": "Afastamentos", "regra": "Afastamento é medido da divisa até a face mais saliente da edificação naquele pavimento, sem incluir o passeio; beirais e platibandas podem avançar até 50% do afastamento exigido; abas, brises, jardineiras, ornatos e tubulações até 10%; o que avançar além disso conta no afastamento.", "fonte": "LC 70/1990, art. 77, § 6º; PDM, arts. 67 e 69", "gravidade": "NAO_ATENDE"},
+    {"id": "R14", "tema": "Afastamentos", "regra": "O afastamento de fundos é obrigatório em todos os pavimentos.", "fonte": "PDM (Lei 1.382/2020), art. 70", "gravidade": "NAO_ATENDE"},
+    {"id": "R15", "tema": "Comunicação entre ambientes", "regra": "Toda porta liga dois ambientes conhecidos (ou o exterior) e todo ambiente tem acesso por porta ou vão livre.", "fonte": "Coerência interna do projeto", "gravidade": "DIVERGENCIA_INTERNA"},
+    {"id": "R16", "tema": "Comunicação entre ambientes", "regra": "Dormitório ou banheiro cujo único acesso passa por outro dormitório (critério de habitabilidade; apontar para avaliação do analista).", "fonte": "Critério técnico de análise (sem artigo específico)", "gravidade": "VERIFICAR"}
+  ]
+}

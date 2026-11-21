@@ -342,7 +342,7 @@ public static class ConteudoDespacho
     static string? Texto(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
     /// <summary>Os itens efetivos (só os incluídos, na ordem, com texto e situação revisados) com o id de cada um.</summary>
-    static List<(string Id, int Numero, JsonObject Item)> Itens(Projeto p, out JsonObject documento)
+    internal static List<(string Id, int Numero, JsonObject Item)> Itens(Projeto p, out JsonObject documento)
     {
         var g = DadosEfetivos.Gerar(p);
         documento = JsonFiel.Ler(g.Json);
@@ -350,7 +350,7 @@ public static class ConteudoDespacho
         return itens.Select((x, i) => (g.IdsDosItens[i], i + 1, x as JsonObject ?? new JsonObject())).ToList();
     }
 
-    static string SituacaoDe(JsonObject item) => Texto(item["situacao"]) ?? item["situacao"]?.ToJsonString() ?? "";
+    internal static string SituacaoDe(JsonObject item) => Texto(item["situacao"]) ?? item["situacao"]?.ToJsonString() ?? "";
 
     /// <summary>Despacho sem relatório (correções 2026-11-15): o cabeçalho do processo e nenhuma exigência (o usuário escreve ou pede à IA).</summary>
     public static RascunhoDespacho MontarEmBranco(TipoDespacho t, InfoModelo m, DateOnly data, string protocolo, string requerente)
@@ -370,20 +370,15 @@ public static class ConteudoDespacho
         var itens = Itens(p, out var doc);
         var capa = doc["capa"] as JsonObject;
         var pendencias = new List<PendenciaDespacho>();
+        // Tarefa 15: a mesma regra da correção automática (ResumoExigencias), sem IA: itens incluídos com situação efetiva ≠ ATENDE, na ordem.
         if (t == TipoDespacho.Correcao)
-            foreach (var (id, numero, item) in itens)
-            {
-                var situacao = SituacaoDe(item);
-                if (situacao == "ATENDE") continue;
-                var texto = TextoEditado.Normalizar(Texto(item["providencia"]) ?? "");
-                var fundamento = TextoEditado.Normalizar(Texto(item["base_legal"]) ?? "");
+            foreach (var x in ResumoExigencias.Pendentes(ResumoExigencias.DosItens(itens)))
                 pendencias.Add(new PendenciaDespacho
                 {
-                    ItemId = id, Numero = numero, Situacao = situacao, Titulo = Texto(item["titulo"]) ?? "",
+                    ItemId = x.Id, Numero = x.Numero, Situacao = x.Situacao, Titulo = x.Titulo,
                     Grupo = m.TituloGrupo, GrupoOriginal = m.TituloGrupo,
-                    Texto = texto, TextoOriginal = texto, Fundamento = fundamento, FundamentoOriginal = fundamento,
+                    Texto = x.Texto, TextoOriginal = x.Texto, Fundamento = x.Fundamento, FundamentoOriginal = x.Fundamento,
                 });
-            }
         return new RascunhoDespacho(t, Texto(capa?["processo"]) ?? "", Texto(capa?["requerente"]) ?? "", m.Assunto, etapa.Data, pendencias) { GrupoPadrao = m.TituloGrupo };
     }
 
@@ -409,7 +404,7 @@ public static class ConteudoDespacho
                   + string.Create(CultureInfo.InvariantCulture, $"{n:D4}/{a}") + "). Confira se o relatório é deste processo.");
         if (somenteLeitura)
             b.Add("Este relatório foi gravado por uma versão mais nova do editor (somente leitura); o despacho não pode ser emitido a partir dele.");
-        if (t == TipoDespacho.Correcao && itens.All(x => SituacaoDe(x.Item) == "ATENDE"))
+        if (t == TipoDespacho.Correcao && ResumoExigencias.Pendentes(ResumoExigencias.DosItens(itens)).Count == 0)
             b.Add("Nenhum item incluído tem situação diferente de ATENDE: não há exigência para o despacho de correção.");
         return b;
     }
@@ -419,7 +414,7 @@ public static class ConteudoDespacho
     {
         ArgumentNullException.ThrowIfNull(p);
         if (t != TipoDespacho.Aprovacao) return Array.Empty<string>();
-        var pendentes = Itens(p, out _).Where(x => SituacaoDe(x.Item) != "ATENDE")
+        var pendentes = ResumoExigencias.Pendentes(ResumoExigencias.DosItens(Itens(p, out _)))
             .Select(x => "ITEM " + x.Numero.ToString("D2", CultureInfo.InvariantCulture)).ToList();
         if (pendentes.Count == 0) return Array.Empty<string>();
         var quantos = pendentes.Count == 1 ? "1 item" : pendentes.Count.ToString(CultureInfo.InvariantCulture) + " itens";

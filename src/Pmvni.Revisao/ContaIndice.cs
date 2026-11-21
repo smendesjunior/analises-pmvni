@@ -53,6 +53,14 @@ public sealed partial record ContaIndice(Medida Dividendo, Medida Divisor, bool 
         return Trocar(texto, PosResultado, RecalculoLinha.Formatar(Arredondado, CasasDoResultado, ""));
     }
 
+    /// <summary>O texto com o resultado trocado por <paramref name="numero"/> (só o número; "%" e o resto da frase ficam).</summary>
+    public string ComResultado(string texto, string numero)
+    {
+        ArgumentNullException.ThrowIfNull(texto);
+        ArgumentNullException.ThrowIfNull(numero);
+        return Trocar(texto, PosResultado, numero);
+    }
+
     /// <summary>O texto com outro divisor (a área do terreno) e o resultado refeito.</summary>
     public string TrocarDivisor(string texto, decimal novo)
     {

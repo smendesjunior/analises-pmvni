@@ -164,6 +164,14 @@ public static class FluxoNovoDespacho
                + (lista.Length == 0 ? "." : ": " + lista + ".");
     }
 
+    /// <summary>Tarefa 15: ao anexar o relatório num despacho de correção, as exigências entram montadas pelo editor, sem IA (a regra de
+    /// <see cref="ResumoExigencias"/>); a IA só a pedido. O aviso diz isso e onde pedir.</summary>
+    public const string TituloExigenciasSemIa = "Exigências montadas sem IA";
+
+    public static string ExigenciasSemIa(RascunhoDespacho r) =>
+        ResumoAutomatico(r) + " Entram como estão no relatório, montadas pelo editor sem IA. Para reescrever, digite uma instrução na caixa "
+        + "acima da prévia ou use «Ajustar com IA» no texto de uma exigência.";
+
     /// <summary>O relatório que a correção automática usa a partir do painel: o que está escolhido na caixa ou, com "Sem relatório", o mais
     /// novo da pasta do processo; null se o processo não tem nenhum.</summary>
     public static string? RelatorioDoAutomatico(string? escolhido, IEnumerable<RelatorioEncontrado> daPasta)

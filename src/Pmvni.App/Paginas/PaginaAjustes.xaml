@@ -556,7 +556,7 @@
               <TextBlock TextAlignment="Left" Text="Modelos de IA" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
             <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}"
-                       Text="A IA que responde em Rever com a IA, Ajustar o item, esquadrias, volumetria e no resumo do despacho: o modelo e o nível de raciocínio de cada uma. As listas vêm dos apps ChatGPT e Claude deste computador e, nas APIs, da própria API. O Novo relatório continua com os agentes acima."/>
+                       Text="A IA que responde quando você pede: Rever com a IA (com uma instrução escrita), Ajustar o item, esquadrias, volumetria e a instrução do despacho: o modelo e o nível de raciocínio de cada uma. As listas vêm dos apps ChatGPT e Claude deste computador e, nas APIs, da própria API. O Novo relatório continua com os agentes acima."/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>

@@ -127,6 +127,7 @@ public sealed partial class MainWindow
             // instrução. Quando ela (ou a situação) muda depois dos textos, o aviso pede o reajuste — nada dispara sozinho.
             R.PropAjustarTexto.Visibility = it.Incluido ? Visibility.Visible : Visibility.Collapsed;
             R.PropAjustarRotulo.Text = "Ajustar o item com a IA";
+            Dicas.SetDescricao(R.PropAjustarTexto, "A IA reajusta o item inteiro (verificação, providência, base legal, referência e, se a justificativa pedir, a situação), com o texto curto como o original. Um Desfazer volta tudo.");
             R.PropAjustarTexto.IsEnabled = editavel && it.Incluido && !ajustandoComIa;
             R.PropAjustarAviso.Text = "A justificativa mudou: reajuste o item (o botão abaixo) ou edite os textos.";
             R.PropAjustarAviso.Visibility = it.Incluido && ReajustePendente(p, it.Id, it.Situacao.Justificativa) ? Visibility.Visible : Visibility.Collapsed;
@@ -173,9 +174,20 @@ public sealed partial class MainWindow
         R.PropJustificativaAviso.Visibility = rev is not null && TabelasRevisao.FaltaJustificativa(rev) ? Visibility.Visible : Visibility.Collapsed;
         R.PropAjustarTexto.Visibility = Visibility.Visible;
         R.PropAjustarTexto.IsEnabled = editavel && !ajustandoComIa;
-        R.PropAjustarRotulo.Text = "Rever com a IA";
-        R.PropAjustarAviso.Text = "A justificativa mudou: reveja a linha com a IA (o botão abaixo) ou edite os textos.";
-        R.PropAjustarAviso.Visibility = ReajustePendente(p, linha, rev?.Justificativa) ? Visibility.Visible : Visibility.Collapsed;
+        // Tarefa 15: nos índices e nas esquadrias, "Rever" é conta do editor (sem IA); com uma instrução digitada na justificativa, ou no
+        // diagrama (sem conta), o botão pede à IA.
+        var pendente = ReajustePendente(p, linha, rev?.Justificativa);
+        var comIa = RecalculoLinha.PrecisaDaIa(linha, rev?.Justificativa, pendente);
+        R.PropAjustarRotulo.Text = comIa ? "Rever com a IA" : "Rever (sem IA)";
+        Dicas.SetDescricao(R.PropAjustarTexto, !comIa
+            ? "O editor refaz as contas da tabela (resultado, no projeto e situação, comparando com o limite) e mostra o que mudou, de antes e de agora. Sem IA. Um Desfazer volta tudo."
+            : RecalculoLinha.ReveSemIa(linha)
+                ? "A IA revê a tabela seguindo a instrução que você escreveu na justificativa; as contas das esquadrias continuam sendo do editor. Um Desfazer volta tudo."
+                : "A IA revê o diagrama a partir desta linha e da justificativa. Um Desfazer volta tudo.");
+        R.PropAjustarAviso.Text = RecalculoLinha.ReveSemIa(linha)
+            ? "A justificativa mudou: o botão abaixo pede à IA que siga o que você escreveu; ou edite os textos."
+            : "A justificativa mudou: reveja a linha com a IA (o botão abaixo) ou edite os textos.";
+        R.PropAjustarAviso.Visibility = pendente ? Visibility.Visible : Visibility.Collapsed;
         itemNasPropriedades = linha;
 
         // Num ambiente, as esquadrias (vãos) e a conta delas ficam no cartão próprio; o Conteúdo fica com os outros textos.
@@ -702,12 +714,13 @@ public sealed partial class MainWindow
         }
         esqTotal.Text = conta.TextoTotal;
         esqConta!.Text = conta.TextoConta == "—" ? "Nenhuma esquadria com área." : conta.TextoConta;
-        esqMinimo!.Text = esqPiso is not null ? (conta.Minimo is { } m ? Esquadrias.TextoArea(m) : "—") : conta.TextoMinimo;
+        esqMinimo!.Text = esqPiso is not null ? conta.TextoDoMinimo : conta.TextoMinimo;
         esqResultado!.Style = CartoesDePainel.EstiloDoResultado(conta.Atende);
-        esqResultado.Text = conta.Atende is not { } atende || conta.Total is not { } total || conta.Minimo is not { } minimo
+        esqResultado.Text = conta.Situacao == "PENDENTE" ? "FALTA COMPROVAR (falta a medida de " + string.Join(", ", conta.SemMedida) + ")"
+            : conta.Atende is not { } atende || conta.Total is not { } total || conta.Minimo is not { } minimo
             ? "Sem como comparar"
             : atende ? (total == minimo ? "ATENDE (no limite)" : "ATENDE (sobram " + Esquadrias.TextoArea(total - minimo) + ")")
-            : "NÃO ATENDE (faltam " + Esquadrias.TextoArea(minimo - total) + ")";
+            : "NÃO ATENDE (faltam " + conta.TextoFalta + ")";
         var gravada = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(p, linha));
         esqAviso!.Text = pendente ? "Conta com o que está digitado. Enter (ou sair da caixa) aplica; Esc desiste."
             : conta.Atende is { } r && gravada is not null && (gravada == "ATENDE") != r

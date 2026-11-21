@@ -1,0 +1,1196 @@
+{
+ "versao": "anexo-vi-2026-10-16",
+ "_leia": "Critérios urbanísticos das zonas urbanas (Anexo VI do PDM), transcritos do texto compilado oficial e conferidos célula a célula numa segunda leitura. Usado por scripts/calcular_indices.py. Não editar à mão: mudança na lei exige nova transcrição, nova conferência e nova \"versao\". \"texto\" é a célula como está no PDF; \"valor\" é o número que a célula fixa (null quando a célula não fixa número; o motivo fica em \"observacao\"). \"pagina\" é a página do arquivo PDF (o texto compilado não imprime número de página).",
+ "fonte": {
+  "documento": "Lei Municipal nº 1.382/2020 (PDM de Venda Nova do Imigrante), texto compilado da Câmara, atualizado em 16/10/2026",
+  "arquivo": "03 - LEGISLACAO/MUNICIPAL/PDM - LEI 1.382-2020 - TEXTO COMPILADO (CAMARA, ATUALIZADO EM 16-10-2026).pdf",
+  "anexo": "Anexo VI — Critérios urbanísticos das zonas urbanas",
+  "redacao": "Anexo alterado pela Lei nº 1.391/2020; redação dada pelas Leis nº 1.415/2021, 1.507/2022 e 1.743/2025",
+  "paginas": [
+   72,
+   73
+  ],
+  "base_legal": "Art. 66, parágrafo único, e art. 67 (definições dos índices), p. 16"
+ },
+ "zonas": {
+  "ZCC-1": {
+   "nome": "Zona Corredor Consolidado 1",
+   "rotulo_original": "ZONA CORREDOR CONSOLIDADO 1 (ZCC-1)",
+   "to_max": {
+    "valor": 80,
+    "unidade": "%",
+    "texto": "80%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-1, coluna \"Taxa de ocupação\"",
+    "pagina": 72
+   },
+   "ca_max": {
+    "valor": 4.2,
+    "texto": "4,20",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-1, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 72
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-1, coluna \"Taxa de permeabilidade\"",
+    "pagina": 72
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": null,
+     "unidade": "m",
+     "texto": "O EXISTENTE *2",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-1, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 72,
+     "notas": [
+      "*2"
+     ],
+     "observacao": "A célula não fixa número: vale o afastamento do alinhamento já existente (nota *2), apurado em levantamento no local pelo município."
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-1, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 72
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-1, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 72,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 7,
+    "unidade": "pavimentos",
+    "texto": "7 PAVIMENTOS *3",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-1, coluna \"Gabarito (*1)\"",
+    "pagina": 72,
+    "notas": [
+     "*1",
+     "*3"
+    ],
+    "condicao_no_limite": {
+     "nota": "*3",
+     "pavimento": 7
+    }
+   },
+   "altura_max": {
+    "valor": 23.5,
+    "unidade": "m",
+    "texto": "23,50M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-1, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 72
+   },
+   "lote_min": {
+    "area": {
+     "valor": 300.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 300,00 M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-1, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 72
+    },
+    "testada": {
+     "valor": 12.0,
+     "unidade": "m",
+     "texto": "TESTADA = 12,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-1, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 72
+    }
+   }
+  },
+  "ZCC-2": {
+   "nome": "Zona Corredor Consolidado 2",
+   "rotulo_original": "ZONA CORREDOR CONSOLIDADO 2 (ZCC-2)",
+   "to_max": {
+    "valor": 75,
+    "unidade": "%",
+    "texto": "75%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-2, coluna \"Taxa de ocupação\"",
+    "pagina": 72
+   },
+   "ca_max": {
+    "valor": 4.0,
+    "texto": "4,00",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-2, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 72
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-2, coluna \"Taxa de permeabilidade\"",
+    "pagina": 72
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-2, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 72
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-2, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 72
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-2, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 72,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 7,
+    "unidade": "pavimentos",
+    "texto": "7 PAVIMENTOS *3",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-2, coluna \"Gabarito (*1)\"",
+    "pagina": 72,
+    "notas": [
+     "*1",
+     "*3"
+    ],
+    "condicao_no_limite": {
+     "nota": "*3",
+     "pavimento": 7
+    }
+   },
+   "altura_max": {
+    "valor": 23.5,
+    "unidade": "m",
+    "texto": "23,50M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-2, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 72
+   },
+   "lote_min": {
+    "area": {
+     "valor": 300.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 300,00 M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-2, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 72
+    },
+    "testada": {
+     "valor": 12.0,
+     "unidade": "m",
+     "texto": "TESTADA = 12,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCC-2, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 72
+    }
+   }
+  },
+  "ZCN-1": {
+   "nome": "Zona Corredor Não Consolidado 1",
+   "rotulo_original": "ZONA CORREDOR NÃO CONSOLIDADO 1 (ZCN-1)",
+   "to_max": {
+    "valor": 75,
+    "unidade": "%",
+    "texto": "75%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-1, coluna \"Taxa de ocupação\"",
+    "pagina": 72
+   },
+   "ca_max": {
+    "valor": 3.0,
+    "texto": "3,00",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-1, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 72
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-1, coluna \"Taxa de permeabilidade\"",
+    "pagina": 72
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-1, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 72
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-1, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 72
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-1, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 72,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 5,
+    "unidade": "pavimentos",
+    "texto": "5 PAVIMENTOS *4",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-1, coluna \"Gabarito (*1)\"",
+    "pagina": 72,
+    "notas": [
+     "*1",
+     "*4"
+    ],
+    "condicao_no_limite": {
+     "nota": "*4",
+     "pavimento": 5
+    }
+   },
+   "altura_max": {
+    "valor": 17.0,
+    "unidade": "m",
+    "texto": "17,00M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-1, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 72
+   },
+   "lote_min": {
+    "area": {
+     "valor": 600.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 600,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-1, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 72
+    },
+    "testada": {
+     "valor": 15.0,
+     "unidade": "m",
+     "texto": "TESTADA = 15,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-1, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 72
+    }
+   }
+  },
+  "ZCN-2": {
+   "nome": "Zona Corredor Não Consolidado 2",
+   "rotulo_original": "ZONA CORREDOR NÃO CONSOLIDADO 2 (ZCN-2)VV",
+   "to_max": {
+    "valor": 75,
+    "unidade": "%",
+    "texto": "75%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-2, coluna \"Taxa de ocupação\"",
+    "pagina": 72
+   },
+   "ca_max": {
+    "valor": 4.5,
+    "texto": "4,50",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-2, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 72
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-2, coluna \"Taxa de permeabilidade\"",
+    "pagina": 72
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-2, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 72
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-2, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 72
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-2, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 72,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 6,
+    "unidade": "pavimentos",
+    "texto": "6 PAVIMENTOS *5",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-2, coluna \"Gabarito (*1)\"",
+    "pagina": 72,
+    "notas": [
+     "*1",
+     "*5"
+    ],
+    "excecoes": [
+     {
+      "nota": "*5",
+      "localidades": [
+       "Vargem Grande",
+       "Caxixe",
+       "São José do Alto Viçosa"
+      ],
+      "valor": 4
+     }
+    ]
+   },
+   "altura_max": {
+    "valor": 22.0,
+    "unidade": "m",
+    "texto": "22,00M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-2, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 72
+   },
+   "lote_min": {
+    "area": {
+     "valor": 360.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 360,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-2, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 72
+    },
+    "testada": {
+     "valor": 12.0,
+     "unidade": "m",
+     "texto": "TESTADA = 12,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZCN-2, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 72
+    }
+   },
+   "observacao": "O rótulo da zona aparece como \"(ZCN-2)VV\" no PDF compilado; \"VV\" tratado como resíduo de edição."
+  },
+  "ZRC-1": {
+   "nome": "Zona Residencial Consolidada 1",
+   "rotulo_original": "ZONA RESIDENCIAL CONSOLIDADA 1 (ZRC-1)",
+   "to_max": {
+    "valor": 75,
+    "unidade": "%",
+    "texto": "75%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-1, coluna \"Taxa de ocupação\"",
+    "pagina": 72
+   },
+   "ca_max": {
+    "valor": 3.5,
+    "texto": "3,50",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-1, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 72
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-1, coluna \"Taxa de permeabilidade\"",
+    "pagina": 72
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-1, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 72
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-1, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 72
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-1, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 72,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 5,
+    "unidade": "pavimentos",
+    "texto": "5 PAVIMENTOS *4",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-1, coluna \"Gabarito (*1)\"",
+    "pagina": 72,
+    "notas": [
+     "*1",
+     "*4"
+    ],
+    "condicao_no_limite": {
+     "nota": "*4",
+     "pavimento": 5
+    }
+   },
+   "altura_max": {
+    "valor": 17.0,
+    "unidade": "m",
+    "texto": "17,00M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-1, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 72
+   },
+   "lote_min": {
+    "area": {
+     "valor": 300.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 300,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-1, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 72
+    },
+    "testada": {
+     "valor": 12.0,
+     "unidade": "m",
+     "texto": "TESTADA = 12,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-1, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 72
+    }
+   }
+  },
+  "ZRC-2": {
+   "nome": "Zona Residencial Consolidada 2",
+   "rotulo_original": "ZONA RESIDENCIAL CONSOLIDADA 2 (ZRC-2)",
+   "to_max": {
+    "valor": 70,
+    "unidade": "%",
+    "texto": "70%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-2, coluna \"Taxa de ocupação\"",
+    "pagina": 72
+   },
+   "ca_max": {
+    "valor": 4.5,
+    "texto": "4,50",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-2, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 72
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-2, coluna \"Taxa de permeabilidade\"",
+    "pagina": 72
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-2, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 72
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-2, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 72
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-2, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 72,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 7,
+    "unidade": "pavimentos",
+    "texto": "7 PAVIMENTOS *3",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-2, coluna \"Gabarito (*1)\"",
+    "pagina": 72,
+    "notas": [
+     "*1",
+     "*3"
+    ],
+    "condicao_no_limite": {
+     "nota": "*3",
+     "pavimento": 7
+    }
+   },
+   "altura_max": {
+    "valor": 23.5,
+    "unidade": "m",
+    "texto": "23,50M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-2, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 72
+   },
+   "lote_min": {
+    "area": {
+     "valor": 300.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 300,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-2, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 72
+    },
+    "testada": {
+     "valor": 12.0,
+     "unidade": "m",
+     "texto": "TESTADA = 12,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRC-2, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 72
+    }
+   }
+  },
+  "ZRN-1": {
+   "nome": "Zona Residencial Não Consolidada 1",
+   "rotulo_original": "ZONA RESIDENCIAL NÃO CONSOLIDADA 1 (ZRN -1)",
+   "to_max": {
+    "valor": 65,
+    "unidade": "%",
+    "texto": "65%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-1, coluna \"Taxa de ocupação\"",
+    "pagina": 72
+   },
+   "ca_max": {
+    "valor": 3.5,
+    "texto": "3,50",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-1, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 72
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-1, coluna \"Taxa de permeabilidade\"",
+    "pagina": 72
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-1, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 72
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-1, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 72
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-1, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 72,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 6,
+    "unidade": "pavimentos",
+    "texto": "6 PAVIMENTOS",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-1, coluna \"Gabarito (*1)\"",
+    "pagina": 72,
+    "notas": [
+     "*1"
+    ]
+   },
+   "altura_max": {
+    "valor": 22.0,
+    "unidade": "m",
+    "texto": "22,00M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-1, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 72
+   },
+   "lote_min": {
+    "area": {
+     "valor": 300.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 300,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-1, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 72
+    },
+    "testada": {
+     "valor": 12.0,
+     "unidade": "m",
+     "texto": "TESTADA = 12,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-1, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 72
+    }
+   }
+  },
+  "ZRN-2": {
+   "nome": "Zona Residencial Não Consolidada 2",
+   "rotulo_original": "ZONA RESIDENCIAL NÃO CONSOLIDADA 2 (ZRN -2)",
+   "to_max": {
+    "valor": 65,
+    "unidade": "%",
+    "texto": "65%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-2, coluna \"Taxa de ocupação\"",
+    "pagina": 72
+   },
+   "ca_max": {
+    "valor": 2.5,
+    "texto": "2,50",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-2, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 72
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-2, coluna \"Taxa de permeabilidade\"",
+    "pagina": 72
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-2, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 72
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-2, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 72
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-2, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 73,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 4,
+    "unidade": "pavimentos",
+    "texto": "4 PAVIMENTOS",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-2, coluna \"Gabarito (*1)\"",
+    "pagina": 72,
+    "notas": [
+     "*1"
+    ]
+   },
+   "altura_max": {
+    "valor": 15.0,
+    "unidade": "m",
+    "texto": "15,00M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-2, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 72
+   },
+   "lote_min": {
+    "area": {
+     "valor": 300.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 300,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-2, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 72
+    },
+    "testada": {
+     "valor": 12.0,
+     "unidade": "m",
+     "texto": "TESTADA = 12,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRN-2, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 73
+    }
+   },
+   "observacao": "A linha da ZRN-2 começa na p. 72 e termina na p. 73 (lateral, \"PAVIMENTOS\" e testada na p. 73)."
+  },
+  "ZRE": {
+   "nome": "Zona Residencial Especial",
+   "rotulo_original": "ZONA RESIDENCIAL ESPECIAL (ZRE)",
+   "to_max": {
+    "valor": 65,
+    "unidade": "%",
+    "texto": "65%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRE, coluna \"Taxa de ocupação\"",
+    "pagina": 73
+   },
+   "ca_max": {
+    "valor": 1.8,
+    "texto": "1,80",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRE, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 73
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRE, coluna \"Taxa de permeabilidade\"",
+    "pagina": 73
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRE, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 73
+    },
+    "fundos": {
+     "valor": 2.0,
+     "unidade": "m",
+     "texto": "2,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRE, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 73
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRE, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 73,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 3,
+    "unidade": "pavimentos",
+    "texto": "3 PAVIMENTOS 6*",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRE, coluna \"Gabarito (*1)\"",
+    "pagina": 73,
+    "notas": [
+     "*1",
+     "*6"
+    ],
+    "condicao_no_limite": {
+     "nota": "*6",
+     "pavimento": 3
+    },
+    "observacao": "A marca aparece como \"6*\" na célula; entendida como remissão à nota *6. calcular_indices.py exige a confirmação da nota *6 quando a edificação usa os 3 pavimentos (leitura conservadora: a nota não diz se vale também com menos pavimentos)."
+   },
+   "altura_max": {
+    "valor": 12.0,
+    "unidade": "m",
+    "texto": "12,00M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRE, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 73
+   },
+   "lote_min": {
+    "area": {
+     "valor": 300.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 300,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRE, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 73
+    },
+    "testada": {
+     "valor": 12.0,
+     "unidade": "m",
+     "texto": "TESTADA = 12,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRE, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 73
+    }
+   }
+  },
+  "ZDI": {
+   "nome": "Zona de Desenvolvimento Industrial",
+   "rotulo_original": "ZONA DE DESENVOLVIMENTO INDUSTRIAL (ZDI)",
+   "to_max": {
+    "valor": 80,
+    "unidade": "%",
+    "texto": "80%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZDI, coluna \"Taxa de ocupação\"",
+    "pagina": 73
+   },
+   "ca_max": {
+    "valor": 2.4,
+    "texto": "2,40",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZDI, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 73
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZDI, coluna \"Taxa de permeabilidade\"",
+    "pagina": 73
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZDI, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 73
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZDI, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 73
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZDI, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 73,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 3,
+    "unidade": "pavimentos",
+    "texto": "3 PAVIMENTOS",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZDI, coluna \"Gabarito (*1)\"",
+    "pagina": 73,
+    "notas": [
+     "*1"
+    ]
+   },
+   "altura_max": {
+    "valor": 12.0,
+    "unidade": "m",
+    "texto": "12,00M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZDI, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 73
+   },
+   "lote_min": {
+    "area": {
+     "valor": 500.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 500,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZDI, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 73
+    },
+    "testada": {
+     "valor": 20.0,
+     "unidade": "m",
+     "texto": "TESTADA = 20,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZDI, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 73
+    }
+   }
+  },
+  "ZIE": {
+   "nome": "Zonas de Interesse Específico",
+   "rotulo_original": "ZONAS DE INTERESSE ESPECÍFICO (ZIE)",
+   "to_max": {
+    "valor": 65,
+    "unidade": "%",
+    "texto": "65%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZIE, coluna \"Taxa de ocupação\"",
+    "pagina": 73
+   },
+   "ca_max": {
+    "valor": 3.5,
+    "texto": "3,50",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZIE, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 73
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZIE, coluna \"Taxa de permeabilidade\"",
+    "pagina": 73
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZIE, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 73
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZIE, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 73
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZIE, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 73,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 6,
+    "unidade": "pavimentos",
+    "texto": "6 PAVIMENTOS",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZIE, coluna \"Gabarito (*1)\"",
+    "pagina": 73,
+    "notas": [
+     "*1"
+    ]
+   },
+   "altura_max": {
+    "valor": 22.0,
+    "unidade": "m",
+    "texto": "22,00M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZIE, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 73
+   },
+   "lote_min": {
+    "area": {
+     "valor": 300.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 300,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZIE, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 73
+    },
+    "testada": {
+     "valor": 12.0,
+     "unidade": "m",
+     "texto": "TESTADA = 12,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZIE, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 73
+    }
+   }
+  },
+  "ZEIS": {
+   "nome": "Zonas de Especial Interesse Social",
+   "rotulo_original": "ZONAS DE ESPECIAL INTERESSE SOCIAL (ZEIS)",
+   "to_max": {
+    "valor": 75,
+    "unidade": "%",
+    "texto": "75%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZEIS, coluna \"Taxa de ocupação\"",
+    "pagina": 73
+   },
+   "ca_max": {
+    "valor": 2.4,
+    "texto": "2,40",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZEIS, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 73
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZEIS, coluna \"Taxa de permeabilidade\"",
+    "pagina": 73
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 3.0,
+     "unidade": "m",
+     "texto": "3,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZEIS, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 73
+    },
+    "fundos": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZEIS, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 73
+    },
+    "lateral": {
+     "valor": 1.5,
+     "unidade": "m",
+     "texto": "1,50M NO CASO DE ABERTURA",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZEIS, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 73,
+     "condicao": "abertura",
+     "observacao": "Exigido \"no caso de abertura\" na face lateral; sem abertura, a célula não fixa afastamento lateral."
+    }
+   },
+   "gabarito": {
+    "valor": 4,
+    "unidade": "pavimentos",
+    "texto": "4 PAVIMENTOS",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZEIS, coluna \"Gabarito (*1)\"",
+    "pagina": 73,
+    "notas": [
+     "*1"
+    ]
+   },
+   "altura_max": {
+    "valor": 13.0,
+    "unidade": "m",
+    "texto": "13,00M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZEIS, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 73
+   },
+   "lote_min": {
+    "area": {
+     "valor": 180.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 180,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZEIS, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 73
+    },
+    "testada": {
+     "valor": 9.0,
+     "unidade": "m",
+     "texto": "TESTADA = 9,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZEIS, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 73
+    }
+   },
+   "observacao": "O art. 99 (p. 22) fixa índices próprios para loteamentos de interesse social (lote 180,00 m², testada 9,00 m, TO 60%, CA 2, frente 3,00 m, lateral obrigatória de 1,50 m em um dos lados, até 4 pavimentos). Quando o lote integrar loteamento de interesse social, conferir qual regra se aplica; este arquivo traz só o Anexo VI."
+  },
+  "ZRUR": {
+   "nome": "Zona Rurbana",
+   "rotulo_original": "ZONAS RURBANA (ZRUR)",
+   "to_max": {
+    "valor": 30,
+    "unidade": "%",
+    "texto": "30%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRUR, coluna \"Taxa de ocupação\"",
+    "pagina": 73
+   },
+   "ca_max": {
+    "valor": 1.4,
+    "texto": "1,40",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRUR, coluna \"Coeficiente de aproveitamento\"",
+    "pagina": 73
+   },
+   "tp_min": {
+    "valor": 10,
+    "unidade": "%",
+    "texto": "10%",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRUR, coluna \"Taxa de permeabilidade\"",
+    "pagina": 73
+   },
+   "afastamentos": {
+    "frontal": {
+     "valor": 5.0,
+     "unidade": "m",
+     "texto": "5,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRUR, coluna \"Afastamentos mínimos — frente\"",
+     "pagina": 73
+    },
+    "fundos": {
+     "valor": 2.0,
+     "unidade": "m",
+     "texto": "2,00M (OBRIGATÓRIO)",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRUR, coluna \"Afastamentos mínimos — fundos\"",
+     "pagina": 73
+    },
+    "lateral": {
+     "valor": 2.0,
+     "unidade": "m",
+     "texto": "2,00M (OBRIGATÓRIO)",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRUR, coluna \"Afastamentos mínimos — lateral\"",
+     "pagina": 73,
+     "condicao": "sempre"
+    }
+   },
+   "gabarito": {
+    "valor": 2,
+    "unidade": "pavimentos",
+    "texto": "2 PAVIMENTOS",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRUR, coluna \"Gabarito (*1)\"",
+    "pagina": 73,
+    "notas": [
+     "*1"
+    ]
+   },
+   "altura_max": {
+    "valor": 8.0,
+    "unidade": "m",
+    "texto": "8,00M",
+    "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRUR, coluna \"Altura máxima edif. (H = metros)\"",
+    "pagina": 73
+   },
+   "lote_min": {
+    "area": {
+     "valor": 1000.0,
+     "unidade": "m²",
+     "texto": "ÁREA = 1000,00M²",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRUR, coluna \"Tamanho mínimo lote — área\"",
+     "pagina": 73
+    },
+    "testada": {
+     "valor": 20.0,
+     "unidade": "m",
+     "texto": "TESTADA = 20,00M",
+     "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, ZRUR, coluna \"Tamanho mínimo lote — testada\"",
+     "pagina": 73
+    }
+   }
+  }
+ },
+ "zonas_sem_parametros": {
+  "ZN-1": "Zona Natural 1 (art. 34, X, p. 10): não tem linha no Anexo VI.",
+  "ZN-2": "Zona Natural 2 (art. 34, XI, p. 10): não tem linha no Anexo VI."
+ },
+ "notas": {
+  "*1": {
+   "texto": "Os mezaninos não serão computados como pavimento quanto ocuparem até 50% da área do pavimento inferior, quando forem destinados a área de lazer em edificações residenciais ou quando utilizados como complemento ao comércio, desde que o acesso seja exclusivo pelo respectivo estabelecimento, observada, em todos os casos, a altura máxima estabelecida para cada zona.",
+   "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, nota *1 (redação da Lei nº 1.743/2025)",
+   "pagina": 73
+  },
+  "*2": {
+   "texto": "Nas ruas e avenidas cujas edificações atingirem mais de 50% dos lotes, considera-se o afastamento do alinhamento já existente. Devendo ser realizado um levantamento no local pelo município.",
+   "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, nota *2 (redação da Lei nº 1.743/2025)",
+   "pagina": 73
+  },
+  "*3": {
+   "texto": "O 7º pavimento só poderá ser ocupado por terraço de uso comum ou em, no máximo, 50% da área do pavimento para apartamento duplex, sendo que, neste último caso, o acesso somente poderá ser pelo 6º pavimento. O 7º pavimento deverá seguir os afastamentos acima previstos, assim como as características dos pavimentos inferiores.",
+   "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, nota *3 (redação da Lei nº 1.743/2025)",
+   "pagina": 73
+  },
+  "*4": {
+   "texto": "O 5º pavimento só poderá ser ocupado por terraço de uso comum ou em, no máximo, 50% da área do pavimento para apartamento duplex, sendo que, neste último caso, o acesso somente poderá ser pelo 4º pavimento. O 5º pavimento deverá seguir os afastamentos acima previstos, assim como as características dos pavimentos inferiores.",
+   "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, nota *4 (redação da Lei nº 1.743/2025)",
+   "pagina": 73
+  },
+  "*5": {
+   "texto": "Nas zonas urbanas, classificadas como ZCN 2 de Vargem Grande, Caxixe e São José do Alto Viçosa o número de pavimentos fica limitado a 4 pavimentos.",
+   "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, nota *5 (redação da Lei nº 1.743/2025)",
+   "pagina": 73
+  },
+  "*6": {
+   "texto": "Um dos pavimentos só poderá ser ocupado exclusivamente por garagem.",
+   "dispositivo": "PDM (Lei 1.382/2020), Anexo VI, nota *6 (redação da Lei nº 1.743/2025)",
+   "pagina": 73
+  }
+ },
+ "regras_gerais": {
+  "frente_esquina": {
+   "texto": "Nos lotes de esquina, o afastamento de frente é exigido integralmente em cada testada.",
+   "dispositivo": "PDM, art. 68, § 2º",
+   "pagina": 17
+  },
+  "fundos_todos_pavimentos": {
+   "texto": "O afastamento de fundos é obrigatório em todos os pavimentos da edificação.",
+   "dispositivo": "PDM, art. 70, caput",
+   "pagina": 17
+  },
+  "fundos_encosta": {
+   "texto": "Lote que se defronta com encosta, em aclive, de cota superior a 2,50 m: fundos de no mínimo 2,00 m, exceto quando executado muro de arrimo conforme normas técnicas.",
+   "dispositivo": "PDM, art. 70, § 1º",
+   "pagina": 17,
+   "valor": 2.0
+  },
+  "fundos_app": {
+   "texto": "Lote que se defronta com APP (exceto quando usada para sistema viário, inclusive ciclovia): afastamento de fundos obrigatório apenas em caso de abertura.",
+   "dispositivo": "PDM, art. 70, § 4º",
+   "pagina": 17
+  },
+  "lote_minimo": {
+   "texto": "As áreas e testadas mínimas dos loteamentos obedecem ao Anexo VI.",
+   "dispositivo": "PDM, art. 86, II",
+   "pagina": 20
+  }
+ }
+}

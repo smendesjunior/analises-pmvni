@@ -415,10 +415,10 @@ public sealed partial class MainWindow
         s.Montar();
         PreencherConteudo(s);
         MostrarPassoAtual(s);
-        // Relatório anexado: a IA resume as exigências (só o que não atende) sozinha, se houver programa de IA e o ajuste estiver ligado.
-        // Na correção automática não: entram as exigências como estão no relatório, e o despacho segue para a conferência.
-        // Trocou o relatório com texto já escrito (manual ou editado): esse texto foi trazido e o resumo automático não passa por cima dele.
-        if (s.Tipo == TipoDespacho.Correcao && !automatico && !s.TrouxeEdicoes && Perguntas.Atual is PerguntasDaJanela) _ = AplicarInstrucaoAsync(IaDespacho.PedidoResumo);
+        // Tarefa 15: relatório anexado, as exigências entram montadas pelo editor (ResumoExigencias), sem IA; a IA só a pedido (a caixa
+        // de instrução acima da prévia ou "Ajustar com IA" numa exigência). Na correção automática o aviso é o do fim (ConcluirAutomaticoAsync).
+        if (s.Tipo == TipoDespacho.Correcao && !automatico && !s.TrouxeEdicoes && s.Rascunho is { } r)
+            MostrarMensagem(InfoBarSeverity.Informational, FluxoNovoDespacho.TituloExigenciasSemIa, FluxoNovoDespacho.ExigenciasSemIa(r));
         return true;
     }
 

@@ -149,10 +149,17 @@ public static partial class RecalculoLinha
         if (c.Minimo is { } min && v < min.Valor)
         {
             var falta = min.Valor - v;
-            return (false, (falta == 1 ? "Falta " : "Faltam ") + Formatar(falta, casas, c.Unidade) + ".");
+            return (false, (falta == 1 ? "Falta " : "Faltam ") + Formatar(falta, Visiveis(falta, casas), c.Unidade) + ".");
         }
-        if (c.Maximo is { } max && v > max.Valor) return (false, "Excede em " + Formatar(v - max.Valor, casas, c.Unidade) + ".");
+        if (c.Maximo is { } max && v > max.Valor) return (false, "Excede em " + Formatar(v - max.Valor, Visiveis(v - max.Valor, casas), c.Unidade) + ".");
         return (true, "Dentro do limite.");
+    }
+
+    /// <summary>As casas para uma diferença não sair zero ("Excede em 0,003%" e não "0,0%", quando a comparação é pelo valor exato da conta).</summary>
+    static int Visiveis(decimal diferenca, int casas)
+    {
+        while (casas < 10 && diferenca != 0m && Math.Round(diferenca, casas, MidpointRounding.AwayFromZero) == 0m) casas++;
+        return casas;
     }
 
     // ---------- a edição manual de uma linha ----------
@@ -192,7 +199,7 @@ public static partial class RecalculoLinha
         if (campo.EndsWith("/medidas", StringComparison.Ordinal) && Esquadrias.LerMedidas(novo) is null)
             return new EdicaoDeLinha(simples.Comando, false, true,
                 rotulo + ": o texto mudou, mas \"" + novo + "\" não é largura × altura; a área, o vão total e a situação ficaram como estavam. " +
-                "Confira-os, ou use «Rever com a IA» nas Propriedades.");
+                "Confira-os, ou escreva na justificativa o que rever e use «Rever com a IA» nas Propriedades.");
         Lote lote;
         try { lote = Esquadrias.Recalcular(p, linha, [simples.Comando], "Recalculado: " + TabelasRevisao.NomeDoCampo(campo) + " " + novo); }
         catch (ComandoRecusadoException) { return simples; }   // a recusa aparece quando a edição for aplicada

@@ -42,7 +42,7 @@ public sealed partial class MainWindow
     /// <summary>A pergunta pronta para <see cref="IaDespacho.PerguntarAsync"/>: o programa (só o da fonte escolhida), as opções e o que a tela mostra.</summary>
     internal sealed record PerguntaIa(string? Claude, string? Codex, IaDespacho.OpcoesIa Opcoes, string Descricao);
 
-    /// <summary>A fábrica única das perguntas curtas (revisão, ajustes, esquadrias, volumetria, resumo do despacho): resolve a fonte
+    /// <summary>A fábrica única das perguntas curtas (revisão, ajustes, esquadrias, volumetria, instrução do despacho): resolve a fonte
     /// (<see cref="EscolhaIa.Resolver"/>), o modelo e o nível escolhidos em Ajustes, e o ambiente do processo (conta do app; nas APIs, só a chave
     /// daquela fonte, lida do cofre do Windows agora e passada só ao processo filho). Sem fonte nenhuma: os dois programas nulos (a pergunta
     /// explica que falta instalar).</summary>

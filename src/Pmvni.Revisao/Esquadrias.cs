@@ -9,26 +9,49 @@ public enum CategoriaEsquadria { Janela, Porta, Outro }
 
 /// <summary>Uma esquadria (vão) de um ambiente, lida dos textos da linha: o código ("J1"), o tipo, as medidas (largura × altura em
 /// metros, quando legíveis) e a área — a escrita no relatório e a calculada (largura × altura). <see cref="Acrescentada"/>: criada
-/// pelo usuário. <see cref="Conta"/>: entra no vão total (tem área escrita ou calculável e um lugar para escrevê-la).</summary>
+/// pelo usuário. <see cref="Conta"/>: entra no vão total (tem área escrita ou calculável e um lugar para escrevê-la).
+/// <see cref="ForaDaSoma"/>: o relatório do kit marca o vão como "(fora da soma)" no tipo (porta de armário, alçapão): não entra no total,
+/// como no calcular_vaos.py. <see cref="FaltaMedida"/>: entra na soma, mas não tem medida nem área legível (o ambiente pode ficar pendente).</summary>
 public sealed record Esquadria(int Indice, string Codigo, string Tipo, string Medidas, CategoriaEsquadria Categoria,
     decimal? Largura, decimal? Altura, string AreaEscrita, decimal? Area, bool TemCampoDeArea, bool Acrescentada)
 {
-    public bool Conta => Area is not null && TemCampoDeArea;
+    public bool ForaDaSoma => Tipo.Contains("fora da soma", StringComparison.OrdinalIgnoreCase);
+    public bool Conta => Area is not null && TemCampoDeArea && !ForaDaSoma;
+    public bool FaltaMedida => Area is null && !ForaDaSoma;
     public string Caminho(string parte) => "vaos/" + Indice.ToString(CultureInfo.InvariantCulture) + "/" + parte;
 }
 
 /// <summary>A conta de iluminação e ventilação de um ambiente: as esquadrias, o vão total (a soma das áreas), o mínimo exigido (a área do
-/// piso ÷ o divisor, quando o texto do mínimo traz a conta) e se atende. <see cref="Atende"/> null = não dá para comparar (sem mínimo
-/// legível ou sem nenhuma área).</summary>
-public sealed record ContaAmbiente(IReadOnlyList<Esquadria> Esquadrias, decimal? Total, decimal? Piso, decimal? Divisor, decimal? Minimo, bool? Atende)
+/// piso ÷ o divisor, quando o texto do mínimo traz a conta) e a situação. A comparação é EXATA, como no calcular_vaos.py do kit (Tarefa 15,
+/// casos-ouro): o mínimo não é arredondado a favor (23,06 ÷ 8 = 2,8825 m² não é atendido por 2,88 m²). <see cref="Situacao"/>:
+/// CONTA_CONFERE (total ≥ mínimo, mesmo faltando a medida de um vão), PENDENTE (abaixo do mínimo e falta a medida de algum vão),
+/// NAO_ATENDE (abaixo do mínimo com todas as medidas) ou null (sem mínimo legível, ou sem nenhuma área e nada faltando).
+/// <see cref="Atende"/>: true/false para CONTA_CONFERE/NAO_ATENDE; null quando não dá para dizer.</summary>
+public sealed record ContaAmbiente(IReadOnlyList<Esquadria> Esquadrias, decimal? Total, decimal? Piso, decimal? Divisor, decimal? Minimo)
 {
+    /// <summary>Os códigos dos vãos da soma sem medida legível.</summary>
+    public IReadOnlyList<string> SemMedida =>
+        Esquadrias.Where(e => e.FaltaMedida).Select(e => e.Codigo.Trim().Length > 0 ? e.Codigo.Trim() : "vão " + (e.Indice + 1).ToString(CultureInfo.InvariantCulture)).ToList();
+
+    public string? Situacao => Minimo is not { } m ? null
+        : Total is { } t && t >= m ? "CONTA_CONFERE"
+        : SemMedida.Count > 0 ? "PENDENTE"
+        : Total is null ? null
+        : "NAO_ATENDE";
+
+    public bool? Atende => Situacao switch { "CONTA_CONFERE" => true, "NAO_ATENDE" => false, _ => null };
+
     /// <summary>"3,48 m²".</summary>
     public string TextoTotal => Total is { } t ? Esquadrias_.M2(t) : "—";
 
+    /// <summary>O mínimo como se escreve ao lado do total: duas casas, ou as que forem precisas para o arredondamento não parecer atender
+    /// (2,8825 m² ao lado de 2,88 m²).</summary>
+    public string TextoDoMinimo => Minimo is { } m ? Esquadrias_.M2Fiel(m, Total) : "—";
+
     /// <summary>"12,00 ÷ 6 = 2,00 m²" ou "2,00 m²".</summary>
-    public string TextoMinimo => Minimo is not { } m ? "—"
-        : Piso is { } p && Divisor is { } d ? Esquadrias_.N(p) + " ÷ " + d.ToString("0.##", Esquadrias_.PtBr) + " = " + Esquadrias_.M2(m)
-        : Esquadrias_.M2(m);
+    public string TextoMinimo => Minimo is not { } ? "—"
+        : Piso is { } p && Divisor is { } d ? Esquadrias_.N(p) + " ÷ " + d.ToString("0.##", Esquadrias_.PtBr) + " = " + TextoDoMinimo
+        : TextoDoMinimo;
 
     /// <summary>"J1 1,80 + P1 1,68 = 3,48 m²" (uma só: "J1 1,80 m²").</summary>
     public string TextoConta
@@ -42,9 +65,17 @@ public sealed record ContaAmbiente(IReadOnlyList<Esquadria> Esquadrias, decimal?
         }
     }
 
-    /// <summary>"Mínimo 2,00 m²; atende." / "Mínimo 2,00 m²; faltam 0,20 m²."</summary>
-    public string TextoComparacao => Minimo is not { } m || Total is not { } t ? "—"
-        : "Mínimo " + Esquadrias_.M2(m) + (t >= m ? "; atende." : "; " + (m - t == 1 ? "falta " : "faltam ") + Esquadrias_.M2(m - t) + ".");
+    /// <summary>"Mínimo 2,00 m²; atende." / "Mínimo 2,00 m²; faltam 0,20 m²." / "Mínimo 2,00 m²; falta a medida de J1."</summary>
+    public string TextoComparacao => Situacao switch
+    {
+        "CONTA_CONFERE" => "Mínimo " + TextoDoMinimo + "; atende.",
+        "PENDENTE" => "Mínimo " + TextoDoMinimo + "; falta a medida de " + string.Join(", ", SemMedida) + ".",
+        "NAO_ATENDE" => "Mínimo " + TextoDoMinimo + "; " + (Minimo - Total == 1 ? "falta " : "faltam ") + TextoFalta + ".",
+        _ => "—",
+    };
+
+    /// <summary>O que falta para o mínimo ("0,20 m²"; "0,0025 m²" quando duas casas dariam zero); "—" se atende ou não se sabe.</summary>
+    public string TextoFalta => Minimo is { } m && Total is { } t && t < m ? Esquadrias_.M2Visivel(m - t) : "—";
 }
 
 /// <summary>Formatação comum (pt-BR, duas casas).</summary>
@@ -53,6 +84,23 @@ internal static class Esquadrias_
     internal static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
     internal static string N(decimal v) => v.ToString("N2", PtBr);
     internal static string M2(decimal v) => N(v) + " m²";
+
+    /// <summary>A área com duas casas, ou mais (até seis) se com duas ela parecer do outro lado de <paramref name="outro"/>.</summary>
+    internal static string M2Fiel(decimal v, decimal? outro)
+    {
+        var casas = 2;
+        if (outro is { } o)
+            while (casas < 6 && Math.Sign(Math.Round(v, casas, MidpointRounding.AwayFromZero) - o) != Math.Sign(v - o)) casas++;
+        return v.ToString("N" + casas.ToString(CultureInfo.InvariantCulture), PtBr) + " m²";
+    }
+
+    /// <summary>Uma diferença com duas casas, ou mais (até seis) se com duas ela daria zero.</summary>
+    internal static string M2Visivel(decimal v)
+    {
+        var casas = 2;
+        while (casas < 6 && v != 0m && Math.Round(v, casas, MidpointRounding.AwayFromZero) == 0m) casas++;
+        return v.ToString("N" + casas.ToString(CultureInfo.InvariantCulture), PtBr) + " m²";
+    }
 }
 
 /// <summary>As esquadrias de um ambiente (correções 2026-11-16): leitura das medidas, cálculo determinístico (área = largura × altura;
@@ -83,8 +131,9 @@ public static partial class Esquadrias
     /// <summary>"0,80 × 2,10 m": as medidas como o relatório as escreve.</summary>
     public static string TextoMedidas(decimal largura, decimal altura) => Esquadrias_.N(largura) + " × " + Esquadrias_.N(altura) + " m";
 
-    /// <summary>A área do vão, arredondada como o relatório mostra (duas casas).</summary>
-    public static decimal Area(decimal largura, decimal altura) => Math.Round(largura * altura, 2, MidpointRounding.AwayFromZero);
+    /// <summary>A área do vão: largura × altura, com seis casas como o calcular_vaos.py (o texto mostra duas; a soma e a comparação usam
+    /// a área exata, Tarefa 15).</summary>
+    public static decimal Area(decimal largura, decimal altura) => Math.Round(largura * altura, 6, MidpointRounding.AwayFromZero);
 
     public static string TextoArea(decimal area) => Esquadrias_.M2(area);
 
@@ -118,14 +167,14 @@ public static partial class Esquadrias
     private static partial Regex AreaSolta();
 
     /// <summary>O mínimo exigido lido dos textos "Mínimo exigido" da linha: com a conta (piso ÷ divisor = mínimo), o mínimo é REFEITO
-    /// (piso ÷ divisor, duas casas); sem a conta, o valor em m² que estiver escrito (um só).</summary>
+    /// (piso ÷ divisor, com seis casas, como o calcular_vaos.py; o texto mostra duas); sem a conta, o valor em m² que estiver escrito (um só).</summary>
     public static (decimal? Piso, decimal? Divisor, decimal? Minimo) LerMinimo(IEnumerable<string> textos)
     {
         foreach (var t in textos)
         {
             var m = ContaDoMinimo().Match(t ?? "");
             if (m.Success && RecalculoLinha.LerNumero(m.Groups["p"].Value) is var (p, _) && RecalculoLinha.LerNumero(m.Groups["d"].Value) is var (d, _) && d > 0)
-                return (p, d, Math.Round(p / d, 2, MidpointRounding.AwayFromZero));
+                return (p, d, Math.Round(p / d, 6, MidpointRounding.AwayFromZero));
         }
         foreach (var t in textos)
         {
@@ -181,8 +230,7 @@ public static partial class Esquadrias
         var contam = lista.Where(e => e.Conta).ToList();
         decimal? total = contam.Count == 0 ? null : contam.Sum(e => e.Area!.Value);
         var (piso, divisor, minimo) = LerMinimo(caminhos.Where(c => c.StartsWith("minimo/", StringComparison.Ordinal)).Select(Texto).ToList());
-        bool? atende = total is { } t && minimo is { } m ? t >= m : null;
-        return new ContaAmbiente(lista, total, piso, divisor, minimo, atende);
+        return new ContaAmbiente(lista, total, piso, divisor, minimo);
     }
 
     /// <summary>As alterações (<paramref name="edicoes"/>: medidas editadas, esquadria acrescentada ou removida…) mais o recálculo
@@ -212,15 +260,15 @@ public static partial class Esquadrias
             Gravar("resultado/conta", conta.TextoConta);
             if (conta.Minimo is not null) Gravar("resultado/comparacao", conta.TextoComparacao);
         }
-        if (conta.Atende is { } atende && TabelasRevisao.SituacaoEfetiva(depois, ambiente) is { } situacao)
+        if (conta.Situacao is { } nova && TabelasRevisao.SituacaoEfetiva(depois, ambiente) is { } situacao)
         {
-            var nova = atende ? "CONTA_CONFERE" : "NAO_ATENDE";
             if (nova != situacao) comandos.Add(new DefinirSituacao(ambiente, nova));
             var justificativa = TabelasRevisao.Justificativa(depois, ambiente);
             if (string.IsNullOrWhiteSpace(justificativa) || justificativa!.StartsWith(RecalculoLinha.MarcaJustificativa, StringComparison.Ordinal))
             {
                 var volta = nova == TabelasRevisao.SituacaoOriginal(depois, ambiente);
-                var texto = volta ? null : RecalculoLinha.MarcaJustificativa + " vão total " + conta.TextoTotal + "; mínimo " + Esquadrias_.M2(conta.Minimo!.Value) + ".";
+                var texto = volta ? null : RecalculoLinha.MarcaJustificativa + " vão total " + conta.TextoTotal + "; mínimo " + conta.TextoDoMinimo
+                    + (nova == "PENDENTE" ? "; falta a medida de " + string.Join(", ", conta.SemMedida) : "") + ".";
                 if (texto != justificativa && !(volta && string.IsNullOrWhiteSpace(justificativa))) comandos.Add(new DefinirJustificativa(ambiente, texto));
             }
         }
@@ -234,4 +282,35 @@ public static partial class Esquadrias
             throw new ComandoRecusadoException("As medidas da esquadria têm de ser largura × altura (por exemplo, 0,80 × 2,10 m).");
         return new AcrescentarVao(ambiente, codigo, TextoMedidas(l, a), tipo, TextoArea(Area(l, a)));
     }
+
+    // ---------- a tabela do art. 127 (Tarefa 15) ----------
+
+    /// <summary>A fração mínima de iluminação por tipo de ambiente (LC 70/1990, art. 127, tabela): a mesma do kit
+    /// (references/regras-de-projeto.json, "tabela_art127", lida pelo calcular_vaos.py); o teste dos casos-ouro confere que são iguais.</summary>
+    public static IReadOnlyDictionary<string, (int Numerador, int Denominador)> TabelaArt127 { get; } =
+        new Dictionary<string, (int, int)>(StringComparer.Ordinal)
+        {
+            ["sala"] = (1, 5), ["dormitorio"] = (1, 5), ["cozinha"] = (1, 8), ["copa"] = (1, 8), ["banheiro"] = (1, 8),
+            ["hall"] = (1, 10), ["circulacao"] = (1, 10),
+        };
+
+    /// <summary>As grafias usuais aceitas para os tipos da tabela, como no calcular_vaos.py ("Suíte" e "quarto" são dormitório).</summary>
+    static readonly Dictionary<string, string> SinonimosArt127 = new(StringComparer.Ordinal)
+    {
+        ["quarto"] = "dormitorio", ["suite"] = "dormitorio", ["corredor"] = "circulacao",
+    };
+
+    /// <summary>O tipo do ambiente como o kit o normaliza: sem acento, minúsculo, espaços viram "_", sinônimos trocados ("Suíte" →
+    /// "dormitorio"). Null se vazio.</summary>
+    public static string? TipoDoAmbiente(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return null;
+        var t = new string(texto.Normalize(System.Text.NormalizationForm.FormD)
+            .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark).ToArray()).ToLowerInvariant().Trim().Replace(' ', '_');
+        return SinonimosArt127.GetValueOrDefault(t, t);
+    }
+
+    /// <summary>A fração da tabela do art. 127 para o tipo do ambiente; null se o tipo não está na tabela (a análise informa a fração à mão).</summary>
+    public static (int Numerador, int Denominador)? FracaoArt127(string? tipoAmbiente) =>
+        TipoDoAmbiente(tipoAmbiente) is { } t && TabelaArt127.TryGetValue(t, out var f) ? f : null;
 }

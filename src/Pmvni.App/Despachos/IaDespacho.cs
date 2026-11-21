@@ -6,8 +6,8 @@ using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
-/// <summary>A IA no Novo despacho (correções 2026-11-15): resume as exigências vindas do relatório (só o que não atende) e aplica instruções de
-/// modificação escritas na caixa acima da prévia. Usa o Claude Code (<c>claude -p</c>) ou, sem ele, o Codex (<c>codex exec</c>), com a
+/// <summary>A IA no Novo despacho (correções 2026-11-15), só sob comando (Tarefa 15): aplica as instruções de modificação escritas na caixa
+/// acima da prévia. As exigências vindas do relatório (só o que não atende) são montadas pelo editor, sem IA (<see cref="ResumoExigencias"/>). Usa o Claude Code (<c>claude -p</c>) ou, sem ele, o Codex (<c>codex exec</c>), com a
 /// conta já logada no programa; nada é gravado: a resposta só troca as exigências do rascunho.</summary>
 internal static class IaDespacho
 {
@@ -18,9 +18,6 @@ internal static class IaDespacho
         "itens que atendem nunca aparecem. Cada exigência diz o problema, o local, a correção e o fundamento confirmado, nessa ordem " +
         "(primeiro o problema, depois o que fazer), sem repetir o texto técnico inteiro do relatório, sem hipóteses nem duplicações. " +
         "Não invente fundamento: mantenha o que veio ou deixe vazio.";
-
-    internal const string PedidoResumo =
-        "Resuma cada exigência de forma objetiva para o despacho, mantendo a ordem e os fundamentos; junte as duplicadas.";
 
     /// <summary>Monta o pedido: regras, rascunho atual em JSON e a instrução; pede só JSON de volta.</summary>
     internal static string Prompt(RascunhoDespacho r, string instrucao)
