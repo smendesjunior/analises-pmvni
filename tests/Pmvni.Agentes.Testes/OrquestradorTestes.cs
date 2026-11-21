@@ -42,6 +42,7 @@ public partial class OrquestradorTestes
             IntervaloSituacao = TimeSpan.FromMilliseconds(intervaloMs),
             IntervaloLog = TimeSpan.FromMilliseconds(intervaloMs),
             AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = Cenario },
+            EsperaMinimaCota = TimeSpan.FromMilliseconds(200),
         };
 
         public PedidoExecucao Pedido(Provedor p, ModoAcesso modo = ModoAcesso.Conta, string? texto = null, IReadOnlyList<ArquivoArquivado>? anexos = null) =>
@@ -172,6 +173,20 @@ public partial class OrquestradorTestes
         using var c = new Cena("orq-chatgpt-retomada", "ok", Provedor.ChatGpt);
         Directory.CreateDirectory(c.Controle("analise"));
         File.WriteAllText(Path.Combine(c.Controle("analise"), "engine_state.json"), "{\"version\":1}");
+        // O controle existe, mas este registro nunca falou com o kit (a primeira chamada de uma reanálise falhou antes): não retoma a análise anterior.
+        using (var antes = new Cena("orq-chatgpt-retomada-alheia", "ok", Provedor.ChatGpt))
+        {
+            Directory.CreateDirectory(antes.Controle("analise"));
+            File.WriteAllText(Path.Combine(antes.Controle("analise"), "engine_state.json"), "{\"version\":1}");
+            Assert.False(OrquestradorAnalise.PodeRetomarChatGpt(antes.Processo.Pasta, antes.Registro.Pasta));
+            Assert.Equal("concluida", (await Ambiente.Com(antes.Orq().ExecutarAsync(antes.Pedido(Provedor.ChatGpt) with { Retomar = true }, antes.Progresso,
+                CancellationToken.None), Limite)).Situacao);
+            Assert.Contains("--inputs", Argv(Assert.Single(Chamadas(antes, "analise62"))));
+        }
+        // Este registro já recebeu uma situação do contrato: aí sim, retoma sem --inputs.
+        c.Registro.AcrescentarSituacao("{\"situacao\":\"AGUARDANDO_COTA\",\"etapa\":\"analyze\",\"retomar_em_utc\":null,\"motivo\":\"\",\"decisao\":null}");
+        c.Registro.Descarregar();
+        Assert.True(OrquestradorAnalise.PodeRetomarChatGpt(c.Processo.Pasta, c.Registro.Pasta));
         var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.ChatGpt) with { Retomar = true }, c.Progresso, CancellationToken.None), Limite);
         Assert.Equal("concluida", fim.Situacao);
         Assert.Equal(new[] { "-B", "-X", "utf8", c.Pecas.Analise62!, "--case", c.Processo.Pasta }, Argv(Assert.Single(Chamadas(c, "analise62"))));

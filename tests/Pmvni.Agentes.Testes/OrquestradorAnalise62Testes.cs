@@ -288,6 +288,100 @@ public partial class OrquestradorTestes
         Assert.Contains("A sessão técnica da analyze foi recusada (cota_semanal).", fim.Mensagem);
     }
 
+    // ------------------------------------------------------------------ rodada de correção 1 da Tarefa 12
+
+    [Fact]
+    public async Task ChatGpt_Inputs_SemArquivosTransitorios()
+    {
+        using var c = new Cena("orq-62-transitorios", "ok", Provedor.ChatGpt);
+        var docs = Path.Combine(c.Processo.Pasta, "DOCUMENTOS");
+        var inicial = Path.Combine(c.Processo.Pasta, "PROJETO", "INICIAL");
+        Directory.CreateDirectory(docs);
+        var memorial = Path.Combine(docs, "memorial.docx");
+        File.WriteAllText(memorial, "memorial fictício");
+        // O que some ou muda sozinho (trava do Word aberto, do LibreOffice, miniaturas, temporários, ocultos e de sistema) não é peça do processo.
+        var transitorios = new[]
+        {
+            Path.Combine(docs, "~$memorial.docx"), Path.Combine(docs, ".~lock.memorial.odt#"), Path.Combine(docs, "desktop.ini"), Path.Combine(inicial, "Thumbs.db"),
+            Path.Combine(inicial, "planta.pdf.tmp"), Path.Combine(inicial, "~WRL0001.tmp"), Path.Combine(docs, "baixando.pdf.crdownload"),
+            Path.Combine(docs, "oculto.pdf"), Path.Combine(docs, "sistema.pdf"),
+        };
+        foreach (var t in transitorios) File.WriteAllText(t, "x");
+        File.SetAttributes(Path.Combine(docs, "oculto.pdf"), FileAttributes.Hidden);
+        File.SetAttributes(Path.Combine(docs, "sistema.pdf"), FileAttributes.System);
+        try
+        {
+            var anexo = new Pmvni.Revisao.ArquivoArquivado(@"D:\x\~$memorial.docx", @"DOCUMENTOS\~$memorial.docx", "aa", 1, false);
+            var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.ChatGpt, anexos: [anexo]), c.Progresso, CancellationToken.None), Limite);
+            Assert.Equal("concluida", fim.Situacao);
+            var argv = Argv(Assert.Single(Chamadas(c, "analise62")));
+            var entradas = argv.SkipWhile(a => a != "--inputs").Skip(1).ToArray();
+            Assert.Equal(new[] { Planta(c), memorial }.Order(StringComparer.OrdinalIgnoreCase), entradas.Order(StringComparer.OrdinalIgnoreCase));
+            foreach (var t in transitorios) Assert.True(OrquestradorAnalise.ArquivoTransitorio(t), t);
+            Assert.False(OrquestradorAnalise.ArquivoTransitorio(memorial));
+        }
+        finally
+        {
+            foreach (var t in transitorios) if (File.Exists(t)) File.SetAttributes(t, FileAttributes.Normal);
+        }
+    }
+
+    [Fact]
+    public async Task Rota_ResolvidaUmaVezParaAExecucaoInteira()
+    {
+        using var c = new Cena("orq-62-rota-uma-vez", "ok", Provedor.ChatGpt, o => o["analise62"] = new JsonArray(
+            new JsonObject { ["situacao"] = "AGUARDANDO_COTA", ["etapa"] = "analyze", ["retomar_em_s"] = 2 },
+            new JsonObject { ["situacao"] = "ENTREGUE" }));
+        var config = Path.Combine(c.Pecas.CodexHome!, "config.toml");
+        Directory.CreateDirectory(c.Pecas.CodexHome!);
+        File.WriteAllText(config, "model_provider = \"codex-lb\"\n");
+        var tarefa = c.Orq().ExecutarAsync(c.Pedido(Provedor.ChatGpt) with { RotaCodex = "herdar" }, c.Progresso, CancellationToken.None);
+        Assert.True(Ambiente.EsperarAte(() => Chamadas(c, "analise62").Count == 1, TimeSpan.FromSeconds(30)), "o controlador não partiu");
+        // O config.toml muda no meio da espera de cota: a execução segue na rota resolvida na partida (nunca relida, nunca recusada no meio).
+        File.WriteAllText(config, "model_provider = \"azure-corp\"\n");
+        var fim = await Ambiente.Com(tarefa, Limite);
+        Assert.True(fim.Situacao == "concluida", fim.Situacao + ": " + fim.Mensagem);
+        var chamadas = Chamadas(c, "analise62");
+        Assert.Equal(2, chamadas.Count);
+        Assert.All(chamadas, ch => Assert.Equal("codex-lb", ch[3]));
+        Assert.Equal("codex-lb", c.Execucao()["rota_codex_tecnica"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task ChatGpt_EsperaDeCota_TemLimites()
+    {
+        // Horário já passado: espera o mínimo em vez de chamar de novo na hora (e gastar o teto de chamadas).
+        using (var c = new Cena("orq-62-cota-passada", "ok", Provedor.ChatGpt, o => o["analise62"] = new JsonArray(
+            new JsonObject { ["situacao"] = "AGUARDANDO_COTA", ["etapa"] = "analyze", ["retomar_em_s"] = -120 },
+            new JsonObject { ["situacao"] = "ENTREGUE" })))
+        {
+            var orq = new OrquestradorAnalise
+            {
+                IntervaloSituacao = TimeSpan.FromMilliseconds(100), IntervaloLog = TimeSpan.FromMilliseconds(100),
+                AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = c.Cenario }, EsperaMinimaCota = TimeSpan.FromSeconds(2),
+            };
+            var fim = await Ambiente.Com(orq.ExecutarAsync(c.Pedido(Provedor.ChatGpt), c.Progresso, CancellationToken.None), Limite);
+            Assert.Equal("concluida", fim.Situacao);
+            var chamadas = Chamadas(c, "analise62");
+            Assert.Equal(2, chamadas.Count);
+            var intervalo = DateTimeOffset.Parse(chamadas[1][4], CultureInfo.InvariantCulture) - DateTimeOffset.Parse(chamadas[0][4], CultureInfo.InvariantCulture);
+            Assert.True(intervalo >= TimeSpan.FromSeconds(1.9), "a retomada veio depois de só " + intervalo);
+            Assert.Contains(c.Progresso.Todos(), p => p.Situacao is { Codigo: "AGUARDANDO_COTA", RetomarEmUtc: { } q } && q > DateTimeOffset.UtcNow.AddMinutes(-1));
+        }
+
+        // Horário longe demais (30 dias, além do que um timer aceita): a análise fica parada e retomável, sem exceção e sem nova chamada.
+        using (var c = new Cena("orq-62-cota-longe", "ok", Provedor.ChatGpt, o => o["analise62"] = new JsonArray(
+            new JsonObject { ["situacao"] = "AGUARDANDO_COTA", ["etapa"] = "analyze", ["retomar_em_s"] = 30 * 24 * 3600 })))
+        {
+            var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.ChatGpt), c.Progresso, CancellationToken.None), Limite);
+            Assert.Equal("interrompida", fim.Situacao);
+            Assert.StartsWith("A cota do ChatGPT só volta em ", fim.Mensagem);
+            Assert.Single(Chamadas(c, "analise62"));
+            Assert.Equal("interrompida", c.Execucao()["situacao"]!.GetValue<string>());
+            Assert.NotNull(c.Execucao()["aguardando_cota_ate_utc"]);
+        }
+    }
+
     [Fact]
     public async Task Gemini_PluginAntigo_InformaComponente()
     {

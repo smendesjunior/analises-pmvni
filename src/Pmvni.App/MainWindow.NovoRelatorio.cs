@@ -1082,10 +1082,11 @@ public sealed partial class MainWindow
 
     ContinuacaoChatGpt? continuarChatGpt;
 
-    /// <summary>Dá para continuar a análise do ChatGPT: o controle do analise ficou na pasta do processo (<c>engine_state.json</c>; o controlador continua
-    /// sem <c>--inputs</c>) ou o registro é do Editor 2.2 e guardou a sessão controladora (a análise recomeça no mesmo registro, com as mesmas peças).</summary>
+    /// <summary>Dá para continuar a análise do ChatGPT: o controle do analise ficou na pasta do processo e é deste registro
+    /// (<see cref="OrquestradorAnalise.PodeRetomarChatGpt"/>; o controlador continua sem <c>--inputs</c>) ou o registro é do Editor 2.2 e guardou a sessão
+    /// controladora (a análise recomeça no mesmo registro, com as mesmas peças).</summary>
     static bool ContinuavelChatGpt(string pastaProcesso, string pastaRegistro) =>
-        File.Exists(Path.Combine(pastaProcesso, ResultadoAnalise.PastaControle(Provedor.ChatGpt), "engine_state.json")) || LerSessaoCodex(pastaRegistro) is not null;
+        OrquestradorAnalise.PodeRetomarChatGpt(pastaProcesso, pastaRegistro) || LerSessaoCodex(pastaRegistro) is not null;
 
     /// <summary>A sessão do Codex guardada no <c>execucao.json</c> por um registro do Editor 2.2; null sem ela.</summary>
     static string? LerSessaoCodex(string pastaRegistro)
