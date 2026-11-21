@@ -1,10 +1,10 @@
 {
-  "gerado_em": "2026-11-18T22:57:04Z",
+  "gerado_em": "2026-11-21T20:46:54Z",
   "webview2": "157.0.4341.60",
   "escala_do_monitor": 1.5,
   "janela_px": {
-    "largura": 1265.3333740234375,
-    "altura": 736.6666870117188
+    "largura": 1585.3333740234375,
+    "altura": 923.3333129882812
   },
   "passos": {
     "rotulo_de_composicao": {
@@ -12,6 +12,7 @@
       "ok": true
     },
     "busca_ao_digitar_sem_relatorio": {
+      "campo_separado_do_atalho": true,
       "l": true,
       "le": true,
       "lei": true,
@@ -27,11 +28,11 @@
       "folhas_que_transbordam_na_tela": [],
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "titulo_confere": true,
-      "estado_de_gravacao": "Salvo 19:57",
+      "estado_de_gravacao": "Salvo 17:46",
       "cabecalho": [
         "Proc. 9001/2026",
         "CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
-        "Salvo 19:57"
+        "Salvo 17:46"
       ],
       "cabecalho_rotulos": [
         "Desfazer",
@@ -61,7 +62,7 @@
       "nenhuma_infobar_de_layout": true,
       "exportar_habilitado": true,
       "rodape_folha": "folha 1 de 21",
-      "latencia_recomposicao_ms": 905,
+      "latencia_recomposicao_ms": 754,
       "convivencia_webview2": "tela visível + host oculto de composição abertos no mesmo processo, mesma pasta de dados",
       "folhas_com_conteudo_alem_da_borda": [
         14
@@ -73,7 +74,8 @@
       "inprivate_host_oculto": true,
       "atalhos_do_navegador_tela": false,
       "atalhos_do_navegador_host_oculto": false,
-      "ok": true
+      "ok": true,
+      "desalinhamento_original_dip": 0
     },
     "2_rolagem_continua": {
       "geometria": {
@@ -81,19 +83,20 @@
         "folhas": 21,
         "fundoDaFolha": "rgb(255, 255, 255)",
         "fundoDaPagina": "rgb(228, 228, 228)",
-        "janela": 692,
+        "janela": 650,
         "passoEsperado": 1152.755905511811,
-        "passoMax": 1000.677734375,
-        "passoMin": 1000.67578125,
-        "rolagemTotal": 21041,
+        "passoMax": 923.7021484375,
+        "passoMin": 923.7001953125,
+        "rolagemTotal": 19422,
         "sombraDaFolha": "rgba(0, 0, 0, 0.3) 0px 1px 4px 0px, rgba(0, 0, 0, 0.08) 0px 0px 0px 1px",
         "topos": [
-          26.241497039794922,
-          1026.9178466796875,
-          2027.5941162109375
-        ]
+          24.222919464111328,
+          947.9241943359375,
+          1871.6253662109375
+        ],
+        "zoom": 0.8013095238095237
       },
-      "zoom": 0.8680853174603174,
+      "zoom": 0.8013095238095237,
       "visitas_por_rolagem": [
         {
           "rolou_para_folha": 1,
@@ -161,39 +164,60 @@
           "largura_da_folha_px": 793.7
         },
         {
-          "como": "botão Aumentar o zoom",
-          "zoom": 1.1,
+          "como": "controle deslizante 50%",
+          "zoom": 0.5,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 873.1
+          "largura_da_folha_px": 396.8
+        },
+        {
+          "como": "controle deslizante 300%",
+          "zoom": 3,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 2381.1
+        },
+        {
+          "como": "controle deslizante 135%",
+          "zoom": 1.35,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 1071.5
         },
         {
           "como": "botão Aumentar o zoom",
-          "zoom": 1.25,
+          "zoom": 1.5,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 992.1
+          "largura_da_folha_px": 1190.5
+        },
+        {
+          "como": "botão Aumentar o zoom",
+          "zoom": 1.75,
+          "texto_igual": true,
+          "mesmas_folhas_no_dom": true,
+          "largura_da_folha_px": 1389
         },
         {
           "como": "botão Diminuir o zoom",
-          "zoom": 1.1,
+          "zoom": 1.5,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 873.1
+          "largura_da_folha_px": 1190.5
         },
         {
           "como": "botão Ajustar largura",
-          "zoom": 0.8680853174603174,
+          "zoom": 0.9537599206349205,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 689
+          "largura_da_folha_px": 757
         },
         {
           "como": "botão Página inteira",
-          "zoom": 0.5879629629629629,
+          "zoom": 0.5933080808080807,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 466.7
+          "largura_da_folha_px": 470.9
         },
         {
           "como": "comando exibir.mais",
@@ -211,17 +235,17 @@
         },
         {
           "como": "comando exibir.pagina",
-          "zoom": 0.5879629629629629,
+          "zoom": 0.5933080808080807,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 466.7
+          "largura_da_folha_px": 470.9
         },
         {
           "como": "comando exibir.largura",
-          "zoom": 0.8680853174603174,
+          "zoom": 0.9537599206349205,
           "texto_igual": true,
           "mesmas_folhas_no_dom": true,
-          "largura_da_folha_px": 689
+          "largura_da_folha_px": 757
         }
       ],
       "plano_igual_depois_do_zoom": true,
@@ -339,7 +363,7 @@
         "esquerda": 72,
         "folhaNaTela": 3,
         "sombra": "rgb(196, 43, 28) -5px 0px 0px 0px, rgba(0, 0, 0, 0.3) 0px 1px 4px 0px, rgba(0, 0, 0, 0.08) 0px 0px 0px 1px",
-        "zoom": "0.8680853174603174"
+        "zoom": "0.9537599206349205"
       },
       "faixa_vermelha_na_folha_vista": true
     },
@@ -425,16 +449,19 @@
       "pagina_inicial_sem_novo_relatorio": true,
       "ok": true
     },
+    "faixas_e_rotulos_do_monitor": {
+      "ok": true
+    },
     "11_reabrir_pacote": {
       "fechado_sem_relatorio": true,
       "plano_igual_ao_da_importacao": true,
       "historico": 1,
-      "estado_de_gravacao": "Salvo 19:57",
+      "estado_de_gravacao": "Salvo 17:46",
       "titulo_da_barra": "Proc. 9001/2026 · CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA",
       "ok": true
     },
     "12_salvar_duas_vezes_sem_conflito": {
-      "estado_de_gravacao": "Salvo 19:57",
+      "estado_de_gravacao": "Salvo 17:47",
       "disco_confere": true,
       "aviso_de_erro": false,
       "exporta_depois": true,
@@ -498,9 +525,9 @@
       "registros_desfeito": 4,
       "registros_refeito": 4,
       "historico_na_tela": [
-        "19:57 · <usuario> · Refeito: Excluído o ITEM 05",
-        "19:57 · <usuario> · Refeito: Justificativa do ITEM 03 definida",
-        "19:57 · <usuario> · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
+        "17:47 · <usuario> · Refeito: Excluído o ITEM 05",
+        "17:47 · <usuario> · Refeito: Justificativa do ITEM 03 definida",
+        "17:47 · <usuario> · Refeito: Situação do ITEM 03: INFORMAÇÕES DIVERGENTES → ATENDE"
       ],
       "linhas_do_historico": "13 na tela, 13 no histórico",
       "item_05_excluido_de_novo": true,
@@ -511,6 +538,8 @@
       "alteracoes_reabertas": true,
       "registros_no_pacote": 13,
       "desfeitos_e_refeitos_com_ref": true,
+      "recusou_citacoes_ao_item_excluido": true,
+      "indicacoes_corrigidas": 3,
       "paginas_do_pdf": 21,
       "folhas_na_tela": 21,
       "ok": true
@@ -536,7 +565,7 @@
       "marcas_alternam": true,
       "marcas_na_chave_dos_ajustes": true,
       "propriedades_recolhe": true,
-      "aceleradores_de_teclado": 34,
+      "aceleradores_de_teclado": 35,
       "atalhos_sem_manipulador": [],
       "comandos_sem_manipulador": [],
       "ctrl_3_da_pagina_leva_a_processos": true,
@@ -545,13 +574,13 @@
     },
     "19_latencia": {
       "medidas_ms": [
-        602,
-        618,
-        626,
-        597,
-        729
+        718,
+        693,
+        742,
+        723,
+        695
       ],
-      "latencia_ms": 618,
+      "latencia_ms": 718,
       "meta_ms": 1500,
       "dentro_da_meta": true,
       "ok": true
@@ -571,8 +600,8 @@
     "21_autosave": {
       "estado_depois_do_comando": "Não salvo",
       "diario_tem_o_registro": true,
-      "salvo_sozinho_em_s": 15.1,
-      "estado_de_gravacao": "Salvo 19:58",
+      "salvo_sozinho_em_s": 15,
+      "estado_de_gravacao": "Salvo 17:48",
       "pacote_tem_o_registro": true,
       "linhas_do_diario": 1,
       "diario_so_com_o_cabecalho_do_sha_novo": true,
@@ -588,7 +617,7 @@
       "sem_tmp_deixado": true,
       "diario_tem_o_registro": true,
       "solto_grava": true,
-      "estado_de_gravacao": "Salvo 19:58",
+      "estado_de_gravacao": "Salvo 17:48",
       "pacote_tem_o_registro": true,
       "ok": true
     },
@@ -607,12 +636,12 @@
     "24_trava_e_somente_leitura": {
       "trava_solta_ao_fechar": true,
       "estado_de_gravacao": "Somente leitura",
-      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 19:48: somente leitura.",
+      "aviso": "Aberto por outro.usuario em OUTRA-MAQUINA desde 17:38: somente leitura.",
       "excluir_habilitado": false,
       "salvar_habilitado": false,
       "nada_mudou": true,
       "trava_do_outro_intacta": true,
-      "estado_com_trava_abandonada": "Salvo 19:58",
+      "estado_com_trava_abandonada": "Salvo 17:48",
       "excluir_habilitado_editavel": true,
       "trava_retomada_por_este_app": true,
       "trava_perdida_vira_somente_leitura": true,
@@ -629,17 +658,17 @@
       "disco_com_os_bytes_do_outro": true,
       "exportar_recusa": true,
       "erro_ao_exportar": "O arquivo mudou no disco e as alterações desta sessão não estão nele: o PDF não corresponderia ao pacote do recibo. Use Salvar como cópia e exporte depois.",
-      "copia": "curto-auto (cópia 2026-11-18 19-58).rpmvni",
+      "copia": "curto-auto (cópia 2026-11-21 17-48).rpmvni",
       "copia_tem_as_alteracoes": true,
       "original_continua_o_do_outro": true,
-      "estado_depois_da_copia": "Salvo 19:58",
+      "estado_depois_da_copia": "Salvo 17:48",
       "trava_passou_para_a_copia": true,
       "recarregou": true,
       "requerente_depois_de_recarregar": "OUTRO PROGRAMA DE NOVO",
       "orfao_guardado": true,
       "pergunta_ao_fechar_em_conflito": "fechar sem gravar (conflito): o arquivo mudou no disco depois de aberto",
       "texto_ao_fechar_em_conflito": "Não foi possível gravar as alterações no arquivo: o arquivo mudou no disco depois de aberto. Salvar como cópia grava as suas alterações ao lado, sem mexer no arquivo. Se fechar sem salvar, elas ficam guardadas na pasta de recuperação dos dados do app, mas não serão oferecidas de novo ao abrir o arquivo (ele agora é outra versão).",
-      "copia_ao_fechar": "curto-auto (cópia 2026-11-18 19-58) (cópia 2026-11-18 19-58).rpmvni",
+      "copia_ao_fechar": "curto-auto (cópia 2026-11-21 17-48) (cópia 2026-11-21 17-48).rpmvni",
       "fechar_em_conflito_salva_copia": true,
       "ok": true
     },
@@ -649,7 +678,7 @@
       "titulo_pesquisado": "Item de teste 011: fachada porta existente",
       "total_do_titulo": 1,
       "resultado_do_titulo": "1 de 1",
-      "ref_do_titulo": "it_01M7RE1JMHHFQRBMKXPF24C9NQ",
+      "ref_do_titulo": "it_01M7ZXSC6RCC9BNBYGF5X65V50",
       "rolou_para_o_item_10": true,
       "total_verificacao": 60,
       "contador_independente": 60,
@@ -685,7 +714,7 @@
         "categoria": "relatorios",
         "no_trilho": true,
         "visivel_com_a_faixa_dos_ajustes": true,
-        "versoes": "Versão do app: 1.2.2\r\nModelo do relatório: rev10\r\nWebView2: 157.0.4341.60\r\nPDF.js 6.4.299 (Apache-2.0)\r\nCompilação: local · 18/11/2026 19:58:23\r\nExecutável: .\\src\\Pmvni.App\\bin\\Release\\net10.0-windows10.0.19041.0\\win-x64\\Pmvni.App.exe\r\nDados: <dados>\r\nProcesso: CPU total 47,1s · memória privada 421 MB · working set 538 MB\r\n\r\n— Sistema\r\n  Windows: Microsoft Windows 10.0.26340 (X64)\r\n  Runtime: .NET 10.0.15 · X64\r\n\r\n— Pastas e fontes de dados\r\n  Processos: .\\tests\\saida\\roteiro\\processos\r\n  Kit PMVNI: (padrão)\r\n  Base QGIS: (não escolhida)\r\n  Planilha de acompanhamento: (não escolhida)\r\n  LibreOffice: (automático)",
+        "versoes": "Versão do app: 3.0.0\r\nModelo do relatório: rev10\r\nWebView2: 157.0.4341.60\r\nPDF.js 6.4.299 (Apache-2.0)\r\nCompilação: local · 21/11/2026 17:48:16\r\nExecutável: .\\tests\\saida\\publicacao-roteiro\\Pmvni.App.exe\r\nDados: <dados>\r\nProcesso: CPU total 36,7s · memória privada 491 MB · working set 609 MB\r\n\r\n— Sistema\r\n  Windows: Microsoft Windows 10.0.26340 (X64)\r\n  Runtime: .NET 10.0.15 · X64\r\n\r\n— Pastas e fontes de dados\r\n  Processos: .\\tests\\saida\\roteiro\\processos\r\n  Kit PMVNI: (padrão)\r\n  Base QGIS: (não escolhida)\r\n  Planilha de acompanhamento: (não escolhida)\r\n  LibreOffice: (automático)",
         "pasta_de_recuperacao": "<dados>\\recuperacao",
         "intervalo_guardado": true
       },
@@ -718,7 +747,7 @@
         "recentes-b.rpmvni  ·  roteiro",
         "recentes-a.rpmvni  ·  roteiro",
         "longo.rpmvni  ·  roteiro",
-        "curto-auto (cópia 2026-11-18 19-58) (cópia 2026-11-18 19-58).rpmvni  ·  roteiro"
+        "curto-auto (cópia 2026-11-21 17-48) (cópia 2026-11-21 17-48).rpmvni  ·  roteiro"
       ],
       "os_dois_no_topo_mais_recente_primeiro": true,
       "menu_habilitado": true,
@@ -729,19 +758,20 @@
       "depois_de_apagar_o_b": [
         "recentes-a.rpmvni",
         "longo.rpmvni",
-        "curto-auto (cópia 2026-11-18 19-58) (cópia 2026-11-18 19-58).rpmvni"
+        "curto-auto (cópia 2026-11-21 17-48) (cópia 2026-11-21 17-48).rpmvni"
       ],
       "aviso_de_arquivo_ausente": true,
-      "recentes_guardados": 10,
+      "recentes_guardados": 9,
       "ok": true
     },
     "29_comparar_com_o_original": {
-      "texto_mostrado": "2 itens alterados em relação ao original recebido:\n\nITEM 03\n  Situação: INFORMAÇÕES DIVERGENTES → ATENDE\n  Justificativa: Conferido na planta de implantação pelo roteiro.\n  Verificação técnica:\n    Original: Calçada conferida aproveitamento legenda corte exigência alvará iluminação. Parágrafo alvará taxa alvará parâmetro mínimo área escada corrigir confere terreno afastamento medida. Indicar laje permeável cobertura edificação cotar soma garagem escala fachada.\n    Revisado: Verificação refeita pelo roteiro: cota & recuo <conferidos> \"na planta\".\n\nItem excluído (era o 05)\n  Excluído do relatório (não sai no PDF).\n\nCitações convertidas na importação (0):\n  Nenhuma.",
+      "texto_mostrado": "2 itens alterados em relação ao original recebido:\n\nITEM 03\n  Situação: INFORMAÇÕES DIVERGENTES → ATENDE\n  Justificativa: Conferido na planta de implantação pelo roteiro.\n  Verificação técnica:\n    Original: Calçada conferida aproveitamento legenda corte exigência alvará iluminação. Parágrafo alvará taxa alvará parâmetro mínimo área escada corrigir confere terreno afastamento medida. Indicar laje permeável cobertura edificação cotar soma garagem escala fachada.\n    Revisado: Verificação refeita pelo roteiro: cota & recuo <conferidos> \"na planta\".\n\nItem excluído (era o 05)\n  Excluído do relatório (não sai no PDF).\n\nCitações convertidas na importação (0):\n  Nenhuma.\n\nFiguras alteradas:\nFigura 3 — Vista 3: vaga quadro legenda\n  Marcação 3 (Complementar corte muro mínimo iluminação vão parágrafo escada): itens «item 05» → «»\nFigura 4 — Vista 4: existente mínimo corrigir\n  Marcação 2 (Mínimo vaga escala legenda circulação ventilação alvará prancha): itens «item 05» → «»\nFigura 5 — Vista 5: muro cálculo alvará\n  Marcação 1 (Taxa planta cálculo taxa taxa testada): itens «item 05» → «»",
       "titulo_do_dialogo": "Comparar com o original",
       "itens_alterados": [
         "ITEM 03",
         "Item excluído (era o 05)"
       ],
+      "figuras_com_citacoes_corrigidas": true,
       "longo_confere_os_textos_exatos": true,
       "texto_com_citacoes": "Nenhum item foi alterado em relação ao original recebido.\n\nCitações convertidas na importação (2):\n  ITEM 03 · Verificação técnica: «item 02» → ITEM 02\n  ITEM 03 · Verificação técnica: «ITEM 01» → ITEM 01",
       "citacoes_em_secao_propria": true,
@@ -756,7 +786,12 @@
       "desfazer_volta_ao_kit": true,
       "erros": [],
       "ok": true,
-      "recorte_abriu": true
+      "recorte_abriu": true,
+      "recorte_inserido": true,
+      "resolucao_real_200_dpi": true,
+      "erro_ao_exportar_recorte": null,
+      "recorte_reaberto_com_texto_legenda_e_regiao_movida": true,
+      "aprovacao_navegacao_zoom_carimbo_confirmado": true
     },
     "31_processos": {
       "processos_na_ordem": [
@@ -1042,8 +1077,8 @@
       "arquivos_antes": 12,
       "arquivos_depois": 14,
       "novos": [
-        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2026-11-18\\Relatorio_0001_2099.rpmvni",
-        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2026-11-18\\Relatorio_0001_2099_2.rpmvni"
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2026-11-21\\Relatorio_0001_2099.rpmvni",
+        "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2026-11-21\\Relatorio_0001_2099_2.rpmvni"
       ],
       "sumiram": [],
       "mudaram": [],
@@ -1087,6 +1122,19 @@
         "tres_arquivos_validados": true,
         "lista_com_o_novo": true,
         "abrir_pdf": true
+      },
+      "ok": true
+    },
+    "36b_correcao_sem_ia": {
+      "exigencias": [
+        "ITEM 02: Apresentar Declarada informar cotar afastamento licença recuo vão parágrafo coeficiente laje. Garagem pavimento corrigir edificação parágrafo fachada mínimo recuo proposta.",
+        "ITEM 03: Apresentar Legenda lote taxa edificação pavimento área ventilação ventilação existente terreno proposta. Memorial apresentada beiral laje ambiente carimbo cobertura declarada janela cálculo garagem zona vão."
+      ],
+      "aviso": "Exigências montadas sem IA · 2 exigências do relatório: 1 NÃO ATENDE e 1 FALTA COMPROVAR. Entram como estão no relatório, montadas pelo editor sem IA. Para reescrever, digite uma instrução na caixa acima da prévia ou use «Ajustar com IA» no texto de uma exigência.",
+      "conferencias": {
+        "exigencias_do_relatorio": true,
+        "aviso_sem_ia": true,
+        "nenhuma_ia_chamada": true
       },
       "ok": true
     },
@@ -1160,7 +1208,7 @@
       ],
       "bloqueio_a": "ITEM 02: a situação mudou de FALTA COMPROVAR para ATENDE sem justificativa",
       "bloqueio_b": "O processo da capa (9001/2026) não é o da pasta (0001/2099). Confira se o relatório é deste processo.",
-      "dica_c": "Kit PMVNI não encontrado em .\\tests\\saida\\roteiro\\kit-vazio. Escolha a pasta do kit em Ajustes.",
+      "dica_c": "Os modelos de despacho não foram encontrados: a pasta do kit (.\\tests\\saida\\roteiro\\kit-vazio) não tem os modelos de despacho, e o plugin analise instalado não traz os modelos. Atualize o kit PMVNI (rode o INSTALAR_KIT_PMVNI.cmd com a opção atualizar) ou escolha a pasta do kit em Ajustes, e abra o Novo despacho de novo.",
       "novos": [
         "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.docx",
         "2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\DESPACHO 03 - 2099-03-10\\Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.pdf",
@@ -1188,6 +1236,28 @@
         "c_kit_vazio": true,
         "e_descartar_pergunta": true,
         "d_copia_e_kit": true
+      },
+      "ok": true
+    },
+    "40b_despacho_sem_plugin": {
+      "ajustes_a": "Correção: disponível\r\nAprovação: disponível\r\nModelos lidos de: plugin analise instalado (versão 4.0.0)",
+      "preparacao_erros": [],
+      "paginas": 2,
+      "programas_iniciados": [
+        "C:\\Program Files\\LibreOffice\\program\\soffice.com"
+      ],
+      "ajustes_b": "Correção: disponível\r\nAprovação: disponível\r\nModelos lidos de: plugin despacho antigo instalado (versão 2.3.0); atualize o kit PMVNI",
+      "ajustes_c": "Correção: Os modelos de despacho não foram encontrados: a pasta do kit (.\\tests\\saida\\roteiro\\kit-vazio-40b) não tem os modelos de despacho, e o plugin analise instalado não traz os modelos. Atualize o kit PMVNI (rode o INSTALAR_KIT_PMVNI.cmd com a opção atualizar) ou escolha a pasta do kit em Ajustes, e abra o Novo despacho de novo.\r\nAprovação: Os modelos de despacho não foram encontrados: a pasta do kit (.\\tests\\saida\\roteiro\\kit-vazio-40b) não tem os modelos de despacho, e o plugin analise instalado não traz os modelos. Atualize o kit PMVNI (rode o INSTALAR_KIT_PMVNI.cmd com a opção atualizar) ou escolha a pasta do kit em Ajustes, e abra o Novo despacho de novo.",
+      "conferencias": {
+        "a_disponivel_pelo_analise": true,
+        "a_rascunho_em_codigo": true,
+        "a_docx_do_modelo": true,
+        "a_sem_ia": true,
+        "a_descartado": true,
+        "b_kit_antigo": true,
+        "c_atualize_o_kit": true,
+        "kit_real_de_volta": true,
+        "copia_igual": true
       },
       "ok": true
     },
@@ -1226,10 +1296,11 @@
     },
     "44_libreoffice_perfil_persistente": {
       "tempos_das_conversoes_ms": [
-        4296,
-        2030,
-        1865,
-        2027
+        4282,
+        1611,
+        1618,
+        1587,
+        1625
       ],
       "perfil_existe": true,
       "perfil_inicializado": true,
@@ -1264,17 +1335,16 @@
     },
     "49_ajustes_ia": {
       "secao_e_texto": true,
-      "dois_cartoes": true,
+      "tres_cartoes": true,
       "contas_locais": true,
       "plugins_do_kit": true,
-      "situacao_sozinha": "Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 2.4.0 habilitado",
+      "situacao_sozinha": "Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 4.0.0 habilitado",
       "so_o_agente_falso": true,
       "trava_de_programas": true,
-      "linha_chatgpt": "Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 2.4.0 habilitado",
-      "linha_claude": "Claude Code 2.9.0 · conectado com a conta do Claude · análise pro 1.6.1 (kit: 1.6.6) · Python 3.14.0",
-      "avisos_claude": [
-        "O kit tem o análise pro 1.6.6; instalado 1.6.1. Atualize pelo INSTALAR_KIT_PMVNI.cmd."
-      ],
+      "trava_do_catalogo_claude": true,
+      "linha_chatgpt": "Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 4.0.0 habilitado",
+      "linha_claude": "Claude Code 2.9.0 · conectado com a conta do Claude · Análise — rota Claude 4.0.0 (kit: 4.0.0) · Python 3.14.0",
+      "avisos_claude": [],
       "testar": true,
       "claude_so_conta": true,
       "programa_invalido_recusado": true,
@@ -1304,8 +1374,8 @@
       "aviso_no_teste": true,
       "cancelar_mantem": true,
       "remover_apaga": true,
-      "arquivos_varridos": 1147,
-      "arquivos_trancados_pulados": 21,
+      "arquivos_varridos": 360,
+      "arquivos_trancados_pulados": 10,
       "chave_em_arquivos": 0,
       "voltou_para_a_conta": true,
       "ok": true
@@ -1342,11 +1412,8 @@
       "fim": "concluida",
       "titulo_durante": "Analisando com o ChatGPT · 0001/2099 · 0 s",
       "linhas": [
-        "Mensagem: Lendo o processo",
-        "Ação: executando a etapa conferir",
-        "Ação: gravou 2 arquivos de trabalho",
-        "texto solto do agente",
-        "Mensagem: Relatório pronto"
+        "Rota do Codex: OpenAI direto (configuração do Codex neste PC (.\\tests\\saida\\roteiro\\codex-home\\config.toml))",
+        "texto solto do agente"
       ],
       "anexos_copiados": true,
       "registro": true,
@@ -1366,8 +1433,8 @@
     "53_novo_relatorio_chatgpt_chave": {
       "conta_sem_chave_herdada": true,
       "chave_entregue_so_ao_agente": true,
-      "arquivos_varridos": 4983,
-      "arquivos_trancados_pulados": 21,
+      "arquivos_varridos": 2955,
+      "arquivos_trancados_pulados": 10,
       "chave_em_arquivos": 0,
       "motivo_sem_chave": "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.",
       "ok": true
@@ -1382,14 +1449,14 @@
         "audit",
         "final_review"
       ],
-      "situacao_chamadas": 13,
+      "situacao_chamadas": 14,
       "infobar": "Relatório da análise com o Claude importado: Relatorio_0001_2099_5.rpmvni. O PDF do kit continua em .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\analise-pro\\relatorio.pdf.",
       "objecoes": "parou com objeções da revisão final: A revisão final apontou objeções ao relatório.",
       "continuar_da_outra_partida": true,
       "ok": true
     },
     "54b_novo_relatorio_gemini": {
-      "rotulo_do_botao": "Pelo Antigravity · kit análise Google v1.0.0",
+      "rotulo_do_botao": "Pelo Antigravity · Análise — rota Gemini v4.0.0",
       "fim": "concluida",
       "etapas_vistas": [
         "prepare",
@@ -1400,6 +1467,7 @@
         "final_review"
       ],
       "infobar": "Relatório da análise com o Gemini importado: Relatorio_0001_2099_6.rpmvni. O PDF do kit continua em .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\analise-google\\relatorio.pdf.",
+      "etapas_sem_halo": true,
       "api_gratuita": "concluida",
       "pausa": "pausada: cota do Claude esgotada: Cota da conta Google esgotada na etapa audit.",
       "retomada": "concluida",
@@ -1427,7 +1495,7 @@
       "segue_em_segundo_plano": true,
       "motivo_no_0001": "Já há uma análise em andamento neste processo.",
       "segunda_checagem_so_novas": true,
-      "cancelar_ms": 76,
+      "cancelar_ms": 89,
       "chatgpt_cancelado": true,
       "fechar_com_claude": {
         "pode_fechar": true,
@@ -1439,7 +1507,7 @@
       "claude_cancelado": "interrompida: interrompida (processo encerrado): O processo da análise foi encerrado antes de concluir. Rodar iniciar de novo continua de onde parou.",
       "registro_fora_do_editor_descartado": true,
       "retomada_diagnostico_antes": {
-        "status_do_kit": "{\"case\":\"C:\\\\Users\\\\<usuario>\\\\OneDrive\\\\Aplicativos IA\\\\Editor de Relatorios PMVNI\\\\tests\\\\saida\\\\roteiro\\\\processos-agentes\\\\2099\\\\0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)\",\"situacao\":\"CONCLUIDO\",\"pid\":55740,\"inicio\":\"2026-11-18T19:59:54\",\"eventos\":[{\"quando\":\"2026-11-18T19:59:54\",\"texto\":\"Partida pedida pela conversa\"},{\"quando\":\"2026-11-18T19:59:54\",\"texto\":\"Etapa prepare\"},{\"quando\":\"2026-11-18T19:59:56\",\"texto\":\"Etapa analyze\"},{\"quando\":\"2026-11-18T19:59:58\",\"texto\":\"Etapa technical_audit\"},{\"quando\":\"2026-11-18T19:59:59\",\"texto\":\"Etapa produce\"},{\"quando\":\"2026-11-18T20:00:01\",\"texto\":\"Etapa audit\"},{\"quando\":\"2026-11-18T20:00:02\",\"texto\":\"Etapa final_review\"}],\"atualizado_em\":\"2026-11-18T20:00:04\",\"etapa\":\"final_review\",\"pdf\":\"C:\\\\Users\\\\<usuario>\\\\OneDrive\\\\Aplicativos IA\\\\Editor de Relatorios PMVNI\\\\tests\\\\saida\\\\roteiro\\\\processos-agentes\\\\2099\\\\0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)\\\\.pmvni-ai\\\\analise-pro\\\\relatorio.pdf\",\"fim\":\"2026-11-18T20:00:04\"}",
+        "status_do_kit": "{\"case\":\"C:\\\\Users\\\\<usuario>\\\\OneDrive\\\\Aplicativos IA\\\\Editor de Relatorios PMVNI\\\\tests\\\\saida\\\\roteiro\\\\processos-agentes\\\\2099\\\\0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)\",\"situacao\":\"CONCLUIDO\",\"pid\":52980,\"inicio\":\"2026-11-21T17:49:44\",\"eventos\":[{\"quando\":\"2026-11-21T17:49:44\",\"texto\":\"Partida pedida pela conversa\"},{\"quando\":\"2026-11-21T17:49:45\",\"texto\":\"Etapa prepare\"},{\"quando\":\"2026-11-21T17:49:46\",\"texto\":\"Etapa analyze\"},{\"quando\":\"2026-11-21T17:49:48\",\"texto\":\"Etapa technical_audit\"},{\"quando\":\"2026-11-21T17:49:49\",\"texto\":\"Etapa produce\"},{\"quando\":\"2026-11-21T17:49:51\",\"texto\":\"Etapa audit\"},{\"quando\":\"2026-11-21T17:49:52\",\"texto\":\"Etapa final_review\"}],\"atualizado_em\":\"2026-11-21T17:49:54\",\"etapa\":\"final_review\",\"pdf\":\"C:\\\\Users\\\\<usuario>\\\\OneDrive\\\\Aplicativos IA\\\\Editor de Relatorios PMVNI\\\\tests\\\\saida\\\\roteiro\\\\processos-agentes\\\\2099\\\\0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)\\\\.pmvni-ai\\\\analise-pro\\\\relatorio.pdf\",\"fim\":\"2026-11-21T17:49:54\"}",
         "pendentes_nos_ajustes": 1,
         "em_curso": 0,
         "situacao_vista": "EM_ANDAMENTO",
@@ -1463,14 +1531,14 @@
     },
     "56_novo_relatorio_falhas": {
       "resultados": {
-        "sem_resultado": "sem_resultado: A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\editor\\2026-11-18_200005-chatgpt.",
-        "falha": "falhou: O Codex terminou com o código 2. Veja o registro: .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\editor\\2026-11-18_200005-chatgpt_2.",
+        "sem_resultado": "sem_resultado: A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\editor\\2026-11-21_174954-chatgpt.",
+        "falha": "falhou: O controlador do analise parou na etapa Revisão final: falhou de propósito. Veja o registro: .\\tests\\saida\\roteiro\\processos-agentes\\2099\\0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)\\.pmvni-ai\\editor\\2026-11-21_174955-chatgpt.",
         "json_invalido": "sem_resultado: O delivery.json da análise não pôde ser lido: 'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 2.",
         "fora_do_processo": "sem_resultado: O relatório indicado pela análise está fora da pasta do processo: .\\tests\\corpus\\agentes\\relatorio_dados_0001.json."
       },
       "codex_ausente": true,
       "aviso_recusado_nada_feito": true,
-      "arquivos_novos": 125,
+      "arquivos_novos": 135,
       "novos_fora_do_permitido": [],
       "existentes_alterados": [],
       "anexos_originais_intactos": true,
@@ -1480,8 +1548,8 @@
     "57_legislacao_anexar_dois": {
       "resumo": "2 PDFs anexados.",
       "linhas": [
-        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 18/11/2026 20:00 | ",
-        "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 18/11/2026 20:00 | "
+        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 21/11/2026 17:49 | ",
+        "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 21/11/2026 17:49 | "
       ],
       "total": "2 leis anexadas · 4 KB",
       "pasta_de_dados": [
@@ -1499,9 +1567,9 @@
       },
       "resumo": "1 PDF anexado (1 já estava anexado e foi ignorado); 3 recusados:\n“NAO-E-PDF - FICTICIA.pdf” não é um arquivo PDF.\n“SENHA - FICTICIA.pdf” está protegido por senha e não pode ser aberto pelo editor. Anexe uma cópia sem senha.\n“CORROMPIDO - FICTICIA.pdf” não pôde ser lido como PDF (arquivo danificado ou incompleto).",
       "linhas": [
-        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 18/11/2026 20:00 | ",
-        "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 18/11/2026 20:00 | ",
-        "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 18/11/2026 20:00 | Sem texto pesquisável"
+        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 21/11/2026 17:49 | ",
+        "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 21/11/2026 17:49 | ",
+        "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 21/11/2026 17:49 | Sem texto pesquisável"
       ],
       "originais_intactos": true,
       "ok": true
@@ -1518,10 +1586,10 @@
       "anexar_de_novo": {
         "resumo": "2 PDFs anexados.",
         "linhas": [
-          "LEI 99.999-2099 - FICTICIA | Federal | LEI 99.999-2099 - FICTICIA.pdf · 1 KB · 1 página · anexado em 18/11/2026 20:00 | ",
-          "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 18/11/2026 20:00 | ",
-          "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 18/11/2026 20:00 | ",
-          "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 18/11/2026 20:00 | Sem texto pesquisável"
+          "LEI 99.999-2099 - FICTICIA | Federal | LEI 99.999-2099 - FICTICIA.pdf · 1 KB · 1 página · anexado em 21/11/2026 17:49 | ",
+          "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 21/11/2026 17:49 | ",
+          "LEI 9.999-2099 - FICTICIA | Municipal | LEI 9.999-2099 - FICTICIA.pdf · 3 KB · 3 páginas · anexado em 21/11/2026 17:49 | ",
+          "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 21/11/2026 17:49 | Sem texto pesquisável"
         ],
         "pesquisa": 4
       },
@@ -1532,14 +1600,14 @@
     "60_legislacao_editar_e_substituir": {
       "substituir": {
         "recusa": null,
-        "linha": "Lei nº 9.999/2099 (fictícia) | LEI 9.999-2099 - FICTICIA (VERSAO 2).pdf · 3 KB · 4 páginas · anexado em 18/11/2026 20:00",
+        "linha": "Lei nº 9.999/2099 (fictícia) | LEI 9.999-2099 - FICTICIA (VERSAO 2).pdf · 3 KB · 4 páginas · anexado em 21/11/2026 17:49",
         "versao_2": 1
       },
       "linhas": [
-        "LEI 99.999-2099 - FICTICIA | Federal | LEI 99.999-2099 - FICTICIA.pdf · 1 KB · 1 página · anexado em 18/11/2026 20:00 | ",
-        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 18/11/2026 20:00 | ",
-        "Lei nº 9.999/2099 (fictícia) | Municipal | LEI 9.999-2099 - FICTICIA (VERSAO 2).pdf · 3 KB · 4 páginas · anexado em 18/11/2026 20:00 | ",
-        "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 18/11/2026 20:00 | Sem texto pesquisável"
+        "LEI 99.999-2099 - FICTICIA | Federal | LEI 99.999-2099 - FICTICIA.pdf · 1 KB · 1 página · anexado em 21/11/2026 17:49 | ",
+        "NT 99-2099 - FICTICIA | Estadual | NT 99-2099 - FICTICIA.pdf · 2 KB · 2 páginas · anexado em 21/11/2026 17:49 | ",
+        "Lei nº 9.999/2099 (fictícia) | Municipal | LEI 9.999-2099 - FICTICIA (VERSAO 2).pdf · 3 KB · 4 páginas · anexado em 21/11/2026 17:49 | ",
+        "DIGITALIZADA - FICTICIA | Outras | DIGITALIZADA - FICTICIA.pdf · 1 KB · 1 página · anexado em 21/11/2026 17:49 | Sem texto pesquisável"
       ],
       "originais_intactos": true,
       "ok": true
@@ -1564,8 +1632,8 @@
         "Outras: DIGITALIZADA - FICTICIA"
       ],
       "url": "https://leg.pmvni.invalid/leitor.html",
-      "rodape_ao_abrir": "Página 1 de 4 · 135%",
-      "rodape_depois_do_atalho": "Página 3 de 4 · 135%",
+      "rodape_ao_abrir": "Página 1 de 4 · 145%",
+      "rodape_depois_do_atalho": "Página 3 de 4 · 145%",
       "marcadores": [
         "Art. 1º",
         "Art. 2º",
@@ -1576,8 +1644,8 @@
       "escalas": {
         "mais": "Página 3 de 4 · 70%",
         "menos": "Página 3 de 4 · 60%",
-        "pagina": "Página 3 de 4 · 63%",
-        "largura": "Página 3 de 4 · 135%"
+        "pagina": "Página 3 de 4 · 58%",
+        "largura": "Página 3 de 4 · 145%"
       },
       "bloqueadas": 0,
       "csp": 0,
@@ -1615,7 +1683,7 @@
         "Lei nº 9.999/2099 (fictícia): p. 1 — LEI Nº 9.999, DE 1º DE JANEIRO DE 2099 (FICTÍCIA) Art. 1º Esta Lei fictícia trata do afastamento frontal das edificações. | p. 2 — Art. 2º O afastamento frontal mínimo é de 3,00 m. Art. 3º A taxa de ocupação máxima é de 60%. | p. 3 — ANEXO I – QUADRO FICTÍCIO Zona ZR1: afastamento de 3,00 m e taxa de ocupação de 60%."
       ],
       "depois_de_clicar": {
-        "rodape": "Página 3 de 4 · 135%",
+        "rodape": "Página 3 de 4 · 145%",
         "contador": "3 de 3",
         "dica": "Pesquisar nesta lei"
       },
@@ -1688,12 +1756,12 @@
         "tem_texto": true,
         "selecionou": true,
         "copiar_citacao_habilitado": true,
-        "estado": "lei_aberta=lg_dc6fb42d36224196998235fc0dcbf2b2 leitor=True selecao=True texto=True todas=False modulo=Legislacao aviso=False:Excluído progresso=Collapsed"
+        "estado": "lei_aberta=lg_72eeb604a88146eeb13a97237dde20b0 leitor=True selecao=True texto=True todas=False modulo=Legislacao aviso=False:Excluído progresso=Collapsed"
       },
       "execucao": "concluida",
       "chaves_procuradas": 3,
-      "arquivos_varridos": 5076,
-      "arquivos_trancados_pulados": 21,
+      "arquivos_varridos": 3111,
+      "arquivos_trancados_pulados": 10,
       "chave_em_arquivos": 0,
       "gravados_fora_de_tests_saida": [],
       "conferencias": {
@@ -1706,7 +1774,7 @@
         "exportou_pdf": true,
         "pesquisa": true,
         "tema": true,
-        "recentes_no_topo": true,
+        "analise_recente_no_topo": true,
         "comparar_duas_alteracoes": true,
         "origem_pre_escolhida": true,
         "exigencias_do_estado_atual": true,
@@ -1815,9 +1883,9 @@
         "chegou": true
       },
       "alturas": {
-        "indicador": 692,
-        "faixas": 641.3333129882812,
-        "de_volta": 692
+        "indicador": 697.3333129882812,
+        "faixas": 634.6666870117188,
+        "de_volta": 697.3333129882812
       },
       "informativo_fecha_sozinho": true,
       "area_de_avisos": {
@@ -1872,9 +1940,9 @@
     "68_nomes_acessiveis_das_listas": {
       "etiquetas": [
         "Situação: NÃO ATENDE. Mudar a situação",
-        "Situação: NÃO ATENDE. Mudar a situação",
         "Situação: FALTA COMPROVAR. Mudar a situação",
-        "Situação: FALTA COMPROVAR. Mudar a situação"
+        "Situação: ATENDE. Mudar a situação",
+        "Situação: ATENDE. Mudar a situação"
       ],
       "etiqueta_muda_a_situacao": true,
       "etiqueta_desfaz": true,
@@ -1912,7 +1980,7 @@
       "ok": true
     },
     "68b_dicas_dos_botoes": {
-      "botoes_conferidos": 226,
+      "botoes_conferidos": 227,
       "sem_dica": [],
       "abrir_com_titulo_e_atalho": true,
       "ok": true
@@ -2022,6 +2090,131 @@
       ],
       "comandos_sem_manipulador": [],
       "ok": true
+    },
+    "progresso_visivel_das_seis_etapas": {
+      "ordem_do_kit": [
+        "prepare",
+        "analyze",
+        "technical_audit",
+        "audit",
+        "produce",
+        "final_review"
+      ],
+      "etapas_de_programa": [
+        "prepare",
+        "produce"
+      ],
+      "percentuais": [
+        0,
+        33.333333333333336,
+        33.333333333333336,
+        48.6,
+        100
+      ],
+      "conferencias": {
+        "pela_contagem": true,
+        "rotulo_dos_itens": true,
+        "rotulo_da_estimativa": true
+      },
+      "ok": true
+    },
+    "escolha_de_pecas_ambiguas": {
+      "partes": {
+        "caminho": true,
+        "abriu": true,
+        "tela": true
+      },
+      "ok": true
+    },
+    "historico_das_paginas": {
+      "ok": true
+    },
+    "70_estabilidade_do_cabecalho": {
+      "amostras": [
+        {
+          "largura": 985.3333129882812,
+          "indicador": false,
+          "centro_y": 46,
+          "largura_pesquisa": 140
+        },
+        {
+          "largura": 985.3333129882812,
+          "indicador": true,
+          "centro_y": 46,
+          "largura_pesquisa": 140
+        },
+        {
+          "largura": 1265.3333740234375,
+          "indicador": false,
+          "centro_y": 46,
+          "largura_pesquisa": 140
+        },
+        {
+          "largura": 1265.3333740234375,
+          "indicador": true,
+          "centro_y": 46,
+          "largura_pesquisa": 140
+        },
+        {
+          "largura": 1535.3333740234375,
+          "indicador": false,
+          "centro_y": 46,
+          "largura_pesquisa": 144
+        },
+        {
+          "largura": 1535.3333740234375,
+          "indicador": true,
+          "centro_y": 46,
+          "largura_pesquisa": 140
+        }
+      ],
+      "deslocamento_vertical_dip": 0,
+      "recuo_direito_barra_dip": 13.33331298828125,
+      "desalinhamento_lateral_dip": 4.57763671875E-05,
+      "folga_entre_camadas_dip": 7.9999847412109375,
+      "ok": true
+    },
+    "rever_tabela_sem_ia": {
+      "aviso": "Rever · Revisto pelo editor, sem IA: ÍNDICE 01 — Cálculo / descrição: 70,00 ÷ 480,00 × 100 = 51% → 70,00 ÷ 480,00 × 100 = 14,6%; ÍNDICE 02 — No projeto: 80,0% → 80,003%; ÍNDICE 02 — Cálculo / descrição: 240,01 ÷ 300,00 × 100 = 80,0% → 240,01 ÷ 300,00 × 100 = 80,003%; ÍNDICE 02 — Texto da situação: Dentro do limite. → Excede em 0,003%.; ÍNDICE 02 — situação: ATENDE → NÃO ATENDE; ÍNDICE 03 — Cálculo / descrição: 290,00 ÷ 480,00 × 100 = 79% → 290,00 ÷ 480,00 × 100 = 60,4%; ÍNDICE 04 — Cálculo / descrição: 227,00 ÷ 480,00 × 100 = 86% → 227,00 ÷ 480,00 × 100 = 47,3%; ÍNDICE 05 — Cálculo / descrição: 108,00 ÷ 480,00 × 100 = 53% → 108,00 ÷ 480,00 × 100 = 22,5%; e mais 1. Um Desfazer volta tudo.",
+      "rotulos": "Rever (sem IA) / Rever (sem IA) + Rever com a IA",
+      "conferencias": {
+        "rotulo_sem_ia": true,
+        "reviu_com_antes_e_depois": true,
+        "nenhuma_ia_chamada": true,
+        "um_desfazer": true,
+        "instrucao_oferece_ia": true
+      },
+      "ok": true
+    },
+    "plugins_e_ferramentas": {
+      "resultado": "Atualização de todo o kit iniciada fora do Editor (INSTALAR_KIT_PMVNI.cmd atualizar). Quando terminar, clique em Verificar atualizações.",
+      "linhas": [
+        "Análise no Codex: Atualização disponível (Instalada: 4.0.0 · disponível: 4.1.0)",
+        "Análise no Claude Code: Ausente (Instalada: nenhuma · disponível: 4.1.0)",
+        "Servidor de PDF (pmvni-pdf): Em dia (Instalado em 21/11/2026 · igual à versão deste Editor)",
+        "Motor de PDF PyMuPDF: Em dia (Instalada: 2.1 · disponível: 2.1)",
+        "Motor de PDF Docling: Em dia (Instalada: 3.5.0 · disponível: 3.5.0)",
+        "Motor de PDF Blueprint: Em dia (Instalado · versão fixada pelo Editor)",
+        "Motor de PDF FYP: Em dia (Instalado · versão fixada pelo Editor)"
+      ],
+      "conferencias": {
+        "cartao": true,
+        "atualizar_um_so": true,
+        "atualizar_todos": true
+      },
+      "ok": true
+    },
+    "modelos_da_analise": {
+      "texto": "Padrão do kit restaurado: o ajuste deste computador foi apagado.",
+      "conferencias": {
+        "grade": true,
+        "caixas": 24,
+        "troca_pela_caixa": true,
+        "sem_aviso_no_padrao": true,
+        "restaurar": true,
+        "publicar_oculto_fora_do_kit_mestre": true
+      },
+      "ok": true
     }
   },
   "programas_iniciados": {
@@ -2035,8 +2228,9 @@
       ".\\tests\\saida\\agente-falso",
       "C:\\Program Files\\LibreOffice\\program\\soffice.com"
     ],
-    "inicios": 103,
-    "fora_do_agente_falso": 5
+    "inicios": 120,
+    "libreoffice": 6,
+    "fora_do_agente_falso": 0
   },
   "perguntas_feitas": [
     "informar Conferência",
@@ -2048,8 +2242,12 @@
     "informar Comparar com o original",
     "informar Comparar com o original",
     "informar Comparar com o original",
+    "abrir .pdf",
+    "salvar longo.rpmvni",
     "escolher pasta",
+    "confirmar Descartar o despacho em edição?",
     "confirmar Emitir a aprovação?",
+    "confirmar Descartar o despacho em edição?",
     "confirmar Descartar o despacho em edição?",
     "confirmar Descartar o despacho em edição?",
     "confirmar Descartar o despacho em edição?",
@@ -2094,7 +2292,10 @@
     "confirmar Excluir “DIGITALIZADA - FICTICIA”?",
     "abrir vários .pdf",
     "confirmar Excluir “Lei nº 9.999/2099 (fictícia)”?",
-    "confirmar Restaurar os ajustes?"
+    "confirmar Restaurar os ajustes?",
+    "escolher peça Qual versão da peça vale?",
+    "escolher peça Qual versão da peça vale?",
+    "confirmar Restaurar o padrão do kit?"
   ],
   "falhas": [],
   "ok": true
