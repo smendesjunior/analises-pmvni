@@ -261,7 +261,7 @@ internal sealed class JanelaAprovacao : Window
         var nova = new TextBox { Header = "Criar nova observação", AcceptsReturn = true };
         var referencia = new TextBox { Header = "Referência (opcional)" };
         painel.Children.Add(nova); painel.Children.Add(referencia);
-        var dialogo = new ContentDialog { XamlRoot = raiz.XamlRoot, Title = "Adicionar observações", Content = new ScrollViewer { Content = painel, MaxHeight = 520 }, PrimaryButtonText = "Aplicar", CloseButtonText = "Cancelar" };
+        var dialogo = new ContentDialog { XamlRoot = raiz.XamlRoot, Title = "Adicionar observações", Content = new ScrollViewer { Content = painel, MaxHeight = 520 }, PrimaryButtonText = "Aplicar", CloseButtonText = "Cancelar", DefaultButton = ContentDialogButton.Primary };
         if (await dialogo.ShowAsync() != ContentDialogResult.Primary) return;
         escolhidas = itens.Where((_, i) => caixas[i].IsChecked == true).ToList();
         if (!string.IsNullOrWhiteSpace(nova.Text))
