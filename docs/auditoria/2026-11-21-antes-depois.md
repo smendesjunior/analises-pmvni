@@ -1,4 +1,4 @@
-# Uso da IA na análise: antes e depois (Editor 2.3.0 e kit 4.0.0, 21/11/2026)
+# Uso da IA na análise: antes e depois (Editor 3.0.0 e kit 4.0.0, 21/11/2026)
 
 Este documento tem três partes: o que mudou no uso da IA, por etapa (a partir dos relatórios das tarefas 1 a 22); a tabela de
 medição, ainda vazia; e o passo a passo para voltar à versão anterior (kit 3.x e Editor 2.2.0).
@@ -10,7 +10,7 @@ e os relatórios das tarefas guardados em `.superpowers\sdd\2026-11-21-correcoes
 
 ### 1.1. Resumo
 
-| | Antes (Editor 2.2.0, kit 3.0.1 / analise-pro 2.0.1 / analise-google 2.0.1) | Depois (Editor 2.3.0, kit 4.0.0) |
+| | Antes (Editor 2.2.0, kit 3.0.1 / analise-pro 2.0.1 / analise-google 2.0.1) | Depois (Editor 3.0.0, kit 4.0.0) |
 |---|---|---|
 | Sessões de IA por análise (caminho sem correções) | 6 etapas com IA, mais uma sessão "controladora" do Codex só para esperar o script na rota ChatGPT | 4 etapas com IA (analyze, technical_audit, audit, final_review); preparo e produção são do programa; sem controladora |
 | Quem roda o controlador | Na rota ChatGPT, uma IA (sessão Codex) que ficava "olhando" o script | O próprio Editor, como processo filho (`python executar_analise_62.py`), nas três rotas |
@@ -117,7 +117,7 @@ uma aparece para o analista: cota esgotada na analyze, troca de arquivo depois d
 
 ## 3. Como voltar
 
-Voltar tem duas metades que andam juntas, porque o Editor 2.3.0 só funciona com o kit 4.0.0 e o Editor 2.2.0 só funciona com o kit 3.x
+Voltar tem duas metades que andam juntas, porque o Editor 3.0.0 só funciona com o kit 4.0.0 e o Editor 2.2.0 só funciona com o kit 3.x
 (analise 3.x, analise-pro e analise-google). Se só uma metade voltar, os botões de análise do Editor ficam desabilitados.
 Faça os passos fora do pacote do app Claude (arquivo `.cmd` aberto pelo `explorer.exe`).
 
@@ -175,15 +175,15 @@ Passo a passo:
    Alternativa sem compilar: baixe o `EditorRelatoriosPMVNI.exe` da Release `build-20261119164841` (o instalador `tools\instalar.cmd` só baixa a Release mais recente).
 3. Feche o Editor. Troque o executável da cópia de uso, `%LOCALAPPDATA%\Programs\Analise de Projetos PMVNI\Editor de Relatorios PMVNI.exe`, pelo da 2.2.0.
    Os atalhos e a associação de `.rpmvni` continuam valendo.
-4. **Atualização automática.** A cada 15 minutos o Editor instala a compilação mais nova publicada no GitHub. Enquanto a Release 2.3.0 for a mais
-   recente, o Editor volta sozinho para a 2.3.0. Há duas saídas: (a) republicar a 2.2.0 como compilação nova, a partir da etiqueta, com
+4. **Atualização automática.** A cada 15 minutos o Editor instala a compilação mais nova publicada no GitHub. Enquanto a Release 3.0.0 for a mais
+   recente, o Editor volta sozinho para a 3.0.0. Há duas saídas: (a) republicar a 2.2.0 como compilação nova, a partir da etiqueta, com
    `tools\build-release.ps1` na pasta de trabalho do passo 2 (o carimbo da compilação é a data da build, então ela passa a ser a mais recente);
-   (b) apagar ou despublicar a Release 2.3.0 no GitHub, o que a retira da lista, e o `releases/latest` volta para a 2.2.0. Qualquer das duas
+   (b) apagar ou despublicar a Release 3.0.0 no GitHub, o que a retira da lista, e o `releases/latest` volta para a 2.2.0. Qualquer das duas
    publica algo no GitHub e depende de decisão do dono do projeto.
 5. Dados: o `ajustes.json` e as pastas de dados são compatíveis nos dois sentidos. O ajuste local de Modelos da análise
    (`%LOCALAPPDATA%\EditorRelatoriosPMVNI\modelos-por-rota.local.json`) é ignorado pela 2.2.0 e pode ficar. Análises em andamento da 2.3.0 devem ser recomeçadas na 2.2.0.
 6. Com o kit 3.x e o Editor 2.2.0 de volta, confira que o Novo relatório mostra os três botões de análise habilitados. O cartão Plugins e
-   ferramentas só existe a partir da 2.3.0; na 2.2.0, confira as versões no cache do Codex (`%USERPROFILE%\.codex\plugins\cache\pmvni-kit`).
+   ferramentas só existe a partir da 3.0.0; na 2.2.0, confira as versões no cache do Codex (`%USERPROFILE%\.codex\plugins\cache\pmvni-kit`).
 
 ### 3.4. Depois de voltar
 

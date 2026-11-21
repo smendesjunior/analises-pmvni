@@ -2,13 +2,13 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
-## 2.3.0
+## 3.0.0
 
 Esta versão muda como a IA é usada na análise: ela faz só o que exige julgamento técnico, e o programa faz o resto. O resultado é menos sessões, menos texto enviado a cada uma, menos consumo de cota e menos espera, sem tirar nenhuma conferência.
 
 **Publicação e primeira atualização**
 
-- O kit PMVNI 4.0.0 e o Editor 2.3.0 são publicados juntos, o kit primeiro. O Editor 2.3.0 exige o plugin analise 4.0.0: sem ele, os três botões de análise ficam desabilitados e o Editor orienta a atualizar o kit.
+- O kit PMVNI 4.0.0 e o Editor 3.0.0 são publicados juntos, o kit primeiro. O Editor 3.0.0 exige o plugin analise 4.0.0: sem ele, os três botões de análise ficam desabilitados e o Editor orienta a atualizar o kit.
 - Plugin único de análise: o kit passa a ter só o plugin analise, com um motor para as três rotas. Os botões Analisar com o ChatGPT, com o Claude e com o Gemini continuam no Novo relatório. A rota ChatGPT agora precisa do Python 3.14 (o Editor roda o controlador do kit diretamente, sem uma sessão do Codex só para controlar).
 - Na primeira atualização, as análises em andamento das três rotas (ChatGPT, Claude e Gemini) recomeçam, porque foram iniciadas pelos plugins antigos. O controle antigo fica guardado no histórico da pasta do processo.
 - Os textos que o kit envia à IA mudaram (contexto menor, regras novas). Por isso, uma análise em andamento na hora da atualização é revalidada uma vez: o Editor pode pedir para refazer etapas já feitas antes de seguir. Isso acontece só na primeira vez.

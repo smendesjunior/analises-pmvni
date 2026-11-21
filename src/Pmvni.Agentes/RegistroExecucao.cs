@@ -211,7 +211,7 @@ public sealed class RegistroExecucao : IDisposable
         File.WriteAllText(Caminho(Pasta, "anexos.json"), lista.ToJsonString(Opcoes), Utf8);
     }
 
-    /// <summary>Onde as análises iniciadas por um Editor anterior à 2.3.0 gravavam os eventos de progresso (a pedido do Editor). Desde a Tarefa 13 o Editor
+    /// <summary>Onde as análises iniciadas por um Editor anterior à 3.0.0 gravavam os eventos de progresso (a pedido do Editor). Desde a Tarefa 13 o Editor
     /// calcula o progresso pelo manifesto e pelo <c>engine_state.json</c> do kit e não pede mais nada à IA; esta pasta só é lida para não deixar vazio o
     /// Monitor de uma análise antiga ainda em andamento.</summary>
     public string PastaProgresso => Path.Combine(Pasta, "progresso");
