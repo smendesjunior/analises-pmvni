@@ -302,6 +302,41 @@
 - [ ] Teste `AtualizarKit_ComAnaliseAtiva`: botão "Atualizar kit PMVNI" com análise em andamento → aviso e nada iniciado.
 - [ ] Commit.
 
+## Parte E — Motor único e modelos ajustáveis (pedido do usuário, 21/11/2026)
+
+Ordem de execução: depois da junção das frentes do kit (T1, T2a, T2b, T5, T7, T8, T9, T11) e ANTES de T3, T4, T6 e T10, que passam a ser feitas uma vez só no motor único.
+
+### Task 18: Unificar analise, analise-pro e analise-google num só motor
+
+**Files (kit):** `<P>\analise\` passa a ser o único plugin de análise. Scripts comuns uma vez em `skills/analise/scripts/`; controladores por rota em `skills/analise/scripts/rotas/{codex,claude,gemini}/` (a partir de `executar_analise_62.py`+`analise_runtime.py`, `pro_runtime.py`+`pro_auto.py`+`cota_claude.py`, `google_runtime.py`+`google_auto.py`+`gemini_executor.py`+`gemini_web_protocol.py`); referências uma vez em `skills/analise/references/` (as específicas de rota em `references/rotas/<rota>/`). Um SKILL.md. `analise-pro` e `analise-google` saem do catálogo (`.agents/plugins/marketplace.json`, `.claude-plugin/marketplace.json`) e do `INSTALAR_KIT_PMVNI.cmd`/`configurar-plugins.ps1`, que passam a remover as instalações antigas desses dois. Testes de todas as rotas migram para `<P>\analise\tests\` e passam.
+**Files (Editor):** `Localizacao`/`PoliticaKit`/`OrquestradorAnalise`/`LinhasDeComando` e `MotorPdf\configurar-plugins.ps1` apontam para os controladores no plugin único (rota = parâmetro). Versão mínima única: analise 4.0.0.
+
+- [ ] Teste: os três controladores rodam a partir de `analise\skills\analise\scripts\rotas\<rota>` com os mesmos contratos (0/20/21/1, `situacao`, DECISAO) — suítes migradas passam sem mudar asserções de comportamento.
+- [ ] Teste: nenhum script comum duplicado (verificação por nome no plugin).
+- [ ] Teste do instalador (`--teste-raiz`): instala só `analise` e `despacho`; remove `analise-pro`/`analise-google` antigos.
+- [ ] Teste no Editor: as três rotas localizam o controlador no plugin único; plugin antigo → "Atualize o kit PMVNI (analise 4.0.0 ou mais novo)".
+- [ ] Análise em andamento iniciada num plugin antigo: o Editor informa que precisa recomeçar pelo plugin novo (não tenta misturar), preservando o histórico.
+- [ ] Commit (kit e Editor).
+
+### Task 19: Tabela de modelos por rota e aba "Modelos da análise" em Ajustes
+
+**Files (kit):** Create `references/modelos-por-rota.json` (rota → perfil → etapa → `{modelo, nivel}` + `regras`: `sobe_por_objecao_tecnica`, `desce_com_cota_abaixo_de` (0,15), exceções por rota). Valores iniciais = exatamente os vigentes hoje em `niveis-raciocinio.json`, `pro_runtime.STAGES` e `matriz-gemini.json` (sem mudar nenhum). Os três controladores leem só essa tabela (e o override, abaixo).
+**Files (Editor):** nova página/cartão "Modelos da análise" em Ajustes (`PaginaAjustes.xaml`, `MainWindow.Ajustes.cs`, lógica testável em `Pmvni.App/Logica/ModelosDaAnalise.cs`).
+
+**Comportamento (decisão do usuário: padrão central para todos os PCs):**
+- O padrão vem do `modelos-por-rota.json` do kit instalado.
+- Ajuste local opcional gravado em `%APPDATA%\EditorRelatoriosPMVNI\modelos-por-rota.local.json` (escrita fora do pacote quando aplicável), passado ao controlador por variável de ambiente/arquivo em cada execução.
+- No computador do kit mestre (`--kit-local` configurado, detectável pela instalação), botão "Publicar como padrão do kit": grava a tabela no kit mestre e roda o modo `manter` do instalador (fora do pacote, via `.cmd` + `explorer.exe`); a atualização automática leva aos outros PCs.
+- Grade: linhas = etapas (prepare/produce mostram "programa", sem opção); colunas = rotas/perfis; cada célula = modelo (lista atualizada que o Editor já recebe por provedor) + nível. Regras editáveis. "Restaurar padrão do kit". Aviso (não bloqueio) se etapa técnica < médio.
+- Cada execução grava no histórico a tabela efetiva usada.
+
+- [ ] Teste: tabela padrão reproduz exatamente os modelos/níveis atuais das três rotas.
+- [ ] Teste: override local muda o modelo de uma etapa e o controlador recebe esse modelo; "Restaurar" volta ao padrão.
+- [ ] Teste: modelo inexistente na lista do provedor → recusado com mensagem.
+- [ ] Teste: publicar gera o arquivo no kit mestre e dispara `manter` pelo `.cmd` (lançador injetado).
+- [ ] Teste: histórico registra a tabela efetiva.
+- [ ] Commit.
+
 ## Parte D — Fechamento
 
 ### Task 17: Medição antes e depois, versões e entrega
