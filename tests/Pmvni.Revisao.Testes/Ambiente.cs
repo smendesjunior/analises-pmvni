@@ -49,6 +49,7 @@ public static class Ambiente
         new(usuario, () => new DateTimeOffset(2026, 11, 14, 12, 0, 0, TimeSpan.Zero), RandomNumberGenerator.Create());
 
     /// <summary>Raiz do kit PMVNI (somente leitura): <c>PMVNI_KIT_RAIZ</c> ou o padrão do desenho §10.10.</summary>
+    /// <remarks>Para testar a fonte do kit, aponte PMVNI_KIT_RAIZ para _DESENVOLVIMENTO\repositorio dentro do kit mestre.</remarks>
     public static string RaizKit
     {
         get

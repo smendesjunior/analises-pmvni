@@ -173,6 +173,7 @@ public static class Ambiente
     }
 
     /// <summary>Raiz do kit PMVNI (somente leitura): <c>PMVNI_KIT_RAIZ</c> ou o padrão.</summary>
+    /// <remarks>Para testar a fonte do kit, aponte PMVNI_KIT_RAIZ para _DESENVOLVIMENTO\repositorio dentro do kit mestre.</remarks>
     public static string RaizKit
     {
         get
