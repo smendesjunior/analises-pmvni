@@ -2,6 +2,22 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 2.3.0
+
+<!-- revisar no fim: T19, T3, T4, T6, T10 -->
+
+- Plugin único de análise: o kit passa a ter só o plugin analise (versão 4.0.0), com um motor para as três rotas. Os botões Analisar com o ChatGPT, com o Claude e com o Gemini continuam no Novo relatório. O kit e o Editor são publicados juntos; na primeira atualização, análises em andamento no ChatGPT recomeçam.
+- Progresso, previsão de término e consumo são calculados pelo Editor, nas três rotas, sem depender de a IA estimar. O cartão Consumo mostra o gasto da análise. O Monitor segue a ordem das etapas definida pelo kit.
+- Quando o processo tem mais de uma versão da mesma peça, o Editor mostra as opções e você escolhe qual usar antes de a análise seguir.
+- O despacho e o Rever das tabelas rodam sem IA por padrão. A IA só entra quando você pede (Rever com a IA). Ao Rever relatórios antigos, algumas situações podem mudar, porque o Editor agora faz as mesmas contas do kit (índices, frações e esquadrias sem mínimo ficam pendentes).
+- Depois de editar um relatório, o Editor confere o texto de novo. O despacho é bloqueado quando cita um item que foi excluído ou renumerado, até você corrigir a citação.
+- A primeira abertura prepara e atualiza o kit, e a atualização do kit pelos Ajustes vale antes das cópias instaladas.
+- Em Ajustes, o cartão Plugins e ferramentas mostra a versão de cada componente e permite atualizar um de cada vez. Os nomes das rotas (ChatGPT, Claude, Gemini) substituem os nomes antigos dos plugins.
+- O despacho é emitido pelo próprio Editor; o plugin despacho saiu do kit. Os modelos são lidos da pasta do kit dos Ajustes, depois do plugin analise instalado.
+- Nova ordem das etapas: a auditoria cruzada vem antes da produção do relatório, e a revisão final só trata de apresentação. Quem audita não corrige, e o que já foi auditado fica travado: mudar conteúdo técnico depois exige nova auditoria.
+- Em finalização: a aba Modelos da análise, em Ajustes, mostra e permite ajustar o modelo e o nível de cada etapa por rota. O padrão vem do kit para todos os PCs, com ajuste local opcional.
+- Decisão técnica: o botão Instalar plugins e o ajuste local gravam direto no perfil do usuário, porque o Editor não é um app empacotado (MSIX) e não sofre o redirecionamento de pastas do Windows.
+
 ## 2.2.0
 
 - Atividades da análise mostra a porcentagem das etapas concluídas e dos itens avaliados enquanto aguarda a estimativa da IA. O quadro usa texto e ícones, sem a barra verde e o contorno arco-íris.
