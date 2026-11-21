@@ -209,6 +209,26 @@ public static partial class RecalculoLinha
     /// <summary>Compara o valor com o limite da linha (com o que o plano já mudou) e escreve a situação, o texto da diferença e a
     /// justificativa do editor. <paramref name="direta"/>: o usuário editou o valor ou o limite desta linha (FALTA COMPROVAR pode virar
     /// ATENDE/NÃO ATENDE); senão a linha só acompanha outra edição e só a situação numérica muda.</summary>
+    /// <summary>A conta comum ao editor e aos casos-ouro do kit (Tarefa 15): o valor EXATO atende ao critério lido do texto do limite?
+    /// É o que <see cref="Reavaliar"/> usa numa linha da tabela e o que <see cref="RecalculoIndices.Calcular"/> usa a partir dos operandos:
+    /// uma conta só, testada pelos casos-ouro. False também quando as unidades não combinam.</summary>
+    public static bool Atende(decimal valor, string unidade, Criterio criterio)
+    {
+        ArgumentNullException.ThrowIfNull(criterio);
+        return Comparar(new Medida(valor, unidade ?? "", 0), criterio) is { Atende: true };
+    }
+
+    /// <summary>As menores casas (de <paramref name="minimo"/> a 10) em que o número arredondado fica do mesmo lado do limite que o exato,
+    /// como o <c>_fiel</c> do kit; null quando nem 10 casas mostram a diferença. Comum ao editor e aos casos-ouro.</summary>
+    public static int? CasasFieis(decimal exato, Func<decimal, bool> atende, int minimo)
+    {
+        ArgumentNullException.ThrowIfNull(atende);
+        var lado = atende(exato);
+        for (var n = Math.Clamp(minimo, 0, 10); n <= 10; n++)
+            if (atende(Math.Round(exato, n, MidpointRounding.AwayFromZero)) == lado) return n;
+        return null;
+    }
+
     static Avaliacao Reavaliar(Plano pl, string linha, bool direta)
     {
         var p = pl.P;
@@ -226,7 +246,7 @@ public static partial class RecalculoLinha
         // Tarefa 15 (casos-ouro do kit): o "No projeto" que é o resultado da conta compara pelo valor EXATO da conta, sem arredondar a
         // favor, como o calcular_indices.py: 240,01 ÷ 300,00 × 100 = 80,0033% não atende TO ≤ 80%, mesmo escrito "80,0%".
         var exata = conta is not null && valor.Unidade == conta.Resultado.Unidade && !divergente;
-        var (atende, diferenca) = exata ? Comparar(valor with { Valor = conta!.Calcular() }, criterio)!.Value : Comparar(valor, criterio)!.Value;
+        var (atende, diferenca) = Comparar(exata ? valor with { Valor = conta!.Calcular() } : valor, criterio)!.Value;
         var mantem = situacao switch
         {
             "DIVERGENCIA" => divergente || !direta && conta is null,   // a divergência é juízo da análise enquanto os números não batem
@@ -241,8 +261,7 @@ public static partial class RecalculoLinha
         if (exata && !direta && atendeEscrito != atende)
         {
             var exato = conta!.Calcular();
-            var casas = Math.Max(valor.Casas, 2);
-            while (casas < 10 && Comparar(new Medida(Math.Round(exato, casas, MidpointRounding.AwayFromZero), valor.Unidade, casas), criterio)?.Atende != atende) casas++;
+            var casas = CasasFieis(exato, x => Atende(x, valor.Unidade, criterio), Math.Max(valor.Casas, 2)) ?? 10;
             var numero = Formatar(Math.Round(exato, casas, MidpointRounding.AwayFromZero), casas, "");
             if (TrocarNumero(textoValor, valor.Valor, valor.Casas, null, numero) is { } novoValor && pl.Definir(linha, CampoValor, novoValor)) textoValor = novoValor;
             if (pl.Texto(linha, CampoCalculo) is { } calculo) pl.Definir(linha, CampoCalculo, conta.ComResultado(calculo, numero));
@@ -432,14 +451,14 @@ public static partial class RecalculoLinha
     public static bool ReveSemIa(string linha) =>
         TabelasRevisao.TentarLer(linha, out var bloco, out _) && bloco is TabelasRevisao.Indices or TabelasRevisao.Ambientes;
 
-    /// <summary>O "Rever" de uma linha de tabela vai à IA? Só sob comando (Tarefa 15): numa tabela sem conta, ou quando o revisor digitou uma
-    /// instrução livre na justificativa que ainda não foi atendida (<paramref name="justificativaPendente"/>). A justificativa escrita pelo
-    /// próprio editor ("Recalculado pelo editor: …") não é instrução.</summary>
-    public static bool PrecisaDaIa(string linha, string? justificativa, bool justificativaPendente)
+    /// <summary>Oferecer, ao lado do "Rever" sem IA (que nas tabelas de índices e de esquadrias está SEMPRE à mão), a segunda opção "Rever
+    /// com a IA" (Tarefa 15, correção 1)? Só quando há texto novo na justificativa, ainda não atendido (<paramref name="justificativaPendente"/>);
+    /// a IA só roda com clique nessa opção. A justificativa escrita pelo próprio editor ("Recalculado pelo editor: …") não conta. No
+    /// diagrama (sem conta) não há segunda opção: o único "Rever" é com a IA.</summary>
+    public static bool OfereceReverComIa(string linha, string? justificativa, bool justificativaPendente)
     {
         ArgumentNullException.ThrowIfNull(linha);
-        if (!ReveSemIa(linha)) return true;
-        return justificativaPendente && !string.IsNullOrWhiteSpace(justificativa)
+        return ReveSemIa(linha) && justificativaPendente && !string.IsNullOrWhiteSpace(justificativa)
                && !justificativa.TrimStart().StartsWith(MarcaJustificativa, StringComparison.Ordinal);
     }
 
@@ -562,7 +581,9 @@ public static class RecalculoIndices
                 declarado is { } d0 ? Br(d0, 2) + unidade : "—", limiteLinha, "Falta comprovar: " + string.Join(", ", faltando) + ".");
 
         var valor = operando!.Value / terreno!.Value * (t.Percentual ? 100m : 1m);
-        bool Atende(decimal x) => t.Maximo ? x <= limite : x >= limite;
+        // A mesma conta da tabela do relatório (RecalculoLinha): o limite é lido do texto que a linha leva, e o valor exato é comparado com ele.
+        var criterio = RecalculoLinha.LerCriterio(limiteLinha) ?? throw new InvalidOperationException("Limite ilegível: " + limiteLinha);
+        bool Atende(decimal x) => RecalculoLinha.Atende(x, unidade, criterio);
         var ok = Atende(valor);
         var (texto, fiel) = Fiel(valor, Atende);
         var txt = texto + unidade + (fiel ? "" : valor > limite ? " (acima do limite)" : " (abaixo do limite)");
@@ -599,12 +620,8 @@ public static class RecalculoIndices
 
     /// <summary>As menores casas (de 2 a 10) em que o número arredondado fica do mesmo lado do limite que o exato — o <c>_fiel</c> do kit;
     /// fiel = false quando nem 10 casas mostram a diferença.</summary>
-    static (string Texto, bool Fiel) Fiel(decimal v, Func<decimal, bool> atende)
-    {
-        for (var n = 2; n <= 10; n++)
-            if (atende(Math.Round(v, n, MidpointRounding.AwayFromZero)) == atende(v)) return (Br(v, n), true);
-        return (Enxuto(Br(v, 10)), false);
-    }
+    static (string Texto, bool Fiel) Fiel(decimal v, Func<decimal, bool> atende) =>
+        RecalculoLinha.CasasFieis(v, atende, 2) is { } n ? (Br(v, n), true) : (Enxuto(Br(v, 10)), false);
 
     static string Enxuto(string texto)
     {

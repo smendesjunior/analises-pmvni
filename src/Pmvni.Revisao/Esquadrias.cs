@@ -24,8 +24,9 @@ public sealed record Esquadria(int Indice, string Codigo, string Tipo, string Me
 /// <summary>A conta de iluminação e ventilação de um ambiente: as esquadrias, o vão total (a soma das áreas), o mínimo exigido (a área do
 /// piso ÷ o divisor, quando o texto do mínimo traz a conta) e a situação. A comparação é EXATA, como no calcular_vaos.py do kit (Tarefa 15,
 /// casos-ouro): o mínimo não é arredondado a favor (23,06 ÷ 8 = 2,8825 m² não é atendido por 2,88 m²). <see cref="Situacao"/>:
-/// CONTA_CONFERE (total ≥ mínimo, mesmo faltando a medida de um vão), PENDENTE (abaixo do mínimo e falta a medida de algum vão),
-/// NAO_ATENDE (abaixo do mínimo com todas as medidas) ou null (sem mínimo legível, ou sem nenhuma área e nada faltando).
+/// a regra do kit (<see cref="Esquadrias.SituacaoDoAmbiente"/>): PENDENTE sem mínimo legível (falta o piso ou a fração), CONTA_CONFERE
+/// (total ≥ mínimo, mesmo faltando a medida de um vão), PENDENTE (abaixo do mínimo e falta a medida de algum vão), NAO_ATENDE (abaixo do
+/// mínimo com todas as medidas) ou null (nenhuma esquadria com área e nenhuma sem medida: não há o que comparar).
 /// <see cref="Atende"/>: true/false para CONTA_CONFERE/NAO_ATENDE; null quando não dá para dizer.</summary>
 public sealed record ContaAmbiente(IReadOnlyList<Esquadria> Esquadrias, decimal? Total, decimal? Piso, decimal? Divisor, decimal? Minimo)
 {
@@ -33,11 +34,10 @@ public sealed record ContaAmbiente(IReadOnlyList<Esquadria> Esquadrias, decimal?
     public IReadOnlyList<string> SemMedida =>
         Esquadrias.Where(e => e.FaltaMedida).Select(e => e.Codigo.Trim().Length > 0 ? e.Codigo.Trim() : "vão " + (e.Indice + 1).ToString(CultureInfo.InvariantCulture)).ToList();
 
-    public string? Situacao => Minimo is not { } m ? null
-        : Total is { } t && t >= m ? "CONTA_CONFERE"
-        : SemMedida.Count > 0 ? "PENDENTE"
-        : Total is null ? null
-        : "NAO_ATENDE";
+    public string? Situacao => Pmvni.Revisao.Esquadrias.SituacaoDoAmbiente(Total, Minimo, SemMedida.Count);
+
+    /// <summary>O que falta comprovar num ambiente PENDENTE: "a medida de J1, P2" ou "o mínimo exigido (a área do piso ou a fração)".</summary>
+    public string TextoPendencia => Minimo is null ? "o mínimo exigido (a área do piso ou a fração)" : "a medida de " + string.Join(", ", SemMedida);
 
     public bool? Atende => Situacao switch { "CONTA_CONFERE" => true, "NAO_ATENDE" => false, _ => null };
 
@@ -69,7 +69,7 @@ public sealed record ContaAmbiente(IReadOnlyList<Esquadria> Esquadrias, decimal?
     public string TextoComparacao => Situacao switch
     {
         "CONTA_CONFERE" => "Mínimo " + TextoDoMinimo + "; atende.",
-        "PENDENTE" => "Mínimo " + TextoDoMinimo + "; falta a medida de " + string.Join(", ", SemMedida) + ".",
+        "PENDENTE" => Minimo is null ? "Falta comprovar " + TextoPendencia + "." : "Mínimo " + TextoDoMinimo + "; falta " + TextoPendencia + ".",
         "NAO_ATENDE" => "Mínimo " + TextoDoMinimo + "; " + (Minimo - Total == 1 ? "falta " : "faltam ") + TextoFalta + ".",
         _ => "—",
     };
@@ -267,8 +267,8 @@ public static partial class Esquadrias
             if (string.IsNullOrWhiteSpace(justificativa) || justificativa!.StartsWith(RecalculoLinha.MarcaJustificativa, StringComparison.Ordinal))
             {
                 var volta = nova == TabelasRevisao.SituacaoOriginal(depois, ambiente);
-                var texto = volta ? null : RecalculoLinha.MarcaJustificativa + " vão total " + conta.TextoTotal + "; mínimo " + conta.TextoDoMinimo
-                    + (nova == "PENDENTE" ? "; falta a medida de " + string.Join(", ", conta.SemMedida) : "") + ".";
+                var texto = volta ? null : RecalculoLinha.MarcaJustificativa + " vão total " + conta.TextoTotal
+                    + (conta.Minimo is null ? "" : "; mínimo " + conta.TextoDoMinimo) + (nova == "PENDENTE" ? "; falta " + conta.TextoPendencia : "") + ".";
                 if (texto != justificativa && !(volta && string.IsNullOrWhiteSpace(justificativa))) comandos.Add(new DefinirJustificativa(ambiente, texto));
             }
         }
@@ -281,6 +281,18 @@ public static partial class Esquadrias
         if (LerMedidas(medidas) is not var (l, a))
             throw new ComandoRecusadoException("As medidas da esquadria têm de ser largura × altura (por exemplo, 0,80 × 2,10 m).");
         return new AcrescentarVao(ambiente, codigo, TextoMedidas(l, a), tipo, TextoArea(Area(l, a)));
+    }
+
+    /// <summary>A situação do vão de iluminação e ventilação de um ambiente, a mesma regra do calcular_vaos.py do kit (Tarefa 15): sem o
+    /// mínimo (falta o piso ou a fração) → PENDENTE; a soma dos vãos medidos alcança o mínimo → CONTA_CONFERE (a medida que falta não muda o
+    /// resultado); abaixo do mínimo com vão sem medida → PENDENTE; abaixo com todas as medidas → NAO_ATENDE. Comparação exata, sem
+    /// arredondar a favor. Null só quando não há esquadria nenhuma com área nem sem medida (nada a somar: o editor não julga).</summary>
+    public static string? SituacaoDoAmbiente(decimal? total, decimal? minimo, int semMedida)
+    {
+        if (minimo is not { } m) return "PENDENTE";
+        if ((total ?? 0m) >= m && (total is not null || m == 0m)) return "CONTA_CONFERE";
+        if (semMedida > 0) return "PENDENTE";
+        return total is null ? null : "NAO_ATENDE";
     }
 
     // ---------- a tabela do art. 127 (Tarefa 15) ----------

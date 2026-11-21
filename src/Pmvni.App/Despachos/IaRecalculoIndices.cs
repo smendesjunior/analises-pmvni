@@ -7,7 +7,7 @@ namespace Pmvni.App;
 /// <summary>Correção 2026-11-16: "Rever com a IA" numa linha de tabela (índices, ambientes, diagrama): a IA refaz as contas de todas as
 /// linhas que dependem dela (dos valores editados à mão ou da instrução escrita na justificativa) e devolve os textos e situações
 /// atualizados. Tarefa 15: nas tabelas de índices e de esquadrias a IA só entra sob comando, com uma instrução livre digitada na
-/// justificativa (RecalculoLinha.PrecisaDaIa); sem ela, o "Rever" é do editor, sem IA (RecalculoLinha.Rever), e mostra os valores de antes
+/// justificativa, como segunda opção que só roda com clique (RecalculoLinha.OfereceReverComIa); o "Rever" principal é sempre do editor, sem IA (RecalculoLinha.Rever), e mostra os valores de antes
 /// e de agora. O recálculo de uma edição (valor × limite, esquadrias) também não passa por aqui: é determinístico (RecalculoLinha e
 /// Esquadrias, no modelo).</summary>
 internal static class IaRecalculoIndices

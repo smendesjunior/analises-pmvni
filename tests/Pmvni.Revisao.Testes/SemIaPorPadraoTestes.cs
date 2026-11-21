@@ -160,22 +160,82 @@ public class SemIaPorPadraoTestes
         s.Desfazer();
         Assert.Equal(antes, ProjetoJson.Escrever(s.Projeto));
 
-        // A IA só entra com instrução livre digitada (justificativa ainda não atendida) ou no diagrama, que não tem conta.
+        // O "Rever" sem IA é das tabelas com conta; a IA é a segunda opção, oferecida só com texto novo na justificativa.
         Assert.True(RecalculoLinha.ReveSemIa(TO) && RecalculoLinha.ReveSemIa(Ambiente01));
         Assert.False(RecalculoLinha.ReveSemIa("chamadas/01"));
-        Assert.False(RecalculoLinha.PrecisaDaIa(TO, null, false));
-        Assert.False(RecalculoLinha.PrecisaDaIa(TO, "Conferido na prancha 02.", false));   // já atendida
-        Assert.True(RecalculoLinha.PrecisaDaIa(TO, "Considerar a projeção de 230,00 m².", true));
-        Assert.True(RecalculoLinha.PrecisaDaIa(Ambiente01, "Adicionar a porta de 80x210cm.", true));
-        Assert.False(RecalculoLinha.PrecisaDaIa(Ambiente01, RecalculoLinha.MarcaJustificativa + " vão total 1,80 m²; mínimo 2,00 m².", true));
-        Assert.True(RecalculoLinha.PrecisaDaIa("chamadas/01", null, false));
+        Assert.False(RecalculoLinha.OfereceReverComIa(TO, null, false));
+        Assert.False(RecalculoLinha.OfereceReverComIa(TO, "Conferido na prancha 02.", false));   // já atendida
+        Assert.True(RecalculoLinha.OfereceReverComIa(TO, "Considerar a projeção de 230,00 m².", true));
+        Assert.True(RecalculoLinha.OfereceReverComIa(Ambiente01, "Adicionar a porta de 80x210cm.", true));
+        Assert.False(RecalculoLinha.OfereceReverComIa(Ambiente01, RecalculoLinha.MarcaJustificativa + " vão total 1,80 m²; mínimo 2,00 m².", true));
+        Assert.False(RecalculoLinha.OfereceReverComIa("chamadas/01", "Marcar o recuo.", true));   // no diagrama o único "Rever" já é com a IA
         Assert.Throws<ArgumentException>(() => RecalculoLinha.Rever(s.Projeto, "chamadas/01"));
 
-        // Na janela: o botão da linha diz "Rever (sem IA)" e só chama a IA quando PrecisaDaIa manda.
+        // Na janela: o botão principal da linha é "Rever (sem IA)" sempre que a tabela tem conta; "Rever com a IA" é outro botão.
         var propriedades = File.ReadAllText(FonteApp("MainWindow.Propriedades.cs"));
-        Assert.Contains("R.PropAjustarRotulo.Text = comIa ? \"Rever com a IA\" : \"Rever (sem IA)\";", propriedades, StringComparison.Ordinal);
-        var revisao = File.ReadAllText(FonteApp("MainWindow.Revisao.cs"));
-        Assert.Contains("if (ReverPedeIa(id)) await RecalcularTabelaComIaAsync(id);\n            else await ReverSemIaAsync(id);", revisao.Replace("\r\n", "\n"), StringComparison.Ordinal);
+        Assert.Contains("R.PropAjustarRotulo.Text = semIa ? \"Rever (sem IA)\" : \"Rever com a IA\";", propriedades, StringComparison.Ordinal);
+        Assert.Contains("R.PropReverComIa.Visibility = RecalculoLinha.OfereceReverComIa(", propriedades, StringComparison.Ordinal);
+        var revisao = File.ReadAllText(FonteApp("MainWindow.Revisao.cs")).Replace("\r\n", "\n");
+        Assert.Contains("if (RecalculoLinha.ReveSemIa(id)) await ReverSemIaAsync(id);\n            else await RecalcularTabelaComIaAsync(id);", revisao, StringComparison.Ordinal);
+        Assert.Contains("R.PropReverComIa.Click += async (_, _) => await ReverComIaAsync();", revisao, StringComparison.Ordinal);
+        Assert.Contains("x:Name=\"PropReverComIa\"", File.ReadAllText(FonteApp("Paginas", "PaginaRelatorios.xaml")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void rever_sem_ia_continua_disponivel_depois_de_trocar_a_situacao_e_justificar()
+    {
+        // O fluxo comum: o analista troca a situação à mão e, como a conferência exige, justifica. A justificativa fica "pendente"
+        // (mudou depois dos textos), mas o "Rever" sem IA continua sendo o botão principal; a IA é só a segunda opção oferecida.
+        var s = Relatorio();
+        s.Aplicar(new DefinirSituacao(TO, "NAO_ATENDE"));
+        Assert.True(TabelasRevisao.FaltaJustificativa(s.Projeto.Linhas[TO]));
+        s.Aplicar(new DefinirJustificativa(TO, "Conferido na prancha 02."));
+        var pendente = AjustePendente.JustificativaMudou(s.Projeto, s.HistoricoCompleto, TO);
+        Assert.True(pendente);
+        Assert.True(RecalculoLinha.ReveSemIa(TO));
+        Assert.True(RecalculoLinha.OfereceReverComIa(TO, TabelasRevisao.Justificativa(s.Projeto, TO), pendente));
+
+        // E o Rever sem IA funciona: refaz a conta (no projeto e cálculo com as casas fiéis); a situação que o analista deu confere com a
+        // conta e fica, assim como a justificativa dele.
+        var r = RecalculoLinha.Rever(s.Projeto, TO);
+        Assert.NotNull(r.Lote);
+        Assert.Contains(new ValorRevisto(TO, "No projeto", "80,0%", "80,003%"), r.Mudancas);
+        s.Aplicar(r.Lote!);
+        Assert.Equal("NAO_ATENDE", TabelasRevisao.SituacaoEfetiva(s.Projeto, TO));
+        Assert.Equal("Conferido na prancha 02.", TabelasRevisao.Justificativa(s.Projeto, TO));
+        Assert.Empty(ConferenciaRevisao.Erros(s.Projeto));
+    }
+
+    [Fact]
+    public void ambiente_sem_minimo_legivel_fica_pendente_como_no_kit()
+    {
+        var caminho = Ambiente.Corpus("longo.json");
+        var dados = JsonFiel.Ler(File.ReadAllBytes(caminho));
+        dados["iluminacao"]!["ambientes"]![0] = new JsonObject
+        {
+            ["icone"] = "bed", ["nome"] = "Quarto 1", ["detalhes"] = new JsonArray("Piso não informado"), ["situacao"] = "CONTA_CONFERE",
+            ["vaos"] = new JsonArray(new JsonObject { ["codigo"] = "J1", ["medidas"] = "1,50 × 1,20 m", ["tipo"] = "Janela", ["area"] = "1,80 m²", ["sem_area"] = "" }),
+            ["minimo"] = new JsonArray(new JsonObject { ["texto"] = "Área do piso não informada", ["destaque"] = true }),
+            ["situacao_titulo"] = "", ["textos"] = new JsonArray("Conferir o vão."),
+            ["resultado"] = new JsonObject { ["total"] = "1,80 m²", ["conta"] = "J1 1,80 m²", ["comparacao"] = "Área do piso não informada" },
+        };
+        var c = Importador.Importar(JsonFiel.Escrever(dados), caminho, Modelo, Ambiente.Contexto());
+        var s = new SessaoRevisao(c.Projeto, c.Historico, Ambiente.Contexto());
+        var conta = Esquadrias.Calcular(s.Projeto, Ambiente01)!;
+        Assert.Null(conta.Minimo);
+        Assert.Equal(("PENDENTE", (bool?)null), (conta.Situacao, conta.Atende));
+        Assert.Equal("Falta comprovar o mínimo exigido (a área do piso ou a fração).", conta.TextoComparacao);
+        // A regra é a do calcular_vaos.py: sem piso, PENDENTE; o resto como antes.
+        Assert.Equal("PENDENTE", Esquadrias.SituacaoDoAmbiente(1.8m, null, 0));
+        Assert.Equal("CONTA_CONFERE", Esquadrias.SituacaoDoAmbiente(2m, 2m, 1));
+        Assert.Equal("PENDENTE", Esquadrias.SituacaoDoAmbiente(1.68m, 2m, 1));
+        Assert.Equal("NAO_ATENDE", Esquadrias.SituacaoDoAmbiente(1.68m, 2m, 0));
+        Assert.Null(Esquadrias.SituacaoDoAmbiente(null, 2m, 0));
+
+        s.Aplicar(RecalculoLinha.Rever(s.Projeto, Ambiente01).Lote!);
+        Assert.Equal("PENDENTE", TabelasRevisao.SituacaoEfetiva(s.Projeto, Ambiente01));
+        Assert.Equal(RecalculoLinha.MarcaJustificativa + " vão total 1,80 m²; falta o mínimo exigido (a área do piso ou a fração).",
+            TabelasRevisao.Justificativa(s.Projeto, Ambiente01));
     }
 
     [Fact]
@@ -260,6 +320,9 @@ public class SemIaPorPadraoTestes
             var linha = RecalculoIndices.Calcular(anexo, entrada["zona"]!.GetValue<string>(), entrada["operandos"]!.AsObject())
                 .Single(l => l.Icone == esperado["linha"]!.GetValue<string>());
             var valor = esperado["valor"]?.GetValue<string>();
+            // O porte e a tabela do relatório usam a MESMA conta (RecalculoLinha.Atende, com o critério lido do texto do limite).
+            if (linha.Valor is { } exatoDaConta)
+                Assert.True(RecalculoLinha.Atende(exatoDaConta, linha.Icone == "ca" ? "" : "%", RecalculoLinha.LerCriterio(linha.Limite)!) == (linha.Situacao != "NAO_ATENDE"), id);
             Assert.True((linha.Situacao, linha.Valor is { } v ? F4(v) : null) == (esperado["situacao"]!.GetValue<string>(), valor),
                 $"{id}: C# deu {linha.Situacao} {linha.Valor}");
 
