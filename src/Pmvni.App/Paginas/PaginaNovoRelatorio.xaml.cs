@@ -189,14 +189,16 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             if (previsaoPeloRitmo is { } previsao && previsao.Percentual == percentual)
                 restantePeloRitmo = previsao.DuracaoAtiva - decorrido;
         }
-        TextoTempoEstimado.Text = FluxoNovoRelatorio.TextoEstimativa(EstimativaAtual?.Termino?.ToLocalTime(), agora, restantePeloRitmo);
+        TextoTempoEstimado.Text = FluxoNovoRelatorio.TextoEstimativa(EstimativaAtual?.Termino?.ToLocalTime(), agora, restantePeloRitmo,
+            EstimativaAtual?.PeloEditor ?? false);
     }
 
     internal void MostrarProgresso(ProgressoEtapa? progresso)
     {
         ProgressoAtual = progresso;
         TextoProgressoItens.Text = progresso is null ? "" :
-            $"{Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(progresso.Etapa)} · {progresso.Avaliados} de {progresso.Total} itens avaliados";
+            $"{Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(progresso.Etapa)} · {progresso.Avaliados} de {progresso.Total} "
+            + (progresso.Secoes ? "seções com resultado" : "itens avaliados");
         TextoProgressoItens.Visibility = progresso is null ? Visibility.Collapsed : Visibility.Visible;
         MostrarEtapas(etapasMostradas, execucaoAtivaNaBarra);
     }
@@ -224,6 +226,57 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         while (ListaDescobertas.Children.Count > achados.Count)
             ListaDescobertas.Children.RemoveAt(ListaDescobertas.Children.Count - 1);
         TextoSemDescobertas.Visibility = achados.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    IReadOnlyList<Pmvni.Agentes.UsoEtapa>? consumoExibido;
+
+    /// <summary>O cartão "Consumo" (Tarefa 13): uma linha por execução de etapa, com o selo de quem executou (programa ou a IA), tokens de entrada e saída,
+    /// cache lido, tempo e a variação da cota de 5 h e da semanal; "—" no que o kit não informou. Sem linhas, o cartão some.</summary>
+    internal void MostrarConsumo(IReadOnlyList<Pmvni.Agentes.UsoEtapa> uso)
+    {
+        if (consumoExibido is not null && consumoExibido.SequenceEqual(uso)) return;
+        consumoExibido = uso;
+        GradeConsumo.Children.Clear();
+        GradeConsumo.RowDefinitions.Clear();
+        GradeConsumo.ColumnDefinitions.Clear();
+        CartaoConsumo.Visibility = uso.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (uso.Count == 0) return;
+        for (var c = 0; c < 6; c++) GradeConsumo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        void Celula(UIElement e, int linha, int coluna)
+        {
+            Grid.SetRow((FrameworkElement)e, linha);
+            Grid.SetColumn((FrameworkElement)e, coluna);
+            GradeConsumo.Children.Add(e);
+        }
+        TextBlock Texto(string t, bool cabecalho = false) => new()
+        {
+            Text = t, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = !cabecalho,
+            Foreground = cabecalho ? Recurso("TextFillColorSecondaryBrush") : Recurso("TextFillColorPrimaryBrush"),
+        };
+        GradeConsumo.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        string[] cabecalhos = ["Etapa", "Quem", "Tokens (entr. / saída)", "Cache", "Tempo", "Cota 5 h · semana"];
+        for (var c = 0; c < cabecalhos.Length; c++) Celula(Texto(cabecalhos[c], cabecalho: true), 0, c);
+        for (var i = 0; i < uso.Count; i++)
+        {
+            var u = uso[i];
+            var linha = i + 1;
+            GradeConsumo.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Celula(Texto(Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(u.Etapa)), linha, 0);
+            var programa = u.Executor == Pmvni.Agentes.UsoDasIas.Programa;
+            var selo = new Border
+            {
+                CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 1, 8, 1), VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Background = Recurso(programa ? "SubtleFillColorSecondaryBrush" : "SystemFillColorAttentionBackgroundBrush"),
+                Child = new TextBlock { Text = u.Executor, FontSize = 11 },
+            };
+            if (!string.IsNullOrWhiteSpace(u.Modelo)) ToolTipService.SetToolTip(selo, u.Modelo);
+            Celula(selo, linha, 1);
+            Celula(Texto(Pmvni.Agentes.TextoConsumo.Tokens(u)), linha, 2);
+            Celula(Texto(Pmvni.Agentes.TextoConsumo.Numero(u.CacheLido)), linha, 3);
+            Celula(Texto(u.Duracao is { } d ? FluxoNovoRelatorio.TempoLegivel(d) : Pmvni.Agentes.TextoConsumo.Desconhecido), linha, 4);
+            Celula(Texto(Pmvni.Agentes.TextoConsumo.Cota(u)), linha, 5);
+        }
     }
 
     static Border CartaoDescoberta(DescobertaAnalise d)
@@ -260,7 +313,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(etapa) == nome)
             return $"{status} · {percentual:0.#}% estimado pela IA";
         if (ProgressoAtual is { Total: > 0 } itens && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(itens.Etapa) == nome)
-            return $"{status} · {Math.Clamp(100d * itens.Avaliados / itens.Total, 0, 100):0.#}% dos itens avaliados";
+            return $"{status} · {Math.Clamp(100d * itens.Avaliados / itens.Total, 0, 100):0.#}% " + (itens.Secoes ? "das seções com resultado" : "dos itens avaliados");
         return status;
     }
 

@@ -882,6 +882,7 @@ public sealed partial class MainWindow
         NR.MostrarAchados([]);
         NR.ReiniciarEstimativa();
         NR.MostrarProgresso(null);
+        NR.MostrarConsumo([]);
         _ = AtualizarAchadosAsync(e);
         NR.LigarLinhas(e.LinhasObservaveis);
         NR.MostrarExecucao(true);
@@ -900,16 +901,27 @@ public sealed partial class MainWindow
     }
 
     bool lendoAchados;
+
+    /// <summary>Tarefa 13: o progresso, a previsão e o consumo saem dos arquivos do kit (manifesto, engine_state e uso-das-IAs.json), lidos pelo Editor; a IA
+    /// não grava mais nada para o Monitor. A leitura é barata (cada arquivo só é relido quando muda) e roda a cada segundo, fora da thread da janela.</summary>
     async Task AtualizarAchadosAsync(ExecucaoEmCurso e)
     {
         if (lendoAchados) return;
         lendoAchados = true;
         try
         {
-            var achados = await Task.Run(() => AchadosExecucao.Ler(e.Registro.PastaProgresso, e.Processo.Pasta, e.InicioUtc));
+            var controle = Path.Combine(e.Processo.Pasta, ResultadoAnalise.PastaControle(e.Provedor));
+            var historico = HistoricoDeDuracoes();
+            var (achados, consumo) = await Task.Run(() =>
+            {
+                var desde = InicioDoRegistro(e);
+                return (AchadosExecucao.LerDaExecucao(e.Registro.PastaProgresso, e.Processo.Pasta, e.InicioUtc, controle, desde, historico, DateTimeOffset.UtcNow),
+                    UsoDasIas.Ler(controle, desde));
+            });
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
             {
                 NR.BotaoEvidenciasPdf.Visibility = Directory.Exists(Path.Combine(e.Processo.Pasta, ".pmvni-ai", "cache-pdf")) ? Visibility.Visible : Visibility.Collapsed;
+                NR.MostrarConsumo(consumo);
                 NR.MostrarAchados(achados.Itens);
                 var mudouEstimativa = NR.EstimativaAtual != achados.Estimativa;
                 NR.MostrarEstimativa(achados.Estimativa);
@@ -927,6 +939,28 @@ public sealed partial class MainWindow
         }
         catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RegistroErros.Gravar("analise.achados", x); }
         finally { lendoAchados = false; }
+    }
+
+    /// <summary>As durações das etapas de todas as análises sob a pasta de processos (para a previsão de término), lidas uma vez por sessão em segundo plano;
+    /// null enquanto a leitura não terminou (o Monitor mostra "histórico insuficiente" até lá).</summary>
+    IReadOnlyList<DuracaoEtapa>? HistoricoDeDuracoes()
+    {
+        var leitura = UsoDasIas.HistoricoDaSessaoAsync(ajustes.PastaProcessosEfetiva);
+        return leitura.IsCompletedSuccessfully ? leitura.Result : null;
+    }
+
+    /// <summary>Desde quando os arquivos do kit são desta análise: a criação da pasta do registro (o mesmo registro numa retomada), com 5 s de folga. O que o
+    /// kit gravou antes disso (a análise anterior, já entregue) não aparece no Monitor.</summary>
+    static DateTime InicioDoRegistro(ExecucaoEmCurso e)
+    {
+        var inicio = e.InicioUtc;
+        try
+        {
+            var criacao = Directory.GetCreationTimeUtc(e.Registro.Pasta);
+            if (criacao.Year > 2000 && criacao < inicio) inicio = criacao;
+        }
+        catch (Exception x) when (x is IOException or UnauthorizedAccessException) { }
+        return inicio.AddSeconds(-5);
     }
 
     void AtualizarRelogioDaExecucao(ExecucaoEmCurso e)

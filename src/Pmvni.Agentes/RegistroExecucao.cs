@@ -211,24 +211,11 @@ public sealed class RegistroExecucao : IDisposable
         File.WriteAllText(Caminho(Pasta, "anexos.json"), lista.ToJsonString(Opcoes), Utf8);
     }
 
+    /// <summary>Onde as análises iniciadas por um Editor anterior à 2.3.0 gravavam os eventos de progresso (a pedido do Editor). Desde a Tarefa 13 o Editor
+    /// calcula o progresso pelo manifesto e pelo <c>engine_state.json</c> do kit e não pede mais nada à IA; esta pasta só é lida para não deixar vazio o
+    /// Monitor de uma análise antiga ainda em andamento.</summary>
     public string PastaProgresso => Path.Combine(Pasta, "progresso");
     public const string ArquivoEstimativa = "estimativa.json";
-
-    public string InstrucoesProgresso()
-    {
-        Directory.CreateDirectory(PastaProgresso);
-        return $"Para acompanhamento no Editor, grave em {PastaProgresso} um JSON por evento, com nome único e extensão .json. " +
-            "Grave os eventos junto com a operação técnica que produz o resultado. Para um lote, grave vários arquivos na mesma chamada local, assim que o lote terminar. Evite uma chamada ao modelo ou ao shell só para atualizar o painel por item. Ao avaliar ou revisar cada item, inclua item_id estável, sequencia inteira crescente por item, titulo e situacao " +
-            "(ATENDE, NAO_ATENDE, NAO_COMPROVADO ou DIVERGENCIA_INTERNA). Após auditoria individual, inclua evidencia_verificacao " +
-            "com caminho relativo ao processo e sha256_verificacao da prova da revisão. Preserve os eventos anteriores. " +
-            "Para progresso mensurável inclua etapa (prepare, analyze, technical_audit, produce, audit ou final_review), avaliados e total. Grave um evento no início de cada etapa e atualize após cada item avaliado, com sequencia_etapa inteira crescente dentro da etapa. Use os mesmos identificadores e situações no relatório final. " +
-            $"Em {ArquivoEstimativa}, nessa mesma pasta, mantenha a estimativa da IA em um JSON com etapa (o identificador da etapa atual), " +
-            "percentual_etapa e percentual_geral (números de 0 a 99,9; use ponto decimal no JSON) e termino_estimado_utc (data e hora ISO 8601 em UTC, por exemplo 2026-01-20T18:40:00Z). " +
-            "Estime a partir do trabalho efetivamente concluído, da dificuldade do que falta e do ritmo observado. Pondere o esforço de todas as etapas no percentual geral. " +
-            "Consulte a hora atual da máquina ao prever o término. Não use números fictícios: envie null nos campos que ainda não conseguir estimar. " +
-            "Atualize o arquivo na primeira oportunidade, na retomada, ao mudar de etapa e quando a previsão mudar materialmente, aproveitando a mesma chamada local já usada para o progresso. " +
-            "Grave em arquivo temporário e substitua o JSON de estimativa de uma só vez. O Editor confirma os 100% apenas quando a etapa ou a execução efetivamente termina.";
-    }
 
     public TimeSpan TempoAtivoGravado
     {

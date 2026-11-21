@@ -1,0 +1,169 @@
+using System.Collections.Concurrent;
+using System.Globalization;
+using System.Text.Json;
+
+namespace Pmvni.Agentes;
+
+/// <summary>Uma linha do cartão "Consumo" do Monitor: quem executou a etapa (<c>programa</c>, <c>GPT</c>, <c>Claude</c> ou <c>Gemini</c>; "—" se o registro
+/// não diz), o modelo, os tokens de entrada e de saída (ou só o <see cref="Total"/>, quando o executor informa apenas ele, como o Codex), o cache lido, a
+/// duração e a variação, em pontos percentuais, da cota de 5 h e da semanal durante a etapa. null = o kit não informou (o Monitor mostra "—"); nada é
+/// estimado aqui.</summary>
+public sealed record UsoEtapa(string Etapa, string Executor, string? Modelo, long? Entrada, long? Saida, long? CacheLido, TimeSpan? Duracao,
+    double? Cota5h, double? CotaSemana)
+{
+    public long? Total { get; init; }
+
+    /// <summary>A situação da execução no kit (<c>EXECUTED</c>, <c>FAILED</c>, <c>FAILED_QUOTA</c>…), se informada.</summary>
+    public string? Situacao { get; init; }
+}
+
+/// <summary>Os textos do cartão "Consumo": números curtos em português ("89,2 mil", "1,5 mi"), "—" no que não foi informado.</summary>
+public static class TextoConsumo
+{
+    public const string Desconhecido = "—";
+    static readonly CultureInfo Br = CultureInfo.GetCultureInfo("pt-BR");
+
+    public static string Numero(long? n) => n switch
+    {
+        null => Desconhecido,
+        < 1000 => n.Value.ToString("N0", Br),
+        < 1_000_000 => (n.Value / 1000d).ToString("0.#", Br) + " mil",
+        _ => (n.Value / 1_000_000d).ToString("0.#", Br) + " mi",
+    };
+
+    /// <summary>"entrada / saída"; só o total quando o executor não separa (o Codex); "—" sem nada (as etapas de programa).</summary>
+    public static string Tokens(UsoEtapa u) =>
+        u.Entrada is not null || u.Saida is not null ? Numero(u.Entrada) + " / " + Numero(u.Saida)
+        : u.Total is not null ? Numero(u.Total) + " (total)"
+        : Desconhecido;
+
+    /// <summary>A variação da cota de 5 h e da semanal, em pontos percentuais: "+7% · +1,5%".</summary>
+    public static string Cota(UsoEtapa u)
+    {
+        if (u.Cota5h is null && u.CotaSemana is null) return Desconhecido;
+        static string Pontos(double? v) => v is { } x ? (x >= 0 ? "+" : "") + x.ToString("0.#", Br) + "%" : Desconhecido;
+        return Pontos(u.Cota5h) + " · " + Pontos(u.CotaSemana);
+    }
+}
+
+/// <summary>O consumo de cada etapa, lido do <c>uso-das-IAs.json</c> que o <c>uso_ias.py</c> do kit grava na pasta de controle (análise pro e análise Google) e
+/// do <c>engine_state.json</c> (as etapas que o relatório de uso ainda não traz, as de programa — <c>{"executor": "programa"}</c> — e a rota ChatGPT, que
+/// não tem relatório de uso). E o histórico das durações de todos os processos, para a <see cref="PrevisaoTermino"/>.</summary>
+public static class UsoDasIas
+{
+    public const string Arquivo = "uso-das-IAs.json";
+    public const string Programa = "programa";
+
+    /// <param name="desdeUtc">Arquivos gravados antes disto (a análise anterior) não contam.</param>
+    public static IReadOnlyList<UsoEtapa> Ler(string pastaControle, DateTime desdeUtc = default)
+    {
+        var linhas = new List<UsoEtapa>();
+        var etapas = SituacaoAnalisePro.Etapas.ToList();
+        if (ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, Arquivo), desdeUtc) is { ValueKind: JsonValueKind.Object } uso
+            && uso.TryGetProperty("execucoes", out var execucoes) && execucoes.ValueKind == JsonValueKind.Array)
+            foreach (var x in execucoes.EnumerateArray())
+            {
+                if (x.ValueKind != JsonValueKind.Object || ProgressoLocal.Texto(x, "etapa") is not { } etapa || !etapas.Contains(etapa)) continue;
+                var modelo = PrimeiroModelo(x) ?? ProgressoLocal.Texto(x, "modelo_pedido");
+                var executor = Executor(ProgressoLocal.Texto(x, "executor"), ProgressoLocal.Texto(x, "ia"), modelo);
+                JsonElement? detalhe = x.TryGetProperty("tokens_detalhe", out var d) && d.ValueKind == JsonValueKind.Object ? d : null;
+                double? cota5h = null, cotaSemana = null;
+                if (!(x.TryGetProperty("cota_fora", out var fora) && fora.ValueKind == JsonValueKind.True)
+                    && x.TryGetProperty("cota_usada_pp", out var cota) && cota.ValueKind == JsonValueKind.Object)
+                {
+                    cota5h = ProgressoLocal.Numero(cota, "5 h");
+                    cotaSemana = ProgressoLocal.Numero(cota, "semana");
+                }
+                var duracao = ProgressoLocal.Numero(x, "duracao_s") is { } s and > 0 ? TimeSpan.FromSeconds(s) : (TimeSpan?)null;
+                linhas.Add(new UsoEtapa(etapa, executor, modelo, Inteiro(detalhe, "entrada"), Inteiro(detalhe, "saida"),
+                        Inteiro(x, "cache_lido") ?? Inteiro(detalhe, "cache_lido"), duracao, cota5h, cotaSemana)
+                    { Total = Inteiro(x, "tokens"), Situacao = ProgressoLocal.Texto(x, "situacao") });
+            }
+
+        // As etapas do estado que o relatório de uso não traz: as de programa (nunca passam por IA), a rota ChatGPT (sem relatório de uso) e a etapa que
+        // terminou depois da última geração do relatório.
+        if (ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "engine_state.json"), desdeUtc) is { ValueKind: JsonValueKind.Object } estado
+            && estado.TryGetProperty("stages", out var stages) && stages.ValueKind == JsonValueKind.Object)
+            foreach (var etapa in etapas)
+            {
+                if (!stages.TryGetProperty(etapa, out var r) || r.ValueKind != JsonValueKind.Object || linhas.Any(l => l.Etapa == etapa)) continue;
+                var executorDoRegistro = ProgressoLocal.Texto(r, "executor");
+                var executor = Executor(executorDoRegistro, ProgressoLocal.Texto(r, "engine"),
+                    ProgressoLocal.Texto(r, "requested_model") ?? ProgressoLocal.Texto(r, "modelo_observado"));
+                var modelo = executor == Programa ? null
+                    : ProgressoLocal.Texto(r, "modelo_observado") ?? ProgressoLocal.Texto(r, "requested_model") ?? executorDoRegistro;
+                var inicio = ProgressoLocal.Instante(r, "started");
+                var fim = ProgressoLocal.Instante(r, "ended");
+                var duracao = inicio is { } a && fim is { } b && b > a ? b - a : (TimeSpan?)null;
+                linhas.Add(new UsoEtapa(etapa, executor, modelo, null, null, null, duracao, null, null) { Situacao = ProgressoLocal.Texto(r, "status") });
+            }
+
+        // Na ordem das etapas; dentro de uma etapa, as tentativas na ordem do relatório.
+        return linhas.Select((l, i) => (l, i)).OrderBy(p => etapas.IndexOf(p.l.Etapa)).ThenBy(p => p.i).Select(p => p.l).ToList();
+    }
+
+    /// <summary>Quem executou: <c>programa</c> quando o registro diz <c>"executor": "programa"</c>; senão pelo motor ou pelo modelo: codex/gpt → <c>GPT</c>,
+    /// claude → <c>Claude</c>, gemini/agy/antigravity → <c>Gemini</c>; "—" se nada disso aparece.</summary>
+    public static string Executor(string? executor, string? engine, string? modelo)
+    {
+        if (string.Equals(executor?.Trim(), Programa, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(engine?.Trim(), Programa, StringComparison.OrdinalIgnoreCase)) return Programa;
+        var texto = string.Join(' ', executor, engine, modelo).ToLowerInvariant();
+        if (texto.Contains("claude") || texto.Contains("opus") || texto.Contains("sonnet")) return "Claude";
+        if (texto.Contains("gemini") || texto.Contains("antigravity") || string.Equals(engine?.Trim(), "agy", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(executor?.Trim(), "agy", StringComparison.OrdinalIgnoreCase)) return "Gemini";
+        if (texto.Contains("codex") || texto.Contains("gpt")) return "GPT";
+        return "—";
+    }
+
+    static readonly ConcurrentDictionary<string, Lazy<Task<IReadOnlyList<DuracaoEtapa>>>> historicos = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>O <see cref="Historico"/> lido uma vez por sessão do Editor (por pasta de processos), fora da thread de quem chama.</summary>
+    public static Task<IReadOnlyList<DuracaoEtapa>> HistoricoDaSessaoAsync(string pastaProcessos) =>
+        historicos.GetOrAdd(pastaProcessos ?? "", raiz => new Lazy<Task<IReadOnlyList<DuracaoEtapa>>>(() => Task.Run(() => Historico(raiz)))).Value;
+
+    /// <summary>As durações das etapas executadas (<c>EXECUTED</c>, com duração) em todos os <c>uso-das-IAs.json</c> sob a pasta de processos
+    /// (<c>&lt;raiz&gt;\…\&lt;processo&gt;\.pmvni-ai\&lt;analise|analise-pro|analise-google&gt;\uso-das-IAs.json</c>, até três níveis de pasta). Arquivo
+    /// ilegível ou pela metade é ignorado.</summary>
+    public static IReadOnlyList<DuracaoEtapa> Historico(string pastaProcessos)
+    {
+        var saida = new List<DuracaoEtapa>();
+        if (string.IsNullOrWhiteSpace(pastaProcessos) || !Directory.Exists(pastaProcessos)) return saida;
+        var etapas = SituacaoAnalisePro.Etapas;
+        // A pasta .pmvni-ai pode estar oculta: nada é pulado pelos atributos; a profundidade limita a busca (e qualquer atalho circular).
+        var opcoes = new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 3, IgnoreInaccessible = true, AttributesToSkip = 0 };
+        IEnumerable<string> pastas;
+        try { pastas = Directory.EnumerateDirectories(pastaProcessos, ".pmvni-ai", opcoes).ToList(); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return saida; }
+        foreach (var pmvni in pastas)
+            foreach (var plugin in new[] { "analise", "analise-pro", "analise-google" })
+            {
+                var controle = Path.Combine(pmvni, plugin);
+                if (ProgressoLocal.ProvedorDaPasta(controle) is not { } provedor) continue;
+                var arquivo = Path.Combine(controle, Arquivo);
+                try
+                {
+                    if (!File.Exists(arquivo)) continue;
+                    using var fs = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    using var doc = JsonDocument.Parse(fs);
+                    if (doc.RootElement.ValueKind != JsonValueKind.Object || !doc.RootElement.TryGetProperty("execucoes", out var execucoes)
+                        || execucoes.ValueKind != JsonValueKind.Array) continue;
+                    foreach (var x in execucoes.EnumerateArray())
+                        if (x.ValueKind == JsonValueKind.Object && ProgressoLocal.Texto(x, "etapa") is { } etapa && etapas.Contains(etapa)
+                            && ProgressoLocal.Texto(x, "situacao") == "EXECUTED" && ProgressoLocal.Numero(x, "duracao_s") is { } s and > 0)
+                            saida.Add(new DuracaoEtapa(etapa, provedor, TimeSpan.FromSeconds(s)));
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { }
+            }
+        return saida;
+    }
+
+    static string? PrimeiroModelo(JsonElement x) =>
+        x.TryGetProperty("modelos_confirmados", out var lista) && lista.ValueKind == JsonValueKind.Array
+            ? lista.EnumerateArray().Where(m => m.ValueKind == JsonValueKind.String).Select(m => m.GetString()).FirstOrDefault(m => !string.IsNullOrWhiteSpace(m))
+            : null;
+
+    static long? Inteiro(JsonElement? o, string nome) =>
+        o is { } e && e.TryGetProperty(nome, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var n) && double.IsFinite(n) && n >= 0
+            ? (long)n : null;
+}

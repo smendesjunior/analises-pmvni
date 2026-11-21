@@ -6,12 +6,40 @@ namespace Pmvni.App;
 
 internal sealed record AchadoExecucao(string Id, long Sequencia, string Titulo, string Situacao, bool Verificado);
 
-internal sealed record ProgressoEtapa(string Etapa, long Sequencia, int Avaliados, int Total);
-internal sealed record EstimativaAnalise(string? Etapa, double? PercentualEtapa, double? PercentualGeral, DateTimeOffset? Termino);
+/// <summary>O progresso de uma etapa: itens avaliados (eventos antigos da IA) ou, com <paramref name="Secoes"/>, as seções do manifesto com resultado.</summary>
+internal sealed record ProgressoEtapa(string Etapa, long Sequencia, int Avaliados, int Total, bool Secoes = false);
+
+/// <summary>A previsão do Monitor. <paramref name="PeloEditor"/>: calculada pelo Editor (Tarefa 13: mediana do histórico, <see cref="Pmvni.Agentes.PrevisaoTermino"/>);
+/// senão, a estimativa que a IA gravava em <c>estimativa.json</c> numa análise antiga.</summary>
+internal sealed record EstimativaAnalise(string? Etapa, double? PercentualEtapa, double? PercentualGeral, DateTimeOffset? Termino, bool PeloEditor = false);
 internal sealed record PainelAchados(List<AchadoExecucao> Itens, Dictionary<string, ProgressoEtapa> Etapas, EstimativaAnalise? Estimativa);
 
 internal static class AchadosExecucao
 {
+    /// <summary>O painel do Monitor para uma execução (Tarefa 13). Uma análise iniciada por um Editor antigo grava eventos em <c>progresso\*.json</c> do
+    /// registro: enquanto houver eventos, valem eles (o Monitor de uma análise antiga em andamento não fica vazio). Senão, o painel sai do que o kit já
+    /// registra (<see cref="Pmvni.Agentes.ProgressoLocal"/>), com a previsão pela mediana do <paramref name="historico"/> (null = ainda carregando).</summary>
+    public static PainelAchados LerDaExecucao(string pastaLegado, string processo, DateTime inicioUtc, string pastaControle, DateTime desdeUtc,
+        IReadOnlyList<Pmvni.Agentes.DuracaoEtapa>? historico, DateTimeOffset agora)
+    {
+        var legado = Ler(pastaLegado, processo, inicioUtc);
+        if (legado.Itens.Count > 0 || legado.Etapas.Count > 0 || legado.Estimativa is not null) return legado;
+        return DoProgresso(Pmvni.Agentes.ProgressoLocal.Ler(pastaControle, desdeUtc), historico, agora);
+    }
+
+    /// <summary>O <see cref="Pmvni.Agentes.Progresso"/> no formato do Monitor: os achados (verificados depois da auditoria técnica), as seções com resultado
+    /// durante a análise (<c>analyze</c>) e a previsão de término arredondada ao minuto (o Monitor não redesenha a cada segundo).</summary>
+    internal static PainelAchados DoProgresso(Pmvni.Agentes.Progresso p, IReadOnlyList<Pmvni.Agentes.DuracaoEtapa>? historico, DateTimeOffset agora)
+    {
+        var itens = p.Achados.Select(a => new AchadoExecucao(a.Id, 0, a.Titulo, a.Situacao, a.Verificado)).ToList();
+        var etapas = new Dictionary<string, ProgressoEtapa>(StringComparer.Ordinal);
+        if (p.Etapa == "analyze") etapas["analyze"] = new("analyze", p.SecoesComResultado, p.SecoesComResultado, p.TotalSecoes, Secoes: true);
+        if (!p.TemDados) return new(itens, etapas, null);
+        var termino = historico is null ? null : Pmvni.Agentes.PrevisaoTermino.Estimar(p, historico, agora);
+        if (termino is { } t && t.Ticks % TimeSpan.TicksPerMinute is var resto and > 0) termino = t.AddTicks(TimeSpan.TicksPerMinute - resto);
+        return new(itens, etapas, new EstimativaAnalise(p.Etapa, null, null, termino, PeloEditor: true));
+    }
+
     public static PainelAchados Ler(string pasta, string processo, DateTime inicioUtc = default)
     {
         var ultimos = new Dictionary<string, AchadoExecucao>(StringComparer.Ordinal);

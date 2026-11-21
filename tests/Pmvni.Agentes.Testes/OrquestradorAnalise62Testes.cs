@@ -49,7 +49,7 @@ public partial class OrquestradorTestes
         var diretrizes = File.ReadAllText(Path.Combine(c.Controle("analise"), "diretrizes.md"), Encoding.UTF8);
         Assert.Contains(PedidoAgente.TratamentoDoProcesso, diretrizes);
         Assert.Contains("Confira o muro de divisa.", diretrizes);
-        Assert.Contains(c.Registro.InstrucoesProgresso(), diretrizes);
+        Assert.Equal(PedidoAgente.Diretrizes("Confira o muro de divisa."), diretrizes);     // Tarefa 13: sem instruções de progresso
         Assert.Equal("Confira o muro de divisa.", File.ReadAllText(c.DoRegistro("pedido.md"), Encoding.UTF8));
 
         var ex = c.Execucao();

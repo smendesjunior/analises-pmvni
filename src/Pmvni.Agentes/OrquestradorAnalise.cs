@@ -345,7 +345,8 @@ public sealed class OrquestradorAnalise
 
         registro.GravarPedido(pe.Texto ?? "");
         // As diretrizes do analista e o tratamento dos dados vão no diretrizes.md do kit (como no análise pro); nenhuma IA recebe pedido do editor.
-        GravarDiretrizes(controle, PedidoAgente.Diretrizes(pe.Texto) + "\n" + registro.InstrucoesProgresso());
+        // Tarefa 13: o progresso e a previsão do Monitor saem do manifesto e do engine_state (ProgressoLocal); nada de instruções de progresso para a IA.
+        GravarDiretrizes(controle, PedidoAgente.Diretrizes(pe.Texto));
         registro.GravarAnexos(pe.Anexos);
 
         var (exe, args) = LinhasDeComando.Analise62(pecas.Python!, pecas.PythonPeloLauncher, pecas.Analise62!, pasta, entradas);
@@ -658,7 +659,7 @@ public sealed class OrquestradorAnalise
             var controle = Path.Combine(pasta, ResultadoAnalise.PastaControle(p));
             var diretrizes = Path.Combine(controle, "diretrizes.md");
             Directory.CreateDirectory(controle);
-            File.WriteAllText(diretrizes, (pe.Texto ?? "").Trim() + "\n" + registro.InstrucoesProgresso(), new UTF8Encoding(false));
+            File.WriteAllText(diretrizes, (pe.Texto ?? "").Trim() + "\n", new UTF8Encoding(false));     // só o texto do analista (Tarefa 13)
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         registro.GravarAnexos(pe.Anexos);

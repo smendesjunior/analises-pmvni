@@ -3127,7 +3127,8 @@ internal static class Roteiro
             var diretrizes = File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "analise", "diretrizes.md"), System.Text.Encoding.UTF8);
             var ex = ExecucaoJson(e);
             var registro = reg.StartsWith(Path.Combine(processo, ".pmvni-ai", "editor") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                && pedido == texto && diretrizes == PedidoAgente.Diretrizes(texto) + "\n" + e.Registro.InstrucoesProgresso()
+                && pedido == texto && diretrizes == PedidoAgente.Diretrizes(texto)      // Tarefa 13: sem instruções de progresso para a IA
+                && !Directory.Exists(e.Registro.PastaProgresso)
                 && anexosJson.Count == 4 && File.Exists(Path.Combine(reg, "saida.jsonl")) && File.Exists(Path.Combine(reg, "situacoes.jsonl"))
                 && ex["situacao"]?.GetValue<string>() == "concluida" && ex["modo"]?.GetValue<string>() == "conta" && ex["pmvrel"]?.GetValue<string>() is { Length: > 0 };
             p["registro"] = registro;
@@ -3336,7 +3337,7 @@ internal static class Roteiro
             var registro = (string?)execucao["provedor"] == "gemini" && (string?)execucao["autenticacao"] == "conta_google" && (string?)execucao["perfil"] == "conta_ultra"
                 && (string?)execucao["plugin"] == "análise Google" && (string?)execucao["versao_do_plugin"] == "2.1.0"
                 && File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "analise-google", "diretrizes.md"), System.Text.Encoding.UTF8)
-                    == "Diretriz fictícia para o Gemini.\n" + e.Registro.InstrucoesProgresso();
+                    == "Diretriz fictícia para o Gemini.\n";      // só o texto do analista (Tarefa 13)
             var s = j.Sessao;
             var importado = fim.Situacao == "concluida" && s is not null && NaEtapa(s.Caminho, processo)
                 && fim.Documento == Path.Combine(processo, ".pmvni-ai", "analise-google", "relatorio_dados.json") && j.FolhasVisiveis

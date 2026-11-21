@@ -161,13 +161,14 @@ public static class FluxoNovoRelatorio
         };
     }
 
-    internal static string TextoEstimativa(DateTimeOffset? termino, DateTimeOffset agora, TimeSpan? restantePeloRitmo = null)
+    /// <param name="peloEditor">A previsão é do Editor (Tarefa 13: mediana das execuções anteriores), não da IA: sem ela, faltam execuções no histórico.</param>
+    internal static string TextoEstimativa(DateTimeOffset? termino, DateTimeOffset agora, TimeSpan? restantePeloRitmo = null, bool peloEditor = false)
     {
         var peloRitmo = termino is null || termino <= agora;
         if (peloRitmo && restantePeloRitmo is { } restante && restante > TimeSpan.Zero)
             termino = agora.Add(restante);
-        if (termino is not { } hora) return "Aguardando estimativa da IA";
-        if (hora <= agora) return "Aguardando nova estimativa da IA";
+        if (termino is not { } hora) return peloEditor ? "Término: histórico insuficiente para prever" : "Aguardando estimativa da IA";
+        if (hora <= agora) return peloEditor ? "Término previsto para os próximos minutos" : "Aguardando nova estimativa da IA";
         var formato = hora.Date == agora.Date ? "HH:mm" : "dd/MM HH:mm";
         var rotulo = peloRitmo ? "Término aproximado pelo ritmo" : "Término estimado";
         return $"{rotulo} · {hora.ToString(formato, CultureInfo.InvariantCulture)} ({TempoLegivel(hora - agora)} restantes)";
