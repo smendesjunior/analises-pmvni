@@ -113,7 +113,7 @@ public sealed class RegistroModelosTestes
         var r = RegistroModelos.Ler(raiz);
 
         Assert.Empty(r.Modelos);
-        var msg = FontesModelos.AtualizeOKit;
+        var msg = FontesModelos.NaoEncontrados(raiz);
         Assert.Equal(msg, r.Indisponiveis[TipoDespacho.Correcao]);
         Assert.Equal(msg, r.Indisponiveis[TipoDespacho.Aprovacao]);
     }

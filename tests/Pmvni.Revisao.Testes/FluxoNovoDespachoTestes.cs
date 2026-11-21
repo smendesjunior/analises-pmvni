@@ -114,7 +114,7 @@ public sealed class FluxoNovoDespachoTestes
         // Kit sem modelos (e nada instalado): os dois tipos com o motivo.
         using var pasta = Ambiente.PastaDeTeste("fluxo-kit-vazio");
         var vazio = RegistroModelos.Ler(pasta);
-        var esperado = FontesModelos.AtualizeOKit;   // Tarefa 22: sem modelos em lugar nenhum, "Atualize o kit PMVNI"
+        var esperado = FontesModelos.NaoEncontrados(Path.GetFullPath(pasta.Caminho));   // Tarefa 22: sem modelos em lugar nenhum, "Atualize o kit PMVNI"
         Assert.Equal(esperado, FluxoNovoDespacho.MotivoDesabilitado(TipoDespacho.Correcao, vazio, false));
         Assert.Equal(esperado, FluxoNovoDespacho.MotivoDesabilitado(TipoDespacho.Aprovacao, vazio, false));
     }

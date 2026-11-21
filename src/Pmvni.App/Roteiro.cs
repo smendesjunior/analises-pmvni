@@ -2097,11 +2097,6 @@ internal static class Roteiro
             CopiarArvore(Path.Combine(corpus, "processos"), copiaDespacho);
             foreach (var (k, v) in FotografarArvore(copiaDespacho)) antesDoDespacho[k] = v;
             kitAntes = RetratoDoKit(kitReal);
-            // Tarefa 22: os modelos vêm do plugin analise instalado antes da pasta do kit; nestes passos o "Codex" é uma pasta vazia, para
-            // valer o kit dos Ajustes (o 40b monta o plugin analise com os modelos e confere o despacho sem plugin despacho).
-            var codexSemPlugins = Path.Combine(pasta, "codex-sem-plugins");
-            Directory.CreateDirectory(codexSemPlugins);
-            j.CodexHomeDosModelos = () => codexSemPlugins;
             j.DefinirPastaKit(kitReal);
             j.DefinirPastaProcessos(copiaDespacho);
             j.Hoje = () => new DateOnly(2099, 3, 10);
@@ -2392,14 +2387,18 @@ internal static class Roteiro
                 && n.AvisoBloqueio.IsOpen && n.AvisoBloqueio.Message.Split(Environment.NewLine).Contains(msgB);
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "40-janela-xaml-bloqueio-processo.png"));
 
-            // (c) Kit vazio nos Ajustes: os dois tipos desabilitados com o motivo do registro; o kit volta.
+            // (c) Kit vazio nos Ajustes e nada instalado (um "Codex" vazio: sem a pasta do kit, valeriam as cópias instaladas, Tarefa 22):
+            // os dois tipos desabilitados com o motivo; o kit volta.
             await j.MudarModuloAsync(Modulo.Processos);
             var kitVazio = Path.Combine(pasta, "kit-vazio");
             if (Directory.Exists(kitVazio)) ApagarArvore(kitVazio);
             Directory.CreateDirectory(kitVazio);
+            var codexVazioC = Path.Combine(pasta, "codex-vazio-40c");
+            Directory.CreateDirectory(codexVazioC);
+            j.CodexHomeDosModelos = () => codexVazioC;
             j.DefinirPastaKit(kitVazio);
             await j.AguardarNovoDespachoAsync();
-            var msgC = FontesModelos.AtualizeOKit;
+            var msgC = FontesModelos.NaoEncontrados(kitVazio);
             var faixa = j.FaixaAtual;
             p["dica_c"] = faixa.Dica(ComandosApp.DespachosNovoCorrecao);
             var desabilitados = !faixa.Habilitado(ComandosApp.DespachosNovoCorrecao) && !faixa.Habilitado(ComandosApp.DespachosNovoAprovacao)
@@ -2409,6 +2408,7 @@ internal static class Roteiro
             var naoAbriu = j.DespachoEmEdicao is null && j.InfoMensagemAtual.IsOpen && j.InfoMensagemAtual.Message.Contains(msgC.TrimEnd('.'), StringComparison.Ordinal);
             await j.MudarModuloAsync(Modulo.Ajustes);
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "40-janela-xaml-kit-vazio.png"));
+            j.CodexHomeDosModelos = null;
             j.DefinirPastaKit(kitReal);
             await j.AguardarNovoDespachoAsync();
             var voltou = j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoCorrecao) && j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoAprovacao)
@@ -2548,10 +2548,13 @@ internal static class Roteiro
             // (c) Nada: os dois tipos desabilitados com "Atualize o kit PMVNI".
             var textoC = await Ler(codexVazio);
             p["ajustes_c"] = textoC;
-            var cOk = !Disponiveis() && j.FaixaAtual.Dica(ComandosApp.DespachosNovoCorrecao) == FontesModelos.AtualizeOKit
-                && textoC == "Correção: " + FontesModelos.AtualizeOKit + Environment.NewLine + "Aprovação: " + FontesModelos.AtualizeOKit;
+            var msgNada = FontesModelos.NaoEncontrados(kitVazio);
+            var cOk = !Disponiveis() && j.FaixaAtual.Dica(ComandosApp.DespachosNovoCorrecao) == msgNada
+                && textoC == "Correção: " + msgNada + Environment.NewLine + "Aprovação: " + msgNada;
 
-            // Volta ao kit real (Codex vazio) para os passos seguintes; a cópia dos processos não mudou.
+            // Volta ao kit real e ao Codex de verdade para os passos seguintes (o kit vale antes das cópias instaladas); a cópia dos
+            // processos não mudou.
+            j.CodexHomeDosModelos = null;
             j.DefinirPastaKit(kitReal);
             await j.AguardarNovoDespachoAsync();
             var voltou = Disponiveis();
@@ -5451,10 +5454,14 @@ internal static class Roteiro
         }
     }
 
-    /// <summary>Os modelos e as referências do plugin despacho no kit (caminho, tamanho e data de cada arquivo e pasta): o roteiro prova que
-    /// o kit só foi lido.</summary>
+    /// <summary>Os modelos de despacho do kit: <c>02 - MODELOS DE DOCUMENTOS</c>, as referências do antigo plugin despacho e o
+    /// <c>references\despacho</c> do analise (caminho, tamanho e data de cada arquivo e pasta): o roteiro prova que o kit só foi lido.</summary>
     static string[] RetratoDoKit(string kit) =>
-        new[] { Path.Combine(kit, "02 - MODELOS DE DOCUMENTOS"), Path.Combine(kit, TextosFixos.PastaReferencias.Replace('/', Path.DirectorySeparatorChar)) }
+        new[]
+            {
+                Path.Combine(kit, "02 - MODELOS DE DOCUMENTOS"), Path.Combine(kit, TextosFixos.PastaReferencias.Replace('/', Path.DirectorySeparatorChar)),
+                Path.Combine(kit, FontesModelos.AnaliseNoKit.Replace('/', Path.DirectorySeparatorChar), FontesModelos.PastaNoAnalise.Replace('/', Path.DirectorySeparatorChar)),
+            }
             .Where(Directory.Exists)
             .SelectMany(d => Directory.GetFileSystemEntries(d, "*", SearchOption.AllDirectories).Append(d))
             .Select(f =>

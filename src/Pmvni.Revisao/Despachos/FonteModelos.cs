@@ -9,10 +9,11 @@ public sealed record FonteModelos(string Registro, string Raiz, string PastaText
     public bool Existe => File.Exists(Registro) && Directory.Exists(PastaTextos);
 }
 
-/// <summary>As fontes possíveis dos modelos de despacho, na ordem em que valem (Tarefa 22). O despacho deixou de ser plugin do kit: é emitido
-/// pelo editor, e os modelos oficiais (DOCX, registro e textos) passaram a ser dados em <c>skills\analise\references\despacho</c> do plugin
-/// analise, atualizados pelo kit. Enquanto o kit não for atualizado, valem as fontes antigas (o plugin despacho instalado e a pasta
-/// <c>02 - MODELOS DE DOCUMENTOS</c> do kit); o plugin despacho em si nunca é chamado. Só lê.</summary>
+/// <summary>As fontes possíveis dos modelos de despacho, na ordem em que valem (Tarefa 22, correção 1). O despacho deixou de ser plugin do kit:
+/// é emitido pelo editor, e os modelos oficiais (DOCX, registro e textos) são dados. Vale primeiro a pasta do kit escolhida em Ajustes (o
+/// registro <c>02 - MODELOS DE DOCUMENTOS</c>, mantido pelo usuário, e depois o <c>references\despacho</c> do plugin analise do kit); só sem
+/// ela, as cópias instaladas no Codex: o plugin analise e, por último, o antigo plugin despacho (só os dados dele; ele nunca é chamado). Como
+/// no kit, a cópia empacotada só vale sem o kit. Só lê.</summary>
 public static class FontesModelos
 {
     /// <summary>A pasta dos dados de despacho dentro do plugin analise (o registro, a subpasta <c>modelos</c> e os textos). Os caminhos do
@@ -24,10 +25,19 @@ public static class FontesModelos
 
     public const string NomeRegistro = "TEMPLATES_OFICIAIS.json";
 
-    /// <summary>Nenhuma fonte foi achada: o tipo fica indisponível e nada é pedido à IA no lugar do modelo.</summary>
+    /// <summary>O que fazer quando nenhuma fonte foi achada (fim da mensagem de <see cref="NaoEncontrados"/>).</summary>
     public const string AtualizeOKit =
-        "Os modelos de despacho não foram encontrados (nem no plugin analise instalado, nem na pasta do kit escolhida em Ajustes). "
-        + "Atualize o kit PMVNI: rode o INSTALAR_KIT_PMVNI.cmd com a opção atualizar e abra o Novo despacho de novo.";
+        "Atualize o kit PMVNI (rode o INSTALAR_KIT_PMVNI.cmd com a opção atualizar) ou escolha a pasta do kit em Ajustes, e abra o Novo despacho de novo.";
+
+    /// <summary>Nenhuma fonte foi achada: o tipo fica indisponível e nada é pedido à IA no lugar do modelo. Diz onde a pasta do kit foi
+    /// procurada (<paramref name="raizKit"/>; null = não informada).</summary>
+    public static string NaoEncontrados(string? raizKit)
+    {
+        var kit = string.IsNullOrWhiteSpace(raizKit) ? "a pasta do kit não foi informada"
+            : Directory.Exists(raizKit) ? "a pasta do kit (" + raizKit + ") não tem os modelos de despacho"
+            : "a pasta do kit não foi encontrada em " + raizKit;
+        return "Os modelos de despacho não foram encontrados: " + kit + ", e o plugin analise instalado não traz os modelos. " + AtualizeOKit;
+    }
 
     static string Local(string relativo) => relativo.Replace('/', Path.DirectorySeparatorChar);
 
@@ -48,39 +58,38 @@ public static class FontesModelos
         return new FonteModelos(Path.Combine(skill, "assets", NomeRegistro), skill, Path.Combine(skill, "references"), origem);
     }
 
-    /// <summary>A pasta do kit no formato antigo: <c>02 - MODELOS DE DOCUMENTOS\TEMPLATES_OFICIAIS.json</c> (caminhos a partir da raiz do kit)
-    /// e os textos nas referências do plugin despacho do kit.</summary>
-    public static FonteModelos DoKitAntigo(string raizKit)
+    /// <summary>O registro do kit, <c>02 - MODELOS DE DOCUMENTOS\TEMPLATES_OFICIAIS.json</c> (caminhos a partir da raiz do kit), com os textos
+    /// do <c>references\despacho</c> do analise do kit ou, no kit antigo, das referências do plugin despacho do kit.</summary>
+    public static FonteModelos DoRegistroDoKit(string raizKit)
     {
         ArgumentNullException.ThrowIfNull(raizKit);
-        return new FonteModelos(Path.Combine(raizKit, Local(RegistroModelos.CaminhoRegistro)), raizKit, Path.Combine(raizKit, Local(TextosFixos.PastaReferencias)),
-            "pasta do kit, formato antigo (" + raizKit + ")");
+        var novos = Path.Combine(raizKit, Local(AnaliseNoKit), Local(PastaNoAnalise));
+        var textos = Directory.Exists(novos) ? novos : Path.Combine(raizKit, Local(TextosFixos.PastaReferencias));
+        return new FonteModelos(Path.Combine(raizKit, Local(RegistroModelos.CaminhoRegistro)), raizKit, textos,
+            "pasta do kit, 02 - MODELOS DE DOCUMENTOS (" + raizKit + ")");
     }
 
-    /// <summary>A pasta do kit: primeiro o plugin analise dela (formato novo), depois o formato antigo.</summary>
+    /// <summary>A pasta do kit: primeiro o registro <c>02 - MODELOS DE DOCUMENTOS</c>, depois o <c>references\despacho</c> do analise dela.</summary>
     public static IReadOnlyList<FonteModelos> DaPastaDoKit(string raizKit)
     {
         ArgumentNullException.ThrowIfNull(raizKit);
-        return [DoAnalise(Path.Combine(raizKit, Local(AnaliseNoKit)), "plugin analise da pasta do kit (" + raizKit + ")"), DoKitAntigo(raizKit)];
+        return [DoRegistroDoKit(raizKit), DoAnalise(Path.Combine(raizKit, Local(AnaliseNoKit)), "plugin analise da pasta do kit (" + raizKit + ")")];
     }
 
-    /// <summary>Todas as fontes, na ordem: o plugin analise instalado, o plugin analise da pasta do kit, o plugin despacho antigo instalado
-    /// e a pasta do kit no formato antigo. Pastas null (não instalado, sem kit) ficam de fora.</summary>
+    /// <summary>Todas as fontes, na ordem: a pasta do kit (<see cref="DaPastaDoKit"/>), o plugin analise instalado e, por último, o antigo
+    /// plugin despacho instalado. Pastas null (sem kit, não instalado) ficam de fora.</summary>
     public static IReadOnlyList<FonteModelos> Candidatas((string Versao, string Pasta)? analiseInstalado, (string Versao, string Pasta)? despachoInstalado,
         string? raizKit)
     {
         var lista = new List<FonteModelos>();
+        if (!string.IsNullOrWhiteSpace(raizKit)) lista.AddRange(DaPastaDoKit(raizKit));
         if (analiseInstalado is { } a) lista.Add(DoAnalise(a.Pasta, "plugin analise instalado (versão " + a.Versao + ")"));
-        var kit = string.IsNullOrWhiteSpace(raizKit) ? null : DaPastaDoKit(raizKit);
-        if (kit is not null) lista.Add(kit[0]);
         if (despachoInstalado is { } d)
             lista.Add(DoDespachoAntigo(d.Pasta, "plugin despacho antigo instalado (versão " + d.Versao + "); atualize o kit PMVNI"));
-        if (kit is not null) lista.Add(kit[1]);
         return lista;
     }
 
-    /// <summary>A primeira fonte que existe (<see cref="FonteModelos.Existe"/>); null se nenhuma. Uma fonte que existe mas não confere não é
-    /// trocada por outra mais antiga: o motivo aparece no tipo indisponível.</summary>
+    /// <summary>A primeira fonte que existe (<see cref="FonteModelos.Existe"/>); null se nenhuma.</summary>
     public static FonteModelos? Escolher(IEnumerable<FonteModelos> candidatas)
     {
         ArgumentNullException.ThrowIfNull(candidatas);

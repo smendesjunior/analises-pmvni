@@ -166,9 +166,9 @@ public sealed partial class MainWindow
         return tarefaDosModelos = LerModelosAsync(kit);
     }
 
-    /// <summary>As fontes dos modelos de despacho, na ordem (Tarefa 22): os dados de despacho do plugin analise instalado, os do plugin analise
-    /// da pasta do kit e, enquanto o kit não for atualizado, os modelos do antigo plugin despacho instalado e os da pasta do kit (formato
-    /// antigo). O plugin despacho nunca é chamado: o despacho é emitido pelo editor.</summary>
+    /// <summary>As fontes dos modelos de despacho, na ordem (Tarefa 22, correção 1): a pasta do kit dos Ajustes (o registro
+    /// 02 - MODELOS DE DOCUMENTOS, depois o references\despacho do analise dela), o plugin analise instalado e, por último, os modelos do
+    /// antigo plugin despacho instalado. O plugin despacho nunca é chamado: o despacho é emitido pelo editor.</summary>
     static IReadOnlyList<FonteModelos> FontesDosModelos(string kit, string home) =>
         FontesModelos.Candidatas(Pmvni.Agentes.PluginsInstalados.PastaNoCodex(home, Pmvni.Agentes.PluginsInstalados.Analise),
             Pmvni.Agentes.PluginsInstalados.PastaNoCodex(home, Pmvni.Agentes.PluginsInstalados.DespachoAntigo), kit);
@@ -181,7 +181,7 @@ public sealed partial class MainWindow
     {
         ModelosDisponiveis m;
         var home = CodexHomeAtual();
-        try { m = await Task.Run(() => RegistroModelos.Ler(FontesDosModelos(kit, home))); }
+        try { m = await Task.Run(() => RegistroModelos.Ler(FontesDosModelos(kit, home), kit)); }
         catch (Exception e)
         {
             var motivo = "O registro de modelos do kit não pôde ser lido (" + Erro(e) + ").";
@@ -217,7 +217,8 @@ public sealed partial class MainWindow
         p.TextoModelos.Text = modelos is not { } m ? "Lendo os modelos de despacho do kit…"
             : string.Join(Environment.NewLine, new[] { TipoDespacho.Correcao, TipoDespacho.Aprovacao }
                 .Select(t => RegistroModelos.Rotulo(t) + ": " + (FluxoNovoDespacho.MotivoDesabilitado(t, m, false) ?? "disponível"))
-                .Concat(m.Modelos.Count > 0 && m.Fonte is { } f ? ["Modelos lidos de: " + f.Origem] : Array.Empty<string>()));
+                .Concat(m.Fonte is { } f ? ["Modelos lidos de: " + f.Origem] : Array.Empty<string>())
+                .Concat(m.Falhas.Select(x => "Não serviu: " + x)));
     }
 
     void AtualizarComandosNovoDespacho()

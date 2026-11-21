@@ -80,7 +80,8 @@ public static class CriacaoProcesso
         // Como o uma_pasta do kit: mais de uma pasta para o processo é o usuário quem decide; nada é criado nem escolhido.
         if (existentes.Count > 1)
             throw new IOException("Há mais de uma pasta para o processo " + identificador + "/" + ano.ToString(CultureInfo.InvariantCulture)
-                                  + "; confira qual vale (o editor não escolhe uma delas): " + string.Join(" | ", existentes.Select(p => p.Pasta)) + ".");
+                                  + ": " + string.Join(" | ", existentes.Select(p => p.Pasta)) + ". O editor não escolhe uma delas: junte as duas "
+                                  + "numa pasta só, ou renomeie a que não é deste processo, e tente de novo.");
         if (existentes.Count == 1) return (existentes[0], false);
         var anoTexto = ano.ToString(CultureInfo.InvariantCulture);
 

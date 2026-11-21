@@ -9,8 +9,12 @@ namespace Pmvni.Revisao;
 public sealed record ModeloDespacho(TipoDespacho Tipo, string Papel, string CaminhoRelativo, string Caminho, string Sha256, int RevisaoRegistro, string Sha256Registro);
 
 /// <summary>Os tipos oferecidos (<see cref="Modelos"/>, na ordem Correção, Aprovação) e o motivo de cada tipo indisponível. <see cref="Fonte"/>:
-/// de onde os modelos foram lidos (null = nenhuma fonte achada); os textos fixos vêm da mesma fonte.</summary>
-public sealed record ModelosDisponiveis(IReadOnlyList<ModeloDespacho> Modelos, IReadOnlyDictionary<TipoDespacho, string> Indisponiveis, FonteModelos? Fonte = null);
+/// de onde os modelos foram lidos (null = nenhuma fonte achada); os textos fixos vêm da mesma fonte. <see cref="Falhas"/>: as fontes que
+/// existem mas não serviram, antes ou depois da usada ("&lt;origem&gt;: &lt;motivo&gt;"), para Ajustes mostrar qual falhou.</summary>
+public sealed record ModelosDisponiveis(IReadOnlyList<ModeloDespacho> Modelos, IReadOnlyDictionary<TipoDespacho, string> Indisponiveis, FonteModelos? Fonte = null)
+{
+    public IReadOnlyList<string> Falhas { get; init; } = [];
+}
 
 /// <summary>Leitura do registro oficial de modelos do kit (<c>TEMPLATES_OFICIAIS.json</c>, desenho §10.1), na fonte escolhida por
 /// <see cref="FontesModelos"/> (Tarefa 22). Só lê; nada é gravado no kit. Papéis: <c>correction</c> → Correção e <c>approval_simple</c> →
@@ -37,20 +41,31 @@ public static class RegistroModelos
         _ => throw new ArgumentOutOfRangeException(nameof(t), t, "Tipo de despacho não emitido pelo editor."),
     };
 
-    /// <summary>A pasta do kit (formato novo, depois o antigo); usado pelo verificador e pelos testes.</summary>
+    /// <summary>Só a pasta do kit (<see cref="FontesModelos.DaPastaDoKit"/>); usado pelo verificador e pelos testes.</summary>
     public static ModelosDisponiveis Ler(string raizKit)
     {
         ArgumentNullException.ThrowIfNull(raizKit);
-        return Ler(FontesModelos.DaPastaDoKit(Path.GetFullPath(raizKit)));
+        var raiz = Path.GetFullPath(raizKit);
+        return Ler(FontesModelos.DaPastaDoKit(raiz), raiz);
     }
 
-    /// <summary>A primeira fonte que existe (<see cref="FontesModelos.Escolher"/>); sem nenhuma, os dois tipos indisponíveis com
-    /// <see cref="FontesModelos.AtualizeOKit"/>.</summary>
-    public static ModelosDisponiveis Ler(IReadOnlyList<FonteModelos> candidatas)
+    /// <summary>As fontes na ordem (<see cref="FontesModelos.Candidatas"/>): vale a primeira que existe e oferece os dois tipos; uma fonte que
+    /// existe mas falha cai para a próxima, e a falha vai para <see cref="ModelosDisponiveis.Falhas"/>. Se nenhuma oferece os dois, fica a
+    /// primeira que existe (com o motivo de cada tipo indisponível). Sem nenhuma: <see cref="FontesModelos.NaoEncontrados"/> com a pasta do
+    /// kit (<paramref name="raizKit"/>).</summary>
+    public static ModelosDisponiveis Ler(IReadOnlyList<FonteModelos> candidatas, string? raizKit = null)
     {
         ArgumentNullException.ThrowIfNull(candidatas);
-        return FontesModelos.Escolher(candidatas) is { } fonte ? Ler(fonte)
-            : new ModelosDisponiveis([], Papeis.ToDictionary(p => p.Tipo, _ => FontesModelos.AtualizeOKit));
+        var lidas = candidatas.Where(f => f.Existe).Select(Ler).ToList();
+        if (lidas.Count == 0)
+        {
+            var motivo = FontesModelos.NaoEncontrados(raizKit);
+            return new ModelosDisponiveis([], Papeis.ToDictionary(p => p.Tipo, _ => motivo));
+        }
+        var usada = lidas.FirstOrDefault(m => m.Indisponiveis.Count == 0) ?? lidas[0];
+        var falhas = lidas.Where(m => !ReferenceEquals(m, usada) && m.Indisponiveis.Count > 0)
+            .Select(m => m.Fonte!.Origem + ": " + string.Join(" ", m.Indisponiveis.Values.Distinct(StringComparer.Ordinal))).ToList();
+        return usada with { Falhas = falhas };
     }
 
     public static ModelosDisponiveis Ler(FonteModelos fonte)
@@ -66,7 +81,7 @@ public static class RegistroModelos
 
         var raiz = Path.GetFullPath(fonte.Raiz);
         var caminhoRegistro = fonte.Registro;
-        if (!Directory.Exists(raiz) || !File.Exists(caminhoRegistro)) return Todos(FontesModelos.AtualizeOKit);
+        if (!Directory.Exists(raiz) || !File.Exists(caminhoRegistro)) return Todos("O registro de modelos não foi encontrado em " + caminhoRegistro + ".");
 
         byte[] bytesRegistro;
         JsonObject registro;

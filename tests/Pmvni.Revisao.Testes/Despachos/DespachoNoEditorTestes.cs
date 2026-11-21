@@ -87,15 +87,41 @@ public sealed class DespachoNoEditorTestes
         var kitVazio = Path.Combine(pasta, "kit-vazio");
         Directory.CreateDirectory(kitVazio);
 
-        // Plugin analise instalado com references\despacho: é a fonte, mesmo com um kit (real) que também tem modelos.
-        using (var a = Ambiente.PastaDeTeste("t22-fontes-analise"))
+        // A pasta do kit escolhida em Ajustes vem primeiro (a cópia instalada só vale sem ela): com o kit real, os modelos dele, mesmo
+        // com o plugin analise instalado trazendo os seus.
+        using (var a = Ambiente.PastaDeTeste("t22-fontes-kit"))
         {
             var plugin = AnaliseComModelos(a);
-            var lidos = RegistroModelos.Ler(FontesModelos.Candidatas(("4.0.0", plugin), null, Ambiente.ExigirKit()));
+            var kit = Ambiente.ExigirKit();
+            var lidos = RegistroModelos.Ler(FontesModelos.Candidatas(("4.0.0", plugin), null, kit), kit);
+            Assert.Empty(lidos.Indisponiveis);
+            Assert.Empty(lidos.Falhas);
+            Assert.Equal(FontesModelos.Escolher(FontesModelos.DaPastaDoKit(kit))!.Origem, lidos.Fonte!.Origem);
+            Assert.All(lidos.Modelos, m => Assert.StartsWith(kit, m.Caminho, StringComparison.OrdinalIgnoreCase));
+
+            // Sem a pasta do kit, vale o plugin analise instalado.
+            lidos = RegistroModelos.Ler(FontesModelos.Candidatas(("4.0.0", plugin), null, kitVazio), kitVazio);
             Assert.Empty(lidos.Indisponiveis);
             Assert.Equal("plugin analise instalado (versão 4.0.0)", lidos.Fonte!.Origem);
             Assert.Equal(new[] { "modelos/MODELO DESPACHO CORREÇÃO.docx", "modelos/MODELO DE DESPACHO DE APROVAÇÃO.docx" }, lidos.Modelos.Select(m => m.CaminhoRelativo));
             Assert.All(lidos.Modelos, m => Assert.StartsWith(plugin, m.Caminho, StringComparison.OrdinalIgnoreCase));
+
+            // Uma fonte que existe mas falha (o kit com o modelo de correção que não confere) cai para a próxima, e a falha é dita.
+            var kitQuebrado = Path.Combine(a, "kit-quebrado");
+            DocxFicticio.KitFicticio(kitQuebrado, reg => ((System.Text.Json.Nodes.JsonArray)reg["templates"]!).OfType<JsonObject>()
+                .Single(e => (string?)e["role"] == "correction")["sha256"] = new string('0', 64));
+            lidos = RegistroModelos.Ler(FontesModelos.Candidatas(("4.0.0", plugin), null, kitQuebrado), kitQuebrado);
+            Assert.Empty(lidos.Indisponiveis);
+            Assert.Equal("plugin analise instalado (versão 4.0.0)", lidos.Fonte!.Origem);
+            var falha = Assert.Single(lidos.Falhas);
+            Assert.StartsWith("pasta do kit, 02 - MODELOS DE DOCUMENTOS (" + kitQuebrado + "): ", falha, StringComparison.Ordinal);
+            Assert.Contains("não confere com o registro do kit (sha256 diferente)", falha, StringComparison.Ordinal);
+
+            // Se nenhuma fonte oferece os dois tipos, fica a primeira que existe, com o motivo do tipo que falta.
+            var parcial = RegistroModelos.Ler(FontesModelos.Candidatas(null, null, kitQuebrado), kitQuebrado);
+            Assert.Equal(new[] { TipoDespacho.Aprovacao }, parcial.Modelos.Select(m => m.Tipo));
+            Assert.StartsWith("pasta do kit, 02 - MODELOS DE DOCUMENTOS", parcial.Fonte!.Origem, StringComparison.Ordinal);
+            Assert.Empty(parcial.Falhas);
         }
 
         // Kit antigo: o analise instalado ainda sem references\despacho; vale o modelo do plugin despacho instalado (só os dados dele).
@@ -111,13 +137,18 @@ public sealed class DespachoNoEditorTestes
             Assert.Equal(TextosFixos.Ler(Oficiais().Fonte!, TipoDespacho.Correcao).Paragrafos, TextosFixos.Ler(lidos.Fonte, TipoDespacho.Correcao).Paragrafos);
         }
 
-        // Nada instalado e kit sem modelos: os dois tipos indisponíveis com "Atualize o kit PMVNI".
-        var nada = RegistroModelos.Ler(FontesModelos.Candidatas(null, null, kitVazio));
+        // Nada instalado e kit sem modelos: os dois tipos indisponíveis com "Atualize o kit PMVNI" e a pasta procurada.
+        var nada = RegistroModelos.Ler(FontesModelos.Candidatas(null, null, kitVazio), kitVazio);
         Assert.Empty(nada.Modelos);
         Assert.Null(nada.Fonte);
-        Assert.Equal(FontesModelos.AtualizeOKit, nada.Indisponiveis[TipoDespacho.Correcao]);
-        Assert.Equal(FontesModelos.AtualizeOKit, nada.Indisponiveis[TipoDespacho.Aprovacao]);
-        Assert.Contains("Atualize o kit PMVNI", FontesModelos.AtualizeOKit, StringComparison.Ordinal);
+        var msg = "Os modelos de despacho não foram encontrados: a pasta do kit (" + kitVazio + ") não tem os modelos de despacho, e o plugin "
+                  + "analise instalado não traz os modelos. " + FontesModelos.AtualizeOKit;
+        Assert.Equal(msg, nada.Indisponiveis[TipoDespacho.Correcao]);
+        Assert.Equal(msg, nada.Indisponiveis[TipoDespacho.Aprovacao]);
+        Assert.Contains("Atualize o kit PMVNI", msg, StringComparison.Ordinal);
+        var semPasta = Path.Combine(pasta, "nao existe");
+        Assert.Contains("a pasta do kit não foi encontrada em " + semPasta,
+            RegistroModelos.Ler(FontesModelos.Candidatas(null, null, semPasta), semPasta).Indisponiveis[TipoDespacho.Correcao], StringComparison.Ordinal);
     }
 
     [Fact]
