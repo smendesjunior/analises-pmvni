@@ -70,7 +70,7 @@
 
 ## Parte A — Kit: correções da execução
 
-### Tarefa 1: Só objeção técnica sobe o nível; cota baixa desce (erros 8 e 13)
+### Task 1: Só objeção técnica sobe o nível; cota baixa desce (erros 8 e 13)
 
 **Files:** Create `<S:analise>/scripts/falhas.py` (+ cópias). Modify `analise_runtime.py:47-78` e a chamada de `next_stage`. Test `test_analise_runtime_niveis.py`.
 
@@ -88,7 +88,7 @@
 - [ ] Falhas antigas já gravadas sem `tipo` são lidas como `ambiente` (não sobem nível). Teste `test_registro_antigo_sem_tipo`.
 - [ ] Commit.
 
-### Tarefa 2: Sessões técnicas retomáveis, espera de cota e mesmo contexto nas duas rotas (erros 9, 10, 14, 16)
+### Task 2: Sessões técnicas retomáveis, espera de cota e mesmo contexto nas duas rotas (erros 9, 10, 14, 16)
 
 **Files:** Modify `executar_analise_62.py:60-95`. Test novo `test_executar_analise_62.py` com `codex` falso (script que imprime banner e devolve código configurável).
 
@@ -112,7 +112,7 @@
 - [ ] **Rota Gemini (analise-google):** aplicar o contrato de saída e a espera de cota; retomada de sessão só onde o executor oferecer (registrar no relatório se `agy`/Gemini Web não oferecem).
 - [ ] Commit.
 
-### Tarefa 3: Objeção de apresentação volta só ao produce (erro 11)
+### Task 3: Objeção de apresentação volta só ao produce (erro 11)
 
 **Files:** Modify os três runtimes, `etapas-analise.json`, `pro-stage-prompts.json` (audit e final_review). Test `test_execution_control.py`, `test_pro_runtime.py`, `test_google.py`.
 
@@ -123,7 +123,7 @@
 - [ ] Teste `test_hash_do_manifesto_decide`: depois da correção no produce, se o hash de `findings`/`opening_calculations` do manifesto mudou, a correção é rejeitada e vira objeção técnica.
 - [ ] Implementar, rodar, commit.
 
-### Tarefa 4: Prepare e produce como etapas de programa (erro 12 e parecer)
+### Task 4: Prepare e produce como etapas de programa (erro 12 e parecer)
 
 **Files:** Create `pecas_atuais.py`, `etapas_programa.py`. Modify os três runtimes (`ESTAGIOS_PROGRAMA = ('prepare', 'produce')`), `uso_ias.py` (executor `programa`), `validate_plugin_workflow.py`. Test `test_pecas_atuais.py`, `test_etapas_programa.py`.
 
@@ -145,7 +145,7 @@
 - [ ] Remover dos `SKILL.md` e de `pro-stage-prompts.json` os textos de prepare e produce; mover a checagem editorial P10 do produce para o pedido da final_review. Tirar o "COMPENSAÇÃO DO PREPARO" da analyze e da technical_audit e substituir por: dados do preparo são candidatos de programa, a confirmar no original.
 - [ ] Commit.
 
-### Tarefa 5: Atualização do kit não roda durante análise (erro 15)
+### Task 5: Atualização do kit não roda durante análise (erro 15)
 
 **Files:** Modify o script chamado por `INSTALAR_KIT_PMVNI.cmd atualizar`. Test: script de teste do instalador (seguir o padrão existente no kit).
 
@@ -155,7 +155,7 @@
 
 ## Parte B — Kit: menos trabalho para a IA
 
-### Tarefa 6: Contexto enxuto por etapa e auditorias focadas
+### Task 6: Contexto enxuto por etapa e auditorias focadas
 
 **Files:** Create `contexto_etapa.py`. Modify `executar_analise_62.py` (prompt), `pro_runtime.py:353` (`build_request`), `google_runtime.py`, `pro-stage-prompts.json`, `etapas-analise.json`. Test `test_contexto_etapa.py`.
 
@@ -167,7 +167,7 @@
 - [ ] Teste `test_auditoria_sem_tarefas_de_validador`: os pedidos de technical_audit, audit e final_review não mandam recalcular aritmética, reconciliar IDs nem conferir cobertura; mandam ler a saída real dos validadores e conferir se cada prancha demonstra o achado e se há omissões.
 - [ ] Implementar; rodar os `self_test*.py` existentes; commit.
 
-### Tarefa 7: Regras como dados — índices, fração de iluminação, documentos
+### Task 7: Regras como dados — índices, fração de iluminação, documentos
 
 **Files:** Create `references/anexo-vi-zonas.json`, `calcular_indices.py`, `references/formatos-documentais.json`, `checklist_documental.py`. Modify `calcular_vaos.py`, `validate_analysis.py`. Test `test_calcular_indices.py`, `test_calcular_vaos.py`, `test_checklist_documental.py`.
 
@@ -186,7 +186,7 @@
 - [ ] A analyze passa a chamar `calcular_indices.py` (texto do pedido atualizado); `validate_analysis.py` reprova `indices.linhas` que não venham do script.
 - [ ] Commit.
 
-### Tarefa 8: Quadros e rótulos lidos por código
+### Task 8: Quadros e rótulos lidos por código
 
 **Files:** Create `extrair_quadros.py`. Test `test_extrair_quadros.py` com JSONs `geometria-v1` fictícios.
 
@@ -200,7 +200,7 @@
 - [ ] Pedido da analyze: partir de `modelo_projeto.candidatos.json`, confirmar cada candidato no original e completar o que faltar; `conferir_projeto.py` roda automaticamente no fim.
 - [ ] Commit.
 
-### Tarefa 9: Cadeias de cotas candidatas a partir dos vetores
+### Task 9: Cadeias de cotas candidatas a partir dos vetores
 
 **Files:** Create `cadeias_cotas.py`. Test `test_cadeias_cotas.py`.
 
@@ -211,7 +211,7 @@
 - [ ] Teste `test_sem_vetores`: página sem desenhos → lista vazia.
 - [ ] Limite de escopo: só cotas horizontais e verticais com texto numérico sobre a linha; o resto fica para a IA. Commit.
 
-### Tarefa 10: Reanálise por diferença
+### Task 10: Reanálise por diferença
 
 **Files:** Create `diferenca_revisao.py`. Modify os três runtimes. Test `test_diferenca_revisao.py`.
 
@@ -222,7 +222,7 @@
 - [ ] Teste `test_historico_preservado`: o manifesto anterior é arquivado, não sobrescrito.
 - [ ] Pedido da analyze na reanálise: verificar as pendências anteriores e as seções afetadas; seções reaproveitadas entram com referência à análise anterior e passam pela technical_audit normalmente. Commit.
 
-### Tarefa 11: Biblioteca de achados padrão e casos comuns
+### Task 11: Biblioteca de achados padrão e casos comuns
 
 **Files:** Create `references/achados-padrao.json`, `references/casos-ouro.json`. Modify `report_evidence.py` (montar), `validate_analysis.py`. Test `self_test_report_evidence.py`.
 
@@ -235,7 +235,7 @@
 
 ## Parte C — Editor
 
-### Tarefa 12: Rota ChatGPT sem IA controladora (erros 1–7)
+### Task 12: Rota ChatGPT sem IA controladora (erros 1–7)
 
 **Files:** Modify `OrquestradorAnalise.cs:286-370` e `:112-118`, `LinhasDeComando.cs:9-15`, `PedidoAgente.cs`, `EventosCodex.cs`. Create `SituacaoAnalise62.cs`. Test `tests/Pmvni.Agentes.Testes` + `tests/AgenteFalso`.
 
@@ -254,7 +254,7 @@
 - [ ] **Rotas Claude e Gemini no Editor** (`OrquestradorAnalise.cs:398-450`, `SituacaoAnalisePro.cs`): passam a ler o mesmo contrato (situação `AGUARDANDO_COTA` com horário, `DECISAO`, `FALHA` com motivo) e a mesma checagem de versão mínima (analise-pro 2.1.0, analise-google 2.1.0). Testes `Claude_AguardandoCota_MostraHorario`, `Claude_Decisao_AbrePergunta`, `Gemini_PluginAntigo_InformaComponente`.
 - [ ] Rodar `dotnet test tests/Pmvni.Agentes.Testes`; commit.
 
-### Tarefa 13: Progresso, previsão e consumo calculados pelo Editor
+### Task 13: Progresso, previsão e consumo calculados pelo Editor
 
 **Files:** Create `ProgressoLocal.cs`, `PrevisaoTermino.cs`, `UsoDasIas.cs`. Modify `RegistroExecucao.cs:214-232` (remover `InstrucoesProgresso`), `OrquestradorAnalise.cs:306,414`, `AchadosExecucao.cs`, `MainWindow.NovoRelatorio.cs:255-262,902-928`, `Roteiro.cs:3134,3330`. Test `Pmvni.Agentes.Testes`.
 
@@ -270,7 +270,7 @@
 - [ ] Teste `Uso_MostraExecutorPrograma`: prepare e produce aparecem como "programa", sem tokens.
 - [ ] Monitor: cartão "Consumo" por etapa (tokens, cache, variação da cota de 5 h e semanal) e selo de quem executou cada etapa. Commit.
 
-### Tarefa 14: Escolha de peças ambíguas no Editor
+### Task 14: Escolha de peças ambíguas no Editor
 
 **Files:** Create `src/Pmvni.App/Dialogos/EscolhaDePecas.xaml(.cs)`. Modify `MainWindow.NovoRelatorio.cs`. Test `Pmvni.Agentes.Testes` (lógica) e roteiro (interface).
 
@@ -280,7 +280,7 @@
 - [ ] Teste `Decisao_Cancelada_NaoGastaIA`: cancelar deixa a análise parada antes de qualquer sessão.
 - [ ] Diálogo: miniaturas lado a lado (do `cache-pdf`), motivo da dúvida, botão para abrir cada PDF. Commit.
 
-### Tarefa 15: Despacho e revisão de tabelas sem IA por padrão
+### Task 15: Despacho e revisão de tabelas sem IA por padrão
 
 **Files:** Create `src/Pmvni.Revisao/Despachos/ResumoExigencias.cs`. Modify `MainWindow.NovoDespacho.cs:421`, `MainWindow.Revisao.cs:1281-1345`, `IaRecalculoIndices.cs`, `RecalculoIndices.cs`, `Esquadrias.cs`. Test `tests/Pmvni.Revisao.Testes`.
 
@@ -292,7 +292,7 @@
 - [ ] Teste `CasosOuro_CSharp`: `RecalculoIndices` e `Esquadrias` dão o `esperado` de cada caso de `casos-ouro.json` (copiado do kit para `tests/referencias`), garantindo o mesmo resultado do Python.
 - [ ] Commit.
 
-### Tarefa 16: Conferência depois da edição, primeira abertura e atualização do kit
+### Task 16: Conferência depois da edição, primeira abertura e atualização do kit
 
 **Files:** Modify `ConferenciaRevisao.cs`, `MainWindow.Ajustes.cs:386-399`, ponto de inicialização do app (onde `InstalacaoMotorPdf` é usado). Test `Pmvni.Revisao.Testes`, `Pmvni.Agentes.Testes`.
 
@@ -304,7 +304,7 @@
 
 ## Parte D — Fechamento
 
-### Tarefa 17: Medição antes e depois, versões e entrega
+### Task 17: Medição antes e depois, versões e entrega
 
 - [ ] Antes de distribuir: rodar um caso fictício completo nas três rotas com o kit 3.0.1/2.0.1 atual e guardar `uso-das-IAs.json` como base (se ainda não houver base equivalente).
 - [ ] Rodar o mesmo caso com as versões novas. Tabela antes/depois por etapa e provedor em `docs/auditoria/2026-11-21-antes-depois.md`: sessões, tokens, cache, duração, variação de cota, tentativas falhas. Conferir também: 28 seções cobertas, achados iguais nos dois, PDF legível.
