@@ -22,8 +22,9 @@ public static class SituacaoAnalisePro
         "DECISAO", "FALHA",
     };
 
-    /// <summary>As etapas do controlador do kit, na ordem em que ele as executa.</summary>
-    public static IReadOnlyList<string> Etapas { get; } = new[] { "prepare", "analyze", "technical_audit", "produce", "audit", "final_review" };
+    /// <summary>As etapas do controlador do kit na ordem antiga (kit 3.x: produce antes de audit): os ids conhecidos e a ordem de reserva
+    /// (<see cref="OrdemDasEtapas.Padrao"/>). A ordem real da análise vem do <c>etapas.json</c> do kit (<see cref="OrdemDasEtapas.Ler"/>).</summary>
+    public static IReadOnlyList<string> Etapas { get; } = OrdemDasEtapas.Padrao.Todas;
 
     static readonly string[] Nomes = { "Preparo", "Análise", "Auditoria técnica", "Produção do relatório", "Auditoria cruzada", "Revisão final" };
 

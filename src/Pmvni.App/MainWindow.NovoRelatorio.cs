@@ -911,11 +911,12 @@ public sealed partial class MainWindow
         {
             var controle = Path.Combine(e.Processo.Pasta, ResultadoAnalise.PastaControle(e.Provedor));
             var historico = HistoricoDeDuracoes();
+            var ordemDoKit = OrdemDasEtapasDoKit();
             var (achados, consumo) = await Task.Run(() =>
             {
                 var desde = InicioDoRegistro(e);
-                return (AchadosExecucao.LerDaExecucao(e.Registro.PastaProgresso, e.Processo.Pasta, e.InicioUtc, controle, desde, historico, DateTimeOffset.UtcNow),
-                    UsoDasIas.Ler(controle, desde));
+                return (AchadosExecucao.LerDaExecucao(e.Registro.PastaProgresso, e.Processo.Pasta, e.InicioUtc, controle, desde, historico, DateTimeOffset.UtcNow, ordemDoKit),
+                    UsoDasIas.Ler(controle, desde, ordemDoKit));
             });
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
             {
@@ -926,7 +927,7 @@ public sealed partial class MainWindow
                 NR.MostrarEstimativa(achados.Estimativa);
                 var etapa = e.Situacao?.Etapa;
                 var progresso = etapa is null
-                    ? SituacaoAnalisePro.Etapas.Select(chave => achados.Etapas.GetValueOrDefault(chave)).LastOrDefault(p => p is not null)
+                    ? ordemDoKit.Para(e.Provedor).Select(chave => achados.Etapas.GetValueOrDefault(chave)).LastOrDefault(p => p is not null)
                     : achados.Etapas.GetValueOrDefault(etapa);
                 if (NR.ProgressoAtual != progresso)
                 {
@@ -944,9 +945,13 @@ public sealed partial class MainWindow
     /// null enquanto a leitura não terminou (o Monitor mostra "histórico insuficiente" até lá).</summary>
     IReadOnlyList<DuracaoEtapa>? HistoricoDeDuracoes()
     {
-        var leitura = UsoDasIas.HistoricoDaSessaoAsync(ajustes.PastaProcessosEfetiva);
+        var leitura = UsoDasIas.HistoricoDaSessaoAsync(ajustes.PastaProcessosEfetiva, OrdemDasEtapasDoKit());
         return leitura.IsCompletedSuccessfully ? leitura.Result : null;
     }
+
+    /// <summary>A sequência das etapas que o kit define (<c>references\etapas.json</c> do plugin analise instalado); sem o arquivo (kit 3.x) ou com arquivo
+    /// inválido, a ordem padrão. O Monitor, o progresso e a previsão seguem esta ordem, não uma fixa no código.</summary>
+    OrdemDasEtapas OrdemDasEtapasDoKit() => OrdemDasEtapas.Ler(pecasAgentes.EtapasJson);
 
     /// <summary>Desde quando os arquivos do kit são desta análise: a criação da pasta do registro (o mesmo registro numa retomada), com 5 s de folga. O que o
     /// kit gravou antes disso (a análise anterior, já entregue) não aparece no Monitor.</summary>
@@ -985,7 +990,8 @@ public sealed partial class MainWindow
         {
             var s = e.Situacao;
             erro = string.IsNullOrWhiteSpace(s?.Erro) ? null : s!.Erro;
-            etapas = FluxoNovoRelatorio.Etapas(s?.Etapa ?? n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa, s?.Codigo ?? "");
+            etapas = FluxoNovoRelatorio.Etapas(s?.Etapa ?? n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa, s?.Codigo ?? "",
+                OrdemDasEtapasDoKit().Para(e.Provedor));
             // A etapa em que o kit informou erro fica vermelha.
             if (erro is not null) etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();
             n.TextoRotulo.Text = s is null ? "Iniciando a análise detalhada…" : $"Situação: {s.Codigo}" + (s.Rotulo is null ? "" : " · " + s.Rotulo) + (erro is null ? "" : Environment.NewLine + "Erro: " + erro);
@@ -993,7 +999,7 @@ public sealed partial class MainWindow
         }
         else
         {
-            etapas = FluxoNovoRelatorio.Etapas(n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa, "");
+            etapas = FluxoNovoRelatorio.Etapas(n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa, "", OrdemDasEtapasDoKit().Para(e.Provedor));
             n.TextoRotulo.Text = $"Provedor: {Provedores.Nome(e.Provedor)} · Registro: {e.Registro.Pasta}";
             n.TextoEventos.Text = "";
         }

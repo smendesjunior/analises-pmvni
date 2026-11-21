@@ -186,11 +186,12 @@ public static class FluxoNovoRelatorio
         return $"{rotulo} · {hora.ToString(formato, CultureInfo.InvariantCulture)} ({TempoLegivel(hora - agora)} restantes)";
     }
 
-    /// <summary>As seis etapas do controlador do kit com o nome em português e o estado: antes da atual, feitas; a atual, agora; depois, pendentes.
-    /// <c>CONCLUIDO</c> ⇒ todas feitas; sem etapa (ou etapa desconhecida) ⇒ todas pendentes.</summary>
-    public static IReadOnlyList<(string Nome, EstadoEtapa Estado)> Etapas(string? etapaAtual, string codigo)
+    /// <summary>As etapas do controlador do kit com o nome em português e o estado: antes da atual, feitas; a atual, agora; depois, pendentes.
+    /// <c>CONCLUIDO</c> ⇒ todas feitas; sem etapa (ou etapa desconhecida) ⇒ todas pendentes. <paramref name="ordem"/>: a sequência da rota que o kit define
+    /// (<see cref="OrdemDasEtapas.Para"/>, sem as etapas desligadas); null = a ordem padrão (kit 3.x).</summary>
+    public static IReadOnlyList<(string Nome, EstadoEtapa Estado)> Etapas(string? etapaAtual, string codigo, IReadOnlyList<string>? ordem = null)
     {
-        var etapas = SituacaoAnalisePro.Etapas;
+        var etapas = ordem ?? OrdemDasEtapas.Padrao.Todas;
         var concluido = codigo == "CONCLUIDO";
         var atual = etapaAtual is null ? -1 : etapas.ToList().IndexOf(etapaAtual);
         return etapas.Select((e, i) => (SituacaoAnalisePro.NomeEtapa(e),

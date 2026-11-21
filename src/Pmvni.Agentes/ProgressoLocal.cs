@@ -10,12 +10,19 @@ public sealed record AchadoResumo(string Id, int? Secao, string Situacao, string
 
 /// <summary>O progresso de uma análise calculado pelo Editor (Tarefa 13): a etapa atual e as concluídas (do <c>engine_state.json</c>), as seções com
 /// resultado e os achados (do <c>manifesto.json</c>). <see cref="Etapa"/> null = sem estado ou todas as etapas concluídas. <see cref="InicioEtapa"/>: quando
-/// a etapa atual começou (o <c>started</c> dela ou o <c>ended</c> da anterior), para a <see cref="PrevisaoTermino"/>.</summary>
+/// a etapa atual começou (o <c>started</c> dela, se está <c>RUNNING</c>, ou o <c>ended</c> da anterior), para a <see cref="PrevisaoTermino"/>.</summary>
 public sealed record Progresso(string? Etapa, int EtapasConcluidas, int SecoesComResultado, IReadOnlyList<AchadoResumo> Achados,
     Provedor? Provedor = null, DateTimeOffset? InicioEtapa = null)
 {
     /// <summary>As 27 seções técnicas e a 28ª de consolidação do kit.</summary>
     public int TotalSecoes { get; init; } = 28;
+
+    /// <summary>As etapas desta análise na rota, na ordem do kit (<see cref="OrdemDasEtapas"/>), sem as que a rota desliga (a audit, por exemplo);
+    /// null = a ordem padrão (kit 3.x).</summary>
+    public IReadOnlyList<string>? Ordem { get; init; }
+
+    /// <summary>Quantas etapas a análise tem nesta rota: as desligadas não entram.</summary>
+    public int TotalEtapas => (Ordem ?? OrdemDasEtapas.Padrao.Todas).Count;
 
     /// <summary>true se algum dos arquivos do kit trouxe algo desta análise.</summary>
     public bool TemDados => Etapa is not null || EtapasConcluidas > 0 || SecoesComResultado > 0 || Achados.Count > 0;
@@ -27,13 +34,21 @@ public sealed record Progresso(string? Etapa, int EtapasConcluidas, int SecoesCo
 /// conteúdo válido, sem exceção.</summary>
 public static class ProgressoLocal
 {
-    /// <summary>A situação de uma etapa concluída no <c>engine_state.json</c> (<c>FAILED</c>, <c>OBJECTIONS</c>… não contam).</summary>
+    /// <summary>A situação de uma etapa concluída no <c>engine_state.json</c> (<c>FAILED</c>, <c>OBJECTIONS</c>, <c>WAITING_QUOTA</c>… não contam).</summary>
     const string Executada = "EXECUTED";
 
+    /// <summary>A etapa com a sessão aberta agora: o kit grava o registro com <c>started</c> e sem <c>ended</c> até ela terminar.</summary>
+    const string EmAndamento = "RUNNING";
+
+    /// <summary>A etapa parou à espera da cota ou de uma decisão do analista: não está concluída, e a espera não é tempo de trabalho.</summary>
+    static bool Espera(string? status) => status is "WAITING_QUOTA" or "WAITING_DECISION";
+
     /// <param name="desdeUtc">Arquivos gravados antes disto (a análise anterior, já entregue) não contam.</param>
-    public static Progresso Ler(string pastaControle, DateTime desdeUtc = default)
+    /// <param name="ordemDoKit">A sequência das etapas que o kit define (<see cref="OrdemDasEtapas.Ler"/>); null = a ordem padrão (kit 3.x).</param>
+    public static Progresso Ler(string pastaControle, DateTime desdeUtc = default, OrdemDasEtapas? ordemDoKit = null)
     {
         var provedor = ProvedorDaPasta(pastaControle);
+        var ordem = (ordemDoKit ?? OrdemDasEtapas.Padrao).Para(provedor);
         var estado = ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "engine_state.json"), desdeUtc);
         var manifesto = ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "manifesto.json"), desdeUtc);
 
@@ -42,19 +57,32 @@ public static class ProgressoLocal
         DateTimeOffset? inicioEtapa = null;
         if (estado is { ValueKind: JsonValueKind.Object } e && e.TryGetProperty("stages", out var stages) && stages.ValueKind == JsonValueKind.Object)
         {
+            JsonElement? Registro(string chave) => stages.TryGetProperty(chave, out var r) && r.ValueKind == JsonValueKind.Object ? r : null;
+            // A etapa atual é a que está RUNNING (a primeira, na ordem do kit); sem ela, a primeira que ainda não foi executada (parada por falha, objeção ou
+            // espera de cota ou de decisão, ou ainda sem registro). As concluídas são as EXECUTED que vêm antes dela.
+            var atual = -1;
+            for (var i = 0; i < ordem.Count && atual < 0; i++)
+                if (Registro(ordem[i]) is { } r && Texto(r, "status") == EmAndamento) atual = i;
+            for (var i = 0; i < ordem.Count && atual < 0; i++)
+                if (Registro(ordem[i]) is not { } r || Texto(r, "status") != Executada) atual = i;
             DateTimeOffset? fimAnterior = null;
-            foreach (var chave in SituacaoAnalisePro.Etapas)
-            {
-                var registro = stages.TryGetProperty(chave, out var r) && r.ValueKind == JsonValueKind.Object ? r : (JsonElement?)null;
-                if (registro is { } feita && Texto(feita, "status") == Executada)
+            for (var i = 0; i < (atual < 0 ? ordem.Count : atual); i++)
+                if (Registro(ordem[i]) is { } feita && Texto(feita, "status") == Executada)
                 {
                     concluidas++;
                     fimAnterior = Instante(feita, "ended") ?? fimAnterior;
-                    continue;
                 }
-                etapa = chave;
-                inicioEtapa = registro is { } atual && Instante(atual, "ended") is null ? Instante(atual, "started") ?? fimAnterior : fimAnterior;
-                break;
+            if (atual >= 0)
+            {
+                etapa = ordem[atual];
+                var registro = Registro(etapa);
+                var situacao = registro is { } r ? Texto(r, "status") : null;
+                // RUNNING (ou registro ainda sem ended): o started dela, que o kit grava em todas as etapas; sem ele, o fim da anterior. Em espera de cota ou
+                // de decisão o início não é confiável (a espera não é trabalho): a previsão conta a etapa inteira. Parada por falha ou objeção: o fim da anterior.
+                inicioEtapa = Espera(situacao) ? null
+                    : registro is { } atualRegistro && (situacao == EmAndamento || Instante(atualRegistro, "ended") is null)
+                        ? Instante(atualRegistro, "started") ?? fimAnterior
+                        : fimAnterior;
             }
         }
 
@@ -72,7 +100,8 @@ public static class ProgressoLocal
                     if (Normalizar(Texto(s, "status")) is "ANALISADO" or "NAO APLICAVEL" or "NAO VERIFICAVEL") comResultado.Add(numero);
                 }
             secoes = Math.Min(comResultado.Count, 28);
-            var verificados = concluidas > SituacaoAnalisePro.Etapas.ToList().IndexOf("technical_audit");
+            var posicaoDaAuditoria = ordem.ToList().IndexOf("technical_audit");
+            var verificados = posicaoDaAuditoria >= 0 && concluidas > posicaoDaAuditoria;
             var porId = new Dictionary<string, int>(StringComparer.Ordinal);
             if (m.TryGetProperty("findings", out var lista) && lista.ValueKind == JsonValueKind.Array)
                 foreach (var f in lista.EnumerateArray())
@@ -85,7 +114,7 @@ public static class ProgressoLocal
                     else { porId[id] = achados.Count; achados.Add(achado); }
                 }
         }
-        return new Progresso(etapa, concluidas, secoes, achados, provedor, inicioEtapa);
+        return new Progresso(etapa, concluidas, secoes, achados, provedor, inicioEtapa) { Ordem = ordem };
     }
 
     /// <summary>O provedor da rota pela pasta de controle: <c>analise</c> = ChatGPT, <c>analise-pro</c> = Claude, <c>analise-google</c> = Gemini.</summary>

@@ -55,10 +55,12 @@ public static class UsoDasIas
     public const string Programa = "programa";
 
     /// <param name="desdeUtc">Arquivos gravados antes disto (a análise anterior) não contam.</param>
-    public static IReadOnlyList<UsoEtapa> Ler(string pastaControle, DateTime desdeUtc = default)
+    /// <param name="ordemDoKit">A sequência das etapas que o kit define (<see cref="OrdemDasEtapas.Ler"/>); null = a ordem padrão (kit 3.x). As linhas saem
+    /// nessa ordem.</param>
+    public static IReadOnlyList<UsoEtapa> Ler(string pastaControle, DateTime desdeUtc = default, OrdemDasEtapas? ordemDoKit = null)
     {
         var linhas = new List<UsoEtapa>();
-        var etapas = SituacaoAnalisePro.Etapas.ToList();
+        var etapas = (ordemDoKit ?? OrdemDasEtapas.Padrao).Todas.ToList();
         if (ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, Arquivo), desdeUtc) is { ValueKind: JsonValueKind.Object } uso
             && uso.TryGetProperty("execucoes", out var execucoes) && execucoes.ValueKind == JsonValueKind.Array)
             foreach (var x in execucoes.EnumerateArray())
@@ -119,12 +121,12 @@ public static class UsoDasIas
     static readonly ConcurrentDictionary<string, Lazy<Task<IReadOnlyList<DuracaoEtapa>>>> historicos = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>O <see cref="Historico"/> lido uma vez por sessão do Editor (por pasta de processos), fora da thread de quem chama.</summary>
-    public static Task<IReadOnlyList<DuracaoEtapa>> HistoricoDaSessaoAsync(string pastaProcessos) =>
-        historicos.GetOrAdd(pastaProcessos ?? "", raiz => new Lazy<Task<IReadOnlyList<DuracaoEtapa>>>(() => Task.Run(() => Historico(raiz)))).Value;
+    public static Task<IReadOnlyList<DuracaoEtapa>> HistoricoDaSessaoAsync(string pastaProcessos, OrdemDasEtapas? ordemDoKit = null) =>
+        historicos.GetOrAdd(pastaProcessos ?? "", raiz => new Lazy<Task<IReadOnlyList<DuracaoEtapa>>>(() => Task.Run(() => Historico(raiz, ordemDoKit)))).Value;
 
     /// <summary>As durações das etapas executadas em todas as análises sob a pasta de processos
     /// (<c>&lt;raiz&gt;\…\&lt;processo&gt;\.pmvni-ai\&lt;analise|analise-pro|analise-google&gt;</c>, até três níveis de pasta), por <see cref="DuracoesDaPasta"/>.</summary>
-    public static IReadOnlyList<DuracaoEtapa> Historico(string pastaProcessos)
+    public static IReadOnlyList<DuracaoEtapa> Historico(string pastaProcessos, OrdemDasEtapas? ordemDoKit = null)
     {
         var saida = new List<DuracaoEtapa>();
         if (string.IsNullOrWhiteSpace(pastaProcessos) || !Directory.Exists(pastaProcessos)) return saida;
@@ -135,14 +137,15 @@ public static class UsoDasIas
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return saida; }
         foreach (var pmvni in pastas)
             foreach (var plugin in new[] { "analise", "analise-pro", "analise-google" })
-                saida.AddRange(DuracoesDaPasta(Path.Combine(pmvni, plugin)));
+                saida.AddRange(DuracoesDaPasta(Path.Combine(pmvni, plugin), ordemDoKit));
         return saida;
     }
 
     /// <summary>Uma execução de etapa achada numa das fontes: a pasta da execução (<c>run</c>/<c>execucao</c>), se o kit a informa, e a duração.</summary>
     readonly record struct Execucao(string Etapa, string? Pasta, TimeSpan Duracao);
 
-    /// <summary>As durações das etapas executadas (<c>EXECUTED</c>) numa pasta de controle, de duas fontes:
+    /// <summary>As durações das etapas executadas (<c>EXECUTED</c>) numa pasta de controle, de duas fontes (<paramref name="ordemDoKit"/>: a sequência das
+    /// etapas do kit, que o kit 4.0 grava com <c>started</c> em todas, preferido ao fim da etapa anterior; null = a ordem padrão):
     /// <list type="bullet">
     /// <item>o <c>engine_state.json</c>, nas três rotas e também nas etapas de programa: as etapas atuais (<c>stages</c>) e as substituídas (<c>history[]</c>,
     /// nos dois formatos do kit: <c>{"replaced": {etapa: registro}}</c> no analise, <c>{etapa: registro}</c> no análise pro e no Google). Duração =
@@ -151,10 +154,10 @@ public static class UsoDasIas
     /// </list>
     /// A mesma execução nas duas fontes conta uma vez só: mesma pasta de execução ou, sem ela, mesma etapa com durações a menos de 1 s uma da outra. Arquivo
     /// ilegível ou pela metade é ignorado.</summary>
-    public static IReadOnlyList<DuracaoEtapa> DuracoesDaPasta(string pastaControle)
+    public static IReadOnlyList<DuracaoEtapa> DuracoesDaPasta(string pastaControle, OrdemDasEtapas? ordemDoKit = null)
     {
         if (ProgressoLocal.ProvedorDaPasta(pastaControle) is not { } provedor) return [];
-        var etapas = SituacaoAnalisePro.Etapas.ToList();
+        var etapas = (ordemDoKit ?? OrdemDasEtapas.Padrao).Todas.ToList();
         var achadas = new List<Execucao>();
         // Mesma execução: mesma pasta; sem a pasta numa das duas (ou, contra o estado, com pastas diferentes), mesma etapa e duração a menos de 1 s.
         static bool Mesma(Execucao a, Execucao x, bool pelaDuracao) => a.Etapa == x.Etapa

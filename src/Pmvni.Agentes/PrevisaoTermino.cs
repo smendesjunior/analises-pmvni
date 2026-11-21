@@ -16,7 +16,8 @@ public static class PrevisaoTermino
     {
         ArgumentNullException.ThrowIfNull(atual);
         if (atual.Etapa is not { } etapa || atual.Provedor is not { } provedor || historico is null) return null;
-        var etapas = SituacaoAnalisePro.Etapas;
+        // As etapas que faltam seguem a ordem do kit nesta rota (Progresso.Ordem); etapa desligada na rota não entra na previsão.
+        var etapas = atual.Ordem ?? OrdemDasEtapas.Padrao.Todas;
         var indice = etapas.ToList().IndexOf(etapa);
         if (indice < 0) return null;
         var hora = agora ?? DateTimeOffset.UtcNow;

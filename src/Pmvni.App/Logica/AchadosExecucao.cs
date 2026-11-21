@@ -21,11 +21,11 @@ internal static class AchadosExecucao
     /// registro: enquanto houver eventos, valem eles (o Monitor de uma análise antiga em andamento não fica vazio). Senão, o painel sai do que o kit já
     /// registra (<see cref="Pmvni.Agentes.ProgressoLocal"/>), com a previsão pela mediana do <paramref name="historico"/> (null = ainda carregando).</summary>
     public static PainelAchados LerDaExecucao(string pastaLegado, string processo, DateTime inicioUtc, string pastaControle, DateTime desdeUtc,
-        IReadOnlyList<Pmvni.Agentes.DuracaoEtapa>? historico, DateTimeOffset agora)
+        IReadOnlyList<Pmvni.Agentes.DuracaoEtapa>? historico, DateTimeOffset agora, Pmvni.Agentes.OrdemDasEtapas? ordemDoKit = null)
     {
         var legado = Ler(pastaLegado, processo, inicioUtc);
         if (legado.Itens.Count > 0 || legado.Etapas.Count > 0 || legado.Estimativa is not null) return legado;
-        return DoProgresso(Pmvni.Agentes.ProgressoLocal.Ler(pastaControle, desdeUtc), historico, agora);
+        return DoProgresso(Pmvni.Agentes.ProgressoLocal.Ler(pastaControle, desdeUtc, ordemDoKit), historico, agora);
     }
 
     /// <summary>O <see cref="Pmvni.Agentes.Progresso"/> no formato do Monitor: os achados (verificados depois da auditoria técnica), as seções com resultado

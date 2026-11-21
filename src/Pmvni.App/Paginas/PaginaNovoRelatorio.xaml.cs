@@ -329,7 +329,15 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     static readonly string[] GlifosEtapas = ["", "", "", "", "", ""];
 
-    /// <summary>As seis etapas em linha: concluída (verde ✓), em andamento (acento ▶), erro (vermelho !) ou pendente (cinza, ícone da etapa),
+    /// <summary>A posição, na ordem padrão, da etapa de nome <paramref name="nome"/>: indexa <see cref="DescricoesEtapas"/> e <see cref="GlifosEtapas"/>,
+    /// que são por etapa. A ordem da análise vem do kit (a audit antes da produção) e pode omitir etapas, então a posição na linha não serve.</summary>
+    static int PosicaoNaOrdemPadrao(string nome)
+    {
+        var posicao = Pmvni.Agentes.SituacaoAnalisePro.Etapas.ToList().FindIndex(e => Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(e) == nome);
+        return posicao < 0 ? 0 : posicao;
+    }
+
+    /// <summary>As etapas em linha (as que a rota executa, na ordem do kit): concluída (verde ✓), em andamento (acento ▶), erro (vermelho !) ou pendente (cinza, ícone da etapa),
     /// ligadas por um traço cheio entre as concluídas e tracejado nas pendentes.</summary>
     internal void MostrarEtapas(IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, bool animar)
     {
@@ -408,7 +416,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 EstadoEtapa.Feita => ("SystemFillColorSuccessBrush", "", "TextOnAccentFillColorPrimaryBrush"),
                 EstadoEtapa.Agora => ("AccentFillColorDefaultBrush", "", "TextOnAccentFillColorPrimaryBrush"),
                 EstadoEtapa.Erro => ("SystemFillColorCriticalBrush", "", "TextOnAccentFillColorPrimaryBrush"),
-                _ => ("ControlFillColorDefaultBrush", GlifosEtapas[Math.Min(i, GlifosEtapas.Length - 1)], "TextFillColorSecondaryBrush"),
+                _ => ("ControlFillColorDefaultBrush", GlifosEtapas[Math.Min(PosicaoNaOrdemPadrao(nome), GlifosEtapas.Length - 1)], "TextFillColorSecondaryBrush"),
             };
             var circulo = new Border
             {
@@ -433,7 +441,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             var textos = new StackPanel { Spacing = 2 };
             textos.Children.Add(new TextBlock { Text = $"{nome}  ·  {situacao}", FontSize = 13,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextAlignment = TextAlignment.Left, TextWrapping = TextWrapping.Wrap });
-            var descricao = DescricoesEtapas[i];
+            var descricao = DescricoesEtapas[Math.Min(PosicaoNaOrdemPadrao(nome), DescricoesEtapas.Length - 1)];
             if (ProgressoAtual is { Total: > 0 } contagem && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(contagem.Etapa) == nome)
                 descricao += $" Itens avaliados nesta etapa: {contagem.Avaliados} de {contagem.Total}.";
             textos.Children.Add(new TextBlock { Text = descricao, FontSize = 12, TextAlignment = TextAlignment.Left,

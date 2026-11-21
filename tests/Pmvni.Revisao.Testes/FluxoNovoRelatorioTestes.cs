@@ -194,6 +194,25 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(6, FluxoNovoRelatorio.Etapas("final_review", "EM_ANDAMENTO").Count(x => x.Estado != EstadoEtapa.Pendente));
     }
 
+    /// <summary>Tarefa 20 (Editor): o Monitor segue a ordem que o kit define (a auditoria cruzada antes da produção) e uma etapa que a rota desliga não
+    /// aparece nem conta no total.</summary>
+    [Fact]
+    public void etapas_seguem_a_ordem_do_kit_e_omitem_a_etapa_desligada()
+    {
+        string[] kit4 = ["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"];
+        var e = FluxoNovoRelatorio.Etapas("audit", "EM_ANDAMENTO", kit4);
+        Assert.Equal(new[] { "Preparo", "Análise", "Auditoria técnica", "Auditoria cruzada", "Produção do relatório", "Revisão final" }, e.Select(x => x.Nome));
+        Assert.Equal(new[] { EstadoEtapa.Feita, EstadoEtapa.Feita, EstadoEtapa.Feita, EstadoEtapa.Agora, EstadoEtapa.Pendente, EstadoEtapa.Pendente },
+            e.Select(x => x.Estado));          // durante a audit a produção ainda está pendente
+
+        string[] semAudit = ["prepare", "analyze", "technical_audit", "produce", "final_review"];
+        var s = FluxoNovoRelatorio.Etapas("produce", "EM_ANDAMENTO", semAudit);
+        Assert.Equal(new[] { "Preparo", "Análise", "Auditoria técnica", "Produção do relatório", "Revisão final" }, s.Select(x => x.Nome));
+        Assert.Equal(new[] { EstadoEtapa.Feita, EstadoEtapa.Feita, EstadoEtapa.Feita, EstadoEtapa.Agora, EstadoEtapa.Pendente }, s.Select(x => x.Estado));
+        Assert.All(FluxoNovoRelatorio.Etapas(null, "CONCLUIDO", semAudit), x => Assert.Equal(EstadoEtapa.Feita, x.Estado));
+        Assert.Equal(5, FluxoNovoRelatorio.Etapas(null, "CONCLUIDO", semAudit).Count);
+    }
+
     [Fact]
     public void previa_do_destino()
     {

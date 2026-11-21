@@ -56,6 +56,9 @@ public sealed record Pecas(
     /// ChatGPT roda este script direto, sem sessão Codex controladora (Tarefa 12).</summary>
     public string? Analise62 { get; init; }
 
+    /// <summary>O <c>references\etapas.json</c> do plugin analise instalado (a sequência das etapas que o kit define, <see cref="OrdemDasEtapas"/>); null no kit 3.x ou se não achado.</summary>
+    public string? EtapasJson { get; init; }
+
     /// <summary>O controlador do kit que o provedor usa: análise pro (Claude) ou análise Google (Gemini); null para o ChatGPT ou se não instalado.</summary>
     public string? RuntimeDoKit(Provedor p) => p switch { Provedor.Claude => ProRuntime, Provedor.Gemini => GoogleRuntime, _ => null };
 }
@@ -100,7 +103,7 @@ public static class Localizacao
         return new Pecas(codex, claude, python, launcher, proRuntime, versaoPlugin, versaoKit, PluginHabilitado(o.CodexHome), versaoPlugin, apiPermitida)
         {
             Agy = AcharAgy(o), GoogleRuntime = googleRuntime, VersaoAnaliseGoogle = versaoPlugin, VersaoAnaliseGoogleKit = versaoKit,
-            CodexHome = o.CodexHome, Analise62 = analise62,
+            CodexHome = o.CodexHome, Analise62 = analise62, EtapasJson = ArquivoEtapas(pastaAnalise),
         };
     }
 
@@ -119,6 +122,14 @@ public static class Localizacao
         var (rota, nome) = RotaDoControlador(p);
         var script = Path.Combine(pastaPlugin, "skills", PluginsInstalados.Analise, "scripts", "rotas", rota, nome);
         return File.Exists(script) ? script : null;
+    }
+
+    /// <summary>O <c>etapas.json</c> do plugin analise (<c>skills/analise/references/etapas.json</c>); null se não existir.</summary>
+    static string? ArquivoEtapas(string? pastaPlugin)
+    {
+        if (pastaPlugin is null) return null;
+        var arquivo = Path.Combine(pastaPlugin, "skills", PluginsInstalados.Analise, "references", "etapas.json");
+        return File.Exists(arquivo) ? arquivo : null;
     }
 
     /// <summary>A versão que o próprio plugin instalado declara (<c>.codex-plugin\plugin.json</c>); null sem o arquivo (vale o nome da pasta).</summary>
