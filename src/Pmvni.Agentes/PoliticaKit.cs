@@ -20,6 +20,26 @@ public static class PoliticaKit
     /// <summary>O <c>google_runtime.py</c> instalado conhece a rota explícita (a marca do contrato com o editor).</summary>
     public static bool RuntimeGoogleValido(string textoGoogleRuntime) => textoGoogleRuntime.Contains(VariavelRotaGoogle, StringComparison.Ordinal);
 
+    /// <summary>As versões mínimas dos plugins que o Editor 2.3.0 exige (contrato da Tarefa 2: códigos 0/20/21/1, JSON da situação, espera de cota e decisão
+    /// do analista): analise 3.1.0, analise-pro 2.1.0, analise-google 2.1.0.</summary>
+    public static IReadOnlyDictionary<Provedor, (string Plugin, Version Minima)> VersoesMinimas { get; } = new Dictionary<Provedor, (string, Version)>
+    {
+        [Provedor.ChatGpt] = (PluginsInstalados.Analise, new Version(3, 1, 0)),
+        [Provedor.Claude] = (PluginsInstalados.AnalisePro, new Version(2, 1, 0)),
+        [Provedor.Gemini] = (PluginsInstalados.AnaliseGoogle, new Version(2, 1, 0)),
+    };
+
+    /// <summary>null se o plugin instalado do provedor atende à versão mínima; senão "Atualize o kit PMVNI (analise 3.1.0 ou mais novo)…", com a versão
+    /// instalada. Versão desconhecida ou ilegível conta como antiga: o editor não presume o contrato novo.</summary>
+    public static string? PluginDesatualizado(Provedor p, string? versaoInstalada)
+    {
+        var (plugin, minima) = VersoesMinimas[p];
+        if (versaoInstalada is not null && Version.TryParse(versaoInstalada.Split('-', '+')[0], out var v) && v >= minima) return null;
+        return $"Atualize o kit PMVNI ({plugin} {minima.ToString(3)} ou mais novo): o {plugin} instalado neste computador é "
+            + (versaoInstalada is null ? "de versão desconhecida" : "o " + versaoInstalada)
+            + ". Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor). Nada foi iniciado.";
+    }
+
     public static bool ApiPermitida(string textoProRuntime) =>
         !textoProRuntime.Contains(AncoraApiDesativada, StringComparison.Ordinal) && textoProRuntime.Contains(VariavelRota, StringComparison.Ordinal);
 }

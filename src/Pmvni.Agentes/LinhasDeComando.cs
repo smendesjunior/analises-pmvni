@@ -4,15 +4,21 @@ namespace Pmvni.Agentes;
 /// nunca texto montado à mão, nunca shell.</summary>
 public static class LinhasDeComando
 {
-    /// <summary><c>codex exec --skip-git-repo-check --cd P --json --output-last-message M -</c>: o pedido vem pela entrada padrão (<c>-</c>).
-    /// Sem <c>--sandbox</c>, <c>--model</c>, <c>--ignore-user-config</c>, <c>--ephemeral</c> nem <c>-c</c>: vale a configuração real do usuário.</summary>
-    public static (string Exe, IReadOnlyList<string> Args) CodexExec(string codex, string pastaProcesso, string ultimaMensagem) =>
-        (codex, new[] { "exec", "--skip-git-repo-check", "--cd", pastaProcesso, "--json", "--output-last-message", ultimaMensagem, "-" });
-
-    /// <summary><c>codex exec resume --skip-git-repo-check --json --output-last-message M SESSAO -</c> (2026-11-17): continua a sessão do Codex de onde parou
-    /// (app fechado de repente ou cota esgotada). O <c>resume</c> não tem <c>--cd</c>: a pasta do processo é a pasta de trabalho do processo filho.</summary>
-    public static (string Exe, IReadOnlyList<string> Args) CodexRetomar(string codex, string sessao, string ultimaMensagem) =>
-        (codex, new[] { "exec", "resume", "--skip-git-repo-check", "--json", "--output-last-message", ultimaMensagem, sessao, "-" });
+    /// <summary><c>python -B -X utf8 executar_analise_62.py --case P --inputs A B …</c> (Tarefa 12): o controlador do analise, rodado direto pelo editor, sem
+    /// sessão Codex controladora (erros 1–5 do diagnóstico do processo 19486). Sem entradas (null ou vazia) = retomada: o controlador continua o controle que
+    /// já existe na pasta do processo. Com o launcher <c>py.exe</c>, o primeiro argumento é <c>-3</c>.</summary>
+    public static (string Exe, IReadOnlyList<string> Args) Analise62(string python, bool launcher, string script, string pastaProcesso, IReadOnlyList<string>? entradas)
+    {
+        var args = new List<string>();
+        if (launcher) args.Add("-3");
+        args.AddRange(["-B", "-X", "utf8", script, "--case", pastaProcesso]);
+        if (entradas is { Count: > 0 })
+        {
+            args.Add("--inputs");
+            args.AddRange(entradas);
+        }
+        return (python, args);
+    }
 
     /// <summary><c>python -B -X utf8 pro_runtime.py --case P iniciar|situacao</c> (com o launcher <c>py.exe</c>, o primeiro argumento é <c>-3</c>).</summary>
     public static (string Exe, IReadOnlyList<string> Args) ProRuntime(string python, bool launcher, string script, string pastaProcesso, string acao)

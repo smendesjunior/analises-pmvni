@@ -110,11 +110,16 @@ public static class Ambiente
         return CriacaoProcesso.Criar(raiz, 1, 2099, "Fulano de Exemplo (Ficticio)").Processo;
     }
 
-    /// <summary>Peças que apontam todas para o agente falso (ele faz o papel de codex, claude e python).</summary>
+    /// <summary>Peças que apontam todas para o agente falso (ele faz o papel de codex, claude e python). Plugins nas versões mínimas do Editor 2.3.0
+    /// (analise 3.1.0, analise-pro 2.1.0); o <c>config.toml</c> do Codex fica em <c>&lt;teste&gt;\codex-home</c> (sem ele, a rota "herdar" é a OpenAI).</summary>
     public static Pecas PecasFalsas(string pastaTeste, bool pluginHabilitado = true) => new(
         Codex: AgenteFalso, Claude: AgenteFalso, Python: AgenteFalso, PythonPeloLauncher: false,
-        ProRuntime: Path.Combine(pastaTeste, "codex-home", "plugins", "cache", "pmvni-kit", "analise-pro", "1.6.1", "skills", "analise-pro", "scripts", "pro_runtime.py"),
-        VersaoAnalisePro: "1.6.1", VersaoAnaliseProKit: "1.6.1", PluginAnaliseHabilitado: pluginHabilitado, VersaoPluginAnalise: "2.4.0", ApiPermitidaNoKit: false);
+        ProRuntime: Path.Combine(pastaTeste, "codex-home", "plugins", "cache", "pmvni-kit", "analise-pro", "2.1.0", "skills", "analise-pro", "scripts", "pro_runtime.py"),
+        VersaoAnalisePro: "2.1.0", VersaoAnaliseProKit: "2.1.0", PluginAnaliseHabilitado: pluginHabilitado, VersaoPluginAnalise: "3.1.0", ApiPermitidaNoKit: false)
+    {
+        CodexHome = Path.Combine(pastaTeste, "codex-home"),
+        Analise62 = Path.Combine(pastaTeste, "codex-home", "plugins", "cache", "pmvni-kit", "analise", "3.1.0", "skills", "analise", "scripts", "executar_analise_62.py"),
+    };
 
     /// <summary>O que o código do editor lê do disco do agente falso depois de rodar: confere se o processo ainda vive.</summary>
     public static bool Vivo(int pid)

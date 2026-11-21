@@ -7,15 +7,20 @@ namespace Pmvni.Agentes.Testes;
 public class LinhasDeComandoTestes
 {
     [Fact]
-    public void linha_do_codex_exata()
+    public void linha_do_controlador_do_analise_exata()
     {
-        var (exe, args) = LinhasDeComando.CodexExec(@"C:\codex\codex.exe", @"C:\P\2099\0001 - 2099 - X", @"C:\P\2099\0001 - 2099 - X\.pmvni-ai\editor\r1\ultima-mensagem.md");
-        Assert.Equal(@"C:\codex\codex.exe", exe);
+        var (exe, args) = LinhasDeComando.Analise62(@"C:\Python\python.exe", false, @"C:\h\executar_analise_62.py", @"C:\P\2099\0001 - 2099 - X",
+            [@"C:\P\2099\0001 - 2099 - X\PROJETO\INICIAL\a.pdf", @"C:\P\2099\0001 - 2099 - X\DOCUMENTOS\b.pdf"]);
+        Assert.Equal(@"C:\Python\python.exe", exe);
         Assert.Equal(new[]
         {
-            "exec", "--skip-git-repo-check", "--cd", @"C:\P\2099\0001 - 2099 - X", "--json", "--output-last-message",
-            @"C:\P\2099\0001 - 2099 - X\.pmvni-ai\editor\r1\ultima-mensagem.md", "-",
+            "-B", "-X", "utf8", @"C:\h\executar_analise_62.py", "--case", @"C:\P\2099\0001 - 2099 - X",
+            "--inputs", @"C:\P\2099\0001 - 2099 - X\PROJETO\INICIAL\a.pdf", @"C:\P\2099\0001 - 2099 - X\DOCUMENTOS\b.pdf",
         }, args);
+
+        // Retomada: sem --inputs; com o launcher, -3 na frente.
+        Assert.Equal(new[] { "-3", "-B", "-X", "utf8", "s.py", "--case", @"C:\P" }, LinhasDeComando.Analise62("py.exe", true, "s.py", @"C:\P", null).Args);
+        Assert.Equal(new[] { "-B", "-X", "utf8", "s.py", "--case", @"C:\P" }, LinhasDeComando.Analise62("p.exe", false, "s.py", @"C:\P", []).Args);
     }
 
     [Fact]
@@ -58,7 +63,7 @@ public class LinhasDeComandoTestes
         var pasta = Path.Combine(t, "2099", "0001 - 2099 - JOSÉ D'ÁVILA & FILHOS (100% ^ ! ; $ #)");
         Directory.CreateDirectory(pasta);
         var ultima = Path.Combine(pasta, ".pmvni-ai", "editor", "r 1", "ultima-mensagem.md");
-        var (exe, args) = LinhasDeComando.CodexExec(Ambiente.AgenteFalso, pasta, ultima);
+        var (exe, args) = LinhasDeComando.Analise62(Ambiente.AgenteFalso, false, Path.Combine(pasta, "executar_analise_62.py"), pasta, [ultima]);
         var comAspas = args.Concat(new[] { "texto \"entre aspas\" e \\barra\\", "" }).ToList();
 
         var execucao = ExecucaoProcesso.Iniciar(exe, comAspas, pasta, "entrada ÁÉÍ\nlinha 2", _ => { }, _ => { }, _ => { });

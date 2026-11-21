@@ -58,7 +58,7 @@ public sealed partial class MainWindow
         if (escolha is null) return;
         if (escolha == Provedor.ChatGpt && item.Provedor == Provedor.ChatGpt)
         {
-            continuarChatGpt = new(item.Processo, item.Registro, item.Sessao);
+            continuarChatGpt = new(item.Processo, item.Registro);
             await ContinuarAnaliseAsync();
         }
         else await ContinuarComOutraIaAsync(escolha.Value, item.Processo, item.Registro);

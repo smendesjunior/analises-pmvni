@@ -15,8 +15,8 @@ public partial class OrquestradorTestes
     static Pecas ComGemini(Cena c) => c.Pecas with
     {
         Agy = Ambiente.AgenteFalso,
-        GoogleRuntime = Path.Combine(c.Pasta, "codex-home", "plugins", "cache", "pmvni-kit", "analise-google", "1.0.0", "skills", "analise-google", "scripts", "google_runtime.py"),
-        VersaoAnaliseGoogle = "1.0.0", VersaoAnaliseGoogleKit = "1.0.0",
+        GoogleRuntime = Path.Combine(c.Pasta, "codex-home", "plugins", "cache", "pmvni-kit", "analise-google", "2.1.0", "skills", "analise-google", "scripts", "google_runtime.py"),
+        VersaoAnaliseGoogle = "2.1.0", VersaoAnaliseGoogleKit = "2.1.0",
     };
 
     static Cena CenaGemini(string nome, Action<JsonObject>? ajustar = null)
@@ -84,7 +84,7 @@ public partial class OrquestradorTestes
         var ex = c.Execucao();
         Assert.Equal(("gemini", "conta", "conta_google", "conta_ultra"),
             (ex["provedor"]!.GetValue<string>(), ex["modo"]!.GetValue<string>(), ex["autenticacao"]!.GetValue<string>(), ex["perfil"]!.GetValue<string>()));
-        Assert.Equal(("análise Google", "1.0.0", "concluida"), (ex["plugin"]!.GetValue<string>(), ex["versao_do_plugin"]!.GetValue<string>(), ex["situacao"]!.GetValue<string>()));
+        Assert.Equal(("análise Google", "2.1.0", "concluida"), (ex["plugin"]!.GetValue<string>(), ex["versao_do_plugin"]!.GetValue<string>(), ex["situacao"]!.GetValue<string>()));
         Assert.Contains("\"ok\":true", ex["conferencia_gemini"]!.GetValue<string>());
         Assert.EndsWith("-gemini", Path.GetFileName(c.Registro.Pasta));
         Assert.False(TravaExecucao.EmAndamento(c.Processo.Pasta));

@@ -3,14 +3,23 @@ using System.Text.Json;
 
 namespace Pmvni.Agentes;
 
-/// <summary>O que o <c>pro_runtime.py … situacao</c> do kit informa (campos de <c>pro_auto.py</c>): chave faltando ou de tipo errado = null.</summary>
-public sealed record SituacaoKit(string Codigo, string? Rotulo, string? Etapa, string? Erro, string? Pdf, int? Pid, DateTimeOffset? Inicio, IReadOnlyList<string> Eventos);
+/// <summary>O que o <c>pro_runtime.py … situacao</c> do kit informa (campos de <c>pro_auto.py</c>): chave faltando ou de tipo errado = null.
+/// Contrato da Tarefa 2 (o mesmo do <c>executar_analise_62.py</c>): <see cref="RetomarEmUtc"/> em <c>AGUARDANDO_COTA</c>, <see cref="Decisao"/> em
+/// <c>DECISAO</c> e <see cref="Motivo"/> em <c>FALHA</c>. Na rota ChatGPT o editor monta a mesma situação a partir da última linha do controlador.</summary>
+public sealed record SituacaoKit(string Codigo, string? Rotulo, string? Etapa, string? Erro, string? Pdf, int? Pid, DateTimeOffset? Inicio, IReadOnlyList<string> Eventos)
+{
+    public DateTimeOffset? RetomarEmUtc { get; init; }
+    public string? Motivo { get; init; }
+    public DecisaoAnalise? Decisao { get; init; }
+}
 
 public static class SituacaoAnalisePro
 {
     static readonly HashSet<string> Terminais = new(StringComparer.Ordinal)
     {
         "CONCLUIDO", "FALHOU", "OBJECOES", "PAUSADO_COTA", "INTERROMPIDA", "NAO_PARTIU", "CANCELADO",
+        // Contrato da Tarefa 2: o kit parou para o analista decidir (o editor pergunta e dá a partida de novo) ou falhou com o motivo.
+        "DECISAO", "FALHA",
     };
 
     /// <summary>As etapas do controlador do kit, na ordem em que ele as executa.</summary>
@@ -37,12 +46,16 @@ public static class SituacaoAnalisePro
         {
             var r = doc.RootElement;
             if (r.ValueKind != JsonValueKind.Object) return Vazia;
+            var contrato = SituacaoAnalise62.Ler(r.GetRawText());
             return new SituacaoKit(
                 Texto(r, "situacao") ?? "",
                 Texto(r, "rotulo"), Texto(r, "etapa"), Texto(r, "erro"), Texto(r, "pdf"),
                 r.TryGetProperty("pid", out var pid) && pid.ValueKind == JsonValueKind.Number && pid.TryGetInt32(out var n) ? n : null,
                 Data(Texto(r, "inicio")),
-                Eventos(r));
+                Eventos(r))
+            {
+                RetomarEmUtc = contrato.RetomarEmUtc, Motivo = contrato.Motivo, Decisao = contrato.Decisao,
+            };
         }
     }
 

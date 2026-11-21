@@ -14,9 +14,17 @@ namespace Pmvni.Agentes;
 public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas Pecas, ModoAcesso Modo, string RaizDados, string? Texto,
     IReadOnlyList<ArquivoArquivado> Anexos, RegistroExecucao Registro)
 {
-    /// <summary>ChatGPT: a sessão do Codex a continuar (<c>codex exec resume</c>) em vez de começar do zero.</summary>
+    /// <summary>ChatGPT, modo conta: a rota escolhida em Ajustes (<c>herdar</c>, <c>openai</c> ou <c>codex-lb</c>), resolvida antes da partida por
+    /// <see cref="Agentes.RotaCodex.Resolver"/>.</summary>
     public string? RotaCodex { get; init; }
-    public string? RetomarSessao { get; init; }
+
+    /// <summary>ChatGPT: continua o controle que já existe na pasta do processo (o controlador é chamado sem <c>--inputs</c>) em vez de começar do zero. Vale
+    /// para a mesma análise retomada no mesmo registro; sem o <c>engine_state.json</c> do kit, a análise começa do zero.</summary>
+    public bool Retomar { get; init; }
+
+    /// <summary>Contrato da Tarefa 2 (código 21 / situação <c>DECISAO</c>): mostra a decisão ao analista e devolve a resposta (o <see cref="OpcaoDecisao.Valor"/>
+    /// escolhido, ou o texto digitado); null = sem resposta agora (a análise para e espera, sem gastar mais nada). Sem quem pergunte (null), idem.</summary>
+    public Func<DecisaoAnalise, CancellationToken, Task<string?>>? Decidir { get; init; }
 
     /// <summary>Gemini: o perfil (conta Ultra, API com créditos ou API gratuita) fixado para a análise inteira; null nos outros provedores e na leitura
     /// da situação.</summary>
@@ -30,14 +38,21 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
 /// <summary>Uma linha de andamento para a tela (do Codex, ou do <c>auto-log.txt</c> do kit) e/ou a situação mais recente do kit.</summary>
 public sealed record ProgressoAnalise(string? Linha, SituacaoKit? Situacao);
 
-/// <summary><c>Situacao</c>: <c>concluida</c> | <c>falhou</c> | <c>cancelada</c> | <c>sem_resultado</c> | <c>interrompida</c> | <c>acompanhamento_interrompido</c>
-/// (Claude: o editor parou de acompanhar; a análise do kit continua) | <c>cota_esgotada</c> (ChatGPT: o limite de uso acabou; dá para continuar depois).</summary>
-public sealed record FimAnalise(string Situacao, string? Documento, string? Pdf, string? Mensagem, int? Codigo);
+/// <summary><c>Situacao</c>: <c>concluida</c> | <c>falhou</c> | <c>cancelada</c> | <c>sem_resultado</c> | <c>interrompida</c> (também: parou para uma decisão do
+/// analista que não foi respondida, <see cref="Decisao"/>) | <c>acompanhamento_interrompido</c> (Claude: o editor parou de acompanhar; a análise do kit
+/// continua) | <c>cota_esgotada</c> (registros do Editor 2.2: a cota acabou na sessão controladora).</summary>
+public sealed record FimAnalise(string Situacao, string? Documento, string? Pdf, string? Mensagem, int? Codigo)
+{
+    /// <summary>A decisão que o kit pediu e ficou sem resposta (a análise espera; "Continuar a análise" pergunta de novo).</summary>
+    public DecisaoAnalise? Decisao { get; init; }
+}
 
-/// <summary>O intermediário (desenho §12.1): inicia o agente instalado neste computador, acompanha, guarda o registro e localiza o resultado que o próprio kit
-/// declara. Não analisa, não chama modelo e não interpreta o relatório.
-/// ChatGPT: <c>codex exec</c> como processo filho (o cancelamento mata a árvore). Claude: dá a partida do analise-pro (<c>pro_runtime.py … iniciar</c>); a análise roda
-/// sozinha, fora do editor, e o editor só acompanha (<c>situacao</c> e <c>auto-log.txt</c>); parar de acompanhar não a encerra (<see cref="CancelarClaudeAsync"/> sim).</summary>
+/// <summary>O intermediário (desenho §12.1): inicia o controlador do kit instalado neste computador, acompanha, guarda o registro e localiza o resultado que o
+/// próprio kit declara. Não analisa, não chama modelo e não interpreta o relatório.
+/// ChatGPT (Tarefa 12): o <c>executar_analise_62.py</c> do analise como processo filho, sem sessão Codex controladora (o cancelamento mata a árvore dele);
+/// a situação vem do contrato da Tarefa 2 (códigos 0/20/21/1 e o JSON da última linha): cota esgotada é esperada até a hora informada e retomada sozinha,
+/// decisão é perguntada ao analista. Claude e Gemini: dá a partida do controlador do kit (<c>pro_runtime.py … iniciar</c>); a análise roda sozinha, fora do
+/// editor, e o editor só acompanha (<c>situacao</c> e <c>auto-log.txt</c>); parar de acompanhar não a encerra (<see cref="CancelarClaudeAsync"/> sim).</summary>
 public sealed class OrquestradorAnalise
 {
     public const string AcompanhamentoInterrompido = "acompanhamento_interrompido";
@@ -109,13 +124,6 @@ public sealed class OrquestradorAnalise
             fim = pe.Provedor == Provedor.ChatGpt
                 ? await ExecutarChatGptAsync(pe, chave, inicio, progresso, ct).ConfigureAwait(false)
                 : await ExecutarPeloKitAsync(pe, chave, inicio, progresso, ct).ConfigureAwait(false);
-            if (fim.Situacao == "cota_esgotada" && pe.Provedor == Provedor.ChatGpt && pe.Modo == ModoAcesso.Conta && pe.RotaCodex == "codex-lb")
-            {
-                ct.ThrowIfCancellationRequested();
-                var sessao = AnaliseHistorica.Ler(pe.Processo, pe.Registro.Pasta)?.Sessao ?? pe.RetomarSessao;
-                Anunciar(progresso, new ProgressoAnalise("Retomando pelo Codex-LB com a conta disponível.", null));
-                fim = await ExecutarChatGptAsync(pe with { RetomarSessao = sessao }, chave, inicio, progresso, ct).ConfigureAwait(false);
-            }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -142,6 +150,11 @@ public sealed class OrquestradorAnalise
                 return Falha("O Codex não foi encontrado neste computador. Instale o app do ChatGPT/Codex ou escolha o programa em Ajustes › Inteligência artificial.");
             if (!pecas.PluginAnaliseHabilitado)
                 return Falha("O plugin analise do kit PMVNI não está habilitado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
+            if (pecas.Python is null) return Falha(SemPythonAnalise);
+            if (PoliticaKit.PluginDesatualizado(Provedor.ChatGpt, pecas.VersaoPluginAnalise) is { } antigo) return Falha(antigo);
+            if (pecas.Analise62 is null) return Falha(SemControladorAnalise(pecas.VersaoPluginAnalise));
+            // Erros 6 e 7: a rota é resolvida aqui, antes de qualquer processo; provedor que a análise não aceita é recusado agora.
+            if (RotaCodex.Resolver(pe.Modo, pe.RotaCodex, pecas.CodexHome).Recusa is { } rota) return Falha(rota);
         }
         else if (pe.Provedor == Provedor.Gemini)
         {
@@ -154,6 +167,7 @@ public sealed class OrquestradorAnalise
                 return Falha("O perfil do Gemini (" + MatrizGemini.Nome(perfil) + ") não corresponde ao modo escolhido. Nada foi iniciado: a análise não troca de modo sozinha.");
             if (perfil == PerfilGemini.ApiGratuita && !pe.Ficticio)
                 return Falha("O perfil API gratuita só roda testes com dados fictícios e precisa da sua confirmação no clique. Nada foi iniciado.");
+            if (PoliticaKit.PluginDesatualizado(Provedor.Gemini, pecas.VersaoAnaliseGoogle) is { } antigo) return Falha(antigo);
         }
         else
         {
@@ -161,6 +175,7 @@ public sealed class OrquestradorAnalise
             if (pecas.ProRuntime is null)
                 return Falha("O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
             if (pecas.Claude is null) return Falha("O Claude Code não foi encontrado neste computador (claude.exe).");
+            if (PoliticaKit.PluginDesatualizado(Provedor.Claude, pecas.VersaoAnalisePro) is { } antigo) return Falha(antigo);
             // 2026-11-17: modo chave = Anthropic API de fato. Plugin que não aceita a rota explícita: recusa, nunca a conta no lugar.
             if (pe.Modo == ModoAcesso.Chave && !pecas.ApiPermitidaNoKit) return Falha(ApiNaoSuportada(pecas.VersaoAnalisePro));
         }
@@ -194,6 +209,13 @@ public sealed class OrquestradorAnalise
         ModoAcesso.ContaGemini => "gemini_web",
         _ => "conta_google",
     };
+
+    public const string SemPythonAnalise = "O Python não foi encontrado neste computador (o analise do kit precisa dele).";
+
+    /// <summary>O analise instalado não tem o controlador que o editor roda (<c>executar_analise_62.py</c>).</summary>
+    public static string SemControladorAnalise(string? versao) =>
+        $"Atualize o kit PMVNI (analise {PoliticaKit.VersoesMinimas[Provedor.ChatGpt].Minima.ToString(3)} ou mais novo): o controlador executar_analise_62.py "
+        + $"não foi encontrado no analise instalado ({versao ?? "versão desconhecida"}). Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor). Nada foi iniciado.";
 
     public const string SemAnaliseGoogle = "O plugin análise Google do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
     public const string SemAgy = "O Antigravity CLI (agy.exe) não foi encontrado neste computador. Instale-o pelo instalador oficial do Google Antigravity e entre na conta Google.";
@@ -281,49 +303,194 @@ public sealed class OrquestradorAnalise
         catch (Exception e) when (e is InvalidOperationException or ObjectDisposedException) { /* a tela já foi embora */ }
     }
 
-    // ------------------------------------------------------------------ ChatGPT (Codex)
+    // ------------------------------------------------------------------ ChatGPT (analise: executar_analise_62.py)
 
+    /// <summary>Quantas vezes, no máximo, uma execução chama o controlador (etapas, esperas de cota e decisões): um controlador que nunca termina não prende o
+    /// editor para sempre.</summary>
+    const int MaximoDeChamadas = 200;
+
+    /// <summary>Quanto esperar quando o controlador diz "aguardando cota" sem informar a hora (contrato: <c>retomar_em_utc</c> nulo).</summary>
+    public TimeSpan EsperaSemHorario { get; init; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>Tarefa 12 (erros 1–7): roda o controlador do analise direto, sem sessão Codex controladora. Primeira chamada com <c>--inputs</c> (as peças do
+    /// processo); as seguintes sem (o controlador continua o controle). A última linha diz o que fazer: entregue → resultado; etapa concluída → chama de
+    /// novo; aguardando cota → espera até <c>retomar_em_utc</c> e chama de novo sozinho; decisão → pergunta ao analista, grava a resposta e chama de novo;
+    /// falha → para com o motivo.</summary>
     async Task<FimAnalise> ExecutarChatGptAsync(PedidoExecucao pe, string? chave, DateTimeOffset inicio, IProgress<ProgressoAnalise> progresso, CancellationToken ct)
     {
         var registro = pe.Registro;
         var pasta = pe.Processo.Pasta;
-        var ultima = Path.Combine(registro.Pasta, "ultima-mensagem.md");
-        string pedido;
-        (string Exe, IReadOnlyList<string> Args) linha;
-        if (pe.RetomarSessao is { } sessao)
+        var pecas = pe.Pecas;
+        var rota = RotaCodex.Resolver(pe.Modo, pe.RotaCodex, pecas.CodexHome);     // já conferida em Conferir: aqui sempre openai ou codex-lb
+        var controle = Path.Combine(pasta, ResultadoAnalise.PastaControle(Provedor.ChatGpt));
+        var retomar = pe.Retomar && File.Exists(Path.Combine(controle, "engine_state.json"));
+        IReadOnlyList<string>? entradas = null;
+        if (!retomar)
         {
-            // Continuação (2026-11-17): o pedido e os anexos originais ficam como estavam; o Codex recebe só a ordem de seguir.
-            pedido = PedidoAgente.Continuar;
-            linha = LinhasDeComando.CodexRetomar(pe.Pecas.Codex!, sessao, ultima);
+            entradas = await Task.Run(() => EntradasDoProcesso(pe, ct), ct).ConfigureAwait(false);
+            if (entradas.Count == 0)
+                return Falha("O processo não tem peças em PROJETO nem em DOCUMENTOS para o analise conferir. Anexe as peças e analise de novo. Nada foi iniciado.");
         }
-        else
-        {
-            pedido = PedidoAgente.Codex(pasta, pe.Processo, pe.Anexos, pe.Texto);
-            registro.GravarPedido(pedido);
-            registro.GravarAnexos(pe.Anexos);
-            linha = LinhasDeComando.CodexExec(pe.Pecas.Codex!, pasta, ultima);
-        }
-        pedido += "\n" + registro.InstrucoesProgresso();
-        var (exe, args) = linha;
-        if (pe.Modo == ModoAcesso.Conta && pe.RotaCodex is "openai" or "codex-lb")
-            args = ["-c", $"model_provider=\"{pe.RotaCodex}\"", .. args];
+
+        registro.GravarPedido(pe.Texto ?? "");
+        // As diretrizes do analista e o tratamento dos dados vão no diretrizes.md do kit (como no análise pro); nenhuma IA recebe pedido do editor.
+        GravarDiretrizes(controle, PedidoAgente.Diretrizes(pe.Texto) + "\n" + registro.InstrucoesProgresso());
+        registro.GravarAnexos(pe.Anexos);
+
+        var (exe, args) = LinhasDeComando.Analise62(pecas.Python!, pecas.PythonPeloLauncher, pecas.Analise62!, pasta, entradas);
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(args).ToList());
         registro.Atualizar(o =>
         {
-            o["rota_codex_tecnica"] = pe.Modo == ModoAcesso.Conta ? pe.RotaCodex ?? "herdar" : "openai";
-            o["entrada_padrao"] = pe.RetomarSessao is null ? "pedido.md" : "continuar";
-            if (pe.RetomarSessao is { } s) { o["sessao_codex"] = s; o["continuacoes"] = (o["continuacoes"]?.GetValue<int>() ?? 0) + 1; }
+            o["controlador"] = null;
+            o["rota_codex_tecnica"] = rota.Rota;       // o que o kit lê do registro: nunca "herdar" (resolvido aqui)
+            o["rota_codex_origem"] = rota.Origem;
+            o["entrada_padrao"] = null;
+            o["retomada"] = retomar;
         });
-        var cota = false;
+        // Erro 7: a tela diz qual rota será usada antes de qualquer sessão; a situação inicial põe o Monitor no mesmo painel do Claude e do Gemini.
+        Anunciar(progresso, new ProgressoAnalise(RotaCodex.Descrever(rota), SituacaoDoControlador("EM_ANDAMENTO", "em andamento", null)));
 
-        var redator = new RedatorChave(chave);      // a chave nunca vai para o registro nem para a tela, nem se o agente a repetir
-        var canal = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
-        using var execucao = ExecucaoProcesso.Iniciar(exe, args, pasta, pedido, Ambiente(Provedor.ChatGpt, pe.Modo, chave, registro: registro),
-            linha => canal.Writer.TryWrite(redator.Aplicar(linha)),
-            linha => { if (EventosCodex.CotaEsgotada(linha)) cota = true; registro.AcrescentarErro(redator.Aplicar(linha)); }, TarefaCodex);
+        var ambiente = AmbienteAnalise62(pe, chave, rota.Rota!, registro);
+        var redator = new RedatorChave(chave);      // a chave nunca vai para o registro nem para a tela, nem se o controlador ou um filho a repetir
+        for (var chamada = 1; ; chamada++)
+        {
+            if (chamada > MaximoDeChamadas)
+                return Falha($"O controlador do analise foi chamado {MaximoDeChamadas} vezes sem concluir. Veja o registro: {registro.Pasta}.");
+            var (codigo, s, json, ultima) = await RodarControladorAsync(exe, args, pe, ambiente, redator, progresso, ct).ConfigureAwait(false);
+            if (json is not null) registro.AcrescentarSituacao(Compactar(json));
+            registro.Descarregar();
+            // Da segunda chamada em diante, sempre a retomada: o controlador continua o controle que a primeira criou.
+            (exe, args) = LinhasDeComando.Analise62(pecas.Python!, pecas.PythonPeloLauncher, pecas.Analise62!, pasta, null);
+
+            var situacao = s?.Situacao ?? (codigo switch
+            {
+                SituacaoAnalise62.CodigoOk => SituacaoAnalise62.Entregue,
+                SituacaoAnalise62.CodigoCota => SituacaoAnalise62.AguardandoCota,
+                _ => SituacaoAnalise62.Falha,
+            });
+            switch (situacao)
+            {
+                case SituacaoAnalise62.Entregue:
+                {
+                    Anunciar(progresso, new ProgressoAnalise(null, SituacaoDoControlador("CONCLUIDO", "concluída", s?.Etapa)));
+                    var r = ResultadoAnalise.Localizar(pasta, Provedor.ChatGpt, inicio.UtcDateTime, registro.Pasta);
+                    return r.Documento is not null ? new FimAnalise("concluida", r.Documento, r.Pdf, null, codigo) : new FimAnalise("sem_resultado", null, null, r.Motivo, codigo);
+                }
+                case SituacaoAnalise62.EtapaOk when codigo == SituacaoAnalise62.CodigoOk:
+                    Anunciar(progresso, new ProgressoAnalise(null, SituacaoDoControlador("EM_ANDAMENTO", "etapa concluída", s?.Etapa)));
+                    continue;
+                case SituacaoAnalise62.AguardandoCota:
+                {
+                    // Erro 5: a cota acabou numa etapa técnica. O controlador já guardou a etapa; o editor espera a hora informada e chama de novo, sem clique.
+                    var quando = s?.RetomarEmUtc ?? DateTimeOffset.UtcNow + EsperaSemHorario;
+                    var rotulo = SituacaoAnalise62.TextoAguardandoCota(quando);
+                    Anunciar(progresso, new ProgressoAnalise(rotulo + (string.IsNullOrWhiteSpace(s?.Motivo) ? "" : " (" + redator.Aplicar(s!.Motivo!) + ")"),
+                        SituacaoDoControlador(SituacaoAnalise62.AguardandoCota, rotulo, s?.Etapa) with { RetomarEmUtc = quando, Motivo = s?.Motivo }));
+                    registro.Atualizar(o => o["aguardando_cota_ate_utc"] = quando.ToString("o", CultureInfo.InvariantCulture));
+                    registro.Descarregar();
+                    var espera = quando - DateTimeOffset.UtcNow;
+                    if (espera > TimeSpan.Zero) await Task.Delay(espera, ct).ConfigureAwait(false);
+                    registro.Atualizar(o => o.Remove("aguardando_cota_ate_utc"));
+                    Anunciar(progresso, new ProgressoAnalise("Retomando a análise de onde parou.", SituacaoDoControlador("EM_ANDAMENTO", "em andamento", s?.Etapa)));
+                    continue;
+                }
+                case SituacaoAnalise62.PedeDecisao when s?.Decisao is { } d:
+                {
+                    // Erro 4: ninguém responde dentro de um exec. O controlador para com a pergunta; o editor a mostra ao analista e chama de novo com a resposta.
+                    Anunciar(progresso, new ProgressoAnalise("Decisão necessária: " + d.Pergunta,
+                        SituacaoDoControlador(SituacaoAnalise62.PedeDecisao, "aguardando a sua decisão", s.Etapa) with { Decisao = d }));
+                    var resposta = await PerguntarAsync(pe, d, ct).ConfigureAwait(false);
+                    if (resposta is null) return Parado(d, codigo);
+                    Responder(pe, Provedor.ChatGpt, d, resposta);
+                    Anunciar(progresso, new ProgressoAnalise("Resposta gravada; a análise continua.", SituacaoDoControlador("EM_ANDAMENTO", "em andamento", s.Etapa)));
+                    continue;
+                }
+                default:
+                {
+                    var etapa = s?.Etapa is { } e ? " na etapa " + SituacaoAnalisePro.NomeEtapa(e) : "";
+                    var motivo = !string.IsNullOrWhiteSpace(s?.Motivo) ? redator.Aplicar(s!.Motivo!).Trim().TrimEnd('.')
+                        : ultima is not null ? PrimeiraLinha(ultima) : $"código {codigo}";
+                    Anunciar(progresso, new ProgressoAnalise(null, SituacaoDoControlador("FALHOU", "parou com erro", s?.Etapa) with { Erro = motivo, Motivo = s?.Motivo }));
+                    return new FimAnalise("falhou", null, null, $"O controlador do analise parou{etapa}: {motivo}. Veja o registro: {registro.Pasta}.", codigo);
+                }
+            }
+        }
+    }
+
+    /// <summary>A situação que a tela mostra para a rota ChatGPT, no mesmo formato da que o análise pro informa.</summary>
+    static SituacaoKit SituacaoDoControlador(string codigo, string rotulo, string? etapa) => new(codigo, rotulo, etapa, null, null, null, null, Array.Empty<string>());
+
+    /// <summary>As peças originais do processo para o <c>--inputs</c>: os anexos desta análise (já copiados no processo) e os arquivos de PROJETO e DOCUMENTOS,
+    /// sem repetir e sem nada das pastas de controle (<c>.pmvni-ai</c>). A escolha das peças vigentes é do kit (por regra; o empate vem como decisão).</summary>
+    static IReadOnlyList<string> EntradasDoProcesso(PedidoExecucao pe, CancellationToken ct)
+    {
+        var raiz = Path.GetFullPath(pe.Processo.Pasta).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var lista = new List<string>();
+        void Por(string caminho)
+        {
+            try
+            {
+                var f = Path.GetFullPath(caminho);
+                if (!f.StartsWith(raiz, StringComparison.OrdinalIgnoreCase) || f[raiz.Length..].Split(Path.DirectorySeparatorChar).Contains(".pmvni-ai", StringComparer.OrdinalIgnoreCase)) return;
+                if (File.Exists(f) && !lista.Contains(f, StringComparer.OrdinalIgnoreCase)) lista.Add(f);
+            }
+            catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { }
+        }
+        foreach (var a in pe.Anexos) Por(Path.Combine(pe.Processo.Pasta, a.Relativo));
+        var detalhe = Processos.Detalhar(pe.Processo, ct);
+        foreach (var a in detalhe.Projeto.Concat(detalhe.Documentos)) Por(a.Caminho);
+        return lista;
+    }
+
+    /// <summary>O ambiente do controlador: o de sempre (chaves herdadas fora; a do modo chave pela variável do provedor; o registro da execução), a rota em
+    /// <see cref="RotaCodex.Variavel"/> e a pasta do Codex achado pelo editor no começo do PATH (o controlador chama <c>codex</c>).</summary>
+    Action<IDictionary<string, string?>> AmbienteAnalise62(PedidoExecucao pe, string? chave, string rota, RegistroExecucao registro)
+    {
+        var basico = Ambiente(Provedor.ChatGpt, pe.Modo, chave, registro: registro);
+        var pastaCodex = pe.Pecas.Codex is { } codex ? Path.GetDirectoryName(codex) : null;
+        return env =>
+        {
+            basico(env);
+            env[RotaCodex.Variavel] = rota;
+            if (string.IsNullOrEmpty(pastaCodex)) return;
+            var chavePath = env.Keys.FirstOrDefault(k => k.Equals("PATH", StringComparison.OrdinalIgnoreCase)) ?? "PATH";
+            env.TryGetValue(chavePath, out var atual);
+            env[chavePath] = string.IsNullOrEmpty(atual) ? pastaCodex : pastaCodex + Path.PathSeparator + atual;
+        };
+    }
+
+    static void GravarDiretrizes(string controle, string texto)
+    {
+        try
+        {
+            Directory.CreateDirectory(controle);
+            File.WriteAllText(Path.Combine(controle, "diretrizes.md"), texto, new UTF8Encoding(false));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Registrar(e); }
+    }
+
+    /// <summary>Uma chamada do controlador: a saída vai para o <c>saida.jsonl</c> e para a tela (<see cref="EventosCodex.LinhaDoControlador"/>), o erro para o
+    /// <c>erros.txt</c>, o pid e a hora da partida para o <c>execucao.json</c> (<c>controlador</c>, o critério de <see cref="CancelarChatGptAsync"/>). Devolve o
+    /// código, a situação da última linha e o texto dela.</summary>
+    async Task<(int Codigo, SituacaoAnalise62? Situacao, string? Json, string? Ultima)> RodarControladorAsync(string exe, IReadOnlyList<string> args, PedidoExecucao pe,
+        Action<IDictionary<string, string?>> ambiente, RedatorChave redator, IProgress<ProgressoAnalise> progresso, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var registro = pe.Registro;
+        const int Cauda = 400;
+        var cauda = new Queue<string>();
+        var canal = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+        using var execucao = ExecucaoProcesso.Iniciar(exe, args, pe.Processo.Pasta, null, ambiente,
+            linha => canal.Writer.TryWrite(redator.Aplicar(linha)), linha => registro.AcrescentarErro(redator.Aplicar(linha)), TarefaCodex);
+        var partida = DateTimeOffset.Now;
+        registro.Atualizar(o => o["controlador"] = new JsonObject
+        {
+            ["pid"] = execucao.Pid, ["inicio"] = partida.ToString("o", CultureInfo.InvariantCulture), ["programa"] = exe,
+        });
+        registro.Descarregar();
         using var cancelamento = ct.Register(execucao.Cancelar);
 
-        // A saída vai para uma fila sem limite: o agente nunca espera pelo editor (nem pela tela). Um só consumidor grava o saida.jsonl e anuncia.
+        // A saída vai para uma fila sem limite: o controlador nunca espera pelo editor (nem pela tela). Um só consumidor grava o saida.jsonl e anuncia.
         var consumidor = Task.Run(async () =>
         {
             var leitor = canal.Reader;
@@ -332,16 +499,15 @@ public sealed class OrquestradorAnalise
             {
                 while (leitor.TryRead(out var linha))
                 {
-                    // Nada aqui pode matar o consumidor (o andamento congelaria e o fim viraria "falhou"): o registro não lança e o resto é contido.
+                    // Nada aqui pode matar o consumidor (o andamento congelaria): o registro não lança e o resto é contido.
                     try
                     {
                         registro.AcrescentarSaida(linha);
-                        if (EventosCodex.Sessao(linha) is { } id) { registro.Atualizar(o => o["sessao_codex"] = id); registro.Descarregar(); }
-                        if (EventosCodex.Linha(linha) is { } texto)
-                        {
-                            if (texto.StartsWith("Erro: ", StringComparison.Ordinal) && EventosCodex.CotaEsgotada(texto)) cota = true;
-                            Anunciar(progresso, new ProgressoAnalise(texto, null));
-                        }
+                        cauda.Enqueue(linha.Length > 64 * 1024 ? linha[..(64 * 1024)] : linha);
+                        if (cauda.Count > Cauda) cauda.Dequeue();
+                        if (EventosCodex.EtapaDoControlador(linha) is { } etapa)
+                            Anunciar(progresso, new ProgressoAnalise(null, SituacaoDoControlador("EM_ANDAMENTO", "em andamento", etapa)));
+                        if (EventosCodex.LinhaDoControlador(linha) is { } texto) Anunciar(progresso, new ProgressoAnalise(texto, null));
                     }
                     catch (Exception e) when (e is not OutOfMemoryException) { Registrar(e); }
                     if (++desdeODescarregar >= 5000) { registro.Descarregar(); desdeODescarregar = 0; }
@@ -354,43 +520,61 @@ public sealed class OrquestradorAnalise
         var codigo = await execucao.Fim.ConfigureAwait(false);
         canal.Writer.TryComplete();
         await consumidor.ConfigureAwait(false);
-        RedigirArquivo(Path.Combine(registro.Pasta, "ultima-mensagem.md"), redator);     // este arquivo é escrito pelo próprio Codex
         registro.Descarregar();
-
         if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
-        var r = codigo == 0 ? ResultadoAnalise.Localizar(pasta, Provedor.ChatGpt, inicio.UtcDateTime, registro.Pasta) : null;
-        if (r?.Documento is not null) return new FimAnalise("concluida", r.Documento, r.Pdf, null, codigo);
-        if (cota)
-            return new FimAnalise("cota_esgotada", null, null,
-                "A cota de uso do ChatGPT acabou no meio da análise. O que já foi feito está guardado: quando a cota voltar, clique em \"Continuar a análise\" e ela segue de onde parou.", codigo);
-        if (codigo != 0)
-            return new FimAnalise("falhou", null, null, $"O Codex terminou com o código {codigo}. Veja o registro: {registro.Pasta}.", codigo);
-
-        return new FimAnalise("sem_resultado", null, null, r?.Motivo, codigo);
+        var linhas = cauda.ToArray();
+        var json = SituacaoAnalise62.JsonDaSaida(linhas);
+        var ultima = linhas.LastOrDefault(l => !string.IsNullOrWhiteSpace(l));
+        return (codigo, json is null ? null : SituacaoAnalise62.Ler(json), json, ultima);
     }
 
-    /// <summary>Tira a chave de um arquivo que o agente escreveu dentro do registro (até 20 MB; o que passar disso é cortado, com aviso).</summary>
-    static void RedigirArquivo(string arquivo, RedatorChave redator)
+    /// <summary>Pergunta ao analista (<see cref="PedidoExecucao.Decidir"/>); null = sem resposta agora.</summary>
+    static async Task<string?> PerguntarAsync(PedidoExecucao pe, DecisaoAnalise d, CancellationToken ct)
     {
-        if (!redator.Ativo) return;
-        const int Maximo = 20 * 1024 * 1024;
+        if (pe.Decidir is null) return null;
+        var resposta = await pe.Decidir(d, ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        return string.IsNullOrWhiteSpace(resposta) ? null : resposta.Trim();
+    }
+
+    /// <summary>Grava a resposta onde a decisão pediu (dentro da pasta de controle do kit) e guarda no registro o que foi perguntado e respondido.</summary>
+    static void Responder(PedidoExecucao pe, Provedor p, DecisaoAnalise d, string resposta)
+    {
+        var arquivo = RespostaDecisao.Gravar(pe.Processo.Pasta, p, d, resposta);
+        pe.Registro.Atualizar(o =>
+        {
+            var lista = o["decisoes"] as JsonArray ?? new JsonArray();
+            lista.Add(new JsonObject
+            {
+                ["tipo"] = d.Tipo, ["id"] = d.Id, ["pergunta"] = d.Pergunta, ["resposta"] = resposta, ["arquivo"] = arquivo,
+                ["em"] = DateTimeOffset.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+            });
+            o["decisoes"] = lista;
+        });
+    }
+
+    /// <summary>A análise parou numa decisão sem resposta: espera, sem gastar mais nada; "Continuar a análise" chama o controlador e a pergunta volta.</summary>
+    static FimAnalise Parado(DecisaoAnalise d, int? codigo) =>
+        new("interrompida", null, null, "A análise parou para a sua decisão: " + d.Pergunta.Trim()
+            + " Nada mais foi gasto. Clique em \"Continuar a análise\" para responder e seguir de onde parou.", codigo) { Decisao = d };
+
+    /// <summary>Cancelar a análise do ChatGPT pelo registro (o editor não segura mais o processo, por exemplo depois de reaberto): o mesmo critério do Claude —
+    /// encerra a árvore do <c>pid</c> gravado em <c>controlador</c> no <c>execucao.json</c> só se estiver vivo, se for um Python e se tiver partido perto da hora
+    /// gravada. Com o editor segurando o processo, o cancelamento comum já encerra a árvore do próprio filho (e só ela). false = nada encerrado.</summary>
+    public async Task<bool> CancelarChatGptAsync(string pastaRegistro, Pecas pecas)
+    {
+        int pid;
+        DateTimeOffset inicio;
         try
         {
-            if (!File.Exists(arquivo)) return;
-            var info = new FileInfo(arquivo);
-            string texto;
-            using (var fs = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            using (var leitor = new StreamReader(fs, new UTF8Encoding(false)))
-            {
-                var buffer = new char[Maximo];
-                var n = leitor.ReadBlock(buffer, 0, buffer.Length);
-                texto = new string(buffer, 0, n);
-            }
-            var novo = redator.Aplicar(texto);
-            if (info.Length > Maximo) novo += "\n[arquivo cortado em 20 MB]";
-            if (novo != texto || info.Length > Maximo) File.WriteAllText(arquivo, novo, new UTF8Encoding(false));
+            var arquivo = Path.Combine(pastaRegistro, "execucao.json");
+            if (!File.Exists(arquivo) || JsonNode.Parse(File.ReadAllText(arquivo))?["controlador"] is not JsonObject c
+                || c["pid"] is not JsonValue p || !p.TryGetValue(out pid)
+                || c["inicio"] is not JsonValue i || !i.TryGetValue<string>(out var texto)
+                || !DateTimeOffset.TryParse(texto, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out inicio)) return false;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* o arquivo é do agente; sem acesso, nada a fazer */ }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or ArgumentException) { return false; }
+        return await EncerrarControladorAsync(pid, inicio, pecas).ConfigureAwait(false);
     }
 
     // ------------------------------------------------------------------ Claude (análise pro)
@@ -426,14 +610,23 @@ public sealed class OrquestradorAnalise
 
         if (p == Provedor.Gemini && await ConferirGeminiAsync(pe, ambiente, redator, ct).ConfigureAwait(false) is { } impedimento) return impedimento;
 
-        var partida = await ExecucaoProcesso.RodarAsync(exe, argsIniciar, pasta, ambiente, LimiteIniciar, ct).ConfigureAwait(false);
-        var saidaPartida = redator.Aplicar(partida.Saida);
-        var iniciada = partida.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(saidaPartida)) : null;
-        if (iniciada is null || iniciada.Codigo is not ("INICIADA" or "JA_EM_ANDAMENTO"))
-            return Falha($"O {nomeKit} não partiu: " + PrimeiraLinha(saidaPartida) + ". Veja o registro: " + registro.Pasta + ".", partida.Codigo);
-        if (iniciada.Codigo == "JA_EM_ANDAMENTO") log.MostrarOFimDoLog();     // uma análise que já rodava: mostra o que ela já escreveu
-        // Só a partida precisa da chave (o kit a passa ao processo isolado da análise); "situacao" só lê arquivos e roda sem ela, como na retomada.
-        return await AcompanharAsync(pe, Ambiente(p, ModoAcesso.Conta, null), redator, log, inicio, progresso, ct).ConfigureAwait(false);
+        for (var partidas = 1; ; partidas++)
+        {
+            var partida = await ExecucaoProcesso.RodarAsync(exe, argsIniciar, pasta, ambiente, LimiteIniciar, ct).ConfigureAwait(false);
+            var saidaPartida = redator.Aplicar(partida.Saida);
+            var iniciada = partida.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(saidaPartida)) : null;
+            if (iniciada is null || iniciada.Codigo is not ("INICIADA" or "JA_EM_ANDAMENTO"))
+                return Falha($"O {nomeKit} não partiu: " + PrimeiraLinha(saidaPartida) + ". Veja o registro: " + registro.Pasta + ".", partida.Codigo);
+            if (iniciada.Codigo == "JA_EM_ANDAMENTO") log.MostrarOFimDoLog();     // uma análise que já rodava: mostra o que ela já escreveu
+            // Só a partida precisa da chave (o kit a passa ao processo isolado da análise); "situacao" só lê arquivos e roda sem ela, como na retomada.
+            var fim = await AcompanharAsync(pe, Ambiente(p, ModoAcesso.Conta, null), redator, log, inicio, progresso, ct).ConfigureAwait(false);
+            // Contrato da Tarefa 2: o kit parou para o analista decidir. O editor pergunta, grava a resposta e dá a partida de novo (o kit continua de onde parou).
+            if (fim.Decisao is not { } d || partidas >= MaximoDeChamadas) return fim;
+            var resposta = await PerguntarAsync(pe, d, ct).ConfigureAwait(false);
+            if (resposta is null) return fim;
+            Responder(pe, p, d, resposta);
+            Anunciar(progresso, new ProgressoAnalise("Resposta gravada; a análise continua.", null));
+        }
     }
 
     /// <summary>Gemini, antes da partida: o plugin confere (sem gerar texto nem gastar cota) o runtime, a autenticação do modo escolhido e o modelo e o nível
@@ -531,6 +724,9 @@ public sealed class OrquestradorAnalise
                 var saidaSituacao = redator.Aplicar(r.Saida);
                 var situacao = r.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(saidaSituacao)) : null;
                 if (situacao is { Pdf: not null }) situacao = situacao with { Pdf = ResultadoAnalise.PdfDentro(pasta, situacao.Pdf) };   // só um PDF que o editor abriria
+                // Contrato da Tarefa 2: a espera de cota com a hora da retomada aparece como "Aguardando cota até HH:MM".
+                if (situacao is { Codigo: SituacaoAnalise62.AguardandoCota, RetomarEmUtc: { } quando })
+                    situacao = situacao with { Rotulo = SituacaoAnalise62.TextoAguardandoCota(quando) };
                 if (situacao is null || situacao.Codigo.Length == 0)
                 {
                     if (++falhasSeguidas >= FalhasSeguidasDaSituacao)
@@ -539,7 +735,8 @@ public sealed class OrquestradorAnalise
                 else
                 {
                     falhasSeguidas = 0;
-                    var chaveAtual = string.Join('|', situacao.Codigo, situacao.Etapa, situacao.Rotulo, situacao.Erro, situacao.Pdf, situacao.Eventos.Count, situacao.Eventos.LastOrDefault());
+                    var chaveAtual = string.Join('|', situacao.Codigo, situacao.Etapa, situacao.Rotulo, situacao.Erro, situacao.Pdf, situacao.Eventos.Count, situacao.Eventos.LastOrDefault(),
+                        situacao.RetomarEmUtc, situacao.Motivo, situacao.Decisao?.Json);
                     if (chaveAtual != chaveAnterior)
                     {
                         chaveAnterior = chaveAtual;
@@ -561,17 +758,22 @@ public sealed class OrquestradorAnalise
 
     static FimAnalise Terminou(PedidoExecucao pe, SituacaoKit s, DateTimeOffset inicio)
     {
-        var mensagem = (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro);
+        var detalhe = string.IsNullOrWhiteSpace(s.Erro) ? s.Motivo : s.Erro;
+        var mensagem = (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(detalhe) ? "" : ": " + detalhe);
         switch (s.Codigo)
         {
             case "CONCLUIDO":
+            case SituacaoAnalise62.Entregue:
                 var r = ResultadoAnalise.Localizar(pe.Processo.Pasta, pe.Provedor, inicio.UtcDateTime, pe.Registro.Pasta);
                 return r.Documento is null
                     ? new FimAnalise("sem_resultado", null, null, r.Motivo, null)
                     : new FimAnalise("concluida", r.Documento, r.Pdf ?? ResultadoAnalise.PdfDentro(pe.Processo.Pasta, s.Pdf), null, null);
             case "FALHOU":
             case "OBJECOES":
+            case SituacaoAnalise62.Falha:
                 return new FimAnalise("falhou", null, null, mensagem, null);
+            case SituacaoAnalise62.PedeDecisao when s.Decisao is { } d:
+                return Parado(d, null);
             case "CANCELADO":
                 return new FimAnalise("cancelada", null, null, mensagem, null);
             default:     // PAUSADO_COTA, INTERROMPIDA, NAO_PARTIU: o kit retoma de onde parou ("Continuar a análise")
@@ -611,7 +813,14 @@ public sealed class OrquestradorAnalise
 
         var s = SituacaoAnalisePro.Ler(DoPrimeiroJson(r.Saida));
         if (s.Codigo is not ("EM_ANDAMENTO" or "AGUARDANDO_COTA") || s.Pid is not { } pid || s.Inicio is not { } inicio) return false;
+        return await EncerrarControladorAsync(pid, inicio, pecas).ConfigureAwait(false);
+    }
 
+    /// <summary>O critério comum de cancelamento (Claude, Gemini e ChatGPT): encerra a árvore do <paramref name="pid"/> só se estiver vivo, se for um Python
+    /// (<c>python*.exe</c>, <c>py.exe</c> ou o programa escolhido) e se tiver partido entre <paramref name="inicio"/> − 1 min e <paramref name="inicio"/> + 5 min.</summary>
+    static async Task<bool> EncerrarControladorAsync(int pid, DateTimeOffset inicio, Pecas pecas)
+    {
+        if (pecas.Python is null) return false;
         Process processo;
         try { processo = Process.GetProcessById(pid); }
         catch (ArgumentException) { return false; }

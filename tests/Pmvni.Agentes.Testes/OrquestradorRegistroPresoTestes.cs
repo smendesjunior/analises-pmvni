@@ -61,7 +61,7 @@ public partial class OrquestradorTestes
     [Fact]
     public async Task chatgpt_com_registro_preso_termina_e_importa()
     {
-        // O Codex escreve 4 MB no erro (mais que o buffer do canal) e muitas linhas na saída, com saida.jsonl e erros.txt presos o tempo todo.
+        // O controlador escreve 4 MB no erro (mais que o buffer do canal) e muitas linhas na saída, com saida.jsonl e erros.txt presos o tempo todo.
         using var c = new Cena("orq-registro-preso", "ok", Provedor.ChatGpt, o => { o["linhas"] = 20_000; o["eventos"] = new JsonArray(); o["inundacao_erro_mb"] = 4; o["intervalo_ms"] = 0; });
         var presos = new[] { Prender(c.DoRegistro("saida.jsonl")), Prender(c.DoRegistro("erros.txt")) };
         FimAnalise fim;
@@ -70,7 +70,7 @@ public partial class OrquestradorTestes
 
         Assert.Equal("concluida", fim.Situacao);
         Assert.Equal(Path.Combine(c.Processo.Pasta, ".pmvni-ai", "analise", "relatorio_dados.json"), fim.Documento);
-        Assert.Equal(20_000, c.Progresso.QuantidadeDeLinhas);          // o andamento na tela não congelou
+        Assert.Equal(20_001, c.Progresso.QuantidadeDeLinhas);          // o andamento na tela não congelou (a rota do Codex + as 20.000 linhas)
         var ex = c.Execucao();
         Assert.Equal("concluida", ex["situacao"]!.GetValue<string>());
         Assert.StartsWith("O registro não pôde gravar ", ex["aviso_registro"]!.GetValue<string>());
@@ -96,7 +96,7 @@ public partial class OrquestradorTestes
         using var pasta = Ambiente.PastaDeTeste("callback-lanca");
         var cenario = Ambiente.CenarioAjustado(pasta, "ok", o => { o["inundacao_erro_mb"] = 4; });
         var processo = Ambiente.NovoProcesso(pasta);
-        var (exe, args) = LinhasDeComando.CodexExec(Ambiente.AgenteFalso, processo.Pasta, Path.Combine(pasta, "ultima.md"));
+        var (exe, args) = LinhasDeComando.Analise62(Ambiente.AgenteFalso, false, "executar_analise_62.py", processo.Pasta, null);
         var erros = 0;
         using var execucao = ExecucaoProcesso.Iniciar(exe, args, processo.Pasta, "pedido", env => env["AGENTE_FALSO_CENARIO"] = cenario,
             _ => throw new IOException("saída presa"), _ => { Interlocked.Increment(ref erros); throw new IOException("erro preso"); });

@@ -28,6 +28,9 @@ public partial class OrquestradorTestes
         {
             Pasta = Ambiente.PastaDeTeste(nome);
             Processo = Ambiente.NovoProcesso(Pasta);
+            // Uma peça original no processo: é o que o editor passa ao controlador do analise em --inputs.
+            Directory.CreateDirectory(Path.Combine(Processo.Pasta, "PROJETO", "INICIAL"));
+            File.WriteAllText(Path.Combine(Processo.Pasta, "PROJETO", "INICIAL", "planta-ficticia.pdf"), "%PDF-1.4 planta fictícia");
             RaizDados = Path.Combine(Pasta, "dados");
             Pecas = Ambiente.PecasFalsas(Pasta);
             Cenario = ajustar is null ? Ambiente.Cenario(cenario) : Ambiente.CenarioAjustado(Pasta, cenario, ajustar);
@@ -101,13 +104,16 @@ public partial class OrquestradorTestes
 
     static JsonObject Json(string arquivo) => JsonNode.Parse(File.ReadAllText(arquivo))!.AsObject();
 
-    // ------------------------------------------------------------------ ChatGPT (Codex)
+    // ------------------------------------------------------------------ ChatGPT (analise: executar_analise_62.py, Tarefa 12)
 
     [Fact]
     public async Task chatgpt_do_inicio_ao_resultado()
     {
-        using var c = new Cena("orq-chatgpt-ok", "ok", Provedor.ChatGpt);
+        using var c = new Cena("orq-chatgpt-ok", "ok", Provedor.ChatGpt, o => o["eventos"] = new JsonArray(
+            "prepare: gpt-6.2-luna / low", "analyze: gpt-6.2-astra / high", "{\"saida\":\"de ferramenta\"}", "texto solto do controlador"));
         const string texto = "Analise a reapresentação.\nSegunda linha do pedido.";
+        var anexo = Path.Combine(c.Processo.Pasta, "PROJETO", "INICIAL", "planta.pdf");
+        File.WriteAllText(anexo, "%PDF-1.4 anexo fictício");
         var anexos = new[] { new ArquivoArquivado(@"D:\x\planta.pdf", @"PROJETO\INICIAL\planta.pdf", "aa", 1, false) };
 
         var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.ChatGpt, texto: texto, anexos: anexos), c.Progresso, CancellationToken.None), Limite);
@@ -117,23 +123,30 @@ public partial class OrquestradorTestes
         Assert.Null(fim.Pdf);
         Assert.Equal(0, fim.Codigo);
 
-        // Progresso: só o que o desenho manda mostrar.
-        var linhas = c.Progresso.Linhas();
-        Assert.Equal(new[] { "Mensagem: Lendo o processo", "Ação: executando a etapa conferir", "Ação: gravou 2 arquivos de trabalho", "texto solto do agente", "Mensagem: Relatório pronto" }, linhas);
+        // Progresso: a rota usada, as etapas que o controlador anunciou e o texto dele; JSON nunca aparece.
+        var config = Path.Combine(c.Pecas.CodexHome!, "config.toml");
+        Assert.Equal(new[]
+        {
+            "Rota do Codex: OpenAI direto (configuração do Codex neste PC (" + config + "))",
+            "Etapa Preparo: gpt-6.2-luna, raciocínio low", "Etapa Análise: gpt-6.2-astra, raciocínio high", "texto solto do controlador",
+        }, c.Progresso.Linhas());
+        Assert.Contains(c.Progresso.Todos(), p => p.Situacao is { Codigo: "EM_ANDAMENTO", Etapa: "analyze" });
+        Assert.Equal("CONCLUIDO", c.Progresso.Todos().Last(p => p.Situacao is not null).Situacao!.Codigo);
 
-        // Registro: a saída inteira, a última mensagem, o pedido.
-        Assert.Equal(8, Linhas(c.DoRegistro("saida.jsonl")).Length);
-        Assert.Equal("{\"type\":\"thread.started\",\"thread_id\":\"t-1\"}", Linhas(c.DoRegistro("saida.jsonl"))[0]);
-        Assert.Equal("Relatório pronto", File.ReadAllText(c.DoRegistro("ultima-mensagem.md")));
-        var pedidoEsperado = PedidoAgente.Codex(c.Processo.Pasta, c.Processo, anexos, texto);
-        Assert.Equal(pedidoEsperado, File.ReadAllText(c.DoRegistro("pedido.md")));
+        // Registro: a saída inteira (com a situação do contrato na última linha), o pedido digitado e os anexos.
+        var saida = Linhas(c.DoRegistro("saida.jsonl"));
+        Assert.Equal(5, saida.Length);
+        Assert.Equal("prepare: gpt-6.2-luna / low", saida[0]);
+        Assert.Equal("ENTREGUE", SituacaoAnalise62.Ler(saida[^1]).Situacao);
+        Assert.Equal(texto, File.ReadAllText(c.DoRegistro("pedido.md")));
+        Assert.Single(JsonNode.Parse(File.ReadAllText(c.DoRegistro("anexos.json")))!.AsArray());
 
-        // O que o agente falso recebeu: a linha exata e o pedido na entrada.
+        // O que o controlador falso recebeu: a linha exata (o anexo primeiro, depois o resto do processo), nada pela entrada, sem chave.
         var recebido = Json(c.Falso("recebido.json"));
-        var esperado = LinhasDeComando.CodexExec(Ambiente.AgenteFalso, c.Processo.Pasta, c.DoRegistro("ultima-mensagem.md"));
+        var esperado = LinhasDeComando.Analise62(Ambiente.AgenteFalso, false, c.Pecas.Analise62!, c.Processo.Pasta, [anexo, Planta(c)]);
         Assert.Equal(esperado.Args, recebido["argv"]!.AsArray().Select(x => x!.GetValue<string>()).ToList());
         Assert.Equal(c.Processo.Pasta, recebido["cwd"]!.GetValue<string>());
-        Assert.Equal(pedidoEsperado + "\n" + c.Registro.InstrucoesProgresso(), recebido["entrada"]!.GetValue<string>());
+        Assert.Equal("", recebido["entrada"]!.GetValue<string>());
         Assert.Equal("CHAVE_AUSENTE", recebido["chave"]!.GetValue<string>());
 
         // execucao.json.
@@ -146,10 +159,29 @@ public partial class OrquestradorTestes
         Assert.Equal(Path.Combine(c.Processo.Pasta, ".pmvni-ai", "analise", "relatorio_dados.json"), ex["document"]!.GetValue<string>());
         Assert.True(DateTimeOffset.Parse(ex["fim"]!.GetValue<string>()) >= DateTimeOffset.Parse(ex["inicio"]!.GetValue<string>()));
         Assert.Equal(esperado.Args.ToArray(), ex["linha_de_comando"]!.AsArray().Skip(1).Select(x => x!.GetValue<string>()).ToArray());
+        Assert.Equal(("openai", false), (ex["rota_codex_tecnica"]!.GetValue<string>(), ex["retomada"]!.GetValue<bool>()));
         Assert.False(File.Exists(c.DoRegistro("erros.txt")) && new FileInfo(c.DoRegistro("erros.txt")).Length > 0);
 
         // A trava foi solta.
         Assert.False(TravaExecucao.EmAndamento(c.Processo.Pasta));
+    }
+
+    [Fact]
+    public async Task chatgpt_retomada_chama_o_controlador_sem_inputs()
+    {
+        using var c = new Cena("orq-chatgpt-retomada", "ok", Provedor.ChatGpt);
+        Directory.CreateDirectory(c.Controle("analise"));
+        File.WriteAllText(Path.Combine(c.Controle("analise"), "engine_state.json"), "{\"version\":1}");
+        var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.ChatGpt) with { Retomar = true }, c.Progresso, CancellationToken.None), Limite);
+        Assert.Equal("concluida", fim.Situacao);
+        Assert.Equal(new[] { "-B", "-X", "utf8", c.Pecas.Analise62!, "--case", c.Processo.Pasta }, Argv(Assert.Single(Chamadas(c, "analise62"))));
+        Assert.True(c.Execucao()["retomada"]!.GetValue<bool>());
+
+        // Sem o controle do kit (a análise anterior nem começou), "retomar" começa do zero, com as peças.
+        using var semControle = new Cena("orq-chatgpt-retomada-sem-controle", "ok", Provedor.ChatGpt);
+        Assert.Equal("concluida", (await Ambiente.Com(semControle.Orq().ExecutarAsync(semControle.Pedido(Provedor.ChatGpt) with { Retomar = true }, semControle.Progresso,
+            CancellationToken.None), Limite)).Situacao);
+        Assert.Contains("--inputs", Argv(Assert.Single(Chamadas(semControle, "analise62"))));
     }
 
     [Fact]
@@ -160,11 +192,24 @@ public partial class OrquestradorTestes
             var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.ChatGpt), c.Progresso, CancellationToken.None), Limite);
             Assert.Equal("falhou", fim.Situacao);
             Assert.Equal(2, fim.Codigo);
-            Assert.Equal($"O Codex terminou com o código 2. Veja o registro: {c.Registro.Pasta}.", fim.Mensagem);
+            Assert.Equal($"O controlador do analise parou na etapa Revisão final: falhou de propósito. Veja o registro: {c.Registro.Pasta}.", fim.Mensagem);
             Assert.Null(fim.Documento);
             Assert.Equal(new[] { "erro do agente falso" }, Linhas(c.DoRegistro("erros.txt")));
-            Assert.Contains("Erro: falhou de propósito", c.Progresso.Linhas());
             Assert.Equal("falhou", c.Execucao()["situacao"]!.GetValue<string>());
+        }
+
+        // Controlador que morre sem a situação (o 3.0.1 imprimia "ANALISE_62_INTERROMPIDA: …"): a última linha vira o motivo.
+        using (var c = new Cena("orq-chatgpt-sem-json", "falha", Provedor.ChatGpt, o =>
+        {
+            o["eventos"] = new JsonArray("ANALISE_62_INTERROMPIDA: Cota indisponível. Modelo x, rota openai, código 1.");
+            o["sem_json"] = true;
+            o["codigo"] = 1;
+        }))
+        {
+            var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.ChatGpt), c.Progresso, CancellationToken.None), Limite);
+            Assert.Equal("falhou", fim.Situacao);
+            Assert.StartsWith("O controlador do analise parou: ANALISE_62_INTERROMPIDA: Cota indisponível", fim.Mensagem);
+            Assert.False(File.Exists(c.DoRegistro("situacoes.jsonl")));
         }
 
         using (var c = new Cena("orq-chatgpt-sem-resultado", "sem_resultado", Provedor.ChatGpt))
@@ -237,10 +282,11 @@ public partial class OrquestradorTestes
         relogio.Stop();
 
         Assert.Equal("concluida", fim.Situacao);
-        Assert.Equal(N, Linhas(c.DoRegistro("saida.jsonl")).Length);
-        Assert.Equal(N, c.Progresso.QuantidadeDeLinhas);
-        Assert.Equal("Mensagem: linha 1", c.Progresso.Linhas()[0]);
-        Assert.Equal("Mensagem: linha " + N, c.Progresso.Linhas()[^1]);
+        Assert.Equal(N + 1, Linhas(c.DoRegistro("saida.jsonl")).Length);     // + a situação do contrato na última linha
+        Assert.Equal(N + 1, c.Progresso.QuantidadeDeLinhas);                  // + a rota do Codex, na partida
+        Assert.StartsWith("Rota do Codex: ", c.Progresso.Linhas()[0]);
+        Assert.Equal("linha 1", c.Progresso.Linhas()[1]);
+        Assert.Equal("linha " + N, c.Progresso.Linhas()[^1]);
         Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(60), "levou " + relogio.Elapsed);
     }
 
@@ -358,7 +404,7 @@ public partial class OrquestradorTestes
         var proibe = Ambiente.PecasFalsas(Path.GetTempPath());
         Assert.Equal(ModoAcesso.Chave, OrquestradorAnalise.ModoEfetivo(Provedor.Claude, ModoAcesso.Chave, proibe));
         Assert.Equal(ModoAcesso.Chave, OrquestradorAnalise.ModoEfetivo(Provedor.ChatGpt, ModoAcesso.Chave, proibe));
-        Assert.Equal(OrquestradorAnalise.ApiNaoSuportada("1.6.1"),
+        Assert.Equal(OrquestradorAnalise.ApiNaoSuportada("2.1.0"),
             (await RodarSemPecas("orq-claude-chave-sem-api", Provedor.Claude, p => p, ModoAcesso.Chave)).Mensagem);
         // Se o kit passar a permitir API, o modo chave do Claude deixa de ser recusado por esta regra (a chave guardada ainda é exigida).
         Assert.Equal("Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.",

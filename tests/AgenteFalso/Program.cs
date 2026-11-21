@@ -29,6 +29,7 @@ static class Program
         {
             if (args.Length == 0) return Uso();
             if (args[0] == "dormir") { Dormir(60000); return 0; }
+            if (args.Any(a => a.EndsWith("executar_analise_62.py", StringComparison.OrdinalIgnoreCase))) return Analise62(args);
             if (Array.IndexOf(args, "--case") >= 0) return Python(args);
             if (args[0] == "exec") return Exec(args);
             if (Array.IndexOf(args, "--version") >= 0 || Array.IndexOf(args, "-V") >= 0) return Versao();
@@ -262,6 +263,119 @@ static class Program
         }
     }
 
+    // ---------------------------------------------------------------- python + executar_analise_62.py (rota ChatGPT, Tarefa 12)
+
+    /// <summary>O papel do controlador do analise (<c>python -B -X utf8 executar_analise_62.py --case P [--inputs …]</c>), no contrato da Tarefa 2: saída
+    /// 0 (ENTREGUE ou ETAPA_OK), 20 (AGUARDANDO_COTA), 21 (DECISAO) ou 1 (FALHA), com o JSON da situação na última linha. Cada chamada usa o passo seguinte de
+    /// <c>analise62</c> do cenário (o último se repete); o que o passo não diz vem do topo do cenário (eventos, erro, filho, dormir_ms, delivery…).
+    /// Grava <c>recebido.json</c> e <c>pids.json</c> como o <c>exec</c> e acrescenta uma linha <c>analise62</c> ao <c>chamadas.txt</c>.</summary>
+    static int Analise62(string[] args)
+    {
+        var caso = Valor(args, "--case") ?? Environment.CurrentDirectory;
+        var cwd = Environment.CurrentDirectory;
+        var controle = Path.Combine(caso, ".pmvni-ai", "agente-falso");
+        Directory.CreateDirectory(controle);
+        var contador = Path.Combine(controle, "analise62-chamadas.txt");
+        File.AppendAllText(contador, "x\n", Utf8);
+        var n = File.ReadAllLines(contador, Utf8).Length;
+        var passos = cenario["analise62"] as JsonArray;
+        var passo = passos is { Count: > 0 } ? passos[Math.Min(n, passos.Count) - 1] as JsonObject : null;
+        JsonNode? Campo(string nome) => passo is not null && passo.ContainsKey(nome) ? passo[nome] : cenario[nome];
+
+        string entrada;
+        using (var stdin = new StreamReader(Console.OpenStandardInput(), Utf8)) entrada = stdin.ReadToEnd();
+        var pids = new JsonObject { ["pai"] = Environment.ProcessId };
+        if (Campo("filho")?.GetValue<bool>() == true)
+        {
+            var psi = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false, CreateNoWindow = true };
+            psi.ArgumentList.Add("dormir");
+            var filho = Process.Start(psi);
+            if (filho is not null) pids["filho"] = filho.Id;
+        }
+        GravarJson(Path.Combine(controle, "pids.json"), pids);
+
+        var (textoChave, variavel) = Chave();
+        var rota = Environment.GetEnvironmentVariable("PMVNI_ANALISE_ROTA_CODEX") ?? "-";
+        var primeiroDoPath = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).FirstOrDefault() ?? "";
+        GravarJson(Path.Combine(controle, "recebido.json"), new JsonObject
+        {
+            ["argv"] = new JsonArray(args.Select(a => (JsonNode?)JsonValue.Create(a)).ToArray()),
+            ["cwd"] = cwd, ["cd"] = caso, ["entrada"] = entrada, ["chave"] = textoChave, ["variavel"] = variavel, ["rota"] = rota,
+            ["path0"] = primeiroDoPath,
+        });
+        File.AppendAllText(Path.Combine(controle, "chamadas.txt"),
+            "analise62\t" + JsonSerializer.Serialize(args, Opcoes) + "\t" + textoChave + "\t" + rota + "\t"
+            + DateTime.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture) + "\n", Utf8);
+
+        var intervalo = Inteiro(Campo("intervalo_ms"), 0);
+        if (Campo("eventos") is JsonArray eventos)
+            foreach (var e in eventos)
+            {
+                saida.WriteLine(e?.GetValue<string>() ?? "");
+                if (intervalo > 0) Thread.Sleep(intervalo);
+            }
+        var linhas = Inteiro(Campo("linhas"), 0);
+        for (var i = 1; i <= linhas; i++) saida.WriteLine("linha " + i);
+        if (Campo("erro") is JsonArray erros)
+            foreach (var e in erros) Console.Error.WriteLine(e?.GetValue<string>() ?? "");
+
+        // Controlador que repete a chave (um "echo" de um filho dele): crua e escapada como JSON, na saída e no erro.
+        if (Campo("ecoar_chave")?.GetValue<bool>() == true)
+        {
+            var valor = new[] { "CODEX_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_AUTH_TOKEN" }
+                .Select(Environment.GetEnvironmentVariable).FirstOrDefault(v => !string.IsNullOrEmpty(v)) ?? "";
+            saida.WriteLine("eco cru: " + valor);
+            saida.WriteLine("eco json padrão: " + JsonSerializer.Serialize(valor));
+            saida.WriteLine("eco json relaxado: " + JsonSerializer.Serialize(valor, Opcoes));
+            Console.Error.WriteLine("eco erro: " + valor);
+        }
+        var semQuebra = Inteiro(Campo("inundacao_sem_quebra_mb"), 0);
+        if (semQuebra > 0)
+        {
+            var bloco = new string('x', 64 * 1024);
+            for (var i = 0; i < semQuebra * 16; i++) saida.Write(bloco);
+            saida.Write("\nfim da inundação sem quebra\n");
+        }
+        var linhasMb = Inteiro(Campo("inundacao_linhas_mb"), 0);
+        if (linhasMb > 0)
+        {
+            var linha = new string('y', 1000);
+            for (var i = 0; i < linhasMb * 1024; i++) saida.WriteLine(linha);
+            saida.WriteLine("fim da inundação de linhas");
+        }
+        var erroMb = Inteiro(Campo("inundacao_erro_mb"), 0);
+        if (erroMb > 0)
+        {
+            var linha = new string('e', 1000);
+            for (var i = 0; i < erroMb * 1024; i++) Console.Error.WriteLine(linha);
+        }
+        Dormir(Inteiro(Campo("dormir_ms"), 0));
+
+        var codigoCenario = Inteiro(Campo("codigo"), 0);
+        var situacao = Texto(Campo("situacao"), codigoCenario == 0 ? "ENTREGUE" : "FALHA");
+        var motivo = Texto(Campo("motivo"), situacao == "FALHA" ? "falhou de propósito" : "");
+        // Decisão respondida pelo editor: o arquivo que a decisão anterior nomeou tem de existir; o conteúdo vai para o chamadas.txt.
+        if (Texto(Campo("exigir_resposta"), "") is { Length: > 0 } exigida)
+        {
+            var arquivo = Path.IsPathRooted(exigida) ? exigida : Path.Combine(caso, ".pmvni-ai", "analise", exigida);
+            if (File.Exists(arquivo))
+                File.AppendAllText(Path.Combine(controle, "chamadas.txt"), "resposta\t" + File.ReadAllText(arquivo, Utf8).ReplaceLineEndings(" ") + "\n", Utf8);
+            else { situacao = "FALHA"; motivo = "a resposta da decisão não foi gravada: " + arquivo; }
+        }
+        if (situacao == "ENTREGUE") Entregar(Path.Combine(caso, ".pmvni-ai", "analise"), pdf: false);
+        var retomar = Campo("retomar_em_s") is JsonValue v && v.TryGetValue<double>(out var s)
+            ? (JsonNode?)DateTime.UtcNow.AddSeconds(s).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture) : null;
+        var final = new JsonObject
+        {
+            ["situacao"] = situacao, ["etapa"] = Texto(Campo("etapa"), "final_review"), ["retomar_em_utc"] = retomar, ["motivo"] = motivo,
+            ["decisao"] = Campo("decisao")?.DeepClone(),
+        };
+        if (!(Campo("sem_json")?.GetValue<bool>() ?? false)) saida.WriteLine(final.ToJsonString(Opcoes));
+        if (passo?["codigo"] is null && situacao != "FALHA")
+            return situacao switch { "AGUARDANDO_COTA" => 20, "DECISAO" => 21, _ => 0 };
+        return situacao == "FALHA" && codigoCenario == 0 ? 1 : codigoCenario;
+    }
+
     // ---------------------------------------------------------------- python + pro_runtime.py
 
     static readonly string[] Etapas = { "prepare", "analyze", "technical_audit", "produce", "audit", "final_review" };
@@ -272,6 +386,7 @@ static class Program
         ["PAUSADO_COTA"] = "pausada: cota do Claude esgotada", ["CANCELADO"] = "cancelada", ["EM_ANDAMENTO"] = "em andamento",
         ["AGUARDANDO_COTA"] = "aguardando a renovação da cota", ["INTERROMPIDA"] = "interrompida (processo encerrado)",
         ["INICIANDO"] = "iniciando", ["NAO_PARTIU"] = "não partiu (a janela não abriu)",
+        ["DECISAO"] = "aguardando a decisão do analista", ["FALHA"] = "parou com erro",
     };
 
     static string Agora() => DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
@@ -533,6 +648,23 @@ static class Program
                 AcrescentarLog(controle, "[" + Agora() + "] pausa na etapa " + etapa);
                 return 0;
             }
+            // Contrato da Tarefa 2 (cota): AGUARDANDO_COTA com o horário da retomada, só na primeira passagem; depois segue sozinho.
+            var marcaCota = Path.Combine(controle, "aguardou-cota.txt");
+            if (etapa == Texto(auto["aguardar_cota_na_etapa"], "") && !File.Exists(marcaCota))
+            {
+                File.WriteAllText(marcaCota, etapa, Utf8);
+                var espera = Inteiro(auto["aguardar_s"], 2);
+                status["situacao"] = "AGUARDANDO_COTA";
+                status["retomar_em_utc"] = DateTime.UtcNow.AddSeconds(espera).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);
+                status["motivo"] = "cota_conta";
+                GravarStatus(controle, status);
+                AcrescentarLog(controle, "[" + Agora() + "] aguardando a cota");
+                Dormir(espera * 1000);
+                status["situacao"] = "EM_ANDAMENTO";
+                status.Remove("retomar_em_utc");
+                status.Remove("motivo");
+                GravarStatus(controle, status);
+            }
             if (etapa == parar) Dormir(Inteiro(auto["dormir_ms"], 60000));
             else Dormir(etapaMs);
             if (google)
@@ -543,6 +675,22 @@ static class Program
             }
         }
 
+        // Contrato da Tarefa 2 (decisão): sem a resposta gravada, para em DECISAO com a pergunta; com ela, segue até o fim.
+        if (auto["decisao"] is JsonObject decisao)
+        {
+            var arquivo = Path.Combine(controle, Texto(decisao["arquivo_resposta"], "decisao_resposta.json"));
+            if (!File.Exists(arquivo))
+            {
+                status["situacao"] = "DECISAO";
+                status["decisao"] = decisao.DeepClone();
+                status["fim"] = Agora();
+                GravarStatus(controle, status);
+                AcrescentarLog(controle, "[" + Agora() + "] aguardando a decisão do analista");
+                return 0;
+            }
+            File.AppendAllText(Path.Combine(caso, ".pmvni-ai", "agente-falso", "chamadas.txt"), "resposta\t" + File.ReadAllText(arquivo, Utf8).ReplaceLineEndings(" ") + "\n", Utf8);
+            status.Remove("decisao");
+        }
         var final = Texto(auto["final"], "CONCLUIDO");
         if (final == "CONCLUIDO")
         {

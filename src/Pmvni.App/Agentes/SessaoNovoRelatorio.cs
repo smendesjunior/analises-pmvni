@@ -125,7 +125,10 @@ public sealed class ExecucaoEmCurso
 /// <summary>Liga a página Novo relatório ao serviço da Tarefa 19 (desenho §12.2–§12.7): trava do processo, registro, anexos copiados pela regra do kit,
 /// <c>pedido.md</c>/<c>anexos.json</c> e a partida pelo <see cref="OrquestradorAnalise"/>. O andamento chega agrupado (<see cref="ProgressoAgrupado"/>, no máximo
 /// 10 vezes por segundo) e passa à thread da janela. Nada aqui analisa: o agente instalado no computador faz tudo.</summary>
-internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<OrquestradorAnalise> orquestrador, Func<Pecas> pecas, Func<Provedor, ModoAcesso> modo, string raizDados, Func<string>? rotaCodex = null)
+/// <param name="decidir">Contrato da Tarefa 2 (decisão do analista): mostra a decisão que o kit pediu (na thread da janela) e devolve a resposta; null = sem
+/// resposta agora (a análise fica parada esperando, sem gastar nada).</param>
+internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<OrquestradorAnalise> orquestrador, Func<Pecas> pecas, Func<Provedor, ModoAcesso> modo, string raizDados,
+    Func<string>? rotaCodex = null, Func<ExecucaoEmCurso, DecisaoAnalise, CancellationToken, Task<string?>>? decidir = null)
 {
     readonly List<ExecucaoEmCurso> execucoes = [];
     volatile bool encerrada;
@@ -159,7 +162,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         if (FluxoNovoRelatorio.MotivoDesabilitado(p, pr, EmAndamento(pr.Pasta), pc, m, chaveGuardada, perfilGemini) is { } motivo) throw new AnaliseRecusadaException(motivo);
         texto = string.IsNullOrWhiteSpace(texto) ? null : texto;
 
-        var (trava, registro, arquivados, recusas) = await Task.Run(() =>
+        var (trava, registro, arquivados, recusas, retomada) = await Task.Run(() =>
         {
             var t = TravaExecucao.Tentar(pr.Pasta, p) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
             try
@@ -171,14 +174,16 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                 {
                     throw new CopiaInterrompidaException(pr.Pasta, x);
                 }
-                var reg = registroAnterior is null
-                    ? RegistroExecucao.BuscarInterrompida(pr, texto, feitos) ?? RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now)
-                    : RegistroExecucao.Abrir(registroAnterior, pr.Pasta);
+                // A mesma análise retomada no mesmo registro (escolhida, ou achada interrompida com o mesmo pedido e as mesmas peças): no ChatGPT, o
+                // controlador do kit continua o controle que já existe (sem --inputs).
+                var interrompida = registroAnterior is null ? RegistroExecucao.BuscarInterrompida(pr, texto, feitos) : null;
+                var reg = registroAnterior is not null ? RegistroExecucao.Abrir(registroAnterior, pr.Pasta)
+                    : interrompida ?? RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now);
                 if (registroAnterior is not null && texto == FluxoNovoRelatorio.PedidoContinuar && File.Exists(Path.Combine(reg.Pasta, "pedido.md")))
                     texto = reg.PedidoOriginal();
-                reg.GravarPedido(p == Provedor.ChatGpt ? PedidoAgente.Codex(pr.Pasta, pr, feitos, texto) : texto ?? "");
+                reg.GravarPedido(texto ?? "");      // o pedido digitado; nenhuma IA recebe pedido do editor (Tarefa 12)
                 reg.GravarAnexos(feitos);
-                return (t, reg, feitos, plano.Where(i => i.Recusa is not null).Select(i => i.Recusa!).ToList());
+                return (t, reg, feitos, plano.Where(i => i.Recusa is not null).Select(i => i.Recusa!).ToList(), registroAnterior is not null || interrompida is not null);
             }
             catch { t.Dispose(); throw; }   // falha antes da partida: a trava sai e nada é iniciado
         });
@@ -196,7 +201,10 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var orq = orquestrador();
         var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false) { Recusas = recusas };
         var progresso = Progresso(e);
-        var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro) { RotaCodex = rotaCodex?.Invoke(), Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini };
+        var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro)
+        {
+            RotaCodex = rotaCodex?.Invoke(), Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini, Retomar = retomada, Decidir = Decisor(e),
+        };
         e.Fim = e.AcompanharTempoAsync(() => RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava));
         execucoes.Add(e);
         return e;
@@ -230,27 +238,20 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         return e;
     }
 
-    /// <summary>Continua uma análise do ChatGPT que parou (editor fechou de repente ou a cota acabou): <c>codex exec resume</c> com a sessão guardada, no
-    /// mesmo registro.</summary>
-    public async Task<ExecucaoEmCurso> RetomarChatGptAsync(Processo pr, string pastaRegistro, string sessao)
+    /// <summary>A pergunta de uma decisão do kit, feita na thread da janela; null sem quem pergunte, com a janela fechada ou se ela não pôde ser mostrada.</summary>
+    Func<DecisaoAnalise, CancellationToken, Task<string?>>? Decisor(ExecucaoEmCurso e) => decidir is null ? null : (d, ct) =>
     {
-        if (EmAndamento(pr.Pasta)) throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
-        var pc = pecas();
-        var m = modo(Provedor.ChatGpt);
-        var (trava, registro) = await Task.Run(() =>
-        {
-            var t = TravaExecucao.Tentar(pr.Pasta, Provedor.ChatGpt) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
-            try { return (t, RegistroExecucao.Abrir(pastaRegistro, pr.Pasta)); }
-            catch { t.Dispose(); throw; }
-        });
-        var orq = orquestrador();
-        var e = new ExecucaoEmCurso(Provedor.ChatGpt, pr, registro, DateTime.UtcNow, pc, null, orq, retomada: true);
-        var progresso = Progresso(e);
-        var pedido = new PedidoExecucao(Provedor.ChatGpt, pr, pc, m, raizDados, null, [], registro) { RotaCodex = rotaCodex?.Invoke(), RetomarSessao = sessao };
-        e.Fim = e.AcompanharTempoAsync(() => RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava));
-        execucoes.Add(e);
-        return e;
-    }
+        if (encerrada) return Task.FromResult<string?>(null);
+        var resposta = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        ct.Register(() => resposta.TrySetCanceled(ct));
+        if (!janela.TryEnqueue(async () =>
+            {
+                try { resposta.TrySetResult(encerrada ? null : await decidir(e, d, ct)); }
+                catch (Exception x) { resposta.TrySetException(x); }
+            }))
+            resposta.TrySetResult(null);
+        return resposta.Task;
+    };
 
     ProgressoAgrupado Progresso(ExecucaoEmCurso e) => new(lote => janela.TryEnqueue(() =>
     {
@@ -268,7 +269,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         }
     }
 
-    /// <summary>ChatGPT: encerra a árvore do Codex. Claude: encerra o processo do kit (<see cref="OrquestradorAnalise.CancelarClaudeAsync"/>); o kit passa a
+    /// <summary>ChatGPT: encerra a árvore do controlador do analise (ele e as sessões que abriu; nada mais). Claude: encerra o processo do kit (<see cref="OrquestradorAnalise.CancelarClaudeAsync"/>); o kit passa a
     /// "interrompida" e o acompanhamento termina assim. false = nada a encerrar.</summary>
     public async Task<bool> CancelarAsync(ExecucaoEmCurso e)
     {

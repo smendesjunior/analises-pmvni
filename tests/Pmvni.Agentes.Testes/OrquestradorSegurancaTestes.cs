@@ -30,9 +30,8 @@ public partial class OrquestradorTestes
         // O filho recebeu a chave (o eco prova), e mesmo assim ela não está em lugar nenhum.
         Assert.Equal("CODEX_API_KEY", Json(c.Falso("recebido.json"))["variavel"]!.GetValue<string>());
         Assert.Contains("eco cru: ***", File.ReadAllText(c.DoRegistro("saida.jsonl")));
-        Assert.Equal(3, Linhas(c.DoRegistro("saida.jsonl")).Count(l => l.Contains("***")));     // o eco cru e as duas linhas JSON (a padrão escapa "ã" como ã)
+        Assert.Equal(3, Linhas(c.DoRegistro("saida.jsonl")).Count(l => l.Contains("***")));     // o eco cru e as duas formas escapadas como JSON
         Assert.Contains("eco erro: ***", File.ReadAllText(c.DoRegistro("erros.txt")));
-        Assert.Contains("ultima: ***", File.ReadAllText(c.DoRegistro("ultima-mensagem.md")));
 
         foreach (var arquivo in Directory.GetFiles(c.Pasta, "*", SearchOption.AllDirectories).Where(f => !f.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase)))
         {
@@ -77,10 +76,11 @@ public partial class OrquestradorTestes
         Assert.Equal("concluida", fim.Situacao);
         Assert.True(relogio.Elapsed < TimeSpan.FromSeconds(60), "levou " + relogio.Elapsed);
         var linhas = Linhas(c.DoRegistro("saida.jsonl"));
-        Assert.Equal(2, linhas.Length);
+        Assert.Equal(3, linhas.Length);      // a linha cortada, a do fim e a situação do contrato (JSON da última linha)
         Assert.Equal(ExecucaoProcesso.LimiteLinha + ExecucaoProcesso.MarcaLinhaTruncada.Length, linhas[0].Length);
         Assert.EndsWith(ExecucaoProcesso.MarcaLinhaTruncada, linhas[0]);
         Assert.Equal("fim da inundação sem quebra", linhas[1]);
+        Assert.Equal("ENTREGUE", SituacaoAnalise62.Ler(linhas[2]).Situacao);
         Assert.All(c.Progresso.Linhas(), l => Assert.True(l.Length <= EventosCodex.LimiteLinha));
         Assert.True(new FileInfo(c.DoRegistro("saida.jsonl")).Length < 1_300_000);
     }
@@ -102,8 +102,8 @@ public partial class OrquestradorTestes
             Assert.StartsWith("saída truncada: limite de 200 KB do arquivo atingido", linhas[^1]);
             Assert.Single(linhas, l => l.StartsWith("saída truncada", StringComparison.Ordinal));
         }
-        // A tela continua recebendo tudo (2048 linhas da inundação + a de fim).
-        Assert.Equal(2049, c.Progresso.QuantidadeDeLinhas);
+        // A tela continua recebendo tudo (a rota do Codex, 2048 linhas da inundação e a de fim).
+        Assert.Equal(2050, c.Progresso.QuantidadeDeLinhas);
         Assert.Equal("fim da inundação de linhas", c.Progresso.Linhas()[^1]);
     }
 

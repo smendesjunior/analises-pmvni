@@ -10,6 +10,7 @@ public static class AmbienteFilho
     static readonly string[] Declaradas =
     {
         PoliticaKit.VariavelRota, PoliticaKit.VariavelRotaGoogle, PoliticaKit.VariavelPerfilGoogle, PoliticaKit.VariavelFicticioGoogle, TrocarGoogle,
+        RotaCodex.Variavel,     // a rota do analise só vale quando o editor a declara (OrquestradorAnalise, rota ChatGPT): nunca herdada
     };
 
     public static void Aplicar(IDictionary<string, string?> env, Provedor p, ModoAcesso m, string? chave, PerfilGemini? perfil = null, bool ficticio = false, bool trocarGemini = false)

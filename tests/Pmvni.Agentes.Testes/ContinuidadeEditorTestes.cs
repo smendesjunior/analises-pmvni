@@ -13,7 +13,9 @@ public class ContinuidadeEditorTestes
         var processo = Ambiente.NovoProcesso(temporario);
         using var anterior = RegistroExecucao.Criar(processo.Pasta, Provedor.ChatGpt, DateTime.Now);
         const string pedido = "Rever a prancha";
-        anterior.GravarPedido(PedidoAgente.Codex(processo.Pasta, processo, [], pedido));
+        // O pedido.md do Editor 2.2 (com a sessão controladora): o texto digitado vem depois do cabeçalho das diretrizes.
+        anterior.GravarPedido(string.Join("\n", PedidoAgente.PrimeiraLinha, "Pasta do processo: " + processo.Pasta, PedidoAgente.TratamentoDoProcesso,
+            PedidoAgente.CabecalhoDiretrizes, pedido));
         anterior.Atualizar(o => o["situacao"] = "interrompida");
         var original = Path.Combine(processo.Pasta, "prancha.pdf");
         File.WriteAllText(original, "primeira versão");

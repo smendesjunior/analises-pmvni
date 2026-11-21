@@ -49,6 +49,13 @@ public sealed record Pecas(
 
     public string? VersaoAnaliseGoogleKit { get; init; }
 
+    /// <summary>A pasta do Codex (<c>CODEX_HOME</c> ou <c>%USERPROFILE%\.codex</c>): o <c>config.toml</c> que a rota "herdar" lê (<see cref="RotaCodex"/>).</summary>
+    public string? CodexHome { get; init; }
+
+    /// <summary>O controlador do analise instalado no Codex (<c>skills\analise\scripts\executar_analise_62.py</c> da maior versão); null se não achado. A rota
+    /// ChatGPT roda este script direto, sem sessão Codex controladora (Tarefa 12).</summary>
+    public string? Analise62 { get; init; }
+
     /// <summary>O controlador do kit que o provedor usa: análise pro (Claude) ou análise Google (Gemini); null para o ChatGPT ou se não instalado.</summary>
     public string? RuntimeDoKit(Provedor p) => p switch { Provedor.Claude => ProRuntime, Provedor.Gemini => GoogleRuntime, _ => null };
 }
@@ -68,6 +75,7 @@ public static class Localizacao
 
         var cacheKit = Path.Combine(o.CodexHome, "plugins", "cache", "pmvni-kit");
         var (versaoPro, pastaPro) = MaiorVersao(Path.Combine(cacheKit, "analise-pro"));
+        versaoPro = VersaoInstalada(pastaPro) ?? versaoPro;
         string? proRuntime = null;
         if (pastaPro is not null)
         {
@@ -82,9 +90,17 @@ public static class Localizacao
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         }
 
-        var (versaoPlugin, _) = MaiorVersao(Path.Combine(cacheKit, "analise"));
+        var (versaoPlugin, pastaAnalise) = MaiorVersao(Path.Combine(cacheKit, "analise"));
+        versaoPlugin = VersaoInstalada(pastaAnalise) ?? versaoPlugin;
+        string? analise62 = null;
+        if (pastaAnalise is not null)
+        {
+            var script = Path.Combine(pastaAnalise, "skills", "analise", "scripts", "executar_analise_62.py");
+            if (File.Exists(script)) analise62 = script;
+        }
 
         var (versaoGoogle, pastaGoogle) = MaiorVersao(Path.Combine(cacheKit, PluginsInstalados.AnaliseGoogle));
+        versaoGoogle = VersaoInstalada(pastaGoogle) ?? versaoGoogle;
         string? googleRuntime = null;
         if (pastaGoogle is not null)
         {
@@ -96,8 +112,13 @@ public static class Localizacao
         return new Pecas(codex, claude, python, launcher, proRuntime, versaoPro, VersaoDoKit(o), PluginHabilitado(o.CodexHome), versaoPlugin, apiPermitida)
         {
             Agy = AcharAgy(o), GoogleRuntime = googleRuntime, VersaoAnaliseGoogle = versaoGoogle, VersaoAnaliseGoogleKit = VersaoDoKit(o, PluginsInstalados.AnaliseGoogle),
+            CodexHome = o.CodexHome, Analise62 = analise62,
         };
     }
+
+    /// <summary>A versão que o próprio plugin instalado declara (<c>.codex-plugin\plugin.json</c>); null sem o arquivo (vale o nome da pasta).</summary>
+    static string? VersaoInstalada(string? pastaPlugin) =>
+        pastaPlugin is null ? null : VersaoDoPluginJson(Path.Combine(pastaPlugin, ".codex-plugin", "plugin.json"));
 
     static bool EhExe(string caminho) => caminho.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
 
@@ -186,9 +207,11 @@ public static class Localizacao
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return (null, null); }
     }
 
-    static string? VersaoDoKit(OpcoesLocalizacao o, string plugin = PluginsInstalados.AnalisePro)
+    static string? VersaoDoKit(OpcoesLocalizacao o, string plugin = PluginsInstalados.AnalisePro) =>
+        VersaoDoPluginJson(Path.Combine(o.PastaKit, "01 - PLUGINS", "plugins", plugin, ".codex-plugin", "plugin.json"));
+
+    static string? VersaoDoPluginJson(string json)
     {
-        var json = Path.Combine(o.PastaKit, "01 - PLUGINS", "plugins", plugin, ".codex-plugin", "plugin.json");
         try
         {
             if (!File.Exists(json)) return null;

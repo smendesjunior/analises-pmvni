@@ -36,24 +36,30 @@ public static class EventosCodex
         }
     }
 
-    /// <summary>O id da sessão do Codex (<c>{"type":"thread.started","thread_id":…}</c>), para continuar depois; null nas outras linhas.</summary>
-    public static string? Sessao(string jsonl)
+    static readonly System.Text.RegularExpressions.Regex LinhaDeEtapa =
+        new(@"^(?<etapa>prepare|analyze|technical_audit|produce|audit|final_review):\s*(?<modelo>\S+)\s*/\s*(?<esforco>\S+)\s*$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>Uma linha da saída do <c>executar_analise_62.py</c> (Tarefa 12) → a linha da tela; null = não mostrar. A situação do contrato (o JSON da
+    /// última linha) e qualquer JSON não aparecem: o editor os lê e mostra a situação. "analyze: gpt-6.2-astra / high" vira
+    /// "Etapa Análise: gpt-6.2-astra, raciocínio high". A cota e a decisão não são mais adivinhadas pelo texto: vêm dos códigos 20 e 21 do controlador.</summary>
+    /// <summary>A etapa que o controlador anunciou ("analyze: gpt-6.2-astra / high" → <c>analyze</c>); null nas outras linhas.</summary>
+    public static string? EtapaDoControlador(string linha)
     {
-        if (string.IsNullOrWhiteSpace(jsonl) || !jsonl.Contains("thread.started", StringComparison.Ordinal)) return null;
-        try
-        {
-            using var doc = JsonDocument.Parse(jsonl);
-            var r = doc.RootElement;
-            return r.ValueKind == JsonValueKind.Object && Texto(r, "type") == "thread.started" && Texto(r, "thread_id") is { Length: > 0 and <= 128 } id ? id : null;
-        }
-        catch (JsonException) { return null; }
+        if (string.IsNullOrWhiteSpace(linha)) return null;
+        var m = LinhaDeEtapa.Match(linha.Trim());
+        return m.Success ? m.Groups["etapa"].Value : null;
     }
 
-    /// <summary>O texto (evento ou erro do Codex) diz que a cota/limite de uso acabou.</summary>
-    public static bool CotaEsgotada(string? texto) =>
-        texto is not null && (texto.Contains("usage limit", StringComparison.OrdinalIgnoreCase) || texto.Contains("rate limit", StringComparison.OrdinalIgnoreCase)
-            || texto.Contains("quota", StringComparison.OrdinalIgnoreCase) || texto.Contains("insufficient_quota", StringComparison.OrdinalIgnoreCase)
-            || texto.Contains("rate_limit", StringComparison.OrdinalIgnoreCase) || texto.Contains("429", StringComparison.Ordinal) && texto.Contains("Too Many", StringComparison.OrdinalIgnoreCase));
+    public static string? LinhaDoControlador(string linha)
+    {
+        if (string.IsNullOrWhiteSpace(linha)) return null;
+        var t = linha.Trim();
+        if (t[0] is '{' or '[' or '}' or ']' || t.StartsWith('"')) return null;
+        var m = LinhaDeEtapa.Match(t);
+        if (m.Success)
+            return Cortar("Etapa " + SituacaoAnalisePro.NomeEtapa(m.Groups["etapa"].Value) + ": " + m.Groups["modelo"].Value + ", raciocínio " + m.Groups["esforco"].Value);
+        return Cortar(t);
+    }
 
     static string? Item(JsonElement item)
     {

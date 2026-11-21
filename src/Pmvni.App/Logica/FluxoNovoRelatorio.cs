@@ -103,6 +103,10 @@ public static class FluxoNovoRelatorio
         {
             if (pecas.Codex is null) return SemCodex;
             if (!pecas.PluginAnaliseHabilitado) return SemPlugin;
+            // Tarefa 12: o editor roda o controlador do analise com o Python deste computador; só o analise 3.1.0+ tem o contrato que o editor lê.
+            if (pecas.Python is null) return OrquestradorAnalise.SemPythonAnalise;
+            if (PoliticaKit.PluginDesatualizado(p, pecas.VersaoPluginAnalise) is { } antigo) return antigo;
+            if (pecas.Analise62 is null) return OrquestradorAnalise.SemControladorAnalise(pecas.VersaoPluginAnalise);
         }
         else if (p == Provedor.Gemini)
         {
@@ -117,6 +121,8 @@ public static class FluxoNovoRelatorio
             if (pecas.ProRuntime is null) return SemAnalisePro;
             if (pecas.Claude is null) return SemClaude;
         }
+        if (p != Provedor.ChatGpt && PoliticaKit.PluginDesatualizado(p, p == Provedor.Gemini ? pecas.VersaoAnaliseGoogle : pecas.VersaoAnalisePro) is { } desatualizado)
+            return desatualizado;
         // Modo chave = Anthropic API de fato (2026-11-17): sem plugin que a aceite, não há análise (nunca a conta no lugar).
         if (p == Provedor.Claude && modo == ModoAcesso.Chave && !pecas.ApiPermitidaNoKit) return ClaudeSoConta;
         if (OrquestradorAnalise.ModoEfetivo(p, modo, pecas) == ModoAcesso.Chave && !chaveGuardada) return SemChave;
