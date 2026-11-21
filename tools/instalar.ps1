@@ -91,9 +91,8 @@ try {
         $p = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "`"$instalarKit`" atualizar" -WindowStyle Hidden -Wait -PassThru
         Registrar "kit: INSTALAR_KIT_PMVNI.cmd atualizar (código $($p.ExitCode))"
     }
-    $pro = Get-ChildItem (Join-Path $env:USERPROFILE '.codex\plugins\cache\pmvni-kit\analise-pro') -Directory -ErrorAction SilentlyContinue | Sort-Object { [version]$_.Name } | Select-Object -Last 1
     $ana = Get-ChildItem (Join-Path $env:USERPROFILE '.codex\plugins\cache\pmvni-kit\analise') -Directory -ErrorAction SilentlyContinue | Sort-Object { [version]$_.Name } | Select-Object -Last 1
-    Registrar "plugins instalados: analise $($ana.Name); analise-pro $($pro.Name)"
+    Registrar "plugins instalados: analise $($ana.Name)"
 
     # 5. Leis do kit (abre a cópia de uso)
     $leis = Join-Path $kit '03 - LEGISLACAO'

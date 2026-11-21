@@ -4,7 +4,8 @@ Aplicativo do Windows para a análise de projetos da Secretaria Municipal de Obr
 
 - abre e revisa os relatórios técnicos de análise;
 - pede análises à IA (ChatGPT, Claude ou Gemini) com os anexos do processo;
-- emite despachos de correção e de aprovação;
+  (as três rotas vêm do plugin único `analise` do kit PMVNI, versão 4.0.0 ou mais nova; o programa prepara o caso e monta o relatório, e a IA faz só a análise e as auditorias);
+- emite despachos de correção e de aprovação (o próprio Editor emite; não há plugin de despacho);
 - consulta a legislação e os imóveis da base QGIS;
 - acompanha a tramitação dos processos na planilha padrão.
 

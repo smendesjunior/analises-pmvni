@@ -8,6 +8,6 @@ O índice de cada preparo aponta para evidências em .pmvni-ai/cache-pdf no proc
 
 ## Motores de visão e instalação por usuário
 
-No Editor 2.1.7, em Ajustes > Sobre e suporte, use Instalar ou atualizar plugins. No kit, configurar-plugins.ps1 executa a mesma operação sem elevação. O resultado fica em %LOCALAPPDATA%/PMVNI/MotorPdf/resumo-instalacao.txt. Reinicie o cliente de IA para carregar as ferramentas MCP. O catálogo Claude Code oferece analise; os três perfis do kit são distribuídos pelo catálogo Codex.
+No Editor 2.1.7, em Ajustes > Sobre e suporte, use Instalar ou atualizar plugins. No kit, configurar-plugins.ps1 executa a mesma operação sem elevação. O resultado fica em %LOCALAPPDATA%/PMVNI/MotorPdf/resumo-instalacao.txt. Reinicie o cliente de IA para carregar as ferramentas MCP. O kit tem um só plugin, o analise (versão 4.0.0 ou mais nova), com as rotas ChatGPT, Claude e Gemini; ele é distribuído pelos catálogos do Codex e do Claude Code. Os antigos plugins analise-pro, analise-google e despacho saíram do kit: as rotas Claude e Gemini passaram para o analise e o despacho é emitido pelo Editor.
 
 Blueprint e os pesos de segmentação FYP são obtidos diretamente das fontes de origem em cada estação, com revisão e SHA-256 fixados. O kit disponibiliza o instalador e os adaptadores. O motor Blueprint identifica regiões vetoriais candidatas; o FYP executa U-Net em CPU com cinco classes e preserva a máscara da página. As saídas não comprovam sozinhas dimensões ou conformidade. Uma primeira instalação requer internet.

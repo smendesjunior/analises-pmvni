@@ -4,19 +4,54 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 ## 2.3.0
 
-<!-- revisar no fim: T19, T3, T4, T6, T10 -->
+Esta versão muda como a IA é usada na análise: ela faz só o que exige julgamento técnico, e o programa faz o resto. O resultado é menos sessões, menos texto enviado a cada uma, menos consumo de cota e menos espera, sem tirar nenhuma conferência.
 
-- Plugin único de análise: o kit passa a ter só o plugin analise (versão 4.0.0), com um motor para as três rotas. Os botões Analisar com o ChatGPT, com o Claude e com o Gemini continuam no Novo relatório. O kit e o Editor são publicados juntos; na primeira atualização, análises em andamento no ChatGPT recomeçam.
-- Progresso, previsão de término e consumo são calculados pelo Editor, nas três rotas, sem depender de a IA estimar. O cartão Consumo mostra o gasto da análise. O Monitor segue a ordem das etapas definida pelo kit.
-- Quando o processo tem mais de uma versão da mesma peça, o Editor mostra as opções e você escolhe qual usar antes de a análise seguir.
+**Publicação e primeira atualização**
+
+- O kit PMVNI 4.0.0 e o Editor 2.3.0 são publicados juntos, o kit primeiro. O Editor 2.3.0 exige o plugin analise 4.0.0: sem ele, os três botões de análise ficam desabilitados e o Editor orienta a atualizar o kit.
+- Plugin único de análise: o kit passa a ter só o plugin analise, com um motor para as três rotas. Os botões Analisar com o ChatGPT, com o Claude e com o Gemini continuam no Novo relatório. A rota ChatGPT agora precisa do Python 3.14 (o Editor roda o controlador do kit diretamente, sem uma sessão do Codex só para controlar).
+- Na primeira atualização, as análises em andamento das três rotas (ChatGPT, Claude e Gemini) recomeçam, porque foram iniciadas pelos plugins antigos. O controle antigo fica guardado no histórico da pasta do processo.
+- Os textos que o kit envia à IA mudaram (contexto menor, regras novas). Por isso, uma análise em andamento na hora da atualização é revalidada uma vez: o Editor pode pedir para refazer etapas já feitas antes de seguir. Isso acontece só na primeira vez.
+
+**O que a IA deixa de fazer**
+
+- Preparo e produção feitos pelo programa. O inventário de páginas, a extração de texto e de quadros, as cadeias de cotas, o checklist documental e a montagem do relatório em PDF passam a ser executados pelo próprio kit, sem gastar sessão de IA. O Monitor mostra essas etapas como feitas pelo programa.
+- Escolha das peças sem IA. O programa decide qual é a versão atual de cada peça (revisão da pasta, carimbo da prancha, conteúdo idêntico). Quando há versões diferentes e não dá para ter certeza, o Editor mostra as opções e pergunta a você qual usar antes de a análise seguir.
 - O despacho e o Rever das tabelas rodam sem IA por padrão. A IA só entra quando você pede (Rever com a IA). Ao Rever relatórios antigos, algumas situações podem mudar, porque o Editor agora faz as mesmas contas do kit (índices, frações e esquadrias sem mínimo ficam pendentes).
+- O despacho é emitido pelo próprio Editor; o plugin despacho saiu do kit. Os modelos são lidos primeiro da pasta do kit escolhida em Ajustes (02 - MODELOS DE DOCUMENTOS e, depois, o plugin analise do kit); só sem ela valem as cópias instaladas: o plugin analise e, por último, o antigo despacho.
+
+**Contexto menor e correções na mesma sessão**
+
+- Cada etapa recebe só o contexto de que precisa, com a parte fixa no começo para aproveitar o cache da IA. Os pedidos ficaram bem menores.
+- Quando o validador reprova o resultado de uma etapa, a correção volta para a mesma sessão da IA, com a saída real do validador, em vez de abrir uma sessão nova do zero.
+
+**Reanálise pela diferença**
+
+- Ao analisar uma nova revisão, o kit compara com a anterior: reconhece peças renomeadas, separa o que mudou, foi removido ou acrescentado e indica as seções que podem ser reaproveitadas e as pendências anteriores. A IA revê só o que mudou. Cada execução continua gerando as 28 seções e passando pela auditoria técnica e pelo gate.
+
+**Ordem das etapas e travas**
+
+- A auditoria cruzada vem antes da produção do relatório, e a revisão final só trata de apresentação. Quem audita não corrige.
+- Objeção só de apresentação (diagramação, legenda, ordem) remonta o relatório, sem repetir a análise. Objeção técnica, ou de natureza duvidosa, volta à análise e exige nova auditoria independente.
+- O que já foi auditado fica travado: mudar o conteúdo técnico depois de auditado exige nova auditoria, em qualquer rota. Mudar uma peça, as entradas ou o texto de pedido invalida o que dependia dela.
+- Os 24 textos de achados-padrão do kit ficam desligados até você revisá-los e aprová-los. Enquanto isso, a IA redige cada item pela evidência e pela norma.
+
+**Modelos da análise**
+
+- A nova aba Modelos da análise, em Ajustes, mostra e permite ajustar o modelo e o nível de cada etapa, por rota. A lista é sincronizada com o que cada IA oferece, inclusive o Gemini. O padrão vem do kit e vale para todos os PCs; o ajuste local é opcional e fica só neste computador. O botão Publicar como padrão do kit leva o seu ajuste para o kit, para todos.
+- A tabela de modelos ficou fora do cálculo de compatibilidade do perfil: trocar um modelo não invalida, por si só, o que já foi analisado, e cada etapa registra o modelo que usou.
+
+**Progresso, consumo e monitor**
+
+- Progresso, previsão de término e consumo são calculados pelo Editor, nas três rotas, sem depender de a IA estimar. O cartão Consumo mostra o gasto da análise. O Monitor segue a ordem das etapas definida pelo kit.
 - Depois de editar um relatório, o Editor confere o texto de novo. O despacho é bloqueado quando cita um item que foi excluído ou renumerado, até você corrigir a citação.
-- A primeira abertura prepara e atualiza o kit, e a atualização do kit pelos Ajustes vale antes das cópias instaladas.
+- A primeira abertura prepara e atualiza o kit, e o kit escolhido em Ajustes vale antes das cópias instaladas para os modelos de despacho. Instalar plugins e atualizar o kit são recusados enquanto houver análise em andamento.
 - Em Ajustes, o cartão Plugins e ferramentas mostra a versão de cada componente e permite atualizar um de cada vez. Os nomes das rotas (ChatGPT, Claude, Gemini) substituem os nomes antigos dos plugins.
-- O despacho é emitido pelo próprio Editor; o plugin despacho saiu do kit. Os modelos são lidos da pasta do kit dos Ajustes, depois do plugin analise instalado.
-- Nova ordem das etapas: a auditoria cruzada vem antes da produção do relatório, e a revisão final só trata de apresentação. Quem audita não corrige, e o que já foi auditado fica travado: mudar conteúdo técnico depois exige nova auditoria.
-- Em finalização: a aba Modelos da análise, em Ajustes, mostra e permite ajustar o modelo e o nível de cada etapa por rota. O padrão vem do kit para todos os PCs, com ajuste local opcional.
-- Decisão técnica: o botão Instalar plugins e o ajuste local gravam direto no perfil do usuário, porque o Editor não é um app empacotado (MSIX) e não sofre o redirecionamento de pastas do Windows.
+
+**Decisões técnicas**
+
+- O botão Instalar plugins e o ajuste local gravam direto no perfil do usuário, porque o Editor não é um app empacotado (MSIX) e não sofre o redirecionamento de pastas do Windows. O ajuste local de Modelos da análise fica em %LOCALAPPDATA%\EditorRelatoriosPMVNI.
+- Limitação: a retomada automática depois de um fim de cota não é agendada; use Continuar a análise.
 
 ## 2.2.0
 
