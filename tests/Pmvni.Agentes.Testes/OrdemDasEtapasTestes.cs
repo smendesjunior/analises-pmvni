@@ -271,6 +271,39 @@ public class OrdemDasEtapasTestes
     }
 
     [Fact]
+    public void Duracao_AnaliseAntigaSemStarted_SegueOEndedEntaoAOrdemNovaNaoDistorce()
+    {
+        using var pasta = Ambiente.PastaDeTeste("duracao-antiga-ordem-nova");
+        var ordem = OrdemDasEtapas.Ler(EtapasJson(pasta, "etapas.json"));       // o kit 4.0 já instalado: audit antes de produce
+        var controle = Controle(pasta, "analise");
+        JsonObject So(double fim) => new() { ["status"] = "EXECUTED", ["executor"] = "gpt-ficticio", ["ended"] = fim };
+        // Análise antiga do ChatGPT (kit 3.x): só ended, produce (1020 s) antes da audit (1320 s).
+        Gravar(controle, "engine_state.json", Estado(("prepare", So(1000)), ("analyze", So(1600)), ("technical_audit", So(1900)),
+            ("produce", So(1960)), ("audit", So(2260)), ("final_review", So(2380))));
+
+        var h = UsoDasIas.DuracoesDaPasta(controle, ordem);
+
+        Assert.Equal(new[] { ("analyze", 600d), ("audit", 300d), ("final_review", 120d), ("produce", 60d), ("technical_audit", 300d) },
+            h.Select(d => (d.Etapa, d.Duracao.TotalSeconds)).OrderBy(d => d.Etapa));
+        // O mesmo resultado com a ordem padrão (kit 3.x).
+        Assert.Equal(h.Select(d => (d.Etapa, d.Duracao)).OrderBy(d => d.Etapa), UsoDasIas.DuracoesDaPasta(controle).Select(d => (d.Etapa, d.Duracao)).OrderBy(d => d.Etapa));
+    }
+
+    [Fact]
+    public void Ordem_GuardadaEnquantoOArquivoNaoMuda()
+    {
+        using var pasta = Ambiente.PastaDeTeste("ordem-guardada");
+        var arquivo = EtapasJson(pasta, "etapas.json");
+        var primeira = OrdemDasEtapas.Ler(arquivo);
+        Assert.Same(primeira, OrdemDasEtapas.Ler(arquivo));                       // sem reler nem reinterpretar
+        EtapasJson(pasta, "etapas.json", claude: false);                         // mesmo tamanho, outro conteúdo
+        File.SetLastWriteTimeUtc(arquivo, DateTime.UtcNow.AddMinutes(1));
+        var nova = OrdemDasEtapas.Ler(arquivo);
+        Assert.NotSame(primeira, nova);
+        Assert.Equal(5, nova.Para(Provedor.Claude).Count);
+    }
+
+    [Fact]
     public void Uso_LinhasNaOrdemDoKit_ComStatusDaTentativa()
     {
         using var pasta = Ambiente.PastaDeTeste("uso-ordem-kit");

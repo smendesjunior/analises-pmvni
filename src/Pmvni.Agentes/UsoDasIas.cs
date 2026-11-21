@@ -120,7 +120,8 @@ public static class UsoDasIas
 
     static readonly ConcurrentDictionary<string, Lazy<Task<IReadOnlyList<DuracaoEtapa>>>> historicos = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>O <see cref="Historico"/> lido uma vez por sessão do Editor (por pasta de processos), fora da thread de quem chama.</summary>
+    /// <summary>O <see cref="Historico"/> lido uma vez por sessão do Editor (por pasta de processos), fora da thread de quem chama. A <paramref name="ordemDoKit"/>
+    /// só vale na primeira chamada de cada pasta.</summary>
     public static Task<IReadOnlyList<DuracaoEtapa>> HistoricoDaSessaoAsync(string pastaProcessos, OrdemDasEtapas? ordemDoKit = null) =>
         historicos.GetOrAdd(pastaProcessos ?? "", raiz => new Lazy<Task<IReadOnlyList<DuracaoEtapa>>>(() => Task.Run(() => Historico(raiz, ordemDoKit)))).Value;
 
@@ -149,7 +150,7 @@ public static class UsoDasIas
     /// <list type="bullet">
     /// <item>o <c>engine_state.json</c>, nas três rotas e também nas etapas de programa: as etapas atuais (<c>stages</c>) e as substituídas (<c>history[]</c>,
     /// nos dois formatos do kit: <c>{"replaced": {etapa: registro}}</c> no analise, <c>{etapa: registro}</c> no análise pro e no Google). Duração =
-    /// <c>ended − started</c>; sem <c>started</c> (o analise só grava <c>ended</c>), o intervalo desde o <c>ended</c> da etapa anterior do mesmo quadro;</item>
+    /// <c>ended − started</c>; sem <c>started</c> (o analise só grava <c>ended</c>), o intervalo desde o <c>ended</c> da etapa que terminou logo antes, no mesmo quadro (pelo <c>ended</c>, não pela ordem do kit);</item>
     /// <item>o <c>uso-das-IAs.json</c> (<c>duracao_s</c>), que traz as tentativas de cada etapa.</item>
     /// </list>
     /// A mesma execução nas duas fontes conta uma vez só: mesma pasta de execução ou, sem ela, mesma etapa com durações a menos de 1 s uma da outra. Arquivo
@@ -174,13 +175,17 @@ public static class UsoDasIas
             if (estado.TryGetProperty("stages", out var stages) && stages.ValueKind == JsonValueKind.Object) quadros.Add(stages);
             foreach (var quadro in quadros)
             {
-                DateTimeOffset? fimAnterior = null;
+                // Sem started, a etapa começou quando terminou a que acabou logo antes dela pelo ended (a ordem real do que aconteceu), não pela ordem do
+                // kit: uma análise antiga do ChatGPT (kit 3.x, produce antes de audit) lida com a ordem nova do kit 4.0 não distorce as durações.
+                var fins = new List<DateTimeOffset>();
+                foreach (var etapa in etapas)
+                    if (quadro.TryGetProperty(etapa, out var o) && o.ValueKind == JsonValueKind.Object && ProgressoLocal.Instante(o, "ended") is { } f) fins.Add(f);
                 foreach (var etapa in etapas)
                 {
                     if (!quadro.TryGetProperty(etapa, out var r) || r.ValueKind != JsonValueKind.Object) continue;
-                    var inicio = ProgressoLocal.Instante(r, "started") ?? fimAnterior;
                     var fim = ProgressoLocal.Instante(r, "ended");
-                    if (fim is not null) fimAnterior = fim;
+                    var inicio = ProgressoLocal.Instante(r, "started")
+                        ?? (fim is { } termina && fins.Any(f => f < termina) ? fins.Where(f => f < termina).Max() : (DateTimeOffset?)null);
                     if (ProgressoLocal.Texto(r, "status") != "EXECUTED" || inicio is not { } partida || fim is not { } termino || termino <= partida) continue;
                     var x = new Execucao(etapa, ProgressoLocal.Texto(r, "run"), termino - partida);
                     if (!achadas.Any(a => Mesma(a, x, false))) achadas.Add(x);     // o análise pro repete a mesma etapa em vários quadros do histórico

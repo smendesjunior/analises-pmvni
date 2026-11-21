@@ -41,9 +41,25 @@ public sealed class OrdemDasEtapas
     public static OrdemDasEtapas Ler(string? arquivo)
     {
         if (string.IsNullOrWhiteSpace(arquivo)) return Padrao;
-        try { return Interpretar(ArquivoJsonDoKit.Ler(arquivo)); }
+        try
+        {
+            var caminho = Path.GetFullPath(arquivo);
+            var info = new FileInfo(caminho);
+            if (!info.Exists) return Padrao;
+            // O resultado fica guardado enquanto a data e o tamanho do arquivo não mudam (o Monitor chama isto a cada segundo).
+            lock (trava)
+                if (guardadas.TryGetValue(caminho, out var g) && g.Escrita == info.LastWriteTimeUtc && g.Tamanho == info.Length) return g.Ordem;
+            var ordem = Interpretar(ArquivoJsonDoKit.Ler(caminho));
+            lock (trava) guardadas[caminho] = new Guardada(info.LastWriteTimeUtc, info.Length, ordem);
+            return ordem;
+        }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return Padrao; }
     }
+
+    sealed record Guardada(DateTime Escrita, long Tamanho, OrdemDasEtapas Ordem);
+
+    static readonly Dictionary<string, Guardada> guardadas = new(StringComparer.OrdinalIgnoreCase);
+    static readonly object trava = new();
 
     /// <summary>O formato da versão 1: <c>ordem</c> (lista de ids, sem repetição, não vazia) e, em <c>etapas</c>, o <c>ligada_por_rota</c> das etapas
     /// <c>opcional</c>. Um id da <c>ordem</c> que não é texto, repetido ou vazio invalida o arquivo inteiro; um <c>ligada_por_rota</c> mal formado vale como

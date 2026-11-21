@@ -186,6 +186,15 @@ public static class FluxoNovoRelatorio
         return $"{rotulo} · {hora.ToString(formato, CultureInfo.InvariantCulture)} ({TempoLegivel(hora - agora)} restantes)";
     }
 
+    /// <summary>O nome em português da etapa; uma etapa que o Editor não conhece (kit mais novo) aparece com o id legível ("etapa_nova" vira "Etapa nova").</summary>
+    internal static string NomeDaEtapa(string etapa)
+    {
+        var nome = SituacaoAnalisePro.NomeEtapa(etapa);
+        if (nome != etapa) return nome;
+        var legivel = etapa.Replace('_', ' ').Trim();
+        return legivel.Length == 0 ? etapa : char.ToUpperInvariant(legivel[0]) + legivel[1..];
+    }
+
     /// <summary>As etapas do controlador do kit com o nome em português e o estado: antes da atual, feitas; a atual, agora; depois, pendentes.
     /// <c>CONCLUIDO</c> ⇒ todas feitas; sem etapa (ou etapa desconhecida) ⇒ todas pendentes. <paramref name="ordem"/>: a sequência da rota que o kit define
     /// (<see cref="OrdemDasEtapas.Para"/>, sem as etapas desligadas); null = a ordem padrão (kit 3.x).</summary>
@@ -194,7 +203,7 @@ public static class FluxoNovoRelatorio
         var etapas = ordem ?? OrdemDasEtapas.Padrao.Todas;
         var concluido = codigo == "CONCLUIDO";
         var atual = etapaAtual is null ? -1 : etapas.ToList().IndexOf(etapaAtual);
-        return etapas.Select((e, i) => (SituacaoAnalisePro.NomeEtapa(e),
+        return etapas.Select((e, i) => (NomeDaEtapa(e),
                 concluido ? EstadoEtapa.Feita
                 : atual < 0 ? EstadoEtapa.Pendente
                 : i < atual ? EstadoEtapa.Feita

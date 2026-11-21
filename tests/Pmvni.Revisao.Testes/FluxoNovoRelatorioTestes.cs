@@ -211,6 +211,11 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(new[] { EstadoEtapa.Feita, EstadoEtapa.Feita, EstadoEtapa.Feita, EstadoEtapa.Agora, EstadoEtapa.Pendente }, s.Select(x => x.Estado));
         Assert.All(FluxoNovoRelatorio.Etapas(null, "CONCLUIDO", semAudit), x => Assert.Equal(EstadoEtapa.Feita, x.Estado));
         Assert.Equal(5, FluxoNovoRelatorio.Etapas(null, "CONCLUIDO", semAudit).Count);
+
+        // Uma etapa que um kit mais novo acrescente aparece com o id legível, sem quebrar.
+        var nova = FluxoNovoRelatorio.Etapas("verificacao_extra", "EM_ANDAMENTO", ["prepare", "verificacao_extra"]);
+        Assert.Equal(new[] { "Preparo", "Verificacao extra" }, nova.Select(x => x.Nome));
+        Assert.Equal(EstadoEtapa.Agora, nova[1].Estado);
     }
 
     [Fact]
