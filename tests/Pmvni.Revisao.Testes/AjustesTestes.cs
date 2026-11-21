@@ -203,6 +203,20 @@ public class AjustesKitTestes
     }
 
     [Fact]
+    public void salvar_resiste_a_arquivo_preso_por_um_instante()
+    {
+        using var pasta = Ambiente.PastaDeTeste("ajustes-preso");
+        new Ajustes().Salvar(pasta);
+        var arquivo = Path.Combine(pasta, Ajustes.NomeArquivo);
+        var preso = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.None);
+        var soltar = Task.Run(() => { Thread.Sleep(100); preso.Dispose(); });
+        new Ajustes().Salvar(pasta);
+        soltar.Wait();
+        Assert.False(File.Exists(arquivo + ".tmp"));
+        Assert.NotNull(Ajustes.Carregar(pasta));
+    }
+
+    [Fact]
     public void ajustes_dos_agentes()
     {
         using var pasta = Ambiente.PastaDeTeste("ajustes-agentes");

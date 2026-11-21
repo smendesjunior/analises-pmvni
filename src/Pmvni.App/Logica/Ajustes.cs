@@ -512,7 +512,20 @@ public sealed class Ajustes
         j["versao_gravada"] = typeof(Ajustes).Assembly.GetName().Version?.ToString();
         var tmp = arquivo + ".tmp";
         File.WriteAllText(tmp, j.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-        File.Move(tmp, arquivo, overwrite: true);
+        // Antivírus, indexador ou OneDrive podem segurar o destino por um instante: repete algumas vezes (total < 1 s).
+        for (var tentativa = 1; ; tentativa++)
+        {
+            try { File.Move(tmp, arquivo, overwrite: true); return; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                if (tentativa >= 5)
+                {
+                    try { File.Delete(tmp); } catch (Exception) { }
+                    throw;
+                }
+                Thread.Sleep(50 * tentativa);
+            }
+        }
     }
 
     /// <summary>As opções da tela de Ajustes (§3.3): só valores das listas entram; o resto (chave ausente num arquivo antigo, tipo errado,
