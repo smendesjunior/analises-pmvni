@@ -91,6 +91,15 @@ internal sealed class PerguntasFixas : IPerguntas
         Fechamentos.Add(TextosGravacao.FecharSemOTexto(motivo));
         return Task.FromResult(FecharSemOTexto);
     }
+    /// <summary>Tarefa 14: o índice da versão que "Qual versão da peça vale?" escolhe (null = cancelar); cada pergunta fica em <see cref="EscolhasDePeca"/>.</summary>
+    public int? VersaoDaPeca { get; set; }
+    public List<(string Titulo, string Motivo, IReadOnlyList<PecaCandidata> Versoes)> EscolhasDePeca { get; } = [];
+    public Task<string?> EscolherPecaAsync(string titulo, string motivo, string aviso, IReadOnlyList<PecaCandidata> versoes)
+    {
+        Feitas.Add("escolher peça " + titulo);
+        EscolhasDePeca.Add((titulo, motivo, versoes));
+        return Task.FromResult(VersaoDaPeca is { } i && i >= 0 && i < versoes.Count ? versoes[i].Valor : null);
+    }
 }
 
 /// <summary>Computador sem LibreOffice (passo 38 do roteiro): o despacho sai só em DOCX, com o motivo no recibo.</summary>
@@ -4872,6 +4881,61 @@ internal static class Roteiro
             monitor.MostrarResumo(false, null, [], []);
             monitor.MostrarProgresso(null);
             return Task.CompletedTask;
+        });
+
+        // Tarefa 14: o kit achou duas versões da planta (decisão do tipo "pecas"). O Editor mostra as duas lado a lado (miniatura do cache-pdf ou o nome do
+        // arquivo), com "Abrir o PDF" em cada uma; a escolha volta como o caminho da opção e "Cancelar" deixa a análise parada (nada é gravado aqui).
+        await Passo("escolha_de_pecas_ambiguas", async p =>
+        {
+            var caso = Path.Combine(pasta, "pecas-ambiguas");
+            if (Directory.Exists(caso)) Directory.Delete(caso, true);
+            var a = Path.Combine(caso, "PROJETO", "INICIAL", "planta.pdf");
+            var b = Path.Combine(caso, "PROJETO", "REVISÃO 01", "planta.pdf");
+            foreach (var (arq, texto) in new[] { (a, "%PDF-1.4 versão A"), (b, "%PDF-1.4 versão B") })
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(arq)!);
+                File.WriteAllText(arq, texto);
+            }
+            var sha = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(a))).ToLowerInvariant();
+            var paginas = Path.Combine(caso, ".pmvni-ai", "cache-pdf", "v1", "pdfium-roteiro", sha, "paginas");
+            Directory.CreateDirectory(paginas);
+            File.WriteAllBytes(Path.Combine(paginas, sha[..12] + "_p001_150dpi.png"), Convert.FromBase64String(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="));
+            var decisao = SituacaoAnalise62.Ler(new JsonObject
+            {
+                ["situacao"] = "DECISAO", ["etapa"] = "prepare",
+                ["decisao"] = new JsonObject
+                {
+                    ["tipo"] = "pecas", ["id"] = "pecas-roteiro", ["pergunta"] = "Há duas versões da planta baixa com a mesma data. Qual vale para a análise?",
+                    ["opcoes"] = new JsonArray(new JsonObject { ["valor"] = @"PROJETO\INICIAL\planta.pdf", ["texto"] = "Planta da pasta INICIAL" },
+                        new JsonObject { ["valor"] = @"PROJETO\REVISÃO 01\planta.pdf", ["texto"] = "Planta da REVISÃO 01" }),
+                    ["arquivo_resposta"] = "decisao_resposta.json",
+                },
+            }.ToJsonString()).Decisao!;
+
+            // O caminho do Editor: escolher a segunda devolve o caminho dela; cancelar devolve nada.
+            perguntas.VersaoDaPeca = 1;
+            var escolhida = await j.EscolherVersaoDaPecaAsync(caso, "Qual versão da peça vale?", Provedor.Claude, decisao);
+            var pergunta = perguntas.EscolhasDePeca[^1];
+            perguntas.VersaoDaPeca = null;
+            var cancelada = await j.EscolherVersaoDaPecaAsync(caso, "Qual versão da peça vale?", Provedor.Gemini, decisao);
+            var caminho = escolhida == @"PROJETO\REVISÃO 01\planta.pdf" && cancelada is null
+                && pergunta.Motivo == decisao.Pergunta && pergunta.Versoes.Count == 2
+                && pergunta.Versoes[0].Miniatura is { } m && m.StartsWith(paginas, StringComparison.OrdinalIgnoreCase) && pergunta.Versoes[1].Miniatura is null
+                && pergunta.Versoes[1].Arquivo == b;
+
+            // O diálogo: miniatura na primeira, o nome do arquivo na segunda, "Abrir o PDF" nas duas (no roteiro só registra), a marcação vira a escolha.
+            var dialogo = new EscolhaDePecas(decisao.Pergunta, "A análise está parada.", pergunta.Versoes);
+            var marcou = false;
+            dialogo.EscolhaMudou += () => marcou = true;
+            var abertas = AberturaExterna.Registradas.Count;
+            var abriu = dialogo.Abrir(1) && AberturaExterna.Registradas.Count == abertas + 1 && AberturaExterna.Registradas[^1] == b;
+            dialogo.Marcar(1);
+            var tela = dialogo.Quantas == 2 && dialogo.MostraMiniatura(0) && !dialogo.MostraMiniatura(1) && dialogo.PodeAbrir(0) && dialogo.PodeAbrir(1)
+                && marcou && dialogo.Escolhida?.Valor == @"PROJETO\REVISÃO 01\planta.pdf" && dialogo.TextoDaEscolha.StartsWith("Escolhida: Planta da REVISÃO 01", StringComparison.Ordinal);
+            p["partes"] = new JsonObject { ["caminho"] = caminho, ["abriu"] = abriu, ["tela"] = tela };
+            p["ok"] = caminho && abriu && tela && !File.Exists(Path.Combine(caso, ".pmvni-ai", "analise", "decisao_resposta.json"));
+            Directory.Delete(caso, true);
         });
 
         await Passo("historico_das_paginas", async p =>

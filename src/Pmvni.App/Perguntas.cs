@@ -69,6 +69,10 @@ internal interface IPerguntas
     /// <summary>Como a outra, já com o item <paramref name="selecionado"/> marcado (Enter confirma) e o texto do botão principal;
     /// <paramref name="botao"/> vazio = sem botão principal, o clique no item escolhe.</summary>
     Task<int?> EscolherNaListaAsync(string titulo, string texto, IReadOnlyList<string> itens, int selecionado, string botao, string secundario = "") => EscolherNaListaAsync(titulo, texto, itens);
+
+    /// <summary>Tarefa 14: qual versão da peça vale (decisão do tipo <c>pecas</c>), com as versões lado a lado, o motivo da dúvida e "Abrir o PDF" em cada
+    /// uma; o <see cref="Pmvni.Agentes.PecaCandidata.Valor"/> escolhido, ou null se cancelou. Padrão: cancelar (a análise fica parada, sem gastar nada).</summary>
+    Task<string?> EscolherPecaAsync(string titulo, string motivo, string aviso, IReadOnlyList<Pmvni.Agentes.PecaCandidata> versoes) => Task.FromResult<string?>(null);
 }
 
 internal static class Perguntas
@@ -253,6 +257,19 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         var resultado = await Mostrar(d);
         if (resultado == ContentDialogResult.Secondary) return itens.Count;
         return resultado == ContentDialogResult.Primary && lista.SelectedIndex >= 0 ? lista.SelectedIndex : null;
+    }
+
+    public async Task<string?> EscolherPecaAsync(string titulo, string motivo, string aviso, IReadOnlyList<Pmvni.Agentes.PecaCandidata> versoes)
+    {
+        var escolha = new EscolhaDePecas(motivo, aviso, versoes);
+        var d = new ContentDialog
+        {
+            XamlRoot = raiz(), Title = titulo, Content = escolha, PrimaryButtonText = "Usar esta versão", CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary, IsPrimaryButtonEnabled = false,
+        };
+        d.Resources["ContentDialogMaxWidth"] = 820d;
+        escolha.EscolhaMudou += () => d.IsPrimaryButtonEnabled = escolha.Escolhida is not null;
+        return await Mostrar(d) == ContentDialogResult.Primary ? escolha.Escolhida?.Valor : null;
     }
 
     public async Task<bool> ConfirmarAsync(string titulo, string texto, string sim, string nao, bool destrutiva = true)

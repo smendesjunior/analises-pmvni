@@ -1,0 +1,15 @@
+<UserControl x:Class="Pmvni.App.EscolhaDePecas"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Tarefa 14: o conteúdo do diálogo "Qual versão da peça vale?". O kit achou mais de uma versão possível de uma peça e parou: o motivo da dúvida em
+       cima, as versões lado a lado (miniatura da primeira página do cache-pdf, ou o nome do arquivo sem ela) e, em cada uma, "Abrir o PDF". Escolher uma
+       versão habilita o botão principal do diálogo (PerguntasDaJanela). -->
+  <StackPanel Spacing="12" MinWidth="460" MaxWidth="760">
+    <TextBlock x:Name="TextoMotivo" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+    <TextBlock x:Name="TextoAviso" TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled">
+      <StackPanel x:Name="PainelVersoes" Orientation="Horizontal" Spacing="12" Padding="0,0,0,12"/>
+    </ScrollViewer>
+    <TextBlock x:Name="TextoEscolha" TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+  </StackPanel>
+</UserControl>

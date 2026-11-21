@@ -1025,18 +1025,33 @@ public sealed partial class MainWindow
 
     /// <summary>Contrato da Tarefa 2 (código 21 / <c>DECISAO</c>): o kit parou para o analista decidir. Mostra a pergunta e as opções (ou uma caixa de texto,
     /// sem opções) e devolve o valor escolhido; null = "Cancelar" (a análise fica parada, sem gastar nada, e "Continuar a análise" pergunta de novo).
-    /// A escolha de peças ambíguas com miniaturas (decisão do tipo <c>pecas</c>) é a Tarefa 14; até lá ela chega aqui como uma lista.</summary>
+    /// A escolha de peças ambíguas (decisão do tipo <c>pecas</c>, Tarefa 14) abre o diálogo com as versões lado a lado (<see cref="EscolherVersaoDaPecaAsync"/>).</summary>
     async Task<string?> DecidirAsync(ExecucaoEmCurso e, DecisaoAnalise d, CancellationToken ct)
     {
         if (fechada || ct.IsCancellationRequested) return null;
         NotificacoesWindows.Mostrar("A análise precisa de uma decisão", "Abra o Editor para responder; a análise está parada e não gasta cota enquanto espera.");
         var titulo = "Decisão na análise de " + FluxoNovoRelatorio.Identificacao(e.Processo);
+        if (PecasAmbiguas.EhEscolhaDePecas(d) && d.Opcoes.Count > 0)
+            return await EscolherVersaoDaPecaAsync(e.Processo.Pasta, "Qual versão da peça vale na análise de " + FluxoNovoRelatorio.Identificacao(e.Processo) + "?",
+                e.Provedor, d);
         var texto = d.Pergunta.Trim() + Environment.NewLine + Environment.NewLine
             + $"A análise com o {Provedores.Nome(e.Provedor)} está parada e não gasta cota enquanto espera. \"Cancelar\" deixa a análise parada; \"Continuar a análise\" pergunta de novo.";
         if (d.Opcoes.Count == 0)
             return await Perguntas.Atual.PedirTextoAsync(titulo, texto, "") is { } livre && !string.IsNullOrWhiteSpace(livre) ? livre.Trim() : null;
         var escolha = await Perguntas.Atual.EscolherNaListaAsync(titulo, texto, d.Opcoes.Select(o => o.Texto).ToList(), -1, "Responder");
         return escolha is { } i && i >= 0 && i < d.Opcoes.Count ? d.Opcoes[i].Valor : null;
+    }
+
+    /// <summary>Tarefa 14: o kit achou mais de uma versão possível de uma peça. Mostra as versões (miniatura do <c>cache-pdf</c> ou o nome do arquivo, e "Abrir
+    /// o PDF"), com o motivo da dúvida; devolve o caminho escolhido (o <c>opcoes[].valor</c>, gravado pelo orquestrador em <c>decisao.arquivo_resposta</c>)
+    /// ou null = "Cancelar" (a análise fica parada antes de gastar IA). Vale para as três rotas.</summary>
+    internal async Task<string?> EscolherVersaoDaPecaAsync(string pastaProcesso, string titulo, Provedor provedor, DecisaoAnalise d)
+    {
+        var versoes = await Task.Run(() => PecasAmbiguas.Candidatas(d, pastaProcesso));
+        if (fechada) return null;
+        var aviso = $"A análise com o {Provedores.Nome(provedor)} está parada e não gasta cota enquanto espera. \"Cancelar\" deixa a análise parada; "
+            + "\"Continuar a análise\" pergunta de novo.";
+        return await Perguntas.Atual.EscolherPecaAsync(titulo, d.Pergunta.Trim(), aviso, versoes);
     }
 
     /// <summary>"Cancelar análise", com a confirmação do provedor. true = cancelou (o Codex foi encerrado, ou o processo do kit).</summary>
