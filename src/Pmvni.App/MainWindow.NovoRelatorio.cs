@@ -127,13 +127,14 @@ public sealed partial class MainWindow
     {
         if (p != Provedor.Gemini)
         {
-            // Tarefa 19: a tabela de modelos desta análise (padrão do kit + ajuste local), com a lista do provedor atualizada antes da partida.
-            var modelos = await TabelaParaAnaliseAsync(p);
+            // Tarefa 19: a tabela de modelos desta análise (padrão do kit + ajuste local), pelas listas guardadas; a do provedor é atualizada em
+            // segundo plano, sem segurar a partida nem a fila de comandos (revisão final I4).
+            var modelos = TabelaParaAnalise(p);
             return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: modelos), enviados);
         }
         var (ok, perfil, ficticio, trocar) = await ResolverPerfilGeminiAsync(processo);
         if (!ok) return null;
-        var tabela = await TabelaParaAnaliseAsync(p);
+        var tabela = TabelaParaAnalise(p);
         return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior, tabela), enviados);
     }
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);
@@ -1054,7 +1055,7 @@ public sealed partial class MainWindow
         var texto = d.Pergunta.Trim() + Environment.NewLine + Environment.NewLine
             + $"A análise com o {Provedores.Nome(e.Provedor)} está parada e não gasta cota enquanto espera. \"Cancelar\" deixa a análise parada; \"Continuar a análise\" pergunta de novo.";
         if (d.Opcoes.Count == 0)
-            return await Perguntas.Atual.PedirTextoAsync(titulo, texto, "") is { } livre && !string.IsNullOrWhiteSpace(livre) ? livre.Trim() : null;
+            return await Perguntas.Atual.PedirTextoAsync(titulo, texto, "", botao: "Responder") is { } livre && !string.IsNullOrWhiteSpace(livre) ? livre.Trim() : null;
         var escolha = await Perguntas.Atual.EscolherNaListaAsync(titulo, texto, d.Opcoes.Select(o => o.Texto).ToList(), -1, "Responder");
         return escolha is { } i && i >= 0 && i < d.Opcoes.Count ? d.Opcoes[i].Valor : null;
     }

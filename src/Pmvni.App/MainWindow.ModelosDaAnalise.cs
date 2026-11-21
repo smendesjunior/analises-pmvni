@@ -402,29 +402,20 @@ public sealed partial class MainWindow
 
     // ---------- antes de cada análise ----------
 
-    /// <summary>A tabela efetiva para a partida da análise pela rota do provedor: atualiza a lista do provedor (até 15 s; sem resposta, vale a anterior), monta a
-    /// tabela e mostra no Novo relatório os avisos (modelo que sumiu: a etapa usa o padrão do kit). null = kit sem a tabela (vale o que o kit define).</summary>
-    async Task<TabelaDeModelos?> TabelaParaAnaliseAsync(Provedor p)
+    /// <summary>A tabela efetiva para a partida da análise pela rota do provedor. Revisão final I4: não espera o provedor (o Gemini podia levar até 60 s
+    /// dentro da fila de comandos): monta a tabela pelas listas guardadas e atualiza a lista do provedor em segundo plano (<see cref="ModelosDaAnalise.ParaPartida"/>).
+    /// Mostra no Novo relatório os avisos (modelo que a última lista já sabe inexistente: a etapa usa o padrão do kit). null = kit sem a tabela (vale o que o kit define).</summary>
+    TabelaDeModelos? TabelaParaAnalise(Provedor p)
     {
         var (kit, etapas) = TabelaDoKitInstalado();
         if (kit is null) return null;
         var rota = ModelosDaAnalise.RotaDoProvedor(p);
-        if (rota == "gemini")
-        {
-            try { await AtualizarListaGeminiAsync().WaitAsync(TimeSpan.FromSeconds(60)); }
-            catch (TimeoutException) { }
-        }
-        else
-        {
-            var fonte = FonteDaRota(rota);
-            if (FonteDisponivel(fonte))
-            {
-                try { await CatalogoDeModelos.AtualizarAsync(pecasAgentes, [fonte], CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(15)); }
-                catch (TimeoutException) { }
-                catch (Exception e) when (e is InvalidOperationException or IOException or OperationCanceledException) { RegistroErros.Gravar("modelos.analise.lista", e); }
-            }
-        }
-        var efetiva = ModelosDaAnalise.Efetiva(kit, AjusteDosModelos, etapas, c => ListaDaRotaAgora(c, kit)).ParaExecucao(rota);
+        Func<Task>? atualizar = null;
+        if (rota == "gemini") atualizar = AtualizarListaGeminiAsync;
+        else if (FonteDaRota(rota) is var fonte && FonteDisponivel(fonte))
+            atualizar = () => CatalogoDeModelos.AtualizarAsync(pecasAgentes, [fonte], CancellationToken.None);
+        var efetiva = ModelosDaAnalise.ParaPartida(kit, AjusteDosModelos, etapas, c => ListaDaRotaAgora(c, kit), rota, atualizar,
+            e => RegistroErros.Gravar("modelos.analise.lista", e));
         if (efetiva.Avisos.Count > 0)
             MostrarMensagem(InfoBarSeverity.Warning, "Modelos da análise", string.Join(Environment.NewLine, efetiva.Avisos) + " Isso fica registrado no histórico da análise.");
         return efetiva;

@@ -395,6 +395,28 @@ public static class ModelosDaAnalise
 
     static bool Falta(ListaDaRota? lista, string modelo) => lista is { Conferida: true } l && l.Modelos.All(m => m.Id != modelo);
 
+    /// <summary>Revisão final I4: a tabela da partida de uma análise, sem esperar o provedor. Monta a tabela pelas listas já guardadas
+    /// (<paramref name="listasGuardadas"/>) e só então dispara <paramref name="atualizarEmSegundoPlano"/> sem esperar (a lista nova vale na próxima
+    /// partida e na aba; o pré-voo <c>conferir</c> do kit continua sendo a barreira). Uma célula do ajuste só deixa de valer (usa o padrão do kit,
+    /// com aviso) quando a última lista conferida já sabe que o modelo não existe; lista ainda não lida ou não conferida não recusa nada.
+    /// <paramref name="falha"/> recebe o erro da atualização (o registro de erros).</summary>
+    public static TabelaDeModelos ParaPartida(TabelaModelosKit kit, AjusteModelos ajuste, IReadOnlyList<EtapaModelos> etapas,
+        Func<ColunaModelos, ListaDaRota?> listasGuardadas, string rota, Func<Task>? atualizarEmSegundoPlano, Action<Exception>? falha = null)
+    {
+        var tabela = Efetiva(kit, ajuste, etapas, listasGuardadas).ParaExecucao(rota);
+        if (atualizarEmSegundoPlano is not null) EmSegundoPlano(atualizarEmSegundoPlano, falha);
+        return tabela;
+    }
+
+    static void EmSegundoPlano(Func<Task> atualizar, Action<Exception>? falha)
+    {
+        Task t;
+        try { t = atualizar(); }
+        catch (Exception e) { falha?.Invoke(e); return; }
+        _ = t.ContinueWith(x => falha?.Invoke(x.Exception!.GetBaseException()), CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
     /// <summary>Os avisos da aba: os da tabela efetiva (modelo que sumiu) e as etapas técnicas abaixo de médio (aviso, não bloqueio).</summary>
     public static IReadOnlyList<AvisoModelos> AvisosDaAba(TabelaModelosKit kit, AjusteModelos ajuste, IReadOnlyList<EtapaModelos> etapas, Func<ColunaModelos, ListaDaRota?> listas)
     {

@@ -73,6 +73,50 @@ public class ModelosDaAnaliseTestes
         Assert.Equal("gpt-6.2-astra", CelulaJson(efetiva.Json, "codex", "padrao", "analyze")["modelo"]!.GetValue<string>());
     }
 
+    /// <summary>Revisão final I4: a partida não espera a lista do provedor (que roda em segundo plano) e só troca a célula do ajuste pelo padrão do kit
+    /// quando a última lista conferida já sabe que o modelo não existe.</summary>
+    [Fact]
+    public async Task partida_usa_a_lista_guardada_e_atualiza_em_segundo_plano()
+    {
+        var k = Kit();
+        var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
+        var a = new AjusteModelos();
+        var comFable = Lista(M("claude-opus-5-5"), M("claude-sonnet-5-5"), M("claude-fable-5-2"));
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "claude"), etapas.Single(e => e.Id == "analyze"), "claude-fable-5-2", "alto", comFable));
+        var nunca = new TaskCompletionSource();   // o provedor que não responde (o agy podia levar 60 s)
+        var chamadas = 0;
+        Task Atualizar() { chamadas++; return nunca.Task; }
+        static string Analise(TabelaDeModelos t) => JsonNode.Parse(t.Json)!["rotas"]!["claude"]!["perfis"]!["padrao"]!["etapas"]!["analyze"]!["modelo"]!.GetValue<string>();
+
+        // A lista ainda não foi lida (não conferida): o ajuste vale, sem aviso, e a partida volta na hora, com a atualização já disparada.
+        var naoLida = ModelosDaAnalise.ParaPartida(k, a, etapas,
+            Listas(claude: new ListaDaRota([M("claude-opus-5-5")], Conferida: false, "conhecida do editor")), "claude", Atualizar);
+        Assert.Equal(1, chamadas);
+        Assert.False(nunca.Task.IsCompleted);
+        Assert.Empty(naoLida.Avisos);
+        Assert.Equal("claude-fable-5-2", Analise(naoLida));
+
+        // A última lista conferida ainda oferece o modelo: vale.
+        Assert.Equal("claude-fable-5-2", Analise(ModelosDaAnalise.ParaPartida(k, a, etapas, Listas(claude: comFable), "claude", Atualizar)));
+
+        // A última lista conferida já sabe que o modelo não existe: a etapa usa o padrão do kit, com aviso.
+        var sabido = ModelosDaAnalise.ParaPartida(k, a, etapas, Listas(), "claude", Atualizar);
+        Assert.Equal("claude-opus-5-5", Analise(sabido));
+        Assert.Contains(sabido.Avisos, x => x.Contains("claude-fable-5-2 não aparece mais", StringComparison.Ordinal));
+        Assert.Equal(3, chamadas);
+
+        // Falha da atualização em segundo plano vai para o registro, sem quebrar a partida (síncrona ou assíncrona).
+        var erros = new List<Exception>();
+        ModelosDaAnalise.ParaPartida(k, a, etapas, Listas(), "claude", () => throw new IOException("agy ausente"), erros.Add);
+        var falhou = new TaskCompletionSource();
+        ModelosDaAnalise.ParaPartida(k, a, etapas, Listas(), "claude", () => falhou.Task, erros.Add);
+        falhou.SetException(new TimeoutException("sem resposta"));
+        await Task.Delay(50);
+        Assert.Collection(erros, e => Assert.IsType<IOException>(e), e => Assert.IsType<TimeoutException>(e));
+        // Sem atualização (fonte indisponível): só monta a tabela.
+        Assert.Equal("claude-opus-5-5", Analise(ModelosDaAnalise.ParaPartida(k, a, etapas, Listas(), "claude", null)));
+    }
+
     [Fact]
     public void as_etapas_vem_do_etapas_json_e_a_etapa_de_programa_nao_tem_modelo()
     {
