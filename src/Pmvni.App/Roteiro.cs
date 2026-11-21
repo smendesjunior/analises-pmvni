@@ -5279,6 +5279,71 @@ internal static class Roteiro
             }
         });
 
+        await Passo("modelos_da_analise", async p =>
+        {
+            // Tarefa 19: Ajustes › Inteligência artificial › Modelos da análise. A tabela e o etapas.json são fictícios, no plugin analise do CODEX_HOME do
+            // roteiro; o ajuste vai para a pasta de dados do roteiro (tests\saida), nunca para a de verdade. Confere a grade (6 etapas × 3 colunas, modelo e
+            // nível em cada célula), uma troca de modelo pela caixa (o ajuste local guarda só ela) e "Restaurar padrão do kit" (o ajuste some).
+            await PrepararAgentesAsync();
+            var refs = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "references");
+            Directory.CreateDirectory(refs);
+            string[] ids = ["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"];
+            string Celulas(Func<string, (string Modelo, string Nivel)> c) =>
+                string.Join(",", ids.Select(id => $"\"{id}\":{{\"modelo\":\"{c(id).Modelo}\",\"nivel\":\"{c(id).Nivel}\"}}"));
+            var tecnica = (string id) => id is "analyze" or "technical_audit";
+            await File.WriteAllTextAsync(Path.Combine(refs, TabelaDeModelos.NomeNoKit), "{\"versao\":1,\"niveis\":[\"baixo\",\"medio\",\"alto\"],"
+                + "\"equivalencia\":{\"baixo\":\"low\",\"medio\":\"medium\",\"alto\":\"high\"},\"etapas_tecnicas\":[\"analyze\",\"technical_audit\"],"
+                + "\"regras\":{\"sobe_por_objecao_tecnica\":true,\"desce_com_cota_abaixo_de\":0.15,\"excecoes_por_rota\":{\"gemini\":{\"desce_com_cota_abaixo_de\":null,\"nota\":\"Rota Gemini (fictícia): nada muda por cota.\"}}},"
+                + "\"rotas\":{\"codex\":{\"nome\":\"ChatGPT\",\"perfis\":{\"padrao\":{\"etapas\":{" + Celulas(id => tecnica(id) ? ("gpt-6.1-sol", "alto") : ("gpt-6.1-terra", "baixo")) + "}}}},"
+                + "\"claude\":{\"nome\":\"Claude\",\"perfis\":{\"padrao\":{\"etapas\":{" + Celulas(id => tecnica(id) ? ("claude-opus-5-5", "alto") : ("claude-sonnet-5-5", "medio")) + "}}}},"
+                + "\"gemini\":{\"nome\":\"Gemini\",\"modelos\":{\"gemini-3.8-flash\":{\"niveis\":[\"baixo\",\"medio\",\"alto\"]}},"
+                + "\"perfis\":{\"conta_ultra\":{\"nome\":\"Conta Antigravity\",\"etapas\":{" + Celulas(_ => ("gemini-3.8-flash", "medio")) + "}}}}}}");
+            await File.WriteAllTextAsync(Path.Combine(refs, "etapas.json"), "{\"versao\":1,\"ordem\":[" + string.Join(",", ids.Select(i => "\"" + i + "\"")) + "],\"etapas\":{"
+                + string.Join(",", ids.Select(i => "\"" + i + "\":" + (i == "audit"
+                    ? "{\"executor\":\"ia\",\"opcional\":true,\"ligada_por_rota\":{\"codex\":true,\"claude\":true,\"gemini\":true}}" : "{\"executor\":\"ia\"}"))) + "}}");
+            var local = ModelosDaAnalise.ArquivoLocal(PastaDados.Raiz);
+            if (File.Exists(local)) File.Delete(local);
+            // Um computador que não é o do kit mestre (sem instalacao.json): o botão "Publicar como padrão do kit" fica escondido.
+            j.OrigensDoKitDoRoteiro = new OrigensDoKit(codexHome, null, Path.Combine(pasta, "motor-modelos"), Path.Combine(pasta, "pmvni-modelos"), j.PastaKitEfetiva, null);
+            try
+            {
+                await j.AtualizarPecasNovoRelatorioAsync();
+                await j.MudarModuloAsync(Modulo.Ajustes);
+                var pag = j.AjustesPagina;
+                pag.MostrarCategoria(CategoriasAjustes.Ia);
+                await Esperar(800);
+                var grade = pag.PainelModelosAnalise.Children.OfType<Grid>().FirstOrDefault();
+                var caixas = grade?.Children.OfType<StackPanel>().SelectMany(s => s.Children.OfType<ComboBox>()).ToList() ?? [];
+                var gradeOk = grade is not null && caixas.Count == ids.Length * 3 * 2;
+                pag.PainelModelosAnalise.StartBringIntoView();
+                await Esperar(300);
+                await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "modelos-da-analise-xaml.png"));
+
+                // Troca o modelo da Análise no ChatGPT pela caixa: o ajuste local guarda só essa célula.
+                var caixa = caixas.FirstOrDefault(c => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(c) == "Modelo de Análise em ChatGPT");
+                var outro = caixa?.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == "gpt-6.1-terra");
+                if (caixa is not null && outro is not null) caixa.SelectedItem = outro;
+                await Esperar(800);
+                var ajuste = File.Exists(local) ? ModelosDaAnalise.LerAjuste(await File.ReadAllTextAsync(local)) : new AjusteModelos();
+                var trocou = ajuste.Celulas.Count == 1 && ajuste.Celulas.GetValueOrDefault(("codex", "padrao", "analyze"))?.Modelo == "gpt-6.1-terra";
+                // O nível da Auditoria técnica abaixo de médio: aviso, sem bloquear.
+                var avisoAntes = pag.AvisoModelosAnalise.IsOpen;
+
+                perguntas.RespostaPorTitulo["Restaurar o padrão do kit?"] = true;
+                ((IInvokeProvider)new ButtonAutomationPeer(pag.BotaoRestaurarModelos).GetPattern(PatternInterface.Invoke)).Invoke();
+                await Esperar(800);
+                var restaurou = !File.Exists(local) && pag.TextoModelosAnalise.Text.StartsWith("Padrão do kit restaurado", StringComparison.Ordinal);
+                p["texto"] = pag.TextoModelosAnalise.Text;
+                p["conferencias"] = new JsonObject
+                {
+                    ["grade"] = gradeOk, ["caixas"] = caixas.Count, ["troca_pela_caixa"] = trocou, ["sem_aviso_no_padrao"] = !avisoAntes, ["restaurar"] = restaurou,
+                    ["publicar_oculto_fora_do_kit_mestre"] = pag.BotaoPublicarModelos.Visibility == Visibility.Collapsed,
+                };
+                p["ok"] = gradeOk && trocou && !avisoAntes && restaurou && pag.BotaoPublicarModelos.Visibility == Visibility.Collapsed;
+            }
+            finally { j.OrigensDoKitDoRoteiro = null; }
+        });
+
         await j.FecharSessaoAsync();
         string[] iniciados;
         lock (programasIniciados) iniciados = programasIniciados.ToArray();

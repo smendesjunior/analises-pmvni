@@ -302,6 +302,8 @@ static class Program
             ["argv"] = new JsonArray(args.Select(a => (JsonNode?)JsonValue.Create(a)).ToArray()),
             ["cwd"] = cwd, ["cd"] = caso, ["entrada"] = entrada, ["chave"] = textoChave, ["variavel"] = variavel, ["rota"] = rota,
             ["path0"] = primeiroDoPath,
+            // Tarefa 19: a tabela de modelos que o editor passou (o caminho do arquivo no registro); null sem ela.
+            ["modelos"] = Environment.GetEnvironmentVariable("PMVNI_MODELOS_POR_ROTA"),
         });
         File.AppendAllText(Path.Combine(controle, "chamadas.txt"),
             "analise62\t" + JsonSerializer.Serialize(args, Opcoes) + "\t" + textoChave + "\t" + rota + "\t"
@@ -449,6 +451,8 @@ static class Program
             + (Environment.GetEnvironmentVariable(google ? "PMVNI_ANALISE_GOOGLE_ROTA" : "PMVNI_ANALISE_PRO_ROTA") ?? "-")   // a rota que o editor declarou
             + (google ? "\t" + (Environment.GetEnvironmentVariable("PMVNI_ANALISE_GOOGLE_PERFIL") ?? "-") + "\t" + (Environment.GetEnvironmentVariable("PMVNI_ANALISE_GOOGLE_FICTICIO") ?? "-") : "")
             + "\n", Utf8);
+        // Tarefa 19: a tabela de modelos que o editor passou a esta ação (o caminho; "-" sem ela), num arquivo à parte para não mudar as colunas acima.
+        File.AppendAllText(Path.Combine(pastaFalso, "modelos.txt"), acao + "\t" + (Environment.GetEnvironmentVariable("PMVNI_MODELOS_POR_ROTA") ?? "-") + "\n", Utf8);
 
         try
         {

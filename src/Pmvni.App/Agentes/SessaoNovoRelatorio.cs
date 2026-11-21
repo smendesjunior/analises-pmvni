@@ -152,8 +152,9 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
     /// <param name="perfilGemini">Só o Gemini: o perfil fixado para esta análise (o escolhido em Ajustes ou, numa retomada, o que a análise já tinha);
     /// é ele que define o modo (conta ou chave), nunca o contrário.</param>
     /// <param name="ficticio">Só o Gemini, perfil gratuito: o usuário confirmou no clique que o processo é fictício.</param>
+    /// <param name="modelos">Tarefa 19: a tabela efetiva de modelos (padrão do kit + ajuste local); null = vale o padrão do kit.</param>
     public async Task<ExecucaoEmCurso?> AnalisarAsync(Provedor p, Processo pr, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto,
-        PerfilGemini? perfilGemini = null, bool ficticio = false, bool trocarGemini = false, string? registroAnterior = null)
+        PerfilGemini? perfilGemini = null, bool ficticio = false, bool trocarGemini = false, string? registroAnterior = null, TabelaDeModelos? modelos = null)
     {
         var pc = pecas();
         var m = modo(p);
@@ -204,6 +205,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro)
         {
             RotaCodex = rotaCodex?.Invoke(), Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini, Retomar = retomada, Decidir = Decisor(e),
+            Modelos = modelos,
         };
         e.Fim = e.AcompanharTempoAsync(() => RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava));
         execucoes.Add(e);

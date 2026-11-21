@@ -125,10 +125,16 @@ public sealed partial class MainWindow
     /// <summary>A partida de uma análise pelo provedor; no Gemini, com o perfil resolvido antes (null = o usuário não confirmou e nada parte).</summary>
     async Task<ExecucaoEmCurso?> AnalisarComPerfilAsync(Provedor p, Processo processo, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto, IReadOnlyList<AnexoNovo>? enviados, string? registroAnterior = null)
     {
-        if (p != Provedor.Gemini) return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior), enviados);
+        if (p != Provedor.Gemini)
+        {
+            // Tarefa 19: a tabela de modelos desta análise (padrão do kit + ajuste local), com a lista do provedor atualizada antes da partida.
+            var modelos = await TabelaParaAnaliseAsync(p);
+            return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: modelos), enviados);
+        }
         var (ok, perfil, ficticio, trocar) = await ResolverPerfilGeminiAsync(processo);
         if (!ok) return null;
-        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior), enviados);
+        var tabela = await TabelaParaAnaliseAsync(p);
+        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior, tabela), enviados);
     }
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);
     internal void EsquecerAviso(Provedor p) { ajustes.Agentes[p].AvisoVersao = null; ajustes.Agentes[p].AvisoEm = null; SalvarAjustes(); }
@@ -950,8 +956,14 @@ public sealed partial class MainWindow
     }
 
     /// <summary>A sequência das etapas que o kit define (<c>references\etapas.json</c> do plugin analise instalado); sem o arquivo (kit 3.x) ou com arquivo
-    /// inválido, a ordem padrão. O Monitor, o progresso e a previsão seguem esta ordem, não uma fixa no código.</summary>
-    OrdemDasEtapas OrdemDasEtapasDoKit() => OrdemDasEtapas.Ler(pecasAgentes.EtapasJson);
+    /// inválido, a ordem padrão. O Monitor, o progresso e a previsão seguem esta ordem, não uma fixa no código. Tarefa 19: com o kit que tem a tabela de
+    /// modelos, vale também o liga/desliga da auditoria cruzada deste computador (Modelos da análise).</summary>
+    OrdemDasEtapas OrdemDasEtapasDoKit()
+    {
+        var ordem = OrdemDasEtapas.Ler(pecasAgentes.EtapasJson);
+        return pecasAgentes.ModelosPorRota is null ? ordem
+            : ordem.ComAjuste(AjusteDosModelos.Ligadas.Select(k => (k.Key.Etapa, ModelosDaAnalise.ProvedorDaRota(k.Key.Rota), k.Value)));
+    }
 
     /// <summary>Desde quando os arquivos do kit são desta análise: a criação da pasta do registro (o mesmo registro numa retomada), com 5 s de folga. O que o
     /// kit gravou antes disso (a análise anterior, já entregue) não aparece no Monitor.</summary>

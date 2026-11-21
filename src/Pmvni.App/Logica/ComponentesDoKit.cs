@@ -136,6 +136,15 @@ public static class ComponentesDoKit
         return (Texto(kit, "fonte") ?? Texto(cfg, "fonte"), kitLocal);
     }
 
+    /// <summary>Tarefa 19: o kit mestre, quando este é o computador dele (o instalador foi configurado com <c>--kit-local</c>: <c>modo_kit</c> espelho ou
+    /// local no <c>instalacao.json</c>); null nos outros computadores. É onde "Publicar como padrão do kit" grava a tabela de modelos.</summary>
+    public static string? KitMestre(OrigensDoKit o)
+    {
+        ArgumentNullException.ThrowIfNull(o);
+        var cfg = LerJson(Path.Combine(o.PastaPmvni, "instalacao.json"));
+        return Texto(cfg, "modo_kit") is "espelho" or "local" ? FonteDoKit(o).KitLocal : null;
+    }
+
     /// <summary>Lê tudo (só leitura; nada falha: peça ilegível é peça ausente). A fonte fora do alcance deixa as versões disponíveis dos plugins
     /// "não verificadas", sem erro.</summary>
     public static async Task<LeituraDoKit> LerAsync(OrigensDoKit o, IReadOnlyList<ComponenteDoKit>? lista = null)

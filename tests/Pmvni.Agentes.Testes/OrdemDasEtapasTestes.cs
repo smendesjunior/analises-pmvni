@@ -90,6 +90,22 @@ public class OrdemDasEtapasTestes
     }
 
     [Fact]
+    public void Ordem_ComOAjusteLocal_LigaOuDesligaAAuditNaRota()
+    {
+        // Tarefa 19: o liga/desliga da auditoria cruzada de "Modelos da análise" vale por cima do etapas.json, como no kit.
+        using var pasta = Ambiente.PastaDeTeste("ordem-audit-ajuste");
+        var ordem = OrdemDasEtapas.Ler(EtapasJson(pasta, "etapas.json", gemini: false));
+
+        var ajustada = ordem.ComAjuste([("audit", Provedor.Claude, false), ("audit", Provedor.Gemini, true), ("nao_existe", Provedor.ChatGpt, false)]);
+
+        Assert.Equal(new[] { "prepare", "analyze", "technical_audit", "produce", "final_review" }, ajustada.Para(Provedor.Claude));
+        Assert.Equal(OrdemKit4, ajustada.Para(Provedor.Gemini));
+        Assert.Equal(OrdemKit4, ajustada.Para(Provedor.ChatGpt));
+        Assert.Same(ordem, ordem.ComAjuste([]));
+        Assert.Equal(new[] { "prepare", "analyze", "technical_audit", "produce", "final_review" }, ordem.Para(Provedor.Gemini));   // a original não muda
+    }
+
+    [Fact]
     public void Ordem_SemArquivoOuInvalido_UsaAOrdemAntigaSemErro()
     {
         using var pasta = Ambiente.PastaDeTeste("ordem-invalida");

@@ -185,6 +185,8 @@ public sealed partial class MainWindow
             p.TextoModelosIa.Text = partes.Count == 0 ? "Todas as IAs deste computador estão na lista." : "Fora da lista — " + string.Join("; ", partes) + ".";
         }
         finally { montandoModelosIa = false; }
+        // Tarefa 19: as caixas de "Modelos da análise" usam as mesmas listas (relidas ao abrir a página e em "Atualizar lista").
+        MostrarModelosDaAnalise();
     }
 
     /// <summary>A linha de uma fonte: o nome, de onde veio a lista, e as caixas do modelo e do nível.</summary>

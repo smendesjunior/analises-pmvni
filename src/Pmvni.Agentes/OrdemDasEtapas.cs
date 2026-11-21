@@ -33,6 +33,22 @@ public sealed class OrdemDasEtapas
     public IReadOnlyList<string> Para(Provedor? provedor) =>
         provedor is { } p && desligadas.TryGetValue(p, out var fora) && fora.Count > 0 ? Todas.Where(e => !fora.Contains(e)).ToList() : Todas;
 
+    /// <summary>Tarefa 19: a mesma ordem com o liga/desliga das etapas opcionais do ajuste local (Ajustes › Modelos da análise) por cima do
+    /// <c>ligada_por_rota</c> do arquivo, como o kit faz com a tabela efetiva. Etapa fora da ordem é ignorada; sem mudança, devolve esta mesma.</summary>
+    public OrdemDasEtapas ComAjuste(IEnumerable<(string Etapa, Provedor Provedor, bool Ligada)> ajuste)
+    {
+        ArgumentNullException.ThrowIfNull(ajuste);
+        var fora = desligadas.ToDictionary(k => k.Key, k => new HashSet<string>(k.Value, StringComparer.Ordinal));
+        var mudou = false;
+        foreach (var (etapa, provedor, ligada) in ajuste)
+        {
+            if (!Todas.Contains(etapa)) continue;
+            if (!fora.TryGetValue(provedor, out var conjunto)) fora[provedor] = conjunto = new HashSet<string>(StringComparer.Ordinal);
+            mudou |= ligada ? conjunto.Remove(etapa) : conjunto.Add(etapa);
+        }
+        return mudou ? new OrdemDasEtapas(Todas, fora, DoArquivo) : this;
+    }
+
     /// <summary>A rota de cada provedor no <c>ligada_por_rota</c> do arquivo (mesmos nomes das pastas de <c>scripts\rotas</c>).</summary>
     static readonly (string Rota, Provedor Provedor)[] Rotas = [("codex", Provedor.ChatGpt), ("claude", Provedor.Claude), ("gemini", Provedor.Gemini)];
 

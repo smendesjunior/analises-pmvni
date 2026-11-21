@@ -78,10 +78,10 @@ public class GeminiTestes
     public void matriz_do_editor_e_igual_a_do_plugin_no_kit()
     {
         // O kit é só lido, no lugar: quem executa é o plugin; a cópia tipada do editor não pode divergir dele.
-        // Tarefa 18: a matriz é referência da rota gemini do plugin único (analise 4.0.0).
-        var arquivo = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise", "skills", "analise", "references", "rotas", "gemini", "matriz-gemini.json");
-        if (!File.Exists(arquivo)) Assert.Fail("Rota gemini do plugin analise 4.0.0 ausente do kit: " + arquivo + " (defina PMVNI_KIT_RAIZ)");
-        var doKit = MatrizGemini.LerDoKit(File.ReadAllText(arquivo, Encoding.UTF8));
+        // Tarefa 19: a matriz é a rota gemini da tabela única de modelos do plugin analise (references\modelos-por-rota.json).
+        var arquivo = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise", "skills", "analise", "references", "modelos-por-rota.json");
+        if (!File.Exists(arquivo)) Assert.Fail("Tabela de modelos do plugin analise ausente do kit: " + arquivo + " (defina PMVNI_KIT_RAIZ)");
+        var doKit = MatrizGemini.LerDaTabela(File.ReadAllText(arquivo, Encoding.UTF8));
         Assert.NotNull(doKit);
         Assert.Equal(Enum.GetValues<PerfilGemini>().Length, doKit!.Count);
         foreach (var perfil in Enum.GetValues<PerfilGemini>())

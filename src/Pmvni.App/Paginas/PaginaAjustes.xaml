@@ -610,6 +610,60 @@
                 </StackPanel>
               </Border>
             </local:PainelCartoesAjustes>
+            <!-- Modelos da análise (Tarefa 19): o modelo e o nível de cada etapa da análise, por rota e perfil. O padrão vem do kit instalado
+                 (references\modelos-por-rota.json, igual em todos os computadores); o ajuste fica só neste computador. A grade é montada em
+                 MainWindow.ModelosDaAnalise.cs, com as etapas do etapas.json do kit e as listas de modelos dos provedores. -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon Glyph="&#xE9D9;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
+              <TextBlock TextAlignment="Left" Text="Modelos da análise" Style="{StaticResource PmvniTituloSecao}"/>
+            </StackPanel>
+            <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap"
+                       Text="O modelo e o nível de raciocínio de cada etapa do Novo relatório, em cada rota. O padrão vem do kit PMVNI e vale em todos os computadores; o que você mudar aqui vale só neste computador. As listas de modelos vêm dos apps e das APIs de cada IA (atualizadas ao abrir esta página e antes de cada análise)."/>
+            <InfoBar x:Name="AvisoModelosAnalise" x:FieldModifier="internal" Severity="Warning" IsClosable="False" IsOpen="False" Title="Confira os modelos da análise"/>
+            <Border Style="{StaticResource PmvniAjusteGrupo}">
+              <ScrollViewer HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="PainelModelosAnalise" x:FieldModifier="internal" Padding="16,12" AutomationProperties.Name="Modelos e níveis de cada etapa por rota"/>
+              </ScrollViewer>
+            </Border>
+            <local:PainelCartoesAjustes>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
+                <StackPanel>
+                  <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Objeção técnica sobe um nível" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Depois de uma falha técnica registrada (validador reprovado, objeção da auditoria ou da revisão final), a nova tentativa da etapa sobe um nível, até alto. Cota e problemas do computador nunca sobem." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                    <ToggleSwitch x:Name="AlternarSobeObjecao" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Objeção técnica sobe um nível"/>
+                  </Grid>
+                  <Border Style="{StaticResource PmvniAjusteDivisoria}"/>
+                  <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Cota baixa desce o nível" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Com esta parte da cota restante (ou menos) na janela mais gasta da conta, o nível desce." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                    <ComboBox x:Name="CaixaCotaBaixa" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Cota restante que desce o nível"/>
+                  </Grid>
+                  <TextBlock x:Name="TextoRegrasDasRotas" x:FieldModifier="internal" TextAlignment="Left" Margin="16,0,16,12" TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource PmvniAjusteGrupo}">
+                <StackPanel>
+                  <StackPanel Padding="16,12" Spacing="3">
+                    <TextBlock TextAlignment="Left" Text="Auditoria cruzada" Style="{StaticResource PmvniAjusteTitulo}"/>
+                    <TextBlock TextAlignment="Left" Text="A auditoria por um segundo modelo, antes da montagem do relatório. Ligada por padrão nas três rotas; desligada, a análise vai da auditoria técnica direto à montagem." TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
+                  </StackPanel>
+                  <StackPanel x:Name="PainelAuditoriaCruzada" x:FieldModifier="internal"/>
+                </StackPanel>
+              </Border>
+            </local:PainelCartoesAjustes>
+            <Border Style="{StaticResource PmvniAjusteGrupo}">
+              <Grid Padding="16,12" ColumnSpacing="12" RowSpacing="8">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock TextAlignment="Left" x:Name="TextoModelosAnalise" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <Button x:Name="BotaoRestaurarModelos" x:FieldModifier="internal" Grid.Column="1" Content="Restaurar padrão do kit" AutomationProperties.Name="Restaurar o padrão do kit nos modelos da análise"
+                        local:Dicas.Titulo="Restaurar padrão do kit" local:Dicas.Descricao="Apaga o ajuste deste computador: os modelos, os níveis, as regras e a auditoria cruzada voltam ao padrão do kit."/>
+                <Button x:Name="BotaoPublicarModelos" x:FieldModifier="internal" Grid.Column="2" Content="Publicar como padrão do kit" Visibility="Collapsed" AutomationProperties.Name="Publicar a tabela de modelos como padrão do kit"
+                        local:Dicas.Titulo="Publicar como padrão do kit" local:Dicas.Descricao="Só no computador do kit mestre: grava esta tabela no kit e roda o instalador (manter) fora do Editor. A atualização automática leva a tabela aos outros computadores."/>
+              </Grid>
+            </Border>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <FontIcon Glyph="&#xE7C3;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock TextAlignment="Left" Text="Novo relatório" Style="{StaticResource PmvniTituloSecao}"/>

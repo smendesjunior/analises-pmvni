@@ -33,6 +33,10 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
 
     /// <summary>Gemini, perfil gratuito: o usuário declarou no clique que o processo é fictício (o plugin recusa a partida sem essa declaração).</summary>
     public bool Ficticio { get; init; }
+
+    /// <summary>Tarefa 19: a tabela efetiva de modelos desta execução (padrão do kit + ajuste local), gravada no registro e passada ao controlador em
+    /// <see cref="TabelaDeModelos.Variavel"/>. null = o controlador usa o padrão do kit (nada é passado).</summary>
+    public TabelaDeModelos? Modelos { get; init; }
 }
 
 /// <summary>Uma linha de andamento para a tela (do Codex, ou do <c>auto-log.txt</c> do kit) e/ou a situação mais recente do kit.</summary>
@@ -79,7 +83,10 @@ public sealed class OrquestradorAnalise
 
     // ------------------------------------------------------------------ comum
 
-    Action<IDictionary<string, string?>> Ambiente(Provedor p, ModoAcesso modo, string? chave, PerfilGemini? perfil = null, bool ficticio = false, bool trocarGemini = false, RegistroExecucao? registro = null) => env =>
+    /// <param name="tabelaModelos">Tarefa 19: o <c>modelos-por-rota.json</c> desta execução (no registro), passado em <see cref="TabelaDeModelos.Variavel"/>;
+    /// null = nenhum ajuste (a variável herdada também sai: vale o padrão do kit).</param>
+    Action<IDictionary<string, string?>> Ambiente(Provedor p, ModoAcesso modo, string? chave, PerfilGemini? perfil = null, bool ficticio = false, bool trocarGemini = false,
+        RegistroExecucao? registro = null, string? tabelaModelos = null) => env =>
     {
         if (AmbienteExtra is not null)
             foreach (var (k, v) in AmbienteExtra) env[k] = v;
@@ -89,7 +96,33 @@ public sealed class OrquestradorAnalise
             env["PMVNI_EXECUCAO_PASTA"] = registro.Pasta;
             env["PMVNI_EXECUCAO_ID"] = Path.GetFileName(registro.Pasta);
         }
+        if (tabelaModelos is not null) env[TabelaDeModelos.Variavel] = tabelaModelos;
+        else env.Remove(TabelaDeModelos.Variavel);
     };
+
+    /// <summary>Tarefa 19: grava a tabela efetiva de modelos desta execução no registro (<c>modelos-por-rota.json</c>) e no <c>execucao.json</c>
+    /// (<see cref="TabelaDeModelos.ChaveNoRegistro"/>: o arquivo, a tabela e os avisos). Devolve o caminho que vai para o controlador; null sem tabela.</summary>
+    static string? GravarTabelaDeModelos(PedidoExecucao pe)
+    {
+        if (pe.Modelos is not { } t) return null;
+        var arquivo = Path.Combine(pe.Registro.Pasta, TabelaDeModelos.NomeDoArquivo);
+        var tmp = arquivo + ".tmp";
+        File.WriteAllText(tmp, t.Json, new UTF8Encoding(false));
+        File.Move(tmp, arquivo, overwrite: true);
+        JsonNode? tabela;
+        try { tabela = JsonNode.Parse(t.Json); }
+        catch (JsonException) { tabela = null; }
+        pe.Registro.Atualizar(o => o[TabelaDeModelos.ChaveNoRegistro] = new JsonObject
+        {
+            ["arquivo"] = arquivo,
+            ["tabela"] = tabela,
+            ["avisos"] = new JsonArray(t.Avisos.Select(a => (JsonNode?)JsonValue.Create(a)).ToArray()),
+        });
+        return arquivo;
+    }
+
+    /// <summary>O <c>modelos-por-rota.json</c> do registro quando esta execução traz tabela (<see cref="GravarTabelaDeModelos"/>); senão null.</summary>
+    static string? ArquivoDaTabela(PedidoExecucao pe) => pe.Modelos is null ? null : Path.Combine(pe.Registro.Pasta, TabelaDeModelos.NomeDoArquivo);
 
     static FimAnalise Falha(string mensagem, int? codigo = null) => new("falhou", null, null, mensagem, codigo);
 
@@ -121,6 +154,7 @@ public sealed class OrquestradorAnalise
         FimAnalise fim;
         try
         {
+            GravarTabelaDeModelos(pe);
             fim = pe.Provedor == Provedor.ChatGpt
                 ? await ExecutarChatGptAsync(pe, rotaCodex!, chave, inicio, progresso, ct).ConfigureAwait(false)
                 : await ExecutarPeloKitAsync(pe, chave, inicio, progresso, ct).ConfigureAwait(false);
@@ -514,7 +548,7 @@ public sealed class OrquestradorAnalise
     /// <see cref="RotaCodex.Variavel"/> e a pasta do Codex achado pelo editor no começo do PATH (o controlador chama <c>codex</c>).</summary>
     Action<IDictionary<string, string?>> AmbienteAnalise62(PedidoExecucao pe, string? chave, string rota, RegistroExecucao registro)
     {
-        var basico = Ambiente(Provedor.ChatGpt, pe.Modo, chave, registro: registro);
+        var basico = Ambiente(Provedor.ChatGpt, pe.Modo, chave, registro: registro, tabelaModelos: ArquivoDaTabela(pe));
         var pastaCodex = pe.Pecas.Codex is { } codex ? Path.GetDirectoryName(codex) : null;
         return env =>
         {
@@ -670,7 +704,7 @@ public sealed class OrquestradorAnalise
 
         var (exe, argsIniciar) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, runtime, pasta, "iniciar");
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(argsIniciar).ToList());
-        var ambiente = Ambiente(p, pe.Modo, chave, pe.Perfil, pe.Ficticio, pe.TrocarGemini, registro);
+        var ambiente = Ambiente(p, pe.Modo, chave, pe.Perfil, pe.Ficticio, pe.TrocarGemini, registro, ArquivoDaTabela(pe));
 
         var redator = new RedatorChave(chave);
         var log = new LeitorLog(Path.Combine(pasta, ResultadoAnalise.PastaControle(p), "auto-log.txt"));

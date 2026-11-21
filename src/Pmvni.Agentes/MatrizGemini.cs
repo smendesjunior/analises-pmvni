@@ -12,8 +12,9 @@ public sealed record EtapaGemini(string Etapa, string Modelo, string Esforco)
     public string IdRuntime => Modelo + "-" + Esforco;
 }
 
-/// <summary>A matriz de modelos e níveis do análise Google por perfil e etapa (cópia tipada de <c>references/matriz-gemini.json</c> do plugin, que é quem
-/// executa; um teste compara as duas). O editor só a usa para mostrar e conferir: nunca troca modelo, nível, modo ou perfil sozinho.</summary>
+/// <summary>A matriz de modelos e níveis do análise Google por perfil e etapa (cópia tipada do padrão do kit: a rota gemini de
+/// <c>references/modelos-por-rota.json</c> do plugin, que é quem executa; um teste compara as duas). O ajuste local de "Modelos da análise" pode trocar
+/// uma célula neste computador; o kit confere os modelos no pré-voo. O editor só a usa para mostrar e conferir: nunca troca modelo, nível, modo ou perfil sozinho.</summary>
 public static class MatrizGemini
 {
     public const string Hydrogen = "gemini-4-hydrogen";
@@ -132,6 +133,37 @@ public static class MatrizGemini
             return saida;
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException) { return null; }
+    }
+
+    /// <summary>Tarefa 19: lê a matriz da rota gemini da tabela única do kit (<c>references\modelos-por-rota.json</c>: <c>rotas.gemini.perfis.&lt;perfil&gt;.etapas
+    /// .&lt;etapa&gt;</c> = <c>{modelo, nivel}</c>, com o nível traduzido pela <c>equivalencia</c>), no mesmo formato de <see cref="LerDoKit"/>. Fora do formato ⇒ null.</summary>
+    public static IReadOnlyDictionary<string, IReadOnlyList<EtapaGemini>>? LerDaTabela(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var raiz = doc.RootElement;
+            if (raiz.ValueKind != JsonValueKind.Object || !raiz.TryGetProperty("equivalencia", out var eq) || eq.ValueKind != JsonValueKind.Object
+                || !raiz.TryGetProperty("rotas", out var rotas) || rotas.ValueKind != JsonValueKind.Object
+                || !rotas.TryGetProperty("gemini", out var g) || g.ValueKind != JsonValueKind.Object
+                || !g.TryGetProperty("perfis", out var perfis) || perfis.ValueKind != JsonValueKind.Object) return null;
+            var saida = new Dictionary<string, IReadOnlyList<EtapaGemini>>(StringComparer.Ordinal);
+            foreach (var perfil in perfis.EnumerateObject())
+            {
+                if (!perfil.Value.TryGetProperty("etapas", out var etapas) || etapas.ValueKind != JsonValueKind.Object) return null;
+                var lista = new List<EtapaGemini>();
+                foreach (var etapa in etapas.EnumerateObject())
+                {
+                    if (!etapa.Value.TryGetProperty("modelo", out var m) || m.GetString() is not { } modelo
+                        || !etapa.Value.TryGetProperty("nivel", out var n) || n.GetString() is not { } nivel
+                        || !eq.TryGetProperty(nivel, out var e) || e.GetString() is not { } esforco) return null;
+                    lista.Add(new EtapaGemini(etapa.Name, modelo, esforco));
+                }
+                saida[perfil.Name] = lista;
+            }
+            return saida;
+        }
+        catch (Exception e) when (e is JsonException or InvalidOperationException or KeyNotFoundException) { return null; }
     }
 }
 

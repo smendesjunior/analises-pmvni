@@ -59,6 +59,10 @@ public sealed record Pecas(
     /// <summary>O <c>references\etapas.json</c> do plugin analise instalado (a sequência das etapas que o kit define, <see cref="OrdemDasEtapas"/>); null no kit 3.x ou se não achado.</summary>
     public string? EtapasJson { get; init; }
 
+    /// <summary>A tabela de modelos do plugin analise instalado (<c>skills\analise\references\modelos-por-rota.json</c>, Tarefa 19): o padrão do kit
+    /// que a aba "Modelos da análise" mostra e ajusta; null antes do kit com a tabela ou se não achada.</summary>
+    public string? ModelosPorRota { get; init; }
+
     /// <summary>O controlador do kit que o provedor usa: análise pro (Claude) ou análise Google (Gemini); null para o ChatGPT ou se não instalado.</summary>
     public string? RuntimeDoKit(Provedor p) => p switch { Provedor.Claude => ProRuntime, Provedor.Gemini => GoogleRuntime, _ => null };
 }
@@ -104,6 +108,7 @@ public static class Localizacao
         {
             Agy = AcharAgy(o), GoogleRuntime = googleRuntime, VersaoAnaliseGoogle = versaoPlugin, VersaoAnaliseGoogleKit = versaoKit,
             CodexHome = o.CodexHome, Analise62 = analise62, EtapasJson = ArquivoEtapas(pastaAnalise),
+            ModelosPorRota = ArquivoDasReferencias(pastaAnalise, TabelaDeModelos.NomeNoKit),
         };
     }
 
@@ -125,10 +130,13 @@ public static class Localizacao
     }
 
     /// <summary>O <c>etapas.json</c> do plugin analise (<c>skills/analise/references/etapas.json</c>); null se não existir.</summary>
-    static string? ArquivoEtapas(string? pastaPlugin)
+    static string? ArquivoEtapas(string? pastaPlugin) => ArquivoDasReferencias(pastaPlugin, "etapas.json");
+
+    /// <summary>Um arquivo de <c>skills/analise/references</c> do plugin analise; null se não existir.</summary>
+    static string? ArquivoDasReferencias(string? pastaPlugin, string nome)
     {
         if (pastaPlugin is null) return null;
-        var arquivo = Path.Combine(pastaPlugin, "skills", PluginsInstalados.Analise, "references", "etapas.json");
+        var arquivo = Path.Combine(pastaPlugin, "skills", PluginsInstalados.Analise, "references", nome);
         return File.Exists(arquivo) ? arquivo : null;
     }
 
