@@ -349,6 +349,18 @@ Executar depois da T18 e antes da T3/T4/T6. Pedido do usuário: com mudanças t�
 **Restrições que a proposta não pode quebrar:** 28 seções; auditoria técnica independente sobre os originais (feita por sessão diferente da que analisou); nenhuma conclusão sem evidência; critério de vãos janela + porta; revisão do PDF final antes da entrega; correção de mérito sempre volta à análise com reauditoria.
 **Entrega 2 (código):** o controlador decide pelo arquivo de etapas (`references/etapas.json`, lido pelas três rotas e pela tabela de modelos da T19); implementar a sequência aprovada pelo controlador (ruling no livro de controle), com testes de ordem, retomada e reauditoria.
 
+### Task 21: Cartão "Plugins e ferramentas" em Ajustes, com atualização individual
+
+Pedido do usuário. **Files (Editor):** `PaginaAjustes.xaml`, `MainWindow.Ajustes.cs`, lógica testável em `Pmvni.App/Logica/ComponentesDoKit.cs`; reaproveitar `InstalacaoMotorPdf`, `configurar-plugins.ps1` e a tarefa "PMVNI\Atualizar kit".
+
+- Lista cada componente: `analise` (motor único), `despacho`, servidor `pmvni-pdf` e os quatro motores de PDF (PyMuPDF, Docling, Blueprint, FYP), registro no Codex e no Claude. Para cada um: versão instalada, versão disponível na fonte do kit (`fonte` de `pmvni-kit.json`; no PC do kit mestre, o próprio kit), situação (em dia / atualização disponível / ausente / com erro) e botão "Atualizar" individual. Botão "Verificar atualizações" e "Atualizar todos".
+- Atualização individual e geral rodam fora do pacote (`.cmd` + `explorer.exe`), com o mesmo bloqueio da T5/T16 quando há análise em andamento.
+- "Manter sempre atualizado": a tarefa "PMVNI\Atualizar kit" continua fazendo a atualização automática; o cartão mostra a última verificação e o último resultado dela.
+- [ ] Teste: versão instalada menor que a disponível → "atualização disponível"; igual → "em dia"; ausente → "ausente".
+- [ ] Teste: "Atualizar" de um componente gera o `.cmd` só daquele componente (lançador injetado); com análise em andamento, nada é iniciado.
+- [ ] Teste: fonte inacessível (fora da rede) → "não foi possível verificar", sem erro.
+- [ ] Commit.
+
 ## Parte D — Fechamento
 
 ### Task 17: Medição antes e depois, versões e entrega
