@@ -76,9 +76,9 @@ public static class Diagnostico
     /// <param name="perfilGemini">Gemini, modo chave: o perfil de API escolhido (null = ainda não escolhido).</param>
     /// <param name="chaveGemini">Gemini, modo chave: a chave lida do cofre por quem chama, só para a conferência na API do Google; nunca é mostrada.</param>
     public static async Task<SituacaoProvedor> TestarAsync(Provedor p, Pecas pecas, ModoAcesso modo, bool chaveGuardada, CancellationToken ct,
-        PerfilGemini? perfilGemini = null, string? chaveGemini = null)
+        PerfilGemini? perfilGemini = null, string? chaveGemini = null, Func<PerfilGemini, IReadOnlyList<EtapaGemini>?>? etapasGemini = null)
     {
-        if (p == Provedor.Gemini) return await DiagnosticoGemini.TestarAsync(pecas, modo, perfilGemini, modo == ModoAcesso.Chave ? chaveGemini : null, ct);
+        if (p == Provedor.Gemini) return await DiagnosticoGemini.TestarAsync(pecas, modo, perfilGemini, modo == ModoAcesso.Chave ? chaveGemini : null, ct, etapasGemini);
         var avisos = new List<string>();
         var linha = p == Provedor.ChatGpt ? await ChatGptAsync(pecas, ct) : await ClaudeAsync(pecas, avisos, ct);
         if (modo == ModoAcesso.Chave && chaveGuardada)

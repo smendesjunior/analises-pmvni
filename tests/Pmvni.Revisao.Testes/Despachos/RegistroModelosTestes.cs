@@ -17,7 +17,13 @@ public sealed class RegistroModelosTestes
         // Falha de propósito se o kit mudar: rever o desenho §10.1 antes de ajustar o teste.
         Assert.Equal("856dcf9ee49da68f5a7ea440bda43dc5a6f5ab06453c501b94b9a222f4039d61", r.Modelos[0].Sha256);
         Assert.Equal("f5598577e2954726e3a2ce99d06fc728e6447dc461101e6c2df2280d82e152b7", r.Modelos[1].Sha256);
-        Assert.Equal("02 - MODELOS DE DOCUMENTOS/DESPACHO/MODELO DESPACHO CORREÇÃO.docx", r.Modelos[0].CaminhoRelativo);
+        // O caminho depende da fonte usada: o registro 02 - MODELOS DE DOCUMENTOS do kit (kit mestre de hoje) ou o references\despacho do analise (Tarefa 22,
+        // kit de desenvolvimento); o conteúdo (sha256 e revisão) é o mesmo.
+        Assert.NotNull(r.Fonte);
+        var doRegistroDoKit = string.Equals(Path.GetFullPath(r.Fonte!.Registro), Path.GetFullPath(FontesModelos.DoRegistroDoKit(Ambiente.ExigirKit()).Registro),
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(doRegistroDoKit ? "02 - MODELOS DE DOCUMENTOS/DESPACHO/MODELO DESPACHO CORREÇÃO.docx" : "modelos/MODELO DESPACHO CORREÇÃO.docx",
+            r.Modelos[0].CaminhoRelativo);
         Assert.True(File.Exists(r.Modelos[0].Caminho));
         Assert.Equal(64, r.Modelos[0].Sha256Registro.Length);
         Assert.Equal("Correção", RegistroModelos.Rotulo(TipoDespacho.Correcao));
@@ -135,7 +141,12 @@ public sealed class RegistroModelosTestes
     public void ler_nao_grava_nada_no_kit()
     {
         var kit = Ambiente.ExigirKit();
-        var pastas = new[] { Path.Combine(kit, "02 - MODELOS DE DOCUMENTOS"), Path.Combine(kit, TextosFixos.PastaReferencias) };
+        // As pastas de todas as fontes do kit que existem nele (o registro 02 - MODELOS DE DOCUMENTOS e os textos do kit antigo, ou o references\despacho do
+        // analise do kit de desenvolvimento).
+        var pastas = new[] { Path.Combine(kit, "02 - MODELOS DE DOCUMENTOS"), Path.Combine(kit, TextosFixos.PastaReferencias) }
+            .Concat(FontesModelos.DaPastaDoKit(kit).SelectMany(f => new[] { f.PastaTextos, Path.GetDirectoryName(f.Registro)! }))
+            .Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).Where(Directory.Exists).ToList();
+        Assert.NotEmpty(pastas);
         static List<(string, long, DateTime)> Retrato(string p) =>
             Directory.GetFileSystemEntries(p, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
                 .Select(f => (f, File.Exists(f) ? new FileInfo(f).Length : -1, File.GetLastWriteTimeUtc(f))).ToList();

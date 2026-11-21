@@ -30,12 +30,14 @@ public class ModelosDaAnaliseTestes
     static ListaDaRota Lista(params ModeloIa[] modelos) => new(modelos, Conferida: true, "do app (teste)");
 
     /// <summary>As listas que "o provedor devolve": Codex com os GPT do kit, Claude com Opus/Sonnet.</summary>
-    static Func<string, ListaDaRota?> Listas(ListaDaRota? codex = null, ListaDaRota? claude = null) => rota => rota switch
+    static Func<ColunaModelos, ListaDaRota?> Listas(ListaDaRota? codex = null, ListaDaRota? claude = null, ListaDaRota? gemini = null) => c => c.Rota switch
     {
         "codex" => codex ?? Lista(M("gpt-6.2-sol"), M("gpt-6.2-astra")),
         "claude" => claude ?? Lista(M("claude-opus-5-5"), M("claude-sonnet-5-5")),
-        _ => null,
+        _ => gemini,
     };
+
+    static ListaDaRota ListaDe(TabelaModelosKit k, string rota, string perfil = "padrao") => Listas()(Coluna(k, rota, perfil))!;
 
     static JsonObject CelulaJson(JsonObject t, string rota, string perfil, string etapa) => t["rotas"]![rota]!["perfis"]![perfil]!["etapas"]![etapa]!.AsObject();
 
@@ -162,7 +164,7 @@ public class ModelosDaAnaliseTestes
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
         var a = new AjusteModelos();
         Assert.Empty(ModelosDaAnalise.AvisosDaAba(k, a, etapas, Listas()));
-        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), etapas.Single(e => e.Id == "technical_audit"), "gpt-6.2-astra", "baixo", Listas()("codex")!));
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), etapas.Single(e => e.Id == "technical_audit"), "gpt-6.2-astra", "baixo", ListaDe(k, "codex")));
         var aviso = Assert.Single(ModelosDaAnalise.AvisosDaAba(k, a, etapas, Listas()));
         Assert.Equal("ChatGPT, Auditoria técnica: nível baixo numa etapa técnica (que decide mérito). É permitido, mas o recomendado é médio ou alto.", aviso.Texto);
     }
@@ -174,7 +176,7 @@ public class ModelosDaAnaliseTestes
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
         var a = new AjusteModelos();
         var analyze = etapas.Single(e => e.Id == "analyze");
-        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), analyze, "gpt-6.2-sol", "medio", Listas()("codex")!));
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), analyze, "gpt-6.2-sol", "medio", ListaDe(k, "codex")));
         ModelosDaAnalise.Ligar(a, etapas.Single(e => e.Id == "audit"), "claude", false);
         using var pasta = new PastaTemporaria();
         // O ajuste local fica em %APPDATA%\EditorRelatoriosPMVNI\modelos-por-rota.local.json (aqui, a pasta de dados do teste) e volta igual.
@@ -201,42 +203,180 @@ public class ModelosDaAnaliseTestes
         Assert.Equal("True", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('claude'))"));
     }
 
+    /// <summary>Um kit mestre fictício (nunca o de verdade): a tabela atual do kit mestre, o instalador e a pasta dos scripts.</summary>
+    static (string Mestre, string Destino, string Scripts) KitMestreFicticio(PastaTemporaria pasta, string tabela)
+    {
+        var mestre = Path.Combine(pasta.Caminho, "KIT MESTRE FICTICIO");
+        var destino = ModelosDaAnalise.ArquivoNoKit(mestre);
+        Directory.CreateDirectory(Path.GetDirectoryName(destino)!);
+        File.WriteAllText(destino, tabela, new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(mestre, ComponentesDoKit.InstaladorDoKit), "@echo off\r\n");
+        return (mestre, destino, Path.Combine(pasta.Caminho, "scripts"));
+    }
+
+    /// <summary>A conferência do próprio kit (o modelos_por_rota.py do kit de PMVNI_KIT_RAIZ), pelo Python do computador.</summary>
+    static string? ConferirNoKit(string arquivo) => ModelosDaAnalise.ConferirComOKit("python", [], ScriptsDoKit, arquivo);
+
     [Fact]
-    public void publicar_grava_no_kit_mestre_e_dispara_o_manter_pelo_cmd()
+    public void publicar_parte_do_kit_mestre_confere_pelo_kit_grava_e_dispara_o_manter()
     {
         var k = Kit();
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
         var a = new AjusteModelos { SobePorObjecao = false };
-        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "claude"), etapas.Single(e => e.Id == "produce"), "claude-sonnet-5-5", "medio", Listas()("claude")!));
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "claude"), etapas.Single(e => e.Id == "produce"), "claude-sonnet-5-5", "medio", ListaDe(k, "claude")));
+        // Um modelo Gemini que o provedor oferece e a tabela ainda não conhece: publicado, entra em rotas.gemini.modelos.
+        var gemini = new ListaDaRota([M("gemini-3.8-flash"), M("gemini-5-nova", "high")], Conferida: true, "do Gemini (agy models)");
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "gemini", "conta_ultra"), etapas.Single(e => e.Id == "analyze"), "gemini-5-nova", "alto", gemini));
         using var pasta = new PastaTemporaria();
-        // Um kit mestre fictício (nunca o de verdade): a tabela no lugar do plugin e o instalador.
-        var mestre = Path.Combine(pasta.Caminho, "KIT MESTRE FICTICIO");
-        var destino = ModelosDaAnalise.ArquivoNoKit(mestre);
-        Directory.CreateDirectory(Path.GetDirectoryName(destino)!);
-        File.WriteAllText(destino, TabelaDoKit(), new UTF8Encoding(false));
-        File.WriteAllText(Path.Combine(mestre, ComponentesDoKit.InstaladorDoKit), "@echo off\r\n");
-        var scripts = Path.Combine(pasta.Caminho, "scripts");
+        // O kit mestre tem uma edição que ainda não foi instalada (o motivo do preparo no ChatGPT): ela tem de ficar.
+        var editada = JsonNode.Parse(TabelaDoKit())!.AsObject();
+        editada["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!["prepare"]!["motivo"] = "edição do kit mestre ainda não instalada";
+        var (mestre, destino, scripts) = KitMestreFicticio(pasta, editada.ToJsonString());
         var lancados = new List<(string Exe, string Arquivo)>();
+        var conferidos = new List<string>();
 
-        var texto = ModelosDaAnalise.Publicar(mestre, k, a, [], scripts, (exe, arq) => lancados.Add((exe, arq)));
+        var r = ModelosDaAnalise.Publicar(mestre, a, etapas, Listas(gemini: gemini), [], scripts,
+            arq => { conferidos.Add(arq); return ConferirNoKit(arq); }, (exe, arq) => lancados.Add((exe, arq)));
 
-        Assert.StartsWith("Tabela publicada no kit mestre", texto);
-        var publicada = ModelosDaAnalise.LerTabela(File.ReadAllText(destino, Encoding.UTF8))!;
+        Assert.True(r.Publicada, r.Texto);
+        Assert.StartsWith("Tabela publicada no kit mestre", r.Texto);
+        Assert.Equal(destino + ".tmp", Assert.Single(conferidos));
+        var texto = File.ReadAllText(destino, Encoding.UTF8);
+        Assert.Null(ConferirNoKit(destino));                                    // o kit aceita a tabela publicada
+        var publicada = ModelosDaAnalise.LerTabela(texto)!;
         Assert.Equal(new CelulaModelos("claude-sonnet-5-5", "medio"), publicada.Celula(Coluna(publicada, "claude"), "produce"));
         Assert.Equal(k.Celula(Coluna(k, "claude"), "analyze"), publicada.Celula(Coluna(publicada, "claude"), "analyze"));
+        Assert.Equal(new CelulaModelos("gemini-5-nova", "alto"), publicada.Celula(Coluna(publicada, "gemini", "conta_ultra"), "analyze"));
+        Assert.Equal(["alto"], publicada.ModelosGemini["gemini-5-nova"]);
         Assert.False(publicada.SobePorObjecao);
-        Assert.DoesNotContain("\r\n", File.ReadAllText(destino, Encoding.UTF8));   // LF, como o arquivo do kit
+        Assert.Equal("edição do kit mestre ainda não instalada", JsonNode.Parse(texto)!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!["prepare"]!["motivo"]!.GetValue<string>());
+        Assert.DoesNotContain("\r\n", texto);   // LF, como o arquivo do kit
         var (exe, cmd) = Assert.Single(lancados);
         Assert.EndsWith("explorer.exe", exe, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(Path.Combine(scripts, ModelosDaAnalise.CmdPublicar), cmd);
         Assert.Contains("call \"" + Path.Combine(mestre, ComponentesDoKit.InstaladorDoKit) + "\" manter", File.ReadAllText(cmd));
 
+        // Depois de publicar, o ajuste local pode ser limpo: fica só o liga/desliga da audit (que não se publica).
+        ModelosDaAnalise.Ligar(a, etapas.Single(e => e.Id == "audit"), "gemini", false);
+        var limpo = ModelosDaAnalise.SemOPublicado(a);
+        Assert.Empty(limpo.Celulas);
+        Assert.Null(limpo.SobePorObjecao);
+        Assert.False(ModelosDaAnalise.Ligada(limpo, etapas.Single(e => e.Id == "audit"), "gemini"));
+
         // Fora do computador do kit mestre, com análise em andamento ou com kit sem a tabela: nada é gravado nem aberto.
         lancados.Clear();
-        Assert.Contains("não tem o kit mestre", ModelosDaAnalise.Publicar(null, k, a, [], scripts, (e, f) => lancados.Add((e, f))));
-        Assert.Contains("andamento", ModelosDaAnalise.Publicar(mestre, k, a, ["P-1"], scripts, (e, f) => lancados.Add((e, f))));
-        Assert.Contains("ainda não tem a tabela", ModelosDaAnalise.Publicar(Path.Combine(pasta.Caminho, "outro"), k, a, [], scripts, (e, f) => lancados.Add((e, f))));
+        string? Nunca(string _) => throw new InvalidOperationException("não devia conferir");
+        Assert.Contains("não tem o kit mestre", ModelosDaAnalise.Publicar(null, a, etapas, Listas(), [], scripts, Nunca, (e, f) => lancados.Add((e, f))).Texto);
+        Assert.Contains("andamento", ModelosDaAnalise.Publicar(mestre, a, etapas, Listas(), ["P-1"], scripts, Nunca, (e, f) => lancados.Add((e, f))).Texto);
+        Assert.Contains("ainda não tem a tabela", ModelosDaAnalise.Publicar(Path.Combine(pasta.Caminho, "outro"), a, etapas, Listas(), [], scripts, Nunca, (e, f) => lancados.Add((e, f))).Texto);
         Assert.Empty(lancados);
+    }
+
+    [Fact]
+    public void publicar_recusa_ajuste_antigo_invalido_e_tabela_que_o_kit_recusa_sem_mudar_o_kit_mestre()
+    {
+        var k = Kit();
+        var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
+        using var pasta = new PastaTemporaria();
+        var (mestre, destino, scripts) = KitMestreFicticio(pasta, TabelaDoKit());
+        var antes = File.ReadAllText(destino, Encoding.UTF8);
+        var lancados = new List<(string Exe, string Arquivo)>();
+
+        // Um ajuste antigo, gravado quando o provedor ainda oferecia o modelo (o arquivo local é lido como está).
+        var antigo = ModelosDaAnalise.LerAjuste("""{"versao":1,"rotas":{"codex":{"perfis":{"padrao":{"etapas":{"analyze":{"modelo":"gpt-5-aposentado","nivel":"alto"}}}}},"gemini":{"perfis":{"perfil_que_saiu":{"etapas":{"analyze":{"modelo":"gemini-3.8-flash","nivel":"alto"}}}}}}}""");
+        var r = ModelosDaAnalise.Publicar(mestre, antigo, etapas, Listas(), [], scripts, ConferirNoKit, (e, f) => lancados.Add((e, f)));
+        Assert.False(r.Publicada);
+        Assert.Contains("gpt-5-aposentado não aparece mais na lista", r.Texto);
+        Assert.Contains("perfil_que_saiu", r.Texto);
+        Assert.Equal(antes, File.ReadAllText(destino, Encoding.UTF8));
+
+        // A tabela final que a conferência do próprio kit recusa (aqui, o kit mestre tem um erro): nada é trocado.
+        var quebrada = JsonNode.Parse(TabelaDoKit())!.AsObject();
+        quebrada["etapas_tecnicas"] = "analyze";
+        File.WriteAllText(destino, quebrada.ToJsonString(), new UTF8Encoding(false));
+        antes = File.ReadAllText(destino, Encoding.UTF8);
+        var a = new AjusteModelos();
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), etapas.Single(e => e.Id == "audit"), "gpt-6.2-astra", "medio", ListaDe(k, "codex")));
+        r = ModelosDaAnalise.Publicar(mestre, a, etapas, Listas(), [], scripts, ConferirNoKit, (e, f) => lancados.Add((e, f)));
+        Assert.False(r.Publicada);
+        Assert.Contains("a conferência do kit recusou a tabela (etapas_tecnicas deve ser uma lista", r.Texto);
+        Assert.Equal(antes, File.ReadAllText(destino, Encoding.UTF8));
+        Assert.False(File.Exists(destino + ".tmp"));
+        Assert.Empty(lancados);
+    }
+
+    [Fact]
+    public void lista_do_gemini_vem_do_provedor_pela_rota_do_kit()
+    {
+        var k = Kit();
+        var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
+        // A saída do google_runtime.py modelos (agy models): um modelo novo e um nível que a tabela ainda não conhece.
+        var lida = ModelosDaAnalise.LerListaGemini("""{"ok":true,"modo":"conta","perfil":"conta_ultra","fonte":"agy models (Antigravity)","lista_do_provedor":true,"modelos":[{"modelo":"gemini-3.8-flash","niveis":["baixo","medio"]},{"modelo":"gemini-5-nova","niveis":["alto"]}]}""", k)!;
+        Assert.True(lida.Conferida);
+        Assert.Equal("do Gemini (agy models (Antigravity))", lida.Fonte);
+        var col = Coluna(k, "gemini", "conta_ultra");
+        var analyze = etapas.Single(e => e.Id == "analyze");
+        var padrao = k.Celula(col, "analyze")!;
+        Assert.Contains(ModelosDaAnalise.OpcoesDeModelo(lida, padrao, null), o => o.Id == "gemini-5-nova");
+        Assert.Equal(["alto"], ModelosDaAnalise.NiveisDoModelo(k, lida, "gemini-5-nova"));
+        var a = new AjusteModelos();
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, col, analyze, "gemini-5-nova", "alto", lida));
+        Assert.Contains("não está na lista", ModelosDaAnalise.Ajustar(a, k, col, analyze, "gemini-9-ultra", "alto", lida));
+        Assert.Equal("api", ModelosDaAnalise.GrupoGemini("api_gratuita"));
+        Assert.Equal("web", ModelosDaAnalise.GrupoGemini("conta_gemini"));
+
+        // O modelo sai da lista do provedor: a etapa usa o padrão do kit, com aviso só da rota Gemini no arquivo da execução.
+        var semNova = ModelosDaAnalise.LerListaGemini("""{"lista_do_provedor":true,"fonte":"agy models (Antigravity)","modelos":[{"modelo":"gemini-3.8-flash","niveis":["baixo","medio"]}]}""", k)!;
+        // A lista do agy vale para o perfil da Conta Antigravity (os outros perfis Gemini têm a lista deles).
+        Func<ColunaModelos, ListaDaRota?> SoAntigravity(ListaDaRota l) => c => c.Rota == "gemini" ? (c.Perfil == "conta_ultra" ? l : null) : Listas()(c);
+        var t = ModelosDaAnalise.Efetiva(k, a, etapas, SoAntigravity(semNova));
+        Assert.Equal(padrao.Modelo, CelulaJson(t.Json, "gemini", "conta_ultra", "analyze")["modelo"]!.GetValue<string>());
+        var execucao = t.ParaExecucao("gemini");
+        Assert.Contains("gemini-5-nova não aparece mais na lista do Gemini", Assert.Single(execucao.Avisos));
+        Assert.Single(JsonNode.Parse(execucao.Json)!["avisos"]!.AsArray());
+        Assert.Empty(JsonNode.Parse(t.ParaExecucao("codex").Json)!["avisos"]!.AsArray());   // o arquivo da rota ChatGPT não leva aviso do Gemini
+        // As etapas Gemini efetivas do perfil, para o "Testar" do cartão Gemini.
+        Assert.Contains(ModelosDaAnalise.EtapasGemini(ModelosDaAnalise.Efetiva(k, a, etapas, SoAntigravity(lida)), k, "conta_ultra"),
+            e => e == new EtapaGemini("analyze", "gemini-5-nova", "high"));
+        // Gemini Web: sem lista do provedor, os modelos da tabela (só esses valem) e a fonte diz isso.
+        var web = ModelosDaAnalise.LerListaGemini("""{"lista_do_provedor":false,"modelos":[{"modelo":"gemini-4-hydrogen","niveis":["medio","alto"]}]}""", k)!;
+        Assert.Contains("não lista modelos", web.Fonte);
+        Assert.Contains("não lista modelos", ModelosDaAnalise.ListaGemini(k).Fonte);
+        Assert.Null(ModelosDaAnalise.LerListaGemini("{ não é json", k));
+    }
+
+    [Fact]
+    public async Task lista_de_modelos_pela_rota_gemini_do_kit()
+    {
+        // A rota Gemini do kit de verdade (google_runtime.py modelos), com o agy falso do kit no lugar do agy: o Editor recebe a lista do provedor, sem chave.
+        var scripts = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise", "skills", "analise", "scripts");
+        var runtime = Path.Combine(scripts, "rotas", "gemini", "google_runtime.py");
+        var agyFalso = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise", "tests", "rotas", "gemini", "agy_falso.py");
+        if (!File.Exists(runtime) || !File.Exists(agyFalso)) Assert.Fail("Rota gemini do kit ausente: " + runtime + " (defina PMVNI_KIT_RAIZ com o kit de desenvolvimento)");
+        using var pasta = new PastaTemporaria();
+        var pecas = new Pecas(null, null, "python", false, null, null, null, false, null, true) { GoogleRuntime = runtime };
+        var extra = new Dictionary<string, string> { ["PMVNI_AGY_EXE"] = agyFalso, ["AGY_FALSO_MODELOS"] = "gemini-3.8-flash-low,gemini-5-nova-high", ["PYTHONDONTWRITEBYTECODE"] = "1" };
+        var (json, falha) = await ModelosDoGemini.LerAsync(pecas, PerfilGemini.ContaUltra, null, pasta.Caminho, CancellationToken.None, extra);
+        Assert.True(json is not null, falha);
+        var o = JsonNode.Parse(json!)!.AsObject();
+        Assert.True(o["lista_do_provedor"]!.GetValue<bool>());
+        Assert.Equal(["gemini-3.8-flash", "gemini-5-nova"], o["modelos"]!.AsArray().Select(m => m!["modelo"]!.GetValue<string>()));
+        // Gemini Web: sem catálogo, os modelos da tabela.
+        var (web, _) = await ModelosDoGemini.LerAsync(pecas, PerfilGemini.ContaGemini, null, pasta.Caminho, CancellationToken.None, extra);
+        Assert.False(JsonNode.Parse(web!)!["lista_do_provedor"]!.GetValue<bool>());
+        // Sem a rota Gemini no kit: o motivo, nada roda.
+        Assert.NotNull((await ModelosDoGemini.LerAsync(pecas with { GoogleRuntime = null }, PerfilGemini.ContaUltra, null, pasta.Caminho, CancellationToken.None)).Falha);
+        // A lista lida vira as opções da coluna do Gemini (Conta Antigravity), com o modelo novo do provedor.
+        var lista = ModelosDaAnalise.LerListaGemini(json, Kit())!;
+        Assert.True(lista.Conferida);
+        Assert.Equal(["high"], lista.Modelos.Single(m => m.Id == "gemini-5-nova").Niveis);
+    }
+
+    [Fact]
+    public void regra_de_objecao_diz_as_rotas_em_que_vale()
+    {
+        var k = Kit();
+        Assert.Equal(["codex"], k.RotasQueSobem);   // claude e gemini: exceções do kit
     }
 
     [Fact]

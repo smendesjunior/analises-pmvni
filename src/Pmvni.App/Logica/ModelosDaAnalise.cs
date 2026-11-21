@@ -39,6 +39,11 @@ public sealed class TabelaModelosKit
     public required double? DescePorCota { get; init; }
     /// <summary>A nota da exceção de cada rota (texto do kit), para a tela.</summary>
     public required IReadOnlyDictionary<string, string> NotasDasRotas { get; init; }
+    /// <summary>A exceção de <c>sobe_por_objecao_tecnica</c> de cada rota no kit (a rota que não está aqui segue a regra geral).</summary>
+    public IReadOnlyDictionary<string, bool> SobePorRota { get; init; } = new Dictionary<string, bool>();
+
+    /// <summary>As rotas em que a regra geral "objeção técnica sobe um nível" vale (as exceções do kit ficam de fora).</summary>
+    public IReadOnlyList<string> RotasQueSobem => ModelosDaAnalise.Rotas.Where(r => !SobePorRota.TryGetValue(r, out var v) || v).ToList();
 
     public CelulaModelos? Celula(ColunaModelos c, string etapa) => Celulas.TryGetValue((c.Rota, c.Perfil, etapa), out var x) ? x : null;
 }
@@ -63,15 +68,22 @@ public sealed record AvisoModelos(string Rota, string Texto);
 /// <summary>A tabela que vai para o controlador nesta execução e os avisos (modelo trocado pelo padrão do kit, que ficam no histórico).</summary>
 public sealed record TabelaEfetiva(JsonObject Json, IReadOnlyList<AvisoModelos> Avisos)
 {
-    public TabelaDeModelos ParaExecucao(string rota) =>
-        new(Json.ToJsonString(ModelosDaAnalise.Opcoes), Avisos.Where(a => a.Rota == rota).Select(a => a.Texto).ToList());
+    /// <summary>A tabela desta execução: o arquivo e o histórico levam só os avisos da rota que roda.</summary>
+    public TabelaDeModelos ParaExecucao(string rota)
+    {
+        var avisos = Avisos.Where(a => a.Rota == rota).Select(a => a.Texto).ToList();
+        var json = (JsonObject)Json.DeepClone();
+        json["avisos"] = new JsonArray(avisos.Select(a => (JsonNode?)JsonValue.Create(a)).ToArray());
+        return new(json.ToJsonString(ModelosDaAnalise.Opcoes), avisos);
+    }
 }
 
 /// <summary>Tarefa 19: Ajustes › Inteligência artificial › Modelos da análise. O padrão vem do kit instalado (igual em todos os computadores); o ajuste
 /// local opcional fica em <see cref="ArquivoLocal"/> (o Editor não é MSIX: grava direto em %APPDATA%). Antes de cada análise, <see cref="Efetiva"/> monta a
 /// tabela que vai ao controlador: uma célula ajustada cujo modelo deixou de aparecer na lista do provedor usa o padrão do kit, com aviso (na aba, no Novo
 /// relatório e no histórico da execução). As opções vêm das listas que o Editor já atualiza por provedor (<see cref="CatalogoModelosIa"/>); na rota Gemini,
-/// dos modelos que a própria tabela do kit conhece. No computador do kit mestre, <see cref="Publicar"/> grava a tabela no kit e roda o
+/// da lista que a rota Gemini do kit devolve (<see cref="LerListaGemini"/>: agy models ou a Gemini API; o Gemini Web não lista e fica com os modelos da tabela).
+/// No computador do kit mestre, <see cref="Publicar"/> grava a tabela no kit e roda o
 /// <c>INSTALAR_KIT_PMVNI.cmd manter</c> fora do Editor. Tudo aqui é testável sem WinUI.</summary>
 public static class ModelosDaAnalise
 {
@@ -125,16 +137,20 @@ public static class ModelosDaAnalise
                     gemini[m] = (info?["niveis"] as JsonArray)?.Select(Texto).OfType<string>().ToList() ?? [];
             var regras = raiz["regras"] as JsonObject;
             var notas = new Dictionary<string, string>();
+            var sobePorRota = new Dictionary<string, bool>();
             if (regras?["excecoes_por_rota"] is JsonObject exc)
                 foreach (var (rota, x) in exc)
+                {
                     if (Texto(x?["nota"]) is { } nota) notas[rota] = nota;
+                    if (x?["sobe_por_objecao_tecnica"] is JsonValue sv && sv.TryGetValue<bool>(out var sobeRota)) sobePorRota[rota] = sobeRota;
+                }
             return new TabelaModelosKit
             {
                 Bruto = raiz, Niveis = niveis, Equivalencia = eq, Colunas = colunas, Celulas = celulas, ModelosGemini = gemini,
                 EtapasTecnicas = (raiz["etapas_tecnicas"] as JsonArray)?.Select(Texto).OfType<string>().ToList() ?? ["analyze", "technical_audit"],
                 SobePorObjecao = regras?["sobe_por_objecao_tecnica"] is JsonValue s && s.TryGetValue<bool>(out var sobe) && sobe,
                 DescePorCota = regras?["desce_com_cota_abaixo_de"] is JsonValue d && d.TryGetValue<double>(out var desce) ? desce : null,
-                NotasDasRotas = notas,
+                NotasDasRotas = notas, SobePorRota = sobePorRota,
             };
         }
         catch (Exception x) when (x is JsonException or InvalidOperationException or FormatException) { return null; }
@@ -236,10 +252,48 @@ public static class ModelosDaAnalise
 
     // ---------- opções da grade ----------
 
-    /// <summary>A lista de modelos da rota Gemini: os que a tabela do kit conhece, com os níveis de cada um (a rota não usa outros).</summary>
-    public static ListaDaRota ListaGemini(TabelaModelosKit kit) =>
+    /// <summary>Os modelos que a tabela do kit conhece para a rota Gemini, com os níveis de cada um. É a lista do Gemini Web (que não lista modelos;
+    /// <paramref name="conferida"/> true: só esses valem) e a de reserva dos outros perfis enquanto o provedor não respondeu (false: nada é recusado).</summary>
+    public static ListaDaRota ListaGemini(TabelaModelosKit kit, bool conferida = true, string fonte = "da tabela do kit (o Gemini Web não lista modelos)") =>
         new(kit.ModelosGemini.Select(m => new ModeloIa(m.Key, m.Key, m.Value.Select(n => kit.Equivalencia.GetValueOrDefault(n, n)).ToList(), null)).ToList(),
-            Conferida: true, "da tabela do kit");
+            conferida, fonte);
+
+    /// <summary>A lista que a rota Gemini do kit devolveu (<c>google_runtime.py modelos</c>, <see cref="ModelosDoGemini"/>): <c>{modelos: [{modelo, niveis}],
+    /// lista_do_provedor, fonte}</c>. Lista do provedor (agy ou API): conferida — um modelo novo aparece sem nova versão do Editor ou do kit, e o que
+    /// sumiu dela é trocado pelo padrão do kit. Sem lista do provedor (Gemini Web): os modelos da tabela. null = saída ilegível ou sem modelos.</summary>
+    public static ListaDaRota? LerListaGemini(string? json, TabelaModelosKit kit)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            if (JsonNode.Parse(json) is not JsonObject o || o["modelos"] is not JsonArray modelos) return null;
+            var lista = new List<ModeloIa>();
+            foreach (var m in modelos.OfType<JsonObject>())
+            {
+                if (Texto(m["modelo"]) is not { } id || !CatalogoIa.ModeloValido(id) || lista.Any(x => x.Id == id)) continue;
+                var niveis = (m["niveis"] as JsonArray)?.Select(Texto).OfType<string>().Where(kit.Niveis.Contains)
+                    .Select(n => kit.Equivalencia.GetValueOrDefault(n, n)).ToList() ?? [];
+                lista.Add(new ModeloIa(id, id, niveis, null));
+            }
+            if (lista.Count == 0) return null;
+            var doProvedor = o["lista_do_provedor"] is JsonValue v && v.TryGetValue<bool>(out var b) && b;
+            return new ListaDaRota(lista, Conferida: true, doProvedor ? "do Gemini (" + (Texto(o["fonte"]) ?? "provedor") + ")" : "da tabela do kit (o Gemini Web não lista modelos)");
+        }
+        catch (JsonException) { return null; }
+    }
+
+    /// <summary>As etapas Gemini da tabela efetiva de um perfil (modelo e esforço do runtime: <c>low</c>, <c>medium</c>, <c>high</c>), para o "Testar" do cartão
+    /// Gemini conferir o que a análise vai pedir. Perfil fora da tabela: lista vazia.</summary>
+    public static IReadOnlyList<EtapaGemini> EtapasGemini(TabelaEfetiva t, TabelaModelosKit kit, string perfil)
+    {
+        if (t.Json["rotas"]?["gemini"]?["perfis"]?[perfil]?["etapas"] is not JsonObject etapas) return [];
+        return etapas.Select(e => (e.Key, Modelo: Texto(e.Value?["modelo"]), Nivel: Texto(e.Value?["nivel"])))
+            .Where(e => e.Modelo is not null && e.Nivel is not null)
+            .Select(e => new EtapaGemini(e.Key, e.Modelo!, kit.Equivalencia.GetValueOrDefault(e.Nivel!, e.Nivel!))).ToList();
+    }
+
+    /// <summary>O grupo de lista de um perfil Gemini: a Conta Antigravity (agy), a chave (as duas APIs usam a mesma lista) ou o Gemini Web (sem lista).</summary>
+    public static string GrupoGemini(string perfil) => perfil switch { "conta_ultra" => "conta", "conta_gemini" => "web", _ => "api" };
 
     /// <summary>Os modelos da caixa de uma célula: todos os da lista do provedor (um modelo novo aparece sem nova versão do Editor ou do kit), mais o
     /// escolhido e o padrão do kit quando não estão nela (marcados).</summary>
@@ -272,7 +326,7 @@ public static class ModelosDaAnalise
         modelo = (modelo ?? "").Trim();
         if (!CatalogoIa.ModeloValido(modelo)) return "Modelo inválido: " + modelo + ".";
         var naLista = lista.Modelos.Any(m => m.Id == modelo);
-        if (!naLista && modelo != padrao.Modelo && (lista.Conferida || coluna.Rota == "gemini"))
+        if (!naLista && modelo != padrao.Modelo && lista.Conferida)
             return $"O modelo {modelo} não está na lista {lista.Fonte} ({coluna.Titulo}). Atualize a lista ou escolha um modelo oferecido.";
         if (!kit.Niveis.Contains(nivel)) return "Nível inválido: " + nivel + ".";
         if (!NiveisDoModelo(kit, lista, modelo).Contains(nivel))
@@ -306,13 +360,13 @@ public static class ModelosDaAnalise
     /// <summary>A tabela que vai ao controlador e os avisos. Uma célula do ajuste cujo modelo não está mais na lista conferida do provedor usa o padrão do
     /// kit (aviso "trocado"); o padrão do kit que também não está na lista só gera aviso (o kit tenta e, se o provedor recusar, a etapa para sem trocar de
     /// modelo). As células de etapas de programa não entram. Todas as rotas vão no arquivo; os avisos dizem a rota.</summary>
-    public static TabelaEfetiva Efetiva(TabelaModelosKit kit, AjusteModelos ajuste, IReadOnlyList<EtapaModelos> etapas, Func<string, ListaDaRota?> listas)
+    public static TabelaEfetiva Efetiva(TabelaModelosKit kit, AjusteModelos ajuste, IReadOnlyList<EtapaModelos> etapas, Func<ColunaModelos, ListaDaRota?> listas)
     {
         var celulas = new Dictionary<(string, string, string), CelulaModelos>();
         var avisos = new List<AvisoModelos>();
         foreach (var col in kit.Colunas)
         {
-            var lista = col.Rota == "gemini" ? ListaGemini(kit) : listas(col.Rota);
+            var lista = listas(col);
             foreach (var etapa in etapas.Where(e => !e.Programa))
             {
                 if (kit.Celula(col, etapa.Id) is not { } padrao) continue;
@@ -341,7 +395,7 @@ public static class ModelosDaAnalise
     static bool Falta(ListaDaRota? lista, string modelo) => lista is { Conferida: true } l && l.Modelos.All(m => m.Id != modelo);
 
     /// <summary>Os avisos da aba: os da tabela efetiva (modelo que sumiu) e as etapas técnicas abaixo de médio (aviso, não bloqueio).</summary>
-    public static IReadOnlyList<AvisoModelos> AvisosDaAba(TabelaModelosKit kit, AjusteModelos ajuste, IReadOnlyList<EtapaModelos> etapas, Func<string, ListaDaRota?> listas)
+    public static IReadOnlyList<AvisoModelos> AvisosDaAba(TabelaModelosKit kit, AjusteModelos ajuste, IReadOnlyList<EtapaModelos> etapas, Func<ColunaModelos, ListaDaRota?> listas)
     {
         var efetiva = Efetiva(kit, ajuste, etapas, listas);
         var avisos = efetiva.Avisos.ToList();
@@ -370,16 +424,25 @@ public static class ModelosDaAnalise
 
     // ---------- publicar no kit mestre ----------
 
-    /// <summary>A tabela do kit com o ajuste aplicado (células e regras), no formato do <c>modelos-por-rota.json</c>: o que "Publicar" grava no kit mestre.
-    /// O ligado/desligado da audit fica no ajuste local (o padrão dele é o <c>etapas.json</c> do kit).</summary>
-    public static string TabelaParaPublicar(TabelaModelosKit kit, AjusteModelos a)
+    /// <summary>A tabela do kit mestre (<paramref name="mestre"/>, o arquivo atual dele, não a cópia instalada) com o ajuste aplicado (células e regras), no
+    /// formato do <c>modelos-por-rota.json</c>: o que "Publicar" grava. Edições do kit mestre que ainda não foram instaladas ficam. Um modelo ou nível Gemini
+    /// que o provedor oferece e a tabela ainda não conhece entra em <c>rotas.gemini.modelos</c> (a tabela do kit só aceita os que conhece). O ligado/desligado
+    /// da audit fica no ajuste local (o padrão dele é o <c>etapas.json</c> do kit).</summary>
+    public static string TabelaParaPublicar(TabelaModelosKit mestre, AjusteModelos a)
     {
-        var t = (JsonObject)kit.Bruto.DeepClone();
+        var t = (JsonObject)mestre.Bruto.DeepClone();
         foreach (var ((rota, perfil, etapa), c) in a.Celulas)
             if (t["rotas"]?[rota]?["perfis"]?[perfil]?["etapas"]?[etapa] is JsonObject cel)
             {
                 cel["modelo"] = c.Modelo;
                 cel["nivel"] = c.Nivel;
+                if (rota == "gemini" && t["rotas"]?["gemini"]?["modelos"] is JsonObject conhecidos)
+                {
+                    var info = conhecidos[c.Modelo] as JsonObject ?? (JsonObject)(conhecidos[c.Modelo] = new JsonObject { ["niveis"] = new JsonArray() })!;
+                    var niveis = info["niveis"] as JsonArray ?? (JsonArray)(info["niveis"] = new JsonArray())!;
+                    var atuais = niveis.Select(Texto).OfType<string>().Append(c.Nivel).Distinct().ToList();
+                    info["niveis"] = new JsonArray(mestre.Niveis.Where(atuais.Contains).Select(n => (JsonNode?)JsonValue.Create(n)).ToArray());
+                }
             }
         if (t["regras"] is JsonObject regras)
         {
@@ -389,34 +452,122 @@ public static class ModelosDaAnalise
         return t.ToJsonString(Opcoes) + "\n";
     }
 
+    /// <summary>Por que o ajuste não pode ser publicado sobre a tabela do kit mestre (lista vazia = pode): célula de rota, perfil ou etapa que o kit mestre
+    /// não tem; modelo que não aparece mais na lista conferida do provedor; nível que o modelo não aceita.</summary>
+    public static IReadOnlyList<string> ProblemasParaPublicar(TabelaModelosKit mestre, AjusteModelos a, IReadOnlyList<EtapaModelos> etapas, Func<ColunaModelos, ListaDaRota?> listas)
+    {
+        var problemas = new List<string>();
+        foreach (var ((rota, perfil, etapaId), c) in a.Celulas)
+        {
+            var col = mestre.Colunas.FirstOrDefault(x => x.Rota == rota && x.Perfil == perfil);
+            var nome = etapas.FirstOrDefault(e => e.Id == etapaId)?.Nome ?? etapaId;
+            if (col is null || mestre.Celula(col, etapaId) is null)
+            {
+                problemas.Add($"a tabela do kit mestre não tem {nome} em {rota}/{perfil}");
+                continue;
+            }
+            if (etapas.FirstOrDefault(e => e.Id == etapaId) is { Programa: true }) { problemas.Add($"{col.Titulo}, {nome}: a etapa roda por programa, sem modelo"); continue; }
+            if (!CatalogoIa.ModeloValido(c.Modelo) || !mestre.Niveis.Contains(c.Nivel)) { problemas.Add($"{col.Titulo}, {nome}: modelo ou nível inválido ({c.Modelo}, {c.Nivel})"); continue; }
+            var lista = listas(col);
+            if (Falta(lista, c.Modelo)) problemas.Add($"{col.Titulo}, {nome}: o modelo {c.Modelo} não aparece mais na lista {lista!.Fonte}");
+            else if (lista is not null && !NiveisDoModelo(mestre, lista, c.Modelo).Contains(c.Nivel))
+                problemas.Add($"{col.Titulo}, {nome}: o modelo {c.Modelo} não aceita o nível {NomeDoNivel(c.Nivel).ToLowerInvariant()}");
+        }
+        return problemas;
+    }
+
+    /// <summary>O ajuste depois de publicado: sem as células e as regras (agora são o padrão do kit mestre); fica só o liga/desliga da audit, que não se
+    /// publica. Assim o ajuste antigo não esconde um padrão novo que vier depois.</summary>
+    public static AjusteModelos SemOPublicado(AjusteModelos a)
+    {
+        var novo = new AjusteModelos();
+        foreach (var (k, v) in a.Ligadas) novo.Ligadas[k] = v;
+        return novo;
+    }
+
     /// <summary>Onde a tabela fica no kit (mestre ou cópia): <c>01 - PLUGINS\plugins\analise\skills\analise\references\modelos-por-rota.json</c>.</summary>
     public static string ArquivoNoKit(string kit) =>
         Path.Combine(kit, "01 - PLUGINS", "plugins", PluginsInstalados.Analise, "skills", PluginsInstalados.Analise, "references", TabelaDeModelos.NomeNoKit);
 
-    /// <summary>"Publicar como padrão do kit" (só no computador do kit mestre): grava a tabela no kit mestre e abre, fora do Editor, um <c>.cmd</c> que roda o
-    /// <c>INSTALAR_KIT_PMVNI.cmd manter</c> (<paramref name="iniciar"/>(explorer.exe, .cmd)); a atualização automática leva aos outros computadores. Recusa
-    /// sem kit mestre neste computador, com o kit sem a tabela (anterior à Tarefa 19) ou com análise em andamento. Devolve o texto para a aba.</summary>
-    public static string Publicar(string? kitMestre, TabelaModelosKit kit, AjusteModelos a, IReadOnlyList<string> analisesEmAndamento, string pastaScripts, Action<string, string> iniciar)
+    /// <summary>A pasta <c>scripts</c> da skill analise de um kit (onde fica o <c>modelos_por_rota.py</c>).</summary>
+    public static string ScriptsNoKit(string kit) => Path.Combine(kit, "01 - PLUGINS", "plugins", PluginsInstalados.Analise, "skills", PluginsInstalados.Analise, "scripts");
+
+    /// <summary>A conferência do próprio kit (<c>modelos_por_rota.conferir</c>, a mesma regra que os controladores aplicam) sobre um arquivo de tabela, pelo
+    /// Python do computador: null = válida; senão os erros, em uma frase. <paramref name="argumentosPython"/>: os que vêm antes do script (ex.: <c>-3</c> do
+    /// launcher <c>py.exe</c>).</summary>
+    public static string? ConferirComOKit(string python, IReadOnlyList<string> argumentosPython, string pastaScripts, string arquivo)
+    {
+        if (!File.Exists(Path.Combine(pastaScripts, "modelos_por_rota.py"))) return "o kit não tem a conferência da tabela (modelos_por_rota.py) em " + pastaScripts;
+        var si = new System.Diagnostics.ProcessStartInfo(python)
+        {
+            RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true, StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8, WorkingDirectory = pastaScripts,
+        };
+        foreach (var x in argumentosPython) si.ArgumentList.Add(x);
+        foreach (var x in new[] { "-I", "-B", "-X", "utf8", "-c",
+                     "import sys, json; sys.path.insert(0, sys.argv[1]); import modelos_por_rota as m; "
+                     + "e = m.conferir(json.loads(open(sys.argv[2], encoding='utf-8-sig').read())); print('; '.join(e)); sys.exit(1 if e else 0)",
+                     pastaScripts, arquivo })
+            si.ArgumentList.Add(x);
+        si.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
+        si.Environment.Remove(TabelaDeModelos.Variavel);
+        try
+        {
+            using var p = System.Diagnostics.Process.Start(si) ?? throw new InvalidOperationException("o Python não abriu");
+            var saida = p.StandardOutput.ReadToEndAsync();
+            var erro = p.StandardError.ReadToEndAsync();
+            if (!p.WaitForExit(60_000)) { try { p.Kill(true); } catch (InvalidOperationException) { } return "a conferência do kit não terminou em 60 s"; }
+            if (p.ExitCode == 0) return null;
+            var texto = saida.Result.Trim();
+            return texto.Length > 0 ? texto : "a conferência do kit falhou (" + erro.Result.Trim().Split('\n').LastOrDefault()?.Trim() + ")";
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { return "não foi possível rodar a conferência do kit: " + e.Message; }
+    }
+
+    /// <summary>O resultado de "Publicar": o texto para a aba e se a tabela foi gravada no kit mestre.</summary>
+    public sealed record ResultadoPublicacao(string Texto, bool Publicada);
+
+    /// <summary>"Publicar como padrão do kit" (só no computador do kit mestre). Parte do arquivo atual do kit mestre (não da cópia instalada), aplica o ajuste
+    /// local por cima (<see cref="TabelaParaPublicar"/>), confere a tabela final com a conferência do próprio kit (<paramref name="conferirNoKit"/>(arquivo
+    /// temporário) → null ou os erros) e só então troca o arquivo e abre, fora do Editor, um <c>.cmd</c> que roda o <c>INSTALAR_KIT_PMVNI.cmd manter</c>
+    /// (<paramref name="iniciar"/>(explorer.exe, .cmd)); a atualização automática leva aos outros computadores. Recusa, sem gravar nem abrir nada: sem kit
+    /// mestre neste computador, com o kit sem a tabela, com análise em andamento, com célula que o kit mestre não tem ou com modelo que sumiu da lista do
+    /// provedor (<see cref="ProblemasParaPublicar"/>), ou com a tabela final recusada pelo kit.</summary>
+    public static ResultadoPublicacao Publicar(string? kitMestre, AjusteModelos a, IReadOnlyList<EtapaModelos> etapas, Func<ColunaModelos, ListaDaRota?> listas,
+        IReadOnlyList<string> analisesEmAndamento, string pastaScripts, Func<string, string?> conferirNoKit, Action<string, string> iniciar)
     {
         ArgumentNullException.ThrowIfNull(analisesEmAndamento);
+        ArgumentNullException.ThrowIfNull(conferirNoKit);
         ArgumentNullException.ThrowIfNull(iniciar);
-        if (string.IsNullOrWhiteSpace(kitMestre)) return "Este computador não tem o kit mestre (o instalador do kit não foi configurado com --kit-local). Nada foi publicado.";
-        if (analisesEmAndamento.Count > 0) return AtualizacaoKit.AvisoAnaliseEmAndamento(analisesEmAndamento);
+        static ResultadoPublicacao Recusa(string texto) => new(texto, false);
+        if (string.IsNullOrWhiteSpace(kitMestre)) return Recusa("Este computador não tem o kit mestre (o instalador do kit não foi configurado com --kit-local). Nada foi publicado.");
+        if (analisesEmAndamento.Count > 0) return Recusa(AtualizacaoKit.AvisoAnaliseEmAndamento(analisesEmAndamento));
         var destino = ArquivoNoKit(kitMestre);
         var instalador = Path.Combine(kitMestre, ComponentesDoKit.InstaladorDoKit);
-        if (!File.Exists(destino)) return "O kit mestre (" + kitMestre + ") ainda não tem a tabela de modelos (analise 4.0.0 com a Tarefa 19). Nada foi publicado.";
-        if (!File.Exists(instalador)) return "Não achei o instalador do kit em " + instalador + ". Nada foi publicado.";
-        var texto = TabelaParaPublicar(kit, a);
+        if (!File.Exists(destino)) return Recusa("O kit mestre (" + kitMestre + ") ainda não tem a tabela de modelos (analise 4.0.0 com a Tarefa 19). Nada foi publicado.");
+        if (!File.Exists(instalador)) return Recusa("Não achei o instalador do kit em " + instalador + ". Nada foi publicado.");
+        if (LerTabela(File.ReadAllText(destino, Encoding.UTF8)) is not { } mestre)
+            return Recusa("A tabela de modelos do kit mestre (" + destino + ") não se lê. Nada foi publicado; confira o arquivo no kit.");
+        if (ProblemasParaPublicar(mestre, a, etapas, listas) is { Count: > 0 } problemas)
+            return Recusa("Não publicado: " + string.Join("; ", problemas) + ". Ajuste essas células (ou restaure o padrão do kit) e publique de novo.");
         var tmp = destino + ".tmp";
-        File.WriteAllText(tmp, texto, new UTF8Encoding(false));
+        File.WriteAllText(tmp, TabelaParaPublicar(mestre, a), new UTF8Encoding(false));
+        string? erro;
+        try { erro = conferirNoKit(tmp); }
+        catch (Exception e) when (e is IOException or InvalidOperationException) { erro = e.Message; }
+        if (erro is not null)
+        {
+            File.Delete(tmp);
+            return Recusa("Não publicado: a conferência do kit recusou a tabela (" + erro + "). O kit mestre não mudou.");
+        }
         File.Move(tmp, destino, overwrite: true);
         Directory.CreateDirectory(pastaScripts);
         var cmd = Path.Combine(pastaScripts, CmdPublicar);
         File.WriteAllText(cmd, "@echo off\r\nrem Editor de Relatórios PMVNI: a tabela de modelos foi publicada no kit mestre; o instalador refaz o índice e as conferências (modo manter).\r\n"
             + "call \"" + instalador + "\" manter\r\n", PrimeiraAbertura.CodificacaoDoConsole());
         iniciar(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), cmd);
-        return "Tabela publicada no kit mestre (" + destino + ") em " + DateTime.Now.ToString("dd/MM/yyyy HH:mm", CultureInfo.GetCultureInfo("pt-BR"))
-            + ". O instalador do kit (manter) foi aberto fora do Editor; a atualização automática leva a tabela aos outros computadores.";
+        return new("Tabela publicada no kit mestre (" + destino + ") em " + DateTime.Now.ToString("dd/MM/yyyy HH:mm", CultureInfo.GetCultureInfo("pt-BR"))
+            + ". O instalador do kit (manter) foi aberto fora do Editor; a atualização automática leva a tabela aos outros computadores.", true);
     }
 
     static string? Texto(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) && !string.IsNullOrWhiteSpace(s) ? s : null;

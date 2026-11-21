@@ -35,13 +35,14 @@ public static class DiagnosticoGemini
     }
 
     /// <summary>As etapas do perfil cujo identificador (<c>modelo-nível</c>) não está na lista do runtime: "Análise (gemini-4-carbon high)".</summary>
-    public static IReadOnlyList<string> EtapasSemModelo(PerfilGemini perfil, IReadOnlyCollection<string> idsDoRuntime) =>
-        MatrizGemini.Etapas(perfil).Where(e => !idsDoRuntime.Contains(e.IdRuntime, StringComparer.OrdinalIgnoreCase))
+    /// <param name="etapas">Tarefa 19: as etapas da tabela efetiva (padrão do kit + ajuste local) do perfil; null = a matriz padrão tipada.</param>
+    public static IReadOnlyList<string> EtapasSemModelo(PerfilGemini perfil, IReadOnlyCollection<string> idsDoRuntime, IReadOnlyList<EtapaGemini>? etapas = null) =>
+        (etapas ?? MatrizGemini.Etapas(perfil)).Where(e => !idsDoRuntime.Contains(e.IdRuntime, StringComparer.OrdinalIgnoreCase))
             .Select(e => $"{SituacaoAnalisePro.NomeEtapa(e.Etapa)} ({e.Modelo} {e.Esforco})").ToList();
 
     /// <summary>As etapas do perfil cujo modelo base não está na lista da API (a API lista o modelo sem o nível).</summary>
-    public static IReadOnlyList<string> EtapasSemModeloNaApi(PerfilGemini perfil, IReadOnlyCollection<string> modelosDaApi) =>
-        MatrizGemini.Etapas(perfil).Where(e => !modelosDaApi.Contains(e.Modelo, StringComparer.OrdinalIgnoreCase))
+    public static IReadOnlyList<string> EtapasSemModeloNaApi(PerfilGemini perfil, IReadOnlyCollection<string> modelosDaApi, IReadOnlyList<EtapaGemini>? etapas = null) =>
+        (etapas ?? MatrizGemini.Etapas(perfil)).Where(e => !modelosDaApi.Contains(e.Modelo, StringComparer.OrdinalIgnoreCase))
             .Select(e => $"{SituacaoAnalisePro.NomeEtapa(e.Etapa)} ({e.Modelo})").Distinct().ToList();
 
     /// <summary>Confere a chave na API do Google: aceita ou recusada, com a frase que diz o que fazer. A chave vai só no cabeçalho <c>x-goog-api-key</c>.</summary>
@@ -97,7 +98,9 @@ public static class DiagnosticoGemini
     }
 
     /// <summary>O teste inteiro. <paramref name="chave"/> só é usada no modo chave (lida do cofre por quem chama) e nunca aparece na linha nem nos avisos.</summary>
-    public static async Task<SituacaoProvedor> TestarAsync(Pecas pecas, ModoAcesso modo, PerfilGemini? perfilApi, string? chave, CancellationToken ct)
+    /// <param name="etapasDoPerfil">Tarefa 19: as etapas da tabela efetiva de cada perfil (o que a análise vai pedir); null = a matriz padrão tipada.</param>
+    public static async Task<SituacaoProvedor> TestarAsync(Pecas pecas, ModoAcesso modo, PerfilGemini? perfilApi, string? chave, CancellationToken ct,
+        Func<PerfilGemini, IReadOnlyList<EtapaGemini>?>? etapasDoPerfil = null)
     {
         var avisos = new List<string>();
         var partes = new List<string>();
@@ -149,7 +152,7 @@ public static class DiagnosticoGemini
 
         if (modo == ModoAcesso.Conta)
         {
-            if (ids is { Count: > 0 } && EtapasSemModelo(PerfilGemini.ContaUltra, ids) is { Count: > 0 } faltas)
+            if (ids is { Count: > 0 } && EtapasSemModelo(PerfilGemini.ContaUltra, ids, etapasDoPerfil?.Invoke(PerfilGemini.ContaUltra)) is { Count: > 0 } faltas)
                 avisos.Add("A conta não oferece o modelo e o nível de: " + string.Join(", ", faltas) + ". A análise não começa sem eles (nenhum outro modelo é usado no lugar).");
         }
         else if (modo == ModoAcesso.Chave)
@@ -159,7 +162,7 @@ public static class DiagnosticoGemini
             {
                 var r = await ConferirChaveAsync(chave, ct).ConfigureAwait(false);
                 partes.Add(r.Mensagem);
-                if (r.Aceita && perfil is { } pf && EtapasSemModeloNaApi(pf, r.Modelos) is { Count: > 0 } faltas)
+                if (r.Aceita && perfil is { } pf && EtapasSemModeloNaApi(pf, r.Modelos, etapasDoPerfil?.Invoke(pf)) is { Count: > 0 } faltas)
                     avisos.Add($"A chave não lista o modelo de: {string.Join(", ", faltas)} ({MatrizGemini.Nome(pf)}). A análise não começa sem eles.");
                 if (r.Aceita) avisos.Add("A chave foi aceita, mas o Google não informa por ela se o projeto tem créditos: o perfil (com créditos ou gratuita) é o que você escolher aqui.");
             }

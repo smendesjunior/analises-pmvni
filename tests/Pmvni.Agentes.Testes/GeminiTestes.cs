@@ -89,13 +89,25 @@ public class GeminiTestes
     }
 
     [Fact]
-    public void ler_matriz_do_kit_recusa_json_fora_do_formato()
+    public void ler_matriz_da_tabela_recusa_json_fora_do_formato()
     {
-        Assert.Null(MatrizGemini.LerDoKit("{ isso não é json"));
-        Assert.Null(MatrizGemini.LerDoKit("[]"));
-        Assert.Null(MatrizGemini.LerDoKit("{\"perfis\":{\"conta_ultra\":{\"prepare\":[\"gemini-4-hydrogen\"]}}}"));
-        var ok = MatrizGemini.LerDoKit("{\"perfis\":{\"conta_ultra\":{\"prepare\":[\"gemini-4-hydrogen\",\"high\"]}}}");
+        Assert.Null(MatrizGemini.LerDaTabela("{ isso não é json"));
+        Assert.Null(MatrizGemini.LerDaTabela("[]"));
+        Assert.Null(MatrizGemini.LerDaTabela("{\"equivalencia\":{\"alto\":\"high\"},\"rotas\":{\"gemini\":{\"perfis\":{\"conta_ultra\":{\"etapas\":{\"prepare\":{\"modelo\":\"gemini-4-hydrogen\"}}}}}}}"));
+        var ok = MatrizGemini.LerDaTabela("{\"equivalencia\":{\"alto\":\"high\"},\"rotas\":{\"gemini\":{\"perfis\":{\"conta_ultra\":{\"etapas\":{\"prepare\":{\"modelo\":\"gemini-4-hydrogen\",\"nivel\":\"alto\"}}}}}}}");
         Assert.Equal(new EtapaGemini("prepare", "gemini-4-hydrogen", "high"), Assert.Single(ok!["conta_ultra"]));
+    }
+
+    [Fact]
+    public void testar_confere_as_etapas_da_tabela_efetiva()
+    {
+        // Tarefa 19 (correção 1): com o ajuste local, o "Testar" do Gemini confere o modelo que a análise vai pedir, não o da matriz padrão.
+        var efetivas = MatrizGemini.Etapas(PerfilGemini.ContaUltra).Select(e => e.Etapa == "analyze" ? e with { Modelo = "gemini-5-nova", Esforco = "high" } : e).ToList();
+        var ids = MatrizGemini.Etapas(PerfilGemini.ContaUltra).Select(e => e.IdRuntime).ToList();
+        Assert.Empty(DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ContaUltra, ids));
+        Assert.Equal(["Análise (gemini-5-nova high)"], DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ContaUltra, ids, efetivas));
+        Assert.Empty(DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ContaUltra, [.. ids, "gemini-5-nova-high"], efetivas));
+        Assert.Equal(["Análise (gemini-5-nova)"], DiagnosticoGemini.EtapasSemModeloNaApi(PerfilGemini.ContaUltra, ["gemini-3.8-flash"], efetivas));
     }
 
     [Fact]

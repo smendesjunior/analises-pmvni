@@ -367,8 +367,10 @@ public sealed partial class MainWindow
             var pecas = await LerPecasAsync();
             // Gemini, modo chave: a chave sai do cofre só para a conferência na API do Google (lista de modelos); nunca vai para a tela nem para o registro.
             var chaveGemini = p == Provedor.Gemini && ajustes.Agentes[p].Modo == ModoAcesso.Chave ? await Task.Run(() => CofreChaves.Ler(PastaDados.Raiz, p)) : null;
+            // Tarefa 19 (correção 1): o Gemini confere as etapas da tabela efetiva (padrão do kit + ajuste deste computador), lidas aqui, na thread da janela.
+            var etapasGemini = p == Provedor.Gemini ? Enum.GetValues<PerfilGemini>().ToDictionary(pf => pf, EtapasGeminiEfetivas) : null;
             resultado = await Diagnostico.TestarAsync(p, pecas, ajustes.Agentes[p].Modo, CofreChaves.Existe(PastaDados.Raiz, p), CancellationToken.None,
-                ajustes.Agentes[p].PerfilApi, chaveGemini);
+                ajustes.Agentes[p].PerfilApi, chaveGemini, etapasGemini is null ? null : pf => etapasGemini[pf]);
             if (p == Provedor.Gemini && ajustes.Agentes[p].Modo == ModoAcesso.Conta) contaGeminiConectada = resultado.ContaConectada;
         }
         catch (Exception e) { resultado = new SituacaoProvedor("Não foi possível testar: " + Erro(e), []); }

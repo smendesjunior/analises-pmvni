@@ -110,33 +110,8 @@ public static class MatrizGemini
     public static string Resumo(PerfilGemini p) =>
         string.Join(" · ", Etapas(p).Select(e => $"{SituacaoAnalisePro.NomeEtapa(e.Etapa)}: {e.Modelo.Replace("gemini-4-", "", StringComparison.Ordinal)} {e.Esforco}"));
 
-    /// <summary>Lê a matriz do plugin (<c>matriz-gemini.json</c>): perfil → etapas. JSON ilegível ou fora do formato ⇒ null.</summary>
-    public static IReadOnlyDictionary<string, IReadOnlyList<EtapaGemini>>? LerDoKit(string json)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object || !doc.RootElement.TryGetProperty("perfis", out var perfis) || perfis.ValueKind != JsonValueKind.Object) return null;
-            var saida = new Dictionary<string, IReadOnlyList<EtapaGemini>>(StringComparer.Ordinal);
-            foreach (var perfil in perfis.EnumerateObject())
-            {
-                if (perfil.Value.ValueKind != JsonValueKind.Object) return null;
-                var etapas = new List<EtapaGemini>();
-                foreach (var etapa in perfil.Value.EnumerateObject())
-                {
-                    if (etapa.Value.ValueKind != JsonValueKind.Array || etapa.Value.GetArrayLength() != 2) return null;
-                    if (etapa.Value[0].GetString() is not { } modelo || etapa.Value[1].GetString() is not { } esforco) return null;
-                    etapas.Add(new EtapaGemini(etapa.Name, modelo, esforco));
-                }
-                saida[perfil.Name] = etapas;
-            }
-            return saida;
-        }
-        catch (Exception e) when (e is JsonException or InvalidOperationException) { return null; }
-    }
-
     /// <summary>Tarefa 19: lê a matriz da rota gemini da tabela única do kit (<c>references\modelos-por-rota.json</c>: <c>rotas.gemini.perfis.&lt;perfil&gt;.etapas
-    /// .&lt;etapa&gt;</c> = <c>{modelo, nivel}</c>, com o nível traduzido pela <c>equivalencia</c>), no mesmo formato de <see cref="LerDoKit"/>. Fora do formato ⇒ null.</summary>
+    /// .&lt;etapa&gt;</c> = <c>{modelo, nivel}</c>, com o nível traduzido pela <c>equivalencia</c>): perfil → etapas. Fora do formato ⇒ null.</summary>
     public static IReadOnlyDictionary<string, IReadOnlyList<EtapaGemini>>? LerDaTabela(string json)
     {
         try

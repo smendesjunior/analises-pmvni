@@ -23,7 +23,7 @@ public static class LinhasDeComando
     /// <summary><c>python -B -X utf8 pro_runtime.py --case P iniciar|situacao</c> (com o launcher <c>py.exe</c>, o primeiro argumento é <c>-3</c>).</summary>
     public static (string Exe, IReadOnlyList<string> Args) ProRuntime(string python, bool launcher, string script, string pastaProcesso, string acao)
     {
-        if (acao is not ("iniciar" or "situacao" or "conferir")) throw new ArgumentException("Ação desconhecida da rota Claude: " + acao, nameof(acao));
+        if (acao is not ("iniciar" or "situacao" or "conferir" or "modelos")) throw new ArgumentException("Ação desconhecida da rota Claude: " + acao, nameof(acao));
         var args = new List<string>();
         if (launcher) args.Add("-3");
         args.AddRange(new[] { "-B", "-X", "utf8", script, "--case", pastaProcesso, acao });
