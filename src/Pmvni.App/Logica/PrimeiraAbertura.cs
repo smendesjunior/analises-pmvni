@@ -97,6 +97,10 @@ public static class PrimeiraAbertura
 /// no Editor (o kit trocado no meio obriga a revalidar e refazer etapas). Avisa e não inicia nada; sem análise, chama <c>iniciar</c>.</summary>
 public static class AtualizacaoKit
 {
+    /// <summary>Os registros de retomada do ChatGPT só representam análises ativas enquanto a trava de execução estiver viva.</summary>
+    internal static IEnumerable<ExecucaoClaudePendente> ChatGptEmAndamento(IEnumerable<ExecucaoClaudePendente> pendentes) =>
+        pendentes.Where(e => TravaExecucao.EmAndamento(e.Processo));
+
     public static string AvisoAnaliseEmAndamento(IReadOnlyList<string> processos) =>
         (processos.Count == 1 ? "Há uma análise em andamento (" + processos[0] + ")" : "Há análises em andamento (" + string.Join(", ", processos) + ")")
         + ". O kit não foi atualizado: trocá-lo no meio da análise obriga a refazer etapas. Atualize quando a análise terminar.";

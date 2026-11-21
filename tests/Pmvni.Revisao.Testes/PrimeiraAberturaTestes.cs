@@ -68,6 +68,19 @@ public sealed class PrimeiraAberturaTestes : IDisposable
     }
 
     [Fact]
+    public void AtualizarKit_libera_quando_o_chatgpt_termina_e_a_retomada_fica_guardada()
+    {
+        var processo = Path.Combine(pasta, "processo");
+        var pendente = new ExecucaoClaudePendente(processo, Path.Combine(processo, ".pmvni-ai", "editor", "analise"));
+        using (var trava = Pmvni.Agentes.TravaExecucao.Tentar(processo, Pmvni.Agentes.Provedor.ChatGpt))
+        {
+            Assert.NotNull(trava);
+            Assert.Equal(pendente, Assert.Single(AtualizacaoKit.ChatGptEmAndamento([pendente])));
+        }
+        Assert.Empty(AtualizacaoKit.ChatGptEmAndamento([pendente]));
+    }
+
+    [Fact]
     public async Task AtualizarKit_ComAnaliseAtiva()
     {
         var iniciou = 0;

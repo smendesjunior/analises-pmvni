@@ -46,6 +46,7 @@ Esta versão muda como a IA é usada na análise: ela faz só o que exige julgam
 - Progresso, previsão de término e consumo são calculados pelo Editor, nas três rotas, sem depender de a IA estimar. O cartão Consumo mostra o gasto da análise. O Monitor segue a ordem das etapas definida pelo kit.
 - Depois de editar um relatório, o Editor confere o texto de novo. O despacho é bloqueado quando cita um item que foi excluído ou renumerado, até você corrigir a citação.
 - A primeira abertura prepara e atualiza o kit, e o kit escolhido em Ajustes vale antes das cópias instaladas para os modelos de despacho. Instalar plugins e atualizar o kit são recusados enquanto houver análise em andamento.
+- Atualizar o kit volta a ficar disponível quando uma análise com o ChatGPT termina e fica guardada para retomada.
 - Em Ajustes, o cartão Plugins e ferramentas mostra a versão de cada componente e permite atualizar um de cada vez. Os nomes das rotas (ChatGPT, Claude, Gemini) substituem os nomes antigos dos plugins.
 
 **Decisões técnicas**

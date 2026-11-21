@@ -586,14 +586,14 @@ public sealed partial class MainWindow
         using var _ = TravaDeProgramas.Iniciar(inicio);
     }
 
-    /// <summary>Os processos com análise em andamento no Editor: as execuções da página Novo relatório que ainda não terminaram e as do
-    /// Claude e do ChatGPT que o Editor acompanha (<c>execucoes_claude</c>/<c>execucoes_chatgpt</c>, que ficam lá do início ao fim). Só lê; não muda nenhuma execução.</summary>
+    /// <summary>As execuções em andamento na janela, as que podem continuar fora dela (Claude e Gemini) e as do ChatGPT com trava viva.</summary>
     IReadOnlyList<string> ProcessosComAnaliseEmAndamento()
     {
         var nomes = new List<string>();
         if (sessaoNR is not null)
             nomes.AddRange(sessaoNR.Execucoes.Where(e => e.Fim is not { IsCompleted: true }).Select(e => e.Processo.NomePasta));
-        nomes.AddRange(ajustes.ExecucoesClaude.Concat(ajustes.ExecucoesChatGpt).Select(e => Path.GetFileName(Path.TrimEndingDirectorySeparator(e.Processo))));
+        nomes.AddRange(ajustes.ExecucoesClaude.Concat(AtualizacaoKit.ChatGptEmAndamento(ajustes.ExecucoesChatGpt))
+            .Select(e => Path.GetFileName(Path.TrimEndingDirectorySeparator(e.Processo))));
         return nomes.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
