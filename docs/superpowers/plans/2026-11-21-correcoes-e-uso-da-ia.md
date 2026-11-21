@@ -329,6 +329,9 @@ Ordem de execução: depois da junção das frentes do kit (T1, T2a, T2b, T5, T7
 - No computador do kit mestre (`--kit-local` configurado, detectável pela instalação), botão "Publicar como padrão do kit": grava a tabela no kit mestre e roda o modo `manter` do instalador (fora do pacote, via `.cmd` + `explorer.exe`); a atualização automática leva aos outros PCs.
 - Grade: linhas = etapas (prepare/produce mostram "programa", sem opção); colunas = rotas/perfis; cada célula = modelo (lista atualizada que o Editor já recebe por provedor) + nível. Regras editáveis. "Restaurar padrão do kit". Aviso (não bloqueio) se etapa técnica < médio.
 - Cada execução grava no histórico a tabela efetiva usada.
+- **Lista de modelos sempre sincronizada com o que cada IA oferece** (pedido do usuário): as opções vêm da lista que o Editor já atualiza automaticamente por provedor (desde a 2.1.1) — atualizada ao abrir Ajustes e antes de cada análise. Modelo configurado que deixou de existir: aviso na aba e no Novo relatório; a etapa usa o padrão do kit para aquela célula, e isso fica registrado no histórico. Modelo novo aparece na lista sem precisar de nova versão do Editor ou do kit.
+- [ ] Teste: lista do provedor sem o modelo configurado → aviso + uso do padrão do kit + registro no histórico.
+- [ ] Teste: modelo novo devolvido pelo provedor aparece como opção sem alterar código.
 
 - [ ] Teste: tabela padrão reproduz exatamente os modelos/níveis atuais das três rotas.
 - [ ] Teste: override local muda o modelo de uma etapa e o controlador recebe esse modelo; "Restaurar" volta ao padrão.
@@ -336,6 +339,14 @@ Ordem de execução: depois da junção das frentes do kit (T1, T2a, T2b, T5, T7
 - [ ] Teste: publicar gera o arquivo no kit mestre e dispara `manter` pelo `.cmd` (lançador injetado).
 - [ ] Teste: histórico registra a tabela efetiva.
 - [ ] Commit.
+
+### Task 20: Revisão das etapas no motor único
+
+Executar depois da T18 e antes da T3/T4/T6. Pedido do usuário: com mudanças tão profundas, rever o que ainda faz sentido em cada etapa.
+
+**Entrega 1 (análise, sem código):** `docs/auditoria/2026-11-21-revisao-das-etapas.md` com, para cada etapa atual (prepare, analyze, technical_audit, produce, audit, final_review): o que faz, o que passa a ser programa (validadores, montagem, extratores, índices, vãos, checklist), o que a IA ainda precisa fazer por julgamento, sobreposições entre etapas (em especial audit × final_review × technical_audit, e inspeção visual de todas as páginas) e custo observado (uso-das-IAs dos processos reais). Proposta concreta da sequência nova, com o que ganha e o que arrisca em qualidade.
+**Restrições que a proposta não pode quebrar:** 28 seções; auditoria técnica independente sobre os originais (feita por sessão diferente da que analisou); nenhuma conclusão sem evidência; critério de vãos janela + porta; revisão do PDF final antes da entrega; correção de mérito sempre volta à análise com reauditoria.
+**Entrega 2 (código):** o controlador decide pelo arquivo de etapas (`references/etapas.json`, lido pelas três rotas e pela tabela de modelos da T19); implementar a sequência aprovada pelo controlador (ruling no livro de controle), com testes de ordem, retomada e reauditoria.
 
 ## Parte D — Fechamento
 
