@@ -223,18 +223,22 @@ public partial class OrquestradorTestes
     [Fact]
     public async Task PluginAntigo_InformaComponente()
     {
-        var f = await RodarSemPecas("orq-62-antigo", Provedor.ChatGpt, p => p with { VersaoPluginAnalise = "3.0.1" });
+        // Tarefa 18: as três rotas exigem o plugin único analise 4.0.0; o 3.x (sem rotas\<rota>) é recusado com a mesma mensagem, sem iniciar nada.
+        var f = await RodarSemPecas("orq-62-antigo", Provedor.ChatGpt, p => p with { VersaoPluginAnalise = "3.1.0" });
         Assert.Equal("falhou", f.Situacao);
-        Assert.StartsWith("Atualize o kit PMVNI (analise 3.1.0 ou mais novo)", f.Mensagem);
-        Assert.Contains("3.0.1", f.Mensagem);
+        Assert.Equal(PoliticaKit.PluginDesatualizado(Provedor.ChatGpt, "3.1.0"), f.Mensagem);
+        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo): o analise instalado neste computador é o 3.1.0.", f.Mensagem);
 
         var semControlador = await RodarSemPecas("orq-62-sem-controlador", Provedor.ChatGpt, p => p with { Analise62 = null });
-        Assert.StartsWith("Atualize o kit PMVNI (analise 3.1.0 ou mais novo)", semControlador.Mensagem);
+        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo)", semControlador.Mensagem);
         Assert.Equal("O Python não foi encontrado neste computador (o analise do kit precisa dele).",
             (await RodarSemPecas("orq-62-sem-python", Provedor.ChatGpt, p => p with { Python = null })).Mensagem);
 
-        var claude = await RodarSemPecas("orq-pro-antigo", Provedor.Claude, p => p with { VersaoAnalisePro = "2.0.1" });
-        Assert.StartsWith("Atualize o kit PMVNI (analise-pro 2.1.0 ou mais novo)", claude.Mensagem);
+        var claude = await RodarSemPecas("orq-pro-antigo", Provedor.Claude, p => p with { VersaoAnalisePro = "3.1.0" });
+        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo): o analise instalado neste computador é o 3.1.0.", claude.Mensagem);
+        // Kit 3.x de verdade: o analise 3.1.0 não tem rotas\claude\pro_runtime.py. Pede a atualização, não "não instalado".
+        var claudeSemRota = await RodarSemPecas("orq-pro-antigo-sem-rota", Provedor.Claude, p => p with { VersaoAnalisePro = "3.1.0", ProRuntime = null });
+        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo)", claudeSemRota.Mensagem);
     }
 
     [Fact]
@@ -386,10 +390,16 @@ public partial class OrquestradorTestes
     public async Task Gemini_PluginAntigo_InformaComponente()
     {
         using var c = new Cena("orq-gemini-antigo", "claude_ok", Provedor.Gemini);
-        c.Pecas = ComGemini(c) with { VersaoAnaliseGoogle = "2.0.1" };
+        c.Pecas = ComGemini(c) with { VersaoAnaliseGoogle = "3.1.0" };
         var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.Gemini, ModoAcesso.Conta) with { Perfil = PerfilGemini.ContaUltra }, c.Progresso, CancellationToken.None), Limite);
         Assert.Equal("falhou", fim.Situacao);
-        Assert.StartsWith("Atualize o kit PMVNI (analise-google 2.1.0 ou mais novo)", fim.Mensagem);
+        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo): o analise instalado neste computador é o 3.1.0.", fim.Mensagem);
+        Assert.False(File.Exists(c.Falso("chamadas.txt")));
+
+        // Kit 3.x de verdade: sem rotas\gemini\google_runtime.py, também pede a atualização (não "não instalado").
+        c.Pecas = ComGemini(c) with { VersaoAnaliseGoogle = "3.1.0", GoogleRuntime = null };
+        var semRota = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.Gemini, ModoAcesso.Conta) with { Perfil = PerfilGemini.ContaUltra }, c.Progresso, CancellationToken.None), Limite);
+        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo)", semRota.Mensagem);
         Assert.False(File.Exists(c.Falso("chamadas.txt")));
     }
 }

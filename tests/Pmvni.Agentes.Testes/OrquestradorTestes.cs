@@ -426,7 +426,7 @@ public partial class OrquestradorTestes
         var proibe = Ambiente.PecasFalsas(Path.GetTempPath());
         Assert.Equal(ModoAcesso.Chave, OrquestradorAnalise.ModoEfetivo(Provedor.Claude, ModoAcesso.Chave, proibe));
         Assert.Equal(ModoAcesso.Chave, OrquestradorAnalise.ModoEfetivo(Provedor.ChatGpt, ModoAcesso.Chave, proibe));
-        Assert.Equal(OrquestradorAnalise.ApiNaoSuportada("2.1.0"),
+        Assert.Equal(OrquestradorAnalise.ApiNaoSuportada("4.0.0"),
             (await RodarSemPecas("orq-claude-chave-sem-api", Provedor.Claude, p => p, ModoAcesso.Chave)).Mensagem);
         // Se o kit passar a permitir API, o modo chave do Claude deixa de ser recusado por esta regra (a chave guardada ainda é exigida).
         Assert.Equal("Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.",

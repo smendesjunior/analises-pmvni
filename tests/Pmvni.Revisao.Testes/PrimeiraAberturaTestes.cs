@@ -18,7 +18,7 @@ public sealed class PrimeiraAberturaTestes : IDisposable
     public void Dispose() { try { Directory.Delete(pasta, true); } catch (IOException) { } }
 
     const string Completo = "Blueprint Pipeline    INSTALADO\r\nFYP-Floorplan    INSTALADO\r\nDocling MCP 3.5.0    INSTALADO\r\nPyMuPDF 2.1    INSTALADO\r\n"
-        + "Codex / analise    INSTALADO 3.1.0\r\nCodex / analise-pro    INSTALADO 2.1.0\r\nCodex / ferramentas PDF    CONFIGURADO\r\nClaude Code    AUSENTE\r\n";
+        + "Codex / analise    INSTALADO 4.0.0\r\nCodex / ferramentas PDF    CONFIGURADO\r\nClaude Code    AUSENTE\r\n";
 
     [Fact]
     public void PrimeiraAbertura_Chamada()
@@ -27,9 +27,9 @@ public sealed class PrimeiraAberturaTestes : IDisposable
         void Iniciar(string programa, string argumento) => chamadas.Add((programa, argumento));
 
         // Incompleta: sem resumo, componente pendente ou falha → inicia o .cmd pelo explorer.exe.
-        // Plugin de análise abaixo do mínimo do Editor (analise 3.1.0) também é incompleta.
+        // Plugin de análise abaixo do mínimo do Editor (analise 4.0.0, Tarefa 18) também é incompleta.
         foreach (var resumo in new[] { null, "", "Blueprint Pipeline    PENDENTE\r\nPyMuPDF 2.1    INSTALADO\r\n", Completo + "FALHA    Plugin analise\r\n",
-                     Completo.Replace("INSTALADO 3.1.0", "INSTALADO 3.0.1", StringComparison.Ordinal) })
+                     Completo.Replace("INSTALADO 4.0.0", "INSTALADO 3.1.0", StringComparison.Ordinal) })
         {
             chamadas.Clear();
             Assert.True(PrimeiraAbertura.Conferir(resumo, pasta, Iniciar, Agora, null));

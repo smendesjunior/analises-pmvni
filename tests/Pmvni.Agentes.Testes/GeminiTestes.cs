@@ -78,8 +78,9 @@ public class GeminiTestes
     public void matriz_do_editor_e_igual_a_do_plugin_no_kit()
     {
         // O kit é só lido, no lugar: quem executa é o plugin; a cópia tipada do editor não pode divergir dele.
-        var arquivo = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise-google", "skills", "analise-google", "references", "matriz-gemini.json");
-        if (!File.Exists(arquivo)) Assert.Fail("Plugin analise-google ausente do kit: " + arquivo + " (defina PMVNI_KIT_RAIZ)");
+        // Tarefa 18: a matriz é referência da rota gemini do plugin único (analise 4.0.0).
+        var arquivo = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise", "skills", "analise", "references", "rotas", "gemini", "matriz-gemini.json");
+        if (!File.Exists(arquivo)) Assert.Fail("Rota gemini do plugin analise 4.0.0 ausente do kit: " + arquivo + " (defina PMVNI_KIT_RAIZ)");
         var doKit = MatrizGemini.LerDoKit(File.ReadAllText(arquivo, Encoding.UTF8));
         Assert.NotNull(doKit);
         Assert.Equal(Enum.GetValues<PerfilGemini>().Length, doKit!.Count);
@@ -188,7 +189,7 @@ public class GeminiTestes
     }
 
     [Fact]
-    public void localizacao_acha_o_agy_e_o_analise_google_instalado()
+    public void localizacao_acha_o_agy_e_a_rota_gemini_do_plugin_analise()
     {
         using var pasta = Ambiente.PastaDeTeste("gemini-pecas");
         var local = Path.Combine(pasta, "local");
@@ -203,25 +204,26 @@ public class GeminiTestes
 
         Directory.CreateDirectory(Path.Combine(local, "agy", "bin"));
         File.WriteAllText(Path.Combine(local, "agy", "bin", "agy.exe"), "");
-        string Scripts(string versao) => Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-google", versao, "skills", "analise-google", "scripts");
-        Directory.CreateDirectory(Scripts("1.0.0"));
-        File.WriteAllText(Path.Combine(Scripts("1.0.0"), "google_runtime.py"), "ROTA_VAR = 'PMVNI_ANALISE_GOOGLE_ROTA'\n");
-        Directory.CreateDirectory(Path.Combine(kit, "01 - PLUGINS", "plugins", "analise-google", ".codex-plugin"));
-        File.WriteAllText(Path.Combine(kit, "01 - PLUGINS", "plugins", "analise-google", ".codex-plugin", "plugin.json"), "{\"version\":\"1.0.1\"}");
+        // Tarefa 18: o google_runtime.py é o controlador da rota gemini do plugin único (analise 4.0.0+).
+        string Scripts(string versao) => Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", versao, "skills", "analise", "scripts", "rotas", "gemini");
+        Directory.CreateDirectory(Scripts("4.0.0"));
+        File.WriteAllText(Path.Combine(Scripts("4.0.0"), "google_runtime.py"), "ROTA_VAR = 'PMVNI_ANALISE_GOOGLE_ROTA'\n");
+        Directory.CreateDirectory(Path.Combine(kit, "01 - PLUGINS", "plugins", "analise", ".codex-plugin"));
+        File.WriteAllText(Path.Combine(kit, "01 - PLUGINS", "plugins", "analise", ".codex-plugin", "plugin.json"), "{\"version\":\"4.0.1\"}");
 
         var p = Localizacao.Ler(opcoes);
         Assert.Equal(Path.Combine(local, "agy", "bin", "agy.exe"), p.Agy);
-        Assert.Equal(Path.Combine(Scripts("1.0.0"), "google_runtime.py"), p.GoogleRuntime);
-        Assert.Equal(("1.0.0", "1.0.1"), (p.VersaoAnaliseGoogle, p.VersaoAnaliseGoogleKit));
+        Assert.Equal(Path.Combine(Scripts("4.0.0"), "google_runtime.py"), p.GoogleRuntime);
+        Assert.Equal(("4.0.0", "4.0.1"), (p.VersaoAnaliseGoogle, p.VersaoAnaliseGoogleKit));
         Assert.Equal(p.GoogleRuntime, p.RuntimeDoKit(Provedor.Gemini));
         Assert.Null(p.RuntimeDoKit(Provedor.ChatGpt));
-        Assert.Equal("1.0.0", OrquestradorAnalise.VersaoDoPlugin(Provedor.Gemini, p));
+        Assert.Equal("4.0.0", OrquestradorAnalise.VersaoDoPlugin(Provedor.Gemini, p));
         Assert.Equal("análise Google", OrquestradorAnalise.PluginUsado(Provedor.Gemini));
-        Assert.Equal("1.0.0", PluginsInstalados.NoCodex(codexHome, PluginsInstalados.AnaliseGoogle)?.Versao);
+        Assert.Equal("4.0.0", PluginsInstalados.NoCodex(codexHome, PluginsInstalados.Analise)?.Versao);
 
         // Um runtime sem a rota explícita (contrato com o editor) não é usado.
-        Directory.CreateDirectory(Scripts("1.1.0"));
-        File.WriteAllText(Path.Combine(Scripts("1.1.0"), "google_runtime.py"), "# sem a marca do contrato\n");
+        Directory.CreateDirectory(Scripts("4.1.0"));
+        File.WriteAllText(Path.Combine(Scripts("4.1.0"), "google_runtime.py"), "# sem a marca do contrato\n");
         Assert.Null(Localizacao.Ler(opcoes).GoogleRuntime);
         Assert.False(PoliticaKit.RuntimeGoogleValido(""));
         Assert.True(PoliticaKit.RuntimeGoogleValido("x PMVNI_ANALISE_GOOGLE_ROTA y"));

@@ -43,7 +43,7 @@ try {
         try {
             & $codex plugin marketplace add $catalogo | Out-Null
             if ($LASTEXITCODE) { throw 'Catalogo Codex' }
-            foreach($n in 'analise','analise-pro','analise-google'){
+            foreach($n in @('analise')){
                 $estado["Codex / $n"]='PENDENTE'
                 $r = & $codex plugin add "$n@pmvni-kit" --json |ConvertFrom-Json
                 if($LASTEXITCODE -or !$r.version){throw "Plugin $n"}
@@ -95,3 +95,4 @@ try {
     $linhas | Write-Output
     if($erros.Count){throw 'Instalacao com pendencias. Consulte resumo-instalacao.txt.'}
 } finally {if($entrou){$mutex.ReleaseMutex()};$mutex.Dispose()}
+exit 0

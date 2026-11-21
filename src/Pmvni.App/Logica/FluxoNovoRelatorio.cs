@@ -111,6 +111,8 @@ public static class FluxoNovoRelatorio
         else if (p == Provedor.Gemini)
         {
             if (pecas.Python is null) return SemPythonGoogle;
+            // Tarefa 18: um analise anterior ao 4.0.0 não tem o controlador da rota: pede a atualização do kit, não "não instalado".
+            if (pecas.VersaoAnaliseGoogle is not null && PoliticaKit.PluginDesatualizado(p, pecas.VersaoAnaliseGoogle) is { } kitAntigo) return kitAntigo;
             if (pecas.GoogleRuntime is null) return SemAnaliseGoogle;
             if (modo != ModoAcesso.ContaGemini && pecas.Agy is null) return SemAgy;
             if (modo == ModoAcesso.Chave && perfilGemini is not (PerfilGemini.ApiCreditos or PerfilGemini.ApiGratuita)) return SemPerfilApi;
@@ -118,6 +120,7 @@ public static class FluxoNovoRelatorio
         else
         {
             if (pecas.Python is null) return SemPython;
+            if (pecas.VersaoAnalisePro is not null && PoliticaKit.PluginDesatualizado(p, pecas.VersaoAnalisePro) is { } kitAntigo) return kitAntigo;
             if (pecas.ProRuntime is null) return SemAnalisePro;
             if (pecas.Claude is null) return SemClaude;
         }

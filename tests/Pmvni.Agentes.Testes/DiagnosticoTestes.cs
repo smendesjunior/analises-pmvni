@@ -15,11 +15,11 @@ public class DiagnosticoTestes
         var pecas = Ambiente.PecasFalsas(t);
 
         var chatgpt = await Diagnostico.TestarAsync(Provedor.ChatGpt, pecas, ModoAcesso.Conta, false, CancellationToken.None);
-        Assert.Equal("Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 3.1.0 habilitado", chatgpt.Linha);
+        Assert.Equal("Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 4.0.0 habilitado", chatgpt.Linha);
         Assert.Empty(chatgpt.Avisos);
 
         var claude = await Diagnostico.TestarAsync(Provedor.Claude, pecas, ModoAcesso.Conta, false, CancellationToken.None);
-        Assert.Equal("Claude Code 2.9.0 · conectado com a conta do Claude · análise pro 2.1.0 (kit: 2.1.0) · Python 3.14.0", claude.Linha);
+        Assert.Equal("Claude Code 2.9.0 · conectado com a conta do Claude · análise pro 4.0.0 (kit: 4.0.0) · Python 3.14.0", claude.Linha);
         Assert.Empty(claude.Avisos);
 
         // Modo chave com chave guardada: o aviso fixo; a linha é a mesma.
@@ -38,9 +38,9 @@ public class DiagnosticoTestes
         var pecas = Ambiente.PecasFalsas(t);
 
         var chatgpt = await Diagnostico.TestarAsync(Provedor.ChatGpt, pecas, ModoAcesso.Conta, false, CancellationToken.None);
-        Assert.Equal("Codex 0.99.0 · não conectado · plugin analise 3.1.0 habilitado", chatgpt.Linha);
+        Assert.Equal("Codex 0.99.0 · não conectado · plugin analise 4.0.0 habilitado", chatgpt.Linha);
         var claude = await Diagnostico.TestarAsync(Provedor.Claude, pecas, ModoAcesso.Conta, false, CancellationToken.None);
-        Assert.Equal("Claude Code 2.9.0 · não conectado · análise pro 2.1.0 (kit: 2.1.0) · Python 3.14.0", claude.Linha);
+        Assert.Equal("Claude Code 2.9.0 · não conectado · análise pro 4.0.0 (kit: 4.0.0) · Python 3.14.0", claude.Linha);
 
         var desligado = await Diagnostico.TestarAsync(Provedor.ChatGpt, Ambiente.PecasFalsas(t, pluginHabilitado: false) with { VersaoPluginAnalise = null },
             ModoAcesso.Conta, false, CancellationToken.None);
@@ -60,9 +60,9 @@ public class DiagnosticoTestes
         var semTudo = await Diagnostico.TestarAsync(Provedor.Claude, pecas with { Claude = null, Python = null, ProRuntime = null, VersaoAnalisePro = null }, ModoAcesso.Conta, false, CancellationToken.None);
         Assert.Equal("Claude Code não encontrado · análise pro não instalado no Codex · Python não encontrado", semTudo.Linha);
 
-        var kitNovo = await Diagnostico.TestarAsync(Provedor.Claude, pecas with { VersaoAnaliseProKit = "2.2.0" }, ModoAcesso.Conta, false, CancellationToken.None);
-        Assert.Contains("análise pro 2.1.0 (kit: 2.2.0)", kitNovo.Linha);
-        Assert.Equal(new[] { "O kit tem o análise pro 2.2.0; instalado 2.1.0. Atualize pelo INSTALAR_KIT_PMVNI.cmd." }, kitNovo.Avisos);
+        var kitNovo = await Diagnostico.TestarAsync(Provedor.Claude, pecas with { VersaoAnaliseProKit = "4.1.0" }, ModoAcesso.Conta, false, CancellationToken.None);
+        Assert.Contains("análise pro 4.0.0 (kit: 4.1.0)", kitNovo.Linha);
+        Assert.Equal(new[] { "O kit tem o análise pro 4.1.0; instalado 4.0.0. Atualize pelo INSTALAR_KIT_PMVNI.cmd." }, kitNovo.Avisos);
 
         // py.exe -3: o launcher leva o -3 também na pergunta da versão.
         var launcher = await Diagnostico.TestarAsync(Provedor.Claude, pecas with { PythonPeloLauncher = true }, ModoAcesso.Conta, false, CancellationToken.None);

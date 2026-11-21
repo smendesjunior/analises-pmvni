@@ -35,9 +35,14 @@ public sealed partial class MainWindow
         /// <summary>A conta lida do disco. O Gemini não tem arquivo de conta que o editor leia: o login do Antigravity só é conferido pelo "Testar".</summary>
         public ContaLocal Conta(Provedor p) => p switch { Provedor.ChatGpt => ContaChatGpt, Provedor.Claude => ContaClaude, _ => ContaLocal.Nenhuma };
 
-        public static InfoLocalAgentes Ler(OpcoesLocalizacao o) => new(ContasLocais.Ler(Provedor.ChatGpt, o), ContasLocais.Ler(Provedor.Claude, o),
-            PluginsInstalados.NoCodex(o.CodexHome, PluginsInstalados.Analise), PluginsInstalados.NoClaude(o.PastaClaude, PluginsInstalados.Analise),
-            PluginsInstalados.NoCodex(o.CodexHome, PluginsInstalados.AnalisePro), PluginsInstalados.NoCodex(o.CodexHome, PluginsInstalados.AnaliseGoogle));
+        /// <summary>Tarefa 18: as rotas Claude e Gemini rodam o controlador do mesmo plugin analise instalado no Codex (não há mais analise-pro nem
+        /// analise-google); a segunda linha de plugin desses cartões mostra a versão dele.</summary>
+        public static InfoLocalAgentes Ler(OpcoesLocalizacao o)
+        {
+            var analiseNoCodex = PluginsInstalados.NoCodex(o.CodexHome, PluginsInstalados.Analise);
+            return new(ContasLocais.Ler(Provedor.ChatGpt, o), ContasLocais.Ler(Provedor.Claude, o),
+                analiseNoCodex, PluginsInstalados.NoClaude(o.PastaClaude, PluginsInstalados.Analise), analiseNoCodex, analiseNoCodex);
+        }
     }
 
     /// <summary>O que o último "Testar" do Gemini disse do login do Antigravity (conta Google): true, false ou null (ainda não testado ou não foi possível saber).</summary>

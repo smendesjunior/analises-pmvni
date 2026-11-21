@@ -162,6 +162,8 @@ public sealed class OrquestradorAnalise
         else if (pe.Provedor == Provedor.Gemini)
         {
             if (pecas.Python is null) return Falha("O Python não foi encontrado neste computador (o análise Google do kit precisa dele).");
+            // Tarefa 18: um analise anterior ao 4.0.0 não tem o controlador da rota (rotas\gemini): pede a atualização do kit, não "não instalado".
+            if (pecas.VersaoAnaliseGoogle is not null && PoliticaKit.PluginDesatualizado(Provedor.Gemini, pecas.VersaoAnaliseGoogle) is { } kitAntigo) return Falha(kitAntigo);
             if (pecas.GoogleRuntime is null) return Falha(SemAnaliseGoogle);
             if (pe.Modo != ModoAcesso.ContaGemini && pecas.Agy is null) return Falha(SemAgy);
             if (pe.Perfil is not { } perfil)
@@ -175,6 +177,8 @@ public sealed class OrquestradorAnalise
         else
         {
             if (pecas.Python is null) return Falha("O Python não foi encontrado neste computador (o análise pro do kit precisa dele).");
+            // Tarefa 18: um analise anterior ao 4.0.0 não tem o controlador da rota (rotas\claude): pede a atualização do kit, não "não instalado".
+            if (pecas.VersaoAnalisePro is not null && PoliticaKit.PluginDesatualizado(Provedor.Claude, pecas.VersaoAnalisePro) is { } kitAntigo) return Falha(kitAntigo);
             if (pecas.ProRuntime is null)
                 return Falha("O plugin análise pro do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
             if (pecas.Claude is null) return Falha("O Claude Code não foi encontrado neste computador (claude.exe).");

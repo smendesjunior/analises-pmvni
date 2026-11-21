@@ -110,16 +110,21 @@ public static class Ambiente
         return CriacaoProcesso.Criar(raiz, 1, 2099, "Fulano de Exemplo (Ficticio)").Processo;
     }
 
-    /// <summary>Peças que apontam todas para o agente falso (ele faz o papel de codex, claude e python). Plugins nas versões mínimas do Editor 2.3.0
-    /// (analise 3.1.0, analise-pro 2.1.0); o <c>config.toml</c> do Codex fica em <c>&lt;teste&gt;\codex-home</c> (sem ele, a rota "herdar" é a OpenAI).</summary>
+    /// <summary>Peças que apontam todas para o agente falso (ele faz o papel de codex, claude e python). O plugin único na versão mínima do Editor
+    /// (analise 4.0.0, Tarefa 18), com os controladores em <c>skills\analise\scripts\rotas\&lt;rota&gt;</c>; o <c>config.toml</c> do Codex fica em
+    /// <c>&lt;teste&gt;\codex-home</c> (sem ele, a rota "herdar" é a OpenAI).</summary>
     public static Pecas PecasFalsas(string pastaTeste, bool pluginHabilitado = true) => new(
         Codex: AgenteFalso, Claude: AgenteFalso, Python: AgenteFalso, PythonPeloLauncher: false,
-        ProRuntime: Path.Combine(pastaTeste, "codex-home", "plugins", "cache", "pmvni-kit", "analise-pro", "2.1.0", "skills", "analise-pro", "scripts", "pro_runtime.py"),
-        VersaoAnalisePro: "2.1.0", VersaoAnaliseProKit: "2.1.0", PluginAnaliseHabilitado: pluginHabilitado, VersaoPluginAnalise: "3.1.0", ApiPermitidaNoKit: false)
+        ProRuntime: Controlador(pastaTeste, "claude", "pro_runtime.py"),
+        VersaoAnalisePro: "4.0.0", VersaoAnaliseProKit: "4.0.0", PluginAnaliseHabilitado: pluginHabilitado, VersaoPluginAnalise: "4.0.0", ApiPermitidaNoKit: false)
     {
         CodexHome = Path.Combine(pastaTeste, "codex-home"),
-        Analise62 = Path.Combine(pastaTeste, "codex-home", "plugins", "cache", "pmvni-kit", "analise", "3.1.0", "skills", "analise", "scripts", "executar_analise_62.py"),
+        Analise62 = Controlador(pastaTeste, "codex", "executar_analise_62.py"),
     };
+
+    /// <summary>O controlador de uma rota no plugin analise 4.0.0 do <c>codex-home</c> do teste.</summary>
+    public static string Controlador(string pastaTeste, string rota, string script) =>
+        Path.Combine(pastaTeste, "codex-home", "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", rota, script);
 
     /// <summary>O que o código do editor lê do disco do agente falso depois de rodar: confere se o processo ainda vive.</summary>
     public static bool Vivo(int pid)

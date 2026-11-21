@@ -52,7 +52,7 @@ public sealed record Pecas(
     /// <summary>A pasta do Codex (<c>CODEX_HOME</c> ou <c>%USERPROFILE%\.codex</c>): o <c>config.toml</c> que a rota "herdar" lê (<see cref="RotaCodex"/>).</summary>
     public string? CodexHome { get; init; }
 
-    /// <summary>O controlador do analise instalado no Codex (<c>skills\analise\scripts\executar_analise_62.py</c> da maior versão); null se não achado. A rota
+    /// <summary>O controlador do analise instalado no Codex (<c>skills\analise\scripts\rotas\codex\executar_analise_62.py</c> da maior versão); null se não achado. A rota
     /// ChatGPT roda este script direto, sem sessão Codex controladora (Tarefa 12).</summary>
     public string? Analise62 { get; init; }
 
@@ -73,15 +73,14 @@ public static class Localizacao
         var claude = NoPath(o, "claude.exe");
         var (python, launcher) = AcharPython(o);
 
+        // Tarefa 18: o kit tem um só plugin de análise (analise 4.0.0+), com o controlador de cada rota em skills\analise\scripts\rotas\<rota>.
+        // Os três botões (ChatGPT, Claude, Gemini) usam a mesma pasta instalada: a maior versão de cache\pmvni-kit\analise.
         var cacheKit = Path.Combine(o.CodexHome, "plugins", "cache", "pmvni-kit");
-        var (versaoPro, pastaPro) = MaiorVersao(Path.Combine(cacheKit, "analise-pro"));
-        versaoPro = VersaoInstalada(pastaPro) ?? versaoPro;
-        string? proRuntime = null;
-        if (pastaPro is not null)
-        {
-            var script = Path.Combine(pastaPro, "skills", "analise-pro", "scripts", "pro_runtime.py");
-            if (File.Exists(script)) proRuntime = script;
-        }
+        var (versaoPlugin, pastaAnalise) = MaiorVersao(Path.Combine(cacheKit, PluginsInstalados.Analise));
+        versaoPlugin = VersaoInstalada(pastaAnalise) ?? versaoPlugin;
+        var analise62 = Controlador(pastaAnalise, Provedor.ChatGpt);
+        var proRuntime = Controlador(pastaAnalise, Provedor.Claude);
+        var googleRuntime = Controlador(pastaAnalise, Provedor.Gemini);
 
         var apiPermitida = true;
         if (proRuntime is not null)
@@ -90,30 +89,36 @@ public static class Localizacao
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         }
 
-        var (versaoPlugin, pastaAnalise) = MaiorVersao(Path.Combine(cacheKit, "analise"));
-        versaoPlugin = VersaoInstalada(pastaAnalise) ?? versaoPlugin;
-        string? analise62 = null;
-        if (pastaAnalise is not null)
+        if (googleRuntime is not null)
         {
-            var script = Path.Combine(pastaAnalise, "skills", "analise", "scripts", "executar_analise_62.py");
-            if (File.Exists(script)) analise62 = script;
+            try { if (!PoliticaKit.RuntimeGoogleValido(File.ReadAllText(googleRuntime))) googleRuntime = null; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { googleRuntime = null; }
         }
 
-        var (versaoGoogle, pastaGoogle) = MaiorVersao(Path.Combine(cacheKit, PluginsInstalados.AnaliseGoogle));
-        versaoGoogle = VersaoInstalada(pastaGoogle) ?? versaoGoogle;
-        string? googleRuntime = null;
-        if (pastaGoogle is not null)
+        // Uma só versão para as três rotas (a do plugin analise instalado e a do kit).
+        var versaoKit = VersaoDoKit(o);
+        return new Pecas(codex, claude, python, launcher, proRuntime, versaoPlugin, versaoKit, PluginHabilitado(o.CodexHome), versaoPlugin, apiPermitida)
         {
-            var script = Path.Combine(pastaGoogle, "skills", PluginsInstalados.AnaliseGoogle, "scripts", "google_runtime.py");
-            try { if (File.Exists(script) && PoliticaKit.RuntimeGoogleValido(File.ReadAllText(script))) googleRuntime = script; }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
-        }
-
-        return new Pecas(codex, claude, python, launcher, proRuntime, versaoPro, VersaoDoKit(o), PluginHabilitado(o.CodexHome), versaoPlugin, apiPermitida)
-        {
-            Agy = AcharAgy(o), GoogleRuntime = googleRuntime, VersaoAnaliseGoogle = versaoGoogle, VersaoAnaliseGoogleKit = VersaoDoKit(o, PluginsInstalados.AnaliseGoogle),
+            Agy = AcharAgy(o), GoogleRuntime = googleRuntime, VersaoAnaliseGoogle = versaoPlugin, VersaoAnaliseGoogleKit = versaoKit,
             CodexHome = o.CodexHome, Analise62 = analise62,
         };
+    }
+
+    /// <summary>A pasta de cada rota dentro de <c>skills\analise\scripts\rotas</c> do plugin analise e o controlador que o Editor roda nela.</summary>
+    public static (string Pasta, string Script) RotaDoControlador(Provedor p) => p switch
+    {
+        Provedor.ChatGpt => ("codex", "executar_analise_62.py"),
+        Provedor.Claude => ("claude", "pro_runtime.py"),
+        _ => ("gemini", "google_runtime.py"),
+    };
+
+    /// <summary>O controlador da rota no plugin analise instalado (<c>skills\analise\scripts\rotas\&lt;rota&gt;\&lt;script&gt;</c>); null se não existir.</summary>
+    static string? Controlador(string? pastaPlugin, Provedor p)
+    {
+        if (pastaPlugin is null) return null;
+        var (rota, nome) = RotaDoControlador(p);
+        var script = Path.Combine(pastaPlugin, "skills", PluginsInstalados.Analise, "scripts", "rotas", rota, nome);
+        return File.Exists(script) ? script : null;
     }
 
     /// <summary>A versão que o próprio plugin instalado declara (<c>.codex-plugin\plugin.json</c>); null sem o arquivo (vale o nome da pasta).</summary>
@@ -207,8 +212,9 @@ public static class Localizacao
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return (null, null); }
     }
 
-    static string? VersaoDoKit(OpcoesLocalizacao o, string plugin = PluginsInstalados.AnalisePro) =>
-        VersaoDoPluginJson(Path.Combine(o.PastaKit, "01 - PLUGINS", "plugins", plugin, ".codex-plugin", "plugin.json"));
+    /// <summary>A versão do plugin analise no kit (<c>01 - PLUGINS\plugins\analise\.codex-plugin\plugin.json</c>); null se não houver.</summary>
+    static string? VersaoDoKit(OpcoesLocalizacao o) =>
+        VersaoDoPluginJson(Path.Combine(o.PastaKit, "01 - PLUGINS", "plugins", PluginsInstalados.Analise, ".codex-plugin", "plugin.json"));
 
     static string? VersaoDoPluginJson(string json)
     {

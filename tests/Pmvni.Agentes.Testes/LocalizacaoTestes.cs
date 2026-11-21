@@ -81,30 +81,68 @@ public class LocalizacaoTestes
     }
 
     [Fact]
-    public void analise_pro_instalado_e_versao_do_kit()
+    public void plugin_unico_tres_controladores_e_versao_do_kit()
     {
-        using var t = Ambiente.PastaDeTeste("loc-pro");
-        var cache = Path.Combine(t, "codex-home", "plugins", "cache", "pmvni-kit", "analise-pro");
-        foreach (var v in new[] { "1.6.0", "1.6.1", "1.10.0" })
-            Arquivo(Path.Combine(cache, v, "skills", "analise-pro", "scripts", "pro_runtime.py"), "# " + v);
-        Arquivo(Path.Combine(t, "kit", "01 - PLUGINS", "plugins", "analise-pro", ".codex-plugin", "plugin.json"), "{ \"name\": \"analise-pro\", \"version\": \"1.6.1\" }");
+        // Tarefa 18: um só plugin (analise 4.0.0+); os três controladores na pasta da rota, dentro da maior versão instalada.
+        using var t = Ambiente.PastaDeTeste("loc-unico");
+        var cache = Path.Combine(t, "codex-home", "plugins", "cache", "pmvni-kit", "analise");
+        string Rota(string v, string rota, string script) => Path.Combine(cache, v, "skills", "analise", "scripts", "rotas", rota, script);
+        foreach (var v in new[] { "4.0.0", "4.0.1", "4.10.0" })
+        {
+            Arquivo(Rota(v, "codex", "executar_analise_62.py"), "# " + v);
+            Arquivo(Rota(v, "claude", "pro_runtime.py"), "# " + v);
+            Arquivo(Rota(v, "gemini", "google_runtime.py"), "ROTA_VAR = 'PMVNI_ANALISE_GOOGLE_ROTA'  # " + v);
+        }
+        Arquivo(Path.Combine(t, "kit", "01 - PLUGINS", "plugins", "analise", ".codex-plugin", "plugin.json"), "{ \"name\": \"analise\", \"version\": \"4.0.1\" }");
+        // Restos de uma instalação antiga (analise-pro, analise-google) não são lidos.
+        Arquivo(Path.Combine(t, "codex-home", "plugins", "cache", "pmvni-kit", "analise-pro", "9.9.9", "skills", "analise-pro", "scripts", "pro_runtime.py"), "# antigo");
+        Arquivo(Path.Combine(t, "codex-home", "plugins", "cache", "pmvni-kit", "analise-google", "9.9.9", "skills", "analise-google", "scripts", "google_runtime.py"),
+            "PMVNI_ANALISE_GOOGLE_ROTA");
 
         var p = Localizacao.Ler(Opcoes(t));
-        Assert.Equal("1.10.0", p.VersaoAnalisePro);                      // por número, não por texto (1.10.0 > 1.6.1)
-        Assert.Equal(Path.Combine(cache, "1.10.0", "skills", "analise-pro", "scripts", "pro_runtime.py"), p.ProRuntime);
-        Assert.Equal("1.6.1", p.VersaoAnaliseProKit);
+        Assert.Equal("4.10.0", p.VersaoPluginAnalise);                   // por número, não por texto (4.10.0 > 4.0.1)
+        Assert.Equal(Rota("4.10.0", "codex", "executar_analise_62.py"), p.Analise62);
+        Assert.Equal(Rota("4.10.0", "claude", "pro_runtime.py"), p.ProRuntime);
+        Assert.Equal(Rota("4.10.0", "gemini", "google_runtime.py"), p.GoogleRuntime);
+        Assert.Equal(p.ProRuntime, p.RuntimeDoKit(Provedor.Claude));
+        Assert.Equal(p.GoogleRuntime, p.RuntimeDoKit(Provedor.Gemini));
+        Assert.Equal(("4.10.0", "4.10.0"), (p.VersaoAnalisePro, p.VersaoAnaliseGoogle));   // uma só versão para as três rotas
+        Assert.Equal(("4.0.1", "4.0.1"), (p.VersaoAnaliseProKit, p.VersaoAnaliseGoogleKit));
+        foreach (var pv in Enum.GetValues<Provedor>()) Assert.Null(PoliticaKit.PluginDesatualizado(pv, p.VersaoPluginAnalise));
 
-        // Sem o cache, não há ProRuntime nem versão instalada.
+        // Sem o cache, não há controlador nem versão instalada.
         Directory.Delete(Path.Combine(t, "codex-home"), true);
         var sem = Localizacao.Ler(Opcoes(t));
-        Assert.Null(sem.ProRuntime);
-        Assert.Null(sem.VersaoAnalisePro);
-        Assert.Equal("1.6.1", sem.VersaoAnaliseProKit);
+        Assert.Equal((null, null, null), (sem.Analise62, sem.ProRuntime, sem.GoogleRuntime));
+        Assert.Equal((null, null, null), (sem.VersaoPluginAnalise, sem.VersaoAnalisePro, sem.VersaoAnaliseGoogle));
+        Assert.Equal("4.0.1", sem.VersaoAnaliseProKit);
         Assert.True(sem.ApiPermitidaNoKit);   // nada que proíba
 
         // plugin.json ilegível não derruba a leitura.
-        Arquivo(Path.Combine(t, "kit", "01 - PLUGINS", "plugins", "analise-pro", ".codex-plugin", "plugin.json"), "{ não é json");
+        Arquivo(Path.Combine(t, "kit", "01 - PLUGINS", "plugins", "analise", ".codex-plugin", "plugin.json"), "{ não é json");
         Assert.Null(Localizacao.Ler(Opcoes(t)).VersaoAnaliseProKit);
+    }
+
+    [Fact]
+    public void plugin_antigo_3x_sem_rotas_pede_atualizacao_nas_tres_rotas()
+    {
+        // O analise 3.x (com o executar_analise_62.py fora de rotas\) e os antigos analise-pro/analise-google: nenhum controlador é usado, e cada botão
+        // pede a atualização do kit (analise 4.0.0).
+        using var t = Ambiente.PastaDeTeste("loc-antigo");
+        var cache = Path.Combine(t, "codex-home", "plugins", "cache", "pmvni-kit");
+        Arquivo(Path.Combine(cache, "analise", "3.1.0", "skills", "analise", "scripts", "executar_analise_62.py"), "# 3.1.0");
+        Arquivo(Path.Combine(cache, "analise-pro", "2.1.0", "skills", "analise-pro", "scripts", "pro_runtime.py"), "PMVNI_ANALISE_PRO_ROTA");
+        Arquivo(Path.Combine(cache, "analise-google", "2.1.0", "skills", "analise-google", "scripts", "google_runtime.py"), "PMVNI_ANALISE_GOOGLE_ROTA");
+
+        var p = Localizacao.Ler(Opcoes(t));
+        Assert.Equal((null, null, null), (p.Analise62, p.ProRuntime, p.GoogleRuntime));
+        Assert.Equal(("3.1.0", "3.1.0", "3.1.0"), (p.VersaoPluginAnalise, p.VersaoAnalisePro, p.VersaoAnaliseGoogle));
+        foreach (var pv in Enum.GetValues<Provedor>())
+        {
+            var m = PoliticaKit.PluginDesatualizado(pv, OrquestradorAnalise.VersaoDoPlugin(pv, p));
+            Assert.NotNull(m);
+            Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo): o analise instalado neste computador é o 3.1.0.", m);
+        }
     }
 
     [Fact]
@@ -156,7 +194,7 @@ public class LocalizacaoTestes
     public void api_do_analise_pro_conforme_o_kit()
     {
         using var t = Ambiente.PastaDeTeste("loc-api");
-        var script = Path.Combine(t, "codex-home", "plugins", "cache", "pmvni-kit", "analise-pro", "1.6.1", "skills", "analise-pro", "scripts", "pro_runtime.py");
+        var script = Ambiente.Controlador(t, "claude", "pro_runtime.py");
         Arquivo(script, "if route not in ('conta', 'local'): raise ValueError('API paga desativada no analise-pro.')\n");
         Assert.False(Localizacao.Ler(Opcoes(t)).ApiPermitidaNoKit);
         Arquivo(script, "if route not in ('conta', 'api'): raise ValueError('rota inválida')\n");      // 1.6.3: sem rota explícita

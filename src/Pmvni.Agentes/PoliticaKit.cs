@@ -20,16 +20,17 @@ public static class PoliticaKit
     /// <summary>O <c>google_runtime.py</c> instalado conhece a rota explícita (a marca do contrato com o editor).</summary>
     public static bool RuntimeGoogleValido(string textoGoogleRuntime) => textoGoogleRuntime.Contains(VariavelRotaGoogle, StringComparison.Ordinal);
 
-    /// <summary>As versões mínimas dos plugins que o Editor 2.3.0 exige (contrato da Tarefa 2: códigos 0/20/21/1, JSON da situação, espera de cota e decisão
-    /// do analista): analise 3.1.0, analise-pro 2.1.0, analise-google 2.1.0.</summary>
+    /// <summary>As versões mínimas que o Editor exige. Tarefa 18: um só plugin de análise para as três rotas (o analise 4.0.0, com os controladores em
+    /// <c>skills\analise\scripts\rotas\&lt;rota&gt;</c>); o contrato da Tarefa 2 (códigos 0/20/21/1, JSON da situação, espera de cota e decisão do analista)
+    /// continua o mesmo.</summary>
     public static IReadOnlyDictionary<Provedor, (string Plugin, Version Minima)> VersoesMinimas { get; } = new Dictionary<Provedor, (string, Version)>
     {
-        [Provedor.ChatGpt] = (PluginsInstalados.Analise, new Version(3, 1, 0)),
-        [Provedor.Claude] = (PluginsInstalados.AnalisePro, new Version(2, 1, 0)),
-        [Provedor.Gemini] = (PluginsInstalados.AnaliseGoogle, new Version(2, 1, 0)),
+        [Provedor.ChatGpt] = (PluginsInstalados.Analise, new Version(4, 0, 0)),
+        [Provedor.Claude] = (PluginsInstalados.Analise, new Version(4, 0, 0)),
+        [Provedor.Gemini] = (PluginsInstalados.Analise, new Version(4, 0, 0)),
     };
 
-    /// <summary>null se o plugin instalado do provedor atende à versão mínima; senão "Atualize o kit PMVNI (analise 3.1.0 ou mais novo)…", com a versão
+    /// <summary>null se o plugin instalado do provedor atende à versão mínima; senão "Atualize o kit PMVNI (analise 4.0.0 ou mais novo)…", com a versão
     /// instalada. Versão desconhecida ou ilegível conta como antiga: o editor não presume o contrato novo.</summary>
     public static string? PluginDesatualizado(Provedor p, string? versaoInstalada)
     {

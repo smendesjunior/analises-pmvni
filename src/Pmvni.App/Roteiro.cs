@@ -2730,15 +2730,15 @@ internal static class Roteiro
             File.Copy(agenteFalso, Path.Combine(agenteFalsoPasta, "claude.exe"), overwrite: true);   // o mesmo programa faz o papel do claude.exe (e do python.exe)
             if (Directory.Exists(codexHome)) ApagarArvore(codexHome);
             // Tarefa 12: o editor roda o controlador do analise direto (o agente falso faz o papel do python.exe com o executar_analise_62.py).
-            var scriptsAnalise = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "3.1.0", "skills", "analise", "scripts");
+            var scriptsAnalise = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "codex");
             Directory.CreateDirectory(scriptsAnalise);
             File.WriteAllText(Path.Combine(scriptsAnalise, "executar_analise_62.py"), "# executar_analise_62.py fictício do roteiro\n");
-            var scripts = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-pro", "2.1.0", "skills", "analise-pro", "scripts");
+            var scripts = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "claude");
             Directory.CreateDirectory(scripts);
             File.WriteAllText(Path.Combine(scripts, "pro_runtime.py"), "# pro_runtime.py fictício do roteiro\nraise ValueError('API paga desativada no analise-pro.')\n");
             // 1.1.0 (Gemini): o mesmo agente falso faz o papel do agy.exe (no PATH do roteiro) e do google_runtime.py do análise Google.
             File.Copy(agenteFalso, Path.Combine(agenteFalsoPasta, "agy.exe"), overwrite: true);
-            var scriptsGoogle = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-google", "2.1.0", "skills", "analise-google", "scripts");
+            var scriptsGoogle = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "gemini");
             Directory.CreateDirectory(scriptsGoogle);
             File.WriteAllText(Path.Combine(scriptsGoogle, "google_runtime.py"), "# google_runtime.py fictício do roteiro\nROTA_VAR = 'PMVNI_ANALISE_GOOGLE_ROTA'\n");
             File.WriteAllText(configCodex, ConfigHabilitado);
@@ -2780,10 +2780,10 @@ internal static class Roteiro
                 && (chatgpt.OpcaoChave.Content as string ?? "").StartsWith("Usar chave de API", StringComparison.Ordinal);
             var contas = chatgpt.TextoNomeConta.Text == TextosAgentes.NaoConectado && claude.TextoNomeConta.Text == TextosAgentes.NaoConectado
                 && chatgpt.BotaoConta.Content as string == "Entrar" && chatgpt.TextoAssinatura.Text == "—" && chatgpt.SeloChave.Texto == TextosAgentes.NaoConfigurada;
-            var plugins = chatgpt.SeloPluginAnalise.Texto == "Versão 3.1.0" && chatgpt.SeloPluginAnalise.Ok && claude.SeloPluginPro.Texto == "Versão 2.1.0"
+            var plugins = chatgpt.SeloPluginAnalise.Texto == "Versão 4.0.0" && chatgpt.SeloPluginAnalise.Ok && claude.SeloPluginPro.Texto == "Versão 4.0.0"
                 && claude.LinhaPluginPro.Visibility == Visibility.Visible && chatgpt.LinhaPluginPro.Visibility == Visibility.Collapsed
                 && chatgpt.TextoPluginAnalise.Text.StartsWith("No Codex, habilitado · instalado ou atualizado em ", StringComparison.Ordinal)
-                && j.AjustesAtuais.PluginsVistos.TryGetValue("chatgpt.analise", out var vista) && vista == "3.1.0";
+                && j.AjustesAtuais.PluginsVistos.TryGetValue("chatgpt.analise", out var vista) && vista == "4.0.0";
             p["secao_e_texto"] = secao;
             p["dois_cartoes"] = cartoes;
             p["contas_locais"] = contas;
@@ -2794,7 +2794,7 @@ internal static class Roteiro
             var pecas = j.PecasAgentes;
             bool Dentro(string? c) => c is not null && Path.GetFullPath(c).StartsWith(agenteFalsoPasta + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
             var soFalso = Dentro(pecas.Codex) && Dentro(pecas.Claude) && Dentro(pecas.Python) && !pecas.PythonPeloLauncher
-                && pecas.PluginAnaliseHabilitado && pecas.VersaoPluginAnalise == "3.1.0" && pecas.VersaoAnalisePro == "2.1.0" && !pecas.ApiPermitidaNoKit;
+                && pecas.PluginAnaliseHabilitado && pecas.VersaoPluginAnalise == "4.0.0" && pecas.VersaoAnalisePro == "4.0.0" && !pecas.ApiPermitidaNoKit;
             string? bloqueio = null;
             try { await ExecucaoProcesso.RodarAsync(Path.Combine(Environment.SystemDirectory, "whoami.exe"), [], pasta, _ => { }, TimeSpan.FromSeconds(5), CancellationToken.None); }
             catch (InvalidOperationException e) { bloqueio = e.Message; }
@@ -2803,13 +2803,13 @@ internal static class Roteiro
             p["trava_de_programas"] = travado;
 
             // (c) Testar o ChatGPT e o Claude (só comandos locais, no agente falso).
-            const string LinhaChatGpt = "Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 3.1.0 habilitado";
+            const string LinhaChatGpt = "Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 4.0.0 habilitado";
             var rChatGpt = await j.TestarAgenteAsync(Provedor.ChatGpt);
             var testouChatGpt = rChatGpt.Linha == LinhaChatGpt && chatgpt.TextoSituacao.Text == LinhaChatGpt && j.LinhaSituacaoAgente(Provedor.ChatGpt) == LinhaChatGpt
                 && rChatGpt.Avisos.Count == 0 && chatgpt.BotaoTestar.IsEnabled;
             var versaoDoKit = LerVersaoDoKit(j.PastaKitEfetiva) ?? "não encontrado";
             var rClaude = await j.TestarAgenteAsync(Provedor.Claude);
-            var linhaClaude = $"Claude Code 2.9.0 · conectado com a conta do Claude · análise pro 2.1.0 (kit: {versaoDoKit}) · Python 3.14.0";
+            var linhaClaude = $"Claude Code 2.9.0 · conectado com a conta do Claude · análise pro 4.0.0 (kit: {versaoDoKit}) · Python 3.14.0";
             var testouClaude = rClaude.Linha == linhaClaude && claude.TextoSituacao.Text == linhaClaude;
             p["linha_chatgpt"] = rChatGpt.Linha;
             p["linha_claude"] = rClaude.Linha;
@@ -3178,7 +3178,7 @@ internal static class Roteiro
             // entrada padrão: nenhum "codex exec" e nenhum pedido "Use $analise" (erros 1–3).
             var recebido = Recebido(processo);
             var argv = recebido["argv"]!.AsArray().Select(a => a!.GetValue<string>()).ToArray();
-            var script = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "3.1.0", "skills", "analise", "scripts", "executar_analise_62.py");
+            var script = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "codex", "executar_analise_62.py");
             var linhaExata = argv.Take(7).SequenceEqual(["-B", "-X", "utf8", script, "--case", processo, "--inputs"])
                 && arquivados.All(a => argv.Contains(Path.Combine(processo, a.Relativo), StringComparer.OrdinalIgnoreCase))
                 && string.Equals(recebido["cwd"]!.GetValue<string>().TrimEnd('\\'), processo, StringComparison.OrdinalIgnoreCase) && recebido["entrada"]!.GetValue<string>() == ""
@@ -3298,7 +3298,7 @@ internal static class Roteiro
             p["etapas_vistas"] = new JsonArray(etapasVistas.Select(x => (JsonNode)x).ToArray());
             var iniciar = Chamadas(processo, "iniciar").Skip(iniciarAntes).ToArray();
             var argsIniciar = iniciar.Length == 1 ? JsonNode.Parse(iniciar[0].Split('\t')[1])!.AsArray().Select(a => a!.GetValue<string>()).ToArray() : [];
-            var proRuntime = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-pro", "2.1.0", "skills", "analise-pro", "scripts", "pro_runtime.py");
+            var proRuntime = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "claude", "pro_runtime.py");
             var linhaIniciar = argsIniciar.SequenceEqual(["-B", "-X", "utf8", proRuntime, "--case", processo, "iniciar"]);
             var situacoes = Chamadas(processo, "situacao").Length - situacaoAntes;
             p["situacao_chamadas"] = situacoes;
@@ -3342,7 +3342,7 @@ internal static class Roteiro
             var n = j.NovoRelatorio;
             var botao = (n.BotaoGemini.Content as StackPanel)?.Children.OfType<TextBlock>().FirstOrDefault()?.Text == "Analisar com o Gemini"
                 && j.BotaoAnaliseHabilitado(Provedor.Gemini) && j.BotaoAnaliseHabilitado(Provedor.ChatGpt) && j.BotaoAnaliseHabilitado(Provedor.Claude)
-                && n.TextoPluginGemini.Text == "Pelo Antigravity · kit análise Google v2.1.0" && n.TextoPerfilGemini.Text == "Perfil: Conta Google (plano Ultra)";
+                && n.TextoPluginGemini.Text == "Pelo Antigravity · kit análise Google v4.0.0" && n.TextoPerfilGemini.Text == "Perfil: Conta Google (plano Ultra)";
             p["rotulo_do_botao"] = n.TextoPluginGemini.Text;
 
             // Conta Google: aviso na primeira vez, conferência antes da partida, as etapas na tela e o relatório importado.
@@ -3370,13 +3370,13 @@ internal static class Roteiro
             p["etapas_vistas"] = new JsonArray(etapasVistas.Select(x => (JsonNode)x).ToArray());
             var conferir = Chamadas(processo, "conferir").Skip(conferirAntes).Select(Col).ToArray();
             var iniciar = Chamadas(processo, "iniciar").Skip(iniciarAntes).Select(Col).ToArray();
-            var googleRuntime = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise-google", "2.1.0", "skills", "analise-google", "scripts", "google_runtime.py");
+            var googleRuntime = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "gemini", "google_runtime.py");
             var partida = conferir.Length == 1 && iniciar.Length == 1
                 && new[] { conferir[0], iniciar[0] }.All(c => c[2] == "CHAVE_AUSENTE" && c[3] == "conta" && c[4] == "conta_ultra" && c[5] == "-")
                 && JsonNode.Parse(iniciar[0][1])!.AsArray().Select(a => a!.GetValue<string>()).SequenceEqual(["-B", "-X", "utf8", googleRuntime, "--case", processo, "iniciar"]);
             var execucao = JsonNode.Parse(File.ReadAllText(Path.Combine(e.Registro.Pasta, "execucao.json"), System.Text.Encoding.UTF8))!;
             var registro = (string?)execucao["provedor"] == "gemini" && (string?)execucao["autenticacao"] == "conta_google" && (string?)execucao["perfil"] == "conta_ultra"
-                && (string?)execucao["plugin"] == "análise Google" && (string?)execucao["versao_do_plugin"] == "2.1.0"
+                && (string?)execucao["plugin"] == "análise Google" && (string?)execucao["versao_do_plugin"] == "4.0.0"
                 && File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "analise-google", "diretrizes.md"), System.Text.Encoding.UTF8)
                     == "Diretriz fictícia para o Gemini.\n";      // só o texto do analista (Tarefa 13)
             var s = j.Sessao;
@@ -5047,7 +5047,8 @@ internal static class Roteiro
         {
             // Tarefa 15: "Rever" numa tabela de índices é conta do editor, sem IA: a TO de 240,01 ÷ 300,00 escrita "80,0%" (ATENDE) passa a
             // NÃO ATENDE (a conta exata é 80,0033%), o aviso mostra o valor de antes e o de agora, e um Desfazer volta tudo. Com uma instrução
-            // digitada na justificativa, o botão passa a ser "Rever com a IA" (não é clicado aqui).
+            // digitada na justificativa (Tarefa 15, correção 1), o botão principal continua "Rever (sem IA)" e "Rever com a IA" aparece como
+            // segunda opção (PropReverComIa; não é clicada aqui).
             const string To = "indices/02";
             var json = Path.Combine(pasta, "rever-sem-ia.json");
             var no = JsonNode.Parse(await File.ReadAllTextAsync(dadosLongo))!;
@@ -5085,14 +5086,15 @@ internal static class Roteiro
                 await j.AplicarAsync(new DefinirJustificativa(To, "Considerar a projeção de 230,00 m² da prancha 02."));
                 await j.SelecionarAsync(To);
                 var rotuloComInstrucao = j.RotuloDoBotaoDaIa;
+                var opcaoComIa = j.OpcaoReverComIaVisivel;
                 await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
-                p["rotulos"] = rotulo + " / " + rotuloComInstrucao;
+                p["rotulos"] = rotulo + " / " + rotuloComInstrucao + (opcaoComIa ? " + Rever com a IA" : "");
                 p["conferencias"] = new JsonObject
                 {
                     ["rotulo_sem_ia"] = rotulo == "Rever (sem IA)", ["reviu_com_antes_e_depois"] = reviu, ["nenhuma_ia_chamada"] = semIa, ["um_desfazer"] = desfez,
-                    ["instrucao_pede_ia"] = rotuloComInstrucao == "Rever com a IA",
+                    ["instrucao_oferece_ia"] = rotuloComInstrucao == "Rever (sem IA)" && opcaoComIa,
                 };
-                p["ok"] = rotulo == "Rever (sem IA)" && reviu && semIa && desfez && rotuloComInstrucao == "Rever com a IA";
+                p["ok"] = rotulo == "Rever (sem IA)" && reviu && semIa && desfez && rotuloComInstrucao == "Rever (sem IA)" && opcaoComIa;
             }
             finally { File.Delete(json); }
         });
@@ -5117,10 +5119,10 @@ internal static class Roteiro
         Application.Current.Exit();
     }
 
-    /// <summary>A versão do análise pro no kit (<c>01 - PLUGINS\plugins\analise-pro\.codex-plugin\plugin.json</c>), só lida; null se não houver.</summary>
+    /// <summary>A versão do plugin analise no kit (<c>01 - PLUGINS\plugins\analise\.codex-plugin\plugin.json</c>), só lida; null se não houver (Tarefa 18: um só plugin).</summary>
     static string? LerVersaoDoKit(string kit)
     {
-        var json = Path.Combine(kit, "01 - PLUGINS", "plugins", "analise-pro", ".codex-plugin", "plugin.json");
+        var json = Path.Combine(kit, "01 - PLUGINS", "plugins", "analise", ".codex-plugin", "plugin.json");
         try { return File.Exists(json) ? JsonNode.Parse(File.ReadAllText(json))?["version"]?.GetValue<string>() : null; }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException) { return null; }
     }
