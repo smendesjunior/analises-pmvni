@@ -388,7 +388,8 @@ public sealed partial class MainWindow
         {
             p.BotaoInstalarPlugins.IsEnabled = false;
             p.ResumoInstalacaoPlugins.Text = "Instalando plugins para este usuário…";
-            try { p.ResumoInstalacaoPlugins.Text = await Task.Run(InstalacaoMotorPdf.ConferirAsync); }
+            // Revisão final I2 (erro 15): o script reinstala o plugin analise; com análise em andamento, avisa e não instala.
+            try { p.ResumoInstalacaoPlugins.Text = await AtualizacaoKit.InstalarPluginsAsync(ProcessosComAnaliseEmAndamento(), () => Task.Run(InstalacaoMotorPdf.ConferirAsync)); }
             finally { p.BotaoInstalarPlugins.IsEnabled = true; }
         };
         p.BotaoAtualizarKit.Click += async (_, _) =>

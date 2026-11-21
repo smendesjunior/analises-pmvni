@@ -72,8 +72,8 @@ internal static class InstalacaoMotorPdf
 
     /// <summary>Tarefa 16: na abertura do Editor, instalação incompleta (pelo resumo) → <c>primeira-abertura.ps1</c> fora do Editor, por
     /// <c>.cmd</c> aberto com o <c>explorer.exe</c> (<see cref="PrimeiraAbertura"/>). Não espera o fim: o resumo novo vale na próxima abertura
-    /// e no botão dos Ajustes. true = iniciou.</summary>
-    internal static async Task<bool> PrimeiraAberturaAsync()
+    /// e no botão dos Ajustes. Com análise em andamento (<paramref name="analisesEmAndamento"/>), adia (revisão final I2). true = iniciou.</summary>
+    internal static async Task<bool> PrimeiraAberturaAsync(IReadOnlyList<string> analisesEmAndamento)
     {
         try
         {
@@ -87,7 +87,7 @@ internal static class InstalacaoMotorPdf
                 var inicio = new ProcessStartInfo(programa) { UseShellExecute = false };
                 inicio.ArgumentList.Add(argumento);
                 using var _ = Process.Start(inicio);
-            }, agora, ultima);
+            }, agora, ultima, analisesEmAndamento);
             if (iniciou) await File.WriteAllTextAsync(Tentativa, agora.ToString("o", System.Globalization.CultureInfo.InvariantCulture));
             return iniciou;
         }

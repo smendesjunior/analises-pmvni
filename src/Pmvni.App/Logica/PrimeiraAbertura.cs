@@ -61,12 +61,16 @@ public static class PrimeiraAbertura
     /// (onde o <c>primeira-abertura.ps1</c> já foi extraído) e chama <paramref name="iniciar"/>(programa, argumento) com o
     /// <c>explorer.exe</c> e o caminho do <c>.cmd</c>. <paramref name="ultimaTentativaUtc"/>: quando a anterior foi iniciada (null = nunca);
     /// menos de <see cref="IntervaloEntreTentativas"/> antes de <paramref name="agoraUtc"/> não inicia de novo. true = iniciou (quem chama
-    /// guarda <paramref name="agoraUtc"/> como a última tentativa).</summary>
-    public static bool Conferir(string? resumo, string pastaScripts, Action<string, string> iniciar, DateTime agoraUtc, DateTime? ultimaTentativaUtc)
+    /// guarda <paramref name="agoraUtc"/> como a última tentativa). Revisão final I2 (erro 15): com análise em andamento ou pendente no Editor
+    /// (<paramref name="analisesEmAndamento"/> não vazio; as do Claude e do Gemini seguem com o Editor fechado), adia: não reinstala o plugin
+    /// analise por baixo do controlador e não conta como tentativa (a próxima abertura confere de novo).</summary>
+    public static bool Conferir(string? resumo, string pastaScripts, Action<string, string> iniciar, DateTime agoraUtc, DateTime? ultimaTentativaUtc,
+        IReadOnlyList<string>? analisesEmAndamento = null)
     {
         ArgumentNullException.ThrowIfNull(pastaScripts);
         ArgumentNullException.ThrowIfNull(iniciar);
         if (!Incompleta(resumo)) return false;
+        if (analisesEmAndamento is { Count: > 0 }) return false;
         if (ultimaTentativaUtc is { } ultima && agoraUtc - ultima < IntervaloEntreTentativas && agoraUtc >= ultima) return false;
         var script = Path.Combine(pastaScripts, Script);
         if (!File.Exists(script)) throw new FileNotFoundException("O script da primeira abertura não foi extraído.", script);
@@ -105,5 +109,21 @@ public static class AtualizacaoKit
         ArgumentNullException.ThrowIfNull(iniciar);
         if (analisesEmAndamento.Count > 0) return AvisoAnaliseEmAndamento(analisesEmAndamento);
         return await iniciar();
+    }
+
+    /// <summary>Revisão final I2: o aviso do botão "Instalar ou atualizar plugins" com análise em andamento (o mesmo bloqueio do "Atualizar kit").</summary>
+    public static string AvisoPluginsComAnalise(IReadOnlyList<string> processos) =>
+        (processos.Count == 1 ? "Há uma análise em andamento (" + processos[0] + ")" : "Há análises em andamento (" + string.Join(", ", processos) + ")")
+        + ". Os plugins não foram instalados nem atualizados: trocar o plugin analise no meio da análise obriga a refazer etapas. "
+        + "Instale quando a análise terminar.";
+
+    /// <summary>Revisão final I2: o botão "Instalar ou atualizar plugins" roda o <c>configurar-plugins.ps1</c> inteiro (inclusive o plugin analise);
+    /// com análise em andamento no Editor, avisa e não chama <paramref name="instalar"/>.</summary>
+    public static async Task<string> InstalarPluginsAsync(IReadOnlyList<string> analisesEmAndamento, Func<Task<string>> instalar)
+    {
+        ArgumentNullException.ThrowIfNull(analisesEmAndamento);
+        ArgumentNullException.ThrowIfNull(instalar);
+        if (analisesEmAndamento.Count > 0) return AvisoPluginsComAnalise(analisesEmAndamento);
+        return await instalar();
     }
 }

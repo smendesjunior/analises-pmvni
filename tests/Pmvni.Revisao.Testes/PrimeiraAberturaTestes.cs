@@ -81,4 +81,35 @@ public sealed class PrimeiraAberturaTestes : IDisposable
         Assert.Equal("Atualização do kit solicitada.", await AtualizacaoKit.SolicitarAsync([], Iniciar));
         Assert.Equal(1, iniciou);
     }
+
+    /// <summary>Revisão final I2: o botão "Instalar ou atualizar plugins" recusa com análise em andamento, como o "Atualizar kit".</summary>
+    [Fact]
+    public async Task InstalarPlugins_ComAnaliseAtiva()
+    {
+        var instalou = 0;
+        Task<string> Instalar() { instalou++; return Task.FromResult("Plugins instalados."); }
+
+        var texto = await AtualizacaoKit.InstalarPluginsAsync(["19486-2026", "15004-2026"], Instalar);
+        Assert.Equal(0, instalou);
+        Assert.Equal(AtualizacaoKit.AvisoPluginsComAnalise(["19486-2026", "15004-2026"]), texto);
+        Assert.Contains("análises em andamento (19486-2026, 15004-2026)", texto);
+        Assert.Contains("não foram instalados", texto);
+
+        Assert.Equal("Plugins instalados.", await AtualizacaoKit.InstalarPluginsAsync([], Instalar));
+        Assert.Equal(1, instalou);
+    }
+
+    /// <summary>Revisão final I2: a primeira abertura com instalação incompleta adia (não inicia o .cmd) enquanto houver análise em andamento.</summary>
+    [Fact]
+    public void PrimeiraAbertura_ComAnaliseAtiva_adia()
+    {
+        var chamadas = 0;
+        void Iniciar(string programa, string argumento) => chamadas++;
+        Assert.False(PrimeiraAbertura.Conferir(null, pasta, Iniciar, Agora, null, ["19486-2026"]));
+        Assert.Equal(0, chamadas);
+        Assert.False(File.Exists(Path.Combine(pasta, PrimeiraAbertura.Cmd)));
+        // Sem análise (lista vazia), segue como antes.
+        Assert.True(PrimeiraAbertura.Conferir(null, pasta, Iniciar, Agora, null, []));
+        Assert.Equal(1, chamadas);
+    }
 }
