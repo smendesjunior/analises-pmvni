@@ -151,7 +151,9 @@ internal static class Roteiro
         var saida = Path.GetDirectoryName(Path.GetDirectoryName(resultado)!)!;
         pastaDoAgenteFalso = Path.Combine(saida, "agente-falso");
         Environment.SetEnvironmentVariable(PastaDados.VariavelAmbiente, Path.Combine(saida, "dados-app"));
-        sofficeDoRoteiro = ConversorLibreOffice.Localizar() is { } so ? Path.GetFullPath(so) : null;
+        var soffice = ConversorLibreOffice.Localizar();
+        sofficeDoRoteiro = soffice is not null && Path.GetFileName(soffice).Equals("soffice.com", StringComparison.OrdinalIgnoreCase)
+            ? Path.GetFullPath(soffice) : null;
         programasPermitidos = sofficeDoRoteiro is null ? [pastaDoAgenteFalso] : [pastaDoAgenteFalso, sofficeDoRoteiro];
         TravaDeProgramas.Permitidos = programasPermitidos;
         TravaDeProgramas.AoIniciar = c => { lock (programasIniciados) programasIniciados.Add(c); };
@@ -865,14 +867,27 @@ internal static class Roteiro
                 && r.Depois is JsonObject d && d["tipo"]?.GetValue<string>() == o.Tipo);
             p["registros_no_pacote"] = historico.Count;
             p["desfeitos_e_refeitos_com_ref"] = refsValidas && desfeitosRefeitos.Count == 8;
+            var historicoReaberto = historico.Count == registrosAntes;
             var pdf = Path.Combine(pasta, "longo-revisado.pdf");
             File.Delete(pdf);
+            // A conferência do kit exige corrigir as indicações que ainda citam o antigo ITEM 05.
+            var (exportouComCitacao, _, recusa, _) = await j.ExportarParaAsync(pdf);
+            var recusouCitacoes = !exportouComCitacao && !File.Exists(pdf) && recusa is not null
+                && Enumerable.Range(3, 3).All(n => recusa.Contains($"Figura {n} (indicação ", StringComparison.Ordinal))
+                && recusa.Split("cita o item excluído que era o item 05", StringSplitOptions.None).Length == 4;
+            p["recusou_citacoes_ao_item_excluido"] = recusouCitacoes;
+            var citacoes = CamadaFiguras.Inicial(proj)
+                .SelectMany(f => f.Marcacoes.Select(m => (Figura: f.Id, Marcacao: m.Id, Itens: CamadaFiguras.ItensCitados(m.Itens))))
+                .Where(m => m.Itens.Contains(id5!)).ToArray();
+            foreach (var (figura, marcacao, itens) in citacoes)
+                await j.AplicarAsync(new VincularItens(figura, marcacao, itens.Where(id => id != id5).ToArray()));
+            p["indicacoes_corrigidas"] = citacoes.Length;
             var (ok, x, erro, _) = await j.ExportarParaAsync(pdf);
             if (!ok || x is null) throw new InvalidOperationException("exportação falhou: " + erro);
             var info = InfoPdf.Ler(await File.ReadAllBytesAsync(pdf));
             p["paginas_do_pdf"] = info.Paginas;
             p["folhas_na_tela"] = j.Aberto!.Composicao.Folhas;
-            p["ok"] = salvou && reaberto && historico.Count == registrosAntes && refsValidas && desfeitosRefeitos.Count == 8
+            p["ok"] = salvou && reaberto && historicoReaberto && refsValidas && desfeitosRefeitos.Count == 8 && recusouCitacoes && citacoes.Length == 3
                 && info.Paginas == j.Aberto.Composicao.Folhas && x.Plano.ParaJson() == j.Aberto.Composicao.Plano.ParaJson();
         });
 
@@ -1555,7 +1570,12 @@ internal static class Roteiro
             p["titulo_do_dialogo"] = mostrada.Titulo;
             var diferencas = Comparacao.Diferencas(proj, s.Revisao.HistoricoCompleto);
             p["itens_alterados"] = new JsonArray(diferencas.Select(d => (JsonNode)Comparacao.Rotulo(d)).ToArray());
-            var longoOk = mostrada.Titulo == "Comparar com o original" && mostrada.Texto == esperado && j.TextoComparacao() == esperado
+            var prefixo = esperado + "\n\nFiguras alteradas:\n";
+            var blocoFiguras = mostrada.Texto?.StartsWith(prefixo, StringComparison.Ordinal) == true ? mostrada.Texto[prefixo.Length..] : "";
+            var figurasCorrigidas = Enumerable.Range(3, 3).All(n => blocoFiguras.Contains($"Figura {n} — ", StringComparison.Ordinal))
+                && blocoFiguras.Split('\n').Count(l => l.EndsWith(": itens «item 05» → «»", StringComparison.OrdinalIgnoreCase)) == 3;
+            p["figuras_com_citacoes_corrigidas"] = figurasCorrigidas;
+            var longoOk = mostrada.Titulo == "Comparar com o original" && figurasCorrigidas && j.TextoComparacao() == mostrada.Texto
                 && diferencas.Count == 2 && diferencas[1].Excluido && diferencas[1].NumeroOriginal == 5;
             p["longo_confere_os_textos_exatos"] = longoOk;
 
@@ -1605,7 +1625,7 @@ internal static class Roteiro
             p["figura_virou_svg"] = Ocorrencias(html, "data:image/svg+xml;base64,") == svgAntes + 1;
             p["legenda_nas_folhas"] = folhas.Any(t => t.Contains("Região do roteiro.", StringComparison.Ordinal) && t.Contains("(item 02)", StringComparison.Ordinal));
             await j.ExecutarComandoAsync(ComandosApp.RevisaoComparar);
-            p["comparar_lista_a_figura"] = j.TextoComparacao().Contains("Figuras alteradas:", StringComparison.Ordinal);
+            p["comparar_lista_a_figura"] = j.TextoComparacao().Contains("Marcação 3 (Região do roteiro) incluída.", StringComparison.Ordinal);
             await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
             await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
             var voltou = DadosEfetivos.Gerar(s.Revisao.Projeto).Json.AsSpan().SequenceEqual(dadosAntes);
@@ -1658,6 +1678,7 @@ internal static class Roteiro
                     p["resolucao_real_200_dpi"] = larguraPng == (int)salva.Recorte!["largura_px"]! && alturaPng == (int)salva.Recorte["altura_px"]!;
                     var regiao = salva.Buscar(idRegiao);
                     var exportacao = await j.ExportarParaAsync(Path.Combine(pasta, "figura-conferida.pdf"));
+                    p["erro_ao_exportar_recorte"] = exportacao.Item3;
                     var folhasComRecorte = await j.Documento!.TextoPorFolhaAsync();
                     var persistiu = regiao?.Caixa is { Length: 4 } caixa && caixa.Zip(caixaMovida).All(par => Math.Abs(par.First - par.Second) < .0001)
                         && salva.Buscar("seta_recorte")?.Elemento == "Segundo ponto" && regiao.Texto == "Legenda de conferência"
@@ -2550,10 +2571,10 @@ internal static class Roteiro
             var docxOk = prep is { Erros.Count: 0 } && prep.Docx.Length > 0
                 && ValidacaoDespacho.Comparar(PreenchimentoDocx.ComProfissional(await File.ReadAllBytesAsync(s.Modelo!.Caminho), Pmvni.Composicao.Profissional.Atual),
                     prep.Docx).Count == 0;
-            int iniciadosDepois;
-            lock (programasIniciados) iniciadosDepois = programasIniciados.Count;
-            var semIa = iniciadosDepois == iniciadosAntes;
-            p["programas_iniciados"] = iniciadosDepois - iniciadosAntes;
+            string[] programasDoDespacho;
+            lock (programasIniciados) programasDoDespacho = programasIniciados.Skip(iniciadosAntes).ToArray();
+            var semIa = programasDoDespacho.Length == 1 && Mesmo(programasDoDespacho[0], sofficeDoRoteiro);
+            p["programas_iniciados"] = new JsonArray(programasDoDespacho.Select(c => (JsonNode)c).ToArray());
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "40b-janela-xaml-despacho-sem-plugin.png"));
             perguntas.Confirmar = true; // "Descartar": nada é gravado
             await j.MudarModuloAsync(Modulo.Processos);
@@ -2891,9 +2912,9 @@ internal static class Roteiro
             var pag = j.AjustesPagina;
             var chatgpt = j.CartaoDoAgente(Provedor.ChatGpt);
             var claude = j.CartaoDoAgente(Provedor.Claude);
+            var gemini = j.CartaoDoAgente(Provedor.Gemini);
 
-            // (a) A seção e os dois cartões no padrão do WinStatusBar (correções 2026-11-15): sem texto explicativo; a página se consulta sozinha ao ser vista
-            // (conta, plugins e o teste local), sem clicar em Testar. O CODEX_HOME do roteiro não tem auth.json e a pasta do Claude não é lida: "Não conectado".
+            // (a) Os três cartões consultam conta, plugins e os programas locais ao abrir a categoria, antes de clicar em Testar.
             // Ajustes › Inteligência artificial (a página abre em Geral; os cartões ficam nesta categoria, auditoria §3.3).
             pag.MostrarCategoria(CategoriasAjustes.Ia);
             await j.AguardarAgentesAsync();
@@ -2903,18 +2924,21 @@ internal static class Roteiro
             var situacaoSozinha = chatgpt.TextoSituacao.Text;
             var secao = j.PaginaAjustesVisivel && pag.CategoriaAtual == CategoriasAjustes.Ia && pag.TituloAgentes.Text == "Inteligência artificial";
             var cartoes = chatgpt.Titulo.Text == "ChatGPT (Codex · análise, rota ChatGPT)" && claude.Titulo.Text == "Claude (Claude Code · análise, rota Claude)"
-                && chatgpt.TextoServico.Text == "Codex (ChatGPT)" && claude.TextoServico.Text == "Claude Code"
-                && chatgpt.ActualHeight > 0 && claude.ActualHeight > 0 && chatgpt.BotaoTestar.IsEnabled && claude.BotaoTestar.IsEnabled
-                && chatgpt.OpcaoConta.IsChecked == true && claude.OpcaoConta.IsChecked == true && chatgpt.OpcaoConta.Content as string == "Usar minha conta (login do programa)"
+                && gemini.Titulo.Text == "Gemini (Antigravity · análise, rota Gemini)" && gemini.CaixaPerfil.Items.Count == TextosAgentes.OpcoesPerfilGemini.Count
+                && chatgpt.TextoServico.Text == "Codex (ChatGPT)" && claude.TextoServico.Text == "Claude" && gemini.TextoServico.Text == "Antigravity (Gemini)"
+                && new[] { chatgpt, claude, gemini }.All(c => c.ActualHeight > 0 && c.BotaoTestar.IsEnabled && c.OpcaoConta.IsChecked == true)
+                && chatgpt.OpcaoConta.Content as string == "Usar minha conta (login do programa)"
                 && (chatgpt.OpcaoChave.Content as string ?? "").StartsWith("Usar chave de API", StringComparison.Ordinal);
-            var contas = chatgpt.TextoNomeConta.Text == TextosAgentes.NaoConectado && claude.TextoNomeConta.Text == TextosAgentes.NaoConectado
-                && chatgpt.BotaoConta.Content as string == "Entrar" && chatgpt.TextoAssinatura.Text == "—" && chatgpt.SeloChave.Texto == TextosAgentes.NaoConfigurada;
+            var contas = chatgpt.TextoNomeConta.Text == TextosAgentes.NaoConectado && claude.TextoNomeConta.Text == "Conta gerenciada no Claude"
+                && (string)claude.BotaoConta.Content == "Abrir Claude"
+                && chatgpt.BotaoConta.Content as string == "Entrar" && chatgpt.TextoAssinatura.Text == "—"
+                && new[] { chatgpt, claude, gemini }.All(c => c.SeloChave.Texto == TextosAgentes.NaoConfigurada);
             var plugins = chatgpt.SeloPluginAnalise.Texto == "Versão 4.0.0" && chatgpt.SeloPluginAnalise.Ok && claude.SeloPluginPro.Texto == "Versão 4.0.0"
                 && claude.LinhaPluginPro.Visibility == Visibility.Visible && chatgpt.LinhaPluginPro.Visibility == Visibility.Collapsed
                 && chatgpt.TextoPluginAnalise.Text.StartsWith("No Codex, habilitado · instalado ou atualizado em ", StringComparison.Ordinal)
                 && j.AjustesAtuais.PluginsVistos.TryGetValue("chatgpt.analise", out var vista) && vista == "4.0.0";
             p["secao_e_texto"] = secao;
-            p["dois_cartoes"] = cartoes;
+            p["tres_cartoes"] = cartoes;
             p["contas_locais"] = contas;
             p["plugins_do_kit"] = plugins;
             p["situacao_sozinha"] = situacaoSozinha;
@@ -2922,14 +2946,20 @@ internal static class Roteiro
             // (b) As peças achadas são só as do agente falso (o codex e o claude de verdade nunca são procurados nem iniciados).
             var pecas = j.PecasAgentes;
             bool Dentro(string? c) => c is not null && Path.GetFullPath(c).StartsWith(agenteFalsoPasta + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
-            var soFalso = Dentro(pecas.Codex) && Dentro(pecas.Claude) && Dentro(pecas.Python) && !pecas.PythonPeloLauncher
+            var soFalso = Dentro(pecas.Codex) && Dentro(pecas.Claude) && Dentro(pecas.Python) && Dentro(pecas.Agy) && !pecas.PythonPeloLauncher
                 && pecas.PluginAnaliseHabilitado && pecas.VersaoPluginAnalise == "4.0.0" && pecas.VersaoAnalisePro == "4.0.0" && !pecas.ApiPermitidaNoKit;
+            var foraDaLista = Path.Combine(pasta, "programas-bloqueados", "fora-da-lista.exe");
             string? bloqueio = null;
-            try { await ExecucaoProcesso.RodarAsync(Path.Combine(Environment.SystemDirectory, "whoami.exe"), [], pasta, _ => { }, TimeSpan.FromSeconds(5), CancellationToken.None); }
+            try { await ExecucaoProcesso.RodarAsync(foraDaLista, [], pasta, _ => { }, TimeSpan.FromSeconds(5), CancellationToken.None); }
             catch (InvalidOperationException e) { bloqueio = e.Message; }
-            var travado = ExecucaoProcesso.SomenteExecutaveisEm == agenteFalsoPasta && bloqueio is not null && bloqueio.StartsWith("Programa fora da pasta permitida: ", StringComparison.Ordinal);
+            var travado = ExecucaoProcesso.SomenteExecutaveisEm == agenteFalsoPasta && bloqueio == "Programa fora da pasta permitida: " + foraDaLista;
+            var claudeExterno = Path.Combine(pasta, "programas-bloqueados", "claude.exe");
+            var catalogo = new CatalogoModelosIa(Path.Combine(pasta, "catalogo-bloqueado"), () => codexHome);
+            var falhasCatalogo = await catalogo.AtualizarAsync(pecas with { Claude = claudeExterno }, [FonteIa.ClaudeCode], CancellationToken.None);
+            var catalogoTravado = falhasCatalogo.GetValueOrDefault(FonteIa.ClaudeCode) == "Programa fora da pasta permitida: " + claudeExterno;
             p["so_o_agente_falso"] = soFalso;
             p["trava_de_programas"] = travado;
+            p["trava_do_catalogo_claude"] = catalogoTravado;
 
             // (c) Testar o ChatGPT e o Claude (só comandos locais, no agente falso).
             const string LinhaChatGpt = "Codex 0.99.0 · conectado com a conta do ChatGPT · plugin analise 4.0.0 habilitado";
@@ -3012,7 +3042,7 @@ internal static class Roteiro
             p["linha_do_teste_que_travou"] = linhaTravada;
             p["testar_fora_da_fila"] = new JsonObject { ["botao_desabilita_no_clique"] = botaoNoClique, ["mesmo_teste_se_repetir"] = mesmoTeste, ["rodando_enquanto_gravava"] = travado2, ["gravou_na_hora"] = gravouNaHora, ["terminou_com_nao_respondeu"] = terminou };
             var foraDaFila = botaoNoClique && mesmoTeste && travado2 && gravouNaHora && exportou && terminou;
-            p["ok"] = secao && cartoes && contas && plugins && consultouSozinho && foraDaFila && soFalso && travado && testouChatGpt && testouClaude && claudeSoConta && recusouInexistente && recusouNaoExe && escolheu && padrao
+            p["ok"] = secao && cartoes && contas && plugins && consultouSozinho && foraDaFila && soFalso && travado && catalogoTravado && testouChatGpt && testouClaude && claudeSoConta && recusouInexistente && recusouNaoExe && escolheu && padrao
                 && desabilitado.EndsWith("plugin analise não habilitado no Codex", StringComparison.Ordinal) && reabilitado == LinhaChatGpt;
         });
 
@@ -3769,22 +3799,29 @@ internal static class Roteiro
             await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
             var pmvrelAntes = Pmvrels(processo).Length;
             var resultados = new JsonObject();
+            var avisos = new JsonObject();
             var tudo = true;
             foreach (var (cenario, conferir) in new (string, Func<ExecucaoEmCurso, FimAnalise, bool>)[]
             {
                 ("sem_resultado", (e, f) => f.Situacao == "sem_resultado" && f.Mensagem == $"A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: {e.Registro.Pasta}."),
-                ("falha", (e, f) => f.Situacao == "falhou" && f.Mensagem == $"O Codex terminou com o código 2. Veja o registro: {e.Registro.Pasta}."),
+                ("falha", (e, f) => f.Situacao == "falhou" && f.Mensagem == $"O controlador do analise parou na etapa Revisão final: falhou de propósito. Veja o registro: {e.Registro.Pasta}."),
                 ("json_invalido", (e, f) => f.Situacao == "sem_resultado" && f.Mensagem!.StartsWith("O delivery.json da análise não pôde ser lido: ", StringComparison.Ordinal)),
                 ("fora_do_processo", (e, f) => f.Situacao == "sem_resultado" && f.Mensagem!.StartsWith("O relatório indicado pela análise está fora da pasta do processo: ", StringComparison.Ordinal)),
             })
             {
                 var (e, fim) = await AnalisarAteOFimAsync(Provedor.ChatGpt, cenario);
-                var info = j.NovoRelatorio.AvisoResultado;
-                var ok = conferir(e, fim) && info.IsOpen && info.Message == fim.Mensagem + (cenario == "falha" && j.NovoRelatorio.BotaoContinuar.Visibility == Visibility.Visible ? " Você pode clicar em \"Continuar a análise\" para seguir de onde parou." : "") && Pmvrels(processo).Length == pmvrelAntes;
+                var n = j.NovoRelatorio;
+                var info = n.AvisoResultado;
+                var retomavel = OrquestradorAnalise.PodeRetomarChatGpt(processo, e.Registro.Pasta);
+                var complemento = cenario == "falha" && retomavel ? " Você pode clicar em \"Continuar a análise\" para seguir de onde parou." : "";
+                var ok = conferir(e, fim) && info.IsOpen && info.Message == fim.Mensagem + complemento
+                    && (n.BotaoDescartar.Visibility == Visibility.Visible) == retomavel && Pmvrels(processo).Length == pmvrelAntes;
                 resultados[cenario] = (ok ? "" : "FALHOU · ") + fim.Situacao + ": " + fim.Mensagem;
+                if (!ok) avisos[cenario] = new JsonObject { ["texto"] = info.Message, ["aberto"] = info.IsOpen, ["retomavel"] = retomavel };
                 tudo &= ok;
             }
             p["resultados"] = resultados;
+            if (avisos.Count > 0) p["avisos_que_divergiram"] = avisos;
 
             // Codex ausente: o motivo exato e o botão desabilitado.
             var opcoes = j.OpcoesAgentes;
@@ -4454,7 +4491,8 @@ internal static class Roteiro
             faixaArquivo.EscolherAba("Arquivo");
             await Esperar(250);
             var recentesFluxo = faixaArquivo.AtualizarMenuDinamico(ComandosApp.ArquivoRecentes);
-            Conf("recentes_no_topo", recentesFluxo.Count > 0 && Mesmo(recentesFluxo[0], pmvrelFluxo));
+            Conf("analise_recente_no_topo", recentesFluxo.Count > 0 && Mesmo(recentesFluxo[0], exec.Registro.Pasta)
+                && !recentesFluxo.Any(c => Mesmo(c, pmvrelFluxo)) && Mesmo(j.RecentesNosAjustes.FirstOrDefault(), pmvrelFluxo));
             await j.ExecutarComandoAsync(ComandosApp.RevisaoComparar);
             var comparado = perguntas.Informados.LastOrDefault();
             var diferencas = Comparacao.Diferencas(sessao.Revisao.Projeto, sessao.Revisao.HistoricoCompleto);
@@ -5013,31 +5051,41 @@ internal static class Roteiro
         {
             var monitor = (PaginaNovoRelatorio)j.ElementoRaiz.FindName("PaginaDeNovoRelatorio");
             var valores = new JsonArray();
-            var nome = SituacaoAnalisePro.NomeEtapa("technical_audit");
-            (string Nome, EstadoEtapa Estado)[] etapas = Enumerable.Range(0, 6)
-                .Select(i => (i == 2 ? nome : $"Etapa {i + 1}", EstadoEtapa.Pendente)).ToArray();
+            var tabelaDoKit = ModelosDaAnalise.ArquivoNoKit(j.PastaKitEfetiva);
+            var arquivoEtapas = Path.Combine(Path.GetDirectoryName(tabelaDoKit)!, "etapas.json");
+            var ordem = OrdemDasEtapas.Ler(arquivoEtapas);
+            var etapas = ordem.Para(Provedor.ChatGpt);
+            var tabela = ModelosDaAnalise.LerTabela(File.ReadAllText(tabelaDoKit)) ?? throw new InvalidOperationException("A tabela do kit não abriu.");
+            var etapasDoKit = ModelosDaAnalise.LerEtapas(File.ReadAllText(arquivoEtapas), tabela);
+            var etapasDePrograma = etapasDoKit.Where(e => e.Programa).Select(e => e.Id).ToArray();
+            var nome = FluxoNovoRelatorio.NomeDaEtapa("technical_audit");
+            p["ordem_do_kit"] = new JsonArray(etapas.Select(e => (JsonNode)e).ToArray());
+            p["etapas_de_programa"] = new JsonArray(etapasDePrograma.Select(e => (JsonNode)e).ToArray());
             monitor.MostrarProgresso(null);
-            monitor.MostrarResumo(true, null, etapas, []);
+            monitor.MostrarEstimativa(null);
+            monitor.MostrarResumo(true, null, FluxoNovoRelatorio.Etapas(null, "INICIANDO", etapas), []);
             valores.Add(monitor.BarraResumoEtapas.Value);
-            etapas[0].Estado = etapas[1].Estado = EstadoEtapa.Feita;
-            etapas[2].Estado = EstadoEtapa.Agora;
-            monitor.MostrarResumo(true, null, etapas, []);
+            monitor.MostrarResumo(true, null, FluxoNovoRelatorio.Etapas("technical_audit", "EM_ANDAMENTO", etapas), []);
             valores.Add(monitor.BarraResumoEtapas.Value);
+            var pelaContagem = !monitor.BarraResumoEtapas.IsIndeterminate
+                && monitor.RotuloEtapa(nome, EstadoEtapa.Agora, true) == "Em andamento";
             monitor.MostrarProgresso(new ProgressoEtapa("technical_audit", 1, 5, 10));
             valores.Add(monitor.BarraResumoEtapas.Value);
-            var aguardou = monitor.BarraResumoEtapas.IsIndeterminate
-                && monitor.RotuloEtapa(nome, EstadoEtapa.Agora, true) == "Em andamento";
+            var rotuloDosItens = monitor.RotuloEtapa(nome, EstadoEtapa.Agora, true) == "Em andamento · 50% dos itens avaliados";
             monitor.MostrarEstimativa(new EstimativaAnalise("technical_audit", 72.4, 48.6, null));
             valores.Add(monitor.BarraResumoEtapas.Value);
-            var rotuloDaIa = monitor.RotuloEtapa(nome, EstadoEtapa.Agora, true).Contains("estimado pela IA");
-            for (var i = 0; i < etapas.Length; i++) etapas[i].Estado = EstadoEtapa.Feita;
-            monitor.MostrarResumo(false, null, etapas, []);
+            var rotuloDaEstimativa = monitor.RotuloEtapa(nome, EstadoEtapa.Agora, true).Contains("estimado pela IA", StringComparison.Ordinal);
+            monitor.MostrarResumo(false, null, FluxoNovoRelatorio.Etapas(null, "CONCLUIDO", etapas), []);
             valores.Add(monitor.BarraResumoEtapas.Value);
             monitor.MostrarEstimativa(null);
             monitor.MostrarResumo(true, null, [], []);
             p["percentuais"] = valores;
-            p["ok"] = aguardou && rotuloDaIa && monitor.BarraResumoEtapas.IsIndeterminate && valores.Select(x => x!.GetValue<double>())
-                .Zip(new[] { 0d, 0d, 0d, 48.6, 100d }).All(par => Math.Abs(par.First - par.Second) < 0.01);
+            p["conferencias"] = new JsonObject { ["pela_contagem"] = pelaContagem, ["rotulo_dos_itens"] = rotuloDosItens, ["rotulo_da_estimativa"] = rotuloDaEstimativa };
+            p["ok"] = ordem.DoArquivo && etapas.SequenceEqual(["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"])
+                && etapasDePrograma.SequenceEqual(["prepare", "produce"])
+                && pelaContagem && rotuloDosItens && rotuloDaEstimativa && monitor.BarraResumoEtapas.IsIndeterminate
+                && valores.Select(x => x!.GetValue<double>()).Zip(new[] { 0d, 200d / 6, 200d / 6, 48.6, 100d })
+                    .All(par => Math.Abs(par.First - par.Second) < 0.01);
             monitor.MostrarResumo(false, null, [], []);
             monitor.MostrarProgresso(null);
             return Task.CompletedTask;
@@ -5178,7 +5226,9 @@ internal static class Roteiro
             // digitada na justificativa (Tarefa 15, correção 1), o botão principal continua "Rever (sem IA)" e "Rever com a IA" aparece como
             // segunda opção (PropReverComIa; não é clicada aqui).
             const string To = "indices/02";
-            var json = Path.Combine(pasta, "rever-sem-ia.json");
+            var amostra = Path.Combine(pasta, "amostra-rever-sem-ia");
+            CopiarArvore(Path.Combine(corpus, "img"), Path.Combine(amostra, "img"));
+            var json = Path.Combine(amostra, "rever-sem-ia.json");
             var no = JsonNode.Parse(await File.ReadAllTextAsync(dadosLongo))!;
             var to = no["indices"]!["linhas"]![1]!.AsObject();
             to["icone"] = "to";
@@ -5210,7 +5260,7 @@ internal static class Roteiro
                 var semIa = iniciadosDepois == iniciadosAntes && !j.AjustandoComIa;
                 await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "rever-sem-ia-janela-xaml.png"));
                 await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
-                var desfez = ProjetoJson.Escrever(s.Revisao.Projeto) == antes;
+                var desfez = ProjetoJson.Escrever(s.Revisao.Projeto).AsSpan().SequenceEqual(antes);
                 await j.AplicarAsync(new DefinirJustificativa(To, "Considerar a projeção de 230,00 m² da prancha 02."));
                 await j.SelecionarAsync(To);
                 var rotuloComInstrucao = j.RotuloDoBotaoDaIa;
