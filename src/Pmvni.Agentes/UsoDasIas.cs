@@ -122,14 +122,12 @@ public static class UsoDasIas
     public static Task<IReadOnlyList<DuracaoEtapa>> HistoricoDaSessaoAsync(string pastaProcessos) =>
         historicos.GetOrAdd(pastaProcessos ?? "", raiz => new Lazy<Task<IReadOnlyList<DuracaoEtapa>>>(() => Task.Run(() => Historico(raiz)))).Value;
 
-    /// <summary>As durações das etapas executadas (<c>EXECUTED</c>, com duração) em todos os <c>uso-das-IAs.json</c> sob a pasta de processos
-    /// (<c>&lt;raiz&gt;\…\&lt;processo&gt;\.pmvni-ai\&lt;analise|analise-pro|analise-google&gt;\uso-das-IAs.json</c>, até três níveis de pasta). Arquivo
-    /// ilegível ou pela metade é ignorado.</summary>
+    /// <summary>As durações das etapas executadas em todas as análises sob a pasta de processos
+    /// (<c>&lt;raiz&gt;\…\&lt;processo&gt;\.pmvni-ai\&lt;analise|analise-pro|analise-google&gt;</c>, até três níveis de pasta), por <see cref="DuracoesDaPasta"/>.</summary>
     public static IReadOnlyList<DuracaoEtapa> Historico(string pastaProcessos)
     {
         var saida = new List<DuracaoEtapa>();
         if (string.IsNullOrWhiteSpace(pastaProcessos) || !Directory.Exists(pastaProcessos)) return saida;
-        var etapas = SituacaoAnalisePro.Etapas;
         // A pasta .pmvni-ai pode estar oculta: nada é pulado pelos atributos; a profundidade limita a busca (e qualquer atalho circular).
         var opcoes = new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 3, IgnoreInaccessible = true, AttributesToSkip = 0 };
         IEnumerable<string> pastas;
@@ -137,25 +135,82 @@ public static class UsoDasIas
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return saida; }
         foreach (var pmvni in pastas)
             foreach (var plugin in new[] { "analise", "analise-pro", "analise-google" })
-            {
-                var controle = Path.Combine(pmvni, plugin);
-                if (ProgressoLocal.ProvedorDaPasta(controle) is not { } provedor) continue;
-                var arquivo = Path.Combine(controle, Arquivo);
-                try
-                {
-                    if (!File.Exists(arquivo)) continue;
-                    using var fs = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                    using var doc = JsonDocument.Parse(fs);
-                    if (doc.RootElement.ValueKind != JsonValueKind.Object || !doc.RootElement.TryGetProperty("execucoes", out var execucoes)
-                        || execucoes.ValueKind != JsonValueKind.Array) continue;
-                    foreach (var x in execucoes.EnumerateArray())
-                        if (x.ValueKind == JsonValueKind.Object && ProgressoLocal.Texto(x, "etapa") is { } etapa && etapas.Contains(etapa)
-                            && ProgressoLocal.Texto(x, "situacao") == "EXECUTED" && ProgressoLocal.Numero(x, "duracao_s") is { } s and > 0)
-                            saida.Add(new DuracaoEtapa(etapa, provedor, TimeSpan.FromSeconds(s)));
-                }
-                catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { }
-            }
+                saida.AddRange(DuracoesDaPasta(Path.Combine(pmvni, plugin)));
         return saida;
+    }
+
+    /// <summary>Uma execução de etapa achada numa das fontes: a pasta da execução (<c>run</c>/<c>execucao</c>), se o kit a informa, e a duração.</summary>
+    readonly record struct Execucao(string Etapa, string? Pasta, TimeSpan Duracao);
+
+    /// <summary>As durações das etapas executadas (<c>EXECUTED</c>) numa pasta de controle, de duas fontes:
+    /// <list type="bullet">
+    /// <item>o <c>engine_state.json</c>, nas três rotas e também nas etapas de programa: as etapas atuais (<c>stages</c>) e as substituídas (<c>history[]</c>,
+    /// nos dois formatos do kit: <c>{"replaced": {etapa: registro}}</c> no analise, <c>{etapa: registro}</c> no análise pro e no Google). Duração =
+    /// <c>ended − started</c>; sem <c>started</c> (o analise só grava <c>ended</c>), o intervalo desde o <c>ended</c> da etapa anterior do mesmo quadro;</item>
+    /// <item>o <c>uso-das-IAs.json</c> (<c>duracao_s</c>), que traz as tentativas de cada etapa.</item>
+    /// </list>
+    /// A mesma execução nas duas fontes conta uma vez só: mesma pasta de execução ou, sem ela, mesma etapa com durações a menos de 1 s uma da outra. Arquivo
+    /// ilegível ou pela metade é ignorado.</summary>
+    public static IReadOnlyList<DuracaoEtapa> DuracoesDaPasta(string pastaControle)
+    {
+        if (ProgressoLocal.ProvedorDaPasta(pastaControle) is not { } provedor) return [];
+        var etapas = SituacaoAnalisePro.Etapas.ToList();
+        var achadas = new List<Execucao>();
+        // Mesma execução: mesma pasta; sem a pasta numa das duas (ou, contra o estado, com pastas diferentes), mesma etapa e duração a menos de 1 s.
+        static bool Mesma(Execucao a, Execucao x, bool pelaDuracao) => a.Etapa == x.Etapa
+            && (a.Pasta is not null && x.Pasta is not null && string.Equals(a.Pasta, x.Pasta, StringComparison.OrdinalIgnoreCase)
+                || (pelaDuracao || a.Pasta is null || x.Pasta is null) && (a.Duracao - x.Duracao).Duration() < TimeSpan.FromSeconds(1));
+
+        if (LerJson(Path.Combine(pastaControle, "engine_state.json")) is { ValueKind: JsonValueKind.Object } estado)
+        {
+            var quadros = new List<JsonElement>();
+            if (estado.TryGetProperty("history", out var historia) && historia.ValueKind == JsonValueKind.Array)
+                foreach (var foto in historia.EnumerateArray())
+                    if (foto.ValueKind == JsonValueKind.Object)
+                        quadros.Add(foto.TryGetProperty("replaced", out var substituidas) && substituidas.ValueKind == JsonValueKind.Object ? substituidas : foto);
+            if (estado.TryGetProperty("stages", out var stages) && stages.ValueKind == JsonValueKind.Object) quadros.Add(stages);
+            foreach (var quadro in quadros)
+            {
+                DateTimeOffset? fimAnterior = null;
+                foreach (var etapa in etapas)
+                {
+                    if (!quadro.TryGetProperty(etapa, out var r) || r.ValueKind != JsonValueKind.Object) continue;
+                    var inicio = ProgressoLocal.Instante(r, "started") ?? fimAnterior;
+                    var fim = ProgressoLocal.Instante(r, "ended");
+                    if (fim is not null) fimAnterior = fim;
+                    if (ProgressoLocal.Texto(r, "status") != "EXECUTED" || inicio is not { } partida || fim is not { } termino || termino <= partida) continue;
+                    var x = new Execucao(etapa, ProgressoLocal.Texto(r, "run"), termino - partida);
+                    if (!achadas.Any(a => Mesma(a, x, false))) achadas.Add(x);     // o análise pro repete a mesma etapa em vários quadros do histórico
+                }
+            }
+        }
+
+        var doEstado = achadas.Count;
+        if (LerJson(Path.Combine(pastaControle, Arquivo)) is { ValueKind: JsonValueKind.Object } uso
+            && uso.TryGetProperty("execucoes", out var execucoes) && execucoes.ValueKind == JsonValueKind.Array)
+            foreach (var x in execucoes.EnumerateArray())
+                if (x.ValueKind == JsonValueKind.Object && ProgressoLocal.Texto(x, "etapa") is { } etapa && etapas.Contains(etapa)
+                    && ProgressoLocal.Texto(x, "situacao") == "EXECUTED" && ProgressoLocal.Numero(x, "duracao_s") is { } s and > 0)
+                {
+                    var execucao = new Execucao(etapa, ProgressoLocal.Texto(x, "execucao"), TimeSpan.FromSeconds(s));
+                    // Só contra o estado, e pela duração mesmo com pastas diferentes: a tentativa final de uma etapa com troca de rota tem pasta própria no
+                    // relatório de uso. As linhas do relatório já são execuções distintas entre si (o uso_ias.py junta por pasta).
+                    if (!achadas.Take(doEstado).Any(a => Mesma(a, execucao, true))) achadas.Add(execucao);
+                }
+
+        return achadas.Select(x => new DuracaoEtapa(x.Etapa, provedor, x.Duracao)).ToList();
+    }
+
+    static JsonElement? LerJson(string arquivo)
+    {
+        try
+        {
+            if (!File.Exists(arquivo)) return null;
+            using var fs = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var doc = JsonDocument.Parse(fs);
+            return doc.RootElement.Clone();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { return null; }
     }
 
     static string? PrimeiroModelo(JsonElement x) =>

@@ -10,8 +10,9 @@ internal sealed record AchadoExecucao(string Id, long Sequencia, string Titulo, 
 internal sealed record ProgressoEtapa(string Etapa, long Sequencia, int Avaliados, int Total, bool Secoes = false);
 
 /// <summary>A previsão do Monitor. <paramref name="PeloEditor"/>: calculada pelo Editor (Tarefa 13: mediana do histórico, <see cref="Pmvni.Agentes.PrevisaoTermino"/>);
-/// senão, a estimativa que a IA gravava em <c>estimativa.json</c> numa análise antiga.</summary>
-internal sealed record EstimativaAnalise(string? Etapa, double? PercentualEtapa, double? PercentualGeral, DateTimeOffset? Termino, bool PeloEditor = false);
+/// senão, a estimativa que a IA gravava em <c>estimativa.json</c> numa análise antiga. <paramref name="SemDados"/>: o kit ainda não registrou nada desta análise.</summary>
+internal sealed record EstimativaAnalise(string? Etapa, double? PercentualEtapa, double? PercentualGeral, DateTimeOffset? Termino, bool PeloEditor = false,
+    bool SemDados = false);
 internal sealed record PainelAchados(List<AchadoExecucao> Itens, Dictionary<string, ProgressoEtapa> Etapas, EstimativaAnalise? Estimativa);
 
 internal static class AchadosExecucao
@@ -34,7 +35,8 @@ internal static class AchadosExecucao
         var itens = p.Achados.Select(a => new AchadoExecucao(a.Id, 0, a.Titulo, a.Situacao, a.Verificado)).ToList();
         var etapas = new Dictionary<string, ProgressoEtapa>(StringComparer.Ordinal);
         if (p.Etapa == "analyze") etapas["analyze"] = new("analyze", p.SecoesComResultado, p.SecoesComResultado, p.TotalSecoes, Secoes: true);
-        if (!p.TemDados) return new(itens, etapas, null);
+        // Sem nada do kit ainda: a previsão continua sendo do Editor (o Monitor mostra "Previsão depois das primeiras etapas", nunca "…da IA").
+        if (!p.TemDados) return new(itens, etapas, new EstimativaAnalise(null, null, null, null, PeloEditor: true, SemDados: true));
         var termino = historico is null ? null : Pmvni.Agentes.PrevisaoTermino.Estimar(p, historico, agora);
         if (termino is { } t && t.Ticks % TimeSpan.TicksPerMinute is var resto and > 0) termino = t.AddTicks(TimeSpan.TicksPerMinute - resto);
         return new(itens, etapas, new EstimativaAnalise(p.Etapa, null, null, termino, PeloEditor: true));

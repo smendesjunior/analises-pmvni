@@ -188,6 +188,75 @@ public class ProgressoLocalTestes
         Assert.Empty(UsoDasIas.Ler(Controle(pasta, "analise-google")));
     }
 
+    /// <summary>Correção 1 (I-1): a rota ChatGPT não gera <c>uso-das-IAs.json</c> e o analise só grava <c>ended</c>; o histórico sai do <c>engine_state.json</c>
+    /// (etapas atuais e <c>history[].replaced</c>), com a duração desde o fim da etapa anterior, e a previsão aparece.</summary>
+    [Fact]
+    public void Previsao_ChatGpt_SoPeloEngineState()
+    {
+        using var pasta = Ambiente.PastaDeTeste("previsao-chatgpt");
+        string raiz = pasta;
+        JsonObject Fim(double ended, string status = "EXECUTED") => new() { ["status"] = status, ["executor"] = "gpt-ficticio", ["ended"] = ended };
+        // Três análises antigas: prepare termina em t0; analyze leva 60, 70 e 80 min; technical_audit 10 min; produce (programa) 1 min; audit 5;
+        // final_review 2. A terceira tem no histórico uma technical_audit substituída com objeções, que não conta.
+        for (var i = 0; i < 3; i++)
+        {
+            var controle = Path.Combine(raiz, "2026", $"000{i + 1} - 2026 - FICTICIO", ".pmvni-ai", "analise");
+            Directory.CreateDirectory(controle);
+            double t = 1_000_000 * (i + 1);
+            var analyze = t + 60 * (60 + 10 * i);
+            var estado = Estado(("prepare", Fim(t)), ("analyze", Fim(analyze)), ("technical_audit", Fim(analyze + 600)),
+                ("produce", new JsonObject { ["status"] = "EXECUTED", ["executor"] = "programa", ["ended"] = analyze + 660 }),
+                ("audit", Fim(analyze + 960)), ("final_review", Fim(analyze + 1080)));
+            if (i == 2)
+                estado["history"]!.AsArray().Add(new JsonObject { ["at"] = t, ["replaced"] = new JsonObject { ["technical_audit"] = Fim(t - 600, "OBJECTIONS") } });
+            Gravar(controle, "engine_state.json", estado);
+            Assert.False(File.Exists(Path.Combine(controle, UsoDasIas.Arquivo)));
+        }
+
+        var historico = UsoDasIas.Historico(raiz);
+        Assert.All(historico, d => Assert.Equal(Provedor.ChatGpt, d.Provedor));
+        Assert.Equal(new[] { 60d, 70d, 80d }, historico.Where(d => d.Etapa == "analyze").Select(d => d.Duracao.TotalMinutes).Order());
+        Assert.Equal(3, historico.Count(d => d.Etapa == "produce"));       // a etapa de programa também entra
+        Assert.DoesNotContain(historico, d => d.Etapa == "prepare");        // sem started e sem etapa anterior: sem duração
+
+        var agora = new DateTimeOffset(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
+        var atual = new Progresso("analyze", 1, 3, [], Provedor.ChatGpt, agora.AddMinutes(-20));
+        Assert.Equal(agora.AddMinutes(70 - 20 + 10 + 1 + 5 + 2), PrevisaoTermino.Estimar(atual, historico, agora));
+    }
+
+    /// <summary>Correção 1 (I-1): a mesma execução no <c>engine_state.json</c> (atual e repetida num quadro do histórico) e no <c>uso-das-IAs.json</c> conta
+    /// uma vez só — pela pasta da execução ou, quando a pasta difere (tentativa final de uma troca de rota), pela duração.</summary>
+    [Fact]
+    public void Historico_MesmaExecucaoNasDuasFontes_ContaUmaVez()
+    {
+        using var pasta = Ambiente.PastaDeTeste("historico-duas-fontes");
+        var controle = Controle(pasta);
+        JsonObject Com(JsonObject o, string run) { o["run"] = run; return o; }
+        var estado = Estado(("prepare", Feita(1000, 1100, engine: null, executor: "programa")),
+            ("analyze", Com(Feita(1100, 1700), @"C:\ficticio\runs\analyze-2")), ("technical_audit", Com(Feita(1700, 2000), @"C:\ficticio\runs\ta-1")));
+        // O análise pro guarda quadros inteiros no histórico: a mesma technical_audit aparece de novo, e uma analyze anterior (outra pasta) também.
+        estado["history"]!.AsArray().Add(new JsonObject
+        {
+            ["analyze"] = Com(Feita(500, 900), @"C:\ficticio\runs\analyze-1"),
+            ["technical_audit"] = Com(Feita(1700, 2000), @"C:\ficticio\runs\ta-1"),
+        });
+        Gravar(controle, "engine_state.json", estado);
+        Gravar(controle, "uso-das-IAs.json", JsonNode.Parse("""
+            {"execucoes":[
+              {"etapa":"analyze","situacao":"EXECUTED","duracao_s":400.0,"execucao":"C:\\ficticio\\runs\\analyze-1"},
+              {"etapa":"analyze","situacao":"FAILED_QUOTA","duracao_s":null,"execucao":"C:\\ficticio\\runs\\analyze-2a"},
+              {"etapa":"analyze","situacao":"EXECUTED","duracao_s":600.2,"execucao":"C:\\ficticio\\runs\\analyze-2b"},
+              {"etapa":"technical_audit","situacao":"EXECUTED","duracao_s":300.0,"execucao":"C:\\ficticio\\runs\\ta-1"},
+              {"etapa":"audit","situacao":"EXECUTED","duracao_s":250.0,"execucao":"C:\\ficticio\\runs\\audit-1"}
+            ]}
+            """)!);
+
+        var h = UsoDasIas.DuracoesDaPasta(controle);
+        Assert.All(h, d => Assert.Equal(Provedor.Claude, d.Provedor));
+        Assert.Equal(new[] { ("analyze", 400d), ("analyze", 600d), ("audit", 250d), ("prepare", 100d), ("technical_audit", 300d) },
+            h.Select(d => (d.Etapa, d.Duracao.TotalSeconds)).OrderBy(d => d.Etapa).ThenBy(d => d.Item2));
+    }
+
     [Fact]
     public void Consumo_TextosDoCartao()
     {

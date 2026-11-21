@@ -189,8 +189,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             if (previsaoPeloRitmo is { } previsao && previsao.Percentual == percentual)
                 restantePeloRitmo = previsao.DuracaoAtiva - decorrido;
         }
+        // Só a estimativa antiga da IA (estimativa.json) fala em IA; sem estimativa nenhuma, a previsão é do Editor e espera as primeiras etapas.
         TextoTempoEstimado.Text = FluxoNovoRelatorio.TextoEstimativa(EstimativaAtual?.Termino?.ToLocalTime(), agora, restantePeloRitmo,
-            EstimativaAtual?.PeloEditor ?? false);
+            peloEditor: EstimativaAtual is not { PeloEditor: false }, semDados: EstimativaAtual is null or { SemDados: true });
     }
 
     internal void MostrarProgresso(ProgressoEtapa? progresso)
@@ -350,7 +351,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var contagemEtapas = etapas.Count == 0 ? "Aguardando as etapas da análise." : $"{feitas} de {etapas.Count} etapas concluídas";
         ContagemAtividades.Text = percentual is { } valor
             ? $"{contagemEtapas} · {valor:0.#}% geral" + (concluiu ? "" : EstimativaAtual?.PercentualGeral is not null ? " estimado pela IA" : " pelas etapas concluídas")
-            : contagemEtapas + (animar ? " · Aguardando estimativa da IA" : "");
+            : contagemEtapas + (animar ? " · " + FluxoNovoRelatorio.PrevisaoDepoisDasEtapas : "");
         EtapasAtividades.Children.Clear();
         PainelEtapas.Children.Clear();
         PainelEtapas.ColumnDefinitions.Clear();

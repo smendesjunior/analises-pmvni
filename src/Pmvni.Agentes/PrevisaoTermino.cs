@@ -1,6 +1,7 @@
 namespace Pmvni.Agentes;
 
-/// <summary>Quanto uma etapa levou numa execução anterior (uma linha <c>EXECUTED</c> do <c>uso-das-IAs.json</c> de algum processo), com o provedor da rota
+/// <summary>Quanto uma etapa levou numa execução anterior (uma etapa <c>EXECUTED</c> do <c>engine_state.json</c> ou do <c>uso-das-IAs.json</c> de algum processo,
+/// <see cref="UsoDasIas.DuracoesDaPasta"/>), com o provedor da rota
 /// (a pasta de controle: <c>analise</c> = ChatGPT, <c>analise-pro</c> = Claude, <c>analise-google</c> = Gemini).</summary>
 public sealed record DuracaoEtapa(string Etapa, Provedor Provedor, TimeSpan Duracao);
 
