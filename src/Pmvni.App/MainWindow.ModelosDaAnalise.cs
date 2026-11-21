@@ -10,7 +10,8 @@ namespace Pmvni.App;
 /// <summary>Tarefa 19: Ajustes › Inteligência artificial › Modelos da análise. A grade (linhas = etapas do <c>etapas.json</c> do kit; colunas = rotas e perfis
 /// da tabela do kit; cada célula = modelo + nível), as regras, a auditoria cruzada por rota, "Restaurar padrão do kit" e, no computador do kit mestre,
 /// "Publicar como padrão do kit". A lógica fica em <see cref="ModelosDaAnalise"/>; aqui só a tela. O ajuste é gravado direto em
-/// <c>%APPDATA%\EditorRelatoriosPMVNI</c> (o Editor não é MSIX: não há redirecionamento de pasta).</summary>
+/// <c>%LOCALAPPDATA%\EditorRelatoriosPMVNI</c> (<see cref="PastaDados.Raiz"/>; o Editor não é MSIX: não há redirecionamento de pasta). O Recriar PC
+/// guarda o arquivo por um passo próprio do <c>recriar.json</c>.</summary>
 public sealed partial class MainWindow
 {
     AjusteModelos? ajusteModelos;

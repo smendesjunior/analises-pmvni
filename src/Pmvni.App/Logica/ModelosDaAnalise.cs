@@ -48,7 +48,8 @@ public sealed class TabelaModelosKit
     public CelulaModelos? Celula(ColunaModelos c, string etapa) => Celulas.TryGetValue((c.Rota, c.Perfil, etapa), out var x) ? x : null;
 }
 
-/// <summary>O ajuste local deste computador (<c>%APPDATA%\EditorRelatoriosPMVNI\modelos-por-rota.local.json</c>): só o que difere do padrão do kit.</summary>
+/// <summary>O ajuste local deste computador (<c>%LOCALAPPDATA%\EditorRelatoriosPMVNI\modelos-por-rota.local.json</c>, na
+/// <see cref="Pmvni.Composicao.Web.PastaDados.Raiz"/>; o Recriar PC guarda esse arquivo por um passo próprio do <c>recriar.json</c>): só o que difere do padrão do kit.</summary>
 public sealed class AjusteModelos
 {
     public Dictionary<(string Rota, string Perfil, string Etapa), CelulaModelos> Celulas { get; } = new();
@@ -79,7 +80,7 @@ public sealed record TabelaEfetiva(JsonObject Json, IReadOnlyList<AvisoModelos> 
 }
 
 /// <summary>Tarefa 19: Ajustes › Inteligência artificial › Modelos da análise. O padrão vem do kit instalado (igual em todos os computadores); o ajuste
-/// local opcional fica em <see cref="ArquivoLocal"/> (o Editor não é MSIX: grava direto em %APPDATA%). Antes de cada análise, <see cref="Efetiva"/> monta a
+/// local opcional fica em <see cref="ArquivoLocal"/> (o Editor não é MSIX: grava direto em %LOCALAPPDATA%\EditorRelatoriosPMVNI). Antes de cada análise, <see cref="Efetiva"/> monta a
 /// tabela que vai ao controlador: uma célula ajustada cujo modelo deixou de aparecer na lista do provedor usa o padrão do kit, com aviso (na aba, no Novo
 /// relatório e no histórico da execução). As opções vêm das listas que o Editor já atualiza por provedor (<see cref="CatalogoModelosIa"/>); na rota Gemini,
 /// da lista que a rota Gemini do kit devolve (<see cref="LerListaGemini"/>: agy models ou a Gemini API; o Gemini Web não lista e fica com os modelos da tabela).
