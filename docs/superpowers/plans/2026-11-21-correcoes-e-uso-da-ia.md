@@ -361,6 +361,20 @@ Pedido do usuário. **Files (Editor):** `PaginaAjustes.xaml`, `MainWindow.Ajuste
 - [ ] Teste: fonte inacessível (fora da rede) → "não foi possível verificar", sem erro.
 - [ ] Commit.
 
+### Task 22: Despacho dentro do Editor (fim do plugin despacho)
+
+Pedido do usuário (21/11/2026): o despacho não faz parte da análise, só emite o documento a partir do resultado; deixa de ser plugin separado e passa a ser código do Editor. Depende da Tarefa 15 (mesmos arquivos do Novo despacho) e da parte kit da Tarefa 18 (instalador).
+
+**Files (Editor):** `src/Pmvni.App/Despachos/*`, `MainWindow.NovoDespacho.cs`, `Logica/FluxoNovoDespacho.cs`, `Logica/OrganizacaoArquivos.cs`, `Logica/RodapeDespacho.cs`; nova pasta `src/Pmvni.Revisao/Despachos/` para a lógica testável. **Files (kit):** `01 - PLUGINS/plugins/despacho` (removido do kit), `INSTALAR_KIT_PMVNI.cmd` (remove o plugin despacho instalado do Codex e do Claude Code), modelos .docx e `TEMPLATES_OFICIAIS.json` passam para `referencias/despacho/` do motor (dados, atualizados pelo kit mestre).
+
+- [ ] Inventário: ler `skills/despacho` (SKILL.md, references, scripts `pasta_processo.py`, `programas_pmvni.py`, `validate_template_fidelity.py`, `kit_pmvni.py`, `local_model_support.py`) e listar cada regra/passo com o destino: código C# (determinístico), dado em `referencias/despacho/`, ou redação que continua com IA só sob comando ("Ajustar com IA"). O inventário vai no relatório da tarefa; nenhuma regra some sem destino.
+- [ ] Emissão em código: o Editor monta o despacho de correção e o de aprovação a partir do resultado (manifesto/relatório revisado) com os modelos oficiais, sem chamar IA por padrão; fidelidade ao modelo (campos, fonte, rodapé) conferida em código, como o `validate_template_fidelity.py` fazia.
+- [ ] Organização da pasta do processo e nomes de arquivo como o `pasta_processo.py`/`organizacao-arquivos.md` definem, em código.
+- [ ] `IaDespacho.Regras` deixa de citar o plugin; "Ajustar com IA" continua disponível sob comando, com as mesmas rotas (Codex/Claude) e sem depender do plugin instalado.
+- [ ] Kit: plugin despacho sai do kit e o instalador o remove; `PoliticaKit` e o cartão "Plugins e ferramentas" (Tarefa 21) deixam de esperar o despacho; Editor com kit antigo continua funcionando (o plugin instalado é ignorado).
+- [ ] Testes: `Despacho_Correcao_SemIA` (gera o .docx do modelo de correção com os itens pendentes na ordem, sem chamar IA); `Despacho_Aprovacao_Modelo` (campos do modelo de aprovação preenchidos); `Fidelidade_Modelo` (mesmas conferências do `validate_template_fidelity.py`, incluindo um caso que falha); `PastaProcesso_Nomes` (mesmos nomes e pastas do `pasta_processo.py` nos exemplos do self_test dele); teste do instalador removendo o plugin.
+- [ ] Commit (Editor) e commit (kit dev).
+
 ## Parte D — Fechamento
 
 ### Task 17: Medição antes e depois, versões e entrega
