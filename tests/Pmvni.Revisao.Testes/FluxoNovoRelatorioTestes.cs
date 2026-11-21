@@ -25,7 +25,7 @@ public class FluxoNovoRelatorioTestes
     [Fact]
     public void motivo_do_botao_do_gemini()
     {
-        const string SemPython = "O Python não foi encontrado neste computador (o análise Google do kit precisa dele).";
+        const string SemPython = "O Python não foi encontrado neste computador (a rota Gemini do plugin analise precisa dele).";
         const string SemPlugin = "A rota Gemini do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
         const string SemChave = "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.";
         string? M(Pecas pecas, ModoAcesso modo = ModoAcesso.Conta, bool chave = false, PerfilGemini? perfil = PerfilGemini.ContaUltra) =>
@@ -58,7 +58,7 @@ public class FluxoNovoRelatorioTestes
 
         // Textos do terceiro botão e do cartão.
         Assert.Equal("Analisar com o Gemini", FluxoNovoRelatorio.AvisoTitulo(Provedor.Gemini));
-        Assert.StartsWith("Analisar com o Gemini inicia o análise Google do kit PMVNI", FluxoNovoRelatorio.TextoAviso(Provedor.Gemini));
+        Assert.StartsWith("Analisar com o Gemini inicia a rota Gemini do plugin analise do kit PMVNI", FluxoNovoRelatorio.TextoAviso(Provedor.Gemini));
         Assert.Equal("Gemini (Antigravity · análise, rota Gemini)", TextosAgentes.Titulo(Provedor.Gemini));
         Assert.Equal("Análise — rota Gemini", TextosAgentes.TituloPlugin(PluginsInstalados.AnaliseGoogle));
         Assert.Equal("Análise — rota Claude", TextosAgentes.TituloPlugin(PluginsInstalados.AnalisePro));
@@ -102,7 +102,7 @@ public class FluxoNovoRelatorioTestes
         const string SemCodex = "O Codex não foi encontrado neste computador. Instale o app do ChatGPT/Codex ou escolha o programa em Ajustes › Inteligência artificial.";
         const string SemPlugin = "O plugin analise do kit PMVNI não está habilitado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
         const string SemChave = "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.";
-        const string SemPython = "O Python não foi encontrado neste computador (o análise pro do kit precisa dele).";
+        const string SemPython = "O Python não foi encontrado neste computador (a rota Claude do plugin analise precisa dele).";
         const string SemPro = "A rota Claude do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
         const string SemClaude = "O Claude Code não foi encontrado neste computador (claude.exe).";
 
@@ -159,7 +159,7 @@ public class FluxoNovoRelatorioTestes
             + "arquivos do processo, usa os programas e as pastas de rede deste computador e envia à OpenAI o pedido e o conteúdo de que precisar, como "
             + "faz no app do ChatGPT. O editor não envia nada por conta própria: ele só inicia o Codex, mostra o andamento e importa o relatório no fim.",
             FluxoNovoRelatorio.TextoAviso(Provedor.ChatGpt));
-        Assert.Equal("Analisar com o Claude inicia o análise pro do kit PMVNI, que roda sozinho numa janela minimizada e chama o Claude Code deste computador "
+        Assert.Equal("Analisar com o Claude inicia a rota Claude do plugin analise do kit PMVNI, que roda sozinha numa janela minimizada e chama o Claude Code deste computador "
             + "com a sua conta do Claude ou, se escolhida em Ajustes, com a chave da Anthropic API (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os arquivos do processo, usa os programas e as "
             + "pastas de rede deste computador e envia à Anthropic o conteúdo de que precisar. O editor não envia nada por conta própria: ele só dá a "
             + "partida, mostra o andamento e importa o relatório no fim.",
@@ -225,7 +225,7 @@ public class FluxoNovoRelatorioTestes
         Assert.Equal(DestinoAnexo.ReapresentacaoAtual, comRevisao[^1].Destino);
         Assert.Equal("Projeto — juntar à REVISÃO 02 atual", comRevisao[^1].Rotulo);
 
-        Assert.Equal("O análise-pro usa o Claude para analisar o processo. No campo “Pedido”, você pode indicar algo que merece atenção, como uma pendência de despacho anterior. A análise segue as etapas habituais.", FluxoNovoRelatorio.TextoPedidoClaude);
+        Assert.Equal("A rota Claude do plugin analise usa o Claude para analisar o processo. No campo “Pedido”, você pode indicar algo que merece atenção, como uma pendência de despacho anterior. A análise segue as etapas habituais.", FluxoNovoRelatorio.TextoPedidoClaude);
         Assert.Equal("planta.pdf não é um arquivo do disco; salve-o numa pasta e anexe de lá.", FluxoNovoRelatorio.ItemSemCaminho("planta.pdf"));
         Assert.Equal("Relatório da análise com o ChatGPT importado: Relatorio_0001_2099.rpmvni. O PDF do kit continua em C:\\p\\relatorio.pdf.",
             FluxoNovoRelatorio.TextoImportado(Provedor.ChatGpt, @"C:\p\Relatorio_0001_2099.rpmvni", @"C:\p\relatorio.pdf"));

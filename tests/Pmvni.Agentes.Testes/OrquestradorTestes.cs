@@ -416,7 +416,7 @@ public partial class OrquestradorTestes
         Assert.Equal("Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.",
             (await RodarSemPecas("orq-sem-chave", Provedor.ChatGpt, p => p, ModoAcesso.Chave)).Mensagem);
 
-        Assert.Equal("O Python não foi encontrado neste computador (o análise pro do kit precisa dele).",
+        Assert.Equal("O Python não foi encontrado neste computador (a rota Claude do plugin analise precisa dele).",
             (await RodarSemPecas("orq-sem-python", Provedor.Claude, p => p with { Python = null })).Mensagem);
         Assert.Equal("A rota Claude do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).",
             (await RodarSemPecas("orq-sem-pro", Provedor.Claude, p => p with { ProRuntime = null })).Mensagem);

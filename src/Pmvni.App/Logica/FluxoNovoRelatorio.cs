@@ -26,20 +26,20 @@ public static class FluxoNovoRelatorio
     public const string SemCodex = "O Codex não foi encontrado neste computador. Instale o app do ChatGPT/Codex ou escolha o programa em Ajustes › Inteligência artificial.";
     public const string SemPlugin = "O plugin analise do kit PMVNI não está habilitado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
     public const string SemChave = "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.";
-    public const string SemPython = "O Python não foi encontrado neste computador (o análise pro do kit precisa dele).";
+    public const string SemPython = "O Python não foi encontrado neste computador (a rota Claude do plugin analise precisa dele).";
     public const string SemAnalisePro = "A rota Claude do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
     public const string SemClaude = "O Claude Code não foi encontrado neste computador (claude.exe).";
-    public const string SemPythonGoogle = "O Python não foi encontrado neste computador (o análise Google do kit precisa dele).";
+    public const string SemPythonGoogle = "O Python não foi encontrado neste computador (a rota Gemini do plugin analise precisa dele).";
     public const string SemAnaliseGoogle = OrquestradorAnalise.SemAnaliseGoogle;
     public const string SemAgy = OrquestradorAnalise.SemAgy;
     public const string SemPerfilApi = OrquestradorAnalise.SemPerfilApi;
     public const string CancelarGeminiTitulo = "Cancelar a análise com o Gemini?";
     public const string TextoFecharGemini = "A análise com o Gemini continua sozinha, fora do editor. Ao abrir o editor de novo, você poderá voltar a acompanhá-la ou retomá-la de onde parou.";
     /// <summary>"Analisar com o Claude" desabilitado: modo chave (Anthropic API) com um análise pro que não aceita a rota API (anterior à 1.6.4).</summary>
-    public const string ClaudeSoConta = "O análise pro instalado não aceita a Anthropic API (é preciso o 1.6.4 ou mais novo). Atualize pelo INSTALAR_KIT_PMVNI.cmd ou, em Ajustes › Inteligência artificial, use Usar minha conta.";
+    public const string ClaudeSoConta = "A rota Claude do plugin analise instalado não aceita a Anthropic API (é preciso o 1.6.4 ou mais novo). Atualize pelo INSTALAR_KIT_PMVNI.cmd ou, em Ajustes › Inteligência artificial, use Usar minha conta.";
 
     /// <summary>Sob "Analisar com o Claude" (desenho §12.5).</summary>
-    public const string TextoPedidoClaude = "O análise-pro usa o Claude para analisar o processo. No campo “Pedido”, você pode indicar algo que merece atenção, como uma pendência de despacho anterior. A análise segue as etapas habituais.";
+    public const string TextoPedidoClaude = "A rota Claude do plugin analise usa o Claude para analisar o processo. No campo “Pedido”, você pode indicar algo que merece atenção, como uma pendência de despacho anterior. A análise segue as etapas habituais.";
 
     public const string DicaPedido = "Ex.: Analise a reapresentação do projeto e confira as pendências do despacho anterior.";
     public const int MaximoPedido = 20000;

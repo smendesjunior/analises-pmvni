@@ -84,7 +84,7 @@ public partial class OrquestradorTestes
         var ex = c.Execucao();
         Assert.Equal(("gemini", "conta", "conta_google", "conta_ultra"),
             (ex["provedor"]!.GetValue<string>(), ex["modo"]!.GetValue<string>(), ex["autenticacao"]!.GetValue<string>(), ex["perfil"]!.GetValue<string>()));
-        Assert.Equal(("análise Google", "4.0.0", "concluida"), (ex["plugin"]!.GetValue<string>(), ex["versao_do_plugin"]!.GetValue<string>(), ex["situacao"]!.GetValue<string>()));
+        Assert.Equal(("Análise — rota Gemini", "4.0.0", "concluida"), (ex["plugin"]!.GetValue<string>(), ex["versao_do_plugin"]!.GetValue<string>(), ex["situacao"]!.GetValue<string>()));
         Assert.Contains("\"ok\":true", ex["conferencia_gemini"]!.GetValue<string>());
         Assert.EndsWith("-gemini", Path.GetFileName(c.Registro.Pasta));
         Assert.False(TravaExecucao.EmAndamento(c.Processo.Pasta));
@@ -162,7 +162,7 @@ public partial class OrquestradorTestes
             c.Pecas = c.Pecas with { GoogleRuntime = null };
             Assert.Equal(OrquestradorAnalise.SemAnaliseGoogle, (await Rodar(c, PedidoGemini(c, PerfilGemini.ContaUltra))).Mensagem);
             c.Pecas = c.Pecas with { Python = null };
-            Assert.Equal("O Python não foi encontrado neste computador (o análise Google do kit precisa dele).", (await Rodar(c, PedidoGemini(c, PerfilGemini.ContaUltra))).Mensagem);
+            Assert.Equal("O Python não foi encontrado neste computador (a rota Gemini do plugin analise precisa dele).", (await Rodar(c, PedidoGemini(c, PerfilGemini.ContaUltra))).Mensagem);
             NadaPartiu(c);
         }
     }
@@ -194,7 +194,7 @@ public partial class OrquestradorTestes
     [Fact]
     public void mensagem_da_conferencia_sem_json_usa_a_primeira_linha()
     {
-        Assert.Equal("O análise Google recusou a partida (API gratuita (só testes fictícios)): Perfil gratuito exige processo fictício.",
+        Assert.Equal("A rota Gemini recusou a partida (API gratuita (só testes fictícios)): Perfil gratuito exige processo fictício.",
             OrquestradorAnalise.MensagemDaConferencia("Perfil gratuito exige processo fictício.\n", PerfilGemini.ApiGratuita));
         Assert.Equal("O Gemini não está pronto para a análise (API com créditos (Google AI Studio)): chave recusada; etapa analyze sem modelo.",
             OrquestradorAnalise.MensagemDaConferencia("aviso\n{\"ok\":false,\"faltas\":[\"chave recusada.\",\"etapa analyze sem modelo\"]}", PerfilGemini.ApiCreditos));

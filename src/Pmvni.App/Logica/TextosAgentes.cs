@@ -18,21 +18,21 @@ public static class TextosAgentes
     public const string Testando = "Testando…";
 
     /// <summary>A dica do modo chave do Claude quando o análise pro instalado não aceita a Anthropic API (anterior à 1.6.4).</summary>
-    public const string ClaudeSoConta = "O análise pro instalado não aceita a Anthropic API (é preciso o 1.6.4 ou mais novo): com a chave marcada, a análise não é iniciada, "
+    public const string ClaudeSoConta = "A rota Claude do plugin analise instalado não aceita a Anthropic API (é preciso o 1.6.4 ou mais novo): com a chave marcada, a análise não é iniciada, "
         + "nem pela conta. Atualize pelo INSTALAR_KIT_PMVNI.cmd ou use Usar minha conta. A chave continua valendo para a Claude API em Modelos de IA.";
 
     /// <summary>A dica do modo chave do Claude com um análise pro que aceita a Anthropic API (1.6.4+): o que muda de verdade na análise.</summary>
-    public const string ClaudeModoApi = "Modo Anthropic API: o análise pro usa esta chave, com os créditos e os limites da organização no Anthropic Console, "
+    public const string ClaudeModoApi = "Modo Anthropic API: a rota Claude do plugin analise usa esta chave, com os créditos e os limites da organização no Anthropic Console, "
         + "sem usar a cota do Claude Max. Se a API falhar (saldo, chave recusada ou limite de uso), a análise pausa ou para, sem passar para a conta. "
         + "Modelos e níveis de cada etapa continuam os do plugin.";
 
     /// <summary>A dica do modo chave do Gemini: o que a chave do Google AI Studio muda na análise e por que o perfil é escolhido à mão.</summary>
-    public const string GeminiModoApi = "Modo Gemini API: o análise Google usa esta chave do Google AI Studio pelo Antigravity CLI, sem usar a cota da conta Google. "
+    public const string GeminiModoApi = "Modo Gemini API: a rota Gemini do plugin analise usa esta chave do Google AI Studio pelo Antigravity CLI, sem usar a cota da conta Google. "
         + "O plano Google AI Ultra não inclui sozinho créditos pagos da API: escolha abaixo se a chave tem créditos (camada paga) ou é gratuita. "
         + "Se a API falhar (cota, créditos, chave recusada ou modelo indisponível), a análise pausa ou para, sem passar para a conta nem para outro perfil.";
 
     /// <summary>A dica do modo conta do Gemini.</summary>
-    public const string GeminiModoConta = "Modo conta Google: o análise Google roda pelo Antigravity CLI (agy) com o login da sua conta e a cota do plano. "
+    public const string GeminiModoConta = "Modo conta Google: a rota Gemini do plugin analise roda pelo Antigravity CLI (agy) com o login da sua conta e a cota do plano. "
         + "A conversa do site gemini.google.com não serve para a análise (não lê arquivos nem roda os validadores): é o Antigravity que tem as ferramentas.";
 
     public const string PerfilGeminiTitulo = "Perfil da chave";
@@ -73,7 +73,7 @@ public static class TextosAgentes
 
     /// <summary>O aviso mostrado antes da primeira análise de cada provedor e em "Rever aviso" (versão <see cref="Ajustes.VersaoAviso"/>).</summary>
     public static string Aviso(Provedor p) => p == Provedor.Gemini
-        ? "Analisar com o Gemini inicia o análise Google do kit PMVNI, que roda sozinho e chama o Antigravity CLI (agy) deste computador com a sua conta "
+        ? "Analisar com o Gemini inicia a rota Gemini do plugin analise do kit PMVNI, que roda sozinha e chama o Antigravity CLI (agy) deste computador com a sua conta "
           + "Google ou, se escolhida em Ajustes, com a chave do Google AI Studio (Gemini 4 Hydrogen, Carbon e Argon, como o kit define). O Antigravity lê os "
           + "arquivos do processo, usa os programas e as pastas de rede deste computador e envia ao Google o conteúdo de que precisar. Com a chave gratuita, "
           + "o Google pode usar esse conteúdo para melhorar os produtos dele: por isso ela só serve para processos fictícios. O editor não envia nada por "
@@ -82,7 +82,7 @@ public static class TextosAgentes
         ? "Analisar com o ChatGPT inicia o Codex instalado neste computador, com a sua configuração e o plugin analise do kit PMVNI. O Codex lê os "
           + "arquivos do processo, usa os programas e as pastas de rede deste computador e envia à OpenAI o pedido e o conteúdo de que precisar, como "
           + "faz no app do ChatGPT. O editor não envia nada por conta própria: ele só inicia o Codex, mostra o andamento e importa o relatório no fim."
-        : "Analisar com o Claude inicia o análise pro do kit PMVNI, que roda sozinho numa janela minimizada e chama o Claude Code deste computador "
+        : "Analisar com o Claude inicia a rota Claude do plugin analise do kit PMVNI, que roda sozinha numa janela minimizada e chama o Claude Code deste computador "
           + "com a sua conta do Claude ou, se escolhida em Ajustes, com a chave da Anthropic API (Sonnet 5.5 e Opus 5.5, como o kit define). O Claude Code lê os arquivos do processo, usa os programas e as "
           + "pastas de rede deste computador e envia à Anthropic o conteúdo de que precisar. O editor não envia nada por conta própria: ele só dá a "
           + "partida, mostra o andamento e importa o relatório no fim.";

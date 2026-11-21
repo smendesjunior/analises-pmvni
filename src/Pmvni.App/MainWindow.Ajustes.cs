@@ -459,7 +459,28 @@ public sealed partial class MainWindow
         if (OrigensDoKitDoRoteiro is { } r) return r;
         var o = Pmvni.Agentes.OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, null, null);
         var pmvni = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PMVNI");
-        return new OrigensDoKit(o.CodexHome, o.PastaClaude, InstalacaoMotorPdf.BaseLocal, pmvni, ajustes.PastaKitEfetiva, InstalacaoMotorPdf.HashDoServidorPdf());
+        return new OrigensDoKit(o.CodexHome, o.PastaClaude, InstalacaoMotorPdf.BaseLocal, pmvni, ajustes.PastaKitEfetiva, InstalacaoMotorPdf.HashDoServidorPdf(),
+            TarefaDoKitExiste);
+    }
+
+    /// <summary>A tarefa "PMVNI\Atualizar kit" existe? (<c>schtasks /Query</c>, só leitura; código 0 = existe, 1 = não existe; outro = não se sabe.)</summary>
+    static bool? TarefaDoKitExiste()
+    {
+        try
+        {
+            var inicio = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "schtasks.exe"))
+            {
+                UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true
+            };
+            foreach (var a in new[] { "/Query", "/TN", @"\PMVNI\Atualizar kit" }) inicio.ArgumentList.Add(a);
+            using var consulta = System.Diagnostics.Process.Start(inicio);
+            if (consulta is null) return null;
+            _ = consulta.StandardOutput.ReadToEnd();
+            _ = consulta.StandardError.ReadToEnd();
+            if (!consulta.WaitForExit(5000)) return null;
+            return consulta.ExitCode switch { 0 => true, 1 => false, _ => null };
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { return null; }
     }
 
     /// <summary>"Verificar atualizações": lê as versões (sem travar a janela; a fonte fora do alcance não é erro) e remonta as linhas.</summary>
@@ -511,9 +532,7 @@ public sealed partial class MainWindow
             acoes.Children.Add(selo);
             var botao = new Button { Content = linha.TextoBotao };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, "Atualizar " + linha.Componente.Nome + (linha.SoPeloTodos ? " (atualiza todo o kit)" : ""));
-            Dicas.Aplicar(botao, linha.TextoBotao, linha.SoPeloTodos
-                ? "Este componente só se atualiza junto com o kit: roda o Atualizar todos, fora do Editor."
-                : "Atualiza só " + linha.Componente.Nome + ", fora do Editor.");
+            Dicas.Aplicar(botao, linha.TextoBotao, linha.TextoDica);
             botao.Click += async (_, _) => await AtualizarComponenteAsync(linha);
             acoes.Children.Add(botao);
             Grid.SetColumn(acoes, 1);
@@ -528,19 +547,27 @@ public sealed partial class MainWindow
     internal async Task AtualizarComponenteAsync(LinhaComponente? linha)
     {
         var p = PaginaDeAjustes;
-        p.BotaoAtualizarTodosComponentes.IsEnabled = false;
+        // Enquanto a atualização é iniciada, nenhum outro "Atualizar" (nem o "Atualizar todos") pode ser clicado.
+        void Habilitar(bool sim)
+        {
+            p.BotaoAtualizarTodosComponentes.IsEnabled = sim;
+            foreach (var b in botoesDosComponentes.Values) b.IsEnabled = sim;
+        }
+        Habilitar(false);
         try
         {
+            var analises = ProcessosComAnaliseEmAndamento();
             var pasta = PastaScriptsDoKitDoRoteiro ?? await InstalacaoMotorPdf.ExtrairAsync();
-            var kit = LeituraDoKitAtual?.KitLocal ?? ComponentesDoKit.FonteDoKit(OrigensDoKitDoComputador()).KitLocal;
-            p.TextoResultadoComponentes.Text = ComponentesDoKit.Atualizar(linha, ProcessosComAnaliseEmAndamento(), pasta, kit, LancadorDoKit ?? AbrirPeloWindows);
+            var origens = OrigensDoKitDoComputador();
+            var kit = LeituraDoKitAtual?.KitLocal ?? await Task.Run(() => ComponentesDoKit.FonteDoKit(origens).KitLocal);
+            p.TextoResultadoComponentes.Text = await ComponentesDoKit.AtualizarAsync(linha, analises, pasta, kit, LancadorDoKit ?? AbrirPeloWindows);
         }
         catch (Exception e)
         {
             RegistroErros.Gravar("kit.componentes.atualizar", e);
             p.TextoResultadoComponentes.Text = "Não foi possível iniciar a atualização. " + e.Message;
         }
-        finally { p.BotaoAtualizarTodosComponentes.IsEnabled = true; }
+        finally { Habilitar(true); }
     }
 
     /// <summary>O lançador de verdade: o <c>explorer.exe</c> abre o <c>.cmd</c> fora do processo do Editor.</summary>

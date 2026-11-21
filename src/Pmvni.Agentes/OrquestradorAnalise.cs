@@ -161,7 +161,7 @@ public sealed class OrquestradorAnalise
         }
         else if (pe.Provedor == Provedor.Gemini)
         {
-            if (pecas.Python is null) return Falha("O Python não foi encontrado neste computador (o análise Google do kit precisa dele).");
+            if (pecas.Python is null) return Falha("O Python não foi encontrado neste computador (a rota Gemini do plugin analise precisa dele).");
             // Tarefa 18: um analise anterior ao 4.0.0 não tem o controlador da rota (rotas\gemini): pede a atualização do kit, não "não instalado".
             if (pecas.VersaoAnaliseGoogle is not null && PoliticaKit.PluginDesatualizado(Provedor.Gemini, pecas.VersaoAnaliseGoogle) is { } kitAntigo) return Falha(kitAntigo);
             if (pecas.GoogleRuntime is null) return Falha(SemAnaliseGoogle);
@@ -176,7 +176,7 @@ public sealed class OrquestradorAnalise
         }
         else
         {
-            if (pecas.Python is null) return Falha("O Python não foi encontrado neste computador (o análise pro do kit precisa dele).");
+            if (pecas.Python is null) return Falha("O Python não foi encontrado neste computador (a rota Claude do plugin analise precisa dele).");
             // Tarefa 18: um analise anterior ao 4.0.0 não tem o controlador da rota (rotas\claude): pede a atualização do kit, não "não instalado".
             if (pecas.VersaoAnalisePro is not null && PoliticaKit.PluginDesatualizado(Provedor.Claude, pecas.VersaoAnalisePro) is { } kitAntigo) return Falha(kitAntigo);
             if (pecas.ProRuntime is null)
@@ -202,7 +202,7 @@ public sealed class OrquestradorAnalise
 
     /// <summary>A recusa do modo chave do Claude quando o análise pro instalado não aceita a rota API explícita (anterior à 1.6.4).</summary>
     public static string ApiNaoSuportada(string? versaoInstalada) =>
-        $"O análise pro instalado ({versaoInstalada ?? "versão desconhecida"}) não aceita a Anthropic API; é preciso o 1.6.4 ou mais novo. "
+        $"A rota Claude do plugin analise instalado ({versaoInstalada ?? "versão desconhecida"}) não aceita a Anthropic API; é preciso o 1.6.4 ou mais novo. "
         + "Atualize pelo INSTALAR_KIT_PMVNI.cmd (fora do editor) ou escolha Usar minha conta em Ajustes › Inteligência artificial. "
         + "Nada foi iniciado: a análise não passa para a conta sem a sua escolha.";
 
@@ -229,8 +229,8 @@ public sealed class OrquestradorAnalise
     public const string SemPerfilApi = "Escolha o perfil da chave do Gemini em Ajustes › Inteligência artificial: API com créditos ou API gratuita (só testes fictícios). "
         + "O plano de uma chave não pode ser deduzido, e o editor não presume nenhum.";
 
-    /// <summary>O nome do plugin do kit nas mensagens: "análise pro" (Claude) ou "análise Google" (Gemini).</summary>
-    public static string NomeDoKit(Provedor p) => p == Provedor.Gemini ? "análise Google" : "análise pro";
+    /// <summary>O nome da rota do kit nas mensagens (Tarefa 21): "rota Claude" ou "rota Gemini" (do plugin analise, um só desde o 4.0.0).</summary>
+    public static string NomeDoKit(Provedor p) => "rota " + Provedores.Nome(p);
 
     static string Usuario()
     {
@@ -238,8 +238,8 @@ public sealed class OrquestradorAnalise
         catch (InvalidOperationException) { return ""; }
     }
 
-    /// <summary>O plugin do kit que cada provedor usa: ChatGPT (Codex) = analise; Claude = análise pro.</summary>
-    public static string PluginUsado(Provedor p) => p switch { Provedor.ChatGpt => "analise", Provedor.Claude => "análise pro", _ => "análise Google" };
+    /// <summary>O plugin do kit e a rota que o provedor usa, no <c>execucao.json</c> (Tarefa 21): "Análise — rota Claude".</summary>
+    public static string PluginUsado(Provedor p) => "Análise — rota " + Provedores.Nome(p);
 
     /// <summary>A versão instalada desse plugin (a maior no cache de plugins do Codex); null se não foi achada.</summary>
     public static string? VersaoDoPlugin(Provedor p, Pecas? pecas) =>
@@ -684,7 +684,7 @@ public sealed class OrquestradorAnalise
             var saidaPartida = redator.Aplicar(partida.Saida);
             var iniciada = partida.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(saidaPartida)) : null;
             if (iniciada is null || iniciada.Codigo is not ("INICIADA" or "JA_EM_ANDAMENTO"))
-                return Falha($"O {nomeKit} não partiu: " + PrimeiraLinha(saidaPartida) + ". Veja o registro: " + registro.Pasta + ".", partida.Codigo);
+                return Falha($"A {nomeKit} não partiu: " + PrimeiraLinha(saidaPartida) + ". Veja o registro: " + registro.Pasta + ".", partida.Codigo);
             if (iniciada.Codigo == "JA_EM_ANDAMENTO") log.MostrarOFimDoLog();     // uma análise que já rodava: mostra o que ela já escreveu
             // Só a partida precisa da chave (o kit a passa ao processo isolado da análise); "situacao" só lê arquivos e roda sem ela, como na retomada.
             var fim = await AcompanharAsync(pe, Ambiente(p, ModoAcesso.Conta, null), redator, log, inicio, progresso, ct).ConfigureAwait(false);
@@ -723,7 +723,7 @@ public sealed class OrquestradorAnalise
             }
         }
         catch (JsonException) { }
-        return $"O análise Google recusou a partida ({nome}): " + PrimeiraLinha(saida) + ".";
+        return $"A rota Gemini recusou a partida ({nome}): " + PrimeiraLinha(saida) + ".";
     }
 
     /// <summary>O editor reaberto volta a acompanhar uma análise do Claude que seguiu sozinha (desenho §12.7): só <c>situacao</c> e o <c>auto-log.txt</c>, sem
@@ -733,8 +733,8 @@ public sealed class OrquestradorAnalise
     {
         FimAnalise fim;
         if (pe.Pecas.Python is null || pe.Pecas.RuntimeDoKit(pe.Provedor) is null)
-            fim = Falha(pe.Pecas.Python is null ? $"O Python não foi encontrado neste computador (o {NomeDoKit(pe.Provedor)} do kit precisa dele)."
-                : $"O plugin {NomeDoKit(pe.Provedor)} do kit PMVNI não está instalado no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
+            fim = Falha(pe.Pecas.Python is null ? $"O Python não foi encontrado neste computador (a {NomeDoKit(pe.Provedor)} do plugin analise precisa dele)."
+                : $"A {NomeDoKit(pe.Provedor)} do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
         else
         {
             var log = new LeitorLog(Path.Combine(pe.Processo.Pasta, ResultadoAnalise.PastaControle(pe.Provedor), "auto-log.txt"));
@@ -798,7 +798,7 @@ public sealed class OrquestradorAnalise
                 if (situacao is null || situacao.Codigo.Length == 0)
                 {
                     if (++falhasSeguidas >= FalhasSeguidasDaSituacao)
-                        return Falha($"Não foi possível ler a situação do {NomeDoKit(pe.Provedor)}: " + PrimeiraLinha(saidaSituacao) + ". Veja o registro: " + registro.Pasta + ".", r.Codigo);
+                        return Falha($"Não foi possível ler a situação da {NomeDoKit(pe.Provedor)}: " + PrimeiraLinha(saidaSituacao) + ". Veja o registro: " + registro.Pasta + ".", r.Codigo);
                 }
                 else
                 {

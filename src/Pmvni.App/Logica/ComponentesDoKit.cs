@@ -27,18 +27,26 @@ public enum OrigemComponente
 /// <paramref name="VersaoDoEditor"/>: para os motores, a versão que o Editor instala (null = o resumo não grava versão).</summary>
 public sealed record ComponenteDoKit(string Id, string Nome, string Ajuda, OrigemComponente Origem, string Chave, string? Parte, string? VersaoDoEditor = null);
 
-/// <summary>Uma linha lida do cartão. <paramref name="SoPeloTodos"/>: o botão "Atualizar" desta linha roda o "Atualizar todos".</summary>
-public sealed record LinhaComponente(ComponenteDoKit Componente, string? Instalada, string? Disponivel, SituacaoComponente Situacao, string Detalhe, bool SoPeloTodos)
+/// <summary>Uma linha lida do cartão. <paramref name="SoPeloTodos"/>: o botão "Atualizar" desta linha roda o "Atualizar todos".
+/// <paramref name="InstaladoEm"/>: quando o arquivo instalado foi gravado (o servidor de PDF mostra a data, não o hash).</summary>
+public sealed record LinhaComponente(ComponenteDoKit Componente, string? Instalada, string? Disponivel, SituacaoComponente Situacao, string Detalhe, bool SoPeloTodos,
+    DateTime? InstaladoEm = null)
 {
     public string TextoSituacao => ComponentesDoKit.TextoSituacao(Situacao);
     public string TextoVersoes => ComponentesDoKit.TextoVersoes(this);
     public string TextoBotao => SoPeloTodos ? "Atualizar (com todos)" : "Atualizar";
+    /// <summary>A dica do botão: o que ele atualiza de fato (as duas linhas do analise são a mesma parte; os quatro motores, também).</summary>
+    public string TextoDica => SoPeloTodos || Componente.Parte is null
+        ? "Este componente só se atualiza junto com o kit: roda o Atualizar todos, fora do Editor."
+        : "Atualiza " + ComponentesDoKit.NomeDaParte(Componente.Parte) + ", fora do Editor.";
 }
 
 /// <summary>Onde ler. <paramref name="PastaMotorPdf"/>: <c>%LOCALAPPDATA%\PMVNI\MotorPdf</c>; <paramref name="PastaPmvni"/>: <c>Documentos\PMVNI</c>
 /// (o <c>estado.json</c> e o <c>instalacao.json</c> do instalador do kit); <paramref name="PastaKitPadrao"/>: o kit dos Ajustes, quando o
-/// <c>pmvni-kit.json</c> não diz o <c>kit_root</c>. <paramref name="HashServidorDoEditor"/>: SHA-256 do <c>mcp_pmvni.py</c> que o Editor traz.</summary>
-public sealed record OrigensDoKit(string CodexHome, string? PastaClaude, string PastaMotorPdf, string PastaPmvni, string PastaKitPadrao, string? HashServidorDoEditor);
+/// <c>pmvni-kit.json</c> não diz o <c>kit_root</c>. <paramref name="HashServidorDoEditor"/>: SHA-256 do <c>mcp_pmvni.py</c> que o Editor traz.
+/// <paramref name="TarefaExiste"/>: confere se a tarefa "PMVNI\Atualizar kit" existe (true/false; null = não deu para saber; ausente = não confere).</summary>
+public sealed record OrigensDoKit(string CodexHome, string? PastaClaude, string PastaMotorPdf, string PastaPmvni, string PastaKitPadrao, string? HashServidorDoEditor,
+    Func<bool?>? TarefaExiste = null);
 
 /// <summary>O que o cartão mostra: as linhas, a fonte usada (null = não achada), o kit deste computador e a última execução do instalador do kit.</summary>
 public sealed record LeituraDoKit(IReadOnlyList<LinhaComponente> Linhas, string? Fonte, bool FonteAcessivel, string KitLocal, string TextoTarefa)
@@ -75,6 +83,15 @@ public static class ComponentesDoKit
         new("fyp", "Motor de PDF FYP", "Reconhece ambientes de plantas baixas.", OrigemComponente.MotorPdf, "FYP-Floorplan", "motores"),
     ];
 
+    /// <summary>O que uma parte do <c>configurar-plugins.ps1</c> atualiza, para a dica e o resultado: "a análise no Codex e no Claude Code".</summary>
+    public static string NomeDaParte(string parte) => parte switch
+    {
+        "analise" => "a análise no Codex e no Claude Code (o mesmo plugin)",
+        "motores" => "os quatro motores de PDF (PyMuPDF, Docling, Blueprint e FYP), que se atualizam juntos",
+        "pmvni-pdf" => "o servidor de PDF (pmvni-pdf) e o registro dele no Codex, no Claude Code e no Claude Desktop",
+        _ => parte,
+    };
+
     public static string TextoSituacao(SituacaoComponente s) => s switch
     {
         SituacaoComponente.EmDia => "Em dia",
@@ -85,7 +102,11 @@ public static class ComponentesDoKit
     };
 
     public static string TextoVersoes(LinhaComponente l) =>
-        l.Componente.Origem == OrigemComponente.MotorPdf && l.Componente.VersaoDoEditor is null
+        l.Componente.Origem == OrigemComponente.ServidorPdf
+            ? (l.Instalada is null ? "Não instalado"
+                : "Instalado" + (l.InstaladoEm is { } em ? " em " + em.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) : "")
+                  + (l.Situacao == SituacaoComponente.AtualizacaoDisponivel ? " · o Editor traz uma versão mais nova" : l.Disponivel is null ? "" : " · igual à versão deste Editor"))
+        : l.Componente.Origem == OrigemComponente.MotorPdf && l.Componente.VersaoDoEditor is null
             ? (l.Instalada is null ? "Não instalado" : "Instalado") + " · versão fixada pelo Editor"
             : "Instalada: " + (l.Instalada ?? "nenhuma") + " · disponível: " + (l.Disponivel ?? "não verificada");
 
@@ -135,22 +156,31 @@ public static class ComponentesDoKit
             }
             catch (Exception e) when (e is TimeoutException or IOException or UnauthorizedAccessException) { acessivel = false; versaoNaFonte = null; }
         }
-        var versaoNoKitLocal = await Task.Run(() => VersaoDoPlugin(kitLocal, PluginsInstalados.Analise));
+        string? versaoNoKitLocal = null;
+        try { versaoNoKitLocal = await Task.Run(() => VersaoDoPlugin(kitLocal, PluginsInstalados.Analise)).WaitAsync(EsperaDaFonte); }
+        catch (TimeoutException) { }
         var resumo = await Task.Run(() => LerTexto(Path.Combine(o.PastaMotorPdf, "resumo-instalacao.txt")));
         var linhasResumo = LinhasDoResumo(resumo);
         var falhas = (resumo ?? "").Split('\n').Select(l => l.Trim().TrimStart('﻿')).Where(l => l.StartsWith("FALHA", StringComparison.Ordinal))
             .Select(l => l["FALHA".Length..].Trim()).ToList();
-        var hashInstalado = await Task.Run(() => HashDe(Path.Combine(o.PastaMotorPdf, "mcp_pmvni.py")));
+        var servidor = Path.Combine(o.PastaMotorPdf, "mcp_pmvni.py");
+        var hashInstalado = await Task.Run(() => HashDe(servidor));
+        DateTime? servidorEm = null;
+        if (hashInstalado is not null)
+            try { servidorEm = File.GetLastWriteTime(servidor); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
 
         var linhas = new List<LinhaComponente>();
         foreach (var c in lista ?? Lista)
             linhas.Add(c.Origem switch
             {
                 OrigemComponente.PluginNoCodex or OrigemComponente.PluginNoClaude => LinhaDePlugin(c, o, linhasResumo, falhas, versaoNaFonte, versaoNoKitLocal, fonte is not null && acessivel),
-                OrigemComponente.ServidorPdf => LinhaDoServidor(c, hashInstalado, o.HashServidorDoEditor, falhas),
+                OrigemComponente.ServidorPdf => LinhaDoServidor(c, hashInstalado, o.HashServidorDoEditor, falhas) with { InstaladoEm = servidorEm },
                 _ => LinhaDeMotor(c, linhasResumo, falhas),
             });
-        var tarefa = await Task.Run(() => TextoDaTarefa(LerTexto(Path.Combine(o.PastaPmvni, "estado.json"))));
+        bool? tarefaExiste = null;
+        if (o.TarefaExiste is { } conferir)
+            try { tarefaExiste = await Task.Run(conferir).WaitAsync(EsperaDaFonte); } catch (TimeoutException) { }
+        var tarefa = await Task.Run(() => TextoDaTarefa(LerTexto(Path.Combine(o.PastaPmvni, "estado.json")), tarefaExiste));
         return new LeituraDoKit(linhas, fonte, fonte is not null && acessivel, kitLocal, tarefa);
     }
 
@@ -200,7 +230,8 @@ public static class ComponentesDoKit
     {
         var (nome, estado) = resumo.FirstOrDefault(kv => kv.Key.StartsWith(c.Chave, StringComparison.Ordinal));
         var instalado = estado is not null && estado.StartsWith("INSTALADO", StringComparison.Ordinal);
-        var erro = estado is not null && !instalado;
+        // PENDENTE só é erro quando a última instalação tentou este motor e falhou: uma execução só do analise deixa os motores PENDENTE sem tentar.
+        var erro = estado is not null && !instalado && FalhasDoMotor(c, falhas).Count > 0;
         string? instalada = null;
         string? disponivel = c.VersaoDoEditor;
         if (instalado)
@@ -212,18 +243,36 @@ public static class ComponentesDoKit
         var situacao = Comparar(instalada, disponivel, erro);
         var detalhe = situacao switch
         {
-            SituacaoComponente.ComErro => "A última instalação não terminou" + (falhas.Count > 0 ? ": " + string.Join("; ", falhas) : "") + ".",
+            SituacaoComponente.ComErro => "A última instalação não terminou: " + string.Join("; ", FalhasDoMotor(c, falhas)) + ".",
             SituacaoComponente.Ausente => "Ainda não instalado neste computador.",
             _ => c.Ajuda,
         } + (c.Parte == "motores" ? " Os quatro motores de PDF se atualizam juntos." : "");
         return new LinhaComponente(c, instalada, disponivel, situacao, detalhe, c.Parte is null);
     }
 
+    /// <summary>As falhas do resumo que são da instalação deste motor: as que o citam e as gerais dos motores (Python, dependências, testes), não as dos
+    /// plugins e do registro nos programas (Plugin, Catalogo, MCP, Atualizacao Claude) nem as que citam outro motor.</summary>
+    static List<string> FalhasDoMotor(ComponenteDoKit c, IReadOnlyList<string> falhas)
+    {
+        string[] dosPlugins = ["Plugin", "Catalogo", "MCP", "Atualizacao Claude", "Outra instalacao", "Instalacao com pendencias"];
+        var motores = Lista.Where(x => x.Origem == OrigemComponente.MotorPdf).ToList();
+        static string Palavra(ComponenteDoKit m) => m.Chave.Split(' ', '-')[0];
+        return falhas.Where(f => !dosPlugins.Any(p => f.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+            .Where(f => f.Contains(Palavra(c), StringComparison.OrdinalIgnoreCase) || !motores.Any(m => f.Contains(Palavra(m), StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+    }
+
     /// <summary>"Última execução do instalador do kit: 21/11/2026 às 10:15 (atualizar) · concluída sem pendências", do <c>estado.json</c> que o
     /// <c>INSTALAR_KIT_PMVNI.cmd</c> grava (também quando a tarefa "PMVNI\Atualizar kit" o roda sozinho).</summary>
-    public static string TextoDaTarefa(string? estadoJson)
+    /// <paramref name="tarefaExiste"/>: true = a tarefa existe neste computador; false = não existe; null = não deu para conferir.</summary>
+    public static string TextoDaTarefa(string? estadoJson, bool? tarefaExiste)
     {
-        const string Rodape = " A tarefa \"PMVNI\\Atualizar kit\" mantém o kit sempre atualizado: roda sozinha ao conectar na rede, a cada 15 minutos e ao entrar no Windows.";
+        var Rodape = tarefaExiste switch
+        {
+            true => " A tarefa \"PMVNI\\Atualizar kit\" mantém o kit sempre atualizado: roda sozinha ao conectar na rede, a cada 15 minutos e ao entrar no Windows.",
+            false => " A atualização automática não está configurada neste computador (não existe a tarefa \"PMVNI\\Atualizar kit\"): use Atualizar todos ou rode o INSTALAR_KIT_PMVNI.cmd.",
+            null => " Não foi possível conferir se a atualização automática (tarefa \"PMVNI\\Atualizar kit\") está configurada neste computador.",
+        };
         JsonObject? e = null;
         try { e = estadoJson is null ? null : JsonNode.Parse(estadoJson) as JsonObject; }
         catch (JsonException) { }
@@ -236,7 +285,9 @@ public static class ComponentesDoKit
             "CONCLUIDO" => "concluída sem pendências",
             "CONCLUIDO_COM_PENDENCIAS" => "concluída com pendências",
             "FALHOU" => "falhou",
-            "ADIADO" => "adiada: havia análise em andamento" + (Texto(e, "adiado_processo") is { } pr ? " (" + pr + ")" : ""),
+            "ADIADO" => "adiada: havia análise em andamento" + (Texto(e, "adiado_processo") is { } pr ? " em " + pr : "")
+                + (Texto(e, "adiado_desde") is { } ds && DateTime.TryParse(ds, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var desde)
+                    ? $", desde {desde:dd/MM/yyyy} às {desde:HH:mm}" : ""),
             "SEM_FONTE" => "a fonte do kit estava fora do alcance; nada mudou",
             "EM_ANDAMENTO" => "em andamento",
             "CANCELADO" => "cancelada",
@@ -249,7 +300,7 @@ public static class ComponentesDoKit
     /// <summary>Inicia a atualização fora do Editor. <paramref name="parte"/>: o <c>-Componente</c> do <c>configurar-plugins.ps1</c>; null = "Atualizar todos"
     /// (<c>INSTALAR_KIT_PMVNI.cmd atualizar</c> do <paramref name="kitLocal"/>). Grava o <c>.cmd</c> em <paramref name="pastaScripts"/> e chama
     /// <paramref name="iniciar"/>(explorer.exe, .cmd). Com análise em andamento, avisa e não grava nem inicia nada. Devolve o texto para o cartão.</summary>
-    public static string IniciarAtualizacao(string? parte, string nome, IReadOnlyList<string> analisesEmAndamento, string pastaScripts, string kitLocal, Action<string, string> iniciar)
+    public static string IniciarAtualizacao(string? parte, IReadOnlyList<string> analisesEmAndamento, string pastaScripts, string kitLocal, Action<string, string> iniciar)
     {
         ArgumentNullException.ThrowIfNull(analisesEmAndamento);
         ArgumentNullException.ThrowIfNull(iniciar);
@@ -277,7 +328,7 @@ public static class ComponentesDoKit
         iniciar(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), cmd);
         return parte is null
             ? "Atualização de todo o kit iniciada fora do Editor (INSTALAR_KIT_PMVNI.cmd atualizar). Quando terminar, clique em Verificar atualizações."
-            : "Atualização de " + nome + " iniciada fora do Editor. Quando terminar, clique em Verificar atualizações.";
+            : "Atualização iniciada fora do Editor: " + NomeDaParte(parte) + ". Quando terminar, clique em Verificar atualizações.";
     }
 
     /// <summary>O botão "Atualizar" de uma linha (ou "Atualizar todos", com <paramref name="linha"/> null). Uma linha que só se atualiza com o kit
@@ -285,10 +336,25 @@ public static class ComponentesDoKit
     public static string Atualizar(LinhaComponente? linha, IReadOnlyList<string> analisesEmAndamento, string pastaScripts, string kitLocal, Action<string, string> iniciar)
     {
         var parte = linha is null || linha.SoPeloTodos ? null : linha.Componente.Parte;
-        var texto = IniciarAtualizacao(parte, linha?.Componente.Nome ?? "todo o kit", analisesEmAndamento, pastaScripts, kitLocal, iniciar);
+        var texto = IniciarAtualizacao(parte, analisesEmAndamento, pastaScripts, kitLocal, iniciar);
         return linha is not null && parte is null && analisesEmAndamento.Count == 0
             ? linha.Componente.Nome + " só se atualiza junto com o kit inteiro (a versão nova ainda não foi copiada para este computador). " + texto
             : texto;
+    }
+
+    /// <summary><see cref="Atualizar"/> fora da thread da interface, com o mesmo limite de espera da fonte para a pasta do kit (que pode ser de rede):
+    /// a pasta que não responde não inicia nada.</summary>
+    public static async Task<string> AtualizarAsync(LinhaComponente? linha, IReadOnlyList<string> analisesEmAndamento, string pastaScripts, string kitLocal,
+        Action<string, string> iniciar)
+    {
+        ArgumentNullException.ThrowIfNull(analisesEmAndamento);
+        if (analisesEmAndamento.Count > 0) return AtualizacaoKit.AvisoAnaliseEmAndamento(analisesEmAndamento);
+        if (linha is null || linha.SoPeloTodos || linha.Componente.Parte is null)
+        {
+            try { await Task.Run(() => File.Exists(Path.Combine(kitLocal, InstaladorDoKit))).WaitAsync(EsperaDaFonte); }
+            catch (TimeoutException) { return "A pasta do kit (" + kitLocal + ") não respondeu a tempo. Nada foi iniciado."; }
+        }
+        return await Task.Run(() => Atualizar(linha, analisesEmAndamento, pastaScripts, kitLocal, iniciar));
     }
 
     /// <summary>As linhas do resumo (<c>"&lt;componente&gt;    &lt;ESTADO&gt;"</c>), sem as de FALHA.</summary>

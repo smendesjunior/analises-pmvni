@@ -3274,7 +3274,7 @@ internal static class Roteiro
             var processo = P0001();
             await j.NovoRelatorioAsync();
             await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
-            var textoSob = j.NovoRelatorio.TextoPedidoClaude.Text == "O análise-pro usa o Claude para analisar o processo. No campo “Pedido”, você pode indicar algo que merece atenção, como uma pendência de despacho anterior. A análise segue as etapas habituais.";
+            var textoSob = j.NovoRelatorio.TextoPedidoClaude.Text == "A rota Claude do plugin analise usa o Claude para analisar o processo. No campo “Pedido”, você pode indicar algo que merece atenção, como uma pendência de despacho anterior. A análise segue as etapas habituais.";
             await j.SoltarArquivosAsync([claudeAnexo]);
             await j.AguardarNovoRelatorioAsync();
             j.PedidoTexto = "Pedido guardado só no registro.";
@@ -3376,7 +3376,7 @@ internal static class Roteiro
                 && JsonNode.Parse(iniciar[0][1])!.AsArray().Select(a => a!.GetValue<string>()).SequenceEqual(["-B", "-X", "utf8", googleRuntime, "--case", processo, "iniciar"]);
             var execucao = JsonNode.Parse(File.ReadAllText(Path.Combine(e.Registro.Pasta, "execucao.json"), System.Text.Encoding.UTF8))!;
             var registro = (string?)execucao["provedor"] == "gemini" && (string?)execucao["autenticacao"] == "conta_google" && (string?)execucao["perfil"] == "conta_ultra"
-                && (string?)execucao["plugin"] == "análise Google" && (string?)execucao["versao_do_plugin"] == "4.0.0"
+                && (string?)execucao["plugin"] == "Análise — rota Gemini" && (string?)execucao["versao_do_plugin"] == "4.0.0"
                 && File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "analise-google", "diretrizes.md"), System.Text.Encoding.UTF8)
                     == "Diretriz fictícia para o Gemini.\n";      // só o texto do analista (Tarefa 13)
             var s = j.Sessao;
@@ -5121,7 +5121,7 @@ internal static class Roteiro
             await File.WriteAllTextAsync(Path.Combine(pmvni, "estado.json"), "{\"modo\":\"atualizar\",\"atualizado\":\"2026-11-21T10:15:00\",\"situacao\":\"CONCLUIDO\"}");
             await File.WriteAllTextAsync(Path.Combine(scripts, ComponentesDoKit.Script), "# fictício");
             var lancados = new List<(string Programa, string Cmd)>();
-            j.OrigensDoKitDoRoteiro = new OrigensDoKit(codexHome, null, motor, pmvni, kitLocal, ComponentesDoKit.HashDe(Path.Combine(motor, "mcp_pmvni.py")));
+            j.OrigensDoKitDoRoteiro = new OrigensDoKit(codexHome, null, motor, pmvni, kitLocal, ComponentesDoKit.HashDe(Path.Combine(motor, "mcp_pmvni.py")), () => true);
             j.PastaScriptsDoKitDoRoteiro = scripts;
             j.LancadorDoKit = (programa, cmd) => lancados.Add((programa, cmd));
             try
@@ -5148,7 +5148,7 @@ internal static class Roteiro
                 var umSo = lancados.Count == 1 && Path.GetFileName(lancados[0].Programa).Equals("explorer.exe", StringComparison.OrdinalIgnoreCase)
                     && lancados[0].Cmd == Path.Combine(scripts, ComponentesDoKit.CmdDe("analise"))
                     && File.ReadAllText(lancados[0].Cmd).Contains("\" -Componente analise", StringComparison.Ordinal)
-                    && pag.TextoResultadoComponentes.Text.StartsWith("Atualização de Análise no Codex iniciada fora do Editor.", StringComparison.Ordinal);
+                    && pag.TextoResultadoComponentes.Text.StartsWith("Atualização iniciada fora do Editor: a análise no Codex e no Claude Code", StringComparison.Ordinal);
                 ((IInvokeProvider)new ButtonAutomationPeer(pag.BotaoAtualizarTodosComponentes).GetPattern(PatternInterface.Invoke)).Invoke();
                 await Esperar(500);
                 var todos = lancados.Count == 2 && lancados[1].Cmd == Path.Combine(scripts, ComponentesDoKit.CmdTodos)

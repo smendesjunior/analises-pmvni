@@ -116,7 +116,7 @@ public static class DiagnosticoGemini
             {
                 partes.Add("Antigravity CLI " + numero);
                 if (Version.TryParse(numero, out var v) && v < Version.Parse(VersaoMinimaAgy))
-                    avisos.Add($"O análise Google precisa do Antigravity CLI {VersaoMinimaAgy} ou mais novo; atualize com \"agy update\".");
+                    avisos.Add($"A rota Gemini precisa do Antigravity CLI {VersaoMinimaAgy} ou mais novo; atualize com \"agy update\".");
                 if (modo == ModoAcesso.Conta)
                 {
                     // A lista da conta: vazia = sem login. Pode levar mais que os 15 s dos outros comandos (consulta o Google).

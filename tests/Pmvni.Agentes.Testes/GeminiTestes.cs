@@ -218,7 +218,7 @@ public class GeminiTestes
         Assert.Equal(p.GoogleRuntime, p.RuntimeDoKit(Provedor.Gemini));
         Assert.Null(p.RuntimeDoKit(Provedor.ChatGpt));
         Assert.Equal("4.0.0", OrquestradorAnalise.VersaoDoPlugin(Provedor.Gemini, p));
-        Assert.Equal("análise Google", OrquestradorAnalise.PluginUsado(Provedor.Gemini));
+        Assert.Equal("Análise — rota Gemini", OrquestradorAnalise.PluginUsado(Provedor.Gemini));
         Assert.Equal("4.0.0", PluginsInstalados.NoCodex(codexHome, PluginsInstalados.Analise)?.Versao);
 
         // Um runtime sem a rota explícita (contrato com o editor) não é usado.
