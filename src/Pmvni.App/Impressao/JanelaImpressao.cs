@@ -14,7 +14,7 @@ internal sealed class JanelaImpressao : Window
     readonly Grid raiz = new();
     readonly WebView2 web = new() { DefaultBackgroundColor = Microsoft.UI.Colors.White };
     readonly Button botaoImprimir = new() { Content = "Imprimir…", IsEnabled = false };
-    readonly TextBlock estado = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Opacity = .8 };
+    readonly TextBlock estado = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
     readonly string arquivo;
     readonly string? pastaTemporaria;
     readonly Uri endereco;
@@ -56,11 +56,12 @@ internal sealed class JanelaImpressao : Window
         estado.Text = "Abrindo " + titulo + "…";
         barra.Children.Add(estado);
         botaoImprimir.Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"];
-        Dicas.Aplicar(botaoImprimir, "Imprimir (Ctrl+P)", "Abre a impressão com a lista de impressoras e a opção Salvar como PDF.");
+        AtualizarDicaImpressao("Aguarde o carregamento do documento.");
         botaoImprimir.Click += (_, _) => MostrarImpressao();
         Grid.SetColumn(botaoImprimir, 1);
         barra.Children.Add(botaoImprimir);
-        var fechar = new Button { Content = "Fechar" };
+        var fechar = new Button { Content = "Fechar", MinHeight = 36 };
+        Dicas.Aplicar(fechar, "Fechar", "Fecha a janela de impressão.");
         fechar.Click += (_, _) => Close();
         Grid.SetColumn(fechar, 2);
         barra.Children.Add(fechar);
@@ -72,6 +73,9 @@ internal sealed class JanelaImpressao : Window
         raiz.KeyboardAccelerators.Add(ctrlP);
         raiz.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
     }
+
+    void AtualizarDicaImpressao(string? motivo = null) =>
+        Dicas.Aplicar(botaoImprimir, "Imprimir…", "Abre a lista de impressoras e a opção Salvar como PDF.", "Ctrl+P", motivo);
 
     async Task IniciarAsync(CoreWebView2Environment ambiente)
     {
@@ -98,10 +102,12 @@ internal sealed class JanelaImpressao : Window
                 if (!e.IsSuccess)
                 {
                     estado.Text = "Não foi possível abrir o arquivo para imprimir (" + e.WebErrorStatus + ").";
+                    AtualizarDicaImpressao("O documento não abriu.");
                     return;
                 }
                 estado.Text = Path.GetFileName(arquivo);
                 botaoImprimir.IsEnabled = true;
+                AtualizarDicaImpressao();
                 // O visualizador de PDF termina de montar depois da navegação: a impressão abre um instante depois, uma vez só.
                 await Task.Delay(700);
                 if (!fechada && !impressaoAberta) MostrarImpressao();
@@ -111,7 +117,11 @@ internal sealed class JanelaImpressao : Window
         catch (Exception e)
         {
             RegistroErros.Gravar("impressao", e);
-            if (!fechada) estado.Text = "Não foi possível preparar a impressão: " + e.Message;
+            if (!fechada)
+            {
+                estado.Text = "Não foi possível preparar a impressão: " + e.Message;
+                AtualizarDicaImpressao("A prévia de impressão não abriu.");
+            }
         }
     }
 

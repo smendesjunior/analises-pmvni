@@ -1,5 +1,3 @@
-using Microsoft.UI;
-using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
@@ -9,45 +7,10 @@ using Pmvni.Legislacao;
 
 namespace Pmvni.App;
 
-/// <summary>Legislação › Leitura padronizada (correções 2026-11-15): o texto da lei aberta, estruturado pelo processador interno
-/// (<see cref="LeituraPadronizada"/>), numa folha clara com as cores e a tipografia do relatório oficial do kit (cabeçalho com o brasão e
-/// as faixas azul, verde e amarela; epígrafe com a barra azul; títulos na faixa azul-marinho; selo "Art. N" azul-marinho), o resumo
-/// automático de cada artigo (que o usuário pode trocar) e as figuras do PDF no ponto em que aparecem. O sumário à esquerda leva ao bloco.
-/// "PDF original" volta ao leitor de PDF.</summary>
+/// <summary>Leitura padronizada da lei aberta, com resumo editável por artigo, figuras do PDF e navegação pelo sumário.</summary>
 public sealed partial class MainWindow
 {
-    /// <summary>A paleta do relatório oficial (relatorio.css, rev10) e das faixas do cabeçalho (Cabecalho.cs): a folha é sempre clara,
-    /// como papel, com o app em tema claro ou escuro.</summary>
-    static class CoresLeitura
-    {
-        static SolidColorBrush C(uint rgb) => new(Windows.UI.Color.FromArgb(255, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
-        public static readonly SolidColorBrush Marinho = C(0x142D47);      // --navy: títulos, cabeçalho de tabela, selo do artigo
-        public static readonly SolidColorBrush Azul = C(0x1A5A94);         // --blue: rótulos
-        public static readonly SolidColorBrush AzulSuave = C(0xEEF4FB);    // --blue-s
-        public static readonly SolidColorBrush Faixa = C(0xE4EEF9);        // .band
-        public static readonly SolidColorBrush Linha = C(0xDDE4EB);        // --line
-        public static readonly SolidColorBrush LinhaClara = C(0xEDF1F5);   // .ch
-        public static readonly SolidColorBrush Tinta = C(0x161E28);        // --ink
-        public static readonly SolidColorBrush Apoio = C(0x3F4A58);        // --mu
-        public static readonly SolidColorBrush Titulo = C(0x1A2533);       // .ttl h1
-        public static readonly SolidColorBrush Orgao = C(0x1D3D5E);        // cabeçalho: nome do órgão
-        public static readonly SolidColorBrush Subtitulo = C(0x637083);    // cabeçalho: "RELATÓRIO TÉCNICO…"
-        public static readonly SolidColorBrush Cinza = C(0xF1F3F6);        // .dates span
-        public static readonly SolidColorBrush FaixaAzul = C(0x2470B3);    // faixas do cabeçalho (48 %, 28 %, 24 %)
-        public static readonly SolidColorBrush FaixaVerde = C(0x2F9E62);
-        public static readonly SolidColorBrush FaixaAmarela = C(0xF2C43D);
-        public static readonly SolidColorBrush Verde = C(0x49B077);        // --g-b
-        public static readonly SolidColorBrush Amarelo = C(0xF2C43D);      // --a-b
-        public static readonly SolidColorBrush AmareloSuave = C(0xFFF5D9); // --a-s (.note)
-        public static readonly SolidColorBrush AmareloTexto = C(0xA87500); // --a
-        public static readonly SolidColorBrush Branco = new(Colors.White);
-        public static readonly LinearGradientBrush Banda = new()
-        {
-            StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(1, 0),
-            GradientStops = { new GradientStop { Color = Windows.UI.Color.FromArgb(255, 0x1E, 0x4F, 0x86), Offset = 0 }, new GradientStop { Color = Windows.UI.Color.FromArgb(255, 0x23, 0x64, 0xA6), Offset = 1 } },
-        };
-        public static readonly FontFamily Fonte = new("Verdana");
-    }
+    static Style EstiloLeitura(string chave) => (Style)Application.Current.Resources[chave];
 
     const string DicaResumoAutomatico = "Resumo automático do texto do artigo (não substitui a leitura). Clique no lápis para escrever outro.";
     internal const string AvisoSemImagens = "Não foi possível preparar as imagens desta lei. Figuras, tabelas em imagem e anexos gráficos estão no PDF original.";
@@ -64,6 +27,9 @@ public sealed partial class MainWindow
 
     void IniciarLeituraPadronizada()
     {
+        P.TextoPadronizado.RequestedTheme = ElementTheme.Default;
+        P.RolagemPadronizada.ClearValue(Control.BackgroundProperty);
+        P.RolagemPadronizada.Style = EstiloLeitura("PmvniRolagemFundoStyle");
         P.ModoLeitura.SelectionChanged += (_, _) => AplicarModoLeitura();
     }
 
@@ -146,19 +112,19 @@ public sealed partial class MainWindow
         t.Children.Add(CabecalhoDaFolha());
         // Selos de cima: a esfera, o aviso de que é a leitura do texto do PDF e o andamento das imagens.
         var selos = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 6) };
-        selos.Children.Add(Selo(Esferas.Rotulo(anexo.Esfera).ToUpperInvariant(), CoresLeitura.AzulSuave, CoresLeitura.Marinho, negrito: true));
-        selos.Children.Add(Selo("Leitura padronizada do texto do PDF", CoresLeitura.Cinza, CoresLeitura.Apoio));
+        selos.Children.Add(Selo(Esferas.Rotulo(anexo.Esfera)));
+        selos.Children.Add(Selo("Leitura padronizada do texto do PDF"));
         if (estado == EstadoFiguras.Preparando)
         {
             var andamento = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            andamento.Children.Add(new ProgressRing { IsActive = true, Width = 14, Height = 14, Foreground = CoresLeitura.Azul });
-            andamento.Children.Add(new TextBlock { Text = "Preparando as imagens do PDF…", Foreground = CoresLeitura.Apoio, FontSize = 13, FontFamily = CoresLeitura.Fonte });
-            selos.Children.Add(new Border { Background = CoresLeitura.Cinza, CornerRadius = new CornerRadius(14), Padding = new Thickness(12, 4, 14, 5), Child = andamento });
+            andamento.Children.Add(new ProgressRing { IsActive = true, Width = 14, Height = 14 });
+            andamento.Children.Add(CartoesDePainel.Apoio("Preparando as imagens do PDF…"));
+            selos.Children.Add(new Border { Style = EstiloLeitura("PmvniSeloNeutro"), Padding = new Thickness(12, 4, 14, 5), Child = andamento });
         }
         if (estado == EstadoFiguras.Falharam)
         {
             // Aviso discreto: a leitura segue normal, só sem as imagens (o PDF original as tem).
-            var semImagens = Selo("Sem as imagens do PDF", CoresLeitura.AmareloSuave, CoresLeitura.AmareloTexto);
+            var semImagens = Selo("Sem as imagens do PDF", alerta: true);
             ToolTipService.SetToolTip(semImagens, AvisoSemImagens);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(semImagens, AvisoSemImagens);
             selos.Children.Add(semImagens);
@@ -195,10 +161,12 @@ public sealed partial class MainWindow
         FrameworkElement conteudo;
         if (b.Tipo == TipoBlocoLei.Artigo)
         {
-            var rotulo = new TextBlock { Text = b.Rotulo, FontWeight = FontWeights.SemiBold, FontSize = 12.5, Foreground = CorDoTema("PmvniSeloTipoTexto") };
-            var resumo = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis };
-            if (Application.Current.Resources.TryGetValue("PmvniSecondaryTextStyle", out var estilo) && estilo is Style s) resumo.Style = s;
-            resumo.FontSize = 12;
+            var rotulo = Rotulinho(b.Rotulo);
+            var resumo = new TextBlock
+            {
+                Style = EstiloLeitura("PmvniSecondaryTextStyle"), TextWrapping = TextWrapping.Wrap, MaxLines = 2,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
             var linha = new Grid { ColumnSpacing = 8 };
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(52) });
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -214,17 +182,17 @@ public sealed partial class MainWindow
             conteudo = new TextBlock
             {
                 Text = b.Rotulo + (b.Texto.Length > 0 ? " – " + b.Texto : ""), TextWrapping = TextWrapping.Wrap, MaxLines = 2,
-                TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = FontWeights.SemiBold, FontSize = b.Tipo == TipoBlocoLei.Titulo ? 12.5 : 12,
-                CharacterSpacing = b.Tipo == TipoBlocoLei.Titulo ? 20 : 0,
+                TextTrimming = TextTrimming.CharacterEllipsis, Style = EstiloLeitura("PmvniPainelCartaoTitulo"),
             };
         }
         var botao = new Button
         {
             Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
             Padding = new Thickness(6 + recuo, 3, 6, 3), Margin = new Thickness(0, b.Tipo == TipoBlocoLei.Artigo ? 0 : 4, 0, 0),
-            Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), MinHeight = 26,
+            Style = EstiloLeitura("PmvniBarraButtonStyle"), MinHeight = 26,
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, b.Tipo == TipoBlocoLei.Artigo ? b.Rotulo : b.Rotulo + " " + b.Texto);
+        ToolTipService.SetToolTip(botao, "Ir para " + b.Rotulo);
         botao.Click += (_, _) =>
         {
             if (leituraPadronizadaLigada && !ReferenceEquals(P.ModoLeitura.SelectedItem, P.ModoPadronizado))
@@ -243,7 +211,6 @@ public sealed partial class MainWindow
 
     static FrameworkElement CabecalhoDaFolha()
     {
-        // Como o cabeçalho do relatório: brasão | linha | órgão e subtítulo à direita; embaixo as faixas azul, verde e amarela.
         var topo = new Grid { ColumnSpacing = 14, Padding = new Thickness(0, 0, 0, 10) };
         topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -252,21 +219,19 @@ public sealed partial class MainWindow
         var textos = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 2 };
         textos.Children.Add(new TextBlock
         {
-            Text = Pmvni.Composicao.Kit.Cabecalho.OrgaoPadrao, FontFamily = CoresLeitura.Fonte, FontWeight = FontWeights.Bold, FontSize = 16,
-            Foreground = CoresLeitura.Orgao, TextAlignment = TextAlignment.Right, TextWrapping = TextWrapping.Wrap,
+            Text = Pmvni.Composicao.Kit.Cabecalho.OrgaoPadrao, Style = EstiloLeitura("PmvniAjusteTitulo"), TextAlignment = TextAlignment.Right,
         });
         textos.Children.Add(new TextBlock
         {
-            Text = "LEITURA PADRONIZADA DA LEGISLAÇÃO", FontFamily = CoresLeitura.Fonte, FontSize = 11.5, Foreground = CoresLeitura.Subtitulo,
-            TextAlignment = TextAlignment.Right, CharacterSpacing = 20,
+            Text = "Leitura padronizada da legislação", Style = EstiloLeitura("PmvniSecondaryTextStyle"), TextAlignment = TextAlignment.Right,
         });
         Grid.SetColumn(textos, 2);
         topo.Children.Add(textos);
         var faixas = new Grid { Height = 4 };
-        foreach (var (peso, cor) in new[] { (48, CoresLeitura.FaixaAzul), (28, CoresLeitura.FaixaVerde), (24, CoresLeitura.FaixaAmarela) })
+        foreach (var (peso, estilo) in new[] { (48, "PmvniDivisoriaVerticalStyle"), (28, "PmvniSeloSucesso"), (24, "PmvniSeloAtencao") })
         {
             faixas.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(peso, GridUnitType.Star) });
-            var r = new Border { Background = cor };
+            var r = new Border { Style = EstiloLeitura(estilo), Padding = new Thickness(0), BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(0) };
             Grid.SetColumn(r, faixas.ColumnDefinitions.Count - 1);
             faixas.Children.Add(r);
         }
@@ -285,52 +250,49 @@ public sealed partial class MainWindow
         return imagem;
     }
 
-    static Border Selo(string texto, Brush fundo, Brush tinta, bool negrito = false) => new()
+    static Border Selo(string texto, bool alerta = false) => new()
     {
-        Background = fundo, CornerRadius = new CornerRadius(9), Padding = new Thickness(12, 5, 12, 6),
-        Child = new TextBlock
-        {
-            Text = texto, Foreground = tinta, FontSize = 12.5, FontFamily = CoresLeitura.Fonte, CharacterSpacing = negrito ? 30 : 0,
-            FontWeight = negrito ? FontWeights.Bold : FontWeights.Normal,
-        },
+        Style = EstiloLeitura(alerta ? "PmvniSeloAtencao" : "PmvniSeloNeutro"),
+        Padding = new Thickness(12, 5, 12, 6),
+        Child = CartoesDePainel.Apoio(texto),
     };
 
-    /// <summary>Aviso no estilo da nota do relatório (fundo amarelo-claro, "!" amarelo).</summary>
     static FrameworkElement Nota(string titulo, string texto)
     {
         var g = new Grid { ColumnSpacing = 12 };
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        g.Children.Add(new Border
+        g.Children.Add(new FontIcon
         {
-            Width = 24, Height = 24, CornerRadius = new CornerRadius(12), Background = CoresLeitura.Amarelo, VerticalAlignment = VerticalAlignment.Top,
-            Child = new TextBlock { Text = "!", FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = CoresLeitura.Titulo },
+            Glyph = Glifos.Avisos, FontSize = 16, Width = 24, Height = 24,
+            Style = EstiloLeitura("PmvniIconeAtencaoStyle"), VerticalAlignment = VerticalAlignment.Top,
         });
-        var tb = new TextBlock { TextWrapping = TextWrapping.Wrap, FontFamily = CoresLeitura.Fonte, FontSize = 13.5, Foreground = CoresLeitura.Tinta };
-        tb.Inlines.Add(new Run { Text = titulo.ToUpperInvariant(), FontWeight = FontWeights.Bold, Foreground = CoresLeitura.AmareloTexto });
+        var tb = CartoesDePainel.Apoio("");
+        tb.Inlines.Add(new Bold { Inlines = { new Run { Text = titulo } } });
         tb.Inlines.Add(new Run { Text = "   " + texto });
         Grid.SetColumn(tb, 1);
         g.Children.Add(tb);
-        return new Border { Background = CoresLeitura.AmareloSuave, CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 9, 14, 9), Margin = new Thickness(0, 4, 0, 6), Child = g };
+        return new Border
+        {
+            Style = EstiloLeitura("PmvniSeloAtencao"), Padding = new Thickness(14, 9, 14, 9),
+            Margin = new Thickness(0, 4, 0, 6), Child = g,
+        };
     }
 
-    static TextBlock Rotulinho(string texto, Brush? cor = null) => new()
+    static TextBlock Rotulinho(string texto) => new()
     {
-        Text = texto.ToUpperInvariant(), FontFamily = CoresLeitura.Fonte, FontSize = 11, FontWeight = FontWeights.Bold, CharacterSpacing = 50,
-        Foreground = cor ?? CoresLeitura.Azul,
+        Text = texto, Style = EstiloLeitura("PmvniPainelRotulo"),
     };
 
     static FrameworkElement Epigrafe(string texto)
     {
-        // Como o título da capa do relatório: barra azul de 6 px e o título grande.
         var g = new Grid { ColumnSpacing = 14, Margin = new Thickness(0, 10, 0, 6) };
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        g.Children.Add(new Border { Background = CoresLeitura.Azul, CornerRadius = new CornerRadius(4) });
+        g.Children.Add(new Border { Style = EstiloLeitura("PmvniDivisoriaVerticalStyle"), CornerRadius = new CornerRadius(4) });
         var tb = new TextBlock
         {
-            Text = texto.ToUpperInvariant(), FontFamily = CoresLeitura.Fonte, FontSize = 26, FontWeight = FontWeights.Bold, Foreground = CoresLeitura.Titulo,
-            TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, CharacterSpacing = -10,
+            Text = texto, Style = EstiloLeitura("PmvniTituloPaginaStyle"), IsTextSelectionEnabled = true,
         };
         Grid.SetColumn(tb, 1);
         g.Children.Add(tb);
@@ -339,33 +301,32 @@ public sealed partial class MainWindow
 
     static FrameworkElement Ementa(string texto) => new Border
     {
-        Background = CoresLeitura.AzulSuave, CornerRadius = new CornerRadius(10), Padding = new Thickness(18, 10, 18, 14), Margin = new Thickness(0, 4, 0, 12),
+        Style = EstiloLeitura("PmvniCartaoStyle"), Padding = new Thickness(18, 10, 18, 14), Margin = new Thickness(0, 4, 0, 12),
         Child = new StackPanel
         {
             Spacing = 4,
             Children =
             {
                 Rotulinho("Ementa"),
-                new TextBlock { Text = texto, FontFamily = CoresLeitura.Fonte, FontStyle = Windows.UI.Text.FontStyle.Italic, FontSize = 15, LineHeight = 24, Foreground = CoresLeitura.Tinta, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
+                new TextBlock { Text = texto, Style = EstiloLeitura("PmvniPainelValor"), FontStyle = Windows.UI.Text.FontStyle.Italic, LineHeight = 24 },
             },
         },
     };
 
     static FrameworkElement Titulo(BlocoLei b)
     {
-        // A faixa da capa do relatório: o rótulo no degradê azul e o nome em azul-marinho sobre o azul-claro.
-        var g = new Grid { Background = CoresLeitura.Faixa, CornerRadius = new CornerRadius(11), Margin = new Thickness(0, 22, 0, 8) };
+        var g = new Grid { Style = EstiloLeitura("PmvniGradeCartaoStyle"), Margin = new Thickness(0, 22, 0, 8) };
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         g.Children.Add(new Border
         {
-            Background = CoresLeitura.Banda, CornerRadius = new CornerRadius(11, 0, 22, 11), Padding = new Thickness(18, 10, 30, 10),
-            Child = new TextBlock { Text = b.Rotulo, FontFamily = CoresLeitura.Fonte, FontWeight = FontWeights.Bold, FontSize = 17, Foreground = CoresLeitura.Branco, VerticalAlignment = VerticalAlignment.Center },
+            Style = EstiloLeitura("PmvniSeloNeutro"), Padding = new Thickness(18, 10, 30, 10),
+            VerticalAlignment = VerticalAlignment.Stretch, Child = Rotulinho(b.Rotulo),
         });
         var nome = new TextBlock
         {
-            Text = b.Texto.ToUpperInvariant(), FontFamily = CoresLeitura.Fonte, FontWeight = FontWeights.Bold, FontSize = 17, Foreground = CoresLeitura.Marinho,
-            VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(18, 8, 18, 8), IsTextSelectionEnabled = true,
+            Text = b.Texto, Style = EstiloLeitura("PmvniTituloSecao"), TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(18, 8, 18, 8), IsTextSelectionEnabled = true,
         };
         Grid.SetColumn(nome, 1);
         g.Children.Add(nome);
@@ -374,25 +335,28 @@ public sealed partial class MainWindow
 
     static FrameworkElement Capitulo(BlocoLei b)
     {
-        // Como o título de seção do relatório: rótulo pequeno em azul e o nome grande em azul-marinho, sobre uma linha.
         var painel = new StackPanel { Spacing = 2 };
         painel.Children.Add(Rotulinho(b.Rotulo));
         if (b.Texto.Length > 0)
-            painel.Children.Add(new TextBlock { Text = b.Texto.ToUpperInvariant(), FontFamily = CoresLeitura.Fonte, FontWeight = FontWeights.Bold, FontSize = 19, Foreground = CoresLeitura.Marinho, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
-        return new Border { BorderBrush = CoresLeitura.Linha, BorderThickness = new Thickness(0, 0, 0, 2), Padding = new Thickness(0, 0, 0, 8), Margin = new Thickness(0, 18, 0, 6), Child = painel };
+            painel.Children.Add(new TextBlock { Text = b.Texto, Style = EstiloLeitura("PmvniTituloSecao"), TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
+        return new Border
+        {
+            Style = EstiloLeitura("PmvniCartaoStyle"), BorderThickness = new Thickness(0, 0, 0, 2),
+            Padding = new Thickness(0, 0, 0, 8), Margin = new Thickness(0, 18, 0, 6), Child = painel,
+        };
     }
 
     static FrameworkElement Secao(BlocoLei b)
     {
-        // Como o título dos cartões do relatório: maiúsculas em azul-marinho com o número em azul, e a barra lateral (verde na seção,
-        // amarela na subseção).
         var g = new Grid { ColumnSpacing = 12, Margin = new Thickness(0, 14, 0, 4) };
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        g.Children.Add(new Border { Background = b.Tipo == TipoBlocoLei.Subsecao ? CoresLeitura.Amarelo : CoresLeitura.Verde, CornerRadius = new CornerRadius(3) });
-        var tb = new TextBlock { FontFamily = CoresLeitura.Fonte, FontWeight = FontWeights.Bold, FontSize = 15, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Margin = new Thickness(0, 4, 0, 4) };
-        tb.Inlines.Add(new Run { Text = b.Rotulo, Foreground = CoresLeitura.Azul });
-        if (b.Texto.Length > 0) tb.Inlines.Add(new Run { Text = " — " + b.Texto.ToUpperInvariant(), Foreground = CoresLeitura.Marinho });
+        g.Children.Add(new Border { Style = EstiloLeitura("PmvniDivisoriaVerticalStyle") });
+        var tb = new TextBlock
+        {
+            Text = b.Rotulo + (b.Texto.Length > 0 ? " — " + b.Texto : ""),
+            Style = EstiloLeitura("PmvniAjusteTitulo"), IsTextSelectionEnabled = true, Margin = new Thickness(0, 4, 0, 4),
+        };
         Grid.SetColumn(tb, 1);
         g.Children.Add(tb);
         return g;
@@ -400,27 +364,26 @@ public sealed partial class MainWindow
 
     FrameworkElement Artigo(Anexo anexo, BlocoLei b)
     {
-        // Linha de cima como o cabeçalho dos cartões do relatório: o selo "Art. N" em azul-marinho e, ao lado, o resumo; embaixo, o caput.
         var topo = new Grid { ColumnSpacing = 10 };
         topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         topo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         topo.Children.Add(new Border
         {
-            Background = CoresLeitura.Marinho, CornerRadius = new CornerRadius(5), Padding = new Thickness(11, 3, 11, 4), VerticalAlignment = VerticalAlignment.Center,
-            Child = new TextBlock { Text = b.Rotulo, FontFamily = CoresLeitura.Fonte, Foreground = CoresLeitura.Branco, FontWeight = FontWeights.Bold, FontSize = 15, CharacterSpacing = 20 },
+            Style = EstiloLeitura("PmvniSeloNeutro"), Padding = new Thickness(11, 3, 11, 4), VerticalAlignment = VerticalAlignment.Center,
+            Child = Rotulinho(b.Rotulo),
         });
         var resumo = new TextBlock
         {
-            FontFamily = CoresLeitura.Fonte, FontSize = 13.5, Foreground = CoresLeitura.Apoio, VerticalAlignment = VerticalAlignment.Center,
+            Style = EstiloLeitura("PmvniAjusteAjuda"),
             TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.WordEllipsis,
         };
         Grid.SetColumn(resumo, 1);
         topo.Children.Add(resumo);
         var lapis = new Button
         {
-            Padding = new Thickness(6), Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), VerticalAlignment = VerticalAlignment.Center,
-            Content = new FontIcon { Glyph = "", FontSize = 13, Foreground = CoresLeitura.Azul },
+            Style = EstiloLeitura("PmvniBarraButtonStyle"), Width = 32, Height = 32, Padding = new Thickness(0),
+            Content = new FontIcon { Glyph = Glifos.Editar, FontSize = 16, Style = EstiloLeitura("PmvniIconeSecundarioStyle") },
         };
         Dicas.Aplicar(lapis, "Escrever o resumo", "Troca o resumo automático deste artigo por um escrito por você.");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(lapis, "Escrever o resumo do " + b.Rotulo);
@@ -432,13 +395,13 @@ public sealed partial class MainWindow
 
         var corpo = new TextBlock
         {
-            Text = b.Texto, FontFamily = CoresLeitura.Fonte, FontSize = 15, LineHeight = 27, Foreground = CoresLeitura.Tinta, TextAlignment = TextAlignment.Justify,
-            TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Visibility = b.Texto.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
+            Text = b.Texto, Style = EstiloLeitura("PmvniPainelValor"), LineHeight = 27, TextAlignment = TextAlignment.Justify,
+            Visibility = b.Texto.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
         };
         return new StackPanel
         {
             Margin = new Thickness(0, 16, 0, 0), Spacing = 8,
-            Children = { new Border { BorderBrush = CoresLeitura.LinhaClara, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(0, 0, 0, 6), Child = topo }, corpo },
+            Children = { new Border { Style = EstiloLeitura("PmvniCartaoStyle"), BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(0, 0, 0, 6), Child = topo }, corpo },
         };
     }
 
@@ -464,15 +427,13 @@ public sealed partial class MainWindow
             Header = "Resumo do " + b.Rotulo, PlaceholderText = b.Resumo, MaxLength = AcervoLegislacao.MaximoResumo, Width = 360, TextWrapping = TextWrapping.Wrap,
             AcceptsReturn = false,
         };
-        var salvar = new Button { Content = "Salvar" };
-        if (Application.Current.Resources.TryGetValue("PmvniBotaoPrimarioStyle", out var estilo) && estilo is Style s) salvar.Style = s;
-        var automatico = new Button { Content = "Voltar ao automático" };
+        var salvar = new Button { Content = "Salvar", Style = EstiloLeitura("PmvniBotaoPrimarioStyle") };
+        var automatico = new Button { Content = "Voltar ao automático", MinHeight = 36 };
         Dicas.Aplicar(salvar, "Salvar", "Guarda o seu resumo deste artigo com os dados da lei.");
-        Dicas.Aplicar(automatico, "Voltar ao automático", "Apaga o seu resumo e volta a usar o tirado do texto do artigo.");
         var nota = new TextBlock
         {
             Text = "O resumo automático é tirado do próprio texto do artigo. O seu fica guardado com os dados da lei; o PDF não muda.",
-            TextWrapping = TextWrapping.Wrap, Width = 360, FontSize = 12, Opacity = 0.8,
+            Style = EstiloLeitura("PmvniAjusteAjuda"), Width = 360,
         };
         var flyout = new Flyout
         {
@@ -482,6 +443,8 @@ public sealed partial class MainWindow
         {
             caixa.Text = resumosEditados.TryGetValue(b.Chave, out var atual) ? atual : b.Resumo;
             automatico.IsEnabled = resumosEditados.ContainsKey(b.Chave);
+            Dicas.Aplicar(automatico, "Voltar ao automático", "Apaga o seu resumo e volta a usar o tirado do texto do artigo.",
+                motivo: automatico.IsEnabled ? null : "O resumo deste artigo já é automático.");
         };
         async void Gravar(string? texto)
         {
@@ -539,30 +502,30 @@ public sealed partial class MainWindow
         }
         return new Border
         {
-            Background = CoresLeitura.Branco, BorderBrush = CoresLeitura.Linha, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(11),
+            Style = EstiloLeitura("PmvniCartaoStyle"),
             Padding = new Thickness(14, 10, 14, 14), Margin = new Thickness(0, 10, 0, 6), Child = painel,
         };
     }
 
     static FrameworkElement Dispositivo(BlocoLei b)
     {
-        var (recuo, cor) = b.Tipo switch
+        var recuo = b.Tipo switch
         {
-            TipoBlocoLei.Paragrafo => (24, CoresLeitura.Azul),
-            TipoBlocoLei.Inciso => (44, CoresLeitura.Marinho),
-            TipoBlocoLei.Alinea => (66, CoresLeitura.Apoio),
-            _ => (0, CoresLeitura.Marinho),
+            TipoBlocoLei.Paragrafo => 24,
+            TipoBlocoLei.Inciso => 44,
+            TipoBlocoLei.Alinea => 66,
+            _ => 0,
         };
         var tb = new TextBlock
         {
-            FontFamily = CoresLeitura.Fonte, FontSize = 14.5, LineHeight = 26, Foreground = CoresLeitura.Tinta, TextWrapping = TextWrapping.Wrap,
-            TextAlignment = TextAlignment.Justify, IsTextSelectionEnabled = true, Margin = new Thickness(recuo, 3, 0, 3),
+            Style = EstiloLeitura("PmvniPainelValor"), LineHeight = 26, TextAlignment = TextAlignment.Justify,
+            Margin = new Thickness(recuo, 3, 0, 3),
         };
-        if (b.Rotulo.Length > 0) tb.Inlines.Add(new Run { Text = b.Rotulo + " ", FontWeight = FontWeights.Bold, Foreground = cor });
+        if (b.Rotulo.Length > 0) tb.Inlines.Add(new Bold { Inlines = { new Run { Text = b.Rotulo + " " } } });
         tb.Inlines.Add(new Run { Text = b.Texto });
         if (b.Tipo != TipoBlocoLei.Paragrafo) return tb;
         // Parágrafo: um fio claro à esquerda, como a caixa de fundamentação do relatório.
         tb.Margin = new Thickness(0);
-        return new Border { BorderBrush = CoresLeitura.Linha, BorderThickness = new Thickness(3, 0, 0, 0), Margin = new Thickness(recuo - 12, 4, 0, 4), Padding = new Thickness(9, 0, 0, 0), Child = tb };
+        return new Border { Style = EstiloLeitura("PmvniCartaoStyle"), BorderThickness = new Thickness(3, 0, 0, 0), Margin = new Thickness(recuo - 12, 4, 0, 4), Padding = new Thickness(9, 0, 0, 0), Child = tb };
     }
 }

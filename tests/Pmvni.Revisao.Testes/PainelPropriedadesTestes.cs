@@ -36,7 +36,7 @@ public class PainelPropriedadesTestes
     public void painel_tem_as_secoes_em_cartoes_e_os_controles_da_janela()
     {
         var texto = File.ReadAllText(Fonte("Paginas", "PaginaRelatorios.xaml"));
-        foreach (var secao in new[] { "\"ESTADO\"", "\"ESQUADRIAS\"", "\"CONTEÚDO\"", "\"HISTÓRICO\"", "\"SITUAÇÃO\"", "\"JUSTIFICATIVA\"", "\"INTELIGÊNCIA ARTIFICIAL\"", "\"NO PDF\"" })
+        foreach (var secao in new[] { "\"Estado\"", "\"Esquadrias\"", "\"Conteúdo\"", "\"Histórico\"", "\"Situação\"", "\"Justificativa\"", "\"Inteligência artificial\"", "\"No PDF\"" })
             Assert.Contains(secao, texto);
         foreach (var nome in new[] { "PropNoPdf", "PropSituacao", "PropSituacaoOriginal", "PropJustificativa", "PropJustificativaAviso", "PropAjustarAviso",
                      "PropAjustarTexto", "PropAjustarRotulo", "PropAjustarCancelar", "PropAjustarProgresso", "PropAjustarAnel", "PropAjustarEstado",

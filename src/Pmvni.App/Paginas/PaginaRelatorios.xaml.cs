@@ -10,9 +10,13 @@ public sealed partial class PaginaRelatorios : UserControl
     public PaginaRelatorios()
     {
         InitializeComponent();
+        TextoVazio.Titulo.Style = (Style)Application.Current.Resources["PmvniTituloPaginaStyle"];
         ListaNavegacao.LayoutUpdated += (_, _) => AtualizarRodape();
         foreach (var aba in AbasPainel.Items) FaixaDeOpcoes.AjustarIndicador(aba);
     }
+
+    internal static Style EstiloDoTitulo(bool secao) =>
+        (Style)Application.Current.Resources[secao ? "PmvniAjusteTitulo" : "BodyTextBlockStyle"];
 
     internal int TotalItensFiltrados { get; set; }
 
@@ -31,6 +35,9 @@ public sealed partial class PaginaRelatorios : UserControl
         var texto = primeiroItem > 0 ? $"Itens {primeiroItem:00}–{ultimoItem:00} de {TotalItensFiltrados}" : "";
         if (ContagemNavegacao.Text != texto) ContagemNavegacao.Text = texto;
         MaisItens.IsEnabled = ultimo > 0 && ultimo < total;
+        var motivo = MaisItens.IsEnabled ? null : total == 0 ? "Não há itens para mostrar." : "O fim da lista já está à vista.";
+        if (Dicas.De(MaisItens) is not { } dica || dica.Motivo != motivo)
+            Dicas.Aplicar(MaisItens, "Ver mais itens", "Rola a lista até os próximos itens.", motivo: motivo);
     }
 
     void AvancarNavegacao(object sender, RoutedEventArgs e)

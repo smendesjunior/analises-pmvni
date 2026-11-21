@@ -1,8 +1,8 @@
 using Microsoft.UI;
-using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
 using Pmvni.Revisao;
 
@@ -14,7 +14,11 @@ public sealed partial class PaginaNovoDespacho : UserControl
 {
     readonly List<CheckBox> caixasPaginas = [];
 
-    public PaginaNovoDespacho() => InitializeComponent();
+    public PaginaNovoDespacho()
+    {
+        InitializeComponent();
+        Loaded += (_, _) => AtualizarDicasDaEdicao();
+    }
 
     /// <summary>As caixas "Conferi a página N", na ordem das páginas.</summary>
     internal IReadOnlyList<CheckBox> CaixasDasPaginas => caixasPaginas;
@@ -28,19 +32,23 @@ public sealed partial class PaginaNovoDespacho : UserControl
         TextoFaltando.Text = string.Join(Environment.NewLine, faltando.Select(f => "• " + f));
     }
 
-    /// <summary>Um cartão por exigência (correção): marcar/desmarcar, "ITEM 05 · NÃO ATENDE · título", grupo, texto e fundamento editáveis em
+    /// <summary>Um cartão por exigência (correção): marcar/desmarcar, "Item 05 · Não atende · título", grupo, texto e fundamento editáveis em
     /// texto puro de uma linha, mover acima/abaixo e o original do relatório para consulta.</summary>
     internal void MostrarExigencias(RascunhoDespacho r, Action<string, bool> marcar, Action<string, string, string> definir, Action<string, int> mover)
     {
         PainelExigencias.Children.Clear();
         if (r.Tipo != TipoDespacho.Correcao) return;
-        PainelExigencias.Children.Add(new TextBlock { Text = "Exigências", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        var titulo = new TextBlock { Text = "Exigências", Style = (Style)Application.Current.Resources["PmvniTituloSecao"] };
+        AutomationProperties.SetHeadingLevel(titulo, AutomationHeadingLevel.Level2);
+        var icone = new FontIcon { Glyph = Glifos.Pendente, FontSize = 16, Style = (Style)Application.Current.Resources["PmvniIconeDestaqueStyle"], VerticalAlignment = VerticalAlignment.Center };
+        AutomationProperties.SetAccessibilityView(icone, AccessibilityView.Raw);
+        PainelExigencias.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { icone, titulo } });
         for (var i = 0; i < r.Pendencias.Count; i++)
         {
             var p = r.Pendencias[i];
             var id = p.ItemId;
             var cartao = new StackPanel { Spacing = 6 };
-            var cabeca = new Grid { ColumnSpacing = 4 };
+            var cabeca = new Grid { ColumnSpacing = 8 };
             cabeca.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             cabeca.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             cabeca.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -49,17 +57,17 @@ public sealed partial class PaginaNovoDespacho : UserControl
                 IsChecked = p.Incluida, Tag = id,
                 Content = new TextBlock
                 {
-                    Text = $"ITEM {p.Numero:D2} · {TextoSituacao(p.Situacao)} · {p.Titulo}", TextWrapping = TextWrapping.Wrap,
-                    Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"],
+                    Text = $"Item {p.Numero:D2} · {TextoSituacao(p.Situacao)} · {p.Titulo}", TextWrapping = TextWrapping.Wrap,
+                    Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"],
                 },
             };
             marcada.Checked += (_, _) => marcar(id, true);
             marcada.Unchecked += (_, _) => marcar(id, false);
             cabeca.Children.Add(marcada);
-            var acima = BotaoMover("", "Mover acima", i > 0, () => mover(id, -1));
+            var acima = BotaoMover(Glifos.Anterior, "Mover acima", "Sobe esta exigência uma posição.", i > 0, "Esta é a primeira exigência.", () => mover(id, -1));
             Grid.SetColumn(acima, 1);
             cabeca.Children.Add(acima);
-            var abaixo = BotaoMover("", "Mover abaixo", i < r.Pendencias.Count - 1, () => mover(id, 1));
+            var abaixo = BotaoMover(Glifos.Proximo, "Mover abaixo", "Desce esta exigência uma posição.", i < r.Pendencias.Count - 1, "Esta é a última exigência.", () => mover(id, 1));
             Grid.SetColumn(abaixo, 2);
             cabeca.Children.Add(abaixo);
             cartao.Children.Add(cabeca);
@@ -73,8 +81,8 @@ public sealed partial class PaginaNovoDespacho : UserControl
             });
             PainelExigencias.Children.Add(new Border
             {
-                Child = cartao, Padding = new Thickness(12), CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1),
-                Style = (Style)Application.Current.Resources["PmvniCartaoStyle"], // segue o tema do app (auditoria 2026-11-17)
+                Child = cartao, Padding = new Thickness(12),
+                Style = (Style)Application.Current.Resources["PmvniCartaoCompactoStyle"],
             });
         }
     }
@@ -82,25 +90,27 @@ public sealed partial class PaginaNovoDespacho : UserControl
     static string TextoSituacao(string codigo) =>
         Pmvni.Composicao.Kit.Situacoes.Sit.TryGetValue(codigo, out var s) ? s.Texto : codigo;
 
-    static Button BotaoMover(string glifo, string nome, bool habilitado, Action acao)
+    static Border BotaoMover(string glifo, string nome, string descricao, bool habilitado, string motivo, Action acao)
     {
+        var icone = new FontIcon { Glyph = glifo, FontSize = 16 };
+        AutomationProperties.SetAccessibilityView(icone, AccessibilityView.Raw);
         var b = new Button
         {
-            Content = new FontIcon { Glyph = glifo, FontSize = 12 }, IsEnabled = habilitado, Padding = new Thickness(8, 4, 8, 4),
+            Content = icone, IsEnabled = habilitado, Width = 32, Height = 32, Padding = new Thickness(0),
             Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"],
         };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, nome);
-        Dicas.Aplicar(b, nome, nome == "Mover acima"
-            ? "Sobe esta exigência uma posição na lista do despacho."
-            : "Desce esta exigência uma posição na lista do despacho.");
+        var suporte = DicasDeBotoesDoDespacho.Suporte(b);
+        AutomationProperties.SetName(b, nome);
+        Dicas.Aplicar(b, nome, descricao);
+        DicasDeBotoesDoDespacho.Atualizar(b, motivo);
         b.Click += (_, _) => acao();
-        return b;
+        return suporte;
     }
 
     static TextBox Caixa(string rotulo, string valor, Action<string> mudou)
     {
         var t = new TextBox { Header = rotulo, Text = valor, AcceptsReturn = false, TextWrapping = TextWrapping.Wrap };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(t, rotulo);
+        AutomationProperties.SetName(t, rotulo);
         t.TextChanged += (_, _) => mudou(t.Text);
         return t;
     }
@@ -117,6 +127,7 @@ public sealed partial class PaginaNovoDespacho : UserControl
         BotaoVoltar.Visibility = conferencia && !soPdf ? Visibility.Visible : Visibility.Collapsed;
         if (passo != PassoNovoDespacho.Conteudo) MostrarFaltando([]);
         if (passo == PassoNovoDespacho.Origem) { LimparFolhas(); BotaoGerar.IsEnabled = false; }
+        AtualizarDicasDaEdicao();
     }
 
     /// <summary>A página limpa, para um despacho novo (ou para o Gerar PDF de um que já existe).</summary>
@@ -142,6 +153,7 @@ public sealed partial class PaginaNovoDespacho : UserControl
         caixasPaginas.Clear();
         BotaoGravar.IsEnabled = false;
         BotaoGravar.Content = "Gravar na pasta do processo";
+        AtualizarDicaDeGravacao("Aguarde a preparação do documento.");
     }
 
     internal void MostrarBloqueios(IReadOnlyList<string> bloqueios)
@@ -164,10 +176,12 @@ public sealed partial class PaginaNovoDespacho : UserControl
             caixa.Unchecked += (_, _) => conferida(n, false);
             caixasPaginas.Add(caixa);
             var bloco = new StackPanel { Spacing = 6 };
+            var imagem = new Image { Source = paginas[i], Width = 600, Stretch = Stretch.Uniform };
+            AutomationProperties.SetName(imagem, $"Página {n} do PDF");
             bloco.Children.Add(new Border
             {
-                Child = new Image { Source = paginas[i], Width = 600, Stretch = Stretch.Uniform },
-                BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x33, 0, 0, 0)), BorderThickness = new Thickness(1), Background = new SolidColorBrush(Colors.White),
+                Child = imagem, Padding = new Thickness(0), CornerRadius = new CornerRadius(0),
+                Style = (Style)Application.Current.Resources["PmvniCartaoStyle"],
             });
             bloco.Children.Add(caixa);
             ListaPaginas.Children.Add(bloco);
@@ -184,5 +198,25 @@ public sealed partial class PaginaNovoDespacho : UserControl
         BotaoInterromper.Visibility = interromper ? Visibility.Visible : Visibility.Collapsed;
         BotaoCancelar.IsEnabled = BotaoVoltar.IsEnabled = texto is null;
         if (texto is not null) BotaoGerar.IsEnabled = BotaoGravar.IsEnabled = false;
+        AtualizarDicasDaEdicao();
+        if (texto is not null) AtualizarDicaDeGravacao("Aguarde a operação em andamento.");
+    }
+
+    internal void AtualizarDicasDaEdicao()
+    {
+        const string aguardar = "Aguarde a operação em andamento.";
+        DicasDeBotoesDoDespacho.Atualizar(BotaoGerar, Espera.Visibility == Visibility.Visible ? aguardar
+            : LinhasFaltando.Count > 0 ? "Complete os campos indicados no rodapé." : "Defina a origem do despacho primeiro.");
+        DicasDeBotoesDoDespacho.Atualizar(BotaoVoltar, aguardar);
+        DicasDeBotoesDoDespacho.Atualizar(BotaoCancelar, aguardar);
+        DicasDeBotoesDoDespacho.Atualizar(FecharOrigem, aguardar);
+    }
+
+    internal void AtualizarDicaDeGravacao(string? motivo)
+    {
+        var nome = BotaoGravar.Content as string ?? "Gravar despacho";
+        if (Dicas.De(BotaoGravar)?.Titulo != nome)
+            Dicas.Aplicar(BotaoGravar, nome, "Grava o documento gerado na pasta de destino.");
+        DicasDeBotoesDoDespacho.Atualizar(BotaoGravar, motivo);
     }
 }

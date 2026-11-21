@@ -7,7 +7,7 @@ public static class Glifos
     public const string Abrir = "\uE8E5";
     public const string Adicionar = "\uE710";
     public const string Ajustar = "\uE745";
-    public const string Alterados = "\uE71C";
+    public const string Alterados = "\uE8BC";
     public const string Anexar = "\uE723";
     public const string Anterior = "\uE70E";
     public const string Ano = "\uE787";
@@ -29,13 +29,13 @@ public static class Glifos
     public const string Voltar = "\uE72B";
     public const string Avancar = "\uE72A";
     public const string Excluir = "\uE74D";
-    public const string Explorador = "\uE838";
+    public const string Explorador = "\uE8F1";
     public const string Exportar = "\uEA90";
     public const string Fechar = "\uE8BB";
     public const string Filtro = "\uE71C";
-    public const string Gerenciar = "\uE713";
+    public const string Gerenciar = "\uE8A9";
     public const string Importar = "\uE8B5";
-    public const string IrPara = "\uE72A";
+    public const string IrPara = "\uE8AD";
     public const string Livro = "\uE82D";
     public const string Lista = "\uE8FD";
     public const string Marca = "\uE73E";
@@ -64,7 +64,7 @@ public static class Glifos
     public const string Desfazer = "\uE7A7";
     public const string Salvar = "\uE74E";
     public const string SalvarComo = "\uE792";
-    public const string Situacao = "\uE73E";
+    public const string Situacao = "\uE9D9";
     public const string SituacaoItem = "\uEA3B";
     public const string Sobre = "\uE946";
     public const string Tema = "\uE790";
@@ -72,4 +72,23 @@ public static class Glifos
     public const string Despachos = "\uE8C3";
     public const string Ia = "\uE99A";
     public const string AbrirPasta = "\uE838";
+    public const string Refazer = "\uE7A6";
+    public const string Concluido = "\uE930";
+    public const string Pausado = "\uE769";
+    public const string Erro = "\uEA39";
+    public const string NaoConfigurado = "\uE711";
+    public const string SelecionarTudo = "\uE8B3";
+    public const string Recortar = "\uE7A8";
+    public const string ExpandirLinha = "\uE76C";
+    public const string Comparar = "\uE89A";
+    public const string EmitirProcessoAprovado = "\uEA18";
+    public const string NovoDespacho = "\uEA1A";
+    public const string GestaoMunicipal = "\uEC06";
+
+    internal static string DoModulo(Modulo m) => m switch
+    {
+        Modulo.Gpi => GestaoMunicipal,
+        Modulo.Alfresco => Documento,
+        _ => Modulos.Glifo(m),
+    };
 }

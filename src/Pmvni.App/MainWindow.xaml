@@ -45,15 +45,14 @@
           </Border>
           <Border x:Name="DivisoriaProcesso" Style="{StaticResource PmvniDivisoriaCabecalho}" Visibility="Collapsed"/>
           <StackPanel x:Name="BlocoProcesso" VerticalAlignment="Center" Spacing="0" MaxWidth="300" Visibility="Collapsed">
-            <TextBlock x:Name="TextoProcesso" FontSize="15" FontWeight="Bold" TextTrimming="CharacterEllipsis" MaxLines="1"/>
-            <TextBlock x:Name="TextoRequerente" FontSize="12" FontWeight="Normal" TextTrimming="CharacterEllipsis" MaxLines="1"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <TextBlock x:Name="TextoProcesso" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+            <TextBlock x:Name="TextoRequerente" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis" MaxLines="1"/>
           </StackPanel>
           <Border x:Name="SeloGravacao" Height="32" CornerRadius="16" Style="{StaticResource PmvniSeloSucesso}" Visibility="Collapsed" VerticalAlignment="Center"
                   AutomationProperties.Name="Estado de gravação">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-              <FontIcon x:Name="IconeGravacao" Glyph="&#xE930;" FontSize="14" VerticalAlignment="Center" Style="{StaticResource PmvniIconeSeloSucesso}"/>
-              <TextBlock x:Name="TextoGravacao" VerticalAlignment="Center" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
+              <FontIcon x:Name="IconeGravacao" Glyph="{x:Bind local:Glifos.Concluido}" VerticalAlignment="Center" Style="{StaticResource PmvniIconeSeloSucesso}" AutomationProperties.AccessibilityView="Raw"/>
+              <TextBlock x:Name="TextoGravacao" Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.LiveSetting="Polite"/>
             </StackPanel>
           </Border>
         </StackPanel>
@@ -74,18 +73,15 @@
             <Grid Width="24" Height="24" VerticalAlignment="Center">
               <ProgressRing x:Name="AnelAnalise" local:Trabalhando.Automatico="False" IsActive="False" Width="22" Height="22" Foreground="{ThemeResource SystemFillColorSuccessBrush}"
                             AutomationProperties.AccessibilityView="Raw"/>
-              <FontIcon x:Name="IconeAnaliseConcluida" Glyph="&#xE930;" FontSize="18" Visibility="Collapsed"
-                        Foreground="{ThemeResource SystemFillColorSuccessBrush}" AutomationProperties.AccessibilityView="Raw"/>
-              <FontIcon x:Name="IconeAnalisePausada" Glyph="&#xE769;" FontSize="16" Visibility="Collapsed"
-                        Foreground="{ThemeResource SystemFillColorCautionBrush}" AutomationProperties.AccessibilityView="Raw"/>
-              <FontIcon x:Name="IconeAnaliseErro" Glyph="&#xEA39;" FontSize="18" Visibility="Collapsed"
-                        Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.AccessibilityView="Raw"/>
+              <FontIcon x:Name="IconeAnaliseConcluida" Glyph="{x:Bind local:Glifos.Concluido}" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoSucesso}" AutomationProperties.AccessibilityView="Raw"/>
+              <FontIcon x:Name="IconeAnalisePausada" Glyph="{x:Bind local:Glifos.Pausado}" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoAtencao}" AutomationProperties.AccessibilityView="Raw"/>
+              <FontIcon x:Name="IconeAnaliseErro" Glyph="{x:Bind local:Glifos.Erro}" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoCritico}" AutomationProperties.AccessibilityView="Raw"/>
             </Grid>
             <StackPanel x:Name="TextosAnalise" VerticalAlignment="Center" MaxWidth="260">
-              <TextBlock x:Name="TextoBotaoAnalise" FontWeight="SemiBold" LineHeight="18" LineStackingStrategy="BlockLineHeight"
+              <TextBlock x:Name="TextoBotaoAnalise" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="NoWrap" LineHeight="18" LineStackingStrategy="BlockLineHeight"
                          TextTrimming="CharacterEllipsis" MaxLines="1"/>
-              <TextBlock x:Name="DetalheBotaoAnalise" FontSize="12" LineHeight="16" LineStackingStrategy="BlockLineHeight"
-                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+              <TextBlock x:Name="DetalheBotaoAnalise" Style="{StaticResource PmvniSecondaryTextStyle}" LineHeight="16" LineStackingStrategy="BlockLineHeight"
+                         TextTrimming="CharacterEllipsis" MaxLines="1"/>
             </StackPanel>
           </StackPanel>
         </Button>
@@ -96,29 +92,29 @@
         </Border>
         <!-- 1.0.0: Desfazer | Refazer numa pílula segmentada só (uma moldura, cantos totalmente redondos, divisória central), como a
              pesquisa; só ícones Fluent, o nome e o atalho ficam na dica e no Narrador. -->
-        <Grid RowDefinitions="20,32,20" VerticalAlignment="Center"><TextBlock Text="NAVEGAÇÃO" TextWrapping="NoWrap" Style="{StaticResource PmvniPainelRotulo}"/>
+        <Grid RowDefinitions="20,32,20" VerticalAlignment="Center"><TextBlock Text="Navegação" TextWrapping="NoWrap" Style="{StaticResource PmvniPainelRotulo}"/>
         <Border Grid.Row="1" x:Name="GrupoOcorrencias" Style="{StaticResource PmvniGrupoCabecalho}">
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">
             <Button x:Name="BotaoPesquisaAnterior" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
                     AutomationProperties.Name="Página anterior">
               <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="&#xE76B;" FontSize="12" VerticalAlignment="Center"/>
+                <FontIcon Glyph="{x:Bind local:Glifos.Voltar}" Style="{StaticResource PmvniIconeAcao}" VerticalAlignment="Center"/>
                 <TextBlock x:Name="RotuloAnterior" Text="Anterior" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
             <Button x:Name="BotaoPesquisaProxima" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
-                    Padding="14,0,16,1" AutomationProperties.Name="Próxima página">
+                    AutomationProperties.Name="Próxima página">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock x:Name="RotuloProximo" Text="Próxima" VerticalAlignment="Center"/>
-                <FontIcon Glyph="&#xE76C;" FontSize="12" VerticalAlignment="Center"/>
+                <FontIcon Glyph="{x:Bind local:Glifos.Avancar}" Style="{StaticResource PmvniIconeAcao}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
           </StackPanel>
         </Border>
         </Grid>
-        <Grid RowDefinitions="20,32,20" VerticalAlignment="Center"><TextBlock Text="PESQUISA GLOBAL" TextWrapping="NoWrap" Style="{StaticResource PmvniPainelRotulo}"/>
+        <Grid RowDefinitions="20,32,20" VerticalAlignment="Center"><TextBlock Text="Pesquisa global" TextWrapping="NoWrap" Style="{StaticResource PmvniPainelRotulo}"/>
         <Grid Grid.Row="1" x:Name="MolduraPesquisa" Width="340" CornerRadius="16" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" Background="{ThemeResource ControlFillColorDefaultBrush}" VerticalAlignment="Center">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <!-- Pesquisa geral (2026-11-17): além do módulo à vista, acha ajustes, funções, arquivos e leis (lista abaixo da caixa). TextBox nativo
@@ -132,25 +128,25 @@
               <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
             </TextBox.Resources>
           </TextBox>
-          <TextBlock TextAlignment="Center" x:Name="AtalhoPesquisa" Grid.Column="1" Text="Ctrl + K" Margin="0,0,10,0" VerticalAlignment="Center" HorizontalAlignment="Right" IsHitTestVisible="False" Style="{StaticResource CaptionTextBlockStyle}"/>
-          <FontIcon x:Name="IconePesquisa" Glyph="&#xE721;" FontSize="15" Margin="15,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
-                    IsHitTestVisible="False" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.AccessibilityView="Raw"/>
+          <TextBlock TextAlignment="Center" x:Name="AtalhoPesquisa" Grid.Column="1" Text="Ctrl + K" Margin="0,0,10,0" VerticalAlignment="Center" HorizontalAlignment="Right" IsHitTestVisible="False" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+          <FontIcon x:Name="IconePesquisa" Glyph="{x:Bind local:Glifos.Pesquisar}" Style="{StaticResource PmvniIconeAcaoSecundario}" Margin="15,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
         </Grid>
         <TextBlock Grid.Row="2" x:Name="TextoPesquisa" TextTrimming="CharacterEllipsis" MaxLines="1" Width="{Binding Width, ElementName=MolduraPesquisa}" VerticalAlignment="Center" TextAlignment="Center" Visibility="Collapsed"
                    Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.Name="Resultado da pesquisa"/>
         </Grid>
-        <Grid RowDefinitions="20,32,20" VerticalAlignment="Center"><TextBlock Text="EDIÇÃO" TextWrapping="NoWrap" Style="{StaticResource PmvniPainelRotulo}"/>
+        <Grid RowDefinitions="20,32,20" VerticalAlignment="Center"><TextBlock Text="Edição" TextWrapping="NoWrap" Style="{StaticResource PmvniPainelRotulo}"/>
         <Border Grid.Row="1" x:Name="GrupoHistorico" Style="{StaticResource PmvniGrupoCabecalho}">
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">
             <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
-                    Padding="10,0" AutomationProperties.Name="Desfazer" ToolTipService.ToolTip="Desfazer (Ctrl+Z)">
-              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE7A7;" FontSize="16"/><TextBlock x:Name="RotuloDesfazer" Text="Desfazer"/></StackPanel>
+                    AutomationProperties.Name="Desfazer">
+              <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Desfazer}" Style="{StaticResource PmvniIconeAcao}"/><TextBlock x:Name="RotuloDesfazer" Text="Desfazer"/></StackPanel>
             </Button>
             <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
             <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
-                    Padding="10,0" AutomationProperties.Name="Refazer" ToolTipService.ToolTip="Refazer (Ctrl+Y)">
-              <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE7A6;" FontSize="16"/><TextBlock x:Name="RotuloRefazer" Text="Refazer"/></StackPanel>
+                    AutomationProperties.Name="Refazer">
+              <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Refazer}" Style="{StaticResource PmvniIconeAcao}"/><TextBlock x:Name="RotuloRefazer" Text="Refazer"/></StackPanel>
             </Button>
           </StackPanel>
         </Border>

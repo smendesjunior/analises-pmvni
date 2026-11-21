@@ -116,13 +116,17 @@ public sealed partial class MainWindow
     void MostrarAvisoBci(InfoBarSeverity s, string mensagem, bool emCurso, bool planoB = false, string? arquivo = null, bool irParaProcessos = false)
     {
         MostrarAvisoImoveis(s, "Boletim cadastral", mensagem);
-        Trabalhando.Definir(I.Aviso, emCurso);   // brilho arco-íris enquanto o GPI trabalha
         if (arquivo is not null)
         {
             // Sucesso: "Abrir PDF" e "Abrir pasta" (pedido do usuário), mesmo com o PDF já aberto.
-            var abrirPdf = new Button { Content = Rotulo("", "Abrir PDF"), Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"] };
+            var abrirPdf = new Button { Content = Rotulo(Glifos.Abrir, "Abrir PDF"), Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"] };
+            Brilho.SetAtivo(abrirPdf, false);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrirPdf, "Abrir PDF do boletim cadastral");
+            Dicas.Aplicar(abrirPdf, "Abrir PDF", "Mostra o boletim cadastral no visualizador.");
             abrirPdf.Click += (_, _) => AbrirBoletim(arquivo, Path.GetFileNameWithoutExtension(arquivo));
-            var abrirPasta = new Button { Content = Rotulo("", "Abrir pasta") };
+            var abrirPasta = new Button { Content = Rotulo(Glifos.AbrirPasta, "Abrir pasta"), MinHeight = 36 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrirPasta, "Abrir pasta do boletim cadastral");
+            Dicas.Aplicar(abrirPasta, "Abrir pasta", "Abre o Explorador com o boletim selecionado.");
             abrirPasta.Click += (_, _) =>
             {
                 try { TravaDeProgramas.Iniciar(new System.Diagnostics.ProcessStartInfo("explorer.exe", "/select,\"" + arquivo + "\""))?.Dispose(); }
@@ -135,18 +139,20 @@ public sealed partial class MainWindow
         Button? botao = null;
         if (irParaProcessos)
         {
-            botao = new Button { Content = "Ir para Processos" };
+            botao = new Button { Content = "Abrir Processos" };
+            Dicas.Aplicar(botao, "Abrir Processos", "Abre o módulo Processos para localizar ou criar a pasta do processo.");
             botao.Click += async (_, _) => await MudarModuloAsync(Modulo.Processos);
         }
         else if (emCurso)
         {
             botao = new Button { Content = "Cancelar" };
+            Dicas.Aplicar(botao, "Cancelar", "Interrompe a geração do boletim.");
             botao.Click += (_, _) => cancelarBci?.Cancel();
         }
         else if (planoB)
         {
             botao = new Button { Content = "Abrir no GPI" };
-            ToolTipService.SetToolTip(botao, "Abre o GPI para terminar por lá (Tributário › Cadastro de Contribuintes › Contribuintes Manutenção).");
+            Dicas.Aplicar(botao, "Abrir no GPI", "Abre o GPI para terminar por lá (Tributário › Cadastro de Contribuintes › Contribuintes Manutenção).");
             botao.Click += async (_, _) => await MudarModuloAsync(Modulo.Gpi);
         }
         I.Aviso.ActionButton = botao;
@@ -247,7 +253,7 @@ public sealed partial class MainWindow
     static StackPanel Rotulo(string glifo, string texto) => new()
     {
         Orientation = Orientation.Horizontal, Spacing = 8,
-        Children = { new FontIcon { Glyph = glifo, FontSize = 16 }, new TextBlock { Text = texto, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold } },
+        Children = { new FontIcon { Glyph = glifo, FontSize = 16 }, new TextBlock { Text = texto } },
     };
 
     /// <summary>Grava o PDF na pasta DOCUMENTOS do processo como "BCI - CONTRIBUINTE - 01011180077002.pdf" (pedido do usuário, 2026-11-17); o mesmo
@@ -270,6 +276,7 @@ public sealed partial class MainWindow
         {
             var janela = new Window { Title = "Boletim cadastral " + inscricao };
             var web = new WebView2();
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(web, "PDF do boletim cadastral");
             janela.Content = web;
             janela.Closed += (_, _) => web.Close();
             janela.AppWindow.Resize(new Windows.Graphics.SizeInt32(1000, 1100));

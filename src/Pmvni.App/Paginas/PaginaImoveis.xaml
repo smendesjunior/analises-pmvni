@@ -20,11 +20,12 @@
       <Grid ColumnSpacing="12">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel Spacing="2">
-          <TextBlock Text="Consulta de imóveis" Style="{StaticResource PmvniTituloPaginaStyle}"/>
+          <TextBlock Text="Consulta de imóveis" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/>
           <TextBlock Text="Localize inscrições municipais, consulte a situação cadastral e acesse os dados geográficos." TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"/>
         </StackPanel>
-        <Button x:Name="BotaoConfigurar" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" Content="Configurar pasta QGIS"
-                local:Dicas.Descricao="Abre Ajustes › Fontes de dados para escolher a pasta dos arquivos QGIS."/>
+        <Button x:Name="BotaoConfigurar" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="Configurar pasta QGIS" local:Dicas.Descricao="Abre Ajustes › Fontes de dados para escolher a pasta dos arquivos QGIS.">
+          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Gerenciar}" FontSize="16"/><TextBlock Text="Configurar pasta QGIS"/></StackPanel>
+        </Button>
       </Grid>
 
       <!-- Uma linha só: dois ComboBox e um TextBox livre, e a lupa (Enter também pesquisa). -->
@@ -36,14 +37,14 @@
         <ComboBox x:Name="CaixaCondicao" Height="36" VerticalAlignment="Center" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" AutomationProperties.Name="Condição"/>
         <Grid Grid.Column="2">
           <TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="CaixaValor" Height="36" VerticalAlignment="Center" x:FieldModifier="internal" MaxLength="512" PlaceholderText="Digite o valor e tecle Enter" AutomationProperties.Name="Valor da pesquisa"/>
-          <FontIcon Glyph="&#xE721;" FontSize="15" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+          <FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
         </Grid>
-        <Button x:Name="BotaoPesquisar" Height="36" VerticalAlignment="Center" x:FieldModifier="internal" Grid.Column="3" Style="{StaticResource PmvniBotaoPrimarioStyle}" MinWidth="44"
+        <Button x:Name="BotaoPesquisar" Height="36" VerticalAlignment="Center" x:FieldModifier="internal" Grid.Column="3" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" MinWidth="44"
                 AutomationProperties.Name="Pesquisar" local:Dicas.Titulo="Pesquisar" local:Dicas.Atalho="Enter" local:Dicas.Descricao="Pesquisa no cadastro com o parâmetro, a condição e o valor.">
-          <StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="19" Height="19"><Path Canvas.Left="-19" Canvas.Top="-16" Fill="{Binding Foreground, ElementName=BotaoPesquisar}" Data="F0 M33.22,29.19 L37.79,33.75 C38.07,34.04 38.08,34.5 37.79,34.79 C37.5,35.08 37.04,35.07 36.75,34.79 L32.19,30.22 C28.89,32.97 24,32.63 21.1,29.46 C18.2,26.29 18.32,21.4 21.36,18.36 C24.4,15.32 29.29,15.2 32.46,18.1 C35.63,21 35.97,25.89 33.22,29.19 Z M20.48,24.05 C20.48,20.42 23.42,17.48 27.05,17.48 C30.68,17.48 33.62,20.42 33.62,24.05 C33.62,27.68 30.68,30.62 27.05,30.62 C23.42,30.62 20.48,27.68 20.48,24.05 Z"/></Canvas></Viewbox><TextBlock Text="Pesquisar"/></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16"/><TextBlock Text="Pesquisar"/></StackPanel>
         </Button>
         <StackPanel Grid.Row="1" Grid.ColumnSpan="2" x:Name="PainelDeteccao" x:FieldModifier="internal" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
-          <FontIcon Glyph="&#xE945;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+          <FontIcon Glyph="{x:Bind local:Glifos.Sobre}" FontSize="12" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw" VerticalAlignment="Center"/>
           <TextBlock x:Name="TextoDeteccao" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"
                      AutomationProperties.LiveSetting="Polite"/>
         </StackPanel>
@@ -57,12 +58,12 @@
         <Border x:Name="Progresso" x:FieldModifier="internal" Visibility="Collapsed" CornerRadius="24" Padding="24,10"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
           <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-            <ProgressRing IsActive="True" Width="20" Height="20" VerticalAlignment="Center"/>
+            <ProgressRing IsActive="True" Width="20" Height="20" VerticalAlignment="Center" local:Trabalhando.Automatico="False"/>
             <TextBlock x:Name="TextoProgresso" x:FieldModifier="internal" Text="Pesquisando…" TextAlignment="Center" VerticalAlignment="Center"
                        Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"/>
           </StackPanel>
         </Border>
-        <Grid ColumnDefinitions="*,*" ColumnSpacing="8"><StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="20" Height="17.33"><Path Canvas.Left="-9.5" Canvas.Top="-10.84" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M27.5,26.84 L28.83,26.84 C29.2,26.84 29.5,27.14 29.5,27.51 C29.5,27.88 29.2,28.17 28.83,28.17 L10.17,28.17 C9.8,28.17 9.5,27.88 9.5,27.51 C9.5,27.14 9.8,26.84 10.17,26.84 L11.5,26.84 L11.5,16.62 C11.5,16.17 11.72,15.76 12.09,15.51 L18.76,11.06 C19.17,10.79 19.7,10.77 20.13,11 C20.56,11.23 20.83,11.68 20.83,12.17 L20.83,16.17 L26.17,16.17 C26.91,16.17 27.5,16.77 27.5,17.51 L27.5,26.84 Z M26.17,17.51 L26.17,26.84 L20.83,26.84 L20.83,17.51 L26.17,17.51 Z M12.83,16.62 L19.5,12.17 L19.5,26.84 L12.83,26.84 L12.83,16.62 Z"/><Path Canvas.Left="-9.5" Canvas.Top="-10.84" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M18.17,18.84 L18.17,20.17 C18.17,20.54 17.87,20.84 17.5,20.84 C17.13,20.84 16.83,20.54 16.83,20.17 L16.83,18.84 C16.83,18.47 17.13,18.17 17.5,18.17 C17.87,18.17 18.17,18.47 18.17,18.84 Z"/><Path Canvas.Left="-9.5" Canvas.Top="-10.84" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M15.5,18.84 L15.5,20.17 C15.5,20.54 15.2,20.84 14.83,20.84 C14.46,20.84 14.17,20.54 14.17,20.17 L14.17,18.84 C14.17,18.47 14.46,18.17 14.83,18.17 C15.2,18.17 15.5,18.47 15.5,18.84 Z"/><Path Canvas.Left="-9.5" Canvas.Top="-10.84" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M15.5,23.51 L15.5,24.84 C15.5,25.21 15.2,25.51 14.83,25.51 C14.46,25.51 14.17,25.21 14.17,24.84 L14.17,23.51 C14.17,23.14 14.46,22.84 14.83,22.84 C15.2,22.84 15.5,23.14 15.5,23.51 Z"/><Path Canvas.Left="-9.5" Canvas.Top="-10.84" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M18.17,23.51 L18.17,24.84 C18.17,25.21 17.87,25.51 17.5,25.51 C17.13,25.51 16.83,25.21 16.83,24.84 L16.83,23.51 C16.83,23.14 17.13,22.84 17.5,22.84 C17.87,22.84 18.17,23.14 18.17,23.51 Z"/></Canvas></Viewbox><TextBlock x:Name="TextoContagem" x:FieldModifier="internal" FontWeight="SemiBold" FontSize="16" TextWrapping="Wrap"
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="8"><StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"><FontIcon Glyph="{x:Bind local:Glifos.Lista}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/><TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="Wrap"
                    Text="Escolha um parâmetro e uma condição, digite o valor e tecle Enter."/></StackPanel>
         <local:PainelQuebra Grid.Column="1" HorizontalAlignment="Right" x:Name="ResumoVinculos" x:FieldModifier="internal" Espaco="8" EspacoLinhas="4" Visibility="Collapsed"/></Grid>
       </StackPanel>
@@ -76,17 +77,24 @@
           </ListView.ItemContainerStyle>
         </ListView>
         <StackPanel x:Name="Vazio" x:FieldModifier="internal" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="460" Padding="16">
-          <ContentPresenter Width="64" Height="64" HorizontalAlignment="Center" ContentTemplate="{StaticResource PmvniIconeImoveis}" Content="" IsHitTestVisible="False"/>
-          <TextBlock x:Name="TextoVazio" x:FieldModifier="internal" TextWrapping="Wrap" TextAlignment="Center"/>
-          <Button x:Name="BotaoConfigurarVazio" x:FieldModifier="internal" HorizontalAlignment="Center" Content="Configurar pasta QGIS" Style="{StaticResource PmvniBotaoPrimarioStyle}"/>
+          <FontIcon Glyph="{x:Bind local:Glifos.Mapa}" FontSize="64" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Center" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+          <TextBlock x:Name="TextoVazio" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" TextAlignment="Center"/>
+          <Button x:Name="BotaoConfigurarVazio" x:FieldModifier="internal" HorizontalAlignment="Center" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
+                  AutomationProperties.Name="Configurar pasta QGIS" local:Dicas.Descricao="Abre Ajustes › Fontes de dados para escolher a pasta dos arquivos QGIS.">
+            <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Gerenciar}" FontSize="16"/><TextBlock Text="Configurar pasta QGIS"/></StackPanel>
+          </Button>
         </StackPanel>
       </Grid>
 
       <Grid Grid.Row="4" ColumnSpacing="8">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <TextBlock x:Name="TextoPaginacao" x:FieldModifier="internal" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-        <Button x:Name="BotaoAnterior" x:FieldModifier="internal" Grid.Column="1" Content="Anterior" IsEnabled="False" AutomationProperties.Name="Página anterior dos resultados"/>
-        <Button x:Name="BotaoProxima" x:FieldModifier="internal" Grid.Column="2" Content="Próxima" IsEnabled="False" AutomationProperties.Name="Próxima página dos resultados"/>
+        <Button x:Name="BotaoAnterior" x:FieldModifier="internal" Grid.Column="1" IsEnabled="False" AutomationProperties.Name="Página anterior dos resultados">
+          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Anterior}" FontSize="16"/><TextBlock Text="Anterior"/></StackPanel>
+        </Button>
+        <Button x:Name="BotaoProxima" x:FieldModifier="internal" Grid.Column="2" IsEnabled="False" AutomationProperties.Name="Próxima página dos resultados">
+          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Proximo}" FontSize="16"/><TextBlock Text="Próxima"/></StackPanel>
+        </Button>
       </Grid>
     </Grid>
 
@@ -95,24 +103,27 @@
       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
       <Grid Padding="12,6" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Voltar à pesquisa"
+        <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" MinHeight="36" AutomationProperties.Name="Voltar à pesquisa"
                 local:Dicas.Titulo="Voltar à pesquisa" local:Dicas.Descricao="Volta à pesquisa, com os resultados como estavam.">
-          <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE72B;" FontSize="14"/><TextBlock Text="Pesquisa"/></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Voltar}" FontSize="16"/><TextBlock Text="Voltar à pesquisa"/></StackPanel>
         </Button>
-        <TextBlock x:Name="TituloRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+        <TextBlock x:Name="TituloRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteTitulo}" AutomationProperties.HeadingLevel="Level1" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
         <!-- Cotas do lote no mapa (lados, domínio DNIT e eixo → terreno, largura da rua): ligadas por padrão; a escolha vale até fechar o app. -->
-        <ToggleButton local:Brilho.Ativo="True" x:Name="BotaoCotas" x:FieldModifier="internal" Grid.Column="2" IsChecked="True" AutomationProperties.Name="Cotas no mapa"
+        <ToggleButton x:Name="BotaoCotas" x:FieldModifier="internal" Grid.Column="2" MinHeight="36" IsChecked="True" AutomationProperties.Name="Cotas no mapa"
                       local:Dicas.Titulo="Cotas no mapa" local:Dicas.Descricao="Mostra ou esconde as cotas do lote no mapa: lados do lote, faixa de domínio do DNIT e distância do eixo ao terreno (BR-262 perto) e largura da rua em frente, medidas na base.">
-          <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE1D9;" FontSize="14"/><TextBlock Text="Cotas"/></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE1D9;" FontSize="16"/><TextBlock Text="Cotas"/></StackPanel>
         </ToggleButton>
-        <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="3" Content="Imprimir" AutomationProperties.Name="Imprimir o relatório"/>
-        <Button x:Name="BotaoPdf" x:FieldModifier="internal" Grid.Column="4" Style="{StaticResource PmvniBotaoPrimarioStyle}" AutomationProperties.Name="Salvar o relatório em PDF">
-          <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xEA90;" FontSize="14"/><TextBlock Text="Salvar PDF"/></StackPanel>
+        <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="3" MinHeight="36" AutomationProperties.Name="Imprimir o relatório"
+                local:Dicas.Titulo="Imprimir" local:Dicas.Atalho="Ctrl+P" local:Dicas.Descricao="Abre as opções de impressão do relatório.">
+          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Imprimir}" FontSize="16"/><TextBlock Text="Imprimir"/></StackPanel>
+        </Button>
+        <Button x:Name="BotaoPdf" x:FieldModifier="internal" Grid.Column="4" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" AutomationProperties.Name="Salvar o relatório em PDF" local:Dicas.Descricao="Escolhe onde salvar o relatório em PDF.">
+          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Exportar}" FontSize="16"/><TextBlock Text="Salvar PDF…"/></StackPanel>
         </Button>
       </Grid>
       <!-- O WebView2 do relatório é criado por código na primeira abertura, com a vista já visível (criado oculto, ele não desenhava). -->
-      <Grid x:Name="HostLeitor" x:FieldModifier="internal" Grid.Row="1" Background="#E9EDF2"/>
-      <ProgressRing x:Name="ProgressoRelatorio" x:FieldModifier="internal" Grid.Row="1" IsActive="False" Width="40" Height="40"/>
+      <Grid x:Name="HostLeitor" x:FieldModifier="internal" Grid.Row="1" Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"/>
+      <ProgressRing x:Name="ProgressoRelatorio" x:FieldModifier="internal" Grid.Row="1" IsActive="False" Width="40" Height="40" local:Trabalhando.Automatico="False"/>
     </Grid>
   </Grid>
 </UserControl>

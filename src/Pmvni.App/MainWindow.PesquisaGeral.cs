@@ -112,14 +112,14 @@ public sealed partial class MainWindow
                 <ScrollViewer x:Name="Rolagem" MaxHeight="440" Padding="4,4,4,0" HorizontalScrollBarVisibility="Disabled">
                   <StackPanel x:Name="Lista" AutomationProperties.Name="Resultados da pesquisa"/>
                 </ScrollViewer>
-                <TextBlock x:Name="Rodape" Grid.Row="1" FontSize="12" Margin="14,6,14,8" TextWrapping="Wrap"
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                <TextBlock x:Name="Rodape" Grid.Row="1" Margin="14,6,14,8" TextWrapping="Wrap"/>
               </Grid>
             </Border>
             """);
         rolagemGeral = (ScrollViewer)molduraGeral.FindName("Rolagem");
         listaGeral = (StackPanel)molduraGeral.FindName("Lista");
         rodapeGeral = (TextBlock)molduraGeral.FindName("Rodape");
+        rodapeGeral.Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"];
         molduraGeral.Shadow = new ThemeShadow();
         molduraGeral.Translation = new System.Numerics.Vector3(0, 0, 32);
         molduraGeral.Visibility = Visibility.Collapsed;
@@ -444,14 +444,14 @@ public sealed partial class MainWindow
 
     static FrameworkElement CabecalhoGeral(string texto, bool vazio = false)
     {
-        var t = (TextBlock)XamlReader.Load("""
-            <TextBlock xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" FontSize="12" FontWeight="SemiBold" Margin="10,10,10,4"
-                       TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            """);
-        // 1.0.0: as categorias em maiúsculas (ARQUIVOS, PROCESSOS, LEGISLAÇÃO, CONFIGURAÇÕES, FUNÇÕES, MÓDULOS).
-        t.Text = vazio ? texto : texto.ToUpper(CultureInfo.GetCultureInfo("pt-BR"));
-        if (vazio) { t.FontWeight = Microsoft.UI.Text.FontWeights.Normal; t.Margin = new Thickness(10, 12, 10, 12); }
-        else { AutomationProperties.SetName(t, texto); AutomationProperties.SetHeadingLevel(t, AutomationHeadingLevel.Level2); }
+        var t = new TextBlock
+        {
+            Text = texto,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = vazio ? new Thickness(10, 12, 10, 12) : new Thickness(10, 10, 10, 4),
+            Style = (Style)Application.Current.Resources[vazio ? "PmvniSecondaryTextStyle" : "PmvniPainelCartaoTitulo"],
+        };
+        if (!vazio) { AutomationProperties.SetName(t, texto); AutomationProperties.SetHeadingLevel(t, AutomationHeadingLevel.Level2); }
         return t;
     }
 
@@ -465,24 +465,40 @@ public sealed partial class MainWindow
                       Background="{ThemeResource AccentFillColorDefaultBrush}"/>
               <Grid Padding="12,6,12,6" ColumnSpacing="12">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <FontIcon x:Name="Icone" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <FontIcon x:Name="Icone" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
                 <Border Grid.Column="2" VerticalAlignment="Center" CornerRadius="8" Padding="8,1,8,2" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                  <TextBlock x:Name="Categoria" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                  <TextBlock x:Name="Categoria"/>
                 </Border>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                  <TextBlock x:Name="Titulo" TextTrimming="CharacterEllipsis" MaxLines="1" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                  <TextBlock x:Name="Onde" FontSize="12" TextTrimming="CharacterEllipsis" MaxLines="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                  <TextBlock x:Name="Titulo" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+                  <TextBlock x:Name="Onde" TextTrimming="CharacterEllipsis" MaxLines="1"/>
                 </StackPanel>
               </Grid>
             </Grid>
             """);
-        ((FontIcon)linha.FindName("Icone")).Glyph = item.Glifo;
+        var icone = (FontIcon)linha.FindName("Icone");
+        icone.Glyph = item switch
+        {
+            { Tipo: TipoResultadoGeral.Funcao, Dado: string id } => FaixaDeOpcoes.GlifoDoComando(id, item.Glifo),
+            { Tipo: TipoResultadoGeral.Modulo, Modulo: Modulo modulo } => Glifos.DoModulo(modulo),
+            _ => item.Glifo,
+        };
+        icone.Style = (Style)Application.Current.Resources["PmvniIconeAcaoSecundario"];
         // 1.0.0: o trecho que casa com o termo fica em negrito (a cor continua a do tema, claro ou escuro).
         var titulo = (TextBlock)linha.FindName("Titulo");
+        titulo.Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"];
+        titulo.TextWrapping = TextWrapping.NoWrap;
         foreach (var (texto, marcado) in PesquisaGeral.Destacar(item.Titulo, termoGeralMostrado))
-            titulo.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = texto, FontWeight = marcado ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal });
-        ((TextBlock)linha.FindName("Categoria")).Text = item.Categoria;
-        ((TextBlock)linha.FindName("Onde")).Text = item.Onde;
+        {
+            var trecho = new Microsoft.UI.Xaml.Documents.Run { Text = texto };
+            if (marcado) trecho.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
+            titulo.Inlines.Add(trecho);
+        }
+        var categoria = (TextBlock)linha.FindName("Categoria");
+        var onde = (TextBlock)linha.FindName("Onde");
+        categoria.Style = onde.Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"];
+        categoria.Text = item.Categoria;
+        onde.Text = item.Onde;
         AutomationProperties.SetName(linha, item.NomeAcessivel);
         ToolTipService.SetToolTip(linha, item.NomeAcessivel);
         linha.PointerEntered += (_, _) => SelecionarGeral(indice, anunciar: false);

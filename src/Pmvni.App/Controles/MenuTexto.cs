@@ -41,10 +41,11 @@ static class MenuTexto
     {
         if (menu is not null) return menu;
         var m = new MenuFlyout();
-        var copiar = new MenuFlyoutItem { Text = "Copiar", Icon = new FontIcon { Glyph = Glifos.Copiar }, KeyboardAcceleratorTextOverride = "Ctrl+C" };
-        var tudo = new MenuFlyoutItem { Text = "Selecionar tudo", Icon = new FontIcon { Glyph = "" }, KeyboardAcceleratorTextOverride = "Ctrl+A" };
-        m.Items.Add(copiar);
+        var copiar = new MenuFlyoutItem { Text = "Copiar", Icon = new FontIcon { Glyph = Glifos.Copiar, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, KeyboardAcceleratorTextOverride = "Ctrl+C" };
+        var tudo = new MenuFlyoutItem { Text = "Selecionar tudo", Icon = new FontIcon { Glyph = Glifos.SelecionarTudo, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, KeyboardAcceleratorTextOverride = "Ctrl+A" };
         m.Items.Add(tudo);
+        m.Items.Add(new MenuFlyoutSeparator());
+        m.Items.Add(copiar);
         m.Opening += (_, _) =>
         {
             var tb = m.Target as TextBlock;

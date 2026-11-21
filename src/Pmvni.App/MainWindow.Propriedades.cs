@@ -104,7 +104,7 @@ public sealed partial class MainWindow
             var editavel = Editavel;
             R.PropVazio.Visibility = Visibility.Collapsed;
             R.PropRolagem.Visibility = Visibility.Visible;
-            R.PropTitulo.Text = p.NumeroAtual(it.Id) is { } n ? $"ITEM {n:00}" : it.Criado ? "Item novo excluído" : $"Item excluído (era o {it.NumeroOriginal:00})";
+            R.PropTitulo.Text = p.NumeroAtual(it.Id) is { } n ? $"Item {n:00}" : it.Criado ? "Item novo excluído" : $"Item excluído (era o {it.NumeroOriginal:00})";
             // O código interno do item só na dica (auditoria de interface: "it_01M7…" à vista não dizia nada ao analista).
             R.PropId.Text = it.Criado ? "criado na revisão" : "";
             ToolTipService.SetToolTip(R.PropTitulo, "Código interno: " + it.Id);
@@ -128,6 +128,7 @@ public sealed partial class MainWindow
             R.PropAjustarTexto.Visibility = it.Incluido ? Visibility.Visible : Visibility.Collapsed;
             R.PropReverComIa.Visibility = Visibility.Collapsed;
             R.PropAjustarRotulo.Text = "Ajustar o item com a IA";
+            R.PropAjustarIcone.Glyph = Glifos.Ia;
             Dicas.SetDescricao(R.PropAjustarTexto, "A IA reajusta o item inteiro (verificação, providência, base legal, referência e, se a justificativa pedir, a situação), com o texto curto como o original. Um Desfazer volta tudo.");
             R.PropAjustarTexto.IsEnabled = editavel && it.Incluido && !ajustandoComIa;
             R.PropAjustarAviso.Text = "A justificativa mudou: reajuste o item (o botão abaixo) ou edite os textos.";
@@ -145,6 +146,7 @@ public sealed partial class MainWindow
                 alterado: c => !it.Criado && it.Campos.TryGetValue(c, out var ct) && ct.Revisado is not null,
                 dicaRestaurar: "Volta este campo ao texto original recebido da IA.");
             R.PropRestaurarOriginal.IsEnabled = editavel && !it.Criado && TemRevisao(it);
+            AtualizarDicasDasAcoesDePropriedades(it.Criado ? "Este item foi criado na revisão." : null);
             MontarHistoricoDoPainel(p, it.Id);
         }
         finally { atualizandoPropriedades = false; }
@@ -181,6 +183,7 @@ public sealed partial class MainWindow
         var pendente = ReajustePendente(p, linha, rev?.Justificativa);
         var semIa = RecalculoLinha.ReveSemIa(linha);
         R.PropAjustarRotulo.Text = semIa ? "Rever (sem IA)" : "Rever com a IA";
+        R.PropAjustarIcone.Glyph = semIa ? Glifos.Conferir : Glifos.Ia;
         Dicas.SetDescricao(R.PropAjustarTexto, semIa
             ? "O editor refaz as contas da tabela (resultado, no projeto e situação, comparando com o limite) e mostra o que mudou, de antes e de agora. Sem IA. Um Desfazer volta tudo."
             : "A IA revê o diagrama a partir desta linha e da justificativa. Um Desfazer volta tudo.");
@@ -203,7 +206,27 @@ public sealed partial class MainWindow
             alterado: c => rev?.Campos.ContainsKey(c) == true,
             dicaRestaurar: "Volta este texto ao original recebido da IA.");
         R.PropRestaurarOriginal.IsEnabled = editavel && rev?.Revisada == true;
+        AtualizarDicasDasAcoesDePropriedades();
         MontarHistoricoDoPainel(p, linha);
+    }
+
+    void AtualizarDicasDasAcoesDePropriedades(string? motivoOriginal = null)
+    {
+        void Atualizar(Button botao, string nome, string descricao, string? motivo)
+        {
+            var dica = DicasComandos.Livre(nome, descricao, motivo: botao.IsEnabled ? null : motivo);
+            if (Dicas.De(botao) != dica) Dicas.Aplicar(botao, dica);
+        }
+
+        var bloqueio = Editavel ? null : MotivoRevisaoIndisponivel();
+        var motivoIa = ajustandoComIa ? "Já há uma consulta à IA em andamento." : bloqueio;
+        Atualizar(R.PropAjustarTexto, R.PropAjustarRotulo.Text, Dicas.GetDescricao(R.PropAjustarTexto), motivoIa);
+        Atualizar(R.PropReverComIa, "Rever com a IA", Dicas.GetDescricao(R.PropReverComIa), motivoIa);
+        Atualizar(R.PropAjustarCancelar, "Cancelar", Dicas.GetDescricao(R.PropAjustarCancelar),
+            "O cancelamento já foi solicitado.");
+        if (!ajustandoComIa)
+            Atualizar(R.PropRestaurarOriginal, "Restaurar original", Dicas.GetDescricao(R.PropRestaurarOriginal),
+                bloqueio ?? motivoOriginal ?? "Não há alterações para restaurar.");
     }
 
     void MontarHistoricoDoPainel(Projeto p, string id)
@@ -442,7 +465,6 @@ public sealed partial class MainWindow
         n.Codigo.VerticalContentAlignment = VerticalAlignment.Center;
         n.Codigo.Padding = new Thickness(5, 5, 0, 0);   // a caixa do WinUI põe o texto no topo: o espaço de cima o centra nos 32
         n.Codigo.TextAlignment = TextAlignment.Left;
-        n.Codigo.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         n.Codigo.CornerRadius = new CornerRadius(6);
         n.Codigo.BorderThickness = new Thickness(0);
         n.Codigo.Background = (Microsoft.UI.Xaml.Media.Brush)res["AccentFillColorDefaultBrush"];
@@ -458,10 +480,9 @@ public sealed partial class MainWindow
         n.Tipo.MinHeight = 0;
         n.Tipo.Height = 32;
         n.Tipo.VerticalContentAlignment = VerticalAlignment.Center;
-        n.Tipo.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         n.Tipo.VerticalAlignment = VerticalAlignment.Center;
 
-        n.Area = new TextBlock { FontSize = 15, LineHeight = 20, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, IsTextSelectionEnabled = true };
+        n.Area = new TextBlock { Style = (Style)res["PmvniPainelValorForte"], HorizontalAlignment = HorizontalAlignment.Right };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(n.Area, $"Área da esquadria {ordinal}");
 
         foreach (var (caixa, parte) in new[] { (n.Codigo, "codigo"), (n.Tipo, "tipo") })
@@ -548,11 +569,11 @@ public sealed partial class MainWindow
         }
 
         // Alerta (só quando há): ícone de atenção + texto, na coluna do conteúdo.
-        n.Nota = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = (Microsoft.UI.Xaml.Media.Brush)res["TextFillColorSecondaryBrush"] };
+        n.Nota = CartoesDePainel.Apoio("");
         var alerta = new Grid { ColumnSpacing = 6, Margin = new Thickness(6, 0, 0, 0), Visibility = Visibility.Collapsed };   // Grid: o texto quebra na largura do bloco
         alerta.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         alerta.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        alerta.Children.Add(new FontIcon { Glyph = "", FontSize = 12, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0), Foreground = (Microsoft.UI.Xaml.Media.Brush)res["SystemFillColorCautionBrush"] });
+        alerta.Children.Add(new FontIcon { Glyph = Glifos.Avisos, FontSize = 16, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0), Style = (Style)res["PmvniIconeAtencaoStyle"] });
         Grid.SetColumn(n.Nota, 1);
         alerta.Children.Add(n.Nota);
         n.NotaBloco = alerta;
@@ -577,7 +598,7 @@ public sealed partial class MainWindow
         var janela = cat == CategoriaEsquadria.Janela;
         var nome = janela ? "Adicionar janela" : "Adicionar porta";
         var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        conteudo.Children.Add(new FontIcon { Glyph = "", FontSize = 12 });
+        conteudo.Children.Add(new FontIcon { Glyph = Glifos.Adicionar, FontSize = 16 });
         conteudo.Children.Add(new TextBlock { Text = nome });
         var b = new Button
         {
@@ -613,11 +634,11 @@ public sealed partial class MainWindow
     {
         var res = Application.Current.Resources;
         var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        conteudo.Children.Add(new FontIcon { Glyph = "", FontSize = 13 });
-        conteudo.Children.Add(new TextBlock { Text = "Adicionar ambiente" });
+        conteudo.Children.Add(new FontIcon { Glyph = Glifos.Adicionar, FontSize = 16 });
+        conteudo.Children.Add(new TextBlock { Text = "Adicionar ambiente…" });
         var botao = new Button { Content = conteudo, Style = (Style)res["PmvniBotaoPrimarioStyle"], HorizontalAlignment = HorizontalAlignment.Stretch };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, "Adicionar ambiente");
-        Dicas.Aplicar(botao, "Adicionar ambiente", "Acrescenta um ambiente à tabela de iluminação e ventilação; depois você põe as janelas e as portas dele e a conta se faz sozinha.");
+        Dicas.Aplicar(botao, "Adicionar ambiente…", "Acrescenta um ambiente à tabela de iluminação e ventilação; depois você põe as janelas e as portas dele e a conta se faz sozinha.");
 
         TextBox Caixa(string nome, string exemplo) { var c = new TextBox { PlaceholderText = exemplo }; Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(c, nome); return c; }
         var nomeAmb = Caixa("Nome do ambiente", "ex.: Banheiro social");
@@ -625,7 +646,7 @@ public sealed partial class MainWindow
         var divisor = Caixa("Divisor do mínimo", "ex.: 8");
         divisor.Text = divisorAtual is { } d ? d.ToString("0.##", Formatos.Cultura) : "";
         var pavimento = Caixa("Pavimento (opcional)", "ex.: Térreo");
-        var erro = new TextBlock { TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed, Foreground = (Microsoft.UI.Xaml.Media.Brush)res["SystemFillColorCriticalBrush"] };
+        var erro = new TextBlock { TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed, Style = (Style)res["PmvniTextoErroStyle"], TextAlignment = TextAlignment.Left };
         var criar = new Button { Content = "Adicionar", Style = (Style)res["PmvniBotaoPrimarioStyle"], HorizontalAlignment = HorizontalAlignment.Right };
         var linhaPisoDivisor = new Grid { ColumnSpacing = 8 };
         linhaPisoDivisor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -636,7 +657,7 @@ public sealed partial class MainWindow
         linhaPisoDivisor.Children.Add(campoPiso);
         linhaPisoDivisor.Children.Add(campoDivisor);
         var formulario = new StackPanel { Spacing = 12, Width = 300 };
-        formulario.Children.Add(new TextBlock { Text = "Novo ambiente", Style = (Style)res["BodyStrongTextBlockStyle"] });
+        formulario.Children.Add(new TextBlock { Text = "Novo ambiente", Style = (Style)res["PmvniAjusteTitulo"] });
         formulario.Children.Add(CartoesDePainel.Campo("Nome", nomeAmb));
         formulario.Children.Add(linhaPisoDivisor);
         formulario.Children.Add(CartoesDePainel.Campo("Pavimento", pavimento));

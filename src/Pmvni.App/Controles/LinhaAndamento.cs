@@ -1,6 +1,7 @@
 using System.ComponentModel;
-using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
@@ -30,19 +31,21 @@ public sealed class LinhaAndamento : Grid
 
     readonly Grid marcador = new() { Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center };
     readonly Ellipse circulo = new();
-    readonly FontIcon simbolo = new() { FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+    readonly FontIcon simbolo = new() { FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     readonly ProgressRing anel = new() { Width = 20, Height = 20, IsActive = false, Visibility = Visibility.Collapsed };
     readonly Rectangle trilho = new() { Width = 2, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, -6, 0, -6) };
     readonly Border cartao = new() { CornerRadius = new CornerRadius(6), Padding = new Thickness(6, 3, 8, 3), BorderThickness = new Thickness(1) };
     readonly Border fundoIcone = new() { Width = 24, Height = 24, CornerRadius = new CornerRadius(6), VerticalAlignment = VerticalAlignment.Top };
     readonly FontIcon icone = new() { FontSize = 16 };
-    readonly TextBlock titulo = new() { FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
-    readonly TextBlock detalhe = new() { FontSize = 12, IsTextSelectionEnabled = true };
-    readonly TextBlock hora = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(12, 2, 0, 0) };
+    readonly TextBlock titulo = new() { Style = Estilo("PmvniAjusteTitulo"), TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
+    readonly TextBlock detalhe = new() { IsTextSelectionEnabled = true, TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock hora = new() { Style = Estilo("PmvniSecondaryTextStyle"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(12, 2, 0, 0) };
 
     public LinhaAndamento()
     {
         Trabalhando.SetAutomatico(anel, false);
+        AutomationProperties.SetAccessibilityView(icone, AccessibilityView.Raw);
+        AutomationProperties.SetAccessibilityView(simbolo, AccessibilityView.Raw);
         ColumnSpacing = 10;
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -72,6 +75,7 @@ public sealed class LinhaAndamento : Grid
         Children.Add(cartao);
     }
 
+    static Style Estilo(string chave) => (Style)Application.Current.Resources[chave];
     static Brush Recurso(string chave) => (Brush)Application.Current.Resources[chave];
 
     void Montar()
@@ -84,25 +88,22 @@ public sealed class LinhaAndamento : Grid
         titulo.Text = a.Titulo;
         detalhe.Text = a.Detalhe ?? "";
         detalhe.Visibility = string.IsNullOrEmpty(a.Detalhe) ? Visibility.Collapsed : Visibility.Visible;
-        detalhe.TextWrapping = TextWrapping.Wrap;
-        detalhe.TextTrimming = TextTrimming.None;
-        detalhe.Foreground = erro ? Recurso("SystemFillColorCriticalBrush") : mensagem ? Recurso("TextFillColorPrimaryBrush") : Recurso("TextFillColorSecondaryBrush");
+        detalhe.Style = Estilo(erro ? "PmvniTextoErroStyle" : mensagem ? "CaptionTextBlockStyle" : "PmvniSecondaryTextStyle");
+        detalhe.TextAlignment = TextAlignment.Left;
         hora.Text = a.HoraTexto;
-        hora.Foreground = Recurso("TextFillColorSecondaryBrush");
 
         cartao.Background = Recurso(erro ? "SystemFillColorCriticalBackgroundBrush" : "SubtleFillColorSecondaryBrush");
-        cartao.BorderBrush = erro ? Recurso("SystemFillColorCriticalBrush") : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        cartao.BorderBrush = Recurso(erro ? "SystemFillColorCriticalBrush" : EmCurso ? "AccentFillColorDefaultBrush" : "SubtleFillColorTransparentBrush");
         fundoIcone.Background = Recurso("ControlFillColorDefaultBrush");
-        icone.Foreground = erro ? Recurso("SystemFillColorCriticalBrush") : mensagem ? Recurso("AccentTextFillColorPrimaryBrush") : Recurso("TextFillColorSecondaryBrush");
+        icone.Style = Estilo(erro ? "PmvniIconeSeloErro" : mensagem ? "PmvniIconeDestaqueStyle" : "PmvniIconeSecundarioStyle");
         trilho.Fill = Recurso("DividerStrokeColorDefaultBrush");
 
         anel.IsActive = EmCurso && !erro;
         anel.Visibility = EmCurso && !erro ? Visibility.Visible : Visibility.Collapsed;
         circulo.Visibility = simbolo.Visibility = EmCurso && !erro ? Visibility.Collapsed : Visibility.Visible;
-        circulo.Fill = Recurso(erro ? "SystemFillColorCriticalBrush" : "SystemFillColorSuccessBrush");
-        simbolo.Glyph = erro ? "" : "";
-        simbolo.Foreground = Recurso("TextOnAccentFillColorPrimaryBrush");
-        cartao.BorderBrush = EmCurso && !erro ? Recurso("AccentFillColorDefaultBrush") : cartao.BorderBrush;
+        circulo.Fill = Recurso(erro ? "SystemFillColorCriticalBackgroundBrush" : "SystemFillColorSuccessBackgroundBrush");
+        simbolo.Glyph = erro ? Glifos.Avisos : Glifos.Situacao;
+        simbolo.Style = Estilo(erro ? "PmvniIconeSeloErro" : "PmvniIconeSeloSucesso");
         AutomationPropertiesNome($"{a.Titulo}. {a.Detalhe} {(EmCurso ? "Em andamento" : erro ? "Erro" : "Concluída")} {a.HoraTexto}");
     }
 

@@ -102,7 +102,7 @@ public sealed partial class MainWindow
         n.BotaoAdicionarExigencia.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(async () =>
         {
             if (novo is not { Passo: PassoNovoDespacho.Conteudo, Rascunho: { } r } sessaoAtual) return;
-            var texto = await Perguntas.Atual.PedirTextoAsync("Adicionar exigência", "Texto da exigência", "");
+            var texto = await Perguntas.Atual.PedirTextoAsync("Adicionar exigência", "Texto da exigência", "", "Adicionar");
             if (string.IsNullOrWhiteSpace(texto) || !ReferenceEquals(novo, sessaoAtual)) return;
             r.AdicionarExigencia(texto.Trim());
             MontarExigencias(sessaoAtual);
@@ -739,6 +739,7 @@ public sealed partial class MainWindow
         if (s.Rascunho is not { } r) return;
         N.MostrarFaltando(r.Faltando());
         N.BotaoGerar.IsEnabled = s.Passo == PassoNovoDespacho.Conteudo && FluxoNovoDespacho.PodeGerar(r) && !s.Preparando;
+        N.AtualizarDicasDaEdicao();
     }
 
     /// <summary>Um trecho editado direto na folha vai para o rascunho (<see cref="ConteudoDespacho.AplicarEdicao"/>): cabeçalho, data, título
@@ -764,12 +765,12 @@ public sealed partial class MainWindow
         return await IaDespacho.PerguntarAsync(ia.Claude, ia.Codex, prompt, ct, null, null, ia.Opcoes);
     }
 
-    /// <summary>"Nova pasta…": pede o nome e cria a pasta no processo; ela vira a pasta da etapa.</summary>
+    /// <summary>"Criar pasta…": pede o nome e cria a pasta no processo; ela vira a pasta da etapa.</summary>
     async Task CriarPastaNovaNaVezAsync()
     {
         if (novo is not { SoPdf: false, Processo: { } processo } s) return;
         var sugestao = Pmvni.Revisao.Etapas.Nova(processo.Pasta, Hoje()).Nome;
-        var nome = await Perguntas.Atual.PedirTextoAsync("Nova pasta do despacho", "Nome da pasta dentro do processo:", sugestao);
+        var nome = await Perguntas.Atual.PedirTextoAsync("Criar pasta da etapa", "Nome da pasta dentro do processo", sugestao);
         if (string.IsNullOrWhiteSpace(nome) || !ReferenceEquals(novo, s)) return;
         nome = string.Concat(nome.Trim().Split(Path.GetInvalidFileNameChars())).Trim().TrimEnd('.', ' ');
         // "." e ".." (e um nome que só tinha caracteres proibidos) apontariam para a pasta do processo ou para fora dela.
@@ -932,9 +933,21 @@ public sealed partial class MainWindow
         AtualizarGravar(s);
     }
 
-    void AtualizarGravar(SessaoNovoDespacho s) =>
+    void AtualizarGravar(SessaoNovoDespacho s)
+    {
         N.BotaoGravar.IsEnabled = s.Preparacao is { } p && FluxoNovoDespacho.PodeGravar(p, s.Conferidas) && (!s.SoPdf || p.Pdf is not null)
                                   && (p.Pdf is null || N.CaixasDasPaginas.Count == p.Paginas);
+        var motivo = s.Preparacao switch
+        {
+            null => "Aguarde a preparação do documento.",
+            { Erros.Count: > 0 } => "Corrija os erros indicados na conferência.",
+            { Pdf: null } when s.SoPdf => "A conversão não gerou um PDF.",
+            { Pdf: not null, Paginas: int paginas } when N.CaixasDasPaginas.Count != paginas => "As páginas do PDF não estão disponíveis para conferência.",
+            { Pdf: not null } => "Confira e marque todas as páginas do PDF.",
+            _ => "O arquivo Word não está disponível.",
+        };
+        N.AtualizarDicaDeGravacao(motivo);
+    }
 
     void VoltarParaEdicao()
     {

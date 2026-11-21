@@ -65,6 +65,13 @@ public sealed partial class MainWindow
 
     bool Editavel => sessao is { SomenteLeitura: false, Atual: not null } && documento is not null && !ocupado;
 
+    string MotivoRevisaoIndisponivel() => sessao switch
+    {
+        { SomenteLeitura: true } s => s.MotivoSomenteLeitura ?? "O relatório está aberto somente para leitura.",
+        { Atual: not null } when ocupado => "Há outra operação em andamento.",
+        _ => "Abra um relatório para editar.",
+    };
+
     // ---------- ligação dos controles ----------
 
     void IniciarRevisao()
@@ -701,13 +708,13 @@ public sealed partial class MainWindow
         AtualizarComandos();
     }
 
-    /// <summary>Botão direito sobre um item: Situação ▸, Editar texto, Excluir/Restaurar, Original ⇄, Propriedades.</summary>
+    /// <summary>Menu de contexto de um item nas folhas, com comandos de visualização e revisão.</summary>
     void MostrarMenuContexto(Point ponto)
     {
         if (LinhaSelecionada is { } linha) { MostrarMenuContextoLinha(linha, ponto); return; }
         if (ItemSelecionado is not { } it) return;
         var menu = new MenuFlyout();
-        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
+        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao, FontSize = 16 }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
         var efetiva = SituacaoEfetiva(it);
         foreach (var c in Faixas.OrdemSituacoes)
         {
@@ -716,16 +723,12 @@ public sealed partial class MainWindow
             i.Click += async (_, _) => await ExecutarComandoAsync(id);
             situacao.Items.Add(i);
         }
+        AdicionarVisualizacaoAoMenu(menu);
         menu.Items.Add(situacao);
         menu.Items.Add(ItemDoMenu("Editar texto", Glifos.Editar, ComandosApp.InicioEditarTexto));
-        menu.Items.Add(ItemDoMenu(it.Incluido ? "Excluir item" : "Restaurar item", it.Incluido ? Glifos.Excluir : Glifos.Restaurar, ComandosApp.InicioExcluirRestaurar));
         menu.Items.Add(ItemDoMenu("Novo item abaixo", Glifos.NovoItem, ComandosApp.InicioNovoItem));
-        var original = new ToggleMenuFlyoutItem { Text = "Original", IsChecked = mostrarOriginal, IsEnabled = Faixa.Habilitado(ComandosApp.InicioOriginal) };
-        original.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioOriginal);
-        menu.Items.Add(original);
-        var propriedades = new MenuFlyoutItem { Text = "Propriedades", Icon = new FontIcon { Glyph = Glifos.Propriedades } };
-        propriedades.Click += (_, _) => MostrarPropriedades(true);
-        menu.Items.Add(propriedades);
+        if (it.Incluido) menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(ItemDoMenu(it.Incluido ? "Excluir item" : "Restaurar item", it.Incluido ? Glifos.Excluir : Glifos.Restaurar, ComandosApp.InicioExcluirRestaurar));
         UltimoMenuContexto = menu;
         menu.ShowAt(R.Navegador, new FlyoutShowOptions { Position = ponto });
     }
@@ -772,7 +775,7 @@ public sealed partial class MainWindow
     void MostrarMenuContextoLinha(string linha, Point ponto)
     {
         var menu = new MenuFlyout();
-        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
+        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao, FontSize = 16 }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
         var efetiva = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(sessao!.Revisao.Projeto, linha));
         foreach (var c in Faixas.OrdemSituacoes)
         {
@@ -785,17 +788,28 @@ public sealed partial class MainWindow
             };
             situacao.Items.Add(i);
         }
+        AdicionarVisualizacaoAoMenu(menu);
         menu.Items.Add(situacao);
         menu.Items.Add(ItemDoMenu("Editar texto", Glifos.Editar, ComandosApp.InicioEditarTexto));
-        menu.Items.Add(ItemDoMenu("Restaurar original", Glifos.Restaurar, ComandosApp.InicioRestaurarOriginal));
-        var original = new ToggleMenuFlyoutItem { Text = "Original", IsChecked = mostrarOriginal, IsEnabled = Faixa.Habilitado(ComandosApp.InicioOriginal) };
-        original.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioOriginal);
-        menu.Items.Add(original);
-        var propriedades = new MenuFlyoutItem { Text = "Propriedades", Icon = new FontIcon { Glyph = Glifos.Propriedades } };
-        propriedades.Click += (_, _) => MostrarPropriedades(true);
-        menu.Items.Add(propriedades);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(ItemDoMenu("Restaurar original", Glifos.Desfazer, ComandosApp.InicioRestaurarOriginal));
         UltimoMenuContexto = menu;
         menu.ShowAt(R.Navegador, new FlyoutShowOptions { Position = ponto });
+    }
+
+    void AdicionarVisualizacaoAoMenu(MenuFlyout menu)
+    {
+        var propriedades = new MenuFlyoutItem { Text = "Propriedades", Icon = new FontIcon { Glyph = Glifos.Propriedades, FontSize = 16 } };
+        propriedades.Click += (_, _) => MostrarPropriedades(true);
+        menu.Items.Add(propriedades);
+        var original = new ToggleMenuFlyoutItem
+        {
+            Text = "Original", Icon = new FontIcon { Glyph = Glifos.Original, FontSize = 16 },
+            IsChecked = mostrarOriginal, IsEnabled = Faixa.Habilitado(ComandosApp.InicioOriginal),
+        };
+        original.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioOriginal);
+        menu.Items.Add(original);
+        menu.Items.Add(new MenuFlyoutSeparator());
     }
 
     /// <summary>A situação da linha mudou e falta a justificativa (obrigatória para exportar): abre as Propriedades com o foco nela.</summary>
@@ -808,8 +822,14 @@ public sealed partial class MainWindow
 
     MenuFlyoutItem ItemDoMenu(string texto, string glifo, string id)
     {
-        var i = new MenuFlyoutItem { Text = texto, Icon = new FontIcon { Glyph = glifo }, IsEnabled = Faixa.Habilitado(id) };
-        if (Atalhos.Tecla(id) is { } t) i.KeyboardAcceleratorTextOverride = Atalhos.Legivel(t);
+        var i = new MenuFlyoutItem { Text = texto, Icon = new FontIcon { Glyph = glifo, FontSize = 16 }, IsEnabled = Faixa.Habilitado(id) };
+        if (Atalhos.Tecla(id) is { } t)
+        {
+            i.KeyboardAcceleratorTextOverride = Atalhos.Legivel(t);
+            // A raiz e as folhas já tratam a mesma tecla fora do item de menu.
+            foreach (var (mods, tecla) in Teclas(t))
+                i.KeyboardAccelerators.Add(new KeyboardAccelerator { Modifiers = mods, Key = tecla, ScopeOwner = i });
+        }
         i.Click += async (_, _) => await ExecutarComandoAsync(id);
         return i;
     }
@@ -819,10 +839,10 @@ public sealed partial class MainWindow
     {
         if (sessao?.Revisao.Projeto is not { } p || p.Item(id) is not { Incluido: false } it) return;
         var painel = new StackPanel { Spacing = 8, MaxWidth = 300 };
-        painel.Children.Add(new TextBlock { Text = it.Criado ? "Item novo excluído" : $"Item {it.NumeroOriginal:00} excluído", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
-        painel.Children.Add(new TextBlock { Text = DadosEfetivos.TextoEfetivo(p, it, "titulo") ?? "(sem título)", TextWrapping = TextWrapping.Wrap });
-        var restaurar = new Button { Content = "Restaurar", IsEnabled = Editavel };
-        Dicas.Aplicar(restaurar, "Restaurar", "Traz este item excluído de volta para o relatório.");
+        painel.Children.Add(new TextBlock { Text = it.Criado ? "Item novo excluído" : $"Item {it.NumeroOriginal:00} excluído", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
+        painel.Children.Add(CartoesDePainel.Apoio(DadosEfetivos.TextoEfetivo(p, it, "titulo") ?? "(sem título)"));
+        var restaurar = new Button { Content = "Restaurar item", IsEnabled = Editavel, Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"] };
+        Dicas.Aplicar(restaurar, "Restaurar item", "Traz este item excluído de volta para o relatório.", motivo: Editavel ? null : MotivoRevisaoIndisponivel());
         var flyout = new Flyout { Content = painel };
         restaurar.Click += async (_, _) => { flyout.Hide(); await TentarAsync(() => AplicarAsync(new Restaurar(id))); };
         painel.Children.Add(restaurar);
@@ -1006,15 +1026,15 @@ public sealed partial class MainWindow
             var n = contagens.TryGetValue(f, out var c) ? c : 0;
             var ligado = f == filtroSituacao;
             var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-            if (ligado && f == FiltroSituacao.Todos) conteudo.Children.Add(new FontIcon { Glyph = "\uE73E", FontSize = 12 });
+            if (ligado && f == FiltroSituacao.Todos) conteudo.Children.Add(new FontIcon { Glyph = Glifos.Marca, FontSize = 12 });
             if (EtiquetasSituacao.CoresDaClasse(FiltroNavegacao.Classe(f), b.ActualTheme == ElementTheme.Dark) is { } cores)
                 conteudo.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
                 {
                     Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center,
                     Fill = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb((byte)(cores.Ponto >> 24), (byte)(cores.Ponto >> 16), (byte)(cores.Ponto >> 8), (byte)cores.Ponto)),
                 });
-            conteudo.Children.Add(new TextBlock { Text = FiltroNavegacao.Rotulo(f), FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center });
-            if (n > 0) conteudo.Children.Add(new TextBlock { Text = n.ToString(CultureInfo.InvariantCulture), FontSize = 12.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Opacity = ligado ? 1 : .7, VerticalAlignment = VerticalAlignment.Center });
+            conteudo.Children.Add(new TextBlock { Text = FiltroNavegacao.Rotulo(f), Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] });
+            if (n > 0) conteudo.Children.Add(new TextBlock { Text = n.ToString(CultureInfo.InvariantCulture), Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
             b.Content = conteudo;
             b.IsChecked = ligado;
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"Mostrar {FiltroNavegacao.Rotulo(f).ToLowerInvariant()}, {n} itens");
@@ -1041,9 +1061,9 @@ public sealed partial class MainWindow
             linha.Children.Add(texto);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linha, $"Item excluído {numero}, {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}");
             // B6: botão pequeno com borda (sem borda, parecia texto).
-            var restaurar = new Button { Content = "Restaurar", IsEnabled = Editavel, Padding = new Thickness(8, 2, 8, 3), VerticalAlignment = VerticalAlignment.Center };
+            var restaurar = new Button { Content = "Restaurar item", IsEnabled = Editavel, Style = (Style)Application.Current.Resources["PmvniPainelBotaoPequeno"] };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, $"Restaurar o item {numero}");
-            Dicas.Aplicar(restaurar, "Restaurar", "Traz este item excluído de volta para o relatório.");
+            Dicas.Aplicar(restaurar, "Restaurar item", "Traz este item excluído de volta para o relatório.", motivo: Editavel ? null : MotivoRevisaoIndisponivel());
             var id = x.Id;
             restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new Restaurar(id)));
             Grid.SetColumn(restaurar, 1);
@@ -1158,7 +1178,11 @@ public sealed partial class MainWindow
         R.PropAjustarCancelar.Visibility = vis;
         R.PropAjustarCancelar.IsEnabled = cancelamentoIa is { IsCancellationRequested: false };
         R.PropAjustarAnel.IsActive = ajustandoComIa;
-        if (ajustandoComIa) R.PropAjustarTexto.IsEnabled = R.PropReverComIa.IsEnabled = false;
+        if (ajustandoComIa)
+        {
+            R.PropAjustarTexto.IsEnabled = R.PropReverComIa.IsEnabled = false;
+            AtualizarDicasDasAcoesDePropriedades();
+        }
         R.PropAjustarEstado.Text = !ajustandoComIa ? ""
             : (etapaIa.Length > 0 ? etapaIa : "Consultando a IA") + (descricaoIa.Length > 0 ? " (" + descricaoIa + ")" : "") + "… " + ModeloIaAjuste.Tempo(tempoIa.Elapsed);
     }

@@ -4,7 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace Pmvni.App;
 
-/// <summary>Tela vazia de um módulo (auditoria M5): ícone do módulo, título, frase, botão tonal e secundário (os comandos são os da faixa,
+/// <summary>Tela vazia de um módulo (auditoria M5): ícone do módulo, título, frase, botão principal e secundário (os comandos são os da faixa,
 /// pelo id: <see cref="ComandoEscolhido"/>) e, em Relatórios, os recentes (<see cref="RecenteEscolhido"/>).</summary>
 public sealed partial class EstadoVazio : UserControl
 {
@@ -39,7 +39,7 @@ public sealed partial class EstadoVazio : UserControl
         if (primario is { } p)
         {
             var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            conteudo.Children.Add(new FontIcon { Glyph = p.Glifo, FontSize = 16 });
+            conteudo.Children.Add(new FontIcon { Glyph = p.Glifo, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] });
             conteudo.Children.Add(new TextBlock { Text = p.Rotulo, VerticalAlignment = VerticalAlignment.Center });
             BotaoPrimario.Content = conteudo;
             AutomationProperties.SetName(BotaoPrimario, p.Rotulo);
@@ -50,13 +50,10 @@ public sealed partial class EstadoVazio : UserControl
         idSecundario = secundario?.Id;
         if (secundario is { } s)
         {
-            // O secundário segue sempre o padrão do primário (2026-11-17, "botões despadronizados"): mesmo estilo tonal, altura, cantos,
-            // ícone e brilho; sem glifo próprio, o de abrir.
             var c2 = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            c2.Children.Add(new FontIcon { Glyph = glifoSecundario ?? Glifos.Abrir, FontSize = 16 });
+            c2.Children.Add(new FontIcon { Glyph = glifoSecundario ?? Glifos.Abrir, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] });
             c2.Children.Add(new TextBlock { Text = s.Rotulo, VerticalAlignment = VerticalAlignment.Center });
             BotaoSecundario.Content = c2;
-            BotaoSecundario.Style = (Style)BotaoPrimario.Style;
             AutomationProperties.SetName(BotaoSecundario, s.Rotulo);
             Dicas.AplicarComando(BotaoSecundario, s.Id, s.Rotulo, modulo);
             BotaoSecundario.Visibility = Visibility.Visible;
@@ -88,13 +85,13 @@ public sealed partial class EstadoVazio : UserControl
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            linha.Children.Add(new FontIcon { Glyph = Glifos.Relatorio, VerticalAlignment = VerticalAlignment.Center, Style = (Style)Application.Current.Resources["PmvniIconeDestaqueStyle"], FontSize = 20 });
+            linha.Children.Add(new FontIcon { Glyph = Glifos.Relatorio, VerticalAlignment = VerticalAlignment.Center, Style = (Style)Application.Current.Resources["PmvniIconeAcaoSecundario"] });
             var textos = new StackPanel { Spacing = 0, VerticalAlignment = VerticalAlignment.Center };
-            textos.Children.Add(new TextBlock { Text = Path.GetFileName(caminho), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
-            if (pasta.Length > 0) textos.Children.Add(new TextBlock { Text = pasta, Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"], Opacity = .7, TextTrimming = TextTrimming.CharacterEllipsis });
+            textos.Children.Add(new TextBlock { Text = Path.GetFileName(caminho), Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"], TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis });
+            if (pasta.Length > 0) textos.Children.Add(new TextBlock { Text = pasta, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], TextTrimming = TextTrimming.CharacterEllipsis });
             Grid.SetColumn(textos, 1);
             linha.Children.Add(textos);
-            var seta = new FontIcon { Glyph = "", FontSize = 12, Opacity = .55, VerticalAlignment = VerticalAlignment.Center };
+            var seta = new FontIcon { Glyph = Glifos.ExpandirLinha, Style = (Style)Application.Current.Resources["PmvniIconeAcaoSecundario"], VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(seta, 2);
             linha.Children.Add(seta);
             var b = new Button

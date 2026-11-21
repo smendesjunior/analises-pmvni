@@ -1,4 +1,3 @@
-using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -17,10 +16,10 @@ public static class Dicas
     public static ToolTip Criar(TextoDica d)
     {
         var painel = new StackPanel { Spacing = 2, MaxWidth = 340 };
-        painel.Children.Add(new TextBlock { Text = d.Titulo, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
-        if (d.Descricao.Length > 0) painel.Children.Add(new TextBlock { Text = d.Descricao, TextWrapping = TextWrapping.Wrap });
+        painel.Children.Add(new TextBlock { Text = d.Titulo, Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"], TextWrapping = TextWrapping.Wrap });
+        if (d.Descricao.Length > 0) painel.Children.Add(new TextBlock { Text = d.Descricao, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], TextWrapping = TextWrapping.Wrap });
         if (d.Motivo is { Length: > 0 } motivo)
-            painel.Children.Add(new TextBlock { Text = motivo, FontStyle = Windows.UI.Text.FontStyle.Italic, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) });
+            painel.Children.Add(new TextBlock { Text = motivo, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], FontStyle = Windows.UI.Text.FontStyle.Italic, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) });
         return new ToolTip { Content = painel, Tag = d };
     }
 

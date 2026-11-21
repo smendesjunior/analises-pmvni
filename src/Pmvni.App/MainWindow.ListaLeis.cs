@@ -1,10 +1,9 @@
-using Microsoft.UI;
-using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Pmvni.Legislacao;
+using Windows.UI.ViewManagement;
 
 namespace Pmvni.App;
 
@@ -30,20 +29,39 @@ public sealed partial class MainWindow
     Task lendoEmentas = Task.CompletedTask;
     StackPanel? topicosNoCartao;
     string? topicosNoCartaoId;
+    readonly AccessibilitySettings acessibilidadeConsulta = new();
 
     void IniciarListaDeLeis()
     {
         Raiz.ActualThemeChanged += (_, _) => MontarListaDeLeis();
+        void AoMudarContraste(AccessibilitySettings _, object __) => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (fechada) return;
+            MontarListaDeLeis();
+            if (planilha is not null) MostrarPlanilha();
+        });
+        // Num app WinUI 3 de desktop, sem CoreWindow, assinar HighContrastChanged pode lançar 0x80070490 (elemento não encontrado) e
+        // derrubar a abertura do editor. A troca de contraste também chega por ActualThemeChanged acima; o evento é só um reforço.
+        try
+        {
+            acessibilidadeConsulta.HighContrastChanged += AoMudarContraste;
+            Closed += (_, _) =>
+            {
+                try { acessibilidadeConsulta.HighContrastChanged -= AoMudarContraste; }
+                catch (System.Runtime.InteropServices.COMException) { }
+            };
+        }
+        catch (System.Runtime.InteropServices.COMException e) { System.Diagnostics.Debug.WriteLine("[leis] contraste: " + e.Message); }
     }
 
     /// <summary>A cor do tema do app (claro ou escuro, como a janela está agora) para uma chave de <c>IconesModulos.xaml</c>: os itens desta
     /// lista são montados no código, então a cor é escolhida pelo tema da janela e a lista é remontada quando ele muda.</summary>
     Brush CorDoTema(string chave)
     {
-        var tema = Raiz.ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
+        var tema = acessibilidadeConsulta.HighContrast ? "HighContrast" : Raiz.ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
         foreach (var d in Application.Current.Resources.MergedDictionaries)
             if (d.ThemeDictionaries.TryGetValue(tema, out var t) && t is ResourceDictionary rd && rd.TryGetValue(chave, out var v) && v is Brush b) return b;
-        return Application.Current.Resources.TryGetValue(chave, out var r) && r is Brush br ? br : new SolidColorBrush(Colors.Gray);
+        return (Brush)Application.Current.Resources[chave];
     }
 
     void MontarListaDeLeis()
@@ -77,6 +95,9 @@ public sealed partial class MainWindow
         P.BotoesTipos.Visibility = vazia ? Visibility.Collapsed : Visibility.Visible;
         P.FiltroLeis.IsEnabled = !vazia;
         P.BotaoAnexar.IsEnabled = !legislacao.Acervo.SomenteLeitura && cancelarAnexo is null;
+        Dicas.Aplicar(P.BotaoAnexar, "Anexar PDFs…", "Acrescenta leis em PDF ao acervo.",
+            motivo: legislacao.Acervo.SomenteLeitura ? "O acervo está disponível apenas para leitura."
+                : cancelarAnexo is not null ? "Já há uma anexação em andamento." : null);
         LerEmentasQueFaltam();
     }
 
@@ -96,14 +117,15 @@ public sealed partial class MainWindow
             var borda = CorDoTema($"PmvniEsfera{nome}Borda");
             var escolhida = esferaDaLista == e;
             var conteudo = new StackPanel { Spacing = 0, HorizontalAlignment = HorizontalAlignment.Center };
-            conteudo.Children.Add(new FontIcon { Glyph = "", FontSize = 20, Foreground = escolhida ? texto : borda, Margin = new Thickness(0, 0, 0, 2) });
-            conteudo.Children.Add(new TextBlock { Text = Esferas.Rotulo(e), FontWeight = FontWeights.SemiBold, FontSize = 13, Foreground = texto, HorizontalAlignment = HorizontalAlignment.Center });
-            conteudo.Children.Add(new TextBlock { Text = contagem[e].ToString(System.Globalization.CultureInfo.InvariantCulture), FontWeight = FontWeights.Bold, FontSize = 17, Foreground = texto, HorizontalAlignment = HorizontalAlignment.Center });
+            conteudo.Children.Add(new FontIcon { Glyph = Glifos.Globo, FontSize = 16, Foreground = texto, Margin = new Thickness(0, 0, 0, 2) });
+            conteudo.Children.Add(new TextBlock { Text = Esferas.Rotulo(e), Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"], Foreground = texto, HorizontalAlignment = HorizontalAlignment.Center });
+            conteudo.Children.Add(new TextBlock { Text = contagem[e].ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"], Foreground = texto, HorizontalAlignment = HorizontalAlignment.Center });
             var b = new Button
             {
                 Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch,
                 Padding = new Thickness(4, 8, 4, 6), CornerRadius = new CornerRadius(8),
-                Background = fundo, BorderBrush = escolhida ? borda : new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(2),
+                Background = fundo, BorderBrush = escolhida ? borda : fundo, BorderThickness = new Thickness(2),
             };
             // Cores próprias também ao passar o mouse e ao pressionar (sem o cinza padrão do botão).
             b.Resources["ButtonBackgroundPointerOver"] = fundo;
@@ -128,15 +150,18 @@ public sealed partial class MainWindow
         {
             var rotulo = tipo is { } t ? ListaLegislacao.RotuloBotaoTipo(t) : "Todas";
             var conteudo = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            conteudo.Children.Add(new TextBlock { Text = rotulo, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-            conteudo.Children.Add(new TextBlock { Text = quantidade.ToString(System.Globalization.CultureInfo.InvariantCulture), FontSize = 13, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center });
+            conteudo.Children.Add(new TextBlock { Text = rotulo, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"],
+                HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+            conteudo.Children.Add(new TextBlock { Text = quantidade.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"], HorizontalAlignment = HorizontalAlignment.Center });
             var b = new ToggleButton
             {
                 Content = conteudo, IsChecked = tipoDaLista == tipo, HorizontalAlignment = HorizontalAlignment.Stretch,
                 Padding = new Thickness(2, 4, 2, 4), CornerRadius = new CornerRadius(8), IsEnabled = quantidade > 0 || tipoDaLista == tipo,
             };
-            Brilho.SetAtivo(b, true);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"{rotulo}: {quantidade}");
+            Dicas.Aplicar(b, rotulo, "Filtra a lista por tipo de norma.",
+                motivo: b.IsEnabled ? null : "Nenhuma lei deste tipo corresponde aos filtros atuais.");
             var escolha = tipo;
             b.Click += (_, _) => { tipoDaLista = tipoDaLista == escolha ? null : escolha; MontarListaDeLeis(); };
             Grid.SetColumn(b, coluna++);
@@ -155,15 +180,15 @@ public sealed partial class MainWindow
         grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        grade.Children.Add(new FontIcon { Glyph = "", FontSize = 26, Foreground = CorDoTema("PmvniIconeLei"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
+        grade.Children.Add(new FontIcon { Glyph = Glifos.Livro, FontSize = 16, Foreground = CorDoTema("PmvniIconeLei"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
 
         var textos = new StackPanel { Spacing = 2 };
-        textos.Children.Add(new TextBlock { Text = l.Titulo, FontWeight = FontWeights.SemiBold, FontSize = 14, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis });
+        textos.Children.Add(new TextBlock { Text = l.Titulo, Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"], MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis });
         var ementa = EmentaDe(l.Id);
         if (!string.IsNullOrEmpty(ementa))
         {
-            var e = new TextBlock { Text = ementa, FontSize = 12, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
-            if (Application.Current.Resources.TryGetValue("PmvniSecondaryTextStyle", out var estilo) && estilo is Style s) { e.Style = s; e.FontSize = 12; }
+            var e = new TextBlock { Text = ementa, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"],
+                TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
             ToolTipService.SetToolTip(e, ementa);
             textos.Children.Add(e);
         }
@@ -174,15 +199,16 @@ public sealed partial class MainWindow
             meta.Children.Add(new Border
             {
                 Background = CorDoTema("PmvniSeloTipoFundo"), CornerRadius = new CornerRadius(10), Padding = new Thickness(9, 1, 9, 2), VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock { Text = ListaLegislacao.RotuloTipo(tipo), FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = CorDoTema("PmvniSeloTipoTexto") },
+                Child = new TextBlock { Text = ListaLegislacao.RotuloTipo(tipo), Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"],
+                    Foreground = CorDoTema("PmvniSeloTipoTexto") },
             });
             meta.Children.Add(new Border { Width = 1, Height = 14, Style = (Style)Application.Current.Resources["PmvniDivisoriaVerticalStyle"], VerticalAlignment = VerticalAlignment.Center });
         }
-        meta.Children.Add(new FontIcon { Glyph = "", FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
-        meta.Children.Add(new TextBlock { Text = l.Paginas, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+        meta.Children.Add(new FontIcon { Glyph = Glifos.Documento, FontSize = 12, Style = (Style)Application.Current.Resources["PmvniIconeSecundarioStyle"] });
+        meta.Children.Add(new TextBlock { Text = l.Paginas, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
         if (l.Selo is { } selo)
         {
-            var aviso = new FontIcon { Glyph = "", FontSize = 14, Style = (Style)Application.Current.Resources["PmvniIconeAtencaoStyle"], VerticalAlignment = VerticalAlignment.Center };
+            var aviso = new FontIcon { Glyph = Glifos.Avisos, FontSize = 12, Style = (Style)Application.Current.Resources["PmvniIconeAtencaoStyle"], VerticalAlignment = VerticalAlignment.Center };
             ToolTipService.SetToolTip(aviso, selo);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(aviso, selo);
             meta.Children.Add(aviso);
@@ -193,8 +219,9 @@ public sealed partial class MainWindow
 
         var estrela = new Button
         {
-            Content = new FontIcon { Glyph = favorita ? "" : "", FontSize = 16, Foreground = favorita ? CorDoTema("PmvniFavorito") : null },
-            Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(8), VerticalAlignment = VerticalAlignment.Top,
+            Content = new FontIcon { Glyph = favorita ? "\uE735" : "\uE734", FontSize = 16, Foreground = favorita ? CorDoTema("PmvniFavorito") : null },
+            Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"],
+            Width = 32, Height = 32, Padding = new Thickness(0), VerticalAlignment = VerticalAlignment.Top,
         };
         var nomeEstrela = favorita ? "Tirar dos favoritos" : "Marcar como favorita";
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(estrela, $"{nomeEstrela}: {l.Titulo}");
@@ -241,7 +268,7 @@ public sealed partial class MainWindow
             painel.Children.Add(new TextBlock
             {
                 Text = leituraPadronizadaLigada ? "Esta lei não tem tópicos nem artigos reconhecíveis." : "Os artigos aparecem aqui quando o texto da lei estiver pronto.",
-                TextWrapping = TextWrapping.Wrap, FontSize = 12, Margin = new Thickness(6, 2, 0, 2),
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(6, 2, 0, 2),
                 Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"],
             });
             return;

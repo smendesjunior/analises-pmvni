@@ -25,11 +25,11 @@
       <InfoBar x:Name="AvisoGravado" x:FieldModifier="internal" Severity="Success" IsOpen="False" IsClosable="True" Title="Despacho gravado" Tag="fixo">
         <InfoBar.Content>
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Button x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" Content="Abrir no Word"
+            <Button x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" MinHeight="36" Content="Abrir no Word"
                     local:Dicas.Descricao="Abre no Word o despacho que acabou de ser gravado."/>
-            <Button x:Name="BotaoAbrirPdfGravado" x:FieldModifier="internal" Content="Abrir PDF"
+            <Button x:Name="BotaoAbrirPdfGravado" x:FieldModifier="internal" MinHeight="36" Content="Abrir PDF"
                     local:Dicas.Descricao="Abre o PDF do despacho que acabou de ser gravado."/>
-            <Button x:Name="BotaoMostrarGravado" x:FieldModifier="internal" Content="Mostrar no Explorador"
+            <Button x:Name="BotaoMostrarGravado" x:FieldModifier="internal" MinHeight="36" Content="Mostrar no Explorador"
                     local:Dicas.Descricao="Abre a pasta do despacho gravado no Explorador de Arquivos."/>
           </StackPanel>
         </InfoBar.Content>
@@ -51,7 +51,7 @@
       <ListView.ItemTemplate>
         <DataTemplate x:DataType="local:ItemDespacho">
           <StackPanel Padding="0,5" Spacing="1" AutomationProperties.Name="{x:Bind NomeAcessivel}">
-            <TextBlock TextAlignment="Center" Text="{x:Bind Titulo}" Style="{StaticResource BodyStrongTextBlockStyle}" Visibility="{x:Bind EhGrupo}" Margin="0,8,0,0"/>
+            <TextBlock TextAlignment="Center" Text="{x:Bind Titulo}" Style="{StaticResource PmvniAjusteTitulo}" Visibility="{x:Bind EhGrupo}" Margin="0,8,0,0"/>
             <TextBlock Text="{x:Bind Titulo}" Visibility="{x:Bind EhDespacho}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Titulo}"/>
             <TextBlock Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" Visibility="{x:Bind EhDespacho}" TextTrimming="CharacterEllipsis"
                        ToolTipService.ToolTip="{x:Bind Detalhe}"/>

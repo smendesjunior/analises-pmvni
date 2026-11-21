@@ -1,5 +1,4 @@
 using System.Globalization;
-using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -43,7 +42,16 @@ public sealed partial class MainWindow
     {
         foreach (var c in TextosConsulta.Condicoes) I.CaixaCondicao.Items.Add(new ComboBoxItem { Content = TextosConsulta.Rotulo(c), Tag = c });
         I.CaixaCondicao.SelectedIndex = 0;
-        MontarLinha(I.CabecalhoTabela, TitulosImoveis.Select(t => (FrameworkElement)new TextBlock { Text = t.ToUpperInvariant(), FontSize = 11, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis }).ToArray());
+        MontarLinha(I.CabecalhoTabela, TitulosImoveis.Select(t =>
+        {
+            var rotulo = new TextBlock
+            {
+                Text = t, Style = (Style)Application.Current.Resources["PmvniPainelRotulo"],
+                TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            ToolTipService.SetToolTip(rotulo, t);
+            return (FrameworkElement)rotulo;
+        }).ToArray());
         I.BotaoPesquisar.Click += async (_, _) => await PesquisarImoveisAsync(1);
         I.CaixaValor.KeyDown += async (_, e) =>
         {
@@ -78,6 +86,7 @@ public sealed partial class MainWindow
         a.BotaoVerificarQgis.Click += async (_, _) => await VerificarPastaQgisAsync();
         a.BotaoAbrirQgis.Click += (_, _) => { if (ajustes.PastaQgis is { } p) AbrirPastaDosAjustes(p); };
         AtualizarAjustesQgis();
+        AtualizarDicasDaPaginacaoDeImoveis(null);
     }
 
     static void MontarLinha(Grid g, FrameworkElement[] celulas)
@@ -202,6 +211,7 @@ public sealed partial class MainWindow
         I.TextoPaginacao.Text = "";
         I.ResumoVinculos.Visibility = Visibility.Collapsed;
         I.BotaoAnterior.IsEnabled = I.BotaoProxima.IsEnabled = false;
+        AtualizarDicasDaPaginacaoDeImoveis(null);
         VoltarAPesquisaDeImoveis();
     }
 
@@ -283,7 +293,7 @@ public sealed partial class MainWindow
                 Background = (Brush)Application.Current.Resources[fundo],
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(10, 4, 10, 4),
-                Child = new TextBlock { Text = $"{grupo.Count()} · {grupo.Key.Texto}", FontSize = 12 },
+                Child = new TextBlock { Text = $"{grupo.Count()} · {grupo.Key.Texto}", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] },
             });
         }
         I.ResumoVinculos.Visibility = selos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -293,7 +303,11 @@ public sealed partial class MainWindow
             var reg = r.Itens[i];
             var sv = selos[i];
             var linha = new Grid { Padding = new Thickness(12, 8, 12, 8), ColumnSpacing = 12, Style = (Style)Application.Current.Resources["PmvniGradeLinhaStyle"], BorderThickness = new Thickness(0, 0, 0, 1) };
-            TextBlock T(string? s, bool forte = false) => new() { Text = s ?? "", FontSize = 13, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, FontWeight = forte ? FontWeights.SemiBold : FontWeights.Normal, IsTextSelectionEnabled = true };
+            TextBlock T(string? s, bool forte = false) => new()
+            {
+                Text = s ?? "", Style = (Style)Application.Current.Resources[forte ? "PmvniPainelValorForte" : "PmvniPainelValor"],
+                TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis,
+            };
             var selo = new Border
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -303,7 +317,7 @@ public sealed partial class MainWindow
                     TomVinculo.Erro => "PmvniSeloStatusErroStyle",
                     _ => "PmvniSeloStatusAtencaoStyle",
                 }],
-                Child = new TextBlock { Text = sv.Texto, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis },
+                Child = new TextBlock { Text = sv.Texto, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], TextTrimming = TextTrimming.CharacterEllipsis },
             };
             // Inscrição baixada: selo neutro (cinza), não é erro de ligação com o mapa.
             if (sv.Tom == TomVinculo.Neutro) selo.Background = (Brush)Application.Current.Resources["SystemFillColorNeutralBackgroundBrush"];
@@ -311,18 +325,26 @@ public sealed partial class MainWindow
             FrameworkElement celulaSelo = selo;
             if (sv.Sucessora is { } suc)
             {
-                var ver = new HyperlinkButton { Content = "Ver a inscrição atual", Padding = new Thickness(0), FontSize = 12 };
-                ToolTipService.SetToolTip(ver, $"Pesquisa a inscrição {suc}, que substituiu esta.");
+                var ver = new HyperlinkButton
+                {
+                    Content = new TextBlock { Text = "Ver inscrição atual", Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] },
+                    Padding = new Thickness(0),
+                };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ver, $"Ver a inscrição atual {suc}");
+                Dicas.Aplicar(ver, "Ver inscrição atual", $"Pesquisa a inscrição {suc}, que substituiu esta.");
                 ver.Click += async (_, _) => await PesquisarInscricaoAsync(suc);
                 celulaSelo = new StackPanel { Spacing = 2, Children = { selo, ver } };
             }
-            var abrir = new Button { Content = "Relatório", FontSize = 12, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var abrir = new Button { Content = "Relatório", Padding = new Thickness(6, 5, 6, 6), MinHeight = 36, HorizontalAlignment = HorizontalAlignment.Stretch };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrir, "Abrir relatório do imóvel " + reg.InscricaoMunicipal);
+            Dicas.Aplicar(abrir, "Abrir relatório", "Mostra os dados cadastrais e territoriais do imóvel.");
             abrir.Click += async (_, _) => await AbrirRelatorioDoImovelAsync(reg);
             // 2026-11-17: o Boletim de Cadastro Imobiliário oficial, emitido pelo GPI com a inscrição municipal desta linha.
-            var gerar = new Button { Content = "Boletim cadastral", FontSize = 12, Style = (Style)Application.Current.Resources["PmvniBotaoTonalStyle"], HorizontalAlignment = HorizontalAlignment.Stretch };
+            var gerar = new Button { Content = "Gerar boletim…", Padding = new Thickness(6, 5, 6, 6),
+                Style = (Style)Application.Current.Resources["PmvniBotaoTonalStyle"], HorizontalAlignment = HorizontalAlignment.Stretch };
+            Brilho.SetAtivo(gerar, false);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(gerar, "Gerar boletim cadastral do imóvel " + reg.InscricaoMunicipal);
-            ToolTipService.SetToolTip(gerar, "Emite o boletim oficial no GPI para esta inscrição (abre o GPI, pesquisa, confere a ficha e abre o PDF).");
+            Dicas.Aplicar(gerar, "Gerar boletim cadastral…", "Escolhe onde salvar e emite pelo GPI o boletim oficial desta inscrição.");
             gerar.Click += async (_, _) =>
             {
                 try { await GerarBciDoImovelAsync(reg); }
@@ -349,7 +371,17 @@ public sealed partial class MainWindow
         I.TextoPaginacao.Text = r.Total == 0 ? "" : $"{de}–{ate} de {r.Total.ToString("N0", br)} • página {r.Pagina} de {r.Paginas}";
         I.BotaoAnterior.IsEnabled = r.Pagina > 1;
         I.BotaoProxima.IsEnabled = r.Pagina < r.Paginas;
+        AtualizarDicasDaPaginacaoDeImoveis(r);
         MostrarResultadosOuVazio();
+    }
+
+    void AtualizarDicasDaPaginacaoDeImoveis(PaginaResultado? resultado)
+    {
+        const string pesquisar = "Faça uma pesquisa com resultados para navegar pelas páginas.";
+        Dicas.Aplicar(I.BotaoAnterior, "Página anterior", "Volta à página anterior dos resultados.",
+            motivo: I.BotaoAnterior.IsEnabled ? null : resultado is null or { Total: 0 } ? pesquisar : "Você está na primeira página.");
+        Dicas.Aplicar(I.BotaoProxima, "Próxima página", "Avança para a próxima página dos resultados.",
+            motivo: I.BotaoProxima.IsEnabled ? null : resultado is null or { Total: 0 } ? pesquisar : "Você está na última página.");
     }
 
     void MostrarResultadosOuVazio()

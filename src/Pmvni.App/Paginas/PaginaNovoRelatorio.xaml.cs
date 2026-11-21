@@ -131,7 +131,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var feitas = etapas.Count(x => x.Estado == EstadoEtapa.Feita);
 
         TituloStatus.Text = falhou ? "Análise com problema" : concluida ? "Análise concluída" : rodando ? "Análise em andamento" : "Análise parada";
-        IconeStatus.Glyph = falhou ? "" : concluida ? "" : "";
+        IconeStatus.Glyph = falhou ? Glifos.Avisos : concluida ? Glifos.Situacao : Glifos.Ia;
         FundoIconeStatus.Background = Recurso(falhou ? "SystemFillColorCriticalBrush" : concluida ? "SystemFillColorSuccessBrush" : "AccentFillColorDefaultBrush");
         TextoEtapaAtual.Text = etapas.Count == 0 ? (rodando ? "Etapa atual: análise documental" : "Execução encerrada")
             : concluida ? $"{etapas.Count} de {etapas.Count} etapas concluídas"
@@ -251,8 +251,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         }
         TextBlock Texto(string t, bool cabecalho = false) => new()
         {
-            Text = t, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = !cabecalho,
-            Foreground = cabecalho ? Recurso("TextFillColorSecondaryBrush") : Recurso("TextFillColorPrimaryBrush"),
+            Text = t, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = !cabecalho,
+            Style = Estilo(cabecalho ? "PmvniPainelRotulo" : "CaptionTextBlockStyle"),
         };
         GradeConsumo.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         string[] cabecalhos = ["Etapa", "Quem", "Tokens (entr. / saída)", "Cache", "Tempo", "Cota 5 h · semana"];
@@ -269,7 +269,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 1, 8, 1), VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Background = Recurso(programa ? "SubtleFillColorSecondaryBrush" : "SystemFillColorAttentionBackgroundBrush"),
-                Child = new TextBlock { Text = u.Executor, FontSize = 11 },
+                Child = new TextBlock { Text = u.Executor, Style = Estilo("CaptionTextBlockStyle") },
             };
             if (!string.IsNullOrWhiteSpace(u.Modelo)) ToolTipService.SetToolTip(selo, u.Modelo);
             Celula(selo, linha, 1);
@@ -286,13 +286,17 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         {
             CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 2, 8, 2), VerticalAlignment = VerticalAlignment.Top,
             Background = Recurso(d.Verificada ? "SystemFillColorSuccessBackgroundBrush" : "SystemFillColorCautionBackgroundBrush"),
-            Child = new TextBlock { Text = d.Verificada ? "Verificada" : "Preliminar", FontSize = 11 },
+            Child = new TextBlock { Text = d.Verificada ? "Verificada" : "Preliminar", Style = Estilo("CaptionTextBlockStyle") },
         };
         var texto = new TextBlock { Text = d.Texto, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, VerticalAlignment = VerticalAlignment.Center };
         var icone = new Border
         {
             Width = 32, Height = 32, CornerRadius = new CornerRadius(6), VerticalAlignment = VerticalAlignment.Top, Background = Recurso("ControlFillColorDefaultBrush"),
-            Child = new FontIcon { Glyph = d.Verificada ? "" : "", FontSize = 16, Foreground = Recurso(d.Verificada ? "SystemFillColorSuccessBrush" : "SystemFillColorCautionBrush") },
+            Child = new FontIcon
+            {
+                Glyph = d.Verificada ? Glifos.Situacao : Glifos.Avisos, FontSize = 16,
+                Style = Estilo(d.Verificada ? "PmvniIconeSeloSucesso" : "PmvniIconeSeloAtencao"),
+            },
         };
         var g = new Grid { ColumnSpacing = 12 };
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -327,7 +331,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         "Conferir a versão consolidada do relatório e verificar o arquivo final para entrega."
     ];
 
-    static readonly string[] GlifosEtapas = ["", "", "", "", "", ""];
+    static readonly string[] GlifosEtapas = [Glifos.Pasta, Glifos.Ia, Glifos.Pesquisar, Glifos.Relatorio, Glifos.Original, Glifos.Conferir];
 
     /// <summary>A posição, na ordem padrão, da etapa de nome <paramref name="nome"/>: indexa <see cref="DescricoesEtapas"/> e <see cref="GlifosEtapas"/>,
     /// que são por etapa. A ordem da análise vem do kit (a audit antes da produção) e pode omitir etapas, então a posição na linha não serve.
@@ -372,7 +376,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 var seguinteFeita = estado == EstadoEtapa.Feita;
                 var linha = new Microsoft.UI.Xaml.Shapes.Line
                 {
-                    X1 = 0, X2 = 1, Stretch = Stretch.Fill, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 17, 0, 0),
+                    X1 = 0, X2 = 1, Stretch = Stretch.Fill, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 16, 0, 0),
                     Stroke = Recurso(seguinteFeita ? "SystemFillColorSuccessBrush" : "ControlStrongStrokeColorDefaultBrush"),
                     StrokeDashArray = seguinteFeita ? null : [3, 3],
                 };
@@ -404,25 +408,25 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 faixa.SizeChanged += (_, e) =>
                 {
                     var w = e.NewSize.Width;
-                    var margem = new Thickness(w / 4 + 15, 12, w / 4 + 15, 0);
+                    var margem = new Thickness(w / 4 + 15, 16, w / 4 + 15, 0);
                     linha.Margin = margem;
                     if (progresso is not null) progresso.Margin = margem;
                 };
                 PainelEtapas.Children.Add(faixa);
             }
 
-            var (fundo, glifo, frente) = estado switch
+            var (fundo, glifo, estiloIcone) = estado switch
             {
-                EstadoEtapa.Feita => ("SystemFillColorSuccessBrush", "", "TextOnAccentFillColorPrimaryBrush"),
-                EstadoEtapa.Agora => ("AccentFillColorDefaultBrush", "", "TextOnAccentFillColorPrimaryBrush"),
-                EstadoEtapa.Erro => ("SystemFillColorCriticalBrush", "", "TextOnAccentFillColorPrimaryBrush"),
-                _ => ("ControlFillColorDefaultBrush", GlifosEtapas[Math.Clamp(PosicaoNaOrdemPadrao(nome), 0, GlifosEtapas.Length - 1)], "TextFillColorSecondaryBrush"),
+                EstadoEtapa.Feita => ("SystemFillColorSuccessBackgroundBrush", Glifos.Situacao, "PmvniIconeSeloSucesso"),
+                EstadoEtapa.Agora => ("PmvniTonalFundo", Glifos.Avancar, "PmvniIconeDestaqueStyle"),
+                EstadoEtapa.Erro => ("SystemFillColorCriticalBackgroundBrush", Glifos.Avisos, "PmvniIconeSeloErro"),
+                _ => ("ControlFillColorDefaultBrush", GlifosEtapas[Math.Clamp(PosicaoNaOrdemPadrao(nome), 0, GlifosEtapas.Length - 1)], "PmvniIconeSecundarioStyle"),
             };
             var circulo = new Border
             {
                 Width = 24, Height = 24, CornerRadius = new CornerRadius(18), HorizontalAlignment = HorizontalAlignment.Center, Background = Recurso(fundo),
                 BorderThickness = new Thickness(estado == EstadoEtapa.Pendente ? 1 : 0), BorderBrush = Recurso("ControlStrongStrokeColorDefaultBrush"),
-                Child = new FontIcon { Glyph = glifo, FontSize = 15, Foreground = Recurso(frente) },
+                Child = new FontIcon { Glyph = glifo, FontSize = 12, Style = Estilo(estiloIcone) },
             };
             var situacao = RotuloEtapa(nome, estado, animar);
             var bloco = new StackPanel { Spacing = 1, HorizontalAlignment = HorizontalAlignment.Center };
@@ -436,18 +440,16 @@ public sealed partial class PaginaNovoRelatorio : UserControl
                 Trabalhando.SetAutomatico(anel, false);
                 marcador = anel;
             }
-            else marcador = new FontIcon { Glyph = estado == EstadoEtapa.Pendente ? "\uEA3A" : glifo, FontSize = 14 };
+            else marcador = new FontIcon { Glyph = estado == EstadoEtapa.Pendente ? Glifos.Pendente : glifo, FontSize = 16, Style = Estilo(estiloIcone) };
             linhaResumo.Children.Add(marcador);
             var textos = new StackPanel { Spacing = 2 };
-            textos.Children.Add(new TextBlock { Text = $"{nome}  ·  {situacao}", FontSize = 13,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextAlignment = TextAlignment.Left, TextWrapping = TextWrapping.Wrap });
+            textos.Children.Add(new TextBlock { Text = $"{nome} · {situacao}", Style = Estilo("PmvniAjusteTitulo") });
             var posicaoDaDescricao = PosicaoNaOrdemPadrao(nome);
             var descricao = posicaoDaDescricao >= 0 ? DescricoesEtapas[Math.Min(posicaoDaDescricao, DescricoesEtapas.Length - 1)] : DescricaoDeEtapaDesconhecida;
             if (ProgressoAtual is { Total: > 0 } contagem && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(contagem.Etapa) == nome)
                 descricao += contagem.Secoes ? $" Seções com resultado nesta etapa: {contagem.Avaliados} de {contagem.Total}."
                     : $" Itens avaliados nesta etapa: {contagem.Avaliados} de {contagem.Total}.";
-            textos.Children.Add(new TextBlock { Text = descricao, FontSize = 12, TextAlignment = TextAlignment.Left,
-                Foreground = Recurso("TextFillColorSecondaryBrush"), TextWrapping = TextWrapping.Wrap });
+            textos.Children.Add(new TextBlock { Text = descricao, Style = Estilo("PmvniSecondaryTextStyle"), TextWrapping = TextWrapping.Wrap });
             Grid.SetColumn(textos, 1);
             linhaResumo.Children.Add(textos);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linhaResumo, $"{nome}. {situacao}. {descricao}");
@@ -455,22 +457,23 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             var dica = new TextBlock { Text = nome + " · " + situacao, TextWrapping = TextWrapping.Wrap };
             var botao = new Button
             {
-                Content = circulo, MinHeight = 24, MinWidth = 24, Padding = new Thickness(0), CornerRadius = new CornerRadius(18),
+                Content = circulo, Width = 32, Height = 32, MinHeight = 32, MinWidth = 32, Padding = new Thickness(0), CornerRadius = new CornerRadius(18),
                 BorderThickness = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Center,
                 Flyout = new Flyout { Content = dica }
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, dica.Text);
+            Dicas.Aplicar(botao, dica.Text, "Mostra a situação desta etapa.");
             bloco.Children.Add(botao);
             bloco.Children.Add(new TextBlock
             {
                 Text = nome, HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0),
-                FontWeight = estado == EstadoEtapa.Pendente ? Microsoft.UI.Text.FontWeights.Normal : Microsoft.UI.Text.FontWeights.SemiBold,
+                Style = Estilo("PmvniAjusteTitulo"),
             });
             bloco.Children.Add(new TextBlock
             {
-                Text = situacao, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center,
+                Text = situacao, HorizontalAlignment = HorizontalAlignment.Center,
                 TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
-                Foreground = Recurso(estado switch { EstadoEtapa.Agora => "AccentTextFillColorPrimaryBrush", EstadoEtapa.Erro => "SystemFillColorCriticalBrush", _ => "TextFillColorSecondaryBrush" }),
+                Style = Estilo(estado switch { EstadoEtapa.Agora => "PmvniTextoDestaqueStyle", EstadoEtapa.Erro => "PmvniTextoErroStyle", _ => "PmvniSecondaryTextStyle" }),
             });
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(bloco, $"{nome}: {situacao}");
             Grid.SetColumn(bloco, i);
@@ -501,5 +504,6 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         Grid.SetColumnSpan(BotoesExecucao, botoesEmbaixo ? 3 : 1);
     }
 
+    static Style Estilo(string chave) => (Style)Application.Current.Resources[chave];
     static Brush Recurso(string chave) => (Brush)Application.Current.Resources[chave];
 }

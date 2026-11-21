@@ -2,7 +2,7 @@
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Pmvni.App">
-  <!-- Um cartão de Ajustes › Inteligência artificial no padrão da página "IAs e contas" do WinStatusBar (correções 2026-11-15): cabeçalho com o logotipo,
+  <!-- Um cartão de Ajustes › Inteligência artificial no padrão da página "IAs e contas" do WinStatusBar (correções 2026-11-15): cabeçalho com o ícone,
        o nome do programa e Entrar/Sair à direita; o bloco da conta lida neste computador (avatar com as iniciais, nome, e-mail e o link da conta); e
        linhas ícone · título e descrição · valor ou selo, separadas por divisórias: Assinatura, Programa, Situação (Testar), os plugins do kit, Chave de
        API e Aviso. A página se explica pelas próprias linhas. A janela (MainWindow.Agentes.cs) o preenche pelos elementos internal. -->
@@ -11,49 +11,30 @@
       <Setter Property="ColumnSpacing" Value="12"/>
       <Setter Property="RowSpacing" Value="8"/>
       <Setter Property="Padding" Value="0,10"/>
+      <Setter Property="Background" Value="{ThemeResource SubtleFillColorTransparentBrush}"/>
       <Setter Property="BorderThickness" Value="0,1,0,0"/>
       <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
     </Style>
-    <Style x:Key="IconeLinha" TargetType="FontIcon">
+    <Style x:Key="IconeLinha" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeSecundarioStyle}">
       <Setter Property="FontSize" Value="16"/>
       <Setter Property="VerticalAlignment" Value="Top"/>
       <Setter Property="Margin" Value="0,2,0,0"/>
-    </Style>
-    <Style x:Key="TituloLinha" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="14"/>
-      <Setter Property="TextWrapping" Value="Wrap"/>
-    </Style>
-    <Style x:Key="BotaoPequeno" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
-      <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Padding" Value="10,4,10,5"/>
     </Style>
   </UserControl.Resources>
 
   <Border Style="{StaticResource PmvniAjusteGrupo}" Padding="16,14,16,6">
     <StackPanel>
-      <TextBlock TextAlignment="Left" x:Name="Titulo" x:FieldModifier="internal" Visibility="Collapsed"/>
+      <TextBlock TextAlignment="Left" x:Name="Titulo" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniAjusteTitulo}"/>
 
-      <!-- Cabeçalho: logotipo · nome do programa · Entrar/Sair. -->
+      <!-- Cabeçalho: ícone · nome do programa · Entrar/Sair. -->
       <Grid ColumnSpacing="12">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <!-- Logotipo da OpenAI (o mesmo símbolo do WinStatusBar), na cor do texto do tema. -->
-        <Viewbox x:Name="LogoOpenAi" Width="24" Height="24" VerticalAlignment="Center" Visibility="Collapsed">
-          <Path Fill="{ThemeResource TextFillColorPrimaryBrush}" Width="24" Height="24"
-                Data="F1 M 9.205 8.658 v -2.26 c 0 -.19 .072 -.333 .238 -.428 l 4.543 -2.616 c .619 -.357 1.356 -.523 2.117 -.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357 -.024 .547 l -4.71 -2.759 a .797 .797 0 0 0 -.856 0 l -5.97 3.473 z m 10.609 8.8 V 12.06 c 0 -.333 -.143 -.57 -.429 -.737 l -5.97 -3.473 1.95 -1.118 a .433 .433 0 0 1 .476 0 l 4.543 2.617 c 1.309 .76 2.189 2.378 2.189 3.948 0 1.808 -1.07 3.473 -2.76 4.163 z M 7.802 12.703 l -1.95 -1.142 c -.167 -.095 -.239 -.238 -.239 -.428 V 5.899 c 0 -2.545 1.950 -4.472 4.591 -4.472 1 0 1.927 .333 2.712 .928 L 8.23 5.067 c -.285 .166 -.428 .404 -.428 .737 v 6.898 z M 12 15.128 l -2.795 -1.57 v -3.33 L 12 8.658 l 2.795 1.57 v 3.33 L 12 15.128 z m 1.796 7.23 c -1 0 -1.927 -.332 -2.712 -.927 l 4.686 -2.712 c .285 -.166 .428 -.404 .428 -.737 v -6.898 l 1.974 1.142 c .167 .095 .238 .238 .238 .428 v 5.233 c 0 2.545 -1.974 4.472 -4.614 4.472 z m -5.637 -5.303 l -4.544 -2.617 c -1.308 -.761 -2.188 -2.378 -2.188 -3.948 A 4.482 4.482 0 0 1 4.21 6.327 v 5.423 c 0 .333 .143 .571 .428 .738 l 5.947 3.449 -1.95 1.118 a .432 .432 0 0 1 -.476 0 z m -.262 3.9 c -2.688 0 -4.662 -2.021 -4.662 -4.519 0 -.19 .024 -.38 .047 -.57 l 4.686 2.71 c .286 .167 .571 .167 .856 0 l 5.97 -3.448 v 2.26 c 0 .19 -.07 .333 -.237 .428 l -4.543 2.616 c -.619 .357 -1.356 .523 -2.117 .523 z m 5.899 2.83 a 5.947 5.947 0 0 0 5.827 -4.756 C 22.287 18.339 24 15.84 24 13.296 c 0 -1.665 -.713 -3.282 -1.998 -4.448 .119 -.5 .19 -.999 .19 -1.498 0 -3.401 -2.759 -5.947 -5.946 -5.947 -.642 0 -1.26 .095 -1.88 .31 A 5.962 5.962 0 0 0 10.205 0 a 5.947 5.947 0 0 0 -5.827 4.757 C 1.713 5.447 0 7.945 0 10.49 c 0 1.666 .713 3.283 1.998 4.448 -.119 .5 -.19 1 -.19 1.499 0 3.401 2.759 5.946 5.946 5.946 .642 0 1.26 -.095 1.88 -.309 a 5.96 5.96 0 0 0 4.162 1.713 z"/>
-        </Viewbox>
-        <!-- Asterisco laranja da Anthropic (a cor da marca do Claude), desenhado aqui: fica igual nos dois temas. -->
-        <Viewbox x:Name="LogoClaude" Width="24" Height="24" VerticalAlignment="Center" Visibility="Collapsed">
-          <Path Fill="#D97757" Width="24" Height="24"
-                Data="F1 M 13.04,13.21 L 23.01,14.10 L 23.17,13.01 L 13.33,11.13 Z M 12.30,13.57 L 19.23,18.34 L 19.90,17.48 L 13.59,11.91 Z M 11.48,13.51 L 15.54,22.22 L 16.56,21.81 L 13.42,12.72 Z M 10.79,13.04 L 10.17,21.03 L 11.26,21.19 L 12.87,13.33 Z M 10.43,12.30 L 4.79,20.33 L 5.66,21.01 L 12.09,13.59 Z M 10.49,11.48 L 2.71,15.16 L 3.12,16.18 L 11.28,13.42 Z M 10.96,10.79 L 1.58,9.98 L 1.43,11.07 L 10.67,12.87 Z M 11.70,10.43 L 4.93,5.78 L 4.25,6.65 L 10.41,12.09 Z M 12.52,10.49 L 8.31,1.41 L 7.29,1.82 L 10.58,11.28 Z M 13.21,10.96 L 13.88,2.57 L 12.79,2.42 L 11.13,10.67 Z M 13.57,11.70 L 18.84,4.14 L 17.97,3.47 L 11.91,10.41 Z M 13.51,12.52 L 20.55,9.14 L 20.14,8.12 L 12.72,10.58 Z M 9.6,12 A 2.4,2.4 0 1 1 14.4,12 A 2.4,2.4 0 1 1 9.6,12 Z"/>
-        </Viewbox>
-        <!-- Estrela de quatro pontas do Gemini, no azul do Google, desenhada aqui: fica igual nos dois temas. -->
-        <Viewbox x:Name="LogoGemini" Width="24" Height="24" VerticalAlignment="Center" Visibility="Collapsed">
-          <Path Fill="#4285F4" Width="24" Height="24"
-                Data="F1 M 12,1 C 12.6,7 17,11.4 23,12 C 17,12.6 12.6,17 12,23 C 11.4,17 7,12.6 1,12 C 7,11.4 11.4,7 12,1 Z"/>
-        </Viewbox>
-        <TextBlock TextAlignment="Left" x:Name="TextoServico" x:FieldModifier="internal" Grid.Column="1" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <FontIcon x:Name="LogoOpenAi" Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource PmvniIconeSecundarioStyle}" VerticalAlignment="Center" Visibility="Collapsed"/>
+        <FontIcon x:Name="LogoClaude" Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource PmvniIconeSecundarioStyle}" VerticalAlignment="Center" Visibility="Collapsed"/>
+        <FontIcon x:Name="LogoGemini" Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource PmvniIconeSecundarioStyle}" VerticalAlignment="Center" Visibility="Collapsed"/>
+        <TextBlock TextAlignment="Left" x:Name="TextoServico" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteTitulo}"/>
         <!-- Margem negativa: o texto de Entrar/Sair termina na mesma borda dos valores das linhas, sem perder a área de foco. -->
-        <HyperlinkButton x:Name="BotaoConta" x:FieldModifier="internal" Grid.Column="2" FontSize="14" Padding="8,4" Margin="0,0,-8,0" VerticalAlignment="Center"/>
+        <HyperlinkButton x:Name="BotaoConta" x:FieldModifier="internal" Grid.Column="2" Padding="8,4" Margin="0,0,-8,0" VerticalAlignment="Center"/>
       </Grid>
 
       <!-- Conta lida neste computador (nunca o token). -->
@@ -61,10 +42,10 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
         <PersonPicture x:Name="FotoConta" x:FieldModifier="internal" Width="64" Height="64" VerticalAlignment="Top"/>
         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-          <TextBlock TextAlignment="Left" x:Name="TextoNomeConta" x:FieldModifier="internal" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-          <TextBlock TextAlignment="Left" x:Name="TextoEmailConta" x:FieldModifier="internal" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                     TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="True"/>
-          <HyperlinkButton HorizontalAlignment="Right" x:Name="LinkConta" x:FieldModifier="internal" Padding="0,2,0,0" FontSize="13"/>
+          <TextBlock TextAlignment="Left" x:Name="TextoNomeConta" x:FieldModifier="internal" TextTrimming="CharacterEllipsis" Style="{StaticResource PmvniAjusteTitulo}"/>
+          <TextBlock TextAlignment="Left" x:Name="TextoEmailConta" x:FieldModifier="internal"
+                     TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}"/>
+          <HyperlinkButton HorizontalAlignment="Right" x:Name="LinkConta" x:FieldModifier="internal" Padding="0,2,0,0"/>
         </StackPanel>
       </Grid>
       <TextBlock TextAlignment="Left" x:Name="TextoNotaConta" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" Visibility="Collapsed" Margin="0,0,0,10"/>
@@ -72,54 +53,50 @@
       <!-- Assinatura. -->
       <Grid Style="{StaticResource LinhaCartao}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <FontIcon Glyph="&#xE8C7;" Style="{StaticResource IconeLinha}"/>
-        <TextBlock TextAlignment="Left" Grid.Column="1" Text="Assinatura" Style="{StaticResource TituloLinha}"/>
-        <TextBlock TextAlignment="Left" x:Name="TextoAssinatura" x:FieldModifier="internal" Grid.Column="2" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        <FontIcon Glyph="{x:Bind local:Glifos.Documento}" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource IconeLinha}"/>
+        <TextBlock TextAlignment="Left" Grid.Column="1" Text="Assinatura" Style="{StaticResource PmvniAjusteTitulo}"/>
+        <TextBlock TextAlignment="Left" x:Name="TextoAssinatura" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniAjusteAjuda}"/>
       </Grid>
 
       <!-- Programa: o achado neste computador ou o escolhido. -->
       <Grid Style="{StaticResource LinhaCartao}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <FontIcon Glyph="&#xE943;" Style="{StaticResource IconeLinha}"/>
+        <FontIcon Glyph="{x:Bind local:Glifos.Engrenagem}" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock TextAlignment="Left" x:Name="TituloPrograma" x:FieldModifier="internal" Text="Programa" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Left" x:Name="TituloPrograma" x:FieldModifier="internal" Text="Programa" Style="{StaticResource PmvniAjusteTitulo}"/>
           <TextBlock TextAlignment="Left" x:Name="TextoPrograma" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
-          <TextBlock TextAlignment="Left" x:Name="TextoMensagem" x:FieldModifier="internal" TextWrapping="Wrap" FontSize="12" Visibility="Collapsed"
-                     Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+          <TextBlock TextAlignment="Left" x:Name="TextoMensagem" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
         <local:SeloEstado x:Name="SeloPrograma" x:FieldModifier="internal" Grid.Column="2"/>
-        <StackPanel x:Name="PainelBotoesPrograma" x:FieldModifier="internal" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
-          <Button x:Name="BotaoEscolherPrograma" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Escolher programa…"
+        <StackPanel x:Name="PainelBotoesPrograma" x:FieldModifier="internal" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                    Background="{ThemeResource SubtleFillColorTransparentBrush}">
+          <Button x:Name="BotaoEscolherPrograma" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Alterar…"
                   local:Dicas.Descricao="Escolhe no computador o programa da IA, se o app não achou o certo."/>
-          <Button x:Name="BotaoProgramaPadrao" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Usar o padrão"
-                  local:Dicas.Descricao="Volta a usar o programa da IA achado sozinho neste computador."/>
+          <Button x:Name="BotaoProgramaPadrao" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Usar padrão"/>
         </StackPanel>
       </Grid>
 
       <!-- Situação: consultada sozinha ao abrir a página; Testar confere de novo (só comandos locais, nada vai ao modelo). -->
       <Grid Style="{StaticResource LinhaCartao}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <FontIcon Glyph="&#xE9D9;" Style="{StaticResource IconeLinha}"/>
+        <FontIcon Glyph="{x:Bind local:Glifos.Situacao}" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock TextAlignment="Left" Text="Situação" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Left" Text="Situação" Style="{StaticResource PmvniAjusteTitulo}"/>
           <TextBlock TextAlignment="Left" x:Name="TextoSituacao" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
-          <TextBlock TextAlignment="Left" x:Name="TextoAvisosDoTeste" x:FieldModifier="internal" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
-                     Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+          <TextBlock TextAlignment="Left" x:Name="TextoAvisosDoTeste" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
-        <Button x:Name="BotaoTestar" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource BotaoPequeno}" Content="Testar" MinWidth="80" VerticalAlignment="Top"
-                local:Dicas.Descricao="Confere de novo se o programa e a conta da IA estão prontos; nada vai à IA."/>
+        <Button x:Name="BotaoTestar" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Testar" MinWidth="80" VerticalAlignment="Top"/>
       </Grid>
 
       <!-- Plugin analise (no Codex para o ChatGPT; no Claude Code para o Claude). -->
       <Grid x:Name="LinhaPluginAnalise" x:FieldModifier="internal" Style="{StaticResource LinhaCartao}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <FontIcon Glyph="&#xEA86;" Style="{StaticResource IconeLinha}"/>
+        <FontIcon Glyph="{x:Bind local:Glifos.Ia}" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock TextAlignment="Left" x:Name="TituloPluginAnalise" x:FieldModifier="internal" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Left" x:Name="TituloPluginAnalise" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}"/>
           <TextBlock TextAlignment="Left" x:Name="TextoPluginAnalise" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
-          <TextBlock TextAlignment="Left" x:Name="TextoPluginAnaliseNovo" x:FieldModifier="internal" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
-                     Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+          <TextBlock TextAlignment="Left" x:Name="TextoPluginAnaliseNovo" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
         <local:SeloEstado x:Name="SeloPluginAnalise" x:FieldModifier="internal" Grid.Column="2"/>
       </Grid>
@@ -127,12 +104,11 @@
       <!-- Rota Claude (ou Gemini) do plugin analise no Codex (só nos cartões do Claude e do Gemini: é o que a análise deles usa). -->
       <Grid x:Name="LinhaPluginPro" x:FieldModifier="internal" Style="{StaticResource LinhaCartao}" Visibility="Collapsed">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <FontIcon Glyph="&#xEA86;" Style="{StaticResource IconeLinha}"/>
+        <FontIcon Glyph="{x:Bind local:Glifos.Ia}" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock TextAlignment="Left" x:Name="TituloPluginPro" x:FieldModifier="internal" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Left" x:Name="TituloPluginPro" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}"/>
           <TextBlock TextAlignment="Left" x:Name="TextoPluginPro" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
-          <TextBlock TextAlignment="Left" x:Name="TextoPluginProNovo" x:FieldModifier="internal" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
-                     Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+          <TextBlock TextAlignment="Left" x:Name="TextoPluginProNovo" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
         <local:SeloEstado x:Name="SeloPluginPro" x:FieldModifier="internal" Grid.Column="2"/>
       </Grid>
@@ -141,9 +117,9 @@
       <Grid Style="{StaticResource LinhaCartao}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <FontIcon Glyph="&#xE192;" Style="{StaticResource IconeLinha}"/>
+        <FontIcon Glyph="&#xE192;" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock TextAlignment="Left" Text="Chave de API" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Left" Text="Chave de API" Style="{StaticResource PmvniAjusteTitulo}"/>
           <TextBlock TextAlignment="Left" x:Name="TextoChave" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
         <local:SeloEstado x:Name="SeloChave" x:FieldModifier="internal" Grid.Column="2"/>
@@ -162,11 +138,10 @@
           <TextBlock TextAlignment="Left" x:Name="TextoMatriz" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" Visibility="Collapsed" IsTextSelectionEnabled="True"/>
           <StackPanel x:Name="PainelChave" x:FieldModifier="internal" Spacing="6" Visibility="Collapsed" Margin="0,4,0,0">
             <PasswordBox x:Name="CaixaChave" x:FieldModifier="internal" PlaceholderText="Cole a chave de API aqui" MaxWidth="420" HorizontalAlignment="Left" MinWidth="280"/>
-            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
-              <Button x:Name="BotaoGuardarChave" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Guardar chave"
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Background="{ThemeResource SubtleFillColorTransparentBrush}">
+              <Button x:Name="BotaoGuardarChave" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Guardar chave"
                       local:Dicas.Descricao="Guarda a chave de API protegida pelo Windows, só para este usuário."/>
-              <Button x:Name="BotaoRemoverChave" x:FieldModifier="internal" Style="{StaticResource BotaoPequeno}" Content="Remover chave"
-                      local:Dicas.Descricao="Apaga a chave de API guardada neste computador."/>
+              <Button x:Name="BotaoRemoverChave" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Remover chave"/>
             </StackPanel>
           </StackPanel>
         </StackPanel>
@@ -175,12 +150,12 @@
       <!-- Aviso de privacidade aceito antes da primeira análise. -->
       <Grid Style="{StaticResource LinhaCartao}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <FontIcon Glyph="&#xE946;" Style="{StaticResource IconeLinha}"/>
+        <FontIcon Glyph="{x:Bind local:Glifos.Sobre}" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
-          <TextBlock TextAlignment="Left" Text="Aviso antes de analisar" Style="{StaticResource TituloLinha}"/>
+          <TextBlock TextAlignment="Left" Text="Aviso antes de analisar" Style="{StaticResource PmvniAjusteTitulo}"/>
           <TextBlock TextAlignment="Left" x:Name="TextoAviso" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
-        <Button x:Name="BotaoReverAviso" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource BotaoPequeno}" Content="Rever aviso" VerticalAlignment="Top"
+        <Button x:Name="BotaoReverAviso" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Rever aviso" VerticalAlignment="Top"
                 local:Dicas.Descricao="Mostra de novo o aviso sobre o que é enviado à IA antes de analisar."/>
       </Grid>
     </StackPanel>

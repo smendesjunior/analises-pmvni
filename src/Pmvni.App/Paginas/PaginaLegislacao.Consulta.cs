@@ -22,12 +22,18 @@ public sealed partial class PaginaLegislacao
             await Portal.EnsureCoreWebView2Async(ambiente);
             var core = Portal.CoreWebView2;
             core.HistoryChanged += (_, _) => AtualizarNavegacao();
-            core.NavigationStarting += (_, _) => { PararPortal.IsEnabled = true; SalvarPortal.IsEnabled = false; };
+            core.NavigationStarting += (_, _) =>
+            {
+                PararPortal.IsEnabled = true;
+                SalvarPortal.IsEnabled = false;
+                AtualizarDicasDoPortal();
+            };
             core.NavigationCompleted += (_, e) =>
             {
                 AtualizarNavegacao();
                 PararPortal.IsEnabled = false;
                 SalvarPortal.IsEnabled = e.IsSuccess;
+                AtualizarDicasDoPortal();
                 MostrarEstado(e.IsSuccess ? "" : "A página não carregou. Use Atualizar para tentar novamente.");
             };
             core.NewWindowRequested += (_, e) =>
@@ -40,6 +46,8 @@ public sealed partial class PaginaLegislacao
             };
             core.DownloadStarting += AbrirPdfBaixado;
             portalPronto = true;
+            InicioPortal.IsEnabled = true;
+            AtualizarDicasDoPortal();
             InicioConsulta(this, new RoutedEventArgs());
         }
         catch (Exception) { MostrarEstado("Não foi possível abrir o navegador. Use Atualizar para tentar novamente."); }
@@ -57,6 +65,21 @@ public sealed partial class PaginaLegislacao
         var core = Portal.CoreWebView2;
         VoltarPortal.IsEnabled = core.CanGoBack;
         AvancarPortal.IsEnabled = core.CanGoForward;
+        AtualizarDicasDoPortal();
+    }
+
+    void AtualizarDicasDoPortal()
+    {
+        Dicas.Aplicar(VoltarPortal, "Voltar", "Volta para a página anterior do histórico.",
+            motivo: VoltarPortal.IsEnabled ? null : "O histórico não tem página anterior.");
+        Dicas.Aplicar(AvancarPortal, "Avançar", "Avança para a próxima página do histórico.",
+            motivo: AvancarPortal.IsEnabled ? null : "O histórico não tem próxima página.");
+        Dicas.Aplicar(PararPortal, "Parar", "Interrompe o carregamento da página.",
+            motivo: PararPortal.IsEnabled ? null : "Nenhuma página está carregando.");
+        Dicas.Aplicar(InicioPortal, "Página inicial", "Abre a página inicial do Leis.org.",
+            motivo: InicioPortal.IsEnabled ? null : "Aguarde a abertura do navegador.");
+        Dicas.Aplicar(SalvarPortal, "Salvar PDF…", "Escolhe onde salvar o PDF da página atual.",
+            motivo: SalvarPortal.IsEnabled ? null : "A página precisa terminar de carregar.");
     }
 
     private void AbrirPdfBaixado(CoreWebView2 sender, CoreWebView2DownloadStartingEventArgs e)

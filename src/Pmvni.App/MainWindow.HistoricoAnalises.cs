@@ -27,7 +27,7 @@ public sealed partial class MainWindow
             MostrarMensagem(InfoBarSeverity.Informational, "Retomar análise", "Nenhuma análise pendente foi encontrada na pasta de processos.");
             return;
         }
-        var indice = await Perguntas.Atual.EscolherNaListaAsync("Retomar análise", "Escolha a execução que deseja continuar.",
+        var indice = await Perguntas.Atual.EscolherNaListaAsync("Retomar análise", "Selecione a análise pendente que deseja abrir.",
             itens.Select(h => h.Identificacao).ToArray(), 0, "Abrir");
         if (indice is int i && i >= 0 && i < itens.Count) await AbrirHistoricoAsync(itens[i]);
     }

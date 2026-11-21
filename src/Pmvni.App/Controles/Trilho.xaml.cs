@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -97,7 +97,8 @@ public sealed partial class Trilho : UserControl
                 AccessKey = Pmvni.App.Modulos.Numero(m).ToString(System.Globalization.CultureInfo.InvariantCulture),
             };
             AutomationProperties.SetName(botao, Pmvni.App.Modulos.Rotulo(m));
-            AutomationProperties.SetAcceleratorKey(botao, "Ctrl+" + Pmvni.App.Modulos.Numero(m));
+            if (Pmvni.App.Modulos.TemAtalho(m))
+                AutomationProperties.SetAcceleratorKey(botao, "Ctrl+" + Pmvni.App.Modulos.Numero(m));
             Dicas.AplicarComando(botao, Pmvni.App.Modulos.Comando(m), Pmvni.App.Modulos.Rotulo(m));
             botao.Click += (_, _) => ModuloEscolhido?.Invoke(m);
             botao.PointerEntered += (_, _) => { sob.Add(m); Pintar(m); };

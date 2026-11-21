@@ -87,6 +87,7 @@ public sealed partial class AreaDeAvisos : StackPanel
             var n = abertas.Count - MaxVisiveis;
             mais.Content = expandida ? "Mostrar menos" : n == 1 ? "+1 aviso" : $"+{n} avisos";
             AutomationProperties.SetName(mais, expandida ? "Mostrar menos avisos" : $"Mostrar mais {n} " + (n == 1 ? "aviso" : "avisos"));
+            Dicas.Aplicar(mais, AutomationProperties.GetName(mais), expandida ? "Recolhe os avisos adicionais." : "Mostra todos os avisos abertos.");
             mais.Visibility = Visibility.Visible;
         }
         else mais.Visibility = Visibility.Collapsed;

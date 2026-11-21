@@ -29,7 +29,7 @@ public sealed class GrupoMiniaturas : List<object>
     public bool Recolhido { get; }
 
     /// <summary>A seta do cabeçalho: para a direita recolhido, para baixo aberto (como no Explorador).</summary>
-    public string Glifo => Recolhido ? "" : "";
+    public string Glifo => Recolhido ? Glifos.Avancar : Glifos.Proximo;
     public string Contagem => "(" + Todos.Count.ToString(CultureInfo.InvariantCulture) + ")";
     public string Dica => Recolhido ? "Mostrar os arquivos deste grupo" : "Recolher este grupo";
 
@@ -325,19 +325,21 @@ public sealed partial class PaginaProcessos : UserControl
         if (sender is not ListViewBase visao || Recipiente(e.OriginalSource as DependencyObject) is not { Content: ItemArquivo { Linha: { } linha } item } recipiente) return;
         visao.SelectedItem = item;
         var menu = new MenuFlyout();
-        void Entrada(string texto, string glifo, AcaoArquivo acao)
+        void Entrada(string texto, string glifo, AcaoArquivo acao, string? tecla = null)
         {
-            var entrada = new MenuFlyoutItem { Text = texto, Icon = new FontIcon { Glyph = glifo } };
+            var entrada = new MenuFlyoutItem { Text = texto, Icon = new FontIcon { Glyph = glifo, FontSize = 16 } };
+            if (tecla is not null) entrada.KeyboardAcceleratorTextOverride = tecla;
             entrada.Click += (_, _) => AcaoPedida?.Invoke(acao);
             menu.Items.Add(entrada);
         }
         Entrada(linha.Tipo switch
         {
             TipoLinhaDetalhe.Relatorio => "Abrir relatório",
-            TipoLinhaDetalhe.Analise => "Importar análise e abrir",
+            TipoLinhaDetalhe.Analise => "Importar análise",
             _ => "Abrir arquivo",
-        }, Glifos.Abrir, AcaoArquivo.Abrir);
+        }, linha.Tipo == TipoLinhaDetalhe.Analise ? Glifos.ImportarAnalise : Glifos.Abrir, AcaoArquivo.Abrir, "Enter");
         Entrada("Mostrar no Explorador", Glifos.Explorador, AcaoArquivo.MostrarNoExplorador);
+        menu.Items.Add(new MenuFlyoutSeparator());
         Entrada("Copiar caminho", Glifos.Copiar, AcaoArquivo.CopiarCaminho);
         UltimoMenuDeArquivo = menu;
         if (e.TryGetPosition(recipiente, out var ponto)) menu.ShowAt(recipiente, new FlyoutShowOptions { Position = ponto });

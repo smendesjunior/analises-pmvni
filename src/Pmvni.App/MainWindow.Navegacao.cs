@@ -27,7 +27,14 @@ public sealed partial class MainWindow
     {
         BotaoPesquisaAnterior.IsEnabled = !percorrendoPaginas && paginaVisitada > 0;
         BotaoPesquisaProxima.IsEnabled = !percorrendoPaginas && paginaVisitada + 1 < paginasVisitadas.Count;
+        Dicas.Aplicar(BotaoPesquisaAnterior, "Página anterior", "Volta para a página visitada anteriormente.",
+            motivo: MotivoNavegacao(BotaoPesquisaAnterior.IsEnabled, "Não há uma página anterior no histórico."));
+        Dicas.Aplicar(BotaoPesquisaProxima, "Próxima página", "Avança pelo histórico de páginas.",
+            motivo: MotivoNavegacao(BotaoPesquisaProxima.IsEnabled, "Não há uma página seguinte no histórico."));
     }
+
+    string? MotivoNavegacao(bool habilitado, string motivo) =>
+        habilitado ? null : percorrendoPaginas ? "Aguarde a navegação terminar." : motivo;
 
     async Task PercorrerPaginasAsync(int direcao)
     {

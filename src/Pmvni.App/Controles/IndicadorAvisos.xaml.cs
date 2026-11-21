@@ -36,8 +36,8 @@ public sealed partial class IndicadorAvisos : UserControl
         }
         var critico = AvisosLayout.Bloqueia(lista);
         Texto.Text = AvisosLayout.Resumo(lista);
-        Texto.Style = (Style)Resources[critico ? "TextoCritico" : "TextoNormal"];
-        Icone.Style = (Style)Resources[critico ? "IconeCritico" : "IconeNormal"];
+        Texto.Style = critico ? (Style)Resources["TextoCritico"] : (Style)Application.Current.Resources["PmvniSecondaryTextStyle"];
+        Icone.Style = (Style)Application.Current.Resources[critico ? "PmvniIconeAcaoCritico" : "PmvniIconeAcaoSecundario"];
         AutomationProperties.SetName(Botao, Texto.Text + ": abrir a lista");
         Dicas.Aplicar(Botao, "Avisos de layout", "Abre a lista dos problemas de layout das folhas, com o caminho até cada um.",
             motivo: critico ? "Há blocos maiores que a página: a exportação do PDF está bloqueada." : null);

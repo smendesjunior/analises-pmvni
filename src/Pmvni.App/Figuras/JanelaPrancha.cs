@@ -34,14 +34,14 @@ internal sealed class JanelaPrancha : Window
     readonly string? depoisDe;
 
     readonly Grid vazio = PainelPrancha.Cartao();
-    readonly Button abrirNoCentro = new() { Content = "Escolher arquivo PDF",
+    readonly Button abrirNoCentro = new() { Content = "Escolher arquivo…",
         Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"], HorizontalAlignment = HorizontalAlignment.Center };
     readonly Grid raiz = new();
     readonly ComboBox arquivos = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Escolha o PDF das pranchas" };
     readonly Button escolher = new() { Content = "Escolher arquivo…" };
-    readonly AppBarButton anterior = new() { Icon = new SymbolIcon(Symbol.Back), Label = "Página anterior" };
-    readonly AppBarButton proxima = new() { Icon = new SymbolIcon(Symbol.Forward), Label = "Próxima página" };
-    readonly TextBlock textoPagina = new() { VerticalAlignment = VerticalAlignment.Center, Text = "Nenhuma página", TextAlignment = TextAlignment.Left };
+    readonly AppBarButton anterior = new() { Icon = new FontIcon { Glyph = Glifos.Anterior, FontSize = 16 }, Label = "Página anterior" };
+    readonly AppBarButton proxima = new() { Icon = new FontIcon { Glyph = Glifos.Proximo, FontSize = 16 }, Label = "Próxima página" };
+    readonly TextBlock textoPagina = new() { VerticalAlignment = VerticalAlignment.Center, Text = "Nenhuma página", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
     readonly ScrollViewer rolagem = new() { ZoomMode = ZoomMode.Enabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MinZoomFactor = .1f, MaxZoomFactor = 8 }; // o WinUI recusa mínimo abaixo de 0,1 (a janela não abria)
     readonly Grid superficie = new() { Background = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     readonly Image pagina = new() { Stretch = Stretch.Fill };
@@ -51,14 +51,14 @@ internal sealed class JanelaPrancha : Window
     readonly TextBox caixaTitulo = new() { Header = "Título da figura", Text = "Recorte da prancha", TextWrapping = TextWrapping.Wrap };
     readonly Button inserir = new() { Content = "Inserir no relatório", IsEnabled = false };
     readonly Button cancelar = new() { Content = "Cancelar" };
-    readonly TextBlock estado = new() { TextAlignment = TextAlignment.Left, HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, Opacity = .8, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock estado = new() { TextAlignment = TextAlignment.Left, HorizontalAlignment = HorizontalAlignment.Left, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] };
     readonly InfoBar aviso = new() { Severity = InfoBarSeverity.Warning, IsClosable = true };
     readonly Border progresso = Trabalhando.Quadro("Trabalhando…");
     readonly Viewbox previa = new() { Stretch = Stretch.Uniform, MaxHeight = 240, Visibility = Visibility.Collapsed };
-    readonly TextBlock orientacao = new() { Text = "Arraste sobre a página para selecionar a região da figura.", TextWrapping = TextWrapping.Wrap };
-    readonly AppBarButton limpar = new() { Icon = new SymbolIcon(Symbol.Clear), Label = "Limpar recorte" };
-    readonly AppBarButton selecionarTudo = new() { Icon = new SymbolIcon(Symbol.SelectAll), Label = "Selecionar página" };
-    readonly TextBlock textoZoom = new() { Text = "100%", VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock orientacao = new() { Text = "Arraste sobre a página para selecionar a região da figura.", Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] };
+    readonly AppBarButton limpar = new() { Icon = new FontIcon { Glyph = "\uE894", FontSize = 16 }, Label = "Limpar recorte" };
+    readonly AppBarButton selecionarTudo = new() { Icon = new FontIcon { Glyph = "\uE8B3", FontSize = 16 }, Label = "Selecionar página" };
+    readonly TextBlock textoZoom = new() { Text = "100%", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
     readonly CommandBar ferramentas = new() { HorizontalAlignment = HorizontalAlignment.Left, DefaultLabelPosition = CommandBarDefaultLabelPosition.Right, IsDynamicOverflowEnabled = true };
 
     PdfDocument? documento;
@@ -113,26 +113,28 @@ internal sealed class JanelaPrancha : Window
         arquivoLinha.Children.Add(arquivos);
         Grid.SetColumn(escolher, 1);
         arquivoLinha.Children.Add(escolher);
-        topo.Children.Add(new TextBlock { Text = "PDF DAS PRANCHAS", Margin = new Thickness(16, 10, 16, 0),
-            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] });
+        topo.Children.Add(new TextBlock { Text = "PDF das pranchas", Margin = new Thickness(16, 10, 16, 0),
+            Style = (Style)Application.Current.Resources["PmvniPainelRotulo"] });
         topo.Children.Add(arquivoLinha);
         ferramentas.PrimaryCommands.Add(anterior);
         ferramentas.PrimaryCommands.Add(proxima);
         ferramentas.PrimaryCommands.Add(new AppBarSeparator());
-        var menos = new AppBarButton { Icon = new SymbolIcon(Symbol.ZoomOut), Label = "Diminuir" };
-        var mais = new AppBarButton { Icon = new SymbolIcon(Symbol.ZoomIn), Label = "Aumentar" };
-        var ajustar = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.PaginaInteira }, Label = "Página inteira" };
+        var menos = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Diminuir, FontSize = 16 }, Label = "Diminuir o zoom" };
+        var mais = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Aumentar, FontSize = 16 }, Label = "Aumentar o zoom" };
+        var ajustar = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.PaginaInteira, FontSize = 16 }, Label = "Página inteira" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(menos, "Diminuir");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(mais, "Aumentar");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(anterior, "Página anterior");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(proxima, "Próxima página");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(arquivos, "PDF das pranchas");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ajustar, ajustar.Label);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(selecionarTudo, selecionarTudo.Label);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(limpar, limpar.Label);
         Dicas.Aplicar(escolher, "Escolher arquivo…", "Escolhe no computador outro PDF de prancha para recortar.");
-        Dicas.Aplicar(anterior, "Página anterior", "Volta para a página anterior do PDF.");
-        Dicas.Aplicar(proxima, "Próxima página", "Avança para a próxima página do PDF.");
-        Dicas.Aplicar(menos, "Diminuir", "Diminui o zoom da prancha.");
-        Dicas.Aplicar(mais, "Aumentar", "Aumenta o zoom da prancha, para recortar com mais precisão.");
+        Dicas.Aplicar(abrirNoCentro, "Escolher arquivo…", "Escolhe no computador o PDF de prancha para recortar.");
+        Dicas.Aplicar(menos, menos.Label, "Diminui o zoom da prancha.");
+        Dicas.Aplicar(mais, mais.Label, "Aumenta o zoom da prancha, para recortar com mais precisão.");
         Dicas.Aplicar(ajustar, "Página inteira", "Ajusta o zoom para a página inteira caber na janela.");
-        Dicas.Aplicar(inserir, "Inserir no relatório", "Insere a região marcada como figura nova no relatório.");
         Dicas.Aplicar(cancelar, "Cancelar", "Fecha esta janela sem inserir nada.");
         menos.Click += (_, _) => rolagem.ChangeView(null, null, Math.Max(rolagem.MinZoomFactor, rolagem.ZoomFactor / 1.25f));
         mais.Click += (_, _) => rolagem.ChangeView(null, null, Math.Min(rolagem.MaxZoomFactor, rolagem.ZoomFactor * 1.25f));
@@ -172,29 +174,29 @@ internal sealed class JanelaPrancha : Window
         vazio.Margin = new Thickness(12);
         vazio.Padding = new Thickness(24);
         var mensagem = new StackPanel { Spacing = 16 };
-        mensagem.Children.Add(new SymbolIcon(Symbol.Document));
+        mensagem.Children.Add(new FontIcon { Glyph = Glifos.Documento, FontSize = 16 });
         mensagem.Children.Add(new TextBlock { Text = "Nenhum PDF carregado", TextAlignment = TextAlignment.Center,
-            Style = (Style)Application.Current.Resources["SubtitleTextBlockStyle"] });
+            Style = (Style)Application.Current.Resources["PmvniTituloPaginaStyle"] });
         mensagem.Children.Add(new TextBlock { Text = "Selecione o PDF das pranchas ou escolha um arquivo do computador para visualizar as páginas.",
-            TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center });
+            Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], TextAlignment = TextAlignment.Center });
         mensagem.Children.Add(abrirNoCentro);
         abrirNoCentro.Click += async (_, _) => await EscolherArquivoAsync();
         vazio.Children.Add(mensagem);
         area.Children.Add(vazio);
-        var desenho = PainelPrancha.Quadro(PainelPrancha.Titulo("PRÉ-VISUALIZAÇÃO DA PRANCHA"), area, Symbol.Crop);
+        var desenho = PainelPrancha.Quadro(new TextBlock { Text = "Pré-visualização da prancha", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] }, area, Symbol.Crop);
         desenho.Margin = new Thickness(12, 12, 6, 12);
         Grid.SetRow(desenho, 2);
         raiz.Children.Add(desenho);
 
         var lateral = new StackPanel { Spacing = 14, Padding = new Thickness(16) };
-        lateral.Children.Add(new TextBlock { Text = "IDENTIFICAÇÃO", Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] });
+        lateral.Children.Add(new TextBlock { Text = "Identificação", Style = (Style)Application.Current.Resources["PmvniPainelRotulo"] });
         lateral.Children.Add(caixaPrancha);
         lateral.Children.Add(caixaTitulo);
-        lateral.Children.Add(new TextBlock { Text = "Prévia do recorte", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        lateral.Children.Add(new TextBlock { Text = "Prévia do recorte", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
         lateral.Children.Add(orientacao);
         lateral.Children.Add(previa);
         var painel = new ScrollViewer { Content = lateral, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        var dados = PainelPrancha.Quadro(PainelPrancha.Titulo("Nova figura"), painel, Symbol.Crop);
+        var dados = PainelPrancha.Quadro(new TextBlock { Text = "Nova figura", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] }, painel, Symbol.Crop);
         dados.Margin = new Thickness(6, 12, 12, 12);
         Grid.SetRow(dados, 2);
         Grid.SetColumn(dados, 1);
@@ -206,6 +208,7 @@ internal sealed class JanelaPrancha : Window
         var acoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         inserir.Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"];
         inserir.VerticalAlignment = cancelar.VerticalAlignment = VerticalAlignment.Bottom;
+        cancelar.MinHeight = 36;
         acoes.Children.Add(inserir);
         acoes.Children.Add(cancelar);
         Grid.SetColumn(acoes, 1);
@@ -275,6 +278,19 @@ internal sealed class JanelaPrancha : Window
         proxima.IsEnabled = livre && documento is not null && indicePagina + 1 < documento.PageCount;
         inserir.IsEnabled = livre && paginaPronta && inicio is null && recorte is { Width: > 8, Height: > 8 } && previa.Child is not null;
         limpar.IsEnabled = livre && recorte is not null;
+        var bloqueio = !SessaoValida ? "Abra um relatório editável para inserir o recorte."
+            : !livre ? "Aguarde a operação atual."
+            : !paginaPronta ? "Abra uma página do PDF." : null;
+        Dicas.Aplicar(anterior, anterior.Label, "Volta para a página anterior do PDF.",
+            motivo: anterior.IsEnabled ? null : bloqueio ?? "Esta é a primeira página.");
+        Dicas.Aplicar(proxima, proxima.Label, "Avança para a próxima página do PDF.",
+            motivo: proxima.IsEnabled ? null : bloqueio ?? "Esta é a última página.");
+        Dicas.Aplicar(selecionarTudo, selecionarTudo.Label, "Seleciona a página inteira como região do recorte.",
+            motivo: selecionarTudo.IsEnabled ? null : bloqueio);
+        Dicas.Aplicar(limpar, limpar.Label, "Limpa a região selecionada na página.",
+            motivo: limpar.IsEnabled ? null : bloqueio ?? "Nenhuma região selecionada.");
+        Dicas.Aplicar(inserir, "Inserir no relatório", "Insere a região marcada como figura nova no relatório.",
+            motivo: inserir.IsEnabled ? null : bloqueio ?? "Selecione uma região para inserir.");
         caixaPrancha.IsEnabled = caixaTitulo.IsEnabled = livre;
         progresso.Visibility = ocupado ? Visibility.Visible : Visibility.Collapsed;
     }

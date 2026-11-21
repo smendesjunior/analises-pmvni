@@ -1,14 +1,13 @@
-using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Shapes;
 
 namespace Pmvni.App;
 
 /// <summary>Etiqueta de situação da lista de seções (correções 2026-11-15): a "pill" do relatório (ponto + texto em caixa alta, cores do kit,
-/// com variante para o tema escuro: <see cref="EtiquetasSituacao"/>). É um botão: clicar abre o menu das situações (quem liga é a janela).</summary>
+/// com cores do tema conforme <see cref="EtiquetasSituacao"/>). É um botão: clicar abre o menu das situações (quem liga é a janela).</summary>
 public sealed partial class EtiquetaSituacao : Button
 {
     public static readonly DependencyProperty SituacaoProperty = DependencyProperty.Register(
@@ -17,19 +16,21 @@ public sealed partial class EtiquetaSituacao : Button
     readonly Ellipse ponto = new() { Width = 7, Height = 7, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock texto = new()
     {
-        FontSize = 10.5, FontWeight = FontWeights.Bold, CharacterSpacing = 30, VerticalAlignment = VerticalAlignment.Center,
+        Style = (Style)Application.Current.Resources["PmvniPainelCartaoTitulo"],
         TextWrapping = TextWrapping.NoWrap,
     };
 
     public EtiquetaSituacao()
     {
         if (Application.Current.Resources.TryGetValue("PmvniEtiquetaSituacaoStyle", out var estilo) && estilo is Style s) Style = s;
+        var cor = new Binding { Source = this, Path = new PropertyPath(nameof(Foreground)) };
+        ponto.SetBinding(Shape.FillProperty, cor);
+        texto.SetBinding(TextBlock.ForegroundProperty, new Binding { Source = this, Path = new PropertyPath(nameof(Foreground)) });
         var painel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
         painel.Children.Add(ponto);
         painel.Children.Add(texto);
         Content = painel;
         Visibility = Visibility.Collapsed; // sem situação (seções, capa, figuras), nada aparece
-        ActualThemeChanged += (_, _) => Aplicar();
     }
 
     public static readonly DependencyProperty CompactaProperty = DependencyProperty.Register(
@@ -64,23 +65,35 @@ public sealed partial class EtiquetaSituacao : Button
     {
         texto.Text = EtiquetasSituacao.Texto(Situacao);
         AutomationProperties.SetName(this, EtiquetasSituacao.NomeAcessivel(Situacao));
-        if (!Mostrar || EtiquetasSituacao.Cores(Situacao, ActualTheme == ElementTheme.Dark) is not { } c)
+        var estilo = EtiquetasSituacao.Classe(Situacao) switch
+        {
+            "g" => "PmvniEtiquetaSituacaoSucesso",
+            "a" => "PmvniEtiquetaSituacaoAtencao",
+            "o" => "PmvniEtiquetaSituacaoDivergente",
+            "r" => "PmvniEtiquetaSituacaoCritico",
+            _ => null,
+        };
+        if (!Mostrar || estilo is null)
         {
             Visibility = Visibility.Collapsed;
             return;
         }
+        Style = (Style)Application.Current.Resources[estilo];
         Visibility = Visibility.Visible;
         var dica = DicasComandos.Livre("Situação: " + texto.Text, "Clique para mudar a situação deste item.");
         if (Dicas.De(this) != dica) Dicas.Aplicar(this, dica);
         texto.Visibility = Compacta ? Visibility.Collapsed : Visibility.Visible;
         ponto.Width = ponto.Height = Compacta ? 10 : 7;
-        Background = Compacta ? new SolidColorBrush(Microsoft.UI.Colors.Transparent) : Pincel(c.Fundo);
-        BorderBrush = Compacta ? new SolidColorBrush(Microsoft.UI.Colors.Transparent) : Pincel(c.Borda);
-        if (Compacta) Padding = new Thickness(4); else ClearValue(PaddingProperty);
-        texto.Foreground = Pincel(c.Texto);
-        ponto.Fill = Pincel(c.Ponto);
+        if (Compacta)
+        {
+            Padding = new Thickness(4);
+            Background = BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SubtleFillColorTransparentBrush"];
+        }
+        else
+        {
+            ClearValue(PaddingProperty);
+            ClearValue(BackgroundProperty);
+            ClearValue(BorderBrushProperty);
+        }
     }
-
-    static SolidColorBrush Pincel(uint argb) =>
-        new(Microsoft.UI.ColorHelper.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb));
 }

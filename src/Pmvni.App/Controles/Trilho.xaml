@@ -1,4 +1,4 @@
-<UserControl x:Class="Pmvni.App.Trilho"
+﻿<UserControl x:Class="Pmvni.App.Trilho"
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!-- Trilho de módulos (como o Gmail): ícone colorido sobre um fundo arredondado no módulo ativo, barrinha 3 x 16 e rótulo; Ajustes

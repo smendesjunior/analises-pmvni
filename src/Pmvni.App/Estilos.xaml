@@ -18,8 +18,9 @@
     <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
   </Style>
+  <!-- 3.2.0: conteúdo à esquerda, como nas caixas de seleção do Windows 11 (centralizado parecia botão e cortava textos longos). -->
   <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
-    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
   </Style>
   <!-- Medidas comuns das páginas (painéis laterais e margens). -->
@@ -109,20 +110,43 @@
     <Setter Property="Background" Value="{ThemeResource SystemFillColorNeutralBackgroundBrush}"/>
     <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
   </Style>
-  <Style x:Key="PmvniIconeSeloSucesso" TargetType="FontIcon">
+  <Style x:Key="PmvniIconeAcao" TargetType="FontIcon">
+    <Setter Property="FontFamily" Value="{ThemeResource SymbolThemeFontFamily}"/>
+    <Setter Property="FontSize" Value="16"/>
+  </Style>
+  <Style x:Key="PmvniIconeAcaoSucesso" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeAcao}">
     <Setter Property="Foreground" Value="{ThemeResource SystemFillColorSuccessBrush}"/>
   </Style>
-  <Style x:Key="PmvniIconeSeloAtencao" TargetType="FontIcon">
+  <Style x:Key="PmvniIconeAcaoAtencao" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeAcao}">
     <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}"/>
   </Style>
-  <Style x:Key="PmvniIconeSeloErro" TargetType="FontIcon">
+  <Style x:Key="PmvniIconeAcaoCritico" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeAcao}">
     <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
   </Style>
-  <Style x:Key="PmvniIconeSeloNeutro" TargetType="FontIcon">
+  <Style x:Key="PmvniIconeAcaoSecundario" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeAcao}">
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+  </Style>
+  <Style x:Key="PmvniIconeSeloBase" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeAcao}">
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+  <Style x:Key="PmvniTextoSeloSucesso" TargetType="TextBlock" BasedOn="{StaticResource PmvniSecondaryTextStyle}">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorSuccessBrush}"/>
+  </Style>
+
+  <Style x:Key="PmvniIconeSeloSucesso" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeSeloBase}">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorSuccessBrush}"/>
+  </Style>
+  <Style x:Key="PmvniIconeSeloAtencao" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeSeloBase}">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}"/>
+  </Style>
+  <Style x:Key="PmvniIconeSeloErro" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeSeloBase}">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+  </Style>
+  <Style x:Key="PmvniIconeSeloNeutro" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeSeloBase}">
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
   </Style>
 
-  <!-- Etiqueta de situação da lista de seções (a "pill" do relatório): as cores vêm de EtiquetaSituacao (kit, claro e escuro); o
+  <!-- Etiqueta de situação da lista de seções (a "pill" do relatório): as cores vêm dos recursos de tema conforme a classe do kit; o
        modelo só desenha o fundo, a borda e um véu ao passar o mouse ou clicar. -->
   <Style x:Key="PmvniEtiquetaSituacaoStyle" TargetType="Button">
     <Setter Property="Padding" Value="7,2,9,3"/>
@@ -148,19 +172,40 @@
                 <VisualState x:Name="Pressed">
                   <VisualState.Setters>
                     <Setter Target="Veu.Opacity" Value="1"/>
-                    <Setter Target="Veu.Background" Value="{ThemeResource PmvniTonalFundoPressionado}"/>
+                    <Setter Target="Veu.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}"/>
                   </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="Disabled"/>
               </VisualStateGroup>
             </VisualStateManager.VisualStateGroups>
-            <Border x:Name="Veu" Background="{ThemeResource PmvniTonalFundoSobre}" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}"/>
+            <Border x:Name="Veu" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}"/>
             <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"
                               HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
           </Grid>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
+  </Style>
+
+  <Style x:Key="PmvniEtiquetaSituacaoSucesso" TargetType="Button" BasedOn="{StaticResource PmvniEtiquetaSituacaoStyle}">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorSuccessBrush}"/>
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorSuccessBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniEtiquetaSituacaoAtencao" TargetType="Button" BasedOn="{StaticResource PmvniEtiquetaSituacaoStyle}">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}"/>
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCautionBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniEtiquetaSituacaoDivergente" TargetType="Button" BasedOn="{StaticResource PmvniEtiquetaSituacaoStyle}">
+    <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+    <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="PmvniEtiquetaSituacaoCritico" TargetType="Button" BasedOn="{StaticResource PmvniEtiquetaSituacaoStyle}">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}"/>
   </Style>
 
   <!-- Item do trilho de módulos (como o Gmail): 68 x 66, ícone colorido de 28 px sobre um fundo arredondado 56 x 36 que só aparece no módulo
@@ -183,15 +228,18 @@
     <Setter Property="Background" Value="Transparent"/>
   </Style>
   <Style x:Key="PmvniTrilhoFundoAtivoStyle" TargetType="Border">
-    <Setter Property="Background" Value="{ThemeResource PmvniTrilhoSelecionado}"/>
-    <Setter Property="BorderBrush" Value="{ThemeResource PmvniTrilhoSelecionadoBorda}"/>
+    <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
     <Setter Property="BorderThickness" Value="2"/>
   </Style>
   <Style x:Key="PmvniTrilhoFundoSobreStyle" TargetType="Border">
-    <Setter Property="Background" Value="{ThemeResource PmvniTonalFundoSobre}"/>
+    <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
   </Style>
   <Style x:Key="PmvniTrilhoFundoPressionadoStyle" TargetType="Border">
-    <Setter Property="Background" Value="{ThemeResource PmvniTonalFundoPressionado}"/>
+    <Setter Property="Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}"/>
+  </Style>
+  <Style x:Key="PmvniTrilhoIconeStyle" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeAcao}">
+    <Setter Property="FontSize" Value="20"/>
   </Style>
   <Style x:Key="PmvniTrilhoRotuloStyle" TargetType="TextBlock">
     <Setter Property="TextAlignment" Value="Center"/>
@@ -207,12 +255,20 @@
     <Setter Property="TextAlignment" Value="Center"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
-    <Setter Property="FontWeight" Value="Normal"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
 
   <Style x:Key="PmvniBotaoPrimarioStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
     <Setter Property="local:Brilho.Ativo" Value="True"/>
     <Setter Property="MinHeight" Value="36"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+
+  <Style x:Key="PmvniFaixaMenuPrimarioStyle" TargetType="DropDownButton">
+    <Setter Property="Background" Value="{ThemeResource AccentButtonBackground}"/>
+    <Setter Property="Foreground" Value="{ThemeResource AccentButtonForeground}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource AccentButtonBorderBrush}"/>
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>

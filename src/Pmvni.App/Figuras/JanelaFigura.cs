@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -32,8 +32,8 @@ internal sealed class JanelaFigura : Window
     readonly string figuraId;
 
     // ---------- controles ----------
-    readonly TextBlock tituloPrancha = PainelPrancha.Titulo("");
-    readonly TextBlock modoAtual = PainelPrancha.Titulo("Selecionar");
+    readonly TextBlock tituloPrancha = new() { Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"], TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
+    readonly TextBlock modoAtual = new() { Text = "Selecionar", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
     readonly Grid raiz = new();
     readonly ScrollViewer rolagem = new() { ZoomMode = ZoomMode.Enabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MinZoomFactor = .1f, MaxZoomFactor = 8 };
     readonly Grid superficie = new() { Background = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
@@ -47,17 +47,17 @@ internal sealed class JanelaFigura : Window
     readonly TextBox caixaFonte = new() { Header = "Fonte" };
     readonly ListView listaMarcacoes = new() { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 220 };
     readonly StackPanel painelMarcacao = new() { Spacing = 8 };
-    readonly TextBlock tituloMarcacao = new() { Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] };
+    readonly TextBlock tituloMarcacao = new() { Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] };
     readonly TextBox caixaElemento = new() { Header = "O que é (negrito na legenda)" };
     readonly TextBox caixaTexto = new() { Header = "Solução ou o que foi conferido", AcceptsReturn = false, TextWrapping = TextWrapping.Wrap };
     readonly ListView listaItens = new() { SelectionMode = ListViewSelectionMode.Multiple, MaxHeight = 220, Header = "Itens ligados a esta marcação" };
     readonly Button botaoRemover = new() { Content = "Remover marcação" };
     // Um botão desabilitado não mostra dica: o motivo de não poder remover fica escrito embaixo dele.
-    readonly TextBlock motivoRemover = new() { TextWrapping = TextWrapping.Wrap, Opacity = .8, Visibility = Visibility.Collapsed };
-    readonly TextBlock estado = new() { HorizontalAlignment = HorizontalAlignment.Left, TextAlignment = TextAlignment.Left, Opacity = .8, TextWrapping = TextWrapping.Wrap };
-    readonly AppBarButton botaoDesfazer = new() { Icon = new SymbolIcon(Symbol.Undo), Label = "Desfazer" };
-    readonly AppBarButton botaoRefazer = new() { Icon = new SymbolIcon(Symbol.Redo), Label = "Refazer" };
-    readonly AppBarButton botaoInserir = new() { Icon = new SymbolIcon(Symbol.Add), Label = "Inserir região da prancha" };
+    readonly TextBlock motivoRemover = new() { TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], Visibility = Visibility.Collapsed };
+    readonly TextBlock estado = new() { HorizontalAlignment = HorizontalAlignment.Left, TextAlignment = TextAlignment.Left, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] };
+    readonly AppBarButton botaoDesfazer = new() { Icon = new FontIcon { Glyph = Glifos.Desfazer, FontSize = 16 }, Label = "Desfazer" };
+    readonly AppBarButton botaoRefazer = new() { Icon = new FontIcon { Glyph = "\uE7A6", FontSize = 16 }, Label = "Refazer" };
+    readonly AppBarButton botaoInserir = new() { Icon = new FontIcon { Glyph = "\uE7A8", FontSize = 16 }, Label = "Inserir região da prancha…" };
     readonly TextBlock textoZoom = new() { Text = "100%", VerticalAlignment = VerticalAlignment.Center, MinWidth = 52, TextAlignment = TextAlignment.Center };
 
     // ---------- estado ----------
@@ -141,27 +141,26 @@ internal sealed class JanelaFigura : Window
         cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var barra = new CommandBar { DefaultLabelPosition = CommandBarDefaultLabelPosition.Right, IsDynamicOverflowEnabled = true, HorizontalAlignment = HorizontalAlignment.Left };
-        Dicas.Aplicar(botaoInserir, "Inserir região da prancha", "Recorta um PDF do projeto e insere uma nova figura depois desta.");
         botaoInserir.Click += (_, _) => host.AbrirRecortePrancha(figuraId);
         barra.PrimaryCommands.Add(botaoInserir);
         barra.PrimaryCommands.Add(new AppBarSeparator());
-        Botao(barra, FerramentaFigura.Selecionar, "", "Selecionar", "Selecionar, mover e redimensionar marcações (arraste as alças)");
-        Botao(barra, FerramentaFigura.Regiao, "", "Marcar região", "Arraste um retângulo sobre o elemento: caixa vermelha, seta e número");
-        Botao(barra, FerramentaFigura.Seta, "", "Seta", "Clique no ponto que a seta deve indicar: seta e número");
-        Botao(barra, FerramentaFigura.Texto, "", "Texto", "Clique onde o texto deve ficar e escreva no painel ao lado");
+        Botao(barra, FerramentaFigura.Selecionar, "\uE8B0", "Selecionar", "Selecionar, mover e redimensionar marcações (arraste as alças)");
+        Botao(barra, FerramentaFigura.Regiao, "\uE7E6", "Marcar região", "Arraste um retângulo sobre o elemento: caixa vermelha, seta e número");
+        Botao(barra, FerramentaFigura.Seta, Glifos.Avancar, "Seta", "Clique no ponto que a seta deve indicar: seta e número");
+        Botao(barra, FerramentaFigura.Texto, "\uE8D2", "Texto", "Clique onde o texto deve ficar e escreva no painel ao lado");
         barra.PrimaryCommands.Add(new AppBarSeparator());
         botaoDesfazer.Click += async (_, _) => await HistoricoAsync(false);
         botaoRefazer.Click += async (_, _) => await HistoricoAsync(true);
         barra.PrimaryCommands.Add(botaoDesfazer);
         barra.PrimaryCommands.Add(botaoRefazer);
-        var menos = new AppBarButton { Icon = new SymbolIcon(Symbol.ZoomOut), Label = "Diminuir", LabelPosition = CommandBarLabelPosition.Collapsed };
-        var mais = new AppBarButton { Icon = new SymbolIcon(Symbol.ZoomIn), Label = "Aumentar", LabelPosition = CommandBarLabelPosition.Collapsed };
-        var ajustar = new AppBarButton { Icon = new FontIcon { Glyph = "" }, Label = "Ajustar" };
-        Dicas.Aplicar(botaoDesfazer, "Desfazer", "Desfaz a última alteração do relatório.", "Ctrl+Z");
-        Dicas.Aplicar(botaoRefazer, "Refazer", "Refaz a última alteração desfeita do relatório.", "Ctrl+Y");
-        Dicas.Aplicar(menos, "Diminuir", "Diminui o zoom da figura.");
-        Dicas.Aplicar(mais, "Aumentar", "Aumenta o zoom da figura.");
-        Dicas.Aplicar(ajustar, "Ajustar", "Ajusta o zoom para a figura inteira caber na janela.");
+        var menos = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Diminuir, FontSize = 16 }, Label = "Diminuir o zoom", LabelPosition = CommandBarLabelPosition.Collapsed };
+        var mais = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Aumentar, FontSize = 16 }, Label = "Aumentar o zoom", LabelPosition = CommandBarLabelPosition.Collapsed };
+        var ajustar = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.PaginaInteira, FontSize = 16 }, Label = "Figura inteira" };
+        foreach (var botao in new[] { botaoInserir, botaoDesfazer, botaoRefazer, menos, mais, ajustar })
+            AutomationNome(botao, botao.Label);
+        Dicas.Aplicar(menos, menos.Label, "Diminui o zoom da figura.");
+        Dicas.Aplicar(mais, mais.Label, "Aumenta o zoom da figura.");
+        Dicas.Aplicar(ajustar, ajustar.Label, "Ajusta o zoom para a figura inteira caber na janela.");
         menos.Click += (_, _) => rolagem.ChangeView(null, null, Math.Max(rolagem.MinZoomFactor, rolagem.ZoomFactor / 1.25f));
         mais.Click += (_, _) => rolagem.ChangeView(null, null, Math.Min(rolagem.MaxZoomFactor, rolagem.ZoomFactor * 1.25f));
         ajustar.Click += (_, _) => AjustarZoom();
@@ -216,18 +215,18 @@ internal sealed class JanelaFigura : Window
         // Painel lateral
         var painel = new StackPanel { Spacing = 12, Padding = new Thickness(16) };
         painel.Children.Add(avisoGravadas);
-        painel.Children.Add(new TextBlock { Text = "DADOS DA FIGURA", HorizontalAlignment = HorizontalAlignment.Left, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        painel.Children.Add(new TextBlock { Text = "Dados da figura", HorizontalAlignment = HorizontalAlignment.Left, Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
         painel.Children.Add(caixaPrancha);
         painel.Children.Add(caixaTitulo);
         painel.Children.Add(caixaFonte);
         LigarTextoFigura(caixaPrancha, "prancha");
         LigarTextoFigura(caixaTitulo, "titulo");
         LigarTextoFigura(caixaFonte, "fonte");
-        painel.Children.Add(new TextBlock { Text = "Marcações", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], Margin = new Thickness(0, 6, 0, 0) });
+        painel.Children.Add(new TextBlock { Text = "Marcações", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"], Margin = new Thickness(0, 6, 0, 0) });
         painel.Children.Add(new TextBlock
         {
             Text = "Os números se refazem sozinhos ao incluir, remover ou mover (margem esquerda de cima para baixo, depois a direita).",
-            TextWrapping = TextWrapping.Wrap, Opacity = .75,
+            Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"],
         });
         listaMarcacoes.SelectionChanged += (_, _) =>
         {
@@ -236,6 +235,7 @@ internal sealed class JanelaFigura : Window
             Desenhar();
             PreencherMarcacao();
         };
+        AutomationNome(listaMarcacoes, "Marcações da figura");
         painel.Children.Add(listaMarcacoes);
         painelMarcacao.Children.Add(tituloMarcacao);
         painelMarcacao.Children.Add(caixaElemento);
@@ -305,7 +305,7 @@ internal sealed class JanelaFigura : Window
 
     void Botao(CommandBar barra, FerramentaFigura f, string glifo, string texto, string dica)
     {
-        var b = new AppBarToggleButton { Icon = new FontIcon { Glyph = glifo }, Label = texto };
+        var b = new AppBarToggleButton { Icon = new FontIcon { Glyph = glifo, FontSize = 16 }, Label = texto };
         Pilulas.Estilizar(b);
         Dicas.Aplicar(b, texto, dica.EndsWith('.') ? dica : dica + ".");
         AutomationNome(b, texto);
@@ -396,6 +396,12 @@ internal sealed class JanelaFigura : Window
         caixaPrancha.IsReadOnly = caixaTitulo.IsReadOnly = caixaFonte.IsReadOnly = caixaElemento.IsReadOnly = caixaTexto.IsReadOnly = somenteLeitura;
         botaoDesfazer.IsEnabled = !sessao.SomenteLeitura && sessao.Revisao.PodeDesfazer;
         botaoRefazer.IsEnabled = !sessao.SomenteLeitura && sessao.Revisao.PodeRefazer;
+        var bloqueio = sessao.SomenteLeitura ? sessao.MotivoSomenteLeitura ?? "O relatório está aberto somente para leitura." : null;
+        Dicas.Aplicar(botaoInserir, botaoInserir.Label, "Recorta um PDF do projeto e insere uma nova figura depois desta.", motivo: bloqueio);
+        Dicas.Aplicar(botaoDesfazer, botaoDesfazer.Label, "Desfaz a última alteração do relatório.", "Ctrl+Z",
+            botaoDesfazer.IsEnabled ? null : bloqueio ?? "Não há alterações para desfazer.");
+        Dicas.Aplicar(botaoRefazer, botaoRefazer.Label, "Refaz a última alteração desfeita do relatório.", "Ctrl+Y",
+            botaoRefazer.IsEnabled ? null : bloqueio ?? "Não há alterações para refazer.");
         if (figura is null || !figura.Incluida)
         {
             CancelarArrasto();

@@ -2,6 +2,21 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.2.0
+
+Revisão da hierarquia visual em todo o editor, no mesmo padrão das Configurações. O layout das telas continua o mesmo.
+
+- Títulos, seções, cartões e textos de ajuda usam uma escala única em todos os módulos.
+- Botões: uma ação de destaque por área, grupos na ordem principal → secundárias → perigosas e o mesmo texto para a mesma ação em todo o editor.
+- Menus e faixa de opções com ícones do mesmo catálogo, separadores por grupo e atalhos visíveis; ações perigosas por último.
+- Ícones: uma ação = um ícone. Foram desfeitas colisões no catálogo (por exemplo, Filtro e Alterados, Explorador e Abrir pasta).
+- Dicas e nomes acessíveis em todos os botões só com ícone, inclusive com o motivo quando uma ação está indisponível.
+- As caixas de seleção mostram o texto alinhado à esquerda, como no Windows 11.
+- Relatórios e revisão: painéis, menus de contexto, figuras, recorte e impressão padronizados.
+- Novo relatório: monitor e cartões de ChatGPT, Claude e Gemini padronizados, e rótulos de retomada unificados.
+- Processos e Despachos: ações de IA, conferência e aprovação mais claras; no Novo despacho, "Prosseguir sem processo" virou "Sem processo".
+- Legislação, Imóveis, Acompanhamento e sites Essencial, GPI e Alfresco: comandos, paginação e dicas padronizados.
+- Mantidos o verde institucional e os ícones coloridos dos módulos.
 ## 3.1.1
 
 - A tabela de etapas ocupa a largura do cartão, com números em selos e descrições alinhadas à esquerda.

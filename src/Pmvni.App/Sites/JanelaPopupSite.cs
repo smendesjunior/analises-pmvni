@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 
@@ -28,6 +29,7 @@ internal sealed class JanelaPopupSite : Window
         this.rotuloSite = rotuloSite;
         MainWindow.AplicarIconeDaJanela(this);
         Title = rotuloSite;
+        AutomationProperties.SetName(web, "Janela de " + rotuloSite);
         var raiz = new Grid { RequestedTheme = tema };
         raiz.Children.Add(web);
         Content = raiz;

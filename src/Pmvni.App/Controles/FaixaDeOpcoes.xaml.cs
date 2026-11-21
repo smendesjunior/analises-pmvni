@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 
 namespace Pmvni.App;
 
@@ -23,7 +24,16 @@ public sealed partial class FaixaDeOpcoes : UserControl
     Button? secundario;
     bool montando;
 
-    public FaixaDeOpcoes() => InitializeComponent();
+    public FaixaDeOpcoes()
+    {
+        InitializeComponent();
+        Barra.Loaded += (_, _) =>
+        {
+            if (Descendente(Barra, "MoreButton") is not Button mais) return;
+            AutomationProperties.SetName(mais, "Mais comandos");
+            Dicas.Aplicar(mais, "Mais comandos", "Abre os comandos da faixa que não cabem na barra.");
+        };
+    }
 
     public event Action<string>? ComandoInvocado;
 
@@ -44,7 +54,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     /// <summary>Ids dos comandos da aba à vista, na ordem dos botões.</summary>
     public IReadOnlyList<string> IdsVisiveis => Barra.PrimaryCommands.OfType<FrameworkElement>().Select(e => (string)e.Tag).ToList();
 
-    /// <summary>O id do botão primário tonal à vista (o mesmo em todas as abas do módulo), ou null se o módulo não tem primário.</summary>
+    /// <summary>O id do botão primário à vista (o mesmo em todas as abas do módulo), ou null se o módulo não tem primário.</summary>
     public string? IdPrimario => primario?.Tag as string;
 
     /// <summary>O botão primário (o roteiro confere rótulo, estado e dica).</summary>
@@ -68,11 +78,13 @@ public sealed partial class FaixaDeOpcoes : UserControl
             definicao = f;
             Abas.Items.Clear();
             foreach (var a in f.Abas)
-        {
-            var itemAba = new SelectorBarItem { Text = a.Nome, Tag = a.Nome };
-            AjustarIndicador(itemAba);
-            Abas.Items.Add(itemAba);
-        }
+            {
+                var itemAba = new SelectorBarItem { Text = a.Nome, Tag = a.Nome };
+                AutomationProperties.SetName(itemAba, a.Nome);
+                Dicas.Aplicar(itemAba, a.Nome, $"Mostra os comandos da aba {a.Nome}.");
+                AjustarIndicador(itemAba);
+                Abas.Items.Add(itemAba);
+            }
             Abas.SelectedItem = Abas.Items[Math.Clamp(aba, 0, f.Abas.Count - 1)];
             MontarBotoes();
             MontarPrimario();
@@ -105,7 +117,13 @@ public sealed partial class FaixaDeOpcoes : UserControl
     {
         if (rotulos.TryGetValue(id, out var r) && r == texto) return;
         rotulos[id] = texto;
-        if (visiveis.TryGetValue(id, out var b)) { b.Label = texto; AutomationProperties.SetName(b, texto); }
+        if (visiveis.TryGetValue(id, out var b))
+        {
+            b.Label = texto;
+            AutomationProperties.SetName(b, texto);
+            if (id == ComandosApp.InicioExcluirRestaurar && b.Icon is FontIcon icone)
+                icone.Glyph = texto == "Restaurar item" ? Glifos.Restaurar : Glifos.Excluir;
+        }
         if (alternaveis.TryGetValue(id, out var t)) { t.Label = texto; AutomationProperties.SetName(t, texto); }
         AtualizarDicas(id);
     }
@@ -131,29 +149,36 @@ public sealed partial class FaixaDeOpcoes : UserControl
     public void MarcarItem(string id, bool sim)
     {
         if (sim) marcados.Add(id); else marcados.Remove(id);
-        if (itensMenu.TryGetValue(id, out var i)) i.Icon = Icone(sim, "");
+        if (itensMenu.TryGetValue(id, out var i) && i is ToggleMenuFlyoutItem opcao) opcao.IsChecked = sim;
     }
 
     public bool Marcado(string id) => marcados.Contains(id);
 
-    /// <summary>O ícone de um item de menu: o ✓ (Segoe Fluent E73E) quando marcado, senão o glifo da definição.</summary>
-    static FontIcon Icone(bool marcado, string glifo) => new() { Glyph = marcado ? Glifos.Marca : glifo };
-
-    /// <summary>Pinta o ícone na cor do comando (<see cref="CoresIcones"/>), no tema do botão; desabilitado volta ao cinza nativo e em
-    /// alto contraste fica a cor do sistema.</summary>
-    static void Colorir(FontIcon icone, Control dono)
+    static FontIcon Icone(string glifo) => new()
     {
-        if (CoresIcones.De(icone.Glyph) is not { } par) return;
-        void Aplicar()
-        {
-            if (!dono.IsEnabled || new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast) { icone.ClearValue(IconElement.ForegroundProperty); return; }
-            var c = dono.ActualTheme == ElementTheme.Dark ? par.Escuro : par.Claro;
-            icone.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb((byte)(c >> 24), (byte)(c >> 16), (byte)(c >> 8), (byte)c));
-        }
-        Aplicar();
-        dono.ActualThemeChanged += (_, _) => Aplicar();
-        dono.IsEnabledChanged += (_, _) => Aplicar();
-    }
+        Glyph = glifo,
+        Style = (Style)Application.Current.Resources["PmvniIconeAcao"],
+    };
+
+    internal static string GlifoDoComando(string id, string glifo) => id switch
+    {
+        ComandosApp.ProcessosAbrirPasta => Glifos.AbrirPasta,
+        ComandosApp.FigurasInserirRegiao => Glifos.Recortar,
+        ComandosApp.RevisaoComparar => Glifos.Comparar,
+        ComandosApp.InicioRestaurarOriginal => Glifos.Restaurar,
+        ComandosApp.EmitirProcessoAprovado => Glifos.EmitirProcessoAprovado,
+        ComandosApp.DespachosAbrirPdf => Glifos.Abrir,
+        ComandosApp.DespachosNovo => Glifos.NovoDespacho,
+        _ => glifo,
+    };
+
+    static string RotuloDoBotao(ComandoFaixa c) => c.Id switch
+    {
+        ComandosApp.ArquivoAbrir or ComandosApp.DespachosAbrir => "Abrir…",
+        ComandosApp.ArquivoSalvarComo => "Salvar como…",
+        ComandosApp.EmitirProcessoAprovado => "Emitir processo aprovado…",
+        _ => c.Rotulo,
+    };
 
     void PreencherMenuDinamico(string menu, MenuFlyout m)
     {
@@ -162,11 +187,18 @@ public sealed partial class FaixaDeOpcoes : UserControl
         foreach (var (texto, valor, dica) in itens)
         {
             var mi = new MenuFlyoutItem { Text = texto, Tag = valor };
+            AutomationProperties.SetName(mi, texto);
             Dicas.Aplicar(mi, new TextoDica(texto, dica));
             mi.Click += (_, _) => ItemDinamicoEscolhido?.Invoke(menu, valor);
             m.Items.Add(mi);
         }
-        if (itens.Count == 0) m.Items.Add(new MenuFlyoutItem { Text = "Nenhum item", IsEnabled = false });
+        if (itens.Count == 0)
+        {
+            var vazio = new MenuFlyoutItem { Text = "Nenhum item", IsEnabled = false };
+            AutomationProperties.SetName(vazio, vazio.Text);
+            Dicas.Aplicar(vazio, vazio.Text, "Não há opções para mostrar neste menu.");
+            m.Items.Add(vazio);
+        }
     }
 
     public bool Ligado(string id) => ligado.TryGetValue(id, out var l) && l;
@@ -197,7 +229,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
     {
         var c = definicao is null ? null : Faixas.Comandos(definicao).FirstOrDefault(x => x.Id == id);
         nome ??= rotulos.TryGetValue(id, out var r) ? r : c?.TextoCompleto ?? id;
-        var motivo = Habilitado(id) ? null : Dica(id);
+        var motivo = Habilitado(id) ? null : Dica(id) is { Length: > 0 } detalhe ? detalhe : "Indisponível no contexto atual.";
         return DicasComandos.DoComando(id, nome, definicao?.Modulo ?? Modulo.Relatorios, motivo);
     }
 
@@ -255,12 +287,14 @@ public sealed partial class FaixaDeOpcoes : UserControl
         foreach (var (id, mi) in itensDoPrimario) itensMenu[id] = mi;
         if (definicao is null || AbaAtual is not { } nome) return;
         var aba = definicao.Abas.First(a => a.Nome == nome);
-        foreach (var c in aba.Comandos) Barra.PrimaryCommands.Add(Botao(c));
+        foreach (var c in aba.Comandos.OrderBy(c => AcaoPerigosa(c.Id))) Barra.PrimaryCommands.Add(Botao(c));
     }
+
+    static bool AcaoPerigosa(string id) => id is ComandosApp.InicioExcluirRestaurar or ComandosApp.FigurasExcluir or ComandosApp.AcompanhamentoExcluir;
 
     readonly List<(string Id, MenuFlyoutItem Item)> itensDoPrimario = [];
 
-    /// <summary>O botão primário tonal do módulo (à esquerda dos comandos, em todas as abas): Button, ou DropDownButton com os itens do
+    /// <summary>O botão primário do módulo (à esquerda dos comandos, em todas as abas): Button, ou DropDownButton com os itens do
     /// menu (Novo despacho ▾). Habilitado, dica e rótulo guardados por id valem para ele como para os da barra.</summary>
     /// <summary>Correções 2026-11-15: o traço da aba selecionada ocupa a largura do texto (o modelo do WinUI tem um traço de 4 px que a
     /// seleção estica 4 vezes, ScaleX = 4, a partir do centro): a largura do traço passa a ser 1/4 da largura do texto da aba.</summary>
@@ -300,21 +334,20 @@ public sealed partial class FaixaDeOpcoes : UserControl
         VagaPrimario.Content = null;
         if (definicao?.Primario is not { } c) { VagaPrimario.Visibility = Visibility.Collapsed; return; }
         VagaPrimario.Visibility = Visibility.Visible;
-        primario = BotaoVerde(c);
-        // Correção 2026-11-16: um segundo comando verde ao lado do primário (Abrir, em Relatórios).
+        primario = BotaoDaVaga(c, destaque: true);
         if (definicao.Secundario is { } s2)
         {
-            secundario = BotaoVerde(s2);
-            VagaPrimario.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { primario, secundario } };
+            secundario = BotaoDaVaga(s2, destaque: false);
+            VagaPrimario.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { primario, secundario } };
         }
         else VagaPrimario.Content = primario;
     }
 
-    Button BotaoVerde(ComandoFaixa c)
+    Button BotaoDaVaga(ComandoFaixa c, bool destaque)
     {
-        var rotulo = rotulos.TryGetValue(c.Id, out var r) ? r : c.Rotulo;
+        var rotulo = rotulos.TryGetValue(c.Id, out var r) ? r : RotuloDoBotao(c);
         var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        conteudo.Children.Add(new FontIcon { Glyph = c.Glifo, FontSize = 16 });
+        conteudo.Children.Add(Icone(GlifoDoComando(c.Id, c.Glifo)));
         conteudo.Children.Add(new TextBlock { Text = rotulo, VerticalAlignment = VerticalAlignment.Center });
         Button b;
         if (c.Tipo == TipoComando.Menu && c.Itens is { Count: > 0 } itens)
@@ -322,13 +355,9 @@ public sealed partial class FaixaDeOpcoes : UserControl
             var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft };
             foreach (var i in itens)
             {
-                var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = Icone(marcados.Contains(i.Id), i.Glifo), IsEnabled = Habilitado(i.Id) };
-                if (mi.Icon is FontIcon fi) Colorir(fi, mi);
-                Dicas.Aplicar(mi, TextoDaDica(i.Id, i.Rotulo));
-                mi.Click += (_, _) => ComandoInvocado?.Invoke(i.Id);
+                var mi = CriarItemMenu(c, i);
                 menu.Items.Add(mi);
                 itensDoPrimario.Add((i.Id, mi));
-                itensMenu[i.Id] = mi;
             }
             b = new DropDownButton { Content = conteudo, Flyout = menu };
         }
@@ -337,17 +366,19 @@ public sealed partial class FaixaDeOpcoes : UserControl
             b = new Button { Content = conteudo };
             b.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);
         }
-        // Forma do botão tonal (as cores vêm dos recursos da vaga: claro, escuro e alto contraste).
+        if (destaque)
+        {
+            b.Style = (Style)Application.Current.Resources[b is DropDownButton ? "PmvniFaixaMenuPrimarioStyle" : "PmvniBotaoPrimarioStyle"];
+            Brilho.SetAtivo(b, false);
+        }
         b.Tag = c.Id;
-        b.Height = 32;
+        b.MinHeight = b.Height = 32;
         b.Padding = new Thickness(10, 0, 10, 0);
         b.CornerRadius = new CornerRadius(8);
-        b.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         b.VerticalAlignment = VerticalAlignment.Center;
         b.VerticalContentAlignment = VerticalAlignment.Center;
         b.IsEnabled = Habilitado(c.Id);
-        Brilho.SetAtivo(b, true); // o brilho dos botões coloridos (Controles\Brilho.cs)
-        AutomationProperties.SetName(b, c.Descricao ?? rotulo);
+        AutomationProperties.SetName(b, c.Descricao ?? c.Rotulo);
         Dicas.Aplicar(b, TextoDaDica(c.Id));
         return b;
     }
@@ -356,8 +387,33 @@ public sealed partial class FaixaDeOpcoes : UserControl
     string? AtalhoLegivel(string id) =>
         Atalhos.Tecla(id, definicao?.Modulo ?? Modulo.Relatorios) is { } tecla ? Atalhos.Legivel(tecla) : null;
 
+    MenuFlyoutItem CriarItemMenu(ComandoFaixa pai, ComandoFaixa comando)
+    {
+        var escolha = pai.Id is ComandosApp.ExibirTema or ComandosApp.DespachosFiltro or ComandosApp.DespachosAgrupar
+            or ComandosApp.DespachosOrdenar or ComandosApp.ProcessosOrdenar or ComandosApp.LegislacaoEscopo;
+        MenuFlyoutItem item = escolha
+            ? new ToggleMenuFlyoutItem { IsChecked = Marcado(comando.Id) }
+            : new MenuFlyoutItem();
+        item.Text = comando.Rotulo;
+        item.Tag = comando.Id;
+        item.IsEnabled = Habilitado(comando.Id);
+        if (comando.Glifo.Length > 0) item.Icon = Icone(GlifoDoComando(comando.Id, comando.Glifo));
+        if (AtalhoLegivel(comando.Id) is { } atalho) item.KeyboardAcceleratorTextOverride = atalho;
+        AutomationProperties.SetName(item, comando.Rotulo);
+        Dicas.Aplicar(item, TextoDaDica(comando.Id, comando.Rotulo));
+        item.Click += (_, _) =>
+        {
+            // A escolha é atualizada pelo módulo quando ele aceita o comando.
+            if (item is ToggleMenuFlyoutItem opcao) opcao.IsChecked = Marcado(comando.Id);
+            ComandoInvocado?.Invoke(comando.Id);
+        };
+        itensMenu[comando.Id] = item;
+        return item;
+    }
+
     static void IndicarOriginal(AppBarButton botao, bool ativo)
     {
+        // O visto sinaliza a seleção atual, assim como nos menus de opções.
         if (botao.Icon is FontIcon icone) icone.Glyph = ativo ? Glifos.Marca : Glifos.Original;
         AutomationProperties.SetItemStatus(botao, ativo ? "Exibindo o original" : "Exibindo a revisão");
     }
@@ -390,17 +446,20 @@ public sealed partial class FaixaDeOpcoes : UserControl
 
     ICommandBarElement Botao(ComandoFaixa c)
     {
-        var icone = new FontIcon { Glyph = c.Glifo };
-        var rotulo = rotulos.TryGetValue(c.Id, out var r) ? r : c.Rotulo;
+        var icone = Icone(GlifoDoComando(c.Id, c.Glifo));
+        if (c.Id == ComandosApp.InicioExcluirRestaurar && rotulos.TryGetValue(c.Id, out var acao) && acao == "Restaurar item")
+            icone.Glyph = Glifos.Restaurar;
+        var rotulo = rotulos.TryGetValue(c.Id, out var r) ? r : RotuloDoBotao(c);
         var atalho = AtalhoLegivel(c.Id);
         var dica = TextoDaDica(c.Id);
         // O nome acessível é o texto completo (o rótulo pode ter sido encurtado para caber na faixa).
-        var nome = rotulos.ContainsKey(c.Id) ? rotulo : c.Descricao ?? rotulo;
+        var nome = rotulos.ContainsKey(c.Id) ? rotulo : c.Descricao ?? c.Rotulo;
         if (c.Tipo == TipoComando.Alternar && c.Id != ComandosApp.InicioOriginal)
         {
             var t = new AppBarToggleButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id), IsChecked = ligado.TryGetValue(c.Id, out var l) && l };
             AutomationProperties.SetName(t, nome);
-            t.KeyboardAcceleratorPlacementMode = Microsoft.UI.Xaml.Input.KeyboardAcceleratorPlacementMode.Hidden;
+            if (atalho is not null) t.KeyboardAcceleratorTextOverride = atalho;
+            t.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
             Pilulas.Estilizar(t);
             AlinharRotulo(t);
             Dicas.Aplicar(t, dica);
@@ -409,7 +468,6 @@ public sealed partial class FaixaDeOpcoes : UserControl
             return t;
         }
         var b = new AppBarButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id) };
-        Colorir(icone, b);
         // Correções 2026-11-15: o estado "rótulo à direita" do WinUI anima a margem do texto para 16/10 (StaticResource, não dá para
         // trocar pelo recurso); o texto sobe 3 px por transformação (a animação não mexe nela) e fica na linha do ícone e do primário.
         AlinharRotulo(b);
@@ -427,16 +485,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
                 menu.Opening += (_, _) => PreencherMenuDinamico(c.Id, menu);
                 PreencherMenuDinamico(c.Id, menu);
             }
-            foreach (var i in itens)
-            {
-                var mi = new MenuFlyoutItem { Text = i.Rotulo, Tag = i.Id, Icon = Icone(marcados.Contains(i.Id), i.Glifo), IsEnabled = Habilitado(i.Id) };
-                if (mi.Icon is FontIcon fi) Colorir(fi, mi);
-                // A dica do item: nome, descrição e, desabilitado, o motivo (ex.: por que um tipo de despacho não está disponível).
-                Dicas.Aplicar(mi, TextoDaDica(i.Id, i.Rotulo));
-                mi.Click += (_, _) => ComandoInvocado?.Invoke(i.Id);
-                menu.Items.Add(mi);
-                itensMenu[i.Id] = mi;
-            }
+            foreach (var i in itens) menu.Items.Add(CriarItemMenu(c, i));
             b.Flyout = menu;
         }
         else b.Click += (_, _) => ComandoInvocado?.Invoke(c.Id);

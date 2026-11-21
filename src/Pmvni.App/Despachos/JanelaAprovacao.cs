@@ -4,6 +4,8 @@ using Microsoft.UI.Xaml.Input;
 using Windows.Foundation;
 using Windows.System;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -35,7 +37,7 @@ internal sealed class JanelaAprovacao : Window
     readonly ScrollViewer vista = new() { ZoomMode = ZoomMode.Enabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MinZoomFactor = .1f, MaxZoomFactor = 5 };
     readonly TextBlock estado = new() { VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock orientacao = new() { TextAlignment = TextAlignment.Left, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
-    readonly TextBlock zoom = PainelPrancha.Titulo("100%");
+    readonly TextBlock zoom = new() { Text = "100%" };
     readonly Button anterior, proxima;
     readonly bool apenasRevisao;
     readonly TaskCompletionSource<MarcacaoAprovacao?> fim = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -54,11 +56,15 @@ internal sealed class JanelaAprovacao : Window
     JanelaAprovacao(string nome, ElementTheme tema, TaskCompletionSource<bool?>? revisao = null)
     {
         MainWindow.AplicarIconeDaJanela(this);
-        Title = "Emitir Processo Aprovado — " + nome;
+        Title = "Emitir processo aprovado — " + nome;
         raiz.RequestedTheme = tema;
         Content = raiz;
         apenasRevisao = revisao is not null;
-        raiz.Style = (Style)Application.Current.Resources["PmvniFundoJanelaStyle"];
+        var estilos = Application.Current.Resources;
+        raiz.Style = (Style)estilos["PmvniFundoJanelaStyle"];
+        estado.Style = orientacao.Style = zoom.Style = (Style)estilos["PmvniSecondaryTextStyle"];
+        AutomationProperties.SetLiveSetting(estado, AutomationLiveSetting.Polite);
+        AutomationProperties.SetLiveSetting(orientacao, AutomationLiveSetting.Polite);
         raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         raiz.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         raiz.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -72,23 +78,41 @@ internal sealed class JanelaAprovacao : Window
         Grid.SetColumn(estado, 1);
         topo.Children.Add(estado);
         raiz.Children.Add(topo);
-        Button Acao(string nomeBotao, Func<Task> executar)
+        Button Acao(string nomeBotao, string descricao, Func<Task> executar, string? glifo = null,
+            bool apenasIcone = false, bool dicaQuandoDesabilitado = false)
         {
-            var botao = new Button { Content = nomeBotao, MinHeight = 38 };
+            var botao = new Button { Content = nomeBotao, MinHeight = 36, VerticalAlignment = VerticalAlignment.Center };
+            AutomationProperties.SetName(botao, nomeBotao);
+            Dicas.Aplicar(botao, nomeBotao, descricao);
+            if (glifo is not null)
+            {
+                var icone = Icone(glifo);
+                botao.Content = apenasIcone ? icone : new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, Spacing = 8, Children = { icone, new TextBlock { Text = nomeBotao } },
+                };
+            }
+            if (apenasIcone)
+            {
+                botao.MinHeight = botao.Height = botao.Width = 32;
+                botao.Padding = new Thickness(0);
+            }
             botao.Click += async (_, _) =>
             {
                 if (carregando) return;
                 try { await executar(); }
                 catch (Exception e) { estado.Text = e.Message; }
             };
-            barra.Children.Add(botao);
+            barra.Children.Add(dicaQuandoDesabilitado ? DicasDeBotoesDoDespacho.Suporte(botao) : botao);
             return botao;
         }
-        anterior = Acao("←  Anterior", () => ExibirAsync(indice - 1));
-        proxima = Acao("Próxima  →", () => ExibirAsync(indice + 1));
-        Acao("−", () => { vista.ChangeView(null, null, Math.Max(.1f, vista.ZoomFactor / 1.25f)); return Task.CompletedTask; });
+        anterior = Acao("Página anterior", "Mostra a página anterior da prancha.", () => ExibirAsync(indice - 1), Glifos.Voltar, dicaQuandoDesabilitado: true);
+        proxima = Acao("Próxima página", "Mostra a próxima página da prancha.", () => ExibirAsync(indice + 1), Glifos.Avancar, dicaQuandoDesabilitado: true);
+        Acao("Diminuir o zoom", "Reduz a ampliação da prancha.", () => { vista.ChangeView(null, null, Math.Max(.1f, vista.ZoomFactor / 1.25f)); return Task.CompletedTask; },
+            Glifos.Diminuir, apenasIcone: true);
         barra.Children.Add(zoom);
-        Acao("+", () => { vista.ChangeView(null, null, Math.Min(5, vista.ZoomFactor * 1.25f)); return Task.CompletedTask; });
+        Acao("Aumentar o zoom", "Amplia a prancha.", () => { vista.ChangeView(null, null, Math.Min(5, vista.ZoomFactor * 1.25f)); return Task.CompletedTask; },
+            Glifos.Aumentar, apenasIcone: true);
         if (revisao is not null)
         {
             void Finalizar(bool incluir)
@@ -96,22 +120,28 @@ internal sealed class JanelaAprovacao : Window
                 revisao.TrySetResult(incluir);
                 Close();
             }
-            Acao("Adicionar carimbo ou observações", () => { Finalizar(true); return Task.CompletedTask; });
-            Acao("Aceitar esta prancha", () => { Finalizar(false); return Task.CompletedTask; });
+            var aceitar = Acao("Aceitar prancha", "Aceita a prancha conferida.", () => { Finalizar(false); return Task.CompletedTask; });
+            Brilho.SetAtivo(aceitar, false);
+            aceitar.Style = (Style)estilos["PmvniBotaoPrimarioStyle"];
+            Acao("Adicionar carimbo ou observações", "Abre as ferramentas de marcação da prancha.", () => { Finalizar(true); return Task.CompletedTask; });
             Closed += (_, _) => revisao.TrySetResult(null);
         }
         else
         {
-            Acao("Carimbo aprovado", () => { modo = Colocacao.Selo; Atualizar(); return Task.CompletedTask; }).Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"];
-            Acao("Adicionar observações", EscolherNotasAsync);
-            Acao("Desfazer", () =>
+            Brilho.SetAtivo(confirmar, false);
+            confirmar.Style = (Style)estilos["PmvniBotaoPrimarioStyle"];
+            confirmar.VerticalAlignment = VerticalAlignment.Center;
+            AutomationProperties.SetName(confirmar, "Confirmar prancha");
+            Dicas.Aplicar(confirmar, "Confirmar prancha", "Confirma as marcações posicionadas na prancha.");
+            barra.Children.Add(DicasDeBotoesDoDespacho.Suporte(confirmar));
+            Acao("Posicionar carimbo", "Ativa o posicionamento do carimbo de aprovação.", () => { modo = Colocacao.Selo; Atualizar(); return Task.CompletedTask; });
+            Acao("Adicionar observações…", "Abre a lista de observações para inserir na prancha.", EscolherNotasAsync);
+            Acao("Desfazer", "Remove a última marcação desta página.", () =>
             {
                 if (paginaNotas == indice) { paginaNotas = -1; escolhidas.Clear(); }
                 else if (paginaSelo == indice) paginaSelo = -1;
                 modo = Colocacao.Nenhuma; Atualizar(); return Task.CompletedTask;
             });
-            barra.Children.Add(confirmar);
-            confirmar.MinHeight = 38;
             confirmar.Click += (_, _) =>
             {
                 if (!confirmar.IsEnabled) return;
@@ -138,7 +168,27 @@ internal sealed class JanelaAprovacao : Window
         vista.VerticalContentAlignment = VerticalAlignment.Center;
         vista.Style = (Style)Application.Current.Resources["PmvniRolagemFundoStyle"];
         vista.ViewChanged += (_, _) => zoom.Text = vista.ZoomFactor.ToString("P0");
-        var quadro = PainelPrancha.Quadro(PainelPrancha.Titulo("PRANCHA ARQUITETÔNICA     ·     Visualização do PDF original"), vista, Symbol.Document);
+        var titulo = new TextBlock
+        {
+            Text = "Prancha arquitetônica · PDF original",
+            Style = (Style)estilos["PmvniTituloSecao"],
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        AutomationProperties.SetHeadingLevel(titulo, AutomationHeadingLevel.Level2);
+        var iconePrancha = Icone(Glifos.Documento);
+        iconePrancha.Style = (Style)estilos["PmvniIconeDestaqueStyle"];
+        var cabecalho = new Grid { ColumnSpacing = 10, Padding = new Thickness(16, 12, 16, 12) };
+        cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        cabecalho.ColumnDefinitions.Add(new ColumnDefinition());
+        Grid.SetColumn(titulo, 1);
+        cabecalho.Children.Add(iconePrancha);
+        cabecalho.Children.Add(titulo);
+        var quadro = PainelPrancha.Cartao();
+        quadro.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        quadro.RowDefinitions.Add(new RowDefinition());
+        quadro.Children.Add(cabecalho);
+        Grid.SetRow(vista, 1);
+        quadro.Children.Add(vista);
         quadro.Margin = new Thickness(12);
         Grid.SetRow(quadro, 1);
         raiz.Children.Add(quadro);
@@ -193,6 +243,13 @@ internal sealed class JanelaAprovacao : Window
         Atualizar();
     }
 
+    static FontIcon Icone(string glifo)
+    {
+        var icone = new FontIcon { Glyph = glifo, FontSize = 16, VerticalAlignment = VerticalAlignment.Center };
+        AutomationProperties.SetAccessibilityView(icone, AccessibilityView.Raw);
+        return icone;
+    }
+
     void ZoomNoPonto(Point naFolha, Point naVista, int delta)
     {
         var fator = (float)Math.Clamp(vista.ZoomFactor * Math.Pow(1.25, delta / 120.0), vista.MinZoomFactor, vista.MaxZoomFactor);
@@ -241,6 +298,10 @@ internal sealed class JanelaAprovacao : Window
             && (paginaSelo < 0 || paginaSelo == indice) && (escolhidas.Count == 0 || paginaNotas == indice);
         anterior.IsEnabled = !carregando && indice > 0;
         proxima.IsEnabled = !carregando && pdf is not null && indice + 1 < pdf.PageCount;
+        string? aguarde = carregando || pdf is null ? "Aguarde o carregamento da prancha." : null;
+        DicasDeBotoesDoDespacho.Atualizar(anterior, aguarde ?? "Esta é a primeira página.");
+        DicasDeBotoesDoDespacho.Atualizar(proxima, aguarde ?? "Esta é a última página.");
+        DicasDeBotoesDoDespacho.Atualizar(confirmar, aguarde ?? "Posicione as marcações na página para confirmar.");
         estado.Text = pdf is null ? "Carregando…" : $"Página {indice + 1} de {pdf.PageCount}";
         orientacao.Text = modo switch
         {
@@ -254,7 +315,7 @@ internal sealed class JanelaAprovacao : Window
 
     async Task EscolherNotasAsync()
     {
-        var painel = new StackPanel { Spacing = 6 };
+        var painel = new StackPanel { Spacing = 8 };
         var itens = ObservacaoPrancha.Predefinidas.Concat(personalizadas).ToList();
         var caixas = itens.Select(o => new CheckBox { Content = new TextBlock { Text = o.Texto + " " + o.Referencia, TextWrapping = TextWrapping.Wrap }, IsChecked = escolhidas.Contains(o) }).ToList();
         foreach (var c in caixas) painel.Children.Add(c);

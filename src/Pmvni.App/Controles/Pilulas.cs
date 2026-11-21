@@ -21,10 +21,9 @@ public static class Pilulas
         b.Padding = new Thickness(11, 0, 12, 0);
         b.CornerRadius = new CornerRadius(16);
         b.VerticalAlignment = VerticalAlignment.Center;
-        Brilho.SetAtivo(b, true); // ligado (na cor de destaque) ganha o brilho dos botões coloridos
     }
 
-    /// <summary>O modo marcado usa os recursos de seleção do tema e o halo comum às ações do Editor.</summary>
+    /// <summary>O modo marcado usa os recursos de seleção do tema.</summary>
     public static void Estilizar(AppBarToggleButton b)
     {
         b.CornerRadius = new CornerRadius(8);

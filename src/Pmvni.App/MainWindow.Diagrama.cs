@@ -18,7 +18,7 @@ public sealed partial class MainWindow
     {
         if (sessao?.Revisao.Projeto is not { } p || !TabelasRevisao.Existe(p, TabelasRevisao.Id(TabelasRevisao.Volumetria, 1))) return;
         var painel = new StackPanel { Spacing = 8, Width = 420 };
-        painel.Children.Add(new TextBlock { Text = "Ajustar a volumetria com a IA", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        painel.Children.Add(new TextBlock { Text = "Ajustar a volumetria com a IA", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
         var caixa = new TextBox
         {
             PlaceholderText = "Ex.: mais um pavimento; sem telhado; mostrar que o afastamento lateral direito está errado",
@@ -32,6 +32,9 @@ public sealed partial class MainWindow
             Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], TextWrapping = TextWrapping.Wrap,
         });
         var aplicar = new Button { Content = "Aplicar", Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"], IsEnabled = Editavel };
+        void AtualizarDica() => Dicas.Aplicar(aplicar, "Aplicar", "Envia o pedido para ajustar a volumetria com a IA.", "Enter",
+            !Editavel ? MotivoRevisaoIndisponivel() : !aplicar.IsEnabled ? "A consulta está em andamento." : null);
+        AtualizarDica();
         var anel = new ProgressRing { IsActive = false, Width = 18, Height = 18, Visibility = Visibility.Collapsed };
         var linhaBotoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { aplicar, anel } };
         painel.Children.Add(linhaBotoes);
@@ -41,6 +44,7 @@ public sealed partial class MainWindow
             var pedido = caixa.Text.Trim();
             if (pedido.Length == 0 || !aplicar.IsEnabled || ajustandoComIa) return;
             aplicar.IsEnabled = caixa.IsEnabled = false;
+            AtualizarDica();
             anel.Visibility = Visibility.Visible;
             anel.IsActive = true;
             var ok = false;
@@ -50,6 +54,7 @@ public sealed partial class MainWindow
                 anel.IsActive = false;
                 anel.Visibility = Visibility.Collapsed;
                 aplicar.IsEnabled = caixa.IsEnabled = Editavel;
+                AtualizarDica();
                 if (ok) flyout.Hide(); // no erro, a caixa fica aberta com o pedido para tentar de novo
             }
         }

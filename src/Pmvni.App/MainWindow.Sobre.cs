@@ -37,6 +37,8 @@ public sealed partial class MainWindow
         p.TextoSistema.Text = TextoSistema;
         p.TextoRuntime.Text = TextoRuntime;
         p.LinkContato.Content = EmailContato;
+        Dicas.Aplicar(p.LinkContato, "Enviar e-mail ao desenvolvedor", "Abre o aplicativo de e-mail com o endereço do suporte.");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(p.TextoCopiado, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
         if (Argumentos.Atual.Roteiro is null)
             p.LinkContato.NavigateUri = new Uri("mailto:" + EmailContato + "?subject=" + Uri.EscapeDataString("Análise de Projetos " + Atualizador.VersaoExibida));
         p.CategoriaMostrada += tag =>
@@ -85,11 +87,15 @@ public sealed partial class MainWindow
     Task MostrarLicencaPdfJsAsync()
     {
         var licenca = Pmvni.Legislacao.RecursosLegislacao.Ler("pdfjs/LICENSE") is { } b ? Encoding.UTF8.GetString(b) : "Licença não encontrada.";
-        return MostrarDialogoAsync("Licença do PDF.js", new ScrollViewer
+        var texto = new TextBlock
         {
-            MaxHeight = 420,
-            Content = new TextBlock { Text = licenca, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, FontSize = 12 },
-        });
+            Text = licenca,
+            TextWrapping = TextWrapping.Wrap,
+            IsTextSelectionEnabled = true,
+            Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"],
+        };
+        MenuTexto.Aplicar(texto);
+        return MostrarDialogoAsync("Licença do PDF.js", new ScrollViewer { MaxHeight = 420, Content = texto });
     }
 
     static Microsoft.UI.Xaml.Media.Imaging.BitmapImage? ImagemDoApp()

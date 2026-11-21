@@ -65,8 +65,7 @@ public sealed partial class MainWindow
         CaixaPesquisa.KeyDown += AoTeclarNaPesquisa;
         BotaoPesquisaAnterior.Click += async (_, _) => await TentarAsync(() => PercorrerPaginasAsync(-1));
         BotaoPesquisaProxima.Click += async (_, _) => await TentarAsync(() => PercorrerPaginasAsync(1));
-        Dicas.Aplicar(BotaoPesquisaAnterior, "Página anterior", "Volta para a página visitada anteriormente.");
-        Dicas.Aplicar(BotaoPesquisaProxima, "Próxima página", "Avança pelo histórico de páginas.");
+        AtualizarSetasNavegacao();
         PaginaDeAjustes.CategoriaMostrada += _ => RegistrarPaginaVisitada();
         manipuladores[ComandosApp.PesquisaFocar] = () =>
         {

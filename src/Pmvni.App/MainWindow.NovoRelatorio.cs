@@ -634,7 +634,7 @@ public sealed partial class MainWindow
         // Sem processo, um aviso só no topo (antes, "Escolha o processo." se repetia em cada linha) e a coluna do destino final some.
         var semProcesso = processoNR is null && anexosNR.Count > 0;
         if (semProcesso)
-            lista.Children.Add(new TextBlock { Text = "Escolha o processo no passo 1 para ver onde cada arquivo será gravado.", TextWrapping = TextWrapping.Wrap,
+            lista.Children.Add(new TextBlock { Text = "Escolha o processo para ver onde cada arquivo será gravado.", TextWrapping = TextWrapping.Wrap,
                 Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], Margin = new Thickness(2, 0, 0, 2) });
         string? grupoAtual = null;
         for (var i = 0; i < anexosNR.Count; i++)
@@ -644,7 +644,12 @@ public sealed partial class MainWindow
             if (a.Compactado is { } zip && zip != grupoAtual)
             {
                 var qtd = anexosNR.Skip(i).TakeWhile(x => x.Compactado == zip).Count(); // só a sequência deste compactado
-                lista.Children.Add(new TextBlock { Text = $"{zip} · {qtd} {(qtd == 1 ? "arquivo" : "arquivos")}", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Margin = new Thickness(2, 6, 0, 0) });
+                lista.Children.Add(new TextBlock
+                {
+                    Text = $"{zip} · {qtd} {(qtd == 1 ? "arquivo" : "arquivos")}",
+                    Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"],
+                    Margin = new Thickness(2, 6, 0, 0),
+                });
             }
             grupoAtual = a.Compactado;
             var grade = new Grid { ColumnSpacing = 10, Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(6),
@@ -671,7 +676,12 @@ public sealed partial class MainWindow
             var previa = new TextBlock { Text = semProcesso ? "" : a.Previa, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = true };
             Grid.SetColumn(previa, 2);
             grade.Children.Add(previa);
-            var remover = new Button { Content = new FontIcon { Glyph = Glifos.Excluir, FontSize = 14 }, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(10, 7, 10, 7) };
+            var remover = new Button
+            {
+                Content = new FontIcon { Glyph = Glifos.Excluir, FontSize = 16 },
+                Width = 32, Height = 32, MinWidth = 32, MinHeight = 32,
+                VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(0),
+            };
             AutomationPropertiesNome(remover, "Remover " + a.Nome + " da lista");
             remover.Click += (_, _) => RemoverAnexo(a);
             Dicas.Aplicar(remover, "Remover da lista", "Tira este arquivo da análise; o arquivo continua no computador.");
@@ -697,11 +707,10 @@ public sealed partial class MainWindow
         {
             var botao = BotaoDoProvedor(p);
             var texto = p switch { Provedor.ChatGpt => NR.TextoMotivoChatGpt, Provedor.Claude => NR.TextoMotivoClaude, _ => NR.TextoMotivoGemini };
-            var motivo = MotivoBotao(p);
-            botao.IsEnabled = motivo is null && !partindoNR;
+            var motivo = MotivoBotao(p) ?? (partindoNR ? "Uma análise está sendo iniciada." : null);
             var servico = Provedores.Nome(p);
             var dica = DicasComandos.Livre("Analisar com o " + servico, $"Manda o processo, os anexos e o pedido para o {servico} analisar e montar o relatório.", motivo: motivo);
-            if (Dicas.De(botao) != dica) Dicas.Aplicar(botao, dica);
+            AtualizarDicaDeDisponibilidade(botao, dica);
             texto.Text = motivo ?? "";
             texto.Visibility = motivo is null ? Visibility.Collapsed : Visibility.Visible;
             // 2026-11-16: a versão instalada do plugin que vai fazer a análise, sempre à vista (também gravada no execucao.json).
@@ -1053,7 +1062,7 @@ public sealed partial class MainWindow
             return await EscolherVersaoDaPecaAsync(e.Processo.Pasta, "Qual versão da peça vale na análise de " + FluxoNovoRelatorio.Identificacao(e.Processo) + "?",
                 e.Provedor, d);
         var texto = d.Pergunta.Trim() + Environment.NewLine + Environment.NewLine
-            + $"A análise com o {Provedores.Nome(e.Provedor)} está parada e não gasta cota enquanto espera. \"Cancelar\" deixa a análise parada; \"Continuar a análise\" pergunta de novo.";
+            + $"A análise com o {Provedores.Nome(e.Provedor)} está parada e não gasta cota enquanto espera. \"Cancelar\" mantém a pausa. Use \"Retomar análise\" para ver a pergunta de novo.";
         if (d.Opcoes.Count == 0)
             return await Perguntas.Atual.PedirTextoAsync(titulo, texto, "", botao: "Responder") is { } livre && !string.IsNullOrWhiteSpace(livre) ? livre.Trim() : null;
         var escolha = await Perguntas.Atual.EscolherNaListaAsync(titulo, texto, d.Opcoes.Select(o => o.Texto).ToList(), -1, "Responder");
@@ -1067,8 +1076,8 @@ public sealed partial class MainWindow
     {
         var versoes = await Task.Run(() => PecasAmbiguas.Candidatas(d, pastaProcesso));
         if (fechada) return null;
-        var aviso = $"A análise com o {Provedores.Nome(provedor)} está parada e não gasta cota enquanto espera. \"Cancelar\" deixa a análise parada; "
-            + "\"Continuar a análise\" pergunta de novo.";
+        var aviso = $"A análise com o {Provedores.Nome(provedor)} está parada e não gasta cota enquanto espera. \"Cancelar\" mantém a pausa. "
+            + "Use \"Retomar análise\" para ver a pergunta de novo.";
         return await Perguntas.Atual.EscolherPecaAsync(titulo, d.Pergunta.Trim(), aviso, versoes);
     }
 
@@ -1221,7 +1230,7 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>A análise terminou sem relatório: a mensagem exata, "Mostrar registro" e, no Claude parado ou interrompido, "Continuar a análise".</summary>
+    /// <summary>A análise terminou sem relatório: mostra o motivo e oferece acesso ao registro e à retomada quando disponível.</summary>
     void MostrarResultadoNR(ExecucaoEmCurso e, FimAnalise fim, bool continuavelChatGpt = false)
     {
         ultimoResultadoNR = e;
@@ -1238,7 +1247,7 @@ public sealed partial class MainWindow
         };
         if (fim.Situacao == "cota_esgotada") aviso.Severity = InfoBarSeverity.Warning;
         aviso.Message = (fim.Mensagem ?? fim.Situacao)
-            + (fim.Situacao == "falhou" && continuavelChatGpt ? " Você pode clicar em \"Continuar a análise\" para seguir de onde parou." : "");
+            + (fim.Situacao == "falhou" && continuavelChatGpt ? " Use \"Retomar análise\" para seguir de onde parou." : "");
         if (fim.Decisao is not null) aviso.Severity = InfoBarSeverity.Warning;
         NR.BotaoDescartar.Visibility = e.PausaSolicitada || (Provedores.PeloKit(e.Provedor) && fim.Situacao is "falhou" or "interrompida" or "cota_esgotada" or "cancelada") || continuavelChatGpt
             ? Visibility.Visible : Visibility.Collapsed;
@@ -1468,11 +1477,11 @@ public sealed partial class MainWindow
     async Task<(Provedor? Ia, bool Descartada)> PerguntarRetomadaAsync(Processo processo, string registro, Provedor original, string? motivo = null)
     {
         var provedores = new[] { original }.Concat(new[] { Provedor.ChatGpt, Provedor.Claude, Provedor.Gemini }.Where(p => p != original)).ToArray();
-        var itens = provedores.Select(p => $"Continuar com o {Provedores.Nome(p)}").Append("Agora não").ToArray();
+        var itens = provedores.Select(p => $"Retomar com o {Provedores.Nome(p)}").Append("Agora não").ToArray();
         var texto = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} com o {Provedores.Nome(original)} parou"
             + (string.IsNullOrWhiteSpace(motivo) ? "." : $": {motivo}")
             + " Qual IA deve continuar a partir da última etapa válida?";
-        var indice = await Perguntas.Atual.EscolherNaListaAsync(FluxoNovoRelatorio.RetomarTitulo, texto, itens, 0, "Continuar", "Descartar análise");
+        var indice = await Perguntas.Atual.EscolherNaListaAsync(FluxoNovoRelatorio.RetomarTitulo, texto, itens, 0, "Retomar", "Descartar análise");
         if (indice == itens.Length)
         {
             DescartarAnalisePendente(processo, registro);
@@ -1518,7 +1527,8 @@ public sealed partial class MainWindow
         {
             var modulo = AvisoDoModulo;
             if (!(modulo.IsOpen && modulo.Severity == InfoBarSeverity.Error)) MostrarMensagem(severidade, aviso.Title, mensagem);
-            var botao = new Button { Content = "Importar relatório" };
+            var botao = new Button { Content = "Importar relatório", MinHeight = 36 };
+            AutomationPropertiesNome(botao, "Importar relatório");
             Dicas.Aplicar(botao, "Importar relatório", "Traz para o app o relatório da análise que terminou com o editor fechado.");
             botao.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
             AvisoDoModulo.ActionButton = botao;
@@ -1597,7 +1607,8 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         MostrarMensagem(InfoBarSeverity.Success, FluxoNovoRelatorio.RelatorioProntoTitulo, FluxoNovoRelatorio.TextoRelatorioPronto(imp.Provedor, pmvrel, imp.Pdf));
-        var botao = new Button { Content = FluxoNovoRelatorio.AbrirRelatorio };
+        var botao = new Button { Content = FluxoNovoRelatorio.AbrirRelatorio, MinHeight = 36 };
+        AutomationPropertiesNome(botao, FluxoNovoRelatorio.AbrirRelatorio);
         Dicas.Aplicar(botao, FluxoNovoRelatorio.AbrirRelatorio, "Abre o relatório que a IA acabou de montar, para revisar.");
         botao.Click += async (_, _) => await AbrirRelatorioProntoAsync(pmvrel);
         AvisoDoModulo.ActionButton = botao;

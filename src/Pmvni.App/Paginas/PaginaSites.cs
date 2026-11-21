@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 
@@ -17,8 +19,8 @@ public sealed partial class PaginaSites : Grid
     readonly Dictionary<Modulo, WebView2> navegadores = new();
     readonly Dictionary<Modulo, Task<CoreWebView2>> criando = new();
     readonly Dictionary<Modulo, DateTime> ultimoLoginAutomatico = new();
-    readonly Border progresso = Pilula();
-    static Border Pilula() { var q = Trabalhando.Quadro("Carregando a página…"); q.VerticalAlignment = VerticalAlignment.Top; q.HorizontalAlignment = HorizontalAlignment.Center; q.Margin = new Thickness(12); return q; }
+    readonly Border progresso = Trabalhando.Quadro("Carregando a página…");
+    readonly TextBlock? textoProgresso;
     readonly InfoBar aviso = new() { IsClosable = true, IsOpen = false, Severity = InfoBarSeverity.Warning, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(12) };
     /// <summary>Estado do BCI (o fluxo roda neste navegador, à vista do usuário).</summary>
     public InfoBar AvisoBci { get; } = new() { IsClosable = true, IsOpen = false, Severity = InfoBarSeverity.Informational, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(12) };
@@ -33,7 +35,17 @@ public sealed partial class PaginaSites : Grid
     readonly HashSet<Modulo> carregando = [];
 
     /// <summary>O quadro "Carregando a página…" só aparece se o site À VISTA está carregando.</summary>
-    void MostrarProgresso() => progresso.Visibility = atual is { } a && carregando.Contains(a) ? Visibility.Visible : Visibility.Collapsed;
+    void MostrarProgresso()
+    {
+        var carregandoSite = atual is { } a && carregando.Contains(a);
+        var estavaVisivel = progresso.Visibility == Visibility.Visible;
+        progresso.Visibility = carregandoSite ? Visibility.Visible : Visibility.Collapsed;
+        if (carregandoSite && !estavaVisivel && textoProgresso is not null
+            && AutomationPeer.ListenerExists(AutomationEvents.LiveRegionChanged))
+        {
+            FrameworkElementAutomationPeer.CreatePeerForElement(textoProgresso)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+        }
+    }
 
     /// <summary>Muda quando a navegação do site à vista muda (voltar/avançar disponíveis).</summary>
     public event Action? EstadoMudou;
@@ -44,6 +56,20 @@ public sealed partial class PaginaSites : Grid
 
     public PaginaSites()
     {
+        progresso.VerticalAlignment = VerticalAlignment.Top;
+        progresso.HorizontalAlignment = HorizontalAlignment.Center;
+        progresso.Margin = new Thickness(12);
+        if (progresso.Child is StackPanel painel)
+        {
+            textoProgresso = painel.Children.OfType<TextBlock>().FirstOrDefault();
+            if (textoProgresso is not null)
+            {
+                textoProgresso.Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"];
+                textoProgresso.TextAlignment = TextAlignment.Center;
+                AutomationProperties.SetLiveSetting(textoProgresso, AutomationLiveSetting.Polite);
+            }
+            foreach (var anel in painel.Children.OfType<ProgressRing>()) Trabalhando.SetAutomatico(anel, false);
+        }
         Canvas.SetZIndex(progresso, 10);
         Canvas.SetZIndex(aviso, 11);
         Canvas.SetZIndex(AvisoBci, 12);
@@ -187,6 +213,7 @@ public sealed partial class PaginaSites : Grid
     {
         if (navegadores.Remove(m, out var velho)) { Children.Remove(velho); try { velho.Close(); } catch (Exception) { } }
         var web = new WebView2 { AllowDrop = true, Visibility = atual == m ? Visibility.Visible : Visibility.Collapsed };
+        AutomationProperties.SetName(web, Modulos.Rotulo(m));
         navegadores[m] = web;
         Children.Insert(0, web);
         try

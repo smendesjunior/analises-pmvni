@@ -427,6 +427,7 @@ public sealed partial class MainWindow
         P.TextoEscala.Text = aberta ? Percentual(escalaLei) : "";
         P.BotaoPaginaAnterior.IsEnabled = aberta && paginaLei > 1;
         P.BotaoPaginaProxima.IsEnabled = aberta && paginaLei < totalPaginasLei;
+        AtualizarDicasDoRodapeDaLei(aberta);
     }
 
     // ---------- pesquisa (a caixa da barra de título no módulo Legislação; desenho §11.6) ----------
@@ -528,14 +529,15 @@ public sealed partial class MainWindow
             lista.Items.Add(new TextBlock
             {
                 Text = titulo, Margin = new Thickness(6, 10, 0, 2), TextWrapping = TextWrapping.Wrap, IsHitTestVisible = false,
-                Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"],
+                Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"],
             });
             var linhas = new List<string>();
             foreach (var r in g)
             {
                 var texto = $"p. {r.Pagina.ToString(CultureInfo.InvariantCulture)} — {r.Trecho}";
                 linhas.Add(texto);
-                var item = new TextBlock { Text = texto, Tag = r, TextWrapping = TextWrapping.Wrap, Padding = new Thickness(4, 3, 4, 5) };
+                var item = new TextBlock { Text = texto, Tag = r, Style = (Style)Application.Current.Resources["PmvniPainelValor"],
+                    IsTextSelectionEnabled = false, Padding = new Thickness(4, 3, 4, 5) };
                 lista.Items.Add(item);
             }
             grupos.Add((titulo, linhas));
@@ -606,6 +608,21 @@ public sealed partial class MainWindow
         P.BotaoPaginaProxima.IsEnabled = lei && paginaLei < totalPaginasLei;
         P.BotaoZoomMenos.IsEnabled = Faixa.Habilitado(ComandosApp.LegislacaoZoomMenos);
         P.BotaoZoomMais.IsEnabled = Faixa.Habilitado(ComandosApp.LegislacaoZoomMais);
+        AtualizarDicasDoRodapeDaLei(lei);
+    }
+
+    void AtualizarDicasDoRodapeDaLei(bool lei)
+    {
+        const string abrir = "Abra uma lei para usar este controle.";
+        Dicas.Aplicar(P.CaixaPagina, "Página", "Digite o número da página que deseja ler.", motivo: P.CaixaPagina.IsEnabled ? null : abrir);
+        Dicas.AplicarComando(P.BotaoPaginaAnterior, ComandosApp.LegislacaoPaginaAnterior, "Página anterior", Modulo.Legislacao,
+            P.BotaoPaginaAnterior.IsEnabled ? null : lei ? "Você está na primeira página." : abrir);
+        Dicas.AplicarComando(P.BotaoPaginaProxima, ComandosApp.LegislacaoPaginaProxima, "Próxima página", Modulo.Legislacao,
+            P.BotaoPaginaProxima.IsEnabled ? null : lei ? "Você está na última página." : abrir);
+        Dicas.AplicarComando(P.BotaoZoomMenos, ComandosApp.LegislacaoZoomMenos, "Diminuir o zoom", Modulo.Legislacao,
+            P.BotaoZoomMenos.IsEnabled ? null : abrir);
+        Dicas.AplicarComando(P.BotaoZoomMais, ComandosApp.LegislacaoZoomMais, "Aumentar o zoom", Modulo.Legislacao,
+            P.BotaoZoomMais.IsEnabled ? null : abrir);
     }
 
     static readonly string[] IdsDaLegislacao = Faixas.Comandos(Faixas.Para(Modulo.Legislacao))

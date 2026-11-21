@@ -26,65 +26,83 @@
         <ColumnDefinition Width="420" MinWidth="300"/>
       </Grid.ColumnDefinitions>
       <Grid Grid.Column="1" Style="{StaticResource PmvniPainelLateral}" Margin="6" RowDefinitions="*,Auto"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-        <!-- Padronizado com o painel Propriedades (2026-11-16): cartões ORIGEM e CONTEÚDO, rótulo pequeno em maiúsculas acima de cada
-             campo e separadores (estilos PmvniPainel…, Estilos.xaml); a ação principal de cada cartão na cor de destaque. -->
+        <!-- Cartões de origem e conteúdo com os estilos de painel de Estilos.xaml. -->
         <StackPanel Padding="16,14,16,20" Spacing="12">
-          <Grid ColumnDefinitions="*,Auto">          <TextBlock x:Name="TextoTitulo" x:FieldModifier="internal" Text="Novo despacho" Style="{StaticResource PmvniTituloPaginaStyle}"/><Button Grid.Column="1" x:Name="FecharOrigem" x:FieldModifier="internal" IsEnabled="{Binding IsEnabled, ElementName=BotaoCancelar}" AutomationProperties.Name="Fechar novo despacho" ToolTipService.ToolTip="Fechar novo despacho"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="19" Height="19"><Path Canvas.Left="-10.5" Canvas.Top="-10.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M29.22,27.88 C29.59,28.25 29.59,28.85 29.22,29.22 C28.85,29.59 28.25,29.59 27.88,29.22 L20,21.34 L12.12,29.22 C11.75,29.59 11.15,29.59 10.78,29.22 C10.41,28.85 10.41,28.25 10.78,27.88 L18.66,20 L10.78,12.12 C10.41,11.75 10.41,11.15 10.78,10.78 C11.15,10.41 11.75,10.41 12.12,10.78 L20,18.66 L27.88,10.78 C28.25,10.41 28.85,10.41 29.22,10.78 C29.59,11.15 29.59,11.75 29.22,12.12 L21.34,20 L29.22,27.88 Z"/></Canvas></Viewbox></Button></Grid>
-          <TextBlock Text="Defina a origem e os documentos de referência." Style="{StaticResource PmvniTextoAjuda}"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock x:Name="TextoTitulo" x:FieldModifier="internal" Text="Novo despacho" Style="{StaticResource PmvniTituloPaginaStyle}"
+                       AutomationProperties.HeadingLevel="Level1"/>
+            <Border Grid.Column="1" Background="Transparent">
+              <Button x:Name="FecharOrigem" x:FieldModifier="internal" Width="32" Height="32" Padding="0"
+                      IsEnabled="{Binding IsEnabled, ElementName=BotaoCancelar}" AutomationProperties.Name="Fechar novo despacho"
+                      local:Dicas.Descricao="Fecha o novo despacho sem gravar.">
+                <FontIcon Glyph="{x:Bind local:Glifos.Fechar}" FontSize="16" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
+              </Button>
+            </Border>
+          </Grid>
+          <TextBlock Text="Defina a origem e os documentos de referência." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
 
           <Border Style="{StaticResource PmvniPainelCartao}">
             <StackPanel>
               <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="1" Style="{StaticResource PmvniNumeroPasso}"/></Border>
-                  <TextBlock Text="Origem" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
+                  <TextBlock Text="Origem" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level2"/>
                 </StackPanel>
               </Border>
               <StackPanel Style="{StaticResource PmvniPainelCartaoCorpo}">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="TIPO" Style="{StaticResource PmvniPainelRotulo}"/>
+                  <TextBlock Text="Tipo" Style="{StaticResource PmvniPainelRotulo}"/>
                   <ComboBox x:Name="CaixaTipo" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Tipo do despacho"/>
                 </StackPanel>
                 <StackPanel Spacing="4">
-                  <TextBlock Text="PROCESSO" Style="{StaticResource PmvniPainelRotulo}"/>
+                  <TextBlock Text="Processo" Style="{StaticResource PmvniPainelRotulo}"/>
                   <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Processo"/>
                   <Grid ColumnSpacing="6" Margin="0,6,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Button x:Name="BotaoNovoProcesso" x:FieldModifier="internal" Content="Novo processo…" HorizontalAlignment="Stretch" AutomationProperties.Name="Criar um processo novo"
-                            local:Dicas.Titulo="Novo processo…" local:Dicas.Descricao="Cria a pasta de um processo novo (número, ano e requerente) e já o escolhe para o despacho."/>
-                    <Button x:Name="BotaoSemProcesso" x:FieldModifier="internal" Grid.Column="1" Content="Sem processo" HorizontalAlignment="Stretch" AutomationProperties.Name="Despacho sem processo vinculado"
-                            local:Dicas.Titulo="Sem processo" local:Dicas.Descricao="Libera o modelo para preencher na folha, sem ligar a um processo; o despacho é gravado em Documentos › Despachos sem processo."/>
+                    <Button x:Name="BotaoNovoProcesso" x:FieldModifier="internal" MinHeight="36" Content="Criar processo…" HorizontalAlignment="Stretch" AutomationProperties.Name="Criar um processo novo"
+                            local:Dicas.Titulo="Criar processo…" local:Dicas.Descricao="Cria a pasta de um processo novo (número, ano e requerente) e já o escolhe para o despacho."/>
+                    <Button x:Name="BotaoSemProcesso" x:FieldModifier="internal" MinHeight="36" Grid.Column="1" Content="Sem processo" HorizontalAlignment="Stretch" AutomationProperties.Name="Despacho sem processo vinculado"
+                            local:Dicas.Titulo="Prosseguir sem processo" local:Dicas.Descricao="Libera o modelo para preencher na folha, sem ligar a um processo; o despacho é gravado em Documentos › Despachos sem processo."/>
                   </Grid>
                 </StackPanel>
                 <Border Style="{StaticResource PmvniPainelSeparador}"/>
                 <!-- Relatório base: os achados na pasta do processo, "Sem relatório" ou um escolhido à mão (.rpmvni de qualquer pasta, ou o
                      dados.json da análise do kit, importado para um .rpmvni novo antes de usar). -->
                 <StackPanel Spacing="4">
-                  <TextBlock Text="DOCUMENTOS DE REFERÊNCIA" Style="{StaticResource PmvniPainelRotulo}"/>
-                  <TextBlock Text="RELATÓRIO BASE" Style="{StaticResource PmvniPainelRotulo}"/>
+                  <TextBlock Text="Documentos de referência" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
+                  <TextBlock Text="Relatório base" Style="{StaticResource PmvniPainelRotulo}"/>
                   <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <ComboBox x:Name="CaixaRelatorio" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Relatório base"/>
-                    <Button x:Name="BotaoEscolherRelatorio" x:FieldModifier="internal" Grid.Column="1"
+                    <Button x:Name="BotaoEscolherRelatorio" x:FieldModifier="internal" MinHeight="36" Grid.Column="1"
                             AutomationProperties.Name="Escolher o arquivo do relatório"
                             local:Dicas.Titulo="Escolher arquivo…" local:Dicas.Descricao="Usa um relatório (.rpmvni) de qualquer pasta, ou o dados.json da análise.">
-                      <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8E5;" FontSize="14"/><TextBlock Text="Escolher…"/></StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Abrir}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Escolher arquivo…"/></StackPanel>
                     </Button>
                   </Grid>
                 </StackPanel>
                 <StackPanel Spacing="4">
-                  <TextBlock Text="PASTA DA ETAPA" Style="{StaticResource PmvniPainelRotulo}"/>
+                  <TextBlock Text="Pasta da etapa" Style="{StaticResource PmvniPainelRotulo}"/>
                   <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <ComboBox x:Name="CaixaEtapa" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Pasta da etapa"/>
-                    <Button x:Name="BotaoNovaPasta" x:FieldModifier="internal" Grid.Column="1" AutomationProperties.Name="Criar pasta nova"
-                            local:Dicas.Titulo="Nova pasta…" local:Dicas.Descricao="Cria uma pasta de etapa nova no processo para guardar este despacho.">
-                      <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8F4;" FontSize="14"/><TextBlock Text="Nova…"/></StackPanel>
+                    <Button x:Name="BotaoNovaPasta" x:FieldModifier="internal" MinHeight="36" Grid.Column="1" AutomationProperties.Name="Criar pasta nova"
+                            local:Dicas.Titulo="Criar pasta…" local:Dicas.Descricao="Cria uma pasta de etapa nova no processo para guardar este despacho.">
+                      <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Criar pasta…"/></StackPanel>
                     </Button>
                   </Grid>
                 </StackPanel>
-                <Border Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" CornerRadius="8" Padding="12"><StackPanel Spacing="6"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE946;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/><TextBlock Text="Como funciona" Style="{StaticResource PmvniTituloSecao}"/></StackPanel>                <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
-                           Text="O relatório é opcional. Anexado, entram só os itens que não atendem; sem ele, escreva as exigências ou peça à IA. Um relatório de outra pasta entra pelo Escolher. A data é a da pasta da etapa."/></StackPanel></Border>
+                <Border Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" CornerRadius="8" Padding="12">
+                  <StackPanel Spacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <FontIcon Glyph="{x:Bind local:Glifos.Sobre}" FontSize="16" Style="{StaticResource PmvniIconeDestaqueStyle}"
+                                VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
+                      <TextBlock Text="Como funciona" Style="{StaticResource PmvniTituloSecao}" AutomationProperties.HeadingLevel="Level2"/>
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
+                               Text="O relatório é opcional. Anexado, entram só os itens que não atendem; sem ele, escreva as exigências ou peça à IA. Use Escolher arquivo… para um relatório de outra pasta. A data é a da pasta da etapa."/>
+                  </StackPanel>
+                </Border>
 
               </StackPanel>
             </StackPanel>
@@ -94,35 +112,35 @@
             <StackPanel>
               <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <FontIcon Glyph="&#xE8A5;" Style="{StaticResource PmvniPainelCartaoIcone}"/>
-                  <TextBlock Text="2 · CONTEÚDO" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
+                  <FontIcon Glyph="{x:Bind local:Glifos.Relatorio}" FontSize="16" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
+                  <TextBlock Text="2 · Conteúdo" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level2"/>
                 </StackPanel>
               </Border>
               <StackPanel Style="{StaticResource PmvniPainelCartaoCorpo}">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="PROTOCOLO Nº" Style="{StaticResource PmvniPainelRotulo}"/>
+                  <TextBlock Text="Protocolo nº" Style="{StaticResource PmvniPainelRotulo}"/>
                   <TextBox x:Name="CaixaProtocolo" x:FieldModifier="internal" AutomationProperties.Name="Protocolo"/>
                 </StackPanel>
                 <StackPanel Spacing="4">
-                  <TextBlock Text="REQUERENTE" Style="{StaticResource PmvniPainelRotulo}"/>
+                  <TextBlock Text="Requerente" Style="{StaticResource PmvniPainelRotulo}"/>
                   <TextBox x:Name="CaixaRequerente" x:FieldModifier="internal" AutomationProperties.Name="Requerente"/>
                 </StackPanel>
                 <StackPanel Spacing="4">
-                  <TextBlock Text="ASSUNTO" Style="{StaticResource PmvniPainelRotulo}"/>
+                  <TextBlock Text="Assunto" Style="{StaticResource PmvniPainelRotulo}"/>
                   <TextBox x:Name="CaixaAssunto" x:FieldModifier="internal" AutomationProperties.Name="Assunto" TextWrapping="Wrap"/>
                 </StackPanel>
                 <Border Style="{StaticResource PmvniPainelSeparador}"/>
                 <StackPanel x:Name="PainelExigencias" x:FieldModifier="internal" Spacing="10"/>
-                <Button x:Name="BotaoAdicionarExigencia" x:FieldModifier="internal" AutomationProperties.Name="Adicionar exigência" HorizontalAlignment="Stretch"
-                        local:Dicas.Descricao="Acrescenta uma exigência em branco para você escrever.">
-                  <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14"/><TextBlock Text="Adicionar exigência"/></StackPanel>
+                <Button x:Name="BotaoAdicionarExigencia" x:FieldModifier="internal" MinHeight="36" AutomationProperties.Name="Adicionar exigência" HorizontalAlignment="Stretch"
+                        local:Dicas.Titulo="Adicionar exigência…" local:Dicas.Descricao="Abre a caixa para escrever uma exigência.">
+                  <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Adicionar exigência…"/></StackPanel>
                 </Button>
                 <StackPanel x:Name="PainelAprovacao" x:FieldModifier="internal" Spacing="6" Visibility="Collapsed">
-                  <TextBlock Text="TIPO DE OBRA" Style="{StaticResource PmvniPainelRotulo}"/>
+                  <TextBlock Text="Tipo de obra" Style="{StaticResource PmvniPainelRotulo}"/>
                   <CheckBox x:Name="CaixaObraNova" x:FieldModifier="internal" Content="obra nova"/>
                   <CheckBox x:Name="CaixaAlteracao" x:FieldModifier="internal" Content="alteração de obra"/>
                   <CheckBox x:Name="CaixaAmpliacao" x:FieldModifier="internal" Content="ampliação de obra"/>
-                  <TextBlock Text="ÁREA TOTAL A CONSTRUIR (M²)" Style="{StaticResource PmvniPainelRotulo}" Margin="0,6,0,0"/>
+                  <TextBlock Text="Área total a construir (m²)" Style="{StaticResource PmvniPainelRotulo}" Margin="0,6,0,0"/>
                   <TextBox x:Name="CaixaArea" x:FieldModifier="internal" PlaceholderText="ex.: 210,52" AutomationProperties.Name="Área total a construir"/>
                   <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
                              Text="O editor não preenche o tipo de obra nem a área: os dois vêm do projeto aprovado."/>
@@ -133,11 +151,11 @@
         </StackPanel>
       </ScrollViewer>
         <Border Grid.Row="1" Padding="16,8" Visibility="{Binding Visibility, ElementName=BotaoAutomatico}">                <!-- Correção automática (2026-11-16): só no tipo Correção; a janela mostra e liga o botão. -->
-                <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" HorizontalAlignment="Stretch" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+                <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" MinHeight="36" HorizontalAlignment="Stretch" Visibility="Collapsed"
                         AutomationProperties.Name="Criar automaticamente a partir do relatório"
                         local:Dicas.Titulo="Criar automaticamente a partir do relatório"
                         local:Dicas.Descricao="Monta o despacho com todos os itens pendentes do relatório (não atende, falta comprovar e informações divergentes) e vai direto para a conferência.">
-                  <StackPanel Orientation="Horizontal" Spacing="6"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="13.95" Height="19"><Path Canvas.Left="-75.53" Canvas.Top="-18.5" Fill="{Binding Foreground, ElementName=BotaoAutomatico}" Data="F0 M89.06,26.77 C89.26,26.84 89.41,27.01 89.46,27.22 C89.51,27.43 89.45,27.65 89.31,27.8 L80.44,37.3 C80.25,37.51 79.94,37.56 79.69,37.43 C79.44,37.3 79.3,37.03 79.35,36.75 L80.51,30.94 L75.95,29.23 C75.75,29.16 75.6,28.99 75.55,28.78 C75.5,28.57 75.56,28.35 75.71,28.2 L84.58,18.7 C84.77,18.49 85.08,18.44 85.33,18.57 C85.58,18.7 85.71,18.97 85.66,19.25 L84.5,25.06 L89.06,26.77 Z M81.03,34.81 L81.86,30.66 C81.92,30.36 81.75,30.05 81.46,29.94 L77.28,28.37 L83.98,21.19 L83.15,25.34 C83.09,25.64 83.26,25.95 83.55,26.06 L87.73,27.63 L81.03,34.81 Z"/></Canvas></Viewbox><TextBlock Text="Criar automaticamente a partir do relatório" TextWrapping="Wrap"/></StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Relatorio}" FontSize="16" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Criar automaticamente a partir do relatório" TextWrapping="Wrap"/></StackPanel>
                 </Button>
         </Border></Grid>
 
@@ -150,16 +168,16 @@
                   BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Background="{ThemeResource ControlFillColorDefaultBrush}">
             <Grid ColumnSpacing="6">
               <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <FontIcon Glyph="&#xE945;" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+              <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
               <TextBox x:Name="CaixaInstrucao" x:FieldModifier="internal" Grid.Column="1" BorderThickness="0" Background="Transparent" AcceptsReturn="False"
-                       TextWrapping="Wrap" PlaceholderText="Descreva o que mudar no despacho (ex.: junte os itens de cotas; cite o art. 12 da LC 70)"
+                       TextWrapping="Wrap" PlaceholderText="Descreva o que mudar no despacho. Ex.: junte os itens de cotas."
                        AutomationProperties.Name="Instrução para a IA modificar o despacho"/>
-              <ProgressRing x:Name="AnelInstrucao" x:FieldModifier="internal" Grid.Column="2" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
-              <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniBotaoPrimarioStyle}" CornerRadius="16"
+              <ProgressRing x:Name="AnelInstrucao" x:FieldModifier="internal" Grid.Column="2" AutomationProperties.Name="Aplicando a instrução com IA" AutomationProperties.LiveSetting="Polite" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
+              <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
                       Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0" VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                       AutomationProperties.Name="Aplicar a instrução" local:Dicas.Titulo="Pedir à IA" local:Dicas.Atalho="Enter"
                       local:Dicas.Descricao="Manda a instrução escrita ao lado para a IA mudar o despacho.">
-                <FontIcon Glyph="&#xE724;" FontSize="14"/>
+                <FontIcon Glyph="{x:Bind local:Glifos.Avancar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
               </Button>
             </Grid>
           </Border>
@@ -177,13 +195,13 @@
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
       <StackPanel Grid.Row="0" Padding="20,12,20,6" Spacing="8">
-        <TextBlock TextAlignment="Center" x:Name="TextoTituloConferencia" x:FieldModifier="internal" Text="3 · Conferência" Style="{StaticResource SubtitleTextBlockStyle}"/>
+        <TextBlock TextAlignment="Center" x:Name="TextoTituloConferencia" x:FieldModifier="internal" Text="3 · Conferência" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/>
         <InfoBar x:Name="AvisoErros" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="False" Title="O despacho gerado não passou na validação"/>
         <InfoBar x:Name="AvisoSemPdf" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="Sem PDF"/>
         <TextBlock x:Name="TextoFontes" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-        <StackPanel Orientation="Horizontal" Spacing="12">
-          <TextBlock x:Name="TextoPaginas" x:FieldModifier="internal" VerticalAlignment="Center"/>
-          <Button x:Name="BotaoMarcarTodas" x:FieldModifier="internal" Content="Marcar todas" Visibility="Collapsed"
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock x:Name="TextoPaginas" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
+          <Button x:Name="BotaoMarcarTodas" x:FieldModifier="internal" MinHeight="36" Content="Marcar todas as páginas" Visibility="Collapsed"
                   local:Dicas.Descricao="Marca todas as páginas do PDF como conferidas."/>
         </StackPanel>
       </StackPanel>
@@ -197,38 +215,46 @@
       <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" Padding="24"
                   Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" CornerRadius="8">
         <ProgressRing x:Name="Anel" x:FieldModifier="internal" IsActive="False" Width="32" Height="32"/>
-        <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" HorizontalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
-        <Button x:Name="BotaoInterromper" x:FieldModifier="internal" Content="Cancelar geração" HorizontalAlignment="Center"
+        <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" HorizontalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
+        <Button x:Name="BotaoInterromper" x:FieldModifier="internal" MinHeight="36" Content="Cancelar geração" HorizontalAlignment="Center"
                 local:Dicas.Descricao="Interrompe a geração e apaga a pasta de trabalho."/>
       </StackPanel>
     </Grid>
 
-    <!-- Rodapé: o que falta preencher, acima de "Gerar e conferir" (seta como ícone: o Narrador não lê "triângulo"). -->
+    <!-- Rodapé: requisitos da etapa e ações na ordem de tabulação. -->
     <Grid Grid.Row="2" Padding="20,8,20,12" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*"/>
         <ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
       <StackPanel x:Name="PainelFaltando" x:FieldModifier="internal" Grid.Column="0" Spacing="2" VerticalAlignment="Center" Visibility="Collapsed">
-        <TextBlock TextAlignment="Center" Text="Falta preencher:" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
-        <TextBlock x:Name="TextoFaltando" x:FieldModifier="internal" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+        <TextBlock TextAlignment="Center" Text="Falta preencher:" Style="{StaticResource PmvniTextoErroStyle}"/>
+        <TextBlock x:Name="TextoFaltando" x:FieldModifier="internal" Style="{StaticResource PmvniTextoErroStyle}" TextAlignment="Left" AutomationProperties.LiveSetting="Polite"/>
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
-        <Button x:Name="BotaoCancelar" x:FieldModifier="internal" Content="Cancelar"
-                local:Dicas.Descricao="Fecha o novo despacho sem gravar nada."/>
-        <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Content="Voltar e editar" Visibility="Collapsed"
-                local:Dicas.Descricao="Volta para a edição do despacho, antes de gravar."/>
-        <Button x:Name="BotaoGerar" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" IsEnabled="False"
-                AutomationProperties.Name="Gerar e conferir"
-                local:Dicas.Descricao="Gera o documento Word e o PDF do despacho e mostra as páginas para conferir.">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <TextBlock Text="Gerar e conferir"/>
-            <FontIcon Glyph="&#xE72A;" FontSize="12"/>
-          </StackPanel>
-        </Button>
-        <Button x:Name="BotaoGravar" x:FieldModifier="internal" Content="Gravar na pasta do processo" Style="{StaticResource PmvniBotaoPrimarioStyle}"
-                IsEnabled="False" Visibility="Collapsed"
-                local:Dicas.Descricao="Grava o despacho conferido na pasta da etapa do processo."/>
+        <Border Background="Transparent" Visibility="{Binding Visibility, ElementName=BotaoGerar}">
+          <Button x:Name="BotaoGerar" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" IsEnabled="False"
+                  AutomationProperties.Name="Gerar e conferir"
+                  local:Dicas.Descricao="Gera o documento Word e o PDF do despacho e mostra as páginas para conferir.">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon Glyph="{x:Bind local:Glifos.Conferir}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+              <TextBlock Text="Gerar e conferir"/>
+            </StackPanel>
+          </Button>
+        </Border>
+        <Border Background="Transparent" Visibility="{Binding Visibility, ElementName=BotaoGravar}">
+          <Button x:Name="BotaoGravar" x:FieldModifier="internal" Content="Gravar na pasta do processo" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+                  local:Brilho.Ativo="False" IsEnabled="False" Visibility="Collapsed"
+                  local:Dicas.Descricao="Grava o despacho conferido na pasta da etapa do processo."/>
+        </Border>
+        <Border Background="Transparent" Visibility="{Binding Visibility, ElementName=BotaoVoltar}">
+          <Button x:Name="BotaoVoltar" x:FieldModifier="internal" MinHeight="36" Content="Voltar e editar" Visibility="Collapsed"
+                  local:Dicas.Descricao="Volta para a edição do despacho, antes de gravar."/>
+        </Border>
+        <Border Background="Transparent">
+          <Button x:Name="BotaoCancelar" x:FieldModifier="internal" MinHeight="36" Content="Cancelar"
+                  local:Dicas.Descricao="Fecha o novo despacho sem gravar nada."/>
+        </Border>
       </StackPanel>
     </Grid>
   </Grid>

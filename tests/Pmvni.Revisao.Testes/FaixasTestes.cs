@@ -28,6 +28,16 @@ public class FaixasTestes
     }
 
     [Fact]
+    public void catalogo_usa_um_glifo_distinto_para_cada_nome()
+    {
+        var glifos = typeof(Glifos).GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(c => c.IsLiteral && c.FieldType == typeof(string))
+            .GroupBy(c => (string)c.GetRawConstantValue()!, StringComparer.Ordinal);
+        var repetidos = glifos.Where(g => g.Count() > 1).Select(g => string.Join(", ", g.Select(c => c.Name)));
+        Assert.Empty(repetidos);
+    }
+
+    [Fact]
     public void aba_padrao_e_a_segunda_exceto_ajustes()
     {
         foreach (var m in ComFaixa())

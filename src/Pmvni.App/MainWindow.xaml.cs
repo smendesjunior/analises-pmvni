@@ -209,6 +209,13 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         RegistrarAtalhos();
         IniciarGravacao();
         IniciarPesquisa();
+        BotaoDesfazer.IsEnabledChanged += (_, _) => AtualizarDicasEdicao();
+        BotaoRefazer.IsEnabledChanged += (_, _) => AtualizarDicasEdicao();
+        AtualizarDicasEdicao();
+        AjustarIconeDoRodape(R.BotaoMenos, Glifos.Diminuir);
+        AjustarIconeDoRodape(R.BotaoMais, Glifos.Aumentar);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(R.BotaoLargura, "Ajustar largura");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(R.BotaoPagina, "Página inteira");
         IniciarAjustes();
         IniciarLegislacaoAjustes();
         IniciarLegislacao();
@@ -417,6 +424,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             sobra += TextosAnalise.ActualWidth + 12;
             TextosAnalise.Visibility = Visibility.Collapsed;
         }
+        AjustarBotaoDoCabecalho(BotaoPesquisaAnterior, RotuloAnterior);
+        AjustarBotaoDoCabecalho(BotaoPesquisaProxima, RotuloProximo);
+        AjustarBotaoDoCabecalho(BotaoDesfazer, RotuloDesfazer);
+        AjustarBotaoDoCabecalho(BotaoRefazer, RotuloRefazer);
         var analiseCompacta = TextosAnalise.Visibility == Visibility.Collapsed;
         BotaoAnalise.Width = analiseCompacta ? 32 : double.NaN;
         BotaoAnalise.MinWidth = analiseCompacta ? 32 : 0;
@@ -426,6 +437,13 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         var nova = Math.Round(Math.Clamp(sobra, 140, 640));
         AtalhoPesquisa.Visibility = nova >= 300 ? Visibility.Visible : Visibility.Collapsed;
         if (Math.Abs(MolduraPesquisa.Width - nova) >= 1) MolduraPesquisa.Width = nova;
+    }
+
+    static void AjustarBotaoDoCabecalho(Button botao, TextBlock rotulo)
+    {
+        var compacto = rotulo.Visibility == Visibility.Collapsed;
+        botao.Width = compacto ? 32 : double.NaN;
+        if (compacto) botao.Padding = new Thickness(0); else botao.ClearValue(Control.PaddingProperty);
     }
 
     /// <summary>Ajustes › Relatórios e revisão › "Painéis ao abrir": com "Lembrar", o painel lateral e as Propriedades como ficaram.</summary>
@@ -989,14 +1007,30 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             Faixa.DefinirDica(id, motivoFolhas ?? "");
         Faixa.DefinirDica(ComandosApp.ExibirPainel, voltarAsFolhas);
         Faixa.DefinirDica(ComandosApp.ExibirPropriedades, voltarAsFolhas);
-        DicaDoRodape(R.BotaoMenos, ComandosApp.ExibirMenos, "Diminuir o zoom", motivoMenos);
-        DicaDoRodape(R.BotaoMais, ComandosApp.ExibirMais, "Aumentar o zoom", motivoMais);
-        DicaDoRodape(R.BotaoLargura, ComandosApp.ExibirLargura, "Ajustar largura", motivoFolhas);
-        DicaDoRodape(R.BotaoPagina, ComandosApp.ExibirPagina, "Página inteira", motivoFolhas);
+        AtualizarDicaDeComando(R.BotaoMenos, ComandosApp.ExibirMenos, "Diminuir o zoom", motivoMenos);
+        AtualizarDicaDeComando(R.BotaoMais, ComandosApp.ExibirMais, "Aumentar o zoom", motivoMais);
+        AtualizarDicaDeComando(R.BotaoLargura, ComandosApp.ExibirLargura, "Ajustar largura", motivoFolhas);
+        AtualizarDicaDeComando(R.BotaoPagina, ComandosApp.ExibirPagina, "Página inteira", motivoFolhas);
     }
 
-    /// <summary>A dica de um botão do rodapé (o mesmo comando da faixa): só refeita quando muda.</summary>
-    static void DicaDoRodape(DependencyObject botao, string id, string nome, string? motivo)
+    void AtualizarDicasEdicao()
+    {
+        AtualizarDicaDeComando(BotaoDesfazer, ComandosApp.EditarDesfazer, "Desfazer",
+            BotaoDesfazer.IsEnabled ? null : "Nenhuma alteração pode ser desfeita.");
+        AtualizarDicaDeComando(BotaoRefazer, ComandosApp.EditarRefazer, "Refazer",
+            BotaoRefazer.IsEnabled ? null : "Nenhuma alteração pode ser refeita.");
+    }
+
+    static void AjustarIconeDoRodape(Button botao, string glifo)
+    {
+        if (botao.Content is not FontIcon icone) return;
+        icone.Glyph = glifo;
+        icone.ClearValue(FontIcon.FontSizeProperty);
+        icone.Style = (Style)Application.Current.Resources["PmvniIconeAcao"];
+    }
+
+    /// <summary>Atualiza a dica de um comando da moldura quando seu contexto muda.</summary>
+    static void AtualizarDicaDeComando(DependencyObject botao, string id, string nome, string? motivo)
     {
         var d = DicasComandos.DoComando(id, nome, Modulo.Relatorios, motivo);
         if (Dicas.De(botao) != d) Dicas.Aplicar(botao, d);
@@ -1642,7 +1676,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             linha.Children.Add(new TextBlock { Text = rotulo });
-            var tecla = new TextBlock { Text = Atalhos.Legivel(atalho), Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
+            var textoTecla = atalho == "Ctrl+F" && id == ComandosApp.PesquisaFocar ? "Ctrl+K ou Ctrl+F" : Atalhos.Legivel(atalho);
+            var tecla = new TextBlock { Text = textoTecla, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
             Grid.SetColumn(tecla, 1);
             linha.Children.Add(tecla);
             lista.Children.Add(linha);

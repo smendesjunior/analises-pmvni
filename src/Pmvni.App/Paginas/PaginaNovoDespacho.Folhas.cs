@@ -5,6 +5,7 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Documents;
@@ -33,7 +34,6 @@ public sealed partial class PaginaNovoDespacho
     static readonly SolidColorBrush Preto = new(Colors.Black);
     static readonly SolidColorBrush Branco = new(Colors.White);
     static readonly SolidColorBrush Vermelho = new(Windows.UI.Color.FromArgb(255, 0xC4, 0x2B, 0x1C));
-    static readonly SolidColorBrush Borda = new(Windows.UI.Color.FromArgb(0x33, 0, 0, 0));
 
     IReadOnlyList<ParagrafoPrevia> previa = [];
     LayoutDespacho? layout;
@@ -218,7 +218,11 @@ public sealed partial class PaginaNovoDespacho
         foreach (var i in l.Imagens.Where(i => !i.AtrasDoTexto)) c.Children.Add(Imagem(i));
         // O ponto do clique: a caixa de edição abre ali (o link do trecho não é um elemento com posição própria).
         c.AddHandler(PointerPressedEvent, new PointerEventHandler((_, e) => ultimoToque = (c, e.GetCurrentPoint(c).Position)), true);
-        var folha = new Border { Child = c, BorderBrush = Borda, BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Center };
+        var folha = new Border
+        {
+            Child = c, HorizontalAlignment = HorizontalAlignment.Center, Padding = new Thickness(0), CornerRadius = new CornerRadius(0),
+            Style = (Style)Application.Current.Resources["PmvniCartaoStyle"],
+        };
         AutomationProperties.SetName(folha, "Página " + numero.ToString(CultureInfo.InvariantCulture) + " da prévia");
         return folha;
     }
@@ -350,7 +354,7 @@ public sealed partial class PaginaNovoDespacho
         var fly = new Flyout { Content = painel, Placement = FlyoutPlacementMode.Bottom, FlyoutPresenterStyle = cartao, ShouldConstrainToRootBounds = true };
         if (chave == ConteudoDespacho.ChaveIntervencao)
         {
-            painel.Children.Add(new TextBlock { Text = NomeDoCampo(chave), Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+            painel.Children.Add(new TextBlock { Text = NomeDoCampo(chave), Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
             var marcadas = valor.Replace(" e ", ",", StringComparison.Ordinal).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             var caixas = ConteudoDespacho.NomesDasIntervencoes
                 .Select(n => new CheckBox { Content = n, IsChecked = marcadas.Contains(n, StringComparer.OrdinalIgnoreCase) }).ToList();
@@ -383,7 +387,7 @@ public sealed partial class PaginaNovoDespacho
             ScrollViewer.SetHorizontalScrollBarVisibility(caixa, ScrollBarVisibility.Disabled);
             AutomationProperties.SetName(caixa, NomeDoCampo(chave));
             painel.Children.Add(caixa);
-            painel.Children.Add(new TextBlock { Text = "Enter grava; Esc desiste.", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
+            painel.Children.Add(new TextBlock { Text = "Enter para aplicar. Esc para descartar.", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
             var desistiu = false;
             caixa.KeyDown += (_, e) =>
             {
@@ -415,15 +419,18 @@ public sealed partial class PaginaNovoDespacho
     Action AdicionarAjusteComIa(StackPanel painel, TextBox caixa, string chave, Func<string, string, CancellationToken, Task<string>> ajustar)
     {
         const string Rotulo = "Ajustar com IA", Dica = "A IA deixa o texto mais claro e formal, com o mesmo sentido e sem fatos novos. " +
-            "O resultado entra na caixa, selecionado: Enter grava; Ctrl+Z ou Esc desfaz.";
+            "A resposta fica selecionada. Enter aplica, Ctrl+Z desfaz e Esc descarta a edição.";
         var rotulo = new TextBlock { Text = Rotulo };
+        var icone = new FontIcon { Glyph = Glifos.Ia, FontSize = 16 };
+        AutomationProperties.SetAccessibilityView(icone, AccessibilityView.Raw);
         var botao = new Button
         {
-            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new FontIcon { Glyph = "", FontSize = 14 }, rotulo } },
+            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { icone, rotulo } },
         };
         AutomationProperties.SetName(botao, Rotulo);
         Dicas.Aplicar(botao, Rotulo, Dica);
         var anel = new ProgressRing { IsActive = false, Width = 16, Height = 16, Visibility = Visibility.Collapsed };
+        AutomationProperties.SetName(anel, "Ajustando a exigência com IA");
         var estado = new TextBlock
         {
             Text = "Ajustando…", VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed,
@@ -431,6 +438,8 @@ public sealed partial class PaginaNovoDespacho
         };
         var linha = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { botao, anel, estado } };
         var erro = new TextBlock { Visibility = Visibility.Collapsed, Style = (Style)Application.Current.Resources["PmvniTextoErroStyle"] };
+        AutomationProperties.SetLiveSetting(estado, AutomationLiveSetting.Polite);
+        AutomationProperties.SetLiveSetting(erro, AutomationLiveSetting.Polite);
         var depois = painel.Children.IndexOf(caixa) + 1;
         painel.Children.Insert(depois, linha);
         painel.Children.Insert(depois + 1, erro);
@@ -442,6 +451,8 @@ public sealed partial class PaginaNovoDespacho
             anel.Visibility = estado.Visibility = sim ? Visibility.Visible : Visibility.Collapsed;
             rotulo.Text = sim ? "Cancelar" : Rotulo;
             AutomationProperties.SetName(botao, sim ? "Cancelar o ajuste com IA" : Rotulo);
+            icone.Glyph = sim ? Glifos.Fechar : Glifos.Ia;
+            Dicas.Aplicar(botao, rotulo.Text, sim ? "Interrompe o ajuste com IA." : Dica);
             caixa.IsReadOnly = sim; // a resposta substitui o texto: nada de editar no meio da espera
         }
         botao.Click += async (_, _) =>

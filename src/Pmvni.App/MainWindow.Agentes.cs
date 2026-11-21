@@ -499,7 +499,7 @@ public sealed partial class MainWindow
         var concordou = false;
         await NaFilaAsync(() => TentarAsync(async () =>
         {
-            concordou = await Perguntas.Atual.ConfirmarAsync($"Analisar com o {Provedores.Nome(p)}", TextosAgentes.Aviso(p), "Concordo", "Cancelar", destrutiva: false);
+            concordou = await Perguntas.Atual.ConfirmarAsync($"Analisar com o {Provedores.Nome(p)}", TextosAgentes.Aviso(p), "Concordar", "Cancelar", destrutiva: false);
             if (!concordou) return;
             var a = ajustes.Agentes[p];
             a.AvisoVersao = Ajustes.VersaoAviso;
@@ -576,7 +576,9 @@ public sealed partial class MainWindow
               + Environment.NewLine + "Antigravity CLI (agy): " + (pecas.Agy ?? "não encontrado")
             : TextosAgentes.LinhaDoPrograma("Python", pecas.Python, a.Executavel) + (pecas.PythonPeloLauncher ? " (pelo py.exe -3)" : "")
               + Environment.NewLine + "Executor do kit (Claude Code): " + (pecas.Claude ?? "não encontrado");
-        c.BotaoProgramaPadrao.IsEnabled = !string.IsNullOrWhiteSpace(a.Executavel);
+        AtualizarDicaDeDisponibilidade(c.BotaoProgramaPadrao, DicasComandos.Livre("Usar padrão",
+            "Volta a usar o programa da IA detectado neste computador.",
+            motivo: string.IsNullOrWhiteSpace(a.Executavel) ? "O programa padrão já está selecionado." : null));
 
         var mensagem = MensagemDoAgente(p);
         c.TextoMensagem.Text = mensagem ?? "";
@@ -586,7 +588,9 @@ public sealed partial class MainWindow
         var avisos = AvisosDoAgente(p);
         c.TextoAvisosDoTeste.Text = string.Join(Environment.NewLine, avisos);
         c.TextoAvisosDoTeste.Visibility = avisos.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        c.BotaoTestar.IsEnabled = !testandoAgentes.Contains(p);
+        AtualizarDicaDeDisponibilidade(c.BotaoTestar, DicasComandos.Livre("Testar",
+            "Confere se o programa e a conta da IA estão prontos, sem enviar dados.",
+            motivo: testandoAgentes.Contains(p) ? "O teste está em andamento." : null));
 
         c.OpcaoContaGemini.IsChecked = a.Modo == ModoAcesso.ContaGemini;
         c.OpcaoConta.IsChecked = a.Modo == ModoAcesso.Conta;
@@ -618,9 +622,21 @@ public sealed partial class MainWindow
         c.CaixaChave.PlaceholderText = guardada ? "••••••••" : "Cole a chave de API aqui";
         c.TextoChave.Text = guardada ? TextosAgentes.ChaveGuardada : TextosAgentes.SemChave;
         c.SeloChave.Definir(guardada, guardada ? TextosAgentes.Configurada : TextosAgentes.NaoConfigurada);
-        c.BotaoRemoverChave.IsEnabled = guardada;
+        AtualizarDicaDeDisponibilidade(c.BotaoRemoverChave, DicasComandos.Livre("Remover chave",
+            "Apaga a chave de API guardada neste computador.", motivo: guardada ? null : "Nenhuma chave está guardada."));
 
         c.TextoAviso.Text = TextosAgentes.SituacaoDoAviso(a);
+    }
+
+    static void AtualizarDicaDeDisponibilidade(Button botao, TextoDica dica)
+    {
+        bool habilitado = dica.Motivo is null;
+        botao.IsEnabled = habilitado;
+        if (Dicas.De(botao) == dica) return;
+        Dicas.Aplicar(botao, dica);
+        // O WinUI não aciona a dica no próprio botão desabilitado.
+        if (botao.Parent is FrameworkElement grupo)
+            ToolTipService.SetToolTip(grupo, habilitado ? null : Dicas.Criar(dica));
     }
 
     void MostrarPlugin(TextBlock descricao, SeloEstado selo, TextBlock novo, Provedor p, string plugin, PluginInstalado? instalado, bool habilitadoNoCodex)

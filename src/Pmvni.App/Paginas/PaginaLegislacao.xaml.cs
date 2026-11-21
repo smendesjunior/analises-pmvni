@@ -10,6 +10,7 @@ public sealed partial class PaginaLegislacao : UserControl
     public PaginaLegislacao()
     {
         InitializeComponent();
+        AtualizarDicasDoPortal();
         foreach (var aba in AbasPainel.Items) FaixaDeOpcoes.AjustarIndicador(aba);
         foreach (var aba in ModoLeitura.Items) FaixaDeOpcoes.AjustarIndicador(aba);
     }

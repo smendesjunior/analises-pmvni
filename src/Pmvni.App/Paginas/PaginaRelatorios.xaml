@@ -24,7 +24,7 @@
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Button x:Name="BotaoSalvarCopia" x:FieldModifier="internal" Content="Salvar como cópia" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                     local:Dicas.Descricao="Grava as suas alterações num arquivo novo, sem mexer no arquivo que mudou no disco."/>
-            <Button x:Name="BotaoRecarregar" x:FieldModifier="internal" Content="Recarregar"
+            <Button x:Name="BotaoRecarregar" x:FieldModifier="internal" Content="Recarregar" MinHeight="36"
                     local:Dicas.Descricao="Deixa de lado o que está na tela e abre a versão que está no disco."/>
           </StackPanel>
         </InfoBar.Content>
@@ -76,10 +76,13 @@
         <!-- Painel de navegação (correções 2026-11-15): pesquisa por texto ou situação e filtro rápido dos apontamentos. Os botões do
              filtro são montados pela janela (FiltroNavegacao.Ordem), com a contagem de cada situação. -->
         <StackPanel x:Name="PainelFiltros" x:FieldModifier="internal" Grid.Row="1" Spacing="8" Margin="12,4,12,8">
-          <TextBlock Text="Seções do relatório" Style="{StaticResource PmvniTituloSecao}" TextAlignment="Left"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <FontIcon Glyph="{x:Bind local:Glifos.Lista}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}"/>
+            <TextBlock Text="Seções do relatório" Style="{StaticResource PmvniTituloSecao}" AutomationProperties.HeadingLevel="Level2"/>
+          </StackPanel>
           <TextBlock Text="Navegue pelas folhas e exigências da análise" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
           <Grid><TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="CaixaFiltroSecoes" x:FieldModifier="internal" PlaceholderText="Pesquisar seção ou item"
-                   AutomationProperties.Name="Pesquisar nas seções e itens"/><FontIcon Glyph="&#xE721;" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0" FontSize="15"/></Grid>
+                   AutomationProperties.Name="Pesquisar nas seções e itens"/><FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" Style="{StaticResource PmvniIconeSecundarioStyle}" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0" FontSize="16"/></Grid>
           <Expander Header="Filtrar por situação" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
           <Grid ColumnDefinitions="*,*,*,*,*,*" RowDefinitions="Auto,Auto" RowSpacing="5" ColumnSpacing="4" x:Name="BotoesFiltro" x:FieldModifier="internal" AutomationProperties.Name="Filtro rápido de apontamentos"/>
           </Expander>
@@ -110,34 +113,31 @@
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Style="{StaticResource PmvniRailIndicatorStyle}" Visibility="{x:Bind IndicadorVisivel, Mode=OneWay}"/>
                 <Border Grid.Column="0" VerticalAlignment="Stretch" Margin="0,4" CornerRadius="2" Background="{x:Bind CorSituacao}" Visibility="{x:Bind SituacaoVisivel}"/>
-                <FontIcon Grid.Column="1" Glyph="{x:Bind IconeSecao}" Visibility="{x:Bind IconeSecaoVisivel, Mode=OneWay}" FontSize="15"/>
-                <TextBlock Grid.Column="1" Text="{x:Bind Numero}" Visibility="{x:Bind NumeroVisivel}" FontSize="12"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,1,0,0" VerticalAlignment="Top"/>
+                <FontIcon Grid.Column="1" Glyph="{x:Bind IconeSecao}" Visibility="{x:Bind IconeSecaoVisivel, Mode=OneWay}" FontSize="16"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind Numero}" Visibility="{x:Bind NumeroVisivel}" Style="{StaticResource PmvniSecondaryTextStyle}" Margin="0,1,0,0" VerticalAlignment="Top"/>
                 <Button Grid.Column="1" Visibility="{x:Bind ChevronVisivel, Mode=OneWay}" Tag="{x:Bind}" Click="AoClicarChevron"
-                        Width="24" Height="24" Padding="0" Margin="0,-2,0,0" VerticalAlignment="Top" Background="Transparent" BorderThickness="0"
+                        Width="24" Height="24" Padding="0" Margin="0,-2,0,0" VerticalAlignment="Top" Style="{StaticResource PmvniBarraButtonStyle}"
                         AutomationProperties.Name="{x:Bind NomeChevron, Mode=OneWay}" local:Dicas.Descricao="Mostra ou esconde os itens desta seção.">
-                  <FontIcon Glyph="{x:Bind GlifoChevron, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                  <FontIcon Glyph="{x:Bind GlifoChevron, Mode=OneWay}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}"/>
                 </Button>
                 <StackPanel Grid.Column="2" Spacing="5" VerticalAlignment="Center">
                   <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
-                    <TextBlock TextAlignment="Left" Text="{x:Bind Titulo}" FontWeight="{x:Bind Peso}" FontSize="{x:Bind TamanhoTitulo}" MaxLines="{x:Bind LinhasTitulo}"
+                    <TextBlock TextAlignment="Left" Text="{x:Bind Titulo}" Style="{x:Bind local:PaginaRelatorios.EstiloDoTitulo(Secao)}" MaxLines="{x:Bind LinhasTitulo}"
                                TextWrapping="{x:Bind QuebraTitulo}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                     <Border Grid.Column="1" Visibility="{x:Bind ContagemVisivel, Mode=OneWay}" CornerRadius="9" Padding="7,0,7,1" VerticalAlignment="Center"
                             Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                      <TextBlock Text="{x:Bind ContagemTexto, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                      <TextBlock Text="{x:Bind ContagemTexto, Mode=OneWay}" Style="{StaticResource PmvniSecondaryTextStyle}"/>
                     </Border>
                   </Grid>
                   <!-- 2026-11-17 (pedido do usuário): embaixo do título, a etiqueta da situação no visual do relatório e, se o item mudou,
                        "RESULTADO ORIGINAL ALTERADO" (cor de destaque do app, não vermelho: vermelho é só da situação). -->
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <local:EtiquetaSituacao Situacao="{x:Bind Situacao}" Tag="{x:Bind}" Click="AoClicarEtiqueta" HorizontalAlignment="Left"/>
-                    <TextBlock Text="RESULTADO ORIGINAL ALTERADO" Visibility="{x:Bind AlteradoVisivel}" FontSize="10" FontWeight="SemiBold" CharacterSpacing="30"
-                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                    <TextBlock Text="Resultado original alterado" Visibility="{x:Bind AlteradoVisivel}" Style="{StaticResource PmvniTextoDestaqueStyle}" TextWrapping="NoWrap" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                ToolTipService.ToolTip="O resultado original deste item foi alterado na revisão."/>
                   </StackPanel>
                 </StackPanel>
-                <TextBlock Grid.Column="3" Text="{x:Bind FolhaTexto}" FontSize="10.5" FontWeight="SemiBold" CharacterSpacing="30"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                <TextBlock Grid.Column="3" Text="{x:Bind FolhaTexto}" Style="{StaticResource PmvniSecondaryTextStyle}"
                            VerticalAlignment="Top" Margin="0,2,0,0" TextAlignment="Right" HorizontalAlignment="Right"/>
               </Grid>
             </DataTemplate>
@@ -145,7 +145,8 @@
         </ListView>
         <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Padding="12,8" ColumnSpacing="6" Visibility="{Binding Visibility, ElementName=ListaNavegacao}">
           <TextBlock x:Name="ContagemNavegacao" TextAlignment="Left" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-          <Button x:Name="MaisItens" Grid.Column="1" Content="Mais itens" Click="AvancarNavegacao"/>
+          <Button x:Name="MaisItens" Grid.Column="1" Content="Ver mais itens" Click="AvancarNavegacao"
+                  AutomationProperties.Name="Ver mais itens"/>
         </Grid>
         <!-- Excluídos: cada linha com o número original, o título e Restaurar (as linhas são montadas pela janela). -->
         <ListView x:Name="ListaExcluidos" x:FieldModifier="internal" Grid.Row="2" SelectionMode="None" IsItemClickEnabled="True"
@@ -171,7 +172,7 @@
                   Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="22">
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
               <ProgressRing x:Name="Anel" x:FieldModifier="internal" IsActive="False" Width="24" Height="24"/>
-              <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" VerticalAlignment="Center"/>
+              <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" AutomationProperties.LiveSetting="Polite"/>
             </StackPanel>
           </Border>
         </Grid>
@@ -196,19 +197,19 @@
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
           <StackPanel>
-            <TextBlock TextAlignment="Left" x:Name="PropTitulo" x:FieldModifier="internal" Text="Propriedades" Style="{StaticResource SubtitleTextBlockStyle}"/>
+            <TextBlock TextAlignment="Left" x:Name="PropTitulo" x:FieldModifier="internal" Text="Propriedades" Style="{StaticResource PmvniAjusteTitulo}" AutomationProperties.HeadingLevel="Level2"/>
             <TextBlock x:Name="PropId" x:FieldModifier="internal" Text="" Style="{StaticResource PmvniSecondaryTextStyle}" IsTextSelectionEnabled="True"/>
           </StackPanel>
           <Button x:Name="BotaoFecharPropriedades" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniBarraButtonStyle}"
-                  AutomationProperties.Name="Fechar as propriedades" VerticalAlignment="Top"
+                  AutomationProperties.Name="Fechar as propriedades" VerticalAlignment="Top" Width="32" Height="32" Padding="0"
                   local:Dicas.Descricao="Esconde este painel; ele volta em Exibir › Propriedades.">
-            <FontIcon Glyph="&#xE711;" FontSize="12"/>
+            <FontIcon Glyph="{x:Bind local:Glifos.Fechar}" FontSize="16"/>
           </Button>
         </Grid>
         <TextBlock x:Name="PropVazio" x:FieldModifier="internal" Grid.Row="1" Margin="16,8" TextWrapping="Wrap"
                    Text="Selecione um item nas folhas ou na lista de seções." Style="{StaticResource PmvniSecondaryTextStyle}"/>
         <ScrollViewer x:Name="PropRolagem" x:FieldModifier="internal" Grid.Row="1" Visibility="Collapsed">
-          <!-- Correções 2026-11-16: seções em cartões com cabeçalho (Estado, Esquadrias, Conteúdo, Histórico), rótulos pequenos em maiúsculas
+          <!-- Correções 2026-11-16: seções em cartões com cabeçalho (Estado, Esquadrias, Conteúdo, Histórico), rótulos pequenos
                acima de cada valor e separadores; os estilos (PmvniPainel…, Estilos.xaml) servem também ao painel do Novo despacho. -->
           <StackPanel x:Name="PropConteudo" x:FieldModifier="internal" Padding="12,4,12,16" Spacing="12">
 
@@ -217,30 +218,30 @@
               <StackPanel>
                 <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE73E;" Style="{StaticResource PmvniPainelCartaoIcone}"/>
-                    <TextBlock Text="ESTADO" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
+                    <FontIcon Glyph="{x:Bind local:Glifos.Situacao}" Style="{StaticResource PmvniPainelCartaoIcone}" FontSize="16"/>
+                    <TextBlock Text="Estado" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level3"/>
                   </StackPanel>
                 </Border>
                 <StackPanel Style="{StaticResource PmvniPainelCartaoCorpo}">
                   <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock Text="NO PDF" Style="{StaticResource PmvniPainelRotulo}"/>
+                    <TextBlock Text="No PDF" Style="{StaticResource PmvniPainelRotulo}"/>
                     <CheckBox x:Name="PropNoPdf" x:FieldModifier="internal" Grid.Column="1" Content="Sai no relatório" MinWidth="0" MinHeight="28" Padding="6,0,0,0"
                               AutomationProperties.Name="No PDF"
                               local:Dicas.Descricao="Desmarcado, o item sai do relatório (continua em Excluídos e pode voltar)."/>
                   </Grid>
                   <Border Style="{StaticResource PmvniPainelSeparador}"/>
                   <StackPanel Spacing="4">
-                    <TextBlock Text="SITUAÇÃO" Style="{StaticResource PmvniPainelRotulo}"/>
+                    <TextBlock Text="Situação" Style="{StaticResource PmvniPainelRotulo}"/>
                     <ComboBox x:Name="PropSituacao" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Situação revisada"/>
                     <TextBlock x:Name="PropSituacaoOriginal" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
                   </StackPanel>
                   <Border Style="{StaticResource PmvniPainelSeparador}"/>
                   <StackPanel Spacing="4">
-                    <TextBlock Text="JUSTIFICATIVA" Style="{StaticResource PmvniPainelRotulo}"/>
+                    <TextBlock Text="Justificativa" Style="{StaticResource PmvniPainelRotulo}"/>
                     <TextBox x:Name="PropJustificativa" x:FieldModifier="internal" TextWrapping="Wrap" AcceptsReturn="False" MinHeight="56"
                              PlaceholderText="Por que a situação mudou, ou o que rever no item (Enter aplica)" AutomationProperties.Name="Justificativa"/>
-                    <TextBlock x:Name="PropJustificativaAviso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
+                    <TextBlock x:Name="PropJustificativaAviso" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" AutomationProperties.LiveSetting="Polite"
                                Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed"
                                Text="A situação mudou: a justificativa é exigida para exportar."/>
                   </StackPanel>
@@ -248,28 +249,29 @@
                   <!-- A IA reajusta o item inteiro a partir da justificativa (com ou sem mudança de situação), pelo Codex com o modelo de
                        Ajustes › Inteligência artificial. Enquanto espera: anel, tempo e Cancelar. -->
                   <StackPanel Spacing="6">
-                    <TextBlock Text="INTELIGÊNCIA ARTIFICIAL" Style="{StaticResource PmvniPainelRotulo}"/>
-                    <TextBlock x:Name="PropAjustarAviso" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
+                    <TextBlock Text="Inteligência artificial" Style="{StaticResource PmvniPainelRotulo}"/>
+                    <TextBlock x:Name="PropAjustarAviso" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" AutomationProperties.LiveSetting="Polite"
                                Foreground="{ThemeResource SystemFillColorCautionBrush}" Visibility="Collapsed"/>
-                    <StackPanel Spacing="6">
+                    <StackPanel Spacing="8">
                       <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" x:Name="PropAjustarTexto" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+                              AutomationProperties.Name="{x:Bind PropAjustarRotulo.Text, Mode=OneWay}"
                               local:Dicas.Descricao="A IA reajusta o item inteiro (verificação, providência, base legal, referência e, se a justificativa pedir, a situação), com o texto curto como o original. Um Desfazer volta tudo.">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                          <FontIcon Glyph="&#xE945;" FontSize="14"/>
+                          <FontIcon x:Name="PropAjustarIcone" x:FieldModifier="internal" FontSize="16"/>
                           <TextBlock x:Name="PropAjustarRotulo" x:FieldModifier="internal" Text="Ajustar o item com a IA"/>
                         </StackPanel>
                       </Button>
                       <!-- Tarefa 15: numa tabela de índices ou de esquadrias, o botão acima revê sem IA; este é a segunda opção, só oferecida
                            quando há texto novo na justificativa, e só roda com clique nele. -->
-                      <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" x:Name="PropReverComIa" x:FieldModifier="internal" Visibility="Collapsed"
+                      <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" x:Name="PropReverComIa" x:FieldModifier="internal" Visibility="Collapsed" MinHeight="36"
                               AutomationProperties.Name="Rever a tabela com a IA, seguindo a justificativa"
                               local:Dicas.Descricao="A IA revê a tabela seguindo o que você escreveu na justificativa; as contas das esquadrias continuam sendo do editor. Um Desfazer volta tudo.">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                          <FontIcon Glyph="&#xE945;" FontSize="14"/>
+                          <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16"/>
                           <TextBlock Text="Rever com a IA"/>
                         </StackPanel>
                       </Button>
-                      <Button x:Name="PropAjustarCancelar" x:FieldModifier="internal" Content="Cancelar" Visibility="Collapsed"
+                      <Button x:Name="PropAjustarCancelar" x:FieldModifier="internal" Content="Cancelar" Visibility="Collapsed" MinHeight="36"
                               AutomationProperties.Name="Cancelar a consulta à IA"
                               local:Dicas.Descricao="Interrompe a consulta à IA; nada muda no relatório."/>
                     </StackPanel>
@@ -287,8 +289,8 @@
               <StackPanel>
                 <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE80F;" Style="{StaticResource PmvniPainelCartaoIcone}"/>
-                    <TextBlock Text="ESQUADRIAS" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
+                    <FontIcon Glyph="{x:Bind local:Glifos.Inicio}" Style="{StaticResource PmvniPainelCartaoIcone}" FontSize="16"/>
+                    <TextBlock Text="Esquadrias" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level3"/>
                   </StackPanel>
                 </Border>
                 <StackPanel x:Name="PropEsquadriasCorpo" x:FieldModifier="internal" Style="{StaticResource PmvniPainelCartaoCorpo}"/>
@@ -300,17 +302,18 @@
               <StackPanel>
                 <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE8A5;" Style="{StaticResource PmvniPainelCartaoIcone}"/>
-                    <TextBlock Text="CONTEÚDO" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
+                    <FontIcon Glyph="{x:Bind local:Glifos.Relatorio}" Style="{StaticResource PmvniPainelCartaoIcone}" FontSize="16"/>
+                    <TextBlock Text="Conteúdo" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level3"/>
                   </StackPanel>
                 </Border>
                 <StackPanel Style="{StaticResource PmvniPainelCartaoCorpo}">
                   <StackPanel x:Name="PropCampos" x:FieldModifier="internal" Spacing="12"/>
                   <Border Style="{StaticResource PmvniPainelSeparador}"/>
                   <Button x:Name="PropRestaurarOriginal" x:FieldModifier="internal" HorizontalAlignment="Left"
+                          AutomationProperties.Name="Restaurar original"
                           local:Dicas.Descricao="Desfaz as edições deste item e volta ao texto original recebido da IA.">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                      <FontIcon Glyph="&#xE7A7;" FontSize="14"/>
+                      <FontIcon Glyph="{x:Bind local:Glifos.Desfazer}" FontSize="16"/>
                       <TextBlock Text="Restaurar original"/>
                     </StackPanel>
                   </Button>
@@ -323,8 +326,8 @@
               <StackPanel>
                 <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE81C;" Style="{StaticResource PmvniPainelCartaoIcone}"/>
-                    <TextBlock Text="HISTÓRICO" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
+                    <FontIcon Glyph="{x:Bind local:Glifos.Recentes}" Style="{StaticResource PmvniPainelCartaoIcone}" FontSize="16"/>
+                    <TextBlock Text="Histórico" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level3"/>
                   </StackPanel>
                 </Border>
                 <StackPanel x:Name="PropHistorico" x:FieldModifier="internal" Padding="12,10,12,12" Spacing="6"/>
@@ -345,17 +348,17 @@
         <ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
       <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-        <Button x:Name="BotaoMenos" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Diminuir o zoom"
+        <Button x:Name="BotaoMenos" x:FieldModifier="internal" Width="32" Height="32" Padding="0" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Diminuir o zoom"
                 ToolTipService.ToolTip="Abra um relatório para mudar o zoom." IsEnabled="False">
-          <FontIcon Glyph="&#xE71F;" FontSize="14"/>
+          <FontIcon Glyph="{x:Bind local:Glifos.Diminuir}" FontSize="16"/>
         </Button>
         <Slider x:Name="ControleZoom" x:FieldModifier="internal" Width="104" Minimum="50" Maximum="300" Value="100"
                 StepFrequency="1" SmallChange="1" LargeChange="10" VerticalAlignment="Center" IsEnabled="False"
                 AutomationProperties.Name="Zoom do relatório em porcentagem" ToolTipService.ToolTip="Arraste para ajustar o zoom do relatório"/>
-        <TextBlock x:Name="TextoZoom" x:FieldModifier="internal" Text="100 %" Width="52" TextAlignment="Center" VerticalAlignment="Center"/>
-        <Button x:Name="BotaoMais" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Aumentar o zoom"
+        <TextBlock x:Name="TextoZoom" x:FieldModifier="internal" Text="100 %" Style="{StaticResource PmvniSecondaryTextStyle}" Width="52" TextAlignment="Center" VerticalAlignment="Center"/>
+        <Button x:Name="BotaoMais" x:FieldModifier="internal" Width="32" Height="32" Padding="0" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Aumentar o zoom"
                 ToolTipService.ToolTip="Abra um relatório para mudar o zoom." IsEnabled="False">
-          <FontIcon Glyph="&#xE8A3;" FontSize="14"/>
+          <FontIcon Glyph="{x:Bind local:Glifos.Aumentar}" FontSize="16"/>
         </Button>
         <Button x:Name="BotaoLargura" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" Content="Ajustar largura" Margin="10,0,0,0"
                 ToolTipService.ToolTip="Abra um relatório para ajustar a largura." IsEnabled="False"/>
@@ -366,10 +369,10 @@
       <TextBlock x:Name="TextoComposicao" x:FieldModifier="internal" Grid.Column="2" Text="" Style="{StaticResource PmvniSecondaryTextStyle}"
                  VerticalAlignment="Center" Margin="8,0" TextTrimming="CharacterEllipsis"/>
       <StackPanel x:Name="PainelFolha" x:FieldModifier="internal" Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="Collapsed">
-        <TextBlock Text="Folha" VerticalAlignment="Center"/>
+        <TextBlock Text="Folha" Style="{StaticResource PmvniPainelRotulo}" VerticalAlignment="Center"/>
         <NumberBox x:Name="CaixaFolha" x:FieldModifier="internal" MinWidth="72" Minimum="1" Maximum="1" Value="1" SpinButtonPlacementMode="Hidden"
                    AutomationProperties.Name="Ir à folha" ToolTipService.ToolTip="Digite o número da folha e tecle Enter"/>
-        <TextBlock x:Name="TextoFolha" x:FieldModifier="internal" Text="" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <TextBlock x:Name="TextoFolha" x:FieldModifier="internal" Text="" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center" Margin="0,0,6,0"/>
       </StackPanel>
     </Grid>
   </Grid>
