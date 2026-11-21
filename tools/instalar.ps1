@@ -11,7 +11,7 @@
     1. baixa a Release do GitHub para a pasta da cópia de uso (sem internet: copia Aplicativo\, que depois se atualiza pelo GitHub);
     2. cria os atalhos no Menu Iniciar e na Área de Trabalho apontando para a cópia de uso;
     3. associa .rpmvni (e o formato antigo .pmvrel) à cópia de uso (HKCU\Software\Classes);
-    4. atualiza o kit PMVNI (INSTALAR_KIT_PMVNI.cmd atualizar: plugins analise / análise pro / despacho);
+    4. atualiza o kit PMVNI (INSTALAR_KIT_PMVNI.cmd atualizar: plugin analise; o despacho é do próprio editor);
     5. abre o editor anexando as leis do kit (03 - LEGISLACAO) à Legislação (as já anexadas não se repetem).
   Resultado em tools\instalar-resultado.txt.
 #>

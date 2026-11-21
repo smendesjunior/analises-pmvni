@@ -32,6 +32,23 @@ public static class CriacaoProcesso
             && int.Parse(m.Groups["a"].Value, CultureInfo.InvariantCulture) == ano;
     }
 
+    /// <summary>Como o <c>localizar</c> do <c>pasta_processo.py</c> do kit: as pastas do processo (mesmo número e ano, inclusive "FINALIZADO - …",
+    /// zeros à esquerda e "16488-2026 - …"), primeiro na pasta do ano do protocolo; se lá não houver, em qualquer ano. Número parcial não
+    /// confunde ("1622" não acha o 16229).</summary>
+    public static IReadOnlyList<Processo> Localizar(string raiz, string identificador, int ano)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identificador);
+        identificador = identificador.Trim();
+        var numerico = int.TryParse(identificador, NumberStyles.None, CultureInfo.InvariantCulture, out var numero);
+        var id = identificador;
+        var todos = Processos.Listar(raiz, CancellationToken.None).Itens.Where(p =>
+            (p.Ano == ano && string.Equals(p.Identificador, id, StringComparison.OrdinalIgnoreCase))
+            || (numerico && EhDoProcesso(p, numero, ano))).ToList();
+        var anoTexto = ano.ToString(CultureInfo.InvariantCulture);
+        var noAno = todos.Where(p => Path.GetFileName(Path.GetDirectoryName(p.Pasta)) == anoTexto).ToList();
+        return noAno.Count > 0 ? noAno : todos;
+    }
+
     /// <summary>Cria (ou reutiliza) a pasta do processo. <c>Criado</c> é false quando já existia.</summary>
     public static (Processo Processo, bool Criado) Criar(string raiz, int numero, int ano, string requerente)
     {
@@ -59,13 +76,13 @@ public static class CriacaoProcesso
         var nome = NomeRequerente(requerente);
 
         var numerico = int.TryParse(identificador, NumberStyles.None, CultureInfo.InvariantCulture, out var numero);
-        var existentes = Processos.Listar(raiz, CancellationToken.None).Itens.Where(p =>
-            (p.Ano == ano && string.Equals(p.Identificador, identificador, StringComparison.OrdinalIgnoreCase))
-            || (numerico && EhDoProcesso(p, numero, ano))).ToList();
-        // Como o kit: primeiro a pasta do ano do protocolo; se não houver, qualquer ano.
+        var existentes = Localizar(raiz, identificador, ano);
+        // Como o uma_pasta do kit: mais de uma pasta para o processo é o usuário quem decide; nada é criado nem escolhido.
+        if (existentes.Count > 1)
+            throw new IOException("Há mais de uma pasta para o processo " + identificador + "/" + ano.ToString(CultureInfo.InvariantCulture)
+                                  + "; confira qual vale (o editor não escolhe uma delas): " + string.Join(" | ", existentes.Select(p => p.Pasta)) + ".");
+        if (existentes.Count == 1) return (existentes[0], false);
         var anoTexto = ano.ToString(CultureInfo.InvariantCulture);
-        var existente = existentes.FirstOrDefault(p => Path.GetFileName(Path.GetDirectoryName(p.Pasta)) == anoTexto) ?? existentes.FirstOrDefault();
-        if (existente is not null) return (existente, false);
 
         var pastaAno = Path.Combine(raiz, anoTexto);
         if (Directory.Exists(pastaAno) && new DirectoryInfo(pastaAno).LinkTarget is not null)

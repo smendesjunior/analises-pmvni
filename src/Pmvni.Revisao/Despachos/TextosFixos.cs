@@ -11,10 +11,12 @@ public sealed record ParagrafoFixo(string Id, string Texto);
 public sealed class TextosForaDoPadraoException(string arquivo, string detalhe)
     : Exception("O texto de referência do kit (" + arquivo + ") não está no formato esperado: " + detalhe + ".");
 
-/// <summary>Os parágrafos fixos do despacho (corpo da aprovação, fechamento da correção), lidos no lugar das referências do plugin
-/// <c>despacho</c> do kit a cada uso (desenho §10.3). Nada deles é guardado no código além das âncoras curtas.</summary>
+/// <summary>Os parágrafos fixos do despacho (corpo da aprovação, fechamento da correção), lidos a cada uso dos textos de referência da fonte dos
+/// modelos (<see cref="FonteModelos.PastaTextos"/>: <c>references\despacho</c> do plugin analise; no kit antigo, as referências do antigo
+/// plugin despacho; desenho §10.3, Tarefa 22). Nada deles é guardado no código além das âncoras curtas.</summary>
 public sealed record TextosFixos(TipoDespacho Tipo, string Arquivo, string Sha256, IReadOnlyList<ParagrafoFixo> Paragrafos)
 {
+    /// <summary>Kit antigo: as referências do plugin despacho dentro da pasta do kit (formato que o kit atualizado deixa de ter).</summary>
     public const string PastaReferencias = "01 - PLUGINS/plugins/despacho/skills/despacho/references";
     const string Secao = "## Conteúdo na ordem do documento";
     internal const string LacunaIntervencao = "{intervencao}", LacunaArea = "{area}";
@@ -30,11 +32,19 @@ public sealed record TextosFixos(TipoDespacho Tipo, string Arquivo, string Sha25
         _ => throw new ArgumentOutOfRangeException(nameof(t), t, "Tipo de despacho sem texto de referência."),
     };
 
+    /// <summary>Da pasta do kit: a primeira fonte dela que existe (formato novo, depois o antigo).</summary>
     public static TextosFixos Ler(string raizKit, TipoDespacho t)
     {
         ArgumentNullException.ThrowIfNull(raizKit);
+        var fontes = FontesModelos.DaPastaDoKit(raizKit);
+        return Ler(FontesModelos.Escolher(fontes) ?? fontes[^1], t);
+    }
+
+    public static TextosFixos Ler(FonteModelos fonte, TipoDespacho t)
+    {
+        ArgumentNullException.ThrowIfNull(fonte);
         var arquivo = NomeArquivo(t);
-        var caminho = Path.Combine(raizKit, PastaReferencias.Replace('/', Path.DirectorySeparatorChar), arquivo);
+        var caminho = Path.Combine(fonte.PastaTextos, arquivo);
         byte[] bytes;
         try { bytes = File.ReadAllBytes(caminho); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)

@@ -113,7 +113,7 @@ public sealed class RegistroModelosTestes
         var r = RegistroModelos.Ler(raiz);
 
         Assert.Empty(r.Modelos);
-        var msg = "Kit PMVNI não encontrado em " + raiz + ". Escolha a pasta do kit em Ajustes.";
+        var msg = FontesModelos.AtualizeOKit;
         Assert.Equal(msg, r.Indisponiveis[TipoDespacho.Correcao]);
         Assert.Equal(msg, r.Indisponiveis[TipoDespacho.Aprovacao]);
     }

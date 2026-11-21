@@ -78,15 +78,16 @@ internal sealed class SessaoNovoDespacho
     public static bool DesenhouPaginas { get; private set; }
     public bool Descartada { get; private set; }
 
-    /// <summary>O modelo, a estrutura dele e os textos fixos do tipo, lidos no lugar (síncrono, para <c>Task.Run</c>). Tipo indisponível:
-    /// <see cref="InvalidOperationException"/> com o motivo do registro.</summary>
-    public static (ModeloDespacho Modelo, InfoModelo Info, TextosFixos Textos, LayoutDespacho Layout) LerModelo(ModelosDisponiveis m, TipoDespacho t, string raizKit)
+    /// <summary>O modelo, a estrutura dele e os textos fixos do tipo, lidos no lugar e da mesma fonte do registro (<see cref="ModelosDisponiveis.Fonte"/>;
+    /// síncrono, para <c>Task.Run</c>). Tipo indisponível: <see cref="InvalidOperationException"/> com o motivo do registro.</summary>
+    public static (ModeloDespacho Modelo, InfoModelo Info, TextosFixos Textos, LayoutDespacho Layout) LerModelo(ModelosDisponiveis m, TipoDespacho t)
     {
         if (FluxoNovoDespacho.MotivoDesabilitado(t, m, false) is { } motivo) throw new InvalidOperationException(motivo);
+        var fonte = m.Fonte ?? throw new InvalidOperationException(FontesModelos.AtualizeOKit);
         var modelo = m.Modelos.Single(x => x.Tipo == t);
         var bytes = PreenchimentoDocx.ComProfissional(File.ReadAllBytes(modelo.Caminho), Pmvni.Composicao.Profissional.Atual);
         var info = PreenchimentoDocx.LerModelo(bytes, t);
-        return (modelo, info, TextosFixos.Ler(raizKit, t), LayoutDespacho.Ler(bytes));
+        return (modelo, info, TextosFixos.Ler(fonte, t), LayoutDespacho.Ler(bytes));
     }
 
     public void DefinirModelo((ModeloDespacho Modelo, InfoModelo Info, TextosFixos Textos, LayoutDespacho Layout) m)

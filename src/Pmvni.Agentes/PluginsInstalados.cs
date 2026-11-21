@@ -15,6 +15,16 @@ public static class PluginsInstalados
     public const string Analise = "analise";
     public const string AnalisePro = "analise-pro";
     public const string AnaliseGoogle = "analise-google";
+    /// <summary>O antigo plugin despacho (Tarefa 22: o despacho é do editor). Só os modelos dele são lidos, enquanto o kit não for atualizado.</summary>
+    public const string DespachoAntigo = "despacho";
+
+    /// <summary>A pasta da maior versão do plugin no cache do Codex (<c>plugins\cache\pmvni-kit\&lt;plugin&gt;\&lt;versão&gt;</c>); null = não instalado.</summary>
+    public static (string Versao, string Pasta)? PastaNoCodex(string codexHome, string plugin)
+    {
+        ArgumentNullException.ThrowIfNull(codexHome);
+        var (versao, pasta) = Localizacao.MaiorVersao(Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", plugin));
+        return versao is not null && pasta is not null ? (versao, pasta) : null;
+    }
 
     /// <summary>O plugin no cache do Codex (pasta do kit <c>pmvni-kit</c>); null = não instalado.</summary>
     public static PluginInstalado? NoCodex(string codexHome, string plugin)

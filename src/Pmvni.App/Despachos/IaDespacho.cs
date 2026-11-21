@@ -11,7 +11,8 @@ namespace Pmvni.App;
 /// conta já logada no programa; nada é gravado: a resposta só troca as exigências do rascunho.</summary>
 internal static class IaDespacho
 {
-    /// <summary>As regras de redação do plugin despacho do kit (SKILL.md), resumidas.</summary>
+    /// <summary>As regras de redação das exigências, do próprio editor (Tarefa 22: o despacho deixou de ser plugin do kit). Valem só quando o
+    /// usuário pede ("Ajustar com IA", a instrução acima da prévia); nada depende de plugin instalado.</summary>
     internal const string Regras =
         "Você redige exigências de despacho de correção da Secretaria Municipal de Obras de Venda Nova do Imigrante/ES. " +
         "Texto curto, técnico e neutro, em português do Brasil. Só entram itens NÃO ATENDE, FALTA COMPROVAR e INFORMAÇÕES DIVERGENTES; " +

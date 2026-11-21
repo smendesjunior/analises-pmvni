@@ -111,10 +111,10 @@ public sealed class FluxoNovoDespachoTestes
         Assert.Equal("Termine ou cancele o despacho em edição.", FluxoNovoDespacho.MotivoDesabilitado(TipoDespacho.Aprovacao, m, compondo: true));
         Assert.Equal("Termine ou cancele o despacho em edição.", FluxoNovoDespacho.MotivoDesabilitado(TipoDespacho.Correcao, m, compondo: true));
 
-        // Kit inexistente: os dois tipos com o motivo do registro.
+        // Kit sem modelos (e nada instalado): os dois tipos com o motivo.
         using var pasta = Ambiente.PastaDeTeste("fluxo-kit-vazio");
         var vazio = RegistroModelos.Ler(pasta);
-        var esperado = "Kit PMVNI não encontrado em " + pasta.Caminho + ". Escolha a pasta do kit em Ajustes.";
+        var esperado = FontesModelos.AtualizeOKit;   // Tarefa 22: sem modelos em lugar nenhum, "Atualize o kit PMVNI"
         Assert.Equal(esperado, FluxoNovoDespacho.MotivoDesabilitado(TipoDespacho.Correcao, vazio, false));
         Assert.Equal(esperado, FluxoNovoDespacho.MotivoDesabilitado(TipoDespacho.Aprovacao, vazio, false));
     }

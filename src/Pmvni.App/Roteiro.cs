@@ -2097,6 +2097,11 @@ internal static class Roteiro
             CopiarArvore(Path.Combine(corpus, "processos"), copiaDespacho);
             foreach (var (k, v) in FotografarArvore(copiaDespacho)) antesDoDespacho[k] = v;
             kitAntes = RetratoDoKit(kitReal);
+            // Tarefa 22: os modelos vêm do plugin analise instalado antes da pasta do kit; nestes passos o "Codex" é uma pasta vazia, para
+            // valer o kit dos Ajustes (o 40b monta o plugin analise com os modelos e confere o despacho sem plugin despacho).
+            var codexSemPlugins = Path.Combine(pasta, "codex-sem-plugins");
+            Directory.CreateDirectory(codexSemPlugins);
+            j.CodexHomeDosModelos = () => codexSemPlugins;
             j.DefinirPastaKit(kitReal);
             j.DefinirPastaProcessos(copiaDespacho);
             j.Hoje = () => new DateOnly(2099, 3, 10);
@@ -2394,7 +2399,7 @@ internal static class Roteiro
             Directory.CreateDirectory(kitVazio);
             j.DefinirPastaKit(kitVazio);
             await j.AguardarNovoDespachoAsync();
-            var msgC = $"Kit PMVNI não encontrado em {kitVazio}. Escolha a pasta do kit em Ajustes.";
+            var msgC = FontesModelos.AtualizeOKit;
             var faixa = j.FaixaAtual;
             p["dica_c"] = faixa.Dica(ComandosApp.DespachosNovoCorrecao);
             var desabilitados = !faixa.Habilitado(ComandosApp.DespachosNovoCorrecao) && !faixa.Habilitado(ComandosApp.DespachosNovoAprovacao)
@@ -2407,7 +2412,8 @@ internal static class Roteiro
             j.DefinirPastaKit(kitReal);
             await j.AguardarNovoDespachoAsync();
             var voltou = j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoCorrecao) && j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoAprovacao)
-                && j.TextoModelosNosAjustes.Text == "Correção: disponível" + Environment.NewLine + "Aprovação: disponível";
+                && j.TextoModelosNosAjustes.Text.StartsWith("Correção: disponível" + Environment.NewLine + "Aprovação: disponível" + Environment.NewLine
+                                                            + "Modelos lidos de: ", StringComparison.Ordinal);
             var cOk = desabilitados && naoAbriu && voltou;
 
             // (e) Com o despacho no passo 2, trocar de módulo pergunta: "Continuar editando" fica na página; "Descartar" fecha sem gravar nada.
@@ -2454,6 +2460,109 @@ internal static class Roteiro
                 ["e_descartar_pergunta"] = eOk, ["d_copia_e_kit"] = dOk,
             };
             p["ok"] = aOk && desfez && bOk && cOk && eOk && dOk;
+        });
+
+        await Passo("40b_despacho_sem_plugin", async p =>
+        {
+            // Tarefa 22: o despacho é do editor. Com o kit dos Ajustes vazio e o "Codex" só com o plugin analise que traz os modelos em
+            // skills\analise\references\despacho (sem plugin despacho em lugar nenhum), os dois tipos ficam disponíveis, o rascunho de
+            // correção sai do relatório em código, sem programa de IA, e o DOCX/PDF sai do modelo desse plugin. Kit antigo: o plugin despacho
+            // instalado só empresta os modelos. Sem nada: "Atualize o kit PMVNI". Nada é gravado na pasta do processo.
+            Exigir();
+            var oficiais = j.ModelosDoKit ?? throw new InvalidOperationException("os modelos do kit não foram lidos");
+            if (oficiais.Modelos.Count != 2 || oficiais.Fonte is not { } fonteKit) throw new InvalidOperationException("o kit real não tem os dois modelos");
+            var codexComAnalise = Path.Combine(pasta, "codex-analise-com-modelos");
+            var codexAntigo = Path.Combine(pasta, "codex-despacho-antigo");
+            var codexVazio = Path.Combine(pasta, "codex-vazio");
+            foreach (var d in new[] { codexComAnalise, codexAntigo, codexVazio }) if (Directory.Exists(d)) ApagarArvore(d);
+            Directory.CreateDirectory(codexVazio);
+            void Montar(string pastaRegistro, string pastaModelos, string prefixo, string pastaTextos)
+            {
+                Directory.CreateDirectory(pastaModelos);
+                Directory.CreateDirectory(pastaTextos);
+                var templates = new JsonArray();
+                foreach (var m in oficiais.Modelos)
+                {
+                    File.Copy(m.Caminho, Path.Combine(pastaModelos, Path.GetFileName(m.Caminho)));
+                    templates.Add(new JsonObject { ["role"] = m.Papel, ["path"] = prefixo + Path.GetFileName(m.Caminho), ["sha256"] = m.Sha256 });
+                }
+                foreach (var t in new[] { TipoDespacho.Correcao, TipoDespacho.Aprovacao })
+                    File.Copy(Path.Combine(fonteKit.PastaTextos, TextosFixos.NomeArquivo(t)), Path.Combine(pastaTextos, TextosFixos.NomeArquivo(t)));
+                File.WriteAllText(Path.Combine(pastaRegistro, FontesModelos.NomeRegistro), new JsonObject { ["templates_revision"] = 10, ["templates"] = templates }.ToJsonString());
+            }
+            var dadosAnalise = Path.Combine(codexComAnalise, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "references", "despacho");
+            Montar(dadosAnalise, Path.Combine(dadosAnalise, "modelos"), "modelos/", dadosAnalise);
+            var skillAntiga = Path.Combine(codexAntigo, "plugins", "cache", "pmvni-kit", "despacho", "2.3.0", "skills", "despacho");
+            Montar(Path.Combine(skillAntiga, "assets"), Path.Combine(skillAntiga, "assets", "modelos"), "assets/modelos/", Path.Combine(skillAntiga, "references"));
+            var kitVazio = Path.Combine(pasta, "kit-vazio-40b");
+            if (Directory.Exists(kitVazio)) ApagarArvore(kitVazio);
+            Directory.CreateDirectory(kitVazio);
+            var antesDaCopia = FotografarArvore(copiaDespacho);
+
+            async Task<string> Ler(string codexHome)
+            {
+                j.CodexHomeDosModelos = () => codexHome;
+                j.DefinirPastaKit(kitVazio);
+                await j.AguardarNovoDespachoAsync();
+                return j.TextoModelosNosAjustes.Text;
+            }
+            bool Disponiveis() => j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoCorrecao) && j.FaixaAtual.Habilitado(ComandosApp.DespachosNovoAprovacao);
+
+            // (a) Só o plugin analise com os dados de despacho.
+            await j.MudarModuloAsync(Modulo.Processos);
+            await j.AguardarLeiturasAsync();
+            var textoA = await Ler(codexComAnalise);
+            p["ajustes_a"] = textoA;
+            var aDisponivel = Disponiveis() && textoA.EndsWith("Modelos lidos de: plugin analise instalado (versão 4.0.0)", StringComparison.Ordinal);
+            await j.EscolherProcessoNaListaAsync("0001");
+            int iniciadosAntes;
+            lock (programasIniciados) iniciadosAntes = programasIniciados.Count;
+            await j.ExecutarComandoAsync(ComandosApp.DespachosNovoCorrecao);
+            await j.AguardarNovoDespachoAsync();
+            var s = j.DespachoEmEdicao ?? throw new InvalidOperationException("a página não abriu: " + j.InfoMensagemAtual.Message);
+            if (!Mesmo(s.CaminhoPacote, pmvrelD) || s.Passo != PassoNovoDespacho.Conteudo) await j.EscolherRelatorioAsync(pmvrelD);
+            var esperadas = s.Pacote is { } pac ? ResumoExigencias.Pendentes(ResumoExigencias.DoProjeto(pac.Conteudo.Projeto)).Select(x => x.Id).ToList() : [];
+            var rascunhoOk = s.Rascunho is { } r && esperadas.Count > 0 && r.Pendencias.Select(x => x.ItemId).SequenceEqual(esperadas)
+                && s.Modelo is { } mod && mod.Caminho.StartsWith(dadosAnalise, StringComparison.OrdinalIgnoreCase);
+            await j.GerarEConferirAsync();
+            var prep = s.Preparacao;
+            p["preparacao_erros"] = new JsonArray((prep?.Erros ?? []).Select(x => (JsonNode)x).ToArray());
+            p["paginas"] = prep?.Paginas;
+            var docxOk = prep is { Erros.Count: 0 } && prep.Docx.Length > 0
+                && ValidacaoDespacho.Comparar(PreenchimentoDocx.ComProfissional(await File.ReadAllBytesAsync(s.Modelo!.Caminho), Pmvni.Composicao.Profissional.Atual),
+                    prep.Docx).Count == 0;
+            int iniciadosDepois;
+            lock (programasIniciados) iniciadosDepois = programasIniciados.Count;
+            var semIa = iniciadosDepois == iniciadosAntes;
+            p["programas_iniciados"] = iniciadosDepois - iniciadosAntes;
+            await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "40b-janela-xaml-despacho-sem-plugin.png"));
+            perguntas.Confirmar = true; // "Descartar": nada é gravado
+            await j.MudarModuloAsync(Modulo.Processos);
+            var fechou = j.DespachoEmEdicao is null;
+
+            // (b) Kit antigo: só o plugin despacho instalado (os modelos dele; ele não é chamado).
+            var textoB = await Ler(codexAntigo);
+            p["ajustes_b"] = textoB;
+            var bOk = Disponiveis() && textoB.Contains("Modelos lidos de: plugin despacho antigo instalado (versão 2.3.0)", StringComparison.Ordinal);
+
+            // (c) Nada: os dois tipos desabilitados com "Atualize o kit PMVNI".
+            var textoC = await Ler(codexVazio);
+            p["ajustes_c"] = textoC;
+            var cOk = !Disponiveis() && j.FaixaAtual.Dica(ComandosApp.DespachosNovoCorrecao) == FontesModelos.AtualizeOKit
+                && textoC == "Correção: " + FontesModelos.AtualizeOKit + Environment.NewLine + "Aprovação: " + FontesModelos.AtualizeOKit;
+
+            // Volta ao kit real (Codex vazio) para os passos seguintes; a cópia dos processos não mudou.
+            j.DefinirPastaKit(kitReal);
+            await j.AguardarNovoDespachoAsync();
+            var voltou = Disponiveis();
+            var depois = FotografarArvore(copiaDespacho);
+            var copiaIgual = depois.Count == antesDaCopia.Count && depois.All(kv => antesDaCopia.TryGetValue(kv.Key, out var sha) && sha == kv.Value);
+            p["conferencias"] = new JsonObject
+            {
+                ["a_disponivel_pelo_analise"] = aDisponivel, ["a_rascunho_em_codigo"] = rascunhoOk, ["a_docx_do_modelo"] = docxOk, ["a_sem_ia"] = semIa,
+                ["a_descartado"] = fechou, ["b_kit_antigo"] = bOk, ["c_atualize_o_kit"] = cOk, ["kit_real_de_volta"] = voltou, ["copia_igual"] = copiaIgual,
+            };
+            p["ok"] = aDisponivel && rascunhoOk && docxOk && semIa && fechou && bOk && cOk && voltou && copiaIgual;
         });
 
         // ---------- Onda de correções 1 (revisão geral antecipada e pendências da Tarefa 16): passos 41 a 45 ----------

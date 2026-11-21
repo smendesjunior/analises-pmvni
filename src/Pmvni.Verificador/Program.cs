@@ -127,7 +127,7 @@ internal static class Program
         }
 
         var modelo = File.ReadAllBytes(m.Caminho);
-        var tx = TextosFixos.Ler(kit, tipo);
+        var tx = TextosFixos.Ler(registro.Fonte!, tipo);
         var etapa = new EtapaDespacho("", "", 0, a.Data!.Value, true);
         var r = ConteudoDespacho.Montar(tipo, conteudo.Projeto, PreenchimentoDocx.LerModelo(modelo, tipo), etapa);
         foreach (var i in a.Intervencoes)

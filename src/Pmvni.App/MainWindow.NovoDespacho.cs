@@ -42,6 +42,9 @@ public sealed partial class MainWindow
     /// <summary>A data local de hoje (a da etapa nova); o roteiro fixa.</summary>
     internal Func<DateOnly> Hoje { get; set; } = () => DateOnly.FromDateTime(DateTime.Now);
     internal ModelosDisponiveis? ModelosDoKit => modelos;
+    /// <summary>A pasta do Codex onde o plugin analise (e o antigo despacho) estão instalados, de onde vêm os modelos de despacho (Tarefa 22);
+    /// o roteiro troca por uma pasta própria.</summary>
+    internal Func<string>? CodexHomeDosModelos { get; set; }
     internal string PastaKitEfetiva => ajustes.PastaKitEfetiva;
     internal string? PastaKitEscolhida => ajustes.PastaKit;
     /// <summary>O DOCX do despacho escolhido em Despachos que o "Gerar PDF" completaria (null = comando desabilitado).</summary>
@@ -163,11 +166,22 @@ public sealed partial class MainWindow
         return tarefaDosModelos = LerModelosAsync(kit);
     }
 
+    /// <summary>As fontes dos modelos de despacho, na ordem (Tarefa 22): os dados de despacho do plugin analise instalado, os do plugin analise
+    /// da pasta do kit e, enquanto o kit não for atualizado, os modelos do antigo plugin despacho instalado e os da pasta do kit (formato
+    /// antigo). O plugin despacho nunca é chamado: o despacho é emitido pelo editor.</summary>
+    static IReadOnlyList<FonteModelos> FontesDosModelos(string kit, string home) =>
+        FontesModelos.Candidatas(Pmvni.Agentes.PluginsInstalados.PastaNoCodex(home, Pmvni.Agentes.PluginsInstalados.Analise),
+            Pmvni.Agentes.PluginsInstalados.PastaNoCodex(home, Pmvni.Agentes.PluginsInstalados.DespachoAntigo), kit);
+
+    string CodexHomeAtual() => CodexHomeDosModelos?.Invoke()
+        ?? (OpcoesAgentes is null ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex") : OpcoesAgentes().CodexHome);
+
     /// <summary>O registro de modelos (desenho §10.1), lido de novo; a faixa e a página Ajustes passam a mostrar o que ele diz.</summary>
     async Task<ModelosDisponiveis> LerModelosAsync(string kit)
     {
         ModelosDisponiveis m;
-        try { m = await Task.Run(() => RegistroModelos.Ler(kit)); }
+        var home = CodexHomeAtual();
+        try { m = await Task.Run(() => RegistroModelos.Ler(FontesDosModelos(kit, home))); }
         catch (Exception e)
         {
             var motivo = "O registro de modelos do kit não pôde ser lido (" + Erro(e) + ").";
@@ -202,7 +216,8 @@ public sealed partial class MainWindow
         p.BotaoKitPadrao.IsEnabled = !padrao;
         p.TextoModelos.Text = modelos is not { } m ? "Lendo os modelos de despacho do kit…"
             : string.Join(Environment.NewLine, new[] { TipoDespacho.Correcao, TipoDespacho.Aprovacao }
-                .Select(t => RegistroModelos.Rotulo(t) + ": " + (FluxoNovoDespacho.MotivoDesabilitado(t, m, false) ?? "disponível")));
+                .Select(t => RegistroModelos.Rotulo(t) + ": " + (FluxoNovoDespacho.MotivoDesabilitado(t, m, false) ?? "disponível"))
+                .Concat(m.Modelos.Count > 0 && m.Fonte is { } f ? ["Modelos lidos de: " + f.Origem] : Array.Empty<string>()));
     }
 
     void AtualizarComandosNovoDespacho()
@@ -323,7 +338,7 @@ public sealed partial class MainWindow
                 EmissaoDespacho.LimparOrfas(s.RaizTrabalho);
                 IReadOnlyList<Processo> lista = Directory.Exists(raiz) ? Processos.Listar(raiz, CancellationToken.None).Itens : [];
                 var sug = FluxoNovoDespacho.Sugerir(origem, selecionado, aberto, lista, p => Processos.Detalhar(p, CancellationToken.None).Relatorios, hoje);
-                return (lista, sug, SessaoNovoDespacho.LerModelo(lidos, t, kit));
+                return (lista, sug, SessaoNovoDespacho.LerModelo(lidos, t));
             });
             if (!ReferenceEquals(novo, s)) return false;
             s.DefinirModelo(modelo);
@@ -503,8 +518,7 @@ public sealed partial class MainWindow
             PreencherOrigem(s);
             return;
         }
-        var kit = s.RaizKit;
-        var modelo = await Task.Run(() => SessaoNovoDespacho.LerModelo(m, t, kit));
+        var modelo = await Task.Run(() => SessaoNovoDespacho.LerModelo(m, t));
         if (!ReferenceEquals(novo, s)) return;
         s.DefinirModelo(modelo);
         if (s.CaminhoPacote is { } c) await CarregarPacoteAsync(s, c);

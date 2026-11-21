@@ -61,11 +61,11 @@ public static class Ambiente
         }
     }
 
-    /// <summary>A raiz do kit, lida no lugar; sem o registro de modelos, o teste falha (como a Etapa 1 com o gerador do kit).</summary>
+    /// <summary>A raiz do kit, lida no lugar; sem os modelos de despacho (formato novo ou antigo), o teste falha (como a Etapa 1 com o gerador do kit).</summary>
     public static string ExigirKit()
     {
         var raiz = RaizKit;
-        if (!File.Exists(Path.Combine(raiz, RegistroModelos.CaminhoRegistro)))
+        if (FontesModelos.Escolher(FontesModelos.DaPastaDoKit(raiz)) is null)
             Assert.Fail("Kit PMVNI ausente: " + raiz + " (defina PMVNI_KIT_RAIZ)");
         return raiz;
     }

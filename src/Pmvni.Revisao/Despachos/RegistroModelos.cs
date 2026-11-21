@@ -8,11 +8,14 @@ namespace Pmvni.Revisao;
 /// <see cref="Sha256"/>, igual ao do registro; <see cref="RevisaoRegistro"/> e <see cref="Sha256Registro"/> vão para o recibo.</summary>
 public sealed record ModeloDespacho(TipoDespacho Tipo, string Papel, string CaminhoRelativo, string Caminho, string Sha256, int RevisaoRegistro, string Sha256Registro);
 
-/// <summary>Os tipos oferecidos (<see cref="Modelos"/>, na ordem Correção, Aprovação) e o motivo de cada tipo indisponível.</summary>
-public sealed record ModelosDisponiveis(IReadOnlyList<ModeloDespacho> Modelos, IReadOnlyDictionary<TipoDespacho, string> Indisponiveis);
+/// <summary>Os tipos oferecidos (<see cref="Modelos"/>, na ordem Correção, Aprovação) e o motivo de cada tipo indisponível. <see cref="Fonte"/>:
+/// de onde os modelos foram lidos (null = nenhuma fonte achada); os textos fixos vêm da mesma fonte.</summary>
+public sealed record ModelosDisponiveis(IReadOnlyList<ModeloDespacho> Modelos, IReadOnlyDictionary<TipoDespacho, string> Indisponiveis, FonteModelos? Fonte = null);
 
-/// <summary>Leitura do registro oficial de modelos do kit (<c>TEMPLATES_OFICIAIS.json</c>, desenho §10.1). Só lê; nada é gravado no kit.
-/// Papéis: <c>correction</c> → Correção e <c>approval_simple</c> → Aprovação; os outros são ignorados.</summary>
+/// <summary>Leitura do registro oficial de modelos do kit (<c>TEMPLATES_OFICIAIS.json</c>, desenho §10.1), na fonte escolhida por
+/// <see cref="FontesModelos"/> (Tarefa 22). Só lê; nada é gravado no kit. Papéis: <c>correction</c> → Correção e <c>approval_simple</c> →
+/// Aprovação; os outros são ignorados. É a porta do <c>check_registry</c> do <c>validate_template_fidelity.py</c>: papel repetido,
+/// caminho fora da raiz, arquivo ausente e sha256 diferente deixam o tipo indisponível.</summary>
 public static class RegistroModelos
 {
     public const string CaminhoRegistro = "02 - MODELOS DE DOCUMENTOS/TEMPLATES_OFICIAIS.json";
@@ -34,21 +37,36 @@ public static class RegistroModelos
         _ => throw new ArgumentOutOfRangeException(nameof(t), t, "Tipo de despacho não emitido pelo editor."),
     };
 
+    /// <summary>A pasta do kit (formato novo, depois o antigo); usado pelo verificador e pelos testes.</summary>
     public static ModelosDisponiveis Ler(string raizKit)
     {
         ArgumentNullException.ThrowIfNull(raizKit);
+        return Ler(FontesModelos.DaPastaDoKit(Path.GetFullPath(raizKit)));
+    }
+
+    /// <summary>A primeira fonte que existe (<see cref="FontesModelos.Escolher"/>); sem nenhuma, os dois tipos indisponíveis com
+    /// <see cref="FontesModelos.AtualizeOKit"/>.</summary>
+    public static ModelosDisponiveis Ler(IReadOnlyList<FonteModelos> candidatas)
+    {
+        ArgumentNullException.ThrowIfNull(candidatas);
+        return FontesModelos.Escolher(candidatas) is { } fonte ? Ler(fonte)
+            : new ModelosDisponiveis([], Papeis.ToDictionary(p => p.Tipo, _ => FontesModelos.AtualizeOKit));
+    }
+
+    public static ModelosDisponiveis Ler(FonteModelos fonte)
+    {
+        ArgumentNullException.ThrowIfNull(fonte);
         var modelos = new List<ModeloDespacho>();
         var indisponiveis = new Dictionary<TipoDespacho, string>();
         ModelosDisponiveis Todos(string motivo)
         {
             foreach (var (t, _) in Papeis) indisponiveis[t] = motivo;
-            return new ModelosDisponiveis(modelos, indisponiveis);
+            return new ModelosDisponiveis(modelos, indisponiveis, fonte);
         }
 
-        var raiz = Path.GetFullPath(raizKit);
-        var caminhoRegistro = Path.Combine(raiz, CaminhoRegistro.Replace('/', Path.DirectorySeparatorChar));
-        if (!Directory.Exists(raiz) || !File.Exists(caminhoRegistro))
-            return Todos("Kit PMVNI não encontrado em " + raizKit + ". Escolha a pasta do kit em Ajustes.");
+        var raiz = Path.GetFullPath(fonte.Raiz);
+        var caminhoRegistro = fonte.Registro;
+        if (!Directory.Exists(raiz) || !File.Exists(caminhoRegistro)) return Todos(FontesModelos.AtualizeOKit);
 
         byte[] bytesRegistro;
         JsonObject registro;
@@ -71,15 +89,18 @@ public static class RegistroModelos
 
         foreach (var (tipo, papel) in Papeis)
         {
-            var entrada = entradas.FirstOrDefault(e => Texto(e, "role") == papel);
-            var motivo = Conferir(raiz, tipo, papel, entrada, out var modelo, revisao, shaRegistro);
-            if (modelo is not null) modelos.Add(modelo);
+            var doPapel = entradas.Where(e => Texto(e, "role") == papel).ToList();
+            ModeloDespacho? modelo = null;
+            // Como o check_registry do kit: papel repetido é erro (não se escolhe um dos dois).
+            var motivo = doPapel.Count > 1 ? "O registro de modelos do kit tem o modelo " + papel + " repetido."
+                : Conferir(fonte, raiz, tipo, papel, doPapel.FirstOrDefault(), out modelo, revisao, shaRegistro);
+            if (motivo is null && modelo is not null) modelos.Add(modelo);
             else indisponiveis[tipo] = motivo!;
         }
-        return new ModelosDisponiveis(modelos, indisponiveis);
+        return new ModelosDisponiveis(modelos, indisponiveis, fonte);
     }
 
-    static string? Conferir(string raiz, TipoDespacho tipo, string papel, JsonObject? entrada, out ModeloDespacho? modelo, int revisao, string shaRegistro)
+    static string? Conferir(FonteModelos fonte, string raiz, TipoDespacho tipo, string papel, JsonObject? entrada, out ModeloDespacho? modelo, int revisao, string shaRegistro)
     {
         modelo = null;
         if (entrada is null) return "O registro de modelos do kit não tem o modelo " + papel + ".";
@@ -105,7 +126,7 @@ public static class RegistroModelos
         if (!string.Equals(sha, shaEsperado, StringComparison.OrdinalIgnoreCase))
             return "O modelo " + relativo + " não confere com o registro do kit (sha256 diferente).";
 
-        try { TextosFixos.Ler(raiz, tipo); }
+        try { TextosFixos.Ler(fonte, tipo); }
         catch (TextosForaDoPadraoException e) { return e.Message; }
         try { PreenchimentoDocx.LerModelo(bytes, tipo); }
         catch (ModeloForaDoPadraoException e) { return "O modelo " + relativo + " não está no formato esperado (âncora \"" + e.Ancora + "\")."; }
