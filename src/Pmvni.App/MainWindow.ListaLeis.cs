@@ -80,9 +80,11 @@ public sealed partial class MainWindow
         topicosNoCartao = null;
         topicosNoCartaoId = null;
         FrameworkElement? aberta = null;
+        var termo = (filtro ?? "").Trim();
+        var trechos = conteudo is null ? null : indiceDaLista?.TrechosPorLei(termo);
         foreach (var l in linhas)
         {
-            var cartao = CartaoDaLei(l, favoritas.Contains(l.Id), l.Id == leiAberta?.Id);
+            var cartao = CartaoDaLei(l, favoritas.Contains(l.Id), l.Id == leiAberta?.Id, trechos?.GetValueOrDefault(l.Id), termo);
             lista.Items.Add(cartao);
             if (l.Id == leiAberta?.Id) aberta = cartao;
         }
@@ -166,7 +168,47 @@ public sealed partial class MainWindow
 
     // ---------- o cartão da lei ----------
 
-    FrameworkElement CartaoDaLei(LinhaAnexo l, bool favorita, bool aberta)
+    /// <summary>Os trechos da lei com o termo do filtro (2026-11-22): "p. N — …texto…" com o termo em negrito; clicar abre a lei na página,
+    /// já com o termo procurado e selecionado nela (o mesmo caminho da aba Resultados).</summary>
+    StackPanel TrechosNoCartao(TrechosDaLei achados, string termo)
+    {
+        var painel = new StackPanel { Spacing = 0, Margin = new Thickness(22, 6, 6, 0) };
+        var estilo = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"];
+        foreach (var r in achados.Trechos)
+        {
+            var pagina = r.Pagina.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var texto = new TextBlock { Style = estilo, TextWrapping = TextWrapping.Wrap, MaxLines = 3, TextTrimming = TextTrimming.CharacterEllipsis, TextAlignment = TextAlignment.Left };
+            texto.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = $"p. {pagina} — ", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            if (IndiceLegislacao.TermoNoTrecho(r.Trecho, termo) is { } alvo)
+            {
+                var (inicio, tamanho) = alvo;
+                texto.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = r.Trecho[..inicio] });
+                texto.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = r.Trecho.Substring(inicio, tamanho), FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = CorDoTema("PmvniIconeLei") });
+                texto.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = r.Trecho[(inicio + tamanho)..] });
+            }
+            else texto.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = r.Trecho });
+            var b = new Button
+            {
+                Content = texto, Height = double.NaN, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(6, 3, 6, 4), Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent), BorderThickness = new Thickness(0),
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"Página {pagina}: {r.Trecho}");
+            ToolTipService.SetToolTip(b, $"Abrir a lei na página {pagina}, na palavra procurada.");
+            var resultado = r;
+            b.Click += async (_, _) => await TentarAsync(() => AbrirResultadoAsync(resultado, termo));
+            painel.Children.Add(b);
+        }
+        var resto = achados.Paginas - achados.Trechos.Count;
+        if (resto > 0)
+            painel.Children.Add(new TextBlock
+            {
+                Text = resto == 1 ? "+ 1 outra página com este termo" : $"+ {resto.ToString(System.Globalization.CultureInfo.InvariantCulture)} outras páginas com este termo",
+                Style = estilo, Margin = new Thickness(6, 2, 0, 0),
+            });
+        return painel;
+    }
+
+    FrameworkElement CartaoDaLei(LinhaAnexo l, bool favorita, bool aberta, TrechosDaLei? achados = null, string termo = "")
     {
         var grade = new Grid { Tag = l.Id, Padding = new Thickness(4, 8, 0, 8), ColumnSpacing = 10 };
         grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -231,10 +273,18 @@ public sealed partial class MainWindow
         Grid.SetColumn(estrela, 2);
         grade.Children.Add(estrela);
 
+        grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        if (achados is { Trechos.Count: > 0 })
+        {
+            var trechos = TrechosNoCartao(achados, termo);
+            Grid.SetRow(trechos, 1);
+            Grid.SetColumnSpan(trechos, 3);
+            grade.Children.Add(trechos);
+        }
         if (aberta)
         {
             var topicos = new StackPanel { Spacing = 0, Margin = new Thickness(0, 8, 6, 0), Style = (Style)Application.Current.Resources["PmvniPilhaContornoStyle"], BorderThickness = new Thickness(2, 0, 0, 0), Padding = new Thickness(4, 0, 0, 0) };
-            Grid.SetRow(topicos, 1);
+            Grid.SetRow(topicos, 2);
             Grid.SetColumn(topicos, 0);
             Grid.SetColumnSpan(topicos, 3);
             grade.Children.Add(topicos);

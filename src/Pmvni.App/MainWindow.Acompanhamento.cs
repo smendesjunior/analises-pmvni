@@ -647,7 +647,8 @@ public sealed partial class MainWindow
             painel.Children.Add(new TextBlock { Text = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo,
                 Style = (Style)Application.Current.Resources["PmvniPainelRotulo"], TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis });
             if (ativa) painel.Children.Add(new FontIcon { Glyph = ordemDecrescente ? Glifos.OcorrenciaProxima : Glifos.Ocorrencia,
-                FontSize = 16, Style = (Style)Application.Current.Resources["PmvniIconeSecundarioStyle"] });
+                // 12 px e centralizada: com 16 px a seta passava da altura da linha do rótulo e a ponta ficava cortada.
+                FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Style = (Style)Application.Current.Resources["PmvniIconeSecundarioStyle"] });
             var b = new Button { Content = painel, Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"],
                 Padding = new Thickness(0, 10, 0, 10), HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = Centralizada(c) ? HorizontalAlignment.Center : HorizontalAlignment.Left };

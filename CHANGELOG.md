@@ -2,6 +2,17 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.4.1
+
+Limpeza do que sobrou do método antigo de análise e ajustes de interface.
+
+- Modelos da análise: a grade mostra só as etapas que usam IA (Análise e Auditoria técnica), com a descrição do fluxo linear. Preparo, Auditoria cruzada, Produção do relatório e Revisão final, feitas pelo programa, viraram uma nota única no fim, em vez de quatro linhas com caixas desligadas.
+- A legenda "ajuste deste computador" só aparece quando o ajuste é diferente do padrão do kit.
+- O cartão da Auditoria cruzada nos Ajustes explica a etapa como ela é hoje: conferência por programa, sem IA e sem gastar cota.
+- Acervo de legislação: ao filtrar por uma palavra, cada lei mostra os trechos exatos onde ela aparece (página e texto, com a palavra em destaque). Clicar no trecho abre a lei naquela página, já na palavra procurada.
+- O texto e o cursor das caixas de pesquisa (a pesquisa global e os filtros das listas) ficam centralizados na altura da caixa.
+- A seta de ordenação no cabeçalho do Acompanhamento não aparece mais cortada.
+
 ## 3.4.0
 
 Análise em ciclo linear, mais barata e mais rápida, e monitor reorganizado em abas.

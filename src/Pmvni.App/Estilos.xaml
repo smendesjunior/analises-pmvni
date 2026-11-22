@@ -604,7 +604,7 @@
   <Style x:Key="PmvniCampoPesquisa" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
     <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
-    <Setter Property="Padding" Value="36,4,8,4"/>
+    <Setter Property="Padding" Value="36,6,8,5"/>
     <Setter Property="MinHeight" Value="32"/>
     <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
   </Style>

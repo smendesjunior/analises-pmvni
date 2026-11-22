@@ -5070,7 +5070,7 @@ internal static class Roteiro
             p["percentuais"] = valores;
             p["conferencias"] = new JsonObject { ["pela_contagem"] = pelaContagem, ["rotulo_dos_itens"] = rotuloDosItens, ["rotulo_da_estimativa"] = rotuloDaEstimativa };
             p["ok"] = ordem.DoArquivo && etapas.SequenceEqual(["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"])
-                && etapasDePrograma.SequenceEqual(["prepare", "produce"])
+                && etapasDePrograma.SequenceEqual(["prepare", "audit", "produce", "final_review"])
                 && pelaContagem && rotuloDosItens && rotuloDaEstimativa && monitor.BarraResumoEtapas.IsIndeterminate
                 && valores.Select(x => x!.GetValue<double>()).Zip(new[] { 0d, 200d / 6, 200d / 6, 48.6, 100d })
                     .All(par => Math.Abs(par.First - par.Second) < 0.01);

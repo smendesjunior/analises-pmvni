@@ -122,6 +122,18 @@ public sealed class IndiceTestes : IDisposable
 
         Assert.Equal([(lei.Id, 2), (lei.Id, 3)], indice.Pesquisar("ocupacao").Resultados.Select(x => (x.AnexoId, x.Pagina)));
         Assert.Equal([(lei.Id, 1), (lei.Id, 2)], indice.Pesquisar("afastamento frontal").Resultados.Select(x => (x.AnexoId, x.Pagina)));
+        // Trechos por lei, para a lista filtrada: as primeiras páginas com o termo, o total de páginas e onde o termo está no trecho.
+        var porLei = indice.TrechosPorLei("AFASTAMENTO", 2);
+        Assert.Equal([1, 2], porLei[lei.Id].Trechos.Select(x => x.Pagina));
+        Assert.Equal(3, porLei[lei.Id].Paginas);
+        Assert.Equal(1, porLei[nt.Id].Paginas);
+        Assert.Empty(indice.TrechosPorLei("a"));
+        var trecho = porLei[nt.Id].Trechos[0].Trecho;
+        var alvo = IndiceLegislacao.TermoNoTrecho(trecho, "AFASTAMENTO");
+        Assert.NotNull(alvo);
+        Assert.Equal("afastamento", trecho.Substring(alvo.Value.Inicio, alvo.Value.Tamanho));
+        Assert.Equal("ocupação", "taxa de ocupação máxima".Substring(8, IndiceLegislacao.TermoNoTrecho("taxa de ocupação máxima", "OCUPACAO")!.Value.Tamanho));
+        Assert.Null(IndiceLegislacao.TermoNoTrecho(trecho, "inexistente"));
         // Acento no termo também vale, e a página conta uma vez só.
         Assert.Equal(2, indice.Pesquisar("OCUPAÇÃO").Total);
         Assert.Equal(0, indice.Pesquisar("inexistente").Total);

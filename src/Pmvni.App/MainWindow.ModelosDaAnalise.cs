@@ -332,24 +332,28 @@ public sealed partial class MainWindow
         for (var i = 0; i < cab.Length; i++) Adicionar(new TextBlock { Text = cab[i], Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] }, 0, i);
         var lista = ListaDaRotaAgora(rota, kit) ?? new ListaDaRota([], false, "do provedor");
         var estiloCartao = (Style)Application.Current.Resources["PmvniAjusteGrupo"];
-        for (var i = 0; i < etapas.Count; i++)
+        // Fluxo linear do kit 4.0: só as etapas com sessão de IA têm modelo e raciocínio para escolher. As de programa (preparo, conferência,
+        // montagem e revisão) não ocupam mais uma linha cada uma com caixas desligadas: ficam numa nota só, no fim da grade.
+        var linha = 0;
+        for (var n = 0; n < etapas.Count; n++)
         {
-            var etapa = etapas[i];
+            var etapa = etapas[n];
+            if (etapa.Programa) continue;
+            var i = linha++;
             grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var fundo = new Border { Style = estiloCartao, MinHeight = 64, IsHitTestVisible = false };
             Grid.SetColumnSpan(fundo, 4);
             Adicionar(fundo, i + 1, 0);
             var descricao = etapa.Id switch
             {
-                "prepare" => "Organização inicial das peças", "analyze" => "Interpretação técnica dos projetos",
-                "technical_audit" => "Conferência das conclusões técnicas", "audit" => "Validação em sessão independente",
-                "produce" => "Montagem e formatação do documento", "final_review" => "Consistência do relatório final", _ => ""
+                "analyze" => "Três sessões em paralelo: seções 1–9, 10–18 e 19–28",
+                "technical_audit" => "Uma sessão independente confere e corrige os achados", _ => ""
             };
             var bloco = new Grid { ColumnSpacing = 10, Margin = new Thickness(12, 6, 0, 6), VerticalAlignment = VerticalAlignment.Center };
             bloco.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             bloco.ColumnDefinitions.Add(new ColumnDefinition());
             var selo = new Border { Style = estiloCartao, Padding = new Thickness(5, 2, 5, 2), VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock { Text = $"{i + 1:00}" } };
+                Child = new TextBlock { Text = $"{n + 1:00}" } };
             bloco.Children.Add(selo);
             var textos = new StackPanel { HorizontalAlignment = HorizontalAlignment.Left };
             textos.Children.Add(new TextBlock { Text = etapa.Nome, TextAlignment = TextAlignment.Left, TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
@@ -357,7 +361,7 @@ public sealed partial class MainWindow
             Grid.SetColumn(textos, 1);
             bloco.Children.Add(textos);
             Adicionar(bloco, i + 1, 0);
-            if (!etapa.Programa && kit.Celula(rota, etapa.Id) is { } padrao)
+            if (kit.Celula(rota, etapa.Id) is { } padrao)
             {
                 var celula = CelulaDaGrade(kit, rota, etapa, padrao, a, lista);
                 Grid.SetColumnSpan(celula, 2);
@@ -365,9 +369,22 @@ public sealed partial class MainWindow
             }
             else
             {
-                Adicionar(new Button { Content = etapa.Programa ? "Executado pelo programa (sem IA)" : "Indisponível", IsEnabled = false }, i + 1, 1);
+                Adicionar(new Button { Content = "Indisponível", IsEnabled = false }, i + 1, 1);
                 Adicionar(new Button { Content = "Não se aplica", IsEnabled = false }, i + 1, 2);
             }
+        }
+        var dePrograma = etapas.Where(e => e.Programa).Select(e => e.Nome).ToList();
+        if (dePrograma.Count > 0)
+        {
+            grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var nomes = dePrograma.Count == 1 ? dePrograma[0] : string.Join(", ", dePrograma.Take(dePrograma.Count - 1)) + " e " + dePrograma[^1];
+            var nota = new TextBlock
+            {
+                Text = (dePrograma.Count == 1 ? "Feita pelo programa, sem IA e sem modelo: " : "Feitas pelo programa, sem IA e sem modelo: ") + nomes + ".",
+                TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Left, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"],
+            };
+            Grid.SetColumnSpan(nota, 4);
+            Adicionar(nota, linha + 1, 0);
         }
         return grade;
     }
@@ -427,7 +444,8 @@ public sealed partial class MainWindow
         painel.Children.Add(caixaModelo);
         Grid.SetColumn(caixaNivel, 1);
         painel.Children.Add(caixaNivel);
-        if (atual is not null)
+        // Só quando o ajuste muda alguma coisa: um ajuste igual ao padrão do kit não precisa de legenda.
+        if (atual is not null && (atual.Modelo != padrao.Modelo || atual.Nivel != padrao.Nivel))
         {
             var legenda = new TextBlock { Text = "• ajuste deste computador (padrão: " + padrao.Modelo + ", " + ModelosDaAnalise.NomeDoNivel(padrao.Nivel).ToLowerInvariant() + ")",
                 Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], TextWrapping = TextWrapping.Wrap };
