@@ -165,14 +165,15 @@ public static class FluxoNovoRelatorio
     /// <summary>Sem previsão porque o kit ainda não registrou nenhuma etapa desta análise (o Editor calcula a previsão desde a Tarefa 13; nada vem da IA).</summary>
     internal const string PrevisaoDepoisDasEtapas = "Previsão depois das primeiras etapas";
 
-    /// <summary>Sem previsão porque faltam execuções anteriores (ao menos 3 de cada etapa que falta, <see cref="PrevisaoTermino.MinimoDeExecucoes"/>).</summary>
+    /// <summary>Sem previsão porque falta histórico para alguma etapa pendente.</summary>
     internal const string HistoricoInsuficiente = "Término: histórico insuficiente para prever";
 
     /// <param name="peloEditor">A previsão é do Editor (Tarefa 13: mediana das execuções anteriores), não a <c>estimativa.json</c> que a IA gravava numa
     /// análise antiga. Só no caminho antigo aparecem os textos "…estimativa da IA".</param>
     /// <param name="semDados">O kit ainda não registrou nenhuma etapa desta análise.</param>
+    /// <param name="aproximada">A previsão do Editor usou poucas amostras ou amostras de outros provedores.</param>
     internal static string TextoEstimativa(DateTimeOffset? termino, DateTimeOffset agora, TimeSpan? restantePeloRitmo = null, bool peloEditor = false,
-        bool semDados = false)
+        bool semDados = false, bool aproximada = false)
     {
         var peloRitmo = termino is null || termino <= agora;
         if (peloRitmo && restantePeloRitmo is { } restante && restante > TimeSpan.Zero)
@@ -180,7 +181,7 @@ public static class FluxoNovoRelatorio
         if (termino is not { } hora) return !peloEditor ? "Aguardando estimativa da IA" : semDados ? PrevisaoDepoisDasEtapas : HistoricoInsuficiente;
         if (hora <= agora) return peloEditor ? "Término previsto para os próximos minutos" : "Aguardando nova estimativa da IA";
         var formato = hora.Date == agora.Date ? "HH:mm" : "dd/MM HH:mm";
-        var rotulo = peloRitmo ? "Término aproximado pelo ritmo" : "Término estimado";
+        var rotulo = peloRitmo ? "Término aproximado pelo ritmo" : peloEditor && aproximada ? "Término aproximado" : "Término estimado";
         return $"{rotulo} · {hora.ToString(formato, CultureInfo.InvariantCulture)} ({TempoLegivel(hora - agora)} restantes)";
     }
 

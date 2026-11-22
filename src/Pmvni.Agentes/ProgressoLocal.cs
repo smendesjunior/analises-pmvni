@@ -21,6 +21,9 @@ public sealed record Progresso(string? Etapa, int EtapasConcluidas, int SecoesCo
     /// null = a ordem padrão (kit 3.x).</summary>
     public IReadOnlyList<string>? Ordem { get; init; }
 
+    /// <summary>As etapas que o estado confirma como concluídas antes da atual, mesmo se houver lacunas na ordem.</summary>
+    internal IReadOnlyList<string>? EtapasExecutadas { get; init; }
+
     /// <summary>Quantas etapas a análise tem nesta rota: as desligadas não entram.</summary>
     public int TotalEtapas => (Ordem ?? OrdemDasEtapas.Padrao.Todas).Count;
 
@@ -53,7 +56,7 @@ public static class ProgressoLocal
         var manifesto = ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "manifesto.json"), desdeUtc);
 
         string? etapa = null;
-        var concluidas = 0;
+        var concluidas = new List<string>();
         DateTimeOffset? inicioEtapa = null;
         if (estado is { ValueKind: JsonValueKind.Object } e && e.TryGetProperty("stages", out var stages) && stages.ValueKind == JsonValueKind.Object)
         {
@@ -69,7 +72,7 @@ public static class ProgressoLocal
             for (var i = 0; i < (atual < 0 ? ordem.Count : atual); i++)
                 if (Registro(ordem[i]) is { } feita && Texto(feita, "status") == Executada)
                 {
-                    concluidas++;
+                    concluidas.Add(ordem[i]);
                     fimAnterior = Instante(feita, "ended") ?? fimAnterior;
                 }
             if (atual >= 0)
@@ -101,7 +104,7 @@ public static class ProgressoLocal
                 }
             secoes = Math.Min(comResultado.Count, 28);
             var posicaoDaAuditoria = ordem.ToList().IndexOf("technical_audit");
-            var verificados = posicaoDaAuditoria >= 0 && concluidas > posicaoDaAuditoria;
+            var verificados = posicaoDaAuditoria >= 0 && concluidas.Count > posicaoDaAuditoria;
             var porId = new Dictionary<string, int>(StringComparer.Ordinal);
             if (m.TryGetProperty("findings", out var lista) && lista.ValueKind == JsonValueKind.Array)
                 foreach (var f in lista.EnumerateArray())
@@ -114,7 +117,7 @@ public static class ProgressoLocal
                     else { porId[id] = achados.Count; achados.Add(achado); }
                 }
         }
-        return new Progresso(etapa, concluidas, secoes, achados, provedor, inicioEtapa) { Ordem = ordem };
+        return new Progresso(etapa, concluidas.Count, secoes, achados, provedor, inicioEtapa) { Ordem = ordem, EtapasExecutadas = concluidas };
     }
 
     /// <summary>O provedor da rota pela pasta de controle: <c>analise</c> = ChatGPT, <c>analise-pro</c> = Claude, <c>analise-google</c> = Gemini.</summary>

@@ -11,7 +11,7 @@ internal sealed record ProgressoEtapa(string Etapa, long Sequencia, int Avaliado
 
 /// <summary>A previsão do Monitor. <paramref name="PeloEditor"/>: calculada pelo Editor (Tarefa 13: mediana do histórico, <see cref="Pmvni.Agentes.PrevisaoTermino"/>);
 /// senão, a estimativa que a IA gravava em <c>estimativa.json</c> numa análise antiga. <paramref name="SemDados"/>: o kit ainda não registrou nada desta análise.
-/// <paramref name="Aproximada"/>: a previsão do Editor saiu de um histórico curto ou do ritmo desta análise, não da mediana de ao menos 3 execuções.</summary>
+/// <paramref name="Aproximada"/>: a previsão do Editor usou menos de 3 execuções por etapa ou recorreu a amostras de outros provedores.</summary>
 internal sealed record EstimativaAnalise(string? Etapa, double? PercentualEtapa, double? PercentualGeral, DateTimeOffset? Termino, bool PeloEditor = false,
     bool SemDados = false, bool Aproximada = false);
 internal sealed record PainelAchados(List<AchadoExecucao> Itens, Dictionary<string, ProgressoEtapa> Etapas, EstimativaAnalise? Estimativa);
@@ -30,7 +30,7 @@ internal static class AchadosExecucao
     }
 
     /// <summary>O <see cref="Pmvni.Agentes.Progresso"/> no formato do Monitor: os achados (verificados depois da auditoria técnica), as seções com resultado
-    /// durante a análise (<c>analyze</c>) e a previsão de término arredondada ao minuto (o Monitor não redesenha a cada segundo).</summary>
+    /// durante a análise (<c>analyze</c>), os percentuais em décimos e a previsão de término arredondada ao minuto.</summary>
     internal static PainelAchados DoProgresso(Pmvni.Agentes.Progresso p, IReadOnlyList<Pmvni.Agentes.DuracaoEtapa>? historico, DateTimeOffset agora)
     {
         var itens = p.Achados.Select(a => new AchadoExecucao(a.Id, 0, a.Titulo, a.Situacao, a.Verificado)).ToList();
@@ -38,9 +38,22 @@ internal static class AchadosExecucao
         if (p.Etapa == "analyze") etapas["analyze"] = new("analyze", p.SecoesComResultado, p.SecoesComResultado, p.TotalSecoes, Secoes: true);
         // Sem nada do kit ainda: a previsão continua sendo do Editor (o Monitor mostra "Previsão depois das primeiras etapas", nunca "…da IA").
         if (!p.TemDados) return new(itens, etapas, new EstimativaAnalise(null, null, null, null, PeloEditor: true, SemDados: true));
-        var termino = historico is null ? null : Pmvni.Agentes.PrevisaoTermino.Estimar(p, historico, agora);
+        var (geral, etapa) = Pmvni.Agentes.ProgressoGeral.Calcular(p, historico, agora);
+        DateTimeOffset? termino = null;
+        var aproximada = false;
+        if (historico is not null)
+        {
+            termino = Pmvni.Agentes.PrevisaoTermino.Estimar(p, historico, agora);
+            if (termino is null)
+            {
+                termino = Pmvni.Agentes.PrevisaoTermino.EstimarAproximada(p, historico, agora);
+                aproximada = termino.HasValue;
+            }
+        }
         if (termino is { } t && t.Ticks % TimeSpan.TicksPerMinute is var resto and > 0) termino = t.AddTicks(TimeSpan.TicksPerMinute - resto);
-        return new(itens, etapas, new EstimativaAnalise(p.Etapa, null, null, termino, PeloEditor: true));
+        return new(itens, etapas, new EstimativaAnalise(p.Etapa, Arredondar(etapa), Arredondar(geral), termino, PeloEditor: true, Aproximada: aproximada));
+
+        static double? Arredondar(double? percentual) => percentual is { } valor ? Math.Round(valor, 1) : null;
     }
 
     public static PainelAchados Ler(string pasta, string processo, DateTime inicioUtc = default)

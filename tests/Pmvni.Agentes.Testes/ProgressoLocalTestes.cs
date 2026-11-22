@@ -141,6 +141,51 @@ public class ProgressoLocalTestes
     }
 
     [Fact]
+    public void PrevisaoAproximada_PrefereMesmoProvedorPorEtapaEUsaOsDemaisQuandoFaltaAmostra()
+    {
+        var agora = new DateTimeOffset(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
+        var atual = new Progresso("technical_audit", 2, 28, [], Provedor.Claude, agora.AddMinutes(-3))
+            { Ordem = ["prepare", "analyze", "technical_audit", "produce", "final_review"] };
+        var historico = Historico(Provedor.Claude, ("technical_audit", [10]), ("final_review", [2, 4]));
+        historico.AddRange(Historico(Provedor.ChatGpt, ("technical_audit", [100, 110, 120]), ("produce", [2, 6])));
+        historico.AddRange(Historico(Provedor.Gemini, ("produce", [1, 8])));
+
+        // A etapa atual leva 10 − 3 min, a produção usa a mediana de 1, 2, 6 e 8, e a revisão leva 3 min.
+        Assert.Null(PrevisaoTermino.Estimar(atual, historico, agora));
+        Assert.Equal(agora.AddMinutes(7 + 4 + 3), PrevisaoTermino.EstimarAproximada(atual, historico, agora));
+        Assert.Equal(agora.AddMinutes(10 + 4 + 3), PrevisaoTermino.EstimarAproximada(atual with { InicioEtapa = agora.AddMinutes(1) }, historico, agora));
+        Assert.Equal(agora.AddMinutes(4 + 3), PrevisaoTermino.EstimarAproximada(atual with { InicioEtapa = agora.AddHours(-1) }, historico, agora));
+        Assert.Equal(agora, PrevisaoTermino.EstimarAproximada(atual with { Etapa = "final_review", InicioEtapa = agora.AddHours(-1) }, historico, agora));
+    }
+
+    [Fact]
+    public void PrevisaoAproximada_SemAmostraValidaDeEtapaPendente_Nula()
+    {
+        var agora = new DateTimeOffset(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
+        var atual = new Progresso("produce", 1, 28, [], Provedor.ChatGpt) { Ordem = ["prepare", "produce", "final_review"] };
+        var historico = Historico(Provedor.ChatGpt, ("produce", [2]));
+        historico.AddRange(Historico(Provedor.Gemini, ("final_review", [0, -1])));
+
+        Assert.Null(PrevisaoTermino.EstimarAproximada(atual, historico, agora));
+        Assert.Null(PrevisaoTermino.EstimarAproximada(atual with { Etapa = null }, historico, agora));
+        Assert.Null(PrevisaoTermino.EstimarAproximada(atual with { Etapa = "audit" }, historico, agora));
+    }
+
+    [Fact]
+    public void PercentualPorTempo_UsaSomenteAsEtapasConfirmadasQuandoHaLacunaNoEstado()
+    {
+        using var pasta = Ambiente.PastaDeTeste("progresso-lacuna");
+        var controle = Controle(pasta);
+        Gravar(controle, "engine_state.json", Estado(("analyze", Feita(1000, 1600)),
+            ("technical_audit", new JsonObject { ["status"] = "RUNNING", ["started"] = 1600 })));
+        var progresso = ProgressoLocal.Ler(controle);
+        var historico = progresso.Ordem!.Select(e => new DuracaoEtapa(e, Provedor.Claude, TimeSpan.FromMinutes(e == "analyze" ? 50 : 10))).ToList();
+
+        Assert.Equal(1, progresso.EtapasConcluidas);
+        Assert.Equal((50d, 0d), ProgressoGeral.Calcular(progresso, historico, DateTimeOffset.FromUnixTimeSeconds(1600)));
+    }
+
+    [Fact]
     public void Uso_MostraExecutorPrograma()
     {
         using var pasta = Ambiente.PastaDeTeste("uso-programa");
