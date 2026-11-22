@@ -180,7 +180,7 @@ public sealed partial class MainWindow
     {
         sessaoNR = new SessaoNovoRelatorio(DispatcherQueue.GetForCurrentThread(), () => Orquestrador, () => pecasAgentes, p => ajustes.Agentes[p].Modo, PastaDados.Raiz, () => ajustes.RotaCodex,
             DecidirAsync);
-        sessaoNR.Atualizada += e => { if (ReferenceEquals(e, execucaoMostrada)) RenderizarExecucao(e, linhasNovas: true); };
+        sessaoNR.Atualizada += e => { if (ReferenceEquals(e, execucaoMostrada)) RenderizarExecucao(e); };
         manipuladores[ComandosApp.RelatoriosNovo] = async () => await AbrirNovoRelatorioNaVezAsync();
 
         var n = NR;
@@ -227,18 +227,17 @@ public sealed partial class MainWindow
             });
         };
         n.BotaoCancelarAnalise.Click += async (_, _) => { if (execucaoMostrada is { } e) await TentarAsync(async () => await CancelarAnaliseAsync(e)); };
-        n.BotaoEvidenciasPdf.Click += (_, _) =>
-        {
-            if (execucaoMostrada is not { } e) return;
-            var pasta = Path.Combine(e.Processo.Pasta, ".pmvni-ai", "cache-pdf");
-            if (Directory.Exists(pasta)) AberturaExterna.MostrarNoExplorador(pasta);
-        };
+        n.BotaoEvidenciasPdf.Click += (_, _) => AbrirEvidenciasDoMonitor();
+        n.LinkEvidenciasPdf.Click += (_, _) => AbrirEvidenciasDoMonitor();
         n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
         n.BotaoMostrarRegistroResultado.Click += (_, _) => { if (ultimoResultadoNR is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
         n.BotaoDescartar.Click += async (_, _) => await TentarAsync(() => { DescartarAnalisePendente(); return Task.CompletedTask; });
         n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await EscolherContinuacaoAsync());
         n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
-        n.ExpansorUltimaMensagem.Expanding += async (_, _) => { if (execucaoMostrada is { } e) await MostrarUltimaMensagemAsync(e); };
+        n.ExpansorUltimaMensagem.Expanding += async (_, _) =>
+        {
+            if (execucaoMostrada is { Provedor: Provedor.ChatGpt } e) await MostrarUltimaMensagemAsync(e);
+        };
         BotaoAnalise.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(async () =>
         {
             if (estadoPilula is EstadoPilulaAnalise.Concluida or EstadoPilulaAnalise.Pausada or EstadoPilulaAnalise.Erro)
@@ -889,12 +888,21 @@ public sealed partial class MainWindow
 
     // ---------- vista da execução ----------
 
+    static string PastaEvidenciasDoMonitor(ExecucaoEmCurso e) => Path.Combine(e.Processo.Pasta, ".pmvni-ai", "cache-pdf");
+
+    void AbrirEvidenciasDoMonitor()
+    {
+        if (execucaoMostrada is { } e && Directory.Exists(PastaEvidenciasDoMonitor(e)))
+            AberturaExterna.MostrarNoExplorador(PastaEvidenciasDoMonitor(e));
+    }
+
     void MostrarExecucaoNR(ExecucaoEmCurso e)
     {
         if (fechada) return;
         execucaoMostrada = e;
-        NR.BotaoEvidenciasPdf.Visibility = Visibility.Collapsed;
+        NR.MostrarEvidencias(Directory.Exists(PastaEvidenciasDoMonitor(e)));
         NR.MostrarAchados([]);
+        NR.ReiniciarFiltroDescobertas();
         NR.ReiniciarEstimativa();
         NR.MostrarProgresso(null);
         NR.MostrarConsumo([]);
@@ -903,7 +911,7 @@ public sealed partial class MainWindow
         NR.MostrarExecucao(true);
         NR.TextoUltimaMensagem.Text = "";
         NR.ExpansorUltimaMensagem.IsExpanded = false;
-        RenderizarExecucao(e, linhasNovas: true);
+        RenderizarExecucao(e);
         AtualizarComandosNovoRelatorio();
     }
 
@@ -936,7 +944,7 @@ public sealed partial class MainWindow
             });
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
             {
-                NR.BotaoEvidenciasPdf.Visibility = Directory.Exists(Path.Combine(e.Processo.Pasta, ".pmvni-ai", "cache-pdf")) ? Visibility.Visible : Visibility.Collapsed;
+                NR.MostrarEvidencias(Directory.Exists(PastaEvidenciasDoMonitor(e)));
                 NR.MostrarConsumo(consumo);
                 NR.MostrarAchados(achados.Itens);
                 var mudouEstimativa = NR.EstimativaAtual != achados.Estimativa;
@@ -948,9 +956,9 @@ public sealed partial class MainWindow
                 if (NR.ProgressoAtual != progresso)
                 {
                     NR.MostrarProgresso(progresso);
-                    RenderizarExecucao(e, linhasNovas: false);
+                    RenderizarExecucao(e);
                 }
-                else if (mudouEstimativa) RenderizarExecucao(e, linhasNovas: false);
+                else if (mudouEstimativa) RenderizarExecucao(e);
             }
         }
         catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RegistroErros.Gravar("analise.achados", x); }
@@ -991,20 +999,20 @@ public sealed partial class MainWindow
 
     void AtualizarRelogioDaExecucao(ExecucaoEmCurso e)
     {
-        NR.ProcessoMonitor.Text = "Processo " + FluxoNovoRelatorio.Identificacao(e.Processo);
+        NR.MostrarIdentificacao(FluxoNovoRelatorio.Identificacao(e.Processo), e.Processo.Requerente);
         NR.TextoCabecalho.Text = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo)
             + (e.Retomada ? " (retomada)" : "");
         NR.MostrarRelogios(e.TempoAtivo, DateTimeOffset.Now);
     }
 
-    void RenderizarExecucao(ExecucaoEmCurso e, bool linhasNovas)
+    void RenderizarExecucao(ExecucaoEmCurso e)
     {
         if (fechada) return;
         var n = NR;
         // Claude e Gemini: o kit informa a etapa; ChatGPT (Tarefa 12): o editor monta a mesma situação a partir do controlador (etapa, cota, decisão).
         var claude = Provedores.PeloKit(e.Provedor) || e.Situacao is not null;
         n.PainelClaude.Visibility = Visibility.Visible;
-        n.PainelUltimaMensagem.Visibility = claude ? Visibility.Collapsed : Visibility.Visible;
+        n.PainelUltimaMensagem.Visibility = e.Provedor == Provedor.ChatGpt ? Visibility.Visible : Visibility.Collapsed;
         var rodando = e.Fim is null || !e.Fim.IsCompleted;
         string? erro = null;
         IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas = [];
@@ -1025,10 +1033,13 @@ public sealed partial class MainWindow
             n.TextoRotulo.Text = $"Provedor: {Provedores.Nome(e.Provedor)} · Registro: {e.Registro.Pasta}";
             n.TextoEventos.Text = "";
         }
-        if (!claude && e.Linhas.LastOrDefault() is { } ultima && ultima.StartsWith("Erro: ", StringComparison.Ordinal)) erro = ultima[6..];
-        n.MostrarResumo(rodando, erro, etapas, e.Linhas);
+        if (!claude && e.Linhas.LastOrDefault() is { } ultima && ultima.StartsWith("Erro: ", StringComparison.Ordinal))
+        {
+            erro = ultima[6..];
+            etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();
+        }
+        n.MostrarResumo(rodando, erro, etapas, Provedores.Nome(e.Provedor));
         AtualizarRelogioDaExecucao(e);
-        if (linhasNovas && n.LinhasNoFim()) n.RolarLinhasAoFim();
     }
 
     async Task MostrarUltimaMensagemAsync(ExecucaoEmCurso e)

@@ -653,7 +653,7 @@ internal static class Roteiro
                 faixa.EscolherAba("Revisão");
                 var indisponiveisNoMonitor = comandos.All(id => !faixa.Habilitado(id) && faixa.Dica(id).Contains("Volte às folhas"));
                 monitor.MostrarExecucao(true);
-                monitor.MostrarResumo(true, null, [("Preparo", EstadoEtapa.Agora), ("Análise", EstadoEtapa.Pendente)], []);
+                monitor.MostrarResumo(true, null, [("Preparo", EstadoEtapa.Agora), ("Análise", EstadoEtapa.Pendente)]);
                 var agora = DateTimeOffset.Now;
                 monitor.MostrarEstimativa(new EstimativaAnalise("prepare", 47.5, 12.8, agora.AddMinutes(18)));
                 monitor.MostrarRelogios(TimeSpan.FromMinutes(7), agora);
@@ -666,7 +666,7 @@ internal static class Roteiro
             }
             finally
             {
-                monitor.MostrarResumo(false, null, [], []);
+                monitor.MostrarResumo(false, null, []);
                 monitor.MostrarEstimativa(null);
                 monitor.MostrarExecucao(false);
                 Invocar(monitor.BotaoVoltarRelatorio);
@@ -5051,9 +5051,9 @@ internal static class Roteiro
             p["etapas_de_programa"] = new JsonArray(etapasDePrograma.Select(e => (JsonNode)e).ToArray());
             monitor.MostrarProgresso(null);
             monitor.MostrarEstimativa(null);
-            monitor.MostrarResumo(true, null, FluxoNovoRelatorio.Etapas(null, "INICIANDO", etapas), []);
+            monitor.MostrarResumo(true, null, FluxoNovoRelatorio.Etapas(null, "INICIANDO", etapas));
             valores.Add(monitor.BarraResumoEtapas.Value);
-            monitor.MostrarResumo(true, null, FluxoNovoRelatorio.Etapas("technical_audit", "EM_ANDAMENTO", etapas), []);
+            monitor.MostrarResumo(true, null, FluxoNovoRelatorio.Etapas("technical_audit", "EM_ANDAMENTO", etapas));
             valores.Add(monitor.BarraResumoEtapas.Value);
             var pelaContagem = !monitor.BarraResumoEtapas.IsIndeterminate
                 && monitor.RotuloEtapa(nome, EstadoEtapa.Agora, true) == "Em andamento";
@@ -5063,10 +5063,10 @@ internal static class Roteiro
             monitor.MostrarEstimativa(new EstimativaAnalise("technical_audit", 72.4, 48.6, null));
             valores.Add(monitor.BarraResumoEtapas.Value);
             var rotuloDaEstimativa = monitor.RotuloEtapa(nome, EstadoEtapa.Agora, true).Contains("estimado pela IA", StringComparison.Ordinal);
-            monitor.MostrarResumo(false, null, FluxoNovoRelatorio.Etapas(null, "CONCLUIDO", etapas), []);
+            monitor.MostrarResumo(false, null, FluxoNovoRelatorio.Etapas(null, "CONCLUIDO", etapas));
             valores.Add(monitor.BarraResumoEtapas.Value);
             monitor.MostrarEstimativa(null);
-            monitor.MostrarResumo(true, null, [], []);
+            monitor.MostrarResumo(true, null, []);
             p["percentuais"] = valores;
             p["conferencias"] = new JsonObject { ["pela_contagem"] = pelaContagem, ["rotulo_dos_itens"] = rotuloDosItens, ["rotulo_da_estimativa"] = rotuloDaEstimativa };
             p["ok"] = ordem.DoArquivo && etapas.SequenceEqual(["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"])
@@ -5074,7 +5074,7 @@ internal static class Roteiro
                 && pelaContagem && rotuloDosItens && rotuloDaEstimativa && monitor.BarraResumoEtapas.IsIndeterminate
                 && valores.Select(x => x!.GetValue<double>()).Zip(new[] { 0d, 200d / 6, 200d / 6, 48.6, 100d })
                     .All(par => Math.Abs(par.First - par.Second) < 0.01);
-            monitor.MostrarResumo(false, null, [], []);
+            monitor.MostrarResumo(false, null, []);
             monitor.MostrarProgresso(null);
             return Task.CompletedTask;
         });

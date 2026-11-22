@@ -1,7 +1,8 @@
-﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
+using Pmvni.Agentes;
 
 namespace Pmvni.App;
 
@@ -19,7 +20,12 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         TextoArraste.Text = FluxoNovoRelatorio.ArrasteAqui;
         // Correções 2026-11-15 (image7): a coluna do formulário tem a largura da área visível, menos as margens, até 1400 (centralizada).
         PainelFormulario.SizeChanged += (_, e) => AjustarLarguraDoFormulario(e.NewSize.Width);
-        PainelExecucao.SizeChanged += (_, e) => AjustarColunasExecucao(e.NewSize.Width);
+        RolagemMonitor.SizeChanged += (_, e) => AjustarColunasExecucao(e.NewSize.Width);
+        BotaoEvidenciasPdf.SizeChanged += (_, e) => IconeAbrirEvidencias.Visibility =
+            e.NewSize.Width >= 290 ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var controle in new FrameworkElement[] { GradeCabecalho, CartaoStatus, PainelClaude, CartaoConsumo,
+                     CabecalhoLog, BotaoEvidenciasPdf, ExpansorUltimaMensagem })
+            controle.SizeChanged += (_, _) => AjustarAlturaDoMonitor();
     }
 
     /// <summary>Largura da coluna do formulário: a da área visível menos 24 de cada lado, entre 280 e 1400.</summary>
@@ -41,20 +47,20 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     /// <summary>Formulário (false) ou vista da execução (true).</summary>
     internal void MostrarExecucao(bool execucao)
     {
-        PainelFormulario.Visibility = execucao ? Visibility.Collapsed : Visibility.Visible;
-        PainelExecucao.Visibility = execucao ? Visibility.Visible : Visibility.Collapsed;
+        PainelFormulario.Visibility = AcoesRetomadaFormulario.Visibility = execucao ? Visibility.Collapsed : Visibility.Visible;
+        RolagemMonitor.Visibility = PainelExecucao.Visibility = execucao ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    internal bool VistaDaExecucao => PainelExecucao.Visibility == Visibility.Visible;
+    internal bool VistaDaExecucao => RolagemMonitor.Visibility == Visibility.Visible;
 
     /// <summary>A lista do andamento está no fim (ou ainda não rola): as linhas novas a mantêm no fim.</summary>
-    internal bool LinhasNoFim()
+    bool LinhasNoFim()
     {
         rolagemDasLinhas ??= Achar<ScrollViewer>(ListaLinhas);
         return rolagemDasLinhas is null || rolagemDasLinhas.VerticalOffset >= rolagemDasLinhas.ScrollableHeight - 4;
     }
 
-    internal void RolarLinhasAoFim()
+    void RolarLinhasAoFim()
     {
         if (ListaLinhas.Items.Count > 0) ListaLinhas.ScrollIntoView(ListaLinhas.Items[^1]);
     }
@@ -70,16 +76,17 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         return null;
     }
 
-    // ---------- redesenho 2026-11-17: atividades, etapas, descobertas e resumo ----------
+    // ---------- Monitor de análise ----------
 
     readonly System.Collections.ObjectModel.ObservableCollection<ItemAtividade> atividades = [];
     System.Collections.ObjectModel.ObservableCollection<string>? origem;
-    bool emCurso = true;
+    bool emCurso;
+    string? etapaAtual;
+    string? provedorAtual;
     (string Nome, EstadoEtapa Estado)[] etapasMostradas = [];
-    bool animandoEtapas;
+    int colunasDaRota = 6;
 
-    /// <summary>Liga a lista de atividades às linhas da execução (null = desliga). As linhas que já existiam entram sem horário;
-    /// as que chegam depois, com o horário da chegada.</summary>
+    /// <summary>Liga a lista de atividades às linhas da execução (null = desliga). Linhas antigas sem horário no registro não ganham um horário fictício.</summary>
     internal void LigarLinhas(System.Collections.ObjectModel.ObservableCollection<string>? linhas)
     {
         if (origem is not null) origem.CollectionChanged -= LinhasMudaram;
@@ -92,75 +99,96 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         }
         ListaLinhas.ItemsSource = linhas is null ? null : atividades;
         MarcarEmCurso();
+        if (linhas is not null) EnfileirarRolagemAoFim(linhas);
     }
 
     void LinhasMudaram(object? s, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        if (DispatcherQueue.HasThreadAccess) Espelhar(e); else DispatcherQueue.TryEnqueue(() => Espelhar(e));
+        if (DispatcherQueue.HasThreadAccess) Espelhar(s, e); else DispatcherQueue.TryEnqueue(() => Espelhar(s, e));
     }
 
-    void Espelhar(System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    void Espelhar(object? fonte, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        if (origem is null) return;
+        if (origem is not { } linhas || !ReferenceEquals(linhas, fonte)) return;
+        var noFim = LinhasNoFim();
         if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add && e.NewItems is { } novos && e.NewStartingIndex == atividades.Count)
             foreach (string l in novos) atividades.Add(new ItemAtividade(Atividades.DaLinha(l, DateTime.Now)));
         else
         {
-            // Outra mudança (inserção no meio, remoção, limpeza): refaz sem horários.
             atividades.Clear();
-            foreach (var l in origem) atividades.Add(new ItemAtividade(Atividades.DaLinha(l)));
+            foreach (var l in linhas) atividades.Add(new ItemAtividade(Atividades.DaLinha(l)));
         }
         MarcarEmCurso();
+        if (noFim) EnfileirarRolagemAoFim(linhas);
     }
+
+    void EnfileirarRolagemAoFim(System.Collections.ObjectModel.ObservableCollection<string> linhas) =>
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            if (VistaDaExecucao && ReferenceEquals(origem, linhas)) RolarLinhasAoFim();
+        });
 
     void MarcarEmCurso()
     {
         for (var i = 0; i < atividades.Count; i++) atividades[i].EmCurso = emCurso && i == atividades.Count - 1;
-        TextoContagem.Text = atividades.Count == 1 ? "1 atividade registrada" : $"{atividades.Count} atividades registradas";
+        var contagem = atividades.Count == 1 ? "1 atividade registrada" : $"{atividades.Count} atividades registradas";
+        var hora = atividades.LastOrDefault(item => item.Atividade.Hora is not null)?.Atividade.HoraTexto ?? "—";
+        TextoContagem.Text = $"{contagem} · Última atualização {hora}";
+        var status = etapaAtual is null ? contagem : $"Etapa atual: {etapaAtual} · {contagem}";
+        TextoEtapaAtual.Text = provedorAtual is null ? status : $"{status} · {provedorAtual}";
     }
 
-    /// <summary>Resumo do topo, selo "ao vivo", descobertas e próxima etapa. <paramref name="etapas"/> vazio = provedor sem etapas (ChatGPT).</summary>
-    internal void MostrarResumo(bool rodando, string? erro, IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, IEnumerable<string> linhas)
+    internal void MostrarIdentificacao(string processo, string? requerente)
     {
-        emCurso = rodando;
-        MarcarEmCurso();
-        var falhou = !string.IsNullOrWhiteSpace(erro);
-        var concluida = etapas.Count > 0 && etapas.All(x => x.Estado == EstadoEtapa.Feita);
-        var atual = etapas.Select((x, i) => (x, i)).FirstOrDefault(t => t.x.Estado is EstadoEtapa.Agora or EstadoEtapa.Erro);
-        var temAtual = etapas.Any(x => x.Estado is EstadoEtapa.Agora or EstadoEtapa.Erro);
-        var feitas = etapas.Count(x => x.Estado == EstadoEtapa.Feita);
+        ProcessoMonitor.Text = processo;
+        TextoRequerente.Text = string.IsNullOrWhiteSpace(requerente) ? "Não informado" : requerente.Trim();
+    }
 
-        TituloStatus.Text = falhou ? "Análise com problema" : concluida ? "Análise concluída" : rodando ? "Análise em andamento" : "Análise parada";
-        IconeStatus.Glyph = falhou ? Glifos.Avisos : concluida ? Glifos.Situacao : Glifos.Ia;
-        FundoIconeStatus.Background = Recurso(falhou ? "SystemFillColorCriticalBrush" : concluida ? "SystemFillColorSuccessBrush" : "AccentFillColorDefaultBrush");
-        TextoEtapaAtual.Text = etapas.Count == 0 ? (rodando ? "Etapa atual: análise documental" : "Execução encerrada")
-            : concluida ? $"{etapas.Count} de {etapas.Count} etapas concluídas"
-            : temAtual ? $"Etapa atual: {atual.x.Nome} · {feitas} de {etapas.Count} concluídas"
-            : falhou ? $"Interrompida · {feitas} de {etapas.Count} concluídas"
-            : !rodando ? $"Parada · {feitas} de {etapas.Count} concluídas"
-            : $"Preparando · {feitas} de {etapas.Count} concluídas";
-        SeloAoVivo.Visibility = rodando && !falhou ? Visibility.Visible : Visibility.Collapsed;
+    internal void MostrarEvidencias(bool disponiveis)
+    {
+        LinkEvidenciasPdf.Visibility = BotaoEvidenciasPdf.Visibility = disponiveis ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    internal void MostrarResumo(bool rodando, string? erro, IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, string? provedor = null)
+    {
+        var falhou = !string.IsNullOrWhiteSpace(erro);
+        var concluida = !falhou && etapas.Count > 0 && etapas.All(x => x.Estado == EstadoEtapa.Feita);
+        emCurso = rodando && !falhou && !concluida;
+        var atual = etapas.ToList().FindIndex(x => x.Estado is EstadoEtapa.Agora or EstadoEtapa.Erro);
+        var temAtual = atual >= 0;
+        etapaAtual = temAtual ? etapas[atual].Nome : emCurso ? "Aguardando registro" : null;
+        provedorAtual = provedor;
+        MarcarEmCurso();
+
+        TituloStatus.Text = falhou ? "Análise com problema" : concluida ? "Análise concluída" : emCurso ? "Análise em andamento" : "Análise parada";
+        IconeStatus.Glyph = falhou ? Glifos.Avisos : concluida ? Glifos.Situacao : Glifos.Pausado;
+        IconeStatus.Style = Estilo(falhou ? "PmvniIconeSeloErro" : concluida ? "PmvniIconeSeloSucesso" : "PmvniIconeDestaqueStyle");
+        FundoIconeStatus.Style = Estilo(falhou ? "MonitorFundoErro" : concluida ? "MonitorFundoSucesso" : "MonitorFundoAtivo");
+        AnelStatus.IsActive = emCurso;
+        AnelStatus.Visibility = SeloAoVivo.Visibility = SeloAtividades.Visibility = SeloLog.Visibility = emCurso ? Visibility.Visible : Visibility.Collapsed;
+        IconeStatus.Visibility = emCurso ? Visibility.Collapsed : Visibility.Visible;
         BotaoPausarAnalise.Visibility = BotaoCancelarAnalise.Visibility = rodando ? Visibility.Visible : Visibility.Collapsed;
 
-        MostrarEtapas(etapas, rodando && !falhou);
+        MostrarEtapas(etapas, emCurso);
 
-        var proxima = temAtual && atual.i + 1 < etapas.Count ? etapas[atual.i + 1].Nome : null;
-        TextoResumo.Text = falhou ? "A execução encontrou um problema." : concluida ? "Relatório pronto para importar." : rodando ? (temAtual ? atual.x.Nome : "Aguardando registro da etapa.") : "A análise não está mais rodando.";
+        var proxima = temAtual && atual + 1 < etapas.Count ? etapas[atual + 1].Nome : null;
+        TextoResumo.Text = falhou ? "A execução encontrou um problema." : concluida ? "Relatório pronto para importar."
+            : emCurso ? etapaAtual! : "A análise não está mais rodando.";
         TextoProximaEtapa.Text = falhou ? erro!.Trim()
             : concluida ? "Todas as etapas terminaram."
-            : !rodando ? "Execução encerrada."
+            : !emCurso ? "Execução encerrada."
             : !temAtual ? "Aguardando confirmação de progresso."
             : proxima is not null ? $"Próxima etapa: {proxima}."
             : "Última etapa em andamento.";
-        CartaoProximaEtapa.BorderBrush = Recurso(falhou ? "SystemFillColorCriticalBrush" : "AccentFillColorDefaultBrush");
+        CartaoProximaEtapa.Style = Estilo(falhou ? "MonitorFundoErro" : "MonitorFundoAtivo");
     }
 
     internal ProgressoEtapa? ProgressoAtual { get; private set; }
-    private ProgressoEtapa? progressoDesenhado;
+    ProgressoEtapa? progressoDesenhado;
     internal EstimativaAnalise? EstimativaAtual { get; private set; }
-    private EstimativaAnalise? estimativaDesenhada;
-    private bool execucaoAtivaNaBarra;
-    private (double Percentual, TimeSpan DuracaoAtiva)? previsaoPeloRitmo;
+    EstimativaAnalise? estimativaDesenhada;
+    bool execucaoAtivaNaBarra;
+    (double Percentual, TimeSpan DuracaoAtiva)? previsaoPeloRitmo;
 
     internal void ReiniciarEstimativa()
     {
@@ -177,7 +205,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     internal void MostrarRelogios(TimeSpan decorrido, DateTimeOffset agora)
     {
-        TextoTempoDecorrido.Text = "Decorrido · " + FluxoNovoRelatorio.TempoLegivel(decorrido, incluirSegundos: true);
+        TextoTempoDecorrido.Text = FluxoNovoRelatorio.TempoLegivel(decorrido, incluirSegundos: true);
         TimeSpan? restantePeloRitmo = null;
         if (execucaoAtivaNaBarra && decorrido > TimeSpan.Zero &&
             EstimativaAtual?.PercentualGeral is double percentual and >= 1 and < 100)
@@ -189,64 +217,142 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             if (previsaoPeloRitmo is { } previsao && previsao.Percentual == percentual)
                 restantePeloRitmo = previsao.DuracaoAtiva - decorrido;
         }
-        // Só a estimativa antiga da IA (estimativa.json) fala em IA; sem estimativa nenhuma, a previsão é do Editor e espera as primeiras etapas.
-        TextoTempoEstimado.Text = FluxoNovoRelatorio.TextoEstimativa(EstimativaAtual?.Termino?.ToLocalTime(), agora, restantePeloRitmo,
-            peloEditor: EstimativaAtual is not { PeloEditor: false }, semDados: EstimativaAtual is null or { SemDados: true });
+        var termino = EstimativaAtual?.Termino?.ToLocalTime();
+        var peloEditor = EstimativaAtual is not { PeloEditor: false };
+        var semDados = EstimativaAtual is null or { SemDados: true };
+        TextoTempoEstimado.Text = FluxoNovoRelatorio.PrevisaoCurta(termino, agora, restantePeloRitmo, peloEditor, semDados,
+            aproximada: EstimativaAtual?.Aproximada == true);
+        var detalhes = FluxoNovoRelatorio.TextoEstimativa(termino, agora, restantePeloRitmo, peloEditor, semDados);
+        ToolTipService.SetToolTip(TextoTempoEstimado, detalhes);
+        AutomationProperties.SetHelpText(TextoTempoEstimado, detalhes);
     }
 
     internal void MostrarProgresso(ProgressoEtapa? progresso)
     {
         ProgressoAtual = progresso;
-        TextoProgressoItens.Text = progresso is null ? "" :
-            $"{Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(progresso.Etapa)} · {progresso.Avaliados} de {progresso.Total} "
-            + (progresso.Secoes ? "seções com resultado" : "itens avaliados");
-        TextoProgressoItens.Visibility = progresso is null ? Visibility.Collapsed : Visibility.Visible;
         MostrarEtapas(etapasMostradas, execucaoAtivaNaBarra);
     }
 
-    IReadOnlyList<AchadoExecucao>? achadosExibidos;
+    IReadOnlyList<AchadoExecucao> achadosExibidos = [];
+    string? filtroDescobertas;
+    static readonly IReadOnlyDictionary<string, (string Texto, string Cor)> Situacoes = Pmvni.Composicao.Kit.Situacoes.Sit;
+
+    void FiltrarDescobertas(object sender, RoutedEventArgs e)
+    {
+        if (sender is not RadioMenuFlyoutItem item) return;
+        filtroDescobertas = item.Tag as string;
+        AtualizarListaDescobertas();
+        ColunaLateral.ChangeView(null, 0, null, true);
+    }
+
+    internal void ReiniciarFiltroDescobertas()
+    {
+        if (filtroDescobertas is null) return;
+        filtroDescobertas = null;
+        FiltroTodas.IsChecked = true;
+        AtualizarListaDescobertas();
+        ColunaLateral.ChangeView(null, 0, null, true);
+    }
+
     internal void MostrarAchados(IReadOnlyList<AchadoExecucao> achados)
     {
-        if (achadosExibidos is not null && achadosExibidos.SequenceEqual(achados)) return;
+        if (achadosExibidos.SequenceEqual(achados)) return;
         achadosExibidos = achados;
-        var situacoes = Pmvni.Composicao.Kit.Situacoes.Sit;
-        int Total(string chave) => achados.Count(a => situacoes[a.Situacao].Texto == situacoes[chave].Texto);
+        int Total(string chave) => achados.Count(a => Situacoes[a.Situacao].Texto == Situacoes[chave].Texto);
         TotalAtende.Text = Total("ATENDE").ToString();
         TotalNaoAtende.Text = Total("NAO_ATENDE").ToString();
         TotalComprovar.Text = Total("NAO_COMPROVADO").ToString();
         TotalDivergentes.Text = Total("DIVERGENCIA_INTERNA").ToString();
-        for (var i = 0; i < achados.Count; i++)
-        {
-            var a = achados[i];
-            if (i < ListaDescobertas.Children.Count && ListaDescobertas.Children[i] is Border existente && Equals(existente.Tag, a)) continue;
-            var cartao = CartaoDescoberta(new($"{a.Id} · {a.Titulo} · {situacoes[a.Situacao].Texto}", a.Verificado));
-            cartao.Tag = a;
-            if (i < ListaDescobertas.Children.Count) ListaDescobertas.Children.RemoveAt(i);
-            ListaDescobertas.Children.Insert(i, cartao);
-        }
-        while (ListaDescobertas.Children.Count > achados.Count)
-            ListaDescobertas.Children.RemoveAt(ListaDescobertas.Children.Count - 1);
-        TextoSemDescobertas.Visibility = achados.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        AtualizarListaDescobertas();
     }
 
-    IReadOnlyList<Pmvni.Agentes.UsoEtapa>? consumoExibido;
+    void AtualizarListaDescobertas()
+    {
+        var filtro = filtroDescobertas is { } chave ? Situacoes[chave].Texto : null;
+        var visiveis = filtro is null ? achadosExibidos : achadosExibidos.Where(a => Situacoes[a.Situacao].Texto == filtro).ToArray();
+        for (var i = 0; i < visiveis.Count; i++)
+        {
+            var a = visiveis[i];
+            if (i < ListaDescobertas.Children.Count && ListaDescobertas.Children[i] is Border existente && Equals(existente.Tag, a)) continue;
+            if (i < ListaDescobertas.Children.Count) ListaDescobertas.Children.RemoveAt(i);
+            ListaDescobertas.Children.Insert(i, CartaoDescoberta(a));
+        }
+        while (ListaDescobertas.Children.Count > visiveis.Count)
+            ListaDescobertas.Children.RemoveAt(ListaDescobertas.Children.Count - 1);
+        VazioDescobertas.Visibility = visiveis.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ColunaLateral.Visibility = visiveis.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        TextoSemDescobertas.Text = filtro is null ? "Aguardando primeiras descobertas" : "Nenhuma descoberta nesta classificação";
+        TextoAjudaDescobertas.Text = filtro is null
+            ? "As constatações aparecerão aqui, com classificação, referência ao PDF e página e trechos da evidência."
+            : "Altere o filtro para ver as demais classificações.";
+        TextoFiltro.Text = $"Exibição: {filtro?.ToLower(Portugues) ?? "todas as classificações"}";
+        TextoRegistros.Text = visiveis.Count == 1 ? "1 registro" : $"{visiveis.Count} registros";
+    }
 
-    /// <summary>O cartão "Consumo" (Tarefa 13): uma linha por execução de etapa, com o selo de quem executou (programa ou a IA), tokens de entrada e saída,
-    /// cache lido, tempo e a variação da cota de 5 h e da semanal; "—" no que o kit não informou. Sem linhas, o cartão some.</summary>
-    internal void MostrarConsumo(IReadOnlyList<Pmvni.Agentes.UsoEtapa> uso)
+    Border CartaoDescoberta(AchadoExecucao achado)
+    {
+        var (situacao, cor) = Situacoes[achado.Situacao];
+        var estiloDaClassificacao = cor switch
+        {
+            "g" => "MonitorRotuloSucesso",
+            "r" => "MonitorRotuloErro",
+            "a" => "MonitorRotuloCautela",
+            _ => "MonitorRotuloDivergencia",
+        };
+        var classificacao = new TextBlock { Text = situacao, Style = Estilo(estiloDaClassificacao) };
+        var titulo = new TextBlock
+        {
+            Text = $"{achado.Id} · {achado.Titulo}", Style = Estilo("PmvniAjusteTitulo"), IsTextSelectionEnabled = true,
+        };
+        var selo = new Border
+        {
+            Padding = new Thickness(6, 2, 6, 2), VerticalAlignment = VerticalAlignment.Center,
+            Style = Estilo(achado.Verificado ? "PmvniSeloStatusSucessoStyle" : "PmvniSeloStatusAtencaoStyle"),
+            Child = new TextBlock { Text = achado.Verificado ? "Verificada" : "Preliminar", Style = Estilo("CaptionTextBlockStyle") },
+        };
+        var cabecalho = new PainelQuebra { Espaco = 8, EspacoLinhas = 3 };
+        cabecalho.Children.Add(classificacao);
+        cabecalho.Children.Add(selo);
+        var textos = new StackPanel { Spacing = 2 };
+        textos.Children.Add(cabecalho);
+        textos.Children.Add(titulo);
+        return new Border
+        {
+            Tag = achado, CornerRadius = new CornerRadius(7), Padding = new Thickness(8, 6, 8, 6),
+            Style = Estilo("PmvniCartaoCompactoStyle"), Child = textos,
+        };
+    }
+
+    IReadOnlyList<UsoEtapa>? consumoExibido;
+
+    /// <summary>A última etapa registrada, com a tabela de uso do kit disponível em "Todas as etapas".</summary>
+    internal void MostrarConsumo(IReadOnlyList<UsoEtapa> uso)
     {
         if (consumoExibido is not null && consumoExibido.SequenceEqual(uso)) return;
         consumoExibido = uso;
         GradeConsumo.Children.Clear();
         GradeConsumo.RowDefinitions.Clear();
         GradeConsumo.ColumnDefinitions.Clear();
-        CartaoConsumo.Visibility = uso.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (uso.Count == 0) return;
-        for (var c = 0; c < 6; c++) GradeConsumo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        void Celula(UIElement e, int linha, int coluna)
+
+        string Tempo(UsoEtapa u) => u.Duracao is { } duracao ? FluxoNovoRelatorio.TempoLegivel(duracao, incluirSegundos: true) : TextoConsumo.Desconhecido;
+        var recente = uso.LastOrDefault();
+        TextoEtapaConsumo.Text = recente is null ? TextoConsumo.Desconhecido : FluxoNovoRelatorio.NomeDaEtapa(recente.Etapa);
+        TextoTokensConsumo.Text = recente is null ? "— / —" : TextoConsumo.Tokens(recente);
+        TextoCacheConsumo.Text = TextoConsumo.Numero(recente?.CacheLido);
+        TextoExecutorConsumo.Text = recente is null ? "Nenhum uso registrado ainda"
+            : $"{Tempo(recente)} · {recente.Executor}" + (string.IsNullOrWhiteSpace(recente.Modelo) ? "" : $" · {recente.Modelo}");
+        ExpansorConsumo.IsEnabled = recente is not null;
+        if (recente is null)
         {
-            Grid.SetRow((FrameworkElement)e, linha);
-            Grid.SetColumn((FrameworkElement)e, coluna);
+            ExpansorConsumo.IsExpanded = false;
+            return;
+        }
+
+        for (var c = 0; c < 6; c++) GradeConsumo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        void Celula(FrameworkElement e, int linha, int coluna)
+        {
+            Grid.SetRow(e, linha);
+            Grid.SetColumn(e, coluna);
             GradeConsumo.Children.Add(e);
         }
         TextBlock Texto(string t, bool cabecalho = false) => new()
@@ -262,248 +368,277 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             var u = uso[i];
             var linha = i + 1;
             GradeConsumo.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            Celula(Texto(Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(u.Etapa)), linha, 0);
-            var programa = u.Executor == Pmvni.Agentes.UsoDasIas.Programa;
+            Celula(Texto(FluxoNovoRelatorio.NomeDaEtapa(u.Etapa)), linha, 0);
             var selo = new Border
             {
                 CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 1, 8, 1), VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Left,
-                Background = Recurso(programa ? "SubtleFillColorSecondaryBrush" : "SystemFillColorAttentionBackgroundBrush"),
-                Child = new TextBlock { Text = u.Executor, Style = Estilo("CaptionTextBlockStyle") },
+                Style = Estilo(u.Executor == UsoDasIas.Programa ? "MonitorLadrilho" : "MonitorFundoModelo"),
+                Child = Texto(u.Executor),
             };
             if (!string.IsNullOrWhiteSpace(u.Modelo)) ToolTipService.SetToolTip(selo, u.Modelo);
             Celula(selo, linha, 1);
-            Celula(Texto(Pmvni.Agentes.TextoConsumo.Tokens(u)), linha, 2);
-            Celula(Texto(Pmvni.Agentes.TextoConsumo.Numero(u.CacheLido)), linha, 3);
-            Celula(Texto(u.Duracao is { } d ? FluxoNovoRelatorio.TempoLegivel(d) : Pmvni.Agentes.TextoConsumo.Desconhecido), linha, 4);
-            Celula(Texto(Pmvni.Agentes.TextoConsumo.Cota(u)), linha, 5);
+            Celula(Texto(TextoConsumo.Tokens(u)), linha, 2);
+            Celula(Texto(TextoConsumo.Numero(u.CacheLido)), linha, 3);
+            Celula(Texto(Tempo(u)), linha, 4);
+            Celula(Texto(TextoConsumo.Cota(u)), linha, 5);
         }
     }
 
-    static Border CartaoDescoberta(DescobertaAnalise d)
+    static string SituacaoDaEtapa(EstadoEtapa estado, bool ativa) => estado switch
     {
-        var selo = new Border
-        {
-            CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 2, 8, 2), VerticalAlignment = VerticalAlignment.Top,
-            Background = Recurso(d.Verificada ? "SystemFillColorSuccessBackgroundBrush" : "SystemFillColorCautionBackgroundBrush"),
-            Child = new TextBlock { Text = d.Verificada ? "Verificada" : "Preliminar", Style = Estilo("CaptionTextBlockStyle") },
-        };
-        var texto = new TextBlock { Text = d.Texto, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, VerticalAlignment = VerticalAlignment.Center };
-        var icone = new Border
-        {
-            Width = 32, Height = 32, CornerRadius = new CornerRadius(6), VerticalAlignment = VerticalAlignment.Top, Background = Recurso("ControlFillColorDefaultBrush"),
-            Child = new FontIcon
-            {
-                Glyph = d.Verificada ? Glifos.Situacao : Glifos.Avisos, FontSize = 16,
-                Style = Estilo(d.Verificada ? "PmvniIconeSeloSucesso" : "PmvniIconeSeloAtencao"),
-            },
-        };
-        var g = new Grid { ColumnSpacing = 12 };
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(texto, 1);
-        Grid.SetColumn(selo, 2);
-        g.Children.Add(icone); g.Children.Add(texto); g.Children.Add(selo);
-        return new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 8, 10, 8), Background = Recurso("SubtleFillColorSecondaryBrush"), Child = g };
-    }
+        EstadoEtapa.Feita => "Concluída",
+        EstadoEtapa.Agora => ativa ? "Em andamento" : "Interrompida",
+        EstadoEtapa.Erro => "Com erro",
+        _ => "Pendente",
+    };
+
+    static string OrigemDoPercentual(EstimativaAnalise estimativa) => estimativa.PeloEditor ? "calculado pelo Editor" : "estimado pela IA";
 
     internal string RotuloEtapa(string nome, EstadoEtapa estado, bool ativa)
     {
-        var status = estado switch { EstadoEtapa.Feita => "Concluída", EstadoEtapa.Agora => ativa ? "Em andamento" : "Interrompida",
-            EstadoEtapa.Erro => "Com erro", _ => "Pendente" };
+        var status = SituacaoDaEtapa(estado, ativa);
         if (estado == EstadoEtapa.Feita) return status + " · 100%";
         if (estado == EstadoEtapa.Pendente) return status;
-        if (EstimativaAtual is { Etapa: { } etapa, PercentualEtapa: { } percentual }
-               && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(etapa) == nome)
-            return $"{status} · {percentual:0.#}% estimado pela IA";
-        if (ProgressoAtual is { Total: > 0 } itens && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(itens.Etapa) == nome)
-            return $"{status} · {Math.Clamp(100d * itens.Avaliados / itens.Total, 0, 100):0.#}% " + (itens.Secoes ? "das seções com resultado" : "dos itens avaliados");
+        if (EstimativaAtual is { Etapa: { } etapa, PercentualEtapa: { } percentual } estimativa && FluxoNovoRelatorio.NomeDaEtapa(etapa) == nome)
+            return $"{status} · {percentual:0.#}% {OrigemDoPercentual(estimativa)}";
+        if (ProgressoAtual is { Total: > 0 } itens && FluxoNovoRelatorio.NomeDaEtapa(itens.Etapa) == nome)
+            return $"{status} · {Math.Clamp(100d * itens.Avaliados / itens.Total, 0, 100):0.#}% "
+                + (itens.Secoes ? "das seções com resultado" : "dos itens avaliados");
         return status;
     }
 
-    static readonly string[] DescricoesEtapas = [
-        "Identificar as pranchas e os documentos do processo e organizar o material para a leitura técnica.",
-        "Conferir o projeto item por item e registrar a evidência que sustenta cada conclusão.",
-        "Revisar os cálculos, as referências e as pendências identificadas na análise técnica.",
-        "Organizar as constatações por seção e redigir o relatório com as evidências e exigências correspondentes.",
-        "Comparar as conclusões das seções entre si e com os documentos para identificar divergências.",
-        "Conferir a versão consolidada do relatório e verificar o arquivo final para entrega."
-    ];
+    static string DescricaoDaEtapa(string nome) => nome switch
+    {
+        "Preparo" => "Identificar pranchas e organizar os arquivos do processo",
+        "Análise" => "Conferir itens, registrar conclusões e evidências",
+        "Auditoria técnica" => "Revisar cálculos, referências e pendências",
+        "Auditoria cruzada" => "Confrontar as conclusões e localizar divergências",
+        "Produção do relatório" => "Organizar constatações e redigir exigências",
+        "Revisão final" => "Conferir a versão consolidada e o arquivo final",
+        _ => "Etapa definida pelo kit PMVNI instalado.",
+    };
 
-    static readonly string[] GlifosEtapas = [Glifos.Pasta, Glifos.Ia, Glifos.Pesquisar, Glifos.Relatorio, Glifos.Original, Glifos.Conferir];
-
-    /// <summary>A posição, na ordem padrão, da etapa de nome <paramref name="nome"/>: indexa <see cref="DescricoesEtapas"/> e <see cref="GlifosEtapas"/>,
-    /// que são por etapa. A ordem da análise vem do kit (a audit antes da produção) e pode omitir etapas, então a posição na linha não serve.
-    /// -1 = etapa que o Editor não conhece (um kit mais novo): sem descrição própria.</summary>
-    static int PosicaoNaOrdemPadrao(string nome) =>
-        Pmvni.Agentes.SituacaoAnalisePro.Etapas.ToList().FindIndex(e => Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(e) == nome);
-
-    const string DescricaoDeEtapaDesconhecida = "Etapa definida pelo kit PMVNI instalado.";
-
-    /// <summary>As etapas em linha (as que a rota executa, na ordem do kit): concluída (verde ✓), em andamento (acento ▶), erro (vermelho !) ou pendente (cinza, ícone da etapa),
-    /// ligadas por um traço cheio entre as concluídas e tracejado nas pendentes.</summary>
     internal void MostrarEtapas(IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, bool animar)
     {
-        var podeAnimar = animar && new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
-        if (podeAnimar == animandoEtapas && execucaoAtivaNaBarra == animar && progressoDesenhado == ProgressoAtual
+        if (execucaoAtivaNaBarra == animar && progressoDesenhado == ProgressoAtual
             && estimativaDesenhada == EstimativaAtual && etapasMostradas.SequenceEqual(etapas)) return;
         execucaoAtivaNaBarra = animar;
         progressoDesenhado = ProgressoAtual;
         estimativaDesenhada = EstimativaAtual;
         etapasMostradas = etapas.ToArray();
-        animandoEtapas = podeAnimar;
+
         var feitas = etapas.Count(e => e.Estado == EstadoEtapa.Feita);
         var concluiu = etapas.Count > 0 && feitas == etapas.Count;
         double? percentualPorEtapas = etapas.Count > 0 ? 100d * feitas / etapas.Count : null;
         var percentual = concluiu ? 100d : EstimativaAtual?.PercentualGeral ?? percentualPorEtapas;
+        if (percentual is { } valor) percentual = Math.Clamp(valor, 0, 100);
         BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
         BarraResumoEtapas.Value = percentual ?? 0;
-        BarraResumoEtapas.Visibility = etapas.Count > 0 || animar ? Visibility.Visible : Visibility.Collapsed;
-        var contagemEtapas = etapas.Count == 0 ? "Aguardando as etapas da análise." : $"{feitas} de {etapas.Count} etapas concluídas";
-        ContagemAtividades.Text = percentual is { } valor
-            ? $"{contagemEtapas} · {valor:0.#}% geral" + (concluiu ? "" : EstimativaAtual?.PercentualGeral is not null ? " estimado pela IA" : " pelas etapas concluídas")
-            : contagemEtapas + (animar ? " · " + FluxoNovoRelatorio.PrevisaoDepoisDasEtapas : "");
+        TextoPercentual.Text = percentual is { } p ? $"{p:0}%" : "—";
+        TextoTotalEtapas.Text = $"{feitas} de {etapas.Count} etapas concluídas";
+        TextoEtapasStatus.Text = $"{feitas} / {etapas.Count} concluídas";
+        ContagemAtividades.Text = $"{feitas} / {etapas.Count} · {TextoPercentual.Text}";
+        var origemPercentual = percentual is null ? FluxoNovoRelatorio.PrevisaoDepoisDasEtapas
+            : !concluiu && EstimativaAtual is { PercentualGeral: not null } estimativa ? $"Progresso {OrigemDoPercentual(estimativa)}"
+            : "Progresso pelas etapas concluídas";
+        ToolTipService.SetToolTip(ContagemAtividades, origemPercentual);
+        ToolTipService.SetToolTip(TextoPercentual, origemPercentual);
+        AutomationProperties.SetHelpText(BarraResumoEtapas, origemPercentual);
+        AutomationProperties.SetHelpText(ContagemAtividades, origemPercentual);
+
         EtapasAtividades.Children.Clear();
         PainelEtapas.Children.Clear();
-        PainelEtapas.ColumnDefinitions.Clear();
         for (var i = 0; i < etapas.Count; i++)
         {
-            PainelEtapas.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var (nome, estado) = etapas[i];
-            if (i < etapas.Count - 1)
+            var atual = estado == EstadoEtapa.Agora && animar;
+            var rotulo = RotuloEtapa(nome, estado, animar);
+            var estilo = Estilo(estado switch
             {
-                var seguinteFeita = estado == EstadoEtapa.Feita;
-                var linha = new Microsoft.UI.Xaml.Shapes.Line
-                {
-                    X1 = 0, X2 = 1, Stretch = Stretch.Fill, StrokeThickness = 2, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 16, 0, 0),
-                    Stroke = Recurso(seguinteFeita ? "SystemFillColorSuccessBrush" : "ControlStrongStrokeColorDefaultBrush"),
-                    StrokeDashArray = seguinteFeita ? null : [3, 3],
-                };
-                // Do centro desta coluna ao centro da próxima: ocupa a metade direita desta e a esquerda da próxima.
-                // (largura de 2 colunas: cada centro fica a 1/4 da borda; 22 = raio do círculo + folga)
-                var faixa = new Grid();
-                faixa.Children.Add(linha);
-                Border? progresso = null;
-                if (estado == EstadoEtapa.Agora && animar)
-                {
-                    var escala = new ScaleTransform { ScaleX = 0.45 };
-                    progresso = new Border { Height = 2, VerticalAlignment = VerticalAlignment.Top,
-                        Background = Recurso("AccentFillColorDefaultBrush"), RenderTransform = escala };
-                    faixa.Children.Add(progresso);
-                    if (podeAnimar)
-                    {
-                        var pulso = new DoubleAnimation { From = 0, To = 0.9, Duration = TimeSpan.FromSeconds(1.8),
-                            RepeatBehavior = RepeatBehavior.Forever };
-                        Storyboard.SetTarget(pulso, escala);
-                        Storyboard.SetTargetProperty(pulso, "ScaleX");
-                        var movimento = new Storyboard();
-                        movimento.Children.Add(pulso);
-                        faixa.Loaded += (_, _) => movimento.Begin();
-                        faixa.Unloaded += (_, _) => movimento.Stop();
-                    }
-                }
-                Grid.SetColumn(faixa, i);
-                Grid.SetColumnSpan(faixa, 2);
-                faixa.SizeChanged += (_, e) =>
-                {
-                    var w = e.NewSize.Width;
-                    var margem = new Thickness(w / 4 + 15, 16, w / 4 + 15, 0);
-                    linha.Margin = margem;
-                    if (progresso is not null) progresso.Margin = margem;
-                };
-                PainelEtapas.Children.Add(faixa);
-            }
+                EstadoEtapa.Feita => "MonitorRotuloSucesso",
+                EstadoEtapa.Erro => "MonitorRotuloErro",
+                _ => atual ? "MonitorRotuloAtivo" : "MonitorLegenda",
+            });
+            var nomeCurto = nome == "Produção do relatório" ? "Relatório" : nome;
+            var legenda = new TextBlock
+            {
+                Text = $"{i + 1:00} {nomeCurto}", Style = estilo,
+            };
+            var trilha = new Grid { ColumnSpacing = 5, VerticalAlignment = VerticalAlignment.Top };
+            trilha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            trilha.ColumnDefinitions.Add(new ColumnDefinition());
+            var ponto = new TextBlock { Text = "●", Style = estilo, VerticalAlignment = VerticalAlignment.Top };
+            AutomationProperties.SetAccessibilityView(ponto, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+            trilha.Children.Add(ponto);
+            Grid.SetColumn(legenda, 1);
+            trilha.Children.Add(legenda);
+            ToolTipService.SetToolTip(trilha, $"{nome} · {rotulo}");
+            AutomationProperties.SetName(trilha, $"{nome} · {rotulo}");
+            PainelEtapas.Children.Add(trilha);
 
-            var (fundo, glifo, estiloIcone) = estado switch
+            var descricao = DescricaoDaEtapa(nome);
+            if (atual && ProgressoAtual is { Total: > 0 } itens && FluxoNovoRelatorio.NomeDaEtapa(itens.Etapa) == nome)
+                descricao += itens.Secoes ? $" · {itens.Avaliados} de {itens.Total} seções com resultado" : $" · {itens.Avaliados} de {itens.Total} itens avaliados";
+            EtapasAtividades.Children.Add(CartaoDaEtapa(nome, descricao, estado, atual, estilo, rotulo));
+        }
+        PosicionarEtapas();
+    }
+
+    Border CartaoDaEtapa(string nome, string descricao, EstadoEtapa estado, bool atual, Style estilo, string rotulo)
+    {
+        FrameworkElement marcador = estado switch
+        {
+            EstadoEtapa.Feita => new FontIcon { Glyph = Glifos.Concluido, FontSize = 12, Style = Estilo("PmvniIconeSeloSucesso") },
+            EstadoEtapa.Erro => new FontIcon { Glyph = Glifos.Avisos, FontSize = 12, Style = Estilo("PmvniIconeSeloErro") },
+            _ => new TextBlock { Text = atual ? "●" : "○", Style = estilo },
+        };
+        marcador.Margin = new Thickness(0, 2, 0, 0);
+        marcador.VerticalAlignment = VerticalAlignment.Top;
+        AutomationProperties.SetAccessibilityView(marcador, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+
+        var titulo = new TextBlock { Text = nome, Style = Estilo("PmvniAjusteTitulo") };
+        var cabecalho = new Grid { ColumnSpacing = 5 };
+        cabecalho.ColumnDefinitions.Add(new ColumnDefinition());
+        cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        cabecalho.Children.Add(titulo);
+        if (estado != EstadoEtapa.Pendente)
+        {
+            var selo = new TextBlock
             {
-                EstadoEtapa.Feita => ("SystemFillColorSuccessBackgroundBrush", Glifos.Situacao, "PmvniIconeSeloSucesso"),
-                EstadoEtapa.Agora => ("PmvniTonalFundo", Glifos.Avancar, "PmvniIconeDestaqueStyle"),
-                EstadoEtapa.Erro => ("SystemFillColorCriticalBackgroundBrush", Glifos.Avisos, "PmvniIconeSeloErro"),
-                _ => ("ControlFillColorDefaultBrush", GlifosEtapas[Math.Clamp(PosicaoNaOrdemPadrao(nome), 0, GlifosEtapas.Length - 1)], "PmvniIconeSecundarioStyle"),
+                Text = SituacaoDaEtapa(estado, atual).ToUpper(Portugues), Style = estilo,
             };
-            var circulo = new Border
-            {
-                Width = 24, Height = 24, CornerRadius = new CornerRadius(18), HorizontalAlignment = HorizontalAlignment.Center, Background = Recurso(fundo),
-                BorderThickness = new Thickness(estado == EstadoEtapa.Pendente ? 1 : 0), BorderBrush = Recurso("ControlStrongStrokeColorDefaultBrush"),
-                Child = new FontIcon { Glyph = glifo, FontSize = 12, Style = Estilo(estiloIcone) },
-            };
-            var situacao = RotuloEtapa(nome, estado, animar);
-            var bloco = new StackPanel { Spacing = 1, HorizontalAlignment = HorizontalAlignment.Center };
-            var linhaResumo = new Grid { ColumnSpacing = 8, MinHeight = 23 };
-            linhaResumo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
-            linhaResumo.ColumnDefinitions.Add(new ColumnDefinition());
-            FrameworkElement marcador;
-            if (estado == EstadoEtapa.Agora && animar)
-            {
-                var anel = new ProgressRing { Width = 16, Height = 16, MinWidth = 0, MinHeight = 0, IsActive = true };
-                Trabalhando.SetAutomatico(anel, false);
-                marcador = anel;
-            }
-            else marcador = new FontIcon { Glyph = estado == EstadoEtapa.Pendente ? Glifos.Pendente : glifo, FontSize = 16, Style = Estilo(estiloIcone) };
-            linhaResumo.Children.Add(marcador);
-            var textos = new StackPanel { Spacing = 2 };
-            textos.Children.Add(new TextBlock { Text = $"{nome} · {situacao}", Style = Estilo("PmvniAjusteTitulo") });
-            var posicaoDaDescricao = PosicaoNaOrdemPadrao(nome);
-            var descricao = posicaoDaDescricao >= 0 ? DescricoesEtapas[Math.Min(posicaoDaDescricao, DescricoesEtapas.Length - 1)] : DescricaoDeEtapaDesconhecida;
-            if (ProgressoAtual is { Total: > 0 } contagem && Pmvni.Agentes.SituacaoAnalisePro.NomeEtapa(contagem.Etapa) == nome)
-                descricao += contagem.Secoes ? $" Seções com resultado nesta etapa: {contagem.Avaliados} de {contagem.Total}."
-                    : $" Itens avaliados nesta etapa: {contagem.Avaliados} de {contagem.Total}.";
-            textos.Children.Add(new TextBlock { Text = descricao, Style = Estilo("PmvniSecondaryTextStyle"), TextWrapping = TextWrapping.Wrap });
-            Grid.SetColumn(textos, 1);
-            linhaResumo.Children.Add(textos);
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linhaResumo, $"{nome}. {situacao}. {descricao}");
-            EtapasAtividades.Children.Add(linhaResumo);
-            var dica = new TextBlock { Text = nome + " · " + situacao, TextWrapping = TextWrapping.Wrap };
-            var botao = new Button
-            {
-                Content = circulo, Width = 32, Height = 32, MinHeight = 32, MinWidth = 32, Padding = new Thickness(0),
-                BorderThickness = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Center,
-                Flyout = new Flyout { Content = dica }
-            };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, dica.Text);
-            Dicas.Aplicar(botao, dica.Text, "Mostra a situação desta etapa.");
-            bloco.Children.Add(botao);
-            bloco.Children.Add(new TextBlock
-            {
-                Text = nome, HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0),
-                Style = Estilo("PmvniAjusteTitulo"),
-            });
-            bloco.Children.Add(new TextBlock
-            {
-                Text = situacao, HorizontalAlignment = HorizontalAlignment.Center,
-                TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap,
-                Style = Estilo(estado switch { EstadoEtapa.Agora => "PmvniTextoDestaqueStyle", EstadoEtapa.Erro => "PmvniTextoErroStyle", _ => "PmvniSecondaryTextStyle" }),
-            });
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(bloco, $"{nome}: {situacao}");
-            Grid.SetColumn(bloco, i);
-            PainelEtapas.Children.Add(bloco);
+            Grid.SetColumn(selo, 1);
+            cabecalho.Children.Add(selo);
+        }
+        var textos = new StackPanel { Spacing = 2 };
+        textos.Children.Add(cabecalho);
+        textos.Children.Add(new TextBlock { Text = descricao, Style = Estilo("PmvniSecondaryTextStyle"), TextWrapping = TextWrapping.Wrap });
+        var grade = new Grid { ColumnSpacing = 8 };
+        grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14) });
+        grade.ColumnDefinitions.Add(new ColumnDefinition());
+        Grid.SetColumn(textos, 1);
+        grade.Children.Add(marcador);
+        grade.Children.Add(textos);
+        var cartao = new Border
+        {
+            CornerRadius = new CornerRadius(7), Padding = new Thickness(8, 5, 8, 5), MinHeight = 47, Child = grade,
+            Style = atual ? Estilo("MonitorFundoAtivo") : estado == EstadoEtapa.Erro ? Estilo("MonitorFundoErro") : null,
+        };
+        ToolTipService.SetToolTip(cartao, $"{nome} · {rotulo}");
+        AutomationProperties.SetName(cartao, $"{nome}. {rotulo}. {descricao}");
+        return cartao;
+    }
+
+    void PosicionarEtapas()
+    {
+        var total = PainelEtapas.Children.Count;
+        var colunas = Math.Min(total, colunasDaRota);
+        PainelEtapas.ColumnDefinitions.Clear();
+        PainelEtapas.RowDefinitions.Clear();
+        if (colunas == 0) return;
+        for (var i = 0; i < colunas; i++) PainelEtapas.ColumnDefinitions.Add(new ColumnDefinition());
+        for (var i = 0; i < total; i += colunas) PainelEtapas.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (var i = 0; i < total; i++)
+        {
+            var legenda = (FrameworkElement)PainelEtapas.Children[i];
+            Grid.SetRow(legenda, i / colunas);
+            Grid.SetColumn(legenda, i % colunas);
         }
     }
 
-    /// <summary>Empilha os cartões quando a largura disponível não comporta as três colunas.</summary>
+    void AjustarLadrilhosDescobertas(object sender, SizeChangedEventArgs e)
+    {
+        var colunas = e.NewSize.Width >= 350 ? 4 : 2;
+        for (var i = 0; i < 4; i++) LadrilhosDescobertas.ColumnDefinitions[i].Width = new GridLength(i < colunas ? 1 : 0, GridUnitType.Star);
+        for (var i = 0; i < LadrilhosDescobertas.Children.Count; i++)
+        {
+            var ladrilho = (FrameworkElement)LadrilhosDescobertas.Children[i];
+            Grid.SetRow(ladrilho, i / colunas);
+            Grid.SetColumn(ladrilho, i % colunas);
+            ladrilho.MinHeight = colunas == 4 ? 86 : 68;
+        }
+    }
+
+    const double LarguraTresColunas = 1110;
+    const double LarguraDuasColunas = 720;
+    const double AlturaAtividadesEmpilhadas = 290;
+    const double AlturaDescobertasEmpilhadas = 365;
+    const double AlturaAtividadesEDescobertas = 330;
+
+    /// <summary>Empilha os cartões e move as ações do cabeçalho conforme a largura útil do Monitor.</summary>
     internal void AjustarColunasExecucao(double largura)
     {
-        var ampla = largura >= 1080;
-        var estreita = largura < 760;
-        GradeConteudo.ColumnDefinitions[1].Width = estreita ? new GridLength(0) : new GridLength(11, GridUnitType.Star);
-        GradeConteudo.ColumnDefinitions[2].Width = ampla ? new GridLength(8, GridUnitType.Star) : new GridLength(0);
-        GradeConteudo.RowDefinitions[1].Height = ampla ? new GridLength(0) : new GridLength(estreita ? 1 : 2, GridUnitType.Star);
+        if (largura <= 0) return;
+        var ampla = largura >= LarguraTresColunas;
+        var estreita = largura < LarguraDuasColunas;
+        PainelExecucao.Padding = largura >= 1400 ? new Thickness(30, 16, 30, 12) : new Thickness(16, 8, 16, 10);
+        var espacosa = RolagemMonitor.ActualHeight >= 680;
+        GradeCabecalho.MinHeight = espacosa ? 68 : 52;
+        CartaoStatus.MinHeight = espacosa ? 78 : 68;
+        PainelClaude.MinHeight = espacosa ? 122 : 96;
+        GradeConteudo.ColumnSpacing = estreita ? 0 : 12;
+        GradeConteudo.RowSpacing = ampla ? 0 : 10;
+        GradeConteudo.ColumnDefinitions[1].Width = new GridLength(estreita ? 0 : 13.5, GridUnitType.Star);
+        GradeConteudo.ColumnDefinitions[2].Width = new GridLength(ampla ? 10 : 0, GridUnitType.Star);
+        GradeConteudo.RowDefinitions[0].Height = ampla ? new GridLength(1, GridUnitType.Star)
+            : new GridLength(estreita ? AlturaAtividadesEmpilhadas : AlturaAtividadesEDescobertas);
+        GradeConteudo.RowDefinitions[1].Height = ampla ? new GridLength(0)
+            : estreita ? new GridLength(AlturaDescobertasEmpilhadas) : new GridLength(1, GridUnitType.Star);
         GradeConteudo.RowDefinitions[2].Height = estreita ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-        Grid.SetColumn(ColunaLateral, estreita ? 0 : 1);
-        Grid.SetRow(ColunaLateral, estreita ? 1 : 0);
-        ColunaLateral.Margin = estreita ? new Thickness(0, 8, 0, 0) : new Thickness(8, 0, 0, 0);
+        Grid.SetColumn(CartaoDescobertas, estreita ? 0 : 1);
+        Grid.SetRow(CartaoDescobertas, estreita ? 1 : 0);
         Grid.SetColumn(ColunaDetalhes, ampla ? 2 : 0);
         Grid.SetColumnSpan(ColunaDetalhes, ampla || estreita ? 1 : 2);
         Grid.SetRow(ColunaDetalhes, ampla ? 0 : estreita ? 2 : 1);
-        ColunaDetalhes.Margin = ampla ? new Thickness(8, 0, 0, 0) : new Thickness(0, 8, 0, 0);
 
-        var botoesEmbaixo = largura < 920;
-        Grid.SetRow(BotoesExecucao, botoesEmbaixo ? 1 : 0);
+        var botoesEmbaixo = largura < 1080;
+        var identificacaoEmbaixo = largura < 540;
+        IdentificacaoMonitor.MaxWidth = largura is >= 1080 and < 1250 ? 250 : 340;
+        Grid.SetRow(IdentificacaoMonitor, identificacaoEmbaixo ? 1 : 0);
+        Grid.SetColumn(IdentificacaoMonitor, identificacaoEmbaixo ? 0 : 1);
+        Grid.SetColumnSpan(IdentificacaoMonitor, identificacaoEmbaixo ? 3 : 1);
+        IdentificacaoMonitor.HorizontalAlignment = identificacaoEmbaixo ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
+        SeparadorCabecalho.Visibility = botoesEmbaixo ? Visibility.Collapsed : Visibility.Visible;
+        Grid.SetRow(BotoesExecucao, identificacaoEmbaixo ? 2 : botoesEmbaixo ? 1 : 0);
         Grid.SetColumn(BotoesExecucao, botoesEmbaixo ? 0 : 2);
         Grid.SetColumnSpan(BotoesExecucao, botoesEmbaixo ? 3 : 1);
+        GradeCabecalho.RowSpacing = botoesEmbaixo ? 6 : 0;
+
+        var metricasEmbaixo = largura < 740;
+        Grid.SetRow(MetricasStatus, metricasEmbaixo ? 1 : 0);
+        Grid.SetColumn(MetricasStatus, metricasEmbaixo ? 0 : 1);
+        Grid.SetColumnSpan(MetricasStatus, metricasEmbaixo ? 2 : 1);
+        MetricasStatus.Margin = metricasEmbaixo ? new Thickness(0, 7, 0, 0) : new Thickness(0);
+
+        var colunas = largura >= 790 ? 6 : largura >= 470 ? 3 : 2;
+        if (colunas != colunasDaRota)
+        {
+            colunasDaRota = colunas;
+            PosicionarEtapas();
+        }
+        AjustarAlturaDoMonitor();
     }
 
-    static Style Estilo(string chave) => (Style)Application.Current.Resources[chave];
-    static Brush Recurso(string chave) => (Brush)Application.Current.Resources[chave];
+    void AjustarAlturaDoMonitor()
+    {
+        if (!VistaDaExecucao || RolagemMonitor.ActualHeight <= 0) return;
+        var alturaTopo = GradeCabecalho.ActualHeight + CartaoStatus.ActualHeight + PainelClaude.ActualHeight
+            + PainelExecucao.Padding.Top + PainelExecucao.Padding.Bottom + 3 * PainelExecucao.RowSpacing;
+        // Reserva uma linha e seus controles no log. O restante continua rolando dentro de cada cartão.
+        const double linhaDoLogMaisMargens = 78;
+        var alturaDetalhes = CartaoConsumo.ActualHeight + ColunaDetalhes.RowSpacing + CabecalhoLog.ActualHeight
+            + ExpansorUltimaMensagem.ActualHeight
+            + (BotaoEvidenciasPdf.Visibility == Visibility.Visible ? BotaoEvidenciasPdf.ActualHeight : 0) + linhaDoLogMaisMargens;
+        var largura = RolagemMonitor.ActualWidth;
+        var alturaColunas = largura >= LarguraTresColunas ? Math.Max(305, alturaDetalhes)
+            : alturaDetalhes + (largura < LarguraDuasColunas ? AlturaAtividadesEmpilhadas + AlturaDescobertasEmpilhadas
+                + 2 * GradeConteudo.RowSpacing : AlturaAtividadesEDescobertas + 2 * GradeConteudo.RowSpacing);
+        var altura = Math.Ceiling(Math.Max(RolagemMonitor.ActualHeight, alturaTopo + alturaColunas));
+        if (PainelExecucao.Height != altura) PainelExecucao.Height = altura;
+    }
+
+    static readonly System.Globalization.CultureInfo Portugues = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    Style Estilo(string chave) => (Style)(PainelExecucao.Resources.TryGetValue(chave, out var estilo)
+        ? estilo : Application.Current.Resources[chave]);
 }

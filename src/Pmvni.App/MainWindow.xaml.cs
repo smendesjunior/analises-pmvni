@@ -510,22 +510,24 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             AtualizarComandos();
 
             var args = Argumentos.Atual;
+            var demoMonitor = Environment.GetEnvironmentVariable("PMVNI_DEMO_ANALISE") == "1";
             // As análises do Claude que seguiam quando o editor fechou (desenho §12.7). O roteiro chama no passo dele.
-            if (args.Roteiro is null) { _ = TentarAsync(RetomarExecucoesClaudeAsync); _ = TentarAsync(RetomarExecucoesChatGptAsync); }
+            if (args.Roteiro is null && !demoMonitor) { _ = TentarAsync(RetomarExecucoesClaudeAsync); _ = TentarAsync(RetomarExecucoesChatGptAsync); }
             // Tarefa 16: instalação do motor PDF e dos plugins incompleta → primeira-abertura.ps1 fora do Editor (.cmd + explorer.exe).
             // Revisão final I2: com análise em andamento ou pendente (as do Claude e do Gemini seguem com o Editor fechado), adia.
-            if (args.Roteiro is null)
+            if (args.Roteiro is null && !demoMonitor)
             {
                 var analisesNaAbertura = ProcessosComAnaliseEmAndamento();
                 _ = Task.Run(() => InstalacaoMotorPdf.PrimeiraAberturaAsync(analisesNaAbertura));
             }
             if (args.Roteiro is not null) await Roteiro.ExecutarAsync(this, args);
-            else if (Environment.GetEnvironmentVariable("PMVNI_DEMO_ANALISE") == "1")
+            else if (demoMonitor)
             {
                 // Desenvolvimento (2026-11-17): a pílula da análise, o brilho e o log descritivo com linhas de exemplo, para conferir o visual
                 // na janela real (o brilho é do compositor e não sai na captura XAML). Nada é executado.
                 await MudarModuloAsync(Modulo.Relatorios);
                 await NovoRelatorioAsync();
+                NR.AvisoMensagem.IsOpen = false;
                 MostrarPilulaAnalise(EstadoPilulaAnalise.EmAndamento, "Analisando com o ChatGPT", "19486/2026 · 12 min", null);
                 string[] comandos =
                 [
@@ -550,10 +552,10 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 NR.LigarLinhas(linhasDemo);
                 NR.MostrarExecucao(true);
                 NR.TextoCabecalho.Text = "Analisando com o ChatGPT · 19486/2026";
-                NR.PainelClaude.Visibility = Visibility.Visible;
-                NR.ProcessoMonitor.Text = "Processo 19486/2026";
-                NR.MostrarEtapas(FluxoNovoRelatorio.Etapas("analyze", ""), true);
-                NR.MostrarProgresso(new ProgressoEtapa("analyze", 1, 4, 10));
+                NR.MostrarIdentificacao("19486/2026", "Requerente fictício de demonstração");
+                var etapasDemo = FluxoNovoRelatorio.Etapas("analyze", "", ["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"]);
+                NR.MostrarResumo(true, null, etapasDemo, "ChatGPT");
+                NR.MostrarProgresso(new ProgressoEtapa("analyze", 1, 12, 28, Secoes: true));
                 var agora = DateTimeOffset.Now;
                 NR.MostrarEstimativa(new EstimativaAnalise("analyze", 34.5, 27.8, agora.AddMinutes(14)));
                 NR.MostrarRelogios(TimeSpan.FromMinutes(12), agora);

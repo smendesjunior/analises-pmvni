@@ -33,7 +33,7 @@
       </InfoBar>
     </local:AreaDeAvisos>
 
-    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,4">
+    <StackPanel x:Name="AcoesRetomadaFormulario" Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,4">
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Executar}" x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Retomar análise" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
                     local:Dicas.Descricao="Retoma a análise que parou, do ponto onde ela ficou."/>
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Excluir}" x:Name="BotaoDescartar" x:FieldModifier="internal" Content="Descartar análise" Visibility="Collapsed"
@@ -212,269 +212,429 @@
       </Grid>
     </ScrollViewer>
 
-    <!-- Faixa do monitor e três colunas de conteúdo com rolagem independente. -->
-    <Grid x:Name="PainelExecucao" x:FieldModifier="internal" Grid.Row="2" Visibility="Collapsed" Padding="16,8,16,12" RowSpacing="6">
-      <Grid.RowDefinitions>
-        <RowDefinition Height="Auto"/>
-        <RowDefinition Height="Auto"/>
-        <RowDefinition Height="Auto"/><RowDefinition Height="*"/>
-      </Grid.RowDefinitions>
+    <!-- Monitor da execução. A rolagem da página entra quando a área visível não comporta os cartões. -->
+    <ScrollViewer x:Name="RolagemMonitor" Grid.Row="2" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+    <Grid x:Name="PainelExecucao" x:FieldModifier="internal" Padding="24,12,24,12" RowSpacing="10"
+          RowDefinitions="Auto,Auto,Auto,*">
+      <Grid.Resources>
+        <Style x:Key="MonitorCartao" TargetType="Border" BasedOn="{StaticResource PmvniCartaoSecao}">
+          <Setter Property="CornerRadius" Value="10"/>
+          <Setter Property="Padding" Value="14,10"/>
+        </Style>
+        <Style x:Key="MonitorLadrilho" TargetType="Border">
+          <Setter Property="CornerRadius" Value="8"/>
+          <Setter Property="Padding" Value="8,5"/>
+          <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+        </Style>
+        <Style x:Key="MonitorTitulo" TargetType="TextBlock" BasedOn="{StaticResource PmvniAjusteTitulo}">
+          <Setter Property="FontSize" Value="16"/>
+        </Style>
+        <Style x:Key="MonitorRotulo" TargetType="TextBlock" BasedOn="{StaticResource PmvniPainelRotulo}">
+          <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style x:Key="MonitorLegenda" TargetType="TextBlock" BasedOn="{StaticResource PmvniSecondaryTextStyle}">
+          <Setter Property="FontSize" Value="12"/>
+          <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="MonitorIndicador" TargetType="TextBlock" BasedOn="{StaticResource PmvniAjusteTitulo}">
+          <Setter Property="FontSize" Value="17"/>
+        </Style>
+        <Style x:Key="MonitorTotal" TargetType="TextBlock" BasedOn="{StaticResource PmvniAjusteTitulo}">
+          <Setter Property="FontSize" Value="29"/>
+        </Style>
+        <Style x:Key="MonitorLegendaLadrilho" TargetType="TextBlock" BasedOn="{StaticResource MonitorLegenda}">
+          <Setter Property="FontSize" Value="11"/>
+          <Setter Property="TextWrapping" Value="WrapWholeWords"/>
+        </Style>
+        <Style x:Key="MonitorAoVivo" TargetType="Border">
+          <Setter Property="CornerRadius" Value="12"/>
+          <Setter Property="Padding" Value="8,3"/>
+          <Setter Property="VerticalAlignment" Value="Center"/>
+          <Setter Property="Background" Value="{ThemeResource PmvniTonalFundo}"/>
+        </Style>
+        <!-- Os estilos aplicados em código seguem o tema da página, inclusive quando difere do tema do Windows. -->
+        <Style x:Key="MonitorFundoAtivo" TargetType="Border">
+          <Setter Property="Background" Value="{ThemeResource PmvniTonalFundo}"/>
+          <Setter Property="BorderBrush" Value="{ThemeResource PmvniTonalBorda}"/>
+        </Style>
+        <Style x:Key="MonitorFundoSucesso" TargetType="Border">
+          <Setter Property="Background" Value="{ThemeResource SystemFillColorSuccessBackgroundBrush}"/>
+        </Style>
+        <Style x:Key="MonitorFundoErro" TargetType="Border">
+          <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
+          <Setter Property="BorderBrush" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+        </Style>
+        <Style x:Key="MonitorFundoModelo" TargetType="Border">
+          <Setter Property="Background" Value="{ThemeResource SystemFillColorAttentionBackgroundBrush}"/>
+        </Style>
+        <Style x:Key="MonitorRotuloAtivo" TargetType="TextBlock" BasedOn="{StaticResource MonitorRotulo}">
+          <Setter Property="Foreground" Value="{ThemeResource PmvniTonalTexto}"/>
+        </Style>
+        <Style x:Key="MonitorRotuloSucesso" TargetType="TextBlock" BasedOn="{StaticResource MonitorRotulo}">
+          <Setter Property="Foreground" Value="{ThemeResource SystemFillColorSuccessBrush}"/>
+        </Style>
+        <Style x:Key="MonitorRotuloErro" TargetType="TextBlock" BasedOn="{StaticResource MonitorRotulo}">
+          <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+        </Style>
+        <Style x:Key="MonitorRotuloCautela" TargetType="TextBlock" BasedOn="{StaticResource MonitorRotulo}">
+          <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}"/>
+        </Style>
+        <Style x:Key="MonitorRotuloDivergencia" TargetType="TextBlock" BasedOn="{StaticResource MonitorRotulo}">
+          <Setter Property="Foreground" Value="{ThemeResource PmvniEsferaFederalTexto}"/>
+        </Style>
+      </Grid.Resources>
 
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-        <FontIcon Glyph="{x:Bind local:Glifos.Ia}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"/>
-        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-          <TextBlock Text="Monitor de análise" Style="{StaticResource PmvniTituloPaginaStyle}"/>
-          <TextBlock Text="Execução da IA, atividades e descobertas em tempo real." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-        </StackPanel>
-        <TextBlock TextAlignment="Right" Grid.Column="2" x:Name="ProcessoMonitor" x:FieldModifier="internal" MaxWidth="160" VerticalAlignment="Center" TextWrapping="Wrap" Style="{StaticResource PmvniPainelRotulo}"/>
-      </Grid>
-      <!-- 1. Resumo. -->
-      <Border Grid.Row="1" Style="{StaticResource PmvniCartaoSecao}" Padding="10,6">
-        <Grid ColumnSpacing="8">
-          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
-          </Grid.ColumnDefinitions>
-          <Border x:Name="FundoIconeStatus" x:FieldModifier="internal" Width="30" Height="30" CornerRadius="8" VerticalAlignment="Center"
-                  Background="{ThemeResource AccentFillColorDefaultBrush}">
-            <FontIcon x:Name="IconeStatus" x:FieldModifier="internal" FontSize="16" AutomationProperties.AccessibilityView="Raw" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+      <Grid x:Name="GradeCabecalho" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="14" MinHeight="52">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" VerticalAlignment="Center">
+          <Border Width="44" Height="44" CornerRadius="10" VerticalAlignment="Center" Background="{ThemeResource PmvniTonalFundo}">
+            <FontIcon Glyph="{x:Bind local:Glifos.Ia}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"
+                      Foreground="{ThemeResource PmvniTonalTexto}"/>
           </Border>
           <StackPanel Grid.Column="1" VerticalAlignment="Center">
-            <TextBlock TextAlignment="Left" x:Name="TituloStatus" x:FieldModifier="internal" Text="Análise em andamento"
-                       Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="Wrap"
-                       AutomationProperties.LiveSetting="Polite"/>
-            <local:PainelQuebra Espaco="12" EspacoLinhas="0">
-              <TextBlock x:Name="TextoCabecalho" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-              <TextBlock x:Name="TextoProgressoItens" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" Visibility="Collapsed"/>
-            </local:PainelQuebra>
+            <TextBlock Text="Monitor de análise" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1" TextWrapping="Wrap"/>
+            <TextBlock Text="Acompanhamento de execução, evidências e auditoria técnica em tempo real" Style="{StaticResource MonitorLegenda}"/>
           </StackPanel>
-          <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="2" Espaco="8" EspacoLinhas="4" Margin="0,3" VerticalAlignment="Center">
-            <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro" local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
-               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.AbrirPasta}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Abrir registro"/></StackPanel>
+        </Grid>
+        <Grid x:Name="IdentificacaoMonitor" Grid.Column="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" VerticalAlignment="Center" MaxWidth="340">
+          <StackPanel>
+            <TextBlock Text="PROCESSO" TextAlignment="Right" Style="{StaticResource MonitorRotulo}"/>
+            <TextBlock x:Name="ProcessoMonitor" x:FieldModifier="internal" Text="—" TextAlignment="Right" Style="{StaticResource PmvniAjusteTitulo}"/>
+          </StackPanel>
+          <StackPanel Grid.Column="1" MinWidth="120" MaxWidth="220">
+            <TextBlock Text="REQUERENTE" Style="{StaticResource MonitorRotulo}"/>
+            <TextBlock x:Name="TextoRequerente" Text="Não informado" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="NoWrap"
+                       TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+          </StackPanel>
+          <Border x:Name="SeparadorCabecalho" Grid.Column="2" Width="1" Height="28" VerticalAlignment="Center"
+                  Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+        </Grid>
+        <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="2" Espaco="6" EspacoLinhas="4" VerticalAlignment="Center">
+            <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro"
+                    local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="{x:Bind local:Glifos.AbrirPasta}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock Text="Abrir registro"/>
+              </StackPanel>
             </Button>
-            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Preparar nova análise" local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
-               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Preparar nova análise"/></StackPanel>
+            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Nova análise" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+                    local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock Text="Nova análise"/>
+              </StackPanel>
             </Button>
             <Button x:Name="BotaoPausarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Pausar análise"
                     local:Dicas.Descricao="Interrompe a execução e preserva o progresso disponível para retomada.">
-               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Pausado}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Pausar análise"/></StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="{x:Bind local:Glifos.Pausado}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock Text="Pausar"/>
+              </StackPanel>
             </Button>
-            <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Cancelar análise" local:Dicas.Descricao="Para a análise da IA; nenhum relatório é criado.">
-               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.NaoConfigurado}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Cancelar análise"/></StackPanel>
+            <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Cancelar análise" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                    local:Dicas.Descricao="Para a análise da IA. A execução cancelada não gera relatório.">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="{x:Bind local:Glifos.Fechar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock Text="Cancelar"/>
+              </StackPanel>
             </Button>
-          </local:PainelQuebra>
-            <Grid Grid.Row="2" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto"
-                  ColumnSpacing="8" RowSpacing="1" Margin="0,3,0,0">
-              <TextBlock x:Name="TextoEtapaAtual" x:FieldModifier="internal" TextAlignment="Left" TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-              <TextBlock Grid.Column="1" x:Name="TextoContagem" x:FieldModifier="internal"
-                         VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-              <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" x:Name="BarraResumoEtapas" x:FieldModifier="internal" Minimum="0" Maximum="100" Height="6"
-                           Style="{StaticResource DefaultProgressBarStyle}" AutomationProperties.Name="Progresso da análise"/>
-            </Grid>
-          <local:PainelQuebra Grid.Row="3" Grid.ColumnSpan="3" Espaco="6" EspacoLinhas="4" Margin="0,3,0,0">
-            <local:PainelQuebra.Resources>
-              <Style x:Key="IndicadorMonitor" TargetType="Border">
-                <Setter Property="MinHeight" Value="22"/>
-                <Setter Property="Padding" Value="6,1"/>
-                <Setter Property="CornerRadius" Value="6"/>
-              </Style>
-              <Style x:Key="SeloRelogio" TargetType="Border" BasedOn="{StaticResource IndicadorMonitor}">
-                <Setter Property="Background" Value="{ThemeResource PmvniTonalFundo}"/>
-                <Setter Property="BorderBrush" Value="{ThemeResource PmvniTonalBorda}"/>
-                <Setter Property="BorderThickness" Value="1"/>
-              </Style>
-            </local:PainelQuebra.Resources>
-            <Border Style="{StaticResource SeloRelogio}">
-              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
-                <FontIcon Glyph="{x:Bind local:Glifos.Relogio}" FontSize="12" AutomationProperties.AccessibilityView="Raw" Foreground="{ThemeResource PmvniTonalTexto}"/>
-                <TextBlock Grid.Column="1" x:Name="TextoTempoDecorrido" Style="{StaticResource PmvniPainelRotulo}"/>
+        </local:PainelQuebra>
+      </Grid>
+
+      <Border Grid.Row="1" x:Name="CartaoStatus" Style="{StaticResource MonitorCartao}" MinHeight="68">
+        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="16">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" VerticalAlignment="Center">
+            <Border x:Name="FundoIconeStatus" x:FieldModifier="internal" Width="42" Height="42" CornerRadius="10" VerticalAlignment="Center"
+                    Style="{StaticResource MonitorFundoAtivo}">
+              <Grid>
+                <ProgressRing x:Name="AnelStatus" Width="24" Height="24" MinWidth="0" MinHeight="0" Visibility="Collapsed" local:Trabalhando.Automatico="False"/>
+                <FontIcon x:Name="IconeStatus" x:FieldModifier="internal" Glyph="{x:Bind local:Glifos.Ia}" FontSize="18"
+                          Style="{StaticResource PmvniIconeDestaqueStyle}" AutomationProperties.AccessibilityView="Raw"/>
               </Grid>
             </Border>
-            <Border Style="{StaticResource SeloRelogio}">
-              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
-                <FontIcon Glyph="{x:Bind local:Glifos.Ano}" FontSize="12" AutomationProperties.AccessibilityView="Raw" Foreground="{ThemeResource PmvniTonalTexto}"/>
-                <TextBlock Grid.Column="1" x:Name="TextoTempoEstimado" Style="{StaticResource PmvniPainelRotulo}"/>
-              </Grid>
-            </Border>
-            <Border Style="{StaticResource IndicadorMonitor}" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <TextBlock Text="Atende" Style="{StaticResource PmvniPainelRotulo}"/>
-                <TextBlock Grid.Column="1" x:Name="TotalAtende" Text="0" Style="{StaticResource PmvniAjusteTitulo}"/>
-              </Grid>
-            </Border>
-            <Border Style="{StaticResource IndicadorMonitor}" Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}">
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <TextBlock Text="Não atende" Style="{StaticResource PmvniPainelRotulo}"/>
-                <TextBlock Grid.Column="1" x:Name="TotalNaoAtende" Text="0" Style="{StaticResource PmvniAjusteTitulo}"/>
-              </Grid>
-            </Border>
-            <Border Style="{StaticResource IndicadorMonitor}" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}">
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <TextBlock Text="Falta comprovar" Style="{StaticResource PmvniPainelRotulo}"/>
-                <TextBlock Grid.Column="1" x:Name="TotalComprovar" Text="0" Style="{StaticResource PmvniAjusteTitulo}"/>
-              </Grid>
-            </Border>
-            <Border Style="{StaticResource IndicadorMonitor}" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <TextBlock Text="Informações divergentes" Style="{StaticResource PmvniPainelRotulo}"/>
-                <TextBlock Grid.Column="1" x:Name="TotalDivergentes" Text="0" Style="{StaticResource PmvniAjusteTitulo}"/>
-              </Grid>
-            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+              <local:PainelQuebra Espaco="8" EspacoLinhas="2">
+                <TextBlock x:Name="TituloStatus" x:FieldModifier="internal" Text="Aguardando execução"
+                           Style="{StaticResource MonitorTitulo}" AutomationProperties.LiveSetting="Polite"/>
+                <Border x:Name="SeloAoVivo" Style="{StaticResource MonitorAoVivo}" Visibility="Collapsed">
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Ellipse Width="7" Height="7" Fill="{ThemeResource PmvniTonalTexto}" VerticalAlignment="Center"/>
+                    <TextBlock Text="AO VIVO" Style="{StaticResource MonitorRotuloAtivo}"/>
+                  </StackPanel>
+                </Border>
+              </local:PainelQuebra>
+              <TextBlock x:Name="TextoEtapaAtual" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}"/>
+            </StackPanel>
+          </Grid>
+          <local:PainelQuebra x:Name="MetricasStatus" Grid.Column="1" Espaco="22" EspacoLinhas="5" VerticalAlignment="Center">
+            <StackPanel>
+              <TextBlock Text="TEMPO DECORRIDO" Style="{StaticResource MonitorRotulo}"/>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <FontIcon Glyph="{x:Bind local:Glifos.Relogio}" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock x:Name="TextoTempoDecorrido" Text="—" Style="{StaticResource PmvniAjusteTitulo}"/>
+              </StackPanel>
+            </StackPanel>
+            <StackPanel>
+              <TextBlock Text="ETAPAS" Style="{StaticResource MonitorRotulo}"/>
+              <TextBlock x:Name="TextoEtapasStatus" Text="—" Style="{StaticResource PmvniAjusteTitulo}"/>
+            </StackPanel>
+            <StackPanel>
+              <TextBlock Text="PREVISÃO DE TÉRMINO" Style="{StaticResource MonitorRotulo}"/>
+              <TextBlock x:Name="TextoTempoEstimado" Text="—" Style="{StaticResource PmvniAjusteTitulo}"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
           </local:PainelQuebra>
         </Grid>
       </Border>
 
-      <!-- 2. Etapas (só no Claude, que informa a etapa). -->
-      <Border x:Name="PainelClaude" x:FieldModifier="internal" Grid.Row="2" Padding="6,0" Visibility="Collapsed">
-        <StackPanel Spacing="2">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <FontIcon Glyph="{x:Bind local:Glifos.Lista}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-            <TextBlock Text="Etapas da análise" Style="{StaticResource PmvniTituloSecao}"/>
-          </StackPanel>
-          <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled">
-            <Grid x:Name="PainelEtapas" x:FieldModifier="internal" MinWidth="620" AutomationProperties.Name="Etapas da análise"/>
-          </ScrollViewer>
-        </StackPanel>
+      <Border Grid.Row="2" x:Name="PainelClaude" x:FieldModifier="internal" Style="{StaticResource MonitorCartao}" MinHeight="102">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="4" ColumnSpacing="8">
+          <TextBlock Text="ETAPAS DA ANÁLISE" Style="{StaticResource PmvniPainelRotulo}" AutomationProperties.HeadingLevel="Level2"/>
+          <TextBlock Grid.Column="1" x:Name="TextoTotalEtapas" Text="0 de 0 etapas concluídas" Style="{StaticResource MonitorLegenda}" TextAlignment="Right"/>
+          <TextBlock Grid.Row="1" Text="Progresso global da análise" Style="{StaticResource MonitorLegenda}" VerticalAlignment="Center"/>
+          <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TextoPercentual" Text="—" Style="{StaticResource MonitorIndicador}"
+                     HorizontalAlignment="Right" Foreground="{ThemeResource PmvniTonalTexto}"/>
+          <Border Grid.Row="2" Grid.ColumnSpan="2" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="5">
+            <ProgressBar x:Name="BarraResumoEtapas" x:FieldModifier="internal" Maximum="100" Height="10" MinHeight="10"
+                         CornerRadius="5" Background="Transparent" AutomationProperties.Name="Progresso global da análise"/>
+          </Border>
+          <Grid Grid.Row="3" Grid.ColumnSpan="2" x:Name="PainelEtapas" ColumnSpacing="8" RowSpacing="4" Margin="0,3,0,0"
+                AutomationProperties.Name="Etapas da análise"/>
+        </Grid>
       </Border>
 
-      <!-- Atividades | descobertas | próxima etapa e detalhes. -->
-      <Grid x:Name="GradeConteudo" Grid.Row="3">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="11*"/>
-          <ColumnDefinition Width="11*"/>
-          <ColumnDefinition Width="8*"/>
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-          <RowDefinition Height="*"/>
-          <RowDefinition Height="0"/>
-          <RowDefinition Height="0"/>
-        </Grid.RowDefinitions>
-
-        <Border x:Name="CartaoAtividades" Style="{StaticResource PmvniCartaoSecao}" Padding="12,10,8,8">
-          <Grid RowSpacing="10">
-            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-            <Grid ColumnSpacing="12" Margin="0,0,8,0">
-              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <FontIcon Glyph="{x:Bind local:Glifos.Lista}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-              <StackPanel Grid.Column="1">
-                <TextBlock TextAlignment="Left" Text="Atividades da análise" Style="{StaticResource PmvniAjusteTitulo}"/>
-                <TextBlock TextAlignment="Left" TextWrapping="Wrap" Text="Acompanhe o trabalho e o progresso de cada etapa." Style="{StaticResource PmvniSecondaryTextStyle}"/>
-              </StackPanel>
-              <Border x:Name="SeloAoVivo" x:FieldModifier="internal" Grid.Column="2" CornerRadius="12" Padding="10,3" VerticalAlignment="Center"
-                      Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                  <Ellipse Width="8" Height="8" Fill="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center"/>
-                  <TextBlock Text="Ao vivo" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-                </StackPanel>
-              </Border>
-            </Grid>
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-              <StackPanel Spacing="4" Margin="0,0,8,0">
-                <TextBlock TextAlignment="Left" x:Name="ContagemAtividades" Text="Aguardando as etapas da análise." TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-                <StackPanel x:Name="EtapasAtividades" Spacing="8"/>
-              </StackPanel>
+      <!-- Atividades, descobertas, consumo e log têm áreas de leitura próprias. -->
+      <Grid x:Name="GradeConteudo" Grid.Row="3" ColumnDefinitions="12*,13.5*,10*" RowDefinitions="*,0,0" ColumnSpacing="12">
+        <Border x:Name="CartaoAtividades" Style="{StaticResource MonitorCartao}">
+          <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+            <StackPanel Spacing="2">
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <FontIcon Glyph="{x:Bind local:Glifos.Lista}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock Grid.Column="1" Text="Atividades da análise" Style="{StaticResource MonitorTitulo}" AutomationProperties.HeadingLevel="Level2"/>
+                <Grid Grid.Column="2"><Border x:Name="SeloAtividades" Style="{StaticResource MonitorAoVivo}" Visibility="Collapsed">
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Ellipse Width="7" Height="7" Fill="{ThemeResource PmvniTonalTexto}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Ao vivo" Style="{StaticResource MonitorRotuloAtivo}"/>
+                  </StackPanel>
+                </Border></Grid>
+              </Grid>
+              <TextBlock Text="Acompanhe cada etapa e os registros de execução." Style="{StaticResource MonitorLegenda}"/>
+            </StackPanel>
+            <Border Grid.Row="1" Style="{StaticResource MonitorLadrilho}" MinHeight="36">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBlock Text="Etapas concluídas" Style="{StaticResource MonitorLegenda}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" x:Name="ContagemAtividades" Text="0 / 0 · —" Style="{StaticResource PmvniAjusteTitulo}"/>
+              </Grid>
+            </Border>
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Atividades por etapa">
+              <StackPanel x:Name="EtapasAtividades" Spacing="3" Margin="0,0,4,0"/>
             </ScrollViewer>
           </Grid>
         </Border>
 
-        <ScrollViewer x:Name="ColunaLateral" x:FieldModifier="internal" Grid.Column="1" Margin="8,0,0,0" VerticalScrollBarVisibility="Auto">
-            <!-- 4. Principais descobertas. -->
-            <Border Style="{StaticResource PmvniCartaoSecao}" Padding="12,8">
-              <StackPanel Spacing="10">
-                <Grid ColumnSpacing="12">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                  <FontIcon Glyph="{x:Bind local:Glifos.Conferir}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-                  <StackPanel Grid.Column="1">
-                    <TextBlock TextAlignment="Left" Text="Principais descobertas" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock Text="Preliminares até a auditoria cruzada; depois, verificadas." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Grid>
-                <StackPanel x:Name="ListaDescobertas" x:FieldModifier="internal" Spacing="8"/>
-                <TextBlock x:Name="TextoSemDescobertas" x:FieldModifier="internal" Text="A IA ainda não relatou descobertas."
-                           Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+        <Border x:Name="CartaoDescobertas" Grid.Column="1" Style="{StaticResource MonitorCartao}">
+          <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="6">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Principais descobertas" Style="{StaticResource MonitorTitulo}" AutomationProperties.HeadingLevel="Level2"/>
+                <TextBlock Text="Constatações preliminares até a auditoria cruzada." Style="{StaticResource MonitorLegenda}"/>
               </StackPanel>
-            </Border>
-        </ScrollViewer>
-
-        <ScrollViewer x:Name="ColunaDetalhes" Grid.Column="2" Margin="8,0,0,0" VerticalScrollBarVisibility="Auto">
-          <StackPanel Spacing="8">
-            <!-- Resumo e próxima etapa. -->
-            <Border x:Name="CartaoProximaEtapa" x:FieldModifier="internal" CornerRadius="8" Padding="16,12" BorderThickness="1"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}">
-              <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <FontIcon Glyph="{x:Bind local:Glifos.Avancar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-                <StackPanel Grid.Column="1">
-                  <TextBlock TextAlignment="Left" x:Name="TextoResumo" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="Wrap"/>
-                  <TextBlock x:Name="TextoProximaEtapa" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+              <DropDownButton Grid.Column="1" Height="32" VerticalAlignment="Center" AutomationProperties.Name="Filtrar descobertas"
+                              local:Dicas.Descricao="Filtra as descobertas pela classificação.">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <FontIcon Glyph="{x:Bind local:Glifos.Filtro}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                  <TextBlock Text="Filtrar"/>
                 </StackPanel>
+                <DropDownButton.Flyout>
+                  <MenuFlyout>
+                    <RadioMenuFlyoutItem x:Name="FiltroTodas" Text="Todas as classificações" GroupName="Classificacao" IsChecked="True" Click="FiltrarDescobertas"/>
+                    <RadioMenuFlyoutItem Text="Atende" Tag="ATENDE" GroupName="Classificacao" Click="FiltrarDescobertas"/>
+                    <RadioMenuFlyoutItem Text="Não atende" Tag="NAO_ATENDE" GroupName="Classificacao" Click="FiltrarDescobertas"/>
+                    <RadioMenuFlyoutItem Text="Falta comprovar" Tag="NAO_COMPROVADO" GroupName="Classificacao" Click="FiltrarDescobertas"/>
+                    <RadioMenuFlyoutItem Text="Informações divergentes" Tag="DIVERGENCIA_INTERNA" GroupName="Classificacao" Click="FiltrarDescobertas"/>
+                  </MenuFlyout>
+                </DropDownButton.Flyout>
+              </DropDownButton>
+            </Grid>
+            <Grid Grid.Row="1" x:Name="LadrilhosDescobertas" ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="4"
+                  SizeChanged="AjustarLadrilhosDescobertas">
+              <Border Grid.Column="0" Style="{StaticResource MonitorLadrilho}" MinHeight="86" Padding="5"
+                      Background="{ThemeResource PmvniTonalFundo}">
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="ATENDE" Style="{StaticResource MonitorRotulo}"/>
+                  <TextBlock x:Name="TotalAtende" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource PmvniTonalTexto}"/>
+                  <TextBlock Text="Conformidades" Style="{StaticResource MonitorLegendaLadrilho}"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="1" Style="{StaticResource MonitorLadrilho}" MinHeight="86" Padding="5"
+                      Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}">
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="NÃO ATENDE" Style="{StaticResource MonitorRotulo}"/>
+                  <TextBlock x:Name="TotalNaoAtende" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                  <TextBlock Text="Não conformidades" Style="{StaticResource MonitorLegendaLadrilho}"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="2" Style="{StaticResource MonitorLadrilho}" MinHeight="86" Padding="5"
+                      Background="{ThemeResource SystemFillColorCautionBackgroundBrush}">
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="FALTA COMPROVAR" Style="{StaticResource MonitorRotulo}"/>
+                  <TextBlock x:Name="TotalComprovar" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                  <TextBlock Text="Sem evidência" Style="{StaticResource MonitorLegendaLadrilho}"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="3" Style="{StaticResource MonitorLadrilho}" MinHeight="86" Padding="5"
+                      Background="{ThemeResource PmvniEsferaFederalFundo}">
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="DIVERGÊNCIAS" Style="{StaticResource MonitorRotuloDivergencia}"/>
+                  <TextBlock x:Name="TotalDivergentes" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource PmvniEsferaFederalTexto}"/>
+                  <TextBlock Text="Inconsistências" Style="{StaticResource MonitorLegendaLadrilho}"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBlock Text="EVIDÊNCIAS IDENTIFICADAS" Style="{StaticResource MonitorRotulo}"/>
+              <TextBlock Grid.Column="1" x:Name="TextoRegistros" Text="0 registros" Style="{StaticResource MonitorLegenda}"/>
+            </Grid>
+            <Border Grid.Row="3" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="9">
+              <Grid>
+                <ScrollViewer x:Name="ColunaLateral" x:FieldModifier="internal" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Evidências identificadas">
+                  <StackPanel x:Name="ListaDescobertas" x:FieldModifier="internal" Spacing="6" Margin="5,5,8,5"/>
+                </ScrollViewer>
+                <ScrollViewer x:Name="VazioDescobertas" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Center">
+                  <StackPanel Spacing="5" Padding="12,8" MaxWidth="420" VerticalAlignment="Center">
+                    <Border Style="{StaticResource MonitorLadrilho}" Width="48" Height="48" CornerRadius="24" HorizontalAlignment="Center">
+                      <FontIcon Glyph="{x:Bind local:Glifos.Conferir}" FontSize="24" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
+                    </Border>
+                    <TextBlock x:Name="TextoSemDescobertas" x:FieldModifier="internal" Text="Aguardando primeiras descobertas"
+                               TextAlignment="Center" Style="{StaticResource PmvniAjusteTitulo}"/>
+                    <TextBlock x:Name="TextoAjudaDescobertas" Text="As constatações aparecerão aqui, com classificação, referência ao PDF e página e trechos da evidência."
+                               TextAlignment="Center" Style="{StaticResource MonitorLegenda}"/>
+                  </StackPanel>
+                </ScrollViewer>
               </Grid>
             </Border>
+            <local:PainelQuebra Grid.Row="4" Espaco="10" EspacoLinhas="0" Margin="0,-2,0,0">
+              <TextBlock x:Name="TextoFiltro" Text="Exibição: todas as classificações" Style="{StaticResource MonitorLegenda}" VerticalAlignment="Center"/>
+              <HyperlinkButton x:Name="LinkEvidenciasPdf" x:FieldModifier="internal" Visibility="Collapsed" Height="32" Padding="0"
+                               AutomationProperties.Name="Ver evidências por PDF e página" local:Dicas.Descricao="Abre as extrações locais das pranchas deste processo.">
+                <TextBlock Text="Ver evidências por PDF e página ›" TextWrapping="Wrap"/>
+              </HyperlinkButton>
+            </local:PainelQuebra>
+          </Grid>
+        </Border>
 
-            <!-- Consumo por etapa (Tarefa 13): quem executou, tokens, cache, tempo e variação da cota; preenchido pela janela (MostrarConsumo). -->
-            <Border x:Name="CartaoConsumo" x:FieldModifier="internal" Style="{StaticResource PmvniCartaoSecao}" Padding="12,8" Visibility="Collapsed">
-              <StackPanel Spacing="6">
-                <Grid ColumnSpacing="12">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                  <FontIcon Glyph="{x:Bind local:Glifos.Grafico}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
+        <Grid x:Name="ColunaDetalhes" Grid.Column="2" RowDefinitions="Auto,*" RowSpacing="10">
+          <Border x:Name="CartaoConsumo" x:FieldModifier="internal" Style="{StaticResource MonitorCartao}">
+            <StackPanel Spacing="5">
+              <StackPanel>
+                <TextBlock Text="Consumo e desempenho" Style="{StaticResource MonitorTitulo}" AutomationProperties.HeadingLevel="Level2"/>
+                <TextBlock Text="Uso registrado por etapa e modelo" Style="{StaticResource MonitorLegenda}"/>
+              </StackPanel>
+              <Border Style="{StaticResource MonitorLadrilho}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                  <TextBlock Text="Etapa" Style="{StaticResource MonitorLegenda}"/>
                   <StackPanel Grid.Column="1">
-                    <TextBlock TextAlignment="Left" Text="Consumo" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock Text="Por etapa, como o kit registrou; “—” quando não informado." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="TextoEtapaConsumo" Text="—" Style="{StaticResource PmvniAjusteTitulo}" TextAlignment="Right"/>
+                    <TextBlock x:Name="TextoExecutorConsumo" Text="Nenhum uso registrado ainda" Style="{StaticResource MonitorLegenda}" TextAlignment="Right"
+                               TextTrimming="CharacterEllipsis" MaxLines="1" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                   </StackPanel>
                 </Grid>
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled">
-                  <Grid x:Name="GradeConsumo" x:FieldModifier="internal" ColumnSpacing="10" RowSpacing="4" Margin="0,0,0,4"
-                        AutomationProperties.Name="Consumo por etapa"/>
+              </Border>
+              <Grid ColumnDefinitions="1.6*,*,*" ColumnSpacing="4">
+                <Border Style="{StaticResource MonitorLadrilho}">
+                  <StackPanel>
+                    <TextBlock Text="ENTRADA / SAÍDA" Style="{StaticResource MonitorRotulo}"/>
+                    <TextBlock x:Name="TextoTokensConsumo" Text="— / —" Style="{StaticResource MonitorIndicador}"/>
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource MonitorLadrilho}">
+                  <StackPanel>
+                    <TextBlock Text="CACHE" Style="{StaticResource MonitorRotulo}"/>
+                    <TextBlock x:Name="TextoCacheConsumo" Text="—" Style="{StaticResource MonitorIndicador}"/>
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Style="{StaticResource MonitorLadrilho}">
+                  <StackPanel ToolTipService.ToolTip="O kit não registra custo; a variação da cota está nos detalhes">
+                    <TextBlock Text="CUSTO" Style="{StaticResource MonitorRotulo}"/>
+                    <TextBlock Text="—" Style="{StaticResource MonitorIndicador}"/>
+                  </StackPanel>
+                </Border>
+              </Grid>
+              <Expander x:Name="ExpansorConsumo" Header="Todas as etapas" MinHeight="32" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch" IsEnabled="False">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Auto" MaxHeight="110">
+                  <Grid x:Name="GradeConsumo" x:FieldModifier="internal" ColumnSpacing="10" RowSpacing="4" AutomationProperties.Name="Consumo por etapa"/>
                 </ScrollViewer>
-              </StackPanel>
-            </Border>
+              </Expander>
+            </StackPanel>
+          </Border>
 
-            <!-- 5. Detalhes da execução (recolhido). -->
-            <Expander x:Name="ExpansorUltimaMensagem" x:FieldModifier="internal" AutomationProperties.Name="Detalhes da execução" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-              <Expander.Header>
-                <Grid ColumnSpacing="12" Padding="0,8">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                  <FontIcon Glyph="{x:Bind local:Glifos.Propriedades}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-                  <StackPanel Grid.Column="1">
-                    <TextBlock TextAlignment="Left" Text="Detalhes da execução" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock Text="Registro de atividades e última mensagem da IA." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+          <Border Grid.Row="1" Style="{StaticResource MonitorCartao}">
+            <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="5">
+              <StackPanel x:Name="CabecalhoLog">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBlock Text="Log de execução" Style="{StaticResource MonitorTitulo}" AutomationProperties.HeadingLevel="Level2"/>
+                  <Grid Grid.Column="1"><Border x:Name="SeloLog" Style="{StaticResource MonitorAoVivo}" Visibility="Collapsed">
+                  <StackPanel Orientation="Horizontal" Spacing="5">
+                    <Ellipse Width="7" Height="7" Fill="{ThemeResource PmvniTonalTexto}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Ao vivo" Style="{StaticResource MonitorRotuloAtivo}"/>
                   </StackPanel>
+                </Border></Grid>
                 </Grid>
-              </Expander.Header>
-              <StackPanel Spacing="10">
-                <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Conferir}" x:Name="BotaoEvidenciasPdf" x:FieldModifier="internal" Content="Abrir evidências por PDF e página" Visibility="Collapsed"
-                        local:Dicas.Descricao="Abre as extrações locais das pranchas deste processo."/>
-                <TextBlock x:Name="TextoRotulo" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource BodyTextBlockStyle}"/>
-                <TextBlock x:Name="TextoEventos" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True"
-                           Style="{StaticResource PmvniSecondaryTextStyle}"/>
-            <ListView x:Name="ListaLinhas" x:FieldModifier="internal" MaxHeight="320" SelectionMode="None" IsItemClickEnabled="False"
-                      AutomationProperties.Name="Registro de atividades">
-              <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                  <Setter Property="MinHeight" Value="0"/>
-                  <Setter Property="Padding" Value="0,0,8,0"/>
-                  <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                </Style>
-              </ListView.ItemContainerStyle>
-              <ListView.ItemTemplate>
-                <DataTemplate x:DataType="local:ItemAtividade">
-                  <local:LinhaAndamento Item="{x:Bind Atividade}" EmCurso="{x:Bind EmCurso, Mode=OneWay}"/>
-                </DataTemplate>
-              </ListView.ItemTemplate>
-            </ListView>
-                <StackPanel x:Name="PainelUltimaMensagem" x:FieldModifier="internal" Spacing="4">
-                  <TextBlock TextAlignment="Left" Text="Última mensagem do ChatGPT" Style="{StaticResource PmvniAjusteTitulo}"/>
-                  <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto">
-                    <TextBlock x:Name="TextoUltimaMensagem" x:FieldModifier="internal" TextWrapping="Wrap" IsTextSelectionEnabled="True" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-                  </ScrollViewer>
-                </StackPanel>
+                <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Text="0 atividades registradas" Style="{StaticResource MonitorLegenda}"/>
               </StackPanel>
-            </Expander>
-          </StackPanel>
-        </ScrollViewer>
+              <ListView Grid.Row="1" x:Name="ListaLinhas" x:FieldModifier="internal" SelectionMode="None" IsItemClickEnabled="False"
+                        AutomationProperties.Name="Registro de atividades">
+                <ListView.ItemContainerStyle>
+                  <Style TargetType="ListViewItem">
+                    <Setter Property="MinHeight" Value="0"/>
+                    <Setter Property="Padding" Value="0,0,4,0"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                  </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ItemTemplate>
+                  <DataTemplate x:DataType="local:ItemAtividade">
+                    <local:LinhaAndamento Item="{x:Bind Atividade}" EmCurso="{x:Bind EmCurso, Mode=OneWay}"/>
+                  </DataTemplate>
+                </ListView.ItemTemplate>
+              </ListView>
+              <Button Grid.Row="2" x:Name="BotaoEvidenciasPdf" x:FieldModifier="internal" Visibility="Collapsed" HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch" Padding="8,4" Style="{StaticResource PmvniBotaoTonalStyle}"
+                      AutomationProperties.Name="Abrir evidências por PDF e página"
+                      local:Dicas.Descricao="Abre as extrações locais das pranchas deste processo.">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                  <FontIcon Glyph="{x:Bind local:Glifos.Relatorio}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                  <TextBlock Grid.Column="1" Text="Abrir evidências por PDF e página" TextTrimming="CharacterEllipsis"/>
+                  <FontIcon x:Name="IconeAbrirEvidencias" Grid.Column="2" Glyph="{x:Bind local:Glifos.AbrirEmOutraJanela}"
+                            FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                </Grid>
+              </Button>
+              <Expander Grid.Row="3" x:Name="ExpansorUltimaMensagem" x:FieldModifier="internal" Header="Detalhes" MinHeight="32"
+                        AutomationProperties.Name="Detalhes da execução" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <ScrollViewer MaxHeight="148" VerticalScrollBarVisibility="Auto">
+                  <StackPanel Spacing="6">
+                    <Border x:Name="CartaoProximaEtapa" x:FieldModifier="internal" Style="{StaticResource MonitorFundoAtivo}"
+                            Padding="8,5" CornerRadius="8" BorderThickness="1">
+                      <StackPanel Spacing="2">
+                        <TextBlock x:Name="TextoResumo" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}"/>
+                        <TextBlock x:Name="TextoProximaEtapa" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
+                      </StackPanel>
+                    </Border>
+                    <TextBlock x:Name="TextoCabecalho" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
+                    <TextBlock x:Name="TextoRotulo" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
+                    <TextBlock x:Name="TextoEventos" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
+                    <StackPanel x:Name="PainelUltimaMensagem" x:FieldModifier="internal" Spacing="4">
+                      <TextBlock Text="Última mensagem do ChatGPT" Style="{StaticResource PmvniAjusteTitulo}"/>
+                      <TextBlock x:Name="TextoUltimaMensagem" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
+                    </StackPanel>
+                  </StackPanel>
+                </ScrollViewer>
+              </Expander>
+            </Grid>
+          </Border>
+        </Grid>
       </Grid>
     </Grid>
+    </ScrollViewer>
   </Grid>
 </UserControl>
