@@ -1,6 +1,21 @@
-# Novidades do Editor de Relatórios PMVNI
+﻿# Novidades do Editor de Relatórios PMVNI
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
+
+## 3.3.0
+
+Monitor de análise redesenhado (layout final do Brilliant, em WinUI 3 nativo) e progresso que avança de verdade.
+
+- Cabeçalho com o número do processo e o requerente centralizados (nome longo com reticências e o nome completo na dica) e os botões Abrir registro, Nova análise, Pausar e Cancelar.
+- Cartão de status com a etapa atual, o provedor, o tempo decorrido, as etapas concluídas e a previsão de término.
+- Barra horizontal de progresso com o percentual geral e as seis etapas embaixo; na lista de atividades, cada etapa mostra o próprio percentual e uma barra fina (concluída 100%, a atual com o avanço real, pendentes 0%).
+- O percentual sobe durante a etapa, não só quando ela termina: na Análise, pelas seções com resultado (das 28); na Auditoria técnica, pelas seções auditadas; na Produção do relatório, pelos arquivos finais gravados; nas demais, pelo tempo decorrido comparado ao histórico, com teto de 95% até a etapa terminar. Nunca volta para trás dentro da mesma etapa.
+- Previsão de término calculada pelo Editor: pela mediana das análises anteriores; com histórico curto, aproximada (≈); sem histórico, por uma estimativa inicial de duração por etapa, indicada na tela, que é trocada pelo tempo real assim que a etapa roda uma vez neste computador.
+- Principais descobertas com os quatro indicadores (Atende, Não atende, Falta comprovar, Divergências), filtro por classificação que funciona e acesso às evidências por PDF e página.
+- Consumo e desempenho por etapa e modelo (tokens de entrada e saída, cache, tempo e cota), com o detalhe de cada etapa numa grade 2 × 2.
+- Log de execução em texto simples, em ordem de chegada e ao vivo; os detalhes da execução e a última mensagem da IA abrem num painel suspenso.
+- Indicador de análise em andamento no topo da janela refeito no padrão das pílulas do cabeçalho, com o texto numa linha só.
+- As três colunas ficaram mais altas; a página rola um pouco em telas menores, sem espremer as listas.
 
 ## 3.2.4
 

@@ -297,12 +297,12 @@
           </StackPanel>
         </Grid>
         <!-- Processo e requerente centralizados no espaço entre o título e os botões. -->
-        <Grid x:Name="IdentificacaoMonitor" Grid.Column="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="340">
+        <Grid x:Name="IdentificacaoMonitor" Grid.Column="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560">
           <StackPanel>
             <TextBlock Text="PROCESSO" TextAlignment="Right" Style="{StaticResource MonitorRotulo}"/>
             <TextBlock x:Name="ProcessoMonitor" x:FieldModifier="internal" Text="—" TextAlignment="Right" Style="{StaticResource PmvniAjusteTitulo}"/>
           </StackPanel>
-          <StackPanel Grid.Column="1" MinWidth="120" MaxWidth="220">
+          <StackPanel Grid.Column="1" MinWidth="120">
             <TextBlock Text="REQUERENTE" Style="{StaticResource MonitorRotulo}"/>
             <TextBlock x:Name="TextoRequerente" Text="Não informado" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="NoWrap"
                        TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>

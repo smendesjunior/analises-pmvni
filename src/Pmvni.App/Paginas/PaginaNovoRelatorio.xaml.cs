@@ -664,7 +664,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         Grid.SetColumn(IdentificacaoMonitor, identificacaoEmbaixo ? 0 : 1);
         Grid.SetColumnSpan(IdentificacaoMonitor, identificacaoEmbaixo ? 3 : 1);
         IdentificacaoMonitor.HorizontalAlignment = identificacaoEmbaixo ? HorizontalAlignment.Left : HorizontalAlignment.Center;
-        IdentificacaoMonitor.MaxWidth = identificacaoEmbaixo ? 340 : Math.Clamp(botoesEmbaixo ? largura - TituloMonitor.ActualWidth - 28 : livreNoTopo, 200, 420);
+        // O requerente usa todo o espaço livre (até 560); só abaixo disso termina em reticências, com o nome completo na dica.
+        IdentificacaoMonitor.MaxWidth = identificacaoEmbaixo ? Math.Max(200, largura - 8)
+            : Math.Clamp(botoesEmbaixo ? largura - TituloMonitor.ActualWidth - 28 : livreNoTopo, 200, 560);
         Grid.SetRow(BotoesExecucao, identificacaoEmbaixo ? 2 : botoesEmbaixo ? 1 : 0);
         Grid.SetColumn(BotoesExecucao, botoesEmbaixo ? 0 : 2);
         Grid.SetColumnSpan(BotoesExecucao, botoesEmbaixo ? 3 : 1);
