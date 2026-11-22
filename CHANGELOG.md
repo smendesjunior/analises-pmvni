@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.2.1
+
+- Barra lateral no padrão do WinUI 3: o módulo ativo tem só o fundo suave, sem contorno, e o indicador verde é uma pílula pequena centralizada à esquerda.
+
 ## 3.2.0
 
 Revisão da hierarquia visual em todo o editor, no mesmo padrão das Configurações. O layout das telas continua o mesmo.

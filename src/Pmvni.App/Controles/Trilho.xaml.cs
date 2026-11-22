@@ -83,8 +83,9 @@ public sealed partial class Trilho : UserControl
                 Style = Estilo("PmvniTrilhoFundoInativoStyle"),
                 Child = conteudo,
             };
-            // A barrinha fica DENTRO do fundo arredondado, junto da borda esquerda dele (como no Gmail): a grade tem a largura do fundo.
-            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Height = double.NaN, VerticalAlignment = VerticalAlignment.Stretch, Visibility = Visibility.Collapsed, Margin = new Thickness(3, 2, 0, 2), IsHitTestVisible = false };
+            // Indicador de seleção no padrão do NavigationView do WinUI 3: pílula de 3 x 16 (PmvniRailIndicatorStyle), dentro do fundo
+            // arredondado, junto da borda esquerda e centralizada na vertical.
+            var indicador = new Border { Style = Estilo("PmvniRailIndicatorStyle"), Visibility = Visibility.Collapsed, Margin = new Thickness(4, 0, 0, 0), IsHitTestVisible = false };
             var grade = new Grid { Width = 114, HorizontalAlignment = HorizontalAlignment.Center };
             grade.Children.Add(fundo);
             grade.Children.Add(indicador);

@@ -227,10 +227,11 @@
   <Style x:Key="PmvniTrilhoFundoInativoStyle" TargetType="Border">
     <Setter Property="Background" Value="Transparent"/>
   </Style>
+  <!-- Item ativo como no NavigationView do WinUI 3: só o fundo suave, sem contorno (o indicador 3 x 16 marca a seleção). -->
   <Style x:Key="PmvniTrilhoFundoAtivoStyle" TargetType="Border">
     <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
-    <Setter Property="BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
-    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
   </Style>
   <Style x:Key="PmvniTrilhoFundoSobreStyle" TargetType="Border">
     <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
