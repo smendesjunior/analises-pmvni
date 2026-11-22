@@ -249,8 +249,8 @@ public class ModelosDaAnaliseTestes
         File.WriteAllText(arquivo, efetiva.Json, new UTF8Encoding(false));
         // O Editor manda a célula ajustada no arquivo da execução...
         Assert.Equal(outra.Modelo, CelulaJson(JsonNode.Parse(efetiva.Json)!.AsObject(), "codex", "padrao", "analyze")["modelo"]!.GetValue<string>());
-        // ...mas o kit atual (modelos_por_rota.efetiva) fixa análise e auditoria técnica no padrão dele: o controlador usa o padrão do kit.
-        Assert.Equal((padrao.Modelo, padrao.Nivel), ModeloQueOControladorUsa(arquivo, "analyze"));
+        // ...e o controlador do kit usa a célula ajustada (a tela Modelos da análise tem efeito); a auditoria técnica, sem ajuste, fica no padrão.
+        Assert.Equal((outra.Modelo, outra.Nivel), ModeloQueOControladorUsa(arquivo, "analyze"));
         var tecnica = k.Celula(Coluna(k, "codex"), "technical_audit")!;
         Assert.Equal((tecnica.Modelo, tecnica.Nivel), ModeloQueOControladorUsa(arquivo, "technical_audit"));
         Assert.Equal(["analyze", "technical_audit"], JsonNode.Parse(efetiva.Json)!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!.AsObject().Select(x => x.Key));
