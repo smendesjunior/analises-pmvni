@@ -30,6 +30,16 @@ public sealed partial class FaixaDeOpcoes : UserControl
         Barra.Loaded += (_, _) =>
         {
             if (Descendente(Barra, "MoreButton") is not Button mais) return;
+            mais.Height = 32;
+            mais.VerticalAlignment = VerticalAlignment.Center;
+            mais.Padding = new Thickness(0);
+            mais.HorizontalContentAlignment = HorizontalAlignment.Center;
+            if (Descendente(mais, "EllipsisIcon") is FontIcon elipse)
+            {
+                elipse.Style = (Style)Application.Current.Resources["PmvniIconeAcao"];
+                elipse.Glyph = Glifos.MaisOpcoes;
+                elipse.FontSize = 16;
+            }
             AutomationProperties.SetName(mais, "Mais comandos");
             Dicas.Aplicar(mais, "Mais comandos", "Abre os comandos da faixa que não cabem na barra.");
         };
@@ -349,7 +359,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         conteudo.Children.Add(Icone(GlifoDoComando(c.Id, c.Glifo)));
         // 12 px no próprio TextBlock: o estilo implícito de TextBlock fixa 14 e não herda o FontSize do botão.
-        conteudo.Children.Add(new TextBlock { Text = rotulo, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+        conteudo.Children.Add(new TextBlock { Text = rotulo, Style = (Style)Application.Current.Resources["PmvniRotuloFaixa"] });
         Button b;
         if (c.Tipo == TipoComando.Menu && c.Itens is { Count: > 0 } itens)
         {
@@ -378,7 +388,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         }
         b.Tag = c.Id;
         // Rótulo de 12 px, o mesmo dos AppBarButton com rótulo à direita: todos os comandos da faixa com o mesmo tamanho de texto.
-        b.FontSize = 12;
+        b.FontSize = (double)Application.Current.Resources["PmvniTamanhoRotuloFaixa"];
         b.MinHeight = b.Height = 32;
         b.Padding = new Thickness(10, 0, 10, 0);
         b.CornerRadius = (CornerRadius)Application.Current.Resources["PmvniRaioFaixa"];
@@ -439,15 +449,38 @@ public sealed partial class FaixaDeOpcoes : UserControl
             return (y, topo, botao.ActualHeight, yIcone);
         }).ToArray();
         return new[] { medidas.Max(x => x.y) - medidas.Min(x => x.y), medidas.Max(x => x.topo) - medidas.Min(x => x.topo),
-            medidas.Max(x => x.ActualHeight) - medidas.Min(x => x.ActualHeight), medidas.Max(x => x.yIcone) - medidas.Min(x => x.yIcone) }.Max();
+            medidas.Max(x => x.ActualHeight) - medidas.Min(x => x.ActualHeight), medidas.Max(x => x.yIcone) - medidas.Min(x => x.yIcone),
+            medidas.Max(x => Math.Abs(x.yIcone + 8 - x.topo - x.ActualHeight / 2)) }.Max();
     }
 
     static void AlinharRotulo(Control controle)
     {
         controle.Loaded += (_, _) =>
         {
-            if (Descendente(controle, "TextLabel") is UIElement texto)
+            // Em LabelOnRight o modelo pode medir 42 DIPs dentro de um comando de 32.
+            // Centraliza só o conteúdo excedente. O fundo e a área clicável continuam no botão.
+            if (Descendente(controle, "ContentRoot") is FrameworkElement raiz)
+            {
+                var ajuste = new Microsoft.UI.Xaml.Media.TranslateTransform();
+                raiz.RenderTransform = ajuste;
+                void Centralizar() => ajuste.Y = Math.Min(0, (controle.ActualHeight - raiz.ActualHeight) / 2);
+                void AoRedimensionar(object sender, SizeChangedEventArgs args) => Centralizar();
+                void AoDescarregar(object sender, RoutedEventArgs args)
+                {
+                    raiz.SizeChanged -= AoRedimensionar;
+                    controle.SizeChanged -= AoRedimensionar;
+                    controle.Unloaded -= AoDescarregar;
+                }
+                raiz.SizeChanged += AoRedimensionar;
+                controle.SizeChanged += AoRedimensionar;
+                controle.Unloaded += AoDescarregar;
+                Centralizar();
+            }
+            if (Descendente(controle, "TextLabel") is TextBlock texto)
+            {
+                texto.FontSize = (double)Application.Current.Resources["PmvniTamanhoRotuloFaixa"];
                 texto.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -3 };
+            }
         };
     }
 

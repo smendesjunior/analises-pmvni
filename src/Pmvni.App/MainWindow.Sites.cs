@@ -41,9 +41,12 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(usuario, "Usuário do " + Modulos.Rotulo(m));
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(senha, "Senha do " + Modulos.Rotulo(m));
             var guardar = new Button { Content = "Guardar login" };
+            IconeDeAcao.SetGlifo(guardar, Glifos.Salvar);
             ToolTipService.SetToolTip(guardar, "Guarda usuário e senha protegidos pelo Windows, só para este usuário. Se o site pedir login de novo, o app entra sozinho.");
             var abrir = new Button { Content = "Abrir para entrar" };
+            IconeDeAcao.SetGlifo(abrir, Glifos.Abrir);
             var sair = new Button { Content = "Sair" };
+            IconeDeAcao.SetGlifo(sair, Glifos.Fechar);
             ToolTipService.SetToolTip(sair, "Apaga o login lembrado e o guardado deste site neste computador. Só volta a lembrar quando você entrar de novo.");
             void Atualizar()
             {
@@ -96,6 +99,7 @@ public sealed partial class MainWindow
                 ToolTipService.SetToolTip(insc, "Informe os 14 algarismos da inscrição municipal.");
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(insc, "Inscrição para testar o boletim");
                 var testar = new Button { Content = "Testar" };
+                IconeDeAcao.SetGlifo(testar, Glifos.Conferir);
                 ToolTipService.SetToolTip(testar, "Gera o boletim desta inscrição no GPI, sem gravar, e mostra se cada passo funcionou.");
                 var saida = new TextBlock { TextAlignment = TextAlignment.Left, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], TextWrapping = TextWrapping.Wrap };
                 testar.Click += async (_, _) =>

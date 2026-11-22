@@ -30,7 +30,7 @@
           <TextBlock x:Name="TextoProgressoAnexo" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap"/>
           <ProgressBar x:Name="BarraProgressoAnexo" x:FieldModifier="internal" IsIndeterminate="True" local:Trabalhando.Automatico="False"/>
         </StackPanel>
-        <Button x:Name="BotaoCancelarAnexo" x:FieldModifier="internal" Grid.Column="1" Content="Cancelar"
+        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.NaoConfigurado}" x:Name="BotaoCancelarAnexo" x:FieldModifier="internal" Grid.Column="1" Content="Cancelar"
                 AutomationProperties.Name="Cancelar a anexação" local:Dicas.Titulo="Cancelar"
                 local:Dicas.Descricao="Para de anexar os PDFs; os que já entraram continuam na biblioteca."/>
       </Grid>
@@ -42,7 +42,7 @@
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
 
-      <Grid Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" Padding="12,6"><StackPanel Orientation="Horizontal" Spacing="12"><FontIcon Glyph="{x:Bind local:Glifos.Livro}" FontSize="20" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Acervo de legislação" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/></StackPanel><TextBlock Grid.Column="1" x:Name="TotalAcervo" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/></Grid>
+      <Grid Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" Padding="12,6"><StackPanel Orientation="Horizontal" Spacing="12"><FontIcon Glyph="{x:Bind local:Glifos.Livro}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Acervo de legislação" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/></StackPanel><TextBlock Grid.Column="1" x:Name="TotalAcervo" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/></Grid>
       <Grid Grid.Row="1" x:Name="Painel" x:FieldModifier="internal" Width="320" Padding="4" Style="{StaticResource PmvniPainelLateral}">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
@@ -87,7 +87,7 @@
               <Button HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAnexar" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" AutomationProperties.Name="Anexar PDFs…">
                 <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Anexar}" FontSize="16"/><TextBlock Text="Anexar PDFs…"/></StackPanel>
               </Button>
-              <Button Grid.Column="1" HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Gerenciar anexos"
+              <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Gerenciar}" Grid.Column="1" HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Gerenciar anexos"
                       AutomationProperties.Name="Gerenciar anexos" local:Dicas.Descricao="Abre os ajustes da Legislação para renomear, reler ou remover leis anexadas."/>
             </Grid>
           </StackPanel>

@@ -45,8 +45,8 @@
           </Border>
           <Border x:Name="DivisoriaProcesso" Style="{StaticResource PmvniDivisoriaCabecalho}" Visibility="Collapsed"/>
           <StackPanel x:Name="BlocoProcesso" VerticalAlignment="Center" Spacing="0" MaxWidth="300" Visibility="Collapsed">
-            <TextBlock x:Name="TextoProcesso" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1"/>
-            <TextBlock x:Name="TextoRequerente" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+            <TextBlock x:Name="TextoProcesso" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1"/>
+            <TextBlock x:Name="TextoRequerente" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis" MaxLines="1"/>
           </StackPanel>
           <Border x:Name="SeloGravacao" Height="32" CornerRadius="16" Style="{StaticResource PmvniSeloSucesso}" Visibility="Collapsed" VerticalAlignment="Center"
                   AutomationProperties.Name="Estado de gravação">
@@ -78,9 +78,9 @@
               <FontIcon x:Name="IconeAnaliseErro" Glyph="{x:Bind local:Glifos.Erro}" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoCritico}" AutomationProperties.AccessibilityView="Raw"/>
             </Grid>
             <StackPanel x:Name="TextosAnalise" VerticalAlignment="Center" MaxWidth="260">
-              <TextBlock x:Name="TextoBotaoAnalise" Style="{StaticResource BodyTextBlockStyle}" TextWrapping="NoWrap" LineHeight="16" LineStackingStrategy="BlockLineHeight"
+              <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="TextoBotaoAnalise" Style="{StaticResource BodyTextBlockStyle}" TextWrapping="NoWrap" LineHeight="16" LineStackingStrategy="BlockLineHeight"
                          TextTrimming="CharacterEllipsis" MaxLines="1"/>
-              <TextBlock x:Name="DetalheBotaoAnalise" Style="{StaticResource PmvniSecondaryTextStyle}" LineHeight="16" LineStackingStrategy="BlockLineHeight"
+              <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="DetalheBotaoAnalise" Style="{StaticResource PmvniSecondaryTextStyle}" LineHeight="16" LineStackingStrategy="BlockLineHeight"
                          TextTrimming="CharacterEllipsis" MaxLines="1"/>
             </StackPanel>
           </StackPanel>
@@ -132,7 +132,7 @@
           <FontIcon x:Name="IconePesquisa" Glyph="{x:Bind local:Glifos.Pesquisar}" Style="{StaticResource PmvniIconeAcaoSecundario}" Margin="12,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
                     IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
         </Grid>
-        <TextBlock Grid.Row="2" x:Name="TextoPesquisa" TextTrimming="CharacterEllipsis" MaxLines="1" Width="{Binding Width, ElementName=MolduraPesquisa}" VerticalAlignment="Center" TextAlignment="Center" Visibility="Collapsed"
+        <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Grid.Row="2" x:Name="TextoPesquisa" TextTrimming="CharacterEllipsis" MaxLines="1" Width="{Binding Width, ElementName=MolduraPesquisa}" VerticalAlignment="Center" TextAlignment="Center" Visibility="Collapsed"
                    Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.Name="Resultado da pesquisa"/>
         </Grid>
         <Grid RowDefinitions="20,32,20" VerticalAlignment="Center"><TextBlock Text="Edição" TextWrapping="NoWrap" Style="{StaticResource PmvniPainelRotulo}"/>

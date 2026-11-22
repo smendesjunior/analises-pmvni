@@ -267,7 +267,7 @@ public sealed partial class MainWindow
             {
                 var caixa = CartoesDePainel.Caixa("", nome, editavel);
                 var marca = CartoesDePainel.Marca("alterado");
-                var restaurar = CartoesDePainel.BotaoPequeno("Restaurar", "Restaurar o campo " + nome, dicaRestaurar);
+                var restaurar = CartoesDePainel.BotaoPequeno(Glifos.Restaurar, "Restaurar", "Restaurar o campo " + nome, dicaRestaurar);
                 restaurar.Click += async (_, _) => await TentarAsync(() => AplicarAsync(new RestaurarCampo(id, campo)));
                 caixa.KeyDown += async (_, e) =>
                 {
@@ -560,7 +560,7 @@ public sealed partial class MainWindow
             extras.Children.Add(marca);
             if (ultima && editavel)
             {
-                var remover = CartoesDePainel.BotaoPequeno("Remover", $"Remover a esquadria {ordinal}", "Tira esta esquadria que você acrescentou e refaz a conta. Desfazer a traz de volta.");
+                var remover = CartoesDePainel.BotaoPequeno(Glifos.Excluir, "Remover", $"Remover a esquadria {ordinal}", "Tira esta esquadria que você acrescentou e refaz a conta. Desfazer a traz de volta.");
                 remover.Click += async (_, _) => await AplicarNasEsquadriasAsync(linha, _ => [new RemoverAcrescimo(linha, "vaos/" + e.Indice.ToString(CultureInfo.InvariantCulture))],
                     "Esquadria removida: " + e.Codigo);
                 extras.Children.Add(remover);
@@ -648,6 +648,7 @@ public sealed partial class MainWindow
         var pavimento = Caixa("Pavimento (opcional)", "ex.: Térreo");
         var erro = new TextBlock { TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed, Style = (Style)res["PmvniTextoErroStyle"], TextAlignment = TextAlignment.Left };
         var criar = new Button { Content = "Adicionar", Style = (Style)res["PmvniBotaoPrimarioStyle"], HorizontalAlignment = HorizontalAlignment.Right };
+        IconeDeAcao.SetGlifo(criar, Glifos.Adicionar);
         var linhaPisoDivisor = new Grid { ColumnSpacing = 8 };
         linhaPisoDivisor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         linhaPisoDivisor.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });

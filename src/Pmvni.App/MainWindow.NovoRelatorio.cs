@@ -1528,6 +1528,7 @@ public sealed partial class MainWindow
             var modulo = AvisoDoModulo;
             if (!(modulo.IsOpen && modulo.Severity == InfoBarSeverity.Error)) MostrarMensagem(severidade, aviso.Title, mensagem);
             var botao = new Button { Content = "Importar relatório" };
+            IconeDeAcao.SetGlifo(botao, Glifos.ImportarAnalise);
             AutomationPropertiesNome(botao, "Importar relatório");
             Dicas.Aplicar(botao, "Importar relatório", "Traz para o app o relatório da análise que terminou com o editor fechado.");
             botao.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
@@ -1608,6 +1609,7 @@ public sealed partial class MainWindow
         if (fechada) return;
         MostrarMensagem(InfoBarSeverity.Success, FluxoNovoRelatorio.RelatorioProntoTitulo, FluxoNovoRelatorio.TextoRelatorioPronto(imp.Provedor, pmvrel, imp.Pdf));
         var botao = new Button { Content = FluxoNovoRelatorio.AbrirRelatorio };
+        IconeDeAcao.SetGlifo(botao, Glifos.Abrir);
         AutomationPropertiesNome(botao, FluxoNovoRelatorio.AbrirRelatorio);
         Dicas.Aplicar(botao, FluxoNovoRelatorio.AbrirRelatorio, "Abre o relatório que a IA acabou de montar, para revisar.");
         botao.Click += async (_, _) => await AbrirRelatorioProntoAsync(pmvrel);

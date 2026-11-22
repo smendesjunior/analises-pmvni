@@ -9,10 +9,25 @@ namespace Pmvni.App;
 public sealed partial class EstadoVazio : UserControl
 {
     string? idPrimario, idSecundario;
+    Modulo? moduloAtual;
+    bool iconeVetorial;
+    XamlRoot? raizDoIcone;
+    const double LadoIcone = 48;
 
     public EstadoVazio()
     {
         InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            raizDoIcone = XamlRoot;
+            raizDoIcone.Changed += AoMudarEscala;
+            AtualizarIcone();
+        };
+        Unloaded += (_, _) =>
+        {
+            if (raizDoIcone is not null) raizDoIcone.Changed -= AoMudarEscala;
+            raizDoIcone = null;
+        };
         BotaoPrimario.Click += (_, _) => { if (idPrimario is not null) ComandoEscolhido?.Invoke(idPrimario); };
         BotaoSecundario.Click += (_, _) => { if (idSecundario is not null) ComandoEscolhido?.Invoke(idSecundario); };
     }
@@ -23,6 +38,17 @@ public sealed partial class EstadoVazio : UserControl
     /// <summary>Um recente foi clicado: o caminho.</summary>
     public event Action<string>? RecenteEscolhido;
 
+    void AoMudarEscala(XamlRoot sender, XamlRootChangedEventArgs args) => AtualizarIcone();
+
+    void AtualizarIcone()
+    {
+        if (moduloAtual is not { } modulo) return;
+        var vetorial = LadoIcone * (raizDoIcone?.RasterizationScale ?? 1) > 128;
+        if (VagaIcone.Child is not null && vetorial == iconeVetorial) return;
+        iconeVetorial = vetorial;
+        VagaIcone.Child = Trilho.NovoIcone(modulo, LadoIcone, vetorial);
+    }
+
     public string TextoTitulo => Titulo.Text;
 
     public string TextoPrimario => BotaoPrimario.Visibility == Visibility.Visible ? AutomationProperties.GetName(BotaoPrimario) : "";
@@ -32,7 +58,9 @@ public sealed partial class EstadoVazio : UserControl
     /// <summary>Monta a tela: o ícone do módulo, os textos e os dois botões (rótulo, glifo e id do comando; null = sem o botão).</summary>
     public void Definir(Modulo modulo, string titulo, string frase, (string Rotulo, string Glifo, string Id)? primario, (string Rotulo, string Id)? secundario, string? glifoSecundario = null)
     {
-        VagaIcone.Child = Trilho.NovoIcone(modulo, 48);
+        if (moduloAtual != modulo) VagaIcone.Child = null;
+        moduloAtual = modulo;
+        AtualizarIcone();
         Titulo.Text = titulo;
         DefinirFrase(frase);
         idPrimario = primario?.Id;

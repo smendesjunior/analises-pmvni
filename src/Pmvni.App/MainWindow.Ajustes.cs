@@ -525,6 +525,7 @@ public sealed partial class MainWindow
             selo.Definir(linha.Situacao == SituacaoComponente.EmDia, linha.TextoSituacao);
             acoes.Children.Add(selo);
             var botao = new Button { Content = linha.TextoBotao };
+            IconeDeAcao.SetGlifo(botao, Glifos.Atualizar);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, "Atualizar " + linha.Componente.Nome + (linha.SoPeloTodos ? " (atualiza todo o kit)" : ""));
             Dicas.Aplicar(botao, linha.TextoBotao, linha.TextoDica);
             botao.Click += async (_, _) => await AtualizarComponenteAsync(linha);

@@ -56,8 +56,8 @@ internal sealed class JanelaPrancha : Window
     readonly Border progresso = Trabalhando.Quadro("Trabalhando…");
     readonly Viewbox previa = new() { Stretch = Stretch.Uniform, MaxHeight = 240, Visibility = Visibility.Collapsed };
     readonly TextBlock orientacao = new() { Text = "Arraste sobre a página para selecionar a região da figura.", Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] };
-    readonly AppBarButton limpar = new() { Icon = new FontIcon { Glyph = "\uE894", Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Limpar recorte" };
-    readonly AppBarButton selecionarTudo = new() { Icon = new FontIcon { Glyph = "\uE8B3", Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Selecionar página" };
+    readonly AppBarButton limpar = new() { Icon = new FontIcon { Glyph = Glifos.Limpar, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Limpar recorte" };
+    readonly AppBarButton selecionarTudo = new() { Icon = new FontIcon { Glyph = Glifos.SelecionarTudo, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Selecionar página" };
     readonly TextBlock textoZoom = new() { Text = "100%", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
     readonly CommandBar ferramentas = new() { HorizontalAlignment = HorizontalAlignment.Left, DefaultLabelPosition = CommandBarDefaultLabelPosition.Right, IsDynamicOverflowEnabled = true };
 
@@ -183,7 +183,7 @@ internal sealed class JanelaPrancha : Window
         abrirNoCentro.Click += async (_, _) => await EscolherArquivoAsync();
         vazio.Children.Add(mensagem);
         area.Children.Add(vazio);
-        var desenho = PainelPrancha.Quadro(new TextBlock { Text = "Pré-visualização da prancha", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] }, area, Symbol.Crop);
+        var desenho = PainelPrancha.Quadro(new TextBlock { Text = "Pré-visualização da prancha", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] }, area, Glifos.Recortar);
         desenho.Margin = new Thickness(12, 12, 6, 12);
         Grid.SetRow(desenho, 2);
         raiz.Children.Add(desenho);
@@ -196,7 +196,7 @@ internal sealed class JanelaPrancha : Window
         lateral.Children.Add(orientacao);
         lateral.Children.Add(previa);
         var painel = new ScrollViewer { Content = lateral, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        var dados = PainelPrancha.Quadro(new TextBlock { Text = "Nova figura", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] }, painel, Symbol.Crop);
+        var dados = PainelPrancha.Quadro(new TextBlock { Text = "Nova figura", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] }, painel, Glifos.Recortar);
         dados.Margin = new Thickness(6, 12, 12, 12);
         Grid.SetRow(dados, 2);
         Grid.SetColumn(dados, 1);
@@ -218,6 +218,10 @@ internal sealed class JanelaPrancha : Window
         estado.Text = "Escolha a página, amplie se precisar e arraste o mouse sobre a região a recortar.";
 
         arquivos.SelectionChanged += async (_, _) => { if (arquivos.SelectedItem is ComboBoxItem { Tag: string c }) await AbrirPdfAsync(c); };
+        IconeDeAcao.SetGlifo(escolher, Glifos.Abrir);
+        IconeDeAcao.SetGlifo(abrirNoCentro, Glifos.Abrir);
+        IconeDeAcao.SetGlifo(inserir, Glifos.Adicionar);
+        IconeDeAcao.SetGlifo(cancelar, Glifos.NaoConfigurado);
         escolher.Click += async (_, _) => await EscolherArquivoAsync();
         anterior.Click += async (_, _) => { if (!ocupado && documento is not null && indicePagina > 0) { indicePagina--; await MostrarPaginaAsync(); } };
         proxima.Click += async (_, _) => { if (!ocupado && documento is not null && indicePagina + 1 < documento.PageCount) { indicePagina++; await MostrarPaginaAsync(); } };

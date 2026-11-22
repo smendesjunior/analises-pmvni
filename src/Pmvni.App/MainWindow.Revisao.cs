@@ -842,6 +842,7 @@ public sealed partial class MainWindow
         painel.Children.Add(new TextBlock { Text = it.Criado ? "Item novo excluído" : $"Item {it.NumeroOriginal:00} excluído", Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"] });
         painel.Children.Add(CartoesDePainel.Apoio(DadosEfetivos.TextoEfetivo(p, it, "titulo") ?? "(sem título)"));
         var restaurar = new Button { Content = "Restaurar item", IsEnabled = Editavel, Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"] };
+        IconeDeAcao.SetGlifo(restaurar, Glifos.Restaurar);
         Dicas.Aplicar(restaurar, "Restaurar item", "Traz este item excluído de volta para o relatório.", motivo: Editavel ? null : MotivoRevisaoIndisponivel());
         var flyout = new Flyout { Content = painel };
         restaurar.Click += async (_, _) => { flyout.Hide(); await TentarAsync(() => AplicarAsync(new Restaurar(id))); };
@@ -1062,6 +1063,7 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(linha, $"Item excluído {numero}, {DadosEfetivos.TextoEfetivo(p!, x, "titulo") ?? ""}");
             // B6: botão pequeno com borda (sem borda, parecia texto).
             var restaurar = new Button { Content = "Restaurar item", IsEnabled = Editavel, Style = (Style)Application.Current.Resources["PmvniPainelBotaoPequeno"] };
+            IconeDeAcao.SetGlifo(restaurar, Glifos.Restaurar);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(restaurar, $"Restaurar o item {numero}");
             Dicas.Aplicar(restaurar, "Restaurar item", "Traz este item excluído de volta para o relatório.", motivo: Editavel ? null : MotivoRevisaoIndisponivel());
             var id = x.Id;

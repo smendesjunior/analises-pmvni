@@ -32,6 +32,7 @@ public sealed partial class MainWindow
             Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"], TextWrapping = TextWrapping.Wrap,
         });
         var aplicar = new Button { Content = "Aplicar", Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"], IsEnabled = Editavel };
+        IconeDeAcao.SetGlifo(aplicar, Glifos.Conferir);
         void AtualizarDica() => Dicas.Aplicar(aplicar, "Aplicar", "Envia o pedido para ajustar a volumetria com a IA.", "Enter",
             !Editavel ? MotivoRevisaoIndisponivel() : !aplicar.IsEnabled ? "A consulta está em andamento." : null);
         AtualizarDica();

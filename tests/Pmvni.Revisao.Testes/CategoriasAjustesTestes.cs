@@ -40,7 +40,7 @@ public class CategoriasAjustesTestes
             var linha = Assert.Single(cartao.Descendants(local + "LinhaComAcoes"));
             var grupo = linha.Elements().Last();
             Assert.Equal("8", (string?)grupo.Attribute("Spacing"));
-            Assert.Equal(new[] { "Abrir", "Alterar…", "Padrão" },
+            Assert.Equal(new[] { "Alterar…", "Abrir", "Padrão" },
                 grupo.Elements().Select(botao => (string?)botao.Attribute("Content")));
         }
     }

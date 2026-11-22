@@ -646,7 +646,7 @@ public sealed partial class MainWindow
             var painel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             painel.Children.Add(new TextBlock { Text = c.Chave == ChaveColuna.Aprovacao ? "Aprovação" : c.Titulo,
                 Style = (Style)Application.Current.Resources["PmvniPainelRotulo"], TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis });
-            if (ativa) painel.Children.Add(new FontIcon { Glyph = ordemDecrescente ? "\uE74B" : "\uE74A",
+            if (ativa) painel.Children.Add(new FontIcon { Glyph = ordemDecrescente ? Glifos.OcorrenciaProxima : Glifos.Ocorrencia,
                 FontSize = 16, Style = (Style)Application.Current.Resources["PmvniIconeSecundarioStyle"] });
             var b = new Button { Content = painel, Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"],
                 Padding = new Thickness(0, 10, 0, 10), HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -1064,6 +1064,7 @@ public sealed partial class MainWindow
         Grupo("Aprovação", p.Opcoes(ChaveColuna.Aprovacao), filtroAprovacao);
         Grupo("Profissional", p.Linhas.Select(l => l.Texto(ChaveColuna.Profissional)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase), filtroProfissional);
         var limpar = new Button { Content = "Limpar filtros", Margin = new Thickness(0, 12, 0, 0), HorizontalAlignment = HorizontalAlignment.Stretch };
+        IconeDeAcao.SetGlifo(limpar, Glifos.Limpar);
         Dicas.Aplicar(limpar, "Limpar filtros", "Limpa a pesquisa e remove os filtros da tabela.");
         limpar.Click += (_, _) => LimparFiltrosAcompanhamento();
         painel.Children.Add(limpar);
@@ -1289,6 +1290,7 @@ public sealed partial class MainWindow
             + " As alterações estão guardadas; até lá a tabela mostra os valores de antes. Aguardando: "
             + string.Join("; ", pendentesPlanilha.Select(x => x.Descricao).Take(3)) + (n > 3 ? "…" : ".");
         var tentar = new Button { Content = "Gravar agora" };
+        IconeDeAcao.SetGlifo(tentar, Glifos.Salvar);
         Dicas.Aplicar(tentar, "Gravar agora", "Tenta gravar as alterações pendentes na planilha.");
         tentar.Click += async (_, _) => await GravarPendentesAsync(manual: true);
         b.ActionButton = tentar;

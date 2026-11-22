@@ -54,6 +54,7 @@ public sealed partial class PaginaAjustes : UserControl
     void Trocar(string tag)
     {
         var categoria = CategoriasAjustes.De(tag);
+        IconeCategoria.Glyph = categoria.Glifo;
         TituloCategoria.Text = categoria.Titulo;
         DescricaoCategoria.Text = categoria.Ajuda;
         CategoriaAtual = tag;

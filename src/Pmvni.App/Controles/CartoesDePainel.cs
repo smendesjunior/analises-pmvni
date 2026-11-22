@@ -47,9 +47,10 @@ public static class CartoesDePainel
     };
 
     /// <summary>Um botão pequeno de campo ("Restaurar", "Remover"), com nome acessível e dica.</summary>
-    public static Button BotaoPequeno(string texto, string nomeAcessivel, string descricao)
+    public static Button BotaoPequeno(string glifo, string texto, string nomeAcessivel, string descricao)
     {
         var b = new Button { Content = texto, Style = Estilo("PmvniPainelBotaoPequeno") };
+        IconeDeAcao.SetGlifo(b, glifo);
         AutomationProperties.SetName(b, nomeAcessivel);
         Dicas.Aplicar(b, texto, descricao);
         return b;

@@ -86,6 +86,25 @@ public static class Glifos
     public const string NovoDespacho = "\uEA1A";
     public const string GestaoMunicipal = "\uEC06";
 
+    public const string Chave = "\uE8D7";
+    public const string Cotas = "\uE1D9";
+    public const string Relogio = "\uE916";
+    public const string Limpar = "\uE894";
+    public const string Selecionar = "\uE8B0";
+    public const string Regiao = "\uE7E6";
+    public const string Texto = "\uE8D2";
+    public const string Favorito = "\uE735";
+    public const string Favoritar = "\uE734";
+    public const string Executar = "\uE768";
+    public const string Camera = "\uE7B3";
+    public const string Inspecionar = "\uE81E";
+    public const string Comentario = "\uE8BD";
+    public const string Creditos = "\uE8C7";
+    public const string Ferramenta = "\uE90F";
+    public const string Atividade = "\uE975";
+    public const string Bloqueado = "\uE72E";
+    public const string Sincronizar = "\uE895";
+
     internal static string DoModulo(Modulo m) => m switch
     {
         Modulo.Gpi => GestaoMunicipal,

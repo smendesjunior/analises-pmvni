@@ -42,8 +42,8 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
         <PersonPicture x:Name="FotoConta" x:FieldModifier="internal" Width="64" Height="64" VerticalAlignment="Top"/>
         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-          <TextBlock TextAlignment="Left" x:Name="TextoNomeConta" x:FieldModifier="internal" TextTrimming="CharacterEllipsis" Style="{StaticResource PmvniAjusteTitulo}"/>
-          <TextBlock TextAlignment="Left" x:Name="TextoEmailConta" x:FieldModifier="internal"
+          <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" TextAlignment="Left" x:Name="TextoNomeConta" x:FieldModifier="internal" TextTrimming="CharacterEllipsis" Style="{StaticResource PmvniAjusteTitulo}"/>
+          <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" TextAlignment="Left" x:Name="TextoEmailConta" x:FieldModifier="internal"
                      TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="True" Style="{StaticResource PmvniAjusteAjuda}"/>
           <HyperlinkButton HorizontalAlignment="Right" x:Name="LinkConta" x:FieldModifier="internal" Padding="0,2,0,0"/>
         </StackPanel>
@@ -71,9 +71,9 @@
         <local:SeloEstado x:Name="SeloPrograma" x:FieldModifier="internal" Grid.Column="2"/>
         <StackPanel x:Name="PainelBotoesPrograma" x:FieldModifier="internal" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
                     Background="{ThemeResource SubtleFillColorTransparentBrush}">
-          <Button x:Name="BotaoEscolherPrograma" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Alterar…"
+          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Editar}" x:Name="BotaoEscolherPrograma" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Alterar…"
                   local:Dicas.Descricao="Escolhe no computador o programa da IA, se o app não achou o certo."/>
-          <Button x:Name="BotaoProgramaPadrao" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Usar padrão"/>
+          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Restaurar}" x:Name="BotaoProgramaPadrao" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Usar padrão"/>
         </StackPanel>
       </Grid>
 
@@ -86,7 +86,7 @@
           <TextBlock TextAlignment="Left" x:Name="TextoSituacao" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
           <TextBlock TextAlignment="Left" x:Name="TextoAvisosDoTeste" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
-        <Button x:Name="BotaoTestar" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Testar" MinWidth="80" VerticalAlignment="Top"/>
+        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Conferir}" x:Name="BotaoTestar" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Testar" MinWidth="80" VerticalAlignment="Top"/>
       </Grid>
 
       <!-- Plugin analise (no Codex para o ChatGPT; no Claude Code para o Claude). -->
@@ -117,7 +117,7 @@
       <Grid Style="{StaticResource LinhaCartao}">
         <Grid.ColumnDefinitions><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <FontIcon Glyph="&#xE192;" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource IconeLinha}"/>
+        <FontIcon Glyph="{x:Bind local:Glifos.Chave}" AutomationProperties.AccessibilityView="Raw" Style="{StaticResource IconeLinha}"/>
         <StackPanel Grid.Column="1" Spacing="2">
           <TextBlock TextAlignment="Left" Text="Chave de API" Style="{StaticResource PmvniAjusteTitulo}"/>
           <TextBlock TextAlignment="Left" x:Name="TextoChave" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
@@ -139,9 +139,9 @@
           <StackPanel x:Name="PainelChave" x:FieldModifier="internal" Spacing="6" Visibility="Collapsed" Margin="0,4,0,0">
             <PasswordBox x:Name="CaixaChave" x:FieldModifier="internal" PlaceholderText="Cole a chave de API aqui" MaxWidth="420" HorizontalAlignment="Left" MinWidth="280"/>
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Background="{ThemeResource SubtleFillColorTransparentBrush}">
-              <Button x:Name="BotaoGuardarChave" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Guardar chave"
+              <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Salvar}" x:Name="BotaoGuardarChave" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Guardar chave"
                       local:Dicas.Descricao="Guarda a chave de API protegida pelo Windows, só para este usuário."/>
-              <Button x:Name="BotaoRemoverChave" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Remover chave"/>
+              <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Excluir}" x:Name="BotaoRemoverChave" x:FieldModifier="internal" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Remover chave"/>
             </StackPanel>
           </StackPanel>
         </StackPanel>
@@ -155,7 +155,7 @@
           <TextBlock TextAlignment="Left" Text="Aviso antes de analisar" Style="{StaticResource PmvniAjusteTitulo}"/>
           <TextBlock TextAlignment="Left" x:Name="TextoAviso" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}"/>
         </StackPanel>
-        <Button x:Name="BotaoReverAviso" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Rever aviso" VerticalAlignment="Top"
+        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Avisos}" x:Name="BotaoReverAviso" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniPainelBotaoPequeno}" Content="Rever aviso" VerticalAlignment="Top"
                 local:Dicas.Descricao="Mostra de novo o aviso sobre o que é enviado à IA antes de analisar."/>
       </Grid>
     </StackPanel>

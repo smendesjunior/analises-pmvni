@@ -9,7 +9,7 @@ internal static class PainelPrancha
     internal static Grid Cartao()
         => new() { Style = (Style)Application.Current.Resources["PmvniPainelLateral"] };
 
-    internal static Grid Quadro(FrameworkElement titulo, FrameworkElement conteudo, Symbol icone)
+    internal static Grid Quadro(FrameworkElement titulo, FrameworkElement conteudo, string glifo)
     {
         var cartao = Cartao();
         cartao.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -17,7 +17,7 @@ internal static class PainelPrancha
         var faixa = new Grid { ColumnSpacing = 10, Padding = new Thickness(16, 12, 16, 12) };
         faixa.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         faixa.ColumnDefinitions.Add(new ColumnDefinition());
-        faixa.Children.Add(new SymbolIcon(icone));
+        faixa.Children.Add(new FontIcon { Glyph = glifo, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] });
         Grid.SetColumn(titulo, 1);
         faixa.Children.Add(titulo);
         cartao.Children.Add(faixa);

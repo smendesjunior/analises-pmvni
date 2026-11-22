@@ -122,10 +122,10 @@ public sealed partial class Trilho : UserControl
 
     /// <summary>O ícone colorido do módulo (o DataTemplate do dicionário, materializado com LoadContent: um Viewbox), <paramref name="lado"/> x
     /// <paramref name="lado"/>; null se o template não existe. As cores são ThemeResource e seguem o tema do lugar onde o ícone fica.</summary>
-    internal static FrameworkElement? NovoIcone(Modulo m, double lado)
+    internal static FrameworkElement? NovoIcone(Modulo m, double lado, bool vetorial)
     {
         // Correção 2026-11-16: os ícones novos (PNG em alta, do pacote Fluent); o desenho vetorial antigo fica de reserva.
-        if (ImagemDoModulo(m, lado) is { } imagem)
+        if (!vetorial && ImagemDoModulo(m, lado) is { } imagem)
             return new Image
             {
                 Source = imagem, Width = lado, Height = lado, Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform,

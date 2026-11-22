@@ -10,6 +10,8 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 - Avisos: sem espaço vazio embaixo quando não há botões, com o texto centralizado na altura do aviso.
 - Modelos da análise abre certo já na primeira vez (antes mostrava "kit sem tabela" até reabrir).
 - Brasão e marca do cabeçalho nítidos em qualquer escala de tela (o SVG é desenhado no tamanho de exibição).
+- Verificação total final (70 telas, temas claro e escuro): faixa de opções com ícones e rótulos centralizados na mesma linha do botão principal; ações com ícone de 16 px e o mesmo espaço em todo o editor; ordem do destaque corrigida nos grupos; títulos de página com o mesmo estilo e ícone também em Ajustes, Novo relatório, Novo despacho e Monitor; chaves "Ativado/Desativado" alinhadas; dicas com o texto completo onde há reticências; ilustrações das telas vazias nítidas em telas de alta resolução.
+
 ## 3.2.2
 
 Interface 100% padronizada no padrão do WinUI 3, conferida tela por tela e travada por um teste automatizado (PadraoInterfaceTestes).

@@ -26,7 +26,7 @@ public static class CoresIcones
         [Glifos.Exportar] = Pdf,
         [Glifos.Atualizar] = Petroleo, [Glifos.Filtro] = Petroleo, [Glifos.Ordenar] = Petroleo, [Glifos.Pesquisar] = Petroleo,
         [Glifos.Ocorrencia] = Petroleo, [Glifos.OcorrenciaProxima] = Petroleo,
-        [Glifos.Figuras] = Roxo, [""] = Roxo, [Glifos.MarcasRevisao] = Roxo, [Glifos.Marcadores] = Roxo, [Glifos.Ia] = Roxo,
+        [Glifos.Figuras] = Roxo, [Glifos.Recortar] = Roxo, [Glifos.MarcasRevisao] = Roxo, [Glifos.Marcadores] = Roxo, [Glifos.Ia] = Roxo,
         [Glifos.Original] = Roxo, [Glifos.Tema] = Roxo,
     };
 

@@ -214,7 +214,7 @@ public sealed partial class MainWindow
 
         var estrela = new Button
         {
-            Content = new FontIcon { Glyph = favorita ? "\uE735" : "\uE734", Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"], Foreground = favorita ? CorDoTema("PmvniFavorito") : null },
+            Content = new FontIcon { Glyph = favorita ? Glifos.Favorito : Glifos.Favoritar, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"], Foreground = favorita ? CorDoTema("PmvniFavorito") : null },
             Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"],
             Width = 32, Height = 32, Padding = new Thickness(0), VerticalAlignment = VerticalAlignment.Top,
         };

@@ -29,7 +29,7 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
     public int Folha { get; } = folha;
     public string? Ref { get; } = @ref;
     public bool Secao { get; } = secao;
-    public string IconeSecao => Rotulo.Contains("localiza", StringComparison.OrdinalIgnoreCase) ? "\uE707" : "\uE8A5";
+    public string IconeSecao => Rotulo.Contains("localiza", StringComparison.OrdinalIgnoreCase) ? Glifos.Mapa : Glifos.Relatorio;
     public Visibility IconeSecaoVisivel => Secao && Contagem == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Brush CorSituacao
     {
@@ -84,7 +84,7 @@ public sealed class ItemNavegacao(string rotulo, int folha, string? @ref, bool s
         set { if (recolhida == value) return; recolhida = value; Avisar(nameof(Recolhida), nameof(GlifoChevron), nameof(NomeChevron)); }
     }
 
-    public string GlifoChevron => recolhida ? "" : ""; // ChevronRight / ChevronDown
+    public string GlifoChevron => recolhida ? Glifos.ExpandirLinha : Glifos.Proximo; // ChevronRight / ChevronDown
     public string NomeChevron => (recolhida ? "Expandir " : "Recolher ") + Rotulo;
 
     public bool Selecionado

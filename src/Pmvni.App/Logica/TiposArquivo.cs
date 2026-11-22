@@ -25,9 +25,9 @@ public static class TiposArquivo
     /// <summary>Glifo Segoe Fluent de reserva, quando o Windows não devolve ícone: pasta, imagem, ou documento genérico.</summary>
     public static string GlifoReserva(string chave) => chave switch
     {
-        Pasta => "",
-        ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".tif" or ".tiff" or ".webp" or ".heic" => "",
-        _ => "",
+        Pasta => Glifos.Pasta,
+        ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".tif" or ".tiff" or ".webp" or ".heic" => Glifos.Figuras,
+        _ => Glifos.Relatorio,
     };
 
     /// <summary>O tipo de arquivo como grupo da página do processo (agrupar e ordenar por tipo), a partir da <see cref="Chave"/>:

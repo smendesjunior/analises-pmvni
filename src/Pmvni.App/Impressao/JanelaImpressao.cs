@@ -57,10 +57,12 @@ internal sealed class JanelaImpressao : Window
         barra.Children.Add(estado);
         botaoImprimir.Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"];
         AtualizarDicaImpressao("Aguarde o carregamento do documento.");
+        IconeDeAcao.SetGlifo(botaoImprimir, Glifos.Imprimir);
         botaoImprimir.Click += (_, _) => MostrarImpressao();
         Grid.SetColumn(botaoImprimir, 1);
         barra.Children.Add(botaoImprimir);
         var fechar = new Button { Content = "Fechar" };
+        IconeDeAcao.SetGlifo(fechar, Glifos.Fechar);
         Dicas.Aplicar(fechar, "Fechar", "Fecha a janela de impressão.");
         fechar.Click += (_, _) => Close();
         Grid.SetColumn(fechar, 2);

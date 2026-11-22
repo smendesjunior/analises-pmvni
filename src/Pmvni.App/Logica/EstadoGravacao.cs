@@ -22,11 +22,11 @@ public static class EstadoGravacaoTexto
     /// <summary>Ícone do selo (Segoe Fluent): ✓ em círculo, sincronizar, aviso, erro ou cadeado.</summary>
     public static string Glifo(EstadoGravacao e) => e switch
     {
-        EstadoGravacao.Salvo => "",
-        EstadoGravacao.Salvando => "",
-        EstadoGravacao.NaoSalvo => "",
-        EstadoGravacao.Conflito => "",
-        EstadoGravacao.SomenteLeitura => "",
+        EstadoGravacao.Salvo => Glifos.Concluido,
+        EstadoGravacao.Salvando => Glifos.Sincronizar,
+        EstadoGravacao.NaoSalvo => Glifos.Avisos,
+        EstadoGravacao.Conflito => Glifos.Erro,
+        EstadoGravacao.SomenteLeitura => Glifos.Bloqueado,
         _ => throw new ArgumentOutOfRangeException(nameof(e)),
     };
 

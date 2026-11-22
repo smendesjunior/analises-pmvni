@@ -140,18 +140,21 @@ public sealed partial class MainWindow
         if (irParaProcessos)
         {
             botao = new Button { Content = "Abrir Processos" };
+            IconeDeAcao.SetGlifo(botao, Glifos.Pasta);
             Dicas.Aplicar(botao, "Abrir Processos", "Abre o módulo Processos para localizar ou criar a pasta do processo.");
             botao.Click += async (_, _) => await MudarModuloAsync(Modulo.Processos);
         }
         else if (emCurso)
         {
             botao = new Button { Content = "Cancelar" };
+            IconeDeAcao.SetGlifo(botao, Glifos.NaoConfigurado);
             Dicas.Aplicar(botao, "Cancelar", "Interrompe a geração do boletim.");
             botao.Click += (_, _) => cancelarBci?.Cancel();
         }
         else if (planoB)
         {
             botao = new Button { Content = "Abrir no GPI" };
+            IconeDeAcao.SetGlifo(botao, Glifos.Abrir);
             Dicas.Aplicar(botao, "Abrir no GPI", "Abre o GPI para terminar por lá (Tributário › Cadastro de Contribuintes › Contribuintes Manutenção).");
             botao.Click += async (_, _) => await MudarModuloAsync(Modulo.Gpi);
         }

@@ -77,10 +77,10 @@
         </ToggleButton>
         </Grid>
       </local:PainelQuebra>
-      <FontIcon Glyph="{x:Bind local:Glifos.Situacao}" FontSize="20" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
+      <FontIcon Glyph="{x:Bind local:Glifos.Situacao}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"/>
       <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
         <TextBlock Text="Acompanhamento de processos" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/>
-        <TextBlock x:Name="TextoSubtitulo" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
+        <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="TextoSubtitulo" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
       </StackPanel>
     </Grid>
 
@@ -165,7 +165,7 @@
           <!-- Planilha sem processos, ou nenhum com os filtros: a frase fica na área da tabela (antes só aparecia no rodapé). -->
           <StackPanel x:Name="SemResultado" x:FieldModifier="internal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Margin="0,48,0,0" Visibility="Collapsed">
             <TextBlock x:Name="TextoSemResultado" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="420"/>
-            <Button x:Name="BotaoLimparFiltros" x:FieldModifier="internal" Content="Limpar filtros" HorizontalAlignment="Center" AutomationProperties.Name="Limpar filtros" local:Dicas.Descricao="Limpa a pesquisa e remove os filtros da tabela."/>
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Limpar}" x:Name="BotaoLimparFiltros" x:FieldModifier="internal" Content="Limpar filtros" HorizontalAlignment="Center" AutomationProperties.Name="Limpar filtros" local:Dicas.Descricao="Limpa a pesquisa e remove os filtros da tabela."/>
           </StackPanel>
           <StackPanel x:Name="Vazio" x:FieldModifier="internal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="480" Padding="16" Visibility="Collapsed">
             <ContentPresenter x:Name="IconeVazio" x:FieldModifier="internal" Width="64" Height="64" HorizontalAlignment="Center" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw">
@@ -217,6 +217,6 @@
         </Grid>
       </Border>
 
-    <TextBlock x:Name="Rodape" x:FieldModifier="internal" Grid.Row="4" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
+    <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="Rodape" x:FieldModifier="internal" Grid.Row="4" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
   </Grid>
 </UserControl>

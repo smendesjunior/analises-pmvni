@@ -22,9 +22,9 @@
                Title="Conflito: o arquivo mudou no disco">
         <InfoBar.Content>
           <StackPanel local:AcoesDeAviso.AutoOcultar="True" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Button x:Name="BotaoSalvarCopia" x:FieldModifier="internal" Content="Salvar como cópia" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.SalvarComo}" x:Name="BotaoSalvarCopia" x:FieldModifier="internal" Content="Salvar como cópia" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                     local:Dicas.Descricao="Grava as suas alterações num arquivo novo, sem mexer no arquivo que mudou no disco."/>
-            <Button x:Name="BotaoRecarregar" x:FieldModifier="internal" Content="Recarregar"
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoRecarregar" x:FieldModifier="internal" Content="Recarregar"
                     local:Dicas.Descricao="Deixa de lado o que está na tela e abre a versão que está no disco."/>
           </StackPanel>
         </InfoBar.Content>
@@ -34,7 +34,7 @@
                Title="As folhas não mostram a última alteração">
         <InfoBar.Content>
           <StackPanel local:AcoesDeAviso.AutoOcultar="True" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Button x:Name="BotaoRecompor" x:FieldModifier="internal" Content="Recompor" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoRecompor" x:FieldModifier="internal" Content="Recompor" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                     local:Dicas.Descricao="Refaz as folhas com a última alteração; depois disso o PDF pode ser exportado."/>
           </StackPanel>
         </InfoBar.Content>
@@ -122,7 +122,7 @@
                 </Button>
                 <StackPanel Grid.Column="2" Spacing="5" VerticalAlignment="Center">
                   <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
-                    <TextBlock TextAlignment="Left" Text="{x:Bind Titulo}" Style="{x:Bind local:PaginaRelatorios.EstiloDoTitulo(Secao)}" MaxLines="{x:Bind LinhasTitulo}"
+                    <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" TextAlignment="Left" Text="{x:Bind Titulo}" Style="{x:Bind local:PaginaRelatorios.EstiloDoTitulo(Secao)}" MaxLines="{x:Bind LinhasTitulo}"
                                TextWrapping="{x:Bind QuebraTitulo}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                     <Border Grid.Column="1" Visibility="{x:Bind ContagemVisivel, Mode=OneWay}" CornerRadius="9" Padding="7,0,7,1" VerticalAlignment="Center"
                             Background="{ThemeResource SubtleFillColorSecondaryBrush}">
@@ -145,7 +145,7 @@
         </ListView>
         <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Padding="12,8" ColumnSpacing="6" Visibility="{Binding Visibility, ElementName=ListaNavegacao}">
           <TextBlock x:Name="ContagemNavegacao" TextAlignment="Left" VerticalAlignment="Center" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-          <Button x:Name="MaisItens" Grid.Column="1" Content="Ver mais itens" Click="AvancarNavegacao"
+          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.MaisOpcoes}" x:Name="MaisItens" Grid.Column="1" Content="Ver mais itens" Click="AvancarNavegacao"
                   AutomationProperties.Name="Ver mais itens"/>
         </Grid>
         <!-- Excluídos: cada linha com o número original, o título e Restaurar (as linhas são montadas pela janela). -->
@@ -270,7 +270,7 @@
                           <TextBlock Text="Rever com a IA"/>
                         </StackPanel>
                       </Button>
-                      <Button x:Name="PropAjustarCancelar" x:FieldModifier="internal" Content="Cancelar" Visibility="Collapsed"
+                      <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.NaoConfigurado}" x:Name="PropAjustarCancelar" x:FieldModifier="internal" Content="Cancelar" Visibility="Collapsed"
                               AutomationProperties.Name="Cancelar a consulta à IA"
                               local:Dicas.Descricao="Interrompe a consulta à IA; nada muda no relatório."/>
                     </StackPanel>
@@ -356,13 +356,13 @@
                 ToolTipService.ToolTip="Abra um relatório para mudar o zoom." IsEnabled="False">
           <FontIcon Glyph="{x:Bind local:Glifos.Aumentar}" FontSize="16"/>
         </Button>
-        <Button x:Name="BotaoLargura" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" Content="Ajustar largura" Margin="10,0,0,0"
+        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Ajustar}" x:Name="BotaoLargura" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" Content="Ajustar largura" Margin="10,0,0,0"
                 ToolTipService.ToolTip="Abra um relatório para ajustar a largura." IsEnabled="False"/>
-        <Button x:Name="BotaoPagina" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" Content="Página inteira"
+        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.PaginaInteira}" x:Name="BotaoPagina" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" Content="Página inteira"
                 ToolTipService.ToolTip="Abra um relatório para ver a página inteira." IsEnabled="False"/>
       </StackPanel>
       <local:IndicadorAvisos x:Name="IndicadorLayout" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center"/>
-      <TextBlock x:Name="TextoComposicao" x:FieldModifier="internal" Grid.Column="2" Text="" Style="{StaticResource PmvniSecondaryTextStyle}"
+      <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="TextoComposicao" x:FieldModifier="internal" Grid.Column="2" Text="" Style="{StaticResource PmvniSecondaryTextStyle}"
                  VerticalAlignment="Center" Margin="8,0" TextTrimming="CharacterEllipsis"/>
       <StackPanel x:Name="PainelFolha" x:FieldModifier="internal" Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Visibility="Collapsed">
         <TextBlock Text="Folha" Style="{StaticResource PmvniPainelRotulo}" VerticalAlignment="Center"/>

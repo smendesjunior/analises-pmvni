@@ -16,7 +16,7 @@
     <local:AreaDeAvisos x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0">
       <InfoBar x:Name="AvisoPasta" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="">
         <InfoBar.ActionButton>
-          <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Abrir Ajustes"
+          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Engrenagem}" x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Abrir Ajustes"
                   local:Dicas.Descricao="Abre os Ajustes para escolher a pasta onde ficam os processos."/>
         </InfoBar.ActionButton>
       </InfoBar>
@@ -25,11 +25,11 @@
       <InfoBar x:Name="AvisoGravado" x:FieldModifier="internal" Severity="Success" IsOpen="False" IsClosable="True" Title="Despacho gravado" Tag="fixo">
         <InfoBar.Content>
           <StackPanel local:AcoesDeAviso.AutoOcultar="True" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Button x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" Content="Abrir no Word"
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Abrir}" x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" Content="Abrir no Word"
                     local:Dicas.Descricao="Abre no Word o despacho que acabou de ser gravado."/>
-            <Button x:Name="BotaoAbrirPdfGravado" x:FieldModifier="internal" Content="Abrir PDF"
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Abrir}" x:Name="BotaoAbrirPdfGravado" x:FieldModifier="internal" Content="Abrir PDF"
                     local:Dicas.Descricao="Abre o PDF do despacho que acabou de ser gravado."/>
-            <Button x:Name="BotaoMostrarGravado" x:FieldModifier="internal" Content="Mostrar no Explorador"
+            <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.AbrirPasta}" x:Name="BotaoMostrarGravado" x:FieldModifier="internal" Content="Mostrar no Explorador"
                     local:Dicas.Descricao="Abre a pasta do despacho gravado no Explorador de Arquivos."/>
           </StackPanel>
         </InfoBar.Content>
@@ -41,7 +41,7 @@
         <ColumnDefinition Width="*"/>
         <ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
-      <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
+      <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
                  TextTrimming="CharacterEllipsis" AutomationProperties.Name="Quantidade de despachos"/>
       <ProgressRing x:Name="Anel" x:FieldModifier="internal" Grid.Column="1" IsActive="False" Width="18" Height="18"/>
     </Grid>

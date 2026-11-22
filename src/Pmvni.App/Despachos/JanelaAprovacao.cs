@@ -142,6 +142,7 @@ internal sealed class JanelaAprovacao : Window
                 else if (paginaSelo == indice) paginaSelo = -1;
                 modo = Colocacao.Nenhuma; Atualizar(); return Task.CompletedTask;
             });
+            IconeDeAcao.SetGlifo(confirmar, Glifos.Conferir);
             confirmar.Click += (_, _) =>
             {
                 if (!confirmar.IsEnabled) return;

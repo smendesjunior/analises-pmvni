@@ -428,7 +428,9 @@ public sealed partial class MainWindow
             AcceptsReturn = false,
         };
         var salvar = new Button { Content = "Salvar", Style = EstiloLeitura("PmvniBotaoPrimarioStyle") };
+        IconeDeAcao.SetGlifo(salvar, Glifos.Salvar);
         var automatico = new Button { Content = "Voltar ao automático" };
+        IconeDeAcao.SetGlifo(automatico, Glifos.Restaurar);
         Dicas.Aplicar(salvar, "Salvar", "Guarda o seu resumo deste artigo com os dados da lei.");
         var nota = new TextBlock
         {

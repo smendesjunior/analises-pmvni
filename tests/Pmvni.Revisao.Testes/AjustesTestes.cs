@@ -203,7 +203,7 @@ public class AjustesKitTestes
     }
 
     [Fact]
-    public void salvar_resiste_a_arquivo_preso_por_um_instante()
+    public async Task salvar_resiste_a_arquivo_preso_por_um_instante()
     {
         using var pasta = Ambiente.PastaDeTeste("ajustes-preso");
         new Ajustes().Salvar(pasta);
@@ -211,7 +211,7 @@ public class AjustesKitTestes
         var preso = new FileStream(arquivo, FileMode.Open, FileAccess.Read, FileShare.None);
         var soltar = Task.Run(() => { Thread.Sleep(100); preso.Dispose(); });
         new Ajustes().Salvar(pasta);
-        soltar.Wait();
+        await soltar;
         Assert.False(File.Exists(arquivo + ".tmp"));
         Assert.NotNull(Ajustes.Carregar(pasta));
     }

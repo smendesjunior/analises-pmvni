@@ -71,7 +71,7 @@ public sealed partial class EscolhaDePecas : UserControl
         else
         {
             var semMiniatura = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-            semMiniatura.Children.Add(new FontIcon { Glyph = "", FontSize = 32 });
+            semMiniatura.Children.Add(new FontIcon { Glyph = Glifos.Relatorio, FontSize = 32 });
             semMiniatura.Children.Add(new TextBlock { Text = v.Nome, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, MaxWidth = 200 });
             visual.Children.Add(new Border
             {
@@ -94,6 +94,7 @@ public sealed partial class EscolhaDePecas : UserControl
         opcoes.Add(opcao);
 
         var abrir = new Button { Content = "Abrir o PDF", IsEnabled = v.Arquivo is not null };
+        IconeDeAcao.SetGlifo(abrir, Glifos.Abrir);
         ToolTipService.SetToolTip(abrir, v.Arquivo is null ? "O arquivo não foi encontrado na pasta do processo." : "Abre " + v.Nome + " no programa padrão do Windows.");
         AutomationProperties.SetName(abrir, "Abrir o PDF " + v.Nome);
         abrir.Click += (_, _) => Abrir(i);

@@ -336,12 +336,14 @@ public sealed partial class MainWindow
                 celulaSelo = new StackPanel { Spacing = 2, Children = { selo, ver } };
             }
             var abrir = new Button { Content = "Relatório", Padding = new Thickness(6, 5, 6, 6), HorizontalAlignment = HorizontalAlignment.Stretch };
+            IconeDeAcao.SetGlifo(abrir, Glifos.Relatorio);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrir, "Abrir relatório do imóvel " + reg.InscricaoMunicipal);
             Dicas.Aplicar(abrir, "Abrir relatório", "Mostra os dados cadastrais e territoriais do imóvel.");
             abrir.Click += async (_, _) => await AbrirRelatorioDoImovelAsync(reg);
             // 2026-11-17: o Boletim de Cadastro Imobiliário oficial, emitido pelo GPI com a inscrição municipal desta linha.
             var gerar = new Button { Content = "Gerar boletim…", Padding = new Thickness(6, 5, 6, 6),
                 Style = (Style)Application.Current.Resources["PmvniBotaoTonalStyle"], HorizontalAlignment = HorizontalAlignment.Stretch };
+            IconeDeAcao.SetGlifo(gerar, Glifos.Documento);
             Brilho.SetAtivo(gerar, false);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(gerar, "Gerar boletim cadastral do imóvel " + reg.InscricaoMunicipal);
             Dicas.Aplicar(gerar, "Gerar boletim cadastral…", "Escolhe onde salvar e emite pelo GPI o boletim oficial desta inscrição.");

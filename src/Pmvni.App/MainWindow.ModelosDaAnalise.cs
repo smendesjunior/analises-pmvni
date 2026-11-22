@@ -270,15 +270,14 @@ public sealed partial class MainWindow
                     // Uma linha por rota: o texto à esquerda e a chave à direita, todas na mesma coluna (antes cada chave ficava sob o seu título,
                     // alinhada pela largura do texto, e as três apareciam desencontradas).
                     var alternar = new ToggleSwitch { IsOn = ModelosDaAnalise.Ligada(a, e, rota), Style = (Style)Application.Current.Resources["PmvniAjusteAlternar"],
-                        HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, MinWidth = 0 };
+                        HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
                     var linhaRota = new Grid { ColumnSpacing = 16, Margin = new Thickness(16, 0, 16, 8) };
                     linhaRota.ColumnDefinitions.Add(new ColumnDefinition());
-                    linhaRota.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+                    linhaRota.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                     linhaRota.Children.Add(new TextBlock
                     {
                         Text = e.Nome + " na rota " + nome + (e.LigadaPorRota.GetValueOrDefault(rota, true) ? " (padrão do kit: ligada)" : " (padrão do kit: desligada)"),
-                        Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], FontSize = 14,
-                        Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"],
+                        Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"],
                     });
                     Grid.SetColumn(alternar, 1);
                     linhaRota.Children.Add(alternar);

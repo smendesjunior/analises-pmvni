@@ -56,8 +56,8 @@ internal sealed class JanelaFigura : Window
     readonly TextBlock motivoRemover = new() { TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], Visibility = Visibility.Collapsed };
     readonly TextBlock estado = new() { HorizontalAlignment = HorizontalAlignment.Left, TextAlignment = TextAlignment.Left, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] };
     readonly AppBarButton botaoDesfazer = new() { Icon = new FontIcon { Glyph = Glifos.Desfazer, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Desfazer" };
-    readonly AppBarButton botaoRefazer = new() { Icon = new FontIcon { Glyph = "\uE7A6", Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Refazer" };
-    readonly AppBarButton botaoInserir = new() { Icon = new FontIcon { Glyph = "\uE7A8", Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Inserir região da prancha…" };
+    readonly AppBarButton botaoRefazer = new() { Icon = new FontIcon { Glyph = Glifos.Refazer, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Refazer" };
+    readonly AppBarButton botaoInserir = new() { Icon = new FontIcon { Glyph = Glifos.Recortar, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Inserir região da prancha…" };
     readonly TextBlock textoZoom = new() { Text = "100%", VerticalAlignment = VerticalAlignment.Center, MinWidth = 52, TextAlignment = TextAlignment.Center };
 
     // ---------- estado ----------
@@ -144,10 +144,10 @@ internal sealed class JanelaFigura : Window
         botaoInserir.Click += (_, _) => host.AbrirRecortePrancha(figuraId);
         barra.PrimaryCommands.Add(botaoInserir);
         barra.PrimaryCommands.Add(new AppBarSeparator());
-        Botao(barra, FerramentaFigura.Selecionar, "\uE8B0", "Selecionar", "Selecionar, mover e redimensionar marcações (arraste as alças)");
-        Botao(barra, FerramentaFigura.Regiao, "\uE7E6", "Marcar região", "Arraste um retângulo sobre o elemento: caixa vermelha, seta e número");
+        Botao(barra, FerramentaFigura.Selecionar, Glifos.Selecionar, "Selecionar", "Selecionar, mover e redimensionar marcações (arraste as alças)");
+        Botao(barra, FerramentaFigura.Regiao, Glifos.Regiao, "Marcar região", "Arraste um retângulo sobre o elemento: caixa vermelha, seta e número");
         Botao(barra, FerramentaFigura.Seta, Glifos.Avancar, "Seta", "Clique no ponto que a seta deve indicar: seta e número");
-        Botao(barra, FerramentaFigura.Texto, "\uE8D2", "Texto", "Clique onde o texto deve ficar e escreva no painel ao lado");
+        Botao(barra, FerramentaFigura.Texto, Glifos.Texto, "Texto", "Clique onde o texto deve ficar e escreva no painel ao lado");
         barra.PrimaryCommands.Add(new AppBarSeparator());
         botaoDesfazer.Click += async (_, _) => await HistoricoAsync(false);
         botaoRefazer.Click += async (_, _) => await HistoricoAsync(true);
@@ -170,6 +170,7 @@ internal sealed class JanelaFigura : Window
         barra.PrimaryCommands.Add(mais);
         barra.PrimaryCommands.Add(ajustar);
         var concluir = new Button { Content = "Concluir", Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"], Margin = new Thickness(8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+        IconeDeAcao.SetGlifo(concluir, Glifos.Concluido);
         Dicas.Aplicar(concluir, "Concluir", "Fecha o editor. Cada alteração já foi aplicada ao relatório; desfaça com Ctrl+Z na janela principal.");
         concluir.Click += (_, _) => Close();
         Grid.SetColumn(concluir, 1);
@@ -196,7 +197,7 @@ internal sealed class JanelaFigura : Window
         faixaPrancha.Children.Add(tituloPrancha);
         Grid.SetColumn(modoAtual, 1);
         faixaPrancha.Children.Add(modoAtual);
-        var desenho = PainelPrancha.Quadro(faixaPrancha, rolagem, Symbol.Crop);
+        var desenho = PainelPrancha.Quadro(faixaPrancha, rolagem, Glifos.Recortar);
         desenho.Margin = new Thickness(12, 12, 6, 12);
         Grid.SetRow(desenho, 1);
         raiz.Children.Add(desenho);
@@ -251,6 +252,7 @@ internal sealed class JanelaFigura : Window
             var ids = listaItens.SelectedItems.OfType<FrameworkElement>().Select(e => (string)e.Tag).ToList();
             await AplicarAsync(new VincularItens(figuraId, selecionada, ids));
         };
+        IconeDeAcao.SetGlifo(botaoRemover, Glifos.Excluir);
         botaoRemover.Click += async (_, _) => { if (selecionada is { } s) await AplicarAsync(new ExcluirMarcacao(figuraId, s)); };
         painel.Children.Add(painelMarcacao);
         var lateral = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };

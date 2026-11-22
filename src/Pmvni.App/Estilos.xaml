@@ -20,6 +20,8 @@
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
     <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
   </Style>
@@ -31,6 +33,8 @@
     <Setter Property="ContentTemplate" Value="{StaticResource PmvniTextoEscolha}"/>
   </Style>
   <Style x:Key="PmvniEscolha" TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
     <Setter Property="ItemTemplate" Value="{StaticResource PmvniTextoEscolha}"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -43,6 +47,11 @@
   <x:Double x:Key="PmvniLarguraPropriedades">320</x:Double>
   <Thickness x:Key="PmvniMargemPagina">24,16,24,16</Thickness>
 
+  <x:Double x:Key="PmvniTamanhoRotuloFaixa">12</x:Double>
+  <Style x:Key="PmvniRotuloFaixa" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+    <Setter Property="FontSize" Value="{StaticResource PmvniTamanhoRotuloFaixa}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
   <Style x:Key="PmvniSecondaryTextStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
     <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
@@ -88,8 +97,9 @@
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="CornerRadius" Value="13"/>
     <!-- 3.2.2: o hover é uma pílula recuada 3 px dentro do grupo (raio 16 do grupo - 3 = 13), concêntrica e sem invadir a borda. -->
-    <Setter Property="Margin" Value="3"/>
-    <Setter Property="Padding" Value="12,0,14,1"/>
+    <Setter Property="Margin" Value="2"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="12,0"/>
     <Setter Property="VerticalAlignment" Value="Stretch"/>
   </Style>
   <Style x:Key="PmvniDivisoriaGrupoCabecalho" TargetType="Border">
@@ -128,6 +138,12 @@
     <Setter Property="FontFamily" Value="{ThemeResource SymbolThemeFontFamily}"/>
     <Setter Property="FontSize" Value="16"/>
   </Style>
+  <DataTemplate x:Key="PmvniRotuloComIcone">
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" VerticalAlignment="Center">
+      <FontIcon local:IconeDeAcao.LerDoBotao="True" Style="{StaticResource PmvniIconeAcao}" AutomationProperties.AccessibilityView="Raw"/>
+      <TextBlock Grid.Column="1" Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding}"/>
+    </Grid>
+  </DataTemplate>
   <Style x:Key="PmvniIconeAcaoSucesso" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeAcao}">
     <Setter Property="Foreground" Value="{ThemeResource SystemFillColorSuccessBrush}"/>
   </Style>
@@ -320,12 +336,7 @@
 
   <!-- Cartões dos Ajustes (no padrão do WinStatusBar): grupo com fundo de cartão, borda e raio 8; linha = título + ajuda à esquerda e
        o controle numa coluna de 240 à direita (empilha abaixo de 540 px: LinhaAjuste). -->
-  <Style x:Key="PmvniAjusteTituloPagina" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
-    <Setter Property="TextAlignment" Value="Left"/>
-    <Setter Property="VerticalAlignment" Value="Center"/>
-    <Setter Property="FontSize" Value="24"/>
-    <Setter Property="TextWrapping" Value="Wrap"/>
-  </Style>
+
   <Style x:Key="PmvniAjusteAjuda" TargetType="TextBlock">
     <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
@@ -364,7 +375,7 @@
     <Setter Property="OnContent" Value="Ativado"/>
     <Setter Property="OffContent" Value="Desativado"/>
     <Setter Property="HorizontalAlignment" Value="Right"/>
-    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="MinWidth" Value="144"/>
   </Style>
   <!-- Cartões de seção numerados (correções 2026-11-15, modelo NovoRelatorioPage.xaml): usados em Novo relatório, Novo despacho e Ajustes. -->
   <Style x:Key="PmvniCartaoSecao" TargetType="Border" BasedOn="{StaticResource PmvniSuperficieElevada}">
@@ -539,7 +550,7 @@
     <Setter Property="Padding" Value="16,12"/>
   </Style>
   <Style x:Key="PmvniCartaoCompactoStyle" TargetType="Border" BasedOn="{StaticResource PmvniCartaoStyle}">
-    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="Padding" Value="10,6"/>
   </Style>
   <Style x:Key="PmvniSeloStatusSucessoStyle" TargetType="Border">
@@ -552,6 +563,10 @@
   </Style>
   <Style x:Key="PmvniSeloStatusAtencaoStyle" TargetType="Border" BasedOn="{StaticResource PmvniSeloStatusSucessoStyle}">
     <Setter Property="Background" Value="{ThemeResource SystemFillColorCautionBackgroundBrush}"/>
+  </Style>
+  <Style x:Key="PmvniIconeTituloPagina" TargetType="FontIcon" BasedOn="{StaticResource PmvniIconeDestaqueStyle}">
+    <Setter Property="FontSize" Value="20"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniFundoJanelaStyle" TargetType="Grid">
     <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorBaseBrush}"/>
@@ -584,7 +599,7 @@
     <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
     <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="CornerRadius" Value="8"/>
   </Style>
   <Style x:Key="PmvniCampoPesquisa" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
     <Setter Property="TextAlignment" Value="Left"/>

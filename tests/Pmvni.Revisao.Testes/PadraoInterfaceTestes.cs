@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Xunit;
 
 namespace Pmvni.Revisao.Testes;
@@ -15,7 +16,7 @@ public class PadraoInterfaceTestes
     static readonly string Fonte = Path.Combine(Ambiente.PastaTestes, "..", "src", "Pmvni.App");
 
     // Arquivos que definem o padrão (os estilos) ou desenham ícones coloridos fixos; ficam fora das regras de uso.
-    static readonly string[] Definicoes = ["Estilos.xaml", "App.xaml", "Trilho.xaml", "IconesModulos.xaml", "CoresTonais.xaml", "Brilho.cs", "BrilhoArcoIris.cs", "AutotesteBrilho.cs"];
+    static readonly string[] Definicoes = ["Estilos.xaml", "App.xaml", "Trilho.xaml", "IconesModulos.xaml", "CoresTonais.xaml", "Glifos.cs", "Brilho.cs", "BrilhoArcoIris.cs", "AutotesteBrilho.cs"];
 
     const string Botao = "Button|DropDownButton|ToggleButton|SplitButton|RepeatButton|HyperlinkButton|AppBarButton|AppBarToggleButton";
     const string ItemMenu = "MenuFlyoutItem|ToggleMenuFlyoutItem|MenuFlyoutSubItem|RadioMenuFlyoutItem";
@@ -27,6 +28,9 @@ public class PadraoInterfaceTestes
         { "botão com raio dos cantos próprio (o padrão é ControlCornerRadius)", $@"<({Botao})\b[^>]*\bCornerRadius=""(?!\{{)|new ({Botao})\s*\{{[^}}]*\bCornerRadius\s*=" },
         { "brilho decorativo ligado", @"Brilho\.Ativo=""True""|Brilho\.SetAtivo\([^,]+,\s*true\)" },
         { "item de menu com texto, espaçamento ou altura próprios", $@"<({ItemMenu})\b[^>]*\b(FontSize|FontWeight|Padding|Height|MinHeight)=""|new ({ItemMenu})\s*\{{[^}}]*\b(FontSize|FontWeight|Padding|Height|MinHeight)\s*=" },
+        { "ícone fora do catálogo Fluent", @"<SymbolIcon\b|new SymbolIcon\s*\(|Glyph=""&#x|[\uE000-\uF8FF]|""\\u[EeFf][\da-fA-F]{3}""" },
+        { "tipografia local em rótulo XAML", @"<TextBlock\b[^>]*\sFont(?:Size|Weight)=""(?!\{)" },
+        { "ação textual XAML sem ícone", @"<Button\b(?=[^>]*\sContent=""[^""{]+"")(?![^>]*IconeDeAcao\.Glifo=)[^>]*>" },
         { "letras espaçadas", "CharacterSpacing" },
         { "ícone de menu fora de 16 px", @"\.Icon>\s*<FontIcon\b(?=[^>]*FontSize="")(?![^>]*FontSize=""16"")[^>]*/>" },
     };
@@ -46,6 +50,51 @@ public class PadraoInterfaceTestes
                 desvios.Add($"{Path.GetRelativePath(Fonte, arquivo)}:{texto.AsSpan(0, m.Index).Count('\n') + 1}");
         }
         Assert.True(desvios.Count == 0, $"{regra}: {string.Join(", ", desvios)}");
+    }
+
+    [Fact]
+    public void icones_sao_uniformes_dentro_de_cada_menu_da_faixa()
+    {
+        foreach (var modulo in Pmvni.App.Faixas.Disponiveis)
+        foreach (var comando in Pmvni.App.Faixas.Comandos(Pmvni.App.Faixas.Para(modulo)))
+        {
+            if (comando.Itens is not { Count: > 0 } itens) continue;
+            Assert.True(itens.All(i => i.Glifo.Length == 0) || itens.All(i => i.Glifo.Length > 0),
+                $"{modulo} › {comando.Rotulo}");
+        }
+    }
+
+    [Fact]
+    public void paineis_de_acoes_dos_avisos_recolhem_quando_vazios()
+    {
+        foreach (var arquivo in Directory.GetFiles(Path.Combine(Fonte, "Paginas"), "*.xaml"))
+        {
+            var documento = System.Xml.Linq.XDocument.Load(arquivo);
+            var paineis = documento.Descendants().Where(e => e.Parent?.Name.LocalName == "InfoBar.Content"
+                && e.Descendants().Any(b => b.Name.LocalName == "Button"));
+            foreach (var painel in paineis)
+                Assert.True(painel.Attributes().Any(a => a.Name.LocalName == "AcoesDeAviso.AutoOcultar" && a.Value == "True"), arquivo);
+        }
+    }
+
+    [Fact]
+    public void hover_e_concentrico_no_grupo_de_navegacao()
+    {
+        var estilos = System.Xml.Linq.XDocument.Load(Path.Combine(Fonte, "Estilos.xaml"));
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        int Medida(string estilo, string propriedade)
+        {
+            var bloco = estilos.Root!.Elements().Single(e => (string?)e.Attribute(x + "Key") == estilo);
+            var setter = bloco.Elements().Single(e => (string?)e.Attribute("Property") == propriedade);
+            return (int)setter.Attribute("Value")!;
+        }
+
+        const string grupo = "PmvniGrupoCabecalho";
+        const string botao = "PmvniBotaoGrupoCabecalhoStyle";
+        var recuo = Medida(grupo, "BorderThickness") + Medida(botao, "Margin");
+        Assert.Equal(Medida(grupo, "Height") / 2, Medida(grupo, "CornerRadius"));
+        Assert.Equal(Medida(grupo, "CornerRadius") - recuo, Medida(botao, "CornerRadius"));
+        Assert.True(Medida(botao, "MinHeight") <= Medida(grupo, "Height") - 2 * recuo);
     }
 
     [Fact]

@@ -49,19 +49,19 @@ public static class Atividades
                 _ => "Execução encerrada",
             };
             var erro = titulo is "Falha na análise" or "A análise não iniciou";
-            return new(erro ? TipoAtividade.Erro : TipoAtividade.Texto, titulo, null, erro ? "" : "", hora);
+            return new(erro ? TipoAtividade.Erro : TipoAtividade.Texto, titulo, null, erro ? Glifos.Erro : Glifos.Atividade, hora);
         }
 
         if (t.StartsWith("Mensagem: ", StringComparison.Ordinal))
-            return new(TipoAtividade.Mensagem, "Observação da IA", Maiuscula(t[10..]), "", hora);
+            return new(TipoAtividade.Mensagem, "Observação da IA", Maiuscula(t[10..]), Glifos.Comentario, hora);
         if (t.StartsWith("Erro: ", StringComparison.Ordinal))
-            return new(TipoAtividade.Erro, "Falha na execução", Maiuscula(t[6..]), "", hora);
+            return new(TipoAtividade.Erro, "Falha na execução", Maiuscula(t[6..]), Glifos.Erro, hora);
         if (t.StartsWith("Ação: ", StringComparison.Ordinal))
         {
             var (titulo, detalhe, glifo) = DaAcao(t[6..]);
             return new(TipoAtividade.Acao, titulo, detalhe, glifo, hora);
         }
-        return new(TipoAtividade.Texto, Maiuscula(t), null, "", hora);
+        return new(TipoAtividade.Texto, Maiuscula(t), null, Glifos.Comentario, hora);
     }
 
     static Atividade DaEtapa(string registro, DateTime? hora, bool pausada)
@@ -88,7 +88,7 @@ public static class Atividades
                 ? "A etapa falhou e será tentada novamente." : "A etapa falhou.",
             _ => detalhe,
         };
-        return new(falha ? TipoAtividade.Erro : TipoAtividade.Acao, titulo, detalhe, falha ? "" : "", hora);
+        return new(falha ? TipoAtividade.Erro : TipoAtividade.Acao, titulo, detalhe, falha ? Glifos.Erro : Glifos.Conferir, hora);
     }
 
     /// <summary>Título natural, detalhe e ícone de uma ação (as descrições vêm de EventosCodex.DescreverComando).</summary>
@@ -96,25 +96,25 @@ public static class Atividades
     {
         var a = acao.Trim();
         var m = a.ToLowerInvariant();
-        if (m.Contains("instruções")) return ("Instruções de análise carregadas", "Diretrizes e critérios do processo aplicados.", "");
-        if (m.StartsWith("listando", StringComparison.Ordinal)) return ("Documentos do processo identificados", m.Contains("processo") ? null : "Arquivos da pasta listados.", "");
-        if (m.Contains("posições") || m.Contains("inspecionando")) return ("Conteúdo das pranchas examinado", null, "");
-        if (m.Contains("texto extraído") || m.Contains("extraindo o texto")) return ("Conteúdo dos documentos lido", "Textos extraídos e analisados.", "");
-        if (m.Contains("legislação")) return ("Legislação municipal consultada", Parenteses(a), "");
-        if (m.Contains("mapa")) return ("Mapa de localização preparado", null, "");
-        if (m.Contains("fontes")) return ("Fontes documentais organizadas", null, "");
-        if (m.Contains("evidências")) return ("Evidências visuais preparadas", null, "");
-        if (m.Contains("pesquisando")) return ("Documentos pesquisados", null, "");
+        if (m.Contains("instruções")) return ("Instruções de análise carregadas", "Diretrizes e critérios do processo aplicados.", Glifos.Relatorio);
+        if (m.StartsWith("listando", StringComparison.Ordinal)) return ("Documentos do processo identificados", m.Contains("processo") ? null : "Arquivos da pasta listados.", Glifos.Pasta);
+        if (m.Contains("posições") || m.Contains("inspecionando")) return ("Conteúdo das pranchas examinado", null, Glifos.Inspecionar);
+        if (m.Contains("texto extraído") || m.Contains("extraindo o texto")) return ("Conteúdo dos documentos lido", "Textos extraídos e analisados.", Glifos.Relatorio);
+        if (m.Contains("legislação")) return ("Legislação municipal consultada", Parenteses(a), Glifos.Livro);
+        if (m.Contains("mapa")) return ("Mapa de localização preparado", null, Glifos.Mapa);
+        if (m.Contains("fontes")) return ("Fontes documentais organizadas", null, Glifos.Explorador);
+        if (m.Contains("evidências")) return ("Evidências visuais preparadas", null, Glifos.Camera);
+        if (m.Contains("pesquisando")) return ("Documentos pesquisados", null, Glifos.Pesquisar);
         if (m.StartsWith("gravou", StringComparison.Ordinal))
         {
             var n = new string(a.SkipWhile(c => !char.IsDigit(c)).TakeWhile(char.IsDigit).ToArray());
-            return n is "" or "1" ? ("Arquivo de trabalho salvo", null, "") : ($"{n} arquivos de trabalho salvos", null, "");
+            return n is "" or "1" ? ("Arquivo de trabalho salvo", null, Glifos.Salvar) : ($"{n} arquivos de trabalho salvos", null, Glifos.Salvar);
         }
-        if (m.Contains("créditos")) return ("Créditos disponíveis consultados", null, "");
-        if (m.StartsWith("consultou ", StringComparison.Ordinal)) return ("Ferramenta do kit consultada", Maiuscula(a[10..]), "");
-        if (m.StartsWith("executando a etapa ", StringComparison.Ordinal)) return ("Etapa de apoio executada", Maiuscula(a[19..]), "");
-        if (m.StartsWith("lendo ", StringComparison.Ordinal)) return ("Arquivo lido", a[6..], "");
-        return (Maiuscula(a), null, "");
+        if (m.Contains("créditos")) return ("Créditos disponíveis consultados", null, Glifos.Creditos);
+        if (m.StartsWith("consultou ", StringComparison.Ordinal)) return ("Ferramenta do kit consultada", Maiuscula(a[10..]), Glifos.Ferramenta);
+        if (m.StartsWith("executando a etapa ", StringComparison.Ordinal)) return ("Etapa de apoio executada", Maiuscula(a[19..]), Glifos.Executar);
+        if (m.StartsWith("lendo ", StringComparison.Ordinal)) return ("Arquivo lido", a[6..], Glifos.Relatorio);
+        return (Maiuscula(a), null, Glifos.Executar);
     }
 
     /// <summary>As últimas mensagens do agente (no máximo <paramref name="maximo"/>, a mais recente primeiro), verificadas quando a análise

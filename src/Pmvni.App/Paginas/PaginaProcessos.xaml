@@ -23,7 +23,7 @@
       <StackPanel Width="120" Height="168" Padding="4,6,4,2" Spacing="4" Background="Transparent"
                   AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Dica}">
         <local:MiniaturaArquivo Caminho="{x:Bind Caminho}" HorizontalAlignment="Center"/>
-        <TextBlock Text="{x:Bind Texto}" Style="{StaticResource PmvniSecondaryTextStyle}" TextAlignment="Center" HorizontalAlignment="Center" TextWrapping="Wrap" MaxLines="3"
+        <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Text="{x:Bind Texto}" Style="{StaticResource PmvniSecondaryTextStyle}" TextAlignment="Center" HorizontalAlignment="Center" TextWrapping="Wrap" MaxLines="3"
                    TextTrimming="CharacterEllipsis"/>
       </StackPanel>
     </DataTemplate>
@@ -41,7 +41,7 @@
     <local:AreaDeAvisos x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0">
       <InfoBar x:Name="AvisoPasta" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="">
         <InfoBar.ActionButton>
-          <Button x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Abrir Ajustes"
+          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Engrenagem}" x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Abrir Ajustes"
                   local:Dicas.Descricao="Abre os Ajustes para escolher a pasta onde ficam os processos."/>
         </InfoBar.ActionButton>
       </InfoBar>
@@ -53,7 +53,7 @@
         <ColumnDefinition Width="284" MinWidth="240"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
-      <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Padding="14,10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="10"><FontIcon Glyph="{x:Bind local:Glifos.Pasta}" FontSize="20" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/><StackPanel Grid.Column="1"><TextBlock TextAlignment="Left" Text="Acervo de processos" AutomationProperties.HeadingLevel="Level1" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock TextAlignment="Left" Text="Gestão de documentos e histórico" Style="{StaticResource PmvniSecondaryTextStyle}"/></StackPanel><TextBlock TextAlignment="Left" Grid.Column="2" VerticalAlignment="Center" Text="{Binding Text, ElementName=TextoContagem}" Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.AccessibilityView="Raw"/></Grid>
+      <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Padding="14,10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="8"><FontIcon Glyph="{x:Bind local:Glifos.Pasta}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"/><StackPanel Grid.Column="1"><TextBlock TextAlignment="Left" Text="Acervo de processos" AutomationProperties.HeadingLevel="Level1" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock TextAlignment="Left" Text="Gestão de documentos e histórico" Style="{StaticResource PmvniSecondaryTextStyle}"/></StackPanel><TextBlock TextAlignment="Left" Grid.Column="2" VerticalAlignment="Center" Text="{Binding Text, ElementName=TextoContagem}" Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.AccessibilityView="Raw"/></Grid>
 
 
       <!-- Lista de processos. -->
@@ -72,7 +72,7 @@
               <FontIcon Glyph="{x:Bind local:Glifos.Lista}" FontSize="16" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock Text="Processos" Style="{StaticResource PmvniTituloSecao}" AutomationProperties.HeadingLevel="Level2"/>
             </StackPanel>
-            <TextBlock TextAlignment="Left" x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
+            <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" TextAlignment="Left" x:Name="TextoContagem" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"
                      TextTrimming="CharacterEllipsis" AutomationProperties.Name="Quantidade de processos"/>
             <Grid>
               <TextBox TextAlignment="Left" Style="{StaticResource PmvniCampoPesquisa}" x:Name="FiltroAcervo" x:FieldModifier="internal" PlaceholderText="Número ou nome do processo" AutomationProperties.Name="Filtrar processos"/>
@@ -93,8 +93,8 @@
                   <TextBlock Text="{x:Bind Iniciais}" Style="{StaticResource PmvniPainelMarcaTexto}" HorizontalAlignment="Center" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
                 </Border>
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                  <TextBlock TextAlignment="Left" Text="{x:Bind Titulo}" Style="{StaticResource PmvniAjusteTitulo}" TextTrimming="CharacterEllipsis"/>
-                  <TextBlock TextAlignment="Left" Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" TextAlignment="Left" Text="{x:Bind Titulo}" Style="{StaticResource PmvniAjusteTitulo}" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" TextAlignment="Left" Text="{x:Bind Detalhe}" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
               </Grid>
             </DataTemplate>

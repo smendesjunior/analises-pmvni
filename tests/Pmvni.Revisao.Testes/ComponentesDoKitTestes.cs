@@ -175,7 +175,7 @@ public sealed class ComponentesDoKitTestes : IDisposable
     }
 
     [Fact]
-    public void Com_analise_em_andamento_nada_e_iniciado()
+    public async Task Com_analise_em_andamento_nada_e_iniciado()
     {
         var chamadas = 0;
         foreach (var parte in new[] { "analise", "motores", null })
@@ -184,7 +184,7 @@ public sealed class ComponentesDoKitTestes : IDisposable
             Assert.Equal(AtualizacaoKit.AvisoAnaliseEmAndamento(["2026-00123"]), texto);
         }
         Assert.Equal(AtualizacaoKit.AvisoAnaliseEmAndamento(["2026-00123"]),
-            ComponentesDoKit.AtualizarAsync(null, ["2026-00123"], Scripts, KitLocal, (_, _) => chamadas++).GetAwaiter().GetResult());
+            await ComponentesDoKit.AtualizarAsync(null, ["2026-00123"], Scripts, KitLocal, (_, _) => chamadas++));
         Assert.Equal(0, chamadas);
         Assert.Empty(Directory.GetFiles(Scripts, "*.cmd"));
     }

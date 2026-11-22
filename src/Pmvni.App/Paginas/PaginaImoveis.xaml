@@ -21,7 +21,7 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <!-- Título da página no padrão dos módulos: ícone de 20 px à esquerda e, ao lado, o título com o subtítulo alinhado a ele. -->
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
-          <FontIcon Glyph="{x:Bind local:Glifos.Mapa}" FontSize="20" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
+          <FontIcon Glyph="{x:Bind local:Glifos.Mapa}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"/>
           <StackPanel Grid.Column="1" Spacing="2">
             <TextBlock Text="Consulta de imóveis" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/>
             <TextBlock Text="Localize inscrições municipais, consulte a situação cadastral e acesse os dados geográficos." TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"/>
@@ -49,10 +49,10 @@
         </Button>
         <StackPanel Grid.Row="1" Grid.ColumnSpan="2" x:Name="PainelDeteccao" x:FieldModifier="internal" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
           <FontIcon Glyph="{x:Bind local:Glifos.Sobre}" FontSize="12" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw" VerticalAlignment="Center"/>
-          <TextBlock x:Name="TextoDeteccao" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"
+          <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="TextoDeteccao" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"
                      AutomationProperties.LiveSetting="Polite"/>
         </StackPanel>
-          <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" HorizontalAlignment="Right" x:Name="TextoPasta" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
+          <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" HorizontalAlignment="Right" x:Name="TextoPasta" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
       </Grid>
 
       <StackPanel Grid.Row="2" Spacing="6">
@@ -63,7 +63,7 @@
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
           <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
             <ProgressRing IsActive="True" Width="20" Height="20" VerticalAlignment="Center" local:Trabalhando.Automatico="False"/>
-            <TextBlock x:Name="TextoProgresso" x:FieldModifier="internal" Text="Pesquisando…" TextAlignment="Center" VerticalAlignment="Center"
+            <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="TextoProgresso" x:FieldModifier="internal" Text="Pesquisando…" TextAlignment="Center" VerticalAlignment="Center"
                        Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"/>
           </StackPanel>
         </Border>
@@ -111,11 +111,11 @@
                 local:Dicas.Titulo="Voltar à pesquisa" local:Dicas.Descricao="Volta à pesquisa, com os resultados como estavam.">
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Voltar}" FontSize="16"/><TextBlock Text="Voltar à pesquisa"/></StackPanel>
         </Button>
-        <TextBlock x:Name="TituloRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteTitulo}" AutomationProperties.HeadingLevel="Level1" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+        <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="TituloRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteTitulo}" AutomationProperties.HeadingLevel="Level1" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
         <!-- Cotas do lote no mapa (lados, domínio DNIT e eixo → terreno, largura da rua): ligadas por padrão; a escolha vale até fechar o app. -->
         <ToggleButton x:Name="BotaoCotas" x:FieldModifier="internal" Grid.Column="2" IsChecked="True" AutomationProperties.Name="Cotas no mapa"
                       local:Dicas.Titulo="Cotas no mapa" local:Dicas.Descricao="Mostra ou esconde as cotas do lote no mapa: lados do lote, faixa de domínio do DNIT e distância do eixo ao terreno (BR-262 perto) e largura da rua em frente, medidas na base.">
-          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE1D9;" FontSize="16"/><TextBlock Text="Cotas"/></StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Cotas}" FontSize="16"/><TextBlock Text="Cotas"/></StackPanel>
         </ToggleButton>
         <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="3" AutomationProperties.Name="Imprimir o relatório"
                 local:Dicas.Titulo="Imprimir" local:Dicas.Atalho="Ctrl+P" local:Dicas.Descricao="Abre as opções de impressão do relatório.">

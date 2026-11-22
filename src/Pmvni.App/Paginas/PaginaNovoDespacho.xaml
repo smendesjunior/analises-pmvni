@@ -28,10 +28,11 @@
       <Grid Grid.Column="1" Style="{StaticResource PmvniPainelLateral}" Margin="6" RowDefinitions="*,Auto"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
         <!-- Cartões de origem e conteúdo com os estilos de painel de Estilos.xaml. -->
         <StackPanel Padding="16,14,16,20" Spacing="12">
-          <Grid ColumnDefinitions="*,Auto">
-            <TextBlock x:Name="TextoTitulo" x:FieldModifier="internal" Text="Novo despacho" Style="{StaticResource PmvniTituloPaginaStyle}"
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <FontIcon Glyph="{x:Bind local:Glifos.NovoDespacho}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"/>
+            <TextBlock Grid.Column="1" x:Name="TextoTitulo" x:FieldModifier="internal" Text="Novo despacho" Style="{StaticResource PmvniTituloPaginaStyle}"
                        AutomationProperties.HeadingLevel="Level1"/>
-            <Border Grid.Column="1" Background="Transparent">
+            <Border Grid.Column="2" Background="Transparent">
               <Button x:Name="FecharOrigem" x:FieldModifier="internal" Width="32" Height="32" Padding="0"
                       IsEnabled="{Binding IsEnabled, ElementName=BotaoCancelar}" AutomationProperties.Name="Fechar novo despacho"
                       local:Dicas.Descricao="Fecha o novo despacho sem gravar.">
@@ -39,7 +40,7 @@
               </Button>
             </Border>
           </Grid>
-          <TextBlock Text="Defina a origem e os documentos de referência." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+          <TextBlock Margin="32,0,0,0" Text="Defina a origem e os documentos de referência." Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
 
           <Border Style="{StaticResource PmvniPainelCartao}">
             <StackPanel>
@@ -59,9 +60,9 @@
                   <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Processo"/>
                   <Grid ColumnSpacing="6" Margin="0,6,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Button x:Name="BotaoNovoProcesso" x:FieldModifier="internal" Content="Criar processo…" HorizontalAlignment="Stretch" AutomationProperties.Name="Criar um processo novo"
+                    <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Adicionar}" x:Name="BotaoNovoProcesso" x:FieldModifier="internal" Content="Criar processo…" HorizontalAlignment="Stretch" AutomationProperties.Name="Criar um processo novo"
                             local:Dicas.Titulo="Criar processo…" local:Dicas.Descricao="Cria a pasta de um processo novo (número, ano e requerente) e já o escolhe para o despacho."/>
-                    <Button x:Name="BotaoSemProcesso" x:FieldModifier="internal" Grid.Column="1" Content="Sem processo" HorizontalAlignment="Stretch" AutomationProperties.Name="Despacho sem processo vinculado"
+                    <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.NaoConfigurado}" x:Name="BotaoSemProcesso" x:FieldModifier="internal" Grid.Column="1" Content="Sem processo" HorizontalAlignment="Stretch" AutomationProperties.Name="Despacho sem processo vinculado"
                             local:Dicas.Titulo="Prosseguir sem processo" local:Dicas.Descricao="Libera o modelo para preencher na folha, sem ligar a um processo; o despacho é gravado em Documentos › Despachos sem processo."/>
                   </Grid>
                 </StackPanel>
@@ -205,7 +206,7 @@
         <TextBlock x:Name="TextoFontes" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBlock x:Name="TextoPaginas" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
-          <Button x:Name="BotaoMarcarTodas" x:FieldModifier="internal" Content="Marcar todas as páginas" Visibility="Collapsed"
+          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.SelecionarTudo}" x:Name="BotaoMarcarTodas" x:FieldModifier="internal" Content="Marcar todas as páginas" Visibility="Collapsed"
                   local:Dicas.Descricao="Marca todas as páginas do PDF como conferidas."/>
         </StackPanel>
       </StackPanel>
@@ -220,7 +221,7 @@
                   Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" CornerRadius="8">
         <ProgressRing x:Name="Anel" x:FieldModifier="internal" IsActive="False" Width="32" Height="32"/>
         <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" HorizontalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
-        <Button x:Name="BotaoInterromper" x:FieldModifier="internal" Content="Cancelar geração" HorizontalAlignment="Center"
+        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.NaoConfigurado}" x:Name="BotaoInterromper" x:FieldModifier="internal" Content="Cancelar geração" HorizontalAlignment="Center"
                 local:Dicas.Descricao="Interrompe a geração e apaga a pasta de trabalho."/>
       </StackPanel>
     </Grid>
@@ -247,16 +248,16 @@
           </Button>
         </Border>
         <Border Background="Transparent" Visibility="{Binding Visibility, ElementName=BotaoGravar}">
-          <Button x:Name="BotaoGravar" x:FieldModifier="internal" Content="Gravar na pasta do processo" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Salvar}" x:Name="BotaoGravar" x:FieldModifier="internal" Content="Gravar na pasta do processo" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                   local:Brilho.Ativo="False" IsEnabled="False" Visibility="Collapsed"
                   local:Dicas.Descricao="Grava o despacho conferido na pasta da etapa do processo."/>
         </Border>
         <Border Background="Transparent" Visibility="{Binding Visibility, ElementName=BotaoVoltar}">
-          <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Content="Voltar e editar" Visibility="Collapsed"
+          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Editar}" x:Name="BotaoVoltar" x:FieldModifier="internal" Content="Voltar e editar" Visibility="Collapsed"
                   local:Dicas.Descricao="Volta para a edição do despacho, antes de gravar."/>
         </Border>
         <Border Background="Transparent">
-          <Button x:Name="BotaoCancelar" x:FieldModifier="internal" Content="Cancelar"
+          <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.NaoConfigurado}" x:Name="BotaoCancelar" x:FieldModifier="internal" Content="Cancelar"
                   local:Dicas.Descricao="Fecha o novo despacho sem gravar nada."/>
         </Border>
       </StackPanel>
