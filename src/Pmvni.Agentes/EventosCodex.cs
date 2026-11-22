@@ -40,9 +40,9 @@ public static class EventosCodex
         new(@"^(?<etapa>prepare|analyze|technical_audit|produce|audit|final_review):\s*(?<modelo>\S+)\s*/\s*(?<esforco>\S+)\s*$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     /// <summary>Uma linha da saída do <c>executar_analise_62.py</c> (Tarefa 12) → a linha da tela; null = não mostrar. A situação do contrato (o JSON da
-    /// última linha) e qualquer JSON não aparecem: o editor os lê e mostra a situação. "analyze: gpt-6.2-astra / high" vira
-    /// "Etapa Análise: gpt-6.2-astra, raciocínio high". A cota e a decisão não são mais adivinhadas pelo texto: vêm dos códigos 20 e 21 do controlador.</summary>
-    /// <summary>A etapa que o controlador anunciou ("analyze: gpt-6.2-astra / high" → <c>analyze</c>); null nas outras linhas.</summary>
+    /// última linha) e qualquer JSON não aparecem: o editor os lê e mostra a situação. "analyze: gpt-6.2-sol / high" vira
+    /// "Etapa Análise: gpt-6.2-sol, raciocínio high". A cota e a decisão não são mais adivinhadas pelo texto: vêm dos códigos 20 e 21 do controlador.</summary>
+    /// <summary>A etapa que o controlador anunciou ("analyze: gpt-6.2-sol / high" → <c>analyze</c>); null nas outras linhas.</summary>
     public static string? EtapaDoControlador(string linha)
     {
         if (string.IsNullOrWhiteSpace(linha)) return null;

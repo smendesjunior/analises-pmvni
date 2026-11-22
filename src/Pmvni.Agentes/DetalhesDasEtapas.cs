@@ -29,7 +29,7 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
 
     public bool TemObjecoes => Objecoes.Count > 0;
 
-    /// <summary>"gpt-6.2-astra · esforço médio", "Programa · sem consumo de IA" ou null quando o kit ainda não gravou nada da etapa.</summary>
+    /// <summary>"gpt-6.2-sol · esforço médio", "Programa · sem consumo de IA" ou null quando o kit ainda não gravou nada da etapa.</summary>
     public string? TextoExecutor(string etapa)
     {
         if (!Etapas.TryGetValue(etapa, out var d)) return null;
