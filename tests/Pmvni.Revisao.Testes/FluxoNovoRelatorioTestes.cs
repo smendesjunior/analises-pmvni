@@ -70,8 +70,9 @@ public class FluxoNovoRelatorioTestes
             Assert.Equal(p, TextosAgentes.PerfilDoIndice(TextosAgentes.IndiceDoPerfil(p)));
         Assert.Equal(0, TextosAgentes.IndiceDoPerfil(PerfilGemini.ContaUltra));       // a conta não é perfil de chave
         Assert.Equal("Escolha o perfil da chave para ver os modelos de cada etapa.", TextosAgentes.MatrizDoGemini(ModoAcesso.Chave, null));
-        Assert.Equal("Conta Google (plano Ultra) — Análise: gemini-3.8-flash medium · Auditoria técnica: gemini-3.8-flash medium · "
-            + "Auditoria cruzada: gemini-3.8-flash medium · Revisão final: gemini-3.8-flash medium.", TextosAgentes.MatrizDoGemini(ModoAcesso.Conta, PerfilGemini.ApiGratuita));
+        // Só as etapas de IA (fluxo linear: auditoria cruzada e revisão final são de programa).
+        Assert.Equal("Conta Google (plano Ultra) — Análise: gemini-3.8-flash medium · Auditoria técnica: gemini-3.8-flash high.",
+            TextosAgentes.MatrizDoGemini(ModoAcesso.Conta, PerfilGemini.ApiGratuita));
         Assert.Contains("Análise: gemini-3.8-flash medium", TextosAgentes.MatrizDoGemini(ModoAcesso.Chave, PerfilGemini.ApiGratuita));
         Assert.Equal("A análise com o Gemini de 0001/2099 terminou.", FluxoNovoRelatorio.TextoKitTerminou(Provedor.Gemini, P0001));
         Assert.Equal(FluxoNovoRelatorio.TextoKitTerminou(Provedor.Claude, P0001), FluxoNovoRelatorio.TextoClaudeTerminou(P0001));
