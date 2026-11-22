@@ -59,9 +59,9 @@
                   <ComboBox x:Name="CaixaProcesso" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Processo"/>
                   <Grid ColumnSpacing="6" Margin="0,6,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Button x:Name="BotaoNovoProcesso" x:FieldModifier="internal" MinHeight="36" Content="Criar processo…" HorizontalAlignment="Stretch" AutomationProperties.Name="Criar um processo novo"
+                    <Button x:Name="BotaoNovoProcesso" x:FieldModifier="internal" Content="Criar processo…" HorizontalAlignment="Stretch" AutomationProperties.Name="Criar um processo novo"
                             local:Dicas.Titulo="Criar processo…" local:Dicas.Descricao="Cria a pasta de um processo novo (número, ano e requerente) e já o escolhe para o despacho."/>
-                    <Button x:Name="BotaoSemProcesso" x:FieldModifier="internal" MinHeight="36" Grid.Column="1" Content="Sem processo" HorizontalAlignment="Stretch" AutomationProperties.Name="Despacho sem processo vinculado"
+                    <Button x:Name="BotaoSemProcesso" x:FieldModifier="internal" Grid.Column="1" Content="Sem processo" HorizontalAlignment="Stretch" AutomationProperties.Name="Despacho sem processo vinculado"
                             local:Dicas.Titulo="Prosseguir sem processo" local:Dicas.Descricao="Libera o modelo para preencher na folha, sem ligar a um processo; o despacho é gravado em Documentos › Despachos sem processo."/>
                   </Grid>
                 </StackPanel>
@@ -72,9 +72,9 @@
                   <TextBlock Text="Documentos de referência" Style="{StaticResource PmvniPainelCartaoTitulo}"/>
                   <TextBlock Text="Relatório base" Style="{StaticResource PmvniPainelRotulo}"/>
                   <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <ComboBox x:Name="CaixaRelatorio" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Relatório base"/>
-                    <Button x:Name="BotaoEscolherRelatorio" x:FieldModifier="internal" MinHeight="36" Grid.Column="1"
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="11*"/><ColumnDefinition Width="10*"/></Grid.ColumnDefinitions>
+                    <ComboBox x:Name="CaixaRelatorio" x:FieldModifier="internal" ToolTipService.ToolTip="{Binding SelectedItem.Content, RelativeSource={RelativeSource Self}}" HorizontalAlignment="Stretch" AutomationProperties.Name="Relatório base"/>
+                    <Button x:Name="BotaoEscolherRelatorio" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch"
                             AutomationProperties.Name="Escolher o arquivo do relatório"
                             local:Dicas.Titulo="Escolher arquivo…" local:Dicas.Descricao="Usa um relatório (.rpmvni) de qualquer pasta, ou o dados.json da análise.">
                       <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Abrir}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Escolher arquivo…"/></StackPanel>
@@ -84,9 +84,9 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="Pasta da etapa" Style="{StaticResource PmvniPainelRotulo}"/>
                   <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <ComboBox x:Name="CaixaEtapa" x:FieldModifier="internal" HorizontalAlignment="Stretch" AutomationProperties.Name="Pasta da etapa"/>
-                    <Button x:Name="BotaoNovaPasta" x:FieldModifier="internal" MinHeight="36" Grid.Column="1" AutomationProperties.Name="Criar pasta nova"
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="11*"/><ColumnDefinition Width="10*"/></Grid.ColumnDefinitions>
+                    <ComboBox x:Name="CaixaEtapa" x:FieldModifier="internal" ToolTipService.ToolTip="{Binding SelectedItem.Content, RelativeSource={RelativeSource Self}}" HorizontalAlignment="Stretch" AutomationProperties.Name="Pasta da etapa"/>
+                    <Button x:Name="BotaoNovaPasta" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" AutomationProperties.Name="Criar pasta nova"
                             local:Dicas.Titulo="Criar pasta…" local:Dicas.Descricao="Cria uma pasta de etapa nova no processo para guardar este despacho.">
                       <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Criar pasta…"/></StackPanel>
                     </Button>
@@ -97,7 +97,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                       <FontIcon Glyph="{x:Bind local:Glifos.Sobre}" FontSize="16" Style="{StaticResource PmvniIconeDestaqueStyle}"
                                 VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
-                      <TextBlock Text="Como funciona" Style="{StaticResource PmvniTituloSecao}" AutomationProperties.HeadingLevel="Level2"/>
+                      <TextBlock Text="Como funciona" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level3"/>
                     </StackPanel>
                     <TextBlock Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"
                                Text="O relatório é opcional. Anexado, entram só os itens que não atendem; sem ele, escreva as exigências ou peça à IA. Use Escolher arquivo… para um relatório de outra pasta. A data é a da pasta da etapa."/>
@@ -112,8 +112,8 @@
             <StackPanel>
               <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <FontIcon Glyph="{x:Bind local:Glifos.Relatorio}" FontSize="16" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
-                  <TextBlock Text="2 · Conteúdo" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level2"/>
+                  <Border Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="2" Style="{StaticResource PmvniNumeroPasso}"/></Border>
+                  <TextBlock Text="Conteúdo" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level2"/>
                 </StackPanel>
               </Border>
               <StackPanel Style="{StaticResource PmvniPainelCartaoCorpo}">
@@ -131,7 +131,7 @@
                 </StackPanel>
                 <Border Style="{StaticResource PmvniPainelSeparador}"/>
                 <StackPanel x:Name="PainelExigencias" x:FieldModifier="internal" Spacing="10"/>
-                <Button x:Name="BotaoAdicionarExigencia" x:FieldModifier="internal" MinHeight="36" AutomationProperties.Name="Adicionar exigência" HorizontalAlignment="Stretch"
+                <Button x:Name="BotaoAdicionarExigencia" x:FieldModifier="internal" AutomationProperties.Name="Adicionar exigência" HorizontalAlignment="Stretch"
                         local:Dicas.Titulo="Adicionar exigência…" local:Dicas.Descricao="Abre a caixa para escrever uma exigência.">
                   <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Adicionar exigência…"/></StackPanel>
                 </Button>
@@ -151,7 +151,7 @@
         </StackPanel>
       </ScrollViewer>
         <Border Grid.Row="1" Padding="16,8" Visibility="{Binding Visibility, ElementName=BotaoAutomatico}">                <!-- Correção automática (2026-11-16): só no tipo Correção; a janela mostra e liga o botão. -->
-                <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" MinHeight="36" HorizontalAlignment="Stretch" Visibility="Collapsed"
+                <Button x:Name="BotaoAutomatico" x:FieldModifier="internal" HorizontalAlignment="Stretch" Visibility="Collapsed"
                         AutomationProperties.Name="Criar automaticamente a partir do relatório"
                         local:Dicas.Titulo="Criar automaticamente a partir do relatório"
                         local:Dicas.Descricao="Monta o despacho com todos os itens pendentes do relatório (não atende, falta comprovar e informações divergentes) e vai direto para a conferência.">
@@ -174,7 +174,7 @@
                        AutomationProperties.Name="Instrução para a IA modificar o despacho"/>
               <ProgressRing x:Name="AnelInstrucao" x:FieldModifier="internal" Grid.Column="2" AutomationProperties.Name="Aplicando a instrução com IA" AutomationProperties.LiveSetting="Polite" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
               <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
-                      Width="32" Height="32" MinWidth="0" MinHeight="0" Padding="0" VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                      Width="32" Height="32" MinWidth="0" Padding="0" VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                       AutomationProperties.Name="Aplicar a instrução" local:Dicas.Titulo="Pedir à IA" local:Dicas.Atalho="Enter"
                       local:Dicas.Descricao="Manda a instrução escrita ao lado para a IA mudar o despacho.">
                 <FontIcon Glyph="{x:Bind local:Glifos.Avancar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
@@ -195,13 +195,16 @@
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
       <StackPanel Grid.Row="0" Padding="20,12,20,6" Spacing="8">
-        <TextBlock TextAlignment="Center" x:Name="TextoTituloConferencia" x:FieldModifier="internal" Text="3 · Conferência" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+          <Border x:Name="SeloConferencia" x:FieldModifier="internal" Style="{StaticResource PmvniSeloPasso}"><TextBlock Text="3" Style="{StaticResource PmvniNumeroPasso}"/></Border>
+          <TextBlock TextAlignment="Center" x:Name="TextoTituloConferencia" x:FieldModifier="internal" Text="Conferência" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/>
+        </StackPanel>
         <InfoBar x:Name="AvisoErros" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="False" Title="O despacho gerado não passou na validação"/>
         <InfoBar x:Name="AvisoSemPdf" x:FieldModifier="internal" Severity="Warning" IsOpen="False" IsClosable="False" Title="Sem PDF"/>
         <TextBlock x:Name="TextoFontes" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBlock x:Name="TextoPaginas" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/>
-          <Button x:Name="BotaoMarcarTodas" x:FieldModifier="internal" MinHeight="36" Content="Marcar todas as páginas" Visibility="Collapsed"
+          <Button x:Name="BotaoMarcarTodas" x:FieldModifier="internal" Content="Marcar todas as páginas" Visibility="Collapsed"
                   local:Dicas.Descricao="Marca todas as páginas do PDF como conferidas."/>
         </StackPanel>
       </StackPanel>
@@ -216,7 +219,7 @@
                   Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" CornerRadius="8">
         <ProgressRing x:Name="Anel" x:FieldModifier="internal" IsActive="False" Width="32" Height="32"/>
         <TextBlock x:Name="TextoEspera" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" HorizontalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
-        <Button x:Name="BotaoInterromper" x:FieldModifier="internal" MinHeight="36" Content="Cancelar geração" HorizontalAlignment="Center"
+        <Button x:Name="BotaoInterromper" x:FieldModifier="internal" Content="Cancelar geração" HorizontalAlignment="Center"
                 local:Dicas.Descricao="Interrompe a geração e apaga a pasta de trabalho."/>
       </StackPanel>
     </Grid>
@@ -248,11 +251,11 @@
                   local:Dicas.Descricao="Grava o despacho conferido na pasta da etapa do processo."/>
         </Border>
         <Border Background="Transparent" Visibility="{Binding Visibility, ElementName=BotaoVoltar}">
-          <Button x:Name="BotaoVoltar" x:FieldModifier="internal" MinHeight="36" Content="Voltar e editar" Visibility="Collapsed"
+          <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Content="Voltar e editar" Visibility="Collapsed"
                   local:Dicas.Descricao="Volta para a edição do despacho, antes de gravar."/>
         </Border>
         <Border Background="Transparent">
-          <Button x:Name="BotaoCancelar" x:FieldModifier="internal" MinHeight="36" Content="Cancelar"
+          <Button x:Name="BotaoCancelar" x:FieldModifier="internal" Content="Cancelar"
                   local:Dicas.Descricao="Fecha o novo despacho sem gravar nada."/>
         </Border>
       </StackPanel>

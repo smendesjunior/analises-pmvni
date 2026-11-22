@@ -678,7 +678,7 @@ public sealed partial class MainWindow
             grade.Children.Add(previa);
             var remover = new Button
             {
-                Content = new FontIcon { Glyph = Glifos.Excluir, FontSize = 16 },
+                Content = new FontIcon { Glyph = Glifos.Excluir, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] },
                 Width = 32, Height = 32, MinWidth = 32, MinHeight = 32,
                 VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(0),
             };
@@ -1527,7 +1527,7 @@ public sealed partial class MainWindow
         {
             var modulo = AvisoDoModulo;
             if (!(modulo.IsOpen && modulo.Severity == InfoBarSeverity.Error)) MostrarMensagem(severidade, aviso.Title, mensagem);
-            var botao = new Button { Content = "Importar relatório", MinHeight = 36 };
+            var botao = new Button { Content = "Importar relatório" };
             AutomationPropertiesNome(botao, "Importar relatório");
             Dicas.Aplicar(botao, "Importar relatório", "Traz para o app o relatório da análise que terminou com o editor fechado.");
             botao.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
@@ -1607,7 +1607,7 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         MostrarMensagem(InfoBarSeverity.Success, FluxoNovoRelatorio.RelatorioProntoTitulo, FluxoNovoRelatorio.TextoRelatorioPronto(imp.Provedor, pmvrel, imp.Pdf));
-        var botao = new Button { Content = FluxoNovoRelatorio.AbrirRelatorio, MinHeight = 36 };
+        var botao = new Button { Content = FluxoNovoRelatorio.AbrirRelatorio };
         AutomationPropertiesNome(botao, FluxoNovoRelatorio.AbrirRelatorio);
         Dicas.Aplicar(botao, FluxoNovoRelatorio.AbrirRelatorio, "Abre o relatório que a IA acabou de montar, para revisar.");
         botao.Click += async (_, _) => await AbrirRelatorioProntoAsync(pmvrel);

@@ -38,7 +38,7 @@
       <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <!-- A aba da planilha (só aparece com mais de uma): escolhida pelo nome e lembrada, para reordenar as abas no Excel não trocar a aba. -->
       <local:PainelQuebra x:Name="Acoes" Grid.Column="2" Espaco="8" VerticalAlignment="Center">
-      <DropDownButton x:Name="BotaoExportar" x:FieldModifier="internal" AutomationProperties.Name="Exportar" MinHeight="36">
+      <DropDownButton x:Name="BotaoExportar" x:FieldModifier="internal" AutomationProperties.Name="Exportar">
         <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Exportar}" FontSize="16"/><TextBlock Text="Exportar"/></StackPanel>
         <DropDownButton.Flyout>
           <MenuFlyout Placement="Bottom">
@@ -49,7 +49,7 @@
           </MenuFlyout>
         </DropDownButton.Flyout>
       </DropDownButton>
-      <DropDownButton x:Name="BotaoFiltrar" x:FieldModifier="internal" AutomationProperties.Name="Filtrar" MinHeight="36">
+      <DropDownButton x:Name="BotaoFiltrar" x:FieldModifier="internal" AutomationProperties.Name="Filtrar">
         <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Filtro}" FontSize="16"/><TextBlock x:Name="TextoFiltrar" x:FieldModifier="internal" Text="Filtrar"/></StackPanel>
         <DropDownButton.Flyout>
           <Flyout Placement="Bottom">
@@ -60,7 +60,7 @@
         </DropDownButton.Flyout>
       </DropDownButton>
       <!-- Escolher as colunas da tabela (pedido do usuário, 2026-11-17); a lista é montada pelo código a cada leitura da planilha. -->
-      <DropDownButton x:Name="BotaoColunas" x:FieldModifier="internal" AutomationProperties.Name="Colunas da tabela" MinHeight="36"
+      <DropDownButton x:Name="BotaoColunas" x:FieldModifier="internal" AutomationProperties.Name="Colunas da tabela"
                       local:Dicas.Titulo="Colunas" local:Dicas.Descricao="Escolha as colunas que aparecem na tabela. Para mudar a largura, arraste a borda do título da coluna.">
         <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Lista}" FontSize="16"/><TextBlock x:Name="TextoColunas" x:FieldModifier="internal" Text="Colunas"/></StackPanel>
         <DropDownButton.Flyout>
@@ -71,15 +71,13 @@
                   AutomationProperties.Name="Aba da planilha" local:Dicas.Descricao="A aba da planilha que o app mostra e onde grava."/>
         <!-- Resumo recolhível (auditoria 2026-11-17): em telas baixas ele fica compacto sozinho, para a tabela nunca sumir. -->
         <Grid>
-          <ToggleButton x:Name="BotaoResumo" x:FieldModifier="internal" IsChecked="True" AutomationProperties.Name="Resumo por status" MinHeight="36"
+          <ToggleButton x:Name="BotaoResumo" x:FieldModifier="internal" IsChecked="True" AutomationProperties.Name="Resumo por status"
                       local:Dicas.Titulo="Resumo" local:Dicas.Descricao="Mostra ou esconde o resumo por status.">
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Grafico}" FontSize="16"/><TextBlock Text="Resumo"/></StackPanel>
         </ToggleButton>
         </Grid>
       </local:PainelQuebra>
-      <Border Width="38" Height="38" CornerRadius="10" Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" VerticalAlignment="Center">
-        <FontIcon Glyph="{x:Bind local:Glifos.Situacao}" FontSize="20" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
-      </Border>
+      <FontIcon Glyph="{x:Bind local:Glifos.Situacao}" FontSize="20" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
       <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
         <TextBlock Text="Acompanhamento de processos" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/>
         <TextBlock x:Name="TextoSubtitulo" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextTrimming="CharacterEllipsis"/>
@@ -122,7 +120,7 @@
     <StackPanel Grid.Row="2" Spacing="6">
       <Grid x:Name="BarraBusca" x:FieldModifier="internal" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="8,5" Style="{StaticResource PmvniPainelLateral}">
         <TextBox x:Name="CaixaBusca" x:FieldModifier="internal" Style="{StaticResource PmvniCampoPesquisa}" Background="Transparent" BorderThickness="0" PlaceholderText="Pesquisar processo, requerente ou local" AutomationProperties.Name="Pesquisar na planilha"/>
-        <FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" Margin="9,0" HorizontalAlignment="Left" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+        <FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" Margin="12,0" HorizontalAlignment="Left" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
         <DropDownButton Grid.Column="1" x:Name="StatusRapido" x:FieldModifier="internal" Content="Todos os status" AutomationProperties.Name="Filtrar por status" local:Dicas.Descricao="Filtra a tabela por um status da planilha.">
           <DropDownButton.Flyout><MenuFlyout x:Name="MenuStatusRapido" x:FieldModifier="internal"/></DropDownButton.Flyout>
         </DropDownButton>
@@ -179,7 +177,7 @@
                       AutomationProperties.Name="Escolher planilha…" local:Dicas.Descricao="Escolhe a planilha de acompanhamento a abrir.">
                 <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Importar}" FontSize="16"/><TextBlock Text="Escolher planilha…"/></StackPanel>
               </Button>
-              <Button x:Name="BotaoAjustesVazio" x:FieldModifier="internal" MinHeight="36" AutomationProperties.Name="Abrir Ajustes" local:Dicas.Descricao="Abre Ajustes › Fontes de dados no local da planilha.">
+              <Button x:Name="BotaoAjustesVazio" x:FieldModifier="internal" AutomationProperties.Name="Abrir Ajustes" local:Dicas.Descricao="Abre Ajustes › Fontes de dados no local da planilha.">
                 <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Gerenciar}" FontSize="16"/><TextBlock Text="Abrir Ajustes"/></StackPanel>
               </Button>
             </StackPanel>
@@ -211,7 +209,7 @@
                     local:Dicas.Descricao="Abre os dados do processo selecionado para edição.">
               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Editar}" FontSize="16"/><TextBlock Text="Editar processo…"/></StackPanel>
             </Button>
-            <Button x:Name="BotaoAbrirPasta" x:FieldModifier="internal" MinHeight="36" AutomationProperties.Name="Abrir em Processos"
+            <Button x:Name="BotaoAbrirPasta" x:FieldModifier="internal" AutomationProperties.Name="Abrir em Processos"
                     local:Dicas.Titulo="Abrir pasta" local:Dicas.Descricao="Abre a pasta do processo no Explorador.">
               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.AbrirPasta}" FontSize="16"/><TextBlock Text="Abrir pasta"/></StackPanel>
             </Button>

@@ -18,9 +18,9 @@
       <InfoBar x:Name="AvisoResultado" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="True">
         <InfoBar.Content>
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Button x:Name="BotaoImportarPendente" x:FieldModifier="internal" Content="Importar relatório" MinHeight="36" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
+            <Button x:Name="BotaoImportarPendente" x:FieldModifier="internal" Content="Importar relatório" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
                     local:Dicas.Descricao="Traz para o app o relatório da análise que terminou com o editor fechado."/>
-            <Button x:Name="BotaoMostrarRegistroResultado" x:FieldModifier="internal" MinHeight="36" AutomationProperties.Name="Abrir registro"
+            <Button x:Name="BotaoMostrarRegistroResultado" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro"
                     local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA fez.">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <FontIcon Glyph="{x:Bind local:Glifos.AbrirPasta}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
@@ -35,7 +35,7 @@
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,4">
             <Button x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Retomar análise" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
                     local:Dicas.Descricao="Retoma a análise que parou, do ponto onde ela ficou."/>
-            <Button x:Name="BotaoDescartar" x:FieldModifier="internal" Content="Descartar análise" MinHeight="36" Visibility="Collapsed"
+            <Button x:Name="BotaoDescartar" x:FieldModifier="internal" Content="Descartar análise" Visibility="Collapsed"
                     local:Dicas.Descricao="Remove esta análise da lista de retomada e conserva os arquivos do processo."/>
     </StackPanel>
 
@@ -139,9 +139,6 @@
             <TextBlock Visibility="Collapsed" Text="Escolha a ferramenta que fará a análise." Style="{StaticResource PmvniSecondaryTextStyle}"/>
         <!-- Os três agentes com o mesmo peso (tonal, B7): não competem com o primário da faixa. -->
         <StackPanel Spacing="6">
-          <StackPanel.Resources>
-            <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
-          </StackPanel.Resources>
 
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
             <StackPanel Spacing="4" Background="{ThemeResource SubtleFillColorTransparentBrush}">
@@ -255,17 +252,17 @@
             </local:PainelQuebra>
           </StackPanel>
           <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="2" Espaco="8" EspacoLinhas="4" Margin="0,3" VerticalAlignment="Center">
-            <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" MinHeight="36" AutomationProperties.Name="Abrir registro" local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
+            <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro" local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.AbrirPasta}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Abrir registro"/></StackPanel>
             </Button>
-            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" MinHeight="36" AutomationProperties.Name="Preparar nova análise" local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
+            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Preparar nova análise" local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Preparar nova análise"/></StackPanel>
             </Button>
-            <Button x:Name="BotaoPausarAnalise" x:FieldModifier="internal" MinHeight="36" AutomationProperties.Name="Pausar análise"
+            <Button x:Name="BotaoPausarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Pausar análise"
                     local:Dicas.Descricao="Interrompe a execução e preserva o progresso disponível para retomada.">
-               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE769;" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Pausar análise"/></StackPanel>
+               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Pausado}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Pausar análise"/></StackPanel>
             </Button>
-            <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" MinHeight="36" AutomationProperties.Name="Cancelar análise" local:Dicas.Descricao="Para a análise da IA; nenhum relatório é criado.">
+            <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Cancelar análise" local:Dicas.Descricao="Para a análise da IA; nenhum relatório é criado.">
                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE711;" FontSize="16" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Cancelar análise"/></StackPanel>
             </Button>
           </local:PainelQuebra>

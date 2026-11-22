@@ -123,15 +123,10 @@ public sealed partial class MainWindow
                 Style = (Style)Application.Current.Resources["PmvniAjusteTitulo"], Foreground = texto, HorizontalAlignment = HorizontalAlignment.Center });
             var b = new Button
             {
-                Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch,
-                Padding = new Thickness(4, 8, 4, 6), CornerRadius = new CornerRadius(8),
+                Height = double.NaN, Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch,
+                Padding = new Thickness(4, 8, 4, 6),
                 Background = fundo, BorderBrush = escolhida ? borda : fundo, BorderThickness = new Thickness(2),
             };
-            // Cores próprias também ao passar o mouse e ao pressionar (sem o cinza padrão do botão).
-            b.Resources["ButtonBackgroundPointerOver"] = fundo;
-            b.Resources["ButtonBackgroundPressed"] = fundo;
-            b.Resources["ButtonBorderBrushPointerOver"] = borda;
-            b.Resources["ButtonBorderBrushPressed"] = borda;
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"{Esferas.Rotulo(e)}: {contagem[e]} leis{(escolhida ? ", filtro ligado" : "")}");
             ToolTipService.SetToolTip(b, escolhida ? $"Mostrando só as leis da esfera {Esferas.Rotulo(e).ToLowerInvariant()}. Clique de novo para ver todas." : $"Mostrar só as leis da esfera {Esferas.Rotulo(e).ToLowerInvariant()}.");
             var esfera = e;
@@ -157,7 +152,7 @@ public sealed partial class MainWindow
             var b = new ToggleButton
             {
                 Content = conteudo, IsChecked = tipoDaLista == tipo, HorizontalAlignment = HorizontalAlignment.Stretch,
-                Padding = new Thickness(2, 4, 2, 4), CornerRadius = new CornerRadius(8), IsEnabled = quantidade > 0 || tipoDaLista == tipo,
+                Padding = new Thickness(2, 4, 2, 4), IsEnabled = quantidade > 0 || tipoDaLista == tipo,
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, $"{rotulo}: {quantidade}");
             Dicas.Aplicar(b, rotulo, "Filtra a lista por tipo de norma.",
@@ -219,7 +214,7 @@ public sealed partial class MainWindow
 
         var estrela = new Button
         {
-            Content = new FontIcon { Glyph = favorita ? "\uE735" : "\uE734", FontSize = 16, Foreground = favorita ? CorDoTema("PmvniFavorito") : null },
+            Content = new FontIcon { Glyph = favorita ? "\uE735" : "\uE734", Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"], Foreground = favorita ? CorDoTema("PmvniFavorito") : null },
             Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"],
             Width = 32, Height = 32, Padding = new Thickness(0), VerticalAlignment = VerticalAlignment.Top,
         };

@@ -898,7 +898,8 @@ public sealed partial class MainWindow
         var n = N;
         n.LimparConferencia();
         n.MostrarPasso(PassoNovoDespacho.Conferencia, s.SoPdf);
-        n.TextoTituloConferencia.Text = s.SoPdf ? "Gerar PDF · " + Path.GetFileName(s.DocxGravado) : "3 · Conferência";
+        n.SeloConferencia.Visibility = s.SoPdf ? Visibility.Collapsed : Visibility.Visible;
+        n.TextoTituloConferencia.Text = s.SoPdf ? "Gerar PDF · " + Path.GetFileName(s.DocxGravado) : "Conferência";
         if (p.Erros.Count > 0)
         {
             n.AvisoErros.Message = string.Join(Environment.NewLine, p.Erros);

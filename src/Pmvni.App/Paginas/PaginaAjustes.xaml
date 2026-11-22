@@ -86,10 +86,7 @@
 
           <!-- ===== 1. Geral ===== -->
           <StackPanel x:Name="CategoriaGeral" Tag="geral" Spacing="12">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE80F;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Ao abrir" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Ao abrir" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
@@ -112,10 +109,7 @@
                 </StackPanel>
               </Border>
             </local:PainelCartoesAjustes>
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Arquivos" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Arquivos" Style="{StaticResource PmvniTituloSecao}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <local:LinhaComAcoes Margin="16,12">
                 <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Arquivos recentes" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Quantos aparecem em Arquivo › Recentes." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
@@ -130,10 +124,7 @@
 
           <!-- ===== 2. Aparência ===== -->
           <StackPanel x:Name="CategoriaAparencia" Tag="aparencia" Spacing="12" Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE737;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Janela" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Janela" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
@@ -170,47 +161,47 @@
 
           <!-- ===== 3. Relatórios e revisão ===== -->
           <StackPanel x:Name="CategoriaRelatorios" Tag="relatorios" Spacing="12" Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="20" Height="18.46"><Path Canvas.Left="-0" Canvas.Top="-9.27" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M2.31,9.27 L17.69,9.27 C18.96,9.27 20,10.31 20,11.58 L20,22.35 C20,23.62 18.96,24.65 17.69,24.65 L2.31,24.65 C1.04,24.65 0,23.62 0,22.35 L0,11.58 C0,10.31 1.04,9.27 2.31,9.27 Z M18.46,22.35 C18.46,22.78 18.12,23.12 17.69,23.12 L2.31,23.12 C1.88,23.12 1.54,22.78 1.54,22.35 L1.54,11.58 C1.54,11.15 1.88,10.81 2.31,10.81 L17.69,10.81 C18.12,10.81 18.46,11.15 18.46,11.58 L18.46,22.35 Z"/><Path Canvas.Left="-0" Canvas.Top="-9.27" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M13.85,26.96 C13.85,27.39 13.51,27.73 13.08,27.73 L6.92,27.73 C6.49,27.73 6.15,27.39 6.15,26.96 C6.15,26.53 6.49,26.19 6.92,26.19 L13.08,26.19 C13.51,26.19 13.85,26.53 13.85,26.96 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Tela" Style="{StaticResource PmvniTituloSecao}"/></StackPanel>
+            <TextBlock TextAlignment="Left" Text="Tela" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
 <Border Style="{StaticResource PmvniAjusteGrupo}">
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="17" Height="17"><Path Canvas.Left="-8.5" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M25.5,9.27 L25.5,13.91 C25.5,14.34 25.16,14.68 24.73,14.68 C24.3,14.68 23.95,14.34 23.95,13.91 L23.95,11.14 L19.86,15.23 C19.56,15.53 19.07,15.53 18.77,15.23 C18.47,14.93 18.47,14.44 18.77,14.14 L22.86,10.05 L20.09,10.05 C19.66,10.05 19.32,9.7 19.32,9.27 C19.32,8.84 19.66,8.5 20.09,8.5 L24.73,8.5 C25.16,8.5 25.5,8.84 25.5,9.27 Z"/><Path Canvas.Left="-8.5" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M10.05,22.86 L14.14,18.77 C14.44,18.47 14.93,18.47 15.23,18.77 C15.53,19.07 15.53,19.56 15.23,19.86 L11.14,23.95 L13.91,23.95 C14.34,23.95 14.68,24.3 14.68,24.73 C14.68,25.16 14.34,25.5 13.91,25.5 L9.27,25.5 C8.84,25.5 8.5,25.16 8.5,24.73 L8.5,20.09 C8.5,19.66 8.84,19.32 9.27,19.32 C9.7,19.32 10.05,19.66 10.05,20.09 L10.05,22.86 Z"/><Path Canvas.Left="-8.5" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M23.95,20.09 C23.95,19.66 24.3,19.32 24.73,19.32 C25.16,19.32 25.5,19.66 25.5,20.09 L25.5,24.73 C25.5,25.16 25.16,25.5 24.73,25.5 L20.09,25.5 C19.66,25.5 19.32,25.16 19.32,24.73 C19.32,24.3 19.66,23.95 20.09,23.95 L22.86,23.95 L18.77,19.86 C18.47,19.56 18.47,19.07 18.77,18.77 C19.07,18.47 19.56,18.47 19.86,18.77 L23.95,22.86 L23.95,20.09 Z"/><Path Canvas.Left="-8.5" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M13.91,10.05 L11.14,10.05 L15.23,14.14 C15.53,14.44 15.53,14.93 15.23,15.23 C14.93,15.53 14.44,15.53 14.14,15.23 L10.05,11.14 L10.05,13.91 C10.05,14.34 9.7,14.68 9.27,14.68 C8.84,14.68 8.5,14.34 8.5,13.91 L8.5,9.27 C8.5,8.84 8.84,8.5 9.27,8.5 L13.91,8.5 C14.34,8.5 14.68,8.84 14.68,9.27 C14.68,9.7 14.34,10.05 13.91,10.05 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Zoom ao abrir" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="Como as folhas aparecem ao abrir um relatório." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Zoom ao abrir" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Como as folhas aparecem ao abrir um relatório." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ComboBox x:Name="CaixaZoomInicial" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Zoom ao abrir"/>
               </Grid></Border>
 <Border Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="18" Height="14.25"><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M12.5,11.01 C12.5,10.6 12.84,10.26 13.25,10.26 L25.25,10.26 C25.66,10.26 26,10.6 26,11.01 C26,11.42 25.66,11.76 25.25,11.76 L13.25,11.76 C12.84,11.76 12.5,11.42 12.5,11.01 Z"/><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M13.25,16.26 L25.25,16.26 C25.66,16.26 26,16.6 26,17.01 C26,17.42 25.66,17.76 25.25,17.76 L13.25,17.76 C12.84,17.76 12.5,17.42 12.5,17.01 C12.5,16.6 12.84,16.26 13.25,16.26 Z"/><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M13.25,22.26 L25.25,22.26 C25.66,22.26 26,22.6 26,23.01 C26,23.42 25.66,23.76 25.25,23.76 L13.25,23.76 C12.84,23.76 12.5,23.42 12.5,23.01 C12.5,22.6 12.84,22.26 13.25,22.26 Z"/><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M8,11.01 C8,10.39 8.5,9.88 9.12,9.88 C9.74,9.88 10.25,10.39 10.25,11.01 C10.25,11.63 9.74,12.13 9.12,12.13 C8.5,12.13 8,11.63 8,11.01 Z"/><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M8,17.01 C8,16.39 8.5,15.88 9.12,15.88 C9.74,15.88 10.25,16.39 10.25,17.01 C10.25,17.63 9.74,18.13 9.12,18.13 C8.5,18.13 8,17.63 8,17.01 Z"/><Path Canvas.Left="-8" Canvas.Top="-9.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M8,23.01 C8,22.39 8.5,21.88 9.12,21.88 C9.74,21.88 10.25,22.39 10.25,23.01 C10.25,23.63 9.74,24.13 9.12,24.13 C8.5,24.13 8,23.63 8,23.01 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Lista de seções" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="Compacta: uma linha por item, com a situação numa bolinha. Confortável: título em até duas linhas e a situação escrita embaixo." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Lista de seções" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Compacta: uma linha por item, com a situação numa bolinha. Confortável: título em até duas linhas e a situação escrita embaixo." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ComboBox x:Name="CaixaListaSecoes" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Lista de seções"/>
               </Grid></Border>
 <Border Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="18" Height="18"><Path Canvas.Left="-8" Canvas.Top="-8" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M21.56,8.42 L25.58,12.44 C26.14,13 26.14,13.92 25.58,14.48 L15.5,24.56 L24.56,24.56 C24.96,24.56 25.28,24.88 25.28,25.28 C25.28,25.68 24.96,26 24.56,26 L9.44,26 C8.64,26 8,25.36 8,24.56 L8,20.54 C8,20.16 8.16,19.79 8.43,19.52 L19.52,8.42 C20.08,7.86 21,7.86 21.56,8.42 Z M17.36,12.62 L18.87,14.12 L11.24,21.74 L9.74,20.24 L17.36,12.62 Z M9.44,24.56 L9.44,21.98 L12.03,24.56 L9.44,24.56 Z M13.76,24.26 L12.26,22.76 L19.88,15.14 L21.39,16.64 L13.76,24.26 Z M22.4,15.62 L18.38,11.6 L20.54,9.44 L24.56,13.46 L22.4,15.62 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Marcas de revisão" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="Mostra nas folhas o que foi alterado (o mesmo que Revisão › Marcas de revisão)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Marcas de revisão" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Mostra nas folhas o que foi alterado (o mesmo que Revisão › Marcas de revisão)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ToggleSwitch x:Name="AlternarMarcas" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" VerticalAlignment="Center" AutomationProperties.Name="Marcas de revisão"/>
               </Grid></Border>
 <Border Style="{StaticResource PmvniAjusteGrupo}"><Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="18" Height="15.24"><Path Canvas.Left="-8" Canvas.Top="-9.38" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M9.38,9.38 L24.62,9.38 C25.39,9.38 26,10 26,10.77 L26,23.23 C26,24 25.39,24.62 24.62,24.62 L9.38,24.62 C8.61,24.62 8,24 8,23.23 L8,10.77 C8,10 8.61,9.38 9.38,9.38 Z M9.38,19.08 L10.77,19.08 C11.15,19.08 11.46,18.76 11.46,18.38 C11.46,18 11.15,17.69 10.77,17.69 L9.38,17.69 L9.38,16.31 L10.77,16.31 C11.15,16.31 11.46,16 11.46,15.62 C11.46,15.24 11.15,14.92 10.77,14.92 L9.38,14.92 L9.38,13.54 L10.77,13.54 C11.15,13.54 11.46,13.23 11.46,12.85 C11.46,12.47 11.15,12.15 10.77,12.15 L9.38,12.15 L9.38,10.77 L12.85,10.77 L12.85,23.23 L9.38,23.23 L9.38,19.08 Z M24.62,23.23 L14.23,23.23 L14.23,10.77 L24.62,10.77 L24.62,23.23 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Painéis ao abrir" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="Seções e Propriedades como ficaram da última vez; desligado, os dois abrem à vista." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Painéis ao abrir" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Seções e Propriedades como ficaram da última vez; desligado, os dois abrem à vista." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ToggleSwitch x:Name="AlternarPaineis" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteAlternar}" OnContent="Lembrar" OffContent="Desativado" VerticalAlignment="Center" AutomationProperties.Name="Lembrar os painéis ao abrir"/>
               </Grid>
             </Border>
 </local:PainelCartoesAjustes>
-            <StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="20" Height="20"><Path Canvas.Left="-0" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M15.83,8.99 L19.51,12.67 C19.82,12.98 20,13.4 20,13.84 L20,26.83 C20,27.75 19.25,28.5 18.33,28.5 L1.67,28.5 C0.75,28.5 0,27.75 0,26.83 L0,10.17 C0,9.25 0.75,8.5 1.67,8.5 L14.66,8.5 C15.1,8.5 15.52,8.68 15.83,8.99 Z M14.17,26.83 L5.83,26.83 L5.83,21 L14.17,21 L14.17,26.83 Z M18.33,26.83 L15.83,26.83 L15.83,21 C15.83,20.08 15.09,19.33 14.17,19.33 L5.83,19.33 C4.91,19.33 4.17,20.08 4.17,21 L4.17,26.83 L1.67,26.83 L1.67,10.17 L14.66,10.17 L18.33,13.84 L18.33,26.83 Z"/><Path Canvas.Left="-0" Canvas.Top="-8.5" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M13.33,12.67 C13.33,13.13 12.96,13.5 12.5,13.5 L6.67,13.5 C6.21,13.5 5.83,13.13 5.83,12.67 C5.83,12.21 6.21,11.83 6.67,11.83 L12.5,11.83 C12.96,11.83 13.33,12.21 13.33,12.67 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Gravação" Style="{StaticResource PmvniTituloSecao}"/></StackPanel>
+            <TextBlock TextAlignment="Left" Text="Gravação" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
 <Border Style="{StaticResource PmvniAjusteGrupo}">
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <StackPanel Spacing="3" VerticalAlignment="Center"><StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="18" Height="18"><Path Canvas.Left="-9" Canvas.Top="-9" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F0 M23.25,9.44 L26.56,12.75 C26.84,13.03 27,13.41 27,13.81 L27,25.5 C27,26.33 26.33,27 25.5,27 L10.5,27 C9.67,27 9,26.33 9,25.5 L9,10.5 C9,9.67 9.67,9 10.5,9 L22.19,9 C22.59,9 22.97,9.16 23.25,9.44 Z M21.75,25.5 L14.25,25.5 L14.25,20.25 L21.75,20.25 L21.75,25.5 Z M25.5,25.5 L23.25,25.5 L23.25,20.25 C23.25,19.42 22.58,18.75 21.75,18.75 L14.25,18.75 C13.42,18.75 12.75,19.42 12.75,20.25 L12.75,25.5 L10.5,25.5 L10.5,10.5 L22.19,10.5 L25.5,13.81 L25.5,25.5 Z"/><Path Canvas.Left="-9" Canvas.Top="-9" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M21,12.75 C21,13.16 20.66,13.5 20.25,13.5 L15,13.5 C14.59,13.5 14.25,13.16 14.25,12.75 C14.25,12.34 14.59,12 15,12 L20.25,12 C20.66,12 21,12.34 21,12.75 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Salvamento automático" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel><TextBlock TextAlignment="Left" Text="O relatório é gravado sozinho depois deste tempo sem alterações (e também ao trocar de arquivo e ao fechar)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Salvamento automático" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="O relatório é gravado sozinho depois deste tempo sem alterações (e também ao trocar de arquivo e ao fechar)." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                 <ComboBox x:Name="CaixaIntervalo" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Intervalo do salvamento automático"/>
               </Grid></Border>
 <Border Style="{StaticResource PmvniAjusteGrupo}"><local:LinhaComAcoes Margin="16,12">
                 <StackPanel Spacing="3" VerticalAlignment="Center">
-                  <StackPanel Orientation="Horizontal" Spacing="8"><Viewbox Width="16" Height="16" VerticalAlignment="Center"><Canvas Width="19.01" Height="18.24"><Path Canvas.Left="-8.5" Canvas.Top="-8.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M19.15,13.44 L19.15,17.57 L22.58,19.63 C22.94,19.85 23.06,20.31 22.84,20.67 C22.62,21.03 22.16,21.15 21.8,20.93 L18,18.65 C17.77,18.51 17.63,18.27 17.63,18 L17.63,13.44 C17.63,13.02 17.97,12.68 18.39,12.68 C18.81,12.68 19.15,13.02 19.15,13.44 Z"/><Path Canvas.Left="-8.5" Canvas.Top="-8.88" Fill="{ThemeResource AccentTextFillColorPrimaryBrush}" Data="F1 M11.93,11.55 C13.64,9.83 15.97,8.87 18.39,8.88 C22.49,8.88 26.07,11.61 27.17,15.56 C28.27,19.51 26.6,23.69 23.09,25.81 C19.58,27.93 15.1,27.44 12.12,24.63 C11.81,24.34 11.8,23.87 12.09,23.56 C12.38,23.25 12.86,23.24 13.17,23.53 C16.2,26.39 20.97,26.27 23.86,23.27 C26.75,20.27 26.69,15.49 23.71,12.57 C20.73,9.65 15.96,9.67 13.01,12.62 C12.24,13.4 11.56,14.16 10.88,14.96 L13.07,14.96 C13.49,14.96 13.83,15.3 13.83,15.72 C13.83,16.14 13.49,16.48 13.07,16.48 L9.27,16.48 C8.85,16.48 8.5,16.14 8.5,15.72 L8.5,11.92 C8.5,11.5 8.85,11.16 9.27,11.16 C9.69,11.16 10.03,11.5 10.03,11.92 L10.03,13.63 C10.63,12.93 11.24,12.25 11.93,11.55 Z"/></Canvas></Viewbox><TextBlock TextAlignment="Left" Text="Recuperação" Style="{StaticResource PmvniAjusteTitulo}"/></StackPanel>
+                  <TextBlock TextAlignment="Left" Text="Recuperação" Style="{StaticResource PmvniAjusteTitulo}"/>
                   <TextBlock TextAlignment="Left" Text="As alterações ainda não gravadas ficam aqui, para o caso de uma queda. O que ficou guardado há mais tempo que isto sai sozinho." Style="{StaticResource PmvniAjusteAjuda}"/>
                   <TextBlock TextAlignment="Left" x:Name="TextoPastaRecuperacao" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
                 </StackPanel>
@@ -226,10 +217,7 @@
 
           <!-- ===== 4. Pastas e kit ===== -->
           <StackPanel x:Name="CategoriaPastas" Tag="pastas" Spacing="12" Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Pastas" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Pastas" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes x:Name="CartoesDasPastas" x:FieldModifier="internal">
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
@@ -280,10 +268,7 @@
             <!-- Plugins e ferramentas (Tarefa 21): cada componente do kit com a versão instalada e a disponível na fonte do kit, a situação e um
                  "Atualizar" por linha (as linhas são montadas por MainWindow.Ajustes.cs a partir de ComponentesDoKit.Lista). Toda atualização roda
                  fora do Editor (.cmd aberto pelo explorer.exe); com análise em andamento, nada é iniciado. -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xEA86;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Plugins e ferramentas" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Plugins e ferramentas" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
@@ -310,10 +295,7 @@
                 </StackPanel>
               </Border>
             </local:PainelCartoesAjustes>
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE8FD;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Listas ao abrir" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Listas ao abrir" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
@@ -341,10 +323,7 @@
 
           <!-- ===== Fontes de dados (2026-11-16): a pasta QGIS do módulo Imóveis ===== -->
           <StackPanel x:Name="CategoriaFontesDados" Tag="fontes_dados" Spacing="12" Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE707;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Base QGIS" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Base QGIS" Style="{StaticResource PmvniTituloSecao}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <StackPanel Padding="16,12" Spacing="6">
                 <local:LinhaComAcoes>
@@ -373,17 +352,11 @@
               </StackPanel>
             </StackPanel></Border>
             <!-- Sites da Prefeitura (2026-11-17): login persistente até "Sair"; linhas montadas em MainWindow.Sites.cs. -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE774;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Sites da Prefeitura" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Sites da Prefeitura" Style="{StaticResource PmvniTituloSecao}"/>
             <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap" Text="Entre uma vez pelo próprio site (Essencial, GPI, Alfresco): o app guarda o acesso, protegido pelo Windows só para este usuário, e o mantém ativo até você clicar em Sair. Para o caso de o servidor encerrar a sessão por conta própria, guarde também o usuário e a senha: o app entra sozinho quando o site pedir."/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel x:Name="PainelSites" x:FieldModifier="internal"/></Border>
             <!-- Acompanhamento de processos (2026-11-17): a planilha padrão que o módulo mostra e atualiza. -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xEB05;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Acompanhamento de processos" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Acompanhamento de processos" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
@@ -422,10 +395,7 @@
 
           <!-- ===== 5. Despachos e PDF ===== -->
           <StackPanel x:Name="CategoriaDespachos" Tag="despachos" Spacing="12" Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE7C3;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="LibreOffice" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="LibreOffice" Style="{StaticResource PmvniTituloSecao}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <StackPanel Padding="16,12" Spacing="6">
                 <local:LinhaComAcoes>
@@ -446,10 +416,7 @@
                 <TextBlock TextAlignment="Left" x:Name="TextoTesteSoffice" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}"/>
               </StackPanel>
             </StackPanel></Border>
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE74E;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Depois de gravar" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Depois de gravar" Style="{StaticResource PmvniTituloSecao}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -459,10 +426,7 @@
               </Grid>
             </StackPanel></Border>
             <!-- Profissional responsável (2026-11-17): o bloco de assinatura dos despachos e dos relatórios gerados, individual de cada profissional. -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE77B;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Profissional responsável" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Profissional responsável" Style="{StaticResource PmvniTituloSecao}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel Padding="16,12" Spacing="8">
               <local:LinhaComAcoes>
                 <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" TextWrapping="Wrap" Text="O nome e os dados que aparecem abaixo da linha de assinatura dos despachos e no fim dos relatórios gerados. Campo vazio mantém o texto do modelo."/>
@@ -478,10 +442,7 @@
                 <TextBlock TextAlignment="Left" x:Name="TextoProfissionalSalvo" x:FieldModifier="internal" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteAjuda}"/>
             </StackPanel></Border>
             <!-- Assinatura digital (2026-11-16): o certificado que assina o PDF dos despachos. A senha nunca aparece aqui nem vai para o ajustes.json. -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE9D5;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Assinatura digital" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Assinatura digital" Style="{StaticResource PmvniTituloSecao}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <StackPanel Padding="16,12" Spacing="6">
                 <local:LinhaComAcoes>
@@ -527,10 +488,7 @@
 
           <!-- ===== 6. Legislação ===== -->
           <StackPanel x:Name="CategoriaLegislacao" Tag="legislacao" Spacing="12" Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE721;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Pesquisa" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Pesquisa" Style="{StaticResource PmvniTituloSecao}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}"><StackPanel>
               <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
@@ -552,14 +510,11 @@
                             Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                  <StackPanel.Resources>
-                    <ResourceDictionary Source="ms-appx:///Recursos/CoresTonais.xaml"/>
-                  </StackPanel.Resources>
                   <Button x:Name="BotaoAnexarLegislacao" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}"
                             AutomationProperties.Name="Anexar PDFs das leis"
                             local:Dicas.Titulo="Anexar PDFs…" local:Dicas.Descricao="Acrescenta leis em PDF à biblioteca; o editor guarda uma cópia e não muda o original.">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                      <FontIcon Glyph="&#xE723;" FontSize="16"/>
+                      <FontIcon Glyph="{x:Bind local:Glifos.Anexar}" FontSize="16"/>
                       <TextBlock TextAlignment="Left" Text="Anexar PDFs…"/>
                     </StackPanel>
                   </Button>
@@ -598,19 +553,13 @@
             <TextBlock TextAlignment="Left" x:Name="TituloAgentes" x:FieldModifier="internal" Text="Inteligência artificial" Visibility="Collapsed"/>
             <!-- Suas IAs (correções 2026-11-15, no padrão da página "IAs e contas" do WinStatusBar): um cartão por agente, com a conta, a assinatura, o
                  programa, a situação, os plugins do kit, a chave de API e o aviso. Tudo é consultado neste computador ao abrir a página, sem clicar em nada. -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE99A;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Suas IAs" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Suas IAs" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
               <local:CartaoAgente x:Name="CartaoChatGpt" x:FieldModifier="internal"/>
               <local:CartaoAgente x:Name="CartaoClaude" x:FieldModifier="internal"/>
               <local:CartaoAgente x:Name="CartaoGemini" x:FieldModifier="internal"/>
             </local:PainelCartoesAjustes>
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE7C3;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Novo relatório" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Novo relatório" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
@@ -670,7 +619,7 @@
                   <TextBlock x:Name="TituloRota" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}" VerticalAlignment="Center"/>
                   <Button Grid.Column="1" x:Name="BotaoAtualizarModelosIa" x:FieldModifier="internal" AutomationProperties.Name="Atualizar a lista de modelos de IA"
                           local:Dicas.Titulo="Atualizar lista" local:Dicas.Descricao="Consulta os modelos disponíveis nos aplicativos e nas APIs configuradas, incluindo a rota Gemini. Se a consulta falhar, mantém a última lista.">
-                    <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xE72C;" FontSize="16"/><TextBlock Text="Atualizar lista"/></StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Atualizar}" FontSize="16"/><TextBlock Text="Atualizar lista"/></StackPanel>
                   </Button>
                 </Grid>
                 <ScrollViewer HorizontalContentAlignment="Stretch" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
@@ -722,10 +671,7 @@
             <!-- Modelos de IA (2026-11-17, no padrão do seletor do WinStatusBar): qual IA responde na revisão e nos ajustes, com que modelo e com que
                  nível de raciocínio. Uma linha por fonte disponível neste computador (montada em MainWindow.ModelosIa.cs); as listas vêm dos apps
                  ChatGPT e Claude e, nas APIs, da própria API. -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE713;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Modelos de IA" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Modelos de IA" Style="{StaticResource PmvniTituloSecao}"/>
             <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}"
                        Text="A IA que responde quando você pede: Rever com a IA (com uma instrução escrita), Ajustar o item, esquadrias, volumetria e a instrução do despacho: o modelo e o nível de raciocínio de cada uma. As listas vêm dos apps ChatGPT e Claude deste computador e, nas APIs, da própria API. As etapas do Novo relatório usam os modelos da rota selecionada."/>
             <local:PainelCartoesAjustes>
@@ -756,10 +702,7 @@
             <!-- Atualizações (no padrão de Configurações › Sobre e suporte do WinStatusBar): versão instalada, "Verificar atualizações" com o
                  estado embaixo, a chave da consulta automática e "O que mudou" (as notas da versão publicada). Quem preenche é
                  MainWindow.Ajustes.cs (Atualizador). -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE72C;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Atualizações" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Atualizações" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
@@ -803,10 +746,7 @@
             </Expander>
             <!-- Suporte, Diagnóstico e Sobre (2026-11-17, no padrão de Configurações › Sobre e suporte do WinStatusBar). Quem preenche é
                  MainWindow.Sobre.cs. -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE897;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Suporte" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Suporte" Style="{StaticResource PmvniTituloSecao}"/>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
                 <StackPanel>
@@ -857,10 +797,7 @@
               </Border>
             </local:PainelCartoesAjustes>
 
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE9D9;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Diagnóstico" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Diagnóstico" Style="{StaticResource PmvniTituloSecao}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}">
               <StackPanel Padding="16,12" Spacing="10">
               <local:LinhaComAcoes>
@@ -883,16 +820,13 @@
               </StackPanel>
             </Border>
 
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="&#xE946;" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-              <TextBlock TextAlignment="Left" Text="Sobre" Style="{StaticResource PmvniTituloSecao}"/>
-            </StackPanel>
+            <TextBlock TextAlignment="Left" Text="Sobre" Style="{StaticResource PmvniTituloSecao}"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}">
               <Grid Padding="16" ColumnSpacing="16">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Image x:Name="ImagemApp" x:FieldModifier="internal" Width="56" Height="56" VerticalAlignment="Top"/>
                 <StackPanel Grid.Column="1" Spacing="4">
-                  <TextBlock TextAlignment="Left" Text="Análise de Projetos – PMVNI" FontSize="20" FontWeight="SemiBold" IsTextSelectionEnabled="True"/>
+                  <TextBlock TextAlignment="Left" Text="Análise de Projetos – PMVNI" Style="{StaticResource PmvniTituloSecao}" IsTextSelectionEnabled="True"/>
                   <TextBlock TextAlignment="Left" x:Name="TextoSobreVersao" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
                   <TextBlock TextAlignment="Left" TextWrapping="Wrap" Margin="0,6,0,0" IsTextSelectionEnabled="True"
                              Text="Editor dos relatórios de análise de projetos da Secretaria Municipal de Obras de Venda Nova do Imigrante: revisão dos relatórios, despachos, processos, acompanhamento da tramitação, legislação, consulta de imóveis na base QGIS e os sistemas da Prefeitura, com análise por Claude e Codex."/>
@@ -1004,7 +938,7 @@
     <!-- Barra inferior (como o WinStatusBar): tudo grava na hora. -->
     <Border Grid.Row="1" Padding="24,8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
       <StackPanel Orientation="Horizontal" Spacing="8">
-        <FontIcon Glyph="&#xE73E;" FontSize="13" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+        <FontIcon Glyph="{x:Bind local:Glifos.Marca}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
         <TextBlock TextAlignment="Left" x:Name="TextoSalvo" x:FieldModifier="internal" Text="Alterações salvas automaticamente" Style="{StaticResource PmvniAjusteAjuda}" VerticalAlignment="Center"/>
       </StackPanel>
     </Border>

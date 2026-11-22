@@ -348,7 +348,8 @@ public sealed partial class FaixaDeOpcoes : UserControl
         var rotulo = rotulos.TryGetValue(c.Id, out var r) ? r : RotuloDoBotao(c);
         var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         conteudo.Children.Add(Icone(GlifoDoComando(c.Id, c.Glifo)));
-        conteudo.Children.Add(new TextBlock { Text = rotulo, VerticalAlignment = VerticalAlignment.Center });
+        // 12 px no próprio TextBlock: o estilo implícito de TextBlock fixa 14 e não herda o FontSize do botão.
+        conteudo.Children.Add(new TextBlock { Text = rotulo, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
         Button b;
         if (c.Tipo == TipoComando.Menu && c.Itens is { Count: > 0 } itens)
         {
@@ -371,10 +372,16 @@ public sealed partial class FaixaDeOpcoes : UserControl
             b.Style = (Style)Application.Current.Resources[b is DropDownButton ? "PmvniFaixaMenuPrimarioStyle" : "PmvniBotaoPrimarioStyle"];
             Brilho.SetAtivo(b, false);
         }
+        else
+        {
+            b.Style = (Style)Application.Current.Resources["PmvniComandoFaixa"];
+        }
         b.Tag = c.Id;
+        // Rótulo de 12 px, o mesmo dos AppBarButton com rótulo à direita: todos os comandos da faixa com o mesmo tamanho de texto.
+        b.FontSize = 12;
         b.MinHeight = b.Height = 32;
         b.Padding = new Thickness(10, 0, 10, 0);
-        b.CornerRadius = new CornerRadius(8);
+        b.CornerRadius = (CornerRadius)Application.Current.Resources["PmvniRaioFaixa"];
         b.VerticalAlignment = VerticalAlignment.Center;
         b.VerticalContentAlignment = VerticalAlignment.Center;
         b.IsEnabled = Habilitado(c.Id);
@@ -468,6 +475,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
             return t;
         }
         var b = new AppBarButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id) };
+        b.CornerRadius = (CornerRadius)Application.Current.Resources["PmvniRaioFaixa"];
         // Correções 2026-11-15: o estado "rótulo à direita" do WinUI anima a margem do texto para 16/10 (StaticResource, não dá para
         // trocar pelo recurso); o texto sobe 3 px por transformação (a animação não mexe nela) e fica na linha do ícone e do primário.
         AlinharRotulo(b);

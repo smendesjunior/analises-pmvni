@@ -60,7 +60,7 @@ internal sealed class JanelaImpressao : Window
         botaoImprimir.Click += (_, _) => MostrarImpressao();
         Grid.SetColumn(botaoImprimir, 1);
         barra.Children.Add(botaoImprimir);
-        var fechar = new Button { Content = "Fechar", MinHeight = 36 };
+        var fechar = new Button { Content = "Fechar" };
         Dicas.Aplicar(fechar, "Fechar", "Fecha a janela de impressão.");
         fechar.Click += (_, _) => Close();
         Grid.SetColumn(fechar, 2);

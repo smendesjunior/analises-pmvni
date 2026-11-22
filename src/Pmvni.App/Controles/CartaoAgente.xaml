@@ -131,7 +131,7 @@
           <TextBlock TextAlignment="Left" x:Name="TextoDicaChave" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteAjuda}" Visibility="Collapsed"/>
           <!-- Só o Gemini, modo chave: o perfil da chave (com créditos ou gratuita). O plano de uma chave não é dedutível: o usuário escolhe. -->
           <StackPanel x:Name="PainelPerfil" x:FieldModifier="internal" Spacing="4" Visibility="Collapsed" Margin="0,4,0,0">
-            <ComboBox x:Name="CaixaPerfil" x:FieldModifier="internal" Header="Perfil da chave" MinWidth="280" MaxWidth="420" HorizontalAlignment="Left"
+            <ComboBox x:Name="CaixaPerfil" x:FieldModifier="internal" Header="Perfil da chave" MinWidth="0" MaxWidth="420" HorizontalAlignment="Stretch"
                       local:Dicas.Descricao="Diz se a chave do Google AI Studio tem créditos (camada paga) ou é gratuita. A gratuita só serve para processos fictícios."/>
           </StackPanel>
           <!-- Só o Gemini: o modelo e o nível de cada etapa de IA no perfil que vale agora. -->

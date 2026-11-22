@@ -19,12 +19,13 @@
         <CommandBar x:Name="Barra" Grid.Column="2" DefaultLabelPosition="Right" HorizontalAlignment="Left" IsDynamicOverflowEnabled="True"
                     Background="Transparent" OverflowButtonVisibility="Auto">
           <CommandBar.Resources>
+            <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
             <x:Double x:Key="AppBarButtonContentHeight">16</x:Double>
             <Thickness x:Key="AppBarButtonInnerBorderMargin">2,2,2,2</Thickness>
-            <x:Double x:Key="AppBarThemeCompactHeight">34</x:Double>
+            <x:Double x:Key="AppBarThemeCompactHeight">32</x:Double>
             <!-- Correções 2026-11-15: no modelo do WinUI o ícone e o rótulo (rótulo à direita) têm margem 16 em cima e 10 embaixo e ficam
                  3 px abaixo do centro do botão (o fundo ao passar o mouse aparecia acima do texto); aqui, 13 e 13. -->
-            <Thickness x:Key="AppBarButtonContentViewboxMargin">8,9,0,9</Thickness>
+            <Thickness x:Key="AppBarButtonContentViewboxMargin">8,8,0,8</Thickness>
             <!-- O botão comum usa a margem estática do WinUI (16/10). A mesma margem vertical nos alternadores
                  mantém o ícone e o texto dos dois tipos na mesma linha. -->
             <Thickness x:Key="AppBarToggleButtonTextLabelOnRightMargin">8,16,12,10</Thickness>

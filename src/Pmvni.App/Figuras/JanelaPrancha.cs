@@ -39,8 +39,8 @@ internal sealed class JanelaPrancha : Window
     readonly Grid raiz = new();
     readonly ComboBox arquivos = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Escolha o PDF das pranchas" };
     readonly Button escolher = new() { Content = "Escolher arquivo…" };
-    readonly AppBarButton anterior = new() { Icon = new FontIcon { Glyph = Glifos.Anterior, FontSize = 16 }, Label = "Página anterior" };
-    readonly AppBarButton proxima = new() { Icon = new FontIcon { Glyph = Glifos.Proximo, FontSize = 16 }, Label = "Próxima página" };
+    readonly AppBarButton anterior = new() { Icon = new FontIcon { Glyph = Glifos.Anterior, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Página anterior" };
+    readonly AppBarButton proxima = new() { Icon = new FontIcon { Glyph = Glifos.Proximo, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Próxima página" };
     readonly TextBlock textoPagina = new() { VerticalAlignment = VerticalAlignment.Center, Text = "Nenhuma página", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
     readonly ScrollViewer rolagem = new() { ZoomMode = ZoomMode.Enabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MinZoomFactor = .1f, MaxZoomFactor = 8 }; // o WinUI recusa mínimo abaixo de 0,1 (a janela não abria)
     readonly Grid superficie = new() { Background = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
@@ -56,8 +56,8 @@ internal sealed class JanelaPrancha : Window
     readonly Border progresso = Trabalhando.Quadro("Trabalhando…");
     readonly Viewbox previa = new() { Stretch = Stretch.Uniform, MaxHeight = 240, Visibility = Visibility.Collapsed };
     readonly TextBlock orientacao = new() { Text = "Arraste sobre a página para selecionar a região da figura.", Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] };
-    readonly AppBarButton limpar = new() { Icon = new FontIcon { Glyph = "\uE894", FontSize = 16 }, Label = "Limpar recorte" };
-    readonly AppBarButton selecionarTudo = new() { Icon = new FontIcon { Glyph = "\uE8B3", FontSize = 16 }, Label = "Selecionar página" };
+    readonly AppBarButton limpar = new() { Icon = new FontIcon { Glyph = "\uE894", Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Limpar recorte" };
+    readonly AppBarButton selecionarTudo = new() { Icon = new FontIcon { Glyph = "\uE8B3", Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Selecionar página" };
     readonly TextBlock textoZoom = new() { Text = "100%", Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] };
     readonly CommandBar ferramentas = new() { HorizontalAlignment = HorizontalAlignment.Left, DefaultLabelPosition = CommandBarDefaultLabelPosition.Right, IsDynamicOverflowEnabled = true };
 
@@ -119,9 +119,9 @@ internal sealed class JanelaPrancha : Window
         ferramentas.PrimaryCommands.Add(anterior);
         ferramentas.PrimaryCommands.Add(proxima);
         ferramentas.PrimaryCommands.Add(new AppBarSeparator());
-        var menos = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Diminuir, FontSize = 16 }, Label = "Diminuir o zoom" };
-        var mais = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Aumentar, FontSize = 16 }, Label = "Aumentar o zoom" };
-        var ajustar = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.PaginaInteira, FontSize = 16 }, Label = "Página inteira" };
+        var menos = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Diminuir, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Diminuir o zoom" };
+        var mais = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Aumentar, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Aumentar o zoom" };
+        var ajustar = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.PaginaInteira, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Página inteira" };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(menos, "Diminuir");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(mais, "Aumentar");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(anterior, "Página anterior");
@@ -208,7 +208,6 @@ internal sealed class JanelaPrancha : Window
         var acoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         inserir.Style = (Style)Application.Current.Resources["PmvniBotaoPrimarioStyle"];
         inserir.VerticalAlignment = cancelar.VerticalAlignment = VerticalAlignment.Bottom;
-        cancelar.MinHeight = 36;
         acoes.Children.Add(inserir);
         acoes.Children.Add(cancelar);
         Grid.SetColumn(acoes, 1);

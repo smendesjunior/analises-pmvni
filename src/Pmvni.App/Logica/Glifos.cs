@@ -22,6 +22,7 @@ public static class Glifos
     public const string Editar = "\uE70F";
     public const string Engrenagem = "\uE713";
     public const string Figuras = "\uEB9F";
+    public const string MaisOpcoes = "\uE712";
     public const string Globo = "\uE774";
     public const string Mapa = "\uE707";
     public const string Grafico = "\uEB05";

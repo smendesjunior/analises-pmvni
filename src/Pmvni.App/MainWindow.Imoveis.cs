@@ -335,7 +335,7 @@ public sealed partial class MainWindow
                 ver.Click += async (_, _) => await PesquisarInscricaoAsync(suc);
                 celulaSelo = new StackPanel { Spacing = 2, Children = { selo, ver } };
             }
-            var abrir = new Button { Content = "Relatório", Padding = new Thickness(6, 5, 6, 6), MinHeight = 36, HorizontalAlignment = HorizontalAlignment.Stretch };
+            var abrir = new Button { Content = "Relatório", Padding = new Thickness(6, 5, 6, 6), HorizontalAlignment = HorizontalAlignment.Stretch };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrir, "Abrir relatório do imóvel " + reg.InscricaoMunicipal);
             Dicas.Aplicar(abrir, "Abrir relatório", "Mostra os dados cadastrais e territoriais do imóvel.");
             abrir.Click += async (_, _) => await AbrirRelatorioDoImovelAsync(reg);

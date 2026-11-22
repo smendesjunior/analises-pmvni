@@ -80,7 +80,7 @@ public sealed partial class EscolhaDePecas : UserControl
                 Background = (Brush)Application.Current.Resources["CardBackgroundFillColorSecondaryBrush"], Child = semMiniatura,
             });
         }
-        visual.Children.Add(new TextBlock { Text = v.Texto, TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        visual.Children.Add(new TextBlock { Text = v.Texto, TextWrapping = TextWrapping.Wrap, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniAjusteTitulo"] });
         visual.Children.Add(new TextBlock { Text = Relativo(v), TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["PmvniSecondaryTextStyle"] });
 
         var opcao = new RadioButton { GroupName = Grupo, Content = visual, Tag = miniatura is not null, VerticalContentAlignment = VerticalAlignment.Top };

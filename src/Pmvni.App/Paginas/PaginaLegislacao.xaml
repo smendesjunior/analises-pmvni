@@ -42,7 +42,7 @@
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
 
-      <Grid Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" Padding="12,6"><StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Livro}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Acervo de legislação" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/></StackPanel><TextBlock Grid.Column="1" x:Name="TotalAcervo" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/></Grid>
+      <Grid Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" Padding="12,6"><StackPanel Orientation="Horizontal" Spacing="12"><FontIcon Glyph="{x:Bind local:Glifos.Livro}" FontSize="20" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/><TextBlock Text="Acervo de legislação" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/></StackPanel><TextBlock Grid.Column="1" x:Name="TotalAcervo" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" VerticalAlignment="Center"/></Grid>
       <Grid Grid.Row="1" x:Name="Painel" x:FieldModifier="internal" Width="320" Padding="4" Style="{StaticResource PmvniPainelLateral}">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/>
@@ -66,7 +66,7 @@
           <Grid Margin="10,6,10,8">
             <TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="FiltroLeis" x:FieldModifier="internal" PlaceholderText="Filtrar por título, arquivo ou conteúdo"
                    AutomationProperties.Name="Filtrar as leis"/>
-            <FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+            <FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
           </Grid>
           <Grid x:Name="CartoesEsferas" x:FieldModifier="internal" Grid.Row="1" Margin="10,0,10,8" ColumnSpacing="6">
             <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
@@ -81,13 +81,13 @@
           <TextBlock x:Name="NenhumaLeiFiltro" x:FieldModifier="internal" Grid.Row="3" Margin="14,12" TextWrapping="Wrap" Visibility="Collapsed"
                      Style="{StaticResource PmvniSecondaryTextStyle}" Text="Nenhuma lei com este filtro."/>
           <StackPanel x:Name="VazioLeis" x:FieldModifier="internal" Grid.Row="3" Visibility="Collapsed" Padding="14,8" Spacing="10">
-            <FontIcon Glyph="{x:Bind local:Glifos.Livro}" FontSize="48" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Left" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+            <FontIcon Glyph="{x:Bind local:Glifos.Livro}" FontSize="64" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Left" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
             <TextBlock TextWrapping="Wrap" Text="Nenhuma lei anexada ainda." Style="{StaticResource PmvniSecondaryTextStyle}"/>
             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-              <Button MinHeight="36" HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAnexar" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" AutomationProperties.Name="Anexar PDFs…">
+              <Button HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAnexar" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" AutomationProperties.Name="Anexar PDFs…">
                 <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Anexar}" FontSize="16"/><TextBlock Text="Anexar PDFs…"/></StackPanel>
               </Button>
-              <Button Grid.Column="1" MinHeight="36" HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Gerenciar anexos"
+              <Button Grid.Column="1" HorizontalAlignment="Stretch" Padding="5,3" x:Name="BotaoAbrirAjustes" x:FieldModifier="internal" Content="Gerenciar anexos"
                       AutomationProperties.Name="Gerenciar anexos" local:Dicas.Descricao="Abre os ajustes da Legislação para renomear, reler ou remover leis anexadas."/>
             </Grid>
           </StackPanel>

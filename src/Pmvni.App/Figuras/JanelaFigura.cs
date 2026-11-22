@@ -55,9 +55,9 @@ internal sealed class JanelaFigura : Window
     // Um botão desabilitado não mostra dica: o motivo de não poder remover fica escrito embaixo dele.
     readonly TextBlock motivoRemover = new() { TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], Visibility = Visibility.Collapsed };
     readonly TextBlock estado = new() { HorizontalAlignment = HorizontalAlignment.Left, TextAlignment = TextAlignment.Left, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"] };
-    readonly AppBarButton botaoDesfazer = new() { Icon = new FontIcon { Glyph = Glifos.Desfazer, FontSize = 16 }, Label = "Desfazer" };
-    readonly AppBarButton botaoRefazer = new() { Icon = new FontIcon { Glyph = "\uE7A6", FontSize = 16 }, Label = "Refazer" };
-    readonly AppBarButton botaoInserir = new() { Icon = new FontIcon { Glyph = "\uE7A8", FontSize = 16 }, Label = "Inserir região da prancha…" };
+    readonly AppBarButton botaoDesfazer = new() { Icon = new FontIcon { Glyph = Glifos.Desfazer, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Desfazer" };
+    readonly AppBarButton botaoRefazer = new() { Icon = new FontIcon { Glyph = "\uE7A6", Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Refazer" };
+    readonly AppBarButton botaoInserir = new() { Icon = new FontIcon { Glyph = "\uE7A8", Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Inserir região da prancha…" };
     readonly TextBlock textoZoom = new() { Text = "100%", VerticalAlignment = VerticalAlignment.Center, MinWidth = 52, TextAlignment = TextAlignment.Center };
 
     // ---------- estado ----------
@@ -153,9 +153,9 @@ internal sealed class JanelaFigura : Window
         botaoRefazer.Click += async (_, _) => await HistoricoAsync(true);
         barra.PrimaryCommands.Add(botaoDesfazer);
         barra.PrimaryCommands.Add(botaoRefazer);
-        var menos = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Diminuir, FontSize = 16 }, Label = "Diminuir o zoom", LabelPosition = CommandBarLabelPosition.Collapsed };
-        var mais = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Aumentar, FontSize = 16 }, Label = "Aumentar o zoom", LabelPosition = CommandBarLabelPosition.Collapsed };
-        var ajustar = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.PaginaInteira, FontSize = 16 }, Label = "Figura inteira" };
+        var menos = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Diminuir, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Diminuir o zoom", LabelPosition = CommandBarLabelPosition.Collapsed };
+        var mais = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.Aumentar, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Aumentar o zoom", LabelPosition = CommandBarLabelPosition.Collapsed };
+        var ajustar = new AppBarButton { Icon = new FontIcon { Glyph = Glifos.PaginaInteira, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = "Figura inteira" };
         foreach (var botao in new[] { botaoInserir, botaoDesfazer, botaoRefazer, menos, mais, ajustar })
             AutomationNome(botao, botao.Label);
         Dicas.Aplicar(menos, menos.Label, "Diminui o zoom da figura.");
@@ -305,7 +305,7 @@ internal sealed class JanelaFigura : Window
 
     void Botao(CommandBar barra, FerramentaFigura f, string glifo, string texto, string dica)
     {
-        var b = new AppBarToggleButton { Icon = new FontIcon { Glyph = glifo, FontSize = 16 }, Label = texto };
+        var b = new AppBarToggleButton { Icon = new FontIcon { Glyph = glifo, Style = (Style)Application.Current.Resources["PmvniIconeAcao"] }, Label = texto };
         Pilulas.Estilizar(b);
         Dicas.Aplicar(b, texto, dica.EndsWith('.') ? dica : dica + ".");
         AutomationNome(b, texto);

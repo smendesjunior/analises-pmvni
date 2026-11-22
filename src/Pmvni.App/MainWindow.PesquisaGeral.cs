@@ -501,9 +501,8 @@ public sealed partial class MainWindow
         onde.Text = item.Onde;
         AutomationProperties.SetName(linha, item.NomeAcessivel);
         ToolTipService.SetToolTip(linha, item.NomeAcessivel);
-        linha.PointerEntered += (_, _) => SelecionarGeral(indice, anunciar: false);
         // Pressionar não tira o foco da caixa (a linha não é focável); o resultado abre ao soltar sobre a mesma linha.
-        linha.PointerPressed += (_, e) => { pressionandoLinhaGeral = true; e.Handled = true; };
+        linha.PointerPressed += (_, e) => { SelecionarGeral(indice, anunciar: false); pressionandoLinhaGeral = true; e.Handled = true; };
         linha.PointerExited += (_, _) => pressionandoLinhaGeral = false;
         linha.PointerCaptureLost += (_, _) => pressionandoLinhaGeral = false;
         linha.PointerReleased += (_, e) =>

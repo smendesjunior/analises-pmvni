@@ -78,7 +78,7 @@ public sealed partial class Trilho : UserControl
             conteudo.Children.Add(rotulo);
             var fundo = new Border
             {
-                Width = 114, Height = duasLinhas ? 72 : 60, CornerRadius = new CornerRadius(8),
+                Width = 114, Height = duasLinhas ? 72 : 60, CornerRadius = (CornerRadius)Application.Current.Resources["ControlCornerRadius"],
                 HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 Style = Estilo("PmvniTrilhoFundoInativoStyle"),
                 Child = conteudo,

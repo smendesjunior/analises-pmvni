@@ -5,6 +5,9 @@
   <!-- Estilos Fluent do app. As cores próprias (ícones dos módulos, fundo do item ativo do trilho, botão tonal) ficam em
        Recursos\IconesModulos.xaml, com uma versão para o tema claro, o escuro e o alto contraste. -->
 
+  <!-- 3.2.2: raio único dos controles (botões, caixas de texto e de seleção) = o nativo do WinUI 3, 4 px. Cartões e painéis seguem com 8. -->
+  <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
+  <CornerRadius x:Key="PmvniRaioFaixa">4</CornerRadius>
   <Style x:Key="PmvniSuperficieElevada" TargetType="FrameworkElement">
     <Setter Property="Shadow"><Setter.Value><ThemeShadow/></Setter.Value></Setter>
     <Setter Property="local:Elevacao.Altura" Value="8"/>
@@ -12,6 +15,8 @@
 
   <Style TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
     <Setter Property="TextAlignment" Value="Center"/>
+    <!-- 3.2.2: texto que não cabe termina em reticências (antes era cortado no meio da letra, como nas caixas de seleção estreitas). -->
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
@@ -19,10 +24,18 @@
     <Setter Property="VerticalContentAlignment" Value="Center"/>
   </Style>
   <!-- 3.2.0: conteúdo à esquerda, como nas caixas de seleção do Windows 11 (centralizado parecia botão e cortava textos longos). -->
-  <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+  <DataTemplate x:Key="PmvniTextoEscolha">
+    <TextBlock Text="{Binding}" TextAlignment="Left" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding}"/>
+  </DataTemplate>
+  <Style TargetType="ComboBoxItem" BasedOn="{StaticResource DefaultComboBoxItemStyle}">
+    <Setter Property="ContentTemplate" Value="{StaticResource PmvniTextoEscolha}"/>
+  </Style>
+  <Style x:Key="PmvniEscolha" TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+    <Setter Property="ItemTemplate" Value="{StaticResource PmvniTextoEscolha}"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
   </Style>
+  <Style TargetType="ComboBox" BasedOn="{StaticResource PmvniEscolha}"/>
   <!-- Medidas comuns das páginas (painéis laterais e margens). -->
   <x:Double x:Key="PmvniLarguraPainel">300</x:Double>
   <!-- Lista de seções da revisão: mais larga para a etiqueta de situação caber ao lado do título (que quebra a linha). -->
@@ -47,16 +60,15 @@
   </Style>
 
   <!-- Botão da barra: sem borda e sem fundo até o mouse passar. -->
-  <!-- "Trabalhando" (2026-11-17): todo anel ativo e toda barra indeterminada acendem o brilho arco-íris do WinStatusBar no quadro em
-       volta (Controles/BrilhoArcoIris.cs). -->
-  <Style TargetType="ProgressRing">
-    <Setter Property="local:Trabalhando.Automatico" Value="True"/>
-  </Style>
-  <Style TargetType="ProgressBar" BasedOn="{StaticResource DefaultProgressBarStyle}">
-    <Setter Property="local:Trabalhando.Automatico" Value="True"/>
-  </Style>
 
-  <Style x:Key="PmvniBarraButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+  <Style x:Key="PmvniBotaoComum" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
+    <Setter Property="FontWeight" Value="Normal"/>
+  </Style>
+  <Style TargetType="Button" BasedOn="{StaticResource PmvniBotaoComum}"/>
+  <Style x:Key="PmvniBarraButtonStyle" TargetType="Button" BasedOn="{StaticResource PmvniBotaoComum}">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Padding" Value="10,5,10,6"/>
@@ -172,13 +184,13 @@
                 <VisualState x:Name="Pressed">
                   <VisualState.Setters>
                     <Setter Target="Veu.Opacity" Value="1"/>
-                    <Setter Target="Veu.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}"/>
+                    <Setter Target="Veu.Background" Value="{ThemeResource ButtonBackgroundPressed}"/>
                   </VisualState.Setters>
                 </VisualState>
                 <VisualState x:Name="Disabled"/>
               </VisualStateGroup>
             </VisualStateManager.VisualStateGroups>
-            <Border x:Name="Veu" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}"/>
+            <Border x:Name="Veu" Background="{ThemeResource ButtonBackgroundPointerOver}" Opacity="0" CornerRadius="{TemplateBinding CornerRadius}"/>
             <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"
                               HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
           </Grid>
@@ -218,7 +230,7 @@
     <Setter Property="Width" Value="108"/>
     <Setter Property="MinHeight" Value="54"/>
     <Setter Property="Padding" Value="0"/>
-    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
     <Setter Property="FocusVisualMargin" Value="-2"/>
     <Setter Property="HorizontalAlignment" Value="Center"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -259,36 +271,38 @@
     <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
 
+  <!-- 3.2.2: botões no padrão do WinUI 3 em todo o editor: altura 32, texto normal (sem negrito) e o hover nativo do controle, sem brilho.
+       O destaque é só a cor; tamanho, peso do texto e cantos são iguais aos dos botões comuns. -->
   <Style x:Key="PmvniBotaoPrimarioStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
-    <Setter Property="local:Brilho.Ativo" Value="True"/>
-    <Setter Property="MinHeight" Value="36"/>
-    <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
   </Style>
 
+  <Style x:Key="PmvniComandoFaixa" TargetType="Button">
+    <Setter Property="Background" Value="{ThemeResource SubtleFillColorTransparentBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="{ThemeResource PmvniRaioFaixa}"/>
+  </Style>
   <Style x:Key="PmvniFaixaMenuPrimarioStyle" TargetType="DropDownButton">
     <Setter Property="Background" Value="{ThemeResource AccentButtonBackground}"/>
     <Setter Property="Foreground" Value="{ThemeResource AccentButtonForeground}"/>
     <Setter Property="BorderBrush" Value="{ThemeResource AccentButtonBorderBrush}"/>
-    <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
   </Style>
 
-  <!-- Botão primário tonal (como "Novo email"): verde claro do brasão, cantos 8, altura 36. As cores de "sobre" e "pressionado"
-       vêm de PmvniCoresTonais (dicionário de recursos posto em volta do botão: ButtonBackgroundPointerOver etc.). -->
-  <Style x:Key="PmvniBotaoTonalStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+  <!-- Ações tonais compartilham os estados nativos dos demais botões. -->
+  <Style x:Key="PmvniBotaoTonalStyle" TargetType="Button" BasedOn="{StaticResource PmvniBotaoComum}">
     <Setter Property="Background" Value="{ThemeResource PmvniTonalFundo}"/>
     <Setter Property="Foreground" Value="{ThemeResource PmvniTonalTexto}"/>
-    <!-- Borda fina verde-clara em todos os botões que brilham (2026-11-17, "padronizar com a borda em volta"). -->
     <Setter Property="BorderBrush" Value="{ThemeResource PmvniTonalBorda}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="MinHeight" Value="36"/>
-    <Setter Property="Padding" Value="14,0,16,0"/>
-    <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Padding" Value="11,5,11,6"/>
+    <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
-    <!-- Brilho verde em volta, como os botões do WinStatusBar (Controles\Brilho.cs). -->
-    <Setter Property="local:Brilho.Ativo" Value="True"/>
   </Style>
 
   <!-- Cartões dos Ajustes (no padrão do WinStatusBar): grupo com fundo de cartão, borda e raio 8; linha = título + ajuda à esquerda e
@@ -328,7 +342,7 @@
     <Setter Property="Height" Value="1"/>
     <Setter Property="Background" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
   </Style>
-  <Style x:Key="PmvniAjusteEscolha" TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
+  <Style x:Key="PmvniAjusteEscolha" TargetType="ComboBox" BasedOn="{StaticResource PmvniEscolha}">
     <Setter Property="VerticalContentAlignment" Value="Center"/>
     <Setter Property="HorizontalAlignment" Value="Stretch"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -402,7 +416,6 @@
     <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
-    <Setter Property="CharacterSpacing" Value="40"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="PmvniPainelCartaoCorpo" TargetType="StackPanel">
@@ -413,7 +426,6 @@
     <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
-    <Setter Property="CharacterSpacing" Value="60"/>
     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
@@ -451,10 +463,9 @@
     <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
   </Style>
   <!-- Botão pequeno de um campo do painel ("Restaurar", "Remover"). -->
-  <Style x:Key="PmvniPainelBotaoPequeno" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+  <Style x:Key="PmvniPainelBotaoPequeno" TargetType="Button" BasedOn="{StaticResource PmvniBotaoComum}">
     <Setter Property="Padding" Value="10,3,10,3"/>
-    <Setter Property="FontSize" Value="12"/>
-    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Height" Value="32"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <!-- O resultado de uma conta no painel (esquadrias): atende, não atende, sem como comparar. -->
@@ -553,7 +564,7 @@
   <Style x:Key="PmvniPilhaContornoStyle" TargetType="StackPanel">
     <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
   </Style>
-  <Style x:Key="PmvniBotaoTextoDestaqueStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+  <Style x:Key="PmvniBotaoTextoDestaqueStyle" TargetType="Button" BasedOn="{StaticResource PmvniBotaoComum}">
     <Setter Property="Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
   </Style>
   <Style x:Key="PmvniPainelLateral" TargetType="Grid" BasedOn="{StaticResource PmvniSuperficieElevada}">
@@ -565,13 +576,13 @@
   <Style x:Key="PmvniCampoPesquisa" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
     <Setter Property="TextAlignment" Value="Left"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
-    <Setter Property="Padding" Value="32,4,8,4"/>
+    <Setter Property="Padding" Value="36,4,8,4"/>
     <Setter Property="MinHeight" Value="32"/>
-    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
   </Style>
   <Style x:Key="PmvniCartaoStatus" TargetType="ToggleButton" BasedOn="{StaticResource DefaultToggleButtonStyle}">
     <Setter Property="Background" Value="{ThemeResource PmvniSuperficieSuave}"/>
-    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
     <Setter Property="HorizontalAlignment" Value="Stretch"/>
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
   </Style>

@@ -24,7 +24,7 @@
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Button x:Name="BotaoSalvarCopia" x:FieldModifier="internal" Content="Salvar como cópia" Style="{StaticResource PmvniBotaoPrimarioStyle}"
                     local:Dicas.Descricao="Grava as suas alterações num arquivo novo, sem mexer no arquivo que mudou no disco."/>
-            <Button x:Name="BotaoRecarregar" x:FieldModifier="internal" Content="Recarregar" MinHeight="36"
+            <Button x:Name="BotaoRecarregar" x:FieldModifier="internal" Content="Recarregar"
                     local:Dicas.Descricao="Deixa de lado o que está na tela e abre a versão que está no disco."/>
           </StackPanel>
         </InfoBar.Content>
@@ -116,7 +116,7 @@
                 <FontIcon Grid.Column="1" Glyph="{x:Bind IconeSecao}" Visibility="{x:Bind IconeSecaoVisivel, Mode=OneWay}" FontSize="16"/>
                 <TextBlock Grid.Column="1" Text="{x:Bind Numero}" Visibility="{x:Bind NumeroVisivel}" Style="{StaticResource PmvniSecondaryTextStyle}" Margin="0,1,0,0" VerticalAlignment="Top"/>
                 <Button Grid.Column="1" Visibility="{x:Bind ChevronVisivel, Mode=OneWay}" Tag="{x:Bind}" Click="AoClicarChevron"
-                        Width="24" Height="24" Padding="0" Margin="0,-2,0,0" VerticalAlignment="Top" Style="{StaticResource PmvniBarraButtonStyle}"
+                        Width="24" Height="32" Padding="0" VerticalAlignment="Top" Style="{StaticResource PmvniBarraButtonStyle}"
                         AutomationProperties.Name="{x:Bind NomeChevron, Mode=OneWay}" local:Dicas.Descricao="Mostra ou esconde os itens desta seção.">
                   <FontIcon Glyph="{x:Bind GlifoChevron, Mode=OneWay}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}"/>
                 </Button>
@@ -218,7 +218,6 @@
               <StackPanel>
                 <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="{x:Bind local:Glifos.Situacao}" Style="{StaticResource PmvniPainelCartaoIcone}" FontSize="16"/>
                     <TextBlock Text="Estado" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level3"/>
                   </StackPanel>
                 </Border>
@@ -263,7 +262,7 @@
                       </Button>
                       <!-- Tarefa 15: numa tabela de índices ou de esquadrias, o botão acima revê sem IA; este é a segunda opção, só oferecida
                            quando há texto novo na justificativa, e só roda com clique nele. -->
-                      <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" x:Name="PropReverComIa" x:FieldModifier="internal" Visibility="Collapsed" MinHeight="36"
+                      <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" x:Name="PropReverComIa" x:FieldModifier="internal" Visibility="Collapsed"
                               AutomationProperties.Name="Rever a tabela com a IA, seguindo a justificativa"
                               local:Dicas.Descricao="A IA revê a tabela seguindo o que você escreveu na justificativa; as contas das esquadrias continuam sendo do editor. Um Desfazer volta tudo.">
                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -271,7 +270,7 @@
                           <TextBlock Text="Rever com a IA"/>
                         </StackPanel>
                       </Button>
-                      <Button x:Name="PropAjustarCancelar" x:FieldModifier="internal" Content="Cancelar" Visibility="Collapsed" MinHeight="36"
+                      <Button x:Name="PropAjustarCancelar" x:FieldModifier="internal" Content="Cancelar" Visibility="Collapsed"
                               AutomationProperties.Name="Cancelar a consulta à IA"
                               local:Dicas.Descricao="Interrompe a consulta à IA; nada muda no relatório."/>
                     </StackPanel>
@@ -289,7 +288,6 @@
               <StackPanel>
                 <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="{x:Bind local:Glifos.Inicio}" Style="{StaticResource PmvniPainelCartaoIcone}" FontSize="16"/>
                     <TextBlock Text="Esquadrias" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level3"/>
                   </StackPanel>
                 </Border>
@@ -302,7 +300,6 @@
               <StackPanel>
                 <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="{x:Bind local:Glifos.Relatorio}" Style="{StaticResource PmvniPainelCartaoIcone}" FontSize="16"/>
                     <TextBlock Text="Conteúdo" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level3"/>
                   </StackPanel>
                 </Border>
@@ -326,7 +323,6 @@
               <StackPanel>
                 <Border Style="{StaticResource PmvniPainelCartaoCabecalho}">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="{x:Bind local:Glifos.Recentes}" Style="{StaticResource PmvniPainelCartaoIcone}" FontSize="16"/>
                     <TextBlock Text="Histórico" Style="{StaticResource PmvniPainelCartaoTitulo}" AutomationProperties.HeadingLevel="Level3"/>
                   </StackPanel>
                 </Border>

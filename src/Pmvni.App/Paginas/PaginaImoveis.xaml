@@ -19,10 +19,14 @@
 
       <Grid ColumnSpacing="12">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <StackPanel Spacing="2">
-          <TextBlock Text="Consulta de imóveis" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/>
-          <TextBlock Text="Localize inscrições municipais, consulte a situação cadastral e acesse os dados geográficos." TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-        </StackPanel>
+        <!-- Título da página no padrão dos módulos: ícone de 20 px à esquerda e, ao lado, o título com o subtítulo alinhado a ele. -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+          <FontIcon Glyph="{x:Bind local:Glifos.Mapa}" FontSize="20" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/>
+          <StackPanel Grid.Column="1" Spacing="2">
+            <TextBlock Text="Consulta de imóveis" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1"/>
+            <TextBlock Text="Localize inscrições municipais, consulte a situação cadastral e acesse os dados geográficos." TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"/>
+          </StackPanel>
+        </Grid>
         <Button x:Name="BotaoConfigurar" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="Configurar pasta QGIS" local:Dicas.Descricao="Abre Ajustes › Fontes de dados para escolher a pasta dos arquivos QGIS.">
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Gerenciar}" FontSize="16"/><TextBlock Text="Configurar pasta QGIS"/></StackPanel>
         </Button>
@@ -33,13 +37,13 @@
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="2*" MaxWidth="280"/><ColumnDefinition Width="1.3*" MaxWidth="170"/><ColumnDefinition Width="4*"/><ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-        <ComboBox x:Name="CaixaParametro" Height="36" VerticalAlignment="Center" x:FieldModifier="internal" HorizontalAlignment="Stretch" PlaceholderText="Parâmetro" AutomationProperties.Name="Parâmetro da pesquisa"/>
-        <ComboBox x:Name="CaixaCondicao" Height="36" VerticalAlignment="Center" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" AutomationProperties.Name="Condição"/>
+        <ComboBox x:Name="CaixaParametro" VerticalAlignment="Center" x:FieldModifier="internal" HorizontalAlignment="Stretch" PlaceholderText="Parâmetro" AutomationProperties.Name="Parâmetro da pesquisa"/>
+        <ComboBox x:Name="CaixaCondicao" VerticalAlignment="Center" x:FieldModifier="internal" Grid.Column="1" HorizontalAlignment="Stretch" AutomationProperties.Name="Condição"/>
         <Grid Grid.Column="2">
-          <TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="CaixaValor" Height="36" VerticalAlignment="Center" x:FieldModifier="internal" MaxLength="512" PlaceholderText="Digite o valor e tecle Enter" AutomationProperties.Name="Valor da pesquisa"/>
-          <FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+          <TextBox Style="{StaticResource PmvniCampoPesquisa}" x:Name="CaixaValor" VerticalAlignment="Center" x:FieldModifier="internal" MaxLength="512" PlaceholderText="Digite o valor e tecle Enter" AutomationProperties.Name="Valor da pesquisa"/>
+          <FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
         </Grid>
-        <Button x:Name="BotaoPesquisar" Height="36" VerticalAlignment="Center" x:FieldModifier="internal" Grid.Column="3" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" MinWidth="44"
+        <Button x:Name="BotaoPesquisar" VerticalAlignment="Center" x:FieldModifier="internal" Grid.Column="3" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" MinWidth="44"
                 AutomationProperties.Name="Pesquisar" local:Dicas.Titulo="Pesquisar" local:Dicas.Atalho="Enter" local:Dicas.Descricao="Pesquisa no cadastro com o parâmetro, a condição e o valor.">
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16"/><TextBlock Text="Pesquisar"/></StackPanel>
         </Button>
@@ -103,17 +107,17 @@
       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
       <Grid Padding="12,6" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" MinHeight="36" AutomationProperties.Name="Voltar à pesquisa"
+        <Button x:Name="BotaoVoltar" x:FieldModifier="internal" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Voltar à pesquisa"
                 local:Dicas.Titulo="Voltar à pesquisa" local:Dicas.Descricao="Volta à pesquisa, com os resultados como estavam.">
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Voltar}" FontSize="16"/><TextBlock Text="Voltar à pesquisa"/></StackPanel>
         </Button>
         <TextBlock x:Name="TituloRelatorio" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource PmvniAjusteTitulo}" AutomationProperties.HeadingLevel="Level1" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
         <!-- Cotas do lote no mapa (lados, domínio DNIT e eixo → terreno, largura da rua): ligadas por padrão; a escolha vale até fechar o app. -->
-        <ToggleButton x:Name="BotaoCotas" x:FieldModifier="internal" Grid.Column="2" MinHeight="36" IsChecked="True" AutomationProperties.Name="Cotas no mapa"
+        <ToggleButton x:Name="BotaoCotas" x:FieldModifier="internal" Grid.Column="2" IsChecked="True" AutomationProperties.Name="Cotas no mapa"
                       local:Dicas.Titulo="Cotas no mapa" local:Dicas.Descricao="Mostra ou esconde as cotas do lote no mapa: lados do lote, faixa de domínio do DNIT e distância do eixo ao terreno (BR-262 perto) e largura da rua em frente, medidas na base.">
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE1D9;" FontSize="16"/><TextBlock Text="Cotas"/></StackPanel>
         </ToggleButton>
-        <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="3" MinHeight="36" AutomationProperties.Name="Imprimir o relatório"
+        <Button x:Name="BotaoImprimir" x:FieldModifier="internal" Grid.Column="3" AutomationProperties.Name="Imprimir o relatório"
                 local:Dicas.Titulo="Imprimir" local:Dicas.Atalho="Ctrl+P" local:Dicas.Descricao="Abre as opções de impressão do relatório.">
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Imprimir}" FontSize="16"/><TextBlock Text="Imprimir"/></StackPanel>
         </Button>

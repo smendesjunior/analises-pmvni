@@ -228,12 +228,14 @@ public sealed partial class MainWindow
                 };
                 var botao = new Microsoft.UI.Xaml.Controls.Primitives.ToggleButton
                 {
+                    // Nome da rota em cima e tipo embaixo, sem corte: o cartão cresce em altura, e todos da linha ficam com a mesma altura.
                     Content = new TextBlock { Text = partes[0] + "\n" + perfil, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap },
                     HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Center,
-                    IsChecked = coluna == selecionada, MinHeight = 60
+                    IsChecked = coluna == selecionada, MinHeight = 56, Padding = new Thickness(8, 6, 8, 6)
                 };
                 Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, "Configurar " + coluna.Titulo);
+                ToolTipService.SetToolTip(botao, partes[0] + " · " + perfil);
                 botao.Click += (_, _) => { rotaEmEdicao = coluna; MostrarModelosDaAnalise(); };
                 p.CartoesRotas.Children.Add(botao);
             }
@@ -259,8 +261,21 @@ public sealed partial class MainWindow
                 foreach (var rota in ModelosDaAnalise.Rotas)
                 {
                     var nome = Provedores.Nome(ModelosDaAnalise.ProvedorDaRota(rota));
-                    var alternar = new ToggleSwitch { IsOn = ModelosDaAnalise.Ligada(a, e, rota), Style = (Style)Application.Current.Resources["PmvniAjusteAlternar"], Margin = new Thickness(16, 0, 16, 8) };
-                    alternar.Header = e.Nome + " na rota " + nome + (e.LigadaPorRota.GetValueOrDefault(rota, true) ? " (padrão do kit: ligada)" : " (padrão do kit: desligada)");
+                    // Uma linha por rota: o texto à esquerda e a chave à direita, todas na mesma coluna (antes cada chave ficava sob o seu título,
+                    // alinhada pela largura do texto, e as três apareciam desencontradas).
+                    var alternar = new ToggleSwitch { IsOn = ModelosDaAnalise.Ligada(a, e, rota), Style = (Style)Application.Current.Resources["PmvniAjusteAlternar"],
+                        HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, MinWidth = 0 };
+                    var linhaRota = new Grid { ColumnSpacing = 16, Margin = new Thickness(16, 0, 16, 8) };
+                    linhaRota.ColumnDefinitions.Add(new ColumnDefinition());
+                    linhaRota.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+                    linhaRota.Children.Add(new TextBlock
+                    {
+                        Text = e.Nome + " na rota " + nome + (e.LigadaPorRota.GetValueOrDefault(rota, true) ? " (padrão do kit: ligada)" : " (padrão do kit: desligada)"),
+                        Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"], FontSize = 14,
+                        Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorPrimaryBrush"],
+                    });
+                    Grid.SetColumn(alternar, 1);
+                    linhaRota.Children.Add(alternar);
                     Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(alternar, e.Nome + " na rota " + nome);
                     var etapa = e;
                     alternar.Toggled += (_, _) =>
@@ -269,7 +284,7 @@ public sealed partial class MainWindow
                         ModelosDaAnalise.Ligar(AjusteDosModelos, etapa, rota, alternar.IsOn);
                         GravarAjusteDosModelos(etapa.Nome + (alternar.IsOn ? " ligada" : " desligada") + " na rota " + nome + " neste computador.");
                     };
-                    p.PainelAuditoriaCruzada.Children.Add(alternar);
+                    p.PainelAuditoriaCruzada.Children.Add(linhaRota);
                 }
 
             var avisos = ModelosDaAnalise.AvisosDaAba(kit, a, etapas, c => ListaDaRotaAgora(c, kit));
@@ -296,6 +311,9 @@ public sealed partial class MainWindow
         grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 180 });
         foreach (var largura in new[] { 320, 200 })
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(largura) });
+        // Coluna vazia no fim: com o ColumnSpacing, deixa 16 px entre a caixa de Raciocínio e a borda direita do cartão da etapa (antes a caixa
+        // encostava na borda e ficava cortada).
+        grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) });
         void Adicionar(FrameworkElement controle, int linha, int coluna)
         {
             Grid.SetRow(controle, linha);
@@ -312,7 +330,7 @@ public sealed partial class MainWindow
             var etapa = etapas[i];
             grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var fundo = new Border { Style = estiloCartao, MinHeight = 64, IsHitTestVisible = false };
-            Grid.SetColumnSpan(fundo, 3);
+            Grid.SetColumnSpan(fundo, 4);
             Adicionar(fundo, i + 1, 0);
             var descricao = etapa.Id switch
             {

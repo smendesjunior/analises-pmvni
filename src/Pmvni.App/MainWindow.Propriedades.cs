@@ -603,7 +603,7 @@ public sealed partial class MainWindow
         var b = new Button
         {
             Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center,
-            Padding = new Thickness(10, 6, 10, 7), CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(10, 6, 10, 7),
             Style = (Style)Application.Current.Resources["PmvniBotaoTextoDestaqueStyle"],
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, nome);

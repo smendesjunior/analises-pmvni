@@ -714,7 +714,7 @@ public sealed partial class MainWindow
         if (LinhaSelecionada is { } linha) { MostrarMenuContextoLinha(linha, ponto); return; }
         if (ItemSelecionado is not { } it) return;
         var menu = new MenuFlyout();
-        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao, FontSize = 16 }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
+        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
         var efetiva = SituacaoEfetiva(it);
         foreach (var c in Faixas.OrdemSituacoes)
         {
@@ -775,7 +775,7 @@ public sealed partial class MainWindow
     void MostrarMenuContextoLinha(string linha, Point ponto)
     {
         var menu = new MenuFlyout();
-        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao, FontSize = 16 }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
+        var situacao = new MenuFlyoutSubItem { Text = "Situação", Icon = new FontIcon { Glyph = Glifos.Situacao, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] }, IsEnabled = Faixa.Habilitado(ComandosApp.InicioSituacao) };
         var efetiva = TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(sessao!.Revisao.Projeto, linha));
         foreach (var c in Faixas.OrdemSituacoes)
         {
@@ -799,12 +799,12 @@ public sealed partial class MainWindow
 
     void AdicionarVisualizacaoAoMenu(MenuFlyout menu)
     {
-        var propriedades = new MenuFlyoutItem { Text = "Propriedades", Icon = new FontIcon { Glyph = Glifos.Propriedades, FontSize = 16 } };
+        var propriedades = new MenuFlyoutItem { Text = "Propriedades", Icon = new FontIcon { Glyph = Glifos.Propriedades, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] } };
         propriedades.Click += (_, _) => MostrarPropriedades(true);
         menu.Items.Add(propriedades);
         var original = new ToggleMenuFlyoutItem
         {
-            Text = "Original", Icon = new FontIcon { Glyph = Glifos.Original, FontSize = 16 },
+            Text = "Original", Icon = new FontIcon { Glyph = Glifos.Original, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] },
             IsChecked = mostrarOriginal, IsEnabled = Faixa.Habilitado(ComandosApp.InicioOriginal),
         };
         original.Click += async (_, _) => await ExecutarComandoAsync(ComandosApp.InicioOriginal);
@@ -822,7 +822,7 @@ public sealed partial class MainWindow
 
     MenuFlyoutItem ItemDoMenu(string texto, string glifo, string id)
     {
-        var i = new MenuFlyoutItem { Text = texto, Icon = new FontIcon { Glyph = glifo, FontSize = 16 }, IsEnabled = Faixa.Habilitado(id) };
+        var i = new MenuFlyoutItem { Text = texto, Icon = new FontIcon { Glyph = glifo, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] }, IsEnabled = Faixa.Habilitado(id) };
         if (Atalhos.Tecla(id) is { } t)
         {
             i.KeyboardAcceleratorTextOverride = Atalhos.Legivel(t);
@@ -998,9 +998,9 @@ public sealed partial class MainWindow
             Grid.SetColumn(b, i < 3 ? i * 2 : (i - 3) * 3);
             Grid.SetColumnSpan(b, i < 3 ? 2 : 3);
             b.HorizontalAlignment = HorizontalAlignment.Stretch;
-            b.Height = 34;
+            b.Height = 32;
             b.Padding = new Thickness(3, 0, 3, 0);
-            b.CornerRadius = new CornerRadius(8);
+            b.CornerRadius = (CornerRadius)Application.Current.Resources["ControlCornerRadius"];
             b.ActualThemeChanged += (_, _) => AtualizarBotoesFiltro(contagensFiltro);
             var filtro = f;
             b.Click += (_, _) =>

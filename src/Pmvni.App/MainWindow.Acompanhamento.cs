@@ -967,8 +967,8 @@ public sealed partial class MainWindow
             Grid.SetColumn(celula, i++);
             g.Children.Add(celula);
         }
-        var mais = new Button { Content = new FontIcon { Glyph = "\uE712", FontSize = 16 },
-            Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"], Padding = new Thickness(0), Width = 36, Height = 36 };
+        var mais = new Button { Content = new FontIcon { Glyph = Glifos.MaisOpcoes, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] },
+            Style = (Style)Application.Current.Resources["PmvniBarraButtonStyle"], Padding = new Thickness(0), Width = 32, Height = 32 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(mais, "Mais ações do processo " + l.Processo);
         ToolTipService.SetToolTip(mais, "Mais ações");
         mais.Click += (_, _) => { var m = new MenuFlyout(); MontarMenuDoProcesso(m, l); m.ShowAt(mais); };
@@ -987,18 +987,18 @@ public sealed partial class MainWindow
     /// <summary>O menu da linha (botão '…' e botão direito) é montado só quando é pedido: antes, cada redesenho montava dois menus completos por linha.</summary>
     void MontarMenuDoProcesso(MenuFlyout m, LinhaAc l)
     {
-        var pasta = new MenuFlyoutItem { Text = "Abrir pasta", Icon = new FontIcon { Glyph = Glifos.AbrirPasta, FontSize = 16 } };
+        var pasta = new MenuFlyoutItem { Text = "Abrir pasta", Icon = new FontIcon { Glyph = Glifos.AbrirPasta, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] } };
         pasta.Click += (_, _) => AbrirPastaDoProcesso(l);
         m.Items.Add(pasta);
         m.Items.Add(new MenuFlyoutSeparator());
-        var editar = new MenuFlyoutItem { Text = "Editar processo…", Icon = new FontIcon { Glyph = Glifos.Editar, FontSize = 16 },
+        var editar = new MenuFlyoutItem { Text = "Editar processo…", Icon = new FontIcon { Glyph = Glifos.Editar, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] },
             KeyboardAcceleratorTextOverride = "Enter" };
         editar.Click += async (_, _) => await EditarProcessoAsync(l);
         m.Items.Add(editar);
         void Submenu(ChaveColuna k, string titulo, string glifo)
         {
             if (planilha?.Coluna(k) is not { } c) return;
-            var sub = new MenuFlyoutSubItem { Text = titulo, Icon = new FontIcon { Glyph = glifo, FontSize = 16 } };
+            var sub = new MenuFlyoutSubItem { Text = titulo, Icon = new FontIcon { Glyph = glifo, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] } };
             foreach (var op in planilha.Opcoes(k).Concat(k == ChaveColuna.Aprovacao ? [""] : []))
             {
                 var item = new ToggleMenuFlyoutItem { Text = op.Length == 0 ? "Sem decisão" : op, IsChecked = string.Equals(Planilha.Normal(l.Texto(k)), Planilha.Normal(op), StringComparison.Ordinal) };
@@ -1012,11 +1012,11 @@ public sealed partial class MainWindow
         Submenu(ChaveColuna.Aprovacao, "Alterar aprovação", Glifos.Conferir);
         Submenu(ChaveColuna.Prioridade, "Alterar prioridade", Glifos.Avisos);
         m.Items.Add(new MenuFlyoutSeparator());
-        var copiar = new MenuFlyoutItem { Text = "Copiar número", Icon = new FontIcon { Glyph = Glifos.Copiar, FontSize = 16 } };
+        var copiar = new MenuFlyoutItem { Text = "Copiar número", Icon = new FontIcon { Glyph = Glifos.Copiar, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] } };
         copiar.Click += (_, _) => AreaTransferencia.Copiar(l.ProcessoNormalizado);
         m.Items.Add(copiar);
         m.Items.Add(new MenuFlyoutSeparator());
-        var excluir = new MenuFlyoutItem { Text = "Excluir da planilha…", Icon = new FontIcon { Glyph = Glifos.Excluir, FontSize = 16 },
+        var excluir = new MenuFlyoutItem { Text = "Excluir da planilha…", Icon = new FontIcon { Glyph = Glifos.Excluir, Style = (Microsoft.UI.Xaml.Style)Microsoft.UI.Xaml.Application.Current.Resources["PmvniIconeAcao"] },
             KeyboardAcceleratorTextOverride = "Del" };
         excluir.Click += async (_, _) => await ExcluirProcessoAsync(l);
         m.Items.Add(excluir);

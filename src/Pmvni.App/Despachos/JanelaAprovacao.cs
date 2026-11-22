@@ -81,7 +81,7 @@ internal sealed class JanelaAprovacao : Window
         Button Acao(string nomeBotao, string descricao, Func<Task> executar, string? glifo = null,
             bool apenasIcone = false, bool dicaQuandoDesabilitado = false)
         {
-            var botao = new Button { Content = nomeBotao, MinHeight = 36, VerticalAlignment = VerticalAlignment.Center };
+            var botao = new Button { Content = nomeBotao, VerticalAlignment = VerticalAlignment.Center };
             AutomationProperties.SetName(botao, nomeBotao);
             Dicas.Aplicar(botao, nomeBotao, descricao);
             if (glifo is not null)

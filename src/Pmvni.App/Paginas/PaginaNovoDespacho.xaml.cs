@@ -134,7 +134,8 @@ public sealed partial class PaginaNovoDespacho : UserControl
     internal void Reiniciar(string titulo)
     {
         TextoTitulo.Text = titulo;
-        TextoTituloConferencia.Text = "3 · Conferência";
+        SeloConferencia.Visibility = Visibility.Visible;
+        TextoTituloConferencia.Text = "Conferência";
         AvisoBloqueio.IsOpen = false;
         AvisoMensagem.IsOpen = false;
         LimparConferencia();

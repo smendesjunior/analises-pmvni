@@ -2,6 +2,20 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.2.2
+
+Interface 100% padronizada no padrão do WinUI 3, conferida tela por tela e travada por um teste automatizado (PadraoInterfaceTestes).
+
+- Botões: todos com a mesma altura (32 px), o mesmo raio de canto (o nativo do Windows 11), texto sem negrito e o hover nativo do controle, sem brilho.
+- Faixa de opções: todos os comandos com rótulo do mesmo tamanho, sem contorno e com o mesmo hover.
+- Títulos: o mesmo indicador em todas as páginas dos módulos (ícone verde de 20 px, sem fundo) e a mesma escala de títulos e textos de ajuda; letras espaçadas removidas.
+- Ajustes: nenhuma página com ícones diferentes das outras; chaves de Auditoria cruzada alinhadas; a caixa de Raciocínio não encosta mais na borda; rotas sem texto cortado.
+- Textos que não cabem terminam em reticências, inclusive nas caixas de seleção, com o texto completo na dica.
+- Campos de pesquisa: a lupa não encosta mais no texto, com o mesmo respiro em todos.
+- Menus com o mesmo tamanho de texto e ícones de 16 px; glifos do catálogo único.
+- Novo despacho: passos "1 Origem", "2 Conteúdo" e "3 Conferência" no mesmo formato; "Como funciona" com título de tamanho normal; botões alinhados às caixas.
+- Processos: a lista não seleciona mais um processo só por deixar o mouse parado sobre ele; a seleção é por clique ou teclado.
+- Barra lateral: indicador de seleção no padrão do WinUI 3.
 ## 3.2.1
 
 - Barra lateral no padrão do WinUI 3: o módulo ativo tem só o fundo suave, sem contorno, e o indicador verde é uma pílula pequena centralizada à esquerda.

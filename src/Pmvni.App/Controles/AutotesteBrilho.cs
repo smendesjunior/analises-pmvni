@@ -19,6 +19,8 @@ internal static class AutotesteBrilho
             var raiz = new Grid();
             var pagina = new Grid();
             var quadro = Trabalhando.Quadro("Carregando a página…");
+            // Exercita o efeito legado exclusivamente na janela de diagnóstico.
+            Trabalhando.SetAutomatico(((StackPanel)quadro.Child).Children.OfType<ProgressRing>().Single(), true);
             quadro.VerticalAlignment = VerticalAlignment.Top;
             quadro.HorizontalAlignment = HorizontalAlignment.Center;
             pagina.Children.Add(quadro);

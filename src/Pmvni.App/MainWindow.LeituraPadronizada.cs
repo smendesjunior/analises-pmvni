@@ -189,7 +189,7 @@ public sealed partial class MainWindow
         {
             Content = conteudo, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
             Padding = new Thickness(6 + recuo, 3, 6, 3), Margin = new Thickness(0, b.Tipo == TipoBlocoLei.Artigo ? 0 : 4, 0, 0),
-            Style = EstiloLeitura("PmvniBarraButtonStyle"), MinHeight = 26,
+            Style = EstiloLeitura("PmvniBarraButtonStyle"),
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(botao, b.Tipo == TipoBlocoLei.Artigo ? b.Rotulo : b.Rotulo + " " + b.Texto);
         ToolTipService.SetToolTip(botao, "Ir para " + b.Rotulo);
@@ -383,7 +383,7 @@ public sealed partial class MainWindow
         var lapis = new Button
         {
             Style = EstiloLeitura("PmvniBarraButtonStyle"), Width = 32, Height = 32, Padding = new Thickness(0),
-            Content = new FontIcon { Glyph = Glifos.Editar, FontSize = 16, Style = EstiloLeitura("PmvniIconeSecundarioStyle") },
+            Content = new FontIcon { Glyph = Glifos.Editar, Style = EstiloLeitura("PmvniIconeSecundarioStyle") },
         };
         Dicas.Aplicar(lapis, "Escrever o resumo", "Troca o resumo automático deste artigo por um escrito por você.");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(lapis, "Escrever o resumo do " + b.Rotulo);
@@ -428,7 +428,7 @@ public sealed partial class MainWindow
             AcceptsReturn = false,
         };
         var salvar = new Button { Content = "Salvar", Style = EstiloLeitura("PmvniBotaoPrimarioStyle") };
-        var automatico = new Button { Content = "Voltar ao automático", MinHeight = 36 };
+        var automatico = new Button { Content = "Voltar ao automático" };
         Dicas.Aplicar(salvar, "Salvar", "Guarda o seu resumo deste artigo com os dados da lei.");
         var nota = new TextBlock
         {

@@ -25,11 +25,11 @@
       <InfoBar x:Name="AvisoGravado" x:FieldModifier="internal" Severity="Success" IsOpen="False" IsClosable="True" Title="Despacho gravado" Tag="fixo">
         <InfoBar.Content>
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-            <Button x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" MinHeight="36" Content="Abrir no Word"
+            <Button x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" Content="Abrir no Word"
                     local:Dicas.Descricao="Abre no Word o despacho que acabou de ser gravado."/>
-            <Button x:Name="BotaoAbrirPdfGravado" x:FieldModifier="internal" MinHeight="36" Content="Abrir PDF"
+            <Button x:Name="BotaoAbrirPdfGravado" x:FieldModifier="internal" Content="Abrir PDF"
                     local:Dicas.Descricao="Abre o PDF do despacho que acabou de ser gravado."/>
-            <Button x:Name="BotaoMostrarGravado" x:FieldModifier="internal" MinHeight="36" Content="Mostrar no Explorador"
+            <Button x:Name="BotaoMostrarGravado" x:FieldModifier="internal" Content="Mostrar no Explorador"
                     local:Dicas.Descricao="Abre a pasta do despacho gravado no Explorador de Arquivos."/>
           </StackPanel>
         </InfoBar.Content>

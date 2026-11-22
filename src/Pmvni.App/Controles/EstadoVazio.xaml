@@ -12,8 +12,8 @@
                TextAlignment="Center" TextWrapping="Wrap"/>
     <StackPanel x:Name="Botoes" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,6,0,0">
       <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button x:Name="BotaoPrimario" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" Height="36" Visibility="Collapsed"/>
-        <Button x:Name="BotaoSecundario" x:FieldModifier="internal" Height="36" Visibility="Collapsed" VerticalAlignment="Center"/>
+        <Button x:Name="BotaoPrimario" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False" Visibility="Collapsed"/>
+        <Button x:Name="BotaoSecundario" x:FieldModifier="internal" Visibility="Collapsed" VerticalAlignment="Center"/>
       </StackPanel>
     </StackPanel>
     <!-- Recentes em lista (2026-11-17): ícone do relatório, nome e a pasta; a linha inteira é clicável, dentro de um cartão. -->

@@ -431,7 +431,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         var analiseCompacta = TextosAnalise.Visibility == Visibility.Collapsed;
         BotaoAnalise.Width = analiseCompacta ? 32 : double.NaN;
         BotaoAnalise.MinWidth = analiseCompacta ? 32 : 0;
-        BotaoAnalise.Height = analiseCompacta ? 32 : 42;
         BotaoAnalise.Padding = analiseCompacta ? new Thickness(0) : new Thickness(12, 0, 12, 0);
         // Só muda com diferença visível: larguras que oscilam frações de pixel entre monitores não refazem o layout sem parar.
         var nova = Math.Round(Math.Clamp(sobra, 140, 640));

@@ -96,9 +96,9 @@ public sealed partial class EstadoVazio : UserControl
             linha.Children.Add(seta);
             var b = new Button
             {
-                Content = linha, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Height = double.NaN, Content = linha, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Padding = new Thickness(10, 8, 12, 8), Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
-                BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(6),
+                BorderThickness = new Thickness(0),
             };
             AutomationProperties.SetName(b, "Abrir " + texto);
             Dicas.Aplicar(b, texto, "Abre este relatório aberto há pouco: " + caminho);

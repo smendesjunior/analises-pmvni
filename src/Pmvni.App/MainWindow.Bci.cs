@@ -124,7 +124,7 @@ public sealed partial class MainWindow
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrirPdf, "Abrir PDF do boletim cadastral");
             Dicas.Aplicar(abrirPdf, "Abrir PDF", "Mostra o boletim cadastral no visualizador.");
             abrirPdf.Click += (_, _) => AbrirBoletim(arquivo, Path.GetFileNameWithoutExtension(arquivo));
-            var abrirPasta = new Button { Content = Rotulo(Glifos.AbrirPasta, "Abrir pasta"), MinHeight = 36 };
+            var abrirPasta = new Button { Content = Rotulo(Glifos.AbrirPasta, "Abrir pasta") };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(abrirPasta, "Abrir pasta do boletim cadastral");
             Dicas.Aplicar(abrirPasta, "Abrir pasta", "Abre o Explorador com o boletim selecionado.");
             abrirPasta.Click += (_, _) =>

@@ -457,7 +457,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             var dica = new TextBlock { Text = nome + " · " + situacao, TextWrapping = TextWrapping.Wrap };
             var botao = new Button
             {
-                Content = circulo, Width = 32, Height = 32, MinHeight = 32, MinWidth = 32, Padding = new Thickness(0), CornerRadius = new CornerRadius(18),
+                Content = circulo, Width = 32, Height = 32, MinHeight = 32, MinWidth = 32, Padding = new Thickness(0),
                 BorderThickness = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Center,
                 Flyout = new Flyout { Content = dica }
             };

@@ -63,12 +63,12 @@
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Left" VerticalAlignment="Center">
         <!-- Novo relatório (desenho §12.7): o estado da análise (em andamento, concluída, pausada, com erro; sem análise, some). Clicar abre a
              vista da execução (ou o resultado, quando ela já terminou). Texto principal e secundário (processo · tempo) com reticências. -->
-        <Border x:Name="MolduraAnalise" CornerRadius="21" VerticalAlignment="Center" Visibility="Collapsed"
+        <Border x:Name="MolduraAnalise" CornerRadius="8" VerticalAlignment="Center" Visibility="Collapsed"
                 Background="{ThemeResource ControlFillColorDefaultBrush}">
         <Grid>
         <Button x:Name="BotaoAnalise" Style="{StaticResource PmvniBarraButtonStyle}" Visibility="Collapsed"
                 AutomationProperties.Name="Análise em andamento" ToolTipService.ToolTip="Abrir a vista da análise em andamento"
-                Height="42" CornerRadius="21" Padding="12,0,18,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                Height="32" Padding="12,0,18,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
             <Grid Width="24" Height="24" VerticalAlignment="Center">
               <ProgressRing x:Name="AnelAnalise" local:Trabalhando.Automatico="False" IsActive="False" Width="22" Height="22" Foreground="{ThemeResource SystemFillColorSuccessBrush}"
@@ -78,7 +78,7 @@
               <FontIcon x:Name="IconeAnaliseErro" Glyph="{x:Bind local:Glifos.Erro}" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoCritico}" AutomationProperties.AccessibilityView="Raw"/>
             </Grid>
             <StackPanel x:Name="TextosAnalise" VerticalAlignment="Center" MaxWidth="260">
-              <TextBlock x:Name="TextoBotaoAnalise" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="NoWrap" LineHeight="18" LineStackingStrategy="BlockLineHeight"
+              <TextBlock x:Name="TextoBotaoAnalise" Style="{StaticResource BodyTextBlockStyle}" TextWrapping="NoWrap" LineHeight="16" LineStackingStrategy="BlockLineHeight"
                          TextTrimming="CharacterEllipsis" MaxLines="1"/>
               <TextBlock x:Name="DetalheBotaoAnalise" Style="{StaticResource PmvniSecondaryTextStyle}" LineHeight="16" LineStackingStrategy="BlockLineHeight"
                          TextTrimming="CharacterEllipsis" MaxLines="1"/>
@@ -86,7 +86,7 @@
           </StackPanel>
         </Button>
         <!-- Borda discreta do tema; em andamento, o contorno na cor de destaque do Windows no lugar dela (nenhuma recebe clique). -->
-        <Border x:Name="BordaAnalise" CornerRadius="21" BorderThickness="1" IsHitTestVisible="False"
+        <Border x:Name="BordaAnalise" CornerRadius="8" BorderThickness="1" IsHitTestVisible="False"
                 BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"/>
         </Grid>
         </Border>
@@ -96,7 +96,7 @@
         <Border Grid.Row="1" x:Name="GrupoOcorrencias" Style="{StaticResource PmvniGrupoCabecalho}">
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">
-            <Button x:Name="BotaoPesquisaAnterior" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
+            <Button x:Name="BotaoPesquisaAnterior" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False"
                     AutomationProperties.Name="Página anterior">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <FontIcon Glyph="{x:Bind local:Glifos.Voltar}" Style="{StaticResource PmvniIconeAcao}" VerticalAlignment="Center"/>
@@ -104,7 +104,7 @@
               </StackPanel>
             </Button>
             <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
-            <Button x:Name="BotaoPesquisaProxima" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
+            <Button x:Name="BotaoPesquisaProxima" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False"
                     AutomationProperties.Name="Próxima página">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock x:Name="RotuloProximo" Text="Próxima" VerticalAlignment="Center"/>
@@ -119,7 +119,7 @@
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <!-- Pesquisa geral (2026-11-17): além do módulo à vista, acha ajustes, funções, arquivos e leis (lista abaixo da caixa). TextBox nativo
                em pílula: a borda de foco é a do tema (cor de destaque do Windows). -->
-          <TextBox x:Name="CaixaPesquisa" TextAlignment="Left" VerticalContentAlignment="Center" Background="Transparent" BorderThickness="0" Height="30" MinHeight="30" CornerRadius="16" Padding="32,3,8,3" VerticalAlignment="Center"
+          <TextBox x:Name="CaixaPesquisa" TextAlignment="Left" VerticalContentAlignment="Center" Background="Transparent" BorderThickness="0" Height="30" MinHeight="30" CornerRadius="16" Padding="36,3,8,3" VerticalAlignment="Center"
                    PlaceholderText="Pesquisar arquivos, funções, leis e configurações..." AutomationProperties.Name="Pesquisar no app"
                    ToolTipService.ToolTip="Pesquisar no app (Ctrl+K)">
             <TextBox.Resources>
@@ -129,7 +129,7 @@
             </TextBox.Resources>
           </TextBox>
           <TextBlock TextAlignment="Center" x:Name="AtalhoPesquisa" Grid.Column="1" Text="Ctrl + K" Margin="0,0,10,0" VerticalAlignment="Center" HorizontalAlignment="Right" IsHitTestVisible="False" Style="{StaticResource PmvniSecondaryTextStyle}"/>
-          <FontIcon x:Name="IconePesquisa" Glyph="{x:Bind local:Glifos.Pesquisar}" Style="{StaticResource PmvniIconeAcaoSecundario}" Margin="15,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+          <FontIcon x:Name="IconePesquisa" Glyph="{x:Bind local:Glifos.Pesquisar}" Style="{StaticResource PmvniIconeAcaoSecundario}" Margin="12,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
                     IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
         </Grid>
         <TextBlock Grid.Row="2" x:Name="TextoPesquisa" TextTrimming="CharacterEllipsis" MaxLines="1" Width="{Binding Width, ElementName=MolduraPesquisa}" VerticalAlignment="Center" TextAlignment="Center" Visibility="Collapsed"
@@ -139,12 +139,12 @@
         <Border Grid.Row="1" x:Name="GrupoHistorico" Style="{StaticResource PmvniGrupoCabecalho}">
           <Border.Resources><SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent"/></Border.Resources>
           <StackPanel Orientation="Horizontal">
-            <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="17,0,0,17"
+            <Button x:Name="BotaoDesfazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False"
                     AutomationProperties.Name="Desfazer">
               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Desfazer}" Style="{StaticResource PmvniIconeAcao}"/><TextBlock x:Name="RotuloDesfazer" Text="Desfazer"/></StackPanel>
             </Button>
             <Border Style="{StaticResource PmvniDivisoriaGrupoCabecalho}"/>
-            <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False" CornerRadius="0,17,17,0"
+            <Button x:Name="BotaoRefazer" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" IsEnabled="False"
                     AutomationProperties.Name="Refazer">
               <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Refazer}" Style="{StaticResource PmvniIconeAcao}"/><TextBlock x:Name="RotuloRefazer" Text="Refazer"/></StackPanel>
             </Button>

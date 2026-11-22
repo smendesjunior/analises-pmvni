@@ -53,7 +53,7 @@
         <ColumnDefinition Width="284" MinWidth="240"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
-      <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Padding="14,10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="10"><FontIcon Glyph="{x:Bind local:Glifos.Pasta}" FontSize="16" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/><StackPanel Grid.Column="1"><TextBlock TextAlignment="Left" Text="Acervo de processos" AutomationProperties.HeadingLevel="Level1" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock TextAlignment="Left" Text="Gestão de documentos e histórico" Style="{StaticResource PmvniSecondaryTextStyle}"/></StackPanel><TextBlock TextAlignment="Left" Grid.Column="2" VerticalAlignment="Center" Text="{Binding Text, ElementName=TextoContagem}" Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.AccessibilityView="Raw"/></Grid>
+      <Grid Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Padding="14,10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="10"><FontIcon Glyph="{x:Bind local:Glifos.Pasta}" FontSize="20" Style="{StaticResource PmvniIconeDestaqueStyle}" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw"/><StackPanel Grid.Column="1"><TextBlock TextAlignment="Left" Text="Acervo de processos" AutomationProperties.HeadingLevel="Level1" Style="{StaticResource PmvniTituloPaginaStyle}"/><TextBlock TextAlignment="Left" Text="Gestão de documentos e histórico" Style="{StaticResource PmvniSecondaryTextStyle}"/></StackPanel><TextBlock TextAlignment="Left" Grid.Column="2" VerticalAlignment="Center" Text="{Binding Text, ElementName=TextoContagem}" Style="{StaticResource PmvniSecondaryTextStyle}" AutomationProperties.AccessibilityView="Raw"/></Grid>
 
 
       <!-- Lista de processos. -->
@@ -76,14 +76,15 @@
                      TextTrimming="CharacterEllipsis" AutomationProperties.Name="Quantidade de processos"/>
             <Grid>
               <TextBox TextAlignment="Left" Style="{StaticResource PmvniCampoPesquisa}" x:Name="FiltroAcervo" x:FieldModifier="internal" PlaceholderText="Número ou nome do processo" AutomationProperties.Name="Filtrar processos"/>
-              <FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+              <FontIcon Glyph="{x:Bind local:Glifos.Pesquisar}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
             </Grid>
           </StackPanel>
           <ProgressRing x:Name="Anel" x:FieldModifier="internal" Grid.Column="1" IsActive="False" Width="18" Height="18"/>
         </Grid>
+        <!-- 3.2.2: seleção só por clique ou teclado, como no ListView do WinUI. A seleção automática do processo parado sob o mouse
+             escolhia o item por onde o ponteiro passava a caminho de outro ("não seleciona o item certo"). -->
         <ListView x:Name="ListaProcessos" x:FieldModifier="internal" Grid.Row="1" SelectionMode="Single" Padding="6,0,6,8"
-                  PointerMoved="AoMoverSobreProcessos" PointerExited="AoSairDosProcessos"
-                  PointerPressed="AoSairDosProcessos" KeyDown="AoUsarTecladoNosProcessos" AutomationProperties.Name="Processos">
+                  AutomationProperties.Name="Processos">
           <ListView.ItemTemplate>
             <DataTemplate x:DataType="local:LinhaProcesso">
               <Grid Padding="0,8" ColumnSpacing="12" AutomationProperties.Name="{x:Bind NomeAcessivel}" ToolTipService.ToolTip="{x:Bind Titulo}">
