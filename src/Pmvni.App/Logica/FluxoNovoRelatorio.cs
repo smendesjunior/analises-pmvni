@@ -214,7 +214,8 @@ public static class FluxoNovoRelatorio
     /// <summary>O aviso da reabertura quando a análise parou com objeção pendente: o Editor não retoma nem pergunta sozinho (a retomada refaria a etapa).</summary>
     internal static string TextoRetomadaComObjecao(ObjecaoPendente o) =>
         $"A etapa {NomeDaEtapa(o.Etapa)} registrou objeção pendente ({o.Motivo.Trim().TrimEnd('.')}). O Editor não retoma a análise sozinho: "
-        + "confira a objeção no registro e use \"Retomar análise\" ou descarte a análise.";
+        + "confira a objeção no registro e use \"Retomar análise\" ou descarte a análise. "
+        + $"Atenção: \"Retomar análise\" refaz a etapa {NomeDaEtapa(o.Etapa)} com a IA e gasta cota de novo.";
 
     /// <summary>O nome em português da etapa; uma etapa que o Editor não conhece (kit mais novo) aparece com o id legível ("etapa_nova" vira "Etapa nova").</summary>
     internal static string NomeDaEtapa(string etapa)
