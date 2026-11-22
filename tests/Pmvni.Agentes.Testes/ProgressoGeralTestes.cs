@@ -6,12 +6,20 @@ public class ProgressoGeralTestes
 {
     static readonly DateTimeOffset Agora = new(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
 
+    static void Perto((double Geral, double Etapa, bool Inicial) esperado, (double? Geral, double? Etapa, bool Inicial) real)
+    {
+        Assert.Equal(esperado.Geral, real.Geral!.Value, 9);
+        Assert.Equal(esperado.Etapa, real.Etapa!.Value, 9);
+        Assert.Equal(esperado.Inicial, real.Inicial);
+    }
+
     [Fact]
     public void Analise_UsaCoberturaDoManifestoMesmoSemHistorico()
     {
         var p = new Progresso("analyze", 1, 14, [], Provedor.ChatGpt, Agora.AddHours(-1)) { Ordem = ["prepare", "analyze", "produce"] };
 
-        Assert.Equal((100d * 40 / 75, 50d, true), ProgressoGeral.Calcular(p, null, Agora));
+        // Durações iniciais do fluxo linear: preparo 3, análise 17, produção 2 (22 min); o preparo feito e metade da análise = 11,5 min.
+        Perto((100d * 11.5 / 22, 50d, true), ProgressoGeral.Calcular(p, null, Agora));
         Assert.Equal(0d, ProgressoGeral.Calcular(p with { SecoesComResultado = 0, SinalDaEtapa = (0, 28) }, null, Agora).Etapa);
     }
 
@@ -25,11 +33,12 @@ public class ProgressoGeralTestes
             new("prepare", Provedor.Gemini, TimeSpan.FromMinutes(5)),
         ];
 
-        Assert.Equal((3.125d, 50d, true), ProgressoGeral.Calcular(p, historico, Agora));
-        Assert.Equal((5.9375d, 95d, true), ProgressoGeral.Calcular(p, historico, Agora.AddMinutes(5)));
+        // Preparo pela mediana (4 min) e análise pela duração inicial (17 min): 21 min no total.
+        Perto((100d * 2 / 21, 50d, true), ProgressoGeral.Calcular(p, historico, Agora));
+        Perto((100d * 3.8 / 21, 95d, true), ProgressoGeral.Calcular(p, historico, Agora.AddMinutes(5)));
         Assert.Equal((0d, 0d, true), ProgressoGeral.Calcular(p, historico, Agora.AddMinutes(-3)));
         Assert.Equal((0d, 0d, true), ProgressoGeral.Calcular(p with { InicioEtapa = null }, historico, Agora));
-        Assert.Equal((100d * 2 / 70, 20d, true), ProgressoGeral.Calcular(p, null, Agora));
+        Perto((100d * 2 / 20, 100d * 2 / 3, true), ProgressoGeral.Calcular(p, null, Agora));
         Assert.Equal(95d, ProgressoGeral.Calcular(p, null, Agora.AddHours(1)).Etapa);
 
         var comMesmoProvedor = historico.Append(new DuracaoEtapa("prepare", Provedor.ChatGpt, TimeSpan.FromMinutes(8))).ToList();
@@ -50,7 +59,8 @@ public class ProgressoGeralTestes
 
         Assert.Equal((25d, 25d, false), ProgressoGeral.Calcular(p, historico, Agora));
         Assert.Equal((40d, 50d, false), ProgressoGeral.Calcular(p with { SecoesComResultado = 14 }, historico, Agora));
-        Assert.Equal((100d * 13 / 28, 25d, true), ProgressoGeral.Calcular(p, historico[..^1], Agora));
+        // Sem a amostra do preparo, ele pesa a duração inicial (3 min): 3 + 25% de 12 = 6 de 21 min.
+        Perto((100d * 6 / 21, 25d, true), ProgressoGeral.Calcular(p, historico[..^1], Agora));
     }
 
     [Fact]

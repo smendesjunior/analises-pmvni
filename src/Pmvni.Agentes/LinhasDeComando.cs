@@ -20,6 +20,16 @@ public static class LinhasDeComando
         return (python, args);
     }
 
+    /// <summary><c>python -B -X utf8 producao_teste.py PROCESSO --rota codex|claude|gemini --saida PASTA</c> (contrato do fluxo linear do kit): remonta o PDF
+    /// numa pasta isolada a partir da cópia certificada; a última linha da saída é o caminho do PDF, o código 2 é a recusa com o motivo.</summary>
+    public static (string Exe, IReadOnlyList<string> Args) ProducaoTeste(string python, bool launcher, string script, string pastaProcesso, Provedor p, string saida)
+    {
+        var args = new List<string>();
+        if (launcher) args.Add("-3");
+        args.AddRange(["-B", "-X", "utf8", script, pastaProcesso, "--rota", Pmvni.Agentes.ProducaoTeste.Rota(p), "--saida", saida]);
+        return (python, args);
+    }
+
     /// <summary><c>python -B -X utf8 pro_runtime.py --case P iniciar|situacao</c> (com o launcher <c>py.exe</c>, o primeiro argumento é <c>-3</c>).</summary>
     public static (string Exe, IReadOnlyList<string> Args) ProRuntime(string python, bool launcher, string script, string pastaProcesso, string acao)
     {

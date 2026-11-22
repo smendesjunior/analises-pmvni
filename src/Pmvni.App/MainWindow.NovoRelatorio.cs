@@ -232,9 +232,10 @@ public sealed partial class MainWindow
         n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
         n.BotaoMostrarRegistroResultado.Click += (_, _) => { if (ultimoResultadoNR is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
         n.BotaoDescartar.Click += async (_, _) => await TentarAsync(() => { DescartarAnalisePendente(); return Task.CompletedTask; });
+        n.LinkRemontarTeste.Click += async (_, _) => { if (ultimoResultadoNR is { } e) await TentarAsync(async () => await RemontarRelatorioTesteAsync(e)); };
         n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await EscolherContinuacaoAsync());
         n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
-        n.FlyoutDetalhes.Opening += async (_, _) =>
+        n.DetalhesSelecionados += async (_, _) =>
         {
             if (execucaoMostrada is { Provedor: Provedor.ChatGpt } e) await MostrarUltimaMensagemAsync(e);
         };
@@ -900,17 +901,19 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         execucaoMostrada = e;
+        consumoSessao = e.Provedor == Provedor.ChatGpt ? new ConsumoSessaoCodex(OpcoesAgentes().CodexHome) : null;
         NR.MostrarEvidencias(Directory.Exists(PastaEvidenciasDoMonitor(e)));
         NR.MostrarAchados([]);
         NR.ReiniciarFiltroDescobertas();
         NR.ReiniciarEstimativa();
         NR.MostrarProgresso(null);
         NR.MostrarConsumo([]);
+        NR.MostrarDetalhesDasEtapas(DetalhesDasEtapas.Vazio);
         _ = AtualizarAchadosAsync(e);
         NR.LigarLinhas(e.LinhasObservaveis);
         NR.MostrarExecucao(true);
         NR.TextoUltimaMensagem.Text = "";
-        NR.FlyoutDetalhes.Hide();
+        ultimaMensagemLida = null;
         RenderizarExecucao(e);
         AtualizarComandosNovoRelatorio();
     }
@@ -923,6 +926,7 @@ public sealed partial class MainWindow
         AtualizarBotoesNR();
     }
 
+    ConsumoSessaoCodex? consumoSessao;
     bool lendoAchados;
 
     /// <summary>Tarefa 13: o progresso, a previsão e o consumo saem dos arquivos do kit (manifesto, engine_state e uso-das-IAs.json), lidos pelo Editor; a IA
@@ -936,15 +940,19 @@ public sealed partial class MainWindow
             var controle = Path.Combine(e.Processo.Pasta, ResultadoAnalise.PastaControle(e.Provedor));
             var historico = HistoricoDeDuracoes();
             var ordemDoKit = OrdemDasEtapasDoKit();
-            var (achados, consumo) = await Task.Run(() =>
+            var sessoes = consumoSessao;
+            var etapasJson = pecasAgentes.EtapasJson;
+            var (achados, consumo, detalhes) = await Task.Run(() =>
             {
                 var desde = InicioDoRegistro(e);
                 return (AchadosExecucao.LerDaExecucao(e.Registro.PastaProgresso, e.Processo.Pasta, e.InicioUtc, controle, desde, historico, DateTimeOffset.UtcNow, ordemDoKit),
-                    UsoDasIas.Ler(controle, desde, ordemDoKit));
+                    UsoDasIas.Ler(controle, desde, ordemDoKit, sessoes),
+                    DetalhesDasEtapas.Ler(controle, etapasJson, desde));
             });
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
             {
                 NR.MostrarEvidencias(Directory.Exists(PastaEvidenciasDoMonitor(e)));
+                NR.MostrarDetalhesDasEtapas(detalhes);
                 NR.MostrarConsumo(consumo);
                 NR.MostrarAchados(achados.Itens);
                 var mudouEstimativa = NR.EstimativaAtual != achados.Estimativa;
@@ -1000,8 +1008,7 @@ public sealed partial class MainWindow
     void AtualizarRelogioDaExecucao(ExecucaoEmCurso e)
     {
         NR.MostrarIdentificacao(FluxoNovoRelatorio.Identificacao(e.Processo), e.Processo.Requerente);
-        NR.TextoCabecalho.Text = FluxoNovoRelatorio.TituloExecucao(e.Provedor, e.Processo)
-            + (e.Retomada ? " (retomada)" : "");
+        if (NR.DetalhesVisiveis && e.Provedor == Provedor.ChatGpt) _ = MostrarUltimaMensagemAsync(e);
         NR.MostrarRelogios(e.TempoAtivo, DateTimeOffset.Now);
     }
 
@@ -1024,41 +1031,57 @@ public sealed partial class MainWindow
                 OrdemDasEtapasDoKit().Para(e.Provedor));
             // A etapa em que o kit informou erro fica vermelha.
             if (erro is not null) etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();
-            n.TextoRotulo.Text = s is null ? "Iniciando a análise detalhada…" : $"Situação: {s.Codigo}" + (s.Rotulo is null ? "" : " · " + s.Rotulo) + (erro is null ? "" : Environment.NewLine + "Erro: " + erro);
-            n.TextoEventos.Text = string.Join(Environment.NewLine, etapas.Select(x => $"{x.Nome} · {n.RotuloEtapa(x.Nome, x.Estado, rodando)}"));
         }
         else
         {
             etapas = FluxoNovoRelatorio.Etapas(n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa, "", OrdemDasEtapasDoKit().Para(e.Provedor));
-            n.TextoRotulo.Text = $"Provedor: {Provedores.Nome(e.Provedor)} · Registro: {e.Registro.Pasta}";
-            n.TextoEventos.Text = "";
         }
         if (!claude && e.Linhas.LastOrDefault() is { } ultima && ultima.StartsWith("Erro: ", StringComparison.Ordinal))
         {
             erro = ultima[6..];
             etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();
         }
-        n.MostrarResumo(rodando, erro, etapas, Provedores.Nome(e.Provedor));
+        n.MostrarResumo(rodando, erro, etapas, Provedores.Nome(e.Provedor), e.Situacao?.Rotulo ?? e.Situacao?.Codigo);
         AtualizarRelogioDaExecucao(e);
     }
 
+    (string Caminho, DateTime Escrita, long Tamanho)? ultimaMensagemLida;
+    ExecucaoEmCurso? lendoMensagem;
+
     async Task MostrarUltimaMensagemAsync(ExecucaoEmCurso e)
     {
-        string texto;
+        if (ReferenceEquals(lendoMensagem, e)) return;
+        lendoMensagem = e;
         try
         {
-            texto = await Task.Run(() =>
+            var anterior = ultimaMensagemLida;
+            var resultado = await Task.Run(() =>
             {
-                if (!File.Exists(e.UltimaMensagem)) return "O ChatGPT ainda não deixou a última mensagem.";
+                var arquivo = new FileInfo(e.UltimaMensagem);
+                var chave = (e.UltimaMensagem, arquivo.LastWriteTimeUtc, arquivo.Exists ? arquivo.Length : -1L);
+                if (anterior == chave) return (chave, texto: (string?)null);
+                if (!arquivo.Exists) return (chave, texto: "O ChatGPT ainda não deixou a última mensagem.");
                 using var fs = new FileStream(e.UltimaMensagem, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 using var leitor = new StreamReader(fs, Encoding.UTF8);
                 var buffer = new char[200_000];
                 var lidos = leitor.ReadBlock(buffer, 0, buffer.Length);
-                return new string(buffer, 0, lidos);
+                return (chave, texto: lidos == 0 ? "O ChatGPT ainda não deixou a última mensagem." : new string(buffer, 0, lidos));
             });
+            if (ReferenceEquals(execucaoMostrada, e) && resultado.texto is { } texto)
+            {
+                ultimaMensagemLida = resultado.chave;
+                NR.TextoUltimaMensagem.Text = texto;
+            }
         }
-        catch (Exception x) when (x is IOException or UnauthorizedAccessException) { texto = "A última mensagem não pôde ser lida: " + Erro(x); }
-        if (ReferenceEquals(execucaoMostrada, e)) NR.TextoUltimaMensagem.Text = texto;
+        catch (Exception x) when (x is IOException or UnauthorizedAccessException)
+        {
+            if (ReferenceEquals(execucaoMostrada, e))
+            {
+                ultimaMensagemLida = null;
+                NR.TextoUltimaMensagem.Text = "A última mensagem não pôde ser lida: " + Erro(x);
+            }
+        }
+        finally { if (ReferenceEquals(lendoMensagem, e)) lendoMensagem = null; }
     }
 
     /// <summary>Contrato da Tarefa 2 (código 21 / <c>DECISAO</c>): o kit parou para o analista decidir. Mostra a pergunta e as opções (ou uma caixa de texto,
@@ -1226,8 +1249,16 @@ public sealed partial class MainWindow
             if (fechada) return;
             NR.BotaoDescartar.Visibility = Visibility.Visible;
             NR.BotaoImportarPendente.Visibility = Visibility.Collapsed;
-            NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed;
+            NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed; NR.LinkRemontarTeste.Visibility = Visibility.Collapsed;
             aviso.IsOpen = true;
+            // Fluxo linear do kit: objeção pendente bloqueia a entrega. O Editor não pergunta nem retoma sozinho (a retomada mandaria a análise adiante
+            // com a objeção); fica o aviso, com "Retomar análise" e "Descartar análise" à mão.
+            if (await Task.Run(() => ObjecaoPendenteDo(pend.Processo, Provedor.ChatGpt)) is { } objecaoChatGpt)
+            {
+                aviso.Message = FluxoNovoRelatorio.TextoRetomadaComObjecao(objecaoChatGpt);
+                if (!PaginaNovoRelatorioVisivel) MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message + " (em Novo relatório)");
+                break;
+            }
             // 2026-11-17 (pedido do usuário): pergunta na hora se retoma, e com qual IA. "Agora não" deixa o aviso com "Continuar a análise".
             var (escolha, descartada) = await PerguntarRetomadaAsync(processo, pend.Registro, Provedor.ChatGpt);
             if (descartada) continue;
@@ -1272,6 +1303,53 @@ public sealed partial class MainWindow
         NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Visible;
         aviso.IsOpen = true;
         if (!PaginaNovoRelatorioVisivel) MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message);
+        _ = AtualizarRemontagemTesteAsync(e);
+    }
+
+    bool remontandoTeste;
+
+    /// <summary>"Remontar relatório (teste)" só aparece com o <c>producao_teste.py</c> no kit e a cópia certificada da auditoria técnica nesta análise.</summary>
+    async Task AtualizarRemontagemTesteAsync(ExecucaoEmCurso e)
+    {
+        NR.LinkRemontarTeste.Visibility = Visibility.Collapsed;
+        if (pecasAgentes.ProducaoTeste is null || pecasAgentes.Python is null || remontandoTeste) return;
+        var controle = Path.Combine(e.Processo.Pasta, ResultadoAnalise.PastaControle(e.Provedor));
+        var pode = await Task.Run(() => ProducaoTeste.TemCopiaCertificada(controle));
+        if (!fechada && ReferenceEquals(ultimoResultadoNR, e) && NR.BotaoMostrarRegistroResultado.Visibility == Visibility.Visible)
+            NR.LinkRemontarTeste.Visibility = pode ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Roda o <c>producao_teste.py</c> do kit (contrato: <c>PROCESSO --rota R --saida PASTA</c>), com a saída dentro do registro desta análise, e mostra
+    /// o PDF gerado no Explorador. Não mexe no controle da análise nem chama IA.</summary>
+    async Task RemontarRelatorioTesteAsync(ExecucaoEmCurso e)
+    {
+        if (remontandoTeste || pecasAgentes.ProducaoTeste is not { } script || pecasAgentes.Python is not { } python) return;
+        remontandoTeste = true;
+        NR.LinkRemontarTeste.IsEnabled = false;
+        try
+        {
+            var saida = Path.Combine(e.Registro.Pasta, "producao-teste");
+            Directory.CreateDirectory(saida);
+            var (exe, args) = LinhasDeComando.ProducaoTeste(python, pecasAgentes.PythonPeloLauncher, script, e.Processo.Pasta, e.Provedor, saida);
+            MostrarMensagem(InfoBarSeverity.Informational, "Remontando o relatório (teste)", "O PDF está sendo gerado numa pasta separada, a partir da cópia certificada.");
+            var (codigo, texto) = await ExecucaoProcesso.RodarAsync(exe, args, e.Processo.Pasta, _ => { }, TimeSpan.FromMinutes(10), CancellationToken.None);
+            if (fechada) return;
+            if (codigo == 0 && ProducaoTeste.PdfDaSaida(texto) is { } pdf && File.Exists(pdf))
+            {
+                MostrarMensagem(InfoBarSeverity.Success, "Relatório remontado (teste)", "PDF gerado em " + pdf + ". A análise não foi alterada.");
+                AberturaExterna.MostrarNoExplorador(Path.GetDirectoryName(pdf)!);
+            }
+            else
+            {
+                var motivo = texto.Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.Length > 0) ?? $"código {codigo}";
+                MostrarMensagem(InfoBarSeverity.Warning, "O relatório não foi remontado", motivo);
+            }
+        }
+        finally
+        {
+            remontandoTeste = false;
+            NR.LinkRemontarTeste.IsEnabled = true;
+        }
     }
 
     // ---------- barra de título ----------
@@ -1472,6 +1550,13 @@ public sealed partial class MainWindow
                     break;
                 default:
                     var motivo = (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro);
+                    // Fluxo linear do kit: com objeção pendente, nada de retomar sozinho (nem com outra IA): só o aviso.
+                    if (await Task.Run(() => ObjecaoPendenteDo(pend.Processo, ia)) is { } objecaoKit)
+                    {
+                        MostrarMensagem(InfoBarSeverity.Warning, $"A análise com o {nomeIa} de {FluxoNovoRelatorio.Identificacao(processo)} parou",
+                            FluxoNovoRelatorio.TextoRetomadaComObjecao(objecaoKit));
+                        break;
+                    }
                     // 2026-11-17: a análise parou com o editor fechado; pergunta se retoma de onde parou, e com qual IA.
                     var (escolha, descartada) = await PerguntarRetomadaAsync(processo, pend.Registro, ia, motivo);
                     if (descartada) break;
@@ -1483,6 +1568,10 @@ public sealed partial class MainWindow
         AtualizarTituloAnalise();
         AtualizarBotoesNR();
     }
+
+    /// <summary>A objeção pendente que bloqueia a entrega na pasta de controle da rota (<see cref="DetalhesDasEtapas"/>); null sem objeção.</summary>
+    static ObjecaoPendente? ObjecaoPendenteDo(string pastaProcesso, Provedor p) =>
+        DetalhesDasEtapas.Ler(Path.Combine(pastaProcesso, ResultadoAnalise.PastaControle(p))).Objecoes.FirstOrDefault();
 
     /// <summary>"Retomar a análise?" na reabertura: continuar com o Claude, com o ChatGPT ou agora não (null). A IA que fazia a análise vem primeiro.</summary>
     async Task<(Provedor? Ia, bool Descartada)> PerguntarRetomadaAsync(Processo processo, string registro, Provedor original, string? motivo = null)
@@ -1532,7 +1621,7 @@ public sealed partial class MainWindow
         aviso.Message = mensagem;
         NR.BotaoImportarPendente.Visibility = Visibility.Visible;
         NR.BotaoDescartar.Visibility = Visibility.Collapsed;
-        NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed;
+        NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed; NR.LinkRemontarTeste.Visibility = Visibility.Collapsed;
         aviso.IsOpen = true;
         if (!PaginaNovoRelatorioVisivel)
         {

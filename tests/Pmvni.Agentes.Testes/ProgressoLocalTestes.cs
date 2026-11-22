@@ -252,10 +252,11 @@ public class ProgressoLocalTestes
         Assert.Equal(agora.AddMinutes(15 + 2), PrevisaoTermino.EstimarAproximada(p, historico, agora));
         var parcial = historico.Where(d => d.Etapa == "technical_audit").ToList();
         Assert.Null(PrevisaoTermino.EstimarAproximada(p, parcial, agora));
-        Assert.Equal(agora.AddMinutes(15 + 5), PrevisaoTermino.EstimarInicial(p, parcial, agora));
-        Assert.Equal(agora.AddSeconds(22 * 60 + 30).AddMinutes(5), PrevisaoTermino.EstimarInicial(p, null, agora));
-        Assert.Equal(agora.AddMinutes(5), PrevisaoTermino.EstimarInicial(p with { SinalDaEtapa = null }, parcial, agora));
-        Assert.Equal(agora.AddMinutes(5), PrevisaoTermino.EstimarInicial(p with { SinalDaEtapa = (28, 28), InicioEtapa = null }, parcial, agora));
+        // Durações iniciais do fluxo linear: auditoria técnica 16 min, produção 2 min.
+        Assert.Equal(agora.AddMinutes(15 + 2), PrevisaoTermino.EstimarInicial(p, parcial, agora));
+        Assert.Equal(agora.AddMinutes(12 + 2), PrevisaoTermino.EstimarInicial(p, null, agora));
+        Assert.Equal(agora.AddMinutes(2), PrevisaoTermino.EstimarInicial(p with { SinalDaEtapa = null }, parcial, agora));
+        Assert.Equal(agora.AddMinutes(2), PrevisaoTermino.EstimarInicial(p with { SinalDaEtapa = (28, 28), InicioEtapa = null }, parcial, agora));
         Assert.Null(PrevisaoTermino.EstimarInicial(p with { Ordem = ["technical_audit", "etapa_nova"] }, parcial, agora));
     }
 
@@ -388,6 +389,56 @@ public class ProgressoLocalTestes
         Assert.All(h, d => Assert.Equal(Provedor.Claude, d.Provedor));
         Assert.Equal(new[] { ("analyze", 400d), ("analyze", 600d), ("audit", 250d), ("prepare", 100d), ("technical_audit", 300d) },
             h.Select(d => (d.Etapa, d.Duracao.TotalSeconds)).OrderBy(d => d.Etapa).ThenBy(d => d.Item2));
+    }
+
+    [Fact]
+    public void Consumo_ComplementaRelatorioParcialSemInventarMedidas()
+    {
+        using var pasta = Ambiente.PastaDeTeste("consumo-parcial");
+        var controle = Controle(pasta);
+        var etapa = Feita(1000, 1100);
+        etapa["quota_before"] = JsonNode.Parse("""{"windows":{"five_hour":{"used_percent":11},"seven_day":{"used_percent":20}}}""");
+        etapa["quota_after"] = JsonNode.Parse("""{"windows":{"five_hour":{"used_percent":14},"seven_day":{"used_percent":2}}}""");
+        etapa["usage"] = JsonNode.Parse("""{"tokens":{"entrada":120,"saida":0},"cache_lido":18,"valor_equivalente_usd":0.12}""");
+        Gravar(controle, "engine_state.json", Estado(("analyze", etapa)));
+        Gravar(controle, UsoDasIas.Arquivo, JsonNode.Parse("""{"execucoes":[{"etapa":"analyze","valor_equivalente_usd":0.07}]}""")!);
+        var uso = Assert.Single(UsoDasIas.Ler(controle));
+        Assert.Equal((120L, 0L, 18L, 0.07, TimeSpan.FromSeconds(100)),
+            (uso.Entrada, uso.Saida, uso.CacheLido, uso.ValorEquivalenteUsd, uso.Duracao));
+        Assert.Equal(3d, uso.Cota5h);
+        Assert.Null(uso.CotaSemana);
+        Assert.Equal(new[] { "Tokens de entrada", "Tokens de saída", "Cache lido", "Custo equivalente (USD)", "Variação da cota de 5 h" },
+            TextoConsumo.Metricas(uso).Select(m => m.Rotulo));
+    }
+
+    [Fact]
+    public void ConsumoCodex_UsaSessaoDaEtapaELinhasCompletasSemSomarAcumulados()
+    {
+        using var pasta = Ambiente.PastaDeTeste("consumo-sessao");
+        var controle = Controle(pasta);
+        var estado = Estado(("analyze", Feita(1000, 1100, "codex")));
+        var id = Guid.NewGuid();
+        estado["sessao_codex"] = new JsonObject { ["analyze"] = new JsonObject { ["id"] = id.ToString(), ["inicio"] = 1000 } };
+        Gravar(controle, "engine_state.json", estado);
+        var dia = DateTimeOffset.FromUnixTimeSeconds(1000).LocalDateTime;
+        var dir = Directory.CreateDirectory(Path.Combine(pasta, "sessions", dia.ToString("yyyy/MM/dd", System.Globalization.CultureInfo.InvariantCulture)));
+        var arquivo = Path.Combine(dir.FullName, $"rollout-teste-{id:D}.jsonl");
+        var leitor = new ConsumoSessaoCodex(pasta);
+        UsoEtapa Ler() => Assert.Single(UsoDasIas.Ler(controle, sessoesCodex: leitor));
+        string Evento(int tokens, int percentual, int fim) => System.Text.Json.JsonSerializer.Serialize(new
+        {
+            type = "event_msg", payload = new { type = "token_count",
+                info = new { total_token_usage = new { input_tokens = tokens, cached_input_tokens = 0, output_tokens = 3 } },
+                rate_limits = new { primary = new { used_percent = percentual, window_minutes = 300, resets_at = fim } } }
+        });
+        File.WriteAllText(arquivo, Evento(10, 20, 2000) + "\n" + Evento(40, 25, 2000), Utf8);
+        Assert.Equal(10L, Ler().Entrada);
+        File.AppendAllText(arquivo, "\n", Utf8);
+        var uso = Ler();
+        Assert.Equal((40L, 0L, 3L, 5d), (uso.Entrada, uso.CacheLido, uso.Saida, uso.Cota5h));
+        Assert.Equal(uso, Ler());
+        File.AppendAllText(arquivo, Evento(50, 2, 4000) + "\n", Utf8);
+        Assert.Null(Ler().Cota5h);
     }
 
     [Fact]

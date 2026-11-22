@@ -2,6 +2,20 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.4.0
+
+Análise em ciclo linear, mais barata e mais rápida, e monitor reorganizado em abas.
+
+- Monitor com cabeçalho em cinco abas: Resumo (progresso geral, etapas e previsão), Consumo, Etapas, Log e Detalhes. O Log mostra a atividade mais recente em destaque, com o histórico completo na própria aba e o botão de evidências por PDF e página; Detalhes mostra processo, executor, situação, próxima etapa e a última mensagem da IA.
+- A barra de progresso da etapa não pisca mais: o monitor atualiza os controles existentes em vez de recriá-los a cada atualização.
+- Os indicadores "Ao vivo" pulsam com ondas verdes sutis (tipo radar), no verde institucional, e param quando as animações do Windows estão desligadas.
+- Etapas com texto maior e um check em cada etapa concluída; o botão de evidências foi reposicionado e não cobre mais o filtro.
+- Consumo e desempenho mostra os dados registrados de verdade (tokens, cache, tempo e cota por etapa) e esconde o que não foi medido. Etapas feitas por programa aparecem como "Programa · sem consumo de IA".
+- Requer o kit com o fluxo linear: a Análise roda em três frentes paralelas (seções 1–9, 10–18 e 19–28), cada uma com o próprio progresso no cartão da etapa; uma única auditoria técnica corrige no próprio passo, sem voltar à Análise; auditoria cruzada, relatório e revisão final são feitos por programa. Cada etapa com IA mostra o modelo e o esforço usados (rota ChatGPT: gpt-6.2-astra, esforço médio).
+- Objeções pendentes aparecem na etapa que as levantou e bloqueiam a entrega; com objeção pendente, a retomada automática ao abrir o Editor fica desligada.
+- Previsão de término recalibrada para o fluxo linear (cerca de 40 min) e calculada só com análises feitas nesse fluxo.
+- Novo comando "Remontar relatório (teste)", que gera o PDF a partir de uma análise já auditada, numa pasta separada, sem alterar a análise.
+
 ## 3.3.0
 
 Monitor de análise redesenhado (layout final do Brilliant, em WinUI 3 nativo) e progresso que avança de verdade.

@@ -551,7 +551,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 linhasDemo.Add("Ação: consultou os créditos disponíveis");
                 NR.LigarLinhas(linhasDemo);
                 NR.MostrarExecucao(true);
-                NR.TextoCabecalho.Text = "Analisando com o ChatGPT · 19486/2026";
                 NR.MostrarIdentificacao("19486/2026", "Requerente fictício de demonstração");
                 var etapasDemo = FluxoNovoRelatorio.Etapas("analyze", "", ["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"]);
                 NR.MostrarResumo(true, null, etapasDemo, "ChatGPT");

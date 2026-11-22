@@ -139,6 +139,17 @@ public static class ProgressoLocal
                     else { porId[id] = achados.Count; achados.Add(achado); }
                 }
         }
+        // Fluxo linear do kit: o manifesto só aparece depois da montagem. Até lá, as seções prontas nas três frentes (secao-NN.json) alimentam a Análise;
+        // com o manifesto, vale o maior dos dois (a barra não volta).
+        if (etapa == "analyze")
+        {
+            var prontas = Math.Min(DetalhesDasEtapas.LerFrentes(pastaControle, UsoDasIas.Objeto(estado, "sessao_codex"), desdeUtc).Sum(f => f.Prontas), TotalSecoesDoKit);
+            if (prontas > secoes)
+            {
+                secoes = prontas;
+                sinal = (prontas, TotalSecoesDoKit);
+            }
+        }
         return new Progresso(etapa, concluidas.Count, secoes, achados, provedor, inicioEtapa)
             { Ordem = ordem, EtapasExecutadas = concluidas, SinalDaEtapa = sinal };
     }

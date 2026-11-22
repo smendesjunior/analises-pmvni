@@ -294,6 +294,8 @@ public sealed class OrquestradorAnalise
             // 2026-11-16: o plugin do kit e a versão instalada que fizeram a análise (auditável depois).
             o["plugin"] = PluginUsado(pe.Provedor);
             o["versao_do_plugin"] = VersaoDoPlugin(pe.Provedor, pe.Pecas) ?? "não encontrada";
+            // Fluxo linear do kit: a marca que libera as durações desta análise para a previsão (FluxoLinear).
+            if (FluxoLinear.DoKit(pe.Pecas.EtapasJson)) o[FluxoLinear.Chave] = FluxoLinear.Assinatura;
             if (pe.Provedor == Provedor.Claude) o["autenticacao"] = AutenticacaoAnalisePro(pe.Modo);    // nunca a chave
             if (pe.Provedor == Provedor.Gemini)
             {

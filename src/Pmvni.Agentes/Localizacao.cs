@@ -63,6 +63,10 @@ public sealed record Pecas(
     /// que a aba "Modelos da análise" mostra e ajusta; null antes do kit com a tabela ou se não achada.</summary>
     public string? ModelosPorRota { get; init; }
 
+    /// <summary>O <c>skills\analise\scripts\producao_teste.py</c> do plugin analise instalado (remontagem isolada a partir da cópia certificada,
+    /// <see cref="Pmvni.Agentes.ProducaoTeste"/>); null se o kit não o tem.</summary>
+    public string? ProducaoTeste { get; init; }
+
     /// <summary>O controlador do kit que o provedor usa: análise pro (Claude) ou análise Google (Gemini); null para o ChatGPT ou se não instalado.</summary>
     public string? RuntimeDoKit(Provedor p) => p switch { Provedor.Claude => ProRuntime, Provedor.Gemini => GoogleRuntime, _ => null };
 }
@@ -108,7 +112,7 @@ public static class Localizacao
         {
             Agy = AcharAgy(o), GoogleRuntime = googleRuntime, VersaoAnaliseGoogle = versaoPlugin, VersaoAnaliseGoogleKit = versaoKit,
             CodexHome = o.CodexHome, Analise62 = analise62, EtapasJson = ArquivoEtapas(pastaAnalise),
-            ModelosPorRota = ArquivoDasReferencias(pastaAnalise, TabelaDeModelos.NomeNoKit),
+            ModelosPorRota = ArquivoDasReferencias(pastaAnalise, TabelaDeModelos.NomeNoKit), ProducaoTeste = ScriptComum(pastaAnalise, Pmvni.Agentes.ProducaoTeste.Script),
         };
     }
 
@@ -126,6 +130,14 @@ public static class Localizacao
         if (pastaPlugin is null) return null;
         var (rota, nome) = RotaDoControlador(p);
         var script = Path.Combine(pastaPlugin, "skills", PluginsInstalados.Analise, "scripts", "rotas", rota, nome);
+        return File.Exists(script) ? script : null;
+    }
+
+    /// <summary>Um script comum às três rotas (<c>skills\analise\scripts\&lt;nome&gt;</c>); null se não existir.</summary>
+    static string? ScriptComum(string? pastaPlugin, string nome)
+    {
+        if (pastaPlugin is null) return null;
+        var script = Path.Combine(pastaPlugin, "skills", PluginsInstalados.Analise, "scripts", nome);
         return File.Exists(script) ? script : null;
     }
 

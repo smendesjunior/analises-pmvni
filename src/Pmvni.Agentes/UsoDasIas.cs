@@ -6,11 +6,13 @@ namespace Pmvni.Agentes;
 
 /// <summary>Uma linha do cartão "Consumo" do Monitor: quem executou a etapa (<c>programa</c>, <c>GPT</c>, <c>Claude</c> ou <c>Gemini</c>; "—" se o registro
 /// não diz), o modelo, os tokens de entrada e de saída (ou só o <see cref="Total"/>, quando o executor informa apenas ele, como o Codex), o cache lido, a
-/// duração e a variação, em pontos percentuais, da cota de 5 h e da semanal durante a etapa. null = o kit não informou (o Monitor mostra "—"); nada é
+/// duração e a variação, em pontos percentuais, da cota de 5 h e da semanal durante a etapa. null = métrica ausente (oculta no Monitor); nada é
 /// estimado aqui.</summary>
 public sealed record UsoEtapa(string Etapa, string Executor, string? Modelo, long? Entrada, long? Saida, long? CacheLido, TimeSpan? Duracao,
     double? Cota5h, double? CotaSemana)
 {
+    public double? ValorEquivalenteUsd { get; init; }
+    internal string? PastaExecucao { get; init; }
     public long? Total { get; init; }
 
     /// <summary>A situação da execução no kit (<c>EXECUTED</c>, <c>FAILED</c>, <c>FAILED_QUOTA</c>…), se informada.</summary>
@@ -31,6 +33,17 @@ public static class TextoConsumo
         _ => (n.Value / 1_000_000d).ToString("0.#", Br) + " mi",
     };
 
+    public static IEnumerable<(string Rotulo, string Valor)> Metricas(UsoEtapa u)
+    {
+        if (u.Entrada.HasValue) yield return ("Tokens de entrada", Numero(u.Entrada));
+        if (u.Saida.HasValue) yield return ("Tokens de saída", Numero(u.Saida));
+        if (u.Total.HasValue && (!u.Entrada.HasValue || !u.Saida.HasValue)) yield return ("Tokens totais", Numero(u.Total));
+        if (u.CacheLido.HasValue) yield return ("Cache lido", Numero(u.CacheLido));
+        if (u.ValorEquivalenteUsd is { } usd) yield return ("Custo equivalente (USD)", usd.ToString("0.00####", Br));
+        if (u.Cota5h is { } h) yield return ("Variação da cota de 5 h", h.ToString("0.#", Br) + " p.p.");
+        if (u.CotaSemana is { } w) yield return ("Variação da cota semanal", w.ToString("0.#", Br) + " p.p.");
+    }
+
     /// <summary>"entrada / saída"; só o total quando o executor não separa (o Codex); "—" sem nada (as etapas de programa).</summary>
     public static string Tokens(UsoEtapa u) =>
         u.Entrada is not null || u.Saida is not null ? Numero(u.Entrada) + " / " + Numero(u.Saida)
@@ -47,8 +60,7 @@ public static class TextoConsumo
 }
 
 /// <summary>O consumo de cada etapa, lido do <c>uso-das-IAs.json</c> que o <c>uso_ias.py</c> do kit grava na pasta de controle (análise pro e análise Google) e
-/// do <c>engine_state.json</c> (as etapas que o relatório de uso ainda não traz, as de programa — <c>{"executor": "programa"}</c> — e a rota ChatGPT, que
-/// não tem relatório de uso). E o histórico das durações de todos os processos, para a <see cref="PrevisaoTermino"/>.</summary>
+/// do <c>engine_state.json</c> e da sessão Codex vinculada pelo kit. E o histórico das durações de todos os processos, para a <see cref="PrevisaoTermino"/>.</summary>
 public static class UsoDasIas
 {
     public const string Arquivo = "uso-das-IAs.json";
@@ -57,7 +69,8 @@ public static class UsoDasIas
     /// <param name="desdeUtc">Arquivos gravados antes disto (a análise anterior) não contam.</param>
     /// <param name="ordemDoKit">A sequência das etapas que o kit define (<see cref="OrdemDasEtapas.Ler"/>); null = a ordem padrão (kit 3.x). As linhas saem
     /// nessa ordem.</param>
-    public static IReadOnlyList<UsoEtapa> Ler(string pastaControle, DateTime desdeUtc = default, OrdemDasEtapas? ordemDoKit = null)
+    public static IReadOnlyList<UsoEtapa> Ler(string pastaControle, DateTime desdeUtc = default, OrdemDasEtapas? ordemDoKit = null,
+        ConsumoSessaoCodex? sessoesCodex = null)
     {
         var linhas = new List<UsoEtapa>();
         var etapas = (ordemDoKit ?? OrdemDasEtapas.Padrao).Todas.ToList();
@@ -79,25 +92,56 @@ public static class UsoDasIas
                 var duracao = ProgressoLocal.Numero(x, "duracao_s") is { } s and > 0 ? TimeSpan.FromSeconds(s) : (TimeSpan?)null;
                 linhas.Add(new UsoEtapa(etapa, executor, modelo, Inteiro(detalhe, "entrada"), Inteiro(detalhe, "saida"),
                         Inteiro(x, "cache_lido") ?? Inteiro(detalhe, "cache_lido"), duracao, cota5h, cotaSemana)
-                    { Total = Inteiro(x, "tokens"), Situacao = ProgressoLocal.Texto(x, "situacao") });
+                    { Total = Inteiro(x, "tokens"), ValorEquivalenteUsd = ProgressoLocal.Numero(x, "valor_equivalente_usd"),
+                      PastaExecucao = ProgressoLocal.Texto(x, "execucao"), Situacao = ProgressoLocal.Texto(x, "situacao") });
             }
 
-        // As etapas do estado que o relatório de uso não traz: as de programa (nunca passam por IA), a rota ChatGPT (sem relatório de uso) e a etapa que
-        // terminou depois da última geração do relatório.
+        // O relatório pode conter só o preparo. Complete os campos da mesma tentativa com os registros do executor.
         if (ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "engine_state.json"), desdeUtc) is { ValueKind: JsonValueKind.Object } estado
             && estado.TryGetProperty("stages", out var stages) && stages.ValueKind == JsonValueKind.Object)
             foreach (var etapa in etapas)
             {
-                if (!stages.TryGetProperty(etapa, out var r) || r.ValueKind != JsonValueKind.Object || linhas.Any(l => l.Etapa == etapa)) continue;
+                var registro = Objeto(stages, etapa);
+                var sessao = Objeto(Objeto(estado, "sessao_codex"), etapa);
+                if (registro is null && sessao is null) continue;
+                var r = registro ?? sessao!.Value;
+                var usoEtapa = Objeto(r, "usage");
+                var tokens = Objeto(usoEtapa, "tokens");
+                var daSessao = sessao is { } sc ? sessoesCodex?.Ler(sc) : null;
+                var modelo = ProgressoLocal.Texto(r, "modelo_observado") ?? ProgressoLocal.Texto(r, "requested_model")
+                    ?? (sessao is { } sess ? ProgressoLocal.Texto(sess, "modelo") : null);
                 var executorDoRegistro = ProgressoLocal.Texto(r, "executor");
-                var executor = Executor(executorDoRegistro, ProgressoLocal.Texto(r, "engine"),
-                    ProgressoLocal.Texto(r, "requested_model") ?? ProgressoLocal.Texto(r, "modelo_observado"));
-                var modelo = executor == Programa ? null
-                    : ProgressoLocal.Texto(r, "modelo_observado") ?? ProgressoLocal.Texto(r, "requested_model") ?? executorDoRegistro;
+                var executor = Executor(executorDoRegistro, ProgressoLocal.Texto(r, "engine") ?? (sessao.HasValue ? "codex" : null), modelo);
                 var inicio = ProgressoLocal.Instante(r, "started");
                 var fim = ProgressoLocal.Instante(r, "ended");
-                var duracao = inicio is { } a && fim is { } b && b > a ? b - a : (TimeSpan?)null;
-                linhas.Add(new UsoEtapa(etapa, executor, modelo, null, null, null, duracao, null, null) { Situacao = ProgressoLocal.Texto(r, "status") });
+                var duracao = ProgressoLocal.Numero(r, "duracao_s") is { } segundos and >= 0 ? TimeSpan.FromSeconds(segundos)
+                    : inicio is { } a && fim is { } b && b >= a ? b - a : (TimeSpan?)null;
+                var pasta = ProgressoLocal.Texto(r, "run");
+                var indice = linhas.FindLastIndex(l => l.Etapa == etapa && (l.PastaExecucao == pasta || l.PastaExecucao is null));
+                var anterior = indice >= 0 ? linhas[indice] : null;
+                // Uma troca de rota pode ter várias pastas filhas no relatório e uma pasta agregadora no estado.
+                if (anterior is null && linhas.Any(l => l.Etapa == etapa) &&
+                    (pasta is null || r.TryGetProperty("route_attempts", out var tentativas) && tentativas.ValueKind == JsonValueKind.Array))
+                    continue;
+                var cotaDaConta = ProgressoLocal.Texto(r, "route") != "api" && executor != Programa;
+                var antes = Objeto(Objeto(r, "quota_before"), "windows");
+                var depois = Objeto(Objeto(r, "quota_after"), "windows");
+                var linha = new UsoEtapa(etapa, anterior?.Executor is { } quem && quem != TextoConsumo.Desconhecido ? quem : executor,
+                    anterior?.Modelo ?? (executor == Programa ? null : modelo ?? executorDoRegistro),
+                    anterior?.Entrada ?? Inteiro(tokens, "entrada") ?? daSessao?.Entrada,
+                    anterior?.Saida ?? Inteiro(tokens, "saida") ?? daSessao?.Saida,
+                    anterior?.CacheLido ?? Inteiro(usoEtapa, "cache_lido") ?? Inteiro(tokens, "cache_lido") ?? daSessao?.Cache,
+                    anterior?.Duracao ?? duracao,
+                    anterior?.Cota5h ?? (cotaDaConta ? Variacao(antes, depois, "primary", "five_hour") ?? daSessao?.Cota5h : null),
+                    anterior?.CotaSemana ?? (cotaDaConta ? Variacao(antes, depois, "secondary", "seven_day") ?? daSessao?.CotaSemana : null))
+                {
+                    Total = anterior?.Total ?? Inteiro(usoEtapa, "total_tokens") ?? daSessao?.Total,
+                    ValorEquivalenteUsd = anterior?.ValorEquivalenteUsd ?? (usoEtapa is { } u ? ProgressoLocal.Numero(u, "valor_equivalente_usd") : null),
+                    Situacao = anterior?.Situacao ?? ProgressoLocal.Texto(r, "status"),
+                    PastaExecucao = anterior?.PastaExecucao ?? pasta
+                };
+                if (indice >= 0) linhas[indice] = linha;
+                else linhas.Add(linha);
             }
 
         // Na ordem das etapas; dentro de uma etapa, as tentativas na ordem do relatório.
@@ -123,11 +167,13 @@ public static class UsoDasIas
     /// <summary>O <see cref="Historico"/> lido uma vez por sessão do Editor (por pasta de processos), fora da thread de quem chama. A <paramref name="ordemDoKit"/>
     /// só vale na primeira chamada de cada pasta.</summary>
     public static Task<IReadOnlyList<DuracaoEtapa>> HistoricoDaSessaoAsync(string pastaProcessos, OrdemDasEtapas? ordemDoKit = null) =>
-        historicos.GetOrAdd(pastaProcessos ?? "", raiz => new Lazy<Task<IReadOnlyList<DuracaoEtapa>>>(() => Task.Run(() => Historico(raiz, ordemDoKit)))).Value;
+        historicos.GetOrAdd(pastaProcessos ?? "", raiz => new Lazy<Task<IReadOnlyList<DuracaoEtapa>>>(() => Task.Run(() => Historico(raiz, ordemDoKit, somenteFluxoLinear: true)))).Value;
 
     /// <summary>As durações das etapas executadas em todas as análises sob a pasta de processos
     /// (<c>&lt;raiz&gt;\…\&lt;processo&gt;\.pmvni-ai\&lt;analise|analise-pro|analise-google&gt;</c>, até três níveis de pasta), por <see cref="DuracoesDaPasta"/>.</summary>
-    public static IReadOnlyList<DuracaoEtapa> Historico(string pastaProcessos, OrdemDasEtapas? ordemDoKit = null)
+    /// <param name="somenteFluxoLinear">Só as amostras do fluxo linear (<see cref="FluxoLinear"/>): controles de provedores com análise marcada pelo Editor,
+    /// e só o que foi gravado a partir do primeiro início marcado. O Monitor usa assim; sem a marca, valem as durações iniciais.</param>
+    public static IReadOnlyList<DuracaoEtapa> Historico(string pastaProcessos, OrdemDasEtapas? ordemDoKit = null, bool somenteFluxoLinear = false)
     {
         var saida = new List<DuracaoEtapa>();
         if (string.IsNullOrWhiteSpace(pastaProcessos) || !Directory.Exists(pastaProcessos)) return saida;
@@ -137,8 +183,20 @@ public static class UsoDasIas
         try { pastas = Directory.EnumerateDirectories(pastaProcessos, ".pmvni-ai", opcoes).ToList(); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return saida; }
         foreach (var pmvni in pastas)
+        {
+            var marcados = somenteFluxoLinear ? FluxoLinear.IniciosMarcados(pmvni) : null;
             foreach (var plugin in new[] { "analise", "analise-pro", "analise-google" })
-                saida.AddRange(DuracoesDaPasta(Path.Combine(pmvni, plugin), ordemDoKit));
+            {
+                var controle = Path.Combine(pmvni, plugin);
+                DateTimeOffset? desde = null;
+                if (marcados is not null)
+                {
+                    if (ProgressoLocal.ProvedorDaPasta(controle) is not { } p || !marcados.TryGetValue(p, out var inicio)) continue;
+                    desde = inicio;
+                }
+                saida.AddRange(DuracoesDaPasta(controle, ordemDoKit, desde));
+            }
+        }
         return saida;
     }
 
@@ -155,7 +213,9 @@ public static class UsoDasIas
     /// </list>
     /// A mesma execução nas duas fontes conta uma vez só: mesma pasta de execução ou, sem ela, mesma etapa com durações a menos de 1 s uma da outra. Arquivo
     /// ilegível ou pela metade é ignorado.</summary>
-    public static IReadOnlyList<DuracaoEtapa> DuracoesDaPasta(string pastaControle, OrdemDasEtapas? ordemDoKit = null)
+    /// <param name="desde">Com valor, só as execuções que começaram a partir dele (no relatório de uso, que não traz horário, só as que têm a pasta da
+    /// execução criada a partir dele).</param>
+    public static IReadOnlyList<DuracaoEtapa> DuracoesDaPasta(string pastaControle, OrdemDasEtapas? ordemDoKit = null, DateTimeOffset? desde = null)
     {
         if (ProgressoLocal.ProvedorDaPasta(pastaControle) is not { } provedor) return [];
         var etapas = (ordemDoKit ?? OrdemDasEtapas.Padrao).Todas.ToList();
@@ -187,6 +247,7 @@ public static class UsoDasIas
                     var inicio = ProgressoLocal.Instante(r, "started")
                         ?? (fim is { } termina && fins.Any(f => f < termina) ? fins.Where(f => f < termina).Max() : (DateTimeOffset?)null);
                     if (ProgressoLocal.Texto(r, "status") != "EXECUTED" || inicio is not { } partida || fim is not { } termino || termino <= partida) continue;
+                    if (desde is { } d && partida < d) continue;
                     var x = new Execucao(etapa, ProgressoLocal.Texto(r, "run"), termino - partida);
                     if (!achadas.Any(a => Mesma(a, x, false))) achadas.Add(x);     // o análise pro repete a mesma etapa em vários quadros do histórico
                 }
@@ -201,12 +262,24 @@ public static class UsoDasIas
                     && ProgressoLocal.Texto(x, "situacao") == "EXECUTED" && ProgressoLocal.Numero(x, "duracao_s") is { } s and > 0)
                 {
                     var execucao = new Execucao(etapa, ProgressoLocal.Texto(x, "execucao"), TimeSpan.FromSeconds(s));
+                    if (desde is { } d && !CriadaDesde(execucao.Pasta, pastaControle, d)) continue;
                     // Só contra o estado, e pela duração mesmo com pastas diferentes: a tentativa final de uma etapa com troca de rota tem pasta própria no
                     // relatório de uso. As linhas do relatório já são execuções distintas entre si (o uso_ias.py junta por pasta).
                     if (!achadas.Take(doEstado).Any(a => Mesma(a, execucao, true))) achadas.Add(execucao);
                 }
 
         return achadas.Select(x => new DuracaoEtapa(x.Etapa, provedor, x.Duracao)).ToList();
+    }
+
+    static bool CriadaDesde(string? pasta, string pastaControle, DateTimeOffset desde)
+    {
+        if (string.IsNullOrWhiteSpace(pasta)) return false;
+        try
+        {
+            var caminho = Path.IsPathRooted(pasta) ? pasta : Path.Combine(pastaControle, pasta);
+            return Directory.Exists(caminho) && Directory.GetCreationTimeUtc(caminho) >= desde.UtcDateTime;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return false; }
     }
 
     static JsonElement? LerJson(string arquivo)
@@ -226,7 +299,21 @@ public static class UsoDasIas
             ? lista.EnumerateArray().Where(m => m.ValueKind == JsonValueKind.String).Select(m => m.GetString()).FirstOrDefault(m => !string.IsNullOrWhiteSpace(m))
             : null;
 
-    static long? Inteiro(JsonElement? o, string nome) =>
+    static double? Variacao(JsonElement? antes, JsonElement? depois, string chave, string alternativa)
+    {
+        var inicio = Objeto(antes, chave) ?? Objeto(antes, alternativa);
+        var fim = Objeto(depois, chave) ?? Objeto(depois, alternativa);
+        if (inicio is not { } a || fim is not { } b || ProgressoLocal.Numero(a, "used_percent") is not { } inicial
+            || ProgressoLocal.Numero(b, "used_percent") is not { } final || final < inicial) return null;
+        if (a.TryGetProperty("resets_at", out var r1) && b.TryGetProperty("resets_at", out var r2)
+            && !JsonElement.DeepEquals(r1, r2)) return null;
+        return Math.Round(final - inicial, 1);
+    }
+
+    internal static JsonElement? Objeto(JsonElement? pai, string nome) =>
+        pai is { ValueKind: JsonValueKind.Object } p && p.TryGetProperty(nome, out var filho) && filho.ValueKind == JsonValueKind.Object ? filho : null;
+
+    internal static long? Inteiro(JsonElement? o, string nome) =>
         o is { } e && e.TryGetProperty(nome, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var n) && double.IsFinite(n) && n >= 0
             ? (long)n : null;
 }

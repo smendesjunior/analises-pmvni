@@ -204,6 +204,18 @@ public static class FluxoNovoRelatorio
         return $"{(aproximada || inicial || peloRitmo ? "≈ " : "")}{hora.ToString(formato, CultureInfo.InvariantCulture)} · {TempoLegivel(hora - agora)}";
     }
 
+    /// <summary>"Seções 1–9 · 4 de 9" (ou "concluída", "aguardando") de uma frente paralela da etapa Análise.</summary>
+    internal static string TextoFrente(FrenteAnalise f) =>
+        $"Seções {f.Inicio}–{f.Fim} · " + (f.Concluida ? "concluída" : f.Iniciada ? $"{f.Prontas} de {f.Total}" : "aguardando");
+
+    /// <summary>A objeção pendente no cartão da etapa que a levantou. No fluxo linear ela bloqueia a entrega e não volta sozinha para a análise.</summary>
+    internal static string TextoObjecao(ObjecaoPendente o) => "Objeção pendente, bloqueia a entrega: " + o.Motivo.Trim().TrimEnd('.') + ".";
+
+    /// <summary>O aviso da reabertura quando a análise parou com objeção pendente: o Editor não retoma nem pergunta sozinho (a retomada refaria a etapa).</summary>
+    internal static string TextoRetomadaComObjecao(ObjecaoPendente o) =>
+        $"A etapa {NomeDaEtapa(o.Etapa)} registrou objeção pendente ({o.Motivo.Trim().TrimEnd('.')}). O Editor não retoma a análise sozinho: "
+        + "confira a objeção no registro e use \"Retomar análise\" ou descarte a análise.";
+
     /// <summary>O nome em português da etapa; uma etapa que o Editor não conhece (kit mais novo) aparece com o id legível ("etapa_nova" vira "Etapa nova").</summary>
     internal static string NomeDaEtapa(string etapa)
     {

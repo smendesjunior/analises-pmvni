@@ -15,6 +15,24 @@ public class PadraoInterfaceTestes
 {
     static readonly string Fonte = Path.Combine(Ambiente.PastaTestes, "..", "src", "Pmvni.App");
 
+    [Fact]
+    public void monitor_mantem_log_e_detalhes_na_arvore_das_abas()
+    {
+        var pagina = XDocument.Load(Path.Combine(Fonte, "Paginas", "PaginaNovoRelatorio.xaml"));
+        XName nome = XNamespace.Get("http://schemas.microsoft.com/winfx/2006/xaml") + "Name";
+        XElement Controle(string id) => pagina.Descendants().Single(e => (string?)e.Attribute(nome) == id);
+        var abas = Controle("AbasMonitor").Elements().Select(e => (string?)e.Attribute("Text"));
+        Assert.Equal(new[] { "Resumo", "Consumo", "Etapas", "Log", "Detalhes" }, abas);
+        var log = Controle("PainelLog");
+        var detalhes = Controle("PainelDetalhes");
+        foreach (var painel in new[] { log, detalhes })
+            Assert.DoesNotContain(painel.Descendants(), e => e.Name.LocalName.Contains("Flyout") || e.Name.LocalName == "TeachingTip");
+        foreach (var id in new[] { "AtividadeRecente", "ListaLinhas", "LinkLogCompleto", "BotaoEvidenciasPdf", "TextoContagem" })
+            Assert.Contains(log, Controle(id).Ancestors());
+        foreach (var id in new[] { "ExecutorDetalhes", "SituacaoDetalhes", "TextoProximaEtapa", "TextoUltimaMensagem" })
+            Assert.Contains(detalhes, Controle(id).Ancestors());
+    }
+
     // Arquivos que definem o padrão (os estilos) ou desenham ícones coloridos fixos; ficam fora das regras de uso.
     static readonly string[] Definicoes = ["Estilos.xaml", "App.xaml", "Trilho.xaml", "IconesModulos.xaml", "CoresTonais.xaml", "Glifos.cs", "Brilho.cs", "BrilhoArcoIris.cs", "AutotesteBrilho.cs"];
 

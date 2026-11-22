@@ -17,3 +17,4 @@ tools/instalar-resultado.txt
 
 # Resultados de conferências e instalações (gerados ao rodar as ferramentas)
 tools/*-resultado.txt
+.codex-frentes/

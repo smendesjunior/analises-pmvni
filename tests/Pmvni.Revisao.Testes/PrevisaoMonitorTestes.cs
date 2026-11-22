@@ -24,7 +24,7 @@ public class PrevisaoMonitorTestes
 
         // O manifesto já informa o progresso, mesmo sem nenhum histórico.
         var comDados = AchadosExecucao.DoProgresso(new Progresso("analyze", 1, 4, [], Provedor.ChatGpt, Agora.AddMinutes(-3)), [], Agora);
-        Assert.Equal(new EstimativaAnalise("analyze", 14.3, 12.4, Agora.AddMinutes(132), PeloEditor: true, Inicial: true), comDados.Estimativa);
+        Assert.Equal(new EstimativaAnalise("analyze", 14.3, 13.6, Agora.AddMinutes(35), PeloEditor: true, Inicial: true), comDados.Estimativa);
         Assert.Equal(FluxoNovoRelatorio.HistoricoInsuficiente, FluxoNovoRelatorio.TextoEstimativa(null, Agora, peloEditor: true));
         Assert.Equal("Histórico insuficiente", FluxoNovoRelatorio.PrevisaoCurta(null, Agora, peloEditor: true));
         Assert.Equal("Após a 1ª etapa", FluxoNovoRelatorio.PrevisaoCurta(null, Agora, peloEditor: true, semDados: true));
@@ -42,7 +42,7 @@ public class PrevisaoMonitorTestes
         var painel = AchadosExecucao.DoProgresso(new Progresso("technical_audit", 2, 28, [], Provedor.Claude, Agora.AddSeconds(-10)), historico, Agora);
         // 80 s + 3 × 90 s = 350 s → 12:05:50, arredondado para 12:06.
         // A previsão é firme, mas o percentual geral usou as durações iniciais do preparo e da análise.
-        Assert.Equal(new EstimativaAnalise("technical_audit", 11.1, 92.3, Agora.AddMinutes(6), PeloEditor: true, Inicial: true), painel.Estimativa);
+        Assert.Equal(new EstimativaAnalise("technical_audit", 11.1, 77.6, Agora.AddMinutes(6), PeloEditor: true, Inicial: true), painel.Estimativa);
         Assert.Empty(painel.Etapas);
         var analise = AchadosExecucao.DoProgresso(new Progresso("analyze", 1, 9, [], Provedor.Claude), historico, Agora);
         Assert.Equal(new ProgressoEtapa("analyze", 9, 9, 28, Secoes: true), analise.Etapas["analyze"]);
@@ -73,7 +73,7 @@ public class PrevisaoMonitorTestes
         var p = new Progresso("analyze", 1, 9, [], Provedor.ChatGpt);
         var painel = AchadosExecucao.DoProgresso(p, historico: null, Agora);
 
-        Assert.Equal(new EstimativaAnalise("analyze", 32.1, 19.5, Agora.AddMinutes(121), PeloEditor: true, Inicial: true), painel.Estimativa);
+        Assert.Equal(new EstimativaAnalise("analyze", 32.1, 21.2, Agora.AddMinutes(32), PeloEditor: true, Inicial: true), painel.Estimativa);
     }
 
     [Fact]
@@ -88,7 +88,8 @@ public class PrevisaoMonitorTestes
         File.WriteAllText(engine, estado);
         File.SetLastWriteTimeUtc(engine, Agora.UtcDateTime);
         var antes = AchadosExecucao.LerDaExecucao(registro, pasta, desde, controle, desde, [], Agora).Estimativa!;
-        Assert.Equal(50, antes.PercentualEtapa);
+        // 15 min dos 16 iniciais da auditoria técnica no fluxo linear.
+        Assert.Equal(93.8, antes.PercentualEtapa);
 
         var manifesto = Path.Combine(controle, "manifesto.json");
         File.WriteAllText(manifesto, """{"section_audit":[{"section":1}]}""");
