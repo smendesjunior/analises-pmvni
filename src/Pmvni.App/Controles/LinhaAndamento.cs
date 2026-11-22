@@ -3,8 +3,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Shapes;
 
 namespace Pmvni.App;
 
@@ -17,8 +15,7 @@ public sealed class ItemAtividade(Atividade atividade) : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 }
 
-/// <summary>Uma linha das "Atividades da análise" (redesenho 2026-11-17): marcador de status na linha do tempo (concluída ✓, em curso ◌, erro !),
-/// cartão com ícone, título natural, detalhe e horário. Mensagens da IA quebram linha; ações ficam numa linha.</summary>
+/// <summary>Uma entrada do log do Monitor, em ordem de chegada, com a hora e o marcador da atividade em curso.</summary>
 public sealed class LinhaAndamento : Grid
 {
     public static readonly DependencyProperty ItemProperty = DependencyProperty.Register(
@@ -29,83 +26,51 @@ public sealed class LinhaAndamento : Grid
     public Atividade? Item { get => (Atividade?)GetValue(ItemProperty); set => SetValue(ItemProperty, value); }
     public bool EmCurso { get => (bool)GetValue(EmCursoProperty); set => SetValue(EmCursoProperty, value); }
 
-    readonly Grid marcador = new() { Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center };
-    readonly Ellipse circulo = new();
-    readonly FontIcon simbolo = new() { FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-    readonly ProgressRing anel = new() { Width = 20, Height = 20, IsActive = false, Visibility = Visibility.Collapsed };
-    readonly Rectangle trilho = new() { Width = 2, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, -6, 0, -6) };
-    readonly Border cartao = new() { CornerRadius = new CornerRadius(6), Padding = new Thickness(6, 3, 8, 3), BorderThickness = new Thickness(1) };
-    readonly Border fundoIcone = new() { Width = 24, Height = 24, CornerRadius = new CornerRadius(6), VerticalAlignment = VerticalAlignment.Top };
-    readonly FontIcon icone = new() { FontSize = 16 };
-    readonly TextBlock titulo = new() { Style = Estilo("PmvniAjusteTitulo"), TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
-    readonly TextBlock detalhe = new() { IsTextSelectionEnabled = true, TextWrapping = TextWrapping.Wrap };
-    readonly TextBlock hora = new() { Style = Estilo("PmvniSecondaryTextStyle"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(12, 2, 0, 0) };
+    readonly TextBlock ponto = new() { Text = "●", TextAlignment = TextAlignment.Left, HorizontalAlignment = HorizontalAlignment.Left };
+    readonly Border cartao = new() { CornerRadius = new CornerRadius(8), Padding = new Thickness(8, 6, 8, 6) };
+    readonly TextBlock titulo = new() { Style = Estilo("BodyStrongTextBlockStyle"), TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock detalhe = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+    readonly TextBlock hora = new() { Style = Estilo("PmvniPainelRotulo") };
 
     public LinhaAndamento()
     {
-        Trabalhando.SetAutomatico(anel, false);
-        AutomationProperties.SetAccessibilityView(icone, AccessibilityView.Raw);
-        AutomationProperties.SetAccessibilityView(simbolo, AccessibilityView.Raw);
-        ColumnSpacing = 10;
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Margin = new Thickness(0, 1, 0, 1);
-
-        Children.Add(trilho);
-        marcador.Children.Add(circulo);
-        marcador.Children.Add(simbolo);
-        marcador.Children.Add(anel);
-        Children.Add(marcador);
-
-        fundoIcone.Child = icone;
-        var textos = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
+        Margin = new Thickness(0, 0, 0, 5);
+        AutomationProperties.SetAccessibilityView(ponto, AccessibilityView.Raw);
+        var marcador = new StackPanel { Spacing = 4, MinWidth = 41 };
+        marcador.Children.Add(hora);
+        marcador.Children.Add(ponto);
+        var textos = new StackPanel { Spacing = 2 };
         textos.Children.Add(titulo);
         textos.Children.Add(detalhe);
-        var conteudo = new Grid { ColumnSpacing = 12 };
+        var conteudo = new Grid { ColumnSpacing = 6 };
         conteudo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        conteudo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        conteudo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        conteudo.ColumnDefinitions.Add(new ColumnDefinition());
         SetColumn(textos, 1);
-        SetColumn(hora, 2);
-        conteudo.Children.Add(fundoIcone);
+        conteudo.Children.Add(marcador);
         conteudo.Children.Add(textos);
-        conteudo.Children.Add(hora);
         cartao.Child = conteudo;
-        SetColumn(cartao, 1);
         Children.Add(cartao);
     }
 
     static Style Estilo(string chave) => (Style)Application.Current.Resources[chave];
-    static Brush Recurso(string chave) => (Brush)Application.Current.Resources[chave];
 
     void Montar()
     {
         if (Item is not { } a) return;
         var erro = a.Tipo == TipoAtividade.Erro;
-        var mensagem = a.Tipo is TipoAtividade.Mensagem or TipoAtividade.Texto;
-
-        icone.Glyph = a.Glifo;
         titulo.Text = a.Titulo;
         detalhe.Text = a.Detalhe ?? "";
         detalhe.Visibility = string.IsNullOrEmpty(a.Detalhe) ? Visibility.Collapsed : Visibility.Visible;
-        detalhe.Style = Estilo(erro ? "PmvniTextoErroStyle" : mensagem ? "CaptionTextBlockStyle" : "PmvniSecondaryTextStyle");
+        detalhe.Style = Estilo(erro ? "PmvniTextoErroStyle" : "PmvniSecondaryTextStyle");
         detalhe.TextAlignment = TextAlignment.Left;
-        hora.Text = a.HoraTexto;
+        hora.Text = a.HoraTexto.Length == 0 ? "—" : a.HoraTexto;
 
-        cartao.Background = Recurso(erro ? "SystemFillColorCriticalBackgroundBrush" : "SubtleFillColorSecondaryBrush");
-        cartao.BorderBrush = Recurso(erro ? "SystemFillColorCriticalBrush" : EmCurso ? "AccentFillColorDefaultBrush" : "SubtleFillColorTransparentBrush");
-        fundoIcone.Background = Recurso("ControlFillColorDefaultBrush");
-        icone.Style = Estilo(erro ? "PmvniIconeSeloErro" : mensagem ? "PmvniIconeDestaqueStyle" : "PmvniIconeSecundarioStyle");
-        trilho.Fill = Recurso("DividerStrokeColorDefaultBrush");
+        cartao.Style = Estilo(erro ? "PmvniSeloStatusErroStyle" : "PmvniCartaoCompactoStyle");
+        ponto.Style = Estilo(EmCurso ? "PmvniTextoDestaqueStyle" : "PmvniSecondaryTextStyle");
 
-        anel.IsActive = EmCurso && !erro;
-        anel.Visibility = EmCurso && !erro ? Visibility.Visible : Visibility.Collapsed;
-        circulo.Visibility = simbolo.Visibility = EmCurso && !erro ? Visibility.Collapsed : Visibility.Visible;
-        circulo.Fill = Recurso(erro ? "SystemFillColorCriticalBackgroundBrush" : "SystemFillColorSuccessBackgroundBrush");
-        simbolo.Glyph = erro ? Glifos.Avisos : Glifos.Situacao;
-        simbolo.Style = Estilo(erro ? "PmvniIconeSeloErro" : "PmvniIconeSeloSucesso");
-        AutomationPropertiesNome($"{a.Titulo}. {a.Detalhe} {(EmCurso ? "Em andamento" : erro ? "Erro" : "Concluída")} {a.HoraTexto}");
+        var textoCompleto = string.IsNullOrEmpty(a.Detalhe) ? a.Titulo : $"{a.Titulo} · {a.Detalhe}";
+        ToolTipService.SetToolTip(this, new TextBlock { Text = textoCompleto, MaxWidth = 430, TextWrapping = TextWrapping.Wrap });
+        var status = EmCurso ? "Em andamento" : erro ? "Erro" : null;
+        AutomationProperties.SetName(this, string.Join(" · ", new[] { a.HoraTexto, textoCompleto, status }.Where(s => !string.IsNullOrEmpty(s))));
     }
-
-    void AutomationPropertiesNome(string s) => Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(this, s.Trim());
 }

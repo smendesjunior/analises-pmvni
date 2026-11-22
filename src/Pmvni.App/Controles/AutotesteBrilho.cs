@@ -90,7 +90,7 @@ internal static class AutotesteBrilho
             painel.ColunaLateral.ChangeView(null, 160, null, true);
             await Assentar();
             var item = (Border)painel.ListaDescobertas.Children[2];
-            var texto = (TextBlock)((Grid)item.Child).Children[1];
+            var texto = (TextBlock)((StackPanel)item.Child).Children[1];
             var recebeuFoco = texto.Focus(FocusState.Programmatic);
             await Assentar();
             var antes = painel.ColunaLateral.VerticalOffset;
