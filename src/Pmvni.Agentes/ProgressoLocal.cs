@@ -15,7 +15,7 @@ public sealed record Progresso(string? Etapa, int EtapasConcluidas, int SecoesCo
     Provedor? Provedor = null, DateTimeOffset? InicioEtapa = null)
 {
     /// <summary>As 27 seções técnicas e a 28ª de consolidação do kit.</summary>
-    public int TotalSecoes { get; init; } = 28;
+    public int TotalSecoes { get; init; } = ProgressoLocal.TotalSecoesDoKit;
 
     /// <summary>As etapas desta análise na rota, na ordem do kit (<see cref="OrdemDasEtapas"/>), sem as que a rota desliga (a audit, por exemplo);
     /// null = a ordem padrão (kit 3.x).</summary>
@@ -23,6 +23,12 @@ public sealed record Progresso(string? Etapa, int EtapasConcluidas, int SecoesCo
 
     /// <summary>As etapas que o estado confirma como concluídas antes da atual, mesmo se houver lacunas na ordem.</summary>
     internal IReadOnlyList<string>? EtapasExecutadas { get; init; }
+
+    /// <summary>O que o kit permite contar na etapa atual: seções com resultado, seções auditadas ou saídas da montagem.</summary>
+    internal (int Feitos, int Total)? SinalDaEtapa { get; init; }
+
+    internal double? FracaoObservada => SinalDaEtapa is { Total: > 0 } sinal ? Math.Clamp((double)sinal.Feitos / sinal.Total, 0, 1)
+        : Etapa == "analyze" && SecoesComResultado > 0 && TotalSecoes > 0 ? Math.Clamp((double)SecoesComResultado / TotalSecoes, 0, 1) : null;
 
     /// <summary>Quantas etapas a análise tem nesta rota: as desligadas não entram.</summary>
     public int TotalEtapas => (Ordem ?? OrdemDasEtapas.Padrao.Todas).Count;
@@ -37,6 +43,8 @@ public sealed record Progresso(string? Etapa, int EtapasConcluidas, int SecoesCo
 /// conteúdo válido, sem exceção.</summary>
 public static class ProgressoLocal
 {
+    internal const int TotalSecoesDoKit = 28;
+
     /// <summary>A situação de uma etapa concluída no <c>engine_state.json</c> (<c>FAILED</c>, <c>OBJECTIONS</c>, <c>WAITING_QUOTA</c>… não contam).</summary>
     const string Executada = "EXECUTED";
 
@@ -58,6 +66,7 @@ public static class ProgressoLocal
         string? etapa = null;
         var concluidas = new List<string>();
         DateTimeOffset? inicioEtapa = null;
+        (int Feitos, int Total)? sinal = null;
         if (estado is { ValueKind: JsonValueKind.Object } e && e.TryGetProperty("stages", out var stages) && stages.ValueKind == JsonValueKind.Object)
         {
             JsonElement? Registro(string chave) => stages.TryGetProperty(chave, out var r) && r.ValueKind == JsonValueKind.Object ? r : null;
@@ -86,6 +95,8 @@ public static class ProgressoLocal
                     : registro is { } atualRegistro && (situacao == EmAndamento || Instante(atualRegistro, "ended") is null)
                         ? Instante(atualRegistro, "started") ?? fimAnterior
                         : fimAnterior;
+                if (etapa == "produce" && situacao == EmAndamento && registro is { } producao && Instante(producao, "started") is { } inicioProducao)
+                    sinal = SaidasDaProducao(pastaControle, Texto(producao, "run"), inicioProducao.UtcDateTime, desdeUtc);
             }
         }
 
@@ -96,13 +107,24 @@ public static class ProgressoLocal
             var titulos = new Dictionary<int, string>();
             var comResultado = new HashSet<int>();
             if (m.TryGetProperty("section_coverage", out var cobertura) && cobertura.ValueKind == JsonValueKind.Array)
+            {
                 foreach (var s in cobertura.EnumerateArray())
                 {
                     if (s.ValueKind != JsonValueKind.Object || Inteiro(s, "section") is not { } numero) continue;
                     if (Texto(s, "title") is { Length: > 0 } titulo) titulos[numero] = titulo;
                     if (Normalizar(Texto(s, "status")) is "ANALISADO" or "NAO APLICAVEL" or "NAO VERIFICAVEL") comResultado.Add(numero);
                 }
-            secoes = Math.Min(comResultado.Count, 28);
+                secoes = Math.Min(comResultado.Count, TotalSecoesDoKit);
+                if (etapa == "analyze") sinal = (secoes, TotalSecoesDoKit);
+            }
+            if (etapa == "technical_audit" && m.TryGetProperty("section_audit", out var auditoria) && auditoria.ValueKind == JsonValueKind.Array)
+            {
+                var auditadas = new HashSet<int>();
+                foreach (var item in auditoria.EnumerateArray())
+                    if (item.ValueKind == JsonValueKind.Object && Inteiro(item, "section") is int secao && secao is >= 1 and <= TotalSecoesDoKit)
+                        auditadas.Add(secao);
+                sinal = (auditadas.Count, TotalSecoesDoKit);
+            }
             var posicaoDaAuditoria = ordem.ToList().IndexOf("technical_audit");
             var verificados = posicaoDaAuditoria >= 0 && concluidas.Count > posicaoDaAuditoria;
             var porId = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -117,7 +139,35 @@ public static class ProgressoLocal
                     else { porId[id] = achados.Count; achados.Add(achado); }
                 }
         }
-        return new Progresso(etapa, concluidas.Count, secoes, achados, provedor, inicioEtapa) { Ordem = ordem, EtapasExecutadas = concluidas };
+        return new Progresso(etapa, concluidas.Count, secoes, achados, provedor, inicioEtapa)
+            { Ordem = ordem, EtapasExecutadas = concluidas, SinalDaEtapa = sinal };
+    }
+
+    /// <summary>O kit 4 grava dados e PDF na pasta da tentativa (campo run), depois publica o delivery na raiz do controle.</summary>
+    static (int Feitos, int Total)? SaidasDaProducao(string pastaControle, string? tentativa, DateTime inicioUtc, DateTime desdeUtc)
+    {
+        if (string.IsNullOrWhiteSpace(tentativa) || !Path.IsPathFullyQualified(tentativa)) return null;
+        try
+        {
+            var controle = new DirectoryInfo(pastaControle);
+            var runs = new DirectoryInfo(Path.Combine(controle.FullName, "runs"));
+            var pasta = new DirectoryInfo(tentativa);
+            // Só a tentativa registrada, diretamente dentro de runs, sem seguir links ou procurar resultados de tentativas anteriores.
+            if (!string.Equals(pasta.Parent?.FullName, runs.FullName, StringComparison.OrdinalIgnoreCase)
+                || !pasta.Exists || pasta.LinkTarget is not null || runs.LinkTarget is not null || controle.LinkTarget is not null) return null;
+
+            var limite = inicioUtc > desdeUtc ? inicioUtc : desdeUtc;
+            var dados = Path.Combine(pasta.FullName, "relatorio_dados.json");
+            var pdf = new FileInfo(Path.Combine(pasta.FullName, "RELATORIO.pdf"));
+            var feitos = 0;
+            if (ArquivoJsonDoKit.Ler(dados, limite) is { ValueKind: JsonValueKind.Object }) feitos++;
+            if (pdf.Exists && pdf.LinkTarget is null && pdf.LastWriteTimeUtc >= limite && pdf.Length > 0) feitos++;
+            if (ArquivoJsonDoKit.Ler(Path.Combine(controle.FullName, "delivery.json"), limite) is { ValueKind: JsonValueKind.Object } entrega
+                && string.Equals(Texto(entrega, "document"), dados, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(Texto(entrega, "pdf"), pdf.FullName, StringComparison.OrdinalIgnoreCase)) feitos++;
+            return (feitos, 3);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return null; }
     }
 
     /// <summary>O provedor da rota pela pasta de controle: <c>analise</c> = ChatGPT, <c>analise-pro</c> = Claude, <c>analise-google</c> = Gemini.</summary>

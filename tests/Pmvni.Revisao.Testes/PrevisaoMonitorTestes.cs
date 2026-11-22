@@ -1,5 +1,6 @@
 using Pmvni.Agentes;
 using Pmvni.App;
+using System.Text.Json;
 using Xunit;
 
 namespace Pmvni.Revisao.Testes;
@@ -23,7 +24,7 @@ public class PrevisaoMonitorTestes
 
         // O manifesto já informa o progresso, mesmo sem nenhum histórico.
         var comDados = AchadosExecucao.DoProgresso(new Progresso("analyze", 1, 4, [], Provedor.ChatGpt, Agora.AddMinutes(-3)), [], Agora);
-        Assert.Equal(new EstimativaAnalise("analyze", 14.3, 19, null, PeloEditor: true), comDados.Estimativa);
+        Assert.Equal(new EstimativaAnalise("analyze", 14.3, 12.4, Agora.AddMinutes(132), PeloEditor: true, Inicial: true), comDados.Estimativa);
         Assert.Equal(FluxoNovoRelatorio.HistoricoInsuficiente, FluxoNovoRelatorio.TextoEstimativa(null, Agora, peloEditor: true));
         Assert.Equal("Histórico insuficiente", FluxoNovoRelatorio.PrevisaoCurta(null, Agora, peloEditor: true));
         Assert.Equal("Após a 1ª etapa", FluxoNovoRelatorio.PrevisaoCurta(null, Agora, peloEditor: true, semDados: true));
@@ -40,7 +41,8 @@ public class PrevisaoMonitorTestes
             .SelectMany(e => Enumerable.Range(0, 3).Select(_ => new DuracaoEtapa(e, Provedor.Claude, TimeSpan.FromSeconds(90)))).ToList();
         var painel = AchadosExecucao.DoProgresso(new Progresso("technical_audit", 2, 28, [], Provedor.Claude, Agora.AddSeconds(-10)), historico, Agora);
         // 80 s + 3 × 90 s = 350 s → 12:05:50, arredondado para 12:06.
-        Assert.Equal(new EstimativaAnalise("technical_audit", 11.1, 35.2, Agora.AddMinutes(6), PeloEditor: true), painel.Estimativa);
+        // A previsão é firme, mas o percentual geral usou as durações iniciais do preparo e da análise.
+        Assert.Equal(new EstimativaAnalise("technical_audit", 11.1, 92.3, Agora.AddMinutes(6), PeloEditor: true, Inicial: true), painel.Estimativa);
         Assert.Empty(painel.Etapas);
         var analise = AchadosExecucao.DoProgresso(new Progresso("analyze", 1, 9, [], Provedor.Claude), historico, Agora);
         Assert.Equal(new ProgressoEtapa("analyze", 9, 9, 28, Secoes: true), analise.Etapas["analyze"]);
@@ -54,23 +56,51 @@ public class PrevisaoMonitorTestes
         [
             new("produce", Provedor.ChatGpt, TimeSpan.FromSeconds(15)),
             new("final_review", Provedor.Claude, TimeSpan.FromSeconds(90)),
+            new("analyze", Provedor.ChatGpt, TimeSpan.FromMinutes(5)),
         ];
         var aproximada = AchadosExecucao.DoProgresso(progresso, historico, Agora);
-        Assert.Equal(new EstimativaAnalise("produce", 0, 33.3, Agora.AddMinutes(2), PeloEditor: true, Aproximada: true), aproximada.Estimativa);
+        Assert.Equal(new EstimativaAnalise("produce", 0, 74.1, Agora.AddMinutes(2), PeloEditor: true, Aproximada: true), aproximada.Estimativa);
 
         var firme = Enumerable.Repeat(historico[0], 3)
-            .Concat(Enumerable.Repeat(new DuracaoEtapa("final_review", Provedor.ChatGpt, TimeSpan.FromMinutes(3)), 3)).ToList();
+            .Concat(Enumerable.Repeat(new DuracaoEtapa("final_review", Provedor.ChatGpt, TimeSpan.FromMinutes(3)), 3)).Append(historico[2]).ToList();
         var painel = AchadosExecucao.DoProgresso(progresso, firme, Agora);
-        Assert.Equal(new EstimativaAnalise("produce", 0, 33.3, Agora.AddMinutes(4), PeloEditor: true), painel.Estimativa);
+        Assert.Equal(new EstimativaAnalise("produce", 0, 60.6, Agora.AddMinutes(4), PeloEditor: true), painel.Estimativa);
     }
 
     [Fact]
-    public void HistoricoCarregando_EntregaPercentuaisMesmoSemPrevisao()
+    public void HistoricoCarregando_EntregaPercentuaisEPrevisaoInicial()
     {
         var p = new Progresso("analyze", 1, 9, [], Provedor.ChatGpt);
         var painel = AchadosExecucao.DoProgresso(p, historico: null, Agora);
 
-        Assert.Equal(new EstimativaAnalise("analyze", 32.1, 22, null, PeloEditor: true), painel.Estimativa);
+        Assert.Equal(new EstimativaAnalise("analyze", 32.1, 19.5, Agora.AddMinutes(121), PeloEditor: true, Inicial: true), painel.Estimativa);
+    }
+
+    [Fact]
+    public void Monitor_MantemPercentuaisNaMesmaEtapaQuandoChegaSinalMenor()
+    {
+        using var pasta = Ambiente.PastaDeTeste("estimativa-sinal-auditoria");
+        var controle = Directory.CreateDirectory(Path.Combine(pasta, "analise")).FullName;
+        var registro = Path.Combine(pasta, "progresso");
+        var desde = Agora.AddHours(-1).UtcDateTime;
+        var estado = JsonSerializer.Serialize(new { stages = new { technical_audit = new { status = "RUNNING", started = Agora.AddMinutes(-15).ToUnixTimeSeconds() } } });
+        var engine = Path.Combine(controle, "engine_state.json");
+        File.WriteAllText(engine, estado);
+        File.SetLastWriteTimeUtc(engine, Agora.UtcDateTime);
+        var antes = AchadosExecucao.LerDaExecucao(registro, pasta, desde, controle, desde, [], Agora).Estimativa!;
+        Assert.Equal(50, antes.PercentualEtapa);
+
+        var manifesto = Path.Combine(controle, "manifesto.json");
+        File.WriteAllText(manifesto, """{"section_audit":[{"section":1}]}""");
+        File.SetLastWriteTimeUtc(manifesto, Agora.AddSeconds(1).UtcDateTime);
+        var depois = AchadosExecucao.LerDaExecucao(registro, pasta, desde, controle, desde, [], Agora.AddSeconds(1)).Estimativa!;
+        Assert.Equal(antes.PercentualEtapa, depois.PercentualEtapa);
+        Assert.Equal(antes.PercentualGeral, depois.PercentualGeral);
+        Assert.True(depois.Termino > antes.Termino);
+
+        var novoRegistro = Path.Combine(pasta, "outro-progresso");
+        var nova = AchadosExecucao.LerDaExecucao(novoRegistro, pasta, desde, controle, desde, [], Agora.AddSeconds(2)).Estimativa!;
+        Assert.Equal(3.6, nova.PercentualEtapa);
     }
 
     [Theory]
@@ -94,5 +124,16 @@ public class PrevisaoMonitorTestes
         Assert.Equal("≈ 12:10 · 10 min", FluxoNovoRelatorio.PrevisaoCurta(termino, Agora, ritmo, peloEditor: true, aproximada: true));
         Assert.Equal("Término previsto para os próximos minutos", FluxoNovoRelatorio.TextoEstimativa(termino, Agora, peloEditor: true, aproximada: true));
         Assert.Equal("Nos próximos minutos", FluxoNovoRelatorio.PrevisaoCurta(termino, Agora, peloEditor: true, aproximada: true));
+    }
+
+    [Fact]
+    public void TextosDaPrevisaoInicial_UsamRotuloCompletoEDistinguemOHorarioCurto()
+    {
+        var termino = Agora.AddMinutes(15);
+        const string rotulo = "Término pela estimativa inicial (sem histórico suficiente)";
+        Assert.Equal($"{rotulo} · 12:15 (15 min restantes)", FluxoNovoRelatorio.TextoEstimativa(termino, Agora, peloEditor: true, inicial: true));
+        Assert.Equal($"{rotulo} · 12:15 (15 min restantes)", FluxoNovoRelatorio.TextoEstimativa(termino, Agora, peloEditor: true, aproximada: true, inicial: true));
+        Assert.Equal("≈ 12:15 · 15 min", FluxoNovoRelatorio.PrevisaoCurta(termino, Agora, peloEditor: true, inicial: true));
+        Assert.Equal("≈ Nos próximos minutos", FluxoNovoRelatorio.PrevisaoCurta(Agora, Agora, peloEditor: true, inicial: true));
     }
 }

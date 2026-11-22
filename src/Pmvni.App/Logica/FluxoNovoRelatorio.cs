@@ -168,35 +168,40 @@ public static class FluxoNovoRelatorio
     /// <summary>Sem previsão porque falta histórico para alguma etapa pendente.</summary>
     internal const string HistoricoInsuficiente = "Término: histórico insuficiente para prever";
 
+    const string RotuloEstimativaInicial = "Término pela estimativa inicial (sem histórico suficiente)";
+
     /// <param name="peloEditor">A previsão é do Editor (Tarefa 13: mediana das execuções anteriores), não a <c>estimativa.json</c> que a IA gravava numa
     /// análise antiga. Só no caminho antigo aparecem os textos "…estimativa da IA".</param>
     /// <param name="semDados">O kit ainda não registrou nenhuma etapa desta análise.</param>
     /// <param name="aproximada">A previsão do Editor usou poucas amostras ou amostras de outros provedores.</param>
+    /// <param name="inicial">O cálculo do Editor usou durações iniciais.</param>
     internal static string TextoEstimativa(DateTimeOffset? termino, DateTimeOffset agora, TimeSpan? restantePeloRitmo = null, bool peloEditor = false,
-        bool semDados = false, bool aproximada = false)
+        bool semDados = false, bool aproximada = false, bool inicial = false)
     {
         var peloRitmo = termino is null || termino <= agora;
         if (peloRitmo && restantePeloRitmo is { } restante && restante > TimeSpan.Zero)
             termino = agora.Add(restante);
         if (termino is not { } hora) return !peloEditor ? "Aguardando estimativa da IA" : semDados ? PrevisaoDepoisDasEtapas : HistoricoInsuficiente;
-        if (hora <= agora) return peloEditor ? "Término previsto para os próximos minutos" : "Aguardando nova estimativa da IA";
+        if (hora <= agora) return !peloEditor ? "Aguardando nova estimativa da IA"
+            : inicial ? $"{RotuloEstimativaInicial} · nos próximos minutos" : "Término previsto para os próximos minutos";
         var formato = hora.Date == agora.Date ? "HH:mm" : "dd/MM HH:mm";
-        var rotulo = peloRitmo ? "Término aproximado pelo ritmo" : peloEditor && aproximada ? "Término aproximado" : "Término estimado";
+        var rotulo = peloEditor && inicial ? RotuloEstimativaInicial
+            : peloRitmo ? "Término aproximado pelo ritmo" : peloEditor && aproximada ? "Término aproximado" : "Término estimado";
         return $"{rotulo} · {hora.ToString(formato, CultureInfo.InvariantCulture)} ({TempoLegivel(hora - agora)} restantes)";
     }
 
     /// <summary>O valor curto de "Previsão de término" no Monitor (o texto completo, <see cref="TextoEstimativa"/>, vai na dica). Mesmas regras de
-    /// <see cref="TextoEstimativa"/>; <paramref name="aproximada"/> marca a previsão com "≈".</summary>
+    /// <see cref="TextoEstimativa"/>. <paramref name="aproximada"/> e <paramref name="inicial"/> marcam a previsão com "≈".</summary>
     internal static string PrevisaoCurta(DateTimeOffset? termino, DateTimeOffset agora, TimeSpan? restantePeloRitmo = null, bool peloEditor = false,
-        bool semDados = false, bool aproximada = false)
+        bool semDados = false, bool aproximada = false, bool inicial = false)
     {
         var peloRitmo = termino is null || termino <= agora;
         if (peloRitmo && restantePeloRitmo is { } restante && restante > TimeSpan.Zero) termino = agora.Add(restante);
         else peloRitmo = false;
         if (termino is not { } hora) return !peloEditor ? "Aguardando a IA" : semDados ? "Após a 1ª etapa" : "Histórico insuficiente";
-        if (hora <= agora) return "Nos próximos minutos";
+        if (hora <= agora) return inicial ? "≈ Nos próximos minutos" : "Nos próximos minutos";
         var formato = hora.Date == agora.Date ? "HH:mm" : "dd/MM HH:mm";
-        return $"{(aproximada || peloRitmo ? "≈ " : "")}{hora.ToString(formato, CultureInfo.InvariantCulture)} · {TempoLegivel(hora - agora)}";
+        return $"{(aproximada || inicial || peloRitmo ? "≈ " : "")}{hora.ToString(formato, CultureInfo.InvariantCulture)} · {TempoLegivel(hora - agora)}";
     }
 
     /// <summary>O nome em português da etapa; uma etapa que o Editor não conhece (kit mais novo) aparece com o id legível ("etapa_nova" vira "Etapa nova").</summary>

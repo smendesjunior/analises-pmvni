@@ -105,6 +105,75 @@ public class ProgressoLocalTestes
         Assert.Equal((0, null, 0), (p2.SecoesComResultado, p2.Etapa, p2.EtapasConcluidas));
     }
 
+    [Fact]
+    public void Auditoria_ContaSecoesDistintasDoManifestoDestaAnaliseSoNaEtapaTecnica()
+    {
+        using var pasta = Ambiente.PastaDeTeste("progresso-auditoria");
+        var controle = Controle(pasta);
+        var desde = new DateTime(2026, 11, 21, 12, 0, 0, DateTimeKind.Utc);
+        var estado = Estado(("technical_audit", new JsonObject { ["status"] = "RUNNING" }));
+        Gravar(controle, "engine_state.json", estado);
+        File.SetLastWriteTimeUtc(Path.Combine(controle, "engine_state.json"), desde);
+        var manifesto = Manifesto(28);
+        manifesto["section_audit"] = JsonNode.Parse("""
+            [{"section":1,"confirmed":true},{"section":1},{"section":28,"confirmed":false},{"section":0},
+             {"section":29},{"section":"2"},{"reviewer_note":"sem seção"}]
+            """);
+        Gravar(controle, "manifesto.json", manifesto);
+        var arquivo = Path.Combine(controle, "manifesto.json");
+        File.SetLastWriteTimeUtc(arquivo, desde.AddSeconds(-1));
+        Assert.Null(ProgressoLocal.Ler(controle, desde).SinalDaEtapa);
+
+        File.SetLastWriteTimeUtc(arquivo, desde);
+        var p = ProgressoLocal.Ler(controle, desde);
+        Assert.Equal((2, 28), p.SinalDaEtapa);
+        Assert.Equal(28, p.SecoesComResultado);
+        Assert.Null(p.InicioEtapa);
+
+        Gravar(controle, "engine_state.json", Estado(("audit", new JsonObject { ["status"] = "RUNNING" })));
+        File.SetLastWriteTimeUtc(Path.Combine(controle, "engine_state.json"), desde.AddSeconds(1));
+        Assert.Null(ProgressoLocal.Ler(controle, desde).SinalDaEtapa);
+    }
+
+    [Fact]
+    public void Producao_ContaDadosPdfEEntregaRecentesDaTentativaRegistrada()
+    {
+        using var pasta = Ambiente.PastaDeTeste("progresso-producao");
+        var controle = Controle(pasta);
+        var agora = new DateTimeOffset(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
+        var tentativa = Directory.CreateDirectory(Path.Combine(controle, "runs", "produce-ficticia")).FullName;
+        var dados = Path.Combine(tentativa, "relatorio_dados.json");
+        var pdf = Path.Combine(tentativa, "RELATORIO.pdf");
+        var entrega = Path.Combine(controle, "delivery.json");
+        var registro = new JsonObject { ["status"] = "RUNNING", ["started"] = agora.ToUnixTimeSeconds(), ["run"] = tentativa };
+        var estado = Estado(("produce", registro));
+        Gravar(controle, "engine_state.json", estado);
+        File.SetLastWriteTimeUtc(Path.Combine(controle, "engine_state.json"), agora.UtcDateTime);
+
+        Gravar(tentativa, "relatorio_dados.json", new JsonObject());
+        File.SetLastWriteTimeUtc(dados, agora.AddSeconds(-1).UtcDateTime);
+        Gravar(controle, "delivery.json", new JsonObject { ["document"] = dados, ["pdf"] = pdf });
+        File.SetLastWriteTimeUtc(entrega, agora.AddSeconds(-1).UtcDateTime);
+        Assert.Equal((0, 3), ProgressoLocal.Ler(controle).SinalDaEtapa);
+
+        File.SetLastWriteTimeUtc(dados, agora.UtcDateTime);
+        Assert.Equal((1, 3), ProgressoLocal.Ler(controle).SinalDaEtapa);
+        File.WriteAllText(pdf, "%PDF-1.7", Utf8);
+        File.SetLastWriteTimeUtc(pdf, agora.AddSeconds(1).UtcDateTime);
+        Assert.Equal((2, 3), ProgressoLocal.Ler(controle).SinalDaEtapa);
+
+        Gravar(controle, "delivery.json", new JsonObject { ["document"] = dados, ["pdf"] = Path.Combine(controle, "antigo.pdf") });
+        File.SetLastWriteTimeUtc(entrega, agora.AddSeconds(2).UtcDateTime);
+        Assert.Equal((2, 3), ProgressoLocal.Ler(controle).SinalDaEtapa);
+        Gravar(controle, "delivery.json", new JsonObject { ["document"] = dados, ["pdf"] = pdf });
+        File.SetLastWriteTimeUtc(entrega, agora.AddSeconds(3).UtcDateTime);
+        Assert.Equal((3, 3), ProgressoLocal.Ler(controle).SinalDaEtapa);
+
+        registro["run"] = controle;
+        Gravar(controle, "engine_state.json", estado);
+        Assert.Null(ProgressoLocal.Ler(controle).SinalDaEtapa);
+    }
+
     static List<DuracaoEtapa> Historico(Provedor p, params (string Etapa, double[] Minutos)[] etapas) =>
         etapas.SelectMany(e => e.Minutos.Select(m => new DuracaoEtapa(e.Etapa, p, TimeSpan.FromMinutes(m)))).ToList();
 
@@ -172,6 +241,25 @@ public class ProgressoLocalTestes
     }
 
     [Fact]
+    public void Previsoes_UsamFracaoRealMesmoQuandoDivergeDoTempoEAInicialCompletaSoOLacunar()
+    {
+        var agora = new DateTimeOffset(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
+        var p = new Progresso("technical_audit", 0, 28, [], Provedor.ChatGpt, agora.AddHours(-1))
+            { Ordem = ["technical_audit", "produce"], SinalDaEtapa = (7, 28) };
+        var historico = Historico(Provedor.ChatGpt, ("technical_audit", [16, 20, 24]), ("produce", [1, 2, 3]));
+
+        Assert.Equal(agora.AddMinutes(15 + 2), PrevisaoTermino.Estimar(p, historico, agora));
+        Assert.Equal(agora.AddMinutes(15 + 2), PrevisaoTermino.EstimarAproximada(p, historico, agora));
+        var parcial = historico.Where(d => d.Etapa == "technical_audit").ToList();
+        Assert.Null(PrevisaoTermino.EstimarAproximada(p, parcial, agora));
+        Assert.Equal(agora.AddMinutes(15 + 5), PrevisaoTermino.EstimarInicial(p, parcial, agora));
+        Assert.Equal(agora.AddSeconds(22 * 60 + 30).AddMinutes(5), PrevisaoTermino.EstimarInicial(p, null, agora));
+        Assert.Equal(agora.AddMinutes(5), PrevisaoTermino.EstimarInicial(p with { SinalDaEtapa = null }, parcial, agora));
+        Assert.Equal(agora.AddMinutes(5), PrevisaoTermino.EstimarInicial(p with { SinalDaEtapa = (28, 28), InicioEtapa = null }, parcial, agora));
+        Assert.Null(PrevisaoTermino.EstimarInicial(p with { Ordem = ["technical_audit", "etapa_nova"] }, parcial, agora));
+    }
+
+    [Fact]
     public void PercentualPorTempo_UsaSomenteAsEtapasConfirmadasQuandoHaLacunaNoEstado()
     {
         using var pasta = Ambiente.PastaDeTeste("progresso-lacuna");
@@ -182,7 +270,7 @@ public class ProgressoLocalTestes
         var historico = progresso.Ordem!.Select(e => new DuracaoEtapa(e, Provedor.Claude, TimeSpan.FromMinutes(e == "analyze" ? 50 : 10))).ToList();
 
         Assert.Equal(1, progresso.EtapasConcluidas);
-        Assert.Equal((50d, 0d), ProgressoGeral.Calcular(progresso, historico, DateTimeOffset.FromUnixTimeSeconds(1600)));
+        Assert.Equal((50d, 0d, false), ProgressoGeral.Calcular(progresso, historico, DateTimeOffset.FromUnixTimeSeconds(1600)));
     }
 
     [Fact]
@@ -266,7 +354,7 @@ public class ProgressoLocalTestes
 
         var agora = new DateTimeOffset(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
         var atual = new Progresso("analyze", 1, 3, [], Provedor.ChatGpt, agora.AddMinutes(-20));
-        Assert.Equal(agora.AddMinutes(70 - 20 + 10 + 1 + 5 + 2), PrevisaoTermino.Estimar(atual, historico, agora));
+        Assert.Equal(agora.AddMinutes(62.5 + 10 + 1 + 5 + 2), PrevisaoTermino.Estimar(atual, historico, agora));
     }
 
     /// <summary>Correção 1 (I-1): a mesma execução no <c>engine_state.json</c> (atual e repetida num quadro do histórico) e no <c>uso-das-IAs.json</c> conta
