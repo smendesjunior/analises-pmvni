@@ -285,18 +285,19 @@
         </Style>
       </Grid.Resources>
 
-      <Grid x:Name="GradeCabecalho" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="14" MinHeight="52">
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" VerticalAlignment="Center">
+      <Grid x:Name="GradeCabecalho" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="14" MinHeight="52">
+        <Grid x:Name="TituloMonitor" ColumnDefinitions="Auto,*" ColumnSpacing="10" VerticalAlignment="Center" MaxWidth="560">
           <Border Width="44" Height="44" CornerRadius="10" VerticalAlignment="Center" Background="{ThemeResource PmvniTonalFundo}">
             <FontIcon Glyph="{x:Bind local:Glifos.Ia}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"
                       Foreground="{ThemeResource PmvniTonalTexto}"/>
           </Border>
           <StackPanel Grid.Column="1" VerticalAlignment="Center">
             <TextBlock Text="Monitor de análise" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1" TextWrapping="Wrap"/>
-            <TextBlock Text="Acompanhamento de execução, evidências e auditoria técnica em tempo real" Style="{StaticResource MonitorLegenda}"/>
+            <TextBlock Text="Acompanhamento de execução, evidências e auditoria técnica em tempo real" Style="{StaticResource MonitorLegenda}" TextWrapping="Wrap"/>
           </StackPanel>
         </Grid>
-        <Grid x:Name="IdentificacaoMonitor" Grid.Column="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" VerticalAlignment="Center" MaxWidth="340">
+        <!-- Processo e requerente centralizados no espaço entre o título e os botões. -->
+        <Grid x:Name="IdentificacaoMonitor" Grid.Column="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="340">
           <StackPanel>
             <TextBlock Text="PROCESSO" TextAlignment="Right" Style="{StaticResource MonitorRotulo}"/>
             <TextBlock x:Name="ProcessoMonitor" x:FieldModifier="internal" Text="—" TextAlignment="Right" Style="{StaticResource PmvniAjusteTitulo}"/>
@@ -306,7 +307,7 @@
             <TextBlock x:Name="TextoRequerente" Text="Não informado" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="NoWrap"
                        TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
           </StackPanel>
-          <Border x:Name="SeparadorCabecalho" Grid.Column="2" Width="1" Height="28" VerticalAlignment="Center"
+          <Border x:Name="SeparadorCabecalho" Grid.Column="2" Width="1" Height="28" VerticalAlignment="Center" Visibility="Collapsed"
                   Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
         </Grid>
         <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="2" Espaco="6" EspacoLinhas="4" VerticalAlignment="Center">
@@ -562,8 +563,8 @@
               </Grid>
               <Expander x:Name="ExpansorConsumo" Header="Todas as etapas" MinHeight="32" HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Stretch" IsEnabled="False">
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" VerticalScrollBarVisibility="Auto" MaxHeight="110">
-                  <Grid x:Name="GradeConsumo" x:FieldModifier="internal" ColumnSpacing="10" RowSpacing="4" AutomationProperties.Name="Consumo por etapa"/>
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" MaxHeight="220">
+                  <Grid x:Name="GradeConsumo" x:FieldModifier="internal" RowSpacing="6" Margin="0,0,6,0" AutomationProperties.Name="Consumo por etapa"/>
                 </ScrollViewer>
               </Expander>
             </StackPanel>
@@ -613,8 +614,7 @@
                         AutomationProperties.Name="Detalhes da execução" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                 <ScrollViewer MaxHeight="148" VerticalScrollBarVisibility="Auto">
                   <StackPanel Spacing="6">
-                    <Border x:Name="CartaoProximaEtapa" x:FieldModifier="internal" Style="{StaticResource MonitorFundoAtivo}"
-                            Padding="8,5" CornerRadius="8" BorderThickness="1">
+                    <Border x:Name="CartaoProximaEtapa" x:FieldModifier="internal" Padding="0" CornerRadius="8" BorderThickness="0">
                       <StackPanel Spacing="2">
                         <TextBlock x:Name="TextoResumo" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}"/>
                         <TextBlock x:Name="TextoProximaEtapa" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>

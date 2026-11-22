@@ -557,7 +557,18 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 NR.MostrarResumo(true, null, etapasDemo, "ChatGPT");
                 NR.MostrarProgresso(new ProgressoEtapa("analyze", 1, 12, 28, Secoes: true));
                 var agora = DateTimeOffset.Now;
-                NR.MostrarEstimativa(new EstimativaAnalise("analyze", 34.5, 27.8, agora.AddMinutes(14)));
+                // Os números que o Editor calcula sem histórico (durações iniciais 10/60/30/25/5/20 min): preparo feito e 12 de 28 seções analisadas.
+                NR.MostrarEstimativa(new EstimativaAnalise("analyze", 42.9, 23.8, agora.AddMinutes(115), PeloEditor: true, Inicial: true));
+                NR.MostrarAchados([
+                    new AchadoExecucao("S03-01", 1, "Seção 3 · Taxa de ocupação", "ATENDE", false),
+                    new AchadoExecucao("S05-02", 2, "Seção 5 · Afastamento frontal", "NAO_ATENDE", false),
+                    new AchadoExecucao("S07-01", 3, "Seção 7 · Vagas de estacionamento", "NAO_COMPROVADO", false),
+                    new AchadoExecucao("S09-04", 4, "Seção 9 · Área construída (quadro × planta)", "DIVERGENCIA_INTERNA", false),
+                ]);
+                NR.MostrarConsumo([
+                    new Pmvni.Agentes.UsoEtapa("prepare", Pmvni.Agentes.UsoDasIas.Programa, null, null, null, null, TimeSpan.FromMinutes(8), null, null),
+                    new Pmvni.Agentes.UsoEtapa("analyze", "ChatGPT", "gpt-6.2-sol", 182_400, 9_350, 141_000, TimeSpan.FromMinutes(25), 3.5, 0.8),
+                ]);
                 NR.MostrarRelogios(TimeSpan.FromMinutes(12), agora);
                 await Task.Delay(500);
                 AplicarLargura(Raiz.ActualWidth);

@@ -1,4 +1,4 @@
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -180,7 +180,10 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             : !temAtual ? "Aguardando confirmação de progresso."
             : proxima is not null ? $"Próxima etapa: {proxima}."
             : "Última etapa em andamento.";
-        CartaoProximaEtapa.Style = Estilo(falhou ? "MonitorFundoErro" : "MonitorFundoAtivo");
+        // Texto simples nos detalhes; só o erro ganha o fundo crítico.
+        CartaoProximaEtapa.Style = falhou ? Estilo("MonitorFundoErro") : null;
+        CartaoProximaEtapa.Padding = falhou ? new Thickness(8, 5, 8, 5) : new Thickness(0);
+        CartaoProximaEtapa.BorderThickness = new Thickness(falhou ? 1 : 0);
     }
 
     internal ProgressoEtapa? ProgressoAtual { get; private set; }
@@ -220,9 +223,10 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var termino = EstimativaAtual?.Termino?.ToLocalTime();
         var peloEditor = EstimativaAtual is not { PeloEditor: false };
         var semDados = EstimativaAtual is null or { SemDados: true };
-        TextoTempoEstimado.Text = FluxoNovoRelatorio.PrevisaoCurta(termino, agora, restantePeloRitmo, peloEditor, semDados,
-            aproximada: EstimativaAtual?.Aproximada == true);
-        var detalhes = FluxoNovoRelatorio.TextoEstimativa(termino, agora, restantePeloRitmo, peloEditor, semDados);
+        var aproximada = EstimativaAtual?.Aproximada == true;
+        var inicial = EstimativaAtual?.Inicial == true;
+        TextoTempoEstimado.Text = FluxoNovoRelatorio.PrevisaoCurta(termino, agora, restantePeloRitmo, peloEditor, semDados, aproximada, inicial);
+        var detalhes = FluxoNovoRelatorio.TextoEstimativa(termino, agora, restantePeloRitmo, peloEditor, semDados, aproximada, inicial);
         ToolTipService.SetToolTip(TextoTempoEstimado, detalhes);
         AutomationProperties.SetHelpText(TextoTempoEstimado, detalhes);
     }
@@ -348,40 +352,63 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             return;
         }
 
-        for (var c = 0; c < 6; c++) GradeConsumo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        void Celula(FrameworkElement e, int linha, int coluna)
+        // 3.3.0 (pedido do usuário): um bloco por etapa, com quem executou no título e os números numa grade 2 × 2 (tokens | cache, tempo | cota),
+        // em vez da tabela de seis colunas que cortava o tempo e a cota na coluna estreita.
+        GradeConsumo.ColumnDefinitions.Add(new ColumnDefinition());
+        TextBlock Texto(string t, string estilo) => new()
         {
-            Grid.SetRow(e, linha);
-            Grid.SetColumn(e, coluna);
-            GradeConsumo.Children.Add(e);
-        }
-        TextBlock Texto(string t, bool cabecalho = false) => new()
-        {
-            Text = t, VerticalAlignment = VerticalAlignment.Center, IsTextSelectionEnabled = !cabecalho,
-            Style = Estilo(cabecalho ? "PmvniPainelRotulo" : "CaptionTextBlockStyle"),
+            Text = t, IsTextSelectionEnabled = estilo != "MonitorRotulo", TextWrapping = TextWrapping.NoWrap,
+            TextTrimming = TextTrimming.CharacterEllipsis, Style = Estilo(estilo),
         };
-        GradeConsumo.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        string[] cabecalhos = ["Etapa", "Quem", "Tokens (entr. / saída)", "Cache", "Tempo", "Cota 5 h · semana"];
-        for (var c = 0; c < cabecalhos.Length; c++) Celula(Texto(cabecalhos[c], cabecalho: true), 0, c);
+        StackPanel Valor(string rotulo, string valor)
+        {
+            var celula = new StackPanel();
+            celula.Children.Add(Texto(rotulo, "MonitorRotulo"));
+            var numero = Texto(valor, "CaptionTextBlockStyle");
+            ToolTipService.SetToolTip(numero, $"{rotulo}: {valor}");
+            celula.Children.Add(numero);
+            return celula;
+        }
         for (var i = 0; i < uso.Count; i++)
         {
             var u = uso[i];
-            var linha = i + 1;
-            GradeConsumo.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            Celula(Texto(FluxoNovoRelatorio.NomeDaEtapa(u.Etapa)), linha, 0);
-            var selo = new Border
+            var quem = u.Executor + (string.IsNullOrWhiteSpace(u.Modelo) ? "" : $" · {u.Modelo}");
+            var titulo = new Grid { ColumnSpacing = 8 };
+            titulo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            titulo.ColumnDefinitions.Add(new ColumnDefinition());
+            titulo.Children.Add(Texto(FluxoNovoRelatorio.NomeDaEtapa(u.Etapa), "PmvniAjusteTitulo"));
+            var executor = Texto(quem, "MonitorLegenda");
+            executor.HorizontalAlignment = HorizontalAlignment.Right;
+            executor.VerticalAlignment = VerticalAlignment.Center;
+            ToolTipService.SetToolTip(executor, quem);
+            Grid.SetColumn(executor, 1);
+            titulo.Children.Add(executor);
+
+            var numeros = new Grid { ColumnSpacing = 12, RowSpacing = 4 };
+            numeros.ColumnDefinitions.Add(new ColumnDefinition());
+            numeros.ColumnDefinitions.Add(new ColumnDefinition());
+            numeros.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            numeros.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            (string Rotulo, string Valor)[] celulas = [
+                ("TOKENS (ENTR. / SAÍDA)", TextoConsumo.Tokens(u)), ("CACHE", TextoConsumo.Numero(u.CacheLido)),
+                ("TEMPO", Tempo(u)), ("COTA 5 H · SEMANA", TextoConsumo.Cota(u))];
+            for (var c = 0; c < celulas.Length; c++)
             {
-                CornerRadius = new CornerRadius(10), Padding = new Thickness(8, 1, 8, 1), VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Style = Estilo(u.Executor == UsoDasIas.Programa ? "MonitorLadrilho" : "MonitorFundoModelo"),
-                Child = Texto(u.Executor),
-            };
-            if (!string.IsNullOrWhiteSpace(u.Modelo)) ToolTipService.SetToolTip(selo, u.Modelo);
-            Celula(selo, linha, 1);
-            Celula(Texto(TextoConsumo.Tokens(u)), linha, 2);
-            Celula(Texto(TextoConsumo.Numero(u.CacheLido)), linha, 3);
-            Celula(Texto(Tempo(u)), linha, 4);
-            Celula(Texto(TextoConsumo.Cota(u)), linha, 5);
+                var celula = Valor(celulas[c].Rotulo, celulas[c].Valor);
+                Grid.SetRow(celula, c / 2);
+                Grid.SetColumn(celula, c % 2);
+                numeros.Children.Add(celula);
+            }
+
+            var bloco = new StackPanel { Spacing = 4 };
+            bloco.Children.Add(titulo);
+            bloco.Children.Add(numeros);
+            var moldura = new Border { Style = Estilo("MonitorLadrilho"), Child = bloco };
+            AutomationProperties.SetName(moldura, $"{FluxoNovoRelatorio.NomeDaEtapa(u.Etapa)}, {quem}: "
+                + string.Join("; ", celulas.Select(x => $"{x.Rotulo.ToLowerInvariant()} {x.Valor}")));
+            GradeConsumo.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Grid.SetRow(moldura, i);
+            GradeConsumo.Children.Add(moldura);
         }
     }
 
@@ -393,7 +420,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         _ => "Pendente",
     };
 
-    static string OrigemDoPercentual(EstimativaAnalise estimativa) => estimativa.PeloEditor ? "calculado pelo Editor" : "estimado pela IA";
+    /// <summary>De onde vem o percentual: com <see cref="EstimativaAnalise.Inicial"/>, parte dele saiu das durações iniciais (sem histórico neste computador).</summary>
+    static string OrigemDoPercentual(EstimativaAnalise estimativa) => !estimativa.PeloEditor ? "estimado pela IA"
+        : estimativa.Inicial ? "calculado pelo Editor (estimativa inicial, sem histórico suficiente)" : "calculado pelo Editor";
 
     internal string RotuloEtapa(string nome, EstadoEtapa estado, bool ativa)
     {
@@ -435,7 +464,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         if (percentual is { } valor) percentual = Math.Clamp(valor, 0, 100);
         BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
         BarraResumoEtapas.Value = percentual ?? 0;
-        TextoPercentual.Text = percentual is { } p ? $"{p:0}%" : "—";
+        var percentualInicial = !concluiu && EstimativaAtual is { PercentualGeral: not null, Inicial: true };
+        TextoPercentual.Text = percentual is { } p ? $"{(percentualInicial ? "≈ " : "")}{p:0}%" : "—";
         TextoTotalEtapas.Text = $"{feitas} de {etapas.Count} etapas concluídas";
         TextoEtapasStatus.Text = $"{feitas} / {etapas.Count} concluídas";
         ContagemAtividades.Text = $"{feitas} / {etapas.Count} · {TextoPercentual.Text}";
@@ -485,8 +515,26 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         PosicionarEtapas();
     }
 
+    /// <summary>O percentual de uma etapa (3.3.0, pedido do usuário): concluída 100, pendente 0; a atual, o que o Editor calculou para ela
+    /// (<see cref="EstimativaAnalise.PercentualEtapa"/>) ou, sem isso, as seções/itens com resultado; null quando não há dado real.
+    /// <c>Aproximado</c>: o valor saiu da estimativa inicial (sem histórico neste computador).</summary>
+    (double? Valor, bool Aproximado) PercentualDaEtapa(string nome, EstadoEtapa estado)
+    {
+        if (estado == EstadoEtapa.Feita) return (100, false);
+        if (estado == EstadoEtapa.Pendente) return (0, false);
+        if (EstimativaAtual is { Etapa: { } etapa, PercentualEtapa: { } percentual } estimativa && FluxoNovoRelatorio.NomeDaEtapa(etapa) == nome)
+            return (Math.Clamp(percentual, 0, 99.9), estimativa.Inicial);
+        if (ProgressoAtual is { Total: > 0 } itens && FluxoNovoRelatorio.NomeDaEtapa(itens.Etapa) == nome)
+            return (Math.Clamp(100d * itens.Avaliados / itens.Total, 0, 99.9), false);
+        return (null, false);
+    }
+
+    static string TextoPercentualEtapa((double? Valor, bool Aproximado) p) =>
+        p.Valor is { } v ? $"{(p.Aproximado ? "≈ " : "")}{Math.Floor(v):0}%" : "—";
+
     Border CartaoDaEtapa(string nome, string descricao, EstadoEtapa estado, bool atual, Style estilo, string rotulo)
     {
+        var percentual = PercentualDaEtapa(nome, estado);
         FrameworkElement marcador = estado switch
         {
             EstadoEtapa.Feita => new FontIcon { Glyph = Glifos.Concluido, FontSize = 12, Style = Estilo("PmvniIconeSeloSucesso") },
@@ -502,18 +550,24 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         cabecalho.ColumnDefinitions.Add(new ColumnDefinition());
         cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         cabecalho.Children.Add(titulo);
-        if (estado != EstadoEtapa.Pendente)
+        var selo = new TextBlock
         {
-            var selo = new TextBlock
-            {
-                Text = SituacaoDaEtapa(estado, atual).ToUpper(Portugues), Style = estilo,
-            };
-            Grid.SetColumn(selo, 1);
-            cabecalho.Children.Add(selo);
-        }
+            Text = estado == EstadoEtapa.Pendente ? TextoPercentualEtapa(percentual)
+                : $"{SituacaoDaEtapa(estado, atual).ToUpper(Portugues)} · {TextoPercentualEtapa(percentual)}",
+            Style = estilo,
+        };
+        Grid.SetColumn(selo, 1);
+        cabecalho.Children.Add(selo);
         var textos = new StackPanel { Spacing = 2 };
         textos.Children.Add(cabecalho);
         textos.Children.Add(new TextBlock { Text = descricao, Style = Estilo("PmvniSecondaryTextStyle"), TextWrapping = TextWrapping.Wrap });
+        // A barra fina da própria etapa: cheia nas concluídas, o avanço real na atual, vazia nas pendentes (sem dado, não aparece).
+        if (percentual.Valor is { } valorDaEtapa)
+            textos.Children.Add(new ProgressBar
+            {
+                Minimum = 0, Maximum = 100, Value = valorDaEtapa, Height = 3, MinHeight = 3, Margin = new Thickness(0, 3, 0, 1),
+                Foreground = Recurso(estado == EstadoEtapa.Erro ? "SystemFillColorCriticalBrush" : "AccentFillColorDefaultBrush"),
+            });
         var grade = new Grid { ColumnSpacing = 8 };
         grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14) });
         grade.ColumnDefinitions.Add(new ColumnDefinition());
@@ -567,6 +621,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     const double AlturaAtividadesEDescobertas = 330;
 
     /// <summary>Empilha os cartões e move as ações do cabeçalho conforme a largura útil do Monitor.</summary>
+    /// <summary>A largura dos botões do cabeçalho na última vez em que couberam na linha do título.</summary>
+    double larguraBotoesNoTopo = 520;
+
     internal void AjustarColunasExecucao(double largura)
     {
         if (largura <= 0) return;
@@ -592,14 +649,16 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         Grid.SetColumnSpan(ColunaDetalhes, ampla || estreita ? 1 : 2);
         Grid.SetRow(ColunaDetalhes, ampla ? 0 : estreita ? 2 : 1);
 
-        var botoesEmbaixo = largura < 1080;
+        // Os botões ficam na linha do título enquanto sobra espaço para processo e requerente centralizados entre os dois; senão descem.
+        if (Grid.GetRow(BotoesExecucao) == 0 && BotoesExecucao.ActualWidth > 0) larguraBotoesNoTopo = BotoesExecucao.ActualWidth;
+        var livreNoTopo = largura - Math.Max(TituloMonitor.ActualWidth, 380) - larguraBotoesNoTopo - 2 * GradeCabecalho.ColumnSpacing;
+        var botoesEmbaixo = largura < 1080 || livreNoTopo < 260;
         var identificacaoEmbaixo = largura < 540;
-        IdentificacaoMonitor.MaxWidth = largura is >= 1080 and < 1250 ? 250 : 340;
         Grid.SetRow(IdentificacaoMonitor, identificacaoEmbaixo ? 1 : 0);
         Grid.SetColumn(IdentificacaoMonitor, identificacaoEmbaixo ? 0 : 1);
         Grid.SetColumnSpan(IdentificacaoMonitor, identificacaoEmbaixo ? 3 : 1);
-        IdentificacaoMonitor.HorizontalAlignment = identificacaoEmbaixo ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
-        SeparadorCabecalho.Visibility = botoesEmbaixo ? Visibility.Collapsed : Visibility.Visible;
+        IdentificacaoMonitor.HorizontalAlignment = identificacaoEmbaixo ? HorizontalAlignment.Left : HorizontalAlignment.Center;
+        IdentificacaoMonitor.MaxWidth = identificacaoEmbaixo ? 340 : Math.Clamp(botoesEmbaixo ? largura - TituloMonitor.ActualWidth - 28 : livreNoTopo, 200, 420);
         Grid.SetRow(BotoesExecucao, identificacaoEmbaixo ? 2 : botoesEmbaixo ? 1 : 0);
         Grid.SetColumn(BotoesExecucao, botoesEmbaixo ? 0 : 2);
         Grid.SetColumnSpan(BotoesExecucao, botoesEmbaixo ? 3 : 1);
@@ -631,7 +690,10 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             + ExpansorUltimaMensagem.ActualHeight
             + (BotaoEvidenciasPdf.Visibility == Visibility.Visible ? BotaoEvidenciasPdf.ActualHeight : 0) + linhaDoLogMaisMargens;
         var largura = RolagemMonitor.ActualWidth;
-        var alturaColunas = largura >= LarguraTresColunas ? Math.Max(305, alturaDetalhes)
+        // 3.3.0 (pedido do usuário): as três colunas ficam ~18% mais altas que o espaço que sobra na janela; a página rola um pouco, mas as
+        // listas deixam de ficar espremidas.
+        var alturaFolgada = (RolagemMonitor.ActualHeight - alturaTopo) * 1.18;
+        var alturaColunas = largura >= LarguraTresColunas ? Math.Max(Math.Max(305, alturaDetalhes), alturaFolgada)
             : alturaDetalhes + (largura < LarguraDuasColunas ? AlturaAtividadesEmpilhadas + AlturaDescobertasEmpilhadas
                 + 2 * GradeConteudo.RowSpacing : AlturaAtividadesEDescobertas + 2 * GradeConteudo.RowSpacing);
         var altura = Math.Ceiling(Math.Max(RolagemMonitor.ActualHeight, alturaTopo + alturaColunas));
@@ -639,6 +701,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     }
 
     static readonly System.Globalization.CultureInfo Portugues = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+    Brush Recurso(string chave) => (Brush)(PainelExecucao.Resources.TryGetValue(chave, out var pincel)
+        ? pincel : Application.Current.Resources[chave]);
+
     Style Estilo(string chave) => (Style)(PainelExecucao.Resources.TryGetValue(chave, out var estilo)
         ? estilo : Application.Current.Resources[chave]);
 }

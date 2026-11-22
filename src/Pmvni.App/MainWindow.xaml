@@ -63,32 +63,28 @@
       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Left" VerticalAlignment="Center">
         <!-- Novo relatório (desenho §12.7): o estado da análise (em andamento, concluída, pausada, com erro; sem análise, some). Clicar abre a
              vista da execução (ou o resultado, quando ela já terminou). Texto principal e secundário (processo · tempo) com reticências. -->
-        <Border x:Name="MolduraAnalise" CornerRadius="8" VerticalAlignment="Center" Visibility="Collapsed"
-                Background="{ThemeResource ControlFillColorDefaultBrush}">
-        <Grid>
-        <Button x:Name="BotaoAnalise" Style="{StaticResource PmvniBarraButtonStyle}" Visibility="Collapsed"
+        <!-- 3.3.0: a mesma pílula dos grupos do cabeçalho (raio 16, 32 px, hover recuado por dentro), com anel de 16 px e o texto numa linha
+             só ("Analisando com o ChatGPT · 19486/2026 · 37 s"); antes eram duas linhas apertadas em 32 px. -->
+        <Border x:Name="MolduraAnalise" Style="{StaticResource PmvniGrupoCabecalho}" Visibility="Collapsed">
+        <Button x:Name="BotaoAnalise" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" Visibility="Collapsed"
                 AutomationProperties.Name="Análise em andamento" ToolTipService.ToolTip="Abrir a vista da análise em andamento"
-                Height="32" Padding="12,0,18,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
-          <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-            <Grid Width="24" Height="24" VerticalAlignment="Center">
-              <ProgressRing x:Name="AnelAnalise" local:Trabalhando.Automatico="False" IsActive="False" Width="22" Height="22" Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Grid Width="16" Height="16" VerticalAlignment="Center">
+              <ProgressRing x:Name="AnelAnalise" local:Trabalhando.Automatico="False" IsActive="False" Width="16" Height="16" MinWidth="0" MinHeight="0"
                             AutomationProperties.AccessibilityView="Raw"/>
-              <FontIcon x:Name="IconeAnaliseConcluida" Glyph="{x:Bind local:Glifos.Concluido}" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoSucesso}" AutomationProperties.AccessibilityView="Raw"/>
-              <FontIcon x:Name="IconeAnalisePausada" Glyph="{x:Bind local:Glifos.Pausado}" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoAtencao}" AutomationProperties.AccessibilityView="Raw"/>
-              <FontIcon x:Name="IconeAnaliseErro" Glyph="{x:Bind local:Glifos.Erro}" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoCritico}" AutomationProperties.AccessibilityView="Raw"/>
+              <FontIcon x:Name="IconeAnaliseConcluida" Glyph="{x:Bind local:Glifos.Concluido}" FontSize="16" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoSucesso}" AutomationProperties.AccessibilityView="Raw"/>
+              <FontIcon x:Name="IconeAnalisePausada" Glyph="{x:Bind local:Glifos.Pausado}" FontSize="16" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoAtencao}" AutomationProperties.AccessibilityView="Raw"/>
+              <FontIcon x:Name="IconeAnaliseErro" Glyph="{x:Bind local:Glifos.Erro}" FontSize="16" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoCritico}" AutomationProperties.AccessibilityView="Raw"/>
             </Grid>
-            <StackPanel x:Name="TextosAnalise" VerticalAlignment="Center" MaxWidth="260">
-              <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="TextoBotaoAnalise" Style="{StaticResource BodyTextBlockStyle}" TextWrapping="NoWrap" LineHeight="16" LineStackingStrategy="BlockLineHeight"
+            <StackPanel x:Name="TextosAnalise" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" MaxWidth="340">
+              <TextBlock x:Name="TextoBotaoAnalise" Style="{StaticResource BodyTextBlockStyle}" TextWrapping="NoWrap" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" MaxLines="1"/>
-              <TextBlock ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" x:Name="DetalheBotaoAnalise" Style="{StaticResource PmvniSecondaryTextStyle}" LineHeight="16" LineStackingStrategy="BlockLineHeight"
+              <TextBlock x:Name="DetalheBotaoAnalise" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="NoWrap" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" MaxLines="1"/>
             </StackPanel>
           </StackPanel>
         </Button>
-        <!-- Borda discreta do tema; em andamento, o contorno na cor de destaque do Windows no lugar dela (nenhuma recebe clique). -->
-        <Border x:Name="BordaAnalise" CornerRadius="8" BorderThickness="1" IsHitTestVisible="False"
-                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"/>
-        </Grid>
         </Border>
         <!-- 1.0.0: Desfazer | Refazer numa pílula segmentada só (uma moldura, cantos totalmente redondos, divisória central), como a
              pesquisa; só ícones Fluent, o nome e o atalho ficam na dica e no Narrador. -->

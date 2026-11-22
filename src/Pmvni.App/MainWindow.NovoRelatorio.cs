@@ -1351,7 +1351,7 @@ public sealed partial class MainWindow
     {
         estadoPilula = estado;
         TextoBotaoAnalise.Text = principal;
-        DetalheBotaoAnalise.Text = detalhe;
+        DetalheBotaoAnalise.Text = detalhe.Length == 0 ? "" : "· " + detalhe;
         DetalheBotaoAnalise.Visibility = detalhe.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         var emAndamento = estado == EstadoPilulaAnalise.EmAndamento;
         AnelAnalise.IsActive = emAndamento;
