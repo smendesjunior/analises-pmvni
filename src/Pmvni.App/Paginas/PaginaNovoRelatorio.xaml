@@ -571,10 +571,39 @@
           </Border>
 
           <Border Grid.Row="1" Style="{StaticResource MonitorCartao}">
-            <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="5">
+            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="5">
               <StackPanel x:Name="CabecalhoLog">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                   <TextBlock Text="Log de execução" Style="{StaticResource MonitorTitulo}" AutomationProperties.HeadingLevel="Level2"/>
+                  <!-- 3.3.0: os detalhes abrem num painel suspenso; aberto dentro do cartão, o expansor tomava o espaço da lista do log. -->
+                  <Button Grid.Column="2" x:Name="BotaoDetalhesExecucao" x:FieldModifier="internal" AutomationProperties.Name="Detalhes da execução"
+                          local:Dicas.Descricao="Mostra a etapa, a próxima etapa, os eventos e a última mensagem da IA.">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <FontIcon Glyph="{x:Bind local:Glifos.Propriedades}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                      <TextBlock Text="Detalhes"/>
+                    </StackPanel>
+                    <Button.Flyout>
+                      <Flyout x:Name="FlyoutDetalhes" x:FieldModifier="internal" Placement="BottomEdgeAlignedRight">
+                        <ScrollViewer MaxHeight="420" Width="380" VerticalScrollBarVisibility="Auto">
+                          <StackPanel Spacing="6">
+                    <Border x:Name="CartaoProximaEtapa" x:FieldModifier="internal" Padding="0" CornerRadius="8" BorderThickness="0">
+                      <StackPanel Spacing="2">
+                        <TextBlock x:Name="TextoResumo" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}"/>
+                        <TextBlock x:Name="TextoProximaEtapa" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
+                      </StackPanel>
+                    </Border>
+                    <TextBlock x:Name="TextoCabecalho" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
+                    <TextBlock x:Name="TextoRotulo" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
+                    <TextBlock x:Name="TextoEventos" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
+                    <StackPanel x:Name="PainelUltimaMensagem" x:FieldModifier="internal" Spacing="4">
+                      <TextBlock Text="Última mensagem do ChatGPT" Style="{StaticResource PmvniAjusteTitulo}"/>
+                      <TextBlock x:Name="TextoUltimaMensagem" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
+                    </StackPanel>
+                  </StackPanel>
+                        </ScrollViewer>
+                      </Flyout>
+                    </Button.Flyout>
+                  </Button>
                   <Grid Grid.Column="1"><Border x:Name="SeloLog" Style="{StaticResource MonitorAoVivo}" Visibility="Collapsed">
                   <StackPanel Orientation="Horizontal" Spacing="5">
                     <Ellipse Width="7" Height="7" Fill="{ThemeResource PmvniTonalTexto}" VerticalAlignment="Center"/>
@@ -610,26 +639,7 @@
                             FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
                 </Grid>
               </Button>
-              <Expander Grid.Row="3" x:Name="ExpansorUltimaMensagem" x:FieldModifier="internal" Header="Detalhes" MinHeight="32"
-                        AutomationProperties.Name="Detalhes da execução" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                <ScrollViewer MaxHeight="148" VerticalScrollBarVisibility="Auto">
-                  <StackPanel Spacing="6">
-                    <Border x:Name="CartaoProximaEtapa" x:FieldModifier="internal" Padding="0" CornerRadius="8" BorderThickness="0">
-                      <StackPanel Spacing="2">
-                        <TextBlock x:Name="TextoResumo" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}"/>
-                        <TextBlock x:Name="TextoProximaEtapa" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
-                      </StackPanel>
-                    </Border>
-                    <TextBlock x:Name="TextoCabecalho" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
-                    <TextBlock x:Name="TextoRotulo" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
-                    <TextBlock x:Name="TextoEventos" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
-                    <StackPanel x:Name="PainelUltimaMensagem" x:FieldModifier="internal" Spacing="4">
-                      <TextBlock Text="Última mensagem do ChatGPT" Style="{StaticResource PmvniAjusteTitulo}"/>
-                      <TextBlock x:Name="TextoUltimaMensagem" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}" IsTextSelectionEnabled="True"/>
-                    </StackPanel>
-                  </StackPanel>
-                </ScrollViewer>
-              </Expander>
+
             </Grid>
           </Border>
         </Grid>

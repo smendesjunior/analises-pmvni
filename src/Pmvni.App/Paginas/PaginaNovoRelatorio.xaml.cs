@@ -24,8 +24,14 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         BotaoEvidenciasPdf.SizeChanged += (_, e) => IconeAbrirEvidencias.Visibility =
             e.NewSize.Width >= 290 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var controle in new FrameworkElement[] { GradeCabecalho, CartaoStatus, PainelClaude, CartaoConsumo,
-                     CabecalhoLog, BotaoEvidenciasPdf, ExpansorUltimaMensagem })
+                     CabecalhoLog, BotaoEvidenciasPdf })
             controle.SizeChanged += (_, _) => AjustarAlturaDoMonitor();
+        // Nos detalhes, linhas sem texto não deixam buracos.
+        FlyoutDetalhes.Opening += (_, _) =>
+        {
+            foreach (var t in new[] { TextoCabecalho, TextoRotulo, TextoEventos })
+                t.Visibility = string.IsNullOrWhiteSpace(t.Text) ? Visibility.Collapsed : Visibility.Visible;
+        };
     }
 
     /// <summary>Largura da coluna do formulário: a da área visível menos 24 de cada lado, entre 280 e 1400.</summary>
@@ -687,7 +693,6 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         // Reserva uma linha e seus controles no log. O restante continua rolando dentro de cada cartão.
         const double linhaDoLogMaisMargens = 78;
         var alturaDetalhes = CartaoConsumo.ActualHeight + ColunaDetalhes.RowSpacing + CabecalhoLog.ActualHeight
-            + ExpansorUltimaMensagem.ActualHeight
             + (BotaoEvidenciasPdf.Visibility == Visibility.Visible ? BotaoEvidenciasPdf.ActualHeight : 0) + linhaDoLogMaisMargens;
         var largura = RolagemMonitor.ActualWidth;
         // 3.3.0 (pedido do usuário): as três colunas ficam ~18% mais altas que o espaço que sobra na janela; a página rola um pouco, mas as

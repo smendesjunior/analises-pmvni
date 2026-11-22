@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -234,7 +234,7 @@ public sealed partial class MainWindow
         n.BotaoDescartar.Click += async (_, _) => await TentarAsync(() => { DescartarAnalisePendente(); return Task.CompletedTask; });
         n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await EscolherContinuacaoAsync());
         n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
-        n.ExpansorUltimaMensagem.Expanding += async (_, _) =>
+        n.FlyoutDetalhes.Opening += async (_, _) =>
         {
             if (execucaoMostrada is { Provedor: Provedor.ChatGpt } e) await MostrarUltimaMensagemAsync(e);
         };
@@ -910,7 +910,7 @@ public sealed partial class MainWindow
         NR.LigarLinhas(e.LinhasObservaveis);
         NR.MostrarExecucao(true);
         NR.TextoUltimaMensagem.Text = "";
-        NR.ExpansorUltimaMensagem.IsExpanded = false;
+        NR.FlyoutDetalhes.Hide();
         RenderizarExecucao(e);
         AtualizarComandosNovoRelatorio();
     }
