@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.2.4
+
+- Componentes do kit: o "Servidor de PDF (pmvni-pdf)" não mostra mais "Atualização disponível" logo depois de instalado. O servidor agora tem número de versão (1.1.0), o Editor compara a versão (não o arquivo) e a cópia do Editor e a do kit são a mesma.
+- Quando não dá para saber qual é a mais nova, o aviso diz "Versão diferente da do Editor", sem afirmar que o Editor é mais novo.
+- Requer o kit publicado em 22/11/2026 (análise sem retomar sessões longas, preparo mais rápido e sem peças repetidas) para a análise sair com as correções do teste de 21/11.
+
 ## 3.2.3
 
 - Faixa de opções: todos os comandos com 32 px e o hover do mesmo tamanho, ocupando o botão inteiro.

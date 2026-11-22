@@ -7,7 +7,7 @@ using Pmvni.Agentes;
 namespace Pmvni.App;
 
 /// <summary>Tarefa 21: a situação de um componente do kit no cartão "Plugins e ferramentas" (Ajustes › Pastas e kit).</summary>
-public enum SituacaoComponente { EmDia, AtualizacaoDisponivel, Ausente, ComErro, NaoVerificado }
+public enum SituacaoComponente { EmDia, AtualizacaoDisponivel, Ausente, ComErro, NaoVerificado, VersaoDiferente }
 
 /// <summary>De onde vem a versão instalada de um componente.</summary>
 public enum OrigemComponente
@@ -16,7 +16,8 @@ public enum OrigemComponente
     PluginNoCodex,
     /// <summary>O plugin no registro do Claude Code (<c>plugins\installed_plugins.json</c>).</summary>
     PluginNoClaude,
-    /// <summary>O <c>mcp_pmvni.py</c> copiado para <c>%LOCALAPPDATA%\PMVNI\MotorPdf</c>, comparado com o que o Editor traz.</summary>
+    /// <summary>O <c>mcp_pmvni.py</c> copiado para <c>%LOCALAPPDATA%\PMVNI\MotorPdf</c>, comparado com o que o Editor traz pela constante
+    /// <c>VERSAO</c> do arquivo (o hash só diz se são iguais, nunca qual é o mais novo).</summary>
     ServidorPdf,
     /// <summary>Uma linha do <c>resumo-instalacao.txt</c> que o <c>configurar-plugins.ps1</c> grava.</summary>
     MotorPdf,
@@ -44,9 +45,10 @@ public sealed record LinhaComponente(ComponenteDoKit Componente, string? Instala
 /// <summary>Onde ler. <paramref name="PastaMotorPdf"/>: <c>%LOCALAPPDATA%\PMVNI\MotorPdf</c>; <paramref name="PastaPmvni"/>: <c>Documentos\PMVNI</c>
 /// (o <c>estado.json</c> e o <c>instalacao.json</c> do instalador do kit); <paramref name="PastaKitPadrao"/>: o kit dos Ajustes, quando o
 /// <c>pmvni-kit.json</c> não diz o <c>kit_root</c>. <paramref name="HashServidorDoEditor"/>: SHA-256 do <c>mcp_pmvni.py</c> que o Editor traz.
-/// <paramref name="TarefaExiste"/>: confere se a tarefa "PMVNI\Atualizar kit" existe (true/false; null = não deu para saber; ausente = não confere).</summary>
+/// <paramref name="TarefaExiste"/>: confere se a tarefa "PMVNI\Atualizar kit" existe (true/false; null = não deu para saber; ausente = não confere).
+/// <paramref name="VersaoServidorDoEditor"/>: a constante <c>VERSAO</c> do <c>mcp_pmvni.py</c> que o Editor traz (null = sem versão).</summary>
 public sealed record OrigensDoKit(string CodexHome, string? PastaClaude, string PastaMotorPdf, string PastaPmvni, string PastaKitPadrao, string? HashServidorDoEditor,
-    Func<bool?>? TarefaExiste = null);
+    Func<bool?>? TarefaExiste = null, string? VersaoServidorDoEditor = null);
 
 /// <summary>O que o cartão mostra: as linhas, a fonte usada (null = não achada), o kit deste computador e a última execução do instalador do kit.</summary>
 public sealed record LeituraDoKit(IReadOnlyList<LinhaComponente> Linhas, string? Fonte, bool FonteAcessivel, string KitLocal, string TextoTarefa)
@@ -98,6 +100,7 @@ public static class ComponentesDoKit
         SituacaoComponente.AtualizacaoDisponivel => "Atualização disponível",
         SituacaoComponente.Ausente => "Ausente",
         SituacaoComponente.ComErro => "Com erro",
+        SituacaoComponente.VersaoDiferente => "Versão diferente da do Editor",
         _ => "Não foi possível verificar",
     };
 
@@ -105,7 +108,14 @@ public static class ComponentesDoKit
         l.Componente.Origem == OrigemComponente.ServidorPdf
             ? (l.Instalada is null ? "Não instalado"
                 : "Instalado" + (l.InstaladoEm is { } em ? " em " + em.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) : "")
-                  + (l.Situacao == SituacaoComponente.AtualizacaoDisponivel ? " · o Editor traz uma versão mais nova" : l.Disponivel is null ? "" : " · igual à versão deste Editor"))
+                  + (EhVersao(l.Instalada) ? " · versão " + l.Instalada : "")
+                  + l.Situacao switch
+                  {
+                      SituacaoComponente.AtualizacaoDisponivel => " · este Editor traz a versão " + l.Disponivel,
+                      SituacaoComponente.VersaoDiferente => " · versão diferente da deste Editor",
+                      SituacaoComponente.EmDia when MaiorQue(l.Instalada, l.Disponivel) => " · mais nova que a deste Editor (" + l.Disponivel + ")",
+                      _ => l.Disponivel is null ? "" : " · igual à versão deste Editor",
+                  })
         : l.Componente.Origem == OrigemComponente.MotorPdf && l.Componente.VersaoDoEditor is null
             ? (l.Instalada is null ? "Não instalado" : "Instalado") + " · versão fixada pelo Editor"
             : "Instalada: " + (l.Instalada ?? "nenhuma") + " · disponível: " + (l.Disponivel ?? "não verificada");
@@ -123,6 +133,37 @@ public static class ComponentesDoKit
     }
 
     static string Numero(string v) => v.Trim().Split('-', '+')[0];
+
+    static bool EhVersao(string? v) => v is not null && Version.TryParse(Numero(v), out _);
+
+    static bool MaiorQue(string? a, string? b) =>
+        a is not null && b is not null && Version.TryParse(Numero(a), out var va) && Version.TryParse(Numero(b), out var vb) && va > vb;
+
+    /// <summary>O servidor de PDF: compara pela constante <c>VERSAO</c> do <c>mcp_pmvni.py</c>. Versão do Editor maior → atualização disponível;
+    /// instalada maior → em dia (está à frente); mesmo arquivo → em dia. Sem versão em um dos lados, ou mesma versão com arquivo diferente,
+    /// só dá para dizer que são diferentes (<see cref="SituacaoComponente.VersaoDiferente"/>): o hash não diz qual é o mais novo.</summary>
+    public static SituacaoComponente CompararServidor(string? hashInstalado, string? versaoInstalada, string? hashDoEditor, string? versaoDoEditor, bool comErro = false)
+    {
+        if (comErro) return SituacaoComponente.ComErro;
+        if (string.IsNullOrEmpty(hashInstalado)) return SituacaoComponente.Ausente;
+        if (string.IsNullOrEmpty(hashDoEditor)) return SituacaoComponente.NaoVerificado;
+        if (string.Equals(hashInstalado, hashDoEditor, StringComparison.OrdinalIgnoreCase)) return SituacaoComponente.EmDia;
+        if (versaoInstalada is not null && versaoDoEditor is not null
+            && Version.TryParse(Numero(versaoInstalada), out var a) && Version.TryParse(Numero(versaoDoEditor), out var b) && a != b)
+            return a < b ? SituacaoComponente.AtualizacaoDisponivel : SituacaoComponente.EmDia;
+        return SituacaoComponente.VersaoDiferente;
+    }
+
+    /// <summary>A constante <c>VERSAO = "x.y.z"</c> de um <c>mcp_pmvni.py</c> (texto do arquivo); null se não tem.</summary>
+    public static string? VersaoNoTexto(string? texto)
+    {
+        if (texto is null) return null;
+        var m = System.Text.RegularExpressions.Regex.Match(texto, @"^VERSAO\s*=\s*[""']([^""'\r\n]+)[""']", System.Text.RegularExpressions.RegexOptions.Multiline);
+        return m.Success && m.Groups[1].Value.Trim() is { Length: > 0 } v ? v : null;
+    }
+
+    /// <summary><see cref="VersaoNoTexto"/> de um arquivo; null se não existe, não dá para ler ou não tem a constante.</summary>
+    public static string? VersaoDoServidor(string arquivo) => VersaoNoTexto(LerTexto(arquivo));
 
     /// <summary>A fonte do kit: no PC do kit mestre (<c>modo_kit</c> espelho ou local no <c>instalacao.json</c>), o próprio kit; nos outros, a
     /// <c>fonte</c> do <c>pmvni-kit.json</c> (ou do <c>instalacao.json</c>). Também devolve o kit deste computador (<c>kit_root</c>).</summary>
@@ -174,6 +215,7 @@ public static class ComponentesDoKit
             .Select(l => l["FALHA".Length..].Trim()).ToList();
         var servidor = Path.Combine(o.PastaMotorPdf, "mcp_pmvni.py");
         var hashInstalado = await Task.Run(() => HashDe(servidor));
+        var versaoInstalada = hashInstalado is null ? null : await Task.Run(() => VersaoDoServidor(servidor));
         DateTime? servidorEm = null;
         if (hashInstalado is not null)
             try { servidorEm = File.GetLastWriteTime(servidor); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
@@ -183,7 +225,7 @@ public static class ComponentesDoKit
             linhas.Add(c.Origem switch
             {
                 OrigemComponente.PluginNoCodex or OrigemComponente.PluginNoClaude => LinhaDePlugin(c, o, linhasResumo, falhas, versaoNaFonte, versaoNoKitLocal, fonte is not null && acessivel),
-                OrigemComponente.ServidorPdf => LinhaDoServidor(c, hashInstalado, o.HashServidorDoEditor, falhas) with { InstaladoEm = servidorEm },
+                OrigemComponente.ServidorPdf => LinhaDoServidor(c, hashInstalado, versaoInstalada, o.HashServidorDoEditor, o.VersaoServidorDoEditor, falhas) with { InstaladoEm = servidorEm },
                 _ => LinhaDeMotor(c, linhasResumo, falhas),
             });
         bool? tarefaExiste = null;
@@ -219,17 +261,20 @@ public static class ComponentesDoKit
         return new LinhaComponente(c, instalada, disponivel, situacao, detalhe, soPeloTodos || c.Parte is null);
     }
 
-    static LinhaComponente LinhaDoServidor(ComponenteDoKit c, string? hashInstalado, string? hashDoEditor, IReadOnlyList<string> falhas)
+    static LinhaComponente LinhaDoServidor(ComponenteDoKit c, string? hashInstalado, string? versaoInstalada, string? hashDoEditor, string? versaoDoEditor,
+        IReadOnlyList<string> falhas)
     {
-        var instalada = Curto(hashInstalado);
-        var disponivel = Curto(hashDoEditor);
+        // Na linha: a versão quando o arquivo a declara; sem ela, o começo do hash (só para identificar o arquivo).
+        var instalada = hashInstalado is null ? null : versaoInstalada ?? Curto(hashInstalado);
+        var disponivel = string.IsNullOrEmpty(hashDoEditor) ? null : versaoDoEditor ?? Curto(hashDoEditor);
         var erro = instalada is not null && falhas.Any(f => f.StartsWith("MCP", StringComparison.Ordinal));
-        var situacao = Comparar(instalada, disponivel, erro);
+        var situacao = CompararServidor(hashInstalado, versaoInstalada, hashDoEditor, versaoDoEditor, erro);
         var detalhe = situacao switch
         {
             SituacaoComponente.Ausente => "Ainda não copiado para este computador.",
             SituacaoComponente.ComErro => "O registro das ferramentas de PDF não terminou na última instalação.",
-            SituacaoComponente.AtualizacaoDisponivel => "O Editor traz uma versão mais nova do servidor de PDF.",
+            SituacaoComponente.AtualizacaoDisponivel => "Este Editor traz a versão " + versaoDoEditor + " do servidor de PDF.",
+            SituacaoComponente.VersaoDiferente => "O servidor de PDF instalado é diferente do que este Editor traz; não dá para dizer qual é o mais novo. Atualizar instala o deste Editor.",
             _ => c.Ajuda,
         };
         return new LinhaComponente(c, instalada, disponivel, situacao, detalhe, c.Parte is null);

@@ -6,6 +6,10 @@ import subprocess
 import json
 from mcp.server.mcpserver import MCPServer
 
+# Versão deste servidor. Suba a cada mudança no arquivo: o Editor compara por ela (maior = mais novo).
+# A cópia do kit (00 - INDICE DO KIT/MotorPdf/mcp_pmvni.py) tem de ser idêntica a esta.
+VERSAO = "1.1.0"
+
 server = MCPServer("Ferramentas PDF PMVNI")
 base = Path(os.environ["LOCALAPPDATA"]) / "PMVNI/MotorPdf"
 

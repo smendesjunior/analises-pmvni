@@ -258,3 +258,114 @@ public sealed class ComponentesDoKitTestes : IDisposable
         }
     }
 }
+
+/// <summary>Só roda onde o kit mestre existe (<c>PMVNI_KIT</c> ou a pasta do kit no OneDrive do usuário); senão aparece como ignorado.</summary>
+public sealed class FatoComKitMestreAttribute : FactAttribute
+{
+    public static string ServidorDoKit => Path.Combine(
+        Environment.GetEnvironmentVariable("PMVNI_KIT") is { Length: > 0 } kit ? kit
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "OneDrive", "PMVNI", "SIDNEY JUNIOR", "KIT DE TREINAMENTO DE IA (PMVNI)"),
+        "00 - INDICE DO KIT", "MotorPdf", "mcp_pmvni.py");
+
+    public FatoComKitMestreAttribute()
+    {
+        if (!File.Exists(ServidorDoKit)) Skip = "Kit mestre não encontrado neste computador (" + ServidorDoKit + "); defina PMVNI_KIT para conferir.";
+    }
+}
+
+/// <summary>O servidor de PDF (<c>mcp_pmvni.py</c>): a comparação pela constante <c>VERSAO</c> e a igualdade entre a cópia do Editor e a do kit.</summary>
+public sealed class ServidorDePdfTestes : IDisposable
+{
+    readonly string raiz = Path.Combine(Path.GetTempPath(), "pmvni-servidor-" + Guid.NewGuid().ToString("N"));
+    public ServidorDePdfTestes() => Directory.CreateDirectory(raiz);
+    public void Dispose() { try { Directory.Delete(raiz, true); } catch (IOException) { } }
+
+    static string ServidorDoEditor()
+    {
+        for (var d = new DirectoryInfo(AppContext.BaseDirectory); d is not null; d = d.Parent)
+            if (Path.Combine(d.FullName, "src", "Pmvni.App", "MotorPdf", "mcp_pmvni.py") is var f && File.Exists(f)) return f;
+        throw new FileNotFoundException("mcp_pmvni.py do Editor não encontrado a partir de " + AppContext.BaseDirectory);
+    }
+
+    [Fact]
+    public void Versao_lida_do_arquivo()
+    {
+        Assert.Equal("1.2.3", ComponentesDoKit.VersaoNoTexto("import os\r\nVERSAO = \"1.2.3\"\r\nx = 1\r\n"));
+        Assert.Equal("2.0.0", ComponentesDoKit.VersaoNoTexto("VERSAO='2.0.0'\n"));
+        Assert.Null(ComponentesDoKit.VersaoNoTexto("# VERSAO = \"9.9.9\"\nOUTRA_VERSAO = \"1.0.0\"\n"));
+        Assert.Null(ComponentesDoKit.VersaoNoTexto(null));
+        Assert.Null(ComponentesDoKit.VersaoDoServidor(Path.Combine(raiz, "nao-existe.py")));
+        // O servidor que o Editor traz declara a versão.
+        Assert.True(Version.TryParse(ComponentesDoKit.VersaoDoServidor(ServidorDoEditor()), out _));
+    }
+
+    [Fact]
+    public void Situacao_do_servidor_pela_versao()
+    {
+        Assert.Equal(SituacaoComponente.AtualizacaoDisponivel, ComponentesDoKit.CompararServidor("AA", "1.0.0", "BB", "1.1.0"));
+        Assert.Equal(SituacaoComponente.EmDia, ComponentesDoKit.CompararServidor("AA", "1.1.0", "aa", "1.1.0"));
+        Assert.Equal(SituacaoComponente.EmDia, ComponentesDoKit.CompararServidor("AA", "1.2.0", "BB", "1.1.0"));           // instalado à frente
+        Assert.Equal(SituacaoComponente.VersaoDiferente, ComponentesDoKit.CompararServidor("AA", "1.1.0", "BB", "1.1.0")); // mesma versão, arquivo diferente
+        Assert.Equal(SituacaoComponente.VersaoDiferente, ComponentesDoKit.CompararServidor("AA", null, "BB", "1.1.0"));    // instalado sem versão
+        Assert.Equal(SituacaoComponente.VersaoDiferente, ComponentesDoKit.CompararServidor("AA", "1.0.0", "BB", null));
+        Assert.Equal(SituacaoComponente.EmDia, ComponentesDoKit.CompararServidor("AA", null, "AA", null));
+        Assert.Equal(SituacaoComponente.Ausente, ComponentesDoKit.CompararServidor(null, null, "BB", "1.1.0"));
+        Assert.Equal(SituacaoComponente.NaoVerificado, ComponentesDoKit.CompararServidor("AA", "1.0.0", null, null));
+        Assert.Equal(SituacaoComponente.ComErro, ComponentesDoKit.CompararServidor("AA", "1.1.0", "AA", "1.1.0", comErro: true));
+        Assert.Equal("Versão diferente da do Editor", ComponentesDoKit.TextoSituacao(SituacaoComponente.VersaoDiferente));
+    }
+
+    async Task<LinhaComponente> LinhaAsync(string instalado, string? hashDoEditor, string? versaoDoEditor)
+    {
+        var servidor = Path.Combine(raiz, "mcp_pmvni.py");
+        File.WriteAllText(servidor, instalado);
+        var o = new OrigensDoKit(Path.Combine(raiz, "codex"), null, raiz, Path.Combine(raiz, "PMVNI"), Path.Combine(raiz, "KIT"),
+            hashDoEditor ?? ComponentesDoKit.HashDe(servidor), null, versaoDoEditor);
+        return (await ComponentesDoKit.LerAsync(o)).Linhas.Single(x => x.Componente.Id == "pmvni-pdf");
+    }
+
+    [Fact]
+    public async Task Linha_do_servidor_nunca_afirma_mais_novo_so_pelo_hash()
+    {
+        var hoje = DateTime.Now.ToString("dd/MM/yyyy");
+
+        // Arquivo diferente, sem versão no instalado: texto neutro (era "Atualização disponível" / "o Editor traz uma versão mais nova").
+        var l = await LinhaAsync("# servidor antigo\n", "FFFF", "1.1.0");
+        Assert.Equal(SituacaoComponente.VersaoDiferente, l.Situacao);
+        Assert.Equal("Versão diferente da do Editor", l.TextoSituacao);
+        Assert.Equal("Instalado em " + hoje + " · versão diferente da deste Editor", l.TextoVersoes);
+        Assert.DoesNotContain("mais nova", l.TextoVersoes + l.Detalhe, StringComparison.Ordinal);
+
+        // Mesma versão, arquivo diferente: também neutro.
+        l = await LinhaAsync("VERSAO = \"1.1.0\"\n# mexido\n", "FFFF", "1.1.0");
+        Assert.Equal(SituacaoComponente.VersaoDiferente, l.Situacao);
+        Assert.DoesNotContain("mais nova", l.TextoVersoes + l.Detalhe, StringComparison.Ordinal);
+
+        // Versão menor que a do Editor: atualização disponível, com as duas versões.
+        l = await LinhaAsync("VERSAO = \"1.0.0\"\n", "FFFF", "1.1.0");
+        Assert.Equal(SituacaoComponente.AtualizacaoDisponivel, l.Situacao);
+        Assert.Equal(("1.0.0", "1.1.0"), (l.Instalada, l.Disponivel));
+        Assert.Equal("Instalado em " + hoje + " · versão 1.0.0 · este Editor traz a versão 1.1.0", l.TextoVersoes);
+
+        // Versão maior que a do Editor: em dia.
+        l = await LinhaAsync("VERSAO = \"1.2.0\"\n", "FFFF", "1.1.0");
+        Assert.Equal(SituacaoComponente.EmDia, l.Situacao);
+        Assert.Equal("Instalado em " + hoje + " · versão 1.2.0 · mais nova que a deste Editor (1.1.0)", l.TextoVersoes);
+
+        // O mesmo arquivo (hash do Editor = o do instalado): em dia.
+        l = await LinhaAsync("VERSAO = \"1.1.0\"\n", null, "1.1.0");
+        Assert.Equal(SituacaoComponente.EmDia, l.Situacao);
+        Assert.Equal("Instalado em " + hoje + " · versão 1.1.0 · igual à versão deste Editor", l.TextoVersoes);
+    }
+
+    /// <summary>O instalador do kit copia o <c>mcp_pmvni.py</c> do kit; o Editor, o dele. Se as duas cópias divergem, o instalado oscila entre elas.</summary>
+    [FatoComKitMestre]
+    public void Servidor_do_Editor_e_do_kit_sao_identicos()
+    {
+        var doEditor = ServidorDoEditor();
+        var doKit = FatoComKitMestreAttribute.ServidorDoKit;
+        Assert.Equal(ComponentesDoKit.VersaoDoServidor(doEditor), ComponentesDoKit.VersaoDoServidor(doKit));
+        Assert.True(ComponentesDoKit.HashDe(doEditor) == ComponentesDoKit.HashDe(doKit),
+            "O mcp_pmvni.py do Editor (" + doEditor + ") e o do kit (" + doKit + ") divergem: copie um sobre o outro e suba a VERSAO.");
+    }
+}

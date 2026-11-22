@@ -455,7 +455,7 @@ public sealed partial class MainWindow
         var o = Pmvni.Agentes.OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, null, null);
         var pmvni = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PMVNI");
         return new OrigensDoKit(o.CodexHome, o.PastaClaude, InstalacaoMotorPdf.BaseLocal, pmvni, ajustes.PastaKitEfetiva, InstalacaoMotorPdf.HashDoServidorPdf(),
-            TarefaDoKitExiste);
+            TarefaDoKitExiste, InstalacaoMotorPdf.VersaoDoServidorPdf());
     }
 
     /// <summary>A tarefa "PMVNI\Atualizar kit" existe? (<c>schtasks /Query</c>, só leitura; código 0 = existe, 1 = não existe; outro = não se sabe.)</summary>

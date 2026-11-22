@@ -45,6 +45,15 @@ internal static class InstalacaoMotorPdf
         return s is null ? null : Convert.ToHexString(SHA256.HashData(s));
     }
 
+    /// <summary>A constante <c>VERSAO</c> do <c>mcp_pmvni.py</c> que este Editor traz (o cartão compara por ela; o hash só diz se são iguais).</summary>
+    internal static string? VersaoDoServidorPdf()
+    {
+        using var s = typeof(InstalacaoMotorPdf).Assembly.GetManifestResourceStream("motor.mcp_pmvni.py");
+        if (s is null) return null;
+        using var leitor = new StreamReader(s);
+        return ComponentesDoKit.VersaoNoTexto(leitor.ReadToEnd());
+    }
+
     internal static async Task LimparAsync()
     {
         try
