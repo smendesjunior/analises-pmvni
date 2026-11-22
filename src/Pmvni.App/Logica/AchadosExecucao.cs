@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text.Json;
 using Pmvni.Composicao.Kit;
 
@@ -10,9 +10,10 @@ internal sealed record AchadoExecucao(string Id, long Sequencia, string Titulo, 
 internal sealed record ProgressoEtapa(string Etapa, long Sequencia, int Avaliados, int Total, bool Secoes = false);
 
 /// <summary>A previsão do Monitor. <paramref name="PeloEditor"/>: calculada pelo Editor (Tarefa 13: mediana do histórico, <see cref="Pmvni.Agentes.PrevisaoTermino"/>);
-/// senão, a estimativa que a IA gravava em <c>estimativa.json</c> numa análise antiga. <paramref name="SemDados"/>: o kit ainda não registrou nada desta análise.</summary>
+/// senão, a estimativa que a IA gravava em <c>estimativa.json</c> numa análise antiga. <paramref name="SemDados"/>: o kit ainda não registrou nada desta análise.
+/// <paramref name="Aproximada"/>: a previsão do Editor saiu de um histórico curto ou do ritmo desta análise, não da mediana de ao menos 3 execuções.</summary>
 internal sealed record EstimativaAnalise(string? Etapa, double? PercentualEtapa, double? PercentualGeral, DateTimeOffset? Termino, bool PeloEditor = false,
-    bool SemDados = false);
+    bool SemDados = false, bool Aproximada = false);
 internal sealed record PainelAchados(List<AchadoExecucao> Itens, Dictionary<string, ProgressoEtapa> Etapas, EstimativaAnalise? Estimativa);
 
 internal static class AchadosExecucao

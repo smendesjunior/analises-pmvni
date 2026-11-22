@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Pmvni.Agentes;
 using Pmvni.Revisao;
 
@@ -182,6 +182,20 @@ public static class FluxoNovoRelatorio
         var formato = hora.Date == agora.Date ? "HH:mm" : "dd/MM HH:mm";
         var rotulo = peloRitmo ? "Término aproximado pelo ritmo" : "Término estimado";
         return $"{rotulo} · {hora.ToString(formato, CultureInfo.InvariantCulture)} ({TempoLegivel(hora - agora)} restantes)";
+    }
+
+    /// <summary>O valor curto de "Previsão de término" no Monitor (o texto completo, <see cref="TextoEstimativa"/>, vai na dica). Mesmas regras de
+    /// <see cref="TextoEstimativa"/>; <paramref name="aproximada"/> marca a previsão com "≈".</summary>
+    internal static string PrevisaoCurta(DateTimeOffset? termino, DateTimeOffset agora, TimeSpan? restantePeloRitmo = null, bool peloEditor = false,
+        bool semDados = false, bool aproximada = false)
+    {
+        var peloRitmo = termino is null || termino <= agora;
+        if (peloRitmo && restantePeloRitmo is { } restante && restante > TimeSpan.Zero) termino = agora.Add(restante);
+        else peloRitmo = false;
+        if (termino is not { } hora) return !peloEditor ? "Aguardando a IA" : semDados ? "Após a 1ª etapa" : "Histórico insuficiente";
+        if (hora <= agora) return "Nos próximos minutos";
+        var formato = hora.Date == agora.Date ? "HH:mm" : "dd/MM HH:mm";
+        return $"{(aproximada || peloRitmo ? "≈ " : "")}{hora.ToString(formato, CultureInfo.InvariantCulture)} · {TempoLegivel(hora - agora)}";
     }
 
     /// <summary>O nome em português da etapa; uma etapa que o Editor não conhece (kit mais novo) aparece com o id legível ("etapa_nova" vira "Etapa nova").</summary>
