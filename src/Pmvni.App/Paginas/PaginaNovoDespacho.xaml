@@ -164,7 +164,9 @@
       <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
         <StackPanel Padding="24" HorizontalAlignment="Center">
           <!-- Instrução para a IA (como o Copilot do Word): modifica o despacho em edição. -->
-          <Border Width="794" Margin="0,0,0,12" Padding="12,4,6,4" CornerRadius="22" BorderThickness="1"
+          <!-- Pílula de 44 px (32 do botão + 5 + 5 de respiro + 1 + 1 de borda): raio 22, e o botão circular de raio 16 fica concêntrico,
+               com o mesmo respiro de 5 px em cima, embaixo e à direita. -->
+          <Border Width="794" Margin="0,0,0,12" Padding="14,5,5,5" CornerRadius="22" BorderThickness="1"
                   BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Background="{ThemeResource ControlFillColorDefaultBrush}">
             <Grid ColumnSpacing="6">
               <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -173,8 +175,7 @@
                        TextWrapping="Wrap" PlaceholderText="Descreva o que mudar no despacho. Ex.: junte os itens de cotas."
                        AutomationProperties.Name="Instrução para a IA modificar o despacho"/>
               <ProgressRing x:Name="AnelInstrucao" x:FieldModifier="internal" Grid.Column="2" AutomationProperties.Name="Aplicando a instrução com IA" AutomationProperties.LiveSetting="Polite" IsActive="False" Width="18" Height="18" Visibility="Collapsed"/>
-              <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
-                      Width="32" Height="32" MinWidth="0" Padding="0" VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+              <Button x:Name="BotaoAplicarInstrucao" x:FieldModifier="internal" Grid.Column="2" Style="{StaticResource PmvniBotaoEnviarStyle}"
                       AutomationProperties.Name="Aplicar a instrução" local:Dicas.Titulo="Pedir à IA" local:Dicas.Atalho="Enter"
                       local:Dicas.Descricao="Manda a instrução escrita ao lado para a IA mudar o despacho.">
                 <FontIcon Glyph="{x:Bind local:Glifos.Avancar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>

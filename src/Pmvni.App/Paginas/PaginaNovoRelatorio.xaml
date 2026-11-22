@@ -17,7 +17,8 @@
       <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsOpen="False" IsClosable="True"/>
       <InfoBar x:Name="AvisoResultado" x:FieldModifier="internal" Severity="Error" IsOpen="False" IsClosable="True">
         <InfoBar.Content>
-          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+          <!-- Some quando os dois botões estão escondidos: senão a margem deixava o aviso mais alto e o texto fora do centro. -->
+          <StackPanel local:AcoesDeAviso.AutoOcultar="True" x:Name="AcoesResultado" x:FieldModifier="internal" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Button x:Name="BotaoImportarPendente" x:FieldModifier="internal" Content="Importar relatório" Visibility="Collapsed" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
                     local:Dicas.Descricao="Traz para o app o relatório da análise que terminou com o editor fechado."/>
             <Button x:Name="BotaoMostrarRegistroResultado" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro"

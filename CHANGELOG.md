@@ -2,6 +2,14 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.2.3
+
+- Faixa de opções: todos os comandos com 32 px e o hover do mesmo tamanho, ocupando o botão inteiro.
+- Anterior/Próxima, Desfazer/Refazer e as ocorrências da pesquisa: o hover é uma pílula recuada por dentro do grupo, sem invadir a borda.
+- Botão de enviar a instrução para a IA (Novo despacho): circular, centralizado e concêntrico com a caixa arredondada.
+- Avisos: sem espaço vazio embaixo quando não há botões, com o texto centralizado na altura do aviso.
+- Modelos da análise abre certo já na primeira vez (antes mostrava "kit sem tabela" até reabrir).
+- Brasão e marca do cabeçalho nítidos em qualquer escala de tela (o SVG é desenhado no tamanho de exibição).
 ## 3.2.2
 
 Interface 100% padronizada no padrão do WinUI 3, conferida tela por tela e travada por um teste automatizado (PadraoInterfaceTestes).

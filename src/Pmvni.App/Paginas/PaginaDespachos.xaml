@@ -24,7 +24,7 @@
       <!-- Depois de gravar um despacho (Novo despacho ou Gerar PDF): o que foi gravado e onde, com os botões para abrir. -->
       <InfoBar x:Name="AvisoGravado" x:FieldModifier="internal" Severity="Success" IsOpen="False" IsClosable="True" Title="Despacho gravado" Tag="fixo">
         <InfoBar.Content>
-          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+          <StackPanel local:AcoesDeAviso.AutoOcultar="True" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Button x:Name="BotaoAbrirDocxGravado" x:FieldModifier="internal" Content="Abrir no Word"
                     local:Dicas.Descricao="Abre no Word o despacho que acabou de ser gravado."/>
             <Button x:Name="BotaoAbrirPdfGravado" x:FieldModifier="internal" Content="Abrir PDF"

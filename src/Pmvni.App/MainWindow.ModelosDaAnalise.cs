@@ -144,6 +144,12 @@ public sealed partial class MainWindow
         p.CategoriaMostrada += async tag =>
         {
             if (tag != CategoriasAjustes.Modelos) return;
+            // 3.2.2: a tabela de modelos vem do plugin analise localizado pela leitura das peças, que roda em segundo plano ao abrir o editor.
+            // Na primeira visita a página era montada antes de a leitura terminar e mostrava "kit sem tabela" até reabrir; agora espera a leitura
+            // (e a dispara, se ninguém a disparou ainda) antes de montar.
+            if (ReferenceEquals(pecasAgentes, PecasNaoLidas)) AtualizarAgentes();
+            try { await tarefaDosAgentes; } catch (Exception e) { System.Diagnostics.Debug.WriteLine("[modelos] " + e.Message); }
+            MostrarModelosDaAnalise();
             await AtualizarListaGeminiAsync();
             MostrarModelosDaAnalise();
         };

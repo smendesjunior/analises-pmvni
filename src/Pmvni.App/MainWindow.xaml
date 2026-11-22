@@ -14,10 +14,10 @@
       <ResourceDictionary>
         <ResourceDictionary.ThemeDictionaries>
           <ResourceDictionary x:Key="Light">
-            <SvgImageSource x:Key="ImagemCabecalhoPmvni" UriSource="ms-appx:///Recursos/cabecalho-pmvni.svg"/>
+            <SvgImageSource x:Key="ImagemCabecalhoPmvni" UriSource="ms-appx:///Recursos/cabecalho-pmvni.svg" RasterizePixelHeight="320"/>
           </ResourceDictionary>
           <ResourceDictionary x:Key="Default">
-            <SvgImageSource x:Key="ImagemCabecalhoPmvni" UriSource="ms-appx:///Recursos/cabecalho-pmvni-escuro.svg"/>
+            <SvgImageSource x:Key="ImagemCabecalhoPmvni" UriSource="ms-appx:///Recursos/cabecalho-pmvni-escuro.svg" RasterizePixelHeight="320"/>
           </ResourceDictionary>
         </ResourceDictionary.ThemeDictionaries>
       </ResourceDictionary>

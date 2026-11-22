@@ -463,7 +463,7 @@ public sealed partial class FaixaDeOpcoes : UserControl
         var nome = rotulos.ContainsKey(c.Id) ? rotulo : c.Descricao ?? c.Rotulo;
         if (c.Tipo == TipoComando.Alternar && c.Id != ComandosApp.InicioOriginal)
         {
-            var t = new AppBarToggleButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id), IsChecked = ligado.TryGetValue(c.Id, out var l) && l };
+            var t = new AppBarToggleButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id), IsChecked = ligado.TryGetValue(c.Id, out var l) && l, Height = 32, VerticalAlignment = VerticalAlignment.Center };
             AutomationProperties.SetName(t, nome);
             if (atalho is not null) t.KeyboardAcceleratorTextOverride = atalho;
             t.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
@@ -474,7 +474,8 @@ public sealed partial class FaixaDeOpcoes : UserControl
             alternaveis[c.Id] = t;
             return t;
         }
-        var b = new AppBarButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id) };
+        // 3.2.2: 32 px de altura, a mesma dos botões do início da faixa: o hover de todos os comandos tem o mesmo tamanho.
+        var b = new AppBarButton { Label = rotulo, Icon = icone, Tag = c.Id, IsEnabled = Habilitado(c.Id), Height = 32, VerticalAlignment = VerticalAlignment.Center };
         b.CornerRadius = (CornerRadius)Application.Current.Resources["PmvniRaioFaixa"];
         // Correções 2026-11-15: o estado "rótulo à direita" do WinUI anima a margem do texto para 16/10 (StaticResource, não dá para
         // trocar pelo recurso); o texto sobe 3 px por transformação (a animação não mexe nela) e fica na linha do ícone e do primário.
