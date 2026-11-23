@@ -4,6 +4,8 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 ## 3.4.4
 
+- O painel recupera todos os blocos registrados na auditoria, inclusive em análises anteriores. Ao concluir para edição manual, o relatório mantém as classificações e contraprovas confirmadas até a pausa e indica o que ainda aguarda revisão.
+
 - Com o kit atualizado, o ChatGPT examina as três faixas em uma sessão e conserva os recibos por faixa. A auditoria mantém sua sessão própria. Figuras e confirmações simples podem referenciar evidências já gravadas.
 
 - O monitor de consumo separa os pontos observados em contas sem compartilhamento dos pontos sem atribuição individual. A meta de eficiência é de até 50 pontos da janela de cinco horas por análise completa.
