@@ -542,6 +542,40 @@ public class ProgressoLocalTestes
     }
 
     [Fact]
+    public void AuditoriaCodex_SomaOsBlocosDoKitUmaVezMesmoComIdPrincipalRepetido()
+    {
+        using var pasta = Ambiente.PastaDeTeste("consumo-blocos-auditoria");
+        var controle = Controle(pasta);
+        var dia = DateTimeOffset.FromUnixTimeSeconds(1000).LocalDateTime;
+        var dir = Directory.CreateDirectory(Path.Combine(pasta, "sessions",
+            dia.ToString("yyyy/MM/dd", System.Globalization.CultureInfo.InvariantCulture)));
+        var primeiro = Guid.NewGuid();
+        var segundo = Guid.NewGuid();
+        void GravarContagem(Guid id, int entrada, int cache, int saida)
+        {
+            var evento = System.Text.Json.JsonSerializer.Serialize(new { type = "event_msg", payload = new
+            {
+                type = "token_count", info = new { total_token_usage = new
+                    { input_tokens = entrada, cached_input_tokens = cache, output_tokens = saida } }
+            } });
+            File.WriteAllText(Path.Combine(dir.FullName, $"rollout-teste-{id:D}.jsonl"), evento + "\n", Utf8);
+        }
+        GravarContagem(primeiro, 1200, 900, 100);
+        GravarContagem(segundo, 500, 200, 40);
+        var estado = Estado(("technical_audit", Feita(1000, 1100, "codex")));
+        estado["sessao_codex"] = System.Text.Json.JsonSerializer.SerializeToNode(new { technical_audit = new
+        {
+            id = segundo, inicio = 1000, blocos = new[] { new { id = primeiro, inicio = 1000 }, new { id = segundo, inicio = 1050 } }
+        } });
+        Gravar(controle, "engine_state.json", estado);
+        var leitor = new ConsumoSessaoCodex(pasta);
+        var uso = Assert.Single(UsoDasIas.Ler(controle, sessoesCodex: leitor));
+        Assert.Equal((1700L, 1100L, 140L), (uso.Entrada, uso.CacheLido, uso.Saida));
+        Assert.Equal(uso, Assert.Single(UsoDasIas.Ler(controle, sessoesCodex: leitor)));
+        Assert.Null(uso.Cota5h);
+    }
+
+    [Fact]
     public void Consumo_TextosDoCartao()
     {
         var programa = new UsoEtapa("prepare", "programa", null, null, null, null, TimeSpan.FromSeconds(30), null, null);

@@ -74,6 +74,7 @@ public sealed class ConsumoSessaoCodex(string codexHome)
         }
         if (principal is { } p)
         {
+            SomarGrupo(p, "blocos");
             SomarGrupo(p, "blocos_monitor");
             Somar(p);
         }
