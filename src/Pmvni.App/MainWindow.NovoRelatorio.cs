@@ -1010,15 +1010,16 @@ public sealed partial class MainWindow
                     RenderizarExecucao(e);
                 }
                 else if (mudouEstimativa) RenderizarExecucao(e);
-                var (consumo, detalhes, orcamento, evidencias) = await Task.Run(() => (
-                    UsoDasIas.Ler(controle, desde, ordemDoKit, sessoes, e.Fim?.IsCompleted == true ? null : DateTimeOffset.UtcNow),
+                var ((consumo, amostra), detalhes, orcamento, evidencias) = await Task.Run(() => (
+                    ConsumoAoVivo.Ler(controle, desde, e.Provedor, Path.GetFileName(e.Registro.Pasta), ordemDoKit, sessoes,
+                        e.Fim?.IsCompleted == true ? null : DateTimeOffset.UtcNow),
                     DetalhesDasEtapas.Ler(controle, etapasJson, desde),
                     e.Provedor == Provedor.ChatGpt ? OrcamentoDaAnalise.Ler(controle, desde) : null,
                     Directory.Exists(PastaEvidenciasDoMonitor(e))));
                 if (fechada || !ReferenceEquals(e, execucaoMostrada)) return;
                 NR.MostrarEvidencias(evidencias);
                 NR.MostrarDetalhesDasEtapas(detalhes);
-                NR.MostrarConsumo(consumo, orcamento);
+                NR.MostrarConsumo(consumo, orcamento, amostra);
             }
         }
         catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RegistroErros.Gravar("analise.achados", x); }

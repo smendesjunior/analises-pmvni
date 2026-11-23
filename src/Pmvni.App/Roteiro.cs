@@ -3275,6 +3275,7 @@ internal static class Roteiro
                         await AbrirPagina("Resumo");
                         if (pausar)
                         {
+                            await RoteiroMonitorAoVivo.ConferirAsync(n, e, corpus, pasta, p, AbrirPagina, Invocar);
                             Invocar(n.BotaoNovaAnalise);
                             Verificar("Nova análise",await EsperarAteAsync(() => Task.FromResult(!n.VistaDaExecucao && !e.Fim.IsCompleted),3000));
                             Invocar(n.BotaoExecucoes);
@@ -3401,6 +3402,7 @@ internal static class Roteiro
                 await AbrirPagina("Resumo");
                 await Conferir("Todas as etapas concluídas e 100%", () => Campo("percent") == "100%" && Campo("status") == "Análise concluída" && Campo("eta") == "Concluída");
             });
+            RegistrarProgramasIniciados();
             saida["ok"] = falhas.Count == 0;
             Gravar(args.Roteiro!, saida);
             Application.Current.Exit();
@@ -5760,20 +5762,24 @@ internal static class Roteiro
         });
 
         await j.FecharSessaoAsync();
-        string[] iniciados;
-        lock (programasIniciados) iniciados = programasIniciados.ToArray();
-        var foraDosPermitidos = iniciados.Count(c => !TravaDeProgramas.Permitido(c, programasPermitidos));
-        saida["programas_iniciados"] = new JsonObject
+        void RegistrarProgramasIniciados()
         {
-            ["programas"] = new JsonArray(iniciados
-                .Select(c => c.StartsWith(pastaDoAgenteFalso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ? Path.GetRelativePath(pastaDoAgenteFalso, c) : c)
-                .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).Select(c => (JsonNode)c).ToArray()),
-            ["permitidos"] = new JsonArray(programasPermitidos.Select(c => (JsonNode)c).ToArray()),
-            ["inicios"] = iniciados.Length,
-            ["libreoffice"] = iniciados.Count(c => string.Equals(c, sofficeDoRoteiro, StringComparison.OrdinalIgnoreCase)),
-            ["fora_do_agente_falso"] = foraDosPermitidos,
-        };
-        if (foraDosPermitidos > 0 || TravaDeProgramas.Permitidos != programasPermitidos) falhas.Add("programas_iniciados");
+            string[] iniciados;
+            lock (programasIniciados) iniciados = programasIniciados.ToArray();
+            var foraDosPermitidos = iniciados.Count(c => !TravaDeProgramas.Permitido(c, programasPermitidos));
+            saida["programas_iniciados"] = new JsonObject
+            {
+                ["programas"] = new JsonArray(iniciados
+                    .Select(c => c.StartsWith(pastaDoAgenteFalso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ? Path.GetRelativePath(pastaDoAgenteFalso, c) : c)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).Select(c => (JsonNode)c).ToArray()),
+                ["permitidos"] = new JsonArray(programasPermitidos.Select(c => (JsonNode)c).ToArray()),
+                ["inicios"] = iniciados.Length,
+                ["libreoffice"] = iniciados.Count(c => string.Equals(c, sofficeDoRoteiro, StringComparison.OrdinalIgnoreCase)),
+                ["fora_do_agente_falso"] = foraDosPermitidos,
+            };
+            if (foraDosPermitidos > 0 || TravaDeProgramas.Permitidos != programasPermitidos) falhas.Add("programas_iniciados");
+        }
+        RegistrarProgramasIniciados();
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
         saida["falhas"] = falhas;
         saida["ok"] = falhas.Count == 0;

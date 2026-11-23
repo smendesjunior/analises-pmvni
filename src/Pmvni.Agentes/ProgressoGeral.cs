@@ -10,29 +10,10 @@ public static class ProgressoGeral
         var fracao = p.FracaoObservada;
         var geral = 100 * (p.EtapasConcluidas + (fracao ?? 0)) / p.TotalEtapas;
         // O recibo de conclusão libera 100%, inclusive quando a etapa ainda está consolidando todas as seções.
-        return (InteiroEmAndamento(geral), fracao is { } medida ? InteiroEmAndamento(100 * medida) : null);
+        return (PercentualEmAndamento(geral), fracao is { } medida ? PercentualEmAndamento(100 * medida) : null);
     }
 
-    public static (double? Geral, double? Etapa, bool Estimado) ParaMonitor(Progresso p, IReadOnlyList<DuracaoEtapa>? historico, DateTimeOffset agora)
-    {
-        var (geral, etapa) = Calcular(p);
-        var estimado = false;
-        // Algumas ferramentas entregam um lote inteiro de uma vez. Até a primeira unidade, a tela
-        // identifica a projeção pelo tempo como aproximada. O relógio sozinho nunca conclui uma etapa.
-        if (!p.Pausado && p.Etapa is { } nome && p.InicioEtapa is { } inicio && agora > inicio
-            && p.FracaoObservada is null or 0
-            && (PrevisaoTermino.MedianaDaEtapa(nome, p.Provedor, historico)
-                ?? DuracoesIniciais.DaEtapa(nome)) is { } duracao && duracao > TimeSpan.Zero)
-        {
-            var minutos = (agora - inicio).TotalMinutes;
-            var fracao = Math.Min(.95, minutos / (minutos + duracao.TotalMinutes));
-            etapa = Math.Round(100 * fracao, 1);
-            geral = Math.Round(100 * (p.EtapasConcluidas + fracao) / p.TotalEtapas, 1);
-            geral = Math.Min(99, geral.Value);
-            estimado = true;
-        }
-        return (geral, etapa, estimado);
-    }
-
-    static double InteiroEmAndamento(double valor) => Math.Clamp(Math.Round(valor, MidpointRounding.AwayFromZero), 0, 99);
+    // Conserva a primeira fração visível no preparo de lotes grandes.
+    static double PercentualEmAndamento(double valor) =>
+        Math.Clamp(Math.Round(valor, valor is > 0 and < 1 ? 1 : 0, MidpointRounding.AwayFromZero), 0, 99);
 }

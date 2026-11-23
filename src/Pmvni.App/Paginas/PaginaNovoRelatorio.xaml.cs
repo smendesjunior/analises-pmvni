@@ -427,10 +427,14 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     OrcamentoDaAnalise? orcamentoExibido;
 
-    internal void MostrarConsumo(IReadOnlyList<UsoEtapa> uso, OrcamentoDaAnalise? orcamento = null)
+    ConsumoAoVivo? leituraExibida;
+
+    internal void MostrarConsumo(IReadOnlyList<UsoEtapa> uso, OrcamentoDaAnalise? orcamento = null, ConsumoAoVivo? leitura = null)
     {
+        if (consumoExibido is not null && consumoExibido.SequenceEqual(uso) &&
+            orcamentoExibido == orcamento && leituraExibida == leitura) return;
         orcamentoExibido = orcamento;
-        if (consumoExibido is not null && consumoExibido.SequenceEqual(uso)) return;
+        leituraExibida = leitura;
         consumoExibido = uso;
         if (DetalhesVisiveis) AtualizarNarrativa();
         if (CartaoConsumo.Visibility == Visibility.Visible) DesenharConsumo(uso);

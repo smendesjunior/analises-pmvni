@@ -9,6 +9,16 @@ internal static class Program
     [STAThread]
     static int Main(string[] args)
     {
+        if (args.FirstOrDefault() == Pmvni.Imoveis.MapaParaAnalise.Comando)
+        {
+            Console.OutputEncoding = new System.Text.UTF8Encoding(false);
+            return Pmvni.Imoveis.MapaParaAnalise.Executar(args, Console.Error);
+        }
+        return IniciarJanela(args);
+    }
+
+    static int IniciarJanela(string[] args)
+    {
         Autoteste.Configurar(args);
         Argumentos.Ler(args);
         if (Argumentos.Atual.Roteiro is { } roteiro) Roteiro.TravarProgramas(roteiro);

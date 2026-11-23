@@ -5,6 +5,13 @@ namespace Pmvni.Agentes.Testes;
 public class ProgressoGeralTestes
 {
     [Fact]
+    public void PrimeiraUnidadeDePreparoApareceNaBarraGeral()
+    {
+        var p = new Progresso("prepare", 0, 0, []) { SinalDaEtapa = (1, 100) };
+        Assert.Equal((0.2d, 1d), ProgressoGeral.Calcular(p));
+    }
+
+    [Fact]
     public void GeralContaEtapasConfirmadas_EAFracaoComResultado()
     {
         var p = new Progresso("analyze", 1, 7, []) { Ordem = ["prepare", "analyze", "produce"] };

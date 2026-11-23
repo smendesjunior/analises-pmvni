@@ -680,7 +680,8 @@ public static class MapaSvg
         s.Append("</svg>");
 
         // a legenda (numa linha só, abaixo do mapa no relatório) lista só o que foi desenhado
-        var legenda = new List<ItemLegenda> { new("lote", "Lote do projeto") };
+        var rotuloLote = modo == "CANDIDATE_POINT" ? "Lote candidato na base municipal" : "Lote do projeto";
+        var legenda = new List<ItemLegenda> { new("lote", rotuloLote) };
         if (edifLote.Count > 0) legenda.Add(new("edif", "Edificação no lote"));
         if (hidro.Any(h => MapaLocalizacao.FaixaApp(h.Campo("APP")).Count > 0)) legenda.Add(new("app", "Faixa de APP"));
         if (hidro.Count > 0) legenda.Add(new("rio", "Curso d'água"));

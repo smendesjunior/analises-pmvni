@@ -79,7 +79,8 @@ $hashFinal = (Get-FileHash -LiteralPath $exePublicado -Algorithm SHA256).Hash
 #    Cada rodada grava um JSON em tests\saida; exige "ok": true (só gravado depois de a página carregar no WebView2) e "elevado": false.
 $jsons = @((Join-Path $saida 'autoteste.json'), (Join-Path $saida 'autoteste-2.json'))
 $logAuto = Join-Path $saida 'autoteste-log.txt'
-foreach ($f in $jsons + $logAuto) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force } }
+$ensaioMonitor = Join-Path $saida 'roteiro-monitor\resultado.json'
+foreach ($f in $jsons + $logAuto + $ensaioMonitor) { if (Test-Path -LiteralPath $f) { Remove-Item -LiteralPath $f -Force } }
 [System.IO.File]::WriteAllText((Join-Path $saida 'autoteste-alvo.txt'), $exePublicado, (New-Object System.Text.UTF8Encoding($false)))
 Start-Process -FilePath 'explorer.exe' -ArgumentList ('"' + (Join-Path $PSScriptRoot 'autoteste.cmd') + '"')
 # O autoteste.ps1 ainda pode estar gravando o log: leitura presa conta como "ainda não terminou".
@@ -100,6 +101,14 @@ foreach ($f in $jsons) {
     if ($r.elevado -ne $false) { throw "Autoteste reprovou em ${f}: o app abriu elevado (elevado=$($r.elevado))." }
 }
 Write-Host 'Autoteste do executável: aprovado (2 rodadas, ok=true, sem elevação).'
+if (-not (Test-Path -LiteralPath $ensaioMonitor)) { throw 'O monitor nativo não produziu recibo de telemetria.' }
+$monitor = Get-Content -LiteralPath $ensaioMonitor -Raw -Encoding UTF8 | ConvertFrom-Json
+$medicoes = $monitor.passos.monitor_controles.arquivos_ate_controles_winui
+if ($monitor.ok -ne $true -or $monitor.programas_iniciados.fora_do_agente_falso -ne 0 -or
+    $medicoes.quatorze_de_28 -ne $true -or $medicoes.duas_janelas_na_reabertura -ne $true) {
+    throw "As medições no monitor nativo não passaram. Consulte $ensaioMonitor."
+}
+Write-Host 'Monitor nativo: porcentagem, relógio, previsão e consumo conferidos durante a execução e na reabertura.'
 # 4b. PDF.js embutido (Legislação, desenho §11.4): o bloco "legislacao" do autoteste (versão, arquivos, bytes, sha conferido).
 $leg = (Get-Content -LiteralPath $jsons[0] -Raw -Encoding UTF8 | ConvertFrom-Json).legislacao
 if ($null -eq $leg -or $leg.sha_ok -ne $true) { throw 'Autoteste reprovou: o PDF.js embutido não confere com o VERSAO.json.' }
@@ -129,7 +138,7 @@ if ($exeAntigo) {
 }
 
 # Evidência vinculada ao arquivo efetivamente testado, exigida também na publicação manual.
-$validacao = [ordered]@{ Compilacao = $compilacao; Sha256 = $hashFinal; Commit = $commitFonte; Testes = $projetosTeste.Count; Autoteste = $true }
+$validacao = [ordered]@{ Compilacao = $compilacao; Sha256 = $hashFinal; Commit = $commitFonte; Testes = $projetosTeste.Count; Autoteste = $true; MonitorAoVivo = $true }
 $validacao | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $pastaFinal 'build-validada.json') -Encoding UTF8
 
 # 5a. GitHub (smendesjunior/analises-pmvni): Release com o .exe e o manifesto, para a atualização automática dos outros PCs.

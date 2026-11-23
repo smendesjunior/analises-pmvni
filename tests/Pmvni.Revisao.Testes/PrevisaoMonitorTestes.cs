@@ -42,7 +42,7 @@ public class PrevisaoMonitorTestes
         var painel = AchadosExecucao.DoProgresso(new Progresso("technical_audit", 2, 28, [], Provedor.Claude, Agora.AddSeconds(-10)), historico, Agora);
         // 80 s + 3 × 90 s = 350 s → 12:05:50, arredondado para 12:06.
         // Duas das seis etapas concluídas, sem contador da etapa atual.
-        Assert.Equal(new EstimativaAnalise("technical_audit", 10, 35, Agora.AddMinutes(6), PeloEditor: true, PercentualEstimado: true), painel.Estimativa);
+        Assert.Equal(new EstimativaAnalise("technical_audit", null, 33, Agora.AddMinutes(6), PeloEditor: true), painel.Estimativa);
         Assert.Empty(painel.Etapas);
         var analise = AchadosExecucao.DoProgresso(new Progresso("analyze", 1, 9, [], Provedor.Claude), historico, Agora);
         Assert.Equal(new ProgressoEtapa("analyze", 9, 9, 28, Secoes: true), analise.Etapas["analyze"]);
@@ -88,13 +88,18 @@ public class PrevisaoMonitorTestes
         File.WriteAllText(engine, estado);
         File.SetLastWriteTimeUtc(engine, Agora.UtcDateTime);
         var antes = AchadosExecucao.LerDaExecucao(registro, pasta, desde, controle, desde, [], Agora).Estimativa!;
-        Assert.True(antes.PercentualEstimado);
-        Assert.True(antes.PercentualEtapa > 0);
+        Assert.False(antes.PercentualEstimado);
+        Assert.Null(antes.PercentualEtapa);
 
+        // Um achado avulso no registro antigo não deve congelar a porcentagem nem ocultar o término.
+        Directory.CreateDirectory(registro);
+        File.WriteAllText(Path.Combine(registro, "antigo.json"), """{"item_id":"I1","titulo":"Achado preservado","situacao":"ATENDE","sequencia":1}""");
         var manifesto = Path.Combine(controle, "manifesto.json");
         File.WriteAllText(manifesto, """{"section_audit":[{"section":1}]}""");
         File.SetLastWriteTimeUtc(manifesto, Agora.AddSeconds(1).UtcDateTime);
-        var depois = AchadosExecucao.LerDaExecucao(registro, pasta, desde, controle, desde, [], Agora.AddSeconds(1)).Estimativa!;
+        var comMedicao = AchadosExecucao.LerDaExecucao(registro, pasta, desde, controle, desde, [], Agora.AddSeconds(1));
+        Assert.Equal("I1", Assert.Single(comMedicao.Itens).Id);
+        var depois = comMedicao.Estimativa!;
         Assert.Equal(4, depois.PercentualEtapa);
         Assert.False(depois.PercentualEstimado);
         Assert.True(depois.Termino > Agora);
@@ -105,13 +110,15 @@ public class PrevisaoMonitorTestes
     }
 
     [Fact]
-    public void PrimeiraEstacao_ExibePrevisaoEAvancoAntesDaPrimeiraEntrega()
+    public void PrimeiraEstacao_ExibePrevisaoSemContarTempoComoTrabalhoConcluido()
     {
         var preparo = new Progresso("prepare", 0, 0, [], Provedor.ChatGpt, Agora);
         var primeiro = AchadosExecucao.DoProgresso(preparo, null, Agora.AddSeconds(10)).Estimativa!;
         var depois = AchadosExecucao.DoProgresso(preparo, [], Agora.AddSeconds(55)).Estimativa!;
-        Assert.InRange(primeiro.PercentualEtapa!.Value, 1, 20);
-        Assert.True(depois.PercentualEtapa > primeiro.PercentualEtapa);
+        Assert.Equal(0, primeiro.PercentualGeral);
+        Assert.Null(primeiro.PercentualEtapa);
+        Assert.Equal(primeiro.PercentualGeral, depois.PercentualGeral);
+        Assert.Null(depois.PercentualEtapa);
         Assert.True(depois.Termino > Agora.AddMinutes(1));
         Assert.True(depois.Inicial);
     }

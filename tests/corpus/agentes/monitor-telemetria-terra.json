@@ -1,0 +1,94 @@
+[
+  {
+    "schema": 1,
+    "execucao_id": "execucao-do-roteiro",
+    "processo": "processo-do-roteiro",
+    "rota": "codex",
+    "etapa": "analyze",
+    "estado": "em_andamento",
+    "atualizado_em": "2026-11-23T20:10:09.222-03:00",
+    "tokens": {
+      "entrada": 22953,
+      "entrada_cache": 9344,
+      "saida": 115,
+      "total": 23068,
+      "observados_em": "2026-11-23T18:56:05.406-03:00",
+      "sessoes_medidas": 1,
+      "sessoes_conhecidas": 1,
+      "parcial": false,
+      "etapas": {
+        "analyze": {
+          "entrada": 22953,
+          "entrada_cache": 9344,
+          "saida": 115,
+          "total": 23068,
+          "observados_em": "2026-11-23T18:56:05.406-03:00",
+          "sessoes_medidas": 1,
+          "sessoes_conhecidas": 1,
+          "parcial": false
+        }
+      }
+    },
+    "cota": {
+      "usada_pct": null,
+      "janela_min": 300,
+      "observada_em": null,
+      "fonte": null,
+      "reinicia_em": null,
+      "semana": {
+        "usada_pct": 53.0,
+        "janela_min": 10080,
+        "observada_em": "2026-11-23T18:56:05.406-03:00",
+        "fonte": "Codex CLI · rate_limits",
+        "reinicia_em": "2026-11-29T13:44:32-03:00"
+      }
+    },
+    "cota_aplicavel": true
+  },
+  {
+    "schema": 1,
+    "execucao_id": "execucao-do-roteiro",
+    "processo": "processo-do-roteiro",
+    "rota": "codex",
+    "etapa": "analyze",
+    "estado": "em_andamento",
+    "atualizado_em": "2026-11-23T20:10:09.306-03:00",
+    "tokens": {
+      "entrada": 268928,
+      "entrada_cache": 245888,
+      "saida": 1773,
+      "total": 270701,
+      "observados_em": "2026-11-23T18:56:53.636-03:00",
+      "sessoes_medidas": 1,
+      "sessoes_conhecidas": 1,
+      "parcial": false,
+      "etapas": {
+        "analyze": {
+          "entrada": 268928,
+          "entrada_cache": 245888,
+          "saida": 1773,
+          "total": 270701,
+          "observados_em": "2026-11-23T18:56:53.636-03:00",
+          "sessoes_medidas": 1,
+          "sessoes_conhecidas": 1,
+          "parcial": false
+        }
+      }
+    },
+    "cota": {
+      "usada_pct": null,
+      "janela_min": 300,
+      "observada_em": null,
+      "fonte": null,
+      "reinicia_em": null,
+      "semana": {
+        "usada_pct": 54.0,
+        "janela_min": 10080,
+        "observada_em": "2026-11-23T18:56:53.636-03:00",
+        "fonte": "Codex CLI · rate_limits",
+        "reinicia_em": "2026-11-29T13:44:32-03:00"
+      }
+    },
+    "cota_aplicavel": true
+  }
+]
