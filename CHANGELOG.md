@@ -2,6 +2,14 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.5.0
+
+- As Configurações foram reorganizadas em 8 categorias, e cada opção fica num lugar só: Geral, Profissional e assinatura, Pastas e fontes de dados, Relatórios e revisão, Módulos, Inteligência artificial (com Modelos da análise dentro dela), Kit PMVNI e Sistema.
+- Profissional e assinatura reúne o profissional responsável, o certificado digital e onde a assinatura aparece. Pastas e fontes de dados reúne a pasta de processos, a base QGIS, a planilha do Acompanhamento e os logins dos sites da Prefeitura.
+- Módulos reúne como Processos, Despachos, Acompanhamento e Legislação trabalham. A exibição, os grupos e a ordem dos arquivos do processo também podem ser escolhidos ali.
+- Em Sistema, o diagnóstico fica dentro de Sobre, e Restaurar os ajustes informa o que volta ao padrão e o que continua como está.
+- Os botões "Abrir Ajustes" dos módulos e a pesquisa geral levam aos novos lugares. Os textos do app que citavam caminhos antigos foram atualizados.
+
 ## 3.4.7
 
 - O monitor mostra previsão de término também na primeira análise da estação. Durante o preparo e a análise em rede, mostra contagens da execução e identifica os percentuais estimados pelo tempo.
