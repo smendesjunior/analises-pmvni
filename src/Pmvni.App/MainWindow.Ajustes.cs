@@ -384,20 +384,7 @@ public sealed partial class MainWindow
             ajustes.AtualizarAutomaticamente = p.AlternarAtualizarSozinho.IsOn;
             SalvarAjustes();
         };
-        p.BotaoRepararInstalacao.Click += async (_, _) =>
-        {
-            p.BotaoRepararInstalacao.IsEnabled = false;
-            p.TextoResultadoComponentes.Text = "Instalando plugins para este usuário…";
-            // Revisão final I2 (erro 15): o script reinstala o plugin analise; com análise em andamento, avisa e não instala.
-            try
-            {
-                var origens = OrigensDoKitDoComputador();
-                p.TextoResultadoComponentes.Text = await AtualizacaoKit.InstalarPluginsAsync(ProcessosComAnaliseEmAndamento(),
-                    () => Task.Run(() => InstalacaoMotorPdf.ConferirAsync(ComponentesDoKit.FonteDoKit(origens).KitLocal)));
-            }
-            catch (Exception e) { p.TextoResultadoComponentes.Text = "Falha ao reparar a instalação. " + e.Message; }
-            finally { p.BotaoRepararInstalacao.IsEnabled = true; }
-        };
+        p.BotaoRepararInstalacao.Click += async (_, _) => await AtualizarComponenteAsync(null, reparar: true);
         p.BotaoVerificarAtualizacoes.Click += async (_, _) => await Atualizador.VerificarAsync();
         p.BotaoReiniciarAtualizacao.Click += (_, _) =>
         {
@@ -433,6 +420,7 @@ public sealed partial class MainWindow
     internal IReadOnlyDictionary<string, Button> BotoesDosComponentes => botoesDosComponentes;
     readonly Dictionary<string, Button> botoesDosComponentes = new(StringComparer.Ordinal);
     int geracaoComponentes;
+    bool atualizandoComponente;
 
     void IniciarComponentesDoKit()
     {
@@ -539,15 +527,18 @@ public sealed partial class MainWindow
 
     /// <summary>"Atualizar" de uma linha (ou "Atualizar todos", com <paramref name="linha"/> null): grava o <c>.cmd</c> e o abre pelo
     /// <c>explorer.exe</c>, fora do Editor. Com análise em andamento, só avisa.</summary>
-    internal async Task AtualizarComponenteAsync(LinhaComponente? linha)
+    internal async Task AtualizarComponenteAsync(LinhaComponente? linha, bool reparar = false)
     {
         var p = PaginaDeAjustes;
         // Enquanto a atualização é iniciada, nenhum outro "Atualizar" (nem o "Atualizar todos") pode ser clicado.
         void Habilitar(bool sim)
         {
             p.BotaoAtualizarTodosComponentes.IsEnabled = sim;
+            p.BotaoRepararInstalacao.IsEnabled = sim;
             foreach (var b in botoesDosComponentes.Values) b.IsEnabled = sim;
         }
+        if (atualizandoComponente) return;
+        atualizandoComponente = true;
         Habilitar(false);
         try
         {
@@ -555,14 +546,46 @@ public sealed partial class MainWindow
             var pasta = PastaScriptsDoKitDoRoteiro ?? await InstalacaoMotorPdf.ExtrairAsync();
             var origens = OrigensDoKitDoComputador();
             var kit = LeituraDoKitAtual?.KitLocal ?? await Task.Run(() => ComponentesDoKit.FonteDoKit(origens).KitLocal);
-            p.TextoResultadoComponentes.Text = await ComponentesDoKit.AtualizarAsync(linha, analises, pasta, kit, LancadorDoKit ?? AbrirPeloWindows);
+            var marcador = Path.Combine(pasta, "resultado-" + Guid.NewGuid().ToString("N") + ".txt");
+            string? wrapper = null;
+            void Iniciar(string programa, string cmd)
+            {
+                if (LancadorDoKit is { } simulado) { simulado(programa, cmd); return; }
+                wrapper = Path.ChangeExtension(marcador, ".cmd");
+                var corpo = "@echo off\r\ncall \"" + cmd + "\"\r\n> \"" + marcador + ".tmp\" echo %errorlevel%\r\n"
+                    + "move /y \"" + marcador + ".tmp\" \"" + marcador + "\" >nul\r\n";
+                File.WriteAllText(wrapper, corpo, PrimeiraAbertura.CodificacaoDoConsole());
+                AbrirPeloWindows(programa, wrapper);
+            }
+            p.TextoResultadoComponentes.Text = reparar
+                ? ComponentesDoKit.IniciarAtualizacao("reparar", analises, pasta, kit, Iniciar)
+                : await ComponentesDoKit.AtualizarAsync(linha, analises, pasta, kit, Iniciar);
+            if (wrapper is null) return;
+            p.TextoResultadoComponentes.Text = "Aguardando o instalador do kit terminar no Windows…";
+            var espera = System.Diagnostics.Stopwatch.StartNew();
+            while (!fechada && !File.Exists(marcador))
+            {
+                if (espera.Elapsed >= TimeSpan.FromMinutes(30))
+                {
+                    p.TextoResultadoComponentes.Text = "O Windows ainda não confirmou o término da instalação. Confira o instalador e use Verificar atualizações.";
+                    return;
+                }
+                await Task.Delay(750);
+            }
+            if (fechada) return;
+            var codigo = (await File.ReadAllTextAsync(marcador)).Trim();
+            File.Delete(marcador);
+            File.Delete(wrapper);
+            await VerificarComponentesAsync();
+            if (codigo != "0") p.TextoResultadoComponentes.Text = $"O instalador terminou com código {codigo}. Confira as pendências acima.";
+
         }
         catch (Exception e)
         {
             RegistroErros.Gravar("kit.componentes.atualizar", e);
             p.TextoResultadoComponentes.Text = "Não foi possível iniciar a atualização. " + e.Message;
         }
-        finally { Habilitar(true); }
+        finally { atualizandoComponente = false; Habilitar(true); }
     }
 
     /// <summary>O lançador de verdade: o <c>explorer.exe</c> abre o <c>.cmd</c> fora do processo do Editor.</summary>

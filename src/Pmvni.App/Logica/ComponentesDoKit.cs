@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Text;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -48,7 +50,7 @@ public sealed record LinhaComponente(ComponenteDoKit Componente, string? Instala
 /// <paramref name="TarefaExiste"/>: confere se a tarefa "PMVNI\Atualizar kit" existe (true/false; null = não deu para saber; ausente = não confere).
 /// <paramref name="VersaoServidorDoEditor"/>: a constante <c>VERSAO</c> do <c>mcp_pmvni.py</c> que o Editor traz (null = sem versão).</summary>
 public sealed record OrigensDoKit(string CodexHome, string? PastaClaude, string PastaMotorPdf, string PastaPmvni, string PastaKitPadrao, string? HashServidorDoEditor,
-    Func<bool?>? TarefaExiste = null, string? VersaoServidorDoEditor = null);
+    Func<bool?>? TarefaExiste = null, string? VersaoServidorDoEditor = null, Func<string, string, Task<JsonObject?>>? ConferirPlugin = null);
 
 /// <summary>O que o cartão mostra: as linhas, a fonte usada (null = não achada), o kit deste computador e a última execução do instalador do kit.</summary>
 public sealed record LeituraDoKit(IReadOnlyList<LinhaComponente> Linhas, string? Fonte, bool FonteAcessivel, string KitLocal, string TextoTarefa)
@@ -224,7 +226,7 @@ public static class ComponentesDoKit
         foreach (var c in lista ?? Lista)
             linhas.Add(c.Origem switch
             {
-                OrigemComponente.PluginNoCodex or OrigemComponente.PluginNoClaude => LinhaDePlugin(c, o, linhasResumo, falhas, versaoNaFonte, versaoNoKitLocal, fonte is not null && acessivel),
+                OrigemComponente.PluginNoCodex or OrigemComponente.PluginNoClaude => await LinhaDePluginAsync(c, o, linhasResumo, falhas, versaoNaFonte, versaoNoKitLocal, fonte is not null && acessivel, kitLocal),
                 OrigemComponente.ServidorPdf => LinhaDoServidor(c, hashInstalado, versaoInstalada, o.HashServidorDoEditor, o.VersaoServidorDoEditor, falhas) with { InstaladoEm = servidorEm },
                 _ => LinhaDeMotor(c, linhasResumo, falhas),
             });
@@ -235,11 +237,34 @@ public static class ComponentesDoKit
         return new LeituraDoKit(linhas, fonte, fonte is not null && acessivel, kitLocal, tarefa);
     }
 
-    static LinhaComponente LinhaDePlugin(ComponenteDoKit c, OrigensDoKit o, IReadOnlyDictionary<string, string> resumo, IReadOnlyList<string> falhas,
-        string? naFonte, string? noKitLocal, bool fonteAcessivel)
+    static async Task<JsonObject?> ConferirIntegridadeAsync(string motor, string skill, string kit)
+    {
+        var python = LerTexto(Path.Combine(motor, "runtime.txt"))?.Trim();
+        var conferir = Path.Combine(kit, "01 - PLUGINS", "plugins", "analise", "skills", "analise", "scripts", "check_kit_version.py");
+        if (!File.Exists(python) || !File.Exists(conferir) || !Directory.Exists(skill)) return null;
+        var inicio = new ProcessStartInfo(python!) { UseShellExecute = false, CreateNoWindow = true,
+            RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8 };
+        foreach (var argumento in new[] { "-B", "-X", "utf8", conferir, "--skill-root", skill, "--kit-root", kit })
+            inicio.ArgumentList.Add(argumento);
+        try
+        {
+            using var processo = Process.Start(inicio);
+            if (processo is null) return null;
+            var saida = processo.StandardOutput.ReadToEndAsync();
+            var erro = processo.StandardError.ReadToEndAsync();
+            try { await Task.WhenAll(processo.WaitForExitAsync(), saida, erro).WaitAsync(EsperaDaFonte); }
+            catch (TimeoutException) { if (!processo.HasExited) processo.Kill(entireProcessTree: true); return null; }
+            return JsonNode.Parse(await saida) as JsonObject;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or System.ComponentModel.Win32Exception) { return null; }
+    }
+
+    static async Task<LinhaComponente> LinhaDePluginAsync(ComponenteDoKit c, OrigensDoKit o, IReadOnlyDictionary<string, string> resumo, IReadOnlyList<string> falhas,
+        string? naFonte, string? noKitLocal, bool fonteAcessivel, string kitLocal)
     {
         var noClaude = c.Origem == OrigemComponente.PluginNoClaude;
-        var instalada = (noClaude ? PluginsInstalados.NoClaude(o.PastaClaude, c.Chave) : PluginsInstalados.NoCodex(o.CodexHome, c.Chave))?.Versao;
+        var plugin = noClaude ? PluginsInstalados.NoClaude(o.PastaClaude, c.Chave) : PluginsInstalados.NoCodex(o.CodexHome, c.Chave);
+        var instalada = plugin?.Versao;
         var programa = noClaude ? "Claude Code" : "Codex";
         var programaAusente = resumo.TryGetValue(programa, out var estadoPrograma) && estadoPrograma.StartsWith("AUSENTE", StringComparison.Ordinal);
         var chaveResumo = programa + " / " + c.Chave;
@@ -256,6 +281,31 @@ public static class ComponentesDoKit
             SituacaoComponente.NaoVerificado => "Não foi possível verificar a versão disponível: a fonte do kit está fora do alcance.",
             _ => c.Ajuda,
         };
+        if (instalada is not null && situacao != SituacaoComponente.AtualizacaoDisponivel)
+        {
+            var skill = plugin?.Pasta is { } pasta ? Path.Combine(pasta, "skills", "analise") : "";
+            var verificar = o.ConferirPlugin ?? ((s, k) => ConferirIntegridadeAsync(o.PastaMotorPdf, s, k));
+            var resultado = await verificar(skill, kitLocal);
+            var estado = Texto(resultado, "status");
+            if (estado is "UPDATE_REQUIRED" or "CHECK_FAILED")
+            {
+                var arquivos = (resultado?["different_skill_files"] as JsonArray)?.Select(n => n?.ToString()) ?? [];
+                var errosKit = (resultado?["errors"] as JsonArray)?.Select(n => n?.ToString()) ?? [];
+                situacao = SituacaoComponente.AtualizacaoDisponivel;
+                detalhe = string.Join(Environment.NewLine, errosKit.Concat(arquivos));
+                if (detalhe.Length == 0) detalhe = "O executor exige a atualização do kit.";
+            }
+            else if (estado == "CURRENT" && !fonteAcessivel)
+            {
+                situacao = SituacaoComponente.EmDia;
+                detalhe = "Conteúdo conferido com a cópia local do kit. A fonte de rede está fora do alcance.";
+            }
+            else if (estado != "CURRENT")
+            {
+                situacao = SituacaoComponente.NaoVerificado;
+                if (fonteAcessivel) detalhe = "Não foi possível conferir a integridade da instalação com o verificador do kit.";
+            }
+        }
         if (soPeloTodos && situacao != SituacaoComponente.EmDia)
             detalhe += " A versão " + disponivel + " ainda não está na cópia do kit deste computador: o botão roda o \"Atualizar todos\".";
         return new LinhaComponente(c, instalada, disponivel, situacao, detalhe, soPeloTodos || c.Parte is null);
@@ -375,14 +425,14 @@ public static class ComponentesDoKit
             cmd = Path.Combine(pastaScripts, CmdDe(parte));
             texto = "@echo off\r\nrem Editor de Relatórios PMVNI: atualizar só um componente do kit (" + parte + ").\r\n"
                 + "\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \""
-                + script + "\" -Componente " + parte + "\r\n";
+                + script + "\"" + (parte == "reparar" ? "" : " -Componente " + parte) + " -KitLocal \"" + kitLocal + "\"\r\n";
         }
         Directory.CreateDirectory(pastaScripts);
         File.WriteAllText(cmd, texto, PrimeiraAbertura.CodificacaoDoConsole());
         iniciar(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), cmd);
         return parte is null
-            ? "Atualização de todo o kit iniciada fora do Editor (INSTALAR_KIT_PMVNI.cmd atualizar). Quando terminar, clique em Verificar atualizações no cartão Plugins e ferramentas."
-            : "Atualização iniciada fora do Editor: " + NomeDaParte(parte) + ". Quando terminar, clique em Verificar atualizações no cartão Plugins e ferramentas.";
+            ? "Atualização de todo o kit iniciada fora do Editor (INSTALAR_KIT_PMVNI.cmd atualizar). O Editor confere os componentes ao terminar."
+            : "Atualização iniciada fora do Editor: " + NomeDaParte(parte) + ". O Editor confere os componentes ao terminar.";
     }
 
     /// <summary>O botão "Atualizar" de uma linha (ou "Atualizar todos", com <paramref name="linha"/> null). Uma linha que só se atualiza com o kit

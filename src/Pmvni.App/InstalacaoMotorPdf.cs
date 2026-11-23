@@ -17,21 +17,29 @@ internal static class InstalacaoMotorPdf
 
     /// <summary>Extrai os scripts embutidos (<c>MotorPdf\*</c>) para <c>%LOCALAPPDATA%\PMVNI\MotorPdf\bootstrap\&lt;compilação&gt;</c> e devolve a pasta.
     /// O Editor não é empacotado (MSIX): a pasta é a real do usuário, não virtualizada.</summary>
-    internal static async Task<string> ExtrairAsync()
+    internal static async Task<string> ExtrairAsync(string? pastaMotor = null)
     {
         var assembly = typeof(InstalacaoMotorPdf).Assembly;
-        var pasta = Path.Combine(BaseLocal, "bootstrap", assembly.ManifestModule.ModuleVersionId.ToString());
+        var pasta = Path.Combine(pastaMotor ?? BaseLocal, "bootstrap", assembly.ManifestModule.ModuleVersionId.ToString());
         Directory.CreateDirectory(pasta);
         foreach (var nome in assembly.GetManifestResourceNames().Where(n => n.StartsWith("motor.", StringComparison.Ordinal)).Select(n => n[6..]))
         {
             var destino = Path.Combine(pasta, nome);
-            if (File.Exists(destino)) continue;
+            using var origem = assembly.GetManifestResourceStream("motor." + nome)!;
+            if (File.Exists(destino))
+            {
+                byte[] atual;
+                using (var existente = File.Open(destino, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
+                    atual = await SHA256.HashDataAsync(existente);
+                var esperado = await SHA256.HashDataAsync(origem);
+                if (atual.SequenceEqual(esperado)) continue;
+                origem.Position = 0;
+            }
             var temp = destino + "." + Guid.NewGuid();
             try
             {
-                using var origem = assembly.GetManifestResourceStream("motor." + nome)!;
                 using (var gravacao = File.Create(temp)) await origem.CopyToAsync(gravacao);
-                try { File.Move(temp, destino); } catch (IOException) when (File.Exists(destino)) { }
+                File.Move(temp, destino, overwrite: true);
             }
             finally { File.Delete(temp); }
         }

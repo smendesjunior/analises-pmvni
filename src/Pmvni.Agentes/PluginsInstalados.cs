@@ -5,7 +5,10 @@ using System.Text.Json.Nodes;
 namespace Pmvni.Agentes;
 
 /// <summary>Um plugin do kit instalado: a versão e quando foi instalado ou atualizado (null = data desconhecida).</summary>
-public sealed record PluginInstalado(string Versao, DateTimeOffset? Em);
+public sealed record PluginInstalado(string Versao, DateTimeOffset? Em)
+{
+    public string? Pasta { get; init; }
+}
 
 /// <summary>Os plugins do kit PMVNI instalados neste computador (Ajustes › Inteligência artificial, correções 2026-11-15), para o usuário acompanhar
 /// as atualizações: no Codex, <c>&lt;CODEX_HOME&gt;\plugins\cache\pmvni-kit\&lt;plugin&gt;\&lt;versão&gt;</c> (a maior versão; a data é a da pasta dela);
@@ -34,7 +37,7 @@ public static class PluginsInstalados
         DateTimeOffset? em = null;
         try { em = new DateTimeOffset(Directory.GetCreationTimeUtc(pasta), TimeSpan.Zero); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
-        return new PluginInstalado(versao, em);
+        return new PluginInstalado(versao, em) { Pasta = pasta };
     }
 
     /// <summary>O plugin instalado no Claude Code (pasta <c>.claude</c>); null = não instalado ou pasta desconhecida.</summary>
@@ -69,7 +72,7 @@ public static class PluginsInstalados
                 if (Texto(e["version"]) is not { } versao || !Version.TryParse(versao, out var v)) continue;
                 if (maior is not null && v <= maior) continue;
                 maior = v;
-                melhor = new PluginInstalado(versao, Data(Texto(e["lastUpdated"])) ?? Data(Texto(e["installedAt"])));
+                melhor = new PluginInstalado(versao, Data(Texto(e["lastUpdated"])) ?? Data(Texto(e["installedAt"]))) { Pasta = Texto(e["installPath"]) };
             }
         }
         return melhor;

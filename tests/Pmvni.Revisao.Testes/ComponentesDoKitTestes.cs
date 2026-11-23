@@ -24,7 +24,7 @@ public sealed class ComponentesDoKitTestes : IDisposable
 
     public void Dispose() { try { Directory.Delete(raiz, true); } catch (IOException) { } }
 
-    OrigensDoKit Origens(string? hashDoEditor = null) => new(CodexHome, null, MotorPdf, Pmvni, KitLocal, hashDoEditor);
+    OrigensDoKit Origens(string? hashDoEditor = null) => new(CodexHome, null, MotorPdf, Pmvni, KitLocal, hashDoEditor, ConferirPlugin: (_, _) => Task.FromResult<System.Text.Json.Nodes.JsonObject?>(new() { ["status"] = "CURRENT" }));
 
     void PluginNoKit(string kit, string versao)
     {
@@ -118,19 +118,24 @@ public sealed class ComponentesDoKitTestes : IDisposable
         Assert.Equal(SituacaoComponente.Ausente, Linha(await ComponentesDoKit.LerAsync(Origens(hash)), "docling").Situacao);
     }
 
-    [Fact]
-    public async Task Fonte_inacessivel_nao_foi_possivel_verificar_sem_erro()
+    [Theory]
+    [InlineData("CURRENT", SituacaoComponente.EmDia)]
+    [InlineData(null, SituacaoComponente.NaoVerificado)]
+    public async Task Fonte_inacessivel_distingue_integridade_local_de_versao_na_rede(string? estadoLocal, SituacaoComponente esperado)
     {
         PluginNoKit(KitLocal, "4.0.0");
         PluginNoCodex("4.0.0");
         PmvniKitJson(@"\\servidor-que-nao-existe.invalid\pmvni\KIT");
 
-        var l = await ComponentesDoKit.LerAsync(Origens());
+        var origens = Origens() with { ConferirPlugin = (_, _) => Task.FromResult<System.Text.Json.Nodes.JsonObject?>(
+            estadoLocal is null ? null : new() { ["status"] = estadoLocal }) };
+        var l = await ComponentesDoKit.LerAsync(origens);
 
         Assert.False(l.FonteAcessivel);
         var codex = Linha(l, "analise-codex");
-        Assert.Equal(SituacaoComponente.NaoVerificado, codex.Situacao);
-        Assert.Equal("Não foi possível verificar", codex.TextoSituacao);
+        Assert.Equal(esperado, codex.Situacao);
+        Assert.Contains("fora do alcance", codex.Detalhe);
+        if (estadoLocal == "CURRENT") Assert.Contains("cópia local", codex.Detalhe);
         Assert.Equal("4.0.0", codex.Instalada);
         Assert.Null(codex.Disponivel);
         Assert.StartsWith("Não foi possível verificar as versões disponíveis: a fonte do kit", l.TextoFonte);
@@ -152,6 +157,25 @@ public sealed class ComponentesDoKitTestes : IDisposable
     }
 
     [Fact]
+    public async Task Mesma_versao_com_script_divergente_exige_atualizar()
+    {
+        PluginNoKit(KitLocal, "4.0.0");
+        PluginNoKit(Fonte, "4.0.0");
+        PluginNoCodex("4.0.0");
+        PmvniKitJson(Fonte);
+        var origens = Origens() with { ConferirPlugin = (skill, kit) =>
+        {
+            Assert.EndsWith(Path.Combine("4.0.0", "skills", "analise"), skill);
+            Assert.Equal(KitLocal, kit);
+            return Task.FromResult<System.Text.Json.Nodes.JsonObject?>(new() { ["status"] = "CHECK_FAILED",
+                ["different_skill_files"] = new System.Text.Json.Nodes.JsonArray("scripts/validar.py") });
+        }};
+        var linha = Linha(await ComponentesDoKit.LerAsync(origens), "analise-codex");
+        Assert.Equal(SituacaoComponente.AtualizacaoDisponivel, linha.Situacao);
+        Assert.Contains("scripts/validar.py", linha.Detalhe);
+    }
+
+    [Fact]
     public void Atualizar_um_componente_gera_o_cmd_so_dele()
     {
         var chamadas = new List<(string Programa, string Argumento)>();
@@ -164,7 +188,7 @@ public sealed class ComponentesDoKitTestes : IDisposable
         Assert.Contains("-File \"" + Path.Combine(Scripts, ComponentesDoKit.Script) + "\" -Componente analise", cmd);
         Assert.DoesNotContain("motores", cmd);
         Assert.DoesNotContain(ComponentesDoKit.InstaladorDoKit, cmd);
-        Assert.Equal("Atualização iniciada fora do Editor: a análise no Codex e no Claude Code (o mesmo plugin). Quando terminar, clique em Verificar atualizações no cartão Plugins e ferramentas.", texto);
+        Assert.Equal("Atualização iniciada fora do Editor: a análise no Codex e no Claude Code (o mesmo plugin). O Editor confere os componentes ao terminar.", texto);
 
         // "Atualizar todos": o INSTALAR_KIT_PMVNI.cmd atualizar do kit deste computador.
         chamadas.Clear();
