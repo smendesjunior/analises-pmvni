@@ -14,6 +14,8 @@ public sealed record UsoEtapa(string Etapa, string Executor, string? Modelo, lon
     public double? ValorEquivalenteUsd { get; init; }
     internal string? PastaExecucao { get; init; }
     public long? Total { get; init; }
+    public long? CacheGravado { get; init; }
+    internal bool ForaDaCota { get; init; }
     public string? Plano { get; init; }
     public double? CpuMediaMhz { get; init; }
     public double? CpuPicoMhz { get; init; }
@@ -89,7 +91,8 @@ public static class UsoDasIas
                 var executor = Executor(ProgressoLocal.Texto(x, "executor"), ProgressoLocal.Texto(x, "ia"), modelo);
                 JsonElement? detalhe = x.TryGetProperty("tokens_detalhe", out var d) && d.ValueKind == JsonValueKind.Object ? d : null;
                 double? cota5h = null, cotaSemana = null;
-                if (!(x.TryGetProperty("cota_fora", out var fora) && fora.ValueKind == JsonValueKind.True)
+                var foraDaCota = x.TryGetProperty("cota_fora", out var fora) && fora.ValueKind == JsonValueKind.True;
+                if (!foraDaCota && executor != "GPT" && executor != Programa
                     && x.TryGetProperty("cota_usada_pp", out var cota) && cota.ValueKind == JsonValueKind.Object)
                 {
                     cota5h = ProgressoLocal.Numero(cota, "5 h");
@@ -98,7 +101,7 @@ public static class UsoDasIas
                 var duracao = ProgressoLocal.Numero(x, "duracao_s") is { } s and > 0 ? TimeSpan.FromSeconds(s) : (TimeSpan?)null;
                 linhas.Add(new UsoEtapa(etapa, executor, modelo, Inteiro(detalhe, "entrada"), Inteiro(detalhe, "saida"),
                         Inteiro(x, "cache_lido") ?? Inteiro(detalhe, "cache_lido"), duracao, cota5h, cotaSemana)
-                    { Total = Inteiro(x, "tokens"), ValorEquivalenteUsd = ProgressoLocal.Numero(x, "valor_equivalente_usd"),
+                    { Total = Inteiro(x, "tokens"), CacheGravado = Inteiro(detalhe, "cache_gravado"), ForaDaCota = foraDaCota, ValorEquivalenteUsd = ProgressoLocal.Numero(x, "valor_equivalente_usd"),
                       PastaExecucao = ProgressoLocal.Texto(x, "execucao"), Situacao = ProgressoLocal.Texto(x, "situacao") });
             }
 
@@ -131,21 +134,38 @@ public static class UsoDasIas
                 if (anterior is null && linhas.Any(l => l.Etapa == etapa) &&
                     (pasta is null || r.TryGetProperty("route_attempts", out var tentativas) && tentativas.ValueKind == JsonValueKind.Array))
                     continue;
-                var cotaDaConta = ProgressoLocal.Texto(r, "route") != "api" && executor != Programa;
-                var antes = Objeto(Objeto(r, "quota_before"), "windows");
-                var depois = Objeto(Objeto(r, "quota_after"), "windows");
+                var cotaDaConta = anterior?.ForaDaCota != true && ProgressoLocal.Texto(r, "route") != "api" && executor != Programa;
+                var amostraAntes = Objeto(r, "quota_before");
+                var amostraDepois = Objeto(r, "quota_after");
+                var antes = Objeto(amostraAntes, "windows");
+                var depois = Objeto(amostraDepois, "windows");
+                var contaAntes = Identificador(amostraAntes, "account_id");
+                var contaDepois = Identificador(amostraDepois, "account_id");
+                var usaLb = ProgressoLocal.Texto(r, "route") == "codex-lb" || Identificador(amostraAntes, "origem") == "codex-lb"
+                    || Identificador(amostraDepois, "origem") == "codex-lb";
+                var contaDaSessao = Identificador(sessao, "account_id") ?? daSessao?.Conta;
+                var exigeConta = usaLb || executor == "GPT" || anterior?.Executor == "GPT";
+                var mesmoPar = contaAntes == contaDepois && (!exigeConta || contaAntes is not null && contaAntes == contaDaSessao);
+                double? Pontos(string chave, string alternativa, double? registrado, double? observado)
+                {
+                    if (!cotaDaConta) return null;
+                    if (antes is not null || depois is not null)
+                        return (mesmoPar ? Variacao(antes, depois, chave, alternativa) : null) ?? observado;
+                    return observado ?? registrado;
+                }
                 var linha = new UsoEtapa(etapa, anterior?.Executor is { } quem && quem != TextoConsumo.Desconhecido ? quem : executor,
                     anterior?.Modelo ?? (executor == Programa ? null : modelo ?? executorDoRegistro),
                     anterior?.Entrada ?? Inteiro(tokens, "entrada") ?? daSessao?.Entrada,
                     anterior?.Saida ?? Inteiro(tokens, "saida") ?? daSessao?.Saida,
                     anterior?.CacheLido ?? Inteiro(usoEtapa, "cache_lido") ?? Inteiro(tokens, "cache_lido") ?? daSessao?.Cache,
                     anterior?.Duracao ?? duracao,
-                    anterior?.Cota5h ?? (cotaDaConta ? Variacao(antes, depois, "primary", "five_hour") ?? daSessao?.Cota5h : null),
-                    anterior?.CotaSemana ?? (cotaDaConta ? Variacao(antes, depois, "secondary", "seven_day") ?? daSessao?.CotaSemana : null))
+                    Pontos("primary", "five_hour", anterior?.Cota5h, daSessao?.Cota5h),
+                    Pontos("secondary", "seven_day", anterior?.CotaSemana, daSessao?.CotaSemana))
                 {
                     Plano = daSessao?.Plano,
-                    Usada5h = cotaDaConta ? PercentualUsado(depois, "primary", "five_hour") ?? daSessao?.Usada5h : null,
-                    UsadaSemana = cotaDaConta ? PercentualUsado(depois, "secondary", "seven_day") ?? daSessao?.UsadaSemana : null,
+                    CacheGravado = anterior?.CacheGravado ?? Inteiro(tokens, "cache_gravado"),
+                    Usada5h = cotaDaConta ? PercentualUsado(mesmoPar ? depois : null, "primary", "five_hour") ?? daSessao?.Usada5h : null,
+                    UsadaSemana = cotaDaConta ? PercentualUsado(mesmoPar ? depois : null, "secondary", "seven_day") ?? daSessao?.UsadaSemana : null,
                     Total = anterior?.Total ?? Inteiro(usoEtapa, "total_tokens") ?? daSessao?.Total,
                     ValorEquivalenteUsd = anterior?.ValorEquivalenteUsd ?? (usoEtapa is { } u ? ProgressoLocal.Numero(u, "valor_equivalente_usd") : null),
                     Situacao = anterior?.Situacao ?? ProgressoLocal.Texto(r, "status"),
@@ -333,10 +353,28 @@ public static class UsoDasIas
         var fim = Objeto(depois, chave) ?? Objeto(depois, alternativa);
         if (inicio is not { } a || fim is not { } b || ProgressoLocal.Numero(a, "used_percent") is not { } inicial
             || ProgressoLocal.Numero(b, "used_percent") is not { } final || final < inicial) return null;
-        if (a.TryGetProperty("resets_at", out var r1) && b.TryGetProperty("resets_at", out var r2)
-            && !JsonElement.DeepEquals(r1, r2)) return null;
+        if (inicial is < 0 or > 100 || final is < 0 or > 100) return null;
+        var minutos = chave == "primary" ? 300 : 10080;
+        if (ProgressoLocal.Numero(a, "window_minutes") is { } m1 && m1 != minutos ||
+            ProgressoLocal.Numero(b, "window_minutes") is { } m2 && m2 != minutos) return null;
+        var r1 = Renovacao(a);
+        var r2 = Renovacao(b);
+        if (r1 is null || r2 is null || !MesmaRenovacao(r1.Value, r2.Value)) return null;
         return Math.Round(final - inicial, 1);
     }
+
+    // As respostas podem converter "reinicia em N segundos" em instantes ligeiramente diferentes.
+    internal static bool MesmaRenovacao(double a, double b) => Math.Abs(a - b) <= 5;
+
+    static double? Renovacao(JsonElement janela)
+    {
+        if (ProgressoLocal.Numero(janela, "resets_at") is { } segundos) return segundos;
+        return janela.TryGetProperty("resets_at", out var valor) && valor.ValueKind == JsonValueKind.String &&
+            valor.TryGetDateTimeOffset(out var data) ? data.ToUnixTimeMilliseconds() / 1000d : null;
+    }
+
+    internal static string? Identificador(JsonElement? dados, string nome) =>
+        dados is { } item && ProgressoLocal.Texto(item, nome) is { } id && !string.IsNullOrWhiteSpace(id) ? id : null;
 
     internal static JsonElement? Objeto(JsonElement? pai, string nome) =>
         pai is { ValueKind: JsonValueKind.Object } p && p.TryGetProperty(nome, out var filho) && filho.ValueKind == JsonValueKind.Object ? filho : null;

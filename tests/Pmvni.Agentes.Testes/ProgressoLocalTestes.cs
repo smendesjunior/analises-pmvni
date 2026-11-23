@@ -308,10 +308,11 @@ public class ProgressoLocalTestes
         }
         Assert.Equal(TimeSpan.FromSeconds(100), uso[0].Duracao);
         var a = uso[1];
+        Assert.Equal(100L, a.CacheGravado);
         Assert.Equal(("claude-opus-ficticio", 1000L, 400L, 90000L, TimeSpan.FromSeconds(600), 7.0, 1.5),
             (a.Modelo, a.Entrada, a.Saida, a.CacheLido, a.Duracao, a.Cota5h, a.CotaSemana));
         var t = uso[2];
-        Assert.Equal(((long?)null, (long?)null, 89221L, (double?)null, 2.0), (t.Entrada, t.Saida, t.Total, t.Cota5h, t.CotaSemana));
+        Assert.Equal(((long?)null, (long?)null, 89221L, (double?)null, (double?)null), (t.Entrada, t.Saida, t.Total, t.Cota5h, t.CotaSemana));
 
         // Rota ChatGPT (analise): sem uso-das-IAs.json; o executor vem do engine_state (o modelo observado), sem tokens.
         var analise = Controle(pasta, "analise");
@@ -402,8 +403,8 @@ public class ProgressoLocalTestes
         using var pasta = Ambiente.PastaDeTeste("consumo-parcial");
         var controle = Controle(pasta);
         var etapa = Feita(1000, 1100);
-        etapa["quota_before"] = JsonNode.Parse("""{"windows":{"five_hour":{"used_percent":11},"seven_day":{"used_percent":20}}}""");
-        etapa["quota_after"] = JsonNode.Parse("""{"windows":{"five_hour":{"used_percent":14},"seven_day":{"used_percent":2}}}""");
+        etapa["quota_before"] = JsonNode.Parse("""{"windows":{"five_hour":{"used_percent":11,"resets_at":2000},"seven_day":{"used_percent":20}}}""");
+        etapa["quota_after"] = JsonNode.Parse("""{"windows":{"five_hour":{"used_percent":14,"resets_at":2000},"seven_day":{"used_percent":2}}}""");
         etapa["usage"] = JsonNode.Parse("""{"tokens":{"entrada":120,"saida":0},"cache_lido":18,"valor_equivalente_usd":0.12}""");
         Gravar(controle, "engine_state.json", Estado(("analyze", etapa)));
         Gravar(controle, UsoDasIas.Arquivo, JsonNode.Parse("""{"execucoes":[{"etapa":"analyze","valor_equivalente_usd":0.07}]}""")!);
@@ -430,21 +431,70 @@ public class ProgressoLocalTestes
         var arquivo = Path.Combine(dir.FullName, $"rollout-teste-{id:D}.jsonl");
         var leitor = new ConsumoSessaoCodex(pasta);
         UsoEtapa Ler() => Assert.Single(UsoDasIas.Ler(controle, sessoesCodex: leitor));
-        string Evento(int tokens, int percentual, int fim) => System.Text.Json.JsonSerializer.Serialize(new
+        string Evento(int tokens, int percentual, int fim, string? conta = "conta-a") => System.Text.Json.JsonSerializer.Serialize(new
         {
             type = "event_msg", payload = new { type = "token_count",
                 info = new { total_token_usage = new { input_tokens = tokens, cached_input_tokens = 0, output_tokens = 3 } },
-                rate_limits = new { primary = new { used_percent = percentual, window_minutes = 300, resets_at = fim } } }
+                rate_limits = new { limit_id = "codex", account_id = conta, primary = new { used_percent = percentual, window_minutes = 300, resets_at = fim } } }
         });
-        File.WriteAllText(arquivo, Evento(10, 20, 2000) + "\n" + Evento(40, 25, 2000), Utf8);
+        File.WriteAllText(arquivo, Evento(10, 20, 2000) + "\n" + Evento(40, 25, 2002), Utf8);
         Assert.Equal(10L, Ler().Entrada);
         File.AppendAllText(arquivo, "\n", Utf8);
         var uso = Ler();
         Assert.Equal((40L, 0L, 3L, 5d), (uso.Entrada, uso.CacheLido, uso.Saida, uso.Cota5h));
         Assert.Equal(25d, uso.Usada5h);
         Assert.Equal(uso, Ler());
+        var amostra = Evento(40, 25, 2002);
+        File.AppendAllText(arquivo, amostra.Replace("\"limit_id\":\"codex\"", "\"limit_id\":\"outra-cota\"") + "\n", Utf8);
+        Assert.Equal(5d, Ler().Cota5h);
+        File.AppendAllText(arquivo, Evento(42, 32, 2000, "conta-b") + "\n", Utf8);
+        Assert.Null(Ler().Cota5h);
+        File.AppendAllText(arquivo, Evento(43, 34, 2000, "conta-b") + "\n", Utf8);
+        Assert.Null(Ler().Cota5h);
         File.AppendAllText(arquivo, Evento(50, 2, 4000) + "\n", Utf8);
         Assert.Null(Ler().Cota5h);
+    }
+
+    [Theory]
+    [InlineData("codex-lb", null)]
+    [InlineData("openai", 5d)]
+    public void ContaDoCriadorSoRepresentaRotaDireta(string provedor, double? esperado)
+    {
+        using var pasta = Ambiente.PastaDeTeste("cota-criador");
+        var dia = DateTimeOffset.FromUnixTimeSeconds(1000).LocalDateTime.ToString("yyyy/MM/dd", System.Globalization.CultureInfo.InvariantCulture);
+        var dir = Directory.CreateDirectory(Path.Combine(pasta, "sessions", dia));
+        var id = Guid.NewGuid();
+        string Evento(int percentual) => System.Text.Json.JsonSerializer.Serialize(new { type = "event_msg",
+            payload = new { type = "token_count", info = new { total_token_usage = new { input_tokens = 1200, cached_input_tokens = 900 } },
+                rate_limits = new { primary = new { used_percent = percentual, window_minutes = 300, resets_at = 2000 } } } });
+        var meta = System.Text.Json.JsonSerializer.Serialize(new { type = "session_meta", payload = new { model_provider = provedor, creator_account_id = "criador" } });
+        File.WriteAllLines(Path.Combine(dir.FullName, $"rollout-teste-{id:D}.jsonl"), [meta, Evento(5), Evento(10)], Utf8);
+        var sessao = System.Text.Json.JsonSerializer.SerializeToElement(new { id, inicio = 1000 });
+        var uso = new ConsumoSessaoCodex(pasta).Ler(sessao)!;
+        Assert.Equal(esperado, uso.Cota5h);
+        Assert.Equal(1200L, uso.Entrada); // A leitura de 900 tokens em cache já integra a entrada do Codex.
+        Assert.Equal(900L, uso.Cache);
+    }
+
+    [Theory]
+    [InlineData("a", "a", 1000, 1003, 8d)]
+    [InlineData("a", "b", 1000, 1000, null)]
+    [InlineData(null, null, 1000, 1000, null)]
+    [InlineData("a", "a", 1000, 19000, null)]
+    public void MedicaoDoLbExigeMesmaContaEMesmaJanela(string? a, string? b, int resetA, int resetB, double? esperado)
+    {
+        using var pasta = Ambiente.PastaDeTeste("medicao-cota-lb");
+        var controle = Controle(pasta, "analise");
+        var etapa = Feita(1000, 1100, "codex");
+        JsonNode Amostra(string? conta, int fim, int usado) => System.Text.Json.JsonSerializer.SerializeToNode(
+            new { origem = "codex-lb", account_id = conta, windows = new { primary = new { resets_at = fim, used_percent = usado } } })!;
+        etapa["quota_before"] = Amostra(a, resetA, 10);
+        etapa["quota_after"] = Amostra(b, resetB, 18);
+        var estado = Estado(("analyze", etapa));
+        estado["sessao_codex"] = JsonNode.Parse("""{"analyze":{"account_id":"a"}}""");
+        Gravar(controle, "engine_state.json", estado);
+        Gravar(controle, UsoDasIas.Arquivo, JsonNode.Parse("""{"execucoes":[{"etapa":"analyze","ia":"GPT","cota_usada_pp":{"5 h":99}}]}""")!);
+        Assert.Equal(esperado, Assert.Single(UsoDasIas.Ler(controle)).Cota5h);
     }
 
     [Fact]

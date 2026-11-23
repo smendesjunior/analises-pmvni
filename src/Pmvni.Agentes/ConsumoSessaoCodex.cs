@@ -10,6 +10,7 @@ public sealed class ConsumoSessaoCodex(string codexHome)
     internal sealed record Contadores(long? Entrada, long? Saida, long? Cache, long? Total, double? Cota5h, double? CotaSemana, double? Usada5h, double? UsadaSemana)
     {
         public string? Plano { get; init; }
+        internal string? Conta { get; init; }
     }
     readonly Dictionary<Guid, Leitura> sessoes = [];
 
@@ -17,6 +18,9 @@ public sealed class ConsumoSessaoCodex(string codexHome)
     {
         public long Posicao;
         public Contadores? Uso;
+        public string? ContaDireta;
+        public string? ContaMedida;
+        public bool ContaIndeterminada;
         public Janela CincoHoras = new();
         public Janela Semanal = new();
     }
@@ -24,17 +28,19 @@ public sealed class ConsumoSessaoCodex(string codexHome)
     sealed class Janela
     {
         public double? Usada { get; private set; }
-        double? inicial, renovacao;
-        bool renovou;
+        double? inicial, renovacao, anterior;
+        bool intervaloIncomparavel;
         public double? Variacao(JsonElement? janela, int minutos)
         {
             if (janela is not { } j || ProgressoLocal.Numero(j, "window_minutes") != minutos ||
-                ProgressoLocal.Numero(j, "used_percent") is not { } usado ||
+                ProgressoLocal.Numero(j, "used_percent") is not { } usado || usado is < 0 or > 100 ||
                 ProgressoLocal.Numero(j, "resets_at") is not { } fim) return null;
-            Usada = usado is >= 0 and <= 100 ? usado : null;
+            if (inicial.HasValue && (usado < anterior || !UsoDasIas.MesmaRenovacao(renovacao!.Value, fim)))
+                intervaloIncomparavel = true;
+            Usada = usado;
+            anterior = usado;
             if (inicial is null) { inicial = usado; renovacao = fim; return null; }
-            renovou |= fim != renovacao || usado < inicial;
-            return renovou ? null : usado - inicial;
+            return intervaloIncomparavel ? null : usado - inicial;
         }
     }
 
@@ -123,13 +129,18 @@ public sealed class ConsumoSessaoCodex(string codexHome)
     static void Registrar(MemoryStream linha, Leitura leitura)
     {
         var bytes = linha.GetBuffer().AsMemory(0, (int)linha.Length);
-        if (bytes.Span.IndexOf("\"token_count\""u8) < 0 && bytes.Span.IndexOf("update_plan"u8) < 0) return;
+        if (bytes.Span.IndexOf("\"token_count\""u8) < 0 && bytes.Span.IndexOf("update_plan"u8) < 0 && bytes.Span.IndexOf("\"session_meta\""u8) < 0) return;
         try
         {
             using var doc = JsonDocument.Parse(bytes);
             var raiz = doc.RootElement;
             var payload = UsoDasIas.Objeto(raiz, "payload");
             if (raiz.ValueKind != JsonValueKind.Object) return;
+            if (ProgressoLocal.Texto(raiz, "type") == "session_meta" && payload is { } meta)
+            {
+                leitura.ContaDireta = ProgressoLocal.Texto(meta, "model_provider") == "openai" ? UsoDasIas.Identificador(meta, "creator_account_id") : null;
+                return;
+            }
             if (ProgressoLocal.Texto(raiz, "type") == "response_item" && payload is { } chamada
                 && ProgressoLocal.Texto(chamada, "type") == "function_call"
                 && ProgressoLocal.Texto(chamada, "name") is "update_plan" or "functions.update_plan"
@@ -156,14 +167,26 @@ public sealed class ConsumoSessaoCodex(string codexHome)
                 || payload is not { } p || ProgressoLocal.Texto(p, "type") != "token_count") return;
             var t = UsoDasIas.Objeto(UsoDasIas.Objeto(p, "info"), "total_token_usage");
             var cotas = UsoDasIas.Objeto(p, "rate_limits");
+            // Outros modelos podem ter limites separados. O plano ("plan_type") também não identifica uma conta.
+            if (cotas is { } limites && ProgressoLocal.Texto(limites, "limit_id") is { } limite && limite != "codex") cotas = null;
+            var conta = UsoDasIas.Identificador(cotas, "account_id") ?? leitura.ContaDireta;
+            // A conta do criador de uma conversa do LB pode diferir da conta que atendeu cada pedido.
+            var cincoHoras = UsoDasIas.Objeto(cotas, "primary");
+            var semanal = UsoDasIas.Objeto(cotas, "secondary");
+            if (cincoHoras.HasValue || semanal.HasValue)
+            {
+                leitura.ContaIndeterminada |= conta is null || leitura.ContaMedida is not null && leitura.ContaMedida != conta;
+                leitura.ContaMedida = conta;
+            }
             var anterior = leitura.Uso;
             leitura.Uso = new(UsoDasIas.Inteiro(t, "input_tokens") ?? anterior?.Entrada,
                 UsoDasIas.Inteiro(t, "output_tokens") ?? anterior?.Saida,
                 UsoDasIas.Inteiro(t, "cached_input_tokens") ?? anterior?.Cache,
                 UsoDasIas.Inteiro(t, "total_tokens") ?? anterior?.Total,
-                cotas is null ? anterior?.Cota5h : leitura.CincoHoras.Variacao(UsoDasIas.Objeto(cotas, "primary"), 300),
-                cotas is null ? anterior?.CotaSemana : leitura.Semanal.Variacao(UsoDasIas.Objeto(cotas, "secondary"), 10080),
-                leitura.CincoHoras.Usada, leitura.Semanal.Usada) { Plano = anterior?.Plano };
+                leitura.ContaIndeterminada ? null : cincoHoras is null ? anterior?.Cota5h : leitura.CincoHoras.Variacao(cincoHoras, 300),
+                leitura.ContaIndeterminada ? null : semanal is null ? anterior?.CotaSemana : leitura.Semanal.Variacao(semanal, 10080),
+                leitura.ContaIndeterminada ? null : leitura.CincoHoras.Usada, leitura.ContaIndeterminada ? null : leitura.Semanal.Usada)
+                { Plano = anterior?.Plano, Conta = leitura.ContaIndeterminada ? null : leitura.ContaMedida };
         }
         catch (JsonException) { } // Um evento inválido não descarta os anteriores.
     }
