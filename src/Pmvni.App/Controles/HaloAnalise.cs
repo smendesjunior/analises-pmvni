@@ -4,72 +4,78 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Shapes;
 using Windows.UI.ViewManagement;
 
 namespace Pmvni.App;
 
-/// <summary>Halo arredondado atrás da pílula enquanto a análise está em execução.</summary>
+/// <summary>Uma onda discreta se afasta do contorno da pílula durante a análise.</summary>
 public sealed partial class HaloAnalise : Grid
 {
     readonly UISettings preferencias = new();
     readonly AccessibilitySettings acessibilidade = new();
-
-    readonly SpriteVisual luz;
+    readonly Visual onda;
     bool ativo;
+    bool pulsando;
 
     public HaloAnalise()
     {
-        var verde = Microsoft.UI.ColorHelper.FromArgb(255, 31, 188, 88);
-        var mascara = new Rectangle { RadiusX = 18, RadiusY = 18, Fill = new SolidColorBrush(verde) };
-        Children.Add(mascara);
-        var anel = new Border { Margin = new Thickness(-2), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18),
-            BorderBrush = new SolidColorBrush(verde) };
-        Children.Add(anel);
-        var suporte = new Grid();
-        Children.Insert(0, suporte);
-        var compositor = ElementCompositionPreview.GetElementVisual(suporte).Compositor;
-        var sombra = compositor.CreateDropShadow();
-        sombra.Mask = mascara.GetAlphaMask();
-        sombra.BlurRadius = 16;
-        sombra.Color = verde;
-        sombra.Offset = Vector3.Zero;
-        luz = compositor.CreateSpriteVisual();
-        luz.Brush = compositor.CreateColorBrush(Microsoft.UI.Colors.Transparent);
-        luz.RelativeSizeAdjustment = Vector2.One;
-        luz.Shadow = sombra;
-        ElementCompositionPreview.SetElementChildVisual(suporte, luz);
+        var borda = new Border
+        {
+            CornerRadius = new CornerRadius(16),
+            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 68, 145, 103))
+        };
+        Children.Add(borda);
+        onda = ElementCompositionPreview.GetElementVisual(borda);
+        onda.Opacity = 0;
         Loaded += (_, _) => Atualizar();
-        Unloaded += (_, _) => { luz.StopAnimation("Opacity"); pulsando = null; };
-        Visibility = Visibility.Collapsed;
+        Unloaded += (_, _) => Parar();
+        SizeChanged += (_, _) => { Parar(); Atualizar(); };
     }
 
     internal bool Ativo
     {
-        set
-        {
-            ativo = value;
-            Atualizar();
-        }
+        set { ativo = value; Atualizar(); }
     }
 
-    bool? pulsando;
+    void Parar()
+    {
+        if (!pulsando) return;
+        pulsando = false;
+        onda.StopAnimation("Scale");
+        onda.StopAnimation("Opacity");
+        onda.Opacity = 0;
+        onda.Scale = Vector3.One;
+    }
+
     void Atualizar()
     {
-        var visivel = ativo && !acessibilidade.HighContrast;
-        Visibility = visivel ? Visibility.Visible : Visibility.Collapsed;
-        var animar = visivel && preferencias.AnimationsEnabled && IsLoaded;
-        if (pulsando == animar) return;
-        pulsando = animar;
-        luz.StopAnimation("Opacity");
-        luz.Opacity = .48f;
-        if (!animar) return;
-        var pulso = luz.Compositor.CreateScalarKeyFrameAnimation();
-        pulso.InsertKeyFrame(0, .32f);
-        pulso.InsertKeyFrame(.5f, .95f);
-        pulso.InsertKeyFrame(1, .32f);
-        pulso.Duration = TimeSpan.FromSeconds(2.4);
-        pulso.IterationBehavior = AnimationIterationBehavior.Forever;
-        luz.StartAnimation("Opacity", pulso);
+        if (!IsLoaded || !ativo || acessibilidade.HighContrast || !preferencias.AnimationsEnabled
+            || ActualWidth <= 0 || ActualHeight <= 0)
+        {
+            Parar();
+            return;
+        }
+        if (pulsando) return;
+        pulsando = true;
+        var largura = (float)ActualWidth;
+        var altura = (float)ActualHeight;
+        onda.CenterPoint = new Vector3(largura / 2, altura / 2, 0);
+        // O mesmo deslocamento nas quatro bordas, inclusive no modo compacto.
+        const float alcance = 4;
+        var fim = new Vector3(1 + 2 * alcance / largura, 1 + 2 * alcance / altura, 1);
+        var expansao = onda.Compositor.CreateVector3KeyFrameAnimation();
+        expansao.InsertKeyFrame(0, Vector3.One);
+        expansao.InsertKeyFrame(.72f, fim);
+        expansao.InsertKeyFrame(1, fim);
+        var opacidade = onda.Compositor.CreateScalarKeyFrameAnimation();
+        opacidade.InsertKeyFrame(0, 0);
+        opacidade.InsertKeyFrame(.16f, .30f);
+        opacidade.InsertKeyFrame(.72f, 0);
+        opacidade.InsertKeyFrame(1, 0);
+        expansao.Duration = opacidade.Duration = TimeSpan.FromSeconds(3.4);
+        expansao.IterationBehavior = opacidade.IterationBehavior = AnimationIterationBehavior.Forever;
+        onda.StartAnimation("Scale", expansao);
+        onda.StartAnimation("Opacity", opacidade);
     }
 }

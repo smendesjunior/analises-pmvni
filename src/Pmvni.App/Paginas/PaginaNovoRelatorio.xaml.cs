@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -416,26 +416,29 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         PreencherResumoConsumo(uso);
         GradeConsumo.Children.Clear();
-        foreach (var etapa in uso)
+        if (uso.Count > 0)
         {
-            var dados = TextoConsumo.Metricas(etapa).ToList();
-            // Fluxo linear do kit: auditoria cruzada, relatório e revisão final rodam por programa local, sem IA.
-            if (etapa.Executor == UsoDasIas.Programa) dados.Insert(0, ("Consumo de IA", "nenhum (programa local)"));
-            if (etapa.Duracao is { } tempo)
-                dados.Add(("Tempo", FluxoNovoRelatorio.TempoLegivel(tempo, incluirSegundos: true)));
-            if (dados.Count == 0) continue;
-            var nome = FluxoNovoRelatorio.NomeDaEtapa(etapa.Etapa);
-            var titulo = string.Join(" · ", new[] { nome, etapa.Executor, etapa.Modelo }
-                .Where(x => !string.IsNullOrWhiteSpace(x) && x != TextoConsumo.Desconhecido).Distinct());
-            var bloco = new StackPanel { Spacing = 6 };
-            bloco.Children.Add(new TextBlock { Text = titulo, Style = Estilo("PmvniAjusteTitulo"), TextWrapping = TextWrapping.Wrap });
-            var metricas = new PainelQuebra { Espaco = 18, EspacoLinhas = 4 };
-            foreach (var (rotulo, valor) in dados)
-                metricas.Children.Add(new TextBlock { Text = $"{rotulo}  {valor}", IsTextSelectionEnabled = true });
-            bloco.Children.Add(metricas);
-            GradeConsumo.Children.Add(new Border { Style = Estilo("MonitorLadrilho"), Child = bloco });
+            GradeConsumo.Children.Add(LinhaTabelaConsumo(["Etapa", "Executor", "Entrada", "Saída", "Cache lido", "Cota de 5 h", "Cota semanal", "Tempo"], true));
+            foreach (var etapa in uso)
+            {
+                var tempo = etapa.Duracao is { } d ? FluxoNovoRelatorio.TempoLegivel(d, incluirSegundos: true) : "—";
+                var linha = LinhaTabelaConsumo([FluxoNovoRelatorio.NomeDaEtapa(etapa.Etapa), NomeExecutor(etapa),
+                    TextoConsumo.Numero(etapa.Entrada), TextoConsumo.Numero(etapa.Saida), TextoConsumo.Numero(etapa.CacheLido),
+                    Pontos(etapa.Cota5h), Pontos(etapa.CotaSemana), tempo], false);
+                var detalhe = TextoConsumo.Metricas(etapa).Select(x => $"{x.Rotulo} · {x.Valor}").ToList();
+                if (etapa.Situacao is { } estado) detalhe.Insert(0, estado);
+                if (detalhe.Count > 0)
+                {
+                    var texto = string.Join(Environment.NewLine, detalhe);
+                    ToolTipService.SetToolTip(linha, texto);
+                    AutomationProperties.SetHelpText(linha, texto);
+                }
+                GradeConsumo.Children.Add(linha);
+            }
         }
-        ConsumoVazio.Visibility = Visivel(GradeConsumo.Children.Count == 0);
+        var quantas = uso.Select(e => e.Etapa).Distinct().Count();
+        ContagemConsumo.Text = etapasMostradas.Length > 0 ? $"{quantas} de {etapasMostradas.Length} etapas com registro" : "";
+        ConsumoVazio.Visibility = Visivel(uso.Count == 0);
         GraficosDeConsumo(PainelGraficos, uso);
     }
 
@@ -557,7 +560,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         IconeStatus.Visibility = Visivel(!percentual.HasValue && !animar);
         RotuloEstimado.Visibility = Visivel(percentualEstimado);
         AtualizarContagemResumo();
-        ContagemAtividades.Text = $"{feitas} / {etapas.Count} · {TextoPercentual.Text}";
+        ContagemAtividades.Text = $"{feitas} de {etapas.Count} etapas concluídas";
+        EstimativaAtividades.Text = $"Progresso total: {TextoPercentual.Text}";
         var origemPercentual = percentual is null ? FluxoNovoRelatorio.PrevisaoDepoisDasEtapas
             : !concluiu && EstimativaAtual is { PercentualGeral: not null } estimativa ? $"Progresso {OrigemDoPercentual(estimativa)}"
             : "Progresso pelas etapas concluídas";
@@ -595,25 +599,38 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             });
             var percentualEtapa = PercentualDaEtapa(nome, estado);
             var descricao = DescricaoDaEtapa(nome);
-            if (atual && ProgressoAtual is { Total: > 0 } itens && FluxoNovoRelatorio.NomeDaEtapa(itens.Etapa) == nome)
-                descricao += itens.Secoes ? $" · {itens.Avaliados} de {itens.Total} seções com resultado" : $" · {itens.Avaliados} de {itens.Total} itens avaliados";
+            linha.Resultado.Text = ProgressoAtual is { Total: > 0 } itens && FluxoNovoRelatorio.NomeDaEtapa(itens.Etapa) == nome
+                ? $"{itens.Avaliados} de {itens.Total} {(itens.Secoes ? "seções com resultado" : "itens avaliados")}"
+                : SituacaoDaEtapa(estado, atual);
+            if (linha.EstaAtiva != atual)
+            {
+                linha.EstaAtiva = atual;
+                linha.Expansor.IsExpanded = atual;
+            }
+            linha.Icone.Glyph = IdDaEtapa(nome) switch
+            {
+                "prepare" => Glifos.Pasta, "analyze" => Glifos.Pesquisar, "technical_audit" => Glifos.Conferir,
+                "audit" => Glifos.MarcasRevisao, "produce" => Glifos.Relatorio, _ => Glifos.Concluido
+            };
             linha.Legenda.Text = $"{i + 1:00} {(nome == "Produção do relatório" ? "Relatório" : nome)}";
             linha.Legenda.Style = linha.Selo.Style = estilo;
             linha.Titulo.Text = nome;
             linha.Descricao.Text = descricao;
-            linha.Marca.Text = linha.MarcaTrilha.Text = estado switch
+            linha.MarcaTrilha.Text = estado switch
             {
                 EstadoEtapa.Feita => "✓",
                 EstadoEtapa.Erro => "!",
                 _ => atual ? "●" : "○"
             };
-            linha.Marca.Style = linha.MarcaTrilha.Style = estilo;
-            linha.Selo.Text = $"{SituacaoDaEtapa(estado, atual)} · {TextoPercentualEtapa(percentualEtapa)}";
-            linha.Cartao.Style = atual ? Estilo("MonitorFundoAtivo") : estado == EstadoEtapa.Erro ? Estilo("MonitorFundoErro") : null;
+            linha.MarcaTrilha.Style = estilo;
+            linha.Selo.Text = SituacaoDaEtapa(estado, atual);
+            linha.Percentual.Text = TextoPercentualEtapa(percentualEtapa);
+            linha.Cartao.BorderThickness = atual ? new Thickness(2, 0, 0, 1) : new Thickness(0, 0, 0, 1);
+            linha.Cartao.BorderBrush = (Brush)Application.Current.Resources[atual ? "PmvniTonalTexto" : "DividerStrokeColorDefaultBrush"];
             PreencherDetalhes(linha, nome);
             if (linha.Executor.Visibility == Visibility.Visible) descricao += " · " + linha.Executor.Text;
             if (linha.Objecao.Visibility == Visibility.Visible) descricao += ". " + linha.Objecao.Text;
-            linha.Barra.Visibility = Visivel(percentualEtapa.Valor.HasValue);
+            linha.Barra.IsActive = linha.Expansor.IsExpanded && percentualEtapa.Valor.HasValue;
             var valorBarra = percentualEtapa.Valor ?? 0;
             if (linha.Barra.Value != valorBarra) linha.Barra.Value = valorBarra;
             AutomationProperties.SetName(linha.Trilha, $"{nome} · {rotulo}");
@@ -642,7 +659,11 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         p.Valor is { } v ? $"{(p.Aproximado ? "≈ " : "")}{Math.Floor(v):0}%" : "—";
 
     sealed record LinhaEtapa(Grid Trilha, TextBlock MarcaTrilha, TextBlock Legenda, Border Cartao,
-        TextBlock Marca, TextBlock Titulo, TextBlock Selo, TextBlock Descricao, ProgressBar Barra, TextBlock Executor, PainelQuebra Frentes, TextBlock Objecao);
+        FontIcon Icone, TextBlock Titulo, TextBlock Selo, TextBlock Descricao, ProgressRing Barra, TextBlock Executor,
+        PainelQuebra Frentes, TextBlock Objecao, Expander Expansor, TextBlock Percentual, TextBlock Resultado)
+    {
+        public bool EstaAtiva { get; set; }
+    }
     readonly List<LinhaEtapa> linhasEtapas = [];
 
     LinhaEtapa CriarLinhaEtapa()
@@ -660,26 +681,54 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var marcaTrilha = new TextBlock { FontSize = 16 };
         var legenda = new TextBlock { FontSize = 16, TextWrapping = TextWrapping.Wrap };
         var trilha = ComMarcador(marcaTrilha, legenda);
-        var marca = new TextBlock { FontSize = 16 };
-        var titulo = new TextBlock { Style = Estilo("PmvniAjusteTitulo"), FontSize = 17 };
+        var icone = new FontIcon { FontSize = 20, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 3, 0, 0) };
+        var titulo = new TextBlock { Style = Estilo("MonitorTitulo"), HorizontalAlignment = HorizontalAlignment.Left };
         var selo = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-        var cabecalho = new PainelQuebra { Espaco = 12, EspacoLinhas = 2 };
-        cabecalho.Children.Add(titulo);
+        var descricao = new TextBlock { Style = Estilo("MonitorLegenda"), TextWrapping = TextWrapping.Wrap };
+        var cabecalho = new Grid { ColumnSpacing = 12, Padding = new Thickness(0, 5, 0, 5) };
+        cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        cabecalho.ColumnDefinitions.Add(new ColumnDefinition());
+        cabecalho.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        cabecalho.Children.Add(icone);
+        var rotulos = new StackPanel { Spacing = 3 };
+        rotulos.Children.Add(titulo);
+        rotulos.Children.Add(descricao);
+        Grid.SetColumn(rotulos, 1);
+        Grid.SetColumn(selo, 2);
+        cabecalho.Children.Add(rotulos);
         cabecalho.Children.Add(selo);
-        var descricao = new TextBlock { Style = Estilo("PmvniSecondaryTextStyle"), TextWrapping = TextWrapping.Wrap };
-        var barra = new ProgressBar { Maximum = 100, Height = 3, MinHeight = 3, Margin = new Thickness(0, 3, 0, 1) };
-        var executor = new TextBlock { Style = Estilo("MonitorLegenda"), TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed, IsTextSelectionEnabled = true };
-        var frentes = new PainelQuebra { Espaco = 16, EspacoLinhas = 4, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 2, 0, 0) };
-        var objecao = new TextBlock { Style = Estilo("MonitorRotuloErro"), TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed, IsTextSelectionEnabled = true };
-        var textos = new StackPanel { Spacing = 3 };
-        textos.Children.Add(cabecalho);
-        textos.Children.Add(descricao);
-        textos.Children.Add(executor);
-        textos.Children.Add(barra);
-        textos.Children.Add(frentes);
-        textos.Children.Add(objecao);
-        var cartao = new Border { Padding = new Thickness(10, 7, 10, 7), CornerRadius = new CornerRadius(7), Child = ComMarcador(marca, textos) };
-        return new(trilha, marcaTrilha, legenda, cartao, marca, titulo, selo, descricao, barra, executor, frentes, objecao);
+        var barra = new ProgressRing { Maximum = 100, IsIndeterminate = false, Width = 46, Height = 46 };
+        Trabalhando.SetAutomatico(barra, false);
+        var percentual = new TextBlock { FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var anel = new Grid();
+        anel.Children.Add(barra);
+        anel.Children.Add(percentual);
+        var resultado = new TextBlock { Style = Estilo("PmvniAjusteTitulo"), HorizontalAlignment = HorizontalAlignment.Left };
+        var leitura = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
+        leitura.Children.Add(resultado);
+        leitura.Children.Add(new TextBlock { Text = "Resultados recebidos nesta etapa", Style = Estilo("MonitorLegenda") });
+        var progresso = new Grid { ColumnSpacing = 14 };
+        progresso.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        progresso.ColumnDefinitions.Add(new ColumnDefinition());
+        progresso.Children.Add(anel);
+        Grid.SetColumn(leitura, 1);
+        progresso.Children.Add(leitura);
+        var executor = new TextBlock { Style = Estilo("MonitorLegenda"), Visibility = Visibility.Collapsed, IsTextSelectionEnabled = true };
+        var frentes = new PainelQuebra { Espaco = 20, EspacoLinhas = 6, Visibility = Visibility.Collapsed };
+        var objecao = new TextBlock { Style = Estilo("MonitorRotuloErro"), TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        var detalhes = new StackPanel { Spacing = 14 };
+        detalhes.Children.Add(progresso);
+        detalhes.Children.Add(frentes);
+        detalhes.Children.Add(executor);
+        detalhes.Children.Add(objecao);
+        var expansor = new Expander { Header = cabecalho, Content = detalhes, HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch, BorderThickness = new Thickness(0),
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
+        expansor.Expanding += (_, _) => barra.IsActive = true;
+        expansor.Collapsed += (_, _) => barra.IsActive = false;
+        var cartao = new Border { Child = expansor };
+        return new(trilha, marcaTrilha, legenda, cartao, icone, titulo, selo, descricao, barra, executor, frentes, objecao,
+            expansor, percentual, resultado);
     }
 
     void PosicionarEtapas()
@@ -727,6 +776,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         BotoesExecucao.Margin = botoesEmbaixo ? new Thickness(0) : new Thickness(0,8,0,0);
         var areaDaPagina = largura - 2 * margem - (compacto ? 60 : 182);
         var metricasEmbaixo = areaDaPagina < 710;
+        Grid.SetColumnSpan(IdentificacaoResumo, metricasEmbaixo ? 2 : 1);
         Grid.SetRow(MetricasStatus, metricasEmbaixo ? 1 : 0);
         Grid.SetColumn(MetricasStatus, metricasEmbaixo ? 0 : 1);
         Grid.SetColumnSpan(MetricasStatus, metricasEmbaixo ? 2 : 1);

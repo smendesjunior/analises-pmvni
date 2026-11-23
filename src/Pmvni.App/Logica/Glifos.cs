@@ -88,6 +88,9 @@ public static class Glifos
 
     public const string Chave = "\uE8D7";
     public const string Cotas = "\uE1D9";
+    public const string Entrada = "\uE118";
+    public const string Saida = "\uE110";
+    public const string Cache = "\uE1A5";
     public const string Relogio = "\uE916";
     public const string Limpar = "\uE894";
     public const string Selecionar = "\uE8B0";

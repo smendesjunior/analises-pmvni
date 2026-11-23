@@ -549,6 +549,9 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 linhasDemo.Insert(5, "Mensagem: As pranchas mostram dois pavimentos comerciais, com depósitos e 14 vagas.");
                 linhasDemo.Add("Ação: gravou 1 arquivo de trabalho");
                 linhasDemo.Add("Ação: consultou os créditos disponíveis");
+                var primeiroEvento = DateTimeOffset.Now.AddMinutes(-12);
+                for (int i = 0; i < linhasDemo.Count; i++)
+                    linhasDemo[i] = $"[{primeiroEvento.AddSeconds(i * 12):O}] {linhasDemo[i]}";
                 NR.LigarLinhas(linhasDemo);
                 NR.MostrarExecucao(true);
                 NR.MostrarIdentificacao("19486/2026", "Requerente fictício de demonstração");
@@ -585,7 +588,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                     foreach (NavigationViewItem pagina in abas.MenuItems)
                     {
                         abas.SelectedItem = pagina;
-                        await Task.Delay(350);
+                        await Task.Delay(850);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaDemo, $"monitor-{pagina.Content}.png"));
                     }
                     Application.Current.Exit();
