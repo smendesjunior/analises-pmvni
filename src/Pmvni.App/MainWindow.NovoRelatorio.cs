@@ -946,7 +946,7 @@ public sealed partial class MainWindow
             {
                 var desde = InicioDoRegistro(e);
                 return (AchadosExecucao.LerDaExecucao(e.Registro.PastaProgresso, e.Processo.Pasta, e.InicioUtc, controle, desde, historico, DateTimeOffset.UtcNow, ordemDoKit),
-                    UsoDasIas.Ler(controle, desde, ordemDoKit, sessoes),
+                    UsoDasIas.Ler(controle, desde, ordemDoKit, sessoes, e.Fim?.IsCompleted == true ? null : DateTimeOffset.UtcNow),
                     DetalhesDasEtapas.Ler(controle, etapasJson, desde));
             });
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
@@ -1432,6 +1432,7 @@ public sealed partial class MainWindow
         DetalheBotaoAnalise.Text = detalhe.Length == 0 ? "" : "· " + detalhe;
         DetalheBotaoAnalise.Visibility = detalhe.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         var emAndamento = estado == EstadoPilulaAnalise.EmAndamento;
+        HaloDoMonitor.Ativo = emAndamento;
         AnelAnalise.IsActive = emAndamento;
         AnelAnalise.Visibility = emAndamento ? Visibility.Visible : Visibility.Collapsed;
         static Visibility Se(bool v) => v ? Visibility.Visible : Visibility.Collapsed;

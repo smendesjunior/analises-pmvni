@@ -57,13 +57,13 @@ public class AtividadesTestes
     {
         var a = Atividades.DaLinha("[2026-11-18T19:59:35] " + evento, DateTime.Today);
         Assert.Equal(titulo, a.Titulo);
-        Assert.Equal("19:59", a.HoraTexto);
+        Assert.Equal("19:59:35", a.HoraTexto);
     }
 
     [Fact]
     public void Horario_so_quando_disponivel()
     {
         Assert.Equal("", Atividades.DaLinha("Ação: x").HoraTexto);
-        Assert.Equal("14:36", Atividades.DaLinha("Ação: x", new DateTime(2026, 11, 17, 14, 36, 0)).HoraTexto);
+        Assert.Equal("14:36:00", Atividades.DaLinha("Ação: x", new DateTime(2026, 11, 17, 14, 36, 0)).HoraTexto);
     }
 }

@@ -436,9 +436,54 @@ public class ProgressoLocalTestes
         File.AppendAllText(arquivo, "\n", Utf8);
         var uso = Ler();
         Assert.Equal((40L, 0L, 3L, 5d), (uso.Entrada, uso.CacheLido, uso.Saida, uso.Cota5h));
+        Assert.Equal(25d, uso.Usada5h);
         Assert.Equal(uso, Ler());
         File.AppendAllText(arquivo, Evento(50, 2, 4000) + "\n", Utf8);
         Assert.Null(Ler().Cota5h);
+    }
+
+    [Fact]
+    public void Programa_local_le_recursos_da_pasta_da_etapa_e_duracao_apenas_quando_esta_rodando()
+    {
+        using var pasta = Ambiente.PastaDeTeste("recursos-monitor");
+        var controle = Controle(pasta);
+        var run = Directory.CreateDirectory(Path.Combine(controle, "runs", "preparo")).FullName;
+        Gravar(run, "recursos.json", JsonNode.Parse("""{"cpu_mhz_media":2100,"cpu_mhz_pico":3600,"ram_pico_bytes":4096}""")!);
+        var registro = new JsonObject { ["executor"] = "programa", ["status"] = "RUNNING", ["started"] = 1000, ["run"] = run };
+        Gravar(controle, "engine_state.json", Estado(("prepare", registro)));
+        var uso = Assert.Single(UsoDasIas.Ler(controle, agoraEmExecucao: DateTimeOffset.FromUnixTimeSeconds(1070)));
+        Assert.Equal(TimeSpan.FromSeconds(70), uso.Duracao);
+        Assert.Equal((2100d, 3600d, 4096L), (uso.CpuMediaMhz, uso.CpuPicoMhz, uso.RamPicoBytes));
+        Assert.Null(Assert.Single(UsoDasIas.Ler(controle)).Duracao);
+    }
+
+    [Fact]
+    public void Frente_com_id_duplicado_preserva_plano_e_agrega_sessoes_uma_vez()
+    {
+        using var pasta = Ambiente.PastaDeTeste("consumo-frentes");
+        var controle = Controle(pasta);
+        var partes = Directory.CreateDirectory(Path.Combine(controle, "runs", "secoes-teste")).FullName;
+        var estado = Estado(("analyze", Feita(1000, 1100, "codex")));
+        var dia = DateTimeOffset.FromUnixTimeSeconds(1000).LocalDateTime;
+        var dir = Directory.CreateDirectory(Path.Combine(pasta, "sessions", dia.ToString("yyyy/MM/dd", System.Globalization.CultureInfo.InvariantCulture)));
+        var ids = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        for (var i = 0; i < ids.Length; i++)
+        {
+            var id = ids[i];
+            var frente = Directory.CreateDirectory(Path.Combine(partes, $"frente-{(i == 0 ? 1 : 10):00}")).FullName;
+            Gravar(frente, "sessao_monitor.json", new JsonObject { ["id"] = id.ToString(), ["inicio"] = 1000 });
+            var plano = System.Text.Json.JsonSerializer.Serialize(new { type = "response_item", payload = new
+                { type = "function_call", name = "update_plan", arguments = """{"plan":[{"step":"Conferir a peça","status":"in_progress"}]}""" } });
+            var tokens = """{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100}}}}""";
+            File.WriteAllText(Path.Combine(dir.FullName, $"rollout-teste-{id:D}.jsonl"), plano + "\n" + tokens + "\n", Utf8);
+        }
+        estado["sessao_codex"] = new JsonObject { ["analyze"] = new JsonObject { ["id"] = ids[0].ToString(), ["inicio"] = 1000 } };
+        Gravar(controle, "engine_state.json", estado);
+        Gravar(controle, "frentes_ativas.json", new JsonObject { ["pasta"] = partes });
+        var uso = Assert.Single(UsoDasIas.Ler(controle, sessoesCodex: new ConsumoSessaoCodex(pasta)));
+        Assert.Equal(200, uso.Entrada);
+        Assert.Contains("Em andamento · Conferir a peça", uso.Plano);
+        Assert.Null(uso.Cota5h);
     }
 
     [Fact]

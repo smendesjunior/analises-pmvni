@@ -28,15 +28,19 @@ public sealed class LinhaAndamento : Grid
     public bool EmCurso { get => (bool)GetValue(EmCursoProperty); set => SetValue(EmCursoProperty, value); }
 
     readonly TextBlock hora = new() { Style = Estilo("PmvniSecondaryTextStyle"), MinWidth = 40, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Top };
+    readonly TextBlock tipo = new() { Style = Estilo("PmvniPainelRotulo"), VerticalAlignment = VerticalAlignment.Top };
     readonly TextBlock texto = new() { Style = Estilo("BodyTextBlockStyle"), TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
 
     public LinhaAndamento()
     {
         Padding = new Thickness(0, 2, 0, 2);
-        ColumnSpacing = 0;
-        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        ColumnSpacing = 8;
+        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(68) });
         ColumnDefinitions.Add(new ColumnDefinition());
-        SetColumn(texto, 1);
+        ColumnDefinitions.Insert(1, new ColumnDefinition { Width = new GridLength(64) });
+        SetColumn(tipo, 1);
+        SetColumn(texto, 2);
+        Children.Add(tipo);
         Children.Add(hora);
         Children.Add(texto);
     }
@@ -47,6 +51,7 @@ public sealed class LinhaAndamento : Grid
     {
         if (Item is not { } a) return;
         var erro = a.Tipo == TipoAtividade.Erro;
+        tipo.Text = a.Tipo switch { TipoAtividade.Erro => "ERRO", TipoAtividade.Mensagem => "IA", TipoAtividade.Acao => "AÇÃO", _ => "REGISTRO" };
         hora.Text = a.HoraTexto;
         hora.Visibility = a.HoraTexto.Length == 0 ? Visibility.Collapsed : Visibility.Visible;   // linhas de antes da abertura não têm hora
         texto.Inlines.Clear();

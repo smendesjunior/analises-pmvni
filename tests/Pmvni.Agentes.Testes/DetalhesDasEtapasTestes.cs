@@ -44,6 +44,27 @@ public class DetalhesDasEtapasTestes
     }
 
     [Fact]
+    public void Le_plano_frente_da_tentativa_e_registros_reais_incluindo_avisos()
+    {
+        using var pasta = Ambiente.PastaDeTeste("detalhes-plano");
+        var controle = Controle(pasta);
+        var partes = Path.Combine(controle, "runs", "secoes-atual");
+        Gravar(Path.Combine(partes, "frente-01", "atividade.json"), JsonNode.Parse("""{"inicio":1,"fim":9,"status":"em_andamento","descricao":"Conferindo as fontes"}""")!);
+        Gravar(Path.Combine(controle, "frentes_ativas.json"), new JsonObject { ["pasta"] = partes });
+        Gravar(Path.Combine(controle, "plano_execucao.json"), JsonNode.Parse("""{"etapas":[{"id":"prepare"},{"id":"analyze"}]}""")!);
+        Gravar(Path.Combine(controle, "engine_state.json"), JsonNode.Parse("""{"stages":{"prepare":{"note":"Leitura encerrada","evidence":[{"path":"planta.pdf"}]},"analyze":{"status":"RUNNING"}}}""")!);
+        Gravar(Path.Combine(controle, "validadores", "avisos.json"), JsonNode.Parse("""[{"regra":"palavra_repetida","onde":"Resumo","texto":"item item"}]""")!);
+        var dados = DetalhesDasEtapas.Ler(controle);
+        Assert.Equal(new[] { "prepare", "analyze" }, dados.Plano);
+        Assert.Contains("Conferindo as fontes", dados.Frentes[0].Atividade);
+        Assert.Contains("Leitura encerrada", dados.Registros["prepare"]);
+        Assert.Contains("planta.pdf", dados.Registros["prepare"]);
+        Assert.Contains("item item", Assert.Single(dados.Validacoes));
+        Gravar(Path.Combine(controle, "engine_state.json"), JsonNode.Parse("""{"stages":{"analyze":{"status":"FAILED","error":"Erro do auditor"}}}""")!);
+        Assert.Null(DetalhesDasEtapas.Ler(controle).Frentes.FirstOrDefault()?.Atividade);
+    }
+
+    [Fact]
     public void Codex_mostra_modelo_e_esforco_gravados_pelo_executor_e_programa_nas_etapas_locais()
     {
         using var pasta = Ambiente.PastaDeTeste("detalhes-codex");

@@ -45,6 +45,8 @@ public partial class App : Application
             aberta.Activate();
         }));
         principal.Activate();
-        if (!Autoteste.Ativo && Argumentos.Atual.Roteiro is null) _ = Task.Run(InstalacaoMotorPdf.LimparAsync);
+        if (!Autoteste.Ativo && Argumentos.Atual.Roteiro is null && Argumentos.Atual.Captura is null
+            && Environment.GetEnvironmentVariable("PMVNI_DEMO_ANALISE") != "1")
+            _ = Task.Run(InstalacaoMotorPdf.LimparAsync);
     }
 }

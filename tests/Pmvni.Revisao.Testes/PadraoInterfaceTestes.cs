@@ -21,8 +21,8 @@ public class PadraoInterfaceTestes
         var pagina = XDocument.Load(Path.Combine(Fonte, "Paginas", "PaginaNovoRelatorio.xaml"));
         XName nome = XNamespace.Get("http://schemas.microsoft.com/winfx/2006/xaml") + "Name";
         XElement Controle(string id) => pagina.Descendants().Single(e => (string?)e.Attribute(nome) == id);
-        var abas = Controle("AbasMonitor").Elements().Select(e => (string?)e.Attribute("Text"));
-        Assert.Equal(new[] { "Resumo", "Consumo", "Etapas", "Log", "Detalhes" }, abas);
+        var abas = Controle("AbasMonitor").Descendants().Where(e => e.Name.LocalName == "NavigationViewItem").Select(e => (string?)e.Attribute("Content"));
+        Assert.Equal(new[] { "Resumo", "Etapas", "Detalhes", "Consumo", "Log" }, abas);
         var log = Controle("PainelLog");
         var detalhes = Controle("PainelDetalhes");
         foreach (var painel in new[] { log, detalhes })

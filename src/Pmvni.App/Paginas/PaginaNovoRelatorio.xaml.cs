@@ -24,6 +24,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         BotaoEvidenciasPdf.SizeChanged += (_, e) => IconeAbrirEvidencias.Visibility =
             e.NewSize.Width >= 290 ? Visibility.Visible : Visibility.Collapsed;
         AbasMonitor.SelectionChanged += (_, _) => MostrarAba();
+        AbasMonitor.SelectedItem = AbasMonitor.MenuItems[0];
         ListaLinhas.Loaded += (_, _) => RolarLinhasAoFim();
     }
 
@@ -54,6 +55,13 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     internal event EventHandler? DetalhesSelecionados;
     internal bool DetalhesVisiveis => VistaDaExecucao && PainelDetalhes.Visibility == Visibility.Visible;
 
+    void AbrirLogDoMonitor(object sender, RoutedEventArgs args)
+    {
+        AbasMonitor.SelectedItem = AbasMonitor.MenuItems.OfType<NavigationViewItem>().First(i => i.Content as string == "Log");
+        MostrarLogCompleto(true);
+        DispatcherQueue.TryEnqueue(RolarLinhasAoFim);
+    }
+
     void AlternarLogCompleto(object sender, RoutedEventArgs args)
     {
         bool abrir = ListaLinhas.Visibility != Visibility.Visible;
@@ -69,13 +77,18 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     void MostrarAba()
     {
-        var aba = AbasMonitor.SelectedItem?.Text ?? "Resumo";
+        var aba = (AbasMonitor.SelectedItem as NavigationViewItem)?.Content as string ?? "Resumo";
         PainelResumo.Visibility = Visivel(aba == "Resumo");
         CartaoConsumo.Visibility = Visivel(aba == "Consumo");
         CartaoAtividades.Visibility = Visivel(aba == "Etapas");
         PainelLog.Visibility = Visivel(aba == "Log");
         PainelDetalhes.Visibility = Visivel(aba == "Detalhes");
-        if (DetalhesVisiveis) DetalhesSelecionados?.Invoke(this, EventArgs.Empty);
+        if (aba == "Consumo") DesenharConsumo(consumoExibido ?? []);
+        if (DetalhesVisiveis)
+        {
+            AtualizarNarrativa();
+            DetalhesSelecionados?.Invoke(this, EventArgs.Empty);
+        }
         AtualizarRadares();
     }
 
@@ -129,7 +142,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         if (ReferenceEquals(origem, linhas)) return;
         if (origem is not null) origem.CollectionChanged -= LinhasMudaram;
-        MostrarLogCompleto(false);
+        MostrarLogCompleto(true);
         origem = linhas;
         atividades.Clear();
         if (linhas is not null)
@@ -375,6 +388,13 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         if (consumoExibido is not null && consumoExibido.SequenceEqual(uso)) return;
         consumoExibido = uso;
+        if (DetalhesVisiveis) AtualizarNarrativa();
+        if (CartaoConsumo.Visibility == Visibility.Visible) DesenharConsumo(uso);
+    }
+
+    void DesenharConsumo(IReadOnlyList<UsoEtapa> uso)
+    {
+        PreencherResumoConsumo(uso);
         GradeConsumo.Children.Clear();
         foreach (var etapa in uso)
         {
@@ -396,6 +416,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             GradeConsumo.Children.Add(new Border { Style = Estilo("MonitorLadrilho"), Child = bloco });
         }
         ConsumoVazio.Visibility = Visivel(GradeConsumo.Children.Count == 0);
+        GraficosDeConsumo(PainelGraficos, uso);
     }
 
     static string SituacaoDaEtapa(EstadoEtapa estado, bool ativa) => estado switch
@@ -448,12 +469,13 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     }
 
     static bool EquivalentesDetalhes(DetalhesDasEtapas a, DetalhesDasEtapas b) =>
-        a.Frentes.SequenceEqual(b.Frentes) && a.Objecoes.SequenceEqual(b.Objecoes)
+        a.Plano.SequenceEqual(b.Plano) && a.Validacoes.SequenceEqual(b.Validacoes) && a.Frentes.SequenceEqual(b.Frentes) && a.Objecoes.SequenceEqual(b.Objecoes)
+        && a.Registros.Count == b.Registros.Count && a.Registros.All(k => b.Registros.GetValueOrDefault(k.Key) == k.Value)
         && a.Etapas.Count == b.Etapas.Count && a.Etapas.All(k => b.Etapas.TryGetValue(k.Key, out var v) && v == k.Value);
 
     /// <summary>O id do kit da etapa mostrada com este nome (os cartões só conhecem o nome).</summary>
     string? IdDaEtapa(string nome) =>
-        detalhesEtapas.Etapas.Keys.Concat(detalhesEtapas.Objecoes.Select(o => o.Etapa)).Append("analyze")
+        detalhesEtapas.Etapas.Keys.Concat(detalhesEtapas.Registros.Keys).Concat(detalhesEtapas.Objecoes.Select(o => o.Etapa)).Append("analyze")
             .FirstOrDefault(id => FluxoNovoRelatorio.NomeDaEtapa(id) == nome);
 
     void PreencherDetalhes(LinhaEtapa linha, string nome)
@@ -477,6 +499,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             var f = frentes[i];
             var painel = (StackPanel)linha.Frentes.Children[i];
             var texto = FluxoNovoRelatorio.TextoFrente(f);
+            if (f.Atividade is { } atividade) texto += " · " + atividade;
             ((TextBlock)painel.Children[0]).Text = texto;
             var barra = (ProgressBar)painel.Children[1];
             var valor = f.Total > 0 ? 100d * f.Prontas / f.Total : 0;
@@ -507,8 +530,12 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         if (percentual is { } valor) percentual = Math.Clamp(valor, 0, 100);
         BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
         BarraResumoEtapas.Value = percentual ?? 0;
-        var percentualInicial = !concluiu && EstimativaAtual is { PercentualGeral: not null, Inicial: true };
+        var percentualInicial = !concluiu && EstimativaAtual is { PercentualGeral: not null };
         TextoPercentual.Text = percentual is { } p ? $"{(percentualInicial ? "≈ " : "")}{p:0}%" : "—";
+        AnelStatus.IsIndeterminate = percentual is null;
+        AnelStatus.Value = percentual ?? 0;
+        PercentualDoAnel.Text = TextoPercentual.Text;
+        PercentualDoAnel.Visibility = Visivel(animar && percentual.HasValue);
         TextoTotalEtapas.Text = $"{feitas} de {etapas.Count} etapas concluídas";
         TextoEtapasStatus.Text = $"{feitas} / {etapas.Count} concluídas";
         ContagemAtividades.Text = $"{feitas} / {etapas.Count} · {TextoPercentual.Text}";
@@ -575,6 +602,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             AutomationProperties.SetName(linha.Cartao, $"{nome}. {rotulo}. {descricao}");
         }
         if (mudouQuantidade) PosicionarEtapas();
+        if (DetalhesVisiveis) AtualizarNarrativa();
     }
 
     /// <summary>O percentual de uma etapa (3.3.0, pedido do usuário): concluída 100, pendente 0; a atual, o que o Editor calculou para ela
@@ -699,7 +727,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         Grid.SetColumnSpan(MetricasStatus, metricasEmbaixo ? 2 : 1);
         MetricasStatus.Margin = metricasEmbaixo ? new Thickness(0, 7, 0, 0) : new Thickness(0);
 
-        var colunas = largura >= 790 ? 6 : largura >= 470 ? 3 : 2;
+        AbasMonitor.PaneDisplayMode = largura < 860 ? NavigationViewPaneDisplayMode.LeftCompact : NavigationViewPaneDisplayMode.Left;
+        var areaDaPagina = largura - (largura < 860 ? 70 : 205);
+        var colunas = areaDaPagina >= 790 ? 6 : areaDaPagina >= 470 ? 3 : 2;
         if (colunas != colunasDaRota)
         {
             colunasDaRota = colunas;

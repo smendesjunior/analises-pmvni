@@ -7,6 +7,7 @@ namespace Pmvni.Agentes;
 /// existe (ou o executor já registrou a frente em <c>sessao_codex.analyze.frentes</c>).</summary>
 public sealed record FrenteAnalise(int Inicio, int Fim, int Prontas, bool Iniciada, bool Concluida)
 {
+    public string? Atividade { get; init; }
     public int Total => Fim - Inicio + 1;
 }
 
@@ -22,6 +23,10 @@ public sealed record DetalheEtapa(string Etapa, bool Programa, string? Modelo, s
 public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa> Etapas, IReadOnlyList<FrenteAnalise> Frentes,
     IReadOnlyList<ObjecaoPendente> Objecoes)
 {
+    public IReadOnlyList<string> Plano { get; init; } = [];
+    public IReadOnlyList<string> Validacoes { get; init; } = [];
+    public IReadOnlyDictionary<string, string> Registros { get; init; } = new Dictionary<string, string>();
+
     public static DetalhesDasEtapas Vazio { get; } = new(new Dictionary<string, DetalheEtapa>(), [], []);
 
     /// <summary>Os intervalos das frentes (os mesmos de <c>fluxo_linear.BLOCOS</c> do kit).</summary>
@@ -55,6 +60,7 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
     public static DetalhesDasEtapas Ler(string pastaControle, string? etapasJson = null, DateTime desdeUtc = default)
     {
         var etapas = new Dictionary<string, DetalheEtapa>(StringComparer.Ordinal);
+        var registros = new Dictionary<string, string>(StringComparer.Ordinal);
         var programas = EtapasDePrograma(etapasJson);
         var estado = ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "engine_state.json"), desdeUtc);
         JsonElement? stages = estado is { ValueKind: JsonValueKind.Object } e && e.TryGetProperty("stages", out var s) && s.ValueKind == JsonValueKind.Object ? s : null;
@@ -68,6 +74,27 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
         {
             var registro = UsoDasIas.Objeto(stages, id);
             var sessao = UsoDasIas.Objeto(sessoes, id);
+            var linhas = new List<string>();
+            if (registro is { } reg)
+            {
+                foreach (var chave in new[] { "note", "error" })
+                    if (ProgressoLocal.Texto(reg, chave) is { Length: > 0 } texto) linhas.Add(texto);
+                if (reg.TryGetProperty("evidence", out var evidencias) && evidencias.ValueKind == JsonValueKind.Array)
+                    foreach (var ev in evidencias.EnumerateArray().Where(ev => ev.ValueKind == JsonValueKind.Object))
+                        if (ProgressoLocal.Texto(ev, "path") is { Length: > 0 } arquivo)
+                            linhas.Add("Evidência registrada · " + Path.GetFileName(arquivo));
+            }
+            if (sessao is { } sc && sc.TryGetProperty("eventos", out var eventos) && eventos.ValueKind == JsonValueKind.Array)
+                foreach (var ev in eventos.EnumerateArray().Where(ev => ev.ValueKind == JsonValueKind.Object).TakeLast(4))
+                    if (ProgressoLocal.Texto(ev, "evento") is { Length: > 0 } evento)
+                        linhas.Add(string.Join(" · ", new[] { evento.Replace('_', ' '), ProgressoLocal.Texto(ev, "detalhe") }
+                            .Where(t => !string.IsNullOrWhiteSpace(t))));
+            if (sessao is { } rep && ProgressoLocal.Inteiro(rep, "reparos_validador") is > 0 and var total)
+            {
+                linhas.Add($"Sessões de reparo · {total} · {ProgressoLocal.Texto(rep, "modelo_reparo")} {ProgressoLocal.Texto(rep, "esforco_reparo")}".TrimEnd());
+                if (ProgressoLocal.Texto(rep, "correcao_validador") is { Length: > 0 } motivo) linhas.Add(motivo);
+            }
+            if (linhas.Count != 0) registros[id] = string.Join(Environment.NewLine, linhas.Distinct());
             var programa = programas.Contains(id)
                 || registro is { } r0 && (string.Equals(ProgressoLocal.Texto(r0, "executor"), UsoDasIas.Programa, StringComparison.OrdinalIgnoreCase)
                                            || string.Equals(ProgressoLocal.Texto(r0, "engine"), UsoDasIas.Programa, StringComparison.OrdinalIgnoreCase));
@@ -86,7 +113,40 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
             etapas[id] = new DetalheEtapa(id, false, modelo, esforco);
         }
 
-        return new DetalhesDasEtapas(etapas, LerFrentes(pastaControle, sessoes, desdeUtc), LerObjecoes(estado, stages));
+        return new DetalhesDasEtapas(etapas, LerFrentes(pastaControle, sessoes, desdeUtc,
+            UsoDasIas.Objeto(stages, "analyze") is { } etapaRegistrada ? ProgressoLocal.Texto(etapaRegistrada, "status") : null), LerObjecoes(estado, stages))
+        {
+            Registros = registros,
+            Plano = LerPlano(pastaControle, desdeUtc),
+            Validacoes = LerValidacoes(pastaControle, desdeUtc)
+        };
+    }
+
+    static IReadOnlyList<string> LerPlano(string controle, DateTime desde)
+    {
+        var plano = ArquivoJsonDoKit.Ler(Path.Combine(controle, "plano_execucao.json"), desde);
+        if (plano is not { ValueKind: JsonValueKind.Object } p || !p.TryGetProperty("etapas", out var etapas)
+            || etapas.ValueKind != JsonValueKind.Array) return [];
+        return etapas.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object)
+            .Select(x => ProgressoLocal.Texto(x, "id")).OfType<string>().ToList();
+    }
+
+    static IReadOnlyList<string> LerValidacoes(string controle, DateTime desde)
+    {
+        var linhas = new List<string>();
+        foreach (var nome in new[] { "avisos", "consertos", "consertos-publicacao" })
+        {
+            var json = ArquivoJsonDoKit.Ler(Path.Combine(controle, "validadores", nome + ".json"), desde);
+            if (json is not { ValueKind: JsonValueKind.Array } itens) continue;
+            foreach (var x in itens.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object))
+            {
+                if (nome == "avisos" && ProgressoLocal.Texto(x, "regra") is { } regra)
+                    linhas.Add($"Aviso · {regra} · {ProgressoLocal.Texto(x, "onde")} · {ProgressoLocal.Texto(x, "texto")}");
+                else if ((ProgressoLocal.Texto(x, "campo") ?? ProgressoLocal.Texto(x, "onde")) is { } campo && x.TryGetProperty("antes", out var antes)
+                    && x.TryGetProperty("depois", out var depois)) linhas.Add($"Conserto · {campo} · {antes} → {depois}");
+            }
+        }
+        return linhas;
     }
 
     /// <summary>As etapas com <c>"executor": "programa"</c> no <c>etapas.json</c> do kit (vazio sem o arquivo).</summary>
@@ -107,7 +167,7 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
     /// <summary>As frentes: a pasta <c>runs\secoes-&lt;chave&gt;</c> mais recente que o executor gravou nesta análise (o <c>partes_analise.json</c> aponta a
     /// definitiva depois da montagem), com <c>frente-NN\pedido.txt</c> (iniciada), <c>frente-NN\concluida.json</c> (concluída) e os <c>secao-NN.json</c>
     /// (prontas). Sem a pasta, só o registro final do executor (<c>sessao_codex.analyze.frentes</c>). Sem nada disso, vazio (o Monitor não mostra).</summary>
-    internal static IReadOnlyList<FrenteAnalise> LerFrentes(string pastaControle, JsonElement? sessoes, DateTime desdeUtc)
+    internal static IReadOnlyList<FrenteAnalise> LerFrentes(string pastaControle, JsonElement? sessoes, DateTime desdeUtc, string? situacao = null)
     {
         var pasta = PastaDasPartes(pastaControle, desdeUtc);
         if (pasta is not null)
@@ -119,7 +179,17 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
                 var prontas = Enumerable.Range(inicio, fim - inicio + 1).Count(n => File.Exists(Path.Combine(pasta, $"secao-{n:00}.json")));
                 var concluida = File.Exists(Path.Combine(frente, "concluida.json"));
                 var iniciada = concluida || File.Exists(Path.Combine(frente, "pedido.txt")) || prontas > 0;
-                lista.Add(new FrenteAnalise(inicio, fim, concluida ? fim - inicio + 1 : prontas, iniciada, concluida));
+                string? atividade = null;
+                if (ArquivoJsonDoKit.Ler(Path.Combine(frente, "atividade.json"), desdeUtc) is { ValueKind: JsonValueKind.Object } a
+                    && ProgressoLocal.Inteiro(a, "inicio") == inicio && ProgressoLocal.Inteiro(a, "fim") == fim
+                    && ProgressoLocal.Texto(a, "status") is { } status && status is "em_andamento" or "concluida" or "interrompida"
+                    && (status != "em_andamento" || (!concluida && situacao is null or "RUNNING")))
+                {
+                    iniciada = true;
+                    var estado = status.Replace('_', ' ');
+                    atividade = string.Join(" · ", new[] { estado, ProgressoLocal.Texto(a, "descricao") }.Where(t => !string.IsNullOrWhiteSpace(t)));
+                }
+                lista.Add(new FrenteAnalise(inicio, fim, concluida ? fim - inicio + 1 : prontas, iniciada, concluida) { Atividade = atividade });
             }
             if (lista.Any(f => f.Iniciada)) return lista;
         }
@@ -137,10 +207,25 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
         return [];
     }
 
+    internal static string? PastaAtualDasFrentes(string pastaControle, DateTime desdeUtc)
+    {
+        try
+        {
+            var raiz = Path.GetFullPath(Path.Combine(pastaControle, "runs"));
+            if (ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "frentes_ativas.json"), desdeUtc) is { ValueKind: JsonValueKind.Object } atual
+                && ProgressoLocal.Texto(atual, "pasta") is { } pasta && Path.IsPathFullyQualified(pasta)
+                && string.Equals(Path.GetDirectoryName(Path.GetFullPath(pasta)), raiz, StringComparison.OrdinalIgnoreCase)
+                && Directory.Exists(pasta)) return pasta;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { }
+        return null;
+    }
+
     static string? PastaDasPartes(string pastaControle, DateTime desdeUtc)
     {
         try
         {
+            if (PastaAtualDasFrentes(pastaControle, desdeUtc) is { } atual) return atual;
             if (ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "partes_analise.json"), desdeUtc) is { ValueKind: JsonValueKind.Object } partes
                 && ProgressoLocal.Texto(partes, "pasta") is { Length: > 0 } definitiva && Directory.Exists(definitiva)) return definitiva;
             var runs = new DirectoryInfo(Path.Combine(pastaControle, "runs"));

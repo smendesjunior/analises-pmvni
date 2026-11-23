@@ -14,6 +14,12 @@ public sealed record UsoEtapa(string Etapa, string Executor, string? Modelo, lon
     public double? ValorEquivalenteUsd { get; init; }
     internal string? PastaExecucao { get; init; }
     public long? Total { get; init; }
+    public string? Plano { get; init; }
+    public double? CpuMediaMhz { get; init; }
+    public double? CpuPicoMhz { get; init; }
+    public long? RamPicoBytes { get; init; }
+    public double? Usada5h { get; init; }
+    public double? UsadaSemana { get; init; }
 
     /// <summary>A situação da execução no kit (<c>EXECUTED</c>, <c>FAILED</c>, <c>FAILED_QUOTA</c>…), se informada.</summary>
     public string? Situacao { get; init; }
@@ -70,7 +76,7 @@ public static class UsoDasIas
     /// <param name="ordemDoKit">A sequência das etapas que o kit define (<see cref="OrdemDasEtapas.Ler"/>); null = a ordem padrão (kit 3.x). As linhas saem
     /// nessa ordem.</param>
     public static IReadOnlyList<UsoEtapa> Ler(string pastaControle, DateTime desdeUtc = default, OrdemDasEtapas? ordemDoKit = null,
-        ConsumoSessaoCodex? sessoesCodex = null)
+        ConsumoSessaoCodex? sessoesCodex = null, DateTimeOffset? agoraEmExecucao = null)
     {
         var linhas = new List<UsoEtapa>();
         var etapas = (ordemDoKit ?? OrdemDasEtapas.Padrao).Todas.ToList();
@@ -107,13 +113,15 @@ public static class UsoDasIas
                 var r = registro ?? sessao!.Value;
                 var usoEtapa = Objeto(r, "usage");
                 var tokens = Objeto(usoEtapa, "tokens");
-                var daSessao = sessao is { } sc ? sessoesCodex?.Ler(sc) : null;
+                var daSessao = sessoesCodex?.LerEtapa(pastaControle, etapa, sessao, desdeUtc);
                 var modelo = ProgressoLocal.Texto(r, "modelo_observado") ?? ProgressoLocal.Texto(r, "requested_model")
                     ?? (sessao is { } sess ? ProgressoLocal.Texto(sess, "modelo") : null);
                 var executorDoRegistro = ProgressoLocal.Texto(r, "executor");
                 var executor = Executor(executorDoRegistro, ProgressoLocal.Texto(r, "engine") ?? (sessao.HasValue ? "codex" : null), modelo);
-                var inicio = ProgressoLocal.Instante(r, "started");
+                var inicio = ProgressoLocal.Instante(r, "started") ?? (sessao is { } ativa ? ProgressoLocal.Instante(ativa, "inicio") : null);
                 var fim = ProgressoLocal.Instante(r, "ended");
+                if (fim is null && ProgressoLocal.Texto(r, "status") == "RUNNING")
+                    fim = agoraEmExecucao;
                 var duracao = ProgressoLocal.Numero(r, "duracao_s") is { } segundos and >= 0 ? TimeSpan.FromSeconds(segundos)
                     : inicio is { } a && fim is { } b && b >= a ? b - a : (TimeSpan?)null;
                 var pasta = ProgressoLocal.Texto(r, "run");
@@ -135,6 +143,9 @@ public static class UsoDasIas
                     anterior?.Cota5h ?? (cotaDaConta ? Variacao(antes, depois, "primary", "five_hour") ?? daSessao?.Cota5h : null),
                     anterior?.CotaSemana ?? (cotaDaConta ? Variacao(antes, depois, "secondary", "seven_day") ?? daSessao?.CotaSemana : null))
                 {
+                    Plano = daSessao?.Plano,
+                    Usada5h = cotaDaConta ? PercentualUsado(depois, "primary", "five_hour") ?? daSessao?.Usada5h : null,
+                    UsadaSemana = cotaDaConta ? PercentualUsado(depois, "secondary", "seven_day") ?? daSessao?.UsadaSemana : null,
                     Total = anterior?.Total ?? Inteiro(usoEtapa, "total_tokens") ?? daSessao?.Total,
                     ValorEquivalenteUsd = anterior?.ValorEquivalenteUsd ?? (usoEtapa is { } u ? ProgressoLocal.Numero(u, "valor_equivalente_usd") : null),
                     Situacao = anterior?.Situacao ?? ProgressoLocal.Texto(r, "status"),
@@ -145,6 +156,19 @@ public static class UsoDasIas
             }
 
         // Na ordem das etapas; dentro de uma etapa, as tentativas na ordem do relatório.
+        for (var i = 0; i < linhas.Count; i++)
+        {
+            var linha = linhas[i];
+            if (linha.Executor != Programa || string.IsNullOrWhiteSpace(linha.PastaExecucao)) continue;
+            var caminho = Path.Combine(linha.PastaExecucao, "recursos.json");
+            if (ArquivoJsonDoKit.Ler(caminho, desdeUtc) is not { ValueKind: JsonValueKind.Object } recurso) continue;
+            linhas[i] = linha with
+            {
+                CpuMediaMhz = ProgressoLocal.Numero(recurso, "cpu_mhz_media"),
+                CpuPicoMhz = ProgressoLocal.Numero(recurso, "cpu_mhz_pico"),
+                RamPicoBytes = Inteiro(recurso, "ram_pico_bytes")
+            };
+        }
         return linhas.Select((l, i) => (l, i)).OrderBy(p => etapas.IndexOf(p.l.Etapa)).ThenBy(p => p.i).Select(p => p.l).ToList();
     }
 
@@ -298,6 +322,10 @@ public static class UsoDasIas
         x.TryGetProperty("modelos_confirmados", out var lista) && lista.ValueKind == JsonValueKind.Array
             ? lista.EnumerateArray().Where(m => m.ValueKind == JsonValueKind.String).Select(m => m.GetString()).FirstOrDefault(m => !string.IsNullOrWhiteSpace(m))
             : null;
+
+    static double? PercentualUsado(JsonElement? janelas, string chave, string alternativa) =>
+        (Objeto(janelas, chave) ?? Objeto(janelas, alternativa)) is { } janela && ProgressoLocal.Numero(janela, "used_percent") is { } p and >= 0 and <= 100
+            ? p : null;
 
     static double? Variacao(JsonElement? antes, JsonElement? depois, string chave, string alternativa)
     {

@@ -160,7 +160,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         BotaoAnalise.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => DispatcherQueue.TryEnqueue(() =>
         {
             if (fechada) return;
-            MolduraAnalise.Visibility = BotaoAnalise.Visibility;   // sem brilho colorido (redesign 2026-11-17): o destaque é o AccentColor
+            MolduraAnalise.Visibility = BotaoAnalise.Visibility;
             AplicarLargura(Raiz.ActualWidth);
         }));
         // O resultado da pesquisa só ocupa lugar quando tem texto: vazio, deixava o espaço entre a caixa e Anterior/Próximo maior que o
@@ -564,13 +564,32 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                     new AchadoExecucao("S07-01", 3, "Seção 7 · Vagas de estacionamento", "NAO_COMPROVADO", false),
                     new AchadoExecucao("S09-04", 4, "Seção 9 · Área construída (quadro × planta)", "DIVERGENCIA_INTERNA", false),
                 ]);
+                NR.MostrarDetalhesDasEtapas(new Pmvni.Agentes.DetalhesDasEtapas(
+                    new Dictionary<string, Pmvni.Agentes.DetalheEtapa> { ["prepare"] = new("prepare", true, null, null), ["analyze"] = new("analyze", false, "gpt-6.2-sol", "medium") },
+                    [new(1, 9, 9, true, true), new(10, 18, 3, true, false), new(19, 28, 0, false, false)], [])
+                {
+                    Plano = ["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"],
+                    Registros = new Dictionary<string, string> { ["prepare"] = "Pranchas da revisão identificadas.", ["analyze"] = "Conferência das seções da revisão em andamento." }
+                });
                 NR.MostrarConsumo([
-                    new Pmvni.Agentes.UsoEtapa("prepare", Pmvni.Agentes.UsoDasIas.Programa, null, null, null, null, TimeSpan.FromMinutes(8), null, null),
-                    new Pmvni.Agentes.UsoEtapa("analyze", "ChatGPT", "gpt-6.2-sol", 182_400, 9_350, 141_000, TimeSpan.FromMinutes(25), 3.5, 0.8),
+                    new Pmvni.Agentes.UsoEtapa("prepare", Pmvni.Agentes.UsoDasIas.Programa, null, null, null, null, TimeSpan.FromMinutes(2), null, null) { CpuMediaMhz = 2100, CpuPicoMhz = 3400, RamPicoBytes = 412L * 1048576 },
+                    new Pmvni.Agentes.UsoEtapa("analyze", "GPT", "gpt-6.2-sol", 182_400, 9_350, 141_000, TimeSpan.FromMinutes(10), 3.5, 0.8) { Usada5h = 42, UsadaSemana = 27 },
                 ]);
                 NR.MostrarRelogios(TimeSpan.FromMinutes(12), agora);
                 await Task.Delay(500);
                 AplicarLargura(Raiz.ActualWidth);
+                if (args.Captura is { } pastaDemo)
+                {
+                    Directory.CreateDirectory(pastaDemo);
+                    var abas = (NavigationView)NR.FindName("AbasMonitor");
+                    foreach (NavigationViewItem pagina in abas.MenuItems)
+                    {
+                        abas.SelectedItem = pagina;
+                        await Task.Delay(350);
+                        await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaDemo, $"monitor-{pagina.Content}.png"));
+                    }
+                    Application.Current.Exit();
+                }
             }
             else if (args.Captura is { } pastaCaptura)
             {

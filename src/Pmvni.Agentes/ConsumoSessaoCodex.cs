@@ -7,7 +7,10 @@ namespace Pmvni.Agentes;
 /// Mantém só números e a posição da última linha completa, mesmo com o executor escrevendo.</summary>
 public sealed class ConsumoSessaoCodex(string codexHome)
 {
-    internal sealed record Contadores(long? Entrada, long? Saida, long? Cache, long? Total, double? Cota5h, double? CotaSemana);
+    internal sealed record Contadores(long? Entrada, long? Saida, long? Cache, long? Total, double? Cota5h, double? CotaSemana, double? Usada5h, double? UsadaSemana)
+    {
+        public string? Plano { get; init; }
+    }
     readonly Dictionary<Guid, Leitura> sessoes = [];
 
     sealed class Leitura
@@ -20,6 +23,7 @@ public sealed class ConsumoSessaoCodex(string codexHome)
 
     sealed class Janela
     {
+        public double? Usada { get; private set; }
         double? inicial, renovacao;
         bool renovou;
         public double? Variacao(JsonElement? janela, int minutos)
@@ -27,10 +31,52 @@ public sealed class ConsumoSessaoCodex(string codexHome)
             if (janela is not { } j || ProgressoLocal.Numero(j, "window_minutes") != minutos ||
                 ProgressoLocal.Numero(j, "used_percent") is not { } usado ||
                 ProgressoLocal.Numero(j, "resets_at") is not { } fim) return null;
+            Usada = usado is >= 0 and <= 100 ? usado : null;
             if (inicial is null) { inicial = usado; renovacao = fim; return null; }
             renovou |= fim != renovacao || usado < inicial;
             return renovou ? null : usado - inicial;
         }
+    }
+
+    internal Contadores? LerEtapa(string controle, string etapa, JsonElement? principal, DateTime desde)
+    {
+        var contadores = new List<Contadores>();
+        var vistos = new HashSet<Guid>();
+        void Somar(JsonElement item)
+        {
+            if (item.ValueKind == JsonValueKind.Object && Guid.TryParse(ProgressoLocal.Texto(item, "id"), out var id)
+                && !vistos.Contains(id) && Ler(item) is { } medido)
+            {
+                vistos.Add(id);
+                contadores.Add(medido);
+            }
+        }
+        void SomarGrupo(JsonElement sessao, string grupo)
+        {
+            if (sessao.TryGetProperty(grupo, out var lista) && lista.ValueKind == JsonValueKind.Array)
+                foreach (var item in lista.EnumerateArray()) Somar(item);
+        }
+        if (etapa == "analyze" && DetalhesDasEtapas.PastaAtualDasFrentes(controle, desde) is { } partes)
+        {
+            foreach (var (inicio, _) in DetalhesDasEtapas.Blocos)
+            {
+                var arquivo = Path.Combine(partes, $"frente-{inicio:00}", "sessao_monitor.json");
+                if (ArquivoJsonDoKit.Ler(arquivo, desde) is not { ValueKind: JsonValueKind.Object } frente) continue;
+                SomarGrupo(frente, "sessoes");
+                Somar(frente);
+            }
+        }
+        if (principal is { } p)
+        {
+            SomarGrupo(p, "blocos_monitor");
+            Somar(p);
+        }
+        if (contadores.Count < 2) return contadores.FirstOrDefault();
+        long? Total(Func<Contadores, long?> campo) => contadores.Any(x => campo(x).HasValue) ? contadores.Sum(x => campo(x)) : null;
+        var planos = contadores.Select(x => x.Plano).OfType<string>().Distinct().ToList();
+        // Cotas pertencem às contas e os intervalos das sessões podem se sobrepor.
+        return new(Total(c => c.Entrada), Total(c => c.Saida), Total(c => c.Cache), Total(c => c.Total), null, null, null, null)
+        { Plano = planos.Count == 0 ? null : string.Join(Environment.NewLine + Environment.NewLine, planos) };
     }
 
     internal Contadores? Ler(JsonElement sessao)
@@ -77,12 +123,35 @@ public sealed class ConsumoSessaoCodex(string codexHome)
     static void Registrar(MemoryStream linha, Leitura leitura)
     {
         var bytes = linha.GetBuffer().AsMemory(0, (int)linha.Length);
-        if (bytes.Span.IndexOf("\"token_count\""u8) < 0) return;
+        if (bytes.Span.IndexOf("\"token_count\""u8) < 0 && bytes.Span.IndexOf("update_plan"u8) < 0) return;
         try
         {
             using var doc = JsonDocument.Parse(bytes);
             var raiz = doc.RootElement;
             var payload = UsoDasIas.Objeto(raiz, "payload");
+            if (raiz.ValueKind != JsonValueKind.Object) return;
+            if (ProgressoLocal.Texto(raiz, "type") == "response_item" && payload is { } chamada
+                && ProgressoLocal.Texto(chamada, "type") == "function_call"
+                && ProgressoLocal.Texto(chamada, "name") is "update_plan" or "functions.update_plan"
+                && ProgressoLocal.Texto(chamada, "arguments") is { } argumentos)
+            {
+                using var args = JsonDocument.Parse(argumentos);
+                if (args.RootElement.ValueKind == JsonValueKind.Object && args.RootElement.TryGetProperty("plan", out var plano)
+                    && plano.ValueKind == JsonValueKind.Array)
+                {
+                    var linhas = new List<string>();
+                    foreach (var passo in plano.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object))
+                    {
+                        if (ProgressoLocal.Texto(passo, "step") is not { } texto) continue;
+                        var estado = ProgressoLocal.Texto(passo, "status") switch {
+                            "in_progress" => "Em andamento", "completed" => "Concluído", "pending" => "Pendente", var valor => valor };
+                        linhas.Add(string.Join(" · ", new[] { estado, texto }.OfType<string>()));
+                    }
+                    var contadores = leitura.Uso ?? new Contadores(null, null, null, null, null, null, null, null);
+                    leitura.Uso = contadores with { Plano = linhas.Count > 0 ? string.Join(Environment.NewLine, linhas) : null };
+                }
+                return;
+            }
             if (raiz.ValueKind != JsonValueKind.Object || ProgressoLocal.Texto(raiz, "type") != "event_msg"
                 || payload is not { } p || ProgressoLocal.Texto(p, "type") != "token_count") return;
             var t = UsoDasIas.Objeto(UsoDasIas.Objeto(p, "info"), "total_token_usage");
@@ -93,7 +162,8 @@ public sealed class ConsumoSessaoCodex(string codexHome)
                 UsoDasIas.Inteiro(t, "cached_input_tokens") ?? anterior?.Cache,
                 UsoDasIas.Inteiro(t, "total_tokens") ?? anterior?.Total,
                 cotas is null ? anterior?.Cota5h : leitura.CincoHoras.Variacao(UsoDasIas.Objeto(cotas, "primary"), 300),
-                cotas is null ? anterior?.CotaSemana : leitura.Semanal.Variacao(UsoDasIas.Objeto(cotas, "secondary"), 10080));
+                cotas is null ? anterior?.CotaSemana : leitura.Semanal.Variacao(UsoDasIas.Objeto(cotas, "secondary"), 10080),
+                leitura.CincoHoras.Usada, leitura.Semanal.Usada) { Plano = anterior?.Plano };
         }
         catch (JsonException) { } // Um evento inválido não descarta os anteriores.
     }

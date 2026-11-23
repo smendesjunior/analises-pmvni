@@ -9,7 +9,7 @@ public enum TipoAtividade { Acao, Mensagem, Erro, Texto }
 /// e o horário em que chegou (null quando a linha já existia ao abrir a tela).</summary>
 public sealed record Atividade(TipoAtividade Tipo, string Titulo, string? Detalhe, string Glifo, DateTime? Hora)
 {
-    public string HoraTexto => Hora is { } h ? h.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture) : "";
+    public string HoraTexto => Hora is { } h ? h.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) : "";
 }
 
 /// <summary>Uma descoberta: o que o agente relatou. Preliminar até a auditoria cruzada terminar; depois, verificada.</summary>

@@ -349,10 +349,12 @@
       <Border Grid.Row="1" x:Name="CartaoStatus" Style="{StaticResource MonitorCartao}" MinHeight="68">
         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16">
           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" VerticalAlignment="Center">
-            <Border x:Name="FundoIconeStatus" x:FieldModifier="internal" Width="42" Height="42" CornerRadius="10" VerticalAlignment="Center"
+            <Border x:Name="FundoIconeStatus" x:FieldModifier="internal" Width="54" Height="54" CornerRadius="27" VerticalAlignment="Center"
                     Style="{StaticResource MonitorFundoAtivo}">
               <Grid>
-                <ProgressRing x:Name="AnelStatus" Width="24" Height="24" MinWidth="0" MinHeight="0" Visibility="Collapsed" local:Trabalhando.Automatico="False"/>
+                <ProgressRing x:Name="AnelStatus" Width="52" Height="52" Maximum="100" Foreground="{ThemeResource PmvniTonalTexto}" MinWidth="0" MinHeight="0" Visibility="Collapsed" local:Trabalhando.Automatico="False"/>
+                <TextBlock x:Name="PercentualDoAnel" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource MonitorRotuloAtivo}"
+                           Visibility="Collapsed" AutomationProperties.AccessibilityView="Raw"/>
                 <FontIcon x:Name="IconeStatus" x:FieldModifier="internal" Glyph="{x:Bind local:Glifos.Ia}" FontSize="18"
                           Style="{StaticResource PmvniIconeDestaqueStyle}" AutomationProperties.AccessibilityView="Raw"/>
               </Grid>
@@ -389,16 +391,19 @@
                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
           </local:PainelQuebra>
-          <SelectorBar Grid.Row="2" Grid.ColumnSpan="2" Margin="0,6,0,0" x:Name="AbasMonitor" AutomationProperties.Name="Monitor de análise">
-            <SelectorBarItem Text="Resumo" IsSelected="True"/>
-            <SelectorBarItem Text="Consumo"/>
-            <SelectorBarItem Text="Etapas"/>
-            <SelectorBarItem Text="Log"/>
-            <SelectorBarItem Text="Detalhes"/>
-          </SelectorBar>
         </Grid>
       </Border>
-      <Grid Grid.Row="2">
+      <NavigationView Grid.Row="2" x:Name="AbasMonitor" PaneDisplayMode="Left" OpenPaneLength="170" CompactPaneLength="48"
+                      IsSettingsVisible="False" IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False"
+                      IsPaneOpen="True" IsTitleBarAutoPaddingEnabled="False" AutomationProperties.Name="Páginas do monitor">
+        <NavigationView.MenuItems>
+          <NavigationViewItem Content="Resumo" ToolTipService.ToolTip="Resumo"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Painel}"/></NavigationViewItem.Icon></NavigationViewItem>
+          <NavigationViewItem Content="Etapas" ToolTipService.ToolTip="Etapas"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Lista}"/></NavigationViewItem.Icon></NavigationViewItem>
+          <NavigationViewItem Content="Detalhes" ToolTipService.ToolTip="Detalhes"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Documento}"/></NavigationViewItem.Icon></NavigationViewItem>
+          <NavigationViewItem Content="Consumo" ToolTipService.ToolTip="Consumo"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Grafico}"/></NavigationViewItem.Icon></NavigationViewItem>
+          <NavigationViewItem Content="Log" ToolTipService.ToolTip="Log"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Relatorio}"/></NavigationViewItem.Icon></NavigationViewItem>
+        </NavigationView.MenuItems>
+        <Grid Margin="10,0,0,0">
         <StackPanel x:Name="PainelResumo" Spacing="10">
           <Border x:Name="PainelClaude" x:FieldModifier="internal" Style="{StaticResource MonitorCartao}" MinHeight="102">
             <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="4" ColumnSpacing="8">
@@ -509,6 +514,12 @@
         <Border x:Name="CartaoConsumo" x:FieldModifier="internal" Style="{StaticResource MonitorCartao}" Visibility="Collapsed">
           <StackPanel Spacing="10">
             <TextBlock Text="Consumo e desempenho" Style="{StaticResource MonitorTitulo}"/>
+            <local:PainelQuebra x:Name="TotaisConsumo" Espaco="12" EspacoLinhas="8"/>
+            <TextBlock x:Name="ComposicaoTokens" Style="{StaticResource MonitorLegenda}" TextWrapping="Wrap"/>
+            <StackPanel x:Name="PainelGraficos" Spacing="10"/>
+            <TextBlock x:Name="TituloExecutores" Text="Consumo por executor" Style="{StaticResource MonitorTitulo}"/>
+            <StackPanel x:Name="ConsumoExecutores" Spacing="6"/>
+            <TextBlock Text="Consumo por etapa" Style="{StaticResource MonitorTitulo}"/>
             <TextBlock x:Name="ConsumoVazio" Text="Aguardando o primeiro registro de consumo ou duração da etapa." Style="{StaticResource MonitorLegenda}"/>
             <StackPanel x:Name="GradeConsumo" Spacing="8" AutomationProperties.Name="Consumo por etapa"/>
           </StackPanel>
@@ -535,14 +546,17 @@
               </Grid>
             </Border>
             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Atividades por etapa">
-              <StackPanel x:Name="EtapasAtividades" Spacing="3" Margin="0,0,4,0"/>
+              <StackPanel Spacing="8">
+                <StackPanel x:Name="EtapasAtividades" Spacing="3" Margin="0,0,4,0"/>
+                <HyperlinkButton Content="Ver registros" Click="AbrirLogDoMonitor"/>
+              </StackPanel>
             </ScrollViewer>
           </Grid>
         </Border>
         <Border x:Name="PainelLog" Visibility="Collapsed" Style="{StaticResource MonitorCartao}">
           <StackPanel Spacing="10">
             <local:PainelQuebra Espaco="12" EspacoLinhas="4">
-              <TextBlock Text="Atividades da execução" Style="{StaticResource MonitorTitulo}"/>
+              <TextBlock Text="Log de execução" Style="{StaticResource MonitorTitulo}"/>
               <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Text="0 atividades registradas" Style="{StaticResource MonitorLegenda}" VerticalAlignment="Center"/>
               <Border x:Name="SeloLog" Style="{StaticResource MonitorAoVivo}" Visibility="Collapsed">
                 <StackPanel Orientation="Horizontal" Spacing="5">
@@ -587,6 +601,7 @@
         </Border>
         <Border x:Name="PainelDetalhes" Visibility="Collapsed" Style="{StaticResource MonitorCartao}">
           <StackPanel Spacing="12">
+            <TextBlock Text="Detalhes da análise" Style="{StaticResource MonitorTitulo}" AutomationProperties.HeadingLevel="Level2"/>
             <local:PainelQuebra Espaco="24" EspacoLinhas="10">
               <StackPanel MinWidth="125" Spacing="3">
                 <TextBlock Text="PROCESSO" Style="{StaticResource MonitorRotulo}"/>
@@ -605,6 +620,7 @@
                 <TextBlock x:Name="TextoProximaEtapa" Style="{StaticResource PmvniAjusteTitulo}" IsTextSelectionEnabled="True" TextWrapping="Wrap"/>
               </StackPanel>
             </local:PainelQuebra>
+            <StackPanel x:Name="DetalhesPorEtapa" Spacing="8" AutomationProperties.Name="Registros de cada etapa"/>
             <TextBlock x:Name="ErroDetalhes" Visibility="Collapsed" Style="{StaticResource MonitorRotuloErro}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
             <StackPanel x:Name="PainelUltimaMensagem" x:FieldModifier="internal" Spacing="4">
               <TextBlock Text="Última mensagem do ChatGPT" Style="{StaticResource MonitorRotulo}"/>
@@ -613,7 +629,8 @@
             </StackPanel>
           </StackPanel>
         </Border>
-      </Grid>
+        </Grid>
+      </NavigationView>
     </Grid>
     </ScrollViewer>
   </Grid>

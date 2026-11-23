@@ -65,13 +65,15 @@
              vista da execução (ou o resultado, quando ela já terminou). Texto principal e secundário (processo · tempo) com reticências. -->
         <!-- 3.3.0: a mesma pílula dos grupos do cabeçalho (raio 16, 32 px, hover recuado por dentro), com anel de 16 px e o texto numa linha
              só ("Analisando com o ChatGPT · 19486/2026 · 37 s"); antes eram duas linhas apertadas em 32 px. -->
-        <Border x:Name="MolduraAnalise" Style="{StaticResource PmvniGrupoCabecalho}" Visibility="Collapsed">
+        <Grid x:Name="MolduraAnalise" Visibility="Collapsed" VerticalAlignment="Center">
+        <local:HaloAnalise x:Name="HaloDoMonitor" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
+        <Border Style="{StaticResource PmvniGrupoCabecalho}">
         <Button x:Name="BotaoAnalise" Style="{StaticResource PmvniBotaoGrupoCabecalhoStyle}" Visibility="Collapsed"
                 AutomationProperties.Name="Análise em andamento" ToolTipService.ToolTip="Abrir a vista da análise em andamento"
                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
             <Grid Width="16" Height="16" VerticalAlignment="Center">
-              <ProgressRing x:Name="AnelAnalise" local:Trabalhando.Automatico="False" IsActive="False" Width="16" Height="16" MinWidth="0" MinHeight="0"
+              <ProgressRing x:Name="AnelAnalise" Foreground="{ThemeResource PmvniTonalTexto}" local:Trabalhando.Automatico="False" IsActive="False" Width="16" Height="16" MinWidth="0" MinHeight="0"
                             AutomationProperties.AccessibilityView="Raw"/>
               <FontIcon x:Name="IconeAnaliseConcluida" Glyph="{x:Bind local:Glifos.Concluido}" FontSize="16" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoSucesso}" AutomationProperties.AccessibilityView="Raw"/>
               <FontIcon x:Name="IconeAnalisePausada" Glyph="{x:Bind local:Glifos.Pausado}" FontSize="16" Visibility="Collapsed" Style="{StaticResource PmvniIconeAcaoAtencao}" AutomationProperties.AccessibilityView="Raw"/>
@@ -86,6 +88,7 @@
           </StackPanel>
         </Button>
         </Border>
+        </Grid>
         <!-- 1.0.0: Desfazer | Refazer numa pílula segmentada só (uma moldura, cantos totalmente redondos, divisória central), como a
              pesquisa; só ícones Fluent, o nome e o atalho ficam na dica e no Narrador. -->
         <Grid RowDefinitions="20,32,20" VerticalAlignment="Center"><TextBlock Text="Navegação" TextWrapping="NoWrap" Style="{StaticResource PmvniPainelRotulo}"/>
