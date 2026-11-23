@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.4.2
+
+- O monitor da análise usa as páginas do Brilliant, com navegação vertical e dados da execução.
+- Em Modelos da análise, a linha Autocorreção permite escolher o modelo e o raciocínio de cada rota. A etapa exibe o número de apontamentos em correção.
+- O cartão Componentes do kit consulta o verificador de conteúdo do executor e lista os arquivos divergentes. Após uma atualização externa, o Editor volta a ler o estado do kit.
+
 ## 3.4.1
 
 Limpeza do que sobrou do método antigo de análise e ajustes de interface.

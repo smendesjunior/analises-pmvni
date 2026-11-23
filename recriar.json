@@ -21,7 +21,7 @@
     },
     {
       "tipo": "arquivo",
-      "nome": "Ajuste local de Modelos da análise do editor (modelos, níveis e auditoria cruzada por rota que diferem do padrão do kit; sem senhas nem chaves)",
+      "nome": "Ajuste local de Modelos da análise do editor (modelos e níveis de análise, auditoria técnica e autocorreção, e auditoria cruzada por rota que diferem do padrão do kit; sem senhas nem chaves)",
       "local": "%LOCALAPPDATA%\\EditorRelatoriosPMVNI\\modelos-por-rota.local.json",
       "guardado": "editor-relatorios-pmvni\\modelos-da-analise\\modelos-por-rota.local.json",
       "opcional": true
