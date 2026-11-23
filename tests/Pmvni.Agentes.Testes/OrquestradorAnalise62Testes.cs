@@ -120,6 +120,21 @@ public partial class OrquestradorTestes
     }
 
     [Fact]
+    public async Task LimiteDeCota_EsperarMantemAPerguntaPendente()
+    {
+        var decisao = DecisaoFicticia();
+        decisao["tipo"] = "limite_cota";
+        decisao["opcoes"] = new JsonArray(new JsonObject { ["valor"] = "esperar", ["texto"] = "Esperar" });
+        using var c = new Cena("cota-preventiva", "ok", Provedor.ChatGpt, o => o["analise62"] = new JsonArray(
+            new JsonObject { ["situacao"] = "DECISAO", ["etapa"] = "analyze", ["decisao"] = decisao }));
+        var pedido = c.Pedido(Provedor.ChatGpt) with { Decidir = (_, _) => Task.FromResult<string?>("esperar") };
+        var fim = await Ambiente.Com(c.Orq().ExecutarAsync(pedido, c.Progresso, CancellationToken.None), Limite);
+        Assert.Equal("limite_cota", fim.Decisao?.Tipo);
+        Assert.Single(Chamadas(c, "analise62"));
+        Assert.False(File.Exists(Path.Combine(c.Controle("analise"), "decisao_resposta.json")));
+    }
+
+    [Fact]
     public async Task Rota_ResolvidaAntesDeIniciar()
     {
         // Provedor incompatível no config.toml (rota "herdar"): recusa antes de iniciar qualquer processo (erro 7).

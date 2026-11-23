@@ -1140,7 +1140,7 @@ public sealed partial class MainWindow
     {
         if (fechada || ct.IsCancellationRequested) return null;
         NotificacoesWindows.Mostrar("A análise precisa de uma decisão", "Abra o Editor para responder; a análise está parada e não gasta cota enquanto espera.");
-        var titulo = "Decisão na análise de " + FluxoNovoRelatorio.Identificacao(e.Processo);
+        var titulo = (d.Tipo == "limite_cota" ? "Limite preventivo da cota de 5 horas • " : "Decisão na análise de ") + FluxoNovoRelatorio.Identificacao(e.Processo);
         if (PecasAmbiguas.EhEscolhaDePecas(d) && d.Opcoes.Count > 0)
             return await EscolherVersaoDaPecaAsync(e.Processo.Pasta, "Qual versão da peça vale na análise de " + FluxoNovoRelatorio.Identificacao(e.Processo) + "?",
                 e.Provedor, d);
@@ -1228,6 +1228,7 @@ public sealed partial class MainWindow
             {
                 var titulo = fim.Situacao switch
                 {
+                    "interrompida" when fim.Decisao?.Tipo == "limite_cota" => "Análise pausada por cota",
                     "interrompida" => "Análise interrompida",
                     "cota_esgotada" => "Cota da IA esgotada",
                     _ => "A análise não gerou relatório",
@@ -1336,6 +1337,7 @@ public sealed partial class MainWindow
         aviso.Title = fim.Situacao switch
         {
             "cancelada" => $"A análise com o {nome} foi cancelada",
+            "interrompida" when fim.Decisao?.Tipo == "limite_cota" => "Análise pausada por cota",
             "interrompida" => $"A análise com o {nome} parou",
             "cota_esgotada" => $"A cota do {nome} acabou",
             _ => $"A análise com o {nome} não gerou relatório",

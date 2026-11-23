@@ -462,7 +462,7 @@ public sealed class OrquestradorAnalise
                     Anunciar(progresso, new ProgressoAnalise("Decisão necessária: " + d.Pergunta,
                         SituacaoDoControlador(SituacaoAnalise62.PedeDecisao, "aguardando a sua decisão", s.Etapa) with { Decisao = d }));
                     var resposta = await PerguntarAsync(pe, d, ct).ConfigureAwait(false);
-                    if (resposta is null) return Parado(d, codigo);
+                    if (resposta is null || (d.Tipo == "limite_cota" && resposta == "esperar")) return Parado(d, codigo);
                     Responder(pe, Provedor.ChatGpt, d, resposta);
                     Anunciar(progresso, new ProgressoAnalise("Resposta gravada; a análise continua.", SituacaoDoControlador("EM_ANDAMENTO", "em andamento", s.Etapa)));
                     continue;
