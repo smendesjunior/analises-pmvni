@@ -461,7 +461,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     /// <summary>De onde vem o percentual: com <see cref="EstimativaAnalise.Inicial"/>, parte dele saiu das durações iniciais (sem histórico neste computador).</summary>
     static string OrigemDoPercentual(EstimativaAnalise estimativa) => !estimativa.PeloEditor ? "estimado pela IA"
-        : estimativa.Inicial ? "calculado pelo Editor (estimativa inicial, sem histórico suficiente)" : "pelas etapas e pelos resultados registrados";
+        : estimativa.PercentualEstimado ? "estimado pela duração da etapa" : "pelas etapas e pelos resultados registrados";
 
     internal string RotuloEtapa(string nome, EstadoEtapa estado, bool ativa)
     {
@@ -559,11 +559,11 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var concluiu = etapas.Count > 0 && feitas == etapas.Count;
         double? percentualPorEtapas = etapas.Count > 0 ? 100d * feitas / etapas.Count : null;
         var percentual = concluiu ? 100d : EstimativaAtual?.PercentualGeral ?? percentualPorEtapas;
-        if (percentual is { } valor) percentual = Math.Clamp(Math.Round(valor), 0, concluiu ? 100 : 99);
+        if (percentual is { } valor) percentual = Math.Clamp(Math.Round(valor, 1), 0, concluiu ? 100 : 99);
         BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
         BarraResumoEtapas.Value = percentual ?? 0;
-        var percentualEstimado = !concluiu && EstimativaAtual is { PercentualGeral: not null, PeloEditor: false };
-        TextoPercentual.Text = percentual is { } p ? $"{(percentualEstimado ? "≈ " : "")}{p:0}%" : "—";
+        var percentualEstimado = !concluiu && EstimativaAtual is { PercentualGeral: not null } atual && (!atual.PeloEditor || atual.PercentualEstimado);
+        TextoPercentual.Text = percentual is { } p ? $"{(percentualEstimado ? "≈ " : "")}{p:0.#}%" : "—";
         BarraResumoEtapas.IsActive = percentual.HasValue || animar;
         TextoPercentual.Visibility = Visivel(percentual.HasValue);
         IconeStatus.Visibility = Visivel(!percentual.HasValue && !animar);
@@ -658,14 +658,14 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         if (estado == EstadoEtapa.Feita) return (100, false);
         if (estado == EstadoEtapa.Pendente) return (0, false);
         if (EstimativaAtual is { Etapa: { } etapa, PercentualEtapa: { } percentual } estimativa && FluxoNovoRelatorio.NomeDaEtapa(etapa) == nome)
-            return (Math.Clamp(Math.Round(percentual), 0, 99), estimativa.Inicial);
+            return (Math.Clamp(Math.Round(percentual, 1), 0, 99), estimativa.PercentualEstimado);
         if (ProgressoAtual is { Total: > 0 } itens && FluxoNovoRelatorio.NomeDaEtapa(itens.Etapa) == nome)
             return (Math.Clamp(Math.Round(100d * itens.Avaliados / itens.Total), 0, 99), false);
         return (null, false);
     }
 
     static string TextoPercentualEtapa((double? Valor, bool Aproximado) p) =>
-        p.Valor is { } v ? $"{(p.Aproximado ? "≈ " : "")}{Math.Floor(v):0}%" : "—";
+        p.Valor is { } v ? $"{(p.Aproximado ? "≈ " : "")}{v:0.#}%" : "—";
 
     sealed record LinhaEtapa(Grid Trilha, TextBlock MarcaTrilha, TextBlock Legenda, Border Cartao,
         FontIcon Icone, TextBlock Titulo, TextBlock Selo, TextBlock Descricao, ProgressRing Barra, TextBlock Executor,

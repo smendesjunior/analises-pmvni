@@ -190,6 +190,10 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
         out DateTime? ultimoResultadoUtc, string? situacao = null)
     {
         ultimoResultadoUtc = null;
+        var estadoAtual = ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "engine_state.json"), desdeUtc);
+        var analiseAtual = UsoDasIas.Objeto(UsoDasIas.Objeto(estadoAtual, "stages"), "analyze");
+        var medida = analiseAtual is { } atual && ProgressoLocal.Texto(atual, "status") == "RUNNING"
+            ? ProgressoLocal.MedicaoDaEstacao(pastaControle, "analyze", ProgressoLocal.Instante(atual, "started")) : null;
         var pasta = PastaDasPartes(pastaControle, desdeUtc);
         if (pasta is not null)
         {
@@ -201,6 +205,12 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
                 for (var n = inicio; n <= fim; n++)
                 {
                     var arquivo = new FileInfo(Path.Combine(pasta, $"secao-{n:00}.json"));
+                    if (medida is { } pulso && pulso.Secoes.Contains(n))
+                    {
+                        prontas++;
+                        if (ultimoResultadoUtc is null || pulso.Escritura > ultimoResultadoUtc) ultimoResultadoUtc = pulso.Escritura;
+                        continue;
+                    }
                     if (!arquivo.Exists || arquivo.LastWriteTimeUtc < desdeUtc) continue;
                     prontas++;
                     if (ultimoResultadoUtc is null || arquivo.LastWriteTimeUtc > ultimoResultadoUtc) ultimoResultadoUtc = arquivo.LastWriteTimeUtc;
@@ -241,11 +251,10 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
     {
         try
         {
-            var raiz = Path.GetFullPath(Path.Combine(pastaControle, "runs"));
             if (ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "frentes_ativas.json"), desdeUtc) is { ValueKind: JsonValueKind.Object } atual
                 && ProgressoLocal.Texto(atual, "pasta") is { } pasta && Path.IsPathFullyQualified(pasta)
-                && string.Equals(Path.GetDirectoryName(Path.GetFullPath(pasta)), raiz, StringComparison.OrdinalIgnoreCase)
-                && Directory.Exists(pasta)) return pasta;
+                && Path.GetFileName(pasta).StartsWith("secoes-", StringComparison.OrdinalIgnoreCase))
+                return ProgressoLocal.PastaDaTentativa(pastaControle, pasta);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { }
         return null;

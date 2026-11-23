@@ -87,6 +87,9 @@ public static class PrevisaoTermino
                 else if (atual.InicioEtapa is { } inicio && inicio <= hora)
                     duracao = TimeSpan.FromTicks(Math.Max(0, (duracao - (hora - inicio)).Ticks));
             }
+            // Enquanto a última etapa está aberta, a validação ainda tem trabalho mesmo com todas as unidades gravadas.
+            if (i == indice && i + 1 == etapas.Count && duracao <= TimeSpan.Zero)
+                duracao = TimeSpan.FromMinutes(1);
             restante += duracao;
         }
         return hora + restante;

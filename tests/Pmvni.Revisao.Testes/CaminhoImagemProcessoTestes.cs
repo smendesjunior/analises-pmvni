@@ -131,6 +131,19 @@ public class CaminhoImagemProcessoTestes
     }
 
     [Fact]
+    public void TentativaDaRotaIncluiImagemLocalDoMesmoProcesso()
+    {
+        using var pasta = Ambiente.PastaDeTeste("montagem-9967");
+        var (_, processo, _) = Processo(pasta);
+        var controle = Path.Combine(processo, ".pmvni-ai", "analise");
+        var tentativa = Directory.CreateDirectory(Path.Combine(controle, "runs", "produce-59cd85c3d310")).FullName;
+        var alvo = Path.Combine(controle, "local", "SITUACAO_DOC12.PNG");
+        Gravar(alvo);
+        Assert.Equal(alvo, CaminhoImagem.Resolver(tentativa, "../../local/SITUACAO_DOC12.PNG", false));
+        Assert.Null(CaminhoImagem.Resolver(tentativa, "../../../../../outro/x.png", false));
+    }
+
+    [Fact]
     public void importar_recusa_imagem_maior_que_o_limite_de_uma_entrada()
     {
         using var pasta = Ambiente.PastaDeTeste("img-importar-enorme");

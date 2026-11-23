@@ -138,6 +138,7 @@ public sealed partial class PaginaNovoRelatorio
             var linha = linhasEtapas.ElementAtOrDefault(i);
             return new { name = e.Nome, state = e.Estado.ToString(), status = SituacaoDaEtapa(e.Estado, execucaoAtivaNaBarra),
                 description = DescricaoDaEtapa(e.Nome), percent = PercentualDaEtapa(e.Nome,e.Estado).Valor,
+                estimated = PercentualDaEtapa(e.Nome,e.Estado).Aproximado,
                 result = linha?.Resultado.Text, executor = linha?.Executor.Text,
                 scope = id switch
                 {

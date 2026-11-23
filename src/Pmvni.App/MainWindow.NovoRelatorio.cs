@@ -148,12 +148,12 @@ public sealed partial class MainWindow
             // Tarefa 19: a tabela de modelos desta análise (padrão do kit + ajuste local), pelas listas guardadas; a do provedor é atualizada em
             // segundo plano, sem segurar a partida nem a fila de comandos (revisão final I4).
             var modelos = TabelaParaAnalise(p);
-            return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: modelos), enviados);
+            return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: modelos, pastaQgis: ajustes.PastaQgis, pastaKit: ajustes.PastaKitEfetiva), enviados);
         }
         var (ok, perfil, ficticio, trocar) = await ResolverPerfilGeminiAsync(processo);
         if (!ok) return null;
         var tabela = TabelaParaAnalise(p);
-        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior, tabela), enviados);
+        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior, tabela, ajustes.PastaQgis, ajustes.PastaKitEfetiva), enviados);
     }
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);
     internal void EsquecerAviso(Provedor p) { ajustes.Agentes[p].AvisoVersao = null; ajustes.Agentes[p].AvisoEm = null; SalvarAjustes(); }
@@ -991,19 +991,11 @@ public sealed partial class MainWindow
             var ordemDoKit = OrdemDasEtapasDoKit();
             var sessoes = consumoSessao;
             var etapasJson = pecasAgentes.EtapasJson;
-            var (achados, consumo, detalhes, orcamento) = await Task.Run(() =>
-            {
-                var desde = InicioDoRegistro(e);
-                return (AchadosExecucao.LerDaExecucao(e.Registro.PastaProgresso, e.Processo.Pasta, e.InicioUtc, controle, desde, historico, DateTimeOffset.UtcNow, ordemDoKit),
-                    UsoDasIas.Ler(controle, desde, ordemDoKit, sessoes, e.Fim?.IsCompleted == true ? null : DateTimeOffset.UtcNow),
-                    DetalhesDasEtapas.Ler(controle, etapasJson, desde),
-                    e.Provedor == Provedor.ChatGpt ? OrcamentoDaAnalise.Ler(controle, desde) : null);
-            });
+            var desde = await Task.Run(() => InicioDoRegistro(e));
+            var achados = await Task.Run(() => AchadosExecucao.LerDaExecucao(e.Registro.PastaProgresso, e.Processo.Pasta,
+                e.InicioUtc, controle, desde, historico, DateTimeOffset.UtcNow, ordemDoKit, iniciando: e.Fim?.IsCompleted != true));
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
             {
-                NR.MostrarEvidencias(Directory.Exists(PastaEvidenciasDoMonitor(e)));
-                NR.MostrarDetalhesDasEtapas(detalhes);
-                NR.MostrarConsumo(consumo, orcamento);
                 NR.MostrarAchados(achados.Itens);
                 var mudouEstimativa = NR.EstimativaAtual != achados.Estimativa;
                 NR.MostrarEstimativa(achados.Estimativa);
@@ -1017,6 +1009,15 @@ public sealed partial class MainWindow
                     RenderizarExecucao(e);
                 }
                 else if (mudouEstimativa) RenderizarExecucao(e);
+                var (consumo, detalhes, orcamento, evidencias) = await Task.Run(() => (
+                    UsoDasIas.Ler(controle, desde, ordemDoKit, sessoes, e.Fim?.IsCompleted == true ? null : DateTimeOffset.UtcNow),
+                    DetalhesDasEtapas.Ler(controle, etapasJson, desde),
+                    e.Provedor == Provedor.ChatGpt ? OrcamentoDaAnalise.Ler(controle, desde) : null,
+                    Directory.Exists(PastaEvidenciasDoMonitor(e))));
+                if (fechada || !ReferenceEquals(e, execucaoMostrada)) return;
+                NR.MostrarEvidencias(evidencias);
+                NR.MostrarDetalhesDasEtapas(detalhes);
+                NR.MostrarConsumo(consumo, orcamento);
             }
         }
         catch (Exception x) when (x is IOException or UnauthorizedAccessException) { RegistroErros.Gravar("analise.achados", x); }
@@ -1086,6 +1087,9 @@ public sealed partial class MainWindow
         {
             etapas = FluxoNovoRelatorio.Etapas(n.ProgressoAtual?.Etapa ?? n.EstimativaAtual?.Etapa, "", OrdemDasEtapasDoKit().Para(e.Provedor));
         }
+        if (e.Fim is { IsCompletedSuccessfully: true } fim && fim.Result.Situacao == "concluida"
+            || n.EstimativaAtual is { PeloEditor: true, Etapa: null, PercentualGeral: 100 } && erro is null)
+            etapas = FluxoNovoRelatorio.Etapas(null, "CONCLUIDO", OrdemDasEtapasDoKit().Para(e.Provedor));
         if (!claude && e.Linhas.LastOrDefault() is { } ultima && ultima.StartsWith("Erro: ", StringComparison.Ordinal))
         {
             erro = ultima[6..];

@@ -120,7 +120,7 @@ function stageTrail(stages, live) {
         if (live && stages[i + 1]?.state === "Agora") item.classList.add("approaching");
         const marker = el("span","trail-marker",stage.state === "Feita" ? "✓" : "");
         marker.setAttribute("aria-hidden","true");
-        item.append(marker,el("span","trail-label",String(i + 1).padStart(2,"0")+" "+stage.name));
+        item.append(marker,el("span","trail-label",String(i + 1).padStart(2,"0")+" "+stage.name+(stage.state==="Agora" && stage.percent!=null ? " · "+(stage.estimated?"≈ ":"")+pct(stage.percent) : "")));
         item.setAttribute("aria-label",stage.name+" · "+stage.status);
         list.append(item);
     });
@@ -171,12 +171,18 @@ function stages() {
     const current=expanded===undefined?d.stages.findIndex(s=>s.state==="Agora"):expanded;
     d.stages.forEach((s,i)=>{
         const isOpen=current===i;
-        const values={...s,percent:s.percent == null ? dash : Math.round(s.percent)+"%",result:s.result||s.status};
+        const valor=s.percent == null ? dash : (s.estimated?"≈ ":"")+pct(s.percent);
+        const values={...s,percent:valor,status:s.status,result:s.result||s.status};
         (s.fronts||[]).forEach((f,j)=>{values["front"+j]="Seções "+f.inicio+"–"+f.fim;values["count"+j]=f.prontas+" de "+f.total;});
         const nameIndex={"Preparo":0,"Análise":1,"Auditoria técnica":2,"Auditoria cruzada":3,"Produção do relatório":4,"Revisão final":5}[s.name];
         const styleIndex=s.state==="Feita"?0:Math.max(2,nameIndex??2);
         const row=block(isOpen?"stage-expanded":"stage-"+styleIndex,values);
         row.dataset.state=s.state;
+        if (!isOpen && s.percent!=null) {
+            const label=svgElement("text",{x:-24,y:19,"text-anchor":"end",fill:"#176b43","font-size":15});
+            label.textContent=valor;
+            part(row,"stage-badge")?.append(label);
+        }
         if(isOpen) {
             unitRing(row,"ring",s.percent,"#176b43");
             const fronts=part(row,"fronts");

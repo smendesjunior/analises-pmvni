@@ -17,6 +17,8 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
     /// <summary>ChatGPT, modo conta: a rota escolhida em Ajustes (<c>herdar</c>, <c>openai</c> ou <c>codex-lb</c>), resolvida antes da partida por
     /// <see cref="Agentes.RotaCodex.Resolver"/>.</summary>
     public string? RotaCodex { get; init; }
+    public string? PastaQgis { get; init; }
+    public string? PastaKit { get; init; }
 
     /// <summary>ChatGPT: continua o controle que já existe na pasta do processo (o controlador é chamado sem <c>--inputs</c>) em vez de começar do zero. Vale
     /// para a mesma análise retomada no mesmo registro; sem o <c>engine_state.json</c> do kit, a análise começa do zero.</summary>
@@ -86,11 +88,13 @@ public sealed class OrquestradorAnalise
     /// <param name="tabelaModelos">Tarefa 19: o <c>modelos-por-rota.json</c> desta execução (no registro), passado em <see cref="TabelaDeModelos.Variavel"/>;
     /// null = nenhum ajuste (a variável herdada também sai: vale o padrão do kit).</param>
     Action<IDictionary<string, string?>> Ambiente(Provedor p, ModoAcesso modo, string? chave, PerfilGemini? perfil = null, bool ficticio = false, bool trocarGemini = false,
-        RegistroExecucao? registro = null, string? tabelaModelos = null) => env =>
+        RegistroExecucao? registro = null, string? tabelaModelos = null, PedidoExecucao? pedido = null) => env =>
     {
         if (AmbienteExtra is not null)
             foreach (var (k, v) in AmbienteExtra) env[k] = v;
         AmbienteFilho.Aplicar(env, p, modo, chave, perfil, ficticio, trocarGemini);
+        if (!string.IsNullOrWhiteSpace(pedido?.PastaQgis)) env["PMVNI_QGIS_ROOT"] = pedido.PastaQgis;
+        if (!string.IsNullOrWhiteSpace(pedido?.PastaKit) && Directory.Exists(pedido.PastaKit)) env["PMVNI_KIT"] = pedido.PastaKit;
         if (registro is not null)
         {
             env["PMVNI_EXECUCAO_PASTA"] = registro.Pasta;
@@ -547,7 +551,7 @@ public sealed class OrquestradorAnalise
     /// <see cref="RotaCodex.Variavel"/> e a pasta do Codex achado pelo editor no começo do PATH (o controlador chama <c>codex</c>).</summary>
     Action<IDictionary<string, string?>> AmbienteAnalise62(PedidoExecucao pe, string? chave, string rota, RegistroExecucao registro)
     {
-        var basico = Ambiente(Provedor.ChatGpt, pe.Modo, chave, registro: registro, tabelaModelos: ArquivoDaTabela(pe));
+        var basico = Ambiente(Provedor.ChatGpt, pe.Modo, chave, registro: registro, tabelaModelos: ArquivoDaTabela(pe), pedido: pe);
         var pastaCodex = pe.Pecas.Codex is { } codex ? Path.GetDirectoryName(codex) : null;
         return env =>
         {
@@ -703,7 +707,7 @@ public sealed class OrquestradorAnalise
 
         var (exe, argsIniciar) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, runtime, pasta, "iniciar");
         Iniciou(pe, inicio, exe, new[] { exe }.Concat(argsIniciar).ToList());
-        var ambiente = Ambiente(p, pe.Modo, chave, pe.Perfil, pe.Ficticio, pe.TrocarGemini, registro, ArquivoDaTabela(pe));
+        var ambiente = Ambiente(p, pe.Modo, chave, pe.Perfil, pe.Ficticio, pe.TrocarGemini, registro, ArquivoDaTabela(pe), pe);
 
         var redator = new RedatorChave(chave);
         var log = new LeitorLog(Path.Combine(pasta, ResultadoAnalise.PastaControle(p), "auto-log.txt"));

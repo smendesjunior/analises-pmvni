@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.4.7
+
+- O monitor mostra previsão de término também na primeira análise da estação. Durante o preparo e a análise em rede, mostra contagens da execução e identifica os percentuais estimados pelo tempo.
+- A análise recebe as pastas do kit e do QGIS escolhidas nos Ajustes. A importação reconhece as imagens da mesma pasta de processo quando o kit entrega o relatório dentro de uma tentativa de produção.
+
 ## 3.4.6
 
 - Em Ajustes, você pode criar um certificado autoassinado no perfil do Windows e escolher separadamente se a assinatura aparece no despacho e no carimbo das pranchas.

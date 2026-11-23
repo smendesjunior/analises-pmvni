@@ -24,7 +24,7 @@ public class PrevisaoMonitorTestes
 
         // O manifesto já informa o progresso, mesmo sem nenhum histórico.
         var comDados = AchadosExecucao.DoProgresso(new Progresso("analyze", 1, 4, [], Provedor.ChatGpt, Agora.AddMinutes(-3)), [], Agora);
-        Assert.Equal(new EstimativaAnalise("analyze", 14, 19, null, PeloEditor: true), comDados.Estimativa);
+        Assert.Equal(new EstimativaAnalise("analyze", 14, 19, Agora.AddMinutes(35), PeloEditor: true, Inicial: true), comDados.Estimativa);
         Assert.Equal(FluxoNovoRelatorio.HistoricoInsuficiente, FluxoNovoRelatorio.TextoEstimativa(null, Agora, peloEditor: true));
         Assert.Equal("Histórico insuficiente", FluxoNovoRelatorio.PrevisaoCurta(null, Agora, peloEditor: true));
         Assert.Equal("Aguardando medições", FluxoNovoRelatorio.PrevisaoCurta(null, Agora, peloEditor: true, semDados: true));
@@ -42,7 +42,7 @@ public class PrevisaoMonitorTestes
         var painel = AchadosExecucao.DoProgresso(new Progresso("technical_audit", 2, 28, [], Provedor.Claude, Agora.AddSeconds(-10)), historico, Agora);
         // 80 s + 3 × 90 s = 350 s → 12:05:50, arredondado para 12:06.
         // Duas das seis etapas concluídas, sem contador da etapa atual.
-        Assert.Equal(new EstimativaAnalise("technical_audit", null, 33, Agora.AddMinutes(6), PeloEditor: true), painel.Estimativa);
+        Assert.Equal(new EstimativaAnalise("technical_audit", 10, 35, Agora.AddMinutes(6), PeloEditor: true, PercentualEstimado: true), painel.Estimativa);
         Assert.Empty(painel.Etapas);
         var analise = AchadosExecucao.DoProgresso(new Progresso("analyze", 1, 9, [], Provedor.Claude), historico, Agora);
         Assert.Equal(new ProgressoEtapa("analyze", 9, 9, 28, Secoes: true), analise.Etapas["analyze"]);
@@ -59,7 +59,7 @@ public class PrevisaoMonitorTestes
             new("analyze", Provedor.ChatGpt, TimeSpan.FromMinutes(5)),
         ];
         var aproximada = AchadosExecucao.DoProgresso(progresso, historico, Agora);
-        Assert.Equal(new EstimativaAnalise("produce", null, 33, null, PeloEditor: true), aproximada.Estimativa);
+        Assert.Equal(new EstimativaAnalise("produce", null, 33, Agora.AddMinutes(2), PeloEditor: true, Inicial: true), aproximada.Estimativa);
 
         var firme = Enumerable.Repeat(historico[0], 3)
             .Concat(Enumerable.Repeat(new DuracaoEtapa("final_review", Provedor.ChatGpt, TimeSpan.FromMinutes(3)), 3)).Append(historico[2]).ToList();
@@ -73,11 +73,11 @@ public class PrevisaoMonitorTestes
         var p = new Progresso("analyze", 1, 9, [], Provedor.ChatGpt);
         var painel = AchadosExecucao.DoProgresso(p, historico: null, Agora);
 
-        Assert.Equal(new EstimativaAnalise("analyze", 32, 22, null, PeloEditor: true), painel.Estimativa);
+        Assert.Equal(new EstimativaAnalise("analyze", 32, 22, Agora.AddMinutes(32), PeloEditor: true, Inicial: true), painel.Estimativa);
     }
 
     [Fact]
-    public void Monitor_AguardaPrimeiroSinalIndependentementeDoTempoDecorrido()
+    public void Monitor_DistingueTempoEstimadoDaContagemReal()
     {
         using var pasta = Ambiente.PastaDeTeste("estimativa-sinal-auditoria");
         var controle = Directory.CreateDirectory(Path.Combine(pasta, "analise")).FullName;
@@ -88,19 +88,58 @@ public class PrevisaoMonitorTestes
         File.WriteAllText(engine, estado);
         File.SetLastWriteTimeUtc(engine, Agora.UtcDateTime);
         var antes = AchadosExecucao.LerDaExecucao(registro, pasta, desde, controle, desde, [], Agora).Estimativa!;
-        Assert.Null(antes.PercentualEtapa);
+        Assert.True(antes.PercentualEstimado);
+        Assert.True(antes.PercentualEtapa > 0);
 
         var manifesto = Path.Combine(controle, "manifesto.json");
         File.WriteAllText(manifesto, """{"section_audit":[{"section":1}]}""");
         File.SetLastWriteTimeUtc(manifesto, Agora.AddSeconds(1).UtcDateTime);
         var depois = AchadosExecucao.LerDaExecucao(registro, pasta, desde, controle, desde, [], Agora.AddSeconds(1)).Estimativa!;
         Assert.Equal(4, depois.PercentualEtapa);
-        Assert.True(depois.PercentualGeral >= antes.PercentualGeral);
-        Assert.Null(depois.Termino);
+        Assert.False(depois.PercentualEstimado);
+        Assert.True(depois.Termino > Agora);
 
         var novoRegistro = Path.Combine(pasta, "outro-progresso");
         var nova = AchadosExecucao.LerDaExecucao(novoRegistro, pasta, desde, controle, desde, [], Agora.AddSeconds(2)).Estimativa!;
         Assert.Equal(4, nova.PercentualEtapa);
+    }
+
+    [Fact]
+    public void PrimeiraEstacao_ExibePrevisaoEAvancoAntesDaPrimeiraEntrega()
+    {
+        var preparo = new Progresso("prepare", 0, 0, [], Provedor.ChatGpt, Agora);
+        var primeiro = AchadosExecucao.DoProgresso(preparo, null, Agora.AddSeconds(10)).Estimativa!;
+        var depois = AchadosExecucao.DoProgresso(preparo, [], Agora.AddSeconds(55)).Estimativa!;
+        Assert.InRange(primeiro.PercentualEtapa!.Value, 1, 20);
+        Assert.True(depois.PercentualEtapa > primeiro.PercentualEtapa);
+        Assert.True(depois.Termino > Agora.AddMinutes(1));
+        Assert.True(depois.Inicial);
+    }
+
+    [Fact]
+    public void SessaoNaEstacao_ContaFrentesAntesDeCopiarOsArquivosParaARede()
+    {
+        using var pasta = Ambiente.PastaDeTeste("monitor-unc");
+        var controle = Directory.CreateDirectory(Path.Combine(pasta, "analise")).FullName;
+        Directory.CreateDirectory(Path.Combine(controle, "runs", "secoes-abc"));
+        var inicio = Agora.ToUnixTimeSeconds();
+        File.WriteAllText(Path.Combine(controle, "ENGINE_STATE.JSON"), JsonSerializer.Serialize(new {
+            stages = new { prepare = new { status = "EXECUTED" }, analyze = new { status = "RUNNING", started = inicio } } }));
+        File.WriteAllText(Path.Combine(controle, "FRENTES_ATIVAS.JSON"), JsonSerializer.Serialize(new { pasta = @"\\servidor\obras\processo\.pmvni-ai\analise\runs\secoes-abc" }));
+        void Gravar(long partida, int[] secoes) => File.WriteAllText(Path.Combine(controle, "MONITOR-UNIDADES.JSON"),
+            JsonSerializer.Serialize(new { etapa = "analyze", inicio = partida, secoes }));
+        Gravar(inicio - 10, [1, 2, 3, 4]);
+        Assert.Equal(0, ProgressoLocal.Ler(controle).SecoesComResultado);
+        foreach (var n in new[] { 1, 8, 18, 27 })
+        {
+            Gravar(inicio, Enumerable.Range(1, n).ToArray());
+            var p = ProgressoLocal.Ler(controle);
+            var leitura = AchadosExecucao.DoProgresso(p, [], Agora.AddMinutes(1));
+            Assert.Equal(n, p.SecoesComResultado);
+            Assert.False(leitura.Estimativa!.PercentualEstimado);
+            Assert.InRange(leitura.Estimativa.PercentualGeral!.Value, 17, 33);
+            Assert.True(leitura.Estimativa.Termino > Agora);
+        }
     }
 
     [Theory]

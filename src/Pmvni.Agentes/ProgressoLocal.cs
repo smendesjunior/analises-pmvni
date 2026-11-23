@@ -30,6 +30,8 @@ public sealed record Progresso(string? Etapa, int EtapasConcluidas, int SecoesCo
     /// <summary>Data de gravação do artefato que sustenta a última contagem; uma consulta do relógio não renova a medição.</summary>
     internal DateTimeOffset? InstanteDaMedicao { get; init; }
 
+    public bool Pausado { get; internal init; }
+
     internal double? FracaoObservada => SinalDaEtapa is { Total: > 0 } sinal ? Math.Clamp((double)sinal.Feitos / sinal.Total, 0, 1)
         : Etapa == "analyze" && SecoesComResultado > 0 && TotalSecoes > 0 ? Math.Clamp((double)SecoesComResultado / TotalSecoes, 0, 1) : null;
 
@@ -69,6 +71,7 @@ public static class ProgressoLocal
         DateTimeOffset? instanteDaMedicao = null;
 
         string? etapa = null;
+        var pausado = false;
         var concluidas = new List<string>();
         DateTimeOffset? inicioEtapa = null;
         (int Feitos, int Total)? sinal = null;
@@ -94,12 +97,24 @@ public static class ProgressoLocal
                 etapa = ordem[atual];
                 var registro = Registro(etapa);
                 var situacao = registro is { } r ? Texto(r, "status") : null;
+                pausado = situacao is not (null or EmAndamento);
                 // RUNNING (ou registro ainda sem ended): o started dela, que o kit grava em todas as etapas; sem ele, o fim da anterior. Em espera de cota ou
                 // de decisão o início não é confiável (a espera não é trabalho): a previsão conta a etapa inteira. Parada por falha ou objeção: o fim da anterior.
                 inicioEtapa = Espera(situacao) ? null
                     : registro is { } atualRegistro && (situacao == EmAndamento || Instante(atualRegistro, "ended") is null)
                         ? Instante(atualRegistro, "started") ?? fimAnterior
                         : fimAnterior;
+                if (etapa == "prepare" && situacao == EmAndamento && registro is { } preparo
+                    && PastaDaTentativa(pastaControle, Texto(preparo, "run")) is { } tentativa)
+                {
+                    var contador = Path.Combine(tentativa, "preparo", "andamento.json");
+                    if (ArquivoJsonDoKit.Ler(contador, inicioEtapa?.UtcDateTime ?? desdeUtc) is { ValueKind: JsonValueKind.Object } leitura
+                        && Inteiro(leitura, "feitos") is int feitos && Inteiro(leitura, "total") is > 0 and int total && feitos >= 0 && feitos <= total)
+                    {
+                        sinal = (feitos, total);
+                        instanteDaMedicao = File.GetLastWriteTimeUtc(contador);
+                    }
+                }
                 if (etapa == "produce" && situacao == EmAndamento && registro is { } producao && Instante(producao, "started") is { } inicioProducao)
                     sinal = SaidasDaProducao(pastaControle, Texto(producao, "run"), inicioProducao.UtcDateTime, desdeUtc);
             }
@@ -122,7 +137,8 @@ public static class ProgressoLocal
                 secoes = Math.Min(comResultado.Count, TotalSecoesDoKit);
                 if (etapa == "analyze") sinal = (secoes, TotalSecoesDoKit);
             }
-            if (etapa == "technical_audit" && m.TryGetProperty("section_audit", out var auditoria) && auditoria.ValueKind == JsonValueKind.Array)
+            if (etapa == "technical_audit" && (inicioEtapa is null || File.GetLastWriteTimeUtc(arquivoManifesto) >= inicioEtapa.Value.UtcDateTime)
+                && m.TryGetProperty("section_audit", out var auditoria) && auditoria.ValueKind == JsonValueKind.Array)
             {
                 var auditadas = new HashSet<int>();
                 foreach (var item in auditoria.EnumerateArray())
@@ -157,8 +173,43 @@ public static class ProgressoLocal
                 instanteDaMedicao = ultimoResultado;
             }
         }
+        if (etapa == "technical_audit" && !pausado && MedicaoDaEstacao(pastaControle, etapa, inicioEtapa) is { } auditoriaLocal
+            && auditoriaLocal.Secoes.Count > (sinal?.Feitos ?? 0))
+        {
+            sinal = (auditoriaLocal.Secoes.Count, TotalSecoesDoKit);
+            instanteDaMedicao = auditoriaLocal.Escritura;
+        }
         return new Progresso(etapa, concluidas.Count, secoes, achados, provedor, inicioEtapa)
-            { Ordem = ordem, EtapasExecutadas = concluidas, SinalDaEtapa = sinal, InstanteDaMedicao = instanteDaMedicao };
+            { Ordem = ordem, EtapasExecutadas = concluidas, Pausado = pausado, SinalDaEtapa = sinal, InstanteDaMedicao = instanteDaMedicao };
+    }
+
+    internal static (HashSet<int> Secoes, DateTime Escritura)? MedicaoDaEstacao(string controle, string etapa, DateTimeOffset? inicio)
+    {
+        if (inicio is null) return null;
+        var arquivo = Path.Combine(controle, "monitor-unidades.json");
+        if (ArquivoJsonDoKit.Ler(arquivo) is not { ValueKind: JsonValueKind.Object } leitura
+            || Texto(leitura, "etapa") != etapa || Instante(leitura, "inicio") != inicio
+            || !leitura.TryGetProperty("secoes", out var secoes) || secoes.ValueKind != JsonValueKind.Array) return null;
+        var ids = new HashSet<int>();
+        foreach (var item in secoes.EnumerateArray())
+            if (item.ValueKind == JsonValueKind.Number && item.TryGetInt32(out var n) && n is >= 1 and <= TotalSecoesDoKit) ids.Add(n);
+        return (ids, File.GetLastWriteTimeUtc(arquivo));
+    }
+
+    // O kit pode registrar o UNC enquanto o Editor abriu a mesma pasta por uma letra mapeada.
+    // Só o nome da tentativa é usado, sempre sob a pasta runs da execução que está aberta.
+    internal static string? PastaDaTentativa(string controle, string? registrada)
+    {
+        if (string.IsNullOrWhiteSpace(registrada) || !Path.IsPathFullyQualified(registrada)) return null;
+        try
+        {
+            var origem = new DirectoryInfo(registrada);
+            if (!string.Equals(origem.Parent?.Name, "runs", StringComparison.OrdinalIgnoreCase)) return null;
+            var runs = new DirectoryInfo(Path.Combine(controle, "runs"));
+            var local = new DirectoryInfo(Path.Combine(runs.FullName, origem.Name));
+            return local.Exists && local.LinkTarget is null && runs.LinkTarget is null ? local.FullName : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return null; }
     }
 
     /// <summary>O kit 4 grava dados e PDF na pasta da tentativa (campo run), depois publica o delivery na raiz do controle.</summary>
@@ -169,7 +220,8 @@ public static class ProgressoLocal
         {
             var controle = new DirectoryInfo(pastaControle);
             var runs = new DirectoryInfo(Path.Combine(controle.FullName, "runs"));
-            var pasta = new DirectoryInfo(tentativa);
+            if (PastaDaTentativa(pastaControle, tentativa) is not { } local) return null;
+            var pasta = new DirectoryInfo(local);
             // Só a tentativa registrada, diretamente dentro de runs, sem seguir links ou procurar resultados de tentativas anteriores.
             if (!string.Equals(pasta.Parent?.FullName, runs.FullName, StringComparison.OrdinalIgnoreCase)
                 || !pasta.Exists || pasta.LinkTarget is not null || runs.LinkTarget is not null || controle.LinkTarget is not null) return null;

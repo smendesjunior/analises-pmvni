@@ -46,6 +46,19 @@ public static class CaminhoImagem
     /// pasta pai. Não sobe até a raiz: um <c>.pmvni-ai</c> numa pasta de cima (a raiz de PROCESSOS, por exemplo) não amplia o limite a todos os processos.</summary>
     internal static string PastaDoProcesso(string pastaDados)
     {
+        // Uma tentativa do kit fica em .pmvni-ai/<rota>/runs/<tentativa> e o ensaio em
+        // .../runs/technical-audit/montagem. As figuras podem estar em local ou em outra frente.
+        for (var d = new DirectoryInfo(pastaDados); d.Parent is not null; d = d.Parent)
+        {
+            if (!d.Name.Equals("runs", StringComparison.OrdinalIgnoreCase)) continue;
+            var controle = d.Parent;
+            if (controle.Name.ToLowerInvariant() is "analise" or "analise-pro" or "analise-google"
+                && controle.Parent is { Parent: { } processo } ia
+                && ia.Name.Equals(".pmvni-ai", StringComparison.OrdinalIgnoreCase)
+                && ia.Exists && ia.LinkTarget is null && controle.LinkTarget is null && d.LinkTarget is null)
+                return processo.FullName;
+            break;
+        }
         var nivel = 0;
         for (var d = pastaDados; d is not null && nivel <= NiveisAcima; d = Path.GetDirectoryName(d), nivel++)
         {
