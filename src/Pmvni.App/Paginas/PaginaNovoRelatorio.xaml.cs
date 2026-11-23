@@ -562,7 +562,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         if (percentual is { } valor) percentual = Math.Clamp(Math.Round(valor, 1), 0, concluiu ? 100 : 99);
         BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
         BarraResumoEtapas.Value = percentual ?? 0;
-        var percentualEstimado = !concluiu && EstimativaAtual is { PercentualGeral: not null } atual && (!atual.PeloEditor || atual.PercentualEstimado);
+        var percentualEstimado = !concluiu && EstimativaAtual is { PercentualGeral: not null } origem && (!origem.PeloEditor || origem.PercentualEstimado);
         TextoPercentual.Text = percentual is { } p ? $"{(percentualEstimado ? "≈ " : "")}{p:0.#}%" : "—";
         BarraResumoEtapas.IsActive = percentual.HasValue || animar;
         TextoPercentual.Visibility = Visivel(percentual.HasValue);
