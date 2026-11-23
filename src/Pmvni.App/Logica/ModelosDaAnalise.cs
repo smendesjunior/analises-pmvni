@@ -175,6 +175,8 @@ public static class ModelosDaAnalise
                     if (opcional && e?["ligada_por_rota"] is JsonObject lp)
                         foreach (var rota in Rotas) ligadas[rota] = lp[rota] is not JsonValue v || !v.TryGetValue<bool>(out var b) || b;
                     lista.Add(new EtapaModelos(id, SituacaoAnalisePro.NomeEtapa(id), Texto(e?["executor"]) == "programa", opcional, ligadas));
+                    if (id == "technical_audit" && tabela?.Celulas.Keys.Any(k => k.Etapa == "autocorrecao") == true)
+                        lista.Add(new EtapaModelos("autocorrecao", "Autocorreção", false, false, new Dictionary<string, bool>()));
                 }
                 if (lista.Count > 0) return lista;
             }

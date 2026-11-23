@@ -347,6 +347,8 @@ public sealed partial class MainWindow
             var descricao = etapa.Id switch
             {
                 "analyze" => "Três sessões em paralelo: seções 1–9, 10–18 e 19–28",
+                "technical_audit" when rota.Rota == "codex" => "Três sessões consecutivas conferem os achados por bloco de seções",
+                "autocorrecao" => "Corrige os apontamentos que o validador mantém após os consertos automáticos",
                 "technical_audit" => "Uma sessão independente confere e corrige os achados", _ => ""
             };
             var bloco = new Grid { ColumnSpacing = 10, Margin = new Thickness(12, 6, 0, 6), VerticalAlignment = VerticalAlignment.Center };
@@ -377,6 +379,7 @@ public sealed partial class MainWindow
         if (dePrograma.Count > 0)
         {
             grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            dePrograma.Add("consertos automáticos");
             var nomes = dePrograma.Count == 1 ? dePrograma[0] : string.Join(", ", dePrograma.Take(dePrograma.Count - 1)) + " e " + dePrograma[^1];
             var nota = new TextBlock
             {
