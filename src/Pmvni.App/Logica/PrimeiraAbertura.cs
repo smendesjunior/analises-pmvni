@@ -83,7 +83,7 @@ public static class PrimeiraAbertura
         if (!File.Exists(script)) throw new FileNotFoundException("O script da primeira abertura não foi extraído.", script);
         var cmd = Path.Combine(pastaScripts, Cmd);
         // Codificação do console do Windows: o caminho do usuário pode ter acentos ("Relatórios"); o cmd.exe lê o .cmd na página OEM.
-        File.WriteAllText(cmd, TextoCmd(script), CodificacaoDoConsole());
+        File.WriteAllText(ArquivoGerado.Caminho(cmd), TextoCmd(script), CodificacaoDoConsole());
         iniciar(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), cmd);
         return true;
     }

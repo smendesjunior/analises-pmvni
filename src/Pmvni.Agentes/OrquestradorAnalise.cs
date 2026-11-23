@@ -107,8 +107,8 @@ public sealed class OrquestradorAnalise
         if (pe.Modelos is not { } t) return null;
         var arquivo = Path.Combine(pe.Registro.Pasta, TabelaDeModelos.NomeDoArquivo);
         var tmp = arquivo + ".tmp";
-        File.WriteAllText(tmp, t.Json, new UTF8Encoding(false));
-        File.Move(tmp, arquivo, overwrite: true);
+        File.WriteAllText(ArquivoGerado.Caminho(tmp), t.Json, new UTF8Encoding(false));
+        File.Move(tmp, ArquivoGerado.Caminho(arquivo), overwrite: true);
         JsonNode? tabela;
         try { tabela = JsonNode.Parse(t.Json); }
         catch (JsonException) { tabela = null; }
@@ -565,7 +565,7 @@ public sealed class OrquestradorAnalise
         try
         {
             Directory.CreateDirectory(controle);
-            File.WriteAllText(Path.Combine(controle, "diretrizes.md"), texto, new UTF8Encoding(false));
+            File.WriteAllText(ArquivoGerado.Caminho(Path.Combine(controle, "diretrizes.md")), texto, new UTF8Encoding(false));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Registrar(e); }
     }
@@ -696,7 +696,7 @@ public sealed class OrquestradorAnalise
             var controle = Path.Combine(pasta, ResultadoAnalise.PastaControle(p));
             var diretrizes = Path.Combine(controle, "diretrizes.md");
             Directory.CreateDirectory(controle);
-            File.WriteAllText(diretrizes, (pe.Texto ?? "").Trim() + "\n", new UTF8Encoding(false));     // só o texto do analista (Tarefa 13)
+            File.WriteAllText(ArquivoGerado.Caminho(diretrizes), (pe.Texto ?? "").Trim() + "\n", new UTF8Encoding(false));     // só o texto do analista (Tarefa 13)
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         registro.GravarAnexos(pe.Anexos);

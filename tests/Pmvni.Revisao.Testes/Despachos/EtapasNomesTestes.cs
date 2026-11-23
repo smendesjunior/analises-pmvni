@@ -107,9 +107,9 @@ public sealed class EtapasNomesTestes
     [Fact]
     public void nome_base_como_o_kit()
     {
-        Assert.Equal("Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio",
+        Assert.Equal("DESPACHO_CORRECAO_1_2099_FULANO_DE_EXEMPLO_FICTICIO",
             NomesDespacho.Base(TipoDespacho.Correcao, 1, 2099, "FULANO DE EXEMPLO (FICTICIO)"));
-        Assert.Equal("Despacho_Aprovacao_9001_2026_Condominio_Residencial_Exemplo_Alfa",
+        Assert.Equal("DESPACHO_APROVACAO_9001_2026_CONDOMINIO_RESIDENCIAL_EXEMPLO_ALFA",
             NomesDespacho.Base(TipoDespacho.Aprovacao, 9001, 2026, "CONDOMÍNIO RESIDENCIAL EXEMPLO ALFA"));
     }
 
@@ -118,12 +118,12 @@ public sealed class EtapasNomesTestes
     {
         var b = NomesDespacho.Base(TipoDespacho.Correcao, 1, 2099, string.Join(' ', Enumerable.Repeat("PALAVRA", 30)));
 
-        const string prefixo = "Despacho_Correcao_1_2099_";
+        const string prefixo = "DESPACHO_CORRECAO_1_2099_";
         Assert.StartsWith(prefixo, b);
         var nome = b[prefixo.Length..];
         Assert.True(nome.Length <= 60, nome);
         Assert.True(nome.Length > 50, nome);
-        Assert.EndsWith("Palavra", nome);
+        Assert.EndsWith("PALAVRA", nome);
     }
 
     [Fact]
@@ -131,14 +131,14 @@ public sealed class EtapasNomesTestes
     {
         using var pasta = Ambiente.PastaDeTeste("nomes-livres");
 
-        Assert.Equal(new NomesLivres(Path.Combine(pasta, "base.docx"), Path.Combine(pasta, "base.pdf"), Path.Combine(pasta, "base.recibo-editor.json")),
+        Assert.Equal(new NomesLivres(Path.Combine(pasta, "BASE.DOCX"), Path.Combine(pasta, "BASE.PDF"), Path.Combine(pasta, "BASE.RECIBO-EDITOR.JSON")),
             NomesDespacho.Livres(pasta, "base"));
 
         File.WriteAllText(Path.Combine(pasta, "base.pdf"), "x");
-        Assert.Equal(Path.Combine(pasta, "base (2).docx"), NomesDespacho.Livres(pasta, "base").Docx);
+        Assert.Equal(Path.Combine(pasta, "BASE (2).DOCX"), NomesDespacho.Livres(pasta, "base").Docx);
 
         File.WriteAllText(Path.Combine(pasta, "base (2).recibo-editor.json"), "x");
         var l = NomesDespacho.Livres(pasta, "base");
-        Assert.Equal(new NomesLivres(Path.Combine(pasta, "base (3).docx"), Path.Combine(pasta, "base (3).pdf"), Path.Combine(pasta, "base (3).recibo-editor.json")), l);
+        Assert.Equal(new NomesLivres(Path.Combine(pasta, "BASE (3).DOCX"), Path.Combine(pasta, "BASE (3).PDF"), Path.Combine(pasta, "BASE (3).RECIBO-EDITOR.JSON")), l);
     }
 }

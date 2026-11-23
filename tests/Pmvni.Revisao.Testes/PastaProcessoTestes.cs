@@ -19,7 +19,7 @@ public sealed class PastaProcessoTestes
     {
         Assert.Null(ConteudoDespacho.ProcessoDaCapa("18805"));   // sem ano: o editor pergunta, nunca usa o ano corrente
         Assert.Equal("LIGIA BEATRIZ ALTOE ME", CriacaoProcesso.NomeRequerente("  Lígia  Beatriz Altoé / ME "));
-        Assert.Equal("Despacho_Correcao_18805_2026_Ligia_Beatriz_Altoe", NomesDespacho.Base(TipoDespacho.Correcao, 18805, 2026, "Lígia Beatriz Altoé"));
+        Assert.Equal("DESPACHO_CORRECAO_18805_2026_LIGIA_BEATRIZ_ALTOE", NomesDespacho.Base(TipoDespacho.Correcao, 18805, 2026, "Lígia Beatriz Altoé"));
 
         using var t = Ambiente.PastaDeTeste("pasta-processo-kit");
         string raiz = t;
@@ -66,9 +66,9 @@ public sealed class PastaProcessoTestes
         File.WriteAllBytes(a, "%PDF um"u8.ToArray());
         ArquivoArquivado Copiar() => Assert.Single(Arquivamento.Arquivar(pasta, Arquivamento.Planejar(pasta, [(a, DestinoAnexo.Documento)]), CancellationToken.None));
         var primeira = Copiar();
-        Assert.Equal((Path.Combine("DOCUMENTOS", "req.pdf"), false), (primeira.Relativo, primeira.JaEstava));
+        Assert.Equal((Path.Combine("DOCUMENTOS", "REQ.PDF"), false), (primeira.Relativo, primeira.JaEstava));
         Assert.True(Copiar().JaEstava);                                                    // mesmo conteúdo: não duplica
         File.WriteAllBytes(a, "%PDF dois"u8.ToArray());
-        Assert.Equal(Path.Combine("DOCUMENTOS", "req (2).pdf"), Copiar().Relativo);        // nome igual, conteúdo diferente
+        Assert.Equal(Path.Combine("DOCUMENTOS", "REQ (2).PDF"), Copiar().Relativo);        // nome igual, conteúdo diferente
     }
 }

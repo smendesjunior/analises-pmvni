@@ -65,7 +65,7 @@ public static class EmissaoDespacho
         try
         {
             Directory.CreateDirectory(pastaTrabalho);
-            File.WriteAllBytes(caminho, docx);
+            File.WriteAllBytes(ArquivoGerado.Caminho(caminho), docx);
             relido = File.ReadAllBytes(caminho);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return Erro(Trabalho(e)); }
@@ -228,14 +228,14 @@ public static class EmissaoDespacho
         var tmp = Path.Combine(pasta, Path.GetFileName(final) + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp");
         try
         {
-            using (var fs = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var fs = new FileStream(ArquivoGerado.Caminho(tmp), FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 fs.Write(bytes);
                 fs.Flush(true);
             }
             File.SetAttributes(tmp, File.GetAttributes(tmp) | FileAttributes.Hidden);
             antesDeMover?.Invoke(final);
-            try { File.Move(tmp, final, overwrite: false); }
+            try { File.Move(tmp, ArquivoGerado.Caminho(final), overwrite: false); }
             catch (IOException) when (File.Exists(final) || Directory.Exists(final)) { throw new NomeOcupadoException(final); }
             criados.Add(final);
             File.SetAttributes(final, File.GetAttributes(final) & ~FileAttributes.Hidden);
@@ -264,7 +264,7 @@ public static class EmissaoDespacho
         try
         {
             Directory.CreateDirectory(pastaTrabalho);
-            File.Copy(docxGravado, copia, overwrite: true);
+            File.Copy(docxGravado, ArquivoGerado.Caminho(copia), overwrite: true);
             bytes = File.ReadAllBytes(copia);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return Erro(Trabalho(e)); }
@@ -293,7 +293,7 @@ public static class EmissaoDespacho
         if (RegistroModelos.Sha(atual) != RegistroModelos.Sha(p.Docx)) throw new InvalidOperationException(DocxMudou);
 
         var pasta = Path.GetDirectoryName(Path.GetFullPath(docxGravado))!;
-        var caminhoPdf = Path.ChangeExtension(Path.GetFullPath(docxGravado), ".pdf");
+        var caminhoPdf = Path.Combine(pasta, Path.GetFileNameWithoutExtension(docxGravado).ToUpperInvariant() + ".PDF");
         var caminhoRecibo = ReciboDespacho.CaminhoDe(Path.GetFullPath(docxGravado));
         var criados = new List<string>();
         try { Mover(pasta, p.Pdf, caminhoPdf, criados); }
@@ -306,10 +306,10 @@ public static class EmissaoDespacho
             recibo["pdf"] = ReciboDespacho.Pdf(caminhoPdf, p.Pdf, p.Paginas!.Value, p.Fontes, motorPdf, p.Assinatura);
             recibo["sem_pdf_motivo"] = null;
             recibo["paginas_conferidas"] = ReciboDespacho.Conferidas(paginasConferidas, u);
-            File.WriteAllBytes(tmp, ReciboDespacho.Escrever(recibo));
+            File.WriteAllBytes(ArquivoGerado.Caminho(tmp), ReciboDespacho.Escrever(recibo));
             File.SetAttributes(tmp, File.GetAttributes(tmp) | FileAttributes.Hidden);
             antesDaTroca?.Invoke(caminhoRecibo);
-            File.Move(tmp, caminhoRecibo, overwrite: true);
+            File.Move(tmp, ArquivoGerado.Caminho(caminhoRecibo), overwrite: true);
         }
         catch
         {

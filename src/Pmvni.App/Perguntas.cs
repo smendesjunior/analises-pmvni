@@ -175,11 +175,12 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
 
     public async Task<string?> SalvarArquivoAsync(string nomeSugerido, string extensao)
     {
-        var seletor = new FileSavePicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
-        WinRT.Interop.InitializeWithWindow.Initialize(seletor, Janela);
-        seletor.FileTypeChoices.Add(Tipos.TryGetValue(extensao, out var t) ? t : extensao, [extensao]);
-        seletor.SuggestedFileName = Path.GetFileNameWithoutExtension(nomeSugerido);
-        return (await seletor.PickSaveFileAsync())?.Path;
+        var seletor = new Microsoft.Windows.Storage.Pickers.FileSavePicker(Microsoft.UI.Win32Interop.GetWindowIdFromWindow(Janela));
+        seletor.SuggestedStartLocation = Microsoft.Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+        seletor.FileTypeChoices.Add(Tipos.TryGetValue(extensao, out var t) ? t : extensao, [extensao.ToUpperInvariant()]);
+        seletor.SuggestedFileName = Path.GetFileNameWithoutExtension(nomeSugerido).ToUpperInvariant();
+        var escolhido = await seletor.PickSaveFileAsync();
+        return escolhido is null ? null : ArquivoGerado.Caminho(escolhido.Path);
     }
 
     public async Task<string?> EscolherPastaAsync()

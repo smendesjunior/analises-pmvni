@@ -91,7 +91,7 @@ public sealed partial class MainWindow
         try
         {
             var arquivo = Path.Combine(pasta, Path.GetFileName(caminho));
-            await File.WriteAllBytesAsync(arquivo, via);
+            await File.WriteAllBytesAsync(ArquivoGerado.Caminho(arquivo), via);
             await AbrirJanelaImpressaoAsync(arquivo, "Via de impressão — " + Path.GetFileNameWithoutExtension(caminho), pasta);
         }
         catch
@@ -125,7 +125,7 @@ public sealed partial class MainWindow
         }
         var pasta = NovaPastaDeImpressao();
         var copia = Path.Combine(pasta, NomeDeArquivo(lei.Titulo) + ".pdf");
-        await Task.Run(() => File.Copy(origem, copia, overwrite: true));
+        await Task.Run(() => File.Copy(origem, ArquivoGerado.Caminho(copia), overwrite: true));
         await AbrirJanelaImpressaoAsync(copia, lei.Titulo, pasta);
     }
 

@@ -43,7 +43,7 @@ public sealed class TravaExecucao : IDisposable
         {
             try
             {
-                using (var fs = new FileStream(caminho, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
+                using (var fs = new FileStream(ArquivoGerado.Caminho(caminho), FileMode.CreateNew, FileAccess.Write, FileShare.Read))
                 using (var w = new StreamWriter(fs, Utf8))
                     w.Write(conteudo);
                 return new TravaExecucao(caminho, selo);

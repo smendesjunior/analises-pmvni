@@ -13,4 +13,7 @@
     <EmbeddedResource Include="web\**\*" LogicalName="leg/%(RecursiveDir)%(Filename)%(Extension)" />
     <InternalsVisibleTo Include="Pmvni.Legislacao.Testes" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Pmvni.Arquivos\Pmvni.Arquivos.csproj" />
+  </ItemGroup>
 </Project>

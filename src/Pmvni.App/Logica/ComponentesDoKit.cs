@@ -434,7 +434,7 @@ public static class ComponentesDoKit
             + "\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \""
             + script.Replace("%", "%%") + "\"" + opcoes + " -KitLocal \"" + kitLocal.Replace("%", "%%") + "\"\r\nexit /b %errorlevel%\r\n";
         Directory.CreateDirectory(pastaScripts);
-        File.WriteAllText(cmd, texto, PrimeiraAbertura.CodificacaoDoConsole());
+        File.WriteAllText(ArquivoGerado.Caminho(cmd), texto, PrimeiraAbertura.CodificacaoDoConsole());
         iniciar(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), cmd);
         return parte is null
             ? "Atualização de todo o kit iniciada fora do Editor (INSTALAR_KIT_PMVNI.cmd atualizar). O Editor confere os componentes ao terminar."

@@ -554,7 +554,7 @@ public sealed partial class MainWindow
                 wrapper = Path.ChangeExtension(marcador, ".cmd");
                 var corpo = "@echo off\r\ncall \"" + cmd + "\"\r\n> \"" + marcador + ".tmp\" echo %errorlevel%\r\n"
                     + "move /y \"" + marcador + ".tmp\" \"" + marcador + "\" >nul\r\n";
-                File.WriteAllText(wrapper, corpo, PrimeiraAbertura.CodificacaoDoConsole());
+                File.WriteAllText(ArquivoGerado.Caminho(wrapper), corpo, PrimeiraAbertura.CodificacaoDoConsole());
                 AbrirPeloWindows(programa, wrapper);
             }
             p.TextoResultadoComponentes.Text = reparar

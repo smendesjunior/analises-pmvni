@@ -188,7 +188,7 @@ public sealed partial class PaginaNovoRelatorio
             if (htmlPronto && await WebMonitor.ExecuteScriptAsync(
                 "document.querySelector('article .board')?.parentElement.getAttribute('aria-label')") == JsonSerializer.Serialize(pagina))
             {
-                using var stream = File.Create(Path.Combine(pasta, $"html-{pagina}.png"));
+                using var stream = File.Create(ArquivoGerado.Caminho(Path.Combine(pasta, $"html-{pagina}.png")));
                 await WebMonitor.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, stream.AsRandomAccessStream());
                 return;
             }

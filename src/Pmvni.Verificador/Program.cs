@@ -53,7 +53,7 @@ internal static class Program
     static int GerarHtml(ResultadoRender r, string saida)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(saida)!);
-        File.WriteAllBytes(saida, new UTF8Encoding(false).GetBytes(r.Html.Replace("\n", "\r\n", StringComparison.Ordinal)));
+        File.WriteAllBytes(ArquivoGerado.Caminho(saida), new UTF8Encoding(false).GetBytes(r.Html.Replace("\n", "\r\n", StringComparison.Ordinal)));
         Console.WriteLine("HTML gravado: " + saida);
         return 0;
     }
@@ -149,7 +149,7 @@ internal static class Program
         }
         var saida = Path.GetFullPath(a.Saida!);
         Directory.CreateDirectory(Path.GetDirectoryName(saida)!);
-        File.WriteAllBytes(saida, docx);
+        File.WriteAllBytes(ArquivoGerado.Caminho(saida), docx);
         Console.WriteLine("DESPACHO_OK " + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(docx)));
         return 0;
     }
@@ -237,7 +237,7 @@ internal static class Program
         {
             Directory.CreateDirectory(pasta);
             for (var i = 1; i <= c.Folhas; i++)
-                await File.WriteAllBytesAsync(Path.Combine(pasta, $"folha-{i:000}.png"), await host.Documento.CapturarFolhaAsync(i, dpi));
+                await File.WriteAllBytesAsync(ArquivoGerado.Caminho(Path.Combine(pasta, $"folha-{i:000}.png")), await host.Documento.CapturarFolhaAsync(i, dpi));
             Console.WriteLine($"Capturas gravadas: {pasta} ({c.Folhas} folhas, {dpi} dpi)");
             return 0;
         }
@@ -246,7 +246,7 @@ internal static class Program
     static void Gravar(string caminho, string texto)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(caminho)!);
-        File.WriteAllText(caminho, texto, new UTF8Encoding(false));
+        File.WriteAllText(ArquivoGerado.Caminho(caminho), texto, new UTF8Encoding(false));
     }
 
     /// <summary>Imprime &lt;p&gt;ok&lt;/p&gt; num HostOculto via CDP Page.printToPDF.</summary>
@@ -260,7 +260,7 @@ internal static class Program
         string base64;
         using (var json = JsonDocument.Parse(resposta)) base64 = json.RootElement.GetProperty("data").GetString()!;
         Directory.CreateDirectory(Path.GetDirectoryName(caminho)!);
-        await File.WriteAllBytesAsync(caminho, Convert.FromBase64String(base64));
+        await File.WriteAllBytesAsync(ArquivoGerado.Caminho(caminho), Convert.FromBase64String(base64));
         Console.WriteLine($"PDF gravado: {caminho} ({new FileInfo(caminho).Length} bytes)");
         return 0;
     }

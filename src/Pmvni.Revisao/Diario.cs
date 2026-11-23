@@ -51,7 +51,7 @@ public sealed class Diario : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(caminho)!);
         // Nunca apaga em silêncio um diário que tem trabalho: guarda-o como órfão antes de começar outro.
         if (File.Exists(caminho) && Ler(raizDados, pacote, sha256Base) is not null) Arquivar(raizDados, pacote);
-        var f = new FileStream(caminho, FileMode.Create, FileAccess.Write, FileShare.Read);
+        var f = new FileStream(ArquivoGerado.Caminho(caminho), FileMode.Create, FileAccess.Write, FileShare.Read);
         var d = new Diario(caminho, f);
         d.Acrescentar(new JsonObject
         {
@@ -140,7 +140,7 @@ public sealed class Diario : IDisposable
             if (File.Exists(novo)) continue;
             try
             {
-                File.Move(caminho, novo, false);
+                File.Move(caminho, ArquivoGerado.Caminho(novo), false);
                 // A idade do órfão (limpeza de 30 dias) conta do dia em que foi guardado, não da última gravação do diário:
                 // o Move preserva a data antiga, e um diário velho guardado agora sairia na abertura seguinte.
                 try { File.SetLastWriteTimeUtc(novo, DateTime.UtcNow); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }

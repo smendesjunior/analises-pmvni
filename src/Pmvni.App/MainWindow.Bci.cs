@@ -267,8 +267,8 @@ public sealed partial class MainWindow
         var nome = new string((contribuinte ?? "").Where(c => !invalidos.Contains(c)).ToArray()).Trim().TrimEnd('.');
         nome = System.Text.RegularExpressions.Regex.Replace(nome, @"\s+", " ");
         if (nome.Length > 120) nome = nome[..120].Trim();
-        var arquivo = Path.Combine(pasta, "BCI - " + (nome.Length > 0 ? nome + " - " : "") + ChaveBci.Estrita(inscricao) + ".pdf");
-        File.WriteAllBytes(arquivo, pdf);
+        var arquivo = Path.Combine(pasta, "BCI - " + (nome.Length > 0 ? nome.ToUpperInvariant() + " - " : "") + ChaveBci.Estrita(inscricao) + ".PDF");
+        File.WriteAllBytes(ArquivoGerado.Caminho(arquivo), pdf);
         return arquivo;
     }
 

@@ -119,9 +119,9 @@ public static class RespostaDecisao
             ["respondido_em_utc"] = DateTimeOffset.UtcNow.ToString("o", CultureInfo.InvariantCulture), ["respondido_por"] = "analista (Editor de Relatórios)",
         };
         var tmp = arquivo + ".tmp";
-        File.WriteAllText(tmp, obj.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
+        File.WriteAllText(ArquivoGerado.Caminho(tmp), obj.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }),
             new System.Text.UTF8Encoding(false));
-        File.Move(tmp, arquivo, overwrite: true);
+        File.Move(tmp, ArquivoGerado.Caminho(arquivo), overwrite: true);
         return arquivo;
     }
 }

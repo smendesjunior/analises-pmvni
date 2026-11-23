@@ -356,7 +356,7 @@ internal sealed class SessaoNovoDespacho
         if (Preparacao is not { Pdf: { } pdf } || pastaTrabalho is null) return [];
         DesenhouPaginas = true;
         var caminho = Path.Combine(pastaTrabalho, "conferencia.pdf");
-        await File.WriteAllBytesAsync(caminho, pdf);
+        await File.WriteAllBytesAsync(ArquivoGerado.Caminho(caminho), pdf);
         var arquivo = await StorageFile.GetFileFromPathAsync(caminho);
         var documento = await PdfDocument.LoadFromFileAsync(arquivo);
         var lista = new List<ImageSource>();

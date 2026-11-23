@@ -348,11 +348,11 @@ internal sealed class SessaoEdicao : IAsyncDisposable
         assetsNovos[chave] = png;
         var destino = Path.Combine(Recompositor.PastaTrabalho, chave.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(destino)!);
-        File.WriteAllBytes(destino, png);
+        File.WriteAllBytes(ArquivoGerado.Caminho(destino), png);
         try
         {
             Directory.CreateDirectory(PastaImagensRecuperacao);
-            File.WriteAllBytes(Path.Combine(PastaImagensRecuperacao, Path.GetFileName(destino)), png);
+            File.WriteAllBytes(ArquivoGerado.Caminho(Path.Combine(PastaImagensRecuperacao, Path.GetFileName(destino))), png);
             // As cópias antigas (mais de 7 dias) não servem mais a nenhuma recuperação.
             foreach (var velho in Directory.GetFiles(PastaImagensRecuperacao).Where(f => File.GetLastWriteTimeUtc(f) < DateTime.UtcNow.AddDays(-7)))
                 File.Delete(velho);

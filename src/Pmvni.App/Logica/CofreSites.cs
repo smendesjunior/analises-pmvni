@@ -35,7 +35,7 @@ public static class CofreSites
         {
             var protegido = ProtectedData.Protect(claro, Entropia, DataProtectionScope.CurrentUser);
             var tmp = arquivo + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try { File.WriteAllBytes(tmp, protegido); File.Move(tmp, arquivo, overwrite: true); }
+            try { File.WriteAllBytes(ArquivoGerado.Caminho(tmp), protegido); File.Move(tmp, ArquivoGerado.Caminho(arquivo), overwrite: true); }
             finally { try { if (File.Exists(tmp)) File.Delete(tmp); } catch (IOException) { } }
         }
         finally { CryptographicOperations.ZeroMemory(claro); }
@@ -78,7 +78,7 @@ public static class CofreSites
     {
         foreach (var a in new[] { ArquivoCookies(raiz, m), ArquivoLogin(raiz, m) }) if (File.Exists(a)) File.Delete(a);
         Directory.CreateDirectory(Pasta(raiz));
-        File.WriteAllText(ArquivoSaiu(raiz, m), DateTimeOffset.UtcNow.ToString("O"));
+        File.WriteAllText(ArquivoGerado.Caminho(ArquivoSaiu(raiz, m)), DateTimeOffset.UtcNow.ToString("O"));
     }
 
     /// <summary>O usuário entrou de novo (ou guardou um login): o site volta a ser lembrado.</summary>

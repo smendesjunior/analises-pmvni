@@ -61,8 +61,8 @@ public sealed class CompactadosTestes : IDisposable
         var r = Compactados.Extrair(zip, Path.Combine(pasta, "saida"), CancellationToken.None);
 
         Assert.Equal(3, r.Arquivos.Count);
-        Assert.Contains(r.Arquivos, a => Path.GetFileName(a.Caminho) == "planta (2).pdf");
-        Assert.Equal(["a", "b"], r.Arquivos.Where(a => a.Caminho.Contains("lanta", StringComparison.Ordinal)).Select(a => File.ReadAllText(a.Caminho)).Order().ToList());
+        Assert.Contains(r.Arquivos, a => Path.GetFileName(a.Caminho) == "PLANTA (2).PDF");
+        Assert.Equal(["a", "b"], r.Arquivos.Where(a => a.Caminho.Contains("lanta", StringComparison.OrdinalIgnoreCase)).Select(a => File.ReadAllText(a.Caminho)).Order().ToList());
     }
 
     [Fact]

@@ -355,8 +355,8 @@ public static class ModelosDaAnalise
         }
         Directory.CreateDirectory(raizDados);
         var tmp = arquivo + ".tmp";
-        File.WriteAllText(tmp, SerializarAjuste(a), new UTF8Encoding(false));
-        File.Move(tmp, arquivo, overwrite: true);
+        File.WriteAllText(ArquivoGerado.Caminho(tmp), SerializarAjuste(a), new UTF8Encoding(false));
+        File.Move(tmp, ArquivoGerado.Caminho(arquivo), overwrite: true);
     }
 
     // ---------- avisos e tabela efetiva ----------
@@ -582,7 +582,7 @@ public static class ModelosDaAnalise
         if (ProblemasParaPublicar(mestre, a, etapas, listas) is { Count: > 0 } problemas)
             return Recusa("Não publicado: " + string.Join("; ", problemas) + ". Ajuste essas células (ou restaure o padrão do kit) e publique de novo.");
         var tmp = destino + ".tmp";
-        File.WriteAllText(tmp, TabelaParaPublicar(mestre, a), new UTF8Encoding(false));
+        File.WriteAllText(ArquivoGerado.Caminho(tmp), TabelaParaPublicar(mestre, a), new UTF8Encoding(false));
         string? erro;
         try { erro = conferirNoKit(tmp); }
         catch (Exception e) when (e is IOException or InvalidOperationException) { erro = e.Message; }
@@ -591,10 +591,10 @@ public static class ModelosDaAnalise
             File.Delete(tmp);
             return Recusa("Não publicado: a conferência do kit recusou a tabela (" + erro + "). O kit mestre não mudou.");
         }
-        File.Move(tmp, destino, overwrite: true);
+        File.Move(tmp, ArquivoGerado.Caminho(destino), overwrite: true);
         Directory.CreateDirectory(pastaScripts);
         var cmd = Path.Combine(pastaScripts, CmdPublicar);
-        File.WriteAllText(cmd, "@echo off\r\nrem Editor de Relatórios PMVNI: a tabela de modelos foi publicada no kit mestre; o instalador refaz o índice e as conferências (modo manter).\r\n"
+        File.WriteAllText(ArquivoGerado.Caminho(cmd), "@echo off\r\nrem Editor de Relatórios PMVNI: a tabela de modelos foi publicada no kit mestre; o instalador refaz o índice e as conferências (modo manter).\r\n"
             + "call \"" + instalador + "\" manter\r\n", PrimeiraAbertura.CodificacaoDoConsole());
         iniciar(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), cmd);
         return new("Tabela publicada no kit mestre (" + destino + ") em " + DateTime.Now.ToString("dd/MM/yyyy HH:mm", CultureInfo.GetCultureInfo("pt-BR"))

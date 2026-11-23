@@ -31,8 +31,8 @@ public static class CofreSenhaCertificado
             var tmp = destino + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
-                File.WriteAllBytes(tmp, protegida);
-                File.Move(tmp, destino, overwrite: true);
+                File.WriteAllBytes(ArquivoGerado.Caminho(tmp), protegida);
+                File.Move(tmp, ArquivoGerado.Caminho(destino), overwrite: true);
             }
             finally
             {

@@ -233,7 +233,7 @@ public class FluxoNovoRelatorioTestes
         Directory.CreateDirectory(Path.Combine(origem, "fotos"));
 
         var plano = Arquivamento.Planejar(processo, [(planta, DestinoAnexo.ReapresentacaoNova), (planta, DestinoAnexo.Documento), (Path.Combine(origem, "fotos"), DestinoAnexo.Documento)]);
-        Assert.Equal(@"PROJETO\REVISÃO 03\planta.pdf", FluxoNovoRelatorio.PreviaDestino(plano[0]));
+        Assert.Equal(@"PROJETO\REVISÃO 03\PLANTA.PDF", FluxoNovoRelatorio.PreviaDestino(plano[0]));
         Assert.Equal("já está no processo (mesmo conteúdo)", FluxoNovoRelatorio.PreviaDestino(plano[1]));
         Assert.Equal("Arraste arquivos, não pastas: fotos.", FluxoNovoRelatorio.PreviaDestino(plano[2]));
         Assert.False(Directory.Exists(Path.Combine(processo, "PROJETO", "REVISÃO 03")));     // a prévia não grava nada

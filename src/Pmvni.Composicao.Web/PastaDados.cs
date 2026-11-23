@@ -63,7 +63,7 @@ public static class PastaDados
             Directory.CreateDirectory(itinerante);
             var ajustes = Path.Combine(local, "ajustes.json");
             var novo = Path.Combine(itinerante, "ajustes.json");
-            if (File.Exists(ajustes) && !File.Exists(novo)) File.Copy(ajustes, novo);
+            if (File.Exists(ajustes) && !File.Exists(novo)) File.Copy(ajustes, ArquivoGerado.Caminho(novo));
             var leis = Path.Combine(local, "legislacao");
             var leisNovas = Path.Combine(itinerante, "legislacao");
             if (Directory.Exists(leis) && !Directory.Exists(leisNovas))
@@ -72,7 +72,7 @@ public static class PastaDados
                     Directory.CreateDirectory(Path.Combine(leisNovas, Path.GetRelativePath(leis, d)));
                 Directory.CreateDirectory(leisNovas);
                 foreach (var f in Directory.GetFiles(leis, "*", SearchOption.AllDirectories))
-                    File.Copy(f, Path.Combine(leisNovas, Path.GetRelativePath(leis, f)), overwrite: false);
+                    File.Copy(f, ArquivoGerado.Caminho(Path.Combine(leisNovas, Path.GetRelativePath(leis, f))), overwrite: false);
             }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* sem cópia: o app começa do padrão */ }

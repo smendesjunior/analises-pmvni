@@ -133,8 +133,8 @@ internal sealed class CatalogoModelosIa
         {
             Directory.CreateDirectory(Path.GetDirectoryName(ArquivoCache)!);
             var tmp = ArquivoCache + ".tmp";
-            File.WriteAllText(tmp, CatalogoIa.SerializarCache(listas), new UTF8Encoding(false));
-            File.Move(tmp, ArquivoCache, overwrite: true);
+            File.WriteAllText(ArquivoGerado.Caminho(tmp), CatalogoIa.SerializarCache(listas), new UTF8Encoding(false));
+            File.Move(tmp, ArquivoGerado.Caminho(ArquivoCache), overwrite: true);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
     }

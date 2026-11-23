@@ -340,7 +340,7 @@ public sealed class Ajustes
         try { j = JsonNode.Parse(File.ReadAllText(arquivo)) as JsonObject ?? throw new JsonException("não é um objeto"); }
         catch (JsonException)
         {
-            File.Move(arquivo, NomesArquivo.Livre(raizDados, "ajustes.corrompido.json"));
+            File.Move(arquivo, ArquivoGerado.Caminho(NomesArquivo.Livre(raizDados, "ajustes.corrompido.json")));
             return new Ajustes();
         }
 
@@ -505,17 +505,17 @@ public sealed class Ajustes
                     if (!j.ContainsKey(chave) && chave != "versao_gravada" && !Aposentadas.Contains(chave)) j[chave] = valor?.DeepClone();
                 var versao = typeof(Ajustes).Assembly.GetName().Version?.ToString() ?? "";
                 if (Texto(antigo, "versao_gravada") != versao)
-                    File.Copy(arquivo, Path.Combine(raizDados, "ajustes.anterior.json"), overwrite: true);
+                    File.Copy(arquivo, ArquivoGerado.Caminho(Path.Combine(raizDados, "ajustes.anterior.json")), overwrite: true);
             }
         }
         catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException) { }
         j["versao_gravada"] = typeof(Ajustes).Assembly.GetName().Version?.ToString();
         var tmp = arquivo + ".tmp";
-        File.WriteAllText(tmp, j.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(ArquivoGerado.Caminho(tmp), j.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
         // Antivírus, indexador ou OneDrive podem segurar o destino por um instante: repete algumas vezes (total < 1 s).
         for (var tentativa = 1; ; tentativa++)
         {
-            try { File.Move(tmp, arquivo, overwrite: true); return; }
+            try { File.Move(tmp, ArquivoGerado.Caminho(arquivo), overwrite: true); return; }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 if (tentativa >= 5)

@@ -132,7 +132,7 @@ internal static class Atualizador
                 Avisar(new(EtapaAtualizacao.Baixando, $"Baixando a versão {rotulo}… 0%", m.Notas));
                 await BaixarAsync(m.Url!, parcial, m.Tamanho, rotulo, m.Notas);
                 RegrasAtualizacao.Conferir(parcial, m);
-                File.Move(parcial, Baixado, overwrite: true);
+                File.Move(parcial, ArquivoGerado.Caminho(Baixado), overwrite: true);
             }
             RegrasAtualizacao.TrocarExecutavel(ExeAtual!, Baixado, m);
             try { File.Delete(Baixado); } catch (IOException) { } catch (UnauthorizedAccessException) { }
@@ -178,7 +178,7 @@ internal static class Atualizador
         using var resposta = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, parado.Token);
         resposta.EnsureSuccessStatusCode();
         await using var origem = await resposta.Content.ReadAsStreamAsync(parado.Token);
-        await using var arquivo = new FileStream(destino, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16, useAsync: true);
+        await using var arquivo = new FileStream(ArquivoGerado.Caminho(destino), FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16, useAsync: true);
         var buffer = new byte[1 << 20];
         long feito = 0;
         int ultimo = 0;

@@ -1708,8 +1708,8 @@ internal static class Roteiro
         var processo0001 = Path.Combine(copiaProcessos, "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)");
         // Correção 2026-11-16: a importação grava na pasta DESPACHO NN - AAAA-MM-DD sugerida pela regra do kit (a mesma conta aqui).
         var etapaImportacao = Pmvni.Revisao.Etapas.Sugerida(processo0001, j.Hoje()).Pasta;
-        var pmvrel1 = Path.Combine(etapaImportacao, "Relatorio_0001_2099.rpmvni");
-        var pmvrel2 = Path.Combine(etapaImportacao, "Relatorio_0001_2099_2.rpmvni");
+        var pmvrel1 = Path.Combine(etapaImportacao, "RELATORIO_0001_2099.RPMVNI");
+        var pmvrel2 = Path.Combine(etapaImportacao, "RELATORIO_0001_2099_2.RPMVNI");
         var nomesDosProcessos = new[]
         {
             "0012-2099 - BELTRANO DE EXEMPLO (FICTICIO)", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "pasta fora do padrao", "0007 - 2098 - CICLANO DE EXEMPLO (FICTICIO)",
@@ -1801,7 +1801,7 @@ internal static class Roteiro
             p["registradas"] = new JsonArray(AberturaExterna.Registradas.Select(t => (JsonNode)t).ToArray());
             var abrirOk = escolheuPdf && pdfRegistrado && escolheuScript && scriptRecusado && pastaRegistrada;
 
-            // Importar análise da IA do 0001: cria Relatorio_0001_2099.rpmvni na pasta do processo e abre no módulo Relatórios com 3 itens.
+            // Importar análise da IA do 0001: cria RELATORIO_0001_2099.RPMVNI na pasta do processo e abre no módulo Relatórios com 3 itens.
             var escolheuAnalise = j.EscolherEntradaNaLista(l => l.Tipo == TipoLinhaDetalhe.Analise);
             await j.ExecutarComandoAsync(ComandosApp.ProcessosImportarAnalise);
             var primeira = File.Exists(pmvrel1) && j.ModuloAtual == Modulo.Relatorios && j.Sessao is not null
@@ -1814,7 +1814,7 @@ internal static class Roteiro
             await j.MudarModuloAsync(Modulo.Processos);
             await j.AguardarLeiturasAsync();
             var escolheuDeNovo = j.EscolherEntradaNaLista(l => l.Tipo == TipoLinhaDetalhe.Analise);
-            var apareceu = Detalhe().Contains("Relatorio_0001_2099.rpmvni");
+            var apareceu = Detalhe().Contains("RELATORIO_0001_2099.RPMVNI");
             await j.ExecutarComandoAsync(ComandosApp.ProcessosImportarAnalise);
             var segunda = File.Exists(pmvrel2) && string.Equals(j.Sessao?.Caminho, pmvrel2, StringComparison.OrdinalIgnoreCase) && j.ModuloAtual == Modulo.Relatorios
                 && j.Sessao!.Revisao.Projeto.Incluidos.Count == 3;
@@ -1825,7 +1825,7 @@ internal static class Roteiro
             // Abrir relatório: o .rpmvni listado abre no módulo Relatórios.
             await j.MudarModuloAsync(Modulo.Processos);
             await j.AguardarLeiturasAsync();
-            var escolheuPacote = j.EscolherEntradaNaLista(l => l.Tipo == TipoLinhaDetalhe.Relatorio && l.Texto == "Relatorio_0001_2099.rpmvni");
+            var escolheuPacote = j.EscolherEntradaNaLista(l => l.Tipo == TipoLinhaDetalhe.Relatorio && l.Texto == "RELATORIO_0001_2099.RPMVNI");
             await j.ExecutarComandoAsync(ComandosApp.ProcessosAbrirRelatorio);
             var abriu = escolheuPacote && string.Equals(j.Sessao?.Caminho, pmvrel1, StringComparison.OrdinalIgnoreCase) && j.ModuloAtual == Modulo.Relatorios;
             p["titulo_da_janela"] = titulo1;
@@ -2105,11 +2105,11 @@ internal static class Roteiro
         // trabalho do app (tests\saida\dados-app\despachos). A data de hoje é fixa (2099-03-10). Nenhum arquivo é aberto fora (só registrado).
         var copiaDespacho = Path.Combine(pasta, "processos-despacho");
         var p0001 = Path.Combine(copiaDespacho, "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)");
-        var pmvrelD = Path.Combine(p0001, "Relatorio_0001_2099.rpmvni");
-        var pmvrelD2 = Path.Combine(p0001, "Relatorio_0001_2099_2.rpmvni");
+        var pmvrelD = Path.Combine(p0001, "RELATORIO_0001_2099.RPMVNI");
+        var pmvrelD2 = Path.Combine(p0001, "RELATORIO_0001_2099_2.RPMVNI");
         var etapa03 = Path.Combine(p0001, "DESPACHO 03 - 2099-03-10");
-        var baseCorrecao = "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio";
-        var baseAprovacao = "Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio";
+        var baseCorrecao = "DESPACHO_CORRECAO_1_2099_FULANO_DE_EXEMPLO_FICTICIO";
+        var baseAprovacao = "DESPACHO_APROVACAO_1_2099_FULANO_DE_EXEMPLO_FICTICIO";
         var kitEnv = Environment.GetEnvironmentVariable("PMVNI_KIT_RAIZ");
         var kitReal = string.IsNullOrWhiteSpace(kitEnv) ? Ajustes.PastaKitPadrao : kitEnv;
         var antesDoDespacho = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -2211,7 +2211,7 @@ internal static class Roteiro
             p["aviso"] = aviso.Message;
             var escolhido = j.DespachoEscolhido?.Despacho;
             var listaOk = j.PaginaDespachosVisivel && !j.PaginaNovoDespachoVisivel && aviso.IsOpen && aviso.Title == "Despacho gravado"
-                && aviso.Message == $"3 arquivos em {etapa03}. Recibo: {baseCorrecao}.recibo-editor.json."
+                && aviso.Message == $"3 arquivos em {etapa03}. Recibo: {baseCorrecao}.RECIBO-EDITOR.JSON."
                 && escolhido is { Tipo: TipoDespacho.Correcao, Numero: 3 } && escolhido.Data == new DateOnly(2099, 3, 10) && Mesmo(escolhido.Pasta, etapa03);
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "36-janela-xaml-despacho-gravado.png"));
             AberturaExterna.Registradas.Clear();
@@ -2335,7 +2335,7 @@ internal static class Roteiro
             var recibo = ReciboDespacho.Ler(e.Recibo);
             var soDocx = e.Pdf is null && Mesmo(e.Pasta, etapa04) && Directory.GetFiles(etapa04).Length == 2 && !File.Exists(Path.ChangeExtension(e.Docx, ".pdf"))
                 && recibo["sem_pdf_motivo"]?.GetValue<string>() == "SEM_LIBREOFFICE" && recibo["pdf"] is null
-                && j.AvisoDespachoGravado.Message == $"2 arquivos em {etapa04}. Recibo: {baseCorrecao}.recibo-editor.json.";
+                && j.AvisoDespachoGravado.Message == $"2 arquivos em {etapa04}. Recibo: {baseCorrecao}.RECIBO-EDITOR.JSON.";
             var shaDocx = Sha(e.Docx);
 
             // O conversor real volta: Despachos › Gerar PDF nesse despacho (o escolhido na lista) → páginas → marcar → gravar só o PDF.
@@ -2483,7 +2483,7 @@ internal static class Roteiro
             if (!await j.FecharSessaoAsync()) throw new InvalidOperationException("não fechou");
             var depois = FotografarArvore(copiaDespacho);
             var novos = depois.Keys.Except(antesDoDespacho.Keys, StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal).ToList();
-            // O .bak do Relatorio_0001_2099.rpmvni é o da gravação pedida no (a) (o relatório aberto é gravado antes do despacho): o app pode
+            // O .bak do RELATORIO_0001_2099.RPMVNI é o da gravação pedida no (a) (o relatório aberto é gravado antes do despacho): o app pode
             // criá-lo ao lado de um pacote que ele abriu (restrições globais). Nenhum outro arquivo é aceito.
             var bak = Path.GetRelativePath(copiaDespacho, pmvrelD) + ".bak";
             var esperados = gravadosNaCopia.Append(Path.GetRelativePath(copiaDespacho, pmvrelD)).Append(Path.GetRelativePath(copiaDespacho, pmvrelD2))
@@ -3415,7 +3415,7 @@ internal static class Roteiro
             const string RecusaAtalho = "atalho.lnk é um atalho; anexe o arquivo de destino.";
             var quatro = linhas.Count == 4 && j.AnexosDoNovoRelatorio.Count == 4 && recusas.SequenceEqual([RecusaPasta, RecusaAtalho]);
             var padrao = j.AnexosDoNovoRelatorio.All(a => a.Destino == DestinoAnexo.ProjetoInicial)
-                && j.AnexosDoNovoRelatorio[3].Previa == @"PROJETO\INICIAL\foto.heic";
+                && j.AnexosDoNovoRelatorio[3].Previa == @"PROJETO\INICIAL\FOTO.HEIC";
             var semJuntar = j.OpcoesDeDestino.SequenceEqual(["Documento (DOCUMENTOS)", @"Projeto — primeira apresentação (PROJETO\INICIAL)", "Projeto — reapresentação (nova REVISÃO NN)"]);
             p["linhas"] = new JsonArray(j.AnexosDoNovoRelatorio.Select(a => (JsonNode)(Path.GetFileName(a.Origem) + " → " + a.Previa)).ToArray());
             p["recusas"] = new JsonArray(recusas.Select(r => (JsonNode)r).ToArray());
@@ -3428,8 +3428,8 @@ internal static class Roteiro
             j.DefinirDestino(1, DestinoAnexo.Documento);
             await j.AguardarNovoRelatorioAsync();
             var a2 = j.AnexosDoNovoRelatorio;
-            var previas = a2[0].Previa == @"PROJETO\REVISÃO 01\planta-ficticia.pdf" && a2[2].Previa == @"PROJETO\REVISÃO 01\memorial.docx"
-                && a2[1].Previa == @"DOCUMENTOS\requerimento-ficticio.pdf" && a2[3].Previa == @"PROJETO\INICIAL\foto.heic";
+            var previas = a2[0].Previa == @"PROJETO\REVISÃO 01\PLANTA-FICTICIA.PDF" && a2[2].Previa == @"PROJETO\REVISÃO 01\MEMORIAL.DOCX"
+                && a2[1].Previa == @"DOCUMENTOS\REQUERIMENTO-FICTICIO.PDF" && a2[3].Previa == @"PROJETO\INICIAL\FOTO.HEIC";
             p["previas"] = new JsonArray(a2.Select(a => (JsonNode)a.Previa).ToArray());
             p["previas_por_destino"] = previas;
 
@@ -3482,8 +3482,8 @@ internal static class Roteiro
 
             // Os anexos copiados (sha = origem) e a origem intacta.
             bool Copia(string relativo, string origem) => File.Exists(Path.Combine(processo, relativo)) && ShaDe(Path.Combine(processo, relativo)) == ShaDe(origem);
-            var copiados = Copia(@"PROJETO\REVISÃO 01\planta-ficticia.pdf", planta) && Copia(@"PROJETO\REVISÃO 01\memorial.docx", memorial)
-                && Copia(@"PROJETO\INICIAL\foto.heic", foto) && Copia(@"DOCUMENTOS\requerimento-ficticio.pdf", requerimento)
+            var copiados = Copia(@"PROJETO\REVISÃO 01\PLANTA-FICTICIA.PDF", planta) && Copia(@"PROJETO\REVISÃO 01\MEMORIAL.DOCX", memorial)
+                && Copia(@"PROJETO\INICIAL\FOTO.HEIC", foto) && Copia(@"DOCUMENTOS\REQUERIMENTO-FICTICIO.PDF", requerimento)
                 && Directory.GetFiles(Path.Combine(processo, "PROJETO", "REVISÃO 01")).Length == 2;
             p["anexos_copiados"] = copiados;
 
@@ -3515,7 +3515,7 @@ internal static class Roteiro
 
             // O relatório importado e aberto em Relatórios, com a InfoBar exata.
             var s = j.Sessao;
-            var importado = s is not null && NaEtapa(s.Caminho, processo) && Path.GetFileName(s.Caminho).StartsWith("Relatorio_0001_2099", StringComparison.Ordinal)
+            var importado = s is not null && NaEtapa(s.Caminho, processo) && Path.GetFileName(s.Caminho).StartsWith("RELATORIO_0001_2099", StringComparison.Ordinal)
                 && j.ModuloAtual == Modulo.Relatorios && j.FolhasVisiveis && s.Revisao.Projeto.Itens.Count == 3
                 && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.ChatGpt, s.Caminho, fim.Pdf) && j.InfoMensagem.IsOpen;
             p["pmvrel"] = s is null ? null : Path.GetFileName(s.Caminho);
@@ -4019,8 +4019,8 @@ internal static class Roteiro
                     || relativo.Contains(@"\.pmvni-ai\analise-google\", StringComparison.OrdinalIgnoreCase))     // 1.1.0: a pasta de controle do análise Google (passo 54b)
                     return true;
                 // Os .rpmvni importados no 0001 e no 0012 (e o .bak de uma gravação) e a trava do relatório aberto.
-                if (nome.StartsWith("Relatorio_0001_2099", StringComparison.Ordinal) || nome.StartsWith("Relatorio_0012_2099", StringComparison.Ordinal)) return true;
-                if (nome.StartsWith(".~Relatorio_0001_2099", StringComparison.Ordinal) || nome.StartsWith(".~Relatorio_0012_2099", StringComparison.Ordinal)) return true;
+                if (nome.StartsWith("RELATORIO_0001_2099", StringComparison.Ordinal) || nome.StartsWith("RELATORIO_0012_2099", StringComparison.Ordinal)) return true;
+                if (nome.StartsWith(".~RELATORIO_0001_2099", StringComparison.Ordinal) || nome.StartsWith(".~RELATORIO_0012_2099", StringComparison.Ordinal)) return true;
                 return relativo.EndsWith(@"\PROJETO\REVISÃO 01\planta-ficticia.pdf", StringComparison.Ordinal) || relativo.EndsWith(@"\PROJETO\REVISÃO 01\memorial.docx", StringComparison.Ordinal)
                     || relativo.EndsWith(@"\PROJETO\INICIAL\foto.heic", StringComparison.Ordinal) || relativo.EndsWith(@"\DOCUMENTOS\requerimento-ficticio.pdf", StringComparison.Ordinal)
                     || relativo.EndsWith(@"\PROJETO\complemento-ficticio.pdf", StringComparison.Ordinal) || relativo.EndsWith(@"\complemento-ficticio.pdf", StringComparison.Ordinal)
@@ -4083,7 +4083,7 @@ internal static class Roteiro
         string CopiaLeg(string original) => Path.Combine(dadosLeg, ShaLeg(original) + ".pdf");
         string IndiceLeg(string original) => Path.Combine(dadosLeg, ShaLeg(original) + ".texto.json.gz");
         IReadOnlyList<string> CopiasLeg() => Directory.Exists(dadosLeg)
-            ? Directory.GetFiles(dadosLeg, "*.pdf").Select(f => Path.GetFileName(f)).Where(n => System.Text.RegularExpressions.Regex.IsMatch(n, "^[0-9a-f]{64}\\.pdf$")).Order(StringComparer.Ordinal).ToList()
+            ? Directory.GetFiles(dadosLeg, "*.pdf").Select(f => Path.GetFileName(f)).Where(n => System.Text.RegularExpressions.Regex.IsMatch(n, "(?i)^[0-9a-f]{64}\\.pdf$")).Order(StringComparer.Ordinal).ToList()
             : [];
         int EntradasLeg() => Directory.Exists(Path.Combine(dadosLeg, ".entrada")) ? Directory.GetFileSystemEntries(Path.Combine(dadosLeg, ".entrada")).Length : 0;
         JsonArray LinhasEmJson(IReadOnlyList<LinhaAnexo> l) => new(l.Select(x => (JsonNode)$"{x.Titulo} | {Esferas.Rotulo(x.Esfera)} | {x.Detalhe} | {x.Selo}").ToArray());
@@ -4145,7 +4145,7 @@ internal static class Roteiro
                 && linhas[0].Tamanho == ListaLegislacao.Tamanho(new FileInfo(legNt).Length) && linhas[1].Tamanho == ListaLegislacao.Tamanho(new FileInfo(legLei).Length)
                 && linhas.All(l => anexadoEm.IsMatch(l.AnexadoEm));
             var copias = CopiasLeg();
-            var pastaOk = copias.SequenceEqual(new[] { ShaLeg(legLei) + ".pdf", ShaLeg(legNt) + ".pdf" }.Order(StringComparer.Ordinal))
+            var pastaOk = copias.SequenceEqual(new[] { ShaLeg(legLei).ToUpperInvariant() + ".PDF", ShaLeg(legNt).ToUpperInvariant() + ".PDF" }.Order(StringComparer.Ordinal))
                 && File.ReadAllBytes(CopiaLeg(legLei)).AsSpan().SequenceEqual(File.ReadAllBytes(legLei))
                 && File.ReadAllBytes(CopiaLeg(legNt)).AsSpan().SequenceEqual(File.ReadAllBytes(legNt))
                 && File.Exists(IndiceLeg(legLei)) && File.Exists(IndiceLeg(legNt)) && File.Exists(Path.Combine(dadosLeg, "catalogo.json")) && EntradasLeg() == 0;
@@ -4579,7 +4579,7 @@ internal static class Roteiro
             await j.AguardarNovoRelatorioAsync();
             var previaAnexo = j.AnexosDoNovoRelatorio.Count == 1 ? j.AnexosDoNovoRelatorio[0].Previa : null;
             p["previa_do_anexo"] = previaAnexo;
-            Conf("novo_relatorio_pela_faixa", j.PaginaNovoRelatorioVisivel && previaAnexo == @"PROJETO\REVISÃO 01\planta-ficticia.pdf");
+            Conf("novo_relatorio_pela_faixa", j.PaginaNovoRelatorioVisivel && previaAnexo == @"PROJETO\REVISÃO 01\PLANTA-FICTICIA.PDF");
             j.PedidoTexto = "Fluxo completo do roteiro (fictício).";
             j.Orquestrador = Orq("ok");
             var exec = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException("a análise não partiu: " + j.InfoMensagemAtual.Message);
@@ -4589,7 +4589,7 @@ internal static class Roteiro
             var pmvrelFluxo = sessao.Caminho;
             p["pmvrel"] = Path.GetFileName(pmvrelFluxo);
             Conf("importado_e_aberto", fimExec.Situacao == "concluida" && NaEtapa(pmvrelFluxo, proc)
-                && Path.GetFileName(pmvrelFluxo).StartsWith("Relatorio_0001_2099", StringComparison.Ordinal) && j.FolhasVisiveis && sessao.Revisao.Projeto.Itens.Count == 3);
+                && Path.GetFileName(pmvrelFluxo).StartsWith("RELATORIO_0001_2099", StringComparison.Ordinal) && j.FolhasVisiveis && sessao.Revisao.Projeto.Itens.Count == 3);
             var idsFluxo = sessao.Revisao.Projeto.Incluidos.Select(i => i.Id).ToList();
 
             // (2) Editar o texto no A4 (Enter), mudar a situação com justificativa, excluir um item e desfazer.

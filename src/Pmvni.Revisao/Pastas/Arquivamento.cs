@@ -167,7 +167,7 @@ public static class Arquivamento
                 plano.Add(new PlanoAnexo(origem, destino, null, false, string.Format(CultureInfo.InvariantCulture, MsgLinkDestino, link)));
                 continue;
             }
-            var nome = Path.GetFileName(origem);
+            var nome = Path.GetFileName(origem).ToUpperInvariant();
             for (var k = 1; ; k++)
             {
                 var relativo = Path.Combine(pasta, NomeComSufixo(nome, k));
@@ -239,7 +239,7 @@ public static class Arquivamento
             long tamanho;
             DateTime escritaUtc;
             using (var entrada = new FileStream(item.Origem, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            using (var saida = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var saida = new FileStream(ArquivoGerado.Caminho(tmp), FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 File.SetAttributes(tmp, FileAttributes.Hidden);
                 using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -260,7 +260,7 @@ public static class Arquivamento
             if (Sha(tmp) != shaOrigem) throw new IOException($"A cópia de {Path.GetFileName(item.Origem)} não confere com o original.");
 
             // Move sem sobrescrever; se alguém criou o nome nesse meio tempo, segue a regra do kit (mesmo sha: já estava; senão "(n)").
-            var nomeOrigem = Path.GetFileName(item.Origem);
+            var nomeOrigem = Path.GetFileName(item.Origem).ToUpperInvariant();
             var nomePlanejado = Path.GetFileName(item.Relativo!);
             for (var k = 1; k <= 1000; k++)
             {
@@ -270,7 +270,7 @@ public static class Arquivamento
                 var alvo = Path.Combine(destinoPasta, nomeAlvo);
                 try
                 {
-                    File.Move(tmp, alvo, overwrite: false);
+                    File.Move(tmp, ArquivoGerado.Caminho(alvo), overwrite: false);
                     File.SetAttributes(alvo, FileAttributes.Normal);
                     File.SetLastWriteTimeUtc(alvo, escritaUtc);
                     var relativo = Path.GetRelativePath(pastaProcesso, alvo);

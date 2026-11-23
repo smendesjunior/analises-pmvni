@@ -31,7 +31,7 @@ internal static class RegistroErros
                     .AppendLine("pilha:").AppendLine(x.StackTrace ?? "(sem pilha)");
             }
             var arquivo = Path.Combine(Pasta, $"erro-{agora:yyyyMMdd-HHmmss-fff}-{Environment.ProcessId}.txt");
-            File.WriteAllText(arquivo, texto.ToString(), new UTF8Encoding(false));
+            File.WriteAllText(ArquivoGerado.Caminho(arquivo), texto.ToString(), new UTF8Encoding(false));
             foreach (var velho in new DirectoryInfo(Pasta).GetFiles("erro-*.txt").OrderByDescending(f => f.Name, StringComparer.Ordinal).Skip(MaxArquivos))
                 velho.Delete();
         }

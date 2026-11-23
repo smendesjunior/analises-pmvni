@@ -77,11 +77,13 @@ public static class Compactados
                 continue;
             var info = new FileInfo(f);
             if (info.LinkTarget is not null) { avisos.Add($"{nomeExibido}: {interno} é um atalho e ficou de fora."); continue; }
+            var fisico = ArquivoGerado.Caminho(completo);
+            if (!string.Equals(completo, fisico, StringComparison.Ordinal)) File.Move(completo, fisico);
             if (EhCompactado(f) && nivel + 1 < ProfundidadeMaxima)
             {
                 try
                 {
-                    var dentro = Extrair(f, nomeExibido, interno + "/", pastaBase, nivel + 1, ct);
+                    var dentro = Extrair(fisico, nomeExibido, interno + "/", pastaBase, nivel + 1, ct);
                     arquivos.AddRange(dentro.Arquivos);
                     avisos.AddRange(dentro.Avisos);
                     continue;
@@ -91,7 +93,7 @@ public static class Compactados
             }
             total += info.Length;
             if (total > LimiteBytes) throw new InvalidDataException($"{nomeExibido} passa de 4 GB descompactado; descompacte à mão e anexe os arquivos.");
-            arquivos.Add(new ArquivoExtraido(completo, interno, nomeExibido));
+            arquivos.Add(new ArquivoExtraido(fisico, interno, nomeExibido));
             if (arquivos.Count > LimiteArquivos) throw new InvalidDataException($"{nomeExibido} tem mais de {LimiteArquivos} arquivos; descompacte à mão e anexe só os do processo.");
         }
         if (arquivos.Count == 0 && nivel == 0) avisos.Add($"{nomeExibido} não tem arquivos para anexar.");

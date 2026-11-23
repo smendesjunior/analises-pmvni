@@ -9,12 +9,12 @@ public static class NomesArquivo
 {
     static readonly Regex Processo = new(@"^\s*(\d{1,6})\s*/\s*(\d{4})\s*$", RegexOptions.CultureInvariant);
 
-    /// <summary><c>Relatorio_98765_2099.rpmvni</c> (número com pelo menos 4 dígitos: <c>Relatorio_0001_2099.rpmvni</c>); sem número ou ano,
-    /// <c>Relatorio.rpmvni</c>.</summary>
+    /// <summary><c>RELATORIO_98765_2099.RPMVNI</c> (número com pelo menos 4 dígitos: <c>RELATORIO_0001_2099.RPMVNI</c>); sem número ou ano,
+    /// <c>RELATORIO.RPMVNI</c>.</summary>
     public static string Importacao(int? numero, int? ano) =>
         numero is { } n && ano is { } a
-            ? string.Create(CultureInfo.InvariantCulture, $"Relatorio_{n:D4}_{a}.rpmvni")
-            : "Relatorio.rpmvni";
+            ? string.Create(CultureInfo.InvariantCulture, $"RELATORIO_{n:D4}_{a}.RPMVNI")
+            : "RELATORIO.RPMVNI";
 
     /// <summary><c>"9001/2026"</c> → (9001, 2026); qualquer outra forma (vazio, campo [ ] em aberto) → (null, null).</summary>
     public static (int? Numero, int? Ano) DoProcessoDaCapa(string? processo)
@@ -28,6 +28,7 @@ public static class NomesArquivo
     /// <summary>O caminho em <paramref name="pasta"/> para <paramref name="nome"/> que ainda não existe: <c>nome</c>, <c>nome_2</c>, <c>nome_3</c>…</summary>
     public static string Livre(string pasta, string nome)
     {
+        nome = nome.ToUpperInvariant();
         var baseNome = Path.GetFileNameWithoutExtension(nome);
         var ext = Path.GetExtension(nome);
         var caminho = Path.Combine(pasta, nome);
@@ -36,7 +37,7 @@ public static class NomesArquivo
         return caminho;
     }
 
-    /// <summary>Ao lado do pacote: <c>"&lt;nome&gt; (cópia 2026-11-14 14-32).rpmvni"</c> (hora local), sem sobrescrever.</summary>
+    /// <summary>Ao lado do pacote: <c>"&lt;nome&gt; (cópia 2026-11-14 14-32).RPMVNI"</c> (hora local), sem sobrescrever.</summary>
     public static string CopiaDeConflito(string pacote, DateTime local)
     {
         var pasta = Path.GetDirectoryName(Path.GetFullPath(pacote))!;

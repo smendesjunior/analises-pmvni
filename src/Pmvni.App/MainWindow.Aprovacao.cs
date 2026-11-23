@@ -74,7 +74,7 @@ public sealed partial class MainWindow
         foreach (var revisada in revisadas)
         {
             var nome = Path.GetFileNameWithoutExtension(revisada.Caminho);
-            var destino = Path.GetFullPath(Path.Combine(pasta, nome + " - Aprovado.pdf"));
+            var destino = Path.GetFullPath(Path.Combine(pasta, nome.ToUpperInvariant() + " - APROVADO.PDF"));
             if (origens.Contains(destino) || !destinos.Add(destino))
                 throw new IOException("Dois arquivos da seleção têm o mesmo destino. Escolha arquivos com nomes distintos.");
             var substituir = File.Exists(destino);
@@ -95,9 +95,9 @@ public sealed partial class MainWindow
                 });
                 var temporario = Path.Combine(pasta, $".pmvni-{Guid.NewGuid():N}.tmp");
                 preparadas.Add((temporario, item.Destino, item.Substituir));
-                await File.WriteAllBytesAsync(temporario, bytes);
+                await File.WriteAllBytesAsync(ArquivoGerado.Caminho(temporario), bytes);
             }
-            foreach (var item in preparadas) File.Move(item.Temporario, item.Destino, item.Substituir);
+            foreach (var item in preparadas) File.Move(item.Temporario, ArquivoGerado.Caminho(item.Destino), item.Substituir);
         }
         catch
         {

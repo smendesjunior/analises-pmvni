@@ -191,7 +191,7 @@ public sealed class RegistroExecucao : IDisposable
     public void GravarPedido(string texto)
     {
         var arquivo = Caminho(Pasta, "pedido.md");
-        if (!reaberto || !File.Exists(arquivo)) File.WriteAllText(arquivo, texto, Utf8);
+        if (!reaberto || !File.Exists(arquivo)) File.WriteAllText(ArquivoGerado.Caminho(arquivo), texto, Utf8);
     }
 
     /// <summary><c>anexos.json</c>: por anexo, o nome de origem, o destino relativo, o sha256, o tamanho e <c>COPIADO</c> ou <c>JA_ARQUIVADO</c>.</summary>
@@ -208,7 +208,7 @@ public sealed class RegistroExecucao : IDisposable
                 ["tamanho"] = a.Tamanho,
                 ["situacao"] = a.JaEstava ? "JA_ARQUIVADO" : "COPIADO",
             });
-        File.WriteAllText(Caminho(Pasta, "anexos.json"), lista.ToJsonString(Opcoes), Utf8);
+        File.WriteAllText(ArquivoGerado.Caminho(Caminho(Pasta, "anexos.json")), lista.ToJsonString(Opcoes), Utf8);
     }
 
     /// <summary>Onde as análises iniciadas por um Editor anterior à 3.0.0 gravavam os eventos de progresso (a pedido do Editor). Desde a Tarefa 13 o Editor
@@ -238,11 +238,11 @@ public sealed class RegistroExecucao : IDisposable
             mudar(execucao);
             var destino = Caminho(Pasta, "execucao.json");
             var tmp = destino + ".tmp";
-            File.WriteAllText(tmp, execucao.ToJsonString(Opcoes), Utf8);
+            File.WriteAllText(ArquivoGerado.Caminho(tmp), execucao.ToJsonString(Opcoes), Utf8);
             // Quem está lendo o execucao.json naquele instante (a tela, o OneDrive, um antivírus) pode segurar o destino por milissegundos.
             for (var tentativa = 1; ; tentativa++)
             {
-                try { File.Move(tmp, destino, overwrite: true); return; }
+                try { File.Move(tmp, ArquivoGerado.Caminho(destino), overwrite: true); return; }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException)
                 {
                     if (tentativa >= 200) { try { File.Delete(tmp); } catch (IOException) { } throw; }
@@ -322,7 +322,7 @@ public sealed class RegistroExecucao : IDisposable
                 if (perdidasAqui > 0)
                     texto.Append("registro: ").Append(perdidasAqui).Append(" linha(s) não puderam ser gravadas (arquivo preso ou disco cheio) e foram descartadas\n");
                 var dados = Utf8.GetBytes(texto.ToString());
-                using (var fs = new FileStream(Caminho(Pasta, arquivo), FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+                using (var fs = new FileStream(ArquivoGerado.Caminho(Caminho(Pasta, arquivo)), FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
                 {
                     var inicio = fs.Position;
                     try { fs.Write(dados, 0, dados.Length); fs.Flush(); }

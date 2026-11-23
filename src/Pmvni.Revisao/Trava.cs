@@ -163,7 +163,7 @@ public sealed class Trava : IDisposable
     {
         try
         {
-            using var f = new FileStream(caminho, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+            using var f = new FileStream(ArquivoGerado.Caminho(caminho), FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
             var b = Conteudo(info);
             f.Write(b, 0, b.Length);
             f.Flush(true);

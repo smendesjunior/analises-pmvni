@@ -10,4 +10,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Pmvni.Acompanhamento.Testes" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Pmvni.Arquivos\Pmvni.Arquivos.csproj" />
+  </ItemGroup>
 </Project>

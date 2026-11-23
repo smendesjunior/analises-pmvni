@@ -10,7 +10,7 @@ public sealed record NomesLivres(string Docx, string Pdf, string Recibo);
 public static class NomesDespacho
 {
     const int MaximoNome = 60;
-    internal const string ExtensaoRecibo = ".recibo-editor.json";
+    internal const string ExtensaoRecibo = ".RECIBO-EDITOR.JSON";
 
     public static string Base(TipoDespacho t, int numero, int ano, string requerente) =>
         Base(t, numero.ToString(CultureInfo.InvariantCulture), ano, requerente);
@@ -20,7 +20,7 @@ public static class NomesDespacho
         ArgumentNullException.ThrowIfNull(requerente);
         var nome = Nome(requerente);
         var b = string.Create(CultureInfo.InvariantCulture, $"Despacho_{RegistroModelos.NomeNoArquivo(t)}_{CriacaoProcesso.Componente(numero)}_{ano}");
-        return nome.Length > 0 ? b + "_" + nome : b;
+        return (nome.Length > 0 ? b + "_" + nome : b).ToUpperInvariant();
     }
 
     /// <summary>Sem acentos; o que não é letra ou dígito ASCII separa palavras; cada palavra com inicial maiúscula, unidas por <c>_</c>, até
@@ -51,10 +51,11 @@ public static class NomesDespacho
     {
         ArgumentNullException.ThrowIfNull(pasta);
         ArgumentNullException.ThrowIfNull(nomeBase);
+        nomeBase = nomeBase.ToUpperInvariant();
         for (var i = 1; ; i++)
         {
             var b = i == 1 ? nomeBase : string.Create(CultureInfo.InvariantCulture, $"{nomeBase} ({i})");
-            var n = new NomesLivres(Path.Combine(pasta, b + ".docx"), Path.Combine(pasta, b + ".pdf"), Path.Combine(pasta, b + ExtensaoRecibo));
+            var n = new NomesLivres(Path.Combine(pasta, b + ".DOCX"), Path.Combine(pasta, b + ".PDF"), Path.Combine(pasta, b + ExtensaoRecibo));
             if (!Existe(n.Docx) && !Existe(n.Pdf) && !Existe(n.Recibo)) return n;
         }
     }

@@ -162,7 +162,7 @@ public sealed class AcervoLegislacao
 
                 using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
                 long total = inicio;
-                using (var saida = new FileStream(destino, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920))
+                using (var saida = new FileStream(ArquivoGerado.Caminho(destino), FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920))
                 {
                     saida.Write(buffer, 0, inicio);
                     hash.AppendData(buffer, 0, inicio);
@@ -460,12 +460,12 @@ public sealed class AcervoLegislacao
         var tmp = destino + ".tmp";
         try
         {
-            using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var fs = new FileStream(ArquivoGerado.Caminho(tmp), FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 if (gzip) { using var gz = new GZipStream(fs, CompressionLevel.Fastest); gz.Write(conteudo); }
                 else fs.Write(conteudo);
             }
-            ComRepeticao(() => File.Move(tmp, destino, overwrite: true));
+            ComRepeticao(() => File.Move(tmp, ArquivoGerado.Caminho(destino), overwrite: true));
         }
         finally { ApagarSilencioso(tmp); }
     }
@@ -515,7 +515,7 @@ public sealed class AcervoLegislacao
             {
                 dados = doBak!;
                 if (corrompido) Avisar(MensagensAnexo.Corrompido);
-                try { File.Copy(CatalogoBak, Catalogo, overwrite: true); }
+                try { File.Copy(CatalogoBak, ArquivoGerado.Caminho(Catalogo), overwrite: true); }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* a próxima gravação refaz */ }
             }
             else dados = new DadosCatalogo(VersaoCatalogo, []);
@@ -538,7 +538,7 @@ public sealed class AcervoLegislacao
         var recuperados = 0;
         foreach (var arquivo in Directory.EnumerateFiles(Pasta, "*.pdf").Order(StringComparer.Ordinal))
         {
-            var nome = Path.GetFileName(arquivo);
+            var nome = Path.GetFileName(arquivo).ToLowerInvariant();
             if (!NomePdfDeCopia.IsMatch(nome)) continue;
             var sha = nome[..64];
             if (!conhecidos.Add(sha)) continue;
@@ -559,7 +559,7 @@ public sealed class AcervoLegislacao
         try
         {
             var nome = "catalogo.corrompido-" + agora().UtcDateTime.ToString("yyyy-MM-dd-HHmmss", CultureInfo.InvariantCulture) + ".json";
-            File.Move(Catalogo, Path.Combine(Pasta, nome), overwrite: true);
+            File.Move(Catalogo, ArquivoGerado.Caminho(Path.Combine(Pasta, nome)), overwrite: true);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* o catálogo danificado segue no lugar; a gravação o troca */ }
     }
@@ -573,14 +573,14 @@ public sealed class AcervoLegislacao
         var bytes = CatalogoLegislacao.Serializar(VersaoCatalogo, anexos);
         try
         {
-            using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var fs = new FileStream(ArquivoGerado.Caminho(tmp), FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 fs.Write(bytes);
                 fs.Flush(flushToDisk: true);
             }
             AntesDeTrocarCatalogo?.Invoke();
-            if (File.Exists(Catalogo)) ComRepeticao(() => File.Replace(tmp, Catalogo, CatalogoBak, ignoreMetadataErrors: true));
-            else ComRepeticao(() => File.Move(tmp, Catalogo));
+            if (File.Exists(Catalogo)) ComRepeticao(() => File.Replace(tmp, Catalogo, ArquivoGerado.Caminho(CatalogoBak), ignoreMetadataErrors: true));
+            else ComRepeticao(() => File.Move(tmp, ArquivoGerado.Caminho(Catalogo)));
         }
         finally
         {
@@ -632,7 +632,7 @@ public sealed class AcervoLegislacao
         var criouCopia = false;
         var destino = CaminhoCopia(e.Sha256);
         if (File.Exists(destino)) ApagarEntrada(e);
-        else { ComRepeticao(() => File.Move(e.Caminho, destino)); criouCopia = true; }
+        else { ComRepeticao(() => File.Move(e.Caminho, ArquivoGerado.Caminho(destino))); criouCopia = true; }
         var criouIndice = !File.Exists(CaminhoIndice(e.Sha256));
         try { EscreverIndice(e.Sha256, r); }
         catch
@@ -659,7 +659,7 @@ public sealed class AcervoLegislacao
         validadeIndices.Remove(sha);
         ApagarSilencioso(CaminhoFiguras(sha)); // as figuras da leitura padronizada saem junto (refazê-las é só reabrir a lei)
         if (ApagarComTentativas(CaminhoCopia(sha), 4) & ApagarComTentativas(CaminhoIndice(sha), 4)) return true;
-        try { File.WriteAllBytes(MarcaDeExclusao(sha), []); }
+        try { File.WriteAllBytes(ArquivoGerado.Caminho(MarcaDeExclusao(sha)), []); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* sem a marca, só resta o aviso */ }
         return false;
     }
@@ -672,7 +672,7 @@ public sealed class AcervoLegislacao
         if (!Directory.Exists(Pasta)) return pendentes;
         foreach (var marca in Directory.EnumerateFiles(Pasta, "*.excluir"))
         {
-            var sha = Path.GetFileName(marca)[..^".excluir".Length];
+            var sha = Path.GetFileName(marca)[..^".excluir".Length].ToLowerInvariant();
             if (!CatalogoLegislacao.EhSha(sha)) continue;
             if (anexos.Any(a => a.Sha256 == sha)) { ApagarSilencioso(marca); continue; }
             validadeIndices.Remove(sha);
@@ -751,10 +751,10 @@ public sealed class AcervoLegislacao
         var tmp = destino + ".tmp";
         try
         {
-            using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var fs = new FileStream(ArquivoGerado.Caminho(tmp), FileMode.Create, FileAccess.Write, FileShare.None))
             using (var gz = new GZipStream(fs, CompressionLevel.Optimal))
                 gz.Write(json);
-            ComRepeticao(() => File.Move(tmp, destino, overwrite: true));
+            ComRepeticao(() => File.Move(tmp, ArquivoGerado.Caminho(destino), overwrite: true));
         }
         finally { ApagarSilencioso(tmp); }
         validadeIndices.Remove(sha);

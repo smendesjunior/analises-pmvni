@@ -73,8 +73,8 @@ internal static class Autoteste
         if (arquivo is null) return;
         Directory.CreateDirectory(Path.GetDirectoryName(arquivo)!);
         var temporario = arquivo + ".tmp";
-        File.WriteAllText(temporario, JsonSerializer.Serialize(dados, new JsonSerializerOptions { WriteIndented = true }));
-        File.Move(temporario, arquivo, overwrite: true);
+        File.WriteAllText(ArquivoGerado.Caminho(temporario), JsonSerializer.Serialize(dados, new JsonSerializerOptions { WriteIndented = true }));
+        File.Move(temporario, ArquivoGerado.Caminho(arquivo), overwrite: true);
         arquivo = null; // grava uma vez só
     }
 }

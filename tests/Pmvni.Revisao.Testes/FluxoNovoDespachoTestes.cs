@@ -47,7 +47,7 @@ public sealed class FluxoNovoDespachoTestes
     {
         using var pasta = Ambiente.PastaDeTeste("fluxo-relatorio-aberto");
         var a = RelatorioFicticio.Arvore(pasta);
-        var pacote = Path.Combine(a.Raiz, "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "Relatorio_0001_2099.rpmvni");
+        var pacote = Path.Combine(a.Raiz, "2099", "0001 - 2099 - FULANO DE EXEMPLO (FICTICIO)", "RELATORIO_0001_2099.RPMVNI");
         Assert.Equal(a.CaminhoPacote, pacote);
 
         // O selecionado em Processos não conta quando se vem de Relatórios: vale o processo do pacote aberto.

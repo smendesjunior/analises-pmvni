@@ -148,11 +148,11 @@ public sealed class LeituraPadronizadaAcervoTestes : IDisposable
         Assert.Equal(Png, lidas[0].Dados);
         Assert.Equal(Jpeg, lidas[1].Dados);
         Assert.Empty(lidas[2].Dados);
-        Assert.Contains(lei.Sha256 + ".figuras.json.gz", c.ArquivosDaPasta());
+        Assert.Contains(lei.Sha256.ToUpperInvariant() + ".FIGURAS.JSON.GZ", c.ArquivosDaPasta());
         Assert.Equal(antes, Cenario.Marca.De(pdf));
 
         c.Acervo.Excluir(lei.Id);
-        Assert.DoesNotContain(c.ArquivosDaPasta(), f => f.Contains(".figuras.", StringComparison.Ordinal));
+        Assert.DoesNotContain(c.ArquivosDaPasta(), f => f.Contains(".figuras.", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

@@ -67,19 +67,19 @@ public class ArquivamentoTestes
 
         // Projeto: INICIAL.
         var arq1 = Arquivamento.Arquivar(p, Arquivamento.Planejar(p, new[] { (req, DestinoAnexo.Documento), (planta, DestinoAnexo.ProjetoInicial) }), CancellationToken.None);
-        Assert.Equal(new[] { @"DOCUMENTOS\req.pdf", @"PROJETO\INICIAL\planta.pdf" }, arq1.Select(a => a.Relativo));
+        Assert.Equal(new[] { @"DOCUMENTOS\REQ.PDF", @"PROJETO\INICIAL\PLANTA.PDF" }, arq1.Select(a => a.Relativo));
         Assert.All(arq1, a => Assert.False(a.JaEstava));
 
         // Duas reapresentações novas vão para a MESMA REVISÃO nova; ReapresentacaoAtual, para a última.
         var plano = Arquivamento.Planejar(p, new[] { (planta, DestinoAnexo.ReapresentacaoNova), (corte, DestinoAnexo.ReapresentacaoNova) });
-        Assert.Equal(new[] { @"PROJETO\REVISÃO 01\planta.pdf", @"PROJETO\REVISÃO 01\corte.pdf" }, plano.Select(x => x.Relativo));
+        Assert.Equal(new[] { @"PROJETO\REVISÃO 01\PLANTA.PDF", @"PROJETO\REVISÃO 01\CORTE.PDF" }, plano.Select(x => x.Relativo));
         var arq2 = Arquivamento.Arquivar(p, plano, CancellationToken.None);
-        Assert.Equal(new[] { @"PROJETO\REVISÃO 01\planta.pdf", @"PROJETO\REVISÃO 01\corte.pdf" }, arq2.Select(a => a.Relativo));
+        Assert.Equal(new[] { @"PROJETO\REVISÃO 01\PLANTA.PDF", @"PROJETO\REVISÃO 01\CORTE.PDF" }, arq2.Select(a => a.Relativo));
         var extra = Origem(t, "detalhe.pdf", "detalhe");
         var arq3 = Arquivamento.Arquivar(p, Arquivamento.Planejar(p, new[] { (extra, DestinoAnexo.ReapresentacaoAtual) }), CancellationToken.None);
-        Assert.Equal(@"PROJETO\REVISÃO 01\detalhe.pdf", Assert.Single(arq3).Relativo);
+        Assert.Equal(@"PROJETO\REVISÃO 01\DETALHE.PDF", Assert.Single(arq3).Relativo);
         // A próxima reapresentação nova abre a REVISÃO 02.
-        Assert.Equal(@"PROJETO\REVISÃO 02\planta.pdf", Arquivamento.Planejar(p, new[] { (planta, DestinoAnexo.ReapresentacaoNova) })[0].Relativo);
+        Assert.Equal(@"PROJETO\REVISÃO 02\PLANTA.PDF", Arquivamento.Planejar(p, new[] { (planta, DestinoAnexo.ReapresentacaoNova) })[0].Relativo);
 
         // Mesmo conteúdo e nome: já estava; nada é copiado.
         var antes = ArquivosDe(p);
@@ -87,7 +87,7 @@ public class ArquivamentoTestes
         Assert.True(Assert.Single(repetido).JaEstava);
         var arq4 = Arquivamento.Arquivar(p, repetido, CancellationToken.None);
         Assert.True(Assert.Single(arq4).JaEstava);
-        Assert.Equal(@"PROJETO\INICIAL\planta.pdf", arq4[0].Relativo);
+        Assert.Equal(@"PROJETO\INICIAL\PLANTA.PDF", arq4[0].Relativo);
         Assert.Equal(antes, ArquivosDe(p));
 
         // Mesmo nome com conteúdo diferente: "(2)", depois "(3)".
@@ -96,9 +96,9 @@ public class ArquivamentoTestes
         var dir3 = Path.Combine(t, "origem3"); Directory.CreateDirectory(dir3);
         var planta3 = Path.Combine(dir3, "planta.pdf"); File.WriteAllText(planta3, "planta C");
         var a2 = Arquivamento.Arquivar(p, Arquivamento.Planejar(p, new[] { (planta2, DestinoAnexo.ProjetoInicial) }), CancellationToken.None);
-        Assert.Equal(@"PROJETO\INICIAL\planta (2).pdf", Assert.Single(a2).Relativo);
+        Assert.Equal(@"PROJETO\INICIAL\PLANTA (2).PDF", Assert.Single(a2).Relativo);
         var a3 = Arquivamento.Arquivar(p, Arquivamento.Planejar(p, new[] { (planta3, DestinoAnexo.ProjetoInicial) }), CancellationToken.None);
-        Assert.Equal(@"PROJETO\INICIAL\planta (3).pdf", Assert.Single(a3).Relativo);
+        Assert.Equal(@"PROJETO\INICIAL\PLANTA (3).PDF", Assert.Single(a3).Relativo);
 
         // Sha da cópia == origem; o relatório devolve o mesmo valor.
         Assert.Equal(Sha(planta3), Sha(Path.Combine(p, a3[0].Relativo)));
@@ -138,8 +138,8 @@ public class ArquivamentoTestes
         var o = Origem(t, "planta.pdf", "x");
         var antes = Directory.GetFileSystemEntries(p, "*", SearchOption.AllDirectories).OrderBy(x => x).ToArray();
         var plano = Arquivamento.Planejar(p, new[] { (o, DestinoAnexo.ReapresentacaoNova), (o, DestinoAnexo.Documento) });
-        Assert.Equal(@"PROJETO\REVISÃO 01\planta.pdf", plano[0].Relativo);
-        Assert.Equal(@"DOCUMENTOS\planta.pdf", plano[1].Relativo);
+        Assert.Equal(@"PROJETO\REVISÃO 01\PLANTA.PDF", plano[0].Relativo);
+        Assert.Equal(@"DOCUMENTOS\PLANTA.PDF", plano[1].Relativo);
         Assert.Equal(antes, Directory.GetFileSystemEntries(p, "*", SearchOption.AllDirectories).OrderBy(x => x).ToArray());
         Assert.False(Directory.Exists(Path.Combine(p, "PROJETO", "REVISÃO 01")));
     }
@@ -170,13 +170,13 @@ public class ArquivamentoTestes
         var i = temSimbolico ? 4 : 3;
         Assert.Equal("sumiu.pdf não pôde ser lido: o arquivo não foi encontrado.", plano[i].Recusa);
         Assert.Null(plano[i + 1].Recusa);
-        Assert.Equal(@"DOCUMENTOS\ok.pdf", plano[i + 1].Relativo);
+        Assert.Equal(@"DOCUMENTOS\OK.PDF", plano[i + 1].Relativo);
         Assert.All(plano.Take(i), x => Assert.Null(x.Relativo));
 
         // Os outros seguem: só o bom é arquivado.
         var arq = Arquivamento.Arquivar(p, plano, CancellationToken.None);
-        Assert.Equal(@"DOCUMENTOS\ok.pdf", Assert.Single(arq).Relativo);
-        Assert.Equal(new[] { @"DOCUMENTOS\ok.pdf" }, ArquivosDe(p));
+        Assert.Equal(@"DOCUMENTOS\OK.PDF", Assert.Single(arq).Relativo);
+        Assert.Equal(new[] { @"DOCUMENTOS\OK.PDF" }, ArquivosDe(p));
     }
 
     /// <summary>Junção (mklink /J, sem administrador); false se este PC não deixa criar atalho nenhum.</summary>
@@ -211,16 +211,16 @@ public class ArquivamentoTestes
         Assert.Equal("A pasta DOCUMENTOS do processo é um atalho (link); o editor não grava nela.", plano[0].Recusa);
         Assert.Null(plano[0].Relativo);
         Assert.Null(plano[1].Recusa);                                           // as outras pastas seguem normais
-        Assert.Equal(@"PROJETO\INICIAL\planta.pdf", plano[1].Relativo);
+        Assert.Equal(@"PROJETO\INICIAL\PLANTA.PDF", plano[1].Relativo);
 
         // Um plano velho (feito antes do atalho) também não grava através dele.
-        var velho = new[] { new PlanoAnexo(o, DestinoAnexo.Documento, @"DOCUMENTOS\req.pdf", false, null) };
+        var velho = new[] { new PlanoAnexo(o, DestinoAnexo.Documento, @"DOCUMENTOS\REQ.PDF", false, null) };
         Assert.Throws<IOException>(() => Arquivamento.Arquivar(p, velho, CancellationToken.None));
         Assert.Empty(Directory.GetFileSystemEntries(alvoFora));
 
         // Só os recusados deixam de ser copiados; PROJETO\INICIAL recebe o seu.
         var arq = Arquivamento.Arquivar(p, plano, CancellationToken.None);
-        Assert.Equal(@"PROJETO\INICIAL\planta.pdf", Assert.Single(arq).Relativo);
+        Assert.Equal(@"PROJETO\INICIAL\PLANTA.PDF", Assert.Single(arq).Relativo);
         Assert.Empty(Directory.GetFileSystemEntries(alvoFora));
 
         // PROJETO inteiro como atalho: nenhuma das pastas de baixo serve.
@@ -257,7 +257,7 @@ public class ArquivamentoTestes
         File.WriteAllText(Path.Combine(d1, "planta.pdf"), "um");
         File.WriteAllText(Path.Combine(d2, "planta.pdf"), "dois");
         var arq = Arquivamento.Arquivar(p, Arquivamento.Planejar(p, new[] { (Path.Combine(d1, "planta.pdf"), DestinoAnexo.Documento), (Path.Combine(d2, "planta.pdf"), DestinoAnexo.Documento) }), CancellationToken.None);
-        Assert.Equal(new[] { @"DOCUMENTOS\planta.pdf", @"DOCUMENTOS\planta (2).pdf" }, arq.Select(a => a.Relativo));
+        Assert.Equal(new[] { @"DOCUMENTOS\PLANTA.PDF", @"DOCUMENTOS\PLANTA (2).PDF" }, arq.Select(a => a.Relativo));
         Assert.Equal("um", File.ReadAllText(Path.Combine(p, arq[0].Relativo)));
         Assert.Equal("dois", File.ReadAllText(Path.Combine(p, arq[1].Relativo)));
     }

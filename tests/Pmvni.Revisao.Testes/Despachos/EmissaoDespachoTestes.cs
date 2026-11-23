@@ -62,7 +62,7 @@ public sealed class EmissaoDespachoTestes
 
     static void FalharEm(string final, string sufixo)
     {
-        if (final.EndsWith(sufixo, StringComparison.Ordinal)) throw new IOException("Disco cheio (simulado).");
+        if (final.EndsWith(sufixo, StringComparison.OrdinalIgnoreCase)) throw new IOException("Disco cheio (simulado).");
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class EmissaoDespachoTestes
 
         Assert.Throws<UnauthorizedAccessException>(() => c.GravarCom(p, new[] { 1, 2 }, f =>
         {
-            if (f.EndsWith(".pdf", StringComparison.Ordinal)) throw new UnauthorizedAccessException("Acesso negado (simulado).");
+            if (f.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) throw new UnauthorizedAccessException("Acesso negado (simulado).");
         }));
 
         var depois = Tudo(c.Arvore.Raiz);
@@ -317,9 +317,9 @@ public sealed class EmissaoDespachoTestes
         var e = c.Gravar(p, new[] { 1, 2 });
 
         var pasta = Path.Combine(c.Arvore.Processo.Pasta, "DESPACHO 03 - 2099-03-10");
-        const string nome = "Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio";
-        Assert.Equal(new Entrega(pasta, Path.Combine(pasta, nome + ".docx"), Path.Combine(pasta, nome + ".pdf"), Path.Combine(pasta, nome + ".recibo-editor.json")), e);
-        Assert.Equal(new[] { nome + ".docx", nome + ".pdf", nome + ".recibo-editor.json" },
+        const string nome = "DESPACHO_CORRECAO_1_2099_FULANO_DE_EXEMPLO_FICTICIO";
+        Assert.Equal(new Entrega(pasta, Path.Combine(pasta, nome + ".DOCX"), Path.Combine(pasta, nome + ".PDF"), Path.Combine(pasta, nome + ".RECIBO-EDITOR.JSON")), e);
+        Assert.Equal(new[] { nome + ".DOCX", nome + ".PDF", nome + ".RECIBO-EDITOR.JSON" },
             Directory.GetFiles(pasta).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Equal(p.Docx, File.ReadAllBytes(e.Docx));
         Assert.Equal(PdfVerdana, File.ReadAllBytes(e.Pdf!));
@@ -343,8 +343,8 @@ public sealed class EmissaoDespachoTestes
         var b = c.Gravar(c.Preparar(ConversorFalso.Com(PdfVerdana)), new[] { 1, 2 });
 
         Assert.Equal(etapa.Pasta, a.Pasta);
-        Assert.EndsWith("Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio (2).docx", b.Docx);
-        Assert.EndsWith("Despacho_Correcao_1_2099_Fulano_De_Exemplo_Ficticio (2).recibo-editor.json", b.Recibo);
+        Assert.EndsWith("DESPACHO_CORRECAO_1_2099_FULANO_DE_EXEMPLO_FICTICIO (2).DOCX", b.Docx);
+        Assert.EndsWith("DESPACHO_CORRECAO_1_2099_FULANO_DE_EXEMPLO_FICTICIO (2).RECIBO-EDITOR.JSON", b.Recibo);
         Assert.Equal(shas, new[] { a.Docx, a.Pdf!, a.Recibo }.Select(f => DocxFicticio.Sha(File.ReadAllBytes(f))));
         Assert.Equal(shaOutro, DocxFicticio.Sha(File.ReadAllBytes(outro)));
         Assert.Empty(Directory.GetFiles(etapa.Pasta, "*.tmp"));
@@ -370,7 +370,7 @@ public sealed class EmissaoDespachoTestes
         Assert.Equal(c.Modelo.Sha256, (string?)r["modelo"]!["sha256"]);
         Assert.Equal(c.Textos.Arquivo, (string?)r["textos_fixos"]!["arquivo"]);
         Assert.Equal(c.Textos.Sha256, (string?)r["textos_fixos"]!["sha256"]);
-        Assert.Equal("Relatorio_0001_2099.rpmvni", (string?)r["relatorio"]!["arquivo"]);
+        Assert.Equal("RELATORIO_0001_2099.RPMVNI", (string?)r["relatorio"]!["arquivo"]);
         Assert.Equal(DocxFicticio.Sha(File.ReadAllBytes(c.Arvore.CaminhoPacote)), (string?)r["relatorio"]!["sha256_pacote"]);
         Assert.Equal(c.Origem.Sha256DadosEfetivos, (string?)r["relatorio"]!["sha256_dados_efetivos"]);
         Assert.Equal(1, (int)r["processo"]!["numero"]!);
@@ -412,7 +412,7 @@ public sealed class EmissaoDespachoTestes
 
         var r = ReciboDespacho.Ler(e.Recibo);
 
-        Assert.EndsWith("Despacho_Aprovacao_1_2099_Fulano_De_Exemplo_Ficticio.docx", e.Docx);
+        Assert.EndsWith("DESPACHO_APROVACAO_1_2099_FULANO_DE_EXEMPLO_FICTICIO.DOCX", e.Docx);
         Assert.Equal("aprovacao", (string?)r["tipo"]);
         Assert.Equal("approval_simple", (string?)r["papel"]);
         Assert.Empty(r["exigencias"]!.AsArray());
@@ -448,7 +448,7 @@ public sealed class EmissaoDespachoTestes
             Assert.Throws<ArgumentException>(() => EmissaoDespacho.GravarPdf(p, e.Docx, new[] { 1 }, "LibreOffice teste", Ambiente.Contexto("beltrano"))).Message);
         var f = EmissaoDespacho.GravarPdf(p, e.Docx, new[] { 1, 2 }, "LibreOffice teste", Ambiente.Contexto("beltrano"));
 
-        Assert.Equal(Path.ChangeExtension(e.Docx, ".pdf"), f.Pdf);
+        Assert.Equal(Path.ChangeExtension(e.Docx, ".PDF"), f.Pdf);
         Assert.Equal(PdfVerdana, File.ReadAllBytes(f.Pdf!));
         Assert.Equal(shaDocx, DocxFicticio.Sha(File.ReadAllBytes(e.Docx)));
         var r = ReciboDespacho.Ler(e.Recibo);

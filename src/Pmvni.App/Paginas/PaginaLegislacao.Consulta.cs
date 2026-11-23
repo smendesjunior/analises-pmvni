@@ -127,7 +127,7 @@ public sealed partial class PaginaLegislacao
         {
             var destino = await Perguntas.Atual.SalvarArquivoAsync("Legislação.pdf", ".pdf");
             if (destino == null || origem != core.Source) return;
-            if (pdfsDaConsulta.TryGetValue(origem, out var arquivo)) File.Copy(arquivo, destino, true);
+            if (pdfsDaConsulta.TryGetValue(origem, out var arquivo)) File.Copy(arquivo, ArquivoGerado.Caminho(destino), true);
             else if (!await core.PrintToPdfAsync(destino, null)) { MostrarEstado("Não foi possível salvar esta página como PDF."); return; }
             MostrarEstado("PDF salvo.");
         }

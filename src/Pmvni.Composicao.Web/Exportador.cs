@@ -140,8 +140,8 @@ public static class Exportador
         var temporario = caminho + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         try
         {
-            await File.WriteAllBytesAsync(temporario, conteudo);
-            File.Move(temporario, caminho, overwrite: true);
+            await File.WriteAllBytesAsync(ArquivoGerado.Caminho(temporario), conteudo);
+            File.Move(temporario, ArquivoGerado.Caminho(caminho), overwrite: true);
         }
         finally { if (File.Exists(temporario)) File.Delete(temporario); }
     }

@@ -211,7 +211,7 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
         var raiz = raizPerfil ?? Path.Combine(conv, "perfil");
         Directory.CreateDirectory(raiz);
         var copia = Path.Combine(conv, "copia.docx");
-        File.Copy(docx, copia);
+        File.Copy(docx, ArquivoGerado.Caminho(copia));
         // O LibreOffice recebe o nome curto do perfil e do TEMP (uma pasta de dados funda passaria do limite).
         var perfil = CaminhoCurto(raiz);
         var temp = CaminhoCurto(Path.Combine(conv, "tmp"));
@@ -261,7 +261,7 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
             try
             {
                 if (arquivoPid is not null)
-                    try { File.WriteAllText(arquivoPid, p.Id.ToString(CultureInfo.InvariantCulture) + ";" + p.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture)); }
+                    try { File.WriteAllText(ArquivoGerado.Caminho(arquivoPid), p.Id.ToString(CultureInfo.InvariantCulture) + ";" + p.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture)); }
                     catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception) { }
                 var mensagens = new System.Collections.Concurrent.ConcurrentQueue<string>();
                 async Task Guardar(StreamReader leitor)

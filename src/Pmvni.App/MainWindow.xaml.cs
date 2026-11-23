@@ -649,7 +649,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                     if (Environment.GetEnvironmentVariable("PMVNI_CAPTURA_PLANILHA") is { Length: > 0 } xlsx && File.Exists(xlsx))
                     {
                         var copia = Path.Combine(pastaCaptura, "acompanhamento.xlsx");
-                        File.Copy(xlsx, copia, true);
+                        File.Copy(xlsx, ArquivoGerado.Caminho(copia), true);
                         ajustes.PlanilhaAcompanhamento = copia;
                         ajustes.AcompanhamentoDetectar = false;
                         planilha = null;
@@ -697,7 +697,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                             // Diálogo (fica fora da árvore da janela): marca no disco para quem captura a tela inteira.
                             _ = EditarProcessoAsync(planilha.Linhas.FirstOrDefault());
                             await Task.Delay(1500);
-                            File.WriteAllText(Path.Combine(pastaCaptura, "dialogo-pronto.txt"), "editar");
+                            File.WriteAllText(ArquivoGerado.Caminho(Path.Combine(pastaCaptura, "dialogo-pronto.txt")), "editar");
                             await Task.Delay(5000);
                         }
                     }

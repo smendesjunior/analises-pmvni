@@ -151,7 +151,7 @@ public sealed record ConteudoPacote(
             if (!destino.StartsWith(Path.TrimEndingDirectorySeparator(raiz) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Asset fora da pasta de destino: " + chave);
             Directory.CreateDirectory(Path.GetDirectoryName(destino)!);
-            File.WriteAllBytes(destino, bytes);
+            File.WriteAllBytes(ArquivoGerado.Caminho(destino), bytes);
         }
     }
 }

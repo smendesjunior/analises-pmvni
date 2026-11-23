@@ -63,7 +63,7 @@ public static class GravadorPlanilha
                 // enche a pasta das cópias com o mesmo arquivo nem empurra o histórico bom para fora das 15.
                 if (pastaCopias is not null) GuardarCopia(caminho, original, pastaCopias);
 
-                using (var saida = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                using (var saida = new FileStream(ArquivoGerado.Caminho(tmp), FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 {
                     File.SetAttributes(tmp, FileAttributes.Hidden);
                     ms.Position = 0;
@@ -118,7 +118,7 @@ public static class GravadorPlanilha
         var baseNome = Path.GetFileNameWithoutExtension(caminho) + " " + DateTime.Now.ToString("yyyy-MM-dd HHmmss-fff", CultureInfo.InvariantCulture);
         var destino = Path.Combine(pasta, baseNome + ".xlsx");
         for (var k = 2; File.Exists(destino); k++) destino = Path.Combine(pasta, $"{baseNome} ({k}).xlsx");
-        using (var f = new FileStream(destino, FileMode.CreateNew, FileAccess.Write, FileShare.None)) f.Write(bytes);
+        using (var f = new FileStream(ArquivoGerado.Caminho(destino), FileMode.CreateNew, FileAccess.Write, FileShare.None)) f.Write(bytes);
         foreach (var velho in new DirectoryInfo(pasta).GetFiles("*.xlsx").OrderByDescending(f => f.CreationTimeUtc).ThenByDescending(f => f.Name, StringComparer.Ordinal).Skip(15))
             try { velho.Delete(); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         // As cópias da versão 0.3.0 ficavam soltas na raiz da pasta das cópias: seguem a mesma regra (as 15 mais novas ficam).

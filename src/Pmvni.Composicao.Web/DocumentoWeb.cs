@@ -108,8 +108,8 @@ public sealed class DocumentoWeb : IDisposable
         return naThread(async () =>
         {
             ObjectDisposedException.ThrowIf(desanexado != 0, this);
-            await File.WriteAllTextAsync(Path.Combine(PastaSessao, "documento.html"), html, new UTF8Encoding(false));
-            await File.WriteAllBytesAsync(Path.Combine(PastaSessao, "paginador.js"), LerPaginador());
+            await File.WriteAllTextAsync(ArquivoGerado.Caminho(Path.Combine(PastaSessao, "documento.html")), html, new UTF8Encoding(false));
+            await File.WriteAllBytesAsync(ArquivoGerado.Caminho(Path.Combine(PastaSessao, "paginador.js")), LerPaginador());
             // Sessão viva: a varredura de órfãs (LimparOrfas, por data de alteração) nunca a apaga enquanto ela é usada.
             Directory.SetLastWriteTimeUtc(PastaSessao, DateTime.UtcNow);
             Render = r;

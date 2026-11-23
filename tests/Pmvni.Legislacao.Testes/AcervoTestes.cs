@@ -305,7 +305,7 @@ public sealed class AcervoTestes : IDisposable
         Assert.Equal("LEI 9.999-2099 - FICTICIA", lista.Single(a => a.Id == lei.Id).Titulo);
         Assert.Equal([MensagensAnexo.Corrompido], doBak.Avisos);
         Assert.Single(Directory.GetFiles(c.Dados, "catalogo.corrompido-*.json"));
-        Assert.Matches(@"^catalogo\.corrompido-\d{4}-\d{2}-\d{2}-\d{6}\.json$", Path.GetFileName(Directory.GetFiles(c.Dados, "catalogo.corrompido-*.json")[0]));
+        Assert.Matches(@"^CATALOGO\.CORROMPIDO-\d{4}-\d{2}-\d{2}-\d{6}\.JSON$", Path.GetFileName(Directory.GetFiles(c.Dados, "catalogo.corrompido-*.json")[0]));
         // O catálogo volta a existir e a próxima carga não avisa de novo.
         Assert.Equal(2, c.Novo().Listar().Count);
         var terceiro = c.Novo();

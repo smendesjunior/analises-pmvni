@@ -99,8 +99,8 @@ public static class CriacaoProcesso
             var temp = Path.Combine(pasta, Guid.NewGuid().ToString("N") + ".tmp");
             try
             {
-                File.WriteAllText(temp, identificador);
-                try { File.Move(temp, arquivo); }
+                File.WriteAllText(ArquivoGerado.Caminho(temp), identificador);
+                try { File.Move(temp, ArquivoGerado.Caminho(arquivo)); }
                 catch (IOException) when (File.Exists(arquivo) && !Processos.EhLink(arquivo) && File.ReadAllText(arquivo) == identificador) { }
             }
             finally { File.Delete(temp); }

@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.4.5
+
+- O Editor usa caixa alta no nome e na extensão dos novos relatórios, despachos, recibos, pranchas aprovadas, exportações e arquivos de controle. As pastas, os formatos e o texto dos documentos conservam a apresentação habitual.
+- Com o kit atualizado, a análise respeita a rota da conta Codex escolhida nos Ajustes. A conexão direta com a OpenAI funciona em estações sem o Codex-LB configurado.
+
 ## 3.4.4
 
 - O painel recupera todos os blocos registrados na auditoria, inclusive em análises anteriores. Ao concluir para edição manual, o relatório mantém as classificações e contraprovas confirmadas até a pausa e indica o que ainda aguarda revisão.

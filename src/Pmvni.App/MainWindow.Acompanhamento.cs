@@ -1673,7 +1673,7 @@ public sealed partial class MainWindow
         if (destino is null) return;
         try
         {
-            await File.WriteAllTextAsync(destino, TextoDaLista(';'), new UTF8Encoding(true));
+            await File.WriteAllTextAsync(ArquivoGerado.Caminho(destino), TextoDaLista(';'), new UTF8Encoding(true));
             MostrarAvisoAcompanhamento(InfoBarSeverity.Success, "Lista exportada", destino);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { MostrarAvisoAcompanhamento(InfoBarSeverity.Error, "A lista não foi exportada", Erro(e)); }

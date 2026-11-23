@@ -271,12 +271,12 @@ public static class Pacote
                 var atual = EstadoDisco.Ler(destino);
                 if (!atual.MesmoConteudo(esperado)) throw new ConflitoNoDiscoException(atual);
                 trocando = true;
-                File.Replace(tmp, destino, bak);
+                File.Replace(tmp, destino, ArquivoGerado.Caminho(bak));
             }
             else
             {
                 trocando = true;
-                File.Move(tmp, destino);
+                File.Move(tmp, ArquivoGerado.Caminho(destino));
             }
 
             depoisDeTrocar?.Invoke();
@@ -342,7 +342,7 @@ public static class Pacote
         foreach (var (nome, bytes) in c.Assets.OrderBy(a => a.Key, StringComparer.Ordinal)) partes[nome] = Sha(bytes);
         var manifesto = (c.Manifesto with { Partes = partes }).Escrever();
 
-        using var fs = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        using var fs = new FileStream(ArquivoGerado.Caminho(tmp), FileMode.CreateNew, FileAccess.Write, FileShare.None);
         File.SetAttributes(tmp, FileAttributes.Hidden);
         using (var zip = new ZipArchive(fs, ZipArchiveMode.Create, leaveOpen: true))
         {

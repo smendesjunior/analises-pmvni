@@ -42,8 +42,8 @@ internal sealed class PonteGeminiWeb : IDisposable
             var temporario = arquivo + "." + Guid.NewGuid().ToString("N");
             try
             {
-                File.WriteAllText(temporario, JsonSerializer.Serialize(new { port = porta, token }));
-                File.Move(temporario, arquivo, true);
+                File.WriteAllText(ArquivoGerado.Caminho(temporario), JsonSerializer.Serialize(new { port = porta, token }));
+                File.Move(temporario, ArquivoGerado.Caminho(arquivo), true);
             }
             finally { File.Delete(temporario); }
             _ = Task.Run(ReceberAsync);

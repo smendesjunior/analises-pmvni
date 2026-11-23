@@ -119,14 +119,14 @@ public class PastasTestes
         var hoje = new DateOnly(2099, 3, 10);
         var etapa = Etapas.Sugerida(p.Pasta, hoje).Pasta;
         var primeiro = Processos.NomeImportacao(p, null, hoje);
-        Assert.Equal(Path.Combine(etapa, "Relatorio_0001_2099.rpmvni"), primeiro);
+        Assert.Equal(Path.Combine(etapa, "RELATORIO_0001_2099.RPMVNI"), primeiro);
         File.WriteAllText(primeiro, "x");
-        Assert.Equal(Path.Combine(etapa, "Relatorio_0001_2099_2.rpmvni"), Processos.NomeImportacao(p, null, hoje));
+        Assert.Equal(Path.Combine(etapa, "RELATORIO_0001_2099_2.RPMVNI"), Processos.NomeImportacao(p, null, hoje));
 
         var fora = Processos.Listar(t, CancellationToken.None).Itens.Single(x => x.Numero is null);
         var etapaFora = Etapas.Sugerida(fora.Pasta, hoje).Pasta;
-        Assert.Equal(Path.Combine(etapaFora, "Relatorio_9001_2026.rpmvni"), Processos.NomeImportacao(fora, "9001/2026", hoje));
-        Assert.Equal(Path.Combine(etapaFora, "Relatorio.rpmvni"), Processos.NomeImportacao(fora, null, hoje));
+        Assert.Equal(Path.Combine(etapaFora, "RELATORIO_9001_2026.RPMVNI"), Processos.NomeImportacao(fora, "9001/2026", hoje));
+        Assert.Equal(Path.Combine(etapaFora, "RELATORIO.RPMVNI"), Processos.NomeImportacao(fora, null, hoje));
     }
 
     [Fact]

@@ -27,4 +27,7 @@
     <!-- DPAPI: a senha do certificado que o usuário pede para lembrar (a mesma versão que o Pmvni.Agentes já usa no CofreChaves). -->
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Pmvni.Arquivos\Pmvni.Arquivos.csproj" />
+  </ItemGroup>
 </Project>
