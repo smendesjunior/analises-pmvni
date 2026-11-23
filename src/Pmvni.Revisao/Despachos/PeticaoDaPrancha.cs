@@ -16,7 +16,9 @@ public static class PeticaoDaPrancha
         {
             yield return Path.GetFileNameWithoutExtension(arquivo.Name);
             for (var pasta = arquivo.Directory; pasta is not null; pasta = pasta.Parent)
-                {
+            {
+                if (DateOnly.TryParseExact(pasta.Name, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out _)) continue;
                 var processo = Processos.Interpretar(pasta.FullName);
                 if (processo.Protocolo is { } protocolo) yield return protocolo;
                 else yield return pasta.Name;

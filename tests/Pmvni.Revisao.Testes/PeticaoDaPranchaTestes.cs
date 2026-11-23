@@ -5,6 +5,8 @@ namespace Pmvni.Revisao.Testes;
 public class PeticaoDaPranchaTestes
 {
     [Theory]
+    [InlineData(@"C:\2026-11-23\Prancha A.pdf", null)]
+    [InlineData(@"C:\2026-11-23\123-2026 - X\Folha.pdf", "123/2026")]
     [InlineData(@"C:\externo\Prancha A.pdf", null)]
     [InlineData(@"C:\externo\PROC. 123 - 2026 - X\PROJETO\INICIAL\Folha 1.pdf", "123/2026")]
     [InlineData(@"C:\externo\321-2025 - X.pdf", "321/2025")]
