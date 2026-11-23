@@ -226,7 +226,7 @@ public sealed partial class PaginaNovoRelatorio
         if (!string.IsNullOrWhiteSpace(TextoEtapaAtual.Text))
         {
             var atual = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            atual.Children.Add(Glifo("", "MnGlifo", 13));
+            atual.Children.Add(Glifo(Glifos.Executar, "MnGlifo", 13));
             atual.Children.Add(Texto(TextoEtapaAtual.Text, "MnCorpo"));
             info.Children.Add(atual);
         }
@@ -240,9 +240,9 @@ public sealed partial class PaginaNovoRelatorio
         topo.Children.Add(info);
 
         var tempos = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
-        tempos.Children.Add(LadrilhoDeTempo("\uE916", "Tempo decorrido", relogio.Decorrido, relogio.Decorrido, out valorDecorrido));
+        tempos.Children.Add(LadrilhoDeTempo(Glifos.Relogio, "Tempo decorrido", relogio.Decorrido, relogio.Decorrido, out valorDecorrido));
         Id(valorDecorrido, "elapsed");
-        tempos.Children.Add(LadrilhoDeTempo("", "Previsão de término", relogio.Previsao,
+        tempos.Children.Add(LadrilhoDeTempo(Glifos.Ano, "Previsão de término", relogio.Previsao,
             string.IsNullOrEmpty(dicaPrevisao) ? relogio.Previsao : dicaPrevisao, out valorPrevisao));
         Id(valorPrevisao, "eta");
         Grid.SetColumn(tempos, 2);
@@ -374,7 +374,7 @@ public sealed partial class PaginaNovoRelatorio
         {
             case EstadoEtapa.Feita:
                 caixa.Children.Add(new Ellipse { Style = Estilo<Style>("MnPontoVerde") });
-                var ok = Glifo("", "MnGlifo", 10);
+                var ok = Glifo(Glifos.Marca, "MnGlifo", 10);
                 ok.Foreground = Estilo<Brush>("TextOnAccentFillColorPrimaryBrush");
                 caixa.Children.Add(ok);
                 break;
@@ -397,15 +397,15 @@ public sealed partial class PaginaNovoRelatorio
 
     void PaginaResumo()
     {
-        Adicionar(TituloDePagina("", "Principais descobertas", "Constatações preliminares até a auditoria cruzada."), 0);
+        Adicionar(TituloDePagina(Glifos.Painel, "Principais descobertas", "Constatações preliminares até a auditoria cruzada."), 0);
 
         var contagens = new Grid { ColumnSpacing = 12 };
         (string Estilo, string EstiloTexto, string Glifo, string Rotulo, string Valor, string Legenda, string Id)[] ladrilhos =
         [
-            ("MnContagemAtende", "MnTagTextoSucesso", "\uE73E", "Atende", TotalAtende.Text, "conformidades", "ok"),
-            ("MnContagemNaoAtende", "MnTagTextoErro", "\uE711", "Não atende", TotalNaoAtende.Text, "não conformidades", "fail"),
-            ("MnContagemFalta", "MnTagTextoAtencao", "\uE7BA", "Falta comprovar", TotalComprovar.Text, "sem evidência", "unknown"),
-            ("MnContagemDivergencia", "MnTagTextoIa", "\uE8AB", "Divergências", TotalDivergentes.Text, "inconsistências", "conflicts"),
+            ("MnContagemAtende", "MnTagTextoSucesso", Glifos.Marca, "Atende", TotalAtende.Text, "conformidades", "ok"),
+            ("MnContagemNaoAtende", "MnTagTextoErro", Glifos.NaoConfigurado, "Não atende", TotalNaoAtende.Text, "não conformidades", "fail"),
+            ("MnContagemFalta", "MnTagTextoAtencao", Glifos.Avisos, "Falta comprovar", TotalComprovar.Text, "sem evidência", "unknown"),
+            ("MnContagemDivergencia", "MnTagTextoIa", Glifos.Original, "Divergências", TotalDivergentes.Text, "inconsistências", "conflicts"),
         ];
         for (var i = 0; i < ladrilhos.Length; i++)
         {
@@ -441,7 +441,7 @@ public sealed partial class PaginaNovoRelatorio
         Adicionar(contagens, 14);
 
         var linhas = filtroAchados is null ? achadosExibidos : achadosExibidos.Where(a => Classificacao(a) == filtroAchados).ToArray();
-        var filtro = new DropDownButton { Content = BotaoConteudo("", filtroAchados ?? "Filtrar") };
+        var filtro = new DropDownButton { Content = BotaoConteudo(Glifos.Filtro, filtroAchados ?? "Filtrar") };
         AutomationProperties.SetName(filtro, "Filtrar descobertas");
         var menu = new MenuFlyout();
         foreach (var opcao in new string?[] { null }.Concat(achadosExibidos.Select(Classificacao).Distinct()))
@@ -465,10 +465,10 @@ public sealed partial class PaginaNovoRelatorio
 
         var acoes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         if (linhas.Count > 4)
-            acoes.Children.Add(BotaoAcao(todasEvidencias ? "" : "", todasEvidencias ? "Recolher para a prévia" : $"Ver todos os {linhas.Count} registros",
+            acoes.Children.Add(BotaoAcao(todasEvidencias ? Glifos.Anterior : Glifos.Proximo, todasEvidencias ? "Recolher para a prévia" : $"Ver todos os {linhas.Count} registros",
                 () => { todasEvidencias = !todasEvidencias; AtualizarMonitor(true); }));
         if (BotaoEvidenciasPdf.Visibility == Visibility.Visible)
-            acoes.Children.Add(BotaoAcao("", "Ver evidências por PDF e página", () => EvidenciasSolicitadas?.Invoke(this, EventArgs.Empty)));
+            acoes.Children.Add(BotaoAcao(Glifos.Relatorio, "Ver evidências por PDF e página", () => EvidenciasSolicitadas?.Invoke(this, EventArgs.Empty)));
         if (acoes.Children.Count > 0) Adicionar(acoes, 12);
     }
 
@@ -508,7 +508,7 @@ public sealed partial class PaginaNovoRelatorio
         texto.Children.Add(Texto(a.Titulo, "MnCorpo"));
         Grid.SetColumn(texto, 2);
         grade.Children.Add(texto);
-        var seta = Glifo("", "MnGlifoNeutro", 12);
+        var seta = Glifo(Glifos.ExpandirLinha, "MnGlifoNeutro", 12);
         Grid.SetColumn(seta, 3);
         grade.Children.Add(seta);
         var botao = LinhaClicavel(grade, a.Titulo, divisoria, () => Mostrar(a.Id + " · " + a.Titulo,
@@ -520,7 +520,7 @@ public sealed partial class PaginaNovoRelatorio
 
     void PaginaEtapas()
     {
-        Adicionar(TituloDePagina("", "Atividades da análise", "Acompanhe as etapas e os registros de execução.",
+        Adicionar(TituloDePagina(Glifos.Lista, "Atividades da análise", "Acompanhe as etapas e os registros de execução.",
             emCurso ? TagAoVivo("Em andamento") : Selo(TituloStatus.Text, "MnTag", "MnTagTexto")), 0);
         var atual = etapaAberta ?? Array.FindIndex(etapasMostradas, e => e.Estado == EstadoEtapa.Agora);
         var lista = Cartao();
@@ -554,7 +554,7 @@ public sealed partial class PaginaNovoRelatorio
             var selo = SeloDaEtapa(estado);
             Grid.SetColumn(selo, 3);
             cabeca.Children.Add(selo);
-            var seta = Glifo(aberta ? "" : "", "MnGlifoNeutro", 12);
+            var seta = Glifo(aberta ? Glifos.Anterior : Glifos.Proximo, "MnGlifoNeutro", 12);
             Grid.SetColumn(seta, 4);
             cabeca.Children.Add(seta);
             linha.Children.Add(cabeca);
@@ -577,19 +577,19 @@ public sealed partial class PaginaNovoRelatorio
         }
         lista.Child = pilha;
         Adicionar(lista, 18);
-        Adicionar(BotaoAcao("", "Ver registros", AbrirLogDoMonitorNativo), 14);
+        Adicionar(BotaoAcao(Glifos.Recentes, "Ver registros", AbrirLogDoMonitorNativo), 14);
     }
 
     void AbrirLogDoMonitorNativo() => AbasMonitor.SelectedItem = AbasMonitor.MenuItems.OfType<NavigationViewItem>().First(i => Equals(i.Content, "Log"));
 
     FrameworkElement IconeDaEtapa(string nome, EstadoEtapa estado)
     {
-        var glifo = estado == EstadoEtapa.Feita ? "" : IdDaEtapa(nome) switch
+        var glifo = estado == EstadoEtapa.Feita ? Glifos.Concluido : IdDaEtapa(nome) switch
         {
-            "prepare" => "",
-            "analyze" => "",
-            "final_review" => "",
-            _ => "",
+            "prepare" => Glifos.Pasta,
+            "analyze" => Glifos.Relatorio,
+            "final_review" => Glifos.Marca,
+            _ => Glifos.EmitirProcessoAprovado,
         };
         var estilo = estado switch
         {
@@ -656,7 +656,7 @@ public sealed partial class PaginaNovoRelatorio
                 var topo = new Grid();
                 topo.Children.Add(Texto($"Seções {f.Inicio}–{f.Fim}", "MnCorpoForte"));
                 var conta = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-                if (f.Concluida) conta.Children.Add(Glifo("\uE73E", "MnGlifo", 11));
+                if (f.Concluida) conta.Children.Add(Glifo(Glifos.Marca, "MnGlifo", 11));
                 conta.Children.Add(Id(Texto($"{f.Prontas} de {f.Total}", f.Concluida ? "MnVerdeForte" : "MnLegenda"), "count" + k));
                 topo.Children.Add(conta);
                 pilha.Children.Add(topo);
@@ -687,7 +687,7 @@ public sealed partial class PaginaNovoRelatorio
 
     void PaginaDetalhes()
     {
-        Adicionar(TituloDePagina("", "Detalhes da análise", "Plano, registros e resultados de cada etapa do processo.",
+        Adicionar(TituloDePagina(Glifos.Documento, "Detalhes da análise", "Plano, registros e resultados de cada etapa do processo.",
             Selo(etapasMostradas.Length == 1 ? "1 etapa mapeada" : $"{etapasMostradas.Length} etapas mapeadas", "MnTagSucesso", "MnTagTextoSucesso")), 0);
         var lista = Cartao();
         Elevar(lista, levantar: false);
@@ -804,7 +804,7 @@ public sealed partial class PaginaNovoRelatorio
             if (feito == true)
             {
                 marca.Children.Add(new Ellipse { Style = Estilo<Style>("MnPontoVerde") });
-                var ok = Glifo("", "MnGlifo", 9);
+                var ok = Glifo(Glifos.Marca, "MnGlifo", 9);
                 ok.Foreground = Estilo<Brush>("TextOnAccentFillColorPrimaryBrush");
                 marca.Children.Add(ok);
                 AutomationProperties.SetName(marca, "Concluído");
@@ -847,7 +847,7 @@ public sealed partial class PaginaNovoRelatorio
         var fichas = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         fichas.Children.Add(Selo("Entrada total · " + TextoConsumo.Numero(SomaMedida(ia.Select(e => e.Entrada))), "MnTag", "MnTagTexto"));
         fichas.Children.Add(Selo(ia.LastOrDefault(e => e.Entrada.HasValue) is { } ultima ? NomeExecutor(ultima) : "Aguardando medição", "MnTag", "MnTagTexto"));
-        Adicionar(TituloDePagina("", "Consumo e desempenho", "Tokens, cotas e tempo gastos pela análise até agora.", fichas), 0);
+        Adicionar(TituloDePagina(Glifos.Grafico, "Consumo e desempenho", "Tokens, cotas e tempo gastos pela análise até agora.", fichas), 0);
 
         if (orcamentoExibido is { } orc)
         {
@@ -956,7 +956,7 @@ public sealed partial class PaginaNovoRelatorio
             {
                 var t = Texto(cabecalho ? valores[k].ToUpper(CultureInfo.GetCultureInfo("pt-BR")) : valores[k],
                     cabecalho ? "MnLegenda" : k == 0 ? "MnCorpoForte" : "MnCorpo");
-                if (cabecalho) { t.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold; t.CharacterSpacing = 40; }
+                if (cabecalho) { t.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold; }
                 if (k >= 2) t.HorizontalAlignment = HorizontalAlignment.Right;
                 celula = t;
             }
@@ -1125,7 +1125,7 @@ public sealed partial class PaginaNovoRelatorio
 
     void PaginaLog()
     {
-        Adicionar(TituloDePagina("", "Log de execução", "Registros cronológicos por hora do evento e ações realizadas durante a análise.",
+        Adicionar(TituloDePagina(Glifos.Recentes, "Log de execução", "Registros cronológicos por hora do evento e ações realizadas durante a análise.",
             emCurso ? TagAoVivo("Em execução") : Selo(TituloStatus.Text, "MnTag", "MnTagTexto")), 0);
         Adicionar(CabecalhoDeSecao(atividades.Count == 1 ? "1 evento registrado" : $"{atividades.Count} eventos registrados", HoraUltimoEvento.Text, null, idTitulo: "count"), 18);
         var lista = Cartao();
@@ -1139,7 +1139,7 @@ public sealed partial class PaginaNovoRelatorio
         {
             var t = Texto(titulos[k], "MnLegenda");
             t.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-            t.CharacterSpacing = 40;
+           
             if (k == 1) t.HorizontalAlignment = HorizontalAlignment.Center;
             Grid.SetColumn(t, k);
             cab.Children.Add(t);
@@ -1182,7 +1182,7 @@ public sealed partial class PaginaNovoRelatorio
         lista.Child = pilha;
         Adicionar(lista, 10);
         if (BotaoEvidenciasPdf.Visibility == Visibility.Visible)
-            Adicionar(BotaoAcao("", "Ver evidências por PDF e página", () => EvidenciasSolicitadas?.Invoke(this, EventArgs.Empty)), 12);
+            Adicionar(BotaoAcao(Glifos.Relatorio, "Ver evidências por PDF e página", () => EvidenciasSolicitadas?.Invoke(this, EventArgs.Empty)), 12);
     }
 
     // ───────────────────────────── peças comuns ─────────────────────────────

@@ -702,7 +702,7 @@
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
           <TextBlock Text="Monitor de análise" Style="{StaticResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1"/>
-          <TextBlock Text="Acompanhamento de execução, evidências e auditoria técnica em tempo real" Style="{StaticResource MnLegendaQuebra}" FontSize="13"/>
+          <TextBlock Text="Acompanhamento de execução, evidências e auditoria técnica em tempo real" Style="{StaticResource MnSubtituloMonitor}"/>
         </StackPanel>
         <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="2" Espaco="8" EspacoLinhas="6" VerticalAlignment="Center" HorizontalAlignment="Right">
             <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro"
@@ -748,8 +748,8 @@
                 <Rectangle Grid.Row="2" Width="3" RadiusX="1.5" RadiusY="1.5" Style="{StaticResource MnFormaAmarelo}"/>
               </Grid>
               <StackPanel Grid.Column="1">
-                <TextBlock Text="Processo" Style="{StaticResource MnSecundario}" FontSize="13"/>
-                <TextBlock x:Name="NavProcesso" x:FieldModifier="internal" Text="—" FontSize="22" FontWeight="Bold" Foreground="{ThemeResource MnVerdeTexto}" HorizontalAlignment="Left" TextAlignment="Left"
+                <TextBlock Text="Processo" Style="{StaticResource MnRotuloProcesso}"/>
+                <TextBlock x:Name="NavProcesso" x:FieldModifier="internal" Text="—" Style="{StaticResource MnNumeroProcesso}"
                            TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
               </StackPanel>
             </Grid>
