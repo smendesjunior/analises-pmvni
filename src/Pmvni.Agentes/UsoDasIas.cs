@@ -15,6 +15,8 @@ public sealed record UsoEtapa(string Etapa, string Executor, string? Modelo, lon
     internal string? PastaExecucao { get; init; }
     public long? Total { get; init; }
     public long? CacheGravado { get; init; }
+    /// <summary>A entrada normalizada da telemetria do kit já inclui os tokens lidos e gravados em cache.</summary>
+    public bool? EntradaIncluiCache { get; init; }
     internal bool ForaDaCota { get; init; }
     public string? Plano { get; init; }
     public double? CpuMediaMhz { get; init; }

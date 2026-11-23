@@ -93,6 +93,11 @@ public sealed class OrquestradorAnalise
         if (AmbienteExtra is not null)
             foreach (var (k, v) in AmbienteExtra) env[k] = v;
         AmbienteFilho.Aplicar(env, p, modo, chave, perfil, ficticio, trocarGemini);
+        if (!ficticio && pedido is not null && Assembly.GetEntryAssembly()?.GetName().Name == "Pmvni.App"
+            && Environment.ProcessPath is { } exe && (Path.GetFileName(exe).Equals("Pmvni.App.exe", StringComparison.OrdinalIgnoreCase)
+                || Path.GetFileName(exe).Equals("Editor de Relatorios PMVNI.exe", StringComparison.OrdinalIgnoreCase)))
+            env["PMVNI_EDITOR_MAPA_EXE"] = exe;
+        else env.Remove("PMVNI_EDITOR_MAPA_EXE");
         if (!string.IsNullOrWhiteSpace(pedido?.PastaQgis)) env["PMVNI_QGIS_ROOT"] = pedido.PastaQgis;
         if (!string.IsNullOrWhiteSpace(pedido?.PastaKit) && Directory.Exists(pedido.PastaKit)) env["PMVNI_KIT"] = pedido.PastaKit;
         if (registro is not null)

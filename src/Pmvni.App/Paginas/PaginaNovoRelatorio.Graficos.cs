@@ -50,9 +50,10 @@ public sealed partial class PaginaNovoRelatorio
 
     static (decimal Nova, decimal Cache)? EntradasComCache(IReadOnlyList<UsoEtapa> linhas)
     {
+        static bool IncluiCache(UsoEtapa e) => e.EntradaIncluiCache ?? (e.Executor == "GPT");
         if (linhas.Count == 0 || linhas.Any(e => e.Entrada is not >= 0 || e.CacheLido is not >= 0 ||
-            (e.Executor != "Claude" && (e.Executor != "GPT" || e.CacheLido > e.Entrada)))) return null;
-        return (linhas.Sum(e => (decimal)e.Entrada!.Value - (e.Executor == "GPT" ? e.CacheLido!.Value : 0)),
+            (IncluiCache(e) ? e.CacheLido > e.Entrada : e.Executor != "Claude"))) return null;
+        return (linhas.Sum(e => (decimal)e.Entrada!.Value - (IncluiCache(e) ? e.CacheLido!.Value : 0)),
                 linhas.Sum(e => (decimal)e.CacheLido!.Value));
     }
 

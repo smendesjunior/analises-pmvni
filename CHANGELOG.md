@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.5.0
+
+- O monitor nativo calcula o progresso pelas unidades registradas e atualiza a previsão de término durante a análise.
+- A página Consumo apresenta os tokens medidos, o horário de cada leitura e as janelas de cinco horas e semanal informadas pelo provedor.
+- Com o kit 4.5.0, o módulo Imóveis fornece o mapa cotado das camadas cadastrais e identifica a parcela candidata na ficha de localização.
+
 ## 4.0.0
 
 Esta versão reúne as novidades preparadas como 3.4.7, 3.5.0 e 3.5.1.

@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using System.Text.Json;
 using Pmvni.Imoveis;
 using Xunit;
 
@@ -268,6 +269,53 @@ public class MapaLocalizacaoTestes : IDisposable
         Assert.DoesNotContain("Beltrana", m.Svg);
         Assert.DoesNotContain(m.Dados, x => x.Rotulo is "Proprietário" or "Confrontantes");
         Assert.Throws<ArgumentException>(() => MapaLocalizacao.PorInscricao(b, "99999999999999"));
+    }
+
+    [Theory]
+    [InlineData(0, BaseFicticia.Lote4)]
+    [InlineData(1, BaseFicticia.Lote3)]
+    public void comando_qgis_renderiza_so_a_feicao_exata_com_cotas(int indice, string inscricao)
+    {
+        var saida = Path.Combine(pasta, "saída cotada");
+        var argumentos = new[] { "--mapa-qgis", pasta, indice.ToString(), saida };
+        using var erros = new StringWriter();
+        Assert.Equal(0, MapaParaAnalise.Executar(argumentos, erros));
+        var svg = File.ReadAllText(Path.Combine(saida, "MAPA.SVG"));
+        Assert.Contains(">30,00 m<", svg);
+        Assert.Contains("stroke=\"#E22D28\" stroke-width=\"6\"", svg);
+        Assert.DoesNotContain("FULANO", svg, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("BELTRANA", svg, StringComparison.OrdinalIgnoreCase);
+        using var ficha = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(saida, "FICHA.JSON")));
+        var raiz = ficha.RootElement;
+        Assert.Equal(indice, raiz.GetProperty("feicao").GetInt32());
+        Assert.True(raiz.GetProperty("cotas").GetBoolean());
+        Assert.Equal(MapaLocalizacao.Crs, raiz.GetProperty("crs").GetString());
+        var ext = raiz.GetProperty("extent").EnumerateArray().Select(x => x.GetDouble()).ToArray();
+        Assert.True(ext.Length == 4 && ext[0] < ext[2] && ext[1] < ext[3]);
+        Assert.All(raiz.GetProperty("legend").EnumerateArray(), x => Assert.True(x.TryGetProperty("texto", out _) && x.TryGetProperty("tipo", out _)));
+        Assert.Contains(raiz.GetProperty("layers").EnumerateArray(), x => x.GetString() == "Lotes");
+        var dados = raiz.GetProperty("dados").EnumerateArray().ToList();
+        Assert.Contains(dados, x => x.GetProperty("rotulo").GetString() == "Inscrição" && x.GetProperty("valor").GetString() == inscricao);
+        Assert.DoesNotContain(dados, x => x.GetProperty("rotulo").GetString() == "Proprietário");
+        Assert.All(dados.SelectMany(x => x.EnumerateObject()), x => Assert.NotEqual(JsonValueKind.Null, x.Value.ValueKind));
+        Assert.NotEqual(0, MapaParaAnalise.Executar(argumentos, erros));
+        Assert.Equal(svg, File.ReadAllText(Path.Combine(saida, "MAPA.SVG")));
+    }
+
+    [Fact]
+    public void comando_qgis_com_camada_ausente_e_com_feicao_inexistente()
+    {
+        var saida = Directory.CreateDirectory(Path.Combine(pasta, "saida")).FullName;
+        using var erros = new StringWriter();
+        Assert.NotEqual(0, MapaParaAnalise.Executar(["--mapa-qgis", pasta, "999", saida], erros));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(saida));
+        File.Delete(Path.Combine(pasta, "shapes", "Hidro_app.shp"));
+        Assert.Equal(0, MapaParaAnalise.Executar(["--mapa-qgis", pasta, "0", saida], erros));
+        using var ficha = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(saida, "FICHA.JSON")));
+        var dados = ficha.RootElement.GetProperty("dados").EnumerateArray();
+        var app = dados.Single(x => x.GetProperty("rotulo").GetString() == "APP / rio");
+        Assert.Contains("indisponível", app.GetProperty("valor").GetString());
+        Assert.False(app.TryGetProperty("chip", out _));
     }
 
     [Fact]

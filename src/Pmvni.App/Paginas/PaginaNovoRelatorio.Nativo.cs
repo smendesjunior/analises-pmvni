@@ -125,7 +125,7 @@ public sealed partial class PaginaNovoRelatorio
         + string.Join(";", detalhesEtapas.Frentes) + string.Join(";", detalhesEtapas.Registros.Select(r => r.Key + r.Value))
         + string.Join(";", detalhesEtapas.Objecoes) + ChaveConsumo();
 
-    string ChaveConsumo() => string.Join(";", (consumoExibido ?? []).Select(u => u.ToString() + u.Usada5h + u.UsadaSemana + u.Plano + u.CpuMediaMhz + u.RamPicoBytes));
+    string ChaveConsumo() => leituraExibida?.ToString() + "|" + string.Join(";", (consumoExibido ?? []).Select(u => u.ToString() + u.Usada5h + u.UsadaSemana + u.Plano + u.CpuMediaMhz + u.RamPicoBytes));
 
     // ───────────────────────────── desenho das páginas ─────────────────────────────
 
@@ -840,13 +840,30 @@ public sealed partial class PaginaNovoRelatorio
 
     // ── Consumo ──
 
+    (long? Total, long? Entrada, long? Saida, long? Cache, long? Nova, bool Parcial, DateTimeOffset? Hora) TotaisMedidos(IReadOnlyList<UsoEtapa> ia)
+    {
+        static long? Tokens(UsoEtapa l) => l.Total ?? (l.Executor == "Claude" && l.EntradaIncluiCache != true
+            ? l.Entrada + l.Saida + l.CacheLido + l.CacheGravado : l.Entrada + l.Saida);
+        var total = SomaMedida(ia.Select(Tokens));
+        if (leituraExibida is { Total: { } atual } leitura && (total is null || atual >= total))
+            return (atual, leitura.Entrada, leitura.Saida, leitura.CacheLido,
+                leitura.CacheLido <= leitura.Entrada ? leitura.Entrada - leitura.CacheLido : null,
+                leitura.TokensParciais, leitura.TokensObservadosEm);
+        var cache = EntradasComCache(ia);
+        return (total, SomaMedida(ia.Select(e => e.Entrada)), SomaMedida(ia.Select(e => e.Saida)),
+            SomaMedida(ia.Select(e => e.CacheLido)), cache is { } c ? (long?)c.Nova : null, ia.Any(e => Tokens(e) is null), null);
+    }
+
     void PaginaConsumo()
     {
         var uso = consumoExibido ?? [];
         var ia = uso.Where(e => e.Executor != UsoDasIas.Programa).ToArray();
         var fichas = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        fichas.Children.Add(Selo("Entrada total · " + TextoConsumo.Numero(SomaMedida(ia.Select(e => e.Entrada))), "MnTag", "MnTagTexto"));
-        fichas.Children.Add(Selo(ia.LastOrDefault(e => e.Entrada.HasValue) is { } ultima ? NomeExecutor(ultima) : "Aguardando medição", "MnTag", "MnTagTexto"));
+        var totais = TotaisMedidos(ia);
+        var total = totais.Total is { } t ? TextoConsumo.Numero(t) : "Aguardando medição";
+        fichas.Children.Add(Selo((totais.Parcial ? "Tokens parciais · " : "Tokens totais · ") + total, "MnTag", "MnTagTexto"));
+        if (totais.Hora is { } hora)
+            fichas.Children.Add(Selo("Medidos às " + hora.ToLocalTime().ToString("HH:mm:ss"), "MnTag", "MnTagTexto"));
         Adicionar(TituloDePagina("", "Consumo e desempenho", "Tokens, cotas e tempo gastos pela análise até agora.", fichas), 0);
 
         if (orcamentoExibido is { } orc)
@@ -981,9 +998,9 @@ public sealed partial class PaginaNovoRelatorio
     Border GraficoComposicao(IReadOnlyList<UsoEtapa> ia)
     {
         var cartao = CartaoDeGrafico("Composição dos tokens de entrada", "Quanto veio do cache e quanto foi processado de novo", out var corpo);
-        var cache = EntradasComCache(ia);
-        var soma = cache is { } c ? c.Nova + c.Cache : 0;
-        var percentual = soma > 0 ? (double)(100 * cache!.Value.Cache / soma) : (double?)null;
+        var medidos = TotaisMedidos(ia);
+        var soma = (decimal?)medidos.Nova + medidos.Cache;
+        var percentual = soma is > 0 ? (double?)(100m * medidos.Cache / soma) : null;
         var grade = new Grid { ColumnSpacing = 20 };
         grade.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
         grade.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
@@ -999,11 +1016,11 @@ public sealed partial class PaginaNovoRelatorio
         anel.Children.Add(centro);
         grade.Children.Add(anel);
         var legenda = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-        legenda.Children.Add(ItemDeLegenda("MnPontoVerde", "Cache lido", TextoConsumo.Numero(SomaMedida(ia.Select(e => e.CacheLido)))));
-        legenda.Children.Add(ItemDeLegenda("MnPontoOcre", "Entrada nova", TextoConsumo.Numero(cache is { } n ? (long)n.Nova : null)));
+        legenda.Children.Add(ItemDeLegenda("MnPontoVerde", "Cache lido", TextoConsumo.Numero(medidos.Cache)));
+        legenda.Children.Add(ItemDeLegenda("MnPontoOcre", "Entrada nova", TextoConsumo.Numero(medidos.Nova)));
         legenda.Children.Add(new Border { Style = Estilo<Style>("MnDivisoria") });
-        legenda.Children.Add(ItemDeLegenda("MnPontoLilas", "Saída gerada", TextoConsumo.Numero(SomaMedida(ia.Select(e => e.Saida)))));
-        var saidaPct = soma > 0 && ia.All(e => e.Saida.HasValue) ? 100 * ia.Sum(e => (decimal)e.Saida!.Value) / soma : (decimal?)null;
+        legenda.Children.Add(ItemDeLegenda("MnPontoLilas", "Saída gerada", TextoConsumo.Numero(medidos.Saida)));
+        var saidaPct = soma is > 0 ? 100m * medidos.Saida / soma : null;
         legenda.Children.Add(Id(Texto(saidaPct is { } sp ? $"Saída: {sp.ToString("0.#", CultureInfo.GetCultureInfo("pt-BR"))}% do volume de entrada" : "Saída informada pela IA", "MnLegenda"), "outputHelp"));
         Grid.SetColumn(legenda, 1);
         grade.Children.Add(legenda);
@@ -1016,16 +1033,19 @@ public sealed partial class PaginaNovoRelatorio
         var cartao = CartaoDeGrafico("Uso das cotas", "Uso da conta e variação no intervalo observado", out var corpo);
         var curta = ia.LastOrDefault(r => r.Usada5h != null);
         var semana = ia.LastOrDefault(r => r.UsadaSemana != null);
+        var leitura = leituraExibida;
+        var usadaCurta = leitura is null ? curta?.Usada5h : leitura.Usada5h;
+        var usadaSemana = leitura is null ? semana?.UsadaSemana : leitura.UsadaSemana;
         var aneis = new Grid { ColumnSpacing = 12 };
         aneis.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
         aneis.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
-        aneis.Children.Add(AnelDeCota("Cota de 5 h", curta?.Usada5h, curta?.Cota5h, "MnArcoOcre", "MnTagTextoAtencao", "shortPercent"));
-        var s = AnelDeCota("Cota semanal", semana?.UsadaSemana, semana?.CotaSemana, "MnArcoLilas", "MnTagTextoIa", "weeklyPercent");
+        aneis.Children.Add(AnelDeCota("Cota de 5 h", usadaCurta, curta?.Cota5h, "MnArcoOcre", "MnTagTextoAtencao", "shortPercent", leitura?.CotaObservadaEm));
+        var s = AnelDeCota("Cota semanal", usadaSemana, semana?.CotaSemana, "MnArcoLilas", "MnTagTextoIa", "weeklyPercent", leitura?.CotaSemanaObservadaEm);
         Grid.SetColumn(s, 1);
         aneis.Children.Add(s);
         corpo.Children.Add(aneis);
         var legenda = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
-        var esta = ItemDeLegenda("MnPontoOcre", "Esta análise", null);
+        var esta = ItemDeLegenda("MnPontoOcre", "Variação da conta", null);
         esta.Children.Insert(1, new Ellipse { Width = 8, Height = 8, Style = Estilo<Style>("MnPontoLilas"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(-4, 0, 0, 0) });
         legenda.Children.Add(esta);
         legenda.Children.Add(ItemDeLegenda("MnPontoCinza", "Uso anterior", null));
@@ -1034,7 +1054,7 @@ public sealed partial class PaginaNovoRelatorio
         return cartao;
     }
 
-    StackPanel AnelDeCota(string titulo, double? usada, double? variacao, string arco, string estiloDelta, string id)
+    StackPanel AnelDeCota(string titulo, double? usada, double? variacao, string arco, string estiloDelta, string id, DateTimeOffset? observado)
     {
         var pilha = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Center };
         var anel = new Grid { Width = 96, Height = 96, HorizontalAlignment = HorizontalAlignment.Center };
@@ -1046,7 +1066,7 @@ public sealed partial class PaginaNovoRelatorio
         pct.FontSize = 18;
         pct.HorizontalAlignment = HorizontalAlignment.Center;
         centro.Children.Add(pct);
-        var usadaT = Texto("usada", "MnLegenda");
+        var usadaT = Texto(usada.HasValue ? "usada" : leituraExibida?.CotaAplicavel == false ? "inaplicável" : "sem leitura", "MnLegenda");
         usadaT.HorizontalAlignment = HorizontalAlignment.Center;
         centro.Children.Add(usadaT);
         anel.Children.Add(centro);
@@ -1054,6 +1074,8 @@ public sealed partial class PaginaNovoRelatorio
         var t = Texto(titulo, "MnCorpoForte");
         t.HorizontalAlignment = HorizontalAlignment.Center;
         pilha.Children.Add(t);
+        if (observado is { } hora)
+            pilha.Children.Add(Texto(hora.ToLocalTime().ToString("dd/MM HH:mm:ss"), "MnLegenda"));
         var delta = Texto(Pontos(variacao) + " no intervalo", variacao is null ? "MnLegenda" : estiloDelta);
         delta.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
         delta.HorizontalAlignment = HorizontalAlignment.Center;

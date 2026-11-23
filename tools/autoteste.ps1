@@ -44,4 +44,9 @@ if (Test-Path $netTemp) {
     Get-ChildItem -LiteralPath $_.FullName -Directory | ForEach-Object { "   $($_.Name)" | Registrar }
   }
 }
+try {
+  & (Join-Path $PSScriptRoot 'roteiro.ps1') -SomenteMonitor -Executavel $exe
+} catch {
+  "Falha no ensaio do monitor: $($_.Exception.Message)" | Registrar
+}
 "FIM" | Registrar

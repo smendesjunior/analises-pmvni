@@ -555,38 +555,42 @@ public static class MapaLocalizacao
         if (o.AreaDeclarada is > 0) Dado(GrupoAreas, "Área declarada", $"{Num(o.AreaDeclarada.Value)} m²" + (o.AreaFonte.Length > 0 ? $" ({o.AreaFonte})" : ""));
         if (dif is { } df)
             Dado(GrupoAreas, "Diferença", $"{(df > 0 ? "+" : "")}{Num(df)}% sobre a base", Math.Abs(df) > 5 ? "DIVERGE" : "CONFERE", Math.Abs(df) > 5 ? "a" : "g");
-        Dado(GrupoAreas, "Edificação", edif.Count > 0 ? $"{Num(areaEdif)} m²" + (edif.Count > 1 ? $" em {edif.Count} blocos" : "") : "Nenhuma cadastrada no lote");
+        const string indisponivel = "Camada indisponível na base consultada";
+        Dado(GrupoAreas, "Edificação", b[Camada.Edificacoes] is null ? indisponivel :
+            edif.Count > 0 ? $"{Num(areaEdif)} m²" + (edif.Count > 1 ? $" em {edif.Count} blocos" : "") : "Nenhuma cadastrada no lote");
         if (zona.Length > 0) Dado(GrupoZona, "Zona (2025)", zona);
         if (cursos.Count > 0)
         {
             var r0 = cursos[0];
             var largApp = r0.App.Count > 0 ? string.Join(" / ", r0.App.Select(x => $"{x} m")) : "não informada";
             var nome = nomeRio.Length > 0 ? nomeRio : Capitalizar(r0.Tipo);
+            var larguraPendente = cursos.Any(curso => curso.App.Count == 0);
             Dado(GrupoZona, "APP / rio", $"{nome} · calha a {Num(r0.Distancia, 1)} m · APP de {largApp} na base",
-                appAtinge ? "ATINGE O LOTE" : "NÃO ATINGE", appAtinge ? "r" : "g",
+                appAtinge ? "ATINGE O LOTE" : larguraPendente ? "FAIXA A CONFERIR" : "NÃO ATINGE", appAtinge ? "r" : larguraPendente ? "a" : "g",
                 nomeInformado || nomeRio.Length == 0 ? null : "Nome pela AGERH/GEOBASES-ES — conferir.");
         }
+        else if (b[Camada.HidroApp] is null) Dado(GrupoZona, "APP / rio", indisponivel);
         else Dado(GrupoZona, "APP / rio", "Nenhum curso d'água na base num raio de 250 m", "NÃO ATINGE", "g");
         if (br is not null)
             Dado(GrupoZona, "BR-262", $"Eixo a {Num(br.DistanciaEixo, 1)} m · domínio {Num(br.Dominio, 0)} m + {Num(br.NaoEdificavel, 0)} m não edificáveis",
                 br.AtingeNaoEdificavel ? "ATINGE O LOTE" : "NÃO ATINGE", br.AtingeNaoEdificavel ? "r" : "g",
                 "Domínio a confirmar no DNIT; faixa não edificável: Lei 6.766/1979, art. 4º, III.");
-        Dado(GrupoZona, "AUC", auc.Length > 0 ? $"Sim — AUC {auc}" : "Não (fora das AUCs da base)");
-        Dado(GrupoZona, "Perímetro", perimetro.Length > 0 ? perimetro : "Fora do perímetro urbano de 2022");
+        Dado(GrupoZona, "AUC", b[Camada.Auc] is null ? indisponivel : auc.Length > 0 ? $"Sim — AUC {auc}" : "Não (fora das AUCs da base)");
+        Dado(GrupoZona, "Perímetro", b[Camada.PerimetroUrbano] is null ? indisponivel : perimetro.Length > 0 ? perimetro : "Fora do perímetro urbano de 2022");
         if (cad is not null)
         {
             var matricula = cad.Campo("matricula")?.Trim() ?? "";
             Dado(GrupoCadastro, "Situação", string.Join(" · ", new[] { cad.Situacao.Trim(), Capitalizar((cad.Campo("ocupacao") ?? "").Trim()) }.Where(x => x.Length > 0))
                 + (matricula.Length > 0 ? $" · matrícula {matricula}" : ""));
         }
-        Dado(GrupoCadastro, "Parcelamento", loteamento.Length > 0 ? $"Loteamento aprovado {loteamento}" : "Fora dos loteamentos da base",
+        Dado(GrupoCadastro, "Parcelamento", b[Camada.Loteamentos] is null ? indisponivel : loteamento.Length > 0 ? $"Loteamento aprovado {loteamento}" : "Fora dos loteamentos da base",
             nota: "Indício; a regularidade se comprova pela matrícula.");
         if (confrontantes.Count > 0)
             Dado(GrupoCadastro, "Confrontantes", string.Join(" · ", confrontantes.Select(v =>
                 $"Lote {(v.Lote.Length > 0 ? v.Lote : "s/ nº")}: {(v.Proprietario.Length > 0 ? v.Proprietario : "sem nome no cadastro")}")));
         if (ruas.Count > 0) Dado(GrupoCadastro, "Ruas", string.Join(" · ", ruas.Take(4).Select(NomeRua)));
 
-        Camada[] usadas = [Camada.Lotes, Camada.Logradouros, Camada.Zoneamento, Camada.Quadras, Camada.NumerosLote, Camada.Edificacoes, Camada.HidroApp, Camada.Auc, Camada.PerimetroUrbano, Camada.CursosAgerh];
+        Camada[] usadas = [Camada.Lotes, Camada.Logradouros, Camada.Zoneamento, Camada.Quadras, Camada.NumerosLote, Camada.Edificacoes, Camada.HidroApp, Camada.Auc, Camada.PerimetroUrbano, Camada.CursosAgerh, Camada.Loteamentos];
         return new MapaGerado
         {
             Svg = svg, Modo = modo, Extensao = ext, Legenda = legenda, Dados = dados, Ruas = ruas, Ficha = ficha,

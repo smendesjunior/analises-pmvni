@@ -5,15 +5,16 @@
   resultado vai para docs\roteiro-etapa-2.resultado.json. Pacotes, capturas PNG e PDFs ficam em tests\saida\roteiro (ignorado pelo
   git); dados do app (WebView2, ajustes.json, edicao) em tests\saida\dados-app. Ao terminar grava tests\saida\roteiro-fim.txt.
 #>
+param([switch]$SomenteMonitor, [string]$Executavel)
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $raiz 'Aplicativo\Editor de Relatorios PMVNI.exe'
+$exe = if ($Executavel) { (Get-Item -LiteralPath $Executavel).FullName } else { Join-Path $raiz 'Aplicativo\Editor de Relatorios PMVNI.exe' }
 $saida = Join-Path $raiz 'tests\saida'
 New-Item -ItemType Directory -Force -Path $saida | Out-Null
 # Pré-validação (1.1.0): tests/saida/roteiro-alvo.txt aponta outro .exe a testar (uma publicação ainda não entregue), como o autoteste-alvo.txt do
 # build (o explorer.exe não repassa argumentos). Sem o arquivo, o roteiro usa o executável entregue em Aplicativo\. O arquivo é lido uma vez e apagado.
 $alvo = Join-Path $saida 'roteiro-alvo.txt'
-if (Test-Path -LiteralPath $alvo) {
+if (-not $Executavel -and (Test-Path -LiteralPath $alvo)) {
     $indicado = ([System.IO.File]::ReadAllText($alvo, [System.Text.Encoding]::UTF8)).Trim()
     Remove-Item -LiteralPath $alvo -Force
     if ($indicado -and (Test-Path -LiteralPath $indicado)) { $exe = $indicado }
@@ -25,7 +26,11 @@ if (Test-Path -LiteralPath $alvo) {
 $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados-app'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--disable-background-networking --proxy-server=127.0.0.1:9'
-$pasta = Join-Path $saida 'roteiro'
+if ($SomenteMonitor) {
+    $env:PMVNI_ROTEIRO_MONITOR = '1'
+    $env:PMVNI_DADOS_DIR = Join-Path $saida 'dados-monitor'
+}
+$pasta = if ($SomenteMonitor) { Join-Path $saida 'roteiro-monitor' } else { Join-Path $saida 'roteiro' }
 $resultado = Join-Path $pasta 'resultado.json'
 $final = Join-Path $raiz 'docs\roteiro-etapa-2.resultado.json'
 New-Item -ItemType Directory -Force -Path $pasta | Out-Null
@@ -61,6 +66,10 @@ function Anonimizar([string]$texto) {
     if ($env:USERNAME) { $texto = [regex]::Replace($texto, [regex]::Escape($env:USERNAME), '<usuario>', 'IgnoreCase') }
     if ($env:COMPUTERNAME) { $texto = [regex]::Replace($texto, [regex]::Escape($env:COMPUTERNAME), '<maquina>', 'IgnoreCase') }
     return $texto
+}
+if ($SomenteMonitor) {
+    if ($p.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $resultado)) { throw 'O ensaio do monitor não produziu resultado.' }
+    return
 }
 if (Test-Path -LiteralPath $resultado) {
     $json = Anonimizar ([System.IO.File]::ReadAllText($resultado, [System.Text.Encoding]::UTF8))
