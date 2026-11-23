@@ -3307,13 +3307,13 @@ internal static class Roteiro
                 n.MostrarProgresso(new ProgressoEtapa("analyze",1,7,28,Secoes:true));
                 n.MostrarDetalhesDasEtapas(new DetalhesDasEtapas(
                     new Dictionary<string,DetalheEtapa>{["analyze"]=new("analyze",false,"modelo-teste","medium")},
-                    [new(1,9,7,true,false)],[]){Plano=ordem,DescricoesDoPlano=new Dictionary<string,string>{["analyze"]="Saídas previstas: manifesto.json"},Registros=new Dictionary<string,string>{["analyze"]="Registro de teste"}});
+                    [new(1,9,7,true,false)],[]){Plano=ordem,DescricoesDoPlano=new Dictionary<string,string>{["analyze"]="Saídas previstas: manifesto.json, figuras (imagens, hashes)"},Registros=new Dictionary<string,string>{["analyze"]="Registro de teste"}});
                 var agora = DateTimeOffset.Now;
                 n.MostrarEstimativa(new EstimativaAnalise("analyze",25,40,agora.AddMinutes(30),PeloEditor:true,Inicial:true));
                 n.MostrarRelogios(TimeSpan.FromMinutes(20),agora);
                 n.MostrarAchados(Enumerable.Range(1,6).Select(i=>new AchadoExecucao("ID"+i,i,"Achado "+i,i==1?"NAO_ATENDE":"ATENDE",i==1)).ToArray());
                 n.MostrarConsumo([new UsoEtapa("analyze","GPT","modelo-teste",1000,120,250,TimeSpan.FromMinutes(20),2,1)
-                    { Usada5h=40,UsadaSemana=12,Plano="Plano específico da execução" }]);
+                    { Usada5h=40,UsadaSemana=12,Plano="Plano específico da execução" }], new OrcamentoDaAnalise(18,7));
                 n.LigarLinhas(new System.Collections.ObjectModel.ObservableCollection<string>{ "Mensagem: registro sem hora", $"[{agora:O}] Ação: atividade com hora" });
                 const string campo = "k=>document.querySelector('article [data-field='+k+'] tspan')?.textContent";
                 await AbrirPagina("Resumo");
@@ -3338,8 +3338,9 @@ internal static class Roteiro
                 await web.ExecuteScriptAsync("document.querySelector('article [aria-expanded=true]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
                 await Conferir("Recolher etapa","!document.querySelector('article [aria-expanded=true]')");
                 await AbrirPagina("Detalhes");
-                await Conferir("Ordem do plano, registro e plano do executor","[...document.querySelectorAll('.detail-table tbody th')].map(n=>n.textContent.trim().slice(2).trim()).join('|')==='Preparo|Análise|Produção do relatório|Revisão final' && [...document.querySelectorAll('.detail-items li')].some(n=>n.textContent==='manifesto.json') && document.querySelector('article').innerText.includes('Plano específico da execução') && document.querySelector('article').innerText.includes('Registro de teste')");
+                await Conferir("Ordem do plano, registro e plano do executor","[...document.querySelectorAll('.detail-table tbody th')].map(n=>n.textContent.trim().slice(2).trim()).join('|')==='Preparo|Análise|Produção do relatório|Revisão final' && [...document.querySelectorAll('.detail-items li')].some(n=>n.textContent==='figuras (imagens, hashes)') && document.querySelector('article').innerText.includes('Plano específico da execução') && document.querySelector('article').innerText.includes('Registro de teste')");
                 await AbrirPagina("Consumo");
+                await Conferir("Cota medida separada da parcela sem atribuição", "document.querySelector('.budget-note').textContent.includes('18 p.p. observados') && document.querySelector('.budget-note').textContent.includes('7 p.p. sem atribuição')");
                 await Conferir("Cache 25%, saída 12%, cotas 40% e 12%","campo('cachePercent')==='25%' && campo('outputHelp').includes('12%') && campo('shortPercent')==='40%' && campo('weeklyPercent')==='12%'");
                 await web.ExecuteScriptAsync("document.querySelector('article svg[aria-label*=modelo-teste]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
                 await Conferir("Detalhes da medição por etapa","document.querySelector('dialog').open && document.querySelector('dialog h2').textContent.includes('modelo-teste')");
@@ -3354,7 +3355,7 @@ internal static class Roteiro
                 n.ReiniciarEstimativa();
                 n.MostrarRelogios(TimeSpan.Zero,agora);
                 await AbrirPagina("Resumo");
-                await Conferir("Sem previsão informa que aguarda a primeira etapa","campo('eta')==='Após a 1ª etapa'");
+                await Conferir("Sem previsão informa que aguarda a primeira etapa","campo('eta')==='Aguardando medições'");
                 n.MostrarEstimativa(new EstimativaAnalise("analyze",25,40,null,PeloEditor:true));
                 n.MostrarRelogios(TimeSpan.FromMinutes(20),agora);
                 await Conferir("Sem histórico suficiente, o percentual do roteiro não extrapola um horário","campo('eta')==='Histórico insuficiente'");

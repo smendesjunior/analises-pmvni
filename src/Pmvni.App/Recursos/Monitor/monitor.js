@@ -228,7 +228,7 @@ function details() {
         const work = row.insertCell();
         work.append(el("strong", "detail-scope", stage.scope || stage.description));
         if (stage.plannedWork?.startsWith("Saídas previstas: ")) {
-            detailList(work, "Entregas previstas no preparo", stage.plannedWork.slice("Saídas previstas: ".length).split(", "));
+            detailList(work, "Entregas previstas no preparo", stage.plannedWork.slice("Saídas previstas: ".length).split(/, (?![^()]*\))/));
         } else if (stage.plannedWork) {
             detailList(work, "Plano registrado no preparo", [stage.plannedWork]);
         }
@@ -275,19 +275,25 @@ function log() {
 function usage() {
     const u=state.usage,rows=u.rows,ias=rows.filter(r=>!r.local);
     const short=ias.findLast(r=>r.usada5h!=null),week=ias.findLast(r=>r.usadaSemana!=null);
-    const recordedDelta=(entry,key)=> {
-        if(!entry)return null;
-        const measured=ias.filter(r=>r.executor===entry.executor && r[key]!=null);
-        return measured.length ? measured.reduce((sum,r)=>sum+r[key],0) : null;
-    };
-    const shortUsed=recordedDelta(short,"curta"),weeklyUsed=recordedDelta(week,"semanal");
+    // A mesma conta pode executar outros trabalhos e o mesmo modelo pode usar contas diferentes.
+    const shortUsed=short?.curta, weeklyUsed=week?.semanal;
     const points=n=>n==null?dash:format(n)+" p.p.";
     const values={...u,cache:u.cached,elapsed:state.elapsed,eta:"Previsão de término "+state.eta,inputHelp:ias.at(-1)?.executor??"Aguardando medição",
         outputHelp:u.outputPercent==null?"Saída informada pela IA":pct(u.outputPercent)+" do volume de entrada",
         cacheHelp:u.cachePercent==null?"Cache informado pela IA":pct(u.cachePercent)+" da entrada reaproveitada",
         cachePercent:pct(u.cachePercent),shortPercent:pct(short?.usada5h),weeklyPercent:pct(week?.usadaSemana),
-        shortDelta:points(shortUsed)+" nesta análise",weeklyDelta:points(weeklyUsed)+" nesta análise",durationCaption:"Onde os "+state.elapsed+" foram gastos"};
-    add(block("usage-heading"));add(block("metrics",values),20);
+        shortDelta:points(shortUsed)+" no intervalo",weeklyDelta:points(weeklyUsed)+" no intervalo",durationCaption:"Onde os "+state.elapsed+" foram gastos"};
+    add(block("usage-heading"));
+    if (u.budget) {
+        const budget = el("section", "budget-note");
+        budget.append(el("strong", "", "Cota de 5 h desta análise"));
+        budget.append(el("span", "", points(u.budget.medido) + " observados em contas sem compartilhamento detectado"));
+        if (u.budget.semAtribuicao > 0)
+            budget.append(el("span", "", points(u.budget.semAtribuicao) + " sem atribuição individual"));
+        budget.append(el("span", "", "Meta por análise completa · 50 p.p."));
+        add(budget, 16);
+    }
+    add(block("metrics",values),20);
     const charts=add(block("charts",values),20);
     ring(part(charts,"cacheRing"),u.cachePercent,148,"#176b43",20);
     ring(part(charts,"shortRing"),short?.usada5h,112,shortUsed==null?"#65748e":"#b67b17",14,shortUsed);
@@ -306,10 +312,10 @@ function usage() {
     });
     const executors=card();executors.style.marginTop="20px";executors.append(block("executors-heading"));
     for(const [name,group] of Map.groupBy(rows,r=>r.executor)){
-        const r=group.at(-1),sum=k=>group.some(v=>v[k]!=null)?group.reduce((a,v)=>a+(v[k]||0),0):null;
+        const r=group.at(-1);
         const title=[...new Set(group.map(v=>v.stage))].join(", ");
-        const row=block("executor-"+(r.local?1:0),{name,caption:title,label1:r.local?"CPU":"Cota de 5 h",value1:r.local?r.cpu:points(sum("curta")),label2:r.local?"RAM":"Cota semanal",value2:r.local?r.ram:points(sum("semanal"))});
-        for(const [key,value] of [["bar1",sum("curta")],["bar2",sum("semanal")]]){
+        const row=block("executor-"+(r.local?1:0),{name,caption:title,label1:r.local?"CPU":"Última variação · 5 h",value1:r.local?r.cpu:points(r.curta),label2:r.local?"RAM":"Última variação · semana",value2:r.local?r.ram:points(r.semanal)});
+        for(const [key,value] of [["bar1",r.curta],["bar2",r.semanal]]){
             const p=part(row,key);if(!p)continue;
             p.replaceChildren(svgElement("rect",{width:1,height:1,fill:"#e5e3df"}),svgElement("rect",{width:Math.min(100,Math.max(0,value||0))/100,height:1,fill:key==="bar1"?"#b67b17":"#687ab2"}));
         }

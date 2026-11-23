@@ -224,11 +224,11 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         LinkEvidenciasPdf.Visibility = BotaoEvidenciasPdf.Visibility = disponiveis ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    internal void MostrarResumo(bool rodando, string? erro, IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, string? provedor = null, string? situacao = null)
+    internal void MostrarResumo(bool rodando, string? erro, IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, string? provedor = null, string? situacao = null, bool emEspera = false)
     {
         var falhou = !string.IsNullOrWhiteSpace(erro);
         var concluida = !falhou && etapas.Count > 0 && etapas.All(x => x.Estado == EstadoEtapa.Feita);
-        emCurso = rodando && !falhou && !concluida;
+        emCurso = rodando && !falhou && !concluida && !emEspera;
         var atual = etapas.ToList().FindIndex(x => x.Estado is EstadoEtapa.Agora or EstadoEtapa.Erro);
         var temAtual = atual >= 0;
         etapaAtual = temAtual ? etapas[atual].Nome : emCurso ? "Aguardando registro" : null;
@@ -237,7 +237,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         ConsumoVazio.Text = emCurso ? "Aguardando o primeiro registro de consumo ou duração da etapa."
             : "Esta execução não registrou métricas de consumo ou duração por etapa.";
 
-        TituloStatus.Text = falhou ? "Análise com problema" : concluida ? "Análise concluída" : emCurso ? "Análise em andamento" : "Análise parada";
+        TituloStatus.Text = falhou ? "Análise com problema" : concluida ? "Análise concluída" : emEspera ? "Análise pausada" : emCurso ? "Análise em andamento" : "Análise parada";
         IconeStatus.Glyph = falhou ? Glifos.Avisos : concluida ? Glifos.Situacao : Glifos.Pausado;
         IconeStatus.Style = Estilo(falhou ? "PmvniIconeSeloErro" : concluida ? "PmvniIconeSeloSucesso" : "PmvniIconeDestaqueStyle");
         SeloAoVivo.Visibility = SeloAtividades.Visibility = SeloLog.Visibility = Visivel(emCurso);
@@ -249,7 +249,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var proxima = temAtual && atual + 1 < etapas.Count ? etapas[atual + 1].Nome : null;
         ExecutorDetalhes.Text = provedor ?? "Aguardando identificação";
         SituacaoDetalhes.Text = string.IsNullOrWhiteSpace(situacao) ? TituloStatus.Text : situacao;
-        TextoProximaEtapa.Text = falhou || concluida || !emCurso ? "Execução encerrada"
+        TextoProximaEtapa.Text = emEspera ? situacao ?? "Aguardando retomada" : falhou || concluida || !emCurso ? "Execução encerrada"
             : !temAtual ? "Aguardando confirmação" : proxima ?? "Última etapa em andamento";
         ErroDetalhes.Text = erro?.Trim() ?? "";
         ErroDetalhes.Visibility = Visivel(falhou);
@@ -410,8 +410,11 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     IReadOnlyList<UsoEtapa>? consumoExibido;
 
-    internal void MostrarConsumo(IReadOnlyList<UsoEtapa> uso)
+    OrcamentoDaAnalise? orcamentoExibido;
+
+    internal void MostrarConsumo(IReadOnlyList<UsoEtapa> uso, OrcamentoDaAnalise? orcamento = null)
     {
+        orcamentoExibido = orcamento;
         if (consumoExibido is not null && consumoExibido.SequenceEqual(uso)) return;
         consumoExibido = uso;
         if (DetalhesVisiveis) AtualizarNarrativa();
@@ -477,7 +480,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         "Preparo" => "Identificar pranchas e organizar os arquivos do processo",
         // Fluxo linear do kit (2026-11-22): a análise roda em três frentes; auditoria cruzada, relatório e revisão final são programas locais.
-        "Análise" => "Conferir as 28 seções em três frentes paralelas e registrar as evidências",
+        "Análise" => "Conferir as 28 seções por faixa de seções e registrar as evidências",
         "Auditoria técnica" => "Conferir cada achado com a figura citada e corrigir o mérito",
         "Auditoria cruzada" => "Conferência por programa dos controles certificados",
         "Produção do relatório" => "Montar o PDF no modelo oficial e conferir a fidelidade",

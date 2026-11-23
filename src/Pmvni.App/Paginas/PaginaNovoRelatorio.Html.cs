@@ -120,7 +120,7 @@ public sealed partial class PaginaNovoRelatorio
         var dicaPrevisao = AutomationProperties.GetHelpText(TextoTempoEstimado);
         var relogio = (Decorrido: TextoTempoDecorrido.Text, Previsao: concluida ? "Concluída" : TextoTempoEstimado.Text);
         var vista = new { aba, execucaoHtml, versaoLogHtml, etapasMostradas, ProgressoAtual, EstimativaAtual, detalhesEtapas,
-            consumoExibido, achadosExibidos, emCurso, proc = ProcessoMonitor.Text, pessoa = TextoRequerente.Text,
+            consumoExibido, orcamentoExibido, achadosExibidos, emCurso, proc = ProcessoMonitor.Text, pessoa = TextoRequerente.Text,
             estado = TituloStatus.Text, progresso = TextoTotalEtapas.Text, erro = ErroDetalhes.Text,
             mensagem = TextoUltimaMensagem.Text, PainelUltimaMensagem.Visibility, evidencias = BotaoEvidenciasPdf.Visibility };
         if (Equals(vista, ultimaVistaHtml))
@@ -204,6 +204,7 @@ public sealed partial class PaginaNovoRelatorio
         var cache = EntradasComCache(ia);
         var soma = cache is { } c ? c.Nova + c.Cache : 0;
         return new {
+            budget = orcamentoExibido,
             input = TextoConsumo.Numero(SomaMedida(ia.Select(e => e.Entrada))),
             output = TextoConsumo.Numero(SomaMedida(ia.Select(e => e.Saida))),
             cached = TextoConsumo.Numero(SomaMedida(ia.Select(e => e.CacheLido))),

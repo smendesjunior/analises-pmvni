@@ -2,6 +2,14 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.4.4
+
+- Com o kit atualizado, o ChatGPT examina as três faixas em uma sessão e conserva os recibos por faixa. A auditoria mantém sua sessão própria. Figuras e confirmações simples podem referenciar evidências já gravadas.
+
+- O monitor de consumo separa os pontos observados em contas sem compartilhamento dos pontos sem atribuição individual. A meta de eficiência é de até 50 pontos da janela de cinco horas por análise completa.
+- O Editor distingue o uso da conta do trabalho de uma sessão. Em Detalhes, nomes de entregas com vírgulas entre parênteses aparecem juntos. Quando a previsão de término vence, o monitor aguarda uma nova medição.
+- Com o controlador Codex atualizado, o limite preventivo de 70 pontos abre uma decisão do analista. É possível esperar, continuar com o perfil atual, continuar com o perfil leve ou passar à edição manual do material disponível.
+
 ## 3.4.3
 
 - O Resumo mostra um indicador maior e liga as etapas em uma trilha contínua. O monitor ganhou fundo branco e transições que respeitam a preferência de movimento reduzido.

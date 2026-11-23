@@ -163,7 +163,7 @@ public static class FluxoNovoRelatorio
     }
 
     /// <summary>Sem previsão porque o kit ainda não registrou nenhuma etapa desta análise (o Editor calcula a previsão desde a Tarefa 13; nada vem da IA).</summary>
-    internal const string PrevisaoDepoisDasEtapas = "Previsão depois das primeiras etapas";
+    internal const string PrevisaoDepoisDasEtapas = "Aguardando as primeiras medições da execução";
 
     /// <summary>Sem previsão porque falta histórico para alguma etapa pendente.</summary>
     internal const string HistoricoInsuficiente = "Término: histórico insuficiente para prever";
@@ -183,7 +183,7 @@ public static class FluxoNovoRelatorio
             termino = agora.Add(restante);
         if (termino is not { } hora) return !peloEditor ? "Aguardando estimativa da IA" : semDados ? PrevisaoDepoisDasEtapas : HistoricoInsuficiente;
         if (hora <= agora) return !peloEditor ? "Aguardando nova estimativa da IA"
-            : inicial ? $"{RotuloEstimativaInicial} · nos próximos minutos" : "Término previsto para os próximos minutos";
+            : "A previsão anterior expirou. Aguardando uma nova medição.";
         var formato = hora.Date == agora.Date ? "HH:mm" : "dd/MM HH:mm";
         var rotulo = peloEditor && inicial ? RotuloEstimativaInicial
             : peloRitmo ? "Término aproximado pelo ritmo" : peloEditor && aproximada ? "Término aproximado" : "Término estimado";
@@ -198,8 +198,8 @@ public static class FluxoNovoRelatorio
         var peloRitmo = termino is null || termino <= agora;
         if (peloRitmo && restantePeloRitmo is { } restante && restante > TimeSpan.Zero) termino = agora.Add(restante);
         else peloRitmo = false;
-        if (termino is not { } hora) return !peloEditor ? "Aguardando a IA" : semDados ? "Após a 1ª etapa" : "Histórico insuficiente";
-        if (hora <= agora) return inicial ? "≈ Nos próximos minutos" : "Nos próximos minutos";
+        if (termino is not { } hora) return !peloEditor ? "Aguardando a IA" : semDados ? "Aguardando medições" : "Histórico insuficiente";
+        if (hora <= agora) return peloEditor ? "Aguardando nova medição" : "Aguardando a IA";
         var formato = hora.Date == agora.Date ? "HH:mm" : "dd/MM HH:mm";
         return $"{(aproximada || inicial || peloRitmo ? "≈ " : "")}{hora.ToString(formato, CultureInfo.InvariantCulture)} · {TempoLegivel(hora - agora)}";
     }

@@ -132,8 +132,7 @@ public static class ProgressoLocal
             }
             if (sinal is { Feitos: > 0 } && etapa is "analyze" or "technical_audit")
                 instanteDaMedicao = File.GetLastWriteTimeUtc(arquivoManifesto);
-            var posicaoDaAuditoria = ordem.ToList().IndexOf("technical_audit");
-            var verificados = posicaoDaAuditoria >= 0 && concluidas.Count > posicaoDaAuditoria;
+            var verificados = concluidas.Contains("technical_audit");
             var porId = new Dictionary<string, int>(StringComparer.Ordinal);
             if (m.TryGetProperty("findings", out var lista) && lista.ValueKind == JsonValueKind.Array)
                 foreach (var f in lista.EnumerateArray())

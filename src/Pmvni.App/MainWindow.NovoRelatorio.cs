@@ -991,18 +991,19 @@ public sealed partial class MainWindow
             var ordemDoKit = OrdemDasEtapasDoKit();
             var sessoes = consumoSessao;
             var etapasJson = pecasAgentes.EtapasJson;
-            var (achados, consumo, detalhes) = await Task.Run(() =>
+            var (achados, consumo, detalhes, orcamento) = await Task.Run(() =>
             {
                 var desde = InicioDoRegistro(e);
                 return (AchadosExecucao.LerDaExecucao(e.Registro.PastaProgresso, e.Processo.Pasta, e.InicioUtc, controle, desde, historico, DateTimeOffset.UtcNow, ordemDoKit),
                     UsoDasIas.Ler(controle, desde, ordemDoKit, sessoes, e.Fim?.IsCompleted == true ? null : DateTimeOffset.UtcNow),
-                    DetalhesDasEtapas.Ler(controle, etapasJson, desde));
+                    DetalhesDasEtapas.Ler(controle, etapasJson, desde),
+                    e.Provedor == Provedor.ChatGpt ? OrcamentoDaAnalise.Ler(controle, desde) : null);
             });
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
             {
                 NR.MostrarEvidencias(Directory.Exists(PastaEvidenciasDoMonitor(e)));
                 NR.MostrarDetalhesDasEtapas(detalhes);
-                NR.MostrarConsumo(consumo);
+                NR.MostrarConsumo(consumo, orcamento);
                 NR.MostrarAchados(achados.Itens);
                 var mudouEstimativa = NR.EstimativaAtual != achados.Estimativa;
                 NR.MostrarEstimativa(achados.Estimativa);
@@ -1090,7 +1091,8 @@ public sealed partial class MainWindow
             erro = ultima[6..];
             etapas = etapas.Select(x => x.Estado == EstadoEtapa.Agora ? (x.Nome, EstadoEtapa.Erro) : x).ToList();
         }
-        n.MostrarResumo(rodando, erro, etapas, Provedores.Nome(e.Provedor), e.Situacao?.Rotulo ?? e.Situacao?.Codigo);
+        n.MostrarResumo(rodando, erro, etapas, Provedores.Nome(e.Provedor), e.Situacao?.Rotulo ?? e.Situacao?.Codigo,
+            e.Situacao?.Codigo is "DECISAO" or "AGUARDANDO_COTA");
         AtualizarRelogioDaExecucao(e);
     }
 

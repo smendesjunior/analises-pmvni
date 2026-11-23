@@ -61,3 +61,5 @@ dialog{max-width:min(640px,90vw);border:1px solid #ccc;border-radius:8px}dialog 
 .detail-status[data-state=Erro]{background:#fde5e4;color:#992722}
 
 @media(max-width: 1250px) { .trail-label { font-size:18px; padding-right:8px; } }
+
+.budget-note{display:flex;flex-wrap:wrap;align-items:center;gap:8px 24px;padding:16px 24px;border:1px solid #d9e4de;border-radius:8px;background:#f4faf6;color:#204d34}

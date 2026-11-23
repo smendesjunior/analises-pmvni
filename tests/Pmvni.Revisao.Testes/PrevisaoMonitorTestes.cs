@@ -18,7 +18,7 @@ public class PrevisaoMonitorTestes
         Assert.Equal(new EstimativaAnalise(null, null, null, null, PeloEditor: true, SemDados: true), painel.Estimativa);
 
         var texto = FluxoNovoRelatorio.TextoEstimativa(null, Agora, peloEditor: true, semDados: true);
-        Assert.Equal("Previsão depois das primeiras etapas", texto);
+        Assert.Equal("Aguardando as primeiras medições da execução", texto);
         Assert.Equal(FluxoNovoRelatorio.PrevisaoDepoisDasEtapas, texto);
         Assert.DoesNotContain("IA", texto, StringComparison.Ordinal);
 
@@ -27,7 +27,7 @@ public class PrevisaoMonitorTestes
         Assert.Equal(new EstimativaAnalise("analyze", 14, 19, null, PeloEditor: true), comDados.Estimativa);
         Assert.Equal(FluxoNovoRelatorio.HistoricoInsuficiente, FluxoNovoRelatorio.TextoEstimativa(null, Agora, peloEditor: true));
         Assert.Equal("Histórico insuficiente", FluxoNovoRelatorio.PrevisaoCurta(null, Agora, peloEditor: true));
-        Assert.Equal("Após a 1ª etapa", FluxoNovoRelatorio.PrevisaoCurta(null, Agora, peloEditor: true, semDados: true));
+        Assert.Equal("Aguardando medições", FluxoNovoRelatorio.PrevisaoCurta(null, Agora, peloEditor: true, semDados: true));
         Assert.DoesNotContain("IA", FluxoNovoRelatorio.HistoricoInsuficiente, StringComparison.Ordinal);
 
         // O caminho antigo não muda.
@@ -122,8 +122,8 @@ public class PrevisaoMonitorTestes
         var ritmo = TimeSpan.FromMinutes(10);
         Assert.Equal("Término aproximado pelo ritmo · 12:10 (10 min restantes)", FluxoNovoRelatorio.TextoEstimativa(termino, Agora, ritmo, peloEditor: true, aproximada: true));
         Assert.Equal("≈ 12:10 · 10 min", FluxoNovoRelatorio.PrevisaoCurta(termino, Agora, ritmo, peloEditor: true, aproximada: true));
-        Assert.Equal("Término previsto para os próximos minutos", FluxoNovoRelatorio.TextoEstimativa(termino, Agora, peloEditor: true, aproximada: true));
-        Assert.Equal("Nos próximos minutos", FluxoNovoRelatorio.PrevisaoCurta(termino, Agora, peloEditor: true, aproximada: true));
+        Assert.Equal("A previsão anterior expirou. Aguardando uma nova medição.", FluxoNovoRelatorio.TextoEstimativa(termino, Agora, peloEditor: true, aproximada: true));
+        Assert.Equal("Aguardando nova medição", FluxoNovoRelatorio.PrevisaoCurta(termino, Agora, peloEditor: true, aproximada: true));
     }
 
     [Fact]
@@ -134,6 +134,6 @@ public class PrevisaoMonitorTestes
         Assert.Equal($"{rotulo} · 12:15 (15 min restantes)", FluxoNovoRelatorio.TextoEstimativa(termino, Agora, peloEditor: true, inicial: true));
         Assert.Equal($"{rotulo} · 12:15 (15 min restantes)", FluxoNovoRelatorio.TextoEstimativa(termino, Agora, peloEditor: true, aproximada: true, inicial: true));
         Assert.Equal("≈ 12:15 · 15 min", FluxoNovoRelatorio.PrevisaoCurta(termino, Agora, peloEditor: true, inicial: true));
-        Assert.Equal("≈ Nos próximos minutos", FluxoNovoRelatorio.PrevisaoCurta(Agora, Agora, peloEditor: true, inicial: true));
+        Assert.Equal("Aguardando nova medição", FluxoNovoRelatorio.PrevisaoCurta(Agora, Agora, peloEditor: true, inicial: true));
     }
 }
