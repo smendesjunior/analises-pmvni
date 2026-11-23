@@ -31,6 +31,8 @@ O modelo das cinco sessões foi `gpt-6.2-sol`. O preparo local foi reaproveitado
 
 ### Economia medida sem abrir sessão de IA
 
+Nas cinco sessões medidas houve 263 apresentações de imagens, com 189 conteúdos distintos pelo SHA-256 do corpo codificado. Apenas uma repetição idêntica ocorreu dentro da mesma sessão. Das 50 imagens do primeiro bloco de auditoria, 34 já tinham aparecido nas frentes de análise. A inspeção independente da auditoria exige parte dessa sobreposição. Reunir as faixas de análise na mesma sessão e entregar os recortes identificados ao auditor reduz a necessidade de procurar novamente uma região. O histórico não informa o custo individual de cada imagem.
+
 Foi usado o tokenizador `o200k_base` sobre JSON minificado, em UTF-8, dos arquivos reais do piloto. Para as 57 figuras com recibos de recorte e anotação, foram removidos somente os campos que o montador consegue reconstituir. Foram preservadas oito listas de anotações revisadas. A figura restante manteve a representação integral. Cada arquivo foi reexpandido com o código do kit e comparado campo a campo.
 
 | Material do piloto | Formato anterior | Formato compacto | Redução no texto serializado |
@@ -43,7 +45,7 @@ A comparação mede a representação dos arquivos. Uma sessão pode produzi-los
 
 **Critério de aceitação.** O histórico disponível de uma sessão integral de análise (35 p.p.) mais uma auditoria integral (20 p.p.) dá uma referência de **55 p.p.**, combinando duas execuções. A meta exige comprovar ao menos cinco pontos adicionais de economia frente a essa referência. No próximo ensaio autorizado, usar cópia do mesmo preparo, mesma janela de 5 h em uma conta sem tráfego concorrente, o mesmo modelo, esforço médio na análise, alto na auditoria e as mesmas peças e resolução. Conferir as 28 seções, todos os candidatos e achados e o relatório até o `gate`. Registrar a diferença da cota desde o início, inclusive retomadas, reparos e fechamento. Uma pausa aos 50 pontos ou uma entrega para edição manual caracteriza ensaio incompleto. Uma segunda execução em processo comparável permite avaliar a repetibilidade do padrão.
 
-## Medição de 23 de novembro de 2026
+## Medição inicial de 23 de novembro de 2026
 
 A janela avançou 43 pontos percentuais durante as três frentes da análise, 18 durante o primeiro bloco da auditoria e 9 durante o segundo, interrompido. O preparo ficou preservado e a montagem das 28 seções passou na primeira tentativa, sem sessão de reparo. O principal gasto adicional deste piloto apareceu quando a auditoria abriu sessões independentes para reler as peças. Houve tarefas concorrentes na conta. O balanceador mede a variação da janela por conta e os tokens por sessão. Os pontos na tabela são as diferenças de janela observadas nos intervalos, com atribuição aproximada.
 
@@ -76,7 +78,7 @@ A auditoria interrompida teve uma chamada adicional sem contagem de entrada. O l
 
 Refiz o ajuste de mínimos quadrados, sem intercepto, nos sete grupos acima com pontos observados. Ele resultou em **14,89 × entrada nova em milhões + 0,320 × saída em milhares**. No conjunto usado para ajustar, o maior erro absoluto foi de 4,6 p.p. Ao retirar um grupo por vez e prever o grupo retirado, o erro chegou a 9,7 p.p. A saída e a entrada nova variam juntas e a amostra inclui dois blocos de auditoria, um deles interrompido. A fórmula muda bastante em relação à sugerida no escopo e serve somente para priorizar medições.
 
-Como referência, **43 + 20 = 63 p.p.**, ainda **8 p.p. acima** do teto desejado. Isso combina etapas de rodadas diferentes e ainda não mede a versão com dossiê. Com uma sessão de análise e uma de auditoria, **35 + 20 = 55 p.p.** também combina rodadas diferentes. A meta de 40–55 p.p. continua dependente de um piloto controlado.
+Como referência, **43 + 20 = 63 p.p.**, treze pontos acima do teto atual de 50. Isso combina etapas de rodadas diferentes, anteriores à medição de uma execução com dossiê. Com uma sessão de análise e uma de auditoria, **35 + 20 = 55 p.p.** também combina rodadas diferentes. O escopo inicial sugeria até 55 p.p. e o critério atualizado é encerrar até 50.
 
 ## Proposta de verificação e próximos cortes
 
@@ -86,7 +88,7 @@ Como referência, **43 + 20 = 63 p.p.**, ainda **8 p.p. acima** do teto desejado
 4. Para imagens, registrar peça, página, caixa e escala por sessão e medir sobreposição de regiões, taxa de reutilização e entradas novas nas chamadas que abrem só uma imagem. O piloto ainda não permite atribuir custo a uma dimensão específica. A estratégia de corte recomendada é eliminar redescoberta do mesmo recorte, preservando resolução e acesso a todas as pranchas.
 5. Validar a economia final em uma análise completa com janela exclusiva. Registrar percentual inicial, final e horário de renovação, comparar com o caso de referência e repetir em outro processo. Só depois definir novo limite com margem observada para um reparo. Em contas compartilhadas, mostrar a variação global junto aos tokens identificados por sessão e deixar a atribuição em pontos como indeterminada.
 
-Os testes desta revisão usaram chamadas simuladas. Atingir a faixa de 40–55 p.p., ativar o dossiê nas estações e atribuir cota precisamente em janelas compartilhadas são verificações independentes.
+Os testes da revisão inicial usaram chamadas simuladas. A medição de 40 a 50 p.p. por análise completa permanece pendente de uma execução real da versão otimizada.
 
 
 ## Verificação e distribuição
