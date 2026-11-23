@@ -83,7 +83,7 @@ public static class ComponentesDoKit
         new("pmvni-pdf", "Servidor de PDF (pmvni-pdf)", "As ferramentas de PDF do kit no Codex, no Claude Code e no Claude Desktop.", OrigemComponente.ServidorPdf, "mcp_pmvni.py", "pmvni-pdf"),
         new("pymupdf", "Motor de PDF PyMuPDF", "Lê o texto e as páginas dos PDFs.", OrigemComponente.MotorPdf, "PyMuPDF", "motores", "2.1"),
         new("docling", "Motor de PDF Docling", "Converte o PDF em texto estruturado.", OrigemComponente.MotorPdf, "Docling MCP", "motores", "3.5.0"),
-        new("blueprint", "Motor de PDF Blueprint", "Reconhece pranchas e carimbos.", OrigemComponente.MotorPdf, "Blueprint Pipeline", "motores"),
+        new("blueprint", "Motor de PDF Blueprint", "Localiza regiões delimitadas por linhas vetoriais nas plantas.", OrigemComponente.MotorPdf, "Blueprint Pipeline", "motores"),
         new("fyp", "Motor de PDF FYP", "Reconhece ambientes de plantas baixas.", OrigemComponente.MotorPdf, "FYP-Floorplan", "motores"),
     ];
 
