@@ -10,7 +10,7 @@ namespace Pmvni.Agentes.Testes;
 public class GeminiTestes
 {
     /// <summary>As etapas de IA da matriz Gemini (fluxo linear, etapas.json versão 2): preparo, auditoria cruzada, produção e revisão final são de programa e não têm modelo.</summary>
-    static readonly string[] Etapas = { "analyze", "technical_audit" };
+    static readonly string[] Etapas = { "analyze", "technical_audit", "autocorrecao" };
 
     [Fact]
     public void provedor_gemini_tem_nome_sufixo_variavel_e_roda_pelo_kit()
@@ -30,7 +30,8 @@ public class GeminiTestes
     [Theory]
     [InlineData("analyze", "gemini-3.8-flash-medium", "gemini-4-hydrogen-medium", "gemini-4-carbon-medium")]
     [InlineData("technical_audit", "gemini-3.8-flash-high", "gemini-4-hydrogen-high", "gemini-4-argon-medium")]
-    public void matriz_das_duas_etapas_de_ia_por_rota(string etapa, string agy, string web, string api)
+    [InlineData("autocorrecao", "gemini-3.8-flash-medium", "gemini-4-hydrogen-medium", "gemini-4-carbon-medium")]
+    public void matriz_das_etapas_de_ia_por_rota(string etapa, string agy, string web, string api)
     {
         foreach (var perfil in Enum.GetValues<PerfilGemini>())
         {
@@ -264,10 +265,10 @@ public class GeminiTestes
         Assert.DoesNotContain(ids, i => i.Contains(' '));
         foreach (var perfil in Enum.GetValues<PerfilGemini>().Where(p => p is PerfilGemini.ContaUltra or PerfilGemini.ApiGratuita)) Assert.Empty(DiagnosticoGemini.EtapasSemModelo(perfil, ids));
 
-        // Só análise (flash médio) e auditoria técnica (flash alto) usam IA; o flash baixo não é pedido por nenhuma.
+        // Análise e autocorreção usam Flash médio, e a auditoria técnica usa Flash alto.
         Assert.Empty(DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ContaUltra, ids.Where(i => i != "gemini-3.8-flash-low").ToList()));
         var semMedio = ids.Where(i => i != "gemini-3.8-flash-medium").ToList();
-        Assert.Equal(["Análise (gemini-3.8-flash medium)"], DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ContaUltra, semMedio));
+        Assert.Equal(["Análise (gemini-3.8-flash medium)", "Autocorreção (gemini-3.8-flash medium)"], DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ContaUltra, semMedio));
         Assert.Single(DiagnosticoGemini.EtapasSemModelo(PerfilGemini.ApiGratuita, ids.Where(i => i != "gemini-3.8-flash-high").ToList()));
         Assert.Empty(DiagnosticoGemini.ModelosDoAgy("Fetching available models...\n"));       // sem login: lista vazia
         Assert.Equal("1.5.10", DiagnosticoGemini.VersaoAgy("1.5.10\n"));
@@ -283,7 +284,7 @@ public class GeminiTestes
         var modelos = DiagnosticoGemini.ModelosDaApi(corpo);
         Assert.Equal(new[] { "gemini-4-hydrogen", "gemini-4-carbon" }, modelos);
         Assert.Single(DiagnosticoGemini.EtapasSemModeloNaApi(PerfilGemini.ApiCreditos, modelos));    // argon (auditoria técnica)
-        Assert.Equal(2, DiagnosticoGemini.EtapasSemModeloNaApi(PerfilGemini.ApiGratuita, modelos).Count);
+        Assert.Equal(3, DiagnosticoGemini.EtapasSemModeloNaApi(PerfilGemini.ApiGratuita, modelos).Count);
         Assert.Empty(DiagnosticoGemini.ModelosDaApi("não é json"));
 
         Assert.StartsWith("chave recusada pelo Google", DiagnosticoGemini.MensagemDaRecusa(HttpStatusCode.BadRequest, "{\"error\":{\"message\":\"API key not valid.\",\"status\":\"INVALID_ARGUMENT\",\"details\":[{\"reason\":\"API_KEY_INVALID\"}]}}"));

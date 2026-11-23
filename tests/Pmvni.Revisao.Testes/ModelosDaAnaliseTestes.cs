@@ -32,7 +32,7 @@ public class ModelosDaAnaliseTestes
     /// <summary>As listas que "o provedor devolve": Codex com os GPT do kit, Claude com Opus/Sonnet.</summary>
     static Func<ColunaModelos, ListaDaRota?> Listas(ListaDaRota? codex = null, ListaDaRota? claude = null, ListaDaRota? gemini = null) => c => c.Rota switch
     {
-        "codex" => codex ?? Lista(M("gpt-6.2-sol"), M("gpt-6.2-astra")),
+        "codex" => codex ?? Lista(M("gpt-6.2-sol"), M("gpt-6.2-astra"), M("gpt-6.1-terra")),
         "claude" => claude ?? Lista(M("claude-opus-5-5"), M("claude-sonnet-5-5")),
         _ => gemini,
     };
@@ -61,7 +61,7 @@ public class ModelosDaAnaliseTestes
         var k = Kit();
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
         var deIa = etapas.Where(e => !e.Programa).Select(e => e.Id).ToList();
-        Assert.Equal(["analyze", "technical_audit"], deIa);   // fluxo linear (etapas.json versão 2): o resto é programa
+        Assert.Equal(["analyze", "technical_audit", "autocorrecao"], deIa);   // fluxo linear (etapas.json versão 2): o resto é programa
         foreach (var rota in new[] { "codex", "claude" })
             foreach (var etapa in deIa) Assert.Equal(CelulaBruta(rota, "padrao", etapa), k.Celula(Coluna(k, rota), etapa));
         // As etapas de programa (preparo, auditoria cruzada, produção, revisão final): nenhuma rota nem perfil tem célula de modelo para elas.
@@ -133,7 +133,7 @@ public class ModelosDaAnaliseTestes
     {
         var k = Kit();
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
-        Assert.Equal(["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"], etapas.Select(e => e.Id));
+        Assert.Equal(["prepare", "analyze", "technical_audit", "autocorrecao", "audit", "produce", "final_review"], etapas.Select(e => e.Id));
         var audit = etapas.Single(e => e.Id == "audit");
         Assert.True(audit.Opcional);
         Assert.All(ModelosDaAnalise.Rotas, r => Assert.True(ModelosDaAnalise.Ligada(new AjusteModelos(), audit, r)));
@@ -253,7 +253,7 @@ public class ModelosDaAnaliseTestes
         Assert.Equal((outra.Modelo, outra.Nivel), ModeloQueOControladorUsa(arquivo, "analyze"));
         var tecnica = k.Celula(Coluna(k, "codex"), "technical_audit")!;
         Assert.Equal((tecnica.Modelo, tecnica.Nivel), ModeloQueOControladorUsa(arquivo, "technical_audit"));
-        Assert.Equal(["analyze", "technical_audit"], JsonNode.Parse(efetiva.Json)!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!.AsObject().Select(x => x.Key));
+        Assert.Equal(["analyze", "technical_audit", "autocorrecao"], JsonNode.Parse(efetiva.Json)!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!.AsObject().Select(x => x.Key));
         Assert.Equal("False", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('claude'))"));
         Assert.Equal("True", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('codex'))"));
 

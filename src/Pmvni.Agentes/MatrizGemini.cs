@@ -13,7 +13,7 @@ public sealed record EtapaGemini(string Etapa, string Modelo, string Esforco)
 }
 
 /// <summary>A matriz de modelos e níveis do análise Google por perfil e etapa (cópia tipada do padrão do kit: a rota gemini de
-/// <c>references/modelos-por-rota.json</c> do plugin, que é quem executa; um teste compara as duas). Só as etapas de IA (análise e auditoria técnica): o preparo (<c>prepare</c>),
+/// <c>references/modelos-por-rota.json</c> do plugin, que é quem executa; um teste compara as duas). Só as etapas de IA (análise, auditoria técnica e autocorreção): o preparo (<c>prepare</c>),
 /// a auditoria cruzada (<c>audit</c>), a montagem (<c>produce</c>) e a revisão final (<c>final_review</c>) são de programa (<c>executor: programa</c> no <c>etapas.json</c>, analise 4.0.0) e não têm modelo nem célula na tabela. O ajuste local de "Modelos da análise" pode trocar
 /// uma célula neste computador; o kit confere os modelos no pré-voo. O editor só a usa para mostrar e conferir: nunca troca modelo, nível, modo ou perfil sozinho.</summary>
 public static class MatrizGemini
@@ -30,20 +30,20 @@ public static class MatrizGemini
     /// <summary>Limite de saída pedido pela API nas etapas de mérito. O <c>agy</c> não expõe esse parâmetro: o plugin registra o pedido e que não foi aplicado.</summary>
     public const int MaxSaidaApi = 131072;
 
-    // Fluxo linear (etapas.json versão 2): só a análise e a auditoria técnica usam IA; audit, produce e final_review são de programa.
+    // Fluxo linear (etapas.json versão 2): a autocorreção usa uma sessão separada das etapas de mérito; audit, produce e final_review são de programa.
     static readonly EtapaGemini[] Antigravity =
     {
-        new("analyze", Flash, "medium"), new("technical_audit", Flash, "high"),
+        new("analyze", Flash, "medium"), new("technical_audit", Flash, "high"), new("autocorrecao", Flash, "medium"),
     };
 
     static readonly EtapaGemini[] ApiCreditos =
     {
-        new("analyze", Carbon, "medium"), new("technical_audit", Argon, "medium"),
+        new("analyze", Carbon, "medium"), new("technical_audit", Argon, "medium"), new("autocorrecao", Carbon, "medium"),
     };
 
     static readonly EtapaGemini[] Web =
     {
-        new("analyze", Hydrogen, "medium"), new("technical_audit", Hydrogen, "high"),
+        new("analyze", Hydrogen, "medium"), new("technical_audit", Hydrogen, "high"), new("autocorrecao", Hydrogen, "medium"),
     };
 
     public static IReadOnlyList<EtapaGemini> Etapas(PerfilGemini perfil) => perfil switch

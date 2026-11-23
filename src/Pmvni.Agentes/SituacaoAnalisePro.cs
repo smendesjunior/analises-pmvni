@@ -32,7 +32,7 @@ public static class SituacaoAnalisePro
     {
         for (var i = 0; i < Etapas.Count; i++)
             if (Etapas[i] == etapa) return Nomes[i];
-        return etapa;
+        return etapa == "autocorrecao" ? "Autocorreção" : etapa;
     }
 
     /// <summary>Situações em que o kit parou de vez (o que sobra é andamento ou espera da cota, que o kit continua sozinho).</summary>
