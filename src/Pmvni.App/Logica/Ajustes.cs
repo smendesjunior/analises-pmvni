@@ -155,6 +155,8 @@ public sealed class Ajustes
     /// <summary>A impressão digital (SHA-1) do certificado do repositório do Windows; só vale com <c>windows</c>.</summary>
     public string? AssinaturaImpressaoDigital { get; set; }
     /// <summary>Guardar a senha do arquivo, cifrada (DPAPI), para não pedi-la a cada assinatura. Padrão: pedir sempre.</summary>
+    public bool MostrarCertificadoDespacho { get; set; } = true;
+    public bool MostrarCertificadoCarimbo { get; set; } = true;
     public bool AssinaturaLembrarSenha { get; set; }
 
     /// <summary>Profissional responsável (2026-11-17): nome, profissão, registro (CAU/CREA) e matrícula que assinam despachos e relatórios.
@@ -264,6 +266,8 @@ public sealed class Ajustes
         Soffice = null;
         DespachoAbrirPdf = p.DespachoAbrirPdf;
         AcompanhamentoDetectar = p.AcompanhamentoDetectar;
+        MostrarCertificadoDespacho = p.MostrarCertificadoDespacho;
+        MostrarCertificadoCarimbo = p.MostrarCertificadoCarimbo;
         DefinirAssinatura("nenhuma", null);
         LegislacaoEscopo = p.LegislacaoEscopo;
         PedidoPadrao = "";
@@ -475,6 +479,8 @@ public sealed class Ajustes
             ["assinatura_origem"] = AssinaturaOrigem,
             ["assinatura_arquivo"] = AssinaturaArquivo,
             ["assinatura_certificado_sha1"] = AssinaturaImpressaoDigital,
+            ["mostrar_certificado_despacho"] = MostrarCertificadoDespacho,
+            ["mostrar_certificado_carimbo"] = MostrarCertificadoCarimbo,
             ["assinatura_lembrar_senha"] = AssinaturaLembrarSenha,
             ["profissional_nome"] = ProfissionalNome,
             ["profissional_profissao"] = ProfissionalProfissao,
@@ -564,6 +570,8 @@ public sealed class Ajustes
         a.AcompanhamentoDetectar = Logico(j, "acompanhamento_detectar", a.AcompanhamentoDetectar);
         var origem = Escolha("assinatura_origem", OpcoesAssinaturaOrigem, "nenhuma");
         a.DefinirAssinatura(origem, origem == "arquivo" ? Texto(j, "assinatura_arquivo") : origem == "windows" ? Texto(j, "assinatura_certificado_sha1") : null);
+        a.MostrarCertificadoDespacho = Logico(j, "mostrar_certificado_despacho", true);
+        a.MostrarCertificadoCarimbo = Logico(j, "mostrar_certificado_carimbo", true);
         a.AssinaturaLembrarSenha = a.AssinaturaOrigem == "arquivo" && Logico(j, "assinatura_lembrar_senha", false);
         a.ProfissionalNome = Texto(j, "profissional_nome");
         a.ProfissionalProfissao = Texto(j, "profissional_profissao");

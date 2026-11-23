@@ -870,7 +870,7 @@ public sealed partial class MainWindow
         var (certificado, desistir) = await PrepararAssinaturaAsync();
         if (desistir || !ReferenceEquals(novo, s)) { certificado?.Dispose(); return; }
         using var _ = certificado;
-        var assinador = certificado is null ? null : new AssinadorComCertificado(certificado, AgoraDaAssinatura);
+        var assinador = certificado is null ? null : new AssinadorComCertificado(certificado, AgoraDaAssinatura, ajustes.MostrarCertificadoDespacho);
         N.MostrarEspera(certificado is null ? "Gerando o documento Word e o PDF do despacho…" : "Gerando o documento Word e o PDF do despacho e assinando…", interromper: true);
         try { await s.PrepararAsync(Conversor, assinador); }
         catch (OperationCanceledException)
@@ -1041,7 +1041,7 @@ public sealed partial class MainWindow
         }
         using var _ = certificado;
         N.MostrarEspera("Gerando o PDF do despacho…", interromper: true);
-        try { await s.PrepararPdfAsync(Conversor, certificado is null ? null : new AssinadorComCertificado(certificado, AgoraDaAssinatura)); }
+        try { await s.PrepararPdfAsync(Conversor, certificado is null ? null : new AssinadorComCertificado(certificado, AgoraDaAssinatura, ajustes.MostrarCertificadoDespacho)); }
         catch (OperationCanceledException)
         {
             if (ReferenceEquals(novo, s)) FecharNovoDespacho();

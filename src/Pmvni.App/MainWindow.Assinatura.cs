@@ -22,6 +22,9 @@ public sealed partial class MainWindow
     void IniciarAssinatura()
     {
         var p = PaginaDeAjustes;
+        p.BotaoCriarCertificado.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(CriarCertificadoAsync));
+        p.ExibirNoDespacho.Click += (_, _) => { ajustes.MostrarCertificadoDespacho = p.ExibirNoDespacho.IsChecked == true; SalvarAjustes(); };
+        p.ExibirNoCarimbo.Click += (_, _) => { ajustes.MostrarCertificadoCarimbo = p.ExibirNoCarimbo.IsChecked == true; SalvarAjustes(); };
         p.BotaoEscolherCertificado.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(EscolherArquivoDoCertificadoAsync));
         p.BotaoCertificadoWindows.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(EscolherCertificadoDoWindowsAsync));
         p.BotaoConferirCertificado.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(ConferirCertificadoAsync));
@@ -48,6 +51,8 @@ public sealed partial class MainWindow
         atualizandoAssinatura = true;
         try
         {
+            p.ExibirNoDespacho.IsChecked = ajustes.MostrarCertificadoDespacho;
+            p.ExibirNoCarimbo.IsChecked = ajustes.MostrarCertificadoCarimbo;
             p.TextoAssinatura.Text = TextosAssinatura.Estado(ajustes, certificadoConferido);
             p.BotaoConferirCertificado.IsEnabled = p.BotaoRemoverCertificado.IsEnabled = ajustes.AssinaturaConfigurada;
             // A senha só existe para o arquivo: o token ou cartão pede a dele por conta própria.
@@ -68,6 +73,22 @@ public sealed partial class MainWindow
         SalvarAjustes();
         PaginaDeAjustes.TextoConferenciaCertificado.Visibility = Visibility.Collapsed;
         MostrarAssinaturaNosAjustes();
+    }
+
+    async Task CriarCertificadoAsync()
+    {
+        var nome = await Perguntas.Atual.PedirTextoAsync("Criar certificado pessoal autoassinado",
+            "Nome do titular. O certificado ficará no seu usuário do Windows e terá validade de um ano. A emissão é local, fora da ICP-Brasil.",
+            ajustes.ProfissionalNome ?? "");
+        if (nome is null) return;
+        if (string.IsNullOrWhiteSpace(nome) || nome.Trim().Length > 64)
+        {
+            MostrarConferencia("Informe um nome de titular com até 64 caracteres.");
+            return;
+        }
+        var info = await Task.Run(() => CertificadoDigital.CriarNoWindows(nome.Trim()));
+        DefinirCertificado("windows", info.ImpressaoDigital, info);
+        MostrarConferencia("Certificado pessoal criado e selecionado. " + info.Resumo);
     }
 
     async Task EscolherArquivoDoCertificadoAsync()

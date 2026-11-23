@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.4.6
+
+- Em Ajustes, você pode criar um certificado autoassinado no perfil do Windows e escolher separadamente se a assinatura aparece no despacho e no carimbo das pranchas.
+- Com o kit atualizado, a análise continua automaticamente nas decisões operacionais e mantém as perguntas sobre atualização do kit e limite de cota.
+- O Editor também localiza o LibreOffice instalado no perfil do usuário.
+
 ## 3.4.5
 
 - O Editor usa caixa alta no nome e na extensão dos novos relatórios, despachos, recibos, pranchas aprovadas, exportações e arquivos de controle. As pastas, os formatos e o texto dos documentos conservam a apresentação habitual.

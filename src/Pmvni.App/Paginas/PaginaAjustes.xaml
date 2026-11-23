@@ -451,7 +451,7 @@
                 <local:LinhaComAcoes>
                   <StackPanel Spacing="4" VerticalAlignment="Center">
                     <TextBlock TextAlignment="Left" Text="Certificado digital" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="Com um certificado escolhido, o PDF de cada despacho sai assinado digitalmente, com a assinatura visível logo acima da linha de assinatura. Sem certificado, o PDF sai como sempre."/>
+                    <TextBlock TextAlignment="Left" Style="{StaticResource PmvniAjusteAjuda}" Text="Escolha um certificado para assinar os PDFs. As opções de exibição controlam onde a assinatura pessoal fica visível."/>
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                     <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Abrir}" x:Name="BotaoEscolherCertificado" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoPrimarioStyle}" Content="Escolher arquivo…" AutomationProperties.Name="Escolher o arquivo do certificado digital"
@@ -464,6 +464,9 @@
                               local:Dicas.Titulo="Remover" local:Dicas.Descricao="Deixa de assinar os despachos e apaga a senha lembrada; o arquivo do certificado não é apagado."/>
                   </StackPanel>
                 </local:LinhaComAcoes>
+                <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Chave}" x:Name="BotaoCriarCertificado" x:FieldModifier="internal" Content="Criar certificado digital…" />
+                <CheckBox x:Name="ExibirNoDespacho" x:FieldModifier="internal" Content="Mostrar assinatura no despacho"/>
+                <CheckBox x:Name="ExibirNoCarimbo" x:FieldModifier="internal" Content="Mostrar assinatura no carimbo das pranchas"/>
                 <TextBlock TextAlignment="Left" x:Name="TextoAssinatura" ToolTipService.ToolTip="{Binding Text, ElementName=TextoAssinatura}" x:FieldModifier="internal" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
                 <TextBlock TextAlignment="Left" x:Name="TextoConferenciaCertificado" x:FieldModifier="internal" TextWrapping="Wrap" Visibility="Collapsed" Style="{StaticResource PmvniAjusteAjuda}" IsTextSelectionEnabled="True"/>
               </StackPanel>

@@ -139,6 +139,43 @@ public sealed class AssinaturaDigitalTestes
         cms.CheckSignature(verifySignatureOnly: true);
     }
 
+    [Fact]
+    public void certificado_local_reabre_e_assina_despacho_e_prancha_sem_aparencia()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var info = CertificadoDigital.CriarNoWindows("Teste PMVNI " + Guid.NewGuid().ToString("N"));
+        using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+        store.Open(OpenFlags.ReadWrite);
+        using var instalado = Assert.Single(store.Certificates.Find(X509FindType.FindByThumbprint, info.ImpressaoDigital, false));
+        using var rsa = Assert.IsType<RSACng>(instalado.GetRSAPrivateKey());
+        using var chave = rsa.Key;
+        try
+        {
+            using var certificado = CertificadoDigital.AbrirDoWindows(info.ImpressaoDigital);
+            var pdf = AssinaturaFicticia.Pdf(comLinha: false).Bytes;
+            var agora = DateTimeOffset.Now;
+            var despacho = AssinaturaPdf.Assinar(pdf, certificado, agora, null, visivel: false);
+            var desenho = CarimboAprovado.Desenhar(pdf, 0, 12, 12, "PET-TESTE", certificado, agora, mostrarCertificado: false);
+            var prancha = CarimboAprovado.Assinar(desenho, 0, certificado, agora);
+            foreach (var resultado in new[] { despacho, prancha })
+            {
+                using var leitura = UglyToad.PdfPig.PdfDocument.Open(resultado.Pdf);
+                Assert.DoesNotContain(info.Titular, leitura.GetPage(1).Text);
+                Assert.Equal(0, AssinaturaFicticia.Campo(resultado.Pdf).Retangulo.Width);
+                var (conteudo, der, _) = AssinaturaFicticia.Extrair(resultado.Pdf);
+                var cms = new SignedCms(new ContentInfo(conteudo), true);
+                cms.Decode(der);
+                cms.CheckSignature(true);
+                Assert.Equal(info.ImpressaoDigital, cms.SignerInfos[0].Certificate!.Thumbprint);
+            }
+        }
+        finally
+        {
+            store.Remove(instalado);
+            chave.Delete();
+        }
+    }
+
     // ---------- o certificado ----------
 
     [Fact]

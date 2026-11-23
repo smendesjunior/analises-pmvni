@@ -65,7 +65,8 @@ public sealed class ConversorLibreOffice(string? soffice, TimeSpan? limite = nul
     {
         var env = Environment.GetEnvironmentVariable("PMVNI_SOFFICE");
         if (!string.IsNullOrWhiteSpace(env) && File.Exists(env)) return env;
-        foreach (var raiz in new[] { Environment.GetEnvironmentVariable("ProgramFiles"), Environment.GetEnvironmentVariable("ProgramFiles(x86)") })
+        foreach (var raiz in new[] { Environment.GetEnvironmentVariable("ProgramFiles"), Environment.GetEnvironmentVariable("ProgramFiles(x86)"),
+                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs") })
         {
             if (string.IsNullOrWhiteSpace(raiz) || !Directory.Exists(raiz)) continue;
             string[] pastas;

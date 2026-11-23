@@ -43,6 +43,34 @@ public static class CertificadoDigital
     public const string AusenteNoWindows =
         "O certificado escolhido não está mais no repositório do Windows (ou o token/cartão não está conectado). Conecte-o ou escolha de novo em Ajustes › Assinatura digital.";
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static InfoCertificado CriarNoWindows(string titular)
+    {
+        var nome = new X500DistinguishedNameBuilder();
+        nome.AddCommonName(titular);
+        var parametros = new CngKeyCreationParameters { KeyUsage = CngKeyUsages.Signing };
+        parametros.Parameters.Add(new CngProperty("Length", BitConverter.GetBytes(3072), CngPropertyOptions.None));
+        using var chave = CngKey.Create(CngAlgorithm.Rsa, "PMVNI-" + Guid.NewGuid().ToString("N"), parametros);
+        try
+        {
+            using var rsa = new RSACng(chave);
+            var pedido = new CertificateRequest(nome.Build(), rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            pedido.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, critical: true));
+            var agora = DateTimeOffset.Now;
+            using var certificado = pedido.CreateSelfSigned(agora.AddMinutes(-5), agora.AddYears(1));
+            var info = Info(certificado);
+            using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+            store.Open(OpenFlags.ReadWrite);
+            store.Add(certificado);
+            return info;
+        }
+        catch
+        {
+            chave.Delete();
+            throw;
+        }
+    }
+
     const int ErroSenha = unchecked((int)0x80070056); // ERROR_INVALID_PASSWORD
 
     /// <summary>Abre o <c>.pfx</c>/<c>.p12</c> com a senha. Senha errada, arquivo ausente, ilegível ou sem a chave privada:

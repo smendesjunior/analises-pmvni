@@ -31,12 +31,12 @@ public interface IAssinadorPdf
 }
 
 /// <summary>Assina com um certificado já aberto (a senha já foi conferida), na hora de <paramref name="agora"/>.</summary>
-public sealed class AssinadorComCertificado(CertificadoAberto certificado, Func<DateTimeOffset> agora) : IAssinadorPdf
+public sealed class AssinadorComCertificado(CertificadoAberto certificado, Func<DateTimeOffset> agora, bool visivel = true) : IAssinadorPdf
 {
     public PdfAssinado Assinar(byte[] pdf, byte[] docx, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        return AssinaturaPdf.Assinar(pdf, certificado, agora(), AssinaturaPdf.LogoDoDespacho(docx));
+        return AssinaturaPdf.Assinar(pdf, certificado, agora(), visivel ? AssinaturaPdf.LogoDoDespacho(docx) : null, visivel);
     }
 }
 
@@ -128,16 +128,17 @@ public static class AssinaturaPdf
 
     /// <summary>Assina o PDF com o certificado, com a aparência visível no lugar de <see cref="Localizar"/>. O que impede (certificado
     /// vencido, PDF sem a linha, token que recusa): <see cref="AssinaturaDigitalException"/>; nada é gravado em disco aqui.</summary>
-    public static PdfAssinado Assinar(byte[] pdf, CertificadoAberto certificado, DateTimeOffset quando, LogoAssinatura? logo)
+    public static PdfAssinado Assinar(byte[] pdf, CertificadoAberto certificado, DateTimeOffset quando, LogoAssinatura? logo, bool visivel = true)
     {
         ArgumentNullException.ThrowIfNull(pdf);
         ArgumentNullException.ThrowIfNull(certificado);
         if (CertificadoDigital.Problema(certificado.Certificado, quando) is { } problema) throw new AssinaturaDigitalException(problema);
-        return AssinarNoLocal(pdf, certificado, quando, logo, Localizar(pdf), "Despacho da Secretaria Municipal de Obras");
+        var local = visivel ? Localizar(pdf) : new LocalAssinatura(0, 0, 0, 0, 0);
+        return AssinarNoLocal(pdf, certificado, quando, logo, local, "Despacho da Secretaria Municipal de Obras", semAparencia: !visivel);
     }
 
     internal static PdfAssinado AssinarNoLocal(byte[] pdf, CertificadoAberto certificado, DateTimeOffset quando,
-        LogoAssinatura? logo, LocalAssinatura local, string motivo, bool vistoNaPagina = false)
+        LogoAssinatura? logo, LocalAssinatura local, string motivo, bool semAparencia = false)
     {
         if (CertificadoDigital.Problema(certificado.Certificado, quando) is { } problema)
             throw new AssinaturaDigitalException(problema);
@@ -150,7 +151,7 @@ public static class AssinaturaPdf
             var pagina = doc.Pages[local.Pagina];
             var aparencia = new Aparencia(Frases(info.Titular, quando), logo);
             // A impressão pode omitir widgets. O conteúdo visível entra no documento antes do cálculo do CMS.
-            if (!vistoNaPagina)
+            if (!semAparencia)
             using (var gfx = XGraphics.FromPdfPage(pagina, XGraphicsPdfPageOptions.Append))
             {
                 gfx.TranslateTransform(local.XPt, pagina.Height.Point - local.YPt - local.AlturaPt);
@@ -165,7 +166,7 @@ public static class AssinaturaPdf
                 AppName = "Editor de Relatórios PMVNI",
                 PageIndex = local.Pagina,
                 Rectangle = new XRect(local.XPt, local.YPt, local.LarguraPt, local.AlturaPt),
-                AppearanceHandler = vistoNaPagina ? null : aparencia,
+                AppearanceHandler = semAparencia ? null : aparencia,
             };
             DigitalSignatureHandler.ForDocument(doc, new Assinante(certificado, quando), opcoes);
             using var saida = new MemoryStream();

@@ -20,6 +20,22 @@ public sealed class AjustesAssinaturaTestes
         Assert.Equal("Sem assinatura digital (escolha o certificado em Ajustes › Despachos e PDF)", TextosAssinatura.NaConferencia(null));
     }
 
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void visibilidade_independente_persiste_e_restaura(bool despacho, bool carimbo)
+    {
+        using var pasta = Ambiente.PastaDeTeste("visibilidade-assinatura");
+        var a = new Ajustes { MostrarCertificadoDespacho = despacho, MostrarCertificadoCarimbo = carimbo };
+        a.Salvar(pasta);
+        var b = Ajustes.Carregar(pasta);
+        Assert.Equal(despacho, b.MostrarCertificadoDespacho);
+        Assert.Equal(carimbo, b.MostrarCertificadoCarimbo);
+        b.RestaurarPadrao();
+        Assert.True(b.MostrarCertificadoDespacho);
+        Assert.True(b.MostrarCertificadoCarimbo);
+    }
+
     [Fact]
     public void certificado_vai_e_volta_pelo_arquivo_sem_nenhuma_senha()
     {

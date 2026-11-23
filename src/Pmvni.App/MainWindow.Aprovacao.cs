@@ -58,7 +58,7 @@ public sealed partial class MainWindow
                 }
                 pagina = marca.Pagina;
                 desenhada = await Task.Run(() => CarimboAprovado.Desenhar(desenhada, pagina, marca.X, marca.Y, peticao,
-                    analista, agora, marca.Observacoes, marca.Bloco, marca.TemCarimbo));
+                    analista, agora, marca.Observacoes, marca.Bloco, marca.TemCarimbo, ajustes.MostrarCertificadoCarimbo));
                 quantidade++;
                 var escolha = await JanelaAprovacao.RevisarAsync(desenhada, nome, pagina, TemaAtual);
                 if (escolha is null) return;

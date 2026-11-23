@@ -34,12 +34,12 @@ public static class CarimboAprovado
     public static PdfAssinado Assinar(byte[] desenhada, int pagina, CertificadoAberto analista, DateTimeOffset emissao)
     {
         var local = new LocalAssinatura(pagina, 0, 0, 0, 0);
-        return AssinaturaPdf.AssinarNoLocal(desenhada, analista, emissao, null, local, "Visto do Analista Técnico", vistoNaPagina: true);
+        return AssinaturaPdf.AssinarNoLocal(desenhada, analista, emissao, null, local, "Visto do Analista Técnico", semAparencia: true);
     }
 
     public static byte[] Desenhar(byte[] prancha, int pagina, double x, double y, string peticao,
         CertificadoAberto analista, DateTimeOffset emissao,
-        IReadOnlyList<ObservacaoPrancha>? observacoes = null, XRect? areaObservacoes = null, bool incluirCarimbo = true)
+        IReadOnlyList<ObservacaoPrancha>? observacoes = null, XRect? areaObservacoes = null, bool incluirCarimbo = true, bool mostrarCertificado = true)
     {
         if (!incluirCarimbo && observacoes is not { Count: > 0 }) throw new ArgumentException("Selecione um carimbo ou observações.");
         ArgumentException.ThrowIfNullOrWhiteSpace(peticao);
@@ -89,10 +89,13 @@ public static class CarimboAprovado
                     gfx.DrawString(texto, fonte, XBrushes.Black, area, XStringFormats.Center);
                 }
                 Preencher(Area(740, 398, 395, 66), peticao.Trim());
-                gfx.TranslateTransform(visto.X, visto.Y);
-                var interior = new XRect(0, 0, visto.Width, visto.Height);
-                gfx.IntersectClip(interior);
-                AssinaturaPdf.DesenharVisto(gfx, interior, analista.Info.Titular, emissao);
+                if (mostrarCertificado)
+                {
+                    gfx.TranslateTransform(visto.X, visto.Y);
+                    var interior = new XRect(0, 0, visto.Width, visto.Height);
+                    gfx.IntersectClip(interior);
+                    AssinaturaPdf.DesenharVisto(gfx, interior, analista.Info.Titular, emissao);
+                }
             }
         }
         var forma = new PdfDictionary(doc);

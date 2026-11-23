@@ -1141,11 +1141,14 @@ public sealed partial class MainWindow
     async Task<string?> DecidirAsync(ExecucaoEmCurso e, DecisaoAnalise d, CancellationToken ct)
     {
         if (fechada || ct.IsCancellationRequested) return null;
+        if (d.Tipo is not ("limite_cota" or "revalidar_preparo" or "plugin_antigo"))
+        {
+            if (d.Tipo == "entradas_mudaram")
+                return d.Opcoes.FirstOrDefault(o => o.Valor is "nova_analise" or "refazer")?.Valor;
+            throw new InvalidOperationException("O controlador não conseguiu continuar automaticamente. " + d.Pergunta);
+        }
         NotificacoesWindows.Mostrar("A análise precisa de uma decisão", "Abra o Editor para responder; a análise está parada e não gasta cota enquanto espera.");
         var titulo = (d.Tipo == "limite_cota" ? "Limite preventivo da cota de 5 horas • " : "Decisão na análise de ") + FluxoNovoRelatorio.Identificacao(e.Processo);
-        if (PecasAmbiguas.EhEscolhaDePecas(d) && d.Opcoes.Count > 0)
-            return await EscolherVersaoDaPecaAsync(e.Processo.Pasta, "Qual versão da peça vale na análise de " + FluxoNovoRelatorio.Identificacao(e.Processo) + "?",
-                e.Provedor, d);
         var texto = d.Pergunta.Trim() + Environment.NewLine + Environment.NewLine
             + $"A análise com o {Provedores.Nome(e.Provedor)} está parada e não gasta cota enquanto espera. \"Cancelar\" mantém a pausa. Use \"Retomar análise\" para ver a pergunta de novo.";
         if (d.Opcoes.Count == 0)
