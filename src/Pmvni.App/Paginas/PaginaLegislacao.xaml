@@ -18,7 +18,7 @@
                Message="Este PDF não tem texto pesquisável: a pesquisa e a cópia de texto não funcionam nele."/>
       <InfoBar x:Name="AvisoErro" x:FieldModifier="internal" Severity="Error" IsClosable="True"/>
       <InfoBar x:Name="AvisoSemCopia" x:FieldModifier="internal" Severity="Warning" IsClosable="True"
-               Message="A cópia deste PDF não foi encontrada na pasta do editor. Use Substituir arquivo… em Ajustes › Legislação."/>
+               Message="A cópia deste PDF não foi encontrada na pasta do editor. Use Substituir arquivo… em Ajustes › Módulos › Legislação."/>
       <InfoBar x:Name="AvisoMensagem" x:FieldModifier="internal" Severity="Informational" IsClosable="True"/>
       <!-- A anexação começada aqui (ou em Ajustes) mostra o andamento e o Cancelar também neste módulo (desenho §11.1/§11.4). -->
       <Grid x:Name="ProgressoAnexo" x:FieldModifier="internal" ColumnSpacing="12" Padding="12,6" Visibility="Collapsed">

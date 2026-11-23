@@ -295,7 +295,7 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>Ajustes › Fontes de dados › "Testar o boletim": roda o fluxo inteiro com uma inscrição e diz em que passo parou. Nada é gravado.</summary>
+    /// <summary>Ajustes › Pastas e fontes de dados › "Testar o boletim": roda o fluxo inteiro com uma inscrição e diz em que passo parou. Nada é gravado.</summary>
     internal async Task TestarBoletimAsync(string inscricao, TextBlock saida)
     {
         if (ChaveBci.Estrita(inscricao) is null) { saida.Text = "Digite uma inscrição municipal com 14 algarismos."; return; }

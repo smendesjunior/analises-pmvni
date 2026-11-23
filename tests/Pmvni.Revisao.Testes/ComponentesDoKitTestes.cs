@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Pmvni.Revisao.Testes;
 
-/// <summary>Tarefa 21: o cartão "Plugins e ferramentas" (Ajustes › Pastas e kit). As pastas são montadas no temporário; nada é iniciado de verdade
+/// <summary>Tarefa 21: o cartão "Plugins e ferramentas" (Ajustes › Kit PMVNI). As pastas são montadas no temporário; nada é iniciado de verdade
 /// (o lançador é falso).</summary>
 public sealed class ComponentesDoKitTestes : IDisposable
 {

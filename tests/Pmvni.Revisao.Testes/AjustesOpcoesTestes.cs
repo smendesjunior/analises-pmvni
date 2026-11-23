@@ -26,7 +26,6 @@ public class AjustesOpcoesTestes
         Assert.True(a.PainelPropriedades);
         Assert.Equal(30, a.RecuperacaoDias);
         Assert.Equal("numero", a.ProcessosOrdem);
-        Assert.False(a.ProcessosPastas);
         Assert.Equal("data", a.DespachosAgrupar);
         Assert.Equal("recentes", a.DespachosOrdem);
         Assert.Equal("lista", a.ArquivosExibicao);
@@ -52,7 +51,7 @@ public class AjustesOpcoesTestes
         {
             AbrirEm = "Legislacao", LembrarJanela = true, Janela = new JanelaGuardada(10, 20, 1200, 800, true), RecentesMax = 5,
             FaixaRotulos = "icones", AvisosLayout = "faixas", ZoomInicial = "100", LembrarPaineis = true, PainelLateral = false,
-            PainelPropriedades = false, RecuperacaoDias = 90, ProcessosOrdem = "requerente", ProcessosPastas = true, DespachosAgrupar = "processo",
+            PainelPropriedades = false, RecuperacaoDias = 90, ProcessosOrdem = "requerente", DespachosAgrupar = "processo",
             DespachosOrdem = "antigos", Soffice = @"C:\LibreOffice\program\soffice.exe", DespachoAbrirPdf = true, LegislacaoEscopo = "todas",
             PedidoPadrao = "Conferir recuos e taxa de ocupação.", ConfirmarCancelar = false, ConfirmarFechar = false,
             ArquivosExibicao = "miniaturas", ArquivosAgrupar = "data", ArquivosOrdenar = "tipo", ArquivosDecrescente = true,
@@ -60,10 +59,13 @@ public class AjustesOpcoesTestes
         a.Salvar(pasta);
         var j = JsonNode.Parse(File.ReadAllText(Path.Combine(pasta, "ajustes.json")))!.AsObject();
         foreach (var chave in new[] { "abrir_em", "lembrar_janela", "janela", "recentes_max", "faixa_rotulos", "avisos_layout", "zoom_inicial",
-                     "lembrar_paineis", "paineis", "recuperacao_dias", "processos_ordem", "processos_pastas", "despachos_agrupar", "despachos_ordem",
+                     "lembrar_paineis", "paineis", "recuperacao_dias", "processos_ordem", "despachos_agrupar", "despachos_ordem",
                      "soffice", "despacho_abrir_pdf", "legislacao_escopo", "pedido_padrao", "confirmar_cancelar", "confirmar_fechar",
                      "arquivos_exibicao", "arquivos_agrupar", "arquivos_ordenar", "arquivos_decrescente" })
             Assert.True(j.ContainsKey(chave), chave);
+        // Obsoletos (reorganização dos Ajustes, 2026-11-23): não são mais gravados.
+        foreach (var chave in new[] { "processos_pastas", "ia_ajuste_modelo", "ia_ajuste_esforco" })
+            Assert.False(j.ContainsKey(chave), chave);
 
         var b = Ajustes.Carregar(pasta);
         Assert.Equal("Legislacao", b.AbrirEm);
@@ -79,7 +81,6 @@ public class AjustesOpcoesTestes
         Assert.False(b.PainelPropriedades);
         Assert.Equal(90, b.RecuperacaoDias);
         Assert.Equal("requerente", b.ProcessosOrdem);
-        Assert.True(b.ProcessosPastas);
         Assert.Equal("processo", b.DespachosAgrupar);
         Assert.Equal("antigos", b.DespachosOrdem);
         Assert.Equal(@"C:\LibreOffice\program\soffice.exe", b.Soffice);
@@ -125,7 +126,6 @@ public class AjustesOpcoesTestes
         Assert.Equal(p.PainelLateral, a.PainelLateral);
         Assert.Equal(p.RecuperacaoDias, a.RecuperacaoDias);
         Assert.Equal(p.ProcessosOrdem, a.ProcessosOrdem);
-        Assert.Equal(p.ProcessosPastas, a.ProcessosPastas);
         Assert.Equal(p.DespachosAgrupar, a.DespachosAgrupar);
         Assert.Equal(p.DespachosOrdem, a.DespachosOrdem);
         Assert.Null(a.Soffice);

@@ -46,8 +46,8 @@ public static class MensagensAnexo
     public const string LeitorIndisponivel = "O leitor de PDF do editor não pôde ser iniciado.";
 
     public static string Recuperados(int n) => n == 1
-        ? "1 PDF sem registro no catálogo foi recuperado; confira o título e a esfera em Ajustes › Legislação."
-        : $"{n} PDFs sem registro no catálogo foram recuperados; confira o título e a esfera em Ajustes › Legislação.";
+        ? "1 PDF sem registro no catálogo foi recuperado; confira o título e a esfera em Ajustes › Módulos › Legislação."
+        : $"{n} PDFs sem registro no catálogo foram recuperados; confira o título e a esfera em Ajustes › Módulos › Legislação.";
 }
 
 /// <summary>Recusa com a mensagem já pronta para o usuário.</summary>

@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Pmvni.Revisao.Testes;
 
-/// <summary>Linhas da lista de leis anexadas (Ajustes › Legislação e a lista do módulo; desenho §11.1): uma linha por anexo, textos de
+/// <summary>Linhas da lista de leis anexadas (Ajustes › Módulos › Legislação e a lista do módulo; desenho §11.1): uma linha por anexo, textos de
 /// tamanho, páginas, total, selos e o resumo da anexação.</summary>
 public class ListaLegislacaoTestes
 {

@@ -84,21 +84,10 @@ public class IaRevisaoTestes
         Assert.Equal("2:05", ModeloIaAjuste.Tempo(TimeSpan.FromSeconds(125)));
 
         using var pasta = Ambiente.PastaDeTeste("ajustes-ia");
-        var a = new Ajustes();
-        Assert.Equal("gpt-6.1-terra", a.IaAjusteModelo);
-        Assert.Equal("low", a.IaAjusteEsforco);
-        a.IaAjusteModelo = "gpt-6.1-sol";
-        a.IaAjusteEsforco = "medium";
-        a.Salvar(pasta);
-        var b = Ajustes.Carregar(pasta);
-        Assert.Equal("gpt-6.1-sol", b.IaAjusteModelo);
-        Assert.Equal("medium", b.IaAjusteEsforco);
+        // ia_ajuste_modelo/ia_ajuste_esforco (antigos) só migram o Codex: valor desconhecido vira o padrão (Terra 6.1, baixo).
         File.WriteAllText(Path.Combine(pasta, "ajustes.json"), "{\"ia_ajuste_modelo\":\"outro\",\"ia_ajuste_esforco\":\"ultra\"}");
         var c = Ajustes.Carregar(pasta);
-        Assert.Equal("gpt-6.1-terra", c.IaAjusteModelo);
-        Assert.Equal("low", c.IaAjusteEsforco);
-        b.RestaurarPadrao();
-        Assert.Equal("gpt-6.1-terra", b.IaAjusteModelo);
+        Assert.Equal(new ModeloEscolhido("gpt-6.1-terra", "low"), c.IaModelos[FonteIa.Codex]);
     }
 
     // ---------- o pedido e a conferência da resposta ----------

@@ -5,7 +5,7 @@ using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
-/// <summary>Assinatura digital dos despachos (2026-11-16): a seção de Ajustes › Despachos e PDF (escolher o arquivo .pfx/.p12 ou um
+/// <summary>Assinatura digital dos despachos (2026-11-16): a seção de Ajustes › Profissional e assinatura (escolher o arquivo .pfx/.p12 ou um
 /// certificado do Windows, "Conferir", "Remover" e "Lembrar a senha neste computador") e a abertura do certificado na hora de gerar o
 /// PDF. A senha é pedida numa caixa de senha a cada assinatura, ou lida do <see cref="CofreSenhaCertificado"/> (DPAPI, por usuário)
 /// quando o usuário pede para lembrar; nunca vai para o <c>ajustes.json</c>, para mensagem, registro ou arquivo do projeto.</summary>

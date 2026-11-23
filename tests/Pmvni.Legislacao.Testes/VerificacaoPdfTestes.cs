@@ -47,7 +47,7 @@ public sealed class VerificacaoPdfTestes
         Assert.Equal("O título pode ter até 200 caracteres.", MensagensAnexo.TituloLongo);
         Assert.Equal("O catálogo da legislação estava danificado; foi usada a cópia anterior (catalogo.json.bak).", MensagensAnexo.Corrompido);
         Assert.Equal("O catálogo da legislação foi gravado por uma versão mais nova do editor; os anexos ficam só para leitura.", MensagensAnexo.SomenteLeitura);
-        Assert.Equal("1 PDF sem registro no catálogo foi recuperado; confira o título e a esfera em Ajustes › Legislação.", MensagensAnexo.Recuperados(1));
-        Assert.Equal("2 PDFs sem registro no catálogo foram recuperados; confira o título e a esfera em Ajustes › Legislação.", MensagensAnexo.Recuperados(2));
+        Assert.Equal("1 PDF sem registro no catálogo foi recuperado; confira o título e a esfera em Ajustes › Módulos › Legislação.", MensagensAnexo.Recuperados(1));
+        Assert.Equal("2 PDFs sem registro no catálogo foram recuperados; confira o título e a esfera em Ajustes › Módulos › Legislação.", MensagensAnexo.Recuperados(2));
     }
 }

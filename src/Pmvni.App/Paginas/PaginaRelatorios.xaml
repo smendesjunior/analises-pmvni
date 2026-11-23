@@ -13,7 +13,7 @@
     </Grid.RowDefinitions>
 
     <!-- Avisos (InfoBar) que pedem ação imediata e o resultado das operações (no máximo 2 à vista; o resto em "+n"). Os de layout (largura,
-         blocos que não cabem, conteúdo além da borda) vão para o indicador do rodapé; com Ajustes › Aparência › "Faixas no topo", voltam
+         blocos que não cabem, conteúdo além da borda) vão para o indicador do rodapé; com Ajustes › Geral › Aparência › "Faixas no topo", voltam
          para cá (AvisoLargura, AvisoEstouro, AvisoForaDaArea). -->
     <!-- Correções 2026-11-15: afastada da borda arredondada da área das páginas (antes encostava no canto e no trilho). -->
     <local:AreaDeAvisos RecuoAberto="0,0,0,12" x:Name="AreaAvisos" x:FieldModifier="internal" Grid.Row="0">

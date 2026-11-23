@@ -59,7 +59,7 @@ public static class FontesQgis
 
     public static Inventario Verificar(string pasta, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(pasta)) throw new ArgumentException("Escolha a pasta dos arquivos QGIS em Ajustes › Fontes de dados.");
+        if (string.IsNullOrWhiteSpace(pasta)) throw new ArgumentException("Escolha a pasta dos arquivos QGIS em Ajustes › Pastas e fontes de dados.");
         var raiz = Path.GetFullPath(pasta);
         if (!Directory.Exists(raiz)) throw new DirectoryNotFoundException($"A pasta {raiz} não está acessível (rede desconectada, unidade removida ou pasta apagada).");
         var arquivos = new List<ArquivoFonte>();

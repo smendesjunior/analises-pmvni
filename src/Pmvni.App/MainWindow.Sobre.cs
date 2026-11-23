@@ -8,7 +8,7 @@ using Pmvni.Composicao.Web;
 
 namespace Pmvni.App;
 
-/// <summary>Ajustes › Sobre e suporte (2026-11-17), no padrão do WinStatusBar: Suporte (contato e informações para o relato),
+/// <summary>Ajustes › Sistema (2026-11-17), no padrão do WinStatusBar: Suporte (contato e informações para o relato),
 /// Diagnóstico (relatório com versões, pastas e memória, com Atualizar e Copiar) e Sobre (ícone, nome, versão · compilação, descrição,
 /// desenvolvedor, direitos, sistema, runtime e créditos). Ajuda › Sobre leva a esta página.</summary>
 public sealed partial class MainWindow

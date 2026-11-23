@@ -59,7 +59,7 @@ public sealed class ItemPesquisaGeral
     /// <summary>A categoria do item na lista (1.0.0): Arquivos, Processos, Legislação, Configurações, Funções ou Módulos.</summary>
     public string Categoria => PesquisaGeral.NomeDoGrupo(Tipo);
 
-    /// <summary>O nome acessível da linha: "Tema, Configurações, Ajustes › Aparência › Janela".</summary>
+    /// <summary>O nome acessível da linha: "Tema, Configurações, Ajustes › Geral › Aparência › Janela".</summary>
     public string NomeAcessivel => Onde.Length == 0 ? $"{Titulo}, {Categoria}" : $"{Titulo}, {Categoria}, {Onde}";
 
     public override string ToString() => $"{Tipo}: {Titulo} ({Onde})";
@@ -276,14 +276,16 @@ public static class PesquisaGeral
     public static IReadOnlyList<ItemPesquisaGeral> Ajustes(IEnumerable<OpcaoAjusteTela> opcoes)
     {
         var lista = new List<ItemPesquisaGeral>();
+        // Uma subpágina (Modelos da análise) mostra a categoria-mãe no "onde".
+        static string Raiz(CategoriaAjustes c) => c.Pai is { } pai ? $"Ajustes › {CategoriasAjustes.De(pai).Titulo}" : "Ajustes";
         foreach (var c in CategoriasAjustes.Menu)
-            lista.Add(new ItemPesquisaGeral(TipoResultadoGeral.Ajuste, c.Titulo, "Ajustes", c.Glifo, "ajuste:" + c.Tag,
+            lista.Add(new ItemPesquisaGeral(TipoResultadoGeral.Ajuste, c.Titulo, Raiz(c), c.Glifo, "ajuste:" + c.Tag,
                 [c.Ajuda, "configurações"], new OpcaoAjusteTela(c.Tag, "", c.Titulo, c.Ajuda)));
         foreach (var o in opcoes)
         {
             if (string.IsNullOrWhiteSpace(o.Titulo)) continue;
             var c = CategoriasAjustes.De(o.Categoria);
-            var onde = o.EhGrupo || o.Grupo.Length == 0 ? $"Ajustes › {c.Titulo}" : $"Ajustes › {c.Titulo} › {o.Grupo}";
+            var onde = o.EhGrupo || o.Grupo.Length == 0 ? $"{Raiz(c)} › {c.Titulo}" : $"{Raiz(c)} › {c.Titulo} › {o.Grupo}";
             lista.Add(new ItemPesquisaGeral(TipoResultadoGeral.Ajuste, o.Titulo, onde, c.Glifo,
                 $"ajuste:{c.Tag}:{(o.EhGrupo ? "grupo" : o.Grupo)}:{o.Titulo}", [o.Ajuda], o));
         }

@@ -341,7 +341,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         catch (Exception e) { System.Diagnostics.Debug.WriteLine("[janela] " + e.Message); }
     }
 
-    /// <summary>Ajustes › Aparência › "Rótulos da faixa" (automático: só ícones abaixo de 1000 px) e a pesquisa entre 180 e 320 px (M8).</summary>
+    /// <summary>Ajustes › Geral › Aparência › "Rótulos da faixa" (automático: só ícones abaixo de 1000 px) e a pesquisa entre 180 e 320 px (M8).</summary>
     void AplicarLargura(double largura)
     {
         if (double.IsNaN(largura) || largura <= 0) largura = Raiz.ActualWidth;
@@ -643,7 +643,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                 }
                 catch (Exception e) { RegistroErros.Gravar("captura", e); }
                 // Acompanhamento de processos com uma planilha de teste (PMVNI_CAPTURA_PLANILHA = um .xlsx; uma cópia é usada) e o processo
-                // escolhido no painel; depois Ajustes › Fontes de dados e Sobre e suporte.
+                // escolhido no painel; depois Ajustes › Pastas e fontes de dados e Sistema.
                 try
                 {
                     if (Environment.GetEnvironmentVariable("PMVNI_CAPTURA_PLANILHA") is { Length: > 0 } xlsx && File.Exists(xlsx))
@@ -666,14 +666,14 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                         await Task.Delay(900);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "acompanhamento-painel.png"));
                         await MudarModuloAsync(Modulo.Ajustes);
-                        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.FontesDados);
+                        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Pastas);
                         await Task.Delay(900);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "ajustes-fontes.png"));
                         PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Sobre);
                         await Task.Delay(900);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaCaptura, "ajustes-sobre.png"));
-                        // Ajustes › Modelos da análise › Modelos de IA (2026-11-17): espera a leitura das peças e das listas e rola até a seção.
-                        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Modelos);
+                        // Ajustes › Inteligência artificial › Modelos de IA (2026-11-17): espera a leitura das peças e das listas e rola até a seção.
+                        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Ia);
                         await Task.Delay(1500);
                         try { await tarefaDosAgentes; } catch (Exception e) { System.Diagnostics.Debug.WriteLine("[captura] " + e.Message); }
                         for (var i = 0; i < 60 && CatalogoDeModelos.Atualizando; i++) await Task.Delay(1000);
@@ -858,7 +858,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             if (PaginaDeAjustes.CategoriaAtual == CategoriasAjustes.Sobre) PaginaDeAjustes.TextoVersoes.Text = RelatorioDiagnostico();
             AtualizarPaginaDePastas();
             if (IaVisivel) AtualizarAgentes();
-            if (PaginaDeAjustes.CategoriaAtual == CategoriasAjustes.Legislacao) Soltar(EntrarNaLegislacaoDosAjustesAsync);
+            if (PaginaDeAjustes.CategoriaAtual == CategoriasAjustes.Modulos) Soltar(EntrarNaLegislacaoDosAjustesAsync);
         }
         var f = Faixas.Para(m);
         ajustes.AbaPorModulo.TryGetValue(m, out var aba);
@@ -1349,7 +1349,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             : estouros == 1 ? "1 bloco excede a página" : $"{estouros} blocos excedem a página";
         if (r.Preparado.ErrosFinais.Count > 0) R.TextoComposicao.Text += " · " + DescreverRascunho(r.Preparado.ErrosFinais);
 
-        // Avisos de layout (auditoria A2): no indicador do rodapé (padrão) ou, com Ajustes › Aparência › "Faixas no topo", nas InfoBars
+        // Avisos de layout (auditoria A2): no indicador do rodapé (padrão) ou, com Ajustes › Geral › Aparência › "Faixas no topo", nas InfoBars
         // de antes. A lista é a mesma nos dois modos: nenhum aviso some.
         var foraDaArea = r.Aplicacao.FolhasQueTransbordamNaLargura;
         var avisosLayout = AvisosLayout.Montar(plano.Escala, plano.AvisosLargura.Count, foraDaArea,
@@ -1719,7 +1719,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
         return MostrarDialogoAsync("Atalhos de teclado", lista);
     }
 
-    /// <summary>Ajuda › Sobre: leva a Ajustes › Sobre e suporte (2026-11-17, como o WinStatusBar).</summary>
+    /// <summary>Ajuda › Sobre: leva a Ajustes › Sistema (2026-11-17, como o WinStatusBar).</summary>
     async Task MostrarSobreAsync()
     {
         await MudarModuloAsync(Modulo.Ajustes);
@@ -1792,7 +1792,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     {
         if (fechada || (DateTime.UtcNow - ultimoErroInesperado).TotalSeconds < 5) return;
         ultimoErroInesperado = DateTime.UtcNow;
-        try { MostrarMensagem(InfoBarSeverity.Error, "Erro inesperado", "A última operação falhou e pode não ter sido concluída. O editor continua aberto; se repetir, veja Ajustes › Sobre e suporte."); }
+        try { MostrarMensagem(InfoBarSeverity.Error, "Erro inesperado", "A última operação falhou e pode não ter sido concluída. O editor continua aberto; se repetir, veja Ajustes › Sistema."); }
         catch (Exception e) { System.Diagnostics.Debug.WriteLine("[erro] " + e.Message); }
     }
     DateTime ultimoErroInesperado;

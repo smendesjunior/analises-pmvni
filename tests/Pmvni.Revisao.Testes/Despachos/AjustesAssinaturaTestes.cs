@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Pmvni.Revisao.Testes.DespachosTestes;
 
-/// <summary>Ajustes › Despachos e PDF › Assinatura digital (2026-11-16): de onde vem o certificado vai para o ajustes.json; a senha nunca.
+/// <summary>Ajustes › Profissional e assinatura › Assinatura digital (2026-11-16): de onde vem o certificado vai para o ajustes.json; a senha nunca.
 /// A senha lembrada fica cifrada (DPAPI, por usuário) e só vale para o certificado com que foi guardada.</summary>
 public sealed class AjustesAssinaturaTestes
 {
@@ -17,7 +17,7 @@ public sealed class AjustesAssinaturaTestes
         Assert.False(a.AssinaturaConfigurada);
         Assert.False(a.AssinaturaLembrarSenha);
         Assert.Equal(TextosAssinatura.SemCertificado, TextosAssinatura.Estado(a, null));
-        Assert.Equal("Sem assinatura digital (escolha o certificado em Ajustes › Despachos e PDF)", TextosAssinatura.NaConferencia(null));
+        Assert.Equal("Sem assinatura digital (escolha o certificado em Ajustes › Profissional e assinatura)", TextosAssinatura.NaConferencia(null));
     }
 
     [Theory]

@@ -40,6 +40,9 @@ public sealed partial class MainWindow
     static readonly (string Valor, string Texto)[] TextosAgrupar = [("data", "Por data"), ("processo", "Por processo")];
     static readonly (string Valor, string Texto)[] TextosOrdemDespachos = [("recentes", "Mais recentes primeiro"), ("antigos", "Mais antigos primeiro")];
     static readonly (string Valor, string Texto)[] TextosEscopo = [("lei", "Nesta lei"), ("todas", "Em todas as leis")];
+    static readonly (string Valor, string Texto)[] TextosArquivosExibicao = [("lista", "Lista"), ("miniaturas", "Miniaturas")];
+    static readonly (string Valor, string Texto)[] TextosArquivosAgrupar = [("etapa", "Por etapa"), ("tipo", "Por tipo"), ("data", "Por data"), ("nenhum", "Sem grupos")];
+    static readonly (string Valor, string Texto)[] TextosArquivosOrdenar = [("nome", "Nome"), ("data", "Data"), ("tipo", "Tipo")];
 
     void IniciarAjustes()
     {
@@ -61,6 +64,9 @@ public sealed partial class MainWindow
         Preencher(p.CaixaAgruparDespachos, TextosAgrupar.Select(x => ((object)x.Valor, x.Texto)));
         Preencher(p.CaixaOrdemDespachos, TextosOrdemDespachos.Select(x => ((object)x.Valor, x.Texto)));
         Preencher(p.CaixaEscopo, TextosEscopo.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaArquivosExibicao, TextosArquivosExibicao.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaArquivosAgrupar, TextosArquivosAgrupar.Select(x => ((object)x.Valor, x.Texto)));
+        Preencher(p.CaixaArquivosOrdenar, TextosArquivosOrdenar.Select(x => ((object)x.Valor, x.Texto)));
 
         // Cada escolha grava na hora (barra "Alterações salvas automaticamente") e vale já onde é lida.
         void AoEscolher(ComboBox c, Action<object> aplicar) => c.SelectionChanged += (_, _) =>
@@ -121,6 +127,10 @@ public sealed partial class MainWindow
         AoEscolher(p.CaixaOrdemProcessos, v => ajustes.ProcessosOrdem = (string)v);
         AoEscolher(p.CaixaAgruparDespachos, v => ajustes.DespachosAgrupar = (string)v);
         AoEscolher(p.CaixaOrdemDespachos, v => ajustes.DespachosOrdem = (string)v);
+        // Arquivos do processo (2026-11-23): a mesma escolha do Exibir da página do processo, que vale na hora e fica lembrada.
+        AoEscolher(p.CaixaArquivosExibicao, v => { ajustes.ArquivosExibicao = (string)v; SincronizarPastas(); });
+        AoEscolher(p.CaixaArquivosAgrupar, v => { ajustes.ArquivosAgrupar = (string)v; SincronizarPastas(); });
+        AoEscolher(p.CaixaArquivosOrdenar, v => { ajustes.ArquivosOrdenar = (string)v; SincronizarPastas(); });
         p.BotaoTestarSoffice.Click += (_, _) => TestarSoffice();
         p.BotaoEscolherSoffice.Click += async (_, _) => await NaFilaAsync(() => TentarAsync(EscolherSofficeAsync));
         p.BotaoSofficeAutomatico.Click += (_, _) => DefinirSoffice(null);
@@ -204,6 +214,20 @@ public sealed partial class MainWindow
         AtualizarRecentes();
     }
 
+    /// <summary>Ajustes › Módulos › Arquivos do processo acompanha o Exibir da página do processo (sem gravar de novo).</summary>
+    void MostrarArquivosNosAjustes()
+    {
+        var anterior = atualizandoAjustes;
+        atualizandoAjustes = true;
+        try
+        {
+            var p = PaginaDeAjustes;
+            foreach (var (caixa, valor) in new[] { (p.CaixaArquivosExibicao, ajustes.ArquivosExibicao), (p.CaixaArquivosAgrupar, ajustes.ArquivosAgrupar), (p.CaixaArquivosOrdenar, ajustes.ArquivosOrdenar) })
+                caixa.SelectedItem = caixa.Items.OfType<ComboBoxItem>().FirstOrDefault(i => Equals(i.Tag, valor)) ?? caixa.SelectedItem;
+        }
+        finally { atualizandoAjustes = anterior; }
+    }
+
     // ---------- tema ----------
 
     /// <summary>Exibir › Tema e a página Ajustes: guarda a escolha, aplica ao app (as folhas continuam brancas) e marca o item em uso.</summary>
@@ -244,6 +268,9 @@ public sealed partial class MainWindow
             Escolher(p.CaixaAgruparDespachos, ajustes.DespachosAgrupar);
             Escolher(p.CaixaOrdemDespachos, ajustes.DespachosOrdem);
             Escolher(p.CaixaEscopo, ajustes.LegislacaoEscopo);
+            Escolher(p.CaixaArquivosExibicao, ajustes.ArquivosExibicao);
+            Escolher(p.CaixaArquivosAgrupar, ajustes.ArquivosAgrupar);
+            Escolher(p.CaixaArquivosOrdenar, ajustes.ArquivosOrdenar);
             MostrarModelosIa();
             p.AlternarJanela.IsOn = ajustes.LembrarJanela;
             p.AlternarMarcas.IsOn = ajustes.MarcasRevisao;
@@ -274,7 +301,7 @@ public sealed partial class MainWindow
         else MostrarMensagem(InfoBarSeverity.Warning, "A pasta não existe", pasta + " não foi encontrada.");
     }
 
-    // ---------- LibreOffice (Ajustes › Despachos e PDF) ----------
+    // ---------- LibreOffice (Ajustes › Módulos › Despachos e PDF) ----------
 
     /// <summary>O programa que o Novo despacho vai usar (o escolhido, se vale; senão o achado sozinho) e de onde ele veio.</summary>
     void AtualizarTextoSoffice()
@@ -342,14 +369,14 @@ public sealed partial class MainWindow
         }
     }
 
-    // ---------- Restaurar os ajustes (Ajustes › Sobre e suporte) ----------
+    // ---------- Restaurar os ajustes (Ajustes › Sistema) ----------
 
     /// <summary>Volta todas as opções ao padrão, com confirmação; não toca nas chaves de API, nas leis anexadas nem nos recentes.
     /// true = restaurou.</summary>
     internal async Task<bool> RestaurarAjustesAsync()
     {
         if (!await Perguntas.Atual.ConfirmarAsync("Restaurar os ajustes?",
-                "Todas as opções voltam ao padrão, inclusive a pasta de processos, a pasta do kit e a assinatura digital escolhida. As chaves de API, as leis anexadas e os arquivos recentes continuam como estão.",
+                "Todas as opções voltam ao padrão, inclusive a pasta de processos, a pasta do kit, o LibreOffice e a assinatura digital escolhida. Continuam como estão: chaves de API, dados do profissional, pasta QGIS, planilha de acompanhamento, logins dos sites, leis anexadas, arquivos recentes e a tabela de Modelos da análise.",
                 "Restaurar", "Cancelar")) return false;
         var tinhaSoffice = ajustes.Soffice is not null;
         ajustes.RestaurarPadrao();
@@ -371,7 +398,7 @@ public sealed partial class MainWindow
         return true;
     }
 
-    // ---------- atualizações (Ajustes › Sobre e suporte, no padrão do WinStatusBar) ----------
+    // ---------- atualizações (Ajustes › Sistema, no padrão do WinStatusBar) ----------
 
     /// <summary>Liga a seção Atualizações ao <see cref="Atualizador"/>: versão instalada, botão, estado, chave automática e "O que mudou".</summary>
     void IniciarAtualizacoes()
@@ -408,7 +435,7 @@ public sealed partial class MainWindow
         IniciarComponentesDoKit();
     }
 
-    // ---------- Plugins e ferramentas (Tarefa 21; Ajustes › Pastas e kit) ----------
+    // ---------- Plugins e ferramentas (Tarefa 21; Ajustes › Kit PMVNI) ----------
 
     /// <summary>O roteiro troca as pastas lidas (fictícias), a pasta onde o <c>.cmd</c> é gravado e o lançador (nada é aberto de verdade).</summary>
     internal OrigensDoKit? OrigensDoKitDoRoteiro { get; set; }
@@ -427,8 +454,8 @@ public sealed partial class MainWindow
         var p = PaginaDeAjustes;
         p.BotaoVerificarComponentes.Click += async (_, _) => await VerificarComponentesAsync();
         p.BotaoAtualizarTodosComponentes.Click += async (_, _) => await AtualizarComponenteAsync(null);
-        // A fonte do kit pode ser uma pasta de rede: só lê quando a página Pastas e kit é vista (e pelo botão).
-        p.CategoriaMostrada += tag => { if (tag == CategoriasAjustes.Pastas && PaginaAjustesVisivel) _ = VerificarComponentesAsync(); };
+        // A fonte do kit pode ser uma pasta de rede: só lê quando a página Kit PMVNI é vista (e pelo botão).
+        p.CategoriaMostrada += tag => { if (tag == CategoriasAjustes.Kit && PaginaAjustesVisivel) _ = VerificarComponentesAsync(); };
     }
 
     OrigensDoKit OrigensDoKitDoComputador()
@@ -726,7 +753,7 @@ public sealed partial class MainWindow
 
     Task CompararAsync() => Perguntas.Atual.InformarAsync("Comparar com o original", TextoComparacao());
 
-    // ---------- legislação (desenho §11.1): Ajustes › Legislação ----------
+    // ---------- legislação (desenho §11.1): Ajustes › Módulos › Legislação ----------
 
     SessaoLegislacao legislacao = null!;
     CancellationTokenSource? cancelarAnexo;
@@ -767,7 +794,7 @@ public sealed partial class MainWindow
         a.ExcluirPedido += async id => await SemDerrubarAsync(() => ExcluirAnexoAsync(id));
         a.CategoriaMostrada += tag =>
         {
-            if (tag == CategoriasAjustes.Legislacao && PaginaAjustesVisivel) Soltar(EntrarNaLegislacaoDosAjustesAsync);
+            if (tag == CategoriasAjustes.Modulos && PaginaAjustesVisivel) Soltar(EntrarNaLegislacaoDosAjustesAsync);
         };
     }
 

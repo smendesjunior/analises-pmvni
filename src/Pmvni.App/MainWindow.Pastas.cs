@@ -72,7 +72,7 @@ public sealed partial class MainWindow
     {
         var processos = PaginaDeProcessos;
         var despachos = PaginaDeDespachos;
-        // Ajustes › Pastas e kit › "Listas ao abrir": ordem e pastas de Processos, agrupar e ordenar Despachos (Exibir muda até fechar).
+        // Ajustes › Módulos: ordem e pastas de Processos, agrupar e ordenar Despachos (Exibir muda até fechar).
         AplicarListasDosAjustes();
         processos.FiltroAcervo.TextChanged += (_, _) =>
         {
@@ -101,6 +101,7 @@ public sealed partial class MainWindow
             ajustes.ArquivosOrdenar = processos.Exibicao.OrdenarNosAjustes;
             ajustes.ArquivosDecrescente = processos.Exibicao.Decrescente;
             SalvarAjustes();
+            MostrarArquivosNosAjustes();
         };
         despachos.ListaDespachos.SelectionChanged += (_, _) => AoEscolherDespacho();
         despachos.ListaDespachos.DoubleTapped += async (_, _) => { if (despachoEscolhido is not null) await ExecutarComandoAsync(ComandosApp.DespachosAbrir); };
@@ -191,7 +192,7 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>"Abrir Ajustes" do aviso de pasta ausente: Ajustes › Pastas e kit, onde a pasta se escolhe.</summary>
+    /// <summary>"Abrir Ajustes" do aviso de pasta ausente: Ajustes › Pastas e fontes de dados, onde a pasta se escolhe.</summary>
     Task AbrirAjustesAsync() => NaFilaAsync(() => TentarAsync(async () =>
     {
         await MudarModuloAsync(Modulo.Ajustes);

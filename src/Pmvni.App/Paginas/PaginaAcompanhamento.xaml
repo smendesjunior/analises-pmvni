@@ -2,7 +2,7 @@
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Pmvni.App">
-  <!-- Acompanhamento de processos (2026-11-17): a planilha padrão de tramitação (Ajustes › Fontes de dados) vira esta página: título,
+  <!-- Acompanhamento de processos (2026-11-17): a planilha padrão de tramitação (Ajustes › Pastas e fontes de dados) vira esta página: título,
        resumo por status com gráfico de pizza, ações, a tabela com todas as colunas da planilha e o painel do processo escolhido.
        Tudo o que muda aqui é gravado na planilha. Quem preenche e reage é a janela (MainWindow.Acompanhamento.cs). -->
   <Grid x:Name="RaizPagina" x:FieldModifier="internal" Padding="24,16,24,8" RowSpacing="12">
@@ -177,7 +177,7 @@
                       AutomationProperties.Name="Escolher planilha…" local:Dicas.Descricao="Escolhe a planilha de acompanhamento a abrir.">
                 <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Importar}" FontSize="16"/><TextBlock Text="Escolher planilha…"/></StackPanel>
               </Button>
-              <Button x:Name="BotaoAjustesVazio" x:FieldModifier="internal" AutomationProperties.Name="Abrir Ajustes" local:Dicas.Descricao="Abre Ajustes › Fontes de dados no local da planilha.">
+              <Button x:Name="BotaoAjustesVazio" x:FieldModifier="internal" AutomationProperties.Name="Abrir Ajustes" local:Dicas.Descricao="Abre Ajustes › Pastas e fontes de dados no local da planilha.">
                 <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Gerenciar}" FontSize="16"/><TextBlock Text="Abrir Ajustes"/></StackPanel>
               </Button>
             </StackPanel>

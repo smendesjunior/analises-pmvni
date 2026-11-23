@@ -7,7 +7,7 @@ using Pmvni.Imoveis;
 
 namespace Pmvni.App;
 
-/// <summary>Sistemas da Prefeitura (2026-11-17): o grupo "Sites da Prefeitura" em Ajustes › Fontes de dados (situação, login guardado, Sair) e o
+/// <summary>Sistemas da Prefeitura (2026-11-17): o grupo "Sites da Prefeitura" em Ajustes › Pastas e fontes de dados (situação, login guardado, Sair) e o
 /// "Gerar boletim cadastral" do módulo Imóveis, que roda no navegador do GPI, à vista do usuário: pesquisa a inscrição municipal da linha em
 /// Contribuintes Manutenção (Inscrição Municipal + Igual), abre a única linha exata em Consulta, confere a ficha e clica em "Boletim Cadastral".
 /// O PDF oficial abre numa janela própria (mesmo perfil do GPI), com salvar e imprimir do próprio visualizador.</summary>
@@ -23,7 +23,7 @@ public sealed partial class MainWindow
         MontarSitesNosAjustes();
     }
 
-    // ---------- Ajustes › Fontes de dados › Sites da Prefeitura ----------
+    // ---------- Ajustes › Pastas e fontes de dados › Sites da Prefeitura ----------
 
     void MontarSitesNosAjustes()
     {

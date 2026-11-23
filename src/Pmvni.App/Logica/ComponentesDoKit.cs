@@ -8,7 +8,7 @@ using Pmvni.Agentes;
 
 namespace Pmvni.App;
 
-/// <summary>Tarefa 21: a situação de um componente do kit no cartão "Plugins e ferramentas" (Ajustes › Pastas e kit).</summary>
+/// <summary>Tarefa 21: a situação de um componente do kit no cartão "Plugins e ferramentas" (Ajustes › Kit PMVNI).</summary>
 public enum SituacaoComponente { EmDia, AtualizacaoDisponivel, Ausente, ComErro, NaoVerificado, VersaoDiferente }
 
 /// <summary>De onde vem a versão instalada de um componente.</summary>

@@ -128,7 +128,6 @@ public sealed class Ajustes
     /// <summary>Por quantos dias a pasta de recuperação guarda o que não foi gravado (7, 30 ou 90).</summary>
     public int RecuperacaoDias { get; set; } = 30;
     public string ProcessosOrdem { get; set; } = "numero";
-    public bool ProcessosPastas { get; set; }
     public string DespachosAgrupar { get; set; } = "data";
     public string DespachosOrdem { get; set; } = "recentes";
     /// <summary>Os arquivos do processo em <c>lista</c> (três colunas) ou em <c>miniaturas</c> (grade com a prévia, como o Explorador).</summary>
@@ -144,7 +143,7 @@ public sealed class Ajustes
     /// <summary>Acompanhamento de processos: preencher sozinho o local e o autor do projeto vazios (relatórios, consulta QGIS, pranchas).</summary>
     public bool AcompanhamentoDetectar { get; set; } = true;
 
-    /// <summary>De onde vem o certificado da assinatura digital dos despachos (Ajustes › Despachos e PDF › Assinatura digital, 2026-11-16):
+    /// <summary>De onde vem o certificado da assinatura digital dos despachos (Ajustes › Profissional e assinatura › Assinatura digital, 2026-11-16):
     /// <c>nenhuma</c> (padrão: o PDF sai sem assinatura), <c>arquivo</c> (.pfx/.p12, em <see cref="AssinaturaArquivo"/>) ou <c>windows</c>
     /// (repositório do Windows, token ou cartão; em <see cref="AssinaturaImpressaoDigital"/>). Nenhuma senha fica aqui: a que o usuário
     /// pede para lembrar vai, cifrada, para o <c>CofreSenhaCertificado</c>.</summary>
@@ -205,11 +204,6 @@ public sealed class Ajustes
     }
     public string RotaCodex { get; set; } = "herdar";
     public bool ConfirmarCancelar { get; set; } = true;
-    /// <summary>Ajustes › Inteligência artificial › Revisão do relatório: o modelo do Codex nas perguntas curtas da revisão
-    /// ("Ajustar o item com a IA", "Rever a tabela com a IA", volumetria). Padrão: Terra 6.1 (<see cref="ModeloIaAjuste.ModeloPadrao"/>).</summary>
-    public string IaAjusteModelo { get; set; } = ModeloIaAjuste.ModeloPadrao;
-    /// <summary>O esforço de raciocínio dessas perguntas. Padrão: baixo (<see cref="ModeloIaAjuste.EsforcoPadrao"/>).</summary>
-    public string IaAjusteEsforco { get; set; } = ModeloIaAjuste.EsforcoPadrao;
     /// <summary>Ajustes › Inteligência artificial › Modelos de IA (2026-11-17): a IA da revisão e dos ajustes (<c>ia_revisao_fonte</c>):
     /// <see cref="EscolhaIa.Automatico"/> ("Escolha por mim") ou uma <see cref="FonteIa"/> (<see cref="FontesIa.Valor"/>).</summary>
     public string IaRevisaoFonte { get; set; } = EscolhaIa.Automatico;
@@ -217,7 +211,7 @@ public sealed class Ajustes
     /// o Codex herda a escolha antiga de <c>ia_ajuste_modelo</c>/<c>ia_ajuste_esforco</c>.</summary>
     public Dictionary<FonteIa, ModeloEscolhido> IaModelos { get; } = FontesIa.Todas.ToDictionary(f => f, EscolhaIa.Padrao);
     public bool ConfirmarFechar { get; set; } = true;
-    /// <summary>Ajustes › Sobre e suporte › Atualizações: procurar e instalar versões novas sozinho (a cada 15 min, pelo GitHub).</summary>
+    /// <summary>Ajustes › Sistema › Atualizações: procurar e instalar versões novas sozinho (a cada 15 min, pelo GitHub).</summary>
     public bool AtualizarAutomaticamente { get; set; } = true;
 
     /// <summary>O módulo mostrado ao abrir o editor: o lembrado (<see cref="Modulo"/>) com "Último usado", senão o escolhido.</summary>
@@ -256,7 +250,6 @@ public sealed class Ajustes
         PainelPropriedades = p.PainelPropriedades;
         RecuperacaoDias = p.RecuperacaoDias;
         ProcessosOrdem = p.ProcessosOrdem;
-        ProcessosPastas = p.ProcessosPastas;
         DespachosAgrupar = p.DespachosAgrupar;
         DespachosOrdem = p.DespachosOrdem;
         ArquivosExibicao = p.ArquivosExibicao;
@@ -273,8 +266,6 @@ public sealed class Ajustes
         PedidoPadrao = "";
         RotaCodex = p.RotaCodex;
         ConfirmarCancelar = p.ConfirmarCancelar;
-        IaAjusteModelo = p.IaAjusteModelo;
-        IaAjusteEsforco = p.IaAjusteEsforco;
         IaRevisaoFonte = p.IaRevisaoFonte;
         foreach (var f in FontesIa.Todas) IaModelos[f] = p.IaModelos[f];
         ConfirmarFechar = p.ConfirmarFechar;
@@ -293,11 +284,11 @@ public sealed class Ajustes
     /// <summary>A pasta do kit PMVNI escolhida em Ajustes (de onde os modelos de despacho são lidos, no lugar); null = a padrão.</summary>
     public string? PastaKit { get; set; }
 
-    /// <summary>A pasta dos arquivos QGIS (módulo Imóveis, 2026-11-16), escolhida em Ajustes › Fontes de dados. Sem padrão: sem escolha,
+    /// <summary>A pasta dos arquivos QGIS (módulo Imóveis, 2026-11-16), escolhida em Ajustes › Pastas e fontes de dados. Sem padrão: sem escolha,
     /// a consulta pede a configuração (nunca procura pastas sozinha).</summary>
     public string? PastaQgis { get; set; }
 
-    /// <summary>A planilha de acompanhamento de processos (.xlsx no modelo padrão, 2026-11-17), escolhida em Ajustes › Fontes de dados ou
+    /// <summary>A planilha de acompanhamento de processos (.xlsx no modelo padrão, 2026-11-17), escolhida em Ajustes › Pastas e fontes de dados ou
     /// pelo "Importar planilha" do módulo. Tudo o que muda no app é gravado nela.</summary>
     public string? PlanilhaAcompanhamento { get; set; }
 
@@ -465,7 +456,6 @@ public sealed class Ajustes
             ["paineis"] = new JsonObject { ["lateral"] = PainelLateral, ["propriedades"] = PainelPropriedades },
             ["recuperacao_dias"] = RecuperacaoDias,
             ["processos_ordem"] = ProcessosOrdem,
-            ["processos_pastas"] = ProcessosPastas,
             ["despachos_agrupar"] = DespachosAgrupar,
             ["despachos_ordem"] = DespachosOrdem,
             ["arquivos_exibicao"] = ArquivosExibicao,
@@ -490,8 +480,6 @@ public sealed class Ajustes
             ["pedido_padrao"] = PedidoPadrao,
             ["rota_codex"] = RotaCodex,
             ["confirmar_cancelar"] = ConfirmarCancelar,
-            ["ia_ajuste_modelo"] = IaAjusteModelo,
-            ["ia_ajuste_esforco"] = IaAjusteEsforco,
             // Modelos de IA: só o nome do modelo e o nível de cada fonte. Nenhuma chave nem token vem para este arquivo.
             ["ia_revisao_fonte"] = IaRevisaoFonte,
             ["ia_modelos"] = new JsonObject(IaModelos.OrderBy(p => p.Key).Select(p => KeyValuePair.Create(FontesIa.Valor(p.Key),
@@ -558,7 +546,6 @@ public sealed class Ajustes
         }
         if (Inteiro(j, "recuperacao_dias") is { } dias && OpcoesRecuperacaoDias.Contains(dias)) a.RecuperacaoDias = dias;
         a.ProcessosOrdem = Escolha("processos_ordem", OpcoesProcessosOrdem, a.ProcessosOrdem);
-        a.ProcessosPastas = Logico(j, "processos_pastas", a.ProcessosPastas);
         a.DespachosAgrupar = Escolha("despachos_agrupar", OpcoesDespachosAgrupar, a.DespachosAgrupar);
         a.DespachosOrdem = Escolha("despachos_ordem", OpcoesDespachosOrdem, a.DespachosOrdem);
         a.ArquivosExibicao = Escolha("arquivos_exibicao", OpcoesArquivosExibicao, a.ArquivosExibicao);
@@ -581,17 +568,18 @@ public sealed class Ajustes
         a.PedidoPadrao = Texto(j, "pedido_padrao") ?? "";
         a.RotaCodex = Escolha("rota_codex", ["herdar", "openai", "codex-lb"], a.RotaCodex);
         a.ConfirmarCancelar = Logico(j, "confirmar_cancelar", a.ConfirmarCancelar);
-        a.IaAjusteModelo = Escolha("ia_ajuste_modelo", ModeloIaAjuste.Modelos.Select(m => m.Valor).ToList(), a.IaAjusteModelo);
-        a.IaAjusteEsforco = Escolha("ia_ajuste_esforco", ModeloIaAjuste.Esforcos.Select(e => e.Valor).ToList(), a.IaAjusteEsforco);
+        // ia_ajuste_modelo/ia_ajuste_esforco (antes de 2026-11-17): só lidos, para migrar o Codex para ia_modelos; não são mais gravados.
+        var antigoModelo = Escolha("ia_ajuste_modelo", ModeloIaAjuste.Modelos.Select(m => m.Valor).ToList(), ModeloIaAjuste.ModeloPadrao);
+        var antigoEsforco = Escolha("ia_ajuste_esforco", ModeloIaAjuste.Esforcos.Select(e => e.Valor).ToList(), ModeloIaAjuste.EsforcoPadrao);
         a.IaRevisaoFonte = Escolha("ia_revisao_fonte", EscolhaIa.Opcoes, a.IaRevisaoFonte);
-        LerModelosIa(j, a);
+        LerModelosIa(j, a, antigoModelo, antigoEsforco);
         a.ConfirmarFechar = Logico(j, "confirmar_fechar", a.ConfirmarFechar);
         a.AtualizarAutomaticamente = Logico(j, "atualizar_automaticamente", a.AtualizarAutomaticamente);
     }
 
     /// <summary><c>ia_modelos</c>: {"codex":{"modelo","nivel"},…}. Modelo ou nível inválido fica vazio (o padrão do app); sem a chave
     /// (arquivo de antes da 0.5), o Codex vem da escolha antiga (<see cref="EscolhaIa.Migrar"/>) e o resto fica no padrão.</summary>
-    static void LerModelosIa(JsonObject j, Ajustes a)
+    static void LerModelosIa(JsonObject j, Ajustes a, string antigoModelo, string antigoEsforco)
     {
         var codexGuardado = false;
         if (j["ia_modelos"] is JsonObject modelos)
@@ -604,7 +592,7 @@ public sealed class Ajustes
                     codexGuardado |= f == FonteIa.Codex;
                 }
         if (!codexGuardado && (j.ContainsKey("ia_ajuste_modelo") || j.ContainsKey("ia_ajuste_esforco")))
-            a.IaModelos[FonteIa.Codex] = EscolhaIa.Migrar(a.IaAjusteModelo, a.IaAjusteEsforco);
+            a.IaModelos[FonteIa.Codex] = EscolhaIa.Migrar(antigoModelo, antigoEsforco);
     }
 
     static int? Inteiro(JsonObject j, string nome) => j[nome] is JsonValue v && v.TryGetValue<int>(out var i) ? i : null;

@@ -17,7 +17,7 @@ using Celula = Pmvni.Acompanhamento.Celula;
 
 namespace Pmvni.App;
 
-/// <summary>Módulo Acompanhamento de processos (2026-11-17): a planilha padrão (Ajustes › Fontes de dados) é lida fora da thread da janela e
+/// <summary>Módulo Acompanhamento de processos (2026-11-17): a planilha padrão (Ajustes › Pastas e fontes de dados) é lida fora da thread da janela e
 /// mostrada com todas as colunas, as listas e as cores da formatação condicional dela; o cabeçalho tem o resumo por status (clicar filtra)
 /// e o gráfico de barras do andamento. Tudo o que muda aqui (novo, edição, status, exclusão, local e autor detectados) é gravado na
 /// planilha, mexendo só nas células alteradas, com uma cópia de segurança antes. Mudou no Excel: a página relê sozinha.</summary>
@@ -154,7 +154,7 @@ public sealed partial class MainWindow
         manipuladores[ComandosApp.AcompanhamentoDetectar] = () => DetectarLocalEAutorAsync(manual: true);
         manipuladores[ComandosApp.AcompanhamentoConfigurar] = ConfigurarPlanilhaAsync;
 
-        // Ajustes › Fontes de dados
+        // Ajustes › Pastas e fontes de dados
         var a = PaginaDeAjustes;
         a.BotaoEscolherPlanilha.Click += async (_, _) => await EscolherPlanilhaAsync(depoisAbrir: false);
         a.BotaoVerificarPlanilha.Click += async (_, _) => await VerificarPlanilhaAsync();
@@ -172,7 +172,7 @@ public sealed partial class MainWindow
         if (janelaAtiva && pendentesPlanilha.Count > 0) tentarPendentes?.Start();
         if (string.IsNullOrWhiteSpace(ajustes.PlanilhaAcompanhamento))
         {
-            MostrarVazioAcompanhamento("Escolha a planilha de acompanhamento de processos (o .xlsx no modelo padrão). Ela também pode ser escolhida em Ajustes › Fontes de dados.");
+            MostrarVazioAcompanhamento("Escolha a planilha de acompanhamento de processos (o .xlsx no modelo padrão). Ela também pode ser escolhida em Ajustes › Pastas e fontes de dados.");
             return;
         }
         if (vigiaPlanilha is null || planilha is null || !string.Equals(planilha.Caminho, ajustes.PlanilhaAcompanhamento, StringComparison.OrdinalIgnoreCase)) await CarregarPlanilhaAsync();
@@ -1132,7 +1132,7 @@ public sealed partial class MainWindow
         Faixa.Habilitar(ComandosApp.AcompanhamentoExcluir, lida && linhaEscolhida is not null);
         Faixa.Habilitar(ComandosApp.AcompanhamentoDetectar, lida && !string.IsNullOrWhiteSpace(ajustes.PastaProcessos));
         Faixa.DefinirDica(ComandosApp.AcompanhamentoDetectar, !lida ? "Escolha a planilha de acompanhamento primeiro."
-            : string.IsNullOrWhiteSpace(ajustes.PastaProcessos) ? "Indisponível: escolha a pasta de processos em Ajustes › Pastas e kit."
+            : string.IsNullOrWhiteSpace(ajustes.PastaProcessos) ? "Indisponível: escolha a pasta de processos em Ajustes › Pastas e fontes de dados."
             : "Preenche o Local e o Profissional vazios a partir dos relatórios, da consulta QGIS e das pranchas.");
         Faixa.Habilitar(ComandosApp.AcompanhamentoRecarregar, tem);
         Faixa.Habilitar(ComandosApp.AcompanhamentoAbrirExcel, tem);
@@ -1563,7 +1563,7 @@ public sealed partial class MainWindow
     async Task ConfigurarPlanilhaAsync()
     {
         await MudarModuloAsync(Modulo.Ajustes);
-        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.FontesDados);
+        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Pastas);
     }
 
     async Task ImportarPlanilhaAsync() => await EscolherPlanilhaAsync(depoisAbrir: true);
@@ -1722,7 +1722,7 @@ public sealed partial class MainWindow
         if (l is null) return;
         if (string.IsNullOrWhiteSpace(ajustes.PastaProcessos))
         {
-            MostrarAvisoAcompanhamento(InfoBarSeverity.Warning, "Sem pasta de processos", "Escolha a pasta de processos em Ajustes › Pastas e kit.");
+            MostrarAvisoAcompanhamento(InfoBarSeverity.Warning, "Sem pasta de processos", "Escolha a pasta de processos em Ajustes › Pastas e fontes de dados.");
             return;
         }
         var na = NumeroAno(l.Processo);
@@ -1742,7 +1742,7 @@ public sealed partial class MainWindow
         if (colLocal is null && colAutor is null) return;
         if (string.IsNullOrWhiteSpace(ajustes.PastaProcessos))
         {
-            if (manual) MostrarAvisoAcompanhamento(InfoBarSeverity.Warning, "Sem pasta de processos", "Para achar local e autor, escolha a pasta de processos em Ajustes › Pastas e kit.");
+            if (manual) MostrarAvisoAcompanhamento(InfoBarSeverity.Warning, "Sem pasta de processos", "Para achar local e autor, escolha a pasta de processos em Ajustes › Pastas e fontes de dados.");
             return;
         }
         var alvos = p.Linhas.Where(l => so is null || string.Equals(l.ProcessoNormalizado, so, StringComparison.OrdinalIgnoreCase))

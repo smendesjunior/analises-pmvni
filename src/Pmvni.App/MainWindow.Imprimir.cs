@@ -120,7 +120,7 @@ public sealed partial class MainWindow
         var origem = await Task.Run(() => legislacao.Acervo.CaminhoPdf(lei.Id));
         if (origem is null)
         {
-            MostrarMensagem(InfoBarSeverity.Warning, "A lei não foi impressa", "A cópia do PDF desta lei não está mais no acervo. Anexe a lei de novo em Ajustes › Legislação.");
+            MostrarMensagem(InfoBarSeverity.Warning, "A lei não foi impressa", "A cópia do PDF desta lei não está mais no acervo. Anexe a lei de novo em Ajustes › Módulos › Legislação.");
             return;
         }
         var pasta = NovaPastaDeImpressao();

@@ -3,7 +3,7 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:controls="using:Microsoft.UI.Xaml.Controls"
   xmlns:local="using:Pmvni.App">
-  <!-- Módulo Imóveis (2026-11-16): consulta à base QGIS escolhida em Ajustes › Fontes de dados. A pesquisa é uma linha só (Parâmetro ›
+  <!-- Módulo Imóveis (2026-11-16): consulta à base QGIS escolhida em Ajustes › Pastas e fontes de dados. A pesquisa é uma linha só (Parâmetro ›
        Condição › valor digitável › lupa); cada resultado tem "Abrir relatório", que mostra o relatório cadastral e territorial (HTML A4)
        num WebView2 desta página. A pesquisa e os resultados ficam como estavam ao voltar. Quem preenche é a janela (MainWindow.Imoveis.cs). -->
   <Grid>
@@ -27,7 +27,7 @@
             <TextBlock Text="Localize inscrições municipais, consulte a situação cadastral e acesse os dados geográficos." TextWrapping="Wrap" Style="{StaticResource PmvniSecondaryTextStyle}"/>
           </StackPanel>
         </Grid>
-        <Button x:Name="BotaoConfigurar" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="Configurar pasta QGIS" local:Dicas.Descricao="Abre Ajustes › Fontes de dados para escolher a pasta dos arquivos QGIS.">
+        <Button x:Name="BotaoConfigurar" x:FieldModifier="internal" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="Configurar pasta QGIS" local:Dicas.Descricao="Abre Ajustes › Pastas e fontes de dados para escolher a pasta dos arquivos QGIS.">
           <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Gerenciar}" FontSize="16"/><TextBlock Text="Configurar pasta QGIS"/></StackPanel>
         </Button>
       </Grid>
@@ -84,7 +84,7 @@
           <FontIcon Glyph="{x:Bind local:Glifos.Mapa}" FontSize="64" Style="{StaticResource PmvniIconeSecundarioStyle}" HorizontalAlignment="Center" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw"/>
           <TextBlock x:Name="TextoVazio" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" TextAlignment="Center"/>
           <Button x:Name="BotaoConfigurarVazio" x:FieldModifier="internal" HorizontalAlignment="Center" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
-                  AutomationProperties.Name="Configurar pasta QGIS" local:Dicas.Descricao="Abre Ajustes › Fontes de dados para escolher a pasta dos arquivos QGIS.">
+                  AutomationProperties.Name="Configurar pasta QGIS" local:Dicas.Descricao="Abre Ajustes › Pastas e fontes de dados para escolher a pasta dos arquivos QGIS.">
             <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Gerenciar}" FontSize="16"/><TextBlock Text="Configurar pasta QGIS"/></StackPanel>
           </Button>
         </StackPanel>

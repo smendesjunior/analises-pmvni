@@ -322,7 +322,7 @@ public static class Faixas
     }
 }
 
-/// <summary>Os nomes dos temas, iguais em Exibir › Tema e em Ajustes › Aparência (o termo do WinStatusBar, auditoria B4).</summary>
+/// <summary>Os nomes dos temas, iguais em Exibir › Tema e em Ajustes › Geral › Aparência (o termo do WinStatusBar, auditoria B4).</summary>
 public static class TextosTema
 {
     public const string Sistema = "Acompanhar o Windows";

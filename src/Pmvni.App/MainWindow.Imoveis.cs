@@ -9,7 +9,7 @@ using Pmvni.Revisao;
 
 namespace Pmvni.App;
 
-/// <summary>Módulo Imóveis (2026-11-16): a base QGIS da pasta escolhida em Ajustes › Fontes de dados é lida uma vez, fora da thread da
+/// <summary>Módulo Imóveis (2026-11-16): a base QGIS da pasta escolhida em Ajustes › Pastas e fontes de dados é lida uma vez, fora da thread da
 /// janela (cadastro SQLite e camadas), e fica na memória até a pasta mudar ou o usuário pedir "Ler a base de novo". A pesquisa é em memória;
 /// "Abrir relatório" monta a análise territorial e o relatório HTML, mostrado no WebView2 da página (o mesmo ambiente InPrivate do app),
 /// com Salvar PDF e Imprimir. Nada é gravado na pasta QGIS.</summary>
@@ -80,7 +80,7 @@ public sealed partial class MainWindow
         manipuladores[ComandosApp.ImoveisSalvarPdf] = SalvarPdfDoImovelAsync;
         manipuladores[ComandosApp.ImoveisImprimir] = () => { CoreImoveis?.ShowPrintUI(CoreWebView2PrintDialogKind.Browser); return Task.CompletedTask; };
 
-        // Ajustes › Fontes de dados
+        // Ajustes › Pastas e fontes de dados
         var a = PaginaDeAjustes;
         a.BotaoEscolherQgis.Click += async (_, _) => await EscolherPastaQgisAsync();
         a.BotaoVerificarQgis.Click += async (_, _) => await VerificarPastaQgisAsync();
@@ -114,7 +114,7 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(I.TextoPasta, pasta);
         if (string.IsNullOrWhiteSpace(pasta))
         {
-            MostrarVazioImoveis("Escolha a pasta dos arquivos QGIS em Ajustes › Fontes de dados para começar a pesquisar.", configurar: true);
+            MostrarVazioImoveis("Escolha a pasta dos arquivos QGIS em Ajustes › Pastas e fontes de dados para começar a pesquisar.", configurar: true);
             return;
         }
         if (baseImoveis is not null) { MostrarResultadosOuVazio(); return; }
@@ -151,7 +151,7 @@ public sealed partial class MainWindow
             catch (Exception e)
             {
                 RegistroErros.Gravar("imoveis.carregar", e);
-                MostrarAvisoImoveis(InfoBarSeverity.Error, "A base QGIS não abriu", e.Message + " Confira a pasta em Ajustes › Fontes de dados e use Ler a base de novo.");
+                MostrarAvisoImoveis(InfoBarSeverity.Error, "A base QGIS não abriu", e.Message + " Confira a pasta em Ajustes › Pastas e fontes de dados e use Ler a base de novo.");
                 MostrarVazioImoveis("A base QGIS não pôde ser lida.", configurar: true);
                 I.TextoContagem.Text = "";
                 return null;
@@ -515,12 +515,12 @@ public sealed partial class MainWindow
         Faixa.Habilitar(ComandosApp.ImoveisConfigurar, true);
     }
 
-    // ---------- Ajustes › Fontes de dados ----------
+    // ---------- Ajustes › Pastas e fontes de dados ----------
 
     async Task ConfigurarPastaQgisAsync()
     {
         await MudarModuloAsync(Modulo.Ajustes);
-        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.FontesDados);
+        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Pastas);
     }
 
     void AtualizarAjustesQgis()

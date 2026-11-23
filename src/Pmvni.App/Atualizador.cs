@@ -16,7 +16,7 @@ internal sealed record EstadoAtualizacao(EtapaAtualizacao Etapa, string Texto, s
 /// Atualização automática do editor (no padrão do <c>AppUpdater</c> do WinStatusBar): consulta a Release mais recente do GitHub
 /// (<see cref="RegrasAtualizacao.UrlManifesto"/>), baixa o executável novo para <c>&lt;dados&gt;\atualizacoes</c>, confere tamanho e SHA-256 e
 /// troca o .exe em uso (<see cref="RegrasAtualizacao.TrocarExecutavel"/>). Nada é instalado e nada pede administrador: a versão nova vale ao
-/// abrir o editor de novo ("Reiniciar agora" em Ajustes › Sobre e suporte). Uma consulta por vez; o estado vai para a página por
+/// abrir o editor de novo ("Reiniciar agora" em Ajustes › Sistema). Uma consulta por vez; o estado vai para a página por
 /// <see cref="EstadoMudou"/>. Compilações de desenvolvimento (sem carimbo) e o autoteste não se atualizam.
 /// </summary>
 internal static class Atualizador
@@ -50,7 +50,7 @@ internal static class Atualizador
     public static EstadoAtualizacao? UltimoEstado { get; private set; }
     public static event Action<EstadoAtualizacao>? EstadoMudou;
 
-    /// <summary>A consulta automática vale (Ajustes › Sobre e suporte › "Atualizar automaticamente"); lido a cada volta.</summary>
+    /// <summary>A consulta automática vale (Ajustes › Sistema › "Atualizar automaticamente"); lido a cada volta.</summary>
     public static Func<bool> AutomaticaLigada { get; set; } = () => true;
 
     static readonly HttpClient Http = CriarCliente();

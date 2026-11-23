@@ -13,7 +13,7 @@ public sealed record AvisoLayout(TipoAvisoLayout Tipo, string Texto, int? Folha)
 
 /// <summary>Indicador de layout (auditoria da interface, A2): os avisos que antes eram faixas empilhadas sobre as folhas viram uma lista só,
 /// resumida no rodapé ("2 avisos de layout", "1 bloqueio"). Sem tipos WinUI: compilado também nos testes. Nenhum aviso some: a lista tem
-/// todos, e "Faixas no topo" (Ajustes › Aparência) volta ao jeito antigo.</summary>
+/// todos, e "Faixas no topo" (Ajustes › Geral › Aparência) volta ao jeito antigo.</summary>
 public static class AvisosLayout
 {
     /// <summary>Onde os avisos aparecem: <c>indicador</c> (rodapé, padrão) ou <c>faixas</c> (InfoBars sobre as folhas).</summary>

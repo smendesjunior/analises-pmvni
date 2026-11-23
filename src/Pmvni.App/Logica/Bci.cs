@@ -32,7 +32,7 @@ public static class ChaveBci
     public static string Texto(ResultadoBci r) => r.Estado switch
     {
         EstadoBci.Aberto => "Boletim cadastral gerado" + (r.Ano is { Length: > 0 } a ? " (ano " + a + ")" : "") + ".",
-        EstadoBci.LoginNecessario => "O GPI pediu login. Entre pelo GPI na barra lateral (ou guarde o login em Ajustes › Fontes de dados) e clique de novo.",
+        EstadoBci.LoginNecessario => "O GPI pediu login. Entre pelo GPI na barra lateral (ou guarde o login em Ajustes › Pastas e fontes de dados) e clique de novo.",
         EstadoBci.Ocupado => "Já há um boletim sendo gerado. Aguarde terminar.",
         EstadoBci.NaoEncontrado => "A inscrição não foi encontrada no GPI.",
         EstadoBci.Ambiguo => "Há mais de um cadastro imobiliário para esta inscrição. Confira no GPI.",

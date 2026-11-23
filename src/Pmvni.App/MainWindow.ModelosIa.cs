@@ -97,10 +97,11 @@ public sealed partial class MainWindow
         // A entrada na categoria e o botão "Atualizar lista" já atualizam o catálogo; sem relógio em segundo plano.
         p.CategoriaMostrada += async tag =>
         {
-            if (tag != CategoriasAjustes.Modelos) return;
+            // A IA da revisão fica em Inteligência artificial; o botão "Atualizar lista", em Modelos da análise: as duas leem o catálogo.
+            if (tag is not (CategoriasAjustes.Modelos or CategoriasAjustes.Ia)) return;
             try { await tarefaDosAgentes; } catch (Exception e) { System.Diagnostics.Debug.WriteLine("[modelos] " + e.Message); }
             MostrarModelosIa();
-            if (PaginaAjustesVisivel && p.CategoriaAtual == CategoriasAjustes.Modelos) await AtualizarModelosIaAsync();
+            if (PaginaAjustesVisivel && p.CategoriaAtual == tag) await AtualizarModelosIaAsync();
         };
     }
 

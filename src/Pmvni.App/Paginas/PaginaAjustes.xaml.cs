@@ -16,14 +16,16 @@ public sealed partial class PaginaAjustes : UserControl
     public PaginaAjustes()
     {
         InitializeComponent();
-        // O menu sai de CategoriasAjustes.Menu (a ordem é testada); "Sobre e suporte" vai para o rodapé, como no WinStatusBar.
+        // O menu sai de CategoriasAjustes.Menu (a ordem é testada); "Sistema" vai para o rodapé, como no WinStatusBar.
         foreach (var pagina in Paginas.Children.OfType<StackPanel>())
             categorias.Add((string)pagina.Tag, pagina);
         foreach (var c in CategoriasAjustes.Menu)
         {
             var item = new NavigationViewItem { Content = c.Titulo, Tag = c.Tag, Icon = new FontIcon { Glyph = c.Glifo } };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, c.Titulo);
-            (c.Rodape ? Menu.FooterMenuItems : Menu.MenuItems).Add(item);
+            // Uma subpágina (Modelos da análise) fica dentro da categoria-mãe, aberta (sem esconder a opção atrás de um clique).
+            if (c.Pai is { } pai && itensMenu.TryGetValue(pai, out var mae)) { mae.MenuItems.Add(item); mae.IsExpanded = true; }
+            else (c.Rodape ? Menu.FooterMenuItems : Menu.MenuItems).Add(item);
             itensMenu[c.Tag] = item;
         }
         Menu.SelectedItem = itensMenu[CategoriasAjustes.Geral];
@@ -34,11 +36,20 @@ public sealed partial class PaginaAjustes : UserControl
     /// <summary>A categoria à vista (a etiqueta de <see cref="CategoriasAjustes"/>).</summary>
     public string CategoriaAtual { get; private set; } = CategoriasAjustes.Geral;
 
-    /// <summary>Os títulos do menu, na ordem (o roteiro confere as 8 categorias).</summary>
+    /// <summary>Os títulos do menu, na ordem, com as subpáginas logo depois da mãe (o roteiro confere as categorias).</summary>
     public IReadOnlyList<string> TitulosDoMenu =>
-        Menu.MenuItems.Concat(Menu.FooterMenuItems).OfType<NavigationViewItem>().Select(i => (string)i.Content).ToList();
+        Menu.MenuItems.Concat(Menu.FooterMenuItems).OfType<NavigationViewItem>()
+            .SelectMany(i => new[] { i }.Concat(i.MenuItems.OfType<NavigationViewItem>())).Select(i => (string)i.Content).ToList();
 
-    /// <summary>Mostra a categoria (pelo menu ou por "Gerenciar anexos", que abre Legislação).</summary>
+    /// <summary>Mostra a categoria e rola até uma seção dela (por exemplo, as leis anexadas dentro de Módulos).</summary>
+    public void MostrarSecao(string tag, FrameworkElement secao)
+    {
+        MostrarCategoria(tag);
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+            () => secao.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.0, AnimationDesired = false }));
+    }
+
+    /// <summary>Mostra a categoria (pelo menu, pela pesquisa ou pelos botões "Abrir Ajustes" dos módulos).</summary>
     public void MostrarCategoria(string tag)
     {
         var c = CategoriasAjustes.De(tag).Tag;

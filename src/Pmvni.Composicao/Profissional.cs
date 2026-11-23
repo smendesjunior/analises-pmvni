@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Pmvni.Composicao;
 
 /// <summary>Os dados do profissional que assina despachos e relatórios (2026-11-17, pedido do usuário: "ela é individual de cada profissional";
-/// Ajustes › Despachos e PDF › Profissional responsável). Campo vazio sai em branco (nunca o texto do modelo).</summary>
+/// Ajustes › Profissional e assinatura › Profissional responsável). Campo vazio sai em branco (nunca o texto do modelo).</summary>
 public sealed record Profissional(string? Nome, string? Profissao, string? Registro, string? Matricula)
 {
     /// <summary>Os dados em uso neste computador (o app define ao abrir e ao mudar os ajustes); null = os modelos ficam como estão.</summary>

@@ -6,7 +6,7 @@ namespace Pmvni.App;
 /// <summary>O tipo da norma (botões da lista e selo do cartão).</summary>
 public enum TipoNorma { Lei, Decreto, LeiComplementar, NormaTecnica, Outro }
 
-/// <summary>Uma linha da lista de leis anexadas (Ajustes › Legislação e o módulo Legislação): um anexo, com os textos já prontos.</summary>
+/// <summary>Uma linha da lista de leis anexadas (Ajustes › Módulos › Legislação e o módulo Legislação): um anexo, com os textos já prontos.</summary>
 public sealed record LinhaAnexo(string Id, string Titulo, Esfera Esfera, string Arquivo, string Tamanho, string Paginas, string AnexadoEm, string? Selo)
 {
     /// <summary>A linha de detalhes: "&lt;arquivo&gt; · &lt;tamanho&gt; · &lt;páginas&gt; · &lt;anexado em&gt;".</summary>

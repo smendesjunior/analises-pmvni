@@ -326,7 +326,7 @@ public sealed partial class MainWindow
             // Leitura padronizada (correções 2026-11-15); vindo de uma pesquisa (página/termo), fica no PDF original.
             await MostrarLeituraPadronizadaAsync(anexo);
             if ((pagina is not null || termo is not null) && leituraPadronizadaLigada) P.ModoLeitura.SelectedItem = P.ModoPdf;
-            // Ajustes › Legislação › "Pesquisar em": o alvo da pesquisa ao abrir uma lei (padrão "Nesta lei", como sempre foi).
+            // Ajustes › Módulos › Legislação › "Pesquisar em": o alvo da pesquisa ao abrir uma lei (padrão "Nesta lei", como sempre foi).
             escopoTodas = ajustes.LegislacaoEscopo == "todas";
             AtualizarDicaDaPesquisaLegislacao();
             if (termo is not null)
@@ -577,13 +577,12 @@ public sealed partial class MainWindow
         if (Citacao.De(s.Texto, lei.Titulo, pi, pf) is { } citacao) AreaTransferencia.Copiar(citacao);
     }
 
-    /// <summary>Gerenciar anexos (e "Abrir Ajustes" da lista vazia): Ajustes › Legislação.</summary>
+    /// <summary>Gerenciar anexos (e "Abrir Ajustes" da lista vazia): Ajustes › Módulos › Legislação.</summary>
     async Task GerenciarAnexosAsync()
     {
         await MudarModuloAsync(Modulo.Ajustes);
-        // "Gerenciar anexos" abre Ajustes › Legislação (auditoria §3.2).
-        PaginaDeAjustes.MostrarCategoria(CategoriasAjustes.Legislacao);
-        PaginaDeAjustes.SecaoLegislacao.StartBringIntoView();
+        // "Gerenciar anexos" abre Ajustes › Módulos › Legislação (auditoria §3.2).
+        PaginaDeAjustes.MostrarSecao(CategoriasAjustes.Modulos, PaginaDeAjustes.SecaoLegislacao);
     }
 
     /// <summary>O estado que decide os comandos da Legislação (o roteiro o grava quando uma conferência falha).</summary>

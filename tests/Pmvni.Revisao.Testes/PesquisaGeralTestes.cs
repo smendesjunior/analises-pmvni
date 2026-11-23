@@ -10,9 +10,9 @@ public class PesquisaGeralTestes
 {
     static readonly OpcaoAjusteTela[] OpcoesFicticias =
     [
-        new(CategoriasAjustes.Aparencia, "", "Janela", "", EhGrupo: true),
-        new(CategoriasAjustes.Aparencia, "Janela", "Tema", "Muda só a janela do editor."),
-        new(CategoriasAjustes.FontesDados, "Base QGIS", "Pasta dos arquivos QGIS", "A pasta com os arquivos da base."),
+        new(CategoriasAjustes.Geral, "", "Aparência", "", EhGrupo: true),
+        new(CategoriasAjustes.Geral, "Aparência", "Tema", "Muda só a janela do editor."),
+        new(CategoriasAjustes.Pastas, "Base QGIS", "Pasta dos arquivos QGIS", "A pasta com os arquivos da base."),
         new(CategoriasAjustes.Relatorios, "Gravação", "Salvamento automático", "O relatório é gravado sozinho."),
     ];
 
@@ -61,9 +61,9 @@ public class PesquisaGeralTestes
         Assert.Equal("Configurações", grupos[0].Nome);
         var primeiro = grupos[0].Itens[0];
         Assert.Equal("Tema", primeiro.Titulo);
-        Assert.Equal("Ajustes › Aparência › Janela", primeiro.Onde);
+        Assert.Equal("Ajustes › Geral › Aparência", primeiro.Onde);
         var opcao = Assert.IsType<OpcaoAjusteTela>(primeiro.Dado);
-        Assert.Equal(CategoriasAjustes.Aparencia, opcao.Categoria);
+        Assert.Equal(CategoriasAjustes.Geral, opcao.Categoria);
         // Os itens do menu Exibir › Tema também aparecem, como funções.
         Assert.Contains(grupos.Single(g => g.Nome == "Funções").Itens, i => i.Titulo.StartsWith("Tema › ", StringComparison.Ordinal));
     }
@@ -74,10 +74,12 @@ public class PesquisaGeralTestes
         var itens = PesquisaGeral.Ajustes([]);
         Assert.Equal(CategoriasAjustes.Menu.Count, itens.Count);
         var fontes = Achados("fontes de dados", itens).First();
-        Assert.Equal("Fontes de dados", fontes.Titulo);
+        Assert.Equal("Pastas e fontes de dados", fontes.Titulo);
         Assert.Equal("Ajustes", fontes.Onde);
-        // A frase de ajuda também casa ("planilha" está na ajuda de Fontes de dados).
-        Assert.Contains(Achados("planilha", itens), i => i.Titulo == "Fontes de dados");
+        // A frase de ajuda também casa ("planilha" está na ajuda de Pastas e fontes de dados).
+        Assert.Contains(Achados("planilha", itens), i => i.Titulo == "Pastas e fontes de dados");
+        // A subpágina mostra a categoria-mãe.
+        Assert.Equal("Ajustes › Inteligência artificial", itens.Single(i => i.Titulo == "Modelos da análise").Onde);
     }
 
     [Fact]

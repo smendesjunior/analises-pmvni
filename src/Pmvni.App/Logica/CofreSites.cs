@@ -16,7 +16,7 @@ public sealed record CredencialSite(string Usuario, string Senha);
 /// (1) os cookies de cada site, gravados a cada página carregada e devolvidos ao abrir o app — inclusive os "de sessão", que o navegador
 /// jogaria fora ao fechar; (2) o app mantém a sessão viva enquanto está aberto (<see cref="PaginaSites"/>); (3) opcionalmente, usuário e senha
 /// para entrar sozinho se o servidor mesmo assim encerrar a sessão. Nada disso vai para ajustes.json, log, receita ou o guardado do Recriar PC.
-/// "Sair" (Ajustes › Fontes de dados) apaga as três coisas do site.</summary>
+/// "Sair" (Ajustes › Pastas e fontes de dados) apaga as três coisas do site.</summary>
 public static class CofreSites
 {
     static readonly byte[] Entropia = Encoding.UTF8.GetBytes("PMVNI-Editor-Sites-v1");

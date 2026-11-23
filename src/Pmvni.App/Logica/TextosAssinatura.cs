@@ -5,14 +5,14 @@ namespace Pmvni.App;
 /// <summary>A senha digitada na caixa de senha do certificado e se é para lembrá-la neste computador.</summary>
 public sealed record RespostaSenha(string Senha, bool Lembrar);
 
-/// <summary>Os textos da assinatura digital dos despachos (2026-11-16) em Ajustes › Despachos e PDF e na conferência, sem tipos WinUI
+/// <summary>Os textos da assinatura digital dos despachos (2026-11-16) em Ajustes › Profissional e assinatura e na conferência, sem tipos WinUI
 /// (compilado também nos testes). Nenhum deles leva senha.</summary>
 public static class TextosAssinatura
 {
     public const string SemCertificado = "Nenhum certificado escolhido: os despachos saem sem assinatura digital.";
 
     /// <summary>O aviso discreto da conferência quando não há certificado configurado.</summary>
-    public const string ConferenciaSemAssinatura = "Sem assinatura digital (escolha o certificado em Ajustes › Despachos e PDF)";
+    public const string ConferenciaSemAssinatura = "Sem assinatura digital (escolha o certificado em Ajustes › Profissional e assinatura)";
 
     public const string SenhaNaoInformada = "A senha do certificado não foi informada; o despacho não foi gerado.";
 

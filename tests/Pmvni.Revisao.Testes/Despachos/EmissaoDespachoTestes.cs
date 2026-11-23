@@ -587,7 +587,7 @@ public sealed class LocalizarLibreOfficeTestes
     [Fact]
     public void programa_escolhido_em_ajustes_vale_se_for_o_soffice_e_existir()
     {
-        // Ajustes › Despachos e PDF › LibreOffice: "Escolher…" guarda o caminho; "Automático" (null) acha sozinho, como antes.
+        // Ajustes › Módulos › Despachos e PDF › LibreOffice: "Escolher…" guarda o caminho; "Automático" (null) acha sozinho, como antes.
         using var pasta = Ambiente.PastaDeTeste("soffice-escolhido");
         var exe = Path.Combine(pasta, "soffice.exe");
         File.WriteAllText(exe, "ficticio");

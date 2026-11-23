@@ -1454,7 +1454,7 @@ internal static class Roteiro
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "27-janela-xaml-claro.png"));
             await CapturarXamlAsync(j.TrilhoAtual, Path.Combine(pasta, "27-trilho-claro.png"));
 
-            // Pela página Ajustes › Aparência › Tema (a caixa de escolha, como o usuário) e de volta ao sistema.
+            // Pela página Ajustes › Geral › Aparência › Tema (a caixa de escolha, como o usuário) e de volta ao sistema.
             j.AjustesPagina.CaixaTema.SelectedIndex = Ajustes.Temas.ToList().IndexOf("escuro");
             var pelaPagina = j.TemaAtual == ElementTheme.Dark && Guardado() == "escuro";
             await j.ExecutarComandoAsync(ComandosApp.ExibirTemaSistema);
@@ -1960,7 +1960,7 @@ internal static class Roteiro
             var textoPasta = j.TextoPastaNosAjustes.Text;
             var avisoPasta = j.TextoAvisoPastaNosAjustes.Text;
             p["pagina_ajustes"] = new JsonObject { ["pasta"] = textoPasta, ["aviso"] = avisoPasta };
-            // O botão abre direto Ajustes › Pastas e kit (auditoria §3.2).
+            // O botão abre direto Ajustes › Pastas e fontes de dados (auditoria §3.2).
             p["categoria_aberta"] = j.AjustesPagina.CategoriaAtual;
             var ajustesOk = foiAosAjustes && textoPasta == inexistente && avisoPasta.StartsWith("A pasta não foi encontrada", StringComparison.Ordinal)
                 && j.AjustesPagina.CategoriaAtual == CategoriasAjustes.Pastas;
@@ -4046,7 +4046,7 @@ internal static class Roteiro
         });
 
 
-        // ---------- Legislação: Ajustes › Legislação (Tarefa 17; passos 57 a 60) ----------
+        // ---------- Legislação: Ajustes › Módulos › Legislação (Tarefa 17; passos 57 a 60) ----------
         // Só os PDFs fictícios de tests\corpus\legislacao, copiados para <pasta>\legislacao-originais (a pasta real LEGISLAÇÃO nunca
         // é lida). Sha, tamanho, data e atributos de cada original são registrados antes e conferidos no fim de cada passo.
         var legOriginais = Path.Combine(pasta, "legislacao-originais");
@@ -4242,8 +4242,8 @@ internal static class Roteiro
         await Passo("60_legislacao_editar_e_substituir", async p =>
         {
             await GarantirLegislacaoAsync(59, p);
-            // As linhas ficam em Ajustes › Legislação (auditoria §3.3).
-            j.AjustesPagina.MostrarCategoria(CategoriasAjustes.Legislacao);
+            // As linhas ficam em Ajustes › Módulos › Legislação (auditoria §3.3).
+            j.AjustesPagina.MostrarCategoria(CategoriasAjustes.Modulos);
             var lei = LinhaDe("LEI 9.999-2099 - FICTICIA") ?? throw new InvalidOperationException("a lei não está na lista");
             const string Novo = "Lei nº 9.999/2099 (fictícia)";
             var renomeou = await j.RenomearAnexoAsync(lei.Id, Novo) is null && j.LinhasLegislacaoAjustes.Any(l => l.Id == lei.Id && l.Titulo == Novo);
@@ -4539,7 +4539,7 @@ internal static class Roteiro
 
         // ---------- Tarefa 14: passo 64, o fluxo completo em sequência única ----------
         // Novo relatório (agente falso, cenário ok) → editar, situação, excluir e desfazer → salvar, fechar, reabrir → exportar → pesquisar → tema →
-        // Recentes → Comparar → Novo despacho › Correção → Ajustes › Legislação → leitor (pesquisa em todas, citação) → excluir a lei; por fim o
+        // Recentes → Comparar → Novo despacho › Correção → Ajustes › Módulos › Legislação → leitor (pesquisa em todas, citação) → excluir a lei; por fim o
         // registro da execução, o anexo original, nenhuma chave em tests\saida, nada gravado fora de tests\saida e só o agente falso iniciado.
         await Passo("64_fluxo_completo", async p =>
         {
@@ -4686,7 +4686,7 @@ internal static class Roteiro
             var escolhidoFluxo = j.DespachoEscolhido?.Despacho;
             Conf("despachos_lista_correcao", j.PaginaDespachosVisivel && escolhidoFluxo is { Tipo: TipoDespacho.Correcao } && Mesmo(escolhidoFluxo.Pasta, entrega.Pasta));
 
-            // (10) Ajustes › Legislação com a pasta vazia: anexar a lei fictícia, uma linha, o título.
+            // (10) Ajustes › Módulos › Legislação com a pasta vazia: anexar a lei fictícia, uma linha, o título.
             await j.ReindexacaoLegislacao;
             await j.MudarModuloAsync(Modulo.Ajustes);
             foreach (var l in j.LinhasLegislacaoAjustes.ToList()) await j.ExcluirAnexoAsync(l.Id);
@@ -4735,7 +4735,7 @@ internal static class Roteiro
             Conf("copiar_citacao", selecionou && citacao == "“O afastamento frontal mínimo é de 3,00 m.” (Lei nº 9.999/2099 (fictícia), página 2)");
             await JsLeitor("document.getSelection().removeAllRanges(), true");
 
-            // (12) Ajustes › Legislação › Excluir (confirmado): nenhuma linha, a cópia e o índice apagados, o original igual (sha, tamanho, data, atributos).
+            // (12) Ajustes › Módulos › Legislação › Excluir (confirmado): nenhuma linha, a cópia e o índice apagados, o original igual (sha, tamanho, data, atributos).
             var copiaLei = CopiaLeg(leiFluxo);
             var indiceLei = IndiceLeg(leiFluxo);
             var existiam = File.Exists(copiaLei) && File.Exists(indiceLei);
@@ -4849,7 +4849,7 @@ internal static class Roteiro
             if (linha >= 0) indicador.EscolherLinha(linha);
             var foi = linha >= 0 && await EsperarAteAsync(() => Task.FromResult(j.FolhaAtual == folhaAlvo), 5000);
             p["ir_a_folha"] = new JsonObject { ["folha"] = folhaAlvo, ["chegou"] = foi };
-            // A área das folhas não muda de altura com os avisos no indicador; em "Faixas no topo" (Ajustes › Aparência) as InfoBars voltam.
+            // A área das folhas não muda de altura com os avisos no indicador; em "Faixas no topo" (Ajustes › Geral › Aparência) as InfoBars voltam.
             var alturaIndicador = j.AlturaDasFolhas;
             var pag = j.AjustesPagina;
             pag.CaixaAvisosLayout.SelectedIndex = AvisosLayout.Modos.ToList().IndexOf("faixas");
@@ -5436,7 +5436,7 @@ internal static class Roteiro
 
         await Passo("plugins_e_ferramentas", async p =>
         {
-            // Tarefa 21: o cartão "Plugins e ferramentas" (Ajustes › Pastas e kit). As pastas lidas são fictícias (Codex, resumo do motor PDF,
+            // Tarefa 21: o cartão "Plugins e ferramentas" (Ajustes › Kit PMVNI). As pastas lidas são fictícias (Codex, resumo do motor PDF,
             // fonte e cópia do kit, estado.json do instalador) e o lançador é falso: nenhum .cmd é aberto de verdade. A fonte tem o analise 4.1.0 e o
             // Codex o 4.0.0 (atualização disponível); o "Atualizar" da linha grava o .cmd só do analise; "Atualizar todos" grava o do instalador do kit.
             var raiz = Path.Combine(pasta, "kit-componentes");
@@ -5470,22 +5470,16 @@ internal static class Roteiro
             {
                 await j.MudarModuloAsync(Modulo.Ajustes);
                 var pag = j.AjustesPagina;
-                pag.MostrarCategoria(CategoriasAjustes.Pastas);
+                pag.MostrarCategoria(CategoriasAjustes.Kit);
                 await j.VerificarComponentesAsync();
                 await Esperar(300);
                 var l = j.LeituraDoKitAtual ?? throw new InvalidOperationException("o cartão não leu os componentes");
                 LinhaComponente Linha(string id) => l.Linhas.Single(x => x.Componente.Id == id);
-                var painelPastas = pag.CartoesDasPastas;
-                painelPastas.UpdateLayout();
-                var processos = (FrameworkElement)painelPastas.Children[0];
-                var kit = (FrameworkElement)painelPastas.Children[1];
-                var origem = new Windows.Foundation.Point(0, 0);
-                var topo = processos.TransformToVisual(painelPastas).TransformPoint(origem);
-                var seguinte = kit.TransformToVisual(painelPastas).TransformPoint(origem);
-                var linhaInteira = painelPastas.ActualWidth > 0 && Math.Abs(topo.X - seguinte.X) < 1
-                    && Math.Abs(processos.ActualWidth - painelPastas.ActualWidth) < 1
-                    && Math.Abs(kit.ActualWidth - painelPastas.ActualWidth) < 1
-                    && Math.Abs(seguinte.Y - topo.Y - processos.ActualHeight - painelPastas.Spacing) < 1;
+                // Reorganização de 2026-11-23: a pasta do kit fica em Kit PMVNI, num cartão de linha inteira acima dos componentes.
+                var painelKit = pag.CartoesDoKit;
+                painelKit.UpdateLayout();
+                var kit = (FrameworkElement)painelKit.Children[0];
+                var linhaInteira = painelKit.ActualWidth > 0 && painelKit.Children.Count == 1 && Math.Abs(kit.ActualWidth - painelKit.ActualWidth) < 1;
                 var cartao = linhaInteira && pag.BotaoRepararInstalacao.Content as string == "Reparar instalação"
                     && ReferenceEquals(pag.BotaoRepararInstalacao.Parent, pag.BotaoAtualizarTodosComponentes.Parent)
                     && pag.ListaComponentesKit.Children.Count == ComponentesDoKit.Lista.Count && l.FonteAcessivel

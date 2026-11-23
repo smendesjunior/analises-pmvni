@@ -214,7 +214,7 @@ public sealed partial class MainWindow
                 {
                     TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"],
                     Text = "O kit PMVNI instalado neste computador ainda não tem a tabela de modelos da análise (plugin analise com o arquivo modelos-por-rota.json). "
-                        + "Atualize o kit em Ajustes › Pastas e kit; até lá, cada rota usa os modelos que o próprio kit define.",
+                        + "Atualize o kit em Ajustes › Kit PMVNI; até lá, cada rota usa os modelos que o próprio kit define.",
                 });
                 p.AvisoModelosAnalise.IsOpen = false;
                 p.BotaoPublicarModelos.Visibility = Visibility.Collapsed;
