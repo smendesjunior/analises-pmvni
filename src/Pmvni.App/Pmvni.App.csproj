@@ -44,7 +44,8 @@
     <!-- O ícone do app no cartão "Sobre" dos Ajustes (2026-11-17). -->
     <Content Include="Recursos\Provedores\*.svg;Recursos\cabecalho-pmvni*.svg;Recursos\app.ico" CopyToOutputDirectory="PreserveNewest"/>
     <EmbeddedResource Include="MotorPdf\*.lock;MotorPdf\*.json;MotorPdf\*.ps1;MotorPdf\*.py" LogicalName="motor.%(Filename)%(Extension)" />
-    <Content Include="Recursos\Monitor\*" CopyToOutputDirectory="PreserveNewest"/>
+    <EmbeddedResource Include="Recursos/Monitor/*.html;Recursos/Monitor/*.css;Recursos/Monitor/*.js;Recursos/Monitor/*.ttf" LogicalName="monitor.%(Filename)%(Extension)" />
+    <Content Include="Recursos\Monitor\*.ttf;Recursos/Monitor/Inter-LICENSE.txt" CopyToOutputDirectory="PreserveNewest"/>
     <EmbeddedResource Include="Recursos\icone-app.png" LogicalName="Pmvni.App.icone-app.png" />
   </ItemGroup>
 </Project>

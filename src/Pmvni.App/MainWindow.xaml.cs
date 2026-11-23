@@ -589,6 +589,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                     {
                         abas.SelectedItem = pagina;
                         await Task.Delay(850);
+                        await NR.CapturarMonitorHtmlAsync(pastaDemo, (string)pagina.Content);
                         await Roteiro.CapturarXamlAsync(Raiz, Path.Combine(pastaDemo, $"monitor-{pagina.Content}.png"));
                     }
                     Application.Current.Exit();

@@ -50,11 +50,7 @@ public sealed class LinhaAndamento : Grid
 
     static Style Estilo(string chave) => (Style)Application.Current.Resources[chave];
 
-    void Montar()
-    {
-        if (Item is not { } a) return;
-        var erro = a.Tipo == TipoAtividade.Erro;
-        var (nome, estilo) = a switch
+    internal static (string Nome, string Estilo) Classificar(Atividade a) => a switch
         {
             { Tipo: TipoAtividade.Erro } => ("ERRO", "PmvniSeloErro"),
             { Titulo: "Análise concluída" } or { Detalhe: "Etapa concluída." } => ("CONCLUÍDO", "PmvniSeloSucesso"),
@@ -64,6 +60,12 @@ public sealed class LinhaAndamento : Grid
             { Tipo: TipoAtividade.Acao } => ("AÇÃO", "PmvniSeloNeutro"),
             _ => ("SISTEMA", "PmvniSeloNeutro"),
         };
+
+    void Montar()
+    {
+        if (Item is not { } a) return;
+        var erro = a.Tipo == TipoAtividade.Erro;
+        var (nome, estilo) = Classificar(a);
         tipo.Style = Estilo(a.Tipo == TipoAtividade.Mensagem ? "PmvniTextoDestaqueStyle" : "PmvniPainelRotulo");
         tipo.Text = nome;
         selo.Style = Estilo(estilo);

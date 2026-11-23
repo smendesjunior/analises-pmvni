@@ -48,7 +48,10 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     internal void MostrarExecucao(bool execucao)
     {
         PainelFormulario.Visibility = AcoesRetomadaFormulario.Visibility = execucao ? Visibility.Collapsed : Visibility.Visible;
-        RolagemMonitor.Visibility = PainelExecucao.Visibility = execucao ? Visibility.Visible : Visibility.Collapsed;
+        MonitorHtml.Visibility = Visivel(execucao);
+        PainelExecucao.Visibility = Visivel(execucao);
+        if (execucao) _ = AbrirMonitorHtmlAsync();
+        else PararMonitorHtml();
         AtualizarRadares();
     }
 
@@ -85,6 +88,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         CartaoAtividades.Visibility = Visivel(aba == "Etapas");
         PainelLog.Visibility = Visivel(aba == "Log");
         PainelDetalhes.Visibility = Visivel(aba == "Detalhes");
+        AtualizarMonitorHtml();
         if (aba == "Consumo") DesenharConsumo(consumoExibido ?? []);
         if (DetalhesVisiveis)
         {
@@ -104,7 +108,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         RadarLog.Ativo = ativo && PainelLog.Visibility == Visibility.Visible;
     }
 
-    internal bool VistaDaExecucao => RolagemMonitor.Visibility == Visibility.Visible;
+    internal bool VistaDaExecucao => MonitorHtml.Visibility == Visibility.Visible;
 
     /// <summary>A lista do andamento está no fim (ou ainda não rola): as linhas novas a mantêm no fim.</summary>
     bool LinhasNoFim()
@@ -145,6 +149,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         if (ReferenceEquals(origem, linhas)) return;
         if (origem is not null) origem.CollectionChanged -= LinhasMudaram;
         MostrarLogCompleto(true);
+        execucaoHtml++;
         origem = linhas;
         atividades.Clear();
         if (linhas is not null)
@@ -165,6 +170,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     void Espelhar(object? fonte, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
         if (origem is not { } linhas || !ReferenceEquals(linhas, fonte)) return;
+        versaoLogHtml++;
         var noFim = LinhasNoFim();
         if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add && e.NewItems is { } novos && e.NewStartingIndex == atividades.Count)
             foreach (string l in novos) atividades.Add(new ItemAtividade(Atividades.DaLinha(l, DateTime.Now)));

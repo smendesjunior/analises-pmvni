@@ -225,8 +225,10 @@ internal static class Roteiro
         var falhas = new JsonArray();
         string? planoDaImportacao = null;
 
+        var somenteMonitor = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_MONITOR") == "1";
         async Task Passo(string nome, Func<JsonObject, Task> corpoPasso)
         {
+            if (somenteMonitor && nome != "monitor_html_controles") return;
             var p = new JsonObject();
             Registrar("início " + nome);
             try { await corpoPasso(p); p["ok"] ??= true; }
@@ -3200,6 +3202,151 @@ internal static class Roteiro
         {
             var arquivo = Path.Combine(pastaProcesso, ".pmvni-ai", "agente-falso", "chamadas.txt");
             return File.Exists(arquivo) ? File.ReadAllLines(arquivo, System.Text.Encoding.UTF8).Where(l => l.StartsWith(acao + "\t", StringComparison.Ordinal)).ToArray() : [];
+        }
+
+        if (somenteMonitor)
+        {
+            await Passo("monitor_html_controles", async p =>
+            {
+                await PrepararNovoRelatorioAsync();
+                await j.MudarModuloAsync(Modulo.Relatorios);
+                var n = j.NovoRelatorio;
+                var web = (Microsoft.UI.Xaml.Controls.WebView2)n.FindName("WebMonitor");
+                void Verificar(string nome, bool ok)
+                {
+                    p[nome] = ok;
+                    if (!ok) throw new InvalidOperationException(nome);
+                }
+                async Task EsperarHtml(string expr) =>
+                    Verificar(expr, await EsperarAteAsync(async () => web.CoreWebView2 != null &&
+                        await web.ExecuteScriptAsync(expr) == "true", 15000));
+                async Task AbrirPagina(string aba)
+                {
+                    await web.ExecuteScriptAsync($"document.querySelector('[data-name={aba}]').click()");
+                    await EsperarHtml($"document.querySelector('article').ariaLabel === '{aba}'");
+                }
+                foreach (var pausar in new[]{true,false})
+                {
+                    await j.NovoRelatorioAsync();
+                    var pastaProcesso = pausar ? P0001() : P0012();
+                    if (!pausar)
+                    {
+                        var documentos = Directory.CreateDirectory(Path.Combine(pastaProcesso,"DOCUMENTOS")).FullName;
+                        File.Copy(requerimento,Path.Combine(documentos,"requerimento-teste.pdf"), overwrite:true);
+                    }
+                    await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == pastaProcesso));
+                    var evidencias = Directory.CreateDirectory(Path.Combine(pastaProcesso,".pmvni-ai","cache-pdf")).FullName;
+                    j.Orquestrador = Orq("lento");
+                    perguntas.Confirmar = true;
+                    var e = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException(j.InfoMensagemAtual.Message);
+                    try
+                    {
+                        await EsperarHtml("!!document.querySelector('article .board')");
+                        Invocar(n.BotaoMostrarRegistro);
+                        Verificar("Abrir registro", await EsperarAteAsync(() => Task.FromResult(AberturaExterna.Registradas.Contains("explorador: " + e.Registro.Pasta)),3000));
+                        await AbrirPagina("Etapas");
+                        await web.ExecuteScriptAsync("document.querySelector('svg[aria-label=\"Ver registros\"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
+                        await EsperarHtml("document.querySelector('article').ariaLabel === 'Log'");
+                        await web.ExecuteScriptAsync("[...document.querySelectorAll('article button')].find(b=>b.textContent.includes('PDF')).click()");
+                        Verificar("Evidências", await EsperarAteAsync(() => Task.FromResult(AberturaExterna.Registradas.Contains("explorador: " + evidencias)),3000));
+                        await AbrirPagina("Detalhes");
+                        await AbrirPagina("Consumo");
+                        await AbrirPagina("Resumo");
+                        if (pausar)
+                        {
+                            Invocar(n.BotaoNovaAnalise);
+                            Verificar("Nova análise",await EsperarAteAsync(() => Task.FromResult(!n.VistaDaExecucao && !e.Fim.IsCompleted),3000));
+                            Invocar(n.BotaoExecucoes);
+                            await EsperarHtml("!!document.querySelector('article .board')");
+                            Verificar("Retorno ao monitor",n.VistaDaExecucao);
+                            Invocar(n.BotaoPausarAnalise);
+                        }
+                        else
+                        {
+                            perguntas.Confirmar = false;
+                            Invocar(n.BotaoCancelarAnalise);
+                            await Esperar(400);
+                            Verificar("Recusar cancelamento mantém execução", !e.Fim.IsCompleted);
+                            perguntas.Confirmar = true;
+                            Invocar(n.BotaoCancelarAnalise);
+                        }
+                        var fim = await Prazo(j.AguardarAnaliseAsync(e),30);
+                        Verificar(pausar ? "Pausa preserva retomada" : "Cancelamento confirmado",
+                            fim.Situacao == "cancelada" && e.PausaSolicitada == pausar &&
+                            (!pausar || n.BotaoContinuar.Visibility == Visibility.Visible || n.BotaoDescartar.Visibility == Visibility.Visible));
+                        Verificar("Trava liberada",!File.Exists(Path.Combine(pastaProcesso,".pmvni-ai","editor","execucao.lock")));
+                    }
+                    finally { if (!e.Fim.IsCompleted) { perguntas.Confirmar = true; await j.CancelarAnaliseAsync(e); } }
+                }
+                // A fonte fornece valores de teste ao mesmo modelo que recebe o progresso do kit.
+                await j.NovoRelatorioAsync();
+                n.MostrarExecucao(true);
+                var ordem = new[] { "prepare","analyze","produce","final_review" };
+                n.MostrarResumo(true,null,FluxoNovoRelatorio.Etapas("analyze","",ordem),"ChatGPT");
+                n.MostrarProgresso(new ProgressoEtapa("analyze",1,7,28,Secoes:true));
+                n.MostrarDetalhesDasEtapas(new DetalhesDasEtapas(
+                    new Dictionary<string,DetalheEtapa>{["analyze"]=new("analyze",false,"modelo-teste","medium")},
+                    [new(1,9,7,true,false)],[]){Plano=ordem,Registros=new Dictionary<string,string>{["analyze"]="Registro de teste"}});
+                var agora = DateTimeOffset.Now;
+                n.MostrarEstimativa(new EstimativaAnalise("analyze",25,40,agora.AddMinutes(30),PeloEditor:true,Inicial:true));
+                n.MostrarRelogios(TimeSpan.FromMinutes(20),agora);
+                n.MostrarAchados(Enumerable.Range(1,6).Select(i=>new AchadoExecucao("ID"+i,i,"Achado "+i,i==1?"NAO_ATENDE":"ATENDE",i==1)).ToArray());
+                n.MostrarConsumo([new UsoEtapa("analyze","GPT","modelo-teste",1000,120,250,TimeSpan.FromMinutes(20),2,1)
+                    { Usada5h=40,UsadaSemana=12,Plano="Plano específico da execução" }]);
+                n.LigarLinhas(new System.Collections.ObjectModel.ObservableCollection<string>{ "Mensagem: registro sem hora", $"[{agora:O}] Ação: atividade com hora" });
+                const string campo = "k=>document.querySelector('article [data-field='+k+'] tspan')?.textContent";
+                await AbrirPagina("Resumo");
+                async Task Conferir(string rotulo,string teste)
+                {
+                    Verificar(rotulo,await EsperarAteAsync(async()=>await web.ExecuteScriptAsync("(()=>{const campo="+campo+";return ("+teste+")})()")=="true",5000));
+                }
+                await Conferir("Progresso geral 40%, tempo ativo 20 min e restante 30 min",
+                    "campo('percent').includes('40%') && campo('elapsed').includes('20 min') && campo('eta').includes('30 min')");
+                n.MostrarRelogios(TimeSpan.FromMinutes(21),agora.AddMinutes(1));
+                await Conferir("Relógio e tempo restante avançam juntos","campo('elapsed').includes('21 min') && campo('eta').includes('29 min')");
+                await Conferir("Classificações e prévia de quatro achados","campo('ok')==='5' && campo('fail')==='1' && document.querySelectorAll('article [data-field=verification]').length===4");
+                await web.ExecuteScriptAsync("document.querySelector('[aria-label=\"Filtrar descobertas\"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));document.querySelector('.filters button:last-child').click()");
+                await Conferir("Filtro de classificação","document.querySelectorAll('article [data-field=verification]').length===4 && campo('count')==='5 registros'");
+                await web.ExecuteScriptAsync("[...document.querySelectorAll('article .link')].find(b=>b.textContent.includes('Ver todos')).click()");
+                await Conferir("Ver todos os registros","document.querySelectorAll('article [data-field=verification]').length===5");
+                await web.ExecuteScriptAsync("document.querySelector('article .card svg').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
+                await Conferir("Abertura do achado","document.querySelector('dialog').open && document.querySelector('dialog h2').textContent.includes('Achado')");
+                await web.ExecuteScriptAsync("document.getElementById('close').click()");
+                await AbrirPagina("Etapas");
+                await Conferir("Etapa 25%, sete de 28 e frente sete de nove","campo('percent')==='25%' && campo('result').includes('7 de 28') && campo('count0')==='7 de 9'");
+                await web.ExecuteScriptAsync("document.querySelector('article [aria-expanded=true]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
+                await Conferir("Recolher etapa","!document.querySelector('article [aria-expanded=true]')");
+                await AbrirPagina("Detalhes");
+                await Conferir("Ordem do plano, registro e plano do executor","document.querySelector('article').innerText.includes('Preparo → Análise → Produção do relatório → Revisão final') && document.querySelector('article').innerText.includes('Plano específico da execução') && document.querySelector('article').innerText.includes('Registro de teste')");
+                await AbrirPagina("Consumo");
+                await Conferir("Cache 25%, saída 12%, cotas 40% e 12%","campo('cachePercent')==='25%' && campo('outputHelp').includes('12%') && campo('shortPercent')==='40%' && campo('weeklyPercent')==='12%'");
+                await web.ExecuteScriptAsync("document.querySelector('article svg[aria-label*=modelo-teste]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
+                await Conferir("Detalhes da medição por etapa","document.querySelector('dialog').open && document.querySelector('dialog h2').textContent.includes('modelo-teste')");
+                await web.ExecuteScriptAsync("document.getElementById('close').click()");
+                n.MostrarConsumo([]);
+                await Conferir("Sem telemetria não inventa percentuais","campo('cachePercent')==='—' && campo('shortPercent')==='—' && campo('weeklyPercent')==='—'");
+                await AbrirPagina("Log");
+                await Conferir("Log cronológico, horário ausente e evento com hora","campo('count')==='2 eventos registrados' && campo('time')==='—' && document.querySelectorAll('article [data-field=time] tspan')[1].textContent.includes(':')");
+                await web.ExecuteScriptAsync("document.querySelector('article .card svg[role=button]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
+                await Conferir("Abrir e ler evento completo","document.querySelector('dialog').open && document.querySelector('dialog p').textContent.includes('sem hora')");
+                await web.ExecuteScriptAsync("document.getElementById('close').click()");
+                n.ReiniciarEstimativa();
+                n.MostrarRelogios(TimeSpan.Zero,agora);
+                await AbrirPagina("Resumo");
+                await Conferir("Sem previsão informa que aguarda a primeira etapa","campo('eta')==='Após a 1ª etapa'");
+                n.MostrarEstimativa(new EstimativaAnalise("analyze",25,40,null,PeloEditor:true));
+                n.MostrarRelogios(TimeSpan.FromMinutes(20),agora);
+                await Conferir("Sem término registrado estima 30 min restantes pelo ritmo de 40% em 20 min","campo('eta').includes('30 min') && campo('eta').includes('≈')");
+                n.ReiniciarEstimativa();
+                n.MostrarResumo(false,null,FluxoNovoRelatorio.Etapas(null,"CONCLUIDO",ordem));
+                n.MostrarRelogios(TimeSpan.FromMinutes(22),agora.AddMinutes(2));
+                await AbrirPagina("Resumo");
+                await Conferir("Todas as etapas concluídas e 100%","campo('percent')==='100%' && campo('status')==='Análise concluída' && campo('eta')==='Concluída'");
+            });
+            saida["ok"] = falhas.Count == 0;
+            Gravar(args.Roteiro!, saida);
+            Application.Current.Exit();
+            return;
         }
 
         await Passo("51_novo_relatorio_anexos", async p =>

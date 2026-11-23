@@ -184,6 +184,8 @@ public sealed partial class MainWindow
         manipuladores[ComandosApp.RelatoriosNovo] = async () => await AbrirNovoRelatorioNaVezAsync();
 
         var n = NR;
+        n.AmbienteMonitor = ambienteDaTela.Task;
+        n.EvidenciasSolicitadas += (_, _) => AbrirEvidenciasDoMonitor();
         n.CaixaFiltro.TextChanged += (_, e) =>
         {
             PreencherProcessosNR();
