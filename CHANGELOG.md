@@ -2,8 +2,18 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
-## 3.5.1
+## 4.0.0
 
+Esta versão reúne as novidades preparadas como 3.4.7, 3.5.0 e 3.5.1.
+
+### Configurações
+- As Configurações foram reorganizadas em 8 categorias, e cada opção fica num lugar só: Geral, Profissional e assinatura, Pastas e fontes de dados, Relatórios e revisão, Módulos, Inteligência artificial (com Modelos da análise dentro dela), Kit PMVNI e Sistema.
+- Profissional e assinatura reúne o profissional responsável, o certificado digital e onde a assinatura aparece. Pastas e fontes de dados reúne a pasta de processos, a base QGIS, a planilha do Acompanhamento e os logins dos sites da Prefeitura.
+- Módulos reúne como Processos, Despachos, Acompanhamento e Legislação trabalham. A exibição, os grupos e a ordem dos arquivos do processo também podem ser escolhidos ali.
+- Em Sistema, o diagnóstico fica dentro de Sobre, e Restaurar os ajustes informa o que volta ao padrão e o que continua como está.
+- Os botões "Abrir Ajustes" dos módulos e a pesquisa geral levam aos novos lugares. Os textos do app que citavam caminhos antigos foram atualizados.
+
+### Monitor de análise
 - O monitor de análise foi refeito como parte nativa do programa, no padrão das Configurações do Windows 11. O menu lateral e o cabeçalho ficam sobre o mesmo fundo translúcido do resto da janela, com o número do processo e o requerente no topo do menu.
 - O cabeçalho com o progresso, a etapa atual, o tempo decorrido (agora com os segundos), a previsão de término e a trilha das etapas é o mesmo em todas as páginas e fica fixo enquanto o conteúdo rola.
 - Etapas, Detalhes, Log e Consumo mostram cada item numa linha só. Em Detalhes, cada entrega, passo, frente e registro tem o sinal de concluído ou pendente.
@@ -14,16 +24,7 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 - Na faixa de opções, os botões de ligar e desligar (Painel lateral, Propriedades, Marcadores e Lista de leis) ficam com um fundo suave quando ligados, no padrão do Windows 11, em vez de parecerem o botão principal.
 - No módulo Relatórios, a barra de zoom do rodapé ficou mais baixa, sem a sobra de espaço embaixo.
 
-## 3.5.0
-
-- As Configurações foram reorganizadas em 8 categorias, e cada opção fica num lugar só: Geral, Profissional e assinatura, Pastas e fontes de dados, Relatórios e revisão, Módulos, Inteligência artificial (com Modelos da análise dentro dela), Kit PMVNI e Sistema.
-- Profissional e assinatura reúne o profissional responsável, o certificado digital e onde a assinatura aparece. Pastas e fontes de dados reúne a pasta de processos, a base QGIS, a planilha do Acompanhamento e os logins dos sites da Prefeitura.
-- Módulos reúne como Processos, Despachos, Acompanhamento e Legislação trabalham. A exibição, os grupos e a ordem dos arquivos do processo também podem ser escolhidos ali.
-- Em Sistema, o diagnóstico fica dentro de Sobre, e Restaurar os ajustes informa o que volta ao padrão e o que continua como está.
-- Os botões "Abrir Ajustes" dos módulos e a pesquisa geral levam aos novos lugares. Os textos do app que citavam caminhos antigos foram atualizados.
-
-## 3.4.7
-
+### Análise
 - O monitor mostra previsão de término também na primeira análise da estação. Durante o preparo e a análise em rede, mostra contagens da execução e identifica os percentuais estimados pelo tempo.
 - A análise recebe as pastas do kit e do QGIS escolhidas nos Ajustes. A importação reconhece as imagens da mesma pasta de processo quando o kit entrega o relatório dentro de uma tentativa de produção.
 
