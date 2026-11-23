@@ -1,0 +1,438 @@
+<ResourceDictionary
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Monitor de análise nativo (3.5.1): estilos aplicados pelo código de PaginaNovoRelatorio.Nativo.cs. Tudo em ThemeResource para seguir
+       o tema da janela (claro, escuro e alto contraste). As cores de situação vêm dos pincéis de sistema do WinUI; o destaque é o verde
+       institucional (SystemAccentColor do App.xaml). -->
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="MnVerde" Color="#1E7A46"/>
+      <SolidColorBrush x:Key="MnVerdeVivo" Color="#2A9A5C"/>
+      <SolidColorBrush x:Key="MnVerdeClaro" Color="#DFF1E6"/>
+      <SolidColorBrush x:Key="MnVerdeTexto" Color="#155B39"/>
+      <SolidColorBrush x:Key="MnAzul" Color="#159FD3"/>
+      <SolidColorBrush x:Key="MnVerdeMarca" Color="#159259"/>
+      <SolidColorBrush x:Key="MnAmarelo" Color="#F0CA3E"/>
+      <SolidColorBrush x:Key="MnTrilho" Color="#E8ECE9"/>
+      <SolidColorBrush x:Key="MnFundoSuave" Color="#FAFAF9"/>
+      <SolidColorBrush x:Key="MnFundoCabecalho" Color="#F7F5F1"/>
+      <SolidColorBrush x:Key="MnIaFundo" Color="#E6ECF7"/>
+      <SolidColorBrush x:Key="MnIaTexto" Color="#2F4F86"/>
+      <SolidColorBrush x:Key="MnOcre" Color="#B67B17"/>
+      <SolidColorBrush x:Key="MnLilas" Color="#687AB2"/>
+      <SolidColorBrush x:Key="MnCinzaMedio" Color="#8A8A88"/>
+    
+  <!-- Formas: arcos dos anéis (Path), barras e faixas (Rectangle) e pontos de legenda (Ellipse). -->
+  <Style x:Key="MnArcoTrilho" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnTrilho}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaTrilho" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnTrilho}"/></Style>
+  <Style x:Key="MnPontoTrilho" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnTrilho}"/></Style>
+  <Style x:Key="MnArcoVerde" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerde}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaVerde" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerde}"/></Style>
+  <Style x:Key="MnPontoVerde" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerde}"/></Style>
+  <Style x:Key="MnArcoVerdeVivo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerdeVivo}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaVerdeVivo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerdeVivo}"/></Style>
+  <Style x:Key="MnPontoVerdeVivo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerdeVivo}"/></Style>
+  <Style x:Key="MnArcoOcre" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnOcre}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaOcre" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnOcre}"/></Style>
+  <Style x:Key="MnPontoOcre" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnOcre}"/></Style>
+  <Style x:Key="MnArcoLilas" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnLilas}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaLilas" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnLilas}"/></Style>
+  <Style x:Key="MnPontoLilas" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnLilas}"/></Style>
+  <Style x:Key="MnArcoCinza" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnCinzaMedio}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaCinza" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnCinzaMedio}"/></Style>
+  <Style x:Key="MnPontoCinza" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnCinzaMedio}"/></Style>
+  <Style x:Key="MnArcoErro" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource SystemFillColorCriticalBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaErro" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCriticalBrush}"/></Style>
+  <Style x:Key="MnPontoErro" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCriticalBrush}"/></Style>
+  <Style x:Key="MnArcoAtencao" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource SystemFillColorCautionBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAtencao" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCautionBrush}"/></Style>
+  <Style x:Key="MnPontoAtencao" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCautionBrush}"/></Style>
+  <Style x:Key="MnArcoInfo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnIaTexto}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaInfo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnIaTexto}"/></Style>
+  <Style x:Key="MnPontoInfo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnIaTexto}"/></Style>
+  <Style x:Key="MnArcoAzul" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnAzul}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAzul" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnAzul}"/></Style>
+  <Style x:Key="MnPontoAzul" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnAzul}"/></Style>
+  <Style x:Key="MnArcoMarca" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerdeMarca}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaMarca" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerdeMarca}"/></Style>
+  <Style x:Key="MnPontoMarca" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerdeMarca}"/></Style>
+  <Style x:Key="MnArcoAmarelo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnAmarelo}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAmarelo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnAmarelo}"/></Style>
+  <Style x:Key="MnPontoAmarelo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnAmarelo}"/></Style>
+  <Style x:Key="MnArcoDivisoria" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaDivisoria" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/></Style>
+  <Style x:Key="MnPontoDivisoria" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/></Style>
+</ResourceDictionary>
+    <ResourceDictionary x:Key="Default">
+      <SolidColorBrush x:Key="MnVerde" Color="#3FAE6F"/>
+      <SolidColorBrush x:Key="MnVerdeVivo" Color="#5CC488"/>
+      <SolidColorBrush x:Key="MnVerdeClaro" Color="#1F3A2A"/>
+      <SolidColorBrush x:Key="MnVerdeTexto" Color="#8FD3AB"/>
+      <SolidColorBrush x:Key="MnAzul" Color="#3DB5E3"/>
+      <SolidColorBrush x:Key="MnVerdeMarca" Color="#3FAE6F"/>
+      <SolidColorBrush x:Key="MnAmarelo" Color="#F0CA3E"/>
+      <SolidColorBrush x:Key="MnTrilho" Color="#3A3D3B"/>
+      <SolidColorBrush x:Key="MnFundoSuave" Color="#2B2B2B"/>
+      <SolidColorBrush x:Key="MnFundoCabecalho" Color="#262626"/>
+      <SolidColorBrush x:Key="MnIaFundo" Color="#263247"/>
+      <SolidColorBrush x:Key="MnIaTexto" Color="#A9C1EE"/>
+      <SolidColorBrush x:Key="MnOcre" Color="#E0A64A"/>
+      <SolidColorBrush x:Key="MnLilas" Color="#9AA8DA"/>
+      <SolidColorBrush x:Key="MnCinzaMedio" Color="#9A9A9A"/>
+    
+  <!-- Formas: arcos dos anéis (Path), barras e faixas (Rectangle) e pontos de legenda (Ellipse). -->
+  <Style x:Key="MnArcoTrilho" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnTrilho}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaTrilho" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnTrilho}"/></Style>
+  <Style x:Key="MnPontoTrilho" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnTrilho}"/></Style>
+  <Style x:Key="MnArcoVerde" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerde}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaVerde" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerde}"/></Style>
+  <Style x:Key="MnPontoVerde" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerde}"/></Style>
+  <Style x:Key="MnArcoVerdeVivo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerdeVivo}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaVerdeVivo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerdeVivo}"/></Style>
+  <Style x:Key="MnPontoVerdeVivo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerdeVivo}"/></Style>
+  <Style x:Key="MnArcoOcre" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnOcre}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaOcre" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnOcre}"/></Style>
+  <Style x:Key="MnPontoOcre" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnOcre}"/></Style>
+  <Style x:Key="MnArcoLilas" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnLilas}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaLilas" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnLilas}"/></Style>
+  <Style x:Key="MnPontoLilas" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnLilas}"/></Style>
+  <Style x:Key="MnArcoCinza" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnCinzaMedio}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaCinza" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnCinzaMedio}"/></Style>
+  <Style x:Key="MnPontoCinza" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnCinzaMedio}"/></Style>
+  <Style x:Key="MnArcoErro" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource SystemFillColorCriticalBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaErro" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCriticalBrush}"/></Style>
+  <Style x:Key="MnPontoErro" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCriticalBrush}"/></Style>
+  <Style x:Key="MnArcoAtencao" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource SystemFillColorCautionBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAtencao" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCautionBrush}"/></Style>
+  <Style x:Key="MnPontoAtencao" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCautionBrush}"/></Style>
+  <Style x:Key="MnArcoInfo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnIaTexto}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaInfo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnIaTexto}"/></Style>
+  <Style x:Key="MnPontoInfo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnIaTexto}"/></Style>
+  <Style x:Key="MnArcoAzul" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnAzul}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAzul" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnAzul}"/></Style>
+  <Style x:Key="MnPontoAzul" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnAzul}"/></Style>
+  <Style x:Key="MnArcoMarca" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerdeMarca}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaMarca" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerdeMarca}"/></Style>
+  <Style x:Key="MnPontoMarca" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerdeMarca}"/></Style>
+  <Style x:Key="MnArcoAmarelo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnAmarelo}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAmarelo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnAmarelo}"/></Style>
+  <Style x:Key="MnPontoAmarelo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnAmarelo}"/></Style>
+  <Style x:Key="MnArcoDivisoria" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaDivisoria" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/></Style>
+  <Style x:Key="MnPontoDivisoria" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/></Style>
+</ResourceDictionary>
+    <ResourceDictionary x:Key="HighContrast">
+      <SolidColorBrush x:Key="MnVerde" Color="{ThemeResource SystemColorHighlightColor}"/>
+      <SolidColorBrush x:Key="MnVerdeVivo" Color="{ThemeResource SystemColorHighlightColor}"/>
+      <SolidColorBrush x:Key="MnVerdeClaro" Color="{ThemeResource SystemColorWindowColor}"/>
+      <SolidColorBrush x:Key="MnVerdeTexto" Color="{ThemeResource SystemColorWindowTextColor}"/>
+      <SolidColorBrush x:Key="MnAzul" Color="{ThemeResource SystemColorWindowTextColor}"/>
+      <SolidColorBrush x:Key="MnVerdeMarca" Color="{ThemeResource SystemColorWindowTextColor}"/>
+      <SolidColorBrush x:Key="MnAmarelo" Color="{ThemeResource SystemColorWindowTextColor}"/>
+      <SolidColorBrush x:Key="MnTrilho" Color="{ThemeResource SystemColorGrayTextColor}"/>
+      <SolidColorBrush x:Key="MnFundoSuave" Color="{ThemeResource SystemColorWindowColor}"/>
+      <SolidColorBrush x:Key="MnFundoCabecalho" Color="{ThemeResource SystemColorWindowColor}"/>
+      <SolidColorBrush x:Key="MnIaFundo" Color="{ThemeResource SystemColorWindowColor}"/>
+      <SolidColorBrush x:Key="MnIaTexto" Color="{ThemeResource SystemColorWindowTextColor}"/>
+      <SolidColorBrush x:Key="MnOcre" Color="{ThemeResource SystemColorWindowTextColor}"/>
+      <SolidColorBrush x:Key="MnLilas" Color="{ThemeResource SystemColorWindowTextColor}"/>
+      <SolidColorBrush x:Key="MnCinzaMedio" Color="{ThemeResource SystemColorGrayTextColor}"/>
+    
+  <!-- Formas: arcos dos anéis (Path), barras e faixas (Rectangle) e pontos de legenda (Ellipse). -->
+  <Style x:Key="MnArcoTrilho" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnTrilho}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaTrilho" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnTrilho}"/></Style>
+  <Style x:Key="MnPontoTrilho" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnTrilho}"/></Style>
+  <Style x:Key="MnArcoVerde" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerde}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaVerde" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerde}"/></Style>
+  <Style x:Key="MnPontoVerde" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerde}"/></Style>
+  <Style x:Key="MnArcoVerdeVivo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerdeVivo}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaVerdeVivo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerdeVivo}"/></Style>
+  <Style x:Key="MnPontoVerdeVivo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerdeVivo}"/></Style>
+  <Style x:Key="MnArcoOcre" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnOcre}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaOcre" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnOcre}"/></Style>
+  <Style x:Key="MnPontoOcre" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnOcre}"/></Style>
+  <Style x:Key="MnArcoLilas" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnLilas}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaLilas" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnLilas}"/></Style>
+  <Style x:Key="MnPontoLilas" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnLilas}"/></Style>
+  <Style x:Key="MnArcoCinza" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnCinzaMedio}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaCinza" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnCinzaMedio}"/></Style>
+  <Style x:Key="MnPontoCinza" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnCinzaMedio}"/></Style>
+  <Style x:Key="MnArcoErro" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource SystemFillColorCriticalBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaErro" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCriticalBrush}"/></Style>
+  <Style x:Key="MnPontoErro" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCriticalBrush}"/></Style>
+  <Style x:Key="MnArcoAtencao" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource SystemFillColorCautionBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAtencao" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCautionBrush}"/></Style>
+  <Style x:Key="MnPontoAtencao" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCautionBrush}"/></Style>
+  <Style x:Key="MnArcoInfo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnIaTexto}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaInfo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnIaTexto}"/></Style>
+  <Style x:Key="MnPontoInfo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnIaTexto}"/></Style>
+  <Style x:Key="MnArcoAzul" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnAzul}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAzul" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnAzul}"/></Style>
+  <Style x:Key="MnPontoAzul" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnAzul}"/></Style>
+  <Style x:Key="MnArcoMarca" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerdeMarca}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaMarca" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerdeMarca}"/></Style>
+  <Style x:Key="MnPontoMarca" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerdeMarca}"/></Style>
+  <Style x:Key="MnArcoAmarelo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnAmarelo}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAmarelo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnAmarelo}"/></Style>
+  <Style x:Key="MnPontoAmarelo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnAmarelo}"/></Style>
+  <Style x:Key="MnArcoDivisoria" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaDivisoria" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/></Style>
+  <Style x:Key="MnPontoDivisoria" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/></Style>
+</ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+
+  <!-- Textos -->
+  <Style x:Key="MnTituloPagina" TargetType="TextBlock" BasedOn="{StaticResource SubtitleTextBlockStyle}">
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style x:Key="MnTituloSecao" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+  <Style x:Key="MnCorpo" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+  <Style x:Key="MnCorpoQuebra" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style x:Key="MnCorpoForte" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+  <Style x:Key="MnLegenda" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+  <Style x:Key="MnLegendaQuebra" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style x:Key="MnSecundario" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}">
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+    <Setter Property="TextWrapping" Value="NoWrap"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+  </Style>
+  <Style x:Key="MnValor" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="20"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+  </Style>
+  <Style x:Key="MnValorGrande" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="26"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="LineHeight" Value="30"/>
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+  </Style>
+  <Style x:Key="MnStatus" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="22"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+  </Style>
+  <Style x:Key="MnPercentual" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="22"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{ThemeResource MnVerdeTexto}"/>
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="MnVerdeForte" TargetType="TextBlock" BasedOn="{StaticResource MnCorpoForte}">
+    <Setter Property="Foreground" Value="{ThemeResource MnVerdeTexto}"/>
+  </Style>
+  <Style x:Key="MnGlifo" TargetType="FontIcon">
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="Foreground" Value="{ThemeResource MnVerde}"/>
+  </Style>
+  <Style x:Key="MnGlifoNeutro" TargetType="FontIcon">
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+  </Style>
+
+  <!-- Superfícies -->
+  <Style x:Key="MnCartao" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+  </Style>
+  <Style x:Key="MnLadrilho" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="14,12"/>
+  </Style>
+  <Style x:Key="MnPainel" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource MnFundoSuave}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="12,10"/>
+  </Style>
+  <Style x:Key="MnDivisoria" TargetType="Border">
+    <Setter Property="Height" Value="1"/>
+    <Setter Property="Background" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="MnDivisoriaVertical" TargetType="Border">
+    <Setter Property="Width" Value="1"/>
+    <Setter Property="Background" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+  </Style>
+  <Style x:Key="MnLinha" TargetType="Grid">
+    <Setter Property="BorderBrush" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+    <Setter Property="BorderThickness" Value="0,1,0,0"/>
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style x:Key="MnCabecalhoTabela" TargetType="Grid">
+    <Setter Property="Background" Value="{ThemeResource MnFundoCabecalho}"/>
+    <Setter Property="Padding" Value="20,8"/>
+  </Style>
+  <Style x:Key="MnIconeTile" TargetType="Border">
+    <Setter Property="Width" Value="32"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Background" Value="{ThemeResource MnVerdeClaro}"/>
+  </Style>
+  <Style x:Key="MnIconeTileNeutro" TargetType="Border" BasedOn="{StaticResource MnIconeTile}">
+    <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+  </Style>
+  <Style x:Key="MnIconeTileAtivo" TargetType="Border" BasedOn="{StaticResource MnIconeTile}">
+    <Setter Property="Background" Value="{ThemeResource MnVerde}"/>
+  </Style>
+  <Style x:Key="MnIconeTileErro" TargetType="Border" BasedOn="{StaticResource MnIconeTile}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
+  </Style>
+
+  <!-- Tags (selos) -->
+  <Style x:Key="MnTag" TargetType="Border">
+    <Setter Property="CornerRadius" Value="11"/>
+    <Setter Property="Padding" Value="10,3"/>
+    <Setter Property="MinHeight" Value="22"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
+  </Style>
+  <Style x:Key="MnTagSucesso" TargetType="Border" BasedOn="{StaticResource MnTag}">
+    <Setter Property="Background" Value="{ThemeResource MnVerdeClaro}"/>
+  </Style>
+  <Style x:Key="MnTagAtiva" TargetType="Border" BasedOn="{StaticResource MnTag}">
+    <Setter Property="Background" Value="{ThemeResource MnVerde}"/>
+  </Style>
+  <Style x:Key="MnTagErro" TargetType="Border" BasedOn="{StaticResource MnTag}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
+  </Style>
+  <Style x:Key="MnTagAtencao" TargetType="Border" BasedOn="{StaticResource MnTag}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCautionBackgroundBrush}"/>
+  </Style>
+  <Style x:Key="MnTagIa" TargetType="Border" BasedOn="{StaticResource MnTag}">
+    <Setter Property="Background" Value="{ThemeResource MnIaFundo}"/>
+  </Style>
+  <Style x:Key="MnTagTexto" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="MnTagTextoSucesso" TargetType="TextBlock" BasedOn="{StaticResource MnTagTexto}">
+    <Setter Property="Foreground" Value="{ThemeResource MnVerdeTexto}"/>
+  </Style>
+  <Style x:Key="MnTagTextoAtiva" TargetType="TextBlock" BasedOn="{StaticResource MnTagTexto}">
+    <Setter Property="Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+  </Style>
+  <Style x:Key="MnTagTextoErro" TargetType="TextBlock" BasedOn="{StaticResource MnTagTexto}">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+  </Style>
+  <Style x:Key="MnTagTextoAtencao" TargetType="TextBlock" BasedOn="{StaticResource MnTagTexto}">
+    <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCautionBrush}"/>
+  </Style>
+  <Style x:Key="MnTagTextoIa" TargetType="TextBlock" BasedOn="{StaticResource MnTagTexto}">
+    <Setter Property="Foreground" Value="{ThemeResource MnIaTexto}"/>
+  </Style>
+
+  <!-- Ladrilhos de contagem (Resumo) -->
+  <Style x:Key="MnContagemAtende" TargetType="Border" BasedOn="{StaticResource MnLadrilho}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorSuccessBackgroundBrush}"/>
+  </Style>
+  <Style x:Key="MnContagemNaoAtende" TargetType="Border" BasedOn="{StaticResource MnLadrilho}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBackgroundBrush}"/>
+  </Style>
+  <Style x:Key="MnContagemFalta" TargetType="Border" BasedOn="{StaticResource MnLadrilho}">
+    <Setter Property="Background" Value="{ThemeResource SystemFillColorCautionBackgroundBrush}"/>
+  </Style>
+  <Style x:Key="MnContagemDivergencia" TargetType="Border" BasedOn="{StaticResource MnLadrilho}">
+    <Setter Property="Background" Value="{ThemeResource MnIaFundo}"/>
+  </Style>
+
+  <!-- Formas: arcos dos anéis (Path), barras e faixas (Rectangle) e pontos de legenda (Ellipse). -->
+  <Style x:Key="MnArcoTrilho" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnTrilho}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaTrilho" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnTrilho}"/></Style>
+  <Style x:Key="MnPontoTrilho" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnTrilho}"/></Style>
+  <Style x:Key="MnArcoVerde" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerde}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaVerde" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerde}"/></Style>
+  <Style x:Key="MnPontoVerde" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerde}"/></Style>
+  <Style x:Key="MnArcoVerdeVivo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerdeVivo}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaVerdeVivo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerdeVivo}"/></Style>
+  <Style x:Key="MnPontoVerdeVivo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerdeVivo}"/></Style>
+  <Style x:Key="MnArcoOcre" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnOcre}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaOcre" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnOcre}"/></Style>
+  <Style x:Key="MnPontoOcre" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnOcre}"/></Style>
+  <Style x:Key="MnArcoLilas" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnLilas}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaLilas" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnLilas}"/></Style>
+  <Style x:Key="MnPontoLilas" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnLilas}"/></Style>
+  <Style x:Key="MnArcoCinza" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnCinzaMedio}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaCinza" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnCinzaMedio}"/></Style>
+  <Style x:Key="MnPontoCinza" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnCinzaMedio}"/></Style>
+  <Style x:Key="MnArcoErro" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource SystemFillColorCriticalBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaErro" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCriticalBrush}"/></Style>
+  <Style x:Key="MnPontoErro" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCriticalBrush}"/></Style>
+  <Style x:Key="MnArcoAtencao" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource SystemFillColorCautionBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAtencao" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCautionBrush}"/></Style>
+  <Style x:Key="MnPontoAtencao" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource SystemFillColorCautionBrush}"/></Style>
+  <Style x:Key="MnArcoInfo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnIaTexto}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaInfo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnIaTexto}"/></Style>
+  <Style x:Key="MnPontoInfo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnIaTexto}"/></Style>
+  <Style x:Key="MnArcoAzul" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnAzul}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAzul" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnAzul}"/></Style>
+  <Style x:Key="MnPontoAzul" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnAzul}"/></Style>
+  <Style x:Key="MnArcoMarca" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnVerdeMarca}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaMarca" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnVerdeMarca}"/></Style>
+  <Style x:Key="MnPontoMarca" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnVerdeMarca}"/></Style>
+  <Style x:Key="MnArcoAmarelo" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource MnAmarelo}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaAmarelo" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource MnAmarelo}"/></Style>
+  <Style x:Key="MnPontoAmarelo" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource MnAmarelo}"/></Style>
+  <Style x:Key="MnArcoDivisoria" TargetType="Path"><Setter Property="Stroke" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/><Setter Property="StrokeStartLineCap" Value="Round"/><Setter Property="StrokeEndLineCap" Value="Round"/></Style>
+  <Style x:Key="MnFormaDivisoria" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/></Style>
+  <Style x:Key="MnPontoDivisoria" TargetType="Ellipse"><Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}"/></Style>
+
+  <!-- Linha clicável (evidências, etapas, eventos, consumo por etapa): fundo sutil ao passar o mouse e ao pressionar, foco do sistema. -->
+  <Style x:Key="MnBotaoLinha" TargetType="Button">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="UseSystemFocusVisuals" Value="True"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Grid x:Name="Raiz" Background="{TemplateBinding Background}">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal"/>
+                <VisualState x:Name="PointerOver">
+                  <VisualState.Setters><Setter Target="Raiz.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}"/></VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Pressed">
+                  <VisualState.Setters><Setter Target="Raiz.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}"/></VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Disabled"/>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <ContentPresenter Content="{TemplateBinding Content}" Padding="{TemplateBinding Padding}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+</ResourceDictionary>

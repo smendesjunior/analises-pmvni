@@ -4,6 +4,9 @@
   xmlns:local="using:Pmvni.App">
   <UserControl.Resources>
     <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Recursos/MonitorNativo.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
           <ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary x:Key="Light">
               <SolidColorBrush x:Key="MonitorFundo" Color="#FFFFFF"/>
@@ -73,7 +76,8 @@
       </InfoBar>
     </local:AreaDeAvisos>
 
-    <StackPanel x:Name="AcoesRetomadaFormulario" Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,4">
+    <!-- 3.5.1: a janela leva este painel para a faixa de opções, ao lado do "Novo relatório" (MainWindow.NovoRelatorio.cs). -->
+    <StackPanel x:Name="AcoesRetomadaFormulario" x:FieldModifier="internal" Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="12,4">
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Executar}" x:Name="BotaoContinuar" x:FieldModifier="internal" Content="Retomar análise" Style="{StaticResource PmvniBotaoPrimarioStyle}" local:Brilho.Ativo="False"
                     local:Dicas.Descricao="Retoma a análise que parou, do ponto onde ela ficou."/>
             <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Excluir}" x:Name="BotaoDescartar" x:FieldModifier="internal" Content="Descartar análise" Visibility="Collapsed"
@@ -255,7 +259,7 @@
     </ScrollViewer>
 
     <!-- Monitor da execução. A rolagem da página entra quando a área visível não comporta os cartões. -->
-    <ScrollViewer FontFamily="ms-appx:///Recursos/Monitor/Inter-Regular.ttf#Inter" x:Name="RolagemMonitor" Grid.Row="2" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
+    <ScrollViewer x:Name="RolagemMonitor" Grid.Row="2" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
                   HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
     <Grid x:Name="PainelExecucao" x:FieldModifier="internal" Background="{ThemeResource MonitorFundo}" Padding="32,24" RowSpacing="22"
           RowDefinitions="Auto,Auto">
@@ -687,42 +691,100 @@
       </NavigationView>
     </Grid>
     </ScrollViewer>
-    <Grid Grid.Row="2" x:Name="MonitorHtml" Visibility="Collapsed" Background="#FCFAF6">
-      <WebView2 x:Name="WebMonitor" AutomationProperties.Name="Monitor de análise"/>
-      <StackPanel x:Name="ErroWebMonitor" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
-        <TextBlock Text="Não foi possível abrir o monitor." Style="{StaticResource PmvniAjusteTitulo}"/>
-        <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Restaurar}" Content="Tentar novamente" Click="RecarregarMonitor"/>
-      </StackPanel>
-        <local:PainelQuebra x:Name="BotoesExecucao" Espaco="8" EspacoLinhas="6" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,24,32,0">
-            <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro"
-                    local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="{x:Bind local:Glifos.AbrirPasta}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                <TextBlock Text="Abrir registro"/>
-              </StackPanel>
-            </Button>
-            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Nova análise" Style="{StaticResource PmvniBotaoTonalStyle}"
-                    local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                <TextBlock Text="Nova análise"/>
-              </StackPanel>
-            </Button>
-            <Button x:Name="BotaoPausarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Pausar análise"
-                    local:Dicas.Descricao="Interrompe a execução e preserva o progresso disponível para retomada.">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="{x:Bind local:Glifos.Pausado}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                <TextBlock Text="Pausar"/>
-              </StackPanel>
-            </Button>
-            <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Cancelar análise" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                    local:Dicas.Descricao="Para a análise da IA. A execução cancelada não gera relatório.">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="{x:Bind local:Glifos.Fechar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                <TextBlock Text="Cancelar"/>
-              </StackPanel>
-            </Button>
+    <!-- Monitor de análise nativo (3.5.1): cabeçalho e menu em XAML sobre o Mica, no padrão do NavigationView das Configurações; o cabeçalho
+         de situação (progresso, tempos e trilha das etapas) fica fixo e só o conteúdo da página rola. Quem desenha o conteúdo é
+         PaginaNovoRelatorio.Nativo.cs, a partir dos mesmos dados do monitor de controles escondido (RolagemMonitor). -->
+    <Grid Grid.Row="2" x:Name="MonitorNativo" x:FieldModifier="internal" Visibility="Collapsed" Background="Transparent" RowDefinitions="Auto,*">
+      <Grid Padding="20,4,20,14" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+        <Border Style="{StaticResource MnIconeTile}" Width="40" Height="40" VerticalAlignment="Center">
+          <Path Width="22" Height="18" Stretch="Uniform" Fill="{ThemeResource MnVerde}" AutomationProperties.AccessibilityView="Raw"
+                Data="M32,20.43 C32,20.90 31.61,21.29 31.14,21.29 L28.24,21.29 L24.20,29.38 C24.05,29.67 23.75,29.86 23.43,29.86 C23.05,29.86 22.75,29.63 22.63,29.31 L16.50,13.22 L13.07,20.78 C12.93,21.09 12.63,21.29 12.29,21.29 L8.86,21.29 C7.72,21.29 7.72,19.57 8.86,19.57 L11.73,19.57 L15.79,10.65 C16.12,9.94 17.09,9.99 17.37,10.69 L23.53,26.87 L26.95,20.05 C27.09,19.76 27.38,19.57 27.71,19.57 L31.14,19.57 C31.61,19.57 32,19.96 32,20.43 Z"/>
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+          <TextBlock Text="Monitor de análise" Style="{StaticResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1"/>
+          <TextBlock Text="Acompanhamento de execução, evidências e auditoria técnica em tempo real" Style="{StaticResource MnLegendaQuebra}" FontSize="13"/>
+        </StackPanel>
+        <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="2" Espaco="8" EspacoLinhas="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+            <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro"
+                    local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="{x:Bind local:Glifos.AbrirPasta}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock Text="Abrir registro"/>
+              </StackPanel>
+            </Button>
+            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Nova análise" Style="{StaticResource PmvniBotaoTonalStyle}"
+                    local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock Text="Nova análise"/>
+              </StackPanel>
+            </Button>
+            <Button x:Name="BotaoPausarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Pausar análise"
+                    local:Dicas.Descricao="Interrompe a execução e preserva o progresso disponível para retomada.">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="{x:Bind local:Glifos.Pausado}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock Text="Pausar"/>
+              </StackPanel>
+            </Button>
+            <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Cancelar análise" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                    local:Dicas.Descricao="Para a análise da IA. A execução cancelada não gera relatório.">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="{x:Bind local:Glifos.Fechar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+                <TextBlock Text="Cancelar"/>
+              </StackPanel>
+            </Button>
         </local:PainelQuebra>
+      </Grid>
+      <NavigationView Grid.Row="1" x:Name="MenuMonitor" x:FieldModifier="internal" PaneDisplayMode="Left" OpenPaneLength="240" CompactPaneLength="48"
+                      IsSettingsVisible="False" IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False" IsPaneOpen="True"
+                      IsTitleBarAutoPaddingEnabled="False" AutomationProperties.Name="Páginas do monitor">
+        <NavigationView.PaneHeader>
+          <!-- Processo e requerente no padrão da marca "Análise de Projetos": barrinhas azul, verde e amarela e o número em verde. -->
+          <StackPanel x:Name="CabecalhoProcesso" Margin="16,2,12,14" AutomationProperties.Name="Processo e requerente">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+              <Grid RowDefinitions="*,*,*" RowSpacing="3" Margin="0,3">
+                <Rectangle Width="3" RadiusX="1.5" RadiusY="1.5" Style="{StaticResource MnFormaAzul}"/>
+                <Rectangle Grid.Row="1" Width="3" RadiusX="1.5" RadiusY="1.5" Style="{StaticResource MnFormaMarca}"/>
+                <Rectangle Grid.Row="2" Width="3" RadiusX="1.5" RadiusY="1.5" Style="{StaticResource MnFormaAmarelo}"/>
+              </Grid>
+              <StackPanel Grid.Column="1">
+                <TextBlock Text="Processo" Style="{StaticResource MnSecundario}" FontSize="13"/>
+                <TextBlock x:Name="NavProcesso" x:FieldModifier="internal" Text="—" FontSize="22" FontWeight="Bold" Foreground="{ThemeResource MnVerdeTexto}" HorizontalAlignment="Left" TextAlignment="Left"
+                           TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+              </StackPanel>
+            </Grid>
+            <Grid Margin="13,10,0,10" Height="2" ColumnDefinitions="*,36,36,36" ColumnSpacing="3">
+              <Rectangle Style="{StaticResource MnFormaDivisoria}"/>
+              <Rectangle Grid.Column="1" Style="{StaticResource MnFormaAzul}"/>
+              <Rectangle Grid.Column="2" Style="{StaticResource MnFormaMarca}"/>
+              <Rectangle Grid.Column="3" Style="{StaticResource MnFormaAmarelo}"/>
+            </Grid>
+            <StackPanel Margin="13,0,0,0" Spacing="1">
+              <TextBlock Text="Requerente" Style="{StaticResource MnLegenda}"/>
+              <TextBlock x:Name="NavRequerente" x:FieldModifier="internal" Text="Não informado" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Left" TextAlignment="Left"
+                         TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="True"/>
+            </StackPanel>
+          </StackPanel>
+        </NavigationView.PaneHeader>
+        <NavigationView.MenuItems>
+          <NavigationViewItem Content="Resumo" ToolTipService.ToolTip="Resumo"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Painel}"/></NavigationViewItem.Icon></NavigationViewItem>
+          <NavigationViewItem Content="Etapas" ToolTipService.ToolTip="Etapas"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Lista}"/></NavigationViewItem.Icon></NavigationViewItem>
+          <NavigationViewItem Content="Detalhes" ToolTipService.ToolTip="Detalhes"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Documento}"/></NavigationViewItem.Icon></NavigationViewItem>
+          <NavigationViewItem Content="Consumo" ToolTipService.ToolTip="Consumo"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Grafico}"/></NavigationViewItem.Icon></NavigationViewItem>
+          <NavigationViewItem Content="Log" ToolTipService.ToolTip="Log"><NavigationViewItem.Icon><FontIcon Glyph="{x:Bind local:Glifos.Relatorio}"/></NavigationViewItem.Icon></NavigationViewItem>
+        </NavigationView.MenuItems>
+        <Grid RowDefinitions="Auto,*">
+          <Border x:Name="CabecalhoFixo" Padding="20,16,20,4"/>
+          <ScrollViewer Grid.Row="1" x:Name="RolagemConteudo" x:FieldModifier="internal" VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+            <Grid>
+              <!-- Recebe as sombras dos cartões (ThemeShadow só projeta em quem não é ancestral de quem a lança). -->
+              <Grid x:Name="ReceptorSombras" Background="Transparent"/>
+              <StackPanel x:Name="ConteudoMonitor" x:FieldModifier="internal" Padding="20,12,20,24"/>
+            </Grid>
+          </ScrollViewer>
+        </Grid>
+      </NavigationView>
     </Grid>
   </Grid>
 </UserControl>

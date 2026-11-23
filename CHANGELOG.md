@@ -2,6 +2,18 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.5.1
+
+- O monitor de análise foi refeito como parte nativa do programa, no padrão das Configurações do Windows 11. O menu lateral e o cabeçalho ficam sobre o mesmo fundo translúcido do resto da janela, com o número do processo e o requerente no topo do menu.
+- O cabeçalho com o progresso, a etapa atual, o tempo decorrido (agora com os segundos), a previsão de término e a trilha das etapas é o mesmo em todas as páginas e fica fixo enquanto o conteúdo rola.
+- Etapas, Detalhes, Log e Consumo mostram cada item numa linha só. Em Detalhes, cada entrega, passo, frente e registro tem o sinal de concluído ou pendente.
+- Consumo deixou de repetir o tempo e os totais que já aparecem no cabeçalho e no gráfico de composição.
+- As tags "Ao vivo", "Em andamento" e "Em execução" ficam em verde e pulsam enquanto a análise roda. Os cartões têm sombra e se elevam ao passar o mouse, e as páginas e o menu têm transições suaves.
+- O monitor acompanha o tema claro, o escuro e o alto contraste, e os campos podem ser lidos pelo Narrador.
+- "Retomar análise" e "Descartar análise" ficam na faixa de opções, ao lado de "Novo relatório".
+- Na faixa de opções, os botões de ligar e desligar (Painel lateral, Propriedades, Marcadores e Lista de leis) ficam com um fundo suave quando ligados, no padrão do Windows 11, em vez de parecerem o botão principal.
+- No módulo Relatórios, a barra de zoom do rodapé ficou mais baixa, sem a sobra de espaço embaixo.
+
 ## 3.5.0
 
 - As Configurações foram reorganizadas em 8 categorias, e cada opção fica num lugar só: Geral, Profissional e assinatura, Pastas e fontes de dados, Relatórios e revisão, Módulos, Inteligência artificial (com Modelos da análise dentro dela), Kit PMVNI e Sistema.

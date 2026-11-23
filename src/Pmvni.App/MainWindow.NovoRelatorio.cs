@@ -203,7 +203,6 @@ public sealed partial class MainWindow
         manipuladores[ComandosApp.RelatoriosNovo] = async () => await AbrirNovoRelatorioNaVezAsync();
 
         var n = NR;
-        n.AmbienteMonitor = ambienteDaTela.Task;
         n.EvidenciasSolicitadas += (_, _) => AbrirEvidenciasDoMonitor();
         n.CaixaFiltro.TextChanged += (_, e) =>
         {
@@ -255,6 +254,8 @@ public sealed partial class MainWindow
         n.BotaoDescartar.Click += async (_, _) => await TentarAsync(() => { DescartarAnalisePendente(); return Task.CompletedTask; });
         n.LinkRemontarTeste.Click += async (_, _) => { if (ultimoResultadoNR is { } e) await TentarAsync(async () => await RemontarRelatorioTesteAsync(e)); };
         n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await EscolherContinuacaoAsync());
+        // 3.5.1: Retomar e Descartar análise sobem para a faixa de opções, ao lado do "Novo relatório" (pedido do usuário).
+        Faixa.VagaExtra.Content = n.DestacarAcoesRetomada();
         n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
         n.DetalhesSelecionados += async (_, _) =>
         {

@@ -12,13 +12,43 @@
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         <ContentControl x:Name="VagaPrimario" Grid.Column="0" Padding="0" VerticalContentAlignment="Stretch" VerticalAlignment="Stretch" IsTabStop="False"/>
-        <Border Grid.Column="1" Visibility="{Binding Visibility, ElementName=VagaPrimario}" Width="1" Margin="6,6" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
-        <CommandBar x:Name="Barra" Grid.Column="2" DefaultLabelPosition="Right" HorizontalAlignment="Left" IsDynamicOverflowEnabled="True"
+        <!-- 3.5.1: ações da página aberta ao lado do botão principal (por exemplo, "Retomar análise" no Novo relatório). -->
+        <ContentControl x:Name="VagaExtra" x:FieldModifier="internal" Grid.Column="1" Padding="0" Margin="8,0,0,0" VerticalAlignment="Center" IsTabStop="False"/>
+        <Border Grid.Column="2" Visibility="{Binding Visibility, ElementName=VagaPrimario}" Width="1" Margin="6,6" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+        <CommandBar x:Name="Barra" Grid.Column="3" DefaultLabelPosition="Right" HorizontalAlignment="Left" IsDynamicOverflowEnabled="True"
                     Background="Transparent" OverflowButtonVisibility="Auto">
           <CommandBar.Resources>
+            <ResourceDictionary>
+            <!-- 3.5.1: alternador ligado (Painel lateral, Propriedades, Marcadores…) no padrão Fluent da faixa: só um fundo neutro suave,
+                 sem a borda e o verde do botão principal, que faziam o alternador parecer o "Novo relatório". -->
+            <ResourceDictionary.ThemeDictionaries>
+              <ResourceDictionary x:Key="Default">
+                <StaticResource x:Key="AppBarToggleButtonBackgroundChecked" ResourceKey="SubtleFillColorSecondaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPointerOver" ResourceKey="SubtleFillColorTertiaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPressed" ResourceKey="SubtleFillColorSecondaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonForegroundChecked" ResourceKey="TextFillColorPrimaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPointerOver" ResourceKey="TextFillColorPrimaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPressed" ResourceKey="TextFillColorSecondaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonBorderBrushChecked" ResourceKey="SubtleFillColorTransparentBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonBorderBrushCheckedPointerOver" ResourceKey="SubtleFillColorTransparentBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonBorderBrushCheckedPressed" ResourceKey="SubtleFillColorTransparentBrush"/>
+              </ResourceDictionary>
+              <ResourceDictionary x:Key="Light">
+                <StaticResource x:Key="AppBarToggleButtonBackgroundChecked" ResourceKey="SubtleFillColorSecondaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPointerOver" ResourceKey="SubtleFillColorTertiaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedPressed" ResourceKey="SubtleFillColorSecondaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonForegroundChecked" ResourceKey="TextFillColorPrimaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPointerOver" ResourceKey="TextFillColorPrimaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonForegroundCheckedPressed" ResourceKey="TextFillColorSecondaryBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonBorderBrushChecked" ResourceKey="SubtleFillColorTransparentBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonBorderBrushCheckedPointerOver" ResourceKey="SubtleFillColorTransparentBrush"/>
+                <StaticResource x:Key="AppBarToggleButtonBorderBrushCheckedPressed" ResourceKey="SubtleFillColorTransparentBrush"/>
+              </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
             <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
             <x:Double x:Key="AppBarButtonContentHeight">16</x:Double>
             <!-- 3.2.2: o fundo do hover ocupa o botão inteiro (32 px), igual ao dos botões do início da faixa. -->
@@ -33,6 +63,7 @@
             <Thickness x:Key="AppBarToggleButtonTextLabelOnRightMargin">8,16,12,10</Thickness>
             <StaticResource x:Key="AppBarToggleButtonBackgroundCheckedDisabled" ResourceKey="AppBarToggleButtonBackgroundDisabled"/>
             <StaticResource x:Key="AppBarToggleButtonForegroundCheckedDisabled" ResourceKey="AppBarToggleButtonForegroundDisabled"/>
+            </ResourceDictionary>
           </CommandBar.Resources>
         </CommandBar>
       </Grid>

@@ -26,6 +26,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         AbasMonitor.SelectionChanged += (_, _) => MostrarAba();
         AbasMonitor.SelectedItem = AbasMonitor.MenuItems[0];
         ListaLinhas.Loaded += (_, _) => RolarLinhasAoFim();
+        RegisterPropertyChangedCallback(VisibilityProperty, (_, _) => AtualizarAcoesRetomada());
     }
 
     /// <summary>Largura da coluna do formulário: a da área visível menos 24 de cada lado, entre 280 e 1400.</summary>
@@ -47,12 +48,26 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     /// <summary>Formulário (false) ou vista da execução (true).</summary>
     internal void MostrarExecucao(bool execucao)
     {
-        PainelFormulario.Visibility = AcoesRetomadaFormulario.Visibility = execucao ? Visibility.Collapsed : Visibility.Visible;
-        MonitorHtml.Visibility = Visivel(execucao);
+        PainelFormulario.Visibility = execucao ? Visibility.Collapsed : Visibility.Visible;
+        AtualizarAcoesRetomada();
+        MonitorNativo.Visibility = Visivel(execucao);
         PainelExecucao.Visibility = Visivel(execucao);
-        if (execucao) _ = AbrirMonitorHtmlAsync();
-        else PararMonitorHtml();
+        if (execucao) AbrirMonitor();
+        else PararMonitor();
         AtualizarRadares();
+    }
+
+    /// <summary>"Retomar análise" e "Descartar análise" ficam na faixa de opções: só aparecem com o formulário desta página à vista.</summary>
+    void AtualizarAcoesRetomada() =>
+        AcoesRetomadaFormulario.Visibility = Visivel(Visibility == Visibility.Visible && PainelFormulario.Visibility == Visibility.Visible);
+
+    /// <summary>Tira o painel "Retomar / Descartar análise" desta página para a janela colocá-lo na faixa de opções. A retirada é pela grade
+    /// raiz: durante a construção da janela o WinUI ainda informa o pai do painel como nulo.</summary>
+    internal StackPanel DestacarAcoesRetomada()
+    {
+        if (Content is Panel raiz) raiz.Children.Remove(AcoesRetomadaFormulario);
+        AcoesRetomadaFormulario.Margin = new Thickness(0);
+        return AcoesRetomadaFormulario;
     }
 
     internal event EventHandler? DetalhesSelecionados;
@@ -108,7 +123,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         RadarLog.Ativo = ativo && PainelLog.Visibility == Visibility.Visible;
     }
 
-    internal bool VistaDaExecucao => MonitorHtml.Visibility == Visibility.Visible;
+    internal bool VistaDaExecucao => MonitorNativo.Visibility == Visibility.Visible;
 
     /// <summary>A lista do andamento está no fim (ou ainda não rola): as linhas novas a mantêm no fim.</summary>
     bool LinhasNoFim()
@@ -777,12 +792,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         PainelExecucao.Padding = new Thickness(margem, largura >= 860 ? 24 : 14, margem, 20);
         var compacto = largura < 860;
         var botoesEmbaixo = largura < 970;
-        Grid.SetColumn(BotoesExecucao, botoesEmbaixo ? 0 : 1);
-        Grid.SetRow(BotoesExecucao, botoesEmbaixo ? 1 : 0);
-        Grid.SetColumnSpan(BotoesExecucao, botoesEmbaixo ? 2 : 1);
         Grid.SetColumnSpan(TituloMonitor, botoesEmbaixo ? 2 : 1);
-        BotoesExecucao.HorizontalAlignment = botoesEmbaixo ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-        BotoesExecucao.Margin = botoesEmbaixo ? new Thickness(0) : new Thickness(0,8,0,0);
         var areaDaPagina = largura - 2 * margem - (compacto ? 60 : 182);
         var metricasEmbaixo = areaDaPagina < 710;
         Grid.SetColumnSpan(IdentificacaoResumo, metricasEmbaixo ? 2 : 1);

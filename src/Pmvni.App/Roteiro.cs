@@ -230,7 +230,7 @@ internal static class Roteiro
         async Task Passo(string nome, Func<JsonObject, Task> corpoPasso)
         {
             if (somenteAjustes && nome is not ("plugins_e_ferramentas" or "modelos_da_analise")) return;
-            if (somenteMonitor && nome != "monitor_html_controles") return;
+            if (somenteMonitor && nome != "monitor_controles") return;
             var p = new JsonObject();
             Registrar("início " + nome);
             try { await corpoPasso(p); p["ok"] ??= true; }
@@ -3208,24 +3208,34 @@ internal static class Roteiro
 
         if (somenteMonitor)
         {
-            await Passo("monitor_html_controles", async p =>
+            await Passo("monitor_controles", async p =>
             {
                 await PrepararNovoRelatorioAsync();
                 await j.MudarModuloAsync(Modulo.Relatorios);
                 var n = j.NovoRelatorio;
-                var web = (Microsoft.UI.Xaml.Controls.WebView2)n.FindName("WebMonitor");
+                // 3.5.1: monitor nativo (XAML); as páginas são escolhidas no NavigationView e os botões achados pelo nome acessível.
                 void Verificar(string nome, bool ok)
                 {
                     p[nome] = ok;
                     if (!ok) throw new InvalidOperationException(nome);
                 }
-                async Task EsperarHtml(string expr) =>
-                    Verificar(expr, await EsperarAteAsync(async () => web.CoreWebView2 != null &&
-                        await web.ExecuteScriptAsync(expr) == "true", 15000));
+                async Task EsperarMonitor(string nome, Func<bool> condicao) =>
+                    Verificar(nome, await EsperarAteAsync(() => Task.FromResult(condicao()), 15000));
+                string PaginaDoMonitor() => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(n.ConteudoMonitor);
                 async Task AbrirPagina(string aba)
                 {
-                    await web.ExecuteScriptAsync($"document.querySelector('[data-name={aba}]').click()");
-                    await EsperarHtml($"document.querySelector('article').ariaLabel === '{aba}'");
+                    n.MenuMonitor.SelectedItem = n.MenuMonitor.MenuItems.OfType<Microsoft.UI.Xaml.Controls.NavigationViewItem>().First(i => Equals(i.Content, aba));
+                    await EsperarMonitor("Página " + aba, () => PaginaDoMonitor() == aba);
+                }
+                Microsoft.UI.Xaml.Controls.Button? BotaoDoMonitor(string nome)
+                {
+                    var fila = new Queue<DependencyObject>([n.ConteudoMonitor]);
+                    while (fila.TryDequeue(out var o))
+                    {
+                        if (o is Microsoft.UI.Xaml.Controls.Button b && Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(b) == nome) return b;
+                        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(o); i++) fila.Enqueue(Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(o, i));
+                    }
+                    return null;
                 }
                 File.WriteAllText(configCodex, "model_provider = \"codex-lb\"\n" + ConfigHabilitado);
                 var controlador = j.PecasAgentes.Analise62 ?? throw new InvalidOperationException("Controlador fictício ausente");
@@ -3251,13 +3261,14 @@ internal static class Roteiro
                     var e = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException(j.InfoMensagemAtual.Message);
                     try
                     {
-                        await EsperarHtml("!!document.querySelector('article .board')");
+                        await EsperarMonitor("Monitor desenhado", () => n.ConteudoMonitor.Children.Count > 0);
                         Invocar(n.BotaoMostrarRegistro);
                         Verificar("Abrir registro", await EsperarAteAsync(() => Task.FromResult(AberturaExterna.Registradas.Contains("explorador: " + e.Registro.Pasta)),3000));
                         await AbrirPagina("Etapas");
-                        await web.ExecuteScriptAsync("document.querySelector('svg[aria-label=\"Ver registros\"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
-                        await EsperarHtml("document.querySelector('article').ariaLabel === 'Log'");
-                        await web.ExecuteScriptAsync("[...document.querySelectorAll('article button')].find(b=>b.textContent.includes('PDF')).click()");
+                        Invocar(BotaoDoMonitor("Ver registros") ?? throw new InvalidOperationException("Ver registros"));
+                        await EsperarMonitor("Ver registros abre o Log", () => PaginaDoMonitor() == "Log");
+                        await EsperarMonitor("Botão de evidências", () => BotaoDoMonitor("Ver evidências por PDF e página") is not null);
+                        Invocar(BotaoDoMonitor("Ver evidências por PDF e página")!);
                         Verificar("Evidências", await EsperarAteAsync(() => Task.FromResult(AberturaExterna.Registradas.Contains("explorador: " + evidencias)),3000));
                         await AbrirPagina("Detalhes");
                         await AbrirPagina("Consumo");
@@ -3267,7 +3278,7 @@ internal static class Roteiro
                             Invocar(n.BotaoNovaAnalise);
                             Verificar("Nova análise",await EsperarAteAsync(() => Task.FromResult(!n.VistaDaExecucao && !e.Fim.IsCompleted),3000));
                             Invocar(n.BotaoExecucoes);
-                            await EsperarHtml("!!document.querySelector('article .board')");
+                            await EsperarMonitor("Monitor redesenhado", () => n.ConteudoMonitor.Children.Count > 0);
                             Verificar("Retorno ao monitor",n.VistaDaExecucao);
                             Invocar(n.BotaoPausarAnalise);
                         }
@@ -3315,55 +3326,80 @@ internal static class Roteiro
                 n.MostrarConsumo([new UsoEtapa("analyze","GPT","modelo-teste",1000,120,250,TimeSpan.FromMinutes(20),2,1)
                     { Usada5h=40,UsadaSemana=12,Plano="Plano específico da execução" }], new OrcamentoDaAnalise(18,7));
                 n.LigarLinhas(new System.Collections.ObjectModel.ObservableCollection<string>{ "Mensagem: registro sem hora", $"[{agora:O}] Ação: atividade com hora" });
-                const string campo = "k=>document.querySelector('article [data-field='+k+'] tspan')?.textContent";
-                await AbrirPagina("Resumo");
-                async Task Conferir(string rotulo,string teste)
+                // 3.5.1: o monitor é nativo; cada campo tem o AutomationId do antigo data-field do HTML.
+                IEnumerable<FrameworkElement> Arvore(DependencyObject raiz)
                 {
-                    Verificar(rotulo,await EsperarAteAsync(async()=>await web.ExecuteScriptAsync("(()=>{const campo="+campo+";return ("+teste+")})()")=="true",5000));
+                    var fila = new Queue<DependencyObject>([raiz]);
+                    while (fila.TryDequeue(out var o))
+                    {
+                        if (o is FrameworkElement fe) yield return fe;
+                        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(o); i++) fila.Enqueue(Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(o, i));
+                    }
                 }
+                string TextoDe(FrameworkElement e) =>
+                    Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(e) is { Length: > 0 } nome ? nome
+                    : e is Microsoft.UI.Xaml.Controls.TextBlock t ? t.Text
+                    : string.Join(" ", Arvore(e).OfType<Microsoft.UI.Xaml.Controls.TextBlock>().Select(x => x.Text));
+                string[] Campos(string id) => [.. Arvore(n.MonitorNativo).Where(e => Microsoft.UI.Xaml.Automation.AutomationProperties.GetAutomationId(e) == id).Select(TextoDe)];
+                string Campo(string id) => Campos(id).FirstOrDefault() ?? "";
+                bool PaginaContem(string texto) => Arvore(n.ConteudoMonitor).OfType<Microsoft.UI.Xaml.Controls.TextBlock>().Any(t => t.Text.Contains(texto, StringComparison.Ordinal));
+                Microsoft.UI.Xaml.Controls.Button? Linha(Func<Microsoft.UI.Xaml.Controls.Button, bool> filtro) =>
+                    Arvore(n.ConteudoMonitor).OfType<Microsoft.UI.Xaml.Controls.Button>().FirstOrDefault(filtro);
+                async Task Conferir(string rotulo, Func<bool> teste) =>
+                    Verificar(rotulo, await EsperarAteAsync(() => Task.FromResult(teste()), 5000));
+                async Task FecharDialogo()
+                {
+                    n.FecharDialogo();
+                    await EsperarAteAsync(() => Task.FromResult(n.TituloDoDialogo is null), 3000);
+                }
+                await AbrirPagina("Resumo");
                 await Conferir("Progresso geral 40%, tempo ativo 20 min e restante 30 min",
-                    "campo('percent').includes('40%') && campo('elapsed').includes('20 min') && campo('eta').includes('30 min')");
+                    () => Campo("percent").Contains("40%") && Campo("elapsed").Contains("20 min") && Campo("eta").Contains("30 min"));
                 n.MostrarRelogios(TimeSpan.FromMinutes(21),agora.AddMinutes(1));
-                await Conferir("Relógio e tempo restante avançam juntos","campo('elapsed').includes('21 min') && campo('eta').includes('29 min')");
-                await Conferir("Classificações e prévia de quatro achados","campo('ok')==='5' && campo('fail')==='1' && document.querySelectorAll('article [data-field=verification]').length===4");
-                await web.ExecuteScriptAsync("document.querySelector('[aria-label=\"Filtrar descobertas\"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));document.querySelector('.filters button:last-child').click()");
-                await Conferir("Filtro de classificação","document.querySelectorAll('article [data-field=verification]').length===4 && campo('count')==='5 registros'");
-                await web.ExecuteScriptAsync("[...document.querySelectorAll('article .link')].find(b=>b.textContent.includes('Ver todos')).click()");
-                await Conferir("Ver todos os registros","document.querySelectorAll('article [data-field=verification]').length===5");
-                await web.ExecuteScriptAsync("document.querySelector('article .card svg').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
-                await Conferir("Abertura do achado","document.querySelector('dialog').open && document.querySelector('dialog h2').textContent.includes('Achado')");
-                await web.ExecuteScriptAsync("document.getElementById('close').click()");
+                await Conferir("Relógio e tempo restante avançam juntos", () => Campo("elapsed").Contains("21 min") && Campo("eta").Contains("29 min"));
+                await Conferir("Classificações e prévia de quatro achados", () => Campo("ok") == "5" && Campo("fail") == "1" && Campos("verification").Length == 4);
+                n.FiltrarAchados("Atende");
+                await Conferir("Filtro de classificação", () => Campos("verification").Length == 4 && Campo("count") == "5 registros");
+                Invocar(Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(b).StartsWith("Ver todos", StringComparison.Ordinal)) ?? throw new InvalidOperationException("Ver todos"));
+                await Conferir("Ver todos os registros", () => Campos("verification").Length == 5);
+                Invocar(Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(b).StartsWith("Achado", StringComparison.Ordinal)) ?? throw new InvalidOperationException("Achado"));
+                await Conferir("Abertura do achado", () => n.TituloDoDialogo?.Contains("Achado") == true);
+                await FecharDialogo();
                 await AbrirPagina("Etapas");
-                await Conferir("Etapa 25%, sete de 28 e frente sete de nove","campo('percent')==='25%' && campo('result').includes('7 de 28') && campo('count0')==='7 de 9'");
-                await web.ExecuteScriptAsync("document.querySelector('article [aria-expanded=true]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
-                await Conferir("Recolher etapa","!document.querySelector('article [aria-expanded=true]')");
+                await Conferir("Etapa 25%, sete de 28 e frente sete de nove", () => Campo("stagePercent") == "25%" && Campo("result").Contains("7 de 28") && Campo("count0") == "7 de 9");
+                Invocar(Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(b) == "Aberta") ?? throw new InvalidOperationException("Etapa aberta"));
+                await Conferir("Recolher etapa", () => Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(b) == "Aberta") is null);
                 await AbrirPagina("Detalhes");
-                await Conferir("Ordem do plano, registro e plano do executor","[...document.querySelectorAll('.detail-table tbody th')].map(n=>n.textContent.trim().slice(2).trim()).join('|')==='Preparo|Análise|Produção do relatório|Revisão final' && [...document.querySelectorAll('.detail-items li')].some(n=>n.textContent==='figuras (imagens, hashes)') && document.querySelector('article').innerText.includes('Plano específico da execução') && document.querySelector('article').innerText.includes('Registro de teste')");
+                await Conferir("Ordem do plano, registro e plano do executor",
+                    () => string.Join("|", Campos("stage").Select(t => t[2..].Trim())) == "Preparo|Análise|Produção do relatório|Revisão final"
+                        && Campos("item").Contains("figuras (imagens, hashes)") && PaginaContem("Plano específico da execução") && PaginaContem("Registro de teste"));
                 await AbrirPagina("Consumo");
-                await Conferir("Cota medida separada da parcela sem atribuição", "document.querySelector('.budget-note').textContent.includes('18 p.p. observados') && document.querySelector('.budget-note').textContent.includes('7 p.p. sem atribuição')");
-                await Conferir("Cache 25%, saída 12%, cotas 40% e 12%","campo('cachePercent')==='25%' && campo('outputHelp').includes('12%') && campo('shortPercent')==='40%' && campo('weeklyPercent')==='12%'");
-                await web.ExecuteScriptAsync("document.querySelector('article svg[aria-label*=modelo-teste]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
-                await Conferir("Detalhes da medição por etapa","document.querySelector('dialog').open && document.querySelector('dialog h2').textContent.includes('modelo-teste')");
-                await web.ExecuteScriptAsync("document.getElementById('close').click()");
+                await Conferir("Cota medida separada da parcela sem atribuição", () => Campo("budget").Contains("18 p.p. observados") && Campo("budget").Contains("7 p.p. sem atribuição"));
+                await Conferir("Cache 25%, saída 12%, cotas 40% e 12%",
+                    () => Campo("cachePercent") == "25%" && Campo("outputHelp").Contains("12%") && Campo("shortPercent") == "40%" && Campo("weeklyPercent") == "12%");
+                Invocar(Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(b).Contains("modelo-teste")) ?? throw new InvalidOperationException("Linha de consumo"));
+                await Conferir("Detalhes da medição por etapa", () => n.TituloDoDialogo?.Contains("modelo-teste") == true);
+                await FecharDialogo();
                 n.MostrarConsumo([]);
-                await Conferir("Sem telemetria não inventa percentuais","campo('cachePercent')==='—' && campo('shortPercent')==='—' && campo('weeklyPercent')==='—'");
+                await Conferir("Sem telemetria não inventa percentuais", () => Campo("cachePercent") == "—" && Campo("shortPercent") == "—" && Campo("weeklyPercent") == "—");
                 await AbrirPagina("Log");
-                await Conferir("Log cronológico, horário ausente e evento com hora","campo('count')==='2 eventos registrados' && campo('time')==='—' && document.querySelectorAll('article [data-field=time] tspan')[1].textContent.includes(':')");
-                await web.ExecuteScriptAsync("document.querySelector('article .card svg[role=button]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
-                await Conferir("Abrir e ler evento completo","document.querySelector('dialog').open && document.querySelector('dialog p').textContent.includes('sem hora')");
-                await web.ExecuteScriptAsync("document.getElementById('close').click()");
+                await Conferir("Log cronológico, horário ausente e evento com hora",
+                    () => Campo("count") == "2 eventos registrados" && Campos("time") is [ "—", var comHora ] && comHora.Contains(':'));
+                Invocar(Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(b).Contains("sem hora")) ?? throw new InvalidOperationException("Evento"));
+                await Conferir("Abrir e ler evento completo", () => n.TextoDoDialogo?.Contains("sem hora") == true);
+                await FecharDialogo();
                 n.ReiniciarEstimativa();
                 n.MostrarRelogios(TimeSpan.Zero,agora);
                 await AbrirPagina("Resumo");
-                await Conferir("Sem previsão informa que aguarda a primeira etapa","campo('eta')==='Aguardando medições'");
+                await Conferir("Sem previsão informa que aguarda a primeira etapa", () => Campo("eta") == "Aguardando medições");
                 n.MostrarEstimativa(new EstimativaAnalise("analyze",25,40,null,PeloEditor:true));
                 n.MostrarRelogios(TimeSpan.FromMinutes(20),agora);
-                await Conferir("Sem histórico suficiente, o percentual do roteiro não extrapola um horário","campo('eta')==='Histórico insuficiente'");
+                await Conferir("Sem histórico suficiente, o percentual do roteiro não extrapola um horário", () => Campo("eta") == "Histórico insuficiente");
                 n.ReiniciarEstimativa();
                 n.MostrarResumo(false,null,FluxoNovoRelatorio.Etapas(null,"CONCLUIDO",ordem));
                 n.MostrarRelogios(TimeSpan.FromMinutes(22),agora.AddMinutes(2));
                 await AbrirPagina("Resumo");
-                await Conferir("Todas as etapas concluídas e 100%","campo('percent')==='100%' && campo('status')==='Análise concluída' && campo('eta')==='Concluída'");
+                await Conferir("Todas as etapas concluídas e 100%", () => Campo("percent") == "100%" && Campo("status") == "Análise concluída" && Campo("eta") == "Concluída");
             });
             saida["ok"] = falhas.Count == 0;
             Gravar(args.Roteiro!, saida);

@@ -79,7 +79,7 @@ internal static class AutotesteBrilho
             await Assentar();
             r["saiu_da_arvore_apaga"] = Apagado() && Trabalhando.BrilhoDe(quadro)?.TemCamadaDoHalo != true;
             r["camadas_que_sobraram"] = pagina.Children.Count;
-            var painel = new PaginaNovoRelatorio { AmbienteMonitor = Task.FromResult(ambiente) };
+            var painel = new PaginaNovoRelatorio();
             var carregado = new TaskCompletionSource();
             painel.Loaded += (_, _) => carregado.TrySetResult();
             janela.Content = painel;
@@ -90,38 +90,59 @@ internal static class AutotesteBrilho
             painel.LigarLinhas(linhas);
             var achados = Enumerable.Range(1, 40).Select(i => new AchadoExecucao($"{i:000}", 1, $"Item {i}", "ATENDE", false)).ToList();
             painel.MostrarAchados(achados);
-            var web = (WebView2)painel.FindName("WebMonitor");
-            async Task AguardarMonitor(string expressao)
+            // 3.5.1: o monitor é nativo; a descoberta é achada pelo nome acessível dentro do conteúdo desenhado.
+            Button? Terceiro() => Procurar(painel.ConteudoMonitor, "Item 3") as Button;
+            bool Contem(string texto) => Textos(painel.ConteudoMonitor).Any(t => t.Contains(texto, StringComparison.Ordinal));
+            async Task AguardarMonitor(string descricao, Func<bool> condicao)
             {
                 var limite = DateTime.UtcNow.AddSeconds(30);
                 do
                 {
-                    if (web.CoreWebView2 is not null
-                        && await web.ExecuteScriptAsync(expressao) == "true") return;
+                    if (condicao()) return;
                     await Task.Delay(100);
                 } while (DateTime.UtcNow < limite);
-                var diagnostico = web.CoreWebView2 is null ? "WebView2 sem controlador" :
-                    await web.ExecuteScriptAsync("({url:location.href, aba:document.querySelector('article')?.ariaLabel, dados:typeof state==='object'?state.findings?.length:null})");
-                throw new TimeoutException($"O monitor não apresentou {expressao}. {diagnostico}");
+                throw new TimeoutException($"O monitor não apresentou {descricao}.");
             }
-            const string terceiro = """document.querySelector('article [aria-label="Item 3"]')""";
-            await AguardarMonitor($"!!{terceiro}");
+            await AguardarMonitor("a descoberta Item 3", () => Terceiro() is not null);
             // A descoberta deve continuar focada e a área visível deve ficar no mesmo ponto
             // quando a publicação de um novo achado atualiza o monitor que o analista lê.
-            web.Focus(FocusState.Programmatic);
-            await web.ExecuteScriptAsync($"{terceiro}.focus(); window.scrollTo(0, 160)");
-            var focou = await web.ExecuteScriptAsync($"document.activeElement === {terceiro}") == "true";
-            var antes = System.Text.Json.JsonSerializer.Deserialize<double>(await web.ExecuteScriptAsync("window.scrollY"));
+            Terceiro()!.Focus(FocusState.Programmatic);
+            painel.RolagemConteudo.ChangeView(null, 160, null, true);
+            await Task.Delay(300);
+            var focou = ReferenceEquals(Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(painel.XamlRoot), Terceiro());
+            var antes = painel.RolagemConteudo.VerticalOffset;
             linhas.Add("Novo evento fictício");
             painel.MostrarAchados([.. achados, new("999", 1, "Novo achado", "ATENDE", false)]);
-            await AguardarMonitor("document.querySelector('article').textContent.includes('41 registros')");
-            r["foco_preservado"] = focou && await web.ExecuteScriptAsync($"document.activeElement === {terceiro}") == "true";
-            var depois = System.Text.Json.JsonSerializer.Deserialize<double>(await web.ExecuteScriptAsync("window.scrollY"));
+            await AguardarMonitor("41 registros", () => Contem("41 registros"));
+            await Task.Delay(300);
+            r["foco_preservado"] = focou && ReferenceEquals(Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(painel.XamlRoot), Terceiro());
+            var depois = painel.RolagemConteudo.VerticalOffset;
             r["rolagem_preservada"] = antes > 0 && Math.Abs(depois - antes) < 1;
             r["ok"] = r.Where(x => x.Key != "ok" && x.Value is bool).All(x => x.Value is true) && pagina.Children.Count == 0;
         }
         catch (Exception e) { r["erro"] = e.GetType().Name + ": " + e.Message; }
         finally { try { janela?.Close(); } catch (Exception) { } }
         return r;
+    }
+
+    static DependencyObject? Procurar(DependencyObject raiz, string nome)
+    {
+        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(raiz); i++)
+        {
+            var filho = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(raiz, i);
+            if (Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(filho) == nome) return filho;
+            if (Procurar(filho, nome) is { } achado) return achado;
+        }
+        return null;
+    }
+
+    static IEnumerable<string> Textos(DependencyObject raiz)
+    {
+        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(raiz); i++)
+        {
+            var filho = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(raiz, i);
+            if (filho is TextBlock t) yield return t.Text;
+            foreach (var x in Textos(filho)) yield return x;
+        }
     }
 }
