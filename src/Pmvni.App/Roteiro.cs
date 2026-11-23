@@ -226,8 +226,10 @@ internal static class Roteiro
         string? planoDaImportacao = null;
 
         var somenteMonitor = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_MONITOR") == "1";
+        var somenteAjustes = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_AJUSTES") == "1";
         async Task Passo(string nome, Func<JsonObject, Task> corpoPasso)
         {
+            if (somenteAjustes && nome is not ("plugins_e_ferramentas" or "modelos_da_analise")) return;
             if (somenteMonitor && nome != "monitor_html_controles") return;
             var p = new JsonObject();
             Registrar("início " + nome);
@@ -5433,6 +5435,13 @@ internal static class Roteiro
             await File.WriteAllTextAsync(Path.Combine(motor, "mcp_pmvni.py"), "# servidor fictício");
             await File.WriteAllTextAsync(Path.Combine(pmvni, "estado.json"), "{\"modo\":\"atualizar\",\"atualizado\":\"2026-11-21T10:15:00\",\"situacao\":\"CONCLUIDO\"}");
             await File.WriteAllTextAsync(Path.Combine(scripts, ComponentesDoKit.Script), "# fictício");
+            var bootstrap = await InstalacaoMotorPdf.ExtrairAsync(motor);
+            var fonteServidor = Path.Combine(bootstrap, "mcp_pmvni.py");
+            await File.WriteAllTextAsync(fonteServidor, "# cópia anterior do mesmo servidor");
+            var fonteDivergia = ComponentesDoKit.HashDe(fonteServidor) != InstalacaoMotorPdf.HashDoServidorPdf();
+            await InstalacaoMotorPdf.ExtrairAsync(motor);
+            var fonteRestaurada = fonteDivergia && ComponentesDoKit.HashDe(fonteServidor) == InstalacaoMotorPdf.HashDoServidorPdf();
+            p["bootstrap_recuperado"] = fonteRestaurada;
             var lancados = new List<(string Programa, string Cmd)>();
             j.OrigensDoKitDoRoteiro = new OrigensDoKit(codexHome, null, motor, pmvni, kitLocal, ComponentesDoKit.HashDe(Path.Combine(motor, "mcp_pmvni.py")), () => true);
             j.PastaScriptsDoKitDoRoteiro = scripts;
@@ -5479,10 +5488,36 @@ internal static class Roteiro
                 await Esperar(500);
                 var todos = lancados.Count == 2 && lancados[1].Cmd == Path.Combine(scripts, ComponentesDoKit.CmdTodos)
                     && File.ReadAllText(lancados[1].Cmd).Contains("\\" + ComponentesDoKit.InstaladorDoKit + "\" atualizar", StringComparison.Ordinal);
+                var todosOsBotoes = true;
+                foreach (var linha in l.Linhas)
+                {
+                    var antes = lancados.Count;
+                    ((IInvokeProvider)new ButtonAutomationPeer(j.BotoesDosComponentes[linha.Componente.Id]).GetPattern(PatternInterface.Invoke)).Invoke();
+                    await Esperar(300);
+                    var cmdEsperado = linha.SoPeloTodos || linha.Componente.Parte is null
+                        ? ComponentesDoKit.CmdTodos : ComponentesDoKit.CmdDe(linha.Componente.Parte);
+                    todosOsBotoes &= lancados.Count == antes + 1 && Path.GetFileName(lancados[^1].Cmd) == cmdEsperado;
+                }
+                ((IInvokeProvider)new ButtonAutomationPeer(pag.BotaoRepararInstalacao).GetPattern(PatternInterface.Invoke)).Invoke();
+                await Esperar(300);
+                var reparou = Path.GetFileName(lancados[^1].Cmd) == ComponentesDoKit.CmdDe("reparar");
+                pag.TextoResultadoComponentes.StartBringIntoView();
+                await Esperar(300);
+                pag.TextoResultadoComponentes.UpdateLayout();
+                var resultado = pag.TextoResultadoComponentes;
+                var rodapeInteiro = !resultado.IsTextTrimmed && resultado.ActualHeight > 0
+                    && resultado.TransformToVisual(pag.TextoTarefaKit).TransformPoint(default).Y + resultado.ActualHeight <= 1;
+                ((IInvokeProvider)new ButtonAutomationPeer(pag.BotaoVerificarComponentes).GetPattern(PatternInterface.Invoke)).Invoke();
+                await Esperar(500);
+                var verificou = resultado.Text.StartsWith("Verificado às ", StringComparison.Ordinal);
+                p["botoes_das_sete_linhas"] = todosOsBotoes;
+                p["reparar"] = reparou;
+                p["verificar"] = verificou;
+                p["rodape_inteiro"] = rodapeInteiro;
                 p["resultado"] = pag.TextoResultadoComponentes.Text;
                 p["linhas"] = new JsonArray(l.Linhas.Select(x => (JsonNode)(x.Componente.Nome + ": " + x.TextoSituacao + " (" + x.TextoVersoes + ")")).ToArray());
                 p["conferencias"] = new JsonObject { ["cartao"] = cartao, ["atualizar_um_so"] = umSo, ["atualizar_todos"] = todos };
-                p["ok"] = cartao && umSo && todos;
+                p["ok"] = cartao && umSo && todos && todosOsBotoes && reparou && verificou && rodapeInteiro && fonteRestaurada;
             }
             finally
             {
@@ -5502,21 +5537,19 @@ internal static class Roteiro
             var refs = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "references");
             Directory.CreateDirectory(refs);
             string[] ids = ["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"];
-            string[] iaIds = ["analyze", "technical_audit", "audit", "final_review"];
+            string[] iaIds = ["analyze", "technical_audit", "autocorrecao"];
             string Celulas(Func<string, (string Modelo, string Nivel)> c) =>
                 string.Join(",", iaIds.Select(id => $"\"{id}\":{{\"modelo\":\"{c(id).Modelo}\",\"nivel\":\"{c(id).Nivel}\"}}"));
             var tecnica = (string id) => id is "analyze" or "technical_audit";
             await File.WriteAllTextAsync(Path.Combine(refs, TabelaDeModelos.NomeNoKit), "{\"versao\":1,\"niveis\":[\"baixo\",\"medio\",\"alto\"],"
                 + "\"equivalencia\":{\"baixo\":\"low\",\"medio\":\"medium\",\"alto\":\"high\"},\"etapas_tecnicas\":[\"analyze\",\"technical_audit\"],"
                 + "\"regras\":{\"sobe_por_objecao_tecnica\":true,\"desce_com_cota_abaixo_de\":0.15,\"excecoes_por_rota\":{\"gemini\":{\"desce_com_cota_abaixo_de\":null,\"nota\":\"Rota Gemini (fictícia): nada muda por cota.\"}}},"
-                + "\"rotas\":{\"codex\":{\"nome\":\"ChatGPT\",\"perfis\":{\"padrao\":{\"etapas\":{" + Celulas(id => tecnica(id) ? ("gpt-6.1-sol", "alto") : ("gpt-6.1-terra", "baixo")) + "}}}},"
+                + "\"rotas\":{\"codex\":{\"nome\":\"ChatGPT\",\"perfis\":{\"padrao\":{\"etapas\":{" + Celulas(id => tecnica(id) ? ("gpt-6.1-sol", "alto") : ("gpt-6.1-terra", "medio")) + "}}}},"
                 + "\"claude\":{\"nome\":\"Claude\",\"perfis\":{\"padrao\":{\"etapas\":{" + Celulas(id => tecnica(id) ? ("claude-opus-5-5", "alto") : ("claude-sonnet-5-5", "medio")) + "}}}},"
                 + "\"gemini\":{\"nome\":\"Gemini\",\"modelos\":{\"gemini-3.8-flash\":{\"niveis\":[\"baixo\",\"medio\",\"alto\"]}},"
                 + "\"perfis\":{\"conta_ultra\":{\"nome\":\"Conta Antigravity\",\"etapas\":{" + Celulas(_ => ("gemini-3.8-flash", "medio")) + "}}}}}}");
             await File.WriteAllTextAsync(Path.Combine(refs, "etapas.json"), "{\"versao\":1,\"ordem\":[" + string.Join(",", ids.Select(i => "\"" + i + "\"")) + "],\"etapas\":{"
-                + string.Join(",", ids.Select(i => "\"" + i + "\":" + (i == "audit"
-                    ? "{\"executor\":\"ia\",\"opcional\":true,\"ligada_por_rota\":{\"codex\":true,\"claude\":true,\"gemini\":true}}"
-                    : i is "prepare" or "produce" ? "{\"executor\":\"programa\"}" : "{\"executor\":\"ia\"}"))) + "}}");
+                + string.Join(",", ids.Select(i => "\"" + i + "\":" + (tecnica(i) ? "{\"executor\":\"ia\"}" : "{\"executor\":\"programa\"}"))) + "}}");
             var local = ModelosDaAnalise.ArquivoLocal(PastaDados.Raiz);
             if (File.Exists(local)) File.Delete(local);
             // Um computador que não é o do kit mestre (sem instalacao.json): o botão "Publicar como padrão do kit" fica escondido.
@@ -5549,13 +5582,43 @@ internal static class Roteiro
                 ((IInvokeProvider)new ButtonAutomationPeer(pag.BotaoRestaurarModelos).GetPattern(PatternInterface.Invoke)).Invoke();
                 await Esperar(800);
                 var restaurou = !File.Exists(local) && pag.TextoModelosAnalise.Text.StartsWith("Padrão do kit restaurado", StringComparison.Ordinal);
+                var rotas = new JsonObject();
+                var rotaOk = true;
+                for (var indice = 0; indice < pag.CartoesRotas.Children.Count; indice++)
+                {
+                    var cartao = (Microsoft.UI.Xaml.Controls.Primitives.ToggleButton)pag.CartoesRotas.Children[indice];
+                    if (cartao.IsChecked != true)
+                    {
+                        ((IToggleProvider)new ToggleButtonAutomationPeer(cartao).GetPattern(PatternInterface.Toggle)).Toggle();
+                        await Esperar(300);
+                    }
+                    var novaGrade = pag.PainelModelosAnalise.Children.OfType<Grid>().Single();
+                    var seletores = novaGrade.Children.OfType<Grid>().SelectMany(g => g.Children.OfType<ComboBox>()).ToList();
+                    var modelo = seletores.Single(c => AutomationProperties.GetName(c).StartsWith("Modelo de Autocorreção em "));
+                    var nivel = seletores.Single(c => AutomationProperties.GetName(c).StartsWith("Nível de Autocorreção em "));
+                    var titulo = pag.TituloRota.Text;
+                    var padraoEsperado = indice switch { 0 => "gpt-6.1-terra", 1 => "claude-sonnet-5-5", _ => "gemini-3.8-flash" };
+                    var padraoOk = (modelo.SelectedItem as ComboBoxItem)?.Tag as string == padraoEsperado
+                        && (nivel.SelectedItem as ComboBoxItem)?.Tag as string == "medio";
+                    var nota = novaGrade.Children.OfType<TextBlock>().Single(b => b.Text.Contains("consertos automáticos"));
+                    nivel.SelectedItem = nivel.Items.OfType<ComboBoxItem>().Single(i => (string)i.Tag == "alto");
+                    await Esperar(300);
+                    var salvou = File.Exists(local) && ModelosDaAnalise.LerAjuste(await File.ReadAllTextAsync(local)).Celulas
+                        .Any(kv => kv.Key.Etapa == "autocorrecao" && kv.Value == new CelulaModelos(padraoEsperado, "alto"));
+                    ((IInvokeProvider)new ButtonAutomationPeer(pag.BotaoRestaurarModelos).GetPattern(PatternInterface.Invoke)).Invoke();
+                    await Esperar(300);
+                    rotas[titulo] = padraoOk && salvou && !File.Exists(local) && !nota.IsTextTrimmed;
+                    rotaOk &= rotas[titulo]!.GetValue<bool>();
+                }
+                p["autocorrecao_por_rota"] = rotas;
+                rotaOk &= rotas.Count == 3;
                 p["texto"] = pag.TextoModelosAnalise.Text;
                 p["conferencias"] = new JsonObject
                 {
                     ["grade"] = gradeOk, ["caixas"] = caixas.Count, ["troca_pela_caixa"] = trocou, ["sem_aviso_no_padrao"] = !avisoAntes, ["restaurar"] = restaurou,
                     ["publicar_oculto_fora_do_kit_mestre"] = pag.BotaoPublicarModelos.Visibility == Visibility.Collapsed,
                 };
-                p["ok"] = gradeOk && trocou && !avisoAntes && restaurou && pag.BotaoPublicarModelos.Visibility == Visibility.Collapsed;
+                p["ok"] = rotaOk && gradeOk && trocou && !avisoAntes && restaurou && pag.BotaoPublicarModelos.Visibility == Visibility.Collapsed;
             }
             finally { j.OrigensDoKitDoRoteiro = null; }
         });

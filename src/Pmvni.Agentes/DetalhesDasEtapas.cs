@@ -89,10 +89,13 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
                     if (ProgressoLocal.Texto(ev, "evento") is { Length: > 0 } evento)
                         linhas.Add(string.Join(" · ", new[] { evento.Replace('_', ' '), ProgressoLocal.Texto(ev, "detalhe") }
                             .Where(t => !string.IsNullOrWhiteSpace(t))));
-            if (sessao is { } rep && ProgressoLocal.Inteiro(rep, "reparos_validador") is > 0 and var total)
+            var reparo = sessao is { } sessaoAtual && ProgressoLocal.Texto(sessaoAtual, "correcao_validador") is { Length: > 0 } ? sessao : registro;
+            if (reparo is { } rep && registro is { } emCurso && ProgressoLocal.Texto(emCurso, "status") == "RUNNING"
+                && rep.TryGetProperty("bloqueios_reparo", out var bloqueios) && bloqueios.ValueKind == JsonValueKind.Array
+                && bloqueios.GetArrayLength() is > 0 and var quantidade && ProgressoLocal.Texto(rep, "correcao_validador") is { Length: > 0 })
             {
-                linhas.Add($"Sessões de reparo · {total} · {ProgressoLocal.Texto(rep, "modelo_reparo")} {ProgressoLocal.Texto(rep, "esforco_reparo")}".TrimEnd());
-                if (ProgressoLocal.Texto(rep, "correcao_validador") is { Length: > 0 } motivo) linhas.Add(motivo);
+                linhas.Clear();
+                linhas.Add(quantidade == 1 ? "Corrigindo 1 apontamento do validador" : $"Corrigindo {quantidade} apontamentos do validador");
             }
             if (linhas.Count != 0) registros[id] = string.Join(Environment.NewLine, linhas.Distinct());
             var programa = programas.Contains(id)
@@ -131,18 +134,25 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
             .Select(x => ProgressoLocal.Texto(x, "id")).OfType<string>().ToList();
     }
 
+    public static IReadOnlyList<string> LerAvisos(string controle, DateTime desde)
+    {
+        var json = ArquivoJsonDoKit.Ler(Path.Combine(controle, "validadores", "avisos.json"), desde);
+        if (json is not { ValueKind: JsonValueKind.Array } itens) return [];
+        return itens.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object && ProgressoLocal.Texto(x, "regra") is not null)
+            .Select(x => $"Aviso · {ProgressoLocal.Texto(x, "regra")} · {ProgressoLocal.Texto(x, "onde")} · {ProgressoLocal.Texto(x, "texto")}")
+            .ToList();
+    }
+
     static IReadOnlyList<string> LerValidacoes(string controle, DateTime desde)
     {
-        var linhas = new List<string>();
-        foreach (var nome in new[] { "avisos", "consertos", "consertos-publicacao" })
+        var linhas = new List<string>(LerAvisos(controle, desde));
+        foreach (var nome in new[] { "consertos", "consertos-publicacao" })
         {
             var json = ArquivoJsonDoKit.Ler(Path.Combine(controle, "validadores", nome + ".json"), desde);
             if (json is not { ValueKind: JsonValueKind.Array } itens) continue;
             foreach (var x in itens.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object))
             {
-                if (nome == "avisos" && ProgressoLocal.Texto(x, "regra") is { } regra)
-                    linhas.Add($"Aviso · {regra} · {ProgressoLocal.Texto(x, "onde")} · {ProgressoLocal.Texto(x, "texto")}");
-                else if ((ProgressoLocal.Texto(x, "campo") ?? ProgressoLocal.Texto(x, "onde")) is { } campo && x.TryGetProperty("antes", out var antes)
+                if ((ProgressoLocal.Texto(x, "campo") ?? ProgressoLocal.Texto(x, "onde")) is { } campo && x.TryGetProperty("antes", out var antes)
                     && x.TryGetProperty("depois", out var depois)) linhas.Add($"Conserto · {campo} · {antes} → {depois}");
             }
         }

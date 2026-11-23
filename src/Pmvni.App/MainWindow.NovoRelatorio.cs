@@ -124,6 +124,25 @@ public sealed partial class MainWindow
     /// <summary>A partida de uma análise pelo provedor; no Gemini, com o perfil resolvido antes (null = o usuário não confirmou e nada parte).</summary>
     async Task<ExecucaoEmCurso?> AnalisarComPerfilAsync(Provedor p, Processo processo, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto, IReadOnlyList<AnexoNovo>? enviados, string? registroAnterior = null)
     {
+        if (Argumentos.Atual.Roteiro is null || OrigensDoKitDoRoteiro is not null)
+        {
+            var origens = OrigensDoKitDoComputador();
+            var leitura = await ComponentesDoKit.LerAsync(origens);
+            var divergentes = leitura.Linhas.Where(l => l.Situacao != SituacaoComponente.EmDia).ToList();
+            if (divergentes.Count > 0)
+            {
+                var detalhes = string.Join(Environment.NewLine, divergentes.Select(l => l.Componente.Nome + " · " + l.Detalhe));
+                if (!await Perguntas.Atual.ConfirmarAsync("O kit precisa de atualização", detalhes,
+                        "Atualizar kit e continuar", "Cancelar", destrutiva: false)) return null;
+                await AtualizarComponenteAsync(null);
+                leitura = await ComponentesDoKit.LerAsync(origens);
+                if (leitura.Linhas.Any(l => l.Situacao != SituacaoComponente.EmDia))
+                {
+                    MostrarMensagem(InfoBarSeverity.Warning, "Componentes do kit", "A atualização ainda tem pendências. Confira as linhas em Configurações.");
+                    return null;
+                }
+            }
+        }
         if (p != Provedor.Gemini)
         {
             // Tarefa 19: a tabela de modelos desta análise (padrão do kit + ajuste local), pelas listas guardadas; a do provedor é atualizada em
@@ -298,8 +317,36 @@ public sealed partial class MainWindow
         tarefaListaNR = CarregarProcessosNRAsync(origem, selecionado, aberto);
         await tarefaListaNR;
         await LerPecasAsync();
+        await MostrarContasAtivasAsync();
         AtualizarBotoesNR();
         return true;
+    }
+
+    async Task MostrarContasAtivasAsync()
+    {
+        var linha = NR.TextoContasChatGpt;
+        linha.Visibility = Visibility.Collapsed;
+        var pecas = pecasAgentes;
+        if (RotaCodex.Resolver(ajustes.Agentes[Provedor.ChatGpt].Modo, ajustes.RotaCodex, pecas.CodexHome).Rota != "codex-lb") return;
+        var scripts = pecas.Analise62 is null ? null : Directory.GetParent(pecas.Analise62)?.Parent?.Parent;
+        var consulta = scripts is null ? null : Path.Combine(scripts.FullName, "orcamento_lb.py");
+        var texto = "Leitura de cota do Codex-LB indisponível.";
+        if (pecas.Python is not null && File.Exists(consulta))
+        {
+            var args = new List<string>();
+            if (pecas.PythonPeloLauncher) args.Add("-3");
+            args.AddRange(["-B", "-X", "utf8", consulta!, "--contas"]);
+            try
+            {
+                var leitura = await ExecucaoProcesso.RodarAsync(pecas.Python, args, scripts!.FullName, _ => { },
+                    TimeSpan.FromSeconds(5), CancellationToken.None);
+                if (leitura.Codigo == 0 && !string.IsNullOrWhiteSpace(leitura.Saida)) texto = leitura.Saida.Trim();
+            }
+            catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception or OperationCanceledException) { }
+        }
+        if (fechada) return;
+        linha.Text = texto;
+        linha.Visibility = Visibility.Visible;
     }
 
     void FecharPaginaNovoRelatorio()
@@ -1165,6 +1212,10 @@ public sealed partial class MainWindow
         {
             var importado = await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf),
                 () => naVista && PodeAbrirSemInterromper);
+            var controle = Path.Combine(e.Processo.Pasta, ResultadoAnalise.PastaControle(e.Provedor));
+            var avisos = await Task.Run(() => DetalhesDasEtapas.LerAvisos(controle, e.InicioUtc));
+            if (!fechada && avisos.Count > 0)
+                MostrarMensagem(InfoBarSeverity.Warning, "Avisos desta análise", string.Join(Environment.NewLine, avisos));
             if (!fechada)
                 NotificacoesWindows.Mostrar(importado ? "Relatório pronto" : "Relatório aguardando importação",
                     importado ? "A análise foi concluída e o relatório está disponível para revisão."

@@ -193,6 +193,8 @@
                 </StackPanel>
               </Grid>
               <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoMotivoChatGpt" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
+              <TextBlock x:Name="TextoContasChatGpt" x:FieldModifier="internal" TextAlignment="Left" Margin="42,0,0,0" Visibility="Collapsed"
+                         Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap" />
               <Button x:Name="BotaoChatGpt" AutomationProperties.Name="Analisar com o ChatGPT" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
