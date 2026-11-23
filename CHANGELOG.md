@@ -7,6 +7,8 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 - O monitor da análise usa as páginas do Brilliant, com navegação vertical e dados da execução.
 - Em Modelos da análise, a linha Autocorreção permite escolher o modelo e o raciocínio de cada rota. A etapa exibe o número de apontamentos em correção.
 - O cartão Componentes do kit consulta o verificador de conteúdo do executor e lista os arquivos divergentes. Após uma atualização externa, o Editor volta a ler o estado do kit.
+- Antes de iniciar, o Editor mostra as cotas das contas ativas do Codex-LB e oferece atualizar os componentes divergentes. Ao concluir, apresenta os avisos de validação gravados no processo.
+- Atualizar todos também configura o servidor e os motores de PDF. A tela confere o ambiente instalado e informa quando a atualização foi adiada ou a fonte do kit está fora de alcance.
 
 ## 3.4.1
 

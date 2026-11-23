@@ -54,6 +54,14 @@ internal static class InstalacaoMotorPdf
     }
 
     /// <summary>A constante <c>VERSAO</c> do <c>mcp_pmvni.py</c> que este Editor traz (o cartão compara por ela; o hash só diz se são iguais).</summary>
+    internal static string AmbienteEsperado(bool visao)
+    {
+        var recurso = visao ? "motor.visao.lock" : "motor.requirements.lock";
+        using var pacote = typeof(InstalacaoMotorPdf).Assembly.GetManifestResourceStream(recurso)!;
+        var hash = Convert.ToHexString(SHA256.HashData(pacote));
+        return visao ? "visao-" + hash[..16] : "env-" + hash[..20];
+    }
+
     internal static string? VersaoDoServidorPdf()
     {
         using var s = typeof(InstalacaoMotorPdf).Assembly.GetManifestResourceStream("motor.mcp_pmvni.py");

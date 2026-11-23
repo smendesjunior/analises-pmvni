@@ -50,7 +50,7 @@ public sealed record LinhaComponente(ComponenteDoKit Componente, string? Instala
 /// <paramref name="TarefaExiste"/>: confere se a tarefa "PMVNI\Atualizar kit" existe (true/false; null = não deu para saber; ausente = não confere).
 /// <paramref name="VersaoServidorDoEditor"/>: a constante <c>VERSAO</c> do <c>mcp_pmvni.py</c> que o Editor traz (null = sem versão).</summary>
 public sealed record OrigensDoKit(string CodexHome, string? PastaClaude, string PastaMotorPdf, string PastaPmvni, string PastaKitPadrao, string? HashServidorDoEditor,
-    Func<bool?>? TarefaExiste = null, string? VersaoServidorDoEditor = null, Func<string, string, Task<JsonObject?>>? ConferirPlugin = null);
+    Func<bool?>? TarefaExiste = null, string? VersaoServidorDoEditor = null, Func<string, string, Task<JsonObject?>>? ConferirPlugin = null, Func<bool, string>? AmbienteEsperado = null);
 
 /// <summary>O que o cartão mostra: as linhas, a fonte usada (null = não achada), o kit deste computador e a última execução do instalador do kit.</summary>
 public sealed record LeituraDoKit(IReadOnlyList<LinhaComponente> Linhas, string? Fonte, bool FonteAcessivel, string KitLocal, string TextoTarefa)
@@ -228,7 +228,7 @@ public static class ComponentesDoKit
             {
                 OrigemComponente.PluginNoCodex or OrigemComponente.PluginNoClaude => await LinhaDePluginAsync(c, o, linhasResumo, falhas, versaoNaFonte, versaoNoKitLocal, fonte is not null && acessivel, kitLocal),
                 OrigemComponente.ServidorPdf => LinhaDoServidor(c, hashInstalado, versaoInstalada, o.HashServidorDoEditor, o.VersaoServidorDoEditor, falhas) with { InstaladoEm = servidorEm },
-                _ => LinhaDeMotor(c, linhasResumo, falhas),
+                _ => LinhaDeMotor(c, linhasResumo, falhas, o),
             });
         bool? tarefaExiste = null;
         if (o.TarefaExiste is { } conferir)
@@ -330,7 +330,7 @@ public static class ComponentesDoKit
         return new LinhaComponente(c, instalada, disponivel, situacao, detalhe, c.Parte is null);
     }
 
-    static LinhaComponente LinhaDeMotor(ComponenteDoKit c, IReadOnlyDictionary<string, string> resumo, IReadOnlyList<string> falhas)
+    static LinhaComponente LinhaDeMotor(ComponenteDoKit c, IReadOnlyDictionary<string, string> resumo, IReadOnlyList<string> falhas, OrigensDoKit origens)
     {
         var (nome, estado) = resumo.FirstOrDefault(kv => kv.Key.StartsWith(c.Chave, StringComparison.Ordinal));
         var instalado = estado is not null && estado.StartsWith("INSTALADO", StringComparison.Ordinal);
@@ -351,6 +351,16 @@ public static class ComponentesDoKit
             SituacaoComponente.Ausente => "Ainda não instalado neste computador.",
             _ => c.Ajuda,
         } + (c.Parte == "motores" ? " Os quatro motores de PDF se atualizam juntos." : "");
+        if (instalado && origens.AmbienteEsperado is { } esperado)
+        {
+            var visao = c.Id is "blueprint" or "fyp";
+            var runtime = LerTexto(Path.Combine(origens.PastaMotorPdf, visao ? "visao-runtime.txt" : "runtime.txt"))?.Trim();
+            var ambiente = File.Exists(runtime) ? Directory.GetParent(runtime!)?.Parent : null;
+            if (ambiente is null)
+                return new(c, null, disponivel, SituacaoComponente.Ausente, "O executável do ambiente registrado não foi encontrado. Atualize os motores.", false);
+            if (!string.Equals(ambiente.Name, esperado(visao), StringComparison.OrdinalIgnoreCase))
+                return new(c, instalada, disponivel, SituacaoComponente.AtualizacaoDisponivel, "O ambiente registrado usa um conjunto de dependências diferente do que este Editor traz.", false);
+        }
         return new LinhaComponente(c, instalada, disponivel, situacao, detalhe, c.Parte is null);
     }
 
@@ -409,24 +419,20 @@ public static class ComponentesDoKit
         ArgumentNullException.ThrowIfNull(analisesEmAndamento);
         ArgumentNullException.ThrowIfNull(iniciar);
         if (analisesEmAndamento.Count > 0) return AtualizacaoKit.AvisoAnaliseEmAndamento(analisesEmAndamento);
-        string cmd, texto;
-        if (parte is null)
+        var script = Path.Combine(pastaScripts, Script);
+        if (!File.Exists(script)) return "O script de instalação dos plugins não foi extraído (" + script + "). Nada foi iniciado.";
+        if (parte is null && !File.Exists(Path.Combine(kitLocal, InstaladorDoKit)))
+            return "Não achei o instalador do kit em " + Path.Combine(kitLocal, InstaladorDoKit) + ". Nada foi iniciado.";
+        var cmd = Path.Combine(pastaScripts, parte is null ? CmdTodos : CmdDe(parte));
+        var opcoes = parte switch
         {
-            var instalador = Path.Combine(kitLocal, InstaladorDoKit);
-            if (!File.Exists(instalador)) return "Não achei o instalador do kit em " + instalador + ". Nada foi iniciado.";
-            cmd = Path.Combine(pastaScripts, CmdTodos);
-            texto = "@echo off\r\nrem Editor de Relatórios PMVNI: atualizar todo o kit PMVNI (o instalador oficial do kit, modo atualizar).\r\n"
-                + "call \"" + instalador + "\" atualizar\r\n";
-        }
-        else
-        {
-            var script = Path.Combine(pastaScripts, Script);
-            if (!File.Exists(script)) return "O script de instalação dos plugins não foi extraído (" + script + "). Nada foi iniciado.";
-            cmd = Path.Combine(pastaScripts, CmdDe(parte));
-            texto = "@echo off\r\nrem Editor de Relatórios PMVNI: atualizar só um componente do kit (" + parte + ").\r\n"
-                + "\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \""
-                + script + "\"" + (parte == "reparar" ? "" : " -Componente " + parte) + " -KitLocal \"" + kitLocal + "\"\r\n";
-        }
+            null => " -AtualizarKit",
+            "reparar" => "",
+            _ => " -Componente " + parte,
+        };
+        var texto = "@echo off\r\nsetlocal DisableDelayedExpansion\r\n"
+            + "\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \""
+            + script.Replace("%", "%%") + "\"" + opcoes + " -KitLocal \"" + kitLocal.Replace("%", "%%") + "\"\r\nexit /b %errorlevel%\r\n";
         Directory.CreateDirectory(pastaScripts);
         File.WriteAllText(cmd, texto, PrimeiraAbertura.CodificacaoDoConsole());
         iniciar(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), cmd);

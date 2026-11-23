@@ -15,9 +15,6 @@ foreach ($protegido in $previsto,$ativo,'fontes','python','env-11111111111111111
 }
 if (![PoliticaLimpezaMotor]::Ambiente($antigo,$previsto,$ativo)) { throw 'Ambiente antigo preservado' }
 if ([PoliticaLimpezaMotor]::Ambiente($antigo,$previsto,'')) { throw 'Ponteiro ausente' }
-$agora = [datetime]::UtcNow
-if ([PoliticaLimpezaMotor]::Vencido($agora.AddDays(-14),$agora) -or
-    ![PoliticaLimpezaMotor]::Vencido($agora.AddDays(-15),$agora)) { throw 'Retencao incorreta' }
 'Testes do motor PDF passaram.'
 # Executa a limpeza real somente numa arvore temporaria exclusiva.
 $localAnterior = $env:LOCALAPPDATA
@@ -35,7 +32,12 @@ try {
     [IO.File]::WriteAllText($python,'')
     [IO.File]::WriteAllText((Join-Path $motor 'visao-runtime.txt'),$python)
     function Get-CimInstance { @() }
+    $backup = Join-Path $raiz 'PMVNI/removidos/documento.txt'
+    [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($backup))
+    [IO.File]::WriteAllText($backup,'preservar')
+    [IO.File]::SetLastWriteTimeUtc($backup,[DateTime]::UtcNow.AddYears(-1))
     & (Join-Path $scripts 'limpar.ps1')
+    if ([IO.File]::ReadAllText($backup) -ne 'preservar') { throw 'Backup modificado' }
     foreach ($nome in $atual,$ativo,'fontes','python','limpeza.log') {
         if (!(Test-Path -LiteralPath (Join-Path $motor $nome))) { throw "Faltou $nome" }
     }

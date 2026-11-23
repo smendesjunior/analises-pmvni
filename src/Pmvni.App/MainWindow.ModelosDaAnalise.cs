@@ -255,12 +255,8 @@ public sealed partial class MainWindow
             var desce = a.TrocaDescePorCota ? a.DescePorCota : kit.DescePorCota;
             var i = Array.FindIndex(OpcoesCotaBaixa, o => Igual(o.Valor, desce));
             p.CaixaCotaBaixa.SelectedIndex = i >= 0 ? i : -1;
-            var sobem = kit.RotasQueSobem.Select(r => Provedores.Nome(ModelosDaAnalise.ProvedorDaRota(r))).ToList();
-            p.TextoRegraObjecao.Text = "Depois de uma falha técnica registrada (validador reprovado, objeção da auditoria ou da revisão final), a nova tentativa da etapa sobe um nível, até alto. "
-                + "Cota e problemas do computador nunca sobem. "
-                + (sobem.Count == 0 ? "Pelas exceções do kit, não vale em nenhuma rota."
-                    : sobem.Count == ModelosDaAnalise.Rotas.Length ? "Vale nas três rotas."
-                    : "Vale só " + (sobem.Count == 1 ? "na rota " + sobem[0] : "nas rotas " + string.Join(", ", sobem)) + "; nas outras, o kit não muda o nível por objeção.");
+            p.TextoRegraObjecao.Text = "Na rota ChatGPT, uma nova tentativa após objeção técnica registrada sobe um nível de raciocínio, até alto. "
+                + "Durante a autocorreção, o Editor usa o modelo e o raciocínio da linha Autocorreção.";
             p.TextoRegrasDasRotas.Text = string.Join(" ", kit.NotasDasRotas.Values)
                 + (kit.NotasDasRotas.Count > 0 ? " " : "") + "Padrão do kit: objeção técnica " + (kit.SobePorObjecao ? "sobe" : "não sobe") + " um nível; cota baixa "
                 + (kit.DescePorCota is { } d ? "com " + (d * 100).ToString("0", CultureInfo.InvariantCulture) + "% ou menos restantes" : "não desce o nível") + ".";

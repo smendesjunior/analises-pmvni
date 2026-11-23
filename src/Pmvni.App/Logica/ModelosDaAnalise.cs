@@ -396,6 +396,7 @@ public static class ModelosDaAnalise
         }
         var json = Nucleo(celulas, ajuste.SobePorObjecao, ajuste.TrocaDescePorCota, ajuste.DescePorCota, ajuste.Ligadas,
             ajuste.Vazio ? "padrão do kit (sem ajuste local)" : "padrão do kit com o ajuste local do Editor de Relatórios");
+        if (ajuste.SobePorObjecao is { } subir) json["subir_nova_tentativa_chatgpt"] = subir;
         json["avisos"] = new JsonArray(avisos.Select(a => (JsonNode?)JsonValue.Create(a.Texto)).ToArray());
         return new TabelaEfetiva(json, avisos);
     }

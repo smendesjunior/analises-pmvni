@@ -29,6 +29,11 @@ static class Program
         {
             if (args.Length == 0) return Uso();
             if (args[0] == "dormir") { Dormir(60000); return 0; }
+            if (args.Contains("--contas") && args.Any(a => Path.GetFileName(a) == "orcamento_lb.py"))
+            {
+                saida.WriteLine("Conta fictícia · 5 h 80% livres · semana 15% livres");
+                return 0;
+            }
             if (args.Any(a => a.EndsWith("executar_analise_62.py", StringComparison.OrdinalIgnoreCase))) return Analise62(args);
             if (Array.IndexOf(args, "--case") >= 0) return Python(args);
             if (args[0] == "exec") return Exec(args);

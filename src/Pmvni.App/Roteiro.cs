@@ -3227,6 +3227,14 @@ internal static class Roteiro
                     await web.ExecuteScriptAsync($"document.querySelector('[data-name={aba}]').click()");
                     await EsperarHtml($"document.querySelector('article').ariaLabel === '{aba}'");
                 }
+                File.WriteAllText(configCodex, "model_provider = \"codex-lb\"\n" + ConfigHabilitado);
+                var controlador = j.PecasAgentes.Analise62 ?? throw new InvalidOperationException("Controlador fictício ausente");
+                var scriptsKit = Directory.GetParent(controlador)!.Parent!.Parent!.FullName;
+                File.WriteAllText(Path.Combine(scriptsKit, "orcamento_lb.py"), "# consulta de teste");
+                await j.NovoRelatorioAsync();
+                Verificar("Cota por conta antes da análise", n.TextoContasChatGpt.Visibility == Visibility.Visible
+                    && n.TextoContasChatGpt.Text.Contains("Conta fictícia · 5 h 80% livres · semana 15% livres"));
+                File.WriteAllText(configCodex, ConfigHabilitado);
                 foreach (var pausar in new[]{true,false})
                 {
                     await j.NovoRelatorioAsync();
@@ -3280,6 +3288,17 @@ internal static class Roteiro
                     }
                     finally { if (!e.Fim.IsCompleted) { perguntas.Confirmar = true; await j.CancelarAnaliseAsync(e); } }
                 }
+                await j.NovoRelatorioAsync();
+                await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == P0012()));
+                j.Orquestrador = Orq("ok");
+                perguntas.Confirmar = true;
+                var concluindo = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException(j.InfoMensagemAtual.Message);
+                var pastaAviso = Directory.CreateDirectory(Path.Combine(P0012(), ".pmvni-ai", "analise", "validadores"));
+                File.WriteAllText(Path.Combine(pastaAviso.FullName, "avisos.json"), """[{"regra":"palavra_repetida","onde":"itens[0]","texto":"item item"}]""");
+                var entregue = await Prazo(j.AguardarAnaliseAsync(concluindo), 90);
+                Verificar("Aviso registrado no processo aparece ao entregar", entregue.Situacao == "concluida"
+                    && j.InfoMensagemAtual.IsOpen && j.InfoMensagemAtual.Title == "Avisos desta análise"
+                    && j.InfoMensagemAtual.Message.Contains("palavra_repetida") && j.InfoMensagemAtual.Message.Contains("item item"));
                 // A fonte fornece valores de teste ao mesmo modelo que recebe o progresso do kit.
                 await j.NovoRelatorioAsync();
                 n.MostrarExecucao(true);
@@ -5487,7 +5506,7 @@ internal static class Roteiro
                 ((IInvokeProvider)new ButtonAutomationPeer(pag.BotaoAtualizarTodosComponentes).GetPattern(PatternInterface.Invoke)).Invoke();
                 await Esperar(500);
                 var todos = lancados.Count == 2 && lancados[1].Cmd == Path.Combine(scripts, ComponentesDoKit.CmdTodos)
-                    && File.ReadAllText(lancados[1].Cmd).Contains("\\" + ComponentesDoKit.InstaladorDoKit + "\" atualizar", StringComparison.Ordinal);
+                    && File.ReadAllText(lancados[1].Cmd).Contains("\" -AtualizarKit -KitLocal \"" + kitLocal + "\"", StringComparison.Ordinal);
                 var todosOsBotoes = true;
                 foreach (var linha in l.Linhas)
                 {
@@ -5517,7 +5536,16 @@ internal static class Roteiro
                 p["resultado"] = pag.TextoResultadoComponentes.Text;
                 p["linhas"] = new JsonArray(l.Linhas.Select(x => (JsonNode)(x.Componente.Nome + ": " + x.TextoSituacao + " (" + x.TextoVersoes + ")")).ToArray());
                 p["conferencias"] = new JsonObject { ["cartao"] = cartao, ["atualizar_um_so"] = umSo, ["atualizar_todos"] = todos };
-                p["ok"] = cartao && umSo && todos && todosOsBotoes && reparou && verificou && rodapeInteiro && fonteRestaurada;
+                // Desconectar apenas a fonte da cópia de teste e usar o mesmo comando da tela.
+                static string[] LogsDeErro() => Directory.Exists(RegistroErros.Pasta)
+                    ? Directory.GetFiles(RegistroErros.Pasta, "erro-*.txt").Order().ToArray() : [];
+                var logsAntes = LogsDeErro();
+                Directory.Move(fonte, fonte + "-desconectada");
+                await j.VerificarComponentesAsync();
+                var offline = j.LeituraDoKitAtual is { FonteAcessivel: false } indisponivel
+                    && indisponivel.TextoFonte.Contains("fora do alcance") && logsAntes.SequenceEqual(LogsDeErro());
+                p["fonte_desconectada_sem_log_de_erro"] = offline;
+                p["ok"] = cartao && umSo && todos && todosOsBotoes && reparou && verificou && rodapeInteiro && fonteRestaurada && offline;
             }
             finally
             {
@@ -5619,6 +5647,83 @@ internal static class Roteiro
                     ["publicar_oculto_fora_do_kit_mestre"] = pag.BotaoPublicarModelos.Visibility == Visibility.Collapsed,
                 };
                 p["ok"] = rotaOk && gradeOk && trocou && !avisoAntes && restaurou && pag.BotaoPublicarModelos.Visibility == Visibility.Collapsed;
+                if (somenteAjustes)
+                {
+                    // A seleção da janela deve chegar ao registro que o executor recebe.
+                    var botaoCodex = (Microsoft.UI.Xaml.Controls.Primitives.ToggleButton)pag.CartoesRotas.Children[0];
+                    ((IToggleProvider)new ToggleButtonAutomationPeer(botaoCodex).GetPattern(PatternInterface.Toggle)).Toggle();
+                    await Esperar(300);
+                    var gradeCodex = pag.PainelModelosAnalise.Children.OfType<Grid>().Single();
+                    var raciocinio = gradeCodex.Children.OfType<Grid>().SelectMany(g => g.Children.OfType<ComboBox>())
+                        .Single(c => AutomationProperties.GetName(c).StartsWith("Nível de Autocorreção em "));
+                    raciocinio.SelectedItem = raciocinio.Items.OfType<ComboBoxItem>().Single(i => (string)i.Tag == "alto");
+                    await Esperar(400);
+                    await PrepararNovoRelatorioAsync();
+
+                    var ensaio = Directory.CreateDirectory(Path.Combine(pasta, "prevoo-" + Guid.NewGuid().ToString("N"))).FullName;
+                    var motor = Directory.CreateDirectory(Path.Combine(ensaio, "motor")).FullName;
+                    var kitLocal = Directory.CreateDirectory(Path.Combine(ensaio, "kit")).FullName;
+                    var claude = Directory.CreateDirectory(Path.Combine(ensaio, "claude", "plugins"));
+                    File.WriteAllText(Path.Combine(claude.FullName, "installed_plugins.json"),
+                        """{"plugins":{"analise@pmvni-local":[{"version":"4.0.0"}]}}""");
+                    var servidor = Path.Combine(motor, "mcp_pmvni.py");
+                    File.WriteAllText(servidor, "VERSAO = '1.1.0'");
+                    var hashServidor = ComponentesDoKit.HashDe(servidor);
+                    File.WriteAllText(servidor, "VERSAO = '1.0.0'");
+                    File.WriteAllText(Path.Combine(kitLocal, ComponentesDoKit.InstaladorDoKit), "rem teste");
+                    File.WriteAllText(Path.Combine(motor, ComponentesDoKit.Script), "# teste");
+                    var instalou = false;
+                    j.OrigensDoKitDoRoteiro = new OrigensDoKit(codexHome, claude.Parent!.FullName, motor, ensaio, kitLocal,
+                        hashServidor, () => true, "1.1.0", (_, _) => Task.FromResult<JsonObject?>(instalou
+                            ? new() { ["status"] = "CURRENT" }
+                            : new() { ["status"] = "CHECK_FAILED", ["different_skill_files"] = new JsonArray("scripts/validar.py") }));
+                    j.PastaScriptsDoKitDoRoteiro = motor;
+                    j.LancadorDoKit = (_, cmd) =>
+                    {
+                        if (Path.GetFileName(cmd) != ComponentesDoKit.CmdTodos) throw new InvalidOperationException(cmd);
+                        instalou = true;
+                        File.WriteAllText(servidor, "VERSAO = '1.1.0'");
+                        File.WriteAllText(Path.Combine(motor, "resumo-instalacao.txt"),
+                            "Blueprint Pipeline    INSTALADO\r\nFYP-Floorplan    INSTALADO\r\nDocling MCP 3.5.0    INSTALADO\r\nPyMuPDF 2.1    INSTALADO\r\n");
+                    };
+                    await j.VerificarComponentesAsync();
+                    await j.NovoRelatorioAsync();
+                    await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == P0001()));
+                    perguntas.Confirmar = true;
+                    var (execucao, fim) = await AnalisarAteOFimAsync(Provedor.ChatGpt, "ok");
+                    var confirmacao = perguntas.Confirmacoes.Last(c => c.Titulo == "O kit precisa de atualização");
+                    var prevoo = instalou && fim.Situacao == "concluida" && confirmacao.Sim == "Atualizar kit e continuar"
+                        && confirmacao.Texto.Contains("scripts/validar.py") && ComponentesDoKit.Lista.All(c => confirmacao.Texto.Contains(c.Nome));
+                    var arq = Path.Combine(execucao.Registro.Pasta, TabelaDeModelos.NomeDoArquivo);
+                    var politica = JsonNode.Parse(File.ReadAllText(arq))!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!["autocorrecao"]!;
+                    p["conferencia_antes_de_partir"] = prevoo;
+                    p["tabela_da_execucao"] = arq;
+                    p["ok"] = p["ok"]!.GetValue<bool>() && prevoo && (string?)politica["nivel"] == "alto";
+                    // Reabrir um registro interrompido com uma objeção. Nenhuma IA deve partir.
+                    var casoPendente = P0012();
+                    var regPendente = RegistroExecucao.Criar(casoPendente, Provedor.ChatGpt, DateTime.Now);
+                    var controle = Directory.CreateDirectory(Path.Combine(casoPendente, ".pmvni-ai", "analise")).FullName;
+                    var estado = Path.Combine(controle, "engine_state.json");
+                    var objecao = """{"stages":{"prepare":{"status":"EXECUTED"},"technical_audit":{"status":"OBJECTIONS","note":"Objeto fictício para conferir"}}}""";
+                    File.WriteAllText(estado, objecao);
+                    j.AjustesAtuais.ExecucoesChatGpt.Add(new ExecucaoClaudePendente(casoPendente, regPendente.Pasta));
+                    await j.NovoRelatorioAsync();
+                    var confirmacoesAntes = perguntas.Confirmacoes.Count;
+                    await j.RetomarExecucoesChatGptAsync();
+                    var aviso = j.NovoRelatorio.AvisoResultado;
+                    var avisou = aviso.IsOpen && aviso.Severity == InfoBarSeverity.Warning && aviso.Message.Contains("Objeto fictício para conferir")
+                        && aviso.Message.Contains("Auditoria técnica") && aviso.Message.Contains("Retomar análise")
+                        && j.ExecucoesEmCurso.Count == 0 && perguntas.Confirmacoes.Count == confirmacoesAntes && File.ReadAllText(estado) == objecao;
+                    p["retomada_com_objecao_sem_reexecutar"] = avisou;
+                    p["ok"] = p["ok"]!.GetValue<bool>() && avisou;
+                    j.AjustesAtuais.ExecucoesChatGpt.RemoveAll(x => x.Registro == regPendente.Pasta);
+                    j.LancadorDoKit = null;
+                    j.PastaScriptsDoKitDoRoteiro = null;
+                    await j.MudarModuloAsync(Modulo.Ajustes);
+                    pag.MostrarCategoria(CategoriasAjustes.Modelos);
+                    ((IInvokeProvider)new ButtonAutomationPeer(pag.BotaoRestaurarModelos).GetPattern(PatternInterface.Invoke)).Invoke();
+                    await Esperar(300);
+                }
             }
             finally { j.OrigensDoKitDoRoteiro = null; }
         });

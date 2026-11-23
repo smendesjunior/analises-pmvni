@@ -2,3 +2,5 @@ src/Pmvni.Composicao/ModeloOficial/** -text
 tests/referencias/** -text
 tests/corpus/** -text
 src/Pmvni.Legislacao/web/** -text
+src/Pmvni.App/MotorPdf/*.lock text eol=lf
+src/Pmvni.App/MotorPdf/mcp_pmvni.py text eol=crlf

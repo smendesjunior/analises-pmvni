@@ -71,12 +71,6 @@ try {
             if ($item.FullName -ne $PSScriptRoot) { Apagar $bootstrap $item }
         }
     }
-    $removidos = Join-Path $pmvni 'removidos'
-    if (Test-Path -LiteralPath $removidos) {
-        foreach ($item in Get-ChildItem -LiteralPath $removidos -Force) {
-            if ([PoliticaLimpezaMotor]::Vencido($item.LastWriteTimeUtc,[datetime]::UtcNow)) { Apagar $removidos $item }
-        }
-    }
     $instalacao = Join-Path $env:LOCALAPPDATA 'Programs\Analise de Projetos PMVNI'
     if ($EditorAberto -eq (Join-Path $instalacao 'Editor de Relatorios PMVNI.exe')) {
         foreach ($item in Get-ChildItem -LiteralPath $instalacao -File -Force) {

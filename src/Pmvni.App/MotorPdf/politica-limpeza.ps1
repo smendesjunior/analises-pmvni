@@ -9,7 +9,4 @@ class PoliticaLimpezaMotor {
     static [bool] Teste([string]$nome) { return $nome -like 'teste-*' }
     static [bool] Bootstrap([string]$nome) { return $nome -match '^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$' }
     static [bool] SobraInstalacao([string]$nome) { return $nome -like '*.anterior*' -or $nome -like '*~RF*.TMP' }
-    static [bool] Vencido([datetime]$gravado, [datetime]$agora) {
-        return $gravado -lt $agora.AddDays(-14)
-    }
 }

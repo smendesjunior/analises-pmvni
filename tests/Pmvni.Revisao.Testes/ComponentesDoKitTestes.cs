@@ -157,6 +157,22 @@ public sealed class ComponentesDoKitTestes : IDisposable
     }
 
     [Fact]
+    public async Task Resumo_instalado_exige_executavel_no_ambiente_previsto()
+    {
+        File.WriteAllText(Path.Combine(MotorPdf, "resumo-instalacao.txt"), "PyMuPDF 2.1    INSTALADO");
+        var origens = Origens() with { AmbienteEsperado = _ => "env-vigente" };
+        var ausente = Linha(await ComponentesDoKit.LerAsync(origens), "pymupdf");
+        Assert.Equal(SituacaoComponente.Ausente, ausente.Situacao);
+        foreach (var (pasta, esperado) in new[] { ("env-antigo", SituacaoComponente.AtualizacaoDisponivel), ("env-vigente", SituacaoComponente.EmDia) })
+        {
+            var python = Path.Combine(Directory.CreateDirectory(Path.Combine(MotorPdf, pasta, "Scripts")).FullName, "python.exe");
+            File.WriteAllText(python, "");
+            File.WriteAllText(Path.Combine(MotorPdf, "runtime.txt"), python);
+            Assert.Equal(esperado, Linha(await ComponentesDoKit.LerAsync(origens), "pymupdf").Situacao);
+        }
+    }
+
+    [Fact]
     public async Task Mesma_versao_com_script_divergente_exige_atualizar()
     {
         PluginNoKit(KitLocal, "4.0.0");
@@ -195,7 +211,7 @@ public sealed class ComponentesDoKitTestes : IDisposable
         File.WriteAllText(Path.Combine(KitLocal, ComponentesDoKit.InstaladorDoKit), "rem fictício");
         ComponentesDoKit.IniciarAtualizacao(null, [], Scripts, KitLocal, (p, a) => chamadas.Add((p, a)));
         Assert.Equal(Path.Combine(Scripts, ComponentesDoKit.CmdTodos), Assert.Single(chamadas).Argumento);
-        Assert.Contains("call \"" + Path.Combine(KitLocal, ComponentesDoKit.InstaladorDoKit) + "\" atualizar", File.ReadAllText(chamadas[0].Argumento));
+        Assert.Contains("\" -AtualizarKit -KitLocal \"" + KitLocal + "\"", File.ReadAllText(chamadas[0].Argumento));
     }
 
     [Fact]

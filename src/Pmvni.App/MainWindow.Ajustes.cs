@@ -443,7 +443,7 @@ public sealed partial class MainWindow
         var o = Pmvni.Agentes.OpcoesLocalizacao.DoAmbiente(ajustes.PastaKitEfetiva, null, null);
         var pmvni = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PMVNI");
         return new OrigensDoKit(o.CodexHome, o.PastaClaude, InstalacaoMotorPdf.BaseLocal, pmvni, ajustes.PastaKitEfetiva, InstalacaoMotorPdf.HashDoServidorPdf(),
-            TarefaDoKitExiste, InstalacaoMotorPdf.VersaoDoServidorPdf());
+            TarefaDoKitExiste, InstalacaoMotorPdf.VersaoDoServidorPdf(), AmbienteEsperado: InstalacaoMotorPdf.AmbienteEsperado);
     }
 
     /// <summary>A tarefa "PMVNI\Atualizar kit" existe? (<c>schtasks /Query</c>, só leitura; código 0 = existe, 1 = não existe; outro = não se sabe.)</summary>
@@ -577,7 +577,14 @@ public sealed partial class MainWindow
             File.Delete(marcador);
             File.Delete(wrapper);
             await VerificarComponentesAsync();
-            if (codigo != "0") p.TextoResultadoComponentes.Text = $"O instalador terminou com código {codigo}. Confira as pendências acima.";
+            if (codigo != "0") p.TextoResultadoComponentes.Text = codigo switch
+            {
+                "4" => "Atualização adiada. Há uma análise ou manutenção em andamento.",
+                "41" => "A fonte do kit está fora do alcance. A atualização pode ser repetida na rede da Prefeitura.",
+                "42" => "O instalador do kit registrou pendências. Consulte a última execução do instalador.",
+                "43" => "O instalador do kit não confirmou a conclusão desta atualização.",
+                _ => $"O instalador terminou com código {codigo}. Confira as pendências acima.",
+            };
 
         }
         catch (Exception e)
