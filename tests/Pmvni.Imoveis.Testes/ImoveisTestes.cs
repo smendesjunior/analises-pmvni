@@ -293,6 +293,8 @@ public class MapaLocalizacaoTestes : IDisposable
         var ext = raiz.GetProperty("extent").EnumerateArray().Select(x => x.GetDouble()).ToArray();
         Assert.True(ext.Length == 4 && ext[0] < ext[2] && ext[1] < ext[3]);
         Assert.All(raiz.GetProperty("legend").EnumerateArray(), x => Assert.True(x.TryGetProperty("texto", out _) && x.TryGetProperty("tipo", out _)));
+        var loteNaLegenda = raiz.GetProperty("legend").EnumerateArray().Single(x => x.GetProperty("tipo").GetString() == "lote");
+        Assert.Equal("Lote candidato na base municipal", loteNaLegenda.GetProperty("texto").GetString());
         Assert.Contains(raiz.GetProperty("layers").EnumerateArray(), x => x.GetString() == "Lotes");
         var dados = raiz.GetProperty("dados").EnumerateArray().ToList();
         Assert.Contains(dados, x => x.GetProperty("rotulo").GetString() == "Inscrição" && x.GetProperty("valor").GetString() == inscricao);
