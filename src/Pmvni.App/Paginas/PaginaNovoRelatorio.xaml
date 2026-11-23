@@ -6,7 +6,7 @@
     <ResourceDictionary>
           <ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary x:Key="Light">
-              <SolidColorBrush x:Key="MonitorFundo" Color="#FCFAF6"/>
+              <SolidColorBrush x:Key="MonitorFundo" Color="#FFFFFF"/>
               <SolidColorBrush x:Key="MonitorSuperficie" Color="#FFFFFF"/>
               <SolidColorBrush x:Key="MonitorBorda" Color="#E5E3DF"/>
               <SolidColorBrush x:Key="MonitorVerde" Color="#176B43"/>

@@ -6,27 +6,60 @@ namespace Pmvni.Agentes;
 public sealed record DuracaoEtapa(string Etapa, Provedor Provedor, TimeSpan Duracao);
 
 /// <summary>A previsão de término do Monitor, calculada pelo Editor pelas medianas das etapas que faltam. A previsão firme exige ao menos
-/// <see cref="MinimoDeExecucoes"/> execuções por etapa no mesmo provedor. A estimativa aproximada aceita um histórico menor ou de outros provedores.
+/// <see cref="MinimoDeExecucoes"/> execuções por etapa no mesmo provedor. A estimativa aproximada aceita um histórico menor da mesma rota ou o ritmo observado na etapa atual.
 /// A estimativa inicial preenche as lacunas do histórico pelas durações de partida.</summary>
 public static class PrevisaoTermino
 {
     public const int MinimoDeExecucoes = 3;
 
-    public static DateTimeOffset? Estimar(Progresso atual, IReadOnlyList<DuracaoEtapa> historico, DateTimeOffset? agora = null)
-    {
-        ArgumentNullException.ThrowIfNull(atual);
-        if (atual.Provedor is not { } provedor || historico is null) return null;
-        return EstimarPorDuracoes(atual, etapa => Mediana(historico.Where(d => d.Provedor == provedor && d.Etapa == etapa
-            && d.Duracao > TimeSpan.Zero), MinimoDeExecucoes), agora);
-    }
+    public static DateTimeOffset? Estimar(Progresso atual, IReadOnlyList<DuracaoEtapa> historico, DateTimeOffset? agora = null) =>
+        EstimarMedido(atual, historico, agora ?? DateTimeOffset.UtcNow, MinimoDeExecucoes);
 
-    /// <summary>Estima o término pela mediana de cada etapa que falta, preferindo as execuções do mesmo provedor e usando as de todos os provedores
-    /// quando não houver uma dele. Retorna null se faltar histórico para alguma dessas etapas.</summary>
-    public static DateTimeOffset? EstimarAproximada(Progresso atual, IReadOnlyList<DuracaoEtapa> historico, DateTimeOffset? agora = null)
+    /// <summary>Com histórico curto, aceita uma execução positiva da mesma rota por etapa restante.
+    /// Se a etapa atual já entregou três ou mais unidades, usa o ritmo medido dessa execução.</summary>
+    public static DateTimeOffset? EstimarAproximada(Progresso atual, IReadOnlyList<DuracaoEtapa> historico, DateTimeOffset? agora = null) =>
+        EstimarMedido(atual, historico, agora ?? DateTimeOffset.UtcNow, 1);
+
+    static DateTimeOffset? EstimarMedido(Progresso atual, IReadOnlyList<DuracaoEtapa> historico, DateTimeOffset agora, int minimo)
     {
         ArgumentNullException.ThrowIfNull(atual);
-        if (historico is null) return null;
-        return EstimarPorDuracoes(atual, etapa => MedianaDaEtapa(etapa, atual.Provedor, historico), agora);
+        if (atual.Provedor is null || atual.Etapa is null || historico is null) return null;
+        var ordem = atual.Ordem ?? OrdemDasEtapas.Padrao.Todas;
+        var indice = ordem.ToList().IndexOf(atual.Etapa);
+        if (indice < 0) return null;
+        var decorrido = atual.InicioEtapa is { } inicio && inicio < agora ? agora - inicio : TimeSpan.Zero;
+        var restante = TimeSpan.Zero;
+        foreach (var etapa in ordem.Skip(indice))
+        {
+            var amostras = historico.Where(d => d.Etapa == etapa && d.Provedor == atual.Provedor && d.Duracao > TimeSpan.Zero);
+            TimeSpan? tempo;
+            if (etapa != atual.Etapa) tempo = Mediana(amostras, minimo);
+            else if (atual.FracaoObservada is > 0 and < 1 && atual.InstanteDaMedicao is { } medida &&
+                atual.InicioEtapa is { } partida && medida > partida && medida <= agora &&
+                (atual.SinalDaEtapa?.Feitos ?? atual.SecoesComResultado) >= 3)
+            {
+                // Com avanço medido, o ritmo é desta etapa. A previsão continua identificada como aproximada.
+                if (minimo > 1) return null;
+                var fracao = atual.FracaoObservada.Value;
+                var medido = medida - partida;
+                var duracaoProjetada = medido.Ticks / fracao;
+                // Os arquivos das frentes podem chegar em lotes. Com poucas unidades, a mediana de execuções
+                // comparáveis tem mais peso. À medida que chegam resultados, predomina a execução em curso.
+                if (Mediana(amostras.Where(d => d.Duracao > medido), MinimoDeExecucoes) is { } mediana)
+                    duracaoProjetada = (1 - fracao) * mediana.Ticks + fracao * duracaoProjetada;
+                var ticks = duracaoProjetada - decorrido.Ticks;
+                if (ticks <= 0 || ticks >= TimeSpan.MaxValue.Ticks) return null;
+                tempo = TimeSpan.FromTicks((long)ticks);
+            }
+            else
+            {
+                // A execução ainda está aberta. Só durações que passaram deste ponto permitem prever o saldo.
+                tempo = Mediana(amostras.Where(d => d.Duracao > decorrido), minimo) - decorrido;
+            }
+            if (tempo is null || tempo.Value > DateTimeOffset.MaxValue - agora - restante) return null;
+            restante += tempo.Value;
+        }
+        return agora + restante;
     }
 
     /// <summary>Estima o término com as medianas disponíveis, completando as etapas sem amostras com a duração inicial.</summary>

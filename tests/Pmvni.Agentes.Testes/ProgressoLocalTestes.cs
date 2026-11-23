@@ -203,14 +203,14 @@ public class ProgressoLocalTestes
         // A etapa atual (technical_audit) começou há 2 min: falta a mediana dela (13) menos 2, mais 4 + 7 + 2 das seguintes.
         var atual = new Progresso("technical_audit", 2, 28, [], Provedor.Claude, agora.AddMinutes(-2));
         Assert.Equal(agora.AddMinutes(11 + 4 + 7 + 2), PrevisaoTermino.Estimar(atual, historico, agora));
-        // Etapa atual já além da mediana: ela entra como zero (o término nunca fica no passado).
-        Assert.Equal(agora.AddMinutes(4 + 7 + 2), PrevisaoTermino.Estimar(atual with { InicioEtapa = agora.AddHours(-1) }, historico, agora));
+        // A etapa ultrapassou todas as amostras comparáveis.
+        Assert.Null(PrevisaoTermino.Estimar(atual with { InicioEtapa = agora.AddHours(-1) }, historico, agora));
         // Sem a hora de início, a etapa atual conta inteira.
         Assert.Equal(agora.AddMinutes(13 + 4 + 7 + 2), PrevisaoTermino.Estimar(atual with { InicioEtapa = null }, historico, agora));
     }
 
     [Fact]
-    public void PrevisaoAproximada_PrefereMesmoProvedorPorEtapaEUsaOsDemaisQuandoFaltaAmostra()
+    public void PrevisaoAproximada_ExigeAmostrasDaMesmaRotaEmCadaEtapa()
     {
         var agora = new DateTimeOffset(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
         var atual = new Progresso("technical_audit", 2, 28, [], Provedor.Claude, agora.AddMinutes(-3))
@@ -219,12 +219,11 @@ public class ProgressoLocalTestes
         historico.AddRange(Historico(Provedor.ChatGpt, ("technical_audit", [100, 110, 120]), ("produce", [2, 6])));
         historico.AddRange(Historico(Provedor.Gemini, ("produce", [1, 8])));
 
-        // A etapa atual leva 10 − 3 min, a produção usa a mediana de 1, 2, 6 e 8, e a revisão leva 3 min.
+        Assert.Null(PrevisaoTermino.EstimarAproximada(atual, historico, agora));
+        historico.Add(new("produce", Provedor.Claude, TimeSpan.FromMinutes(4)));
         Assert.Null(PrevisaoTermino.Estimar(atual, historico, agora));
         Assert.Equal(agora.AddMinutes(7 + 4 + 3), PrevisaoTermino.EstimarAproximada(atual, historico, agora));
-        Assert.Equal(agora.AddMinutes(10 + 4 + 3), PrevisaoTermino.EstimarAproximada(atual with { InicioEtapa = agora.AddMinutes(1) }, historico, agora));
-        Assert.Equal(agora.AddMinutes(4 + 3), PrevisaoTermino.EstimarAproximada(atual with { InicioEtapa = agora.AddHours(-1) }, historico, agora));
-        Assert.Equal(agora, PrevisaoTermino.EstimarAproximada(atual with { Etapa = "final_review", InicioEtapa = agora.AddHours(-1) }, historico, agora));
+        Assert.Null(PrevisaoTermino.EstimarAproximada(atual with { InicioEtapa = agora.AddHours(-1) }, historico, agora));
     }
 
     [Fact]
@@ -245,11 +244,14 @@ public class ProgressoLocalTestes
     {
         var agora = new DateTimeOffset(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
         var p = new Progresso("technical_audit", 0, 28, [], Provedor.ChatGpt, agora.AddHours(-1))
-            { Ordem = ["technical_audit", "produce"], SinalDaEtapa = (7, 28) };
+            { Ordem = ["technical_audit", "produce"], SinalDaEtapa = (7, 28), InstanteDaMedicao = agora };
         var historico = Historico(Provedor.ChatGpt, ("technical_audit", [16, 20, 24]), ("produce", [1, 2, 3]));
 
-        Assert.Equal(agora.AddMinutes(15 + 2), PrevisaoTermino.Estimar(p, historico, agora));
-        Assert.Equal(agora.AddMinutes(15 + 2), PrevisaoTermino.EstimarAproximada(p, historico, agora));
+        Assert.Null(PrevisaoTermino.Estimar(p, historico, agora));
+        // Sete de 28 em uma hora: três horas restantes e dois minutos de produção.
+        Assert.Equal(agora.AddMinutes(180 + 2), PrevisaoTermino.EstimarAproximada(p, historico, agora));
+        Assert.Equal(agora.AddMinutes(182), PrevisaoTermino.EstimarAproximada(p, historico, agora.AddMinutes(8)));
+        Assert.Null(PrevisaoTermino.EstimarAproximada(p, historico, agora.AddHours(4)));
         var parcial = historico.Where(d => d.Etapa == "technical_audit").ToList();
         Assert.Null(PrevisaoTermino.EstimarAproximada(p, parcial, agora));
         // Durações iniciais do fluxo linear: auditoria técnica 16 min, produção 2 min.
@@ -261,17 +263,17 @@ public class ProgressoLocalTestes
     }
 
     [Fact]
-    public void PercentualPorTempo_UsaSomenteAsEtapasConfirmadasQuandoHaLacunaNoEstado()
+    public void PercentualGeral_UsaSomenteAsEtapasConfirmadasQuandoHaLacunaNoEstado()
     {
         using var pasta = Ambiente.PastaDeTeste("progresso-lacuna");
         var controle = Controle(pasta);
         Gravar(controle, "engine_state.json", Estado(("analyze", Feita(1000, 1600)),
             ("technical_audit", new JsonObject { ["status"] = "RUNNING", ["started"] = 1600 })));
         var progresso = ProgressoLocal.Ler(controle);
-        var historico = progresso.Ordem!.Select(e => new DuracaoEtapa(e, Provedor.Claude, TimeSpan.FromMinutes(e == "analyze" ? 50 : 10))).ToList();
+
 
         Assert.Equal(1, progresso.EtapasConcluidas);
-        Assert.Equal((50d, 0d, false), ProgressoGeral.Calcular(progresso, historico, DateTimeOffset.FromUnixTimeSeconds(1600)));
+        Assert.Equal(((double?)17, (double?)null), ProgressoGeral.Calcular(progresso));
     }
 
     [Fact]
@@ -354,8 +356,11 @@ public class ProgressoLocalTestes
         Assert.DoesNotContain(historico, d => d.Etapa == "prepare");        // sem started e sem etapa anterior: sem duração
 
         var agora = new DateTimeOffset(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
-        var atual = new Progresso("analyze", 1, 3, [], Provedor.ChatGpt, agora.AddMinutes(-20));
-        Assert.Equal(agora.AddMinutes(62.5 + 10 + 1 + 5 + 2), PrevisaoTermino.Estimar(atual, historico, agora));
+        var atual = new Progresso("analyze", 1, 3, [], Provedor.ChatGpt, agora.AddMinutes(-20)) { InstanteDaMedicao = agora };
+        // O ritmo das três primeiras seções é ponderado pela cobertura observada contra a mediana (70 min).
+        Assert.Null(PrevisaoTermino.Estimar(atual, historico, agora));
+        var minutosAnalise = 70 * 25d / 28;
+        Assert.Equal(agora.AddMinutes(minutosAnalise + 10 + 1 + 5 + 2), PrevisaoTermino.EstimarAproximada(atual, historico, agora));
     }
 
     /// <summary>Correção 1 (I-1): a mesma execução no <c>engine_state.json</c> (atual e repetida num quadro do histórico) e no <c>uso-das-IAs.json</c> conta

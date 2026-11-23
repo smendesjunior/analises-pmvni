@@ -24,6 +24,7 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
     IReadOnlyList<ObjecaoPendente> Objecoes)
 {
     public IReadOnlyList<string> Plano { get; init; } = [];
+    public IReadOnlyDictionary<string, string> DescricoesDoPlano { get; init; } = new Dictionary<string, string>();
     public IReadOnlyList<string> Validacoes { get; init; } = [];
     public IReadOnlyDictionary<string, string> Registros { get; init; } = new Dictionary<string, string>();
 
@@ -116,22 +117,27 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
             etapas[id] = new DetalheEtapa(id, false, modelo, esforco);
         }
 
+        var plano = LerPlano(pastaControle, desdeUtc);
         return new DetalhesDasEtapas(etapas, LerFrentes(pastaControle, sessoes, desdeUtc,
             UsoDasIas.Objeto(stages, "analyze") is { } etapaRegistrada ? ProgressoLocal.Texto(etapaRegistrada, "status") : null), LerObjecoes(estado, stages))
         {
             Registros = registros,
-            Plano = LerPlano(pastaControle, desdeUtc),
+            Plano = plano.Keys.ToArray(),
+            DescricoesDoPlano = plano,
             Validacoes = LerValidacoes(pastaControle, desdeUtc)
         };
     }
 
-    static IReadOnlyList<string> LerPlano(string controle, DateTime desde)
+    static Dictionary<string, string> LerPlano(string controle, DateTime desde)
     {
         var plano = ArquivoJsonDoKit.Ler(Path.Combine(controle, "plano_execucao.json"), desde);
         if (plano is not { ValueKind: JsonValueKind.Object } p || !p.TryGetProperty("etapas", out var etapas)
             || etapas.ValueKind != JsonValueKind.Array) return [];
-        return etapas.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object)
-            .Select(x => ProgressoLocal.Texto(x, "id")).OfType<string>().ToList();
+        var descricoes = new Dictionary<string, string>();
+        foreach (var etapa in etapas.EnumerateArray())
+            if (etapa.ValueKind == JsonValueKind.Object && ProgressoLocal.Texto(etapa, "id") is { Length: > 0 } id)
+                descricoes[id] = ProgressoLocal.Texto(etapa, "descricao") ?? "";
+        return descricoes;
     }
 
     public static IReadOnlyList<string> LerAvisos(string controle, DateTime desde)
@@ -178,7 +184,12 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
     /// definitiva depois da montagem), com <c>frente-NN\pedido.txt</c> (iniciada), <c>frente-NN\concluida.json</c> (concluída) e os <c>secao-NN.json</c>
     /// (prontas). Sem a pasta, só o registro final do executor (<c>sessao_codex.analyze.frentes</c>). Sem nada disso, vazio (o Monitor não mostra).</summary>
     internal static IReadOnlyList<FrenteAnalise> LerFrentes(string pastaControle, JsonElement? sessoes, DateTime desdeUtc, string? situacao = null)
+        => LerFrentes(pastaControle, sessoes, desdeUtc, out _, situacao);
+
+    internal static IReadOnlyList<FrenteAnalise> LerFrentes(string pastaControle, JsonElement? sessoes, DateTime desdeUtc,
+        out DateTime? ultimoResultadoUtc, string? situacao = null)
     {
+        ultimoResultadoUtc = null;
         var pasta = PastaDasPartes(pastaControle, desdeUtc);
         if (pasta is not null)
         {
@@ -186,8 +197,17 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
             foreach (var (inicio, fim) in Blocos)
             {
                 var frente = Path.Combine(pasta, $"frente-{inicio:00}");
-                var prontas = Enumerable.Range(inicio, fim - inicio + 1).Count(n => File.Exists(Path.Combine(pasta, $"secao-{n:00}.json")));
-                var concluida = File.Exists(Path.Combine(frente, "concluida.json"));
+                var prontas = 0;
+                for (var n = inicio; n <= fim; n++)
+                {
+                    var arquivo = new FileInfo(Path.Combine(pasta, $"secao-{n:00}.json"));
+                    if (!arquivo.Exists || arquivo.LastWriteTimeUtc < desdeUtc) continue;
+                    prontas++;
+                    if (ultimoResultadoUtc is null || arquivo.LastWriteTimeUtc > ultimoResultadoUtc) ultimoResultadoUtc = arquivo.LastWriteTimeUtc;
+                }
+                var recibo = new FileInfo(Path.Combine(frente, "concluida.json"));
+                var concluida = recibo.Exists && recibo.LastWriteTimeUtc >= desdeUtc;
+                if (concluida && (ultimoResultadoUtc is null || recibo.LastWriteTimeUtc > ultimoResultadoUtc)) ultimoResultadoUtc = recibo.LastWriteTimeUtc;
                 var iniciada = concluida || File.Exists(Path.Combine(frente, "pedido.txt")) || prontas > 0;
                 string? atividade = null;
                 if (ArquivoJsonDoKit.Ler(Path.Combine(frente, "atividade.json"), desdeUtc) is { ValueKind: JsonValueKind.Object } a

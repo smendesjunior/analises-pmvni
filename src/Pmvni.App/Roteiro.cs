@@ -3307,7 +3307,7 @@ internal static class Roteiro
                 n.MostrarProgresso(new ProgressoEtapa("analyze",1,7,28,Secoes:true));
                 n.MostrarDetalhesDasEtapas(new DetalhesDasEtapas(
                     new Dictionary<string,DetalheEtapa>{["analyze"]=new("analyze",false,"modelo-teste","medium")},
-                    [new(1,9,7,true,false)],[]){Plano=ordem,Registros=new Dictionary<string,string>{["analyze"]="Registro de teste"}});
+                    [new(1,9,7,true,false)],[]){Plano=ordem,DescricoesDoPlano=new Dictionary<string,string>{["analyze"]="Saídas previstas: manifesto.json"},Registros=new Dictionary<string,string>{["analyze"]="Registro de teste"}});
                 var agora = DateTimeOffset.Now;
                 n.MostrarEstimativa(new EstimativaAnalise("analyze",25,40,agora.AddMinutes(30),PeloEditor:true,Inicial:true));
                 n.MostrarRelogios(TimeSpan.FromMinutes(20),agora);
@@ -3338,7 +3338,7 @@ internal static class Roteiro
                 await web.ExecuteScriptAsync("document.querySelector('article [aria-expanded=true]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
                 await Conferir("Recolher etapa","!document.querySelector('article [aria-expanded=true]')");
                 await AbrirPagina("Detalhes");
-                await Conferir("Ordem do plano, registro e plano do executor","document.querySelector('article').innerText.includes('Preparo → Análise → Produção do relatório → Revisão final') && document.querySelector('article').innerText.includes('Plano específico da execução') && document.querySelector('article').innerText.includes('Registro de teste')");
+                await Conferir("Ordem do plano, registro e plano do executor","[...document.querySelectorAll('.detail-table tbody th')].map(n=>n.textContent.trim().slice(2).trim()).join('|')==='Preparo|Análise|Produção do relatório|Revisão final' && [...document.querySelectorAll('.detail-items li')].some(n=>n.textContent==='manifesto.json') && document.querySelector('article').innerText.includes('Plano específico da execução') && document.querySelector('article').innerText.includes('Registro de teste')");
                 await AbrirPagina("Consumo");
                 await Conferir("Cache 25%, saída 12%, cotas 40% e 12%","campo('cachePercent')==='25%' && campo('outputHelp').includes('12%') && campo('shortPercent')==='40%' && campo('weeklyPercent')==='12%'");
                 await web.ExecuteScriptAsync("document.querySelector('article svg[aria-label*=modelo-teste]').dispatchEvent(new MouseEvent('click',{bubbles:true}))");
@@ -3357,7 +3357,7 @@ internal static class Roteiro
                 await Conferir("Sem previsão informa que aguarda a primeira etapa","campo('eta')==='Após a 1ª etapa'");
                 n.MostrarEstimativa(new EstimativaAnalise("analyze",25,40,null,PeloEditor:true));
                 n.MostrarRelogios(TimeSpan.FromMinutes(20),agora);
-                await Conferir("Sem término registrado estima 30 min restantes pelo ritmo de 40% em 20 min","campo('eta').includes('30 min') && campo('eta').includes('≈')");
+                await Conferir("Sem histórico suficiente, o percentual do roteiro não extrapola um horário","campo('eta')==='Histórico insuficiente'");
                 n.ReiniciarEstimativa();
                 n.MostrarResumo(false,null,FluxoNovoRelatorio.Etapas(null,"CONCLUIDO",ordem));
                 n.MostrarRelogios(TimeSpan.FromMinutes(22),agora.AddMinutes(2));

@@ -283,6 +283,15 @@ public sealed partial class FaixaDeOpcoes : UserControl
     {
         if (montando || definicao is null) return;
         MontarBotoes();
+        if (IsLoaded && new Windows.UI.ViewManagement.UISettings().AnimationsEnabled)
+        {
+            var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(Barra);
+            var entrada = visual.Compositor.CreateScalarKeyFrameAnimation();
+            entrada.InsertKeyFrame(0, .55f);
+            entrada.InsertKeyFrame(1, 1);
+            entrada.Duration = TimeSpan.FromMilliseconds(160);
+            visual.StartAnimation("Opacity", entrada);
+        }
         if (AbaAtual is { } nome) AbaMudou?.Invoke(nome);
     }
 

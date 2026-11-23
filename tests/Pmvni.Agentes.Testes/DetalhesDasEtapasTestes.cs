@@ -51,11 +51,13 @@ public class DetalhesDasEtapasTestes
         var partes = Path.Combine(controle, "runs", "secoes-atual");
         Gravar(Path.Combine(partes, "frente-01", "atividade.json"), JsonNode.Parse("""{"inicio":1,"fim":9,"status":"em_andamento","descricao":"Conferindo as fontes"}""")!);
         Gravar(Path.Combine(controle, "frentes_ativas.json"), new JsonObject { ["pasta"] = partes });
-        Gravar(Path.Combine(controle, "plano_execucao.json"), JsonNode.Parse("""{"etapas":[{"id":"prepare"},{"id":"analyze"}]}""")!);
+        Gravar(Path.Combine(controle, "plano_execucao.json"), JsonNode.Parse("""{"etapas":[{"id":"prepare"},{"id":"analyze","descricao":"Saídas previstas: manifesto.json"}]}""")!);
         Gravar(Path.Combine(controle, "engine_state.json"), JsonNode.Parse("""{"stages":{"prepare":{"note":"Leitura encerrada","evidence":[{"path":"planta.pdf"}]},"analyze":{"status":"RUNNING"}}}""")!);
         Gravar(Path.Combine(controle, "validadores", "avisos.json"), JsonNode.Parse("""[{"regra":"palavra_repetida","onde":"Resumo","texto":"item item"}]""")!);
         var dados = DetalhesDasEtapas.Ler(controle);
         Assert.Equal(new[] { "prepare", "analyze" }, dados.Plano);
+        Assert.Equal("Saídas previstas: manifesto.json", dados.DescricoesDoPlano["analyze"]);
+        Assert.Empty(dados.DescricoesDoPlano["prepare"]);
         Assert.Contains("Conferindo as fontes", dados.Frentes[0].Atividade);
         Assert.Contains("Leitura encerrada", dados.Registros["prepare"]);
         Assert.Contains("planta.pdf", dados.Registros["prepare"]);

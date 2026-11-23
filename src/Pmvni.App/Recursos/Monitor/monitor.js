@@ -60,7 +60,7 @@ function ring(parent,value,size,color,thickness,delta) {
     const group=svgElement("g",{transform:"rotate(-90 "+c+" "+c+")"});
     const circle=(stroke,v) => {
         const attrs={cx:c,cy:c,r,fill:"none",stroke,"stroke-width":thickness,pathLength:100};
-        if (v!=null) attrs["stroke-dasharray"]=Math.min(100,Math.max(0,v))+" 100";
+        if (v!=null && v<100) attrs["stroke-dasharray"]=Math.min(100,Math.max(0,v))+" 100";
         group.append(svgElement("circle",attrs));
     };
     circle("#e6e3de"); if(value>0) circle(color,value);
@@ -70,7 +70,10 @@ function ring(parent,value,size,color,thickness,delta) {
 function unitRing(svg,key,value,color) {
     const p=part(svg,key);
     p.replaceChildren();
-    ring(p,value,1,color,.085);
+    // Draw at device-independent pixel scale before fitting the unit SVG group.
+    const normalized = svgElement("g",{transform:"scale(.01)"});
+    p.append(normalized);
+    ring(normalized,value,100,color,8);
 }
 function nav(name) {
     if (!names.includes(name)) return;
@@ -107,30 +110,32 @@ function head() {
         }
     }
 }
+function stageTrail(stages, live) {
+    const list = el("ol","stage-trail");
+    list.setAttribute("aria-label","Progresso das etapas");
+    stages.forEach((stage,i) => {
+        const item = el("li");
+        item.dataset.state = stage.state;
+        if (stage.state === "Agora") item.setAttribute("aria-current","step");
+        if (live && stages[i + 1]?.state === "Agora") item.classList.add("approaching");
+        const marker = el("span","trail-marker",stage.state === "Feita" ? "✓" : "");
+        marker.setAttribute("aria-hidden","true");
+        item.append(marker,el("span","trail-label",String(i + 1).padStart(2,"0")+" "+stage.name));
+        item.setAttribute("aria-label",stage.name+" · "+stage.status);
+        list.append(item);
+    });
+    return list;
+}
 function summary() {
     const d=state;
     const values={...d,estimated:d.estimated?"Estimado":""};
-    d.stages.forEach((s,i)=>values["step"+i]=String(i+1).padStart(2,"0")+" "+s.name);
-    const status=add(block("summary",values));
+    const overview=add(el("section","overview"));
+    const status=block("summary",values);
+    overview.append(status);
     status.querySelector('[data-field="eta"] title').textContent=d.etaHelp||d.eta;
     part(status,"live").style.display=d.live?"":"none";
     unitRing(status,"ring",d.value,"#176b43");
-    const icons=[0,2,3].map(i=>part(status,"step"+i).firstElementChild.firstElementChild.cloneNode(true));
-    const trail=part(status,"step0").parentElement;
-    for(let i=6;i<d.stages.length;i++){
-        const extra=part(status,"step5").cloneNode(true);
-        extra.dataset.part="step"+i;
-        extra.querySelector("tspan").textContent=values["step"+i];
-        trail.append(extra);
-    }
-    for(let i=0;i<trail.children.length;i++) {
-        const item=trail.children[i],s=d.stages[i];
-        if(s && d.stages.length!==6)item.setAttribute("transform","matrix(248 0 0 16 "+(i*1488/d.stages.length)+" 8)");
-        if(!s){item.style.display="none";continue;}
-        const icon=item.firstElementChild.firstElementChild;
-        if(icon)icon.replaceWith(icons[s.state==="Feita"?0:s.state==="Agora"?1:2].cloneNode(true));
-        item.querySelector("text").setAttribute("fill",s.state==="Feita"?"#176b43":s.state==="Agora"?"#084f35":"#767676");
-    }
+    overview.append(stageTrail(d.stages,d.live));
     add(block("discoveries"),28);
     const counts=add(block("counts",Object.fromEntries(["ok","fail","unknown","conflicts"].map((k,i)=>[k,d.totals[i]]))),16);
     for(const field of counts.querySelectorAll("[data-field]")){
@@ -166,12 +171,12 @@ function stages() {
     const current=expanded===undefined?d.stages.findIndex(s=>s.state==="Agora"):expanded;
     d.stages.forEach((s,i)=>{
         const isOpen=current===i;
-        const values={...s,percent:pct(s.percent),result:s.result||s.status};
+        const values={...s,percent:s.percent == null ? dash : Math.round(s.percent)+"%",result:s.result||s.status};
         (s.fronts||[]).forEach((f,j)=>{values["front"+j]="Seções "+f.inicio+"–"+f.fim;values["count"+j]=f.prontas+" de "+f.total;});
         const nameIndex={"Preparo":0,"Análise":1,"Auditoria técnica":2,"Auditoria cruzada":3,"Produção do relatório":4,"Revisão final":5}[s.name];
         const styleIndex=s.state==="Feita"?0:Math.max(2,nameIndex??2);
         const row=block(isOpen?"stage-expanded":"stage-"+styleIndex,values);
-        if(!isOpen && s.state==="Erro")row.querySelector('[data-field="status"]').setAttribute("fill","#b3261e");
+        row.dataset.state=s.state;
         if(isOpen) {
             unitRing(row,"ring",s.percent,"#176b43");
             const fronts=part(row,"fronts");
@@ -187,29 +192,72 @@ function stages() {
             }
         }
         row.setAttribute("aria-expanded",isOpen);
-        action(row,s.name+" · "+s.status,()=>{expanded=isOpen?-1:i;render(true);});
+        action(row,s.name+" · "+s.status,()=>{expanded=isOpen?-1:i;render(true);
+            if(!isOpen)article.querySelector('[aria-expanded="true"]')?.classList.add("unfolding");});
         list.append(row);
     });
     const log=block("see-log");log.style.width="148px";
     action(log,"Ver registros",()=>nav("Log"));add(log,24);
 }
+function detailList(container, label, items) {
+    const lines = items.flatMap(item => String(item ?? "").split(/\r?\n/))
+        .map(line => line.trim()).filter(Boolean);
+    if (!lines.length) return;
+    container.append(el("strong", "detail-label", label));
+    const list = el("ul", "detail-items");
+    for (const line of lines) list.append(el("li", "", line));
+    container.append(list);
+}
 function details() {
-    const d=state;add(block("details-heading",{count:d.stages.length+" etapas mapeadas"}));
-    d.stages.forEach((s,i)=>{
-        const boxes=el("section","detail");
-        const variant=s.state==="Feita"?0:s.state==="Agora"?2:3;
-        boxes.append(block("detail-"+variant,{number:i+1,name:s.name,status:s.status}));
-        const fronts=(s.fronts||[]).map(f=>"Seções "+f.inicio+"–"+f.fim+" · "+f.prontas+" de "+f.total+(f.atividade?" · "+f.atividade:""));
-        const body=[s.record,...s.plans,...fronts,...s.objections].filter(Boolean);
-        boxes.append(el("p","narrative",body.join("\n")||"Aguardando registro desta etapa."));
-        const facts=[s.executor,...s.measures].filter(Boolean);
-        if(facts.length)boxes.append(el("p","facts",facts.join("    •    ")));
-        add(boxes,i?16:24);
-    });
-    for(const [title,body] of [["Plano registrado no preparo",d.plan.join(" → ")],["Avisos e consertos registrados",d.warnings.join("\n")],["Falha da execução",d.error],["Última mensagem",d.lastMessage]]) {
-        if(!body) continue;
-        const entry=el("section","detail");
-        entry.append(el("strong","",title),el("p","narrative",body));add(entry,16);
+    const d = state;
+    add(block("details-heading", {count:d.stages.length + " etapas mapeadas"}));
+    const table = el("table", "detail-table");
+    table.setAttribute("aria-label", "Plano e execução por etapa");
+    const head = table.createTHead().insertRow();
+    for (const name of ["Etapa", "Plano e execução", "Situação"]) {
+        const cell = el("th", "", name);
+        cell.scope = "col";
+        head.append(cell);
+    }
+    const body = table.createTBody();
+    for (const [i, stage] of d.stages.entries()) {
+        const row = body.insertRow();
+        const name = el("th", "", String(i + 1).padStart(2, "0") + "  " + stage.name);
+        name.scope = "row";
+        row.append(name);
+        const work = row.insertCell();
+        work.append(el("strong", "detail-scope", stage.scope || stage.description));
+        if (stage.plannedWork?.startsWith("Saídas previstas: ")) {
+            detailList(work, "Entregas previstas no preparo", stage.plannedWork.slice("Saídas previstas: ".length).split(", "));
+        } else if (stage.plannedWork) {
+            detailList(work, "Plano registrado no preparo", [stage.plannedWork]);
+        }
+        detailList(work, "Passos registrados pela IA", stage.plans);
+        detailList(work, "Frentes de análise", stage.fronts.map(f =>
+            "Seções " + f.inicio + "–" + f.fim + " · " + f.prontas + " de " + f.total +
+            (f.atividade ? " · " + f.atividade : "")));
+        const records = (stage.record || "").split(/\r?\n/).map(s => s === "nova" ? "Sessão iniciada" : s);
+        detailList(work, "Registros da execução", records);
+        detailList(work, "Objeções", stage.objections);
+        const facts = [stage.executor, ...stage.measures].filter(Boolean);
+        if (facts.length) {
+            const footer = el("ul", "detail-facts");
+            for (const fact of facts) footer.append(el("li", "", fact));
+            work.append(footer);
+        }
+        const status = el("span", "detail-status", stage.status);
+        status.dataset.state = stage.state;
+        row.insertCell().append(status);
+    }
+    const wrap = card();
+    wrap.classList.add("detail-wrap");
+    wrap.append(table);
+    for (const [title, items] of [["Avisos e consertos registrados", d.warnings],
+        ["Falha da execução", [d.error]], ["Última mensagem", [d.lastMessage]]]) {
+        if (!items.some(Boolean)) continue;
+        const panel = el("section", "detail");
+        detailList(panel, title, items);
+        add(panel, 16);
     }
 }
 function log() {
@@ -270,6 +318,7 @@ function usage() {
     const table=card();table.style.marginTop="20px";table.append(block("usage-table-heading",{count:new Set(rows.map(r=>r.stage)).size+" de "+state.stages.length+" etapas com registro"}),block("usage-columns"));
     rows.forEach(r=>{
         const row=block("usage-row",{...r,short:points(r.curta),weekly:points(r.semanal)});
+        if(r.local) part(row,"executor-icon").replaceChildren(svgElement("use",{href:"#monitor-cpu",transform:"scale(.8) translate(-8 -8)"}));
         action(row,r.stage+" · "+r.executor,()=>openText(r.stage+" · "+r.executor,r.details.join("\n")||"Sem medição."));
         table.append(row);
     });
@@ -290,6 +339,7 @@ function render(force=false) {
     const followLog=page==="Log" && !changed && window.scrollY+window.innerHeight>=document.documentElement.scrollHeight-4;
     const active=document.activeElement,focusKey=article.contains(active)?active.getAttribute("aria-label"):null;
     board=el("div","board");
+    if(changed)board.classList.add("entering");
     board.dataset.width=["Resumo","Consumo"].includes(page)?1536:1376;
     board.style.width=board.dataset.width+"px";
     ({Resumo:summary,Etapas:stages,Detalhes:details,Consumo:usage,Log:log})[page]();

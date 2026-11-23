@@ -279,7 +279,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         TextoTempoDecorrido.Text = FluxoNovoRelatorio.TempoLegivel(decorrido, incluirSegundos: true);
         TimeSpan? restantePeloRitmo = null;
-        if (execucaoAtivaNaBarra && decorrido > TimeSpan.Zero &&
+        if (execucaoAtivaNaBarra && EstimativaAtual is { PeloEditor: false } && decorrido > TimeSpan.Zero &&
             EstimativaAtual?.PercentualGeral is double percentual and >= 1 and < 100)
         {
             // Usa o tempo ativo acumulado e mantém a previsão até o progresso mudar.
@@ -458,7 +458,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     /// <summary>De onde vem o percentual: com <see cref="EstimativaAnalise.Inicial"/>, parte dele saiu das durações iniciais (sem histórico neste computador).</summary>
     static string OrigemDoPercentual(EstimativaAnalise estimativa) => !estimativa.PeloEditor ? "estimado pela IA"
-        : estimativa.Inicial ? "calculado pelo Editor (estimativa inicial, sem histórico suficiente)" : "calculado pelo Editor";
+        : estimativa.Inicial ? "calculado pelo Editor (estimativa inicial, sem histórico suficiente)" : "pelas etapas e pelos resultados registrados";
 
     internal string RotuloEtapa(string nome, EstadoEtapa estado, bool ativa)
     {
@@ -466,9 +466,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         if (estado == EstadoEtapa.Feita) return status + " · 100%";
         if (estado == EstadoEtapa.Pendente) return status;
         if (EstimativaAtual is { Etapa: { } etapa, PercentualEtapa: { } percentual } estimativa && FluxoNovoRelatorio.NomeDaEtapa(etapa) == nome)
-            return $"{status} · {percentual:0.#}% {OrigemDoPercentual(estimativa)}";
+            return $"{status} · {Math.Min(99, Math.Round(percentual)):0}% {OrigemDoPercentual(estimativa)}";
         if (ProgressoAtual is { Total: > 0 } itens && FluxoNovoRelatorio.NomeDaEtapa(itens.Etapa) == nome)
-            return $"{status} · {Math.Clamp(100d * itens.Avaliados / itens.Total, 0, 100):0.#}% "
+            return $"{status} · {Math.Clamp(Math.Round(100d * itens.Avaliados / itens.Total), 0, 99):0}% "
                 + (itens.Secoes ? "das seções com resultado" : "dos itens avaliados");
         return status;
     }
@@ -498,13 +498,13 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     }
 
     static bool EquivalentesDetalhes(DetalhesDasEtapas a, DetalhesDasEtapas b) =>
-        a.Plano.SequenceEqual(b.Plano) && a.Validacoes.SequenceEqual(b.Validacoes) && a.Frentes.SequenceEqual(b.Frentes) && a.Objecoes.SequenceEqual(b.Objecoes)
+        a.Plano.SequenceEqual(b.Plano) && a.DescricoesDoPlano.SequenceEqual(b.DescricoesDoPlano) && a.Validacoes.SequenceEqual(b.Validacoes) && a.Frentes.SequenceEqual(b.Frentes) && a.Objecoes.SequenceEqual(b.Objecoes)
         && a.Registros.Count == b.Registros.Count && a.Registros.All(k => b.Registros.GetValueOrDefault(k.Key) == k.Value)
         && a.Etapas.Count == b.Etapas.Count && a.Etapas.All(k => b.Etapas.TryGetValue(k.Key, out var v) && v == k.Value);
 
     /// <summary>O id do kit da etapa mostrada com este nome (os cartões só conhecem o nome).</summary>
     string? IdDaEtapa(string nome) =>
-        detalhesEtapas.Etapas.Keys.Concat(detalhesEtapas.Registros.Keys).Concat(detalhesEtapas.Objecoes.Select(o => o.Etapa)).Append("analyze")
+        detalhesEtapas.Plano.Concat(detalhesEtapas.Etapas.Keys).Concat(detalhesEtapas.Registros.Keys).Concat(detalhesEtapas.Objecoes.Select(o => o.Etapa)).Append("analyze")
             .FirstOrDefault(id => FluxoNovoRelatorio.NomeDaEtapa(id) == nome);
 
     void PreencherDetalhes(LinhaEtapa linha, string nome)
@@ -556,10 +556,10 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         var concluiu = etapas.Count > 0 && feitas == etapas.Count;
         double? percentualPorEtapas = etapas.Count > 0 ? 100d * feitas / etapas.Count : null;
         var percentual = concluiu ? 100d : EstimativaAtual?.PercentualGeral ?? percentualPorEtapas;
-        if (percentual is { } valor) percentual = Math.Clamp(valor, 0, 100);
+        if (percentual is { } valor) percentual = Math.Clamp(Math.Round(valor), 0, concluiu ? 100 : 99);
         BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
         BarraResumoEtapas.Value = percentual ?? 0;
-        var percentualEstimado = !concluiu && EstimativaAtual is { PercentualGeral: not null };
+        var percentualEstimado = !concluiu && EstimativaAtual is { PercentualGeral: not null, PeloEditor: false };
         TextoPercentual.Text = percentual is { } p ? $"{(percentualEstimado ? "≈ " : "")}{p:0}%" : "—";
         BarraResumoEtapas.IsActive = percentual.HasValue || animar;
         TextoPercentual.Visibility = Visivel(percentual.HasValue);
@@ -655,9 +655,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         if (estado == EstadoEtapa.Feita) return (100, false);
         if (estado == EstadoEtapa.Pendente) return (0, false);
         if (EstimativaAtual is { Etapa: { } etapa, PercentualEtapa: { } percentual } estimativa && FluxoNovoRelatorio.NomeDaEtapa(etapa) == nome)
-            return (Math.Clamp(percentual, 0, 99.9), estimativa.Inicial);
+            return (Math.Clamp(Math.Round(percentual), 0, 99), estimativa.Inicial);
         if (ProgressoAtual is { Total: > 0 } itens && FluxoNovoRelatorio.NomeDaEtapa(itens.Etapa) == nome)
-            return (Math.Clamp(100d * itens.Avaliados / itens.Total, 0, 99.9), false);
+            return (Math.Clamp(Math.Round(100d * itens.Avaliados / itens.Total), 0, 99), false);
         return (null, false);
     }
 

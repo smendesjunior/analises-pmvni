@@ -22,8 +22,8 @@ public sealed partial class HaloAnalise : Grid
         var borda = new Border
         {
             CornerRadius = new CornerRadius(16),
-            BorderThickness = new Thickness(1),
-            BorderBrush = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 68, 145, 103))
+            BorderThickness = new Thickness(1.5),
+            BorderBrush = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 17, 143, 70))
         };
         Children.Add(borda);
         onda = ElementCompositionPreview.GetElementVisual(borda);
@@ -62,7 +62,7 @@ public sealed partial class HaloAnalise : Grid
         var altura = (float)ActualHeight;
         onda.CenterPoint = new Vector3(largura / 2, altura / 2, 0);
         // O mesmo deslocamento nas quatro bordas, inclusive no modo compacto.
-        const float alcance = 4;
+        const float alcance = 5;
         var fim = new Vector3(1 + 2 * alcance / largura, 1 + 2 * alcance / altura, 1);
         var expansao = onda.Compositor.CreateVector3KeyFrameAnimation();
         expansao.InsertKeyFrame(0, Vector3.One);
@@ -70,7 +70,7 @@ public sealed partial class HaloAnalise : Grid
         expansao.InsertKeyFrame(1, fim);
         var opacidade = onda.Compositor.CreateScalarKeyFrameAnimation();
         opacidade.InsertKeyFrame(0, 0);
-        opacidade.InsertKeyFrame(.16f, .30f);
+        opacidade.InsertKeyFrame(.16f, .78f);
         opacidade.InsertKeyFrame(.72f, 0);
         opacidade.InsertKeyFrame(1, 0);
         expansao.Duration = opacidade.Duration = TimeSpan.FromSeconds(3.4);

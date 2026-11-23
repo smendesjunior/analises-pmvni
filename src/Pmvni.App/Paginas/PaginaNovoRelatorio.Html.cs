@@ -139,6 +139,17 @@ public sealed partial class PaginaNovoRelatorio
             return new { name = e.Nome, state = e.Estado.ToString(), status = SituacaoDaEtapa(e.Estado, execucaoAtivaNaBarra),
                 description = DescricaoDaEtapa(e.Nome), percent = PercentualDaEtapa(e.Nome,e.Estado).Valor,
                 result = linha?.Resultado.Text, executor = linha?.Executor.Text,
+                scope = id switch
+                {
+                    "prepare" => "Identificar as peças atuais, organizar as pranchas e levantar os documentos, as cotas e os dados de enquadramento que precisam de conferência.",
+                    "analyze" => "Conferir as 28 seções, localizar cada achado na peça e na página e registrar as evidências e os cálculos que sustentam o relatório.",
+                    "technical_audit" => "Confrontar cada achado com a figura citada, reabrir o original quando necessário e conferir o mérito, as referências e os cálculos. Registrar as objeções que restarem.",
+                    "audit" => "Conferir a integridade do manifesto e dos controles certificados na auditoria técnica. Registrar divergências que impeçam a produção.",
+                    "produce" => "Montar o PDF no modelo oficial e conferir se os textos, cálculos e figuras reproduzem os dados aprovados.",
+                    "final_review" => "Inspecionar cada página do PDF e verificar as assinaturas de integridade dos arquivos antes da entrega.",
+                    _ => DescricaoDaEtapa(e.Nome)
+                },
+                plannedWork = id != null ? detalhesEtapas.DescricoesDoPlano.GetValueOrDefault(id) : null,
                 record = id != null ? detalhesEtapas.Registros.GetValueOrDefault(id) : null,
                 objections = detalhesEtapas.Objecoes.Where(o => o.Etapa == id).Select(FluxoNovoRelatorio.TextoObjecao),
                 measures = (consumoExibido ?? []).Where(u => u.Etapa == id).SelectMany(u => TextoConsumo.Metricas(u).Select(m => $"{m.Rotulo} · {m.Valor}")),

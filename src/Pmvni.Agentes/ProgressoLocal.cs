@@ -27,6 +27,9 @@ public sealed record Progresso(string? Etapa, int EtapasConcluidas, int SecoesCo
     /// <summary>O que o kit permite contar na etapa atual: seções com resultado, seções auditadas ou saídas da montagem.</summary>
     internal (int Feitos, int Total)? SinalDaEtapa { get; init; }
 
+    /// <summary>Data de gravação do artefato que sustenta a última contagem; uma consulta do relógio não renova a medição.</summary>
+    internal DateTimeOffset? InstanteDaMedicao { get; init; }
+
     internal double? FracaoObservada => SinalDaEtapa is { Total: > 0 } sinal ? Math.Clamp((double)sinal.Feitos / sinal.Total, 0, 1)
         : Etapa == "analyze" && SecoesComResultado > 0 && TotalSecoes > 0 ? Math.Clamp((double)SecoesComResultado / TotalSecoes, 0, 1) : null;
 
@@ -61,7 +64,9 @@ public static class ProgressoLocal
         var provedor = ProvedorDaPasta(pastaControle);
         var ordem = (ordemDoKit ?? OrdemDasEtapas.Padrao).Para(provedor);
         var estado = ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "engine_state.json"), desdeUtc);
-        var manifesto = ArquivoJsonDoKit.Ler(Path.Combine(pastaControle, "manifesto.json"), desdeUtc);
+        var arquivoManifesto = Path.Combine(pastaControle, "manifesto.json");
+        var manifesto = ArquivoJsonDoKit.Ler(arquivoManifesto, desdeUtc);
+        DateTimeOffset? instanteDaMedicao = null;
 
         string? etapa = null;
         var concluidas = new List<string>();
@@ -110,7 +115,7 @@ public static class ProgressoLocal
             {
                 foreach (var s in cobertura.EnumerateArray())
                 {
-                    if (s.ValueKind != JsonValueKind.Object || Inteiro(s, "section") is not { } numero) continue;
+                    if (s.ValueKind != JsonValueKind.Object || Inteiro(s, "section") is not int numero || numero is < 1 or > TotalSecoesDoKit) continue;
                     if (Texto(s, "title") is { Length: > 0 } titulo) titulos[numero] = titulo;
                     if (Normalizar(Texto(s, "status")) is "ANALISADO" or "NAO APLICAVEL" or "NAO VERIFICAVEL") comResultado.Add(numero);
                 }
@@ -125,6 +130,8 @@ public static class ProgressoLocal
                         auditadas.Add(secao);
                 sinal = (auditadas.Count, TotalSecoesDoKit);
             }
+            if (sinal is { Feitos: > 0 } && etapa is "analyze" or "technical_audit")
+                instanteDaMedicao = File.GetLastWriteTimeUtc(arquivoManifesto);
             var posicaoDaAuditoria = ordem.ToList().IndexOf("technical_audit");
             var verificados = posicaoDaAuditoria >= 0 && concluidas.Count > posicaoDaAuditoria;
             var porId = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -143,15 +150,16 @@ public static class ProgressoLocal
         // com o manifesto, vale o maior dos dois (a barra não volta).
         if (etapa == "analyze")
         {
-            var prontas = Math.Min(DetalhesDasEtapas.LerFrentes(pastaControle, UsoDasIas.Objeto(estado, "sessao_codex"), desdeUtc).Sum(f => f.Prontas), TotalSecoesDoKit);
+            var prontas = Math.Min(DetalhesDasEtapas.LerFrentes(pastaControle, UsoDasIas.Objeto(estado, "sessao_codex"), desdeUtc, out var ultimoResultado).Sum(f => f.Prontas), TotalSecoesDoKit);
             if (prontas > secoes)
             {
                 secoes = prontas;
                 sinal = (prontas, TotalSecoesDoKit);
+                instanteDaMedicao = ultimoResultado;
             }
         }
         return new Progresso(etapa, concluidas.Count, secoes, achados, provedor, inicioEtapa)
-            { Ordem = ordem, EtapasExecutadas = concluidas, SinalDaEtapa = sinal };
+            { Ordem = ordem, EtapasExecutadas = concluidas, SinalDaEtapa = sinal, InstanteDaMedicao = instanteDaMedicao };
     }
 
     /// <summary>O kit 4 grava dados e PDF na pasta da tentativa (campo run), depois publica o delivery na raiz do controle.</summary>

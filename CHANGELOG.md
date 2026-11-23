@@ -2,6 +2,13 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 3.4.3
+
+- O Resumo mostra um indicador maior e liga as etapas em uma trilha contínua. O monitor ganhou fundo branco e transições que respeitam a preferência de movimento reduzido.
+- Em Etapas, o selo fica à direita ao expandir ou recolher a linha. O anel fecha em 100%. O relógio do Log aparece inteiro e o programa local tem ícone de processador.
+- Detalhes apresenta o objetivo, as entregas previstas no preparo e os passos registrados para cada etapa. Executor e consumo ficam em um rodapé separado.
+- O progresso usa resultados registrados pelo executor. O monitor informa quando faltam dados para estimar o término.
+
 ## 3.4.2
 
 - O monitor da análise usa as páginas do Brilliant, com navegação vertical e dados da execução.

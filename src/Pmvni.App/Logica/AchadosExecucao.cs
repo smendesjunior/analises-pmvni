@@ -19,45 +19,19 @@ internal sealed record PainelAchados(List<AchadoExecucao> Itens, Dictionary<stri
 
 internal static class AchadosExecucao
 {
-    static readonly object travaDoProgresso = new();
-    static ((string Registro, string Controle, DateTime Desde) Execucao, DateTimeOffset Hora, EstimativaAnalise Valor)? ultimoProgresso;
-
     /// <summary>O painel do Monitor para uma execução (Tarefa 13). Uma análise iniciada por um Editor antigo grava eventos em <c>progresso\*.json</c> do
     /// registro: enquanto houver eventos, valem eles (o Monitor de uma análise antiga em andamento não fica vazio). Senão, o painel sai do que o kit já
-    /// registra (<see cref="Pmvni.Agentes.ProgressoLocal"/>), com durações iniciais onde falta histórico (null = ainda carregando).</summary>
+    /// registra (<see cref="Pmvni.Agentes.ProgressoLocal"/>), com previsão quando há histórico suficiente.</summary>
     public static PainelAchados LerDaExecucao(string pastaLegado, string processo, DateTime inicioUtc, string pastaControle, DateTime desdeUtc,
         IReadOnlyList<Pmvni.Agentes.DuracaoEtapa>? historico, DateTimeOffset agora, Pmvni.Agentes.OrdemDasEtapas? ordemDoKit = null)
     {
         var legado = Ler(pastaLegado, processo, inicioUtc);
         if (legado.Itens.Count > 0 || legado.Etapas.Count > 0 || legado.Estimativa is not null) return legado;
-        var painel = DoProgresso(Pmvni.Agentes.ProgressoLocal.Ler(pastaControle, desdeUtc, ordemDoKit), historico, agora);
-        if (painel.Estimativa is not { } estimativa) return painel;
-
-        // A tela acompanha uma execução por vez. Mantém o avanço exibido na mesma etapa quando chega o primeiro sinal ou o histórico da sessão.
-        // A previsão continua a usar os dados mais recentes, inclusive a fração observada mesmo quando ela ainda é menor que a já exibida.
-        var execucao = (pastaLegado, pastaControle, desdeUtc);
-        lock (travaDoProgresso)
-        {
-            if (ultimoProgresso is { } anterior && anterior.Execucao == execucao)
-            {
-                if (anterior.Hora > agora) return painel with { Estimativa = anterior.Valor };
-                if (estimativa.Etapa is not null && estimativa.Etapa == anterior.Valor.Etapa)
-                {
-                    var geral = Maior(estimativa.PercentualGeral, anterior.Valor.PercentualGeral);
-                    var etapa = Maior(estimativa.PercentualEtapa, anterior.Valor.PercentualEtapa);
-                    var retevePercentual = geral != estimativa.PercentualGeral || etapa != estimativa.PercentualEtapa;
-                    estimativa = estimativa with { PercentualGeral = geral, PercentualEtapa = etapa, Inicial = estimativa.Inicial || (retevePercentual && anterior.Valor.Inicial) };
-                }
-            }
-            ultimoProgresso = (execucao, agora, estimativa);
-        }
-        return painel with { Estimativa = estimativa };
-
-        static double? Maior(double? atual, double? anterior) => atual is null || anterior > atual ? anterior : atual;
+        return DoProgresso(Pmvni.Agentes.ProgressoLocal.Ler(pastaControle, desdeUtc, ordemDoKit), historico, agora);
     }
 
     /// <summary>O <see cref="Pmvni.Agentes.Progresso"/> no formato do Monitor: os achados (verificados depois da auditoria técnica), as seções com resultado
-    /// durante a análise (<c>analyze</c>), os percentuais em décimos e a previsão de término arredondada ao minuto.</summary>
+    /// durante a análise (<c>analyze</c>), os percentuais inteiros e a previsão de término arredondada ao minuto.</summary>
     internal static PainelAchados DoProgresso(Pmvni.Agentes.Progresso p, IReadOnlyList<Pmvni.Agentes.DuracaoEtapa>? historico, DateTimeOffset agora)
     {
         var itens = p.Achados.Select(a => new AchadoExecucao(a.Id, 0, a.Titulo, a.Situacao, a.Verificado)).ToList();
@@ -65,7 +39,7 @@ internal static class AchadosExecucao
         if (p.Etapa == "analyze") etapas["analyze"] = new("analyze", p.SecoesComResultado, p.SecoesComResultado, p.TotalSecoes, Secoes: true);
         // Sem nada do kit ainda: a previsão continua sendo do Editor (o Monitor mostra "Previsão depois das primeiras etapas", nunca "…da IA").
         if (!p.TemDados) return new(itens, etapas, new EstimativaAnalise(null, null, null, null, PeloEditor: true, SemDados: true));
-        var (geral, etapa, inicial) = Pmvni.Agentes.ProgressoGeral.Calcular(p, historico, agora);
+        var (geral, etapa) = Pmvni.Agentes.ProgressoGeral.Calcular(p);
         var termino = historico is null ? null : Pmvni.Agentes.PrevisaoTermino.Estimar(p, historico, agora);
         var aproximada = false;
         if (termino is null && historico is not null)
@@ -73,16 +47,8 @@ internal static class AchadosExecucao
             termino = Pmvni.Agentes.PrevisaoTermino.EstimarAproximada(p, historico, agora);
             aproximada = termino.HasValue;
         }
-        if (termino is null)
-        {
-            termino = Pmvni.Agentes.PrevisaoTermino.EstimarInicial(p, historico, agora);
-            inicial |= termino.HasValue;
-        }
         if (termino is { } t && t.Ticks % TimeSpan.TicksPerMinute is var resto and > 0) termino = t.AddTicks(TimeSpan.TicksPerMinute - resto);
-        return new(itens, etapas, new EstimativaAnalise(p.Etapa, Arredondar(etapa), Arredondar(geral), termino, PeloEditor: true,
-            Aproximada: aproximada, Inicial: inicial));
-
-        static double? Arredondar(double? percentual) => percentual is { } valor ? Math.Round(valor, 1) : null;
+        return new(itens, etapas, new EstimativaAnalise(p.Etapa, etapa, geral, termino, PeloEditor: true, Aproximada: aproximada));
     }
 
     public static PainelAchados Ler(string pasta, string processo, DateTime inicioUtc = default)
