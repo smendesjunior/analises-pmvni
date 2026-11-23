@@ -31,16 +31,19 @@ public sealed class LinhaAndamento : Grid
     readonly TextBlock tipo = new() { Style = Estilo("PmvniPainelRotulo"), VerticalAlignment = VerticalAlignment.Top };
     readonly TextBlock texto = new() { Style = Estilo("BodyTextBlockStyle"), TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
 
+    readonly Border selo = new() { HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Padding = new Thickness(6, 2, 6, 2) };
+
     public LinhaAndamento()
     {
-        Padding = new Thickness(0, 2, 0, 2);
+        Padding = new Thickness(8, 8, 0, 8);
         ColumnSpacing = 8;
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(68) });
+        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(72) });
         ColumnDefinitions.Add(new ColumnDefinition());
-        ColumnDefinitions.Insert(1, new ColumnDefinition { Width = new GridLength(64) });
-        SetColumn(tipo, 1);
+        ColumnDefinitions.Insert(1, new ColumnDefinition { Width = new GridLength(90) });
+        selo.Child = tipo;
+        SetColumn(selo, 1);
         SetColumn(texto, 2);
-        Children.Add(tipo);
+        Children.Add(selo);
         Children.Add(hora);
         Children.Add(texto);
     }
@@ -51,9 +54,21 @@ public sealed class LinhaAndamento : Grid
     {
         if (Item is not { } a) return;
         var erro = a.Tipo == TipoAtividade.Erro;
-        tipo.Text = a.Tipo switch { TipoAtividade.Erro => "ERRO", TipoAtividade.Mensagem => "IA", TipoAtividade.Acao => "AÇÃO", _ => "REGISTRO" };
-        hora.Text = a.HoraTexto;
-        hora.Visibility = a.HoraTexto.Length == 0 ? Visibility.Collapsed : Visibility.Visible;   // linhas de antes da abertura não têm hora
+        var (nome, estilo) = a switch
+        {
+            { Tipo: TipoAtividade.Erro } => ("ERRO", "PmvniSeloErro"),
+            { Titulo: "Análise concluída" } or { Detalhe: "Etapa concluída." } => ("CONCLUÍDO", "PmvniSeloSucesso"),
+            { Titulo: "A revisão identificou pendências" } or { Detalhe: "A revisão identificou pontos que precisam de correção." }
+                or { Detalhe: "A execução foi pausada nesta etapa." } => ("ATENÇÃO", "PmvniSeloAtencao"),
+            { Tipo: TipoAtividade.Mensagem } => ("IA", "PmvniSeloNeutro"),
+            { Tipo: TipoAtividade.Acao } => ("AÇÃO", "PmvniSeloNeutro"),
+            _ => ("SISTEMA", "PmvniSeloNeutro"),
+        };
+        tipo.Style = Estilo(a.Tipo == TipoAtividade.Mensagem ? "PmvniTextoDestaqueStyle" : "PmvniPainelRotulo");
+        tipo.Text = nome;
+        selo.Style = Estilo(estilo);
+        hora.Text = a.HoraTexto.Length == 0 ? "—" : a.HoraTexto;
+        ToolTipService.SetToolTip(hora, a.Hora is null ? "Horário não registrado" : a.Hora.Value.ToString("g"));
         texto.Inlines.Clear();
         var titulo = new Microsoft.UI.Xaml.Documents.Run { Text = a.Titulo };
         texto.Style = Estilo(erro ? "PmvniTextoErroStyle" : EmCurso ? "PmvniTextoDestaqueStyle" : "BodyTextBlockStyle");
@@ -68,6 +83,6 @@ public sealed class LinhaAndamento : Grid
 
         var textoCompleto = string.IsNullOrEmpty(a.Detalhe) ? a.Titulo : $"{a.Titulo} · {a.Detalhe}";
         var status = EmCurso ? "Em andamento" : erro ? "Erro" : null;
-        AutomationProperties.SetName(this, string.Join(" · ", new[] { a.HoraTexto, textoCompleto, status }.Where(s => !string.IsNullOrEmpty(s))));
+        AutomationProperties.SetName(this, string.Join(" · ", new[] { a.Hora is null ? "Horário não registrado" : a.HoraTexto, nome, textoCompleto, status }.Where(s => !string.IsNullOrEmpty(s))));
     }
 }

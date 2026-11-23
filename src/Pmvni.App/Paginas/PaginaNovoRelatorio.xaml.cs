@@ -72,6 +72,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     void MostrarLogCompleto(bool abrir)
     {
         ListaLinhas.Visibility = Visivel(abrir);
+        CabecalhoLog.Visibility = Visivel(abrir);
+        DestaqueRecente.Visibility = Visivel(!abrir && atividades.Count > 0);
         LinkLogCompleto.Content = abrir ? "Recolher log completo" : "Abrir log completo";
     }
 
@@ -97,7 +99,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     void AtualizarRadares()
     {
         var ativo = VistaDaExecucao && emCurso;
-        RadarStatus.Ativo = ativo;
+        RadarStatus.Ativo = ativo && PainelResumo.Visibility == Visibility.Visible;
         RadarEtapas.Ativo = ativo && CartaoAtividades.Visibility == Visibility.Visible;
         RadarLog.Ativo = ativo && PainelLog.Visibility == Visibility.Visible;
     }
@@ -185,15 +187,24 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         for (var i = 0; i < atividades.Count; i++) atividades[i].EmCurso = emCurso && i == atividades.Count - 1;
         var ultima = atividades.LastOrDefault()?.Atividade;
-        DestaqueRecente.Visibility = Visivel(ultima is not null);
+        DestaqueRecente.Visibility = Visivel(ultima is not null && ListaLinhas.Visibility != Visibility.Visible);
         LinkLogCompleto.IsEnabled = ultima is not null;
         AtividadeRecente.Item = ultima;
         AtividadeRecente.EmCurso = emCurso;
         var contagem = atividades.Count == 1 ? "1 atividade registrada" : $"{atividades.Count} atividades registradas";
-        var hora = atividades.LastOrDefault(item => item.Atividade.Hora is not null)?.Atividade.HoraTexto;
-        TextoContagem.Text = hora is null ? contagem : $"{contagem} · Última atualização {hora}";
-        var status = etapaAtual is null ? contagem : $"Etapa atual: {etapaAtual} · {contagem}";
-        TextoEtapaAtual.Text = provedorAtual is null ? status : $"{status} · {provedorAtual}";
+        TextoContagem.Text = atividades.Count == 1 ? "1 evento registrado" : $"{atividades.Count} eventos registrados";
+        HoraUltimoEvento.Text = ultima?.Hora is not null ? $"Último evento às {ultima.HoraTexto}" : "";
+        TextoEtapaAtual.Text = etapaAtual is null ? "" : $"Etapa atual: {etapaAtual}";
+        TextoEtapaAtual.Visibility = Visivel(etapaAtual is not null);
+        AtualizarContagemResumo();
+    }
+
+    void AtualizarContagemResumo()
+    {
+        var feitas = etapasMostradas.Count(e => e.Estado == EstadoEtapa.Feita);
+        var itens = atividades.Count == 1 ? "1 atividade registrada" : $"{atividades.Count} atividades registradas";
+        TextoTotalEtapas.Text = string.Join(" · ", new[] { $"{feitas} de {etapasMostradas.Length} etapas concluídas", itens, provedorAtual }
+            .Where(t => !string.IsNullOrWhiteSpace(t)));
     }
 
     internal void MostrarIdentificacao(string processo, string? requerente)
@@ -223,11 +234,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         TituloStatus.Text = falhou ? "Análise com problema" : concluida ? "Análise concluída" : emCurso ? "Análise em andamento" : "Análise parada";
         IconeStatus.Glyph = falhou ? Glifos.Avisos : concluida ? Glifos.Situacao : Glifos.Pausado;
         IconeStatus.Style = Estilo(falhou ? "PmvniIconeSeloErro" : concluida ? "PmvniIconeSeloSucesso" : "PmvniIconeDestaqueStyle");
-        FundoIconeStatus.Style = Estilo(falhou ? "MonitorFundoErro" : concluida ? "MonitorFundoSucesso" : "MonitorFundoAtivo");
-        AnelStatus.IsActive = emCurso;
-        AnelStatus.Visibility = SeloAoVivo.Visibility = SeloAtividades.Visibility = SeloLog.Visibility = emCurso ? Visibility.Visible : Visibility.Collapsed;
+        SeloAoVivo.Visibility = SeloAtividades.Visibility = SeloLog.Visibility = Visivel(emCurso);
         AtualizarRadares();
-        IconeStatus.Visibility = emCurso ? Visibility.Collapsed : Visibility.Visible;
         BotaoPausarAnalise.Visibility = BotaoCancelarAnalise.Visibility = rodando ? Visibility.Visible : Visibility.Collapsed;
 
         MostrarEtapas(etapas, emCurso);
@@ -294,11 +302,18 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     IReadOnlyList<AchadoExecucao> achadosExibidos = [];
     string? filtroDescobertas;
+    bool listaCompleta;
+    void AlternarPreviaEvidencias(object sender, RoutedEventArgs args)
+    {
+        listaCompleta = !listaCompleta;
+        AtualizarListaDescobertas();
+    }
     static readonly IReadOnlyDictionary<string, (string Texto, string Cor)> Situacoes = Pmvni.Composicao.Kit.Situacoes.Sit;
 
     void FiltrarDescobertas(object sender, RoutedEventArgs e)
     {
         if (sender is not RadioMenuFlyoutItem item) return;
+        listaCompleta = false;
         filtroDescobertas = item.Tag as string;
         AtualizarListaDescobertas();
         ColunaLateral.ChangeView(null, 0, null, true);
@@ -306,7 +321,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     internal void ReiniciarFiltroDescobertas()
     {
-        if (filtroDescobertas is null) return;
+        if (filtroDescobertas is null && !listaCompleta) return;
+        listaCompleta = false;
         filtroDescobertas = null;
         FiltroTodas.IsChecked = true;
         AtualizarListaDescobertas();
@@ -329,14 +345,15 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         var filtro = filtroDescobertas is { } chave ? Situacoes[chave].Texto : null;
         var visiveis = filtro is null ? achadosExibidos : achadosExibidos.Where(a => Situacoes[a.Situacao].Texto == filtro).ToArray();
-        for (var i = 0; i < visiveis.Count; i++)
+        var quantidade = listaCompleta ? visiveis.Count : Math.Min(4, visiveis.Count);
+        for (var i = 0; i < quantidade; i++)
         {
             var a = visiveis[i];
             if (i < ListaDescobertas.Children.Count && ListaDescobertas.Children[i] is Border existente && Equals(existente.Tag, a)) continue;
             if (i < ListaDescobertas.Children.Count) ListaDescobertas.Children.RemoveAt(i);
             ListaDescobertas.Children.Insert(i, CartaoDescoberta(a));
         }
-        while (ListaDescobertas.Children.Count > visiveis.Count)
+        while (ListaDescobertas.Children.Count > quantidade)
             ListaDescobertas.Children.RemoveAt(ListaDescobertas.Children.Count - 1);
         VazioDescobertas.Visibility = visiveis.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         ColunaLateral.Visibility = visiveis.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -344,7 +361,10 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         TextoAjudaDescobertas.Text = filtro is null
             ? "As constatações aparecerão aqui, com classificação, referência ao PDF e página e trechos da evidência."
             : "Altere o filtro para ver as demais classificações.";
-        TextoFiltro.Text = $"Exibição: {filtro?.ToLower(Portugues) ?? "todas as classificações"}";
+        AlternarEvidencias.Visibility = Visivel(visiveis.Count > 4);
+        AlternarEvidencias.Content = listaCompleta ? "Recolher para a prévia" : $"Ver todos os {visiveis.Count} registros";
+        TextoFiltro.Text = listaCompleta || visiveis.Count <= 4 ? "" : $"Prévia de {quantidade} dos {visiveis.Count} registros identificados.";
+        TextoFiltro.Visibility = Visivel(TextoFiltro.Text.Length != 0);
         TextoRegistros.Text = visiveis.Count == 1 ? "1 registro" : $"{visiveis.Count} registros";
     }
 
@@ -377,8 +397,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         textos.Children.Add(titulo);
         return new Border
         {
-            Tag = achado, CornerRadius = new CornerRadius(7), Padding = new Thickness(8, 6, 8, 6),
-            Style = Estilo("PmvniCartaoCompactoStyle"), Child = textos,
+            Tag = achado, Padding = new Thickness(20, 12, 20, 12), MinHeight = 70,
+            Style = Estilo("MonitorCartao"), CornerRadius = new CornerRadius(0), BorderThickness = new Thickness(0, 0, 0, 1), Child = textos,
         };
     }
 
@@ -530,14 +550,13 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         if (percentual is { } valor) percentual = Math.Clamp(valor, 0, 100);
         BarraResumoEtapas.IsIndeterminate = animar && percentual is null;
         BarraResumoEtapas.Value = percentual ?? 0;
-        var percentualInicial = !concluiu && EstimativaAtual is { PercentualGeral: not null };
-        TextoPercentual.Text = percentual is { } p ? $"{(percentualInicial ? "≈ " : "")}{p:0}%" : "—";
-        AnelStatus.IsIndeterminate = percentual is null;
-        AnelStatus.Value = percentual ?? 0;
-        PercentualDoAnel.Text = TextoPercentual.Text;
-        PercentualDoAnel.Visibility = Visivel(animar && percentual.HasValue);
-        TextoTotalEtapas.Text = $"{feitas} de {etapas.Count} etapas concluídas";
-        TextoEtapasStatus.Text = $"{feitas} / {etapas.Count} concluídas";
+        var percentualEstimado = !concluiu && EstimativaAtual is { PercentualGeral: not null };
+        TextoPercentual.Text = percentual is { } p ? $"{(percentualEstimado ? "≈ " : "")}{p:0}%" : "—";
+        BarraResumoEtapas.IsActive = percentual.HasValue || animar;
+        TextoPercentual.Visibility = Visivel(percentual.HasValue);
+        IconeStatus.Visibility = Visivel(!percentual.HasValue && !animar);
+        RotuloEstimado.Visibility = Visivel(percentualEstimado);
+        AtualizarContagemResumo();
         ContagemAtividades.Text = $"{feitas} / {etapas.Count} · {TextoPercentual.Text}";
         var origemPercentual = percentual is null ? FluxoNovoRelatorio.PrevisaoDepoisDasEtapas
             : !concluiu && EstimativaAtual is { PercentualGeral: not null } estimativa ? $"Progresso {OrigemDoPercentual(estimativa)}"
@@ -689,46 +708,30 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             var ladrilho = (FrameworkElement)LadrilhosDescobertas.Children[i];
             Grid.SetRow(ladrilho, i / colunas);
             Grid.SetColumn(ladrilho, i % colunas);
-            ladrilho.MinHeight = colunas == 4 ? 86 : 68;
+            ladrilho.MinHeight = colunas == 4 ? 108 : 82;
         }
     }
-
-    /// <summary>A largura dos botões do cabeçalho na última vez em que couberam na linha do título.</summary>
-    double larguraBotoesNoTopo = 520;
 
     internal void AjustarColunasExecucao(double largura)
     {
         if (largura <= 0) return;
-        PainelExecucao.Padding = largura >= 1400 ? new Thickness(30, 16, 30, 12) : new Thickness(16, 8, 16, 10);
-        var espacosa = RolagemMonitor.ActualHeight >= 680;
-        GradeCabecalho.MinHeight = espacosa ? 68 : 52;
-        CartaoStatus.MinHeight = espacosa ? 78 : 68;
-        PainelClaude.MinHeight = espacosa ? 122 : 96;
-        // Os botões ficam na linha do título enquanto sobra espaço para processo e requerente centralizados entre os dois; senão descem.
-        if (Grid.GetRow(BotoesExecucao) == 0 && BotoesExecucao.ActualWidth > 0) larguraBotoesNoTopo = BotoesExecucao.ActualWidth;
-        var livreNoTopo = largura - Math.Max(TituloMonitor.ActualWidth, 380) - larguraBotoesNoTopo - 2 * GradeCabecalho.ColumnSpacing;
-        var botoesEmbaixo = largura < 1080 || livreNoTopo < 260;
-        var identificacaoEmbaixo = largura < 540;
-        Grid.SetRow(IdentificacaoMonitor, identificacaoEmbaixo ? 1 : 0);
-        Grid.SetColumn(IdentificacaoMonitor, identificacaoEmbaixo ? 0 : 1);
-        Grid.SetColumnSpan(IdentificacaoMonitor, identificacaoEmbaixo ? 3 : 1);
-        IdentificacaoMonitor.HorizontalAlignment = identificacaoEmbaixo ? HorizontalAlignment.Left : HorizontalAlignment.Center;
-        // O requerente usa todo o espaço livre (até 560); só abaixo disso termina em reticências, com o nome completo na dica.
-        IdentificacaoMonitor.MaxWidth = identificacaoEmbaixo ? Math.Max(200, largura - 8)
-            : Math.Clamp(botoesEmbaixo ? largura - TituloMonitor.ActualWidth - 28 : livreNoTopo, 200, 560);
-        Grid.SetRow(BotoesExecucao, identificacaoEmbaixo ? 2 : botoesEmbaixo ? 1 : 0);
-        Grid.SetColumn(BotoesExecucao, botoesEmbaixo ? 0 : 2);
-        Grid.SetColumnSpan(BotoesExecucao, botoesEmbaixo ? 3 : 1);
-        GradeCabecalho.RowSpacing = botoesEmbaixo ? 6 : 0;
-
-        var metricasEmbaixo = largura < 740;
+        var margem = largura >= 1100 ? 32 : 16;
+        PainelExecucao.Padding = new Thickness(margem, largura >= 860 ? 24 : 14, margem, 20);
+        var compacto = largura < 860;
+        var botoesEmbaixo = largura < 970;
+        Grid.SetColumn(BotoesExecucao, botoesEmbaixo ? 0 : 1);
+        Grid.SetRow(BotoesExecucao, botoesEmbaixo ? 1 : 0);
+        Grid.SetColumnSpan(BotoesExecucao, botoesEmbaixo ? 2 : 1);
+        Grid.SetColumnSpan(TituloMonitor, botoesEmbaixo ? 2 : 1);
+        BotoesExecucao.HorizontalAlignment = botoesEmbaixo ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        BotoesExecucao.Margin = botoesEmbaixo ? new Thickness(0) : new Thickness(0,8,0,0);
+        var areaDaPagina = largura - 2 * margem - (compacto ? 60 : 182);
+        var metricasEmbaixo = areaDaPagina < 710;
         Grid.SetRow(MetricasStatus, metricasEmbaixo ? 1 : 0);
         Grid.SetColumn(MetricasStatus, metricasEmbaixo ? 0 : 1);
         Grid.SetColumnSpan(MetricasStatus, metricasEmbaixo ? 2 : 1);
-        MetricasStatus.Margin = metricasEmbaixo ? new Thickness(0, 7, 0, 0) : new Thickness(0);
-
-        AbasMonitor.PaneDisplayMode = largura < 860 ? NavigationViewPaneDisplayMode.LeftCompact : NavigationViewPaneDisplayMode.Left;
-        var areaDaPagina = largura - (largura < 860 ? 70 : 205);
+        DivisoriaTempos.Visibility = Visivel(!metricasEmbaixo);
+        AbasMonitor.PaneDisplayMode = compacto ? NavigationViewPaneDisplayMode.LeftCompact : NavigationViewPaneDisplayMode.Left;
         var colunas = areaDaPagina >= 790 ? 6 : areaDaPagina >= 470 ? 3 : 2;
         if (colunas != colunasDaRota)
         {

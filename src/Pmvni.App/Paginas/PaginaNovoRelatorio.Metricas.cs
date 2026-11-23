@@ -9,28 +9,58 @@ public sealed partial class PaginaNovoRelatorio
     void AtualizarNarrativa()
     {
         DetalhesPorEtapa.Children.Clear();
-        if (detalhesEtapas.Plano.Count > 0)
-            DetalhesPorEtapa.Children.Add(CartaoDeTexto("Plano registrado no preparo", string.Join(" → ", detalhesEtapas.Plano.Select(id => FluxoNovoRelatorio.NomeDaEtapa(id)))));
-        foreach (var (nome, estado) in etapasMostradas)
+        ContagemDetalhes.Text = etapasMostradas.Length == 1 ? "1 etapa mapeada" : $"{etapasMostradas.Length} etapas mapeadas";
+        for (var i = 0; i < etapasMostradas.Length; i++)
         {
+            var (nome, estado) = etapasMostradas[i];
             var id = IdDaEtapa(nome);
-            var textos = new List<string>();
+            var narrativa = new List<string>();
+            var medidas = new List<string>();
             if (id is not null)
             {
-                foreach (var plano in (consumoExibido ?? []).Where(x => x.Etapa == id).Select(x => x.Plano).OfType<string>().Distinct())
-                    textos.Add("Plano registrado pela IA" + Environment.NewLine + plano);
-                if (detalhesEtapas.TextoExecutor(id) is { } executor) textos.Add(executor);
-                if (detalhesEtapas.Registros.TryGetValue(id, out var registro)) textos.Add(registro);
-                if (id == "analyze") textos.AddRange(detalhesEtapas.Frentes.Select(f => string.Join(" · ", new[] { FluxoNovoRelatorio.TextoFrente(f), f.Atividade }.OfType<string>())));
-                if (detalhesEtapas.Objecoes.FirstOrDefault(o => o.Etapa == id) is { } objecao)
-                    textos.Add(FluxoNovoRelatorio.TextoObjecao(objecao));
+                var uso = (consumoExibido ?? []).Where(x => x.Etapa == id).ToArray();
+                if (detalhesEtapas.Registros.TryGetValue(id, out var registro)) narrativa.Add(registro);
+                foreach (var plano in uso.Select(x => x.Plano).OfType<string>().Distinct())
+                    narrativa.Add("Plano registrado pela IA" + Environment.NewLine + plano);
+                if (id == "analyze")
+                    narrativa.AddRange(detalhesEtapas.Frentes.Select(f => string.Join(" · ", new[] { FluxoNovoRelatorio.TextoFrente(f), f.Atividade }.OfType<string>())));
+                narrativa.AddRange(detalhesEtapas.Objecoes.Where(o => o.Etapa == id).Select(o => FluxoNovoRelatorio.TextoObjecao(o)));
+                if (detalhesEtapas.TextoExecutor(id) is { } executor) medidas.Add(executor);
+                var duracoes = uso.Select(x => x.Duracao).OfType<TimeSpan>().ToArray();
+                if (duracoes.Length > 0)
+                    medidas.Add("Tempo registrado · " + FluxoNovoRelatorio.TempoLegivel(TimeSpan.FromSeconds(duracoes.Sum(d => d.TotalSeconds)), incluirSegundos: true));
+                if (ProgressoAtual is { } progresso && FluxoNovoRelatorio.NomeDaEtapa(progresso.Etapa) == nome)
+                    medidas.Add($"{progresso.Avaliados} de {progresso.Total} {(progresso.Secoes ? "seções com resultado" : "itens avaliados")}");
             }
-            if (ProgressoAtual is { } progresso && FluxoNovoRelatorio.NomeDaEtapa(progresso.Etapa) == nome)
-                textos.Add($"{progresso.Avaliados} de {progresso.Total} {(progresso.Secoes ? "seções com resultado" : "itens avaliados")}");
-            var titulo = $"{nome} · {SituacaoDaEtapa(estado, execucaoAtivaNaBarra)}";
-            var corpo = textos.Count == 0 ? "Aguardando registro desta etapa." : string.Join(Environment.NewLine, textos);
-            DetalhesPorEtapa.Children.Add(CartaoDeTexto(titulo, corpo));
+            if (narrativa.Count == 0) narrativa.Add("Aguardando registro desta etapa.");
+            var corpo = new StackPanel { Spacing = 8 };
+            var topo = new Grid { ColumnSpacing = 8 };
+            topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            topo.ColumnDefinitions.Add(new ColumnDefinition());
+            topo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            topo.Children.Add(new Border { Style = Estilo("PmvniSeloPasso"), Child = new TextBlock { Text = $"{i + 1}", Style = Estilo("PmvniNumeroPasso") } });
+            var titulo = new TextBlock { Text = nome, Style = Estilo("PmvniAjusteTitulo"), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+            Grid.SetColumn(titulo, 1);
+            topo.Children.Add(titulo);
+            var selo = new Border
+            {
+                Style = Estilo(estado switch {
+                    EstadoEtapa.Feita => "PmvniSeloSucesso", EstadoEtapa.Erro => "PmvniSeloErro",
+                    EstadoEtapa.Agora => "PmvniSeloAtencao", _ => "PmvniSeloNeutro" }),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = SituacaoDaEtapa(estado, execucaoAtivaNaBarra), Style = Estilo("CaptionTextBlockStyle") }
+            };
+            Grid.SetColumn(selo, 2);
+            topo.Children.Add(selo);
+            corpo.Children.Add(topo);
+            corpo.Children.Add(new TextBlock { Text = string.Join(Environment.NewLine, narrativa), TextAlignment = TextAlignment.Left,
+                HorizontalAlignment = HorizontalAlignment.Stretch, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
+            if (medidas.Count > 0)
+                corpo.Children.Add(new TextBlock { Text = string.Join("    •    ", medidas), Style = Estilo("MonitorLegenda"), TextWrapping = TextWrapping.Wrap });
+            DetalhesPorEtapa.Children.Add(new Border { Style = Estilo("PmvniCartaoCompactoStyle"), Child = corpo });
         }
+        if (detalhesEtapas.Plano.Count > 0)
+            DetalhesPorEtapa.Children.Add(CartaoDeTexto("Plano registrado no preparo", string.Join(" → ", detalhesEtapas.Plano.Select(id => FluxoNovoRelatorio.NomeDaEtapa(id)))));
         if (detalhesEtapas.Validacoes.Count > 0)
             DetalhesPorEtapa.Children.Add(CartaoDeTexto("Avisos e consertos registrados", string.Join(Environment.NewLine, detalhesEtapas.Validacoes)));
     }

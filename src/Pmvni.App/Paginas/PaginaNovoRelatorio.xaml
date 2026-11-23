@@ -219,12 +219,54 @@
     <!-- Monitor da execução. A rolagem da página entra quando a área visível não comporta os cartões. -->
     <ScrollViewer x:Name="RolagemMonitor" Grid.Row="2" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
                   HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-    <Grid x:Name="PainelExecucao" x:FieldModifier="internal" Padding="24,12,24,12" RowSpacing="10"
-          RowDefinitions="Auto,Auto,Auto">
+    <Grid x:Name="PainelExecucao" x:FieldModifier="internal" Background="{ThemeResource MonitorFundo}" Padding="32,24" RowSpacing="22"
+          RowDefinitions="Auto,Auto">
       <Grid.Resources>
+        <ResourceDictionary>
+          <ResourceDictionary.ThemeDictionaries>
+            <ResourceDictionary x:Key="Light">
+              <SolidColorBrush x:Key="MonitorFundo" Color="#FCFAF6"/>
+              <SolidColorBrush x:Key="MonitorSuperficie" Color="#FFFFFF"/>
+              <SolidColorBrush x:Key="MonitorBorda" Color="#E5E3DF"/>
+              <SolidColorBrush x:Key="MonitorVerde" Color="#176B43"/>
+              <SolidColorBrush x:Key="MonitorVerdeSuave" Color="#D7EFDF"/>
+              <SolidColorBrush x:Key="MonitorVermelhoSuave" Color="#FBE4E0"/>
+              <SolidColorBrush x:Key="MonitorOcreSuave" Color="#FBEDCB"/>
+              <SolidColorBrush x:Key="MonitorAzulSuave" Color="#DCE5FA"/>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Default">
+              <SolidColorBrush x:Key="MonitorFundo" Color="#202020"/>
+              <SolidColorBrush x:Key="MonitorSuperficie" Color="#2C2C2C"/>
+              <SolidColorBrush x:Key="MonitorBorda" Color="#444444"/>
+              <SolidColorBrush x:Key="MonitorVerde" Color="#78DBA4"/>
+              <SolidColorBrush x:Key="MonitorVerdeSuave" Color="#163D28"/>
+              <SolidColorBrush x:Key="MonitorVermelhoSuave" Color="#4D2927"/>
+              <SolidColorBrush x:Key="MonitorOcreSuave" Color="#443820"/>
+              <SolidColorBrush x:Key="MonitorAzulSuave" Color="#253653"/>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="HighContrast">
+              <SolidColorBrush x:Key="MonitorFundo" Color="{ThemeResource SystemColorWindowColor}"/>
+              <SolidColorBrush x:Key="MonitorSuperficie" Color="{ThemeResource SystemColorWindowColor}"/>
+              <SolidColorBrush x:Key="MonitorBorda" Color="{ThemeResource SystemColorWindowTextColor}"/>
+              <SolidColorBrush x:Key="MonitorVerde" Color="{ThemeResource SystemColorHighlightColor}"/>
+              <SolidColorBrush x:Key="MonitorVerdeSuave" Color="{ThemeResource SystemColorWindowColor}"/>
+              <SolidColorBrush x:Key="MonitorVermelhoSuave" Color="{ThemeResource SystemColorWindowColor}"/>
+              <SolidColorBrush x:Key="MonitorOcreSuave" Color="{ThemeResource SystemColorWindowColor}"/>
+              <SolidColorBrush x:Key="MonitorAzulSuave" Color="{ThemeResource SystemColorWindowColor}"/>
+            </ResourceDictionary>
+          </ResourceDictionary.ThemeDictionaries>
+        <Style x:Key="MonitorTituloPagina" TargetType="TextBlock" BasedOn="{StaticResource PmvniTituloPaginaStyle}">
+          <Setter Property="FontSize" Value="26"/>
+        </Style>
+        <Style x:Key="MonitorTituloSecao" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+          <Setter Property="FontSize" Value="20"/>
+        </Style>
         <Style x:Key="MonitorCartao" TargetType="Border" BasedOn="{StaticResource PmvniCartaoSecao}">
-          <Setter Property="CornerRadius" Value="10"/>
-          <Setter Property="Padding" Value="14,10"/>
+          <Setter Property="CornerRadius" Value="8"/>
+          <Setter Property="Background" Value="{ThemeResource MonitorSuperficie}"/>
+          <Setter Property="BorderBrush" Value="{ThemeResource MonitorBorda}"/>
+          <Setter Property="BorderThickness" Value="1"/>
+          <Setter Property="Padding" Value="20,16"/>
         </Style>
         <Style x:Key="MonitorLadrilho" TargetType="Border">
           <Setter Property="CornerRadius" Value="8"/>
@@ -238,7 +280,7 @@
           <Setter Property="FontSize" Value="11"/>
         </Style>
         <Style x:Key="MonitorLegenda" TargetType="TextBlock" BasedOn="{StaticResource PmvniSecondaryTextStyle}">
-          <Setter Property="FontSize" Value="12"/>
+          <Setter Property="FontSize" Value="13"/>
           <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style x:Key="MonitorIndicador" TargetType="TextBlock" BasedOn="{StaticResource PmvniAjusteTitulo}">
@@ -287,34 +329,34 @@
         <Style x:Key="MonitorRotuloDivergencia" TargetType="TextBlock" BasedOn="{StaticResource MonitorRotulo}">
           <Setter Property="Foreground" Value="{ThemeResource PmvniEsferaFederalTexto}"/>
         </Style>
+        </ResourceDictionary>
       </Grid.Resources>
 
-      <Grid x:Name="GradeCabecalho" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="14" MinHeight="52">
-        <Grid x:Name="TituloMonitor" ColumnDefinitions="Auto,*" ColumnSpacing="10" VerticalAlignment="Center" MaxWidth="560">
-          <Border Width="44" Height="44" CornerRadius="10" VerticalAlignment="Center" Background="{ThemeResource PmvniTonalFundo}">
-            <FontIcon Glyph="{x:Bind local:Glifos.Ia}" Style="{StaticResource PmvniIconeTituloPagina}" AutomationProperties.AccessibilityView="Raw"
-                      Foreground="{ThemeResource PmvniTonalTexto}"/>
+      <Grid x:Name="GradeCabecalho" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="24" RowSpacing="12">
+        <Grid x:Name="TituloMonitor" ColumnDefinitions="40,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="10">
+          <Border Width="40" Height="40" Margin="0,6,0,0" CornerRadius="8" VerticalAlignment="Top" Background="{ThemeResource MonitorVerdeSuave}">
+            <Path Width="24" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  Fill="{ThemeResource MonitorVerde}" AutomationProperties.AccessibilityView="Raw"
+                  Data="M32,20.43 C32,20.90 31.61,21.29 31.14,21.29 L28.24,21.29 L24.20,29.38 C24.05,29.67 23.75,29.86 23.43,29.86 C23.05,29.86 22.75,29.63 22.63,29.31 L16.50,13.22 L13.07,20.78 C12.93,21.09 12.63,21.29 12.29,21.29 L8.86,21.29 C7.72,21.29 7.72,19.57 8.86,19.57 L11.73,19.57 L15.79,10.65 C16.12,9.94 17.09,9.99 17.37,10.69 L23.53,26.87 L26.95,20.05 C27.09,19.76 27.38,19.57 27.71,19.57 L31.14,19.57 C31.61,19.57 32,19.96 32,20.43 Z"/>
           </Border>
-          <StackPanel Grid.Column="1" VerticalAlignment="Center">
-            <TextBlock Text="Monitor de análise" Style="{StaticResource PmvniTituloPaginaStyle}" AutomationProperties.HeadingLevel="Level1" TextWrapping="Wrap"/>
+          <StackPanel Grid.Column="1" Spacing="5" VerticalAlignment="Top">
+            <TextBlock Text="Monitor de análise" Style="{StaticResource MonitorTituloPagina}" AutomationProperties.HeadingLevel="Level1" TextWrapping="Wrap"/>
             <TextBlock Text="Acompanhamento de execução, evidências e auditoria técnica em tempo real" Style="{StaticResource MonitorLegenda}" TextWrapping="Wrap"/>
           </StackPanel>
+          <Grid x:Name="IdentificacaoMonitor" Grid.Row="1" Grid.Column="1" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="14" Margin="0,2,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Text="Processo" Style="{StaticResource MonitorLegenda}" VerticalAlignment="Center"/>
+              <TextBlock x:Name="ProcessoMonitor" x:FieldModifier="internal" Text="—" Style="{StaticResource BodyStrongTextBlockStyle}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <Border Grid.Column="1" Width="1" Height="14" Background="{ThemeResource MonitorBorda}"/>
+            <Grid Grid.Column="2" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+              <TextBlock Text="Requerente" Style="{StaticResource MonitorLegenda}" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="1" x:Name="TextoRequerente" Text="Não informado" Style="{StaticResource BodyStrongTextBlockStyle}"
+                         TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" VerticalAlignment="Center"/>
+            </Grid>
+          </Grid>
         </Grid>
-        <!-- Processo e requerente centralizados no espaço entre o título e os botões. -->
-        <Grid x:Name="IdentificacaoMonitor" Grid.Column="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560">
-          <StackPanel>
-            <TextBlock Text="PROCESSO" TextAlignment="Right" Style="{StaticResource MonitorRotulo}"/>
-            <TextBlock x:Name="ProcessoMonitor" x:FieldModifier="internal" Text="—" TextAlignment="Right" Style="{StaticResource PmvniAjusteTitulo}"/>
-          </StackPanel>
-          <StackPanel Grid.Column="1" MinWidth="120">
-            <TextBlock Text="REQUERENTE" Style="{StaticResource MonitorRotulo}"/>
-            <TextBlock x:Name="TextoRequerente" Text="Não informado" Style="{StaticResource PmvniAjusteTitulo}" TextWrapping="NoWrap"
-                       TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-          </StackPanel>
-          <Border x:Name="SeparadorCabecalho" Grid.Column="2" Width="1" Height="28" VerticalAlignment="Center" Visibility="Collapsed"
-                  Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
-        </Grid>
-        <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="2" Espaco="6" EspacoLinhas="4" VerticalAlignment="Center">
+        <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="1" Espaco="8" EspacoLinhas="6" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,8,0,0">
             <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro"
                     local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
               <StackPanel Orientation="Horizontal" Spacing="8">
@@ -322,7 +364,7 @@
                 <TextBlock Text="Abrir registro"/>
               </StackPanel>
             </Button>
-            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Nova análise" Style="{StaticResource PmvniBotaoPrimarioStyle}"
+            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Nova análise" Style="{StaticResource PmvniBotaoTonalStyle}"
                     local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
@@ -346,54 +388,7 @@
         </local:PainelQuebra>
       </Grid>
 
-      <Border Grid.Row="1" x:Name="CartaoStatus" Style="{StaticResource MonitorCartao}" MinHeight="68">
-        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16">
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" VerticalAlignment="Center">
-            <Border x:Name="FundoIconeStatus" x:FieldModifier="internal" Width="54" Height="54" CornerRadius="27" VerticalAlignment="Center"
-                    Style="{StaticResource MonitorFundoAtivo}">
-              <Grid>
-                <ProgressRing x:Name="AnelStatus" Width="52" Height="52" Maximum="100" Foreground="{ThemeResource PmvniTonalTexto}" MinWidth="0" MinHeight="0" Visibility="Collapsed" local:Trabalhando.Automatico="False"/>
-                <TextBlock x:Name="PercentualDoAnel" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource MonitorRotuloAtivo}"
-                           Visibility="Collapsed" AutomationProperties.AccessibilityView="Raw"/>
-                <FontIcon x:Name="IconeStatus" x:FieldModifier="internal" Glyph="{x:Bind local:Glifos.Ia}" FontSize="18"
-                          Style="{StaticResource PmvniIconeDestaqueStyle}" AutomationProperties.AccessibilityView="Raw"/>
-              </Grid>
-            </Border>
-            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-              <local:PainelQuebra Espaco="8" EspacoLinhas="2">
-                <TextBlock x:Name="TituloStatus" x:FieldModifier="internal" Text="Aguardando execução"
-                           Style="{StaticResource MonitorTitulo}" AutomationProperties.LiveSetting="Polite"/>
-                <Border x:Name="SeloAoVivo" Style="{StaticResource MonitorAoVivo}" Visibility="Collapsed">
-                  <StackPanel Orientation="Horizontal" Spacing="5">
-                    <local:RadarAoVivo x:Name="RadarStatus"/>
-                    <TextBlock Text="AO VIVO" Style="{StaticResource MonitorRotuloAtivo}"/>
-                  </StackPanel>
-                </Border>
-              </local:PainelQuebra>
-              <TextBlock x:Name="TextoEtapaAtual" x:FieldModifier="internal" Style="{StaticResource MonitorLegenda}"/>
-            </StackPanel>
-          </Grid>
-          <local:PainelQuebra x:Name="MetricasStatus" Grid.Column="1" Espaco="22" EspacoLinhas="5" VerticalAlignment="Center">
-            <StackPanel>
-              <TextBlock Text="TEMPO DECORRIDO" Style="{StaticResource MonitorRotulo}"/>
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <FontIcon Glyph="{x:Bind local:Glifos.Relogio}" FontSize="16" Foreground="{ThemeResource PmvniTonalTexto}" AutomationProperties.AccessibilityView="Raw"/>
-                <TextBlock x:Name="TextoTempoDecorrido" Text="—" Style="{StaticResource PmvniAjusteTitulo}"/>
-              </StackPanel>
-            </StackPanel>
-            <StackPanel>
-              <TextBlock Text="ETAPAS" Style="{StaticResource MonitorRotulo}"/>
-              <TextBlock x:Name="TextoEtapasStatus" Text="—" Style="{StaticResource PmvniAjusteTitulo}"/>
-            </StackPanel>
-            <StackPanel>
-              <TextBlock Text="PREVISÃO DE TÉRMINO" Style="{StaticResource MonitorRotulo}"/>
-              <TextBlock x:Name="TextoTempoEstimado" Text="—" Style="{StaticResource PmvniAjusteTitulo}"
-                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            </StackPanel>
-          </local:PainelQuebra>
-        </Grid>
-      </Border>
-      <NavigationView Grid.Row="2" x:Name="AbasMonitor" PaneDisplayMode="Left" OpenPaneLength="170" CompactPaneLength="48"
+      <NavigationView Grid.Row="1" x:Name="AbasMonitor" PaneDisplayMode="Left" OpenPaneLength="170" CompactPaneLength="48"
                       IsSettingsVisible="False" IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False"
                       IsPaneOpen="True" IsTitleBarAutoPaddingEnabled="False" AutomationProperties.Name="Páginas do monitor">
         <NavigationView.MenuItems>
@@ -405,29 +400,96 @@
         </NavigationView.MenuItems>
         <Grid Margin="10,0,0,0">
         <StackPanel x:Name="PainelResumo" Spacing="10">
-          <Border x:Name="PainelClaude" x:FieldModifier="internal" Style="{StaticResource MonitorCartao}" MinHeight="102">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="4" ColumnSpacing="8">
-              <TextBlock Text="ETAPAS DA ANÁLISE" Style="{StaticResource PmvniPainelRotulo}" AutomationProperties.HeadingLevel="Level2"/>
-              <TextBlock Grid.Column="1" x:Name="TextoTotalEtapas" Text="0 de 0 etapas concluídas" Style="{StaticResource MonitorLegenda}" TextAlignment="Right"/>
-              <TextBlock Grid.Row="1" Text="Progresso global da análise" Style="{StaticResource MonitorLegenda}" VerticalAlignment="Center"/>
-              <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TextoPercentual" Text="—" Style="{StaticResource MonitorIndicador}"
-                  HorizontalAlignment="Right" Foreground="{ThemeResource PmvniTonalTexto}"/>
-              <Border Grid.Row="2" Grid.ColumnSpan="2" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="5">
-                <ProgressBar x:Name="BarraResumoEtapas" x:FieldModifier="internal" Maximum="100" Height="10" MinHeight="10"
-                    CornerRadius="5" Background="Transparent" AutomationProperties.Name="Progresso global da análise"/>
-              </Border>
-              <Grid Grid.Row="3" Grid.ColumnSpan="2" x:Name="PainelEtapas" ColumnSpacing="8" RowSpacing="4" Margin="0,3,0,0"
-                  AutomationProperties.Name="Etapas da análise"/>
+          <Border x:Name="PainelClaude" x:FieldModifier="internal" Style="{StaticResource MonitorCartao}" Padding="24,22,24,14">
+            <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="16">
+              <Grid x:Name="TopoResumo" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="20" RowSpacing="10">
+                <Grid ColumnDefinitions="60,*" ColumnSpacing="20">
+                  <StackPanel VerticalAlignment="Center" Spacing="4">
+                    <Grid Width="56" Height="56" x:Name="FundoIconeStatus" x:FieldModifier="internal">
+                      <ProgressRing x:Name="BarraResumoEtapas" x:FieldModifier="internal" Width="56" Height="56" MinWidth="0" MinHeight="0" Maximum="100"
+                            Background="{ThemeResource MonitorBorda}" Foreground="{ThemeResource MonitorVerde}" local:Trabalhando.Automatico="False"
+                            AutomationProperties.Name="Progresso global da análise"/>
+                      <TextBlock x:Name="TextoPercentual" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource MonitorRotuloAtivo}"/>
+                      <FontIcon x:Name="IconeStatus" x:FieldModifier="internal" FontSize="18" Visibility="Collapsed" AutomationProperties.AccessibilityView="Raw"/>
+                    </Grid>
+                    <TextBlock x:Name="RotuloEstimado" Text="Estimado" TextAlignment="Center" Style="{StaticResource MonitorLegenda}"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                    <local:PainelQuebra Espaco="10" EspacoLinhas="3">
+                      <TextBlock x:Name="TituloStatus" x:FieldModifier="internal" Text="Aguardando execução" Style="{StaticResource MonitorTituloSecao}" AutomationProperties.LiveSetting="Polite"/>
+                      <Border x:Name="SeloAoVivo" Style="{StaticResource MonitorAoVivo}" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal" Spacing="4"><local:RadarAoVivo x:Name="RadarStatus"/><TextBlock Text="Ao vivo" Style="{StaticResource MonitorRotuloAtivo}"/></StackPanel>
+                      </Border>
+                    </local:PainelQuebra>
+                    <TextBlock x:Name="TextoEtapaAtual" x:FieldModifier="internal" Style="{StaticResource BodyTextBlockStyle}" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="TextoTotalEtapas" Style="{StaticResource MonitorLegenda}"/>
+                  </StackPanel>
+                </Grid>
+                <Grid x:Name="MetricasStatus" Grid.Column="1" ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="18" VerticalAlignment="Stretch">
+                  <Border x:Name="DivisoriaTempos" Width="1" Background="{ThemeResource MonitorBorda}"/>
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="7">
+                    <TextBlock Text="Tempo decorrido" Style="{StaticResource MonitorLegenda}"/>
+                    <TextBlock x:Name="TextoTempoDecorrido" Text="—" Style="{StaticResource MonitorTituloSecao}"/>
+                  </StackPanel>
+                  <Border Grid.Column="2" Width="1" Background="{ThemeResource MonitorBorda}"/>
+                  <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="7">
+                    <TextBlock Text="Previsão de término" Style="{StaticResource MonitorLegenda}"/>
+                    <TextBlock x:Name="TextoTempoEstimado" Text="—" Style="{StaticResource MonitorTituloSecao}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Grid>
+              </Grid>
+              <Border Grid.Row="1" Height="1" Background="{ThemeResource MonitorBorda}"/>
+              <Grid Grid.Row="2" x:Name="PainelEtapas" ColumnSpacing="8" RowSpacing="4" AutomationProperties.Name="Etapas da análise"/>
             </Grid>
           </Border>
-          <Border x:Name="CartaoDescobertas" Style="{StaticResource MonitorCartao}">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+          <Border x:Name="CartaoDescobertas" Margin="0,8,0,0">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="14">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                 <StackPanel VerticalAlignment="Center">
-                  <TextBlock Text="Principais descobertas" Style="{StaticResource MonitorTitulo}" AutomationProperties.HeadingLevel="Level2"/>
+                  <TextBlock Text="Principais descobertas" Style="{StaticResource MonitorTituloSecao}" AutomationProperties.HeadingLevel="Level2"/>
                   <TextBlock Text="Constatações preliminares até a auditoria cruzada." Style="{StaticResource MonitorLegenda}"/>
                 </StackPanel>
-                <DropDownButton Grid.Column="1" Height="32" VerticalAlignment="Center" AutomationProperties.Name="Filtrar descobertas"
+
+              </Grid>
+              <Grid Grid.Row="1" x:Name="LadrilhosDescobertas" ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="8"
+                  SizeChanged="AjustarLadrilhosDescobertas">
+                <Border Grid.Column="0" Style="{StaticResource MonitorLadrilho}" MinHeight="108" Padding="16,10"
+                    Background="{ThemeResource MonitorVerdeSuave}">
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Atende" Style="{StaticResource MonitorRotulo}"/>
+                    <TextBlock x:Name="TotalAtende" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource PmvniTonalTexto}"/>
+                    <TextBlock Text="conformidades" Style="{StaticResource MonitorLegendaLadrilho}"/>
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource MonitorLadrilho}" MinHeight="108" Padding="16,10"
+                    Background="{ThemeResource MonitorVermelhoSuave}">
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Não atende" Style="{StaticResource MonitorRotulo}"/>
+                    <TextBlock x:Name="TotalNaoAtende" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                    <TextBlock Text="não conformidades" Style="{StaticResource MonitorLegendaLadrilho}"/>
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Style="{StaticResource MonitorLadrilho}" MinHeight="108" Padding="16,10"
+                    Background="{ThemeResource MonitorOcreSuave}">
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Falta comprovar" Style="{StaticResource MonitorRotulo}"/>
+                    <TextBlock x:Name="TotalComprovar" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                    <TextBlock Text="sem evidência" Style="{StaticResource MonitorLegendaLadrilho}"/>
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="3" Style="{StaticResource MonitorLadrilho}" MinHeight="108" Padding="16,10"
+                    Background="{ThemeResource MonitorAzulSuave}">
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Divergências" Style="{StaticResource MonitorRotuloDivergencia}"/>
+                    <TextBlock x:Name="TotalDivergentes" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource PmvniEsferaFederalTexto}"/>
+                    <TextBlock Text="inconsistências" Style="{StaticResource MonitorLegendaLadrilho}"/>
+                  </StackPanel>
+                </Border>
+              </Grid>
+              <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,6,0,0">
+                <TextBlock Text="Evidências identificadas" Style="{StaticResource MonitorTitulo}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" x:Name="TextoRegistros" Text="0 registros" VerticalAlignment="Center" Style="{StaticResource MonitorLegenda}"/>
+                <DropDownButton Grid.Column="2" Height="32" VerticalAlignment="Center" AutomationProperties.Name="Filtrar descobertas"
                     local:Dicas.Descricao="Filtra as descobertas pela classificação.">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <FontIcon Glyph="{x:Bind local:Glifos.Filtro}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
@@ -444,49 +506,10 @@
                   </DropDownButton.Flyout>
                 </DropDownButton>
               </Grid>
-              <Grid Grid.Row="1" x:Name="LadrilhosDescobertas" ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="6" RowSpacing="4"
-                  SizeChanged="AjustarLadrilhosDescobertas">
-                <Border Grid.Column="0" Style="{StaticResource MonitorLadrilho}" MinHeight="86" Padding="5"
-                    Background="{ThemeResource PmvniTonalFundo}">
-                  <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="ATENDE" Style="{StaticResource MonitorRotulo}"/>
-                    <TextBlock x:Name="TotalAtende" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource PmvniTonalTexto}"/>
-                    <TextBlock Text="Conformidades" Style="{StaticResource MonitorLegendaLadrilho}"/>
-                  </StackPanel>
-                </Border>
-                <Border Grid.Column="1" Style="{StaticResource MonitorLadrilho}" MinHeight="86" Padding="5"
-                    Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}">
-                  <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="NÃO ATENDE" Style="{StaticResource MonitorRotulo}"/>
-                    <TextBlock x:Name="TotalNaoAtende" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
-                    <TextBlock Text="Não conformidades" Style="{StaticResource MonitorLegendaLadrilho}"/>
-                  </StackPanel>
-                </Border>
-                <Border Grid.Column="2" Style="{StaticResource MonitorLadrilho}" MinHeight="86" Padding="5"
-                    Background="{ThemeResource SystemFillColorCautionBackgroundBrush}">
-                  <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="FALTA COMPROVAR" Style="{StaticResource MonitorRotulo}"/>
-                    <TextBlock x:Name="TotalComprovar" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
-                    <TextBlock Text="Sem evidência" Style="{StaticResource MonitorLegendaLadrilho}"/>
-                  </StackPanel>
-                </Border>
-                <Border Grid.Column="3" Style="{StaticResource MonitorLadrilho}" MinHeight="86" Padding="5"
-                    Background="{ThemeResource PmvniEsferaFederalFundo}">
-                  <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="DIVERGÊNCIAS" Style="{StaticResource MonitorRotuloDivergencia}"/>
-                    <TextBlock x:Name="TotalDivergentes" Text="0" Style="{StaticResource MonitorTotal}" Foreground="{ThemeResource PmvniEsferaFederalTexto}"/>
-                    <TextBlock Text="Inconsistências" Style="{StaticResource MonitorLegendaLadrilho}"/>
-                  </StackPanel>
-                </Border>
-              </Grid>
-              <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <TextBlock Text="EVIDÊNCIAS IDENTIFICADAS" Style="{StaticResource MonitorRotulo}"/>
-                <TextBlock Grid.Column="1" x:Name="TextoRegistros" Text="0 registros" Style="{StaticResource MonitorLegenda}"/>
-              </Grid>
-              <Border Grid.Row="3" Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="9">
+              <Border Grid.Row="3" Style="{StaticResource MonitorCartao}" Padding="0">
                 <Grid>
                   <ScrollViewer MaxHeight="400" x:Name="ColunaLateral" x:FieldModifier="internal" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Evidências identificadas">
-                    <StackPanel x:Name="ListaDescobertas" x:FieldModifier="internal" Spacing="6" Margin="5,5,8,5"/>
+                    <StackPanel x:Name="ListaDescobertas" x:FieldModifier="internal" Spacing="0"/>
                   </ScrollViewer>
                   <ScrollViewer x:Name="VazioDescobertas" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Center">
                     <StackPanel Spacing="5" Padding="12,8" MaxWidth="420" VerticalAlignment="Center">
@@ -503,6 +526,7 @@
               </Border>
               <StackPanel Grid.Row="4" Spacing="4">
                 <TextBlock x:Name="TextoFiltro" Text="Exibição: todas as classificações" Style="{StaticResource MonitorLegenda}" VerticalAlignment="Center"/>
+                <HyperlinkButton x:Name="AlternarEvidencias" Click="AlternarPreviaEvidencias" Visibility="Collapsed" Content="Ver todos os registros"/>
                 <HyperlinkButton x:Name="LinkEvidenciasPdf" x:FieldModifier="internal" Visibility="Collapsed" MinHeight="32" HorizontalAlignment="Left" Padding="8,4"
                     AutomationProperties.Name="Ver evidências por PDF e página">
                   <TextBlock Text="Ver evidências por PDF e página ›" TextWrapping="Wrap"/>
@@ -555,16 +579,22 @@
         </Border>
         <Border x:Name="PainelLog" Visibility="Collapsed" Style="{StaticResource MonitorCartao}">
           <StackPanel Spacing="10">
-            <local:PainelQuebra Espaco="12" EspacoLinhas="4">
-              <TextBlock Text="Log de execução" Style="{StaticResource MonitorTitulo}"/>
-              <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Text="0 atividades registradas" Style="{StaticResource MonitorLegenda}" VerticalAlignment="Center"/>
-              <Border x:Name="SeloLog" Style="{StaticResource MonitorAoVivo}" Visibility="Collapsed">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Log de execução" Style="{StaticResource MonitorTitulo}" AutomationProperties.HeadingLevel="Level2"/>
+                <TextBlock Text="Eventos registrados durante a análise, na ordem da execução." Style="{StaticResource MonitorLegenda}"/>
+              </StackPanel>
+              <Border Grid.Column="1" x:Name="SeloLog" Style="{StaticResource MonitorAoVivo}" Visibility="Collapsed">
                 <StackPanel Orientation="Horizontal" Spacing="5">
                   <local:RadarAoVivo x:Name="RadarLog"/>
-                  <TextBlock Text="Ao vivo" Style="{StaticResource MonitorRotuloAtivo}"/>
+                  <TextBlock Text="Em execução" Style="{StaticResource MonitorRotuloAtivo}"/>
                 </StackPanel>
               </Border>
-            </local:PainelQuebra>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <TextBlock x:Name="TextoContagem" x:FieldModifier="internal" Text="0 eventos registrados" Style="{StaticResource MonitorLegenda}"/>
+              <TextBlock Grid.Column="1" x:Name="HoraUltimoEvento" Style="{StaticResource MonitorLegenda}"/>
+            </Grid>
             <Border x:Name="DestaqueRecente" Style="{StaticResource MonitorLadrilho}" Visibility="Collapsed">
               <local:LinhaAndamento x:Name="AtividadeRecente"/>
             </Border>
@@ -582,6 +612,13 @@
                 </Grid>
               </Button>
             </local:PainelQuebra>
+            <Border x:Name="CabecalhoLog" Background="{ThemeResource SubtleFillColorSecondaryBrush}" Padding="8,7" CornerRadius="4">
+              <Grid ColumnDefinitions="72,90,*" ColumnSpacing="8">
+                <TextBlock Text="HORA" Style="{StaticResource MonitorRotulo}"/>
+                <TextBlock Grid.Column="1" Text="TIPO" Style="{StaticResource MonitorRotulo}"/>
+                <TextBlock Grid.Column="2" Text="EVENTO" Style="{StaticResource MonitorRotulo}"/>
+              </Grid>
+            </Border>
             <ListView MaxHeight="410" Visibility="Collapsed" ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled" x:Name="ListaLinhas" x:FieldModifier="internal" SelectionMode="None" IsItemClickEnabled="False"
                 AutomationProperties.Name="Registro de atividades">
               <ListView.ItemContainerStyle>
@@ -601,7 +638,15 @@
         </Border>
         <Border x:Name="PainelDetalhes" Visibility="Collapsed" Style="{StaticResource MonitorCartao}">
           <StackPanel Spacing="12">
-            <TextBlock Text="Detalhes da análise" Style="{StaticResource MonitorTitulo}" AutomationProperties.HeadingLevel="Level2"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Detalhes da análise" Style="{StaticResource MonitorTitulo}" AutomationProperties.HeadingLevel="Level2"/>
+                <TextBlock Text="Atividades, evidências e resultados registrados em cada etapa." Style="{StaticResource MonitorLegenda}"/>
+              </StackPanel>
+              <Border Grid.Column="1" Style="{StaticResource MonitorAoVivo}">
+                <TextBlock x:Name="ContagemDetalhes" Style="{StaticResource MonitorRotuloAtivo}"/>
+              </Border>
+            </Grid>
             <local:PainelQuebra Espaco="24" EspacoLinhas="10">
               <StackPanel MinWidth="125" Spacing="3">
                 <TextBlock Text="PROCESSO" Style="{StaticResource MonitorRotulo}"/>
