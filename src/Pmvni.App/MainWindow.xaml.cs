@@ -492,7 +492,7 @@ public sealed partial class MainWindow : Window, ITelaEdicao
                         // 1.0.0: confere também as janelas dos sites (o visualizador de documentos do Essencial), com página fictícia.
                         var janelas = await AutotesteJanelas.ConferirAsync();
                         // E o ciclo do brilho "trabalhando" (sem halo ocioso, em página oculta ou depois do fim).
-                        var brilho = await AutotesteBrilho.ConferirAsync();
+                        var brilho = await AutotesteBrilho.ConferirAsync(ambiente);
                         Autoteste.GravarSucesso(ambiente.BrowserVersionString, janelas, brilho, AutotesteDosAgentes());
                     }
                     else Autoteste.GravarErro("NavigationCompleted: " + e.WebErrorStatus);

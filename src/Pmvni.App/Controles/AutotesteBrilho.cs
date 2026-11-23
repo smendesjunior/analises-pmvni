@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Web.WebView2.Core;
 
 namespace Pmvni.App;
 
@@ -9,7 +10,7 @@ namespace Pmvni.App;
 /// página, cantos originais devolvidos, relógio de quadros parado e camada do halo devolvida ao sair da árvore. Entra no "ok" do --autoteste.</summary>
 internal static class AutotesteBrilho
 {
-    public static async Task<Dictionary<string, object?>> ConferirAsync()
+    public static async Task<Dictionary<string, object?>> ConferirAsync(CoreWebView2Environment ambiente)
     {
         var r = new Dictionary<string, object?> { ["ok"] = false };
         Window? janela = null;
@@ -78,27 +79,45 @@ internal static class AutotesteBrilho
             await Assentar();
             r["saiu_da_arvore_apaga"] = Apagado() && Trabalhando.BrilhoDe(quadro)?.TemCamadaDoHalo != true;
             r["camadas_que_sobraram"] = pagina.Children.Count;
-            var painel = new PaginaNovoRelatorio();
+            var painel = new PaginaNovoRelatorio { AmbienteMonitor = Task.FromResult(ambiente) };
+            var carregado = new TaskCompletionSource();
+            painel.Loaded += (_, _) => carregado.TrySetResult();
             janela.Content = painel;
+            await carregado.Task.WaitAsync(TimeSpan.FromSeconds(30));
             painel.MostrarExecucao(true);
             var linhas = new System.Collections.ObjectModel.ObservableCollection<string>(
                 Enumerable.Range(1, 80).Select(i => $"Atividade fictícia {i}"));
             painel.LigarLinhas(linhas);
             var achados = Enumerable.Range(1, 40).Select(i => new AchadoExecucao($"{i:000}", 1, $"Item {i}", "ATENDE", false)).ToList();
             painel.MostrarAchados(achados);
-            await Assentar();
-            painel.ColunaLateral.ChangeView(null, 160, null, true);
-            await Assentar();
-            var item = (Border)painel.ListaDescobertas.Children[2];
-            var texto = (TextBlock)((StackPanel)item.Child).Children[1];
-            var recebeuFoco = texto.Focus(FocusState.Programmatic);
-            await Assentar();
-            var antes = painel.ColunaLateral.VerticalOffset;
+            var web = (WebView2)painel.FindName("WebMonitor");
+            async Task AguardarMonitor(string expressao)
+            {
+                var limite = DateTime.UtcNow.AddSeconds(30);
+                do
+                {
+                    if (web.CoreWebView2 is not null
+                        && await web.ExecuteScriptAsync(expressao) == "true") return;
+                    await Task.Delay(100);
+                } while (DateTime.UtcNow < limite);
+                var diagnostico = web.CoreWebView2 is null ? "WebView2 sem controlador" :
+                    await web.ExecuteScriptAsync("({url:location.href, aba:document.querySelector('article')?.ariaLabel, dados:typeof state==='object'?state.findings?.length:null})");
+                throw new TimeoutException($"O monitor não apresentou {expressao}. {diagnostico}");
+            }
+            const string terceiro = """document.querySelector('article [aria-label="Item 3"]')""";
+            await AguardarMonitor($"!!{terceiro}");
+            // A descoberta deve continuar focada e a área visível deve ficar no mesmo ponto
+            // quando a publicação de um novo achado atualiza o monitor que o analista lê.
+            web.Focus(FocusState.Programmatic);
+            await web.ExecuteScriptAsync($"{terceiro}.focus(); window.scrollTo(0, 160)");
+            var focou = await web.ExecuteScriptAsync($"document.activeElement === {terceiro}") == "true";
+            var antes = System.Text.Json.JsonSerializer.Deserialize<double>(await web.ExecuteScriptAsync("window.scrollY"));
             linhas.Add("Novo evento fictício");
             painel.MostrarAchados([.. achados, new("999", 1, "Novo achado", "ATENDE", false)]);
-            await Assentar();
-            r["foco_preservado"] = recebeuFoco && ReferenceEquals(texto, Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(painel.XamlRoot));
-            r["rolagem_preservada"] = antes > 0 && Math.Abs(painel.ColunaLateral.VerticalOffset - antes) < 1;
+            await AguardarMonitor("document.querySelector('article').textContent.includes('41 registros')");
+            r["foco_preservado"] = focou && await web.ExecuteScriptAsync($"document.activeElement === {terceiro}") == "true";
+            var depois = System.Text.Json.JsonSerializer.Deserialize<double>(await web.ExecuteScriptAsync("window.scrollY"));
+            r["rolagem_preservada"] = antes > 0 && Math.Abs(depois - antes) < 1;
             r["ok"] = r.Where(x => x.Key != "ok" && x.Value is bool).All(x => x.Value is true) && pagina.Children.Count == 0;
         }
         catch (Exception e) { r["erro"] = e.GetType().Name + ": " + e.Message; }
