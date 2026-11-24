@@ -1,9 +1,9 @@
 ﻿<#
   Apaga as extrações antigas do executável único em %TEMP%\.net\<nome do exe>\<id do bundle>,
-  mantendo só a do .exe atual. Roda FORA do pacote do Claude (aberto pelo limpar-extracoes.cmd via
+  preservando as cópias em uso, a instalada e a build final. Roda FORA do pacote do Claude (aberto pelo limpar-extracoes.cmd via
   explorer.exe), porque %TEMP% fica em AppData. Resultado em tests\saida\limpeza.json.
   O id do bundle é lido do próprio .exe (cabeçalho do bundle .NET); se não der para lê-lo,
-  apaga todas (o .exe extrai de novo na próxima abertura).
+  preserva as extrações para a próxima limpeza.
 #>
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
@@ -46,10 +46,24 @@ function IdDoBundle([string]$arquivo) {
 $resultado = [ordered]@{ base = $base; idAtual = $null; mantidas = @(); removidas = @(); bytesLiberados = [int64]0; erros = @() }
 try {
     if (Test-Path -LiteralPath $exe) { $resultado.idAtual = IdDoBundle $exe }
+    $exeInstalado = Join-Path $env:LOCALAPPDATA 'Programs\Analise de Projetos PMVNI\Editor de Relatorios PMVNI.exe'
+    $idInstalado = $null
+    $instalado = Test-Path -LiteralPath $exeInstalado
+    if ($instalado) { $idInstalado = IdDoBundle $exeInstalado }
     foreach ($pastaApp in $pastasApp) {
         if (-not (Test-Path -LiteralPath $pastaApp)) { continue }
+        $pastaApp = (Get-Item -LiteralPath $pastaApp).FullName
+        $nomeApp = Split-Path -Leaf $pastaApp
         foreach ($d in Get-ChildItem -LiteralPath $pastaApp -Directory -Force) {
-            if ($resultado.idAtual -and $d.Name -eq $resultado.idAtual -and $pastaApp -eq $pastasApp[0]) { $resultado.mantidas += $d.FullName; continue }
+            # O atualizador pode trocar o exe em disco enquanto a sessão aberta ainda usa outro bundle.
+            if (-not $resultado.idAtual -or ($instalado -and -not $idInstalado) -or
+                $d.Name -in @($resultado.idAtual, $idInstalado) -or
+                $d.Name -notmatch '^[A-Za-z0-9_-]{8,32}$' -or $d.LinkType -or
+                (Get-Process -Name $nomeApp -ErrorAction SilentlyContinue)) {
+                $resultado.mantidas += $d.FullName
+                continue
+            }
+            if ($d.Parent.FullName -ne $pastaApp) { throw "Extração fora da pasta do aplicativo: $($d.FullName)" }
             $tam = (Get-ChildItem -LiteralPath $d.FullName -Recurse -File -Force -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum
             try {
                 Remove-Item -LiteralPath $d.FullName -Recurse -Force

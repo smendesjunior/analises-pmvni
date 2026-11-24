@@ -176,6 +176,7 @@ foreach ($alvo in $alvos) {
     if (Test-Path -LiteralPath $completo) { throw "Não foi possível apagar: $completo" }
     $liberado += $tamanho
 }
+Write-Host ("Intermediários de build removidos antes da limpeza das extrações: {0:N0} bytes" -f $liberado)
 
 # 6. Extrações antigas do executável único em %TEMP%\.net (AppData): limpas por script externo,
 #    aberto com explorer.exe para rodar fora do pacote do Claude; o resultado volta em tests\saida\limpeza.json.
@@ -213,7 +214,7 @@ $mb = [math]::Round($bytes.Length / 1MB, 1)
 Write-Host ''
 Write-Host "Executável final: $exeFinal ($mb MB, SHA-256 $hashFinal)"
 Write-Host ("Espaço liberado no projeto (bin, obj, publicação, tests\saida, caches): {0:N1} MB" -f ($liberado / 1MB))
-$idAtual = if ($limpeza.idAtual) { $limpeza.idAtual } else { '(não identificado: todas apagadas)' }
+$idAtual = if ($limpeza.idAtual) { $limpeza.idAtual } else { '(não identificado: extrações preservadas)' }
 Write-Host "Extrações em $($limpeza.base): id atual $idAtual; removidas $(@($limpeza.removidas).Count), mantidas $(@($limpeza.mantidas).Count)"
 foreach ($r in @($limpeza.removidas)) { Write-Host "  removida: $r" }
 Write-Host ("Espaço liberado nas extrações: {0:N1} MB" -f ([int64]$limpeza.bytesLiberados / 1MB))
