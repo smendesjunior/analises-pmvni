@@ -11,6 +11,29 @@ namespace Pmvni.Revisao.Testes;
 /// <c>PMVNI_KIT_RAIZ</c>); o ajuste local só guarda o que muda; a tabela efetiva vai ao controlador, que a lê de verdade (Python do kit).</summary>
 public class ModelosDaAnaliseTestes
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData("{")]
+    [InlineData("[]")]
+    [InlineData("""{"rotas":{"codex":{"perfis":{"padrao":{"etapas":{"analyze":{"modelo":"gpt-6.2-sol","nivel":"medio"},"technical_audit":{"modelo":"gpt-6.2-sol","nivel":false}}}}}}}""")]
+    [InlineData("""{"regras":{"desce_com_cota_abaixo_de":true}}""")]
+    [InlineData("""{"ligada_por_rota":{"audit":{"claude":"sim"}}}""")]
+    public void AjusteInvalidoERecusadoIntegralmente(string conteudo)
+    {
+        using var pasta = new PastaTemporaria();
+        Assert.True(ModelosDaAnalise.LerArquivoLocal(pasta.Caminho).Vazio);
+        var arquivo = ModelosDaAnalise.ArquivoLocal(pasta.Caminho);
+        File.WriteAllText(arquivo, conteudo);
+        Assert.Throws<InvalidDataException>(() => ModelosDaAnalise.LerArquivoLocal(pasta.Caminho));
+        Assert.Equal(conteudo, File.ReadAllText(arquivo));
+        File.WriteAllText(arquivo, """{"regras":{"desce_com_cota_abaixo_de":0.15}}""");
+        var lido = ModelosDaAnalise.LerArquivoLocal(pasta.Caminho);
+        var k = Kit();
+        var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
+        var tabela = ModelosDaAnalise.Efetiva(k, lido, etapas, Listas());
+        Assert.Equal(0.15, tabela.Json["cota_baixa_da_execucao"]!.GetValue<double>());
+    }
+
     static string TabelaDoKit()
     {
         var arquivo = ModelosDaAnalise.ArquivoNoKit(Ambiente.RaizKit);

@@ -659,7 +659,7 @@
                   <Grid Style="{StaticResource Linha}" SizeChanged="AoMudarTamanhoDaLinha">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="240"/></Grid.ColumnDefinitions>
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Cota baixa desce o nível" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Com esta parte da cota restante (ou menos) na janela mais gasta da conta, o nível desce." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
+                    <StackPanel Spacing="3" VerticalAlignment="Center"><TextBlock TextAlignment="Left" Text="Cota baixa desce o nível" Style="{StaticResource PmvniAjusteTitulo}"/><TextBlock TextAlignment="Left" Text="Nas sessões de análise e auditoria de ChatGPT e Claude, o nível desce quando a cota restante informada atinge o limite escolhido." Style="{StaticResource PmvniAjusteAjuda}"/></StackPanel>
                     <ComboBox x:Name="CaixaCotaBaixa" x:FieldModifier="internal" Grid.Column="1" Style="{StaticResource PmvniAjusteEscolha}" VerticalAlignment="Center" AutomationProperties.Name="Cota restante que desce o nível"/>
                   </Grid>
                   <TextBlock x:Name="TextoRegrasDasRotas" x:FieldModifier="internal" TextAlignment="Left" Margin="16,0,16,12" TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>

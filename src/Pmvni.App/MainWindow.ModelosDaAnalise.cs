@@ -23,15 +23,23 @@ public sealed partial class MainWindow
         [("Não descer por cota", null), ("5% ou menos restantes", 0.05), ("10% ou menos restantes", 0.10), ("15% ou menos restantes", 0.15),
          ("20% ou menos restantes", 0.20), ("25% ou menos restantes", 0.25), ("30% ou menos restantes", 0.30)];
 
-    AjusteModelos AjusteDosModelos
+    string? erroAjusteModelos;
+    AjusteModelos AjusteDosModelos => ajusteModelos ?? RecarregarAjusteDosModelos();
+
+    AjusteModelos RecarregarAjusteDosModelos()
     {
-        get
+        try
         {
-            if (ajusteModelos is not null) return ajusteModelos;
-            string? texto = null;
-            try { var f = ModelosDaAnalise.ArquivoLocal(PastaDados.Raiz); if (File.Exists(f)) texto = File.ReadAllText(f, Encoding.UTF8); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { RegistroErros.Gravar("modelos.analise.ler", e); }
-            return ajusteModelos = ModelosDaAnalise.LerAjuste(texto);
+            var lido = ModelosDaAnalise.LerArquivoLocal(PastaDados.Raiz);
+            erroAjusteModelos = null;
+            return ajusteModelos = lido;
+        }
+        catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            RegistroErros.Gravar("modelos.analise.ler", e);
+            erroAjusteModelos = "Não foi possível ler o ajuste de modelos. " + e.Message +
+                " Confira o arquivo em Ajustes › Modelos da análise ou use Restaurar padrão do kit.";
+            return ajusteModelos = new();
         }
     }
 
@@ -142,10 +150,11 @@ public sealed partial class MainWindow
         };
         p.BotaoRestaurarModelos.Click += async (_, _) =>
         {
-            if (AjusteDosModelos.Vazio) { p.TextoModelosAnalise.Text = "Já está no padrão do kit."; return; }
+            if (AjusteDosModelos.Vazio && erroAjusteModelos is null) { p.TextoModelosAnalise.Text = "Já está no padrão do kit."; return; }
             if (!await Perguntas.Atual.ConfirmarAsync("Restaurar o padrão do kit?", "Os modelos, os níveis, as regras e a auditoria cruzada deste computador voltam ao padrão do kit. O ajuste local é apagado.",
                     "Restaurar", "Cancelar", destrutiva: false)) return;
             ajusteModelos = ModelosDaAnalise.Restaurar();
+            erroAjusteModelos = null;
             GravarAjusteDosModelos("Padrão do kit restaurado: o ajuste deste computador foi apagado.");
         };
         p.BotaoPublicarModelos.Click += async (_, _) => await PublicarModelosAsync();
@@ -153,6 +162,7 @@ public sealed partial class MainWindow
         p.CategoriaMostrada += async tag =>
         {
             if (tag != CategoriasAjustes.Modelos) return;
+            RecarregarAjusteDosModelos();
             // 3.2.2: a tabela de modelos vem do plugin analise localizado pela leitura das peças, que roda em segundo plano ao abrir o editor.
             // Na primeira visita a página era montada antes de a leitura terminar e mostrava "kit sem tabela" até reabrir; agora espera a leitura
             // (e a dispara, se ninguém a disparou ainda) antes de montar.
@@ -230,6 +240,14 @@ public sealed partial class MainWindow
                 return;
             }
             var a = AjusteDosModelos;
+            if (erroAjusteModelos is { } erro)
+            {
+                p.AvisoModelosAnalise.Message = erro;
+                p.AvisoModelosAnalise.IsOpen = true;
+                p.AlternarSobeObjecao.IsEnabled = p.CaixaCotaBaixa.IsEnabled = false;
+                p.BotaoPublicarModelos.Visibility = Visibility.Collapsed;
+                return;
+            }
             if (kit.Colunas.Count == 0) return;
             var selecionada = kit.Colunas.FirstOrDefault(c => c == rotaEmEdicao) ?? kit.Colunas[0];
             foreach (var coluna in kit.Colunas)
@@ -538,7 +556,12 @@ public sealed partial class MainWindow
     TabelaDeModelos? TabelaParaAnalise(Provedor p)
     {
         var (kit, etapas) = TabelaDoKitInstalado();
-        if (kit is null) return null;
+        if (kit is null)
+        {
+            if (pecasAgentes.ModelosPorRota is not null || !AjusteDosModelos.Vazio)
+                throw new InvalidDataException("A tabela de modelos do kit está ausente ou ilegível. Confira a instalação do kit em Ajustes.");
+            return null;
+        }
         var rota = ModelosDaAnalise.RotaDoProvedor(p);
         Func<Task>? atualizar = null;
         if (rota == "gemini") atualizar = AtualizarListaGeminiAsync;

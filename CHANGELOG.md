@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.5.5
+
+- O Editor relê os modelos antes da análise e identifica ajustes ilegíveis ou incompletos. A tela de ajustes permite restaurar o padrão.
+- A opção de reduzir o esforço quando a cota está baixa acompanha a nova execução no kit 4.5.4.
+
 ## 4.5.4
 
 - O monitor e o histórico mostram os conflitos entre transcrições e quando o arredondamento pode explicar uma diferença de índice. As fontes identificam a prancha a conferir.

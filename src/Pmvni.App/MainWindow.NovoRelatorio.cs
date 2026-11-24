@@ -155,16 +155,27 @@ public sealed partial class MainWindow
             rotaOriginal = acesso.RotaCodex;
             perfilOriginal = MatrizGemini.DoCodigo(original.PerfilDaExecucao());
         }
+        RecarregarAjusteDosModelos();
+        if (erroAjusteModelos is { } erro)
+        {
+            MostrarMensagem(InfoBarSeverity.Error, "Modelos da análise", erro);
+            return null;
+        }
+        TabelaDeModelos? tabela;
+        try { tabela = TabelaParaAnalise(p); }
+        catch (InvalidDataException ex)
+        {
+            MostrarMensagem(InfoBarSeverity.Error, "Modelos da análise", ex.Message);
+            return null;
+        }
         if (p != Provedor.Gemini)
         {
             // Tarefa 19: a tabela de modelos desta análise (padrão do kit + ajuste local), pelas listas guardadas; a do provedor é atualizada em
             // segundo plano, sem segurar a partida nem a fila de comandos (revisão final I4).
-            var modelos = TabelaParaAnalise(p);
-            return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: modelos, pastaQgis: ajustes.PastaQgis, pastaKit: ajustes.PastaKitEfetiva, modoOriginal: modoOriginal, rotaOriginal: rotaOriginal), enviados);
+            return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: tabela, pastaQgis: ajustes.PastaQgis, pastaKit: ajustes.PastaKitEfetiva, modoOriginal: modoOriginal, rotaOriginal: rotaOriginal), enviados);
         }
         var (ok, perfil, ficticio, trocar) = await ResolverPerfilGeminiAsync(processo, perfilOriginal);
         if (!ok) return null;
-        var tabela = TabelaParaAnalise(p);
         return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior, tabela, ajustes.PastaQgis, ajustes.PastaKitEfetiva, modoOriginal), enviados);
     }
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);

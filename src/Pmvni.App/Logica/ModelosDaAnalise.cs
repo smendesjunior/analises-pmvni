@@ -190,35 +190,54 @@ public static class ModelosDaAnalise
     public static AjusteModelos LerAjuste(string? json)
     {
         var a = new AjusteModelos();
-        if (string.IsNullOrWhiteSpace(json)) return a;
+        if (json is null) return a;
+        static JsonObject Objeto(JsonNode? no, string campo) => no as JsonObject
+            ?? throw new InvalidDataException($"O campo {campo} precisa ser um objeto.");
+        static JsonObject Grupo(JsonObject o, string campo) => o.ContainsKey(campo) ? Objeto(o[campo], campo) : new();
+        static bool Booleano(JsonNode? no, string campo) => no is JsonValue v && v.TryGetValue<bool>(out var b)
+            ? b : throw new InvalidDataException($"Valor inválido em {campo}.");
+
         try
         {
-            if (JsonNode.Parse(json.TrimStart('﻿')) is not JsonObject raiz) return a;
-            if (raiz["rotas"] is JsonObject rotas)
-                foreach (var (rota, r) in rotas)
-                    if (r?["perfis"] is JsonObject perfis)
-                        foreach (var (perfil, p) in perfis)
-                            if (p?["etapas"] is JsonObject etapas)
-                                foreach (var (etapa, c) in etapas)
-                                    if (Texto(c?["modelo"]) is { } m && Texto(c?["nivel"]) is { } n && CatalogoIa.ModeloValido(m) && NiveisDoKit.Contains(n))
-                                        a.Celulas[(rota, perfil, etapa)] = new CelulaModelos(m, n);
-            if (raiz["regras"] is JsonObject regras)
+            var raiz = Objeto(JsonNode.Parse(json.TrimStart('\uFEFF')), "raiz");
+            if (raiz.ContainsKey("versao") && !(raiz["versao"] is JsonValue v && v.TryGetValue<int>(out var versao) && versao == 1))
+                throw new InvalidDataException("Versão de ajuste de modelos incompatível.");
+            foreach (var (rota, r) in Grupo(raiz, "rotas"))
+                foreach (var (perfil, p) in Objeto(Objeto(r, rota)["perfis"], "perfis"))
+                    foreach (var (etapa, c) in Objeto(Objeto(p, perfil)["etapas"], "etapas"))
+                    {
+                        var celula = Objeto(c, etapa);
+                        if (Texto(celula["modelo"]) is not { } m || !CatalogoIa.ModeloValido(m) ||
+                            Texto(celula["nivel"]) is not { } n || !NiveisDoKit.Contains(n))
+                            throw new InvalidDataException($"Modelo ou nível inválido em {rota} / {perfil} / {etapa}.");
+                        a.Celulas[(rota, perfil, etapa)] = new CelulaModelos(m, n);
+                    }
+            var regras = Grupo(raiz, "regras");
+            if (regras.ContainsKey("sobe_por_objecao_tecnica"))
+                a.SobePorObjecao = Booleano(regras["sobe_por_objecao_tecnica"], "sobe_por_objecao_tecnica");
+            if (regras.ContainsKey("desce_com_cota_abaixo_de"))
             {
-                if (regras["sobe_por_objecao_tecnica"] is JsonValue s && s.TryGetValue<bool>(out var sobe)) a.SobePorObjecao = sobe;
-                if (regras.ContainsKey("desce_com_cota_abaixo_de"))
-                {
-                    a.TrocaDescePorCota = true;
-                    a.DescePorCota = regras["desce_com_cota_abaixo_de"] is JsonValue d && d.TryGetValue<double>(out var desce) && desce is >= 0 and <= 1 ? desce : null;
-                }
+                a.TrocaDescePorCota = true;
+                if (regras["desce_com_cota_abaixo_de"] is { } limite)
+                    a.DescePorCota = limite is JsonValue d && d.TryGetValue<double>(out var valor) && valor is >= 0 and <= 1
+                        ? valor : throw new InvalidDataException("Limite de cota fora do intervalo de 0 a 1.");
             }
-            if (raiz["ligada_por_rota"] is JsonObject lig)
-                foreach (var (etapa, x) in lig)
-                    if (x is JsonObject porRota)
-                        foreach (var (rota, v) in porRota)
-                            if (v is JsonValue b && b.TryGetValue<bool>(out var ligada)) a.Ligadas[(etapa, rota)] = ligada;
+            foreach (var (etapa, x) in Grupo(raiz, "ligada_por_rota"))
+                foreach (var (rota, valor) in Objeto(x, etapa))
+                    a.Ligadas[(etapa, rota)] = Booleano(valor, $"{etapa} / {rota}");
+            return a;
         }
-        catch (Exception x) when (x is JsonException or InvalidOperationException) { }
-        return a;
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException)
+        {
+            throw new InvalidDataException("O arquivo de modelos contém JSON inválido.", ex);
+        }
+    }
+
+    public static AjusteModelos LerArquivoLocal(string raizDados)
+    {
+        try { return LerAjuste(File.ReadAllText(ArquivoLocal(raizDados), Encoding.UTF8)); }
+        catch (FileNotFoundException) { return new(); }
+        catch (DirectoryNotFoundException) { return new(); }
     }
 
     /// <summary>O arquivo do ajuste local: o mesmo formato do kit, só com o que muda.</summary>
@@ -388,6 +407,7 @@ public static class ModelosDaAnalise
             ajuste.Vazio ? "padrão do kit (sem ajuste local)" : "padrão do kit com o ajuste local do Editor de Relatórios");
         json["reparo_julgamento_previsto"] = kit.Bruto["rotas"]?["codex"]?["reparo_julgamento"]?.DeepClone();
         if (ajuste.SobePorObjecao is { } subir) json["subir_nova_tentativa_chatgpt"] = subir;
+        if (ajuste.TrocaDescePorCota) json["cota_baixa_da_execucao"] = ajuste.DescePorCota;
         json["avisos"] = new JsonArray(avisos.Select(a => (JsonNode?)JsonValue.Create(a.Texto)).ToArray());
         return new TabelaEfetiva(json, avisos);
     }
