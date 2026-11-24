@@ -118,6 +118,8 @@ internal static class RoteiroMonitorAoVivo
         await Esperar("janela_nativa_visivel", () => pagina.MonitorNativo.XamlRoot?.IsHostVisible == true);
         await Esperar("sete_de_28", () => Campo("stagePercent") == "25%" && Campo("result").Contains("7 de 28") && Campo("percent") == "21%");
         var geralInicial = Campo("percent");
+        var percentualNativo = Visiveis(pagina.MonitorNativo).OfType<TextBlock>()
+            .Single(t => AutomationProperties.GetAutomationId(t) == "stagePercent");
         await Esperar("previsao_visivel", () => Campo("eta").Contains(':') && Campo("eta").Contains('·'));
         var etaInicial = Campo("eta");
         var antes = Campo("elapsed");
@@ -132,6 +134,8 @@ internal static class RoteiroMonitorAoVivo
         await Esperar("quatorze_de_28", () => Campo("stagePercent") == "50%" && Campo("result").Contains("14 de 28")
             && Campo("percent") == "25%" && Campo("eta").Contains(':') && Campo("eta") != etaInicial);
         var geralMedido = Campo("percent");
+        await Esperar("percentual_atualizado_no_mesmo_controle", () => percentualNativo.Text == "50%"
+            && Visiveis(pagina.MonitorNativo).Contains(percentualNativo));
         relatorio["quatorze_secoes"] = new JsonObject { ["etapa"] = "50%", ["geral"] = geralMedido, ["eta"] = Campo("eta") };
         await abrirAba("Consumo");
         bool AmostraFinal() => Tem("Tokens totais · 270,7 mil") && Tem("Medidos às " + ultimaHora)

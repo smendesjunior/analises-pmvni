@@ -29,7 +29,10 @@ public sealed partial class PaginaNovoRelatorio
     long execucaoHtml, versaoLogHtml;
     string chaveCabecalho = "", chaveConteudo = "", paginaDesenhada = "";
     (string Decorrido, string Previsao) ultimoRelogio;
+    string? ultimaDicaPrevisao;
     TextBlock? valorDecorrido, valorPrevisao, legendaTempos;
+    readonly List<Action> atualizarCamposCabecalho = [];
+    readonly List<Action> atualizarCamposEtapas = [];
     string? filtroAchados;
     int? etapaAberta;
     bool todasEvidencias;
@@ -88,26 +91,34 @@ public sealed partial class PaginaNovoRelatorio
         var relogio = (Decorrido: TextoTempoDecorrido.Text, Previsao: concluida ? "Concluída" : TextoTempoEstimado.Text);
         var dicaPrevisao = AutomationProperties.GetHelpText(TextoTempoEstimado);
 
-        var cabecalho = string.Join("|", TituloStatus.Text, emCurso, TextoPercentual.Text, BarraResumoEtapas.Value, TextoEtapaAtual.Text, TextoTotalEtapas.Text,
-            RotuloEstimado.Visibility, string.Join(";", etapasMostradas.Select(e => e.Nome + ":" + e.Estado + ":" + PercentualDaEtapa(e.Nome, e.Estado))));
+        var trilha = string.Join(";", etapasMostradas.Select(e => e.Nome + ":" + e.Estado));
+        var cabecalho = string.Join("|", TituloStatus.Text, emCurso, execucaoAtivaNaBarra, TextoEtapaAtual.Text,
+            string.IsNullOrWhiteSpace(TextoTotalEtapas.Text), RotuloEstimado.Visibility, trilha);
         if (forcar || cabecalho != chaveCabecalho)
         {
             chaveCabecalho = cabecalho;
+            atualizarCamposCabecalho.Clear();
             CabecalhoFixo.Child = CabecalhoDeSituacao(relogio, dicaPrevisao);
         }
-        else if (ultimoRelogio != relogio)
+        else
         {
-            MostrarTempo(valorDecorrido, relogio.Decorrido, relogio.Decorrido);
-            MostrarTempo(valorPrevisao, relogio.Previsao, string.IsNullOrEmpty(dicaPrevisao) ? relogio.Previsao : dicaPrevisao);
-            if (legendaTempos is not null) legendaTempos.Text = $"Onde os {relogio.Decorrido} foram gastos";
+            foreach (var atualizar in atualizarCamposCabecalho) atualizar();
+            if (ultimoRelogio.Decorrido != relogio.Decorrido)
+            {
+                MostrarTempo(valorDecorrido, relogio.Decorrido, relogio.Decorrido);
+                if (legendaTempos is not null) legendaTempos.Text = $"Onde os {relogio.Decorrido} foram gastos";
+            }
+            if (ultimoRelogio.Previsao != relogio.Previsao || ultimaDicaPrevisao != dicaPrevisao)
+                MostrarTempo(valorPrevisao, relogio.Previsao, string.IsNullOrEmpty(dicaPrevisao) ? relogio.Previsao : dicaPrevisao);
         }
         ultimoRelogio = relogio;
+        ultimaDicaPrevisao = dicaPrevisao;
 
         var aba = AbaAtual;
         var conteudo = aba switch
         {
             "Log" => string.Join("|", versaoLogHtml, atividades.Count, HoraUltimoEvento.Text, TituloStatus.Text, emCurso, BotaoEvidenciasPdf.Visibility),
-            "Etapas" => string.Join("|", cabecalho, ChaveEtapas(), etapaAberta),
+            "Etapas" => ChaveEstruturaEtapas(trilha),
             "Detalhes" => string.Join("|", ModelosConfigurados, ChaveEtapas(), ErroDetalhes.Text, TextoUltimaMensagem.Text, PainelUltimaMensagem.Visibility,
                 string.Join(";", detalhesEtapas.Validacoes), string.Join(";", detalhesEtapas.Plano)),
             "Consumo" => string.Join("|", ChaveConsumo(), orcamentoExibido),
@@ -116,9 +127,26 @@ public sealed partial class PaginaNovoRelatorio
         };
         if (aba == "Resumo") conteudo += "|" + ConferenciaNumericaExibida;
         conteudo = aba + "|" + execucaoHtml + "|" + conteudo;
-        if (!forcar && conteudo == chaveConteudo) return;
+        if (!forcar && conteudo == chaveConteudo)
+        {
+            if (aba == "Etapas")
+                foreach (var atualizar in atualizarCamposEtapas) atualizar();
+            return;
+        }
         chaveConteudo = conteudo;
         DesenharPagina(aba);
+    }
+
+    int IndiceEtapaAberta => etapaAberta ?? Array.FindIndex(etapasMostradas, e => e.Estado == EstadoEtapa.Agora);
+
+    string ChaveEstruturaEtapas(string trilha)
+    {
+        var indice = IndiceEtapaAberta;
+        var paineis = "";
+        if (indice >= 0 && indice < etapasMostradas.Length && IdDaEtapa(etapasMostradas[indice].Nome) == "analyze")
+            paineis = detalhesEtapas.Grupos.Count > 0 ? $"grupos:{detalhesEtapas.Grupos.Count}"
+                : string.Join(";", detalhesEtapas.Frentes.Select(f => $"{f.Inicio}-{f.Fim}"));
+        return string.Join("|", trilha, indice, paineis, TituloStatus.Text, emCurso, execucaoAtivaNaBarra);
     }
 
     string ChaveEtapas() => string.Join(";", etapasMostradas.Select((e, i) => e.Nome + e.Estado + PercentualDaEtapa(e.Nome, e.Estado)
@@ -144,6 +172,7 @@ public sealed partial class PaginaNovoRelatorio
             ? [new EntranceThemeTransition { IsStaggeringEnabled = true, FromVerticalOffset = 18 }]
             : null;
         ConteudoMonitor.Children.Clear();
+        atualizarCamposEtapas.Clear();
         legendaTempos = null;
         switch (aba)
         {
@@ -206,7 +235,21 @@ public sealed partial class PaginaNovoRelatorio
         anel.Children.Add(SombraDoAnel(aro, 92));
         anel.Children.Add(aro);
         var centro = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        centro.Children.Add(Id(Texto(string.IsNullOrEmpty(TextoPercentual.Text) ? "—" : TextoPercentual.Text, "MnPercentual"), "percent"));
+        var percentual = Id(Texto(string.IsNullOrEmpty(TextoPercentual.Text) ? "—" : TextoPercentual.Text, "MnPercentual"), "percent");
+        centro.Children.Add(percentual);
+        var valorArco = BarraResumoEtapas.Value;
+        atualizarCamposCabecalho.Add(() =>
+        {
+            var texto = string.IsNullOrEmpty(TextoPercentual.Text) ? "—" : TextoPercentual.Text;
+            if (percentual.Text != texto)
+            {
+                percentual.Text = texto;
+                AutomationProperties.SetName(anel, "Progresso global da análise: " + TextoPercentual.Text);
+            }
+            if (valorArco == BarraResumoEtapas.Value) return;
+            valorArco = BarraResumoEtapas.Value;
+            AtualizarArcos(aro, 92, 8, [(valorArco, "MnArcoVerde")]);
+        });
         if (RotuloEstimado.Visibility == Visibility.Visible)
         {
             var est = Texto("estimado", "MnLegenda");
@@ -234,6 +277,12 @@ public sealed partial class PaginaNovoRelatorio
         if (!string.IsNullOrWhiteSpace(TextoTotalEtapas.Text))
         {
             var etapa = Selo(TextoTotalEtapas.Text, "MnTag", "MnTagTexto");
+            atualizarCamposCabecalho.Add(() =>
+            {
+                if (((TextBlock)etapa.Child).Text == TextoTotalEtapas.Text) return;
+                ((TextBlock)etapa.Child).Text = TextoTotalEtapas.Text;
+                AutomationProperties.SetName(etapa, TextoTotalEtapas.Text);
+            });
             etapa.HorizontalAlignment = HorizontalAlignment.Left;
             info.Children.Add(etapa);
         }
@@ -314,9 +363,18 @@ public sealed partial class PaginaNovoRelatorio
             if (i < n - 1) linhas.Children.Add(Segmento(estado, etapasMostradas[i + 1].Estado, 1));
             celula.Children.Add(linhas);
             celula.Children.Add(Marcador(estado));
-            var p = PercentualDaEtapa(nome, estado);
-            var rotulo = $"{i + 1:00} {nome}" + (estado == EstadoEtapa.Agora && p.Valor is not null ? " · " + TextoPercentualEtapa(p) : "");
-            var legenda = Texto(rotulo, estado is EstadoEtapa.Feita or EstadoEtapa.Agora ? "MnTagTextoSucesso" : "MnLegenda");
+            var prefixo = $"{i + 1:00} {nome}";
+            var legenda = Texto(prefixo, estado is EstadoEtapa.Feita or EstadoEtapa.Agora ? "MnTagTextoSucesso" : "MnLegenda");
+            if (estado == EstadoEtapa.Agora)
+            {
+                void AtualizarRotulo()
+                {
+                    var p = PercentualDaEtapa(nome, estado);
+                    AtualizarTexto(legenda, p.Valor is null ? prefixo : prefixo + " · " + TextoPercentualEtapa(p));
+                }
+                AtualizarRotulo();
+                atualizarCamposCabecalho.Add(AtualizarRotulo);
+            }
             legenda.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
             legenda.FontSize = 12;
             legenda.HorizontalAlignment = HorizontalAlignment.Center;
@@ -534,7 +592,7 @@ public sealed partial class PaginaNovoRelatorio
     {
         Adicionar(TituloDePagina(Glifos.Lista, "Atividades da análise", "Acompanhe as etapas e os registros de execução.",
             emCurso ? TagAoVivo("Em andamento") : Selo(TituloStatus.Text, "MnTag", "MnTagTexto")), 0);
-        var atual = etapaAberta ?? Array.FindIndex(etapasMostradas, e => e.Estado == EstadoEtapa.Agora);
+        var atual = IndiceEtapaAberta;
         var lista = Cartao();
         Elevar(lista, levantar: false);
         var pilha = new StackPanel();
@@ -556,9 +614,17 @@ public sealed partial class PaginaNovoRelatorio
             textos.Children.Add(Texto(DescricaoDaEtapa(nome), "MnSecundario"));
             Grid.SetColumn(textos, 1);
             cabeca.Children.Add(textos);
-            if (!aberta && p.Valor is not null)
+            if (!aberta)
             {
                 var pct = Texto(TextoPercentualEtapa(p), estado == EstadoEtapa.Pendente ? "MnLegenda" : "MnVerdeForte");
+                pct.Visibility = Visivel(p.Valor.HasValue);
+                atualizarCamposEtapas.Add(() =>
+                {
+                    var percentual = PercentualDaEtapa(nome, estado);
+                    AtualizarTexto(pct, TextoPercentualEtapa(percentual));
+                    var visibilidade = Visivel(percentual.Valor.HasValue);
+                    if (pct.Visibility != visibilidade) pct.Visibility = visibilidade;
+                });
                 pct.VerticalAlignment = VerticalAlignment.Center;
                 Grid.SetColumn(pct, 2);
                 cabeca.Children.Add(pct);
@@ -640,7 +706,8 @@ public sealed partial class PaginaNovoRelatorio
 
         var guia = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
         var anel = new Grid { Width = 52, Height = 52 };
-        anel.Children.Add(Anel(52, 5, [(p.Valor ?? 0, "MnArcoVerde")]));
+        var arco = Anel(52, 5, [(p.Valor ?? 0, "MnArcoVerde")]);
+        anel.Children.Add(arco);
         var pct = Id(Texto(TextoPercentualEtapa(p), "MnVerdeForte"), "stagePercent");
         pct.FontSize = 12;
         pct.HorizontalAlignment = HorizontalAlignment.Center;
@@ -648,8 +715,18 @@ public sealed partial class PaginaNovoRelatorio
         anel.Children.Add(pct);
         guia.Children.Add(anel);
         var situacao = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        var resultado = linhasEtapas.ElementAtOrDefault(i)?.Resultado.Text;
-        situacao.Children.Add(Id(Texto(string.IsNullOrWhiteSpace(resultado) ? SituacaoDaEtapa(estado, execucaoAtivaNaBarra) : resultado, "MnCorpoForte"), "result"));
+        var origem = linhasEtapas[i];
+        var resultado = Id(Texto(origem.Resultado.Text, "MnCorpoForte"), "result");
+        situacao.Children.Add(resultado);
+        atualizarCamposEtapas.Add(() =>
+        {
+            AtualizarTexto(resultado, origem.Resultado.Text);
+            var progresso = PercentualDaEtapa(nome, estado);
+            if (progresso == p) return;
+            AtualizarTexto(pct, TextoPercentualEtapa(progresso));
+            if (p.Valor != progresso.Valor) AtualizarArcos(arco, 52, 5, [(progresso.Valor ?? 0, "MnArcoVerde")]);
+            p = progresso;
+        });
         situacao.Children.Add(Texto("Resultados recebidos nesta etapa", "MnLegenda"));
         guia.Children.Add(situacao);
         faixa.Children.Add(guia);
@@ -659,14 +736,33 @@ public sealed partial class PaginaNovoRelatorio
         if (id == "analyze" && detalhesEtapas.Grupos.Count > 0)
         {
             var grupos = new PainelQuebra { Espaco = 10, EspacoLinhas = 10 };
-            foreach (var grupo in detalhesEtapas.Grupos)
+            for (var k = 0; k < detalhesEtapas.Grupos.Count; k++)
             {
+                var indice = k;
+                var grupo = detalhesEtapas.Grupos[indice];
                 var painel = new Border { Style = Estilo<Style>("MnPainel"), Width = 220 };
                 var pilha = new StackPanel { Spacing = 6 };
-                pilha.Children.Add(Texto(grupo.Nome, "MnCorpoForte"));
-                pilha.Children.Add(Texto(grupo.Concluido ? "Concluído" : $"{grupo.Prontas} de {grupo.Total} verificações",
-                    grupo.Concluido ? "MnVerdeForte" : "MnLegenda"));
-                pilha.Children.Add(BarraFina(100d * grupo.Prontas / grupo.Total, "MnFormaVerde"));
+                var titulo = Texto(grupo.Nome, "MnCorpoForte");
+                var contagem = Texto("", "MnLegenda");
+                var barra = BarraFina(0, "MnFormaVerde");
+                void Preencher(GrupoAnalise g)
+                {
+                    AtualizarTexto(titulo, g.Nome);
+                    AtualizarTexto(contagem, g.Concluido ? "Concluído" : $"{g.Prontas} de {g.Total} verificações");
+                    contagem.Style = Estilo<Style>(g.Concluido ? "MnVerdeForte" : "MnLegenda");
+                    AtualizarBarraFina(barra, g.Total > 0 ? 100d * g.Prontas / g.Total : 0);
+                }
+                Preencher(grupo);
+                atualizarCamposEtapas.Add(() =>
+                {
+                    var novo = detalhesEtapas.Grupos[indice];
+                    if (grupo == novo) return;
+                    Preencher(novo);
+                    grupo = novo;
+                });
+                pilha.Children.Add(titulo);
+                pilha.Children.Add(contagem);
+                pilha.Children.Add(barra);
                 painel.Child = pilha;
                 grupos.Children.Add(painel);
             }
@@ -685,11 +781,27 @@ public sealed partial class PaginaNovoRelatorio
                 var topo = new Grid();
                 topo.Children.Add(Texto($"Seções {f.Inicio}–{f.Fim}", "MnCorpoForte"));
                 var conta = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-                if (f.Concluida) conta.Children.Add(Glifo(Glifos.Marca, "MnGlifo", 11));
-                conta.Children.Add(Id(Texto($"{f.Prontas} de {f.Total}", f.Concluida ? "MnVerdeForte" : "MnLegenda"), "count" + k));
+                var marca = Glifo(Glifos.Marca, "MnGlifo", 11);
+                marca.Visibility = Visivel(f.Concluida);
+                conta.Children.Add(marca);
+                var quantidade = Id(Texto($"{f.Prontas} de {f.Total}", f.Concluida ? "MnVerdeForte" : "MnLegenda"), "count" + k);
+                conta.Children.Add(quantidade);
                 topo.Children.Add(conta);
                 pilha.Children.Add(topo);
-                pilha.Children.Add(BarraFina(f.Total > 0 ? 100d * f.Prontas / f.Total : 0, "MnFormaVerde"));
+                var barra = BarraFina(f.Total > 0 ? 100d * f.Prontas / f.Total : 0, "MnFormaVerde");
+                pilha.Children.Add(barra);
+                var indice = k;
+                atualizarCamposEtapas.Add(() =>
+                {
+                    var nova = detalhesEtapas.Frentes[indice];
+                    if (f == nova) return;
+                    marca.Visibility = Visivel(nova.Concluida);
+                    AtualizarTexto(quantidade, $"{nova.Prontas} de {nova.Total}");
+                    quantidade.Style = Estilo<Style>(nova.Concluida ? "MnVerdeForte" : "MnLegenda");
+                    AtualizarBarraFina(barra, nova.Total > 0 ? 100d * nova.Prontas / nova.Total : 0);
+                    ToolTipService.SetToolTip(painel, nova.Atividade);
+                    f = nova;
+                });
                 painel.Child = pilha;
                 if (!string.IsNullOrWhiteSpace(f.Atividade)) ToolTipService.SetToolTip(painel, f.Atividade);
                 Elevar(painel);
@@ -699,16 +811,19 @@ public sealed partial class PaginaNovoRelatorio
             Grid.SetColumn(grade, 1);
             faixa.Children.Add(grade);
         }
-        var executor = linhasEtapas.ElementAtOrDefault(i)?.Executor.Text;
-        if (!string.IsNullOrWhiteSpace(executor))
+        var modelo = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(16, 0, 0, 0), BorderThickness = new Thickness(1, 0, 0, 0) };
+        modelo.BorderBrush = Estilo<Brush>("DividerStrokeColorDefaultBrush");
+        modelo.Children.Add(Texto("Modelo", "MnLegenda"));
+        var executor = Texto(origem.Executor.Text, "MnCorpoForte");
+        modelo.Children.Add(executor);
+        modelo.Visibility = origem.Executor.Visibility;
+        atualizarCamposEtapas.Add(() =>
         {
-            var modelo = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(16, 0, 0, 0), BorderThickness = new Thickness(1, 0, 0, 0) };
-            modelo.BorderBrush = Estilo<Brush>("DividerStrokeColorDefaultBrush");
-            modelo.Children.Add(Texto("Modelo", "MnLegenda"));
-            modelo.Children.Add(Texto(executor, "MnCorpoForte"));
-            Grid.SetColumn(modelo, 2);
-            faixa.Children.Add(modelo);
-        }
+            AtualizarTexto(executor, origem.Executor.Text);
+            if (modelo.Visibility != origem.Executor.Visibility) modelo.Visibility = origem.Executor.Visibility;
+        });
+        Grid.SetColumn(modelo, 2);
+        faixa.Children.Add(modelo);
         return faixa;
     }
 
@@ -1281,6 +1396,11 @@ public sealed partial class PaginaNovoRelatorio
 
     TextBlock Texto(string texto, string estilo) => new() { Text = texto, Style = Estilo<Style>(estilo) };
 
+    static void AtualizarTexto(TextBlock campo, string texto)
+    {
+        if (campo.Text != texto) campo.Text = texto;
+    }
+
     FontIcon Glifo(string glifo, string estilo, double tamanho)
     {
         var f = new FontIcon { Glyph = glifo, Style = Estilo<Style>(estilo), FontSize = tamanho, VerticalAlignment = VerticalAlignment.Center };
@@ -1462,16 +1582,24 @@ public sealed partial class PaginaNovoRelatorio
         return t;
     }
 
-    FrameworkElement BarraFina(double percentual, string estilo)
+    Grid BarraFina(double percentual, string estilo)
     {
         var grade = new Grid { Height = 4 };
-        grade.ColumnDefinitions.Add(new() { Width = new GridLength(Math.Clamp(percentual, 0, 100), GridUnitType.Star) });
-        grade.ColumnDefinitions.Add(new() { Width = new GridLength(Math.Max(0, 100 - Math.Clamp(percentual, 0, 100)), GridUnitType.Star) });
+        grade.ColumnDefinitions.Add(new());
+        grade.ColumnDefinitions.Add(new());
+        AtualizarBarraFina(grade, percentual);
         var fundo = new Rectangle { Style = Estilo<Style>("MnFormaTrilho"), RadiusX = 2, RadiusY = 2 };
         Grid.SetColumnSpan(fundo, 2);
         grade.Children.Add(fundo);
-        if (percentual > 0) grade.Children.Add(new Rectangle { Style = Estilo<Style>(estilo), RadiusX = 2, RadiusY = 2 });
+        grade.Children.Add(new Rectangle { Style = Estilo<Style>(estilo), RadiusX = 2, RadiusY = 2 });
         return grade;
+    }
+
+    static void AtualizarBarraFina(Grid grade, double percentual)
+    {
+        var valor = Math.Clamp(percentual, 0, 100);
+        grade.ColumnDefinitions[0].Width = new GridLength(valor, GridUnitType.Star);
+        grade.ColumnDefinitions[1].Width = new GridLength(100 - valor, GridUnitType.Star);
     }
 
     /// <summary>Sombra suave (DropShadow da composição) com o contorno da trilha do anel, deslocada para baixo.</summary>
@@ -1502,6 +1630,14 @@ public sealed partial class PaginaNovoRelatorio
     {
         var grade = new Grid { Width = tamanho, Height = tamanho };
         grade.Children.Add(new Ellipse { Stroke = Estilo<Brush>("MnTrilho"), StrokeThickness = espessura, Margin = new Thickness(espessura / 2) });
+        AtualizarArcos(grade, tamanho, espessura, fatias);
+        AutomationProperties.SetAccessibilityView(grade, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+        return grade;
+    }
+
+    void AtualizarArcos(Grid grade, double tamanho, double espessura, (double Valor, string Estilo)[] fatias)
+    {
+        while (grade.Children.Count > 1) grade.Children.RemoveAt(grade.Children.Count - 1);
         foreach (var (valor, estilo) in fatias)
         {
             var v = Math.Clamp(valor, 0, 100);
@@ -1526,8 +1662,6 @@ public sealed partial class PaginaNovoRelatorio
                 Data = new PathGeometry { Figures = { figura } },
             });
         }
-        AutomationProperties.SetAccessibilityView(grade, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
-        return grade;
     }
 
     /// <summary>Identifica um campo para o roteiro e para o Narrador (o mesmo nome do antigo data-field do monitor HTML).</summary>

@@ -3327,7 +3327,8 @@ internal static class Roteiro
                 n.MostrarAchados(Enumerable.Range(1,6).Select(i=>new AchadoExecucao("ID"+i,i,"Achado "+i,i==1?"NAO_ATENDE":"ATENDE",i==1)).ToArray());
                 n.MostrarConsumo([new UsoEtapa("analyze","GPT","modelo-teste",1000,120,250,TimeSpan.FromMinutes(20),2,1)
                     { Usada5h=40,UsadaSemana=12,Plano="Plano específico da execução" }], new OrcamentoDaAnalise(18,7));
-                n.LigarLinhas(new System.Collections.ObjectModel.ObservableCollection<string>{ "Mensagem: registro sem hora", $"[{agora:O}] Ação: atividade com hora" });
+                var linhasMonitor = new System.Collections.ObjectModel.ObservableCollection<string>{ "Mensagem: registro sem hora", $"[{agora:O}] Ação: atividade com hora" };
+                n.LigarLinhas(linhasMonitor);
                 // 3.5.1: o monitor é nativo; cada campo tem o AutomationId do antigo data-field do HTML.
                 IEnumerable<FrameworkElement> Arvore(DependencyObject raiz)
                 {
@@ -3369,12 +3370,29 @@ internal static class Roteiro
                 await FecharDialogo();
                 await AbrirPagina("Etapas");
                 await Conferir("Etapa 25%, sete de 28 e frente sete de nove", () => Campo("stagePercent") == "25%" && Campo("result").Contains("7 de 28") && Campo("count0") == "7 de 9");
-                n.MostrarDetalhesDasEtapas(detalhesFicticios with
-                {
-                    Grupos = Enumerable.Range(1, 15).Select(i => new GrupoAnalise("Grupo de teste " + i, i <= 4 ? 1 : 0, 1)).ToArray()
-                });
+                var grupos = Enumerable.Range(1, 15).Select(i => new GrupoAnalise("Grupo de teste " + i, i <= 4 ? 1 : 0, i == 5 ? 2 : 1)).ToArray();
+                n.MostrarDetalhesDasEtapas(detalhesFicticios with { Grupos = grupos });
                 await Conferir("Plano mostra quinze grupos e progresso por grupo",
                     () => Campo("result").Contains("4 de 15 grupos concluídos") && PaginaContem("Grupo de teste 15") && Campo("count0") == "");
+                var titulosGrupos = Arvore(n.ConteudoMonitor).OfType<Microsoft.UI.Xaml.Controls.TextBlock>()
+                    .Where(t => t.Text.StartsWith("Grupo de teste ")).ToArray();
+                var grupoCinco = (Microsoft.UI.Xaml.Controls.StackPanel)titulosGrupos.Single(t => t.Text == "Grupo de teste 5").Parent;
+                var contagemGrupo = (Microsoft.UI.Xaml.Controls.TextBlock)grupoCinco.Children[1];
+                var barraGrupo = (Microsoft.UI.Xaml.Controls.Grid)grupoCinco.Children[2];
+                var cabecalho = Arvore(n.MonitorNativo).OfType<Microsoft.UI.Xaml.Controls.Border>().Single(b => b.Name == "CabecalhoFixo");
+                var cabecalhoInicial = cabecalho.Child;
+                linhasMonitor.Add($"[{agora.AddSeconds(1):O}] Ação: atualização durante a análise");
+                await Conferir("Registro atualiza contagem no cabeçalho", () => Arvore(cabecalho)
+                    .OfType<Microsoft.UI.Xaml.Controls.TextBlock>().Any(t => t.Text.Contains("3 atividades registradas")));
+                Verificar("Registro preserva cabeçalho e os quinze cartões", ReferenceEquals(cabecalhoInicial, cabecalho.Child)
+                    && titulosGrupos.Length == 15 && titulosGrupos.All(t => Arvore(n.ConteudoMonitor).Contains(t)));
+                n.MostrarDetalhesDasEtapas(detalhesFicticios with
+                {
+                    Grupos = grupos.Select((g, i) => i == 4 ? g with { Prontas = 1 } : g).ToArray()
+                });
+                await Conferir("Avanço parcial do quinto grupo atualiza o mesmo cartão e a mesma barra",
+                    () => contagemGrupo.Text == "1 de 2 verificações" && barraGrupo.ColumnDefinitions[0].Width.Value == 50
+                        && titulosGrupos.All(t => Arvore(n.ConteudoMonitor).Contains(t)) && Campo("result").Contains("4 de 15"));
                 Invocar(Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(b) == "Aberta") ?? throw new InvalidOperationException("Etapa aberta"));
                 await Conferir("Recolher etapa", () => Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(b) == "Aberta") is null);
                 await AbrirPagina("Detalhes");
@@ -3392,7 +3410,8 @@ internal static class Roteiro
                 await Conferir("Sem telemetria não inventa percentuais", () => Campo("cachePercent") == "—" && Campo("shortPercent") == "—" && Campo("weeklyPercent") == "—");
                 await AbrirPagina("Log");
                 await Conferir("Log cronológico, horário ausente e evento com hora",
-                    () => Campo("count") == "2 eventos registrados" && Campos("time") is [ "—", var comHora ] && comHora.Contains(':'));
+                    () => Campo("count") == "3 eventos registrados" && Campos("time") is [ "—", var comHora, var horaDoAvanco ]
+                        && comHora.Contains(':') && horaDoAvanco.Contains(':'));
                 Invocar(Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(b).Contains("sem hora")) ?? throw new InvalidOperationException("Evento"));
                 await Conferir("Abrir e ler evento completo", () => n.TextoDoDialogo?.Contains("sem hora") == true);
                 await FecharDialogo();

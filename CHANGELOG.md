@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.5.8
+
+- Corrigida a piscada na aba Etapas durante a análise. O monitor mantém os 15 cartões na tela e atualiza as contagens, barras e percentuais no lugar, inclusive ao receber novos registros e medições de consumo.
+
 ## 4.5.7
 
 - Antes de iniciar ou retomar uma análise, o Editor confere o plugin com o kit que o controlador vai usar. Se a cópia selecionada na rede tiver arquivos divergentes, o Editor oferece a atualização antes do preparo.
