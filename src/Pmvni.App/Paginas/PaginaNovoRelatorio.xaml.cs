@@ -499,7 +499,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         "Preparo" => "Identificar pranchas e organizar os arquivos do processo",
         // Fluxo linear do kit (2026-11-22): a análise roda em três frentes; auditoria cruzada, relatório e revisão final são programas locais.
-        "Análise" => "Conferir as 28 seções por faixa de seções e registrar as evidências",
+        "Análise" => "Conferir os grupos do plano e registrar as evidências",
         "Auditoria técnica" => "Conferir cada achado com a figura citada e corrigir o mérito",
         "Auditoria cruzada" => "Conferência por programa dos controles certificados",
         "Produção do relatório" => "Montar o PDF no modelo oficial e conferir a fidelidade",
@@ -627,7 +627,9 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             });
             var percentualEtapa = PercentualDaEtapa(nome, estado);
             var descricao = DescricaoDaEtapa(nome);
-            linha.Resultado.Text = ProgressoAtual is { Total: > 0 } itens && FluxoNovoRelatorio.NomeDaEtapa(itens.Etapa) == nome
+            linha.Resultado.Text = nome == "Análise" && detalhesEtapas.Grupos.Count > 0
+                ? $"{detalhesEtapas.Grupos.Count(g => g.Concluido)} de {detalhesEtapas.Grupos.Count} grupos concluídos"
+                : ProgressoAtual is { Total: > 0 } itens && FluxoNovoRelatorio.NomeDaEtapa(itens.Etapa) == nome
                 ? $"{itens.Avaliados} de {itens.Total} {(itens.Secoes ? "seções com resultado" : "itens avaliados")}"
                 : SituacaoDaEtapa(estado, atual);
             if (linha.EstaAtiva != atual)

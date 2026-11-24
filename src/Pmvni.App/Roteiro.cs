@@ -3317,9 +3317,10 @@ internal static class Roteiro
                 var ordem = new[] { "prepare","analyze","produce","final_review" };
                 n.MostrarResumo(true,null,FluxoNovoRelatorio.Etapas("analyze","",ordem),"ChatGPT");
                 n.MostrarProgresso(new ProgressoEtapa("analyze",1,7,28,Secoes:true));
-                n.MostrarDetalhesDasEtapas(new DetalhesDasEtapas(
+                var detalhesFicticios = new DetalhesDasEtapas(
                     new Dictionary<string,DetalheEtapa>{["analyze"]=new("analyze",false,"modelo-teste","medium")},
-                    [new(1,9,7,true,false)],[]){Plano=ordem,DescricoesDoPlano=new Dictionary<string,string>{["analyze"]="Saídas previstas: manifesto.json, figuras (imagens, hashes)"},Registros=new Dictionary<string,string>{["analyze"]="Registro de teste"}});
+                    [new(1,9,7,true,false)],[]){Plano=ordem,DescricoesDoPlano=new Dictionary<string,string>{["analyze"]="Saídas previstas: manifesto.json, figuras (imagens, hashes)"},Registros=new Dictionary<string,string>{["analyze"]="Registro de teste"}};
+                n.MostrarDetalhesDasEtapas(detalhesFicticios);
                 var agora = DateTimeOffset.Now;
                 n.MostrarEstimativa(new EstimativaAnalise("analyze",25,40,agora.AddMinutes(30),PeloEditor:true,Inicial:true));
                 n.MostrarRelogios(TimeSpan.FromMinutes(20),agora);
@@ -3368,6 +3369,12 @@ internal static class Roteiro
                 await FecharDialogo();
                 await AbrirPagina("Etapas");
                 await Conferir("Etapa 25%, sete de 28 e frente sete de nove", () => Campo("stagePercent") == "25%" && Campo("result").Contains("7 de 28") && Campo("count0") == "7 de 9");
+                n.MostrarDetalhesDasEtapas(detalhesFicticios with
+                {
+                    Grupos = Enumerable.Range(1, 15).Select(i => new GrupoAnalise("Grupo de teste " + i, i <= 4 ? 1 : 0, 1)).ToArray()
+                });
+                await Conferir("Plano mostra quinze grupos e progresso por grupo",
+                    () => Campo("result").Contains("4 de 15 grupos concluídos") && PaginaContem("Grupo de teste 15") && Campo("count0") == "");
                 Invocar(Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(b) == "Aberta") ?? throw new InvalidOperationException("Etapa aberta"));
                 await Conferir("Recolher etapa", () => Linha(b => Microsoft.UI.Xaml.Automation.AutomationProperties.GetHelpText(b) == "Aberta") is null);
                 await AbrirPagina("Detalhes");

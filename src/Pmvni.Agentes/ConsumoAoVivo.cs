@@ -12,6 +12,7 @@ public sealed record ConsumoAoVivo(string Rota, DateTimeOffset? TokensObservados
     public long? Saida { get; init; }
     public long? CacheLido { get; init; }
     public long? Total { get; init; }
+    public bool SemJanela5h { get; init; }
 
     internal static (IReadOnlyList<UsoEtapa> Uso, ConsumoAoVivo? Amostra) Ler(string controle, DateTime desde, Provedor provedor,
         string execucao, OrdemDasEtapas ordem, ConsumoSessaoCodex? sessoes, DateTimeOffset? agora)
@@ -42,7 +43,8 @@ public sealed record ConsumoAoVivo(string Rota, DateTimeOffset? TokensObservados
             curta, horaCurta, fonteCurta, semana, horaSemana, fonteSemana, aplicavel)
         {
             Entrada = Contador(tokens, "entrada"), Saida = Contador(tokens, "saida"),
-            CacheLido = Contador(tokens, "entrada_cache"), Total = Contador(tokens, "total")
+            CacheLido = Contador(tokens, "entrada_cache"), Total = Contador(tokens, "total"),
+            SemJanela5h = Booleano(cota, "sem_janela_5h") == true && curta is null && semana is not null
         };
         var etapasOrdenadas = ordem.Todas.ToList();
         var ordenadas = linhas.OrderBy(x => etapasOrdenadas.IndexOf(x.Etapa)).ToList();

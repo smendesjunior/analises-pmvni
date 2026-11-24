@@ -44,6 +44,27 @@ public class DetalhesDasEtapasTestes
     }
 
     [Fact]
+    public void Grupos_do_plano_contam_verificacoes_de_faixas_diferentes_e_preservam_a_retomada()
+    {
+        using var pasta = Ambiente.PastaDeTeste("grupos-plano");
+        var controle = Controle(pasta);
+        var partes = Path.Combine(controle, "runs", "secoes-atual");
+        Gravar(Path.Combine(controle, "frentes_ativas.json"), new JsonObject { ["pasta"] = partes });
+        var grupos = new JsonArray(new JsonObject { ["nome"] = "Terreno e passeio", ["secoes"] = new JsonArray(4, 19) });
+        foreach (var n in Enumerable.Range(1, 28).Except(new[] { 4, 19 }))
+            grupos.Add(new JsonObject { ["nome"] = "Controle " + n, ["secoes"] = new JsonArray(n) });
+        Gravar(Path.Combine(controle, "plano_execucao.json"), new JsonObject { ["grupos_leitura"] = grupos });
+        Gravar(Path.Combine(partes, "secao-04.json"), new JsonObject());
+        var parcial = DetalhesDasEtapas.Ler(controle).Grupos[0];
+        Assert.Equal(new GrupoAnalise("Terreno e passeio", 1, 2), parcial);
+        Assert.False(parcial.Concluido);
+        Gravar(Path.Combine(partes, "secao-19.json"), new JsonObject());
+        Assert.True(DetalhesDasEtapas.Ler(controle).Grupos[0].Concluido);
+        Gravar(Path.Combine(controle, "plano_execucao.json"), JsonNode.Parse("""{"grupos_leitura":[{"nome":"Inválido","secoes":["4"]}]}""")!);
+        Assert.Empty(DetalhesDasEtapas.Ler(controle).Grupos);
+    }
+
+    [Fact]
     public void Le_plano_frente_da_tentativa_e_registros_reais_incluindo_avisos()
     {
         using var pasta = Ambiente.PastaDeTeste("detalhes-plano");

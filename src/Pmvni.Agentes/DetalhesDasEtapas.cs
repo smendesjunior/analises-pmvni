@@ -14,6 +14,11 @@ public sealed record FrenteAnalise(int Inicio, int Fim, int Prontas, bool Inicia
 /// <summary>Uma objeção que bloqueia a entrega, na etapa que a levantou (<see cref="Etapa"/>).</summary>
 public sealed record ObjecaoPendente(string Etapa, string Motivo, string? Arquivo);
 
+public sealed record GrupoAnalise(string Nome, int Prontas, int Total)
+{
+    public bool Concluido => Total > 0 && Prontas == Total;
+}
+
 /// <summary>Quem executa a etapa: <see cref="Programa"/> (local, sem IA, pelo <c>executor</c> do <c>etapas.json</c> ou do registro) ou o modelo e o esforço
 /// que o executor do kit gravou no <c>engine_state.json</c>. Modelo e esforço null = ainda não gravados (nada é inventado).</summary>
 public sealed record DetalheEtapa(string Etapa, bool Programa, string? Modelo, string? Esforco);
@@ -24,6 +29,7 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
     IReadOnlyList<ObjecaoPendente> Objecoes)
 {
     public IReadOnlyList<string> Plano { get; init; } = [];
+    public IReadOnlyList<GrupoAnalise> Grupos { get; init; } = [];
     public IReadOnlyDictionary<string, string> DescricoesDoPlano { get; init; } = new Dictionary<string, string>();
     public IReadOnlyList<string> Validacoes { get; init; } = [];
     public IReadOnlyDictionary<string, string> Registros { get; init; } = new Dictionary<string, string>();
@@ -122,10 +128,58 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
             UsoDasIas.Objeto(stages, "analyze") is { } etapaRegistrada ? ProgressoLocal.Texto(etapaRegistrada, "status") : null), LerObjecoes(estado, stages))
         {
             Registros = registros,
+            Grupos = LerGrupos(pastaControle, sessoes, desdeUtc, etapasJson),
             Plano = plano.Keys.ToArray(),
             DescricoesDoPlano = plano,
             Validacoes = LerValidacoes(pastaControle, desdeUtc)
         };
+    }
+
+    static IReadOnlyList<GrupoAnalise> LerGrupos(string controle, JsonElement? sessoes, DateTime desde, string? etapasJson)
+    {
+        var plano = ArquivoJsonDoKit.Ler(Path.Combine(controle, "plano_execucao.json"), desde);
+        if (plano is not { } p || !p.TryGetProperty("grupos_leitura", out _))
+            plano = string.IsNullOrWhiteSpace(etapasJson) ? null : ArquivoJsonDoKit.Ler(etapasJson);
+        if (plano is not { ValueKind: JsonValueKind.Object } cfg
+            || !cfg.TryGetProperty("grupos_leitura", out var grupos) || grupos.ValueKind != JsonValueKind.Array) return [];
+        var prontas = new HashSet<int>();
+        var partes = PastaDasPartes(controle, desde);
+        if (partes is not null)
+            for (var n = 1; n <= ProgressoLocal.TotalSecoesDoKit; n++)
+            {
+                var arquivo = new FileInfo(Path.Combine(partes, $"secao-{n:00}.json"));
+                if (arquivo.Exists && arquivo.LastWriteTimeUtc >= desde) prontas.Add(n);
+            }
+        foreach (var frente in LerFrentes(controle, sessoes, desde).Where(f => f.Concluida))
+            prontas.UnionWith(Enumerable.Range(frente.Inicio, frente.Total));
+        var estado = ArquivoJsonDoKit.Ler(Path.Combine(controle, "engine_state.json"), desde);
+        var analise = UsoDasIas.Objeto(UsoDasIas.Objeto(estado, "stages"), "analyze");
+        if (analise is { } atual && ProgressoLocal.Texto(atual, "status") == "RUNNING"
+            && ProgressoLocal.MedicaoDaEstacao(controle, "analyze", ProgressoLocal.Instante(atual, "started")) is { } medida)
+            prontas.UnionWith(medida.Secoes);
+        if (ArquivoJsonDoKit.Ler(Path.Combine(controle, "manifesto.json"), desde) is { } manifesto
+            && manifesto.TryGetProperty("section_coverage", out var cobertura) && cobertura.ValueKind == JsonValueKind.Array)
+            foreach (var secao in cobertura.EnumerateArray())
+                if (secao.ValueKind == JsonValueKind.Object && ProgressoLocal.Inteiro(secao, "section") is int n
+                    && ProgressoLocal.Texto(secao, "status") is "ANALISADO" or "NÃO APLICÁVEL" or "NÃO VERIFICÁVEL")
+                    prontas.Add(n);
+        var resultado = new List<GrupoAnalise>();
+        var cobertas = new HashSet<int>();
+        foreach (var grupo in grupos.EnumerateArray())
+        {
+            if (grupo.ValueKind != JsonValueKind.Object || ProgressoLocal.Texto(grupo, "nome") is not { Length: > 0 } nome
+                || !grupo.TryGetProperty("secoes", out var secoes) || secoes.ValueKind != JsonValueKind.Array) return [];
+            var numeros = new HashSet<int>();
+            foreach (var secao in secoes.EnumerateArray())
+            {
+                if (secao.ValueKind != JsonValueKind.Number || !secao.TryGetInt32(out var n)
+                    || n is < 1 or > ProgressoLocal.TotalSecoesDoKit || !cobertas.Add(n)) return [];
+                numeros.Add(n);
+            }
+            if (numeros.Count == 0) return [];
+            resultado.Add(new(nome, numeros.Count(prontas.Contains), numeros.Count));
+        }
+        return cobertas.Count == ProgressoLocal.TotalSecoesDoKit ? resultado : [];
     }
 
     static Dictionary<string, string> LerPlano(string controle, DateTime desde)

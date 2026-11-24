@@ -123,7 +123,7 @@ public sealed partial class PaginaNovoRelatorio
 
     string ChaveEtapas() => string.Join(";", etapasMostradas.Select((e, i) => e.Nome + e.Estado + PercentualDaEtapa(e.Nome, e.Estado)
         + linhasEtapas.ElementAtOrDefault(i)?.Resultado.Text + linhasEtapas.ElementAtOrDefault(i)?.Executor.Text))
-        + string.Join(";", detalhesEtapas.Frentes) + string.Join(";", detalhesEtapas.Registros.Select(r => r.Key + r.Value))
+        + string.Join(";", detalhesEtapas.Frentes) + string.Join(";", detalhesEtapas.Grupos) + string.Join(";", detalhesEtapas.Registros.Select(r => r.Key + r.Value))
         + string.Join(";", detalhesEtapas.Objecoes) + ChaveConsumo();
 
     string ChaveConsumo() => leituraExibida?.ToString() + "|" + string.Join(";", (consumoExibido ?? []).Select(u => u.ToString() + u.Usada5h + u.UsadaSemana + u.Plano + u.CpuMediaMhz + u.RamPicoBytes));
@@ -656,7 +656,24 @@ public sealed partial class PaginaNovoRelatorio
 
         var id = IdDaEtapa(nome);
         IReadOnlyList<FrenteAnalise> frentes = id == "analyze" ? detalhesEtapas.Frentes : [];
-        if (frentes.Count > 0)
+        if (id == "analyze" && detalhesEtapas.Grupos.Count > 0)
+        {
+            var grupos = new PainelQuebra { Espaco = 10, EspacoLinhas = 10 };
+            foreach (var grupo in detalhesEtapas.Grupos)
+            {
+                var painel = new Border { Style = Estilo<Style>("MnPainel"), Width = 220 };
+                var pilha = new StackPanel { Spacing = 6 };
+                pilha.Children.Add(Texto(grupo.Nome, "MnCorpoForte"));
+                pilha.Children.Add(Texto(grupo.Concluido ? "Concluído" : $"{grupo.Prontas} de {grupo.Total} verificações",
+                    grupo.Concluido ? "MnVerdeForte" : "MnLegenda"));
+                pilha.Children.Add(BarraFina(100d * grupo.Prontas / grupo.Total, "MnFormaVerde"));
+                painel.Child = pilha;
+                grupos.Children.Add(painel);
+            }
+            Grid.SetColumn(grupos, 1);
+            faixa.Children.Add(grupos);
+        }
+        else if (frentes.Count > 0)
         {
             var grade = new Grid { ColumnSpacing = 10, VerticalAlignment = VerticalAlignment.Center };
             for (var k = 0; k < frentes.Count; k++)
@@ -752,7 +769,10 @@ public sealed partial class PaginaNovoRelatorio
             else if (!string.IsNullOrWhiteSpace(plano))
                 ListaDeVerificacao(paineis, "Plano do preparo", Linhas(plano).Select(t => (t, (bool?)feita)));
             ListaDeVerificacao(paineis, "Passos da IA", uso.Where(u => u.Plano != null).Select(u => u.Plano!).Distinct().SelectMany(Linhas).Select(t => (t, (bool?)feita)));
-            if (id == "analyze")
+            if (id == "analyze" && detalhesEtapas.Grupos.Count > 0)
+                ListaDeVerificacao(paineis, "Grupos de análise", detalhesEtapas.Grupos.Select(g => (
+                    $"{g.Nome} · {g.Prontas} de {g.Total} verificações", (bool?)g.Concluido)));
+            else if (id == "analyze")
                 ListaDeVerificacao(paineis, "Frentes de análise", detalhesEtapas.Frentes.Select(f => (
                     $"Seções {f.Inicio}–{f.Fim} · {f.Prontas} de {f.Total}" + (string.IsNullOrWhiteSpace(f.Atividade) ? "" : " · " + f.Atividade), (bool?)(feita || f.Concluida))));
             var registros = id is null ? null : detalhesEtapas.Registros.GetValueOrDefault(id);
@@ -789,7 +809,7 @@ public sealed partial class PaginaNovoRelatorio
     string EscopoDaEtapa(string? id, string nome) => id switch
     {
         "prepare" => "Identificar as peças atuais, organizar as pranchas e levantar os documentos, as cotas e os dados de enquadramento que precisam de conferência.",
-        "analyze" => "Conferir as 28 seções, localizar cada achado na peça e na página e registrar as evidências e os cálculos que sustentam o relatório.",
+        "analyze" => "Conferir os grupos do plano, localizar cada achado na peça e na página e registrar as evidências e os cálculos que sustentam o relatório.",
         "technical_audit" => "Confrontar cada achado com a figura citada, reabrir o original quando necessário e conferir o mérito, as referências e os cálculos.",
         "audit" => "Conferir a integridade do manifesto e dos controles certificados na auditoria técnica.",
         "produce" => "Montar o PDF no modelo oficial e conferir se os textos, cálculos e figuras reproduzem os dados aprovados.",
@@ -892,9 +912,10 @@ public sealed partial class PaginaNovoRelatorio
             var nota = Cartao();
             nota.Padding = new Thickness(16, 10, 16, 10);
             var pilhaNota = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
-            pilhaNota.Children.Add(Texto("Cota de 5 h desta análise", "MnCorpoForte"));
+            pilhaNota.Children.Add(Texto(orc.MedicaoCompleta ? "Cota de 5 h desta análise" : "Medição parcial da cota de 5 h", "MnCorpoForte"));
             pilhaNota.Children.Add(Texto($"{Pontos(orc.Medido)} observados em contas sem compartilhamento detectado", "MnSecundario"));
             if (orc.SemAtribuicao > 0) pilhaNota.Children.Add(Texto($"{Pontos(orc.SemAtribuicao)} sem atribuição individual", "MnSecundario"));
+            if (!orc.MedicaoCompleta) pilhaNota.Children.Add(Texto("Inclui uso de conta com cota semanal. Consulte os tokens por etapa.", "MnSecundario"));
             pilhaNota.Children.Add(Texto("Meta por análise completa · 50 p.p.", "MnSecundario"));
             nota.Child = pilhaNota;
             Adicionar(Id(nota, "budget"), 14);
@@ -1087,7 +1108,8 @@ public sealed partial class PaginaNovoRelatorio
         pct.FontSize = 18;
         pct.HorizontalAlignment = HorizontalAlignment.Center;
         centro.Children.Add(pct);
-        var usadaT = Texto(usada.HasValue ? "usada" : leituraExibida?.CotaAplicavel == false ? "inaplicável" : "sem leitura", "MnLegenda");
+        var usadaT = Texto(usada.HasValue ? "usada" : leituraExibida?.CotaAplicavel == false ? "inaplicável"
+            : id == "shortPercent" && leituraExibida?.SemJanela5h == true ? "cota semanal" : "sem leitura", "MnLegenda");
         usadaT.HorizontalAlignment = HorizontalAlignment.Center;
         centro.Children.Add(usadaT);
         anel.Children.Add(centro);

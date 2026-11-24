@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.5.6
+
+- O monitor mostra os 15 grupos do plano e acompanha as verificações de cada grupo, inclusive na retomada.
+- A página Consumo identifica contas Pro com cota semanal e indica quando a medição em pontos de cinco horas cobre apenas parte das contas utilizadas.
+- A integração com o kit 4.5.5 permite iniciar e reparar análises com contas Pro semanais e com contas que informam a janela de cinco horas.
+
 ## 4.5.5
 
 - O Editor relê os modelos antes da análise e identifica ajustes ilegíveis ou incompletos. A tela de ajustes permite restaurar o padrão.

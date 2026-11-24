@@ -37,6 +37,20 @@ public class ConsumoAoVivoTestes
         ConsumoAoVivo.Ler(controle, default, p, "registro", OrdemDasEtapas.Padrao, null, null);
 
     [Fact]
+    public void Pro_semanal_preserva_tokens_e_identifica_janela_de_5h_inaplicavel()
+    {
+        using var pasta = Ambiente.PastaDeTeste("telemetria-pro");
+        var amostra = Amostra();
+        amostra["cota"]!["usada_pct"] = null;
+        amostra["cota"]!["sem_janela_5h"] = true;
+        var (uso, leitura) = Ler(Gravar(pasta, amostra));
+        Assert.True(leitura!.SemJanela5h);
+        Assert.Null(leitura.Usada5h);
+        Assert.Equal(9, leitura.UsadaSemana);
+        Assert.Equal(150L, Assert.Single(uso).Total);
+    }
+
+    [Fact]
     public void LeMetricaDoKitMesmoEmOutraEstacaoEUsaHorariosIndependentes()
     {
         using var pasta = Ambiente.PastaDeTeste("telemetria-estacao");

@@ -372,7 +372,7 @@ public sealed partial class MainWindow
             Adicionar(fundo, i + 1, 0);
             var descricao = etapa.Id switch
             {
-                "analyze" => "Conferência das seções 1–9, 10–18 e 19–28",
+                "analyze" => "Conferência dos grupos do plano de análise",
                 "technical_audit" when rota.Rota == "codex" => "Três sessões consecutivas conferem os achados por bloco de seções",
                 "autocorrecao" => "Corrige os apontamentos que o validador mantém após os consertos automáticos",
                 "technical_audit" => "Uma sessão independente confere e corrige os achados", _ => ""
