@@ -21,6 +21,9 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
     public string? NomeProfissional { get; init; }
     public string? CargoProfissional { get; init; }
     public string? PastaKit { get; init; }
+    internal bool UsarDocumentos { get; init; }
+    internal string? OrigemCompartilhada { get; init; }
+    internal Action<string>? AoPrepararLocal { get; init; }
 
     /// <summary>ChatGPT: continua o controle que já existe na pasta do processo (o controlador é chamado sem <c>--inputs</c>) em vez de começar do zero. Vale
     /// para a mesma análise retomada no mesmo registro; sem o <c>engine_state.json</c> do kit, a análise começa do zero.</summary>
@@ -62,7 +65,7 @@ public sealed record FimAnalise(string Situacao, string? Documento, string? Pdf,
 /// a situação vem do contrato da Tarefa 2 (códigos 0/20/21/1 e o JSON da última linha): cota esgotada é esperada até a hora informada e retomada sozinha,
 /// decisão é perguntada ao analista. Claude e Gemini: dá a partida do controlador do kit (<c>pro_runtime.py … iniciar</c>); a análise roda sozinha, fora do
 /// editor, e o editor só acompanha (<c>situacao</c> e <c>auto-log.txt</c>); parar de acompanhar não a encerra (<see cref="CancelarClaudeAsync"/> sim).</summary>
-public sealed class OrquestradorAnalise
+public sealed partial class OrquestradorAnalise
 {
     public const string AcompanhamentoInterrompido = "acompanhamento_interrompido";
     const int LinhasDoLog = 2000;
@@ -108,6 +111,14 @@ public sealed class OrquestradorAnalise
         }
         if (!string.IsNullOrWhiteSpace(pedido?.PastaQgis)) env["PMVNI_QGIS_ROOT"] = pedido.PastaQgis;
         AmbienteFilho.AplicarKit(env, pedido?.PastaKit);
+        env.Remove("PMVNI_PROCESSO_ORIGEM");
+        env.Remove("PMVNI_EDITOR_CHECKPOINT_EXE");
+        if (pedido?.OrigemCompartilhada is { } origem)
+        {
+            env["PMVNI_PROCESSO_ORIGEM"] = origem;
+            if (Assembly.GetEntryAssembly()?.GetName().Name == "Pmvni.App")
+                env["PMVNI_EDITOR_CHECKPOINT_EXE"] = Environment.ProcessPath;
+        }
         if (registro is not null)
         {
             env["PMVNI_EXECUCAO_PASTA"] = registro.Pasta;
@@ -158,7 +169,7 @@ public sealed class OrquestradorAnalise
         if (impedimento is not null)
         {
             travaPega?.Dispose();
-            Encerrar(pe, impedimento, DateTimeOffset.UtcNow);
+            if (!pe.UsarDocumentos || !pe.Retomar) Encerrar(pe, impedimento, DateTimeOffset.UtcNow);
             return impedimento;
         }
 
@@ -166,7 +177,7 @@ public sealed class OrquestradorAnalise
         if (trava is null)
         {
             var recusa = Falha("Já há uma análise em andamento neste processo.");
-            Encerrar(pe, recusa, DateTimeOffset.UtcNow);
+            if (!pe.UsarDocumentos || !pe.Retomar) Encerrar(pe, recusa, DateTimeOffset.UtcNow);
             return recusa;
         }
 
@@ -174,23 +185,36 @@ public sealed class OrquestradorAnalise
         string? chave = null;
         if (pe.Modo == ModoAcesso.Chave) chave = CofreChaves.Ler(pe.RaizDados, pe.Provedor);   // já conferida em Conferir
 
+        // Uma cópia recusada antes de validar a retomada não muda o resultado registrado pela execução original.
+        var podeAtualizarRegistro = !pe.UsarDocumentos || !pe.Retomar;
+        if (!podeAtualizarRegistro)
+        {
+            var notificar = pe.AoPrepararLocal;
+            pe = pe with { AoPrepararLocal = local => { podeAtualizarRegistro = true; notificar?.Invoke(local); } };
+        }
         FimAnalise fim;
         try
         {
-            GravarTabelaDeModelos(pe);
-            fim = pe.Provedor == Provedor.ChatGpt
-                ? await ExecutarChatGptAsync(pe, rotaCodex!, chave, inicio, progresso, ct).ConfigureAwait(false)
-                : await ExecutarPeloKitAsync(pe, chave, inicio, progresso, ct).ConfigureAwait(false);
+            Task<FimAnalise> Rodar(PedidoExecucao trabalho)
+            {
+                GravarTabelaDeModelos(trabalho);
+                return trabalho.Provedor == Provedor.ChatGpt
+                    ? ExecutarChatGptAsync(trabalho, rotaCodex!, chave, inicio, progresso, ct)
+                    : ExecutarPeloKitAsync(trabalho, chave, inicio, progresso, ct);
+            }
+            fim = pe.UsarDocumentos
+                ? await RodarEmDocumentosAsync(pe, Rodar, inicio, progresso, ct).ConfigureAwait(false)
+                : await Rodar(pe).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             fim = new FimAnalise("cancelada", null, null, "A análise foi cancelada.", null);
         }
-        catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or JsonException or InvalidDataException or KeyNotFoundException)
         {
             fim = Falha("A análise não pôde ser executada: " + e.Message.TrimEnd('.') + ". Veja o registro: " + pe.Registro.Pasta + ".");
         }
-        Encerrar(pe, fim, inicio);
+        if (podeAtualizarRegistro) Encerrar(pe, fim, inicio);
         return fim;
     }
 
@@ -415,6 +439,9 @@ public sealed class OrquestradorAnalise
         var controle = Path.Combine(pasta, ResultadoAnalise.PastaControle(Provedor.ChatGpt));
         // Só retoma o controle que ESTE registro criou: um engine_state.json de outra análise (a anterior, entregue) nunca é continuado por engano.
         var retomar = pe.Retomar && PodeRetomarChatGpt(pasta, registro.Pasta);
+        if (pe.Retomar && pe.OrigemCompartilhada is not null && !retomar
+            && (File.Exists(Path.Combine(controle, "engine_state.json")) || !File.Exists(Path.Combine(registro.Pasta, "continuidade.json"))))
+            return Falha("A etapa salva desta execução ainda não pôde ser confirmada em Documentos. O registro foi preservado.");
         IReadOnlyList<string>? entradas = null;
         if (!retomar)
         {
@@ -552,14 +579,14 @@ public sealed class OrquestradorAnalise
 
     /// <summary>Arquivo que não é peça do processo e pode sumir ou mudar sozinho (o kit grava o sha256 de cada entrada e recusa a etapa se mudou): oculto ou de
     /// sistema, trava do Office (<c>~$…</c>) e do LibreOffice (<c>.~lock.…#</c>), <c>desktop.ini</c>/<c>Thumbs.db</c>, temporários e downloads pela metade.</summary>
-    internal static bool ArquivoTransitorio(string caminho)
+    internal static bool ArquivoTransitorio(string caminho, FileAttributes? atributos = null)
     {
         var nome = Path.GetFileName(caminho);
         if (nome.Length == 0 || nome.StartsWith("~$", StringComparison.Ordinal) || nome.StartsWith(".~lock.", StringComparison.OrdinalIgnoreCase)
             || (nome.StartsWith('~') && nome.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
             || NomesDoSistema.Contains(nome.ToLowerInvariant()) || ExtensoesTransitorias.Contains(Path.GetExtension(nome).ToLowerInvariant()))
             return true;
-        try { return (File.GetAttributes(caminho) & (FileAttributes.Hidden | FileAttributes.System | FileAttributes.Temporary)) != 0; }
+        try { return ((atributos ?? File.GetAttributes(caminho)) & (FileAttributes.Hidden | FileAttributes.System | FileAttributes.Temporary)) != 0; }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return true; }
     }
 
@@ -833,9 +860,18 @@ public sealed class OrquestradorAnalise
                 : $"A {NomeDoKit(pe.Provedor)} do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).");
         else
         {
-            var log = new LeitorLog(Path.Combine(pe.Processo.Pasta, ResultadoAnalise.PastaControle(pe.Provedor), "auto-log.txt"));
-            log.MostrarOFimDoLog();
-            try { fim = await AcompanharAsync(pe, Ambiente(pe.Provedor, ModoAcesso.Conta, null), new RedatorChave(null), log, inicio, progresso, ct).ConfigureAwait(false); }
+            Task<FimAnalise> Acompanhar(PedidoExecucao trabalho)
+            {
+                var log = new LeitorLog(Path.Combine(trabalho.Processo.Pasta, ResultadoAnalise.PastaControle(trabalho.Provedor), "auto-log.txt"));
+                log.MostrarOFimDoLog();
+                return AcompanharAsync(trabalho, Ambiente(trabalho.Provedor, ModoAcesso.Conta, null), new RedatorChave(null), log, inicio, progresso, ct);
+            }
+            try
+            {
+                fim = pe.UsarDocumentos
+                    ? await RodarEmDocumentosAsync(pe, Acompanhar, inicio, progresso, ct, acompanhamento: true).ConfigureAwait(false)
+                    : await Acompanhar(pe).ConfigureAwait(false);
+            }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 fim = new FimAnalise(AcompanhamentoInterrompido, null, null, "O acompanhamento foi interrompido; a análise do kit continua sozinha na janela minimizada.", null);

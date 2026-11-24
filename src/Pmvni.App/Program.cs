@@ -9,6 +9,8 @@ internal static class Program
     [STAThread]
     static int Main(string[] args)
     {
+        if (args.FirstOrDefault() == Pmvni.Agentes.OrquestradorAnalise.ComandoCheckpoint)
+            return Pmvni.Agentes.OrquestradorAnalise.SalvarRetomada(args, Console.Error);
         if (args.FirstOrDefault() == OcrDaAnalise.Comando)
             return OcrDaAnalise.Executar(args).GetAwaiter().GetResult();
         if (args.FirstOrDefault() == Pmvni.Imoveis.MapaParaAnalise.Comando)

@@ -172,7 +172,11 @@ public sealed class RegistroExecucao : IDisposable
 
     // O kit valida as provas, as etapas e os critérios antes de restaurar o manifesto.
     // Selecionar aqui o mesmo registro conserva os objetos de evidência endereçados por hash.
-    public static RegistroExecucao? BuscarInterrompida(Processo alvo, string? pedido, IReadOnlyList<ArquivoArquivado> anexos, Provedor? provedor = null)
+    public static RegistroExecucao? BuscarInterrompida(Processo alvo, string? pedido, IReadOnlyList<ArquivoArquivado> anexos, Provedor? provedor = null) =>
+        BuscarInterrompida(alvo, pedido, anexos, provedor, null);
+
+    internal static RegistroExecucao? BuscarInterrompida(Processo alvo, string? pedido, IReadOnlyList<ArquivoArquivado> anexos,
+        Provedor? provedor, string? documentos)
     {
         var processo = alvo.Pasta;
         var editor = Path.Combine(processo, ".pmvni-ai", "editor");
@@ -181,23 +185,34 @@ public sealed class RegistroExecucao : IDisposable
         {
             if (MotivoInvalido(processo, pasta) is not null) continue;
             using var anterior = Abrir(pasta, processo);
+            var marcada = anterior.execucao.ContainsKey(AreaAnaliseLocal.Marcador);
             try
             {
                 if (provedor.HasValue && anterior.execucao["provedor"]?.GetValue<string>() != Provedores.Sufixo(provedor.Value)) return null;
                 var estado = anterior.execucao["situacao"]?.GetValue<string>();
                 if (estado is not ("interrompida" or "cota_esgotada" or "falhou" or "em_andamento" or "cancelada")) return null;
                 if (anterior.PedidoOriginal().Trim() != (pedido ?? "").Trim()) return null;
-                var manifesto = JsonNode.Parse(File.ReadAllText(Caminho(pasta, "continuidade.json")));
+                var id = Path.GetFileName(pasta);
+                var consulta = marcada ? RecuperacaoAnaliseLocal.Consultar(processo, pasta, documentos) : null;
+                JsonNode? manifesto;
+                if (consulta is null) manifesto = JsonNode.Parse(File.ReadAllText(Caminho(pasta, "continuidade.json")));
+                else
+                {
+                    var salvo = consulta.LerJson(Path.Combine(".pmvni-ai", "editor", id, "continuidade.json"));
+                    manifesto = salvo is { } m ? JsonNode.Parse(m.GetRawText()) : null;
+                    if (manifesto?["case"]?.GetValue<string>() is not { } raizDeclarada ||
+                        !string.Equals(Path.TrimEndingDirectorySeparator(raizDeclarada), Path.TrimEndingDirectorySeparator(consulta.RaizRegistrada), StringComparison.OrdinalIgnoreCase))
+                        return null;
+                }
                 if (manifesto?["execution"]?.GetValue<string>() != Path.GetFileName(pasta)
                     || manifesto["stages"] is not JsonObject etapas || etapas.Count == 0
                     || manifesto["inputs"] is not JsonArray entradas || entradas.Count == 0) return null;
                 var hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                var raiz = Path.GetFullPath(processo).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
                 foreach (var entrada in entradas)
                 {
                     if (entrada is not JsonArray { Count: 2 } par || par[0] is null || par[1] is null) return null;
-                    var caminho = Path.GetFullPath(par[0]!.GetValue<string>());
-                    if (!caminho.StartsWith(raiz, StringComparison.OrdinalIgnoreCase)) return null;
+                    var caminho = RecuperacaoAnaliseLocal.OriginalConsultado(processo, consulta?.RaizRegistrada ?? processo, par[0]!.GetValue<string>());
+                    if (caminho is null) return null;
                     var esperado = par[1]!.GetValue<string>();
                     using var arquivo = File.OpenRead(caminho);
                     if (!Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(arquivo)).Equals(esperado, StringComparison.OrdinalIgnoreCase)) return null;
@@ -212,8 +227,9 @@ public sealed class RegistroExecucao : IDisposable
                 if (anexos.Any(a => !hashes.TryGetValue(Path.GetFullPath(Path.Combine(processo, a.Relativo)), out var hash)
                     || !hash.Equals(a.Sha256, StringComparison.OrdinalIgnoreCase))) return null;
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or ArgumentException)
+            catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or InvalidOperationException or ArgumentException)
             {
+                if (marcada) throw new IOException("Não foi possível conferir a retomada local do mesmo pedido. A execução foi preservada.", e);
                 return null;
             }
             return Abrir(pasta, processo);

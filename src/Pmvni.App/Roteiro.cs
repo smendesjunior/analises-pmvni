@@ -2888,6 +2888,7 @@ internal static class Roteiro
             // Tarefa 12: o editor roda o controlador do analise direto (o agente falso faz o papel do python.exe com o executar_analise_62.py).
             var scriptsAnalise = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "codex");
             Directory.CreateDirectory(scriptsAnalise);
+            File.WriteAllText(Path.GetFullPath(Path.Combine(scriptsAnalise, "..", "..", "portabilidade_execucao.py")), "# Contrato do controlador fictício");
             File.WriteAllText(Path.Combine(scriptsAnalise, "executar_analise_62.py"), "# executar_analise_62.py fictício do roteiro\n");
             var scripts = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "claude");
             Directory.CreateDirectory(scripts);
@@ -3129,8 +3130,11 @@ internal static class Roteiro
         Dictionary<string, (string Sha, long Tamanho, DateTime Escrita, DateTime Criacao, FileAttributes Atributos)> fotoDosAnexos = new();
         var novoRelatorioPreparado = false;
 
+        // Documentos isolados do usuário durante o ensaio do Editor.
+        var documentosDoRoteiro = Path.Combine(Path.GetTempPath(), "PMVNI-Roteiro-" + Guid.NewGuid().ToString("N"));
         OrquestradorAnalise Orq(string cenario) => new()
         {
+            DocumentosParaTeste = documentosDoRoteiro,
             IntervaloSituacao = TimeSpan.FromMilliseconds(200),
             IntervaloLog = TimeSpan.FromMilliseconds(200),
             AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = Path.Combine(corpus, "agentes", cenario + ".json") },
@@ -3255,15 +3259,17 @@ internal static class Roteiro
                         File.Copy(requerimento,Path.Combine(documentos,"requerimento-teste.pdf"), overwrite:true);
                     }
                     await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == pastaProcesso));
-                    var evidencias = Directory.CreateDirectory(Path.Combine(pastaProcesso,".pmvni-ai","cache-pdf")).FullName;
+
                     j.Orquestrador = Orq("lento");
                     perguntas.Confirmar = true;
                     var e = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException(j.InfoMensagemAtual.Message);
                     try
                     {
+                        await EsperarMonitor("Peças copiadas para Documentos do ensaio", () => e.PastaDeTrabalho.StartsWith(documentosDoRoteiro, StringComparison.OrdinalIgnoreCase));
+                        var evidencias = Directory.CreateDirectory(Path.Combine(e.PastaDeTrabalho, ".pmvni-ai", "cache-pdf")).FullName;
                         await EsperarMonitor("Monitor desenhado", () => n.ConteudoMonitor.Children.Count > 0);
                         Invocar(n.BotaoMostrarRegistro);
-                        Verificar("Abrir registro", await EsperarAteAsync(() => Task.FromResult(AberturaExterna.Registradas.Contains("explorador: " + e.Registro.Pasta)),3000));
+                        Verificar("Abrir registro", await EsperarAteAsync(() => Task.FromResult(AberturaExterna.Registradas.Contains("explorador: " + e.RegistroDeTrabalho)),3000));
                         await AbrirPagina("Etapas");
                         Invocar(BotaoDoMonitor("Ver registros") ?? throw new InvalidOperationException("Ver registros"));
                         await EsperarMonitor("Ver registros abre o Log", () => PaginaDoMonitor() == "Log");
@@ -3305,7 +3311,8 @@ internal static class Roteiro
                 j.Orquestrador = Orq("ok");
                 perguntas.Confirmar = true;
                 var concluindo = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException(j.InfoMensagemAtual.Message);
-                var pastaAviso = Directory.CreateDirectory(Path.Combine(P0012(), ".pmvni-ai", "analise", "validadores"));
+                await EsperarMonitor("Área local da entrega", () => concluindo.PastaDeTrabalho.StartsWith(documentosDoRoteiro, StringComparison.OrdinalIgnoreCase));
+                var pastaAviso = Directory.CreateDirectory(Path.Combine(concluindo.PastaDeTrabalho, ".pmvni-ai", "analise", "validadores"));
                 File.WriteAllText(Path.Combine(pastaAviso.FullName, "avisos.json"), """[{"regra":"palavra_repetida","onde":"itens[0]","texto":"item item"}]""");
                 var entregue = await Prazo(j.AguardarAnaliseAsync(concluindo), 90);
                 Verificar("Aviso registrado no processo aparece ao entregar", entregue.Situacao == "concluida"
@@ -3840,6 +3847,7 @@ internal static class Roteiro
             }.ToJsonString(), new System.Text.UTF8Encoding(false));
             OrquestradorAnalise OrqPausa() => new()
             {
+                DocumentosParaTeste = documentosDoRoteiro,
                 IntervaloSituacao = TimeSpan.FromMilliseconds(200), IntervaloLog = TimeSpan.FromMilliseconds(200),
                 AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = cenarioPausa },
             };
@@ -3961,6 +3969,7 @@ internal static class Roteiro
             }.ToJsonString());
             j.Orquestrador = new OrquestradorAnalise
             {
+                DocumentosParaTeste = documentosDoRoteiro,
                 IntervaloSituacao = TimeSpan.FromMilliseconds(200), IntervaloLog = TimeSpan.FromMilliseconds(200),
                 AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = cenarioConcluido },
             };
@@ -5790,6 +5799,7 @@ internal static class Roteiro
         await j.FecharSessaoAsync();
         void RegistrarProgramasIniciados()
         {
+            if (Directory.Exists(documentosDoRoteiro)) ApagarArvore(documentosDoRoteiro);
             string[] iniciados;
             lock (programasIniciados) iniciados = programasIniciados.ToArray();
             var foraDosPermitidos = iniciados.Count(c => !TravaDeProgramas.Permitido(c, programasPermitidos));

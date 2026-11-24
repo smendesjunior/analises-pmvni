@@ -219,18 +219,50 @@ public static class UsoDasIas
     /// (<c>&lt;raiz&gt;\…\&lt;processo&gt;\.pmvni-ai\&lt;analise|analise-pro|analise-google&gt;</c>, até três níveis de pasta), por <see cref="DuracoesDaPasta"/>.</summary>
     /// <param name="somenteFluxoLinear">Só as amostras do fluxo linear (<see cref="FluxoLinear"/>): controles de provedores com análise marcada pelo Editor,
     /// e só o que foi gravado a partir do primeiro início marcado. O Monitor usa assim; sem a marca, valem as durações iniciais.</param>
-    public static IReadOnlyList<DuracaoEtapa> Historico(string pastaProcessos, OrdemDasEtapas? ordemDoKit = null, bool somenteFluxoLinear = false)
+    public static IReadOnlyList<DuracaoEtapa> Historico(string pastaProcessos, OrdemDasEtapas? ordemDoKit = null, bool somenteFluxoLinear = false) =>
+        Historico(pastaProcessos, ordemDoKit, somenteFluxoLinear, null);
+
+    internal static IReadOnlyList<DuracaoEtapa> Historico(string pastaProcessos, OrdemDasEtapas? ordemDoKit, bool somenteFluxoLinear, string? documentos)
     {
         var saida = new List<DuracaoEtapa>();
         if (string.IsNullOrWhiteSpace(pastaProcessos) || !Directory.Exists(pastaProcessos)) return saida;
-        // A pasta .pmvni-ai pode estar oculta: nada é pulado pelos atributos; a profundidade limita a busca (e qualquer atalho circular).
-        var opcoes = new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 3, IgnoreInaccessible = true, AttributesToSkip = 0 };
-        IEnumerable<string> pastas;
-        try { pastas = Directory.EnumerateDirectories(pastaProcessos, ".pmvni-ai", opcoes).ToList(); }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return saida; }
-        foreach (var pmvni in pastas)
+        foreach (var pmvni in ControlesSob(pastaProcessos))
         {
             var marcados = somenteFluxoLinear ? FluxoLinear.IniciosMarcados(pmvni) : null;
+            var processo = Path.GetDirectoryName(pmvni)!;
+            var locais = new HashSet<(string Id, string Rota)>();
+            foreach (var registro in Subpastas(Path.Combine(pmvni, "editor")))
+            {
+                try
+                {
+                    if (RegistroExecucao.MotivoInvalido(processo, registro) is not null ||
+                        LerJson(Path.Combine(registro, "execucao.json")) is not { ValueKind: JsonValueKind.Object } resumo ||
+                        !resumo.TryGetProperty(AreaAnaliseLocal.Marcador, out _)) continue;
+                    DateTimeOffset? desde = null;
+                    if (somenteFluxoLinear)
+                    {
+                        if (ProgressoLocal.Texto(resumo, FluxoLinear.Chave) != FluxoLinear.Assinatura ||
+                            !DateTimeOffset.TryParse(ProgressoLocal.Texto(resumo, "inicio"), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var inicio)) continue;
+                        desde = inicio;
+                    }
+                    var consulta = RecuperacaoAnaliseLocal.Consultar(processo, registro, documentos);
+                    if (consulta is null) continue;
+                    var id = Path.GetFileName(registro);
+                    foreach (var provedor in Enum.GetValues<Provedor>())
+                    {
+                        var rota = ResultadoAnalise.PastaControle(provedor);
+                        if (consulta.LerJson(Path.Combine(rota, "engine_state.json")) is not { ValueKind: JsonValueKind.Object } estado ||
+                            !string.Equals(ProgressoLocal.Texto(estado, "editor_execution"), id, StringComparison.OrdinalIgnoreCase)) continue;
+                        var uso = consulta.LerJson(Path.Combine(rota, Arquivo));
+                        var controle = consulta.EmDisco ? Path.Combine(consulta.RaizRegistrada, rota) : null;
+                        var criadaIsolada = resumo.TryGetProperty("area_local_solicitada", out var s) && s.ValueKind == JsonValueKind.True;
+                        saida.AddRange(Duracoes(provedor, controle, ordemDoKit, desde, estado, uso, criadaIsolada));
+                        locais.Add((id.ToUpperInvariant(), Path.GetFileName(rota)));
+                    }
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or InvalidOperationException or ArgumentException)
+                { /* Um registro inacessível não impede a previsão com os outros processos. */ }
+            }
             foreach (var plugin in new[] { "analise", "analise-pro", "analise-google" })
             {
                 var controle = Path.Combine(pmvni, plugin);
@@ -240,10 +272,36 @@ public static class UsoDasIas
                     if (ProgressoLocal.ProvedorDaPasta(controle) is not { } p || !marcados.TryGetValue(p, out var inicio)) continue;
                     desde = inicio;
                 }
-                saida.AddRange(DuracoesDaPasta(controle, ordemDoKit, desde));
+                var estado = LerJson(Path.Combine(controle, "engine_state.json"));
+                if (estado is { ValueKind: JsonValueKind.Object } e && ProgressoLocal.Texto(e, "editor_execution") is { } id &&
+                    locais.Contains((id.ToUpperInvariant(), plugin))) continue;
+                if (ProgressoLocal.ProvedorDaPasta(controle) is { } provedor)
+                    saida.AddRange(Duracoes(provedor, controle, ordemDoKit, desde, estado, LerJson(Path.Combine(controle, Arquivo))));
             }
         }
         return saida;
+    }
+
+    static IEnumerable<string> ControlesSob(string raiz)
+    {
+        var fila = new Queue<(string Pasta, int Profundidade)>();
+        fila.Enqueue((raiz, 0));
+        while (fila.TryDequeue(out var item))
+            foreach (var sub in Subpastas(item.Pasta))
+            {
+                if (Path.GetFileName(sub).Equals(".pmvni-ai", StringComparison.OrdinalIgnoreCase)) yield return sub;
+                else if (item.Profundidade < 3) fila.Enqueue((sub, item.Profundidade + 1));
+            }
+    }
+
+    static string[] Subpastas(string raiz)
+    {
+        try
+        {
+            var opcoes = new EnumerationOptions { IgnoreInaccessible = true, AttributesToSkip = 0 };
+            return new DirectoryInfo(raiz).EnumerateDirectories("*", opcoes).Where(d => d.LinkTarget is null).Select(d => d.FullName).ToArray();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return []; }
     }
 
     /// <summary>Uma execução de etapa achada numa das fontes: a pasta da execução (<c>run</c>/<c>execucao</c>), se o kit a informa, e a duração.</summary>
@@ -264,6 +322,12 @@ public static class UsoDasIas
     public static IReadOnlyList<DuracaoEtapa> DuracoesDaPasta(string pastaControle, OrdemDasEtapas? ordemDoKit = null, DateTimeOffset? desde = null)
     {
         if (ProgressoLocal.ProvedorDaPasta(pastaControle) is not { } provedor) return [];
+        return Duracoes(provedor, pastaControle, ordemDoKit, desde, LerJson(Path.Combine(pastaControle, "engine_state.json")), LerJson(Path.Combine(pastaControle, Arquivo)));
+    }
+
+    static IReadOnlyList<DuracaoEtapa> Duracoes(Provedor provedor, string? pastaControle, OrdemDasEtapas? ordemDoKit, DateTimeOffset? desde,
+        JsonElement? dadosEstado, JsonElement? dadosUso, bool criadaIsolada = false)
+    {
         var etapas = (ordemDoKit ?? OrdemDasEtapas.Padrao).Todas.ToList();
         var achadas = new List<Execucao>();
         // Mesma execução: mesma pasta; sem a pasta numa das duas (ou, contra o estado, com pastas diferentes), mesma etapa e duração a menos de 1 s.
@@ -271,7 +335,7 @@ public static class UsoDasIas
             && (a.Pasta is not null && x.Pasta is not null && string.Equals(a.Pasta, x.Pasta, StringComparison.OrdinalIgnoreCase)
                 || (pelaDuracao || a.Pasta is null || x.Pasta is null) && (a.Duracao - x.Duracao).Duration() < TimeSpan.FromSeconds(1));
 
-        if (LerJson(Path.Combine(pastaControle, "engine_state.json")) is { ValueKind: JsonValueKind.Object } estado)
+        if (dadosEstado is { ValueKind: JsonValueKind.Object } estado)
         {
             var quadros = new List<JsonElement>();
             if (estado.TryGetProperty("history", out var historia) && historia.ValueKind == JsonValueKind.Array)
@@ -301,14 +365,15 @@ public static class UsoDasIas
         }
 
         var doEstado = achadas.Count;
-        if (LerJson(Path.Combine(pastaControle, Arquivo)) is { ValueKind: JsonValueKind.Object } uso
+        if (dadosUso is { ValueKind: JsonValueKind.Object } uso
             && uso.TryGetProperty("execucoes", out var execucoes) && execucoes.ValueKind == JsonValueKind.Array)
             foreach (var x in execucoes.EnumerateArray())
                 if (x.ValueKind == JsonValueKind.Object && ProgressoLocal.Texto(x, "etapa") is { } etapa && etapas.Contains(etapa)
                     && ProgressoLocal.Texto(x, "situacao") == "EXECUTED" && ProgressoLocal.Numero(x, "duracao_s") is { } s and > 0)
                 {
                     var execucao = new Execucao(etapa, ProgressoLocal.Texto(x, "execucao"), TimeSpan.FromSeconds(s));
-                    if (desde is { } d && !CriadaDesde(execucao.Pasta, pastaControle, d)) continue;
+                    // A área criada vazia para este ID só contém tentativas desta execução; vale também no checkpoint remoto.
+                    if (!criadaIsolada && desde is { } d && (pastaControle is null || !CriadaDesde(execucao.Pasta, pastaControle, d))) continue;
                     // Só contra o estado, e pela duração mesmo com pastas diferentes: a tentativa final de uma etapa com troca de rota tem pasta própria no
                     // relatório de uso. As linhas do relatório já são execuções distintas entre si (o uso_ias.py junta por pasta).
                     if (!achadas.Take(doEstado).Any(a => Mesma(a, execucao, true))) achadas.Add(execucao);
@@ -322,10 +387,11 @@ public static class UsoDasIas
         if (string.IsNullOrWhiteSpace(pasta)) return false;
         try
         {
-            var caminho = Path.IsPathRooted(pasta) ? pasta : Path.Combine(pastaControle, pasta);
-            return Directory.Exists(caminho) && Directory.GetCreationTimeUtc(caminho) >= desde.UtcDateTime;
+            var declarado = Path.IsPathRooted(pasta) ? pasta : Path.Combine(pastaControle, pasta);
+            var caminho = RecuperacaoAnaliseLocal.OriginalConsultado(pastaControle, pastaControle, declarado);
+            return caminho is not null && Directory.Exists(caminho) && Directory.GetCreationTimeUtc(caminho) >= desde.UtcDateTime;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return false; }
+        catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return false; }
     }
 
     static JsonElement? LerJson(string arquivo)

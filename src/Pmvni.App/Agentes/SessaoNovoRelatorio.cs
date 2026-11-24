@@ -24,7 +24,7 @@ public sealed class ExecucaoEmCurso
 
     internal string ResumoModelos()
     {
-        var tabela = new FileInfo(Path.Combine(Registro.Pasta, TabelaDeModelos.NomeDoArquivo));
+        var tabela = new FileInfo(Path.Combine(RegistroDeTrabalho, TabelaDeModelos.NomeDoArquivo));
         var existe = tabela.Exists;
         var data = existe ? tabela.LastWriteTimeUtc : DateTime.MinValue;
         var bytes = existe ? tabela.Length : 0;
@@ -33,7 +33,7 @@ public sealed class ExecucaoEmCurso
         var acesso = rota ?? modo;
         if (resumoModelos is { } anterior && anterior.Gravado == data && anterior.Bytes == bytes && anterior.Perfil == perfil && anterior.Acesso == acesso)
             return anterior.Resumo;
-        var resumo = EscolhaModelosDaExecucao.ResumoConfigurado(Registro.Pasta, Provedor, perfil, acesso);
+        var resumo = EscolhaModelosDaExecucao.ResumoConfigurado(RegistroDeTrabalho, Provedor, perfil, acesso);
         resumoModelos = (data, bytes, perfil, acesso, resumo);
         return resumo;
     }
@@ -54,6 +54,10 @@ public sealed class ExecucaoEmCurso
     public Provedor Provedor { get; }
     public Processo Processo { get; }
     public RegistroExecucao Registro { get; }
+    string? pastaDeTrabalho;
+    internal string PastaDeTrabalho => Volatile.Read(ref pastaDeTrabalho) ?? Processo.Pasta;
+    internal string RegistroDeTrabalho => OrquestradorAnalise.RegistroDoTrabalho(PastaDeTrabalho, Registro.Pasta);
+    internal void MostrarTrabalhoEm(string pasta) => Volatile.Write(ref pastaDeTrabalho, pasta);
     public DateTime InicioUtc { get; }
     internal DateTime? InicioDoControleUtc { get; set; }
 
@@ -118,7 +122,7 @@ public sealed class ExecucaoEmCurso
     /// <summary>O editor deixou de acompanhar (fechou com o Claude rodando): o fim desta execução não muda nada na tela nem nos ajustes.</summary>
     internal bool Abandonada { get; set; }
 
-    public string UltimaMensagem => Path.Combine(Registro.Pasta, "ultima-mensagem.md");
+    public string UltimaMensagem => Path.Combine(RegistroDeTrabalho, "ultima-mensagem.md");
 
     /// <summary>Os anexos recusados no plano do clique (ficaram ilegíveis entre a prévia e a partida): não foram copiados nem enviados.</summary>
     public IReadOnlyList<string> Recusas { get; internal init; } = [];
@@ -202,6 +206,8 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                     : interrompida ?? RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now);
                 if (registroAnterior is not null && texto == FluxoNovoRelatorio.PedidoContinuar && File.Exists(Path.Combine(reg.Pasta, "pedido.md")))
                     texto = reg.PedidoOriginal();
+                if (registroAnterior is null && interrompida is null)
+                    reg.Atualizar(o => o["area_local_solicitada"] = true);
                 reg.GravarPedido(texto ?? "");      // o pedido digitado; nenhuma IA recebe pedido do editor (Tarefa 12)
                 reg.GravarAnexos(feitos);
                 return (t, reg, feitos, plano.Where(i => i.Recusa is not null).Select(i => i.Recusa!).ToList(), registroAnterior is not null || interrompida is not null);
@@ -226,6 +232,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         {
             RotaCodex = rotaOriginal ?? rotaCodex?.Invoke(), Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini, Retomar = retomada, Decidir = Decisor(e),
             Modelos = modelos, PastaQgis = pastaQgis, PastaKit = pastaKit,
+            UsarDocumentos = true, AoPrepararLocal = e.MostrarTrabalhoEm,
             NomeProfissional = Pmvni.Composicao.Profissional.Atual?.NomeLinha,
             CargoProfissional = Pmvni.Composicao.Profissional.Atual?.Cargo(),
         };
@@ -256,7 +263,9 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var orq = orquestrador();
         var e = new ExecucaoEmCurso(ia, pr, registro, inicio.UtcDateTime, pc, texto, orq, retomada: true);
         var progresso = Progresso(e);
-        var pedidoExecucao = new PedidoExecucao(ia, pr, pc, ModoAcesso.Conta, raizDados, texto, [], registro);
+        var pedidoExecucao = new PedidoExecucao(ia, pr, pc, ModoAcesso.Conta, raizDados, texto, [], registro)
+        { UsarDocumentos = AreaAnaliseLocal.LocalExistente(pr.Pasta, pastaRegistro) is not null,
+          Retomar = true, AoPrepararLocal = e.MostrarTrabalhoEm };
         e.Fim = e.AcompanharTempoAsync(() => RodarAsync(() => orq.AcompanharClaudeAsync(pedidoExecucao, inicio, progresso, e.Cancelamento.Token), progresso, trava));
         execucoes.Add(e);
         return e;
@@ -302,7 +311,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
             e.Cancelamento.Cancel();
             return true;
         }
-        return await e.Orquestrador.CancelarClaudeAsync(e.Processo.Pasta, e.Pecas, e.Provedor);
+        return await e.Orquestrador.CancelarClaudeAsync(e.PastaDeTrabalho, e.Pecas, e.Provedor);
     }
 
     /// <summary>Cancela as execuções ativas e impede a partida de análises que ainda estavam copiando anexos.</summary>

@@ -243,6 +243,8 @@ static class Program
         if (modo == "json_invalido") { File.WriteAllText(delivery, "{ isso não é json", Utf8); return; }
         if (modo == "sem_document") { GravarJson(delivery, new JsonObject { ["registry"] = "x" }); return; }
 
+        var local = Environment.GetEnvironmentVariable("PMVNI_PROCESSO_ORIGEM") is not null;
+        if (local) pdf = true;
         var documento = Path.Combine(pasta, "relatorio_dados.json");
         File.Copy(CaminhoRelatorio(), documento, overwrite: true);
         var obj = new JsonObject { ["registry"] = Path.Combine(pasta, "registry.json"), ["document"] = modo == "fora" ? CaminhoRelatorio() : documento };
@@ -254,6 +256,23 @@ static class Program
         }
         obj["visual_audit"] = Path.Combine(pasta, "auditoria_visual.json");
         GravarJson(delivery, obj);
+        if (local && modo == "ok")
+        {
+            // Recibos sintéticos com o mesmo vínculo entre entrega, montagem e estado que o controlador em produção.
+            static string Sha(string caminho) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(caminho)));
+            var arquivo = obj["pdf"]!.GetValue<string>();
+            var montagem = Path.Combine(pasta, "montagem.json");
+            GravarJson(montagem, new JsonObject { ["pdf_sha256"] = Sha(arquivo), ["document_sha256"] = Sha(documento),
+                ["delivery_sha256"] = Sha(delivery) });
+            GravarJson(Path.Combine(pasta, "engine_state.json"), new JsonObject
+            {
+                ["case"] = Directory.GetParent(pasta)!.Parent!.FullName,
+                ["editor_execution"] = Environment.GetEnvironmentVariable("PMVNI_EXECUCAO_ID"),
+                ["gate"] = new JsonObject { ["validators"] = "ALL_PASSED", ["pdf"] = arquivo, ["pdf_sha256"] = Sha(arquivo) },
+                ["stages"] = new JsonObject { ["produce"] = new JsonObject { ["evidence"] = new JsonArray(
+                    new JsonObject { ["path"] = montagem, ["sha256"] = Sha(montagem) }) } },
+            });
+        }
     }
 
     static void GravarJson(string caminho, JsonNode obj)

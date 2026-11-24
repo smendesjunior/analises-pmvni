@@ -272,8 +272,8 @@ public sealed partial class MainWindow
         n.BotaoCancelarAnalise.Click += async (_, _) => { if (execucaoMostrada is { } e) await TentarAsync(async () => await CancelarAnaliseAsync(e)); };
         n.BotaoEvidenciasPdf.Click += (_, _) => AbrirEvidenciasDoMonitor();
         n.LinkEvidenciasPdf.Click += (_, _) => AbrirEvidenciasDoMonitor();
-        n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
-        n.BotaoMostrarRegistroResultado.Click += (_, _) => { if (ultimoResultadoNR is { } e) AberturaExterna.MostrarNoExplorador(e.Registro.Pasta); };
+        n.BotaoMostrarRegistro.Click += (_, _) => { if (execucaoMostrada is { } e) AberturaExterna.MostrarNoExplorador(e.RegistroDeTrabalho); };
+        n.BotaoMostrarRegistroResultado.Click += (_, _) => { if (ultimoResultadoNR is { } e) AberturaExterna.MostrarNoExplorador(e.RegistroDeTrabalho); };
         n.BotaoDescartar.Click += async (_, _) => await TentarAsync(() => { DescartarAnalisePendente(); return Task.CompletedTask; });
         n.LinkRemontarTeste.Click += async (_, _) => { if (ultimoResultadoNR is { } e) await TentarAsync(async () => await RemontarRelatorioTesteAsync(e)); };
         n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await EscolherContinuacaoAsync());
@@ -965,7 +965,7 @@ public sealed partial class MainWindow
 
     // ---------- vista da execução ----------
 
-    static string PastaEvidenciasDoMonitor(ExecucaoEmCurso e) => Path.Combine(e.Processo.Pasta, ".pmvni-ai", "cache-pdf");
+    static string PastaEvidenciasDoMonitor(ExecucaoEmCurso e) => Path.Combine(e.PastaDeTrabalho, ".pmvni-ai", "cache-pdf");
 
     void AbrirEvidenciasDoMonitor()
     {
@@ -1015,13 +1015,13 @@ public sealed partial class MainWindow
         lendoAchados = true;
         try
         {
-            var controle = Path.Combine(e.Processo.Pasta, ResultadoAnalise.PastaControle(e.Provedor));
+            var controle = Path.Combine(e.PastaDeTrabalho, ResultadoAnalise.PastaControle(e.Provedor));
             var historico = HistoricoDeDuracoes();
             var ordemDoKit = OrdemDasEtapasDoKit();
             var sessoes = consumoSessao;
             var etapasJson = pecasAgentes.EtapasJson;
             var desde = e.InicioDoControleUtc ??= await Task.Run(() => InicioDoRegistro(e));
-            var achados = await Task.Run(() => AchadosExecucao.LerDaExecucao(e.Registro.PastaProgresso, e.Processo.Pasta,
+            var achados = await Task.Run(() => AchadosExecucao.LerDaExecucao(Path.Combine(e.RegistroDeTrabalho, "progresso"), e.PastaDeTrabalho,
                 e.InicioUtc, controle, desde, historico, DateTimeOffset.UtcNow, ordemDoKit, iniciando: e.Fim?.IsCompleted != true));
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
             {
@@ -1044,7 +1044,7 @@ public sealed partial class MainWindow
                     DetalhesDasEtapas.Ler(controle, etapasJson, desde),
                     e.Provedor == Provedor.ChatGpt ? OrcamentoDaAnalise.Ler(controle, desde) : null,
                     Directory.Exists(PastaEvidenciasDoMonitor(e)),
-                    e.ResumoModelos(), ConferenciaNumerica.Ler(e.Processo.Pasta, e.Provedor, e.Registro.Pasta)));
+                    e.ResumoModelos(), ConferenciaNumerica.Ler(e.PastaDeTrabalho, e.Provedor, e.RegistroDeTrabalho)));
                 if (fechada || !ReferenceEquals(e, execucaoMostrada)) return;
                 NR.ModelosConfigurados = modelos;
                 NR.ConferenciaNumericaExibida = numerica;
@@ -1266,7 +1266,7 @@ public sealed partial class MainWindow
             var importado = await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf),
                 () => naVista && PodeAbrirSemInterromper, motivo => recusa = motivo);
             if (recusa is not null) fim = fim with { Situacao = "interrompida", Mensagem = recusa };
-            var controle = Path.Combine(e.Processo.Pasta, ResultadoAnalise.PastaControle(e.Provedor));
+            var controle = Path.Combine(e.PastaDeTrabalho, ResultadoAnalise.PastaControle(e.Provedor));
             var avisos = await Task.Run(() => DetalhesDasEtapas.LerAvisos(controle, e.InicioUtc));
             if (!fechada && avisos.Count > 0)
                 MostrarMensagem(InfoBarSeverity.Warning, "Avisos desta análise", string.Join(Environment.NewLine, avisos));
@@ -1306,8 +1306,13 @@ public sealed partial class MainWindow
     /// <summary>Dá para continuar a análise do ChatGPT: o controle do analise ficou na pasta do processo e é deste registro
     /// (<see cref="OrquestradorAnalise.PodeRetomarChatGpt"/>; o controlador continua sem <c>--inputs</c>) ou o registro é do Editor 2.2 e guardou a sessão
     /// controladora (a análise recomeça no mesmo registro, com as mesmas peças).</summary>
-    static bool ContinuavelChatGpt(string pastaProcesso, string pastaRegistro) =>
-        OrquestradorAnalise.PodeRetomarChatGpt(pastaProcesso, pastaRegistro) || LerSessaoCodex(pastaRegistro) is not null;
+    static bool ContinuavelChatGpt(string pastaProcesso, string pastaRegistro)
+    {
+        var pasta = OrquestradorAnalise.ProcessoDoTrabalho(pastaProcesso, pastaRegistro);
+        return OrquestradorAnalise.PodeRetomarChatGpt(pasta, OrquestradorAnalise.RegistroDoTrabalho(pasta, pastaRegistro))
+            || RecuperacaoAnaliseLocal.Existe(pastaProcesso, Path.GetFileName(pastaRegistro))
+            || LerSessaoCodex(pastaRegistro) is not null;
+    }
 
     /// <summary>A sessão do Codex guardada no <c>execucao.json</c> por um registro do Editor 2.2; null sem ela.</summary>
     static string? LerSessaoCodex(string pastaRegistro)
@@ -1371,7 +1376,7 @@ public sealed partial class MainWindow
             aviso.IsOpen = true;
             // Fluxo linear do kit: objeção pendente bloqueia a entrega. O Editor não pergunta nem retoma sozinho (a retomada mandaria a análise adiante
             // com a objeção); fica o aviso, com "Retomar análise" e "Descartar análise" à mão.
-            if (await Task.Run(() => ObjecaoPendenteDo(pend.Processo, Provedor.ChatGpt)) is { } objecaoChatGpt)
+            if (await Task.Run(() => ObjecaoPendenteDo(OrquestradorAnalise.ProcessoDoTrabalho(pend.Processo, pend.Registro), Provedor.ChatGpt)) is { } objecaoChatGpt)
             {
                 aviso.Message = FluxoNovoRelatorio.TextoRetomadaComObjecao(objecaoChatGpt);
                 if (!PaginaNovoRelatorioVisivel) MostrarMensagem(aviso.Severity, aviso.Title, aviso.Message + " (em Novo relatório)");
@@ -1432,7 +1437,7 @@ public sealed partial class MainWindow
     {
         NR.LinkRemontarTeste.Visibility = Visibility.Collapsed;
         if (pecasAgentes.ProducaoTeste is null || pecasAgentes.Python is null || remontandoTeste) return;
-        var controle = Path.Combine(e.Processo.Pasta, ResultadoAnalise.PastaControle(e.Provedor));
+        var controle = Path.Combine(e.PastaDeTrabalho, ResultadoAnalise.PastaControle(e.Provedor));
         var pode = await Task.Run(() => ProducaoTeste.TemCopiaCertificada(controle));
         if (!fechada && ReferenceEquals(ultimoResultadoNR, e) && NR.BotaoMostrarRegistroResultado.Visibility == Visibility.Visible)
             NR.LinkRemontarTeste.Visibility = pode ? Visibility.Visible : Visibility.Collapsed;
@@ -1449,9 +1454,9 @@ public sealed partial class MainWindow
         {
             var saida = Path.Combine(e.Registro.Pasta, "producao-teste");
             Directory.CreateDirectory(saida);
-            var (exe, args) = LinhasDeComando.ProducaoTeste(python, pecasAgentes.PythonPeloLauncher, script, e.Processo.Pasta, e.Provedor, saida);
+            var (exe, args) = LinhasDeComando.ProducaoTeste(python, pecasAgentes.PythonPeloLauncher, script, e.PastaDeTrabalho, e.Provedor, saida);
             MostrarMensagem(InfoBarSeverity.Informational, "Remontando o relatório (teste)", "O PDF está sendo gerado numa pasta separada, a partir da cópia certificada.");
-            var (codigo, texto) = await ExecucaoProcesso.RodarAsync(exe, args, e.Processo.Pasta, _ => { }, TimeSpan.FromMinutes(10), CancellationToken.None);
+            var (codigo, texto) = await ExecucaoProcesso.RodarAsync(exe, args, e.PastaDeTrabalho, _ => { }, TimeSpan.FromMinutes(10), CancellationToken.None);
             if (fechada) return;
             if (codigo == 0 && ProducaoTeste.PdfDaSaida(texto) is { } pdf && File.Exists(pdf))
             {
@@ -1638,12 +1643,13 @@ public sealed partial class MainWindow
             var pecas = await LerPecasAsync();
             var ia = await Task.Run(() => ProvedorDoRegistro(pend.Registro));     // Claude (análise pro) ou Gemini (análise Google)
             var nomeIa = Provedores.Nome(ia);
-            var s = await Orquestrador.SituacaoClaudeAsync(pend.Processo, pecas, ia);
+            var pastaDeTrabalho = OrquestradorAnalise.ProcessoDoTrabalho(pend.Processo, pend.Registro);
+            var s = await Orquestrador.SituacaoClaudeAsync(pastaDeTrabalho, pecas, ia);
             if (s is null) continue;     // sem resposta do kit agora: fica para a próxima abertura
             var processo = await ProcessoDaPastaAsync(pend.Processo);
             switch (s.Codigo)
             {
-                case "CONCLUIDO":
+                case "CONCLUIDO" when pastaDeTrabalho == pend.Processo:
                     if (await MostrarRecusaGuardadaAsync(ia, processo, pend.Registro)) break;
                     var entrega = new ImportacaoPendente(ia, processo, pend.Registro, null, null);
                     if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, pend.Registro)))
@@ -1652,6 +1658,7 @@ public sealed partial class MainWindow
                     NotificacoesWindows.Mostrar("Relatório aguardando importação",
                         "A análise terminou com o Editor fechado. Use Importar relatório para revisar o resultado.");
                     break;
+                case "CONCLUIDO": // Publica a entrega final que ficou em Documentos com o Editor fechado.
                 case "EM_ANDAMENTO" or "AGUARDANDO_COTA" or "INICIANDO":
                     if (await Task.Run(() => LerInicio(pend.Registro)) is not { } inicio)
                     {
@@ -1674,7 +1681,7 @@ public sealed partial class MainWindow
                 default:
                     var motivo = (s.Rotulo ?? s.Codigo) + (string.IsNullOrWhiteSpace(s.Erro) ? "" : ": " + s.Erro);
                     // Fluxo linear do kit: com objeção pendente, nada de retomar sozinho (nem com outra IA): só o aviso.
-                    if (await Task.Run(() => ObjecaoPendenteDo(pend.Processo, ia)) is { } objecaoKit)
+                    if (await Task.Run(() => ObjecaoPendenteDo(pastaDeTrabalho, ia)) is { } objecaoKit)
                     {
                         MostrarMensagem(InfoBarSeverity.Warning, $"A análise com o {nomeIa} de {FluxoNovoRelatorio.Identificacao(processo)} parou",
                             FluxoNovoRelatorio.TextoRetomadaComObjecao(objecaoKit));
@@ -1811,7 +1818,8 @@ public sealed partial class MainWindow
             return false;
         }
         var doKit = imp.Provedor;
-        var r = await Task.Run(() => ResultadoAnalise.Localizar(imp.Processo.Pasta, doKit, inicio.UtcDateTime, imp.Registro));
+        var r = await Task.Run(() => RecuperacaoAnaliseLocal.EntregaPublicada(imp.Processo.Pasta, Path.GetFileName(imp.Registro))
+            ?? ResultadoAnalise.Localizar(imp.Processo.Pasta, doKit, inicio.UtcDateTime, imp.Registro));
         if (r.Documento is null)
         {
             MostrarImportacaoPendente(imp, r.Motivo ?? "", InfoBarSeverity.Error);
@@ -1853,6 +1861,7 @@ public sealed partial class MainWindow
                     {
                         using var registro = RegistroExecucao.Abrir(imp.Registro, imp.Processo.Pasta);
                         registro.RecusarEntrega(imp.Provedor, imp.Documento!, sha, erros);
+
                     });
                     MostrarImportacaoPendente(imp, string.Join(Environment.NewLine, erros.Take(8)), InfoBarSeverity.Error, corrigir: true);
                     return false;

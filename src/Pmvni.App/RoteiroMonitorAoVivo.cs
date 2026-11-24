@@ -19,7 +19,7 @@ internal static class RoteiroMonitorAoVivo
         JsonObject resultado, Func<string, Task> abrirAba, Action<Button> invocar)
     {
         var pagina = janela.NovoRelatorio;
-        var controle = Directory.CreateDirectory(Path.Combine(execucao.Processo.Pasta, ".pmvni-ai", "analise")).FullName;
+        var controle = Directory.CreateDirectory(Path.Combine(execucao.PastaDeTrabalho, ".pmvni-ai", "analise")).FullName;
         var amostras = JsonNode.Parse(File.ReadAllText(Path.Combine(corpus, "agentes", "monitor-telemetria-terra.json")))!.AsArray();
         var relatorio = new JsonObject();
         resultado["arquivos_ate_controles_winui"] = relatorio;
@@ -30,14 +30,14 @@ internal static class RoteiroMonitorAoVivo
         // O provedor fictício não publica progresso. Eventos de um roteiro antigo teriam prioridade sobre o manifesto.
         void ConferirOrigem()
         {
-            var pasta = execucao.Registro.PastaProgresso;
+            var pasta = Path.Combine(execucao.RegistroDeTrabalho, "progresso");
             if (Directory.Exists(pasta) && Directory.EnumerateFiles(pasta, "*.json").Any())
                 throw new InvalidOperationException("Eventos de progresso legado presentes no registro de teste.");
             if (execucao.Fim.IsCompleted) throw new InvalidOperationException("O agente de teste já encerrou.");
         }
         ConferirOrigem();
         var partida = DateTimeOffset.UtcNow.AddMinutes(-4).ToUnixTimeSeconds();
-        Gravar(etapa, JsonSerializer.SerializeToNode(new { stages = new {
+        Gravar(etapa, JsonSerializer.SerializeToNode(new { @case = execucao.PastaDeTrabalho, editor_execution = Path.GetFileName(execucao.Registro.Pasta), stages = new {
             prepare = new { status = "EXECUTED", ended = partida }, analyze = new { status = "RUNNING", started = partida }
         } })!);
         void Secoes(int quantidade) => Gravar(manifesto, JsonSerializer.SerializeToNode(new {

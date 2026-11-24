@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.6.0
+
+- O Editor copia as peças do processo para Documentos e usa essas cópias nas três rotas de análise. A pasta de trabalho e as evidências podem ser abertas pelo monitor.
+- Ao retomar uma análise antiga, o Editor confere os documentos e a etapa salva antes de continuar na estação. Cada etapa concluída guarda na rede os arquivos necessários para recuperação.
+- A pasta do processo recebe o relatório e o PDF após a conferência dos originais. Se a publicação for interrompida, a entrega local permanece disponível para uma nova tentativa.
+
 ## 4.5.8
 
 - Corrigida a piscada na aba Etapas durante a análise. O monitor mantém os 15 cartões na tela e atualiza as contagens, barras e percentuais no lugar, inclusive ao receber novos registros e medições de consumo.
