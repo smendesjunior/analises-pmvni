@@ -187,6 +187,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         if (FluxoNovoRelatorio.MotivoDesabilitado(p, pr, EmAndamento(pr.Pasta), pc, m, chaveGuardada, perfilGemini) is { } motivo) throw new AnaliseRecusadaException(motivo);
         texto = string.IsNullOrWhiteSpace(texto) ? null : texto;
 
+        var orq = orquestrador();
         var (trava, registro, arquivados, recusas, retomada) = await Task.Run(() =>
         {
             var t = TravaExecucao.Tentar(pr.Pasta, p) ?? throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
@@ -201,7 +202,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                 }
                 // A mesma análise retomada no mesmo registro (escolhida, ou achada interrompida com o mesmo pedido e as mesmas peças): no ChatGPT, o
                 // controlador do kit continua o controle que já existe (sem --inputs).
-                var interrompida = registroAnterior is null ? RegistroExecucao.BuscarInterrompida(pr, texto, feitos, p) : null;
+                var interrompida = registroAnterior is null ? RegistroExecucao.BuscarInterrompida(pr, texto, feitos, p, orq.DocumentosParaTeste) : null;
                 var reg = registroAnterior is not null ? RegistroExecucao.Abrir(registroAnterior, pr.Pasta)
                     : interrompida ?? RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now);
                 if (registroAnterior is not null && texto == FluxoNovoRelatorio.PedidoContinuar && File.Exists(Path.Combine(reg.Pasta, "pedido.md")))
@@ -225,7 +226,6 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
             throw new AnaliseRecusadaException("A janela foi fechada antes da partida; nada foi iniciado.");
         }
         // A trava pega antes de copiar os anexos passa ao orquestrador, que a segura até o fim (nunca fica um instante sem dono).
-        var orq = orquestrador();
         var e = new ExecucaoEmCurso(p, pr, registro, DateTime.UtcNow, pc, texto, orq, retomada: false) { Recusas = recusas };
         var progresso = Progresso(e);
         var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro)
