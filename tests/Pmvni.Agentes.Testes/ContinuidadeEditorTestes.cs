@@ -7,6 +7,25 @@ namespace Pmvni.Agentes.Testes;
 public class ContinuidadeEditorTestes
 {
     [Fact]
+    public void RegistroPreservaArquivoQuandoDadosSaoIguais()
+    {
+        using var temporario = Ambiente.PastaDeTeste("registro-identico");
+        var processo = Ambiente.NovoProcesso(temporario);
+        using var registro = RegistroExecucao.Criar(processo.Pasta, Provedor.ChatGpt, DateTime.Now);
+        registro.Atualizar(dados => dados["etapa"] = "analyze");
+        var arquivo = Path.Combine(registro.Pasta, "EXECUCAO.JSON");
+        File.SetLastWriteTimeUtc(arquivo, DateTime.UtcNow.AddDays(-1));
+        var anterior = File.GetLastWriteTimeUtc(arquivo);
+
+        registro.Atualizar(dados => dados["etapa"] = "analyze");
+        Assert.Equal(anterior, File.GetLastWriteTimeUtc(arquivo));
+        registro.Atualizar(dados => dados["etapa"] = "technical_audit");
+        Assert.NotEqual(anterior, File.GetLastWriteTimeUtc(arquivo));
+        using var atual = JsonDocument.Parse(File.ReadAllBytes(arquivo));
+        Assert.Equal("technical_audit", atual.RootElement.GetProperty("etapa").GetString());
+    }
+
+    [Fact]
     public void ReaproveitaRegistroCompativelERecusaMudancasOuDescarte()
     {
         using var temporario = Ambiente.PastaDeTeste("continuidade-editor");

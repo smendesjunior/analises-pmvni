@@ -10,6 +10,7 @@ namespace Pmvni.Agentes;
 /// reutilizado. Nada aqui entra nas pastas de controle do kit (<c>.pmvni-ai\analise</c>, <c>analise-pro</c>): elas são do agente. A chave de API nunca é gravada.</summary>
 public sealed class RegistroExecucao : IDisposable
 {
+    string? ultimoJsonGravado;
     static readonly UTF8Encoding Utf8 = new(false);
     static readonly JsonSerializerOptions Opcoes = new() { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
@@ -237,12 +238,19 @@ public sealed class RegistroExecucao : IDisposable
         {
             mudar(execucao);
             var destino = Caminho(Pasta, "execucao.json");
+            var json = execucao.ToJsonString(Opcoes);
+            if (json == ultimoJsonGravado && File.Exists(destino)) return;
             var tmp = destino + ".tmp";
-            File.WriteAllText(ArquivoGerado.Caminho(tmp), execucao.ToJsonString(Opcoes), Utf8);
+            File.WriteAllText(ArquivoGerado.Caminho(tmp), json, Utf8);
             // Quem está lendo o execucao.json naquele instante (a tela, o OneDrive, um antivírus) pode segurar o destino por milissegundos.
             for (var tentativa = 1; ; tentativa++)
             {
-                try { File.Move(tmp, ArquivoGerado.Caminho(destino), overwrite: true); return; }
+                try
+                {
+                    File.Move(tmp, ArquivoGerado.Caminho(destino), overwrite: true);
+                    ultimoJsonGravado = json;
+                    return;
+                }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException)
                 {
                     if (tentativa >= 200) { try { File.Delete(tmp); } catch (IOException) { } throw; }

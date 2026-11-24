@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.5.1
+
+- O monitor preserva o arquivo de registro quando uma atualização mantém os mesmos dados. Isso reduz as gravações na pasta sincronizada do processo.
+
 ## 4.5.0
 
 - O monitor nativo calcula o progresso pelas unidades registradas e atualiza a previsão de término durante a análise.
