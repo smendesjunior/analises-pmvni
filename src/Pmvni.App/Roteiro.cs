@@ -3275,7 +3275,7 @@ internal static class Roteiro
                         await AbrirPagina("Resumo");
                         if (pausar)
                         {
-                            await RoteiroMonitorAoVivo.ConferirAsync(n, e, corpus, pasta, p, AbrirPagina, Invocar);
+                            await RoteiroMonitorAoVivo.ConferirAsync(j, e, corpus, pasta, p, AbrirPagina, Invocar);
                             Invocar(n.BotaoNovaAnalise);
                             Verificar("Nova análise",await EsperarAteAsync(() => Task.FromResult(!n.VistaDaExecucao && !e.Fim.IsCompleted),3000));
                             Invocar(n.BotaoExecucoes);

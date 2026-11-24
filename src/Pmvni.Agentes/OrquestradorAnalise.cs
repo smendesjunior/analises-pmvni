@@ -712,8 +712,7 @@ public sealed class OrquestradorAnalise
         DateTimeOffset inicio;
         try
         {
-            var arquivo = Path.Combine(pastaRegistro, "execucao.json");
-            if (!File.Exists(arquivo) || JsonNode.Parse(File.ReadAllText(arquivo))?["controlador"] is not JsonObject c
+            if (JsonNode.Parse(RegistroExecucao.LerTextoDaExecucao(pastaRegistro))?["controlador"] is not JsonObject c
                 || c["pid"] is not JsonValue p || !p.TryGetValue(out pid)
                 || c["inicio"] is not JsonValue i || !i.TryGetValue<string>(out var texto)
                 || !DateTimeOffset.TryParse(texto, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out inicio)) return false;

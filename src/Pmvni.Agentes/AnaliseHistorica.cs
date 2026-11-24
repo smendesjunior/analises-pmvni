@@ -33,7 +33,7 @@ public sealed record AnaliseHistorica(Processo Processo, string Registro, Proved
         {
             var arquivo = new FileInfo(Path.Combine(registro, "execucao.json"));
             if (!arquivo.Exists || arquivo.LinkTarget is not null) return null;
-            var j = JsonNode.Parse(File.ReadAllText(arquivo.FullName));
+            var j = JsonNode.Parse(RegistroExecucao.LerTextoDaExecucao(registro));
             var provedor = j?["provedor"]?.GetValue<string>() switch
             {
                 "chatgpt" => Provedor.ChatGpt, "claude" => Provedor.Claude, "gemini" => Provedor.Gemini, _ => (Provedor?)null

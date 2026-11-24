@@ -15,9 +15,10 @@ namespace Pmvni.App;
 /// As seções e a amostra final de cinco horas são controladas pelo ensaio.</summary>
 internal static class RoteiroMonitorAoVivo
 {
-    internal static async Task ConferirAsync(PaginaNovoRelatorio pagina, ExecucaoEmCurso execucao, string corpus, string pasta,
+    internal static async Task ConferirAsync(MainWindow janela, ExecucaoEmCurso execucao, string corpus, string pasta,
         JsonObject resultado, Func<string, Task> abrirAba, Action<Button> invocar)
     {
+        var pagina = janela.NovoRelatorio;
         var controle = Directory.CreateDirectory(Path.Combine(execucao.Processo.Pasta, ".pmvni-ai", "analise")).FullName;
         var amostras = JsonNode.Parse(File.ReadAllText(Path.Combine(corpus, "agentes", "monitor-telemetria-terra.json")))!.AsArray();
         var relatorio = new JsonObject();
@@ -158,6 +159,16 @@ internal static class RoteiroMonitorAoVivo
             ["semana_real"] = "54%", ["cinco_horas_controlada"] = "18%", ["hora_da_medicao"] = ultimaHora };
         await abrirAba("Resumo");
         await Esperar("conferencia_numerica_na_reabertura", () => Campo(campoNumerico).Contains("Divergentes: 1"));
+
+        // Entrega a notificação de desativação apenas à janela fictícia. O analista pode manter o monitor ao lado de outra janela.
+        if (!MainWindow.PostMessage(WinRT.Interop.WindowNative.GetWindowHandle(janela), 0x0006 /* WM_ACTIVATE, WA_INACTIVE */, IntPtr.Zero, IntPtr.Zero))
+            throw new InvalidOperationException("O roteiro não conseguiu simular a perda de foco.");
+        reciboTeste["execucao"] = "outra-execucao";
+        Gravar(reciboNumerico, reciboTeste);
+        await Esperar("monitor_sem_foco_recusa_registro_alheio", () => Campo(campoNumerico) == "");
+        reciboTeste["execucao"] = idExecucao;
+        Gravar(reciboNumerico, reciboTeste);
+        await Esperar("monitor_sem_foco_atualiza_indices", () => Campo(campoNumerico).Contains("Divergentes: 1"));
     }
 
     static void Gravar(string caminho, JsonNode conteudo)

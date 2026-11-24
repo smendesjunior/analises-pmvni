@@ -6,6 +6,8 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 - O Editor relê os modelos antes da análise e identifica ajustes ilegíveis ou incompletos. A tela de ajustes permite restaurar o padrão.
 - A opção de reduzir o esforço quando a cota está baixa acompanha a nova execução no kit 4.5.4.
+- O monitor continua mostrando os índices e o andamento quando o analista trabalha em outra janela e deixa o Editor visível.
+- A retomada relê o registro durante a gravação. Se ele continuar bloqueado, o Editor preserva o histórico para a próxima tentativa.
 
 ## 4.5.4
 

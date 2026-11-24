@@ -82,11 +82,31 @@ public sealed class RegistroExecucao : IDisposable
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
     }
 
+    internal static string LerTextoDaExecucao(string pastaRegistro)
+    {
+        var caminho = Caminho(pastaRegistro, "execucao.json");
+        for (var tentativa = 0; ; tentativa++)
+        {
+            try
+            {
+                using var arquivo = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var leitor = new StreamReader(arquivo, Utf8, detectEncodingFromByteOrderMarks: true);
+                return leitor.ReadToEnd();
+            }
+            catch (Exception e) when (tentativa < 5 && e is (IOException or UnauthorizedAccessException)
+                && (e.HResult & 0xffff) is 5 or 32 or 33 or 303)
+            {
+                // O Windows pode negar a abertura durante a substituição atômica. Um bloqueio persistente chega ao chamador.
+                Thread.Sleep(10);
+            }
+        }
+    }
+
     public static DateTimeOffset? LerInicio(string pastaRegistro)
     {
         try
         {
-            var j = JsonNode.Parse(File.ReadAllBytes(Path.Combine(pastaRegistro, "execucao.json")));
+            var j = JsonNode.Parse(LerTextoDaExecucao(pastaRegistro));
             return DateTimeOffset.TryParse(j?["inicio"]?.GetValue<string>(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var d) ? d : null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException) { return null; }
@@ -160,9 +180,9 @@ public sealed class RegistroExecucao : IDisposable
         foreach (var pasta in Directory.GetDirectories(editor).OrderDescending(StringComparer.Ordinal))
         {
             if (MotivoInvalido(processo, pasta) is not null) continue;
+            using var anterior = Abrir(pasta, processo);
             try
             {
-                using var anterior = Abrir(pasta, processo);
                 if (provedor.HasValue && anterior.execucao["provedor"]?.GetValue<string>() != Provedores.Sufixo(provedor.Value)) return null;
                 var estado = anterior.execucao["situacao"]?.GetValue<string>();
                 if (estado is not ("interrompida" or "cota_esgotada" or "falhou" or "em_andamento" or "cancelada")) return null;
@@ -191,12 +211,12 @@ public sealed class RegistroExecucao : IDisposable
                     && (a.AlteradoUtc >= partida.UtcDateTime || File.GetCreationTimeUtc(a.Caminho) >= partida.UtcDateTime))) return null;
                 if (anexos.Any(a => !hashes.TryGetValue(Path.GetFullPath(Path.Combine(processo, a.Relativo)), out var hash)
                     || !hash.Equals(a.Sha256, StringComparison.OrdinalIgnoreCase))) return null;
-                return Abrir(pasta, processo);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or ArgumentException)
             {
                 return null;
             }
+            return Abrir(pasta, processo);
         }
         return null;
     }
@@ -217,7 +237,7 @@ public sealed class RegistroExecucao : IDisposable
     }
 
     /// <summary>Reabre o registro de uma execução que já existe (o editor reaberto volta a acompanhar uma análise do Claude, desenho §12.7): o que o
-    /// <c>execucao.json</c> já tem continua (as mudanças seguintes se somam a ele). <c>execucao.json</c> ilegível ou ausente: começa vazio.
+    /// <c>execucao.json</c> já tem continua (as mudanças seguintes se somam a ele). <c>execucao.json</c> ausente ou com JSON inválido: começa vazio. Um erro de acesso impede a retomada.
     /// Os caminhos vêm dos ajustes locais (editáveis): o registro tem de ser uma pasta filha direta de <c>&lt;processo&gt;\.pmvni-ai\editor</c>, sem atalho
     /// (junção ou link) no caminho; senão <see cref="InvalidOperationException"/> e nada é gravado.</summary>
     public static RegistroExecucao Abrir(string pasta, string pastaProcesso)
@@ -227,14 +247,14 @@ public sealed class RegistroExecucao : IDisposable
         var r = new RegistroExecucao(Path.GetFullPath(pasta), reaberto: true);
         try
         {
-            if (JsonNode.Parse(File.ReadAllText(Caminho(pasta, "execucao.json"))) is JsonObject antes)
+            if (JsonNode.Parse(LerTextoDaExecucao(pasta)) is JsonObject antes)
                 foreach (var (chave, valor) in antes.ToList())
                 {
                     antes.Remove(chave);
                     r.execucao[chave] = valor;
                 }
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { /* começa vazio */ }
+        catch (Exception e) when (e is FileNotFoundException or JsonException) { /* registro ausente ou formato legado ilegível */ }
         return r;
     }
 

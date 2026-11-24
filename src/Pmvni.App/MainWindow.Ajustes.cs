@@ -661,7 +661,7 @@ public sealed partial class MainWindow
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    static extern bool PostMessage(IntPtr janela, uint mensagem, IntPtr w, IntPtr l);
+    internal static extern bool PostMessage(IntPtr janela, uint mensagem, IntPtr w, IntPtr l);
 
     string TextoDasVersoes()
     {

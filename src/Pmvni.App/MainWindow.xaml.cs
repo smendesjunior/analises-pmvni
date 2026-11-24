@@ -249,7 +249,6 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             PaginaDeSites.AtivarPeriodicos(janelaAtiva && Modulos.EhSite(moduloAtual));
             if (janelaAtiva) AtualizarRegioesDaBarraDeTitulo();
             if (janelaAtiva) AtualizarTituloAnalise();
-            else relogioAnalise.Stop();
         };
         AppWindow.Closing += AoFecharJanela;
         Closed += (_, _) =>

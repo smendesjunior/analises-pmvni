@@ -105,7 +105,8 @@ if (-not (Test-Path -LiteralPath $ensaioMonitor)) { throw 'O monitor nativo não
 $monitor = Get-Content -LiteralPath $ensaioMonitor -Raw -Encoding UTF8 | ConvertFrom-Json
 $medicoes = $monitor.passos.monitor_controles.arquivos_ate_controles_winui
 if ($monitor.ok -ne $true -or $monitor.programas_iniciados.fora_do_agente_falso -ne 0 -or
-    $medicoes.quatorze_de_28 -ne $true -or $medicoes.duas_janelas_na_reabertura -ne $true) {
+    $medicoes.quatorze_de_28 -ne $true -or $medicoes.duas_janelas_na_reabertura -ne $true -or
+    $medicoes.monitor_sem_foco_recusa_registro_alheio -ne $true -or $medicoes.monitor_sem_foco_atualiza_indices -ne $true) {
     throw "As medições no monitor nativo não passaram. Consulte $ensaioMonitor."
 }
 Write-Host 'Monitor nativo: porcentagem, relógio, previsão e consumo conferidos durante a execução e na reabertura.'

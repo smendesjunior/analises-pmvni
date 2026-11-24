@@ -88,8 +88,7 @@ public sealed partial class MainWindow
     {
         try
         {
-            var arq = Path.Combine(pastaRegistro, "execucao.json");
-            if (File.Exists(arq) && System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(arq, Encoding.UTF8))?["provedor"] is System.Text.Json.Nodes.JsonValue v
+            if (System.Text.Json.Nodes.JsonNode.Parse(RegistroExecucao.LerTextoDaExecucao(pastaRegistro))?["provedor"] is System.Text.Json.Nodes.JsonValue v
                 && v.TryGetValue<string>(out var nome))
                 return nome == Provedores.Sufixo(Provedor.Gemini) ? Provedor.Gemini : Provedor.Claude;
         }
@@ -306,8 +305,11 @@ public sealed partial class MainWindow
         relogioAnalise.IsRepeating = true;
         relogioAnalise.Tick += (_, _) =>
         {
+            var monitorVisivel = PaginaNovoRelatorioVisivel && NR.VistaDaExecucao;
+            if ((!janelaAtiva && !monitorVisivel) || !AppWindow.IsVisible ||
+                AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized }) return;
             AtualizarTituloAnalise();
-            if (PaginaNovoRelatorioVisivel && execucaoMostrada is { Fim.IsCompleted: false } e)
+            if (monitorVisivel && execucaoMostrada is { Fim.IsCompleted: false } e)
             {
                 AtualizarRelogioDaExecucao(e);
                 _ = AtualizarAchadosAsync(e);
@@ -1311,9 +1313,7 @@ public sealed partial class MainWindow
     {
         try
         {
-            var arq = Path.Combine(pastaRegistro, "execucao.json");
-            if (!File.Exists(arq)) return null;
-            return System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(arq, Encoding.UTF8))?["sessao_codex"]?.GetValue<string>() is { Length: > 0 and <= 128 } s ? s : null;
+            return System.Text.Json.Nodes.JsonNode.Parse(RegistroExecucao.LerTextoDaExecucao(pastaRegistro))?["sessao_codex"]?.GetValue<string>() is { Length: > 0 and <= 128 } s ? s : null;
         }
         catch (Exception x) when (x is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException) { return null; }
     }
@@ -1496,7 +1496,7 @@ public sealed partial class MainWindow
             relogioFimPilula?.Stop();
             var corte = titulo.IndexOf(" · ", StringComparison.Ordinal);
             MostrarPilulaAnalise(EstadoPilulaAnalise.EmAndamento, corte < 0 ? titulo : titulo[..corte], corte < 0 ? "" : titulo[(corte + 3)..], null);
-            if (janelaAtiva && !relogioAnalise.IsRunning) relogioAnalise.Start();
+            if (!relogioAnalise.IsRunning) relogioAnalise.Start();
             return;
         }
         relogioAnalise.Stop();

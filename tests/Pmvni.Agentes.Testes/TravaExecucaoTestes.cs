@@ -170,6 +170,28 @@ public class TravaExecucaoTestes
     }
 
     [Fact]
+    public void retomada_com_registro_bloqueado_preserva_o_historico()
+    {
+        using var teste = Ambiente.PastaDeTeste("retomada-bloqueada");
+        var alvo = Ambiente.NovoProcesso(teste);
+        var processo = alvo.Pasta;
+        using var registro = RegistroExecucao.Criar(processo, Provedor.Claude, DateTime.Now);
+        registro.GravarTempoAtivo(TimeSpan.FromMinutes(7));
+        var arquivo = Path.Combine(registro.Pasta, "execucao.json");
+        var original = File.ReadAllBytes(arquivo);
+        using (File.Open(arquivo, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            var erro = Record.Exception(() => { using var tentativa = RegistroExecucao.Abrir(registro.Pasta, processo); });
+            Assert.True(erro is IOException or UnauthorizedAccessException, "Registro bloqueado deve impedir a retomada.");
+            var busca = Record.Exception(() => { using var candidato = RegistroExecucao.BuscarInterrompida(alvo, null, [], Provedor.Claude); });
+            Assert.True(busca is IOException or UnauthorizedAccessException, "A busca automática deve sinalizar o bloqueio antes de criar outra análise.");
+        }
+        Assert.Equal(original, File.ReadAllBytes(arquivo));
+        using var retomado = RegistroExecucao.Abrir(registro.Pasta, processo);
+        Assert.Equal(TimeSpan.FromMinutes(7), retomado.TempoAtivoGravado);
+    }
+
+    [Fact]
     public async Task execucao_json_e_sempre_json_valido()
     {
         using var t = Ambiente.PastaDeTeste("registro-atomico");
@@ -187,7 +209,7 @@ public class TravaExecucaoTestes
             {
                 try
                 {
-                    var texto = File.ReadAllText(caminho);
+                    var texto = RegistroExecucao.LerTextoDaExecucao(r.Pasta);
                     JsonNode.Parse(texto);                 // lança se vier pela metade
                     leituras++;
                 }
