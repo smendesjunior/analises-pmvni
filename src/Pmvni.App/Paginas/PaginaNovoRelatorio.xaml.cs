@@ -520,7 +520,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     }
 
     static bool EquivalentesDetalhes(DetalhesDasEtapas a, DetalhesDasEtapas b) =>
-        a.Plano.SequenceEqual(b.Plano) && a.DescricoesDoPlano.SequenceEqual(b.DescricoesDoPlano) && a.Validacoes.SequenceEqual(b.Validacoes) && a.Frentes.SequenceEqual(b.Frentes) && a.Objecoes.SequenceEqual(b.Objecoes)
+        a.Plano.SequenceEqual(b.Plano) && a.DescricoesDoPlano.SequenceEqual(b.DescricoesDoPlano) && a.Validacoes.SequenceEqual(b.Validacoes) && a.Frentes.SequenceEqual(b.Frentes) && a.Grupos.SequenceEqual(b.Grupos) && a.Objecoes.SequenceEqual(b.Objecoes)
         && a.Registros.Count == b.Registros.Count && a.Registros.All(k => b.Registros.GetValueOrDefault(k.Key) == k.Value)
         && a.Etapas.Count == b.Etapas.Count && a.Etapas.All(k => b.Etapas.TryGetValue(k.Key, out var v) && v == k.Value);
 
