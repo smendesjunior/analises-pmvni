@@ -80,10 +80,11 @@ e diga onde está o que não foi conferido ("A rota acessível está no item 14.
 repetições e textos sobre o método da análise.</li>
 <li><b>BASE LEGAL:</b> norma e dispositivo ("Código de Obras (LC nº 70/1990), art. 127"). <b>REFERÊNCIA NO PROJETO:</b> prancha, vista e figura ("ARQ 01/03, planta do térreo. Figura 1.").</li>
 <li><b>Situação:</b> ATENDE quando comprovado; NAO_ATENDE quando o projeto descumpre a norma de forma comprovada (mostre o valor, o limite e a conta); NAO_COMPROVADO quando falta dado, cota ou documento; DIVERGENCIA_INTERNA quando o projeto contradiz a si mesmo (mostre os dois valores e a conta).</li></ul></div>{% endif %}
+{% if deficits_vaos %}<div class="obs"><b>Vãos abaixo do mínimo calculado</b>{% for s in deficits_vaos %}<p>{{ s }}</p>{% endfor %}</div>{% endif %}
 {% for it in itens %}
 <div class="card {{ it.situacao|cor }}">
  <div class="ch"><div class="ct"><span class="id">ITEM {{ loop.n2 }}</span> — {{ it.titulo }}</div>{{ it.situacao|pill }}</div>
- <div class="lbl">VERIFICAÇÃO TÉCNICA</div><p>{{ it.verificacao }}</p>
+ <div class="lbl">VERIFICAÇÃO TÉCNICA</div><p>{{ it.verificacao }}</p>{% for s in it.deficits_calculados %}<p>{{ s }}</p>{% endfor %}
  <div class="prov"><div class="lbl">PROVIDÊNCIA</div><p>{{ it.providencia }}</p></div>
  <div class="two"><div><div class="lbl">BASE LEGAL</div><p class="m">{{ it.base_legal }}</p></div><div><div class="lbl">REFERÊNCIA NO PROJETO</div><p class="m">{{ it.referencia }}</p></div></div>
 </div>
@@ -137,8 +138,8 @@ A nota deve dizer que o esquema não representa a implantação real. Sem índic
 {% endfor %}
 </tbody></table>
 <div class="obs"><div class="oh"><span class="bang">!</span>OBSERVAÇÕES DE CONFERÊNCIA</div>
-<div class="two"><div><div class="lbl">ABRANGÊNCIA E CRITÉRIO</div>{% for t in iluminacao.abrangencia %}<p>{{ t }}</p>{% endfor %}</div>
-<div><div class="lbl">ABERTURAS NÃO COMPUTADAS</div>{% for t in iluminacao.nao_computadas %}<p>{{ t }}</p>{% endfor %}</div></div>
+<div class="two">{% if iluminacao.abrangencia %}<div><div class="lbl">ABRANGÊNCIA E CRITÉRIO</div>{% for t in iluminacao.abrangencia %}<p>{{ t }}</p>{% endfor %}</div>{% endif %}
+{% if iluminacao.nao_computadas %}<div><div class="lbl">ABERTURAS NÃO COMPUTADAS</div>{% for t in iluminacao.nao_computadas %}<p>{{ t }}</p>{% endfor %}</div>{% endif %}</div>
 {% if iluminacao.atencao %}<div class="att"><b>ATENÇÃO:</b> {{ iluminacao.atencao }}</div>{% endif %}
 <div class="src">FONTE: {{ iluminacao.fonte }}</div></div>
 {% if instrucoes %}<div class="ins"><b>Agrupe numa linha os ambientes iguais</b> (quando as unidades se repetem) e diga quantos são em "detalhes". Em VÃO / ÁREA, um bloco por esquadria
@@ -168,7 +169,7 @@ ou o que foi conferido, e o item entre parênteses. Em pendência a solução é
 {% for n in f.notas %}<div class="fl"><span class="rb">{{ loop.index }}</span><p><b>{{ n.elemento }}.</b>{% if n.texto %}<span class="sol">{{ n.texto }} <span class="ids">({{ n.itens }})</span></span>{% else %} <span class="ids">({{ n.itens }})</span>{% endif %}</p></div>{% endfor %}
 <div class="fs"><b>Fonte:</b> {{ f.fonte }}</div></div></div>
 {% endfor %}
-{% for s in sem_figura %}<div class="gap">{{ s }}</div>{% endfor %}
+
 {% endif %}
 
 {# ───────────────────── FONTES E CONCLUSÃO ───────────────────── #}
@@ -176,8 +177,12 @@ ou o que foi conferido, e o item entre parênteses. Em pendência a solução é
 <div class="sec"><div><h2>FONTES E REFERÊNCIAS</h2><p>Documentos do processo, legislação e bases consultadas.</p></div></div>
 <div class="refs">{% for r in fontes %}<div class="rf"><b>{{ r.rotulo }}</b><p>{{ r.texto }}{% if r.url %}<span class="url">{{ r.url }}</span>{% endif %}</p></div>{% endfor %}</div>
 {% if instrucoes %}<div class="ins">Liste só o que foi usado. Para leis, informe artigos, data da consulta e o link oficial (campo url).</div>{% endif %}
-<div class="sec"><div><h2>CONCLUSÃO</h2><p>Situação do processo nesta {{ capa.rotulo_data|lower }}.</p></div></div>
-<div class="concl">{{ conclusao }}</div>
+{% if historico_reanalise %}
+<div class="sec"><div><h2>PENDÊNCIAS DA ANÁLISE ANTERIOR</h2><p>{{ historico_reanalise.arquivo }}</p></div></div>
+<div class="refs">{% for p in historico_reanalise.pendencias %}<div class="rf"><b>{{ p.origem }} · {{ p.situacao }}</b><p>{{ p.pendencia }}<br>{{ p.confronto }}<br>{{ p.evidencia }}</p></div>{% endfor %}</div>
+{% if historico_reanalise.sem_pendencias %}<p>{{ historico_reanalise.sem_pendencias }}</p>{% endif %}
+{% endif %}<div class="sec"><div><h2>CONCLUSÃO</h2><p>Situação do processo nesta {{ capa.rotulo_data|lower }}.</p></div></div>
+<div class="concl">{{ conclusao }}{% for s in deficits_vaos %}<p>{{ s }}</p>{% endfor %}</div>
 {% if instrucoes %}<div class="ins">Em 3 ou 4 frases: o que chegou, o que falta (pela faixa de itens), o alcance do que atende e o próximo passo. Não repita os itens um a um.
 A linha em branco antes da assinatura é automática.</div>{% endif %}
 <div class="sign"><b>{{ assinatura.nome }}</b><span>{{ assinatura.cargo }}</span></div>

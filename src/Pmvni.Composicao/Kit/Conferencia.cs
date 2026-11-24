@@ -35,7 +35,13 @@ public static class Conferencia
                 if (Dados.Txt(Dados.Obter(it, c, "")).Trim().Length == 0) erros.Add("ITEM " + Dois(i) + ": campo vazio " + c);
         }
 
-        foreach (var l in Dados.Lista(Dados.Obter(SeVerdadeiro(Dados.Obter(d, "indices")), "linhas", new List<object?>())))
+        var linhas = Dados.Lista(Dados.Obter(SeVerdadeiro(Dados.Obter(d, "indices")), "linhas", new List<object?>()));
+        // Pacotes antigos não exigiam diagrama. Podem ser reabertos e reexportados na revisão original.
+        var revisao = Dados.Txt(Dados.Obter(d, "revisao_modelo_relatorio"));
+        if (!rascunho && linhas.Count > 0 && int.TryParse(revisao, out var numero) && numero >= 12
+            && !PythonTexto.Verdadeiro(Dados.Obter(SeVerdadeiro(Dados.Obter(d, "diagrama")), "chamadas")))
+            erros.Add("Tabela de índices sem diagrama de conferência.");
+        foreach (var l in linhas)
         {
             var sit = Dados.Obter(l, "situacao");
             if (!EmSet(sit, Situacoes.SitIndice))

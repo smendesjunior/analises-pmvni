@@ -40,6 +40,42 @@ public class DadosEfetivosTestes
     }
 
     [Fact]
+    public void revisao_12_preserva_historico_e_apresentacao_ao_reabrir_pacote()
+    {
+        var caminho = Ambiente.Corpus("longo.json");
+        var dados = JsonFiel.Ler(File.ReadAllBytes(caminho));
+        dados["revisao_modelo_relatorio"] = 12;
+        dados["historico_reanalise"] = JsonNode.Parse("""
+            {"arquivo":"Despacho anterior","pendencias":[{"id":"1","pendencia":"Conferir o vão","origem":"Item anterior",
+            "situacao":"Sanada","confronto":"Vão ampliado","evidencia":"Prancha de revisão"}]}
+            """);
+        var indice = dados["indices"]!["linhas"]![0]!;
+        indice["apresentacao"] = new JsonObject { ["situacao"] = "PENDENTE", ["nota"] = "Ressalva do índice" };
+        var ambiente = dados["iluminacao"]!["ambientes"]![0]!;
+        ambiente["apresentacao"] = new JsonObject { ["situacao"] = "PENDENTE", ["nota"] = "Ressalva do vão" };
+        var conteudo = Importador.Importar(JsonFiel.Escrever(dados), caminho, Modelo, Ambiente.Contexto());
+        using var pasta = Ambiente.PastaDeTeste("revisao-12");
+        var pacote = Path.Combine(pasta, "reanalise.rpmvni");
+        Pacote.Gravar(pacote, conteudo, null);
+        var aberto = Pacote.Ler(pacote).Conteudo;
+        aberto.ExtrairAssets(pasta);
+        var efetivos = DadosEfetivos.Gerar(aberto.Projeto).Json;
+        var reabertos = JsonFiel.Ler(efetivos);
+        Assert.True(JsonNode.DeepEquals(dados["historico_reanalise"], reabertos["historico_reanalise"]));
+        Assert.True(JsonNode.DeepEquals(indice["situacao"], reabertos["indices"]!["linhas"]![0]!["situacao"]));
+        var render = RelatorioRenderer.Renderizar(efetivos, Path.Combine(pasta, "dados.json"), Rascunho, Modelo);
+        Assert.True(render.Ok, string.Join(", ", render.Erros));
+        Assert.Contains("PENDÊNCIAS DA ANÁLISE ANTERIOR", render.Html);
+        Assert.Contains("Vão ampliado", render.Html);
+        Assert.Contains("Ressalva do índice", render.Html);
+        Assert.Contains("Ressalva do vão", render.Html);
+
+        reabertos.Remove("diagrama");
+        var semDiagrama = RelatorioRenderer.Renderizar(JsonFiel.Escrever(reabertos), Path.Combine(pasta, "dados.json"), new(false, false), Modelo);
+        Assert.Contains("Tabela de índices sem diagrama de conferência.", semDiagrama.Erros);
+    }
+
+    [Fact]
     public void dados_modelo_com_instrucoes_gera_html_byte_identico()
     {
         using var pasta = Ambiente.PastaDeTeste("efetivo-modelo");

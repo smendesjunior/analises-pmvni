@@ -53,6 +53,8 @@ public static class RelatorioRenderer
         ctx["cabecalho_svg"] = new Seguro(Cabecalho.CabecalhoUri(Dados.Txt(Dados.Obter(config, "orgao", Cabecalho.OrgaoPadrao)), m.Brasao));
         var itens = Dados.Lista(Dados.Exigir(d, "itens"));
         ctx["resumo"] = Conferencia.Resumo(itens);
+        AplicarApresentacao(ctx, "indices", "linhas");
+        AplicarApresentacao(ctx, "iluminacao", "ambientes");
         // O profissional dos Ajustes assina o relatório (2026-11-17); campo vazio = o que veio nos dados.
         // 2026-11-17 (correção): campo vazio sai em branco, nunca o que veio nos dados (que podem trazer outra pessoa).
         if (Profissional.Atual is { } pro)
@@ -91,6 +93,34 @@ public static class RelatorioRenderer
         if (temMarcacoesEditaveis)
             html = html.Replace(" <span class=\"ids\">()</span>", "", StringComparison.Ordinal);
         return new ResultadoRender(html, erros, MontarRefs(html, itens, figuras));
+    }
+
+    // A situação técnica original fica nos dados. O gerador do kit usa a apresentação na tabela impressa.
+    private static void AplicarApresentacao(Dictionary<string, object?> contexto, string grupo, string chave)
+    {
+        var tabela = Dados.Obter(contexto, grupo);
+        if (!PythonTexto.Verdadeiro(tabela)) return;
+        var linhas = Dados.Lista(Dados.Obter(tabela, chave, new List<object?>()));
+        for (var i = 0; i < linhas.Count; i++)
+        {
+            var apresentacao = Dados.Obter(linhas[i], "apresentacao");
+            if (!PythonTexto.Verdadeiro(apresentacao)) continue;
+            var linha = new Dictionary<string, object?>(Dados.Dict(linhas[i]));
+            linha["situacao"] = Dados.Exigir(apresentacao, "situacao");
+            if (Dados.Obter(apresentacao, "nota") is string { Length: > 0 } nota)
+            {
+                if (grupo == "indices")
+                    linha["texto"] = Dados.Obter(linha, "texto") is string { Length: > 0 } texto ? texto + " " + nota : nota;
+                else
+                {
+                    var textos = Dados.Lista(Dados.Obter(linha, "textos", new List<object?>()));
+                    textos.Insert(0, nota);
+                    linha["textos"] = textos;
+                }
+            }
+            linhas[i] = linha;
+        }
+        contexto[grupo] = new Dictionary<string, object?>(Dados.Dict(tabela)) { [chave] = linhas };
     }
 
     /// <summary><c>Path.read_text()</c> do Python converte \r\n e \r em \n; o gerador do kit lê o molde e o CSS assim.</summary>

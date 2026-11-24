@@ -4,6 +4,7 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 ## 4.5.1
 
+- O relatório adota o modelo oficial de revisão 12. A recomposição mostra o confronto com as pendências anteriores e as notas de conferência das tabelas de índices e iluminação. A exportação dos novos relatórios verifica a presença do diagrama de índices.
 - O monitor preserva o arquivo de registro quando uma atualização mantém os mesmos dados. Isso reduz as gravações na pasta sincronizada do processo.
 
 ## 4.5.0
