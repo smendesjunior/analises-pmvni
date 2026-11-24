@@ -66,6 +66,17 @@ public sealed class RegistroExecucao : IDisposable
 
     public string Pasta { get; }
 
+    /// <summary>Modo e rota técnica realmente usados na partida, para consultar o catálogo ao receber uma recusa.</summary>
+    public (string? Modo, string? RotaCodex) AcessoDaExecucao()
+    {
+        lock (trava) return (execucao["modo"]?.GetValue<string>(), execucao["rota_codex_tecnica"]?.GetValue<string>());
+    }
+
+    public string? PerfilDaExecucao()
+    {
+        lock (trava) return execucao["perfil"]?.GetValue<string>();
+    }
+
     public string PedidoOriginal()
     {
         var pedido = File.ReadAllText(Caminho(Pasta, "pedido.md"), Utf8);

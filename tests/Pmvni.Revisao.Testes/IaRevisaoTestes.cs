@@ -34,9 +34,9 @@ public class IaRevisaoTestes
         var c = IaDespacho.Montar(@"C:\x\claude.exe", @"C:\x\codex.exe", @"C:\vazia", comPasta: false, [], opcoes);
         Assert.True(c.Codex);
         Assert.Equal(@"C:\x\codex.exe", c.Programa);
-        Assert.Equal("exec", c.Argumentos[0]);
+        Assert.Equal(new[] { "-a", "never", "exec" }, c.Argumentos.Take(3));
         var linha = string.Join(' ', c.Argumentos);
-        Assert.Contains("--sandbox read-only", linha);
+        Assert.Contains("--sandbox danger-full-access", linha);
         Assert.Contains("--ephemeral", linha);
         Assert.Contains("-m gpt-6.1-terra -c model_reasoning_effort=\"low\"", linha);
         Assert.Contains(@"--cd C:\vazia", linha);
@@ -62,12 +62,13 @@ public class IaRevisaoTestes
         // Sem opções: o Claude primeiro, com leitura só quando há pasta; sem o Claude, o Codex sem modelo nem --ephemeral.
         var claude = IaDespacho.Montar(@"C:\x\claude.exe", @"C:\x\codex.exe", @"C:\tmp", comPasta: false, []);
         Assert.False(claude.Codex);
-        Assert.Equal(new[] { "-p", "--output-format", "text", "--permission-mode", "default", "--disallowedTools", "Bash Edit Write MultiEdit NotebookEdit WebFetch WebSearch Task" }, claude.Argumentos);
+        Assert.Equal(new[] { "-p", "--output-format", "text", "--permission-mode", "bypassPermissions", "--settings", """{"sandbox":{"enabled":false}}""", "--disallowedTools", "Bash Edit Write MultiEdit NotebookEdit WebFetch WebSearch Task" }, claude.Argumentos);
         var comPasta = IaDespacho.Montar(@"C:\x\claude.exe", null, @"C:\proc", comPasta: true, [@"C:\leis"]);
-        Assert.Equal(new[] { "--allowedTools", "Read Grep Glob", "--add-dir", @"C:\leis" }, comPasta.Argumentos.Skip(7));
+        Assert.Equal("WebFetch WebSearch Task", comPasta.Argumentos[8]);
+        Assert.Equal(new[] { "--allowedTools", "Read Grep Glob Edit Write Bash PowerShell", "--add-dir", @"C:\leis" }, comPasta.Argumentos.Skip(9));
         var codex = IaDespacho.Montar(null, @"C:\x\codex.exe", @"C:\tmp", comPasta: false, []);
         Assert.True(codex.Codex);
-        Assert.Equal(new[] { "exec", "--skip-git-repo-check", "--sandbox", "read-only", "--cd", @"C:\tmp", "--output-last-message" }, codex.Argumentos.Take(7));
+        Assert.Equal(new[] { "-a", "never", "exec", "--skip-git-repo-check", "--sandbox", "danger-full-access", "--cd", @"C:\tmp", "--output-last-message" }, codex.Argumentos.Take(9));
         Assert.DoesNotContain("-m", codex.Argumentos);
         Assert.DoesNotContain("--ephemeral", codex.Argumentos);
     }

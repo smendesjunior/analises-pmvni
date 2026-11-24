@@ -113,15 +113,22 @@ def item_ok(**mais):
 
 def dados_ok():
     return {
-        'capa': {'quadros': [{'titulo': 'A'}, {'titulo': 'B'}, {'titulo': 'C'}, {'titulo': 'D'}]},
+        'capa': {'protocolo': '01/02/2099', 'rotulo_data': 'ANÁLISE', 'data': '03/02/2099',
+                 'processo': '001/2099', 'requerente': 'Requerente fictício', 'pontos_confirmar': 'Área permeável.',
+                 'quadros': [{'titulo': t, 'destaque': d, 'apoio': a} for t, d, a in (
+                     ('Localização', 'Rua Exemplo', 'Lote 2'), ('Caracterização', 'Residencial', 'Uma unidade'),
+                     ('Autoria indicada', 'Autor fictício', 'Prancha 01'), ('Parâmetros', 'Zona de teste', 'Mapa fictício'))]},
         'itens': [item_ok(), item_ok(situacao='NAO_COMPROVADO', titulo='Área permeável')],
-        'fontes': [{'nome': 'Lei Fictícia nº 0/2000'}],
-        'conclusao': {'texto': 'Conclusão fictícia.'},
-        'assinatura': {'nome': 'Fulano de Tal'},
-        'indices': {'linhas': [{'nome': 'TO', 'situacao': 'CONTA_CONFERE'}, {'nome': 'CA', 'situacao': 'PENDENTE'}]},
-        'iluminacao': {'ambientes': [{'nome': 'Sala', 'situacao': 'DIVERGENCIA'}]},
-        'figuras': [{'imagem': 'fig1.png', 'notas': ['n1', 'n2']}],
-        'localizacao': {'situacao': 'CONFIRMADO', 'imagem': 'mapa.png',
+        'fontes': [{'rotulo': 'Norma fictícia', 'texto': 'Art. 1º da Lei Fictícia nº 0/2000'}],
+        'conclusao': 'Conclusão fictícia.',
+        'assinatura': {'nome': 'Fulano de Tal', 'cargo': 'Analista fictício'},
+        'indices': {'linhas': [
+            dict(nome='TO', situacao='CONTA_CONFERE', descricao='Taxa de ocupação', calculo='40/100', projeto='40%', limite='50%', texto='Dentro do limite.'),
+            dict(nome='CA', situacao='PENDENTE', descricao='Coeficiente', calculo='120/100', projeto='1,2', limite='A confirmar na norma.', texto='Verificar enquadramento.')]},
+        'diagrama': {'chamadas': [{'titulo': 'Projeção', 'texto': 'Comparar com a prancha 01.'}]},
+        'iluminacao': {'subtitulo': 'Vãos da sala', 'tag': 'Projeto', 'fonte': 'Prancha 01', 'ambientes': [{'nome': 'Sala', 'situacao': 'DIVERGENCIA'}]},
+        'figuras': [{'imagem': 'fig1.png', 'prancha': '01', 'titulo': 'Planta', 'fonte': 'Projeto fictício', 'notas': []}],
+        'localizacao': {'situacao': 'CONFIRMADO', 'imagem': 'mapa.png', 'subtitulo': 'Consulta cadastral', 'texto': 'Lote fictício identificado.', 'fonte': 'Base de teste',
                         'dados': [{'rotulo': 'Inscrição', 'valor': '1'}, {'rotulo': 'Lote', 'valor': '2'}, {'rotulo': 'Rua', 'valor': '3'}]},
     }
 
@@ -131,6 +138,11 @@ def casos_conferir():
     imgs_ok = ['fig1.png', 'mapa.png']
     c = {}
     c['valido'] = (ok, imgs_ok, False)
+    d = dados_ok()
+    del d['capa']['protocolo']
+    d['fontes'][0]['texto'] = ' '
+    d['assinatura']['cargo'] = None
+    c['campos_sem_conteudo'] = (d, imgs_ok, False)
     d = dados_ok(); d['itens'][0]['situacao'] = 'ATENDEU'; d['itens'][1]['situacao'] = 12.0
     d['itens'].append(item_ok(situacao=3)); d['itens'].append(item_ok(situacao=None, verificacao='  ', base_legal=None))
     d['indices']['linhas'][0]['situacao'] = 'NAO_COMPROVADO'; d['iluminacao']['ambientes'][0]['situacao'] = 'CONFIRMADO'
@@ -141,7 +153,7 @@ def casos_conferir():
     d = dados_ok(); d['figuras'][0]['notas'] = ['1', '2', '3', '4', '5', '6', '7']
     c['sete_notas'] = (d, imgs_ok, False)
     d = dados_ok()
-    d['conclusao']['texto'] = 'Falta [DD/MM/AAAA] e [Nº]/[ANO]; também [x] e [ab]. [ÁREA] [zeta] [Zeta] [😀 astral] [￮ fim]'
+    d['conclusao'] = 'Falta [DD/MM/AAAA] e [Nº]/[ANO]; também [x] e [ab]. [ÁREA] [zeta] [Zeta] [😀 astral] [￮ fim]'
     d['capa']['quadros'][0]['destaque'] = '[Endereço do carimbo, nº, bairro]'
     d['itens'][0]['verificacao'] = '[aa] [bb] [cc] [a] [b] [c] [d] [e] [f] [g] [h] [i] [j] [k]'
     d['assinatura']['nome'] = '[' + 'x' * 80 + '] [' + 'y' * 81 + '] [multi\nlinha] [[aninhado]]'

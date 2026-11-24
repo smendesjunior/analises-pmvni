@@ -1,15 +1,27 @@
 {
  "dados": {
   "capa": {
+   "protocolo": "01/02/2099",
+   "rotulo_data": "ANÁLISE",
+   "data": "03/02/2099",
+   "processo": "001/2099",
+   "requerente": "Requerente fictício",
+   "pontos_confirmar": "Área permeável.",
    "quadros": [
     {
-     "titulo": "A"
+     "titulo": "Localização",
+     "destaque": "Rua Exemplo",
+     "apoio": "Lote 2"
     },
     {
-     "titulo": "B"
+     "titulo": "Caracterização",
+     "destaque": "Residencial",
+     "apoio": "Uma unidade"
     },
     {
-     "titulo": "C"
+     "titulo": "Autoria indicada",
+     "destaque": "Autor fictício",
+     "apoio": "Prancha 01"
     }
    ]
   },
@@ -33,28 +45,49 @@
   ],
   "fontes": [
    {
-    "nome": "Lei Fictícia nº 0/2000"
+    "rotulo": "Norma fictícia",
+    "texto": "Art. 1º da Lei Fictícia nº 0/2000"
    }
   ],
-  "conclusao": {
-   "texto": "Conclusão fictícia."
-  },
+  "conclusao": "Conclusão fictícia.",
   "assinatura": {
-   "nome": "Fulano de Tal"
+   "nome": "Fulano de Tal",
+   "cargo": "Analista fictício"
   },
   "indices": {
    "linhas": [
     {
      "nome": "TO",
-     "situacao": "CONTA_CONFERE"
+     "situacao": "CONTA_CONFERE",
+     "descricao": "Taxa de ocupação",
+     "calculo": "40/100",
+     "projeto": "40%",
+     "limite": "50%",
+     "texto": "Dentro do limite."
     },
     {
      "nome": "CA",
-     "situacao": "PENDENTE"
+     "situacao": "PENDENTE",
+     "descricao": "Coeficiente",
+     "calculo": "120/100",
+     "projeto": "1,2",
+     "limite": "A confirmar na norma.",
+     "texto": "Verificar enquadramento."
+    }
+   ]
+  },
+  "diagrama": {
+   "chamadas": [
+    {
+     "titulo": "Projeção",
+     "texto": "Comparar com a prancha 01."
     }
    ]
   },
   "iluminacao": {
+   "subtitulo": "Vãos da sala",
+   "tag": "Projeto",
+   "fonte": "Prancha 01",
    "ambientes": [
     {
      "nome": "Sala",
@@ -65,10 +98,10 @@
   "figuras": [
    {
     "imagem": "fig1.png",
-    "notas": [
-     "n1",
-     "n2"
-    ]
+    "prancha": "01",
+    "titulo": "Planta",
+    "fonte": "Projeto fictício",
+    "notas": []
    }
   ],
   "localizacao": {
@@ -90,6 +123,10 @@
  "erros": [
   "A capa precisa de exatamente 4 quadros",
   "Localização: a ficha precisa de ao menos 3 dados (inscrição, lote, ruas…)",
-  "Localização a confirmar: explique em \"texto\" o que falta"
+  "Localização a confirmar: explique em \"texto\" o que falta",
+  "Campo de publicação sem conteúdo: localizacao.subtitulo",
+  "Campo de publicação sem conteúdo: localizacao.texto",
+  "Campo de publicação sem conteúdo: localizacao.fonte",
+  "Campo de publicação sem conteúdo: localizacao.dados[1].valor"
  ]
 }

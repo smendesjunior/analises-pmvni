@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json.Nodes;
 using Pmvni.Agentes;
 using Pmvni.Composicao.Web;
 using Pmvni.Revisao;
@@ -20,6 +21,7 @@ namespace Pmvni.App;
 internal sealed class CatalogoModelosIa
 {
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
+    static readonly HttpClient Balanceador = new(new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false }) { Timeout = TimeSpan.FromSeconds(8) };
 
     readonly string raizDados;
     readonly Func<string> codexHome;
@@ -137,6 +139,77 @@ internal sealed class CatalogoModelosIa
             File.Move(tmp, ArquivoGerado.Caminho(ArquivoCache), overwrite: true);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+    }
+
+    internal async Task<OfertaDeModelos> ConsultarParaDecisaoAsync(ExecucaoEmCurso execucao, EscolhaModelosDaExecucao escolha, CancellationToken ct)
+    {
+        if (escolha.Oferta is { DaConta: true, Modelos.Count: > 0 } consultada) return consultada;
+        var (modo, rota) = execucao.Registro.AcessoDaExecucao();
+        var pecas = execucao.Pecas;
+        try
+        {
+            if (escolha.Rota == "gemini" && MatrizGemini.DoCodigo(escolha.Perfil) is { } perfil)
+            {
+                var usaChave = MatrizGemini.Modo(perfil) == ModoAcesso.Chave;
+                var chave = usaChave ? CofreChaves.Ler(raizDados, Provedor.Gemini) : null;
+                if (usaChave && string.IsNullOrWhiteSpace(chave)) throw new InvalidOperationException("Chave do Gemini indisponível.");
+                var (json, _) = await ModelosDoGemini.LerAsync(pecas, perfil, chave, raizDados, ct);
+                if (json is not null && JsonNode.Parse(json) is JsonObject g && g["modelos"] is JsonArray lista)
+                {
+                    var ids = EscolhaModelosDaExecucao.Ids(lista.OfType<JsonObject>().Select(o => o["modelo"]));
+                    var daConta = g["lista_do_provedor"] is JsonValue v && v.TryGetValue<bool>(out var sim) && sim;
+                    if (ids.Count > 0) return new(ids, daConta ? MatrizGemini.Nome(perfil) : "tabela do kit para " + MatrizGemini.Nome(perfil), daConta);
+                }
+            }
+            else if (escolha.Rota == "codex" && rota == "codex-lb")
+            {
+                if (TravaDeProgramas.Permitidos is null && EnderecoCodexLb(pecas.CodexHome) is { } url)
+                {
+                    var json = await Balanceador.GetStringAsync(url, ct);
+                    if (JsonNode.Parse(json) is JsonObject lb && lb["data"] is JsonArray modelos)
+                    {
+                        var ids = EscolhaModelosDaExecucao.Ids(modelos.OfType<JsonObject>().Select(o => o["id"]));
+                        if (ids.Count > 0) return new(ids, "catálogo atual do Codex-LB, compartilhado entre as contas", false);
+                    }
+                }
+            }
+            else if (modo is "chave" or "conta" && escolha.Rota is "codex" or "claude")
+            {
+                var fonte = escolha.Rota == "claude" ? (modo == "chave" ? FonteIa.AnthropicApi : FonteIa.ClaudeCode)
+                    : (modo == "chave" ? FonteIa.OpenAiApi : FonteIa.Codex);
+                if (fonte == FonteIa.Codex && pecas.Codex is not null && rota == "openai")
+                {
+                    var json = await RodarAsync(pecas.Codex, ["debug", "models", "-c", "model_provider=openai"], null, TimeSpan.FromSeconds(30), ct);
+                    var ids = CatalogoIa.LerCodex(json).Select(m => m.Id).ToList();
+                    if (ids.Count > 0) return new(ids, "catálogo do Codex para a OpenAI direta", false);
+                }
+                else if (fonte != FonteIa.Codex && await LerAgoraAsync(fonte, pecas, ct) is { Modelos.Count: > 0 } lida)
+                    return new(lida.Modelos.Select(m => m.Id).ToList(), FontesIa.Nome(fonte), true);
+            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { }
+        catch (Exception e) when (e is IOException or HttpRequestException or InvalidOperationException or
+            System.Text.Json.JsonException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or TimeoutException or System.Security.Cryptography.CryptographicException) { }
+        return escolha.Oferta is { Modelos.Count: > 0 } sugestoes ? sugestoes
+            : new([], "A rota não forneceu um catálogo atual para esta conta.", false);
+    }
+
+    static Uri? EnderecoCodexLb(string? pasta)
+    {
+        var arquivo = pasta is null ? null : Path.Combine(pasta, "config.toml");
+        if (!File.Exists(arquivo)) return null;
+        var secao = false;
+        foreach (var bruta in File.ReadLines(arquivo!))
+        {
+            var linha = bruta.Split('#', 2)[0].Trim();
+            if (linha.StartsWith('[')) { secao = linha == "[model_providers.codex-lb]"; continue; }
+            var partes = linha.Split('=', 2, StringSplitOptions.TrimEntries);
+            if (!secao || partes.Length != 2 || partes[0] != "base_url") continue;
+            if (Uri.TryCreate(partes[1].Trim('"', '\''), UriKind.Absolute, out var baseUrl) && baseUrl.IsLoopback
+                && baseUrl.Scheme is "http" or "https" && baseUrl.UserInfo == "")
+                return new Uri(baseUrl, "/v1/models");
+        }
+        return null;
     }
 
     async Task<ListaModelos?> LerAgoraAsync(FonteIa f, Pecas pecas, CancellationToken ct)

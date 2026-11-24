@@ -1,19 +1,32 @@
 {
  "dados": {
   "capa": {
+   "protocolo": "01/02/2099",
+   "rotulo_data": "ANÁLISE",
+   "data": "03/02/2099",
+   "processo": "001/2099",
+   "requerente": "Requerente fictício",
+   "pontos_confirmar": "Área permeável.",
    "quadros": [
     {
-     "titulo": "A",
-     "destaque": "[Endereço do carimbo, nº, bairro]"
+     "titulo": "Localização",
+     "destaque": "[Endereço do carimbo, nº, bairro]",
+     "apoio": "Lote 2"
     },
     {
-     "titulo": "B"
+     "titulo": "Caracterização",
+     "destaque": "Residencial",
+     "apoio": "Uma unidade"
     },
     {
-     "titulo": "C"
+     "titulo": "Autoria indicada",
+     "destaque": "Autor fictício",
+     "apoio": "Prancha 01"
     },
     {
-     "titulo": "D"
+     "titulo": "Parâmetros",
+     "destaque": "Zona de teste",
+     "apoio": "Mapa fictício"
     }
    ]
   },
@@ -37,28 +50,49 @@
   ],
   "fontes": [
    {
-    "nome": "Lei Fictícia nº 0/2000"
+    "rotulo": "Norma fictícia",
+    "texto": "Art. 1º da Lei Fictícia nº 0/2000"
    }
   ],
-  "conclusao": {
-   "texto": "Falta [DD/MM/AAAA] e [Nº]/[ANO]; também [x] e [ab]. [ÁREA] [zeta] [Zeta] [😀 astral] [￮ fim]"
-  },
+  "conclusao": "Falta [DD/MM/AAAA] e [Nº]/[ANO]; também [x] e [ab]. [ÁREA] [zeta] [Zeta] [😀 astral] [￮ fim]",
   "assinatura": {
-   "nome": "[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx] [yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy] [multi\nlinha] [[aninhado]]"
+   "nome": "[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx] [yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy] [multi\nlinha] [[aninhado]]",
+   "cargo": "Analista fictício"
   },
   "indices": {
    "linhas": [
     {
      "nome": "TO",
-     "situacao": "CONTA_CONFERE"
+     "situacao": "CONTA_CONFERE",
+     "descricao": "Taxa de ocupação",
+     "calculo": "40/100",
+     "projeto": "40%",
+     "limite": "50%",
+     "texto": "Dentro do limite."
     },
     {
      "nome": "CA",
-     "situacao": "PENDENTE"
+     "situacao": "PENDENTE",
+     "descricao": "Coeficiente",
+     "calculo": "120/100",
+     "projeto": "1,2",
+     "limite": "A confirmar na norma.",
+     "texto": "Verificar enquadramento."
+    }
+   ]
+  },
+  "diagrama": {
+   "chamadas": [
+    {
+     "titulo": "Projeção",
+     "texto": "Comparar com a prancha 01."
     }
    ]
   },
   "iluminacao": {
+   "subtitulo": "Vãos da sala",
+   "tag": "Projeto",
+   "fonte": "Prancha 01",
    "ambientes": [
     {
      "nome": "Sala",
@@ -69,15 +103,18 @@
   "figuras": [
    {
     "imagem": "fig1.png",
-    "notas": [
-     "n1",
-     "n2"
-    ]
+    "prancha": "01",
+    "titulo": "Planta",
+    "fonte": "Projeto fictício",
+    "notas": []
    }
   ],
   "localizacao": {
    "situacao": "CONFIRMADO",
    "imagem": "mapa.png",
+   "subtitulo": "Consulta cadastral",
+   "texto": "Lote fictício identificado.",
+   "fonte": "Base de teste",
    "dados": [
     {
      "rotulo": "Inscrição",

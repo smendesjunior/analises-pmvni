@@ -958,6 +958,7 @@ public sealed partial class MainWindow
         NR.ReiniciarEstimativa();
         NR.MostrarProgresso(null);
         NR.MostrarConsumo([]);
+        NR.ModelosConfigurados = "";
         NR.MostrarDetalhesDasEtapas(DetalhesDasEtapas.Vazio);
         _ = AtualizarAchadosAsync(e);
         NR.LigarLinhas(e.LinhasObservaveis);
@@ -1010,13 +1011,16 @@ public sealed partial class MainWindow
                     RenderizarExecucao(e);
                 }
                 else if (mudouEstimativa) RenderizarExecucao(e);
-                var ((consumo, amostra), detalhes, orcamento, evidencias) = await Task.Run(() => (
+                var acesso = e.Registro.AcessoDaExecucao();
+                var ((consumo, amostra), detalhes, orcamento, evidencias, modelos) = await Task.Run(() => (
                     ConsumoAoVivo.Ler(controle, desde, e.Provedor, Path.GetFileName(e.Registro.Pasta), ordemDoKit, sessoes,
                         e.Fim?.IsCompleted == true ? null : DateTimeOffset.UtcNow),
                     DetalhesDasEtapas.Ler(controle, etapasJson, desde),
                     e.Provedor == Provedor.ChatGpt ? OrcamentoDaAnalise.Ler(controle, desde) : null,
-                    Directory.Exists(PastaEvidenciasDoMonitor(e))));
+                    Directory.Exists(PastaEvidenciasDoMonitor(e)),
+                    EscolhaModelosDaExecucao.ResumoConfigurado(e.Registro.Pasta, e.Provedor, e.Registro.PerfilDaExecucao(), acesso.RotaCodex ?? acesso.Modo)));
                 if (fechada || !ReferenceEquals(e, execucaoMostrada)) return;
+                NR.ModelosConfigurados = modelos;
                 NR.MostrarEvidencias(evidencias);
                 NR.MostrarDetalhesDasEtapas(detalhes);
                 NR.MostrarConsumo(consumo, orcamento, amostra);
@@ -1147,6 +1151,17 @@ public sealed partial class MainWindow
     async Task<string?> DecidirAsync(ExecucaoEmCurso e, DecisaoAnalise d, CancellationToken ct)
     {
         if (fechada || ct.IsCancellationRequested) return null;
+        if (d.Tipo == "modelos_indisponiveis")
+        {
+            var configuracaoRecusada = EscolhaModelosDaExecucao.Ler(d.Json);
+            if (configuracaoRecusada is null || ModelosDaAnalise.ProvedorDaRota(configuracaoRecusada.Rota) != e.Provedor) return null;
+            NotificacoesWindows.Mostrar("A conta recusou a configuração de uma etapa", "Abra o Editor para escolher o modelo e retomar a análise.");
+            var catalogo = CatalogoDeModelos;
+            var oferta = await Task.Run(() => catalogo.ConsultarParaDecisaoAsync(e, configuracaoRecusada, ct), ct);
+            if (fechada || ct.IsCancellationRequested) return null;
+            var tituloModelo = "Modelos desta análise • " + FluxoNovoRelatorio.Identificacao(e.Processo);
+            return await Perguntas.Atual.EscolherModelosAsync(tituloModelo, configuracaoRecusada, oferta, ct);
+        }
         if (d.Tipo is not ("limite_cota" or "revalidar_preparo" or "plugin_antigo"))
         {
             if (d.Tipo == "entradas_mudaram")

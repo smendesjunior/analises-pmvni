@@ -18,6 +18,8 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
     /// <see cref="Agentes.RotaCodex.Resolver"/>.</summary>
     public string? RotaCodex { get; init; }
     public string? PastaQgis { get; init; }
+    public string? NomeProfissional { get; init; }
+    public string? CargoProfissional { get; init; }
     public string? PastaKit { get; init; }
 
     /// <summary>ChatGPT: continua o controle que já existe na pasta do processo (o controlador é chamado sem <c>--inputs</c>) em vez de começar do zero. Vale
@@ -98,6 +100,11 @@ public sealed class OrquestradorAnalise
                 || Path.GetFileName(exe).Equals("Editor de Relatorios PMVNI.exe", StringComparison.OrdinalIgnoreCase)))
             env["PMVNI_EDITOR_MAPA_EXE"] = exe;
         else env.Remove("PMVNI_EDITOR_MAPA_EXE");
+        if (pedido is not null)
+        {
+            env["PMVNI_PROFISSIONAL_NOME"] = pedido.NomeProfissional ?? "";
+            env["PMVNI_PROFISSIONAL_CARGO"] = pedido.CargoProfissional ?? "";
+        }
         if (!string.IsNullOrWhiteSpace(pedido?.PastaQgis)) env["PMVNI_QGIS_ROOT"] = pedido.PastaQgis;
         if (!string.IsNullOrWhiteSpace(pedido?.PastaKit) && Directory.Exists(pedido.PastaKit)) env["PMVNI_KIT"] = pedido.PastaKit;
         if (registro is not null)
@@ -113,8 +120,10 @@ public sealed class OrquestradorAnalise
     /// (<see cref="TabelaDeModelos.ChaveNoRegistro"/>: o arquivo, a tabela e os avisos). Devolve o caminho que vai para o controlador; null sem tabela.</summary>
     static string? GravarTabelaDeModelos(PedidoExecucao pe)
     {
-        if (pe.Modelos is not { } t) return null;
         var arquivo = Path.Combine(pe.Registro.Pasta, TabelaDeModelos.NomeDoArquivo);
+        // O kit pode ter gravado aqui as substituições que o analista escolheu para esta execução.
+        if (pe.Retomar && File.Exists(arquivo)) return arquivo;
+        if (pe.Modelos is not { } t) return null;
         var tmp = arquivo + ".tmp";
         File.WriteAllText(ArquivoGerado.Caminho(tmp), t.Json, new UTF8Encoding(false));
         File.Move(tmp, ArquivoGerado.Caminho(arquivo), overwrite: true);
@@ -131,7 +140,11 @@ public sealed class OrquestradorAnalise
     }
 
     /// <summary>O <c>modelos-por-rota.json</c> do registro quando esta execução traz tabela (<see cref="GravarTabelaDeModelos"/>); senão null.</summary>
-    static string? ArquivoDaTabela(PedidoExecucao pe) => pe.Modelos is null ? null : Path.Combine(pe.Registro.Pasta, TabelaDeModelos.NomeDoArquivo);
+    static string? ArquivoDaTabela(PedidoExecucao pe)
+    {
+        var arquivo = Path.Combine(pe.Registro.Pasta, TabelaDeModelos.NomeDoArquivo);
+        return pe.Modelos is not null || (pe.Retomar && File.Exists(arquivo)) ? arquivo : null;
+    }
 
     static FimAnalise Falha(string mensagem, int? codigo = null) => new("falhou", null, null, mensagem, codigo);
 
@@ -334,6 +347,17 @@ public sealed class OrquestradorAnalise
                 o["mensagem"] = fim.Mensagem;
                 o["document"] = fim.Documento;
                 o["pdf"] = fim.Pdf;
+                if (o[TabelaDeModelos.ChaveNoRegistro] is JsonObject historico && o["decisoes"] is JsonArray decisoes
+                    && decisoes.OfType<JsonObject>().Any(d => d["tipo"]?.ToString() == "modelos_indisponiveis"))
+                {
+                    var arquivo = Path.Combine(pe.Registro.Pasta, TabelaDeModelos.NomeDoArquivo);
+                    try
+                    {
+                        if (File.Exists(arquivo) && JsonNode.Parse(File.ReadAllText(arquivo)) is JsonObject atual)
+                            historico["tabela"] = atual;
+                    }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { Registrar(e); }
+                }
             });
             pe.Registro.Descarregar();
         }
@@ -650,7 +674,7 @@ public sealed class OrquestradorAnalise
     /// <summary>Grava a resposta onde a decisão pediu (dentro da pasta de controle do kit) e guarda no registro o que foi perguntado e respondido.</summary>
     static void Responder(PedidoExecucao pe, Provedor p, DecisaoAnalise d, string resposta)
     {
-        var arquivo = RespostaDecisao.Gravar(pe.Processo.Pasta, p, d, resposta);
+        var arquivo = RespostaDecisao.Gravar(pe.Processo.Pasta, p, d, resposta, pe.Registro.Pasta);
         pe.Registro.Atualizar(o =>
         {
             var lista = o["decisoes"] as JsonArray ?? new JsonArray();
@@ -751,7 +775,20 @@ public sealed class OrquestradorAnalise
         var saida = redator.Aplicar(r.Saida);
         pe.Registro.Atualizar(o => o["conferencia_gemini"] = Compactar(DoPrimeiroJson(saida)));
         if (r.Codigo == 0) return null;
+        // Havendo somente recusa do modelo, o controlador abre a decisão antes de consumir uma sessão.
+        if (ArquivoDaTabela(pe) is not null && RecusaDeModeloGemini(saida)) return null;
         return Falha(MensagemDaConferencia(saida, pe.Perfil) + " Nada foi iniciado e nenhum outro modo, modelo ou perfil foi usado.", r.Codigo);
+    }
+
+    internal static bool RecusaDeModeloGemini(string saida)
+    {
+        try
+        {
+            return JsonNode.Parse(DoPrimeiroJson(saida)) is JsonObject o && o["recusa_modelo"] is JsonObject r
+                && r["etapa"] is JsonValue etapa && etapa.TryGetValue<string>(out var e) && !string.IsNullOrWhiteSpace(e)
+                && r["modelo"] is JsonValue modelo && modelo.TryGetValue<string>(out var m) && !string.IsNullOrWhiteSpace(m);
+        }
+        catch (JsonException) { return false; }
     }
 
     /// <summary>O que a conferência do análise Google recusou, em uma frase: as <c>faltas</c> do JSON (perfil, etapa e modelo) ou a primeira linha da saída.</summary>

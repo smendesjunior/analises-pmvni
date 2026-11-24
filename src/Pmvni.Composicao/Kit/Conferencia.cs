@@ -9,6 +9,51 @@ public static class Conferencia
 {
     private static string Dois(int i) => i.ToString("00", CultureInfo.InvariantCulture);
 
+    private static readonly (string Caminho, string Campos)[] CamposImpressos =
+    [
+        ("capa", "protocolo rotulo_data data processo requerente pontos_confirmar"),
+        ("capa.quadros", "titulo destaque apoio"),
+        ("itens", "titulo verificacao providencia base_legal referencia"),
+        ("fontes", "rotulo texto"),
+        ("assinatura", "nome cargo"),
+        ("", "conclusao"),
+        ("localizacao", "subtitulo texto fonte"),
+        ("localizacao.dados", "rotulo valor"),
+        ("localizacao.legenda", "texto"),
+        ("indices.linhas", "nome descricao calculo projeto limite texto"),
+        ("indices.declaracoes", "rotulo valor fonte"),
+        ("indices.sem_calculo", "motivo evidencia"),
+        ("diagrama.chamadas", "titulo texto"),
+        ("iluminacao", "subtitulo tag fonte"),
+        ("iluminacao.ambientes", "nome"),
+        ("iluminacao.ambientes.vaos", "codigo tipo"),
+        ("iluminacao.ambientes.minimo", "texto"),
+        ("iluminacao.ambientes.resultado", "total conta comparacao"),
+        ("figuras", "prancha titulo fonte"),
+        ("figuras.notas", "elemento itens"),
+        ("historico_reanalise.pendencias", "origem situacao pendencia confronto evidencia"),
+    ];
+
+    private static IEnumerable<(string Local, IReadOnlyDictionary<string, object?> Dados)> Objetos(
+        object? no, string[] caminho, int posicao, string local)
+    {
+        if (no is IReadOnlyDictionary<string, object?> objeto)
+        {
+            if (posicao == caminho.Length) yield return (local, objeto);
+            else if (objeto.TryGetValue(caminho[posicao], out var filho))
+            {
+                var proximo = local.Length == 0 ? caminho[posicao] : local + "." + caminho[posicao];
+                foreach (var item in Objetos(filho, caminho, posicao + 1, proximo)) yield return item;
+            }
+        }
+        else if (no is IEnumerable lista and not string)
+        {
+            var i = 0;
+            foreach (var filho in lista)
+                foreach (var item in Objetos(filho, caminho, posicao, $"{local}[{++i}]")) yield return item;
+        }
+    }
+
     private static bool EmSet(object? v, IReadOnlySet<string> conjunto) => v is string s && conjunto.Contains(s);
 
     /// <summary>Lista de erros, na mesma ordem e com o mesmo texto do kit. <paramref name="imagemExiste"/> recebe o caminho
@@ -36,6 +81,12 @@ public static class Conferencia
         }
 
         var linhas = Dados.Lista(Dados.Obter(SeVerdadeiro(Dados.Obter(d, "indices")), "linhas", new List<object?>()));
+        if (Dados.Obter(d, "indices") is IReadOnlyDictionary<string, object?> indices && !linhas.Any()
+            && indices.TryGetValue("sem_calculo", out var lacuna)
+            && (lacuna is not IReadOnlyDictionary<string, object?> dado ||
+                string.IsNullOrWhiteSpace(Dados.Obter(dado, "motivo") as string) ||
+                string.IsNullOrWhiteSpace(Dados.Obter(dado, "evidencia") as string)))
+            erros.Add("Índices sem cálculo: informe motivo e evidência da peça examinada.");
         // Pacotes antigos não exigiam diagrama. Podem ser reabertos e reexportados na revisão original.
         var revisao = Dados.Txt(Dados.Obter(d, "revisao_modelo_relatorio"));
         if (!rascunho && linhas.Count > 0 && int.TryParse(revisao, out var numero) && numero >= 12
@@ -52,6 +103,10 @@ public static class Conferencia
             var sit = Dados.Obter(a, "situacao");
             if (!EmSet(sit, Situacoes.SitIndice))
                 erros.Add("Ambiente \"" + Dados.Txt(Dados.Obter(a, "nome")) + "\": situação inválida " + PythonTexto.Repr(sit));
+            foreach (var vao in Dados.Lista(Dados.Obter(a, "vaos", new List<object?>())))
+                if (string.IsNullOrWhiteSpace(Dados.Txt(Dados.Obter(vao, "area", "")))
+                    && string.IsNullOrWhiteSpace(Dados.Txt(Dados.Obter(vao, "sem_area", ""))))
+                    erros.Add("Ambiente \"" + Dados.Txt(Dados.Obter(a, "nome")) + "\": abertura sem área e sem justificativa.");
         }
 
         var n = 0;
@@ -83,6 +138,15 @@ public static class Conferencia
 
         if (!rascunho)
         {
+            foreach (var (caminho, campos) in CamposImpressos)
+                foreach (var (local, objeto) in Objetos(d, caminho.Split('.', StringSplitOptions.RemoveEmptyEntries), 0, ""))
+                    foreach (var campo in campos.Split(' '))
+                    {
+                        objeto.TryGetValue(campo, out var valor);
+                        if (local.Length == 0 && campo == "conclusao" && !PythonTexto.Verdadeiro(valor)) continue;
+                        if (valor is not string texto || texto.Trim() is "" or "-" or "—" or "…")
+                            erros.Add("Campo de publicação sem conteúdo: " + (local.Length == 0 ? campo : local + "." + campo));
+                    }
             var pend = new SortedSet<string>(Comparer<string>.Create(Dados.ComparaPontosDeCodigo));
             foreach (var s in Textos(d)) foreach (var m in Colchetes(s)) pend.Add(m);
             if (pend.Count > 0)

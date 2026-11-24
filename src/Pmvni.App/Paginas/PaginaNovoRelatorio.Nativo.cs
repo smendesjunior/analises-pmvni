@@ -108,7 +108,7 @@ public sealed partial class PaginaNovoRelatorio
         {
             "Log" => string.Join("|", versaoLogHtml, atividades.Count, HoraUltimoEvento.Text, TituloStatus.Text, emCurso, BotaoEvidenciasPdf.Visibility),
             "Etapas" => string.Join("|", cabecalho, ChaveEtapas(), etapaAberta),
-            "Detalhes" => string.Join("|", ChaveEtapas(), ErroDetalhes.Text, TextoUltimaMensagem.Text, PainelUltimaMensagem.Visibility,
+            "Detalhes" => string.Join("|", ModelosConfigurados, ChaveEtapas(), ErroDetalhes.Text, TextoUltimaMensagem.Text, PainelUltimaMensagem.Visibility,
                 string.Join(";", detalhesEtapas.Validacoes), string.Join(";", detalhesEtapas.Plano)),
             "Consumo" => string.Join("|", ChaveConsumo(), orcamentoExibido),
             _ => string.Join("|", string.Join(";", achadosExibidos.Select(a => a.Id + a.Situacao + a.Verificado + a.Titulo)), filtroAchados, todasEvidencias,
@@ -685,10 +685,18 @@ public sealed partial class PaginaNovoRelatorio
 
     // ── Detalhes ──
 
+    internal string ModelosConfigurados { get; set; } = "";
+
     void PaginaDetalhes()
     {
         Adicionar(TituloDePagina(Glifos.Documento, "Detalhes da análise", "Plano, registros e resultados de cada etapa do processo.",
             Selo(etapasMostradas.Length == 1 ? "1 etapa mapeada" : $"{etapasMostradas.Length} etapas mapeadas", "MnTagSucesso", "MnTagTextoSucesso")), 0);
+        var modelos = Cartao();
+        var grade = new StackPanel { Spacing = 5, Margin = new Thickness(16, 12, 16, 12) };
+        grade.Children.Add(Texto("Modelos configurados para esta análise", "MnCorpoForte"));
+        grade.Children.Add(Texto(string.IsNullOrEmpty(ModelosConfigurados) ? "Lendo a configuração desta execução…" : ModelosConfigurados, "MnSecundario"));
+        modelos.Child = grade;
+        Adicionar(modelos, 12);
         var lista = Cartao();
         Elevar(lista, levantar: false);
         var pilha = new StackPanel();

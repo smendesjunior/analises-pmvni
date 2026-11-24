@@ -13,13 +13,14 @@ public sealed class RegistroModelosTestes
         Assert.Empty(r.Indisponiveis);
         Assert.Equal(new[] { (TipoDespacho.Correcao, "correction"), (TipoDespacho.Aprovacao, "approval_simple") },
             r.Modelos.Select(m => (m.Tipo, m.Papel)));
-        Assert.All(r.Modelos, m => Assert.Equal(10, m.RevisaoRegistro));
         // Falha de propósito se o kit mudar: rever o desenho §10.1 antes de ajustar o teste.
         Assert.Equal("856dcf9ee49da68f5a7ea440bda43dc5a6f5ab06453c501b94b9a222f4039d61", r.Modelos[0].Sha256);
         Assert.Equal("f5598577e2954726e3a2ce99d06fc728e6447dc461101e6c2df2280d82e152b7", r.Modelos[1].Sha256);
         // O caminho depende da fonte usada: o registro 02 - MODELOS DE DOCUMENTOS do kit (kit mestre de hoje) ou o references\despacho do analise (Tarefa 22,
         // kit de desenvolvimento); o conteúdo (sha256 e revisão) é o mesmo.
         Assert.NotNull(r.Fonte);
+        var revisaoRegistrada = (int)JsonNode.Parse(File.ReadAllText(r.Fonte!.Registro))!["templates_revision"]!;
+        Assert.All(r.Modelos, m => Assert.Equal(revisaoRegistrada, m.RevisaoRegistro));
         var doRegistroDoKit = string.Equals(Path.GetFullPath(r.Fonte!.Registro), Path.GetFullPath(FontesModelos.DoRegistroDoKit(Ambiente.ExigirKit()).Registro),
             StringComparison.OrdinalIgnoreCase);
         Assert.Equal(doRegistroDoKit ? "02 - MODELOS DE DOCUMENTOS/DESPACHO/MODELO DESPACHO CORREÇÃO.docx" : "modelos/MODELO DESPACHO CORREÇÃO.docx",

@@ -208,6 +208,8 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         {
             RotaCodex = rotaCodex?.Invoke(), Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini, Retomar = retomada, Decidir = Decisor(e),
             Modelos = modelos, PastaQgis = pastaQgis, PastaKit = pastaKit,
+            NomeProfissional = Pmvni.Composicao.Profissional.Atual?.NomeLinha,
+            CargoProfissional = Pmvni.Composicao.Profissional.Atual?.Cargo(),
         };
         e.Fim = e.AcompanharTempoAsync(() => RodarAsync(() => orq.ExecutarAsync(pedido, progresso, e.Cancelamento.Token, trava), progresso, trava));
         execucoes.Add(e);

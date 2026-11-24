@@ -61,6 +61,9 @@ public sealed partial class MainWindow
         ? ajustes.Agentes[Provedor.ChatGpt].Modo == ModoAcesso.Chave ? FonteIa.OpenAiApi : FonteIa.Codex
         : ajustes.Agentes[Provedor.Claude].Modo == ModoAcesso.Chave ? FonteIa.AnthropicApi : FonteIa.ClaudeCode;
 
+    bool UsaCatalogoIndicativoDoCodex(string rota) => rota == "codex" &&
+        RotaCodex.Resolver(ajustes.Agentes[Provedor.ChatGpt].Modo, ajustes.RotaCodex, pecasAgentes.CodexHome).Rota == "codex-lb";
+
     /// <summary>A lista de modelos que o provedor da coluna oferece agora: ChatGPT e Claude pela lista do modo em uso (app ou API); Gemini pela lista que a rota
     /// Gemini do kit devolveu para o grupo do perfil (agy ou API) e, no Gemini Web, os modelos da tabela do kit. Enquanto o Gemini não respondeu, os da tabela,
     /// sem recusar nada.</summary>
@@ -75,6 +78,12 @@ public sealed partial class MainWindow
         }
         var fonte = FonteDaRota(col.Rota);
         var l = CatalogoDeModelos.Lista(fonte);
+        if (UsaCatalogoIndicativoDoCodex(col.Rota))
+        {
+            // O catálogo do aplicativo fornece sugestões, mas não atesta a oferta ou os níveis da conta escolhida pelo LB.
+            var sugestoes = l.Modelos.Select(m => m with { Niveis = [], NivelPadrao = null }).ToList();
+            return new ListaDaRota(sugestoes, Conferida: false, "do catálogo local do Codex");
+        }
         var de = fonte switch { FonteIa.Codex => "do app ChatGPT", FonteIa.OpenAiApi => "da OpenAI API", FonteIa.ClaudeCode => "do app Claude", _ => "da Claude API" };
         return new ListaDaRota(l.Modelos, Conferida: l.Origem != "reserva", de);
     }
@@ -229,6 +238,7 @@ public sealed partial class MainWindow
                 var perfil = partes.Length == 2 ? partes[1] : coluna.Rota switch
                 {
                     "gemini" => coluna.Perfil,
+                    "codex" when UsaCatalogoIndicativoDoCodex(coluna.Rota) => "Codex-LB",
                     _ when FonteDaRota(coluna.Rota) is FonteIa.Codex or FonteIa.ClaudeCode => "Aplicativo",
                     _ => "API"
                 };
@@ -248,7 +258,9 @@ public sealed partial class MainWindow
             DistribuirCartoes(p.CartoesRotas, p.CartoesRotas.ActualWidth);
             p.TituloRota.Text = selecionada.Titulo;
             p.PainelModelosAnalise.Children.Add(GradeDosModelos(kit, etapas, a, selecionada));
-            p.OrigemModelos.Text = $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte} e atualizados ao abrir a página e antes de cada análise." + (selecionada.Rota == "gemini" && falhaListaGemini is { } falha ? " A última consulta falhou. " + falha : "");
+            p.OrigemModelos.Text = UsaCatalogoIndicativoDoCodex(selecionada.Rota)
+                ? "Codex-LB usa o modelo e o nível escolhidos para cada etapa. A lista de sugestões vem do catálogo local do Codex."
+                : $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte} e atualizados ao abrir a página e antes de cada análise." + (selecionada.Rota == "gemini" && falhaListaGemini is { } falha ? " A última consulta falhou. " + falha : "");
             p.RodapeModelos.Visibility = Visibility.Visible;
 
             p.AlternarSobeObjecao.IsOn = a.SobePorObjecao ?? kit.SobePorObjecao;
@@ -530,7 +542,7 @@ public sealed partial class MainWindow
         var rota = ModelosDaAnalise.RotaDoProvedor(p);
         Func<Task>? atualizar = null;
         if (rota == "gemini") atualizar = AtualizarListaGeminiAsync;
-        else if (FonteDaRota(rota) is var fonte && FonteDisponivel(fonte))
+        else if (!UsaCatalogoIndicativoDoCodex(rota) && FonteDaRota(rota) is var fonte && FonteDisponivel(fonte))
             atualizar = () => CatalogoDeModelos.AtualizarAsync(pecasAgentes, [fonte], CancellationToken.None);
         var efetiva = ModelosDaAnalise.ParaPartida(kit, AjusteDosModelos, etapas, c => ListaDaRotaAgora(c, kit), rota, atualizar,
             e => RegistroErros.Gravar("modelos.analise.lista", e));

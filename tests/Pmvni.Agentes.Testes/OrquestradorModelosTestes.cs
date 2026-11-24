@@ -18,6 +18,38 @@ public partial class OrquestradorTestes
     static TabelaDeModelos Tabela(params string[] avisos) => new(TabelaAjustada, avisos);
 
     [Fact]
+    public async Task RetomarPreservaOTermoEscolhidoNaExecucaoMesmoComAjusteLocalDiferente()
+    {
+        using var c = new Cena("orq-modelos-retomada", "ok", Provedor.ChatGpt);
+        var arquivo = c.DoRegistro(TabelaDeModelos.NomeDoArquivo);
+        var alterada = TabelaAjustada.Replace("gpt-6.2-sol", "modelo-escolhido");
+        File.WriteAllText(arquivo, alterada);
+        var pedido = c.Pedido(Provedor.ChatGpt) with { Retomar = true, Modelos = Tabela() };
+        await Ambiente.Com(c.Orq().ExecutarAsync(pedido, c.Progresso, CancellationToken.None), Limite);
+        Assert.Equal(arquivo, Json(c.Falso("recebido.json"))["modelos"]!.GetValue<string>());
+        Assert.Equal(alterada, File.ReadAllText(arquivo));
+    }
+
+    [Fact]
+    public void RespostaSoUsaAExcecaoNoArquivoDaDecisaoDoRegistroAtivo()
+    {
+        using var c = new Cena("orq-modelos-resposta", "ok", Provedor.ChatGpt);
+        var pedido = c.Pedido(Provedor.ChatGpt);
+        var id = Guid.NewGuid().ToString("N");
+        var esperado = c.DoRegistro(Path.Combine("decisoes", $"modelos_indisponiveis-{id}.json"));
+        var d = new DecisaoAnalise("modelos_indisponiveis", id, "Modelo?", [], esperado, "{}");
+        Assert.Equal(esperado, RespostaDecisao.Caminho(pedido.Processo.Pasta, pedido.Provedor, d, pedido.Registro.Pasta));
+        Assert.NotEqual(esperado, RespostaDecisao.Caminho(pedido.Processo.Pasta, pedido.Provedor, d with { Id = Guid.NewGuid().ToString("N") }, pedido.Registro.Pasta));
+    }
+
+    [Theory]
+    [InlineData("{\"recusa_modelo\":{\"etapa\":\"analyze\",\"modelo\":\"gemini-pro\"}}", true)]
+    [InlineData("{\"recusa_modelo\":null,\"faltas\":[\"sem acesso à rede\"]}", false)]
+    [InlineData("{\"recusa_modelo\":{}}", false)]
+    public void PreVooSomenteEncaminhaRecusaDeModeloEstruturada(string json, bool esperada) =>
+        Assert.Equal(esperada, OrquestradorAnalise.RecusaDeModeloGemini(json));
+
+    [Fact]
     public async Task ChatGpt_RecebeATabelaDeModelos_E_OHistoricoARegistra()
     {
         using var c = new Cena("orq-modelos-62", "ok", Provedor.ChatGpt);

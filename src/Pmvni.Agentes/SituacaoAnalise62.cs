@@ -95,7 +95,7 @@ public static class RespostaDecisao
 {
     public const string ArquivoPadrao = "decisao_resposta.json";
 
-    public static string Caminho(string pastaProcesso, Provedor p, DecisaoAnalise d)
+    public static string Caminho(string pastaProcesso, Provedor p, DecisaoAnalise d, string? pastaRegistro = null)
     {
         var controle = Path.GetFullPath(Path.Combine(pastaProcesso, ResultadoAnalise.PastaControle(p)));
         var padrao = Path.Combine(controle, ArquivoPadrao);
@@ -103,15 +103,20 @@ public static class RespostaDecisao
         try
         {
             var c = Path.GetFullPath(Path.IsPathRooted(d.ArquivoResposta) ? d.ArquivoResposta : Path.Combine(controle, d.ArquivoResposta));
+            if (d.Tipo == "modelos_indisponiveis" && pastaRegistro is not null && Guid.TryParseExact(d.Id, "N", out var id))
+            {
+                var esperado = Path.GetFullPath(Path.Combine(pastaRegistro, "decisoes", $"modelos_indisponiveis-{id:N}.json"));
+                if (string.Equals(c, esperado, StringComparison.OrdinalIgnoreCase)) return esperado;
+            }
             return c.StartsWith(controle + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ? c : padrao;
         }
         catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { return padrao; }
     }
 
     /// <summary>Grava a resposta de uma vez (arquivo novo ao lado, depois troca) e devolve o caminho.</summary>
-    public static string Gravar(string pastaProcesso, Provedor p, DecisaoAnalise d, string resposta)
+    public static string Gravar(string pastaProcesso, Provedor p, DecisaoAnalise d, string resposta, string? pastaRegistro = null)
     {
-        var arquivo = Caminho(pastaProcesso, p, d);
+        var arquivo = Caminho(pastaProcesso, p, d, pastaRegistro);
         Directory.CreateDirectory(Path.GetDirectoryName(arquivo)!);
         var obj = new JsonObject
         {

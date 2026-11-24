@@ -2,6 +2,14 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.5.2
+
+- A aba Detalhes da análise mostra a rota, os modelos e o esforço por etapa. Se a conta recusar um modelo ou esforço, o analista pode escolher a configuração daquela execução.
+
+- Na rota Codex-LB, a análise conserva o nível escolhido em Ajustes. A grade identifica a rota e informa de onde vêm as sugestões de modelos.
+- O modelo oficial de revisão 13 identifica os índices declarados no projeto, seus valores e a peça de origem mesmo quando a zona ainda depende de confirmação.
+- O despacho com IA lê as pastas dos processos no servidor sem bloqueio: o Codex roda sem sandbox e o Claude sem pedido de permissão, como as análises do kit 4.5.1.
+
 ## 4.5.1
 
 - O relatório adota o modelo oficial de revisão 12. A recomposição mostra o confronto com as pendências anteriores e as notas de conferência das tabelas de índices e iluminação. A exportação dos novos relatórios verifica a presença do diagrama de índices.

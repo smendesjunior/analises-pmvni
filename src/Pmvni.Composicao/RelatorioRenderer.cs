@@ -39,7 +39,23 @@ public static class RelatorioRenderer
         var baseDir = Path.GetDirectoryName(arquivo)!;
         // read_text(encoding='utf-8-sig'): UTF-8 estrito, sem o BOM.
         var json = new UTF8Encoding(false, true).GetString(bytesDados);
-        var d = Dados.Dict(JsonModelo.Ler(json));
+        var d = new Dictionary<string, object?>(Dados.Dict(JsonModelo.Ler(json)));
+        if (d.GetValueOrDefault("capa") is IReadOnlyDictionary<string, object?> capa
+            && string.IsNullOrWhiteSpace(Dados.Obter(capa, "pontos_confirmar") as string)
+            && d.GetValueOrDefault("itens") is IEnumerable<object?> itensDaCapa)
+        {
+            var temas = itensDaCapa.OfType<IReadOnlyDictionary<string, object?>>()
+                .Where(it => Dados.Obter(it, "situacao") is "NAO_ATENDE" or "DIVERGENCIA_INTERNA" or "NAO_COMPROVADO")
+                .Select(it => Dados.Obter(it, "titulo") as string).Where(t => !string.IsNullOrWhiteSpace(t)).Take(3);
+            var pontos = string.Join(" · ", temas);
+            d["capa"] = new Dictionary<string, object?>(capa) { ["pontos_confirmar"] = pontos.Length > 0 ? pontos : "Sem pendências registradas." };
+        }
+        if (Profissional.Atual is { } pro)
+            d["assinatura"] = new Dictionary<string, object?>
+            {
+                ["nome"] = pro.NomeLinha ?? (op.Rascunho || op.Instrucoes ? "" : "Identificação do responsável pendente nos ajustes profissionais."),
+                ["cargo"] = pro.Cargo() is { Length: > 0 } cargo ? cargo : op.Rascunho || op.Instrucoes ? "" : "Qualificação profissional pendente nos ajustes profissionais."
+            };
 
         var estrito = op.ImagensSoNaPasta;
         var erros = Conferencia.Conferir(d, rel => CaminhoImagem.Resolver(baseDir, rel, estrito) is { } c && CaminhoImagem.ImagemAceita(rel, c), op.Rascunho || op.Instrucoes);
@@ -55,11 +71,6 @@ public static class RelatorioRenderer
         ctx["resumo"] = Conferencia.Resumo(itens);
         AplicarApresentacao(ctx, "indices", "linhas");
         AplicarApresentacao(ctx, "iluminacao", "ambientes");
-        // O profissional dos Ajustes assina o relatório (2026-11-17); campo vazio = o que veio nos dados.
-        // 2026-11-17 (correção): campo vazio sai em branco, nunca o que veio nos dados (que podem trazer outra pessoa).
-        if (Profissional.Atual is { } pro)
-            ctx["assinatura"] = new Dictionary<string, object?> { ["nome"] = pro.NomeLinha ?? "", ["cargo"] = pro.Cargo() };
-
         var loc = Dados.Obter(d, "localizacao");
         if (PythonTexto.Verdadeiro(loc))
         {

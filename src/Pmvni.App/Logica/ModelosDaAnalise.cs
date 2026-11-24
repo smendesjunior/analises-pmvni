@@ -82,7 +82,7 @@ public sealed record TabelaEfetiva(JsonObject Json, IReadOnlyList<AvisoModelos> 
 
 /// <summary>Tarefa 19: Ajustes › Inteligência artificial › Modelos da análise. O padrão vem do kit instalado (igual em todos os computadores); o ajuste
 /// local opcional fica em <see cref="ArquivoLocal"/> (o Editor não é MSIX: grava direto em %LOCALAPPDATA%\EditorRelatoriosPMVNI). Antes de cada análise, <see cref="Efetiva"/> monta a
-/// tabela que vai ao controlador: uma célula ajustada cujo modelo deixou de aparecer na lista do provedor usa o padrão do kit, com aviso (na aba, no Novo
+/// tabela que vai ao controlador: uma célula ajustada ausente do catálogo é preservada, com aviso (na aba, no Novo
 /// relatório e no histórico da execução). As opções vêm das listas que o Editor já atualiza por provedor (<see cref="CatalogoModelosIa"/>); na rota Gemini,
 /// da lista que a rota Gemini do kit devolve (<see cref="LerListaGemini"/>: agy models ou a Gemini API; o Gemini Web não lista e fica com os modelos da tabela).
 /// No computador do kit mestre, <see cref="Publicar"/> grava a tabela no kit e roda o
@@ -361,9 +361,7 @@ public static class ModelosDaAnalise
 
     // ---------- avisos e tabela efetiva ----------
 
-    /// <summary>A tabela que vai ao controlador e os avisos. Uma célula do ajuste cujo modelo não está mais na lista conferida do provedor usa o padrão do
-    /// kit (aviso "trocado"); o padrão do kit que também não está na lista só gera aviso (o kit tenta e, se o provedor recusar, a etapa para sem trocar de
-    /// modelo). As etapas de programa (<c>executor: programa</c> no <c>etapas.json</c>: hoje o preparo e a produção) não têm modelo: não entram na tabela, e uma célula
+    /// <summary>A tabela que vai ao controlador e os avisos. Um modelo ausente da lista conferida é solicitado como configurado. Uma recusa da conta abre a escolha por etapa. As etapas de programa (<c>executor: programa</c> no <c>etapas.json</c>: hoje o preparo e a produção) não têm modelo: não entram na tabela, e uma célula
     /// delas num ajuste local antigo é ignorada com aviso (o kit também a ignora). Todas as rotas vão no arquivo; os avisos dizem a rota.</summary>
     public static TabelaEfetiva Efetiva(TabelaModelosKit kit, AjusteModelos ajuste, IReadOnlyList<EtapaModelos> etapas, Func<ColunaModelos, ListaDaRota?> listas)
     {
@@ -379,23 +377,16 @@ public static class ModelosDaAnalise
             {
                 if (kit.Celula(col, etapa.Id) is not { } padrao) continue;
                 var celula = ajuste.Celulas.GetValueOrDefault((col.Rota, col.Perfil, etapa.Id)) ?? padrao;
-                if (celula != padrao && Falta(lista, celula.Modelo))
-                {
-                    avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: o modelo {celula.Modelo} não aparece mais na lista {lista!.Fonte}; esta etapa usa o padrão do kit ({padrao.Modelo}, nível {NomeDoNivel(padrao.Nivel).ToLowerInvariant()})."));
-                    celula = padrao;
-                }
-                else if (celula != padrao && !NiveisDoModelo(kit, lista ?? new([], false, ""), celula.Modelo).Contains(celula.Nivel))
-                {
-                    avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: o modelo {celula.Modelo} não aceita mais o nível {NomeDoNivel(celula.Nivel).ToLowerInvariant()}; esta etapa usa o padrão do kit ({padrao.Modelo}, nível {NomeDoNivel(padrao.Nivel).ToLowerInvariant()})."));
-                    celula = padrao;
-                }
-                if (celula == padrao && Falta(lista, padrao.Modelo))
-                    avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: o modelo padrão do kit ({padrao.Modelo}) não aparece na lista {lista!.Fonte}; se o provedor não o aceitar, a etapa para sem trocar de modelo."));
+                if (Falta(lista, celula.Modelo))
+                    avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: o modelo {celula.Modelo} não aparece mais na lista {lista!.Fonte}. Se a conta recusar, escolha o substituto nesta execução."));
+                else if (lista is { Conferida: true } && celula != padrao && !NiveisDoModelo(kit, lista, celula.Modelo).Contains(celula.Nivel))
+                    avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: a lista {lista.Fonte} não confirma o esforço {NomeDoNivel(celula.Nivel)} para {celula.Modelo}. A escolha é mantida até a resposta da conta."));
                 celulas[(col.Rota, col.Perfil, etapa.Id)] = celula;
             }
         }
         var json = Nucleo(celulas, ajuste.SobePorObjecao, ajuste.TrocaDescePorCota, ajuste.DescePorCota, ajuste.Ligadas,
             ajuste.Vazio ? "padrão do kit (sem ajuste local)" : "padrão do kit com o ajuste local do Editor de Relatórios");
+        json["reparo_julgamento_previsto"] = kit.Bruto["rotas"]?["codex"]?["reparo_julgamento"]?.DeepClone();
         if (ajuste.SobePorObjecao is { } subir) json["subir_nova_tentativa_chatgpt"] = subir;
         json["avisos"] = new JsonArray(avisos.Select(a => (JsonNode?)JsonValue.Create(a.Texto)).ToArray());
         return new TabelaEfetiva(json, avisos);
@@ -405,8 +396,7 @@ public static class ModelosDaAnalise
 
     /// <summary>Revisão final I4: a tabela da partida de uma análise, sem esperar o provedor. Monta a tabela pelas listas já guardadas
     /// (<paramref name="listasGuardadas"/>) e só então dispara <paramref name="atualizarEmSegundoPlano"/> sem esperar (a lista nova vale na próxima
-    /// partida e na aba; o pré-voo <c>conferir</c> do kit continua sendo a barreira). Uma célula do ajuste só deixa de valer (usa o padrão do kit,
-    /// com aviso) quando a última lista conferida já sabe que o modelo não existe; lista ainda não lida ou não conferida não recusa nada.
+    /// partida e na aba; o pré-voo <c>conferir</c> do kit continua sendo a barreira). O catálogo guardado serve para os avisos. A resposta da conta determina se é necessária a escolha de substituto.
     /// <paramref name="falha"/> recebe o erro da atualização (o registro de erros).</summary>
     public static TabelaDeModelos ParaPartida(TabelaModelosKit kit, AjusteModelos ajuste, IReadOnlyList<EtapaModelos> etapas,
         Func<ColunaModelos, ListaDaRota?> listasGuardadas, string rota, Func<Task>? atualizarEmSegundoPlano, Action<Exception>? falha = null)
@@ -500,7 +490,7 @@ public static class ModelosDaAnalise
             }
             if (!CatalogoIa.ModeloValido(c.Modelo) || !mestre.Niveis.Contains(c.Nivel)) { problemas.Add($"{col.Titulo}, {nome}: modelo ou nível inválido ({c.Modelo}, {c.Nivel})"); continue; }
             var lista = listas(col);
-            if (Falta(lista, c.Modelo)) problemas.Add($"{col.Titulo}, {nome}: o modelo {c.Modelo} não aparece mais na lista {lista!.Fonte}");
+            if (c.Modelo != mestre.Celula(col, etapaId)!.Modelo && Falta(lista, c.Modelo)) problemas.Add($"{col.Titulo}, {nome}: o modelo {c.Modelo} não aparece mais na lista {lista!.Fonte}");
             else if (lista is not null && !NiveisDoModelo(mestre, lista, c.Modelo).Contains(c.Nivel))
                 problemas.Add($"{col.Titulo}, {nome}: o modelo {c.Modelo} não aceita o nível {NomeDoNivel(c.Nivel).ToLowerInvariant()}");
         }

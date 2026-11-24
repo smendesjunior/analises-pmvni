@@ -110,9 +110,9 @@ public class ModelosDaAnaliseTestes
         // A última lista conferida ainda oferece o modelo: vale.
         Assert.Equal("claude-fable-5-2", Analise(ModelosDaAnalise.ParaPartida(k, a, etapas, Listas(claude: comFable), "claude", Atualizar)));
 
-        // A última lista conferida já sabe que o modelo não existe: a etapa usa o padrão do kit, com aviso.
+        // A lista guardada pode estar desatualizada. A conta decide e uma recusa pede escolha ao analista.
         var sabido = ModelosDaAnalise.ParaPartida(k, a, etapas, Listas(), "claude", Atualizar);
-        Assert.Equal("claude-opus-5-5", Analise(sabido));
+        Assert.Equal("claude-fable-5-2", Analise(sabido));
         Assert.Contains(sabido.Avisos, x => x.Contains("claude-fable-5-2 não aparece mais", StringComparison.Ordinal));
         Assert.Equal(3, chamadas);
 
@@ -125,7 +125,25 @@ public class ModelosDaAnaliseTestes
         await Task.Delay(50);
         Assert.Collection(erros, e => Assert.IsType<IOException>(e), e => Assert.IsType<TimeoutException>(e));
         // Sem atualização (fonte indisponível): só monta a tabela.
-        Assert.Equal("claude-opus-5-5", Analise(ModelosDaAnalise.ParaPartida(k, a, etapas, Listas(), "claude", null)));
+        Assert.Equal("claude-fable-5-2", Analise(ModelosDaAnalise.ParaPartida(k, a, etapas, Listas(), "claude", null)));
+    }
+
+    [Fact]
+    public void partida_preserva_esforco_da_auditoria_quando_catalogo_omite_modelo_padrao()
+    {
+        var kit = Kit();
+        var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), kit);
+        var ajuste = new AjusteModelos();
+        var coluna = Coluna(kit, "codex");
+        var auditoria = etapas.Single(e => e.Id == "technical_audit");
+        var modelo = kit.Celula(coluna, auditoria.Id)!.Modelo;
+        Assert.Null(ModelosDaAnalise.Ajustar(ajuste, kit, coluna, auditoria, modelo, "medio", Lista(M(modelo))));
+
+        var partida = ModelosDaAnalise.ParaPartida(kit, ajuste, etapas,
+            Listas(codex: Lista(M("outro-modelo"))), "codex", null);
+        var celula = CelulaJson(JsonNode.Parse(partida.Json)!.AsObject(), "codex", "padrao", auditoria.Id);
+        Assert.Equal(modelo, celula["modelo"]!.GetValue<string>());
+        Assert.Equal("medio", celula["nivel"]!.GetValue<string>());
     }
 
     [Fact]
@@ -186,7 +204,7 @@ public class ModelosDaAnaliseTestes
     }
 
     [Fact]
-    public void lista_sem_o_modelo_configurado_avisa_e_usa_o_padrao_do_kit()
+    public void lista_sem_o_modelo_configurado_avisa_e_preserva_a_escolha_ate_a_resposta_da_conta()
     {
         var k = Kit();
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
@@ -197,9 +215,9 @@ public class ModelosDaAnaliseTestes
         var efetiva = ModelosDaAnalise.Efetiva(k, a, etapas, Listas());
         var aviso = Assert.Single(efetiva.Avisos);
         Assert.Equal("claude", aviso.Rota);
-        var padrao = k.Celula(Coluna(k, "claude"), "analyze")!;
-        Assert.Equal($"Claude, Análise: o modelo claude-fable-5-2 não aparece mais na lista do app (teste); esta etapa usa o padrão do kit ({padrao.Modelo}, nível {ModelosDaAnalise.NomeDoNivel(padrao.Nivel).ToLowerInvariant()}).", aviso.Texto);
-        Assert.Equal(padrao.Modelo, CelulaJson(efetiva.Json, "claude", "padrao", "analyze")["modelo"]!.GetValue<string>());
+        Assert.Equal("Claude, Análise: o modelo claude-fable-5-2 não aparece mais na lista do app (teste). Se a conta recusar, escolha o substituto nesta execução.", aviso.Texto);
+        Assert.Equal("claude-fable-5-2", CelulaJson(efetiva.Json, "claude", "padrao", "analyze")["modelo"]!.GetValue<string>());
+        Assert.Equal("alto", CelulaJson(efetiva.Json, "claude", "padrao", "analyze")["nivel"]!.GetValue<string>());
         // O aviso vai junto da tabela para o histórico da execução (só os da rota que roda).
         var execucao = efetiva.ParaExecucao("claude");
         Assert.Equal([aviso.Texto], execucao.Avisos);
@@ -428,7 +446,7 @@ public class ModelosDaAnaliseTestes
         // A lista do agy vale para o perfil da Conta Antigravity (os outros perfis Gemini têm a lista deles).
         Func<ColunaModelos, ListaDaRota?> SoAntigravity(ListaDaRota l) => c => c.Rota == "gemini" ? (c.Perfil == "conta_ultra" ? l : null) : Listas()(c);
         var t = ModelosDaAnalise.Efetiva(k, a, etapas, SoAntigravity(semNova));
-        Assert.Equal(padrao.Modelo, CelulaJson(t.Json, "gemini", "conta_ultra", "analyze")["modelo"]!.GetValue<string>());
+        Assert.Equal("gemini-5-nova", CelulaJson(t.Json, "gemini", "conta_ultra", "analyze")["modelo"]!.GetValue<string>());
         var execucao = t.ParaExecucao("gemini");
         Assert.Contains("gemini-5-nova não aparece mais na lista do Gemini", Assert.Single(execucao.Avisos));
         Assert.Single(JsonNode.Parse(execucao.Json)!["avisos"]!.AsArray());
@@ -531,6 +549,23 @@ public class ModelosDaAnaliseTestes
         p.WaitForExit();
         Assert.True(p.ExitCode == 0, "python do kit falhou: " + erro);
         return saida.Trim();
+    }
+
+    [Fact]
+    public void DetalhesLeemAPastaDaExecucaoInclusiveAposEscolhaLocal()
+    {
+        using var pasta = new PastaTemporaria();
+        var arquivo = Path.Combine(pasta.Caminho, Pmvni.Agentes.TabelaDeModelos.NomeDoArquivo);
+        string Ler() => EscolhaModelosDaExecucao.ResumoConfigurado(pasta.Caminho, Pmvni.Agentes.Provedor.ChatGpt, null, "codex-lb");
+        Assert.Contains("indisponível", Ler());
+        var tabela = JsonNode.Parse("""{"rotas":{"codex":{"perfis":{"padrao":{"etapas":{"analyze":{"modelo":"gpt-a","nivel":"baixo"}}}}}},"reparo_julgamento_previsto":{"modelo":"gpt-b","nivel":"medio"}}""")!;
+        File.WriteAllText(arquivo, tabela.ToJsonString());
+        Assert.Contains("gpt-a · esforço Baixo", Ler());
+        Assert.Contains("gpt-b · esforço Médio", Ler());
+        tabela["reparo_julgamento_da_execucao"] = new JsonObject { ["modelo"] = "gpt-c", ["nivel"] = "alto" };
+        File.WriteAllText(arquivo, tabela.ToJsonString());
+        Assert.Contains("gpt-c · esforço Alto", Ler());
+        Assert.DoesNotContain("gpt-b", Ler());
     }
 
     sealed class PastaTemporaria : IDisposable

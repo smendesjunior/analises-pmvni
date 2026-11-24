@@ -364,7 +364,7 @@ public sealed class EmissaoDespachoTestes
         Assert.Equal(1, (int)r["recibo_versao"]!);
         Assert.Equal("correcao", (string?)r["tipo"]);
         Assert.Equal("correction", (string?)r["papel"]);
-        Assert.Equal(10, (int)r["registro"]!["revisao"]!);
+        Assert.Equal(c.Modelo.RevisaoRegistro, (int)r["registro"]!["revisao"]!);
         Assert.Equal(c.Modelo.Sha256Registro, (string?)r["registro"]!["sha256"]);
         Assert.Equal(c.Modelo.CaminhoRelativo, (string?)r["modelo"]!["caminho"]);
         Assert.Equal(c.Modelo.Sha256, (string?)r["modelo"]!["sha256"]);

@@ -74,6 +74,8 @@ internal interface IPerguntas
     /// <summary>Tarefa 14: qual versão da peça vale (decisão do tipo <c>pecas</c>), com as versões lado a lado, o motivo da dúvida e "Abrir o PDF" em cada
     /// uma; o <see cref="Pmvni.Agentes.PecaCandidata.Valor"/> escolhido, ou null se cancelou. Padrão: cancelar (a análise fica parada, sem gastar nada).</summary>
     Task<string?> EscolherPecaAsync(string titulo, string motivo, string aviso, IReadOnlyList<Pmvni.Agentes.PecaCandidata> versoes) => Task.FromResult<string?>(null);
+
+    Task<string?> EscolherModelosAsync(string titulo, EscolhaModelosDaExecucao escolha, OfertaDeModelos oferta, CancellationToken ct) => Task.FromResult<string?>(null);
 }
 
 internal static class Perguntas
@@ -281,16 +283,83 @@ internal sealed class PerguntasDaJanela(Window janela, Func<XamlRoot?> raiz) : I
         return await Mostrar(d) == ContentDialogResult.Primary;
     }
 
+    public async Task<string?> EscolherModelosAsync(string titulo, EscolhaModelosDaExecucao escolha, OfertaDeModelos oferta, CancellationToken ct)
+    {
+        var painel = new StackPanel { Spacing = 10, MinWidth = 380 };
+        var nome = EscolhaModelosDaExecucao.NomeEtapa(escolha.Etapa);
+        var motivo = escolha.RecusaEsforco ? $"A conta recusou o esforço do modelo {escolha.Recusado} em {nome}."
+            : $"A conta recusou o modelo {escolha.Recusado} em {nome}.";
+        var origem = oferta.Modelos.Count == 0 ? oferta.Fonte + " Digite o identificador do modelo."
+            : oferta.DaConta ? $"Modelos consultados nesta conta por {oferta.Fonte}."
+            : $"Sugestões do {oferta.Fonte}. A disponibilidade na conta será conferida ao retomar. Você também pode digitar um identificador.";
+        painel.Children.Add(new TextBlock { Text = motivo + " A análise está pausada. As escolhas valem só para esta execução.", TextWrapping = TextWrapping.Wrap });
+        painel.Children.Add(new TextBlock { Text = origem, TextWrapping = TextWrapping.Wrap });
+        var campos = new Dictionary<string, (Func<string> Modelo, ComboBox Nivel)>();
+        foreach (var (etapa, antiga) in escolha.Etapas.OrderByDescending(c => c.Key == escolha.Etapa))
+        {
+            var rotulo = EscolhaModelosDaExecucao.NomeEtapa(etapa);
+            var opcoes = oferta.Modelos.Where(id => escolha.RecusaEsforco || etapa != escolha.Etapa || id != escolha.Recusado).ToList();
+            var linha = new Grid { ColumnSpacing = 8 };
+            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var nivel = new ComboBox { Header = "Esforço", MinWidth = 100, ItemsSource = new[] { "Baixo", "Médio", "Alto" },
+                SelectedIndex = Array.IndexOf(EscolhaModelosDaExecucao.Niveis, antiga.Nivel) };
+            Func<string> ler;
+            if (oferta.DaConta && opcoes.Count > 0)
+            {
+                if (etapa != escolha.Etapa && !opcoes.Contains(antiga.Modelo)) opcoes.Insert(0, antiga.Modelo);
+                var lista = new ComboBox { Header = rotulo, ItemsSource = opcoes, SelectedItem = antiga.Modelo,
+                    HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "Escolha o modelo" };
+                linha.Children.Add(lista);
+                ler = () => lista.SelectedItem as string ?? "";
+            }
+            else
+            {
+                var texto = new AutoSuggestBox { Header = rotulo, Text = antiga.Modelo, PlaceholderText = "Identificador do modelo", ItemsSource = opcoes };
+                texto.GotFocus += (_, _) => { texto.ItemsSource = opcoes; texto.IsSuggestionListOpen = opcoes.Count > 0; };
+                texto.TextChanged += (_, args) =>
+                {
+                    if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+                        texto.ItemsSource = opcoes.Where(id => id.Contains(texto.Text.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+                };
+                texto.SuggestionChosen += (_, args) => texto.Text = (string)args.SelectedItem;
+                linha.Children.Add(texto);
+                ler = () => texto.Text.Trim();
+            }
+            Grid.SetColumn(nivel, 1);
+            linha.Children.Add(nivel);
+            painel.Children.Add(linha);
+            campos.Add(etapa, (ler, nivel));
+        }
+        var erro = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        painel.Children.Add(erro);
+        var dialogo = new ContentDialog { Title = titulo, Content = new ScrollViewer { MaxHeight = 480, Content = painel },
+            PrimaryButtonText = "Aplicar e retomar", CloseButtonText = "Manter pausada", DefaultButton = ContentDialogButton.Close };
+        string? resposta = null;
+        dialogo.PrimaryButtonClick += (_, args) =>
+        {
+            var valores = campos.ToDictionary(c => c.Key, c => new CelulaModelos(c.Value.Modelo(),
+                EscolhaModelosDaExecucao.Niveis.ElementAtOrDefault(c.Value.Nivel.SelectedIndex) ?? ""));
+            resposta = escolha.Resposta(valores, out var aviso);
+            erro.Text = aviso;
+            args.Cancel = resposta is null;
+        };
+        var resultado = await Mostrar(dialogo, ct);
+        return resultado == ContentDialogResult.Primary && !ct.IsCancellationRequested ? resposta : null;
+    }
+
     /// <summary>Um diálogo de cada vez (o WinUI recusa dois ContentDialog abertos): quem chega com outro aberto espera a vez em vez de falhar.</summary>
     readonly SemaphoreSlim umDialogo = new(1, 1);
 
-    async Task<ContentDialogResult> Mostrar(ContentDialog d)
+    async Task<ContentDialogResult> Mostrar(ContentDialog d, CancellationToken ct = default)
     {
-        await umDialogo.WaitAsync();
+        await umDialogo.WaitAsync(ct);
         try
         {
             if (raiz() is not { } atual) return ContentDialogResult.None;
             d.XamlRoot = atual;
+            var fila = d.DispatcherQueue;
+            using var cancelar = ct.Register(() => fila.TryEnqueue(() => d.Hide()));
             return await d.ShowAsync();
         }
         finally { umDialogo.Release(); }

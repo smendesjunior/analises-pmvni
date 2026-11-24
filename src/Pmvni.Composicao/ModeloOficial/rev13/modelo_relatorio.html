@@ -92,16 +92,22 @@ repetições e textos sobre o método da análise.</li>
 
 {# ───────────────────────── ÍNDICES ───────────────────────── #}
 {% if indices %}
+{% if indices.declaracoes %}
+<div class="sec brk"><div><h2>DADOS DECLARADOS NO PROJETO</h2><p>Transcrição das peças examinadas.</p></div></div>
+<table class="tb"><thead><tr><th>DADO</th><th>VALOR DECLARADO</th><th>REFERÊNCIA NO PROJETO</th></tr></thead><tbody>
+{% for l in indices.declaracoes %}<tr><td>{{ l.rotulo }}</td><td>{{ l.valor }}</td><td>{{ l.fonte }}</td></tr>{% endfor %}
+</tbody></table>
+{% endif %}
 <div class="keep">
-<div class="sec brk"><div><h2>ÍNDICES URBANÍSTICOS</h2><p>{{ indices.subtitulo }}</p></div><div class="tag">{{ "pin"|icone }} ZONA INDICADA: <b>{{ indices.zona }}</b></div></div>
-<table class="tb ind"><colgroup><col style="width:27%"><col style="width:20%"><col style="width:13%"><col style="width:16%"><col style="width:24%"></colgroup>
+<div class="sec brk"><div><h2>ÍNDICES URBANÍSTICOS</h2><p>{{ indices.subtitulo }}</p></div>{% if indices.zona %}<div class="tag">{{ "pin"|icone }} ZONA INDICADA: <b>{{ indices.zona }}</b></div>{% endif %}</div>
+{% if indices.linhas %}<table class="tb ind"><colgroup><col style="width:27%"><col style="width:20%"><col style="width:13%"><col style="width:16%"><col style="width:24%"></colgroup>
 <thead><tr><th>ÍNDICE</th><th>CÁLCULO / DESCRIÇÃO</th><th>NO PROJETO</th><th>LIMITE ({{ indices.zona }})</th><th>SITUAÇÃO</th></tr></thead><tbody>
 {% for l in indices.linhas %}
 <tr class="{{ l.situacao|cor }}"><td class="nm"><div class="nmw">{{ l.icone|icone }}<div><span class="sm">ÍNDICE {{ loop.n2 }}</span><b>{{ l.nome }}</b><small>{{ l.descricao }}</small></div></div></td>
 <td>{{ l.calculo }}</td><td class="val{% if l.projeto_destaque %} o{% endif %}">{{ l.projeto }}</td><td>{{ l.limite }}</td><td>{{ l.situacao|pill }}<div class="st">{{ l.texto }}</div></td></tr>
 {% endfor %}
-</tbody></table></div>
-<div class="note y"><span class="bang">!</span><b>OBSERVAÇÃO</b><em></em><span>{{ indices.observacao }}</span></div>
+</tbody></table>{% else %}{% if indices.sem_calculo %}<div class="obs"><b>Cálculo não realizado</b><p>{{ indices.sem_calculo.motivo }}</p><p><b>Evidência:</b> {{ indices.sem_calculo.evidencia }}</p></div>{% endif %}{% endif %}</div>
+{% if indices.observacao %}<div class="note y"><span class="bang">!</span><b>OBSERVAÇÃO</b><em></em><span>{{ indices.observacao }}</span></div>{% endif %}
 {% if instrucoes %}<div class="ins"><b>Uma linha por índice.</b> CÁLCULO: a operação completa com os números do projeto. NO PROJETO: o valor declarado no quadro de áreas;
 projeto_destaque = true quando ele diverge da conta (sai em laranja). SITUAÇÃO: CONTA_CONFERE quando a conta está certa e dentro do limite (impresso ATENDE);
 NAO_ATENDE quando a conta comprovada passa do limite; PENDENTE quando falta dado ou confirmação (impresso FALTA COMPROVAR); DIVERGENCIA quando o valor

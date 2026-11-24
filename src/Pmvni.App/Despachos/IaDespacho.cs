@@ -83,7 +83,7 @@ internal static class IaDespacho
         if (usarCodex)
         {
             var ultima = Path.Combine(Path.GetTempPath(), "pmvni-ia-" + Guid.NewGuid().ToString("N") + ".txt");
-            args.AddRange(["exec", "--skip-git-repo-check", "--sandbox", "read-only"]);
+            args.AddRange(["-a", "never", "exec", "--skip-git-repo-check", "--sandbox", "danger-full-access"]);
             if (semArquivos) args.Add("--ephemeral");
             if (opcoes?.ArgumentosCodex is { } modelo) args.AddRange(modelo);
             args.AddRange(["--cd", dir, "--output-last-message", ultima, "-"]);
@@ -91,13 +91,13 @@ internal static class IaDespacho
         }
         if (!temClaude)
             throw new InvalidOperationException("Nenhum programa de IA encontrado. Instale e entre no Claude Code ou no Codex em Ajustes › Inteligência artificial.");
-        args.AddRange(["-p", "--output-format", "text", "--permission-mode", "default", "--disallowedTools",
-            semArquivos ? FerramentasProibidas + " Read Grep Glob" : FerramentasProibidas]);
+        args.AddRange(["-p", "--output-format", "text", "--permission-mode", "bypassPermissions", "--settings", """{"sandbox":{"enabled":false}}""", "--disallowedTools",
+            semArquivos ? FerramentasProibidas + " Read Grep Glob" : comPasta ? "WebFetch WebSearch Task" : FerramentasProibidas]);
         if (opcoes?.ArgumentosClaude is { } escolha) args.AddRange(escolha);
         if (comPasta && !semArquivos)
         {
             args.Add("--allowedTools");
-            args.Add("Read Grep Glob");
+            args.Add("Read Grep Glob Edit Write Bash PowerShell");
             foreach (var d in extras) { args.Add("--add-dir"); args.Add(d); }
         }
         return new ComandoIa(claude!, args, null, false);
@@ -114,7 +114,7 @@ internal static class IaDespacho
     /// <summary>Roda o programa da IA com o pedido no stdin e devolve a resposta. Sem programa: <see cref="InvalidOperationException"/>.
     /// Auditoria 2026-11-16: tempo-limite (<see cref="Limite"/>), o processo entra no job do editor (morre se o editor fechar) e é encerrado
     /// em qualquer saída antecipada (inclusive o Cancelar: <paramref name="ct"/>); o Claude roda sem ferramentas de escrita nem de rede; o
-    /// Codex em sandbox só leitura, com a resposta final lida de --output-last-message (sem o cabeçalho que ele imprime).</summary>
+    /// Codex sem sandbox (4.5.2: a sandbox barrava as pastas do servidor; o Claude também sem pedido de permissão), com a resposta final lida de --output-last-message (sem o cabeçalho que ele imprime).</summary>
     internal static async Task<string> PerguntarAsync(string? claude, string? codex, string prompt, CancellationToken ct,
         string? pasta = null, IReadOnlyList<string>? pastasExtras = null, OpcoesIa? opcoes = null)
     {

@@ -13,12 +13,12 @@ public sealed record ModeloCarregado(
     IReadOnlyDictionary<string, string> Sha256);
 
 /// <summary>
-/// Modelo HTML oficial do relatório (revisão 12), embutido byte a byte no assembly.
+/// Modelo HTML oficial do relatório (revisão 13), embutido byte a byte no assembly.
 /// Os hashes vêm do registro TEMPLATES_OFICIAIS.json do kit de treinamento.
 /// </summary>
 public static class ModeloOficial
 {
-    public const string Revisao = "12";
+    public const string Revisao = "13";
 
     /// <summary>Arquivos embutidos como EmbeddedResource (nome lógico = nome do arquivo).</summary>
     private static readonly string[] ArquivosEmbutidos =
@@ -31,12 +31,12 @@ public static class ModeloOficial
         "exemplo_mapa.png",
     };
 
-    /// <summary>Hashes sha256 (minúsculos) de todos os arquivos da revisão 12, inclusive o gerador.</summary>
+    /// <summary>Hashes sha256 (minúsculos) de todos os arquivos da revisão 13, inclusive o gerador.</summary>
     public static IReadOnlyDictionary<string, string> HashesDoRegistro { get; } =
         new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["gerar_relatorio.py"] = "354e9e5f5222e2e716323b4b8992ac5c3d8a9687883e36c924547f5eb1aafd0e",
-            ["modelo_relatorio.html"] = "52bb58d5979188e85d96e4a351fd468ad5caefd9c322b31a8c93032c50765b47",
+            ["gerar_relatorio.py"] = "88ca3a870ccf1f510373427a60b86104e9c7419c750e71ca268eff50672b48a9",
+            ["modelo_relatorio.html"] = "d5e128d63013860ec02a717a4d7a055b637321854f871488d46432e2188d8e6d",
             ["relatorio.css"] = "c4b06d4b8e0058aa0ebcde92a4fae434138645eeaaf77540423d2021db9e6b69",
             ["brasao.png"] = "93f35890bd35ddd405ee407f05e5cea059301c7e62634415f19d5c4d9b4092cd",
             ["dados_modelo.json"] = "c56df9e6aec479887b028ce86e8f2962937a244cefabf5b8a308aca93f1ff816",
@@ -46,7 +46,7 @@ public static class ModeloOficial
 
     /// <summary>
     /// Lê e verifica os arquivos embutidos. Lança <see cref="InvalidOperationException"/>
-    /// se algum arquivo não conferir com o registro da revisão 12.
+    /// se algum arquivo não conferir com o registro da revisão 13.
     /// </summary>
     public static ModeloCarregado Carregar()
     {
