@@ -36,11 +36,17 @@ public sealed partial class MainWindow
     {
         var item = await Task.Run(() => AnaliseHistorica.Ler(selecionada.Processo, selecionada.Registro));
         if (item is null) { await CarregarHistoricoAsync(); return; }
+        var conferencia = await Task.Run(() => ConferenciaNumerica.Ler(item.Processo.Pasta, item.Provedor, item.Registro));
         if (item.Situacao == "concluida")
         {
             if (item.Pacote is { } pacote) await NaFilaAsync(async () => { await AbrirPacoteAsync(pacote); });
-            else if (item.Documento is { } doc) await ImportarPendenteAsync(new(item.Provedor, item.Processo, item.Registro, doc, item.Pdf));
-            else MostrarMensagem(InfoBarSeverity.Warning, "Relatório indisponível", item.Registro);
+            else if (item.Documento is { } doc)
+            {
+                if (!await ImportarPendenteAsync(new(item.Provedor, item.Processo, item.Registro, doc, item.Pdf))) return;
+            }
+            else { MostrarMensagem(InfoBarSeverity.Warning, "Relatório indisponível", item.Registro); return; }
+            if (conferencia is not null && !(AvisoDoModulo.IsOpen && AvisoDoModulo.Severity == InfoBarSeverity.Error))
+                MostrarConferenciaDoHistorico(conferencia);
             return;
         }
         if (item.Situacao == "descartada")
@@ -54,6 +60,7 @@ public sealed partial class MainWindow
             MostrarExecucaoNR(ativa);
             return;
         }
+        if (conferencia is not null) MostrarConferenciaDoHistorico(conferencia);
         var (escolha, _) = await PerguntarRetomadaAsync(item.Processo, item.Registro, item.Provedor, item.Situacao.Replace('_', ' '));
         if (escolha is null) return;
         if (escolha == Provedor.ChatGpt && item.Provedor == Provedor.ChatGpt)
@@ -62,5 +69,18 @@ public sealed partial class MainWindow
             await ContinuarAnaliseAsync();
         }
         else await ContinuarComOutraIaAsync(escolha.Value, item.Processo, item.Registro);
+    }
+
+    void MostrarConferenciaDoHistorico(ConferenciaNumerica conferencia)
+    {
+        var titulo = conferencia.Titulo;
+        MostrarMensagem(InfoBarSeverity.Informational, titulo, conferencia.Resumo);
+        var botao = new Button { Content = "Ver índices e fontes" };
+        botao.Click += async (_, _) => await TentarAsync(() => MostrarDialogoAsync(titulo, new ScrollViewer
+        {
+            MaxHeight = 420,
+            Content = new TextBlock { Text = conferencia.Detalhes, TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap, IsTextSelectionEnabled = true },
+        }));
+        AvisoDoModulo.ActionButton = botao;
     }
 }

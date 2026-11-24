@@ -225,6 +225,8 @@ internal sealed class SessaoNovoDespacho
     public async Task<Preparacao> PrepararAsync(IConversorPdf conv, IAssinadorPdf? assinador = null)
     {
         if (Rascunho is null || Textos is null || Modelo is null) throw new InvalidOperationException("O rascunho do despacho não está pronto.");
+        if (Pacote is not null && Processo is not null && ConteudoDespacho.Bloqueios(Tipo, Pacote, Processo) is { Count: > 0 } problemas)
+            throw new InvalidOperationException(string.Join(Environment.NewLine, problemas));
         var f = Rascunho.Congelar(Textos);
         var modelo = Modelo;
         return await PrepararNaPastaAsync((pasta, ct) => EmissaoDespacho.Preparar(f, modelo, pasta, conv, assinador, ct), f);

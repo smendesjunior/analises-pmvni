@@ -287,6 +287,47 @@ public sealed class DocumentoWeb : IDisposable
         });
     }
 
+    internal Task<TrechoImpresso[][]> CamposParaImpressaoAsync() => NaThreadAsync(async () =>
+    {
+        const string ler = """
+            Array.from(document.querySelectorAll('section.folha'), folha => {
+              const pagina = folha.getBoundingClientRect(), area = folha.querySelector('.area'), trechos = [];
+              const caixa = area.getBoundingClientRect(), textos = document.createTreeWalker(area, NodeFilter.SHOW_TEXT);
+              for (let no = textos.nextNode(); no; no = textos.nextNode()) {
+                const pai = no.parentElement;
+                if (!pai || pai.closest('svg,style,script') || getComputedStyle(pai).visibility !== 'visible') continue;
+                const celula = pai.closest('td,th'), bloco = pai.closest('[data-ref]');
+                const campo = celula ? (bloco?.getAttribute('data-ref') ?? 'quadro') + ', linha ' +
+                  (celula.parentElement.rowIndex + 1) + ', coluna ' + (celula.cellIndex + 1)
+                  : bloco?.getAttribute('data-ref') ?? 'corpo';
+                const guardar = (texto, r) => {
+                  if (!r.width || !r.height || r.bottom <= caixa.top || r.top >= caixa.bottom) return;
+                  trechos.push({Texto:texto, Campo:campo, X:(r.left-pagina.left)/pagina.width,
+                    Y:(r.top-pagina.top)/pagina.height, Direita:(r.right-pagina.left)/pagina.width, Base:(r.bottom-pagina.top)/pagina.height});
+                };
+                for (const palavra of no.textContent.matchAll(/\S+/gu)) {
+                  const r = document.createRange(), start = palavra.index, valor = palavra[0];
+                  r.setStart(no,start); r.setEnd(no,start+valor.length);
+                  const linhas = r.getClientRects();
+                  if (linhas.length === 1) guardar(valor, linhas[0]);
+                  else {
+                    let j = start;
+                    for (const letra of valor) {
+                      r.setStart(no,j); j += letra.length; r.setEnd(no,j);
+                      guardar(letra,r.getBoundingClientRect());
+                    }
+                  }
+                }
+              }
+              return trechos;
+            })
+            """;
+        var json = await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate", JsonSerializer.Serialize(new { expression = ler, returnByValue = true }));
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty("result").GetProperty("value").Deserialize<TrechoImpresso[][]>()
+            ?? throw new InvalidDataException("A composição não forneceu a posição dos campos.");
+    });
+
     /// <summary>Imprime o DOM atual (as folhas compostas) com CDP <c>Page.printToPDF</c>: tamanho da regra @page de folha.css,
     /// fundos, sem cabeçalho/rodapé do navegador, margens 0.</summary>
     internal Task<byte[]> ImprimirPdfAsync() =>

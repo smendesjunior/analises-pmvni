@@ -60,6 +60,7 @@
    "cargo": "Analista fictício"
   },
   "indices": {
+   "zona": "Zona residencial fictícia",
    "linhas": [
     {
      "nome": "TO",
@@ -82,6 +83,7 @@
    ]
   },
   "diagrama": {
+   "nota": "Projeção fictícia de 40 m².",
    "chamadas": [
     {
      "titulo": "Projeção",
@@ -96,7 +98,22 @@
    "ambientes": [
     {
      "nome": "Sala",
-     "situacao": "DIVERGENCIA"
+     "situacao": "DIVERGENCIA",
+     "vaos": [
+      {
+       "codigo": "J1",
+       "tipo": "Correr",
+       "area": "1 m²"
+      }
+     ],
+     "minimo": [
+      {
+       "texto": "12 m² / 6 = 2 m²"
+      }
+     ],
+     "textos": [
+      "A janela J1 oferece 1 m² e o mínimo fictício é 2 m²."
+     ]
     }
    ]
   },
@@ -107,14 +124,36 @@
     "titulo": "Planta",
     "fonte": "Projeto fictício",
     "notas": [
-     "1",
-     "2",
-     "3",
-     "4",
-     "5",
-     "6",
-     "7"
-    ]
+     {
+      "elemento": "Vão 1",
+      "itens": "ITEM 01"
+     },
+     {
+      "elemento": "Vão 2",
+      "itens": "ITEM 01"
+     },
+     {
+      "elemento": "Vão 3",
+      "itens": "ITEM 01"
+     },
+     {
+      "elemento": "Vão 4",
+      "itens": "ITEM 01"
+     },
+     {
+      "elemento": "Vão 5",
+      "itens": "ITEM 01"
+     },
+     {
+      "elemento": "Vão 6",
+      "itens": "ITEM 01"
+     },
+     {
+      "elemento": "Vão 7",
+      "itens": "ITEM 01"
+     }
+    ],
+    "texto": "Janela J1 na sala."
    }
   ],
   "localizacao": {

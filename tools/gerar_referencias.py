@@ -122,12 +122,14 @@ def dados_ok():
         'fontes': [{'rotulo': 'Norma fictícia', 'texto': 'Art. 1º da Lei Fictícia nº 0/2000'}],
         'conclusao': 'Conclusão fictícia.',
         'assinatura': {'nome': 'Fulano de Tal', 'cargo': 'Analista fictício'},
-        'indices': {'linhas': [
+        'indices': {'zona': 'Zona residencial fictícia', 'linhas': [
             dict(nome='TO', situacao='CONTA_CONFERE', descricao='Taxa de ocupação', calculo='40/100', projeto='40%', limite='50%', texto='Dentro do limite.'),
             dict(nome='CA', situacao='PENDENTE', descricao='Coeficiente', calculo='120/100', projeto='1,2', limite='A confirmar na norma.', texto='Verificar enquadramento.')]},
-        'diagrama': {'chamadas': [{'titulo': 'Projeção', 'texto': 'Comparar com a prancha 01.'}]},
-        'iluminacao': {'subtitulo': 'Vãos da sala', 'tag': 'Projeto', 'fonte': 'Prancha 01', 'ambientes': [{'nome': 'Sala', 'situacao': 'DIVERGENCIA'}]},
-        'figuras': [{'imagem': 'fig1.png', 'prancha': '01', 'titulo': 'Planta', 'fonte': 'Projeto fictício', 'notas': []}],
+        'diagrama': {'nota': 'Projeção fictícia de 40 m².', 'chamadas': [{'titulo': 'Projeção', 'texto': 'Comparar com a prancha 01.'}]},
+        'iluminacao': {'subtitulo': 'Vãos da sala', 'tag': 'Projeto', 'fonte': 'Prancha 01', 'ambientes': [{'nome': 'Sala', 'situacao': 'DIVERGENCIA',
+                        'vaos': [{'codigo': 'J1', 'tipo': 'Correr', 'area': '1 m²'}], 'minimo': [{'texto': '12 m² / 6 = 2 m²'}],
+                        'textos': ['A janela J1 oferece 1 m² e o mínimo fictício é 2 m².']}]},
+        'figuras': [{'imagem': 'fig1.png', 'prancha': '01', 'titulo': 'Planta', 'fonte': 'Projeto fictício', 'notas': [], 'texto': 'Janela J1 na sala.'}],
         'localizacao': {'situacao': 'CONFIRMADO', 'imagem': 'mapa.png', 'subtitulo': 'Consulta cadastral', 'texto': 'Lote fictício identificado.', 'fonte': 'Base de teste',
                         'dados': [{'rotulo': 'Inscrição', 'valor': '1'}, {'rotulo': 'Lote', 'valor': '2'}, {'rotulo': 'Rua', 'valor': '3'}]},
     }
@@ -138,6 +140,20 @@ def casos_conferir():
     imgs_ok = ['fig1.png', 'mapa.png']
     c = {}
     c['valido'] = (ok, imgs_ok, False)
+    d = dados_ok(); d['indices'] = {'linhas': []}
+    c['indices_sem_disposicao'] = (d, imgs_ok, False)
+    d = dados_ok(); del d['figuras'][0]['texto']
+    c['figura_sem_legenda'] = (d, imgs_ok, False)
+    d = dados_ok(); d['figuras'][0]['notas'] = ['vão', {'elemento': 'Janela', 'itens': 'ITEM 02', 'texto': 3}]
+    c['notas_malformadas'] = (d, imgs_ok, False)
+    d = dados_ok(); d['indices'].update(zona='NÃO INFORMADO', observacao='Ainda a confirmar.')
+    c['zona_pendente_sem_fonte'] = (d, imgs_ok, False)
+    d = dados_ok(); d['indices'].update(zona='A CONFIRMAR', observacao='A prancha A-02 não identifica a parcela.')
+    c['zona_pendente_com_motivo'] = (d, imgs_ok, False)
+    d = dados_ok(); del d['iluminacao']['ambientes'][0]['minimo']
+    c['ambiente_sem_minimo'] = (d, imgs_ok, False)
+    d = dados_ok(); d['capa']['pontos_confirmar'] = 'Sem pendências registradas.'
+    c['capa_contraditoria'] = (d, imgs_ok, False)
     d = dados_ok()
     del d['capa']['protocolo']
     d['fontes'][0]['texto'] = ' '
@@ -150,7 +166,7 @@ def casos_conferir():
     d = dados_ok(); d['figuras'].append({'imagem': 'sumiu.png'}); d['figuras'].append({'notas': []})
     d['localizacao']['imagem'] = 'mapa_ausente.png'
     c['figura_sem_imagem'] = (d, imgs_ok, False)
-    d = dados_ok(); d['figuras'][0]['notas'] = ['1', '2', '3', '4', '5', '6', '7']
+    d = dados_ok(); d['figuras'][0]['notas'] = [{'elemento': f'Vão {n}', 'itens': 'ITEM 01'} for n in range(1, 8)]
     c['sete_notas'] = (d, imgs_ok, False)
     d = dados_ok()
     d['conclusao'] = 'Falta [DD/MM/AAAA] e [Nº]/[ANO]; também [x] e [ab]. [ÁREA] [zeta] [Zeta] [😀 astral] [￮ fim]'
@@ -204,8 +220,6 @@ def main():
     mod, arq = carregar_kit(kit)
     agrupar = bloco_localizacao(arq, mod)
     SAIDA.mkdir(parents=True, exist_ok=True)
-    for velho in SAIDA.iterdir():  # só os arquivos: a pasta pode estar presa pelo OneDrive/Git
-        if velho.is_file(): velho.unlink()
 
     for k in mod.SIT:
         gravar_texto(f'pill_{k}.txt', mod.pill(k))

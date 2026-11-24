@@ -81,6 +81,34 @@ internal static class RoteiroMonitorAoVivo
         }
 
         Secoes(7);
+        await abrirAba("Resumo");
+        const string campoNumerico = "conferencia-numerica-resumo";
+        await Esperar("conferencia_numerica_ausente", () => Campo(campoNumerico) == "");
+        var pastaNumerica = Directory.CreateDirectory(Path.Combine(controle, "local")).FullName;
+        var reciboNumerico = Path.Combine(pastaNumerica, Pmvni.Agentes.ConferenciaNumerica.ArquivoControle);
+        var idExecucao = Path.GetFileName(execucao.Registro.Pasta);
+        var reciboTeste = JsonSerializer.SerializeToNode(new
+        {
+            versao = 1, execucao = idExecucao, rota = "codex", fase = "montagem",
+            linhas = new[] {
+                new { indice = "to", situacao = "DIVERGENTE", declarado = "18,5%", calculado = "19%", fontes = new[] { "Prancha fictícia A-03" }, motivo = "Área do térreo." },
+                new { indice = "ca", situacao = "INSUFICIENTE", declarado = "1,37", calculado = "", fontes = new[] { "Memorial fictício" }, motivo = "Falta área computável." },
+                new { indice = "tp", situacao = "CONFERE", declarado = "11,05%", calculado = "11,05%", fontes = new[] { "Quadro fictício de áreas" }, motivo = "Área permeável dividida pela área do lote." } },
+        })!;
+        Gravar(reciboNumerico, reciboTeste);
+        await Esperar("conferencia_numerica_visivel", () => Campo(campoNumerico).Contains("Divergentes: 1"));
+        var expansor = Visiveis(pagina.MonitorNativo).OfType<Expander>().Single(e => Equals(e.Header, "Ver índices e fontes"));
+        expansor.IsExpanded = true;
+        await Esperar("conferencia_numerica_com_valores_e_fonte", () => Visiveis(pagina.MonitorNativo).OfType<TextBlock>()
+            .Any(t => t.Text.Contains("18,5%") && t.Text.Contains("19%") && t.Text.Contains("Prancha fictícia A-03")));
+        await Esperar("conferencia_mostra_confirmado_e_insuficiente", () => Visiveis(pagina.MonitorNativo).OfType<TextBlock>()
+            .Any(t => t.Text.Contains("TP · CONFERE · declarado 11,05% · calculado 11,05%") && t.Text.Contains("Quadro fictício de áreas")
+                && t.Text.Contains("CA · INSUFICIENTE · declarado 1,37 · calculado não disponível") && t.Text.Contains("Falta área computável.")));
+        reciboTeste["execucao"] = "outra-execucao";
+        Gravar(reciboNumerico, reciboTeste);
+        await Esperar("conferencia_numerica_de_outro_registro_recusada", () => Campo(campoNumerico) == "");
+        reciboTeste["execucao"] = idExecucao;
+        Gravar(reciboNumerico, reciboTeste);
         var primeiraHora = Amostra(0);
         await abrirAba("Consumo");
         await Esperar("primeira_amostra", () => Tem("Tokens totais · 23,1 mil") && Tem("Medidos às " + primeiraHora)
@@ -129,6 +157,7 @@ internal static class RoteiroMonitorAoVivo
         relatorio["segunda_amostra_renderizada"] = new JsonObject { ["tokens"] = "270,7 mil", ["cache"] = "91,4%",
             ["semana_real"] = "54%", ["cinco_horas_controlada"] = "18%", ["hora_da_medicao"] = ultimaHora };
         await abrirAba("Resumo");
+        await Esperar("conferencia_numerica_na_reabertura", () => Campo(campoNumerico).Contains("Divergentes: 1"));
     }
 
     static void Gravar(string caminho, JsonNode conteudo)

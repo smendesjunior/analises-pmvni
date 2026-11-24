@@ -8,7 +8,7 @@ namespace Pmvni.Composicao;
 /// <see cref="ImagensSoNaPasta"/>: as imagens só podem estar dentro da pasta do dados.json (sem <c>..</c>; a pasta de trabalho de um
 /// pacote aberto). Caminho absoluto ou de rede é recusado sempre, e <c>..</c> só dentro da pasta do processo (<see cref="CaminhoImagem"/>);
 /// só <c>.png .jpg .jpeg .webp .gif</c> com assinatura conferida; recusado conta como imagem não encontrada.</summary>
-public sealed record OpcoesRender(bool Instrucoes, bool Rascunho, bool ImagensSoNaPasta = false);
+public sealed record OpcoesRender(bool Instrucoes, bool Rascunho, bool ImagensSoNaPasta = false, bool UsarProfissionalLocal = true);
 
 /// <summary>Elemento do HTML que o paginador (Tarefa 6+) precisa reconhecer: seletor CSS, posição (0 = primeiro) entre os
 /// elementos do mesmo seletor, id estável e, nas seções, o texto do h2. Os refs NÃO alteram o HTML.</summary>
@@ -40,21 +40,11 @@ public static class RelatorioRenderer
         // read_text(encoding='utf-8-sig'): UTF-8 estrito, sem o BOM.
         var json = new UTF8Encoding(false, true).GetString(bytesDados);
         var d = new Dictionary<string, object?>(Dados.Dict(JsonModelo.Ler(json)));
-        if (d.GetValueOrDefault("capa") is IReadOnlyDictionary<string, object?> capa
-            && string.IsNullOrWhiteSpace(Dados.Obter(capa, "pontos_confirmar") as string)
-            && d.GetValueOrDefault("itens") is IEnumerable<object?> itensDaCapa)
-        {
-            var temas = itensDaCapa.OfType<IReadOnlyDictionary<string, object?>>()
-                .Where(it => Dados.Obter(it, "situacao") is "NAO_ATENDE" or "DIVERGENCIA_INTERNA" or "NAO_COMPROVADO")
-                .Select(it => Dados.Obter(it, "titulo") as string).Where(t => !string.IsNullOrWhiteSpace(t)).Take(3);
-            var pontos = string.Join(" · ", temas);
-            d["capa"] = new Dictionary<string, object?>(capa) { ["pontos_confirmar"] = pontos.Length > 0 ? pontos : "Sem pendências registradas." };
-        }
-        if (Profissional.Atual is { } pro)
+        if (op.UsarProfissionalLocal && Profissional.Atual is { } pro)
             d["assinatura"] = new Dictionary<string, object?>
             {
-                ["nome"] = pro.NomeLinha ?? (op.Rascunho || op.Instrucoes ? "" : "Identificação do responsável pendente nos ajustes profissionais."),
-                ["cargo"] = pro.Cargo() is { Length: > 0 } cargo ? cargo : op.Rascunho || op.Instrucoes ? "" : "Qualificação profissional pendente nos ajustes profissionais."
+                ["nome"] = pro.NomeLinha ?? "",
+                ["cargo"] = pro.Cargo()
             };
 
         var estrito = op.ImagensSoNaPasta;
@@ -117,14 +107,14 @@ public static class RelatorioRenderer
             var apresentacao = Dados.Obter(linhas[i], "apresentacao");
             if (!PythonTexto.Verdadeiro(apresentacao)) continue;
             var linha = new Dictionary<string, object?>(Dados.Dict(linhas[i]));
-            linha["situacao"] = Dados.Exigir(apresentacao, "situacao");
+            if (Dados.Obter(apresentacao, "situacao") is string { Length: > 0 } situacao) linha["situacao"] = situacao;
             if (Dados.Obter(apresentacao, "nota") is string { Length: > 0 } nota)
             {
                 if (grupo == "indices")
-                    linha["texto"] = Dados.Obter(linha, "texto") is string { Length: > 0 } texto ? texto + " " + nota : nota;
+                    linha["texto"] = Dados.Obter(linha, "texto") is string { Length: > 0 } texto && texto != nota ? texto + " " + nota : nota;
                 else
                 {
-                    var textos = Dados.Lista(Dados.Obter(linha, "textos", new List<object?>()));
+                    var textos = Dados.Lista(Dados.Obter(linha, "textos", new List<object?>())).Where(t => !Equals(t, nota)).ToList();
                     textos.Insert(0, nota);
                     linha["textos"] = textos;
                 }

@@ -655,7 +655,7 @@ public sealed partial class MainWindow
 
     /// <summary>Como <see cref="ImportarAnaliseAsync"/>; devolve o <c>.rpmvni</c> criado (null = não importou). <paramref name="abrir"/> = false: não abre
     /// (o relatório fica nos Recentes e na pasta do processo).</summary>
-    internal async Task<string?> ImportarAnaliseParaAsync(Processo p, string json, bool abrir)
+    internal async Task<string?> ImportarAnaliseParaAsync(Processo p, string json, bool abrir, Action<ImportacaoRecusadaException>? aoRecusar = null)
     {
         string destino;
         try
@@ -673,7 +673,7 @@ public sealed partial class MainWindow
             MostrarMensagem(InfoBarSeverity.Error, "Não foi possível importar a análise", Erro(e));
             return null;
         }
-        return await ImportarParaAsync(json, destino, abrir) ? destino : null;
+        return await ImportarParaAsync(json, destino, abrir, entrega: true, aoRecusar) ? destino : null;
     }
 
     void AbrirNoPrograma(string? caminho)

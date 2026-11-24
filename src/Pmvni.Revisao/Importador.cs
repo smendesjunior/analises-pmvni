@@ -11,6 +11,7 @@ namespace Pmvni.Revisao;
 public sealed class ImportacaoRecusadaException(IReadOnlyList<string> erros) : Exception(string.Join("; ", erros))
 {
     public IReadOnlyList<string> Erros { get; } = erros;
+    public string? Sha256 { get; init; }
 }
 
 /// <summary>dados.json do kit → <see cref="ConteudoPacote"/> (um <see cref="ItemRevisao"/> por item, citações convertidas, imagens copiadas
@@ -19,7 +20,7 @@ public static class Importador
 {
     public const string TipoHistorico = "ImportarCitacoes";
 
-    public static ConteudoPacote Importar(byte[] dadosJson, string caminhoDados, ModeloCarregado m, ContextoUsuario u)
+    public static ConteudoPacote Importar(byte[] dadosJson, string caminhoDados, ModeloCarregado m, ContextoUsuario u, bool entrega = false)
     {
         ArgumentNullException.ThrowIfNull(dadosJson);
         ArgumentNullException.ThrowIfNull(caminhoDados);
@@ -28,12 +29,12 @@ public static class Importador
 
         JsonObject dados;
         try { dados = JsonFiel.Ler(dadosJson); }
-        catch (JsonException e) { throw new ImportacaoRecusadaException(new[] { "O arquivo não é um dados.json válido: " + e.Message }); }
+        catch (JsonException e) { throw new ImportacaoRecusadaException(new[] { "O arquivo não é um dados.json válido: " + e.Message }) { Sha256 = Sha(dadosJson) }; }
 
         ResultadoRender render;
-        try { render = RelatorioRenderer.Renderizar(dadosJson, caminhoDados, new OpcoesRender(false, true), m); }
-        catch (MoldeErro e) { throw new ImportacaoRecusadaException(new[] { "Os dados não têm a estrutura do relatório: " + e.Message }); }
-        if (!render.Ok) throw new ImportacaoRecusadaException(render.Erros);
+        try { render = RelatorioRenderer.Renderizar(dadosJson, caminhoDados, new OpcoesRender(false, !entrega, UsarProfissionalLocal: false), m); }
+        catch (MoldeErro e) { throw new ImportacaoRecusadaException(new[] { "Os dados não têm a estrutura do relatório: " + e.Message }) { Sha256 = Sha(dadosJson) }; }
+        if (!render.Ok) throw new ImportacaoRecusadaException(render.Erros) { Sha256 = Sha(dadosJson) };
 
         var agora = u.Relogio();
         var origem = dados["itens"]!.AsArray();
@@ -52,7 +53,8 @@ public static class Importador
             else projeto.Documento[chave] = valor?.DeepClone();
         }
 
-        var assets = CopiarImagens(projeto.Documento, Path.GetDirectoryName(Path.GetFullPath(caminhoDados))!);
+        var shaRecebido = Sha(dadosJson);
+        var assets = CopiarImagens(projeto.Documento, Path.GetDirectoryName(Path.GetFullPath(caminhoDados))!, shaRecebido);
 
         var historico = new[]
         {
@@ -61,7 +63,7 @@ public static class Importador
 
         var partes = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["original/recebido.json"] = Sha(dadosJson),
+            ["original/recebido.json"] = shaRecebido,
             ["projeto.json"] = Sha(ProjetoJson.Escrever(projeto)),
             ["historico.jsonl"] = Sha(HistoricoJsonl.Escrever(historico)),
         };
@@ -125,7 +127,7 @@ public static class Importador
     }
 
     /// <summary>Copia a imagem da localização e as das figuras para <c>assets/&lt;sha256&gt;.&lt;ext&gt;</c> e reescreve o caminho no documento.</summary>
-    private static Dictionary<string, byte[]> CopiarImagens(JsonObject documento, string pastaDados)
+    private static Dictionary<string, byte[]> CopiarImagens(JsonObject documento, string pastaDados, string shaRecebido)
     {
         var assets = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         var jaCopiadas = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -166,7 +168,7 @@ public static class Importador
         Reescrever(documento["localizacao"]);
         if (documento["figuras"] is JsonArray figuras) foreach (var f in figuras) Reescrever(f);
 
-        if (erros.Count > 0) throw new ImportacaoRecusadaException(erros);
+        if (erros.Count > 0) throw new ImportacaoRecusadaException(erros) { Sha256 = shaRecebido };
         return assets;
     }
 

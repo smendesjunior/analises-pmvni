@@ -20,6 +20,23 @@ public sealed class ExecucaoEmCurso
 {
     const int MaximoDeLinhas = 2000;
     readonly ObservableCollection<string> linhas = [];
+    (DateTime Gravado, long Bytes, string? Perfil, string? Acesso, string Resumo)? resumoModelos;
+
+    internal string ResumoModelos()
+    {
+        var tabela = new FileInfo(Path.Combine(Registro.Pasta, TabelaDeModelos.NomeDoArquivo));
+        var existe = tabela.Exists;
+        var data = existe ? tabela.LastWriteTimeUtc : DateTime.MinValue;
+        var bytes = existe ? tabela.Length : 0;
+        var perfil = Registro.PerfilDaExecucao();
+        var (modo, rota) = Registro.AcessoDaExecucao();
+        var acesso = rota ?? modo;
+        if (resumoModelos is { } anterior && anterior.Gravado == data && anterior.Bytes == bytes && anterior.Perfil == perfil && anterior.Acesso == acesso)
+            return anterior.Resumo;
+        var resumo = EscolhaModelosDaExecucao.ResumoConfigurado(Registro.Pasta, Provedor, perfil, acesso);
+        resumoModelos = (data, bytes, perfil, acesso, resumo);
+        return resumo;
+    }
 
     internal ExecucaoEmCurso(Provedor provedor, Processo processo, RegistroExecucao registro, DateTime inicioUtc, Pecas pecas, string? texto, OrquestradorAnalise orquestrador, bool retomada)
     {
@@ -38,6 +55,7 @@ public sealed class ExecucaoEmCurso
     public Processo Processo { get; }
     public RegistroExecucao Registro { get; }
     public DateTime InicioUtc { get; }
+    internal DateTime? InicioDoControleUtc { get; set; }
 
     readonly RelogioAnalise relogio;
     internal TimeSpan TempoAtivo => relogio.TempoAtivo;
@@ -58,7 +76,7 @@ public sealed class ExecucaoEmCurso
 
     async Task GravarPeriodicamenteAsync(CancellationToken token)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
         try
         {
             while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
@@ -156,10 +174,10 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
     /// <param name="modelos">Tarefa 19: a tabela efetiva de modelos (padrão do kit + ajuste local); null = vale o padrão do kit.</param>
     public async Task<ExecucaoEmCurso?> AnalisarAsync(Provedor p, Processo pr, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto,
         PerfilGemini? perfilGemini = null, bool ficticio = false, bool trocarGemini = false, string? registroAnterior = null, TabelaDeModelos? modelos = null,
-        string? pastaQgis = null, string? pastaKit = null)
+        string? pastaQgis = null, string? pastaKit = null, ModoAcesso? modoOriginal = null, string? rotaOriginal = null)
     {
         var pc = pecas();
-        var m = modo(p);
+        var m = modoOriginal ?? modo(p);
         if (p != Provedor.Gemini) { perfilGemini = null; ficticio = false; }
         var chaveGuardada = m == ModoAcesso.Chave && CofreChaves.Existe(raizDados, p);
         if (FluxoNovoRelatorio.MotivoDesabilitado(p, pr, EmAndamento(pr.Pasta), pc, m, chaveGuardada, perfilGemini) is { } motivo) throw new AnaliseRecusadaException(motivo);
@@ -179,7 +197,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                 }
                 // A mesma análise retomada no mesmo registro (escolhida, ou achada interrompida com o mesmo pedido e as mesmas peças): no ChatGPT, o
                 // controlador do kit continua o controle que já existe (sem --inputs).
-                var interrompida = registroAnterior is null ? RegistroExecucao.BuscarInterrompida(pr, texto, feitos) : null;
+                var interrompida = registroAnterior is null ? RegistroExecucao.BuscarInterrompida(pr, texto, feitos, p) : null;
                 var reg = registroAnterior is not null ? RegistroExecucao.Abrir(registroAnterior, pr.Pasta)
                     : interrompida ?? RegistroExecucao.Criar(pr.Pasta, p, DateTime.Now);
                 if (registroAnterior is not null && texto == FluxoNovoRelatorio.PedidoContinuar && File.Exists(Path.Combine(reg.Pasta, "pedido.md")))
@@ -206,7 +224,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var progresso = Progresso(e);
         var pedido = new PedidoExecucao(p, pr, pc, m, raizDados, texto, arquivados, registro)
         {
-            RotaCodex = rotaCodex?.Invoke(), Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini, Retomar = retomada, Decidir = Decisor(e),
+            RotaCodex = rotaOriginal ?? rotaCodex?.Invoke(), Perfil = perfilGemini, Ficticio = ficticio, TrocarGemini = trocarGemini, Retomar = retomada, Decidir = Decisor(e),
             Modelos = modelos, PastaQgis = pastaQgis, PastaKit = pastaKit,
             NomeProfissional = Pmvni.Composicao.Profissional.Atual?.NomeLinha,
             CargoProfissional = Pmvni.Composicao.Profissional.Atual?.Cargo(),

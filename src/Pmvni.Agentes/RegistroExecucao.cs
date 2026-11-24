@@ -66,6 +66,70 @@ public sealed class RegistroExecucao : IDisposable
 
     public string Pasta { get; }
 
+    public const string NomeRecusaEntrega = "RECUSA-ENTREGA-EDITOR.JSON";
+
+    public static bool? PastaDisponivel(string caminho)
+    {
+        try { return (File.GetAttributes(caminho) & FileAttributes.Directory) != 0; }
+        catch (Exception e) when (e is DirectoryNotFoundException or FileNotFoundException)
+        {
+            try
+            {
+                return TravaExecucao.EmVolumeDeRede(caminho) || !new DriveInfo(Path.GetPathRoot(Path.GetFullPath(caminho))!).IsReady ? null : false;
+            }
+            catch (Exception x) when (x is IOException or UnauthorizedAccessException) { return null; }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+    }
+
+    public static DateTimeOffset? LerInicio(string pastaRegistro)
+    {
+        try
+        {
+            var j = JsonNode.Parse(File.ReadAllBytes(Path.Combine(pastaRegistro, "execucao.json")));
+            return DateTimeOffset.TryParse(j?["inicio"]?.GetValue<string>(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var d) ? d : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException) { return null; }
+    }
+
+    static string RotaDaRecusa(Provedor p) => p switch { Provedor.ChatGpt => "codex", Provedor.Gemini => "gemini", _ => "claude" };
+
+    public static string? MotivoDaRecusaAtual(string processo, Provedor provedor, string registro)
+    {
+        var marcador = Path.Combine(registro, NomeRecusaEntrega);
+        if (!File.Exists(marcador) || LerInicio(registro) is not { } inicio) return null;
+        try
+        {
+            var m = JsonNode.Parse(File.ReadAllBytes(marcador));
+            if (m?["versao"]?.GetValue<int>() != 1 || m["execution"]?.GetValue<string>() != Path.GetFileName(registro)
+                || m["rota"]?.GetValue<string>() != RotaDaRecusa(provedor) || m["erros"] is not JsonArray { Count: > 0 } erros) return null;
+            var documento = ResultadoAnalise.Localizar(processo, provedor, inicio.UtcDateTime, registro).Documento;
+            if (documento is null || !string.Equals(documento, m["documento"]?.GetValue<string>(), StringComparison.OrdinalIgnoreCase)) return null;
+            using var arquivo = File.OpenRead(documento);
+            var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(arquivo));
+            return hash == m["sha256"]?.GetValue<string>() ? string.Join(Environment.NewLine, erros.Select(e => e?.GetValue<string>())) : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException) { return null; }
+    }
+
+    public void RecusarEntrega(Provedor provedor, string documento, string sha256, IReadOnlyList<string> erros)
+    {
+        var marcador = Path.Combine(Pasta, NomeRecusaEntrega);
+        var dados = new { versao = 1, execution = Path.GetFileName(Pasta), rota = RotaDaRecusa(provedor), documento = Path.GetFullPath(documento), sha256, erros };
+        var tmp = marcador + "." + Guid.NewGuid().ToString("N").ToUpperInvariant() + ".TMP";
+        try
+        {
+            File.WriteAllBytes(tmp, JsonSerializer.SerializeToUtf8Bytes(dados, Opcoes));
+            File.Move(tmp, marcador, true);
+        }
+        finally { if (File.Exists(tmp)) File.Delete(tmp); }
+        Atualizar(o =>
+        {
+            o["situacao"] = "interrompida";
+            o["mensagem"] = "Entrega recusada pelo Editor. " + string.Join(" ", erros);
+        });
+    }
+
     /// <summary>Modo e rota técnica realmente usados na partida, para consultar o catálogo ao receber uma recusa.</summary>
     public (string? Modo, string? RotaCodex) AcessoDaExecucao()
     {
@@ -88,7 +152,7 @@ public sealed class RegistroExecucao : IDisposable
 
     // O kit valida as provas, as etapas e os critérios antes de restaurar o manifesto.
     // Selecionar aqui o mesmo registro conserva os objetos de evidência endereçados por hash.
-    public static RegistroExecucao? BuscarInterrompida(Processo alvo, string? pedido, IReadOnlyList<ArquivoArquivado> anexos)
+    public static RegistroExecucao? BuscarInterrompida(Processo alvo, string? pedido, IReadOnlyList<ArquivoArquivado> anexos, Provedor? provedor = null)
     {
         var processo = alvo.Pasta;
         var editor = Path.Combine(processo, ".pmvni-ai", "editor");
@@ -99,6 +163,7 @@ public sealed class RegistroExecucao : IDisposable
             try
             {
                 using var anterior = Abrir(pasta, processo);
+                if (provedor.HasValue && anterior.execucao["provedor"]?.GetValue<string>() != Provedores.Sufixo(provedor.Value)) return null;
                 var estado = anterior.execucao["situacao"]?.GetValue<string>();
                 if (estado is not ("interrompida" or "cota_esgotada" or "falhou" or "em_andamento" or "cancelada")) return null;
                 if (anterior.PedidoOriginal().Trim() != (pedido ?? "").Trim()) return null;

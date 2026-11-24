@@ -114,6 +114,7 @@ public sealed partial class PaginaNovoRelatorio
             _ => string.Join("|", string.Join(";", achadosExibidos.Select(a => a.Id + a.Situacao + a.Verificado + a.Titulo)), filtroAchados, todasEvidencias,
                 BotaoEvidenciasPdf.Visibility, TotalAtende.Text, TotalNaoAtende.Text, TotalComprovar.Text, TotalDivergentes.Text),
         };
+        if (aba == "Resumo") conteudo += "|" + ConferenciaNumericaExibida;
         conteudo = aba + "|" + execucaoHtml + "|" + conteudo;
         if (!forcar && conteudo == chaveConteudo) return;
         chaveConteudo = conteudo;
@@ -439,6 +440,17 @@ public sealed partial class PaginaNovoRelatorio
             contagens.Children.Add(cartao);
         }
         Adicionar(contagens, 14);
+        if (ConferenciaNumericaExibida is { } numeros)
+        {
+            var cartao = Cartao();
+            var dados = new StackPanel { Margin = new Thickness(16, 12, 16, 12), Spacing = 6 };
+            dados.Children.Add(Texto(numeros.Titulo, "MnCorpoForte"));
+            dados.Children.Add(Id(Texto(numeros.Resumo, "MnSecundario"), "conferencia-numerica-resumo"));
+            dados.Children.Add(new Expander { Header = "Ver índices e fontes", HorizontalAlignment = HorizontalAlignment.Stretch,
+                Content = new TextBlock { Text = numeros.Detalhes, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true } });
+            cartao.Child = dados;
+            Adicionar(Id(cartao, "conferencia-numerica-local"), 12);
+        }
 
         var linhas = filtroAchados is null ? achadosExibidos : achadosExibidos.Where(a => Classificacao(a) == filtroAchados).ToArray();
         var filtro = new DropDownButton { Content = BotaoConteudo(Glifos.Filtro, filtroAchados ?? "Filtrar") };
@@ -686,6 +698,7 @@ public sealed partial class PaginaNovoRelatorio
     // ── Detalhes ──
 
     internal string ModelosConfigurados { get; set; } = "";
+    internal ConferenciaNumerica? ConferenciaNumericaExibida { get; set; }
 
     void PaginaDetalhes()
     {

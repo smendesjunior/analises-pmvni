@@ -32,6 +32,49 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
     }
 
     [Fact]
+    public void conferencia_exige_o_valor_com_sinal_na_linha_e_folha_corretas()
+    {
+        var pdf = Pmvni.Legislacao.Testes.Ficticios.PdfLegislacaoFicticio.Gerar([["-1,25", "11"], ["1,25"]]);
+        TrechoImpresso Linha(string valor, int linha) => new(valor, "tabela", 69d / 595, (58d + linha * 18) / 842,
+            115d / 595, (76d + linha * 18) / 842);
+        TrechoImpresso[][] esperado = [[Linha("-1,25", 0), Linha("11", 1)], [Linha("1,25", 0)]];
+        ConferenciaImpressao.Conferir(pdf, esperado);
+        foreach (var trocado in new[] { Linha("1,25", 0), Linha("1", 1), Linha("11", 0) })
+            Assert.Throws<InvalidDataException>(() => ConferenciaImpressao.Conferir(pdf, [[trocado], esperado[1]]));
+        Assert.Throws<InvalidDataException>(() => ConferenciaImpressao.Conferir(pdf, [esperado[1], esperado[0]]));
+    }
+
+    [Fact]
+    public async Task pdf_final_com_varias_folhas_preserva_as_medidas_de_cada_item()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "pmvni-itens-" + Guid.NewGuid().ToString("N") + ".json");
+        var pdf = Path.ChangeExtension(temp, ".pdf");
+        try
+        {
+            var dados = JsonNode.Parse(File.ReadAllText(CaminhoCorpus("curto")))!;
+            var itens = dados["itens"]!.AsArray();
+            for (var i = 1; i <= 18; i++)
+            {
+                var item = itens[0]!.DeepClone();
+                item["titulo"] = $"Corte de teste {i}";
+                item["verificacao"] = $"Na prancha {i}, cota de piso -{i},25 m e altura livre {i},40 m.";
+                itens.Add(item);
+            }
+            await File.WriteAllTextAsync(temp, dados.ToJsonString());
+            var cfg = ConfigFolhas.PadraoDeDados(Modelo, temp);
+            var plano = await PlanoDaTela(RelatorioRenderer.Renderizar(temp, new OpcoesRender(false, true), Modelo), cfg);
+            var resultado = await Exportador.ExportarFinalAsync(temp, cfg, pdf, plano, Modelo);
+            Assert.True(resultado.Folhas >= 3);
+            var bytesAnteriores = await File.ReadAllBytesAsync(pdf);
+            dados["capa"]!.AsObject().Remove("pontos_confirmar");
+            await File.WriteAllTextAsync(temp, dados.ToJsonString());
+            await Assert.ThrowsAsync<ConferenciaFinalException>(() => Exportador.ExportarFinalAsync(temp, cfg, pdf, plano, Modelo));
+            Assert.Equal(bytesAnteriores, await File.ReadAllBytesAsync(pdf));
+        }
+        finally { File.Delete(temp); File.Delete(pdf); File.Delete(Exportador.CaminhoReciboDe(pdf)); }
+    }
+
+    [Fact]
     public async Task aplicar_plano_reproduz_as_mesmas_folhas()
     {
         foreach (var caso in Corpus)
@@ -363,7 +406,7 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
             "sha256_pdf", "folhas", "gerado_em", "pagina_mm" }, j.EnumerateObject().Select(p => p.Name));
         Assert.True(j.GetProperty("rascunho").GetBoolean()); // ExportarAsync sem dizer o contrário: rascunho
         Assert.Equal(1, j.GetProperty("recibo_versao").GetInt32());
-        Assert.Equal(13, j.GetProperty("modelo_revisao").GetInt32());
+        Assert.Equal(14, j.GetProperty("modelo_revisao").GetInt32());
         var modelo = j.GetProperty("sha256_modelo").Deserialize<Dictionary<string, string>>()!;
         Assert.Equal(Modelo.Sha256.OrderBy(p => p.Key, StringComparer.Ordinal), modelo.OrderBy(p => p.Key, StringComparer.Ordinal));
         Assert.Equal(Sha(File.ReadAllBytes(CaminhoCorpus("curto"))), j.GetProperty("sha256_dados").GetString());

@@ -15,12 +15,14 @@ public sealed class TravaExecucao : IDisposable
 
     readonly string caminho;
     readonly string selo;
+    readonly FileStream arquivo;
     int descartada;
 
-    TravaExecucao(string caminho, string selo)
+    TravaExecucao(string caminho, string selo, FileStream arquivo)
     {
         this.caminho = caminho;
         this.selo = selo;
+        this.arquivo = arquivo;
     }
 
     static string CaminhoDa(string pastaProcesso) => Path.Combine(pastaProcesso, ".pmvni-ai", "editor", "execucao.lock");
@@ -34,6 +36,8 @@ public sealed class TravaExecucao : IDisposable
         var conteudo = new JsonObject
         {
             ["pid"] = Environment.ProcessId,
+            ["maquina"] = Environment.MachineName,
+            ["handle_compartilhado"] = true,
             ["provedor"] = Provedores.Sufixo(p),
             ["inicio"] = DateTimeOffset.UtcNow.ToString("o", CultureInfo.InvariantCulture),
             ["selo"] = selo,
@@ -43,10 +47,11 @@ public sealed class TravaExecucao : IDisposable
         {
             try
             {
-                using (var fs = new FileStream(ArquivoGerado.Caminho(caminho), FileMode.CreateNew, FileAccess.Write, FileShare.Read))
-                using (var w = new StreamWriter(fs, Utf8))
-                    w.Write(conteudo);
-                return new TravaExecucao(caminho, selo);
+                using var fs = new FileStream(ArquivoGerado.Caminho(caminho), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+                fs.Write(Utf8.GetBytes(conteudo));
+                fs.Flush();
+                var guarda = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                return new TravaExecucao(caminho, selo, guarda);
             }
             catch (IOException) when (File.Exists(caminho))
             {
@@ -70,9 +75,17 @@ public sealed class TravaExecucao : IDisposable
     {
         try
         {
-            using var doc = JsonDocument.Parse(File.ReadAllText(caminho));
+            using var doc = LerTrava(caminho);
             var r = doc.RootElement;
             if (r.ValueKind != JsonValueKind.Object || !r.TryGetProperty("pid", out var p) || !p.TryGetInt32(out var pid)) return Recente(caminho);
+            if (r.TryGetProperty("maquina", out var maquina) && maquina.ValueKind == JsonValueKind.String
+                && !string.Equals(maquina.GetString(), Environment.MachineName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!r.TryGetProperty("handle_compartilhado", out var h) || h.ValueKind != JsonValueKind.True || !EmVolumeDeRede(caminho)) return true;
+                // O servidor SMB só concede a abertura exclusiva depois que o dono liberou o arquivo.
+                using var livre = new FileStream(caminho, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                return false;
+            }
             using var processo = Process.GetProcessById(pid);
             if (processo.HasExited) return false;
             // Mesmo pid, processo mais novo que a trava: o pid foi reaproveitado.
@@ -92,9 +105,22 @@ public sealed class TravaExecucao : IDisposable
 
     static bool Recente(string caminho) => DateTime.UtcNow - File.GetLastWriteTimeUtc(caminho) < IlegivelAbandonadaDepoisDe;
 
+    internal static bool EmVolumeDeRede(string caminho)
+    {
+        var raiz = Path.GetPathRoot(Path.GetFullPath(caminho))!;
+        return raiz.StartsWith(@"\\", StringComparison.Ordinal) || new DriveInfo(raiz).DriveType == DriveType.Network;
+    }
+
+    static JsonDocument LerTrava(string caminho)
+    {
+        using var fs = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        return JsonDocument.Parse(fs);
+    }
+
     public void Dispose()
     {
         if (Interlocked.Exchange(ref descartada, 1) == 1) return;
+        arquivo.Dispose();
         try
         {
             // Só apaga a própria trava (o selo): uma trava que outra execução pegou depois não é desta.

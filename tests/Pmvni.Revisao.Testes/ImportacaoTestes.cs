@@ -19,6 +19,23 @@ public class ImportacaoTestes
     private static string Sha(byte[] b) => Convert.ToHexString(SHA256.HashData(b)).ToLowerInvariant();
 
     [Fact]
+    public void RelatorioRecebidoSemPontosNaoPodeSerEntregueNemGerarDespacho()
+    {
+        var caminho = Ambiente.Corpus("curto.json");
+        var dados = JsonFiel.Ler(File.ReadAllBytes(caminho));
+        dados["capa"]!.AsObject().Remove("pontos_confirmar");
+        var bytes = Encoding.UTF8.GetBytes(dados.ToJsonString());
+        var problema = Assert.Throws<ImportacaoRecusadaException>(() => Importador.Importar(bytes, caminho, Modelo, Ambiente.Contexto(), entrega: true));
+        Assert.Contains("capa.pontos_confirmar", problema.Message);
+        Assert.Equal(Sha(bytes), problema.Sha256);
+        var revisavel = Importador.Importar(bytes, caminho, Modelo, Ambiente.Contexto());
+        Assert.False(revisavel.Projeto.Documento["capa"]!.AsObject().ContainsKey("pontos_confirmar"));
+        var pacote = new PacoteAberto(revisavel, new EstadoDisco(bytes.Length, DateTime.UtcNow, Sha(bytes)), false, null);
+        var processo = new Processo(Path.GetDirectoryName(caminho)!, "Fictício", 9001, 2026, null);
+        Assert.Contains(ConteudoDespacho.Bloqueios(TipoDespacho.Correcao, pacote, processo), e => e.Contains("capa.pontos_confirmar"));
+    }
+
+    [Fact]
     public void importar_corpus_curto_cria_itens_com_ids_e_original_intacto()
     {
         var bytes = File.ReadAllBytes(Ambiente.Corpus("curto.json"));
@@ -420,7 +437,7 @@ public class ImportacaoTestes
         var c = Importar("longo");
         var m = c.Manifesto;
         Assert.Equal(Manifesto.VersaoEsquemaAtual, m.VersaoEsquema);
-        Assert.Equal(13, m.TemplateRevisao);
+        Assert.Equal(14, m.TemplateRevisao);
         Assert.Equal(Modelo.Sha256["relatorio.css"], m.Sha256Css);
         Assert.Equal(Ambiente.Contexto().Relogio(), m.CriadoEm);
         Assert.False(string.IsNullOrWhiteSpace(m.AppVersao));

@@ -61,6 +61,7 @@
   },
   "indices": null,
   "diagrama": {
+   "nota": "Projeção fictícia de 40 m².",
    "chamadas": [
     {
      "titulo": "Projeção",
@@ -75,7 +76,8 @@
     "prancha": "01",
     "titulo": "Planta",
     "fonte": "Projeto fictício",
-    "notas": []
+    "notas": [],
+    "texto": "Janela J1 na sala."
    }
   ],
   "localizacao": {
@@ -106,8 +108,7 @@
  ],
  "rascunho": false,
  "erros": [
-  "Campo de publicação sem conteúdo: iluminacao.subtitulo",
-  "Campo de publicação sem conteúdo: iluminacao.tag",
+  "Índices: apresente as linhas ou justifique a ausência com motivo e evidência.",
   "Campo de publicação sem conteúdo: iluminacao.fonte"
  ]
 }

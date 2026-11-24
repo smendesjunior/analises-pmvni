@@ -24,6 +24,10 @@ public static class ResultadoAnalise
         FileInfo info;
         try
         {
+            var mesmoRegistro = ControleDoRegistro(pastaProcesso, p, pastaRegistro);
+            if (mesmoRegistro == false) return Falha("O controle do kit pertence a outra execução. A entrega não foi importada.");
+            if (mesmoRegistro == true && RegistroExecucao.LerInicio(pastaRegistro) is { } partida && partida.UtcDateTime < inicioUtc)
+                inicioUtc = partida.UtcDateTime;
             info = new FileInfo(delivery);
             if (!info.Exists || info.LastWriteTimeUtc < inicioUtc - Tolerancia)
             {
@@ -39,7 +43,7 @@ public static class ResultadoAnalise
                 return Falha($"A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: {pastaRegistro}.");
             }
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or JsonException)
         {
             return Falha($"A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: {pastaRegistro}.");
         }
@@ -75,6 +79,17 @@ public static class ResultadoAnalise
             return Falha($"O relatório indicado pela análise não foi encontrado: {documento}.");
 
         return new Resultado(completo, PdfDentro(pastaProcesso, pdf), null);
+    }
+
+    // Os kits antigos não identificavam o Editor no estado. Para eles continua valendo o horário desta partida.
+    internal static bool? ControleDoRegistro(string processo, Provedor provedor, string registro)
+    {
+        var estado = Path.Combine(processo, PastaControle(provedor), "engine_state.json");
+        if (!File.Exists(estado)) return null;
+        using var json = JsonDocument.Parse(File.ReadAllBytes(estado));
+        if (json.RootElement.ValueKind != JsonValueKind.Object) throw new JsonException("Estado da análise inválido.");
+        if (!json.RootElement.TryGetProperty("editor_execution", out var id)) return null;
+        return id.ValueKind == JsonValueKind.String && id.GetString() == Path.GetFileName(Path.TrimEndingDirectorySeparator(registro));
     }
 
     /// <summary>O PDF que o kit declara, com a mesma regra do documento: relativo vale em relação à pasta do processo; fora dela, link ou junção no caminho, ou

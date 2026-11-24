@@ -17,14 +17,16 @@ public static class Conferencia
         ("fontes", "rotulo texto"),
         ("assinatura", "nome cargo"),
         ("", "conclusao"),
-        ("localizacao", "subtitulo texto fonte"),
+        ("localizacao", "fonte"),
         ("localizacao.dados", "rotulo valor"),
         ("localizacao.legenda", "texto"),
-        ("indices.linhas", "nome descricao calculo projeto limite texto"),
+        ("indices.linhas", "nome descricao calculo projeto limite"),
         ("indices.declaracoes", "rotulo valor fonte"),
         ("indices.sem_calculo", "motivo evidencia"),
+        ("indices.pendencias_quadro", "rotulo fonte motivo"),
+        ("diagrama", "nota"),
         ("diagrama.chamadas", "titulo texto"),
-        ("iluminacao", "subtitulo tag fonte"),
+        ("iluminacao", "fonte"),
         ("iluminacao.ambientes", "nome"),
         ("iluminacao.ambientes.vaos", "codigo tipo"),
         ("iluminacao.ambientes.minimo", "texto"),
@@ -56,6 +58,30 @@ public static class Conferencia
 
     private static bool EmSet(object? v, IReadOnlySet<string> conjunto) => v is string s && conjunto.Contains(s);
 
+    private static bool TextoPreenchido(object? v) => v is string s && s.Trim().ToLowerInvariant() is not ("" or "-" or "—" or "…" or "none" or "null");
+    private static readonly HashSet<string> MarcadoresZona = """
+        a o do da de em no na se por para com e ainda esta zona zoneamento enquadramento urbanistico urbanistica
+        nao sem n nd ni consta informado informada informacao identificado identificada identificacao definido
+        definida definicao comprovado comprovada comprovacao conhecido conhecida confirmar confirmado confirmada
+        confirmacao aguarda aguardando pendente pendencia verificar verificacao validar validacao indisponivel
+        indefinido indefinida desconhecido desconhecida especificado especificada aplicavel aplica
+        """.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+
+    private static bool MarcadorZona(object? valor)
+    {
+        if (valor is not string texto) return true;
+        var normal = string.Concat(texto.ToLowerInvariant().Normalize(NormalizationForm.FormKD)
+            .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark));
+        return System.Text.RegularExpressions.Regex.Matches(normal, "[a-z0-9]+").All(p => MarcadoresZona.Contains(p.Value));
+    }
+
+    private static bool Tem(object? o, string chave) => PythonTexto.Verdadeiro(Dados.Obter(SeVerdadeiro(o), chave));
+    private static bool Pendente(object? linha)
+    {
+        var situacao = Dados.Obter(SeVerdadeiro(Dados.Obter(linha, "apresentacao")), "situacao") ?? Dados.Obter(linha, "situacao");
+        return situacao is "NAO_ATENDE" or "NAO_COMPROVADO" or "DIVERGENCIA_INTERNA" or "DIVERGENCIA" or "PENDENTE";
+    }
+
     /// <summary>Lista de erros, na mesma ordem e com o mesmo texto do kit. <paramref name="imagemExiste"/> recebe o caminho
     /// relativo e diz se é um arquivo existente (no kit: <c>(base / caminho).resolve().is_file()</c>).</summary>
     public static IReadOnlyList<string> Conferir(IReadOnlyDictionary<string, object?> d, Func<string, bool> imagemExiste, bool rascunho)
@@ -81,6 +107,18 @@ public static class Conferencia
         }
 
         var linhas = Dados.Lista(Dados.Obter(SeVerdadeiro(Dados.Obter(d, "indices")), "linhas", new List<object?>()));
+        if (!rascunho && d.TryGetValue("indices", out var blocoIndices))
+        {
+            if (blocoIndices is not IReadOnlyDictionary<string, object?> || (linhas.Count > 0) == Tem(blocoIndices, "sem_calculo"))
+                erros.Add("Índices: apresente as linhas ou justifique a ausência com motivo e evidência.");
+            if (linhas.Count > 0)
+            {
+                var zona = Dados.Obter(blocoIndices, "zona") as string;
+                if (string.IsNullOrWhiteSpace(zona)) erros.Add("Índices: falta a identificação da zona ou de sua pendência.");
+                else if (MarcadorZona(zona) && MarcadorZona(Dados.Obter(blocoIndices, "observacao")))
+                    erros.Add("Índices: explique na observação qual peça, parcela ou informação falta para confirmar a zona.");
+            }
+        }
         if (Dados.Obter(d, "indices") is IReadOnlyDictionary<string, object?> indices && !linhas.Any()
             && indices.TryGetValue("sem_calculo", out var lacuna)
             && (lacuna is not IReadOnlyDictionary<string, object?> dado ||
@@ -89,18 +127,28 @@ public static class Conferencia
             erros.Add("Índices sem cálculo: informe motivo e evidência da peça examinada.");
         // Pacotes antigos não exigiam diagrama. Podem ser reabertos e reexportados na revisão original.
         var revisao = Dados.Txt(Dados.Obter(d, "revisao_modelo_relatorio"));
-        if (!rascunho && linhas.Count > 0 && int.TryParse(revisao, out var numero) && numero >= 12
+        if (!rascunho && linhas.Count > 0 && (!int.TryParse(revisao, out var numero) || numero >= 12)
             && !PythonTexto.Verdadeiro(Dados.Obter(SeVerdadeiro(Dados.Obter(d, "diagrama")), "chamadas")))
             erros.Add("Tabela de índices sem diagrama de conferência.");
         foreach (var l in linhas)
         {
             var sit = Dados.Obter(l, "situacao");
+            if (!rascunho && sit is not "CONTA_CONFERE" && !TextoPreenchido(Dados.Obter(l, "texto")) && !Tem(Dados.Obter(l, "apresentacao"), "nota"))
+                erros.Add("Índice \"" + Dados.Txt(Dados.Obter(l, "nome")) + "\": falta justificar o resultado indicado.");
             if (!EmSet(sit, Situacoes.SitIndice))
                 erros.Add("Índice \"" + Dados.Txt(Dados.Obter(l, "nome")) + "\": situação inválida " + PythonTexto.Repr(sit));
         }
-        foreach (var a in Dados.Lista(Dados.Obter(SeVerdadeiro(Dados.Obter(d, "iluminacao")), "ambientes", new List<object?>())))
+        var iluminacao = Dados.Obter(d, "iluminacao");
+        if (!rascunho && PythonTexto.Verdadeiro(iluminacao) && !Tem(iluminacao, "ambientes"))
+            erros.Add("Iluminação: a tabela exige ao menos um ambiente.");
+        var ambientes = Dados.Lista(Dados.Obter(SeVerdadeiro(iluminacao), "ambientes", new List<object?>()));
+        foreach (var a in ambientes)
         {
             var sit = Dados.Obter(a, "situacao");
+            if (!rascunho && (!Tem(a, "vaos") || !Tem(a, "minimo")))
+                erros.Add("Ambiente \"" + Dados.Txt(Dados.Obter(a, "nome")) + "\": faltam as aberturas ou o mínimo exigido.");
+            if (!rascunho && !Tem(a, "resultado") && !Tem(a, "situacao_titulo") && !Tem(a, "textos") && !Tem(Dados.Obter(a, "apresentacao"), "nota"))
+                erros.Add("Ambiente \"" + Dados.Txt(Dados.Obter(a, "nome")) + "\": falta o resultado ou a justificativa da situação.");
             if (!EmSet(sit, Situacoes.SitIndice))
                 erros.Add("Ambiente \"" + Dados.Txt(Dados.Obter(a, "nome")) + "\": situação inválida " + PythonTexto.Repr(sit));
             foreach (var vao in Dados.Lista(Dados.Obter(a, "vaos", new List<object?>())))
@@ -109,14 +157,41 @@ public static class Conferencia
                     erros.Add("Ambiente \"" + Dados.Txt(Dados.Obter(a, "nome")) + "\": abertura sem área e sem justificativa.");
         }
 
+        if (!rascunho && Dados.Obter(d, "historico_reanalise") is { } historico && !Tem(historico, "pendencias") && !Tem(historico, "sem_pendencias"))
+            erros.Add("Reanálise: informe as pendências ou a evidência de que não havia pendências.");
+        var figuras = Dados.Obter(d, "figuras", new List<object?>()) as List<object?>;
+        if (figuras is null) erros.Add("Figuras: informe uma lista de objetos.");
         var n = 0;
-        foreach (var f in Dados.Lista(Dados.Obter(d, "figuras", new List<object?>())))
+        foreach (var f in figuras ?? [])
         {
             n++;
-            if (Dados.Len(Dados.Obter(f, "notas", new List<object?>())) > 6)
-                erros.Add("Figura " + n.ToString(CultureInfo.InvariantCulture) + ": mais de 6 indicações; divida em recortes de detalhe");
-            if (!Existe(Dados.Obter(f, "imagem", "")))
-                erros.Add("Figura " + n.ToString(CultureInfo.InvariantCulture) + ": imagem não encontrada (" + Dados.Txt(Dados.Obter(f, "imagem")) + ")");
+            if (f is not IReadOnlyDictionary<string, object?> figura)
+            {
+                erros.Add($"Figura {n}: informe um objeto com os dados da figura.");
+                continue;
+            }
+            var notas = Dados.Obter(figura, "notas", new List<object?>()) as List<object?>;
+            if (notas is null) erros.Add($"Figura {n}: notas deve ser uma lista de objetos.");
+            notas ??= [];
+            if (!rascunho && notas.Count == 0 && !TextoPreenchido(Dados.Obter(figura, "texto")))
+                erros.Add($"Figura {n}: falta a legenda que identifica o conteúdo ilustrado.");
+            for (var j = 0; j < notas.Count; j++)
+            {
+                if (notas[j] is not IReadOnlyDictionary<string, object?> nota)
+                {
+                    erros.Add($"Figura {n}, nota {j + 1}: informe um objeto com elemento, texto e itens.");
+                    continue;
+                }
+                if (Dados.Obter(nota, "texto", "") is not string textoNota)
+                    erros.Add($"Figura {n}, nota {j + 1}: texto deve ser uma cadeia de caracteres.");
+                else if (!rascunho && TextoPreenchido(textoNota) &&
+                    string.Equals(textoNota.Trim().Trim('.'), (Dados.Obter(nota, "elemento") as string)?.Trim().Trim('.'), StringComparison.OrdinalIgnoreCase))
+                    erros.Add($"Figura {n}, nota {j + 1}: a explicação repete o elemento; informe a providência ou o que foi conferido.");
+            }
+            if (notas.Count > 6) erros.Add($"Figura {n}: mais de 6 indicações; divida em recortes de detalhe");
+            var imagem = Dados.Obter(figura, "imagem");
+            if (imagem is not string caminho || string.IsNullOrWhiteSpace(caminho) || !Existe(caminho))
+                erros.Add($"Figura {n}: imagem não encontrada ({Dados.Txt(imagem)})");
         }
 
         if (Dados.Len(Dados.Obter(Dados.Obter(d, "capa", new Dictionary<string, object?>()), "quadros", new List<object?>())) != 4)
@@ -138,13 +213,31 @@ public static class Conferencia
 
         if (!rascunho)
         {
+            var pontos = (Dados.Obter(SeVerdadeiro(Dados.Obter(d,"capa")), "pontos_confirmar") as string)?.Trim().TrimEnd('.').ToLowerInvariant();
+            var pendencias = Dados.Obter(SeVerdadeiro(Dados.Obter(d, "historico_reanalise")), "pendencias") as List<object?>;
+            if (pontos is "sem pendências" or "sem pendências registradas" or "nenhuma pendência" &&
+                (Dados.Lista(Dados.Obter(d, "itens", new List<object?>())).Any(Pendente) || linhas.Any(Pendente) || ambientes.Any(Pendente)
+                 || Tem(Dados.Obter(d, "indices"), "sem_calculo") || Dados.Obter(SeVerdadeiro(loc), "situacao") is "A_CONFIRMAR"
+                 || pendencias?.Any(p => Dados.Obter(p, "situacao") is not ("SANADA" or "ATENDIDA" or "RESOLVIDA")) == true))
+                erros.Add("Capa: a declaração de ausência de pendências contradiz os itens ou quadros.");
+            (string Caminho, string Campos)[] opcionais =
+            [
+                ("indices", "subtitulo zona observacao"), ("indices.linhas", "texto"), ("iluminacao", "tag subtitulo atencao"),
+                ("localizacao", "subtitulo texto"), ("iluminacao.ambientes.vaos", "area sem_area medidas"), ("iluminacao.ambientes", "situacao_titulo"),
+                ("figuras", "texto"), ("figuras.notas", "texto"), ("historico_reanalise", "arquivo sem_pendencias")
+            ];
+            foreach (var (caminho, campos) in opcionais)
+                foreach (var (local, objeto) in Objetos(d, caminho.Split('.'), 0, ""))
+                    foreach (var campo in campos.Split(' '))
+                        if (objeto.TryGetValue(campo, out var valor) && PythonTexto.Verdadeiro(valor) && !TextoPreenchido(valor))
+                            erros.Add("Campo de publicação sem conteúdo: " + local + "." + campo);
             foreach (var (caminho, campos) in CamposImpressos)
                 foreach (var (local, objeto) in Objetos(d, caminho.Split('.', StringSplitOptions.RemoveEmptyEntries), 0, ""))
                     foreach (var campo in campos.Split(' '))
                     {
                         objeto.TryGetValue(campo, out var valor);
                         if (local.Length == 0 && campo == "conclusao" && !PythonTexto.Verdadeiro(valor)) continue;
-                        if (valor is not string texto || texto.Trim() is "" or "-" or "—" or "…")
+                        if (!TextoPreenchido(valor))
                             erros.Add("Campo de publicação sem conteúdo: " + (local.Length == 0 ? campo : local + "." + campo));
                     }
             var pend = new SortedSet<string>(Comparer<string>.Create(Dados.ComparaPontosDeCodigo));

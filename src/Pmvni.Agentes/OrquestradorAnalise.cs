@@ -53,6 +53,7 @@ public sealed record FimAnalise(string Situacao, string? Documento, string? Pdf,
 {
     /// <summary>A decisão que o kit pediu e ficou sem resposta (a análise espera; "Continuar a análise" pergunta de novo).</summary>
     public DecisaoAnalise? Decisao { get; init; }
+    public bool AcompanhamentoPendente { get; init; }
 }
 
 /// <summary>O intermediário (desenho §12.1): inicia o controlador do kit instalado neste computador, acompanha, guarda o registro e localiza o resultado que o
@@ -305,12 +306,21 @@ public sealed class OrquestradorAnalise
     {
         pe.Registro.Atualizar(o =>
         {
+            o["provedor_origem"] ??= o["provedor"]?.DeepClone() ?? JsonValue.Create(Provedores.Sufixo(pe.Provedor));
             o["provedor"] = Provedores.Sufixo(pe.Provedor);
             o["modo"] = pe.Modo switch { ModoAcesso.Chave => "chave", ModoAcesso.ContaGemini => "conta_gemini", _ => "conta" };    // nunca a chave
             o["programa"] = programa;
-            o["linha_de_comando"] = new JsonArray(linha.Select(a => (JsonNode?)JsonValue.Create(a)).ToArray());
+            var comando = new JsonArray(linha.Select(a => (JsonNode?)JsonValue.Create(a)).ToArray());
+            if (pe.Retomar && o["inicio"] is not null)
+            {
+                var retomadas = o["retomadas"] as JsonArray;
+                if (retomadas is null) o["retomadas"] = retomadas = new JsonArray();
+                retomadas.Add(new JsonObject { ["inicio"] = inicio.ToString("o", CultureInfo.InvariantCulture),
+                    ["provedor"] = Provedores.Sufixo(pe.Provedor), ["modo"] = o["modo"]?.DeepClone(), ["linha_de_comando"] = comando.DeepClone() });
+            }
+            o["linha_de_comando"] ??= comando;
             o["processo"] = pe.Processo.Pasta;
-            o["inicio"] = inicio.ToString("o", CultureInfo.InvariantCulture);
+            o["inicio"] ??= inicio.ToString("o", CultureInfo.InvariantCulture);
             o["usuario"] = Usuario();
             o["versao_do_editor"] = VersaoEditor();
             // 2026-11-16: o plugin do kit e a versão instalada que fizeram a análise (auditável depois).
@@ -562,6 +572,7 @@ public sealed class OrquestradorAnalise
         if (!File.Exists(Path.Combine(pastaProcesso, ResultadoAnalise.PastaControle(Provedor.ChatGpt), "engine_state.json"))) return false;
         try
         {
+            if (ResultadoAnalise.ControleDoRegistro(pastaProcesso, Provedor.ChatGpt, pastaRegistro) == false) return false;
             var situacoes = Path.Combine(pastaRegistro, "situacoes.jsonl");
             if (File.Exists(situacoes))
                 using (var fs = new FileStream(situacoes, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
@@ -756,6 +767,11 @@ public sealed class OrquestradorAnalise
             if (iniciada.Codigo == "JA_EM_ANDAMENTO") log.MostrarOFimDoLog();     // uma análise que já rodava: mostra o que ela já escreveu
             // Só a partida precisa da chave (o kit a passa ao processo isolado da análise); "situacao" só lê arquivos e roda sem ela, como na retomada.
             var fim = await AcompanharAsync(pe, Ambiente(p, ModoAcesso.Conta, null), redator, log, inicio, progresso, ct).ConfigureAwait(false);
+            if (fim.AcompanhamentoPendente)
+            {
+                grupo?.ManterProcessosAoFechar();
+                return fim;
+            }
             // Contrato da Tarefa 2: o kit parou para o analista decidir. O editor pergunta, grava a resposta e dá a partida de novo (o kit continua de onde parou).
             if (fim.Decisao is not { } d || partidas >= MaximoDeChamadas) return fim;
             var resposta = await PerguntarAsync(pe, d, ct).ConfigureAwait(false);
@@ -827,7 +843,8 @@ public sealed class OrquestradorAnalise
             }
             catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             {
-                fim = Falha("A análise não pôde ser acompanhada: " + e.Message.TrimEnd('.') + ". Veja o registro: " + pe.Registro.Pasta + ".");
+                fim = new FimAnalise("interrompida", null, null, "A análise não pôde ser acompanhada: " + e.Message.TrimEnd('.') + ". O acompanhamento pode ser retomado.", null)
+                    { AcompanhamentoPendente = true };
             }
         }
         Encerrar(pe, fim, inicio);
@@ -858,6 +875,8 @@ public sealed class OrquestradorAnalise
         var (exe, argsSituacao) = LinhasDeComando.ProRuntime(pecas.Python!, pecas.PythonPeloLauncher, pecas.RuntimeDoKit(pe.Provedor)!, pasta, "situacao");
         var relogio = Stopwatch.StartNew();
         TimeSpan? ultimaSituacao = null;
+        var arquivoStatus = Path.Combine(pasta, ResultadoAnalise.PastaControle(pe.Provedor), "auto-status.json");
+        DateTime? statusConsultado = null;
         string? chaveAnterior = null;
         var falhasSeguidas = 0;
 
@@ -868,8 +887,29 @@ public sealed class OrquestradorAnalise
 
             if (ultimaSituacao is null || relogio.Elapsed - ultimaSituacao >= IntervaloSituacao)
             {
+                DateTime? gravado = null;
+                try
+                {
+                    var status = new FileInfo(arquivoStatus);
+                    if (status.Exists) gravado = status.LastWriteTimeUtc;
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Registrar(e); }
+                // O runtime também verifica se o trabalhador morreu. Mantém essa consulta mesmo com status estável.
+                if (gravado.HasValue && gravado == statusConsultado && falhasSeguidas == 0
+                    && ultimaSituacao.HasValue && relogio.Elapsed - ultimaSituacao < IntervaloSituacao * 6)
+                {
+                    registro.Descarregar();
+                    await Task.Delay(IntervaloLog, ct).ConfigureAwait(false);
+                    continue;
+                }
+                statusConsultado = gravado;
                 ultimaSituacao = relogio.Elapsed;
-                var r = await ExecucaoProcesso.RodarAsync(exe, argsSituacao, pasta, ambiente, LimiteSituacao, ct).ConfigureAwait(false);
+                (int Codigo, string Saida) r;
+                try { r = await ExecucaoProcesso.RodarAsync(exe, argsSituacao, pasta, ambiente, LimiteSituacao, ct).ConfigureAwait(false); }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+                {
+                    r = (-1, e.Message);
+                }
                 var saidaSituacao = redator.Aplicar(r.Saida);
                 var situacao = r.Codigo == 0 ? SituacaoAnalisePro.Ler(DoPrimeiroJson(saidaSituacao)) : null;
                 if (situacao is { Pdf: not null }) situacao = situacao with { Pdf = ResultadoAnalise.PdfDentro(pasta, situacao.Pdf) };   // só um PDF que o editor abriria
@@ -879,7 +919,8 @@ public sealed class OrquestradorAnalise
                 if (situacao is null || situacao.Codigo.Length == 0)
                 {
                     if (++falhasSeguidas >= FalhasSeguidasDaSituacao)
-                        return Falha($"Não foi possível ler a situação da {NomeDoKit(pe.Provedor)}: " + PrimeiraLinha(saidaSituacao) + ". Veja o registro: " + registro.Pasta + ".", r.Codigo);
+                        return new FimAnalise("interrompida", null, null, $"Não foi possível ler a situação da {NomeDoKit(pe.Provedor)}: "
+                            + PrimeiraLinha(saidaSituacao) + ". O registro foi mantido para retomar o acompanhamento.", r.Codigo) { AcompanhamentoPendente = true };
                 }
                 else
                 {

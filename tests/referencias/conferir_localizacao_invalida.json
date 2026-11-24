@@ -60,6 +60,7 @@
    "cargo": "Analista fictício"
   },
   "indices": {
+   "zona": "Zona residencial fictícia",
    "linhas": [
     {
      "nome": "TO",
@@ -82,6 +83,7 @@
    ]
   },
   "diagrama": {
+   "nota": "Projeção fictícia de 40 m².",
    "chamadas": [
     {
      "titulo": "Projeção",
@@ -96,7 +98,22 @@
    "ambientes": [
     {
      "nome": "Sala",
-     "situacao": "DIVERGENCIA"
+     "situacao": "DIVERGENCIA",
+     "vaos": [
+      {
+       "codigo": "J1",
+       "tipo": "Correr",
+       "area": "1 m²"
+      }
+     ],
+     "minimo": [
+      {
+       "texto": "12 m² / 6 = 2 m²"
+      }
+     ],
+     "textos": [
+      "A janela J1 oferece 1 m² e o mínimo fictício é 2 m²."
+     ]
     }
    ]
   },
@@ -106,7 +123,8 @@
     "prancha": "01",
     "titulo": "Planta",
     "fonte": "Projeto fictício",
-    "notas": []
+    "notas": [],
+    "texto": "Janela J1 na sala."
    }
   ],
   "localizacao": {
@@ -123,8 +141,6 @@
   "Localização: situação inválida 'TALVEZ' (CONFIRMADO ou A_CONFIRMAR)",
   "Localização: mapa não encontrado (None)",
   "Localização: a ficha precisa de ao menos 3 dados (inscrição, lote, ruas…)",
-  "Campo de publicação sem conteúdo: localizacao.subtitulo",
-  "Campo de publicação sem conteúdo: localizacao.texto",
   "Campo de publicação sem conteúdo: localizacao.fonte"
  ]
 }

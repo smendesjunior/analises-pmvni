@@ -1,0 +1,169 @@
+{
+ "dados": {
+  "capa": {
+   "protocolo": "01/02/2099",
+   "rotulo_data": "ANÁLISE",
+   "data": "03/02/2099",
+   "processo": "001/2099",
+   "requerente": "Requerente fictício",
+   "pontos_confirmar": "Área permeável.",
+   "quadros": [
+    {
+     "titulo": "Localização",
+     "destaque": "Rua Exemplo",
+     "apoio": "Lote 2"
+    },
+    {
+     "titulo": "Caracterização",
+     "destaque": "Residencial",
+     "apoio": "Uma unidade"
+    },
+    {
+     "titulo": "Autoria indicada",
+     "destaque": "Autor fictício",
+     "apoio": "Prancha 01"
+    },
+    {
+     "titulo": "Parâmetros",
+     "destaque": "Zona de teste",
+     "apoio": "Mapa fictício"
+    }
+   ]
+  },
+  "itens": [
+   {
+    "situacao": "ATENDE",
+    "titulo": "Recuo frontal",
+    "verificacao": "Conferido na prancha 01.",
+    "providencia": "Nenhuma.",
+    "base_legal": "Art. 1º da Lei Fictícia nº 0/2000",
+    "referencia": "Prancha 01"
+   },
+   {
+    "situacao": "NAO_COMPROVADO",
+    "titulo": "Área permeável",
+    "verificacao": "Conferido na prancha 01.",
+    "providencia": "Nenhuma.",
+    "base_legal": "Art. 1º da Lei Fictícia nº 0/2000",
+    "referencia": "Prancha 01"
+   }
+  ],
+  "fontes": [
+   {
+    "rotulo": "Norma fictícia",
+    "texto": "Art. 1º da Lei Fictícia nº 0/2000"
+   }
+  ],
+  "conclusao": "Conclusão fictícia.",
+  "assinatura": {
+   "nome": "Fulano de Tal",
+   "cargo": "Analista fictício"
+  },
+  "indices": {
+   "zona": "Zona residencial fictícia",
+   "linhas": [
+    {
+     "nome": "TO",
+     "situacao": "CONTA_CONFERE",
+     "descricao": "Taxa de ocupação",
+     "calculo": "40/100",
+     "projeto": "40%",
+     "limite": "50%",
+     "texto": "Dentro do limite."
+    },
+    {
+     "nome": "CA",
+     "situacao": "PENDENTE",
+     "descricao": "Coeficiente",
+     "calculo": "120/100",
+     "projeto": "1,2",
+     "limite": "A confirmar na norma.",
+     "texto": "Verificar enquadramento."
+    }
+   ]
+  },
+  "diagrama": {
+   "nota": "Projeção fictícia de 40 m².",
+   "chamadas": [
+    {
+     "titulo": "Projeção",
+     "texto": "Comparar com a prancha 01."
+    }
+   ]
+  },
+  "iluminacao": {
+   "subtitulo": "Vãos da sala",
+   "tag": "Projeto",
+   "fonte": "Prancha 01",
+   "ambientes": [
+    {
+     "nome": "Sala",
+     "situacao": "DIVERGENCIA",
+     "vaos": [
+      {
+       "codigo": "J1",
+       "tipo": "Correr",
+       "area": "1 m²"
+      }
+     ],
+     "minimo": [
+      {
+       "texto": "12 m² / 6 = 2 m²"
+      }
+     ],
+     "textos": [
+      "A janela J1 oferece 1 m² e o mínimo fictício é 2 m²."
+     ]
+    }
+   ]
+  },
+  "figuras": [
+   {
+    "imagem": "fig1.png",
+    "prancha": "01",
+    "titulo": "Planta",
+    "fonte": "Projeto fictício",
+    "notas": [
+     "vão",
+     {
+      "elemento": "Janela",
+      "itens": "ITEM 02",
+      "texto": 3
+     }
+    ],
+    "texto": "Janela J1 na sala."
+   }
+  ],
+  "localizacao": {
+   "situacao": "CONFIRMADO",
+   "imagem": "mapa.png",
+   "subtitulo": "Consulta cadastral",
+   "texto": "Lote fictício identificado.",
+   "fonte": "Base de teste",
+   "dados": [
+    {
+     "rotulo": "Inscrição",
+     "valor": "1"
+    },
+    {
+     "rotulo": "Lote",
+     "valor": "2"
+    },
+    {
+     "rotulo": "Rua",
+     "valor": "3"
+    }
+   ]
+  }
+ },
+ "imagens": [
+  "fig1.png",
+  "mapa.png"
+ ],
+ "rascunho": false,
+ "erros": [
+  "Figura 1, nota 1: informe um objeto com elemento, texto e itens.",
+  "Figura 1, nota 2: texto deve ser uma cadeia de caracteres.",
+  "Campo de publicação sem conteúdo: figuras[1].notas[2].texto"
+ ]
+}

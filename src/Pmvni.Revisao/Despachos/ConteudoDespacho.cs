@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
@@ -384,6 +385,16 @@ public static class ConteudoDespacho
 
     /// <summary>O que não deixa abrir o despacho (desenho §10.3): erros da conferência da revisão, processo da capa diferente do da pasta ou
     /// fora do formato, pacote somente leitura e correção sem nenhum item pendente.</summary>
+    public static IReadOnlyList<string> Bloqueios(TipoDespacho t, PacoteAberto pacote, Processo processo)
+    {
+        var projeto = pacote.Conteudo.Projeto;
+        var erros = Bloqueios(t, projeto, processo, pacote.SomenteLeitura).ToList();
+        var dados = Encoding.UTF8.GetString(DadosEfetivos.Gerar(projeto).Json);
+        if (Pmvni.Composicao.JsonModelo.Ler(dados) is IReadOnlyDictionary<string, object?> doc)
+            erros.AddRange(Pmvni.Composicao.Kit.Conferencia.Conferir(doc, pacote.Conteudo.Assets.ContainsKey, rascunho: false));
+        return erros.Distinct(StringComparer.Ordinal).ToList();
+    }
+
     public static IReadOnlyList<string> Bloqueios(TipoDespacho t, Projeto p, Processo processo, bool somenteLeitura)
     {
         ArgumentNullException.ThrowIfNull(p);

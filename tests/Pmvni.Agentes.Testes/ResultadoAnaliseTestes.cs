@@ -28,6 +28,35 @@ public class ResultadoAnaliseTestes
     }
 
     [Fact]
+    public void retomada_so_aceita_entrega_anterior_ao_clique_se_o_controle_pertencer_ao_registro()
+    {
+        using var t = Ambiente.PastaDeTeste("entrega-retomada");
+        var pasta = Ambiente.NovoProcesso(t).Pasta;
+        using var registro = RegistroExecucao.Criar(pasta, Provedor.ChatGpt, Inicio);
+        registro.Atualizar(j => j["inicio"] = Inicio.ToString("o"));
+        var id = Path.GetFileName(registro.Pasta);
+        var doc = Escrever(Path.Combine(pasta, "dados.json"), "{}");
+        var entrega = Entrega(pasta, Provedor.ChatGpt, doc);
+        var controle = Path.Combine(Path.GetDirectoryName(entrega)!, "engine_state.json");
+        var tentativa = Inicio.AddHours(1);
+        Resultado Localizar() => ResultadoAnalise.Localizar(pasta, Provedor.ChatGpt, tentativa, registro.Pasta);
+        Assert.Null(Localizar().Documento);
+        Escrever(controle, new JsonObject { ["editor_execution"] = id }.ToJsonString());
+        Assert.Equal(doc, Localizar().Documento);
+        var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(doc)));
+        registro.RecusarEntrega(Provedor.ChatGpt, doc, hash, ["Falta a zona."]);
+        Assert.Equal("Falta a zona.", RegistroExecucao.MotivoDaRecusaAtual(pasta, Provedor.ChatGpt, registro.Pasta));
+        File.AppendAllText(doc, " ");
+        Assert.Null(RegistroExecucao.MotivoDaRecusaAtual(pasta, Provedor.ChatGpt, registro.Pasta));
+        Escrever(controle, new JsonObject { ["editor_execution"] = "outra" }.ToJsonString());
+        File.SetLastWriteTimeUtc(entrega, tentativa.AddMinutes(1));
+        Assert.Contains("outra execução", Localizar().Motivo);
+        registro.AcrescentarSituacao("""{"situacao":"ENTREGUE"}""");
+        registro.Descarregar();
+        Assert.False(OrquestradorAnalise.PodeRetomarChatGpt(pasta, registro.Pasta));
+    }
+
+    [Fact]
     public void pastas_de_controle()
     {
         Assert.Equal(@".pmvni-ai\analise", ResultadoAnalise.PastaControle(Provedor.ChatGpt));

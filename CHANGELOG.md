@@ -2,6 +2,14 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.5.3
+
+- A entrega do kit passa pela conferência do relatório ao entrar no Editor. Se faltarem campos obrigatórios, a tela mostra quais são e permite pedir a correção no registro da análise.
+- O Editor usa a revisão 14 do modelo de relatório. A exportação confere o texto impresso por folha e posição antes de substituir o PDF. A emissão do despacho também confere a versão revisada do relatório.
+- O monitor preserva a hora e o comando de partida nas retomadas e reduz as gravações de tempo ativo. A trava do processo identifica a estação que iniciou a análise.
+- A conferência numérica local mostra TO, CA e TP no monitor e no histórico. Cada índice traz a situação, os valores declarados e calculados, as fontes e o motivo quando faltam dados.
+- A revisão textual e a elaboração de despachos por IA usam acesso de leitura aos documentos.
+
 ## 4.5.2
 
 - A aba Detalhes da análise mostra a rota, os modelos e o esforço por etapa. Se a conta recusar um modelo ou esforço, o analista pode escolher a configuração daquela execução.

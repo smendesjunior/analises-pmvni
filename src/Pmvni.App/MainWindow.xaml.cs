@@ -1133,17 +1133,19 @@ public sealed partial class MainWindow : Window, ITelaEdicao
 
     /// <summary>Importa o dados.json do kit para o <c>.rpmvni</c> novo <paramref name="pmvrel"/> (recusa se ele existe) e o abre.
     /// <paramref name="abrir"/> = false: só cria o <c>.rpmvni</c> (vai para os Recentes; o que está aberto não muda).</summary>
-    internal async Task<bool> ImportarParaAsync(string json, string pmvrel, bool abrir = true)
+    internal async Task<bool> ImportarParaAsync(string json, string pmvrel, bool abrir = true, bool entrega = false,
+        Action<ImportacaoRecusadaException>? aoRecusar = null)
     {
         if (ocupado || aplicando || documento is null) { AvisarOcupado(); return false; }
         Ocupar("Importando o dados.json…");
         try
         {
             modelo ??= await Task.Run(ModeloOficial.Carregar);
-            await SessaoEdicao.ImportarAsync(json, pmvrel, modelo);
+            await SessaoEdicao.ImportarAsync(json, pmvrel, modelo, entrega);
         }
         catch (ImportacaoRecusadaException e)
         {
+            aoRecusar?.Invoke(e);
             MostrarMensagem(InfoBarSeverity.Error, "O dados.json foi recusado", string.Join(Environment.NewLine, e.Erros.Take(8)));
             return false;
         }

@@ -41,6 +41,15 @@ public class GrupoDeProcessos : IDisposable
     /// <summary>Fecha o job: tudo o que estiver nele é encerrado.</summary>
     public void Dispose() => job.Dispose();
 
+    /// <summary>O acompanhamento perdeu contato com um trabalhador que ainda pode estar em execução.
+    /// Preserva o job da sessão e solta somente o vínculo de encerramento desta operação.</summary>
+    public void ManterProcessosAoFechar()
+    {
+        var info = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+        if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, ref info, (uint)Marshal.SizeOf<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>()))
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+    }
+
     const int JobObjectExtendedLimitInformation = 9;
     const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
 

@@ -21,6 +21,7 @@ public sealed partial class MainWindow
     /// <summary>Um relatório da IA que ainda não foi importado: a análise do Claude que terminou com o editor fechado (sem <see cref="Documento"/>: procurado no
     /// <c>delivery.json</c>) ou uma importação que falhou ou foi cancelada (com o documento já localizado). Sai da lista só depois de importado.</summary>
     internal sealed record ImportacaoPendente(Provedor Provedor, Processo Processo, string Registro, string? Documento, string? Pdf);
+    sealed record AcaoEntrega(ImportacaoPendente Pendente, bool Corrigir);
 
     /// <summary>Uma linha da lista de anexos (nada é gravado antes de Analisar).</summary>
     sealed class AnexoNovo(string origem, long tamanho, DestinoAnexo destino, string? compactado = null, string? interno = null)
@@ -98,9 +99,9 @@ public sealed partial class MainWindow
 
     /// <summary>Gemini: o perfil desta análise e a confirmação do que ele exige. Numa retomada vale o perfil em que a análise começou (com a sua confirmação
     /// quando difere do de Ajustes); o perfil gratuito pede, a cada partida, a declaração de que o processo é fictício. Ok false = nada parte.</summary>
-    async Task<(bool Ok, PerfilGemini? Perfil, bool Ficticio, bool Trocar)> ResolverPerfilGeminiAsync(Processo processo)
+    async Task<(bool Ok, PerfilGemini? Perfil, bool Ficticio, bool Trocar)> ResolverPerfilGeminiAsync(Processo processo, PerfilGemini? perfilOriginal = null)
     {
-        var escolhido = PerfilDoGemini;
+        var escolhido = perfilOriginal ?? PerfilDoGemini;
         var fixado = await Task.Run(() => GeminiFixado.Ler(processo.Pasta));
         var perfil = escolhido;
         if (perfil is not { } pf)
@@ -122,7 +123,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>A partida de uma análise pelo provedor; no Gemini, com o perfil resolvido antes (null = o usuário não confirmou e nada parte).</summary>
-    async Task<ExecucaoEmCurso?> AnalisarComPerfilAsync(Provedor p, Processo processo, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto, IReadOnlyList<AnexoNovo>? enviados, string? registroAnterior = null)
+    async Task<ExecucaoEmCurso?> AnalisarComPerfilAsync(Provedor p, Processo processo, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto, IReadOnlyList<AnexoNovo>? enviados, string? registroAnterior = null, bool corrigirEntrega = false)
     {
         if (Argumentos.Atual.Roteiro is null || OrigensDoKitDoRoteiro is not null)
         {
@@ -143,17 +144,28 @@ public sealed partial class MainWindow
                 }
             }
         }
+        ModoAcesso? modoOriginal = null;
+        string? rotaOriginal = null;
+        PerfilGemini? perfilOriginal = null;
+        if (corrigirEntrega && registroAnterior is not null)
+        {
+            using var original = RegistroExecucao.Abrir(registroAnterior, processo.Pasta);
+            var acesso = original.AcessoDaExecucao();
+            modoOriginal = acesso.Modo switch { "conta" => ModoAcesso.Conta, "conta_gemini" => ModoAcesso.ContaGemini, "chave" => ModoAcesso.Chave, _ => null };
+            rotaOriginal = acesso.RotaCodex;
+            perfilOriginal = MatrizGemini.DoCodigo(original.PerfilDaExecucao());
+        }
         if (p != Provedor.Gemini)
         {
             // Tarefa 19: a tabela de modelos desta análise (padrão do kit + ajuste local), pelas listas guardadas; a do provedor é atualizada em
             // segundo plano, sem segurar a partida nem a fila de comandos (revisão final I4).
             var modelos = TabelaParaAnalise(p);
-            return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: modelos, pastaQgis: ajustes.PastaQgis, pastaKit: ajustes.PastaKitEfetiva), enviados);
+            return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: modelos, pastaQgis: ajustes.PastaQgis, pastaKit: ajustes.PastaKitEfetiva, modoOriginal: modoOriginal, rotaOriginal: rotaOriginal), enviados);
         }
-        var (ok, perfil, ficticio, trocar) = await ResolverPerfilGeminiAsync(processo);
+        var (ok, perfil, ficticio, trocar) = await ResolverPerfilGeminiAsync(processo, perfilOriginal);
         if (!ok) return null;
         var tabela = TabelaParaAnalise(p);
-        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior, tabela, ajustes.PastaQgis, ajustes.PastaKitEfetiva), enviados);
+        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior, tabela, ajustes.PastaQgis, ajustes.PastaKitEfetiva, modoOriginal), enviados);
     }
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);
     internal void EsquecerAviso(Provedor p) { ajustes.Agentes[p].AvisoVersao = null; ajustes.Agentes[p].AvisoEm = null; SalvarAjustes(); }
@@ -256,7 +268,7 @@ public sealed partial class MainWindow
         n.BotaoContinuar.Click += async (_, _) => await TentarAsync(async () => await EscolherContinuacaoAsync());
         // 3.5.1: Retomar e Descartar análise sobem para a faixa de opções, ao lado do "Novo relatório" (pedido do usuário).
         Faixa.VagaExtra.Content = n.DestacarAcoesRetomada();
-        n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
+        n.BotaoImportarPendente.Click += async (_, _) => await TentarAsync(() => ResolverEntregaPendenteAsync(n.BotaoImportarPendente.Tag as AcaoEntrega));
         n.DetalhesSelecionados += async (_, _) =>
         {
             if (execucaoMostrada is { Provedor: Provedor.ChatGpt } e) await MostrarUltimaMensagemAsync(e);
@@ -959,6 +971,7 @@ public sealed partial class MainWindow
         NR.MostrarProgresso(null);
         NR.MostrarConsumo([]);
         NR.ModelosConfigurados = "";
+        NR.ConferenciaNumericaExibida = null;
         NR.MostrarDetalhesDasEtapas(DetalhesDasEtapas.Vazio);
         _ = AtualizarAchadosAsync(e);
         NR.LigarLinhas(e.LinhasObservaveis);
@@ -993,7 +1006,7 @@ public sealed partial class MainWindow
             var ordemDoKit = OrdemDasEtapasDoKit();
             var sessoes = consumoSessao;
             var etapasJson = pecasAgentes.EtapasJson;
-            var desde = await Task.Run(() => InicioDoRegistro(e));
+            var desde = e.InicioDoControleUtc ??= await Task.Run(() => InicioDoRegistro(e));
             var achados = await Task.Run(() => AchadosExecucao.LerDaExecucao(e.Registro.PastaProgresso, e.Processo.Pasta,
                 e.InicioUtc, controle, desde, historico, DateTimeOffset.UtcNow, ordemDoKit, iniciando: e.Fim?.IsCompleted != true));
             if (!fechada && ReferenceEquals(e, execucaoMostrada))
@@ -1011,16 +1024,16 @@ public sealed partial class MainWindow
                     RenderizarExecucao(e);
                 }
                 else if (mudouEstimativa) RenderizarExecucao(e);
-                var acesso = e.Registro.AcessoDaExecucao();
-                var ((consumo, amostra), detalhes, orcamento, evidencias, modelos) = await Task.Run(() => (
+                var ((consumo, amostra), detalhes, orcamento, evidencias, modelos, numerica) = await Task.Run(() => (
                     ConsumoAoVivo.Ler(controle, desde, e.Provedor, Path.GetFileName(e.Registro.Pasta), ordemDoKit, sessoes,
                         e.Fim?.IsCompleted == true ? null : DateTimeOffset.UtcNow),
                     DetalhesDasEtapas.Ler(controle, etapasJson, desde),
                     e.Provedor == Provedor.ChatGpt ? OrcamentoDaAnalise.Ler(controle, desde) : null,
                     Directory.Exists(PastaEvidenciasDoMonitor(e)),
-                    EscolhaModelosDaExecucao.ResumoConfigurado(e.Registro.Pasta, e.Provedor, e.Registro.PerfilDaExecucao(), acesso.RotaCodex ?? acesso.Modo)));
+                    e.ResumoModelos(), ConferenciaNumerica.Ler(e.Processo.Pasta, e.Provedor, e.Registro.Pasta)));
                 if (fechada || !ReferenceEquals(e, execucaoMostrada)) return;
                 NR.ModelosConfigurados = modelos;
+                NR.ConferenciaNumericaExibida = numerica;
                 NR.MostrarEvidencias(evidencias);
                 NR.MostrarDetalhesDasEtapas(detalhes);
                 NR.MostrarConsumo(consumo, orcamento, amostra);
@@ -1220,31 +1233,33 @@ public sealed partial class MainWindow
         if (e.Abandonada) { AtualizarTituloAnalise(); AtualizarBotoesNR(); return fim; }
         var comRelatorio = fim.Situacao == "concluida" && fim.Documento is not null;
         // A análise do Claude sai dos ajustes quando acaba sem relatório; com relatório, só depois de importado (até lá o editor reaberto ainda o oferece).
-        if (Provedores.PeloKit(e.Provedor) && !comRelatorio && !e.PausaSolicitada) EsquecerPendenteClaude(e.Registro.Pasta);
+        if (Provedores.PeloKit(e.Provedor) && !comRelatorio && !e.PausaSolicitada && !fim.AcompanhamentoPendente && fim.Decisao is null) EsquecerPendenteClaude(e.Registro.Pasta);
         // ChatGPT: fica nos ajustes só o que dá para continuar (o controle do kit ficou na pasta do processo: falha, cancelamento, decisão sem resposta).
         var continuavel = false;
         if (e.Provedor == Provedor.ChatGpt)
         {
             continuavel = fim.Situacao is "cota_esgotada" or "falhou" or "cancelada" or "sem_resultado" or "interrompida"
                 && await Task.Run(() => ContinuavelChatGpt(e.Processo.Pasta, e.Registro.Pasta));
-            if (comRelatorio || (!continuavel && !e.PausaSolicitada && fim.Situacao != "sem_resultado")) EsquecerPendenteChatGpt(e.Registro.Pasta);
+            if (!comRelatorio && !continuavel && !e.PausaSolicitada && fim.Situacao != "sem_resultado") EsquecerPendenteChatGpt(e.Registro.Pasta);
         }
         var naVista = ReferenceEquals(execucaoMostrada, e) && PaginaNovoRelatorioVisivel;
         if (ReferenceEquals(execucaoMostrada, e)) MostrarFormularioNR();
         // Ruling FD-I3: o fim em segundo plano nunca troca de módulo nem fecha o que está aberto; abre direto só com o usuário na vista desta execução,
         // sem relatório aberto e sem despacho em edição (conferido na vez da fila). Senão, "Relatório pronto" com "Abrir relatório".
-        RegistrarFimNaPilula(e, fim);
         if (comRelatorio)
         {
+            string? recusa = null;
             var importado = await ImportarAsync(new ImportacaoPendente(e.Provedor, e.Processo, e.Registro.Pasta, fim.Documento, fim.Pdf),
-                () => naVista && PodeAbrirSemInterromper);
+                () => naVista && PodeAbrirSemInterromper, motivo => recusa = motivo);
+            if (recusa is not null) fim = fim with { Situacao = "interrompida", Mensagem = recusa };
             var controle = Path.Combine(e.Processo.Pasta, ResultadoAnalise.PastaControle(e.Provedor));
             var avisos = await Task.Run(() => DetalhesDasEtapas.LerAvisos(controle, e.InicioUtc));
             if (!fechada && avisos.Count > 0)
                 MostrarMensagem(InfoBarSeverity.Warning, "Avisos desta análise", string.Join(Environment.NewLine, avisos));
             if (!fechada)
-                NotificacoesWindows.Mostrar(importado ? "Relatório pronto" : "Relatório aguardando importação",
+                NotificacoesWindows.Mostrar(importado ? "Relatório pronto" : recusa is null ? "Relatório aguardando importação" : "Entrega recusada pelo Editor",
                     importado ? "A análise foi concluída e o relatório está disponível para revisão."
+                        : recusa is not null ? "Abra o Editor para conferir os motivos e retomar a correção."
                         : "A análise terminou. Abra o Editor para tentar importar o relatório novamente.");
         }
         else
@@ -1262,6 +1277,7 @@ public sealed partial class MainWindow
                 NotificacoesWindows.Mostrar(titulo, "Abra o Editor para conferir o registro e as opções de retomada.");
             }
         }
+        RegistrarFimNaPilula(e, fim);
         AtualizarTituloAnalise();
         AtualizarBotoesNR();
         await CarregarHistoricoAsync();
@@ -1312,15 +1328,25 @@ public sealed partial class MainWindow
         foreach (var pend in ajustes.ExecucoesChatGpt.ToList())
         {
             if (sessaoNR.EmAndamento(pend.Processo)) continue;
-            if (historicoAnalises.FirstOrDefault(h => MesmoRegistro(h.Registro, pend.Registro))?.Situacao is "concluida" or "descartada")
+            var historico = historicoAnalises.FirstOrDefault(h => MesmoRegistro(h.Registro, pend.Registro));
+            if (historico is { Situacao: "descartada" } or { Situacao: "concluida", Pacote: not null })
             {
                 EsquecerPendenteChatGpt(pend.Registro);
                 continue;
             }
-            var valido = await Task.Run(() =>
-                RegistroExecucao.MotivoInvalido(pend.Processo, pend.Registro) is null && Directory.Exists(pend.Processo) && Directory.Exists(pend.Registro));
-            if (!valido) { EsquecerPendenteChatGpt(pend.Registro); continue; }
+            var valido = await Task.Run(() => RegistroExecucao.MotivoInvalido(pend.Processo, pend.Registro) is not null
+                ? false : RegistroExecucao.PastaDisponivel(pend.Registro));
+            if (valido is null) continue;
+            if (valido == false) { EsquecerPendenteChatGpt(pend.Registro); continue; }
             var processo = await ProcessoDaPastaAsync(pend.Processo);
+            if (await MostrarRecusaGuardadaAsync(Provedor.ChatGpt, processo, pend.Registro)) break;
+            if (historico?.Situacao == "concluida")
+            {
+                var entrega = new ImportacaoPendente(Provedor.ChatGpt, processo, pend.Registro, null, null);
+                if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, pend.Registro))) importacoesPendentes.Add(entrega);
+                MostrarImportacaoPendente(entrega, FluxoNovoRelatorio.TextoKitTerminou(Provedor.ChatGpt, processo), InfoBarSeverity.Success);
+                break;
+            }
             continuarChatGpt = new ContinuacaoChatGpt(processo, pend.Registro);
             var aviso = NR.AvisoResultado;
             aviso.Severity = InfoBarSeverity.Warning;
@@ -1594,8 +1620,9 @@ public sealed partial class MainWindow
                 MostrarMensagem(InfoBarSeverity.Warning, "Uma análise guardada nos ajustes foi descartada", invalido);
                 continue;
             }
-            var existe = await Task.Run(() => Directory.Exists(pend.Processo) && Directory.Exists(pend.Registro));
-            if (!existe) { EsquecerPendenteClaude(pend.Registro); continue; }
+            var existe = await Task.Run(() => RegistroExecucao.PastaDisponivel(pend.Registro));
+            if (existe is null) continue;
+            if (existe == false) { EsquecerPendenteClaude(pend.Registro); continue; }
             var pecas = await LerPecasAsync();
             var ia = await Task.Run(() => ProvedorDoRegistro(pend.Registro));     // Claude (análise pro) ou Gemini (análise Google)
             var nomeIa = Provedores.Nome(ia);
@@ -1605,9 +1632,11 @@ public sealed partial class MainWindow
             switch (s.Codigo)
             {
                 case "CONCLUIDO":
+                    if (await MostrarRecusaGuardadaAsync(ia, processo, pend.Registro)) break;
+                    var entrega = new ImportacaoPendente(ia, processo, pend.Registro, null, null);
                     if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, pend.Registro)))
-                        importacoesPendentes.Add(new ImportacaoPendente(ia, processo, pend.Registro, null, null));
-                    MostrarImportacaoPendente(processo, FluxoNovoRelatorio.TextoKitTerminou(ia, processo), InfoBarSeverity.Success);
+                        importacoesPendentes.Add(entrega);
+                    MostrarImportacaoPendente(entrega, FluxoNovoRelatorio.TextoKitTerminou(ia, processo), InfoBarSeverity.Success);
                     NotificacoesWindows.Mostrar("Relatório aguardando importação",
                         "A análise terminou com o Editor fechado. Use Importar relatório para revisar o resultado.");
                     break;
@@ -1673,11 +1702,11 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Uma análise nova no mesmo processo, pedindo à IA que siga do ponto em que a anterior parou (sem anexos novos).</summary>
-    Task<ExecucaoEmCurso?> ContinuarComOutraIaAsync(Provedor p, Processo processo, string pastaRegistro) => NaFilaAsync(async () =>
+    Task<ExecucaoEmCurso?> ContinuarComOutraIaAsync(Provedor p, Processo processo, string pastaRegistro, bool corrigirEntrega = false) => NaFilaAsync(async () =>
     {
         NR.AvisoResultado.IsOpen = false;
         await LerPecasAsync();
-        return await AnalisarComPerfilAsync(p, processo, [], FluxoNovoRelatorio.PedidoContinuar, enviados: null, registroAnterior: pastaRegistro);
+        return await AnalisarComPerfilAsync(p, processo, [], FluxoNovoRelatorio.PedidoContinuar, enviados: null, registroAnterior: pastaRegistro, corrigirEntrega: corrigirEntrega);
     });
 
     static bool MesmoRegistro(string a, string b)
@@ -1694,13 +1723,45 @@ public sealed partial class MainWindow
     }
 
     /// <summary>"Importar relatório" à vista (na página e, fora dela, na mensagem do módulo, sem apagar o motivo de uma falha que já esteja lá).</summary>
-    void MostrarImportacaoPendente(Processo processo, string mensagem, InfoBarSeverity severidade)
+    async Task ResolverEntregaPendenteAsync(AcaoEntrega? acao)
+    {
+        if (acao is null) return;
+        var c = acao.Pendente;
+        if (acao.Corrigir)
+        {
+            if (await Task.Run(() => RegistroExecucao.MotivoDaRecusaAtual(c.Processo.Pasta, c.Provedor, c.Registro)) is null)
+            {
+                await ImportarPendenteAsync(c with { Documento = null, Pdf = null });
+                return;
+            }
+            if (await ContinuarComOutraIaAsync(c.Provedor, c.Processo, c.Registro, corrigirEntrega: true) is not null)
+                importacoesPendentes.RemoveAll(i => MesmoRegistro(i.Registro, c.Registro));
+        }
+        else await ImportarPendenteAsync(c);
+    }
+
+    async Task<bool> MostrarRecusaGuardadaAsync(Provedor ia, Processo processo, string registro)
+    {
+        var motivo = await Task.Run(() => RegistroExecucao.MotivoDaRecusaAtual(processo.Pasta, ia, registro));
+        if (motivo is null) return false;
+        var pendente = new ImportacaoPendente(ia, processo, registro, null, null);
+        if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, registro))) importacoesPendentes.Add(pendente);
+        MostrarImportacaoPendente(pendente, motivo, InfoBarSeverity.Error, corrigir: true);
+        return true;
+    }
+
+    void MostrarImportacaoPendente(ImportacaoPendente imp, string mensagem, InfoBarSeverity severidade, bool corrigir = false)
     {
         if (fechada) return;
         var aviso = NR.AvisoResultado;
         aviso.Severity = severidade;
         aviso.Title = severidade == InfoBarSeverity.Success ? "Análise concluída" : "O relatório não foi importado";
         aviso.Message = mensagem;
+        var acao = corrigir ? "Corrigir entrega e retomar" : "Importar relatório";
+        var alvo = new AcaoEntrega(imp, corrigir);
+        NR.BotaoImportarPendente.Tag = alvo;
+        NR.BotaoImportarPendente.Content = acao;
+        AutomationPropertiesNome(NR.BotaoImportarPendente, acao);
         NR.BotaoImportarPendente.Visibility = Visibility.Visible;
         NR.BotaoDescartar.Visibility = Visibility.Collapsed;
         NR.BotaoMostrarRegistroResultado.Visibility = Visibility.Collapsed; NR.LinkRemontarTeste.Visibility = Visibility.Collapsed;
@@ -1709,11 +1770,11 @@ public sealed partial class MainWindow
         {
             var modulo = AvisoDoModulo;
             if (!(modulo.IsOpen && modulo.Severity == InfoBarSeverity.Error)) MostrarMensagem(severidade, aviso.Title, mensagem);
-            var botao = new Button { Content = "Importar relatório" };
+            var botao = new Button { Content = acao };
             IconeDeAcao.SetGlifo(botao, Glifos.ImportarAnalise);
-            AutomationPropertiesNome(botao, "Importar relatório");
-            Dicas.Aplicar(botao, "Importar relatório", "Traz para o app o relatório da análise que terminou com o editor fechado.");
-            botao.Click += async (_, _) => await TentarAsync(async () => { if (importacoesPendentes.FirstOrDefault() is { } imp) await ImportarPendenteAsync(imp); });
+            AutomationPropertiesNome(botao, acao);
+            Dicas.Aplicar(botao, acao, mensagem);
+            botao.Click += async (_, _) => await TentarAsync(() => ResolverEntregaPendenteAsync(alvo));
             AvisoDoModulo.ActionButton = botao;
         }
     }
@@ -1737,11 +1798,11 @@ public sealed partial class MainWindow
             MostrarMensagem(InfoBarSeverity.Warning, "O relatório não foi importado", FluxoNovoRelatorio.TextoSemInicio(imp.Processo, imp.Registro, Provedores.PeloKit(imp.Provedor) ? imp.Provedor : Provedor.Claude));
             return false;
         }
-        var doKit = Provedores.PeloKit(imp.Provedor) ? imp.Provedor : Provedor.Claude;
+        var doKit = imp.Provedor;
         var r = await Task.Run(() => ResultadoAnalise.Localizar(imp.Processo.Pasta, doKit, inicio.UtcDateTime, imp.Registro));
         if (r.Documento is null)
         {
-            MostrarImportacaoPendente(imp.Processo, r.Motivo ?? "", InfoBarSeverity.Error);
+            MostrarImportacaoPendente(imp, r.Motivo ?? "", InfoBarSeverity.Error);
             return false;
         }
         return await ImportarAsync(imp with { Documento = r.Documento, Pdf = r.Pdf });
@@ -1756,23 +1817,45 @@ public sealed partial class MainWindow
     /// <summary>Importa o documento que o kit declarou e abre o <c>.rpmvni</c>; só então a pendência sai e o registro recebe o <c>.rpmvni</c>.
     /// <paramref name="abrirDireto"/> (lido na vez da fila) false ⇒ só cria o <c>.rpmvni</c> e mostra "Relatório pronto" com "Abrir relatório";
     /// null = gesto do usuário ("Importar relatório"): abre.</summary>
-    async Task<bool> ImportarAsync(ImportacaoPendente imp, Func<bool>? abrirDireto = null)
+    async Task<bool> ImportarAsync(ImportacaoPendente imp, Func<bool>? abrirDireto = null, Action<string>? aoRecusar = null)
     {
         var abriu = false;
+        ImportacaoRecusadaException? recusa = null;
         var criado = await NaFilaAsync(async () =>
         {
             abriu = abrirDireto?.Invoke() ?? true;
-            return await ImportarAnaliseParaAsync(imp.Processo, imp.Documento!, abriu);
+            return await ImportarAnaliseParaAsync(imp.Processo, imp.Documento!, abriu, e => recusa = e);
         });
         var s = abriu ? sessao : null;
         if (criado is null || (abriu && s is null))
         {
             if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, imp.Registro))) importacoesPendentes.Add(imp);
             else importacoesPendentes[importacoesPendentes.FindIndex(i => MesmoRegistro(i.Registro, imp.Registro))] = imp;
-            MostrarImportacaoPendente(imp.Processo, FluxoNovoRelatorio.TextoNaoImportado(imp.Provedor, imp.Processo), InfoBarSeverity.Error);
+            if (recusa?.Sha256 is { } sha)
+            {
+                aoRecusar?.Invoke(recusa.Message);
+                try
+                {
+                    var erros = recusa.Erros;
+                    await Task.Run(() =>
+                    {
+                        using var registro = RegistroExecucao.Abrir(imp.Registro, imp.Processo.Pasta);
+                        registro.RecusarEntrega(imp.Provedor, imp.Documento!, sha, erros);
+                    });
+                    MostrarImportacaoPendente(imp, string.Join(Environment.NewLine, erros.Take(8)), InfoBarSeverity.Error, corrigir: true);
+                    return false;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+                {
+                    MostrarImportacaoPendente(imp, recusa.Message + Environment.NewLine + "Falha ao registrar a recusa: " + Erro(ex), InfoBarSeverity.Error);
+                    return false;
+                }
+            }
+            MostrarImportacaoPendente(imp, FluxoNovoRelatorio.TextoNaoImportado(imp.Provedor, imp.Processo), InfoBarSeverity.Error);
             return false;
         }
         EsquecerPendenteClaude(imp.Registro);
+        if (imp.Provedor == Provedor.ChatGpt) EsquecerPendenteChatGpt(imp.Registro);
         var pmvrel = s?.Caminho ?? criado;
         try
         {
@@ -1822,15 +1905,7 @@ public sealed partial class MainWindow
         return new Processo(pasta, Path.GetFileName(pasta.TrimEnd('\\')), null, null, null);
     }
 
-    static DateTimeOffset? LerInicio(string pastaRegistro)
-    {
-        try
-        {
-            var j = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(pastaRegistro, "execucao.json")));
-            return j?["inicio"]?.GetValue<string>() is { } t && DateTimeOffset.TryParse(t, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var d) ? d : null;
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException) { return null; }
-    }
+    static DateTimeOffset? LerInicio(string pastaRegistro) => RegistroExecucao.LerInicio(pastaRegistro);
 }
 
 internal sealed record SugestaoProcesso(Processo Processo)

@@ -540,6 +540,31 @@ public partial class OrquestradorTestes
     }
 
     [Fact]
+    public async Task falha_de_consulta_preserva_o_trabalhador_e_reconecta_sem_nova_partida()
+    {
+        using var c = new Cena("orq-consulta-interrompida", "ok", Provedor.Claude, j =>
+        {
+            j["codigo_consulta_situacao"] = 2;
+            j["auto"] = new JsonObject { ["etapa_ms"] = 1100 };
+        });
+        var pedido = c.Pedido(Provedor.Claude);
+        var orq = c.Orq();
+        var inicio = DateTimeOffset.UtcNow;
+        var interrupcao = await Ambiente.Com(orq.ExecutarAsync(pedido, c.Progresso, CancellationToken.None), Limite);
+        Assert.True(interrupcao.AcompanhamentoPendente);
+        Assert.Equal("interrompida", interrupcao.Situacao);
+        var status = JsonNode.Parse(File.ReadAllBytes(Path.Combine(c.Controle("analise-pro"), "auto-status.json")))!;
+        Assert.True(Ambiente.Vivo(status["pid"]!.GetValue<int>()));
+        var cenario = JsonNode.Parse(File.ReadAllBytes(c.Cenario))!;
+        cenario.AsObject().Remove("codigo_consulta_situacao");
+        File.WriteAllText(c.Cenario, cenario.ToJsonString());
+        var fim = await Ambiente.Com(orq.AcompanharClaudeAsync(pedido, inicio, c.Progresso, CancellationToken.None), Limite);
+        Assert.Equal("concluida", fim.Situacao);
+        Assert.Single(Chamadas(c, "iniciar"));
+        Assert.Single(Chamadas(c, "auto"));
+    }
+
+    [Fact]
     public async Task claude_ja_em_andamento()
     {
         using var c = new Cena("orq-claude-ja", "ja_em_andamento", Provedor.Claude);

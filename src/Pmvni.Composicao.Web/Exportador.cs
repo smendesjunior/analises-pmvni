@@ -61,7 +61,9 @@ public static class Exportador
             plano = c.Plano;
             folhas = c.Folhas;
             webview2 = await doc.VersaoWebView2Async();
+            var campos = rascunho ? null : await doc.CamposParaImpressaoAsync();
             pdf = await doc.ImprimirPdfAsync(); // o mesmo DOM composto: nada é recomposto entre a composição e a impressão
+            if (campos is not null) await Task.Run(() => ConferenciaImpressao.Conferir(pdf, campos));
         }
 
         var info = InfoPdf.Ler(pdf);

@@ -64,6 +64,18 @@ public class TravaExecucaoTestes
     }
 
     [Fact]
+    public void pid_de_outra_estacao_nao_e_procurado_neste_pc()
+    {
+        using var t = Ambiente.PastaDeTeste("trava-estacao");
+        var pasta = Ambiente.NovoProcesso(t).Pasta;
+        Directory.CreateDirectory(Path.GetDirectoryName(Lock(pasta))!);
+        var json = new JsonObject { ["maquina"] = Environment.MachineName + "-outra", ["pid"] = int.MaxValue, ["handle_compartilhado"] = true };
+        File.WriteAllText(Lock(pasta), json.ToJsonString());
+        Assert.True(TravaExecucao.EmAndamento(pasta));
+        Assert.Null(TravaExecucao.Tentar(pasta, Provedor.Claude));
+    }
+
+    [Fact]
     public void conteudo_da_trava_tem_pid_provedor_e_inicio()
     {
         using var t = Ambiente.PastaDeTeste("trava-conteudo");

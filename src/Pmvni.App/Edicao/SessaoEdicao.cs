@@ -224,12 +224,12 @@ internal sealed class SessaoEdicao : IAsyncDisposable
     }
 
     /// <summary>Importa o dados.json do kit para um <c>.rpmvni</c> novo (nunca sobrescreve: se o destino existe, recusa).</summary>
-    public static Task<EstadoDisco> ImportarAsync(string dadosJson, string pmvrel, ModeloCarregado modelo) => Task.Run(() =>
+    public static Task<EstadoDisco> ImportarAsync(string dadosJson, string pmvrel, ModeloCarregado modelo, bool entrega = false) => Task.Run(() =>
     {
         var destino = Path.GetFullPath(pmvrel);
         if (File.Exists(destino)) throw new IOException("Já existe um arquivo com esse nome: " + Path.GetFileName(destino) + ". Escolha outro nome.");
         var origem = Path.GetFullPath(dadosJson);
-        var conteudo = Importador.Importar(File.ReadAllBytes(origem), origem, modelo, ContextoUsuario.Atual());
+        var conteudo = Importador.Importar(File.ReadAllBytes(origem), origem, modelo, ContextoUsuario.Atual(), entrega);
         return Pacote.Gravar(destino, conteudo, esperado: null);
     });
 

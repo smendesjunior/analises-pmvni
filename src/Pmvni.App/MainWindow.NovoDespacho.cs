@@ -400,7 +400,7 @@ public sealed partial class MainWindow
             (pacote, bloqueios, avisos) = await Task.Run(() =>
             {
                 var lido = Pacote.Ler(caminho);
-                return (lido, ConteudoDespacho.Bloqueios(tipo, lido.Conteudo.Projeto, processo, lido.SomenteLeitura),
+                return (lido, ConteudoDespacho.Bloqueios(tipo, lido, processo),
                     ConteudoDespacho.Avisos(tipo, lido.Conteudo.Projeto));
             });
         }

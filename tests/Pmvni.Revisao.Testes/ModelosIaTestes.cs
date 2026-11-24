@@ -209,7 +209,7 @@ public class ModelosIaTestes
         var c = IaDespacho.Montar(@"C:\x\claude.exe", null, @"C:\vazia", comPasta: false, [], opcoes);
         Assert.False(c.Codex);
         Assert.Equal(new[] { "--model", "claude-haiku-5-5", "--effort", "low" }, c.Argumentos.TakeLast(4));
-        Assert.Contains("Read Grep Glob", c.Argumentos[c.Argumentos.ToList().IndexOf("--disallowedTools") + 1]);
+        Assert.Equal("", c.Argumentos[c.Argumentos.ToList().IndexOf("--tools") + 1]);
     }
 
     // ---------- ajustes.json ----------

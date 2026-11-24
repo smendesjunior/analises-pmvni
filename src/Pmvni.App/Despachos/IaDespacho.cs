@@ -55,9 +55,6 @@ internal static class IaDespacho
     /// <summary>Tempo máximo de uma pergunta à IA; passado isso, o programa é encerrado e o usuário recebe a mensagem.</summary>
     internal static readonly TimeSpan Limite = TimeSpan.FromMinutes(10);
 
-    /// <summary>Ferramentas que o Claude nunca usa nestas perguntas (só lê): valem mesmo que a configuração do usuário as permita.</summary>
-    const string FerramentasProibidas = "Bash Edit Write MultiEdit NotebookEdit WebFetch WebSearch Task";
-
     /// <summary>Opções de uma pergunta à IA (revisão do relatório, 2026-11-16). <see cref="PreferirCodex"/>: usa o Codex quando ele existe
     /// (o padrão é o Claude Code primeiro); <see cref="ArgumentosCodex"/>: modelo e esforço (<see cref="ModeloIaAjuste.ArgumentosCodex"/>);
     /// <see cref="SemArquivos"/>: a IA responde só com o que está no pedido, numa pasta vazia, sem ferramentas de leitura e sem guardar a
@@ -83,7 +80,9 @@ internal static class IaDespacho
         if (usarCodex)
         {
             var ultima = Path.Combine(Path.GetTempPath(), "pmvni-ia-" + Guid.NewGuid().ToString("N") + ".txt");
-            args.AddRange(["-a", "never", "exec", "--skip-git-repo-check", "--sandbox", "danger-full-access"]);
+            args.AddRange(["-a", "never", "exec", "--skip-git-repo-check", "--sandbox", "read-only"]);
+            args.AddRange(["--disable", "plugins", "--disable", "apps", "--disable", "hooks", "-c", "web_search=\"disabled\""]);
+            if (semArquivos || !comPasta) args.AddRange(["--disable", "shell_tool"]);
             if (semArquivos) args.Add("--ephemeral");
             if (opcoes?.ArgumentosCodex is { } modelo) args.AddRange(modelo);
             args.AddRange(["--cd", dir, "--output-last-message", ultima, "-"]);
@@ -91,13 +90,13 @@ internal static class IaDespacho
         }
         if (!temClaude)
             throw new InvalidOperationException("Nenhum programa de IA encontrado. Instale e entre no Claude Code ou no Codex em Ajustes › Inteligência artificial.");
-        args.AddRange(["-p", "--output-format", "text", "--permission-mode", "bypassPermissions", "--settings", """{"sandbox":{"enabled":false}}""", "--disallowedTools",
-            semArquivos ? FerramentasProibidas + " Read Grep Glob" : comPasta ? "WebFetch WebSearch Task" : FerramentasProibidas]);
+        args.AddRange(["-p", "--output-format", "text", "--permission-mode", "dontAsk", "--strict-mcp-config", "--disable-slash-commands",
+            "--settings", """{"disableAllHooks":true}""", "--tools", comPasta && !semArquivos ? "Read,Grep,Glob" : ""]);
         if (opcoes?.ArgumentosClaude is { } escolha) args.AddRange(escolha);
         if (comPasta && !semArquivos)
         {
             args.Add("--allowedTools");
-            args.Add("Read Grep Glob Edit Write Bash PowerShell");
+            args.Add("Read Grep Glob");
             foreach (var d in extras) { args.Add("--add-dir"); args.Add(d); }
         }
         return new ComandoIa(claude!, args, null, false);
@@ -111,10 +110,28 @@ internal static class IaDespacho
         return d;
     }
 
+    // Plugins e apps desligados ainda deixam os servidores MCP declarados pelo usuário.
+    // Consulta o catálogo local com os mesmos ajustes e desativa só esses servidores na chamada.
+    internal static IReadOnlyList<string> DesativarServidores(string catalogo)
+    {
+        using var lista = JsonDocument.Parse(catalogo);
+        var argumentos = new List<string>();
+        foreach (var servidor in lista.RootElement.EnumerateArray())
+        {
+            if (servidor.GetProperty("enabled").ValueKind == JsonValueKind.False) continue;
+            var nome = servidor.GetProperty("name").GetString();
+            if (string.IsNullOrEmpty(nome) || nome.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not ('_' or '-')))
+                throw new InvalidDataException("O Codex informou um nome de servidor MCP inválido.");
+            argumentos.Add("-c");
+            argumentos.Add($"mcp_servers.{nome}.enabled=false");
+        }
+        return argumentos;
+    }
+
     /// <summary>Roda o programa da IA com o pedido no stdin e devolve a resposta. Sem programa: <see cref="InvalidOperationException"/>.
     /// Auditoria 2026-11-16: tempo-limite (<see cref="Limite"/>), o processo entra no job do editor (morre se o editor fechar) e é encerrado
     /// em qualquer saída antecipada (inclusive o Cancelar: <paramref name="ct"/>); o Claude roda sem ferramentas de escrita nem de rede; o
-    /// Codex sem sandbox (4.5.2: a sandbox barrava as pastas do servidor; o Claude também sem pedido de permissão), com a resposta final lida de --output-last-message (sem o cabeçalho que ele imprime).</summary>
+    /// Codex com sandbox de leitura e a resposta final lida de --output-last-message (sem o cabeçalho que ele imprime).</summary>
     internal static async Task<string> PerguntarAsync(string? claude, string? codex, string prompt, CancellationToken ct,
         string? pasta = null, IReadOnlyList<string>? pastasExtras = null, OpcoesIa? opcoes = null)
     {
@@ -128,6 +145,15 @@ internal static class IaDespacho
         var tempo = opcoes?.Limite ?? Limite;
         var si = new ProcessStartInfo(comando.Programa);
         foreach (var a in comando.Argumentos) si.ArgumentList.Add(a);
+        if (comando.Codex)
+        {
+            var (codigo, catalogo) = await Pmvni.Agentes.ExecucaoProcesso.RodarAsync(comando.Programa,
+                ["--disable", "plugins", "--disable", "apps", "mcp", "list", "--json"], dir,
+                env => opcoes?.Ambiente?.Invoke(env), TimeSpan.FromSeconds(20), ct);
+            if (codigo != 0) throw new InvalidOperationException("O Codex não conseguiu listar os servidores MCP para a revisão textual.");
+            var posicao = si.ArgumentList.Count - 1;
+            foreach (var a in DesativarServidores(catalogo)) si.ArgumentList.Insert(posicao++, a);
+        }
         si.RedirectStandardInput = si.RedirectStandardOutput = si.RedirectStandardError = true;
         si.UseShellExecute = false;
         si.CreateNoWindow = true;
