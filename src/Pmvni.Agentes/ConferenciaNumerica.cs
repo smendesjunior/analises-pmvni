@@ -53,7 +53,26 @@ internal sealed record ConferenciaNumerica(string Fase, string Resumo, string De
             detalhes.Add(indice, string.Join(Environment.NewLine, textos));
         }
         var resumo = $"Conferidos: {confirmadas} · Divergentes: {divergentes} · Com dados insuficientes: {insuficientes}";
-        return new(Campo(recibo, "fase")!, resumo, string.Join(Environment.NewLine + Environment.NewLine, detalhes["to"], detalhes["ca"], detalhes["tp"]));
+        var secoes = new List<string> { detalhes["to"], detalhes["ca"], detalhes["tp"] };
+        if (recibo.TryGetProperty("auditoria_local", out var auditoria) && auditoria.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var motor in new[] { "DuckDB", "Z3" })
+            {
+                if (!auditoria.TryGetProperty(motor, out var info) || info.ValueKind != JsonValueKind.Object) continue;
+                var itens = new List<string> { motor + " · " + Campo(info, "estado") };
+                if (info.TryGetProperty("resultados", out var lista) && lista.ValueKind == JsonValueKind.Array)
+                    foreach (var item in lista.EnumerateArray())
+                    {
+                        if (item.ValueKind != JsonValueKind.Object) continue;
+                        var fontes = item.TryGetProperty("fontes", out var f) && f.ValueKind == JsonValueKind.Array
+                            ? string.Join(", ", f.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString())) : "";
+                        itens.Add(motor == "Z3" ? $"{Campo(item, "indice")} · {Campo(item, "resultado")} · {fontes}"
+                            : $"{Campo(item, "campo")} · {Campo(item, "valor")} · {fontes}");
+                    }
+                secoes.Add(string.Join(Environment.NewLine, itens));
+            }
+        }
+        return new(Campo(recibo, "fase")!, resumo, string.Join(Environment.NewLine + Environment.NewLine, secoes));
     }
 
     static string? Campo(JsonElement obj, string campo)

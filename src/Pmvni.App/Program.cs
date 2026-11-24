@@ -9,6 +9,8 @@ internal static class Program
     [STAThread]
     static int Main(string[] args)
     {
+        if (args.FirstOrDefault() == OcrDaAnalise.Comando)
+            return OcrDaAnalise.Executar(args).GetAwaiter().GetResult();
         if (args.FirstOrDefault() == Pmvni.Imoveis.MapaParaAnalise.Comando)
         {
             Console.OutputEncoding = new System.Text.UTF8Encoding(false);
@@ -19,6 +21,7 @@ internal static class Program
 
     static int IniciarJanela(string[] args)
     {
+        Environment.SetEnvironmentVariable("PMVNI_EDITOR_OCR_EXE", OcrDaAnalise.Disponivel() ? Environment.ProcessPath : null);
         Autoteste.Configurar(args);
         Argumentos.Ler(args);
         if (Argumentos.Atual.Roteiro is { } roteiro) Roteiro.TravarProgramas(roteiro);

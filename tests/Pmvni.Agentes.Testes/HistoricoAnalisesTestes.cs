@@ -6,6 +6,29 @@ namespace Pmvni.Agentes.Testes;
 [Collection("Ambiente")]
 public sealed class HistoricoAnalisesTestes
 {
+    [Fact]
+    public void painel_mostra_conflitos_e_precisao_do_recibo_com_as_fontes()
+    {
+        using var t = Ambiente.PastaDeTeste("auditoria-local");
+        var processo = Ambiente.NovoProcesso(t);
+        using var registro = RegistroExecucao.Criar(processo.Pasta, Provedor.ChatGpt, DateTime.Now);
+        var id = Path.GetFileName(registro.Pasta);
+        var fonte = new[] { "DOC-02, p. 5" };
+        var recibo = new
+        {
+            versao = 1, execucao = id, rota = "codex", fase = "montagem",
+            linhas = new[] { "to", "ca", "tp" }.Select(indice => new { indice, situacao = "INSUFICIENTE" }),
+            auditoria_local = new {
+                DuckDB = new { estado = "executado", resultados = new[] { new { campo = "tp", valor = "15", fontes = fonte } } },
+                Z3 = new { estado = "executado", resultados = new[] { new { indice = "ca", resultado = "compatível com a precisão impressa", fontes = fonte } } }
+            }
+        };
+        File.WriteAllText(Path.Combine(registro.Pasta, ConferenciaNumerica.ArquivoHistorico), JsonSerializer.Serialize(recibo));
+        var painel = Assert.IsType<ConferenciaNumerica>(ConferenciaNumerica.Ler(processo.Pasta, Provedor.ChatGpt, registro.Pasta));
+        Assert.Contains("tp · 15 · DOC-02, p. 5", painel.Detalhes);
+        Assert.Contains("ca · compatível com a precisão impressa · DOC-02, p. 5", painel.Detalhes);
+    }
+
     [Theory]
     [InlineData(Provedor.ChatGpt, "codex")]
     [InlineData(Provedor.Claude, "claude")]

@@ -2,6 +2,12 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.5.4
+
+- O monitor e o histórico mostram os conflitos entre transcrições e quando o arredondamento pode explicar uma diferença de índice. As fontes identificam a prancha a conferir.
+- O mapa verifica o contorno do lote nas zonas municipais. O reconhecimento de texto usa a NPU quando o modelo do Windows está pronto e o kit lê quadros difíceis com PP-OCRv6 local.
+- O servidor MCP do kit permite consultar a conferência já gravada para uma execução.
+
 ## 4.5.3
 
 - A entrega do kit passa pela conferência do relatório ao entrar no Editor. Se faltarem campos obrigatórios, a tela mostra quais são e permite pedir a correção no registro da análise.

@@ -425,6 +425,27 @@ public static class MapaLocalizacao
         return Gerar(b, alvo.Geometria!, [alvo], opcoes);
     }
 
+    internal static (string Zona, string Motivo) CruzarZoneamento(Geometry lote, IEnumerable<Fe> zonas)
+    {
+        try
+        {
+            var partes = new Dictionary<string, Geometry>();
+            foreach (var z in zonas.Where(z => z.Tipo == 'A'))
+            {
+                if (!z.G.IsValid || !lote.IsValid) return ("", "Geometria inválida na base cartográfica");
+                var inter = lote.Intersection(z.G);
+                if (inter.Area <= 0) continue;
+                var nome = z.Campo("ZONA");
+                partes[nome] = partes.TryGetValue(nome, out var anterior) ? anterior.Union(inter) : inter;
+            }
+            if (partes.Count > 1) return ("", "Lote intersecta mais de uma zona");
+            if (partes.Count == 1 && partes.First() is var par && par.Key.Length > 0 && par.Value.Covers(lote))
+                return (par.Key, "Cobertura integral");
+            return ("", "Cobertura cartográfica parcial ou sem zona identificada");
+        }
+        catch (TopologyException) { return ("", "Geometria inválida na base cartográfica"); }
+    }
+
     /// <summary>O mapa e a ficha do lote já ligado ao cadastro pelo módulo Imóveis (traço fino enquanto o vínculo não for seguro).</summary>
     public static MapaGerado? DaAnalise(BaseQgis b, AnaliseImovel a, OpcoesMapa? opcoes = null) =>
         a.Lote is { } lote ? Gerar(b, lote, a.Lotes, (opcoes ?? new OpcoesMapa()) with { Candidato = !a.Conclusivo }) : null;
@@ -489,7 +510,7 @@ public static class MapaLocalizacao
         var loteN = numeros.Where(n => Dentro(n.Partes[0][0], alvo.Partes)).Select(n => n.Campo("LOTE")).FirstOrDefault() ?? "";
         var pontoCen = new Envelope(cen);
         var quadra = Em(b, Camada.Quadras, pontoCen).Where(q => q.Tipo == 'A' && Dentro(cen, q.Partes)).Select(q => q.Campo("QUADRA")).FirstOrDefault() ?? "";
-        var zona = Em(b, Camada.Zoneamento, pontoCen).Where(z => z.Tipo == 'A' && Dentro(cen, z.Partes)).Select(z => z.Campo("ZONA")).FirstOrDefault() ?? "";
+        var (zona, motivoZona) = CruzarZoneamento(lote, Em(b, Camada.Zoneamento, alvo.Bb));
         var envLot = alvo.Bb.Copy();
         envLot.ExpandToInclude(cen);
         var loteamento = Em(b, Camada.Loteamentos, envLot)
@@ -558,7 +579,7 @@ public static class MapaLocalizacao
         const string indisponivel = "Camada indisponível na base consultada";
         Dado(GrupoAreas, "Edificação", b[Camada.Edificacoes] is null ? indisponivel :
             edif.Count > 0 ? $"{Num(areaEdif)} m²" + (edif.Count > 1 ? $" em {edif.Count} blocos" : "") : "Nenhuma cadastrada no lote");
-        if (zona.Length > 0) Dado(GrupoZona, "Zona (2025)", zona);
+        Dado(GrupoZona, "Zona (2025)", zona.Length > 0 ? zona : motivoZona);
         if (cursos.Count > 0)
         {
             var r0 = cursos[0];

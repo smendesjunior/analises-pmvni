@@ -1,2 +1,6 @@
 docling-mcp[local]==3.5.0
 PyMuPDF==2.1
+duckdb==2.0.1
+z3-solver==5.4.1.0
+rapidocr==3.10.0
+shapely==2.2.0
