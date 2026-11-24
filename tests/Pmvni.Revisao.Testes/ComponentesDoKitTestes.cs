@@ -192,6 +192,29 @@ public sealed class ComponentesDoKitTestes : IDisposable
     }
 
     [Fact]
+    public async Task Preparo_confere_o_kit_usado_pela_analise_mesmo_com_a_copia_local_em_dia()
+    {
+        PluginNoKit(KitLocal, "4.5.5");
+        PluginNoKit(Fonte, "4.5.5");
+        PluginNoCodex("4.5.5");
+        PmvniKitJson(Fonte);
+        var origens = Origens() with { ConferirPlugin = (_, kit) => Task.FromResult<System.Text.Json.Nodes.JsonObject?>(new()
+        {
+            ["status"] = kit == Fonte ? "CHECK_FAILED" : "CURRENT",
+            ["different_skill_files"] = new System.Text.Json.Nodes.JsonArray("scripts/etapas_programa.py"),
+        }) };
+
+        var ajustes = await ComponentesDoKit.LerAsync(origens);
+        Assert.Equal(SituacaoComponente.EmDia, Linha(ajustes, "analise-codex").Situacao);
+
+        var partida = await ComponentesDoKit.LerAsync(origens, pastaKitAnalise: Fonte);
+        var linha = Linha(partida, "analise-codex");
+        Assert.Equal(KitLocal, partida.KitLocal);
+        Assert.Equal(SituacaoComponente.AtualizacaoDisponivel, linha.Situacao);
+        Assert.Contains("scripts/etapas_programa.py", linha.Detalhe);
+    }
+
+    [Fact]
     public void Atualizar_um_componente_gera_o_cmd_so_dele()
     {
         var chamadas = new List<(string Programa, string Argumento)>();

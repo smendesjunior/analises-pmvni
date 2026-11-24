@@ -124,10 +124,11 @@ public sealed partial class MainWindow
     /// <summary>A partida de uma análise pelo provedor; no Gemini, com o perfil resolvido antes (null = o usuário não confirmou e nada parte).</summary>
     async Task<ExecucaoEmCurso?> AnalisarComPerfilAsync(Provedor p, Processo processo, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto, IReadOnlyList<AnexoNovo>? enviados, string? registroAnterior = null, bool corrigirEntrega = false)
     {
+        var pastaKitAnalise = ajustes.PastaKitEfetiva;
         if (Argumentos.Atual.Roteiro is null || OrigensDoKitDoRoteiro is not null)
         {
             var origens = OrigensDoKitDoComputador();
-            var leitura = await ComponentesDoKit.LerAsync(origens);
+            var leitura = await ComponentesDoKit.LerAsync(origens, pastaKitAnalise: pastaKitAnalise);
             var divergentes = leitura.Linhas.Where(l => l.Situacao != SituacaoComponente.EmDia).ToList();
             if (divergentes.Count > 0)
             {
@@ -135,7 +136,7 @@ public sealed partial class MainWindow
                 if (!await Perguntas.Atual.ConfirmarAsync("O kit precisa de atualização", detalhes,
                         "Atualizar kit e continuar", "Cancelar", destrutiva: false)) return null;
                 await AtualizarComponenteAsync(null);
-                leitura = await ComponentesDoKit.LerAsync(origens);
+                leitura = await ComponentesDoKit.LerAsync(origens, pastaKitAnalise: pastaKitAnalise);
                 if (leitura.Linhas.Any(l => l.Situacao != SituacaoComponente.EmDia))
                 {
                     MostrarMensagem(InfoBarSeverity.Warning, "Componentes do kit", "A atualização ainda tem pendências. Confira as linhas em Configurações.");
@@ -171,11 +172,11 @@ public sealed partial class MainWindow
         {
             // Tarefa 19: a tabela de modelos desta análise (padrão do kit + ajuste local), pelas listas guardadas; a do provedor é atualizada em
             // segundo plano, sem segurar a partida nem a fila de comandos (revisão final I4).
-            return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: tabela, pastaQgis: ajustes.PastaQgis, pastaKit: ajustes.PastaKitEfetiva, modoOriginal: modoOriginal, rotaOriginal: rotaOriginal), enviados);
+            return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: tabela, pastaQgis: ajustes.PastaQgis, pastaKit: pastaKitAnalise, modoOriginal: modoOriginal, rotaOriginal: rotaOriginal), enviados);
         }
         var (ok, perfil, ficticio, trocar) = await ResolverPerfilGeminiAsync(processo, perfilOriginal);
         if (!ok) return null;
-        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior, tabela, ajustes.PastaQgis, ajustes.PastaKitEfetiva, modoOriginal), enviados);
+        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior, tabela, ajustes.PastaQgis, pastaKitAnalise, modoOriginal), enviados);
     }
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);
     internal void EsquecerAviso(Provedor p) { ajustes.Agentes[p].AvisoVersao = null; ajustes.Agentes[p].AvisoEm = null; SalvarAjustes(); }

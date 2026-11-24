@@ -189,8 +189,8 @@ public static class ComponentesDoKit
     }
 
     /// <summary>Lê tudo (só leitura; nada falha: peça ilegível é peça ausente). A fonte fora do alcance deixa as versões disponíveis dos plugins
-    /// "não verificadas", sem erro.</summary>
-    public static async Task<LeituraDoKit> LerAsync(OrigensDoKit o, IReadOnlyList<ComponenteDoKit>? lista = null)
+    /// "não verificadas", sem erro. Antes da análise, <paramref name="pastaKitAnalise"/> usa a mesma seleção de kit do controlador.</summary>
+    public static async Task<LeituraDoKit> LerAsync(OrigensDoKit o, IReadOnlyList<ComponenteDoKit>? lista = null, string? pastaKitAnalise = null)
     {
         ArgumentNullException.ThrowIfNull(o);
         var (fonte, kitLocal) = FonteDoKit(o);
@@ -226,7 +226,7 @@ public static class ComponentesDoKit
         foreach (var c in lista ?? Lista)
             linhas.Add(c.Origem switch
             {
-                OrigemComponente.PluginNoCodex or OrigemComponente.PluginNoClaude => await LinhaDePluginAsync(c, o, linhasResumo, falhas, versaoNaFonte, versaoNoKitLocal, fonte is not null && acessivel, kitLocal),
+                OrigemComponente.PluginNoCodex or OrigemComponente.PluginNoClaude => await LinhaDePluginAsync(c, o, linhasResumo, falhas, versaoNaFonte, versaoNoKitLocal, fonte is not null && acessivel, kitLocal, pastaKitAnalise),
                 OrigemComponente.ServidorPdf => LinhaDoServidor(c, hashInstalado, versaoInstalada, o.HashServidorDoEditor, o.VersaoServidorDoEditor, falhas) with { InstaladoEm = servidorEm },
                 _ => LinhaDeMotor(c, linhasResumo, falhas, o),
             });
@@ -237,32 +237,48 @@ public static class ComponentesDoKit
         return new LeituraDoKit(linhas, fonte, fonte is not null && acessivel, kitLocal, tarefa);
     }
 
-    static async Task<JsonObject?> ConferirIntegridadeAsync(string motor, string skill, string kit)
+    static async Task<JsonObject?> ConferirIntegridadeAsync(string motor, string skill, string kit, string? pastaKitAnalise)
     {
         var python = LerTexto(Path.Combine(motor, "runtime.txt"))?.Trim();
-        var conferir = Path.Combine(kit, "01 - PLUGINS", "plugins", "analise", "skills", "analise", "scripts", "check_kit_version.py");
+        var skillDoVerificador = pastaKitAnalise is null
+            ? Path.Combine(kit, "01 - PLUGINS", "plugins", "analise", "skills", "analise")
+            : skill;
+        var conferir = Path.Combine(skillDoVerificador, "scripts", "check_kit_version.py");
         if (!File.Exists(python) || !File.Exists(conferir) || !Directory.Exists(skill)) return null;
         var inicio = new ProcessStartInfo(python!) { UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8 };
-        foreach (var argumento in new[] { "-B", "-X", "utf8", conferir, "--skill-root", skill, "--kit-root", kit })
+        foreach (var argumento in new[] { "-B", "-X", "utf8", conferir, "--skill-root", skill })
             inicio.ArgumentList.Add(argumento);
         try
         {
+            var espera = EsperaDaFonte;
+            if (pastaKitAnalise is null)
+            {
+                inicio.ArgumentList.Add("--kit-root");
+                inicio.ArgumentList.Add(kit);
+            }
+            else
+            {
+                await Task.Run(() => AmbienteFilho.AplicarKit(inicio.Environment, pastaKitAnalise)).WaitAsync(EsperaDaFonte);
+                espera = TimeSpan.FromSeconds(30);
+            }
             using var processo = Process.Start(inicio);
             if (processo is null) return null;
             var saida = processo.StandardOutput.ReadToEndAsync();
             var erro = processo.StandardError.ReadToEndAsync();
-            try { await Task.WhenAll(processo.WaitForExitAsync(), saida, erro).WaitAsync(EsperaDaFonte); }
+            try { await Task.WhenAll(processo.WaitForExitAsync(), saida, erro).WaitAsync(espera); }
             catch (TimeoutException) { if (!processo.HasExited) processo.Kill(entireProcessTree: true); return null; }
             return JsonNode.Parse(await saida) as JsonObject;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or System.ComponentModel.Win32Exception) { return null; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or TimeoutException or System.ComponentModel.Win32Exception) { return null; }
     }
 
     static async Task<LinhaComponente> LinhaDePluginAsync(ComponenteDoKit c, OrigensDoKit o, IReadOnlyDictionary<string, string> resumo, IReadOnlyList<string> falhas,
-        string? naFonte, string? noKitLocal, bool fonteAcessivel, string kitLocal)
+        string? naFonte, string? noKitLocal, bool fonteAcessivel, string kitLocal, string? pastaKitAnalise)
     {
         var noClaude = c.Origem == OrigemComponente.PluginNoClaude;
+        // Os controladores das três rotas saem do cache do Codex. A linha do Claude Code confere a instalação do próprio Claude.
+        var pastaDoControlador = noClaude ? null : pastaKitAnalise;
         var plugin = noClaude ? PluginsInstalados.NoClaude(o.PastaClaude, c.Chave) : PluginsInstalados.NoCodex(o.CodexHome, c.Chave);
         var instalada = plugin?.Versao;
         var programa = noClaude ? "Claude Code" : "Codex";
@@ -284,8 +300,9 @@ public static class ComponentesDoKit
         if (instalada is not null && situacao != SituacaoComponente.AtualizacaoDisponivel)
         {
             var skill = plugin?.Pasta is { } pasta ? Path.Combine(pasta, "skills", "analise") : "";
-            var verificar = o.ConferirPlugin ?? ((s, k) => ConferirIntegridadeAsync(o.PastaMotorPdf, s, k));
-            var resultado = await verificar(skill, kitLocal);
+            var resultado = o.ConferirPlugin is { } verificar
+                ? await verificar(skill, pastaDoControlador ?? kitLocal)
+                : await ConferirIntegridadeAsync(o.PastaMotorPdf, skill, kitLocal, pastaDoControlador);
             var estado = Texto(resultado, "status");
             if (estado is "UPDATE_REQUIRED" or "CHECK_FAILED")
             {

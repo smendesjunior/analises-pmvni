@@ -5,6 +5,11 @@ namespace Pmvni.Agentes;
 /// Gemini: rota e perfil do análise Google vão declarados só quando há perfil (partida e conferência); sem perfil (leitura da situação) nada é declarado.</summary>
 public static class AmbienteFilho
 {
+    public static void AplicarKit(IDictionary<string, string?> env, string? pastaKit)
+    {
+        if (!string.IsNullOrWhiteSpace(pastaKit) && Directory.Exists(pastaKit)) env["PMVNI_KIT"] = pastaKit;
+    }
+
     const string TrocarGoogle = "PMVNI_ANALISE_GOOGLE_TROCAR";
 
     static readonly string[] Declaradas =

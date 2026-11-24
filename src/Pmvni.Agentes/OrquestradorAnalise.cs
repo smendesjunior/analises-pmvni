@@ -107,7 +107,7 @@ public sealed class OrquestradorAnalise
             env["PMVNI_PROFISSIONAL_CARGO"] = pedido.CargoProfissional ?? "";
         }
         if (!string.IsNullOrWhiteSpace(pedido?.PastaQgis)) env["PMVNI_QGIS_ROOT"] = pedido.PastaQgis;
-        if (!string.IsNullOrWhiteSpace(pedido?.PastaKit) && Directory.Exists(pedido.PastaKit)) env["PMVNI_KIT"] = pedido.PastaKit;
+        AmbienteFilho.AplicarKit(env, pedido?.PastaKit);
         if (registro is not null)
         {
             env["PMVNI_EXECUCAO_PASTA"] = registro.Pasta;
