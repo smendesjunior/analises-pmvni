@@ -64,6 +64,18 @@ public class DetalhesDasEtapasTestes
         Assert.Empty(DetalhesDasEtapas.Ler(controle).Grupos);
     }
 
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("null")]
+    [InlineData("42")]
+    public void Plano_com_raiz_invalida_nao_interrompe_o_monitor(string json)
+    {
+        using var pasta = Ambiente.PastaDeTeste("grupos-plano-invalido");
+        var controle = Controle(pasta);
+        File.WriteAllText(Path.Combine(controle, "plano_execucao.json"), json, Utf8);
+        Assert.Empty(DetalhesDasEtapas.Ler(controle).Grupos);
+    }
+
     [Fact]
     public void Le_plano_frente_da_tentativa_e_registros_reais_incluindo_avisos()
     {

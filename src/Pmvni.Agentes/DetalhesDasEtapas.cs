@@ -138,7 +138,7 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
     static IReadOnlyList<GrupoAnalise> LerGrupos(string controle, JsonElement? sessoes, DateTime desde, string? etapasJson)
     {
         var plano = ArquivoJsonDoKit.Ler(Path.Combine(controle, "plano_execucao.json"), desde);
-        if (plano is not { } p || !p.TryGetProperty("grupos_leitura", out _))
+        if (plano is not { ValueKind: JsonValueKind.Object } p || !p.TryGetProperty("grupos_leitura", out _))
             plano = string.IsNullOrWhiteSpace(etapasJson) ? null : ArquivoJsonDoKit.Ler(etapasJson);
         if (plano is not { ValueKind: JsonValueKind.Object } cfg
             || !cfg.TryGetProperty("grupos_leitura", out var grupos) || grupos.ValueKind != JsonValueKind.Array) return [];
