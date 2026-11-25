@@ -77,7 +77,7 @@ public class TravaDeProgramasTestes
     }
 
     [Fact]
-    public async Task partida_direta_e_catalogo_gemini_recusam_executores_fora_da_lista()
+    public async Task partida_claude_respeita_a_lista_e_catalogo_gemini_desativado_nao_inicia_programa()
     {
         using var pasta = Ambiente.PastaDeTeste("trava-catalogos");
         var falso = Path.Combine(pasta, "agente-falso");
@@ -94,9 +94,9 @@ public class TravaDeProgramasTestes
             Assert.EndsWith(claude, erroClaude.Message);
             var pecas = new Pecas(null, null, Path.Combine(falso, "python.exe"), false, null, null, null, false, null, false)
                 { GoogleRuntime = Path.Combine(pasta, "google_runtime.py"), Agy = agy };
-            var erroAgy = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                ModelosDoGemini.LerAsync(pecas, PerfilGemini.ContaUltra, null, pasta, CancellationToken.None));
-            Assert.EndsWith(agy, erroAgy.Message);
+            var (lista, motivo) = await ModelosDoGemini.LerAsync(pecas, PerfilGemini.ContaUltra, null, pasta, CancellationToken.None);
+            Assert.Null(lista);
+            Assert.Equal(Provedores.RotaDesativada, motivo);
             Assert.Empty(vistos);
         }
         finally

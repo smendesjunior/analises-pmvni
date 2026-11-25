@@ -13,6 +13,7 @@ public class TravaExecucaoTestes
         public long Ticks;
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         public override long GetTimestamp() => Ticks;
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch + TimeSpan.FromTicks(Ticks);
     }
 
     [Fact]
@@ -32,9 +33,26 @@ public class TravaExecucaoTestes
             registro.GravarTempoAtivo(relogio.TempoAtivo);
         }
         using var retomado = RegistroExecucao.Abrir(caminho, pasta);
-        var segundo = new RelogioAnalise(retomado.TempoAtivoGravado, tempo);
+        var segundo = new RelogioAnalise(retomado.TempoAtivoGravado, tempo, DateTimeOffset.UnixEpoch);
         tempo.Ticks += TimeSpan.FromMinutes(3).Ticks;
         Assert.Equal(TimeSpan.FromMinutes(5), segundo.TempoAtivo);
+        Assert.Equal(TimeSpan.FromHours(4) + TimeSpan.FromMinutes(5), segundo.TempoDecorrido);
+        segundo.Parar();
+        retomado.GravarTempoAtivo(segundo.TempoAtivo);
+        tempo.Ticks += TimeSpan.FromHours(1).Ticks;
+        using var terceiraAbertura = RegistroExecucao.Abrir(caminho, pasta);
+        var terceiro = new RelogioAnalise(terceiraAbertura.TempoAtivoGravado, tempo, DateTimeOffset.UnixEpoch);
+        tempo.Ticks += TimeSpan.FromMinutes(2).Ticks;
+        Assert.Equal(TimeSpan.FromMinutes(7), terceiro.TempoAtivo);
+        Assert.Equal(TimeSpan.FromHours(5) + TimeSpan.FromMinutes(7), terceiro.TempoDecorrido);
+        Assert.Equal(TimeSpan.FromHours(4) + TimeSpan.FromMinutes(5), segundo.TempoDecorrido);
+        terceiro.EmEspera(true);
+        tempo.Ticks += TimeSpan.FromMinutes(20).Ticks;
+        terceiro.EmEspera(false);
+        tempo.Ticks += TimeSpan.FromMinutes(1).Ticks;
+        terceiro.Parar();
+        Assert.Equal(TimeSpan.FromMinutes(8), terceiro.TempoAtivo);
+        Assert.Equal(TimeSpan.FromHours(5) + TimeSpan.FromMinutes(28), terceiro.TempoDecorrido);
     }
 
     [Fact]

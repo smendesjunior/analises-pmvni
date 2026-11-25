@@ -9,6 +9,9 @@ public enum ModoAcesso { Conta, Chave, ContaGemini }
 
 public static class Provedores
 {
+    public static IReadOnlyList<Provedor> Ativos { get; } = Array.AsReadOnly(new[] { Provedor.ChatGpt, Provedor.Claude });
+    public const string RotaDesativada = "A análise pelo Google/Gemini foi desativada. Use o Codex ou o Claude para uma nova análise.";
+
     public static string Nome(Provedor p) => p switch { Provedor.ChatGpt => "ChatGPT", Provedor.Claude => "Claude", _ => "Gemini" };
 
     /// <summary>Em nomes de arquivo e pastas: <c>chatgpt</c>, <c>claude</c> ou <c>gemini</c>.</summary>

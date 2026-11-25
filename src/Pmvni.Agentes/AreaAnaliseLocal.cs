@@ -54,13 +54,20 @@ internal sealed class AreaAnaliseLocal
         catch (FileNotFoundException) { return null; }
     }
 
-    internal static string? LocalExistente(string origem, string registro, string? documentosLocais = null)
+    internal static string? LocalExistente(string origem, string registro, string? documentosLocais = null, bool consultarLegado = false)
     {
         ValidarRegistro(origem, registro);
         var persistido = IdPersistido(registro, out _);
         if (persistido is null) return null;
         var id = Path.GetFileName(Path.TrimEndingDirectorySeparator(registro));
         var area = CaminhoLocal(origem, id, documentosLocais);
+        if (consultarLegado && documentosLocais is null && !Directory.Exists(area))
+            area = CaminhoLocal(origem, id, DocumentosLegados());
+        return ComInventario(origem, area, id, persistido);
+    }
+
+    static string? ComInventario(string origem, string area, string id, string persistido)
+    {
         ConferirCaminho(area, local: true);
         var arquivo = Path.Combine(area, ".pmvni-ai", "editor", id, NomeInventario);
         ConferirCaminho(arquivo, local: true);
@@ -76,12 +83,13 @@ internal sealed class AreaAnaliseLocal
         ValidarRegistro(origem, registro);
         var persistido = IdPersistido(registro, out _) ?? throw new IOException("A execução não tem área local identificada.");
         var id = Path.GetFileName(Path.TrimEndingDirectorySeparator(registro));
-        var area = Abrir(origem, CaminhoLocal(origem, id, documentosLocais), id, persistido, false);
+        var local = LocalExistente(origem, registro, documentosLocais) ?? throw new IOException("Área local ativa indisponível.");
+        var area = Abrir(origem, local, id, persistido, false);
         if (area.LocalAnterior is not null) throw new IOException("O transporte da execução ainda não foi confirmado.");
         return area;
     }
 
-    internal static AreaAnaliseLocal Preparar(PedidoExecucao pedido, IReadOnlyList<string> entradas, CancellationToken ct, string? documentosLocais = null)
+    internal static AreaAnaliseLocal Preparar(PedidoExecucao pedido, IReadOnlyList<string> entradas, CancellationToken ct, string? documentosLocais = null, string? documentosAnteriores = null)
     {
         var origem = Path.TrimEndingDirectorySeparator(Path.GetFullPath(pedido.Processo.Pasta));
         var registro = pedido.Registro.Pasta;
@@ -105,9 +113,11 @@ internal sealed class AreaAnaliseLocal
         var existente = Directory.Exists(local);
         if (existente && inicioPendente && TemEtapa(local, id))
             throw new IOException("Há uma etapa na área local e o registro da origem perdeu o vínculo. As duas cópias foram preservadas.");
+        var transportePendente = false;
         if (existente && idOrigem is not null)
         {
             var area = Abrir(origem, local, id, idOrigem, legada);
+            transportePendente = area.LocalAnterior is not null;
             if (area.LocalAnterior is null && RecuperacaoAnaliseLocal.GeracaoAtual(origem, local, id))
             {
                 area.ConferirOriginais(ct);
@@ -115,8 +125,11 @@ internal sealed class AreaAnaliseLocal
                 return area;
             }
         }
+        var antiga = pedido.Retomar && (!existente || transportePendente) && idOrigem is not null && (documentosLocais is null || documentosAnteriores is not null)
+            ? ComInventario(origem, CaminhoLocal(origem, id, documentosAnteriores ?? DocumentosLegados()), id, idOrigem) : null;
+        if (antiga is not null && !RecuperacaoAnaliseLocal.GeracaoAtual(origem, antiga, id)) antiga = null;
         var restaurar = idOrigem is not null && RecuperacaoAnaliseLocal.Existe(origem, id);
-        if (idOrigem is not null && !restaurar)
+        if (idOrigem is not null && !restaurar && antiga is null)
             throw new IOException("Esta execução local ainda não tem ponto de recuperação no servidor. Retome na estação de origem.");
         var pai = Directory.CreateDirectory(Path.GetDirectoryName(local)!).FullName;
         var provisoria = Path.Combine(pai, ".preparo-" + Guid.NewGuid().ToString("N"));
@@ -130,14 +143,18 @@ internal sealed class AreaAnaliseLocal
                 hashes.Add(rel, CopiarArquivo(origem, provisoria, rel, ct));
             ConferirAnexos(pedido, hashes);
             var reg = Path.Combine(provisoria, ".pmvni-ai", "editor", id);
-            if (restaurar || legada)
+            if (restaurar || legada || antiga is not null)
             {
-                var controle = legada ? ControleDoLegado(registro, id) : RecuperacaoAnaliseLocal.ControleDoCheckpoint(origem, id)
+                var controle = legada || antiga is not null ? ControleDoLegado(registro, id) : RecuperacaoAnaliseLocal.ControleDoCheckpoint(origem, id)
                     ?? throw new IOException("A rota do ponto de recuperação não está disponível no servidor.");
-                var anterior = legada
+                var anterior = antiga is not null
+                    ? RecuperacaoAnaliseLocal.TransportarDaEstacao(antiga, provisoria, id, controle, ct)
+                    : legada
                     ? RecuperacaoAnaliseLocal.RestaurarLegado(origem, provisoria, id, controle, ct)
                     : RecuperacaoAnaliseLocal.Restaurar(origem, provisoria, id, controle, ct)
                         ?? throw new IOException("O ponto de recuperação já não está disponível no servidor.");
+                if (antiga is not null && !RecuperacaoAnaliseLocal.GeracaoAtual(origem, provisoria, id))
+                    throw new IOException("O checkpoint mudou durante o transporte. As cópias foram preservadas para nova retomada.");
                 if (legada)
                     Gravar(Path.Combine(reg, NomeInventario), new Inventario(1, Identidade(origem), id, Guid.NewGuid().ToString("N"), hashes));
                 else
@@ -256,19 +273,49 @@ internal sealed class AreaAnaliseLocal
         ControleAnterior = null;
     }
 
-    internal void ConferirOriginais(CancellationToken ct = default)
+    internal void ConferirOriginais(CancellationToken ct = default, Func<string, Stream>? abrirCopia = null)
     {
+        abrirCopia ??= File.OpenRead;
         if (!Listar(origem, ct).SetEquals(arquivos.Keys))
             throw new IOException("A lista de arquivos originais do processo mudou desde o início da análise.");
         foreach (var (rel, esperado) in arquivos)
         {
-            foreach (var raiz in new[] { origem, ProcessoLocal })
+            var original = Path.Combine(origem, rel);
+            var copia = Path.Combine(ProcessoLocal, rel);
+            ConferirCaminho(original, local: false);
+            ConferirCaminho(copia, local: true);
+            using var fonte = File.OpenRead(original);
+            ConferirHash(fonte, original);
+            try
             {
-                var caminho = Path.Combine(raiz, rel);
-                ConferirCaminho(caminho, local: Comparador.Equals(raiz, ProcessoLocal));
-                using var arquivo = File.OpenRead(caminho);
-                var atual = Transferir(arquivo, null, ct);
-                if (!Comparador.Equals(atual, esperado)) throw new IOException("O arquivo diverge da cópia inicial da análise: " + caminho);
+                using var leitura = abrirCopia(copia);
+                ConferirHash(leitura, copia);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // A via local pode ter herdado uma ACL antiga. O novo arquivo nasce na pasta da execução.
+                var temporario = Path.Combine(Path.GetDirectoryName(copia)!, Guid.NewGuid().ToString("N") + ".tmp");
+                fonte.Position = 0;
+                try
+                {
+                    using (var escrita = new FileStream(temporario, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    {
+                        if (!Comparador.Equals(Transferir(fonte, escrita, ct), esperado))
+                            throw new IOException("A origem mudou durante a recuperação: " + original);
+                        escrita.Flush(true);
+                    }
+                    File.SetLastWriteTimeUtc(temporario, File.GetLastWriteTimeUtc(original));
+                    ct.ThrowIfCancellationRequested();
+                    File.Move(temporario, copia, true);
+                    using var recuperada = abrirCopia(copia);
+                    ConferirHash(recuperada, copia);
+                }
+                finally { File.Delete(temporario); }
+            }
+            void ConferirHash(Stream fluxo, string caminho)
+            {
+                if (!Comparador.Equals(Transferir(fluxo, null, ct), esperado))
+                    throw new IOException("O arquivo diverge da cópia inicial da análise: " + caminho);
             }
         }
     }
@@ -351,17 +398,18 @@ internal sealed class AreaAnaliseLocal
 
     static void Gravar<T>(string caminho, T valor) => File.WriteAllBytes(caminho, JsonSerializer.SerializeToUtf8Bytes(valor));
 
+    static string DocumentosLegados()
+    {
+        var pasta = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        return string.IsNullOrWhiteSpace(pasta) || TravaExecucao.EmVolumeDeRede(pasta) || EmNuvem(pasta) || Redirecionado(pasta, true)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents") : pasta;
+    }
+
     static string CaminhoLocal(string origem, string id, string? documentos)
     {
-        var perfil = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (documentos is null)
-        {
-            documentos = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            if (string.IsNullOrWhiteSpace(documentos) || TravaExecucao.EmVolumeDeRede(documentos) || EmNuvem(documentos) || Redirecionado(documentos, true))
-                documentos = Path.Combine(perfil, "Documents");
-        }
-        if (TravaExecucao.EmVolumeDeRede(documentos) || EmNuvem(documentos) || Redirecionado(documentos, true))
-            throw new IOException("A pasta Documentos do perfil precisa estar em um volume local da estação.");
+        documentos ??= Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!Path.IsPathFullyQualified(documentos) || TravaExecucao.EmVolumeDeRede(documentos) || EmNuvem(documentos) || Redirecionado(documentos, true))
+            throw new IOException("A área de trabalho precisa estar em um volume local da estação.");
         var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Identidade(origem) + "\n" + id.ToUpperInvariant())));
         var chave = id.Length >= 17 && DateTime.TryParseExact(id[..17], "yyyy-MM-dd_HHmmss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var data)
             ? data.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + "-" + digest[..16] : digest[..24];

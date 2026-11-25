@@ -8,13 +8,18 @@ namespace Pmvni.App;
 internal static class Autoteste
 {
     static string? arquivo;
+    public static int CodigoSaida { get; private set; }
 
     public static bool Ativo => arquivo is not null;
 
     public static void Configurar(string[] args)
     {
         var i = Array.IndexOf(args, "--autoteste");
-        if (i >= 0 && i + 1 < args.Length) arquivo = Path.GetFullPath(args[i + 1]);
+        if (i >= 0 && i + 1 < args.Length)
+        {
+            arquivo = Path.GetFullPath(args[i + 1]);
+            CodigoSaida = 1;
+        }
     }
 
     /// <summary>Grava o resultado da primeira navegação. O bloco "legislacao" confere o PDF.js embutido (versão, arquivos, bytes e
@@ -34,7 +39,7 @@ internal static class Autoteste
         // 1.0.0: as janelas dos sites (window.open, opener, document.write, window.close) também precisam passar.
         var janelasOk = janelas is null || janelas.TryGetValue("ok", out var j) && j is true;
         var brilhoOk = brilho is null || brilho.TryGetValue("ok", out var b) && b is true;
-        // 1.1.0: os três provedores (ChatGPT, Claude e Gemini) na janela publicada.
+        // 1.1.0: as rotas ativas (Codex e Claude) na janela publicada.
         var agentesOk = agentes is null || agentes.TryGetValue("ok", out var ag) && ag is true;
         var dados = new Dictionary<string, object?>
         {
@@ -50,12 +55,13 @@ internal static class Autoteste
         if (!shaOk) dados["erro"] = "O PDF.js embutido não confere com o VERSAO.json: " + string.Join(", ", divergentes.Take(5));
         else if (!janelasOk) dados["erro"] = "As janelas dos sites não passaram no autoteste: " + (janelas!.TryGetValue("erro", out var e) ? e : "veja janelas_dos_sites");
         else if (!brilhoOk) dados["erro"] = "O brilho \"trabalhando\" não passou no autoteste: " + (brilho!.TryGetValue("erro", out var e2) ? e2 : "veja brilho_trabalhando");
-        else if (!agentesOk) dados["erro"] = "Os três provedores de análise não passaram no autoteste: " + (agentes!.TryGetValue("erro", out var e3) ? e3 : "veja agentes");
+        else if (!agentesOk) dados["erro"] = "Os provedores ativos de análise não passaram no autoteste: " + (agentes!.TryGetValue("erro", out var e3) ? e3 : "veja agentes");
         Gravar(dados);
     }
 
     public static void GravarErro(string erro) => Gravar(new Dictionary<string, object?>
     {
+        ["ok"] = false,
         ["erro"] = erro,
         ["baseDir"] = AppContext.BaseDirectory,
         ["elevado"] = Elevado(),
@@ -75,6 +81,7 @@ internal static class Autoteste
         var temporario = arquivo + ".tmp";
         File.WriteAllText(ArquivoGerado.Caminho(temporario), JsonSerializer.Serialize(dados, new JsonSerializerOptions { WriteIndented = true }));
         File.Move(temporario, ArquivoGerado.Caminho(arquivo), overwrite: true);
+        CodigoSaida = dados.TryGetValue("ok", out var resultado) && resultado is true ? 0 : 1;
         arquivo = null; // grava uma vez só
     }
 }

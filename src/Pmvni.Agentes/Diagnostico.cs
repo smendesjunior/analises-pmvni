@@ -78,7 +78,7 @@ public static class Diagnostico
     public static async Task<SituacaoProvedor> TestarAsync(Provedor p, Pecas pecas, ModoAcesso modo, bool chaveGuardada, CancellationToken ct,
         PerfilGemini? perfilGemini = null, string? chaveGemini = null, Func<PerfilGemini, IReadOnlyList<EtapaGemini>?>? etapasGemini = null)
     {
-        if (p == Provedor.Gemini) return await DiagnosticoGemini.TestarAsync(pecas, modo, perfilGemini, modo == ModoAcesso.Chave ? chaveGemini : null, ct, etapasGemini);
+        if (!Provedores.Ativos.Contains(p)) return new(Provedores.RotaDesativada, []);
         var avisos = new List<string>();
         var linha = p == Provedor.ChatGpt ? await ChatGptAsync(pecas, ct) : await ClaudeAsync(pecas, avisos, ct);
         if (modo == ModoAcesso.Chave && chaveGuardada)

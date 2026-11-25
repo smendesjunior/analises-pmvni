@@ -9,6 +9,35 @@ public class ConsumoAoVivoTestes
     const string CotaEm = "2026-11-23T15:07:00Z";
     const string SemanaEm = "2026-11-23T15:05:00Z";
 
+    [Fact]
+    public void ModelosAcompanhamAsSessoesAtivasDaEtapa()
+    {
+        using var pasta = Ambiente.PastaDeTeste("modelo-em-execucao");
+        var agora = DateTimeOffset.UtcNow;
+        var amostra = Amostra();
+        amostra["etapa"] = "analyze";
+        JsonObject Sessao(string? modelo) => new()
+        {
+            ["etapa"] = "analyze", ["estado"] = "em_andamento", ["atividade_em"] = agora,
+            ["modelo_observado"] = modelo, ["modelo_pedido"] = "seletor"
+        };
+        var a = Sessao("terra");
+        var b = Sessao("sol");
+        amostra["sessoes"] = new JsonObject { ["a"] = a, ["b"] = b };
+        string? LerAoVivo() => ConsumoAoVivo.Ler(Gravar(pasta, amostra), default, Provedor.ChatGpt,
+            "registro", OrdemDasEtapas.Padrao, null, agora).Amostra?.ModelosEmExecucao;
+        Assert.Equal("sol · terra", LerAoVivo());
+        a["estado"] = "concluido";
+        Assert.Equal("sol", LerAoVivo());
+        b["modelo_observado"] = null;
+        Assert.Equal("Aguardando identificação do modelo", LerAoVivo());
+        b["atividade_em"] = agora.AddMinutes(-2);
+        Assert.Null(LerAoVivo());
+        b["atividade_em"] = agora;
+        amostra["etapa"] = "technical_audit";
+        Assert.Null(LerAoVivo());
+    }
+
     static JsonObject Amostra()
     {
         var contagem = new JsonObject { ["entrada"] = 120, ["saida"] = 30, ["entrada_cache"] = 100, ["total"] = 150 };

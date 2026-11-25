@@ -1,0 +1,492 @@
+{
+ "_leia": "Copie este arquivo para a pasta da análise, troque todo texto entre colchetes [ ] e rode: python gerar_relatorio.py dados.json RELATORIO.pdf. Chaves que começam com _ são só orientação e são ignoradas. Seções opcionais (indices, diagrama, iluminacao, figuras) podem ser removidas quando não se aplicam.",
+ "config": {
+  "orgao": "SECRETARIA MUNICIPAL DE OBRAS"
+ },
+ "capa": {
+  "_como": "rotulo_data: ANÁLISE na primeira vez, REANÁLISE nas seguintes. Quatro quadros, sempre nesta ordem; cor g (verde) = confirmado, y (amarelo) = a confirmar.",
+  "protocolo": "[DD/MM/AAAA]",
+  "rotulo_data": "REANÁLISE",
+  "data": "[DD/MM/AAAA]",
+  "processo": "[Nº]/[ANO]",
+  "requerente": "[NOME DO REQUERENTE]",
+  "quadros": [
+   {
+    "titulo": "LOCALIZAÇÃO",
+    "cor": "g",
+    "destaque": "[Endereço do carimbo, nº, bairro]",
+    "apoio": "[Observação curta, ex.: acesso indicado por outra via — a esclarecer]"
+   },
+   {
+    "titulo": "CARACTERIZAÇÃO",
+    "cor": "y",
+    "destaque": "[Uso: unifamiliar, multifamiliar, comercial…]",
+    "apoio": "[Nº de unidades • pavimentos]"
+   },
+   {
+    "titulo": "AUTORIA INDICADA",
+    "cor": "y",
+    "destaque": "[Nome do autor do projeto]",
+    "apoio": "[Registro profissional ou: Registro profissional não informado]"
+   },
+   {
+    "titulo": "PARÂMETROS URBANÍSTICOS",
+    "cor": "g",
+    "destaque": "[Situação da parcela e do zoneamento]",
+    "apoio": "[Zona indicada no projeto: XXX]"
+   }
+  ],
+  "pontos_confirmar": "[Tema 1] • [Tema 2] • [Tema 3]"
+ },
+ "localizacao": {
+  "_como": "Nos plugins, mapa, dados e legenda saem do script mapa_localizacao.py (report_evidence.py montar preenche esta seção a partir da figura QGIS). situacao: CONFIRMADO | A_CONFIRMAR. texto: por que o lote ainda precisa ser confirmado (sai em \"Situação do lote na base\"). dados: grupo (Identificação | Áreas e edificação | Zona e condicionantes | Cadastro e entorno), rótulo curto, valor, e quando couber chip + alerta (r/a/g) e nota. legenda: itens do mapa (lote, edif, app, rio, dnit, zona); sem ela, sai a legenda padrão. observacoes: o que o PDM diz para a zona e as condicionantes (artigo/anexo). Dados pessoais do cadastro: uso interno.",
+  "subtitulo": "Conferência do endereço com a base cartográfica e cadastral do município.",
+  "situacao": "A_CONFIRMAR",
+  "imagem": "exemplo_mapa.png",
+  "dados": [
+   {
+    "grupo": "Identificação",
+    "rotulo": "Endereço",
+    "valor": "[Rua, nº, bairro]"
+   },
+   {
+    "grupo": "Identificação",
+    "rotulo": "Proprietário",
+    "valor": "[Nome do contribuinte]"
+   },
+   {
+    "grupo": "Identificação",
+    "rotulo": "Inscrição",
+    "valor": "[00000000000000]"
+   },
+   {
+    "grupo": "Identificação",
+    "rotulo": "Lote / quadra",
+    "valor": "[nº] / [nº]"
+   },
+   {
+    "grupo": "Áreas e edificação",
+    "rotulo": "Área na base",
+    "valor": "[x] m²"
+   },
+   {
+    "grupo": "Áreas e edificação",
+    "rotulo": "Área declarada",
+    "valor": "[x] m² ([fonte])"
+   },
+   {
+    "grupo": "Áreas e edificação",
+    "rotulo": "Diferença",
+    "valor": "[+x]% sobre a base",
+    "chip": "DIVERGE",
+    "alerta": "a"
+   },
+   {
+    "grupo": "Áreas e edificação",
+    "rotulo": "Edificação",
+    "valor": "[x] m² em [n] blocos"
+   },
+   {
+    "grupo": "Zona e condicionantes",
+    "rotulo": "Zona (2025)",
+    "valor": "[ZONA]"
+   },
+   {
+    "grupo": "Zona e condicionantes",
+    "rotulo": "APP / rio",
+    "valor": "[Nome do rio] · calha a [x] m · APP de [x] m na base",
+    "chip": "ATINGE O LOTE",
+    "alerta": "r",
+    "nota": "Nome pela AGERH/GEOBASES-ES — conferir."
+   },
+   {
+    "grupo": "Zona e condicionantes",
+    "rotulo": "BR-262",
+    "valor": "Eixo a [x] m · domínio 40 m + 15 m não edificáveis",
+    "chip": "NÃO ATINGE",
+    "alerta": "g",
+    "nota": "Domínio a confirmar no DNIT; faixa não edificável: Lei 6.766/1979, art. 4º, III."
+   },
+   {
+    "grupo": "Zona e condicionantes",
+    "rotulo": "AUC",
+    "valor": "[Sim — AUC x | Não]"
+   },
+   {
+    "grupo": "Zona e condicionantes",
+    "rotulo": "Perímetro",
+    "valor": "[SEDE | fora do perímetro urbano]"
+   },
+   {
+    "grupo": "Cadastro e entorno",
+    "rotulo": "Situação",
+    "valor": "[Ativo · Construído]"
+   },
+   {
+    "grupo": "Cadastro e entorno",
+    "rotulo": "Parcelamento",
+    "valor": "[Loteamento aprovado x | Fora dos loteamentos da base]",
+    "nota": "Indício; a regularidade se comprova pela matrícula."
+   },
+   {
+    "grupo": "Cadastro e entorno",
+    "rotulo": "Confrontantes",
+    "valor": "[Lote nº: nome · Lote nº: nome]"
+   },
+   {
+    "grupo": "Cadastro e entorno",
+    "rotulo": "Ruas",
+    "valor": "[Rua A · Rua B]"
+   }
+  ],
+  "texto": "[O que confere e o que falta confirmar: inscrição, endereço, área, limites.]",
+  "legenda": [
+   {
+    "tipo": "lote",
+    "texto": "Lote do projeto"
+   },
+   {
+    "tipo": "edif",
+    "texto": "Edificação no lote"
+   },
+   {
+    "tipo": "app",
+    "texto": "Faixa de APP"
+   },
+   {
+    "tipo": "rio",
+    "texto": "Curso d'água"
+   },
+   {
+    "tipo": "dnit",
+    "texto": "Faixas da BR-262"
+   },
+   {
+    "tipo": "zona",
+    "texto": "Zonas do PDM"
+   }
+  ],
+  "observacoes": [
+   "[Zona X: o que o PDM prevê (Lei nº 1.382/2020, art. XX, Anexo VI).]"
+  ],
+  "fonte": "Base municipal (Lotes, Logradouro, Zoneamento_2025_10, Quadras, Edificacao, Hidro_app, AUC, Per_urb_2022, Cursos_dagua_AGERH_VNI) e cadastro imobiliário vigente; SIRGAS 2000 / UTM 24S."
+ },
+ "itens": [
+  {
+   "_como": "Um por item, na ordem: primeiro os que atendem, depois as pendências por assunto. Numeração ITEM 01, 02… automática. situacao: ATENDE | NAO_ATENDE | NAO_COMPROVADO | DIVERGENCIA_INTERNA. Nos plugins, cada item leva também a chave id (ID interno do manifesto), que não aparece no PDF. Verificação: o que o projeto mostra → o que a norma exige em palavras simples (termo técnico explicado entre parênteses na 1ª vez) → a conta. Providência: começa com verbo; uma ação por frase.",
+   "titulo": "[Título curto do item]",
+   "situacao": "ATENDE",
+   "verificacao": "[O que o projeto mostra, com medidas e localização.] [O que a norma exige, em palavras simples.] [A conta, se houver: 4,00 × 3,00 = 12,00 m².]",
+   "providencia": "Nenhuma correção nessas medidas. [O que não foi conferido aqui está no item XX.]",
+   "base_legal": "[Norma (lei nº/ano), art. XX.]",
+   "referencia": "[ARQ XX/XX, vista. Figura X.]"
+  },
+  {
+   "titulo": "[Título curto do item]",
+   "situacao": "NAO_COMPROVADO",
+   "verificacao": "[O que o projeto mostra ou o que falta.] [O que a norma exige, com o termo técnico explicado entre parênteses.] [Por que não é possível concluir.]",
+   "providencia": "[Apresentar …] [Indicar …] [Corrigir …]",
+   "base_legal": "[Norma (lei nº/ano), art. XX.]",
+   "referencia": "[ARQ XX/XX, vista. Figura X.]"
+  },
+  {
+   "titulo": "[Título curto do item]",
+   "situacao": "DIVERGENCIA_INTERNA",
+   "verificacao": "[Valor informado no projeto], mas a conta com os dados do próprio projeto dá [valor]: [operação completa]. [Consequência.]",
+   "providencia": "[Corrigir …] [Refazer …]",
+   "base_legal": "[Norma (lei nº/ano), art. XX.]",
+   "referencia": "[ARQ XX/XX, vista. Figura X.]"
+  }
+ ],
+ "indices": {
+  "_como": "Uma linha por índice. situacao: CONTA_CONFERE | NAO_ATENDE | PENDENTE | DIVERGENCIA. projeto_destaque = true quando o valor declarado diverge da conta. Ícones: plot, to, ca, tp, pav, afa.",
+  "subtitulo": "Parcela declarada: [área] m² • parâmetros sujeitos à confirmação da parcela e do zoneamento.",
+  "zona": "[ZONA]",
+  "linhas": [
+   {
+    "icone": "plot",
+    "nome": "Área do terreno",
+    "descricao": "Dimensão e regularidade da parcela",
+    "calculo": "[Parcela declarada; situação dos limites]",
+    "projeto": "[área] m²",
+    "projeto_destaque": false,
+    "limite": "Lote ≥ [x] m²; testada ≥ [x] m",
+    "situacao": "PENDENTE",
+    "texto": "[O que falta ou o que confere] (item XX)."
+   },
+   {
+    "icone": "to",
+    "nome": "Taxa de ocupação (TO)",
+    "descricao": "Parte do lote coberta pela projeção",
+    "calculo": "[projeção] ÷ [terreno] × 100 = [x]%",
+    "projeto": "[x]%",
+    "projeto_destaque": false,
+    "limite": "≤ [x]%",
+    "situacao": "CONTA_CONFERE",
+    "texto": "[O que falta ou o que confere] (item XX)."
+   },
+   {
+    "icone": "ca",
+    "nome": "Coeficiente de aproveitamento (CA)",
+    "descricao": "Área construída em relação ao terreno",
+    "calculo": "[área computável] ÷ [terreno] = [x]",
+    "projeto": "[x]",
+    "projeto_destaque": false,
+    "limite": "≤ [x]",
+    "situacao": "PENDENTE",
+    "texto": "[O que falta ou o que confere] (item XX)."
+   },
+   {
+    "icone": "tp",
+    "nome": "Taxa de permeabilidade (TP)",
+    "descricao": "Parte do lote que deixa a água infiltrar",
+    "calculo": "[área permeável] ÷ [terreno] × 100 = [x]%",
+    "projeto": "[x]%",
+    "projeto_destaque": true,
+    "limite": "≥ [x]%",
+    "situacao": "DIVERGENCIA",
+    "texto": "[O que corrigir] (item XX)."
+   },
+   {
+    "icone": "pav",
+    "nome": "Pavimentos e altura",
+    "descricao": "Número de pavimentos e altura da edificação",
+    "calculo": "[Nº de pavimentos; alturas dos cortes]",
+    "projeto": "[valor]",
+    "projeto_destaque": false,
+    "limite": "Até [x] pavimentos e [x] m",
+    "situacao": "PENDENTE",
+    "texto": "[O que falta ou o que confere] (item XX)."
+   },
+   {
+    "icone": "afa",
+    "nome": "Afastamentos",
+    "descricao": "Distâncias mínimas até as divisas",
+    "calculo": "[Frente, fundos e laterais indicados]",
+    "projeto": "[valores]",
+    "projeto_destaque": false,
+    "limite": "Frente [x] m; fundos [x] m; lateral [x] m",
+    "situacao": "PENDENTE",
+    "texto": "[O que falta ou o que confere] (item XX)."
+   }
+  ],
+  "observacao": "[De onde vêm os limites (zona e anexo). Que área entrou no cálculo. O que falta para aprovar os índices.]"
+ },
+ "diagrama": {
+  "_como": "Esquema desenhado pelo gerador a partir destes rótulos (sem escala). limites_confirmados = false deixa o lote tracejado. Âncoras: lote, permeavel, edificacao, lateral (planta); telhado, altura (volumetria). situacao: CONTA_CONFERE | PENDENTE | DIVERGENCIA. Escreva 'não confirmado' ou 'não cotado' no que não foi comprovado.",
+  "planta": {
+   "testada": "Testada ([valor ou: não confirmada])",
+   "profundidade": "Profundidade ([valor ou: não confirmada])",
+   "limites_confirmados": false,
+   "permeavel": {
+    "titulo": "ÁREA PERMEÁVEL",
+    "linha1": "[x]% no projeto",
+    "linha2": "[x]% no cálculo",
+    "linha2_destaque": true
+   },
+   "edificacao": [
+    "EDIFICAÇÃO NOVA",
+    "[N] pavimentos"
+   ],
+   "beiral": "beiral [x] m",
+   "lateral": [
+    "lateral [x] m",
+    "([indicada / cotada])"
+   ],
+   "frente": "frente [x m ou: não cotada]",
+   "fundos": "fundos [x m ou: não cotados]"
+  },
+  "volumetria": {
+   "altura_esquerda": [
+    "Corte AA",
+    "[x] m"
+   ],
+   "altura_direita": [
+    "Corte BB",
+    "[x] m"
+   ]
+  },
+  "chamadas": [
+   {
+    "ancora": "lote",
+    "titulo": "Área do terreno",
+    "situacao": "PENDENTE",
+    "texto": "[Valor e o que falta, em uma frase] (item XX)."
+   },
+   {
+    "ancora": "permeavel",
+    "titulo": "Taxa de permeabilidade",
+    "situacao": "DIVERGENCIA",
+    "texto": "[Valor e o que falta, em uma frase] (item XX)."
+   },
+   {
+    "ancora": "edificacao",
+    "titulo": "Taxa de ocupação",
+    "situacao": "CONTA_CONFERE",
+    "texto": "[Valor e o que falta, em uma frase] (item XX)."
+   },
+   {
+    "ancora": "lateral",
+    "titulo": "Afastamentos",
+    "situacao": "PENDENTE",
+    "texto": "[Valor e o que falta, em uma frase] (item XX)."
+   },
+   {
+    "ancora": "telhado",
+    "titulo": "Coeficiente de aproveitamento",
+    "situacao": "PENDENTE",
+    "texto": "[Valor e o que falta, em uma frase] (item XX)."
+   },
+   {
+    "ancora": "altura",
+    "titulo": "Pavimentos e altura",
+    "situacao": "PENDENTE",
+    "texto": "[Valor e o que falta, em uma frase] (item XX)."
+   }
+  ],
+  "nota": "O esquema não representa a implantação real. [Complemento, ex.: edificações existentes não desenhadas.] Medidas e limites conforme a tabela de índices."
+ },
+ "iluminacao": {
+  "_como": "Nos plugins, ambientes sai pronto do script calcular_vaos.py. Uma linha por tipo de ambiente (agrupe os iguais). Um bloco por vão: janelas E portas do ambiente (internas e externas), largura × altura; sem medida, deixe area vazio e escreva o motivo em sem_area. Vão total = soma dos vãos. minimo: área do piso ÷ fração do art. 127 (destaque = true na conta). situacao: CONTA_CONFERE | NAO_ATENDE | PENDENTE. Ícones: bed, wc, pot, wash, sun.",
+  "subtitulo": "Conferência de vãos, iluminação e ventilação [nas N unidades / na edificação].",
+  "tag": "[N] UNIDADES • [N] PAVIMENTOS",
+  "ambientes": [
+   {
+    "icone": "bed",
+    "nome": "[Nome do ambiente]",
+    "detalhes": [
+     "[N] ambientes • piso [x] m²"
+    ],
+    "situacao": "PENDENTE",
+    "vaos": [
+     {
+      "codigo": "[J1]",
+      "medidas": "[L × A] m",
+      "tipo": "[Tipo: correr, maxim-ar, abrir…]",
+      "area": "[x] m²",
+      "sem_area": ""
+     },
+     {
+      "codigo": "[P3]",
+      "medidas": "[L × A] m",
+      "tipo": "Porta (para a circulação)",
+      "area": "[x] m²",
+      "sem_area": ""
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "[piso] ÷ [5 ou 8] = [x] m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "",
+    "textos": [
+     "Vão total: [J1] [x] + [P3] [x] = [x] m²; [falta x m² / confere]."
+    ]
+   },
+   {
+    "icone": "wash",
+    "nome": "[Nome do ambiente]",
+    "detalhes": [
+     "[N] ambientes",
+     "Piso: [x] m²"
+    ],
+    "situacao": "CONTA_CONFERE",
+    "vaos": [
+     {
+      "codigo": "[J2]",
+      "medidas": "[L × A] m",
+      "tipo": "[Tipo]",
+      "area": "",
+      "sem_area": "VÃO LIVRE NÃO COTADO"
+     }
+    ],
+    "minimo": [
+     {
+      "texto": "[piso] ÷ [5 ou 8] = [x] m²",
+      "destaque": true
+     },
+     {
+      "texto": "(art. 127)",
+      "destaque": false
+     }
+    ],
+    "situacao_titulo": "",
+    "textos": [
+     "[Área útil] ≥ [mínimo]; confere."
+    ]
+   }
+  ],
+  "abrangencia": [
+   "[Quais unidades ou pavimentos cada linha representa.]",
+   "Vão de cada esquadria = largura × altura do quadro de esquadrias. O vão do ambiente soma janelas e portas (internas e externas), critério da análise PMVNI."
+  ],
+  "nao_computadas": [
+   "[Só o que não é vão do ambiente, com o motivo — ex.: porta de armário embutido. Se não houver, escreva: Nenhuma.]"
+  ],
+  "atencao": "[Cuidado de interpretação do caso, ex.: ambiente integrado. Apague se não houver.]",
+  "fonte": "[ARQ XX/XX — plantas e quadros; ARQ XX/XX — cortes e fachada.]"
+ },
+ "figuras": [
+  {
+   "_como": "imagem: caminho do recorte já marcado (relativo a este JSON). Notas na mesma ordem dos números da imagem; no máximo 6. prancha: ARQ 01/03 (no mapa, MAPA). Mapa: use texto e deixe notas vazio. Figuras numeradas automaticamente: cite 'Figura n' nos itens. Nos plugins, cada figura leva também a chave id (ID interno da evidência) e a imagem gerada por prepare_visual_evidence.py.",
+   "prancha": "ARQ XX/XX",
+   "titulo": "[Nome da vista: o que a figura mostra]",
+   "imagem": "exemplo_figura.png",
+   "texto": "",
+   "notas": [
+    {
+     "elemento": "[Elemento: qual é o erro ou o que falta]",
+     "texto": "[A solução: o que apresentar ou corrigir.]",
+     "itens": "item XX"
+    },
+    {
+     "elemento": "[Elemento conferido]",
+     "texto": "[Medida conferida.]",
+     "itens": "item XX"
+    }
+   ],
+   "fonte": "ARQ XX/XX, [vista]."
+  }
+ ],
+ "sem_figura": [
+  "[Item XX — Assunto: sem figura, porque o desenho não tem ponto a indicar.]"
+ ],
+ "fontes": [
+  {
+   "rotulo": "Projeto",
+   "texto": "[Arquivos das pranchas, nº de páginas, data, revisão.]",
+   "url": ""
+  },
+  {
+   "rotulo": "Imóvel",
+   "texto": "[Matrícula nº, data da certidão, páginas; outros documentos.]",
+   "url": ""
+  },
+  {
+   "rotulo": "Código de Obras",
+   "texto": "LC municipal nº 70/1990, arts. [XX]. Texto compilado consultado em [DD/MM/AAAA].",
+   "url": "https://camaravni.camarasempapel.com.br/Arquivo/Documents/legislacao/html_impressao/c701990.html"
+  },
+  {
+   "rotulo": "PDM",
+   "texto": "Lei municipal nº 1.382/2020, arts. [XX] e Anexos [XX]. Texto compilado consultado em [DD/MM/AAAA].",
+   "url": "https://camaravni.camarasempapel.com.br/Arquivo/Documents/legislacao/HTML_IMPRESSAO/L13822020.html"
+  },
+  {
+   "rotulo": "Bases municipais",
+   "texto": "[Cadastro e cartografia consultados; limitação da consulta.]",
+   "url": ""
+  }
+ ],
+ "conclusao": "[O que foi recebido nesta etapa.] Permanecem as pendências dos itens [XX a XX], que precisam ser atendidas para [finalidade]. Os itens [XX a XX] atendem apenas nos pontos indicados e não autorizam a aprovação do projeto nem a emissão de alvará. Depois da complementação, os itens pendentes serão reanalisados.",
+ "assinatura": {
+  "nome": "SIDNEY AUGUSTO MENDES JUNIOR",
+  "cargo": "ARQUITETO E URBANISTA — CAU/ES A297986-1"
+ }
+}

@@ -21,6 +21,12 @@ public static class DadosEfetivos
         if (documento["conclusao"] is JsonValue v && v.TryGetValue<string>(out var conclusao))
             documento["conclusao"] = Imprimir(p, conclusao);
         documento["itens"] = itens; // a chave já existe: fica no lugar original
+        if (documento["notas_pendencias_normativas"] is JsonObject notas)
+        {
+            var pendentes = itens.OfType<JsonObject>().Where(i => i["situacao"]?.ToString() == "DECISAO_DO_ANALISTA")
+                .Select(i => i["id"]?.ToString()).ToHashSet();
+            foreach (var id in notas.Select(n => n.Key).Where(k => !pendentes.Contains(k)).ToList()) notas.Remove(id);
+        }
         TabelasRevisao.Aplicar(p, documento); // linhas de tabela revisadas (sem revisão, nada muda)
         // Figuras: a camada de edição, se houver; senão as do documento, com o "(item NN)" das notas renumerado.
         if (p.Figuras is not null) documento["figuras"] = CamadaFiguras.Efetivas(p);
@@ -70,6 +76,11 @@ public static class DadosEfetivos
             if (!it.Chaves.Contains(nome) && it.Campos.TryGetValue(nome, out var c) && c.Revisado is not null)
                 o[nome] = Imprimir(p, c.Revisado);
         if (!it.Chaves.Contains("situacao") && it.Situacao.Revisada is not null) o["situacao"] = it.Situacao.Revisada;
+        if (it.Situacao.Original?.ToString() == "DECISAO_DO_ANALISTA" && it.Situacao.Revisada is not null &&
+            !string.IsNullOrWhiteSpace(it.Situacao.Justificativa) && o["id"]?.ToString() is string id &&
+            p.Documento["notas_pendencias_normativas"] is JsonObject notas && notas[id]?.ToString() is string nota &&
+            o["base_legal"]?.ToString() == nota)
+            o["base_legal"] = Imprimir(p, it.Situacao.Justificativa);
         return o;
     }
 

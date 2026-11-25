@@ -78,7 +78,7 @@ public static class ComponentesDoKit
     /// <summary>Os componentes do cartão, na ordem da tela. A Tarefa 22 tira o despacho do kit: ele não entra nesta lista.</summary>
     public static IReadOnlyList<ComponenteDoKit> Lista { get; } =
     [
-        new("analise-codex", "Análise no Codex", "O plugin analise, com as rotas ChatGPT, Claude e Gemini.", OrigemComponente.PluginNoCodex, PluginsInstalados.Analise, "analise"),
+        new("analise-codex", "Análise no Codex", "O plugin analise, com as rotas Codex e Claude.", OrigemComponente.PluginNoCodex, PluginsInstalados.Analise, "analise"),
         new("analise-claude", "Análise no Claude Code", "O registro do plugin analise no Claude Code.", OrigemComponente.PluginNoClaude, PluginsInstalados.Analise, "analise"),
         new("pmvni-pdf", "Servidor de PDF (pmvni-pdf)", "As ferramentas de PDF do kit no Codex, no Claude Code e no Claude Desktop.", OrigemComponente.ServidorPdf, "mcp_pmvni.py", "pmvni-pdf"),
         new("pymupdf", "Motor de PDF PyMuPDF", "Lê o texto e as páginas dos PDFs.", OrigemComponente.MotorPdf, "PyMuPDF", "motores", "2.1"),

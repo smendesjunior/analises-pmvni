@@ -536,7 +536,7 @@
             <local:PainelCartoesAjustes>
               <local:CartaoAgente x:Name="CartaoChatGpt" x:FieldModifier="internal"/>
               <local:CartaoAgente x:Name="CartaoClaude" x:FieldModifier="internal"/>
-              <local:CartaoAgente x:Name="CartaoGemini" x:FieldModifier="internal"/>
+              <local:CartaoAgente x:Name="CartaoGemini" Visibility="Collapsed" x:FieldModifier="internal"/>
             </local:PainelCartoesAjustes>
             <local:PainelCartoesAjustes>
               <Border Style="{StaticResource PmvniAjusteGrupo}">
@@ -622,7 +622,7 @@
 
           <!-- ===== 6.1 Inteligência artificial › Modelos da análise ===== -->
           <StackPanel x:Name="CategoriaModelos" Tag="modelos" Spacing="12" Visibility="Collapsed">
-            <InfoBar Severity="Informational" IsClosable="False" IsOpen="True" Message="Personalização local. Os padrões do kit PMVNI são compartilhados; as alterações aqui valem somente para este computador."/>
+            <InfoBar Severity="Informational" IsClosable="False" IsOpen="True" Message="O kit escolhe o modelo e o nível de esforço conforme a tarefa. Durante a análise, o Monitor mostra o modelo em atividade. Os ajustes desta tabela valem para este computador."/>
             <TextBlock Text="ROTAS DE EXECUÇÃO" Style="{StaticResource PmvniAjusteTitulo}"/>
             <InfoBar x:Name="AvisoModelosAnalise" x:FieldModifier="internal" Severity="Warning" IsClosable="False" IsOpen="False" Title="Confira os modelos da análise"/>
             <Border Style="{StaticResource PmvniAjusteGrupo}">
@@ -632,7 +632,7 @@
                   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                   <TextBlock x:Name="TituloRota" x:FieldModifier="internal" Style="{StaticResource PmvniAjusteTitulo}" VerticalAlignment="Center"/>
                   <Button Grid.Column="1" x:Name="BotaoAtualizarModelosIa" x:FieldModifier="internal" AutomationProperties.Name="Atualizar a lista de modelos de IA"
-                          local:Dicas.Titulo="Atualizar lista" local:Dicas.Descricao="Consulta os modelos disponíveis nos aplicativos e nas APIs configuradas, incluindo a rota Gemini. Se a consulta falhar, mantém a última lista.">
+                          local:Dicas.Titulo="Atualizar lista" local:Dicas.Descricao="Consulta os modelos disponíveis nos aplicativos e nas APIs configuradas. Se a consulta falhar, mantém a última lista.">
                     <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="{x:Bind local:Glifos.Atualizar}" FontSize="16"/><TextBlock Text="Atualizar lista"/></StackPanel>
                   </Button>
                 </Grid>
@@ -669,7 +669,7 @@
                 <StackPanel>
                   <StackPanel Padding="16,12" Spacing="3">
                     <TextBlock TextAlignment="Left" Text="Auditoria cruzada" Style="{StaticResource PmvniAjusteTitulo}"/>
-                    <TextBlock TextAlignment="Left" Text="Conferência feita pelo programa, sem IA e sem gastar cota, dos controles certificados pela auditoria técnica, antes da montagem do relatório. Ligada por padrão nas três rotas; desligada, a análise vai da auditoria técnica direto à montagem." TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
+                    <TextBlock TextAlignment="Left" Text="Conferência feita pelo programa, sem IA e sem gastar cota, dos controles certificados pela auditoria técnica, antes da montagem do relatório. Ligada por padrão nas rotas de análise; desligada, a análise vai da auditoria técnica direto à montagem." TextWrapping="Wrap" Style="{StaticResource PmvniAjusteAjuda}"/>
                   </StackPanel>
                   <StackPanel x:Name="PainelAuditoriaCruzada" x:FieldModifier="internal"/>
                 </StackPanel>
@@ -730,7 +730,7 @@
                                 local:Dicas.Titulo="Verificar atualizações" local:Dicas.Descricao="Lê de novo as versões instaladas neste computador e as disponíveis na fonte do kit."/>
                       <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Gerenciar}" x:Name="BotaoRepararInstalacao" x:FieldModifier="internal" Content="Reparar instalação" AutomationProperties.Name="Reparar instalação dos plugins e ferramentas" local:Dicas.Titulo="Reparar instalação" local:Dicas.Descricao="Reinstala todos os componentes usando a cópia local do kit PMVNI."/>
                       <Button local:IconeDeAcao.Glifo="{x:Bind local:Glifos.Atualizar}" x:Name="BotaoAtualizarTodosComponentes" x:FieldModifier="internal" Content="Atualizar todos" AutomationProperties.Name="Atualizar todos os plugins e ferramentas"
-                                local:Dicas.Titulo="Atualizar todos" local:Dicas.Descricao="Roda o instalador do kit (INSTALAR_KIT_PMVNI.cmd atualizar) fora do Editor: copia da fonte o que mudou e reinstala o que for preciso."/>
+                                local:Dicas.Titulo="Atualizar todos" local:Dicas.Descricao="Instala a versão atual do kit, confere os componentes em uso e limpa os arquivos obsoletos das versões anteriores."/>
                     </StackPanel>
                   </local:LinhaComAcoes>
                   <StackPanel x:Name="ListaComponentesKit" x:FieldModifier="internal" AutomationProperties.Name="Componentes do kit PMVNI"/>

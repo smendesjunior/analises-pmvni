@@ -5,6 +5,20 @@ namespace Pmvni.Agentes;
 /// <summary>Estado da conferência local apresentado no Monitor e na reabertura pelo histórico.</summary>
 internal sealed record ConferenciaNumerica(string Fase, string Resumo, string Detalhes)
 {
+    internal sealed record Declaracao(string Rotulo, string Valor, string Fonte, string Revisao,
+        string Contexto = "", string Ressalva = "");
+    internal IReadOnlyList<Declaracao> Declaracoes { get; init; } = [];
+    public bool Equals(ConferenciaNumerica? other) => other is not null &&
+        Fase == other.Fase && Resumo == other.Resumo && Detalhes == other.Detalhes && Declaracoes.SequenceEqual(other.Declaracoes);
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Fase);
+        hash.Add(Resumo);
+        hash.Add(Detalhes);
+        foreach (var declaracao in Declaracoes) hash.Add(declaracao);
+        return hash.ToHashCode();
+    }
     internal const string ArquivoControle = "CONFERENCIA_INDICES.JSON";
     internal const string ArquivoHistorico = "CONFERENCIA-NUMERICA.JSON";
     internal string Titulo => "Conferência numérica local · " + (Fase == "preparo" ? "Preparo" : "Montagem");
@@ -46,6 +60,7 @@ internal sealed record ConferenciaNumerica(string Fase, string Resumo, string De
             }
             string Valor(string campo) => Campo(linha, campo) is { Length: > 0 } valor ? valor : "não disponível";
             var textos = new List<string> { $"{indice.ToUpperInvariant()} · {situacao} · declarado {Valor("declarado")} · calculado {Valor("calculado")}" };
+            if (Campo(linha, "formula") is { Length: > 0 } formula) textos.Add("Fórmula: " + formula);
             if (linha.TryGetProperty("fontes", out var fontes) && fontes.ValueKind == JsonValueKind.Array)
                 foreach (var fonte in fontes.EnumerateArray())
                     if (fonte.ValueKind == JsonValueKind.String && fonte.GetString()?.Trim() is { Length: > 0 } s) textos.Add("Fonte: " + s);
@@ -72,7 +87,21 @@ internal sealed record ConferenciaNumerica(string Fase, string Resumo, string De
                 secoes.Add(string.Join(Environment.NewLine, itens));
             }
         }
-        return new(Campo(recibo, "fase")!, resumo, string.Join(Environment.NewLine + Environment.NewLine, secoes));
+        var declaracoes = new List<Declaracao>();
+        if (recibo.TryGetProperty("dados_declarados", out var dados) && dados.ValueKind == JsonValueKind.Array)
+            foreach (var dado in dados.EnumerateArray())
+                if (dado.ValueKind == JsonValueKind.Object && Campo(dado, "rotulo") is { Length: > 0 } rotulo)
+                {
+                    var valor = Campo(dado, "valor") ?? "";
+                    if (Campo(dado, "unidade") is { Length: > 0 } unidade && !valor.EndsWith(unidade, StringComparison.Ordinal))
+                        valor = $"{valor} {unidade}".Trim();
+                    string Juntar(params string[] campos) => string.Join(" · ", campos.Select(c => Campo(dado, c))
+                        .Where(c => !string.IsNullOrWhiteSpace(c)).Distinct());
+                    declaracoes.Add(new(rotulo, valor, Juntar("fonte", "arquivo", "regiao"), Campo(dado, "revisao") ?? "",
+                        Juntar("quadro", "cabecalhos", "abrangencia", "objeto", "elemento_medido"), Campo(dado, "ressalva") ?? ""));
+                }
+        return new(Campo(recibo, "fase")!, resumo, string.Join(Environment.NewLine + Environment.NewLine, secoes))
+            { Declaracoes = declaracoes };
     }
 
     static string? Campo(JsonElement obj, string campo)

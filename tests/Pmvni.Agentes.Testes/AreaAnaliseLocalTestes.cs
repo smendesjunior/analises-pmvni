@@ -1,4 +1,6 @@
+using System.Security.AccessControl;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Text.Json;
 using Pmvni.Revisao;
 using Xunit;
@@ -101,6 +103,74 @@ public sealed class AreaAnaliseLocalTestes
     }
 
     [Fact]
+    public void Conferencia_recupera_copia_apos_recusa_de_leitura_e_preserva_original()
+    {
+        using var c = new Caso();
+        var original = c.Gravar("projeto.pdf", "conteúdo conferido");
+        var area = c.Preparar();
+        c.Associar(area);
+        var copia = new FileInfo(Path.Combine(area.ProcessoLocal, "projeto.pdf"));
+        int leituras = 0;
+        area.ConferirOriginais(abrirCopia: caminho =>
+        {
+            if (caminho == copia.FullName && ++leituras == 1) throw new UnauthorizedAccessException();
+            return File.OpenRead(caminho);
+        });
+        Assert.Equal(2, leituras);
+        Assert.Equal(area.Identificador, c.Preparar(true).Identificador);
+        Assert.Equal(File.ReadAllBytes(original), File.ReadAllBytes(copia.FullName));
+        Assert.Equal(File.GetLastWriteTimeUtc(original), File.GetLastWriteTimeUtc(copia.FullName));
+    }
+
+    [Fact]
+    public void Reparo_da_copia_com_leitura_negada_pelo_Windows_reabre_os_bytes_originais()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        using var c = new Caso();
+        var original = c.Gravar("prancha.pdf", "prancha de ensaio");
+        var area = c.Preparar();
+        var copia = new FileInfo(Path.Combine(area.ProcessoLocal, "prancha.pdf"));
+        using var usuario = WindowsIdentity.GetCurrent();
+        var anterior = copia.GetAccessControl();
+        var bloqueada = copia.GetAccessControl();
+        bloqueada.AddAccessRule(new FileSystemAccessRule(usuario.User!, FileSystemRights.ReadData, AccessControlType.Deny));
+        copia.SetAccessControl(bloqueada);
+        try
+        {
+            Assert.Throws<UnauthorizedAccessException>(() => File.ReadAllBytes(copia.FullName));
+            area.ConferirOriginais();
+            Assert.Equal(File.ReadAllBytes(original), File.ReadAllBytes(copia.FullName));
+            Assert.Equal(File.GetLastWriteTimeUtc(original), File.GetLastWriteTimeUtc(copia.FullName));
+        }
+        finally { copia.SetAccessControl(anterior); }
+    }
+
+    [Fact]
+    public void Troca_da_implantacao_antes_da_publicacao_preserva_as_pecas_e_a_entrega_local()
+    {
+        using var c = new Caso();
+        var implantacao = c.Gravar("implantacao.pdf", "revisão A");
+        c.Gravar("cortes.pdf", "cortes inalterados");
+        var area = c.Preparar();
+        c.Associar(area);
+        var fim = RecuperacaoAnaliseLocalTestes.Produto(area.ProcessoLocal, id: c.Id);
+        var hashPdf = SHA256.HashData(File.ReadAllBytes(fim.Pdf!));
+        FimAnalise Publicar() => RecuperacaoAnaliseLocal.Publicar(c.Origem, area.ProcessoLocal, c.Id,
+            "analise", fim, () => area.ConferirOriginais());
+
+        File.WriteAllText(implantacao, "revisão B");
+        Assert.Contains("implantacao.pdf", Assert.Throws<IOException>(() => Publicar()).Message);
+        Assert.Null(RecuperacaoAnaliseLocal.EntregaPublicada(c.Origem, c.Id));
+        Assert.Equal("revisão A", File.ReadAllText(Path.Combine(area.ProcessoLocal, "implantacao.pdf")));
+        Assert.Equal("cortes inalterados", File.ReadAllText(Path.Combine(area.ProcessoLocal, "cortes.pdf")));
+        Assert.Equal(hashPdf, SHA256.HashData(File.ReadAllBytes(fim.Pdf!)));
+
+        File.WriteAllText(implantacao, "revisão A");
+        var publicada = Publicar();
+        Assert.Equal(hashPdf, SHA256.HashData(File.ReadAllBytes(publicada.Pdf!)));
+    }
+
+    [Fact]
     public void Anexo_divergente_ou_peca_de_outro_processo_impede_a_copia()
     {
         using var a = new Caso();
@@ -200,6 +270,34 @@ public sealed class AreaAnaliseLocalTestes
         reaberta.ConfirmarTransporte();
         c.Associar(reaberta);
         Assert.Null(c.Preparar(true).LocalAnterior);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Retoma_de_documentos_no_appdata_com_progresso_local(bool comCheckpoint)
+    {
+        using var c = new Caso();
+        c.Gravar("projeto.pdf", "entrada original");
+        var documentos = Path.Combine(c.Estacao.Caminho, "Documentos");
+        var appData = Path.Combine(c.Estacao.Caminho, "AppData");
+        var antiga = c.Preparar(false, documentos);
+        c.Associar(antiga);
+        if (comCheckpoint) RecuperacaoAnaliseLocal.Salvar(c.Origem, antiga.ProcessoLocal, c.Id, "analise");
+        File.WriteAllText(Path.Combine(antiga.RegistroLocal, "prova.txt"), "etapa validada");
+        var nova = AreaAnaliseLocal.Preparar(c.Pedido with { Retomar = true }, [], default, appData, documentos);
+        Assert.StartsWith(appData, nova.ProcessoLocal);
+        Assert.Equal(antiga.ProcessoLocal, nova.LocalAnterior);
+        Assert.Equal(antiga.Identificador, nova.Identificador);
+        foreach (var registro in new[] { antiga.RegistroLocal, nova.RegistroLocal })
+            Assert.Equal("etapa validada", File.ReadAllText(Path.Combine(registro, "prova.txt")));
+        // Uma interrupção pode deixar parte dos caminhos traduzidos na nova área.
+        File.WriteAllText(Path.Combine(nova.RegistroLocal, "prova.txt"), "transporte interrompido");
+        var repetida = AreaAnaliseLocal.Preparar(c.Pedido with { Retomar = true }, [], default, appData, documentos);
+        Assert.Equal("etapa validada", File.ReadAllText(Path.Combine(repetida.RegistroLocal, "prova.txt")));
+        repetida.ConfirmarTransporte();
+        Assert.Null(c.Preparar(true, appData).LocalAnterior);
+        Assert.True(RecuperacaoAnaliseLocal.GeracaoAtual(c.Origem, repetida.ProcessoLocal, c.Id));
     }
 
     [Fact]

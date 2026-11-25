@@ -437,7 +437,7 @@ public class ImportacaoTestes
         var c = Importar("longo");
         var m = c.Manifesto;
         Assert.Equal(Manifesto.VersaoEsquemaAtual, m.VersaoEsquema);
-        Assert.Equal(14, m.TemplateRevisao);
+        Assert.Equal(Modelo.Revisao, m.TemplateRevisao.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal(Modelo.Sha256["relatorio.css"], m.Sha256Css);
         Assert.Equal(Ambiente.Contexto().Relogio(), m.CriadoEm);
         Assert.False(string.IsNullOrWhiteSpace(m.AppVersao));

@@ -408,13 +408,13 @@ public partial class OrquestradorTestes
         c.Pecas = ComGemini(c) with { VersaoAnaliseGoogle = "3.1.0" };
         var fim = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.Gemini, ModoAcesso.Conta) with { Perfil = PerfilGemini.ContaUltra }, c.Progresso, CancellationToken.None), Limite);
         Assert.Equal("falhou", fim.Situacao);
-        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo): o analise instalado neste computador é o 3.1.0.", fim.Mensagem);
+        Assert.Equal(Provedores.RotaDesativada, fim.Mensagem);
         Assert.False(File.Exists(c.Falso("chamadas.txt")));
 
         // Kit 3.x de verdade: sem rotas\gemini\google_runtime.py, também pede a atualização (não "não instalado").
         c.Pecas = ComGemini(c) with { VersaoAnaliseGoogle = "3.1.0", GoogleRuntime = null };
         var semRota = await Ambiente.Com(c.Orq().ExecutarAsync(c.Pedido(Provedor.Gemini, ModoAcesso.Conta) with { Perfil = PerfilGemini.ContaUltra }, c.Progresso, CancellationToken.None), Limite);
-        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo)", semRota.Mensagem);
+        Assert.Equal(Provedores.RotaDesativada, semRota.Mensagem);
         Assert.False(File.Exists(c.Falso("chamadas.txt")));
     }
 }

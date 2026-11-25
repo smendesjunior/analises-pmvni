@@ -15,7 +15,7 @@ internal static partial class IaAjusteItem
     internal static readonly string[] Chaves = ["titulo", "verificacao", "providencia", "base_legal", "referencia"];
 
     /// <summary>As situações de item que a IA pode devolver (as do kit).</summary>
-    internal static readonly string[] Situacoes = ["ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA"];
+    internal static readonly string[] Situacoes = ["ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA", "DECISAO_DO_ANALISTA"];
 
     /// <summary>Folga da conferência: um campo até 1,3× o limite ainda entra; acima disso a resposta volta para encurtar.</summary>
     internal const double Folga = 1.3;

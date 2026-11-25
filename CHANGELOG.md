@@ -2,6 +2,13 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.6.1
+
+- A análise passa a trabalhar em AppData Local. A retomada procura o progresso da estação também na antiga pasta Documentos e confere os arquivos antes de continuar.
+- O kit escolhe o modelo por tarefa nas rotas Claude e Codex. O Monitor exibe os modelos observados em atividade e indica o progresso em uma faixa contínua. A análise Google está adiada.
+- A etiqueta O ANALISTA DEVE DECIDIR identifica questões encaminhadas para decisão humana. Uma entrega para revisão informa a etapa cuja conferência ficou pendente.
+- A grade de modelos fixa a auditoria Codex em Sol 6.2 médio. O monitor mostra as declarações usadas nos cálculos quando o kit fornece o registro da fonte.
+
 ## 4.6.0
 
 - O Editor copia as peças do processo para Documentos e usa essas cópias nas três rotas de análise. A pasta de trabalho e as evidências podem ser abertas pelo monitor.

@@ -96,34 +96,9 @@ public sealed partial class MainWindow
         return Path.GetFileName(pastaRegistro.TrimEnd('\\', '/')).EndsWith("-" + Provedores.Sufixo(Provedor.Gemini), StringComparison.OrdinalIgnoreCase) ? Provedor.Gemini : Provedor.Claude;
     }
 
-    /// <summary>Gemini: o perfil desta análise e a confirmação do que ele exige. Numa retomada vale o perfil em que a análise começou (com a sua confirmação
-    /// quando difere do de Ajustes); o perfil gratuito pede, a cada partida, a declaração de que o processo é fictício. Ok false = nada parte.</summary>
-    async Task<(bool Ok, PerfilGemini? Perfil, bool Ficticio, bool Trocar)> ResolverPerfilGeminiAsync(Processo processo, PerfilGemini? perfilOriginal = null)
-    {
-        var escolhido = perfilOriginal ?? PerfilDoGemini;
-        var fixado = await Task.Run(() => GeminiFixado.Ler(processo.Pasta));
-        var perfil = escolhido;
-        if (perfil is not { } pf)
-        {
-            MostrarMensagem(InfoBarSeverity.Warning, "Não é possível analisar agora", FluxoNovoRelatorio.SemPerfilApi);
-            return (false, null, false, false);
-        }
-        var trocar = fixado is { } && fixado != pf;
-        if (trocar && fixado is { } anterior
-            && !await Perguntas.Atual.ConfirmarAsync("Trocar o modo desta análise?", TextosAgentes.PerfilFixadoTexto(anterior, pf), "Usar o modo selecionado", "Cancelar", destrutiva: false))
-            return (false, null, false, false);
-        var ficticio = false;
-        if (pf == PerfilGemini.ApiGratuita)
-        {
-            ficticio = await Perguntas.Atual.ConfirmarAsync(TextosAgentes.FicticioTitulo, TextosAgentes.FicticioTexto, TextosAgentes.FicticioSim, "Cancelar", destrutiva: false);
-            if (!ficticio) return (false, null, false, false);
-        }
-        return (true, pf, ficticio, trocar);
-    }
-
-    /// <summary>A partida de uma análise pelo provedor; no Gemini, com o perfil resolvido antes (null = o usuário não confirmou e nada parte).</summary>
     async Task<ExecucaoEmCurso?> AnalisarComPerfilAsync(Provedor p, Processo processo, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto, IReadOnlyList<AnexoNovo>? enviados, string? registroAnterior = null, bool corrigirEntrega = false)
     {
+        if (!Provedores.Ativos.Contains(p)) return null;
         var pastaKitAnalise = ajustes.PastaKitEfetiva;
         if (Argumentos.Atual.Roteiro is null || OrigensDoKitDoRoteiro is not null)
         {
@@ -146,14 +121,12 @@ public sealed partial class MainWindow
         }
         ModoAcesso? modoOriginal = null;
         string? rotaOriginal = null;
-        PerfilGemini? perfilOriginal = null;
         if (corrigirEntrega && registroAnterior is not null)
         {
             using var original = RegistroExecucao.Abrir(registroAnterior, processo.Pasta);
             var acesso = original.AcessoDaExecucao();
             modoOriginal = acesso.Modo switch { "conta" => ModoAcesso.Conta, "conta_gemini" => ModoAcesso.ContaGemini, "chave" => ModoAcesso.Chave, _ => null };
             rotaOriginal = acesso.RotaCodex;
-            perfilOriginal = MatrizGemini.DoCodigo(original.PerfilDaExecucao());
         }
         RecarregarAjusteDosModelos();
         if (erroAjusteModelos is { } erro)
@@ -168,15 +141,11 @@ public sealed partial class MainWindow
             MostrarMensagem(InfoBarSeverity.Error, "Modelos da análise", ex.Message);
             return null;
         }
-        if (p != Provedor.Gemini)
-        {
-            // Tarefa 19: a tabela de modelos desta análise (padrão do kit + ajuste local), pelas listas guardadas; a do provedor é atualizada em
-            // segundo plano, sem segurar a partida nem a fila de comandos (revisão final I4).
-            return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior, modelos: tabela, pastaQgis: ajustes.PastaQgis, pastaKit: pastaKitAnalise, modoOriginal: modoOriginal, rotaOriginal: rotaOriginal), enviados);
-        }
-        var (ok, perfil, ficticio, trocar) = await ResolverPerfilGeminiAsync(processo, perfilOriginal);
-        if (!ok) return null;
-        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, perfil, ficticio, trocar, registroAnterior, tabela, ajustes.PastaQgis, pastaKitAnalise, modoOriginal), enviados);
+        var auditoriaAlternativa = NR.PermitirAuditoriaAlternativa.IsChecked == true;
+        NR.PermitirAuditoriaAlternativa.IsChecked = false;
+        return await PartirAsync(() => sessaoNR.AnalisarAsync(p, processo, anexos, texto, registroAnterior: registroAnterior,
+            auditoriaAlternativa: auditoriaAlternativa,
+            modelos: tabela, pastaQgis: ajustes.PastaQgis, pastaKit: pastaKitAnalise, modoOriginal: modoOriginal, rotaOriginal: rotaOriginal), enviados);
     }
     internal string? AvisoVersaoDoAgente(Provedor p) => ajustes.Agentes[p].AvisoVersao?.ToString(CultureInfo.InvariantCulture);
     internal void EsquecerAviso(Provedor p) { ajustes.Agentes[p].AvisoVersao = null; ajustes.Agentes[p].AvisoEm = null; SalvarAjustes(); }
@@ -250,7 +219,6 @@ public sealed partial class MainWindow
         n.CaixaPedido.TextChanged += (_, _) => { };
         n.BotaoChatGpt.Click += async (_, _) => await AnalisarAsync(Provedor.ChatGpt);
         n.BotaoClaude.Click += async (_, _) => await AnalisarAsync(Provedor.Claude);
-        n.BotaoGemini.Click += async (_, _) => await AnalisarAsync(Provedor.Gemini);
         n.BotaoVoltarRelatorio.Click += (_, _) => FecharPaginaNovoRelatorio();
         n.BotaoExecucoes.Click += (_, _) => { if (sessaoNR.Execucoes.FirstOrDefault(e => !e.Abandonada) is { } e) MostrarExecucaoNR(e); };
         n.BotaoNovaAnalise.Click += (_, _) => MostrarFormularioNR();
@@ -779,7 +747,7 @@ public sealed partial class MainWindow
     void AtualizarBotoesNR()
     {
         if (fechada) return;
-        foreach (var p in Enum.GetValues<Provedor>())
+        foreach (var p in Provedores.Ativos)
         {
             var botao = BotaoDoProvedor(p);
             var texto = p switch { Provedor.ChatGpt => NR.TextoMotivoChatGpt, Provedor.Claude => NR.TextoMotivoClaude, _ => NR.TextoMotivoGemini };
@@ -811,6 +779,7 @@ public sealed partial class MainWindow
 
     async Task<ExecucaoEmCurso?> AnalisarNaVezAsync(Provedor p)
     {
+        if (!Provedores.Ativos.Contains(p)) return null;
         NR.AvisoMensagem.IsOpen = false;
         NR.AvisoResultado.IsOpen = false;
         await LerPecasAsync();    // as peças do disco, como estão agora
@@ -1040,7 +1009,7 @@ public sealed partial class MainWindow
                 else if (mudouEstimativa) RenderizarExecucao(e);
                 var ((consumo, amostra), detalhes, orcamento, evidencias, modelos, numerica) = await Task.Run(() => (
                     ConsumoAoVivo.Ler(controle, desde, e.Provedor, Path.GetFileName(e.Registro.Pasta), ordemDoKit, sessoes,
-                        e.Fim?.IsCompleted == true ? null : DateTimeOffset.UtcNow),
+                        e.Fim?.IsCompleted == true ? null : DateTimeOffset.UtcNow, e.InicioUtc),
                     DetalhesDasEtapas.Ler(controle, etapasJson, desde),
                     e.Provedor == Provedor.ChatGpt ? OrcamentoDaAnalise.Ler(controle, desde) : null,
                     Directory.Exists(PastaEvidenciasDoMonitor(e)),
@@ -1093,7 +1062,7 @@ public sealed partial class MainWindow
     {
         NR.MostrarIdentificacao(FluxoNovoRelatorio.Identificacao(e.Processo), e.Processo.Requerente);
         if (NR.DetalhesVisiveis && e.Provedor == Provedor.ChatGpt) _ = MostrarUltimaMensagemAsync(e);
-        NR.MostrarRelogios(e.TempoAtivo, DateTimeOffset.Now);
+        NR.MostrarRelogios(e.TempoAtivo, DateTimeOffset.Now, e.TempoDecorrido);
     }
 
     void RenderizarExecucao(ExecucaoEmCurso e)
@@ -1245,7 +1214,8 @@ public sealed partial class MainWindow
         e.Cancelamento.Dispose();
         if (fechada) return fim;
         if (e.Abandonada) { AtualizarTituloAnalise(); AtualizarBotoesNR(); return fim; }
-        var comRelatorio = fim.Situacao == "concluida" && fim.Documento is not null;
+        var paraRevisao = fim.Situacao == "para_revisao";
+        var comRelatorio = (fim.Situacao == "concluida" || paraRevisao) && fim.Documento is not null;
         // A análise do Claude sai dos ajustes quando acaba sem relatório; com relatório, só depois de importado (até lá o editor reaberto ainda o oferece).
         if (Provedores.PeloKit(e.Provedor) && !comRelatorio && !e.PausaSolicitada && !fim.AcompanhamentoPendente && fim.Decisao is null) EsquecerPendenteClaude(e.Registro.Pasta);
         // ChatGPT: fica nos ajustes só o que dá para continuar (o controle do kit ficou na pasta do processo: falha, cancelamento, decisão sem resposta).
@@ -1271,8 +1241,9 @@ public sealed partial class MainWindow
             if (!fechada && avisos.Count > 0)
                 MostrarMensagem(InfoBarSeverity.Warning, "Avisos desta análise", string.Join(Environment.NewLine, avisos));
             if (!fechada)
-                NotificacoesWindows.Mostrar(importado ? "Relatório pronto" : recusa is null ? "Relatório aguardando importação" : "Entrega recusada pelo Editor",
-                    importado ? "A análise foi concluída e o relatório está disponível para revisão."
+                NotificacoesWindows.Mostrar(importado && paraRevisao ? "Versão para revisão disponível" : importado ? "Relatório pronto" : recusa is null ? "Relatório aguardando importação" : "Entrega recusada pelo Editor",
+                    importado && paraRevisao ? fim.Mensagem ?? "O relatório identifica as etapas pendentes."
+                    : importado ? "A análise foi concluída e o relatório está disponível para revisão."
                         : recusa is not null ? "Abra o Editor para conferir os motivos e retomar a correção."
                         : "A análise terminou. Abra o Editor para tentar importar o relatório novamente.");
         }
@@ -1640,8 +1611,9 @@ public sealed partial class MainWindow
             var existe = await Task.Run(() => RegistroExecucao.PastaDisponivel(pend.Registro));
             if (existe is null) continue;
             if (existe == false) { EsquecerPendenteClaude(pend.Registro); continue; }
+            var ia = await Task.Run(() => ProvedorDoRegistro(pend.Registro));
+            if (!Provedores.Ativos.Contains(ia)) continue;
             var pecas = await LerPecasAsync();
-            var ia = await Task.Run(() => ProvedorDoRegistro(pend.Registro));     // Claude (análise pro) ou Gemini (análise Google)
             var nomeIa = Provedores.Nome(ia);
             var pastaDeTrabalho = OrquestradorAnalise.ProcessoDoTrabalho(pend.Processo, pend.Registro);
             var s = await Orquestrador.SituacaoClaudeAsync(pastaDeTrabalho, pecas, ia);
@@ -1706,7 +1678,7 @@ public sealed partial class MainWindow
     /// <summary>"Retomar a análise?" na reabertura: continuar com o Claude, com o ChatGPT ou agora não (null). A IA que fazia a análise vem primeiro.</summary>
     async Task<(Provedor? Ia, bool Descartada)> PerguntarRetomadaAsync(Processo processo, string registro, Provedor original, string? motivo = null)
     {
-        var provedores = new[] { original }.Concat(new[] { Provedor.ChatGpt, Provedor.Claude, Provedor.Gemini }.Where(p => p != original)).ToArray();
+        var provedores = Provedores.Ativos.OrderByDescending(p => p == original).ToArray();
         var itens = provedores.Select(p => $"Retomar com o {Provedores.Nome(p)}").Append("Agora não").ToArray();
         var texto = $"A análise de {FluxoNovoRelatorio.Identificacao(processo)} com o {Provedores.Nome(original)} parou"
             + (string.IsNullOrWhiteSpace(motivo) ? "." : $": {motivo}")

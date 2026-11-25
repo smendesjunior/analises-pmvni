@@ -21,7 +21,7 @@ public sealed partial class MainWindow
     async Task EscolherHistoricoPendenteAsync()
     {
         await CarregarHistoricoAsync();
-        var itens = historicoAnalises.Where(h => h.Situacao is not ("concluida" or "descartada")).ToList();
+        var itens = historicoAnalises.Where(h => Provedores.Ativos.Contains(h.Provedor) && h.Situacao is not ("concluida" or "descartada")).ToList();
         if (itens.Count == 0)
         {
             MostrarMensagem(InfoBarSeverity.Informational, "Retomar análise", "Nenhuma análise pendente foi encontrada na pasta de processos.");
@@ -37,7 +37,7 @@ public sealed partial class MainWindow
         var item = await Task.Run(() => AnaliseHistorica.Ler(selecionada.Processo, selecionada.Registro));
         if (item is null) { await CarregarHistoricoAsync(); return; }
         var conferencia = await Task.Run(() => ConferenciaNumerica.Ler(item.Processo.Pasta, item.Provedor, item.Registro));
-        if (item.Situacao == "concluida")
+        if (item.Situacao is "concluida" or "para_revisao")
         {
             if (item.Pacote is { } pacote) await NaFilaAsync(async () => { await AbrirPacoteAsync(pacote); });
             else if (item.Documento is { } doc)
@@ -52,6 +52,11 @@ public sealed partial class MainWindow
         if (item.Situacao == "descartada")
         {
             MostrarMensagem(InfoBarSeverity.Informational, "Análise descartada", item.Registro);
+            return;
+        }
+        if (!Provedores.Ativos.Contains(item.Provedor))
+        {
+            MostrarMensagem(InfoBarSeverity.Informational, "Análise histórica", Provedores.RotaDesativada);
             return;
         }
         if (!await NovoRelatorioAsync()) return;

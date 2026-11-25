@@ -156,6 +156,12 @@ public sealed class RegistroExecucao : IDisposable
         lock (trava) return (execucao["modo"]?.GetValue<string>(), execucao["rota_codex_tecnica"]?.GetValue<string>());
     }
 
+    public string? RotaAlternativaDaAuditoria()
+    {
+        lock (trava) return execucao["rota_auditoria_alternativa"] is JsonValue valor &&
+            valor.TryGetValue<string>(out var rota) && rota is "codex" or "claude" ? rota : null;
+    }
+
     public string? PerfilDaExecucao()
     {
         lock (trava) return execucao["perfil"]?.GetValue<string>();

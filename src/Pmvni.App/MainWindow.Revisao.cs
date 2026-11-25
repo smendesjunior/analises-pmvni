@@ -1240,7 +1240,7 @@ public sealed partial class MainWindow
         }
         var original = it.Situacao.Original is JsonValue v && v.TryGetValue<string>(out var so) ? so : null;
         var situacao = SituacaoEfetiva(it) ?? "NAO_COMPROVADO";
-        var fixa = it.Situacao.Revisada is not null;
+        var fixa = it.Situacao.Revisada is not null || situacao == "DECISAO_DO_ANALISTA";
         var campos = Campos.Editaveis.ToDictionary(c => c, c => DadosEfetivos.TextoEfetivo(p, it, c) ?? "");
         var originais = Campos.Editaveis.ToDictionary(c => c, c =>
             it.Campos.TryGetValue(c, out var ct) && ct.Original is JsonValue ov && ov.TryGetValue<string>(out var os)

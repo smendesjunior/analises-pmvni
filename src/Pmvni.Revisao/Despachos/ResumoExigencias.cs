@@ -18,7 +18,7 @@ public static class ResumoExigencias
     public static bool Pendente(Item item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        return item.Incluido && item.Situacao != "ATENDE";
+        return item.Incluido && item.Situacao is not ("ATENDE" or "DECISAO_DO_ANALISTA");
     }
 
     /// <summary>Só os pendentes (<see cref="Pendente"/>), na ordem recebida.</summary>

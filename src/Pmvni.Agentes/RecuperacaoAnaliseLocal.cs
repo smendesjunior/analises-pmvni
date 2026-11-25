@@ -424,6 +424,17 @@ internal static partial class RecuperacaoAnaliseLocal
         return m.RaizLocal;
     }
 
+    internal static string TransportarDaEstacao(string antiga, string provisoria, string id, string rota, CancellationToken ct)
+    {
+        var geracao = GeracaoLocal(antiga, id);
+        var arquivos = Inventariar(antiga, id, rota, false).Select(p => Medir(antiga, p, ct)).ToList();
+        InstalarControle(provisoria, arquivos, a => Dentro(antiga, a.Nome), id, ct,
+            () => ConferirEstabilidade(antiga, id, rota, false, arquivos, ct));
+        if (geracao != GeracaoLocal(antiga, id)) throw new IOException("A execução anterior mudou durante o transporte.");
+        if (geracao is not null) MarcarGeracao(provisoria, id, geracao);
+        return antiga;
+    }
+
     internal static string RestaurarLegado(string origem, string local, string execucao, string controleRota, CancellationToken ct = default)
     {
         origem = Raiz(origem);
@@ -494,7 +505,27 @@ internal static partial class RecuperacaoAnaliseLocal
         if (Campo(e, "editor_execution") != id || !Nomes.Equals(Raiz(Campo(e, "case")), local) ||
             !Nomes.Equals(Declarado(local, Campo(d, "document")), documento)) throw new InvalidDataException("A entrega pertence a outra execução.");
         pendente = null;
-        if (d.TryGetProperty("modo", out var modo) && modo.GetString() == "edicao_manual")
+        if (d.TryGetProperty("modo", out var modo) && modo.GetString() == "para_revisao")
+        {
+            pendente = Campo(d, "etapa_pendente");
+            var pastaRevisao = Path.GetDirectoryName(documento)!;
+            if (!Nomes.Equals(Path.GetDirectoryName(pastaRevisao), Dentro(controle, "para-revisao"))
+                || !Guid.TryParseExact(Path.GetFileName(pastaRevisao), "N", out _)
+                || !Nomes.Equals(Path.GetFileName(documento), "VERSAO-PARA-REVISAO.JSON")
+                || Campo(d, "execucao") != id || Hash(documento) != Campo(d, "document_sha256"))
+                throw new InvalidDataException("A versão para revisão diverge do registro desta execução.");
+            using var arquivo = JsonDocument.Parse(File.ReadAllBytes(documento));
+            var revisao = Requerido(arquivo.RootElement, "revisao", JsonValueKind.Object);
+            if (Campo(revisao, "execucao") != id || Campo(revisao, "etapa") != pendente
+                || Campo(revisao, "motivo") != Campo(d, "motivo"))
+                throw new InvalidDataException("Os dados para revisão não identificam a pendência da execução.");
+            if (d.TryGetProperty("pdf", out _) != (pdf is not null) || pdf is not null &&
+                (!Nomes.Equals(pdf, Dentro(pastaRevisao, "VERSAO-PARA-REVISAO.PDF"))
+                || !Nomes.Equals(pdf, Declarado(local, Campo(d, "pdf"))) || Hash(pdf) != Campo(d, "pdf_sha256")))
+                throw new InvalidDataException("O PDF para revisão diverge dos dados de entrega.");
+            return "para_revisao";
+        }
+        if (d.TryGetProperty("modo", out modo) && modo.GetString() == "edicao_manual")
         {
             var etapa = Campo(d, "etapa_pendente");
             if (pdf != null || d.TryGetProperty("pdf", out _) || !Nomes.Equals(documento, Dentro(controle, @"edicao-manual\RELATORIO_DADOS.JSON")) ||
@@ -579,7 +610,16 @@ internal static partial class RecuperacaoAnaliseLocal
             Directory.CreateDirectory(temporario);
             try
             {
-                foreach (var a in arquivos) Copiar(mapa[a.Nome], Dentro(temporario, a.Nome), a, ct);
+                foreach (var a in arquivos)
+                {
+                    var caminho = Dentro(temporario, a.Nome);
+                    try { Copiar(mapa[a.Nome], caminho, a, ct); }
+                    catch (IOException) when (!ct.IsCancellationRequested && Hash(mapa[a.Nome]) == a.Sha256)
+                    {
+                        if (File.Exists(caminho)) File.Delete(caminho);
+                        Copiar(mapa[a.Nome], caminho, a, ct);
+                    }
+                }
                 ConferirPublicacao();
                 Directory.CreateDirectory(pasta);
                 Trocar(() => Directory.Move(temporario, destino), ct);
@@ -595,15 +635,17 @@ internal static partial class RecuperacaoAnaliseLocal
         var anterior = LerPonteiro(indice)?.Atual;
         if (anterior != sha)
             InstalarArquivo(Dentro(indice, "ATUAL.JSON"), tmp => File.WriteAllBytes(tmp, JsonSerializer.SerializeToUtf8Bytes(new Ponteiro(sha, anterior))), true);
-        return fim with { Documento = resultado.Documento, Pdf = resultado.Pdf };
+        return fim with { Documento = resultado.Documento, Pdf = resultado.Pdf,
+            Situacao = modo == "para_revisao" ? "para_revisao" : fim.Situacao,
+            Mensagem = modo == "para_revisao" ? "Versão para revisão. Etapa pendente: " + etapa : fim.Mensagem };
     }
 
     static Resultado ValidarProduto(string origem, string id, string sha, Entrega entrega)
     {
         if (entrega.Versao != 1 || entrega.Execucao != id ||
             !MesmoProcesso(origem, entrega.Processo, Path.Combine(".pmvni-ai", "entregas", id, "ATUAL.JSON")) ||
-            !Rotas.Contains(entrega.Controle) || entrega.Modo is not ("validada" or "edicao_manual") ||
-            (entrega.Pdf is null) != (entrega.Modo == "edicao_manual"))
+            !Rotas.Contains(entrega.Controle) || entrega.Modo is not ("validada" or "edicao_manual" or "para_revisao") ||
+            (entrega.Modo != "para_revisao" && (entrega.Pdf is null) != (entrega.Modo == "edicao_manual")))
             throw new InvalidDataException("A publicação não pertence a esta execução.");
         var pasta = Dentro(origem, Path.Combine(Produtos, id, sha));
         var nomes = new HashSet<string>(Nomes);

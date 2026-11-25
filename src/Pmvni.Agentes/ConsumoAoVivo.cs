@@ -12,10 +12,30 @@ public sealed record ConsumoAoVivo(string Rota, DateTimeOffset? TokensObservados
     public long? Saida { get; init; }
     public long? CacheLido { get; init; }
     public long? Total { get; init; }
+    public string? EtapaEmExecucao { get; init; }
+    public string? ModelosEmExecucao { get; init; }
+
+    internal static string? ModelosAtivos(JsonElement registro, string? etapa, DateTimeOffset? agora, DateTime inicio)
+    {
+        if (agora is null || etapa is null || UsoDasIas.Objeto(registro, "sessoes") is not { } sessoes) return null;
+        var modelos = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var propriedade in sessoes.EnumerateObject())
+        {
+            var sessao = propriedade.Value;
+            if (sessao.ValueKind != JsonValueKind.Object || ProgressoLocal.Texto(sessao, "etapa") != etapa
+                || ProgressoLocal.Texto(sessao, "estado") != "em_andamento"
+                || Instante(sessao, "atividade_em") is not { } atividade || atividade.UtcDateTime < inicio
+                || (agora.Value - atividade).TotalSeconds is < -5 or > 90) continue;
+            var modelo = ProgressoLocal.Texto(sessao, "modelo_observado");
+            modelos.Add(string.IsNullOrWhiteSpace(modelo) ? "Aguardando identificação do modelo" : modelo);
+        }
+        return modelos.Count > 0 ? string.Join(" · ", modelos) : null;
+    }
+
     public bool SemJanela5h { get; init; }
 
     internal static (IReadOnlyList<UsoEtapa> Uso, ConsumoAoVivo? Amostra) Ler(string controle, DateTime desde, Provedor provedor,
-        string execucao, OrdemDasEtapas ordem, ConsumoSessaoCodex? sessoes, DateTimeOffset? agora)
+        string execucao, OrdemDasEtapas ordem, ConsumoSessaoCodex? sessoes, DateTimeOffset? agora, DateTime inicioDaTentativa = default)
     {
         var uso = UsoDasIas.Ler(controle, desde, ordem, sessoes, agora);
         var rota = provedor switch { Provedor.ChatGpt => "codex", Provedor.Claude => "claude", Provedor.Gemini => "gemini", _ => "" };
@@ -42,6 +62,8 @@ public sealed record ConsumoAoVivo(string Rota, DateTimeOffset? TokensObservados
         var leitura = new ConsumoAoVivo(rota, Instante(tokens, "observados_em"), Booleano(tokens, "parcial") == true,
             curta, horaCurta, fonteCurta, semana, horaSemana, fonteSemana, aplicavel)
         {
+            EtapaEmExecucao = ProgressoLocal.Texto(registro, "etapa"),
+            ModelosEmExecucao = ModelosAtivos(registro, ProgressoLocal.Texto(registro, "etapa"), agora, inicioDaTentativa),
             Entrada = Contador(tokens, "entrada"), Saida = Contador(tokens, "saida"),
             CacheLido = Contador(tokens, "entrada_cache"), Total = Contador(tokens, "total"),
             SemJanela5h = Booleano(cota, "sem_janela_5h") == true && curta is null && semana is not null

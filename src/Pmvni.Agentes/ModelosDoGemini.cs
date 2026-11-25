@@ -12,32 +12,7 @@ public static class ModelosDoGemini
 
     /// <param name="pastaTrabalho">Uma pasta qualquer que exista (o controlador exige <c>--case</c>, mas esta ação não lê nem grava nela).</param>
     /// <param name="extra">Só testes e roteiro: variáveis a mais no ambiente do filho (o agy falso).</param>
-    public static async Task<(string? Json, string? Falha)> LerAsync(Pecas pecas, PerfilGemini perfil, string? chave, string pastaTrabalho, CancellationToken ct,
-        IReadOnlyDictionary<string, string>? extra = null)
-    {
-        ArgumentNullException.ThrowIfNull(pecas);
-        if (pecas.Python is null || pecas.GoogleRuntime is null) return (null, "a rota Gemini do kit não está instalada neste computador");
-        const string AgyExe = "PMVNI_AGY_EXE";
-        string? agy = null;
-        if (perfil == PerfilGemini.ContaUltra && TravaDeProgramas.Permitidos is not null)
-        {
-            agy = extra?.GetValueOrDefault(AgyExe) ?? pecas.Agy ?? "agy.exe";
-            TravaDeProgramas.Conferir(agy);
-        }
-        var (exe, args) = LinhasDeComando.ProRuntime(pecas.Python, pecas.PythonPeloLauncher, pecas.GoogleRuntime, pastaTrabalho, "modelos");
-        // Na API gratuita, o kit exige a declaração de processo fictício: listar modelos não envia conteúdo nenhum.
-        void Ambiente(IDictionary<string, string?> env)
-        {
-            if (extra is not null)
-                foreach (var (k, v) in extra) env[k] = v;
-            if (agy is not null) env[AgyExe] = agy;
-            AmbienteFilho.Aplicar(env, Provedor.Gemini, MatrizGemini.Modo(perfil), chave, perfil, ficticio: perfil == PerfilGemini.ApiGratuita);
-            env.Remove(TabelaDeModelos.Variavel);
-        }
-        var r = await ExecucaoProcesso.RodarAsync(exe, args, pastaTrabalho, Ambiente, Limite, ct).ConfigureAwait(false);
-        var saida = new RedatorChave(chave).Aplicar(r.Saida);
-        var json = saida.Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith('{') && l.EndsWith('}'));
-        if (json is null) return (null, "a rota Gemini não devolveu a lista (" + Diagnostico.PrimeiraLinha(saida) + ")");
-        return (json, null);
-    }
+    public static Task<(string? Json, string? Falha)> LerAsync(Pecas pecas, PerfilGemini perfil, string? chave, string pastaTrabalho, CancellationToken ct,
+        IReadOnlyDictionary<string, string>? extra = null) =>
+        Task.FromResult<(string?, string?)>((null, Provedores.RotaDesativada));
 }

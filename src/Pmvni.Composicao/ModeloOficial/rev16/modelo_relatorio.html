@@ -1,0 +1,199 @@
+{#
+  MODELO — RELATÓRIO TÉCNICO DE ANÁLISE (PMVNI)
+  Molde preenchido por gerar_relatorio.py a partir de um arquivo de dados (JSON).
+  Não edite este arquivo para preencher um processo: preencha o JSON.
+  Sintaxe: {{ campo }} insere texto (com escape); {{ campo|safe }} insere HTML pronto;
+           {% for x in lista %}…{% endfor %}; {% if campo %}…{% else %}…{% endif %}.
+  Filtros: pill (etiqueta de situação), cor (g/a/o), icone (ícone de traço), n2 (01, 02…).
+  Blocos {% if instrucoes %} só aparecem quando o gerador roda com --instrucoes.
+#}<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Relatório Técnico de Análise — {{ capa.processo }}</title>
+<style>
+{{ css|safe }}
+@page {
+  @top-center { content: url({{ cabecalho_svg|safe }}); vertical-align: bottom; padding-bottom: 5mm; }
+  @bottom-left { content: "PREFEITURA MUNICIPAL DE VENDA NOVA DO IMIGRANTE  •  SECRETARIA MUNICIPAL DE OBRAS"; font: 6.2pt Verdana; color: #637083; border-top: .6pt solid #DDE4EB; vertical-align: top; padding-top: 2.5mm; }
+  @bottom-right { content: "RELATÓRIO TÉCNICO  •  PÁGINA " counter(page) " DE " counter(pages); font: bold 6.2pt Verdana; color: #1D3D5E; border-top: .6pt solid #DDE4EB; vertical-align: top; padding-top: 2.5mm; }
+}
+</style>
+</head>
+<body>
+
+{% if instrucoes %}<div class="ins"><b>Como usar este modelo.</b> O relatório é gerado a partir de um arquivo de dados (JSON), nunca editado à mão.
+Preencha o JSON seguindo <b>dados_modelo.json</b>, rode <b>gerar_relatorio.py</b> e confira o PDF. Os blocos amarelos como este só aparecem
+na versão de exemplo (opção --instrucoes); o relatório final sai limpo. O gerador recusa o arquivo se sobrar algum texto entre colchetes [ ].
+<ul><li><b>Situações (mesmos nomes em todo o relatório):</b> verde = ATENDE; vermelho = NÃO ATENDE (descumprimento comprovado da norma); âmbar = FALTA COMPROVAR (falta informação, cota ou documento para concluir); laranja = INFORMAÇÕES DIVERGENTES (o projeto ou os documentos se contradizem). Nos dados: ATENDE/CONTA_CONFERE, NAO_ATENDE, NAO_COMPROVADO/PENDENTE, DIVERGENCIA_INTERNA/DIVERGENCIA. A barra lateral acompanha a etiqueta automaticamente.</li>
+<li><b>Numeração automática:</b> os itens saem como ITEM 01, ITEM 02… e as figuras como Figura 1, Figura 2…, na ordem do JSON. Cite-os no texto pelo mesmo número ("item 12", "Figura 3").</li>
+<li><b>Fonte:</b> Verdana em todo o documento. Não altere o CSS para um processo específico.</li></ul></div>{% endif %}
+
+{# ───────────────────────── CAPA ───────────────────────── #}
+<div class="cover">
+ <div class="ttl-row">
+  <div class="ttl"><span class="vbar"></span><h1>RELATÓRIO TÉCNICO<br>DE ANÁLISE</h1></div>
+  <div class="dates"><div><span>PROTOCOLO</span><b>{{ capa.protocolo }}</b></div><div><span>{{ capa.rotulo_data }}</span><b>{{ capa.data }}</b></div></div>
+ </div>
+ <div class="band"><div class="proc">PROCESSO {{ capa.processo }}</div><div class="name">{{ capa.requerente }}</div></div>
+ <div class="info">
+ {% for q in capa.quadros %}
+  <div class="ic {{ q.cor }}"><h4>{{ q.titulo }}</h4><b>{{ q.destaque }}</b><span>{{ q.apoio }}</span></div>
+ {% endfor %}
+ </div>
+ <div class="confirm"><span class="bang">!</span><b>PONTOS A CONFIRMAR</b><em></em><span>{{ capa.pontos_confirmar }}</span></div>
+</div>
+{% if instrucoes %}<div class="ins"><b>Capa.</b> rotulo_data = "ANÁLISE" na primeira análise e "REANÁLISE" nas seguintes. Os quatro quadros (localização, caracterização,
+autoria indicada, parâmetros urbanísticos) têm uma linha em negrito e uma de apoio, só com o essencial; cor "g" (verde) quando o dado está
+confirmado e "y" (amarelo) quando há algo a confirmar. Em "pontos a confirmar", de 2 a 4 temas curtos separados por •.</div>{% endif %}
+
+{# ───────────────────── LOCALIZAÇÃO NA BASE MUNICIPAL ───────────────────── #}
+{% if localizacao %}
+<div class="locblk"><div class="sec"><div><h2>LOCALIZAÇÃO NA BASE MUNICIPAL</h2>{% if localizacao.subtitulo %}<p>{{ localizacao.subtitulo }}</p>{% endif %}</div>{{ localizacao.situacao|pill }}</div>
+<div class="lmrow"><div class="lmap"><img src="{{ localizacao.imagem_uri|safe }}"></div>
+<div class="lside">{% if localizacao.texto %}<div class="lbl">SITUAÇÃO DO LOTE NA BASE</div><p>{{ localizacao.texto }}</p>{% endif %}<div class="lbl">LEGENDA</div><div class="lleg">{% for i in localizacao.legenda %}<span><i class="lk {{ i.tipo }}"></i>{{ i.texto }}</span>{% endfor %}</div>
+{% if localizacao.observacoes %}<div class="lbl">OBSERVAÇÕES DO PDM PARA A ÁREA</div>{% for o in localizacao.observacoes %}<p>{{ o }}</p>{% endfor %}{% endif %}<div class="src">FONTE: {{ localizacao.fonte }}</div></div></div>
+<div class="lficha">{% for col in localizacao.colunas %}<table class="lft"><colgroup><col style="width:24%"><col></colgroup><tbody>{% for g in col %}<tr class="lfh"><th colspan="2">{{ g.titulo }}</th></tr>{% for d in g.dados %}<tr><td class="lfl">{{ d.rotulo }}</td><td class="lfv">{% if d.chip %}<i class="lchip {{ d.alerta }}">{{ d.chip }}</i>{% endif %}<b>{{ d.valor }}</b>{% if d.nota %}<small>{{ d.nota }}</small>{% endif %}</td></tr>{% endfor %}{% endfor %}</tbody></table>{% endfor %}</div>
+</div>
+{% if instrucoes %}<div class="ins"><b>Mapa e ficha</b> saem prontos do script mapa_localizacao.py (lote pela inscrição; ruas, números dos lotes, zona, APP,
+cursos d'água, edificação, AUC, perímetro urbano e proprietários do cadastro). situacao: CONFIRMADO quando inscrição, endereço e área do processo
+conferem com a base; A_CONFIRMAR quando falta prova ou há divergência (explique em "texto"). Em "observacoes", o que o PDM diz para a zona e para
+as condicionantes encontradas (artigo e anexo).
+<ul><li><b>Diagramação (fechada em 13/11/2026):</b> mapa 16:10 à esquerda, só com o lote, a ficha do lote, a escala e o norte; na coluna ao lado,
+"Situação do lote na base" (= texto), a legenda (= legenda, vem do mapa), as observações do PDM e a fonte; embaixo, a ficha em duas tabelas
+(Identificação + Cadastro e entorno | Áreas e edificação + Zona e condicionantes), pelo campo "grupo" de cada dado. Rótulos curtos; "chip" com
+"alerta" r/a/g para o que atinge, diverge ou confere; "nota" para a ressalva curta. A seção inteira fica junta numa página.</li></ul></div>{% endif %}
+{% endif %}
+
+{# ───────────────────────── ANÁLISE ───────────────────────── #}
+<div class="sec"><div><h2>ANÁLISE</h2><p>Conferência técnica de cada item, com a situação encontrada, a providência e a base legal.</p></div><div class="tag">{{ resumo }}</div></div>
+{% if instrucoes %}<div class="ins"><b>Um cartão por item,</b> na ordem: primeiro os que atendem, depois as pendências, agrupadas por assunto
+(documentação → terreno → áreas e índices → edificação → acessibilidade → vagas → instalações → incêndio). A contagem no alto é automática.
+Situação (etiqueta): ATENDE; NAO_ATENDE (impresso NÃO ATENDE); NAO_COMPROVADO (impresso FALTA COMPROVAR); DIVERGENCIA_INTERNA (impresso INFORMAÇÕES DIVERGENTES).
+<ul><li><b>Linguagem:</b> fácil, técnica e objetiva. Escreva para que o requerente, o proprietário e outro servidor entendam sem consultar a lei.</li>
+<li><b>VERIFICAÇÃO TÉCNICA</b>, em 2 a 4 frases curtas, nesta ordem: (1) o que o projeto mostra, com medidas e onde; (2) o que a norma exige, em palavras simples;
+(3) a conta, com números e unidade ("16 × 0,18 = 2,88 m"). Explique o termo técnico entre parênteses na primeira vez: "espelho (altura do degrau)",
+"usufruto (direito de uso)", "APP (área de preservação permanente)". Não escreva "atende" ou "não atende": a etiqueta já diz.</li>
+<li><b>PROVIDÊNCIA:</b> comece com verbo concreto (Apresentar, Corrigir, Indicar, Cotar, Informar), uma ação por frase. Quando atende: "Nenhuma correção nessas medidas."
+e diga onde está o que não foi conferido ("A rota acessível está no item 14.").</li>
+<li><b>Evite</b> frases que só um técnico entende sem dizer qual é o problema ("Manobra e vinculação de todas as vagas" → "A faixa de manobra não está cotada e não se sabe a qual unidade pertence cada vaga."),
+repetições e textos sobre o método da análise.</li>
+<li><b>BASE LEGAL:</b> norma e dispositivo ("Código de Obras (LC nº 70/1990), art. 127"). <b>REFERÊNCIA NO PROJETO:</b> prancha, vista e figura ("ARQ 01/03, planta do térreo. Figura 1.").</li>
+<li><b>Situação:</b> ATENDE quando comprovado; NAO_ATENDE quando o projeto descumpre a norma de forma comprovada (mostre o valor, o limite e a conta); NAO_COMPROVADO quando falta dado, cota ou documento; DIVERGENCIA_INTERNA quando o projeto contradiz a si mesmo (mostre os dois valores e a conta).</li></ul></div>{% endif %}
+{% if deficits_vaos %}<div class="obs"><b>Vãos abaixo do mínimo calculado</b>{% for s in deficits_vaos %}<p>{{ s }}</p>{% endfor %}</div>{% endif %}
+{% for it in itens %}
+<div class="card {{ it.situacao|cor }}">
+ <div class="ch"><div class="ct"><span class="id">ITEM {{ loop.n2 }}</span> — {{ it.titulo }}</div>{{ it.situacao|pill }}</div>
+ <div class="lbl">VERIFICAÇÃO TÉCNICA</div><p>{{ it.verificacao }}</p>{% for s in it.deficits_calculados %}<p>{{ s }}</p>{% endfor %}
+ <div class="prov"><div class="lbl">PROVIDÊNCIA</div><p>{{ it.providencia }}</p></div>
+ <div class="two"><div><div class="lbl">BASE LEGAL</div><p class="m">{{ it.base_legal }}</p></div><div><div class="lbl">REFERÊNCIA NO PROJETO</div><p class="m">{{ it.referencia }}</p></div></div>
+</div>
+{% endfor %}
+
+{# ───────────────────────── ÍNDICES ───────────────────────── #}
+{% if indices %}
+{% if indices.declaracoes %}
+<div class="sec brk"><div><h2>DADOS DECLARADOS NO PROJETO</h2><p>Transcrição das peças examinadas.</p></div></div>
+<table class="tb"><thead><tr><th>DADO</th><th>VALOR DECLARADO</th><th>REFERÊNCIA NO PROJETO</th></tr></thead><tbody>
+{% for l in indices.declaracoes %}<tr><td>{{ l.rotulo }}</td><td>{{ l.valor }}</td><td>{{ l.fonte }}</td></tr>{% endfor %}
+</tbody></table>
+{% endif %}
+{% if indices.pendencias_quadro %}
+<div class="obs"><b>Leituras pendentes no quadro do projeto</b>{% for p in indices.pendencias_quadro %}<p>{{ p.rotulo }} · {{ p.fonte }} · {{ p.motivo }}</p>{% endfor %}</div>{% endif %}
+<div class="keep">
+<div class="sec brk"><div><h2>ÍNDICES URBANÍSTICOS</h2>{% if indices.subtitulo %}<p>{{ indices.subtitulo }}</p>{% endif %}</div>{% if indices.zona %}<div class="tag">{{ "pin"|icone }} ZONA INDICADA: <b>{{ indices.zona }}</b></div>{% endif %}</div>
+{% if indices.linhas %}<table class="tb ind"><colgroup><col style="width:27%"><col style="width:20%"><col style="width:13%"><col style="width:16%"><col style="width:24%"></colgroup>
+<thead><tr><th>ÍNDICE</th><th>CÁLCULO / DESCRIÇÃO</th><th>NO PROJETO</th><th>LIMITE ({{ indices.zona }})</th><th>SITUAÇÃO</th></tr></thead><tbody>
+{% for l in indices.linhas %}
+<tr class="{{ l.situacao|cor }}"><td class="nm"><div class="nmw">{{ l.icone|icone }}<div><span class="sm">ÍNDICE {{ loop.n2 }}</span><b>{{ l.nome }}</b><small>{{ l.descricao }}</small></div></div></td>
+<td>{{ l.calculo }}</td><td class="val{% if l.projeto_destaque %} o{% endif %}">{{ l.projeto }}</td><td>{{ l.limite }}</td><td>{{ l.situacao|pill }}{% if l.texto %}<div class="st">{{ l.texto }}</div>{% endif %}</td></tr>
+{% endfor %}
+</tbody></table>{% else %}{% if indices.sem_calculo %}<div class="obs"><b>Cálculo não realizado</b><p>{{ indices.sem_calculo.motivo }}</p><p><b>Evidência:</b> {{ indices.sem_calculo.evidencia }}</p></div>{% endif %}{% endif %}</div>
+{% if indices.observacao %}<div class="note y"><span class="bang">!</span><b>OBSERVAÇÃO</b><em></em><span>{{ indices.observacao }}</span></div>{% endif %}
+{% if instrucoes %}<div class="ins"><b>Uma linha por índice.</b> CÁLCULO: a operação completa com os números do projeto. NO PROJETO: o valor declarado no quadro de áreas;
+projeto_destaque = true quando ele diverge da conta (sai em laranja). SITUAÇÃO: CONTA_CONFERE quando a conta está certa e dentro do limite (impresso ATENDE);
+NAO_ATENDE quando a conta comprovada passa do limite; PENDENTE quando falta dado ou confirmação (impresso FALTA COMPROVAR); DIVERGENCIA quando o valor
+declarado não confere com a conta (impresso INFORMAÇÕES DIVERGENTES). Termine o texto com o item relacionado.
+Ícones disponíveis: plot, to, ca, tp, pav, afa. Na OBSERVAÇÃO: de onde vêm os limites, que área entrou no cálculo e o que falta para aprovar os índices.</div>{% endif %}
+{% endif %}
+
+{# ───────────────────────── DIAGRAMA ───────────────────────── #}
+{% if diagrama %}
+<div class="sec brk"><div><h2>DIAGRAMA DOS ÍNDICES</h2><p>Esquema didático, sem escala, para leitura dos índices, parâmetros e inconsistências apontados no relatório.</p></div></div>
+<div class="dgrid">
+ <div class="panel"><div class="chip">PLANTA DO TERRENO (VISTA SUPERIOR)</div>{{ diagrama.planta_svg|safe }}
+  <div class="cos">{% for c in diagrama.chamadas_planta %}<div class="co"><span class="cn">{{ c.numero }}</span><div><div class="coh"><b>{{ c.titulo }}</b>{{ c.situacao|pill }}</div><p>{{ c.texto }}</p></div></div>{% endfor %}</div></div>
+ <div class="panel"><div class="chip">VOLUMETRIA DA EDIFICAÇÃO</div>{{ diagrama.volumetria_svg|safe }}
+  <div class="cos">{% for c in diagrama.chamadas_volumetria %}<div class="co"><span class="cn">{{ c.numero }}</span><div><div class="coh"><b>{{ c.titulo }}</b>{{ c.situacao|pill }}</div><p>{{ c.texto }}</p></div></div>{% endfor %}</div></div>
+</div>
+<p class="foot">{{ diagrama.nota }}</p>
+{% if instrucoes %}<div class="ins"><b>O diagrama ajuda quem não lê planta a entender os índices.</b> Ele é desenhado pelo gerador a partir dos rótulos do JSON: não é cópia do projeto e não tem escala.
+Em cada chamada, "ancora" diz onde fica o número: lote, permeavel, edificacao ou lateral (na planta); telhado ou altura (na volumetria). A numeração é automática, na ordem das chamadas.
+Use limites_confirmados = false enquanto a poligonal não estiver comprovada (o lote sai tracejado) e escreva "não confirmado" ou "não cotado" no que não foi comprovado.
+A nota deve dizer que o esquema não representa a implantação real. Sem índices a discutir, omita "diagrama" no JSON.</div>{% endif %}
+{% endif %}
+
+{# ───────────────────── ILUMINAÇÃO E VENTILAÇÃO ───────────────────── #}
+{% if iluminacao %}
+<div class="sec brk"><div><h2>ILUMINAÇÃO E VENTILAÇÃO</h2>{% if iluminacao.subtitulo %}<p>{{ iluminacao.subtitulo }}</p>{% endif %}</div>{% if iluminacao.tag %}<div class="tag">{{ iluminacao.tag }}</div>{% endif %}</div>
+<table class="tb ilu"><colgroup><col style="width:24%"><col style="width:28%"><col style="width:20%"><col style="width:28%"></colgroup>
+<thead><tr><th>AMBIENTE</th><th>VÃO / ÁREA</th><th>MÍNIMO EXIGIDO</th><th>SITUAÇÃO</th></tr></thead><tbody>
+{% for a in iluminacao.ambientes %}
+<tr class="{{ a.situacao|cor }}{% if loop.even %} z{% endif %}"><td class="nm"><div class="nmw">{{ a.icone|icone }}<div><span class="sm">AMBIENTE {{ loop.n2 }}</span><b class="big">{{ a.nome }}</b>{% for d in a.detalhes %}<small>{{ d }}</small>{% endfor %}</div></div></td>
+<td>{% for v in a.vaos %}<div class="vao"><b>{{ v.codigo }}{% if v.medidas %} • {{ v.medidas }}{% endif %}</b><span>{{ v.tipo }}</span>{% if v.area %}<em>ÁREA: {{ v.area }}</em>{% else %}<em class="o">{{ v.sem_area }}</em>{% endif %}</div>{% endfor %}</td>
+<td>{% for m in a.minimo %}<div class="{% if m.destaque %}mb{% else %}mm{% endif %}">{{ m.texto }}</div>{% endfor %}</td>
+<td>{{ a.situacao|pill }}{% if a.resultado %}<div class="vres {{ a.situacao|cor }}"><div class="vrt"><span>VÃO TOTAL</span><b>{{ a.resultado.total }}</b></div><div class="vrc">{{ a.resultado.conta }}</div><div class="vrm">{{ a.resultado.comparacao }}</div></div>{% else %}{% if a.situacao_titulo %}<div class="st sb">{{ a.situacao_titulo }}</div>{% endif %}{% endif %}{% for t in a.textos %}<div class="st">{{ t }}</div>{% endfor %}</td></tr>
+{% endfor %}
+</tbody></table>
+<div class="obs">{% if iluminacao.abrangencia %}<div class="oh"><span class="bang">!</span>OBSERVAÇÕES DE CONFERÊNCIA</div>{% else %}{% if iluminacao.nao_computadas %}<div class="oh"><span class="bang">!</span>OBSERVAÇÕES DE CONFERÊNCIA</div>{% endif %}{% endif %}
+<div class="two">{% if iluminacao.abrangencia %}<div><div class="lbl">ABRANGÊNCIA E CRITÉRIO</div>{% for t in iluminacao.abrangencia %}<p>{{ t }}</p>{% endfor %}</div>{% endif %}
+{% if iluminacao.nao_computadas %}<div><div class="lbl">ABERTURAS NÃO COMPUTADAS</div>{% for t in iluminacao.nao_computadas %}<p>{{ t }}</p>{% endfor %}</div>{% endif %}</div>
+{% if iluminacao.atencao %}<div class="att"><b>ATENÇÃO:</b> {{ iluminacao.atencao }}</div>{% endif %}
+<div class="src">FONTE: {{ iluminacao.fonte }}</div></div>
+{% if instrucoes %}<div class="ins"><b>Agrupe numa linha os ambientes iguais</b> (quando as unidades se repetem) e diga quantos são em "detalhes". Em VÃO / ÁREA, um bloco por esquadria
+(código, medidas, tipo, área); sem área cotada, deixe area vazio e escreva o motivo em sem_area (sai em laranja). MÍNIMO EXIGIDO: área do piso dividida pela
+fração do art. 127 aplicável ao ambiente, com o resultado (destaque = true na conta). <b>Vão do ambiente = janelas + portas do ambiente</b>
+(internas e externas; largura × altura de cada uma), critério da análise PMVNI. Nos plugins, estas linhas saem prontas do script calcular_vaos.py.
+SITUAÇÃO: CONTA_CONFERE quando o vão total atinge o mínimo (impresso ATENDE); NAO_ATENDE quando fica abaixo; PENDENTE quando falta medida de
+algum vão (impresso FALTA COMPROVAR). O resultado sai no bloco VÃO TOTAL, com a conta janela + porta e a sobra ou a falta.
+Em "nao_computadas", só o que não é vão do ambiente (ex.: porta de armário embutido, alçapão, shaft), com o motivo.
+Ícones disponíveis: bed, wc, pot, wash, sun.</div>{% endif %}
+{% endif %}
+
+{# ───────────────────────── IMAGENS ───────────────────────── #}
+{% if figuras %}
+<div class="sec brk"><div><h2>IMAGENS DO PROJETO</h2><p>Os números em vermelho indicam, em cada figura, os pontos citados na análise. Desenhos e cotas são os originais do projeto.</p></div></div>
+{% if instrucoes %}<div class="ins"><b>Recorte e marcações</b> (feitos antes, pelo script de figuras): recorte do original, sem redesenhar, fechado o bastante para a cota ser lida.
+Em cada ponto citado, uma seta com número vermelho partindo da margem, curta e sem cruzar outra. Elemento com erro ou pendência: contorno arredondado com hachura
+vermelha translúcida <b>e</b> a seta até ele. Elemento que atende: só a seta. No máximo 6 números por figura; acima disso, divida em dois recortes.
+<ul><li><b>Legenda:</b> "prancha" é a etiqueta azul (ARQ 01/03; no mapa, MAPA). As notas seguem a numeração da imagem: o erro em negrito e, na linha de baixo, a solução (o que fazer)
+ou o que foi conferido, e o item entre parênteses. Em pendência a solução é obrigatória e o título diz o erro, nunca a ordem
+("Garagem: área não discriminada" / "Incluir a garagem na memória de áreas."). Seta reta quando quase horizontal; curva quando inclinada.</li>
+<li><b>Mapa de localização:</b> vai na seção LOCALIZAÇÃO NA BASE MUNICIPAL, não aqui.</li>
+<li><b>Item sem ponto no desenho:</b> coloque em "sem_figura" ("Item 16 — Área de recreação: sem figura, porque…").</li></ul></div>{% endif %}
+{% for f in figuras %}
+<div class="fig"><div class="fi"><img src="{{ f.imagem_uri|safe }}"></div><div class="ft"><div class="fh"><span class="fid">{{ f.prancha }}</span>Figura {{ loop.index }} — {{ f.titulo }}</div>
+{% if f.texto %}<p class="fl1">{{ f.texto }}</p>{% endif %}
+{% for n in f.notas %}<div class="fl"><span class="rb">{{ loop.index }}</span><p><b>{{ n.elemento }}.</b>{% if n.texto %}<span class="sol">{{ n.texto }} <span class="ids">({{ n.itens }})</span></span>{% else %} <span class="ids">({{ n.itens }})</span>{% endif %}</p></div>{% endfor %}
+<div class="fs"><b>Fonte:</b> {{ f.fonte }}</div></div></div>
+{% endfor %}
+
+{% endif %}
+
+{# ───────────────────── FONTES E CONCLUSÃO ───────────────────── #}
+<div class="endblk">
+<div class="sec"><div><h2>FONTES E REFERÊNCIAS</h2><p>Documentos do processo, legislação e bases consultadas.</p></div></div>
+<div class="refs">{% for r in fontes %}<div class="rf"><b>{{ r.rotulo }}</b><p>{{ r.texto }}{% if r.url %}<span class="url">{{ r.url }}</span>{% endif %}</p></div>{% endfor %}</div>
+{% if instrucoes %}<div class="ins">Liste só o que foi usado. Para leis, informe artigos, data da consulta e o link oficial (campo url).</div>{% endif %}
+{% if historico_reanalise %}
+<div class="sec"><div><h2>PENDÊNCIAS DA ANÁLISE ANTERIOR</h2><p>{{ historico_reanalise.arquivo }}</p></div></div>
+<div class="refs">{% for p in historico_reanalise.pendencias %}<div class="rf"><b>{{ p.origem }} · {{ p.situacao }}</b><p>{{ p.pendencia }}<br>{{ p.confronto }}<br>{{ p.evidencia }}</p></div>{% endfor %}</div>
+{% if historico_reanalise.sem_pendencias %}<p>{{ historico_reanalise.sem_pendencias }}</p>{% endif %}
+{% endif %}<div class="sec"><div><h2>CONCLUSÃO</h2><p>Situação do processo nesta {{ capa.rotulo_data|lower }}.</p></div></div>
+<div class="concl">{{ conclusao }}{% for s in deficits_vaos %}<p>{{ s }}</p>{% endfor %}</div>
+{% if instrucoes %}<div class="ins">Em 3 ou 4 frases: o que chegou, o que falta (pela faixa de itens), o alcance do que atende e o próximo passo. Não repita os itens um a um.
+A linha em branco antes da assinatura é automática.</div>{% endif %}
+<div class="sign"><b>{{ assinatura.nome }}</b><span>{{ assinatura.cargo }}</span></div>
+</div>
+</body>
+</html>

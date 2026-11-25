@@ -16,6 +16,37 @@ public static class Exportador
     /// <summary>Recibo do PDF: <c>relatorio.pdf</c> → <c>relatorio.recibo-editor.json</c> (como o <c>DADOS.recibo.json</c> do kit).</summary>
     public static string CaminhoReciboDe(string caminhoPdf) => Path.ChangeExtension(Path.GetFullPath(caminhoPdf), ".recibo-editor.json");
 
+    public static async Task<ResultadoExportacao> ExportarAnaliseAsync(string caminhoDados, string caminhoPdf, bool impressaoNativa = false)
+    {
+        var bytes = await File.ReadAllBytesAsync(caminhoDados);
+        var modelo = ModeloOficial.Carregar();
+        var cfg = ConfigFolhas.PadraoDeBytes(modelo, bytes);
+        var render = RelatorioRenderer.Renderizar(bytes, caminhoDados, new OpcoesRender(false, false,
+            ImagensSoNaPasta: true, UsarProfissionalLocal: false), modelo);
+        if (!render.Ok) throw new ConferenciaFinalException(render.Erros);
+        return await ExportarRenderAsync(render, cfg, caminhoPdf, bytes, modelo, false, null, null, impressaoNativa);
+    }
+
+    public static async Task ConferirPdfAnaliseAsync(string caminhoDados, string caminhoPdf)
+    {
+        var bytes = await File.ReadAllBytesAsync(caminhoDados);
+        var modelo = ModeloOficial.Carregar();
+        var render = RelatorioRenderer.Renderizar(bytes, caminhoDados, new OpcoesRender(false, false,
+            ImagensSoNaPasta: true, UsarProfissionalLocal: false), modelo);
+        if (!render.Ok) throw new ConferenciaFinalException(render.Erros);
+        await using var host = await HostOculto.CriarAsync(LarguraHostPx, AlturaHostPx);
+        var doc = host.Documento;
+        await doc.CarregarAsync(render, ConfigFolhas.PadraoDeBytes(modelo, bytes));
+        var composicao = await doc.ComporDetalhadoAsync();
+        if (composicao.Plano.Estouros.Count > 0) throw new ExportacaoRecusadaException(composicao.Plano.Estouros);
+        var campos = await doc.CamposParaImpressaoAsync();
+        var pdf = await File.ReadAllBytesAsync(caminhoPdf);
+        var info = InfoPdf.Ler(pdf);
+        if (Math.Abs(info.LarguraMm - 210) > 1 || Math.Abs(info.AlturaMm - 297) > 1 || info.Paginas != composicao.Folhas)
+            throw new InvalidDataException("O formato ou o número de páginas diverge da composição do Editor.");
+        ConferenciaImpressao.Conferir(pdf, campos);
+    }
+
     /// <summary>Exporta <paramref name="r"/> para <paramref name="caminhoPdf"/>. <paramref name="caminhoDados"/> é o dados.json
     /// que gerou o render (o recibo leva o sha256 dos bytes dele); <paramref name="modelo"/>, o modelo oficial verificado
     /// (padrão: <see cref="ModeloOficial.Carregar"/>); <paramref name="rascunho"/> vai para o recibo (o render aceitou campos
@@ -33,7 +64,7 @@ public static class Exportador
     /// outra escala). <paramref name="dados"/>: os bytes exatos que geraram <paramref name="r"/> (sha256 do recibo);
     /// <paramref name="sha256Pacote"/>, quando vem, entra no recibo (o pacote .rpmvni de onde os dados efetivos saíram).</summary>
     static async Task<ResultadoExportacao> ExportarRenderAsync(ResultadoRender r, ConfigFolhas cfg, string caminhoPdf, byte[] dados,
-        ModeloCarregado modelo, bool rascunho, PlanoQuebras? planoTela, string? sha256Pacote)
+        ModeloCarregado modelo, bool rascunho, PlanoQuebras? planoTela, string? sha256Pacote, bool impressaoNativa = false)
     {
         ArgumentNullException.ThrowIfNull(r);
         ArgumentNullException.ThrowIfNull(cfg);
@@ -62,7 +93,8 @@ public static class Exportador
             folhas = c.Folhas;
             webview2 = await doc.VersaoWebView2Async();
             var campos = rascunho ? null : await doc.CamposParaImpressaoAsync();
-            pdf = await doc.ImprimirPdfAsync(); // o mesmo DOM composto: nada é recomposto entre a composição e a impressão
+            pdf = impressaoNativa ? await doc.ImprimirPelaApiNativaAsync()
+                                  : await doc.ImprimirPdfAsync();
             if (campos is not null) await Task.Run(() => ConferenciaImpressao.Conferir(pdf, campos));
         }
 

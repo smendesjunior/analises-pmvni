@@ -42,7 +42,7 @@
     </ResourceDictionary>
   </UserControl.Resources>
   <!-- Novo relatório (desenho §12.2): no módulo Relatórios, no lugar das folhas enquanto está aberta. Formulário: processo, anexos (botão ou arrastar),
-       pedido e as três rotas "Analisar"; vista da execução: andamento ao vivo, cancelar e o registro. Quem liga os controles é a janela
+       pedido e as rotas ativas de análise; vista da execução: andamento ao vivo, cancelar e o registro. Quem liga os controles é a janela
        (MainWindow.NovoRelatorio.cs). Nada é gravado antes do clique em Analisar. -->
   <Grid>
     <Grid.RowDefinitions>
@@ -181,8 +181,9 @@
               <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" Style="{StaticResource PmvniIconeSecundarioStyle}" AutomationProperties.AccessibilityView="Raw"/>
               <TextBlock Text="Analisar" Style="{StaticResource PmvniTituloSecao}"/>
             </StackPanel>
-            <TextBlock Visibility="Collapsed" Text="Escolha a ferramenta que fará a análise." Style="{StaticResource PmvniSecondaryTextStyle}"/>
-        <!-- Os três agentes com o mesmo peso (tonal, B7): não competem com o primário da faixa. -->
+            <CheckBox x:Name="PermitirAuditoriaAlternativa" x:FieldModifier="internal"
+                      Content="Permitir que a outra IA (Claude ou Codex) confira este processo se a auditoria ficar indisponível."/>
+        <!-- Os agentes ativos com o mesmo peso (tonal, B7): não competem com o primário da faixa. -->
         <StackPanel Spacing="6">
 
           <Border Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
@@ -228,7 +229,7 @@
               </Button>
             </StackPanel>
           </Border>
-          <Border Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
+          <Border x:Name="CartaoGeminiInativo" x:FieldModifier="internal" Visibility="Collapsed" Style="{StaticResource PmvniCartaoSecao}" Padding="10,8">
             <StackPanel Spacing="4" Background="{ThemeResource SubtleFillColorTransparentBrush}">
               <Grid ColumnDefinitions="32,*" ColumnSpacing="10">
                 <Grid Width="32" Height="32" VerticalAlignment="Center">
@@ -241,7 +242,7 @@
               </Grid>
               <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoPerfilGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
               <TextBlock TextAlignment="Left" Margin="42,0,0,0" x:Name="TextoMotivoGemini" x:FieldModifier="internal" Style="{StaticResource PmvniSecondaryTextStyle}" TextWrapping="Wrap"/>
-              <Button x:Name="BotaoGemini" AutomationProperties.Name="Analisar com o Gemini" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
+              <Button x:Name="BotaoGemini" IsEnabled="False" AutomationProperties.Name="Analisar com o Gemini" x:FieldModifier="internal" Style="{StaticResource PmvniBotaoTonalStyle}" local:Brilho.Ativo="False" HorizontalAlignment="Stretch" Padding="10,4">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <FontIcon Glyph="{x:Bind local:Glifos.Ia}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
                   <TextBlock Text="Analisar com o Gemini"/>
@@ -415,6 +416,7 @@
                   <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="7">
                     <TextBlock Text="Tempo decorrido" Style="{StaticResource MonitorLegenda}"/>
                     <TextBlock x:Name="TextoTempoDecorrido" Text="—" Style="{StaticResource MonitorTituloSecao}"/>
+                    <TextBlock x:Name="TextoTempoAtivo" Style="{StaticResource MonitorLegenda}"/>
                   </StackPanel>
                   <Border Grid.Column="2" Width="1" Background="{ThemeResource MonitorBorda}"/>
                   <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="7">
@@ -704,35 +706,64 @@
           <TextBlock Text="Monitor de análise" Style="{StaticResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1"/>
           <TextBlock Text="Acompanhamento de execução, evidências e auditoria técnica em tempo real" Style="{StaticResource MnSubtituloMonitor}"/>
         </StackPanel>
-        <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="2" Espaco="8" EspacoLinhas="6" VerticalAlignment="Center" HorizontalAlignment="Right">
-            <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro"
-                    local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="{x:Bind local:Glifos.AbrirPasta}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                <TextBlock Text="Abrir registro"/>
-              </StackPanel>
-            </Button>
-            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Nova análise" Style="{StaticResource PmvniBotaoTonalStyle}"
-                    local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                <TextBlock Text="Nova análise"/>
-              </StackPanel>
-            </Button>
-            <Button x:Name="BotaoPausarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Pausar análise"
-                    local:Dicas.Descricao="Interrompe a execução e preserva o progresso disponível para retomada.">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="{x:Bind local:Glifos.Pausado}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                <TextBlock Text="Pausar"/>
-              </StackPanel>
-            </Button>
-            <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Cancelar análise" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                    local:Dicas.Descricao="Para a análise da IA. A execução cancelada não gera relatório.">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <FontIcon Glyph="{x:Bind local:Glifos.Fechar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
-                <TextBlock Text="Cancelar"/>
-              </StackPanel>
-            </Button>
+        <local:PainelQuebra x:Name="BotoesExecucao" Grid.Column="2" Espaco="8" EspacoLinhas="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+
+            <Button x:Name="BotaoMostrarRegistro" x:FieldModifier="internal" AutomationProperties.Name="Abrir registro"
+
+                    local:Dicas.Descricao="Abre no Explorador a pasta com o registro do que a IA está fazendo.">
+
+              <StackPanel Orientation="Horizontal" Spacing="8">
+
+                <FontIcon Glyph="{x:Bind local:Glifos.AbrirPasta}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+
+                <TextBlock Text="Abrir registro"/>
+
+              </StackPanel>
+
+            </Button>
+
+            <Button x:Name="BotaoNovaAnalise" x:FieldModifier="internal" AutomationProperties.Name="Nova análise" Style="{StaticResource PmvniBotaoTonalStyle}"
+
+                    local:Dicas.Descricao="Volta ao formulário para pedir outra análise.">
+
+              <StackPanel Orientation="Horizontal" Spacing="8">
+
+                <FontIcon Glyph="{x:Bind local:Glifos.Adicionar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+
+                <TextBlock Text="Nova análise"/>
+
+              </StackPanel>
+
+            </Button>
+
+            <Button x:Name="BotaoPausarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Pausar análise"
+
+                    local:Dicas.Descricao="Interrompe a execução e preserva o progresso disponível para retomada.">
+
+              <StackPanel Orientation="Horizontal" Spacing="8">
+
+                <FontIcon Glyph="{x:Bind local:Glifos.Pausado}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+
+                <TextBlock Text="Pausar"/>
+
+              </StackPanel>
+
+            </Button>
+
+            <Button x:Name="BotaoCancelarAnalise" x:FieldModifier="internal" AutomationProperties.Name="Cancelar análise" Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+
+                    local:Dicas.Descricao="Para a análise da IA. A execução cancelada não gera relatório.">
+
+              <StackPanel Orientation="Horizontal" Spacing="8">
+
+                <FontIcon Glyph="{x:Bind local:Glifos.Fechar}" FontSize="16" AutomationProperties.AccessibilityView="Raw"/>
+
+                <TextBlock Text="Cancelar"/>
+
+              </StackPanel>
+
+            </Button>
+
         </local:PainelQuebra>
       </Grid>
       <NavigationView Grid.Row="1" x:Name="MenuMonitor" x:FieldModifier="internal" PaneDisplayMode="Left" OpenPaneLength="240" CompactPaneLength="48"

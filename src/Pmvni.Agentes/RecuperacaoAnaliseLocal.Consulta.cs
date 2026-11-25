@@ -13,7 +13,7 @@ internal static partial class RecuperacaoAnaliseLocal
     {
         if (!AreaAnaliseLocal.UsaAreaLocal(registro)) return null;
         var id = Path.GetFileName(registro);
-        var local = AreaAnaliseLocal.LocalExistente(origem, registro, documentos);
+        var local = AreaAnaliseLocal.LocalExistente(origem, registro, documentos, consultarLegado: true);
         if (local is not null && GeracaoAtual(origem, local, id))
             return new(local, true, relativo =>
             {

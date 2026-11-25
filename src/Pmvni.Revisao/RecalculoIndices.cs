@@ -249,6 +249,7 @@ public static partial class RecalculoLinha
         var (atende, diferenca) = Comparar(exata ? valor with { Valor = conta!.Calcular() } : valor, criterio)!.Value;
         var mantem = situacao switch
         {
+            "DECISAO_DO_ANALISTA" => true,
             "DIVERGENCIA" => divergente || !direta && conta is null,   // a divergência é juízo da análise enquanto os números não batem
             "PENDENTE" => !direta,                                     // falta comprovar: só o usuário, editando esta linha, resolve
             _ => !direta && divergente,

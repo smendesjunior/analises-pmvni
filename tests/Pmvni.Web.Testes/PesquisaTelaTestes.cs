@@ -175,8 +175,10 @@ public sealed class PesquisaTelaTestes : IClassFixture<TelaFixture>
         var pb = Path.Combine(dir, "com.pdf");
         await File.WriteAllBytesAsync(pa, pdfSem);
         await File.WriteAllBytesAsync(pb, pdfCom);
-        var da = await Windows.Data.Pdf.PdfDocument.LoadFromFileAsync(await Windows.Storage.StorageFile.GetFileFromPathAsync(pa));
-        var db = await Windows.Data.Pdf.PdfDocument.LoadFromFileAsync(await Windows.Storage.StorageFile.GetFileFromPathAsync(pb));
+        using var entradaA = File.OpenRead(pa).AsRandomAccessStream();
+        var da = await Windows.Data.Pdf.PdfDocument.LoadFromStreamAsync(entradaA);
+        using var entradaB = File.OpenRead(pb).AsRandomAccessStream();
+        var db = await Windows.Data.Pdf.PdfDocument.LoadFromStreamAsync(entradaB);
         Assert.Equal(da.PageCount, db.PageCount);
         for (uint i = 0; i < da.PageCount; i++) Assert.Equal(await PixelsAsync(da, i), await PixelsAsync(db, i));
 

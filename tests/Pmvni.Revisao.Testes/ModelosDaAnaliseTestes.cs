@@ -261,9 +261,10 @@ public class ModelosDaAnaliseTestes
         var etapas = ModelosDaAnalise.LerEtapas(EtapasDoKit(), k);
         var a = new AjusteModelos();
         Assert.Empty(ModelosDaAnalise.AvisosDaAba(k, a, etapas, Listas()));
-        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), etapas.Single(e => e.Id == "technical_audit"), "gpt-6.2-astra", "baixo", ListaDe(k, "codex")));
+        var analise = etapas.Single(e => e.Id == "analyze");
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), analise, "gpt-6.2-astra", "baixo", ListaDe(k, "codex")));
         var aviso = Assert.Single(ModelosDaAnalise.AvisosDaAba(k, a, etapas, Listas()));
-        Assert.Equal("ChatGPT, Auditoria técnica: nível baixo numa etapa técnica (que decide mérito). É permitido, mas o recomendado é médio ou alto.", aviso.Texto);
+        Assert.Equal($"ChatGPT, {analise.Nome}: nível baixo numa etapa técnica (que decide mérito). É permitido, mas o recomendado é médio ou alto.", aviso.Texto);
     }
 
     [Fact]
@@ -292,8 +293,7 @@ public class ModelosDaAnaliseTestes
         Assert.Equal(outra.Modelo, CelulaJson(JsonNode.Parse(efetiva.Json)!.AsObject(), "codex", "padrao", "analyze")["modelo"]!.GetValue<string>());
         // ...e o controlador do kit usa a célula ajustada (a tela Modelos da análise tem efeito); a auditoria técnica, sem ajuste, fica no padrão.
         Assert.Equal((outra.Modelo, outra.Nivel), ModeloQueOControladorUsa(arquivo, "analyze"));
-        var tecnica = k.Celula(Coluna(k, "codex"), "technical_audit")!;
-        Assert.Equal((tecnica.Modelo, tecnica.Nivel), ModeloQueOControladorUsa(arquivo, "technical_audit"));
+        Assert.Equal(("gpt-6.2-sol", "medio"), ModeloQueOControladorUsa(arquivo, "technical_audit"));
         Assert.Equal(["analyze", "technical_audit", "autocorrecao"], JsonNode.Parse(efetiva.Json)!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!.AsObject().Select(x => x.Key));
         Assert.Equal("False", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('claude'))"));
         Assert.Equal("True", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('codex'))"));
@@ -434,8 +434,8 @@ public class ModelosDaAnaliseTestes
         File.WriteAllText(destino, quebrada.ToJsonString(), new UTF8Encoding(false));
         antes = File.ReadAllText(destino, Encoding.UTF8);
         var a = new AjusteModelos();
-        var tecnica = Outra(k, "codex", "technical_audit");
-        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), etapas.Single(e => e.Id == "technical_audit"), tecnica.Modelo, tecnica.Nivel, ListaDe(k, "codex")));
+        var tecnica = Outra(k, "codex", "analyze");
+        Assert.Null(ModelosDaAnalise.Ajustar(a, k, Coluna(k, "codex"), etapas.Single(e => e.Id == "analyze"), tecnica.Modelo, tecnica.Nivel, ListaDe(k, "codex")));
         r = ModelosDaAnalise.Publicar(mestre, a, etapas, Listas(), [], scripts, ConferirNoKit, (e, f) => lancados.Add((e, f)));
         Assert.False(r.Publicada);
         Assert.Contains("a conferência do kit recusou a tabela (etapas_tecnicas deve ser uma lista", r.Texto);
@@ -485,30 +485,30 @@ public class ModelosDaAnaliseTestes
     }
 
     [Fact]
-    public async Task lista_de_modelos_pela_rota_gemini_do_kit()
+    public async Task modelos_do_google_desativados_preservam_a_tabela_historica()
     {
-        // A rota Gemini do kit de verdade (google_runtime.py modelos), com o agy falso do kit no lugar do agy: o Editor recebe a lista do provedor, sem chave.
-        var scripts = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise", "skills", "analise", "scripts");
-        var runtime = Path.Combine(scripts, "rotas", "gemini", "google_runtime.py");
-        var agyFalso = Path.Combine(Ambiente.RaizKit, "01 - PLUGINS", "plugins", "analise", "tests", "rotas", "gemini", "agy_falso.py");
-        if (!File.Exists(runtime) || !File.Exists(agyFalso)) Assert.Fail("Rota gemini do kit ausente: " + runtime + " (defina PMVNI_KIT_RAIZ com o kit de desenvolvimento)");
-        using var pasta = new PastaTemporaria();
-        var pecas = new Pecas(null, null, "python", false, null, null, null, false, null, true) { GoogleRuntime = runtime };
-        var extra = new Dictionary<string, string> { ["PMVNI_AGY_EXE"] = agyFalso, ["AGY_FALSO_MODELOS"] = "gemini-3.8-flash-low,gemini-5-nova-high", ["PYTHONDONTWRITEBYTECODE"] = "1" };
-        var (json, falha) = await ModelosDoGemini.LerAsync(pecas, PerfilGemini.ContaUltra, null, pasta.Caminho, CancellationToken.None, extra);
-        Assert.True(json is not null, falha);
-        var o = JsonNode.Parse(json!)!.AsObject();
-        Assert.True(o["lista_do_provedor"]!.GetValue<bool>());
-        Assert.Equal(["gemini-3.8-flash", "gemini-5-nova"], o["modelos"]!.AsArray().Select(m => m!["modelo"]!.GetValue<string>()));
-        // Gemini Web: sem catálogo, os modelos da tabela.
-        var (web, _) = await ModelosDoGemini.LerAsync(pecas, PerfilGemini.ContaGemini, null, pasta.Caminho, CancellationToken.None, extra);
-        Assert.False(JsonNode.Parse(web!)!["lista_do_provedor"]!.GetValue<bool>());
-        // Sem a rota Gemini no kit: o motivo, nada roda.
-        Assert.NotNull((await ModelosDoGemini.LerAsync(pecas with { GoogleRuntime = null }, PerfilGemini.ContaUltra, null, pasta.Caminho, CancellationToken.None)).Falha);
-        // A lista lida vira as opções da coluna do Gemini (Conta Antigravity), com o modelo novo do provedor.
-        var lista = ModelosDaAnalise.LerListaGemini(json, Kit())!;
-        Assert.True(lista.Conferida);
-        Assert.Equal(["high"], lista.Modelos.Single(m => m.Id == "gemini-5-nova").Niveis);
+        var historica = JsonNode.Parse(TabelaDoKit())!.AsObject();
+        var ativa = ModelosDaAnalise.LerTabela(historica.ToJsonString(), apenasAtivas: true)!;
+        Assert.Equal(new[] { "codex", "claude" }, ativa.Colunas.Select(c => c.Rota).Distinct());
+        var anterior = new AjusteModelos();
+        anterior.Celulas[("gemini", "conta_ultra", "analyze")] = new("legado", "medio");
+        anterior.Ligadas[("audit", "gemini")] = false;
+        anterior.Celulas[("codex", "padrao", "analyze")] = new("atual", "alto");
+        var ativos = ModelosDaAnalise.AjustesAtivos(anterior);
+        Assert.Single(ativos.Celulas);
+        Assert.Empty(ativos.Ligadas);
+        var preservados = ModelosDaAnalise.PreservarRotasInativas(anterior, ModelosDaAnalise.Restaurar());
+        Assert.Equal("legado", Assert.Single(preservados.Celulas).Value.Modelo);
+        Assert.False(Assert.Single(preservados.Ligadas).Value);
+        historica["rotas"]!.AsObject().Remove("gemini");
+        Assert.NotNull(ModelosDaAnalise.LerTabela(historica.ToJsonString(), apenasAtivas: true));
+        var pecas = new Pecas(null, null, "nao-executar", false, null, null, null, false, null, true) { GoogleRuntime = "nao-executar" };
+        foreach (var perfil in Enum.GetValues<PerfilGemini>())
+        {
+            var (json, falha) = await ModelosDoGemini.LerAsync(pecas, perfil, null, ".", CancellationToken.None);
+            Assert.Null(json);
+            Assert.Equal(Provedores.RotaDesativada, falha);
+        }
     }
 
     [Fact]

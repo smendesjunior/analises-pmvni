@@ -62,6 +62,7 @@ internal sealed class JanelaPrancha : Window
     readonly CommandBar ferramentas = new() { HorizontalAlignment = HorizontalAlignment.Left, DefaultLabelPosition = CommandBarDefaultLabelPosition.Right, IsDynamicOverflowEnabled = true };
 
     PdfDocument? documento;
+    IRandomAccessStream? fonteDocumento;
     string? caminhoPdf;
     string? shaPdf;
     uint indicePagina;
@@ -90,7 +91,7 @@ internal sealed class JanelaPrancha : Window
             PainelPrancha.Dimensionar(this);
             await PreencherArquivosAsync();
         };
-        Closed += (_, _) => { fechada = true; documento = null; };
+        Closed += (_, _) => { fechada = true; documento = null; fonteDocumento?.Dispose(); fonteDocumento = null; };
         AtualizarControles();
     }
 
@@ -438,22 +439,32 @@ internal sealed class JanelaPrancha : Window
         ocupado = true;
         aviso.IsOpen = false;
         documento = null;
+        fonteDocumento?.Dispose();
+        fonteDocumento = null;
         caminhoPdf = shaPdf = null;
         LimparPagina();
         estado.Text = "Abrindo o PDF…";
         AtualizarControles();
         try
         {
-            var hash = await Task.Run(async () =>
+            var leitura = File.OpenRead(caminho);
+            IRandomAccessStream? pendente = null;
+            string hash;
+            try
             {
-                await using var fluxo = File.OpenRead(caminho);
-                return Convert.ToHexString(await SHA256.HashDataAsync(fluxo)).ToLowerInvariant();
-            });
-            if (!SessaoValida) return;
-            var arquivo = await StorageFile.GetFileFromPathAsync(caminho);
-            var pdf = await PdfDocument.LoadFromFileAsync(arquivo);
-            if (!SessaoValida) return;
-            documento = pdf;
+                hash = Convert.ToHexStringLower(await SHA256.HashDataAsync(leitura));
+                if (!SessaoValida) return;
+                leitura.Position = 0;
+                pendente = leitura.AsRandomAccessStream();
+                var pdf = await PdfDocument.LoadFromStreamAsync(pendente);
+                if (!SessaoValida) return;
+                documento = pdf;
+                fonteDocumento = pendente;
+            }
+            finally
+            {
+                if (fonteDocumento is null) { pendente?.Dispose(); leitura.Dispose(); }
+            }
             shaPdf = hash;
             caminhoPdf = caminho;
             indicePagina = 0;

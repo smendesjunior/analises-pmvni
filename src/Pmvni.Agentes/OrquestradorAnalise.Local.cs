@@ -22,6 +22,8 @@ public sealed partial class OrquestradorAnalise
         {
             var origem = Path.GetFullPath(args[1]);
             if (Path.GetFileName(args[3]) != args[3] || args[3] is "" or "." or "..") return 2;
+            // File.Exists perderia o código de erro de um compartilhamento desconectado.
+            _ = File.GetAttributes(origem);
             var registro = RegistroDoTrabalho(origem, args[3]);
             var local = AreaAnaliseLocal.LocalExistente(origem, registro);
             if (RegistroExecucao.MotivoInvalido(origem, registro) is not null || local is null
@@ -29,12 +31,20 @@ public sealed partial class OrquestradorAnalise
             RecuperacaoAnaliseLocal.Salvar(origem, local, args[3], args[4]);
             return 0;
         }
+        catch (IOException ex) when (ServidorIndisponivel(ex))
+        {
+            erro.WriteLine("O servidor do checkpoint está indisponível. " + ex.Message);
+            return 3;
+        }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or JsonException or KeyNotFoundException or System.Security.Cryptography.CryptographicException)
         {
             erro.WriteLine(ex.Message);
             return 1;
         }
     }
+
+    static bool ServidorIndisponivel(IOException ex) =>
+        (ex.HResult & 0xffff) is 53 or 59 or 64 or 67 or 121 or 1203 or 1231 or 1232 or 2250;
 
     async Task<FimAnalise> RodarEmDocumentosAsync(PedidoExecucao pedido, Func<PedidoExecucao, Task<FimAnalise>> executar,
         DateTimeOffset inicio, IProgress<ProgressoAnalise> progresso, CancellationToken ct, bool acompanhamento = false)
@@ -45,7 +55,7 @@ public sealed partial class OrquestradorAnalise
         var controlador = pedido.Provedor == Provedor.ChatGpt ? pedido.Pecas.Analise62 : pedido.Pecas.RuntimeDoKit(pedido.Provedor);
         var transportador = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(controlador!)!, "..", "..", "portabilidade_execucao.py"));
         if (!File.Exists(transportador))
-            return Falha("Atualize o kit PMVNI para a versão 4.6.0 ou posterior para trabalhar em Documentos.");
+            return Falha("Atualize o kit PMVNI para a versão 4.6.0 ou posterior para trabalhar na área local da análise.");
         Anunciar(progresso, new("Conferindo os documentos do processo e preparando as cópias locais.", null));
         var area = await Task.Run(() => acompanhamento
             ? AreaAnaliseLocal.AbrirAtiva(origem, pedido.Registro.Pasta, DocumentosParaTeste)
@@ -95,10 +105,23 @@ public sealed partial class OrquestradorAnalise
             {
                 var marca = Path.Combine(registro.Pasta, "PUBLICACAO-PENDENTE-" + rota + ".json");
                 File.WriteAllText(marca, "{}");
-                RegistrarCheckpoint();
-                var publicado = RecuperacaoAnaliseLocal.Publicar(origem, area.ProcessoLocal, id, rota, fim, () => area.ConferirOriginais(ct), ct);
+                FimAnalise publicado;
+                try
+                {
+                    // Preservar o erro nativo caso o compartilhamento tenha caído entre a análise e a entrega.
+                    _ = File.GetAttributes(origem);
+                    RegistrarCheckpoint();
+                    publicado = RecuperacaoAnaliseLocal.Publicar(origem, area.ProcessoLocal, id, rota, fim, () => area.ConferirOriginais(ct), ct);
+                }
+                catch (IOException ex) when (ServidorIndisponivel(ex))
+                {
+                    var pendente = new FimAnalise("interrompida", null, null,
+                        "Relatório validado e salvo na estação. A publicação será repetida na retomada quando o servidor estiver disponível.", null);
+                    Encerrar(trabalho, pendente, inicio);
+                    return pendente;
+                }
                 File.Delete(marca);
-                Encerrar(trabalho, fim, inicio);
+                Encerrar(trabalho, fim with { Situacao = publicado.Situacao, Mensagem = publicado.Mensagem }, inicio);
                 return publicado;
             }
             if (!fim.AcompanhamentoPendente && fim.Situacao != AcompanhamentoInterrompido) RegistrarCheckpoint();
@@ -113,7 +136,11 @@ public sealed partial class OrquestradorAnalise
         finally
         {
             registro.Descarregar();
-            CopiarResumoDoRegistro(registro, pedido.Registro);
+            try { CopiarResumoDoRegistro(registro, pedido.Registro); }
+            catch (IOException ex) when (ServidorIndisponivel(ex))
+            {
+                Anunciar(progresso, new("Resumo preservado na estação enquanto o servidor está indisponível.", null));
+            }
         }
 
         void RegistrarCheckpoint()

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <ProjectPriFileName>resources.pri</ProjectPriFileName>
+    <ApplicationManifest>../Pmvni.App/app.manifest</ApplicationManifest>
+    <ApplicationIcon>../Pmvni.App/Recursos/app.ico</ApplicationIcon>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(VersaoWindowsAppSDK)" />
+    <ProjectReference Include="../Pmvni.Agentes/Pmvni.Agentes.csproj" />
+    <Compile Include="../Pmvni.App/Logica/RegrasAtualizacao.cs" Link="RegrasAtualizacao.cs" />
+    <Content Include="../Pmvni.App/Recursos/cabecalho-pmvni.svg" Link="cabecalho.svg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

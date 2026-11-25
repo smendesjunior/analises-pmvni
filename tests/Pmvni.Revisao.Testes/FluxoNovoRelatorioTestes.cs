@@ -28,28 +28,9 @@ public class FluxoNovoRelatorioTestes
         const string SemPython = "O Python não foi encontrado neste computador (a rota Gemini do plugin analise precisa dele).";
         const string SemPlugin = "A rota Gemini do plugin analise do kit PMVNI não está instalada no Codex. Rode o INSTALAR_KIT_PMVNI.cmd (fora do editor).";
         const string SemChave = "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta.";
-        string? M(Pecas pecas, ModoAcesso modo = ModoAcesso.Conta, bool chave = false, PerfilGemini? perfil = PerfilGemini.ContaUltra) =>
-            FluxoNovoRelatorio.MotivoDesabilitado(Provedor.Gemini, P0001, false, pecas, modo, chave, perfil);
-
-        // Conta: Python, plugin e Antigravity, nessa ordem; as peças do ChatGPT e do Claude não importam.
-        Assert.Null(M(Completas));
-        Assert.Null(M(Completas with { Codex = null, Claude = null, ProRuntime = null, PluginAnaliseHabilitado = false }));
-        Assert.Equal(SemPython, M(Completas with { Python = null, GoogleRuntime = null, Agy = null }));
-        Assert.Equal(SemPlugin, M(Completas with { GoogleRuntime = null, Agy = null, VersaoAnaliseGoogle = null }));
-        Assert.Equal(FluxoNovoRelatorio.SemAgy, M(Completas with { Agy = null }));
-        // Tarefa 18: o plugin analise abaixo do 4.0.0 desabilita o botão com o componente a atualizar (e versão desconhecida conta como antiga).
-        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo)", M(Completas with { VersaoAnaliseGoogle = "3.1.0" }));
-        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo)", M(Completas with { VersaoAnaliseGoogle = null }));
-        Assert.Null(M(Completas with { VersaoAnaliseGoogle = "4.10.0" }));
-        // Kit 3.x instalado (sem rotas\gemini\google_runtime.py): pede a atualização, não "não instalado".
-        Assert.StartsWith("Atualize o kit PMVNI (analise 4.0.0 ou mais novo)", M(Completas with { VersaoAnaliseGoogle = "3.1.0", GoogleRuntime = null }));
-
-        // Chave: primeiro o perfil (o plano da chave não é presumido), depois a chave guardada.
-        Assert.Equal(FluxoNovoRelatorio.SemPerfilApi, M(Completas, ModoAcesso.Chave, chave: true, perfil: null));
-        Assert.Equal(FluxoNovoRelatorio.SemPerfilApi, M(Completas, ModoAcesso.Chave, chave: true, perfil: PerfilGemini.ContaUltra));
-        Assert.Equal(SemChave, M(Completas, ModoAcesso.Chave, chave: false, perfil: PerfilGemini.ApiCreditos));
-        Assert.Null(M(Completas, ModoAcesso.Chave, chave: true, perfil: PerfilGemini.ApiCreditos));
-        Assert.Null(M(Completas, ModoAcesso.Chave, chave: true, perfil: PerfilGemini.ApiGratuita));
+        foreach (var perfil in Enum.GetValues<PerfilGemini>())
+            Assert.Equal(Provedores.RotaDesativada, FluxoNovoRelatorio.MotivoDesabilitado(Provedor.Gemini, P0001,
+                false, Completas, MatrizGemini.Modo(perfil), true, perfil));
 
         // As peças do Gemini não desabilitam os outros dois botões.
         var semGemini = Completas with { Agy = null, GoogleRuntime = null };
@@ -111,7 +92,7 @@ public class FluxoNovoRelatorioTestes
             FluxoNovoRelatorio.MotivoDesabilitado(p, pr, andamento, pecas ?? Completas, modo, chave);
 
         var nada = new Pecas(null, null, null, false, null, null, null, false, null, false);
-        foreach (var p in Enum.GetValues<Provedor>())
+        foreach (var p in Provedores.Ativos)
         {
             Assert.Equal(Processo, M(p, null, true, nada, ModoAcesso.Chave));                      // o processo vem antes de tudo
             Assert.Equal(EmAndamento, M(p, P0001, true, nada, ModoAcesso.Chave));                  // depois, a execução em andamento

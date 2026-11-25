@@ -51,18 +51,9 @@ public sealed partial class MainWindow
             try { return arquivo is not null && File.Exists(arquivo) ? File.ReadAllText(arquivo, Encoding.UTF8) : null; }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
         }
-        var kit = ModelosDaAnalise.LerTabela(Ler(pecasAgentes.ModelosPorRota));
+        var kit = ModelosDaAnalise.LerTabela(Ler(pecasAgentes.ModelosPorRota), apenasAtivas: true);
         return (kit, kit is null ? [] : ModelosDaAnalise.LerEtapas(Ler(pecasAgentes.EtapasJson), kit));
     }
-
-    /// <summary>Correção 1: as listas do Gemini que a rota Gemini do kit devolveu (<c>google_runtime.py modelos</c>), por grupo (<c>conta</c>: agy; <c>api</c>:
-    /// a chave), com a hora da leitura; e o último motivo de não ter lista.</summary>
-    readonly Dictionary<string, (ListaDaRota Lista, DateTimeOffset Em)> listasGemini = new();
-    string? falhaListaGemini;
-    bool atualizandoListaGemini;
-
-    /// <summary>Só roteiro: variáveis a mais no ambiente do <c>google_runtime.py modelos</c> (o agy falso).</summary>
-    internal IReadOnlyDictionary<string, string>? AmbienteListaGeminiDoRoteiro { get; set; }
 
     /// <summary>A fonte da lista de modelos da rota no modo em uso: ChatGPT pelo app ou pela OpenAI API; Claude pelo app ou pela Claude API.</summary>
     FonteIa FonteDaRota(string rota) => rota == "codex"
@@ -77,13 +68,6 @@ public sealed partial class MainWindow
     /// sem recusar nada.</summary>
     ListaDaRota? ListaDaRotaAgora(ColunaModelos col, TabelaModelosKit kit)
     {
-        if (col.Rota == "gemini")
-        {
-            var grupo = ModelosDaAnalise.GrupoGemini(col.Perfil);
-            if (grupo == "web") return ModelosDaAnalise.ListaGemini(kit);
-            return listasGemini.TryGetValue(grupo, out var g) ? g.Lista
-                : ModelosDaAnalise.ListaGemini(kit, conferida: false, "da tabela do kit (a lista do Gemini ainda não foi lida)");
-        }
         var fonte = FonteDaRota(col.Rota);
         var l = CatalogoDeModelos.Lista(fonte);
         if (UsaCatalogoIndicativoDoCodex(col.Rota))
@@ -96,37 +80,6 @@ public sealed partial class MainWindow
         return new ListaDaRota(l.Modelos, Conferida: l.Origem != "reserva", de);
     }
 
-    /// <summary>Lê de novo a lista do Gemini pelo perfil escolhido no cartão Gemini (sem gerar texto). Gemini Web e perfil não escolhido: nada a ler.
-    /// Sem resposta, vale a lista anterior.</summary>
-    async Task AtualizarListaGeminiAsync()
-    {
-        if (fechada || atualizandoListaGemini || PerfilDoGemini is not { } perfil || perfil == PerfilGemini.ContaGemini) return;
-        var pecas = pecasAgentes;
-        if (pecas.GoogleRuntime is null || pecas.Python is null) return;
-        if (perfil == PerfilGemini.ContaUltra && pecas.Agy is null) { falhaListaGemini = "o Antigravity CLI (agy) não foi encontrado"; return; }
-        string? chave = null;
-        if (MatrizGemini.Modo(perfil) == ModoAcesso.Chave && (chave = CofreChaves.Ler(PastaDados.Raiz, Provedor.Gemini)) is null) { falhaListaGemini = "nenhuma chave do Gemini guardada"; return; }
-        atualizandoListaGemini = true;
-        try
-        {
-            var extra = AmbienteListaGeminiDoRoteiro;
-            var (json, falha) = await Task.Run(() => ModelosDoGemini.LerAsync(pecas, perfil, chave, PastaDados.Raiz, CancellationToken.None, extra));
-            var (kit, _) = TabelaDoKitInstalado();
-            if (kit is not null && ModelosDaAnalise.LerListaGemini(json, kit) is { } lista)
-            {
-                listasGemini[ModelosDaAnalise.GrupoGemini(MatrizGemini.Codigo(perfil))] = (lista, DateTimeOffset.Now);
-                falhaListaGemini = null;
-            }
-            else falhaListaGemini = falha ?? "o Gemini não devolveu nenhum modelo";
-        }
-        catch (Exception e) when (e is IOException or InvalidOperationException or System.ComponentModel.Win32Exception or TimeoutException)
-        {
-            falhaListaGemini = e.Message;
-        }
-        finally { atualizandoListaGemini = false; }
-    }
-
-    /// <summary>De onde vem a lista de cada coluna, para a linha abaixo da grade (o Gemini Web diz que não lista modelos).</summary>
     void IniciarModelosDaAnalise()
     {
         var p = PaginaDeAjustes;
@@ -150,15 +103,14 @@ public sealed partial class MainWindow
         };
         p.BotaoRestaurarModelos.Click += async (_, _) =>
         {
-            if (AjusteDosModelos.Vazio && erroAjusteModelos is null) { p.TextoModelosAnalise.Text = "Já está no padrão do kit."; return; }
-            if (!await Perguntas.Atual.ConfirmarAsync("Restaurar o padrão do kit?", "Os modelos, os níveis, as regras e a auditoria cruzada deste computador voltam ao padrão do kit. O ajuste local é apagado.",
+            if (ModelosDaAnalise.AjustesAtivos(AjusteDosModelos).Vazio && erroAjusteModelos is null) { p.TextoModelosAnalise.Text = "Já está no padrão do kit."; return; }
+            if (!await Perguntas.Atual.ConfirmarAsync("Restaurar o padrão do kit?", "Os modelos, os níveis, as regras e a auditoria cruzada deste computador voltam ao padrão do kit. Os ajustes dessas rotas voltam ao padrão.",
                     "Restaurar", "Cancelar", destrutiva: false)) return;
-            ajusteModelos = ModelosDaAnalise.Restaurar();
+            ajusteModelos = ModelosDaAnalise.PreservarRotasInativas(AjusteDosModelos, ModelosDaAnalise.Restaurar());
             erroAjusteModelos = null;
-            GravarAjusteDosModelos("Padrão do kit restaurado: o ajuste deste computador foi apagado.");
+            GravarAjusteDosModelos("As rotas ativas voltaram ao padrão do kit.");
         };
         p.BotaoPublicarModelos.Click += async (_, _) => await PublicarModelosAsync();
-        // Correção 1: a lista do Gemini é lida pela rota Gemini do kit ao abrir esta página e em "Atualizar lista", como as outras.
         p.CategoriaMostrada += async tag =>
         {
             if (tag != CategoriasAjustes.Modelos) return;
@@ -169,10 +121,8 @@ public sealed partial class MainWindow
             if (ReferenceEquals(pecasAgentes, PecasNaoLidas)) AtualizarAgentes();
             try { await tarefaDosAgentes; } catch (Exception e) { System.Diagnostics.Debug.WriteLine("[modelos] " + e.Message); }
             MostrarModelosDaAnalise();
-            await AtualizarListaGeminiAsync();
-            MostrarModelosDaAnalise();
         };
-        p.BotaoAtualizarModelosIa.Click += async (_, _) => { await Task.WhenAll(AtualizarModelosIaAsync(), AtualizarListaGeminiAsync()); MostrarModelosDaAnalise(); };
+        p.BotaoAtualizarModelosIa.Click += async (_, _) => { await AtualizarModelosIaAsync(); MostrarModelosDaAnalise(); };
     }
 
     static void DistribuirCartoes(Grid grade, double largura)
@@ -278,7 +228,7 @@ public sealed partial class MainWindow
             p.PainelModelosAnalise.Children.Add(GradeDosModelos(kit, etapas, a, selecionada));
             p.OrigemModelos.Text = UsaCatalogoIndicativoDoCodex(selecionada.Rota)
                 ? "Codex-LB usa o modelo e o nível escolhidos para cada etapa. A lista de sugestões vem do catálogo local do Codex."
-                : $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte} e atualizados ao abrir a página e antes de cada análise." + (selecionada.Rota == "gemini" && falhaListaGemini is { } falha ? " A última consulta falhou. " + falha : "");
+                : $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte} e atualizados ao abrir a página e antes de cada análise.";
             p.RodapeModelos.Visibility = Visibility.Visible;
 
             p.AlternarSobeObjecao.IsOn = a.SobePorObjecao ?? kit.SobePorObjecao;
@@ -292,7 +242,7 @@ public sealed partial class MainWindow
                 + (kit.DescePorCota is { } d ? "com " + (d * 100).ToString("0", CultureInfo.InvariantCulture) + "% ou menos restantes" : "não desce o nível") + ".";
 
             foreach (var e in etapas.Where(e => e.Opcional))
-                foreach (var rota in ModelosDaAnalise.Rotas)
+                foreach (var rota in ModelosDaAnalise.RotasAtivas)
                 {
                     var nome = Provedores.Nome(ModelosDaAnalise.ProvedorDaRota(rota));
                     // Uma linha por rota: o texto à esquerda e a chave à direita, todas na mesma coluna (antes cada chave ficava sob o seu título,
@@ -419,6 +369,8 @@ public sealed partial class MainWindow
     }
     FrameworkElement CelulaDaGrade(TabelaModelosKit kit, ColunaModelos col, EtapaModelos etapa, CelulaModelos padrao, AjusteModelos a, ListaDaRota lista)
     {
+        if (ModelosDaAnalise.AuditoriaFixa(col.Rota, etapa.Id))
+            return new TextBlock { Text = "Sol 6.2 · esforço médio, inclusive nos reparos e retomadas", TextWrapping = TextWrapping.Wrap };
         var atual = a.Celulas.GetValueOrDefault((col.Rota, col.Perfil, etapa.Id));
         var vale = atual ?? padrao;
         var painel = new Grid { ColumnSpacing = 16, RowSpacing = 4, VerticalAlignment = VerticalAlignment.Center };
@@ -502,7 +454,7 @@ public sealed partial class MainWindow
             var analises = ProcessosComAnaliseEmAndamento();
             var (_, etapas) = TabelaDoKitInstalado();
             var listas = kit.Colunas.ToDictionary(c => (c.Rota, c.Perfil), c => ListaDaRotaAgora(c, kit));
-            var ajuste = AjusteDosModelos;
+            var ajuste = ModelosDaAnalise.AjustesAtivos(AjusteDosModelos);
             var conferir = ConferenciaDaTabelaNoKit(mestre);
             var lancador = LancadorDoKit ?? AbrirPeloWindows;
             var r = await Task.Run(() => ModelosDaAnalise.Publicar(mestre, ajuste, etapas, c => listas.GetValueOrDefault((c.Rota, c.Perfil)), analises, pasta, conferir, lancador));
@@ -513,7 +465,7 @@ public sealed partial class MainWindow
                     "A tabela publicada passa a ser o padrão do kit. Limpar os modelos, os níveis e as regras deste computador deixa valer o padrão (até a atualização "
                     + "automática instalar o kit novo, este computador usa o padrão instalado). O liga/desliga da auditoria cruzada fica.", "Limpar", "Manter", destrutiva: false))
             {
-                ajusteModelos = ModelosDaAnalise.SemOPublicado(ajuste);
+                ajusteModelos = ModelosDaAnalise.PreservarRotasInativas(AjusteDosModelos, ModelosDaAnalise.SemOPublicado(ajuste));
                 GravarAjusteDosModelos(r.Texto + " O ajuste deste computador foi limpo.");
             }
         }
@@ -558,16 +510,15 @@ public sealed partial class MainWindow
         var (kit, etapas) = TabelaDoKitInstalado();
         if (kit is null)
         {
-            if (pecasAgentes.ModelosPorRota is not null || !AjusteDosModelos.Vazio)
+            if (pecasAgentes.ModelosPorRota is not null || !ModelosDaAnalise.AjustesAtivos(AjusteDosModelos).Vazio)
                 throw new InvalidDataException("A tabela de modelos do kit está ausente ou ilegível. Confira a instalação do kit em Ajustes.");
             return null;
         }
         var rota = ModelosDaAnalise.RotaDoProvedor(p);
         Func<Task>? atualizar = null;
-        if (rota == "gemini") atualizar = AtualizarListaGeminiAsync;
-        else if (!UsaCatalogoIndicativoDoCodex(rota) && FonteDaRota(rota) is var fonte && FonteDisponivel(fonte))
+        if (!UsaCatalogoIndicativoDoCodex(rota) && FonteDaRota(rota) is var fonte && FonteDisponivel(fonte))
             atualizar = () => CatalogoDeModelos.AtualizarAsync(pecasAgentes, [fonte], CancellationToken.None);
-        var efetiva = ModelosDaAnalise.ParaPartida(kit, AjusteDosModelos, etapas, c => ListaDaRotaAgora(c, kit), rota, atualizar,
+        var efetiva = ModelosDaAnalise.ParaPartida(kit, ModelosDaAnalise.AjustesAtivos(AjusteDosModelos), etapas, c => ListaDaRotaAgora(c, kit), rota, atualizar,
             e => RegistroErros.Gravar("modelos.analise.lista", e));
         if (efetiva.Avisos.Count > 0)
             MostrarMensagem(InfoBarSeverity.Warning, "Modelos da análise", string.Join(Environment.NewLine, efetiva.Avisos) + " Isso fica registrado no histórico da análise.");

@@ -9,6 +9,27 @@ internal static class Program
     [STAThread]
     static int Main(string[] args)
     {
+        if (args.FirstOrDefault() is "--exportar-analise" or "--conferir-pdf-analise")
+        {
+            Console.OutputEncoding = new System.Text.UTF8Encoding(false);
+            var impressaoNativa = args is ["--exportar-analise", _, _, "--impressao-nativa"];
+            if (args.Length != 3 && !impressaoNativa) return 2;
+            try
+            {
+                var dados = Path.GetFullPath(args[1]);
+                var pdf = Path.GetFullPath(args[2]);
+                if (args[0] == "--conferir-pdf-analise")
+                    Pmvni.Composicao.Web.Exportador.ConferirPdfAnaliseAsync(dados, pdf).GetAwaiter().GetResult();
+                else
+                    Pmvni.Composicao.Web.Exportador.ExportarAnaliseAsync(dados, pdf, impressaoNativa).GetAwaiter().GetResult();
+                return 0;
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"{e.GetType().Name}: {e.Message}");
+                return 1;
+            }
+        }
         if (args.FirstOrDefault() == Pmvni.Agentes.OrquestradorAnalise.ComandoCheckpoint)
             return Pmvni.Agentes.OrquestradorAnalise.SalvarRetomada(args, Console.Error);
         if (args.FirstOrDefault() == OcrDaAnalise.Comando)
@@ -40,8 +61,9 @@ internal static class Program
         // direto, sem as notificações de descarga.
         // Ajustes › Sistema › "Reiniciar agora" depois de uma atualização: abre o executável (já trocado) de novo.
         Atualizador.ReabrirSePedido();
-        if (SessaoNovoDespacho.DesenhouPaginas) TerminateProcess(GetCurrentProcess(), 0);
-        return 0;
+        var codigo = Argumentos.Atual.Roteiro is null ? Autoteste.CodigoSaida : Roteiro.CodigoSaida;
+        if (SessaoNovoDespacho.DesenhouPaginas) TerminateProcess(GetCurrentProcess(), (uint)codigo);
+        return codigo;
     }
 
     [DllImport("kernel32.dll")]

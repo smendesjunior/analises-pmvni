@@ -44,7 +44,7 @@ public sealed class ExecucaoEmCurso
         Processo = processo;
         Registro = registro;
         InicioUtc = inicioUtc;
-        relogio = new RelogioAnalise(registro.TempoAtivoGravado, TimeProvider.System);
+        relogio = new RelogioAnalise(registro.TempoAtivoGravado, TimeProvider.System, RegistroExecucao.LerInicio(registro.Pasta) ?? inicioUtc);
         Pecas = pecas;
         Texto = texto;
         Orquestrador = orquestrador;
@@ -63,6 +63,7 @@ public sealed class ExecucaoEmCurso
 
     readonly RelogioAnalise relogio;
     internal TimeSpan TempoAtivo => relogio.TempoAtivo;
+    internal TimeSpan TempoDecorrido => relogio.TempoDecorrido;
 
     internal async Task<FimAnalise> AcompanharTempoAsync(Func<Task<FimAnalise>> executar)
     {
@@ -141,7 +142,12 @@ public sealed class ExecucaoEmCurso
             for (var i = 0; i < excesso; i++) linhas.RemoveAt(0);
             foreach (var l in novas) linhas.Add(l);
         }
-        if (lote.Situacao is not null) Situacao = lote.Situacao;
+        if (lote.Situacao is { } situacao)
+        {
+            Situacao = situacao;
+            if (situacao.Codigo is "AGUARDANDO_COTA" or "PAUSADO_COTA" or "DECISAO") relogio.EmEspera(true);
+            else if (situacao.Codigo is "EM_ANDAMENTO" or "RODANDO") relogio.EmEspera(false);
+        }
     }
 }
 
@@ -178,8 +184,9 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
     /// <param name="modelos">Tarefa 19: a tabela efetiva de modelos (padrão do kit + ajuste local); null = vale o padrão do kit.</param>
     public async Task<ExecucaoEmCurso?> AnalisarAsync(Provedor p, Processo pr, IReadOnlyList<(string Origem, DestinoAnexo Destino)> anexos, string? texto,
         PerfilGemini? perfilGemini = null, bool ficticio = false, bool trocarGemini = false, string? registroAnterior = null, TabelaDeModelos? modelos = null,
-        string? pastaQgis = null, string? pastaKit = null, ModoAcesso? modoOriginal = null, string? rotaOriginal = null)
+        string? pastaQgis = null, string? pastaKit = null, ModoAcesso? modoOriginal = null, string? rotaOriginal = null, bool auditoriaAlternativa = false)
     {
+        if (!Provedores.Ativos.Contains(p)) throw new AnaliseRecusadaException(Provedores.RotaDesativada);
         var pc = pecas();
         var m = modoOriginal ?? modo(p);
         if (p != Provedor.Gemini) { perfilGemini = null; ficticio = false; }
@@ -208,7 +215,11 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                 if (registroAnterior is not null && texto == FluxoNovoRelatorio.PedidoContinuar && File.Exists(Path.Combine(reg.Pasta, "pedido.md")))
                     texto = reg.PedidoOriginal();
                 if (registroAnterior is null && interrompida is null)
-                    reg.Atualizar(o => o["area_local_solicitada"] = true);
+                    reg.Atualizar(o =>
+                    {
+                        o["area_local_solicitada"] = true;
+                        if (auditoriaAlternativa) o["rota_auditoria_alternativa"] = p == Provedor.Claude ? "codex" : "claude";
+                    });
                 reg.GravarPedido(texto ?? "");      // o pedido digitado; nenhuma IA recebe pedido do editor (Tarefa 12)
                 reg.GravarAnexos(feitos);
                 return (t, reg, feitos, plano.Where(i => i.Recusa is not null).Select(i => i.Recusa!).ToList(), registroAnterior is not null || interrompida is not null);
@@ -245,6 +256,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
     /// <param name="ia">O provedor do kit dono do registro: Claude (análise pro) ou Gemini (análise Google).</param>
     public async Task<ExecucaoEmCurso> RetomarClaudeAsync(Processo pr, string pastaRegistro, DateTimeOffset inicio, Provedor ia = Provedor.Claude)
     {
+        if (!Provedores.Ativos.Contains(ia)) throw new AnaliseRecusadaException(Provedores.RotaDesativada);
         if (EmAndamento(pr.Pasta)) throw new AnaliseRecusadaException(FluxoNovoRelatorio.EmAndamento);
         var pc = pecas();
         var (trava, registro, texto) = await Task.Run(() =>
@@ -264,7 +276,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var e = new ExecucaoEmCurso(ia, pr, registro, inicio.UtcDateTime, pc, texto, orq, retomada: true);
         var progresso = Progresso(e);
         var pedidoExecucao = new PedidoExecucao(ia, pr, pc, ModoAcesso.Conta, raizDados, texto, [], registro)
-        { UsarDocumentos = AreaAnaliseLocal.LocalExistente(pr.Pasta, pastaRegistro) is not null,
+        { UsarDocumentos = AreaAnaliseLocal.UsaAreaLocal(pastaRegistro),
           Retomar = true, AoPrepararLocal = e.MostrarTrabalhoEm };
         e.Fim = e.AcompanharTempoAsync(() => RodarAsync(() => orq.AcompanharClaudeAsync(pedidoExecucao, inicio, progresso, e.Cancelamento.Token), progresso, trava));
         execucoes.Add(e);

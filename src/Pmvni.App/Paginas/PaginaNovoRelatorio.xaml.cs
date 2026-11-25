@@ -224,7 +224,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
     {
         var feitas = etapasMostradas.Count(e => e.Estado == EstadoEtapa.Feita);
         var itens = atividades.Count == 1 ? "1 atividade registrada" : $"{atividades.Count} atividades registradas";
-        TextoTotalEtapas.Text = string.Join(" · ", new[] { $"{feitas} de {etapasMostradas.Length} etapas concluídas", itens, provedorAtual }
+        TextoTotalEtapas.Text = string.Join(" · ", new[] { $"{feitas} de {etapasMostradas.Length} etapas concluídas", itens, ExecutorAtual() ?? provedorAtual }
             .Where(t => !string.IsNullOrWhiteSpace(t)));
     }
 
@@ -262,7 +262,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         MostrarEtapas(etapas, emCurso);
 
         var proxima = temAtual && atual + 1 < etapas.Count ? etapas[atual + 1].Nome : null;
-        ExecutorDetalhes.Text = provedor ?? "Aguardando identificação";
+        ExecutorDetalhes.Text = ExecutorAtual() ?? provedor ?? "Aguardando identificação";
         SituacaoDetalhes.Text = string.IsNullOrWhiteSpace(situacao) ? TituloStatus.Text : situacao;
         TextoProximaEtapa.Text = emEspera ? situacao ?? "Aguardando retomada" : falhou || concluida || !emCurso ? "Execução encerrada"
             : !temAtual ? "Aguardando confirmação" : proxima ?? "Última etapa em andamento";
@@ -290,19 +290,20 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         MostrarEtapas(etapasMostradas, execucaoAtivaNaBarra);
     }
 
-    internal void MostrarRelogios(TimeSpan decorrido, DateTimeOffset agora)
+    internal void MostrarRelogios(TimeSpan ativo, DateTimeOffset agora, TimeSpan? decorrido = null)
     {
-        TextoTempoDecorrido.Text = FluxoNovoRelatorio.TempoLegivel(decorrido, incluirSegundos: true);
+        TextoTempoDecorrido.Text = FluxoNovoRelatorio.TempoLegivel(decorrido ?? ativo, incluirSegundos: true);
+        TextoTempoAtivo.Text = "Em atividade por " + FluxoNovoRelatorio.TempoLegivel(ativo, incluirSegundos: true);
         TimeSpan? restantePeloRitmo = null;
-        if (execucaoAtivaNaBarra && EstimativaAtual is { PeloEditor: false } && decorrido > TimeSpan.Zero &&
+        if (execucaoAtivaNaBarra && EstimativaAtual is { PeloEditor: false } && ativo > TimeSpan.Zero &&
             EstimativaAtual?.PercentualGeral is double percentual and >= 1 and < 100)
         {
             // Usa o tempo ativo acumulado e mantém a previsão até o progresso mudar.
-            var duracaoEmSegundos = decorrido.TotalSeconds * 100 / percentual;
+            var duracaoEmSegundos = ativo.TotalSeconds * 100 / percentual;
             if (previsaoPeloRitmo?.Percentual != percentual && duracaoEmSegundos < (DateTimeOffset.MaxValue - agora).TotalSeconds)
                 previsaoPeloRitmo = (percentual, TimeSpan.FromSeconds(duracaoEmSegundos));
             if (previsaoPeloRitmo is { } previsao && previsao.Percentual == percentual)
-                restantePeloRitmo = previsao.DuracaoAtiva - decorrido;
+                restantePeloRitmo = previsao.DuracaoAtiva - ativo;
         }
         var termino = EstimativaAtual?.Termino?.ToLocalTime();
         var peloEditor = EstimativaAtual is not { PeloEditor: false };
@@ -435,6 +436,8 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             orcamentoExibido == orcamento && leituraExibida == leitura) return;
         orcamentoExibido = orcamento;
         leituraExibida = leitura;
+        ExecutorDetalhes.Text = ExecutorAtual() ?? provedorAtual ?? "Aguardando identificação";
+        MostrarEtapas(etapasMostradas, execucaoAtivaNaBarra);
         consumoExibido = uso;
         if (DetalhesVisiveis) AtualizarNarrativa();
         if (CartaoConsumo.Visibility == Visibility.Visible) DesenharConsumo(uso);
@@ -509,6 +512,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     DetalhesDasEtapas detalhesEtapas = DetalhesDasEtapas.Vazio;
     DetalhesDasEtapas? detalhesDesenhados;
+    string? executorDesenhado;
 
     /// <summary>Modelo e esforço (ou "Programa"), as frentes da Análise e as objeções pendentes, lidos pela janela do que o executor do kit grava
     /// (<see cref="DetalhesDasEtapas.Ler"/>). Sem dado, nada aparece no cartão.</summary>
@@ -529,10 +533,19 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         detalhesEtapas.Plano.Concat(detalhesEtapas.Etapas.Keys).Concat(detalhesEtapas.Registros.Keys).Concat(detalhesEtapas.Objecoes.Select(o => o.Etapa)).Append("analyze")
             .FirstOrDefault(id => FluxoNovoRelatorio.NomeDaEtapa(id) == nome);
 
+    string? ExecutorAtual()
+    {
+        if (!emCurso || etapaAtual is null) return null;
+        var id = IdDaEtapa(etapaAtual);
+        if (id is not null && leituraExibida?.EtapaEmExecucao == id && leituraExibida.ModelosEmExecucao is { } modelos) return modelos;
+        return id is not null && detalhesEtapas.Etapas.GetValueOrDefault(id)?.Programa == true
+            ? "Programa local" : "Aguardando identificação do modelo";
+    }
+
     void PreencherDetalhes(LinhaEtapa linha, string nome)
     {
         var id = IdDaEtapa(nome);
-        var executor = id is null ? null : detalhesEtapas.TextoExecutor(id);
+        var executor = emCurso && nome == etapaAtual ? ExecutorAtual() : id is null ? null : detalhesEtapas.TextoExecutor(id);
         linha.Executor.Text = executor ?? "";
         linha.Executor.Visibility = Visivel(executor is not null);
 
@@ -566,8 +579,10 @@ public sealed partial class PaginaNovoRelatorio : UserControl
 
     internal void MostrarEtapas(IReadOnlyList<(string Nome, EstadoEtapa Estado)> etapas, bool animar)
     {
-        if (execucaoAtivaNaBarra == animar && progressoDesenhado == ProgressoAtual && ReferenceEquals(detalhesDesenhados, detalhesEtapas)
+        var executorAtual = ExecutorAtual();
+        if (executorDesenhado == executorAtual && execucaoAtivaNaBarra == animar && progressoDesenhado == ProgressoAtual && ReferenceEquals(detalhesDesenhados, detalhesEtapas)
             && estimativaDesenhada == EstimativaAtual && etapasMostradas.SequenceEqual(etapas)) return;
+        executorDesenhado = executorAtual;
         detalhesDesenhados = detalhesEtapas;
         execucaoAtivaNaBarra = animar;
         progressoDesenhado = ProgressoAtual;

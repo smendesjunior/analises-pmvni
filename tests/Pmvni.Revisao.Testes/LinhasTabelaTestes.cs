@@ -166,6 +166,39 @@ public class LinhasTabelaTestes
     // ---------- situação ----------
 
     [Fact]
+    public void decisao_do_analista_fica_editavel_e_a_exportacao_segue_a_justificativa()
+    {
+        const string situacao = "DECISAO_DO_ANALISTA", id = "F13-TESTE", nota = "O ANALISTA DEVE DECIDIR. Conferir a peça.";
+        var caminho = Ambiente.Corpus("longo.json");
+        var dados = JsonNode.Parse(File.ReadAllBytes(caminho))!.AsObject();
+        var item = dados["itens"]![0]!.AsObject();
+        item["id"] = id;
+        item["situacao"] = situacao;
+        item["base_legal"] = nota;
+        dados["notas_pendencias_normativas"] = new JsonObject { [id] = nota };
+        var linha = dados["iluminacao"]!["ambientes"]![0]!.AsObject();
+        linha["apresentacao"] = new JsonObject { ["situacao"] = situacao, ["nota"] = nota };
+        dados["deficits_vaos"] = new JsonArray(JsonValue.Create(nota));
+        dados["ocorrencias_vaos"] = new JsonArray(new JsonObject { ["nota"] = nota, ["ambiente"] = linha["nome"]!.ToString() });
+        var s = Sessao(Importador.Importar(JsonFiel.Escrever(dados), caminho, Modelo, Ambiente.Contexto()));
+        string linhaId = "ambientes/01", itemId = s.Projeto.Incluidos.First().Id;
+        Assert.Equal(situacao, TabelasRevisao.SituacaoDeItem(TabelasRevisao.SituacaoEfetiva(s.Projeto, linhaId)));
+        Assert.Equal(situacao, TabelasRevisao.SituacaoDeLinha(situacao));
+        Assert.DoesNotContain(ResumoExigencias.Pendentes(ResumoExigencias.DoProjeto(s.Projeto)), i => i.Id == itemId);
+        s.Aplicar(new DefinirSituacao(linhaId, "CONTA_CONFERE"));
+        s.Aplicar(new DefinirJustificativa(linhaId, "O analista conferiu a abertura na peça."));
+        s.Aplicar(new DefinirSituacao(itemId, "NAO_ATENDE"));
+        s.Aplicar(new DefinirJustificativa(itemId, "A prancha revisada demonstra o déficit."));
+        var gerado = JsonNode.Parse(DadosEfetivos.Gerar(s.Projeto).Json)!;
+        Assert.Equal("CONTA_CONFERE", gerado["iluminacao"]!["ambientes"]![0]!["apresentacao"]!["situacao"]!.ToString());
+        Assert.Contains("O analista conferiu", gerado["deficits_vaos"]![0]!.ToString());
+        Assert.Null(gerado["notas_pendencias_normativas"]![id]);
+        Assert.Equal("A prancha revisada demonstra o déficit.", gerado["itens"]![0]!["base_legal"]!.ToString());
+        Assert.Contains(ResumoExigencias.Pendentes(ResumoExigencias.DoProjeto(s.Projeto)), i => i.Id == itemId);
+        Assert.Equal(nota, s.Projeto.Documento["notas_pendencias_normativas"]![id]!.ToString());
+    }
+
+    [Fact]
     public void situacao_da_linha_com_justificativa_e_conferencia()
     {
         var s = Sessao(Importar("longo"));

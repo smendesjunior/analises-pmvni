@@ -10,6 +10,7 @@ public static class Situacoes
             ["ATENDE"] = ("ATENDE", "g"),
             ["NAO_ATENDE"] = ("NÃO ATENDE", "r"),
             ["NAO_COMPROVADO"] = ("FALTA COMPROVAR", "a"),
+            ["DECISAO_DO_ANALISTA"] = ("O ANALISTA DEVE DECIDIR", "a"),
             ["DIVERGENCIA_INTERNA"] = ("INFORMAÇÕES DIVERGENTES", "o"),
             ["CONTA_CONFERE"] = ("ATENDE", "g"),
             ["PENDENTE"] = ("FALTA COMPROVAR", "a"),
@@ -21,10 +22,10 @@ public static class Situacoes
     public static IReadOnlySet<string> SitLocal { get; } = new HashSet<string>(StringComparer.Ordinal) { "CONFIRMADO", "A_CONFIRMAR" };
 
     public static IReadOnlySet<string> SitItem { get; } =
-        new HashSet<string>(StringComparer.Ordinal) { "ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA" };
+        new HashSet<string>(StringComparer.Ordinal) { "ATENDE", "NAO_ATENDE", "NAO_COMPROVADO", "DIVERGENCIA_INTERNA", "DECISAO_DO_ANALISTA" };
 
     public static IReadOnlySet<string> SitIndice { get; } =
-        new HashSet<string>(StringComparer.Ordinal) { "CONTA_CONFERE", "NAO_ATENDE", "PENDENTE", "DIVERGENCIA" };
+        new HashSet<string>(StringComparer.Ordinal) { "CONTA_CONFERE", "NAO_ATENDE", "PENDENTE", "DIVERGENCIA", "DECISAO_DO_ANALISTA" };
 
     /// <summary>LEGENDA_PADRAO: legenda do mapa quando os dados não trazem uma.</summary>
     public static IReadOnlyList<object?> LegendaPadrao { get; } = new List<object?>

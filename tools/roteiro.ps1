@@ -68,7 +68,11 @@ function Anonimizar([string]$texto) {
     return $texto
 }
 if ($SomenteMonitor) {
-    if ($p.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $resultado)) { throw 'O ensaio do monitor não produziu resultado.' }
+    if (-not (Test-Path -LiteralPath $resultado)) { throw 'O ensaio do monitor não produziu resultado.' }
+    $recibo = Get-Content -LiteralPath $resultado -Raw -Encoding utf8 | ConvertFrom-Json
+    if ($p.ExitCode -ne 0 -or $recibo.ok -isnot [bool] -or -not $recibo.ok) {
+        throw "O ensaio do monitor falhou (código $($p.ExitCode)). Consulte $resultado."
+    }
     return
 }
 if (Test-Path -LiteralPath $resultado) {

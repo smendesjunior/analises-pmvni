@@ -79,7 +79,7 @@ public static class Conferencia
     private static bool Pendente(object? linha)
     {
         var situacao = Dados.Obter(SeVerdadeiro(Dados.Obter(linha, "apresentacao")), "situacao") ?? Dados.Obter(linha, "situacao");
-        return situacao is "NAO_ATENDE" or "NAO_COMPROVADO" or "DIVERGENCIA_INTERNA" or "DIVERGENCIA" or "PENDENTE";
+        return situacao is "DECISAO_DO_ANALISTA" or "NAO_ATENDE" or "NAO_COMPROVADO" or "DIVERGENCIA_INTERNA" or "DIVERGENCIA" or "PENDENTE";
     }
 
     /// <summary>Lista de erros, na mesma ordem e com o mesmo texto do kit. <paramref name="imagemExiste"/> recebe o caminho
@@ -295,6 +295,7 @@ public static class Conferencia
         var partes = new List<string> { Situacoes.Sit["ATENDE"].Texto + " " + Conta("ATENDE").ToString(CultureInfo.InvariantCulture) };
         if (Conta("NAO_ATENDE") != 0) partes.Add(Situacoes.Sit["NAO_ATENDE"].Texto + " " + Conta("NAO_ATENDE").ToString(CultureInfo.InvariantCulture));
         partes.Add(Situacoes.Sit["NAO_COMPROVADO"].Texto + " " + Conta("NAO_COMPROVADO").ToString(CultureInfo.InvariantCulture));
+        if (Conta("DECISAO_DO_ANALISTA") != 0) partes.Add(Situacoes.Sit["DECISAO_DO_ANALISTA"].Texto + " " + Conta("DECISAO_DO_ANALISTA").ToString(CultureInfo.InvariantCulture));
         if (Conta("DIVERGENCIA_INTERNA") != 0) partes.Add(Situacoes.Sit["DIVERGENCIA_INTERNA"].Texto + " " + Conta("DIVERGENCIA_INTERNA").ToString(CultureInfo.InvariantCulture));
         return string.Join(" • ", partes);
     }

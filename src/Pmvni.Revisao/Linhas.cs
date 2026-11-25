@@ -322,8 +322,12 @@ public static class TabelasRevisao
 
     // ---------- situação ----------
 
-    public static string? SituacaoOriginal(Projeto p, string id) =>
-        Original(p, id)?["situacao"] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+    public static string? SituacaoOriginal(Projeto p, string id)
+    {
+        var linha = Original(p, id);
+        var situacao = (linha?["apresentacao"] as JsonObject)?["situacao"] ?? linha?["situacao"];
+        return situacao is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+    }
 
     public static string? SituacaoEfetiva(Projeto p, string id) =>
         p.Linhas.TryGetValue(id, out var r) && r.Situacao is not null ? r.Situacao : SituacaoOriginal(p, id);
@@ -344,6 +348,7 @@ public static class TabelasRevisao
         "NAO_ATENDE" => "NAO_ATENDE",
         "NAO_COMPROVADO" or "PENDENTE" => "PENDENTE",
         "DIVERGENCIA_INTERNA" or "DIVERGENCIA" => "DIVERGENCIA",
+        "DECISAO_DO_ANALISTA" => "DECISAO_DO_ANALISTA",
         _ => null,
     };
 
@@ -354,6 +359,7 @@ public static class TabelasRevisao
         "NAO_ATENDE" => "NAO_ATENDE",
         "PENDENTE" => "NAO_COMPROVADO",
         "DIVERGENCIA" => "DIVERGENCIA_INTERNA",
+        "DECISAO_DO_ANALISTA" => "DECISAO_DO_ANALISTA",
         _ => null,
     };
 
@@ -440,7 +446,29 @@ public static class TabelasRevisao
             if (id == Id(Volumetria, 1))
                 foreach (var (k, valor) in FormaPadraoVolumetria)
                     if (!linha.ContainsKey(k) && r.Campos.ContainsKey(k)) linha[k] = valor;
-            if (r.Situacao is not null && linha.ContainsKey("situacao")) linha["situacao"] = r.Situacao;
+            if (r.Situacao is not null && linha.ContainsKey("situacao"))
+            {
+                if (linha["apresentacao"] is JsonObject apresentacao)
+                {
+                    apresentacao["situacao"] = r.Situacao;
+                    apresentacao["nota"] = r.Justificativa ?? "";
+                    if (documento["ocorrencias_vaos"] is JsonArray ocorrencias)
+                    {
+                        var nomes = (linha["ambientes_incluidos"] as JsonArray)?.Select(n => n?.ToString()).ToHashSet()
+                            ?? new HashSet<string?> { linha["nome"]?.ToString() };
+                        foreach (var o in ocorrencias.OfType<JsonObject>().Where(o => nomes.Contains(o["ambiente"]?.ToString()) && o["nota"] is not null))
+                        {
+                            if (documento["deficits_vaos"] is JsonArray resumo)
+                                for (var i = 0; i < resumo.Count; i++)
+                                    if (resumo[i]?.ToString() == o["nota"]?.ToString())
+                                        resumo[i] = o["ambiente"] + " — " + ConferenciaRevisao.TextoSituacao(r.Situacao) + ". " + r.Justificativa;
+                            o.Remove("nota");
+                            o["decisao_do_analista"] = r.Justificativa;
+                        }
+                    }
+                }
+                else linha["situacao"] = r.Situacao;
+            }
             foreach (var (caminho, texto) in r.Campos) Trocar(linha, caminho, texto);
         }
     }

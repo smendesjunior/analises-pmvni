@@ -94,6 +94,7 @@ public static class FluxoNovoRelatorio
     /// <param name="perfilGemini">Só o Gemini: o perfil que vale para o modo (<see cref="MatrizGemini.PerfilDoModo"/>); null no modo chave = perfil não escolhido.</param>
     public static string? MotivoDesabilitado(Provedor p, Processo? processo, bool emAndamento, Pecas pecas, ModoAcesso modo, bool chaveGuardada, PerfilGemini? perfilGemini = null)
     {
+        if (!Provedores.Ativos.Contains(p)) return Provedores.RotaDesativada;
         ArgumentNullException.ThrowIfNull(pecas);
         if (processo is null) return EscolhaOProcesso;
         if (emAndamento) return EmAndamento;

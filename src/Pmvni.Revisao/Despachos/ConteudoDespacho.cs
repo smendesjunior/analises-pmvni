@@ -416,7 +416,9 @@ public static class ConteudoDespacho
         if (somenteLeitura)
             b.Add("Este relatório foi gravado por uma versão mais nova do editor (somente leitura); o despacho não pode ser emitido a partir dele.");
         if (t == TipoDespacho.Correcao && ResumoExigencias.Pendentes(ResumoExigencias.DosItens(itens)).Count == 0)
-            b.Add("Nenhum item incluído tem situação diferente de ATENDE: não há exigência para o despacho de correção.");
+            b.Add(ResumoExigencias.DosItens(itens).Any(x => x.Situacao == "DECISAO_DO_ANALISTA")
+                ? "Há itens que aguardam decisão do analista. Ainda não há exigência definida para o despacho de correção."
+                : "Nenhum item incluído tem situação diferente de ATENDE: não há exigência para o despacho de correção.");
         return b;
     }
 
@@ -425,7 +427,7 @@ public static class ConteudoDespacho
     {
         ArgumentNullException.ThrowIfNull(p);
         if (t != TipoDespacho.Aprovacao) return Array.Empty<string>();
-        var pendentes = ResumoExigencias.Pendentes(ResumoExigencias.DosItens(Itens(p, out _)))
+        var pendentes = ResumoExigencias.DosItens(Itens(p, out _)).Where(x => x.Incluido && x.Situacao != "ATENDE")
             .Select(x => "ITEM " + x.Numero.ToString("D2", CultureInfo.InvariantCulture)).ToList();
         if (pendentes.Count == 0) return Array.Empty<string>();
         var quantos = pendentes.Count == 1 ? "1 item" : pendentes.Count.ToString(CultureInfo.InvariantCulture) + " itens";

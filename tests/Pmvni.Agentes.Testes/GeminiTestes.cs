@@ -222,14 +222,11 @@ public class GeminiTestes
         File.WriteAllText(Path.Combine(kit, "01 - PLUGINS", "plugins", "analise", ".codex-plugin", "plugin.json"), "{\"version\":\"4.0.1\"}");
 
         var p = Localizacao.Ler(opcoes);
-        Assert.Equal(Path.Combine(local, "agy", "bin", "agy.exe"), p.Agy);
-        Assert.Equal(Path.Combine(Scripts("4.0.0"), "google_runtime.py"), p.GoogleRuntime);
-        Assert.Equal(("4.0.0", "4.0.1"), (p.VersaoAnaliseGoogle, p.VersaoAnaliseGoogleKit));
-        Assert.Equal(p.GoogleRuntime, p.RuntimeDoKit(Provedor.Gemini));
-        Assert.Null(p.RuntimeDoKit(Provedor.ChatGpt));
-        Assert.Equal("4.0.0", OrquestradorAnalise.VersaoDoPlugin(Provedor.Gemini, p));
-        Assert.Equal("Análise — rota Gemini", OrquestradorAnalise.PluginUsado(Provedor.Gemini));
-        Assert.Equal("4.0.0", PluginsInstalados.NoCodex(codexHome, PluginsInstalados.Analise)?.Versao);
+        Assert.Null(p.Agy);
+        Assert.Null(p.GoogleRuntime);
+        Assert.Null(p.RuntimeDoKit(Provedor.Gemini));
+        Assert.Null(p.VersaoAnaliseGoogle);
+        Assert.Null(p.VersaoAnaliseGoogleKit);
 
         // Um runtime sem a rota explícita (contrato com o editor) não é usado.
         Directory.CreateDirectory(Scripts("4.1.0"));
@@ -294,117 +291,19 @@ public class GeminiTestes
         Assert.StartsWith("a API do Google respondeu 500", DiagnosticoGemini.MensagemDaRecusa(HttpStatusCode.InternalServerError, ""));
     }
 
-    sealed class RespostaFixa(HttpStatusCode codigo, string corpo) : HttpMessageHandler
-    {
-        public HttpRequestMessage? Pedido { get; private set; }
-        public string? ChaveNoCabecalho { get; private set; }
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            Pedido = request;
-            ChaveNoCabecalho = request.Headers.TryGetValues("x-goog-api-key", out var v) ? v.Single() : null;
-            return Task.FromResult(new HttpResponseMessage(codigo) { Content = new StringContent(corpo, Encoding.UTF8, "application/json") });
-        }
-    }
-
-    sealed class SemRede : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => throw new HttpRequestException("sem rede");
-    }
-
     [Fact]
-    public async Task conferir_chave_simulada_aceita_recusada_e_sem_rede()
+    public async Task diagnostico_google_desativado_recusa_todos_os_modos()
     {
-        // SIMULADO: a resposta da API do Google é fixa; nenhuma chave real e nenhuma rede.
-        const string chave = "gemini-ficticia-chave-ficticia-de-teste-0123456789";
-        try
+        var pecas = new Pecas(null, null, null, false, null, null, null, false, null, true);
+        foreach (var modo in Enum.GetValues<ModoAcesso>())
         {
-            var aceita = new RespostaFixa(HttpStatusCode.OK, "{\"models\":[{\"name\":\"models/gemini-3.8-flash\"}]}");
-            DiagnosticoGemini.Manipulador = aceita;
-            var r = await DiagnosticoGemini.ConferirChaveAsync(chave, CancellationToken.None);
-            Assert.True(r.Aceita);
-            Assert.Equal(new[] { "gemini-3.8-flash" }, r.Modelos);
-            Assert.Equal(chave, aceita.ChaveNoCabecalho);                                         // só no cabeçalho…
-            Assert.DoesNotContain(chave, aceita.Pedido!.RequestUri!.ToString());                  // …nunca no endereço
-            Assert.DoesNotContain(chave, r.Mensagem);
-
-            DiagnosticoGemini.Manipulador = new RespostaFixa(HttpStatusCode.BadRequest, "{\"error\":{\"message\":\"API key not valid. Please pass a valid API key.\"}}");
-            r = await DiagnosticoGemini.ConferirChaveAsync(chave, CancellationToken.None);
-            Assert.False(r.Aceita);
-            Assert.StartsWith("chave recusada pelo Google", r.Mensagem);
-            Assert.DoesNotContain(chave, r.Mensagem);
-
-            DiagnosticoGemini.Manipulador = new RespostaFixa(HttpStatusCode.TooManyRequests, "{\"error\":{\"status\":\"RESOURCE_EXHAUSTED\"}}");
-            Assert.StartsWith("limite de uso da chave", (await DiagnosticoGemini.ConferirChaveAsync(chave, CancellationToken.None)).Mensagem);
-
-            DiagnosticoGemini.Manipulador = new SemRede();
-            r = await DiagnosticoGemini.ConferirChaveAsync(chave, CancellationToken.None);
-            Assert.False(r.Aceita);
-            Assert.Contains("a chave não foi conferida", r.Mensagem);
+            var resultado = await Diagnostico.TestarAsync(Provedor.Gemini, pecas, modo, true, CancellationToken.None);
+            Assert.Equal(Provedores.RotaDesativada, resultado.Linha);
         }
-        finally { DiagnosticoGemini.Manipulador = null; }
+        var chave = await DiagnosticoGemini.ConferirChaveAsync("ficticia", CancellationToken.None);
+        Assert.False(chave.Aceita);
+        Assert.Equal(Provedores.RotaDesativada, chave.Mensagem);
     }
-
-    [Fact]
-    public async Task testar_sem_pecas_diz_o_que_falta_e_pede_o_perfil_da_chave()
-    {
-        var nada = new Pecas(null, null, null, false, null, null, null, false, null, false);
-
-        var conta = await Diagnostico.TestarAsync(Provedor.Gemini, nada, ModoAcesso.Conta, false, CancellationToken.None);
-        Assert.Equal("Antigravity CLI (agy) não encontrado · Análise — rota Gemini não instalada no Codex · Python não encontrado", conta.Linha);
-        Assert.Null(conta.ContaConectada);
-        Assert.Empty(conta.Avisos);
-
-        // Modo chave sem chave e sem perfil: nada é presumido; o aviso pede a escolha do perfil.
-        var chave = await Diagnostico.TestarAsync(Provedor.Gemini, nada, ModoAcesso.Chave, false, CancellationToken.None);
-        Assert.EndsWith("nenhuma chave guardada", chave.Linha);
-        Assert.Contains(OrquestradorAnalise.SemPerfilApi, chave.Avisos);
-
-        try
-        {
-            DiagnosticoGemini.Manipulador = new RespostaFixa(HttpStatusCode.OK, "{\"models\":[{\"name\":\"models/gemini-3.8-flash\"}]}");
-            var gratuita = await Diagnostico.TestarAsync(Provedor.Gemini, nada, ModoAcesso.Chave, true, CancellationToken.None, PerfilGemini.ApiGratuita, "gemini-ficticia-ficticia");
-            Assert.EndsWith("chave aceita pelo Google", gratuita.Linha);
-            Assert.Contains(gratuita.Avisos, a => a.StartsWith("API gratuita: só para testes com processos fictícios", StringComparison.Ordinal));
-            Assert.DoesNotContain(gratuita.Avisos, a => a.StartsWith("A chave não lista o modelo", StringComparison.Ordinal));
-            Assert.DoesNotContain("gemini-ficticia-ficticia", gratuita.Linha + string.Join("", gratuita.Avisos));
-
-            var creditos = await Diagnostico.TestarAsync(Provedor.Gemini, nada, ModoAcesso.Chave, true, CancellationToken.None, PerfilGemini.ApiCreditos, "gemini-ficticia-ficticia");
-            Assert.Contains(creditos.Avisos, a => a.StartsWith("A chave não lista o modelo", StringComparison.Ordinal));
-        }
-        finally { DiagnosticoGemini.Manipulador = null; }
-    }
-
-    [Theory]
-    [InlineData("ok", true, "conectado com a conta Google")]
-    [InlineData("sem_login", false, "não conectado (abra um terminal, rode \"agy\" e entre na conta Google)")]
-    public async Task testar_conta_com_o_agy_falso_diz_o_login_e_as_etapas_sem_modelo(string caso, bool conectado, string sessao)
-    {
-        // SIMULADO: o agente falso faz o papel do agy (--version e models); nenhuma conta Google é consultada.
-        using var pasta = Ambiente.PastaDeTeste("gemini-testar-" + caso);
-        var cenario = Ambiente.CenarioAjustado(pasta, "ok", o =>
-        {
-            o["versoes"] = new System.Text.Json.Nodes.JsonArray("1.5.10", "Python 3.14.0");
-            if (caso == "sem_login") o["login"] = "nao";
-            else o["modelos_agy"] = new System.Text.Json.Nodes.JsonArray("gemini-3.8-flash-high", "gemini-3.8-flash-low");
-        });
-        using var v = new VariavelDeAmbiente("AGENTE_FALSO_CENARIO", cenario);
-        var pecas = new Pecas(null, null, Ambiente.AgenteFalso, false, null, null, null, false, null, false)
-        {
-            Agy = Ambiente.AgenteFalso, GoogleRuntime = Path.Combine(pasta, "google_runtime.py"), VersaoAnaliseGoogle = "1.0.0", VersaoAnaliseGoogleKit = "1.0.1",
-        };
-
-        var r = await Diagnostico.TestarAsync(Provedor.Gemini, pecas, ModoAcesso.Conta, false, CancellationToken.None);
-
-        Assert.Equal("Antigravity CLI 1.5.10 · " + sessao + " · Análise — rota Gemini 1.0.0 (kit: 1.0.1) · Python 3.14.0", r.Linha);
-        Assert.Equal(conectado, r.ContaConectada);
-        Assert.Contains("O kit tem o plugin analise 1.0.1; instalado 1.0.0. Atualize pelo INSTALAR_KIT_PMVNI.cmd.", r.Avisos);
-        if (conectado)
-            Assert.Contains(r.Avisos, a => a.StartsWith("A conta não oferece", StringComparison.Ordinal) && a.Contains("gemini-3.8-flash medium"));
-        else Assert.DoesNotContain(r.Avisos, a => a.StartsWith("A conta não oferece", StringComparison.Ordinal));
-    }
-
-    // ------------------------------------------------------------------ o perfil fixado na análise
 
     [Fact]
     public void perfil_fixado_vem_dos_arquivos_do_plugin_e_some_quando_a_analise_conclui()

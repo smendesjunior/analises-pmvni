@@ -21,7 +21,7 @@ public class ModeloOficialTestes
         Convert.ToHexString(SHA256.HashData(conteudo)).ToLowerInvariant();
 
     [Fact]
-    public void cada_arquivo_embutido_confere_com_o_registro_rev14()
+    public void cada_arquivo_embutido_confere_com_o_registro_rev16()
     {
         foreach (var nome in ArquivosEmbutidos)
         {
@@ -36,7 +36,7 @@ public class ModeloOficialTestes
     }
 
     [Fact]
-    public void registro_rev14_tem_os_sete_arquivos_do_kit()
+    public void registro_rev16_tem_os_sete_arquivos_do_kit()
     {
         var esperado = new[]
         {
@@ -50,15 +50,15 @@ public class ModeloOficialTestes
         };
 
         Assert.Equal(esperado.OrderBy(x => x), ModeloOficial.HashesDoRegistro.Keys.OrderBy(x => x));
-        Assert.Equal("044a4265ffcfb704008087a55c561d284d767301eff54f703028d806cfd7167a", ModeloOficial.HashesDoRegistro["gerar_relatorio.py"]);
+        Assert.Equal("8a641f80e43b8fc6dc08f057763933a200d177a6ef940fad3c0b6cb0a0aa7b59", ModeloOficial.HashesDoRegistro["gerar_relatorio.py"]);
     }
 
     [Fact]
-    public void carregar_devolve_revisao_14()
+    public void carregar_devolve_revisao_16()
     {
         var modelo = ModeloOficial.Carregar();
 
-        Assert.Equal("14", modelo.Revisao);
+        Assert.Equal("16", modelo.Revisao);
         Assert.False(string.IsNullOrWhiteSpace(modelo.Html));
         Assert.False(string.IsNullOrWhiteSpace(modelo.Css));
         Assert.NotEmpty(modelo.Brasao);

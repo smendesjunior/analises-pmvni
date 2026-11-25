@@ -3,7 +3,7 @@
 Aplicativo do Windows para a análise de projetos da Secretaria Municipal de Obras de Venda Nova do Imigrante/ES. Nele o analista:
 
 - abre e revisa os relatórios técnicos de análise;
-- pede análises à IA (ChatGPT, Claude ou Gemini) com os anexos do processo;
+- pede análises à IA (ChatGPT pelo Codex ou Claude) com os anexos do processo;
   (as três rotas vêm do plugin único `analise` do kit PMVNI, versão 4.0.0 ou mais nova; o programa prepara o caso e monta o relatório, e a IA faz só a análise e as auditorias);
 - emite despachos de correção e de aprovação (o próprio Editor emite; não há plugin de despacho);
 - consulta a legislação e os imóveis da base QGIS;

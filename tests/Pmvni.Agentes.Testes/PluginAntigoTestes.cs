@@ -51,7 +51,7 @@ public partial class OrquestradorTestes
         }
 
         // Claude e Gemini: a DECISAO vem no situacao; o editor grava a resposta e dá a partida de novo no controlador da rota.
-        foreach (var (p, plugin) in new[] { (Provedor.Claude, "analise-pro 2.1.0"), (Provedor.Gemini, "analise-google 2.1.0") })
+        foreach (var (p, plugin) in new[] { (Provedor.Claude, "analise-pro 2.1.0") })
         {
             using var c = new Cena("antigo-" + p.ToString().ToLowerInvariant(), "claude_ok", p, j =>
             {
@@ -59,7 +59,6 @@ public partial class OrquestradorTestes
                 j["auto"]!["decisao"] = DecisaoPluginAntigo(plugin);
             });
             var pedido = c.Pedido(p);
-            if (p == Provedor.Gemini) { c.Pecas = ComGemini(c); pedido = c.Pedido(p, ModoAcesso.Conta) with { Perfil = PerfilGemini.ContaUltra }; }
             var perguntas = new List<DecisaoAnalise>();
             pedido = pedido with { Decidir = (d, _) => { lock (perguntas) perguntas.Add(d); return Task.FromResult<string?>("recomecar"); } };
             var fim = await Ambiente.Com(c.Orq().ExecutarAsync(pedido, c.Progresso, CancellationToken.None), Limite);
@@ -97,7 +96,7 @@ public partial class OrquestradorTestes
         }
 
         // Pergunta fechada sem resposta: a análise fica parada, nada é gravado e o kit não é chamado de novo (Claude e Gemini).
-        foreach (var p in new[] { Provedor.Claude, Provedor.Gemini })
+        foreach (var p in new[] { Provedor.Claude })
         {
             using var c = new Cena("antigo-fechada-" + p.ToString().ToLowerInvariant(), "claude_ok", p, j =>
             {
@@ -105,7 +104,6 @@ public partial class OrquestradorTestes
                 j["auto"]!["decisao"] = DecisaoPluginAntigo("analise-pro 2.1.0");
             });
             var pedido = c.Pedido(p);
-            if (p == Provedor.Gemini) { c.Pecas = ComGemini(c); pedido = c.Pedido(p, ModoAcesso.Conta) with { Perfil = PerfilGemini.ContaUltra }; }
             var fim = await Ambiente.Com(c.Orq().ExecutarAsync(pedido with { Decidir = (_, _) => Task.FromResult<string?>(null) }, c.Progresso, CancellationToken.None), Limite);
             Assert.NotEqual("concluida", fim.Situacao);
             Assert.Equal("plugin_antigo", fim.Decisao?.Tipo);

@@ -1,3 +1,4 @@
+using Microsoft.Web.WebView2.Core;
 using Pmvni.Composicao.Web;
 using Xunit;
 
@@ -5,6 +6,21 @@ namespace Pmvni.Web.Testes;
 
 public class HostOcultoCicloVidaTestes
 {
+    [Fact]
+    public async Task criar_controller_de_composicao_com_as_opcoes_da_janela()
+    {
+        await using var host = await HostOculto.CriarAsync(320, 240);
+        var resultado = await host.ExecutarAsync(async web =>
+        {
+            var ambiente = web.Environment;
+            var janela = CoreWebView2ControllerWindowReference.CreateFromWindowHandle((ulong)host.Janela);
+            var controller = await ambiente.CreateCoreWebView2CompositionControllerAsync(janela, FabricaWebView2.OpcoesController(ambiente));
+            try { return await controller.CoreWebView2.ExecuteScriptAsync("1 + 1"); }
+            finally { controller.Close(); }
+        });
+        Assert.Equal("2", resultado);
+    }
+
     [Fact]
     public async Task criar_coletar_usar_e_encerrar_repetidamente()
     {

@@ -26,7 +26,7 @@ public class RecuperacaoAnaliseLocalTestes
     public void Caminhos_distintos_exigem_identidade_do_arquivo_mesmo_com_bytes_iguais()
     {
         if (!OperatingSystem.IsWindows()) return;
-        using var tmp = Ambiente.PastaDeTeste("identidade-arquivo");
+        using var tmp = new PastaTeste(Directory.CreateTempSubdirectory("pmvni-identidade-arquivo-").FullName);
         var origem = Em(tmp, "nome-no-servidor");
         var alias = Em(tmp, "segundo-nome");
         var copia = Em(tmp, "copia");
@@ -142,7 +142,41 @@ public class RecuperacaoAnaliseLocalTestes
         Assert.Throws<InvalidDataException>(() => RecuperacaoAnaliseLocal.RestaurarLegado(origem, Em(tmp, "outra"), Id, "analise"));
     }
 
-    static FimAnalise Produto(string local, bool manual = false)
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void VersaoParaRevisaoConfereIdentidadeMotivoEArquivos(bool comPdf)
+    {
+        using var tmp = Ambiente.PastaDeTeste("entrega-revisao");
+        var origem = Em(tmp, "servidor");
+        var local = Em(tmp, "estacao");
+        var controle = Controle(local);
+        var pasta = Em(Em(controle, "para-revisao"), Guid.NewGuid().ToString("N"));
+        var documento = Em(pasta, "VERSAO-PARA-REVISAO.JSON");
+        var pdf = comPdf ? Em(pasta, "VERSAO-PARA-REVISAO.PDF") : null;
+        const string motivo = "Parte da auditoria pendente";
+        Json(documento, new { revisao = new { execucao = Id, etapa = "technical_audit", motivo } });
+        Json(Em(controle, "engine_state.json"), new { editor_execution = Id, @case = local });
+        var entrega = new Dictionary<string, string> { ["modo"] = "para_revisao", ["document"] = documento,
+            ["document_sha256"] = Sha(documento), ["execucao"] = Id, ["etapa_pendente"] = "technical_audit", ["motivo"] = motivo };
+        if (pdf is not null)
+        {
+            Gravar(pdf, "PDF de teste para conferência de transporte");
+            entrega["pdf"] = pdf;
+            entrega["pdf_sha256"] = Sha(pdf);
+        }
+        Json(Em(controle, "delivery.json"), entrega);
+        var fim = new FimAnalise("concluida", documento, pdf, null, 0);
+        var publicado = RecuperacaoAnaliseLocal.Publicar(origem, local, Id, "analise", fim, () => {});
+        Assert.Equal("para_revisao", publicado.Situacao);
+        Assert.Equal(Sha(documento), Sha(publicado.Documento!));
+        Assert.Equal(publicado.Documento, RecuperacaoAnaliseLocal.EntregaPublicada(origem, Id)?.Documento);
+        entrega["execucao"] = "outra";
+        Json(Em(controle, "delivery.json"), entrega);
+        Assert.Throws<InvalidDataException>(() => RecuperacaoAnaliseLocal.Publicar(origem, local, Id, "analise", fim, () => {}));
+    }
+
+    internal static FimAnalise Produto(string local, bool manual = false, string id = Id)
     {
         var controle = Controle(local);
         var produto = Em(controle, manual ? "edicao-manual" : @"runs\produce-1");
@@ -154,7 +188,7 @@ public class RecuperacaoAnaliseLocalTestes
         if (manual)
         {
             Json(delivery, new { document = doc, modo = "edicao_manual", etapa_pendente = "analyze" });
-            Json(Em(controle, "engine_state.json"), new { editor_execution = Id, @case = local, decisao_cota = "manual",
+            Json(Em(controle, "engine_state.json"), new { editor_execution = id, @case = local, decisao_cota = "manual",
                 decisoes = new[] { new { tipo = "limite_cota", etapa = "analyze", resposta = "manual" } } });
             return new("concluida", doc, null, "", 0);
         }
@@ -163,7 +197,7 @@ public class RecuperacaoAnaliseLocalTestes
         Json(delivery, new { document = doc, pdf });
         var cert = Em(produto, "montagem.json");
         Json(cert, new { document_sha256 = Sha(doc), pdf_sha256 = Sha(pdf), delivery_sha256 = Sha(delivery) });
-        Json(Em(controle, "engine_state.json"), new { editor_execution = Id, @case = local,
+        Json(Em(controle, "engine_state.json"), new { editor_execution = id, @case = local,
             stages = new { produce = new { evidence = new[] { new { path = cert, sha256 = Sha(cert) } } } },
             gate = new { validators = "ALL_PASSED", pdf, pdf_sha256 = Sha(pdf) } });
         return new("concluida", doc, pdf, "", 0);

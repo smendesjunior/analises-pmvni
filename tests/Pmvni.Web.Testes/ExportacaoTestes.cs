@@ -32,6 +32,37 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
     }
 
     [Fact]
+    public async Task impressao_nativa_publica_em_destino_profundo_do_kit()
+    {
+        var raiz = Directory.CreateTempSubdirectory("pmvni-teste-pdf-");
+        var pasta = raiz.FullName;
+        while (pasta.Length < 255)
+            pasta = Path.Combine(pasta, "recuperacao-da-exportacao");
+        var pdf = Path.Combine(pasta, "RELATORIO.PDF");
+        try
+        {
+            var dados = CaminhoCorpus("curto");
+            await Exportador.ExportarAnaliseAsync(dados, pdf, impressaoNativa: true);
+            await Exportador.ConferirPdfAnaliseAsync(dados, pdf);
+            Assert.True(File.Exists(Exportador.CaminhoReciboDe(pdf)));
+        }
+        finally { raiz.Delete(true); }
+    }
+
+    [Fact]
+    public void conferencia_identifica_as_duas_linhas_quando_to_e_tp_sao_trocadas()
+    {
+        var pdf = Pmvni.Legislacao.Testes.Ficticios.PdfLegislacaoFicticio.Gerar([["74,13%", "10,63%"]]);
+        var to = new TrechoImpresso("74,13%", "Taxa de ocupação", 69d / 595, 58d / 842, 122d / 595, 76d / 842);
+        var tp = new TrechoImpresso("10,63%", "Taxa de permeabilidade", 69d / 595, 76d / 842, 122d / 595, 94d / 842);
+        ConferenciaImpressao.Conferir(pdf, [[to, tp]]);
+        var erro = Assert.Throws<InvalidDataException>(() => ConferenciaImpressao.Conferir(pdf,
+            [[to with { Texto = tp.Texto }, tp with { Texto = to.Texto }]]));
+        Assert.Contains(to.Campo, erro.Message);
+        Assert.Contains(tp.Campo, erro.Message);
+    }
+
+    [Fact]
     public void conferencia_exige_o_valor_com_sinal_na_linha_e_folha_corretas()
     {
         var pdf = Pmvni.Legislacao.Testes.Ficticios.PdfLegislacaoFicticio.Gerar([["-1,25", "11"], ["1,25"]]);
@@ -344,8 +375,8 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
         await tela.Documento.CarregarAsync(r, Cfg(caso));
         await tela.Documento.AplicarPlanoAsync(x.Plano);
 
-        var arquivo = await Windows.Storage.StorageFile.GetFileFromPathAsync(pdf);
-        var doc = await Windows.Data.Pdf.PdfDocument.LoadFromFileAsync(arquivo);
+        using var entrada = File.OpenRead(pdf).AsRandomAccessStream();
+        var doc = await Windows.Data.Pdf.PdfDocument.LoadFromStreamAsync(entrada);
         Assert.Equal((uint)x.Folhas, doc.PageCount);
         var falhas = new List<string>();
         for (var i = 1; i <= x.Folhas; i++)
@@ -406,7 +437,7 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
             "sha256_pdf", "folhas", "gerado_em", "pagina_mm" }, j.EnumerateObject().Select(p => p.Name));
         Assert.True(j.GetProperty("rascunho").GetBoolean()); // ExportarAsync sem dizer o contrário: rascunho
         Assert.Equal(1, j.GetProperty("recibo_versao").GetInt32());
-        Assert.Equal(14, j.GetProperty("modelo_revisao").GetInt32());
+        Assert.Equal(15, j.GetProperty("modelo_revisao").GetInt32());
         var modelo = j.GetProperty("sha256_modelo").Deserialize<Dictionary<string, string>>()!;
         Assert.Equal(Modelo.Sha256.OrderBy(p => p.Key, StringComparer.Ordinal), modelo.OrderBy(p => p.Key, StringComparer.Ordinal));
         Assert.Equal(Sha(File.ReadAllBytes(CaminhoCorpus("curto"))), j.GetProperty("sha256_dados").GetString());
@@ -480,8 +511,8 @@ public sealed class ExportacaoTestes : IClassFixture<ExportacaoFixture>
     /// <summary>Leitura independente do PDF (Windows.Data.Pdf): páginas e tamanho da 1ª página (DIPs → mm).</summary>
     static async Task<(uint paginas, double larguraMm, double alturaMm)> LerComWindows(string caminho)
     {
-        var arquivo = await Windows.Storage.StorageFile.GetFileFromPathAsync(caminho);
-        var doc = await Windows.Data.Pdf.PdfDocument.LoadFromFileAsync(arquivo);
+        using var entrada = File.OpenRead(caminho).AsRandomAccessStream();
+        var doc = await Windows.Data.Pdf.PdfDocument.LoadFromStreamAsync(entrada);
         using var pagina = doc.GetPage(0);
         return (doc.PageCount, pagina.Size.Width * 25.4 / 96, pagina.Size.Height * 25.4 / 96);
     }

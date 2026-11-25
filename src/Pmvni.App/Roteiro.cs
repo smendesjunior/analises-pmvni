@@ -141,6 +141,8 @@ internal sealed class ConversorMedido(IConversorPdf real) : IConversorPdf
 /// independente: falha num não impede os seguintes.</summary>
 internal static class Roteiro
 {
+    public static int CodigoSaida { get; private set; } = 1;
+
     static readonly List<string> programasIniciados = [];
     static string pastaDoAgenteFalso = null!;
     static string? sofficeDoRoteiro;
@@ -212,6 +214,9 @@ internal static class Roteiro
         }
         // Tarefa 10: salvamento automático com 15 s nos ajustes do roteiro (o menor intervalo permitido).
         Registrar("limpeza concluída");
+        j.AjustesAtuais.ProfissionalNome = "Profissional do ensaio fictício";
+        j.AjustesAtuais.ProfissionalProfissao = "Analista do ensaio";
+        Pmvni.Composicao.Profissional.Atual = j.AjustesAtuais.Profissional;
         j.DefinirIntervaloAutosave(15);
         var saida = new JsonObject
         {
@@ -227,9 +232,14 @@ internal static class Roteiro
 
         var somenteMonitor = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_MONITOR") == "1";
         var somenteAjustes = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_AJUSTES") == "1";
+        var somenteRevisao = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_REVISAO") == "1";
+        if (new[] { somenteMonitor, somenteAjustes, somenteRevisao }.Count(ativo => ativo) > 1)
+            throw new ArgumentException("Escolha apenas um modo de roteiro focal.");
         async Task Passo(string nome, Func<JsonObject, Task> corpoPasso)
         {
             if (somenteAjustes && nome is not ("plugins_e_ferramentas" or "modelos_da_analise")) return;
+            if (somenteRevisao && nome is not ("1_importar_longo" or "13_selecionar_e_editar_no_a4" or
+                "14_situacao_e_justificativa" or "15_excluir_e_marca" or "16_desfazer_refazer" or "17_salvar_reabrir_exportar")) return;
             if (somenteMonitor && nome != "monitor_controles") return;
             var p = new JsonObject();
             Registrar("início " + nome);
@@ -754,7 +764,7 @@ internal static class Roteiro
             p["f2_edita_o_ultimo_campo_clicado"] = campoF2;
             await TeclaAsync(j, "Escape", "Escape", 27);
             await EsperarAteAsync(async () => !(await Js(j, "!!document.querySelector('[data-pmvni-editando]')")).GetBoolean(), 3000);
-            p["ok"] = j.Selecionado == item.Id && j.TextoPropriedadesTitulo == "ITEM 03" && camposNaTela > 0 && abriu
+            p["ok"] = j.Selecionado == item.Id && j.TextoPropriedadesTitulo == "Item 03" && camposNaTela > 0 && abriu
                 && efetivo == NovaVerificacao && p["folhas_tem_o_texto_novo"]!.GetValue<bool>() && p["data_campo_fora_do_html_preparado"]!.GetValue<bool>()
                 && j.TextoEstadoAtual == "Não salvo" && p["lista_marca_alterado"]!.GetValue<bool>() && campoF2 == "titulo";
             await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "13-janela-xaml-propriedades.png"));
@@ -883,9 +893,14 @@ internal static class Roteiro
             var citacoes = CamadaFiguras.Inicial(proj)
                 .SelectMany(f => f.Marcacoes.Select(m => (Figura: f.Id, Marcacao: m.Id, Itens: CamadaFiguras.ItensCitados(m.Itens))))
                 .Where(m => m.Itens.Contains(id5!)).ToArray();
+            // Neste cenário fictício o revisor atribui as três indicações ao ITEM 03 revisado.
+            // As marcações gravadas no raster mantêm o número e recebem o vínculo pela legenda.
             foreach (var (figura, marcacao, itens) in citacoes)
-                await j.AplicarAsync(new VincularItens(figura, marcacao, itens.Where(id => id != id5).ToArray()));
+                await j.AplicarAsync(new VincularItens(figura, marcacao, itens.Select(id => id == id5 ? id3! : id).Distinct().ToArray()));
             p["indicacoes_corrigidas"] = citacoes.Length;
+            await j.ExecutarComandoAsync(ComandosApp.ArquivoSalvar);
+            if (!await j.FecharSessaoAsync() || !await j.AbrirPacoteAsync(pacoteLongo))
+                throw new InvalidOperationException("Não reabriu o pacote depois de corrigir as indicações.");
             var (ok, x, erro, _) = await j.ExportarParaAsync(pdf);
             if (!ok || x is null) throw new InvalidOperationException("exportação falhou: " + erro);
             var info = InfoPdf.Ler(await File.ReadAllBytesAsync(pdf));
@@ -2919,7 +2934,7 @@ internal static class Roteiro
             var claude = j.CartaoDoAgente(Provedor.Claude);
             var gemini = j.CartaoDoAgente(Provedor.Gemini);
 
-            // (a) Os três cartões consultam conta, plugins e os programas locais ao abrir a categoria, antes de clicar em Testar.
+            // (a) Os cartões ativos consultam conta, plugins e os programas locais ao abrir a categoria, antes de clicar em Testar.
             // Ajustes › Inteligência artificial (a página abre em Geral; os cartões ficam nesta categoria, auditoria §3.3).
             pag.MostrarCategoria(CategoriasAjustes.Ia);
             await j.AguardarAgentesAsync();
@@ -2929,21 +2944,21 @@ internal static class Roteiro
             var situacaoSozinha = chatgpt.TextoSituacao.Text;
             var secao = j.PaginaAjustesVisivel && pag.CategoriaAtual == CategoriasAjustes.Ia && pag.TituloAgentes.Text == "Inteligência artificial";
             var cartoes = chatgpt.Titulo.Text == "ChatGPT (Codex · análise, rota ChatGPT)" && claude.Titulo.Text == "Claude (Claude Code · análise, rota Claude)"
-                && gemini.Titulo.Text == "Gemini (Antigravity · análise, rota Gemini)" && gemini.CaixaPerfil.Items.Count == TextosAgentes.OpcoesPerfilGemini.Count
-                && chatgpt.TextoServico.Text == "Codex (ChatGPT)" && claude.TextoServico.Text == "Claude" && gemini.TextoServico.Text == "Antigravity (Gemini)"
-                && new[] { chatgpt, claude, gemini }.All(c => c.ActualHeight > 0 && c.BotaoTestar.IsEnabled && c.OpcaoConta.IsChecked == true)
+                && gemini.Visibility == Visibility.Collapsed
+                && chatgpt.TextoServico.Text == "Codex (ChatGPT)" && claude.TextoServico.Text == "Claude"
+                && new[] { chatgpt, claude }.All(c => c.ActualHeight > 0 && c.BotaoTestar.IsEnabled && c.OpcaoConta.IsChecked == true)
                 && chatgpt.OpcaoConta.Content as string == "Usar minha conta (login do programa)"
                 && (chatgpt.OpcaoChave.Content as string ?? "").StartsWith("Usar chave de API", StringComparison.Ordinal);
             var contas = chatgpt.TextoNomeConta.Text == TextosAgentes.NaoConectado && claude.TextoNomeConta.Text == "Conta gerenciada no Claude"
                 && (string)claude.BotaoConta.Content == "Abrir Claude"
                 && chatgpt.BotaoConta.Content as string == "Entrar" && chatgpt.TextoAssinatura.Text == "—"
-                && new[] { chatgpt, claude, gemini }.All(c => c.SeloChave.Texto == TextosAgentes.NaoConfigurada);
+                && new[] { chatgpt, claude }.All(c => c.SeloChave.Texto == TextosAgentes.NaoConfigurada);
             var plugins = chatgpt.SeloPluginAnalise.Texto == "Versão 4.0.0" && chatgpt.SeloPluginAnalise.Ok && claude.SeloPluginPro.Texto == "Versão 4.0.0"
                 && claude.LinhaPluginPro.Visibility == Visibility.Visible && chatgpt.LinhaPluginPro.Visibility == Visibility.Collapsed
                 && chatgpt.TextoPluginAnalise.Text.StartsWith("No Codex, habilitado · instalado ou atualizado em ", StringComparison.Ordinal)
                 && j.AjustesAtuais.PluginsVistos.TryGetValue("chatgpt.analise", out var vista) && vista == "4.0.0";
             p["secao_e_texto"] = secao;
-            p["tres_cartoes"] = cartoes;
+            p["dois_cartoes"] = cartoes;
             p["contas_locais"] = contas;
             p["plugins_do_kit"] = plugins;
             p["situacao_sozinha"] = situacaoSozinha;
@@ -2951,7 +2966,7 @@ internal static class Roteiro
             // (b) As peças achadas são só as do agente falso (o codex e o claude de verdade nunca são procurados nem iniciados).
             var pecas = j.PecasAgentes;
             bool Dentro(string? c) => c is not null && Path.GetFullPath(c).StartsWith(agenteFalsoPasta + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
-            var soFalso = Dentro(pecas.Codex) && Dentro(pecas.Claude) && Dentro(pecas.Python) && Dentro(pecas.Agy) && !pecas.PythonPeloLauncher
+            var soFalso = Dentro(pecas.Codex) && Dentro(pecas.Claude) && Dentro(pecas.Python) && pecas.Agy is null && pecas.GoogleRuntime is null && !pecas.PythonPeloLauncher
                 && pecas.PluginAnaliseHabilitado && pecas.VersaoPluginAnalise == "4.0.0" && pecas.VersaoAnalisePro == "4.0.0" && !pecas.ApiPermitidaNoKit;
             var foraDaLista = Path.Combine(pasta, "programas-bloqueados", "fora-da-lista.exe");
             string? bloqueio = null;
@@ -3210,6 +3225,15 @@ internal static class Roteiro
             return File.Exists(arquivo) ? File.ReadAllLines(arquivo, System.Text.Encoding.UTF8).Where(l => l.StartsWith(acao + "\t", StringComparison.Ordinal)).ToArray() : [];
         }
 
+        void Concluir()
+        {
+            saida["falhas"] = falhas;
+            saida["ok"] = falhas.Count == 0;
+            Gravar(args.Roteiro!, saida);
+            CodigoSaida = falhas.Count == 0 ? 0 : 1;
+            Application.Current.Exit();
+        }
+
         if (somenteMonitor)
         {
             await Passo("monitor_controles", async p =>
@@ -3436,9 +3460,7 @@ internal static class Roteiro
                 await Conferir("Todas as etapas concluídas e 100%", () => Campo("percent") == "100%" && Campo("status") == "Análise concluída" && Campo("eta") == "Concluída");
             });
             RegistrarProgramasIniciados();
-            saida["ok"] = falhas.Count == 0;
-            Gravar(args.Roteiro!, saida);
-            Application.Current.Exit();
+            Concluir();
             return;
         }
 
@@ -3726,156 +3748,11 @@ internal static class Roteiro
             p["ok"] = textoSob && aviso && pendenteDurante && linhaIniciar && situacoes >= 2 && linhasDoLog > 0 && registro && importado && semPendente && etapas && objecoes && continuou;
         });
 
-        // 1.1.0: o terceiro botão, de ponta a ponta na tela, com o agente falso no papel do análise Google (conferência, partida, etapas, importação),
-        // o perfil da chave escolhido à mão, a confirmação do processo fictício e a pausa por cota com "Continuar a análise" da etapa pendente.
         await Passo("54b_novo_relatorio_gemini", async p =>
         {
-            await PrepararNovoRelatorioAsync();
-            await SemRelatorioAbertoAsync();
-            var processo = P0001();
-            string[] Col(string linha) => linha.Split('\t');
-            await j.DefinirModoAsync(Provedor.Gemini, ModoAcesso.Conta);
-            await j.DefinirPerfilGeminiAsync(null);
-            await j.NovoRelatorioAsync();
-            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
-            var n = j.NovoRelatorio;
-            var botao = (n.BotaoGemini.Content as StackPanel)?.Children.OfType<TextBlock>().FirstOrDefault()?.Text == "Analisar com o Gemini"
-                && j.BotaoAnaliseHabilitado(Provedor.Gemini) && j.BotaoAnaliseHabilitado(Provedor.ChatGpt) && j.BotaoAnaliseHabilitado(Provedor.Claude)
-                && n.TextoPluginGemini.Text == "Pelo Antigravity · Análise — rota Gemini v4.0.0" && n.TextoPerfilGemini.Text == "Perfil: Conta Google (plano Ultra)";
-            p["rotulo_do_botao"] = n.TextoPluginGemini.Text;
-
-            // Conta Google: aviso na primeira vez, conferência antes da partida, as etapas na tela e o relatório importado.
-            j.PedidoTexto = "Diretriz fictícia para o Gemini.";
-            j.EsquecerAviso(Provedor.Gemini);
-            var conferirAntes = Chamadas(processo, "conferir").Length;
-            var iniciarAntes = Chamadas(processo, "iniciar").Length;
-            var confirmacoes = perguntas.Confirmacoes.Count;
-            j.Orquestrador = Orq("claude_ok");
-            var e = await j.AnalisarAsync(Provedor.Gemini) ?? throw new InvalidOperationException("não partiu: " + j.InfoMensagemAtual.Message);
-            var aviso = perguntas.Confirmacoes.Skip(confirmacoes).Count(c => c.Titulo == "Analisar com o Gemini" && c.Texto == FluxoNovoRelatorio.TextoAviso(Provedor.Gemini)) == 1;
-            var pendenteDurante = j.ExecucoesClaudePendentes.Count == 1;
-            var etapasVistas = new List<string>();
-            var painelDasEtapas = false;
-            var painelSemHalo = true;
-            while (!e.Fim.IsCompleted)
-            {
-                if (e.Situacao?.Etapa is { } et && (etapasVistas.Count == 0 || etapasVistas[^1] != et)) etapasVistas.Add(et);
-                painelSemHalo &= Trabalhando.BrilhoDe(n.PainelClaude) is not { HaloVisivel: true };
-                painelDasEtapas |= ReferenceEquals(j.ExecucaoMostrada, e) && n.PainelClaude.Visibility == Visibility.Visible;
-                await Esperar(100);
-            }
-            var fim = await Prazo(j.AguardarAnaliseAsync(e), 120);
-            p["fim"] = fim.Situacao + (fim.Mensagem is null ? "" : ": " + fim.Mensagem);
-            p["etapas_vistas"] = new JsonArray(etapasVistas.Select(x => (JsonNode)x).ToArray());
-            var conferir = Chamadas(processo, "conferir").Skip(conferirAntes).Select(Col).ToArray();
-            var iniciar = Chamadas(processo, "iniciar").Skip(iniciarAntes).Select(Col).ToArray();
-            var googleRuntime = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "gemini", "google_runtime.py");
-            var partida = conferir.Length == 1 && iniciar.Length == 1
-                && new[] { conferir[0], iniciar[0] }.All(c => c[2] == "CHAVE_AUSENTE" && c[3] == "conta" && c[4] == "conta_ultra" && c[5] == "-")
-                && JsonNode.Parse(iniciar[0][1])!.AsArray().Select(a => a!.GetValue<string>()).SequenceEqual(["-B", "-X", "utf8", googleRuntime, "--case", processo, "iniciar"]);
-            var execucao = JsonNode.Parse(File.ReadAllText(Path.Combine(e.Registro.Pasta, "execucao.json"), System.Text.Encoding.UTF8))!;
-            var registro = (string?)execucao["provedor"] == "gemini" && (string?)execucao["autenticacao"] == "conta_google" && (string?)execucao["perfil"] == "conta_ultra"
-                && (string?)execucao["plugin"] == "Análise — rota Gemini" && (string?)execucao["versao_do_plugin"] == "4.0.0"
-                && File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "analise-google", "diretrizes.md"), System.Text.Encoding.UTF8)
-                    == "Diretriz fictícia para o Gemini.\n";      // só o texto do analista (Tarefa 13)
-            var s = j.Sessao;
-            var importado = fim.Situacao == "concluida" && s is not null && NaEtapa(s.Caminho, processo)
-                && fim.Documento == Path.Combine(processo, ".pmvni-ai", "analise-google", "relatorio_dados.json") && j.FolhasVisiveis
-                && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Gemini, s.Caminho, fim.Pdf);
-            p["infobar"] = j.InfoMensagem.Message;
-            var semPendente = j.ExecucoesClaudePendentes.Count == 0;
-            var etapas = etapasVistas.Count >= 2 && etapasVistas[0] is "prepare" or "analyze" && etapasVistas[^1] == "final_review" && painelDasEtapas && painelSemHalo;
-            p["etapas_sem_halo"] = painelSemHalo;
-
-            // Chave: sem perfil escolhido o botão explica; com o perfil, pede a chave; nada é presumido nem trocado.
-            await SemRelatorioAbertoAsync();
-            await j.NovoRelatorioAsync();
-            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == processo));
-            await j.DefinirModoAsync(Provedor.Gemini, ModoAcesso.Chave);
-            var cartao = j.CartaoDoAgente(Provedor.Gemini);
-            var semPerfil = j.MotivoBotao(Provedor.Gemini) == FluxoNovoRelatorio.SemPerfilApi && !j.BotaoAnaliseHabilitado(Provedor.Gemini)
-                && cartao.PainelPerfil.Visibility == Visibility.Visible && cartao.CaixaPerfil.SelectedIndex == 0 && n.TextoPerfilGemini.Text == "Perfil da chave não escolhido"
-                && j.BotaoAnaliseHabilitado(Provedor.ChatGpt) && j.BotaoAnaliseHabilitado(Provedor.Claude);
-            await j.DefinirPerfilGeminiAsync(PerfilGemini.ApiGratuita);
-            var semChave = j.MotivoBotao(Provedor.Gemini) == "Guarde a chave de API em Ajustes › Inteligência artificial ou use a sua conta." && cartao.CaixaPerfil.SelectedIndex == 2
-                && cartao.TextoMatriz.Text == TextosAgentes.MatrizDoGemini(ModoAcesso.Chave, PerfilGemini.ApiGratuita);
-            var chave = "gemini-ficticia-roteiro-" + Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
-            await j.GuardarChaveAsync(Provedor.Gemini, chave);
-            var comChave = j.MotivoBotao(Provedor.Gemini) is null && j.BotaoAnaliseHabilitado(Provedor.Gemini) && cartao.CaixaChave.Password.Length == 0;
-            bool gratuitaRecusada, gratuitaAceita;
-            try
-            {
-                // API gratuita: sem a confirmação de processo fictício, nada parte; com ela, a chave e o perfil vão só à conferência e à partida.
-                iniciarAntes = Chamadas(processo, "iniciar").Length;
-                confirmacoes = perguntas.Confirmacoes.Count;
-                perguntas.Confirmar = false;
-                var recusada = await j.AnalisarAsync(Provedor.Gemini);
-                gratuitaRecusada = recusada is null && Chamadas(processo, "iniciar").Length == iniciarAntes
-                    && perguntas.Confirmacoes.Skip(confirmacoes).Count(c => c.Titulo == TextosAgentes.FicticioTitulo && c.Texto == TextosAgentes.FicticioTexto) == 1;
-                perguntas.Confirmar = true;
-                j.Orquestrador = Orq("claude_ok");
-                var eApi = await j.AnalisarAsync(Provedor.Gemini) ?? throw new InvalidOperationException("API gratuita não partiu: " + j.InfoMensagemAtual.Message);
-                var fimApi = await Prazo(j.AguardarAnaliseAsync(eApi), 120);
-                var iniciarApi = Chamadas(processo, "iniciar").Skip(iniciarAntes).Select(Col).ToArray();
-                var sha8 = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(chave)))[..8];
-                var execucaoApi = JsonNode.Parse(File.ReadAllText(Path.Combine(eApi.Registro.Pasta, "execucao.json"), System.Text.Encoding.UTF8))!;
-                gratuitaAceita = fimApi.Situacao == "concluida" && iniciarApi.Length == 1 && iniciarApi[0][2] == "CHAVE_PRESENTE " + sha8 && iniciarApi[0][3] == "api"
-                    && iniciarApi[0][4] == "api_gratuita" && iniciarApi[0][5] == "1" && (string?)execucaoApi["autenticacao"] == "gemini_api" && (string?)execucaoApi["perfil"] == "api_gratuita"
-                    && Chamadas(processo, "situacao").Select(Col).Where(c => c.Length > 4).All(c => c[2] == "CHAVE_AUSENTE")
-                    && !File.ReadAllText(Path.Combine(eApi.Registro.Pasta, "execucao.json"), System.Text.Encoding.UTF8).Contains(chave, StringComparison.Ordinal)
-                    && !File.ReadAllText(Path.Combine(PastaDados.Raiz, "ajustes.json"), System.Text.Encoding.UTF8).Contains(chave, StringComparison.Ordinal);
-                p["api_gratuita"] = fimApi.Situacao + (fimApi.Mensagem is null ? "" : ": " + fimApi.Mensagem);
-            }
-            finally
-            {
-                perguntas.Confirmar = true;
-                CofreChaves.Remover(PastaDados.Raiz, Provedor.Gemini);
-                await j.DefinirModoAsync(Provedor.Gemini, ModoAcesso.Conta);
-            }
-            var perfilGuardado = j.PerfilApiDoGemini == PerfilGemini.ApiGratuita && j.PerfilDoGemini == PerfilGemini.ContaUltra;     // a escolha fica; a conta volta a valer
-
-            // Pausa por cota numa etapa: o motivo do plugin fica à vista com "Continuar a análise", que retoma da etapa pendente.
-            await SemRelatorioAbertoAsync();
-            await j.NovoRelatorioAsync();
-            var outro = P0012();
-            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == outro));
-            var cenarioPausa = Path.Combine(pasta, "gemini-pausa.json");
-            File.WriteAllText(cenarioPausa, new JsonObject
-            {
-                ["relatorio"] = Path.Combine(corpus, "agentes", "relatorio_dados_0001.json"),
-                ["auto"] = new JsonObject { ["etapa_ms"] = 200, ["final"] = "CONCLUIDO", ["pausar_na_etapa"] = "audit", ["motivo"] = "cota_conta", ["erro"] = "Cota da conta Google esgotada na etapa audit." },
-            }.ToJsonString(), new System.Text.UTF8Encoding(false));
-            OrquestradorAnalise OrqPausa() => new()
-            {
-                DocumentosParaTeste = documentosDoRoteiro,
-                IntervaloSituacao = TimeSpan.FromMilliseconds(200), IntervaloLog = TimeSpan.FromMilliseconds(200),
-                AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = cenarioPausa },
-            };
-            j.Orquestrador = OrqPausa();
-            var ePausa = await j.AnalisarAsync(Provedor.Gemini) ?? throw new InvalidOperationException("não partiu: " + j.InfoMensagemAtual.Message);
-            var fimPausa = await Prazo(j.AguardarAnaliseAsync(ePausa), 120);
-            var infoPausa = n.AvisoResultado;
-            string[] Feitas() => File.Exists(Path.Combine(outro, ".pmvni-ai", "agente-falso", "etapas.txt")) ? File.ReadAllLines(Path.Combine(outro, ".pmvni-ai", "agente-falso", "etapas.txt")) : [];
-            var pausou = fimPausa.Situacao == "interrompida" && infoPausa.IsOpen && infoPausa.Title == "A análise com o Gemini parou"
-                && infoPausa.Message.EndsWith("Cota da conta Google esgotada na etapa audit.", StringComparison.Ordinal)
-                && n.BotaoContinuar.Visibility == Visibility.Visible && Feitas().SequenceEqual(["prepare", "analyze", "technical_audit", "produce"]);
-            p["pausa"] = infoPausa.Message;
-            j.Orquestrador = OrqPausa();
-            var eCont = await j.ContinuarAnaliseAsync() ?? throw new InvalidOperationException("Continuar não partiu: " + j.InfoMensagemAtual.Message);
-            var fimCont = await Prazo(j.AguardarAnaliseAsync(eCont), 120);
-            var retomou = fimCont.Situacao == "concluida" && eCont.Provedor == Provedor.Gemini
-                && Feitas().SequenceEqual(["prepare", "analyze", "technical_audit", "produce", "audit", "final_review"])      // cada etapa uma vez: nada concluído se repete
-                && Chamadas(outro, "iniciar").Select(Col).All(c => c[3] == "conta" && c[4] == "conta_ultra");
-            p["retomada"] = fimCont.Situacao + (fimCont.Mensagem is null ? "" : ": " + fimCont.Mensagem);
-            await SemRelatorioAbertoAsync();
-            p["partes"] = new JsonObject
-            {
-                ["botao"] = botao, ["aviso"] = aviso, ["pendente_durante"] = pendenteDurante, ["partida"] = partida, ["registro"] = registro, ["importado"] = importado,
-                ["sem_pendente"] = semPendente, ["etapas"] = etapas, ["sem_perfil"] = semPerfil, ["sem_chave"] = semChave, ["com_chave"] = comChave,
-                ["gratuita_recusada"] = gratuitaRecusada, ["gratuita_aceita"] = gratuitaAceita, ["perfil_guardado"] = perfilGuardado, ["pausou"] = pausou, ["retomou"] = retomou,
-            };
-            p["ok"] = botao && aviso && pendenteDurante && partida && registro && importado && semPendente && etapas && semPerfil && semChave && comChave
-                && gratuitaRecusada && gratuitaAceita && perfilGuardado && pausou && retomou;
+            var recusado = await j.AnalisarAsync(Provedor.Gemini) is null;
+            p["ok"] = recusado && !j.BotaoAnaliseHabilitado(Provedor.Gemini)
+                && j.CartaoDoAgente(Provedor.Gemini).Visibility == Visibility.Collapsed;
         });
 
         await Passo("55_novo_relatorio_segundo_plano_e_cancelar", async p =>
@@ -5659,7 +5536,10 @@ internal static class Roteiro
                 await Esperar(800);
                 var grade = pag.PainelModelosAnalise.Children.OfType<Grid>().FirstOrDefault();
                 var caixas = grade?.Children.OfType<Grid>().SelectMany(s => s.Children.OfType<ComboBox>()).ToList() ?? [];
-                var gradeOk = grade is not null && caixas.Count == iaIds.Length * 2;
+                // A auditoria Codex tem perfil fixo. Só análise e autocorreção oferecem seletores.
+                var gradeOk = grade is not null && caixas.Count == 4
+                    && grade.Children.OfType<TextBlock>().Any(b => b.Text.Contains("Sol 6.2 · esforço médio"))
+                    && !caixas.Any(c => AutomationProperties.GetName(c).Contains("Auditoria", StringComparison.OrdinalIgnoreCase));
                 pag.PainelModelosAnalise.StartBringIntoView();
                 await Esperar(300);
                 await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "modelos-da-analise-xaml.png"));
@@ -5693,7 +5573,7 @@ internal static class Roteiro
                     var modelo = seletores.Single(c => AutomationProperties.GetName(c).StartsWith("Modelo de Autocorreção em "));
                     var nivel = seletores.Single(c => AutomationProperties.GetName(c).StartsWith("Nível de Autocorreção em "));
                     var titulo = pag.TituloRota.Text;
-                    var padraoEsperado = indice switch { 0 => "gpt-6.1-terra", 1 => "claude-sonnet-5-5", _ => "gemini-3.8-flash" };
+                    var padraoEsperado = indice == 0 ? "gpt-6.1-terra" : "claude-sonnet-5-5";
                     var padraoOk = (modelo.SelectedItem as ComboBoxItem)?.Tag as string == padraoEsperado
                         && (nivel.SelectedItem as ComboBoxItem)?.Tag as string == "medio";
                     var nota = novaGrade.Children.OfType<TextBlock>().Single(b => b.Text.Contains("consertos automáticos"));
@@ -5707,7 +5587,7 @@ internal static class Roteiro
                     rotaOk &= rotas[titulo]!.GetValue<bool>();
                 }
                 p["autocorrecao_por_rota"] = rotas;
-                rotaOk &= rotas.Count == 3;
+                rotaOk &= rotas.Count == 2;
                 p["texto"] = pag.TextoModelosAnalise.Text;
                 p["conferencias"] = new JsonObject
                 {
@@ -5762,11 +5642,44 @@ internal static class Roteiro
                     var confirmacao = perguntas.Confirmacoes.Last(c => c.Titulo == "O kit precisa de atualização");
                     var prevoo = instalou && fim.Situacao == "concluida" && confirmacao.Sim == "Atualizar kit e continuar"
                         && confirmacao.Texto.Contains("scripts/validar.py") && ComponentesDoKit.Lista.All(c => confirmacao.Texto.Contains(c.Nome));
-                    var arq = Path.Combine(execucao.Registro.Pasta, TabelaDeModelos.NomeDoArquivo);
-                    var politica = JsonNode.Parse(File.ReadAllText(arq))!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!["autocorrecao"]!;
+                    var arq = Path.Combine(execucao.RegistroDeTrabalho, TabelaDeModelos.NomeDoArquivo);
+                    var recebido = (string?)Recebido(execucao.PastaDeTrabalho)["modelos"];
+                    var etapasCodex = JsonNode.Parse(File.ReadAllText(arq))!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!;
+                    var autocorrecao = etapasCodex["autocorrecao"];
+                    var auditoria = etapasCodex["technical_audit"];
+                    var tabelaRecebida = string.Equals(arq, recebido, StringComparison.OrdinalIgnoreCase);
+                    var perfisConferem = (string?)autocorrecao?["modelo"] == "gpt-6.1-terra" && (string?)autocorrecao?["nivel"] == "alto"
+                        && (string?)auditoria?["modelo"] == "gpt-6.2-sol" && (string?)auditoria?["nivel"] == "medio";
                     p["conferencia_antes_de_partir"] = prevoo;
                     p["tabela_da_execucao"] = arq;
-                    p["ok"] = p["ok"]!.GetValue<bool>() && prevoo && (string?)politica["nivel"] == "alto";
+                    p["executor_recebeu_tabela_do_registro_de_trabalho"] = tabelaRecebida;
+                    p["perfis_de_autocorrecao_e_auditoria"] = perfisConferem;
+                    p["ok"] = p["ok"]!.GetValue<bool>() && prevoo && tabelaRecebida && perfisConferem;
+                    var recebimento = new JsonObject { ["ChatGPT"] = tabelaRecebida && perfisConferem };
+                    p["tabela_recebida_por_rota"] = recebimento;
+                    foreach (var (provedor, rota, perfil, indice, modeloEsperado) in new[] {
+                        (Provedor.Claude, "claude", "padrao", 1, "claude-sonnet-5-5") })
+                    {
+                        await j.MudarModuloAsync(Modulo.Ajustes);
+                        pag.MostrarCategoria(CategoriasAjustes.Modelos);
+                        var cartao = (Microsoft.UI.Xaml.Controls.Primitives.ToggleButton)pag.CartoesRotas.Children[indice];
+                        if (cartao.IsChecked != true)
+                            ((IToggleProvider)new ToggleButtonAutomationPeer(cartao).GetPattern(PatternInterface.Toggle)).Toggle();
+                        var seletores = pag.PainelModelosAnalise.Children.OfType<Grid>().Single()
+                            .Children.OfType<Grid>().SelectMany(g => g.Children.OfType<ComboBox>());
+                        var nivel = seletores.Single(c => AutomationProperties.GetName(c) == $"Nível de Autocorreção em {provedor}");
+                        nivel.SelectedItem = nivel.Items.OfType<ComboBoxItem>().Single(i => (string)i.Tag == "alto");
+                        await j.NovoRelatorioAsync();
+                        await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == P0001()));
+                        var (exec, resultado) = await AnalisarAteOFimAsync(provedor, "claude_ok");
+                        var arquivo = Path.Combine(exec.RegistroDeTrabalho, TabelaDeModelos.NomeDoArquivo);
+                        var chamadas = Path.Combine(exec.PastaDeTrabalho, ".pmvni-ai", "agente-falso", "modelos.txt");
+                        var perfilRecebido = JsonNode.Parse(File.ReadAllText(arquivo))!["rotas"]![rota]!["perfis"]![perfil]!["etapas"]!["autocorrecao"];
+                        var correto = resultado.Situacao == "concluida" && File.ReadLines(chamadas).Contains("iniciar\t" + arquivo, StringComparer.OrdinalIgnoreCase)
+                            && (string?)perfilRecebido?["modelo"] == modeloEsperado && (string?)perfilRecebido?["nivel"] == "alto";
+                        recebimento[provedor.ToString()] = correto;
+                        p["ok"] = p["ok"]!.GetValue<bool>() && correto;
+                    }
                     // Reabrir um registro interrompido com uma objeção. Nenhuma IA deve partir.
                     var casoPendente = P0012();
                     var regPendente = RegistroExecucao.Criar(casoPendente, Provedor.ChatGpt, DateTime.Now);
@@ -5774,7 +5687,8 @@ internal static class Roteiro
                     var estado = Path.Combine(controle, "engine_state.json");
                     var objecao = """{"stages":{"prepare":{"status":"EXECUTED"},"technical_audit":{"status":"OBJECTIONS","note":"Objeto fictício para conferir"}}}""";
                     File.WriteAllText(estado, objecao);
-                    j.AjustesAtuais.ExecucoesChatGpt.Add(new ExecucaoClaudePendente(casoPendente, regPendente.Pasta));
+                    // A tela oferece a primeira retomada disponível. As partidas fictícias do teste anterior também podem estar na lista.
+                    j.AjustesAtuais.ExecucoesChatGpt.Insert(0, new ExecucaoClaudePendente(casoPendente, regPendente.Pasta));
                     await j.NovoRelatorioAsync();
                     var confirmacoesAntes = perguntas.Confirmacoes.Count;
                     await j.RetomarExecucoesChatGptAsync();
@@ -5782,6 +5696,13 @@ internal static class Roteiro
                     var avisou = aviso.IsOpen && aviso.Severity == InfoBarSeverity.Warning && aviso.Message.Contains("Objeto fictício para conferir")
                         && aviso.Message.Contains("Auditoria técnica") && aviso.Message.Contains("Retomar análise")
                         && j.ExecucoesEmCurso.Count == 0 && perguntas.Confirmacoes.Count == confirmacoesAntes && File.ReadAllText(estado) == objecao;
+                    p["aviso_de_retomada"] = new JsonObject
+                    {
+                        ["aberto"] = aviso.IsOpen, ["nivel"] = aviso.Severity.ToString(),
+                        ["mensagem"] = aviso.Message, ["em_curso"] = j.ExecucoesEmCurso.Count,
+                        ["novas_confirmacoes"] = perguntas.Confirmacoes.Count - confirmacoesAntes,
+                        ["estado_preservado"] = File.ReadAllText(estado) == objecao,
+                    };
                     p["retomada_com_objecao_sem_reexecutar"] = avisou;
                     p["ok"] = p["ok"]!.GetValue<bool>() && avisou;
                     j.AjustesAtuais.ExecucoesChatGpt.RemoveAll(x => x.Registro == regPendente.Pasta);
@@ -5817,10 +5738,7 @@ internal static class Roteiro
         }
         RegistrarProgramasIniciados();
         saida["perguntas_feitas"] = new JsonArray(perguntas.Feitas.Select(s => (JsonNode)s).ToArray());
-        saida["falhas"] = falhas;
-        saida["ok"] = falhas.Count == 0;
-        Gravar(args.Roteiro!, saida);
-        Application.Current.Exit();
+        Concluir();
     }
 
     /// <summary>A versão do plugin analise no kit (<c>01 - PLUGINS\plugins\analise\.codex-plugin\plugin.json</c>), só lida; null se não houver (Tarefa 18: um só plugin).</summary>

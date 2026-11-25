@@ -15,6 +15,7 @@ internal static class ConferenciaImpressao
         using var documento = PdfDocument.Open(pdf);
         if (esperado.Count != documento.NumberOfPages || esperado.All(f => f.Length == 0))
             throw new InvalidDataException("As folhas impressas não correspondem aos campos da composição.");
+        var divergencias = new List<string>();
         for (var i = 0; i < esperado.Count; i++)
         {
             var folha = documento.GetPage(i + 1);
@@ -25,11 +26,16 @@ internal static class ConferenciaImpressao
                 var alvo = Compactar(trecho.Texto);
                 if (alvo.Length == 0) continue;
                 // Coordenadas relativas à folha. Um ponto de tolerância cobre o arredondamento CSS/PDF.
-                var tinta = letras.Where(l => l.X >= trecho.X * folha.Width - 1 && l.X <= trecho.Direita * folha.Width + 1
-                    && l.Y >= trecho.Y * folha.Height - 1 && l.Y <= trecho.Base * folha.Height + 1).OrderBy(l => l.X);
-                if (Compactar(string.Concat(tinta.Select(l => l.Texto))) != alvo)
-                    throw new InvalidDataException($"O PDF perdeu ou deslocou “{trecho.Texto}” em {trecho.Campo}, folha {i + 1}. O PDF anterior foi preservado.");
+                string Impresso(double margem) => Compactar(string.Concat(letras.Where(l =>
+                    l.X >= trecho.X * folha.Width - margem && l.X <= trecho.Direita * folha.Width + margem &&
+                    l.Y >= trecho.Y * folha.Height - margem && l.Y <= trecho.Base * folha.Height + margem)
+                    .OrderBy(l => l.X).Select(l => l.Texto)));
+                var observado = Impresso(0);
+                if (observado != alvo && Impresso(1) != alvo)
+                    divergencias.Add($"“{trecho.Texto}” em {trecho.Campo}, folha {i + 1} (lido “{observado}”)");
             }
         }
+        if (divergencias.Count > 0)
+            throw new InvalidDataException("O PDF perdeu ou deslocou " + string.Join(", ", divergencias.Distinct()) + ". O PDF anterior foi preservado.");
     }
 }

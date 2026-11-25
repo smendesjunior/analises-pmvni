@@ -44,7 +44,7 @@ public sealed class TabelaModelosKit
     public IReadOnlyDictionary<string, bool> SobePorRota { get; init; } = new Dictionary<string, bool>();
 
     /// <summary>As rotas em que a regra geral "objeção técnica sobe um nível" vale (as exceções do kit ficam de fora).</summary>
-    public IReadOnlyList<string> RotasQueSobem => ModelosDaAnalise.Rotas.Where(r => !SobePorRota.TryGetValue(r, out var v) || v).ToList();
+    public IReadOnlyList<string> RotasQueSobem => Colunas.Select(c => c.Rota).Distinct().Where(r => !SobePorRota.TryGetValue(r, out var v) || v).ToList();
 
     public CelulaModelos? Celula(ColunaModelos c, string etapa) => Celulas.TryGetValue((c.Rota, c.Perfil, etapa), out var x) ? x : null;
 }
@@ -91,7 +91,10 @@ public static class ModelosDaAnalise
 {
     public const string NomeArquivoLocal = "modelos-por-rota.local.json";
     public const string CmdPublicar = "publicar-modelos-no-kit.cmd";
+    public static IReadOnlyList<string> RotasAtivas { get; } = Provedores.Ativos.Select(RotaDoProvedor).ToArray();
     public static readonly string[] Rotas = ["codex", "claude", "gemini"];
+    internal static readonly CelulaModelos AuditoriaCodex = new("gpt-6.2-sol", "medio");
+    internal static bool AuditoriaFixa(string rota, string etapa) => rota == "codex" && etapa == "technical_audit";
 
     public static string ArquivoLocal(string raizDados) => Path.Combine(raizDados, NomeArquivoLocal);
 
@@ -109,7 +112,7 @@ public static class ModelosDaAnalise
     // ---------- leitura ----------
 
     /// <summary>A tabela do kit; null se o texto não é a tabela (kit anterior ou arquivo quebrado: a aba avisa e não ajusta nada).</summary>
-    public static TabelaModelosKit? LerTabela(string? json)
+    public static TabelaModelosKit? LerTabela(string? json, bool apenasAtivas = false)
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
         try
@@ -119,8 +122,9 @@ public static class ModelosDaAnalise
             var eq = raiz["equivalencia"] is JsonObject e ? e.ToDictionary(k => k.Key, k => Texto(k.Value) ?? k.Key) : EquivalenciaPadrao;
             var colunas = new List<ColunaModelos>();
             var celulas = new Dictionary<(string, string, string), CelulaModelos>();
-            foreach (var rota in Rotas)
+            foreach (var rota in apenasAtivas ? RotasAtivas : Rotas)
             {
+                if (rota == "gemini" && rotas[rota] is null) continue;
                 if (rotas[rota] is not JsonObject r || r["perfis"] is not JsonObject perfis) return null;
                 var nomeRota = Texto(r["nome"]) ?? Provedores.Nome(ProvedorDaRota(rota));
                 foreach (var (perfil, pNo) in perfis)
@@ -143,6 +147,7 @@ public static class ModelosDaAnalise
             if (regras?["excecoes_por_rota"] is JsonObject exc)
                 foreach (var (rota, x) in exc)
                 {
+                    if (apenasAtivas && !RotasAtivas.Contains(rota)) continue;
                     if (Texto(x?["nota"]) is { } nota) notas[rota] = nota;
                     if (x?["sobe_por_objecao_tecnica"] is JsonValue sv && sv.TryGetValue<bool>(out var sobeRota)) sobePorRota[rota] = sobeRota;
                 }
@@ -345,6 +350,8 @@ public static class ModelosDaAnalise
     public static string? Ajustar(AjusteModelos a, TabelaModelosKit kit, ColunaModelos coluna, EtapaModelos etapa, string modelo, string nivel, ListaDaRota lista)
     {
         if (etapa.Programa) return $"A etapa {etapa.Nome} roda por programa, sem IA: não tem modelo.";
+        if (AuditoriaFixa(coluna.Rota, etapa.Id) && new CelulaModelos(modelo, nivel) != AuditoriaCodex)
+            return "A auditoria Codex exige Sol 6.2 com esforço médio.";
         if (kit.Celula(coluna, etapa.Id) is not { } padrao) return $"A tabela do kit não tem a etapa {etapa.Nome} em {coluna.Titulo}.";
         modelo = (modelo ?? "").Trim();
         if (!CatalogoIa.ModeloValido(modelo)) return "Modelo inválido: " + modelo + ".";
@@ -362,6 +369,21 @@ public static class ModelosDaAnalise
 
     /// <summary>"Restaurar padrão do kit": o ajuste vazio (o arquivo local é apagado; vale o kit).</summary>
     public static AjusteModelos Restaurar() => new();
+
+    public static AjusteModelos AjustesAtivos(AjusteModelos ajuste)
+    {
+        var ativos = new AjusteModelos { SobePorObjecao = ajuste.SobePorObjecao, DescePorCota = ajuste.DescePorCota, TrocaDescePorCota = ajuste.TrocaDescePorCota };
+        foreach (var (k, v) in ajuste.Celulas.Where(i => RotasAtivas.Contains(i.Key.Rota))) ativos.Celulas[k] = v;
+        foreach (var (k, v) in ajuste.Ligadas.Where(i => RotasAtivas.Contains(i.Key.Rota))) ativos.Ligadas[k] = v;
+        return ativos;
+    }
+
+    public static AjusteModelos PreservarRotasInativas(AjusteModelos original, AjusteModelos atualizado)
+    {
+        foreach (var (k, v) in original.Celulas.Where(i => !RotasAtivas.Contains(i.Key.Rota))) atualizado.Celulas[k] = v;
+        foreach (var (k, v) in original.Ligadas.Where(i => !RotasAtivas.Contains(i.Key.Rota))) atualizado.Ligadas[k] = v;
+        return atualizado;
+    }
 
     /// <summary>Grava o ajuste local (vazio = apaga o arquivo). Gravação atômica: arquivo novo ao lado, depois troca.</summary>
     public static void GravarAjuste(string raizDados, AjusteModelos a)
@@ -396,6 +418,13 @@ public static class ModelosDaAnalise
             {
                 if (kit.Celula(col, etapa.Id) is not { } padrao) continue;
                 var celula = ajuste.Celulas.GetValueOrDefault((col.Rota, col.Perfil, etapa.Id)) ?? padrao;
+                if (AuditoriaFixa(col.Rota, etapa.Id))
+                {
+                    celulas[(col.Rota, col.Perfil, etapa.Id)] = AuditoriaCodex;
+                    if (Falta(lista, AuditoriaCodex.Modelo))
+                        avisos.Add(new(col.Rota, "O catálogo da conta ainda não confirma o Sol 6.2 exigido pela auditoria."));
+                    continue;
+                }
                 if (Falta(lista, celula.Modelo))
                     avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: o modelo {celula.Modelo} não aparece mais na lista {lista!.Fonte}. Se a conta recusar, escolha o substituto nesta execução."));
                 else if (lista is { Conferida: true } && celula != padrao && !NiveisDoModelo(kit, lista, celula.Modelo).Contains(celula.Nivel))
@@ -444,6 +473,7 @@ public static class ModelosDaAnalise
         foreach (var col in kit.Colunas)
             foreach (var etapa in etapas.Where(e => kit.EtapasTecnicas.Contains(e.Id) && !e.Programa))
             {
+                if (AuditoriaFixa(col.Rota, etapa.Id)) continue;
                 var c = ajuste.Celulas.GetValueOrDefault((col.Rota, col.Perfil, etapa.Id)) ?? kit.Celula(col, etapa.Id);
                 if (c is not null && medio >= 0 && kit.Niveis.ToList().IndexOf(c.Nivel) < medio)
                     avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: nível {NomeDoNivel(c.Nivel).ToLowerInvariant()} numa etapa técnica (que decide mérito). É permitido, mas o recomendado é médio ou alto."));

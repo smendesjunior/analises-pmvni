@@ -106,7 +106,7 @@ public sealed partial class PaginaNovoRelatorio
             if (ultimoRelogio.Decorrido != relogio.Decorrido)
             {
                 MostrarTempo(valorDecorrido, relogio.Decorrido, relogio.Decorrido);
-                if (legendaTempos is not null) legendaTempos.Text = $"Onde os {relogio.Decorrido} foram gastos";
+                if (legendaTempos is not null) legendaTempos.Text = TextoTempoAtivo.Text;
             }
             if (ultimoRelogio.Previsao != relogio.Previsao || ultimaDicaPrevisao != dicaPrevisao)
                 MostrarTempo(valorPrevisao, relogio.Previsao, string.IsNullOrEmpty(dicaPrevisao) ? relogio.Previsao : dicaPrevisao);
@@ -290,7 +290,12 @@ public sealed partial class PaginaNovoRelatorio
         topo.Children.Add(info);
 
         var tempos = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
-        tempos.Children.Add(LadrilhoDeTempo(Glifos.Relogio, "Tempo decorrido", relogio.Decorrido, relogio.Decorrido, out valorDecorrido));
+        var duracoes = new StackPanel { Spacing = 2 };
+        duracoes.Children.Add(LadrilhoDeTempo(Glifos.Relogio, "Tempo decorrido", relogio.Decorrido, relogio.Decorrido, out valorDecorrido));
+        var atividade = LegendaGrafico("");
+        atividade.SetBinding(TextBlock.TextProperty, new Microsoft.UI.Xaml.Data.Binding { Source = TextoTempoAtivo, Path = new PropertyPath("Text") });
+        duracoes.Children.Add(atividade);
+        tempos.Children.Add(duracoes);
         Id(valorDecorrido, "elapsed");
         tempos.Children.Add(LadrilhoDeTempo(Glifos.Ano, "Previsão de término", relogio.Previsao,
             string.IsNullOrEmpty(dicaPrevisao) ? relogio.Previsao : dicaPrevisao, out valorPrevisao));
@@ -343,25 +348,40 @@ public sealed partial class PaginaNovoRelatorio
         AutomationProperties.SetName(campo, texto);
     }
 
-    /// <summary>Trilha das etapas: colunas iguais, marcador no centro de cada uma e a linha passando de centro a centro. O trecho que leva à
-    /// etapa em andamento tem um brilho correndo; o marcador atual pulsa como radar.</summary>
+    /// <summary>Uma faixa contínua entre os centros das etapas, com um único marcador luminoso na etapa ativa.</summary>
     Grid TrilhaDasEtapas()
     {
         var trilha = new Grid { Padding = new Thickness(12, 10, 12, 12), BorderThickness = new Thickness(0, 1, 0, 0) };
         trilha.BorderBrush = Estilo<Brush>("DividerStrokeColorDefaultBrush");
         AutomationProperties.SetName(trilha, "Progresso das etapas");
         var n = etapasMostradas.Length;
+        for (var coluna = 0; coluna < 2 * n; coluna++)
+            trilha.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
+        if (n > 1)
+        {
+            var feitas = etapasMostradas.TakeWhile(e => e.Estado == EstadoEtapa.Feita).Count();
+            var ponto = Math.Min(feitas, n - 1) / (double)(n - 1);
+            var verde = Estilo<SolidColorBrush>("MnVerde").Color;
+            var restante = Estilo<SolidColorBrush>("MnTrilho").Color;
+            var faixa = new Rectangle
+            {
+                Height = 3, Margin = new Thickness(0, 9.5, 0, 0), VerticalAlignment = VerticalAlignment.Top,
+                Fill = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0, 0.5), EndPoint = new Point(1, 0.5),
+                    GradientStops = { new() { Color = verde, Offset = 0 }, new() { Color = verde, Offset = ponto },
+                        new() { Color = restante, Offset = ponto }, new() { Color = restante, Offset = 1 } }
+                }
+            };
+            AutomationProperties.SetAutomationId(faixa, "trilhaContinua");
+            Grid.SetColumn(faixa, 1);
+            Grid.SetColumnSpan(faixa, 2 * n - 2);
+            trilha.Children.Add(faixa);
+        }
         for (var i = 0; i < n; i++)
         {
-            trilha.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
             var (nome, estado) = etapasMostradas[i];
             var celula = new Grid { RowDefinitions = { new() { Height = new GridLength(22) }, new() { Height = GridLength.Auto } } };
-            var linhas = new Grid();
-            linhas.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
-            linhas.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
-            if (i > 0) linhas.Children.Add(Segmento(etapasMostradas[i - 1].Estado, estado, 0));
-            if (i < n - 1) linhas.Children.Add(Segmento(estado, etapasMostradas[i + 1].Estado, 1));
-            celula.Children.Add(linhas);
             celula.Children.Add(Marcador(estado));
             var prefixo = $"{i + 1:00} {nome}";
             var legenda = Texto(prefixo, estado is EstadoEtapa.Feita or EstadoEtapa.Agora ? "MnTagTextoSucesso" : "MnLegenda");
@@ -383,46 +403,11 @@ public sealed partial class PaginaNovoRelatorio
             Grid.SetRow(legenda, 1);
             celula.Children.Add(legenda);
             AutomationProperties.SetName(celula, $"{nome} · {SituacaoDaEtapa(estado, execucaoAtivaNaBarra)}");
-            Grid.SetColumn(celula, i);
+            Grid.SetColumn(celula, 2 * i);
+            Grid.SetColumnSpan(celula, 2);
             trilha.Children.Add(celula);
         }
         return trilha;
-    }
-
-    FrameworkElement Segmento(EstadoEtapa de, EstadoEtapa para, int lado)
-    {
-        var feito = de == EstadoEtapa.Feita;
-        var chegando = emCurso && de == EstadoEtapa.Feita && para == EstadoEtapa.Agora;
-        var grade = new Grid { Height = chegando ? 4 : 2, VerticalAlignment = VerticalAlignment.Center };
-        grade.Children.Add(new Rectangle { Style = Estilo<Style>(feito ? "MnFormaVerde" : "MnFormaTrilho"), RadiusX = 1, RadiusY = 1 });
-        Grid.SetColumn(grade, lado);
-        if (chegando && animacoes)
-        {
-            // Brilho que corre pelo trecho da etapa em andamento.
-            var brilho = new Rectangle
-            {
-                Width = 48, HorizontalAlignment = HorizontalAlignment.Left,
-                Fill = new LinearGradientBrush
-                {
-                    StartPoint = new Point(0, 0.5), EndPoint = new Point(1, 0.5),
-                    GradientStops = { new() { Color = Windows.UI.Color.FromArgb(0, 255, 255, 255), Offset = 0 },
-                        new() { Color = Windows.UI.Color.FromArgb(170, 255, 255, 255), Offset = 0.5 },
-                        new() { Color = Windows.UI.Color.FromArgb(0, 255, 255, 255), Offset = 1 } },
-                },
-                RenderTransform = new TranslateTransform(),
-            };
-            grade.Children.Add(brilho);
-            grade.SizeChanged += (_, e) =>
-            {
-                grade.Clip = new RectangleGeometry { Rect = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height) };
-                var anim = new DoubleAnimation { From = -48, To = e.NewSize.Width, Duration = TimeSpan.FromSeconds(1.1), RepeatBehavior = RepeatBehavior.Forever };
-                Storyboard.SetTarget(anim, brilho.RenderTransform);
-                Storyboard.SetTargetProperty(anim, "X");
-                var sb = new Storyboard { Children = { anim } };
-                sb.Begin();
-            };
-        }
-        return grade;
     }
 
     FrameworkElement Marcador(EstadoEtapa estado)
@@ -506,6 +491,34 @@ public sealed partial class PaginaNovoRelatorio
             dados.Children.Add(Id(Texto(numeros.Resumo, "MnSecundario"), "conferencia-numerica-resumo"));
             dados.Children.Add(new Expander { Header = "Ver índices e fontes", HorizontalAlignment = HorizontalAlignment.Stretch,
                 Content = new TextBlock { Text = numeros.Detalhes, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true } });
+            if (numeros.Declaracoes.Count > 0)
+            {
+                var tabela = new Grid { ColumnSpacing = 12, RowSpacing = 6 };
+                foreach (var peso in new[] { 2, 1, 3, 1 })
+                    tabela.ColumnDefinitions.Add(new() { Width = new GridLength(peso, GridUnitType.Star) });
+                void Linha(string estilo, params string[] valores)
+                {
+                    var linha = tabela.RowDefinitions.Count;
+                    tabela.RowDefinitions.Add(new() { Height = GridLength.Auto });
+                    for (var coluna = 0; coluna < valores.Length; coluna++)
+                    {
+                        var celula = Texto(valores[coluna], estilo);
+                        celula.TextWrapping = TextWrapping.Wrap;
+                        celula.IsTextSelectionEnabled = true;
+                        Grid.SetRow(celula, linha);
+                        Grid.SetColumn(celula, coluna);
+                        tabela.Children.Add(celula);
+                    }
+                }
+                Linha("MnCorpoForte", "Campo", "Valor declarado", "Fonte", "Revisão");
+                foreach (var d in numeros.Declaracoes)
+                {
+                    var campo = string.Join(Environment.NewLine, new[] { d.Rotulo, d.Contexto, d.Ressalva }
+                        .Where(texto => texto.Length > 0));
+                    Linha("MnSecundario", campo, d.Valor, d.Fonte, d.Revisao);
+                }
+                dados.Children.Add(new Expander { Header = "Dados extraídos", HorizontalAlignment = HorizontalAlignment.Stretch, Content = tabela });
+            }
             cartao.Child = dados;
             Adicionar(Id(cartao, "conferencia-numerica-local"), 12);
         }
@@ -838,8 +851,8 @@ public sealed partial class PaginaNovoRelatorio
             Selo(etapasMostradas.Length == 1 ? "1 etapa mapeada" : $"{etapasMostradas.Length} etapas mapeadas", "MnTagSucesso", "MnTagTextoSucesso")), 0);
         var modelos = Cartao();
         var grade = new StackPanel { Spacing = 5, Margin = new Thickness(16, 12, 16, 12) };
-        grade.Children.Add(Texto("Modelos configurados para esta análise", "MnCorpoForte"));
-        grade.Children.Add(Texto(string.IsNullOrEmpty(ModelosConfigurados) ? "Lendo a configuração desta execução…" : ModelosConfigurados, "MnSecundario"));
+        grade.Children.Add(Texto(emCurso ? "Executor em atividade" : "Modelos configurados para esta análise", "MnCorpoForte"));
+        grade.Children.Add(Texto(emCurso ? ExecutorAtual() ?? "Aguardando registro" : string.IsNullOrEmpty(ModelosConfigurados) ? "Lendo a configuração desta execução…" : ModelosConfigurados, "MnSecundario"));
         modelos.Child = grade;
         Adicionar(modelos, 12);
         var lista = Cartao();
@@ -1243,7 +1256,7 @@ public sealed partial class PaginaNovoRelatorio
 
     Border GraficoTempos(IReadOnlyList<UsoEtapa> uso)
     {
-        var cartao = CartaoDeGrafico("Tempo por etapa", $"Onde os {TextoTempoDecorrido.Text} foram gastos", out var corpo);
+        var cartao = CartaoDeGrafico("Tempo por etapa", TextoTempoAtivo.Text, out var corpo);
         legendaTempos = ((StackPanel)((Border)cartao).Child).Children.OfType<TextBlock>().Skip(1).FirstOrDefault();
         var grupos = uso.Where(r => r.Duracao != null).GroupBy(r => FluxoNovoRelatorio.NomeDaEtapa(r.Etapa))
             .Select(g => (Nome: g.Key, Segundos: g.Sum(r => r.Duracao!.Value.TotalSeconds), Lista: g.ToArray())).ToArray();

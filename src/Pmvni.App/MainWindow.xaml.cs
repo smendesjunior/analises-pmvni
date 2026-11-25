@@ -77,8 +77,8 @@ public sealed partial class MainWindow : Window, ITelaEdicao
     /// <summary>1.0.0: as duas pílulas segmentadas do cabeçalho (cantos = metade da altura) e os botões delas.</summary>
     internal bool PilulasDoCabecalhoConferem =>
         new[] { GrupoHistorico, GrupoOcorrencias }.All(g => g.CornerRadius.TopLeft * 2 >= g.Height - 0.5 && g.Child is StackPanel { Children.Count: 3 })
-        && BotaoDesfazer.CornerRadius.TopRight == 0 && BotaoRefazer.CornerRadius.TopLeft == 0
-        && BotaoPesquisaAnterior.CornerRadius.TopRight == 0 && BotaoPesquisaProxima.CornerRadius.TopLeft == 0;
+        && new[] { BotaoDesfazer, BotaoRefazer, BotaoPesquisaAnterior, BotaoPesquisaProxima }
+            .All(b => b.CornerRadius.Equals(new CornerRadius(13)) && b.Margin.Equals(new Thickness(2)));
     /// <summary>Os nomes acessíveis das etiquetas de situação visíveis nas linhas realizadas da lista de seções.</summary>
     internal IReadOnlyList<string> EtiquetasNaListaDeSecoes()
     {
@@ -480,7 +480,17 @@ public sealed partial class MainWindow : Window, ITelaEdicao
             // Mesma fábrica do host oculto (mesmas opções de ambiente e de controller, InPrivate) e mesma pasta de dados:
             // as duas instâncias do WebView2 convivem no mesmo processo, e nada do relatório fica gravado no perfil.
             var ambiente = await FabricaWebView2.CriarAmbienteAsync();
-            await R.Navegador.EnsureCoreWebView2Async(ambiente, FabricaWebView2.OpcoesController(ambiente));
+            Exception? erroController = null;
+            void AoInicializar(Microsoft.UI.Xaml.Controls.WebView2 _, Microsoft.UI.Xaml.Controls.CoreWebView2InitializedEventArgs e)
+                => erroController = e.Exception;
+            R.Navegador.CoreWebView2Initialized += AoInicializar;
+            try
+            {
+                await R.Navegador.EnsureCoreWebView2Async(ambiente, FabricaWebView2.OpcoesController(ambiente));
+                if (R.Navegador.CoreWebView2 is null)
+                    throw new InvalidOperationException("O WebView2 não abriu o controlador da janela do Editor.", erroController);
+            }
+            finally { R.Navegador.CoreWebView2Initialized -= AoInicializar; }
             ambienteDaTela.TrySetResult(ambiente);
             if (Autoteste.Ativo)
             {

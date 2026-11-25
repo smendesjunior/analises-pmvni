@@ -23,8 +23,7 @@ internal static class OcrDaAnalise
         if (!Disponivel()) return 3;
         try
         {
-            var arquivo = await StorageFile.GetFileFromPathAsync(Path.GetFullPath(args[1]));
-            using var stream = await arquivo.OpenAsync(FileAccessMode.Read);
+            using var stream = File.OpenRead(Path.GetFullPath(args[1])).AsRandomAccessStream();
             var decoder = await BitmapDecoder.CreateAsync(stream);
             using var bitmap = await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
             using var imagem = ImageBuffer.CreateForSoftwareBitmap(bitmap);

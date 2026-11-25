@@ -311,11 +311,20 @@ public sealed class DocumentoWeb : IDisposable
                   const linhas = r.getClientRects();
                   if (linhas.length === 1) guardar(valor, linhas[0]);
                   else {
-                    let j = start;
+                    let j = start, parte = '', linha = null;
                     for (const letra of valor) {
                       r.setStart(no,j); j += letra.length; r.setEnd(no,j);
-                      guardar(letra,r.getBoundingClientRect());
+                      const caixa = r.getBoundingClientRect();
+                      if (linha && Math.abs(caixa.top - linha.top) > 0.5) {
+                        guardar(parte, linha);
+                        parte = ''; linha = null;
+                      }
+                      linha = linha ? DOMRect.fromRect({x:Math.min(linha.left,caixa.left),y:linha.top,
+                        width:Math.max(linha.right,caixa.right)-Math.min(linha.left,caixa.left),
+                        height:Math.max(linha.bottom,caixa.bottom)-linha.top}) : caixa;
+                      parte += letra;
                     }
+                    if (linha) guardar(parte,linha);
                   }
                 }
               }
@@ -341,6 +350,30 @@ public sealed class DocumentoWeb : IDisposable
             using var doc = JsonDocument.Parse(r);
             return Convert.FromBase64String(doc.RootElement.GetProperty("data").GetString()!);
         });
+
+    internal Task<byte[]> ImprimirPelaApiNativaAsync() => NaThreadAsync(async () =>
+    {
+        var opcoes = core.Environment.CreatePrintSettings();
+        opcoes.ShouldPrintHeaderAndFooter = false;
+        opcoes.ShouldPrintBackgrounds = true;
+        opcoes.MarginTop = opcoes.MarginBottom = opcoes.MarginLeft = opcoes.MarginRight = 0;
+        opcoes.PageWidth = 210d / 25.4;
+        opcoes.PageHeight = 297d / 25.4;
+        // O WebView2 recusa caminhos longos que o .NET consegue ler e publicar.
+        var pasta = Directory.CreateTempSubdirectory("pmvni-pdf-");
+        var arquivo = Path.Combine(pasta.FullName, "folhas.pdf");
+        try
+        {
+            if (!await core.PrintToPdfAsync(arquivo, opcoes))
+                throw new IOException("A API de impressão do WebView2 recusou o PDF.");
+            return await File.ReadAllBytesAsync(arquivo);
+        }
+        finally
+        {
+            File.Delete(arquivo);
+            pasta.Delete();
+        }
+    });
 
     /// <summary>Versão do runtime do WebView2 deste documento (<c>BrowserVersionString</c>).</summary>
     internal Task<string> VersaoWebView2Async() => NaThreadAsync(() => Task.FromResult(core.Environment.BrowserVersionString));

@@ -103,12 +103,12 @@ public class LocalizacaoTestes
         Assert.Equal("4.10.0", p.VersaoPluginAnalise);                   // por número, não por texto (4.10.0 > 4.0.1)
         Assert.Equal(Rota("4.10.0", "codex", "executar_analise_62.py"), p.Analise62);
         Assert.Equal(Rota("4.10.0", "claude", "pro_runtime.py"), p.ProRuntime);
-        Assert.Equal(Rota("4.10.0", "gemini", "google_runtime.py"), p.GoogleRuntime);
+        Assert.Null(p.GoogleRuntime);
         Assert.Equal(p.ProRuntime, p.RuntimeDoKit(Provedor.Claude));
         Assert.Equal(p.GoogleRuntime, p.RuntimeDoKit(Provedor.Gemini));
-        Assert.Equal(("4.10.0", "4.10.0"), (p.VersaoAnalisePro, p.VersaoAnaliseGoogle));   // uma só versão para as três rotas
-        Assert.Equal(("4.0.1", "4.0.1"), (p.VersaoAnaliseProKit, p.VersaoAnaliseGoogleKit));
-        foreach (var pv in Enum.GetValues<Provedor>()) Assert.Null(PoliticaKit.PluginDesatualizado(pv, p.VersaoPluginAnalise));
+        Assert.Equal(("4.10.0", (string?)null), (p.VersaoAnalisePro, p.VersaoAnaliseGoogle));   // uma só versão para as três rotas
+        Assert.Equal(("4.0.1", (string?)null), (p.VersaoAnaliseProKit, p.VersaoAnaliseGoogleKit));
+        foreach (var pv in Provedores.Ativos) Assert.Null(PoliticaKit.PluginDesatualizado(pv, p.VersaoPluginAnalise));
 
         // Sem o cache, não há controlador nem versão instalada.
         Directory.Delete(Path.Combine(t, "codex-home"), true);
@@ -136,8 +136,8 @@ public class LocalizacaoTestes
 
         var p = Localizacao.Ler(Opcoes(t));
         Assert.Equal((null, null, null), (p.Analise62, p.ProRuntime, p.GoogleRuntime));
-        Assert.Equal(("3.1.0", "3.1.0", "3.1.0"), (p.VersaoPluginAnalise, p.VersaoAnalisePro, p.VersaoAnaliseGoogle));
-        foreach (var pv in Enum.GetValues<Provedor>())
+        Assert.Equal(("3.1.0", "3.1.0", (string?)null), (p.VersaoPluginAnalise, p.VersaoAnalisePro, p.VersaoAnaliseGoogle));
+        foreach (var pv in Provedores.Ativos)
         {
             var m = PoliticaKit.PluginDesatualizado(pv, OrquestradorAnalise.VersaoDoPlugin(pv, p));
             Assert.NotNull(m);

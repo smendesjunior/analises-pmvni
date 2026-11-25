@@ -359,8 +359,8 @@ internal sealed class SessaoNovoDespacho
         DesenhouPaginas = true;
         var caminho = Path.Combine(pastaTrabalho, "conferencia.pdf");
         await File.WriteAllBytesAsync(ArquivoGerado.Caminho(caminho), pdf);
-        var arquivo = await StorageFile.GetFileFromPathAsync(caminho);
-        var documento = await PdfDocument.LoadFromFileAsync(arquivo);
+        using var entrada = new MemoryStream(pdf, writable: false).AsRandomAccessStream();
+        var documento = await PdfDocument.LoadFromStreamAsync(entrada);
         var lista = new List<ImageSource>();
         for (uint i = 0; i < documento.PageCount; i++)
         {

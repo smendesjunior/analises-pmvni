@@ -47,7 +47,7 @@ public partial class OrquestradorTestes
         }
 
         // Claude e Gemini: o kit para com a decisão no situacao; o editor grava a resposta e dá a partida de novo.
-        foreach (var p in new[] { Provedor.Claude, Provedor.Gemini })
+        foreach (var p in new[] { Provedor.Claude })
         {
             using var c = new Cena("pecas-" + p.ToString().ToLowerInvariant(), "claude_ok", p, j =>
             {
@@ -55,7 +55,6 @@ public partial class OrquestradorTestes
                 j["auto"]!["decisao"] = DecisaoDePecas();
             });
             var pedido = c.Pedido(p);
-            if (p == Provedor.Gemini) { c.Pecas = ComGemini(c); pedido = c.Pedido(p, ModoAcesso.Conta) with { Perfil = PerfilGemini.ContaUltra }; }
             var perguntas = new List<DecisaoAnalise>();
             pedido = pedido with { Decidir = (d, _) => { lock (perguntas) perguntas.Add(d); return Task.FromResult<string?>(escolhido); } };
             var fim = await Ambiente.Com(c.Orq().ExecutarAsync(pedido, c.Progresso, CancellationToken.None), Limite);

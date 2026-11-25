@@ -68,7 +68,7 @@ public sealed record Pecas(
     public string? ProducaoTeste { get; init; }
 
     /// <summary>O controlador do kit que o provedor usa: análise pro (Claude) ou análise Google (Gemini); null para o ChatGPT ou se não instalado.</summary>
-    public string? RuntimeDoKit(Provedor p) => p switch { Provedor.Claude => ProRuntime, Provedor.Gemini => GoogleRuntime, _ => null };
+    public string? RuntimeDoKit(Provedor p) => p switch { Provedor.Claude => ProRuntime, _ => null };
 }
 
 /// <summary>Onde estão o Codex, o Claude Code, o Python e as peças do kit (desenho §12.4–§12.5). Só lê; nada falha: peça ilegível é peça ausente.</summary>
@@ -91,7 +91,6 @@ public static class Localizacao
         versaoPlugin = VersaoInstalada(pastaAnalise) ?? versaoPlugin;
         var analise62 = Controlador(pastaAnalise, Provedor.ChatGpt);
         var proRuntime = Controlador(pastaAnalise, Provedor.Claude);
-        var googleRuntime = Controlador(pastaAnalise, Provedor.Gemini);
 
         var apiPermitida = true;
         if (proRuntime is not null)
@@ -100,17 +99,9 @@ public static class Localizacao
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         }
 
-        if (googleRuntime is not null)
-        {
-            try { if (!PoliticaKit.RuntimeGoogleValido(File.ReadAllText(googleRuntime))) googleRuntime = null; }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { googleRuntime = null; }
-        }
-
-        // Uma só versão para as três rotas (a do plugin analise instalado e a do kit).
         var versaoKit = VersaoDoKit(o);
         return new Pecas(codex, claude, python, launcher, proRuntime, versaoPlugin, versaoKit, PluginHabilitado(o.CodexHome), versaoPlugin, apiPermitida)
         {
-            Agy = AcharAgy(o), GoogleRuntime = googleRuntime, VersaoAnaliseGoogle = versaoPlugin, VersaoAnaliseGoogleKit = versaoKit,
             CodexHome = o.CodexHome, Analise62 = analise62, EtapasJson = ArquivoEtapas(pastaAnalise),
             ModelosPorRota = ArquivoDasReferencias(pastaAnalise, TabelaDeModelos.NomeNoKit), ProducaoTeste = ScriptComum(pastaAnalise, Pmvni.Agentes.ProducaoTeste.Script),
         };
@@ -196,18 +187,6 @@ public static class Localizacao
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         return NoPath(o, "codex.exe");
-    }
-
-    /// <summary>O <c>agy.exe</c> do instalador oficial (<c>%LOCALAPPDATA%\agy\bin</c>); senão o do PATH.</summary>
-    static string? AcharAgy(OpcoesLocalizacao o)
-    {
-        try
-        {
-            var local = Path.Combine(o.LocalAppData, "agy", "bin", "agy.exe");
-            if (File.Exists(local)) return local;
-        }
-        catch (ArgumentException) { }
-        return NoPath(o, "agy.exe");
     }
 
     static bool EhAtalhoDaLoja(string dir) =>

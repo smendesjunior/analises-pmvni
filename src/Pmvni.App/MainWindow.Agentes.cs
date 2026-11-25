@@ -42,23 +42,16 @@ public sealed partial class MainWindow
         {
             var analiseNoCodex = PluginsInstalados.NoCodex(o.CodexHome, PluginsInstalados.Analise);
             return new(ContasLocais.Ler(Provedor.ChatGpt, o), ContasLocais.Ler(Provedor.Claude, o),
-                analiseNoCodex, PluginsInstalados.NoClaude(o.PastaClaude, PluginsInstalados.Analise), analiseNoCodex, analiseNoCodex);
+                analiseNoCodex, PluginsInstalados.NoClaude(o.PastaClaude, PluginsInstalados.Analise), analiseNoCodex);
         }
     }
 
     /// <summary>O que o último "Testar" do Gemini disse do login do Antigravity (conta Google): true, false ou null (ainda não testado ou não foi possível saber).</summary>
     bool? contaGeminiConectada;
-    Window? janelaLoginGemini;
-    bool sessaoGeminiWebConectada;
-    string? emailGeminiWeb;
     bool mostrandoAgentes;
 
     /// <summary>A conta que o cartão mostra: a lida do disco (ChatGPT e Claude) ou, no Gemini, o que o último teste viu do login do Antigravity.</summary>
-    ContaLocal ContaDoCartao(Provedor p) =>
-        p == Provedor.Gemini
-            ? ((ModoDoAgente(p) == ModoAcesso.ContaGemini ? sessaoGeminiWebConectada : contaGeminiConectada == true)
-                ? new ContaLocal(true, null, ModoDoAgente(p) == ModoAcesso.ContaGemini ? emailGeminiWeb : null, null) : ContaLocal.Nenhuma)
-            : infoLocal.Conta(p);
+    ContaLocal ContaDoCartao(Provedor p) => infoLocal.Conta(p);
 
     internal PerfilGemini? PerfilApiDoGemini => ajustes.Agentes[Provedor.Gemini].PerfilApi;
 
@@ -73,24 +66,30 @@ public sealed partial class MainWindow
         var d = new Dictionary<string, object?>();
         try
         {
-            var botoes = Enum.GetValues<Provedor>().ToDictionary(p => Provedores.Sufixo(p), p => BotaoDoProvedor(p));
-            var rotulos = Enum.GetValues<Provedor>().ToDictionary(p => Provedores.Sufixo(p), p =>
+            var botoes = Provedores.Ativos.ToDictionary(p => Provedores.Sufixo(p), p => BotaoDoProvedor(p));
+            var rotulos = Provedores.Ativos.ToDictionary(p => Provedores.Sufixo(p), p =>
                 (BotaoDoProvedor(p).Content as StackPanel)?.Children.OfType<TextBlock>().FirstOrDefault()?.Text);
             d["botoes"] = rotulos;
-            var botoesOk = botoes.Values.Distinct().Count() == 3
-                && rotulos.All(r => r.Value == "Analisar com o " + Provedores.Nome(Enum.GetValues<Provedor>().Single(p => Provedores.Sufixo(p) == r.Key)));
-            var cartoes = Enum.GetValues<Provedor>().Select(CartaoDoAgente).ToList();
-            var gemini = CartaoDoAgente(Provedor.Gemini);
-            var cartoesOk = cartoes.Distinct().Count() == 3 && gemini.CaixaPerfil.Items.Count == TextosAgentes.OpcoesPerfilGemini.Count
-                && (gemini.TextoServico.Text == TextosAgentes.NomeDoServico(Provedor.Gemini) || gemini.TextoServico.Text == "Gemini Web");
+            var botoesOk = botoes.Count == 2 && rotulos.All(r => r.Value == "Analisar com o " + Provedores.Nome(Provedores.Ativos.Single(p => Provedores.Sufixo(p) == r.Key)));
+            var cartoes = Provedores.Ativos.Select(CartaoDoAgente).ToList();
+            var geminiOculto = NR.CartaoGeminiInativo.Visibility == Visibility.Collapsed && !NR.BotaoGemini.IsEnabled
+                && PaginaDeAjustes.CartaoGemini.Visibility == Visibility.Collapsed;
             d["cartoes"] = cartoes.Count;
-            d["perfis_do_gemini"] = gemini.CaixaPerfil.Items.Count;
-            d["matriz"] = Enum.GetValues<PerfilGemini>().ToDictionary(p => MatrizGemini.Codigo(p), p => MatrizGemini.Etapas(p).Select(e => e.IdRuntime).ToArray());
-            var matrizOk = Enum.GetValues<PerfilGemini>().All(p => MatrizGemini.Etapas(p).Select(e => e.Etapa).SequenceEqual(["analyze", "technical_audit", "autocorrecao"]));
-            d["ok"] = botoesOk && cartoesOk && matrizOk;
-            if (!botoesOk) d["erro"] = "os três botões Analisar não estão na página Novo relatório";
-            else if (!cartoesOk) d["erro"] = "o cartão do Gemini não está completo em Ajustes";
-            else if (!matrizOk) d["erro"] = "a matriz do Gemini precisa conter análise, auditoria técnica e autocorreção";
+            d["gemini_desativado"] = geminiOculto;
+            var etapasMonitor = new[] { ("Análise", EstadoEtapa.Agora) };
+            NR.MostrarResumo(true, null, etapasMonitor, "ChatGPT");
+            var amostra = new ConsumoAoVivo("codex", null, false, null, null, null, null, null, null, null)
+                { EtapaEmExecucao = "analyze", ModelosEmExecucao = "modelo-um" };
+            NR.MostrarConsumo([], leitura: amostra);
+            var primeiro = NR.ExecutorDetalhes.Text;
+            NR.MostrarConsumo([], leitura: amostra with { ModelosEmExecucao = "modelo-dois" });
+            var segundo = NR.ExecutorDetalhes.Text;
+            NR.MostrarResumo(false, null, [], "ChatGPT");
+            NR.MostrarConsumo([]);
+            var troca = primeiro == "modelo-um" && segundo == "modelo-dois" && NR.ExecutorDetalhes.Text == "ChatGPT";
+            d["troca_de_modelo_observada"] = troca;
+            d["ok"] = botoesOk && cartoes.Distinct().Count() == 2 && geminiOculto && troca;
+            if (!(bool)d["ok"]!) d["erro"] = "Confira as rotas de análise disponíveis em Novo relatório e Ajustes.";
         }
         catch (Exception e)
         {
@@ -162,20 +161,7 @@ public sealed partial class MainWindow
     async Task EntrarOuSairAsync(Provedor p)
     {
         if (TravaDeProgramas.Permitidos is not null) return;
-        if (p == Provedor.Gemini)
-        {
-            if (ajustes.Agentes[p].Modo == ModoAcesso.ContaGemini)
-            {
-                await AbrirLoginGeminiAsync();
-                return;
-            }
-            // O Antigravity não tem comando de login/logout fora da tela dele: abre o agy (pede o login do Google se não houver; /logout sai).
-            if (!AbrirLogin(pecasAgentes.Agy, "agy", "")) return;
-            notasDasContas[p] = TextosAgentes.GeminiLoginAberto;
-            testarAoVoltar.Add(p);
-            MostrarAgentes();
-            return;
-        }
+        if (!Provedores.Ativos.Contains(p)) return;
         if (p == Provedor.Claude)
         {
             bool abriu = await Windows.System.Launcher.LaunchUriAsync(new Uri("claude://"),
@@ -193,88 +179,6 @@ public sealed partial class MainWindow
         MostrarAgentes();
     }
 
-    async Task AbrirLoginGeminiAsync()
-    {
-        if (janelaLoginGemini is { } aberta)
-        {
-            aberta.AppWindow.Show();
-            aberta.Activate();
-            return;
-        }
-
-        var web = new WebView2();
-        var janela = new Window { Title = "Conta Google · Gemini", Content = web };
-        janelaLoginGemini = janela;
-        PonteGeminiWeb? ponte = null;
-        var timer = janela.DispatcherQueue.CreateTimer();
-        timer.Interval = TimeSpan.FromSeconds(10);
-        bool visivel = false;
-        janela.Activated += (_, e) =>
-        {
-            visivel = e.WindowActivationState != WindowActivationState.Deactivated;
-            if (visivel && ponte is not null) timer.Start();
-            else timer.Stop();
-        };
-        bool conferindo = false;
-        timer.Tick += async (_, _) =>
-        {
-            if (conferindo || ponte is null) return;
-            conferindo = true;
-            try
-            {
-                bool conectada = await ponte.ConectadoAsync();
-                var email = conectada ? await ponte.EmailDaContaAsync() : null;
-                if (janelaLoginGemini != janela || (sessaoGeminiWebConectada == conectada && emailGeminiWeb == email)) return;
-                emailGeminiWeb = email;
-                sessaoGeminiWebConectada = conectada;
-                MostrarAgentes();
-            }
-            catch (Exception e) when (e is InvalidOperationException or System.Runtime.InteropServices.COMException or System.Text.Json.JsonException) { }
-            finally { conferindo = false; }
-        };
-        bool encerrando = false;
-        void EncerrarComEditor(object sender, WindowEventArgs args)
-        {
-            encerrando = true;
-            if (janelaLoginGemini == janela) janela.Close();
-        }
-        Closed += EncerrarComEditor;
-        janela.AppWindow.Closing += (_, args) =>
-        {
-            if (encerrando) return;
-            args.Cancel = true;
-            janela.AppWindow.Hide();
-        };
-        janela.Closed += (_, _) =>
-        {
-            Closed -= EncerrarComEditor;
-            timer.Stop();
-            janelaLoginGemini = null;
-            sessaoGeminiWebConectada = false;
-            emailGeminiWeb = null;
-            ponte?.Dispose();
-            web.Close();
-            MostrarAgentes();
-        };
-        try
-        {
-            janela.Activate();
-            var pasta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "EditorRelatoriosPMVNI", "GoogleWeb", "Profile");
-            await web.EnsureCoreWebView2Async(await FabricaWebView2.CriarAmbienteAsync(pasta));
-            if (janelaLoginGemini != janela) return;
-            web.Source = new Uri("https://gemini.google.com/app");
-            ponte = new PonteGeminiWeb(web, Path.GetDirectoryName(pasta)!);
-            if (visivel) timer.Start();
-        }
-        catch
-        {
-            encerrando = true;
-            if (janelaLoginGemini == janela) janela.Close();
-            throw;
-        }
-    }
-
     void IniciarAgentes()
     {
         OpcoesAgentes = () => Argumentos.Atual.Roteiro is { } roteiro
@@ -289,7 +193,7 @@ public sealed partial class MainWindow
             testarAoVoltar.Clear();
             AtualizarAgentes();
         };
-        foreach (var provedor in Enum.GetValues<Provedor>())
+        foreach (var provedor in Provedores.Ativos)
         {
             var p = provedor;
             var c = CartaoDoAgente(p);
@@ -326,7 +230,7 @@ public sealed partial class MainWindow
             if (consultarSozinho) RegistrarPluginsVistos();
             MostrarAgentes();
             if (!consultarSozinho) return;
-            var testes = Enum.GetValues<Provedor>().Where(p => !situacaoDosAgentes.ContainsKey(p) || testesEmCurso.ContainsKey(p)).Select(TestarAgenteAsync).ToList();
+            var testes = Provedores.Ativos.Where(p => !situacaoDosAgentes.ContainsKey(p) || testesEmCurso.ContainsKey(p)).Select(TestarAgenteAsync).ToList();
             await Task.WhenAll(testes);
         }
         catch (Exception e) { System.Diagnostics.Debug.WriteLine("[agentes] " + e.Message); }
@@ -338,7 +242,6 @@ public sealed partial class MainWindow
         var mudou = acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.ChatGpt, PluginsInstalados.Analise), infoLocal.AnaliseNoCodex?.Versao);
         mudou |= acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.Claude, PluginsInstalados.Analise), infoLocal.AnaliseNoClaude?.Versao);
         mudou |= acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.Claude, PluginsInstalados.AnalisePro), infoLocal.AnaliseProNoCodex?.Versao);
-        mudou |= acompanhamentoPlugins.Registrar(ajustes.PluginsVistos, AcompanhamentoPlugins.Chave(Provedor.Gemini, PluginsInstalados.AnaliseGoogle), infoLocal.AnaliseGoogleNoCodex?.Versao);
         if (mudou) SalvarAjustes();
     }
 
@@ -366,6 +269,7 @@ public sealed partial class MainWindow
     /// Exportar): um teste por provedor de cada vez (chamar de novo enquanto roda devolve o mesmo teste) e o botão desabilita já no clique.</summary>
     internal Task<SituacaoProvedor> TestarAgenteAsync(Provedor p)
     {
+        if (!Provedores.Ativos.Contains(p)) return Task.FromResult(new SituacaoProvedor(Provedores.RotaDesativada, []));
         if (testesEmCurso.TryGetValue(p, out var emCurso)) return emCurso;
         var tarefa = ExecutarTesteAsync(p);   // roda até o primeiro await aqui mesmo: já marca "Testando…" e desabilita o botão
         if (!tarefa.IsCompleted) testesEmCurso[p] = tarefa;
@@ -383,18 +287,8 @@ public sealed partial class MainWindow
         try
         {
             var pecas = await LerPecasAsync();
-            // Gemini, modo chave: a chave sai do cofre só para a conferência na API do Google (lista de modelos); nunca vai para a tela nem para o registro.
-            var chaveGemini = p == Provedor.Gemini && ajustes.Agentes[p].Modo == ModoAcesso.Chave ? await Task.Run(() => CofreChaves.Ler(PastaDados.Raiz, p)) : null;
-            // Tarefa 19 (correção 1): o Gemini confere as etapas da tabela efetiva (padrão do kit + ajuste deste computador), lidas aqui, na thread da janela.
-            if (p == Provedor.Gemini)
-            {
-                RecarregarAjusteDosModelos();
-                if (erroAjusteModelos is { } erro) throw new InvalidDataException(erro);
-            }
-            var etapasGemini = p == Provedor.Gemini ? Enum.GetValues<PerfilGemini>().ToDictionary(pf => pf, EtapasGeminiEfetivas) : null;
-            resultado = await Diagnostico.TestarAsync(p, pecas, ajustes.Agentes[p].Modo, CofreChaves.Existe(PastaDados.Raiz, p), CancellationToken.None,
-                ajustes.Agentes[p].PerfilApi, chaveGemini, etapasGemini is null ? null : pf => etapasGemini[pf]);
-            if (p == Provedor.Gemini && ajustes.Agentes[p].Modo == ModoAcesso.Conta) contaGeminiConectada = resultado.ContaConectada;
+            resultado = await Diagnostico.TestarAsync(p, pecas, ajustes.Agentes[p].Modo,
+                CofreChaves.Existe(PastaDados.Raiz, p), CancellationToken.None);
         }
         catch (Exception e) { resultado = new SituacaoProvedor("Não foi possível testar: " + Erro(e), []); }
         finally
@@ -521,7 +415,7 @@ public sealed partial class MainWindow
     {
         if (fechada) return;
         mostrandoAgentes = true;     // marcar a caixa do perfil pelo código não é uma escolha do usuário
-        try { foreach (var p in Enum.GetValues<Provedor>()) MostrarCartao(p); }
+        try { foreach (var p in Provedores.Ativos) MostrarCartao(p); }
         finally { mostrandoAgentes = false; }
         MostrarModelosIa();   // a chave guardada ou o programa achado mudam as fontes de Modelos de IA
     }

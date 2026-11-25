@@ -110,9 +110,15 @@ public sealed partial class OrquestradorAnalise
             env["PMVNI_PROFISSIONAL_CARGO"] = pedido.CargoProfissional ?? "";
         }
         if (!string.IsNullOrWhiteSpace(pedido?.PastaQgis)) env["PMVNI_QGIS_ROOT"] = pedido.PastaQgis;
+        env.Remove("PMVNI_ROTA_AUDITORIA_ALTERNATIVA");
+        if (pedido?.Registro.RotaAlternativaDaAuditoria() is { } alternativa &&
+            ((p == Provedor.ChatGpt && alternativa == "claude") || (p == Provedor.Claude && alternativa == "codex")))
+            env["PMVNI_ROTA_AUDITORIA_ALTERNATIVA"] = alternativa;
         AmbienteFilho.AplicarKit(env, pedido?.PastaKit);
         env.Remove("PMVNI_PROCESSO_ORIGEM");
         env.Remove("PMVNI_EDITOR_CHECKPOINT_EXE");
+        env.Remove("PMVNI_EDITOR_EXPORTADOR_EXE");
+        env.Remove("PMVNI_CONTINUACAO_LOCAL");
         if (pedido?.OrigemCompartilhada is { } origem)
         {
             env["PMVNI_PROCESSO_ORIGEM"] = origem;
@@ -123,6 +129,8 @@ public sealed partial class OrquestradorAnalise
         {
             env["PMVNI_EXECUCAO_PASTA"] = registro.Pasta;
             env["PMVNI_EXECUCAO_ID"] = Path.GetFileName(registro.Pasta);
+            if (Assembly.GetEntryAssembly()?.GetName().Name == "Pmvni.App")
+                env["PMVNI_EDITOR_EXPORTADOR_EXE"] = Environment.ProcessPath;
         }
         if (tabelaModelos is not null) env[TabelaDeModelos.Variavel] = tabelaModelos;
         else env.Remove(TabelaDeModelos.Variavel);
@@ -164,6 +172,11 @@ public sealed partial class OrquestradorAnalise
     /// passa a ser deste método, que a solta no fim. null = o método pega a sua.</param>
     public async Task<FimAnalise> ExecutarAsync(PedidoExecucao pe, IProgress<ProgressoAnalise> progresso, CancellationToken ct, TravaExecucao? travaPega = null)
     {
+        if (!Provedores.Ativos.Contains(pe.Provedor))
+        {
+            travaPega?.Dispose();
+            return Falha(Provedores.RotaDesativada);
+        }
         pe = pe with { Modo = ModoEfetivo(pe.Provedor, pe.Modo, pe.Pecas) };
         var impedimento = Conferir(pe, out var rotaCodex);
         if (impedimento is not null)
@@ -340,6 +353,7 @@ public sealed partial class OrquestradorAnalise
                 var retomadas = o["retomadas"] as JsonArray;
                 if (retomadas is null) o["retomadas"] = retomadas = new JsonArray();
                 retomadas.Add(new JsonObject { ["inicio"] = inicio.ToString("o", CultureInfo.InvariantCulture),
+                    ["pausa_desde"] = o["fim"]?.DeepClone(),
                     ["provedor"] = Provedores.Sufixo(pe.Provedor), ["modo"] = o["modo"]?.DeepClone(), ["linha_de_comando"] = comando.DeepClone() });
             }
             o["linha_de_comando"] ??= comando;
@@ -441,7 +455,7 @@ public sealed partial class OrquestradorAnalise
         var retomar = pe.Retomar && PodeRetomarChatGpt(pasta, registro.Pasta);
         if (pe.Retomar && pe.OrigemCompartilhada is not null && !retomar
             && (File.Exists(Path.Combine(controle, "engine_state.json")) || !File.Exists(Path.Combine(registro.Pasta, "continuidade.json"))))
-            return Falha("A etapa salva desta execução ainda não pôde ser confirmada em Documentos. O registro foi preservado.");
+            return Falha("A etapa salva desta execução ainda não pôde ser confirmada na área local da análise. O registro foi preservado.");
         IReadOnlyList<string>? entradas = null;
         if (!retomar)
         {
@@ -470,12 +484,19 @@ public sealed partial class OrquestradorAnalise
         Anunciar(progresso, new ProgressoAnalise(RotaCodex.Descrever(rota), SituacaoDoControlador("EM_ANDAMENTO", "em andamento", null)));
 
         var ambiente = AmbienteAnalise62(pe, chave, rotaCodex, registro);
+        bool etapaConfirmadaNestaSessao = false;
+        void AmbienteDaEtapa(IDictionary<string, string?> env)
+        {
+            ambiente(env);
+            if (etapaConfirmadaNestaSessao && env.ContainsKey("PMVNI_EDITOR_CHECKPOINT_EXE"))
+                env["PMVNI_CONTINUACAO_LOCAL"] = Path.GetFileName(registro.Pasta);
+        }
         var redator = new RedatorChave(chave);      // a chave nunca vai para o registro nem para a tela, nem se o controlador ou um filho a repetir
         for (var chamada = 1; ; chamada++)
         {
             if (chamada > MaximoDeChamadas)
                 return Falha($"O controlador do analise foi chamado {MaximoDeChamadas} vezes sem concluir. Veja o registro: {registro.Pasta}.");
-            var (codigo, s, json, ultima) = await RodarControladorAsync(exe, args, pe, ambiente, redator, progresso, ct).ConfigureAwait(false);
+            var (codigo, s, json, ultima) = await RodarControladorAsync(exe, args, pe, AmbienteDaEtapa, redator, progresso, ct).ConfigureAwait(false);
             if (json is not null) registro.AcrescentarSituacao(Compactar(json));
             registro.Descarregar();
             // Da segunda chamada em diante, sempre a retomada: o controlador continua o controle que a primeira criou.
@@ -496,6 +517,7 @@ public sealed partial class OrquestradorAnalise
                     return r.Documento is not null ? new FimAnalise("concluida", r.Documento, r.Pdf, null, codigo) : new FimAnalise("sem_resultado", null, null, r.Motivo, codigo);
                 }
                 case SituacaoAnalise62.EtapaOk when codigo == SituacaoAnalise62.CodigoOk:
+                    etapaConfirmadaNestaSessao = true;
                     Anunciar(progresso, new ProgressoAnalise(null, SituacaoDoControlador("EM_ANDAMENTO", "etapa concluída", s?.Etapa)));
                     continue;
                 case SituacaoAnalise62.AguardandoCota:
@@ -854,6 +876,7 @@ public sealed partial class OrquestradorAnalise
     /// novo que ele). O fim vai para o <c>execucao.json</c> do registro reaberto, como numa execução comum.</summary>
     public async Task<FimAnalise> AcompanharClaudeAsync(PedidoExecucao pe, DateTimeOffset inicio, IProgress<ProgressoAnalise> progresso, CancellationToken ct)
     {
+        if (!Provedores.Ativos.Contains(pe.Provedor)) return Falha(Provedores.RotaDesativada);
         FimAnalise fim;
         if (pe.Pecas.Python is null || pe.Pecas.RuntimeDoKit(pe.Provedor) is null)
             fim = Falha(pe.Pecas.Python is null ? $"O Python não foi encontrado neste computador (a {NomeDoKit(pe.Provedor)} do plugin analise precisa dele)."

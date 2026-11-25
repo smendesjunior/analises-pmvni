@@ -13,12 +13,12 @@ public sealed record ModeloCarregado(
     IReadOnlyDictionary<string, string> Sha256);
 
 /// <summary>
-/// Modelo HTML oficial do relatório (revisão 14), embutido byte a byte no assembly.
+/// Modelo HTML oficial do relatório (revisão 16), embutido byte a byte no assembly.
 /// Os hashes vêm do registro TEMPLATES_OFICIAIS.json do kit de treinamento.
 /// </summary>
 public static class ModeloOficial
 {
-    public const string Revisao = "14";
+    public const string Revisao = "16";
 
     /// <summary>Arquivos embutidos como EmbeddedResource (nome lógico = nome do arquivo).</summary>
     private static readonly string[] ArquivosEmbutidos =
@@ -31,13 +31,13 @@ public static class ModeloOficial
         "exemplo_mapa.png",
     };
 
-    /// <summary>Hashes sha256 (minúsculos) de todos os arquivos da revisão 14, inclusive o gerador.</summary>
+    /// <summary>Hashes sha256 (minúsculos) de todos os arquivos da revisão 16, inclusive o gerador.</summary>
     public static IReadOnlyDictionary<string, string> HashesDoRegistro { get; } =
         new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["gerar_relatorio.py"] = "044a4265ffcfb704008087a55c561d284d767301eff54f703028d806cfd7167a",
+            ["gerar_relatorio.py"] = "8a641f80e43b8fc6dc08f057763933a200d177a6ef940fad3c0b6cb0a0aa7b59",
             ["modelo_relatorio.html"] = "69f84d59427a4f93316347b89d39ef71a61b1b0747c0e306bf09931dcfa8897f",
-            ["relatorio.css"] = "c4b06d4b8e0058aa0ebcde92a4fae434138645eeaaf77540423d2021db9e6b69",
+            ["relatorio.css"] = "c5fa629c93b93b3ba9cc1cae03cf21a4b4650da230289577170850c479987557",
             ["brasao.png"] = "93f35890bd35ddd405ee407f05e5cea059301c7e62634415f19d5c4d9b4092cd",
             ["dados_modelo.json"] = "c56df9e6aec479887b028ce86e8f2962937a244cefabf5b8a308aca93f1ff816",
             ["exemplo_figura.png"] = "cbbf837e4eb816a42b642bf7e139090364ea98d6e9f603edcfc8e42a65a2244e",
@@ -46,7 +46,7 @@ public static class ModeloOficial
 
     /// <summary>
     /// Lê e verifica os arquivos embutidos. Lança <see cref="InvalidOperationException"/>
-    /// se algum arquivo não conferir com o registro da revisão 14.
+    /// se algum arquivo não conferir com o registro da revisão 16.
     /// </summary>
     public static ModeloCarregado Carregar()
     {
