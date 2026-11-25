@@ -37,6 +37,14 @@ public static class RotaCodex
             + "ou o Codex-LB. Escolha \"Conectar diretamente à OpenAI\" ou o Codex-LB em Ajustes › Inteligência artificial. Nada foi iniciado.");
     }
 
+    public static string TextoDaConexao(RotaResolvida resolvida, ModoAcesso modo) => resolvida.Rota switch
+    {
+        "codex-lb" => "Este computador usa o Codex-LB.",
+        "openai" when modo == ModoAcesso.Chave => "Este computador usa a API da OpenAI diretamente.",
+        "openai" => "Este computador usa o Codex diretamente com a conta da OpenAI.",
+        _ => "Confira a configuração de conexão do Codex neste computador."
+    };
+
     /// <summary>"OpenAI direto" ou "Codex-LB".</summary>
     public static string Nome(string rota) => rota == "codex-lb" ? "Codex-LB" : "OpenAI direto";
 

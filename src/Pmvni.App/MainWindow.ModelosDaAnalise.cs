@@ -60,8 +60,10 @@ public sealed partial class MainWindow
         ? ajustes.Agentes[Provedor.ChatGpt].Modo == ModoAcesso.Chave ? FonteIa.OpenAiApi : FonteIa.Codex
         : ajustes.Agentes[Provedor.Claude].Modo == ModoAcesso.Chave ? FonteIa.AnthropicApi : FonteIa.ClaudeCode;
 
-    bool UsaCatalogoIndicativoDoCodex(string rota) => rota == "codex" &&
-        RotaCodex.Resolver(ajustes.Agentes[Provedor.ChatGpt].Modo, ajustes.RotaCodex, pecasAgentes.CodexHome).Rota == "codex-lb";
+    RotaResolvida ConexaoCodexDoComputador() =>
+        RotaCodex.Resolver(ajustes.Agentes[Provedor.ChatGpt].Modo, ajustes.RotaCodex, pecasAgentes.CodexHome);
+
+    bool UsaCatalogoIndicativoDoCodex(string rota) => rota == "codex" && ConexaoCodexDoComputador().Rota == "codex-lb";
 
     /// <summary>A lista de modelos que o provedor da coluna oferece agora: ChatGPT e Claude pela lista do modo em uso (app ou API); Gemini pela lista que a rota
     /// Gemini do kit devolveu para o grupo do perfil (agy ou API) e, no Gemini Web, os modelos da tabela do kit. Enquanto o Gemini não respondeu, os da tabela,
@@ -206,7 +208,7 @@ public sealed partial class MainWindow
                 var perfil = partes.Length == 2 ? partes[1] : coluna.Rota switch
                 {
                     "gemini" => coluna.Perfil,
-                    "codex" when UsaCatalogoIndicativoDoCodex(coluna.Rota) => "Codex-LB",
+                    "codex" => "Codex",
                     _ when FonteDaRota(coluna.Rota) is FonteIa.Codex or FonteIa.ClaudeCode => "Aplicativo",
                     _ => "API"
                 };
@@ -226,9 +228,14 @@ public sealed partial class MainWindow
             DistribuirCartoes(p.CartoesRotas, p.CartoesRotas.ActualWidth);
             p.TituloRota.Text = selecionada.Titulo;
             p.PainelModelosAnalise.Children.Add(GradeDosModelos(kit, etapas, a, selecionada));
-            p.OrigemModelos.Text = UsaCatalogoIndicativoDoCodex(selecionada.Rota)
-                ? "A lista de modelos sugeridos para o Codex-LB vem do catálogo local do Codex."
-                : $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte} e atualizados ao abrir a página e antes de cada análise.";
+            if (selecionada.Rota == "codex")
+            {
+                var modo = ajustes.Agentes[Provedor.ChatGpt].Modo;
+                p.OrigemModelos.Text = RotaCodex.TextoDaConexao(ConexaoCodexDoComputador(), modo)
+                    + " Em Ajustes › Inteligência artificial, cada computador pode usar o Codex direto ou o Codex-LB.";
+            }
+            else
+                p.OrigemModelos.Text = $"Modelos obtidos {ListaDaRotaAgora(selecionada, kit)?.Fonte} e atualizados ao abrir a página e antes de cada análise.";
             p.RodapeModelos.Visibility = Visibility.Visible;
 
             p.AlternarSobeObjecao.IsOn = a.SobePorObjecao ?? kit.SobePorObjecao;

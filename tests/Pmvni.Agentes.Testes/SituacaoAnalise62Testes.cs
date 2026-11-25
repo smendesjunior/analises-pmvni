@@ -5,6 +5,16 @@ namespace Pmvni.Agentes.Testes;
 /// <summary>O JSON da última linha do <c>executar_analise_62.py</c> (contrato da Tarefa 2), lido de forma tolerante, e a rota do Codex resolvida pelo editor.</summary>
 public class SituacaoAnalise62Testes
 {
+    [Theory]
+    [InlineData(ModoAcesso.Conta, "herdar", "Este computador usa o Codex diretamente com a conta da OpenAI.")]
+    [InlineData(ModoAcesso.Conta, "openai", "Este computador usa o Codex diretamente com a conta da OpenAI.")]
+    [InlineData(ModoAcesso.Conta, "codex-lb", "Este computador usa o Codex-LB.")]
+    [InlineData(ModoAcesso.Chave, "codex-lb", "Este computador usa a API da OpenAI diretamente.")]
+    public void ajuste_informa_a_conexao_resolvida_para_cada_pc(ModoAcesso modo, string escolha, string texto)
+    {
+        Assert.Equal(texto, RotaCodex.TextoDaConexao(RotaCodex.Resolver(modo, escolha, null), modo));
+    }
+
     [Fact]
     public void contrato_lido()
     {
