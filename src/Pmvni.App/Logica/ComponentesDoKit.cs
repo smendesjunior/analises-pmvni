@@ -82,16 +82,13 @@ public static class ComponentesDoKit
         new("analise-claude", "Análise no Claude Code", "O registro do plugin analise no Claude Code.", OrigemComponente.PluginNoClaude, PluginsInstalados.Analise, "analise"),
         new("pmvni-pdf", "Servidor de PDF (pmvni-pdf)", "As ferramentas de PDF do kit no Codex, no Claude Code e no Claude Desktop.", OrigemComponente.ServidorPdf, "mcp_pmvni.py", "pmvni-pdf"),
         new("pymupdf", "Motor de PDF PyMuPDF", "Lê o texto e as páginas dos PDFs.", OrigemComponente.MotorPdf, "PyMuPDF", "motores", "2.1"),
-        new("docling", "Motor de PDF Docling", "Converte o PDF em texto estruturado.", OrigemComponente.MotorPdf, "Docling MCP", "motores", "3.5.0"),
-        new("blueprint", "Motor de PDF Blueprint", "Localiza regiões delimitadas por linhas vetoriais nas plantas.", OrigemComponente.MotorPdf, "Blueprint Pipeline", "motores"),
-        new("fyp", "Motor de PDF FYP", "Reconhece ambientes de plantas baixas.", OrigemComponente.MotorPdf, "FYP-Floorplan", "motores"),
     ];
 
     /// <summary>O que uma parte do <c>configurar-plugins.ps1</c> atualiza, para a dica e o resultado: "a análise no Codex e no Claude Code".</summary>
     public static string NomeDaParte(string parte) => parte switch
     {
         "analise" => "a análise no Codex e no Claude Code (o mesmo plugin)",
-        "motores" => "os quatro motores de PDF (PyMuPDF, Docling, Blueprint e FYP), que se atualizam juntos",
+        "motores" => "o leitor de PDF PyMuPDF",
         "pmvni-pdf" => "o servidor de PDF (pmvni-pdf) e o registro dele no Codex, no Claude Code e no Claude Desktop",
         _ => parte,
     };
@@ -367,15 +364,14 @@ public static class ComponentesDoKit
             SituacaoComponente.ComErro => "A última instalação não terminou: " + string.Join("; ", FalhasDoMotor(c, falhas)) + ".",
             SituacaoComponente.Ausente => "Ainda não instalado neste computador.",
             _ => c.Ajuda,
-        } + (c.Parte == "motores" ? " Os quatro motores de PDF se atualizam juntos." : "");
+        };
         if (instalado && origens.AmbienteEsperado is { } esperado)
         {
-            var visao = c.Id is "blueprint" or "fyp";
-            var runtime = LerTexto(Path.Combine(origens.PastaMotorPdf, visao ? "visao-runtime.txt" : "runtime.txt"))?.Trim();
+            var runtime = LerTexto(Path.Combine(origens.PastaMotorPdf, "runtime.txt"))?.Trim();
             var ambiente = File.Exists(runtime) ? Directory.GetParent(runtime!)?.Parent : null;
             if (ambiente is null)
                 return new(c, null, disponivel, SituacaoComponente.Ausente, "O executável do ambiente registrado não foi encontrado. Atualize os motores.", false);
-            if (!string.Equals(ambiente.Name, esperado(visao), StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(ambiente.Name, esperado(false), StringComparison.OrdinalIgnoreCase))
                 return new(c, instalada, disponivel, SituacaoComponente.AtualizacaoDisponivel, "O ambiente registrado usa um conjunto de dependências diferente do que este Editor traz.", false);
         }
         return new LinhaComponente(c, instalada, disponivel, situacao, detalhe, c.Parte is null);
@@ -385,7 +381,7 @@ public static class ComponentesDoKit
     /// plugins e do registro nos programas (Plugin, Catalogo, MCP, Atualizacao Claude) nem as que citam outro motor.</summary>
     static List<string> FalhasDoMotor(ComponenteDoKit c, IReadOnlyList<string> falhas)
     {
-        string[] dosPlugins = ["Plugin", "Catalogo", "MCP", "Atualizacao Claude", "Outra instalacao", "Instalacao com pendencias"];
+        string[] dosPlugins = ["Docling", "Blueprint", "FYP", "Dependencias de visao", "Plugin", "Catalogo", "MCP", "Atualizacao Claude", "Outra instalacao", "Instalacao com pendencias"];
         var motores = Lista.Where(x => x.Origem == OrigemComponente.MotorPdf).ToList();
         static string Palavra(ComponenteDoKit m) => m.Chave.Split(' ', '-')[0];
         return falhas.Where(f => !dosPlugins.Any(p => f.StartsWith(p, StringComparison.OrdinalIgnoreCase)))

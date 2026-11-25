@@ -14,7 +14,7 @@ try {
     $pointer = Join-Path $base 'runtime.txt'
     if ((Test-Path $pointer) -and ([IO.File]::ReadAllText($pointer) -eq $python) -and (Test-Path $python)) {
         try {
-            Invocar-Nativo $python @('-I', '-c', 'import pymupdf, docling_mcp, mcp, rapidocr, shapely, duckdb, z3')
+            Invocar-Nativo $python @('-I', '-c', 'import pymupdf, mcp, shapely, duckdb, z3')
             return
         } catch { Write-Verbose $_ }
     }
@@ -38,7 +38,7 @@ try {
     }
     Invocar-Nativo $uv @('pip', 'sync', '--quiet', '--python', $python, '--default-index', 'https://pypi.org/simple', '--only-binary', ':all:', '--require-hashes', $lock)
 
-    Invocar-Nativo $python @('-I', '-c', 'import pymupdf, docling_mcp, mcp, rapidocr, shapely, duckdb, z3')
+    Invocar-Nativo $python @('-I', '-c', 'import pymupdf, mcp, shapely, duckdb, z3')
 
     if ($ambienteNovo) { RegistrarAmbienteCriado $base $venv }
     $tmp = "$pointer.new"

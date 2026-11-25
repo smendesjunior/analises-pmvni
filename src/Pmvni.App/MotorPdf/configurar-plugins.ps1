@@ -49,7 +49,7 @@ $fazPlugin = !$AtualizarKit -and ($tudo -or $Componente -eq 'analise')
 $fazServidor = $tudo -or $Componente -eq 'pmvni-pdf'
 $base = Join-Path $env:LOCALAPPDATA 'PMVNI\MotorPdf'
 [IO.Directory]::CreateDirectory($base) | Out-Null
-$estado = [ordered]@{'Blueprint Pipeline'='PENDENTE';'FYP-Floorplan'='PENDENTE';'Docling MCP 3.5.0'='PENDENTE';'PyMuPDF 2.1'='PENDENTE'}
+$estado = [ordered]@{'PyMuPDF 2.1'='PENDENTE'}
 $resumo = Join-Path $base 'resumo-instalacao.txt'
 $erros = @()
 # Confere a instalação efetiva com o verificador que o executor usa no pré-voo.
@@ -98,10 +98,10 @@ try {
             } else { $estado[$campos[0].Trim()] = $campos[1].Trim() }
         }
     }
-    if ($fazMotores) { foreach ($k in 'Blueprint Pipeline','FYP-Floorplan','Docling MCP 3.5.0','PyMuPDF 2.1') { $estado[$k]='PENDENTE' } }
+    if ($fazMotores) { foreach ($k in 'PyMuPDF 2.1') { $estado[$k]='PENDENTE' } }
     if ($fazMotores) {
         foreach ($antiga in @($estado.Keys)) {
-            if ($antiga -match '^(PyMuPDF|Docling MCP) ' -and $antiga -notin @('PyMuPDF 2.1','Docling MCP 3.5.0')) { $estado.Remove($antiga) }
+            if ($antiga -match '^(PyMuPDF |Docling MCP |Blueprint Pipeline|FYP-Floorplan)' -and $antiga -ne 'PyMuPDF 2.1') { $estado.Remove($antiga) }
         }
         try {
             & (Join-Path $PSScriptRoot 'instalar.ps1')
@@ -109,13 +109,6 @@ try {
             Invocar-Nativo $python @('-I', '-c', "import pymupdf;assert pymupdf.VersionBind=='2.1'")
 
             $estado['PyMuPDF 2.1']='INSTALADO'
-            Invocar-Nativo $python @('-I', '-c', "from importlib.metadata import version;from docling_mcp.tools.converters.local import LOCAL_CONVERSION_AVAILABLE;assert LOCAL_CONVERSION_AVAILABLE and version('docling-mcp')=='3.5.0'")
-
-            $estado['Docling MCP 3.5.0']='INSTALADO'
-            & (Join-Path $PSScriptRoot 'instalar-visao.ps1') | ForEach-Object {
-                if ($_ -eq 'blueprint INSTALADO') {$estado['Blueprint Pipeline']='INSTALADO'}
-                if ($_ -eq 'fyp-floorplan INSTALADO') {$estado['FYP-Floorplan']='INSTALADO'}
-            }
         } catch { $erros += 'Motor ' + $_.Exception.Message }
     }
     $runtime = Join-Path $base 'runtime.txt'

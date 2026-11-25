@@ -5648,7 +5648,7 @@ internal static class Roteiro
                     && pag.ListaComponentesKit.Children.Count == ComponentesDoKit.Lista.Count && l.FonteAcessivel
                     && Linha("analise-codex").Situacao == SituacaoComponente.AtualizacaoDisponivel && Linha("analise-codex").TextoVersoes == "Instalada: 4.0.0 · disponível: 4.1.0"
                     && Linha("analise-claude").Situacao == SituacaoComponente.Ausente && Linha("pmvni-pdf").Situacao == SituacaoComponente.EmDia
-                    && Linha("pymupdf").Situacao == SituacaoComponente.EmDia && Linha("fyp").Situacao == SituacaoComponente.EmDia
+                    && Linha("pymupdf").Situacao == SituacaoComponente.EmDia
                     && !l.Linhas.Any(x => x.Componente.Nome.Contains("espacho", StringComparison.Ordinal))
                     && pag.TextoTarefaKit.Text.StartsWith("Última execução do instalador do kit: 21/11/2026 às 10:15 (atualizar) · concluída sem pendências.", StringComparison.Ordinal);
                 pag.ListaComponentesKit.StartBringIntoView();

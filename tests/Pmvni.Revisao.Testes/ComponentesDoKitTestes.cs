@@ -82,14 +82,8 @@ public sealed class ComponentesDoKitTestes : IDisposable
         Assert.Equal(SituacaoComponente.EmDia, servidor.Situacao);
         Assert.Equal("Instalado em " + File.GetLastWriteTime(Path.Combine(MotorPdf, "mcp_pmvni.py")).ToString("dd/MM/yyyy") + " · igual à versão deste Editor", servidor.TextoVersoes);
         Assert.Equal("Atualiza a análise no Codex e no Claude Code (o mesmo plugin), fora do Editor.", Linha(l, "analise-claude").TextoDica);
-        Assert.Contains("os quatro motores de PDF", Linha(l, "docling").TextoDica);
+        Assert.DoesNotContain(l.Linhas, x => x.Componente.Id is "blueprint" or "fyp" or "docling");
         Assert.Equal(("2.0", "2.1", SituacaoComponente.AtualizacaoDisponivel), (Linha(l, "pymupdf").Instalada, Linha(l, "pymupdf").Disponivel, Linha(l, "pymupdf").Situacao));
-        Assert.Equal(SituacaoComponente.EmDia, Linha(l, "docling").Situacao);
-        Assert.Equal(SituacaoComponente.EmDia, Linha(l, "blueprint").Situacao);
-        var fyp = Linha(l, "fyp");
-        Assert.Equal(SituacaoComponente.ComErro, fyp.Situacao);
-        Assert.Contains("Dependencias de visao incompletas", fyp.Detalhe);
-
         // A versão nova ainda não chegou à cópia do kit deste computador: o botão do componente roda o "Atualizar todos" e o texto diz isso.
         PluginNoKit(KitLocal, "4.0.0");
         codex = Linha(await ComponentesDoKit.LerAsync(Origens(hash)), "analise-codex");
@@ -106,16 +100,15 @@ public sealed class ComponentesDoKitTestes : IDisposable
         File.WriteAllText(Path.Combine(MotorPdf, "resumo-instalacao.txt"),
             "Blueprint Pipeline    PENDENTE\r\nFYP-Floorplan    PENDENTE\r\nDocling MCP 3.5.0    PENDENTE\r\nPyMuPDF 2.1    PENDENTE\r\nFALHA    Plugin analise\r\n");
         var soAnalise = await ComponentesDoKit.LerAsync(Origens(hash));
-        Assert.All(new[] { "pymupdf", "docling", "blueprint", "fyp" }, id => Assert.Equal(SituacaoComponente.Ausente, Linha(soAnalise, id).Situacao));
+        Assert.All(new[] { "pymupdf" }, id => Assert.Equal(SituacaoComponente.Ausente, Linha(soAnalise, id).Situacao));
         // Falha que cita um motor só marca esse.
         File.WriteAllText(Path.Combine(MotorPdf, "resumo-instalacao.txt"), "Docling MCP 3.5.0    PENDENTE\r\nPyMuPDF 2.1    PENDENTE\r\nFALHA    Docling indisponivel\r\n");
         var soDocling = await ComponentesDoKit.LerAsync(Origens(hash));
-        Assert.Equal(SituacaoComponente.ComErro, Linha(soDocling, "docling").Situacao);
         Assert.Equal(SituacaoComponente.Ausente, Linha(soDocling, "pymupdf").Situacao);
 
         // Sem resumo: os motores ficam ausentes.
         File.Delete(Path.Combine(MotorPdf, "resumo-instalacao.txt"));
-        Assert.Equal(SituacaoComponente.Ausente, Linha(await ComponentesDoKit.LerAsync(Origens(hash)), "docling").Situacao);
+        Assert.Equal(SituacaoComponente.Ausente, Linha(await ComponentesDoKit.LerAsync(Origens(hash)), "pymupdf").Situacao);
     }
 
     [Theory]
