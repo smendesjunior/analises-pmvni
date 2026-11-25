@@ -1660,6 +1660,32 @@ public sealed partial class MainWindow
             if (existe == false) { EsquecerPendenteClaude(pend.Registro); continue; }
             var ia = await Task.Run(() => ProvedorDoRegistro(pend.Registro));
             if (!Provedores.Ativos.Contains(ia)) continue;
+            // A publicação concluída já foi verificada e pode ser importada mesmo que a área do kit tenha sido liberada.
+            Resultado? publicada;
+            try
+            {
+                publicada = await Task.Run(() =>
+                {
+                    if (!File.Exists(Path.Combine(pend.Registro, "execucao.json"))) return null;
+                    var registro = System.Text.Json.Nodes.JsonNode.Parse(RegistroExecucao.LerTextoDaExecucao(pend.Registro));
+                    return registro?["situacao"]?.GetValue<string>() == "concluida" && registro["pmvrel"] is null
+                        ? RecuperacaoAnaliseLocal.EntregaPublicada(pend.Processo, Path.GetFileName(pend.Registro)) : null;
+                });
+            }
+            catch (Exception erro) when (erro is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException or InvalidOperationException)
+            {
+                MostrarMensagem(InfoBarSeverity.Warning, "Não foi possível conferir a entrega guardada", erro.Message);
+                continue;
+            }
+            if (publicada?.Documento is not null)
+            {
+                var origem = await ProcessoDaPastaAsync(pend.Processo);
+                if (await MostrarRecusaGuardadaAsync(ia, origem, pend.Registro)) continue;
+                var oferta = new ImportacaoPendente(ia, origem, pend.Registro, null, null);
+                if (!importacoesPendentes.Any(i => MesmoRegistro(i.Registro, pend.Registro))) importacoesPendentes.Add(oferta);
+                MostrarImportacaoPendente(oferta, FluxoNovoRelatorio.TextoKitTerminou(ia, origem), InfoBarSeverity.Success);
+                continue;
+            }
             var pecas = await LerPecasAsync();
             var nomeIa = Provedores.Nome(ia);
             var pastaDeTrabalho = OrquestradorAnalise.ProcessoDoTrabalho(pend.Processo, pend.Registro);

@@ -183,6 +183,8 @@ internal static class Roteiro
         File.WriteAllText(progresso, "");
         void Registrar(string linha) { try { File.AppendAllText(progresso, DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture) + " " + linha + Environment.NewLine); } catch (IOException) { } }
         Registrar("início da limpeza das rodadas anteriores");
+        var documentosDoRoteiro = Path.Combine(Path.GetTempPath(), "PMVNI-Roteiro-" + Guid.NewGuid().ToString("N"));
+        ControlesDoProcesso.BaseDeTeste = _ => Path.Combine(documentosDoRoteiro, "dados-locais");
         var perguntas = new PerguntasFixas();
         Perguntas.Atual = perguntas;
         // Tarefa 13: Processos e Despachos leem uma CÓPIA da árvore fictícia (nunca a pasta real de processos) e nenhum arquivo é aberto fora
@@ -269,15 +271,16 @@ internal static class Roteiro
 
         await Passo("rotulo_de_composicao", async p =>
         {
+            await j.MudarModuloAsync(Modulo.Relatorios);
             j.Ocupar("Compondo as folhas…");
             try
             {
-                await Task.Delay(220);
                 var pagina = j.ElementoRaiz.FindName("Relatorios") as Microsoft.UI.Xaml.FrameworkElement;
                 var espera = (Microsoft.UI.Xaml.Controls.Grid)pagina!.FindName("Espera");
                 var borda = (Microsoft.UI.Xaml.Controls.Border)espera.Children[0];
                 var texto = (Microsoft.UI.Xaml.Controls.TextBlock)pagina.FindName("TextoEspera");
                 var anel = (Microsoft.UI.Xaml.Controls.ProgressRing)pagina.FindName("Anel");
+                await EsperarAteAsync(() => Task.FromResult(borda.ActualWidth > 0 && borda.ActualHeight > 0 && texto.ActualWidth > 0), 5000);
                 var pos = texto.TransformToVisual(borda).TransformPoint(default);
                 var anelPos = anel.TransformToVisual(borda).TransformPoint(default);
                 p["indicador_e_texto_inteiros"] = anelPos.X >= 0 && anelPos.Y >= 0
@@ -3163,8 +3166,6 @@ internal static class Roteiro
         Dictionary<string, (string Sha, long Tamanho, DateTime Escrita, DateTime Criacao, FileAttributes Atributos)> fotoDosAnexos = new();
         var novoRelatorioPreparado = false;
 
-        // Documentos isolados do usuário durante o ensaio do Editor.
-        var documentosDoRoteiro = Path.Combine(Path.GetTempPath(), "PMVNI-Roteiro-" + Guid.NewGuid().ToString("N"));
         OrquestradorAnalise Orq(string cenario) => new()
         {
             DocumentosParaTeste = documentosDoRoteiro,
@@ -3659,7 +3660,7 @@ internal static class Roteiro
             p["fim"] = fim.Situacao + (fim.Mensagem is null ? "" : ": " + fim.Mensagem);
             p["titulo_durante"] = titulo;
             // Tarefa 12: a tela mostra a rota do Codex usada e o que o controlador do kit escreve; JSON (como os eventos do cenário) não aparece.
-            var linhas = e.Linhas.Count >= 1 && e.Linhas[0].StartsWith("Rota do Codex: ", StringComparison.Ordinal) && !e.Linhas.Any(l => l.StartsWith('{'));
+            var linhas = e.Linhas.Any(l => l.StartsWith("Rota do Codex: ", StringComparison.Ordinal)) && !e.Linhas.Any(l => l.StartsWith('{'));
             p["linhas"] = new JsonArray(e.Linhas.Take(10).Select(l => (JsonNode)l).ToArray());
 
             // Os anexos copiados (sha = origem) e a origem intacta.
@@ -3680,7 +3681,8 @@ internal static class Roteiro
             var registro = reg.StartsWith(ControlesDoProcesso.Diretorio(processo, "editor") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
                 && pedido == texto && diretrizes == PedidoAgente.Diretrizes(texto)      // Tarefa 13: sem instruções de progresso para a IA
                 && !Directory.Exists(e.Registro.PastaProgresso)
-                && anexosJson.Count == 4 && File.Exists(Path.Combine(reg, "saida.jsonl")) && File.Exists(Path.Combine(reg, "situacoes.jsonl"))
+                && anexosJson.Count == 4 && File.Exists(Path.Combine(e.RegistroDeTrabalho, "saida.jsonl"))
+                && File.Exists(Path.Combine(e.RegistroDeTrabalho, "situacoes.jsonl"))
                 && ex["situacao"]?.GetValue<string>() == "concluida" && ex["modo"]?.GetValue<string>() == "conta" && ex["pmvrel"]?.GetValue<string>() is { Length: > 0 };
             p["registro"] = registro;
 
@@ -3811,7 +3813,7 @@ internal static class Roteiro
             var situacoes = Chamadas(e.PastaDeTrabalho, "situacao").Length;
             p["situacao_chamadas"] = situacoes;
             var reg = e.Registro.Pasta;
-            var registro = File.Exists(Path.Combine(reg, "situacoes.jsonl")) && File.ReadAllText(Path.Combine(reg, "pedido.md"), System.Text.Encoding.UTF8) == "Pedido guardado só no registro.";
+            var registro = File.Exists(Path.Combine(e.RegistroDeTrabalho, "situacoes.jsonl")) && File.ReadAllText(Path.Combine(reg, "pedido.md"), System.Text.Encoding.UTF8) == "Pedido guardado só no registro.";
             var s = j.Sessao;
             var importado = fim.Situacao == "concluida" && s is not null && NaEtapa(s.Caminho, processo)
                 && fim.Documento == RecuperacaoAnaliseLocal.EntregaPublicada(processo, Path.GetFileName(reg))?.Documento && j.FolhasVisiveis
@@ -3833,6 +3835,9 @@ internal static class Roteiro
             var continuou = Chamadas(eCont.PastaDeTrabalho, "iniciar").Length ==
                 (eCont.PastaDeTrabalho == eObj.PastaDeTrabalho ? antesContinuar + 1 : 1);
             p["continuar_da_outra_partida"] = continuou;
+            p["conferencias"] = new JsonObject { ["texto"] = textoSob, ["aviso"] = aviso, ["pendente"] = pendenteDurante,
+                ["linha"] = linhaIniciar, ["registro"] = registro, ["importado"] = importado, ["sem_pendente"] = semPendente,
+                ["etapas"] = etapas, ["objecoes"] = objecoes };
             p["ok"] = textoSob && aviso && pendenteDurante && linhaIniciar && situacoes >= 2 && linhasDoLog > 0 && registro && importado && semPendente && etapas && objecoes && continuou;
         });
 
@@ -3998,8 +4003,8 @@ internal static class Roteiro
             var tudo = true;
             foreach (var (cenario, conferir) in new (string, Func<ExecucaoEmCurso, FimAnalise, bool>)[]
             {
-                ("sem_resultado", (e, f) => f.Situacao == "sem_resultado" && f.Mensagem == $"A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: {e.Registro.Pasta}."),
-                ("falha", (e, f) => f.Situacao == "falhou" && f.Mensagem == $"O controlador do analise parou na etapa Revisão final: falhou de propósito. Veja o registro: {e.Registro.Pasta}."),
+                ("sem_resultado", (e, f) => f.Situacao == "sem_resultado" && f.Mensagem == $"A análise terminou, mas não deixou relatório novo (delivery.json não foi atualizado). Veja o registro: {e.RegistroDeTrabalho}."),
+                ("falha", (e, f) => f.Situacao == "falhou" && f.Mensagem == $"O controlador do analise parou na etapa Revisão final: falhou de propósito. Veja o registro: {e.RegistroDeTrabalho}."),
                 ("json_invalido", (e, f) => f.Situacao == "sem_resultado" && f.Mensagem!.StartsWith("O delivery.json da análise não pôde ser lido: ", StringComparison.Ordinal)),
                 ("fora_do_processo", (e, f) => f.Situacao == "sem_resultado" && f.Mensagem!.StartsWith("O relatório indicado pela análise está fora da pasta do processo: ", StringComparison.Ordinal)),
             })
@@ -4049,21 +4054,22 @@ internal static class Roteiro
             // A cópia da árvore: o que já existia não mudou; o que é novo são só os anexos copiados, o registro do editor, o que o agente falso gravou e os .rpmvni.
             var depois = FotografarArvore(processosAgentes);
             var alterados = antesDoNovoRelatorio.Where(kv => !depois.TryGetValue(kv.Key, out var s) || s != kv.Value).Select(kv => kv.Key).ToList();
-            static bool Permitido(string relativo)
+            var publicados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var origem in new[] { P0001(), P0012() })
+                foreach (var reg in ControlesDoProcesso.Registros(origem))
+                    if (RecuperacaoAnaliseLocal.EntregaPublicada(origem, Path.GetFileName(reg))?.Pdf is { } pdf)
+                        publicados.Add(Path.GetRelativePath(processosAgentes, pdf));
+            bool Permitido(string relativo)
             {
-                var partes = relativo.Split(Path.DirectorySeparatorChar);
-                var nome = partes[^1];
-                if (relativo.Contains(@"\.pmvni-ai\editor\", StringComparison.OrdinalIgnoreCase) || relativo.Contains(@"\.pmvni-ai\agente-falso\", StringComparison.OrdinalIgnoreCase)
-                    || relativo.Contains(@"\.pmvni-ai\analise\", StringComparison.OrdinalIgnoreCase) || relativo.Contains(@"\.pmvni-ai\analise-pro\", StringComparison.OrdinalIgnoreCase)
-                    || relativo.Contains(@"\.pmvni-ai\analise-google\", StringComparison.OrdinalIgnoreCase))     // 1.1.0: a pasta de controle do análise Google (passo 54b)
-                    return true;
+                if (publicados.Contains(relativo)) return true;
+                var nome = Path.GetFileName(relativo);
                 // Os .rpmvni importados no 0001 e no 0012 (e o .bak de uma gravação) e a trava do relatório aberto.
                 if (nome.StartsWith("RELATORIO_0001_2099", StringComparison.Ordinal) || nome.StartsWith("RELATORIO_0012_2099", StringComparison.Ordinal)) return true;
                 if (nome.StartsWith(".~RELATORIO_0001_2099", StringComparison.Ordinal) || nome.StartsWith(".~RELATORIO_0012_2099", StringComparison.Ordinal)) return true;
-                return relativo.EndsWith(@"\PROJETO\REVISÃO 01\planta-ficticia.pdf", StringComparison.Ordinal) || relativo.EndsWith(@"\PROJETO\REVISÃO 01\memorial.docx", StringComparison.Ordinal)
-                    || relativo.EndsWith(@"\PROJETO\INICIAL\foto.heic", StringComparison.Ordinal) || relativo.EndsWith(@"\DOCUMENTOS\requerimento-ficticio.pdf", StringComparison.Ordinal)
-                    || relativo.EndsWith(@"\PROJETO\complemento-ficticio.pdf", StringComparison.Ordinal) || relativo.EndsWith(@"\complemento-ficticio.pdf", StringComparison.Ordinal)
-                    || relativo.EndsWith(@"\levantamento-ficticio.pdf", StringComparison.Ordinal);
+                return relativo.EndsWith(@"\PROJETO\REVISÃO 01\planta-ficticia.pdf", StringComparison.OrdinalIgnoreCase) || relativo.EndsWith(@"\PROJETO\REVISÃO 01\memorial.docx", StringComparison.OrdinalIgnoreCase)
+                    || relativo.EndsWith(@"\PROJETO\INICIAL\foto.heic", StringComparison.OrdinalIgnoreCase) || relativo.EndsWith(@"\DOCUMENTOS\requerimento-ficticio.pdf", StringComparison.OrdinalIgnoreCase)
+                    || relativo.EndsWith(@"\PROJETO\complemento-ficticio.pdf", StringComparison.OrdinalIgnoreCase) || relativo.EndsWith(@"\complemento-ficticio.pdf", StringComparison.OrdinalIgnoreCase)
+                    || relativo.EndsWith(@"\levantamento-ficticio.pdf", StringComparison.OrdinalIgnoreCase);
             }
             var novos = depois.Keys.Where(k => !antesDoNovoRelatorio.ContainsKey(k)).ToList();
             var foraDoPermitido = novos.Where(k => !Permitido(k)).ToList();
@@ -4106,7 +4112,8 @@ internal static class Roteiro
                 if (!await EsperarAteAsync(() => Task.FromResult(j.AnexosDoNovoRelatorio.Count == antes + 1), 5000))
                     throw new InvalidOperationException("Seletor sem anexo na categoria " + zona.Tag);
             }
-            if (!j.AnexosDoNovoRelatorio.Select(a => a.Destino).SequenceEqual(categorias))
+            var destinosEsperados = categorias.Select(c => c == DestinoAnexo.ProjetoInicial ? Arquivamento.Padrao(P0001()) : c);
+            if (!j.AnexosDoNovoRelatorio.Select(a => a.Destino).SequenceEqual(destinosEsperados))
                 throw new InvalidOperationException("As escolhas do mesmo arquivo em categorias distintas se perderam.");
             await j.SoltarArquivosAsync([planta, memorial], DestinoAnexo.Bci);
             await j.SoltarArquivosAsync([planta], DestinoAnexo.Bci);
@@ -4148,6 +4155,7 @@ internal static class Roteiro
             const string novo = "PROTO-2707/2026";
             const string campo = "section.folha .cover .dates > div:first-child > b";
             var pacote = Path.Combine(pasta, "protocolo-da-capa.rpmvni");
+            ApagarSe(pacote);
             var pdf = Path.Combine(pasta, "protocolo-da-capa.pdf");
             if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), pacote))
                 throw new InvalidOperationException("A importação da capa falhou: " + j.InfoMensagem.Message);
@@ -4718,6 +4726,8 @@ internal static class Roteiro
             await j.ExecutarComandoAsync(ComandosApp.RelatoriosNovo);
             await j.AguardarNovoRelatorioAsync();
             await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == proc));
+            for (var i = j.AnexosDoNovoRelatorio.Count - 1; i >= 0; i--) j.RemoverAnexo(i);
+            await j.AguardarNovoRelatorioAsync();
             perguntas.ArquivosParaAnexar = [fluxoAnexo];
             await j.AnexarAsync();
             await j.AguardarNovoRelatorioAsync();
@@ -5468,6 +5478,7 @@ internal static class Roteiro
 
         await Passo("70_estabilidade_do_cabecalho", async p =>
         {
+            await j.MudarModuloAsync(Modulo.Relatorios);
             var raiz = j.ElementoRaiz;
             var campo = (FrameworkElement)raiz.FindName("MolduraPesquisa");
             var busca = (TextBlock)raiz.FindName("TextoPesquisa");
@@ -5503,7 +5514,7 @@ internal static class Roteiro
                         var origem = moldura.TransformToVisual(raiz).TransformPoint(new Windows.Foundation.Point()).X;
                         folgas.Add(extremidade - j.FaixaAtual.ActualWidth - origem);
                         folgas.Add(origem + moldura.ActualWidth - extremidade);
-                        foreach (var barra in barras)
+                        foreach (var barra in barras.Where(b => b.Visibility == Visibility.Visible && b.ActualWidth > 0))
                         {
                             var cantoPagina = barra.TransformToVisual(raiz).TransformPoint(new Windows.Foundation.Point());
                             desviosLaterais.Add(Math.Abs(cantoPagina.X + barra.ActualWidth - extremidade));
@@ -5530,6 +5541,7 @@ internal static class Roteiro
             // segunda opção (PropReverComIa; não é clicada aqui).
             const string To = "indices/02";
             var amostra = Path.Combine(pasta, "amostra-rever-sem-ia");
+            if (Directory.Exists(amostra)) ApagarArvore(amostra);
             CopiarArvore(Path.Combine(corpus, "img"), Path.Combine(amostra, "img"));
             var json = Path.Combine(amostra, "rever-sem-ia.json");
             var no = JsonNode.Parse(await File.ReadAllTextAsync(dadosLongo))!;

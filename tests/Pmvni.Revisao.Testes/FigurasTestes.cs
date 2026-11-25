@@ -23,6 +23,29 @@ public class FigurasTestes
     private static string PrimeiraFigura(SessaoRevisao s) => CamadaFiguras.Inicial(s.Projeto)[0].Id;
 
     [Fact]
+    public void exportacao_distingue_marcacoes_manuais_sem_vinculo_das_notas_do_kit()
+    {
+        var c = Importar("longo");
+        var s = Sessao(c);
+        var id = PrimeiraFigura(s);
+        s.Aplicar(new IncluirMarcacao(id, "regiao", TiposMarcacao.Regiao, Caixa: [.1, .2, .5, .6], Elemento: "Detalhe da prancha"));
+        s.Aplicar(new IncluirMarcacao(id, "seta", TiposMarcacao.Seta, Alvo: [.4, .5], Elemento: "Segundo ponto"));
+        using var pasta = Ambiente.PastaDeTeste("marcas-manuais");
+        c.ExtrairAssets(pasta);
+        var caminho = Path.Combine(pasta, "dados.json");
+        var dados = JsonFiel.Ler(DadosEfetivos.Gerar(s.Projeto).Json);
+        var notas = dados["figuras"]![0]!["notas"]!.AsArray();
+        Assert.Equal("Marcação manual", notas[2]!["itens"]?.ToString());
+        Assert.Equal("Marcação manual", notas[3]!["itens"]?.ToString());
+        var impresso = RelatorioRenderer.Renderizar(JsonFiel.Escrever(dados), caminho, new(false, false), Modelo);
+        Assert.True(impresso.Ok, string.Join(", ", impresso.Erros));
+        Assert.Contains("(Marcação manual)", impresso.Html);
+        notas[0]!.AsObject().Remove("itens");
+        Assert.Contains(RelatorioRenderer.Renderizar(JsonFiel.Escrever(dados), caminho, new(false, false), Modelo).Erros,
+            erro => erro.Contains("figuras[1].notas[1].itens", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void sem_edicao_de_figura_o_dados_efetivo_nao_muda()
     {
         var c = Importar("longo");

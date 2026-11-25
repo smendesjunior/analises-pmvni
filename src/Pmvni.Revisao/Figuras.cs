@@ -240,7 +240,11 @@ public static partial class CamadaFiguras
             var nota = (JsonObject?)m.NotaOriginal?.DeepClone() ?? new JsonObject();
             Definir(nota, "elemento", m.Elemento);
             Definir(nota, "texto", m.Texto);
-            Definir(nota, "itens", DadosEfetivos.Imprimir(p, m.Itens));
+            var referencia = DadosEfetivos.Imprimir(p, m.Itens);
+            // O modelo imprime a origem entre parênteses mesmo quando o analista não vinculou a marca a um item.
+            if (referencia.Length == 0 && !m.Gravada && m.NotaOriginal is null)
+                referencia = "Marcação manual";
+            Definir(nota, "itens", referencia);
             notas.Add(nota);
         }
         if (!(o["notas"] is JsonArray atuais && JsonNode.DeepEquals(atuais, notas))) o["notas"] = notas;
