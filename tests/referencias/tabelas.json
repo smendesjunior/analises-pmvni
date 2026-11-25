@@ -13,8 +13,8 @@
    "a"
   ],
   "DECISAO_DO_ANALISTA": [
-   "O ANALISTA DEVE DECIDIR",
-   "a"
+   "O ANALISTA DEVE CONFERIR",
+   "conferir"
   ],
   "DIVERGENCIA_INTERNA": [
    "INFORMAÇÕES DIVERGENTES",

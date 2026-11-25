@@ -14,7 +14,7 @@
 
 import { ATR_OCULTO } from './fragmentar';
 import type { Manipulador } from './index';
-import { blocoDe, desenvolver, ehCaminho, ehLinha, marcarCamposLinhas, marcarLinhas, pedacosDoBloco } from './linhas';
+import { PROTOCOLO_CAPA, blocoDe, desenvolver, ehCaminho, ehLinha, marcarCamposLinhas, marcarLinhas, pedacosDoBloco } from './linhas';
 import { CSS_MARCAS, desenharMarcas, golaDosExcluidos, ID_CAMADA, type EstadoMarcas, type Excluido } from './marcas';
 import type { TipoHost, TipoWeb } from './mensagens';
 import { ErroComposicao } from './plano';
@@ -63,6 +63,7 @@ const BLOCOS = `:where(.card[data-ref], .fig[data-ref], [${ATR_CLICAVEL}])`;
 const LINHAS = `:where(tr[data-pmvni-linha])`;
 const CSS_EDICAO = `
 @media screen {
+  .cover .dates b[data-campo="protocolo"] { cursor: text; min-inline-size: 3em; min-block-size: 1em; }
   ${SEM_EDICAO} :where(.card[data-ref], .fig[data-ref], tr[data-pmvni-linha], [${ATR_CLICAVEL}]) { cursor: pointer; }
   ${SEM_EDICAO} ${BLOCOS}:hover { outline: 1px solid rgba(${AZUL}, .45); outline-offset: 1px; }
   ${SEM_EDICAO} ${LINHAS}:hover { outline: 1px solid rgba(${AZUL}, .45); outline-offset: -1px; }
@@ -174,6 +175,8 @@ function marcarCampos(): number {
 
 /** Desfaz a marcação: tira o atributo e devolve o título ao texto corrido original. */
 function desmarcarCampos(): void {
+  for (const el of Array.from(document.querySelectorAll(`section.folha .cover [data-pmvni-linha="${PROTOCOLO_CAPA}"]`)))
+    el.removeAttribute('data-pmvni-linha');
   for (const el of Array.from(document.querySelectorAll<HTMLElement>(`section.folha [${ATR_CAMPO}]`))) {
     const pai = el.parentElement;
     if (el.localName === 'span' && el.getAttribute(ATR_CAMPO) === 'titulo' && pai?.classList.contains('ct')) {
@@ -270,7 +273,7 @@ function iniciarEdicao(ref: string, campo: string, texto: string): void {
   const sel = window.getSelection();
   const fim = document.createRange();
   fim.selectNodeContents(primeiro);
-  fim.collapse(false);
+  if (ref !== PROTOCOLO_CAPA) fim.collapse(false);
   sel?.removeAllRanges();
   sel?.addRange(fim);
 }
@@ -445,6 +448,10 @@ export function registrarEdicao(registrar: Registrar, enviar: Enviar): void {
     if (!ativo || edicao || e.button !== 0) return;
     if (e.target instanceof Element && e.target.closest(`#${ID_CAMADA}`)) return;
     const { ref, campo } = localizar(e.target);
+    if (ref === PROTOCOLO_CAPA && campo === 'protocolo') {
+      evento('pedirEdicao', { ref, campo });
+      return;
+    }
     aplicarSelecao(ref);
     // Correção 2026-11-16: clique no desenho da volumetria (o painel cujo título diz VOLUMETRIA) abre o pedido à IA no host.
     const volumetria = volumetriaDe(e.target) !== null;
@@ -458,7 +465,7 @@ export function registrarEdicao(registrar: Registrar, enviar: Enviar): void {
       evento('pedirEdicao', { ref, campo: null }); // figura: o host abre o editor de marcações
       return;
     }
-    if (ref === null || campo === null) return;
+    if (ref === null || campo === null || ref === PROTOCOLO_CAPA) return;
     window.getSelection()?.removeAllRanges(); // o duplo clique selecionou uma palavra; o campo entra em edição a seguir
     evento('pedirEdicao', { ref, campo });
   });

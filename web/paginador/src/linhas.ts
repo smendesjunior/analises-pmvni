@@ -14,6 +14,8 @@ export const ATR_LINHA = 'data-pmvni-linha';
 export const ATR_ENVOLTO = 'data-pmvni-envolto';
 const ATR_CAMPO = 'data-campo';
 const SELETOR_LINHAS = `section.folha .area tr[${ATR_LINHA}]`;
+export const PROTOCOLO_CAPA = 'capa/01';
+const SELETOR_BLOCOS = `${SELETOR_LINHAS}, section.folha .cover .dates [${ATR_LINHA}]`;
 const SELETOR_CARDS = 'section.folha .area .card[data-ref]';
 const SEPARADOR_VAO = ' • ';
 const PREFIXO_AREA = 'ÁREA: ';
@@ -24,7 +26,7 @@ const TAG_TRECHO = 'pmvni-trecho';
 const TABELAS: readonly [string, string][] = [['ind', 'indices'], ['ilu', 'ambientes']];
 
 /** O id tem a forma de linha de tabela. */
-export const ehLinha = (ref: unknown): ref is string => typeof ref === 'string' && /^(indices|ambientes)\/\d{2,}$/.test(ref);
+export const ehLinha = (ref: unknown): ref is string => ref === PROTOCOLO_CAPA || (typeof ref === 'string' && /^(indices|ambientes)\/\d{2,}$/.test(ref));
 
 /** Caminho de texto dentro da linha: chaves e índices separados por "/". */
 export const ehCaminho = (v: unknown): v is string => typeof v === 'string' && /^[a-z_]+(\/([0-9]+|[a-z_]+))*$/.test(v);
@@ -34,7 +36,7 @@ const visivel = (e: Element): boolean => !e.closest(`[${ATR_OCULTO}]`);
 /** Pedaços de um bloco nas folhas: os cards de um item (data-ref) ou as linhas de tabela visíveis (data-pmvni-linha). */
 export function pedacosDoBloco(ref: string): HTMLElement[] {
   if (ehLinha(ref)) {
-    return Array.from(document.querySelectorAll<HTMLElement>(SELETOR_LINHAS))
+    return Array.from(document.querySelectorAll<HTMLElement>(SELETOR_BLOCOS))
       .filter((e) => e.getAttribute(ATR_LINHA) === ref && visivel(e));
   }
   return Array.from(document.querySelectorAll<HTMLElement>(SELETOR_CARDS)).filter((e) => e.getAttribute('data-ref') === ref);
@@ -44,7 +46,7 @@ export function pedacosDoBloco(ref: string): HTMLElement[] {
 export function blocoDe(alvo: Element): { el: HTMLElement; ref: string; linha: boolean } | null {
   const card = alvo.closest<HTMLElement>(SELETOR_CARDS);
   if (card) return { el: card, ref: card.getAttribute('data-ref')!, linha: false };
-  const tr = alvo.closest<HTMLElement>(SELETOR_LINHAS);
+  const tr = alvo.closest<HTMLElement>(SELETOR_BLOCOS);
   if (tr) return { el: tr, ref: tr.getAttribute(ATR_LINHA)!, linha: true };
   return null;
 }
@@ -141,6 +143,11 @@ function marcarAmbiente(tr: HTMLTableRowElement): void {
 /** Marca os textos de todas as linhas das tabelas nas folhas (data-campo = caminho). Idempotente. */
 export function marcarCamposLinhas(): void {
   marcarLinhas();
+  for (const grupo of Array.from(document.querySelectorAll<HTMLElement>('section.folha .cover .dates > div'))) {
+    if (grupo.querySelector(':scope > span')?.textContent?.trim().toUpperCase() !== 'PROTOCOLO') continue;
+    grupo.setAttribute(ATR_LINHA, PROTOCOLO_CAPA);
+    marcar(grupo.querySelector(':scope > b'), 'protocolo');
+  }
   for (const tr of Array.from(document.querySelectorAll<HTMLTableRowElement>(SELETOR_LINHAS))) {
     if (tr.closest('table')?.classList.contains('ind')) marcarIndice(tr);
     else marcarAmbiente(tr);

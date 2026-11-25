@@ -21,6 +21,33 @@ public class PastasTestes
     }
 
     [Fact]
+    public void selecao_pela_categoria_consulta_apenas_as_pecas_faltantes()
+    {
+        var raiz = Directory.CreateTempSubdirectory("pmvni-categorias-").FullName;
+        try
+        {
+            var processo = new Processo(raiz, "Fictício", null, null, null);
+            string[] nomes = ["PROJETOS/REVISAO 01/planta.pdf", "DOCUMENTOS/BCI/digitalizacao.pdf",
+                "DOCUMENTOS/ART-RRT/digitalizacao.pdf", "DOCUMENTOS/espelho cadastral.pdf",
+                "DOCUMENTOS/matrícula.pdf", "DOCUMENTOS DE PROTOCOLO/autorizacao.docx",
+                ".pmvni-ai/rascunho.pdf", "DESPACHO 01 - 2099-01-01/parecer.pdf"];
+            foreach (var nome in nomes)
+            {
+                var caminho = Path.Combine(raiz, nome);
+                Directory.CreateDirectory(Path.GetDirectoryName(caminho)!);
+                File.WriteAllText(caminho, "fictício");
+            }
+            var atendidas = new HashSet<string> { "projetos", "bci", "outros_documentos" };
+            var faltantes = Processos.PecasParaAnalise(processo, atendidas, default);
+            Assert.Equal(new[] { "digitalizacao.pdf", "matrícula.pdf" }, faltantes.Select(p => Path.GetFileName(p.Relativo)).Order());
+            Assert.Contains(faltantes, p => p.Relativo.Contains("ART-RRT"));
+            atendidas.UnionWith(["art_rrt", "escritura_certidao"]);
+            Assert.Empty(Processos.PecasParaAnalise(processo, atendidas, new CancellationToken(canceled: true)));
+        }
+        finally { Directory.Delete(raiz, true); }
+    }
+
+    [Fact]
     public void processos_mais_recentes_primeiro()
     {
         var r = Processos.Listar(Raiz, CancellationToken.None);

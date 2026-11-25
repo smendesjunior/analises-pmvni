@@ -5,13 +5,16 @@ using System.Text.RegularExpressions;
 namespace Pmvni.Revisao;
 
 /// <summary>Para onde um anexo vai dentro da pasta do processo (a escolha do usuário, linha por linha).</summary>
-public enum DestinoAnexo { Documento, ProjetoInicial, ReapresentacaoNova, ReapresentacaoAtual }
+public enum DestinoAnexo { Documento, ProjetoInicial, ReapresentacaoNova, ReapresentacaoAtual, Bci, ArtRrt, EscrituraCertidao, OutrosDocumentos }
 
 /// <summary>Uma linha da prévia: o caminho final (relativo ao processo), se o mesmo conteúdo já estava lá, ou o motivo da recusa.</summary>
 public sealed record PlanoAnexo(string Origem, DestinoAnexo Destino, string? Relativo, bool JaEstava, string? Recusa);
 
 /// <summary>O que foi arquivado (ou já estava): caminho de origem, relativo ao processo, sha256 (minúsculas) e tamanho.</summary>
-public sealed record ArquivoArquivado(string Origem, string Relativo, string Sha256, long Tamanho, bool JaEstava);
+public sealed record ArquivoArquivado(string Origem, string Relativo, string Sha256, long Tamanho, bool JaEstava)
+{
+    public string? Categoria { get; init; }
+}
 
 /// <summary>Anexos no processo, pela regra do kit (<c>organizacao-arquivos.md</c> e <c>pasta_processo.py</c>, só leitura; desenho §12.3):
 /// destino escolhido por anexo, <c>REVISÃO NN</c>, cópia (nunca movimento) sem sobrescrever, sha conferido. Tudo síncrono, para <c>Task.Run</c>.</summary>
@@ -77,9 +80,23 @@ public static class Arquivamento
         return Convert.ToHexStringLower(SHA256.HashData(fs));
     }
 
+    public static string? Categoria(DestinoAnexo destino) => destino switch
+    {
+        DestinoAnexo.ProjetoInicial or DestinoAnexo.ReapresentacaoAtual or DestinoAnexo.ReapresentacaoNova => "projetos",
+        DestinoAnexo.Bci => "bci",
+        DestinoAnexo.ArtRrt => "art_rrt",
+        DestinoAnexo.EscrituraCertidao => "escritura_certidao",
+        DestinoAnexo.OutrosDocumentos => "outros_documentos",
+        _ => null
+    };
+
     static string PastaDestino(string pastaProcesso, DestinoAnexo destino) => destino switch
     {
         DestinoAnexo.Documento => SubDocumentos,
+        DestinoAnexo.Bci => Path.Combine(SubDocumentos, "BCI"),
+        DestinoAnexo.ArtRrt => Path.Combine(SubDocumentos, "ART-RRT"),
+        DestinoAnexo.EscrituraCertidao => Path.Combine(SubDocumentos, "ESCRITURA OU CERTIDÃO DE INTEIRO TEOR"),
+        DestinoAnexo.OutrosDocumentos => Path.Combine(SubDocumentos, "OUTROS DOCUMENTOS"),
         DestinoAnexo.ProjetoInicial => Path.Combine(SubProjeto, SubInicial),
         DestinoAnexo.ReapresentacaoAtual => Path.Combine(SubProjeto, RevisaoAtual(pastaProcesso) ?? ProximaRevisao(pastaProcesso)),
         _ => Path.Combine(SubProjeto, ProximaRevisao(pastaProcesso)),
@@ -214,9 +231,9 @@ public static class Arquivamento
             {
                 // O mesmo conteúdo já está no destino (de antes ou copiado neste mesmo lote): nada a copiar.
                 if (copiadosNestaRemessa.TryGetValue(item.Relativo, out var info))
-                    feitos.Add(new ArquivoArquivado(item.Origem, item.Relativo, info.Sha, info.Tamanho, true));
+                    feitos.Add(new ArquivoArquivado(item.Origem, item.Relativo, info.Sha, info.Tamanho, true) { Categoria = Categoria(item.Destino) });
                 else
-                    feitos.Add(new ArquivoArquivado(item.Origem, item.Relativo, Sha(existente), new FileInfo(existente).Length, true));
+                    feitos.Add(new ArquivoArquivado(item.Origem, item.Relativo, Sha(existente), new FileInfo(existente).Length, true) { Categoria = Categoria(item.Destino) });
                 continue;
             }
 
@@ -275,7 +292,7 @@ public static class Arquivamento
                     File.SetLastWriteTimeUtc(alvo, escritaUtc);
                     var relativo = Path.GetRelativePath(pastaProcesso, alvo);
                     copiados[relativo] = (shaOrigem, tamanho);
-                    return new ArquivoArquivado(item.Origem, relativo, shaOrigem, tamanho, false);
+                    return new ArquivoArquivado(item.Origem, relativo, shaOrigem, tamanho, false) { Categoria = Categoria(item.Destino) };
                 }
                 catch (IOException) when (File.Exists(alvo))
                 {
@@ -283,7 +300,7 @@ public static class Arquivamento
                     {
                         var relativo = Path.GetRelativePath(pastaProcesso, alvo);
                         copiados[relativo] = (shaOrigem, tamanho);
-                        return new ArquivoArquivado(item.Origem, relativo, shaOrigem, tamanho, true);
+                        return new ArquivoArquivado(item.Origem, relativo, shaOrigem, tamanho, true) { Categoria = Categoria(item.Destino) };
                     }
                 }
             }

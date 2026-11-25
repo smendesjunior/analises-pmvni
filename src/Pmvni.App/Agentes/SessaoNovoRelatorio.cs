@@ -221,6 +221,8 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
                         if (auditoriaAlternativa) o["rota_auditoria_alternativa"] = p == Provedor.Claude ? "codex" : "claude";
                     });
                 reg.GravarPedido(texto ?? "");      // o pedido digitado; nenhuma IA recebe pedido do editor (Tarefa 12)
+                if (registroAnterior is not null && reg.LerAnexosCategorizados() is { Count: > 0 } anteriores)
+                    feitos = anteriores;
                 reg.GravarAnexos(feitos);
                 return (t, reg, feitos, plano.Where(i => i.Recusa is not null).Select(i => i.Recusa!).ToList(), registroAnterior is not null || interrompida is not null);
             }

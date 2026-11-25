@@ -57,9 +57,12 @@ public sealed partial class OrquestradorAnalise
         if (!File.Exists(transportador))
             return Falha("Atualize o kit PMVNI para a versão 4.6.0 ou posterior para trabalhar na área local da análise.");
         Anunciar(progresso, new("Conferindo os documentos do processo e preparando as cópias locais.", null));
+        // O checkpoint fixa as peças selecionadas da execução, inclusive as encontradas antes por categoria.
+        var selecaoSalva = pedido.Retomar && pedido.Anexos.Any(a => a.Categoria is not null)
+            && AreaAnaliseLocal.UsaAreaLocal(pedido.Registro.Pasta);
         var area = await Task.Run(() => acompanhamento
             ? AreaAnaliseLocal.AbrirAtiva(origem, pedido.Registro.Pasta, DocumentosParaTeste)
-            : AreaAnaliseLocal.Preparar(pedido, EntradasDoProcesso(pedido, ct), ct, DocumentosParaTeste), ct).ConfigureAwait(false);
+            : AreaAnaliseLocal.Preparar(pedido, selecaoSalva ? [] : EntradasDoProcesso(pedido, ct), ct, DocumentosParaTeste), ct).ConfigureAwait(false);
         if (area.LocalAnterior is { } anterior)
         {
             List<string> args = [];
@@ -94,7 +97,7 @@ public sealed partial class OrquestradorAnalise
             // A reabertura após perda da rede pode encontrar a entrega já validada e ainda sem publicação.
             var pronto = pedido.Retomar && File.Exists(Path.Combine(registro.Pasta, "PUBLICACAO-PENDENTE-" + rota + ".json"))
                 && !File.Exists(Path.Combine(registro.Pasta, RegistroExecucao.NomeRecusaEntrega));
-            if (pronto)
+            if (pronto || pedido.Retomar && RecuperacaoAnaliseLocal.RevisaoCorrigidaNaEstacao(origem, area, pedido.Registro.Pasta, pedido.Provedor))
             {
                 var produto = ResultadoAnalise.Localizar(area.ProcessoLocal, pedido.Provedor, RegistroExecucao.LerInicio(registro.Pasta)?.UtcDateTime ?? inicio.UtcDateTime, registro.Pasta);
                 if (produto.Documento is null) throw new IOException(produto.Motivo ?? "Entrega local indisponível.");

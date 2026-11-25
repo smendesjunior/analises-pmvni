@@ -69,6 +69,7 @@ public sealed partial class EtiquetaSituacao : Button
         {
             "g" => "PmvniEtiquetaSituacaoSucesso",
             "a" => "PmvniEtiquetaSituacaoAtencao",
+            "conferir" => "PmvniEtiquetaSituacaoConferir",
             "o" => "PmvniEtiquetaSituacaoDivergente",
             "r" => "PmvniEtiquetaSituacaoCritico",
             _ => null,
@@ -87,7 +88,12 @@ public sealed partial class EtiquetaSituacao : Button
         if (Compacta)
         {
             Padding = new Thickness(4);
-            Background = BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SubtleFillColorTransparentBrush"];
+            if (Situacao == "DECISAO_DO_ANALISTA")
+            {
+                ClearValue(BackgroundProperty);
+                ClearValue(BorderBrushProperty);
+            }
+            else Background = BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SubtleFillColorTransparentBrush"];
         }
         else
         {

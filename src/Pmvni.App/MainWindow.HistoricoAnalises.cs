@@ -42,7 +42,7 @@ public sealed partial class MainWindow
             if (item.Pacote is { } pacote) await NaFilaAsync(async () => { await AbrirPacoteAsync(pacote); });
             else if (item.Documento is { } doc)
             {
-                if (!await ImportarPendenteAsync(new(item.Provedor, item.Processo, item.Registro, doc, item.Pdf))) return;
+                if (!await ImportarPendenteAsync(new(item.Provedor, item.Processo, item.Registro, doc, item.Pdf, item.Situacao == "para_revisao"))) return;
             }
             else { MostrarMensagem(InfoBarSeverity.Warning, "Relatório indisponível", item.Registro); return; }
             if (conferencia is not null && !(AvisoDoModulo.IsOpen && AvisoDoModulo.Severity == InfoBarSeverity.Error))

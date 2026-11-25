@@ -7,7 +7,10 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 - A análise passa a trabalhar em AppData Local. A retomada procura o progresso da estação também na antiga pasta Documentos e confere os arquivos antes de continuar.
 - O kit escolhe o modelo por tarefa nas rotas Claude e Codex. O Monitor exibe os modelos observados em atividade e indica o progresso em uma faixa contínua. A análise Google está adiada.
 - Ao usar Atualizar kit, o Editor verifica a instalação nova e remove versões antigas identificadas do kit. Componentes em uso ficam para a próxima atualização. Arquivos pessoais, relatórios e histórico são preservados.
-- A etiqueta O ANALISTA DEVE DECIDIR identifica questões encaminhadas para decisão humana. Uma entrega para revisão informa a etapa cuja conferência ficou pendente.
+- A etiqueta roxa O ANALISTA DEVE CONFERIR identifica o que ainda exige conferência humana. INFORMAÇÕES DIVERGENTES e as demais situações continuam disponíveis. A entrega para revisão informa qual etapa ficou pendente.
+- O formulário organiza os anexos em Projetos, BCI, ART/RRT, Escritura ou certidão de inteiro teor e Outros documentos. Cada categoria é opcional. O kit procura na pasta as peças das categorias que ficaram vazias.
+- Um clique no protocolo da capa permite editar o valor. A edição acompanha o relatório salvo e o PDF exportado.
+- Na verificação técnica, Claude e Codex recebem a orientação de escrever para quem não trabalha com projetos. A auditoria confere se as medidas, a conclusão e as dúvidas estão claras.
 - A grade de modelos fixa a auditoria Codex em Sol 6.2 médio. O monitor mostra as declarações usadas nos cálculos quando o kit fornece o registro da fonte.
 
 ## 4.6.0

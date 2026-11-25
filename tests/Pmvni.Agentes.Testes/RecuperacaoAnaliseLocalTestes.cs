@@ -170,7 +170,9 @@ public class RecuperacaoAnaliseLocalTestes
         var publicado = RecuperacaoAnaliseLocal.Publicar(origem, local, Id, "analise", fim, () => {});
         Assert.Equal("para_revisao", publicado.Situacao);
         Assert.Equal(Sha(documento), Sha(publicado.Documento!));
-        Assert.Equal(publicado.Documento, RecuperacaoAnaliseLocal.EntregaPublicada(origem, Id)?.Documento);
+        var relida = RecuperacaoAnaliseLocal.EntregaPublicada(origem, Id);
+        Assert.True(relida?.ParaRevisao);
+        Assert.Equal(publicado.Documento, relida.Documento);
         entrega["execucao"] = "outra";
         Json(Em(controle, "delivery.json"), entrega);
         Assert.Throws<InvalidDataException>(() => RecuperacaoAnaliseLocal.Publicar(origem, local, Id, "analise", fim, () => {}));

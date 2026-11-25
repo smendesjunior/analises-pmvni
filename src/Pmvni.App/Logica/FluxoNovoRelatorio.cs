@@ -279,6 +279,10 @@ public static class FluxoNovoRelatorio
     public const string RelatorioProntoTitulo = "Relatório pronto";
     public const string AbrirRelatorio = "Abrir relatório";
 
+    public static string TextoVersaoParaRevisao(string pacote, string? pdf) =>
+        $"A análise tem etapas pendentes. {Path.GetFileName(pacote)} está nos Recentes para conferência do analista."
+        + (string.IsNullOrWhiteSpace(pdf) ? "" : $" PDF para revisão em {pdf}.");
+
     /// <summary>A análise terminou com o usuário fazendo outra coisa (Ruling FD-I3): o <c>.rpmvni</c> foi criado e nada do que estava aberto mudou.</summary>
     public static string TextoRelatorioPronto(Provedor p, string pmvrel, string? pdf) =>
         $"A análise com o {Provedores.Nome(p)} terminou: {Path.GetFileName(pmvrel)} foi criado em {Path.GetFileName(Path.GetDirectoryName(pmvrel))} e está nos Recentes."

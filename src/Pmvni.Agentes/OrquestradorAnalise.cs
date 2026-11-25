@@ -591,8 +591,8 @@ public sealed partial class OrquestradorAnalise
             catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException) { }
         }
         foreach (var a in pe.Anexos) Por(Path.Combine(pe.Processo.Pasta, a.Relativo));
-        var detalhe = Processos.Detalhar(pe.Processo, ct);
-        foreach (var a in detalhe.Projeto.Concat(detalhe.Documentos)) Por(a.Caminho);
+        var atendidas = Processos.CategoriasAtendidas(pe.Anexos);
+        foreach (var a in Processos.PecasParaAnalise(pe.Processo, atendidas, ct)) Por(a.Caminho);
         return lista;
     }
 

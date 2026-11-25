@@ -10,7 +10,7 @@ public static class Situacoes
             ["ATENDE"] = ("ATENDE", "g"),
             ["NAO_ATENDE"] = ("NÃO ATENDE", "r"),
             ["NAO_COMPROVADO"] = ("FALTA COMPROVAR", "a"),
-            ["DECISAO_DO_ANALISTA"] = ("O ANALISTA DEVE DECIDIR", "a"),
+            ["DECISAO_DO_ANALISTA"] = ("O ANALISTA DEVE CONFERIR", "conferir"),
             ["DIVERGENCIA_INTERNA"] = ("INFORMAÇÕES DIVERGENTES", "o"),
             ["CONTA_CONFERE"] = ("ATENDE", "g"),
             ["PENDENTE"] = ("FALTA COMPROVAR", "a"),

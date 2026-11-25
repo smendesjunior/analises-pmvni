@@ -49,6 +49,48 @@ public sealed class AreaAnaliseLocalTestes
     }
 
     [Fact]
+    public void Transporte_categorizado_preserva_o_escopo_do_checkpoint_e_confere_as_pecas_selecionadas()
+    {
+        using var c = new Caso();
+        var anexo = c.Gravar(@"PROJETO\INICIAL\P01.pdf", "prancha anexada");
+        var automatico = c.Gravar(@"DOCUMENTOS\BCI\ficha.pdf", "cadastro selecionado");
+        var ignorado = c.Gravar(@"PROJETO\REVISÃO 01\P01.pdf", "ignorar");
+        var bytes = File.ReadAllBytes(anexo);
+        var item = new ArquivoArquivado(anexo, Path.GetRelativePath(c.Origem, anexo),
+            Convert.ToHexString(SHA256.HashData(bytes)), bytes.Length, false) { Categoria = "projetos" };
+        var pedido = c.Pedido with { Anexos = [item] };
+        pedido.Registro.GravarAnexos(pedido.Anexos);
+        string NaArea(AreaAnaliseLocal area, string original) =>
+            Path.Combine(area.ProcessoLocal, Path.GetRelativePath(c.Origem, original));
+        // Uma tentativa de ler a versão excluída falha por compartilhamento no Windows.
+        using var bloqueado = File.Open(ignorado, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        var a = AreaAnaliseLocal.Preparar(pedido, [anexo, automatico], default, c.Estacao.Caminho);
+        c.Associar(a);
+        Assert.False(File.Exists(NaArea(a, ignorado)));
+        Assert.Equal(File.ReadAllBytes(automatico), File.ReadAllBytes(NaArea(a, automatico)));
+        Assert.Equal(bytes, File.ReadAllBytes(NaArea(a, anexo)));
+        Assert.Equal(File.ReadAllBytes(Path.Combine(pedido.Registro.Pasta, "anexos.json")),
+            File.ReadAllBytes(Path.Combine(a.RegistroLocal, "anexos.json")));
+        var novo = c.Gravar(@"DOCUMENTOS\BCI\novo.pdf", "entrou depois do início");
+        a.ConferirOriginais();
+        var retomada = pedido with { Retomar = true };
+        Assert.Equal(a.Identificador,
+            AreaAnaliseLocal.Preparar(retomada, [anexo, automatico, novo], default, c.Estacao.Caminho).Identificador);
+        RecuperacaoAnaliseLocal.Salvar(c.Origem, a.ProcessoLocal, c.Id, "analise");
+        var b = AreaAnaliseLocal.Preparar(retomada, [anexo, automatico, novo], default, Path.Combine(c.Estacao, "B"));
+        Assert.Equal(a.Identificador, b.Identificador);
+        Assert.Equal(File.ReadAllBytes(NaArea(a, anexo)), File.ReadAllBytes(NaArea(b, anexo)));
+        Assert.True(File.Exists(NaArea(b, automatico)));
+        Assert.False(File.Exists(NaArea(b, novo)));
+        Assert.False(File.Exists(NaArea(b, ignorado)));
+        b.ConfirmarTransporte();
+        File.AppendAllText(automatico, "alterado");
+        Assert.Throws<IOException>(() => b.ConferirOriginais());
+        Assert.Throws<IOException>(() =>
+            AreaAnaliseLocal.Preparar(retomada, [anexo, automatico], default, Path.Combine(c.Estacao, "C")));
+    }
+
+    [Fact]
     public void Memoria_de_calculo_abre_parcela_e_recorte_da_execucao_e_recusa_substituicao()
     {
         using var c = new Caso();

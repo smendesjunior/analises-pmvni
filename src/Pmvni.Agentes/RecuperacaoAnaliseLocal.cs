@@ -674,7 +674,8 @@ internal static partial class RecuperacaoAnaliseLocal
         }
         if (!nomes.Contains(entrega.Documento) || entrega.Pdf != null && !nomes.Contains(entrega.Pdf))
             throw new InvalidDataException("O manifesto não identifica os arquivos publicados.");
-        return new(Dentro(pasta, entrega.Documento), entrega.Pdf is null ? null : Dentro(pasta, entrega.Pdf), null);
+        return new(Dentro(pasta, entrega.Documento), entrega.Pdf is null ? null : Dentro(pasta, entrega.Pdf), null)
+            { ParaRevisao = entrega.Modo == "para_revisao" };
     }
 
     internal static Resultado? EntregaPublicada(string origem, string id)
@@ -687,6 +688,25 @@ internal static partial class RecuperacaoAnaliseLocal
         if (Convert.ToHexStringLower(SHA256.HashData(dados)) != p.Atual) throw new InvalidDataException("Manifesto de entrega corrompido.");
         var entrega = JsonSerializer.Deserialize<Entrega>(dados) ?? throw new InvalidDataException("Manifesto de entrega vazio.");
         return ValidarProduto(origem, id, p.Atual, entrega);
+    }
+
+    internal static bool RevisaoCorrigidaNaEstacao(string origem, AreaAnaliseLocal area, string registro, Provedor provedor)
+    {
+        var marca = Path.Combine(registro, RegistroExecucao.NomeRecusaEntrega);
+        if (!File.Exists(marca)) return false;
+        var id = Path.GetFileName(registro);
+        var publicada = EntregaPublicada(origem, id);
+        if (publicada is not { ParaRevisao: true, Documento: { } anterior }) return false;
+        using var recusa = JsonDocument.Parse(File.ReadAllBytes(marca));
+        var r = recusa.RootElement;
+        var rota = provedor switch { Provedor.ChatGpt => "codex", Provedor.Claude => "claude", _ => "gemini" };
+        if (r.GetProperty("execution").GetString() != id || r.GetProperty("rota").GetString() != rota
+            || !Nomes.Equals(r.GetProperty("documento").GetString(), anterior) || r.GetProperty("sha256").GetString() != Hash(anterior))
+            return false;
+        var produto = ResultadoAnalise.Localizar(area.ProcessoLocal, provedor, DateTime.MinValue, area.RegistroLocal);
+        if (produto.Documento is not { } novo || Hash(novo) == Hash(anterior)) return false;
+        var controle = Path.Combine(area.ProcessoLocal, ResultadoAnalise.PastaControle(provedor));
+        return ConferirEntregaDoKit(area.ProcessoLocal, controle, id, novo, produto.Pdf, out _) == "para_revisao";
     }
 
     static void InstalarControle(string local, List<Arquivo> arquivos, Func<Arquivo, string> obter, string id, CancellationToken ct,

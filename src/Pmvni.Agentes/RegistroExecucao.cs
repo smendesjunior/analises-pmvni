@@ -123,7 +123,8 @@ public sealed class RegistroExecucao : IDisposable
             var m = JsonNode.Parse(File.ReadAllBytes(marcador));
             if (m?["versao"]?.GetValue<int>() != 1 || m["execution"]?.GetValue<string>() != Path.GetFileName(registro)
                 || m["rota"]?.GetValue<string>() != RotaDaRecusa(provedor) || m["erros"] is not JsonArray { Count: > 0 } erros) return null;
-            var documento = ResultadoAnalise.Localizar(processo, provedor, inicio.UtcDateTime, registro).Documento;
+            var documento = RecuperacaoAnaliseLocal.EntregaPublicada(processo, Path.GetFileName(registro))?.Documento
+                ?? ResultadoAnalise.Localizar(processo, provedor, inicio.UtcDateTime, registro).Documento;
             if (documento is null || !string.Equals(documento, m["documento"]?.GetValue<string>(), StringComparison.OrdinalIgnoreCase)) return null;
             using var arquivo = File.OpenRead(documento);
             var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(arquivo));
@@ -198,6 +199,14 @@ public sealed class RegistroExecucao : IDisposable
                 var estado = anterior.execucao["situacao"]?.GetValue<string>();
                 if (estado is not ("interrompida" or "cota_esgotada" or "falhou" or "em_andamento" or "cancelada")) return null;
                 if (anterior.PedidoOriginal().Trim() != (pedido ?? "").Trim()) return null;
+                var registrados = anterior.LerAnexosCategorizados();
+                var atendidas = Processos.CategoriasAtendidas(anexos);
+                if (registrados.Count > 0 || atendidas.Count > 0)
+                {
+                    if (anexos.Count != registrados.Count || anexos.Any(a => !registrados.Any(r =>
+                        string.Equals(r.Relativo, a.Relativo, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(r.Sha256, a.Sha256, StringComparison.OrdinalIgnoreCase) && r.Categoria == a.Categoria))) return null;
+                }
                 var id = Path.GetFileName(pasta);
                 var consulta = marcada ? RecuperacaoAnaliseLocal.Consultar(processo, pasta, documentos) : null;
                 JsonNode? manifesto;
@@ -224,11 +233,17 @@ public sealed class RegistroExecucao : IDisposable
                     if (!Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(arquivo)).Equals(esperado, StringComparison.OrdinalIgnoreCase)) return null;
                     hashes[caminho] = esperado;
                 }
-                var detalhe = Processos.Detalhar(alvo, CancellationToken.None);
-                if (detalhe.Avisos.Count != 0) return null;
+                IReadOnlyList<ArquivoEncontrado> pecas;
+                if (atendidas.Count > 0) pecas = Processos.PecasParaAnalise(alvo, atendidas, CancellationToken.None);
+                else
+                {
+                    var detalhe = Processos.Detalhar(alvo, CancellationToken.None);
+                    if (detalhe.Avisos.Count != 0) return null;
+                    pecas = detalhe.Projeto.Concat(detalhe.Documentos).ToList();
+                }
                 var inicio = anterior.execucao["inicio"]?.GetValue<string>();
                 DateTimeOffset.TryParse(inicio, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var partida);
-                if (detalhe.Projeto.Concat(detalhe.Documentos).Any(a => !hashes.ContainsKey(a.Caminho)
+                if (pecas.Any(a => !hashes.ContainsKey(a.Caminho)
                     && (a.AlteradoUtc >= partida.UtcDateTime || File.GetCreationTimeUtc(a.Caminho) >= partida.UtcDateTime))) return null;
                 if (anexos.Any(a => !hashes.TryGetValue(Path.GetFullPath(Path.Combine(processo, a.Relativo)), out var hash)
                     || !hash.Equals(a.Sha256, StringComparison.OrdinalIgnoreCase))) return null;
@@ -313,20 +328,47 @@ public sealed class RegistroExecucao : IDisposable
         if (!reaberto || !File.Exists(arquivo)) File.WriteAllText(ArquivoGerado.Caminho(arquivo), texto, Utf8);
     }
 
+    public IReadOnlyList<ArquivoArquivado> LerAnexosCategorizados()
+    {
+        var caminho = Caminho(Pasta, "anexos.json");
+        if (!File.Exists(caminho)) return [];
+        using var doc = JsonDocument.Parse(File.ReadAllBytes(caminho));
+        var linhas = doc.RootElement.EnumerateArray().ToArray();
+        if (!linhas.Any(l => l.TryGetProperty("categoria", out var c) && c.ValueKind == JsonValueKind.String)) return [];
+        var lista = new List<ArquivoArquivado>();
+        foreach (var linha in linhas)
+        {
+            var rel = linha.GetProperty("destino").GetString();
+            var sha = linha.GetProperty("sha256").GetString();
+            var categoria = linha.TryGetProperty("categoria", out var c) ? c.GetString() : null;
+            if (string.IsNullOrWhiteSpace(rel) || Path.IsPathRooted(rel)
+                || rel.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]).Any(p => p.Length == 0 || p.StartsWith('.') || p.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                || categoria is not (null or "projetos" or "bci" or "art_rrt" or "escritura_certidao" or "outros_documentos")
+                || sha is not { Length: 64 } || !sha.All(char.IsAsciiHexDigit))
+                throw new InvalidDataException("O registro de anexos da execução contém um destino, categoria ou assinatura inválida.");
+            lista.Add(new ArquivoArquivado(Path.GetFileName(rel), rel, sha, linha.GetProperty("tamanho").GetInt64(), true) { Categoria = categoria });
+        }
+        return lista;
+    }
+
     /// <summary><c>anexos.json</c>: por anexo, o nome de origem, o destino relativo, o sha256, o tamanho e <c>COPIADO</c> ou <c>JA_ARQUIVADO</c>.</summary>
     public void GravarAnexos(IReadOnlyList<ArquivoArquivado> anexos)
     {
         if (reaberto && File.Exists(Caminho(Pasta, "anexos.json"))) return;
         var lista = new JsonArray();
         foreach (var a in anexos)
-            lista.Add(new JsonObject
+        {
+            var linha = new JsonObject
             {
                 ["origem"] = Path.GetFileName(a.Origem),
                 ["destino"] = a.Relativo,
                 ["sha256"] = a.Sha256,
                 ["tamanho"] = a.Tamanho,
                 ["situacao"] = a.JaEstava ? "JA_ARQUIVADO" : "COPIADO",
-            });
+            };
+            if (a.Categoria != null) linha["categoria"] = a.Categoria;
+            lista.Add(linha);
+        }
         File.WriteAllText(ArquivoGerado.Caminho(Caminho(Pasta, "anexos.json")), lista.ToJsonString(Opcoes), Utf8);
     }
 

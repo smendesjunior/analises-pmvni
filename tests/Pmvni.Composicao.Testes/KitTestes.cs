@@ -54,6 +54,17 @@ public class KitTestes
     // ---------- tabelas e situação ----------
 
     [Fact]
+    public void conferencia_humana_preserva_as_classes_e_textos_das_demais_situacoes()
+    {
+        Assert.Equal(("ATENDE", "g"), Situacoes.Sit["ATENDE"]);
+        Assert.Equal(("NÃO ATENDE", "r"), Situacoes.Sit["NAO_ATENDE"]);
+        Assert.Equal(("FALTA COMPROVAR", "a"), Situacoes.Sit["NAO_COMPROVADO"]);
+        Assert.Equal(("INFORMAÇÕES DIVERGENTES", "o"), Situacoes.Sit["DIVERGENCIA_INTERNA"]);
+        Assert.Equal(Situacoes.Sit["DIVERGENCIA_INTERNA"], Situacoes.Sit["DIVERGENCIA"]);
+        Assert.Equal(("O ANALISTA DEVE CONFERIR", "conferir"), Situacoes.Sit["DECISAO_DO_ANALISTA"]);
+    }
+
+    [Fact]
     public void tabelas_iguais_as_do_kit()
     {
         var t = D(Referencias.Json("tabelas.json"));

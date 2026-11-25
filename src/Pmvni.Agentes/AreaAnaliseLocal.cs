@@ -14,10 +14,12 @@ internal sealed class AreaAnaliseLocal
     internal const string Marcador = "area_local_versao";
     internal const string ChaveIdentificador = "area_local_id";
     static readonly StringComparer Comparador = StringComparer.OrdinalIgnoreCase;
-    sealed record Inventario(int Versao, string Processo, string Execucao, string Identificador, Dictionary<string, string> Arquivos);
+    sealed record Inventario(int Versao, string Processo, string Execucao, string Identificador,
+        Dictionary<string, string> Arquivos, bool SomenteSelecionados = false);
     sealed record Transporte(string Anterior, string Controle);
     readonly string origem;
     readonly Dictionary<string, string> arquivos;
+    readonly bool somenteSelecionados;
     public string Identificador { get; }
     public string ProcessoLocal { get; }
     public string RegistroLocal { get; }
@@ -31,6 +33,7 @@ internal sealed class AreaAnaliseLocal
         this.origem = origem;
         Identificador = inventario.Identificador;
         arquivos = new(inventario.Arquivos, Comparador);
+        somenteSelecionados = inventario.SomenteSelecionados;
         ProcessoLocal = processo;
         RegistroLocal = Path.Combine(processo, ".pmvni-ai", "editor", id);
         RetomadaLegada = legada;
@@ -103,13 +106,6 @@ internal sealed class AreaAnaliseLocal
         if (Dentro(origem, local) || Dentro(local, origem)) throw new IOException("A área local precisa ficar fora da pasta original do processo.");
         ConferirCaminho(origem, local: false);
         ConferirCaminho(local, local: true);
-        var diretorios = new List<string>();
-        var lista = Listar(origem, ct, diretorios);
-        foreach (var entrada in entradas.Concat(pedido.Anexos.Select(a => Path.Combine(origem, a.Relativo))))
-        {
-            var rel = Path.GetRelativePath(origem, Path.GetFullPath(entrada));
-            if (!lista.Contains(rel)) throw new IOException("Peça selecionada ausente ou fora dos originais do processo: " + entrada);
-        }
         var existente = Directory.Exists(local);
         if (existente && inicioPendente && TemEtapa(local, id))
             throw new IOException("Há uma etapa na área local e o registro da origem perdeu o vínculo. As duas cópias foram preservadas.");
@@ -121,6 +117,8 @@ internal sealed class AreaAnaliseLocal
             if (area.LocalAnterior is null && RecuperacaoAnaliseLocal.GeracaoAtual(origem, local, id))
             {
                 area.ConferirOriginais(ct);
+                if (!area.somenteSelecionados || !pedido.Retomar)
+                    ValidarEntradas(origem, entradas, area.arquivos.Keys);
                 ConferirAnexos(pedido, area.arquivos);
                 return area;
             }
@@ -136,13 +134,8 @@ internal sealed class AreaAnaliseLocal
         Directory.CreateDirectory(provisoria);
         try
         {
-            var hashes = new Dictionary<string, string>(Comparador);
-            foreach (var rel in diretorios)
-                Directory.CreateDirectory(Path.Combine(provisoria, rel));
-            foreach (var rel in lista)
-                hashes.Add(rel, CopiarArquivo(origem, provisoria, rel, ct));
-            ConferirAnexos(pedido, hashes);
             var reg = Path.Combine(provisoria, ".pmvni-ai", "editor", id);
+            Inventario? anteriorInventario = null;
             if (restaurar || legada || antiga is not null)
             {
                 var controle = legada || antiga is not null ? ControleDoLegado(registro, id) : RecuperacaoAnaliseLocal.ControleDoCheckpoint(origem, id)
@@ -155,16 +148,7 @@ internal sealed class AreaAnaliseLocal
                         ?? throw new IOException("O ponto de recuperação já não está disponível no servidor.");
                 if (antiga is not null && !RecuperacaoAnaliseLocal.GeracaoAtual(origem, provisoria, id))
                     throw new IOException("O checkpoint mudou durante o transporte. As cópias foram preservadas para nova retomada.");
-                if (legada)
-                    Gravar(Path.Combine(reg, NomeInventario), new Inventario(1, Identidade(origem), id, Guid.NewGuid().ToString("N"), hashes));
-                else
-                {
-                    var inventario = LerInventario(origem, reg, id);
-                    var esperados = new Dictionary<string, string>(inventario.Arquivos, Comparador);
-                    if (!Comparador.Equals(idOrigem, inventario.Identificador) || hashes.Count != esperados.Count ||
-                        hashes.Any(i => !esperados.TryGetValue(i.Key, out var h) || !Comparador.Equals(h, i.Value)))
-                        throw new IOException("Os originais ou o identificador divergem do inventário desta execução. O ponto de recuperação foi preservado.");
-                }
+                if (!legada) anteriorInventario = LerInventario(origem, reg, id);
                 if (legada && Comparador.Equals(Path.GetFullPath(anterior), local))
                     throw new IOException("A raiz declarada pelo controle legado coincide com o destino da cópia.");
                 // Duas estações com o mesmo perfil podem usar caminhos locais idênticos; o kit valida também esse caso.
@@ -175,7 +159,30 @@ internal sealed class AreaAnaliseLocal
                 Directory.CreateDirectory(reg);
                 foreach (var nome in new[] { "EXECUCAO.JSON", "PEDIDO.MD", "ANEXOS.JSON", TabelaDeModelos.NomeDoArquivo })
                     if (File.Exists(Path.Combine(registro, nome))) CopiarArquivo(registro, reg, nome, ct);
-                Gravar(Path.Combine(reg, NomeInventario), new Inventario(1, Identidade(origem), id, Guid.NewGuid().ToString("N"), hashes));
+            }
+            var restrita = anteriorInventario?.SomenteSelecionados ?? pedido.Anexos.Any(a => !string.IsNullOrWhiteSpace(a.Categoria));
+            var diretorios = new List<string>();
+            // Na retomada, o inventário do checkpoint fixa as peças desta execução inclusive para categorias automáticas.
+            var lista = restrita
+                ? anteriorInventario is null
+                    ? ListarSelecionadas(origem, entradas.Concat(pedido.Anexos.Select(a => Path.Combine(origem, a.Relativo))), ct)
+                    : new HashSet<string>(anteriorInventario.Arquivos.Keys, Comparador)
+                : Listar(origem, ct, diretorios);
+            if (!restrita) ValidarEntradas(origem, entradas, lista);
+            foreach (var rel in diretorios)
+                Directory.CreateDirectory(Path.Combine(provisoria, rel));
+            var hashes = new Dictionary<string, string>(Comparador);
+            foreach (var rel in lista)
+                hashes.Add(rel, CopiarArquivo(origem, provisoria, rel, ct));
+            ConferirAnexos(pedido, hashes);
+            if (anteriorInventario is null)
+                Gravar(Path.Combine(reg, NomeInventario), new Inventario(1, Identidade(origem), id, Guid.NewGuid().ToString("N"), hashes, restrita));
+            else
+            {
+                var esperados = new Dictionary<string, string>(anteriorInventario.Arquivos, Comparador);
+                if (!Comparador.Equals(idOrigem, anteriorInventario.Identificador) || hashes.Count != esperados.Count ||
+                    hashes.Any(i => !esperados.TryGetValue(i.Key, out var h) || !Comparador.Equals(h, i.Value)))
+                    throw new IOException("Os originais ou o identificador divergem do inventário desta execução. O ponto de recuperação foi preservado.");
             }
             // Valida a cópia lida do disco e detecta inclusive troca de conteúdo da origem durante o preparo.
             var preparada = Abrir(origem, provisoria, id, idOrigem, legada);
@@ -317,7 +324,7 @@ internal sealed class AreaAnaliseLocal
     internal void ConferirOriginais(CancellationToken ct = default, Func<string, Stream>? abrirCopia = null)
     {
         abrirCopia ??= File.OpenRead;
-        if (!Listar(origem, ct).SetEquals(arquivos.Keys))
+        if (!somenteSelecionados && !Listar(origem, ct).SetEquals(arquivos.Keys))
             throw new IOException("A lista de arquivos originais do processo mudou desde o início da análise.");
         foreach (var (rel, esperado) in arquivos)
         {
@@ -381,6 +388,34 @@ internal sealed class AreaAnaliseLocal
 
     internal static bool EntregaDoEditor(string raiz, string caminho) =>
         Dentro(Path.Combine(raiz, "RELATÓRIOS DE ANÁLISE", "Entregas do Editor"), caminho);
+
+    static void ValidarEntradas(string origem, IEnumerable<string> entradas, IEnumerable<string> arquivos)
+    {
+        var disponiveis = arquivos.ToHashSet(Comparador);
+        foreach (var entrada in entradas)
+            if (!disponiveis.Contains(Path.GetRelativePath(origem, Path.GetFullPath(entrada))))
+                throw new IOException("Peça selecionada ausente ou fora dos originais do processo: " + entrada);
+    }
+
+    static HashSet<string> ListarSelecionadas(string origem, IEnumerable<string> entradas, CancellationToken ct)
+    {
+        var selecionadas = new HashSet<string>(Comparador);
+        foreach (var entrada in entradas)
+        {
+            ct.ThrowIfCancellationRequested();
+            var caminho = Path.GetFullPath(entrada);
+            var rel = Path.GetRelativePath(origem, caminho);
+            if (!Dentro(origem, caminho) || rel.Split(Path.DirectorySeparatorChar).Any(p => Comparador.Equals(p, ".pmvni-ai")
+                    || p.EndsWith('.') || p.EndsWith(' ') || p.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) || EntregaDoEditor(origem, caminho))
+                throw new IOException("Peça selecionada fora dos originais do processo: " + entrada);
+            ConferirCaminho(caminho, local: false);
+            var info = new FileInfo(caminho);
+            if (!info.Exists || OrquestradorAnalise.ArquivoTransitorio(caminho, info.Attributes))
+                throw new IOException("Peça selecionada ausente ou transitória: " + entrada);
+            selecionadas.Add(rel);
+        }
+        return selecionadas;
+    }
 
     static HashSet<string> Listar(string raiz, CancellationToken ct, List<string>? diretorios = null)
     {

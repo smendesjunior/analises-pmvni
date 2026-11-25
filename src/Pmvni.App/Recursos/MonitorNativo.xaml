@@ -346,6 +346,15 @@
     <Setter Property="HorizontalAlignment" Value="Center"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
+  <Style x:Key="MnTagConferir" TargetType="Border" BasedOn="{StaticResource MnTag}">
+    <Setter Property="Background" Value="{ThemeResource PmvniConferirFundo}"/>
+    <Setter Property="BorderBrush" Value="{ThemeResource PmvniConferirBorda}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style x:Key="MnTagTextoConferir" TargetType="TextBlock" BasedOn="{StaticResource MnTagTexto}">
+    <Setter Property="Foreground" Value="{ThemeResource PmvniConferirTexto}"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+  </Style>
   <Style x:Key="MnTagTextoSucesso" TargetType="TextBlock" BasedOn="{StaticResource MnTagTexto}">
     <Setter Property="Foreground" Value="{ThemeResource MnVerdeTexto}"/>
   </Style>

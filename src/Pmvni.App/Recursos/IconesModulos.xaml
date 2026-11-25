@@ -7,6 +7,9 @@
        O tamanho vem de quem usa (Viewbox sem tamanho): 28 x 28 no trilho, 48 x 48 nas telas vazias. -->
   <ResourceDictionary.ThemeDictionaries>
     <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="PmvniConferirFundo" Color="#6B21A8"/>
+      <SolidColorBrush x:Key="PmvniConferirTexto" Color="#FFFFFF"/>
+      <SolidColorBrush x:Key="PmvniConferirBorda" Color="#42136B"/>
       <LinearGradientBrush x:Key="PmvniGradAzul" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#4BA0F4" Offset="0"/><GradientStop Color="#1366D6" Offset="1"/></LinearGradientBrush>
       <LinearGradientBrush x:Key="PmvniGradAzulClaro" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#A9D3FF" Offset="0"/><GradientStop Color="#6CB2F7" Offset="1"/></LinearGradientBrush>
       <LinearGradientBrush x:Key="PmvniGradVerde" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#3CCB7F" Offset="0"/><GradientStop Color="#0E8A48" Offset="1"/></LinearGradientBrush>
@@ -135,6 +138,9 @@
   </DataTemplate>
 </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="PmvniConferirFundo" Color="#6B21A8"/>
+      <SolidColorBrush x:Key="PmvniConferirTexto" Color="#FFFFFF"/>
+      <SolidColorBrush x:Key="PmvniConferirBorda" Color="#E9D5FF"/>
       <LinearGradientBrush x:Key="PmvniGradAzul" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#4BA0F4" Offset="0"/><GradientStop Color="#1366D6" Offset="1"/></LinearGradientBrush>
       <LinearGradientBrush x:Key="PmvniGradAzulClaro" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#A9D3FF" Offset="0"/><GradientStop Color="#6CB2F7" Offset="1"/></LinearGradientBrush>
       <LinearGradientBrush x:Key="PmvniGradVerde" StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#3CCB7F" Offset="0"/><GradientStop Color="#0E8A48" Offset="1"/></LinearGradientBrush>
@@ -262,6 +268,9 @@
   </DataTemplate>
 </ResourceDictionary>
     <ResourceDictionary x:Key="HighContrast">
+      <SolidColorBrush x:Key="PmvniConferirFundo" Color="{ThemeResource SystemColorWindowColor}"/>
+      <SolidColorBrush x:Key="PmvniConferirTexto" Color="{ThemeResource SystemColorWindowTextColor}"/>
+      <SolidColorBrush x:Key="PmvniConferirBorda" Color="{ThemeResource SystemColorWindowTextColor}"/>
       <SolidColorBrush x:Key="PmvniGradAzul" Color="{ThemeResource SystemColorButtonTextColor}"/>
       <SolidColorBrush x:Key="PmvniGradAzulClaro" Color="{ThemeResource SystemColorButtonTextColor}"/>
       <SolidColorBrush x:Key="PmvniGradVerde" Color="{ThemeResource SystemColorButtonTextColor}"/>

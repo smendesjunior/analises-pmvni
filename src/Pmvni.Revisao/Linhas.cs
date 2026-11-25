@@ -33,6 +33,7 @@ public sealed class LinhaRevisao
 /// dentro da linha: chave, e índice nas listas (<c>vaos/1/tipo</c>).</summary>
 public static class TabelasRevisao
 {
+    public const string ProtocoloCapa = "capa/01";
     public const string Indices = "indices";
     public const string Ambientes = "ambientes";
     /// <summary>Correção 2026-11-16: o DIAGRAMA DOS ÍNDICES também se revisa (as chamadas são linhas; a planta e a volumetria, uma
@@ -41,7 +42,7 @@ public static class TabelasRevisao
     public const string Planta = "planta";
     public const string Volumetria = "volumetria";
 
-    public static IReadOnlyList<string> Blocos { get; } = new[] { Indices, Ambientes, Chamadas, Planta, Volumetria };
+    public static IReadOnlyList<string> Blocos { get; } = new[] { Indices, Ambientes, Chamadas, Planta, Volumetria, "capa" };
 
     /// <summary>Formas da volumetria que o desenho entende; entram na linha "volumetria/01" mesmo que o original não as tenha
     /// (o original do kit desenha 2 pavimentos com telhado de duas águas e nenhum destaque).</summary>
@@ -55,7 +56,7 @@ public static class TabelasRevisao
     private static readonly HashSet<string> NaoEditaveis = new(StringComparer.Ordinal) { "icone", "situacao", "ancora", "vista" };
 
     /// <summary>Campo de texto que a tecla F2 edita quando nenhum foi clicado.</summary>
-    public static string CampoPadrao(string id) => Bloco(id) == Ambientes ? "nome" : "calculo";
+    public static string CampoPadrao(string id) => id == ProtocoloCapa ? "protocolo" : Bloco(id) == Ambientes ? "nome" : "calculo";
 
     // ---------- ids ----------
 
@@ -75,7 +76,7 @@ public static class TabelasRevisao
         if (!Blocos.Contains(b)) return false;
         var n = id[(barra + 1)..];
         if (n.Length < 2 || !n.All(char.IsAsciiDigit) || !int.TryParse(n, NumberStyles.None, CultureInfo.InvariantCulture, out var p) || p < 1) return false;
-        if (Id(b, p) != id) return false; // uma só grafia por linha
+        if (Id(b, p) != id || b == "capa" && id != ProtocoloCapa) return false; // uma só grafia por linha
         bloco = b;
         posicao = p;
         return true;
@@ -94,7 +95,12 @@ public static class TabelasRevisao
 
     /// <summary>Planta e volumetria: um objeto só (posição 01).</summary>
     static JsonObject? Unico(JsonObject documento, string bloco) =>
-        bloco is Planta or Volumetria ? (documento["diagrama"] as JsonObject)?[bloco] as JsonObject : null;
+        bloco switch
+        {
+            "capa" => documento["capa"] as JsonObject,
+            Planta or Volumetria => (documento["diagrama"] as JsonObject)?[bloco] as JsonObject,
+            _ => null
+        };
 
     /// <summary>A volumetria com as chaves de forma que faltam (cópia; o documento não muda).</summary>
     static JsonObject ComForma(JsonObject v)
@@ -108,7 +114,7 @@ public static class TabelasRevisao
     internal static JsonObject? Linha(JsonObject documento, string id)
     {
         if (!TentarLer(id, out var bloco, out var posicao)) return null;
-        if (bloco is Planta or Volumetria) return posicao == 1 ? Unico(documento, bloco) : null;
+        if (bloco is Planta or Volumetria or "capa") return posicao == 1 ? Unico(documento, bloco) : null;
         var lista = Lista(documento, bloco);
         return lista is not null && posicao <= lista.Count ? lista[posicao - 1] as JsonObject : null;
     }
@@ -121,6 +127,8 @@ public static class TabelasRevisao
         ArgumentNullException.ThrowIfNull(p);
         ArgumentNullException.ThrowIfNull(id);
         var l = Linha(p.Documento, id);
+        if (id == ProtocoloCapa && l is not null)
+            return new JsonObject { ["protocolo"] = l["protocolo"]?.DeepClone() ?? JsonValue.Create("") };
         if (p.Acrescimos.Count == 0) return l is not null && id == Id(Volumetria, 1) ? ComForma(l) : l;
         if (l is null && !p.Acrescimos.TryGetValue(id, out l)) return null;
         if (id == Id(Volumetria, 1)) l = ComForma(l);
@@ -244,6 +252,8 @@ public static class TabelasRevisao
     public static IReadOnlyList<string> Caminhos(JsonObject linha)
     {
         ArgumentNullException.ThrowIfNull(linha);
+        if (linha.Count == 1 && linha["protocolo"] is JsonValue protocolo && protocolo.TryGetValue<string>(out _))
+            return ["protocolo"];
         var lista = new List<string>();
         foreach (var (chave, valor) in linha)
         {
@@ -372,6 +382,7 @@ public static class TabelasRevisao
             Indices => "ÍNDICE " + n.ToString("D2", CultureInfo.InvariantCulture),
             Ambientes => "AMBIENTE " + n.ToString("D2", CultureInfo.InvariantCulture),
             Chamadas => "DIAGRAMA · CHAMADA " + n.ToString("D2", CultureInfo.InvariantCulture),
+            "capa" => "CAPA · PROTOCOLO",
             Planta => "DIAGRAMA · PLANTA",
             _ => "DIAGRAMA · VOLUMETRIA",
         } : id;
@@ -443,6 +454,8 @@ public static class TabelasRevisao
         foreach (var (id, r) in p.Linhas)
         {
             if (Linha(documento, id) is not { } linha) continue;
+            if (id == ProtocoloCapa && linha["protocolo"] is null && r.Campos.ContainsKey("protocolo"))
+                linha["protocolo"] = "";
             if (id == Id(Volumetria, 1))
                 foreach (var (k, valor) in FormaPadraoVolumetria)
                     if (!linha.ContainsKey(k) && r.Campos.ContainsKey(k)) linha[k] = valor;
@@ -494,6 +507,8 @@ internal static class MotorLinhas
             case RemoverAcrescimo rm: return CalcularRemocao(p, rm);
         }
         var original = TabelasRevisao.Original(p, c.Item) ?? throw new ComandoRecusadoException("A linha não existe na tabela do relatório.");
+        if (c.Item == TabelasRevisao.ProtocoloCapa && c is not (DefinirCampo or RestaurarCampo or RestaurarItemOriginal))
+            throw new ComandoRecusadoException("Somente o texto do protocolo pode ser alterado na capa.");
         p.Linhas.TryGetValue(c.Item, out var r);
         return c switch
         {

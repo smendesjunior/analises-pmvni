@@ -14,6 +14,7 @@ public static class EtiquetasSituacao
     static readonly Dictionary<string, CoresEtiqueta> Claro = new(StringComparer.Ordinal)
     {
         ["g"] = new(0xFFD3EFDD, 0xFF1E6E43, 0xFF8FD0A9, 0xFF2F9E62),
+        ["conferir"] = new(0xFF6B21A8, 0xFFFFFFFF, 0xFF42136B, 0xFFFFFFFF),
         ["a"] = new(0xFFFDEBB3, 0xFF7A5600, 0xFFEBC55A, 0xFFE0A800),
         ["o"] = new(0xFFFBD9C4, 0xFF9A4310, 0xFFEFA77A, 0xFFE2701F),
         ["r"] = new(0xFFF9D2CE, 0xFF9B1C12, 0xFFEC9890, 0xFFD93025),
@@ -24,6 +25,7 @@ public static class EtiquetasSituacao
     static readonly Dictionary<string, CoresEtiqueta> Escuro = new(StringComparer.Ordinal)
     {
         ["g"] = new(0x292F9E62, 0xFF9BE0B7, 0x4D2F9E62, 0xFF4CC283),
+        ["conferir"] = new(0xFF6B21A8, 0xFFFFFFFF, 0xFFE9D5FF, 0xFFFFFFFF),
         ["a"] = new(0x29E0A800, 0xFFF6D67A, 0x4DE0A800, 0xFFF0BE2A),
         ["o"] = new(0x29E2701F, 0xFFF7B88C, 0x4DE2701F, 0xFFF08A45),
         ["r"] = new(0x29D93025, 0xFFF6ABA4, 0x4DD93025, 0xFFF0584D),

@@ -1077,24 +1077,26 @@ var Paginador = (() => {
   var ATR_ENVOLTO = "data-pmvni-envolto";
   var ATR_CAMPO = "data-campo";
   var SELETOR_LINHAS = `section.folha .area tr[${ATR_LINHA}]`;
+  var PROTOCOLO_CAPA = "capa/01";
+  var SELETOR_BLOCOS = `${SELETOR_LINHAS}, section.folha .cover .dates [${ATR_LINHA}]`;
   var SELETOR_CARDS = "section.folha .area .card[data-ref]";
   var SEPARADOR_VAO = " • ";
   var PREFIXO_AREA = "ÁREA: ";
   var TAG_TRECHO = "pmvni-trecho";
   var TABELAS = [["ind", "indices"], ["ilu", "ambientes"]];
-  var ehLinha = (ref) => typeof ref === "string" && /^(indices|ambientes)\/\d{2,}$/.test(ref);
+  var ehLinha = (ref) => ref === PROTOCOLO_CAPA || typeof ref === "string" && /^(indices|ambientes)\/\d{2,}$/.test(ref);
   var ehCaminho = (v) => typeof v === "string" && /^[a-z_]+(\/([0-9]+|[a-z_]+))*$/.test(v);
   var visivel2 = (e) => !e.closest(`[${ATR_OCULTO}]`);
   function pedacosDoBloco(ref) {
     if (ehLinha(ref)) {
-      return Array.from(document.querySelectorAll(SELETOR_LINHAS)).filter((e) => e.getAttribute(ATR_LINHA) === ref && visivel2(e));
+      return Array.from(document.querySelectorAll(SELETOR_BLOCOS)).filter((e) => e.getAttribute(ATR_LINHA) === ref && visivel2(e));
     }
     return Array.from(document.querySelectorAll(SELETOR_CARDS)).filter((e) => e.getAttribute("data-ref") === ref);
   }
   function blocoDe(alvo) {
     const card = alvo.closest(SELETOR_CARDS);
     if (card) return { el: card, ref: card.getAttribute("data-ref"), linha: false };
-    const tr = alvo.closest(SELETOR_LINHAS);
+    const tr = alvo.closest(SELETOR_BLOCOS);
     if (tr) return { el: tr, ref: tr.getAttribute(ATR_LINHA), linha: true };
     return null;
   }
@@ -1174,6 +1176,11 @@ var Paginador = (() => {
   }
   function marcarCamposLinhas() {
     marcarLinhas();
+    for (const grupo of Array.from(document.querySelectorAll("section.folha .cover .dates > div"))) {
+      if (grupo.querySelector(":scope > span")?.textContent?.trim().toUpperCase() !== "PROTOCOLO") continue;
+      grupo.setAttribute(ATR_LINHA, PROTOCOLO_CAPA);
+      marcar(grupo.querySelector(":scope > b"), "protocolo");
+    }
     for (const tr of Array.from(document.querySelectorAll(SELETOR_LINHAS))) {
       if (tr.closest("table")?.classList.contains("ind")) marcarIndice(tr);
       else marcarAmbiente(tr);
@@ -1527,6 +1534,7 @@ var Paginador = (() => {
   var LINHAS = `:where(tr[data-pmvni-linha])`;
   var CSS_EDICAO = `
 @media screen {
+  .cover .dates b[data-campo="protocolo"] { cursor: text; min-inline-size: 3em; min-block-size: 1em; }
   ${SEM_EDICAO} :where(.card[data-ref], .fig[data-ref], tr[data-pmvni-linha], [${ATR_CLICAVEL}]) { cursor: pointer; }
   ${SEM_EDICAO} ${BLOCOS}:hover { outline: 1px solid rgba(${AZUL}, .45); outline-offset: 1px; }
   ${SEM_EDICAO} ${LINHAS}:hover { outline: 1px solid rgba(${AZUL}, .45); outline-offset: -1px; }
@@ -1605,6 +1613,8 @@ ${CSS_MARCAS}`;
     return document.querySelectorAll(`section.folha [${ATR_CAMPO2}]`).length;
   }
   function desmarcarCampos() {
+    for (const el of Array.from(document.querySelectorAll(`section.folha .cover [data-pmvni-linha="${PROTOCOLO_CAPA}"]`)))
+      el.removeAttribute("data-pmvni-linha");
     for (const el of Array.from(document.querySelectorAll(`section.folha [${ATR_CAMPO2}]`))) {
       const pai = el.parentElement;
       if (el.localName === "span" && el.getAttribute(ATR_CAMPO2) === "titulo" && pai?.classList.contains("ct")) {
@@ -1699,7 +1709,7 @@ ${CSS_MARCAS}`;
     const sel = window.getSelection();
     const fim = document.createRange();
     fim.selectNodeContents(primeiro);
-    fim.collapse(false);
+    if (ref !== PROTOCOLO_CAPA) fim.collapse(false);
     sel?.removeAllRanges();
     sel?.addRange(fim);
   }
@@ -1839,6 +1849,10 @@ ${CSS_MARCAS}`;
       if (!ativo || edicao || e.button !== 0) return;
       if (e.target instanceof Element && e.target.closest(`#${ID_CAMADA}`)) return;
       const { ref, campo } = localizar2(e.target);
+      if (ref === PROTOCOLO_CAPA && campo === "protocolo") {
+        evento("pedirEdicao", { ref, campo });
+        return;
+      }
       aplicarSelecao(ref);
       const volumetria = volumetriaDe(e.target) !== null;
       evento("selecionado", volumetria ? { ref, campo, volumetria: true, x: e.clientX, y: e.clientY } : { ref, campo });
@@ -1850,7 +1864,7 @@ ${CSS_MARCAS}`;
         evento("pedirEdicao", { ref, campo: null });
         return;
       }
-      if (ref === null || campo === null) return;
+      if (ref === null || campo === null || ref === PROTOCOLO_CAPA) return;
       window.getSelection()?.removeAllRanges();
       evento("pedirEdicao", { ref, campo });
     });

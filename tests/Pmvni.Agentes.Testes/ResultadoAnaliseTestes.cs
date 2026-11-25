@@ -43,6 +43,7 @@ public class ResultadoAnaliseTestes
         Assert.Null(Localizar().Documento);
         Escrever(controle, new JsonObject { ["editor_execution"] = id }.ToJsonString());
         Assert.Equal(doc, Localizar().Documento);
+        Assert.Equal(doc, ResultadoAnalise.Localizar(pasta, Provedor.ChatGpt, DateTime.MinValue, registro.Pasta).Documento);
         var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(doc)));
         registro.RecusarEntrega(Provedor.ChatGpt, doc, hash, ["Falta a zona."]);
         Assert.Equal("Falta a zona.", RegistroExecucao.MotivoDaRecusaAtual(pasta, Provedor.ChatGpt, registro.Pasta));

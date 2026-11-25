@@ -229,7 +229,7 @@ public sealed partial class MainWindow
     /// O critério ilegível não é adivinhado: a edição entra sozinha e o aviso sugere «Rever com a IA».</summary>
     Comando ComandoDeEdicao(Projeto pj, string itemId, string campo, string texto)
     {
-        if (!TabelasRevisao.EhLinha(itemId)) return new DefinirCampo(itemId, campo, texto);
+        if (itemId == TabelasRevisao.ProtocoloCapa || !TabelasRevisao.EhLinha(itemId)) return new DefinirCampo(itemId, campo, texto);
         texto = IaRecalculoIndices.CompletarUnidade(texto, TabelasRevisao.TextoOriginal(pj, itemId, campo));
         if (!TabelasRevisao.Existe(pj, itemId)) return new DefinirCampo(itemId, campo, texto);
         var e = RecalculoLinha.AoEditar(pj, itemId, campo, texto);

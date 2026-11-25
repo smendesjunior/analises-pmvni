@@ -589,6 +589,7 @@ public sealed partial class PaginaNovoRelatorio
         "g" => "Atende",
         "r" => "Não atende",
         "a" => "Falta comprovar",
+        "conferir" => Situacoes[a.Situacao].Texto,
         _ => "Informações divergentes",
     };
 
@@ -611,7 +612,7 @@ public sealed partial class PaginaNovoRelatorio
         var meta = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
         var classe = Texto(Classificacao(a), estiloTexto);
         classe.HorizontalAlignment = HorizontalAlignment.Left;
-        meta.Children.Add(classe);
+        meta.Children.Add(cor == "conferir" ? Selo(classe.Text, "MnTagConferir", "MnTagTextoConferir") : classe);
         meta.Children.Add(Id(a.Verificado ? Selo("Verificada", "MnTagSucesso", "MnTagTextoSucesso") : Selo("Preliminar", "MnTagAtencao", "MnTagTextoAtencao"), "verification"));
         Grid.SetColumn(meta, 1);
         grade.Children.Add(meta);

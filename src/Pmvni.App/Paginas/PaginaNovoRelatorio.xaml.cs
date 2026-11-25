@@ -19,7 +19,6 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         InitializeComponent();
         CaixaPedido.PlaceholderText = FluxoNovoRelatorio.DicaPedido;
         TextoPedidoClaude.Text = FluxoNovoRelatorio.TextoPedidoClaude;
-        TextoArraste.Text = FluxoNovoRelatorio.ArrasteAqui;
         // Correções 2026-11-15 (image7): a coluna do formulário tem a largura da área visível, menos as margens, até 1400 (centralizada).
         PainelFormulario.SizeChanged += (_, e) => AjustarLarguraDoFormulario(e.NewSize.Width);
         RolagemMonitor.SizeChanged += (_, e) => AjustarColunasExecucao(e.NewSize.Width);
@@ -414,7 +413,7 @@ public sealed partial class PaginaNovoRelatorio : UserControl
             Child = new TextBlock { Text = achado.Verificado ? "Verificada" : "Preliminar", Style = Estilo("CaptionTextBlockStyle") },
         };
         var cabecalho = new PainelQuebra { Espaco = 8, EspacoLinhas = 3 };
-        cabecalho.Children.Add(classificacao);
+        cabecalho.Children.Add(cor == "conferir" ? Selo(situacao, "MnTagConferir", "MnTagTextoConferir") : classificacao);
         cabecalho.Children.Add(selo);
         var textos = new StackPanel { Spacing = 2 };
         textos.Children.Add(cabecalho);

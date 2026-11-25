@@ -21,6 +21,27 @@ public class LinhasTabelaTestes
 
     private static JsonObject Gerado(Projeto p) => JsonFiel.Ler(DadosEfetivos.Gerar(p).Json);
 
+    [Theory]
+    [InlineData("03/02/2026")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void protocolo_da_capa_preserva_original_e_rejeita_os_demais_campos(string? original)
+    {
+        var s = Sessao(Importar("curto"));
+        const string id = TabelasRevisao.ProtocoloCapa;
+        var capa = s.Projeto.Documento["capa"]!.AsObject();
+        if (original is null) capa.Remove("protocolo"); else capa["protocolo"] = original;
+        var antes = capa.DeepClone();
+        s.Aplicar(new DefinirCampo(id, "protocolo", "PROTO 42/2026"));
+        Assert.Equal("PROTO 42/2026", Gerado(s.Projeto)["capa"]!["protocolo"]!.GetValue<string>());
+        Assert.True(JsonNode.DeepEquals(antes, capa));
+        Assert.Throws<ComandoRecusadoException>(() => s.Aplicar(new DefinirCampo(id, "processo", "outro")));
+        s.Desfazer();
+        Assert.True(JsonNode.DeepEquals(antes, Gerado(s.Projeto)["capa"]));
+        s.Refazer();
+        Assert.Equal("PROTO 42/2026", TabelasRevisao.TextoEfetivo(s.Projeto, id, "protocolo"));
+    }
+
     // ---------- ids ----------
 
     [Fact]
@@ -29,14 +50,15 @@ public class LinhasTabelaTestes
         var p = Importar("longo").Projeto;
         var ids = TabelasRevisao.Ids(p);
         // 6 índices, 12 ambientes e, desde 2026-11-16, o diagrama: 6 chamadas, a planta e a volumetria.
-        Assert.Equal(6 + 12 + 6 + 2, ids.Count);
+        Assert.Equal(6 + 12 + 6 + 2 + 1, ids.Count);
         Assert.Equal("indices/01", ids[0]);
         Assert.Equal("indices/06", ids[5]);
         Assert.Equal("ambientes/01", ids[6]);
         Assert.Equal("ambientes/12", ids[17]);
         Assert.Equal("chamadas/01", ids[18]);
-        Assert.Equal("planta/01", ids[^2]);
-        Assert.Equal("volumetria/01", ids[^1]);
+        Assert.Equal("planta/01", ids[24]);
+        Assert.Equal("volumetria/01", ids[25]);
+        Assert.Equal(TabelasRevisao.ProtocoloCapa, ids[26]);
         // A volumetria ganha a forma (pavimentos, telhado, destaque) mesmo que o original não a tenha; o documento não muda.
         Assert.Equal("2", TabelasRevisao.TextoOriginal(p, "volumetria/01", "pavimentos"));
         Assert.True(TabelasRevisao.Editavel(p, "volumetria/01", "telhado"));
@@ -46,7 +68,7 @@ public class LinhasTabelaTestes
         foreach (var x in new[] { "indices/1", "indices/00", "indices/x1", "figuras/01", "it_01", "indices/", "/01", "indices/001" })
             Assert.False(TabelasRevisao.EhLinha(x), x);
         Assert.False(TabelasRevisao.Existe(p, "indices/07"));
-        Assert.Empty(TabelasRevisao.Ids(Importar("curto").Projeto));
+        Assert.Equal(TabelasRevisao.ProtocoloCapa, Assert.Single(TabelasRevisao.Ids(Importar("curto").Projeto)));
         Assert.Equal("ÍNDICE 02", TabelasRevisao.Rotulo("indices/02"));
         Assert.Equal("AMBIENTE 10", TabelasRevisao.Rotulo("ambientes/10"));
     }

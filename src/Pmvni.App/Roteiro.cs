@@ -236,14 +236,28 @@ internal static class Roteiro
         var somenteMonitor = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_MONITOR") == "1";
         var somenteAjustes = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_AJUSTES") == "1";
         var somenteRevisao = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_REVISAO") == "1";
-        if (new[] { somenteMonitor, somenteAjustes, somenteRevisao }.Count(ativo => ativo) > 1)
+        var somenteAnexos = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_ANEXOS") == "1";
+        var somenteProtocolo = Environment.GetEnvironmentVariable("PMVNI_ROTEIRO_PROTOCOLO") == "1";
+        if (new[] { somenteMonitor, somenteAjustes, somenteRevisao, somenteAnexos, somenteProtocolo }.Count(ativo => ativo) > 1)
             throw new ArgumentException("Escolha apenas um modo de roteiro focal.");
+        IEnumerable<FrameworkElement> Arvore(DependencyObject raiz)
+        {
+            var fila = new Queue<DependencyObject>([raiz]);
+            while (fila.TryDequeue(out var o))
+            {
+                if (o is FrameworkElement fe) yield return fe;
+                for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(o); i++) fila.Enqueue(Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(o, i));
+            }
+        }
+
         async Task Passo(string nome, Func<JsonObject, Task> corpoPasso)
         {
             if (somenteAjustes && nome is not ("plugins_e_ferramentas" or "modelos_da_analise")) return;
             if (somenteRevisao && nome is not ("1_importar_longo" or "13_selecionar_e_editar_no_a4" or
                 "14_situacao_e_justificativa" or "15_excluir_e_marca" or "16_desfazer_refazer" or "17_salvar_reabrir_exportar")) return;
             if (somenteMonitor && nome != "monitor_controles") return;
+            if (somenteAnexos && nome != "anexos_por_categoria") return;
+            if (somenteProtocolo && nome != "protocolo_da_capa") return;
             var p = new JsonObject();
             Registrar("início " + nome);
             try { await corpoPasso(p); p["ok"] ??= true; }
@@ -3364,15 +3378,7 @@ internal static class Roteiro
                 var linhasMonitor = new System.Collections.ObjectModel.ObservableCollection<string>{ "Mensagem: registro sem hora", $"[{agora:O}] Ação: atividade com hora" };
                 n.LigarLinhas(linhasMonitor);
                 // 3.5.1: o monitor é nativo; cada campo tem o AutomationId do antigo data-field do HTML.
-                IEnumerable<FrameworkElement> Arvore(DependencyObject raiz)
-                {
-                    var fila = new Queue<DependencyObject>([raiz]);
-                    while (fila.TryDequeue(out var o))
-                    {
-                        if (o is FrameworkElement fe) yield return fe;
-                        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(o); i++) fila.Enqueue(Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(o, i));
-                    }
-                }
+
                 string TextoDe(FrameworkElement e) =>
                     Microsoft.UI.Xaml.Automation.AutomationProperties.GetName(e) is { Length: > 0 } nome ? nome
                     : e is Microsoft.UI.Xaml.Controls.TextBlock t ? t.Text
@@ -4008,6 +4014,113 @@ internal static class Roteiro
             p["ok"] = tudo && semCodex && nada && alterados.Count == 0 && foraDoPermitido.Count == 0 && anexosIntactos && soOFalso && j.ExecucoesEmCurso.Count == 0;
         });
 
+
+        await Passo("anexos_por_categoria", async p =>
+        {
+            await PrepararNovoRelatorioAsync();
+            await SemRelatorioAbertoAsync();
+            await j.MudarModuloAsync(Modulo.Relatorios);
+            await j.NovoRelatorioAsync();
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == P0001()));
+            var categorias = new[] { DestinoAnexo.ProjetoInicial, DestinoAnexo.Bci, DestinoAnexo.ArtRrt,
+                DestinoAnexo.EscrituraCertidao, DestinoAnexo.OutrosDocumentos };
+            var zonas = j.NovoRelatorio.CategoriasAnexos.Children.OfType<Microsoft.UI.Xaml.Controls.Grid>().ToList();
+            if (!zonas.Select(z => z.Tag).SequenceEqual(categorias.Cast<object>()) || zonas.Any(z => !z.AllowDrop))
+                throw new InvalidOperationException("As cinco zonas não aceitaram soltura com sua categoria própria.");
+            foreach (var zona in zonas)
+            {
+                var botao = Arvore(zona).OfType<Microsoft.UI.Xaml.Controls.Button>().Single();
+                var antes = j.AnexosDoNovoRelatorio.Count;
+                perguntas.ArquivosParaAnexar = [requerimento];
+                Invocar(botao);
+                if (!await EsperarAteAsync(() => Task.FromResult(j.AnexosDoNovoRelatorio.Count == antes + 1), 5000))
+                    throw new InvalidOperationException("Seletor sem anexo na categoria " + zona.Tag);
+            }
+            if (!j.AnexosDoNovoRelatorio.Select(a => a.Destino).SequenceEqual(categorias))
+                throw new InvalidOperationException("As escolhas do mesmo arquivo em categorias distintas se perderam.");
+            await j.SoltarArquivosAsync([planta, memorial], DestinoAnexo.Bci);
+            await j.SoltarArquivosAsync([planta], DestinoAnexo.Bci);
+            await j.AguardarNovoRelatorioAsync();
+            if (j.AnexosDoNovoRelatorio.Count(a => a.Destino == DestinoAnexo.Bci) != 3)
+                throw new InvalidOperationException("Soltura, deduplicação ou seleção múltipla incorreta.");
+            var removerArt = Arvore(zonas[2]).OfType<Microsoft.UI.Xaml.Controls.Button>()
+                .Single(b => AutomationProperties.GetName(b).StartsWith("Remover ", StringComparison.Ordinal));
+            Invocar(removerArt);
+            if (!await EsperarAteAsync(() => Task.FromResult(j.AnexosDoNovoRelatorio.All(a => a.Destino != DestinoAnexo.ArtRrt)), 5000))
+                throw new InvalidOperationException("A remoção do ART/RRT não atualizou sua lista.");
+            for (var i = j.AnexosDoNovoRelatorio.Count - 1; i >= 0; i--)
+                if (j.AnexosDoNovoRelatorio[i].Destino != DestinoAnexo.Bci) j.RemoverAnexo(i);
+            await j.AguardarNovoRelatorioAsync();
+            j.PedidoTexto = "Ensaio fictício de seleção de anexos.";
+            var (comBci, _) = await AnalisarAteOFimAsync(Provedor.ChatGpt, "ok");
+            var anexosBci = JsonNode.Parse(File.ReadAllText(Path.Combine(comBci.Registro.Pasta, "anexos.json")))!.AsArray();
+            if (anexosBci.Count != 3 || anexosBci.Any(x => x?["categoria"]?.GetValue<string>() != "bci"))
+                throw new InvalidOperationException("A categoria BCI não chegou aos três registros da execução.");
+            await SemRelatorioAbertoAsync();
+            await j.NovoRelatorioAsync();
+            await j.EscolherProcessoNovoRelatorioAsync(j.ProcessosDoNovoRelatorio.First(x => x.Pasta == P0001()));
+            j.PedidoTexto = "Ensaio fictício sem anexos novos.";
+            var (semAnexos, _) = await AnalisarAteOFimAsync(Provedor.ChatGpt, "ok");
+            var manifestosem = JsonNode.Parse(File.ReadAllText(Path.Combine(semAnexos.Registro.Pasta, "anexos.json")))!.AsArray();
+            if (manifestosem.Count != 0 || !File.Exists(requerimento))
+                throw new InvalidOperationException("A execução sem anexos não preservou o manifesto vazio e o original.");
+            p["categorias"] = new JsonArray(zonas.Select(z => (JsonNode)AutomationProperties.GetName(z)).ToArray());
+            p["mesmo_arquivo_nas_cinco_categorias"] = true;
+            p["soltura_multipla_sem_duplicata"] = true;
+            p["remocao_pela_janela"] = true;
+            p["manifesto_so_bci"] = anexosBci.DeepClone();
+            p["manifesto_sem_anexos"] = manifestosem.DeepClone();
+        });
+        if (somenteAnexos) { RegistrarProgramasIniciados(); Concluir(); return; }
+
+        await Passo("protocolo_da_capa", async p =>
+        {
+            const string novo = "PROTO-2707/2026";
+            const string campo = "section.folha .cover .dates > div:first-child > b";
+            var pacote = Path.Combine(pasta, "protocolo-da-capa.rpmvni");
+            var pdf = Path.Combine(pasta, "protocolo-da-capa.pdf");
+            if (!await j.ImportarParaAsync(Path.Combine(corpus, "curto.json"), pacote))
+                throw new InvalidOperationException("A importação da capa falhou: " + j.InfoMensagem.Message);
+            string Texto() => TabelasRevisao.TextoEfetivo(j.Sessao!.Revisao.Projeto, TabelasRevisao.ProtocoloCapa, "protocolo") ?? "";
+            var anterior = Texto();
+            async Task ClicarNoProtocolo()
+            {
+                var pos = await Js(j, $"(() => {{ const e = document.querySelector('{campo}'); e.scrollIntoView({{block:'center',behavior:'instant'}}); const r=e.getBoundingClientRect(); return {{x:r.left+r.width/2,y:r.top+r.height/2}}; }})()");
+                await CliqueAsync(j, (pos.GetProperty("x").GetDouble(), pos.GetProperty("y").GetDouble()));
+            }
+            await GarantirTecladoAsync(j);
+            await ClicarNoProtocolo();
+            const string editando = "!!document.querySelector('[data-pmvni-editando][data-campo=protocolo]')";
+            if (!await EsperarAteAsync(async () => (await Js(j, editando)).GetBoolean(), 4000))
+                throw new InvalidOperationException("O primeiro clique no valor do protocolo não abriu a edição.");
+            await j.NucleoWeb.CallDevToolsProtocolMethodAsync("Input.insertText", JsonSerializer.Serialize(new { text = novo }));
+            await TeclaAsync(j, "Enter", "Enter", 13);
+            if (!await EsperarAteAsync(() => Task.FromResult(Texto() == novo), 4000))
+                throw new InvalidOperationException("A alteração digitada não foi aplicada ao protocolo: " + Texto());
+            await j.ExecutarComandoAsync(ComandosApp.EditarDesfazer);
+            if (Texto() != anterior) throw new InvalidOperationException("O desfazer não recuperou o protocolo recebido.");
+            await j.ExecutarComandoAsync(ComandosApp.EditarRefazer);
+            await j.ExecutarComandoAsync(ComandosApp.ArquivoSalvar);
+            if (!await j.FecharSessaoAsync() || !await j.AbrirPacoteAsync(pacote) || Texto() != novo)
+                throw new InvalidOperationException("O pacote salvo não reabriu com o protocolo esperado.");
+            var impresso = await j.ExportarParaAsync(pdf);
+            if (!impresso.Ok || !File.Exists(pdf)) throw new InvalidOperationException("A exportação da capa falhou: " + impresso.Erro);
+            var atual = j.Sessao!;
+            var trava = Trava.CaminhoDe(pacote);
+            File.SetAttributes(trava, FileAttributes.Normal);
+            File.Delete(trava);
+            if (await atual.BaterAsync() || !atual.SomenteLeitura) throw new InvalidOperationException("O relatório continuou gravável sem a trava de ensaio.");
+            await ClicarNoProtocolo();
+            await Esperar(300);
+            if ((await Js(j, editando)).GetBoolean() || Texto() != novo) throw new InvalidOperationException("A capa permitiu edição em somente leitura.");
+            p["original"] = anterior;
+            p["texto_digitado"] = novo;
+            p["desfazer_refazer_reabrir"] = true;
+            p["somente_leitura_recusou_edicao"] = true;
+            p["pdf_sha256"] = ShaDe(pdf);
+            await j.FecharSessaoAsync();
+        });
+        if (somenteProtocolo) { RegistrarProgramasIniciados(); Concluir(); return; }
 
         // ---------- Legislação: Ajustes › Módulos › Legislação (Tarefa 17; passos 57 a 60) ----------
         // Só os PDFs fictícios de tests\corpus\legislacao, copiados para <pasta>\legislacao-originais (a pasta real LEGISLAÇÃO nunca

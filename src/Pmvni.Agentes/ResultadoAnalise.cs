@@ -4,7 +4,10 @@ using System.Text.Json;
 namespace Pmvni.Agentes;
 
 /// <summary>O relatório que o kit declara no <c>delivery.json</c>, ou o motivo de não haver.</summary>
-public sealed record Resultado(string? Documento, string? Pdf, string? Motivo);
+public sealed record Resultado(string? Documento, string? Pdf, string? Motivo)
+{
+    public bool ParaRevisao { get; init; }
+}
 
 /// <summary>Localiza o resultado (desenho §12.6): o <c>document</c> do <c>delivery.json</c> escrito pelo kit, nunca uma busca por nome de arquivo.
 /// O editor não julga o mérito: só confere que o arquivo é novo, legível e está dentro da pasta do processo.</summary>
@@ -28,11 +31,12 @@ public static class ResultadoAnalise
             if (mesmoRegistro == false) return Falha("O controle do kit pertence a outra execução. A entrega não foi importada.");
             if (mesmoRegistro == true && RegistroExecucao.LerInicio(pastaRegistro) is { } partida && partida.UtcDateTime < inicioUtc)
                 inicioUtc = partida.UtcDateTime;
+            var limite = inicioUtc.Ticks >= Tolerancia.Ticks ? inicioUtc - Tolerancia : DateTime.MinValue;
             info = new FileInfo(delivery);
-            if (!info.Exists || info.LastWriteTimeUtc < inicioUtc - Tolerancia)
+            if (!info.Exists || info.LastWriteTimeUtc < limite)
             {
                 var ultima = Path.Combine(pastaRegistro, "ultima-mensagem.md");
-                if (p == Provedor.ChatGpt && File.Exists(ultima) && File.GetLastWriteTimeUtc(ultima) >= inicioUtc - Tolerancia)
+                if (p == Provedor.ChatGpt && File.Exists(ultima) && File.GetLastWriteTimeUtc(ultima) >= limite)
                 {
                     using var leitor = File.OpenText(ultima);
                     var trecho = new char[2000];

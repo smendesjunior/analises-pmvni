@@ -293,8 +293,80 @@ public static class Processos
         return TipoDespacho.NaoIdentificado;
     }
 
+    // Mesmas cinco categorias do registro ANEXOS.JSON e da seleção do kit.
+    public static IReadOnlyList<ArquivoEncontrado> PecasParaAnalise(Processo processo, IReadOnlySet<string> atendidas, CancellationToken ct)
+    {
+        var avisos = new List<string>();
+        if (atendidas.Count == 0)
+            return ArquivosAte3Niveis(processo, "PROJETO", avisos, ct)
+                .Concat(ArquivosAte3Niveis(processo, "DOCUMENTOS", avisos, ct)).ToList();
+        if (atendidas.IsSupersetOf(["projetos", "bci", "art_rrt", "escritura_certidao", "outros_documentos"]))
+            return [];
+
+        return ArquivosAte3Niveis(processo, "", avisos, ct,
+            sub =>
+            {
+                var nome = Normalizar(Path.GetFileName(sub));
+                if (nome.StartsWith('.') || nome.StartsWith("despacho ", StringComparison.Ordinal) ||
+                    nome is "historico" or "backup" or "temp" or "temporarios" or "__pycache__" or "saida ia" or "relatorios" or "despachos" or "relatorios de analise")
+                    return false;
+                var categoria = CategoriaDaPasta(Path.GetRelativePath(processo.Pasta, sub));
+                return categoria is null || !atendidas.Contains(categoria);
+            },
+            arquivo =>
+            {
+                var relativo = Path.GetRelativePath(processo.Pasta, arquivo);
+                var nome = Normalizar(Path.GetFileName(arquivo));
+                return !nome.StartsWith('.') && !Regex.IsMatch(nome, @"^(relatorio( de analise| pmvni|\.pdf$|[_-]\d)|despacho|parecer tecnico)\b")
+                    && !atendidas.Contains(CategoriaDoArquivo(relativo));
+            }, int.MaxValue);
+    }
+
+    static string? CategoriaDaPasta(string relativo)
+    {
+        string anterior = "";
+        foreach (var parte in relativo.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+        {
+            var nome = Regex.Replace(Normalizar(parte), "[^a-z0-9]+", " ").Trim();
+            if (nome is "projeto" or "projetos") return "projetos";
+            if (nome == "documentos de protocolo") return "outros_documentos";
+            if (anterior == "documentos")
+            {
+                var categoria = nome switch {
+                    "bci" => "bci", "art rrt" => "art_rrt",
+                    "escritura ou certidao de inteiro teor" => "escritura_certidao",
+                    "outros documentos" => "outros_documentos", _ => null
+                };
+                if (categoria is not null) return categoria;
+            }
+            anterior = nome;
+        }
+        return null;
+    }
+
+    public static HashSet<string> CategoriasAtendidas(IReadOnlyList<ArquivoArquivado> anexos)
+    {
+        // Registros inteiramente anteriores às categorias conservam a busca original.
+        if (!anexos.Any(a => a.Categoria is not null)) return [];
+        return anexos.Select(a => a.Categoria ?? CategoriaDoArquivo(a.Relativo)).ToHashSet(StringComparer.Ordinal);
+    }
+
+    static string CategoriaDoArquivo(string relativo)
+    {
+        var pasta = Path.GetDirectoryName(relativo) ?? "";
+        if (CategoriaDaPasta(pasta) is { } categoria) return categoria;
+        var termos = Regex.Replace(Normalizar(relativo), "[^a-z0-9]+", " ");
+        if (Regex.IsMatch(termos, @"\b(bci|boletim (de (cadastro|informacoes)|cadastral)|espelho cadastral)\b")) return "bci";
+        if (Regex.IsMatch(termos, @"\b(art|rrt|(anotacao|registro) de responsabilidade tecnica)\b")) return "art_rrt";
+        if (Regex.IsMatch(termos, @"\b(escritura|matricula|inteiro teor)\b")) return "escritura_certidao";
+        if (!pasta.Split(Path.DirectorySeparatorChar).Contains("DOCUMENTOS", StringComparer.OrdinalIgnoreCase)
+            && Regex.IsMatch(termos, @"\b(prancha|projeto|planta)\b")) return "projetos";
+        return "outros_documentos";
+    }
+
     /// <summary>Arquivos de <c>PROJETO</c> ou <c>DOCUMENTOS</c>: até 3 níveis (a própria pasta e duas de subpastas), por nome; links ignorados.</summary>
-    static List<ArquivoEncontrado> ArquivosAte3Niveis(Processo p, string nome, List<string> avisos, CancellationToken ct)
+    static List<ArquivoEncontrado> ArquivosAte3Niveis(Processo p, string nome, List<string> avisos, CancellationToken ct,
+        Func<string, bool>? entrar = null, Func<string, bool>? incluir = null, int profundidade = NiveisMaximos)
     {
         var lista = new List<ArquivoEncontrado>();
         var pasta = Path.Combine(p.Pasta, nome);
@@ -309,13 +381,13 @@ public static class Processos
             {
                 foreach (var f in Directory.EnumerateFiles(dir))
                 {
-                    if (EhLink(f)) continue;
+                    if (incluir?.Invoke(f) == false || EhLink(f)) continue;
                     var info = new FileInfo(f);
                     lista.Add(new ArquivoEncontrado(f, Path.GetRelativePath(p.Pasta, f), info.Length, info.LastWriteTimeUtc));
                 }
-                if (nivel < NiveisMaximos)
+                if (nivel < profundidade)
                     foreach (var sub in Directory.EnumerateDirectories(dir))
-                        if (!EhLink(sub)) Varrer(sub, nivel + 1);
+                        if (entrar?.Invoke(sub) != false && !EhLink(sub)) Varrer(sub, nivel + 1);
             }
             catch (Exception e) when (Ilegivel(e))
             {
