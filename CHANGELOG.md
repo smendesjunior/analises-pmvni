@@ -2,6 +2,11 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.6.3
+
+- A tabela de vãos apresenta cada ambiente separadamente e distingue a soma nominal da comprovação técnica de iluminação e ventilação.
+- Fórmulas de frações aproximadas e referências extensas ficam mais legíveis no relatório.
+
 ## 4.6.2
 
 - A versão para revisão aproveita o mapa de localização, o quadro de índices, os cálculos de vãos e o histórico das exigências disponíveis na análise.

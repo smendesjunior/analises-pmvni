@@ -7,7 +7,7 @@
     <RootNamespace>Pmvni.Composicao</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Modelo oficial (revisão 17) embutido byte a byte; o nome lógico é o nome do arquivo. -->
-    <EmbeddedResource Include="ModeloOficial\rev17\*" LogicalName="%(Filename)%(Extension)" />
+    <!-- Modelo oficial (revisão 18) embutido byte a byte; o nome lógico é o nome do arquivo. -->
+    <EmbeddedResource Include="ModeloOficial\rev18\*" LogicalName="%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

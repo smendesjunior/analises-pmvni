@@ -40,6 +40,15 @@ public class RelatorioRendererTestes : IDisposable
     }
 
     [Fact]
+    public void tabela_de_vaos_distingue_conta_nominal_da_conclusao_tecnica()
+    {
+        var r = RelatorioRenderer.Renderizar(GravarModelo(), new OpcoesRender(false, true), _modelo);
+        Assert.True(r.Ok, string.Join("; ", r.Erros));
+        Assert.Contains("CONTA NOMINAL CONFERE", r.Html);
+        Assert.Contains("overflow-wrap: anywhere; word-break: break-word", r.Html);
+    }
+
+    [Fact]
     public void refs_por_ordem_com_id_ausente()
     {
         // 1º item com id próprio, 2º sem id, 3º com id vazio; 1ª figura com id.
