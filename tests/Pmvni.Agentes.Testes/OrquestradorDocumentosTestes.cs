@@ -27,7 +27,17 @@ public partial class OrquestradorTestes
                 AmbienteExtra = new Dictionary<string, string> { ["AGENTE_FALSO_CENARIO"] = cena.Cenario },
             };
             string? local = null;
-            var pedido = cena.Pedido(Provedor.ChatGpt) with { UsarDocumentos = true, AoPrepararLocal = p => local = p };
+            var preparos = 0;
+            var pedido = cena.Pedido(Provedor.ChatGpt) with
+            {
+                UsarDocumentos = true,
+                AoPrepararLocal = trabalho =>
+                {
+                    Assert.False(Directory.Exists(Path.Combine(pasta, ".pmvni-ai")));
+                    preparos++;
+                    local = trabalho;
+                }
+            };
             var indice = ControlesDoProcesso.Diretorio(pasta, "entregas");
             if (bloquearDestino) File.WriteAllText(indice, "destino temporariamente indisponível");
             Assert.False(Directory.Exists(Path.Combine(pasta, ".pmvni-ai")));
@@ -58,6 +68,7 @@ public partial class OrquestradorTestes
                 Assert.Equal(dataRecibo, File.GetLastWriteTimeUtc(recibo));
             }
             Assert.True(fim.Situacao == "concluida", fim.Mensagem);
+            Assert.Equal(bloquearDestino ? 2 : 1, preparos);
             Assert.NotNull(local);
             Assert.StartsWith(documentos.FullName + Path.DirectorySeparatorChar, local, StringComparison.OrdinalIgnoreCase);
             Assert.Equal(File.ReadAllBytes(memorial), File.ReadAllBytes(Path.Combine(local, "DOCUMENTOS", "Memorial.pdf")));
