@@ -6,6 +6,25 @@
   <!-- Módulo Relatórios: avisos, painel lateral (Seções | Excluídos | Histórico), as folhas A4 (WebView2, criado uma vez),
        Propriedades do item selecionado e o rodapé (zoom, folha X de Y). -->
   <Grid Padding="0,12,0,0">
+    <VisualStateManager.VisualStateGroups>
+      <VisualStateGroup>
+        <VisualState x:Name="RodapeEmUmaLinha">
+          <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1100"/></VisualState.StateTriggers>
+        </VisualState>
+        <VisualState x:Name="RodapeEmDuasLinhas">
+          <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0"/></VisualState.StateTriggers>
+          <VisualState.Setters>
+            <Setter Target="GrupoZoom.(Grid.ColumnSpan)" Value="4"/>
+            <Setter Target="IndicadorLayout.(Grid.Row)" Value="1"/>
+            <Setter Target="IndicadorLayout.(Grid.Column)" Value="0"/>
+            <Setter Target="TextoComposicao.(Grid.Row)" Value="1"/>
+            <Setter Target="TextoComposicao.(Grid.Column)" Value="1"/>
+            <Setter Target="TextoComposicao.(Grid.ColumnSpan)" Value="2"/>
+            <Setter Target="PainelFolha.(Grid.Row)" Value="1"/>
+          </VisualState.Setters>
+        </VisualState>
+      </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
@@ -336,14 +355,14 @@
 
     <!-- Rodapé (o mesmo padrão da Legislação, M4): zoom com ícones e atalhos na dica, o indicador de layout (A2), a situação da composição e
          "Folha n de M" com caixa para ir direto à folha. -->
-    <Grid x:Name="BarraRodape" Grid.Row="2" MinHeight="40" Padding="12,4,12,0" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+    <Grid x:Name="BarraRodape" Grid.Row="2" RowDefinitions="Auto,Auto" MinHeight="40" Padding="12,4,12,0" ColumnSpacing="8" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="*"/>
         <ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
-      <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+      <StackPanel x:Name="GrupoZoom" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
         <Button x:Name="BotaoMenos" x:FieldModifier="internal" Width="32" Height="32" Padding="0" Style="{StaticResource PmvniBarraButtonStyle}" AutomationProperties.Name="Diminuir o zoom"
                 ToolTipService.ToolTip="Abra um relatório para mudar o zoom." IsEnabled="False">
           <FontIcon Glyph="{x:Bind local:Glifos.Diminuir}" FontSize="16"/>

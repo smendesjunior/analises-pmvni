@@ -5489,6 +5489,7 @@ internal static class Roteiro
             var amostras = new JsonArray();
             var recuos = new List<double>();
             var desviosLaterais = new List<double>();
+            var alinhamentos = new JsonArray();
             var folgas = new List<double>();
             var moldura = (FrameworkElement)raiz.FindName("MolduraBarras");
             var paginas = (FrameworkElement)raiz.FindName("AreaPaginas");
@@ -5517,6 +5518,9 @@ internal static class Roteiro
                         foreach (var barra in barras.Where(b => b.Visibility == Visibility.Visible && b.ActualWidth > 0))
                         {
                             var cantoPagina = barra.TransformToVisual(raiz).TransformPoint(new Windows.Foundation.Point());
+                            alinhamentos.Add(new JsonObject { ["largura"] = raiz.ActualWidth, ["elemento"] = barra.Name,
+                                ["inicio"] = cantoPagina.X, ["fim"] = cantoPagina.X + barra.ActualWidth,
+                                ["inicio_faixa"] = extremidade - j.FaixaAtual.ActualWidth, ["fim_faixa"] = extremidade });
                             desviosLaterais.Add(Math.Abs(cantoPagina.X + barra.ActualWidth - extremidade));
                             desviosLaterais.Add(Math.Abs(cantoPagina.X - (extremidade - j.FaixaAtual.ActualWidth)));
                         }
@@ -5524,6 +5528,7 @@ internal static class Roteiro
                     }
                 }
                 p["amostras"] = amostras;
+                p["alinhamentos"] = alinhamentos;
                 p["deslocamento_vertical_dip"] = alturas.Max() - alturas.Min();
                 p["recuo_direito_barra_dip"] = recuos.Min();
                 p["desalinhamento_lateral_dip"] = desviosLaterais.Max();
