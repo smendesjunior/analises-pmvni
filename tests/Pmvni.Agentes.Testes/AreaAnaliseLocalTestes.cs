@@ -49,6 +49,57 @@ public sealed class AreaAnaliseLocalTestes
     }
 
     [Fact]
+    public void Memoria_de_calculo_abre_parcela_e_recorte_da_execucao_e_recusa_substituicao()
+    {
+        using var c = new Caso();
+        const string relativo = @"PROJETO\A-04.pdf";
+        var original = c.Gravar(relativo, "%PDF-ensaio-da-parcela");
+        var area = c.Preparar();
+        c.Associar(area);
+        area = AreaAnaliseLocal.AbrirAtiva(c.Origem, c.Pedido.Registro.Pasta, c.Estacao.Caminho);
+        string Hash(string caminho) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(caminho)));
+        var hash = Hash(original);
+        var recorte = Path.Combine(".pmvni-ai", "cache-pdf", "v1", hash, "trecho.png");
+        var imagem = Path.Combine(area.ProcessoLocal, recorte);
+        Directory.CreateDirectory(Path.GetDirectoryName(imagem)!);
+        File.WriteAllBytes(imagem, [137, 80, 78, 71]);
+        var pasta = Directory.CreateDirectory(Path.Combine(area.ProcessoLocal, ResultadoAnalise.PastaControle(Provedor.ChatGpt), "local"));
+        var controle = Path.Combine(pasta.FullName, ConferenciaNumerica.ArquivoControle);
+        var dado = new { id_dado = "unico", peca = "DOC-04", pagina = 2, rotulo = "Projeção", valor = "400", unidade = "m²",
+            arquivo = relativo, sha256 = hash, recorte, recurso_sha256 = Hash(imagem), regiao = "quadro superior" };
+        var linhas = new object[] {
+            new { indice = "to", situacao = "CONFERE", parcelas = new { area_projecao = new[] { "unico", "sem-vinculo" } } },
+            new { indice = "tp", situacao = "INSUFICIENTE" }, new { indice = "ca", situacao = "INSUFICIENTE" } };
+        void GravarDados(object[] dados) => File.WriteAllText(controle, JsonSerializer.Serialize(new
+            { versao = 1, execucao = c.Id, rota = "codex", fase = "montagem", linhas, dados_declarados = dados }));
+        ConferenciaNumerica Painel() => ConferenciaNumerica.Ler(area.ProcessoLocal, Provedor.ChatGpt, area.RegistroLocal)!;
+        GravarDados([dado]);
+        var fonte = Assert.Single(Painel().Evidencias);
+        Assert.Equal(("to", "area_projecao", "DOC-04", 2, "400 m²"), (fonte.Indice, fonte.Parcela, fonte.Peca, fonte.Pagina, fonte.Valor));
+        using (var pdf = area.AbrirEvidencia(fonte, false)) Assert.Equal(File.ReadAllBytes(original), LerTudo(pdf));
+        using (var png = area.AbrirEvidencia(fonte, true)) Assert.Equal(File.ReadAllBytes(imagem), LerTudo(png));
+        using (var legado = area.AbrirEvidencia(fonte with { Arquivo = "" }, false)) Assert.Equal(File.ReadAllBytes(original), LerTudo(legado));
+        Assert.Throws<InvalidDataException>(() => area.AbrirEvidencia(fonte with { Arquivo = original }, false));
+        Assert.Throws<InvalidDataException>(() => area.AbrirEvidencia(fonte with { Recorte = @"..\fora.png" }, true));
+        Assert.Throws<InvalidDataException>(() => area.AbrirEvidencia(fonte with { Recorte = recorte.Replace(hash, "outra-peca") }, true));
+        Assert.Throws<InvalidDataException>(() => area.AbrirEvidencia(fonte with { Pagina = 0 }, false));
+        File.AppendAllText(imagem, "alterada");
+        Assert.Throws<InvalidDataException>(() => area.AbrirEvidencia(fonte, true));
+        File.AppendAllText(Path.Combine(area.ProcessoLocal, relativo), "alterada");
+        Assert.Throws<InvalidDataException>(() => area.AbrirEvidencia(fonte, false));
+        GravarDados([dado, dado]);
+        Assert.Empty(Painel().Evidencias);
+        Assert.Equal(hash, Hash(original));
+
+        static byte[] LerTudo(Stream fluxo)
+        {
+            using var memoria = new MemoryStream();
+            fluxo.CopyTo(memoria);
+            return memoria.ToArray();
+        }
+    }
+
+    [Fact]
     public void Copia_todas_as_revisoes_documentos_historicos_e_anexos_e_preserva_as_datas()
     {
         using var c = new Caso();

@@ -196,6 +196,10 @@ public sealed partial class MainWindow
 
         var n = NR;
         n.EvidenciasSolicitadas += (_, _) => AbrirEvidenciasDoMonitor();
+        n.ParcelaSolicitada += (evidencia, recorte) =>
+        {
+            if (execucaoMostrada is { } e) ExibirEvidenciaDaParcela(e.Processo.Pasta, e.Registro.Pasta, evidencia, recorte);
+        };
         n.CaixaFiltro.TextChanged += (_, e) =>
         {
             PreencherProcessosNR();

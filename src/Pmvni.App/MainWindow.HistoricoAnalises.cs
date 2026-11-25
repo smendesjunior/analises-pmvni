@@ -46,7 +46,7 @@ public sealed partial class MainWindow
             }
             else { MostrarMensagem(InfoBarSeverity.Warning, "Relatório indisponível", item.Registro); return; }
             if (conferencia is not null && !(AvisoDoModulo.IsOpen && AvisoDoModulo.Severity == InfoBarSeverity.Error))
-                MostrarConferenciaDoHistorico(conferencia);
+                MostrarConferenciaDoHistorico(conferencia, item.Processo.Pasta, item.Registro);
             return;
         }
         if (item.Situacao == "descartada")
@@ -65,7 +65,7 @@ public sealed partial class MainWindow
             MostrarExecucaoNR(ativa);
             return;
         }
-        if (conferencia is not null) MostrarConferenciaDoHistorico(conferencia);
+        if (conferencia is not null) MostrarConferenciaDoHistorico(conferencia, item.Processo.Pasta, item.Registro);
         var (escolha, _) = await PerguntarRetomadaAsync(item.Processo, item.Registro, item.Provedor, item.Situacao.Replace('_', ' '));
         if (escolha is null) return;
         if (escolha == Provedor.ChatGpt && item.Provedor == Provedor.ChatGpt)
@@ -76,7 +76,42 @@ public sealed partial class MainWindow
         else await ContinuarComOutraIaAsync(escolha.Value, item.Processo, item.Registro);
     }
 
-    void MostrarConferenciaDoHistorico(ConferenciaNumerica conferencia)
+    async void ExibirEvidenciaDaParcela(string origem, string registro, ConferenciaNumerica.Evidencia evidencia, bool recorte)
+    {
+        await TentarAsync(async () =>
+        {
+            using var arquivo = await Task.Run(() => AreaAnaliseLocal.AbrirAtiva(origem, registro).AbrirEvidencia(evidencia, recorte));
+            using var fluxo = arquivo.AsRandomAccessStream();
+            var imagem = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage();
+            if (recorte)
+                await imagem.SetSourceAsync(fluxo);
+            else
+            {
+                var pdf = await Windows.Data.Pdf.PdfDocument.LoadFromStreamAsync(fluxo);
+                if (evidencia.Pagina > pdf.PageCount) throw new InvalidDataException("A página não existe na peça validada.");
+                using var pagina = pdf.GetPage((uint)evidencia.Pagina - 1);
+                using var pixels = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                var escala = 2300 / Math.Max(1, Math.Max(pagina.Size.Width, pagina.Size.Height));
+                await pagina.RenderToStreamAsync(pixels, new Windows.Data.Pdf.PdfPageRenderOptions
+                {
+                    DestinationWidth = (uint)Math.Max(1, Math.Round(pagina.Size.Width * escala)),
+                    DestinationHeight = (uint)Math.Max(1, Math.Round(pagina.Size.Height * escala))
+                });
+                pixels.Seek(0);
+                await imagem.SetSourceAsync(pixels);
+            }
+            var detalhes = new StackPanel { Spacing = 8 };
+            detalhes.Children.Add(new TextBlock { Text = evidencia.Titulo + Environment.NewLine + evidencia.Regiao,
+                TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap, IsTextSelectionEnabled = true });
+            detalhes.Children.Add(new Image { Source = imagem, Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform });
+            var janela = new Microsoft.UI.Xaml.Window { Title = recorte ? "Recorte da parcela" : "Página da parcela",
+                Content = new ScrollViewer { Content = detalhes, ZoomMode = ZoomMode.Enabled,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } };
+            janela.Activate();
+        });
+    }
+
+    void MostrarConferenciaDoHistorico(ConferenciaNumerica conferencia, string origem, string registro)
     {
         var titulo = conferencia.Titulo;
         MostrarMensagem(InfoBarSeverity.Informational, titulo, conferencia.Resumo);
@@ -84,7 +119,7 @@ public sealed partial class MainWindow
         botao.Click += async (_, _) => await TentarAsync(() => MostrarDialogoAsync(titulo, new ScrollViewer
         {
             MaxHeight = 420,
-            Content = new TextBlock { Text = conferencia.Detalhes, TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap, IsTextSelectionEnabled = true },
+            Content = PaginaNovoRelatorio.MemoriaDeCalculo(conferencia, (evidencia, recorte) => ExibirEvidenciaDaParcela(origem, registro, evidencia, recorte)),
         }));
         AvisoDoModulo.ActionButton = botao;
     }

@@ -273,6 +273,47 @@ internal sealed class AreaAnaliseLocal
         ControleAnterior = null;
     }
 
+    internal FileStream AbrirEvidencia(ConferenciaNumerica.Evidencia evidencia, bool recorte)
+    {
+        static bool HashValido(string hash) => hash.Length == 64 && hash.All(char.IsAsciiHexDigit);
+        if (!HashValido(evidencia.Sha256) || evidencia.Pagina < 1)
+            throw new InvalidDataException("A parcela não identifica a página e a assinatura da prancha.");
+        var relativo = evidencia.Arquivo.Replace('/', Path.DirectorySeparatorChar);
+        if (relativo.Length == 0)
+        {
+            var candidatos = arquivos.Where(kv => Comparador.Equals(kv.Value, evidencia.Sha256)).Select(kv => kv.Key).Take(2).ToArray();
+            if (candidatos.Length != 1) throw new InvalidDataException("A parcela não identifica uma única peça da cópia local.");
+            relativo = candidatos[0];
+        }
+        if (!arquivos.TryGetValue(relativo, out var esperado) || !Comparador.Equals(esperado, evidencia.Sha256) ||
+            !Comparador.Equals(Path.GetExtension(relativo), ".pdf"))
+            throw new InvalidDataException("A prancha ou a assinatura da parcela diverge do inventário desta execução.");
+        FileStream AbrirConferido(string caminho, string hash)
+        {
+            ConferirCaminho(caminho, local: true);
+            var fluxo = File.OpenRead(caminho);
+            try
+            {
+                if (!Comparador.Equals(Convert.ToHexString(SHA256.HashData(fluxo)), hash))
+                    throw new InvalidDataException("Os bytes da evidência local divergem da assinatura registrada.");
+                fluxo.Position = 0;
+                return fluxo;
+            }
+            catch { fluxo.Dispose(); throw; }
+        }
+        var pdf = AbrirConferido(Path.Combine(ProcessoLocal, relativo), esperado);
+        if (!recorte) return pdf;
+        pdf.Dispose();
+        var caminhoRecorte = evidencia.Recorte.Replace('/', Path.DirectorySeparatorChar);
+        var cache = Path.Combine(ProcessoLocal, ".pmvni-ai", "cache-pdf");
+        if (!HashValido(evidencia.Sha256Recorte) || Path.IsPathRooted(caminhoRecorte) ||
+            caminhoRecorte.Split(Path.DirectorySeparatorChar).Any(p => p is "" or "." or ".." || p.EndsWith('.') || p.EndsWith(' ') || p.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) ||
+            !caminhoRecorte.Split(Path.DirectorySeparatorChar).Contains(esperado, Comparador) ||
+            !Comparador.Equals(Path.GetExtension(caminhoRecorte), ".png") || !Dentro(cache, Path.Combine(ProcessoLocal, caminhoRecorte)))
+            throw new InvalidDataException("O recorte não possui assinatura ou está fora do cache de PDFs desta execução.");
+        return AbrirConferido(Path.Combine(ProcessoLocal, caminhoRecorte), evidencia.Sha256Recorte);
+    }
+
     internal void ConferirOriginais(CancellationToken ct = default, Func<string, Stream>? abrirCopia = null)
     {
         abrirCopia ??= File.OpenRead;

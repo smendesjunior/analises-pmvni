@@ -22,6 +22,35 @@ namespace Pmvni.App;
 public sealed partial class PaginaNovoRelatorio
 {
     internal event EventHandler? EvidenciasSolicitadas;
+    internal event Action<ConferenciaNumerica.Evidencia, bool>? ParcelaSolicitada;
+
+    internal static StackPanel MemoriaDeCalculo(ConferenciaNumerica conferencia, Action<ConferenciaNumerica.Evidencia, bool> abrir)
+    {
+        var conteudo = new StackPanel { Spacing = 6 };
+        conteudo.Children.Add(new TextBlock { Text = conferencia.Detalhes, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
+        foreach (var evidencia in conferencia.Evidencias)
+        {
+            conteudo.Children.Add(new TextBlock { Text = evidencia.Titulo, TextWrapping = TextWrapping.Wrap });
+            if (!string.IsNullOrEmpty(evidencia.Regiao))
+                conteudo.Children.Add(new TextBlock { Text = evidencia.Regiao, TextWrapping = TextWrapping.Wrap });
+            void AdicionarBotao(string titulo, bool recorte)
+            {
+                var botao = new HyperlinkButton { Content = titulo };
+                AutomationProperties.SetName(botao, titulo + " · " + evidencia.Titulo);
+                botao.Click += (_, _) => abrir(evidencia, recorte);
+                conteudo.Children.Add(botao);
+            }
+            if (evidencia.Sha256.Length != 64)
+                conteudo.Children.Add(new TextBlock { Text = "A fonte desta parcela não tem assinatura documental verificável." });
+            else
+            {
+                AdicionarBotao("Abrir página da peça", false);
+                if (evidencia.Recorte.Length > 0 && evidencia.Sha256Recorte.Length == 64) AdicionarBotao("Abrir recorte", true);
+            }
+        }
+        return conteudo;
+    }
+
     readonly DispatcherTimer pulsoMonitor = new() { Interval = TimeSpan.FromMilliseconds(750) };
     readonly ThemeShadow sombraCartoes = new();
     readonly bool animacoes = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
@@ -125,7 +154,7 @@ public sealed partial class PaginaNovoRelatorio
             _ => string.Join("|", string.Join(";", achadosExibidos.Select(a => a.Id + a.Situacao + a.Verificado + a.Titulo)), filtroAchados, todasEvidencias,
                 BotaoEvidenciasPdf.Visibility, TotalAtende.Text, TotalNaoAtende.Text, TotalComprovar.Text, TotalDivergentes.Text),
         };
-        if (aba == "Resumo") conteudo += "|" + ConferenciaNumericaExibida;
+        if (aba == "Resumo") conteudo += "|" + versaoConferenciaNumerica;
         conteudo = aba + "|" + execucaoHtml + "|" + conteudo;
         if (!forcar && conteudo == chaveConteudo)
         {
@@ -490,7 +519,7 @@ public sealed partial class PaginaNovoRelatorio
             dados.Children.Add(Texto(numeros.Titulo, "MnCorpoForte"));
             dados.Children.Add(Id(Texto(numeros.Resumo, "MnSecundario"), "conferencia-numerica-resumo"));
             dados.Children.Add(new Expander { Header = "Ver índices e fontes", HorizontalAlignment = HorizontalAlignment.Stretch,
-                Content = new TextBlock { Text = numeros.Detalhes, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true } });
+                Content = MemoriaDeCalculo(numeros, (evidencia, recorte) => ParcelaSolicitada?.Invoke(evidencia, recorte)) });
             if (numeros.Declaracoes.Count > 0)
             {
                 var tabela = new Grid { ColumnSpacing = 12, RowSpacing = 6 };
@@ -843,7 +872,18 @@ public sealed partial class PaginaNovoRelatorio
     // ── Detalhes ──
 
     internal string ModelosConfigurados { get; set; } = "";
-    internal ConferenciaNumerica? ConferenciaNumericaExibida { get; set; }
+    long versaoConferenciaNumerica;
+    ConferenciaNumerica? conferenciaExibida;
+    internal ConferenciaNumerica? ConferenciaNumericaExibida
+    {
+        get => conferenciaExibida;
+        set
+        {
+            if (Equals(conferenciaExibida, value)) return;
+            conferenciaExibida = value;
+            versaoConferenciaNumerica++;
+        }
+    }
 
     void PaginaDetalhes()
     {

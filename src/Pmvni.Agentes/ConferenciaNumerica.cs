@@ -7,9 +7,15 @@ internal sealed record ConferenciaNumerica(string Fase, string Resumo, string De
 {
     internal sealed record Declaracao(string Rotulo, string Valor, string Fonte, string Revisao,
         string Contexto = "", string Ressalva = "");
+    internal sealed record Evidencia(string Indice, string Parcela, string Rotulo, string Valor, string Peca, int Pagina,
+        string Arquivo, string Sha256, string Recorte, string Sha256Recorte, string Regiao)
+    {
+        internal string Titulo => $"{Indice.ToUpperInvariant()} · {Parcela} · {Rotulo} {Valor} · {Peca}, p. {Pagina}";
+    }
+    internal IReadOnlyList<Evidencia> Evidencias { get; init; } = [];
     internal IReadOnlyList<Declaracao> Declaracoes { get; init; } = [];
     public bool Equals(ConferenciaNumerica? other) => other is not null &&
-        Fase == other.Fase && Resumo == other.Resumo && Detalhes == other.Detalhes && Declaracoes.SequenceEqual(other.Declaracoes);
+        Fase == other.Fase && Resumo == other.Resumo && Detalhes == other.Detalhes && Declaracoes.SequenceEqual(other.Declaracoes) && Evidencias.SequenceEqual(other.Evidencias);
     public override int GetHashCode()
     {
         var hash = new HashCode();
@@ -17,6 +23,7 @@ internal sealed record ConferenciaNumerica(string Fase, string Resumo, string De
         hash.Add(Resumo);
         hash.Add(Detalhes);
         foreach (var declaracao in Declaracoes) hash.Add(declaracao);
+        foreach (var evidencia in Evidencias) hash.Add(evidencia);
         return hash.ToHashCode();
     }
     internal const string ArquivoControle = "CONFERENCIA_INDICES.JSON";
@@ -101,7 +108,45 @@ internal sealed record ConferenciaNumerica(string Fase, string Resumo, string De
                         Juntar("quadro", "cabecalhos", "abrangencia", "objeto", "elemento_medido"), Campo(dado, "ressalva") ?? ""));
                 }
         return new(Campo(recibo, "fase")!, resumo, string.Join(Environment.NewLine + Environment.NewLine, secoes))
-            { Declaracoes = declaracoes };
+            { Declaracoes = declaracoes, Evidencias = LerEvidencias(verificacoes, dados) };
+    }
+
+    static List<Evidencia> LerEvidencias(JsonElement linhas, JsonElement dados)
+    {
+        var resultado = new List<Evidencia>();
+        if (dados.ValueKind != JsonValueKind.Array) return resultado;
+        var registros = dados.EnumerateArray().Where(d => d.ValueKind == JsonValueKind.Object).ToList();
+        var porId = registros.ToLookup(d => Campo(d, "id_dado"));
+        var porPeca = registros.ToLookup(d => Campo(d, "peca"));
+        foreach (var linha in linhas.EnumerateArray())
+        {
+            if (!linha.TryGetProperty("parcelas", out var parcelas) || parcelas.ValueKind != JsonValueKind.Object) continue;
+            foreach (var parcela in parcelas.EnumerateObject())
+            {
+                if (parcela.Value.ValueKind != JsonValueKind.Array) continue;
+                foreach (var chave in parcela.Value.EnumerateArray())
+                {
+                    if (chave.ValueKind != JsonValueKind.String || chave.GetString() is not { Length: > 0 } id) continue;
+                    var vinculados = porId[id].Take(2).ToArray();
+                    if (vinculados.Length != 1) continue;
+                    var dado = vinculados[0];
+                    if (Campo(dado, "peca") is not { Length: > 0 } peca || !dado.TryGetProperty("pagina", out var pg)
+                        || pg.ValueKind != JsonValueKind.Number || !pg.TryGetInt32(out var pagina) || pagina < 1) continue;
+                    var hash = Campo(dado, "sha256") ?? "";
+                    if (hash.Length == 0)
+                    {
+                        var conhecidos = porPeca[peca].Select(d => Campo(d, "sha256")).Where(h => !string.IsNullOrEmpty(h))
+                            .Distinct(StringComparer.OrdinalIgnoreCase).Take(2).ToArray();
+                        if (conhecidos.Length == 1) hash = conhecidos[0]!;
+                    }
+                    resultado.Add(new(Campo(linha, "indice")!, parcela.Name, Campo(dado, "rotulo") ?? parcela.Name,
+                        string.Join(" ", new[] { Campo(dado, "valor"), Campo(dado, "unidade") }.Where(v => !string.IsNullOrEmpty(v))),
+                        peca, pagina, Campo(dado, "arquivo") ?? "", hash, Campo(dado, "recorte") ?? "",
+                        Campo(dado, "recurso_sha256") ?? "", Campo(dado, "regiao") ?? ""));
+                }
+            }
+        }
+        return resultado;
     }
 
     static string? Campo(JsonElement obj, string campo)
