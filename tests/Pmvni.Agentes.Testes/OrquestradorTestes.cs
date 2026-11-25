@@ -206,6 +206,29 @@ public partial class OrquestradorTestes
         Assert.Contains("--inputs", Argv(Assert.Single(Chamadas(semControle, "analise62"))));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task chatgpt_retomada_local_aceita_estado_vinculado_antes_do_primeiro_marco(bool registrouFalha)
+    {
+        using var c = new Cena("orq-chatgpt-retomada-vinculada", "ok", Provedor.ChatGpt);
+        var controle = Directory.CreateDirectory(c.Controle("analise")).FullName;
+        var id = Path.GetFileName(c.Registro.Pasta);
+        File.WriteAllText(Path.Combine(controle, "engine_state.json"),
+            new JsonObject { ["version"] = 1, ["editor_execution"] = id }.ToJsonString());
+        if (registrouFalha)
+        {
+            c.Registro.AcrescentarSituacao("{\"situacao\":\"FALHA\",\"etapa\":\"prepare\",\"motivo\":\"Interrupção inicial.\"}");
+            c.Registro.Descarregar();
+        }
+
+        var pedido = c.Pedido(Provedor.ChatGpt) with { Retomar = true, OrigemCompartilhada = c.Processo.Pasta };
+        var fim = await Ambiente.Com(c.Orq().ExecutarAsync(pedido, c.Progresso, CancellationToken.None), Limite);
+        Assert.True(fim.Situacao == "concluida", fim.Mensagem);
+        Assert.DoesNotContain("--inputs", Argv(Assert.Single(Chamadas(c, "analise62"))));
+        Assert.True(c.Execucao()["retomada"]!.GetValue<bool>());
+    }
+
     [Fact]
     public async Task chatgpt_falha_e_sem_resultado()
     {

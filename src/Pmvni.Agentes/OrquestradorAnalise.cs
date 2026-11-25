@@ -612,16 +612,16 @@ public sealed partial class OrquestradorAnalise
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return true; }
     }
 
-    /// <summary>Minor 1 da revisão: o ChatGPT só continua sem <c>--inputs</c> quando o controle do analise existe E este registro já conversou com o kit — há
-    /// uma situação do contrato no <c>situacoes.jsonl</c> do registro, ou o <c>continuidade.json</c> do registro é desta execução. Uma reanálise cuja primeira
-    /// chamada falhou antes de o kit criar o controle novo não retoma a análise anterior. Só contam as situações que o kit dá depois de ter o controle
-    /// (<c>ETAPA_OK</c>, <c>AGUARDANDO_COTA</c>, <c>DECISAO</c>, <c>ENTREGUE</c>); <c>FALHA</c>, <c>NAO_PARTIU</c> e o que não for do contrato não provam nada.</summary>
+    /// <summary>O ChatGPT continua sem <c>--inputs</c> quando o estado do kit identifica este registro. Estados legados, sem identificador,
+    /// exigem uma situação emitida depois de o kit criar o controle (<c>ETAPA_OK</c>, <c>AGUARDANDO_COTA</c>, <c>DECISAO</c>, <c>ENTREGUE</c>)
+    /// ou um <c>continuidade.json</c> da mesma execução. Assim, uma primeira chamada que falhou antes de criar o controle não retoma uma análise anterior.</summary>
     public static bool PodeRetomarChatGpt(string pastaProcesso, string pastaRegistro)
     {
         if (!File.Exists(Path.Combine(pastaProcesso, ResultadoAnalise.PastaControle(Provedor.ChatGpt), "engine_state.json"))) return false;
         try
         {
-            if (ResultadoAnalise.ControleDoRegistro(pastaProcesso, Provedor.ChatGpt, pastaRegistro) == false) return false;
+            if (ResultadoAnalise.ControleDoRegistro(pastaProcesso, Provedor.ChatGpt, pastaRegistro) is { } mesmoRegistro)
+                return mesmoRegistro;
             var situacoes = Path.Combine(pastaRegistro, "situacoes.jsonl");
             if (File.Exists(situacoes))
                 using (var fs = new FileStream(situacoes, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))

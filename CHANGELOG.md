@@ -2,6 +2,10 @@
 
 Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de atualização e na página da Release no GitHub.
 
+## 4.6.4
+
+- Retomar continua do estado salvo da própria execução, mesmo quando a interrupção ocorreu antes do primeiro registro de progresso.
+
 ## 4.6.3
 
 - A tabela de vãos apresenta cada ambiente separadamente e distingue a soma nominal da comprovação técnica de iluminação e ventilação.
