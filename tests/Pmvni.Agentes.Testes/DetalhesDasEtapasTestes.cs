@@ -44,6 +44,31 @@ public class DetalhesDasEtapasTestes
     }
 
     [Fact]
+    public void Avisos_tecnicos_ficam_no_registro_e_apenas_acoes_distintas_chegam_a_faixa()
+    {
+        using var pasta = Ambiente.PastaDeTeste("avisos-da-entrega");
+        var controle = Controle(pasta);
+        var arquivo = Path.Combine(controle, "validadores", "avisos.json");
+        var itens = new JsonArray();
+        for (var i = 0; i < 128; i++)
+            itens.Add(new JsonObject { ["regra"] = "codigo_interno", ["onde"] = $"itens[{i}].texto", ["texto"] = $"C{i:D3}" });
+        Gravar(arquivo, itens);
+        var tecnico = AvisosDaEntrega.Ler(controle, default, pasta);
+        Assert.Empty(tecnico.Resumo);
+        Assert.Empty(tecnico.Acoes);
+        Assert.Equal(128, JsonNode.Parse(File.ReadAllText(tecnico.Registro))!.AsArray().Count);
+        foreach (var campo in new[] { "texto", "providencia" })
+            itens.Add(new JsonObject { ["regra"] = "palavra_repetida", ["onde"] = $"itens[0].{campo}", ["texto"] = "item item" });
+        Gravar(arquivo, itens);
+        var misto = AvisosDaEntrega.Ler(controle, default, pasta);
+        Assert.Equal("Confira a palavra repetida (item 1) — “item item”.", Assert.Single(misto.Acoes));
+        Assert.Equal(misto.Acoes[0], misto.Resumo);
+        Assert.NotEqual(tecnico.Registro, misto.Registro);
+        Assert.Equal(130, JsonNode.Parse(File.ReadAllText(misto.Registro))!.AsArray().Count);
+        Assert.True(File.Exists(tecnico.Registro));
+    }
+
+    [Fact]
     public void Grupos_do_plano_contam_verificacoes_de_faixas_diferentes_e_preservam_a_retomada()
     {
         using var pasta = Ambiente.PastaDeTeste("grupos-plano");

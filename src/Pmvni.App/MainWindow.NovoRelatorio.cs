@@ -1236,6 +1236,19 @@ public sealed partial class MainWindow
     /// <summary>O fim da execução, já com a importação (o <c>.rpmvni</c> aberto) ou com o motivo à vista.</summary>
     internal Task<FimAnalise> AguardarAnaliseAsync(ExecucaoEmCurso e) => e.Conclusao ?? e.Fim;
 
+    internal void MostrarAvisosDaEntrega(AvisosDaEntrega avisos)
+    {
+        if (avisos.Acoes.Count == 0) return;
+        MostrarMensagem(InfoBarSeverity.Warning, "Avisos desta análise", avisos.Resumo);
+        var botao = new Button { Content = "Ver registro" };
+        botao.Click += (_, _) =>
+        {
+            if (!AberturaExterna.Abrir(avisos.Registro, out _))
+                AberturaExterna.MostrarNoExplorador(avisos.Registro);
+        };
+        AvisoDoModulo.ActionButton = botao;
+    }
+
     async Task<FimAnalise> ConcluirAsync(ExecucaoEmCurso e)
     {
         // Começa dentro do comando Analisar (que está na vez da fila): o fim chega muito depois, fora dele, e a importação espera a vez como qualquer comando.
@@ -1270,9 +1283,8 @@ public sealed partial class MainWindow
                 () => naVista && PodeAbrirSemInterromper, motivo => recusa = motivo);
             if (recusa is not null) fim = fim with { Situacao = "interrompida", Mensagem = recusa };
             var controle = Path.Combine(e.PastaDeTrabalho, ResultadoAnalise.PastaControle(e.Provedor));
-            var avisos = await Task.Run(() => DetalhesDasEtapas.LerAvisos(controle, e.InicioUtc));
-            if (!fechada && avisos.Count > 0)
-                MostrarMensagem(InfoBarSeverity.Warning, "Avisos desta análise", string.Join(Environment.NewLine, avisos));
+            var avisos = await Task.Run(() => AvisosDaEntrega.Ler(controle, e.InicioUtc, e.Registro.Pasta));
+            if (!fechada) MostrarAvisosDaEntrega(avisos);
             if (!fechada)
                 NotificacoesWindows.Mostrar(importado && paraRevisao ? "Versão para revisão disponível" : importado ? "Relatório pronto" : recusa is null ? "Relatório aguardando importação" : "Entrega recusada pelo Editor",
                     importado && paraRevisao ? fim.Mensagem ?? "O relatório identifica as etapas pendentes."

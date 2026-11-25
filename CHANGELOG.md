@@ -4,6 +4,8 @@ Cada versão tem a sua seção; o texto da versão publicada aparece no aviso de
 
 ## 4.6.2
 
+- A versão para revisão aproveita o mapa de localização, o quadro de índices, os cálculos de vãos e o histórico das exigências disponíveis na análise.
+- Os avisos com identificadores internos ficam no registro técnico. A tela do analista apresenta as pendências que exigem uma ação.
 - Em Ajustes, a reconferência econômica permite escolher uma revisão dirigida às objeções nas novas análises. A primeira auditoria usa o modelo e o nível escolhidos pelo usuário.
 - Na etapa em andamento, o Monitor reúne o ícone do provedor, o modelo e o nível de esforço da sessão logo abaixo da situação.
 - Os registros técnicos, pontos de retomada e evidências das novas análises pelo Editor ficam no AppData.

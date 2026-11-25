@@ -198,11 +198,7 @@ public sealed record DetalhesDasEtapas(IReadOnlyDictionary<string, DetalheEtapa>
 
     public static IReadOnlyList<string> LerAvisos(string controle, DateTime desde)
     {
-        var json = ArquivoJsonDoKit.Ler(Path.Combine(controle, "validadores", "avisos.json"), desde);
-        if (json is not { ValueKind: JsonValueKind.Array } itens) return [];
-        return itens.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object && ProgressoLocal.Texto(x, "regra") is not null)
-            .Select(x => $"Aviso · {ProgressoLocal.Texto(x, "regra")} · {ProgressoLocal.Texto(x, "onde")} · {ProgressoLocal.Texto(x, "texto")}")
-            .ToList();
+        return AvisosDaEntrega.Ler(controle, desde).Acoes;
     }
 
     static IReadOnlyList<string> LerValidacoes(string controle, DateTime desde)

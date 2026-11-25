@@ -1293,7 +1293,7 @@ internal static class Roteiro
             var copia = s.Caminho;
             var lidaCopia = Pacote.Ler(copia);
             var copiaConfere = copiou && !string.Equals(copia, pacoteAuto, StringComparison.OrdinalIgnoreCase)
-                && Path.GetFileName(copia).StartsWith("curto-auto (cópia ", StringComparison.Ordinal)
+                && Path.GetFileName(copia).StartsWith("curto-auto (cópia ", StringComparison.OrdinalIgnoreCase)
                 && lidaCopia.Conteudo.Historico.Any(r => r.N == reg.N)
                 && DadosEfetivos.TextoEfetivo(lidaCopia.Conteudo.Projeto, lidaCopia.Conteudo.Projeto.Item(item.Id)!, "titulo") == Titulo;
             p["copia"] = Path.GetFileName(copia);
@@ -1498,10 +1498,11 @@ internal static class Roteiro
             var pag = j.AjustesPagina;
             var noTrilho = j.TrilhoAtual.Modulos.Contains(Modulo.Ajustes);
             var visivel = j.PaginaAjustesVisivel && j.ModuloAtual == Modulo.Ajustes && j.FaixaAtual.Definicao!.Modulo == Modulo.Ajustes && !j.CaixaPesquisaHabilitada;
-            var versoes = pag.TextoVersoes.Text;
             var recuperacao = pag.TextoPastaRecuperacao.Text;
             // A página abre em Geral; intervalo e recuperação ficam em "Relatórios e revisão" (auditoria §3.3).
             var abriuEmGeral = pag.CategoriaAtual == CategoriasAjustes.Geral;
+            pag.MostrarCategoria(CategoriasAjustes.Sobre);
+            var versoes = pag.TextoVersoes.Text;
             pag.MostrarCategoria(CategoriasAjustes.Relatorios);
             await Esperar(200);
             var textosOk = versoes.Contains("Versão do app: ", StringComparison.Ordinal) && versoes.Contains($"Modelo do relatório: rev{ModeloOficial.Revisao}", StringComparison.Ordinal)
@@ -1609,7 +1610,7 @@ internal static class Roteiro
             var prefixo = esperado + "\n\nFiguras alteradas:\n";
             var blocoFiguras = mostrada.Texto?.StartsWith(prefixo, StringComparison.Ordinal) == true ? mostrada.Texto[prefixo.Length..] : "";
             var figurasCorrigidas = Enumerable.Range(3, 3).All(n => blocoFiguras.Contains($"Figura {n} — ", StringComparison.Ordinal))
-                && blocoFiguras.Split('\n').Count(l => l.EndsWith(": itens «item 05» → «»", StringComparison.OrdinalIgnoreCase)) == 3;
+                && blocoFiguras.Split('\n').Count(l => l.EndsWith(": itens «item 05» → «item 03»", StringComparison.OrdinalIgnoreCase)) == 3;
             p["figuras_com_citacoes_corrigidas"] = figurasCorrigidas;
             var longoOk = mostrada.Titulo == "Comparar com o original" && figurasCorrigidas && j.TextoComparacao() == mostrada.Texto
                 && diferencas.Count == 2 && diferencas[1].Excluido && diferencas[1].NumeroOriginal == 5;
@@ -1694,7 +1695,7 @@ internal static class Roteiro
                 p["ok"] = (bool)p["ok"]! && inserida;
                 if (inserida)
                 {
-                    var nova = s.Revisao.Projeto.Figuras!.Single(f => f.Incluida && f.Id.StartsWith("fig_", StringComparison.Ordinal) && f.Recorte?["pdf"]?.ToString() == Path.GetFileName(pdfPrancha)).Id;
+                    var nova = s.Revisao.Projeto.Figuras!.Single(f => f.Incluida && f.Id.StartsWith("fig_", StringComparison.Ordinal) && string.Equals(f.Recorte?["pdf"]?.ToString(), Path.GetFileName(pdfPrancha), StringComparison.OrdinalIgnoreCase)).Id;
                     var editorReal = j.EditorDeFigura!;
                     var idRegiao = await editorReal.ConferirMarcacoesAsync();
                     await CapturarXamlAsync((FrameworkElement)editorReal.Content, Path.Combine(pasta, "29b-prancha-marcada.png"));
@@ -3354,11 +3355,24 @@ internal static class Roteiro
                 var concluindo = await j.AnalisarAsync(Provedor.ChatGpt) ?? throw new InvalidOperationException(j.InfoMensagemAtual.Message);
                 await EsperarMonitor("Área local da entrega", () => concluindo.PastaDeTrabalho.StartsWith(documentosDoRoteiro, StringComparison.OrdinalIgnoreCase));
                 var pastaAviso = Directory.CreateDirectory(Path.Combine(concluindo.PastaDeTrabalho, ".pmvni-ai", "analise", "validadores"));
-                File.WriteAllText(Path.Combine(pastaAviso.FullName, "avisos.json"), """[{"regra":"palavra_repetida","onde":"itens[0]","texto":"item item"}]""");
+                var avisosRedacao = new JsonArray();
+                for (var i = 0; i < 128; i++)
+                    avisosRedacao.Add(new JsonObject { ["regra"] = "codigo_interno", ["onde"] = $"itens[{i}].providencia", ["texto"] = $"C{i:D3}" });
+                var arqAvisos = Path.Combine(pastaAviso.FullName, "avisos.json");
+                File.WriteAllText(arqAvisos, avisosRedacao.ToJsonString());
+                j.InfoMensagemAtual.IsOpen = false;
+                j.MostrarAvisosDaEntrega(AvisosDaEntrega.Ler(pastaAviso.Parent!.FullName, default));
+                Verificar("128 diagnósticos técnicos não abrem a faixa de avisos", !j.InfoMensagemAtual.IsOpen);
+                avisosRedacao.Add(new JsonObject { ["regra"] = "palavra_repetida", ["onde"] = "itens[0]", ["texto"] = "item item" });
+                File.WriteAllText(arqAvisos, avisosRedacao.ToJsonString());
                 var entregue = await Prazo(j.AguardarAnaliseAsync(concluindo), 90);
                 Verificar("Aviso registrado no processo aparece ao entregar", entregue.Situacao == "concluida"
                     && j.InfoMensagemAtual.IsOpen && j.InfoMensagemAtual.Title == "Avisos desta análise"
-                    && j.InfoMensagemAtual.Message.Contains("palavra_repetida") && j.InfoMensagemAtual.Message.Contains("item item"));
+                    && j.InfoMensagemAtual.Message.Contains("palavra repetida") && j.InfoMensagemAtual.Message.Contains("item item")
+                    && !j.InfoMensagemAtual.Message.Contains("codigo_interno") && j.InfoMensagemAtual.ActionButton is Button);
+                j.InfoMensagemAtual.UpdateLayout();
+                Verificar("Aviso acionável deixa o relatório visível", j.InfoMensagemAtual.ActualHeight > 0
+                    && j.InfoMensagemAtual.ActualHeight < j.InfoMensagemAtual.XamlRoot.Size.Height / 3);
                 // A fonte fornece valores de teste ao mesmo modelo que recebe o progresso do kit.
                 await j.NovoRelatorioAsync();
                 n.MostrarExecucao(true);
@@ -3661,7 +3675,7 @@ internal static class Roteiro
             var arquivados = anexosJson.Select(x => new ArquivoArquivado(x!["origem"]!.GetValue<string>(), x["destino"]!.GetValue<string>(), x["sha256"]!.GetValue<string>(),
                 x["tamanho"]!.GetValue<long>(), x["situacao"]!.GetValue<string>() == "JA_ARQUIVADO")).ToList();
             var pedido = File.ReadAllText(Path.Combine(reg, "pedido.md"), System.Text.Encoding.UTF8);
-            var diretrizes = File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "analise", "diretrizes.md"), System.Text.Encoding.UTF8);
+            var diretrizes = File.ReadAllText(Path.Combine(e.PastaDeTrabalho, ".pmvni-ai", "analise", "diretrizes.md"), System.Text.Encoding.UTF8);
             var ex = ExecucaoJson(e);
             var registro = reg.StartsWith(ControlesDoProcesso.Diretorio(processo, "editor") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
                 && pedido == texto && diretrizes == PedidoAgente.Diretrizes(texto)      // Tarefa 13: sem instruções de progresso para a IA
@@ -3672,12 +3686,12 @@ internal static class Roteiro
 
             // O agente falso (no papel do Python) recebeu a linha exata do controlador do analise, na pasta do processo, com as peças em --inputs e nada pela
             // entrada padrão: nenhum "codex exec" e nenhum pedido "Use $analise" (erros 1–3).
-            var recebido = Recebido(processo);
+            var recebido = Recebido(e.PastaDeTrabalho);
             var argv = recebido["argv"]!.AsArray().Select(a => a!.GetValue<string>()).ToArray();
             var script = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "codex", "executar_analise_62.py");
-            var linhaExata = argv.Take(7).SequenceEqual(["-B", "-X", "utf8", script, "--case", processo, "--inputs"])
-                && arquivados.All(a => argv.Contains(Path.Combine(processo, a.Relativo), StringComparer.OrdinalIgnoreCase))
-                && string.Equals(recebido["cwd"]!.GetValue<string>().TrimEnd('\\'), processo, StringComparison.OrdinalIgnoreCase) && recebido["entrada"]!.GetValue<string>() == ""
+            var linhaExata = argv.Take(7).SequenceEqual(["-B", "-X", "utf8", script, "--case", e.PastaDeTrabalho, "--inputs"])
+                && arquivados.All(a => argv.Contains(Path.Combine(e.PastaDeTrabalho, a.Relativo), StringComparer.OrdinalIgnoreCase))
+                && string.Equals(recebido["cwd"]!.GetValue<string>().TrimEnd('\\'), e.PastaDeTrabalho, StringComparison.OrdinalIgnoreCase) && recebido["entrada"]!.GetValue<string>() == ""
                 && !argv.Contains("exec") && (string?)ex["rota_codex_tecnica"] is "openai" or "codex-lb";
             p["linha_de_comando_exata"] = linhaExata;
 
@@ -3727,8 +3741,8 @@ internal static class Roteiro
             try
             {
                 // Conta: a chave herdada do ambiente do editor não chega ao agente.
-                var (_, fimConta) = await AnalisarAteOFimAsync(Provedor.ChatGpt, "chave");
-                var semChave = Recebido(processo)["chave"]!.GetValue<string>() == "CHAVE_AUSENTE";
+                var (eConta, fimConta) = await AnalisarAteOFimAsync(Provedor.ChatGpt, "chave");
+                var semChave = Recebido(eConta.PastaDeTrabalho)["chave"]!.GetValue<string>() == "CHAVE_AUSENTE";
                 p["conta_sem_chave_herdada"] = semChave;
 
                 // Chave guardada: só ela chega (8 hex do sha256, conferidos aqui).
@@ -3736,7 +3750,7 @@ internal static class Roteiro
                 await j.GuardarChaveAsync(Provedor.ChatGpt, chave);
                 var (eChave, fimChave) = await AnalisarAteOFimAsync(Provedor.ChatGpt, "chave");
                 var esperado = "CHAVE_PRESENTE " + Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(chave)))[..8];
-                var comChave = Recebido(processo)["chave"]!.GetValue<string>() == esperado && ExecucaoJson(eChave)["modo"]?.GetValue<string>() == "chave";
+                var comChave = Recebido(eChave.PastaDeTrabalho)["chave"]!.GetValue<string>() == esperado && ExecucaoJson(eChave)["modo"]?.GetValue<string>() == "chave";
                 p["chave_entregue_so_ao_agente"] = comChave;
 
                 // Nenhuma ocorrência da chave nem do valor herdado em tests\saida (o .dpapi é o cofre e fica de fora).
@@ -3774,8 +3788,6 @@ internal static class Roteiro
             await j.SoltarArquivosAsync([claudeAnexo]);
             await j.AguardarNovoRelatorioAsync();
             j.PedidoTexto = "Pedido guardado só no registro.";
-            var iniciarAntes = Chamadas(processo, "iniciar").Length;
-            var situacaoAntes = Chamadas(processo, "situacao").Length;
             var confirmacoes = perguntas.Confirmacoes.Count;
             j.Orquestrador = Orq("claude_ok");
             var e = await j.AnalisarAsync(Provedor.Claude) ?? throw new InvalidOperationException("não partiu: " + j.InfoMensagemAtual.Message);
@@ -3792,17 +3804,17 @@ internal static class Roteiro
             var fim = await Prazo(j.AguardarAnaliseAsync(e), 120);
             p["fim"] = fim.Situacao + (fim.Mensagem is null ? "" : ": " + fim.Mensagem);
             p["etapas_vistas"] = new JsonArray(etapasVistas.Select(x => (JsonNode)x).ToArray());
-            var iniciar = Chamadas(processo, "iniciar").Skip(iniciarAntes).ToArray();
+            var iniciar = Chamadas(e.PastaDeTrabalho, "iniciar");
             var argsIniciar = iniciar.Length == 1 ? JsonNode.Parse(iniciar[0].Split('\t')[1])!.AsArray().Select(a => a!.GetValue<string>()).ToArray() : [];
             var proRuntime = Path.Combine(codexHome, "plugins", "cache", "pmvni-kit", "analise", "4.0.0", "skills", "analise", "scripts", "rotas", "claude", "pro_runtime.py");
-            var linhaIniciar = argsIniciar.SequenceEqual(["-B", "-X", "utf8", proRuntime, "--case", processo, "iniciar"]);
-            var situacoes = Chamadas(processo, "situacao").Length - situacaoAntes;
+            var linhaIniciar = argsIniciar.SequenceEqual(["-B", "-X", "utf8", proRuntime, "--case", e.PastaDeTrabalho, "iniciar"]);
+            var situacoes = Chamadas(e.PastaDeTrabalho, "situacao").Length;
             p["situacao_chamadas"] = situacoes;
             var reg = e.Registro.Pasta;
             var registro = File.Exists(Path.Combine(reg, "situacoes.jsonl")) && File.ReadAllText(Path.Combine(reg, "pedido.md"), System.Text.Encoding.UTF8) == "Pedido guardado só no registro.";
             var s = j.Sessao;
             var importado = fim.Situacao == "concluida" && s is not null && NaEtapa(s.Caminho, processo)
-                && fim.Documento == Path.Combine(processo, ".pmvni-ai", "analise-pro", "relatorio_dados.json") && j.FolhasVisiveis
+                && fim.Documento == RecuperacaoAnaliseLocal.EntregaPublicada(processo, Path.GetFileName(reg))?.Documento && j.FolhasVisiveis
                 && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Claude, s.Caminho, fim.Pdf);
             p["infobar"] = j.InfoMensagem.Message;
             var semPendente = j.ExecucoesClaudePendentes.Count == 0;
@@ -3815,10 +3827,11 @@ internal static class Roteiro
             var objecoes = fimObj.Situacao == "falhou" && infoObj.IsOpen && infoObj.Message == "parou com objeções da revisão final: A revisão final apontou objeções ao relatório."
                 && j.NovoRelatorio.BotaoContinuar.Visibility == Visibility.Visible;
             p["objecoes"] = infoObj.Message;
-            var antesContinuar = Chamadas(processo, "iniciar").Length;
+            var antesContinuar = Chamadas(eObj.PastaDeTrabalho, "iniciar").Length;
             var eCont = await j.ContinuarAnaliseAsync() ?? throw new InvalidOperationException("Continuar não partiu: " + j.InfoMensagemAtual.Message);
             await Prazo(j.AguardarAnaliseAsync(eCont), 120);
-            var continuou = Chamadas(processo, "iniciar").Length == antesContinuar + 1;
+            var continuou = Chamadas(eCont.PastaDeTrabalho, "iniciar").Length ==
+                (eCont.PastaDeTrabalho == eObj.PastaDeTrabalho ? antesContinuar + 1 : 1);
             p["continuar_da_outra_partida"] = continuou;
             p["ok"] = textoSob && aviso && pendenteDurante && linhaIniciar && situacoes >= 2 && linhasDoLog > 0 && registro && importado && semPendente && etapas && objecoes && continuou;
         });
@@ -3876,7 +3889,7 @@ internal static class Roteiro
             p["segunda_checagem_so_novas"] = segundaSoNovas;
 
             // Cancelar (confirmado): em até 5 s nenhum processo do agente falso vivo, "cancelada", nenhum .rpmvni novo e a trava apagada.
-            var pids = JsonNode.Parse(File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "agente-falso", "pids.json")))!.AsObject()
+            var pids = JsonNode.Parse(File.ReadAllText(Path.Combine(e.PastaDeTrabalho, ".pmvni-ai", "agente-falso", "pids.json")))!.AsObject()
                 .Select(kv => kv.Value!.GetValue<int>()).ToList();
             perguntas.Confirmar = true;
             var relogio = System.Diagnostics.Stopwatch.StartNew();
@@ -3930,7 +3943,7 @@ internal static class Roteiro
             // Simula um registro concluído ainda sem importação, como o de uma versão anterior.
             eD.Abandonada = true;
             await Prazo(j.AguardarAnaliseAsync(eD), 60);
-            var statusKit = Path.Combine(outro, ".pmvni-ai", "analise-pro", "auto-status.json");
+            var statusKit = Path.Combine(eD.PastaDeTrabalho, ".pmvni-ai", "analise-pro", "auto-status.json");
             await EsperarAteAsync(() =>
             {
                 try { return Task.FromResult(SituacaoAnalisePro.Ler(File.ReadAllText(statusKit)).Codigo == "CONCLUIDO"); }
@@ -3964,7 +3977,7 @@ internal static class Roteiro
             perguntas.FecharSemOTexto = false;
             var importouRetomada = segunda && j.PendentesParaImportar.Count == 0 && j.ExecucoesClaudePendentes.Count == 0 && j.Sessao is { } sr
                 && NaEtapa(sr.Caminho, outro) && JsonNode.Parse(File.ReadAllText(Path.Combine(eD.Registro.Pasta, "execucao.json")))?["pmvrel"]?.GetValue<string>() == sr.Caminho
-                && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Claude, sr.Caminho, Path.Combine(outro, ".pmvni-ai", "analise-pro", "relatorio.pdf"));
+                && j.InfoMensagem.Message == FluxoNovoRelatorio.TextoImportado(Provedor.Claude, sr.Caminho, RecuperacaoAnaliseLocal.EntregaPublicada(outro, Path.GetFileName(eD.Registro.Pasta))?.Pdf);
             p["retomada_concluida"] = new JsonObject
             {
                 ["oferecido"] = oferecido, ["digitou"] = digitou, ["cancelada_fica"] = ficou, ["importou_na_segunda"] = importouRetomada, ["infobar"] = j.InfoMensagem.Message,
@@ -4021,13 +4034,14 @@ internal static class Roteiro
             await j.AguardarNovoRelatorioAsync();
             var editor = ControlesDoProcesso.Diretorio(processo, "editor");
             var registrosAntes = Directory.GetDirectories(editor).Length;
-            var recebidoAntes = File.GetLastWriteTimeUtc(Path.Combine(processo, ".pmvni-ai", "agente-falso", "recebido.json"));
+            var chamadasAntes = Directory.GetFiles(documentosDoRoteiro, "recebido.json", SearchOption.AllDirectories).ToDictionary(a => a, File.GetLastWriteTimeUtc);
             perguntas.RespostaPorTitulo["Analisar com o ChatGPT"] = false;
             j.Orquestrador = Orq("ok");
             var recusado = await j.AnalisarAsync(Provedor.ChatGpt);
             perguntas.RespostaPorTitulo.Remove("Analisar com o ChatGPT");
             var nada = recusado is null && Directory.GetDirectories(editor).Length == registrosAntes
-                && File.GetLastWriteTimeUtc(Path.Combine(processo, ".pmvni-ai", "agente-falso", "recebido.json")) == recebidoAntes
+                && Directory.GetFiles(documentosDoRoteiro, "recebido.json", SearchOption.AllDirectories).Length == chamadasAntes.Count
+                && chamadasAntes.All(kv => File.GetLastWriteTimeUtc(kv.Key) == kv.Value)
                 && !Directory.EnumerateFiles(processosAgentes, "nao-copiar*.pdf", SearchOption.AllDirectories).Any() && j.AvisoVersaoDoAgente(Provedor.ChatGpt) is null;
             p["aviso_recusado_nada_feito"] = nada;
             j.RemoverAnexo(0);
@@ -4469,7 +4483,7 @@ internal static class Roteiro
             p["grupos"] = new JsonArray(grupos.Select(g => (JsonNode)(g.Grupo + ": " + string.Join(" | ", g.Linhas.Select(l => l.Titulo)))).ToArray());
             var listaOk = j.AbaDoPainelLegislacao == "Leis" && grupos.Select(g => g.Grupo).SequenceEqual(["Federal", "Estadual", "Municipal", "Outras"])
                 && grupos.All(g => g.Linhas.Count == 1) && grupos.Sum(g => g.Linhas.Count) == 4;
-            j.FiltrarLeis("nt");
+            j.FiltrarLeis("nt 99-2099");
             var filtroOk = j.LeisMostradas is [{ Grupo: "Estadual", Linhas: [{ Titulo: "NT 99-2099 - FICTICIA" }] }];
             j.FiltrarLeis("");
             var lei = IdDe(TituloLei);
@@ -5373,7 +5387,7 @@ internal static class Roteiro
             p["ok"] = ordem.DoArquivo && etapas.SequenceEqual(["prepare", "analyze", "technical_audit", "audit", "produce", "final_review"])
                 && etapasDePrograma.SequenceEqual(["prepare", "audit", "produce", "final_review"])
                 && pelaContagem && rotuloDosItens && rotuloDaEstimativa && monitor.BarraResumoEtapas.IsIndeterminate
-                && valores.Select(x => x!.GetValue<double>()).Zip(new[] { 0d, 200d / 6, 200d / 6, 48.6, 100d })
+                && valores.Select(x => x!.GetValue<double>()).Zip(new[] { 0d, 33.3, 33.3, 48.6, 100d })
                     .All(par => Math.Abs(par.First - par.Second) < 0.01);
             monitor.MostrarResumo(false, null, []);
             monitor.MostrarProgresso(null);
