@@ -352,7 +352,7 @@ public class ModelosDaAnaliseTestes
         Assert.Equal(outra.Modelo, CelulaJson(JsonNode.Parse(efetiva.Json)!.AsObject(), "codex", "padrao", "technical_audit")["modelo"]!.GetValue<string>());
         // ...e o controlador do kit usa a célula ajustada (a tela Modelos da análise tem efeito); a análise continua com os padrões por tarefa.
         Assert.Equal((outra.Modelo, outra.Nivel), ModeloQueOControladorUsa(arquivo, "technical_audit"));
-        Assert.Equal(("gpt-6.2-sol", "medio"), ModeloQueOControladorUsa(arquivo, "analyze"));
+        Assert.Equal(("gpt-6-luna", "alto"), ModeloQueOControladorUsa(arquivo, "analyze"));
         Assert.Equal(["analyze", "technical_audit", "autocorrecao"], JsonNode.Parse(efetiva.Json)!["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!.AsObject().Select(x => x.Key));
         Assert.Equal("False", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('claude'))"));
         Assert.Equal("True", RodarKit(arquivo, "import etapas; print('audit' in etapas.ordem('codex'))"));
@@ -379,7 +379,7 @@ public class ModelosDaAnaliseTestes
         var etapasDoJson = efetiva.Json["rotas"]!["codex"]!["perfis"]!["padrao"]!["etapas"]!.AsObject().Select(x => x.Key).ToList();
         Assert.Equal(["analyze"], etapasDoJson.Intersect(["analyze"]));
         Assert.DoesNotContain(etapasDoJson, id => id is "prepare" or "produce");   // sem preparo nem produção
-        Assert.Equal("gpt-6.2-sol", CelulaJson(efetiva.Json, "codex", "padrao", "analyze")["modelo"]!.GetValue<string>());   // a célula de IA do mesmo ajuste vale
+        Assert.Equal("gpt-6-luna", CelulaJson(efetiva.Json, "codex", "padrao", "analyze")["modelo"]!.GetValue<string>());   // a célula de IA do mesmo ajuste vale
         Assert.Equal(2, efetiva.Avisos.Count);
         Assert.All(efetiva.Avisos, a => { Assert.Equal("codex", a.Rota); Assert.Contains("roda por programa", a.Texto); Assert.Contains("ignorado", a.Texto); });
         Assert.Contains(efetiva.Avisos, a => a.Texto.StartsWith("ChatGPT, Preparo:", StringComparison.Ordinal));

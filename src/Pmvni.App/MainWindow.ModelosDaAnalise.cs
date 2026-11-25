@@ -374,7 +374,7 @@ public sealed partial class MainWindow
             var nomes = dePrograma.Count == 1 ? dePrograma[0] : string.Join(", ", dePrograma.Take(dePrograma.Count - 1)) + " e " + dePrograma[^1];
             var nota = new TextBlock
             {
-                Text = (dePrograma.Count == 1 ? "Feita pelo programa, sem IA e sem modelo: " : "Feitas pelo programa, sem IA e sem modelo: ") + nomes + ".",
+                Text = "O kit coordena " + nomes + ". O preparo registra a leitura da IA no inventário. A redação e a conferência final também usam a IA da rota.",
                 TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Left, Style = (Style)Application.Current.Resources["PmvniAjusteAjuda"],
             };
             Grid.SetColumnSpan(nota, 4);

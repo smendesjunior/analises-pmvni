@@ -37,7 +37,14 @@ internal sealed record EscolhaModelosDaExecucao(string Rota, string Perfil, stri
                 Adicionar("Auditoria técnica", etapas["technical_audit"]);
                 Adicionar("Autocorreção, se necessária", etapas["autocorrecao"]);
                 if (rota == "codex") Adicionar("Reparo de julgamento, se necessário", tabela["reparo_julgamento_da_execucao"] ?? tabela["reparo_julgamento_previsto"]);
-                linhas.Add("Preparo, conferência automática, montagem e revisão final · programa local");
+                if (rota is "codex" or "claude")
+                {
+                    var texto = rota == "codex" ? "Luna 6" : "Sonnet 5.5";
+                    var visual = rota == "codex" ? "Terra 6.1" : "Sonnet 5.5";
+                    linhas.Add($"Preparo · documentos: {texto} alto · plantas e imagens: {visual} médio");
+                    linhas.Add($"Relatório · redação: {visual} baixo · conferência final: {visual} médio · PDF montado pelo programa");
+                }
+                else linhas.Add("Preparo e montagem conforme a configuração da rota");
                 return string.Join(Environment.NewLine, linhas);
             }
         }

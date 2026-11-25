@@ -359,7 +359,7 @@ public static class ModelosDaAnalise
     /// valor do padrão do kit tira a célula do ajuste. null = valeu.</summary>
     public static string? Ajustar(AjusteModelos a, TabelaModelosKit kit, ColunaModelos coluna, EtapaModelos etapa, string modelo, string nivel, ListaDaRota lista)
     {
-        if (etapa.Programa) return $"A etapa {etapa.Nome} roda por programa, sem IA: não tem modelo.";
+        if (etapa.Programa) return $"A etapa {etapa.Nome} roda por programa com o perfil definido pelo kit.";
         if (PorTarefa(coluna.Rota, etapa.Id)) return "Na análise, o kit escolhe o modelo conforme a tarefa.";
         if (kit.Celula(coluna, etapa.Id) is not { } padrao) return $"A tabela do kit não tem a etapa {etapa.Nome} em {coluna.Titulo}.";
         modelo = (modelo ?? "").Trim();
@@ -422,7 +422,7 @@ public static class ModelosDaAnalise
             var lista = listas(col);
             foreach (var etapa in etapas.Where(e => e.Programa))
                 if (ajuste.Celulas.ContainsKey((col.Rota, col.Perfil, etapa.Id)))
-                    avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: o ajuste local deste computador tem modelo para uma etapa que agora roda por programa, sem IA; esse ajuste foi ignorado."));
+                    avisos.Add(new(col.Rota, $"{col.Titulo}, {etapa.Nome}: o ajuste local deste computador tem modelo para uma etapa que agora roda por programa com o perfil definido pelo kit; esse ajuste foi ignorado."));
             foreach (var etapa in etapas.Where(e => !e.Programa))
             {
                 if (kit.Celula(col, etapa.Id) is not { } padrao) continue;
