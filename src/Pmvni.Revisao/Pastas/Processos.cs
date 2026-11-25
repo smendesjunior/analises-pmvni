@@ -197,7 +197,7 @@ public static class Processos
         return true;
     }
 
-    public static DetalheProcesso Detalhar(Processo p, CancellationToken ct)
+    public static DetalheProcesso Detalhar(Processo p, CancellationToken ct, string? controlesIa = null)
     {
         ct.ThrowIfCancellationRequested();
         var avisos = new List<string>();
@@ -216,7 +216,7 @@ public static class Processos
                     if (EhLink(f)) continue;
                     relatorios.Add(new RelatorioEncontrado(f, TipoRelatorio.Pacote, File.GetLastWriteTimeUtc(f)));
                 }
-            var ia = Path.Combine(p.Pasta, ".pmvni-ai");
+            var ia = controlesIa ?? Path.Combine(p.Pasta, ".pmvni-ai");
             if (Directory.Exists(ia) && !EhLink(ia))
                 foreach (var revisao in Directory.EnumerateDirectories(ia))
                 {

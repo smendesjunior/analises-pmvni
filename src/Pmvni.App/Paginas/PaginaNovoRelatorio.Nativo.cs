@@ -305,12 +305,16 @@ public sealed partial class PaginaNovoRelatorio
         }
         if (!string.IsNullOrWhiteSpace(TextoTotalEtapas.Text))
         {
-            var etapa = Selo(TextoTotalEtapas.Text, "MnTag", "MnTagTexto");
+            string ResumoVisivel() => AbaAtual == "Etapas" && emCurso && execucaoAtivaNaBarra
+                && etapasMostradas.Any(e => e.Estado == EstadoEtapa.Agora)
+                ? ResumoDaContagem(incluirExecutor: false) : TextoTotalEtapas.Text;
+            var etapa = Selo(ResumoVisivel(), "MnTag", "MnTagTexto");
             atualizarCamposCabecalho.Add(() =>
             {
-                if (((TextBlock)etapa.Child).Text == TextoTotalEtapas.Text) return;
-                ((TextBlock)etapa.Child).Text = TextoTotalEtapas.Text;
-                AutomationProperties.SetName(etapa, TextoTotalEtapas.Text);
+                var resumo = ResumoVisivel();
+                if (((TextBlock)etapa.Child).Text == resumo) return;
+                ((TextBlock)etapa.Child).Text = resumo;
+                AutomationProperties.SetName(etapa, resumo);
             });
             etapa.HorizontalAlignment = HorizontalAlignment.Left;
             info.Children.Add(etapa);
@@ -673,6 +677,8 @@ public sealed partial class PaginaNovoRelatorio
                 cabeca.Children.Add(pct);
             }
             var selo = SeloDaEtapa(estado);
+            if (estado == EstadoEtapa.Agora && execucaoAtivaNaBarra && emCurso)
+                selo = SituacaoEModeloDaEtapa(selo, nome);
             Grid.SetColumn(selo, 3);
             cabeca.Children.Add(selo);
             var seta = Glifo(aberta ? Glifos.Anterior : Glifos.Proximo, "MnGlifoNeutro", 12);
@@ -737,6 +743,73 @@ public sealed partial class PaginaNovoRelatorio
         };
         selo.MinWidth = 110;
         return selo;
+    }
+
+    FrameworkElement SituacaoEModeloDaEtapa(FrameworkElement selo, string etapa)
+    {
+        var pilha = new StackPanel { Width = 156, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+        selo.HorizontalAlignment = HorizontalAlignment.Stretch;
+        pilha.Children.Add(selo);
+        var linhas = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
+        var corpo = new Grid { ColumnSpacing = 6, HorizontalAlignment = HorizontalAlignment.Center };
+        corpo.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
+        corpo.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
+        var marca = new Image { Width = 17, Height = 17, Stretch = Stretch.Uniform };
+        var fundoMarca = new Border { Width = 23, Height = 23, CornerRadius = new CornerRadius(12),
+            Background = new SolidColorBrush(Microsoft.UI.Colors.White), Child = marca,
+            VerticalAlignment = VerticalAlignment.Center };
+        AutomationProperties.SetAccessibilityView(fundoMarca, AccessibilityView.Raw);
+        corpo.Children.Add(fundoMarca);
+        Grid.SetColumn(linhas, 1);
+        corpo.Children.Add(linhas);
+        var cartao = Id(new Border { Style = Estilo<Style>("MnTag"), Padding = new Thickness(7, 8, 7, 8),
+            MinHeight = 40, Child = corpo }, "modelCard");
+        pilha.Children.Add(cartao);
+        string? textoAnterior = null, rotaAnterior = null;
+        void Atualizar()
+        {
+            var dado = leituraExibida;
+            var modelos = dado is not null && dado.EtapaEmExecucao == IdDaEtapa(etapa)
+                && !string.IsNullOrWhiteSpace(dado.ModelosEmExecucao) ? dado.ModelosEmExecucao : null;
+            var texto = modelos ?? ExecutorAtual() ?? "Aguardando identificação do modelo";
+            var marcaDaRota = modelos is null ? null : dado?.Rota switch
+            {
+                "codex" => "openai.svg",
+                "claude" => "claude-color.svg",
+                _ => null
+            };
+            if (texto == textoAnterior && marcaDaRota == rotaAnterior) return;
+            if (marcaDaRota != rotaAnterior || textoAnterior is null)
+            {
+                fundoMarca.Visibility = Visivel(marcaDaRota is not null);
+                corpo.ColumnSpacing = marcaDaRota is null ? 0 : 6;
+                marca.Source = marcaDaRota is null ? null : new Microsoft.UI.Xaml.Media.Imaging.SvgImageSource(
+                    new Uri("ms-appx:///Recursos/Provedores/" + marcaDaRota));
+            }
+            linhas.Children.Clear();
+            foreach (var sessao in texto.Split(" / ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var partes = sessao.Split(" · ", 2, StringSplitOptions.TrimEntries);
+                var nome = Texto(partes[0], "MnCorpoForte");
+                nome.FontSize = 12;
+                nome.TextWrapping = TextWrapping.Wrap;
+                nome.TextAlignment = marcaDaRota is null ? TextAlignment.Center : TextAlignment.Left;
+                linhas.Children.Add(nome);
+                if (partes.Length == 2)
+                {
+                    var esforco = Texto(partes[1], "MnLegenda");
+                    esforco.TextWrapping = TextWrapping.Wrap;
+                    linhas.Children.Add(esforco);
+                }
+            }
+            AutomationProperties.SetName(cartao, texto);
+            ToolTipService.SetToolTip(cartao, texto);
+            textoAnterior = texto;
+            rotaAnterior = marcaDaRota;
+        }
+        Atualizar();
+        atualizarCamposEtapas.Add(Atualizar);
+        return pilha;
     }
 
     /// <summary>Etapa aberta: numa linha só, anel + situação | frentes de seções com minibarra | modelo da IA.</summary>
@@ -854,6 +927,7 @@ public sealed partial class PaginaNovoRelatorio
             Grid.SetColumn(grade, 1);
             faixa.Children.Add(grade);
         }
+        if (estado == EstadoEtapa.Agora && execucaoAtivaNaBarra && emCurso) return faixa;
         var modelo = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(16, 0, 0, 0), BorderThickness = new Thickness(1, 0, 0, 0) };
         modelo.BorderBrush = Estilo<Brush>("DividerStrokeColorDefaultBrush");
         modelo.Children.Add(Texto("Modelo", "MnLegenda"));
@@ -1483,7 +1557,7 @@ public sealed partial class PaginaNovoRelatorio
     FrameworkElement TagAoVivo(string texto)
     {
         var tag = new Border { Style = Estilo<Style>("MnTagAtiva") };
-        var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        var conteudo = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Center };
         conteudo.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = Estilo<Brush>("TextOnAccentFillColorPrimaryBrush"), VerticalAlignment = VerticalAlignment.Center });
         conteudo.Children.Add(Texto(texto, "MnTagTextoAtiva"));
         tag.Child = conteudo;

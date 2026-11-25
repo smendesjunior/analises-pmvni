@@ -46,7 +46,7 @@ public partial class OrquestradorTestes
         };
 
         public PedidoExecucao Pedido(Provedor p, ModoAcesso modo = ModoAcesso.Conta, string? texto = null, IReadOnlyList<ArquivoArquivado>? anexos = null) =>
-            new(p, Processo, Pecas, modo, RaizDados, texto, anexos ?? Array.Empty<ArquivoArquivado>(), Registro);
+            new(p, Processo, Pecas, modo, RaizDados, texto, anexos ?? Array.Empty<ArquivoArquivado>(), Registro) { UsarDocumentos = false }; // testes unitários do controlador, sobre o processo fictício
 
         public string Controle(string sub) => Path.Combine(Processo.Pasta, ".pmvni-ai", sub);
 

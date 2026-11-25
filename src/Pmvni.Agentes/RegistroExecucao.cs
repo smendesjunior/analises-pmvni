@@ -6,8 +6,7 @@ using Pmvni.Revisao;
 
 namespace Pmvni.Agentes;
 
-/// <summary>O registro de uma execução (desenho §12.10): <c>&lt;processo&gt;\.pmvni-ai\editor\AAAA-MM-DD_HHMMSS-&lt;chatgpt|claude&gt;[_2…]</c>, criado no clique e nunca
-/// reutilizado. Nada aqui entra nas pastas de controle do kit (<c>.pmvni-ai\analise</c>, <c>analise-pro</c>): elas são do agente. A chave de API nunca é gravada.</summary>
+/// <summary>Registro do Editor na área permanente do processo em AppData. Cada execução tem identificador próprio; o controlador conserva o registro de trabalho da sessão em sua cópia local.</summary>
 public sealed class RegistroExecucao : IDisposable
 {
     string? ultimoJsonGravado;
@@ -186,12 +185,10 @@ public sealed class RegistroExecucao : IDisposable
         Provedor? provedor, string? documentos)
     {
         var processo = alvo.Pasta;
-        var editor = Path.Combine(processo, ".pmvni-ai", "editor");
-        if (!Directory.Exists(editor)) return null;
-        foreach (var pasta in Directory.GetDirectories(editor).OrderDescending(StringComparer.Ordinal))
+        foreach (var pasta in ControlesDoProcesso.Registros(processo).OrderByDescending(Path.GetFileName, StringComparer.Ordinal))
         {
             if (MotivoInvalido(processo, pasta) is not null) continue;
-            using var anterior = Abrir(pasta, processo);
+            using var anterior = Abrir(pasta, processo, importarLegado: false);
             var marcada = anterior.execucao.ContainsKey(AreaAnaliseLocal.Marcador);
             try
             {
@@ -262,24 +259,34 @@ public sealed class RegistroExecucao : IDisposable
     public static RegistroExecucao Criar(string pastaProcesso, Provedor p, DateTime agoraLocal)
     {
         var baseNome = agoraLocal.ToString("yyyy-MM-dd_HHmmss", CultureInfo.InvariantCulture) + "-" + Provedores.Sufixo(p);
-        var editor = Path.Combine(pastaProcesso, ".pmvni-ai", "editor");
+        var editor = ControlesDoProcesso.Diretorio(pastaProcesso, "editor");
+        AreaAnaliseLocal.ConferirCaminho(editor, local: true);
         Directory.CreateDirectory(editor);
         for (var k = 1; ; k++)
         {
             var pasta = Path.Combine(editor, k == 1 ? baseNome : baseNome + "_" + k.ToString(CultureInfo.InvariantCulture));
-            if (Directory.Exists(pasta) || File.Exists(pasta)) continue;
-            Directory.CreateDirectory(pasta);
-            return new RegistroExecucao(pasta);
+            if (Directory.Exists(pasta) || File.Exists(pasta) || Directory.Exists(Path.Combine(ControlesDoProcesso.Legado(pastaProcesso, "editor"), Path.GetFileName(pasta)))) continue;
+            var reserva = Directory.CreateDirectory(Path.Combine(editor, ".criando-" + Guid.NewGuid().ToString("N"))).FullName;
+            try
+            {
+                try { Directory.Move(reserva, pasta); }
+                catch (IOException) when (Directory.Exists(pasta)) { continue; }
+                return new RegistroExecucao(pasta);
+            }
+            finally { if (Directory.Exists(reserva)) Directory.Delete(reserva); }
         }
     }
 
     /// <summary>Reabre o registro de uma execução que já existe (o editor reaberto volta a acompanhar uma análise do Claude, desenho §12.7): o que o
     /// <c>execucao.json</c> já tem continua (as mudanças seguintes se somam a ele). <c>execucao.json</c> ausente ou com JSON inválido: começa vazio. Um erro de acesso impede a retomada.
-    /// Os caminhos vêm dos ajustes locais (editáveis): o registro tem de ser uma pasta filha direta de <c>&lt;processo&gt;\.pmvni-ai\editor</c>, sem atalho
+    /// Os caminhos vêm dos ajustes locais (editáveis): o registro tem de pertencer ao processo na área do Editor ou no controle legado, sem atalho
     /// (junção ou link) no caminho; senão <see cref="InvalidOperationException"/> e nada é gravado.</summary>
-    public static RegistroExecucao Abrir(string pasta, string pastaProcesso)
+    public static RegistroExecucao Abrir(string pasta, string pastaProcesso) => Abrir(pasta, pastaProcesso, importarLegado: true);
+
+    internal static RegistroExecucao Abrir(string pasta, string pastaProcesso, bool importarLegado)
     {
         if (MotivoInvalido(pastaProcesso, pasta) is { } motivo) throw new InvalidOperationException(motivo);
+        if (importarLegado) pasta = ControlesDoProcesso.Execucao(pastaProcesso, "editor", Path.GetFileName(Path.TrimEndingDirectorySeparator(pasta)), gravar: true);
         if (!Directory.Exists(pasta)) throw new DirectoryNotFoundException("A pasta do registro da execução não existe: " + pasta);
         var r = new RegistroExecucao(Path.GetFullPath(pasta), reaberto: true);
         try
@@ -295,17 +302,22 @@ public sealed class RegistroExecucao : IDisposable
         return r;
     }
 
-    /// <summary>null se <paramref name="pastaRegistro"/> é uma pasta filha direta de <c>&lt;processo&gt;\.pmvni-ai\editor</c> (caminho completo, sem <c>..</c>
-    /// escapando, sem junção nem link simbólico da pasta do processo até o registro); senão, o motivo em português.</summary>
+    /// <summary>Valida a identidade da pasta do Editor no AppData ou no layout anterior, recusando atalhos e junções.</summary>
     public static string? MotivoInvalido(string pastaProcesso, string pastaRegistro)
     {
-        var recusa = $"O registro da análise ({pastaRegistro}) não fica em {Path.Combine(pastaProcesso ?? "", ".pmvni-ai", "editor")}; o editor não grava nele.";
+        var recusa = $"O registro da análise ({pastaRegistro}) não fica em uma pasta de registros reconhecida para este processo.";
         if (string.IsNullOrWhiteSpace(pastaProcesso) || string.IsNullOrWhiteSpace(pastaRegistro)) return recusa;
         try
         {
             var processo = Path.GetFullPath(pastaProcesso).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var registro = Path.GetFullPath(pastaRegistro).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var editor = Path.Combine(processo, ".pmvni-ai", "editor");
+            if (string.Equals(Path.GetDirectoryName(registro), ControlesDoProcesso.Diretorio(processo, "editor"), StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(Path.GetDirectoryName(registro), Path.Combine(ControlesDoProcesso.RaizArquivada(processo), "editor"), StringComparison.OrdinalIgnoreCase))
+            {
+                AreaAnaliseLocal.ConferirCaminho(registro, local: true);
+                return null;
+            }
             if (!string.Equals(Path.GetDirectoryName(registro), editor, StringComparison.OrdinalIgnoreCase)) return recusa;
             var nome = Path.GetFileName(registro);
             if (nome.Length == 0 || nome is "." or "..") return recusa;

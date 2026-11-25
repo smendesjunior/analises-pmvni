@@ -101,7 +101,7 @@ internal sealed class AreaAnaliseLocal
         var id = Path.GetFileName(Path.TrimEndingDirectorySeparator(registro));
         ct.ThrowIfCancellationRequested();
         var idOrigem = IdPersistido(registro, out var solicitada);
-        var inicioPendente = pedido.Retomar && idOrigem is null && solicitada && !TemEtapa(origem, id);
+        var inicioPendente = pedido.Retomar && idOrigem is null && solicitada && !File.Exists(Path.Combine(registro, "continuidade.json")) && !TemEtapa(Path.GetDirectoryName(ControlesDoProcesso.RaizLegada(origem))!, id);
         var legada = pedido.Retomar && idOrigem is null && !inicioPendente;
         var local = CaminhoLocal(origem, id, documentosLocais);
         if (Dentro(origem, local) || Dentro(local, origem)) throw new IOException("A área local precisa ficar fora da pasta original do processo.");
@@ -129,7 +129,7 @@ internal sealed class AreaAnaliseLocal
         if (antiga is not null && !RecuperacaoAnaliseLocal.GeracaoAtual(origem, antiga, id)) antiga = null;
         var restaurar = idOrigem is not null && RecuperacaoAnaliseLocal.Existe(origem, id);
         if (idOrigem is not null && !restaurar && antiga is null)
-            throw new IOException("Esta execução local ainda não tem ponto de recuperação no servidor. Retome na estação de origem.");
+            throw new IOException("O ponto de recuperação desta execução não está disponível nesta estação nem no controle anterior do processo.");
         var pai = Directory.CreateDirectory(Path.GetDirectoryName(local)!).FullName;
         var provisoria = Path.Combine(pai, ".preparo-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(provisoria);
@@ -140,13 +140,13 @@ internal sealed class AreaAnaliseLocal
             if (restaurar || legada || antiga is not null)
             {
                 var controle = legada || antiga is not null ? ControleDoLegado(registro, id) : RecuperacaoAnaliseLocal.ControleDoCheckpoint(origem, id)
-                    ?? throw new IOException("A rota do ponto de recuperação não está disponível no servidor.");
+                    ?? throw new IOException("A rota do ponto de recuperação não está disponível.");
                 var anterior = antiga is not null
                     ? RecuperacaoAnaliseLocal.TransportarDaEstacao(antiga, provisoria, id, controle, ct)
                     : legada
                     ? RecuperacaoAnaliseLocal.RestaurarLegado(origem, provisoria, id, controle, ct)
                     : RecuperacaoAnaliseLocal.Restaurar(origem, provisoria, id, controle, ct)
-                        ?? throw new IOException("O ponto de recuperação já não está disponível no servidor.");
+                        ?? throw new IOException("O ponto de recuperação já não está disponível.");
                 if (antiga is not null && !RecuperacaoAnaliseLocal.GeracaoAtual(origem, provisoria, id))
                     throw new IOException("O checkpoint mudou durante o transporte. As cópias foram preservadas para nova retomada.");
                 if (!legada) anteriorInventario = LerInventario(origem, reg, id);
@@ -496,7 +496,7 @@ internal sealed class AreaAnaliseLocal
         return Path.Combine(Path.GetFullPath(documentos), "PMVNI", "Analises", chave, Path.GetFileName(Path.TrimEndingDirectorySeparator(origem)));
     }
 
-    static bool EmNuvem(string pasta)
+    internal static bool EmNuvem(string pasta)
     {
         foreach (var variavel in new[] { "OneDrive", "OneDriveConsumer", "OneDriveCommercial" })
             if (Environment.GetEnvironmentVariable(variavel) is { Length: > 0 } raiz && Dentro(raiz, pasta)) return true;
@@ -525,7 +525,7 @@ internal sealed class AreaAnaliseLocal
         return false;
     }
 
-    static void ConferirCaminho(string caminho, bool local)
+    internal static void ConferirCaminho(string caminho, bool local)
     {
         if (Redirecionado(caminho, local)) throw new IOException("Link, junção ou redirecionamento no caminho da análise: " + caminho);
     }

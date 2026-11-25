@@ -28,13 +28,15 @@ public partial class OrquestradorTestes
             };
             string? local = null;
             var pedido = cena.Pedido(Provedor.ChatGpt) with { UsarDocumentos = true, AoPrepararLocal = p => local = p };
-            var indice = Path.Combine(pasta, ".pmvni-ai", "entregas");
+            var indice = ControlesDoProcesso.Diretorio(pasta, "entregas");
             if (bloquearDestino) File.WriteAllText(indice, "destino temporariamente indisponível");
+            Assert.False(Directory.Exists(Path.Combine(pasta, ".pmvni-ai")));
             var fim = await Ambiente.Com(orquestrador.ExecutarAsync(pedido, cena.Progresso, CancellationToken.None), Limite);
             if (bloquearDestino)
             {
                 Assert.NotEqual("concluida", fim.Situacao);
                 Assert.NotNull(local);
+                Assert.False(Directory.Exists(Path.Combine(pasta, ".pmvni-ai")));
                 var idPendente = Path.GetFileName(cena.Registro.Pasta);
                 var marca = Path.Combine(local, ".pmvni-ai", "editor", idPendente, "PUBLICACAO-PENDENTE-analise.json");
                 Assert.True(File.Exists(marca), fim.Mensagem);
@@ -43,6 +45,7 @@ public partial class OrquestradorTestes
                 File.Delete(indice);
                 cena.Registro.Descarregar();
                 using var reaberto = RegistroExecucao.Abrir(cena.Registro.Pasta, pasta);
+                Assert.False(Directory.Exists(Path.Combine(pasta, ".pmvni-ai")));
                 var retomada = pedido with { Registro = reaberto, Retomar = true };
                 var novo = new OrquestradorAnalise
                 {
@@ -65,7 +68,7 @@ public partial class OrquestradorTestes
             var entradas = argumentos.Skip(Array.IndexOf(argumentos, "--inputs") + 1).ToArray();
             Assert.Equal(2, entradas.Length);
             Assert.All(entradas, entrada => Assert.StartsWith(local + Path.DirectorySeparatorChar, entrada, StringComparison.OrdinalIgnoreCase));
-            Assert.False(Directory.Exists(Path.Combine(pasta, ".pmvni-ai", "agente-falso")));
+            Assert.False(Directory.Exists(Path.Combine(pasta, ".pmvni-ai")));
             Assert.False(Directory.Exists(Path.Combine(pasta, ".pmvni-ai", "cache-pdf")));
             var id = Path.GetFileName(cena.Registro.Pasta);
             Assert.True(RecuperacaoAnaliseLocal.Existe(pasta, id));

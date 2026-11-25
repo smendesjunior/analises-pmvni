@@ -14,11 +14,9 @@ public sealed record AnaliseHistorica(Processo Processo, string Registro, Proved
         var itens = new List<AnaliseHistorica>();
         foreach (var processo in Processos.Listar(raiz, CancellationToken.None).Itens)
         {
-            var editor = Path.Combine(processo.Pasta, ".pmvni-ai", "editor");
             try
             {
-                if (!Directory.Exists(editor)) continue;
-                foreach (var registro in Directory.EnumerateDirectories(editor))
+                foreach (var registro in ControlesDoProcesso.Registros(processo.Pasta))
                     if (Ler(processo, registro) is { } item) itens.Add(item);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
@@ -39,10 +37,21 @@ public sealed record AnaliseHistorica(Processo Processo, string Registro, Proved
                 "chatgpt" => Provedor.ChatGpt, "claude" => Provedor.Claude, "gemini" => Provedor.Gemini, _ => (Provedor?)null
             };
             if (provedor is null || j?["situacao"]?.GetValue<string>() is not { } situacao) return null;
-            string? Arquivo(string campo) => ResultadoAnalise.PdfDentro(processo.Pasta, j[campo]?.GetValue<string>());
-            return new(processo, registro, provedor.Value, situacao, Arquivo("pmvrel"), Arquivo("document"), Arquivo("pdf"),
+            string? Arquivo(string campo)
+            {
+                var declarado = j[campo]?.GetValue<string>();
+                return ResultadoAnalise.PdfDentro(processo.Pasta, declarado) ?? ResultadoAnalise.ProdutoArquivado(processo.Pasta, declarado);
+            }
+            var documento = Arquivo("document");
+            if (documento is null && j["document"]?.GetValue<string>() is { Length: > 0 } declarado)
+            {
+                var produtos = Path.Combine(ControlesDoProcesso.Diretorio(processo.Pasta, "entregas"), Path.GetFileName(registro), "produtos");
+                AreaAnaliseLocal.ConferirCaminho(produtos, local: true);
+                documento = ResultadoAnalise.PdfDentro(produtos, declarado);
+            }
+            return new(processo, registro, provedor.Value, situacao, Arquivo("pmvrel"), documento, Arquivo("pdf"),
                 j["sessao_codex"]?.GetValue<string>(), j["usuario"]?.GetValue<string>(), arquivo.LastWriteTimeUtc);
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException) { return null; }
+        catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or InvalidOperationException or ArgumentException) { return null; }
     }
 }

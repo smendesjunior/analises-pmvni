@@ -221,11 +221,13 @@ public sealed partial class PaginaNovoRelatorio : UserControl
         AtualizarContagemResumo();
     }
 
-    void AtualizarContagemResumo()
+    void AtualizarContagemResumo() => TextoTotalEtapas.Text = ResumoDaContagem(incluirExecutor: true);
+
+    string ResumoDaContagem(bool incluirExecutor)
     {
         var feitas = etapasMostradas.Count(e => e.Estado == EstadoEtapa.Feita);
         var itens = atividades.Count == 1 ? "1 atividade registrada" : $"{atividades.Count} atividades registradas";
-        TextoTotalEtapas.Text = string.Join(" · ", new[] { $"{feitas} de {etapasMostradas.Length} etapas concluídas", itens, ExecutorAtual() ?? provedorAtual }
+        return string.Join(" · ", new[] { $"{feitas} de {etapasMostradas.Length} etapas concluídas", itens, incluirExecutor ? ExecutorAtual() ?? provedorAtual : null }
             .Where(t => !string.IsNullOrWhiteSpace(t)));
     }
 

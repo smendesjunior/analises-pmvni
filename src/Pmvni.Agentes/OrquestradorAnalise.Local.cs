@@ -12,7 +12,8 @@ public sealed partial class OrquestradorAnalise
         Path.Combine(pasta, ".pmvni-ai", "editor", Path.GetFileName(registro));
 
     internal static string ProcessoDoTrabalho(string origem, string registro) =>
-        AreaAnaliseLocal.LocalExistente(origem, registro) ?? origem;
+        AreaAnaliseLocal.LocalExistente(origem, ControlesDoProcesso.RegistroAtual(origem, registro))
+        ?? Path.GetDirectoryName(ControlesDoProcesso.RaizLegada(origem))!;
 
     // Entrada sem janela, usada também pelo controlador destacado depois de o Editor fechar.
     internal static int SalvarRetomada(string[] args, TextWriter erro)
@@ -22,9 +23,7 @@ public sealed partial class OrquestradorAnalise
         {
             var origem = Path.GetFullPath(args[1]);
             if (Path.GetFileName(args[3]) != args[3] || args[3] is "" or "." or "..") return 2;
-            // File.Exists perderia o código de erro de um compartilhamento desconectado.
-            _ = File.GetAttributes(origem);
-            var registro = RegistroDoTrabalho(origem, args[3]);
+            var registro = ControlesDoProcesso.Execucao(origem, "editor", args[3]);
             var local = AreaAnaliseLocal.LocalExistente(origem, registro);
             if (RegistroExecucao.MotivoInvalido(origem, registro) is not null || local is null
                 || !Path.GetFullPath(args[2]).Equals(local, StringComparison.OrdinalIgnoreCase)) return 2;
@@ -33,7 +32,7 @@ public sealed partial class OrquestradorAnalise
         }
         catch (IOException ex) when (ServidorIndisponivel(ex))
         {
-            erro.WriteLine("O servidor do checkpoint está indisponível. " + ex.Message);
+            erro.WriteLine("O controle de recuperação anterior está indisponível. " + ex.Message);
             return 3;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or JsonException or KeyNotFoundException or System.Security.Cryptography.CryptographicException)
@@ -76,7 +75,7 @@ public sealed partial class OrquestradorAnalise
         }
         pedido.AoPrepararLocal?.Invoke(area.ProcessoLocal);
         Anunciar(progresso, new("Cópias conferidas. Pasta de trabalho: " + area.ProcessoLocal, null));
-        using var registro = RegistroExecucao.Abrir(area.RegistroLocal, area.ProcessoLocal);
+        using var registro = RegistroExecucao.Abrir(area.RegistroLocal, area.ProcessoLocal, importarLegado: false);
         if (pedido.Retomar && !acompanhamento)
             SincronizarRecusa(pedido, area, registro);
         var trabalho = pedido with { Processo = pedido.Processo with { Pasta = area.ProcessoLocal }, Registro = registro, OrigemCompartilhada = origem, Retomar = pedido.Retomar && !area.InicioPendente };

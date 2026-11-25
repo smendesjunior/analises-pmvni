@@ -23,7 +23,8 @@ public static class ResultadoAnalise
 
     public static Resultado Localizar(string pastaProcesso, Provedor p, DateTime inicioUtc, string pastaRegistro)
     {
-        var delivery = Path.Combine(pastaProcesso, PastaControle(p), "delivery.json");
+        var controle = ControlesDoProcesso.RaizLegada(pastaProcesso);
+        var delivery = Path.Combine(controle, Path.GetFileName(PastaControle(p)), "delivery.json");
         FileInfo info;
         try
         {
@@ -79,16 +80,32 @@ public static class ResultadoAnalise
         var raizProcesso = Path.GetFullPath(pastaProcesso).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         if (!completo.StartsWith(raizProcesso + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || TemLink(raizProcesso, completo))
             return Falha(foraDaPasta);
+        if (!File.Exists(completo) && ProdutoArquivado(pastaProcesso, completo) is { } arquivado)
+            completo = arquivado;
         if (!File.Exists(completo))
             return Falha($"O relatório indicado pela análise não foi encontrado: {documento}.");
 
-        return new Resultado(completo, PdfDentro(pastaProcesso, pdf), null);
+        return new Resultado(completo, PdfDentro(pastaProcesso, pdf) ?? ProdutoArquivado(pastaProcesso, pdf), null);
+    }
+
+    internal static string? ProdutoArquivado(string processo, string? declarado)
+    {
+        if (string.IsNullOrWhiteSpace(declarado)) return null;
+        var anterior = Path.Combine(processo, ".pmvni-ai");
+        if (Directory.Exists(anterior)) return null;
+        try
+        {
+            var antigo = Path.GetFullPath(declarado, processo);
+            if (!antigo.StartsWith(anterior + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return null;
+            return PdfDentro(ControlesDoProcesso.RaizLegada(processo), Path.GetRelativePath(anterior, antigo));
+        }
+        catch (Exception erro) when (erro is IOException or ArgumentException or UnauthorizedAccessException or NotSupportedException) { return null; }
     }
 
     // Os kits antigos não identificavam o Editor no estado. Para eles continua valendo o horário desta partida.
     internal static bool? ControleDoRegistro(string processo, Provedor provedor, string registro)
     {
-        var estado = Path.Combine(processo, PastaControle(provedor), "engine_state.json");
+        var estado = Path.Combine(ControlesDoProcesso.RaizLegada(processo), Path.GetFileName(PastaControle(provedor)), "engine_state.json");
         if (!File.Exists(estado)) return null;
         using var json = JsonDocument.Parse(File.ReadAllBytes(estado));
         if (json.RootElement.ValueKind != JsonValueKind.Object) throw new JsonException("Estado da análise inválido.");

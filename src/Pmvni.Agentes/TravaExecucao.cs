@@ -6,8 +6,7 @@ using System.Text.Json.Nodes;
 
 namespace Pmvni.Agentes;
 
-/// <summary>Uma execução por processo (desenho §12.7): <c>&lt;processo&gt;\.pmvni-ai\editor\execucao.lock</c> criada com <c>FileMode.CreateNew</c>, com o pid do
-/// editor, o provedor e o início. Trava de um pid que não vive mais (ou que é de outro processo com o mesmo pid) é abandonada e substituída.</summary>
+/// <summary>Exclusão mútua por processo nesta estação. Respeita travas legadas ativas e registra pid, provedor e início em AppData.</summary>
 public sealed class TravaExecucao : IDisposable
 {
     static readonly UTF8Encoding Utf8 = new(false);
@@ -25,11 +24,22 @@ public sealed class TravaExecucao : IDisposable
         this.arquivo = arquivo;
     }
 
-    static string CaminhoDa(string pastaProcesso) => Path.Combine(pastaProcesso, ".pmvni-ai", "editor", "execucao.lock");
+    static string CaminhoDa(string pastaProcesso)
+    {
+        var caminho = Path.Combine(ControlesDoProcesso.Diretorio(pastaProcesso, "editor"), "execucao.lock");
+        AreaAnaliseLocal.ConferirCaminho(caminho, local: true);
+        return caminho;
+    }
+    static bool LegadaViva(string processo)
+    {
+        var antiga = Path.Combine(ControlesDoProcesso.Legado(processo, "editor"), "execucao.lock");
+        return File.Exists(antiga) && Viva(antiga);
+    }
 
     /// <summary>Pega a trava do processo, ou null se já há uma execução viva nele.</summary>
     public static TravaExecucao? Tentar(string pastaProcesso, Provedor p)
     {
+        if (LegadaViva(pastaProcesso)) return null;
         var caminho = CaminhoDa(pastaProcesso);
         Directory.CreateDirectory(Path.GetDirectoryName(caminho)!);
         var selo = Guid.NewGuid().ToString("N");
@@ -67,7 +77,7 @@ public sealed class TravaExecucao : IDisposable
     public static bool EmAndamento(string pastaProcesso)
     {
         var caminho = CaminhoDa(pastaProcesso);
-        return File.Exists(caminho) && Viva(caminho);
+        return File.Exists(caminho) && Viva(caminho) || LegadaViva(pastaProcesso);
     }
 
     /// <summary>A trava é de um processo que ainda vive? Arquivo ilegível só é abandonado depois de 30 s (pode estar sendo gravado agora).</summary>

@@ -20,11 +20,16 @@ public static class FluxoLinear
     /// <summary>O primeiro início, por provedor, das análises marcadas com a assinatura em <c>&lt;.pmvni-ai&gt;\editor\*\execucao.json</c>.</summary>
     public static IReadOnlyDictionary<Provedor, DateTimeOffset> IniciosMarcados(string pastaPmvniAi)
     {
-        var saida = new Dictionary<Provedor, DateTimeOffset>();
         var editor = Path.Combine(pastaPmvniAi, "editor");
         IEnumerable<string> registros;
         try { registros = Directory.Exists(editor) ? Directory.EnumerateDirectories(editor).ToList() : []; }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return saida; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return new Dictionary<Provedor, DateTimeOffset>(); }
+        return IniciosMarcados(registros);
+    }
+
+    internal static IReadOnlyDictionary<Provedor, DateTimeOffset> IniciosMarcados(IEnumerable<string> registros)
+    {
+        var saida = new Dictionary<Provedor, DateTimeOffset>();
         foreach (var registro in registros)
         {
             if (ArquivoJsonDoKit.Ler(Path.Combine(registro, "execucao.json")) is not { ValueKind: JsonValueKind.Object } o

@@ -56,7 +56,8 @@ public sealed class ExecucaoEmCurso
     public RegistroExecucao Registro { get; }
     string? pastaDeTrabalho;
     internal string PastaDeTrabalho => Volatile.Read(ref pastaDeTrabalho) ?? Processo.Pasta;
-    internal string RegistroDeTrabalho => OrquestradorAnalise.RegistroDoTrabalho(PastaDeTrabalho, Registro.Pasta);
+    internal string RegistroDeTrabalho => Volatile.Read(ref pastaDeTrabalho) is { } trabalho
+        ? OrquestradorAnalise.RegistroDoTrabalho(trabalho, Registro.Pasta) : Registro.Pasta;
     internal void MostrarTrabalhoEm(string pasta) => Volatile.Write(ref pastaDeTrabalho, pasta);
     public DateTime InicioUtc { get; }
     internal DateTime? InicioDoControleUtc { get; set; }
@@ -278,7 +279,7 @@ internal sealed class SessaoNovoRelatorio(DispatcherQueue janela, Func<Orquestra
         var e = new ExecucaoEmCurso(ia, pr, registro, inicio.UtcDateTime, pc, texto, orq, retomada: true);
         var progresso = Progresso(e);
         var pedidoExecucao = new PedidoExecucao(ia, pr, pc, ModoAcesso.Conta, raizDados, texto, [], registro)
-        { UsarDocumentos = AreaAnaliseLocal.UsaAreaLocal(pastaRegistro),
+        { UsarDocumentos = AreaAnaliseLocal.UsaAreaLocal(registro.Pasta),
           Retomar = true, AoPrepararLocal = e.MostrarTrabalhoEm };
         e.Fim = e.AcompanharTempoAsync(() => RodarAsync(() => orq.AcompanharClaudeAsync(pedidoExecucao, inicio, progresso, e.Cancelamento.Token), progresso, trava));
         execucoes.Add(e);

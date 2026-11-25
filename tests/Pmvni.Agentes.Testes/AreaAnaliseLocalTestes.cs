@@ -352,7 +352,10 @@ public sealed class AreaAnaliseLocalTestes
         using var c = new Caso();
         c.Pedido.Registro.Atualizar(o => o.Remove("area_local_solicitada"));
         c.Gravar("original.pdf", "caso");
-        File.WriteAllText(Path.Combine(c.Pedido.Registro.Pasta, "EXECUTOR.LOCK"), " ");
+        var registroLegado = Path.Combine(c.Origem, ".pmvni-ai", "editor", c.Id);
+        Directory.CreateDirectory(registroLegado);
+        File.Copy(Path.Combine(c.Pedido.Registro.Pasta, "EXECUCAO.JSON"), Path.Combine(registroLegado, "EXECUCAO.JSON"));
+        File.WriteAllText(Path.Combine(registroLegado, "EXECUTOR.LOCK"), " ");
         var estado = JsonSerializer.Serialize(new { editor_execution = c.Id, @case = c.Origem });
         c.Gravar(@".pmvni-ai\analise\engine_state.json", estado);
         var area = AreaAnaliseLocal.Preparar(c.Pedido with { Retomar = true, Provedor = Provedor.Gemini },

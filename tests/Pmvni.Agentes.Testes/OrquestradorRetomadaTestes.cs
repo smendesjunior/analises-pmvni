@@ -39,7 +39,7 @@ public partial class OrquestradorTestes
         using var registro = RegistroExecucao.Abrir(c.Registro.Pasta, c.Processo.Pasta);
         Assert.Equal(c.Registro.Pasta, registro.Pasta);
         var progresso = new Coletor();
-        var pe = new PedidoExecucao(Provedor.Claude, c.Processo, c.Pecas, ModoAcesso.Conta, c.RaizDados, null, Array.Empty<Pmvni.Revisao.ArquivoArquivado>(), registro);
+        var pe = new PedidoExecucao(Provedor.Claude, c.Processo, c.Pecas, ModoAcesso.Conta, c.RaizDados, null, Array.Empty<Pmvni.Revisao.ArquivoArquivado>(), registro) { UsarDocumentos = false };
         var fim = await Ambiente.Com(orq.AcompanharClaudeAsync(pe, inicio, progresso, CancellationToken.None), TimeSpan.FromSeconds(60));
         Assert.True(fim.Situacao == "concluida", fim.Situacao + ": " + fim.Mensagem + Diagnostico(c));
         Assert.EndsWith("relatorio_dados.json", fim.Documento);
@@ -97,7 +97,8 @@ public partial class OrquestradorTestes
         File.WriteAllText(Path.Combine(bom, "execucao.json"), "{ quebrado");
         using var r = RegistroExecucao.Abrir(bom, processo);
         r.Atualizar(o => o["situacao"] = "concluida");
-        Assert.Equal("concluida", JsonNode.Parse(File.ReadAllText(Path.Combine(bom, "execucao.json")))!["situacao"]!.GetValue<string>());
+        Assert.Equal("{ quebrado", File.ReadAllText(Path.Combine(bom, "execucao.json")));
+        Assert.Equal("concluida", JsonNode.Parse(File.ReadAllText(Path.Combine(r.Pasta, "execucao.json")))!["situacao"]!.GetValue<string>());
     }
 
     [Fact]

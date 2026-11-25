@@ -3343,7 +3343,7 @@ internal static class Roteiro
                         Verificar(pausar ? "Pausa preserva retomada" : "Cancelamento confirmado",
                             fim.Situacao == "cancelada" && e.PausaSolicitada == pausar &&
                             (!pausar || n.BotaoContinuar.Visibility == Visibility.Visible || n.BotaoDescartar.Visibility == Visibility.Visible));
-                        Verificar("Trava liberada",!File.Exists(Path.Combine(pastaProcesso,".pmvni-ai","editor","execucao.lock")));
+                        Verificar("Trava liberada",!TravaExecucao.EmAndamento(pastaProcesso));
                     }
                     finally { if (!e.Fim.IsCompleted) { perguntas.Confirmar = true; await j.CancelarAnaliseAsync(e); } }
                 }
@@ -3420,6 +3420,62 @@ internal static class Roteiro
                 await FecharDialogo();
                 await AbrirPagina("Etapas");
                 await Conferir("Etapa 25%, sete de 28 e frente sete de nove", () => Campo("stagePercent") == "25%" && Campo("result").Contains("7 de 28") && Campo("count0") == "7 de 9");
+                var leituraModelo = new ConsumoAoVivo("codex", null, false, null, null, null, null, null, null, null)
+                    { EtapaEmExecucao = "analyze", ModelosEmExecucao = "gpt-6.2-sol · Médio" };
+                var usoMonitor = new UsoEtapa("analyze", "GPT", "modelo-teste", 1000, 120, 250, TimeSpan.FromMinutes(20), 2, 1)
+                    { Usada5h = 40, UsadaSemana = 12, Plano = "Plano específico da execução" };
+                void MostrarModelo(ConsumoAoVivo? amostra) => n.MostrarConsumo([usoMonitor], new OrcamentoDaAnalise(18, 7), amostra);
+                var cartoesDeModelo = new JsonObject();
+                foreach (var (marca, tema, leitura) in new[]
+                {
+                    ("openai", ElementTheme.Light, leituraModelo),
+                    ("claude", ElementTheme.Dark, leituraModelo with { Rota = "claude", ModelosEmExecucao = "claude-opus-5-5 · Alto (solicitado)" })
+                })
+                {
+                    j.DefinirTema(tema);
+                    MostrarModelo(leitura);
+                    await Conferir($"Cartão do modelo em atividade: {marca}", () => Campos("modelCard").SequenceEqual([leitura.ModelosEmExecucao]));
+                    var cartaoModelo = Arvore(n.ConteudoMonitor).OfType<Border>().Single(b =>
+                        Microsoft.UI.Xaml.Automation.AutomationProperties.GetAutomationId(b) == "modelCard");
+                    cartaoModelo.StartBringIntoView();
+                    await Esperar(400);
+                    var colunaModelo = (StackPanel)cartaoModelo.Parent;
+                    var seloModelo = (FrameworkElement)colunaModelo.Children[0];
+                    var posicao = cartaoModelo.TransformToVisual(seloModelo).TransformPoint(default);
+                    var iconeModelo = Arvore(cartaoModelo).OfType<Image>().Single();
+                    var uri = (iconeModelo.Source as Microsoft.UI.Xaml.Media.Imaging.SvgImageSource)?.UriSource?.AbsolutePath;
+                    var nomeDoModelo = leitura.ModelosEmExecucao!.Split(" · ")[0];
+                    var textos = Arvore(n.MonitorNativo).OfType<TextBlock>().Where(t => t.Text.Contains(nomeDoModelo, StringComparison.Ordinal)).ToList();
+                    var alinhado = posicao.X == 0 && posicao.Y >= seloModelo.ActualHeight
+                        && Math.Abs(cartaoModelo.ActualWidth - seloModelo.ActualWidth) < 0.5 && cartaoModelo.Padding.Top == 8 && cartaoModelo.Padding.Bottom == 8 && cartaoModelo.ActualHeight >= 48;
+                    Verificar($"Marca, posição e modelo único: {marca}", alinhado && textos.Count == 1 && uri?.Contains(marca) == true);
+                    cartoesDeModelo[marca] = new JsonObject { ["texto"] = leitura.ModelosEmExecucao, ["icone"] = uri,
+                        ["largura_selo"] = seloModelo.ActualWidth, ["largura_modelo"] = cartaoModelo.ActualWidth,
+                        ["altura_modelo"] = cartaoModelo.ActualHeight, ["distancia_vertical"] = posicao.Y - seloModelo.ActualHeight };
+                    await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, $"cartao-modelo-{marca}.png"));
+                }
+                j.DefinirTema(ElementTheme.Default);
+                MostrarModelo(leituraModelo with { ModelosEmExecucao = "gpt-6.2-sol / gpt-6.1-terra · Alto" });
+                await Conferir("Sessões simultâneas no mesmo cartão", () => Campos("modelCard").SequenceEqual(["gpt-6.2-sol / gpt-6.1-terra · Alto"]));
+                MostrarModelo(null);
+                await Conferir("Aguardando identificação sem marca de provedor", () =>
+                    Campo("modelCard") == "Aguardando identificação do modelo" && !Arvore(n.ConteudoMonitor).OfType<Image>()
+                        .Any(i => i.Parent is Border b && b.Parent is Grid g && g.Parent is Border c
+                            && Microsoft.UI.Xaml.Automation.AutomationProperties.GetAutomationId(c) == "modelCard" && b.Visibility == Visibility.Visible));
+                var aguardando = Arvore(n.ConteudoMonitor).OfType<Border>().Single(b =>
+                    Microsoft.UI.Xaml.Automation.AutomationProperties.GetAutomationId(b) == "modelCard");
+                aguardando.StartBringIntoView();
+                await Esperar(400);
+                var aviso = Arvore(aguardando).OfType<TextBlock>().Single();
+                var posicaoAviso = aviso.TransformToVisual(aguardando).TransformPoint(default);
+                Verificar("Aguardando em duas linhas centralizadas com margem vertical",
+                    aviso.ActualHeight >= 27 && aviso.ActualHeight <= 40 && posicaoAviso.Y >= 8
+                    && aguardando.ActualHeight - posicaoAviso.Y - aviso.ActualHeight >= 7
+                    && aviso.TextAlignment == TextAlignment.Center && aguardando.ActualWidth == 156);
+                cartoesDeModelo["aguardando"] = new JsonObject { ["texto"] = aviso.Text, ["altura_texto"] = aviso.ActualHeight,
+                    ["altura_modelo"] = aguardando.ActualHeight, ["largura_modelo"] = aguardando.ActualWidth, ["topo_texto"] = posicaoAviso.Y };
+                await CapturarXamlAsync(j.ElementoRaiz, Path.Combine(pasta, "cartao-modelo-aguardando.png"));
+                p["cartoes_de_modelo"] = cartoesDeModelo;
                 var grupos = Enumerable.Range(1, 15).Select(i => new GrupoAnalise("Grupo de teste " + i, i <= 4 ? 1 : 0, i == 5 ? 2 : 1)).ToArray();
                 n.MostrarDetalhesDasEtapas(detalhesFicticios with { Grupos = grupos });
                 await Conferir("Plano mostra quinze grupos e progresso por grupo",
@@ -3607,7 +3663,7 @@ internal static class Roteiro
             var pedido = File.ReadAllText(Path.Combine(reg, "pedido.md"), System.Text.Encoding.UTF8);
             var diretrizes = File.ReadAllText(Path.Combine(processo, ".pmvni-ai", "analise", "diretrizes.md"), System.Text.Encoding.UTF8);
             var ex = ExecucaoJson(e);
-            var registro = reg.StartsWith(Path.Combine(processo, ".pmvni-ai", "editor") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            var registro = reg.StartsWith(ControlesDoProcesso.Diretorio(processo, "editor") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
                 && pedido == texto && diretrizes == PedidoAgente.Diretrizes(texto)      // Tarefa 13: sem instruções de progresso para a IA
                 && !Directory.Exists(e.Registro.PastaProgresso)
                 && anexosJson.Count == 4 && File.Exists(Path.Combine(reg, "saida.jsonl")) && File.Exists(Path.Combine(reg, "situacoes.jsonl"))
@@ -3829,7 +3885,7 @@ internal static class Roteiro
             var mortos = await EsperarAteAsync(() => Task.FromResult(pids.All(pid => !Vivo(pid))), 5000);
             p["cancelar_ms"] = relogio.ElapsedMilliseconds;
             var cancelado = cancelou && mortos && fim.Situacao == "cancelada" && ExecucaoJson(e)["situacao"]?.GetValue<string>() == "cancelada"
-                && Pmvrels(processo).Length == pmvrelAntes && !File.Exists(Path.Combine(processo, ".pmvni-ai", "editor", "execucao.lock"));
+                && Pmvrels(processo).Length == pmvrelAntes && !TravaExecucao.EmAndamento(processo);
             p["chatgpt_cancelado"] = cancelado;
 
             // Fechar pausa o Claude, preserva a retomada e encerra o processo do kit.
@@ -3963,7 +4019,7 @@ internal static class Roteiro
             j.EsquecerAviso(Provedor.ChatGpt);
             await j.SoltarArquivosAsync([recusadoAnexo]);
             await j.AguardarNovoRelatorioAsync();
-            var editor = Path.Combine(processo, ".pmvni-ai", "editor");
+            var editor = ControlesDoProcesso.Diretorio(processo, "editor");
             var registrosAntes = Directory.GetDirectories(editor).Length;
             var recebidoAntes = File.GetLastWriteTimeUtc(Path.Combine(processo, ".pmvni-ai", "agente-falso", "recebido.json"));
             perguntas.RespostaPorTitulo["Analisar com o ChatGPT"] = false;
@@ -4827,7 +4883,7 @@ internal static class Roteiro
             p["execucao"] = execucao["situacao"]?.GetValue<string>();
             Conf("execucao_concluida", execucao["situacao"]?.GetValue<string>() == "concluida" && pmvrelRegistrado is { Length: > 0 }
                 && File.Exists(Path.IsPathRooted(pmvrelRegistrado) ? pmvrelRegistrado : Path.Combine(proc, pmvrelRegistrado))
-                && exec.Registro.Pasta.StartsWith(Path.Combine(proc, ".pmvni-ai", "editor") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+                && exec.Registro.Pasta.StartsWith(ControlesDoProcesso.Diretorio(proc, "editor") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
             var copiaDoAnexo = Path.Combine(proc, "PROJETO", "REVISÃO 01", "planta-ficticia.pdf");
             var fotoAnexoDepois = FotoLeg(Path.GetDirectoryName(fluxoAnexo)!);
             Conf("anexo_original_intacto", fotoAnexoDepois.Count == fotoAnexo.Count && fotoAnexo.All(kv => fotoAnexoDepois.TryGetValue(kv.Key, out var v) && v == kv.Value)

@@ -85,6 +85,66 @@ public class RecuperacaoAnaliseLocalTestes
     }
 
     [Fact]
+    public void Checkpoint_legado_e_lido_no_processo_e_proxima_geracao_so_e_gravada_na_estacao()
+    {
+        using var tmp = Ambiente.PastaDeTeste("retomada-compartilhada-antiga");
+        var origem = Em(tmp, "origem");
+        var local = Em(tmp, "estacao");
+        var retomada = Em(tmp, "reaberta");
+        Iniciar(local);
+        RecuperacaoAnaliseLocal.Salvar(origem, local, Id, "analise");
+        var atual = ControlesDoProcesso.Execucao(origem, "retomadas-locais", Id);
+        var categoria = Directory.CreateDirectory(ControlesDoProcesso.Legado(origem, "retomadas-locais")).FullName;
+        var legado = Em(categoria, Id);
+        Directory.Move(atual, legado);
+        var ponteiro = Em(legado, "ATUAL.JSON");
+        var antes = Sha(ponteiro);
+        Assert.Equal(local, RecuperacaoAnaliseLocal.Restaurar(origem, retomada, Id, "analise"));
+        Assert.False(Directory.Exists(atual));
+        Gravar(Em(Controle(retomada), "conclusao.txt"), "trabalho retomado");
+        RecuperacaoAnaliseLocal.Salvar(origem, retomada, Id, "analise");
+        Assert.Equal(antes, Sha(ponteiro));
+        Assert.NotEqual(antes, Sha(Em(atual, "ATUAL.JSON")));
+        Assert.True(RecuperacaoAnaliseLocal.GeracaoAtual(origem, retomada, Id));
+    }
+
+    [Fact]
+    public void Arvore_legada_inteira_no_AppData_preserva_registro_documentos_e_transporte_do_kit()
+    {
+        using var tmp = Ambiente.PastaDeTeste("arquivo-integral-legado");
+        var processo = Ambiente.NovoProcesso(tmp);
+        var origem = processo.Pasta;
+        var dados = Em(Controle(origem), "relatorio_dados.json");
+        Iniciar(origem);
+        Gravar(dados, "{\"preservado\":true}");
+        Json(Em(Controle(origem), "delivery.json"), new { document = dados });
+        Json(Em(Registro(origem), "EXECUCAO.JSON"), new { provedor = "chatgpt", situacao = "interrompida", document = dados });
+        Gravar(Em(Registro(origem), "EXECUTOR.LOCK"), " ");
+        Gravar(Em(Registro(origem), "pedido.md"), "pedido protocolado");
+        var hash = Sha(dados);
+        var arquivo = ControlesDoProcesso.RaizArquivada(origem);
+        Directory.CreateDirectory(Path.GetDirectoryName(arquivo)!);
+        Directory.Move(Em(origem, ".pmvni-ai"), arquivo);
+        var historico = Assert.Single(AnaliseHistorica.Listar(Em(tmp, "processos")));
+        Assert.Equal(hash, Sha(historico.Documento!));
+        Assert.Equal(historico.Documento, ResultadoAnalise.Localizar(origem, Provedor.ChatGpt, DateTime.MinValue, historico.Registro).Documento);
+        Assert.Equal(Path.GetDirectoryName(arquivo), OrquestradorAnalise.ProcessoDoTrabalho(origem, Registro(origem)));
+        var detalhe = Pmvni.Revisao.Processos.Detalhar(processo, default, ControlesDoProcesso.RaizLegada(origem));
+        Assert.Contains(detalhe.Relatorios, r => r.Caminho == historico.Documento);
+        Assert.Equal(historico.Registro, ControlesDoProcesso.RegistroAtual(origem, Registro(origem)));
+        using (var reg = RegistroExecucao.Abrir(Registro(origem), origem))
+        {
+            Assert.Equal("pedido protocolado", reg.PedidoOriginal());
+            reg.Atualizar(o => o["situacao"] = "em_andamento");
+        }
+        Assert.Equal("interrompida", JsonDocument.Parse(File.ReadAllBytes(Em(historico.Registro, "EXECUCAO.JSON"))).RootElement.GetProperty("situacao").GetString());
+        var nova = Em(tmp, "retomada");
+        Assert.Equal(origem, RecuperacaoAnaliseLocal.RestaurarLegado(origem, nova, Id, "analise"));
+        Assert.Equal(hash, Sha(Em(Controle(nova), "relatorio_dados.json")));
+        Assert.False(Directory.Exists(Em(origem, ".pmvni-ai")));
+    }
+
+    [Fact]
     public void Blob_corrompido_ou_rota_errada_nao_instalam_snapshot_parcial()
     {
         using var tmp = Ambiente.PastaDeTeste("checkpoint-danificado");
@@ -97,7 +157,7 @@ public class RecuperacaoAnaliseLocalTestes
         RecuperacaoAnaliseLocal.Salvar(origem, a, Id, "analise");
         Assert.Throws<InvalidDataException>(() => RecuperacaoAnaliseLocal.Restaurar(origem, b, Id, "analise-pro"));
         var sha = Sha(evidencia);
-        var blob = Em(origem, Path.Combine(".pmvni-ai", "retomadas-locais", Id, "objetos", sha[..2], sha));
+        var blob = Em(ControlesDoProcesso.Raiz(origem), Path.Combine("retomadas-locais", Id, "objetos", sha[..2], sha));
         File.WriteAllBytes(blob, new byte[new FileInfo(blob).Length]);
         Assert.Throws<IOException>(() => RecuperacaoAnaliseLocal.Restaurar(origem, b, Id, "analise"));
         Assert.False(Directory.Exists(Em(b, ".pmvni-ai")));
@@ -111,7 +171,7 @@ public class RecuperacaoAnaliseLocalTestes
         var a = Em(tmp, "A");
         Iniciar(a);
         RecuperacaoAnaliseLocal.Salvar(origem, a, Id, "analise");
-        var ponteiro = Em(origem, Path.Combine(".pmvni-ai", "retomadas-locais", Id, "ATUAL.JSON"));
+        var ponteiro = Em(ControlesDoProcesso.Raiz(origem), Path.Combine("retomadas-locais", Id, "ATUAL.JSON"));
         var anterior = Sha(ponteiro);
         Json(Em(Controle(a), @"preparo\preparo.json"), new { pagina = Em(a, @".pmvni-ai\cache-pdf\ausente.png") });
         Assert.ThrowsAny<IOException>(() => RecuperacaoAnaliseLocal.Salvar(origem, a, Id, "analise"));
@@ -228,7 +288,10 @@ public class RecuperacaoAnaliseLocalTestes
         var fig = dados.RootElement.GetProperty("figuras")[0].GetProperty("imagem").GetString()!;
         var img = Pmvni.Composicao.CaminhoImagem.Resolver(Path.GetDirectoryName(pub.Documento!)!, fig, false);
         Assert.Equal("png fictício", File.ReadAllText(img!));
-        Assert.Empty(Directory.EnumerateFiles(Em(origem, RecuperacaoAnaliseLocal.Produtos), "privado.bin", SearchOption.AllDirectories));
+        Assert.False(Directory.Exists(Em(origem, ".pmvni-ai")));
+        if (manual) Assert.False(Directory.Exists(Em(origem, RecuperacaoAnaliseLocal.Produtos)));
+        else Assert.Equal([pub.Pdf!], Directory.EnumerateFiles(Em(origem, RecuperacaoAnaliseLocal.Produtos), "*", SearchOption.AllDirectories));
+        Assert.StartsWith(ControlesDoProcesso.Raiz(origem), pub.Documento);
         Gravar(img!, "arquivar edição humana");
         var recomposta = RecuperacaoAnaliseLocal.Publicar(origem, a, Id, "analise", fim, () => {});
         Assert.NotEqual(pub.Documento, recomposta.Documento);

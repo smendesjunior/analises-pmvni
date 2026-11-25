@@ -12,7 +12,22 @@ public sealed class PastaTeste : IDisposable
 {
     public string Caminho { get; }
 
-    internal PastaTeste(string caminho) => Caminho = caminho;
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> bases = new(StringComparer.OrdinalIgnoreCase);
+    readonly string appData = Path.Combine(Path.GetTempPath(), "pmvni-controles-teste-" + Guid.NewGuid().ToString("N"));
+
+    internal PastaTeste(string caminho)
+    {
+        Caminho = Path.GetFullPath(caminho);
+        bases[Caminho] = appData;
+    }
+
+    internal static string BaseDosControles(string processo)
+    {
+        for (var pasta = Path.GetFullPath(processo); pasta is not null; pasta = Path.GetDirectoryName(pasta))
+            if (bases.TryGetValue(pasta, out var baseLocal)) return baseLocal;
+        // Consultas de validação de caminhos inválidos não criam diretórios.
+        return Path.Combine(Path.GetTempPath(), "pmvni-controles-consulta-" + Environment.ProcessId);
+    }
 
     public static implicit operator string(PastaTeste p) => p.Caminho;
 
@@ -20,6 +35,8 @@ public sealed class PastaTeste : IDisposable
 
     public void Dispose()
     {
+        bases.TryRemove(Caminho, out _);
+        if (Directory.Exists(appData)) Directory.Delete(appData, true);
         for (var i = 0; i < 20; i++)
         {
             try { Directory.Delete(Caminho, true); return; }
@@ -69,6 +86,7 @@ public static class Ambiente
     [ModuleInitializer]
     internal static void TravarProgramas()
     {
+        ControlesDoProcesso.BaseDeTeste = PastaTeste.BaseDosControles;
         // Trava de teste (desenho §12.12): nenhum programa fora do agente falso é iniciado.
         ExecucaoProcesso.SomenteExecutaveisEm = Path.GetDirectoryName(AgenteFalso);
     }

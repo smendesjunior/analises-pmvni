@@ -6,7 +6,7 @@ namespace Pmvni.Agentes.Testes;
 /// <summary>Uma execução por processo (desenho §12.7) e o registro da execução (§12.10).</summary>
 public class TravaExecucaoTestes
 {
-    static string Lock(string pasta) => Path.Combine(pasta, ".pmvni-ai", "editor", "execucao.lock");
+    static string Lock(string pasta) => Path.Combine(ControlesDoProcesso.Diretorio(pasta, "editor"), "execucao.lock");
 
     sealed class TempoSimulado : TimeProvider
     {
@@ -147,7 +147,7 @@ public class TravaExecucaoTestes
         var pasta = Ambiente.NovoProcesso(t).Pasta;
         var agora = new DateTime(2026, 11, 15, 14, 32, 5);
         var r = RegistroExecucao.Criar(pasta, Provedor.ChatGpt, agora);
-        Assert.Equal(Path.Combine(pasta, ".pmvni-ai", "editor", "2026-11-15_143205-chatgpt"), r.Pasta);
+        Assert.Equal(Path.Combine(ControlesDoProcesso.Diretorio(pasta, "editor"), "2026-11-15_143205-chatgpt"), r.Pasta);
         Assert.True(Directory.Exists(r.Pasta));
 
         // Repetida no mesmo segundo: _2, _3.

@@ -51,8 +51,8 @@ internal static partial class RecuperacaoAnaliseLocal
         return destino;
     }
 
-    static string DiretorioCheckpoint(string origem, string execucao) =>
-        Dentro(origem, Path.Combine(".pmvni-ai", "retomadas-locais", NomeExecucao(execucao)));
+    static string DiretorioCheckpoint(string origem, string execucao, bool gravar = false) =>
+        ControlesDoProcesso.Execucao(origem, "retomadas-locais", NomeExecucao(execucao), gravar);
 
     internal static bool Existe(string origem, string execucao) => LerPonteiro(DiretorioCheckpoint(origem, execucao)) != null;
 
@@ -366,7 +366,7 @@ internal static partial class RecuperacaoAnaliseLocal
         local = Raiz(local);
         ConferirRaizes(origem, local);
         var rota = NomeRota(controleRota);
-        var pasta = DiretorioCheckpoint(origem, execucao);
+        var pasta = DiretorioCheckpoint(origem, execucao, gravar: true);
         Directory.CreateDirectory(pasta);
         using var trava = Reservar(pasta, ct);
         var anterior = LerPonteiro(pasta)?.Atual;
@@ -445,19 +445,20 @@ internal static partial class RecuperacaoAnaliseLocal
         var id = NomeExecucao(execucao);
         var rota = NomeRota(controleRota);
         // O executor legado trava o primeiro byte com msvcrt. Abrir somente a trava já existente mantém o legado intacto.
-        var caminhoTrava = Dentro(origem, Path.Combine(".pmvni-ai", "editor", id, "EXECUTOR.LOCK"));
+        var fonte = Path.GetDirectoryName(ControlesDoProcesso.RaizLegada(origem))!;
+        var caminhoTrava = Dentro(fonte, Path.Combine(".pmvni-ai", "editor", id, "EXECUTOR.LOCK"));
         using var executor = new FileStream(caminhoTrava, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
         try { executor.Lock(0, 1); }
         catch (IOException ex) { throw new IOException("O executor da análise está ativo ou a estação não obteve a trava do servidor.", ex); }
-        var controle = Dentro(origem, Path.Combine(".pmvni-ai", rota, "engine_state.json"));
+        var controle = Dentro(fonte, Path.Combine(".pmvni-ai", rota, "engine_state.json"));
         using var estado = JsonDocument.Parse(File.ReadAllBytes(controle));
         var anterior = Campo(estado.RootElement, "case");
         if (!Path.IsPathFullyQualified(anterior)) throw new InvalidDataException("Raiz antiga ilegível.");
         if (!MesmoProcesso(origem, anterior, Path.Combine(".pmvni-ai", rota, "engine_state.json")))
             throw new InvalidDataException("A pasta da execução legada não corresponde à origem nesta estação. Confira o compartilhamento ou retome na estação de origem.");
-        var arquivos = Inventariar(origem, id, rota, true).Select(c => Medir(origem, c, ct)).ToList();
-        InstalarControle(local, arquivos, a => Dentro(origem, a.Nome), id, ct,
-            () => ConferirEstabilidade(origem, id, rota, true, arquivos, ct));
+        var arquivos = Inventariar(fonte, id, rota, true).Select(c => Medir(fonte, c, ct)).ToList();
+        InstalarControle(local, arquivos, a => Dentro(fonte, a.Nome), id, ct,
+            () => ConferirEstabilidade(fonte, id, rota, true, arquivos, ct));
         return anterior;
     }
 
@@ -558,7 +559,7 @@ internal static partial class RecuperacaoAnaliseLocal
         return "validada";
     }
 
-    static string IndiceEntrega(string origem, string id) => Dentro(origem, Path.Combine(".pmvni-ai", "entregas", NomeExecucao(id)));
+    static string IndiceEntrega(string origem, string id, bool gravar = false) => ControlesDoProcesso.Execucao(origem, "entregas", NomeExecucao(id), gravar);
 
     internal static FimAnalise Publicar(string origem, string local, string id, string controleRota, FimAnalise fim,
         Action conferirOriginais, CancellationToken ct = default)
@@ -584,11 +585,12 @@ internal static partial class RecuperacaoAnaliseLocal
         var nomePdf = pdf is null ? null : Path.GetFileName(pdf);
         if (nomePdf != null) mapa.Add(nomePdf, pdf!);
         var arquivos = mapa.OrderBy(p => p.Key, Nomes).Select(p => Medir(local, p.Value, ct) with { Nome = p.Key }).ToList();
-        var manifesto = new Entrega(1, AreaAnaliseLocal.Identidade(origem), id, rota, modo, etapa, nomeDoc, nomePdf, arquivos);
-        var indice = IndiceEntrega(origem, id);
+        var manifesto = new Entrega(2, AreaAnaliseLocal.Identidade(origem), id, rota, modo, etapa, nomeDoc, nomePdf, arquivos);
+        var indice = IndiceEntrega(origem, id, gravar: true);
         Directory.CreateDirectory(indice);
         using var trava = Reservar(indice, ct);
-        var pasta = Dentro(origem, Path.Combine(Produtos, NomeExecucao(id)));
+        var pasta = Dentro(indice, "produtos");
+        var publicados = Dentro(origem, Path.Combine(Produtos, NomeExecucao(id)));
         byte[] dados;
         string sha, destino, caminhoManifesto;
         Resultado? existente = null;
@@ -602,8 +604,10 @@ internal static partial class RecuperacaoAnaliseLocal
             destino = Dentro(pasta, sha);
             caminhoManifesto = Dentro(indice, sha + ".json");
             if (File.Exists(caminhoManifesto) && Hash(caminhoManifesto) != sha) continue;
+            if (nomePdf is not null && File.Exists(Dentro(publicados, Path.Combine(sha, nomePdf))) &&
+                Hash(Dentro(publicados, Path.Combine(sha, nomePdf))) != arquivos.Single(a => Nomes.Equals(a.Nome, nomePdf)).Sha256) continue;
             if (!Directory.Exists(destino)) break;
-            try { existente = ValidarProduto(origem, id, sha, manifesto); break; }
+            try { existente = ValidarProduto(origem, id, sha, manifesto, conferirPdfPublicado: false); break; }
             catch (InvalidDataException) { }
             catch (FileNotFoundException) { }
             catch (DirectoryNotFoundException) { }
@@ -649,6 +653,18 @@ internal static partial class RecuperacaoAnaliseLocal
             resultado = existente;
             ConferirPublicacao();
         }
+        if (nomePdf is not null)
+        {
+            var publicado = Dentro(publicados, Path.Combine(sha, nomePdf));
+            var esperado = arquivos.Single(a => Nomes.Equals(a.Nome, nomePdf));
+            if (!File.Exists(publicado))
+            {
+                try { InstalarArquivo(publicado, tmp => Copiar(Dentro(destino, nomePdf), tmp, esperado, ct), false); }
+                catch (IOException) when (File.Exists(publicado) && Hash(publicado) == esperado.Sha256) { }
+            }
+            if (Hash(publicado) != esperado.Sha256) throw new InvalidDataException("O PDF publicado diverge da montagem.");
+            resultado = resultado with { Pdf = publicado };
+        }
         var anterior = LerPonteiro(indice)?.Atual;
         if (anterior != sha)
             InstalarArquivo(Dentro(indice, "ATUAL.JSON"), tmp => File.WriteAllBytes(tmp, JsonSerializer.SerializeToUtf8Bytes(new Ponteiro(sha, anterior))), true);
@@ -657,14 +673,15 @@ internal static partial class RecuperacaoAnaliseLocal
             Mensagem = modo == "para_revisao" ? "Versão para revisão. Etapa pendente: " + etapa : fim.Mensagem };
     }
 
-    static Resultado ValidarProduto(string origem, string id, string sha, Entrega entrega)
+    static Resultado ValidarProduto(string origem, string id, string sha, Entrega entrega, bool conferirPdfPublicado = true)
     {
-        if (entrega.Versao != 1 || entrega.Execucao != id ||
+        if (entrega.Versao is not (1 or 2) || entrega.Execucao != id ||
             !MesmoProcesso(origem, entrega.Processo, Path.Combine(".pmvni-ai", "entregas", id, "ATUAL.JSON")) ||
             !Rotas.Contains(entrega.Controle) || entrega.Modo is not ("validada" or "edicao_manual" or "para_revisao") ||
             (entrega.Modo != "para_revisao" && (entrega.Pdf is null) != (entrega.Modo == "edicao_manual")))
             throw new InvalidDataException("A publicação não pertence a esta execução.");
-        var pasta = Dentro(origem, Path.Combine(Produtos, id, sha));
+        var publicacao = Dentro(origem, Path.Combine(Produtos, id, sha));
+        var pasta = entrega.Versao == 1 ? publicacao : Dentro(IndiceEntrega(origem, id), Path.Combine("produtos", sha));
         var nomes = new HashSet<string>(Nomes);
         foreach (var a in entrega.Arquivos)
         {
@@ -674,7 +691,10 @@ internal static partial class RecuperacaoAnaliseLocal
         }
         if (!nomes.Contains(entrega.Documento) || entrega.Pdf != null && !nomes.Contains(entrega.Pdf))
             throw new InvalidDataException("O manifesto não identifica os arquivos publicados.");
-        return new(Dentro(pasta, entrega.Documento), entrega.Pdf is null ? null : Dentro(pasta, entrega.Pdf), null)
+        var pdf = entrega.Pdf is null ? null : Dentro(publicacao, entrega.Pdf);
+        if (pdf != null && conferirPdfPublicado && entrega.Versao == 2 && Hash(pdf) != entrega.Arquivos.Single(a => Nomes.Equals(a.Nome, entrega.Pdf)).Sha256)
+            throw new InvalidDataException("O PDF publicado diverge da montagem.");
+        return new(Dentro(pasta, entrega.Documento), pdf, null)
             { ParaRevisao = entrega.Modo == "para_revisao" };
     }
 

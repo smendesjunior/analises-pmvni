@@ -27,10 +27,30 @@ public sealed record ConsumoAoVivo(string Rota, DateTimeOffset? TokensObservados
                 || Instante(sessao, "atividade_em") is not { } atividade || atividade.UtcDateTime < inicio
                 || (agora.Value - atividade).TotalSeconds is < -5 or > 90) continue;
             var modelo = ProgressoLocal.Texto(sessao, "modelo_observado");
-            modelos.Add(string.IsNullOrWhiteSpace(modelo) ? "Aguardando identificação do modelo" : modelo);
+            if (string.IsNullOrWhiteSpace(modelo))
+            {
+                modelos.Add("Aguardando identificação do modelo");
+                continue;
+            }
+            var esforco = NivelParaExibicao(ProgressoLocal.Texto(sessao, "esforco_observado"));
+            if (esforco is null && NivelParaExibicao(ProgressoLocal.Texto(sessao, "esforco_solicitado")) is { } solicitado)
+                esforco = solicitado + " (solicitado)";
+            modelos.Add(esforco is null ? modelo : $"{modelo} · {esforco}");
         }
-        return modelos.Count > 0 ? string.Join(" · ", modelos) : null;
+        return modelos.Count > 0 ? string.Join(" / ", modelos) : null;
     }
+
+    static string? NivelParaExibicao(string? valor) => valor?.Trim().ToLowerInvariant() switch
+    {
+        "minimal" or "mínimo" or "minimo" => "Mínimo",
+        "low" or "baixo" or "leve" => "Leve",
+        "medium" or "medio" or "médio" => "Médio",
+        "high" or "alto" => "Alto",
+        "xhigh" or "extra alto" => "Extra alto",
+        "max" or "maximo" or "máximo" => "Máximo",
+        "ultra" => "Ultra",
+        _ => null
+    };
 
     public bool SemJanela5h { get; init; }
 

@@ -26,9 +26,14 @@ public class ConsumoAoVivoTestes
         amostra["sessoes"] = new JsonObject { ["a"] = a, ["b"] = b };
         string? LerAoVivo() => ConsumoAoVivo.Ler(Gravar(pasta, amostra), default, Provedor.ChatGpt,
             "registro", OrdemDasEtapas.Padrao, null, agora).Amostra?.ModelosEmExecucao;
-        Assert.Equal("sol · terra", LerAoVivo());
+        Assert.Equal("sol / terra", LerAoVivo());
+        a["esforco_observado"] = "low";
+        b["esforco_solicitado"] = "high";
+        Assert.Equal("sol · Alto (solicitado) / terra · Leve", LerAoVivo());
+        b["esforco_observado"] = "medium";
+        Assert.Equal("sol · Médio / terra · Leve", LerAoVivo());
         a["estado"] = "concluido";
-        Assert.Equal("sol", LerAoVivo());
+        Assert.Equal("sol · Médio", LerAoVivo());
         b["modelo_observado"] = null;
         Assert.Equal("Aguardando identificação do modelo", LerAoVivo());
         b["atividade_em"] = agora.AddMinutes(-2);

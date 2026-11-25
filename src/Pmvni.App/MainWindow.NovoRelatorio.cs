@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -1336,6 +1336,7 @@ public sealed partial class MainWindow
     /// <summary>Na abertura (2026-11-17): uma análise do ChatGPT que não terminou (o editor caiu ou a cota acabou) é oferecida para continuar de onde parou.</summary>
     internal async Task RetomarExecucoesChatGptAsync()
     {
+        await AtualizarReferenciasDeRegistroAsync(ajustes.ExecucoesChatGpt);
         await CarregarHistoricoAsync();
         if (fechada) return;
         var anterior = historicoAnalises.DistinctBy(h => h.Processo.Pasta, StringComparer.OrdinalIgnoreCase)
@@ -1632,6 +1633,7 @@ public sealed partial class MainWindow
     /// <c>ajustes.json</c> (editável): um registro fora de <c>&lt;processo&gt;\.pmvni-ai\editor</c> (ou atrás de um atalho) é descartado com o motivo à vista.</summary>
     internal async Task RetomarExecucoesClaudeAsync()
     {
+        await AtualizarReferenciasDeRegistroAsync(ajustes.ExecucoesClaude);
         foreach (var pend in ajustes.ExecucoesClaude.ToList())
         {
             if (sessaoNR.EmAndamento(pend.Processo)) continue;
@@ -1732,6 +1734,22 @@ public sealed partial class MainWindow
         await LerPecasAsync();
         return await AnalisarComPerfilAsync(p, processo, [], FluxoNovoRelatorio.PedidoContinuar, enviados: null, registroAnterior: pastaRegistro, corrigirEntrega: corrigirEntrega);
     });
+
+    async Task AtualizarReferenciasDeRegistroAsync(List<ExecucaoClaudePendente> pendentes)
+    {
+        var alterou = false;
+        foreach (var item in pendentes.ToArray())
+        {
+            var atual = await Task.Run(() => ControlesDoProcesso.RegistroAtual(item.Processo, item.Registro));
+            var indice = pendentes.IndexOf(item);
+            if (indice < 0 || MesmoRegistro(item.Registro, atual)) continue;
+            var migrado = item with { Registro = atual };
+            if (pendentes.Contains(migrado)) pendentes.RemoveAt(indice);
+            else pendentes[indice] = migrado;
+            alterou = true;
+        }
+        if (alterou) SalvarAjustes();
+    }
 
     static bool MesmoRegistro(string a, string b)
     {

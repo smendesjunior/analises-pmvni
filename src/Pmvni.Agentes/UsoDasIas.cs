@@ -226,12 +226,13 @@ public static class UsoDasIas
     {
         var saida = new List<DuracaoEtapa>();
         if (string.IsNullOrWhiteSpace(pastaProcessos) || !Directory.Exists(pastaProcessos)) return saida;
-        foreach (var pmvni in ControlesSob(pastaProcessos))
+        foreach (var processo in ProcessosComControles(pastaProcessos))
         {
-            var marcados = somenteFluxoLinear ? FluxoLinear.IniciosMarcados(pmvni) : null;
-            var processo = Path.GetDirectoryName(pmvni)!;
+            var pmvni = ControlesDoProcesso.RaizLegada(processo);
+            var registros = ControlesDoProcesso.Registros(processo).ToArray();
+            var marcados = somenteFluxoLinear ? FluxoLinear.IniciosMarcados(registros) : null;
             var locais = new HashSet<(string Id, string Rota)>();
-            foreach (var registro in Subpastas(Path.Combine(pmvni, "editor")))
+            foreach (var registro in registros)
             {
                 try
                 {
@@ -282,16 +283,20 @@ public static class UsoDasIas
         return saida;
     }
 
-    static IEnumerable<string> ControlesSob(string raiz)
+    static IEnumerable<string> ProcessosComControles(string raiz)
     {
         var fila = new Queue<(string Pasta, int Profundidade)>();
         fila.Enqueue((raiz, 0));
         while (fila.TryDequeue(out var item))
-            foreach (var sub in Subpastas(item.Pasta))
-            {
-                if (Path.GetFileName(sub).Equals(".pmvni-ai", StringComparison.OrdinalIgnoreCase)) yield return sub;
-                else if (item.Profundidade < 3) fila.Enqueue((sub, item.Profundidade + 1));
-            }
+        {
+            if (Directory.Exists(ControlesDoProcesso.RaizLegada(item.Pasta)) ||
+                Directory.Exists(ControlesDoProcesso.Diretorio(item.Pasta, "editor")))
+                yield return item.Pasta;
+            if (item.Profundidade < 3)
+                foreach (var sub in Subpastas(item.Pasta))
+                    if (!Path.GetFileName(sub).Equals(".pmvni-ai", StringComparison.OrdinalIgnoreCase))
+                        fila.Enqueue((sub, item.Profundidade + 1));
+        }
     }
 
     static string[] Subpastas(string raiz)

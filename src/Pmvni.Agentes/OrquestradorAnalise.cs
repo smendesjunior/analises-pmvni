@@ -21,7 +21,7 @@ public sealed record PedidoExecucao(Provedor Provedor, Processo Processo, Pecas 
     public string? NomeProfissional { get; init; }
     public string? CargoProfissional { get; init; }
     public string? PastaKit { get; init; }
-    internal bool UsarDocumentos { get; init; }
+    internal bool UsarDocumentos { get; init; } = true;
     internal string? OrigemCompartilhada { get; init; }
     internal Action<string>? AoPrepararLocal { get; init; }
 

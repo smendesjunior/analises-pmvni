@@ -417,7 +417,7 @@ public sealed partial class MainWindow
         var ct = origem.Token;
         try
         {
-            var d = await Task.Run(() => Processos.Detalhar(p, ct), ct);
+            var d = await Task.Run(() => Processos.Detalhar(p, ct, Pmvni.Agentes.ControlesDoProcesso.RaizLegada(p.Pasta)), ct);
             if (ct.IsCancellationRequested || fechada) return;
             detalheAtual = d;
             RenderizarDetalhe();

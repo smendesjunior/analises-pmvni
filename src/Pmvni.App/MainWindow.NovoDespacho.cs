@@ -338,7 +338,7 @@ public sealed partial class MainWindow
             {
                 EmissaoDespacho.LimparOrfas(s.RaizTrabalho);
                 IReadOnlyList<Processo> lista = Directory.Exists(raiz) ? Processos.Listar(raiz, CancellationToken.None).Itens : [];
-                var sug = FluxoNovoDespacho.Sugerir(origem, selecionado, aberto, lista, p => Processos.Detalhar(p, CancellationToken.None).Relatorios, hoje);
+                var sug = FluxoNovoDespacho.Sugerir(origem, selecionado, aberto, lista, p => Processos.Detalhar(p, CancellationToken.None, Pmvni.Agentes.ControlesDoProcesso.RaizLegada(p.Pasta)).Relatorios, hoje);
                 return (lista, sug, SessaoNovoDespacho.LerModelo(lidos, t));
             });
             if (!ReferenceEquals(novo, s)) return false;
